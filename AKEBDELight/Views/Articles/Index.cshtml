@@ -1,0 +1,43 @@
+@model List<Article>
+@{
+    ViewData["Title"] = "Artikel";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="page-header mb-0">Artikel</h2>
+    <a asp-action="Create" class="btn btn-primary">Neuen Artikel anlegen</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Artikelnummer</th>
+                <th>Bezeichnung</th>
+                <th>Einheit</th>
+                <th>Erstellt am</th>
+                <th style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var article in Model)
+            {
+                <tr>
+                    <td><strong>@article.ArticleNumber</strong></td>
+                    <td>@article.Description</td>
+                    <td>@article.Unit</td>
+                    <td>@article.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@article.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Keine Artikel vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

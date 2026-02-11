@@ -1,0 +1,65 @@
+@model StockMovementCreateViewModel
+@{
+    ViewData["Title"] = "Ausbuchung";
+}
+
+<h2 class="page-header" style="border-bottom-color: var(--ake-orange);">Ausbuchung</h2>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header" style="background-color: var(--ake-orange);">
+                Ware ausbuchen
+            </div>
+            <div class="card-body">
+                <form asp-action="Outbound" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="ArticleId" class="form-label"></label>
+                        <select asp-for="ArticleId" class="form-select"
+                                asp-items="@(new SelectList(Model.Articles, "Id", "ArticleNumber"))">
+                            <option value="">-- Artikel wählen --</option>
+                        </select>
+                        <span asp-validation-for="ArticleId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Quantity" class="form-label"></label>
+                        <input asp-for="Quantity" class="form-control" type="number" step="0.001" min="0.001" />
+                        <span asp-validation-for="Quantity" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="StorageLocationId" class="form-label"></label>
+                        <select asp-for="StorageLocationId" class="form-select"
+                                asp-items="@(new SelectList(Model.StorageLocations, "Id", "Code"))">
+                            <option value="">-- Lagerplatz wählen --</option>
+                        </select>
+                        <span asp-validation-for="StorageLocationId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ProductionOrder" class="form-label"></label>
+                        <input asp-for="ProductionOrder" class="form-control" />
+                        <span asp-validation-for="ProductionOrder" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="UserId" class="form-label"></label>
+                        <select asp-for="UserId" class="form-select"
+                                asp-items="@(new SelectList(Model.Users, "Id", "Name"))">
+                            <option value="">-- Benutzer wählen (optional) --</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning btn-lg w-100">Ausbuchung speichern</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

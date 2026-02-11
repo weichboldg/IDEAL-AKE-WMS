@@ -1,0 +1,86 @@
+@model StockOverviewViewModel
+@{
+    ViewData["Title"] = "Artikelbestände";
+}
+
+<h2 class="page-header">Artikelbestände</h2>
+
+<div class="card filter-card mb-4">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Artikel</label>
+                    <input type="text" name="filterArticle" value="@Model.FilterArticle" class="form-control" placeholder="Artikelnr. oder Bezeichnung" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Lagerplatz</label>
+                    <select name="filterStorageLocationId" class="form-select">
+                        <option value="">-- Alle --</option>
+                        @foreach (var sl in Model.StorageLocations)
+                        {
+                            <option value="@sl.Id" selected="@(Model.FilterStorageLocationId == sl.Id)">@sl.Code</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Bestand min.</label>
+                    <input type="number" name="filterMinQuantity" value="@Model.FilterMinQuantity" class="form-control" step="0.01" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Bestand max.</label>
+                    <input type="number" name="filterMaxQuantity" value="@Model.FilterMaxQuantity" class="form-control" step="0.01" />
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-secondary">Filtern</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Artikelnummer</th>
+                <th>Bezeichnung</th>
+                <th>Lagerplatz</th>
+                <th>Einheit</th>
+                <th class="text-end">Aktueller Bestand</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                var qtyClass = item.CurrentQuantity > 0 ? "qty-positive" :
+                               item.CurrentQuantity == 0 ? "qty-zero" : "qty-negative";
+                <tr>
+                    <td><strong>@item.ArticleNumber</strong></td>
+                    <td>@item.ArticleDescription</td>
+                    <td>
+                        <strong>@item.StorageLocationCode</strong>
+                        @if (!string.IsNullOrEmpty(item.StorageLocationDescription))
+                        {
+                            <br /><small class="text-muted">@item.StorageLocationDescription</small>
+                        }
+                    </td>
+                    <td>@item.Unit</td>
+                    <td class="text-end @qtyClass">@item.CurrentQuantity.ToString("N3")</td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Keine Bestände gefunden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-3 text-muted">
+    <small>@Model.Items.Count Einträge</small>
+</div>

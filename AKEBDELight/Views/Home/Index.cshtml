@@ -1,0 +1,95 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h2 class="page-header">Dashboard</h2>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="StockMovements" asp-action="Inbound" class="text-decoration-none">
+            <div class="card dashboard-card h-100" style="border-left-color: var(--ake-green);">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Einbuchung</h5>
+                    <p class="card-text mb-0" style="color: var(--ake-green); font-size: 2rem;">+</p>
+                    <small class="text-muted">Ware einbuchen</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="StockMovements" asp-action="Outbound" class="text-decoration-none">
+            <div class="card dashboard-card h-100" style="border-left-color: var(--ake-orange);">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Ausbuchung</h5>
+                    <p class="card-text mb-0" style="color: var(--ake-orange); font-size: 2rem;">-</p>
+                    <small class="text-muted">Ware ausbuchen</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="StockOverview" asp-action="Index" class="text-decoration-none">
+            <div class="card dashboard-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Bestände</h5>
+                    <p class="card-text mb-0" style="font-size: 2rem;">&#128230;</p>
+                    <small class="text-muted">Aktuelle Bestände anzeigen</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="StockMovements" asp-action="Index" class="text-decoration-none">
+            <div class="card dashboard-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Bewegungen</h5>
+                    <p class="card-text mb-0" style="font-size: 2rem;">&#128203;</p>
+                    <small class="text-muted">Bewegungshistorie</small>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="Articles" asp-action="Index" class="text-decoration-none">
+            <div class="card dashboard-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Artikel</h5>
+                    <small class="text-muted">Artikelstammdaten</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="StorageLocations" asp-action="Index" class="text-decoration-none">
+            <div class="card dashboard-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Lagerplätze</h5>
+                    <small class="text-muted">Lagerplatzverwaltung</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="Users" asp-action="Index" class="text-decoration-none">
+            <div class="card dashboard-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Benutzer</h5>
+                    <small class="text-muted">Benutzerverwaltung</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a asp-controller="Workstations" asp-action="Index" class="text-decoration-none">
+            <div class="card dashboard-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Arbeitsplätze</h5>
+                    <small class="text-muted">Arbeitsplatzverwaltung</small>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>

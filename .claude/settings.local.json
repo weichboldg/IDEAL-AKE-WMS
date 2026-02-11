@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.ideal-ake.at)",
+      "Bash(dotnet:*)"
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+@model WorkstationEditViewModel
+@{
+    ViewData["Title"] = "Arbeitsplatz bearbeiten";
+}
+
+<h2 class="page-header">Arbeitsplatz bearbeiten</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Name" class="form-label"></label>
+                            <input asp-for="Name" class="form-control" autofocus />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Location" class="form-label"></label>
+                            <input asp-for="Location" class="form-control" />
+                            <span asp-validation-for="Location" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultUserId" class="form-label"></label>
+                        <select asp-for="DefaultUserId" class="form-select"
+                                asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">
+                            <option value="">-- Kein Standard-Benutzer --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="SelectedUserIds" class="form-label"></label>
+                        <select asp-for="SelectedUserIds" class="form-select" multiple size="6"
+                                asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">
+                        </select>
+                        <small class="form-text text-muted">Halten Sie Strg gedrückt, um mehrere Benutzer auszuwählen.</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

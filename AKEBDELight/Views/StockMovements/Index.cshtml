@@ -1,0 +1,114 @@
+@model MovementHistoryViewModel
+@{
+    ViewData["Title"] = "Bewegungshistorie";
+}
+
+<h2 class="page-header">Bewegungshistorie</h2>
+
+<div class="card filter-card mb-4">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Von</label>
+                    <input type="date" name="dateFrom" value="@Model.FilterDateFrom?.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Bis</label>
+                    <input type="date" name="dateTo" value="@Model.FilterDateTo?.ToString("yyyy-MM-dd")" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Artikel</label>
+                    <input type="text" name="filterArticle" value="@Model.FilterArticle" class="form-control" placeholder="Artikelnr. oder Bezeichnung" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Lagerplatz</label>
+                    <select name="filterStorageLocationId" class="form-select">
+                        <option value="">-- Alle --</option>
+                        @foreach (var sl in Model.StorageLocations)
+                        {
+                            <option value="@sl.Id" selected="@(Model.FilterStorageLocationId == sl.Id)">@sl.Code</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Bewegungsart</label>
+                    <select name="filterMovementType" class="form-select">
+                        <option value="">-- Alle --</option>
+                        <option value="0" selected="@(Model.FilterMovementType == MovementType.Einbuchung)">Einbuchung</option>
+                        <option value="1" selected="@(Model.FilterMovementType == MovementType.Ausbuchung)">Ausbuchung</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Benutzer</label>
+                    <select name="filterUserId" class="form-select">
+                        <option value="">-- Alle --</option>
+                        @foreach (var user in Model.Users)
+                        {
+                            <option value="@user.Id" selected="@(Model.FilterUserId == user.Id)">@user.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fertigungsauftrag</label>
+                    <input type="text" name="filterProductionOrder" value="@Model.FilterProductionOrder" class="form-control" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-secondary">Filtern</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Datum/Zeit</th>
+                <th>Artikel</th>
+                <th>Menge</th>
+                <th>Lagerplatz</th>
+                <th>Bewegungsart</th>
+                <th>Benutzer</th>
+                <th>Fertigungsauftrag</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr>
+                    <td>@item.Timestamp.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>
+                        <strong>@item.ArticleNumber</strong>
+                        @if (!string.IsNullOrEmpty(item.ArticleDescription))
+                        {
+                            <br /><small class="text-muted">@item.ArticleDescription</small>
+                        }
+                    </td>
+                    <td>@item.Quantity.ToString("N3")</td>
+                    <td>@item.StorageLocationCode</td>
+                    <td>
+                        <span class="@(item.MovementType == MovementType.Einbuchung ? "badge-einbuchung" : "badge-ausbuchung")">
+                            @item.MovementTypeName
+                        </span>
+                    </td>
+                    <td>@item.UserName</td>
+                    <td>@item.ProductionOrder</td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">Keine Bewegungen gefunden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-3 text-muted">
+    <small>@Model.Items.Count Einträge</small>
+</div>

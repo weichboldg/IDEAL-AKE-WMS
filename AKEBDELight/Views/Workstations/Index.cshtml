@@ -1,0 +1,48 @@
+@model List<Workstation>
+@{
+    ViewData["Title"] = "Arbeitsplätze";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="page-header mb-0">Arbeitsplätze</h2>
+    <a asp-action="Create" class="btn btn-primary">Neuen Arbeitsplatz anlegen</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Bezeichnung</th>
+                <th>Standort</th>
+                <th>Standard-Benutzer</th>
+                <th>Zugeordnete Benutzer</th>
+                <th style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ws in Model)
+            {
+                <tr>
+                    <td><strong>@ws.Name</strong></td>
+                    <td>@ws.Location</td>
+                    <td>@ws.DefaultUser?.Name</td>
+                    <td>
+                        @foreach (var wu in ws.WorkstationUsers)
+                        {
+                            <span class="badge bg-secondary me-1">@wu.User.Name</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@ws.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Keine Arbeitsplätze vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
