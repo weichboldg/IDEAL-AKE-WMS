@@ -17,10 +17,18 @@
 
                     <div class="mb-3">
                         <label asp-for="ArticleId" class="form-label"></label>
-                        <select asp-for="ArticleId" class="form-select"
-                                asp-items="@(new SelectList(Model.Articles, "Id", "ArticleNumber"))">
-                            <option value="">-- Artikel wählen --</option>
-                        </select>
+                        <div class="input-group">
+                            <select asp-for="ArticleId" class="form-select"
+                                    asp-items="@(new SelectList(Model.Articles, "Id", "ArticleNumber"))">
+                                <option value="">-- Artikel wählen --</option>
+                            </select>
+                            <button type="button" id="btnScanArticle" class="btn btn-secondary scan-btn" title="QR-Code scannen">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                    <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                                </svg>
+                            </button>
+                        </div>
                         <span asp-validation-for="ArticleId" class="text-danger"></span>
                     </div>
 
@@ -32,10 +40,18 @@
 
                     <div class="mb-3">
                         <label asp-for="StorageLocationId" class="form-label"></label>
-                        <select asp-for="StorageLocationId" class="form-select"
-                                asp-items="@(new SelectList(Model.StorageLocations, "Id", "Code"))">
-                            <option value="">-- Lagerplatz wählen --</option>
-                        </select>
+                        <div class="input-group">
+                            <select asp-for="StorageLocationId" class="form-select"
+                                    asp-items="@(new SelectList(Model.StorageLocations, "Id", "Code"))">
+                                <option value="">-- Lagerplatz wählen --</option>
+                            </select>
+                            <button type="button" id="btnScanStorageLocation" class="btn btn-secondary scan-btn" title="Barcode scannen">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                    <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                                </svg>
+                            </button>
+                        </div>
                         <span asp-validation-for="StorageLocationId" class="text-danger"></span>
                     </div>
 
@@ -43,14 +59,6 @@
                         <label asp-for="ProductionOrder" class="form-label"></label>
                         <input asp-for="ProductionOrder" class="form-control" />
                         <span asp-validation-for="ProductionOrder" class="text-danger"></span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="UserId" class="form-label"></label>
-                        <select asp-for="UserId" class="form-select"
-                                asp-items="@(new SelectList(Model.Users, "Id", "Name"))">
-                            <option value="">-- Benutzer wählen (optional) --</option>
-                        </select>
                     </div>
 
                     <button type="submit" class="btn btn-success btn-lg w-100">Einbuchung speichern</button>
@@ -62,4 +70,6 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
 }

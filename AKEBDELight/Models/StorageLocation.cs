@@ -21,5 +21,9 @@ public class StorageLocation : AuditableEntity
     [Range(0, double.MaxValue, ErrorMessage = "Kapazität muss positiv sein")]
     public decimal? Capacity { get; set; }
 
+    [StringLength(50)]
+    [Display(Name = "Barcode-Wert")]
+    public string? BarcodeValue { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

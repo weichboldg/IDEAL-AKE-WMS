@@ -16,6 +16,16 @@ builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Session
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.Name = "AKEBDELight.Session";
+});
+
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
@@ -26,6 +36,7 @@ builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 // Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IPasswordService, PasswordService>();
 
 // MVC
 builder.Services.AddControllersWithViews();
@@ -50,6 +61,37 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseSession();
+
+// Login-Redirect Middleware: Wenn kein Benutzer in Session, auf Login umleiten
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value?.ToLower() ?? "";
+
+    // Login-Seite und statische Dateien ausschließen
+    if (path.StartsWith("/account/login") ||
+        path.StartsWith("/account/logout") ||
+        path.StartsWith("/lib/") ||
+        path.StartsWith("/css/") ||
+        path.StartsWith("/js/") ||
+        path.StartsWith("/_framework/") ||
+        path.Contains("."))
+    {
+        await next();
+        return;
+    }
+
+    // Prüfen ob Benutzer in Session angemeldet
+    var userId = context.Session.GetInt32("AppUserId");
+    if (!userId.HasValue)
+    {
+        context.Response.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(context.Request.Path + context.Request.QueryString)}");
+        return;
+    }
+
+    await next();
+});
 
 app.MapStaticAssets();
 

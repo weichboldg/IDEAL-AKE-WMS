@@ -9,11 +9,16 @@ public class UsersController : Controller
 {
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPasswordService _passwordService;
 
-    public UsersController(IUserRepository userRepository, ICurrentUserService currentUserService)
+    public UsersController(
+        IUserRepository userRepository,
+        ICurrentUserService currentUserService,
+        IPasswordService passwordService)
     {
         _userRepository = userRepository;
         _currentUserService = currentUserService;
+        _passwordService = passwordService;
     }
 
     public async Task<IActionResult> Index()
@@ -29,10 +34,13 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(User user)
+    public async Task<IActionResult> Create(User user, string? newPassword)
     {
         if (!ModelState.IsValid)
             return View(user);
+
+        if (!string.IsNullOrEmpty(newPassword))
+            user.PasswordHash = _passwordService.HashPassword(newPassword);
 
         user.CreatedAt = DateTime.Now;
         user.CreatedBy = _currentUserService.GetDisplayName();
@@ -53,7 +61,7 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, User user)
+    public async Task<IActionResult> Edit(int id, User user, string? newPassword)
     {
         if (id != user.Id)
             return NotFound();
@@ -68,6 +76,10 @@ public class UsersController : Controller
         existing.Name = user.Name;
         existing.PersonalNumber = user.PersonalNumber;
         existing.IsActive = user.IsActive;
+
+        if (!string.IsNullOrEmpty(newPassword))
+            existing.PasswordHash = _passwordService.HashPassword(newPassword);
+
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();

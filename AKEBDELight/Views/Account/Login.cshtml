@@ -1,0 +1,94 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Anmeldung";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AKE BDE Light - Anmeldung</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body {
+            background: linear-gradient(135deg, var(--ake-primary) 0%, #0a4a7a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        .login-card {
+            max-width: 420px;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .login-header {
+            background-color: var(--ake-primary);
+            color: white;
+            text-align: center;
+            padding: 2rem 1.5rem 1.5rem;
+            border-radius: 12px 12px 0 0;
+        }
+        .login-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .login-header small {
+            opacity: 0.7;
+        }
+        .login-body {
+            padding: 2rem 1.5rem;
+            background: white;
+            border-radius: 0 0 12px 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <h1>AKE BDE Light</h1>
+            <small>Lagerverwaltung</small>
+        </div>
+        <div class="login-body">
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @Model.ErrorMessage
+                </div>
+            }
+
+            <form asp-action="Login" method="post">
+                <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+
+                <div class="mb-3">
+                    <label asp-for="UserId" class="form-label">Benutzer</label>
+                    <select asp-for="UserId" class="form-select form-select-lg"
+                            asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">
+                        <option value="">-- Benutzer wählen --</option>
+                    </select>
+                    <span asp-validation-for="UserId" class="text-danger"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Password" class="form-label">Passwort</label>
+                    <input asp-for="Password" class="form-control form-control-lg" placeholder="Passwort eingeben" />
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                    <small class="form-text text-muted">Leer lassen, wenn kein Passwort vergeben.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100">Anmelden</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+</body>
+</html>

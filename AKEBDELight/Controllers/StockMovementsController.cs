@@ -78,6 +78,9 @@ public class StockMovementsController : Controller
             return View(vm);
         }
 
+        // UserId aus Session verwenden (angemeldeter Benutzer)
+        var appUserId = _currentUserService.GetCurrentAppUserId();
+
         var movement = new StockMovement
         {
             ArticleId = vm.ArticleId,
@@ -86,7 +89,7 @@ public class StockMovementsController : Controller
             ProductionOrder = vm.ProductionOrder,
             MovementType = MovementType.Einbuchung,
             Timestamp = DateTime.Now,
-            UserId = vm.UserId,
+            UserId = appUserId,
             WindowsUser = _currentUserService.GetWindowsUserName(),
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
@@ -121,6 +124,8 @@ public class StockMovementsController : Controller
             return View(vm);
         }
 
+        var appUserId = _currentUserService.GetCurrentAppUserId();
+
         var movement = new StockMovement
         {
             ArticleId = vm.ArticleId,
@@ -129,7 +134,7 @@ public class StockMovementsController : Controller
             ProductionOrder = vm.ProductionOrder,
             MovementType = MovementType.Ausbuchung,
             Timestamp = DateTime.Now,
-            UserId = vm.UserId,
+            UserId = appUserId,
             WindowsUser = _currentUserService.GetWindowsUserName(),
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),

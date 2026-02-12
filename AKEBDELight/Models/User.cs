@@ -16,6 +16,9 @@ public class User : AuditableEntity
     [Display(Name = "Aktiv")]
     public bool IsActive { get; set; } = true;
 
+    [StringLength(500)]
+    public string? PasswordHash { get; set; }
+
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
     public ICollection<Workstation> DefaultWorkstations { get; set; } = new List<Workstation>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();

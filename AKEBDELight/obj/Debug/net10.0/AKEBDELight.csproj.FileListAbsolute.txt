@@ -154,7 +154,6 @@ C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\rjsmcshtml.dswa.cach
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\scopedcss\Views\Shared\_Layout.cshtml.rz.scp.css
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\scopedcss\bundle\AKEBDELight.styles.css
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\scopedcss\projectbundle\AKEBDELight.bundle.scp.css
-C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\4aus7y1xvc-{0}-ug67lt9tz5-ug67lt9tz5.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\v3ccvqxykl-{0}-61n19gt1b8-61n19gt1b8.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\csdv1p6p96-{0}-xtxxf3hu2r-xtxxf3hu2r.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\mm77fnsuzr-{0}-bqjiyaj88i-bqjiyaj88i.gz
@@ -229,3 +228,19 @@ C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\refint\AKEBDELight.d
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\AKEBDELight.pdb
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\AKEBDELight.genruntimeconfig.cache
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\ref\AKEBDELight.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\BarcodeStandard.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\SkiaSharp.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\System.Resources.Extensions.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\linux-arm\native\libSkiaSharp.so
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\linux-arm64\native\libSkiaSharp.so
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\linux-musl-x64\native\libSkiaSharp.so
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\linux-x64\native\libSkiaSharp.so
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\osx\native\libSkiaSharp.dylib
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-arm64\native\libSkiaSharp.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-arm64\native\libSkiaSharp.pdb
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x64\native\libSkiaSharp.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x64\native\libSkiaSharp.pdb
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x86\native\libSkiaSharp.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x86\native\libSkiaSharp.pdb
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\4aus7y1xvc-{0}-31j0a4o4x0-31j0a4o4x0.gz
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\oq94b6fmqf-{0}-83mopyd9bh-83mopyd9bh.gz

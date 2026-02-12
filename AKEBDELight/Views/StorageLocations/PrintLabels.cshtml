@@ -1,0 +1,164 @@
+@model List<StorageLocation>
+@{
+    ViewData["Title"] = "Lagerplatz-Etiketten";
+    Layout = null;
+    var labelsData = ViewBag.LabelsData as List<(StorageLocation Location, string BarcodeBase64)>;
+}
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Lagerplatz-Etiketten</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #000;
+            background: #fff;
+        }
+
+        .screen-controls {
+            padding: 20px;
+            text-align: center;
+            background: #053153;
+            color: #fff;
+        }
+
+        .screen-controls h2 {
+            margin-bottom: 10px;
+        }
+
+        .screen-controls .btn {
+            display: inline-block;
+            padding: 10px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            color: #fff;
+        }
+
+        .btn-print {
+            background-color: #82BF6E;
+        }
+
+        .btn-back {
+            background-color: #43A6E2;
+        }
+
+        .labels-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .label {
+            width: 50mm;
+            height: 30mm;
+            border: 1px dashed #ccc;
+            padding: 2mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+
+        .label-code {
+            font-size: 10pt;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .label-description {
+            font-size: 6pt;
+            text-align: center;
+            color: #333;
+            line-height: 1.1;
+            max-height: 3.5mm;
+            overflow: hidden;
+        }
+
+        .label-zone {
+            font-size: 6pt;
+            text-align: center;
+            color: #666;
+        }
+
+        .label-barcode img {
+            max-width: 44mm;
+            height: 10mm;
+        }
+
+        @@media print {
+            .screen-controls {
+                display: none !important;
+            }
+
+            body {
+                background: #fff;
+            }
+
+            .labels-container {
+                padding: 0;
+                gap: 0;
+            }
+
+            .label {
+                border: none;
+                width: 50mm;
+                height: 30mm;
+                margin: 0;
+                padding: 1.5mm;
+            }
+
+            @@page {
+                size: auto;
+                margin: 5mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="screen-controls">
+        <h2>Lagerplatz-Etiketten (@Model.Count Stück)</h2>
+        <button class="btn btn-print" onclick="window.print()">Drucken</button>
+        <a class="btn btn-back" href="/StorageLocations">Zurück</a>
+    </div>
+
+    <div class="labels-container">
+        @if (labelsData != null)
+        {
+            @foreach (var (location, barcodeBase64) in labelsData)
+            {
+                <div class="label">
+                    <div class="label-code">@location.Code</div>
+                    @if (!string.IsNullOrEmpty(location.Description))
+                    {
+                        <div class="label-description">@location.Description</div>
+                    }
+                    <div class="label-barcode">
+                        <img src="data:image/png;base64,@barcodeBase64" alt="@location.Code" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(location.Zone))
+                    {
+                        <div class="label-zone">@location.Zone</div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</body>
+</html>

@@ -48,7 +48,18 @@
                         </li>
                     </ul>
                     <span class="user-info d-none d-lg-inline">
-                        @User.Identity?.Name
+                        @if (Context.Session.GetInt32("AppUserId").HasValue)
+                        {
+                            <span>@Context.Session.GetString("AppUserName")</span>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline ms-2">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-light">Abmelden</button>
+                            </form>
+                        }
+                        else if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <span>@User.Identity.Name</span>
+                        }
                     </span>
                 </div>
             </div>
