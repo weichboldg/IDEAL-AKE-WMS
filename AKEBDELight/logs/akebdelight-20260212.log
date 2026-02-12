@@ -1,0 +1,9 @@
+2026-02-12 07:45:04.284 +01:00 [INF] Now listening on: https://localhost:5001
+2026-02-12 07:45:04.309 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-02-12 07:45:04.309 +01:00 [INF] Hosting environment: Development
+2026-02-12 07:45:04.309 +01:00 [INF] Content root path: C:\Entwicklung\C#\AKEBDELight\AKEBDELight
+2026-02-12 07:46:59.070 +01:00 [INF] HTTP GET /Account/Login responded 200 in 507.8339 ms
+2026-02-12 07:46:59.293 +01:00 [INF] HTTP POST /Account/Login responded 302 in 82.3178 ms
+2026-02-12 07:47:04.912 +01:00 [INF] HTTP GET /StockMovements/Inbound responded 200 in 103.1453 ms
+2026-02-12 07:47:05.029 +01:00 [INF] HTTP GET /StockMovements/Inbound responded 200 in 10.1586 ms
+2026-02-12 07:47:09.354 +01:00 [INF] HTTP GET /js/barcode-scanner.js responded 200 in 9.3776 ms

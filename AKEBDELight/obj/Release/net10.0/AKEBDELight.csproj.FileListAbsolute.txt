@@ -168,9 +168,7 @@ C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\rjsmcshtml.dswa.ca
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\scopedcss\Views\Shared\_Layout.cshtml.rz.scp.css
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\scopedcss\bundle\AKEBDELight.styles.css
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\scopedcss\projectbundle\AKEBDELight.bundle.scp.css
-C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\4aus7y1xvc-{0}-31j0a4o4x0-31j0a4o4x0.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\v3ccvqxykl-{0}-61n19gt1b8-61n19gt1b8.gz
-C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\oq94b6fmqf-{0}-83mopyd9bh-83mopyd9bh.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\csdv1p6p96-{0}-xtxxf3hu2r-xtxxf3hu2r.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\mm77fnsuzr-{0}-bqjiyaj88i-bqjiyaj88i.gz
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\7a6d6epez2-{0}-c2jlpeoesf-c2jlpeoesf.gz
@@ -244,3 +242,14 @@ C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\refint\AKEBDELight
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\AKEBDELight.pdb
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\AKEBDELight.genruntimeconfig.cache
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\ref\AKEBDELight.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.AspNetCore.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Extensions.Hosting.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Extensions.Logging.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Formatting.Compact.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Settings.Configuration.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Sinks.Console.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Sinks.Debug.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Sinks.File.dll
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\4aus7y1xvc-{0}-0c7bbr7bl2-0c7bbr7bl2.gz
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\oq94b6fmqf-{0}-grfainnemv-grfainnemv.gz

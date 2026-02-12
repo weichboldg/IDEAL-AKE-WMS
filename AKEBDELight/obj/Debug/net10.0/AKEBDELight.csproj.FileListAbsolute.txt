@@ -242,5 +242,14 @@ C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x64\nat
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x64\native\libSkiaSharp.pdb
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x86\native\libSkiaSharp.dll
 C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\runtimes\win-x86\native\libSkiaSharp.pdb
-C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\4aus7y1xvc-{0}-31j0a4o4x0-31j0a4o4x0.gz
-C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\oq94b6fmqf-{0}-83mopyd9bh-83mopyd9bh.gz
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.AspNetCore.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Extensions.Hosting.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Extensions.Logging.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Formatting.Compact.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Settings.Configuration.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Sinks.Console.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Sinks.Debug.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Debug\net10.0\Serilog.Sinks.File.dll
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\4aus7y1xvc-{0}-0c7bbr7bl2-0c7bbr7bl2.gz
+C:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Debug\net10.0\compressed\oq94b6fmqf-{0}-grfainnemv-grfainnemv.gz

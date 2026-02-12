@@ -3,8 +3,14 @@ using AKEBDELight.Data.Repositories;
 using AKEBDELight.Services;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog konfigurieren aus appsettings.json
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext());
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -63,6 +69,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseSession();
+
+// Serilog Request-Logging
+app.UseSerilogRequestLogging();
 
 // Login-Redirect Middleware: Wenn kein Benutzer in Session, auf Login umleiten
 app.Use(async (context, next) =>

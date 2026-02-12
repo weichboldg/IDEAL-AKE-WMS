@@ -365,6 +365,68 @@ body {
     font-size: 0.85rem;
 }
 
+.scanner-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.scanner-tab {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.scanner-tab.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border-bottom: 2px solid var(--ake-secondary);
+}
+
+.scanner-tab:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.scanner-info-box {
+    padding: 16px;
+    text-align: center;
+    color: #ffc107;
+    font-size: 0.9rem;
+    background: rgba(255, 193, 7, 0.1);
+}
+
+.scanner-file-upload {
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.scanner-file-label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 32px;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.scanner-file-label:hover {
+    border-color: var(--ake-secondary);
+    color: #fff;
+}
+
+.scanner-file-label span {
+    font-size: 0.9rem;
+}
+
 @media (max-width: 576px) {
     .scanner-modal-content {
         width: 98%;
