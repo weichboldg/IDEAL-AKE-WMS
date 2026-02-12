@@ -38,6 +38,7 @@ builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();

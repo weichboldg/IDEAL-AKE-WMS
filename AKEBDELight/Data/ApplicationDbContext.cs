@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -141,6 +142,27 @@ public class ApplicationDbContext : DbContext
                 .WithMany(u => u.StockMovements)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ProductionOrder
+        modelBuilder.Entity<ProductionOrder>(entity =>
+        {
+            entity.ToTable("ProductionOrders");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrderNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Customer).HasMaxLength(200);
+            entity.Property(e => e.ArticleNumber).HasMaxLength(100);
+            entity.Property(e => e.Description1).HasMaxLength(500);
+            entity.Property(e => e.Description2).HasMaxLength(500);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.OrderNumber).IsUnique();
+            entity.HasIndex(e => e.ArticleNumber);
+            entity.HasIndex(e => e.IsDone);
         });
     }
 }
