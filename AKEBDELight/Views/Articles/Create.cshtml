@@ -30,6 +30,13 @@
                         <span asp-validation-for="Unit" class="text-danger"></span>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="ReorderLevel" class="form-label"></label>
+                        <input asp-for="ReorderLevel" class="form-control" type="number" step="0.001" min="0" />
+                        <small class="text-muted">Mindestbestand für Warnung in der Bestandsliste</small>
+                        <span asp-validation-for="ReorderLevel" class="text-danger"></span>
+                    </div>
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Speichern</button>
                         <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>

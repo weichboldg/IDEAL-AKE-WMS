@@ -8,13 +8,16 @@ public class StockOverviewController : Controller
 {
     private readonly IStockMovementRepository _stockMovementRepository;
     private readonly IStorageLocationRepository _storageLocationRepository;
+    private readonly IAppSettingRepository _settingRepository;
 
     public StockOverviewController(
         IStockMovementRepository stockMovementRepository,
-        IStorageLocationRepository storageLocationRepository)
+        IStorageLocationRepository storageLocationRepository,
+        IAppSettingRepository settingRepository)
     {
         _stockMovementRepository = stockMovementRepository;
         _storageLocationRepository = storageLocationRepository;
+        _settingRepository = settingRepository;
     }
 
     public async Task<IActionResult> Index(
@@ -32,7 +35,9 @@ public class StockOverviewController : Controller
             FilterStorageLocationId = filterStorageLocationId,
             FilterMinQuantity = filterMinQuantity,
             FilterMaxQuantity = filterMaxQuantity,
-            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync()
+            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
+            WarningThresholdPercent = await _settingRepository.GetIntValueAsync("WarningThresholdPercent", 150),
+            CriticalThresholdPercent = await _settingRepository.GetIntValueAsync("CriticalThresholdPercent", 100)
         };
 
         return View(vm);

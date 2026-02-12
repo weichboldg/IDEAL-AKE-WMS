@@ -10,13 +10,22 @@ public class ProductionOrdersController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAppSettingRepository _settingRepository;
+    private readonly IHolidayRepository _holidayRepository;
+    private readonly IBusinessDayService _businessDayService;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAppSettingRepository settingRepository,
+        IHolidayRepository holidayRepository,
+        IBusinessDayService businessDayService)
     {
         _productionOrderRepository = productionOrderRepository;
         _currentUserService = currentUserService;
+        _settingRepository = settingRepository;
+        _holidayRepository = holidayRepository;
+        _businessDayService = businessDayService;
     }
 
     public async Task<IActionResult> Index(
@@ -48,13 +57,52 @@ public class ProductionOrdersController : Controller
             orders = orders.Where(o => !o.IsDone).ToList();
         }
 
+        // Load settings for calculated dates
+        var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
+        var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
+        var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
+        var holidays = await _holidayRepository.GetHolidayDatesAsync();
+
+        // Map to view items with calculated dates
+        var viewItems = orders.Select(o =>
+        {
+            var item = new ProductionOrderViewItem
+            {
+                Id = o.Id,
+                OrderNumber = o.OrderNumber,
+                Quantity = o.Quantity,
+                Customer = o.Customer,
+                ArticleNumber = o.ArticleNumber,
+                Description1 = o.Description1,
+                Description2 = o.Description2,
+                ProductionDate = o.ProductionDate,
+                DeliveryDate = o.DeliveryDate,
+                IsDone = o.IsDone
+            };
+
+            if (o.ProductionDate.HasValue)
+            {
+                item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
+                    o.ProductionDate.Value, kommissionierTage, holidays);
+                item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
+                    item.KommissionierTermin.Value, vorkommissionierTage, holidays);
+                item.BeschichtungTermin = _businessDayService.SubtractBusinessDays(
+                    item.KommissionierTermin.Value, beschichtungTage, holidays);
+            }
+
+            return item;
+        }).ToList();
+
         var vm = new ProductionOrderViewModel
         {
-            Items = orders,
+            Items = viewItems,
             FilterOrderNumber = filterOrderNumber,
             FilterArticleNumber = filterArticleNumber,
             FilterCustomer = filterCustomer,
-            ShowDone = showDone
+            ShowDone = showDone,
+            KommissionierTage = kommissionierTage,
+            VorkommissionierTage = vorkommissionierTage,
+            BeschichtungTage = beschichtungTage
         };
 
         return View(vm);

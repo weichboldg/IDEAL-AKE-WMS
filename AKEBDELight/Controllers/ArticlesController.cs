@@ -70,6 +70,7 @@ public class ArticlesController : Controller
         existing.ArticleNumber = article.ArticleNumber;
         existing.Description = article.Description;
         existing.Unit = article.Unit;
+        existing.ReorderLevel = article.ReorderLevel;
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();

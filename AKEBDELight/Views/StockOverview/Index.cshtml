@@ -49,14 +49,38 @@
                 <th>Bezeichnung</th>
                 <th>Lagerplatz</th>
                 <th>Einheit</th>
+                <th class="text-end">Meldebestand</th>
                 <th class="text-end">Aktueller Bestand</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var item in Model.Items)
             {
-                var qtyClass = item.CurrentQuantity > 0 ? "qty-positive" :
-                               item.CurrentQuantity == 0 ? "qty-zero" : "qty-negative";
+                var qtyClass = "qty-positive";
+                if (item.CurrentQuantity == 0)
+                {
+                    qtyClass = "qty-zero";
+                }
+                else if (item.CurrentQuantity < 0)
+                {
+                    qtyClass = "qty-negative";
+                }
+
+                // Color coding based on reorder level thresholds
+                var stockColorClass = "";
+                if (item.ReorderLevel.HasValue && item.ReorderLevel.Value > 0)
+                {
+                    var warningLevel = item.ReorderLevel.Value * Model.WarningThresholdPercent / 100m;
+                    var criticalLevel = item.ReorderLevel.Value * Model.CriticalThresholdPercent / 100m;
+                    if (item.CurrentQuantity <= criticalLevel)
+                    {
+                        stockColorClass = "stock-critical";
+                    }
+                    else if (item.CurrentQuantity <= warningLevel)
+                    {
+                        stockColorClass = "stock-warning";
+                    }
+                }
                 <tr>
                     <td>
                         <strong>@item.ArticleNumber</strong>
@@ -76,13 +100,14 @@
                         }
                     </td>
                     <td>@item.Unit</td>
-                    <td class="text-end @qtyClass">@item.CurrentQuantity.ToString("N3")</td>
+                    <td class="text-end">@(item.ReorderLevel.HasValue ? item.ReorderLevel.Value.ToString("N3") : "–")</td>
+                    <td class="text-end @qtyClass @stockColorClass">@item.CurrentQuantity.ToString("N3")</td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Keine Bestände gefunden.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Keine Bestände gefunden.</td>
                 </tr>
             }
         </tbody>

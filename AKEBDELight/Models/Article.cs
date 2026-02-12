@@ -17,5 +17,8 @@ public class Article : AuditableEntity
     [Display(Name = "Einheit")]
     public string? Unit { get; set; }
 
+    [Display(Name = "Meldebestand")]
+    public decimal? ReorderLevel { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

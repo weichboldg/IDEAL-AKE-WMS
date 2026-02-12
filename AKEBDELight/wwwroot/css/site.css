@@ -304,6 +304,17 @@ body {
     font-weight: 600;
 }
 
+/* Stock level color coding */
+.stock-warning {
+    background-color: rgba(239, 125, 0, 0.15) !important;
+    color: #c56500 !important;
+}
+
+.stock-critical {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+    color: #dc3545 !important;
+}
+
 /* Focus states */
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem var(--ake-secondary);

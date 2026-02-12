@@ -19,7 +19,7 @@
                         <label asp-for="ArticleId" class="form-label"></label>
                         <div class="input-group">
                             <select asp-for="ArticleId" class="form-select"
-                                    asp-items="@(new SelectList(Model.Articles, "Id", "ArticleNumber"))">
+                                    asp-items="@(new SelectList(Model.Articles.Select(a => new { a.Id, Display = a.ArticleNumber + (a.Description != null ? " - " + a.Description : "") }), "Id", "Display"))">
                                 <option value="">-- Artikel wählen --</option>
                             </select>
                             <button type="button" id="btnScanArticle" class="btn btn-secondary scan-btn" title="QR-Code scannen">

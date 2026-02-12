@@ -1,6 +1,7 @@
 @model ProductionOrderViewModel
 @{
     ViewData["Title"] = "Werkstattaufträge";
+    var today = DateTime.Today;
 }
 
 <h2 class="page-header">Werkstattaufträge</h2>
@@ -50,6 +51,9 @@
                 <th>Bezeichnung 2</th>
                 <th>Fertigungstermin</th>
                 <th>Liefertermin</th>
+                <th title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Kommissionierung</th>
+                <th title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Vorkommissionierung</th>
+                <th title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
                 <th>Status</th>
                 <th style="width: 80px;"></th>
             </tr>
@@ -77,6 +81,15 @@
                     <td>@item.Description2</td>
                     <td>@item.ProductionDate?.ToString("dd.MM.yyyy")</td>
                     <td>@item.DeliveryDate?.ToString("dd.MM.yyyy")</td>
+                    <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
+                        @item.KommissionierTermin?.ToString("dd.MM.yyyy")
+                    </td>
+                    <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
+                        @item.VorkommissionierTermin?.ToString("dd.MM.yyyy")
+                    </td>
+                    <td class="@(!item.IsDone && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today ? "text-danger fw-bold" : "")">
+                        @item.BeschichtungTermin?.ToString("dd.MM.yyyy")
+                    </td>
                     <td>
                         @if (item.IsDone)
                         {
@@ -115,7 +128,7 @@
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="10" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
+                    <td colspan="13" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
                 </tr>
             }
         </tbody>

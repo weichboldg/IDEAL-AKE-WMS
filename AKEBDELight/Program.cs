@@ -39,11 +39,14 @@ builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
+builder.Services.AddScoped<IAppSettingRepository, AppSettingRepository>();
+builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 
 // MVC
 builder.Services.AddControllersWithViews();

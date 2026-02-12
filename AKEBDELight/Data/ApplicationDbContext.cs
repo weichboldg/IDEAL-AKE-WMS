@@ -17,6 +17,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,6 +105,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ArticleNumber).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Unit).HasMaxLength(20);
+            entity.Property(e => e.ReorderLevel).HasColumnType("decimal(18,3)");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -163,6 +166,31 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.ArticleNumber);
             entity.HasIndex(e => e.IsDone);
+        });
+
+        // AppSetting
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.ToTable("AppSettings");
+            entity.HasKey(e => e.Key);
+            entity.Property(e => e.Key).HasMaxLength(100);
+            entity.Property(e => e.Value).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // Holiday
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.ToTable("Holidays");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Date).HasColumnType("date");
+            entity.Property(e => e.Description).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.Date).IsUnique();
         });
     }
 }

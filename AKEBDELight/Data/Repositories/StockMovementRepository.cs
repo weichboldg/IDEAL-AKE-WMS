@@ -40,6 +40,7 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 sm.Article.ArticleNumber,
                 ArticleDescription = sm.Article.Description,
                 sm.Article.Unit,
+                sm.Article.ReorderLevel,
                 sm.StorageLocationId,
                 StorageLocationCode = sm.StorageLocation.Code,
                 StorageLocationDescription = sm.StorageLocation.Description
@@ -54,7 +55,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationCode = g.Key.StorageLocationCode,
                 StorageLocationDescription = g.Key.StorageLocationDescription,
                 CurrentQuantity = g.Sum(sm =>
-                    sm.MovementType == MovementType.Einbuchung ? sm.Quantity : -sm.Quantity)
+                    sm.MovementType == MovementType.Einbuchung ? sm.Quantity : -sm.Quantity),
+                ReorderLevel = g.Key.ReorderLevel
             })
             .ToListAsync();
 
