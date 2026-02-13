@@ -172,6 +172,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
+            entity.Property(e => e.PickingStatus).HasMaxLength(50);
+
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.ArticleNumber);
             entity.HasIndex(e => e.IsDone);

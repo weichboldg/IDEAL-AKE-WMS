@@ -49,6 +49,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
+builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
 
 // MVC
 builder.Services.AddControllersWithViews();
@@ -61,6 +62,10 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.EnsureCreated();
 }
+
+// Fotos-Verzeichnis erstellen
+var fotosDir = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "Fotos", "Kommissionierung");
+Directory.CreateDirectory(fotosDir);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -108,6 +113,9 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+// UseStaticFiles für dynamisch hochgeladene Dateien (Fotos)
+app.UseStaticFiles();
 
 app.MapStaticAssets();
 

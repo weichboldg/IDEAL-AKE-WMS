@@ -38,4 +38,8 @@ public class ProductionOrder : AuditableEntity
 
     [Display(Name = "Erledigt")]
     public bool IsDone { get; set; }
+
+    [StringLength(50)]
+    [Display(Name = "Kommissionierung")]
+    public string? PickingStatus { get; set; }
 }

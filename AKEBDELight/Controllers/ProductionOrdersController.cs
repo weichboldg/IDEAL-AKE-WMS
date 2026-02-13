@@ -18,6 +18,7 @@ public class ProductionOrdersController : Controller
     private readonly IStockMovementRepository _stockMovementRepository;
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly IArticleRepository _articleRepository;
+    private readonly IWebHostEnvironment _env;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -29,7 +30,8 @@ public class ProductionOrdersController : Controller
         IPickingRepository pickingRepository,
         IStockMovementRepository stockMovementRepository,
         IStorageLocationRepository storageLocationRepository,
-        IArticleRepository articleRepository)
+        IArticleRepository articleRepository,
+        IWebHostEnvironment env)
     {
         _productionOrderRepository = productionOrderRepository;
         _currentUserService = currentUserService;
@@ -41,6 +43,12 @@ public class ProductionOrdersController : Controller
         _stockMovementRepository = stockMovementRepository;
         _storageLocationRepository = storageLocationRepository;
         _articleRepository = articleRepository;
+        _env = env;
+    }
+
+    public IActionResult Picking()
+    {
+        return View();
     }
 
     public async Task<IActionResult> Index(
@@ -89,7 +97,8 @@ public class ProductionOrdersController : Controller
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
-                IsDone = o.IsDone
+                IsDone = o.IsDone,
+                PickingStatus = o.PickingStatus
             };
 
             if (o.ProductionDate.HasValue)
@@ -167,10 +176,44 @@ public class ProductionOrdersController : Controller
 
         var allStorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
 
+        // NAN-Lagerplatz als Default wenn kein Bestand
+        var nanLocation = await _storageLocationRepository.GetByCodeAsync("NAN");
+        var nanLocationId = nanLocation?.Id;
+
+        // Baugruppen-Hierarchie: sammle alle Baugruppen-Werte
+        var baugruppen = bomItems
+            .Where(b => !string.IsNullOrEmpty(b.Baugruppe))
+            .Select(b => b.Baugruppe!)
+            .Distinct()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var viewItems = bomItems.Select(bom =>
         {
             var picking = pickingItems.FirstOrDefault(p => p.BomArticleNumber == bom.Artikelnummer && p.BomPosition == bom.Position);
             stockByArticle.TryGetValue(bom.Artikelnummer, out var stockLocations);
+            var locations = stockLocations ?? new List<StockLocationInfo>();
+
+            // TreeLevel: Ebene 0 wenn Baugruppe leer/gleich WA-Artikel, sonst Ebene 1
+            var treeLevel = 0;
+            if (!string.IsNullOrEmpty(bom.Baugruppe) &&
+                !string.Equals(bom.Baugruppe, order.ArticleNumber, StringComparison.OrdinalIgnoreCase))
+            {
+                treeLevel = 1;
+            }
+
+            // Auto-Suggest: Lagerplatz mit höchster Menge, oder NAN als Default
+            int? suggestedLocationId = null;
+            if (locations.Any(sl => sl.Quantity > 0))
+            {
+                suggestedLocationId = locations.OrderByDescending(sl => sl.Quantity).First().StorageLocationId;
+            }
+            else if (nanLocationId.HasValue)
+            {
+                suggestedLocationId = nanLocationId;
+            }
+
+            // Wenn PickingItem schon einen SourceStorageLocationId hat, diesen verwenden
+            var sourceLocationId = picking?.SourceStorageLocationId ?? suggestedLocationId;
 
             return new BomItemViewModel
             {
@@ -183,13 +226,17 @@ public class ProductionOrdersController : Controller
                 Menge = bom.Menge,
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
-                StockLocations = stockLocations ?? new List<StockLocationInfo>(),
+                StockLocations = locations,
+                TreeLevel = treeLevel,
                 PickingItemId = picking?.Id,
                 IsPicked = picking?.IsPicked ?? false,
-                SourceStorageLocationId = picking?.SourceStorageLocationId,
+                SourceStorageLocationId = sourceLocationId,
+                SuggestedSourceStorageLocationId = suggestedLocationId,
                 IsTransferred = picking?.IsTransferred ?? false
             };
-        }).ToList();
+        })
+        .OrderBy(v => v.Position)
+        .ToList();
 
         if (!string.IsNullOrWhiteSpace(filterText))
         {
@@ -272,8 +319,25 @@ public class ProductionOrdersController : Controller
         await _pickingRepository.MarkAsTransferredAsync(
             pickedItems.Select(p => p.Id).ToList(), now);
 
-        TempData["SuccessMessage"] = $"{pickedItems.Count} Artikel erfolgreich umgebucht.";
-        return RedirectToAction(nameof(Bom), new { id = productionOrderId });
+        return Ok(new { count = pickedItems.Count });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetPickingStatus(int productionOrderId, string status)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
+        if (order == null)
+            return NotFound();
+
+        order.PickingStatus = status;
+        order.ModifiedAt = DateTime.Now;
+        order.ModifiedBy = _currentUserService.GetDisplayName();
+        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+
+        await _productionOrderRepository.UpdateAsync(order);
+
+        return Ok();
     }
 
     public async Task<IActionResult> PrintPicking(int id)
@@ -310,5 +374,83 @@ public class ProductionOrdersController : Controller
         }
 
         return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadPhoto(int productionOrderId, IFormFile photo)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
+        if (order == null)
+            return NotFound();
+
+        var photosDir = Path.Combine(
+            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
+            "Fotos", "Kommissionierung");
+        Directory.CreateDirectory(photosDir);
+
+        // Bestehende Fotos für diesen WA zählen
+        var existingPhotos = Directory.GetFiles(photosDir, $"{order.OrderNumber}_*");
+        var seq = existingPhotos.Length + 1;
+
+        var fileName = $"{order.OrderNumber}_{DateTime.Now:yyyyMMddHHmmss}_{seq}.jpg";
+        var filePath = Path.Combine(photosDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await photo.CopyToAsync(stream);
+        }
+
+        return Ok(new
+        {
+            success = true,
+            fileName,
+            url = $"/Fotos/Kommissionierung/{fileName}"
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetPhotos(int productionOrderId)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
+        if (order == null)
+            return NotFound();
+
+        var photosDir = Path.Combine(
+            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
+            "Fotos", "Kommissionierung");
+
+        if (!Directory.Exists(photosDir))
+            return Ok(Array.Empty<object>());
+
+        var photos = Directory.GetFiles(photosDir, $"{order.OrderNumber}_*")
+            .Select(f => new
+            {
+                fileName = Path.GetFileName(f),
+                url = $"/Fotos/Kommissionierung/{Path.GetFileName(f)}"
+            })
+            .OrderBy(f => f.fileName)
+            .ToArray();
+
+        return Ok(photos);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult DeletePhoto(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))
+            return BadRequest();
+
+        var filePath = Path.Combine(
+            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
+            "Fotos", "Kommissionierung", fileName);
+
+        if (System.IO.File.Exists(filePath))
+        {
+            System.IO.File.Delete(filePath);
+        }
+
+        return Ok();
     }
 }

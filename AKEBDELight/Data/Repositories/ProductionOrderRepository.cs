@@ -23,4 +23,19 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     {
         return await _dbSet.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
     }
+
+    public async Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20)
+    {
+        var q = _dbSet.Where(o => !o.IsDone);
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            q = q.Where(o =>
+                o.OrderNumber.Contains(query) ||
+                (o.ArticleNumber != null && o.ArticleNumber.Contains(query)) ||
+                (o.Customer != null && o.Customer.Contains(query)));
+        }
+
+        return await q.OrderBy(o => o.OrderNumber).Take(limit).ToListAsync();
+    }
 }

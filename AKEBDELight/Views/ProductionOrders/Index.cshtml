@@ -99,6 +99,17 @@
                         {
                             <span class="badge bg-success">Offen</span>
                         }
+                        @if (!string.IsNullOrEmpty(item.PickingStatus))
+                        {
+                            if (item.PickingStatus == "abgeschlossen")
+                            {
+                                <span class="badge badge-picking-done ms-1">Komm.</span>
+                            }
+                            else if (item.PickingStatus == "teilkommissioniert")
+                            {
+                                <span class="badge badge-picking-partial ms-1">Teilkomm.</span>
+                            }
+                        }
                     </td>
                     <td class="text-nowrap">
                         @if (!string.IsNullOrEmpty(item.ArticleNumber))

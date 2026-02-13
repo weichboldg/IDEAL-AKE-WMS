@@ -33,10 +33,14 @@ public class BomItemViewModel
     public string? Artikelgruppe { get; set; }
     public List<StockLocationInfo> StockLocations { get; set; } = new();
 
+    // Tree structure
+    public int TreeLevel { get; set; }
+
     // Picking fields
     public int? PickingItemId { get; set; }
     public bool IsPicked { get; set; }
     public int? SourceStorageLocationId { get; set; }
+    public int? SuggestedSourceStorageLocationId { get; set; }
     public bool IsTransferred { get; set; }
 }
 

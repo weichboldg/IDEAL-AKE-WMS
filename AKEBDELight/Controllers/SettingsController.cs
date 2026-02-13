@@ -11,15 +11,18 @@ public class SettingsController : Controller
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IHolidayImportService _holidayImportService;
 
     public SettingsController(
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IHolidayImportService holidayImportService)
     {
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
         _currentUserService = currentUserService;
+        _holidayImportService = holidayImportService;
     }
 
     public async Task<IActionResult> Index()
@@ -69,6 +72,31 @@ public class SettingsController : Controller
     {
         await _holidayRepository.DeleteAsync(id);
         TempData["SuccessMessage"] = "Feiertag gelöscht.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncHolidays()
+    {
+        var currentYear = DateTime.Now.Year;
+        var nextYear = currentYear + 1;
+
+        var imported1 = await _holidayImportService.ImportHolidaysAsync(
+            currentYear,
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName());
+
+        var imported2 = await _holidayImportService.ImportHolidaysAsync(
+            nextYear,
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName());
+
+        var total = imported1 + imported2;
+        TempData["SuccessMessage"] = total > 0
+            ? $"{total} Feiertage für {currentYear}/{nextYear} importiert."
+            : $"Alle Feiertage für {currentYear}/{nextYear} sind bereits vorhanden.";
+
         return RedirectToAction(nameof(Index));
     }
 }
