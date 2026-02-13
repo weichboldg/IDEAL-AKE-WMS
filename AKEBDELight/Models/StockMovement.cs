@@ -34,7 +34,11 @@ public class StockMovement : AuditableEntity
     [Display(Name = "Windows-Benutzer")]
     public string WindowsUser { get; set; } = string.Empty;
 
+    [Display(Name = "Quell-Lagerplatz")]
+    public int? SourceStorageLocationId { get; set; }
+
     public Article Article { get; set; } = null!;
     public StorageLocation StorageLocation { get; set; } = null!;
+    public StorageLocation? SourceStorageLocation { get; set; }
     public User? User { get; set; }
 }

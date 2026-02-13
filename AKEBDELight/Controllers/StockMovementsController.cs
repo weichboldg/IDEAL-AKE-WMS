@@ -59,7 +59,6 @@ public class StockMovementsController : Controller
     {
         var vm = new StockMovementCreateViewModel
         {
-            Articles = await _articleRepository.GetAllOrderedAsync(),
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
@@ -72,13 +71,17 @@ public class StockMovementsController : Controller
     {
         if (!ModelState.IsValid)
         {
-            vm.Articles = await _articleRepository.GetAllOrderedAsync();
             vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
             vm.Users = await _userRepository.GetActiveUsersAsync();
+            if (vm.ArticleId > 0)
+            {
+                var article = await _articleRepository.GetByIdAsync(vm.ArticleId);
+                if (article != null)
+                    vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
+            }
             return View(vm);
         }
 
-        // UserId aus Session verwenden (angemeldeter Benutzer)
         var appUserId = _currentUserService.GetCurrentAppUserId();
 
         var movement = new StockMovement
@@ -105,7 +108,6 @@ public class StockMovementsController : Controller
     {
         var vm = new StockMovementCreateViewModel
         {
-            Articles = await _articleRepository.GetAllOrderedAsync(),
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
@@ -118,9 +120,14 @@ public class StockMovementsController : Controller
     {
         if (!ModelState.IsValid)
         {
-            vm.Articles = await _articleRepository.GetAllOrderedAsync();
             vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
             vm.Users = await _userRepository.GetActiveUsersAsync();
+            if (vm.ArticleId > 0)
+            {
+                var article = await _articleRepository.GetByIdAsync(vm.ArticleId);
+                if (article != null)
+                    vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
+            }
             return View(vm);
         }
 
@@ -144,5 +151,58 @@ public class StockMovementsController : Controller
         await _stockMovementRepository.AddAsync(movement);
         TempData["SuccessMessage"] = "Ausbuchung erfolgreich gespeichert.";
         return RedirectToAction(nameof(Outbound));
+    }
+
+    public async Task<IActionResult> Transfer()
+    {
+        var vm = new StockTransferViewModel
+        {
+            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync()
+        };
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Transfer(StockTransferViewModel vm)
+    {
+        if (vm.SourceStorageLocationId == vm.StorageLocationId && vm.SourceStorageLocationId > 0)
+        {
+            ModelState.AddModelError("", "Quell- und Ziel-Lagerplatz dürfen nicht identisch sein.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+            if (vm.ArticleId > 0)
+            {
+                var article = await _articleRepository.GetByIdAsync(vm.ArticleId);
+                if (article != null)
+                    vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
+            }
+            return View(vm);
+        }
+
+        var appUserId = _currentUserService.GetCurrentAppUserId();
+
+        var movement = new StockMovement
+        {
+            ArticleId = vm.ArticleId,
+            Quantity = vm.Quantity,
+            StorageLocationId = vm.StorageLocationId,
+            SourceStorageLocationId = vm.SourceStorageLocationId,
+            ProductionOrder = vm.ProductionOrder,
+            MovementType = MovementType.Umbuchung,
+            Timestamp = DateTime.Now,
+            UserId = appUserId,
+            WindowsUser = _currentUserService.GetWindowsUserName(),
+            CreatedAt = DateTime.Now,
+            CreatedBy = _currentUserService.GetDisplayName(),
+            CreatedByWindows = _currentUserService.GetWindowsUserName()
+        };
+
+        await _stockMovementRepository.AddAsync(movement);
+        TempData["SuccessMessage"] = "Umbuchung erfolgreich gespeichert.";
+        return RedirectToAction(nameof(Transfer));
     }
 }

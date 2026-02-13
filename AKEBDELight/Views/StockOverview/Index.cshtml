@@ -68,7 +68,7 @@
 
                 // Color coding based on reorder level thresholds
                 var stockColorClass = "";
-                if (item.ReorderLevel.HasValue && item.ReorderLevel.Value > 0)
+                if (item.ReorderLevel.HasValue && item.ReorderLevel.Value > 0m)
                 {
                     var warningLevel = item.ReorderLevel.Value * Model.WarningThresholdPercent / 100m;
                     var criticalLevel = item.ReorderLevel.Value * Model.CriticalThresholdPercent / 100m;

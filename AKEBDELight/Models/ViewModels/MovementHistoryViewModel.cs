@@ -22,6 +22,7 @@ public class MovementHistoryItem
     public string? ArticleDescription { get; set; }
     public decimal Quantity { get; set; }
     public string StorageLocationCode { get; set; } = string.Empty;
+    public string? SourceStorageLocationCode { get; set; }
     public MovementType MovementType { get; set; }
     public string MovementTypeName { get; set; } = string.Empty;
     public string? UserName { get; set; }

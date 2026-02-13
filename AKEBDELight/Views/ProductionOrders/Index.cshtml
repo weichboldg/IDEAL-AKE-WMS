@@ -55,7 +55,7 @@
                 <th title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Vorkommissionierung</th>
                 <th title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
                 <th>Status</th>
-                <th style="width: 80px;"></th>
+                <th style="width: 120px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -100,7 +100,15 @@
                             <span class="badge bg-success">Offen</span>
                         }
                     </td>
-                    <td>
+                    <td class="text-nowrap">
+                        @if (!string.IsNullOrEmpty(item.ArticleNumber))
+                        {
+                            <a asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
+                                </svg>
+                            </a>
+                        }
                         <form asp-action="ToggleDone" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@item.Id" />

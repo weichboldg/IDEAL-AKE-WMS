@@ -38,6 +38,7 @@
                         <option value="">-- Alle --</option>
                         <option value="0" selected="@(Model.FilterMovementType == MovementType.Einbuchung)">Einbuchung</option>
                         <option value="1" selected="@(Model.FilterMovementType == MovementType.Ausbuchung)">Ausbuchung</option>
+                        <option value="2" selected="@(Model.FilterMovementType == MovementType.Umbuchung)">Umbuchung</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -95,9 +96,22 @@
                         }
                     </td>
                     <td>@item.Quantity.ToString("N3")</td>
-                    <td>@item.StorageLocationCode</td>
                     <td>
-                        <span class="@(item.MovementType == MovementType.Einbuchung ? "badge-einbuchung" : "badge-ausbuchung")">
+                        @if (item.MovementType == MovementType.Umbuchung && !string.IsNullOrEmpty(item.SourceStorageLocationCode))
+                        {
+                            @item.SourceStorageLocationCode <span class="text-muted">&rarr;</span> @item.StorageLocationCode
+                        }
+                        else
+                        {
+                            @item.StorageLocationCode
+                        }
+                    </td>
+                    <td>
+                        @{
+                            var badgeClass = item.MovementType == MovementType.Einbuchung ? "badge-einbuchung" :
+                                             item.MovementType == MovementType.Umbuchung ? "badge-umbuchung" : "badge-ausbuchung";
+                        }
+                        <span class="@badgeClass">
                             @item.MovementTypeName
                         </span>
                     </td>

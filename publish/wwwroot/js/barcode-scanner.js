@@ -229,6 +229,28 @@ function processScannedValue(value, targetSelectId, scanType) {
     var select = document.getElementById(targetSelectId);
     if (!select) return;
 
+    // Select2 AJAX-Artikel: API-Lookup statt Option-Iteration
+    if (scanType === 'article' && $(select).hasClass('select2-article')) {
+        var feedbackTarget = $(select).closest('.input-group').length
+            ? $(select).closest('.input-group')[0]
+            : select;
+        $.ajax({
+            url: '/api/articles/by-number/' + encodeURIComponent(searchValue),
+            type: 'GET',
+            dataType: 'json',
+            success: function (data) {
+                var option = new Option(data.text, data.id, true, true);
+                $(select).append(option).trigger('change');
+                showScanFeedback(feedbackTarget, true, searchValue);
+            },
+            error: function () {
+                showScanFeedback(feedbackTarget, false, searchValue);
+            }
+        });
+        return;
+    }
+
+    // Native <select>: Option-Iteration (Lagerplätze etc.)
     var found = false;
     for (var i = 0; i < select.options.length; i++) {
         var optionText = select.options[i].text.trim();
@@ -247,7 +269,9 @@ function processScannedValue(value, targetSelectId, scanType) {
 }
 
 function showScanFeedback(element, success, value) {
-    var existing = element.parentNode.querySelector('.scan-feedback');
+    var parent = element.parentNode;
+    if (!parent) return;
+    var existing = parent.querySelector('.scan-feedback');
     if (existing) existing.remove();
 
     var feedback = document.createElement('div');
@@ -255,19 +279,14 @@ function showScanFeedback(element, success, value) {
 
     if (success) {
         feedback.innerHTML = '<small class="text-success"><strong>&#10003;</strong> Gescannt: ' + escapeHtml(value) + '</small>';
-        element.classList.add('is-valid');
-        element.classList.remove('is-invalid');
     } else {
         feedback.innerHTML = '<small class="text-danger"><strong>&#10007;</strong> Nicht gefunden: ' + escapeHtml(value) + '</small>';
-        element.classList.add('is-invalid');
-        element.classList.remove('is-valid');
     }
 
-    element.parentNode.appendChild(feedback);
+    parent.appendChild(feedback);
 
     setTimeout(function () {
         feedback.remove();
-        element.classList.remove('is-valid', 'is-invalid');
     }, 5000);
 }
 
@@ -281,4 +300,5 @@ function escapeHtml(text) {
 document.addEventListener('DOMContentLoaded', function () {
     initScanner('btnScanArticle', 'ArticleId', 'article');
     initScanner('btnScanStorageLocation', 'StorageLocationId', 'storageLocation');
+    initScanner('btnScanSourceLocation', 'SourceStorageLocationId', 'storageLocation');
 });

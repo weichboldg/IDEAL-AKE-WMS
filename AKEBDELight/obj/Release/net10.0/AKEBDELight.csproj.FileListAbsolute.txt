@@ -251,5 +251,5 @@ c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Settings.C
 c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Sinks.Console.dll
 c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Sinks.Debug.dll
 c:\Entwicklung\C#\AKEBDELight\AKEBDELight\bin\Release\net10.0\Serilog.Sinks.File.dll
-c:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\oq94b6fmqf-{0}-grfainnemv-grfainnemv.gz
-c:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\4aus7y1xvc-{0}-nnw3p34m8l-nnw3p34m8l.gz
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\4aus7y1xvc-{0}-1kh4c5wqts-1kh4c5wqts.gz
+c:\Entwicklung\C#\AKEBDELight\AKEBDELight\obj\Release\net10.0\compressed\oq94b6fmqf-{0}-gm5bcq9mom-gm5bcq9mom.gz

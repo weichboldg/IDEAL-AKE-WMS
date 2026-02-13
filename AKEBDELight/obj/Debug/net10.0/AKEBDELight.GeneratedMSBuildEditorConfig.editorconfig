@@ -50,8 +50,16 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/ProductionOrders/Bom.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvZHVjdGlvbk9yZGVyc1xCb20uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/ProductionOrders/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvZHVjdGlvbk9yZGVyc1xJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/ProductionOrders/PrintPicking.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvZHVjdGlvbk9yZGVyc1xQcmludFBpY2tpbmcuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/Settings/Index.cshtml]
@@ -60,6 +68,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/Shared/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/Shared/_Select2ArticlePartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9TZWxlY3QyQXJ0aWNsZVBhcnRpYWwuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/Shared/_ValidationScriptsPartial.cshtml]
@@ -76,6 +88,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/StockMovements/Outbound.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvY2tNb3ZlbWVudHNcT3V0Ym91bmQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/StockMovements/Transfer.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvY2tNb3ZlbWVudHNcVHJhbnNmZXIuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/StockOverview/Index.cshtml]

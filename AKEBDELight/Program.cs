@@ -41,6 +41,8 @@ builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 builder.Services.AddScoped<IAppSettingRepository, AppSettingRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
+builder.Services.AddScoped<IBomRepository, BomRepository>();
+builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -85,6 +87,7 @@ app.Use(async (context, next) =>
     // Login-Seite und statische Dateien ausschließen
     if (path.StartsWith("/account/login") ||
         path.StartsWith("/account/logout") ||
+        path.StartsWith("/api/") ||
         path.StartsWith("/lib/") ||
         path.StartsWith("/css/") ||
         path.StartsWith("/js/") ||

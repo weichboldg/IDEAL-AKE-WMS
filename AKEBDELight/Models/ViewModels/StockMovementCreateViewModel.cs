@@ -24,6 +24,8 @@ public class StockMovementCreateViewModel
     [Display(Name = "Benutzer")]
     public int? UserId { get; set; }
 
+    public string? ArticleDisplay { get; set; }
+
     public List<Article> Articles { get; set; } = new();
     public List<StorageLocation> StorageLocations { get; set; } = new();
     public List<User> Users { get; set; } = new();

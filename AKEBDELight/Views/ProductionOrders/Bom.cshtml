@@ -1,0 +1,205 @@
+@model BomViewModel
+@{
+    ViewData["Title"] = $"Stückliste - WA {Model.OrderNumber}";
+}
+
+<h2 class="page-header">
+    Stückliste - WA @Model.OrderNumber
+    @if (!string.IsNullOrEmpty(Model.ArticleNumber))
+    {
+        <small class="text-muted">| @Model.ArticleNumber - @Model.Description1</small>
+    }
+</h2>
+
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label mb-0 small">Filter</label>
+                <input type="text" name="filterText" value="@Model.FilterText" class="form-control form-control-sm" placeholder="Artikelnr., Bezeichnung, Baugruppe..." />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.FilterText))
+            {
+                <div class="col-auto">
+                    <a asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
+                </div>
+            }
+            <div class="col-auto ms-auto">
+                <span class="text-muted small">@Model.Items.Count Positionen</span>
+            </div>
+        </form>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0 table-sm">
+        <thead>
+            <tr>
+                <th style="width: 40px;"></th>
+                <th>Position</th>
+                <th>Baugruppe</th>
+                <th>Artikelnummer</th>
+                <th>Bezeichnung 1</th>
+                <th>Bezeichnung 2</th>
+                <th class="text-end">Menge</th>
+                <th>Beschaffung</th>
+                <th>Artikelgruppe</th>
+                <th>Lagerplatz</th>
+                <th>Quell-Lagerplatz</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                var rowClass = item.IsTransferred ? "table-secondary" : item.IsPicked ? "table-success" : "";
+                <tr class="@rowClass" data-picking-id="@item.PickingItemId">
+                    <td>
+                        @if (item.PickingItemId.HasValue && !item.IsTransferred)
+                        {
+                            <input type="checkbox" class="form-check-input picking-checkbox"
+                                   data-id="@item.PickingItemId"
+                                   @(item.IsPicked ? "checked" : "") />
+                        }
+                        else if (item.IsTransferred)
+                        {
+                            <span class="text-muted" title="Umgebucht">&#10003;</span>
+                        }
+                    </td>
+                    <td>@item.Position</td>
+                    <td>@item.Baugruppe</td>
+                    <td>
+                        <strong>@item.Artikelnummer</strong>
+                        <a href="http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search=@item.Artikelnummer&searchContext=0" target="_blank" title="Zeichnung in Vault öffnen" class="vault-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
+                                <path d="M4.5 12.5A.5.5 0 0 1 5 12h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m0-2A.5.5 0 0 1 5 10h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m1.639-3.708 1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047l1.888.974V7.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V7s1.54-1.274 1.639-1.208M6.25 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5"/>
+                            </svg>
+                        </a>
+                    </td>
+                    <td>@item.Bezeichnung1</td>
+                    <td>@item.Bezeichnung2</td>
+                    <td class="text-end">@item.Menge.ToString("N3")</td>
+                    <td>@item.Beschaffungsartikel</td>
+                    <td>@item.Artikelgruppe</td>
+                    <td>
+                        @if (item.StockLocations.Any())
+                        {
+                            @string.Join(", ", item.StockLocations.Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </td>
+                    <td>
+                        @if (item.PickingItemId.HasValue && !item.IsTransferred)
+                        {
+                            <select class="form-select form-select-sm source-location-select" data-id="@item.PickingItemId" style="min-width: 100px;">
+                                <option value="">--</option>
+                                @foreach (var sl in item.StockLocations)
+                                {
+                                    <option value="@sl.StorageLocationId" selected="@(item.SourceStorageLocationId == sl.StorageLocationId)">@sl.Code</option>
+                                }
+                            </select>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    <td colspan="11" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (Model.Items.Any())
+{
+    <div class="card mt-4">
+        <div class="card-header" style="background-color: var(--ake-secondary);">
+            Kommissionierung umbuchen
+        </div>
+        <div class="card-body">
+            <form asp-action="TransferPicked" method="post" class="row g-3 align-items-end">
+                <input type="hidden" name="productionOrderId" value="@Model.ProductionOrderId" />
+                <div class="col-md-4">
+                    <label class="form-label">Ziel-Lagerplatz</label>
+                    <div class="input-group">
+                        <select name="targetStorageLocationId" class="form-select" id="TargetStorageLocationId" required>
+                            <option value="">-- Ziel-Lagerplatz wählen --</option>
+                            @foreach (var sl in Model.AllStorageLocations)
+                            {
+                                <option value="@sl.Id">@sl.Code</option>
+                            }
+                        </select>
+                        <button type="button" id="btnScanTargetLocation" class="btn btn-secondary scan-btn" title="Barcode scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn" style="background-color: var(--ake-secondary); color: white;">Gepickte Artikel umbuchen</button>
+                </div>
+                <div class="col-auto">
+                    <a asp-action="PrintPicking" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary">Drucken</a>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="mt-3">
+    <a asp-action="Index" class="btn btn-outline-secondary">Zurück zur WA-Liste</a>
+</div>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
+
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            document.querySelectorAll('.picking-checkbox').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    var pickingItemId = this.getAttribute('data-id');
+                    var row = this.closest('tr');
+                    var sourceSelect = row.querySelector('.source-location-select');
+                    var storageLocationId = sourceSelect ? sourceSelect.value : null;
+
+                    $.ajax({
+                        url: '@Url.Action("TogglePicked")',
+                        type: 'POST',
+                        data: {
+                            pickingItemId: pickingItemId,
+                            storageLocationId: storageLocationId || null
+                        },
+                        headers: { 'RequestVerificationToken': token },
+                        success: function () {
+                            if (cb.checked) {
+                                row.classList.add('table-success');
+                            } else {
+                                row.classList.remove('table-success');
+                            }
+                        },
+                        error: function () {
+                            cb.checked = !cb.checked;
+                            alert('Fehler beim Speichern.');
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+}

@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
+    public DbSet<PickingItem> PickingItems => Set<PickingItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -145,6 +146,14 @@ public class ApplicationDbContext : DbContext
                 .WithMany(u => u.StockMovements)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.SourceStorageLocation)
+                .WithMany()
+                .HasForeignKey(e => e.SourceStorageLocationId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.HasIndex(e => e.SourceStorageLocationId);
         });
 
         // ProductionOrder
@@ -191,6 +200,35 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
             entity.HasIndex(e => e.Date).IsUnique();
+        });
+
+        // PickingItem
+        modelBuilder.Entity<PickingItem>(entity =>
+        {
+            entity.ToTable("PickingItems");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BomArticleNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.BomPosition).HasMaxLength(50);
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PickedBy).HasMaxLength(200);
+            entity.Property(e => e.PickedByWindows).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.ProductionOrderId);
+            entity.HasIndex(e => new { e.ProductionOrderId, e.IsPicked });
+
+            entity.HasOne(e => e.ProductionOrder)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.SourceStorageLocation)
+                .WithMany()
+                .HasForeignKey(e => e.SourceStorageLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

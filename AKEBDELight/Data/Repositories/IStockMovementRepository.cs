@@ -19,4 +19,6 @@ public interface IStockMovementRepository : IRepository<StockMovement>
         MovementType? filterMovementType = null,
         int? filterUserId = null,
         string? filterProductionOrder = null);
+
+    Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers);
 }

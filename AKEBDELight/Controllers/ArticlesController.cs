@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using AKEBDELight.Data.Repositories;
 using AKEBDELight.Models;
+using AKEBDELight.Models.ViewModels;
 using AKEBDELight.Services;
 
 namespace AKEBDELight.Controllers;
@@ -18,10 +19,19 @@ public class ArticlesController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int pageSize = 100, string? search = null)
     {
-        var articles = await _articleRepository.GetAllOrderedAsync();
-        return View(articles);
+        if (pageSize > 500) pageSize = 500;
+        var (items, totalCount) = await _articleRepository.GetPaginatedAsync(page, pageSize, search);
+        var vm = new ArticleIndexViewModel
+        {
+            Items = items,
+            CurrentPage = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            Search = search
+        };
+        return View(vm);
     }
 
     public IActionResult Create()
