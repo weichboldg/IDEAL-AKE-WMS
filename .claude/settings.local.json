@@ -3,7 +3,8 @@
     "allow": [
       "WebFetch(domain:www.ideal-ake.at)",
       "Bash(dotnet:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(wc:*)"
     ]
   }
 }

@@ -36,7 +36,7 @@ public class PickingRepository : IPickingRepository
             _context.PickingItems.Add(new PickingItem
             {
                 ProductionOrderId = productionOrderId,
-                BomArticleNumber = bom.Artikelnummer,
+                BomArticleNumber = bom.Ressourcenummer ?? bom.Artikelnummer,
                 BomPosition = bom.Position,
                 Quantity = bom.Menge,
                 CreatedAt = now,

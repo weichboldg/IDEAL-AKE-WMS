@@ -171,7 +171,7 @@ public class ProductionOrdersController : Controller
 
         var pickingItems = await _pickingRepository.GetByProductionOrderAsync(id);
 
-        var articleNumbers = bomItems.Select(b => b.Artikelnummer).Distinct().ToList();
+        var articleNumbers = bomItems.Select(b => b.Ressourcenummer).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).Distinct().ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
 
         var allStorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
@@ -189,8 +189,8 @@ public class ProductionOrdersController : Controller
 
         var viewItems = bomItems.Select(bom =>
         {
-            var picking = pickingItems.FirstOrDefault(p => p.BomArticleNumber == bom.Artikelnummer && p.BomPosition == bom.Position);
-            stockByArticle.TryGetValue(bom.Artikelnummer, out var stockLocations);
+            var picking = pickingItems.FirstOrDefault(p => p.BomArticleNumber == bom.Ressourcenummer && p.BomPosition == bom.Position);
+            stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var stockLocations);
             var locations = stockLocations ?? new List<StockLocationInfo>();
 
             // TreeLevel: Ebene 0 wenn Baugruppe leer/gleich WA-Artikel, sonst Ebene 1
@@ -241,7 +241,7 @@ public class ProductionOrdersController : Controller
         if (!string.IsNullOrWhiteSpace(filterText))
         {
             viewItems = viewItems.Where(i =>
-                i.Artikelnummer.Contains(filterText, StringComparison.OrdinalIgnoreCase) ||
+                (i.Ressourcenummer != null && i.Ressourcenummer.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
                 (i.Bezeichnung1 != null && i.Bezeichnung1.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
                 (i.Bezeichnung2 != null && i.Bezeichnung2.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
                 (i.Baugruppe != null && i.Baugruppe.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
@@ -367,7 +367,7 @@ public class ProductionOrdersController : Controller
             var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
             foreach (var item in vm.Items)
             {
-                var bom = bomItems.FirstOrDefault(b => b.Artikelnummer == item.Artikelnummer);
+                var bom = bomItems.FirstOrDefault(b => b.Ressourcenummer == item.Artikelnummer);
                 if (bom != null)
                     item.Bezeichnung1 = bom.Bezeichnung1;
             }
