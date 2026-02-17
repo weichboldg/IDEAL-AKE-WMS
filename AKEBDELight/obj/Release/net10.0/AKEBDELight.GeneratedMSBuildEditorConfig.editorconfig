@@ -62,6 +62,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvZHVjdGlvbk9yZGVyc1xQaWNraW5nLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
+[c:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/ProductionOrders/PrintBom.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvZHVjdGlvbk9yZGVyc1xQcmludEJvbS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [c:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/ProductionOrders/PrintPicking.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvZHVjdGlvbk9yZGVyc1xQcmludFBpY2tpbmcuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 

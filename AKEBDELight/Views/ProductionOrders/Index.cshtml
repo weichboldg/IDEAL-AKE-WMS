@@ -49,11 +49,11 @@
                 <th>Artikelnummer</th>
                 <th>Bezeichnung 1</th>
                 <th>Bezeichnung 2</th>
+                <th title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
+                <th title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Baugruppentermin</th>
+                <th title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Kommissionierung</th>
                 <th>Fertigungstermin</th>
                 <th>Liefertermin</th>
-                <th title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Kommissionierung</th>
-                <th title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Vorkommissionierung</th>
-                <th title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
                 <th>Status</th>
                 <th style="width: 120px;"></th>
             </tr>
@@ -79,17 +79,17 @@
                     </td>
                     <td>@item.Description1</td>
                     <td>@item.Description2</td>
-                    <td>@item.ProductionDate?.ToString("dd.MM.yyyy")</td>
-                    <td>@item.DeliveryDate?.ToString("dd.MM.yyyy")</td>
-                    <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
-                        @item.KommissionierTermin?.ToString("dd.MM.yyyy")
+                    <td class="@(!item.IsDone && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today ? "text-danger fw-bold" : "")">
+                        @item.BeschichtungTermin?.ToString("dd.MM.yyyy")
                     </td>
                     <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
                         @item.VorkommissionierTermin?.ToString("dd.MM.yyyy")
                     </td>
-                    <td class="@(!item.IsDone && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today ? "text-danger fw-bold" : "")">
-                        @item.BeschichtungTermin?.ToString("dd.MM.yyyy")
+                    <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "kommissionier-date")">
+                        @item.KommissionierTermin?.ToString("dd.MM.yyyy")
                     </td>
+                    <td>@item.ProductionDate?.ToString("dd.MM.yyyy")</td>
+                    <td>@item.DeliveryDate?.ToString("dd.MM.yyyy")</td>
                     <td>
                         @if (item.IsDone)
                         {

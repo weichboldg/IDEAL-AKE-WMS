@@ -54,12 +54,13 @@ public class PickingRepository : IPickingRepository
     }
 
     public async Task TogglePickedAsync(int pickingItemId, int? storageLocationId,
-        string userName, string windowsUser)
+        string userName, string windowsUser, bool isBaugruppe = false)
     {
         var item = await _context.PickingItems.FindAsync(pickingItemId);
         if (item == null) return;
 
         item.IsPicked = !item.IsPicked;
+        item.IsBaugruppe = isBaugruppe;
         if (item.IsPicked)
         {
             item.PickedAt = DateTime.Now;

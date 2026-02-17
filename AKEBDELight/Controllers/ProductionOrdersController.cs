@@ -193,13 +193,8 @@ public class ProductionOrdersController : Controller
             stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var stockLocations);
             var locations = stockLocations ?? new List<StockLocationInfo>();
 
-            // TreeLevel: Ebene 0 wenn Baugruppe leer/gleich WA-Artikel, sonst Ebene 1
-            var treeLevel = 0;
-            if (!string.IsNullOrEmpty(bom.Baugruppe) &&
-                !string.Equals(bom.Baugruppe, order.ArticleNumber, StringComparison.OrdinalIgnoreCase))
-            {
-                treeLevel = 1;
-            }
+            // TreeLevel aus Position ableiten: Anzahl Punkte = Ebene (z.B. "15" = 0, "15.1" = 1, "15.1.1" = 2)
+            var treeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.');
 
             // Auto-Suggest: Lagerplatz mit höchster Menge, oder NAN als Default
             int? suggestedLocationId = null;
@@ -228,6 +223,7 @@ public class ProductionOrdersController : Controller
                 Artikelgruppe = bom.Artikelgruppe,
                 StockLocations = locations,
                 TreeLevel = treeLevel,
+                IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),
                 PickingItemId = picking?.Id,
                 IsPicked = picking?.IsPicked ?? false,
                 SourceStorageLocationId = sourceLocationId,
@@ -235,7 +231,7 @@ public class ProductionOrdersController : Controller
                 IsTransferred = picking?.IsTransferred ?? false
             };
         })
-        .OrderBy(v => v.Position)
+        .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
 
         if (!string.IsNullOrWhiteSpace(filterText))
@@ -265,13 +261,14 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> TogglePicked(int pickingItemId, int? storageLocationId)
+    public async Task<IActionResult> TogglePicked(int pickingItemId, int? storageLocationId, bool isBaugruppe = false)
     {
         await _pickingRepository.TogglePickedAsync(
             pickingItemId,
             storageLocationId,
             _currentUserService.GetDisplayName(),
-            _currentUserService.GetWindowsUserName());
+            _currentUserService.GetWindowsUserName(),
+            isBaugruppe);
 
         return Ok();
     }
@@ -338,6 +335,51 @@ public class ProductionOrdersController : Controller
         await _productionOrderRepository.UpdateAsync(order);
 
         return Ok();
+    }
+
+    public async Task<IActionResult> PrintBom(int id)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null)
+            return NotFound();
+
+        if (string.IsNullOrEmpty(order.ArticleNumber))
+            return NotFound();
+
+        var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+
+        var baugruppen = bomItems
+            .Where(b => !string.IsNullOrEmpty(b.Baugruppe))
+            .Select(b => b.Baugruppe!)
+            .Distinct()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var items = bomItems.Select(bom => new PrintBomItem
+        {
+            Position = bom.Position,
+            Baugruppe = bom.Baugruppe,
+            Ressourcenummer = bom.Ressourcenummer,
+            Bezeichnung1 = bom.Bezeichnung1,
+            Bezeichnung2 = bom.Bezeichnung2,
+            Menge = bom.Menge,
+            Beschaffungsartikel = bom.Beschaffungsartikel,
+            Artikelgruppe = bom.Artikelgruppe,
+            TreeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.'),
+            IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer)
+        })
+        .OrderBy(v => v.Position, new NaturalPositionComparer())
+        .ToList();
+
+        var vm = new PrintBomViewModel
+        {
+            OrderNumber = order.OrderNumber,
+            ArticleNumber = order.ArticleNumber,
+            Description1 = order.Description1,
+            Quantity = order.Quantity,
+            Items = items
+        };
+
+        return View(vm);
     }
 
     public async Task<IActionResult> PrintPicking(int id)

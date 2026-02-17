@@ -10,7 +10,7 @@ public interface IPickingRepository
         string createdBy, string createdByWindows);
     Task<PickingItem?> GetByIdAsync(int pickingItemId);
     Task TogglePickedAsync(int pickingItemId, int? storageLocationId,
-        string userName, string windowsUser);
+        string userName, string windowsUser, bool isBaugruppe = false);
     Task<List<PickingItem>> GetPickedNotTransferredAsync(int productionOrderId);
     Task MarkAsTransferredAsync(List<int> pickingItemIds, DateTime transferredAt);
 }

@@ -14,6 +14,7 @@
             <tr>
                 <th>Bezeichnung</th>
                 <th>Standort</th>
+                <th>Standard-Drucker</th>
                 <th>Standard-Benutzer</th>
                 <th>Zugeordnete Benutzer</th>
                 <th style="width: 100px;"></th>
@@ -25,6 +26,7 @@
                 <tr>
                     <td><strong>@ws.Name</strong></td>
                     <td>@ws.Location</td>
+                    <td><code>@ws.DefaultPrinter</code></td>
                     <td>@ws.DefaultUser?.Name</td>
                     <td>
                         @foreach (var wu in ws.WorkstationUsers)
@@ -40,7 +42,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Keine Arbeitsplätze vorhanden.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Keine Arbeitsplätze vorhanden.</td>
                 </tr>
             }
         </tbody>

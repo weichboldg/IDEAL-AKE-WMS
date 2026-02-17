@@ -3,13 +3,24 @@
     ViewData["Title"] = $"Stückliste - WA {Model.OrderNumber}";
 }
 
-<h2 class="page-header">
-    Stückliste - WA @Model.OrderNumber
-    @if (!string.IsNullOrEmpty(Model.ArticleNumber))
-    {
-        <small class="text-muted">| @Model.ArticleNumber - @Model.Description1</small>
-    }
-</h2>
+<div class="d-flex justify-content-between align-items-start">
+    <h2 class="page-header">
+        Stückliste - WA @Model.OrderNumber
+        @if (!string.IsNullOrEmpty(Model.ArticleNumber))
+        {
+            <small class="text-muted">| @Model.ArticleNumber - @Model.Description1</small>
+        }
+    </h2>
+    <div class="d-flex gap-2 mt-1">
+        <a asp-action="PrintBom" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary btn-sm" title="Stückliste drucken">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
+                <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1v-2h8v2a1 1 0 0 1-1 1z"/>
+            </svg>
+            Stückliste drucken
+        </a>
+    </div>
+</div>
 
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
@@ -27,8 +38,18 @@
                     <a asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
                 </div>
             }
-            <div class="col-auto ms-auto">
+            <div class="col-auto ms-auto d-flex gap-2 align-items-center">
                 <span class="text-muted small">@Model.Items.Count Positionen</span>
+                <button type="button" id="btnExpandAll" class="btn btn-sm btn-outline-secondary" title="Alle aufklappen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    </svg>
+                </button>
+                <button type="button" id="btnCollapseAll" class="btn btn-sm btn-outline-secondary" title="Alle zuklappen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/>
+                    </svg>
+                </button>
             </div>
         </form>
     </div>
@@ -37,7 +58,7 @@
 @Html.AntiForgeryToken()
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 table-sm filterable-table">
+    <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable">
         <thead>
             <tr>
                 <th style="width: 40px;"></th>
@@ -54,30 +75,29 @@
             </tr>
         </thead>
         <tbody>
-            @{ string? lastBaugruppe = null; }
             @foreach (var item in Model.Items)
             {
-                // Baugruppen-Trennzeile
-                if (item.TreeLevel > 0 && item.Baugruppe != lastBaugruppe)
+                var parentPos = "";
+                if (!string.IsNullOrEmpty(item.Position) && item.Position.Contains('.'))
                 {
-                    <tr class="table-info" style="font-weight: 600; font-size: 0.85rem;">
-                        <td colspan="11" style="padding-left: @(item.TreeLevel * 20)px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1">
-                                <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5z"/>
-                            </svg>
-                            Baugruppe: @item.Baugruppe
-                        </td>
-                    </tr>
-                    lastBaugruppe = item.Baugruppe;
+                    parentPos = item.Position.Substring(0, item.Position.LastIndexOf('.'));
                 }
 
                 var rowClass = item.IsTransferred ? "table-secondary" : item.IsPicked ? "table-success" : "";
-                <tr class="@rowClass" data-picking-id="@item.PickingItemId">
+                var isBg = item.IsBaugruppe;
+
+                <tr class="@rowClass @(isBg ? "bom-baugruppe" : "bom-item")"
+                    data-picking-id="@item.PickingItemId"
+                    data-position="@item.Position"
+                    @if (!string.IsNullOrEmpty(parentPos)) { <text>data-parent-pos="@parentPos"</text> }
+                    @if (isBg) { <text>data-baugruppe-id="@item.Ressourcenummer"</text> }
+                    @if (item.TreeLevel > 0) { <text>style="display:none;"</text> }>
                     <td>
                         @if (item.PickingItemId.HasValue && !item.IsTransferred)
                         {
                             <input type="checkbox" class="form-check-input picking-checkbox"
                                    data-id="@item.PickingItemId"
+                                   data-is-baugruppe="@isBg.ToString().ToLower()"
                                    @(item.IsPicked ? "checked" : "") />
                         }
                         else if (item.IsTransferred)
@@ -85,7 +105,20 @@
                             <span class="text-muted" title="Umgebucht">&#10003;</span>
                         }
                     </td>
-                    <td style="padding-left: @(item.TreeLevel * 20 + 5)px;">@item.Position</td>
+                    <td style="padding-left: @(item.TreeLevel * 24 + 5)px; white-space: nowrap;">
+                        @if (isBg)
+                        {
+                            <span class="bom-toggle" data-target-pos="@item.Position" style="cursor:pointer; user-select:none;">
+                                <svg class="bom-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s;">
+                                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1 text-muted">
+                                    <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5z"/>
+                                </svg>
+                            </span>
+                        }
+                        @item.Position
+                    </td>
                     <td>@item.Baugruppe</td>
                     <td>
                         <strong>@item.Ressourcenummer</strong>
@@ -236,10 +269,84 @@
             var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
             var productionOrderId = @Model.ProductionOrderId;
 
-            // Checkbox-Toggle
+            // ========== Baum: Ein-/Ausklappen ==========
+
+            // Zustand der Baugruppen (true = expanded)
+            var expandedState = {};
+
+            function getChildRows(parentPos) {
+                return document.querySelectorAll('#bomTable tbody tr[data-parent-pos="' + parentPos + '"]');
+            }
+
+            function expandBaugruppe(pos) {
+                expandedState[pos] = true;
+                var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
+                if (chevron) chevron.style.transform = 'rotate(90deg)';
+
+                getChildRows(pos).forEach(function (row) {
+                    row.style.display = '';
+                    // Nested Baugruppen: deren Kinder nur zeigen wenn sie selbst expanded sind
+                    var childPos = row.getAttribute('data-position');
+                    if (row.hasAttribute('data-baugruppe-id') && expandedState[childPos]) {
+                        expandBaugruppe(childPos);
+                    }
+                });
+            }
+
+            function collapseBaugruppe(pos) {
+                expandedState[pos] = false;
+                var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
+                if (chevron) chevron.style.transform = '';
+
+                getChildRows(pos).forEach(function (row) {
+                    row.style.display = 'none';
+                    // Kinder rekursiv ausblenden
+                    var childPos = row.getAttribute('data-position');
+                    if (row.hasAttribute('data-baugruppe-id')) {
+                        collapseBaugruppe(childPos);
+                    }
+                });
+            }
+
+            function toggleBaugruppe(pos) {
+                if (expandedState[pos]) {
+                    collapseBaugruppe(pos);
+                } else {
+                    expandBaugruppe(pos);
+                }
+            }
+
+            // Toggle-Click auf Baugruppen-Zeilen
+            document.querySelectorAll('.bom-toggle').forEach(function (toggle) {
+                toggle.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var pos = this.getAttribute('data-target-pos');
+                    toggleBaugruppe(pos);
+                });
+            });
+
+            // Alle aufklappen
+            document.getElementById('btnExpandAll').addEventListener('click', function () {
+                document.querySelectorAll('#bomTable tbody tr[data-baugruppe-id]').forEach(function (row) {
+                    var pos = row.getAttribute('data-position');
+                    expandBaugruppe(pos);
+                });
+            });
+
+            // Alle zuklappen
+            document.getElementById('btnCollapseAll').addEventListener('click', function () {
+                document.querySelectorAll('#bomTable tbody tr[data-baugruppe-id]').forEach(function (row) {
+                    var pos = row.getAttribute('data-position');
+                    collapseBaugruppe(pos);
+                });
+            });
+
+            // ========== Checkbox-Toggle (Picking) ==========
+
             document.querySelectorAll('.picking-checkbox').forEach(function (cb) {
                 cb.addEventListener('change', function () {
                     var pickingItemId = this.getAttribute('data-id');
+                    var isBaugruppe = this.getAttribute('data-is-baugruppe') === 'true';
                     var row = this.closest('tr');
                     var sourceSelect = row.querySelector('.source-location-select');
                     var storageLocationId = sourceSelect ? sourceSelect.value : null;
@@ -249,7 +356,8 @@
                         type: 'POST',
                         data: {
                             pickingItemId: pickingItemId,
-                            storageLocationId: storageLocationId || null
+                            storageLocationId: storageLocationId || null,
+                            isBaugruppe: isBaugruppe
                         },
                         headers: { 'RequestVerificationToken': token },
                         success: function () {
@@ -267,7 +375,8 @@
                 });
             });
 
-            // Transfer-Form per AJAX → dann Status-Modal anzeigen
+            // ========== Transfer-Form per AJAX ==========
+
             var transferForm = document.getElementById('transferForm');
             if (transferForm) {
                 transferForm.addEventListener('submit', function (e) {
@@ -290,7 +399,8 @@
                 });
             }
 
-            // Status-Buttons im Modal
+            // ========== Status-Buttons im Modal ==========
+
             document.querySelectorAll('.set-status-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var status = this.getAttribute('data-status');
@@ -312,7 +422,8 @@
                 });
             });
 
-            // Foto-Upload initialisieren
+            // ========== Foto-Upload ==========
+
             if (typeof initPhotoUpload === 'function') {
                 initPhotoUpload(productionOrderId, token);
             }

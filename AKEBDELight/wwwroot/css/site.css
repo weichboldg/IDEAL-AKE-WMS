@@ -539,9 +539,26 @@ body {
     opacity: 1;
 }
 
-/* Tree structure indent */
-.table-info td {
+/* Tree structure - Baugruppen */
+.bom-baugruppe td {
     background-color: rgba(67, 166, 226, 0.1) !important;
+    font-weight: 600;
+}
+
+.bom-toggle:hover {
+    color: var(--ake-primary);
+}
+
+.bom-chevron {
+    display: inline-block;
+    margin-right: 2px;
+    vertical-align: middle;
+}
+
+/* Kommissionier-Datum: hellblau (CI) + fett */
+.kommissionier-date {
+    color: var(--ake-secondary) !important;
+    font-weight: 700 !important;
 }
 
 /* Filter row styling */

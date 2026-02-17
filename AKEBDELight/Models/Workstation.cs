@@ -13,6 +13,10 @@ public class Workstation : AuditableEntity
     [Display(Name = "Standort")]
     public string? Location { get; set; }
 
+    [StringLength(500)]
+    [Display(Name = "Standard-Drucker")]
+    public string? DefaultPrinter { get; set; }
+
     [Display(Name = "Standard-Benutzer")]
     public int? DefaultUserId { get; set; }
 

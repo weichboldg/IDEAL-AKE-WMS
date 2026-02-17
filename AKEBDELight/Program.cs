@@ -50,6 +50,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
+builder.Services.AddScoped<IPrintService, PrintService>();
 
 // MVC
 builder.Services.AddControllersWithViews();

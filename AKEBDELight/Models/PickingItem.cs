@@ -27,6 +27,8 @@ public class PickingItem : AuditableEntity
     [StringLength(200)]
     public string? PickedByWindows { get; set; }
 
+    public bool IsBaugruppe { get; set; }
+
     public bool IsTransferred { get; set; }
     public DateTime? TransferredAt { get; set; }
 

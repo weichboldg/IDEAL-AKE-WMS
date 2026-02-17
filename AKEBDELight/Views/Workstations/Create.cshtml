@@ -26,6 +26,12 @@
                     </div>
 
                     <div class="mb-3">
+                        <label asp-for="DefaultPrinter" class="form-label"></label>
+                        <input asp-for="DefaultPrinter" class="form-control" placeholder="\\DRUCKSERVER\Druckername" />
+                        <small class="form-text text-muted">Format: \\SERVERNAME\Druckername (am Webserver verbunden)</small>
+                    </div>
+
+                    <div class="mb-3">
                         <label asp-for="DefaultUserId" class="form-label"></label>
                         <select asp-for="DefaultUserId" class="form-select"
                                 asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">

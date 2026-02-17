@@ -54,6 +54,7 @@ public class WorkstationsController : Controller
         {
             Name = vm.Name,
             Location = vm.Location,
+            DefaultPrinter = vm.DefaultPrinter,
             DefaultUserId = vm.DefaultUserId,
             CreatedAt = DateTime.Now,
             CreatedBy = displayName,
@@ -82,6 +83,7 @@ public class WorkstationsController : Controller
             Id = workstation.Id,
             Name = workstation.Name,
             Location = workstation.Location,
+            DefaultPrinter = workstation.DefaultPrinter,
             DefaultUserId = workstation.DefaultUserId,
             SelectedUserIds = workstation.WorkstationUsers.Select(wu => wu.UserId).ToList(),
             AvailableUsers = await _userRepository.GetActiveUsersAsync()
@@ -112,6 +114,7 @@ public class WorkstationsController : Controller
 
         existing.Name = vm.Name;
         existing.Location = vm.Location;
+        existing.DefaultPrinter = vm.DefaultPrinter;
         existing.DefaultUserId = vm.DefaultUserId;
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = displayName;

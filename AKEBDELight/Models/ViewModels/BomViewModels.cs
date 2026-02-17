@@ -35,6 +35,7 @@ public class BomItemViewModel
 
     // Tree structure
     public int TreeLevel { get; set; }
+    public bool IsBaugruppe { get; set; }
 
     // Picking fields
     public int? PickingItemId { get; set; }
@@ -69,4 +70,27 @@ public class PrintPickingItem
     public string Artikelnummer { get; set; } = string.Empty;
     public string? Bezeichnung1 { get; set; }
     public decimal Menge { get; set; }
+}
+
+public class PrintBomViewModel
+{
+    public string OrderNumber { get; set; } = string.Empty;
+    public string? ArticleNumber { get; set; }
+    public string? Description1 { get; set; }
+    public decimal Quantity { get; set; }
+    public List<PrintBomItem> Items { get; set; } = new();
+}
+
+public class PrintBomItem
+{
+    public string? Position { get; set; }
+    public string? Baugruppe { get; set; }
+    public string? Ressourcenummer { get; set; }
+    public string? Bezeichnung1 { get; set; }
+    public string? Bezeichnung2 { get; set; }
+    public decimal Menge { get; set; }
+    public string? Beschaffungsartikel { get; set; }
+    public string? Artikelgruppe { get; set; }
+    public int TreeLevel { get; set; }
+    public bool IsBaugruppe { get; set; }
 }
