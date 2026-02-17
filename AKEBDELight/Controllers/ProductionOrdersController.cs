@@ -18,6 +18,7 @@ public class ProductionOrdersController : Controller
     private readonly IStockMovementRepository _stockMovementRepository;
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly IArticleRepository _articleRepository;
+    private readonly IPickingTransferService _pickingTransferService;
     private readonly IWebHostEnvironment _env;
 
     public ProductionOrdersController(
@@ -31,6 +32,7 @@ public class ProductionOrdersController : Controller
         IStockMovementRepository stockMovementRepository,
         IStorageLocationRepository storageLocationRepository,
         IArticleRepository articleRepository,
+        IPickingTransferService pickingTransferService,
         IWebHostEnvironment env)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -43,6 +45,7 @@ public class ProductionOrdersController : Controller
         _stockMovementRepository = stockMovementRepository;
         _storageLocationRepository = storageLocationRepository;
         _articleRepository = articleRepository;
+        _pickingTransferService = pickingTransferService;
         _env = env;
     }
 
@@ -218,7 +221,7 @@ public class ProductionOrdersController : Controller
                 Ressourcenummer = bom.Ressourcenummer,
                 Bezeichnung1 = bom.Bezeichnung1,
                 Bezeichnung2 = bom.Bezeichnung2,
-                Menge = bom.Menge,
+                Menge = bom.Menge * order.Quantity,
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
                 StockLocations = locations,
@@ -277,46 +280,21 @@ public class ProductionOrdersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId)
     {
-        var pickedItems = await _pickingRepository.GetPickedNotTransferredAsync(productionOrderId);
-        if (!pickedItems.Any())
+        try
         {
-            return BadRequest("Keine gepickten Artikel zum Umbuchen vorhanden.");
+            var count = await _pickingTransferService.TransferPickedItemsAsync(
+                productionOrderId,
+                targetStorageLocationId,
+                _currentUserService.GetCurrentAppUserId(),
+                _currentUserService.GetDisplayName(),
+                _currentUserService.GetWindowsUserName());
+
+            return Ok(new { count });
         }
-
-        var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
-        var appUserId = _currentUserService.GetCurrentAppUserId();
-        var now = DateTime.Now;
-
-        foreach (var item in pickedItems)
+        catch (InvalidOperationException ex)
         {
-            if (!item.SourceStorageLocationId.HasValue) continue;
-
-            var article = await _articleRepository.GetByArticleNumberAsync(item.BomArticleNumber);
-            if (article == null) continue;
-
-            var movement = new StockMovement
-            {
-                ArticleId = article.Id,
-                Quantity = item.Quantity,
-                StorageLocationId = targetStorageLocationId,
-                SourceStorageLocationId = item.SourceStorageLocationId.Value,
-                ProductionOrder = order?.OrderNumber,
-                MovementType = MovementType.Umbuchung,
-                Timestamp = now,
-                UserId = appUserId,
-                WindowsUser = _currentUserService.GetWindowsUserName(),
-                CreatedAt = now,
-                CreatedBy = _currentUserService.GetDisplayName(),
-                CreatedByWindows = _currentUserService.GetWindowsUserName()
-            };
-
-            await _stockMovementRepository.AddAsync(movement);
+            return BadRequest(ex.Message);
         }
-
-        await _pickingRepository.MarkAsTransferredAsync(
-            pickedItems.Select(p => p.Id).ToList(), now);
-
-        return Ok(new { count = pickedItems.Count });
     }
 
     [HttpPost]
@@ -348,6 +326,15 @@ public class ProductionOrdersController : Controller
 
         var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
 
+        // Stock-Daten laden für Lagerplatz-Anzeige
+        var articleNumbers = bomItems
+            .Select(b => b.Ressourcenummer)
+            .Where(r => !string.IsNullOrEmpty(r))
+            .Select(r => r!)
+            .Distinct()
+            .ToList();
+        var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
+
         var baugruppen = bomItems
             .Where(b => !string.IsNullOrEmpty(b.Baugruppe))
             .Select(b => b.Baugruppe!)
@@ -361,11 +348,14 @@ public class ProductionOrdersController : Controller
             Ressourcenummer = bom.Ressourcenummer,
             Bezeichnung1 = bom.Bezeichnung1,
             Bezeichnung2 = bom.Bezeichnung2,
-            Menge = bom.Menge,
+            Menge = bom.Menge * order.Quantity,
             Beschaffungsartikel = bom.Beschaffungsartikel,
             Artikelgruppe = bom.Artikelgruppe,
             TreeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.'),
-            IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer)
+            IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),
+            Lagerplatz = stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var locs) && locs.Any()
+                ? string.Join(", ", locs.Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
+                : null
         })
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();

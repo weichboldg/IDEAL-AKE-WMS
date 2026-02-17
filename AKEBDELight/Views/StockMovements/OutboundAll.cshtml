@@ -1,0 +1,115 @@
+@model OutboundAllViewModel
+@{
+    ViewData["Title"] = "Lagerplatz leeren";
+}
+
+<h2 class="page-header" style="border-bottom-color: var(--ake-orange);">Lagerplatz komplett ausbuchen</h2>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header" style="background-color: var(--ake-orange);">
+                Lagerplatz auswählen
+            </div>
+            <div class="card-body">
+                <form method="get" asp-action="OutboundAll" class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label">Lagerplatz</label>
+                        <div class="input-group">
+                            <select name="storageLocationId" class="form-select" id="StorageLocationId">
+                                <option value="">-- Lagerplatz wählen --</option>
+                                @foreach (var sl in Model.StorageLocations)
+                                {
+                                    <option value="@sl.Id" selected="@(Model.StorageLocationId == sl.Id)">@sl.Code</option>
+                                }
+                            </select>
+                            <button type="button" id="btnScanStorageLocation" class="btn btn-secondary scan-btn" title="Barcode scannen">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                    <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-secondary w-100">Laden</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.StorageLocationId.HasValue && Model.Items.Any())
+{
+    <div class="card">
+        <div class="card-header">
+            Bestand auf Lagerplatz <strong>@Model.StorageLocationCode</strong> — @Model.Items.Count Artikel
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Artikelnummer</th>
+                            <th>Bezeichnung</th>
+                            <th>Einheit</th>
+                            <th class="text-end">Bestand</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td><strong>@item.ArticleNumber</strong></td>
+                                <td>@item.ArticleDescription</td>
+                                <td>@item.Unit</td>
+                                <td class="text-end">@item.CurrentQuantity.ToString("N3")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-dark">
+                            <td colspan="3"><strong>Gesamt</strong></td>
+                            <td class="text-end"><strong>@Model.Items.Sum(i => i.CurrentQuantity).ToString("N3")</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer">
+            <form asp-action="OutboundAllConfirm" method="post" id="outboundAllForm">
+                <input type="hidden" name="storageLocationId" value="@Model.StorageLocationId" />
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label">Fertigungsauftrag (optional)</label>
+                        <input type="text" name="productionOrder" class="form-control" value="@Model.ProductionOrder" placeholder="WA-Nummer" />
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-danger btn-lg w-100" id="btnOutboundAll">
+                            Alle @Model.Items.Count Artikel ausbuchen
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+else if (Model.StorageLocationId.HasValue)
+{
+    <div class="alert alert-info">
+        Keine Artikel mit positivem Bestand auf diesem Lagerplatz.
+    </div>
+}
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script>
+        document.getElementById('btnOutboundAll')?.addEventListener('click', function () {
+            if (confirm('Wirklich alle @Model.Items.Count Artikel vom Lagerplatz @Model.StorageLocationCode komplett ausbuchen?')) {
+                document.getElementById('outboundAllForm').submit();
+            }
+        });
+    </script>
+}

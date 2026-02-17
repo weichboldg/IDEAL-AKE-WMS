@@ -144,14 +144,16 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         return merged.OrderBy(g => g.ArticleNumber).ThenBy(g => g.StorageLocationCode).ToList();
     }
 
-    public async Task<List<MovementHistoryItem>> GetMovementHistoryAsync(
+    public async Task<(List<MovementHistoryItem> Items, int TotalCount)> GetMovementHistoryAsync(
         DateTime? dateFrom = null,
         DateTime? dateTo = null,
         string? filterArticle = null,
         int? filterStorageLocationId = null,
         MovementType? filterMovementType = null,
         int? filterUserId = null,
-        string? filterProductionOrder = null)
+        string? filterProductionOrder = null,
+        int page = 1,
+        int pageSize = 50)
     {
         var query = _dbSet
             .Include(sm => sm.Article)
@@ -186,8 +188,12 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         if (!string.IsNullOrWhiteSpace(filterProductionOrder))
             query = query.Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(filterProductionOrder));
 
-        return await query
+        var totalCount = await query.CountAsync();
+
+        var items = await query
             .OrderByDescending(sm => sm.Timestamp)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(sm => new MovementHistoryItem
             {
                 Id = sm.Id,
@@ -204,6 +210,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 ProductionOrder = sm.ProductionOrder
             })
             .ToListAsync();
+
+        return (items, totalCount);
     }
 
     public async Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers)
@@ -274,5 +282,23 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 g => g.Key,
                 g => g.Select(x => x.Info).OrderBy(i => i.Code).ToList()
             );
+    }
+
+    public async Task<decimal> GetCurrentStockAtLocationAsync(int articleId, int storageLocationId)
+    {
+        var destSum = await _dbSet
+            .Where(sm => sm.ArticleId == articleId && sm.StorageLocationId == storageLocationId)
+            .SumAsync(sm =>
+                sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
+                sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
+                -sm.Quantity);
+
+        var srcSum = await _dbSet
+            .Where(sm => sm.ArticleId == articleId
+                      && sm.SourceStorageLocationId == storageLocationId
+                      && sm.MovementType == MovementType.Umbuchung)
+            .SumAsync(sm => sm.Quantity);
+
+        return destSum - srcSum;
     }
 }

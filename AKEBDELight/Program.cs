@@ -41,8 +41,12 @@ builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 builder.Services.AddScoped<IAppSettingRepository, AppSettingRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
-builder.Services.AddScoped<IBomRepository, BomRepository>();
+builder.Services.AddScoped<BomRepository>();
+builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
+
+// Caching
+builder.Services.AddMemoryCache();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -51,6 +55,7 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
 builder.Services.AddScoped<IPrintService, PrintService>();
+builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
 
 // MVC
 builder.Services.AddControllersWithViews();
@@ -61,7 +66,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // Fotos-Verzeichnis erstellen

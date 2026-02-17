@@ -91,6 +91,7 @@ public class PrintBomItem
     public decimal Menge { get; set; }
     public string? Beschaffungsartikel { get; set; }
     public string? Artikelgruppe { get; set; }
+    public string? Lagerplatz { get; set; }
     public int TreeLevel { get; set; }
     public bool IsBaugruppe { get; set; }
 }

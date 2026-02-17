@@ -129,6 +129,111 @@
     </table>
 </div>
 
-<div class="mt-3 text-muted">
-    <small>@Model.Items.Count Einträge</small>
-</div>
+@if (Model.TotalPages > 1)
+{
+    <nav class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted">
+            <small>Seite @Model.Page von @Model.TotalPages (@Model.TotalCount Einträge gesamt)</small>
+        </div>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                <a class="page-link" href="@Url.Action("Index", new {
+                    dateFrom = Model.FilterDateFrom?.ToString("yyyy-MM-dd"),
+                    dateTo = Model.FilterDateTo?.ToString("yyyy-MM-dd"),
+                    filterArticle = Model.FilterArticle,
+                    filterStorageLocationId = Model.FilterStorageLocationId,
+                    filterMovementType = Model.FilterMovementType.HasValue ? (int?)Model.FilterMovementType : null,
+                    filterUserId = Model.FilterUserId,
+                    filterProductionOrder = Model.FilterProductionOrder,
+                    page = Model.Page - 1,
+                    pageSize = Model.PageSize
+                })">
+                    &laquo; Zurück
+                </a>
+            </li>
+            @{
+                // Seitennummern: max 7 Seiten anzeigen
+                int startPage = Math.Max(1, Model.Page - 3);
+                int endPage = Math.Min(Model.TotalPages, startPage + 6);
+                startPage = Math.Max(1, endPage - 6);
+            }
+            @if (startPage > 1)
+            {
+                <li class="page-item">
+                    <a class="page-link" href="@Url.Action("Index", new {
+                        dateFrom = Model.FilterDateFrom?.ToString("yyyy-MM-dd"),
+                        dateTo = Model.FilterDateTo?.ToString("yyyy-MM-dd"),
+                        filterArticle = Model.FilterArticle,
+                        filterStorageLocationId = Model.FilterStorageLocationId,
+                        filterMovementType = Model.FilterMovementType.HasValue ? (int?)Model.FilterMovementType : null,
+                        filterUserId = Model.FilterUserId,
+                        filterProductionOrder = Model.FilterProductionOrder,
+                        page = 1,
+                        pageSize = Model.PageSize
+                    })">1</a>
+                </li>
+                @if (startPage > 2)
+                {
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                }
+            }
+            @for (int i = startPage; i <= endPage; i++)
+            {
+                <li class="page-item @(i == Model.Page ? "active" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new {
+                        dateFrom = Model.FilterDateFrom?.ToString("yyyy-MM-dd"),
+                        dateTo = Model.FilterDateTo?.ToString("yyyy-MM-dd"),
+                        filterArticle = Model.FilterArticle,
+                        filterStorageLocationId = Model.FilterStorageLocationId,
+                        filterMovementType = Model.FilterMovementType.HasValue ? (int?)Model.FilterMovementType : null,
+                        filterUserId = Model.FilterUserId,
+                        filterProductionOrder = Model.FilterProductionOrder,
+                        page = i,
+                        pageSize = Model.PageSize
+                    })">@i</a>
+                </li>
+            }
+            @if (endPage < Model.TotalPages)
+            {
+                @if (endPage < Model.TotalPages - 1)
+                {
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                }
+                <li class="page-item">
+                    <a class="page-link" href="@Url.Action("Index", new {
+                        dateFrom = Model.FilterDateFrom?.ToString("yyyy-MM-dd"),
+                        dateTo = Model.FilterDateTo?.ToString("yyyy-MM-dd"),
+                        filterArticle = Model.FilterArticle,
+                        filterStorageLocationId = Model.FilterStorageLocationId,
+                        filterMovementType = Model.FilterMovementType.HasValue ? (int?)Model.FilterMovementType : null,
+                        filterUserId = Model.FilterUserId,
+                        filterProductionOrder = Model.FilterProductionOrder,
+                        page = Model.TotalPages,
+                        pageSize = Model.PageSize
+                    })">@Model.TotalPages</a>
+                </li>
+            }
+            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                <a class="page-link" href="@Url.Action("Index", new {
+                    dateFrom = Model.FilterDateFrom?.ToString("yyyy-MM-dd"),
+                    dateTo = Model.FilterDateTo?.ToString("yyyy-MM-dd"),
+                    filterArticle = Model.FilterArticle,
+                    filterStorageLocationId = Model.FilterStorageLocationId,
+                    filterMovementType = Model.FilterMovementType.HasValue ? (int?)Model.FilterMovementType : null,
+                    filterUserId = Model.FilterUserId,
+                    filterProductionOrder = Model.FilterProductionOrder,
+                    page = Model.Page + 1,
+                    pageSize = Model.PageSize
+                })">
+                    Weiter &raquo;
+                </a>
+            </li>
+        </ul>
+    </nav>
+}
+else
+{
+    <div class="mt-3 text-muted">
+        <small>@Model.TotalCount Einträge</small>
+    </div>
+}

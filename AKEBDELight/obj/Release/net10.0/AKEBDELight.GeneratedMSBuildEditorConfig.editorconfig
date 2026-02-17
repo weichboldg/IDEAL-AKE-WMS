@@ -102,6 +102,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvY2tNb3ZlbWVudHNcT3V0Ym91bmQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[c:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/StockMovements/OutboundAll.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvY2tNb3ZlbWVudHNcT3V0Ym91bmRBbGwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [c:/Entwicklung/C\#/AKEBDELight/AKEBDELight/Views/StockMovements/Transfer.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvY2tNb3ZlbWVudHNcVHJhbnNmZXIuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 

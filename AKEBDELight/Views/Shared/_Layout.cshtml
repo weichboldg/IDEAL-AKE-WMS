@@ -27,6 +27,7 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
                                 <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
+                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="OutboundAll">Lagerplatz leeren</a></li>
                                 <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
                                 <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                 <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
@@ -76,6 +77,13 @@
     </header>
 
     <div class="container-fluid px-3 px-md-4 mt-3">
+        @if (TempData["WarningMessage"] != null)
+        {
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                @TempData["WarningMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+            </div>
+        }
         @if (TempData["SuccessMessage"] != null)
         {
             <div class="alert alert-success alert-dismissible fade show" role="alert">

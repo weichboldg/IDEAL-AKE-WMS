@@ -80,7 +80,15 @@ public class PickingRepository : IPickingRepository
         item.ModifiedBy = userName;
         item.ModifiedByWindows = windowsUser;
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException(
+                "Der Datensatz wurde zwischenzeitlich von einem anderen Benutzer geändert. Bitte Seite neu laden.");
+        }
     }
 
     public async Task<List<PickingItem>> GetPickedNotTransferredAsync(int productionOrderId)

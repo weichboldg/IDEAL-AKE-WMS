@@ -219,6 +219,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
+            entity.Property(e => e.RowVersion).IsRowVersion();
+
             entity.HasIndex(e => e.ProductionOrderId);
             entity.HasIndex(e => new { e.ProductionOrderId, e.IsPicked });
 

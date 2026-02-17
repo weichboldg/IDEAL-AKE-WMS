@@ -20,7 +20,7 @@
             color: #000;
             background: #fff;
             padding: 20px;
-            font-size: 11px;
+            font-size: 9px;
         }
 
         .screen-controls {
@@ -61,7 +61,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 8.5px;
         }
 
         th {
@@ -127,8 +127,8 @@
             }
 
             @@page {
-                size: landscape;
-                margin: 10mm;
+                size: A4 portrait;
+                margin: 8mm;
             }
         }
     </style>
@@ -164,6 +164,7 @@
                 <th class="text-end">Menge</th>
                 <th>Beschaffung</th>
                 <th>Artikelgruppe</th>
+                <th>Lagerplatz</th>
             </tr>
         </thead>
         <tbody>
@@ -186,12 +187,13 @@
                     <td class="text-end">@item.Menge.ToString("N3")</td>
                     <td>@item.Beschaffungsartikel</td>
                     <td>@item.Artikelgruppe</td>
+                    <td>@(item.Lagerplatz ?? "-")</td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 20px; color: #999;">Keine Stücklisten-Positionen vorhanden.</td>
+                    <td colspan="10" style="text-align: center; padding: 20px; color: #999;">Keine Stücklisten-Positionen vorhanden.</td>
                 </tr>
             }
         </tbody>

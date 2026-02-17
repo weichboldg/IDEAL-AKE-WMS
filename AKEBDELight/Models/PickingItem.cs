@@ -1,9 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AKEBDELight.Models;
 
 public class PickingItem : AuditableEntity
 {
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = null!;
+
     [Required]
     public int ProductionOrderId { get; set; }
 
