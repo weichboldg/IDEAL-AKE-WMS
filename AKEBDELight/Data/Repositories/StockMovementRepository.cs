@@ -131,6 +131,12 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             })
             .ToList();
 
+        // Standardmäßig 0-Bestände ausblenden (nur wenn kein expliziter Mengenfilter)
+        if (!filterMinQuantity.HasValue && !filterMaxQuantity.HasValue)
+        {
+            merged = merged.Where(r => r.CurrentQuantity != 0).ToList();
+        }
+
         if (filterMinQuantity.HasValue)
         {
             merged = merged.Where(g => g.CurrentQuantity >= filterMinQuantity.Value).ToList();
