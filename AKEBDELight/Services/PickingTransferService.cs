@@ -35,8 +35,8 @@ public class PickingTransferService : IPickingTransferService
         var order = await _context.ProductionOrders.FindAsync(productionOrderId);
         var targetLocation = await _context.StorageLocations.FindAsync(targetStorageLocationId);
 
-        // Kommissionierwaagen-Konfliktprüfung
-        if (targetLocation?.IsPickingScale == true && !forceTransfer)
+        // Kommissionierwagen-Konfliktprüfung
+        if (targetLocation?.IsPickingTransport == true && !forceTransfer)
         {
             var existingOrders = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(targetStorageLocationId);
             var currentWa = order?.OrderNumber;
@@ -50,7 +50,7 @@ public class PickingTransferService : IPickingTransferService
                 return new PickingTransferResult
                 {
                     Success = false,
-                    IsPickingScaleConflict = true,
+                    IsPickingTransportConflict = true,
                     ConflictStorageLocationId = targetStorageLocationId,
                     ConflictStorageLocationCode = targetLocation.Code,
                     CurrentWaNumbers = string.Join("; ", existingOrders.Where(o => !string.IsNullOrEmpty(o)).Distinct()),
@@ -61,7 +61,7 @@ public class PickingTransferService : IPickingTransferService
 
         // Bei forceTransfer: WA-Nummern zusammenführen
         string? productionOrderValue = order?.OrderNumber;
-        if (forceTransfer && targetLocation?.IsPickingScale == true)
+        if (forceTransfer && targetLocation?.IsPickingTransport == true)
         {
             var existingOrders = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(targetStorageLocationId);
             var allOrders = existingOrders

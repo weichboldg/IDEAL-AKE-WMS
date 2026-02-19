@@ -25,8 +25,8 @@ public class StorageLocation : AuditableEntity
     [Display(Name = "Barcode-Wert")]
     public string? BarcodeValue { get; set; }
 
-    [Display(Name = "Kommissionierwaage")]
-    public bool IsPickingScale { get; set; }
+    [Display(Name = "Kommissionierwagen")]
+    public bool IsPickingTransport { get; set; }
 
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

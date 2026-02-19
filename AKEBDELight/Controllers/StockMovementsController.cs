@@ -298,14 +298,14 @@ public class StockMovementsController : Controller
         {
             var location = await _storageLocationRepository.GetByIdAsync(storageLocationId.Value);
             vm.StorageLocationCode = location?.Code;
-            vm.IsPickingScale = location?.IsPickingScale ?? false;
+            vm.IsPickingTransport = location?.IsPickingTransport ?? false;
 
             var allStock = await _stockMovementRepository.GetCurrentStockAsync(
                 filterStorageLocationId: storageLocationId.Value);
             vm.Items = allStock.Where(s => s.CurrentQuantity > 0).ToList();
 
-            // Bei Kommissionierwaage: neueste WA-Nummer automatisch ermitteln
-            if (vm.IsPickingScale && string.IsNullOrEmpty(vm.ProductionOrder))
+            // Bei Kommissionierwagen: neueste WA-Nummer automatisch ermitteln
+            if (vm.IsPickingTransport && string.IsNullOrEmpty(vm.ProductionOrder))
             {
                 var waNumbers = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(storageLocationId.Value);
                 if (waNumbers.Count > 0)

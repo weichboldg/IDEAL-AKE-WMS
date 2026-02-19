@@ -230,16 +230,16 @@
         </div>
     </div>
 
-    <!-- Kommissionierwaagen-Konflikt-Modal -->
-    <div class="modal fade" id="pickingScaleConflictModal" tabindex="-1">
+    <!-- Kommissionierwagen-Konflikt-Modal -->
+    <div class="modal fade" id="pickingTransportConflictModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title">Kommissionierwaage belegt</h5>
+                    <h5 class="modal-title">Kommissionierwagen belegt</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Auf dem Lagerplatz <strong id="conflictLocationCode"></strong> (Kommissionierwaage) befinden sich bereits Artikel von:</p>
+                    <p>Auf dem Lagerplatz <strong id="conflictLocationCode"></strong> (Kommissionierwagen) befinden sich bereits Artikel von:</p>
                     <p class="fs-5 fw-bold text-center" id="conflictCurrentWa"></p>
                     <p>Neuer Werkstattauftrag: <strong id="conflictNewWa"></strong></p>
                     <hr />
@@ -413,7 +413,7 @@
 
             // ========== Transfer-Form per AJAX ==========
 
-            // Kommissionierwaagen-Konflikt-Daten
+            // Kommissionierwagen-Konflikt-Daten
             var conflictLocationId = null;
 
             var transferForm = document.getElementById('transferForm');
@@ -429,12 +429,12 @@
                         headers: { 'RequestVerificationToken': token },
                         success: function (data) {
                             if (data && data.conflict) {
-                                // Kommissionierwaagen-Konflikt
+                                // Kommissionierwagen-Konflikt
                                 conflictLocationId = data.locationId;
                                 document.getElementById('conflictLocationCode').textContent = data.locationCode;
                                 document.getElementById('conflictCurrentWa').textContent = data.currentWaNumbers;
                                 document.getElementById('conflictNewWa').textContent = data.newWaNumber;
-                                var conflictModal = new bootstrap.Modal(document.getElementById('pickingScaleConflictModal'));
+                                var conflictModal = new bootstrap.Modal(document.getElementById('pickingTransportConflictModal'));
                                 conflictModal.show();
                             } else {
                                 var statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
@@ -454,7 +454,7 @@
 
                 // "Trotzdem buchen" im Konflikt-Modal
                 document.getElementById('btnForceTransfer').addEventListener('click', function () {
-                    bootstrap.Modal.getInstance(document.getElementById('pickingScaleConflictModal')).hide();
+                    bootstrap.Modal.getInstance(document.getElementById('pickingTransportConflictModal')).hide();
                     doTransfer(true);
                 });
 

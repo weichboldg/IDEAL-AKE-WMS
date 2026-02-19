@@ -106,7 +106,9 @@ public class ProductionOrdersController : Controller
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
                 IsDone = o.IsDone,
-                PickingStatus = o.PickingStatus
+                PickingStatus = o.PickingStatus,
+                HasGlass = o.HasGlass,
+                HasExternalPurchase = o.HasExternalPurchase
             };
 
             if (o.ProductionDate.HasValue)
@@ -313,7 +315,7 @@ public class ProductionOrdersController : Controller
                 _currentUserService.GetDisplayName(),
                 _currentUserService.GetWindowsUserName());
 
-            if (result.IsPickingScaleConflict)
+            if (result.IsPickingTransportConflict)
             {
                 return Ok(new
                 {

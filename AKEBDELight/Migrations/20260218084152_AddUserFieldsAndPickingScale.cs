@@ -32,7 +32,7 @@ namespace AKEBDELight.Migrations
                 defaultValue: false);
 
             migrationBuilder.AddColumn<bool>(
-                name: "IsPickingScale",
+                name: "IsPickingTransport",
                 table: "StorageLocations",
                 type: "bit",
                 nullable: false,
@@ -55,7 +55,7 @@ namespace AKEBDELight.Migrations
                 table: "Users");
 
             migrationBuilder.DropColumn(
-                name: "IsPickingScale",
+                name: "IsPickingTransport",
                 table: "StorageLocations");
         }
     }

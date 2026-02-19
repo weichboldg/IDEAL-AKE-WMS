@@ -36,6 +36,9 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 (o.Customer != null && o.Customer.Contains(query)));
         }
 
-        return await q.OrderBy(o => o.OrderNumber).Take(limit).ToListAsync();
+        return await q
+            .OrderBy(o => o.ProductionDate.HasValue ? 0 : 1)
+            .ThenBy(o => o.ProductionDate)
+            .Take(limit).ToListAsync();
     }
 }

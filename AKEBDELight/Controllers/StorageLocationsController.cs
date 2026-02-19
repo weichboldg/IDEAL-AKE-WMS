@@ -75,7 +75,7 @@ public class StorageLocationsController : Controller
         existing.Description = location.Description;
         existing.Zone = location.Zone;
         existing.Capacity = location.Capacity;
-        existing.IsPickingScale = location.IsPickingScale;
+        existing.IsPickingTransport = location.IsPickingTransport;
         existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
@@ -119,7 +119,9 @@ public class StorageLocationsController : Controller
     private string GenerateBarcodeBase64(string value)
     {
         var barcode = new Barcode();
-        var image = barcode.Encode(BarcodeStandard.Type.Code128, value, SKColors.Black, SKColors.White, 600, 160);
+        // Breite dynamisch: längere Texte brauchen mehr Pixel für dickere Balken
+        var width = Math.Max(800, value.Length * 45);
+        var image = barcode.Encode(BarcodeStandard.Type.Code128, value, SKColors.Black, SKColors.White, width, 200);
 
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return Convert.ToBase64String(data.ToArray());

@@ -7,6 +7,8 @@ namespace AKEBDELight.Controllers;
 [ApiController]
 public class ProductionOrdersApiController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedToggleFields = ["HasGlass", "HasExternalPurchase"];
+
     private readonly IProductionOrderRepository _repository;
 
     public ProductionOrdersApiController(IProductionOrderRepository repository)
@@ -29,4 +31,30 @@ public class ProductionOrdersApiController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("toggle-field")]
+    public async Task<IActionResult> ToggleField([FromBody] ToggleFieldRequest request)
+    {
+        if (!AllowedToggleFields.Contains(request.Field))
+            return BadRequest("Ungültiges Feld.");
+
+        var order = await _repository.GetByIdAsync(request.Id);
+        if (order == null)
+            return NotFound();
+
+        if (request.Field == "HasGlass")
+            order.HasGlass = request.Value;
+        else if (request.Field == "HasExternalPurchase")
+            order.HasExternalPurchase = request.Value;
+
+        await _repository.UpdateAsync(order);
+        return Ok();
+    }
+}
+
+public class ToggleFieldRequest
+{
+    public int Id { get; set; }
+    public string Field { get; set; } = string.Empty;
+    public bool Value { get; set; }
 }

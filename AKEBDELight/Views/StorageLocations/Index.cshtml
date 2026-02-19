@@ -32,7 +32,7 @@
                     <td>@location.Description</td>
                     <td>@location.Zone</td>
                     <td>@location.Capacity?.ToString("N2")</td>
-                    <td>@if (location.IsPickingScale) { <span class="badge bg-info">Waage</span> }</td>
+                    <td>@if (location.IsPickingTransport) { <span class="badge bg-info">Wagen</span> }</td>
                     <td>@location.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="text-nowrap">
                         <a asp-action="PrintLabel" asp-route-id="@location.Id" class="btn btn-sm btn-outline-secondary" title="Etikett drucken">

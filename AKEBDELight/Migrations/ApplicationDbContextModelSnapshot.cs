@@ -275,6 +275,12 @@ namespace AKEBDELight.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<bool>("HasExternalPurchase")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasGlass")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDone")
                         .HasColumnType("bit");
 
@@ -430,7 +436,7 @@ namespace AKEBDELight.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<bool>("IsPickingScale")
+                    b.Property<bool>("IsPickingTransport")
                         .HasColumnType("bit");
 
                     b.Property<DateTime?>("ModifiedAt")

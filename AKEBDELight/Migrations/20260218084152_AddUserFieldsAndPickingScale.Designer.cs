@@ -433,7 +433,7 @@ namespace AKEBDELight.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<bool>("IsPickingScale")
+                    b.Property<bool>("IsPickingTransport")
                         .HasColumnType("bit");
 
                     b.Property<DateTime?>("ModifiedAt")

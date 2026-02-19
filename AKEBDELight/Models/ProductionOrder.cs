@@ -42,4 +42,10 @@ public class ProductionOrder : AuditableEntity
     [StringLength(50)]
     [Display(Name = "Kommissionierung")]
     public string? PickingStatus { get; set; }
+
+    [Display(Name = "Glas")]
+    public bool HasGlass { get; set; }
+
+    [Display(Name = "Zukauf")]
+    public bool HasExternalPurchase { get; set; }
 }

@@ -4,7 +4,7 @@ public class PickingTransferResult
 {
     public bool Success { get; set; }
     public int TransferredCount { get; set; }
-    public bool IsPickingScaleConflict { get; set; }
+    public bool IsPickingTransportConflict { get; set; }
     public int? ConflictStorageLocationId { get; set; }
     public string? ConflictStorageLocationCode { get; set; }
     public string? CurrentWaNumbers { get; set; }

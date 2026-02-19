@@ -30,4 +30,7 @@ public class ProductionOrderViewItem
     public DateTime? KommissionierTermin { get; set; }
     public DateTime? VorkommissionierTermin { get; set; }
     public DateTime? BeschichtungTermin { get; set; }
+
+    public bool HasGlass { get; set; }
+    public bool HasExternalPurchase { get; set; }
 }

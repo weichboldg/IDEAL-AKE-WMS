@@ -124,13 +124,25 @@ function switchScannerTab(tab) {
     }
 }
 
+function getSupportedFormats() {
+    var formats = [];
+    var F = Html5QrcodeSupportedFormats;
+    if (F) {
+        formats = [F.QR_CODE, F.CODE_128, F.CODE_39, F.EAN_13, F.EAN_8, F.CODE_93];
+    }
+    return formats;
+}
+
 function startCameraScanner(targetSelectId, scanType) {
-    var html5QrCode = new Html5Qrcode("scannerReader");
+    var formats = getSupportedFormats();
+    var html5QrCode = formats.length > 0
+        ? new Html5Qrcode("scannerReader", { formatsToSupport: formats, verbose: false })
+        : new Html5Qrcode("scannerReader");
     _activeScanner = html5QrCode;
 
     var config = {
         fps: 10,
-        qrbox: { width: 250, height: scanType === 'article' ? 250 : 150 },
+        qrbox: { width: 300, height: scanType === 'article' ? 300 : 150 },
         rememberLastUsedCamera: true
     };
 
@@ -187,7 +199,10 @@ function scanFromFile(file, targetSelectId, scanType) {
         resultText.textContent = 'Bild wird verarbeitet...';
     }
 
-    var html5QrCode = new Html5Qrcode("scannerFileReader_temp", false);
+    var formats = getSupportedFormats();
+    var html5QrCode = formats.length > 0
+        ? new Html5Qrcode("scannerFileReader_temp", { formatsToSupport: formats, verbose: false })
+        : new Html5Qrcode("scannerFileReader_temp", false);
     html5QrCode.scanFile(file, true)
         .then(function (decodedText) {
             processScannedValue(decodedText, targetSelectId, scanType);
