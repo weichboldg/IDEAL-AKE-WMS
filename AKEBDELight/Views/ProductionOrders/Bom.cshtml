@@ -25,34 +25,14 @@
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
         <form method="get" asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="row g-2 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-5">
                 <label class="form-label mb-0 small">Filter</label>
                 <input type="text" name="filterText" value="@Model.FilterText" class="form-control form-control-sm" placeholder="Artikelnr., Bezeichnung, Baugruppe..." />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label mb-0 small">Beschaffung</label>
-                <select name="filterBeschaffung" class="form-select form-select-sm">
-                    <option value="">-- alle --</option>
-                    @foreach (var val in Model.AvailableBeschaffungValues)
-                    {
-                        <option value="@val" selected="@(Model.FilterBeschaffung == val)">@val</option>
-                    }
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label mb-0 small">Artikelgruppe</label>
-                <select name="filterArtikelgruppe" class="form-select form-select-sm">
-                    <option value="">-- alle --</option>
-                    @foreach (var val in Model.AvailableArtikelgruppeValues)
-                    {
-                        <option value="@val" selected="@(Model.FilterArtikelgruppe == val)">@val</option>
-                    }
-                </select>
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
             </div>
-            @if (!string.IsNullOrEmpty(Model.FilterText) || !string.IsNullOrEmpty(Model.FilterBeschaffung) || !string.IsNullOrEmpty(Model.FilterArtikelgruppe))
+            @if (!string.IsNullOrEmpty(Model.FilterText))
             {
                 <div class="col-auto">
                     <a asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
@@ -315,6 +295,12 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
+
+            // User-Default-Filter in Spaltenfilter vorbelegen
+            var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
+            var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
+            if (defaultBeschaffung && typeof setColumnFilter === 'function') setColumnFilter(7, defaultBeschaffung);
+            if (defaultArtikelgruppe && typeof setColumnFilter === 'function') setColumnFilter(8, defaultArtikelgruppe);
 
             var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
             var productionOrderId = @Model.ProductionOrderId;

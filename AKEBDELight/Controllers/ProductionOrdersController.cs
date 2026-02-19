@@ -88,6 +88,8 @@ public class ProductionOrdersController : Controller
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
+        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync("BeschichtungAbholtage") ?? "Dienstag,Donnerstag";
+        var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
         var viewItems = orders.Select(o =>
@@ -113,8 +115,10 @@ public class ProductionOrdersController : Controller
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, vorkommissionierTage, holidays);
-                item.BeschichtungTermin = _businessDayService.SubtractBusinessDays(
-                    item.KommissionierTermin.Value, beschichtungTage, holidays);
+                // Beschichtungstermin: Baugruppentermin - BeschichtungTage, dann auf vorherigen Abholtag
+                var rawBeschichtung = _businessDayService.SubtractBusinessDays(
+                    item.VorkommissionierTermin.Value, beschichtungTage, holidays);
+                item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
             }
 
             return item;
@@ -156,7 +160,7 @@ public class ProductionOrdersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Bom(int id, string? filterText, string? filterBeschaffung, string? filterArtikelgruppe)
+    public async Task<IActionResult> Bom(int id, string? filterText)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -168,18 +172,17 @@ public class ProductionOrdersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Beim ersten Aufruf (alle Filter null): User-Defaults laden
-        if (filterText == null && filterBeschaffung == null && filterArtikelgruppe == null)
+        // User-Defaults für client-seitige Spaltenfilter laden
+        string? defaultFilterBeschaffung = null;
+        string? defaultFilterArtikelgruppe = null;
+        var appUserId = _currentUserService.GetCurrentAppUserId();
+        if (appUserId.HasValue)
         {
-            var appUserId = _currentUserService.GetCurrentAppUserId();
-            if (appUserId.HasValue)
+            var currentUser = await _userRepository.GetByIdAsync(appUserId.Value);
+            if (currentUser != null)
             {
-                var currentUser = await _userRepository.GetByIdAsync(appUserId.Value);
-                if (currentUser != null)
-                {
-                    filterBeschaffung = currentUser.DefaultFilterBeschaffung;
-                    filterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
-                }
+                defaultFilterBeschaffung = currentUser.DefaultFilterBeschaffung;
+                defaultFilterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
             }
         }
 
@@ -255,12 +258,6 @@ public class ProductionOrdersController : Controller
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
 
-        // Distinct-Werte für Filter-Dropdowns (vor Filterung sammeln)
-        var availableBeschaffung = viewItems
-            .Select(i => i.Beschaffungsartikel).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList()!;
-        var availableArtikelgruppe = viewItems
-            .Select(i => i.Artikelgruppe).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList()!;
-
         if (!string.IsNullOrWhiteSpace(filterText))
         {
             viewItems = viewItems.Where(i =>
@@ -272,22 +269,6 @@ public class ProductionOrdersController : Controller
             ).ToList();
         }
 
-        if (!string.IsNullOrWhiteSpace(filterBeschaffung))
-        {
-            viewItems = viewItems.Where(i =>
-                i.Beschaffungsartikel != null &&
-                i.Beschaffungsartikel.Equals(filterBeschaffung, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-        }
-
-        if (!string.IsNullOrWhiteSpace(filterArtikelgruppe))
-        {
-            viewItems = viewItems.Where(i =>
-                i.Artikelgruppe != null &&
-                i.Artikelgruppe.Equals(filterArtikelgruppe, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-        }
-
         var vm = new BomViewModel
         {
             ProductionOrderId = id,
@@ -296,10 +277,8 @@ public class ProductionOrdersController : Controller
             Description1 = order.Description1,
             Items = viewItems,
             FilterText = filterText,
-            FilterBeschaffung = filterBeschaffung,
-            FilterArtikelgruppe = filterArtikelgruppe,
-            AvailableBeschaffungValues = availableBeschaffung!,
-            AvailableArtikelgruppeValues = availableArtikelgruppe!,
+            DefaultFilterBeschaffung = defaultFilterBeschaffung,
+            DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
             AllStorageLocations = allStorageLocations
         };
 

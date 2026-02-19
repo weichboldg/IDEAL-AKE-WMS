@@ -65,16 +65,16 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                <th>Datum/Zeit</th>
-                <th>Artikel</th>
-                <th>Menge</th>
-                <th>Lagerplatz</th>
-                <th>Bewegungsart</th>
-                <th>Benutzer</th>
-                <th>Fertigungsauftrag</th>
+                <th data-filterable data-col="0">Datum/Zeit</th>
+                <th data-filterable data-col="1">Artikel</th>
+                <th data-filterable data-col="2">Menge</th>
+                <th data-filterable data-col="3">Lagerplatz</th>
+                <th data-filterable data-col="4">Bewegungsart</th>
+                <th data-filterable data-col="5">Benutzer</th>
+                <th data-filterable data-col="6">Fertigungsauftrag</th>
             </tr>
         </thead>
         <tbody>
@@ -236,4 +236,8 @@ else
     <div class="mt-3 text-muted">
         <small>@Model.TotalCount Einträge</small>
     </div>
+}
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

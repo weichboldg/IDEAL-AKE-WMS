@@ -53,10 +53,8 @@ public class BomViewModel
     public string? Description1 { get; set; }
     public List<BomItemViewModel> Items { get; set; } = new();
     public string? FilterText { get; set; }
-    public string? FilterBeschaffung { get; set; }
-    public string? FilterArtikelgruppe { get; set; }
-    public List<string> AvailableBeschaffungValues { get; set; } = new();
-    public List<string> AvailableArtikelgruppeValues { get; set; } = new();
+    public string? DefaultFilterBeschaffung { get; set; }
+    public string? DefaultFilterArtikelgruppe { get; set; }
     public List<StorageLocation> AllStorageLocations { get; set; } = new();
 }
 

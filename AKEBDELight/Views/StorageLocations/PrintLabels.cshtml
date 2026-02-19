@@ -59,47 +59,48 @@
             flex-wrap: wrap;
             justify-content: flex-start;
             padding: 10px;
-            gap: 10px;
+            gap: 15px;
         }
 
         .label {
-            width: 50mm;
-            height: 30mm;
+            width: 155mm;
+            height: 70mm;
             border: 1px dashed #ccc;
-            padding: 2mm;
+            padding: 5mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
             page-break-inside: avoid;
+            page-break-after: always;
             overflow: hidden;
         }
 
         .label-code {
-            font-size: 10pt;
+            font-size: 24pt;
             font-weight: 700;
             text-align: center;
-            line-height: 1.1;
+            line-height: 1.2;
         }
 
         .label-description {
-            font-size: 6pt;
+            font-size: 14pt;
             text-align: center;
             color: #333;
-            line-height: 1.1;
-            max-height: 3.5mm;
+            line-height: 1.2;
+            max-height: 12mm;
             overflow: hidden;
         }
 
-        .label-zone {
-            font-size: 6pt;
-            text-align: center;
-            color: #666;
+        .label-barcode img {
+            max-width: 140mm;
+            height: 25mm;
         }
 
-        .label-barcode img {
-            max-width: 44mm;
-            height: 10mm;
+        .label-zone {
+            font-size: 12pt;
+            text-align: center;
+            color: #666;
         }
 
         @@media print {
@@ -118,15 +119,15 @@
 
             .label {
                 border: none;
-                width: 50mm;
-                height: 30mm;
+                width: 155mm;
+                height: 70mm;
                 margin: 0;
-                padding: 1.5mm;
+                padding: 4mm;
             }
 
             @@page {
-                size: auto;
-                margin: 5mm;
+                size: 155mm 70mm;
+                margin: 0;
             }
         }
     </style>

@@ -40,21 +40,21 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                <th>WA Nummer</th>
-                <th class="text-end">Stückzahl</th>
-                <th>Kunde</th>
-                <th>Artikelnummer</th>
-                <th>Bezeichnung 1</th>
-                <th>Bezeichnung 2</th>
-                <th title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
-                <th title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Baugruppentermin</th>
-                <th title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Kommissionierung</th>
-                <th>Fertigungstermin</th>
-                <th>Liefertermin</th>
-                <th>Status</th>
+                <th data-filterable data-col="0">WA Nummer</th>
+                <th class="text-end" data-filterable data-col="1">Stückzahl</th>
+                <th data-filterable data-col="2">Kunde</th>
+                <th data-filterable data-col="3">Artikelnummer</th>
+                <th data-filterable data-col="4">Bezeichnung 1</th>
+                <th data-filterable data-col="5">Bezeichnung 2</th>
+                <th data-filterable data-col="6" title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
+                <th data-filterable data-col="7" title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Baugruppentermin</th>
+                <th data-filterable data-col="8" title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Kommissionierung</th>
+                <th data-filterable data-col="9">Fertigungstermin</th>
+                <th data-filterable data-col="10">Liefertermin</th>
+                <th data-filterable data-col="11">Status</th>
                 <th style="width: 120px;"></th>
             </tr>
         </thead>
@@ -157,3 +157,13 @@
 <div class="mt-3 text-muted">
     <small>@Model.Items.Count Einträge</small>
 </div>
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Default-Sortierung: Kommissionierung (col 8) aufsteigend
+            if (typeof triggerSort === 'function') triggerSort(8, 'asc');
+        });
+    </script>
+}

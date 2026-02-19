@@ -12,15 +12,15 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                <th>Code</th>
-                <th>Bezeichnung</th>
-                <th>Bereich/Zone</th>
-                <th>Kapazität</th>
-                <th>Typ</th>
-                <th>Erstellt am</th>
+                <th data-filterable data-col="0">Code</th>
+                <th data-filterable data-col="1">Bezeichnung</th>
+                <th data-filterable data-col="2">Bereich/Zone</th>
+                <th data-filterable data-col="3">Kapazität</th>
+                <th data-filterable data-col="4">Typ</th>
+                <th data-filterable data-col="5">Erstellt am</th>
                 <th style="width: 100px;"></th>
             </tr>
         </thead>
@@ -54,3 +54,7 @@
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

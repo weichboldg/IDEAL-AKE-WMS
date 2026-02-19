@@ -42,15 +42,15 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                <th>Artikelnummer</th>
-                <th>Bezeichnung</th>
-                <th>Lagerplatz</th>
-                <th>Einheit</th>
-                <th class="text-end">Meldebestand</th>
-                <th class="text-end">Aktueller Bestand</th>
+                <th data-filterable data-col="0">Artikelnummer</th>
+                <th data-filterable data-col="1">Bezeichnung</th>
+                <th data-filterable data-col="2">Lagerplatz</th>
+                <th data-filterable data-col="3">Einheit</th>
+                <th class="text-end" data-filterable data-col="4">Meldebestand</th>
+                <th class="text-end" data-filterable data-col="5">Aktueller Bestand</th>
             </tr>
         </thead>
         <tbody>
@@ -117,3 +117,7 @@
 <div class="mt-3 text-muted">
     <small>@Model.Items.Count Einträge</small>
 </div>
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

@@ -119,7 +119,7 @@ public class StorageLocationsController : Controller
     private string GenerateBarcodeBase64(string value)
     {
         var barcode = new Barcode();
-        var image = barcode.Encode(BarcodeStandard.Type.Code128, value, SKColors.Black, SKColors.White, 300, 80);
+        var image = barcode.Encode(BarcodeStandard.Type.Code128, value, SKColors.Black, SKColors.White, 600, 160);
 
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return Convert.ToBase64String(data.ToArray());
