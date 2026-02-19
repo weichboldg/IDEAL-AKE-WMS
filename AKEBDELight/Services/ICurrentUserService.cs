@@ -7,4 +7,5 @@ public interface ICurrentUserService
     int? GetCurrentAppUserId();
     string? GetCurrentAppUserName();
     bool IsLoggedIn();
+    Task<bool> HasMasterDataAccessAsync();
 }

@@ -17,7 +17,7 @@ public class StockMovement : AuditableEntity
     [Display(Name = "Lagerplatz")]
     public int StorageLocationId { get; set; }
 
-    [StringLength(100)]
+    [StringLength(500)]
     [Display(Name = "Fertigungsauftrag")]
     public string? ProductionOrder { get; set; }
 

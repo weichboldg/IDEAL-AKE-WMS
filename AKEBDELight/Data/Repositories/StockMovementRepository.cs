@@ -307,4 +307,28 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
 
         return destSum - srcSum;
     }
+
+    public async Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId)
+    {
+        // Distinct ProductionOrder-Werte von Umbuchungen auf diesen Lagerplatz
+        // (nur für Artikel die dort aktuell positiven Bestand haben)
+        var currentStock = await GetCurrentStockAsync(filterStorageLocationId: storageLocationId);
+        var articleIdsWithStock = currentStock
+            .Where(s => s.CurrentQuantity > 0)
+            .Select(s => s.ArticleId)
+            .ToHashSet();
+
+        if (articleIdsWithStock.Count == 0)
+            return new List<string>();
+
+        var orders = await _dbSet
+            .Where(sm => sm.StorageLocationId == storageLocationId
+                      && sm.ProductionOrder != null
+                      && articleIdsWithStock.Contains(sm.ArticleId))
+            .Select(sm => sm.ProductionOrder!)
+            .Distinct()
+            .ToListAsync();
+
+        return orders;
+    }
 }

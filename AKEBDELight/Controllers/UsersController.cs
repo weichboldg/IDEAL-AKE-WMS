@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using AKEBDELight.Data.Repositories;
+using AKEBDELight.Filters;
 using AKEBDELight.Models;
 using AKEBDELight.Services;
 
 namespace AKEBDELight.Controllers;
 
+[RequireMasterDataAccess]
 public class UsersController : Controller
 {
     private readonly IUserRepository _userRepository;
@@ -76,6 +78,9 @@ public class UsersController : Controller
         existing.Name = user.Name;
         existing.PersonalNumber = user.PersonalNumber;
         existing.IsActive = user.IsActive;
+        existing.HasMasterDataAccess = user.HasMasterDataAccess;
+        existing.DefaultFilterBeschaffung = user.DefaultFilterBeschaffung;
+        existing.DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);

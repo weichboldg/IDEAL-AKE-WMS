@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using AKEBDELight.Data.Repositories;
+using AKEBDELight.Filters;
 using AKEBDELight.Models;
 using AKEBDELight.Models.ViewModels;
 using AKEBDELight.Services;
 
 namespace AKEBDELight.Controllers;
 
+[RequireMasterDataAccess]
 public class SettingsController : Controller
 {
     private readonly IAppSettingRepository _settingRepository;

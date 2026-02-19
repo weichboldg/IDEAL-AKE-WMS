@@ -19,6 +19,17 @@ public class User : AuditableEntity
     [StringLength(500)]
     public string? PasswordHash { get; set; }
 
+    [Display(Name = "Stammdaten-Zugriff")]
+    public bool HasMasterDataAccess { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Standard-Filter Beschaffung")]
+    public string? DefaultFilterBeschaffung { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Standard-Filter Artikelgruppe")]
+    public string? DefaultFilterArtikelgruppe { get; set; }
+
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
     public ICollection<Workstation> DefaultWorkstations { get; set; } = new List<Workstation>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();

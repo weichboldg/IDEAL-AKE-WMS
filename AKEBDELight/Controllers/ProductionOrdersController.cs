@@ -19,6 +19,7 @@ public class ProductionOrdersController : Controller
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly IArticleRepository _articleRepository;
     private readonly IPickingTransferService _pickingTransferService;
+    private readonly IUserRepository _userRepository;
     private readonly IWebHostEnvironment _env;
 
     public ProductionOrdersController(
@@ -33,6 +34,7 @@ public class ProductionOrdersController : Controller
         IStorageLocationRepository storageLocationRepository,
         IArticleRepository articleRepository,
         IPickingTransferService pickingTransferService,
+        IUserRepository userRepository,
         IWebHostEnvironment env)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -46,6 +48,7 @@ public class ProductionOrdersController : Controller
         _storageLocationRepository = storageLocationRepository;
         _articleRepository = articleRepository;
         _pickingTransferService = pickingTransferService;
+        _userRepository = userRepository;
         _env = env;
     }
 
@@ -153,7 +156,7 @@ public class ProductionOrdersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Bom(int id, string? filterText)
+    public async Task<IActionResult> Bom(int id, string? filterText, string? filterBeschaffung, string? filterArtikelgruppe)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -163,6 +166,21 @@ public class ProductionOrdersController : Controller
         {
             TempData["SuccessMessage"] = "Dieser Werkstattauftrag hat keine Artikelnummer.";
             return RedirectToAction(nameof(Index));
+        }
+
+        // Beim ersten Aufruf (alle Filter null): User-Defaults laden
+        if (filterText == null && filterBeschaffung == null && filterArtikelgruppe == null)
+        {
+            var appUserId = _currentUserService.GetCurrentAppUserId();
+            if (appUserId.HasValue)
+            {
+                var currentUser = await _userRepository.GetByIdAsync(appUserId.Value);
+                if (currentUser != null)
+                {
+                    filterBeschaffung = currentUser.DefaultFilterBeschaffung;
+                    filterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
+                }
+            }
         }
 
         var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
@@ -237,6 +255,12 @@ public class ProductionOrdersController : Controller
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
 
+        // Distinct-Werte für Filter-Dropdowns (vor Filterung sammeln)
+        var availableBeschaffung = viewItems
+            .Select(i => i.Beschaffungsartikel).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList()!;
+        var availableArtikelgruppe = viewItems
+            .Select(i => i.Artikelgruppe).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList()!;
+
         if (!string.IsNullOrWhiteSpace(filterText))
         {
             viewItems = viewItems.Where(i =>
@@ -248,6 +272,22 @@ public class ProductionOrdersController : Controller
             ).ToList();
         }
 
+        if (!string.IsNullOrWhiteSpace(filterBeschaffung))
+        {
+            viewItems = viewItems.Where(i =>
+                i.Beschaffungsartikel != null &&
+                i.Beschaffungsartikel.Equals(filterBeschaffung, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterArtikelgruppe))
+        {
+            viewItems = viewItems.Where(i =>
+                i.Artikelgruppe != null &&
+                i.Artikelgruppe.Equals(filterArtikelgruppe, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+
         var vm = new BomViewModel
         {
             ProductionOrderId = id,
@@ -256,6 +296,10 @@ public class ProductionOrdersController : Controller
             Description1 = order.Description1,
             Items = viewItems,
             FilterText = filterText,
+            FilterBeschaffung = filterBeschaffung,
+            FilterArtikelgruppe = filterArtikelgruppe,
+            AvailableBeschaffungValues = availableBeschaffung!,
+            AvailableArtikelgruppeValues = availableArtikelgruppe!,
             AllStorageLocations = allStorageLocations
         };
 
@@ -278,18 +322,31 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId)
+    public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId, bool forceTransfer = false)
     {
         try
         {
-            var count = await _pickingTransferService.TransferPickedItemsAsync(
+            var result = await _pickingTransferService.CheckAndTransferPickedItemsAsync(
                 productionOrderId,
                 targetStorageLocationId,
+                forceTransfer,
                 _currentUserService.GetCurrentAppUserId(),
                 _currentUserService.GetDisplayName(),
                 _currentUserService.GetWindowsUserName());
 
-            return Ok(new { count });
+            if (result.IsPickingScaleConflict)
+            {
+                return Ok(new
+                {
+                    conflict = true,
+                    locationId = result.ConflictStorageLocationId,
+                    locationCode = result.ConflictStorageLocationCode,
+                    currentWaNumbers = result.CurrentWaNumbers,
+                    newWaNumber = result.NewWaNumber
+                });
+            }
+
+            return Ok(new { conflict = false, count = result.TransferredCount });
         }
         catch (InvalidOperationException ex)
         {

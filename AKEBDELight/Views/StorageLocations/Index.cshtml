@@ -19,6 +19,7 @@
                 <th>Bezeichnung</th>
                 <th>Bereich/Zone</th>
                 <th>Kapazität</th>
+                <th>Typ</th>
                 <th>Erstellt am</th>
                 <th style="width: 100px;"></th>
             </tr>
@@ -31,6 +32,7 @@
                     <td>@location.Description</td>
                     <td>@location.Zone</td>
                     <td>@location.Capacity?.ToString("N2")</td>
+                    <td>@if (location.IsPickingScale) { <span class="badge bg-info">Waage</span> }</td>
                     <td>@location.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="text-nowrap">
                         <a asp-action="PrintLabel" asp-route-id="@location.Id" class="btn btn-sm btn-outline-secondary" title="Etikett drucken">
@@ -46,7 +48,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">Keine Lagerplätze vorhanden.</td>
+                    <td colspan="7" class="text-center text-muted py-4">Keine Lagerplätze vorhanden.</td>
                 </tr>
             }
         </tbody>

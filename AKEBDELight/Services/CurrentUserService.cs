@@ -1,15 +1,24 @@
+using AKEBDELight.Data.Repositories;
+
 namespace AKEBDELight.Services;
 
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IUserRepository _userRepository;
+    private readonly IAppSettingRepository _settingRepository;
 
     public const string SessionKeyUserId = "AppUserId";
     public const string SessionKeyUserName = "AppUserName";
 
-    public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+    public CurrentUserService(
+        IHttpContextAccessor httpContextAccessor,
+        IUserRepository userRepository,
+        IAppSettingRepository settingRepository)
     {
         _httpContextAccessor = httpContextAccessor;
+        _userRepository = userRepository;
+        _settingRepository = settingRepository;
     }
 
     public string GetWindowsUserName()
@@ -45,5 +54,28 @@ public class CurrentUserService : ICurrentUserService
     public bool IsLoggedIn()
     {
         return GetCurrentAppUserId().HasValue;
+    }
+
+    public async Task<bool> HasMasterDataAccessAsync()
+    {
+        // 1. Flag im App-User prüfen
+        var userId = GetCurrentAppUserId();
+        if (userId.HasValue)
+        {
+            var user = await _userRepository.GetByIdAsync(userId.Value);
+            if (user?.HasMasterDataAccess == true)
+                return true;
+        }
+
+        // 2. AD-Gruppe prüfen
+        var adGroup = await _settingRepository.GetValueAsync("StammdatenADGruppe");
+        if (!string.IsNullOrEmpty(adGroup))
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext?.User?.IsInRole(adGroup) == true)
+                return true;
+        }
+
+        return false;
     }
 }

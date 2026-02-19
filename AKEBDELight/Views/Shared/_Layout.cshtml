@@ -1,3 +1,4 @@
+@inject AKEBDELight.Services.ICurrentUserService CurrentUserService
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -49,11 +50,14 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Artikel</a></li>
                                 <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
-                                <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
-                                <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
-                                <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
+                                @if (await CurrentUserService.HasMasterDataAccessAsync())
+                                {
+                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                    <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
+                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
+                                }
                             </ul>
                         </li>
                     </ul>

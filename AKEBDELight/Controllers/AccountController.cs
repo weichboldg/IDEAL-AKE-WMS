@@ -84,4 +84,9 @@ public class AccountController : Controller
         HttpContext.Session.Clear();
         return RedirectToAction(nameof(Login));
     }
+
+    public IActionResult AccessDenied()
+    {
+        return View();
+    }
 }

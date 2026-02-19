@@ -29,6 +29,26 @@
                         <label asp-for="IsActive" class="form-check-label"></label>
                     </div>
 
+                    <div class="mb-3 form-check">
+                        <input asp-for="HasMasterDataAccess" class="form-check-input" />
+                        <label asp-for="HasMasterDataAccess" class="form-check-label"></label>
+                    </div>
+
+                    <hr />
+                    <h6 class="text-muted">Stücklisten-Filter Standardwerte</h6>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultFilterBeschaffung" class="form-label"></label>
+                        <input asp-for="DefaultFilterBeschaffung" class="form-control" placeholder="z.B. Ja oder Nein" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultFilterArtikelgruppe" class="form-label"></label>
+                        <input asp-for="DefaultFilterArtikelgruppe" class="form-control" placeholder="z.B. 886 - Isoliergläser" />
+                    </div>
+
+                    <hr />
+
                     <div class="mb-3">
                         <label class="form-label">Passwort</label>
                         <input type="password" name="newPassword" class="form-control" placeholder="Passwort vergeben (optional)" />

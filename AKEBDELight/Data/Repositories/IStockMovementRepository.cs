@@ -25,4 +25,6 @@ public interface IStockMovementRepository : IRepository<StockMovement>
     Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers);
 
     Task<decimal> GetCurrentStockAtLocationAsync(int articleId, int storageLocationId);
+
+    Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId);
 }

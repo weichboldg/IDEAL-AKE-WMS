@@ -75,6 +75,7 @@ public class StorageLocationsController : Controller
         existing.Description = location.Description;
         existing.Zone = location.Zone;
         existing.Capacity = location.Capacity;
+        existing.IsPickingScale = location.IsPickingScale;
         existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();

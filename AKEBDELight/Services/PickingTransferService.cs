@@ -10,20 +10,91 @@ public class PickingTransferService : IPickingTransferService
     private readonly ApplicationDbContext _context;
     private readonly ILogger<PickingTransferService> _logger;
     private readonly IAppSettingRepository _settingRepository;
+    private readonly IStockMovementRepository _stockMovementRepository;
 
     public PickingTransferService(
         ApplicationDbContext context,
         ILogger<PickingTransferService> logger,
-        IAppSettingRepository settingRepository)
+        IAppSettingRepository settingRepository,
+        IStockMovementRepository stockMovementRepository)
     {
         _context = context;
         _logger = logger;
         _settingRepository = settingRepository;
+        _stockMovementRepository = stockMovementRepository;
+    }
+
+    public async Task<PickingTransferResult> CheckAndTransferPickedItemsAsync(
+        int productionOrderId,
+        int targetStorageLocationId,
+        bool forceTransfer,
+        int? appUserId,
+        string displayName,
+        string windowsUser)
+    {
+        var order = await _context.ProductionOrders.FindAsync(productionOrderId);
+        var targetLocation = await _context.StorageLocations.FindAsync(targetStorageLocationId);
+
+        // Kommissionierwaagen-Konfliktprüfung
+        if (targetLocation?.IsPickingScale == true && !forceTransfer)
+        {
+            var existingOrders = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(targetStorageLocationId);
+            var currentWa = order?.OrderNumber;
+
+            var conflictingOrders = existingOrders
+                .Where(o => !string.IsNullOrEmpty(o) && o != currentWa)
+                .ToList();
+
+            if (conflictingOrders.Any())
+            {
+                return new PickingTransferResult
+                {
+                    Success = false,
+                    IsPickingScaleConflict = true,
+                    ConflictStorageLocationId = targetStorageLocationId,
+                    ConflictStorageLocationCode = targetLocation.Code,
+                    CurrentWaNumbers = string.Join("; ", existingOrders.Where(o => !string.IsNullOrEmpty(o)).Distinct()),
+                    NewWaNumber = currentWa
+                };
+            }
+        }
+
+        // Bei forceTransfer: WA-Nummern zusammenführen
+        string? productionOrderValue = order?.OrderNumber;
+        if (forceTransfer && targetLocation?.IsPickingScale == true)
+        {
+            var existingOrders = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(targetStorageLocationId);
+            var allOrders = existingOrders
+                .Concat(new[] { order?.OrderNumber ?? "" })
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct();
+            productionOrderValue = string.Join(";", allOrders);
+        }
+
+        var count = await DoTransferAsync(productionOrderId, targetStorageLocationId, productionOrderValue, appUserId, displayName, windowsUser);
+
+        return new PickingTransferResult
+        {
+            Success = true,
+            TransferredCount = count
+        };
     }
 
     public async Task<int> TransferPickedItemsAsync(
         int productionOrderId,
         int targetStorageLocationId,
+        int? appUserId,
+        string displayName,
+        string windowsUser)
+    {
+        var order = await _context.ProductionOrders.FindAsync(productionOrderId);
+        return await DoTransferAsync(productionOrderId, targetStorageLocationId, order?.OrderNumber, appUserId, displayName, windowsUser);
+    }
+
+    private async Task<int> DoTransferAsync(
+        int productionOrderId,
+        int targetStorageLocationId,
+        string? productionOrder,
         int? appUserId,
         string displayName,
         string windowsUser)
@@ -36,7 +107,6 @@ public class PickingTransferService : IPickingTransferService
         if (!pickedItems.Any())
             throw new InvalidOperationException("Keine gepickten Artikel zum Umbuchen vorhanden.");
 
-        var order = await _context.ProductionOrders.FindAsync(productionOrderId);
         var now = DateTime.Now;
         var transferredCount = 0;
 
@@ -77,7 +147,6 @@ public class PickingTransferService : IPickingTransferService
                             $"Verfügbar: {currentStock:N3}, Benötigt: {item.Quantity:N3}");
                     }
 
-                    // Vom Default-Lagerplatz buchen
                     var negativLagerplatzCode = await _settingRepository.GetValueAsync("NegativeBuchungLagerplatz") ?? "NAN";
                     var negativLagerplatz = await _context.StorageLocations
                         .FirstOrDefaultAsync(sl => sl.Code == negativLagerplatzCode);
@@ -95,7 +164,7 @@ public class PickingTransferService : IPickingTransferService
                     Quantity = item.Quantity,
                     StorageLocationId = targetStorageLocationId,
                     SourceStorageLocationId = sourceLocationId,
-                    ProductionOrder = order?.OrderNumber,
+                    ProductionOrder = productionOrder,
                     MovementType = MovementType.Umbuchung,
                     Timestamp = now,
                     UserId = appUserId,
@@ -114,8 +183,8 @@ public class PickingTransferService : IPickingTransferService
             await transaction.CommitAsync();
 
             _logger.LogInformation(
-                "TransferPicked: {Count} Artikel für WA {OrderNumber} umgebucht.",
-                transferredCount, order?.OrderNumber);
+                "TransferPicked: {Count} Artikel umgebucht. ProductionOrder: {ProductionOrder}",
+                transferredCount, productionOrder);
 
             return transferredCount;
         }

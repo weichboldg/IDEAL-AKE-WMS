@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj": {}
+    "C:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj": {}
   },
   "projects": {
-    "c:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj": {
+    "C:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj",
+        "projectUniqueName": "C:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj",
         "projectName": "AKEBDELight",
-        "projectPath": "c:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj",
+        "projectPath": "C:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\AKEBDELight.csproj",
         "packagesPath": "C:\\Users\\gerald.weichbold\\.nuget\\packages\\",
-        "outputPath": "c:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\obj\\",
+        "outputPath": "C:\\Entwicklung\\C#\\AKEBDELight\\AKEBDELight\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\gerald.weichbold\\AppData\\Roaming\\NuGet\\NuGet.Config"
