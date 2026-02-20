@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AKEBDELight.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7f6457c9473f29cccea9a96dcbb19f1f1796c629")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+844e0d4ba93aab1aaafe09f0b9efc2f52c52c627")]
 [assembly: System.Reflection.AssemblyProductAttribute("AKEBDELight.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AKEBDELight.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

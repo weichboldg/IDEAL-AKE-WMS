@@ -5,7 +5,7 @@ namespace AKEBDELight.Models;
 public class StorageLocation : AuditableEntity
 {
     [Required(ErrorMessage = "Lagerplatz-Code ist erforderlich")]
-    [StringLength(50)]
+    [StringLength(12, ErrorMessage = "Code darf maximal 12 Zeichen lang sein (Barcode-Lesbarkeit).")]
     [Display(Name = "Code")]
     public string Code { get; set; } = string.Empty;
 
