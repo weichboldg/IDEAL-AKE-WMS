@@ -15,6 +15,9 @@
 - **Entity-Basis**: `AuditableEntity` (Id, CreatedAt, CreatedBy, CreatedByWindows, Modified*)
 - **Corporate Design**: `--ake-primary: #053153`, `--ake-secondary: #43A6E2`, `--ake-orange: #E87A1E`
 - **Dokumentation**: `PROJECT_STATUS.md` im Root pflegen
+- **Testing**: Bei Code-Änderungen mögliche Testfälle vorschlagen und nach Adaptierungen umsetzen
+- **Git**: Sinnvolle Commit Messages verwenden, Änderungen nachvollziehbar committen
+- **README**: `README.md` bei Feature-Änderungen aktuell halten
 
 ## Bekannte Fallstricke
 

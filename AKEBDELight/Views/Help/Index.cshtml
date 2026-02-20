@@ -1,0 +1,125 @@
+@{
+    ViewData["Title"] = "Hilfe";
+}
+
+<h2 class="page-header">Hilfe</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Lagerbewegungen</strong></div>
+            <div class="card-body">
+                <dl>
+                    <dt>Einbuchung</dt>
+                    <dd>Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz können per Barcode/QR-Code gescannt oder manuell ausgewählt werden.</dd>
+
+                    <dt>Ausbuchung</dt>
+                    <dd>Artikel von einem Lagerplatz ausbuchen. Die verfügbare Menge wird geprüft.</dd>
+
+                    <dt>Umbuchung</dt>
+                    <dd>Artikel von einem Quell-Lagerplatz auf einen Ziel-Lagerplatz umbuchen.</dd>
+
+                    <dt>Lagerplatz ausbuchen</dt>
+                    <dd>Alle Artikel eines Lagerplatzes auf einmal ausbuchen. Praktisch für Kommissionierwagen-Rückgabe.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Barcode / QR-Code Scanner</strong></div>
+            <div class="card-body">
+                <p>
+                    Bei Buchungen können Artikel und Lagerplätze per Kamera gescannt werden.
+                    Der Kamera-Scan funktioniert nur über <strong>HTTPS</strong>. Alternativ kann ein
+                    Foto des Codes hochgeladen werden (Bild-Upload).
+                </p>
+                <p>
+                    <strong>Unterstützte Formate:</strong> QR-Code (Artikel), Code 128, Code 39, EAN-13, EAN-8, Code 93 (Lagerplätze).
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Werkstattaufträge</strong></div>
+            <div class="card-body">
+                <p>
+                    Übersicht aller Werkstattaufträge mit Termin- und Status-Informationen.
+                    Die Tabelle kann nach allen Spalten gefiltert werden (Klick auf Spaltenüberschrift).
+                </p>
+                <dl>
+                    <dt>Glas / Zukauf</dt>
+                    <dd>Per Checkbox direkt in der Tabelle markieren. Änderungen werden sofort gespeichert.</dd>
+
+                    <dt>Status</dt>
+                    <dd>
+                        <span class="badge bg-secondary">offen</span> — Noch nicht kommissioniert<br />
+                        <span class="badge bg-warning text-dark">in Kommissionierung</span> — Teilweise gepickt<br />
+                        <span class="badge bg-info text-dark">teilkommissioniert</span> — Nicht alle Teile verfügbar<br />
+                        <span class="badge bg-success">abgeschlossen</span> — Vollständig kommissioniert
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Kommissionierung (Stückliste)</strong></div>
+            <div class="card-body">
+                <ol>
+                    <li><strong>Werkstattauftrag wählen</strong> — Im Dropdown nach Nummer, Artikel oder Kunde suchen.</li>
+                    <li><strong>Stückliste prüfen</strong> — Die Baumstruktur zeigt alle Bauteile und Baugruppen. Baugruppen können auf-/zugeklappt werden.</li>
+                    <li><strong>Picken</strong> — Checkbox beim Bauteil setzen und Quell-Lagerplatz wählen. Baugruppen können komplett gepickt werden.</li>
+                    <li><strong>Umbuchen</strong> — Alle gepickten Artikel vom Quell-Lagerplatz auf den Ziel-Lagerplatz (z.B. Kommissionierwagen) umbuchen.</li>
+                </ol>
+                <p>Stückliste und Kommissionierliste können als A4-PDF gedruckt werden.</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Stammdaten</strong></div>
+            <div class="card-body">
+                <dl>
+                    <dt>Lagerplätze</dt>
+                    <dd>Code (max. 12 Zeichen für Barcode-Lesbarkeit), Bezeichnung, Zone und Kapazität.
+                        Barcode-Etiketten können einzeln oder gesammelt gedruckt werden.</dd>
+
+                    <dt>Artikel</dt>
+                    <dd>Artikelnummer, Bezeichnung, Einheit und Meldebestand.</dd>
+
+                    <dt>Benutzer</dt>
+                    <dd>Name, Personalnummer und Passwort. Nur Benutzer mit Stammdaten-Zugriff können andere Benutzer verwalten.</dd>
+
+                    <dt>Einstellungen</dt>
+                    <dd>Systemparameter wie Kommissioniertage, Vorkommissionierung, Meldebestand-Schwellen und Feiertagsverwaltung.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Etikettendruck</strong></div>
+            <div class="card-body">
+                <p>
+                    Unter <em>Stammdaten &rarr; Lagerplätze</em> können Barcode-Etiketten gedruckt werden:
+                </p>
+                <ul>
+                    <li><strong>Einzeln:</strong> Klick auf das Drucker-Symbol in der Zeile.</li>
+                    <li><strong>Alle:</strong> Button "Alle Etiketten drucken" oben.</li>
+                </ul>
+                <p>Das Drucklayout ist für A4 Hochformat optimiert (3 Etiketten pro Seite).</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Tipps</strong></div>
+            <div class="card-body">
+                <ul>
+                    <li>In Dropdown-Feldern (Select2) können Sie tippen, um zu suchen — mindestens 2 Zeichen eingeben.</li>
+                    <li>Tabellen können nach Spalten gefiltert werden: Klick auf die Spaltenüberschrift öffnet ein Filterfeld.</li>
+                    <li>Bestandsübersicht: 0-Bestände werden standardmäßig ausgeblendet.</li>
+                    <li>Lagerplatz-Codes sollten kurz und eindeutig sein (max. 12 Zeichen) für zuverlässigen Barcode-Scan.</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>

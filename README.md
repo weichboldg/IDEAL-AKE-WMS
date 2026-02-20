@@ -1,6 +1,6 @@
-# AKEBDELight — Lagerverwaltung & BDE
+# IDEAL-AKE WMS — Lagerverwaltung & BDE
 
-Webbasiertes Lagerverwaltungs- und Betriebsdatenerfassungssystem (BDE) für AKE.
+Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für IDEAL-AKE.
 
 ## Tech-Stack
 
@@ -39,6 +39,14 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 11 | `SQL/11_InitMigrationsHistory.sql` | EF Migrations Baseline |
 | 12 | `SQL/12_AddRowVersion.sql` | Optimistic Concurrency |
 | 13 | `SQL/13_NegativeBuchungSettings.sql` | Negative Buchungs-Settings |
+| 14 | `SQL/14_AddUserDefaultBomFilters.sql` | Standard-BOM-Filter pro Benutzer |
+| 15 | `SQL/15_AddUserMasterDataAccess.sql` | Stammdaten-Zugriffsberechtigung |
+| 16 | `SQL/16_AddMasterDataAdGroupSetting.sql` | AD-Gruppen-Setting für Stammdaten |
+| 17 | `SQL/17_AddStorageLocationIsPickingScale.sql` | Kommissionierwagen-Flag |
+| 18 | `SQL/18_ExtendProductionOrderLength.sql` | Feld-Längen erweitern |
+| 19 | `SQL/19_AddBeschichtungAbholtage.sql` | Beschichtung-Abholtage Setting |
+| 20 | `SQL/20_RenamePickingScaleToTransport.sql` | IsPickingScale → IsPickingTransport |
+| 21 | `SQL/21_AddGlassAndPurchaseColumns.sql` | Glas/Zukauf Spalten auf WA |
 
 ### 2. ConnectionString konfigurieren
 
@@ -83,25 +91,31 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Synchronisation mit Sage (über SQL-View)
 - Terminberechnung: Kommissionierung, Vorkommissionierung, Beschichtung
 - Status-Management (offen, in Kommissionierung, teilkommissioniert, abgeschlossen)
+- **Glas/Zukauf**: Checkbox-Spalten direkt in der Tabelle, sofortige DB-Speicherung
 
 ### Kommissionierung (Stückliste)
 - Mehrstufiger klappbarer Baumstruktur-View der Stückliste
 - Picking: Checkbox pro Bauteil mit Quell-Lagerplatz-Auswahl
 - Baugruppen-Picking: Komplette Baugruppe auf einmal kommissionieren
 - Umbuchen: Gepickte Artikel vom Quell- auf Ziel-Lagerplatz buchen (WA wird automatisch vermerkt)
+- Kommissionierwagen-Konfliktprüfung (verschiedene WA auf gleichem Wagen)
 - Stückliste drucken (A4 Portrait, mit Lagerplatz-Info)
 - Foto-Upload pro Werkstattauftrag
 
 ### Barcode/QR-Scanner
-- html5-qrcode Integration für Kamera-Scan
-- Unterstützt: Lagerplatz-Barcodes, Artikel-QR-Codes
+- html5-qrcode Integration für Kamera-Scan (HTTPS) und Bild-Upload
+- Unterstützte Formate: QR-Code, Code 128, Code 39, EAN-13, EAN-8, Code 93
+- Lagerplatz-Code max. 12 Zeichen für zuverlässige Barcode-Erkennung
 
 ### Stammdaten
-- **Lagerplätze**: Code, Zone, Kapazität, Barcode-Etiketten drucken
+- **Lagerplätze**: Code (max. 12 Zeichen), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite)
 - **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand
-- **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag
+- **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag, Stammdaten-Zugriff
 - **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker
 - **Einstellungen**: Key-Value AppSettings + Feiertagsverwaltung
+
+### Hilfe
+- Integrierte Hilfe-Seite mit Anleitungen zu allen Funktionen (Footer-Link)
 
 ## AppSettings
 

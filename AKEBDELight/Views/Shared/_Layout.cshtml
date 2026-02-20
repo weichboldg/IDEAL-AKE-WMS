@@ -101,8 +101,9 @@
     </div>
 
     <footer class="footer">
-        <div class="container-fluid px-3 px-md-4">
-            &copy; @DateTime.Now.Year IDEAL-AKE WMS
+        <div class="container-fluid px-3 px-md-4 d-flex justify-content-between">
+            <span>&copy; @DateTime.Now.Year IDEAL-AKE WMS</span>
+            <a asp-controller="Help" asp-action="Index" class="text-white-50">Hilfe</a>
         </div>
     </footer>
 

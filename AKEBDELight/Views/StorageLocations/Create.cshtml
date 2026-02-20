@@ -14,7 +14,8 @@
 
                     <div class="mb-3">
                         <label asp-for="Code" class="form-label"></label>
-                        <input asp-for="Code" class="form-control" autofocus />
+                        <input asp-for="Code" class="form-control" maxlength="12" autofocus />
+                        <div class="form-text">Maximal 12 Zeichen (für Barcode-Lesbarkeit).</div>
                         <span asp-validation-for="Code" class="text-danger"></span>
                     </div>
 
