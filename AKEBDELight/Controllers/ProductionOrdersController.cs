@@ -344,6 +344,11 @@ public class ProductionOrdersController : Controller
             return NotFound();
 
         order.PickingStatus = status;
+
+        // Kommissionierung abgeschlossen → WA automatisch erledigt setzen
+        if (status == "abgeschlossen")
+            order.IsDone = true;
+
         order.ModifiedAt = DateTime.Now;
         order.ModifiedBy = _currentUserService.GetDisplayName();
         order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
