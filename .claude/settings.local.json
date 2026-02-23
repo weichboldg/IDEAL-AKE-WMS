@@ -5,7 +5,8 @@
       "Bash(dotnet:*)",
       "Bash(find:*)",
       "Bash(wc:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git add:*)"
     ]
   }
 }

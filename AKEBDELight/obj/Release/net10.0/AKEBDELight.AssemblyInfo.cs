@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AKEBDELight")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2188bfff9f46272a8eb62e22d4d1ecf64156ba1c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a55b9086daeeada0da79e6f46b3851b707baa6d6")]
 [assembly: System.Reflection.AssemblyProductAttribute("AKEBDELight")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AKEBDELight")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
