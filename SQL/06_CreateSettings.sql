@@ -1,5 +1,5 @@
 -- AKE BDE Light - Settings & Holidays + Article ReorderLevel
-USE [AKE_BDE_Light]
+USE [IDEAL_AKE_WMS]
 GO
 
 -- AppSettings (Key-Value)

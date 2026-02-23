@@ -4,12 +4,12 @@
 USE [master]
 GO
 
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'AKE_BDE_Light')
+IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'IDEAL_AKE_WMS')
 BEGIN
-    CREATE DATABASE [AKE_BDE_Light]
+    CREATE DATABASE [IDEAL_AKE_WMS]
     COLLATE Latin1_General_CI_AS
 END
 GO
 
-USE [AKE_BDE_Light]
+USE [IDEAL_AKE_WMS]
 GO

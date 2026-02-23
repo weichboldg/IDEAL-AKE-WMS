@@ -1,9 +1,9 @@
-# AKEBDELight — Kontext für KI-Assistenten
+# IdealAkeWms — Kontext für KI-Assistenten
 
 ## Architektur
 
 - ASP.NET Core 10.0 MVC + Repository Pattern + DI
-- EF Core 10.0 mit SQL Server (`AKESQL20.ake.at`, DB: `AKE_BDE_Light`)
+- EF Core 10.0 mit SQL Server (`AKESQL20.ake.at`, DB: `IDEAL_AKE_WMS`)
 - Dual-Auth: Windows/Negotiate (IIS) + Session-basierter App-Login (Middleware in Program.cs)
 - BOM-Daten kommen aus externer SQL-View `[ake].[dbo].[vw_AKE_Kommissionierung_StuecklistenDB]`
 - `CachedBomRepository` wrapped `BomRepository` (Decorator-Pattern, 5min MemoryCache)

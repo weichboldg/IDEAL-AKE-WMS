@@ -1,5 +1,5 @@
 -- AKE BDE Light - ProductionOrders (Werkstattaufträge)
-USE [AKE_BDE_Light]
+USE [IDEAL_AKE_WMS]
 GO
 
 CREATE TABLE [dbo].[ProductionOrders] (

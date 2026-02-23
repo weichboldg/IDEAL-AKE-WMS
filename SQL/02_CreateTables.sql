@@ -1,5 +1,5 @@
 -- AKE BDE Light - Tabellen erstellen
-USE [AKE_BDE_Light]
+USE [IDEAL_AKE_WMS]
 GO
 
 -- =============================================

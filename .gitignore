@@ -1,0 +1,16 @@
+## .NET
+bin/
+obj/
+publish/
+
+## IDE
+.vs/
+*.user
+*.suo
+
+## Logs
+logs/
+
+## OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="IdealAkeWms.Tests/IdealAkeWms.Tests.csproj" />
+  <Project Path="IdealAkeWms/IdealAkeWms.csproj" />
+</Solution>

@@ -1,4 +1,4 @@
-# AKEBDELight - Analyse, Features & Verbesserungsvorschläge
+# IdealAkeWms - Analyse, Features & Verbesserungsvorschläge
 
 ## 1. Feature-Übersicht
 
@@ -173,9 +173,9 @@ try {
 
 ### 4.1 Projekt-Setup
 
-Neues xUnit-Testprojekt: `AKEBDELight.Tests`
+Neues xUnit-Testprojekt: `IdealAkeWms.Tests`
 ```
-AKEBDELight.Tests/
+IdealAkeWms.Tests/
 ├── Unit/
 │   ├── Services/
 │   │   ├── BusinessDayServiceTests.cs
@@ -193,7 +193,7 @@ AKEBDELight.Tests/
 │   ├── StockMovementIntegrationTests.cs
 │   ├── PickingWorkflowTests.cs
 │   └── BomRepositoryTests.cs
-└── AKEBDELight.Tests.csproj
+└── IdealAkeWms.Tests.csproj
 ```
 
 ### 4.2 Unit Tests - Priorität nach Risiko
@@ -297,7 +297,7 @@ AKEBDELight.Tests/
 ### 4.5 CI/CD Integration
 ```yaml
 # Beispiel GitHub Actions
-- dotnet test AKEBDELight.Tests --logger "trx" --results-directory TestResults
+- dotnet test IdealAkeWms.Tests --logger "trx" --results-directory TestResults
 - Testberichte als Artefakte hochladen
 - Build-Gate: Tests müssen bestehen vor Deployment
 ```

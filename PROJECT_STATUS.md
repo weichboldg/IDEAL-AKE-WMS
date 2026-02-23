@@ -1,4 +1,4 @@
-# AKEBDELight - Projektstatus
+# IdealAkeWms - Projektstatus
 
 ## Projektbeschreibung
 Lagerverwaltungs- und BDE-System (Betriebsdatenerfassung) für AKE.
@@ -6,7 +6,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 
 ## Architektur
 - **Pattern**: MVC + Repository Pattern + DI
-- **DB**: Entity Framework Core 10.0, Database: AKE_BDE_Light
+- **DB**: Entity Framework Core 10.0, Database: IDEAL_AKE_WMS
 - **Auth**: Windows/Negotiate + Session (8h idle timeout)
 - **Logging**: Serilog (daily rolling files)
 - **Frontend**: Bootstrap 5, jQuery, custom JS (barcode-scanner, photo-upload, table-filter)

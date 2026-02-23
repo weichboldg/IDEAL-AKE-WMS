@@ -1,6 +1,6 @@
 -- AKE BDE Light - Tabellen erweitern
 -- Barcode-Wert für Lagerplätze + Passwort-Hash für Benutzer
-USE [AKE_BDE_Light]
+USE [IDEAL_AKE_WMS]
 GO
 
 -- StorageLocations: BarcodeValue hinzufügen

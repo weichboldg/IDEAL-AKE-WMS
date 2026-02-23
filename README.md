@@ -5,7 +5,7 @@ Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für I
 ## Tech-Stack
 
 - **Backend**: ASP.NET Core 10.0, Entity Framework Core 10.0
-- **Datenbank**: SQL Server (AKESQL20.ake.at), DB: `AKE_BDE_Light`
+- **Datenbank**: SQL Server (AKESQL20.ake.at), DB: `IDEAL_AKE_WMS`
 - **Authentifizierung**: Windows/Negotiate (IIS) + Session-basierter App-Login
 - **Frontend**: Bootstrap 5, jQuery, Select2, html5-qrcode
 - **Logging**: Serilog (daily rolling files)
@@ -54,7 +54,7 @@ In `appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=AKESQL20.ake.at;Database=AKE_BDE_Light;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=AKESQL20.ake.at;Database=IDEAL_AKE_WMS;Trusted_Connection=True;TrustServerCertificate=True;"
   }
 }
 ```
@@ -62,7 +62,7 @@ In `appsettings.json`:
 ### 3. Starten
 
 ```bash
-cd AKEBDELight
+cd IdealAkeWms
 dotnet run
 ```
 
@@ -139,7 +139,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 ## Projekt-Struktur
 
 ```
-AKEBDELight/
+IdealAkeWms/
 ├── Controllers/          # MVC Controller
 ├── Data/
 │   ├── ApplicationDbContext.cs
@@ -158,7 +158,7 @@ AKEBDELight/
 ## Tests
 
 ```bash
-cd AKEBDELight.Tests
+cd IdealAkeWms.Tests
 dotnet test
 ```
 
