@@ -27,6 +27,29 @@
 - **InMemory DB** unterstützt kein `rowversion` → Tests nutzen `TestApplicationDbContext` mit Override für RowVersion
 - **SQL Server Batch-Parsing**: Tabellen in separatem Batch erstellen (GO dazwischen), bei Bedarf `EXEC sp_executesql` oder `OBJECT_ID` Guard verwenden
 - **0-Bestände**: `GetCurrentStockAsync()` filtert standardmäßig Bestände mit 0 aus (nur wenn kein expliziter Min/Max-Filter)
+- **Logo/Favicon**: SVG enthält eingebettetes PNG mit weißem Hintergrund → auf dunklem Navbar-Hintergrund immer `.navbar-logo-wrapper` (CSS: `background: white; border-radius: 4px`) verwenden; Favicon: `wwwroot/favicon.ico` + `wwwroot/images/ideal-ake-logo.svg` als SVG-Favicon-Link im Layout
+- **Startup-Seeding**: `Program.cs` legt bei jedem Start fehlende Standard-Daten an (admin-User mit leerem Passwort, NAN-Lagerplatz) — PBKDF2-Hash wird dynamisch via `IPasswordService` erzeugt; falls admin ohne PasswordHash (z.B. per SQL angelegt) vorhanden, wird Hash beim App-Start nachgesetzt
+
+## Standard-Daten (Neuinstallation)
+
+| Typ | Wert | Beschreibung |
+|-----|------|-------------|
+| Benutzer | `admin` / Passwort leer | Standard-Admin mit `HasMasterDataAccess = true`, angelegt via Startup-Seeding |
+| Lagerplatz | `NAN` | Fallback-Lagerplatz für negative Buchungen, angelegt via Startup-Seeding |
+
+Seeding-Logik: `Program.cs` nach `db.Database.Migrate()` — idempotent (prüft ob schon vorhanden).
+SQL-Fallback: `SQL/00_FreshInstall.sql` Sektion "Standard-Daten" (admin mit `PasswordHash = NULL`, wird beim App-Start befüllt).
+
+## SQL Agent Jobs
+
+Ordner `SQL/AgentJobs/` enthält wiederkehrende Import-Scripts für den SQL Server Agent:
+
+| Script | Beschreibung |
+|--------|-------------|
+| `01_Import_Produktionsauftraege.sql` | Neue WA aus `[ake].[dbo].[vw_AKE_Kommissionierung_WAListe]` → `ProductionOrders` |
+| `02_Import_Artikel.sql` | Neue Artikel aus `KHKPpsRessourcenPositionen` + `KHKArtikel` → `Articles` |
+
+Bei Änderungen der DB-Struktur (neue Pflichtfelder etc.) müssen diese Scripts angepasst werden.
 
 ## AppSettings (DB-Tabelle)
 
@@ -51,13 +74,17 @@
 
 ## Wichtige Dateien
 
-- `Program.cs` — DI-Registrierung, Middleware-Pipeline, Session-Auth
+- `Program.cs` — DI-Registrierung, Middleware-Pipeline, Session-Auth, **Startup-Seeding** (admin + NAN)
+- `Controllers/AccountController.cs` — Login, Logout, **Profil Self-Service** (Passwort + BOM-Filter)
 - `Controllers/ProductionOrdersController.cs` — WA + BOM + Kommissionierung
 - `Controllers/StockMovementsController.cs` — Ein/Aus/Umbuchung + OutboundAll
 - `Services/PickingTransferService.cs` — Umbuchen gepickter Artikel (Transaktion)
 - `Data/Repositories/StockMovementRepository.cs` — Bestandsberechnung (Netto aus Ein/Aus/Umbuchung)
 - `Data/Repositories/BomRepository.cs` — SQL-Query auf externe VIEW
 - `Views/ProductionOrders/Bom.cshtml` — Stücklisten-View (Baum, Picking, Transfer-AJAX)
+- `Views/Account/Profile.cshtml` — Profil-Seite (Passwort + BOM-Filter self-service)
+- `wwwroot/images/ideal-ake-logo.svg` — Logo für Navbar + Login-Seite
+- `SQL/AgentJobs/` — SQL Server Agent Job Scripts (Sage-Import)
 
 ## Test-Setup
 

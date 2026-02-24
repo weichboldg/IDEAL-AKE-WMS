@@ -9,11 +9,13 @@ public class AccountController : Controller
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordService _passwordService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AccountController(IUserRepository userRepository, IPasswordService passwordService)
+    public AccountController(IUserRepository userRepository, IPasswordService passwordService, ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -88,5 +90,56 @@ public class AccountController : Controller
     public IActionResult AccessDenied()
     {
         return View();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Profile()
+    {
+        var userId = _currentUserService.GetCurrentAppUserId();
+        if (!userId.HasValue)
+            return RedirectToAction(nameof(Login));
+
+        var user = await _userRepository.GetByIdAsync(userId.Value);
+        if (user == null)
+            return RedirectToAction(nameof(Login));
+
+        var vm = new ProfileViewModel
+        {
+            Name = user.Name,
+            PersonalNumber = user.PersonalNumber,
+            DefaultFilterBeschaffung = user.DefaultFilterBeschaffung,
+            DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe
+        };
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Profile(ProfileViewModel vm, string? newPassword)
+    {
+        var userId = _currentUserService.GetCurrentAppUserId();
+        if (!userId.HasValue)
+            return RedirectToAction(nameof(Login));
+
+        if (!ModelState.IsValid)
+            return View(vm);
+
+        var user = await _userRepository.GetByIdAsync(userId.Value);
+        if (user == null)
+            return RedirectToAction(nameof(Login));
+
+        user.DefaultFilterBeschaffung = vm.DefaultFilterBeschaffung;
+        user.DefaultFilterArtikelgruppe = vm.DefaultFilterArtikelgruppe;
+
+        if (!string.IsNullOrEmpty(newPassword))
+            user.PasswordHash = _passwordService.HashPassword(newPassword);
+
+        user.ModifiedAt = DateTime.UtcNow;
+        user.ModifiedBy = _currentUserService.GetCurrentAppUserName() ?? string.Empty;
+        user.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+
+        await _userRepository.UpdateAsync(user);
+        TempData["SuccessMessage"] = "Profil gespeichert.";
+        return RedirectToAction(nameof(Profile));
     }
 }

@@ -7,13 +7,17 @@
     <title>@ViewData["Title"] - IDEAL-AKE WMS</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="icon" type="image/svg+xml" href="~/images/ideal-ake-logo.svg" />
+    <link rel="icon" href="~/favicon.ico" sizes="any" />
 </head>
 <body>
     <header>
         <nav class="navbar navbar-expand-lg">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-controller="Home" asp-action="Index">
-                    IDEAL-AKE WMS
+                    <span class="navbar-logo-wrapper">
+                        <img src="~/images/ideal-ake-logo.svg" alt="IDEAL-AKE WMS" height="28" />
+                    </span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                         aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation umschalten">
@@ -64,11 +68,26 @@
                     <span class="user-info d-none d-lg-inline">
                         @if (Context.Session.GetInt32("AppUserId").HasValue)
                         {
-                            <span>@Context.Session.GetString("AppUserName")</span>
-                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline ms-2">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-light">Abmelden</button>
-                            </form>
+                            <div class="dropdown d-inline">
+                                <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                    @Context.Session.GetString("AppUserName")
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
+                                            Mein Profil
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="dropdown-item text-danger">Abmelden</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
                         }
                         else if (User.Identity?.IsAuthenticated == true)
                         {

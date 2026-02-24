@@ -6,7 +6,12 @@
       "Bash(find:*)",
       "Bash(wc:*)",
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git mv:*)",
+      "Bash(magick:*)",
+      "Bash(convert:*)",
+      "Bash(node --version:*)",
+      "Bash(npx --version)"
     ]
   }
 }

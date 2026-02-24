@@ -22,6 +22,16 @@ Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für I
 
 ### 1. Datenbank einrichten
 
+#### Neuinstallation (empfohlen)
+
+`SQL/00_FreshInstall.sql` auf dem SQL Server ausführen — erstellt alle Tabellen, Views, Indexes und Standard-Daten in einem Script.
+
+Beim ersten App-Start werden automatisch angelegt (Startup-Seeding in `Program.cs`):
+- Benutzer **`admin`** mit leerem Passwort und Stammdaten-Zugriff
+- Lagerplatz **`NAN`** als Fallback für negative Buchungen
+
+#### Update bestehender Installation
+
 SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 
 | Nr. | Script | Beschreibung |
@@ -107,15 +117,30 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Unterstützte Formate: QR-Code, Code 128, Code 39, EAN-13, EAN-8, Code 93
 - Lagerplatz-Code max. 12 Zeichen für zuverlässige Barcode-Erkennung
 
+### Mein Profil (Self-Service)
+- Jeder angemeldete Benutzer kann unter dem Benutzer-Dropdown → **Mein Profil** sein eigenes Passwort ändern sowie die Standard-BOM-Filter (Beschaffung, Artikelgruppe) einstellen
+- Diese Filter werden beim Öffnen einer Stückliste automatisch gesetzt
+
 ### Stammdaten
-- **Lagerplätze**: Code (max. 12 Zeichen), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite)
+- **Lagerplätze**: Code (max. 12 Zeichen), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite); `NAN` ist Standard-Fallback-Lagerplatz
 - **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand
-- **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag, Stammdaten-Zugriff
+- **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag, Stammdaten-Zugriff, Standard-BOM-Filter; Standard-Admin: `admin` / leer
 - **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker
 - **Einstellungen**: Key-Value AppSettings + Feiertagsverwaltung
 
 ### Hilfe
 - Integrierte Hilfe-Seite mit Anleitungen zu allen Funktionen (Footer-Link)
+
+## SQL Server Agent Jobs
+
+Im Ordner `SQL/AgentJobs/` liegen Scripts für automatische Sage-Daten-Imports:
+
+| Script | Quell-Objekt | Ziel |
+|--------|-------------|------|
+| `01_Import_Produktionsauftraege.sql` | `[ake].[dbo].[vw_AKE_Kommissionierung_WAListe]` | `ProductionOrders` |
+| `02_Import_Artikel.sql` | `KHKPpsRessourcenPositionen` + `KHKArtikel` | `Articles` |
+
+Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
 ## AppSettings
 
@@ -140,19 +165,25 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 
 ```
 IdealAkeWms/
-├── Controllers/          # MVC Controller
+├── Controllers/          # MVC Controller (inkl. AccountController mit Profil)
 ├── Data/
 │   ├── ApplicationDbContext.cs
 │   └── Repositories/     # Repository-Implementierungen
+├── Media/                # Originale Medien-Assets (Logo, Favicon)
 ├── Models/
-│   └── ViewModels/       # View-spezifische Models
+│   └── ViewModels/       # View-spezifische Models (inkl. ProfileViewModel)
 ├── Services/             # Business-Logik
 ├── Views/                # Razor Views
 ├── wwwroot/
 │   ├── css/site.css      # Custom Styles
+│   ├── images/           # Logo (ideal-ake-logo.svg)
+│   ├── favicon.ico       # Favicon
 │   └── js/               # barcode-scanner, table-filter, photo-upload
 ├── Migrations/           # EF Core Migrations
-└── SQL/                  # Manuelle SQL-Scripte für Produktion
+└── SQL/
+    ├── 00_FreshInstall.sql   # Komplettes Neuinstallations-Script
+    ├── 01-21_*.sql           # Einzel-Migrations für bestehende Installationen
+    └── AgentJobs/            # SQL Server Agent Job Scripts (Sage-Import)
 ```
 
 ## Tests

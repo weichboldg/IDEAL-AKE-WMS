@@ -384,7 +384,32 @@ PRINT 'Views erstellt.';
 GO
 
 -- =============================================
--- 13. EF Migrations History
+-- 13. Standard-Daten
+-- =============================================
+
+-- NAN-Lagerplatz (Fallback fuer nicht zugeordnete Artikel)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[StorageLocations] WHERE [Code] = 'NAN')
+BEGIN
+    INSERT INTO [dbo].[StorageLocations]
+        ([Code], [Description], [IsPickingTransport], [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES
+        ('NAN', 'Nicht zugeordnet (Fallback)', 0, GETDATE(), 'system', 'system');
+    PRINT 'Standard-Lagerplatz NAN eingefuegt.';
+END
+
+-- Admin-Benutzer (PasswordHash wird beim ersten App-Start automatisch gesetzt)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Users] WHERE [Name] = 'admin')
+BEGIN
+    INSERT INTO [dbo].[Users]
+        ([Name], [IsActive], [HasMasterDataAccess], [PasswordHash], [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES
+        ('admin', 1, 1, NULL, GETDATE(), 'system', 'system');
+    PRINT 'Standard-Benutzer admin eingefuegt (PasswordHash wird beim App-Start gesetzt).';
+END
+GO
+
+-- =============================================
+-- 14. EF Migrations History
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__EFMigrationsHistory')
 BEGIN

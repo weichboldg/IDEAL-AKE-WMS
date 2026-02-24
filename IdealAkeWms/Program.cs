@@ -62,11 +62,50 @@ builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-// Ensure database is created
+// Ensure database is created and seed default data
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var passwordService = scope.ServiceProvider.GetRequiredService<IPasswordService>();
+
     db.Database.Migrate();
+
+    // Standard-Lagerplatz NAN
+    if (!db.StorageLocations.Any(sl => sl.Code == "NAN"))
+    {
+        db.StorageLocations.Add(new IdealAkeWms.Models.StorageLocation
+        {
+            Code = "NAN",
+            Description = "Nicht zugeordnet (Fallback)",
+            IsPickingTransport = false,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "system",
+            CreatedByWindows = "system"
+        });
+        db.SaveChanges();
+    }
+
+    // Standard-Admin-Benutzer
+    var adminUser = db.Users.FirstOrDefault(u => u.Name == "admin");
+    if (adminUser == null)
+    {
+        db.Users.Add(new IdealAkeWms.Models.User
+        {
+            Name = "admin",
+            IsActive = true,
+            HasMasterDataAccess = true,
+            PasswordHash = passwordService.HashPassword(""),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "system",
+            CreatedByWindows = "system"
+        });
+        db.SaveChanges();
+    }
+    else if (adminUser.PasswordHash == null)
+    {
+        adminUser.PasswordHash = passwordService.HashPassword("");
+        db.SaveChanges();
+    }
 }
 
 // Fotos-Verzeichnis erstellen
