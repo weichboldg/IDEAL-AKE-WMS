@@ -9,13 +9,16 @@ namespace IdealAkeWms.Controllers;
 public class ArticlesController : Controller
 {
     private readonly IArticleRepository _articleRepository;
+    private readonly IStockMovementRepository _stockMovementRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public ArticlesController(
         IArticleRepository articleRepository,
+        IStockMovementRepository stockMovementRepository,
         ICurrentUserService currentUserService)
     {
         _articleRepository = articleRepository;
+        _stockMovementRepository = stockMovementRepository;
         _currentUserService = currentUserService;
     }
 
@@ -87,5 +90,33 @@ public class ArticlesController : Controller
 
         await _articleRepository.UpdateAsync(existing);
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Info(string? articleNumber)
+    {
+        if (string.IsNullOrWhiteSpace(articleNumber))
+            return View((ArticleInfoViewModel?)null);
+
+        var article = await _articleRepository.GetByArticleNumberAsync(articleNumber.Trim());
+        if (article == null)
+        {
+            ViewBag.NotFound = articleNumber.Trim();
+            return View((ArticleInfoViewModel?)null);
+        }
+
+        var stock = await _stockMovementRepository.GetCurrentStockAsync(
+            filterArticle: article.ArticleNumber);
+
+        var vm = new ArticleInfoViewModel
+        {
+            ArticleNumber = article.ArticleNumber,
+            Description = article.Description ?? string.Empty,
+            Unit = article.Unit,
+            ReorderLevel = article.ReorderLevel ?? 0,
+            VaultUrl = $"http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Uri.EscapeDataString(article.ArticleNumber)}&searchContext=0",
+            StockByLocation = stock
+        };
+        return View(vm);
     }
 }

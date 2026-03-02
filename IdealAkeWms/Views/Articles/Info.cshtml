@@ -1,0 +1,150 @@
+@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
+@{
+    ViewData["Title"] = "Artikelinfo";
+    var notFound = ViewBag.NotFound as string;
+    var searchValue = Model?.ArticleNumber ?? notFound ?? Context.Request.Query["articleNumber"].ToString();
+}
+
+<h2 class="page-header">Artikelinfo</h2>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" asp-action="Info" asp-controller="Articles" id="articleInfoForm">
+                    <div class="mb-3">
+                        <label for="articleNumber" class="form-label fw-semibold">Artikelnummer / QR-Code scannen</label>
+                        <div class="input-group">
+                            <input type="text" id="articleNumber" name="articleNumber"
+                                   class="form-control form-control-lg"
+                                   value="@searchValue"
+                                   placeholder="Artikelnummer eingeben oder scannen"
+                                   autocomplete="off" />
+                            <button type="button" id="btnScanArticleInfo" class="btn btn-secondary scan-btn" title="QR-Code scannen">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                    <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="form-text">QR-Code-Format: Artikelnummer oder Artikelnummer;Feld2;...</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                        </svg>
+                        Suchen
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        @if (notFound != null)
+        {
+            <div class="alert alert-warning">
+                Artikel <strong>@notFound</strong> wurde nicht gefunden.
+            </div>
+        }
+
+        @if (Model != null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>@Model.ArticleNumber</strong>
+                    <a href="@Model.VaultUrl" target="_blank" class="vault-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                            <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z"/>
+                            <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"/>
+                        </svg>
+                        Im VAULT öffnen
+                    </a>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Bezeichnung</dt>
+                        <dd class="col-sm-8">@Model.Description</dd>
+
+                        <dt class="col-sm-4">Einheit</dt>
+                        <dd class="col-sm-8">@(Model.Unit ?? "—")</dd>
+
+                        <dt class="col-sm-4">Meldebestand</dt>
+                        <dd class="col-sm-8">
+                            @Model.ReorderLevel @Model.Unit
+                            @if (Model.ReorderLevel > 0 && Model.TotalStock < Model.ReorderLevel)
+                            {
+                                <span class="badge bg-danger ms-2">Unterschritten</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4">Gesamtbestand</dt>
+                        <dd class="col-sm-8">
+                            <strong
+                                @if (Model.ReorderLevel > 0 && Model.TotalStock < Model.ReorderLevel)
+                                {
+                                    <text>class="text-danger"</text>
+                                }>
+                                @Model.TotalStock @Model.Unit
+                            </strong>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><strong>Lagerbestand nach Lagerplatz</strong></div>
+                @if (Model.StockByLocation.Count == 0)
+                {
+                    <div class="card-body text-muted">Kein Bestand vorhanden.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Lagerplatz</th>
+                                    <th>Bezeichnung</th>
+                                    <th class="text-end">Menge</th>
+                                    <th>Einheit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.StockByLocation.OrderBy(s => s.StorageLocationCode))
+                                {
+                                    <tr>
+                                        <td><code>@item.StorageLocationCode</code></td>
+                                        <td>@item.StorageLocationDescription</td>
+                                        <td class="text-end">@item.CurrentQuantity</td>
+                                        <td>@(item.Unit ?? Model.Unit ?? "")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="2">Gesamt</th>
+                                    <th class="text-end">@Model.TotalStock</th>
+                                    <th>@Model.Unit</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script>
+        // Nach Scan: Formular automatisch abschicken
+        document.getElementById('articleNumber').addEventListener('change', function () {
+            if (this.value.trim()) {
+                document.getElementById('articleInfoForm').submit();
+            }
+        });
+    </script>
+}

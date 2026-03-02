@@ -346,7 +346,7 @@ body {
 }
 .vault-link:hover {
     opacity: 1;
-    color: var(--ake-primary);
+    color: var(--ake-white);
 }
 
 /* Scanner Modal */

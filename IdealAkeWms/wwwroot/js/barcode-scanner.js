@@ -244,6 +244,14 @@ function processScannedValue(value, targetSelectId, scanType) {
     var select = document.getElementById(targetSelectId);
     if (!select) return;
 
+    // Plain text input: Wert direkt setzen und Change-Event auslösen
+    if (select.tagName === 'INPUT' && select.type !== 'hidden') {
+        select.value = searchValue;
+        select.dispatchEvent(new Event('change'));
+        showScanFeedback(select, true, searchValue);
+        return;
+    }
+
     // Select2 AJAX-Artikel: API-Lookup statt Option-Iteration
     if (scanType === 'article' && $(select).hasClass('select2-article')) {
         var feedbackTarget = $(select).closest('.input-group').length
@@ -316,4 +324,5 @@ document.addEventListener('DOMContentLoaded', function () {
     initScanner('btnScanArticle', 'ArticleId', 'article');
     initScanner('btnScanStorageLocation', 'StorageLocationId', 'storageLocation');
     initScanner('btnScanSourceLocation', 'SourceStorageLocationId', 'storageLocation');
+    initScanner('btnScanArticleInfo', 'articleNumber', 'article');
 });
