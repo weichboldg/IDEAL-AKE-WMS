@@ -1,0 +1,47 @@
+@model ProductionWorkplaceEditViewModel
+@{
+    ViewData["Title"] = "Werkbank bearbeiten";
+}
+
+<h2 class="page-header">Werkbank bearbeiten</h2>
+
+<div class="row">
+    <div class="col-md-6 col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Hall" class="form-label"></label>
+                        <input asp-for="Hall" class="form-control" />
+                        <span asp-validation-for="Hall" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="OverridePrePickingDays" class="form-label"></label>
+                        <input asp-for="OverridePrePickingDays" class="form-control" type="number" min="0" max="365" />
+                        <div class="form-text">Leer lassen um den globalen Standard zu verwenden.</div>
+                        <span asp-validation-for="OverridePrePickingDays" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

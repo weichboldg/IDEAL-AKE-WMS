@@ -57,6 +57,7 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 19 | `SQL/19_AddBeschichtungAbholtage.sql` | Beschichtung-Abholtage Setting |
 | 20 | `SQL/20_RenamePickingScaleToTransport.sql` | IsPickingScale → IsPickingTransport |
 | 21 | `SQL/21_AddGlassAndPurchaseColumns.sql` | Glas/Zukauf Spalten auf WA |
+| 22 | `SQL/22_AddProductionWorkplaces.sql` | Tabelle Werkbänke (ProductionWorkplaces) |
 
 ### 2. ConnectionString konfigurieren
 
@@ -85,6 +86,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Ausbuchung**: Artikel von Lagerplatz ausbuchen mit Bestandsprüfung
 - **Umbuchung**: Artikel zwischen Lagerplätzen umbuchen
 - **Lagerplatz ausbuchen**: Alle Artikel eines Lagerplatzes auf einmal ausbuchen
+- **Lagerplatz umbuchen**: Alle Artikel eines Lagerplatzes en bloc auf einen anderen Lagerplatz umbuchen (mit Barcode-Scan für Quell und Ziel, Vorschau vor Bestätigung)
 - **Negative Buchungen**: Per AppSetting konfigurierbar — Fallback auf NAN-Lagerplatz
 
 ### Bestandsübersicht
@@ -104,12 +106,13 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Glas/Zukauf**: Checkbox-Spalten direkt in der Tabelle, sofortige DB-Speicherung
 
 ### Kommissionierung (Stückliste)
-- Mehrstufiger klappbarer Baumstruktur-View der Stückliste
+- Mehrstufiger klappbarer Baumstruktur-View der Stückliste (standardmäßig eingeklappt)
 - Picking: Checkbox pro Bauteil mit Quell-Lagerplatz-Auswahl
 - Baugruppen-Picking: Komplette Baugruppe auf einmal kommissionieren
 - Umbuchen: Gepickte Artikel vom Quell- auf Ziel-Lagerplatz buchen (WA wird automatisch vermerkt)
 - Kommissionierwagen-Konfliktprüfung (verschiedene WA auf gleichem Wagen)
-- Stückliste drucken (A4 Portrait, mit Lagerplatz-Info)
+- **Spaltenfilter mit erweiterter Syntax**: `960,886` (OR-Verknüpfung), `!960` (Ausschluss)
+- **Drucken mit Filterübertragung**: Druck übernimmt aktuelle Filterung und Baumstruktur
 - Foto-Upload pro Werkstattauftrag
 
 ### Barcode/QR-Scanner
@@ -126,6 +129,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand
 - **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag, Stammdaten-Zugriff, Standard-BOM-Filter; Standard-Admin: `admin` / leer
 - **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker
+- **Werkbänke**: Produktionsarbeitsplätze mit Bezeichnung, Halle und abweichenden Vorkommissioniertagen
 - **Einstellungen**: Key-Value AppSettings + Feiertagsverwaltung
 
 ### Hilfe
@@ -182,8 +186,13 @@ IdealAkeWms/
 ├── Migrations/           # EF Core Migrations
 └── SQL/
     ├── 00_FreshInstall.sql   # Komplettes Neuinstallations-Script
-    ├── 01-21_*.sql           # Einzel-Migrations für bestehende Installationen
+    ├── 01-22_*.sql           # Einzel-Migrations für bestehende Installationen
     └── AgentJobs/            # SQL Server Agent Job Scripts (Sage-Import)
+
+IdealAkeWms.Tests/
+├── Helpers/              # TestDbContextFactory (InMemory + RowVersion-Workaround)
+├── Repositories/         # Repository-Tests (StockMovement, Picking, LocationTransfer, ProductionWorkplace)
+└── Services/             # Service-Tests (BusinessDay, NaturalPositionComparer, Password)
 ```
 
 ## Tests

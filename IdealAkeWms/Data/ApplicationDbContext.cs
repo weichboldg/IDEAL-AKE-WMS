@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
+    public DbSet<ProductionWorkplace> ProductionWorkplaces => Set<ProductionWorkplace>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -233,6 +234,19 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.SourceStorageLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ProductionWorkplace
+        modelBuilder.Entity<ProductionWorkplace>(entity =>
+        {
+            entity.ToTable("ProductionWorkplaces");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Hall).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
         });
     }
 }

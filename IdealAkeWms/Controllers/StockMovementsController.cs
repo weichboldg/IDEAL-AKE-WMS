@@ -357,4 +357,82 @@ public class StockMovementsController : Controller
         TempData["SuccessMessage"] = $"{count} Artikel erfolgreich ausgebucht.";
         return RedirectToAction(nameof(OutboundAll));
     }
+
+    // ========== Lagerplatz-Umbuchung ==========
+
+    public async Task<IActionResult> LocationTransfer(int? sourceStorageLocationId)
+    {
+        var allLocations = await _storageLocationRepository.GetAllOrderedAsync();
+        var vm = new LocationTransferViewModel
+        {
+            SourceStorageLocationId = sourceStorageLocationId,
+            AllStorageLocations = allLocations
+        };
+
+        if (sourceStorageLocationId.HasValue)
+        {
+            var source = allLocations.FirstOrDefault(l => l.Id == sourceStorageLocationId.Value);
+            vm.SourceStorageLocationCode = source?.Code;
+
+            var stock = await _stockMovementRepository.GetCurrentStockAsync(
+                filterStorageLocationId: sourceStorageLocationId.Value);
+            vm.SourceItems = stock.Where(s => s.CurrentQuantity > 0).ToList();
+        }
+
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LocationTransferConfirm(int sourceStorageLocationId, int targetStorageLocationId)
+    {
+        if (sourceStorageLocationId == targetStorageLocationId)
+        {
+            TempData["WarningMessage"] = "Quell- und Ziel-Lagerplatz dürfen nicht identisch sein.";
+            return RedirectToAction(nameof(LocationTransfer), new { sourceStorageLocationId });
+        }
+
+        var sourceLocation = await _storageLocationRepository.GetByIdAsync(sourceStorageLocationId);
+        var targetLocation = await _storageLocationRepository.GetByIdAsync(targetStorageLocationId);
+        if (sourceLocation == null || targetLocation == null)
+        {
+            TempData["WarningMessage"] = "Ungültiger Lagerplatz.";
+            return RedirectToAction(nameof(LocationTransfer));
+        }
+
+        var stock = await _stockMovementRepository.GetCurrentStockAsync(
+            filterStorageLocationId: sourceStorageLocationId);
+        var itemsToTransfer = stock.Where(s => s.CurrentQuantity > 0).ToList();
+
+        if (!itemsToTransfer.Any())
+        {
+            TempData["WarningMessage"] = $"Keine Artikel mit positivem Bestand auf Lagerplatz {sourceLocation.Code}.";
+            return RedirectToAction(nameof(LocationTransfer), new { sourceStorageLocationId });
+        }
+
+        var appUserId = _currentUserService.GetCurrentAppUserId();
+        var now = DateTime.Now;
+
+        foreach (var item in itemsToTransfer)
+        {
+            var movement = new StockMovement
+            {
+                ArticleId = item.ArticleId,
+                Quantity = item.CurrentQuantity,
+                StorageLocationId = targetStorageLocationId,
+                SourceStorageLocationId = sourceStorageLocationId,
+                MovementType = MovementType.Umbuchung,
+                Timestamp = now,
+                UserId = appUserId,
+                WindowsUser = _currentUserService.GetWindowsUserName(),
+                CreatedAt = now,
+                CreatedBy = _currentUserService.GetDisplayName(),
+                CreatedByWindows = _currentUserService.GetWindowsUserName()
+            };
+            await _stockMovementRepository.AddAsync(movement);
+        }
+
+        TempData["SuccessMessage"] = $"{itemsToTransfer.Count} Artikel von {sourceLocation.Code} nach {targetLocation.Code} umgebucht.";
+        return RedirectToAction(nameof(LocationTransfer));
+    }
 }

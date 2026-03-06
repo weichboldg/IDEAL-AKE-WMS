@@ -11,7 +11,8 @@
       "Bash(magick:*)",
       "Bash(convert:*)",
       "Bash(node --version:*)",
-      "Bash(npx --version)"
+      "Bash(npx --version)",
+      "Bash(ls \"c:\\\\Entwicklung\\\\C#\\\\AKEBDELight\\\\IdealAkeWms\\\\Migrations\"\" | grep \"ProductionWorkplace \")"
     ]
   }
 }

@@ -22,6 +22,16 @@
 
                     <dt>Lagerplatz ausbuchen</dt>
                     <dd>Alle Artikel eines Lagerplatzes auf einmal ausbuchen. Praktisch für Kommissionierwagen-Rückgabe.</dd>
+
+                    <dt>Lagerplatz umbuchen</dt>
+                    <dd>
+                        Den gesamten Bestand eines Lagerplatzes auf einen anderen umbuchen — z.B. Kommissionierwagen → Lager.
+                        <ol class="mt-1 mb-0">
+                            <li>Quell-Lagerplatz wählen (oder per Barcode scannen) → Bestand wird angezeigt.</li>
+                            <li>Ziel-Lagerplatz wählen (oder per Barcode scannen).</li>
+                            <li>Button <em>„Alle X Artikel umbuchen"</em> klicken → Bestätigung → alle Artikel werden auf einmal übertragen.</li>
+                        </ol>
+                    </dd>
                 </dl>
             </div>
         </div>
@@ -71,7 +81,25 @@
                     <li><strong>Picken</strong> — Checkbox beim Bauteil setzen und Quell-Lagerplatz wählen. Baugruppen können komplett gepickt werden.</li>
                     <li><strong>Umbuchen</strong> — Alle gepickten Artikel vom Quell-Lagerplatz auf den Ziel-Lagerplatz (z.B. Kommissionierwagen) umbuchen.</li>
                 </ol>
-                <p>Stückliste und Kommissionierliste können als A4-PDF gedruckt werden.</p>
+                <p>Stückliste und Kommissionierliste können als A4-PDF gedruckt werden (aktuelle Filterung und Baumstruktur werden berücksichtigt).</p>
+
+                <h6 class="mt-3">Spaltenfilter in der Stückliste</h6>
+                <p class="mb-1">Klick auf eine Spaltenüberschrift öffnet ein Filterfeld direkt unter der Überschrift. Der Filter unterstützt drei Modi:</p>
+                <dl class="mb-0">
+                    <dt>Einfach</dt>
+                    <dd>Text eingeben → alle Zeilen, die den Text enthalten, werden angezeigt.<br />
+                        Beispiel: <code>960</code> zeigt alle Zeilen, deren Artikelgruppe „960" enthält.</dd>
+
+                    <dt>Mehrfach (Komma-getrennt)</dt>
+                    <dd>Mehrere Werte durch Komma trennen → Zeilen werden angezeigt, wenn <em>einer</em> der Werte passt.<br />
+                        Beispiel: <code>886, 960</code> zeigt Artikelgruppen 886 <em>oder</em> 960.</dd>
+
+                    <dt>Ausschluss (Negativ-Filter mit <code>!</code>)</dt>
+                    <dd>Ausrufezeichen voranstellen → Zeilen werden nur angezeigt, wenn keiner der angegebenen Werte vorkommt.<br />
+                        Beispiel: <code>!Nein</code> blendet alle Zeilen aus, bei denen „Nein" in der Spalte steht.<br />
+                        Beispiel: <code>!960, 886</code> blendet Artikelgruppen 960 und 886 aus.</dd>
+                </dl>
+                <p class="mt-2 mb-0 text-muted small">Tipp: Standard-Filter können im eigenen Profil hinterlegt werden — diese werden beim Öffnen einer Stückliste automatisch gesetzt.</p>
             </div>
         </div>
 
@@ -107,10 +135,10 @@
                     <dd>Neues Passwort eingeben und speichern. Das Passwortfeld leer lassen = Passwort bleibt unverändert.</dd>
 
                     <dt>Standard-Filter Beschaffung</dt>
-                    <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt (z.B. <code>Ja</code> oder <code>Nein</code>). Leer lassen = kein automatischer Filter.</dd>
+                    <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt. Unterstützt alle Filtermodi: einfach (<code>Ja</code>), mehrfach (<code>Ja, Nein</code>) und Ausschluss (<code>!Nein</code>). Leer lassen = kein automatischer Filter.</dd>
 
                     <dt>Standard-Filter Artikelgruppe</dt>
-                    <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt (z.B. <code>886 - Isoliergläser</code>). Leer lassen = kein automatischer Filter.</dd>
+                    <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt. Unterstützt alle Filtermodi: einfach (<code>886</code>), mehrfach (<code>886, 960</code>) und Ausschluss (<code>!960</code>). Leer lassen = kein automatischer Filter.</dd>
                 </dl>
             </div>
         </div>
@@ -134,7 +162,7 @@
             <div class="card-body">
                 <ul>
                     <li>In Dropdown-Feldern (Select2) können Sie tippen, um zu suchen — mindestens 2 Zeichen eingeben.</li>
-                    <li>Tabellen können nach Spalten gefiltert werden: Klick auf die Spaltenüberschrift öffnet ein Filterfeld.</li>
+                    <li>Tabellen können nach Spalten gefiltert werden: Klick auf die Spaltenüberschrift öffnet ein Filterfeld. In der Stückliste sind zusätzlich Mehrfach- (<code>886, 960</code>) und Ausschluss-Filter (<code>!Nein</code>) möglich.</li>
                     <li>Bestandsübersicht: 0-Bestände werden standardmäßig ausgeblendet.</li>
                     <li>Lagerplatz-Codes sollten kurz und eindeutig sein (max. 12 Zeichen) für zuverlässigen Barcode-Scan.</li>
                 </ul>

@@ -15,12 +15,16 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Bereich | Status |
 |---------|--------|
 | Lagerbewegungen (Ein/Aus/Umbuchung) | Fertig |
+| Lagerplatz-Umbuchung (en bloc) | Fertig |
 | Bestandsübersicht | Fertig |
 | Bewegungshistorie | Fertig |
 | Werkstattaufträge | Fertig |
-| Kommissionierung (BOM/Stückliste) | In Arbeit |
+| Kommissionierung (BOM/Stückliste) | Fertig |
+| BOM-Filter (Multi-Wert, Ausschluss) | Fertig |
+| BOM-Druck mit Filterübertragung | Fertig |
 | Barcode/QR-Scanner | Fertig |
 | Stammdaten (Artikel, Lagerplätze, Benutzer, Arbeitsplätze) | Fertig |
+| Werkbänke / Produktionsarbeitsplätze | Fertig |
 | Feiertag-Import | Fertig |
 | Foto-Upload bei Kommissionierung | Fertig |
 | Server-seitiger Druck | Grundstruktur |
@@ -90,25 +94,77 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - **Neue Dateien**: Views/ProductionOrders/PrintBom.cshtml
 - **Betroffene Dateien**: ProductionOrdersController.cs, BomViewModels.cs, Bom.cshtml
 
+## Änderungen (06.03.2026)
+
+### Feature: Baum standardmäßig eingeklappt + Filter-Bug-Fix (1 + 2.1)
+- Neue Funktion `updateBomVisibility()` in `Bom.cshtml`: Baum-State und Spaltenfilter werden kombiniert
+- **Baum hat Vorrang**: Zeilen sind nur sichtbar wenn Parent-Baugruppe aufgeklappt UND Filter passt
+- Expand/Collapse respektiert aktiven Filter (zuvor wurden alle Kinder angezeigt, auch nicht-passende)
+- `window.setColumnFilter` überschrieben damit Default-Filter (Benutzerprofil) den Baum-State respektiert
+- **Betroffene Dateien**: `Views/ProductionOrders/Bom.cshtml`
+
+### Feature: Erweiterter Artikelgruppen-Filter (2.2 + 2.3)
+- Neue Funktion `matchesFilter()` in `table-filter.js`
+- `960,886` → OR-Verknüpfung: zeigt Artikelgruppe 960 ODER 886
+- `!960` → Ausschluss: zeigt alles außer Artikelgruppe 960
+- Gilt für alle filterbaren Tabellen im System (Bestände, Bewegungshistorie, etc.)
+- Rückwärtskompatibel — bestehende Einzel-Filter unverändert
+- **Betroffene Dateien**: `wwwroot/js/table-filter.js`
+
+### Feature: Druck mit aktueller Filterung/Baumstruktur (3.1)
+- Print-Button liest aktuell sichtbare Zeilen aus dem DOM
+- Übergibt `visiblePositions` (kommagetrennte Positionen) als URL-Parameter an `PrintBom`
+- Controller filtert Items auf übergebene Positionen
+- Aktive Filter werden im Druckdokument-Header angezeigt
+- **Betroffene Dateien**: `Bom.cshtml`, `ProductionOrdersController.cs`, `PrintBom.cshtml`, `BomViewModels.cs`
+
+### Feature: Lagerplatz-Umbuchung (4)
+- Neuer Menüpunkt "Lagerplatz umbuchen" unter Lagerbewegungen
+- Quell-Lagerplatz auswählen (mit Barcode-Scan), Bestandsvorschau-Tabelle, Ziel-Lagerplatz wählen, Bestätigungsdialog
+- Alle Artikel mit positivem Bestand werden als `Umbuchung` auf Ziel gebucht
+- **Neue Dateien**: `Views/StockMovements/LocationTransfer.cshtml`, `Models/ViewModels/LocationTransferViewModel.cs`
+- **Betroffene Dateien**: `StockMovementsController.cs`, `Views/Shared/_Layout.cshtml`
+
+### Feature: Werkbänke / Produktionsarbeitsplätze (5)
+- Neue Entität `ProductionWorkplace` mit Bezeichnung, Halle, Abweichende Vorkommissioniertage
+- Vollständiges CRUD unter Stammdaten → "Werkbänke" (nur mit Stammdaten-Zugriff, `[RequireMasterDataAccess]`)
+- `OverridePrePickingDays` (nullable int) — leer = globaler Standard aus AppSettings
+- EF Migration: `20260306081711_AddProductionWorkplaces`
+- **Neue Dateien**: `Models/ProductionWorkplace.cs`, Repository + Interface, Controller, Views/ProductionWorkplaces/
+- **Neue SQL**: `SQL/22_AddProductionWorkplaces.sql`
+- **Betroffene Dateien**: `ApplicationDbContext.cs`, `Program.cs`, `Views/Shared/_Layout.cshtml`
+
+### Tests (06.03.2026)
+- `Tests/Repositories/ProductionWorkplaceRepositoryTests.cs` — 7 Tests (CRUD, Sortierung, Nullable-Felder)
+- `Tests/Repositories/LocationTransferTests.cs` — 6 Tests (Lagerplatz-Umbuchung Repository-Logik)
+- Gesamt: 32 Tests, alle grün
+
 ## Offene Aufgaben / Nächste Schritte
 - [ ] Druck-Integration testen (PrintService mit echtem Drucker)
 - [ ] Druck-Button in Kommissionierung mit Arbeitsplatz-Drucker verknüpfen
-- [ ] Bestehende PickingItems bereinigen (DELETE + Neu-Initialisierung)
+- [ ] `OverridePrePickingDays` aus Werkbank in Terminberechnung (BusinessDayService) einbeziehen
+- [ ] 00_FreshInstall.sql um Tabelle ProductionWorkplaces ergänzen
 
 ## DB-Migrationen (in Reihenfolge ausführen)
 - `SQL/09_PickingItemIsBaugruppe.sql` - IsBaugruppe-Flag für PickingItems
 - `SQL/10_WorkstationDefaultPrinter.sql` - DefaultPrinter für Workstations
+- `SQL/22_AddProductionWorkplaces.sql` - Tabelle ProductionWorkplaces (Werkbänke)
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI
 - `Controllers/ProductionOrdersController.cs` - Hauptlogik WA + Kommissionierung
+- `Controllers/StockMovementsController.cs` - Lagerbewegungen + Lagerplatz-Umbuchung
+- `Controllers/ProductionWorkplacesController.cs` - Werkbank CRUD
 - `Data/Repositories/PickingRepository.cs` - Picking-Datenzugriff
 - `Data/Repositories/BomRepository.cs` - BOM-VIEW Abfrage
 - `Data/Repositories/StockMovementRepository.cs` - Bestandsberechnung
+- `Data/Repositories/ProductionWorkplaceRepository.cs` - Werkbank CRUD
 - `Services/PrintService.cs` - Server-seitiger Druck
-- `Views/ProductionOrders/Bom.cshtml` - Stücklisten-View mit Picking + Baum
-- `Views/ProductionOrders/PrintBom.cshtml` - Druck-View: vollständige Stückliste
+- `Views/ProductionOrders/Bom.cshtml` - Stücklisten-View mit Picking + Baum + kombiniertem Filter
+- `Views/ProductionOrders/PrintBom.cshtml` - Druck-View: vollständige Stückliste (mit Filterübertragung)
 - `Views/ProductionOrders/PrintPicking.cshtml` - Druck-View: nur gepickte Artikel
-- `Views/ProductionOrders/Index.cshtml` - WA-Übersicht
+- `Views/StockMovements/LocationTransfer.cshtml` - Lagerplatz-Umbuchung View
+- `Views/ProductionWorkplaces/` - Werkbank CRUD Views
+- `wwwroot/js/table-filter.js` - Spaltenfilter mit Multi-Wert/Ausschluss-Logik
 - `wwwroot/css/site.css` - Corporate Design Styles
-- `SQL/` - 10 DB-Init-/Migrationsskripte
+- `SQL/` - 22 DB-Init-/Migrationsskripte

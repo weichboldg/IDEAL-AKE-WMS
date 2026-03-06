@@ -80,7 +80,10 @@ public class PrintBomViewModel
     public string? ArticleNumber { get; set; }
     public string? Description1 { get; set; }
     public decimal Quantity { get; set; }
+    public DateTime? ProductionDate { get; set; }
     public List<PrintBomItem> Items { get; set; } = new();
+    /// <summary>Aktive Filterinfo für Header-Anzeige (z.B. "Artikelgruppe=960")</summary>
+    public string? FilterInfo { get; set; }
 }
 
 public class PrintBomItem

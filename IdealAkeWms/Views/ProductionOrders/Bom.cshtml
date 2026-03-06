@@ -12,13 +12,13 @@
         }
     </h2>
     <div class="d-flex gap-2 mt-1">
-        <a asp-action="PrintBom" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary btn-sm" title="Stückliste drucken">
+        <button type="button" id="btnPrintBom" class="btn btn-outline-secondary btn-sm" title="Stückliste drucken (aktuelle Filterung/Baumstruktur)">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
                 <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
                 <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1v-2h8v2a1 1 0 0 1-1 1z"/>
             </svg>
             Stückliste drucken
-        </a>
+        </button>
     </div>
 </div>
 
@@ -296,12 +296,6 @@
         document.addEventListener('DOMContentLoaded', function () {
             initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
 
-            // User-Default-Filter in Spaltenfilter vorbelegen
-            var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
-            var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
-            if (defaultBeschaffung && typeof setColumnFilter === 'function') setColumnFilter(7, defaultBeschaffung);
-            if (defaultArtikelgruppe && typeof setColumnFilter === 'function') setColumnFilter(8, defaultArtikelgruppe);
-
             var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
             var productionOrderId = @Model.ProductionOrderId;
 
@@ -309,6 +303,43 @@
 
             // Zustand der Baugruppen (true = expanded)
             var expandedState = {};
+
+            // Prüft ob ein Zelltext einem Filterwert entspricht (Multi-Wert, Ausschluss)
+            function bomMatchesFilter(text, val) {
+                if (val.startsWith('!')) {
+                    var excludes = val.substring(1).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                    return excludes.every(function (ex) { return text.indexOf(ex) === -1; });
+                }
+                var parts = val.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                return parts.some(function (p) { return text.indexOf(p) !== -1; });
+            }
+
+            // Kombinierte Sichtbarkeitsfunktion: Baum-State UND aktive Filter
+            // Baum hat Vorrang: eine Zeile ist nur sichtbar wenn sie im Baum sichtbar ist UND dem Filter entspricht
+            function updateBomVisibility() {
+                var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
+
+                document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
+                    if (row.querySelector('td[colspan]')) return; // "Keine Daten"-Zeile überspringen
+
+                    var parentPos = row.getAttribute('data-parent-pos');
+
+                    // Baum-Sichtbarkeit: TreeLevel 0 immer sichtbar, höhere Level nur wenn Parent expanded
+                    var treeVisible = !parentPos || expandedState[parentPos] === true;
+
+                    // Filter-Sichtbarkeit
+                    var filterVisible = true;
+                    for (var col in filters) {
+                        var cell = row.querySelectorAll('td')[parseInt(col)];
+                        if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), filters[col])) {
+                            filterVisible = false;
+                            break;
+                        }
+                    }
+
+                    row.style.display = (treeVisible && filterVisible) ? '' : 'none';
+                });
+            }
 
             function getChildRows(parentPos) {
                 return document.querySelectorAll('#bomTable tbody tr[data-parent-pos="' + parentPos + '"]');
@@ -319,14 +350,15 @@
                 var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
                 if (chevron) chevron.style.transform = 'rotate(90deg)';
 
+                // Kinder anzeigen (Filter wird danach via updateBomVisibility angewendet)
                 getChildRows(pos).forEach(function (row) {
-                    row.style.display = '';
-                    // Nested Baugruppen: deren Kinder nur zeigen wenn sie selbst expanded sind
                     var childPos = row.getAttribute('data-position');
                     if (row.hasAttribute('data-baugruppe-id') && expandedState[childPos]) {
                         expandBaugruppe(childPos);
                     }
                 });
+
+                updateBomVisibility();
             }
 
             function collapseBaugruppe(pos) {
@@ -334,14 +366,15 @@
                 var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
                 if (chevron) chevron.style.transform = '';
 
+                // Kinder rekursiv in expandedState deaktivieren
                 getChildRows(pos).forEach(function (row) {
-                    row.style.display = 'none';
-                    // Kinder rekursiv ausblenden
                     var childPos = row.getAttribute('data-position');
                     if (row.hasAttribute('data-baugruppe-id')) {
                         collapseBaugruppe(childPos);
                     }
                 });
+
+                updateBomVisibility();
             }
 
             function toggleBaugruppe(pos) {
@@ -365,16 +398,68 @@
             document.getElementById('btnExpandAll').addEventListener('click', function () {
                 document.querySelectorAll('#bomTable tbody tr[data-baugruppe-id]').forEach(function (row) {
                     var pos = row.getAttribute('data-position');
-                    expandBaugruppe(pos);
+                    expandedState[pos] = true;
+                    var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
+                    if (chevron) chevron.style.transform = 'rotate(90deg)';
                 });
+                updateBomVisibility();
             });
 
             // Alle zuklappen
             document.getElementById('btnCollapseAll').addEventListener('click', function () {
                 document.querySelectorAll('#bomTable tbody tr[data-baugruppe-id]').forEach(function (row) {
                     var pos = row.getAttribute('data-position');
-                    collapseBaugruppe(pos);
+                    expandedState[pos] = false;
+                    var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
+                    if (chevron) chevron.style.transform = '';
                 });
+                updateBomVisibility();
+            });
+
+            // Filter-Row-Inputs (von table-filter.js erstellt) mit updateBomVisibility verknüpfen
+            // table-filter.js DOMContentLoaded läuft VOR diesem Script → Filter-Row ist bereits da
+            document.querySelectorAll('.filter-row input').forEach(function (input) {
+                input.addEventListener('input', updateBomVisibility);
+            });
+
+            // setColumnFilter überschreiben damit auch Programm-seitiges Setzen (Default-Filter) den Baum respektiert
+            var origSetColumnFilter = window.setColumnFilter;
+            window.setColumnFilter = function (colIndex, value) {
+                if (origSetColumnFilter) origSetColumnFilter(colIndex, value);
+                updateBomVisibility();
+            };
+
+            // User-Default-Filter in Spaltenfilter vorbelegen (nach Override von setColumnFilter)
+            var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
+            var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
+            if (defaultBeschaffung && typeof window.setColumnFilter === 'function') window.setColumnFilter(7, defaultBeschaffung);
+            if (defaultArtikelgruppe && typeof window.setColumnFilter === 'function') window.setColumnFilter(8, defaultArtikelgruppe);
+
+            // ========== Druck: Aktuelle Filterung/Baumstruktur übergeben ==========
+            document.getElementById('btnPrintBom').addEventListener('click', function () {
+                var visiblePositions = [];
+                document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
+                    if (row.style.display !== 'none') {
+                        var pos = row.getAttribute('data-position');
+                        if (pos) visiblePositions.push(pos);
+                    }
+                });
+
+                // Aktive Filterinfos für Header-Anzeige im Druck
+                var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
+                var filterParts = [];
+                var colNames = { 1: 'Position', 2: 'Baugruppe', 3: 'Ressourcenr.', 4: 'Bezeichnung 1', 5: 'Bezeichnung 2', 6: 'Menge', 7: 'Beschaffung', 8: 'Artikelgruppe' };
+                for (var col in filters) {
+                    filterParts.push((colNames[col] || 'Spalte ' + col) + '=' + filters[col]);
+                }
+
+                var url = '@Url.Action("PrintBom", new { id = Model.ProductionOrderId })';
+                var params = [];
+                if (visiblePositions.length > 0) params.push('visiblePositions=' + encodeURIComponent(visiblePositions.join(',')));
+                if (filterParts.length > 0) params.push('filterInfo=' + encodeURIComponent(filterParts.join(', ')));
+                if (params.length > 0) url += '?' + params.join('&');
+
+                window.open(url, '_blank');
             });
 
             // ========== Checkbox-Toggle (Picking) ==========

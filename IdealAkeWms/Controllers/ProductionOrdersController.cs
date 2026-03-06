@@ -358,7 +358,7 @@ public class ProductionOrdersController : Controller
         return Ok();
     }
 
-    public async Task<IActionResult> PrintBom(int id)
+    public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -384,7 +384,16 @@ public class ProductionOrdersController : Controller
             .Distinct()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var items = bomItems.Select(bom => new PrintBomItem
+        // Sichtbare Positionen filtern (Filterung + Baumstruktur aus der interaktiven Ansicht)
+        HashSet<string>? visibleSet = null;
+        if (!string.IsNullOrEmpty(visiblePositions))
+        {
+            visibleSet = visiblePositions.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        var allItems = bomItems.Select(bom => new PrintBomItem
         {
             Position = bom.Position,
             Baugruppe = bom.Baugruppe,
@@ -403,13 +412,20 @@ public class ProductionOrdersController : Controller
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
 
+        // Auf sichtbare Positionen einschränken (falls aus dem Client übergeben)
+        var items = visibleSet != null
+            ? allItems.Where(i => !string.IsNullOrEmpty(i.Position) && visibleSet.Contains(i.Position)).ToList()
+            : allItems;
+
         var vm = new PrintBomViewModel
         {
             OrderNumber = order.OrderNumber,
             ArticleNumber = order.ArticleNumber,
             Description1 = order.Description1,
             Quantity = order.Quantity,
-            Items = items
+            ProductionDate = order.ProductionDate,
+            Items = items,
+            FilterInfo = filterInfo
         };
 
         return View(vm);

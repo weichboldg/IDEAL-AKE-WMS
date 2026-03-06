@@ -35,6 +35,7 @@ builder.Services.AddSession(options =>
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
+builder.Services.AddScoped<IProductionWorkplaceRepository, ProductionWorkplaceRepository>();
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();

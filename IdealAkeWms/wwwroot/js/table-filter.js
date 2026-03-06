@@ -68,14 +68,32 @@
         });
     });
 
-    function applyFilters() {
-        if (!_filterRow || !_tbody) return;
+    // Prüft ob ein Zelltext einem Filterwert entspricht.
+    // Unterstützt: "960,886" (OR-Logik), "!960" (Ausschluss), "!960,886" (beide ausschließen)
+    function matchesFilter(text, val) {
+        if (val.startsWith('!')) {
+            var excludes = val.substring(1).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            return excludes.every(function (ex) { return text.indexOf(ex) === -1; });
+        }
+        var parts = val.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        return parts.some(function (p) { return text.indexOf(p) !== -1; });
+    }
+
+    // Globale Funktion: Gibt die aktiven Filter zurück (für externe Verwendung z.B. BOM)
+    window.getActiveFilters = function () {
+        if (!_filterRow) return {};
         var filters = {};
         _filterRow.querySelectorAll('input').forEach(function (input) {
             var col = parseInt(input.getAttribute('data-col'));
             var val = input.value.toLowerCase().trim();
             if (val) filters[col] = val;
         });
+        return filters;
+    };
+
+    function applyFilters() {
+        if (!_filterRow || !_tbody) return;
+        var filters = window.getActiveFilters();
 
         var rows = _tbody.querySelectorAll('tr');
         rows.forEach(function (row) {
@@ -86,7 +104,7 @@
                 var cell = row.querySelectorAll('td')[parseInt(col)];
                 if (cell) {
                     var text = cell.textContent.toLowerCase();
-                    if (text.indexOf(filters[col]) === -1) {
+                    if (!matchesFilter(text, filters[col])) {
                         visible = false;
                         break;
                     }

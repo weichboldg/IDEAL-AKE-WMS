@@ -1,0 +1,50 @@
+@model List<ProductionWorkplace>
+@{
+    ViewData["Title"] = "Werkbänke";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="page-header mb-0">Werkbänke / Produktionsarbeitsplätze</h2>
+    <a asp-action="Create" class="btn btn-primary">Neue Werkbank anlegen</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Bezeichnung</th>
+                <th>Halle</th>
+                <th>Abw. Vorkommissioniertage</th>
+                <th style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var wp in Model)
+            {
+                <tr>
+                    <td><strong>@wp.Name</strong></td>
+                    <td>@wp.Hall</td>
+                    <td>
+                        @if (wp.OverridePrePickingDays.HasValue)
+                        {
+                            <span class="badge bg-secondary">@wp.OverridePrePickingDays Tage</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Standard</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@wp.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
