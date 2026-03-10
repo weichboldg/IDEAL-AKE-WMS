@@ -15,20 +15,20 @@ public class CachedBomRepository : IBomRepository
         _cache = cache;
     }
 
-    public async Task<List<BomItem>> GetBomItemsAsync(string productionOrderArticleNumber)
+    public async Task<BomQueryResult> GetBomItemsAsync(string productionOrderArticleNumber)
     {
         var cacheKey = $"bom:{productionOrderArticleNumber}";
 
-        if (_cache.TryGetValue(cacheKey, out List<BomItem>? cached) && cached != null)
+        if (_cache.TryGetValue(cacheKey, out BomQueryResult? cached) && cached != null)
             return cached;
 
-        var items = await _inner.GetBomItemsAsync(productionOrderArticleNumber);
+        var result = await _inner.GetBomItemsAsync(productionOrderArticleNumber);
 
-        _cache.Set(cacheKey, items, new MemoryCacheEntryOptions
+        _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = CacheDuration
         });
 
-        return items;
+        return result;
     }
 }

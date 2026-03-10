@@ -10,6 +10,18 @@
         {
             <small class="text-muted">| @Model.ArticleNumber - @Model.Description1</small>
         }
+        @if (!string.IsNullOrEmpty(Model.DataSource))
+        {
+            if (Model.DataSource == "KEINE_DATEN")
+            {
+                <span class="badge bg-danger ms-2 fs-6 fw-normal align-middle">Keine Daten gefunden</span>
+            }
+            else
+            {
+                var badgeClass = Model.DataSource == "SAGE" ? "bg-secondary" : "bg-warning text-dark";
+                <span class="badge @badgeClass ms-2 fs-6 fw-normal align-middle">@Model.DataSource</span>
+            }
+        }
     </h2>
     <div class="d-flex gap-2 mt-1">
         <button type="button" id="btnPrintBom" class="btn btn-outline-secondary btn-sm" title="Stückliste drucken (aktuelle Filterung/Baumstruktur)">

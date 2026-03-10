@@ -188,7 +188,8 @@ public class ProductionOrdersController : Controller
             }
         }
 
-        var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+        var bomResult = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+        var bomItems = bomResult.Items;
 
         await _pickingRepository.InitializePickingAsync(
             id, bomItems,
@@ -281,7 +282,8 @@ public class ProductionOrdersController : Controller
             FilterText = filterText,
             DefaultFilterBeschaffung = defaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
-            AllStorageLocations = allStorageLocations
+            AllStorageLocations = allStorageLocations,
+            DataSource = bomResult.DataSource
         };
 
         return View(vm);
@@ -367,7 +369,7 @@ public class ProductionOrdersController : Controller
         if (string.IsNullOrEmpty(order.ArticleNumber))
             return NotFound();
 
-        var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+        var bomItems = (await _bomRepository.GetBomItemsAsync(order.ArticleNumber)).Items;
 
         // Stock-Daten laden für Lagerplatz-Anzeige
         var articleNumbers = bomItems
@@ -455,7 +457,7 @@ public class ProductionOrdersController : Controller
 
         if (!string.IsNullOrEmpty(order.ArticleNumber))
         {
-            var bomItems = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+            var bomItems = (await _bomRepository.GetBomItemsAsync(order.ArticleNumber)).Items;
             foreach (var item in vm.Items)
             {
                 var bom = bomItems.FirstOrDefault(b => b.Ressourcenummer == item.Artikelnummer);

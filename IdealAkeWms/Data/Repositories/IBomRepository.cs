@@ -4,5 +4,5 @@ namespace IdealAkeWms.Data.Repositories;
 
 public interface IBomRepository
 {
-    Task<List<BomItem>> GetBomItemsAsync(string productionOrderArticleNumber);
+    Task<BomQueryResult> GetBomItemsAsync(string productionOrderArticleNumber);
 }

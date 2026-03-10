@@ -1,5 +1,7 @@
 namespace IdealAkeWms.Models.ViewModels;
 
+public record BomQueryResult(List<BomItem> Items, string DataSource);
+
 public class BomItem
 {
     public string Artikelnummer { get; set; } = string.Empty;
@@ -56,6 +58,7 @@ public class BomViewModel
     public string? DefaultFilterBeschaffung { get; set; }
     public string? DefaultFilterArtikelgruppe { get; set; }
     public List<StorageLocation> AllStorageLocations { get; set; } = new();
+    public string? DataSource { get; set; }
 }
 
 public class PrintPickingViewModel
