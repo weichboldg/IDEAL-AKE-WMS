@@ -16,4 +16,7 @@ public class ProfileViewModel
     [StringLength(100)]
     [Display(Name = "Standard-Filter Artikelgruppe")]
     public string? DefaultFilterArtikelgruppe { get; set; }
+
+    [Display(Name = "Rekursive Suche bei aktiver Filterung")]
+    public bool RecursiveFilterSearch { get; set; }
 }

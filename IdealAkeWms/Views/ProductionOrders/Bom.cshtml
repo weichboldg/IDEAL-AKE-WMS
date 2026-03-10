@@ -310,6 +310,7 @@
 
             var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
             var productionOrderId = @Model.ProductionOrderId;
+            var recursiveFilterSearch = @(Model.RecursiveFilterSearch ? "true" : "false");
 
             // ========== Baum: Ein-/Ausklappen ==========
 
@@ -328,8 +329,10 @@
 
             // Kombinierte Sichtbarkeitsfunktion: Baum-State UND aktive Filter
             // Baum hat Vorrang: eine Zeile ist nur sichtbar wenn sie im Baum sichtbar ist UND dem Filter entspricht
+            // Mit rekursiver Suche: bei aktivem Filter wird der Baum-State ignoriert
             function updateBomVisibility() {
                 var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
+                var hasActiveFilter = Object.keys(filters).length > 0;
 
                 document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
                     if (row.querySelector('td[colspan]')) return; // "Keine Daten"-Zeile überspringen
@@ -338,6 +341,11 @@
 
                     // Baum-Sichtbarkeit: TreeLevel 0 immer sichtbar, höhere Level nur wenn Parent expanded
                     var treeVisible = !parentPos || expandedState[parentPos] === true;
+
+                    // Rekursive Suche: bei aktivem Filter Baum-State ignorieren → alle Treffer sichtbar
+                    if (recursiveFilterSearch && hasActiveFilter) {
+                        treeVisible = true;
+                    }
 
                     // Filter-Sichtbarkeit
                     var filterVisible = true;

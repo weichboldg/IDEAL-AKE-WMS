@@ -570,6 +570,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<bool>("RecursiveFilterSearch")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.ToTable("Users", (string)null);

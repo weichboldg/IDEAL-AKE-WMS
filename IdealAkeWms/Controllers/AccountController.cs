@@ -108,7 +108,8 @@ public class AccountController : Controller
             Name = user.Name,
             PersonalNumber = user.PersonalNumber,
             DefaultFilterBeschaffung = user.DefaultFilterBeschaffung,
-            DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe
+            DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe,
+            RecursiveFilterSearch = user.RecursiveFilterSearch
         };
         return View(vm);
     }
@@ -130,6 +131,7 @@ public class AccountController : Controller
 
         user.DefaultFilterBeschaffung = vm.DefaultFilterBeschaffung;
         user.DefaultFilterArtikelgruppe = vm.DefaultFilterArtikelgruppe;
+        user.RecursiveFilterSearch = vm.RecursiveFilterSearch;
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);

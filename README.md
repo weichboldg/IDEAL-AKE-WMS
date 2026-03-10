@@ -58,17 +58,21 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 20 | `SQL/20_RenamePickingScaleToTransport.sql` | IsPickingScale → IsPickingTransport |
 | 21 | `SQL/21_AddGlassAndPurchaseColumns.sql` | Glas/Zukauf Spalten auf WA |
 | 22 | `SQL/22_AddProductionWorkplaces.sql` | Tabelle Werkbänke (ProductionWorkplaces) |
+| 23 | `SQL/23_AddRecursiveFilterSearch.sql` | User-Setting: Rekursive Suche in Stückliste |
 
-### 2. ConnectionString konfigurieren
+### 2. ConnectionStrings konfigurieren
 
 In `appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=AKESQL20.ake.at;Database=IDEAL_AKE_WMS;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=AKESQL20.ake.at;Database=IDEAL_AKE_WMS;Trusted_Connection=True;TrustServerCertificate=True;",
+    "OseonConnection": "Server=aketrumpf01.ake.at\\TRUMPFSQL2;Database=T1000_V01_V001;Trusted_Connection=True;TrustServerCertificate=True"
   }
 }
 ```
+
+`OseonConnection` wird für den OSEON/TRUMPF-Fallback in der Stückliste benötigt (wenn SAGE keine BOM-Daten liefert).
 
 ### 3. Starten
 
@@ -112,8 +116,10 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Umbuchen: Gepickte Artikel vom Quell- auf Ziel-Lagerplatz buchen (WA wird automatisch vermerkt)
 - Kommissionierwagen-Konfliktprüfung (verschiedene WA auf gleichem Wagen)
 - **Spaltenfilter mit erweiterter Syntax**: `960,886` (OR-Verknüpfung), `!960` (Ausschluss)
+- **Rekursive Suche**: User-Setting — bei aktivem Filter werden alle passenden Positionen angezeigt, unabhängig vom Baum-Status der übergeordneten Baugruppe
 - **Drucken mit Filterübertragung**: Druck übernimmt aktuelle Filterung und Baumstruktur
 - Foto-Upload pro Werkstattauftrag
+- **BOM-Datenquelle**: SAGE (View) → Fallback OSEON/TRUMPF (Stored Procedure); Quelle wird als Badge im Header angezeigt (SAGE / OSEON / Keine Daten)
 
 ### Barcode/QR-Scanner
 - html5-qrcode Integration für Kamera-Scan (HTTPS) und Bild-Upload
@@ -123,6 +129,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 ### Mein Profil (Self-Service)
 - Jeder angemeldete Benutzer kann unter dem Benutzer-Dropdown → **Mein Profil** sein eigenes Passwort ändern sowie die Standard-BOM-Filter (Beschaffung, Artikelgruppe) einstellen
 - Diese Filter werden beim Öffnen einer Stückliste automatisch gesetzt
+- **Rekursive Suche**: Checkbox-Option — wenn aktiv, werden bei aktivem Filter alle passenden BOM-Positionen angezeigt, auch wenn ihre Baugruppe eingeklappt ist
 
 ### Stammdaten
 - **Lagerplätze**: Code (max. 12 Zeichen), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite); `NAN` ist Standard-Fallback-Lagerplatz
@@ -143,6 +150,8 @@ Im Ordner `SQL/AgentJobs/` liegen Scripts für automatische Sage-Daten-Imports:
 |--------|-------------|------|
 | `01_Import_Produktionsauftraege.sql` | `[ake].[dbo].[vw_AKE_Kommissionierung_WAListe]` | `ProductionOrders` |
 | `02_Import_Artikel.sql` | `KHKPpsRessourcenPositionen` + `KHKArtikel` | `Articles` |
+
+`01_Import_Produktionsauftraege.sql` verwendet ein `MERGE`-Statement: neue Aufträge werden eingefügt, bestehende bei Änderungen in SAGE (Fertigungstermin, Liefertermin, Stückzahl etc.) aktualisiert. App-verwaltete Felder (`IsDone`, `PickingStatus`, `HasGlass`, `HasExternalPurchase`) werden nicht überschrieben.
 
 Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 

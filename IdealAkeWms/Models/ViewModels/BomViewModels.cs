@@ -59,6 +59,7 @@ public class BomViewModel
     public string? DefaultFilterArtikelgruppe { get; set; }
     public List<StorageLocation> AllStorageLocations { get; set; } = new();
     public string? DataSource { get; set; }
+    public bool RecursiveFilterSearch { get; set; }
 }
 
 public class PrintPickingViewModel

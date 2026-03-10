@@ -139,6 +139,31 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `Tests/Repositories/LocationTransferTests.cs` — 6 Tests (Lagerplatz-Umbuchung Repository-Logik)
 - Gesamt: 32 Tests, alle grün
 
+## Änderungen (10.03.2026)
+
+### Feature: BOM-Datenquelle OSEON/TRUMPF Fallback
+- `BomRepository` fragt zuerst SAGE-View ab; wenn keine Ergebnisse → Fallback auf Stored Procedure `sp_AKE_Kommissionierung_OseonStuecklistenDB` auf `aketrumpf01.ake.at\TRUMPFSQL2` (DB: `T1000_V01_V001`)
+- Rückgabetyp geändert: `IBomRepository.GetBomItemsAsync()` liefert jetzt `BomQueryResult(Items, DataSource)`
+- Datenquelle als Badge im BOM-Header: **SAGE** (grau) / **OSEON** (gelb) / **Keine Daten gefunden** (rot)
+- Neuer Connection String `OseonConnection` in `appsettings.json`
+- **Betroffene Dateien**: `BomRepository.cs`, `CachedBomRepository.cs`, `IBomRepository.cs`, `BomViewModels.cs`, `ProductionOrdersController.cs`, `Bom.cshtml`, `appsettings.json`
+
+### Feature: SQL Agent Job — Produktionsaufträge auch aktualisieren
+- `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` auf `MERGE`-Statement umgestellt
+- Neue Aufträge: `WHEN NOT MATCHED → INSERT`
+- Geänderte Aufträge: `WHEN MATCHED AND (Änderungscheck) → UPDATE` (nur bei tatsächlicher Änderung)
+- App-verwaltete Felder werden nicht überschrieben: `IsDone`, `PickingStatus`, `HasGlass`, `HasExternalPurchase`
+- Bei Update werden Audit-Felder gesetzt: `ModifiedAt`, `ModifiedBy`, `ModifiedByWindows`
+
+### Feature: Rekursive Suche bei aktiver Filterung (User-Setting)
+- Neues Bool-Feld `RecursiveFilterSearch` am User-Model
+- Einstellbar im Benutzerprofil (Checkbox unter den Standard-BOM-Filter-Feldern)
+- Wenn aktiv + Filter gesetzt: `updateBomVisibility()` ignoriert den Baum-State → alle passenden Positionen werden angezeigt, unabhängig davon ob die übergeordnete Baugruppe aufgeklappt ist
+- Wenn kein Filter aktiv: normales Baum-Verhalten unverändert
+- EF Migration: `20260310130059_AddRecursiveFilterSearch`
+- **Neue SQL**: `SQL/23_AddRecursiveFilterSearch.sql`
+- **Betroffene Dateien**: `User.cs`, `ProfileViewModel.cs`, `AccountController.cs`, `Profile.cshtml`, `BomViewModels.cs`, `ProductionOrdersController.cs`, `Bom.cshtml`
+
 ## Offene Aufgaben / Nächste Schritte
 - [ ] Druck-Integration testen (PrintService mit echtem Drucker)
 - [ ] Druck-Button in Kommissionierung mit Arbeitsplatz-Drucker verknüpfen
@@ -149,6 +174,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `SQL/09_PickingItemIsBaugruppe.sql` - IsBaugruppe-Flag für PickingItems
 - `SQL/10_WorkstationDefaultPrinter.sql` - DefaultPrinter für Workstations
 - `SQL/22_AddProductionWorkplaces.sql` - Tabelle ProductionWorkplaces (Werkbänke)
+- `SQL/23_AddRecursiveFilterSearch.sql` - User-Setting: Rekursive Suche in Stückliste
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI
@@ -156,7 +182,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `Controllers/StockMovementsController.cs` - Lagerbewegungen + Lagerplatz-Umbuchung
 - `Controllers/ProductionWorkplacesController.cs` - Werkbank CRUD
 - `Data/Repositories/PickingRepository.cs` - Picking-Datenzugriff
-- `Data/Repositories/BomRepository.cs` - BOM-VIEW Abfrage
+- `Data/Repositories/BomRepository.cs` - BOM-Abfrage: SAGE-View → Fallback OSEON-SP
 - `Data/Repositories/StockMovementRepository.cs` - Bestandsberechnung
 - `Data/Repositories/ProductionWorkplaceRepository.cs` - Werkbank CRUD
 - `Services/PrintService.cs` - Server-seitiger Druck

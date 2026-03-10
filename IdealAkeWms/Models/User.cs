@@ -30,6 +30,9 @@ public class User : AuditableEntity
     [Display(Name = "Standard-Filter Artikelgruppe")]
     public string? DefaultFilterArtikelgruppe { get; set; }
 
+    [Display(Name = "Rekursive Suche bei aktiver Filterung")]
+    public bool RecursiveFilterSearch { get; set; }
+
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
     public ICollection<Workstation> DefaultWorkstations { get; set; } = new List<Workstation>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();

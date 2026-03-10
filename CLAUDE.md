@@ -5,7 +5,8 @@
 - ASP.NET Core 10.0 MVC + Repository Pattern + DI
 - EF Core 10.0 mit SQL Server (`AKESQL20.ake.at`, DB: `IDEAL_AKE_WMS`)
 - Dual-Auth: Windows/Negotiate (IIS) + Session-basierter App-Login (Middleware in Program.cs)
-- BOM-Daten kommen aus externer SQL-View `[ake].[dbo].[vw_AKE_Kommissionierung_StuecklistenDB]`
+- BOM-Daten: primär aus SAGE-View `[ake].[dbo].[vw_AKE_Kommissionierung_StuecklistenDB]`; Fallback bei leerem Ergebnis auf OSEON-SP `sp_AKE_Kommissionierung_OseonStuecklistenDB` (Server: `aketrumpf01.ake.at\TRUMPFSQL2`, DB: `T1000_V01_V001`)
+- `BomRepository.GetBomItemsAsync()` liefert `BomQueryResult(Items, DataSource)` — DataSource = `"SAGE"`, `"OSEON"` oder `"KEINE_DATEN"`
 - `CachedBomRepository` wrapped `BomRepository` (Decorator-Pattern, 5 min MemoryCache)
 
 ## Konventionen
@@ -145,11 +146,11 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `Services/PasswordService.cs` — PBKDF2-HMAC-SHA256, 100k Iterationen
 - `Services/PrintService.cs` — Drucken via `rundll32.exe mshtml.dll,PrintHTML`
 - `Data/Repositories/StockMovementRepository.cs` — Bestandsberechnung
-- `Data/Repositories/BomRepository.cs` — SQL-Query auf externe VIEW
+- `Data/Repositories/BomRepository.cs` — SAGE-View → Fallback OSEON-SP; liefert `BomQueryResult`
 - `Views/Shared/_Layout.cshtml` — Navbar + TempData-Alerts + User-Dropdown
 - `Views/Shared/_Select2ArticlePartial.cshtml` — Select2-Integration (Artikel)
-- `Views/ProductionOrders/Bom.cshtml` — Stücklisten-View (Baum, Picking, Transfer-AJAX)
-- `Views/Account/Profile.cshtml` — Profil-Seite (Passwort + BOM-Filter Self-Service)
+- `Views/ProductionOrders/Bom.cshtml` — Stücklisten-View (Baum, Picking, Transfer-AJAX, Datenquelle-Badge)
+- `Views/Account/Profile.cshtml` — Profil-Seite (Passwort + BOM-Filter + RecursiveFilterSearch)
 - `wwwroot/css/site.css` — Corporate Design, Navbar-Styles, `.navbar-logo-wrapper`
 - `wwwroot/images/ideal-ake-logo.svg` — Logo (eingebettetes PNG, weißer Hintergrund)
 - `SQL/00_FreshInstall.sql` — Konsolidiertes Neuinstallations-Script

@@ -177,6 +177,7 @@ public class ProductionOrdersController : Controller
         // User-Defaults für client-seitige Spaltenfilter laden
         string? defaultFilterBeschaffung = null;
         string? defaultFilterArtikelgruppe = null;
+        var recursiveFilterSearch = false;
         var appUserId = _currentUserService.GetCurrentAppUserId();
         if (appUserId.HasValue)
         {
@@ -185,6 +186,7 @@ public class ProductionOrdersController : Controller
             {
                 defaultFilterBeschaffung = currentUser.DefaultFilterBeschaffung;
                 defaultFilterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
+                recursiveFilterSearch = currentUser.RecursiveFilterSearch;
             }
         }
 
@@ -283,7 +285,8 @@ public class ProductionOrdersController : Controller
             DefaultFilterBeschaffung = defaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
             AllStorageLocations = allStorageLocations,
-            DataSource = bomResult.DataSource
+            DataSource = bomResult.DataSource,
+            RecursiveFilterSearch = recursiveFilterSearch
         };
 
         return View(vm);

@@ -81,6 +81,7 @@ public class UsersController : Controller
         existing.HasMasterDataAccess = user.HasMasterDataAccess;
         existing.DefaultFilterBeschaffung = user.DefaultFilterBeschaffung;
         existing.DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe;
+        existing.RecursiveFilterSearch = user.RecursiveFilterSearch;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
