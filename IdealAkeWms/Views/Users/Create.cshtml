@@ -34,6 +34,19 @@
                         <label asp-for="HasMasterDataAccess" class="form-check-label"></label>
                     </div>
 
+                    <div class="mb-3 form-check">
+                        <input asp-for="IsAdmin" class="form-check-input" />
+                        <label asp-for="IsAdmin" class="form-check-label"></label>
+                        <div class="form-text">Administratoren haben Zugriff auf Service-Einstellungen.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" type="email" placeholder="vorname.nachname@ake.at" />
+                        <div class="form-text">Wird für automatische Benachrichtigungen (z.B. Meldebestand) verwendet.</div>
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
                     <hr />
                     <h6 class="text-muted">Stücklisten-Filter Standardwerte</h6>
 

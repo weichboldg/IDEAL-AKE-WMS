@@ -12,7 +12,17 @@
       "Bash(convert:*)",
       "Bash(node --version:*)",
       "Bash(npx --version)",
-      "Bash(ls \"c:\\\\Entwicklung\\\\C#\\\\AKEBDELight\\\\IdealAkeWms\\\\Migrations\"\" | grep \"ProductionWorkplace \")"
+      "Bash(ls \"c:\\\\Entwicklung\\\\C#\\\\AKEBDELight\\\\IdealAkeWms\\\\Migrations\"\" | grep \"ProductionWorkplace \")",
+      "Bash(cat \"c:/Entwicklung/C#/AKEBDELight/\"*.sln)",
+      "Bash(cat \"c:/Entwicklung/C#/AKEBDELight/\"*.slnx)",
+      "Bash(mv IDALAKEWMSService IDEALAKEWMSService)",
+      "Bash(mv IDALAKEWMSService.Tests IDEALAKEWMSService.Tests)",
+      "Bash(powershell -Command \"Rename-Item -Path ''IDALAKEWMSService'' -NewName ''IDEALAKEWMSService''; Rename-Item -Path ''IDALAKEWMSService.Tests'' -NewName ''IDEALAKEWMSService.Tests''\")",
+      "Bash(powershell -Command \":*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"_rename_ns.ps1\")",
+      "Bash(del \"_rename_ns.ps1\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"_rename_docs.ps1\")",
+      "Bash(rm \"_rename_docs.ps1\")"
     ]
   }
 }

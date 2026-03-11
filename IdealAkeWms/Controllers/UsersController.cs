@@ -82,6 +82,9 @@ public class UsersController : Controller
         existing.DefaultFilterBeschaffung = user.DefaultFilterBeschaffung;
         existing.DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe;
         existing.RecursiveFilterSearch = user.RecursiveFilterSearch;
+        existing.Email = user.Email;
+        existing.IsAdmin = user.IsAdmin;
+        existing.NotifyOnReorderLevel = user.NotifyOnReorderLevel;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);

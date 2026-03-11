@@ -78,4 +78,14 @@ public class CurrentUserService : ICurrentUserService
 
         return false;
     }
+
+    public async Task<bool> IsAdminAsync()
+    {
+        var userId = GetCurrentAppUserId();
+        if (!userId.HasValue)
+            return false;
+
+        var user = await _userRepository.GetByIdAsync(userId.Value);
+        return user?.IsAdmin == true;
+    }
 }

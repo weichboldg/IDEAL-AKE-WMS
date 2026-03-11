@@ -19,4 +19,12 @@ public class ProfileViewModel
 
     [Display(Name = "Rekursive Suche bei aktiver Filterung")]
     public bool RecursiveFilterSearch { get; set; }
+
+    [StringLength(200)]
+    [EmailAddress]
+    [Display(Name = "E-Mail")]
+    public string? Email { get; set; }
+
+    [Display(Name = "Meldebestand-Benachrichtigung")]
+    public bool NotifyOnReorderLevel { get; set; }
 }

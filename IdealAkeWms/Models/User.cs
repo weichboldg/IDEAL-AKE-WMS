@@ -33,6 +33,17 @@ public class User : AuditableEntity
     [Display(Name = "Rekursive Suche bei aktiver Filterung")]
     public bool RecursiveFilterSearch { get; set; }
 
+    [StringLength(200)]
+    [EmailAddress]
+    [Display(Name = "E-Mail")]
+    public string? Email { get; set; }
+
+    [Display(Name = "Administrator")]
+    public bool IsAdmin { get; set; }
+
+    [Display(Name = "Meldebestand-Benachrichtigung")]
+    public bool NotifyOnReorderLevel { get; set; }
+
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
     public ICollection<Workstation> DefaultWorkstations { get; set; } = new List<Workstation>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();

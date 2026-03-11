@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="IDEALAKEWMSService/IDEALAKEWMSService.csproj" />
+  <Project Path="IDEALAKEWMSService.Tests/IDEALAKEWMSService.Tests.csproj" />
   <Project Path="IdealAkeWms.Tests/IdealAkeWms.Tests.csproj" />
   <Project Path="IdealAkeWms/IdealAkeWms.csproj" />
 </Solution>

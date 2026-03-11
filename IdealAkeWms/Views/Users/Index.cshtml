@@ -14,6 +14,7 @@
             <tr>
                 <th>Name</th>
                 <th>Personalnummer</th>
+                <th>E-Mail</th>
                 <th>Status</th>
                 <th>Erstellt am</th>
                 <th style="width: 100px;"></th>
@@ -23,8 +24,15 @@
             @foreach (var user in Model)
             {
                 <tr>
-                    <td>@user.Name</td>
+                    <td>
+                        @user.Name
+                        @if (user.IsAdmin)
+                        {
+                            <span class="badge bg-danger ms-1" title="Administrator">Admin</span>
+                        }
+                    </td>
                     <td>@user.PersonalNumber</td>
+                    <td>@user.Email</td>
                     <td>
                         @if (user.IsActive)
                         {
@@ -44,7 +52,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Keine Benutzer vorhanden.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Keine Benutzer vorhanden.</td>
                 </tr>
             }
         </tbody>

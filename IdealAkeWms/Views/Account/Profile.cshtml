@@ -51,6 +51,27 @@
                     </div>
 
                     <hr />
+                    <h6 class="text-muted">Benachrichtigungen</h6>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" type="email" placeholder="vorname.nachname@ake.at" />
+                        <div class="form-text">Wird für automatische Benachrichtigungen (z.B. Meldebestand) verwendet.</div>
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="NotifyOnReorderLevel" class="form-check-input" type="checkbox" />
+                            <label asp-for="NotifyOnReorderLevel" class="form-check-label"></label>
+                            <div class="form-text">
+                                Wenn aktiv, werden automatisch Benachrichtigungen bei Meldebestand-Unterschreitung
+                                an die oben eingetragene E-Mail-Adresse gesendet.
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
 
                     <div class="mb-3">
                         <label class="form-label">Passwort ändern</label>

@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
     public DbSet<ProductionWorkplace> ProductionWorkplaces => Set<ProductionWorkplace>();
+    public DbSet<ServiceSetting> ServiceSettings => Set<ServiceSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -247,6 +248,17 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+        });
+
+        // ServiceSetting
+        modelBuilder.Entity<ServiceSetting>(entity =>
+        {
+            entity.ToTable("ServiceSettings");
+            entity.HasKey(e => e.Key);
+            entity.Property(e => e.Key).HasMaxLength(100);
+            entity.Property(e => e.Value).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
         });
     }
 }

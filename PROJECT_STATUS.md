@@ -164,6 +164,41 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - **Neue SQL**: `SQL/23_AddRecursiveFilterSearch.sql`
 - **Betroffene Dateien**: `User.cs`, `ProfileViewModel.cs`, `AccountController.cs`, `Profile.cshtml`, `BomViewModels.cs`, `ProductionOrdersController.cs`, `Bom.cshtml`
 
+## Änderungen (10.03.2026) — Session 2
+
+### Neues Projekt: IDEALAKEWMSService (Windows Service) — Infrastruktur
+- Neues Worker-Service-Projekt zur Solution hinzugefügt (`IDEALAKEWMSService.csproj`, SDK: `Microsoft.NET.Sdk.Worker`)
+- Läuft als Windows Service (`UseWindowsService()`, Service-Name: "IDEAL AKE WMS Service")
+- Infrastruktur vorbereitet: DI, Serilog (File + Console), ConnectionStrings (DefaultConnection + OseonConnection)
+- Zwei Placeholder-Worker: `SyncWorker` (Schnittstellenabgleich) + `NotificationWorker` (Mail-Notifications)
+- Konfiguration: `appsettings.json` mit `MailSettings`, `WorkerSettings` (Intervalle), Serilog
+
+## Änderungen (11.03.2026)
+
+### Feature: IDEALAKEWMSService Vollausbau
+- **User**: `Email`, `IsAdmin`, `NotifyOnReorderLevel` Felder ergänzt
+- **Neue Berechtigung**: `IsAdmin`-Flag — Zugriff auf Service-Einstellungen; `[RequireAdminAccess]`-Filter
+- **Neue Tabelle**: `ServiceSettings` — laufzeitveränderliche Konfiguration (Admin-only CRUD in Stammdaten)
+- **ServiceSettings Seed**: 6 Standard-Einträge (Notifications:MeldebestandEnabled, Recipients, AppBaseUrl, Subject; Sync:ProductionOrdersEnabled/ArticlesEnabled)
+- **Profil**: Email + NotifyOnReorderLevel selbst verwaltbar; User/Edit+Create: Email, IsAdmin, NotifyOnReorderLevel
+- **Navigation**: "Service-Einstellungen" unter Stammdaten (nur für Admins sichtbar)
+- **SyncWorker**: Produktionsaufträge + Artikel aus SAGE importieren (ersetzt SQL Agent Jobs); DryRun-Modus konfigurierbar
+- **NotificationWorker**: Meldebestand-Prüfung; HTML5-Mail im AKE CI (Dunkelblau/Hellblau)
+- **Empfänger**: ServiceSettings `Notifications:Recipients` (fix) + alle User mit `NotifyOnReorderLevel=true` und Email
+- **Logging**: Separate Unterordner `logs/sync/` und `logs/notifications/` mit 30-Tage-Retention via Serilog.Expressions
+- **SageConnection**: Neuer ConnectionString in `IDEALAKEWMSService/appsettings.json` → `Server=AKESQL20.ake.at;Database=ake`
+- EF Migrations: `AddUserEmailIsAdminNotify`, `AddServiceSettings`
+- SQL Scripts: `24_AddUserEmailIsAdminNotify.sql`, `25_AddServiceSettings.sql`
+- **Neue Dateien (Service)**: `Services/ISageImportService.cs`, `SageImportService.cs`, `IStockCheckService.cs`, `StockCheckService.cs`, `IMailService.cs`, `MailService.cs`
+- **Neue Dateien (Web-App)**: `Models/ServiceSetting.cs`, `Filters/RequireAdminAccessAttribute.cs`, `Data/Repositories/IServiceSettingRepository.cs`, `ServiceSettingRepository.cs`, `Controllers/ServiceSettingsController.cs`, `Views/ServiceSettings/*`
+
+### Zukünftige Funktionen (geplant, noch nicht implementiert)
+- Meldebestand-Mail: Aufsplitten nach Artikelgruppe oder Lagerhalle
+- Lagerplätze in SAGE anlegen wenn neue in WMS erstellt
+- Bestandsbuchung per SQL in SAGE DB
+- XML für Bestandsbuchung im OSEON
+- Synchronisierung Artikelzusatzinfos (Einheiten)
+
 ## Offene Aufgaben / Nächste Schritte
 - [ ] Druck-Integration testen (PrintService mit echtem Drucker)
 - [ ] Druck-Button in Kommissionierung mit Arbeitsplatz-Drucker verknüpfen
@@ -175,6 +210,8 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `SQL/10_WorkstationDefaultPrinter.sql` - DefaultPrinter für Workstations
 - `SQL/22_AddProductionWorkplaces.sql` - Tabelle ProductionWorkplaces (Werkbänke)
 - `SQL/23_AddRecursiveFilterSearch.sql` - User-Setting: Rekursive Suche in Stückliste
+- `SQL/24_AddUserEmailIsAdminNotify.sql` - User: Email, IsAdmin, NotifyOnReorderLevel
+- `SQL/25_AddServiceSettings.sql` - Tabelle ServiceSettings + Standard-Einträge
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI

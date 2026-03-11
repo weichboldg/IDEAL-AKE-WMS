@@ -1,0 +1,64 @@
+@model List<IdealAkeWms.Models.ServiceSetting>
+@{
+    ViewData["Title"] = "Service-Einstellungen";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="page-header mb-0">Service-Einstellungen</h2>
+    <a asp-action="Create" class="btn btn-primary">Neue Einstellung</a>
+</div>
+
+<div class="alert alert-info mb-3">
+    <strong>Hinweis:</strong> Grundlegende Einstellungen (Datenbankverbindungen, SMTP) befinden sich in
+    <code>appsettings.json</code> des Windows-Dienstes. Diese Tabelle enthält laufzeitveränderliche
+    Konfigurationen (Benachrichtigungsempfänger, Sync-Schalter, etc.).
+</div>
+
+@{
+    var categories = Model.Select(s => s.Category ?? "Allgemein").Distinct().OrderBy(c => c).ToList();
+}
+
+@foreach (var category in categories)
+{
+    var items = Model.Where(s => (s.Category ?? "Allgemein") == category).ToList();
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">@category</div>
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 30%">Schlüssel</th>
+                        <th style="width: 30%">Wert</th>
+                        <th>Beschreibung</th>
+                        <th style="width: 130px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in items)
+                    {
+                        <tr>
+                            <td><code>@item.Key</code></td>
+                            <td>@item.Value</td>
+                            <td class="text-muted small">@item.Description</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a asp-action="Edit" asp-route-id="@item.Key" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                    <form asp-action="Delete" asp-route-id="@item.Key" method="post" class="m-0"
+                                          onsubmit="return confirm('Einstellung \'@item.Key\' löschen?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="text-center text-muted py-5">Keine Einstellungen vorhanden.</div>
+}

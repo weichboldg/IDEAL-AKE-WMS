@@ -8,4 +8,5 @@ public interface ICurrentUserService
     string? GetCurrentAppUserName();
     bool IsLoggedIn();
     Task<bool> HasMasterDataAccessAsync();
+    Task<bool> IsAdminAsync();
 }

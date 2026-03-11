@@ -41,6 +41,7 @@ builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 builder.Services.AddScoped<IAppSettingRepository, AppSettingRepository>();
+builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
@@ -107,6 +108,31 @@ using (var scope = app.Services.CreateScope())
         adminUser.PasswordHash = passwordService.HashPassword("");
         db.SaveChanges();
     }
+
+    // Standard Service-Settings
+    var serviceSettingSeed = new (string Key, string Value, string Category, string Description)[]
+    {
+        ("Notifications:MeldebestandEnabled", "true", "Notifications", "Meldebestand-Mail aktiv (true/false)"),
+        ("Notifications:MeldebestandSubject", "Meldebestand unterschritten — IDEAL AKE WMS", "Notifications", "Betreff der Meldebestand-Mail"),
+        ("Notifications:Recipients", "", "Notifications", "Feste Empfänger für Meldebestand-Mail (kommagetrennt, z.B. lager@ake.at,leitung@ake.at)"),
+        ("Notifications:AppBaseUrl", "", "Notifications", "Basis-URL der App für Links in Mails (z.B. https://wms.ake.at)"),
+        ("Sync:ProductionOrdersEnabled", "true", "Sync", "Produktionsaufträge-Sync aus SAGE aktiv (true/false)"),
+        ("Sync:ArticlesEnabled", "true", "Sync", "Artikel-Sync aus SAGE aktiv (true/false)"),
+    };
+    foreach (var (key, value, category, description) in serviceSettingSeed)
+    {
+        if (!db.ServiceSettings.Any(s => s.Key == key))
+        {
+            db.ServiceSettings.Add(new IdealAkeWms.Models.ServiceSetting
+            {
+                Key = key,
+                Value = value,
+                Category = category,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
 }
 
 // Fotos-Verzeichnis erstellen
