@@ -17,6 +17,10 @@ public class Article : AuditableEntity
     [Display(Name = "Einheit")]
     public string? Unit { get; set; }
 
+    [StringLength(100)]
+    [Display(Name = "Artikelgruppe")]
+    public string? ArticleGroup { get; set; }
+
     [Display(Name = "Meldebestand")]
     public decimal? ReorderLevel { get; set; }
 

@@ -14,12 +14,13 @@
 -- =============================================
 
 INSERT INTO [IDEAL_AKE_WMS].[dbo].[Articles]
-    (ArticleNumber, Description, Unit, CreatedBy, CreatedAt, CreatedByWindows)
+    (ArticleNumber, Description, Unit, ArticleGroup, CreatedBy, CreatedAt, CreatedByWindows)
 
 SELECT DISTINCT
     rp.Ressourcenummer  COLLATE Latin1_General_CI_AS,
     khk.Bezeichnung1,
     khk.Lagermengeneinheit,
+    khk.Artikelgruppe   COLLATE Latin1_General_CI_AS,
     'Sage_Schnittstelle',
     GETDATE(),
     SYSTEM_USER

@@ -18,7 +18,15 @@ public class StockCheckService : IStockCheckService
         var connectionString = _configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
-        // STRING_AGG(DISTINCT ...) erst ab SQL Server 2022 — Distinct via Subquery für Kompatibilität
+        // MovementType ist int-Enum: 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung
+        // Kommissionierwagen (IsPickingTransport = 1) werden NICHT zum Lagerbestand gezählt:
+        //   - sl_t = Ziellagerplatz (StorageLocationId), sl_s = Quelllagerplatz (SourceStorageLocationId)
+        //   - Einbuchung (0) auf regulären Platz:          +Qty
+        //   - Ausbuchung (1) von regulärem Platz:          -Qty
+        //   - Umbuchung (2) Ziel regulär:                  +Qty  (Ware kommt auf regulären Platz)
+        //   - Umbuchung (2) Quelle regulär:                -Qty  (Ware verlässt regulären Platz)
+        //   - Ausbuchung (1) von Kommissionierwagen:        0    (war bereits via Umbuchung abgezogen)
+        // STRING_AGG(DISTINCT ...) erst ab SQL Server 2022 — Distinct via Subquery für Kompatibilität.
         const string sql = """
             SELECT
                 a.ArticleNumber,
@@ -26,10 +34,10 @@ public class StockCheckService : IStockCheckService
                 a.Unit,
                 a.ReorderLevel,
                 SUM(CASE
-                    WHEN sm.MovementType IN ('Einbuchung') THEN sm.Quantity
-                    WHEN sm.MovementType = 'Umbuchung' AND sm.SourceStorageLocationId IS NULL THEN sm.Quantity
-                    WHEN sm.MovementType IN ('Ausbuchung','Kommissionierung') THEN -sm.Quantity
-                    WHEN sm.MovementType = 'Umbuchung' AND sm.SourceStorageLocationId IS NOT NULL THEN -sm.Quantity
+                    WHEN sm.MovementType = 0 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
+                    WHEN sm.MovementType = 1 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
+                    WHEN sm.MovementType = 2 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
+                    WHEN sm.MovementType = 2 AND (sl_s.IsPickingTransport = 0 OR sl_s.Id IS NULL) THEN -sm.Quantity
                     ELSE 0
                 END) AS CurrentStock,
                 (
@@ -39,19 +47,22 @@ public class StockCheckService : IStockCheckService
                         FROM StorageLocations sl2
                         INNER JOIN StockMovements sm2 ON sm2.StorageLocationId = sl2.Id
                         WHERE sm2.ArticleId = a.Id
+                          AND sl2.IsPickingTransport = 0
                     ) AS dl
                 ) AS StorageLocations
             FROM Articles a
             INNER JOIN StockMovements sm ON sm.ArticleId = a.Id
+            LEFT JOIN StorageLocations sl_t ON sl_t.Id = sm.StorageLocationId
+            LEFT JOIN StorageLocations sl_s ON sl_s.Id = sm.SourceStorageLocationId
             WHERE a.ReorderLevel IS NOT NULL AND a.ReorderLevel > 0
             GROUP BY a.Id, a.ArticleNumber, a.Description, a.Unit, a.ReorderLevel
             HAVING SUM(CASE
-                WHEN sm.MovementType IN ('Einbuchung') THEN sm.Quantity
-                WHEN sm.MovementType = 'Umbuchung' AND sm.SourceStorageLocationId IS NULL THEN sm.Quantity
-                WHEN sm.MovementType IN ('Ausbuchung','Kommissionierung') THEN -sm.Quantity
-                WHEN sm.MovementType = 'Umbuchung' AND sm.SourceStorageLocationId IS NOT NULL THEN -sm.Quantity
+                WHEN sm.MovementType = 0 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
+                WHEN sm.MovementType = 1 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
+                WHEN sm.MovementType = 2 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
+                WHEN sm.MovementType = 2 AND (sl_s.IsPickingTransport = 0 OR sl_s.Id IS NULL) THEN -sm.Quantity
                 ELSE 0
-            END) < a.ReorderLevel
+            END) <= a.ReorderLevel
             ORDER BY a.ArticleNumber
             """;
 
@@ -77,7 +88,7 @@ public class StockCheckService : IStockCheckService
             ));
         }
 
-        _logger.LogInformation("{Count} Artikel mit Bestand unter Meldebestand gefunden.", result.Count);
+        _logger.LogInformation("{Count} Artikel mit Bestand auf oder unter Meldebestand gefunden.", result.Count);
         return result;
     }
 

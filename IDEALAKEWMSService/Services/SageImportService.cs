@@ -162,15 +162,16 @@ public class SageImportService : ISageImportService
         {
             const string sageSql = """
                 SELECT DISTINCT
-                    CAST(r.Ressourcenummer AS nvarchar(100)) AS ArticleNumber,
-                    CAST(a.Bezeichnung1 AS nvarchar(500))    AS Description,
-                    CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit
+                    CAST(r.Ressourcenummer AS nvarchar(100))   AS ArticleNumber,
+                    CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
+                    CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
+                    CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup
                 FROM [dbo].[KHKPpsRessourcenPositionen] r
                 LEFT JOIN [dbo].[KHKArtikel] a ON a.Artikelnummer = r.Ressourcenummer
                 WHERE r.Ressourcenummer IS NOT NULL AND r.Ressourcenummer != ''
                 """;
 
-            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit)>();
+            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup)>();
 
             await using (var sageConn = new SqlConnection(sageConnection))
             {
@@ -183,7 +184,8 @@ public class SageImportService : ISageImportService
                     sageArticles.Add((
                         ArticleNumber: reader.GetString(0),
                         Description: reader.IsDBNull(1) ? null : reader.GetString(1),
-                        Unit: reader.IsDBNull(2) ? null : reader.GetString(2)
+                        Unit: reader.IsDBNull(2) ? null : reader.GetString(2),
+                        ArticleGroup: reader.IsDBNull(3) ? null : reader.GetString(3)
                     ));
                 }
             }
@@ -203,18 +205,24 @@ public class SageImportService : ISageImportService
                 const string insertSql = """
                     IF NOT EXISTS (SELECT 1 FROM [Articles] WHERE [ArticleNumber] = @ArticleNumber)
                     BEGIN
-                        INSERT INTO [Articles] ([ArticleNumber],[Description],[Unit],[CreatedAt],[CreatedBy],[CreatedByWindows])
-                        VALUES (@ArticleNumber, @Description, @Unit, GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
+                        INSERT INTO [Articles] ([ArticleNumber],[Description],[Unit],[ArticleGroup],[CreatedAt],[CreatedBy],[CreatedByWindows])
+                        VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
                         SELECT 1
                     END
                     ELSE
+                    BEGIN
+                        UPDATE [Articles]
+                        SET [ArticleGroup] = @ArticleGroup
+                        WHERE [ArticleNumber] = @ArticleNumber AND ([ArticleGroup] IS NULL OR [ArticleGroup] != @ArticleGroup)
                         SELECT 0
+                    END
                     """;
 
                 await using var cmd = new SqlCommand(insertSql, wmsConn);
                 cmd.Parameters.AddWithValue("@ArticleNumber", article.ArticleNumber);
                 cmd.Parameters.AddWithValue("@Description", (object?)article.Description ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@Unit", (object?)article.Unit ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@ArticleGroup", (object?)article.ArticleGroup ?? DBNull.Value);
 
                 var result = await cmd.ExecuteScalarAsync(ct);
                 if (result is int i && i == 1) inserted++;
