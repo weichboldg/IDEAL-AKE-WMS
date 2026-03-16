@@ -18,4 +18,9 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "Abweichende Vorkommissioniertage")]
     [Range(0, 365, ErrorMessage = "Muss zwischen 0 und 365 liegen.")]
     public int? OverridePrePickingDays { get; set; }
+
+    [Display(Name = "Zugeordnete Benutzer")]
+    public List<int> SelectedUserIds { get; set; } = new();
+
+    public List<User> AvailableUsers { get; set; } = new();
 }

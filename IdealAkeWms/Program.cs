@@ -46,6 +46,7 @@ builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
+builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
@@ -108,6 +109,27 @@ using (var scope = app.Services.CreateScope())
         adminUser.PasswordHash = passwordService.HashPassword("");
         db.SaveChanges();
     }
+
+    // Teileverfolgung AppSettings
+    var trackingSettings = new (string Key, string Value, string Description)[]
+    {
+        ("TeileverfolgungAktiv", "false", "Globaler Schalter: Teileverfolgungs-Modul aktiviert"),
+        ("OseonRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden"),
+        ("SageRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Sage zurueckgeschrieben werden"),
+    };
+    foreach (var (key, value, description) in trackingSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
 
     // Standard Service-Settings
     var serviceSettingSeed = new (string Key, string Value, string Category, string Description)[]

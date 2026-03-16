@@ -44,7 +44,17 @@ public class User : AuditableEntity
     [Display(Name = "Meldebestand-Benachrichtigung")]
     public bool NotifyOnReorderLevel { get; set; }
 
+    [Display(Name = "Kommissionierung")]
+    public bool CanPick { get; set; }
+
+    [Display(Name = "Teileverfolgung anzeigen")]
+    public bool CanViewTracking { get; set; }
+
+    [Display(Name = "Arbeitsgänge rückmelden")]
+    public bool CanReportOperations { get; set; }
+
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
+    public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
     public ICollection<Workstation> DefaultWorkstations { get; set; } = new List<Workstation>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

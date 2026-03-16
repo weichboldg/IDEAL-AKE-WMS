@@ -124,6 +124,9 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `NegativeBuchungLagerplatz` | `NAN` | Fallback-Lagerplatz bei negativem Bestand |
 | `StammdatenADGruppe` | `BDE_Stammdaten` | AD-Gruppe für Stammdaten-Zugriff |
 | `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
+| `TeileverfolgungAktiv` | `false` | Globaler Schalter: Teileverfolgungs-Modul aktiviert |
+| `OseonRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Oseon zurückgeschrieben werden |
+| `SageRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Sage zurückgeschrieben werden |
 
 ## Migrations-Workflow
 

@@ -16,4 +16,8 @@ public class ProductionWorkplace : AuditableEntity
     [Display(Name = "Abweichende Vorkommissioniertage")]
     [Range(0, 365)]
     public int? OverridePrePickingDays { get; set; }
+
+    public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
+    public ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
+    public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();
 }

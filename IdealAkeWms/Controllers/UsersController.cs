@@ -85,6 +85,9 @@ public class UsersController : Controller
         existing.Email = user.Email;
         existing.IsAdmin = user.IsAdmin;
         existing.NotifyOnReorderLevel = user.NotifyOnReorderLevel;
+        existing.CanPick = user.CanPick;
+        existing.CanViewTracking = user.CanViewTracking;
+        existing.CanReportOperations = user.CanReportOperations;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);

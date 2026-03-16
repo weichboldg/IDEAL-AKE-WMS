@@ -11,25 +11,32 @@ namespace IdealAkeWms.Controllers;
 public class ProductionWorkplacesController : Controller
 {
     private readonly IProductionWorkplaceRepository _repository;
+    private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public ProductionWorkplacesController(
         IProductionWorkplaceRepository repository,
+        IUserRepository userRepository,
         ICurrentUserService currentUserService)
     {
         _repository = repository;
+        _userRepository = userRepository;
         _currentUserService = currentUserService;
     }
 
     public async Task<IActionResult> Index()
     {
-        var workplaces = await _repository.GetAllOrderedAsync();
+        var workplaces = await _repository.GetAllWithUsersOrderedAsync();
         return View(workplaces);
     }
 
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
-        return View(new ProductionWorkplaceEditViewModel());
+        var vm = new ProductionWorkplaceEditViewModel
+        {
+            AvailableUsers = await _userRepository.GetActiveUsersAsync()
+        };
+        return View(vm);
     }
 
     [HttpPost]
@@ -37,7 +44,10 @@ public class ProductionWorkplacesController : Controller
     public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm)
     {
         if (!ModelState.IsValid)
+        {
+            vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
             return View(vm);
+        }
 
         var workplace = new ProductionWorkplace
         {
@@ -50,13 +60,23 @@ public class ProductionWorkplacesController : Controller
         };
 
         await _repository.AddAsync(workplace);
+
+        if (vm.SelectedUserIds.Count > 0)
+        {
+            await _repository.SetProductionWorkplaceUsersAsync(
+                workplace.Id,
+                vm.SelectedUserIds,
+                _currentUserService.GetDisplayName(),
+                _currentUserService.GetWindowsUserName());
+        }
+
         TempData["SuccessMessage"] = $"Werkbank '{workplace.Name}' wurde angelegt.";
         return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Edit(int id)
     {
-        var workplace = await _repository.GetByIdAsync(id);
+        var workplace = await _repository.GetByIdWithUsersAsync(id);
         if (workplace == null)
             return NotFound();
 
@@ -65,7 +85,9 @@ public class ProductionWorkplacesController : Controller
             Id = workplace.Id,
             Name = workplace.Name,
             Hall = workplace.Hall,
-            OverridePrePickingDays = workplace.OverridePrePickingDays
+            OverridePrePickingDays = workplace.OverridePrePickingDays,
+            SelectedUserIds = workplace.ProductionWorkplaceUsers.Select(wu => wu.UserId).ToList(),
+            AvailableUsers = await _userRepository.GetActiveUsersAsync()
         };
 
         return View(vm);
@@ -79,7 +101,10 @@ public class ProductionWorkplacesController : Controller
             return NotFound();
 
         if (!ModelState.IsValid)
+        {
+            vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
             return View(vm);
+        }
 
         var existing = await _repository.GetByIdAsync(id);
         if (existing == null)
@@ -93,6 +118,12 @@ public class ProductionWorkplacesController : Controller
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
         await _repository.UpdateAsync(existing);
+        await _repository.SetProductionWorkplaceUsersAsync(
+            id,
+            vm.SelectedUserIds,
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName());
+
         TempData["SuccessMessage"] = $"Werkbank '{existing.Name}' wurde aktualisiert.";
         return RedirectToAction(nameof(Index));
     }

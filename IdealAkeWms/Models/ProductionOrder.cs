@@ -48,4 +48,10 @@ public class ProductionOrder : AuditableEntity
 
     [Display(Name = "Zukauf")]
     public bool HasExternalPurchase { get; set; }
+
+    [Display(Name = "Werkbank")]
+    public int? ProductionWorkplaceId { get; set; }
+    public ProductionWorkplace? ProductionWorkplace { get; set; }
+
+    public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();
 }

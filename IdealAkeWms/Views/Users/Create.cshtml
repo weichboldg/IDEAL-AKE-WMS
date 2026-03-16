@@ -48,6 +48,27 @@
                     </div>
 
                     <hr />
+                    <h6 class="text-muted">Funktionsberechtigungen</h6>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="CanPick" class="form-check-input" />
+                        <label asp-for="CanPick" class="form-check-label"></label>
+                        <div class="form-text">Benutzer kann Kommissionierung durchführen.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="CanViewTracking" class="form-check-input" />
+                        <label asp-for="CanViewTracking" class="form-check-label"></label>
+                        <div class="form-text">Benutzer kann Teileverfolgung und Arbeitsgänge einsehen.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="CanReportOperations" class="form-check-input" />
+                        <label asp-for="CanReportOperations" class="form-check-label"></label>
+                        <div class="form-text">Benutzer kann Arbeitsgänge rückmelden.</div>
+                    </div>
+
+                    <hr />
                     <h6 class="text-muted">Stücklisten-Filter Standardwerte</h6>
 
                     <div class="mb-3">

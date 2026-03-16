@@ -192,6 +192,34 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - **Neue Dateien (Service)**: `Services/ISageImportService.cs`, `SageImportService.cs`, `IStockCheckService.cs`, `StockCheckService.cs`, `IMailService.cs`, `MailService.cs`
 - **Neue Dateien (Web-App)**: `Models/ServiceSetting.cs`, `Filters/RequireAdminAccessAttribute.cs`, `Data/Repositories/IServiceSettingRepository.cs`, `ServiceSettingRepository.cs`, `Controllers/ServiceSettingsController.cs`, `Views/ServiceSettings/*`
 
+## Änderungen (16.03.2026)
+
+### Feature: Artikelgruppe in Stammdaten anzeigen
+- `ArticleGroup`-Spalte wird jetzt in der Artikel-Übersicht, Artikel-Info und Artikel-Edit (readonly) angezeigt
+- SQL-Script `26_AddArticleGroup.sql` korrigiert (Migrations-History INSERT statt PRINT)
+- **Betroffene Dateien**: `Views/Articles/Index.cshtml`, `Views/Articles/Edit.cshtml`, `Views/Articles/Info.cshtml`, `ArticleInfoViewModel.cs`, `ArticlesController.cs`
+
+### Feature: QR-Code Scan in Kommissionierliste
+- Neuer Scan-Button in der Stücklisten-Ansicht zum Scannen von Artikel-QR-Codes
+- Gescannter Artikel wird automatisch als "kommissioniert" markiert (Checkbox gesetzt)
+- Zeile wird kurz gelb hervorgehoben und in den sichtbaren Bereich gescrollt
+- Nicht-gefundene Artikel: Warnung als Bootstrap-Alert (5s auto-dismiss)
+- **Betroffene Dateien**: `Views/ProductionOrders/Bom.cshtml`
+
+### Feature: Arbeitsgänge & Teileverfolgung — Phase 1 (Datenmodell)
+- **User-Berechtigungen**: 3 neue Flags `CanPick`, `CanViewTracking`, `CanReportOperations` auf User-Model
+- **Werkbank-Benutzer-Zuordnung**: Neue M:M Join-Tabelle `ProductionWorkplaceUsers` (Pattern von WorkstationUser)
+- **WA-Werkbank-Zuordnung**: `ProductionWorkplaceId` (nullable FK) auf ProductionOrder
+- **WorkOperation-Tabelle**: Neues Model für Arbeitsgänge (OperationNumber, Name, Sequence, Reporting-Felder, ExternalSource)
+- **AppSettings**: 3 neue Einstellungen: `TeileverfolgungAktiv`, `OseonRueckmeldungAktiv`, `SageRueckmeldungAktiv`
+- **Views**: Benutzer-Edit/Create mit Funktionsberechtigungen-Checkboxen; Werkbank-Edit/Create mit Multi-Select Benutzer-Zuordnung; Werkbank-Index mit Benutzer-Spalte
+- **Repository**: `ProductionWorkplaceRepository` erweitert (WithUsers-Methoden, SetUsers); neues `WorkOperationRepository`
+- EF Migration: `20260316062006_AddWorkOperationsPhase1`
+- **Neue SQL**: `SQL/27_AddWorkOperationsPhase1.sql`
+- **Neue Dateien**: `Models/ProductionWorkplaceUser.cs`, `Models/WorkOperation.cs`, `Data/Repositories/IWorkOperationRepository.cs`, `Data/Repositories/WorkOperationRepository.cs`
+- **Betroffene Dateien**: `User.cs`, `ProductionWorkplace.cs`, `ProductionOrder.cs`, `ApplicationDbContext.cs`, `Program.cs`, `ProductionWorkplaceRepository.cs`, `IProductionWorkplaceRepository.cs`, `ProductionWorkplaceEditViewModel.cs`, `UsersController.cs`, `ProductionWorkplacesController.cs`, `Views/Users/*`, `Views/ProductionWorkplaces/*`
+- **Tests**: 10 neue Tests (5x ProductionWorkplaceUser, 5x WorkOperationRepository)
+
 ### Zukünftige Funktionen (geplant, noch nicht implementiert)
 - Meldebestand-Mail: Aufsplitten nach Artikelgruppe oder Lagerhalle
 - Lagerplätze in SAGE anlegen wenn neue in WMS erstellt
@@ -212,6 +240,8 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `SQL/23_AddRecursiveFilterSearch.sql` - User-Setting: Rekursive Suche in Stückliste
 - `SQL/24_AddUserEmailIsAdminNotify.sql` - User: Email, IsAdmin, NotifyOnReorderLevel
 - `SQL/25_AddServiceSettings.sql` - Tabelle ServiceSettings + Standard-Einträge
+- `SQL/26_AddArticleGroup.sql` - Artikelgruppe zu Articles hinzufügen
+- `SQL/27_AddWorkOperationsPhase1.sql` - Arbeitsgänge Phase 1 (User-Flags, ProductionWorkplaceUsers, WorkOperations, AppSettings)
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI

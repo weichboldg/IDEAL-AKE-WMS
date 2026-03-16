@@ -21,6 +21,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
     public DbSet<ProductionWorkplace> ProductionWorkplaces => Set<ProductionWorkplace>();
+    public DbSet<ProductionWorkplaceUser> ProductionWorkplaceUsers => Set<ProductionWorkplaceUser>();
+    public DbSet<WorkOperation> WorkOperations => Set<WorkOperation>();
     public DbSet<ServiceSetting> ServiceSettings => Set<ServiceSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -180,6 +182,12 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.ArticleNumber);
             entity.HasIndex(e => e.IsDone);
+            entity.HasIndex(e => e.ProductionWorkplaceId);
+
+            entity.HasOne(e => e.ProductionWorkplace)
+                .WithMany(w => w.ProductionOrders)
+                .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // AppSetting
@@ -249,6 +257,58 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+        });
+
+        // ProductionWorkplaceUser
+        modelBuilder.Entity<ProductionWorkplaceUser>(entity =>
+        {
+            entity.ToTable("ProductionWorkplaceUsers");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.UserId }).IsUnique();
+
+            entity.HasOne(e => e.ProductionWorkplace)
+                .WithMany(w => w.ProductionWorkplaceUsers)
+                .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ProductionWorkplaceUsers)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // WorkOperation
+        modelBuilder.Entity<WorkOperation>(entity =>
+        {
+            entity.ToTable("WorkOperations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OperationNumber).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ReportedBy).HasMaxLength(200);
+            entity.Property(e => e.ReportedByWindows).HasMaxLength(200);
+            entity.Property(e => e.ExternalSource).HasMaxLength(100);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.ProductionOrderId);
+            entity.HasIndex(e => new { e.ProductionOrderId, e.Sequence });
+
+            entity.HasOne(e => e.ProductionOrder)
+                .WithMany(po => po.WorkOperations)
+                .HasForeignKey(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ProductionWorkplace)
+                .WithMany(w => w.WorkOperations)
+                .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ServiceSetting

@@ -31,6 +31,17 @@
                         <span asp-validation-for="OverridePrePickingDays" class="text-danger"></span>
                     </div>
 
+                    <hr />
+                    <h6 class="text-muted">Benutzer-Zuordnung</h6>
+
+                    <div class="mb-3">
+                        <label asp-for="SelectedUserIds" class="form-label"></label>
+                        <select asp-for="SelectedUserIds" class="form-select" multiple size="6"
+                                asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">
+                        </select>
+                        <small class="form-text text-muted">Halten Sie Strg gedrückt, um mehrere Benutzer auszuwählen.</small>
+                    </div>
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Speichern</button>
                         <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>

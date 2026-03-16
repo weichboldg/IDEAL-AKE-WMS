@@ -14,6 +14,7 @@
             <tr>
                 <th>Bezeichnung</th>
                 <th>Halle</th>
+                <th>Benutzer</th>
                 <th>Abw. Vorkommissioniertage</th>
                 <th style="width: 100px;"></th>
             </tr>
@@ -24,6 +25,17 @@
                 <tr>
                     <td><strong>@wp.Name</strong></td>
                     <td>@wp.Hall</td>
+                    <td>
+                        @if (wp.ProductionWorkplaceUsers.Any())
+                        {
+                            <span class="badge bg-primary">@wp.ProductionWorkplaceUsers.Count</span>
+                            <small class="text-muted ms-1">@string.Join(", ", wp.ProductionWorkplaceUsers.Select(wu => wu.User.Name))</small>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
                     <td>
                         @if (wp.OverridePrePickingDays.HasValue)
                         {
@@ -42,7 +54,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="4" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
+                    <td colspan="5" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
                 </tr>
             }
         </tbody>
