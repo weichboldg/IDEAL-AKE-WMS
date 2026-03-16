@@ -52,6 +52,14 @@
             }
             <div class="col-auto ms-auto d-flex gap-2 align-items-center">
                 <span class="text-muted small">@Model.Items.Count Positionen</span>
+                <button type="button" id="btnScanBomArticle" class="btn btn-sm btn-secondary" title="Artikel QR-Code scannen zum Kommissionieren">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                        <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                    </svg>
+                    Artikel scannen
+                </button>
+                <input type="hidden" id="bomScanArticle" />
                 <button type="button" id="btnExpandAll" class="btn btn-sm btn-outline-secondary" title="Alle aufklappen">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                         <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
@@ -100,6 +108,7 @@
 
                 <tr class="@rowClass @(isBg ? "bom-baugruppe" : "bom-item")"
                     data-picking-id="@item.PickingItemId"
+                    data-article-number="@item.Ressourcenummer"
                     data-position="@item.Position"
                     @if (!string.IsNullOrEmpty(parentPos)) { <text>data-parent-pos="@parentPos"</text> }
                     @if (isBg) { <text>data-baugruppe-id="@item.Ressourcenummer"</text> }
@@ -307,6 +316,45 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
+            initScanner('btnScanBomArticle', 'bomScanArticle', 'article');
+
+            // Nach Artikel-Scan: Zeile finden und Picking-Checkbox toggeln
+            document.getElementById('bomScanArticle').addEventListener('change', function () {
+                var scannedValue = this.value.trim();
+                if (!scannedValue) return;
+
+                // Alle Zeilen mit passender Ressourcenummer suchen
+                var rows = document.querySelectorAll('#bomTable tbody tr[data-article-number="' + CSS.escape(scannedValue) + '"]');
+                var matched = false;
+
+                rows.forEach(function (row) {
+                    var cb = row.querySelector('.picking-checkbox');
+                    if (cb && !cb.checked) {
+                        cb.checked = true;
+                        cb.dispatchEvent(new Event('change'));
+                        matched = true;
+
+                        // Zeile kurz highlighten
+                        row.classList.add('table-warning');
+                        setTimeout(function () { row.classList.remove('table-warning'); }, 2000);
+
+                        // Zeile in den sichtbaren Bereich scrollen
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+
+                if (!matched) {
+                    // Feedback: Artikel nicht gefunden oder bereits kommissioniert
+                    var alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-2';
+                    alertDiv.innerHTML = '<strong>' + scannedValue + '</strong> — nicht in der Stückliste gefunden oder bereits kommissioniert. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    document.querySelector('.filter-card').after(alertDiv);
+                    setTimeout(function () { alertDiv.remove(); }, 5000);
+                }
+
+                // Input zurücksetzen für nächsten Scan
+                this.value = '';
+            });
 
             var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
             var productionOrderId = @Model.ProductionOrderId;

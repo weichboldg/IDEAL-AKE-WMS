@@ -113,6 +113,7 @@ public class ArticlesController : Controller
             ArticleNumber = article.ArticleNumber,
             Description = article.Description ?? string.Empty,
             Unit = article.Unit,
+            ArticleGroup = article.ArticleGroup,
             ReorderLevel = article.ReorderLevel ?? 0,
             VaultUrl = $"http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Uri.EscapeDataString(article.ArticleNumber)}&searchContext=0",
             StockByLocation = stock

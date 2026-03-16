@@ -108,6 +108,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ArticleNumber).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Unit).HasMaxLength(20);
+            entity.Property(e => e.ArticleGroup).HasMaxLength(100);
             entity.Property(e => e.ReorderLevel).HasColumnType("decimal(18,3)");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();

@@ -46,6 +46,7 @@
                 <th>Artikelnummer</th>
                 <th>Bezeichnung</th>
                 <th>Einheit</th>
+                <th>Artikelgruppe</th>
                 <th>Erstellt am</th>
                 <th style="width: 100px;"></th>
             </tr>
@@ -65,6 +66,7 @@
                     </td>
                     <td>@article.Description</td>
                     <td>@article.Unit</td>
+                    <td>@article.ArticleGroup</td>
                     <td>@article.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                     <td>
                         <a asp-action="Edit" asp-route-id="@article.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
@@ -74,7 +76,7 @@
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Keine Artikel vorhanden.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Keine Artikel vorhanden.</td>
                 </tr>
             }
         </tbody>

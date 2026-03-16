@@ -35,6 +35,11 @@
                     </div>
 
                     <div class="mb-3">
+                        <label asp-for="ArticleGroup" class="form-label"></label>
+                        <input asp-for="ArticleGroup" class="form-control" readonly />
+                    </div>
+
+                    <div class="mb-3">
                         <label asp-for="ReorderLevel" class="form-label"></label>
                         <input asp-for="ReorderLevel" class="form-control" type="number" step="0.001" min="0" />
                         <small class="text-muted">Mindestbestand für Warnung in der Bestandsliste</small>

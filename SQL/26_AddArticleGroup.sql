@@ -20,8 +20,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260311145014_AddArticleGroup'
 )
 BEGIN
-    -- Wird automatisch durch dotnet ef database update gesetzt.
-    -- Dieser Block ist nur als Referenz für manuelle SQL-Deployments.
-    PRINT 'Migration 26_AddArticleGroup angewendet.';
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260311145014_AddArticleGroup', N'10.0.2');
 END
 GO
