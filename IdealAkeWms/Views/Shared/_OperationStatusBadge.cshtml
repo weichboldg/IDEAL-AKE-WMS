@@ -1,0 +1,17 @@
+@model TrackingOperationItem
+@if (Model.IsReported)
+{
+    <span class="badge bg-success">Rückgemeldet</span>
+}
+else if (Model.IsExternalSystem)
+{
+    <span class="badge bg-info text-dark">Fremdsystem</span>
+}
+else if (Model.IsReportable)
+{
+    <span class="badge bg-warning text-dark">Offen</span>
+}
+else
+{
+    <span class="badge bg-secondary">Info</span>
+}

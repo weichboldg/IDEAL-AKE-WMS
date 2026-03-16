@@ -80,12 +80,21 @@ public class CurrentUserService : ICurrentUserService
     }
 
     public async Task<bool> IsAdminAsync()
+        => await CheckUserFlagAsync(u => u.IsAdmin);
+
+    public async Task<bool> CanViewTrackingAsync()
+        => await CheckUserFlagAsync(u => u.CanViewTracking);
+
+    public async Task<bool> CanReportOperationsAsync()
+        => await CheckUserFlagAsync(u => u.CanReportOperations);
+
+    private async Task<bool> CheckUserFlagAsync(Func<Models.User, bool> predicate)
     {
         var userId = GetCurrentAppUserId();
         if (!userId.HasValue)
             return false;
 
         var user = await _userRepository.GetByIdAsync(userId.Value);
-        return user?.IsAdmin == true;
+        return user != null && predicate(user);
     }
 }

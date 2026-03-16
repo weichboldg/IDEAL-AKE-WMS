@@ -220,6 +220,22 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - **Betroffene Dateien**: `User.cs`, `ProductionWorkplace.cs`, `ProductionOrder.cs`, `ApplicationDbContext.cs`, `Program.cs`, `ProductionWorkplaceRepository.cs`, `IProductionWorkplaceRepository.cs`, `ProductionWorkplaceEditViewModel.cs`, `UsersController.cs`, `ProductionWorkplacesController.cs`, `Views/Users/*`, `Views/ProductionWorkplaces/*`
 - **Tests**: 10 neue Tests (5x ProductionWorkplaceUser, 5x WorkOperationRepository)
 
+### Feature: Teileverfolgung — Phase 2 (UI-Masken)
+- **Neue Ansicht "Teileverfolgung"**: Eigener Menüpunkt in Navbar (sichtbar nur wenn `TeileverfolgungAktiv = true` + User hat `CanViewTracking`)
+- **Auftragsübersicht** (`Tracking/Index`): Aufträge mit aufklappbaren Arbeitsgängen, Filter nach WA-Nummer/Werkbank/Status, Fortschritts-Badge (x/y)
+- **Werkbank-Ansicht** (`Tracking/ByWorkplace`): Alle Arbeitsgänge einer Werkbank, sortiert nach Auftrag + Reihenfolge
+- **Rückmeldung**: POST-Actions `Report`/`UndoReport` — nur für User mit `CanReportOperations`
+- **Berechtigungen**: `[RequireTrackingAccess]` Filter-Attribute (Pattern wie RequireMasterDataAccess)
+- **ICurrentUserService**: Neue Methoden `CanViewTrackingAsync()`, `CanReportOperationsAsync()`
+- **Repository**: 3 neue Methoden (`GetAllWithOrderAndWorkplaceAsync`, `GetByWorkplaceIdAsync`, `GetOpenByWorkplaceIdAsync`)
+- **Neue Dateien**: `Filters/RequireTrackingAccessAttribute.cs`, `Controllers/TrackingController.cs`, `Models/ViewModels/TrackingViewModel.cs`, `Views/Tracking/Index.cshtml`, `Views/Tracking/ByWorkplace.cshtml`
+- **Betroffene Dateien**: `ICurrentUserService.cs`, `CurrentUserService.cs`, `IWorkOperationRepository.cs`, `WorkOperationRepository.cs`, `Views/Shared/_Layout.cshtml`
+- **Tests**: 6 neue Tests (WorkOperationRepositoryExtendedTests)
+
+### Geplant: Teileverfolgung — Phase 3 (Import + Oseon)
+- **Oseon-Aufträge**: Eigene Tabelle benötigt (Struktur/Felder noch zu klären)
+- **Import Arbeitsgänge aus Sage**: Noch zu definieren (Quelle, Mapping, Sync-Intervall)
+
 ### Zukünftige Funktionen (geplant, noch nicht implementiert)
 - Meldebestand-Mail: Aufsplitten nach Artikelgruppe oder Lagerhalle
 - Lagerplätze in SAGE anlegen wenn neue in WMS erstellt

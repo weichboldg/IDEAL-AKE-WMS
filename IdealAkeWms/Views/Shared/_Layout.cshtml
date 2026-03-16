@@ -1,4 +1,5 @@
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
+@inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -48,6 +49,15 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
                         </li>
+                        @{
+                            var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                        }
+                        @if (teileverfolgungAktiv && await CurrentUserService.CanViewTrackingAsync())
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Tracking" asp-action="Index">Teileverfolgung</a>
+                            </li>
+                        }
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Stammdaten

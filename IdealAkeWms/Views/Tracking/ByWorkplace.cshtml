@@ -1,0 +1,110 @@
+@model TrackingByWorkplaceViewModel
+@{
+    ViewData["Title"] = $"Teileverfolgung — {Model.Workplace.Name}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="page-header mb-0">@Model.Workplace.Name</h2>
+        @if (!string.IsNullOrEmpty(Model.Workplace.Hall))
+        {
+            <small class="text-muted">Halle: @Model.Workplace.Hall</small>
+        }
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Zurück zur Übersicht</a>
+</div>
+
+<div class="card filter-card mb-4">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="ByWorkplace" asp-route-id="@Model.Workplace.Id">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">WA-Nummer</label>
+                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="z.B. WA-001" />
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check mt-4">
+                        <input type="checkbox" name="showReported" value="true" class="form-check-input"
+                               id="showReported" @(Model.ShowReported ? "checked" : "") />
+                        <label class="form-check-label" for="showReported">Rückgemeldete anzeigen</label>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-secondary">Filtern</button>
+                    <a asp-action="ByWorkplace" asp-route-id="@Model.Workplace.Id" class="btn btn-outline-secondary">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!Model.Operations.Any())
+{
+    <div class="alert alert-info">
+        Keine Arbeitsgänge für diese Werkbank gefunden.
+        @if (!Model.ShowReported)
+        {
+            <text> Möglicherweise sind alle bereits rückgemeldet.</text>
+        }
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>WA-Nr.</th>
+                    <th>#</th>
+                    <th>AG-Nr.</th>
+                    <th>Bezeichnung</th>
+                    <th>Status</th>
+                    <th>Rückgemeldet</th>
+                    <th style="width: 160px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var op in Model.Operations)
+                {
+                    <tr class="@(op.IsReported ? "table-success" : "")">
+                        <td><strong>@op.OrderNumber</strong></td>
+                        <td>@op.Sequence</td>
+                        <td>@op.OperationNumber</td>
+                        <td>@op.Name</td>
+                        <td>
+                            @await Html.PartialAsync("_OperationStatusBadge", op)
+                        </td>
+                        <td>
+                            @if (op.IsReported && op.ReportedAt.HasValue)
+                            {
+                                <small>@op.ReportedAt.Value.ToString("dd.MM.yyyy HH:mm") — @op.ReportedBy</small>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.CanReport && op.IsReportable)
+                            {
+                                if (!op.IsReported)
+                                {
+                                    <form asp-action="Report" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@op.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                        <button type="submit" class="btn btn-sm btn-success">Rückmelden</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form asp-action="UndoReport" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@op.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Zurücknehmen</button>
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

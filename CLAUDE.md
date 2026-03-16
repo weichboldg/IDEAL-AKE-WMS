@@ -33,6 +33,9 @@
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Angewendet auf: `UsersController`, `WorkstationsController`, `SettingsController`
 - **`HasMasterDataAccessAsync()`**: Prüft zuerst `User.HasMasterDataAccess` Flag, dann AD-Gruppe aus AppSetting `StammdatenADGruppe`
+- **`[RequireTrackingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanViewTrackingAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Angewendet auf: `TrackingController`
 
 ## ICurrentUserService
 
@@ -43,6 +46,9 @@ int? GetCurrentAppUserId();           // Session["AppUserId"]
 string? GetCurrentAppUserName();      // Session["AppUserName"]
 bool IsLoggedIn();                    // AppUserId != null
 Task<bool> HasMasterDataAccessAsync(); // Flag + AD-Gruppe
+Task<bool> IsAdminAsync();            // User.IsAdmin
+Task<bool> CanViewTrackingAsync();    // User.CanViewTracking
+Task<bool> CanReportOperationsAsync(); // User.CanReportOperations
 ```
 
 ## TempData-Meldungen

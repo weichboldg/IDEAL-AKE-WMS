@@ -22,7 +22,31 @@
       "Bash(powershell -ExecutionPolicy Bypass -File \"_rename_ns.ps1\")",
       "Bash(del \"_rename_ns.ps1\")",
       "Bash(powershell -ExecutionPolicy Bypass -File \"_rename_docs.ps1\")",
-      "Bash(rm \"_rename_docs.ps1\")"
+      "Bash(rm \"_rename_docs.ps1\")",
+      "Bash(git clone:*)",
+      "Read(//c/Users/gerald.weichbold/.claude/skills/get-shit-done/**)",
+      "Bash(npx get-shit-done-cc@latest)",
+      "Bash(where.exe npx:*)",
+      "Bash(where.exe node:*)",
+      "Bash(where.exe npm:*)",
+      "Bash(cmd.exe /c \"where npx\")",
+      "Bash(cmd.exe /c \"where node\")",
+      "Read(//tmp/gsd-install/**)",
+      "Read(//tmp/gsd-install/bin/**)",
+      "Read(//c/Users/gerald.weichbold/AppData/Local/Temp/gsd-install/bin/**)",
+      "Bash(CLAUDE_DIR=\"$HOME/.claude\")",
+      "Bash(SRC=\"/tmp/gsd-install\")",
+      "Bash(mkdir -p \"$CLAUDE_DIR/commands\" \"$CLAUDE_DIR/agents\" \"$CLAUDE_DIR/get-shit-done\" \"$CLAUDE_DIR/hooks\")",
+      "Bash(cp -r \"$SRC/commands/gsd\" \"$CLAUDE_DIR/commands/gsd\")",
+      "Bash(for f:*)",
+      "Bash(do cp:*)",
+      "Bash(done)",
+      "Bash(cp -r \"$SRC/get-shit-done/\"* \"$CLAUDE_DIR/get-shit-done/\")",
+      "Bash(cp \"$SRC/hooks/\"* \"$CLAUDE_DIR/hooks/\")",
+      "Bash(cp \"$SRC/CHANGELOG.md\" \"$CLAUDE_DIR/get-shit-done/CHANGELOG.md\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Entwicklung\\C#\\AKEBDELight\\$HOME\\.claude\\skills"
     ]
   }
 }

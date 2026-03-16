@@ -9,4 +9,6 @@ public interface ICurrentUserService
     bool IsLoggedIn();
     Task<bool> HasMasterDataAccessAsync();
     Task<bool> IsAdminAsync();
+    Task<bool> CanViewTrackingAsync();
+    Task<bool> CanReportOperationsAsync();
 }
