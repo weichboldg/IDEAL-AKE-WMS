@@ -9,8 +9,11 @@ function initScanner(buttonId, targetSelectId, scanType) {
     const button = document.getElementById(buttonId);
     if (!button) return;
 
+    var qrFaEnabled = button.getAttribute('data-qr-fa-enabled') === 'true';
+    var faTargetId = button.getAttribute('data-fa-target') || null;
+
     button.addEventListener('click', function () {
-        openScannerModal(targetSelectId, scanType);
+        openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetId);
     });
 }
 
@@ -22,7 +25,7 @@ function isSecureContext() {
     return window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost';
 }
 
-function openScannerModal(targetSelectId, scanType) {
+function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetId) {
     _scannerClosing = false;
 
     // Altes Modal entfernen
@@ -94,14 +97,14 @@ function openScannerModal(targetSelectId, scanType) {
     if (fileInput) {
         fileInput.addEventListener('change', function (e) {
             if (e.target.files && e.target.files.length > 0) {
-                scanFromFile(e.target.files[0], targetSelectId, scanType);
+                scanFromFile(e.target.files[0], targetSelectId, scanType, qrFaEnabled, faTargetId);
             }
         });
     }
 
     // Kamera starten wenn verfügbar
     if (cameraAvailable) {
-        startCameraScanner(targetSelectId, scanType);
+        startCameraScanner(targetSelectId, scanType, qrFaEnabled, faTargetId);
     }
 }
 
@@ -133,7 +136,7 @@ function getSupportedFormats() {
     return formats;
 }
 
-function startCameraScanner(targetSelectId, scanType) {
+function startCameraScanner(targetSelectId, scanType, qrFaEnabled, faTargetId) {
     var formats = getSupportedFormats();
     var html5QrCode = formats.length > 0
         ? new Html5Qrcode("scannerReader", { formatsToSupport: formats, verbose: false })
@@ -154,7 +157,7 @@ function startCameraScanner(targetSelectId, scanType) {
             _scannerClosing = true;
 
             // Zuerst Wert verarbeiten, dann Modal schließen
-            processScannedValue(decodedText, targetSelectId, scanType);
+            processScannedValue(decodedText, targetSelectId, scanType, qrFaEnabled, faTargetId);
             closeScannerModal();
         },
         function (errorMessage) {
@@ -190,7 +193,7 @@ function stopScanner() {
     }
 }
 
-function scanFromFile(file, targetSelectId, scanType) {
+function scanFromFile(file, targetSelectId, scanType, qrFaEnabled, faTargetId) {
     var resultEl = document.getElementById('scannerResult');
     var resultText = document.getElementById('scannerResultText');
 
@@ -205,7 +208,7 @@ function scanFromFile(file, targetSelectId, scanType) {
         : new Html5Qrcode("scannerFileReader_temp", false);
     html5QrCode.scanFile(file, true)
         .then(function (decodedText) {
-            processScannedValue(decodedText, targetSelectId, scanType);
+            processScannedValue(decodedText, targetSelectId, scanType, qrFaEnabled, faTargetId);
             closeScannerModal();
         })
         .catch(function (err) {
@@ -231,14 +234,21 @@ function closeScannerModal() {
     _scannerClosing = false;
 }
 
-function processScannedValue(value, targetSelectId, scanType) {
+function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId) {
     var searchValue = value;
+    var faNumber = null;
 
     if (scanType === 'article') {
         // QR-Code: Erster Teil vor ; ist die Artikelnummer
-        // Format: 87040362;1472230-04;45
+        // Altes Format: Artikelnummer;Feld2;Feld3 (3 Teile)
+        // Neues Format: Artikelnummer;Feld2;FA-Nummer;Feld4 (4+ Teile)
         var parts = value.split(';');
         searchValue = parts[0].trim();
+
+        // FA-Nummer aus QR extrahieren (Index 2) wenn Setting aktiv und >= 4 Teile
+        if (qrFaEnabled && parts.length >= 4 && parts[2].trim()) {
+            faNumber = parts[2].trim();
+        }
     }
 
     var select = document.getElementById(targetSelectId);
@@ -249,6 +259,7 @@ function processScannedValue(value, targetSelectId, scanType) {
         select.value = searchValue;
         select.dispatchEvent(new Event('change'));
         showScanFeedback(select, true, searchValue);
+        fillFaNumber(faNumber, faTargetId);
         return;
     }
 
@@ -265,6 +276,7 @@ function processScannedValue(value, targetSelectId, scanType) {
                 var option = new Option(data.text, data.id, true, true);
                 $(select).append(option).trigger('change');
                 showScanFeedback(feedbackTarget, true, searchValue);
+                fillFaNumber(faNumber, faTargetId);
             },
             error: function () {
                 showScanFeedback(feedbackTarget, false, searchValue);
@@ -311,6 +323,15 @@ function showScanFeedback(element, success, value) {
     setTimeout(function () {
         feedback.remove();
     }, 5000);
+}
+
+function fillFaNumber(faNumber, faTargetId) {
+    if (!faNumber || !faTargetId) return;
+    var faInput = document.getElementById(faTargetId);
+    if (faInput) {
+        faInput.value = faNumber;
+        faInput.dispatchEvent(new Event('change'));
+    }
 }
 
 function escapeHtml(text) {

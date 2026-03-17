@@ -4,8 +4,11 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
+using IdealAkeWms.Filters;
+
 namespace IdealAkeWms.Controllers;
 
+[RequirePickingAccess]
 public class StockMovementsController : Controller
 {
     private readonly IStockMovementRepository _stockMovementRepository;
@@ -74,6 +77,7 @@ public class StockMovementsController : Controller
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 
@@ -91,6 +95,7 @@ public class StockMovementsController : Controller
                 if (article != null)
                     vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
             }
+            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             return View(vm);
         }
 
@@ -123,6 +128,7 @@ public class StockMovementsController : Controller
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 
@@ -140,6 +146,7 @@ public class StockMovementsController : Controller
                 if (article != null)
                     vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
             }
+            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             return View(vm);
         }
 
@@ -206,6 +213,7 @@ public class StockMovementsController : Controller
         {
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync()
         };
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 
@@ -221,6 +229,7 @@ public class StockMovementsController : Controller
         if (!ModelState.IsValid)
         {
             vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             if (vm.ArticleId > 0)
             {
                 var article = await _articleRepository.GetByIdAsync(vm.ArticleId);

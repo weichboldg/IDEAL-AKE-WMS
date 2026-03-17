@@ -1,7 +1,7 @@
 -- =============================================
 -- IDEAL-AKE WMS - Konsolidiertes Neuinstallations-Script
 -- Erstellt alle Tabellen, Views und Standarddaten im finalen Zustand.
--- Für bestehende Installationen die einzelnen Migrations-Scripts (01-21) verwenden.
+-- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-28) verwenden.
 -- =============================================
 
 -- Datenbank erstellen
@@ -30,6 +30,13 @@ BEGIN
         [DefaultFilterBeschaffung]  NVARCHAR(100)     NULL,
         [DefaultFilterArtikelgruppe] NVARCHAR(100)    NULL,
         [HasMasterDataAccess]       BIT               NOT NULL DEFAULT 0,
+        [RecursiveFilterSearch]     BIT               NOT NULL DEFAULT 0,
+        [Email]                     NVARCHAR(200)     NULL,
+        [IsAdmin]                   BIT               NOT NULL DEFAULT 0,
+        [NotifyOnReorderLevel]      BIT               NOT NULL DEFAULT 0,
+        [CanPick]                   BIT               NOT NULL DEFAULT 0,
+        [CanViewTracking]           BIT               NOT NULL DEFAULT 0,
+        [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -127,6 +134,7 @@ BEGIN
         [Description]       NVARCHAR(500)     NULL,
         [Unit]              NVARCHAR(20)      NULL,
         [ReorderLevel]      DECIMAL(18,3)     NULL,
+        [ArticleGroup]      NVARCHAR(100)     NULL,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -173,39 +181,64 @@ END
 GO
 
 -- =============================================
--- 7. ProductionOrders
+-- 7. ProductionWorkplaces
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaces')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaces] (
+        [Id]                     INT IDENTITY(1,1) NOT NULL,
+        [Name]                   NVARCHAR(200)     NOT NULL,
+        [Hall]                   NVARCHAR(200)     NULL,
+        [OverridePrePickingDays] INT               NULL,
+        [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]              NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]             DATETIME2         NULL,
+        [ModifiedBy]             NVARCHAR(200)     NULL,
+        [ModifiedByWindows]      NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionWorkplaces] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle ProductionWorkplaces erstellt.';
+END
+GO
+
+-- =============================================
+-- 8. ProductionOrders
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrders')
 BEGIN
     CREATE TABLE [dbo].[ProductionOrders] (
-        [Id]                  INT IDENTITY(1,1) NOT NULL,
-        [OrderNumber]         NVARCHAR(100)     NOT NULL,
-        [Quantity]            DECIMAL(18,3)     NULL,
-        [Customer]            NVARCHAR(500)     NULL,
-        [ArticleNumber]       NVARCHAR(100)     NULL,
-        [Description1]        NVARCHAR(500)     NULL,
-        [Description2]        NVARCHAR(500)     NULL,
-        [ProductionDate]      DATETIME2         NULL,
-        [DeliveryDate]        DATETIME2         NULL,
-        [IsDone]              BIT               NOT NULL DEFAULT 0,
-        [PickingStatus]       NVARCHAR(50)      NULL,
-        [HasGlass]            BIT               NOT NULL DEFAULT 0,
-        [HasExternalPurchase] BIT               NOT NULL DEFAULT 0,
-        [CreatedAt]           DATETIME2         NOT NULL DEFAULT GETDATE(),
-        [CreatedBy]           NVARCHAR(200)     NOT NULL,
-        [CreatedByWindows]    NVARCHAR(200)     NOT NULL,
-        [ModifiedAt]          DATETIME2         NULL,
-        [ModifiedBy]          NVARCHAR(200)     NULL,
-        [ModifiedByWindows]   NVARCHAR(200)     NULL,
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [OrderNumber]             NVARCHAR(100)     NOT NULL,
+        [Quantity]                DECIMAL(18,3)     NULL,
+        [Customer]                NVARCHAR(500)     NULL,
+        [ArticleNumber]           NVARCHAR(100)     NULL,
+        [Description1]            NVARCHAR(500)     NULL,
+        [Description2]            NVARCHAR(500)     NULL,
+        [ProductionDate]          DATETIME2         NULL,
+        [DeliveryDate]            DATETIME2         NULL,
+        [IsDone]                  BIT               NOT NULL DEFAULT 0,
+        [PickingStatus]           NVARCHAR(50)      NULL,
+        [HasGlass]                BIT               NOT NULL DEFAULT 0,
+        [HasExternalPurchase]     BIT               NOT NULL DEFAULT 0,
+        [ProductionWorkplaceId]   INT               NULL,
+        [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]               NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]              DATETIME2         NULL,
+        [ModifiedBy]              NVARCHAR(200)     NULL,
+        [ModifiedByWindows]       NVARCHAR(200)     NULL,
         CONSTRAINT [PK_ProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_ProductionOrders_OrderNumber] UNIQUE ([OrderNumber])
+        CONSTRAINT [UQ_ProductionOrders_OrderNumber] UNIQUE ([OrderNumber]),
+        CONSTRAINT [FK_ProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
     );
     PRINT 'Tabelle ProductionOrders erstellt.';
 END
 GO
 
 -- =============================================
--- 8. PickingItems
+-- 9. PickingItems
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PickingItems')
 BEGIN
@@ -239,7 +272,67 @@ END
 GO
 
 -- =============================================
--- 9. AppSettings
+-- 10. ProductionWorkplaceUsers
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceUsers')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaceUsers] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [ProductionWorkplaceId]    INT               NOT NULL,
+        [UserId]                   INT               NOT NULL,
+        [CreatedAt]                DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionWorkplaceUsers] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ProductionWorkplaceUsers_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionWorkplaceUsers_Users_UserId]
+            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE NO ACTION
+    );
+    PRINT 'Tabelle ProductionWorkplaceUsers erstellt.';
+END
+GO
+
+-- =============================================
+-- 11. WorkOperations
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WorkOperations')
+BEGIN
+    CREATE TABLE [dbo].[WorkOperations] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]        INT               NOT NULL,
+        [OperationNumber]          NVARCHAR(50)      NOT NULL,
+        [Name]                     NVARCHAR(200)     NOT NULL,
+        [ProductionWorkplaceId]    INT               NULL,
+        [Sequence]                 INT               NOT NULL,
+        [IsReportable]             BIT               NOT NULL,
+        [IsExternalSystem]         BIT               NOT NULL,
+        [IsReported]               BIT               NOT NULL,
+        [ReportedAt]               DATETIME2         NULL,
+        [ReportedBy]               NVARCHAR(200)     NULL,
+        [ReportedByWindows]        NVARCHAR(200)     NULL,
+        [ExternalSource]           NVARCHAR(100)     NULL,
+        [CreatedAt]                DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_WorkOperations] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_WorkOperations_ProductionOrders_ProductionOrderId]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_WorkOperations_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
+    );
+    PRINT 'Tabelle WorkOperations erstellt.';
+END
+GO
+
+-- =============================================
+-- 12. AppSettings
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AppSettings')
 BEGIN
@@ -261,13 +354,43 @@ BEGIN
         ('NegativeBuchungErlaubt', 'false', 'Negative Buchungen erlauben (true/false)'),
         ('NegativeBuchungLagerplatz', 'NAN', 'Fallback-Lagerplatz bei negativem Bestand'),
         ('StammdatenADGruppe', 'BDE_Stammdaten', 'AD-Gruppe fuer Stammdaten-Zugriff'),
-        ('BeschichtungAbholtage', 'Dienstag,Donnerstag', 'Wochentage fuer Beschichtungs-Abholung');
+        ('BeschichtungAbholtage', 'Dienstag,Donnerstag', 'Wochentage fuer Beschichtungs-Abholung'),
+        ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
+        ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
+        ('SageRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Sage zurueckgeschrieben werden'),
+        ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
 
 -- =============================================
--- 10. Holidays
+-- 13. ServiceSettings
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ServiceSettings')
+BEGIN
+    CREATE TABLE [dbo].[ServiceSettings] (
+        [Key]         NVARCHAR(100) NOT NULL,
+        [Value]       NVARCHAR(500) NOT NULL,
+        [Category]    NVARCHAR(100) NULL,
+        [Description] NVARCHAR(500) NULL,
+        CONSTRAINT [PK_ServiceSettings] PRIMARY KEY CLUSTERED ([Key])
+    );
+    PRINT 'Tabelle ServiceSettings erstellt.';
+
+    -- Standard-Eintraege
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description]) VALUES
+        ('Notifications:MeldebestandEnabled', 'true', 'Notifications', 'Meldebestand-Mail aktiv (true/false)'),
+        ('Notifications:MeldebestandSubject', 'Meldebestand unterschritten — IDEAL AKE WMS', 'Notifications', 'Betreff der Meldebestand-Mail'),
+        ('Notifications:Recipients', '', 'Notifications', 'Feste Empfaenger fuer Meldebestand-Mail (kommagetrennt)'),
+        ('Notifications:AppBaseUrl', '', 'Notifications', 'Basis-URL der App fuer Links in Mails (z.B. https://wms.ake.at)'),
+        ('Sync:ProductionOrdersEnabled', 'true', 'Sync', 'Produktionsauftraege-Sync aus SAGE aktiv (true/false)'),
+        ('Sync:ArticlesEnabled', 'true', 'Sync', 'Artikel-Sync aus SAGE aktiv (true/false)');
+    PRINT 'Standard-ServiceSettings eingefuegt.';
+END
+GO
+
+-- =============================================
+-- 14. Holidays
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Holidays')
 BEGIN
@@ -289,7 +412,7 @@ END
 GO
 
 -- =============================================
--- 11. Indexes
+-- 15. Indexes
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId')
     CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId] ON [dbo].[StockMovements]([ArticleId]);
@@ -309,17 +432,29 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_Artic
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ArticleNumber] ON [dbo].[ProductionOrders]([ArticleNumber]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDone')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsDone] ON [dbo].[ProductionOrders]([IsDone]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_ProductionOrderId')
     CREATE NONCLUSTERED INDEX [IX_PickingItems_ProductionOrderId] ON [dbo].[PickingItems]([ProductionOrderId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_POId_IsPicked')
     CREATE NONCLUSTERED INDEX [IX_PickingItems_POId_IsPicked] ON [dbo].[PickingItems]([ProductionOrderId], [IsPicked]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionWorkplaceUsers_ProductionWorkplaceId_UserId')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_ProductionWorkplaceUsers_ProductionWorkplaceId_UserId] ON [dbo].[ProductionWorkplaceUsers]([ProductionWorkplaceId], [UserId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionWorkplaceUsers_UserId')
+    CREATE NONCLUSTERED INDEX [IX_ProductionWorkplaceUsers_UserId] ON [dbo].[ProductionWorkplaceUsers]([UserId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkOperations_ProductionOrderId')
+    CREATE NONCLUSTERED INDEX [IX_WorkOperations_ProductionOrderId] ON [dbo].[WorkOperations]([ProductionOrderId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkOperations_ProductionOrderId_Sequence')
+    CREATE NONCLUSTERED INDEX [IX_WorkOperations_ProductionOrderId_Sequence] ON [dbo].[WorkOperations]([ProductionOrderId], [Sequence]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkOperations_ProductionWorkplaceId')
+    CREATE NONCLUSTERED INDEX [IX_WorkOperations_ProductionWorkplaceId] ON [dbo].[WorkOperations]([ProductionWorkplaceId]);
 GO
 
 PRINT 'Indexes erstellt.';
 GO
 
 -- =============================================
--- 12. Views
+-- 16. Views
 -- =============================================
 IF EXISTS (SELECT * FROM sys.views WHERE name = 'vw_CurrentStock')
     DROP VIEW [dbo].[vw_CurrentStock];
@@ -384,7 +519,7 @@ PRINT 'Views erstellt.';
 GO
 
 -- =============================================
--- 13. Standard-Daten
+-- 17. Standard-Daten
 -- =============================================
 
 -- NAN-Lagerplatz (Fallback fuer nicht zugeordnete Artikel)
@@ -401,15 +536,15 @@ END
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Users] WHERE [Name] = 'admin')
 BEGIN
     INSERT INTO [dbo].[Users]
-        ([Name], [IsActive], [HasMasterDataAccess], [PasswordHash], [CreatedAt], [CreatedBy], [CreatedByWindows])
+        ([Name], [IsActive], [HasMasterDataAccess], [CanPick], [IsAdmin], [PasswordHash], [CreatedAt], [CreatedBy], [CreatedByWindows])
     VALUES
-        ('admin', 1, 1, NULL, GETDATE(), 'system', 'system');
+        ('admin', 1, 1, 1, 1, NULL, GETDATE(), 'system', 'system');
     PRINT 'Standard-Benutzer admin eingefuegt (PasswordHash wird beim App-Start gesetzt).';
 END
 GO
 
 -- =============================================
--- 14. EF Migrations History
+-- 18. EF Migrations History
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__EFMigrationsHistory')
 BEGIN
@@ -427,6 +562,18 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260217083306_AddPickingItemRowVersion', '10.0.0-preview.1.25081.3');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260218084152_AddUserFieldsAndPickingScale')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260218084152_AddUserFieldsAndPickingScale', '10.0.0-preview.1.25081.3');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260306081711_AddProductionWorkplaces')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260306081711_AddProductionWorkplaces', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260310130059_AddRecursiveFilterSearch')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260310130059_AddRecursiveFilterSearch', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311071826_AddUserEmailIsAdminNotify')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311071826_AddUserEmailIsAdminNotify', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311071840_AddServiceSettings')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311071840_AddServiceSettings', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311145014_AddArticleGroup')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311145014_AddArticleGroup', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260316062006_AddWorkOperationsPhase1')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260316062006_AddWorkOperationsPhase1', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -1,5 +1,71 @@
 # IdealAkeWms — Kontext für KI-Assistenten
 
+
+## Workflow-Orchestrierung
+
+### 1. Plan-Modus als Standard
+- IMMER Plan-Modus vor Code-Änderungen verwenden (gilt für 3+ Schritte oder 
+  Architekturentscheidungen)
+- Bei Unklarheiten (z.B. SAGE vs. OSEON, Auth-Middleware-Reihenfolge): 
+  STOPP — zuerst klären, dann umsetzen
+- Detaillierte Spezifikation vor Implementierung: Welche Controller, 
+  Repository, Migration, SQL-Script?
+- Plan dokumentieren bevor Code entsteht
+
+### 2. Verifikation vor Abschluss
+- Niemals Task als erledigt markieren ohne Beweis: 
+  läuft die App? Wurde migriert? Zeigt die View korrekte Daten?
+- Checkliste nach jeder Änderung:
+  - [ ] Migration erstellt + SQL/XX_*.sql mit OBJECT_ID-Guard?
+  - [ ] SQL/00_FreshInstall.sql aktualisiert?
+  - [ ] PROJECT_STATUS.md gepflegt?
+  - [ ] TempData korrekt (nur SuccessMessage / WarningMessage)?
+  - [ ] Audit-Felder gesetzt (ModifiedAt, ModifiedBy, ModifiedByWindows)?
+
+### 3. Selbstverbesserungsschleife
+- Nach jeder Korrektur: Fallstrick in der MD-Datei ergänzen
+- Bekannte Fallen nie zweimal machen:
+  - Artikelnummer ≠ Ressourcenummer → immer Ressourcenummer für Bauteile
+  - AppSettings-Tabelle hat kein AuditableEntity
+  - Bootstrap überschreibt custom CSS → !important nötig
+  - InMemory DB unterstützt kein rowversion → TestApplicationDbContext
+
+### 4. Autonome Fehlerbehebung
+- Bei Bugs: direkt in Logs/Serilog schauen, Ursache finden, beheben
+- Kein Rückfragen bei bekannten Mustern (z.B. Select2 ViewBag-Re-Init 
+  nach POST-Validierungsfehler)
+- CI/Tests eigenständig grün bekommen
+
+### 5. Eleganz (ausgewogen)
+- Repository Pattern + Decorator konsequent nutzen 
+  (z.B. CachedBomRepository wraps BomRepository)
+- Kein Over-Engineering bei einfachen CRUD-Operationen
+- Bei komplexer Logik (Picking, Transfer, Bestandsberechnung) 
+  innehalten: "Gibt es einen saubereren Weg?"
+
+---
+
+## Aufgabenverwaltung
+
+1. **Zuerst planen** — Was ändert sich? Model / Repo / Controller / View / SQL?
+2. **Migration prüfen** — Neues Pflichtfeld? Agent-Job-Scripts anpassen!
+3. **Fortschritt tracken** — PROJECT_STATUS.md laufend aktuell halten
+4. **Änderungen erklären** — Sinnvolle Git Commit Messages
+5. **Ergebnisse dokumentieren** — README.md, Hilfeseite etc. aktuell halten.
+6. **Lektionen festhalten** — Neue Fallstricke sofort in diese Datei
+
+---
+
+## Kernprinzipien
+
+- **Einfachheit zuerst** — Minimale Code-Auswirkung. 
+  Nur anfassen was nötig ist.
+- **Keine faulen Fixes** — Root Cause finden. 
+  Kein temporäres Patch auf Middleware-Reihenfolge o.ä.
+- **Minimale Auswirkung** — Keine Nebeneffekte. 
+  Besonders bei Auth, Session, Middleware-Pipeline.
+
+
 ## Architektur
 
 - ASP.NET Core 10.0 MVC + Repository Pattern + DI
@@ -12,7 +78,6 @@
 ## Konventionen
 
 - **Sprache**: Code/Variablen auf Englisch, UI-Texte auf Deutsch
-- **Workflow**: IMMER Planning Mode verwenden bevor Code-Änderungen gemacht werden
 - **Entity-Basis**: `AuditableEntity` (Id, CreatedAt, CreatedBy, CreatedByWindows, ModifiedAt?, ModifiedBy?, ModifiedByWindows?)
 - **Corporate Design**: `--ake-primary: #053153`, `--ake-secondary: #43A6E2`, `--ake-orange: #E87A1E`
 - **Dokumentation**: `PROJECT_STATUS.md` im Root pflegen, `README.md` bei Feature-Änderungen aktuell halten
@@ -36,6 +101,10 @@
 - **`[RequireTrackingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanViewTrackingAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Angewendet auf: `TrackingController`
+- **`[RequirePickingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanPickAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Angewendet auf: `StockMovementsController`, `StockOverviewController`, `ProductionOrdersController`, `ProductionOrdersApiController`
+  - Menüpunkte Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung sind nur sichtbar wenn `CanPickAsync() == true`
 
 ## ICurrentUserService
 
@@ -49,6 +118,7 @@ Task<bool> HasMasterDataAccessAsync(); // Flag + AD-Gruppe
 Task<bool> IsAdminAsync();            // User.IsAdmin
 Task<bool> CanViewTrackingAsync();    // User.CanViewTracking
 Task<bool> CanReportOperationsAsync(); // User.CanReportOperations
+Task<bool> CanPickAsync();            // User.CanPick
 ```
 
 ## TempData-Meldungen
@@ -133,6 +203,15 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `TeileverfolgungAktiv` | `false` | Globaler Schalter: Teileverfolgungs-Modul aktiviert |
 | `OseonRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Oseon zurückgeschrieben werden |
 | `SageRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Sage zurückgeschrieben werden |
+| `QrMitFaNummer` | `false` | QR-Code enthält Fertigungsauftragsnummer an 3. Stelle |
+
+## QR-Code-Format (Artikel)
+
+- **Altes Format**: `Artikelnummer;Feld2;Feld3` (3 Teile) — nur Artikelnummer wird extrahiert
+- **Neues Format**: `Artikelnummer;Feld2;FA-Nummer;Feld4` (4+ Teile) — Artikelnummer + FA-Nummer
+- **Setting `QrMitFaNummer`**: Wenn `true`, wird `parts[2]` als FA-Nummer in das `ProductionOrder`-Feld eingetragen
+- **Beide Formate** werden akzeptiert: < 4 Teile → keine FA-Nummer, >= 4 Teile → FA-Nummer aus Index 2
+- **Steuerung per View**: `data-qr-fa-enabled` und `data-fa-target` Attribute am Scan-Button
 
 ## Migrations-Workflow
 

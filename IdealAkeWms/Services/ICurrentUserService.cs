@@ -11,4 +11,5 @@ public interface ICurrentUserService
     Task<bool> IsAdminAsync();
     Task<bool> CanViewTrackingAsync();
     Task<bool> CanReportOperationsAsync();
+    Task<bool> CanPickAsync();
 }

@@ -26,29 +26,32 @@
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto">
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Lagerbewegungen
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
-                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
-                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="OutboundAll">Lagerplatz ausbuchen</a></li>
-                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
-                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
-                                <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="StockOverview" asp-action="Index">Bestände</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
-                        </li>
+                        @if (await CurrentUserService.CanPickAsync())
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Lagerbewegungen
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
+                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
+                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="OutboundAll">Lagerplatz ausbuchen</a></li>
+                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
+                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
+                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="StockOverview" asp-action="Index">Bestände</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
+                            </li>
+                        }
                         @{
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                         }

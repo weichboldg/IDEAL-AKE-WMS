@@ -14,13 +14,30 @@
                     @Html.AntiForgeryToken()
                     @foreach (var setting in Model.Settings)
                     {
+                        var isBool = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase)
+                                  || string.Equals(setting.Value, "false", StringComparison.OrdinalIgnoreCase);
+                        var isChecked = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase);
                         <div class="mb-3">
                             <label class="form-label fw-bold">@setting.Key</label>
                             @if (!string.IsNullOrEmpty(setting.Description))
                             {
                                 <br /><small class="text-muted">@setting.Description</small>
                             }
-                            <input type="text" name="settings[@setting.Key]" value="@setting.Value" class="form-control" />
+                            @if (isBool)
+                            {
+                                <input type="hidden" name="settings[@setting.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
+                                <div class="form-check form-switch mt-1">
+                                    <input type="checkbox" class="form-check-input bool-toggle" id="setting_@setting.Key"
+                                           @(isChecked ? "checked" : "") />
+                                    <label class="form-check-label" for="setting_@setting.Key">
+                                        @(isChecked ? "Aktiviert" : "Deaktiviert")
+                                    </label>
+                                </div>
+                            }
+                            else
+                            {
+                                <input type="text" name="settings[@setting.Key]" value="@setting.Value" class="form-control" />
+                            }
                         </div>
                     }
                     <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
@@ -105,3 +122,16 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.bool-toggle').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                var hidden = this.closest('.mb-3').querySelector('.bool-hidden');
+                if (hidden) hidden.value = this.checked ? 'true' : 'false';
+                var label = this.parentElement.querySelector('.form-check-label');
+                if (label) label.textContent = this.checked ? 'Aktiviert' : 'Deaktiviert';
+            });
+        });
+    </script>
+}

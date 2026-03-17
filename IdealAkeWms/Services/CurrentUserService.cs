@@ -88,6 +88,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanReportOperationsAsync()
         => await CheckUserFlagAsync(u => u.CanReportOperations);
 
+    public async Task<bool> CanPickAsync()
+        => await CheckUserFlagAsync(u => u.CanPick);
+
     private async Task<bool> CheckUserFlagAsync(Func<Models.User, bool> predicate)
     {
         var userId = GetCurrentAppUserId();

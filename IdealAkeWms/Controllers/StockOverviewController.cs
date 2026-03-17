@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models.ViewModels;
 
+using IdealAkeWms.Filters;
+
 namespace IdealAkeWms.Controllers;
 
+[RequirePickingAccess]
 public class StockOverviewController : Controller
 {
     private readonly IStockMovementRepository _stockMovementRepository;

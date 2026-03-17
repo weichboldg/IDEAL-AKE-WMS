@@ -29,7 +29,9 @@ IF NOT EXISTS (
 GO
 
 -- EF Core Migrations-History markieren
-IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311000001_AddUserEmailIsAdminNotify')
+IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311071826_AddUserEmailIsAdminNotify')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES ('20260311000001_AddUserEmailIsAdminNotify', '10.0.0');
+    VALUES ('20260311071826_AddUserEmailIsAdminNotify', '10.0.0');
+-- Alten falschen Eintrag bereinigen (falls vorhanden)
+DELETE FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311000001_AddUserEmailIsAdminNotify';
 GO

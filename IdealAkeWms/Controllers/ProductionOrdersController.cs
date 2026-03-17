@@ -4,8 +4,11 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
+using IdealAkeWms.Filters;
+
 namespace IdealAkeWms.Controllers;
 
+[RequirePickingAccess]
 public class ProductionOrdersController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;

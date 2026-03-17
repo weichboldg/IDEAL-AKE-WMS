@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
 
 namespace IdealAkeWms.Controllers;
 
 [Route("api/productionorders")]
 [ApiController]
+[RequirePickingAccess]
 public class ProductionOrdersApiController : ControllerBase
 {
     private static readonly HashSet<string> AllowedToggleFields = ["HasGlass", "HasExternalPurchase"];
