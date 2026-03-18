@@ -43,21 +43,25 @@
     <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                <th style="width: 40px;"></th>
+                @if (Model.CanPick)
+                {
+                    <th style="width: 40px;"></th>
+                }
                 <th data-filterable data-col="1">WA Nummer</th>
-                <th class="text-end" data-filterable data-col="2">Stückzahl</th>
+                <th class="text-end" data-filterable data-col="2">Stk.</th>
                 <th data-filterable data-col="3">Kunde</th>
                 <th data-filterable data-col="4">Artikelnummer</th>
                 <th data-filterable data-col="5">Bezeichnung 1</th>
                 <th data-filterable data-col="6">Bezeichnung 2</th>
-                <th data-filterable data-col="7" title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschichtung</th>
-                <th data-filterable data-col="8" title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">Baugruppentermin</th>
-                <th data-filterable data-col="9" title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Kommissionierung</th>
-                <th data-filterable data-col="10">Fertigungstermin</th>
-                <th data-filterable data-col="11">Liefertermin</th>
-                <th data-filterable data-col="12">Glas</th>
-                <th data-filterable data-col="13">Zukauf</th>
-                <th data-filterable data-col="14">Status</th>
+                <th data-filterable data-col="7">Werkbank</th>
+                <th class="text-nowrap" data-filterable data-col="8" title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
+                <th class="text-nowrap" data-filterable data-col="9" title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
+                <th class="text-nowrap" data-filterable data-col="10" title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
+                <th class="text-nowrap" data-filterable data-col="11">Fert.-Termin</th>
+                <th class="text-nowrap" data-filterable data-col="12">Liefertermin</th>
+                <th style="width: 45px;" data-filterable data-col="13">Glas</th>
+                <th style="width: 55px;" data-filterable data-col="14">Zukauf</th>
+                <th data-filterable data-col="15">Status</th>
                 <th style="width: 80px;"></th>
             </tr>
         </thead>
@@ -65,16 +69,19 @@
             @foreach (var item in Model.Items)
             {
                 <tr class="@(item.IsDone ? "table-secondary" : "")">
-                    <td class="text-nowrap">
-                        @if (!string.IsNullOrEmpty(item.ArticleNumber))
-                        {
-                            <a asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
-                                </svg>
-                            </a>
-                        }
-                    </td>
+                    @if (Model.CanPick)
+                    {
+                        <td class="text-nowrap">
+                            @if (!string.IsNullOrEmpty(item.ArticleNumber))
+                            {
+                                <a asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
+                                    </svg>
+                                </a>
+                            }
+                        </td>
+                    }
                     <td><strong>@item.OrderNumber</strong></td>
                     <td class="text-end">@item.Quantity.ToString("N3")</td>
                     <td>@item.Customer</td>
@@ -92,6 +99,7 @@
                     </td>
                     <td>@item.Description1</td>
                     <td>@item.Description2</td>
+                    <td>@item.WorkplaceName</td>
                     <td class="@(!item.IsDone && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today ? "text-danger fw-bold" : "")">
                         @item.BeschichtungTermin?.ToString("dd.MM.yyyy")
                     </td>
@@ -104,10 +112,12 @@
                     <td>@item.ProductionDate?.ToString("dd.MM.yyyy")</td>
                     <td>@item.DeliveryDate?.ToString("dd.MM.yyyy")</td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasGlass" @(item.HasGlass ? "checked" : "") />
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasGlass"
+                               @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasExternalPurchase" @(item.HasExternalPurchase ? "checked" : "") />
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasExternalPurchase"
+                               @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td>
                         @if (item.IsDone)
@@ -138,34 +148,37 @@
                                 <path d="M8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
                             </svg>
                         </a>
-                        <form asp-action="ToggleDone" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@item.Id" />
-                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                            <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
-                                    title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
-                                @if (item.IsDone)
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                    </svg>
-                                }
-                                else
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
-                                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                    </svg>
-                                }
-                            </button>
-                        </form>
+                        @if (Model.CanPick)
+                        {
+                            <form asp-action="ToggleDone" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
+                                        title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
+                                    @if (item.IsDone)
+                                    {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+                                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                        </svg>
+                                    }
+                                </button>
+                            </form>
+                        }
                     </td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="16" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
+                    <td colspan="@(Model.CanPick ? 17 : 16)" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
                 </tr>
             }
         </tbody>
@@ -180,8 +193,8 @@
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Default-Sortierung: Kommissionierung (col 9) aufsteigend
-            if (typeof triggerSort === 'function') triggerSort(9, 'asc');
+            // Default-Sortierung: Kommissionierung (col 10) aufsteigend
+            if (typeof triggerSort === 'function') triggerSort(10, 'asc');
 
             // Glas/Zukauf Checkbox-Toggle per AJAX
             document.querySelectorAll('.toggle-field').forEach(function (cb) {

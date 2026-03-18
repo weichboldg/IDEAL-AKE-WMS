@@ -32,6 +32,12 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 
 ## Änderungen (18.03.2026)
 
+### WA-Liste Kompaktierung & Berechtigungen
+- **Kompakte Spaltenheader**: Datums-Spalten verkürzt (Beschicht., BG-Termin, Komm., Fert.-Termin), Glas/Zukauf Spalten schmaler
+- **Tracking-User Zugriff**: `ProductionOrdersController.Index` erlaubt jetzt auch Tracking-User (neuer Filter `[RequirePickingOrTrackingAccess]`)
+- **Read-Only für Tracking-User**: Stückliste-Button, Erledigt-Toggle und Glas/Zukauf-Checkboxen nur für Picking-User sichtbar/aktiv
+- **Navbar**: Werkstattaufträge-Link erscheint auch für Tracking-User (ohne Picking-Berechtigung)
+
 ### OSEON Teileverfolgung - Verbesserungen
 - **Baumstruktur**: Komplett umgebaut — echte Tree-View mit Ordner-Icons, Dokument-Icons, Uhr-Icons pro Ebene, Einrückung und Chevrons (wie Stückliste)
 - **Server-seitige Paginierung**: 25 Gruppen pro Seite, `GetPagedAsync()` im Repository
@@ -267,9 +273,11 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - **Betroffene Dateien**: `ICurrentUserService.cs`, `CurrentUserService.cs`, `IWorkOperationRepository.cs`, `WorkOperationRepository.cs`, `Views/Shared/_Layout.cshtml`
 - **Tests**: 6 neue Tests (WorkOperationRepositoryExtendedTests)
 
-### Geplant: Teileverfolgung — Phase 3 (Import + Oseon)
-- **Oseon-Aufträge**: Eigene Tabelle benötigt (Struktur/Felder noch zu klären)
-- **Import Arbeitsgänge aus Sage**: Noch zu definieren (Quelle, Mapping, Sync-Intervall)
+### Erledigt: Teileverfolgung — Phase 3 (OSEON Import + Anzeige)
+- **Oseon-Aufträge**: `OseonProductionOrder` + `OseonWorkOperation` Entities, Sync via `OseonSyncService` (IDEALAKEWMSService)
+- **3-Ebenen Baumansicht**: Tree-View mit Ordner/Dokument/Uhr-Icons, Pagination (25/Seite), Ampelsystem
+- **WA-Link**: OSEON-Teileverfolgung-Button in Werkstattaufträge-Liste
+- **Details**: Siehe Änderungen 17.03 + 18.03.2026
 
 ### Zukünftige Funktionen (geplant, noch nicht implementiert)
 - Meldebestand-Mail: Aufsplitten nach Artikelgruppe oder Lagerhalle
@@ -328,22 +336,31 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `SQL/26_AddArticleGroup.sql` - Artikelgruppe zu Articles hinzufügen
 - `SQL/27_AddWorkOperationsPhase1.sql` - Arbeitsgänge Phase 1 (User-Flags, ProductionWorkplaceUsers, WorkOperations, AppSettings)
 - `SQL/28_AddQrMitFaNummer.sql` - AppSetting QrMitFaNummer
+- `SQL/29_AddOseonTracking.sql` - OSEON Teileverfolgung Tabellen + AppSettings
+- `SQL/30_OseonPerformanceIndexes.sql` - Performance-Indizes für OSEON-Tabellen
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI
 - `Controllers/ProductionOrdersController.cs` - Hauptlogik WA + Kommissionierung
 - `Controllers/StockMovementsController.cs` - Lagerbewegungen + Lagerplatz-Umbuchung
+- `Controllers/TrackingController.cs` - Teileverfolgung (Rückmeldungen + OSEON)
 - `Controllers/ProductionWorkplacesController.cs` - Werkbank CRUD
 - `Data/Repositories/PickingRepository.cs` - Picking-Datenzugriff
 - `Data/Repositories/BomRepository.cs` - BOM-Abfrage: SAGE-View → Fallback OSEON-SP
 - `Data/Repositories/StockMovementRepository.cs` - Bestandsberechnung
 - `Data/Repositories/ProductionWorkplaceRepository.cs` - Werkbank CRUD
+- `Data/Repositories/OseonProductionOrderRepository.cs` - OSEON-Aufträge mit GetPagedAsync()
+- `Filters/RequirePickingOrTrackingAccessAttribute.cs` - Kombinierte Picking/Tracking-Berechtigung
 - `Services/PrintService.cs` - Server-seitiger Druck
+- `Services/OseonTrafficLightService.cs` - OSEON Ampelberechnung
+- `IDEALAKEWMSService/Services/OseonSyncService.cs` - OSEON-Daten-Sync
+- `Views/ProductionOrders/Index.cshtml` - WA-Liste (Stückliste, OSEON-Link, Erledigt)
 - `Views/ProductionOrders/Bom.cshtml` - Stücklisten-View mit Picking + Baum + kombiniertem Filter
 - `Views/ProductionOrders/PrintBom.cshtml` - Druck-View: vollständige Stückliste (mit Filterübertragung)
 - `Views/ProductionOrders/PrintPicking.cshtml` - Druck-View: nur gepickte Artikel
+- `Views/Tracking/OseonIndex.cshtml` - OSEON 3-Ebenen Tree-View mit Pagination
 - `Views/StockMovements/LocationTransfer.cshtml` - Lagerplatz-Umbuchung View
 - `Views/ProductionWorkplaces/` - Werkbank CRUD Views
 - `wwwroot/js/table-filter.js` - Spaltenfilter mit Multi-Wert/Ausschluss-Logik
-- `wwwroot/css/site.css` - Corporate Design Styles
-- `SQL/` - 28 DB-Init-/Migrationsskripte
+- `wwwroot/css/site.css` - Corporate Design Styles + OSEON Tree-Styles
+- `SQL/` - 30 DB-Init-/Migrationsskripte

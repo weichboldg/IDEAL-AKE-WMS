@@ -10,6 +10,7 @@ public class ProductionOrderViewModel
     public int KommissionierTage { get; set; }
     public int VorkommissionierTage { get; set; }
     public int BeschichtungTage { get; set; }
+    public bool CanPick { get; set; }
 }
 
 public class ProductionOrderViewItem
@@ -33,4 +34,5 @@ public class ProductionOrderViewItem
 
     public bool HasGlass { get; set; }
     public bool HasExternalPurchase { get; set; }
+    public string? WorkplaceName { get; set; }
 }

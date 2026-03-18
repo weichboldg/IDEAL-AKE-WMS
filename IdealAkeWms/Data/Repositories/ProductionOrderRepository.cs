@@ -11,7 +11,10 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
     public async Task<List<ProductionOrder>> GetAllOrderedAsync()
     {
-        return await _dbSet.OrderBy(o => o.OrderNumber).ToListAsync();
+        return await _dbSet
+            .Include(o => o.ProductionWorkplace)
+            .OrderBy(o => o.OrderNumber)
+            .ToListAsync();
     }
 
     public async Task<List<ProductionOrder>> GetOpenOrdersAsync()

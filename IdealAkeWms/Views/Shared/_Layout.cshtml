@@ -55,7 +55,16 @@
                         @{
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                         }
-                        @if (teileverfolgungAktiv && await CurrentUserService.CanViewTrackingAsync())
+                        @{
+                            var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
+                        }
+                        @if (!await CurrentUserService.CanPickAsync() && canViewTracking)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
+                            </li>
+                        }
+                        @if (teileverfolgungAktiv && canViewTracking)
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">

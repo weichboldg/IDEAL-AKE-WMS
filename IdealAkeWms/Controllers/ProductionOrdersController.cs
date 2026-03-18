@@ -8,7 +8,6 @@ using IdealAkeWms.Filters;
 
 namespace IdealAkeWms.Controllers;
 
-[RequirePickingAccess]
 public class ProductionOrdersController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
@@ -55,11 +54,13 @@ public class ProductionOrdersController : Controller
         _env = env;
     }
 
+    [RequirePickingAccess]
     public IActionResult Picking()
     {
         return View();
     }
 
+    [RequirePickingOrTrackingAccess]
     public async Task<IActionResult> Index(
         string? filterOrderNumber,
         string? filterArticleNumber,
@@ -111,7 +112,8 @@ public class ProductionOrdersController : Controller
                 IsDone = o.IsDone,
                 PickingStatus = o.PickingStatus,
                 HasGlass = o.HasGlass,
-                HasExternalPurchase = o.HasExternalPurchase
+                HasExternalPurchase = o.HasExternalPurchase,
+                WorkplaceName = o.ProductionWorkplace?.Name
             };
 
             if (o.ProductionDate.HasValue)
@@ -138,7 +140,8 @@ public class ProductionOrdersController : Controller
             ShowDone = showDone,
             KommissionierTage = kommissionierTage,
             VorkommissionierTage = vorkommissionierTage,
-            BeschichtungTage = beschichtungTage
+            BeschichtungTage = beschichtungTage,
+            CanPick = await _currentUserService.CanPickAsync()
         };
 
         return View(vm);
@@ -146,6 +149,7 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
     public async Task<IActionResult> ToggleDone(int id, string? returnUrl)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
@@ -165,6 +169,7 @@ public class ProductionOrdersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequirePickingAccess]
     public async Task<IActionResult> Bom(int id, string? filterText)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
@@ -297,6 +302,7 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
     public async Task<IActionResult> TogglePicked(int pickingItemId, int? storageLocationId, bool isBaugruppe = false)
     {
         await _pickingRepository.TogglePickedAsync(
@@ -311,6 +317,7 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
     public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId, bool forceTransfer = false)
     {
         try
@@ -345,6 +352,7 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
     public async Task<IActionResult> SetPickingStatus(int productionOrderId, string status)
     {
         var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
@@ -366,6 +374,7 @@ public class ProductionOrdersController : Controller
         return Ok();
     }
 
+    [RequirePickingAccess]
     public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
@@ -439,6 +448,7 @@ public class ProductionOrdersController : Controller
         return View(vm);
     }
 
+    [RequirePickingAccess]
     public async Task<IActionResult> PrintPicking(int id)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
@@ -477,6 +487,7 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
     public async Task<IActionResult> UploadPhoto(int productionOrderId, IFormFile photo)
     {
         var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
@@ -509,6 +520,7 @@ public class ProductionOrdersController : Controller
     }
 
     [HttpGet]
+    [RequirePickingAccess]
     public async Task<IActionResult> GetPhotos(int productionOrderId)
     {
         var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
@@ -536,6 +548,7 @@ public class ProductionOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
     public IActionResult DeletePhoto(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))

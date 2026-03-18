@@ -103,8 +103,11 @@
   - Angewendet auf: `TrackingController`
 - **`[RequirePickingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanPickAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
-  - Angewendet auf: `StockMovementsController`, `StockOverviewController`, `ProductionOrdersController`, `ProductionOrdersApiController`
-  - Menüpunkte Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung sind nur sichtbar wenn `CanPickAsync() == true`
+  - Angewendet auf: `StockMovementsController`, `StockOverviewController`, `ProductionOrdersApiController`, einzelne Actions in `ProductionOrdersController` (alle außer `Index`)
+  - Menüpunkte Lagerbewegungen, Bestände, Kommissionierung sind nur sichtbar wenn `CanPickAsync() == true`
+- **`[RequirePickingOrTrackingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `CanPickAsync() || CanViewTrackingAsync()`
+  - Angewendet auf: `ProductionOrdersController.Index` — Tracking-User sehen WA-Liste (read-only, ohne Stückliste/Erledigt), können OSEON Teileverfolgung öffnen
+  - Navbar: Werkstattaufträge-Link erscheint auch für Tracking-User (wenn kein Picking-Zugriff)
 
 ## ICurrentUserService
 
@@ -168,6 +171,8 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Dictionary-Binding + Checkbox**: `Dictionary<string, string>` nimmt bei doppelten Keys den ersten Wert → Hidden+Checkbox mit gleichem `name` funktioniert NICHT. Lösung: Checkbox ohne `name`, stattdessen JS aktualisiert den Wert des Hidden-Inputs
 - **QR-Code Komma-Suffix**: FA-Nummer im QR kann Komma-Suffix haben (z.B. `2610063,09`) → immer `.split(',')[0]` verwenden
 - **Scanner-Endlosschleife**: `confirm()` nach fehlgeschlagenem Scan → Scanner öffnet sofort → Kamera liest denselben QR → Endlosschleife. Lösung: Bootstrap-Modal statt `confirm()` verwenden
+- **EF PendingModelChangesWarning**: Bei neuen Indizes/Model-Änderungen im `ApplicationDbContext.OnModelCreating` immer `dotnet ef migrations add` ausführen, sonst crasht `db.Database.Migrate()` mit `PendingModelChangesWarning`
+- **OSEON pa.ID ist bigint**: `ProduktionsAuftrag.ID` in OSEON ist `Int64` (bigint) — `OseonRawRow.OseonId` muss `long` sein, nicht `int`. `reader.GetInt64(0)` verwenden
 
 ## Standard-Daten (Neuinstallation)
 
@@ -256,6 +261,7 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `Controllers/StockMovementsController.cs` — Ein/Aus/Umbuchung + OutboundAll
 - `Controllers/Api/ArticlesApiController.cs` — Select2-Suche für Artikel
 - `Filters/RequireMasterDataAccessAttribute.cs` — Zugriffskontrolle für Stammdaten
+- `Filters/RequirePickingOrTrackingAccessAttribute.cs` — Kombinierte Zugriffskontrolle (Picking ODER Tracking)
 - `Services/PickingTransferService.cs` — Umbuchen gepickter Artikel (Transaktion)
 - `Services/PasswordService.cs` — PBKDF2-HMAC-SHA256, 100k Iterationen
 - `Services/PrintService.cs` — Drucken via `rundll32.exe mshtml.dll,PrintHTML`
@@ -269,10 +275,14 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `wwwroot/images/ideal-ake-logo.svg` — Logo (eingebettetes PNG, weißer Hintergrund)
 - `SQL/00_FreshInstall.sql` — Konsolidiertes Neuinstallations-Script
 - `SQL/AgentJobs/` — SQL Server Agent Job Scripts (Sage-Import)
-- `Controllers/TrackingController.cs` — Teileverfolgung (Rückmeldungen + OSEON Aufträge)
+- `Controllers/TrackingController.cs` — Teileverfolgung (Rückmeldungen + OSEON Aufträge mit Pagination)
 - `Services/OseonTrafficLightService.cs` — Ampelberechnung für OSEON-Aufträge
 - `Helpers/OseonStatusHelper.cs` — OSEON Status-Code → Text/Badge-Mapping
-- `IDEALAKEWMSService/Services/OseonSyncService.cs` — OSEON-Daten-Sync
+- `Data/Repositories/OseonProductionOrderRepository.cs` — Repository mit `GetPagedAsync()` für server-seitige Paginierung
+- `Models/ViewModels/OseonTrackingViewModel.cs` — ViewModels für 3-Ebenen Tree-View + Pagination
+- `Views/Tracking/OseonIndex.cshtml` — OSEON Tree-View (Ordner/Dokument/Uhr-Icons, Chevrons, Alle auf-/zuklappen)
+- `Views/ProductionOrders/Index.cshtml` — WA-Liste (Stückliste-Button vorne, OSEON+Erledigt-Buttons hinten)
+- `IDEALAKEWMSService/Services/OseonSyncService.cs` — OSEON-Daten-Sync (filtert alte fertige Aufträge aus)
 
 ## Logging (Serilog)
 
