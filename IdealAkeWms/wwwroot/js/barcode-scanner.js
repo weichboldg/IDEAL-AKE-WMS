@@ -240,26 +240,28 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
 
     if (scanType === 'article') {
         // QR-Code: Erster Teil vor ; ist die Artikelnummer
-        // Altes Format: Artikelnummer;Feld2;Feld3 (3 Teile)
-        // Neues Format: Artikelnummer;Feld2;FA-Nummer;Feld4 (4+ Teile)
+        // Format: Artikelnummer;Feld2;FA-Nummer;...
         var parts = value.split(';');
         searchValue = parts[0].trim();
 
-        // FA-Nummer aus QR extrahieren (Index 2) wenn Setting aktiv und >= 4 Teile
-        if (qrFaEnabled && parts.length >= 4 && parts[2].trim()) {
-            faNumber = parts[2].trim();
+        // FA-Nummer aus QR extrahieren (Index 2) wenn Setting aktiv und >= 3 Teile
+        // Komma-Suffix abschneiden (z.B. "2610063,09" → "2610063")
+        if (qrFaEnabled && parts.length >= 3 && parts[2].trim()) {
+            faNumber = parts[2].trim().split(',')[0];
         }
     }
 
     var select = document.getElementById(targetSelectId);
     if (!select) return;
 
-    // Plain text input: Wert direkt setzen und Change-Event auslösen
-    if (select.tagName === 'INPUT' && select.type !== 'hidden') {
+    // Input-Elemente (text, hidden etc.): Wert direkt setzen und Change-Event auslösen
+    if (select.tagName === 'INPUT') {
         select.value = searchValue;
         select.dispatchEvent(new Event('change'));
-        showScanFeedback(select, true, searchValue);
-        fillFaNumber(faNumber, faTargetId);
+        if (select.type !== 'hidden') {
+            showScanFeedback(select, true, searchValue);
+        }
+        clearAndFillFaNumber(faNumber, faTargetId);
         return;
     }
 
@@ -276,7 +278,7 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
                 var option = new Option(data.text, data.id, true, true);
                 $(select).append(option).trigger('change');
                 showScanFeedback(feedbackTarget, true, searchValue);
-                fillFaNumber(faNumber, faTargetId);
+                clearAndFillFaNumber(faNumber, faTargetId);
             },
             error: function () {
                 showScanFeedback(feedbackTarget, false, searchValue);
@@ -325,13 +327,13 @@ function showScanFeedback(element, success, value) {
     }, 5000);
 }
 
-function fillFaNumber(faNumber, faTargetId) {
-    if (!faNumber || !faTargetId) return;
+function clearAndFillFaNumber(faNumber, faTargetId) {
+    if (!faTargetId) return;
     var faInput = document.getElementById(faTargetId);
-    if (faInput) {
-        faInput.value = faNumber;
-        faInput.dispatchEvent(new Event('change'));
-    }
+    if (!faInput) return;
+    // Immer zuerst leeren, dann nur befüllen wenn FA vorhanden
+    faInput.value = faNumber || '';
+    faInput.dispatchEvent(new Event('change'));
 }
 
 function escapeHtml(text) {

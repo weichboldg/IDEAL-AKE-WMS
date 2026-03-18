@@ -47,6 +47,7 @@ builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
+builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
@@ -59,6 +60,7 @@ builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
 builder.Services.AddScoped<IPrintService, PrintService>();
 builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
+builder.Services.AddScoped<IOseonTrafficLightService, OseonTrafficLightService>();
 
 // MVC
 builder.Services.AddControllersWithViews();

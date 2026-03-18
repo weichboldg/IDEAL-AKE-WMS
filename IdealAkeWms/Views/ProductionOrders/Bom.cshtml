@@ -281,6 +281,26 @@
         </div>
     </div>
 
+    <!-- Modal: Artikel nicht in Kommissionierliste -->
+    <div class="modal fade" id="bomScanNotFoundModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--ake-orange); color: white;">
+                    <h5 class="modal-title">Artikel nicht gefunden</h5>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <p class="mb-2"><strong id="bomScanNotFoundArticle"></strong></p>
+                    <p class="mb-4">Artikel nicht in der Kommissionierliste.</p>
+                    <p>Nächsten Artikel scannen?</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" id="btnBomScanNotFoundClose" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="btnBomScanNotFoundRetry">Nächsten Artikel scannen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Status-Modal nach Umbuchung -->
     <div class="modal fade" id="statusModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -344,12 +364,10 @@
                 });
 
                 if (!matched) {
-                    // Feedback: Artikel nicht gefunden oder bereits kommissioniert
-                    var alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-2';
-                    alertDiv.innerHTML = '<strong>' + scannedValue + '</strong> — nicht in der Stückliste gefunden oder bereits kommissioniert. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-                    document.querySelector('.filter-card').after(alertDiv);
-                    setTimeout(function () { alertDiv.remove(); }, 5000);
+                    // Artikel nicht in der Kommissionierliste — Modal mit Option zum erneuten Scannen
+                    document.getElementById('bomScanNotFoundArticle').textContent = scannedValue;
+                    var notFoundModal = new bootstrap.Modal(document.getElementById('bomScanNotFoundModal'));
+                    notFoundModal.show();
                 }
 
                 // Input zurücksetzen für nächsten Scan
@@ -640,6 +658,18 @@
                         }
                     });
                 });
+            });
+
+            // ========== Artikel nicht gefunden: Nächsten scannen ==========
+
+            document.getElementById('btnBomScanNotFoundRetry').addEventListener('click', function () {
+                var modalEl = document.getElementById('bomScanNotFoundModal');
+                // Scanner erst öffnen wenn Modal vollständig geschlossen ist
+                modalEl.addEventListener('hidden.bs.modal', function onHidden() {
+                    modalEl.removeEventListener('hidden.bs.modal', onHidden);
+                    document.getElementById('btnScanBomArticle').click();
+                });
+                bootstrap.Modal.getInstance(modalEl).hide();
             });
 
             // ========== Foto-Upload ==========

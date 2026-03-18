@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Helpers;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
@@ -12,15 +13,21 @@ public class TrackingController : Controller
     private readonly IWorkOperationRepository _workOperationRepository;
     private readonly IProductionWorkplaceRepository _workplaceRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IOseonProductionOrderRepository _oseonRepository;
+    private readonly IOseonTrafficLightService _trafficLightService;
 
     public TrackingController(
         IWorkOperationRepository workOperationRepository,
         IProductionWorkplaceRepository workplaceRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IOseonProductionOrderRepository oseonRepository,
+        IOseonTrafficLightService trafficLightService)
     {
         _workOperationRepository = workOperationRepository;
         _workplaceRepository = workplaceRepository;
         _currentUserService = currentUserService;
+        _oseonRepository = oseonRepository;
+        _trafficLightService = trafficLightService;
     }
 
     public async Task<IActionResult> Index(string? filterOrderNumber, int? filterWorkplaceId, bool showReported = false)
@@ -163,6 +170,115 @@ public class TrackingController : Controller
             return Redirect(returnUrl);
 
         return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> OseonIndex(string? filterCustomerOrder, string? filterWorkplace, bool showFinished = false, int page = 1)
+    {
+        const int pageSize = 25;
+        if (page < 1) page = 1;
+
+        // Server-seitig gefiltert + paginiert laden
+        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, pageSize);
+
+        // Ampelfarben berechnen
+        var colorMap = new Dictionary<int, TrafficLightColor>();
+        foreach (var order in pagedResult.Items)
+        {
+            colorMap[order.Id] = await _trafficLightService.GetColorAsync(order.OseonStatus, order.DueDate);
+        }
+
+        // Nach CustomerOrderNumber gruppieren (Ebene 0)
+        var groups = pagedResult.Items
+            .GroupBy(o => o.CustomerOrderNumber ?? o.OseonOrderNumber)
+            .Select(g =>
+            {
+                var subOrders = g.OrderBy(o => o.OseonOrderNumber).Select(o => new OseonSubOrderViewModel
+                {
+                    Id = o.Id,
+                    OseonOrderNumber = o.OseonOrderNumber,
+                    ArticleNumber = o.ArticleNumber,
+                    Description1 = o.Description1,
+                    Description2 = o.Description2,
+                    WorkplaceName = o.WorkplaceName,
+                    OseonStatus = o.OseonStatus,
+                    StatusText = OseonStatusHelper.GetStatusText(o.OseonStatus),
+                    StatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(o.OseonStatus),
+                    QuantityTarget = o.QuantityTarget,
+                    QuantityActual = o.QuantityActual,
+                    DueDate = o.DueDate,
+                    Color = colorMap[o.Id],
+                    Operations = o.WorkOperations
+                        .OrderBy(op => op.PositionNumber)
+                        .Select(op => new OseonOperationViewModel
+                        {
+                            PositionNumber = op.PositionNumber,
+                            Name = op.Name,
+                            Description = op.Description,
+                            OseonStatus = op.OseonStatus,
+                            StatusText = OseonStatusHelper.GetStatusText(op.OseonStatus),
+                            StatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(op.OseonStatus),
+                            IsFirstOperation = op.IsFirstOperation,
+                            IsLastOperation = op.IsLastOperation
+                        }).ToList()
+                }).ToList();
+
+                // Worst color: Red > Yellow > Blue > Gray > Green
+                var worstColor = subOrders.Any()
+                    ? subOrders.Max(s => s.Color)
+                    : TrafficLightColor.Gray;
+
+                // Aggregierter Status: der "schlechteste" (= aktivste/dringendste) Status der Gruppe
+                var worstStatus = subOrders.Any()
+                    ? GetWorstStatus(subOrders.Select(s => s.OseonStatus))
+                    : 0;
+
+                return new OseonOrderGroupViewModel
+                {
+                    CustomerOrderNumber = g.Key,
+                    WorstColor = worstColor,
+                    TotalSubOrders = subOrders.Count,
+                    FinishedSubOrders = subOrders.Count(s => s.OseonStatus is 90 or 95),
+                    GroupStatusText = OseonStatusHelper.GetStatusText(worstStatus),
+                    GroupStatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(worstStatus),
+                    SubOrders = subOrders
+                };
+            })
+            .OrderByDescending(g => g.WorstColor)
+            .ThenBy(g => g.CustomerOrderNumber)
+            .ToList();
+
+        // Eindeutige Werkbanknamen für Filter-Dropdown
+        var workplaces = await _workplaceRepository.GetAllOrderedAsync();
+
+        var vm = new OseonTrackingViewModel
+        {
+            OrderGroups = groups,
+            FilterCustomerOrder = filterCustomerOrder,
+            FilterWorkplace = filterWorkplace,
+            ShowFinished = showFinished,
+            AvailableWorkplaces = workplaces,
+            CurrentPage = pagedResult.Page,
+            TotalPages = pagedResult.TotalPages,
+            TotalGroupCount = pagedResult.TotalGroupCount
+        };
+
+        return View(vm);
+    }
+
+    /// <summary>
+    /// Bestimmt den "schlechtesten" (= aktivsten) Status einer Gruppe.
+    /// Priorität: Gesperrt (70) > In Arbeit (60) > Freigegeben (30) > Gültig (20) > Unvollständig (10) > Fertig (90) > Storniert (95)
+    /// </summary>
+    private static int GetWorstStatus(IEnumerable<int> statuses)
+    {
+        var statusList = statuses.ToList();
+        int[] priority = [70, 60, 30, 20, 10, 90, 95];
+        foreach (var p in priority)
+        {
+            if (statusList.Contains(p))
+                return p;
+        }
+        return statusList.FirstOrDefault();
     }
 
     private static TrackingOperationItem MapToItem(Models.WorkOperation wo)

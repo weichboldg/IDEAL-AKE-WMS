@@ -165,6 +165,9 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur `Key` (PK), `Value`, `Description`. Kein `CreatedAt`!
 - **PickingItem.RowVersion**: `[Timestamp]` für Optimistic Concurrency — EF InMemory unterstützt das nicht → `TestApplicationDbContext`
 - **Drucker-Pfad-Format**: UNC-Pfad `\\DRUCKSERVER\Druckername` (Workstation.DefaultPrinter)
+- **Dictionary-Binding + Checkbox**: `Dictionary<string, string>` nimmt bei doppelten Keys den ersten Wert → Hidden+Checkbox mit gleichem `name` funktioniert NICHT. Lösung: Checkbox ohne `name`, stattdessen JS aktualisiert den Wert des Hidden-Inputs
+- **QR-Code Komma-Suffix**: FA-Nummer im QR kann Komma-Suffix haben (z.B. `2610063,09`) → immer `.split(',')[0]` verwenden
+- **Scanner-Endlosschleife**: `confirm()` nach fehlgeschlagenem Scan → Scanner öffnet sofort → Kamera liest denselben QR → Endlosschleife. Lösung: Bootstrap-Modal statt `confirm()` verwenden
 
 ## Standard-Daten (Neuinstallation)
 
@@ -204,14 +207,37 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `OseonRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Oseon zurückgeschrieben werden |
 | `SageRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Sage zurückgeschrieben werden |
 | `QrMitFaNummer` | `false` | QR-Code enthält Fertigungsauftragsnummer an 3. Stelle |
+| `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
+| `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
+
+## OSEON Teileverfolgung
+
+- **Entities**: `OseonProductionOrder` + `OseonWorkOperation` (AuditableEntity)
+- **Datenquelle**: OSEON DB (`aketrumpf01.ake.at\TRUMPFSQL2`, `T1000_V01_V001`)
+- **Sync**: `OseonSyncService` im IDEALAKEWMSService, gesteuert per `Sync:OseonTrackingEnabled` in appsettings.json
+- **Baumstruktur**: 3 Ebenen — KundenAuftragsNr → OseonOrderNumber (Subaufträge) → Arbeitsgänge
+- **Ampelsystem**: Rot (überfällig), Gelb (fällig ≤ GelbTage), Blau (fällig ≤ BlauTage), Grün (Status 90/95), Grau (kein Termin/noch nicht relevant)
+- **OSEON Status-Codes**: 10=Unvollständig, 20=Gültig, 30=Freigegeben, 60=In Arbeit, 70=Gesperrt, 90=Fertig, 95=Storniert
+- **Werkbank Auto-Anlage**: Sync erstellt fehlende `ProductionWorkplaces` automatisch aus OSEON-Feld `Kunde.KundenNr`
+- **View**: `Tracking/OseonIndex` — 3-Ebenen Baumstruktur (Ordner-Icons, Chevrons, Einrückung) mit Ampel-Punkten
+- **Pagination**: Server-seitig, 25 Gruppen pro Seite. Repository-Methode `GetPagedAsync()` paginiert nach CustomerOrderNumber-Gruppen
+- **Filter**: Suche durchsucht sowohl `CustomerOrderNumber` als auch `OseonOrderNumber`
+- **Gruppen-Logik**: Bei `showFinished=false` werden nur Gruppen mit mind. einem offenen Auftrag angezeigt, aber ALLE Sub-Aufträge der Gruppe (inkl. fertige) geladen
+- **WA-Link**: ProductionOrders/Index hat OSEON-Teileverfolgung-Button der WA-Nummer als Filter übergibt
+- **Navbar**: Teileverfolgung → Dropdown mit "Rückmeldungen" und "OSEON Aufträge"
+- **SQL**: `SQL/29_AddOseonTracking.sql`, `SQL/30_OseonPerformanceIndexes.sql`
+- **Sync-Filter**: OSEON-Query schließt alte fertige Aufträge aus (Status 90/95 UND EndTerminSoll < 3 Monate)
+- **OseonId**: `bigint` (Int64) in OSEON, als `long` im Model
 
 ## QR-Code-Format (Artikel)
 
-- **Altes Format**: `Artikelnummer;Feld2;Feld3` (3 Teile) — nur Artikelnummer wird extrahiert
-- **Neues Format**: `Artikelnummer;Feld2;FA-Nummer;Feld4` (4+ Teile) — Artikelnummer + FA-Nummer
-- **Setting `QrMitFaNummer`**: Wenn `true`, wird `parts[2]` als FA-Nummer in das `ProductionOrder`-Feld eingetragen
-- **Beide Formate** werden akzeptiert: < 4 Teile → keine FA-Nummer, >= 4 Teile → FA-Nummer aus Index 2
+- **Format**: `Artikelnummer;Feld2;FA-Nummer[,Suffix]` — Semikolon-getrennt, 3 Teile
+- **Beispiel**: `87050064;1519503-06;2610063,09` → Artikel: `87050064`, FA: `2610063`
+- **Komma-Suffix**: `parts[2]` kann Komma-Suffix haben (z.B. `,09` für anderes System) → wird per `.split(',')[0]` abgeschnitten
+- **Setting `QrMitFaNummer`**: Wenn `true`, wird FA-Nummer in das `ProductionOrder`-Feld eingetragen
+- **FA-Feld-Leerung**: Bei jedem QR-Scan wird das FA-Feld zuerst geleert, dann nur befüllt wenn FA vorhanden — verhindert alte FA-Nummer bei neuem Scan
 - **Steuerung per View**: `data-qr-fa-enabled` und `data-fa-target` Attribute am Scan-Button
+- **BOM-Scan (Kommissionierliste)**: Wenn gescannter Artikel nicht in Stückliste → Bootstrap-Modal (kein `confirm()`) mit Option "Nächsten Artikel scannen" oder "Abbrechen"
 
 ## Migrations-Workflow
 
@@ -243,6 +269,10 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `wwwroot/images/ideal-ake-logo.svg` — Logo (eingebettetes PNG, weißer Hintergrund)
 - `SQL/00_FreshInstall.sql` — Konsolidiertes Neuinstallations-Script
 - `SQL/AgentJobs/` — SQL Server Agent Job Scripts (Sage-Import)
+- `Controllers/TrackingController.cs` — Teileverfolgung (Rückmeldungen + OSEON Aufträge)
+- `Services/OseonTrafficLightService.cs` — Ampelberechnung für OSEON-Aufträge
+- `Helpers/OseonStatusHelper.cs` — OSEON Status-Code → Text/Badge-Mapping
+- `IDEALAKEWMSService/Services/OseonSyncService.cs` — OSEON-Daten-Sync
 
 ## Logging (Serilog)
 

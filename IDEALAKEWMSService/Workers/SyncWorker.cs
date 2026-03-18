@@ -53,6 +53,18 @@ public class SyncWorker : BackgroundService
                         articleResult.Inserted, articleResult.Errors,
                         articleResult.ErrorDetails != null ? $" Details: {articleResult.ErrorDetails}" : "");
                 }
+
+                // OSEON Tracking sync
+                if (_configuration.GetValue<bool>("Sync:OseonTrackingEnabled", false))
+                {
+                    _logger.LogInformation("OSEON-Tracking-Sync startet...");
+                    var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
+                    var oseonResult = await oseonSync.SyncOseonProductionOrdersAsync(dryRun, stoppingToken);
+                    _logger.LogInformation(
+                        "OSEON-Tracking-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                        oseonResult.Inserted, oseonResult.Updated, oseonResult.Errors,
+                        oseonResult.ErrorDetails != null ? $" Details: {oseonResult.ErrorDetails}" : "");
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {

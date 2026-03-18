@@ -43,7 +43,7 @@
     <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                <th style="width: 70px;"></th>
+                <th style="width: 40px;"></th>
                 <th data-filterable data-col="1">WA Nummer</th>
                 <th class="text-end" data-filterable data-col="2">Stückzahl</th>
                 <th data-filterable data-col="3">Kunde</th>
@@ -58,6 +58,7 @@
                 <th data-filterable data-col="12">Glas</th>
                 <th data-filterable data-col="13">Zukauf</th>
                 <th data-filterable data-col="14">Status</th>
+                <th style="width: 80px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -73,27 +74,6 @@
                                 </svg>
                             </a>
                         }
-                        <form asp-action="ToggleDone" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@item.Id" />
-                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                            <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
-                                    title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
-                                @if (item.IsDone)
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                    </svg>
-                                }
-                                else
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
-                                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                    </svg>
-                                }
-                            </button>
-                        </form>
                     </td>
                     <td><strong>@item.OrderNumber</strong></td>
                     <td class="text-end">@item.Quantity.ToString("N3")</td>
@@ -150,12 +130,42 @@
                             }
                         }
                     </td>
+                    <td class="text-nowrap">
+                        <a asp-controller="Tracking" asp-action="OseonIndex" asp-route-filterCustomerOrder="@item.OrderNumber"
+                           class="btn btn-sm btn-outline-info me-1" title="OSEON Teileverfolgung">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.451.004.09-.41h2.281z"/>
+                                <path d="M8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
+                            </svg>
+                        </a>
+                        <form asp-action="ToggleDone" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                            <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
+                                    title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
+                                @if (item.IsDone)
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                    </svg>
+                                }
+                                else
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+                                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                    </svg>
+                                }
+                            </button>
+                        </form>
+                    </td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="15" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
+                    <td colspan="16" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
                 </tr>
             }
         </tbody>

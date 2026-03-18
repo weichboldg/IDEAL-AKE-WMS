@@ -61,6 +61,9 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 23 | `SQL/23_AddRecursiveFilterSearch.sql` | User-Setting: Rekursive Suche in Stückliste |
 | 24 | `SQL/24_AddUserEmailIsAdminNotify.sql` | User: Email, IsAdmin, NotifyOnReorderLevel |
 | 25 | `SQL/25_AddServiceSettings.sql` | Tabelle ServiceSettings + Standard-Einträge |
+| 26 | `SQL/26_AddUserCanPickCanViewTracking.sql` | User: CanPick, CanViewTracking Berechtigungen |
+| 27 | `SQL/27_AddUserCanReportOperations.sql` | User: CanReportOperations Berechtigung |
+| 28 | `SQL/28_AddQrMitFaNummer.sql` | AppSetting: QR-Code mit FA-Nummer |
 
 ### 2. ConnectionStrings konfigurieren
 
@@ -127,6 +130,14 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - html5-qrcode Integration für Kamera-Scan (HTTPS) und Bild-Upload
 - Unterstützte Formate: QR-Code, Code 128, Code 39, EAN-13, EAN-8, Code 93
 - Lagerplatz-Code max. 12 Zeichen für zuverlässige Barcode-Erkennung
+- **QR mit FA-Nummer**: Per AppSetting `QrMitFaNummer` — extrahiert Fertigungsauftragsnummer aus QR (3. Teil, Komma-Suffix wird abgeschnitten) und füllt das FA-Feld in Ein/Aus/Umbuchung. Bei jedem Scan wird das FA-Feld zuerst geleert.
+- **Kommissionierliste-Scan**: Gescannter Artikel wird in Stückliste gesucht und automatisch als kommissioniert markiert. Nicht gefunden → Modal mit Option "Nächsten Artikel scannen"
+
+### Berechtigungen
+- **`CanPick`**: Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung — nur sichtbar/zugänglich wenn User-Flag gesetzt
+- **`CanViewTracking`**: Teileverfolgung — nur sichtbar wenn Flag gesetzt UND AppSetting `TeileverfolgungAktiv = true`
+- **`HasMasterDataAccess`**: Benutzer, Arbeitsplätze, Werkbänke, Einstellungen
+- Dashboard zeigt nur Kacheln die der User-Berechtigung entsprechen
 
 ### Mein Profil (Self-Service)
 - Jeder angemeldete Benutzer kann unter dem Benutzer-Dropdown → **Mein Profil** sein eigenes Passwort ändern sowie die Standard-BOM-Filter (Beschaffung, Artikelgruppe) einstellen
@@ -139,7 +150,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag, Stammdaten-Zugriff, Standard-BOM-Filter; Standard-Admin: `admin` / leer
 - **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker
 - **Werkbänke**: Produktionsarbeitsplätze mit Bezeichnung, Halle und abweichenden Vorkommissioniertagen
-- **Einstellungen**: Key-Value AppSettings + Feiertagsverwaltung
+- **Einstellungen**: Key-Value AppSettings (Boolean-Werte als Toggle-Switches) + Feiertagsverwaltung
 
 ### Hilfe
 - Integrierte Hilfe-Seite mit Anleitungen zu allen Funktionen (Footer-Link)
@@ -168,6 +179,10 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `CriticalThresholdPercent` | `100` | Meldebestand kritische Schwelle (%) |
 | `NegativeBuchungErlaubt` | `false` | Negative Buchungen erlauben |
 | `NegativeBuchungLagerplatz` | `NAN` | Fallback-Lagerplatz bei negativem Bestand |
+| `StammdatenADGruppe` | `BDE_Stammdaten` | AD-Gruppe für Stammdaten-Zugriff |
+| `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
+| `TeileverfolgungAktiv` | `false` | Teileverfolgungs-Modul aktiviert |
+| `QrMitFaNummer` | `false` | QR-Code enthält FA-Nummer an 3. Stelle |
 
 ## Corporate Design
 
@@ -197,7 +212,7 @@ IdealAkeWms/
 ├── Migrations/           # EF Core Migrations
 └── SQL/
     ├── 00_FreshInstall.sql   # Komplettes Neuinstallations-Script
-    ├── 01-22_*.sql           # Einzel-Migrations für bestehende Installationen
+    ├── 01-28_*.sql           # Einzel-Migrations für bestehende Installationen
     └── AgentJobs/            # SQL Server Agent Job Scripts (Sage-Import)
 
 IdealAkeWms.Tests/

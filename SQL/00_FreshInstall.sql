@@ -332,7 +332,76 @@ END
 GO
 
 -- =============================================
--- 12. AppSettings
+-- 12. OseonProductionOrders
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'OseonProductionOrders')
+BEGIN
+    CREATE TABLE [dbo].[OseonProductionOrders] (
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [OseonId]                 BIGINT NOT NULL DEFAULT 0,
+        [OseonOrderNumber]        NVARCHAR(100) NOT NULL,
+        [CustomerOrderNumber]     NVARCHAR(100) NULL,
+        [OseonStatus]             INT NOT NULL DEFAULT 0,
+        [ArticleNumber]           NVARCHAR(100) NULL,
+        [Description1]            NVARCHAR(500) NULL,
+        [Description2]            NVARCHAR(500) NULL,
+        [WorkplaceName]           NVARCHAR(200) NULL,
+        [ProductionWorkplaceId]   INT NULL,
+        [QuantityTarget]          DECIMAL(18,3) NOT NULL DEFAULT 0,
+        [QuantityActual]          DECIMAL(18,3) NOT NULL DEFAULT 0,
+        [DueDate]                 DATE NULL,
+        [CreatedAt]               DATETIME2 NOT NULL,
+        [CreatedBy]               NVARCHAR(200) NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200) NOT NULL,
+        [ModifiedAt]              DATETIME2 NULL,
+        [ModifiedBy]              NVARCHAR(200) NULL,
+        [ModifiedByWindows]       NVARCHAR(200) NULL,
+        CONSTRAINT [PK_OseonProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_OseonProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
+    );
+    CREATE UNIQUE INDEX [IX_OseonProductionOrders_OseonOrderNumber] ON [dbo].[OseonProductionOrders]([OseonOrderNumber]);
+    CREATE INDEX [IX_OseonProductionOrders_CustomerOrderNumber] ON [dbo].[OseonProductionOrders]([CustomerOrderNumber]);
+    CREATE INDEX [IX_OseonProductionOrders_OseonId] ON [dbo].[OseonProductionOrders]([OseonId]);
+    CREATE INDEX [IX_OseonProductionOrders_ProductionWorkplaceId] ON [dbo].[OseonProductionOrders]([ProductionWorkplaceId]);
+    CREATE INDEX [IX_OseonProductionOrders_OseonStatus] ON [dbo].[OseonProductionOrders]([OseonStatus]) INCLUDE ([CustomerOrderNumber], [OseonOrderNumber]);
+    CREATE INDEX [IX_OseonProductionOrders_WorkplaceName] ON [dbo].[OseonProductionOrders]([WorkplaceName]) INCLUDE ([CustomerOrderNumber], [OseonStatus]);
+    PRINT 'Tabelle OseonProductionOrders erstellt.';
+END
+GO
+
+-- =============================================
+-- 13. OseonWorkOperations
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'OseonWorkOperations')
+BEGIN
+    CREATE TABLE [dbo].[OseonWorkOperations] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL,
+        [OseonProductionOrderId]    INT NOT NULL,
+        [PositionNumber]            NVARCHAR(50) NOT NULL,
+        [Name]                      NVARCHAR(200) NOT NULL,
+        [Description]               NVARCHAR(500) NULL,
+        [OseonStatus]               INT NOT NULL DEFAULT 0,
+        [IsFirstOperation]          BIT NOT NULL DEFAULT 0,
+        [IsLastOperation]           BIT NOT NULL DEFAULT 0,
+        [CreatedAt]                 DATETIME2 NOT NULL,
+        [CreatedBy]                 NVARCHAR(200) NOT NULL,
+        [CreatedByWindows]          NVARCHAR(200) NOT NULL,
+        [ModifiedAt]                DATETIME2 NULL,
+        [ModifiedBy]                NVARCHAR(200) NULL,
+        [ModifiedByWindows]         NVARCHAR(200) NULL,
+        CONSTRAINT [PK_OseonWorkOperations] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_OseonWorkOperations_OseonProductionOrders_OseonProductionOrderId]
+            FOREIGN KEY ([OseonProductionOrderId]) REFERENCES [dbo].[OseonProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_OseonWorkOperations_OseonProductionOrderId] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId]);
+    CREATE UNIQUE INDEX [IX_OseonWorkOperations_OseonProductionOrderId_PositionNumber] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId], [PositionNumber]);
+    PRINT 'Tabelle OseonWorkOperations erstellt.';
+END
+GO
+
+-- =============================================
+-- 14. AppSettings
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AppSettings')
 BEGIN
@@ -358,7 +427,9 @@ BEGIN
         ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
         ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
         ('SageRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Sage zurueckgeschrieben werden'),
-        ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle');
+        ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle'),
+        ('OseonAmpelGelbTage', '1', 'OSEON Ampel: Gelb ab X Tagen vor Termin'),
+        ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO

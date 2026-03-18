@@ -8,6 +8,10 @@ public class CurrentUserService : ICurrentUserService
     private readonly IUserRepository _userRepository;
     private readonly IAppSettingRepository _settingRepository;
 
+    // Per-request cache to avoid redundant DB queries for the same user
+    private Models.User? _cachedUser;
+    private int? _cachedUserId;
+
     public const string SessionKeyUserId = "AppUserId";
     public const string SessionKeyUserName = "AppUserName";
 
@@ -59,13 +63,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> HasMasterDataAccessAsync()
     {
         // 1. Flag im App-User prüfen
-        var userId = GetCurrentAppUserId();
-        if (userId.HasValue)
-        {
-            var user = await _userRepository.GetByIdAsync(userId.Value);
-            if (user?.HasMasterDataAccess == true)
-                return true;
-        }
+        var user = await GetCurrentUserAsync();
+        if (user?.HasMasterDataAccess == true)
+            return true;
 
         // 2. AD-Gruppe prüfen
         var adGroup = await _settingRepository.GetValueAsync("StammdatenADGruppe");
@@ -91,13 +91,24 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanPickAsync()
         => await CheckUserFlagAsync(u => u.CanPick);
 
-    private async Task<bool> CheckUserFlagAsync(Func<Models.User, bool> predicate)
+    private async Task<Models.User?> GetCurrentUserAsync()
     {
         var userId = GetCurrentAppUserId();
         if (!userId.HasValue)
-            return false;
+            return null;
 
-        var user = await _userRepository.GetByIdAsync(userId.Value);
+        // Return cached user if same ID within this request
+        if (_cachedUserId == userId.Value && _cachedUser != null)
+            return _cachedUser;
+
+        _cachedUser = await _userRepository.GetByIdAsync(userId.Value);
+        _cachedUserId = userId.Value;
+        return _cachedUser;
+    }
+
+    private async Task<bool> CheckUserFlagAsync(Func<Models.User, bool> predicate)
+    {
+        var user = await GetCurrentUserAsync();
         return user != null && predicate(user);
     }
 }

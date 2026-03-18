@@ -574,3 +574,50 @@ body {
     background-color: #f8f9fa !important;
     border-bottom: 2px solid #dee2e6;
 }
+
+/* OSEON Teileverfolgung - Ampelsystem */
+.traffic-light {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+.traffic-red    { background-color: #dc3545; }
+.traffic-yellow { background-color: #ffc107; }
+.traffic-blue   { background-color: var(--ake-secondary); }
+.traffic-green  { background-color: var(--ake-green); }
+.traffic-gray   { background-color: #6c757d; }
+
+.oseon-chevron {
+    transition: transform 0.15s;
+}
+
+/* Baumstruktur */
+.oseon-tree-group {
+    background-color: #f0f4f8 !important;
+    font-weight: 500;
+}
+.oseon-tree-group:hover {
+    background-color: #e4ecf4 !important;
+}
+.oseon-tree-sub {
+    background-color: #fafbfc;
+}
+.oseon-tree-sub:hover {
+    background-color: #f0f4f8 !important;
+}
+.oseon-tree-op {
+    background-color: #fff;
+    font-size: 0.9em;
+}
+.oseon-tree-op:hover {
+    background-color: #fafbfc !important;
+}
+.oseon-tree-done {
+    opacity: 0.65;
+}
+.oseon-toggle {
+    cursor: pointer;
+    user-select: none;
+}

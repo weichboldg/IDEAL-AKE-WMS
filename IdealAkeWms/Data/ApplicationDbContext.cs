@@ -23,6 +23,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionWorkplace> ProductionWorkplaces => Set<ProductionWorkplace>();
     public DbSet<ProductionWorkplaceUser> ProductionWorkplaceUsers => Set<ProductionWorkplaceUser>();
     public DbSet<WorkOperation> WorkOperations => Set<WorkOperation>();
+    public DbSet<OseonProductionOrder> OseonProductionOrders => Set<OseonProductionOrder>();
+    public DbSet<OseonWorkOperation> OseonWorkOperations => Set<OseonWorkOperation>();
     public DbSet<ServiceSetting> ServiceSettings => Set<ServiceSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -309,6 +311,59 @@ public class ApplicationDbContext : DbContext
                 .WithMany(w => w.WorkOperations)
                 .HasForeignKey(e => e.ProductionWorkplaceId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // OseonProductionOrder
+        modelBuilder.Entity<OseonProductionOrder>(entity =>
+        {
+            entity.ToTable("OseonProductionOrders");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OseonOrderNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CustomerOrderNumber).HasMaxLength(100);
+            entity.Property(e => e.ArticleNumber).HasMaxLength(100);
+            entity.Property(e => e.Description1).HasMaxLength(500);
+            entity.Property(e => e.Description2).HasMaxLength(500);
+            entity.Property(e => e.WorkplaceName).HasMaxLength(200);
+            entity.Property(e => e.QuantityTarget).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.QuantityActual).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.DueDate).HasColumnType("date");
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.OseonOrderNumber).IsUnique();
+            entity.HasIndex(e => e.CustomerOrderNumber);
+            entity.HasIndex(e => e.OseonId);
+            entity.HasIndex(e => e.OseonStatus);
+            entity.HasIndex(e => e.WorkplaceName);
+
+            entity.HasOne(e => e.ProductionWorkplace)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // OseonWorkOperation
+        modelBuilder.Entity<OseonWorkOperation>(entity =>
+        {
+            entity.ToTable("OseonWorkOperations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PositionNumber).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.OseonProductionOrderId);
+            entity.HasIndex(e => new { e.OseonProductionOrderId, e.PositionNumber }).IsUnique();
+
+            entity.HasOne(e => e.OseonProductionOrder)
+                .WithMany(o => o.WorkOperations)
+                .HasForeignKey(e => e.OseonProductionOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ServiceSetting

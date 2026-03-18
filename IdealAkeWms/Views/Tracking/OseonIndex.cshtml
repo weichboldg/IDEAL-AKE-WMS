@@ -1,0 +1,376 @@
+@model IdealAkeWms.Models.ViewModels.OseonTrackingViewModel
+@{
+    ViewData["Title"] = "OSEON Teileverfolgung";
+}
+
+<h2 class="page-header">OSEON Teileverfolgung</h2>
+
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="OseonIndex" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label mb-0 small">Auftrags- / Kundenauftragsnr.</label>
+                <input type="text" name="filterCustomerOrder" value="@Model.FilterCustomerOrder" class="form-control form-control-sm" placeholder="Suche..." />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label mb-0 small">Werkbank</label>
+                <select name="filterWorkplace" class="form-select form-select-sm">
+                    <option value="">Alle</option>
+                    @foreach (var wp in Model.AvailableWorkplaces)
+                    {
+                        <option value="@wp.Name" selected="@(Model.FilterWorkplace == wp.Name)">@wp.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <div class="form-check mt-1">
+                    <input type="checkbox" class="form-check-input" id="showFinished" name="showFinished" value="true"
+                           @(Model.ShowFinished ? "checked" : "") />
+                    <label class="form-check-label small" for="showFinished">Fertige anzeigen</label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.FilterCustomerOrder) || !string.IsNullOrEmpty(Model.FilterWorkplace) || Model.ShowFinished)
+            {
+                <div class="col-auto">
+                    <a asp-action="OseonIndex" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
+                </div>
+            }
+        </form>
+    </div>
+</div>
+
+@if (!Model.OrderGroups.Any())
+{
+    <div class="alert alert-info">
+        Keine OSEON-Aufträge gefunden.
+        @if (!string.IsNullOrEmpty(Model.FilterCustomerOrder) || !string.IsNullOrEmpty(Model.FilterWorkplace))
+        {
+            <text>Versuchen Sie andere Filterkriterien.</text>
+        }
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-muted">@Model.TotalGroupCount Kundenaufträge gesamt — Seite @Model.CurrentPage von @Model.TotalPages</small>
+        <div>
+            <button type="button" id="btnExpandAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle aufklappen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+            <button type="button" id="btnCollapseAll" class="btn btn-sm btn-outline-secondary" title="Alle zuklappen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm mb-0" id="oseonTree">
+            <thead>
+                <tr>
+                    <th style="width: 30px;"></th>
+                    <th>Auftrag</th>
+                    <th>Artikelnr.</th>
+                    <th>Bezeichnung</th>
+                    <th>Werkbank</th>
+                    <th>Status</th>
+                    <th>Soll / Ist</th>
+                    <th>Endtermin</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var group in Model.OrderGroups)
+                {
+                    var groupKey = group.CustomerOrderNumber?.Replace("/", "_").Replace(" ", "_").Replace(".", "_");
+                    var pct = group.TotalSubOrders > 0 ? (int)(group.FinishedSubOrders * 100.0 / group.TotalSubOrders) : 0;
+                    var barClass = pct == 100 ? "bg-success" : pct > 0 ? "bg-warning" : "bg-secondary";
+
+                    @* === Ebene 0: Kundenauftrag === *@
+                    <tr class="oseon-tree-group" data-group="@groupKey" style="cursor: pointer;">
+                        <td><span class="traffic-light traffic-@group.WorstColor.ToString().ToLower()"></span></td>
+                        <td style="padding-left: 5px; white-space: nowrap;">
+                            <span class="oseon-toggle" data-target="@groupKey">
+                                <svg class="oseon-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s;">
+                                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" class="text-muted me-1">
+                                    <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z"/>
+                                </svg>
+                            </span>
+                            <strong>@group.CustomerOrderNumber</strong>
+                            <span class="text-muted small ms-2">(@group.FinishedSubOrders / @group.TotalSubOrders fertig)</span>
+                        </td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td><span class="badge @group.GroupStatusBadgeClass">@group.GroupStatusText</span></td>
+                        <td>
+                            <div class="progress" style="height: 6px; width: 80px;">
+                                <div class="progress-bar @barClass" style="width: @pct%"></div>
+                            </div>
+                        </td>
+                        <td></td>
+                    </tr>
+
+                    @foreach (var sub in group.SubOrders)
+                    {
+                        var subKey = $"{groupKey}_sub{sub.Id}";
+                        var isOverdue = sub.DueDate.HasValue && sub.DueDate.Value.Date < DateTime.Today && sub.OseonStatus is not (90 or 95);
+                        var subRowClass = sub.OseonStatus is 90 or 95 ? "oseon-tree-done" : "";
+
+                        @* === Ebene 1: Subauftrag === *@
+                        <tr class="oseon-tree-sub @subRowClass" data-parent="@groupKey" data-sub="@subKey" style="display: none; cursor: pointer;">
+                            <td><span class="traffic-light traffic-@sub.Color.ToString().ToLower()"></span></td>
+                            <td style="padding-left: 28px; white-space: nowrap;">
+                                @if (sub.Operations.Any())
+                                {
+                                    <span class="oseon-toggle" data-target="@subKey">
+                                        <svg class="oseon-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s;">
+                                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="text-muted me-1">
+                                            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
+                                        </svg>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="display: inline-block; width: 27px;"></span>
+                                }
+                                @sub.OseonOrderNumber
+                            </td>
+                            <td>@sub.ArticleNumber</td>
+                            <td>@sub.Description1</td>
+                            <td>@sub.WorkplaceName</td>
+                            <td><span class="badge @sub.StatusBadgeClass">@sub.StatusText</span></td>
+                            <td>@sub.QuantityTarget / @sub.QuantityActual</td>
+                            <td class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                @(sub.DueDate?.ToString("dd.MM.yyyy") ?? "—")
+                            </td>
+                        </tr>
+
+                        @if (sub.Operations.Any())
+                        {
+                            foreach (var op in sub.Operations)
+                            {
+                                @* === Ebene 2: Arbeitsgang === *@
+                                <tr class="oseon-tree-op @(op.OseonStatus == 90 ? "oseon-tree-done" : "")" data-parent-sub="@subKey" style="display: none;">
+                                    <td></td>
+                                    <td style="padding-left: 52px; white-space: nowrap;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" class="text-muted me-1">
+                                            <path d="M6 .5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H9v1.07a7.001 7.001 0 0 1 3.274 12.474l.601.602a.5.5 0 0 1-.707.708l-.746-.746A6.97 6.97 0 0 1 8 16a6.97 6.97 0 0 1-3.422-.892l-.746.746a.5.5 0 0 1-.707-.708l.602-.602A7.001 7.001 0 0 1 7 2.07V1h-.5A.5.5 0 0 1 6 .5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3m0 3a.75.75 0 0 1 .75.75v2.5h1.5a.75.75 0 0 1 0 1.5h-2.25A.75.75 0 0 1 7.25 10V6.75A.75.75 0 0 1 8 6"/>
+                                        </svg>
+                                        <span class="text-muted">@op.PositionNumber</span> @op.Name
+                                    </td>
+                                    <td></td>
+                                    <td class="small text-muted">@(op.Description?.Length > 80 ? op.Description[..80] + "..." : op.Description)</td>
+                                    <td></td>
+                                    <td><span class="badge @op.StatusBadgeClass">@op.StatusText</span></td>
+                                    <td>
+                                        @if (op.IsFirstOperation)
+                                        {
+                                            <span class="badge bg-outline-secondary border small" title="Erster Arbeitsgang">Erst-AG</span>
+                                        }
+                                        @if (op.IsLastOperation)
+                                        {
+                                            <span class="badge bg-outline-secondary border small" title="Letzter Arbeitsgang">Letzt-AG</span>
+                                        }
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            }
+                        }
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Pagination *@
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Seitennavigation" class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center">
+                <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link" asp-action="OseonIndex"
+                       asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
+                       asp-route-filterWorkplace="@Model.FilterWorkplace"
+                       asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                       asp-route-page="@(Model.CurrentPage - 1)">‹</a>
+                </li>
+                @{
+                    int startPage = Math.Max(1, Model.CurrentPage - 4);
+                    int endPage = Math.Min(Model.TotalPages, startPage + 8);
+                    if (endPage - startPage < 8)
+                        startPage = Math.Max(1, endPage - 8);
+                }
+                @if (startPage > 1)
+                {
+                    <li class="page-item">
+                        <a class="page-link" asp-action="OseonIndex"
+                           asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
+                           asp-route-filterWorkplace="@Model.FilterWorkplace"
+                           asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                           asp-route-page="1">1</a>
+                    </li>
+                    @if (startPage > 2)
+                    {
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    }
+                }
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link" asp-action="OseonIndex"
+                           asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
+                           asp-route-filterWorkplace="@Model.FilterWorkplace"
+                           asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                           asp-route-page="@i">@i</a>
+                    </li>
+                }
+                @if (endPage < Model.TotalPages)
+                {
+                    @if (endPage < Model.TotalPages - 1)
+                    {
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    }
+                    <li class="page-item">
+                        <a class="page-link" asp-action="OseonIndex"
+                           asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
+                           asp-route-filterWorkplace="@Model.FilterWorkplace"
+                           asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                           asp-route-page="@Model.TotalPages">@Model.TotalPages</a>
+                    </li>
+                }
+                <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" asp-action="OseonIndex"
+                       asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
+                       asp-route-filterWorkplace="@Model.FilterWorkplace"
+                       asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                       asp-route-page="@(Model.CurrentPage + 1)">›</a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+    <div class="mt-3 small text-muted">
+        <span class="traffic-light traffic-red me-1"></span> Überfällig
+        <span class="traffic-light traffic-yellow ms-3 me-1"></span> Fällig (bald)
+        <span class="traffic-light traffic-blue ms-3 me-1"></span> Demnächst fällig
+        <span class="traffic-light traffic-green ms-3 me-1"></span> Erledigt
+        <span class="traffic-light traffic-gray ms-3 me-1"></span> Noch nicht relevant
+    </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var expandedGroups = {};
+            var expandedSubs = {};
+
+            function toggleGroup(groupKey) {
+                var expanded = expandedGroups[groupKey];
+                expandedGroups[groupKey] = !expanded;
+
+                var chevron = document.querySelector('.oseon-toggle[data-target="' + groupKey + '"] .oseon-chevron');
+                if (chevron) chevron.style.transform = expanded ? '' : 'rotate(90deg)';
+
+                // Sub-Rows anzeigen/ausblenden
+                document.querySelectorAll('tr[data-parent="' + groupKey + '"]').forEach(function (row) {
+                    row.style.display = expanded ? 'none' : '';
+                    if (expanded) {
+                        // Beim Zuklappen auch alle Ops zuklappen
+                        var subKey = row.getAttribute('data-sub');
+                        if (subKey && expandedSubs[subKey]) {
+                            expandedSubs[subKey] = false;
+                            var subChevron = row.querySelector('.oseon-chevron');
+                            if (subChevron) subChevron.style.transform = '';
+                            document.querySelectorAll('tr[data-parent-sub="' + subKey + '"]').forEach(function (op) {
+                                op.style.display = 'none';
+                            });
+                        }
+                    }
+                });
+            }
+
+            function toggleSub(subKey) {
+                var expanded = expandedSubs[subKey];
+                expandedSubs[subKey] = !expanded;
+
+                var chevron = document.querySelector('.oseon-toggle[data-target="' + subKey + '"] .oseon-chevron');
+                if (chevron) chevron.style.transform = expanded ? '' : 'rotate(90deg)';
+
+                document.querySelectorAll('tr[data-parent-sub="' + subKey + '"]').forEach(function (row) {
+                    row.style.display = expanded ? 'none' : '';
+                });
+            }
+
+            // Click-Handler für Gruppen-Zeilen
+            document.querySelectorAll('.oseon-tree-group').forEach(function (row) {
+                row.addEventListener('click', function () {
+                    var groupKey = this.getAttribute('data-group');
+                    toggleGroup(groupKey);
+                });
+            });
+
+            // Click-Handler für Sub-Zeilen (nur Toggle wenn Chevron vorhanden)
+            document.querySelectorAll('.oseon-tree-sub').forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    var subKey = this.getAttribute('data-sub');
+                    var toggle = this.querySelector('.oseon-toggle');
+                    if (toggle) toggleSub(subKey);
+                });
+            });
+
+            // Alle aufklappen
+            document.getElementById('btnExpandAll')?.addEventListener('click', function () {
+                document.querySelectorAll('.oseon-tree-group').forEach(function (row) {
+                    var groupKey = row.getAttribute('data-group');
+                    expandedGroups[groupKey] = true;
+                    var chevron = row.querySelector('.oseon-chevron');
+                    if (chevron) chevron.style.transform = 'rotate(90deg)';
+                });
+                document.querySelectorAll('.oseon-tree-sub').forEach(function (row) {
+                    row.style.display = '';
+                    var subKey = row.getAttribute('data-sub');
+                    var toggle = row.querySelector('.oseon-toggle');
+                    if (toggle) {
+                        expandedSubs[subKey] = true;
+                        var chevron = toggle.querySelector('.oseon-chevron');
+                        if (chevron) chevron.style.transform = 'rotate(90deg)';
+                    }
+                });
+                document.querySelectorAll('.oseon-tree-op').forEach(function (row) {
+                    row.style.display = '';
+                });
+            });
+
+            // Alle zuklappen
+            document.getElementById('btnCollapseAll')?.addEventListener('click', function () {
+                expandedGroups = {};
+                expandedSubs = {};
+                document.querySelectorAll('.oseon-tree-group .oseon-chevron').forEach(function (c) { c.style.transform = ''; });
+                document.querySelectorAll('.oseon-tree-sub').forEach(function (row) {
+                    row.style.display = 'none';
+                    var chevron = row.querySelector('.oseon-chevron');
+                    if (chevron) chevron.style.transform = '';
+                });
+                document.querySelectorAll('.oseon-tree-op').forEach(function (row) {
+                    row.style.display = 'none';
+                });
+            });
+
+            // Wenn nur eine Gruppe vorhanden ist, automatisch aufklappen
+            var groups = document.querySelectorAll('.oseon-tree-group');
+            if (groups.length === 1) {
+                groups[0].click();
+            }
+        });
+    </script>
+}

@@ -28,6 +28,41 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Feiertag-Import | Fertig |
 | Foto-Upload bei Kommissionierung | Fertig |
 | Server-seitiger Druck | Grundstruktur |
+| OSEON Teileverfolgung | Fertig |
+
+## Änderungen (18.03.2026)
+
+### OSEON Teileverfolgung - Verbesserungen
+- **Baumstruktur**: Komplett umgebaut — echte Tree-View mit Ordner-Icons, Dokument-Icons, Uhr-Icons pro Ebene, Einrückung und Chevrons (wie Stückliste)
+- **Server-seitige Paginierung**: 25 Gruppen pro Seite, `GetPagedAsync()` im Repository
+- **Filter erweitert**: Suche durchsucht jetzt auch `OseonOrderNumber` (nicht nur `CustomerOrderNumber`)
+- **Gruppen-Logik**: Bei `showFinished=false` nur Gruppen mit offenen Aufträgen, aber ALLE Sub-Aufträge (inkl. fertige) angezeigt
+- **PA-Status**: Aggregierter Status (Badge) auf Gruppenebene (Ebene 0) angezeigt
+- **OSEON-Button in WA-Liste**: Neuer Button in ProductionOrders/Index verlinkt zur OSEON-Teileverfolgung mit WA als Filter
+- **Erledigt-Button**: In WA-Liste nach rechts verschoben (letzte Spalte)
+- **Performance-Indizes**: `SQL/30_OseonPerformanceIndexes.sql` — Indizes auf OseonStatus und WorkplaceName mit INCLUDE
+- **Sync-Filter**: OSEON-Query filtert alte fertige Aufträge aus (Status 90/95 älter als 3 Monate)
+- **Alle aufklappen/zuklappen**: Buttons in der OSEON-Teileverfolgung (wie Stückliste)
+- **Auto-Expand**: Bei nur einer Gruppe wird automatisch aufgeklappt
+
+## Änderungen (17.03.2026)
+
+### OSEON Teileverfolgung - Neues Feature
+- **Neue Entities**: `OseonProductionOrder` + `OseonWorkOperation` für OSEON-Produktionsaufträge und Arbeitsgänge
+- **3-Ebenen Baumansicht**: KundenAuftragsNr → Subaufträge (OSEON-Nr.) → Arbeitsgänge
+- **Ampelsystem**: Rot (überfällig), Gelb (fällig bald), Blau (demnächst), Grün (fertig), Grau (noch nicht relevant)
+- **Konfigurierbar**: `OseonAmpelGelbTage`/`OseonAmpelBlauTage` in AppSettings
+- **Sync**: `OseonSyncService` im IDEALAKEWMSService liest aus OSEON-DB, auto-erstellt Werkbänke
+- **SyncWorker**: Neuer Block `Sync:OseonTrackingEnabled` (default false)
+- **Navbar**: Teileverfolgung als Dropdown mit "Rückmeldungen" und "OSEON Aufträge"
+- **Filter**: Produktionsauftrag, Werkbank, Fertige anzeigen
+- **OSEON Status-Codes**: 10=Unvollständig, 20=Gültig, 30=Freigegeben, 60=In Arbeit, 70=Gesperrt, 90=Fertig, 95=Storniert
+- **SQL**: `SQL/29_AddOseonTracking.sql`, `SQL/00_FreshInstall.sql` aktualisiert
+- **Tests**: 26 neue Tests (OseonTrafficLightServiceTests, OseonStatusHelperTests, OseonProductionOrderRepositoryTests)
+
+### Simplify-Fixes
+- **Bom.cshtml**: `setTimeout(300ms)` durch Bootstrap `hidden.bs.modal` Event ersetzt
+- **CurrentUserService**: Per-Request User-Caching hinzugefügt (vermeidet redundante DB-Abfragen)
 
 ## BOM-VIEW Struktur (vw_AKE_Kommissionierung_StuecklistenDB)
 Die VIEW liegt in der `ake`-Datenbank und liefert:
@@ -243,11 +278,45 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - XML für Bestandsbuchung im OSEON
 - Synchronisierung Artikelzusatzinfos (Einheiten)
 
+## Änderungen (17.03.2026)
+
+### Feature: Berechtigungsbasiertes Dashboard + Menü
+- `CanPick`-Berechtigung steuert Sichtbarkeit von Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung (Menü + Dashboard + Controller-Filter `[RequirePickingAccess]`)
+- Teileverfolgung als Dashboard-Kachel hinzugefügt (sichtbar wenn `TeileverfolgungAktiv + CanViewTracking`)
+- Stammdaten-Kacheln (Benutzer, Arbeitsplätze) nur bei `HasMasterDataAccess`
+- **Neue Datei**: `Filters/RequirePickingAccessAttribute.cs`
+- **Betroffene Dateien**: `HomeController.cs`, `Views/Home/Index.cshtml`, `Views/Shared/_Layout.cshtml`, `ICurrentUserService.cs`, `CurrentUserService.cs`, `StockMovementsController.cs`, `StockOverviewController.cs`, `ProductionOrdersController.cs`, `ProductionOrdersApiController.cs`
+
+### Feature: QR-Code mit FA-Nummer
+- AppSetting `QrMitFaNummer` (SQL/28) — wenn aktiv, wird FA-Nummer aus QR extrahiert
+- QR-Format: `Artikelnummer;Feld2;FA-Nummer[,Suffix]` — Komma-Suffix wird abgeschnitten (`.split(',')[0]`)
+- FA-Feld wird bei jedem Scan zuerst geleert (verhindert alte FA bei neuem Scan)
+- Angewendet auf: Inbound, Outbound, Transfer
+- **Betroffene Dateien**: `wwwroot/js/barcode-scanner.js`, `Views/StockMovements/Inbound.cshtml`, `Outbound.cshtml`, `Transfer.cshtml`
+
+### Feature: Boolean-Settings als Toggle-Switches
+- Settings-Seite rendert `true`/`false`-Werte als Bootstrap form-switch
+- Fix: Checkbox ohne `name`-Attribut, Hidden-Input wird per JS gesteuert (Dictionary-Binding-Problem gelöst)
+- **Betroffene Dateien**: `Views/Settings/Index.cshtml`, `Controllers/SettingsController.cs`
+
+### Feature: Mobile WA — BOM-Button erste Spalte
+- Stückliste/ToggleDone-Buttons als erste Spalte platziert (bessere Mobile-Erreichbarkeit)
+- **Betroffene Dateien**: `Views/ProductionOrders/Index.cshtml`
+
+### Bugfix: Kommissionierliste Artikel-Scan
+- Hidden-Input-Bug gefixt: `processScannedValue` übersprung `type="hidden"` Inputs
+- Nicht gefundener Artikel: Bootstrap-Modal statt `confirm()` (verhindert Endlosschleife durch sofortiges Kamera-Re-Read)
+- **Betroffene Dateien**: `wwwroot/js/barcode-scanner.js`, `Views/ProductionOrders/Bom.cshtml`
+
+### Bugfix: SQL/00_FreshInstall.sql konsolidiert
+- Aktualisiert auf Migration 28 (war auf Stand 19)
+- MigrationId-Bug in Scripts 24/25 behoben (falsche IDs → EF versuchte Migrations erneut)
+
 ## Offene Aufgaben / Nächste Schritte
 - [ ] Druck-Integration testen (PrintService mit echtem Drucker)
 - [ ] Druck-Button in Kommissionierung mit Arbeitsplatz-Drucker verknüpfen
 - [ ] `OverridePrePickingDays` aus Werkbank in Terminberechnung (BusinessDayService) einbeziehen
-- [ ] 00_FreshInstall.sql um Tabelle ProductionWorkplaces ergänzen
+- [ ] Tests für neue Features (CanPickAsync, QR-Parsing)
 
 ## DB-Migrationen (in Reihenfolge ausführen)
 - `SQL/09_PickingItemIsBaugruppe.sql` - IsBaugruppe-Flag für PickingItems
@@ -258,6 +327,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `SQL/25_AddServiceSettings.sql` - Tabelle ServiceSettings + Standard-Einträge
 - `SQL/26_AddArticleGroup.sql` - Artikelgruppe zu Articles hinzufügen
 - `SQL/27_AddWorkOperationsPhase1.sql` - Arbeitsgänge Phase 1 (User-Flags, ProductionWorkplaceUsers, WorkOperations, AppSettings)
+- `SQL/28_AddQrMitFaNummer.sql` - AppSetting QrMitFaNummer
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI
@@ -276,4 +346,4 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `Views/ProductionWorkplaces/` - Werkbank CRUD Views
 - `wwwroot/js/table-filter.js` - Spaltenfilter mit Multi-Wert/Ausschluss-Logik
 - `wwwroot/css/site.css` - Corporate Design Styles
-- `SQL/` - 22 DB-Init-/Migrationsskripte
+- `SQL/` - 28 DB-Init-/Migrationsskripte
