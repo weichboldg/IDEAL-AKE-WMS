@@ -58,8 +58,14 @@
                     Die Tabelle kann nach allen Spalten gefiltert werden (Klick auf Spaltenüberschrift).
                 </p>
                 <dl>
+                    <dt>Werkbank</dt>
+                    <dd>Zeigt die zugeordnete Werkbank (Produktionsarbeitsplatz) an. Wird automatisch aus OSEON übernommen, wenn ein passender OSEON-Auftrag existiert.</dd>
+
                     <dt>Glas / Zukauf</dt>
                     <dd>Per Checkbox direkt in der Tabelle markieren. Änderungen werden sofort gespeichert.</dd>
+
+                    <dt>OSEON Teileverfolgung</dt>
+                    <dd>Über den <span class="badge bg-info text-white">i</span>-Button öffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die WA-Nummer. Der Filter „Fertige anzeigen" ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Aufträge sichtbar sind.</dd>
 
                     <dt>Status</dt>
                     <dd>
@@ -68,6 +74,40 @@
                         <span class="badge bg-info text-dark">teilkommissioniert</span> — Nicht alle Teile verfügbar<br />
                         <span class="badge bg-success">abgeschlossen</span> — Vollständig kommissioniert
                     </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>OSEON Teileverfolgung</strong></div>
+            <div class="card-body">
+                <p>
+                    Zeigt OSEON-Produktionsaufträge in einer 3-Ebenen-Baumstruktur an:
+                </p>
+                <ol>
+                    <li><strong>Kundenauftragsnummer</strong> — Gruppierung aller zugehörigen Aufträge</li>
+                    <li><strong>Subaufträge</strong> — Einzelne OSEON-Auftragsnummern mit Artikel, Werkbank, Mengen und Termin</li>
+                    <li><strong>Arbeitsgänge</strong> — Einzelne Fertigungsschritte mit Status</li>
+                </ol>
+
+                <h6 class="mt-3">Ampelsystem</h6>
+                <p class="mb-1">Jeder Auftrag wird mit einer Ampelfarbe nach Terminstatus bewertet:</p>
+                <ul class="mb-0">
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc3545;vertical-align:middle;"></span> <strong>Rot</strong> — Überfällig (Endtermin überschritten)</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffc107;vertical-align:middle;"></span> <strong>Gelb</strong> — Fällig in Kürze (innerhalb konfigurierbarer Tage)</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#43A6E2;vertical-align:middle;"></span> <strong>Blau</strong> — Demnächst fällig</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#82BF6E;vertical-align:middle;"></span> <strong>Grün</strong> — Fertig oder storniert</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#6c757d;vertical-align:middle;"></span> <strong>Grau</strong> — Kein Termin oder noch nicht relevant</li>
+                </ul>
+
+                <h6 class="mt-3">Filter</h6>
+                <dl class="mb-0">
+                    <dt>Suche</dt>
+                    <dd>Durchsucht Kundenauftragsnummer und OSEON-Auftragsnummer.</dd>
+                    <dt>Werkbank</dt>
+                    <dd>Filtert nach zugeordnetem Produktionsarbeitsplatz.</dd>
+                    <dt>Fertige anzeigen</dt>
+                    <dd>Standardmäßig werden nur Gruppen mit offenen Aufträgen angezeigt. Alle Subaufträge (inkl. fertige) einer Gruppe sind immer sichtbar.</dd>
                 </dl>
             </div>
         </div>

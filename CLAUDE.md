@@ -219,20 +219,24 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 
 - **Entities**: `OseonProductionOrder` + `OseonWorkOperation` (AuditableEntity)
 - **Datenquelle**: OSEON DB (`aketrumpf01.ake.at\TRUMPFSQL2`, `T1000_V01_V001`)
-- **Sync**: `OseonSyncService` im IDEALAKEWMSService, gesteuert per `Sync:OseonTrackingEnabled` in appsettings.json
+- **Sync**: `OseonSyncService` im IDEALAKEWMSService, gesteuert per `Sync:OseonTrackingEnabled` in appsettings.json — Bulk-Verarbeitung via SqlBulkCopy + MERGE (Temp-Tables `#TmpOseonOrders`, `#TmpOseonOps`)
 - **Baumstruktur**: 3 Ebenen — KundenAuftragsNr → OseonOrderNumber (Subaufträge) → Arbeitsgänge
 - **Ampelsystem**: Rot (überfällig), Gelb (fällig ≤ GelbTage), Blau (fällig ≤ BlauTage), Grün (Status 90/95), Grau (kein Termin/noch nicht relevant)
 - **OSEON Status-Codes**: 10=Unvollständig, 20=Gültig, 30=Freigegeben, 60=In Arbeit, 70=Gesperrt, 90=Fertig, 95=Storniert
 - **Werkbank Auto-Anlage**: Sync erstellt fehlende `ProductionWorkplaces` automatisch aus OSEON-Feld `Kunde.KundenNr`
+- **Werkbank-Sync**: `SyncWorkplacesToProductionOrdersAsync()` überträgt `ProductionWorkplaceId` von OSEON auf Sage-Aufträge (Match: `OrderNumber` ↔ `CustomerOrderNumber`), nur wo noch keine Werkbank gesetzt ist
 - **View**: `Tracking/OseonIndex` — 3-Ebenen Baumstruktur (Ordner-Icons, Chevrons, Einrückung) mit Ampel-Punkten
 - **Pagination**: Server-seitig, 25 Gruppen pro Seite. Repository-Methode `GetPagedAsync()` paginiert nach CustomerOrderNumber-Gruppen
 - **Filter**: Suche durchsucht sowohl `CustomerOrderNumber` als auch `OseonOrderNumber`
 - **Gruppen-Logik**: Bei `showFinished=false` werden nur Gruppen mit mind. einem offenen Auftrag angezeigt, aber ALLE Sub-Aufträge der Gruppe (inkl. fertige) geladen
-- **WA-Link**: ProductionOrders/Index hat OSEON-Teileverfolgung-Button der WA-Nummer als Filter übergibt
+- **WA-Link**: ProductionOrders/Index hat OSEON-Teileverfolgung-Button der WA-Nummer als Filter übergibt (`showFinished=true` automatisch gesetzt, damit auch abgeschlossene Aufträge sichtbar)
 - **Navbar**: Teileverfolgung → Dropdown mit "Rückmeldungen" und "OSEON Aufträge"
-- **SQL**: `SQL/29_AddOseonTracking.sql`, `SQL/30_OseonPerformanceIndexes.sql`
+- **SQL**: `SQL/29_AddOseonTracking.sql`, `SQL/30_OseonPerformanceIndexes.sql`, `SQL/31_AddOseonTimestamps.sql`
+- **Delta-Sync**: `OseonProductionOrder.LastChangedInOseon` (pa.DateOfLastChange) + `OseonWorkOperation.LastStatusReportInOseon` (aga.LetzteStatusMeldung) — beim Sync wird `MAX(LastChangedInOseon)` gelesen und als Filter auf die OSEON-Query angewendet (mit 5 Min Puffer). Erster Lauf = Full-Sync, danach nur Delta.
 - **Sync-Filter**: OSEON-Query schließt alte fertige Aufträge aus (Status 90/95 UND EndTerminSoll < 3 Monate)
 - **OseonId**: `bigint` (Int64) in OSEON, als `long` im Model
+- **Ampel-Cache**: `OseonTrafficLightService` ist Scoped — cached `OseonAmpelGelbTage`/`OseonAmpelBlauTage` pro Request (statt 2 DB-Queries pro Auftrag)
+- **IIS Timeout**: `web.config` → `requestTimeout="00:05:00"` für langlaufende Requests
 
 ## QR-Code-Format (Artikel)
 

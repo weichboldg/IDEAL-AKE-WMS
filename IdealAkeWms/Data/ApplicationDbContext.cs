@@ -327,6 +327,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.QuantityTarget).HasColumnType("decimal(18,3)");
             entity.Property(e => e.QuantityActual).HasColumnType("decimal(18,3)");
             entity.Property(e => e.DueDate).HasColumnType("date");
+            entity.Property(e => e.LastChangedInOseon).HasColumnType("datetime2");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -352,6 +353,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.PositionNumber).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.LastStatusReportInOseon).HasColumnType("datetime2");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);

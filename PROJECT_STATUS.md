@@ -32,6 +32,36 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 
 ## Änderungen (18.03.2026)
 
+### Delta-Sync mit OSEON-Änderungstimestamps
+- **Neue Felder**: `OseonProductionOrders.LastChangedInOseon` (pa.DateOfLastChange), `OseonWorkOperations.LastStatusReportInOseon` (aga.LetzteStatusMeldung)
+- **Delta-Logik**: `MAX(LastChangedInOseon)` aus WMS → nur geänderte Datensätze aus OSEON laden (mit 5 Min Sicherheitspuffer)
+- **Erster Lauf**: Full-Sync (wenn LastChangedInOseon = NULL)
+- **Folge-Läufe**: Nur Delta → dramatisch weniger Daten aus OSEON gelesen
+- **SQL**: `SQL/31_AddOseonTimestamps.sql`, `SQL/00_FreshInstall.sql` aktualisiert
+- **EF Migration**: `20260318150710_AddOseonTimestamps`
+
+### OSEON Teileverfolgung — UI-Verbesserungen
+- **showFinished=true auf OSEON-Link**: Button in WA-Liste (`ProductionOrders/Index`) setzt `asp-route-showFinished="true"`, damit auch abgeschlossene Aufträge sichtbar sind
+- **Erst-AG/Letzt-AG Badges entfernt**: `IsFirstOperation`/`IsLastOperation`-Anzeige in `OseonIndex.cshtml` ausgeblendet (wurde falsch dargestellt, nicht benötigt)
+- **Hilfe-Seite aktualisiert**: OSEON-Teileverfolgung-Abschnitt beschreibt „Fertige anzeigen" Automatik
+
+### Performance-Optimierung OSEON Sync + Teileverfolgung
+- **Bulk MERGE**: `OseonSyncService.SyncOseonProductionOrdersAsync()` komplett auf Bulk-Verarbeitung umgestellt:
+  - Statt ~48.000 einzelne SQL-Roundtrips → 2 SqlBulkCopy + 2 MERGE Statements
+  - Werkbänke: Bulk-Insert fehlender in einem Statement
+  - Orders: DataTable → Temp-Table (`#TmpOseonOrders`) → MERGE (1 Statement für alle Upserts)
+  - Operations: DataTable → Temp-Table (`#TmpOseonOps`) → MERGE (1 Statement für alle AGAs)
+  - Geschätzte Speedup: ~100x (von Minuten auf Sekunden)
+- **TrafficLight Threshold-Cache**: `OseonTrafficLightService` cached `OseonAmpelGelbTage`/`OseonAmpelBlauTage` pro Request (scoped Service). Statt 2 DB-Queries pro Auftrag → 2 DB-Queries pro Seitenaufruf
+- **IIS Timeout**: `web.config` → `requestTimeout="00:05:00"` (5 Min statt default 2 Min)
+- **IIS App-Pool**: Empfohlene Settings in README dokumentiert (Idle Timeout, AlwaysRunning, Preload)
+
+### Werkbank-Spalte & Sync
+- **WA-Liste**: Neue Spalte "Werkbank" in ProductionOrders/Index (filterbar, nach Bezeichnung 2)
+- **Werkbank-Sync**: Neuer Sync-Schritt in `OseonSyncService.SyncWorkplacesToProductionOrdersAsync()` — überträgt `ProductionWorkplaceId` von OSEON-Aufträgen auf Sage-Aufträge (Match: `OrderNumber` ↔ `CustomerOrderNumber`)
+- **Nur fehlende**: Bereits manuell gesetzte Werkbänke werden nicht überschrieben
+- **Automatisch**: Läuft nach OSEON-Tracking-Sync wenn `Sync:OseonTrackingEnabled = true`
+
 ### WA-Liste Kompaktierung & Berechtigungen
 - **Kompakte Spaltenheader**: Datums-Spalten verkürzt (Beschicht., BG-Termin, Komm., Fert.-Termin), Glas/Zukauf Spalten schmaler
 - **Tracking-User Zugriff**: `ProductionOrdersController.Index` erlaubt jetzt auch Tracking-User (neuer Filter `[RequirePickingOrTrackingAccess]`)
@@ -338,6 +368,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `SQL/28_AddQrMitFaNummer.sql` - AppSetting QrMitFaNummer
 - `SQL/29_AddOseonTracking.sql` - OSEON Teileverfolgung Tabellen + AppSettings
 - `SQL/30_OseonPerformanceIndexes.sql` - Performance-Indizes für OSEON-Tabellen
+- `SQL/31_AddOseonTimestamps.sql` - Delta-Sync Timestamps für OSEON-Tabellen
 
 ## Wichtige Dateien
 - `Program.cs` - App-Konfiguration, Middleware, DI
@@ -363,4 +394,4 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `Views/ProductionWorkplaces/` - Werkbank CRUD Views
 - `wwwroot/js/table-filter.js` - Spaltenfilter mit Multi-Wert/Ausschluss-Logik
 - `wwwroot/css/site.css` - Corporate Design Styles + OSEON Tree-Styles
-- `SQL/` - 30 DB-Init-/Migrationsskripte
+- `SQL/` - 31 DB-Init-/Migrationsskripte

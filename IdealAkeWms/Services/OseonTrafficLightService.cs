@@ -13,6 +13,7 @@ public interface IOseonTrafficLightService
 public class OseonTrafficLightService : IOseonTrafficLightService
 {
     private readonly IAppSettingRepository _settings;
+    private (int gelbTage, int blauTage)? _cachedThresholds;
 
     public OseonTrafficLightService(IAppSettingRepository settings)
     {
@@ -51,8 +52,12 @@ public class OseonTrafficLightService : IOseonTrafficLightService
 
     public async Task<(int gelbTage, int blauTage)> GetThresholdsAsync()
     {
+        if (_cachedThresholds.HasValue)
+            return _cachedThresholds.Value;
+
         var gelbTage = await _settings.GetIntValueAsync("OseonAmpelGelbTage", 1);
         var blauTage = await _settings.GetIntValueAsync("OseonAmpelBlauTage", 2);
-        return (gelbTage, blauTage);
+        _cachedThresholds = (gelbTage, blauTage);
+        return _cachedThresholds.Value;
     }
 }

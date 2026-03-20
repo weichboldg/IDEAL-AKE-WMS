@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 
 namespace IDEALAKEWMSService.Services;
@@ -25,8 +26,43 @@ public class OseonSyncService : IOseonSyncService
 
         try
         {
-            // Daten aus OSEON lesen
-            const string oseonSql = """
+            await using var wmsConn = new SqlConnection(wmsConnection);
+            await wmsConn.OpenAsync(ct);
+
+            // Prüfen ob Delta-Sync-Spalten existieren (Migration noch nicht gelaufen?)
+            bool hasTimestampColumns;
+            await using (var colCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('OseonProductionOrders') AND name = 'LastChangedInOseon'",
+                wmsConn) { CommandTimeout = 10 })
+            {
+                hasTimestampColumns = (int)(await colCmd.ExecuteScalarAsync(ct))! > 0;
+            }
+
+            if (!hasTimestampColumns)
+                _logger.LogWarning("Spalten [LastChangedInOseon]/[LastStatusReportInOseon] fehlen — Full-Sync ohne Delta. Bitte SQL/31_AddOseonTimestamps.sql ausführen.");
+
+            // Delta-Sync: MAX(LastChangedInOseon) aus WMS lesen
+            DateTime? lastSyncDate = null;
+            if (hasTimestampColumns)
+            {
+                await using var maxCmd = new SqlCommand(
+                    "SELECT MAX([LastChangedInOseon]) FROM [OseonProductionOrders]", wmsConn) { CommandTimeout = 30 };
+                var result = await maxCmd.ExecuteScalarAsync(ct);
+                if (result != null && result != DBNull.Value)
+                    lastSyncDate = (DateTime)result;
+            }
+
+            // Sicherheitspuffer: 5 Minuten abziehen
+            var deltaFilter = lastSyncDate?.AddMinutes(-5);
+
+            if (deltaFilter.HasValue)
+                _logger.LogInformation("Delta-Sync ab {DeltaDate:yyyy-MM-dd HH:mm:ss} (letztes OSEON-Update: {LastSync:yyyy-MM-dd HH:mm:ss}).",
+                    deltaFilter.Value, lastSyncDate!.Value);
+            else
+                _logger.LogInformation("Erster Sync-Lauf — alle OSEON-Daten werden geladen.");
+
+            // Daten aus OSEON lesen (mit optionalem Delta-Filter)
+            var oseonSql = $"""
                 SELECT
                     pa.ID,
                     CAST(pa.KundenAuftragsNr AS nvarchar(100)) AS CustomerOrderNumber,
@@ -44,7 +80,9 @@ public class OseonSyncService : IOseonSyncService
                     CAST(k.KundenNr AS nvarchar(200)) AS WorkplaceName,
                     pa.MengeSoll,
                     pa.MengeIst,
-                    pa.EndTerminSoll
+                    pa.EndTerminSoll,
+                    pa.DateOfLastChange,
+                    aga.LetzteStatusMeldung
                 FROM ProduktionsAuftrag pa
                 LEFT JOIN ProduktionsAga aga ON pa.AuftragsNr = aga.AuftragsNr
                 LEFT JOIN Artikel a ON pa.ArtikelID = a.ID
@@ -52,6 +90,7 @@ public class OseonSyncService : IOseonSyncService
                 WHERE pa.KundenAuftragsNr IS NOT NULL
                   AND (pa.Status NOT IN (90, 95)
                        OR pa.EndTerminSoll >= DATEADD(month, -3, GETDATE()))
+                {(deltaFilter.HasValue ? "  AND pa.DateOfLastChange > @DeltaDate" : "")}
                 """;
 
             var oseonRows = new List<OseonRawRow>();
@@ -61,6 +100,9 @@ public class OseonSyncService : IOseonSyncService
                 await oseonConn.OpenAsync(ct);
                 await using var cmd = new SqlCommand(oseonSql, oseonConn);
                 cmd.CommandTimeout = 120;
+                if (deltaFilter.HasValue)
+                    cmd.Parameters.AddWithValue("@DeltaDate", deltaFilter.Value);
+
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
                 {
@@ -82,12 +124,18 @@ public class OseonSyncService : IOseonSyncService
                         WorkplaceName = reader.IsDBNull(13) ? null : reader.GetString(13)?.Trim(),
                         QuantityTarget = reader.IsDBNull(14) ? 0 : Convert.ToDecimal(reader.GetValue(14)),
                         QuantityActual = reader.IsDBNull(15) ? 0 : Convert.ToDecimal(reader.GetValue(15)),
-                        DueDate = reader.IsDBNull(16) ? null : reader.GetDateTime(16)
+                        DueDate = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+                        DateOfLastChange = reader.IsDBNull(17) ? null : Convert.ToDateTime(reader.GetValue(17)),
+                        LastStatusReport = reader.IsDBNull(18) ? null : Convert.ToDateTime(reader.GetValue(18))
                     });
                 }
             }
 
-            _logger.LogInformation("OSEON liefert {Count} Datensätze.", oseonRows.Count);
+            var rowsWithTimestamp = oseonRows.Count(r => r.DateOfLastChange.HasValue);
+            _logger.LogInformation("OSEON liefert {Count} Datensätze{DeltaInfo}. Davon {WithTs} mit DateOfLastChange.",
+                oseonRows.Count,
+                deltaFilter.HasValue ? " (Delta-Sync)" : " (Full-Sync)",
+                rowsWithTimestamp);
 
             // Nach OseonOrderNumber gruppieren → Orders + AGAs
             var orderGroups = oseonRows
@@ -100,54 +148,22 @@ public class OseonSyncService : IOseonSyncService
             if (dryRun)
                 return new SyncResult(0, 0, 0, $"DryRun: {oseonRows.Count} Zeilen, {orderGroups.Count} Aufträge aus OSEON gelesen.");
 
-            int inserted = 0, updated = 0, errors = 0;
-            var errorDetails = new System.Text.StringBuilder();
+            if (orderGroups.Count == 0)
+                return new SyncResult(0, 0, 0, "Keine geänderten Datensätze in OSEON.");
 
-            await using var wmsConn = new SqlConnection(wmsConnection);
-            await wmsConn.OpenAsync(ct);
+            // 1. Werkbänke auto-anlegen (Bulk-Insert fehlender)
+            await EnsureWorkplacesExistBulkAsync(wmsConn, orderGroups, ct);
 
-            // Cache für Werkbänke
-            var workplaceCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            await LoadWorkplaceCacheAsync(wmsConn, workplaceCache, ct);
+            // 2. Bulk MERGE: Orders
+            var (inserted, updated) = await BulkMergeOrdersAsync(wmsConn, orderGroups, hasTimestampColumns, ct);
 
-            foreach (var group in orderGroups)
-            {
-                try
-                {
-                    var firstRow = group.First();
-                    var oseonOrderNumber = group.Key;
+            // 3. Bulk MERGE: Work Operations (AGAs)
+            await BulkMergeOperationsAsync(wmsConn, oseonRows, hasTimestampColumns, ct);
 
-                    // Werkbank auto-anlegen
-                    int? workplaceId = null;
-                    if (!string.IsNullOrWhiteSpace(firstRow.WorkplaceName))
-                    {
-                        workplaceId = await EnsureWorkplaceExistsAsync(wmsConn, firstRow.WorkplaceName, workplaceCache, ct);
-                    }
+            _logger.LogInformation("OSEON-Tracking-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert.",
+                inserted, updated);
 
-                    // Order upsert
-                    var (orderId, isInsert) = await UpsertOrderAsync(wmsConn, firstRow, workplaceId, ct);
-
-                    if (isInsert) inserted++;
-                    else updated++;
-
-                    // AGAs upsert
-                    foreach (var row in group.Where(r => !string.IsNullOrEmpty(r.PositionNumber)))
-                    {
-                        await UpsertOperationAsync(wmsConn, orderId, row, ct);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    errors++;
-                    errorDetails.AppendLine($"Auftrag {group.Key}: {ex.Message}");
-                    _logger.LogWarning(ex, "Fehler bei OSEON-Auftrag {OrderNumber}.", group.Key);
-                }
-            }
-
-            _logger.LogInformation("OSEON-Tracking-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.",
-                inserted, updated, errors);
-
-            return new SyncResult(inserted, updated, errors, errors > 0 ? errorDetails.ToString() : null);
+            return new SyncResult(inserted, updated, 0);
         }
         catch (Exception ex)
         {
@@ -156,140 +172,367 @@ public class OseonSyncService : IOseonSyncService
         }
     }
 
-    private static async Task LoadWorkplaceCacheAsync(SqlConnection conn, Dictionary<string, int> cache, CancellationToken ct)
+    /// <summary>
+    /// Bulk-Insert aller fehlenden Werkbänke in einem Durchgang.
+    /// </summary>
+    private async Task EnsureWorkplacesExistBulkAsync(SqlConnection conn,
+        List<IGrouping<string, OseonRawRow>> orderGroups, CancellationToken ct)
     {
-        const string sql = "SELECT [Id], [Name] FROM [ProductionWorkplaces]";
-        await using var cmd = new SqlCommand(sql, conn);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
-        {
-            var name = reader.GetString(1).Trim();
-            if (!cache.ContainsKey(name))
-                cache[name] = reader.GetInt32(0);
-        }
-    }
+        var distinctWorkplaces = orderGroups
+            .Select(g => g.First().WorkplaceName)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-    private static async Task<int> EnsureWorkplaceExistsAsync(SqlConnection conn, string name, Dictionary<string, int> cache, CancellationToken ct)
-    {
-        if (cache.TryGetValue(name, out var cachedId))
-            return cachedId;
+        if (distinctWorkplaces.Count == 0) return;
 
-        const string insertSql = """
+        // Temp-Table mit Werkbanknamen erstellen, dann nur fehlende INSERT
+        const string sql = """
+            CREATE TABLE #TmpWorkplaces ([Name] nvarchar(200) NOT NULL);
+
+            INSERT INTO #TmpWorkplaces ([Name]) VALUES {0};
+
             INSERT INTO [ProductionWorkplaces] ([Name], [CreatedAt], [CreatedBy], [CreatedByWindows])
-            OUTPUT INSERTED.Id
-            VALUES (@Name, GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
+            SELECT DISTINCT t.[Name], GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER
+            FROM #TmpWorkplaces t
+            WHERE NOT EXISTS (SELECT 1 FROM [ProductionWorkplaces] pw WHERE pw.[Name] = t.[Name]);
+
+            DROP TABLE #TmpWorkplaces;
             """;
 
-        await using var cmd = new SqlCommand(insertSql, conn);
-        cmd.Parameters.AddWithValue("@Name", name);
-        var id = (int)(await cmd.ExecuteScalarAsync(ct))!;
-        cache[name] = id;
-        return id;
-    }
+        // Parametrisierte VALUES-Liste
+        var valuesClauses = new List<string>();
+        var cmd = new SqlCommand { Connection = conn, CommandTimeout = 60 };
 
-    private static async Task<(int orderId, bool isInsert)> UpsertOrderAsync(SqlConnection conn, OseonRawRow row, int? workplaceId, CancellationToken ct)
-    {
-        const string mergeSql = """
-            IF EXISTS (SELECT 1 FROM [OseonProductionOrders] WHERE [OseonId] = @OseonId)
-            BEGIN
-                UPDATE [OseonProductionOrders] SET
-                    [OseonOrderNumber]      = @OseonOrderNumber,
-                    [CustomerOrderNumber]   = @CustomerOrderNumber,
-                    [OseonStatus]           = @OseonStatus,
-                    [ArticleNumber]         = @ArticleNumber,
-                    [Description1]          = @Description1,
-                    [Description2]          = @Description2,
-                    [WorkplaceName]         = @WorkplaceName,
-                    [ProductionWorkplaceId] = @ProductionWorkplaceId,
-                    [QuantityTarget]        = @QuantityTarget,
-                    [QuantityActual]        = @QuantityActual,
-                    [DueDate]               = @DueDate,
-                    [ModifiedAt]            = GETUTCDATE(),
-                    [ModifiedBy]            = 'IDEALAKEWMSService',
-                    [ModifiedByWindows]     = SYSTEM_USER
-                WHERE [OseonId] = @OseonId
-                SELECT [Id], 0 AS IsInsert FROM [OseonProductionOrders] WHERE [OseonId] = @OseonId
-            END
-            ELSE
-            BEGIN
-                INSERT INTO [OseonProductionOrders]
-                    ([OseonId],[OseonOrderNumber],[CustomerOrderNumber],[OseonStatus],
-                     [ArticleNumber],[Description1],[Description2],[WorkplaceName],
-                     [ProductionWorkplaceId],[QuantityTarget],[QuantityActual],[DueDate],
-                     [CreatedAt],[CreatedBy],[CreatedByWindows])
-                VALUES
-                    (@OseonId,@OseonOrderNumber,@CustomerOrderNumber,@OseonStatus,
-                     @ArticleNumber,@Description1,@Description2,@WorkplaceName,
-                     @ProductionWorkplaceId,@QuantityTarget,@QuantityActual,@DueDate,
-                     GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
-                SELECT SCOPE_IDENTITY() AS [Id], 1 AS IsInsert
-            END
-            """;
-
-        await using var cmd = new SqlCommand(mergeSql, conn);
-        cmd.Parameters.AddWithValue("@OseonId", row.OseonId);
-        cmd.Parameters.AddWithValue("@OseonOrderNumber", row.OseonOrderNumber!);
-        cmd.Parameters.AddWithValue("@CustomerOrderNumber", (object?)row.CustomerOrderNumber ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@OseonStatus", row.PaStatus);
-        cmd.Parameters.AddWithValue("@ArticleNumber", (object?)row.ArticleNumber ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Description1", (object?)row.Description1 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Description2", (object?)row.Description2 ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@WorkplaceName", (object?)row.WorkplaceName ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@ProductionWorkplaceId", (object?)workplaceId ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@QuantityTarget", row.QuantityTarget);
-        cmd.Parameters.AddWithValue("@QuantityActual", row.QuantityActual);
-        cmd.Parameters.AddWithValue("@DueDate", (object?)row.DueDate ?? DBNull.Value);
-
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        if (await reader.ReadAsync(ct))
+        for (int i = 0; i < distinctWorkplaces.Count; i++)
         {
-            var orderId = Convert.ToInt32(reader.GetValue(0));
-            var isInsert = reader.GetInt32(1) == 1;
-            return (orderId, isInsert);
+            valuesClauses.Add($"(@wp{i})");
+            cmd.Parameters.AddWithValue($"@wp{i}", distinctWorkplaces[i]!);
         }
 
-        throw new InvalidOperationException($"OSEON-Auftrag {row.OseonOrderNumber} konnte nicht geschrieben werden.");
+        cmd.CommandText = string.Format(sql, string.Join(", ", valuesClauses));
+        await cmd.ExecuteNonQueryAsync(ct);
+        await cmd.DisposeAsync();
+
+        _logger.LogDebug("Werkbänke synchronisiert: {Count} eindeutige Namen geprüft.", distinctWorkplaces.Count);
     }
 
-    private static async Task UpsertOperationAsync(SqlConnection conn, int orderId, OseonRawRow row, CancellationToken ct)
+    /// <summary>
+    /// Bulk MERGE für OseonProductionOrders über Temp-Table.
+    /// Statt ~5000 einzelne Roundtrips → 1 BulkCopy + 1 MERGE Statement.
+    /// </summary>
+    private async Task<(int inserted, int updated)> BulkMergeOrdersAsync(SqlConnection conn,
+        List<IGrouping<string, OseonRawRow>> orderGroups, bool hasTimestampColumns, CancellationToken ct)
     {
-        const string mergeSql = """
-            IF EXISTS (SELECT 1 FROM [OseonWorkOperations] WHERE [OseonProductionOrderId] = @OrderId AND [PositionNumber] = @PositionNumber)
-            BEGIN
-                UPDATE [OseonWorkOperations] SET
-                    [Name]             = @Name,
-                    [Description]      = @Description,
-                    [OseonStatus]      = @OseonStatus,
-                    [IsFirstOperation] = @IsFirstOperation,
-                    [IsLastOperation]  = @IsLastOperation,
-                    [ModifiedAt]       = GETUTCDATE(),
-                    [ModifiedBy]       = 'IDEALAKEWMSService',
-                    [ModifiedByWindows] = SYSTEM_USER
-                WHERE [OseonProductionOrderId] = @OrderId AND [PositionNumber] = @PositionNumber
-            END
-            ELSE
-            BEGIN
-                INSERT INTO [OseonWorkOperations]
-                    ([OseonProductionOrderId],[PositionNumber],[Name],[Description],
-                     [OseonStatus],[IsFirstOperation],[IsLastOperation],
-                     [CreatedAt],[CreatedBy],[CreatedByWindows])
-                VALUES
-                    (@OrderId,@PositionNumber,@Name,@Description,
-                     @OseonStatus,@IsFirstOperation,@IsLastOperation,
-                     GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
-            END
+        // DataTable für BulkCopy aufbauen
+        var dt = new DataTable();
+        dt.Columns.Add("OseonId", typeof(long));
+        dt.Columns.Add("OseonOrderNumber", typeof(string));
+        dt.Columns.Add("CustomerOrderNumber", typeof(string));
+        dt.Columns.Add("OseonStatus", typeof(int));
+        dt.Columns.Add("ArticleNumber", typeof(string));
+        dt.Columns.Add("Description1", typeof(string));
+        dt.Columns.Add("Description2", typeof(string));
+        dt.Columns.Add("WorkplaceName", typeof(string));
+        dt.Columns.Add("QuantityTarget", typeof(decimal));
+        dt.Columns.Add("QuantityActual", typeof(decimal));
+        dt.Columns.Add("DueDate", typeof(DateTime));
+        if (hasTimestampColumns)
+            dt.Columns.Add("LastChangedInOseon", typeof(DateTime));
+
+        foreach (var group in orderGroups)
+        {
+            var row = group.First();
+            var dr = dt.NewRow();
+            dr["OseonId"] = row.OseonId;
+            dr["OseonOrderNumber"] = row.OseonOrderNumber ?? (object)DBNull.Value;
+            dr["CustomerOrderNumber"] = row.CustomerOrderNumber ?? (object)DBNull.Value;
+            dr["OseonStatus"] = row.PaStatus;
+            dr["ArticleNumber"] = row.ArticleNumber ?? (object)DBNull.Value;
+            dr["Description1"] = row.Description1 ?? (object)DBNull.Value;
+            dr["Description2"] = row.Description2 ?? (object)DBNull.Value;
+            dr["WorkplaceName"] = row.WorkplaceName ?? (object)DBNull.Value;
+            dr["QuantityTarget"] = row.QuantityTarget;
+            dr["QuantityActual"] = row.QuantityActual;
+            dr["DueDate"] = row.DueDate ?? (object)DBNull.Value;
+            if (hasTimestampColumns)
+                dr["LastChangedInOseon"] = row.DateOfLastChange ?? (object)DBNull.Value;
+            dt.Rows.Add(dr);
+        }
+
+        // Temp-Table erstellen
+        var createTempSql = $"""
+            CREATE TABLE #TmpOseonOrders (
+                [OseonId] bigint NOT NULL,
+                [OseonOrderNumber] nvarchar(100) NULL,
+                [CustomerOrderNumber] nvarchar(100) NULL,
+                [OseonStatus] int NOT NULL,
+                [ArticleNumber] nvarchar(100) NULL,
+                [Description1] nvarchar(500) NULL,
+                [Description2] nvarchar(500) NULL,
+                [WorkplaceName] nvarchar(200) NULL,
+                [QuantityTarget] decimal(18,3) NOT NULL,
+                [QuantityActual] decimal(18,3) NOT NULL,
+                [DueDate] datetime2 NULL{(hasTimestampColumns ? ",\n                [LastChangedInOseon] datetime2 NULL" : "")}
+            )
+            """;
+        await using (var cmd = new SqlCommand(createTempSql, conn) { CommandTimeout = 30 })
+            await cmd.ExecuteNonQueryAsync(ct);
+
+        // BulkCopy in Temp-Table
+        using (var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = "#TmpOseonOrders", BulkCopyTimeout = 120 })
+        {
+            bulkCopy.ColumnMappings.Add("OseonId", "OseonId");
+            bulkCopy.ColumnMappings.Add("OseonOrderNumber", "OseonOrderNumber");
+            bulkCopy.ColumnMappings.Add("CustomerOrderNumber", "CustomerOrderNumber");
+            bulkCopy.ColumnMappings.Add("OseonStatus", "OseonStatus");
+            bulkCopy.ColumnMappings.Add("ArticleNumber", "ArticleNumber");
+            bulkCopy.ColumnMappings.Add("Description1", "Description1");
+            bulkCopy.ColumnMappings.Add("Description2", "Description2");
+            bulkCopy.ColumnMappings.Add("WorkplaceName", "WorkplaceName");
+            bulkCopy.ColumnMappings.Add("QuantityTarget", "QuantityTarget");
+            bulkCopy.ColumnMappings.Add("QuantityActual", "QuantityActual");
+            bulkCopy.ColumnMappings.Add("DueDate", "DueDate");
+            if (hasTimestampColumns)
+                bulkCopy.ColumnMappings.Add("LastChangedInOseon", "LastChangedInOseon");
+            await bulkCopy.WriteToServerAsync(dt, ct);
+        }
+
+        _logger.LogDebug("BulkCopy: {Count} Orders in Temp-Table geladen.", dt.Rows.Count);
+
+        // MERGE: Upsert in einem Statement
+        var tsUpdate = hasTimestampColumns ? ",\n                    target.[LastChangedInOseon]     = source.[LastChangedInOseon]" : "";
+        var tsInsertCols = hasTimestampColumns ? ",\n                        [LastChangedInOseon]" : "";
+        var tsInsertVals = hasTimestampColumns ? ",\n                        source.[LastChangedInOseon]" : "";
+
+        var mergeSql = $"""
+            MERGE [OseonProductionOrders] AS target
+            USING (
+                SELECT t.*, pw.[Id] AS WorkplaceId
+                FROM #TmpOseonOrders t
+                LEFT JOIN [ProductionWorkplaces] pw ON pw.[Name] = t.[WorkplaceName]
+            ) AS source
+            ON target.[OseonId] = source.[OseonId]
+            WHEN MATCHED THEN
+                UPDATE SET
+                    target.[OseonOrderNumber]      = source.[OseonOrderNumber],
+                    target.[CustomerOrderNumber]   = source.[CustomerOrderNumber],
+                    target.[OseonStatus]           = source.[OseonStatus],
+                    target.[ArticleNumber]         = source.[ArticleNumber],
+                    target.[Description1]          = source.[Description1],
+                    target.[Description2]          = source.[Description2],
+                    target.[WorkplaceName]         = source.[WorkplaceName],
+                    target.[ProductionWorkplaceId] = source.[WorkplaceId],
+                    target.[QuantityTarget]        = source.[QuantityTarget],
+                    target.[QuantityActual]        = source.[QuantityActual],
+                    target.[DueDate]               = source.[DueDate]{tsUpdate},
+                    target.[ModifiedAt]            = GETUTCDATE(),
+                    target.[ModifiedBy]            = 'IDEALAKEWMSService',
+                    target.[ModifiedByWindows]     = SYSTEM_USER
+            WHEN NOT MATCHED THEN
+                INSERT ([OseonId],[OseonOrderNumber],[CustomerOrderNumber],[OseonStatus],
+                        [ArticleNumber],[Description1],[Description2],[WorkplaceName],
+                        [ProductionWorkplaceId],[QuantityTarget],[QuantityActual],[DueDate]{tsInsertCols},
+                        [CreatedAt],[CreatedBy],[CreatedByWindows])
+                VALUES (source.[OseonId],source.[OseonOrderNumber],source.[CustomerOrderNumber],source.[OseonStatus],
+                        source.[ArticleNumber],source.[Description1],source.[Description2],source.[WorkplaceName],
+                        source.[WorkplaceId],source.[QuantityTarget],source.[QuantityActual],source.[DueDate]{tsInsertVals},
+                        GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
+            OUTPUT $action;
             """;
 
-        await using var cmd = new SqlCommand(mergeSql, conn);
-        cmd.Parameters.AddWithValue("@OrderId", orderId);
-        cmd.Parameters.AddWithValue("@PositionNumber", row.PositionNumber!);
-        cmd.Parameters.AddWithValue("@Name", row.ActivityName ?? string.Empty);
-        cmd.Parameters.AddWithValue("@Description", (object?)row.ActivityDescription ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@OseonStatus", row.AgaStatus);
-        cmd.Parameters.AddWithValue("@IsFirstOperation", row.IsFirstAga);
-        cmd.Parameters.AddWithValue("@IsLastOperation", row.IsLastAga);
+        int inserted = 0, updated = 0;
+        await using (var cmd = new SqlCommand(mergeSql, conn) { CommandTimeout = 120 })
+        await using (var reader = await cmd.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+            {
+                var action = reader.GetString(0);
+                if (action == "INSERT") inserted++;
+                else updated++;
+            }
+        }
 
-        await cmd.ExecuteNonQueryAsync(ct);
+        // Temp-Table aufräumen
+        await using (var cmd = new SqlCommand("DROP TABLE #TmpOseonOrders", conn))
+            await cmd.ExecuteNonQueryAsync(ct);
+
+        return (inserted, updated);
+    }
+
+    /// <summary>
+    /// Bulk MERGE für OseonWorkOperations über Temp-Table.
+    /// </summary>
+    private async Task BulkMergeOperationsAsync(SqlConnection conn,
+        List<OseonRawRow> oseonRows, bool hasTimestampColumns, CancellationToken ct)
+    {
+        // Nur Zeilen mit Positionsnummer (= Arbeitsgänge)
+        var operationRows = oseonRows
+            .Where(r => !string.IsNullOrEmpty(r.OseonOrderNumber) && !string.IsNullOrEmpty(r.PositionNumber))
+            .ToList();
+
+        if (operationRows.Count == 0) return;
+
+        // DataTable für BulkCopy
+        var dt = new DataTable();
+        dt.Columns.Add("OseonOrderNumber", typeof(string));
+        dt.Columns.Add("PositionNumber", typeof(string));
+        dt.Columns.Add("Name", typeof(string));
+        dt.Columns.Add("Description", typeof(string));
+        dt.Columns.Add("OseonStatus", typeof(int));
+        dt.Columns.Add("IsFirstOperation", typeof(bool));
+        dt.Columns.Add("IsLastOperation", typeof(bool));
+        if (hasTimestampColumns)
+            dt.Columns.Add("LastStatusReportInOseon", typeof(DateTime));
+
+        foreach (var row in operationRows)
+        {
+            var dr = dt.NewRow();
+            dr["OseonOrderNumber"] = row.OseonOrderNumber!;
+            dr["PositionNumber"] = row.PositionNumber!;
+            dr["Name"] = row.ActivityName ?? string.Empty;
+            dr["Description"] = row.ActivityDescription ?? (object)DBNull.Value;
+            dr["OseonStatus"] = row.AgaStatus;
+            dr["IsFirstOperation"] = row.IsFirstAga;
+            dr["IsLastOperation"] = row.IsLastAga;
+            if (hasTimestampColumns)
+                dr["LastStatusReportInOseon"] = row.LastStatusReport ?? (object)DBNull.Value;
+            dt.Rows.Add(dr);
+        }
+
+        // Temp-Table erstellen
+        var createTempSql = $"""
+            CREATE TABLE #TmpOseonOps (
+                [OseonOrderNumber] nvarchar(100) NOT NULL,
+                [PositionNumber] nvarchar(50) NOT NULL,
+                [Name] nvarchar(200) NOT NULL,
+                [Description] nvarchar(500) NULL,
+                [OseonStatus] int NOT NULL,
+                [IsFirstOperation] bit NOT NULL,
+                [IsLastOperation] bit NOT NULL{(hasTimestampColumns ? ",\n                [LastStatusReportInOseon] datetime2 NULL" : "")}
+            )
+            """;
+        await using (var cmd = new SqlCommand(createTempSql, conn) { CommandTimeout = 30 })
+            await cmd.ExecuteNonQueryAsync(ct);
+
+        // BulkCopy
+        using (var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = "#TmpOseonOps", BulkCopyTimeout = 120 })
+        {
+            bulkCopy.ColumnMappings.Add("OseonOrderNumber", "OseonOrderNumber");
+            bulkCopy.ColumnMappings.Add("PositionNumber", "PositionNumber");
+            bulkCopy.ColumnMappings.Add("Name", "Name");
+            bulkCopy.ColumnMappings.Add("Description", "Description");
+            bulkCopy.ColumnMappings.Add("OseonStatus", "OseonStatus");
+            bulkCopy.ColumnMappings.Add("IsFirstOperation", "IsFirstOperation");
+            bulkCopy.ColumnMappings.Add("IsLastOperation", "IsLastOperation");
+            if (hasTimestampColumns)
+                bulkCopy.ColumnMappings.Add("LastStatusReportInOseon", "LastStatusReportInOseon");
+            await bulkCopy.WriteToServerAsync(dt, ct);
+        }
+
+        _logger.LogDebug("BulkCopy: {Count} Operations in Temp-Table geladen.", dt.Rows.Count);
+
+        // MERGE über OseonOrderNumber → OseonProductionOrders.Id
+        var tsSelect = hasTimestampColumns ? ",\n                       t.[LastStatusReportInOseon]" : "";
+        var tsUpdate = hasTimestampColumns ? ",\n                    target.[LastStatusReportInOseon]  = source.[LastStatusReportInOseon]" : "";
+        var tsInsertCols = hasTimestampColumns ? ",\n                        [LastStatusReportInOseon]" : "";
+        var tsInsertVals = hasTimestampColumns ? ",\n                        source.[LastStatusReportInOseon]" : "";
+
+        var mergeSql = $"""
+            MERGE [OseonWorkOperations] AS target
+            USING (
+                SELECT opo.[Id] AS OrderId, t.[PositionNumber], t.[Name], t.[Description],
+                       t.[OseonStatus], t.[IsFirstOperation], t.[IsLastOperation]{tsSelect}
+                FROM #TmpOseonOps t
+                INNER JOIN [OseonProductionOrders] opo ON opo.[OseonOrderNumber] = t.[OseonOrderNumber]
+            ) AS source
+            ON target.[OseonProductionOrderId] = source.[OrderId] AND target.[PositionNumber] = source.[PositionNumber]
+            WHEN MATCHED THEN
+                UPDATE SET
+                    target.[Name]                    = source.[Name],
+                    target.[Description]             = source.[Description],
+                    target.[OseonStatus]             = source.[OseonStatus],
+                    target.[IsFirstOperation]        = source.[IsFirstOperation],
+                    target.[IsLastOperation]         = source.[IsLastOperation]{tsUpdate},
+                    target.[ModifiedAt]              = GETUTCDATE(),
+                    target.[ModifiedBy]              = 'IDEALAKEWMSService',
+                    target.[ModifiedByWindows]       = SYSTEM_USER
+            WHEN NOT MATCHED THEN
+                INSERT ([OseonProductionOrderId],[PositionNumber],[Name],[Description],
+                        [OseonStatus],[IsFirstOperation],[IsLastOperation]{tsInsertCols},
+                        [CreatedAt],[CreatedBy],[CreatedByWindows])
+                VALUES (source.[OrderId],source.[PositionNumber],source.[Name],source.[Description],
+                        source.[OseonStatus],source.[IsFirstOperation],source.[IsLastOperation]{tsInsertVals},
+                        GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER);
+            """;
+
+        await using (var cmd = new SqlCommand(mergeSql, conn) { CommandTimeout = 120 })
+            await cmd.ExecuteNonQueryAsync(ct);
+
+        // Temp-Table aufräumen
+        await using (var cmd = new SqlCommand("DROP TABLE #TmpOseonOps", conn))
+            await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task<SyncResult> SyncWorkplacesToProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
+    {
+        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
+
+        try
+        {
+            await using var conn = new SqlConnection(wmsConnection);
+            await conn.OpenAsync(ct);
+
+            if (dryRun)
+            {
+                const string countSql = """
+                    SELECT COUNT(*)
+                    FROM ProductionOrders po
+                    INNER JOIN (
+                        SELECT CustomerOrderNumber, MIN(ProductionWorkplaceId) AS ProductionWorkplaceId
+                        FROM OseonProductionOrders
+                        WHERE CustomerOrderNumber IS NOT NULL
+                          AND ProductionWorkplaceId IS NOT NULL
+                        GROUP BY CustomerOrderNumber
+                    ) oseon ON po.OrderNumber = oseon.CustomerOrderNumber
+                    WHERE po.ProductionWorkplaceId IS NULL
+                    """;
+
+                await using var cmd = new SqlCommand(countSql, conn);
+                var count = (int)(await cmd.ExecuteScalarAsync(ct))!;
+                _logger.LogInformation("[DryRun] Werkbank-Sync: {Count} Produktionsaufträge würden aktualisiert.", count);
+                return new SyncResult(0, count, 0, $"DryRun: {count} Aufträge würden Werkbank erhalten.");
+            }
+
+            const string updateSql = """
+                UPDATE po SET
+                    po.ProductionWorkplaceId = oseon.ProductionWorkplaceId,
+                    po.ModifiedAt = GETUTCDATE(),
+                    po.ModifiedBy = 'IDEALAKEWMSService',
+                    po.ModifiedByWindows = SYSTEM_USER
+                FROM ProductionOrders po
+                INNER JOIN (
+                    SELECT CustomerOrderNumber, MIN(ProductionWorkplaceId) AS ProductionWorkplaceId
+                    FROM OseonProductionOrders
+                    WHERE CustomerOrderNumber IS NOT NULL
+                      AND ProductionWorkplaceId IS NOT NULL
+                    GROUP BY CustomerOrderNumber
+                ) oseon ON po.OrderNumber = oseon.CustomerOrderNumber
+                WHERE po.ProductionWorkplaceId IS NULL
+                """;
+
+            await using var updateCmd = new SqlCommand(updateSql, conn);
+            var updated = await updateCmd.ExecuteNonQueryAsync(ct);
+
+            _logger.LogInformation("Werkbank-Sync: {Updated} Produktionsaufträge aktualisiert.", updated);
+            return new SyncResult(0, updated, 0);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fehler beim Werkbank-Sync.");
+            return new SyncResult(0, 0, 1, ex.Message);
+        }
     }
 
     private class OseonRawRow
@@ -311,5 +554,7 @@ public class OseonSyncService : IOseonSyncService
         public decimal QuantityTarget { get; set; }
         public decimal QuantityActual { get; set; }
         public DateTime? DueDate { get; set; }
+        public DateTime? DateOfLastChange { get; set; }
+        public DateTime? LastStatusReport { get; set; }
     }
 }

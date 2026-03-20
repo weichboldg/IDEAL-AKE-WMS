@@ -54,16 +54,25 @@ public class SyncWorker : BackgroundService
                         articleResult.ErrorDetails != null ? $" Details: {articleResult.ErrorDetails}" : "");
                 }
 
-                // OSEON Tracking sync
+                // OSEON Tracking sync + Werkbank-Sync
                 if (_configuration.GetValue<bool>("Sync:OseonTrackingEnabled", false))
                 {
-                    _logger.LogInformation("OSEON-Tracking-Sync startet...");
                     var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
+
+                    _logger.LogInformation("OSEON-Tracking-Sync startet...");
                     var oseonResult = await oseonSync.SyncOseonProductionOrdersAsync(dryRun, stoppingToken);
                     _logger.LogInformation(
                         "OSEON-Tracking-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
                         oseonResult.Inserted, oseonResult.Updated, oseonResult.Errors,
                         oseonResult.ErrorDetails != null ? $" Details: {oseonResult.ErrorDetails}" : "");
+
+                    // Werkbank von OSEON-Aufträgen auf Sage-Aufträge übertragen
+                    _logger.LogInformation("Werkbank-Sync (OSEON → Produktionsaufträge) startet...");
+                    var wpResult = await oseonSync.SyncWorkplacesToProductionOrdersAsync(dryRun, stoppingToken);
+                    _logger.LogInformation(
+                        "Werkbank-Sync: {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                        wpResult.Updated, wpResult.Errors,
+                        wpResult.ErrorDetails != null ? $" Details: {wpResult.ErrorDetails}" : "");
                 }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)

@@ -35,5 +35,8 @@ public class OseonProductionOrder : AuditableEntity
 
     public DateTime? DueDate { get; set; }
 
+    /// <summary>OSEON-Feld pa.DateOfLastChange — für Delta-Sync</summary>
+    public DateTime? LastChangedInOseon { get; set; }
+
     public ICollection<OseonWorkOperation> WorkOperations { get; set; } = new List<OseonWorkOperation>();
 }

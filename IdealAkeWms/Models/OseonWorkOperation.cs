@@ -22,4 +22,7 @@ public class OseonWorkOperation : AuditableEntity
 
     public bool IsFirstOperation { get; set; }
     public bool IsLastOperation { get; set; }
+
+    /// <summary>OSEON-Feld aga.LetzteStatusMeldung — für Delta-Sync</summary>
+    public DateTime? LastStatusReportInOseon { get; set; }
 }

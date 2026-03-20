@@ -18,6 +18,29 @@ Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für I
 - IIS mit Windows-Authentifizierung (Produktion)
 - AD-Umgebung für Windows-Auth
 
+## IIS-Konfiguration (Performance)
+
+Die `web.config` enthält ein `requestTimeout` von 5 Minuten (Standard: 2 Minuten). Das ist nötig für Seiten mit vielen Daten (z.B. OSEON Teileverfolgung).
+
+**Wichtige IIS-Settings:**
+
+| Setting | Wert | Beschreibung |
+|---------|------|-------------|
+| `requestTimeout` (web.config) | `00:05:00` | Max. Verarbeitungszeit pro Request (ASP.NET Core Module) |
+| **Application Pool → Idle Timeout** | `0` (empfohlen) | Verhindert App-Pool-Recycling bei Inaktivität (IIS Manager → Application Pools → Advanced Settings) |
+| **Application Pool → Start Mode** | `AlwaysRunning` | App sofort verfügbar nach IIS-Restart (IIS Manager → Application Pools → Advanced Settings) |
+| **Site → Preload Enabled** | `True` | Erster Request ohne Wartezeit (IIS Manager → Site → Advanced Settings) |
+
+**Application Pool konfigurieren (IIS Manager):**
+1. Application Pools → den Pool der WMS-App auswählen → Advanced Settings
+2. `Idle Time-out (minutes)` auf `0` setzen (kein Timeout)
+3. `Start Mode` auf `AlwaysRunning` setzen
+4. `Regular Time Interval (minutes)` auf `0` setzen (kein regelmäßiges Recycling) oder auf einen hohen Wert (z.B. `1740` = 29h)
+
+**Site konfigurieren:**
+1. Sites → IDEAL AKE WMS → Advanced Settings
+2. `Preload Enabled` auf `True` setzen
+
 ## Installation
 
 ### 1. Datenbank einrichten
@@ -64,6 +87,8 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 26 | `SQL/26_AddUserCanPickCanViewTracking.sql` | User: CanPick, CanViewTracking Berechtigungen |
 | 27 | `SQL/27_AddUserCanReportOperations.sql` | User: CanReportOperations Berechtigung |
 | 28 | `SQL/28_AddQrMitFaNummer.sql` | AppSetting: QR-Code mit FA-Nummer |
+| 29 | `SQL/29_AddOseonTracking.sql` | OSEON Teileverfolgung Tabellen + AppSettings |
+| 30 | `SQL/30_OseonPerformanceIndexes.sql` | Performance-Indizes für OSEON-Tabellen |
 
 ### 2. ConnectionStrings konfigurieren
 
@@ -112,7 +137,19 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Synchronisation mit Sage (über SQL-View)
 - Terminberechnung: Kommissionierung, Vorkommissionierung, Beschichtung
 - Status-Management (offen, in Kommissionierung, teilkommissioniert, abgeschlossen)
+- **Werkbank-Spalte**: Zeigt zugeordneten Produktionsarbeitsplatz — automatisch per Werkbank-Sync aus OSEON befüllt
+- **OSEON-Button**: Direktlink zur OSEON-Teileverfolgung, vorgefiltert auf WA-Nummer
 - **Glas/Zukauf**: Checkbox-Spalten direkt in der Tabelle, sofortige DB-Speicherung
+- **Tracking-User**: Benutzer mit Teileverfolgungsberechtigung können die WA-Liste einsehen (read-only, ohne Stückliste/Erledigt)
+
+### OSEON Teileverfolgung
+- 3-Ebenen-Baumstruktur: KundenAuftragsNr → Subaufträge (OSEON-Nr.) → Arbeitsgänge
+- **Ampelsystem**: Rot (überfällig), Gelb (fällig bald), Blau (demnächst), Grün (fertig/storniert), Grau (kein Termin)
+- **Server-seitige Paginierung**: 25 Gruppen pro Seite
+- **Filter**: Suche (Kundenauftragsnr. + OSEON-Nr.), Werkbank-Dropdown, Fertige anzeigen
+- Gruppenstatus: Aggregiert über alle Subaufträge
+- Konfigurierbar: `OseonAmpelGelbTage`, `OseonAmpelBlauTage` in AppSettings
+- Voraussetzung: AppSetting `TeileverfolgungAktiv = true` + User-Berechtigung `CanViewTracking`
 
 ### Kommissionierung (Stückliste)
 - Mehrstufiger klappbarer Baumstruktur-View der Stückliste (standardmäßig eingeklappt)
@@ -182,7 +219,11 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `StammdatenADGruppe` | `BDE_Stammdaten` | AD-Gruppe für Stammdaten-Zugriff |
 | `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
 | `TeileverfolgungAktiv` | `false` | Teileverfolgungs-Modul aktiviert |
+| `OseonRueckmeldungAktiv` | `false` | Rückmeldungen an OSEON zurückschreiben |
+| `SageRueckmeldungAktiv` | `false` | Rückmeldungen an Sage zurückschreiben |
 | `QrMitFaNummer` | `false` | QR-Code enthält FA-Nummer an 3. Stelle |
+| `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
+| `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 
 ## Corporate Design
 
@@ -195,14 +236,16 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
 ```
 IdealAkeWms/
-├── Controllers/          # MVC Controller (inkl. AccountController mit Profil)
+├── Controllers/          # MVC Controller (inkl. AccountController, TrackingController)
 ├── Data/
 │   ├── ApplicationDbContext.cs
 │   └── Repositories/     # Repository-Implementierungen
 ├── Media/                # Originale Medien-Assets (Logo, Favicon)
 ├── Models/
 │   └── ViewModels/       # View-spezifische Models (inkl. ProfileViewModel)
-├── Services/             # Business-Logik
+├── Filters/              # Action Filter (RequirePickingAccess, RequireTrackingAccess, etc.)
+├── Helpers/              # OseonStatusHelper
+├── Services/             # Business-Logik (inkl. OseonTrafficLightService)
 ├── Views/                # Razor Views
 ├── wwwroot/
 │   ├── css/site.css      # Custom Styles
@@ -212,7 +255,7 @@ IdealAkeWms/
 ├── Migrations/           # EF Core Migrations
 └── SQL/
     ├── 00_FreshInstall.sql   # Komplettes Neuinstallations-Script
-    ├── 01-28_*.sql           # Einzel-Migrations für bestehende Installationen
+    ├── 01-30_*.sql           # Einzel-Migrations für bestehende Installationen
     └── AgentJobs/            # SQL Server Agent Job Scripts (Sage-Import)
 
 IdealAkeWms.Tests/
@@ -222,8 +265,8 @@ IdealAkeWms.Tests/
 
 IDEALAKEWMSService/        # Windows Service (Hintergrundprozesse)
 ├── Workers/
-│   ├── SyncWorker.cs         # Placeholder: Schnittstellenabgleich IDEAL_AKE_WMS ↔ SAGE/OSEON
-│   └── NotificationWorker.cs # Placeholder: Mail-Notifications (Meldebestand, Fehler)
+│   ├── SyncWorker.cs         # Schnittstellenabgleich SAGE/OSEON → WMS (Aufträge, Artikel, Tracking, Werkbank)
+│   └── NotificationWorker.cs # Mail-Notifications (Meldebestand)
 ├── Program.cs            # Startup: UseWindowsService(), DI, Serilog
 └── appsettings.json      # ConnectionStrings, MailSettings, WorkerSettings
 ```
@@ -276,7 +319,8 @@ C:\Services\IDEALAKEWMSService\
 {
   "ConnectionStrings": {
     "DefaultConnection": "Server=AKESQL20.ake.at;Database=IDEAL_AKE_WMS;Trusted_Connection=True;TrustServerCertificate=True;",
-    "SageConnection":    "Server=AKESQL20.ake.at;Database=ake;Trusted_Connection=True;TrustServerCertificate=True;"
+    "SageConnection":    "Server=AKESQL20.ake.at;Database=ake;Trusted_Connection=True;TrustServerCertificate=True;",
+    "OseonConnection":   "Server=aketrumpf01.ake.at\\TRUMPFSQL2;Database=T1000_V01_V001;Trusted_Connection=True;TrustServerCertificate=True;"
   },
   "MailSettings": {
     "SmtpHost":     "mail.ake.at",
@@ -396,7 +440,9 @@ Standard-Pfad: relativ zum Executable, also z. B. `C:\Services\IDEALAKEWMSServic
 **SyncWorker** (alle `WorkerSettings:SyncIntervalMinutes` Minuten, default 15):
 - Produktionsaufträge aus SAGE (`vw_AKE_Kommissionierung_WAListe`) → WMS (`ProductionOrders`) — MERGE (Insert + Update)
 - Artikel aus SAGE (`KHKPpsRessourcenPositionen` + `KHKArtikel`) → WMS (`Articles`) — nur neue
-- Konfigurierbar: `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled` (in ServiceSettings-Tabelle)
+- **OSEON-Tracking**: Produktionsaufträge + Arbeitsgänge aus OSEON-DB → WMS (`OseonProductionOrders`, `OseonWorkOperations`) — Upsert, Werkbänke auto-anlegen
+- **Werkbank-Sync**: Überträgt `ProductionWorkplaceId` von OSEON-Aufträgen auf Sage-Aufträge (Match: `OrderNumber` ↔ `CustomerOrderNumber`), nur wo noch keine Werkbank gesetzt ist
+- Konfigurierbar: `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:OseonTrackingEnabled` (in ServiceSettings-Tabelle)
 - **DryRun-Modus**: `WorkerSettings:SyncDryRun = true` → nur Logging, keine DB-Änderungen (Testphase neben SQL Agent Jobs)
 - Logs in `logs/sync/sync-YYYYMMDD.log` (30 Tage Retention)
 
@@ -432,6 +478,7 @@ Laufzeitveränderliche Einstellungen in der `ServiceSettings`-Tabelle (Admin-Ber
 | `Notifications:AppBaseUrl` | App-URL für Links in Mails |
 | `Sync:ProductionOrdersEnabled` | Produktionsaufträge-Sync aktiv |
 | `Sync:ArticlesEnabled` | Artikel-Sync aktiv |
+| `Sync:OseonTrackingEnabled` | OSEON-Tracking + Werkbank-Sync aktiv |
 
 ### Service-Einstellungen verwalten
 

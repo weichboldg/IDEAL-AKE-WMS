@@ -350,6 +350,7 @@ BEGIN
         [QuantityTarget]          DECIMAL(18,3) NOT NULL DEFAULT 0,
         [QuantityActual]          DECIMAL(18,3) NOT NULL DEFAULT 0,
         [DueDate]                 DATE NULL,
+        [LastChangedInOseon]      DATETIME2 NULL,
         [CreatedAt]               DATETIME2 NOT NULL,
         [CreatedBy]               NVARCHAR(200) NOT NULL,
         [CreatedByWindows]        NVARCHAR(200) NOT NULL,
@@ -384,6 +385,7 @@ BEGIN
         [OseonStatus]               INT NOT NULL DEFAULT 0,
         [IsFirstOperation]          BIT NOT NULL DEFAULT 0,
         [IsLastOperation]           BIT NOT NULL DEFAULT 0,
+        [LastStatusReportInOseon]   DATETIME2 NULL,
         [CreatedAt]                 DATETIME2 NOT NULL,
         [CreatedBy]                 NVARCHAR(200) NOT NULL,
         [CreatedByWindows]          NVARCHAR(200) NOT NULL,
@@ -645,6 +647,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311145014_AddArticleGroup', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260316062006_AddWorkOperationsPhase1')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260316062006_AddWorkOperationsPhase1', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260317140041_AddOseonTracking')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260317140041_AddOseonTracking', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318150710_AddOseonTimestamps')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318150710_AddOseonTimestamps', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

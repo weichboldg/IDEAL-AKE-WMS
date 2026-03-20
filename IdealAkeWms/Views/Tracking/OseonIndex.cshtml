@@ -172,16 +172,7 @@ else
                                     <td class="small text-muted">@(op.Description?.Length > 80 ? op.Description[..80] + "..." : op.Description)</td>
                                     <td></td>
                                     <td><span class="badge @op.StatusBadgeClass">@op.StatusText</span></td>
-                                    <td>
-                                        @if (op.IsFirstOperation)
-                                        {
-                                            <span class="badge bg-outline-secondary border small" title="Erster Arbeitsgang">Erst-AG</span>
-                                        }
-                                        @if (op.IsLastOperation)
-                                        {
-                                            <span class="badge bg-outline-secondary border small" title="Letzter Arbeitsgang">Letzt-AG</span>
-                                        }
-                                    </td>
+                                    <td></td>
                                     <td></td>
                                 </tr>
                             }
