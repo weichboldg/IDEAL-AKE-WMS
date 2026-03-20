@@ -8,7 +8,6 @@ using IdealAkeWms.Filters;
 
 namespace IdealAkeWms.Controllers;
 
-[RequirePickingAccess]
 public class StockMovementsController : Controller
 {
     private readonly IStockMovementRepository _stockMovementRepository;
@@ -34,6 +33,7 @@ public class StockMovementsController : Controller
         _settingRepository = settingRepository;
     }
 
+    [RequireStockAccess]
     public async Task<IActionResult> Index(
         DateTime? dateFrom, DateTime? dateTo,
         string? filterArticle, int? filterStorageLocationId,
@@ -70,6 +70,7 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    [RequireStockAccess]
     public async Task<IActionResult> Inbound()
     {
         var vm = new StockMovementCreateViewModel
@@ -81,6 +82,7 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Inbound(StockMovementCreateViewModel vm)
@@ -121,6 +123,7 @@ public class StockMovementsController : Controller
         return RedirectToAction(nameof(Inbound));
     }
 
+    [RequireStockAccess]
     public async Task<IActionResult> Outbound()
     {
         var vm = new StockMovementCreateViewModel
@@ -132,6 +135,7 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Outbound(StockMovementCreateViewModel vm)
@@ -207,6 +211,7 @@ public class StockMovementsController : Controller
         return RedirectToAction(nameof(Outbound));
     }
 
+    [RequireStockAccess]
     public async Task<IActionResult> Transfer()
     {
         var vm = new StockTransferViewModel
@@ -217,6 +222,7 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Transfer(StockTransferViewModel vm)
@@ -295,6 +301,7 @@ public class StockMovementsController : Controller
         return RedirectToAction(nameof(Transfer));
     }
 
+    [RequireStockKeyUserAccess]
     public async Task<IActionResult> OutboundAll(int? storageLocationId)
     {
         var vm = new OutboundAllViewModel
@@ -325,6 +332,7 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    [RequireStockKeyUserAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> OutboundAllConfirm(int storageLocationId, string? productionOrder)
@@ -369,6 +377,7 @@ public class StockMovementsController : Controller
 
     // ========== Lagerplatz-Umbuchung ==========
 
+    [RequireStockKeyUserAccess]
     public async Task<IActionResult> LocationTransfer(int? sourceStorageLocationId)
     {
         var allLocations = await _storageLocationRepository.GetAllOrderedAsync();
@@ -391,6 +400,7 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    [RequireStockKeyUserAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> LocationTransferConfirm(int sourceStorageLocationId, int targetStorageLocationId)
