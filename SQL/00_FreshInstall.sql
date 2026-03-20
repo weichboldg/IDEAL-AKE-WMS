@@ -1,7 +1,7 @@
 -- =============================================
 -- IDEAL-AKE WMS - Konsolidiertes Neuinstallations-Script
 -- Erstellt alle Tabellen, Views und Standarddaten im finalen Zustand.
--- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-28) verwenden.
+-- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-33) verwenden.
 -- =============================================
 
 -- Datenbank erstellen
@@ -403,7 +403,58 @@ END
 GO
 
 -- =============================================
--- 14. AppSettings
+-- 14. Roles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Roles')
+BEGIN
+    CREATE TABLE [dbo].[Roles] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Key]               NVARCHAR(50)      NOT NULL,
+        [Name]              NVARCHAR(100)     NOT NULL,
+        [Description]       NVARCHAR(500)     NULL,
+        [AdGroup]           NVARCHAR(200)     NULL,
+        [IsSystem]          BIT               NOT NULL DEFAULT 0,
+        [SortOrder]         INT               NOT NULL DEFAULT 0,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_Roles] PRIMARY KEY CLUSTERED ([Id])
+    );
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_Roles_Key] ON [dbo].[Roles]([Key]);
+    PRINT 'Tabelle Roles erstellt.';
+END
+GO
+
+-- =============================================
+-- 15. UserRoles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'UserRoles')
+BEGIN
+    CREATE TABLE [dbo].[UserRoles] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [UserId]            INT               NOT NULL,
+        [RoleId]            INT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_UserRoles] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[Roles]([Id]) ON DELETE CASCADE
+    );
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_UserRoles_UserId_RoleId] ON [dbo].[UserRoles]([UserId], [RoleId]);
+    CREATE NONCLUSTERED INDEX [IX_UserRoles_RoleId] ON [dbo].[UserRoles]([RoleId]);
+    PRINT 'Tabelle UserRoles erstellt.';
+END
+GO
+
+-- =============================================
+-- 16. AppSettings
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AppSettings')
 BEGIN
@@ -424,7 +475,6 @@ BEGIN
         ('CriticalThresholdPercent', '100', 'Meldebestand kritische Schwelle in Prozent'),
         ('NegativeBuchungErlaubt', 'false', 'Negative Buchungen erlauben (true/false)'),
         ('NegativeBuchungLagerplatz', 'NAN', 'Fallback-Lagerplatz bei negativem Bestand'),
-        ('StammdatenADGruppe', 'BDE_Stammdaten', 'AD-Gruppe fuer Stammdaten-Zugriff'),
         ('BeschichtungAbholtage', 'Dienstag,Donnerstag', 'Wochentage fuer Beschichtungs-Abholung'),
         ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
         ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
@@ -616,6 +666,38 @@ BEGIN
 END
 GO
 
+-- Standard-Rollen
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'admin')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows]) VALUES
+        ('admin',         'Administrator',      'Vollzugriff auf alle Funktionen',                                          NULL, 1, 0, GETDATE(), 'system', 'system'),
+        ('masterdata',    'Stammdaten',          'Zugriff auf Stammdatenverwaltung (Benutzer, Arbeitsplaetze, Einstellungen)', 'BDE_Stammdaten', 1, 1, GETDATE(), 'system', 'system'),
+        ('picking',       'Kommissionierung',    'Kommissionierung, Lagerbewegungen, Bestaende',                             NULL, 1, 2, GETDATE(), 'system', 'system'),
+        ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   NULL, 1, 3, GETDATE(), 'system', 'system'),
+        ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     NULL, 1, 4, GETDATE(), 'system', 'system'),
+        ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             NULL, 1, 5, GETDATE(), 'system', 'system'),
+        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                NULL, 1, 6, GETDATE(), 'system', 'system');
+    PRINT 'Standard-Rollen eingefuegt.';
+END
+GO
+
+-- Admin-Benutzer bekommt admin-Rolle
+IF NOT EXISTS (SELECT 1 FROM [dbo].[UserRoles] ur
+    INNER JOIN [dbo].[Users] u ON ur.[UserId] = u.[Id]
+    INNER JOIN [dbo].[Roles] r ON ur.[RoleId] = r.[Id]
+    WHERE u.[Name] = 'admin' AND r.[Key] = 'admin')
+BEGIN
+    DECLARE @adminUserId INT = (SELECT [Id] FROM [dbo].[Users] WHERE [Name] = 'admin');
+    DECLARE @adminRoleId INT = (SELECT [Id] FROM [dbo].[Roles] WHERE [Key] = 'admin');
+    IF @adminUserId IS NOT NULL AND @adminRoleId IS NOT NULL
+    BEGIN
+        INSERT INTO [dbo].[UserRoles] ([UserId], [RoleId], [CreatedAt], [CreatedBy], [CreatedByWindows])
+        VALUES (@adminUserId, @adminRoleId, GETDATE(), 'system', 'system');
+        PRINT 'Admin-Benutzer hat admin-Rolle erhalten.';
+    END
+END
+GO
+
 -- =============================================
 -- 18. EF Migrations History
 -- =============================================
@@ -651,6 +733,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260317140041_AddOseonTracking', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318150710_AddOseonTimestamps')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318150710_AddOseonTimestamps', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260320101049_AddRolesAndUserRoles')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260320101049_AddRolesAndUserRoles', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
