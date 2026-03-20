@@ -29,6 +29,26 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Foto-Upload bei Kommissionierung | Fertig |
 | Server-seitiger Druck | Grundstruktur |
 | OSEON Teileverfolgung | Fertig |
+| Rollenbasierte Zugriffskontrolle | Fertig (Phase 1) |
+
+## Änderungen (20.03.2026)
+
+### Rollenbasierte Zugriffskontrolle (RBAC)
+- **Neue Entities**: `Role` (Key, Name, Description, AdGroup) + `UserRole` Junction-Tabelle (Many-to-Many)
+- **Statische Rollen-Keys**: `RoleKeys.cs` mit admin, masterdata, picking, stock, stock_keyuser, tracking, reporting
+- **Admin-Wildcard**: Admin-Rolle ueberspringt alle Berechtigungspruefungen
+- **AD-Gruppen-Integration**: Jede Rolle kann optional eine AD-Gruppe haben, Mitglieder erhalten die Rolle automatisch (5 Min Cache)
+- **Neue Filter**: `[RequireStockAccess]`, `[RequireStockKeyUserAccess]`, `[RequireReportingAccess]`
+- **StockMovementsController aufgeteilt**: Basis-Aktionen (Ein/Aus/Umbuchung) mit `[RequireStockAccess]`, Lagerplatz-Operationen (OutboundAll, TransferAll) mit `[RequireStockKeyUserAccess]`
+- **CurrentUserService refactored**: Alle Berechtigungsmethoden delegieren an `HasAnyRoleAsync()` mit Rollen-Keys
+- **RolesController**: CRUD-Verwaltung fuer Rollen (Name, Beschreibung, AD-Gruppe)
+- **UsersController**: Rollen-Zuweisung per Checkbox statt einzelne Boolean-Felder
+- **Navbar**: Menueeintraege basieren auf Rollen-Checks
+- **Zwei-Phasen-Migration**: Phase 1 = neue Tabellen + Datenmigration (alte Boolean-Spalten bleiben als Fallback), Phase 2 = alte Spalten entfernen (SQL/33)
+- **SQL**: `SQL/32_AddRoleTables.sql` (Phase 1), `SQL/33_RemoveOldPermissionColumns.sql` (Phase 2, erst nach Verifikation)
+- **Seeding**: Standard-Rollen + admin-User erhaelt admin-Rolle beim Startup
+- **Tests**: Unit-Tests fuer CurrentUserService (Rollen-Checks) und Filter-Attribute
+- **AppSetting entfernt**: `StammdatenADGruppe` ersetzt durch `Role.AdGroup` auf der masterdata-Rolle
 
 ## Änderungen (18.03.2026)
 

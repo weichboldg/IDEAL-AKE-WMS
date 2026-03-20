@@ -96,18 +96,49 @@
 
 - **`[RequireMasterDataAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.HasMasterDataAccessAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
-  - Angewendet auf: `UsersController`, `WorkstationsController`, `SettingsController`
-- **`HasMasterDataAccessAsync()`**: Prüft zuerst `User.HasMasterDataAccess` Flag, dann AD-Gruppe aus AppSetting `StammdatenADGruppe`
+  - Angewendet auf: `UsersController`, `WorkstationsController`, `SettingsController`, `RolesController`
+  - Rollen: `admin`, `masterdata`
 - **`[RequireTrackingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanViewTrackingAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Angewendet auf: `TrackingController`
+  - Rollen: `admin`, `tracking`
 - **`[RequirePickingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanPickAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
-  - Angewendet auf: `StockMovementsController`, `StockOverviewController`, `ProductionOrdersApiController`, einzelne Actions in `ProductionOrdersController` (alle außer `Index`)
-  - Menüpunkte Lagerbewegungen, Bestände, Kommissionierung sind nur sichtbar wenn `CanPickAsync() == true`
+  - Angewendet auf: `ProductionOrdersApiController`, einzelne Actions in `ProductionOrdersController` (alle außer `Index`)
+  - Menüpunkte Kommissionierung nur sichtbar wenn `CanPickAsync() == true`
+  - Rollen: `admin`, `picking`
 - **`[RequirePickingOrTrackingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `CanPickAsync() || CanViewTrackingAsync()`
   - Angewendet auf: `ProductionOrdersController.Index` — Tracking-User sehen WA-Liste (read-only, ohne Stückliste/Erledigt), können OSEON Teileverfolgung öffnen
   - Navbar: Werkstattaufträge-Link erscheint auch für Tracking-User (wenn kein Picking-Zugriff)
+- **`[RequireStockAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanAccessStockAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Angewendet auf: `StockMovementsController` (Einbuchung, Ausbuchung, Umbuchung, Index), `StockOverviewController`
+  - Rollen: `admin`, `stock`, `stock_keyuser`, `picking`
+- **`[RequireStockKeyUserAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanTransferStockAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Angewendet auf: `StockMovementsController` (Lagerplatz ausbuchen, Lagerplatz umbuchen)
+  - Rollen: `admin`, `stock_keyuser`, `picking`
+- **`[RequireReportingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanReportOperationsAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Rollen: `admin`, `reporting` (fuer spätere BDE-Controller)
+
+## Rollenkonzept
+
+- **Architektur**: `Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`
+- **Admin-Wildcard**: Admin-Rolle ueberspringt alle Berechtigungspruefungen
+- **AD-Gruppen**: Jede Rolle kann optional eine AD-Gruppe (`Role.AdGroup`, SAMAccountName) haben -- Mitglieder erhalten die Rolle automatisch
+- **AD-Cache**: `Security:AdGroupCacheMinutes` in `appsettings.json` (default 5 Min)
+- **Zwei-Phasen-Migration**: Phase 1 = neue Tabellen + Datenmigration (alte Spalten bleiben), Phase 2 = alte Boolean-Spalten entfernen (nach Verifikation)
+
+| Key | Name | Beschreibung |
+|-----|------|-------------|
+| `admin` | Administrator | Vollzugriff |
+| `masterdata` | Stammdaten | Benutzer, Arbeitsplaetze, Einstellungen |
+| `picking` | Kommissionierer | Picking + vollstaendiger Lagerzugriff |
+| `stock` | Lager | Einbuchung, Ausbuchung, Bestaende |
+| `stock_keyuser` | Lager Keyuser | Lager + Lagerplatz ausbuchen/umbuchen |
+| `tracking` | Teileverfolgung | OSEON Auftraege + Rueckmeldungen |
+| `reporting` | Betriebsdaten (BDE) | Arbeitsgaenge stempeln (Zukunft) |
 
 ## ICurrentUserService
 
@@ -117,12 +148,18 @@ string GetDisplayName();              // App-Name (Session) oder Windows-Name (d
 int? GetCurrentAppUserId();           // Session["AppUserId"]
 string? GetCurrentAppUserName();      // Session["AppUserName"]
 bool IsLoggedIn();                    // AppUserId != null
-Task<bool> HasMasterDataAccessAsync(); // Flag + AD-Gruppe
-Task<bool> IsAdminAsync();            // User.IsAdmin
-Task<bool> CanViewTrackingAsync();    // User.CanViewTracking
-Task<bool> CanReportOperationsAsync(); // User.CanReportOperations
-Task<bool> CanPickAsync();            // User.CanPick
+Task<bool> HasRoleAsync(string roleKey);           // Prueft Rolle (DB + AD-Gruppe)
+Task<bool> HasAnyRoleAsync(params string[] roleKeys); // Prueft mehrere Rollen (OR)
+Task<bool> HasMasterDataAccessAsync(); // admin, masterdata (+ AD-Gruppe der Rolle)
+Task<bool> IsAdminAsync();            // admin-Rolle
+Task<bool> CanViewTrackingAsync();    // admin, tracking
+Task<bool> CanReportOperationsAsync(); // admin, reporting
+Task<bool> CanPickAsync();            // admin, picking
+Task<bool> CanAccessStockAsync();     // admin, stock, stock_keyuser, picking
+Task<bool> CanTransferStockAsync();   // admin, stock_keyuser, picking
 ```
+
+Alle Berechtigungsmethoden delegieren intern an `HasAnyRoleAsync()` mit den entsprechenden Rollen-Keys.
 
 ## TempData-Meldungen
 
@@ -173,12 +210,13 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Scanner-Endlosschleife**: `confirm()` nach fehlgeschlagenem Scan → Scanner öffnet sofort → Kamera liest denselben QR → Endlosschleife. Lösung: Bootstrap-Modal statt `confirm()` verwenden
 - **EF PendingModelChangesWarning**: Bei neuen Indizes/Model-Änderungen im `ApplicationDbContext.OnModelCreating` immer `dotnet ef migrations add` ausführen, sonst crasht `db.Database.Migrate()` mit `PendingModelChangesWarning`
 - **OSEON pa.ID ist bigint**: `ProduktionsAuftrag.ID` in OSEON ist `Int64` (bigint) — `OseonRawRow.OseonId` muss `long` sein, nicht `int`. `reader.GetInt64(0)` verwenden
+- **Rollen-Migration Phase 2**: `SQL/33_RemoveOldPermissionColumns.sql` erst nach Verifikation des Rollensystems ausfuehren. Vorher bleiben alte Boolean-Spalten als Fallback
 
 ## Standard-Daten (Neuinstallation)
 
 | Typ | Wert | Beschreibung |
 |-----|------|-------------|
-| Benutzer | `admin` / Passwort leer | Standard-Admin (`HasMasterDataAccess = true`), Seeding in `Program.cs` |
+| Benutzer | `admin` / Passwort leer | Standard-Admin (Rolle `admin` zugewiesen), Seeding in `Program.cs` |
 | Lagerplatz | `NAN` | Fallback für negative Buchungen, Seeding in `Program.cs` |
 
 Seeding: `Program.cs` nach `db.Database.Migrate()` — idempotent.
@@ -206,7 +244,7 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `CriticalThresholdPercent` | `100` | Meldebestand kritisch (%) |
 | `NegativeBuchungErlaubt` | `false` | Negative Buchungen erlauben |
 | `NegativeBuchungLagerplatz` | `NAN` | Fallback-Lagerplatz bei negativem Bestand |
-| `StammdatenADGruppe` | `BDE_Stammdaten` | AD-Gruppe für Stammdaten-Zugriff |
+| ~~`StammdatenADGruppe`~~ | — | Ersetzt durch `Role.AdGroup` auf der Rolle 'masterdata' |
 | `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
 | `TeileverfolgungAktiv` | `false` | Globaler Schalter: Teileverfolgungs-Modul aktiviert |
 | `OseonRueckmeldungAktiv` | `false` | Rückmeldungen dürfen an Oseon zurückgeschrieben werden |
@@ -287,6 +325,14 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `Views/Tracking/OseonIndex.cshtml` — OSEON Tree-View (Ordner/Dokument/Uhr-Icons, Chevrons, Alle auf-/zuklappen)
 - `Views/ProductionOrders/Index.cshtml` — WA-Liste (Stückliste-Button vorne, OSEON+Erledigt-Buttons hinten)
 - `IDEALAKEWMSService/Services/OseonSyncService.cs` — OSEON-Daten-Sync (filtert alte fertige Aufträge aus)
+- `Models/Role.cs` — Rollen-Entity (Key, Name, Description, AdGroup)
+- `Models/UserRole.cs` — User-Rolle Junction (Many-to-Many)
+- `Models/RoleKeys.cs` — Statische Rollen-Schluessel (admin, masterdata, picking, stock, etc.)
+- `Controllers/RolesController.cs` — CRUD fuer Rollen (Name, Beschreibung, AD-Gruppe)
+- `Data/Repositories/RoleRepository.cs` — Repository fuer Rollen + UserRoles
+- `Filters/RequireStockAccessAttribute.cs` — Zugriffskontrolle fuer Lagerbewegungen
+- `Filters/RequireStockKeyUserAccessAttribute.cs` — Zugriffskontrolle fuer Lagerplatz-Operationen
+- `Filters/RequireReportingAccessAttribute.cs` — Zugriffskontrolle fuer BDE (Zukunft)
 
 ## Logging (Serilog)
 
