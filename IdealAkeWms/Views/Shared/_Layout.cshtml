@@ -26,7 +26,13 @@
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto">
-                        @if (await CurrentUserService.CanPickAsync())
+                        @{
+                            var canAccessStock = await CurrentUserService.CanAccessStockAsync();
+                            var canPick = await CurrentUserService.CanPickAsync();
+                            var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
+                            var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                        }
+                        @if (canAccessStock || canPick)
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -35,8 +41,11 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
-                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="OutboundAll">Lagerplatz ausbuchen</a></li>
-                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
+                                    @if (await CurrentUserService.CanTransferStockAsync())
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="OutboundAll">Lagerplatz ausbuchen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
+                                    }
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
                                     <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
@@ -45,23 +54,17 @@
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="StockOverview" asp-action="Index">Bestände</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
-                            </li>
                         }
-                        @{
-                            var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                        }
-                        @{
-                            var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
-                        }
-                        @if (!await CurrentUserService.CanPickAsync() && canViewTracking)
+                        @if (canPick || canViewTracking)
                         {
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
+                            </li>
+                        }
+                        @if (canPick)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
                             </li>
                         }
                         @if (teileverfolgungAktiv && canViewTracking)
@@ -89,6 +92,7 @@
                                     <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
                                     <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
                                     <li><a class="dropdown-item" asp-controller="ProductionWorkplaces" asp-action="Index">Werkbänke</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
                                     <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                     <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
                                     @if (await CurrentUserService.IsAdminAsync())
