@@ -3,6 +3,8 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace IdealAkeWms.Tests.Services;
@@ -30,12 +32,12 @@ public class CurrentUserServiceIsAdminTests
         public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private static (CurrentUserService service, Mock<IUserRepository> repoMock) CreateService(int? sessionUserId)
+    private static (CurrentUserService service, Mock<IRoleRepository> roleRepoMock) CreateService(
+        int? sessionUserId, List<string>? roleKeys = null)
     {
         var session = new FakeSession();
         if (sessionUserId.HasValue)
         {
-            // Bytes direkt im Format das GetInt32 erwartet speichern (identisch mit SetInt32)
             var v = sessionUserId.Value;
             session.Set("AppUserId", new byte[] { (byte)v, (byte)(v >> 8), (byte)(v >> 16), (byte)(v >> 24) });
         }
@@ -46,12 +48,23 @@ public class CurrentUserServiceIsAdminTests
         var httpContextAccessor = new Mock<IHttpContextAccessor>();
         httpContextAccessor.Setup(a => a.HttpContext).Returns(mockHttpContext.Object);
 
-        var repoMock = new Mock<IUserRepository>();
-        var settingRepoMock = new Mock<IAppSettingRepository>();
-        settingRepoMock.Setup(r => r.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        var roleRepoMock = new Mock<IRoleRepository>();
+        roleRepoMock.Setup(r => r.GetRoleKeysByUserIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(roleKeys ?? new List<string>());
+        roleRepoMock.Setup(r => r.GetRolesWithAdGroupAsync())
+            .ReturnsAsync(new List<Role>());
 
-        var service = new CurrentUserService(httpContextAccessor.Object, repoMock.Object, settingRepoMock.Object);
-        return (service, repoMock);
+        var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "Security:AdGroupCacheMinutes", "5" }
+            })
+            .Build();
+
+        var service = new CurrentUserService(httpContextAccessor.Object, roleRepoMock.Object, memoryCache, configuration);
+        return (service, roleRepoMock);
     }
 
     [Fact]
@@ -65,11 +78,10 @@ public class CurrentUserServiceIsAdminTests
     }
 
     [Fact]
-    public async Task IsAdminAsync_LoggedIn_UserIsAdmin_ReturnsTrue()
+    public async Task IsAdminAsync_LoggedIn_UserHasAdminRole_ReturnsTrue()
     {
-        var (service, repoMock) = CreateService(sessionUserId: 42);
-        repoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync(new User { Id = 42, Name = "admin", IsAdmin = true, IsActive = true });
+        var (service, _) = CreateService(sessionUserId: 42,
+            roleKeys: new List<string> { RoleKeys.Admin });
 
         var result = await service.IsAdminAsync();
 
@@ -77,11 +89,10 @@ public class CurrentUserServiceIsAdminTests
     }
 
     [Fact]
-    public async Task IsAdminAsync_LoggedIn_UserIsNotAdmin_ReturnsFalse()
+    public async Task IsAdminAsync_LoggedIn_UserHasNoAdminRole_ReturnsFalse()
     {
-        var (service, repoMock) = CreateService(sessionUserId: 5);
-        repoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync(new User { Id = 5, Name = "normaluser", IsAdmin = false, IsActive = true });
+        var (service, _) = CreateService(sessionUserId: 5,
+            roleKeys: new List<string> { RoleKeys.Picking });
 
         var result = await service.IsAdminAsync();
 
@@ -89,10 +100,9 @@ public class CurrentUserServiceIsAdminTests
     }
 
     [Fact]
-    public async Task IsAdminAsync_LoggedIn_UserNotFoundInRepo_ReturnsFalse()
+    public async Task IsAdminAsync_LoggedIn_UserHasNoRoles_ReturnsFalse()
     {
-        var (service, repoMock) = CreateService(sessionUserId: 99);
-        repoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((User?)null);
+        var (service, _) = CreateService(sessionUserId: 99);
 
         var result = await service.IsAdminAsync();
 
@@ -100,11 +110,10 @@ public class CurrentUserServiceIsAdminTests
     }
 
     [Fact]
-    public async Task IsAdminAsync_LoggedIn_UserIsNotAdmin_FlagFalse_ReturnsFalse()
+    public async Task IsAdminAsync_LoggedIn_UserHasMasterDataButNotAdmin_ReturnsFalse()
     {
-        var (service, repoMock) = CreateService(sessionUserId: 7);
-        repoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync(new User { Id = 7, Name = "regular", IsAdmin = false, IsActive = true });
+        var (service, _) = CreateService(sessionUserId: 10,
+            roleKeys: new List<string> { RoleKeys.MasterData });
 
         var result = await service.IsAdminAsync();
 
@@ -112,15 +121,35 @@ public class CurrentUserServiceIsAdminTests
     }
 
     [Fact]
-    public async Task IsAdminAsync_LoggedIn_HasMasterDataButNotAdmin_ReturnsFalse()
+    public async Task HasMasterDataAccessAsync_UserHasMasterDataRole_ReturnsTrue()
     {
-        // HasMasterDataAccess ist kein Ersatz für IsAdmin
-        var (service, repoMock) = CreateService(sessionUserId: 10);
-        repoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync(new User { Id = 10, Name = "stammdaten", HasMasterDataAccess = true, IsAdmin = false });
+        var (service, _) = CreateService(sessionUserId: 10,
+            roleKeys: new List<string> { RoleKeys.MasterData });
 
-        var result = await service.IsAdminAsync();
+        var result = await service.HasMasterDataAccessAsync();
 
-        result.Should().BeFalse();
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HasMasterDataAccessAsync_UserHasAdminRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 10,
+            roleKeys: new List<string> { RoleKeys.Admin });
+
+        var result = await service.HasMasterDataAccessAsync();
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanPickAsync_UserHasPickingRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 10,
+            roleKeys: new List<string> { RoleKeys.Picking });
+
+        var result = await service.CanPickAsync();
+
+        result.Should().BeTrue();
     }
 }

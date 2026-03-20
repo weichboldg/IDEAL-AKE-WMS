@@ -7,9 +7,15 @@ public interface ICurrentUserService
     int? GetCurrentAppUserId();
     string? GetCurrentAppUserName();
     bool IsLoggedIn();
-    Task<bool> HasMasterDataAccessAsync();
+
+    Task<bool> HasRoleAsync(string roleKey);
+    Task<bool> HasAnyRoleAsync(params string[] roleKeys);
+
     Task<bool> IsAdminAsync();
+    Task<bool> HasMasterDataAccessAsync();
+    Task<bool> CanPickAsync();
     Task<bool> CanViewTrackingAsync();
     Task<bool> CanReportOperationsAsync();
-    Task<bool> CanPickAsync();
+    Task<bool> CanAccessStockAsync();
+    Task<bool> CanTransferStockAsync();
 }

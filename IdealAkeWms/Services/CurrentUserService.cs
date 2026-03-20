@@ -1,28 +1,31 @@
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace IdealAkeWms.Services;
 
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly IUserRepository _userRepository;
-    private readonly IAppSettingRepository _settingRepository;
+    private readonly IRoleRepository _roleRepository;
+    private readonly IMemoryCache _memoryCache;
+    private readonly IConfiguration _configuration;
 
-    // Per-request cache to avoid redundant DB queries for the same user
-    private Models.User? _cachedUser;
-    private int? _cachedUserId;
+    private HashSet<string>? _cachedRoleKeys;
 
     public const string SessionKeyUserId = "AppUserId";
     public const string SessionKeyUserName = "AppUserName";
 
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
-        IUserRepository userRepository,
-        IAppSettingRepository settingRepository)
+        IRoleRepository roleRepository,
+        IMemoryCache memoryCache,
+        IConfiguration configuration)
     {
         _httpContextAccessor = httpContextAccessor;
-        _userRepository = userRepository;
-        _settingRepository = settingRepository;
+        _roleRepository = roleRepository;
+        _memoryCache = memoryCache;
+        _configuration = configuration;
     }
 
     public string GetWindowsUserName()
@@ -32,12 +35,10 @@ public class CurrentUserService : ICurrentUserService
 
     public string GetDisplayName()
     {
-        // Zuerst Session-Benutzer prüfen
         var appUserName = GetCurrentAppUserName();
         if (!string.IsNullOrEmpty(appUserName))
             return appUserName;
 
-        // Fallback auf Windows-Identity
         var identity = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "SYSTEM";
         if (identity.Contains('\\'))
             return identity.Split('\\').Last();
@@ -46,8 +47,7 @@ public class CurrentUserService : ICurrentUserService
 
     public int? GetCurrentAppUserId()
     {
-        var userId = _httpContextAccessor.HttpContext?.Session.GetInt32(SessionKeyUserId);
-        return userId;
+        return _httpContextAccessor.HttpContext?.Session.GetInt32(SessionKeyUserId);
     }
 
     public string? GetCurrentAppUserName()
@@ -60,55 +60,86 @@ public class CurrentUserService : ICurrentUserService
         return GetCurrentAppUserId().HasValue;
     }
 
-    public async Task<bool> HasMasterDataAccessAsync()
+    public async Task<bool> HasRoleAsync(string roleKey)
     {
-        // 1. Flag im App-User prüfen
-        var user = await GetCurrentUserAsync();
-        if (user?.HasMasterDataAccess == true)
-            return true;
+        var roles = await LoadRoleKeysAsync();
+        return roles.Contains(roleKey);
+    }
 
-        // 2. AD-Gruppe prüfen
-        var adGroup = await _settingRepository.GetValueAsync("StammdatenADGruppe");
-        if (!string.IsNullOrEmpty(adGroup))
-        {
-            var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext?.User?.IsInRole(adGroup) == true)
-                return true;
-        }
-
-        return false;
+    public async Task<bool> HasAnyRoleAsync(params string[] roleKeys)
+    {
+        var roles = await LoadRoleKeysAsync();
+        return roleKeys.Any(roles.Contains);
     }
 
     public async Task<bool> IsAdminAsync()
-        => await CheckUserFlagAsync(u => u.IsAdmin);
+        => await HasRoleAsync(RoleKeys.Admin);
 
-    public async Task<bool> CanViewTrackingAsync()
-        => await CheckUserFlagAsync(u => u.CanViewTracking);
-
-    public async Task<bool> CanReportOperationsAsync()
-        => await CheckUserFlagAsync(u => u.CanReportOperations);
+    public async Task<bool> HasMasterDataAccessAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.MasterData);
 
     public async Task<bool> CanPickAsync()
-        => await CheckUserFlagAsync(u => u.CanPick);
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking);
 
-    private async Task<Models.User?> GetCurrentUserAsync()
+    public async Task<bool> CanViewTrackingAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Tracking);
+
+    public async Task<bool> CanReportOperationsAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Reporting);
+
+    public async Task<bool> CanAccessStockAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking);
+
+    public async Task<bool> CanTransferStockAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.StockKeyUser, RoleKeys.Picking);
+
+    private async Task<HashSet<string>> LoadRoleKeysAsync()
     {
+        if (_cachedRoleKeys != null)
+            return _cachedRoleKeys;
+
+        var roleKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         var userId = GetCurrentAppUserId();
-        if (!userId.HasValue)
-            return null;
+        if (userId.HasValue)
+        {
+            var directRoles = await _roleRepository.GetRoleKeysByUserIdAsync(userId.Value);
+            foreach (var key in directRoles)
+                roleKeys.Add(key);
+        }
 
-        // Return cached user if same ID within this request
-        if (_cachedUserId == userId.Value && _cachedUser != null)
-            return _cachedUser;
+        var adRoles = await GetAdGroupRolesAsync();
+        foreach (var key in adRoles)
+            roleKeys.Add(key);
 
-        _cachedUser = await _userRepository.GetByIdAsync(userId.Value);
-        _cachedUserId = userId.Value;
-        return _cachedUser;
+        _cachedRoleKeys = roleKeys;
+        return roleKeys;
     }
 
-    private async Task<bool> CheckUserFlagAsync(Func<Models.User, bool> predicate)
+    private async Task<List<string>> GetAdGroupRolesAsync()
     {
-        var user = await GetCurrentUserAsync();
-        return user != null && predicate(user);
+        var httpContext = _httpContextAccessor.HttpContext;
+        var windowsUser = httpContext?.User;
+        if (windowsUser?.Identity?.IsAuthenticated != true)
+            return new List<string>();
+
+        var cacheMinutes = _configuration.GetValue("Security:AdGroupCacheMinutes", 5);
+        var windowsName = windowsUser.Identity.Name ?? "UNKNOWN";
+        var cacheKey = $"AdGroupRoles:{windowsName}";
+
+        if (_memoryCache.TryGetValue(cacheKey, out List<string>? cached) && cached != null)
+            return cached;
+
+        var rolesWithAdGroup = await _roleRepository.GetRolesWithAdGroupAsync();
+        var matchedKeys = new List<string>();
+
+        foreach (var role in rolesWithAdGroup)
+        {
+            if (!string.IsNullOrEmpty(role.AdGroup) && windowsUser.IsInRole(role.AdGroup))
+                matchedKeys.Add(role.Key);
+        }
+
+        _memoryCache.Set(cacheKey, matchedKeys, TimeSpan.FromMinutes(cacheMinutes));
+        return matchedKeys;
     }
 }
