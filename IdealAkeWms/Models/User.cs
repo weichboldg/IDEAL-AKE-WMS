@@ -53,6 +53,8 @@ public class User : AuditableEntity
     [Display(Name = "Arbeitsgänge rückmelden")]
     public bool CanReportOperations { get; set; }
 
+    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
     public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
     public ICollection<Workstation> DefaultWorkstations { get; set; } = new List<Workstation>();
