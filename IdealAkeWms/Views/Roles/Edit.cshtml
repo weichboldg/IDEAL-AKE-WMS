@@ -1,0 +1,93 @@
+@model RoleEditViewModel
+@{
+    ViewData["Title"] = "Rolle bearbeiten";
+}
+
+<h2 class="page-header">Rolle bearbeiten</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="IsSystem" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Key" class="form-label"></label>
+                        @if (Model.IsSystem)
+                        {
+                            <input asp-for="Key" class="form-control" readonly />
+                            <div class="form-text">Systemrollen-Schlüssel kann nicht geändert werden.</div>
+                        }
+                        else
+                        {
+                            <input asp-for="Key" class="form-control" />
+                            <div class="form-text">Technischer Schlüssel zur Identifikation der Rolle im Code.</div>
+                        }
+                        <span asp-validation-for="Key" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" autofocus />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="AdGroup" class="form-label"></label>
+                        <input asp-for="AdGroup" class="form-control" placeholder="z.B. WMS_Lager" />
+                        <div class="form-text">SAMAccountName der AD-Gruppe (nur Gruppenname, kein DN). Mitglieder dieser Gruppe erhalten die Rolle automatisch.</div>
+                        <span asp-validation-for="AdGroup" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="SortOrder" class="form-label"></label>
+                        @if (Model.IsSystem)
+                        {
+                            <input asp-for="SortOrder" class="form-control" type="number" readonly />
+                        }
+                        else
+                        {
+                            <input asp-for="SortOrder" class="form-control" type="number" />
+                        }
+                        <span asp-validation-for="SortOrder" class="text-danger"></span>
+                    </div>
+
+                    @if (Model.UserCount > 0)
+                    {
+                        <div class="mb-3">
+                            <span class="badge bg-info">@Model.UserCount Benutzer zugewiesen</span>
+                        </div>
+                    }
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+
+                @if (!Model.IsSystem)
+                {
+                    <hr />
+                    <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                          onsubmit="return confirm('Rolle wirklich löschen?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Rolle löschen</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

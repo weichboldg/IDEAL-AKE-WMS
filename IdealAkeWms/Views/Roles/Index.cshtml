@@ -1,0 +1,49 @@
+@model List<RoleEditViewModel>
+@{
+    ViewData["Title"] = "Rollen";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="page-header mb-0">Rollen</h2>
+    <a asp-action="Create" class="btn btn-primary">Neue Rolle anlegen</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Schlüssel</th>
+                <th>AD-Gruppe</th>
+                <th>Benutzer</th>
+                <th style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var role in Model)
+            {
+                <tr>
+                    <td>
+                        @role.Name
+                        @if (role.IsSystem)
+                        {
+                            <span class="badge bg-secondary ms-1" title="Systemrolle">System</span>
+                        }
+                    </td>
+                    <td><code>@role.Key</code></td>
+                    <td>@role.AdGroup</td>
+                    <td>@role.UserCount</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@role.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Keine Rollen vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
