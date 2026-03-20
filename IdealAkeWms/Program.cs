@@ -1,5 +1,6 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.EntityFrameworkCore;
@@ -91,25 +92,70 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 
+    // Standard-Rollen
+    var defaultRoles = new (string Key, string Name, string? Description, int SortOrder)[]
+    {
+        (RoleKeys.Admin, "Administrator", "Vollzugriff auf alle Funktionen", 0),
+        (RoleKeys.MasterData, "Stammdaten", "Verwaltung von Benutzern, Arbeitsplätzen und Einstellungen", 10),
+        (RoleKeys.Picking, "Kommissionierer", "Kommissionierung und vollständiger Lagerzugriff", 20),
+        (RoleKeys.Stock, "Lager", "Einbuchung, Ausbuchung und Bestandsübersicht", 30),
+        (RoleKeys.StockKeyUser, "Lager Keyuser", "Lager + Lagerplatz ausbuchen/umbuchen", 40),
+        (RoleKeys.Tracking, "Teileverfolgung", "OSEON Teileverfolgung und Rückmeldungen", 50),
+        (RoleKeys.Reporting, "Betriebsdaten (BDE)", "Arbeitsgänge stempeln und rückmelden", 60),
+    };
+    foreach (var (key, name, description, sortOrder) in defaultRoles)
+    {
+        if (!db.Roles.Any(r => r.Key == key))
+        {
+            db.Roles.Add(new Role
+            {
+                Key = key,
+                Name = name,
+                Description = description,
+                SortOrder = sortOrder,
+                IsSystem = true,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "system",
+                CreatedByWindows = "system"
+            });
+        }
+    }
+    db.SaveChanges();
+
     // Standard-Admin-Benutzer
     var adminUser = db.Users.FirstOrDefault(u => u.Name == "admin");
     if (adminUser == null)
     {
-        db.Users.Add(new IdealAkeWms.Models.User
+        adminUser = new User
         {
             Name = "admin",
             IsActive = true,
-            HasMasterDataAccess = true,
             PasswordHash = passwordService.HashPassword(""),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "system",
             CreatedByWindows = "system"
-        });
+        };
+        db.Users.Add(adminUser);
         db.SaveChanges();
     }
     else if (adminUser.PasswordHash == null)
     {
         adminUser.PasswordHash = passwordService.HashPassword("");
+        db.SaveChanges();
+    }
+
+    // Admin-Rolle zuweisen
+    var adminRole = db.Roles.FirstOrDefault(r => r.Key == RoleKeys.Admin);
+    if (adminRole != null && !db.UserRoles.Any(ur => ur.UserId == adminUser.Id && ur.RoleId == adminRole.Id))
+    {
+        db.UserRoles.Add(new UserRole
+        {
+            UserId = adminUser.Id,
+            RoleId = adminRole.Id,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "system",
+            CreatedByWindows = "system"
+        });
         db.SaveChanges();
     }
 
