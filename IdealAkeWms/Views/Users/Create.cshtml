@@ -1,4 +1,4 @@
-@model User
+@model IdealAkeWms.Models.ViewModels.UserEditViewModel
 @{
     ViewData["Title"] = "Benutzer anlegen";
 }
@@ -29,43 +29,32 @@
                         <label asp-for="IsActive" class="form-check-label"></label>
                     </div>
 
-                    <div class="mb-3 form-check">
-                        <input asp-for="HasMasterDataAccess" class="form-check-input" />
-                        <label asp-for="HasMasterDataAccess" class="form-check-label"></label>
-                    </div>
+                    <hr />
+                    <h6 class="text-muted">Rollen</h6>
 
-                    <div class="mb-3 form-check">
-                        <input asp-for="IsAdmin" class="form-check-input" />
-                        <label asp-for="IsAdmin" class="form-check-label"></label>
-                        <div class="form-text">Administratoren haben Zugriff auf Service-Einstellungen.</div>
-                    </div>
+                    @for (int i = 0; i < Model.AvailableRoles.Count; i++)
+                    {
+                        <div class="mb-2 form-check">
+                            <input type="checkbox"
+                                   name="SelectedRoleIds"
+                                   value="@Model.AvailableRoles[i].Id"
+                                   id="role_@Model.AvailableRoles[i].Id"
+                                   class="form-check-input"
+                                   @(Model.AvailableRoles[i].IsSelected ? "checked" : "") />
+                            <label for="role_@Model.AvailableRoles[i].Id" class="form-check-label">
+                                @Model.AvailableRoles[i].Name
+                            </label>
+                        </div>
+                    }
+
+                    <hr />
+                    <h6 class="text-muted">Kontakt</h6>
 
                     <div class="mb-3">
                         <label asp-for="Email" class="form-label"></label>
                         <input asp-for="Email" class="form-control" type="email" placeholder="vorname.nachname@ake.at" />
                         <div class="form-text">Wird für automatische Benachrichtigungen (z.B. Meldebestand) verwendet.</div>
                         <span asp-validation-for="Email" class="text-danger"></span>
-                    </div>
-
-                    <hr />
-                    <h6 class="text-muted">Funktionsberechtigungen</h6>
-
-                    <div class="mb-3 form-check">
-                        <input asp-for="CanPick" class="form-check-input" />
-                        <label asp-for="CanPick" class="form-check-label"></label>
-                        <div class="form-text">Benutzer kann Kommissionierung durchführen.</div>
-                    </div>
-
-                    <div class="mb-3 form-check">
-                        <input asp-for="CanViewTracking" class="form-check-input" />
-                        <label asp-for="CanViewTracking" class="form-check-label"></label>
-                        <div class="form-text">Benutzer kann Teileverfolgung und Arbeitsgänge einsehen.</div>
-                    </div>
-
-                    <div class="mb-3 form-check">
-                        <input asp-for="CanReportOperations" class="form-check-input" />
-                        <label asp-for="CanReportOperations" class="form-check-label"></label>
-                        <div class="form-text">Benutzer kann Arbeitsgänge rückmelden.</div>
                     </div>
 
                     <hr />

@@ -13,4 +13,12 @@ public class UserRepository : Repository<User>, IUserRepository
     {
         return await _dbSet.Where(u => u.IsActive).OrderBy(u => u.Name).ToListAsync();
     }
+
+    public async Task<List<User>> GetAllWithRolesAsync()
+    {
+        return await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .ToListAsync();
+    }
 }
