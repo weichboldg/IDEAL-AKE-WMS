@@ -48,6 +48,7 @@ builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
