@@ -28,6 +28,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ServiceSetting> ServiceSettings => Set<ServiceSetting>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<OseonOperationConfig> OseonOperationConfigs => Set<OseonOperationConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -408,6 +409,16 @@ public class ApplicationDbContext : DbContext
                 .WithMany(o => o.WorkOperations)
                 .HasForeignKey(e => e.OseonProductionOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // OseonOperationConfig
+        modelBuilder.Entity<OseonOperationConfig>(entity =>
+        {
+            entity.ToTable("OseonOperationConfigs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OperationName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(200);
+            entity.HasIndex(e => e.OperationName).IsUnique();
         });
 
         // ServiceSetting

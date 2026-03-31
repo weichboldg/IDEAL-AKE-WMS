@@ -29,9 +29,27 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Foto-Upload bei Kommissionierung | Fertig |
 | Server-seitiger Druck | Grundstruktur |
 | OSEON Teileverfolgung | Fertig |
+| OSEON AG-Konfiguration (Soll-Termine + Relevanz) | Fertig |
 | Rollenbasierte Zugriffskontrolle | Fertig (Phase 1) |
 
-## Änderungen (20.03.2026)
+## Aenderungen (30.03.2026)
+
+### Responsive Design
+- **CSS-Fix**: `overflow-x: auto` zu `.table-responsive` hinzugefuegt — alle Tabellen haben jetzt horizontale Scrollbars bei Platzmangel
+
+### OSEON Arbeitsgang-Konfiguration
+- **Neues Model**: `OseonOperationConfig` — pro AG: Kurzname (z.B. "B", "ST", "BG"), Anzeigename, Soll-Termin-Offset (Arbeitstage relativ zum Stanztermin), OSEON-Relevanz-Flag
+- **DB-Migration**: `SQL/34_AddOseonOperationConfig.sql`, EF Migration `AddOseonOperationConfig`
+- **Repository**: `IOseonOperationConfigRepository` mit CRUD + Dictionary-Cache + Erkennung nicht-konfigurierter AGs aus OSEON-Daten
+- **BusinessDayService erweitert**: Neue `AddBusinessDays(date, days, holidays)` Methode fuer positive/negative Arbeitstage-Berechnung
+- **Ampel-Logik pro AG**: Jeder AG bekommt eigene Ampelfarbe basierend auf berechnetem Soll-Termin (Stanztermin + Offset in AT)
+- **Status-Relevanz**: Nicht-OSEON-relevante AGs (z.B. "ZB", "A-BT") werden bei der Fertig-Berechnung ignoriert
+- **Settings-UI**: Neue Seite `Settings/OperationConfig` — CRUD fuer AG-Konfigurationen, erreichbar ueber Button auf Einstellungen-Seite
+- **OseonIndex View**: AG-Zeilen zeigen jetzt Ampel-Punkt, berechneten Soll-Termin, und "nicht relevant"-Badge; nicht-relevante AGs sind ausgegraut/kursiv
+- **Default-Daten**: 12 Standard-AGs mit Offsets: B(-1), ST(0), EG(0), BG(+2), BG-SaP1(+2), RO(+2), MS(+4), RS(+4), SL(+5), RE(+5), ZB(0/nicht relevant), A-BT(0/nicht relevant)
+- **Tests**: 13 neue Unit-Tests fuer `AddBusinessDays` und `GetColorForOperationAsync`
+
+## Aenderungen (20.03.2026)
 
 ### Rollenbasierte Zugriffskontrolle (RBAC)
 - **Neue Entities**: `Role` (Key, Name, Description, AdGroup) + `UserRole` Junction-Tabelle (Many-to-Many)

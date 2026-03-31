@@ -259,7 +259,12 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - **Datenquelle**: OSEON DB (`aketrumpf01.ake.at\TRUMPFSQL2`, `T1000_V01_V001`)
 - **Sync**: `OseonSyncService` im IDEALAKEWMSService, gesteuert per `Sync:OseonTrackingEnabled` in appsettings.json — Bulk-Verarbeitung via SqlBulkCopy + MERGE (Temp-Tables `#TmpOseonOrders`, `#TmpOseonOps`)
 - **Baumstruktur**: 3 Ebenen — KundenAuftragsNr → OseonOrderNumber (Subaufträge) → Arbeitsgänge
-- **Ampelsystem**: Rot (überfällig), Gelb (fällig ≤ GelbTage), Blau (fällig ≤ BlauTage), Grün (Status 90/95), Grau (kein Termin/noch nicht relevant)
+- **Ampelsystem**: Rot (ueberfaellig), Gelb (faellig ≤ GelbTage), Blau (faellig ≤ BlauTage), Gruen (Status 90/95), Grau (kein Termin/noch nicht relevant)
+- **AG-Konfiguration**: `OseonOperationConfig`-Tabelle — pro Arbeitsgang (Kurzname, z.B. "B", "ST", "BG") werden Soll-Termin-Offset (Arbeitstage relativ zum Stanztermin/OSEON-Endtermin) und OSEON-Relevanz konfiguriert
+- **AG-Soll-Termine**: Jeder AG bekommt einen berechneten Soll-Termin = `Stanztermin + OffsetDays` (Arbeitstage, unter Beruecksichtigung von Wochenenden + Feiertagen via `BusinessDayService.AddBusinessDays`)
+- **AG-Relevanz**: Wenn `IsOseonRelevant=false`, wird der AG bei der Statusberechnung ignoriert. Ein Auftrag gilt als "fertig" wenn alle OSEON-relevanten AGs Status 90/95 haben
+- **AG-Ampel**: Jeder AG hat eigene Ampelfarbe basierend auf seinem berechneten Soll-Termin. Auftrags-Ampel = Worst-Color nur aus relevanten AGs
+- **Einstellungen > AG-Konfiguration**: `Settings/OperationConfig` — CRUD-Seite fuer AG-Configs, zeigt auch nicht-konfigurierte AG-Namen aus OSEON-Daten
 - **OSEON Status-Codes**: 10=Unvollständig, 20=Gültig, 30=Freigegeben, 60=In Arbeit, 70=Gesperrt, 90=Fertig, 95=Storniert
 - **Werkbank Auto-Anlage**: Sync erstellt fehlende `ProductionWorkplaces` automatisch aus OSEON-Feld `Kunde.KundenNr`
 - **Werkbank-Sync**: `SyncWorkplacesToProductionOrdersAsync()` überträgt `ProductionWorkplaceId` von OSEON auf Sage-Aufträge (Match: `OrderNumber` ↔ `CustomerOrderNumber`), nur wo noch keine Werkbank gesetzt ist
@@ -333,6 +338,10 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `Filters/RequireStockAccessAttribute.cs` — Zugriffskontrolle fuer Lagerbewegungen
 - `Filters/RequireStockKeyUserAccessAttribute.cs` — Zugriffskontrolle fuer Lagerplatz-Operationen
 - `Filters/RequireReportingAccessAttribute.cs` — Zugriffskontrolle fuer BDE (Zukunft)
+- `Models/OseonOperationConfig.cs` — AG-Konfiguration (OperationName, DisplayName, DueDateOffsetDays, IsOseonRelevant)
+- `Data/Repositories/OseonOperationConfigRepository.cs` — Repository fuer AG-Configs
+- `Views/Settings/OperationConfig.cshtml` — CRUD-Seite fuer AG-Konfiguration
+- `SQL/34_AddOseonOperationConfig.sql` — Migration fuer OseonOperationConfigs-Tabelle
 
 ## Logging (Serilog)
 

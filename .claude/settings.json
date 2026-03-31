@@ -10,5 +10,8 @@
       "Bash(\"C:/Users/gerald.weichbold/.claude/get-shit-done/VERSION\")",
       "Read(//c/Users/gerald.weichbold/.claude/get-shit-done/**)"
     ]
+  },
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
   }
 }

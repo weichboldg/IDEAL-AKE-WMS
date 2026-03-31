@@ -162,8 +162,6 @@ body {
 /* Tables */
 .table {
     background-color: var(--ake-white);
-    border-radius: 8px;
-    overflow: hidden;
 }
 
 .table thead th {
@@ -184,10 +182,52 @@ body {
     vertical-align: middle;
 }
 
-/* Responsive table wrapper */
+/* Responsive table wrapper — erzwingt horizontale Scrollbar bei Platzmangel.
+   Damit die Scrollbar entsteht muessen 3 Bedingungen erfuellt sein:
+   1) Wrapper hat overflow-x: auto (Scrollbar-Mechanismus)
+   2) Tabelle hat NICHT width: 100% (sonst wird sie nie breiter als der Wrapper)
+   3) Zellen haben white-space: nowrap (sonst bricht Text um statt die Tabelle zu verbreitern)
+   Scrollbar wird immer sichtbar gehalten damit Nutzer sie finden. */
 .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
     border-radius: 8px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Scrollbar immer sichtbar und gut erkennbar (Webkit/Blink: Chrome, Edge) */
+.table-responsive::-webkit-scrollbar {
+    height: 10px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: var(--ake-light-gray);
+    border-radius: 0 0 8px 8px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--ake-secondary);
+    border-radius: 5px;
+    border: 2px solid var(--ake-light-gray);
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: var(--ake-primary);
+}
+
+/* Firefox: scrollbar immer sichtbar */
+.table-responsive {
+    scrollbar-width: auto;
+    scrollbar-color: var(--ake-secondary) var(--ake-light-gray);
+}
+
+/* Bootstrap setzt .table { width: 100% } — muss mit !important ueberschrieben werden */
+.table-responsive > table {
+    width: max-content !important;
+    min-width: 100%;
+}
+
+/* Alle Zellen innerhalb von .table-responsive: kein Textumbruch */
+.table-responsive th,
+.table-responsive td {
+    white-space: nowrap !important;
 }
 
 /* Filter Card */
@@ -620,4 +660,277 @@ body {
 .oseon-toggle {
     cursor: pointer;
     user-select: none;
+}
+.oseon-op-irrelevant {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+/* =============================================
+   RESPONSIVE DESIGN
+   Mobile-first responsive rules.
+   Breakpoints: 576px (sm), 768px (md), 992px (lg)
+   ============================================= */
+
+/* --- Mobile base (< 576px) --- */
+
+/* Page headers: stack title + action buttons vertically on mobile */
+.page-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Touch targets: min 44px height on mobile for buttons and form controls */
+@media (max-width: 575.98px) {
+    .btn {
+        min-height: 44px;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .btn-sm {
+        min-height: 36px;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 44px;
+        font-size: 16px; /* prevents iOS auto-zoom on input focus */
+    }
+
+    /* Page header: full-width stacking */
+    .page-header-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header-row .page-header {
+        text-align: center;
+    }
+
+    .page-header-row .btn,
+    .page-header-row .d-flex {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Filter cards: stack filter/reset buttons full-width */
+    .filter-card .btn {
+        flex: 1;
+    }
+
+    /* Dashboard cards: 2 columns on small phones */
+    .dashboard-card .card-body {
+        padding: 0.75rem;
+    }
+
+    .dashboard-card .card-title {
+        font-size: 0.85rem;
+    }
+
+    .dashboard-card .card-text {
+        font-size: 1.5rem !important;
+    }
+
+    /* Pagination: compact on mobile */
+    .pagination {
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+
+    .pagination .page-link {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.8rem;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Cards: reduce padding on mobile */
+    .card-body {
+        padding: 0.75rem;
+    }
+
+    .card-header {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    /* Page header: smaller on mobile */
+    h2.page-header {
+        font-size: 1.25rem;
+    }
+
+    /* Table cells: reduce padding for more space */
+    .table td,
+    .table th {
+        padding: 0.4rem 0.5rem !important;
+        font-size: 0.85rem;
+    }
+
+    /* Navbar: tighter on mobile */
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
+    /* Footer: smaller text */
+    .footer {
+        font-size: 0.75rem;
+        padding: 0.5rem 0;
+    }
+
+    /* Traffic light legend: wrap on mobile */
+    .traffic-light-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 1rem;
+    }
+
+    /* Alerts: smaller padding on mobile */
+    .alert {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    /* Photo thumbnails: smaller grid on mobile */
+    .photo-thumbnail {
+        width: 90px;
+        height: 90px;
+    }
+
+    /* Badge font size on mobile */
+    .badge {
+        font-size: 0.7em;
+    }
+}
+
+/* --- Small tablets (576px - 767px) --- */
+@media (min-width: 576px) and (max-width: 767.98px) {
+    .btn {
+        min-height: 40px;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 40px;
+    }
+
+    .pagination .page-link {
+        min-height: 36px;
+    }
+}
+
+/* --- Footer: ensure body margin accommodates footer on mobile --- */
+@media (max-width: 767.98px) {
+    body {
+        margin-bottom: 50px;
+    }
+}
+
+/* --- Sticky Scrollbar: klebt am unteren Viewport-Rand bei langen Tabellen --- */
+.table-sticky-scrollbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 14px;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background: var(--ake-light-gray);
+    border-top: 1px solid #dee2e6;
+    margin-top: -1px;
+}
+
+/* Webkit: gleicher Scrollbar-Stil wie die Tabelle */
+.table-sticky-scrollbar::-webkit-scrollbar {
+    height: 10px;
+}
+.table-sticky-scrollbar::-webkit-scrollbar-track {
+    background: var(--ake-light-gray);
+}
+.table-sticky-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--ake-secondary);
+    border-radius: 5px;
+    border: 2px solid var(--ake-light-gray);
+}
+.table-sticky-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--ake-primary);
+}
+
+/* Firefox */
+.table-sticky-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: var(--ake-secondary) var(--ake-light-gray);
+}
+
+/* Spacer im Inneren — bekommt die Breite der Tabelle per JS */
+.table-sticky-scrollbar-spacer {
+    height: 1px;
+}
+
+/* Ausblenden wenn Tabelle nicht ueberlaueft */
+.table-sticky-scrollbar.no-overflow {
+    display: none;
+}
+
+/* Ausblenden wenn die echte Scrollbar sichtbar ist (IntersectionObserver) */
+.table-sticky-scrollbar.is-hidden {
+    display: none;
+}
+
+/* --- Navbar mobile menu: user info inside collapsed menu --- */
+.navbar-user-mobile {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-user-mobile {
+        display: block;
+        padding: 0.5rem 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        margin-top: 0.5rem;
+    }
+
+    .navbar-user-mobile .btn {
+        min-height: 44px;
+        width: 100%;
+        text-align: left;
+    }
+
+    /* Dropdown menus: full-width in mobile nav */
+    .navbar .dropdown-menu {
+        border: none;
+        padding-left: 1rem;
+    }
+}
+
+/* --- Form layout improvements --- */
+@media (max-width: 767.98px) {
+    /* Stack filter form columns on mobile */
+    .filter-card .row > [class*="col-md"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Checkbox rows: add spacing */
+    .form-check {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+}
+
+/* --- Nested tables (Tracking detail rows) --- */
+.nested-table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767.98px) {
+    .nested-table-responsive table {
+        width: max-content;
+        min-width: 100%;
+    }
 }

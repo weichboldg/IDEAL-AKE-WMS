@@ -8,6 +8,7 @@ public class OseonTrackingViewModel
     public string? FilterCustomerOrder { get; set; }
     public string? FilterWorkplace { get; set; }
     public bool ShowFinished { get; set; }
+    public bool UseRelevanceFilter { get; set; } = true;
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
 
     // Pagination
@@ -57,4 +58,13 @@ public class OseonOperationViewModel
     public string StatusBadgeClass { get; set; } = string.Empty;
     public bool IsFirstOperation { get; set; }
     public bool IsLastOperation { get; set; }
+    public TrafficLightColor Color { get; set; }
+    public DateTime? CalculatedDueDate { get; set; }
+    public bool IsOseonRelevant { get; set; } = true;
+}
+
+public class OseonOperationConfigViewModel
+{
+    public List<OseonOperationConfig> Configs { get; set; } = new();
+    public List<string> UnconfiguredNames { get; set; } = new();
 }

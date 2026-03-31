@@ -30,9 +30,16 @@
                 </div>
             </div>
             <div class="col-auto">
+                <div class="form-check mt-1">
+                    <input type="checkbox" class="form-check-input" id="useRelevanceFilter" name="useRelevanceFilter" value="true"
+                           @(Model.UseRelevanceFilter ? "checked" : "") />
+                    <label class="form-check-label small" for="useRelevanceFilter">OSEON-Relevanz</label>
+                </div>
+            </div>
+            <div class="col-auto">
                 <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
             </div>
-            @if (!string.IsNullOrEmpty(Model.FilterCustomerOrder) || !string.IsNullOrEmpty(Model.FilterWorkplace) || Model.ShowFinished)
+            @if (!string.IsNullOrEmpty(Model.FilterCustomerOrder) || !string.IsNullOrEmpty(Model.FilterWorkplace) || Model.ShowFinished || !Model.UseRelevanceFilter)
             {
                 <div class="col-auto">
                     <a asp-action="OseonIndex" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
@@ -54,7 +61,7 @@
 }
 else
 {
-    <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <small class="text-muted">@Model.TotalGroupCount Kundenaufträge gesamt — Seite @Model.CurrentPage von @Model.TotalPages</small>
         <div>
             <button type="button" id="btnExpandAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle aufklappen">
@@ -159,21 +166,31 @@ else
                         {
                             foreach (var op in sub.Operations)
                             {
+                                var opDoneClass = op.OseonStatus == 90 ? "oseon-tree-done" : "";
+                                var opRelevantClass = !op.IsOseonRelevant ? "oseon-op-irrelevant" : "";
+                                var opDueDateOverdue = op.CalculatedDueDate.HasValue && op.CalculatedDueDate.Value.Date < DateTime.Today && op.OseonStatus is not (90 or 95);
+
                                 @* === Ebene 2: Arbeitsgang === *@
-                                <tr class="oseon-tree-op @(op.OseonStatus == 90 ? "oseon-tree-done" : "")" data-parent-sub="@subKey" style="display: none;">
-                                    <td></td>
+                                <tr class="oseon-tree-op @opDoneClass @opRelevantClass" data-parent-sub="@subKey" style="display: none;">
+                                    <td><span class="traffic-light traffic-@op.Color.ToString().ToLower()"></span></td>
                                     <td style="padding-left: 52px; white-space: nowrap;">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" class="text-muted me-1">
                                             <path d="M6 .5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H9v1.07a7.001 7.001 0 0 1 3.274 12.474l.601.602a.5.5 0 0 1-.707.708l-.746-.746A6.97 6.97 0 0 1 8 16a6.97 6.97 0 0 1-3.422-.892l-.746.746a.5.5 0 0 1-.707-.708l.602-.602A7.001 7.001 0 0 1 7 2.07V1h-.5A.5.5 0 0 1 6 .5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3m0 3a.75.75 0 0 1 .75.75v2.5h1.5a.75.75 0 0 1 0 1.5h-2.25A.75.75 0 0 1 7.25 10V6.75A.75.75 0 0 1 8 6"/>
                                         </svg>
                                         <span class="text-muted">@op.PositionNumber</span> @op.Name
+                                        @if (!op.IsOseonRelevant)
+                                        {
+                                            <span class="badge bg-light text-muted ms-1" style="font-size: 0.65em;">nicht relevant</span>
+                                        }
                                     </td>
                                     <td></td>
                                     <td class="small text-muted">@(op.Description?.Length > 80 ? op.Description[..80] + "..." : op.Description)</td>
                                     <td></td>
                                     <td><span class="badge @op.StatusBadgeClass">@op.StatusText</span></td>
                                     <td></td>
-                                    <td></td>
+                                    <td class="@(opDueDateOverdue ? "text-danger fw-bold" : "")">
+                                        @(op.CalculatedDueDate?.ToString("dd.MM.yyyy") ?? "")
+                                    </td>
                                 </tr>
                             }
                         }
@@ -193,6 +210,7 @@ else
                        asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
                        asp-route-filterWorkplace="@Model.FilterWorkplace"
                        asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                       asp-route-useRelevanceFilter="@(Model.UseRelevanceFilter ? "true" : null)"
                        asp-route-page="@(Model.CurrentPage - 1)">‹</a>
                 </li>
                 @{
@@ -208,6 +226,7 @@ else
                            asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
                            asp-route-filterWorkplace="@Model.FilterWorkplace"
                            asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                           asp-route-useRelevanceFilter="@(Model.UseRelevanceFilter ? "true" : null)"
                            asp-route-page="1">1</a>
                     </li>
                     @if (startPage > 2)
@@ -222,6 +241,7 @@ else
                            asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
                            asp-route-filterWorkplace="@Model.FilterWorkplace"
                            asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                           asp-route-useRelevanceFilter="@(Model.UseRelevanceFilter ? "true" : null)"
                            asp-route-page="@i">@i</a>
                     </li>
                 }
@@ -236,6 +256,7 @@ else
                            asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
                            asp-route-filterWorkplace="@Model.FilterWorkplace"
                            asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                           asp-route-useRelevanceFilter="@(Model.UseRelevanceFilter ? "true" : null)"
                            asp-route-page="@Model.TotalPages">@Model.TotalPages</a>
                     </li>
                 }
@@ -244,6 +265,7 @@ else
                        asp-route-filterCustomerOrder="@Model.FilterCustomerOrder"
                        asp-route-filterWorkplace="@Model.FilterWorkplace"
                        asp-route-showFinished="@(Model.ShowFinished ? "true" : null)"
+                       asp-route-useRelevanceFilter="@(Model.UseRelevanceFilter ? "true" : null)"
                        asp-route-page="@(Model.CurrentPage + 1)">›</a>
                 </li>
             </ul>

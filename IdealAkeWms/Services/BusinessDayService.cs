@@ -22,6 +22,33 @@ public class BusinessDayService : IBusinessDayService
         return result;
     }
 
+    /// <summary>
+    /// Addiert/subtrahiert Arbeitstage (Mo-Fr, ohne Feiertage).
+    /// Positive Werte = vorwaerts, negative Werte = rueckwaerts.
+    /// </summary>
+    public DateTime AddBusinessDays(DateTime date, int days, HashSet<DateTime> holidays)
+    {
+        if (days == 0) return date.Date;
+
+        var direction = days > 0 ? 1 : -1;
+        var remaining = Math.Abs(days);
+        var result = date.Date;
+
+        while (remaining > 0)
+        {
+            result = result.AddDays(direction);
+
+            if (result.DayOfWeek != DayOfWeek.Saturday &&
+                result.DayOfWeek != DayOfWeek.Sunday &&
+                !holidays.Contains(result))
+            {
+                remaining--;
+            }
+        }
+
+        return result;
+    }
+
     public DateTime FindPreviousPickupDay(DateTime date, HashSet<DayOfWeek> pickupDays)
     {
         if (pickupDays.Count == 0)

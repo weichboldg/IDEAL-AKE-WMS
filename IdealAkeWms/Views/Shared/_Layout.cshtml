@@ -103,6 +103,7 @@
                             </ul>
                         </li>
                     </ul>
+                    @* Desktop: user dropdown in navbar *@
                     <span class="user-info d-none d-lg-inline">
                         @if (Context.Session.GetInt32("AppUserId").HasValue)
                         {
@@ -132,6 +133,26 @@
                             <span>@User.Identity.Name</span>
                         }
                     </span>
+                    @* Mobile: user info inside collapsed menu *@
+                    <div class="navbar-user-mobile d-lg-none">
+                        @if (Context.Session.GetInt32("AppUserId").HasValue)
+                        {
+                            <span class="text-white-50 small d-block mb-2">
+                                Angemeldet als <strong class="text-white">@Context.Session.GetString("AppUserName")</strong>
+                            </span>
+                            <div class="d-flex gap-2">
+                                <a asp-controller="Account" asp-action="Profile" class="btn btn-sm btn-outline-light flex-fill">Mein Profil</a>
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="flex-fill">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Abmelden</button>
+                                </form>
+                            </div>
+                        }
+                        else if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <span class="text-white-50 small">@User.Identity.Name</span>
+                        }
+                    </div>
                 </div>
             </div>
         </nav>

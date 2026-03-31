@@ -7,6 +7,7 @@ public enum TrafficLightColor { Green, Blue, Yellow, Red, Gray }
 public interface IOseonTrafficLightService
 {
     Task<TrafficLightColor> GetColorAsync(int oseonStatus, DateTime? dueDate);
+    Task<TrafficLightColor> GetColorForOperationAsync(int oseonStatus, DateTime? calculatedDueDate);
     Task<(int gelbTage, int blauTage)> GetThresholdsAsync();
 }
 
@@ -48,6 +49,14 @@ public class OseonTrafficLightService : IOseonTrafficLightService
 
         // Noch nicht relevant → Grau
         return TrafficLightColor.Gray;
+    }
+
+    /// <summary>
+    /// Berechnet Ampelfarbe fuer einen einzelnen AG mit seinem berechneten Soll-Termin.
+    /// </summary>
+    public async Task<TrafficLightColor> GetColorForOperationAsync(int oseonStatus, DateTime? calculatedDueDate)
+    {
+        return await GetColorAsync(oseonStatus, calculatedDueDate);
     }
 
     public async Task<(int gelbTage, int blauTage)> GetThresholdsAsync()

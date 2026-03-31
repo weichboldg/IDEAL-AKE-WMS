@@ -84,4 +84,28 @@ public class OseonTrafficLightServiceTests
         var result = await _service.GetColorAsync(90, DateTime.Today.AddDays(-30));
         result.Should().Be(TrafficLightColor.Green);
     }
+
+    // === GetColorForOperationAsync Tests ===
+
+    [Fact]
+    public async Task GetColorForOperationAsync_UsesCalculatedDueDate()
+    {
+        // Operation overdue by calculated date → Red
+        var result = await _service.GetColorForOperationAsync(60, DateTime.Today.AddDays(-1));
+        result.Should().Be(TrafficLightColor.Red);
+    }
+
+    [Fact]
+    public async Task GetColorForOperationAsync_FertigStatus_AlwaysGreen()
+    {
+        var result = await _service.GetColorForOperationAsync(90, DateTime.Today.AddDays(-10));
+        result.Should().Be(TrafficLightColor.Green);
+    }
+
+    [Fact]
+    public async Task GetColorForOperationAsync_NoDueDate_Gray()
+    {
+        var result = await _service.GetColorForOperationAsync(60, null);
+        result.Should().Be(TrafficLightColor.Gray);
+    }
 }

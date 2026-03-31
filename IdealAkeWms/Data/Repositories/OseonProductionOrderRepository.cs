@@ -32,7 +32,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         return await _dbSet.FirstOrDefaultAsync(o => o.OseonId == oseonId);
     }
 
-    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize)
+    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null)
     {
         // Basis-Query mit Such- und Werkbank-Filter (OHNE Status-Filter)
         var baseQuery = _dbSet.AsQueryable();
@@ -51,9 +51,25 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         // Gruppen-Keys ermitteln:
         // showFinished=false → nur Gruppen die mindestens einen OFFENEN Auftrag haben
         // showFinished=true  → alle Gruppen
-        var groupKeyQuery = showFinished
-            ? baseQuery
-            : baseQuery.Where(o => o.OseonStatus != 90 && o.OseonStatus != 95);
+        IQueryable<OseonProductionOrder> groupKeyQuery;
+        if (showFinished)
+        {
+            groupKeyQuery = baseQuery;
+        }
+        else if (relevantOperationNames != null)
+        {
+            // Mit Relevanz-Filter: Ein Auftrag gilt als "offen" wenn er mindestens einen
+            // relevanten AG hat der noch nicht fertig ist (Status != 90 und != 95).
+            // Auftraege OHNE relevante AGs gelten als "fertig".
+            groupKeyQuery = baseQuery.Where(o =>
+                o.WorkOperations.Any(op =>
+                    relevantOperationNames.Contains(op.Name) &&
+                    op.OseonStatus != 90 && op.OseonStatus != 95));
+        }
+        else
+        {
+            groupKeyQuery = baseQuery.Where(o => o.OseonStatus != 90 && o.OseonStatus != 95);
+        }
 
         // CustomerOrderNumber als Gruppierungsschlüssel (Fallback OseonOrderNumber)
         var distinctKeysQuery = groupKeyQuery

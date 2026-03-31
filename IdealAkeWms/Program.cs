@@ -49,6 +49,7 @@ builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
+builder.Services.AddScoped<IOseonOperationConfigRepository, OseonOperationConfigRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 
 // Caching
@@ -204,6 +205,37 @@ using (var scope = app.Services.CreateScope())
         }
     }
     db.SaveChanges();
+
+    // Standard-Arbeitsgang-Konfigurationen (OSEON)
+    if (!db.OseonOperationConfigs.Any())
+    {
+        var defaultOpConfigs = new (string Name, string Display, int Offset, bool Relevant)[]
+        {
+            ("B",       "Belegen",         -1, true),
+            ("ST",      "Stanzen",          0, true),
+            ("EG",      "Entgraten",        0, true),
+            ("BG",      "Biegen",           2, true),
+            ("BG-SaP1", "Biegen SaP1",     2, true),
+            ("RO",      "Rollen",           2, true),
+            ("MS",      "Maschinenschub",   4, true),
+            ("RS",      "Restschweissen",   4, true),
+            ("SL",      "Schlosser",        5, true),
+            ("RE",      "Reinigen",         5, true),
+            ("ZB",      "Zusammenbau",      0, false),
+            ("A-BT",    "Anlegen BT",       0, false),
+        };
+        foreach (var (name, display, offset, relevant) in defaultOpConfigs)
+        {
+            db.OseonOperationConfigs.Add(new IdealAkeWms.Models.OseonOperationConfig
+            {
+                OperationName = name,
+                DisplayName = display,
+                DueDateOffsetDays = offset,
+                IsOseonRelevant = relevant
+            });
+        }
+        db.SaveChanges();
+    }
 }
 
 // Fotos-Verzeichnis erstellen
