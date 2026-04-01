@@ -54,18 +54,39 @@
             <div class="card-header"><strong>Werkstattaufträge</strong></div>
             <div class="card-body">
                 <p>
-                    Übersicht aller Werkstattaufträge mit Termin- und Status-Informationen.
-                    Die Tabelle kann nach allen Spalten gefiltert werden (Klick auf Spaltenüberschrift).
+                    Uebersicht aller Werkstattauftraege mit Termin- und Status-Informationen.
+                    Die Tabelle kann nach allen Spalten gefiltert werden (Klick auf Spaltenueberschrift).
                 </p>
                 <dl>
+                    <dt>Kalenderwoche (KW)</dt>
+                    <dd>Alle Datumsspalten zeigen die ISO-Kalenderwoche an (z.B. <code>07.01.2026 KW2</code>).
+                        In den Spaltenfiltern der Datumsspalten gibt es ein
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="vertical-align:middle;"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg>
+                        Kalender-Icon. Klick oeffnet einen Monatskalender:
+                        <ul class="mt-1 mb-0">
+                            <li>Klick auf <strong>KW-Nummer</strong> (links) &rarr; filtert nach dieser Kalenderwoche</li>
+                            <li>Klick auf einen <strong>Tag</strong> &rarr; filtert nach diesem Datum</li>
+                            <li>Manuell <code>KW14</code> eingeben &rarr; filtert nach KW14</li>
+                        </ul>
+                    </dd>
+
+                    <dt>enaio DMS-Dokumente</dt>
+                    <dd>Neben der WA-Nummer erscheinen orange Icons, wenn in enaio Dokumente zum Werkstattauftrag hinterlegt sind:
+                        <ul class="mt-1 mb-0">
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#EF7D00" viewBox="0 0 16 16" style="vertical-align:middle;"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg> Werkstattauftrag-Dokument</li>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#EF7D00" viewBox="0 0 16 16" style="vertical-align:middle;"><path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/></svg> Zeichnung</li>
+                        </ul>
+                        Klick oeffnet das Dokument direkt im enaio Viewer.
+                    </dd>
+
                     <dt>Werkbank</dt>
-                    <dd>Zeigt die zugeordnete Werkbank (Produktionsarbeitsplatz) an. Wird automatisch aus OSEON übernommen, wenn ein passender OSEON-Auftrag existiert.</dd>
+                    <dd>Zeigt die zugeordnete Werkbank (Produktionsarbeitsplatz) an. Wird automatisch aus OSEON uebernommen, wenn ein passender OSEON-Auftrag existiert.</dd>
 
                     <dt>Glas / Zukauf</dt>
-                    <dd>Per Checkbox direkt in der Tabelle markieren. Änderungen werden sofort gespeichert.</dd>
+                    <dd>Per Checkbox direkt in der Tabelle markieren. Aenderungen werden sofort gespeichert.</dd>
 
                     <dt>OSEON Teileverfolgung</dt>
-                    <dd>Über den <span class="badge bg-info text-white">i</span>-Button öffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die WA-Nummer. Der Filter „Fertige anzeigen" ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Aufträge sichtbar sind.</dd>
+                    <dd>Ueber den <span class="badge bg-info text-white">i</span>-Button oeffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die WA-Nummer. Der Filter &bdquo;Fertige anzeigen&ldquo; ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Auftraege sichtbar sind.</dd>
 
                     <dt>Status</dt>
                     <dd>
@@ -122,6 +143,7 @@
                     <li><strong>Umbuchen</strong> — Alle gepickten Artikel vom Quell-Lagerplatz auf den Ziel-Lagerplatz (z.B. Kommissionierwagen) umbuchen.</li>
                 </ol>
                 <p>Stückliste und Kommissionierliste können als A4-PDF gedruckt werden (aktuelle Filterung und Baumstruktur werden berücksichtigt).</p>
+                <p class="mb-0"><strong>Kommissionierwagen:</strong> Lagerplaetze vom Typ &bdquo;Wagen&ldquo; werden in der Stueckliste weder in der Bestandsanzeige (Spalte Lagerplatz) noch in den Quell-/Ziel-Lagerplatz-Dropdowns angezeigt.</p>
 
                 <h6 class="mt-3">Spaltenfilter in der Stückliste</h6>
                 <p class="mb-1">Klick auf eine Spaltenüberschrift öffnet ein Filterfeld direkt unter der Überschrift. Der Filter unterstützt drei Modi:</p>
@@ -140,6 +162,36 @@
                         Beispiel: <code>!960, 886</code> blendet Artikelgruppen 960 und 886 aus.</dd>
                 </dl>
                 <p class="mt-2 mb-0 text-muted small">Tipp: Standard-Filter können im eigenen Profil hinterlegt werden — diese werden beim Öffnen einer Stückliste automatisch gesetzt.</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Bestandsuebersicht</strong></div>
+            <div class="card-body">
+                <p>
+                    Zeigt die aktuellen Bestaende pro Artikel und Lagerplatz an. 0-Bestaende werden standardmaessig ausgeblendet.
+                </p>
+                <dl>
+                    <dt>Artikel-QR-Scan</dt>
+                    <dd>Neben dem Artikelfilter gibt es einen QR-Scan-Button. Beim Scannen eines Artikel-QR-Codes wird die Artikelnummer automatisch als Filter gesetzt. Enthaelt der QR-Code eine Fertigungsauftragsnummer, wird diese ebenfalls in das FA-Feld uebernommen.</dd>
+
+                    <dt>Fertigungsauftrag-Filter (Bestaende FA)</dt>
+                    <dd>Zeigt den Netto-Bestand aller Artikel, die mit diesem Fertigungsauftrag gebucht wurden &mdash; aufgeschluesselt nach Lagerplatz.
+                        So sehen Sie auf einen Blick, wo die Teile eines Auftrags aktuell liegen (z.B. auf welchem Kommissionierwagen).
+                        Der QR-Scan-Button neben dem Feld extrahiert die FA-Nummer aus dem QR-Code (3. Position).
+                        <br /><small class="text-muted">Hinweis: Wenn ein Fertigungsauftrag eingegeben ist, werden die anderen Filter (Artikel, Lagerplatz, Bestand min/max) ignoriert.</small>
+                    </dd>
+
+                    <dt>Lagerplatz-Scan</dt>
+                    <dd>Neben dem Lagerplatz-Dropdown kann ein Barcode gescannt werden. Nach Auswahl wird automatisch gefiltert.</dd>
+
+                    <dt>Meldebestand-Farbcodierung</dt>
+                    <dd>
+                        Zeilen mit niedrigem Bestand werden farblich hervorgehoben:
+                        <span class="stock-warning" style="padding: 1px 6px; border-radius: 3px;">orange</span> = Warnschwelle erreicht,
+                        <span class="stock-critical" style="padding: 1px 6px; border-radius: 3px;">rot</span> = kritischer Bestand.
+                    </dd>
+                </dl>
             </div>
         </div>
 

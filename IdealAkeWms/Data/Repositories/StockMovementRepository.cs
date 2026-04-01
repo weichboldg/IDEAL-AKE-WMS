@@ -14,8 +14,7 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         string? filterArticle = null,
         int? filterStorageLocationId = null,
         decimal? filterMinQuantity = null,
-        decimal? filterMaxQuantity = null,
-        string? filterProductionOrder = null)
+        decimal? filterMaxQuantity = null)
     {
         var query = _dbSet
             .Include(sm => sm.Article)
@@ -34,17 +33,6 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             query = query.Where(sm => sm.StorageLocationId == filterStorageLocationId.Value);
         }
 
-        // WA-Filter: Nur Artikel anzeigen, die in Bewegungen mit dieser WA vorkommen
-        if (!string.IsNullOrWhiteSpace(filterProductionOrder))
-        {
-            var articleIds = await _dbSet
-                .Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(filterProductionOrder))
-                .Select(sm => sm.ArticleId)
-                .Distinct()
-                .ToListAsync();
-            query = query.Where(sm => articleIds.Contains(sm.ArticleId));
-        }
-
         // Query 1: Reguläre Bewegungen + Umbuchung-Ziel (gruppiert nach StorageLocationId)
         var destinationQuery = query
             .GroupBy(sm => new
@@ -56,7 +44,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 sm.Article.ReorderLevel,
                 sm.StorageLocationId,
                 StorageLocationCode = sm.StorageLocation.Code,
-                StorageLocationDescription = sm.StorageLocation.Description
+                StorageLocationDescription = sm.StorageLocation.Description,
+                sm.StorageLocation.IsPickingTransport
             })
             .Select(g => new StockOverviewItem
             {
@@ -71,7 +60,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
                     sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
                     -sm.Quantity),
-                ReorderLevel = g.Key.ReorderLevel
+                ReorderLevel = g.Key.ReorderLevel,
+                IsPickingTransport = g.Key.IsPickingTransport
             });
 
         var destinationItems = await destinationQuery.ToListAsync();
@@ -95,16 +85,6 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             sourceQuery = sourceQuery.Where(sm => sm.SourceStorageLocationId == filterStorageLocationId.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(filterProductionOrder))
-        {
-            var articleIds = await _dbSet
-                .Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(filterProductionOrder))
-                .Select(sm => sm.ArticleId)
-                .Distinct()
-                .ToListAsync();
-            sourceQuery = sourceQuery.Where(sm => articleIds.Contains(sm.ArticleId));
-        }
-
         var sourceItems = await sourceQuery
             .GroupBy(sm => new
             {
@@ -115,7 +95,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 sm.Article.ReorderLevel,
                 StorageLocationId = sm.SourceStorageLocationId!.Value,
                 StorageLocationCode = sm.SourceStorageLocation!.Code,
-                StorageLocationDescription = sm.SourceStorageLocation!.Description
+                StorageLocationDescription = sm.SourceStorageLocation!.Description,
+                sm.SourceStorageLocation!.IsPickingTransport
             })
             .Select(g => new StockOverviewItem
             {
@@ -127,7 +108,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationCode = g.Key.StorageLocationCode,
                 StorageLocationDescription = g.Key.StorageLocationDescription,
                 CurrentQuantity = -g.Sum(sm => sm.Quantity),
-                ReorderLevel = g.Key.ReorderLevel
+                ReorderLevel = g.Key.ReorderLevel,
+                IsPickingTransport = g.Key.IsPickingTransport
             })
             .ToListAsync();
 
@@ -148,7 +130,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     StorageLocationCode = first.StorageLocationCode,
                     StorageLocationDescription = first.StorageLocationDescription,
                     CurrentQuantity = g.Sum(x => x.CurrentQuantity),
-                    ReorderLevel = first.ReorderLevel
+                    ReorderLevel = first.ReorderLevel,
+                    IsPickingTransport = first.IsPickingTransport
                 };
             })
             .ToList();
@@ -170,6 +153,55 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         }
 
         return merged.OrderBy(g => g.ArticleNumber).ThenBy(g => g.StorageLocationCode).ToList();
+    }
+
+    public async Task<List<StockOverviewItem>> GetStockByProductionOrderAsync(string productionOrder)
+    {
+        // Alle Bewegungen mit dieser FA-Nummer holen
+        var movements = await _dbSet
+            .Include(sm => sm.Article)
+            .Include(sm => sm.StorageLocation)
+            .Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(productionOrder))
+            .ToListAsync();
+
+        if (movements.Count == 0)
+            return new List<StockOverviewItem>();
+
+        // Pro Bewegung den Netto-Effekt auf Ziel-Lagerplatz berechnen
+        var entries = new List<(int ArticleId, string ArticleNumber, string? ArticleDescription,
+            string? Unit, int StorageLocationId, string StorageLocationCode,
+            string? StorageLocationDescription, bool IsPickingTransport, decimal Qty)>();
+
+        foreach (var sm in movements)
+        {
+            var qty = sm.MovementType == MovementType.Ausbuchung ? -sm.Quantity : sm.Quantity;
+            entries.Add((sm.ArticleId, sm.Article.ArticleNumber, sm.Article.Description,
+                sm.Article.Unit, sm.StorageLocationId, sm.StorageLocation.Code,
+                sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport, qty));
+        }
+
+        return entries
+            .GroupBy(e => new { e.ArticleId, e.StorageLocationId })
+            .Select(g =>
+            {
+                var first = g.First();
+                return new StockOverviewItem
+                {
+                    ArticleId = first.ArticleId,
+                    ArticleNumber = first.ArticleNumber,
+                    ArticleDescription = first.ArticleDescription,
+                    Unit = first.Unit,
+                    StorageLocationId = first.StorageLocationId,
+                    StorageLocationCode = first.StorageLocationCode,
+                    StorageLocationDescription = first.StorageLocationDescription,
+                    IsPickingTransport = first.IsPickingTransport,
+                    CurrentQuantity = g.Sum(e => e.Qty)
+                };
+            })
+            .Where(x => x.CurrentQuantity != 0)
+            .OrderBy(x => x.ArticleNumber)
+            .ThenBy(x => x.StorageLocationCode)
+            .ToList();
     }
 
     public async Task<(List<MovementHistoryItem> Items, int TotalCount)> GetMovementHistoryAsync(
@@ -247,11 +279,12 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         if (!articleNumbers.Any())
             return new Dictionary<string, List<StockLocationInfo>>();
 
-        // Query 1: Destination stock (Einbuchung + Umbuchung-Ziel)
+        // Query 1: Destination stock (Einbuchung + Umbuchung-Ziel) — ohne Kommissionierwagen
         var destItems = await _dbSet
             .Include(sm => sm.Article)
             .Include(sm => sm.StorageLocation)
-            .Where(sm => articleNumbers.Contains(sm.Article.ArticleNumber))
+            .Where(sm => articleNumbers.Contains(sm.Article.ArticleNumber)
+                      && !sm.StorageLocation.IsPickingTransport)
             .GroupBy(sm => new
             {
                 sm.Article.ArticleNumber,
@@ -270,13 +303,14 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             })
             .ToListAsync();
 
-        // Query 2: Source subtraction (Umbuchung-Quelle)
+        // Query 2: Source subtraction (Umbuchung-Quelle) — ohne Kommissionierwagen
         var srcItems = await _dbSet
             .Include(sm => sm.Article)
             .Include(sm => sm.SourceStorageLocation)
             .Where(sm => sm.MovementType == MovementType.Umbuchung
                       && sm.SourceStorageLocationId != null
-                      && articleNumbers.Contains(sm.Article.ArticleNumber))
+                      && articleNumbers.Contains(sm.Article.ArticleNumber)
+                      && !sm.SourceStorageLocation!.IsPickingTransport)
             .GroupBy(sm => new
             {
                 sm.Article.ArticleNumber,

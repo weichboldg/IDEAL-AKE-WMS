@@ -31,6 +31,37 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | OSEON Teileverfolgung | Fertig |
 | OSEON AG-Konfiguration (Soll-Termine + Relevanz) | Fertig |
 | Rollenbasierte Zugriffskontrolle | Fertig (Phase 1) |
+| KW-Filter in Werkstattauftraegen | Fertig |
+| enaio DMS-Integration | Fertig |
+| Bestandsuebersicht FA-Filter + QR-Scan | Fertig |
+| Responsive Design (Mobile) | Fertig |
+| Versionierung + Changelog | Fertig |
+
+## Version
+- **Web-App**: v1.0.0 (01.04.2026)
+- **Service**: v1.0.0 (01.04.2026)
+
+## Aenderungen (01.04.2026)
+
+### v1.0.0 — Erstrelease mit Versionierung
+
+#### Neue Funktionen
+- **KW-Filter (Werkstattauftraege)**: ISO 8601 Kalenderwoche in allen 5 Datumsspalten. Kalender-Popup im Spaltenfilter mit KW-Spalte — Klick auf KW oder Tag filtert
+- **enaio DMS-Integration**: Entity `EnaioDmsDocument`, Sync-Service im Windows-Service (Delta-Sync aus enaio DB), orange Link-Icons neben WA-Nummern in der Werkstattauftraege-View. Connection String `EnaioDmsConnection` in appsettings.json
+- **Bestandsuebersicht FA-Filter**: Dedizierte Methode `GetStockByProductionOrderAsync()` zeigt Netto-Bestand pro Artikel+Lagerplatz fuer einen Fertigungsauftrag
+- **Bestandsuebersicht QR-Scan**: Artikel-QR-Scan-Button und FA-QR-Scan-Button (scanType `productionOrder` extrahiert 3. Position)
+- **Responsive Design**: Mobile-first CSS, Touch Targets 44px, Sticky Scrollbar, Navbar-User im Hamburger-Menue, flex-wrap auf Page Headers
+- **Versionierung**: `AppVersion.cs` in Web + Service, Version im Footer, Changelog-View unter `/Help/Changelog`
+
+#### Verbesserungen
+- **Kommissionierwagen-Filterung**: Wagen nicht in Stuecklisten-Bestand/Dropdowns, keine Meldebestand-Farbcodierung, nicht in BOM `GetStockByArticleNumbersAsync`
+- **Spalten optimiert**: WA-Nr + Stk. verkleinert, Stk. ohne Filter, Positions-Spalte in Stueckliste verkleinert
+- **iPhone/iPad Hilfe**: Abschnitt auf Help-Seite fuer dauerhaften Kamerazugriff
+
+#### Fehlerbehebungen
+- enaio `object1.id` ist `int` nicht `bigint` — `Convert.ToInt64()` statt `GetInt64()`
+- enaio MERGE: `CreatedByWindows`/`ModifiedByWindows` fehlten
+- enaio Link: kein ungewollter Unterstrich bei mehreren Dokumenten (Whitespace in Razor)
 
 ## Aenderungen (30.03.2026)
 

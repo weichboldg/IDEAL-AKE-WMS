@@ -77,6 +77,25 @@
 - `BomRepository.GetBomItemsAsync()` liefert `BomQueryResult(Items, DataSource)` — DataSource = `"SAGE"`, `"OSEON"` oder `"KEINE_DATEN"`
 - `CachedBomRepository` wrapped `BomRepository` (Decorator-Pattern, 5 min MemoryCache)
 
+## Versionierung
+
+- **Web-App**: `IdealAkeWms/AppVersion.cs` — `Version` + `Date` Konstanten, angezeigt im Footer
+- **Service**: `IDEALAKEWMSService/AppVersion.cs` — gleiche Struktur, geloggt beim SyncWorker-Start
+- **Changelog**: `Views/Help/Changelog.cshtml` — Anwender-sichtbare Aenderungshistorie, erreichbar ueber Footer-Link "Aenderungen"
+- **Bei jeder Aenderung**: Version hochzaehlen, Changelog ergaenzen, `AppVersion.cs` in beiden Projekten aktualisieren
+
+## Responsive Design
+
+- **Mobile-First**: `site.css` enthaelt responsive Media-Queries (`max-width: 575.98px`, `767.98px`, `991.98px`)
+- **Touch Targets**: Buttons min-height 44px, Form Controls min-height 44px auf Mobile (WCAG)
+- **iOS Zoom**: `font-size: 16px` auf Mobile-Inputs verhindert Safari Auto-Zoom
+- **Scrollbare Tabellen**: `.table-responsive` mit `overflow-x: auto`, `width: max-content !important`, `white-space: nowrap`
+- **Sticky Scrollbar**: `site.js` erstellt per JS eine synchronisierte Scrollbar (`.table-sticky-scrollbar`) die am Viewport-Rand klebt. Blendet sich per `IntersectionObserver` aus wenn die echte Scrollbar sichtbar ist
+- **Scrollbar-Styling**: Webkit (`::-webkit-scrollbar`) + Firefox (`scrollbar-color`) im Corporate Design
+- **Navbar Mobile**: `.navbar-user-mobile` Block im Hamburger-Menue mit Profil-Link + Abmelden-Button
+- **Page Headers**: Alle `d-flex justify-content-between` haben `flex-wrap gap-2` fuer Mobile-Umbruch
+- **Nested Tables**: `.nested-table-responsive` fuer verschachtelte Tabellen (Tracking/Index)
+
 ## Konventionen
 
 - **Sprache**: Code/Variablen auf Englisch, UI-Texte auf Deutsch
@@ -213,6 +232,9 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **EF PendingModelChangesWarning**: Bei neuen Indizes/Model-Änderungen im `ApplicationDbContext.OnModelCreating` immer `dotnet ef migrations add` ausführen, sonst crasht `db.Database.Migrate()` mit `PendingModelChangesWarning`
 - **OSEON pa.ID ist bigint**: `ProduktionsAuftrag.ID` in OSEON ist `Int64` (bigint) — `OseonRawRow.OseonId` muss `long` sein, nicht `int`. `reader.GetInt64(0)` verwenden
 - **Rollen-Migration Phase 2**: `SQL/33_RemoveOldPermissionColumns.sql` erst nach Verifikation des Rollensystems ausfuehren. Vorher bleiben alte Boolean-Spalten als Fallback
+- **Kommissionierwagen (IsPickingTransport)**: Wagen-Lagerplaetze werden an mehreren Stellen gefiltert: (1) Stueckliste: nicht in Lagerplatz-Bestand und nicht in Quell-/Ziel-Dropdown (`GetStockByArticleNumbersAsync`, `GetAllOrderedExcludingPickingTransportAsync`), (2) Bestandsuebersicht: keine Meldebestand-Farbcodierung, (3) StockCheckService: keine Benachrichtigungen. NICHT filtern in: Bestandsuebersicht-Liste (dort sollen Wagen sichtbar bleiben) und Bewegungshistorie
+- **Bestandsuebersicht FA-Filter**: `GetStockByProductionOrderAsync()` ist eine eigene Methode — NICHT in `GetCurrentStockAsync` eingebaut. FA-Filter zeigt den Netto-Bestand der Buchungen mit dieser FA, nicht den Gesamtbestand der Artikel
+- **enaio object1.id ist int**: Im Gegensatz zu OSEON (bigint) ist enaio `object1.id` ein `int` — daher `Convert.ToInt64(reader.GetValue(0))` verwenden statt `reader.GetInt64(0)`
 
 ## Standard-Daten (Neuinstallation)
 
@@ -254,6 +276,22 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `QrMitFaNummer` | `false` | QR-Code enthält Fertigungsauftragsnummer an 3. Stelle |
 | `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
+
+## Service-Konfiguration (appsettings.json)
+
+Sync-Toggles und Worker-Settings stehen in `IDEALAKEWMSService/appsettings.json` (nicht in der DB-Tabelle AppSettings):
+
+| Key | Default | Beschreibung |
+|-----|---------|-------------|
+| `Sync:ProductionOrdersEnabled` | `true` | Sage-WA-Import aktiv |
+| `Sync:ArticlesEnabled` | `true` | Sage-Artikel-Import aktiv |
+| `Sync:OseonTrackingEnabled` | `false` | OSEON-Tracking-Sync aktiv |
+| `Sync:EnaioDmsEnabled` | `false` | enaio DMS-Sync aktiv |
+| `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall in Minuten |
+| `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus (keine DB-Aenderungen) |
+| `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
+
+Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonConnection` (OSEON), `EnaioDmsConnection` (enaio)
 
 ## OSEON Teileverfolgung
 
@@ -364,6 +402,22 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `Data/Repositories/EnaioDmsDocumentRepository.cs` — Repository + Bulk-Lookup fuer DMS-Links
 - `IDEALAKEWMSService/Services/EnaioDmsSyncService.cs` — enaio DMS-Sync (Delta, BulkCopy + MERGE)
 - `SQL/35_AddEnaioDmsDocuments.sql` — Migration fuer EnaioDmsDocuments-Tabelle
+- `AppVersion.cs` (Web + Service) — Zentrale Versionskonstanten (Version, Date)
+- `Views/Help/Index.cshtml` — Anwender-Hilfeseite (alle Features dokumentiert)
+- `Views/Help/Changelog.cshtml` — Anwender-sichtbare Aenderungshistorie
+- `Controllers/HelpController.cs` — Help + Changelog Actions
+- `wwwroot/js/site.js` — Sticky Scrollbar fuer responsive Tabellen
+- `wwwroot/js/table-filter.js` — Client-seitiger Spaltenfilter + KW-Kalender-Popup
+- `wwwroot/js/barcode-scanner.js` — QR/Barcode-Scanner (scanTypes: article, storageLocation, productionOrder)
+- `Services/BusinessDayService.cs` — Arbeitstage-Berechnung (Wochenenden + Feiertage)
+- `Controllers/StockOverviewController.cs` — Bestandsuebersicht mit FA-Filter
+
+## Bestandsuebersicht
+
+- **Meldebestand-Farbcodierung**: `stock-warning` (orange) wenn Bestand ≤ `WarningThresholdPercent`% des Meldebestands, `stock-critical` (rot) wenn ≤ `CriticalThresholdPercent`%. Kommissionierwagen (`IsPickingTransport`) werden NICHT farbcodiert
+- **FA-Filter**: Eigene Methode `GetStockByProductionOrderAsync()` — zeigt Netto-Bestand der Buchungen mit dieser FA-Nummer pro Artikel+Lagerplatz. NICHT in `GetCurrentStockAsync` integriert (separate Abfrage)
+- **QR-Scan**: Artikel-Filter hat QR-Scan-Button (`scanType: article`), FA-Filter hat QR-Scan-Button (`scanType: productionOrder` — extrahiert 3. Position aus QR)
+- **Kommissionierwagen**: `StockCheckService` (Benachrichtigungen) schliesst Wagen bereits aus. View-Farbcodierung ebenfalls
 
 ## Logging (Serilog)
 

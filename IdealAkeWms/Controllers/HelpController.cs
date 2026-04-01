@@ -5,4 +5,5 @@ namespace IdealAkeWms.Controllers;
 public class HelpController : Controller
 {
     public IActionResult Index() => View();
+    public IActionResult Changelog() => View();
 }

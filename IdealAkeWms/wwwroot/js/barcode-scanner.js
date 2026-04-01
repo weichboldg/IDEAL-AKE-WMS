@@ -238,16 +238,26 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
     var searchValue = value;
     var faNumber = null;
 
-    if (scanType === 'article') {
-        // QR-Code: Erster Teil vor ; ist die Artikelnummer
-        // Format: Artikelnummer;Feld2;FA-Nummer;...
+    if (scanType === 'article' || scanType === 'productionOrder') {
+        // QR-Code-Format: Artikelnummer;Feld2;FA-Nummer[,Suffix];...
         var parts = value.split(';');
-        searchValue = parts[0].trim();
 
-        // FA-Nummer aus QR extrahieren (Index 2) wenn Setting aktiv und >= 3 Teile
-        // Komma-Suffix abschneiden (z.B. "2610063,09" → "2610063")
-        if (qrFaEnabled && parts.length >= 3 && parts[2].trim()) {
-            faNumber = parts[2].trim().split(',')[0];
+        if (scanType === 'productionOrder') {
+            // FA-Nummer extrahieren (3. Position), Komma-Suffix abschneiden
+            if (parts.length >= 3 && parts[2].trim()) {
+                searchValue = parts[2].trim().split(',')[0];
+            } else {
+                // Fallback: gesamten gescannten Wert verwenden (evtl. manuell eingetippt)
+                searchValue = value.trim().split(',')[0];
+            }
+        } else {
+            // Artikel: Erster Teil vor ; ist die Artikelnummer
+            searchValue = parts[0].trim();
+
+            // FA-Nummer aus QR extrahieren (Index 2) wenn Setting aktiv und >= 3 Teile
+            if (qrFaEnabled && parts.length >= 3 && parts[2].trim()) {
+                faNumber = parts[2].trim().split(',')[0];
+            }
         }
     }
 

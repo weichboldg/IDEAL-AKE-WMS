@@ -17,7 +17,8 @@ public class SyncWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("SyncWorker gestartet.");
+        _logger.LogInformation("SyncWorker gestartet. Version {Version} ({Date}).",
+            IDEALAKEWMSService.AppVersion.Version, IDEALAKEWMSService.AppVersion.Date);
 
         while (!stoppingToken.IsCancellationRequested)
         {

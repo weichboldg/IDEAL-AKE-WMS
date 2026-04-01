@@ -1,0 +1,77 @@
+@{
+    ViewData["Title"] = "Aenderungen";
+}
+
+<h2 class="page-header">Aenderungen</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong>v1.0.0</strong> <span class="text-white-50 ms-2">01.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Neue Funktionen</h6>
+                <ul>
+                    <li>
+                        <strong>Kalenderwoche (KW) in Werkstattauftraegen</strong><br />
+                        Alle Datumsspalten zeigen die ISO-Kalenderwoche an (z.B. <code>07.01.2026 KW2</code>).
+                        Im Spaltenfilter oeffnet ein Kalender-Icon einen Monatskalender — Klick auf KW oder Tag filtert die Tabelle.
+                    </li>
+                    <li>
+                        <strong>enaio DMS-Integration</strong><br />
+                        Neben der WA-Nummer erscheinen orange Icons fuer Dokumente und Zeichnungen aus enaio.
+                        Klick oeffnet das Dokument direkt im enaio Viewer.
+                        Daten werden automatisch per Windows-Service synchronisiert.
+                    </li>
+                    <li>
+                        <strong>Bestandsuebersicht: Bestaende pro Fertigungsauftrag</strong><br />
+                        Neues Filterfeld &bdquo;Fertigungsauftrag&ldquo; zeigt den Netto-Bestand aller Artikel,
+                        die mit diesem FA gebucht wurden — aufgeschluesselt nach Lagerplatz.
+                        QR-Code-Scan extrahiert die FA-Nummer automatisch.
+                    </li>
+                    <li>
+                        <strong>Bestandsuebersicht: Artikel-QR-Scan</strong><br />
+                        Neuer QR-Scan-Button neben dem Artikelfilter. Beim Scannen wird die Artikelnummer
+                        und (falls vorhanden) die FA-Nummer automatisch uebernommen.
+                    </li>
+                    <li>
+                        <strong>Responsive Design</strong><br />
+                        Die gesamte Web-App ist nun fuer Mobilgeraete optimiert: Touch-freundliche Bedienelemente,
+                        horizontal scrollbare Tabellen mit sichtbarer Scrollbar, und ein Benutzer-Menue
+                        im mobilen Hamburger-Menue.
+                    </li>
+                </ul>
+
+                <h6>Verbesserungen</h6>
+                <ul>
+                    <li>
+                        <strong>Kommissionierwagen-Filterung</strong><br />
+                        Lagerplaetze vom Typ &bdquo;Wagen&ldquo; werden in der Stueckliste nicht mehr
+                        in der Bestandsanzeige und den Quell-/Ziel-Dropdowns angezeigt.
+                        In der Bestandsuebersicht erhalten Wagen keine Meldebestand-Farbcodierung mehr.
+                    </li>
+                    <li>
+                        <strong>Werkstattauftraege: Spalten optimiert</strong><br />
+                        WA-Nummer und Stueck-Spalte verkleinert, Stueck hat keinen Spaltenfilter mehr.
+                        Stueckliste: Positionsspalte verkleinert.
+                    </li>
+                    <li>
+                        <strong>Hilfe-Seite: iPhone/iPad Kamerazugriff</strong><br />
+                        Neuer Abschnitt mit Anleitung fuer dauerhaften Kamerazugriff auf Apple-Geraeten
+                        (Home-Bildschirm-Installation oder Safari-Einstellungen).
+                    </li>
+                </ul>
+
+                <h6>Fehlerbehebungen</h6>
+                <ul>
+                    <li>enaio DMS-Sync: <code>object1.id</code> ist <code>int</code> (nicht <code>bigint</code>) — Cast korrigiert</li>
+                    <li>enaio DMS-Sync: <code>CreatedByWindows</code>-Spalte im MERGE-Statement ergaenzt</li>
+                    <li>enaio DMS-Link: Kein ungewollter Unterstrich-Text mehr bei mehreren Dokumenten</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>

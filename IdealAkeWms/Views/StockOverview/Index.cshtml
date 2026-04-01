@@ -92,9 +92,9 @@
                     qtyClass = "qty-negative";
                 }
 
-                // Color coding based on reorder level thresholds
+                // Color coding based on reorder level thresholds (nicht fuer Kommissionierwagen)
                 var stockColorClass = "";
-                if (item.ReorderLevel.HasValue && item.ReorderLevel.Value > 0m)
+                if (item.ReorderLevel.HasValue && item.ReorderLevel.Value > 0m && !item.IsPickingTransport)
                 {
                     var warningLevel = item.ReorderLevel.Value * Model.WarningThresholdPercent / 100m;
                     var criticalLevel = item.ReorderLevel.Value * Model.CriticalThresholdPercent / 100m;
@@ -152,7 +152,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             initScanner('btnScanLocationFilter', 'filterStorageLocationId', 'storageLocation');
             initScanner('btnScanArticleFilter', 'filterArticle', 'article');
-            initScanner('btnScanPO', 'filterProductionOrder', 'article');
+            initScanner('btnScanPO', 'filterProductionOrder', 'productionOrder');
             document.getElementById('filterStorageLocationId').addEventListener('change', function () {
                 this.closest('form').submit();
             });

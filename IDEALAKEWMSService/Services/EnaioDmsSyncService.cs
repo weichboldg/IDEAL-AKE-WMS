@@ -138,17 +138,18 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
                 ON target.[EnaioDmsObjectId] = source.[EnaioDmsObjectId]
                 WHEN MATCHED THEN
                     UPDATE SET
-                        target.[DocumentType]   = source.[DocumentType],
-                        target.[OrderNumber]    = source.[OrderNumber],
-                        target.[CreatedInEnaio] = source.[CreatedInEnaio],
-                        target.[LastSyncedAt]   = @Now,
-                        target.[ModifiedAt]     = @Now,
-                        target.[ModifiedBy]     = 'EnaioDmsSync'
+                        target.[DocumentType]      = source.[DocumentType],
+                        target.[OrderNumber]       = source.[OrderNumber],
+                        target.[CreatedInEnaio]    = source.[CreatedInEnaio],
+                        target.[LastSyncedAt]      = @Now,
+                        target.[ModifiedAt]        = @Now,
+                        target.[ModifiedBy]        = 'EnaioDmsSync',
+                        target.[ModifiedByWindows] = 'EnaioDmsSync'
                 WHEN NOT MATCHED BY TARGET THEN
                     INSERT ([EnaioDmsObjectId], [DocumentType], [OrderNumber], [CreatedInEnaio],
-                            [LastSyncedAt], [CreatedAt], [CreatedBy])
+                            [LastSyncedAt], [CreatedAt], [CreatedBy], [CreatedByWindows])
                     VALUES (source.[EnaioDmsObjectId], source.[DocumentType], source.[OrderNumber],
-                            source.[CreatedInEnaio], @Now, @Now, 'EnaioDmsSync')
+                            source.[CreatedInEnaio], @Now, @Now, 'EnaioDmsSync', 'EnaioDmsSync')
                 OUTPUT $action;
 
                 DROP TABLE #TmpEnaioDocs;

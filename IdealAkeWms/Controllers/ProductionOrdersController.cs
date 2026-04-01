@@ -219,7 +219,7 @@ public class ProductionOrdersController : Controller
         var articleNumbers = bomItems.Select(b => b.Ressourcenummer).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).Distinct().ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
 
-        var allStorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+        var allStorageLocations = await _storageLocationRepository.GetAllOrderedExcludingPickingTransportAsync();
 
         // NAN-Lagerplatz als Default wenn kein Bestand
         var nanLocation = await _storageLocationRepository.GetByCodeAsync("NAN");

@@ -28,10 +28,18 @@ public class StockOverviewController : Controller
         decimal? filterMinQuantity, decimal? filterMaxQuantity,
         string? filterProductionOrder)
     {
-        var items = await _stockMovementRepository.GetCurrentStockAsync(
-            filterArticle, filterStorageLocationId,
-            filterMinQuantity, filterMaxQuantity,
-            filterProductionOrder);
+        List<StockOverviewItem> items;
+        if (!string.IsNullOrWhiteSpace(filterProductionOrder))
+        {
+            // Dedizierte FA-Abfrage: zeigt Netto-Bestand der FA-Buchungen pro Artikel+Lagerplatz
+            items = await _stockMovementRepository.GetStockByProductionOrderAsync(filterProductionOrder);
+        }
+        else
+        {
+            items = await _stockMovementRepository.GetCurrentStockAsync(
+                filterArticle, filterStorageLocationId,
+                filterMinQuantity, filterMaxQuantity);
+        }
 
         var vm = new StockOverviewViewModel
         {
