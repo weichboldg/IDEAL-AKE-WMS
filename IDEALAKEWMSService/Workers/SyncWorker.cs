@@ -74,6 +74,18 @@ public class SyncWorker : BackgroundService
                         wpResult.Updated, wpResult.Errors,
                         wpResult.ErrorDetails != null ? $" Details: {wpResult.ErrorDetails}" : "");
                 }
+                // enaio DMS-Sync
+                if (_configuration.GetValue<bool>("Sync:EnaioDmsEnabled", false))
+                {
+                    var enaioDmsSync = scope.ServiceProvider.GetRequiredService<IEnaioDmsSyncService>();
+
+                    _logger.LogInformation("enaio DMS-Sync startet...");
+                    var enaioDmsResult = await enaioDmsSync.SyncDocumentsAsync(dryRun, stoppingToken);
+                    _logger.LogInformation(
+                        "enaio DMS-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                        enaioDmsResult.Inserted, enaioDmsResult.Updated, enaioDmsResult.Errors,
+                        enaioDmsResult.ErrorDetails != null ? $" Details: {enaioDmsResult.ErrorDetails}" : "");
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {

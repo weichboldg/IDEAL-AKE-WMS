@@ -2,12 +2,15 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:www.ideal-ake.at)",
-      "Bash(dotnet:*)",
+      "Bash(*)",
       "Bash(find:*)",
       "Bash(wc:*)",
       "Bash(git commit:*)",
       "Bash(git add:*)",
       "Bash(git mv:*)",
+      "Read(//c/Entwicklung/C#/AKEBDELight/**)",
+      "Write(//c/Entwicklung/C#/AKEBDELight/**)",
+      "Bash(powershell:*)",
       "Bash(magick:*)",
       "Bash(convert:*)",
       "Bash(node --version:*)",

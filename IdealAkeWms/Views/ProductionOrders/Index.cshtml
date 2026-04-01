@@ -1,7 +1,16 @@
 @model ProductionOrderViewModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Werkstattaufträge";
     var today = DateTime.Today;
+    // ISO 8601 Kalenderwoche berechnen
+    string FormatDateWithKw(DateTime? date)
+    {
+        if (!date.HasValue) return "";
+        var d = date.Value;
+        var kw = ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}";
+    }
 }
 
 <h2 class="page-header">Werkstattaufträge</h2>
@@ -54,11 +63,11 @@
                 <th data-filterable data-col="5">Bezeichnung 1</th>
                 <th data-filterable data-col="6">Bezeichnung 2</th>
                 <th data-filterable data-col="7">Werkbank</th>
-                <th class="text-nowrap" data-filterable data-col="8" title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
-                <th class="text-nowrap" data-filterable data-col="9" title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
-                <th class="text-nowrap" data-filterable data-col="10" title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
-                <th class="text-nowrap" data-filterable data-col="11">Fert.-Termin</th>
-                <th class="text-nowrap" data-filterable data-col="12">Liefertermin</th>
+                <th class="text-nowrap" data-filterable data-col="8" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
+                <th class="text-nowrap" data-filterable data-col="9" data-date-filter title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
+                <th class="text-nowrap" data-filterable data-col="10" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
+                <th class="text-nowrap" data-filterable data-col="11" data-date-filter>Fert.-Termin</th>
+                <th class="text-nowrap" data-filterable data-col="12" data-date-filter>Liefertermin</th>
                 <th style="width: 45px;" data-filterable data-col="13">Glas</th>
                 <th style="width: 55px;" data-filterable data-col="14">Zukauf</th>
                 <th data-filterable data-col="15">Status</th>
@@ -82,7 +91,32 @@
                             }
                         </td>
                     }
-                    <td><strong>@item.OrderNumber</strong></td>
+                    <td>
+                        <strong>@item.OrderNumber</strong>
+                        @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
+                        {
+                            foreach (var dms in dmsLinks)
+                            {
+                                var icon = dms.DocumentType == "Zeichnung" ? "Zeichnung" : "Dokument";
+                                <a href="http://akeosapp.ake.at/oscontentviewer/viewer/@dms.EnaioDmsObjectId/?pagecount=1"
+                                   target="_blank" title="@icon in enaio oeffnen" class="dms-link">
+                                    @if (dms.DocumentType == "Zeichnung")
+                                    {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/>
+                                            <path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/>
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
+                                        </svg>
+                                    }
+                                </a>
+                            }
+                        }
+                    </td>
                     <td class="text-end">@item.Quantity.ToString("N3")</td>
                     <td>@item.Customer</td>
                     <td>
@@ -101,16 +135,16 @@
                     <td>@item.Description2</td>
                     <td>@item.WorkplaceName</td>
                     <td class="@(!item.IsDone && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today ? "text-danger fw-bold" : "")">
-                        @item.BeschichtungTermin?.ToString("dd.MM.yyyy")
+                        @FormatDateWithKw(item.BeschichtungTermin)
                     </td>
                     <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
-                        @item.VorkommissionierTermin?.ToString("dd.MM.yyyy")
+                        @FormatDateWithKw(item.VorkommissionierTermin)
                     </td>
                     <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "kommissionier-date")">
-                        @item.KommissionierTermin?.ToString("dd.MM.yyyy")
+                        @FormatDateWithKw(item.KommissionierTermin)
                     </td>
-                    <td>@item.ProductionDate?.ToString("dd.MM.yyyy")</td>
-                    <td>@item.DeliveryDate?.ToString("dd.MM.yyyy")</td>
+                    <td>@FormatDateWithKw(item.ProductionDate)</td>
+                    <td>@FormatDateWithKw(item.DeliveryDate)</td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasGlass"
                                @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />

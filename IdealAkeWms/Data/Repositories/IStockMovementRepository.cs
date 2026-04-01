@@ -9,7 +9,8 @@ public interface IStockMovementRepository : IRepository<StockMovement>
         string? filterArticle = null,
         int? filterStorageLocationId = null,
         decimal? filterMinQuantity = null,
-        decimal? filterMaxQuantity = null);
+        decimal? filterMaxQuantity = null,
+        string? filterProductionOrder = null);
 
     Task<(List<MovementHistoryItem> Items, int TotalCount)> GetMovementHistoryAsync(
         DateTime? dateFrom = null,

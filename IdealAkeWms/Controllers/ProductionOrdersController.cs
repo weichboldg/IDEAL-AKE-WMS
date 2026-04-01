@@ -23,6 +23,7 @@ public class ProductionOrdersController : Controller
     private readonly IPickingTransferService _pickingTransferService;
     private readonly IUserRepository _userRepository;
     private readonly IWebHostEnvironment _env;
+    private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -37,7 +38,8 @@ public class ProductionOrdersController : Controller
         IArticleRepository articleRepository,
         IPickingTransferService pickingTransferService,
         IUserRepository userRepository,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        IEnaioDmsDocumentRepository enaioDmsDocumentRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _currentUserService = currentUserService;
@@ -52,6 +54,7 @@ public class ProductionOrdersController : Controller
         _pickingTransferService = pickingTransferService;
         _userRepository = userRepository;
         _env = env;
+        _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
     }
 
     [RequirePickingAccess]
@@ -131,6 +134,10 @@ public class ProductionOrdersController : Controller
             return item;
         }).ToList();
 
+        // enaio DMS-Links laden (Bulk-Lookup fuer alle WA-Nummern)
+        var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
+        var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
+
         var vm = new ProductionOrderViewModel
         {
             Items = viewItems,
@@ -141,7 +148,8 @@ public class ProductionOrdersController : Controller
             KommissionierTage = kommissionierTage,
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
-            CanPick = await _currentUserService.CanPickAsync()
+            CanPick = await _currentUserService.CanPickAsync(),
+            EnaioDmsLinks = dmsLinks
         };
 
         return View(vm);

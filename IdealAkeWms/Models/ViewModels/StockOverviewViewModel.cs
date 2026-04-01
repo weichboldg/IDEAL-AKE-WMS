@@ -7,6 +7,7 @@ public class StockOverviewViewModel
     public int? FilterStorageLocationId { get; set; }
     public decimal? FilterMinQuantity { get; set; }
     public decimal? FilterMaxQuantity { get; set; }
+    public string? FilterProductionOrder { get; set; }
     public List<StorageLocation> StorageLocations { get; set; } = new();
     public int WarningThresholdPercent { get; set; } = 150;
     public int CriticalThresholdPercent { get; set; } = 100;

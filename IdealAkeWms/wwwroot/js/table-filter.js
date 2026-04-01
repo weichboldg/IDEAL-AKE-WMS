@@ -26,14 +26,47 @@
             filterTd.style.backgroundColor = '#f8f9fa';
 
             if (th.hasAttribute('data-filterable')) {
-                var input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'form-control form-control-sm';
-                input.style.fontSize = '0.75rem';
-                input.placeholder = 'Filter...';
-                input.setAttribute('data-col', th.getAttribute('data-col'));
-                input.addEventListener('input', applyFilters);
-                filterTd.appendChild(input);
+                var isDateCol = th.hasAttribute('data-date-filter');
+
+                if (isDateCol) {
+                    // Date column: input + calendar icon button
+                    var wrapper = document.createElement('div');
+                    wrapper.style.display = 'flex';
+                    wrapper.style.gap = '2px';
+
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control form-control-sm';
+                    input.style.fontSize = '0.75rem';
+                    input.style.flex = '1';
+                    input.style.minWidth = '0';
+                    input.placeholder = 'Filter...';
+                    input.setAttribute('data-col', th.getAttribute('data-col'));
+                    input.addEventListener('input', applyFilters);
+
+                    var calBtn = document.createElement('button');
+                    calBtn.type = 'button';
+                    calBtn.className = 'btn btn-sm btn-outline-secondary date-filter-btn';
+                    calBtn.title = 'Kalender / KW-Filter';
+                    calBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg>';
+                    calBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        openDatePicker(input, calBtn);
+                    });
+
+                    wrapper.appendChild(input);
+                    wrapper.appendChild(calBtn);
+                    filterTd.appendChild(wrapper);
+                } else {
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control form-control-sm';
+                    input.style.fontSize = '0.75rem';
+                    input.placeholder = 'Filter...';
+                    input.setAttribute('data-col', th.getAttribute('data-col'));
+                    input.addEventListener('input', applyFilters);
+                    filterTd.appendChild(input);
+                }
             }
 
             _filterRow.appendChild(filterTd);
@@ -128,8 +161,8 @@
             var valA = cellA.textContent.trim();
             var valB = cellB.textContent.trim();
 
-            // Try date comparison (dd.MM.yyyy)
-            var dateRegex = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+            // Try date comparison (dd.MM.yyyy or dd.MM.yyyy KWxx)
+            var dateRegex = /^(\d{2})\.(\d{2})\.(\d{4})/;
             var matchA = valA.match(dateRegex);
             var matchB = valB.match(dateRegex);
             if (matchA && matchB) {
@@ -156,6 +189,195 @@
         dataRows.forEach(function (row) {
             _tbody.appendChild(row);
         });
+    }
+
+    // ========================================================================
+    // Date Picker / KW-Filter Popup
+    // ========================================================================
+
+    var _activePopup = null;
+
+    function openDatePicker(input, anchorBtn) {
+        // Bestehendes Popup schliessen
+        closeDatePicker();
+
+        var now = new Date();
+        var displayMonth = now.getMonth();
+        var displayYear = now.getFullYear();
+
+        // Wenn der Input schon einen Wert hat, versuche den Monat davon zu nehmen
+        var existingMatch = input.value.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+        if (existingMatch) {
+            displayMonth = parseInt(existingMatch[2]) - 1;
+            displayYear = parseInt(existingMatch[3]);
+        }
+
+        var popup = document.createElement('div');
+        popup.className = 'date-filter-popup';
+        document.body.appendChild(popup);
+        _activePopup = popup;
+
+        // Position relativ zum Button
+        var rect = anchorBtn.getBoundingClientRect();
+        popup.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+        popup.style.left = Math.max(4, rect.left + window.scrollX - 200) + 'px';
+
+        function render() {
+            popup.innerHTML = '';
+
+            // Header: Monat-Navigation
+            var header = document.createElement('div');
+            header.className = 'date-filter-header';
+
+            var prevBtn = document.createElement('button');
+            prevBtn.type = 'button';
+            prevBtn.textContent = '\u25C0';
+            prevBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                displayMonth--;
+                if (displayMonth < 0) { displayMonth = 11; displayYear--; }
+                render();
+            });
+
+            var title = document.createElement('span');
+            var monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+            title.textContent = monthNames[displayMonth] + ' ' + displayYear;
+
+            var nextBtn = document.createElement('button');
+            nextBtn.type = 'button';
+            nextBtn.textContent = '\u25B6';
+            nextBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                displayMonth++;
+                if (displayMonth > 11) { displayMonth = 0; displayYear++; }
+                render();
+            });
+
+            header.appendChild(prevBtn);
+            header.appendChild(title);
+            header.appendChild(nextBtn);
+            popup.appendChild(header);
+
+            // Grid: KW | Mo Di Mi Do Fr Sa So
+            var grid = document.createElement('table');
+            grid.className = 'date-filter-grid';
+
+            var headRow = document.createElement('tr');
+            ['KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].forEach(function (label) {
+                var th = document.createElement('th');
+                th.textContent = label;
+                headRow.appendChild(th);
+            });
+            grid.appendChild(headRow);
+
+            // Ersten Tag und letzten Tag des Monats bestimmen
+            var firstDay = new Date(displayYear, displayMonth, 1);
+            var lastDay = new Date(displayYear, displayMonth + 1, 0);
+
+            // Wochentag des 1. (Mo=0 ... So=6)
+            var startDow = (firstDay.getDay() + 6) % 7; // Montag = 0
+
+            // Kalender-Grid aufbauen
+            var day = 1 - startDow;
+            while (day <= lastDay.getDate()) {
+                var row = document.createElement('tr');
+
+                // KW-Zelle: Berechne ISO-KW vom Donnerstag dieser Woche
+                var thursdayOfWeek = new Date(displayYear, displayMonth, day + 3);
+                if (day + 3 < 1) thursdayOfWeek = new Date(displayYear, displayMonth, 1);
+                var kw = getIsoWeek(thursdayOfWeek);
+                var kwCell = document.createElement('td');
+                kwCell.className = 'date-filter-kw';
+                kwCell.textContent = 'KW' + kw;
+                kwCell.title = 'Nach KW' + kw + ' filtern';
+                kwCell.addEventListener('click', (function (kwVal) {
+                    return function (e) {
+                        e.stopPropagation();
+                        input.value = 'KW' + kwVal;
+                        applyFilters();
+                        closeDatePicker();
+                    };
+                })(kw));
+                row.appendChild(kwCell);
+
+                // 7 Tageszellen
+                for (var d = 0; d < 7; d++) {
+                    var cell = document.createElement('td');
+                    if (day >= 1 && day <= lastDay.getDate()) {
+                        cell.textContent = day;
+                        var cellDate = new Date(displayYear, displayMonth, day);
+                        var isToday = cellDate.toDateString() === now.toDateString();
+                        if (isToday) cell.className = 'date-filter-today';
+
+                        cell.addEventListener('click', (function (dd) {
+                            return function (e) {
+                                e.stopPropagation();
+                                var formatted = pad2(dd.getDate()) + '.' + pad2(dd.getMonth() + 1) + '.' + dd.getFullYear();
+                                input.value = formatted;
+                                applyFilters();
+                                closeDatePicker();
+                            };
+                        })(new Date(cellDate)));
+                        cell.title = pad2(cellDate.getDate()) + '.' + pad2(cellDate.getMonth() + 1) + '.' + cellDate.getFullYear();
+                    }
+                    row.appendChild(cell);
+                    day++;
+                }
+
+                grid.appendChild(row);
+            }
+
+            popup.appendChild(grid);
+
+            // "Filter loeschen" Button
+            var clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'date-filter-clear';
+            clearBtn.textContent = 'Filter entfernen';
+            clearBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                input.value = '';
+                applyFilters();
+                closeDatePicker();
+            });
+            popup.appendChild(clearBtn);
+        }
+
+        render();
+
+        // Klick ausserhalb schliesst das Popup
+        setTimeout(function () {
+            document.addEventListener('click', onOutsideClick);
+        }, 10);
+
+        function onOutsideClick(e) {
+            if (popup && !popup.contains(e.target) && e.target !== anchorBtn) {
+                closeDatePicker();
+                document.removeEventListener('click', onOutsideClick);
+            }
+        }
+    }
+
+    function closeDatePicker() {
+        if (_activePopup && _activePopup.parentNode) {
+            _activePopup.parentNode.removeChild(_activePopup);
+        }
+        _activePopup = null;
+    }
+
+    // ISO 8601 Kalenderwoche berechnen
+    function getIsoWeek(date) {
+        var d = new Date(date.getTime());
+        d.setHours(0, 0, 0, 0);
+        // Donnerstag dieser Woche bestimmen
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        var jan4 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d.getTime() - jan4.getTime()) / 86400000 - 3 + (jan4.getDay() + 6) % 7) / 7);
+    }
+
+    function pad2(n) {
+        return n < 10 ? '0' + n : '' + n;
     }
 
     // Global function: Set a column filter value programmatically

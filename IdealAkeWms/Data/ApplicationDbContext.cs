@@ -29,6 +29,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<OseonOperationConfig> OseonOperationConfigs => Set<OseonOperationConfig>();
+    public DbSet<EnaioDmsDocument> EnaioDmsDocuments => Set<EnaioDmsDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -419,6 +420,17 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.OperationName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(200);
             entity.HasIndex(e => e.OperationName).IsUnique();
+        });
+
+        // EnaioDmsDocument
+        modelBuilder.Entity<EnaioDmsDocument>(entity =>
+        {
+            entity.ToTable("EnaioDmsDocuments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DocumentType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.OrderNumber).HasMaxLength(100);
+            entity.HasIndex(e => e.OrderNumber);
+            entity.HasIndex(e => e.EnaioDmsObjectId).IsUnique();
         });
 
         // ServiceSetting

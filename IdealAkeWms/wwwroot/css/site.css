@@ -389,6 +389,19 @@ body {
     color: var(--ake-white);
 }
 
+/* DMS Link (enaio) */
+.dms-link {
+    color: var(--ake-orange);
+    margin-left: 4px;
+    vertical-align: middle;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+.dms-link:hover {
+    opacity: 1;
+    color: #d46e00;
+}
+
 /* Scanner Modal */
 .scanner-modal {
     position: fixed;
@@ -664,6 +677,111 @@ body {
 .oseon-op-irrelevant {
     opacity: 0.5;
     font-style: italic;
+}
+
+/* Date Filter Popup (KW-Kalender) */
+.date-filter-btn {
+    padding: 2px 5px;
+    line-height: 1;
+    border-color: #ced4da;
+}
+.date-filter-btn:hover {
+    background-color: var(--ake-secondary);
+    border-color: var(--ake-secondary);
+    color: var(--ake-white);
+}
+
+.date-filter-popup {
+    position: absolute;
+    z-index: 1050;
+    background: var(--ake-white);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 260px;
+    font-size: 0.8rem;
+}
+
+.date-filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0 8px;
+    font-weight: 600;
+    color: var(--ake-primary);
+}
+
+.date-filter-header button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--ake-primary);
+}
+.date-filter-header button:hover {
+    background: var(--ake-very-light-blue);
+}
+
+.date-filter-grid {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+}
+
+.date-filter-grid th {
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: var(--ake-text);
+    padding: 3px 2px;
+    background: transparent !important;
+    white-space: nowrap;
+}
+
+.date-filter-grid td {
+    padding: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.date-filter-grid td:hover {
+    background: var(--ake-very-light-blue);
+}
+
+.date-filter-kw {
+    font-weight: 600;
+    color: var(--ake-secondary) !important;
+    font-size: 0.7rem;
+}
+.date-filter-kw:hover {
+    background: var(--ake-secondary) !important;
+    color: var(--ake-white) !important;
+}
+
+.date-filter-today {
+    background: var(--ake-light-blue) !important;
+    font-weight: 700;
+    border-radius: 4px;
+}
+
+.date-filter-clear {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 4px;
+    border: none;
+    background: none;
+    color: var(--ake-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-align: center;
+    border-top: 1px solid #eee;
+}
+.date-filter-clear:hover {
+    color: var(--ake-primary);
+    background: var(--ake-light-gray);
 }
 
 /* =============================================

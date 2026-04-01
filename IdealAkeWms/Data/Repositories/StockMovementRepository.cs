@@ -14,7 +14,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         string? filterArticle = null,
         int? filterStorageLocationId = null,
         decimal? filterMinQuantity = null,
-        decimal? filterMaxQuantity = null)
+        decimal? filterMaxQuantity = null,
+        string? filterProductionOrder = null)
     {
         var query = _dbSet
             .Include(sm => sm.Article)
@@ -31,6 +32,17 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         if (filterStorageLocationId.HasValue)
         {
             query = query.Where(sm => sm.StorageLocationId == filterStorageLocationId.Value);
+        }
+
+        // WA-Filter: Nur Artikel anzeigen, die in Bewegungen mit dieser WA vorkommen
+        if (!string.IsNullOrWhiteSpace(filterProductionOrder))
+        {
+            var articleIds = await _dbSet
+                .Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(filterProductionOrder))
+                .Select(sm => sm.ArticleId)
+                .Distinct()
+                .ToListAsync();
+            query = query.Where(sm => articleIds.Contains(sm.ArticleId));
         }
 
         // Query 1: Reguläre Bewegungen + Umbuchung-Ziel (gruppiert nach StorageLocationId)
@@ -81,6 +93,16 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         if (filterStorageLocationId.HasValue)
         {
             sourceQuery = sourceQuery.Where(sm => sm.SourceStorageLocationId == filterStorageLocationId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterProductionOrder))
+        {
+            var articleIds = await _dbSet
+                .Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(filterProductionOrder))
+                .Select(sm => sm.ArticleId)
+                .Distinct()
+                .ToListAsync();
+            sourceQuery = sourceQuery.Where(sm => articleIds.Contains(sm.ArticleId));
         }
 
         var sourceItems = await sourceQuery

@@ -19,6 +19,8 @@
   - [ ] Migration erstellt + SQL/XX_*.sql mit OBJECT_ID-Guard?
   - [ ] SQL/00_FreshInstall.sql aktualisiert?
   - [ ] PROJECT_STATUS.md gepflegt?
+  - [ ] Readme gepflegt?
+  - [ ] User Hilfeseite gepflegt?
   - [ ] TempData korrekt (nur SuccessMessage / WarningMessage)?
   - [ ] Audit-Felder gesetzt (ModifiedAt, ModifiedBy, ModifiedByWindows)?
 
@@ -281,6 +283,22 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - **Ampel-Cache**: `OseonTrafficLightService` ist Scoped — cached `OseonAmpelGelbTage`/`OseonAmpelBlauTage` pro Request (statt 2 DB-Queries pro Auftrag)
 - **IIS Timeout**: `web.config` → `requestTimeout="00:05:00"` für langlaufende Requests
 
+## enaio DMS-Integration
+
+- **Entity**: `EnaioDmsDocument` (AuditableEntity) — `EnaioDmsObjectId` (long, unique), `DocumentType` ("Werkstattauftrag"/"Zeichnung"), `OrderNumber`, `CreatedInEnaio`, `LastSyncedAt`
+- **Datenquelle**: enaio DB (`AKESQL20`, DB: `enaio`) — `sysadm.object1` (feld1=Typ, feld44=WA-Nr, feld43=Zeichnungs-Nr)
+- **Sync**: `EnaioDmsSyncService` im IDEALAKEWMSService, gesteuert per `Sync:EnaioDmsEnabled` in appsettings.json — Delta-Sync via `MAX(LastSyncedAt) - 5 Min`
+- **Link-Format**: `http://akeosapp.ake.at/oscontentviewer/viewer/{EnaioDmsObjectId}/?pagecount=1`
+- **View**: Werkstattauftraege-Index zeigt enaio-Icons neben WA-Nummer (orange Dokument/Zeichnungs-Icon)
+- **Bulk-Lookup**: `GetByOrderNumbersAsync()` laedt alle DMS-Links fuer die angezeigten WA-Nummern in einem Query
+- **SQL**: `SQL/35_AddEnaioDmsDocuments.sql`
+
+## KW-Filter (Werkstattauftraege)
+
+- **KW-Anzeige**: Alle 5 Datumsspalten zeigen ISO 8601 KW an (z.B. "07.01.2026 KW2") via `ISOWeek.GetWeekOfYear()`
+- **Kalender-Popup**: Datumsspalten (Attribut `data-date-filter`) haben ein Kalender-Icon im Spaltenfilter. Klick oeffnet Monatskalender mit KW-Spalte. Klick auf KW filtert nach "KWxx", Klick auf Tag filtert nach "dd.MM.yyyy"
+- **Client-seitig**: Implementiert in `table-filter.js`, Styles in `site.css` (`.date-filter-popup`)
+
 ## QR-Code-Format (Artikel)
 
 - **Format**: `Artikelnummer;Feld2;FA-Nummer[,Suffix]` — Semikolon-getrennt, 3 Teile
@@ -342,6 +360,10 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 - `Data/Repositories/OseonOperationConfigRepository.cs` — Repository fuer AG-Configs
 - `Views/Settings/OperationConfig.cshtml` — CRUD-Seite fuer AG-Konfiguration
 - `SQL/34_AddOseonOperationConfig.sql` — Migration fuer OseonOperationConfigs-Tabelle
+- `Models/EnaioDmsDocument.cs` — enaio DMS-Dokument-Entity (ObjectId, DocumentType, OrderNumber)
+- `Data/Repositories/EnaioDmsDocumentRepository.cs` — Repository + Bulk-Lookup fuer DMS-Links
+- `IDEALAKEWMSService/Services/EnaioDmsSyncService.cs` — enaio DMS-Sync (Delta, BulkCopy + MERGE)
+- `SQL/35_AddEnaioDmsDocuments.sql` — Migration fuer EnaioDmsDocuments-Tabelle
 
 ## Logging (Serilog)
 

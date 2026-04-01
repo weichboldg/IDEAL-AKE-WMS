@@ -25,11 +25,13 @@ public class StockOverviewController : Controller
 
     public async Task<IActionResult> Index(
         string? filterArticle, int? filterStorageLocationId,
-        decimal? filterMinQuantity, decimal? filterMaxQuantity)
+        decimal? filterMinQuantity, decimal? filterMaxQuantity,
+        string? filterProductionOrder)
     {
         var items = await _stockMovementRepository.GetCurrentStockAsync(
             filterArticle, filterStorageLocationId,
-            filterMinQuantity, filterMaxQuantity);
+            filterMinQuantity, filterMaxQuantity,
+            filterProductionOrder);
 
         var vm = new StockOverviewViewModel
         {
@@ -38,6 +40,7 @@ public class StockOverviewController : Controller
             FilterStorageLocationId = filterStorageLocationId,
             FilterMinQuantity = filterMinQuantity,
             FilterMaxQuantity = filterMaxQuantity,
+            FilterProductionOrder = filterProductionOrder,
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             WarningThresholdPercent = await _settingRepository.GetIntValueAsync("WarningThresholdPercent", 150),
             CriticalThresholdPercent = await _settingRepository.GetIntValueAsync("CriticalThresholdPercent", 100)

@@ -51,6 +51,7 @@ builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
 builder.Services.AddScoped<IOseonOperationConfigRepository, OseonOperationConfigRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<IEnaioDmsDocumentRepository, EnaioDmsDocumentRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
