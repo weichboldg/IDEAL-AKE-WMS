@@ -31,6 +31,7 @@
                             var canPick = await CurrentUserService.CanPickAsync();
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                            var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -67,6 +68,12 @@
                                 <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
                             </li>
                         }
+                        @if (bestellungenAktiv && (canPick || canAccessStock))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PartRequisitions" ? "active" : "")" asp-controller="PartRequisitions" asp-action="Index">Bestellungen</a>
+                            </li>
+                        }
                         @if (teileverfolgungAktiv && canViewTracking)
                         {
                             <li class="nav-item dropdown">
@@ -98,6 +105,12 @@
                                     @if (await CurrentUserService.IsAdminAsync())
                                     {
                                         <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
+                                    }
+                                    @if (bestellungenAktiv)
+                                    {
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="Index">Empfänger</a></li>
+                                        <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="ArticleGroupMappings">Artikelgruppen-Zuordnung</a></li>
                                     }
                                 }
                             </ul>
