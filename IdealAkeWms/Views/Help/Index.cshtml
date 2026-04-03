@@ -51,10 +51,10 @@
         </div>
 
         <div class="card mb-3">
-            <div class="card-header"><strong>Werkstattaufträge</strong></div>
+            <div class="card-header"><strong>Fertigungsaufträge</strong></div>
             <div class="card-body">
                 <p>
-                    Uebersicht aller Werkstattauftraege mit Termin- und Status-Informationen.
+                    Uebersicht aller Fertigungsauftraege mit Termin- und Status-Informationen.
                     Die Tabelle kann nach allen Spalten gefiltert werden (Klick auf Spaltenueberschrift).
                 </p>
                 <dl>
@@ -71,9 +71,9 @@
                     </dd>
 
                     <dt>enaio DMS-Dokumente</dt>
-                    <dd>Neben der WA-Nummer erscheinen orange Icons, wenn in enaio Dokumente zum Werkstattauftrag hinterlegt sind:
+                    <dd>Neben der FA-Nummer erscheinen orange Icons, wenn in enaio Dokumente zum Fertigungsauftrag hinterlegt sind:
                         <ul class="mt-1 mb-0">
-                            <li><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#EF7D00" viewBox="0 0 16 16" style="vertical-align:middle;"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg> Werkstattauftrag-Dokument</li>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#EF7D00" viewBox="0 0 16 16" style="vertical-align:middle;"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg> Fertigungsauftrag-Dokument</li>
                             <li><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#EF7D00" viewBox="0 0 16 16" style="vertical-align:middle;"><path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/></svg> Zeichnung</li>
                         </ul>
                         Klick oeffnet das Dokument direkt im enaio Viewer.
@@ -86,7 +86,7 @@
                     <dd>Per Checkbox direkt in der Tabelle markieren. Aenderungen werden sofort gespeichert.</dd>
 
                     <dt>OSEON Teileverfolgung</dt>
-                    <dd>Ueber den <span class="badge bg-info text-white">i</span>-Button oeffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die WA-Nummer. Der Filter &bdquo;Fertige anzeigen&ldquo; ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Auftraege sichtbar sind.</dd>
+                    <dd>Ueber den <span class="badge bg-info text-white">i</span>-Button oeffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die FA-Nummer. Der Filter &bdquo;Fertige anzeigen&ldquo; ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Auftraege sichtbar sind.</dd>
 
                     <dt>Status</dt>
                     <dd>
@@ -170,7 +170,7 @@
             <div class="card-header"><strong>Kommissionierung (Stückliste)</strong></div>
             <div class="card-body">
                 <ol>
-                    <li><strong>Werkstattauftrag waehlen</strong> — Im Dropdown nach Nummer, Artikel oder Kunde suchen.</li>
+                    <li><strong>Fertigungsauftrag waehlen</strong> — Im Dropdown nach Nummer, Artikel oder Kunde suchen.</li>
                     <li><strong>Stueckliste pruefen</strong> — Die Baumstruktur zeigt alle Bauteile und Baugruppen. Baugruppen koennen auf-/zugeklappt werden.</li>
                     <li><strong>Artikel auswaehlen</strong> — Checkbox beim Bauteil setzen und Quell-Lagerplatz waehlen. Baugruppen koennen komplett ausgewaehlt werden. Die Auswahl ist rein visuell &mdash; es wird noch nichts gespeichert.</li>
                     <li><strong>Umbuchen</strong> — Ziel-Lagerplatz waehlen (z.B. Kommissionierwagen) und <em>&bdquo;Gepickte Artikel umbuchen&ldquo;</em> klicken. Erst jetzt werden alle ausgewaehlten Artikel vom Quell- auf den Ziel-Lagerplatz umgebucht.</li>
@@ -225,7 +225,7 @@
 
                     <dt>Bestelluebersicht</dt>
                     <dd>Unter <em>Lager &rarr; Bestellungen</em> werden alle Bedarfsmeldungen mit Status, Prioritaet
-                        und Werkstattauftrag angezeigt. Offene Meldungen koennen storniert werden.</dd>
+                        und Fertigungsauftrag angezeigt. Offene Meldungen koennen storniert werden.</dd>
 
                     <dt>Wareneingang-Verknuepfung</dt>
                     <dd>Bei der Einbuchung werden offene Bedarfsmeldungen zum eingebuchten Artikel angezeigt.
