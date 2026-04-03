@@ -38,7 +38,7 @@ else
                         "in Kommissionierung" => "bg-warning text-dark",
                         _ => "bg-secondary"
                     };
-                    var statusText = string.IsNullOrEmpty(item.PickingStatus) ? "offen" : item.PickingStatus;
+                    var statusText = string.IsNullOrEmpty(item.PickingStatus) ? "Offen" : item.PickingStatus;
                     var kwStr = item.KommissionierTermin.HasValue
                         ? $"{item.KommissionierTermin.Value:dd.MM.yyyy} KW{ISOWeek.GetWeekOfYear(item.KommissionierTermin.Value)}"
                         : "";

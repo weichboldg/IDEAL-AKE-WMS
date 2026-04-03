@@ -139,7 +139,7 @@ public class ProductionOrdersController : Controller
         order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
         await _productionOrderRepository.UpdateAsync(order);
 
-        if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
     }
 
@@ -168,6 +168,7 @@ public class ProductionOrdersController : Controller
         var displayName = _currentUserService.GetDisplayName();
         var windowsUser = _currentUserService.GetWindowsUserName();
         var skipped = new List<string>();
+        var processed = 0;
 
         foreach (var id in ids)
         {
@@ -193,9 +194,10 @@ public class ProductionOrdersController : Controller
             order.ModifiedBy = displayName;
             order.ModifiedByWindows = windowsUser;
             await _productionOrderRepository.UpdateAsync(order);
+            processed++;
         }
 
-        var count = ids.Count - skipped.Count;
+        var count = processed;
         if (release)
             TempData["SuccessMessage"] = $"{count} Auftrag/Aufträge freigegeben.";
         else
@@ -204,7 +206,7 @@ public class ProductionOrdersController : Controller
         if (skipped.Count > 0)
             TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", skipped)}";
 
-        if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
     }
 

@@ -221,9 +221,6 @@
                                                 <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
                                             </svg>
                                         </button>
-                                        <input type="number" class="form-control form-control-sm d-inline-block priority-input"
-                                               value="@item.PickingPriority" min="1" style="width:55px"
-                                               data-id="@item.Id" title="Priorität (1 = höchste)" />
                                     }
                                     else if (!string.IsNullOrEmpty(item.ArticleNumber))
                                     {
@@ -232,6 +229,12 @@
                                         </button>
                                     }
                                 </form>
+                                @if (item.IsReleasedForPicking)
+                                {
+                                    <input type="number" class="form-control form-control-sm d-inline-block priority-input"
+                                           value="@item.PickingPriority" min="1" style="width:55px"
+                                           data-id="@item.Id" title="Priorität (1 = höchste)" />
+                                }
                             }
                         </td>
                     }
@@ -240,7 +243,12 @@
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="@(Model.CanPick ? 17 : 16)" class="text-center text-muted py-4">Keine Werkstattaufträge gefunden.</td>
+                    @{
+                        var colCount = 16;
+                        if (Model.CanPick) colCount++;
+                        if (Model.LeitstandAktiv && Model.CanManagePickingRelease) colCount++;
+                    }
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td>
                 </tr>
             }
         </tbody>
