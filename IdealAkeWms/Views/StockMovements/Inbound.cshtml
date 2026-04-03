@@ -118,7 +118,7 @@
             });
 
             function loadOpenRequisitions(articleText) {
-                var articleNumber = articleText.split(' \u2014 ')[0].trim();
+                var articleNumber = articleText.split(' - ')[0].trim();
 
                 fetch('/api/partrequisitions/open?articleNumber=' + encodeURIComponent(articleNumber))
                     .then(function (r) { return r.json(); })

@@ -137,12 +137,12 @@
             <div class="card-header"><strong>Kommissionierung (Stückliste)</strong></div>
             <div class="card-body">
                 <ol>
-                    <li><strong>Werkstattauftrag wählen</strong> — Im Dropdown nach Nummer, Artikel oder Kunde suchen.</li>
-                    <li><strong>Stückliste prüfen</strong> — Die Baumstruktur zeigt alle Bauteile und Baugruppen. Baugruppen können auf-/zugeklappt werden.</li>
-                    <li><strong>Picken</strong> — Checkbox beim Bauteil setzen und Quell-Lagerplatz wählen. Baugruppen können komplett gepickt werden.</li>
-                    <li><strong>Umbuchen</strong> — Alle gepickten Artikel vom Quell-Lagerplatz auf den Ziel-Lagerplatz (z.B. Kommissionierwagen) umbuchen.</li>
+                    <li><strong>Werkstattauftrag waehlen</strong> — Im Dropdown nach Nummer, Artikel oder Kunde suchen.</li>
+                    <li><strong>Stueckliste pruefen</strong> — Die Baumstruktur zeigt alle Bauteile und Baugruppen. Baugruppen koennen auf-/zugeklappt werden.</li>
+                    <li><strong>Artikel auswaehlen</strong> — Checkbox beim Bauteil setzen und Quell-Lagerplatz waehlen. Baugruppen koennen komplett ausgewaehlt werden. Die Auswahl ist rein visuell &mdash; es wird noch nichts gespeichert.</li>
+                    <li><strong>Umbuchen</strong> — Ziel-Lagerplatz waehlen (z.B. Kommissionierwagen) und <em>&bdquo;Gepickte Artikel umbuchen&ldquo;</em> klicken. Erst jetzt werden alle ausgewaehlten Artikel vom Quell- auf den Ziel-Lagerplatz umgebucht.</li>
                 </ol>
-                <p>Stückliste und Kommissionierliste können als A4-PDF gedruckt werden (aktuelle Filterung und Baumstruktur werden berücksichtigt).</p>
+                <p>Stueckliste und Kommissionierliste koennen als A4-PDF gedruckt werden (aktuelle Filterung und Baumstruktur werden beruecksichtigt).</p>
                 <p class="mb-0"><strong>Kommissionierwagen:</strong> Lagerplaetze vom Typ &bdquo;Wagen&ldquo; werden in der Stueckliste weder in der Bestandsanzeige (Spalte Lagerplatz) noch in den Quell-/Ziel-Lagerplatz-Dropdowns angezeigt.</p>
 
                 <h6 class="mt-3">Spaltenfilter in der Stückliste</h6>
@@ -202,7 +202,14 @@
                     <dt>Empfaengergruppen (Stammdaten)</dt>
                     <dd>Unter <em>Stammdaten &rarr; Empfaengergruppen</em> werden Empfaengergruppen mit
                         E-Mail-Adressen und Artikelgruppen-Zuordnungen verwaltet. Die Zuordnung bestimmt,
-                        welche Empfaengergruppe fuer welche Artikelgruppen zustaendig ist.</dd>
+                        welche Empfaengergruppe fuer welche Artikelgruppen zustaendig ist.
+                        <ol class="mt-1 mb-0">
+                            <li>Empfaengergruppe erstellen (z.B. &bdquo;Blechteile&ldquo;, &bdquo;Normteile&ldquo;)</li>
+                            <li>Empfaenger mit Name und E-Mail-Adresse hinzufuegen</li>
+                            <li>Unter <em>Artikelgruppen-Zuordnung</em> die passenden Artikelgruppen der Gruppe zuordnen</li>
+                        </ol>
+                        Beim Bestellen aus der Stueckliste werden automatisch alle aktiven Empfaenger
+                        der zugeordneten Gruppe vorausgewaehlt.</dd>
                 </dl>
             </div>
         </div>

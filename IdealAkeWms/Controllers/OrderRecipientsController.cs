@@ -51,8 +51,8 @@ public class OrderRecipientsController : Controller
 
         await _repository.AddGroupAsync(group);
 
-        TempData["SuccessMessage"] = $"Empfängergruppe \"{group.Name}\" wurde erfolgreich angelegt.";
-        return RedirectToAction(nameof(Index));
+        TempData["SuccessMessage"] = $"Empfängergruppe \"{group.Name}\" wurde erfolgreich angelegt. Sie können nun Empfänger hinzufügen.";
+        return RedirectToAction(nameof(Edit), new { id = group.Id });
     }
 
     public async Task<IActionResult> Edit(int id)

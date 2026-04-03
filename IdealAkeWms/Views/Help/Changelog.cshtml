@@ -9,6 +9,49 @@
 
         <div class="card mb-3">
             <div class="card-header" style="background-color: var(--ake-primary);">
+                <strong>v1.1.1</strong>
+                <span class="text-white-50 ms-2">03.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">Verbesserungen</h6>
+                <ul>
+                    <li>
+                        <strong>Kommissionierung: Picking erst beim Umbuchen</strong><br />
+                        Checkboxen in der Stueckliste werden nicht mehr sofort gespeichert.
+                        Stattdessen werden alle ausgewaehlten Artikel gesammelt und erst beim Klick auf
+                        <em>&bdquo;Gepickte Artikel umbuchen&ldquo;</em> an den Server uebertragen.
+                        So wird verhindert, dass Artikel faelschlicherweise als kommissioniert gelten.
+                    </li>
+                    <li>
+                        <strong>Empfaengergruppen: Direkter Wechsel zur Bearbeitung</strong><br />
+                        Nach dem Erstellen einer neuen Empfaengergruppe wird direkt die Bearbeitungsseite
+                        geoeffnet, damit sofort Empfaenger hinzugefuegt werden koennen.
+                    </li>
+                    <li>
+                        <strong>Artikelgruppen-Zuordnung: Spaltenfilter</strong><br />
+                        Die Artikelgruppen-Tabelle unterstuetzt nun den Standard-Spaltenfilter
+                        zum schnellen Finden von Gruppen.
+                    </li>
+                    <li>
+                        <strong>Bedarfsmeldungen: Empfaenger vorausgewaehlt</strong><br />
+                        Im Bestell-Modal werden alle aktiven Empfaenger der zugeordneten Gruppe
+                        automatisch vorausgewaehlt. E-Mail-Adressen und Empfaengergruppe werden
+                        korrekt in der Datenbank gespeichert.
+                    </li>
+                </ul>
+
+                <h6>Fehlerbehebungen</h6>
+                <ul>
+                    <li>Wareneingang: Offene Bedarfsmeldungen werden nun korrekt angezeigt (Trennzeichen-Fix bei Artikelsuche)</li>
+                    <li>Bedarfsmeldung: Artikelgruppe wird korrekt an die Empfaenger-API uebergeben (Code-Teil statt voller Beschreibung)</li>
+                    <li>Bedarfsmeldung: <code>ArticleGroup</code> und <code>OrderRecipientGroupId</code> werden nun in der Datenbank gespeichert</li>
+                    <li>Footer: Versionsnummer wird korrekt angezeigt (Razor-Escaping korrigiert)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary);">
                 <strong>v1.1.0</strong>
                 <span class="text-white-50 ms-2">03.04.2026</span>
             </div>

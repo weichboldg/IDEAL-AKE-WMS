@@ -184,6 +184,25 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
+    // Bedarfsmeldungen AppSettings
+    var requisitionSettings = new (string Key, string Value, string Description)[]
+    {
+        ("BestellungenAktiv", "false", "Bedarfsmeldungen aus Stueckliste aktivieren"),
+    };
+    foreach (var (key, value, description) in requisitionSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
     // Standard Service-Settings
     var serviceSettingSeed = new (string Key, string Value, string Category, string Description)[]
     {

@@ -676,37 +676,16 @@
                 window.open(url, '_blank');
             });
 
-            // ========== Checkbox-Toggle (Picking) ==========
+            // ========== Checkbox-Toggle (Picking) — nur lokal ==========
 
             document.querySelectorAll('.picking-checkbox').forEach(function (cb) {
                 cb.addEventListener('change', function () {
-                    var pickingItemId = this.getAttribute('data-id');
-                    var isBaugruppe = this.getAttribute('data-is-baugruppe') === 'true';
                     var row = this.closest('tr');
-                    var sourceSelect = row.querySelector('.source-location-select');
-                    var storageLocationId = sourceSelect ? sourceSelect.value : null;
-
-                    $.ajax({
-                        url: '@Url.Action("TogglePicked")',
-                        type: 'POST',
-                        data: {
-                            pickingItemId: pickingItemId,
-                            storageLocationId: storageLocationId || null,
-                            isBaugruppe: isBaugruppe
-                        },
-                        headers: { 'RequestVerificationToken': token },
-                        success: function () {
-                            if (cb.checked) {
-                                row.classList.add('table-success');
-                            } else {
-                                row.classList.remove('table-success');
-                            }
-                        },
-                        error: function () {
-                            cb.checked = !cb.checked;
-                            alert('Fehler beim Speichern.');
-                        }
-                    });
+                    if (this.checked) {
+                        row.classList.add('table-success');
+                    } else {
+                        row.classList.remove('table-success');
+                    }
                 });
             });
 
@@ -715,16 +694,51 @@
             // Kommissionierwagen-Konflikt-Daten
             var conflictLocationId = null;
 
+            // Sammelt alle gecheckte (nicht bereits transferierte) Items
+            function collectPickedItems() {
+                var items = [];
+                document.querySelectorAll('.picking-checkbox:checked').forEach(function (cb) {
+                    var row = cb.closest('tr');
+                    var pickingItemId = cb.getAttribute('data-id');
+                    var isBaugruppe = cb.getAttribute('data-is-baugruppe') === 'true';
+                    var sourceSelect = row.querySelector('.source-location-select');
+                    var sourceLocationId = sourceSelect ? sourceSelect.value : '';
+                    items.push({
+                        PickingItemId: parseInt(pickingItemId),
+                        SourceStorageLocationId: sourceLocationId ? parseInt(sourceLocationId) : null,
+                        IsBaugruppe: isBaugruppe
+                    });
+                });
+                return items;
+            }
+
             var transferForm = document.getElementById('transferForm');
             if (transferForm) {
                 function doTransfer(force) {
+                    var items = collectPickedItems();
+                    if (items.length === 0) {
+                        alert('Keine Artikel zum Umbuchen ausgewählt.');
+                        return;
+                    }
+
                     var formData = new FormData(transferForm);
                     if (force) formData.set('forceTransfer', 'true');
+
+                    // Items als indexed form fields hinzufügen
+                    items.forEach(function (item, idx) {
+                        formData.set('items[' + idx + '].PickingItemId', item.PickingItemId);
+                        if (item.SourceStorageLocationId !== null) {
+                            formData.set('items[' + idx + '].SourceStorageLocationId', item.SourceStorageLocationId);
+                        }
+                        formData.set('items[' + idx + '].IsBaugruppe', item.IsBaugruppe);
+                    });
 
                     $.ajax({
                         url: transferForm.action,
                         type: 'POST',
-                        data: Object.fromEntries(formData),
+                        data: formData,
+                        processData: false,
+                        contentType: false,
                         headers: { 'RequestVerificationToken': token },
                         success: function (data) {
                             if (data && data.conflict) {
@@ -856,7 +870,9 @@
                 var area = document.getElementById('orderRecipientsArea');
                 area.innerHTML = '<div class="text-muted small">Empfänger werden geladen...</div>';
 
-                var groupParam = articleGroups.length > 0 ? articleGroups[0] : '';
+                // Artikelgruppe kann "940 - Kleinmaterial Allgemein" sein, Mapping speichert nur "940"
+                var rawGroup = articleGroups.length > 0 ? articleGroups[0] : '';
+                var groupParam = rawGroup.split(' - ')[0].trim();
                 $.ajax({
                     url: '/api/partrequisitions/recipients?articleGroup=' + encodeURIComponent(groupParam),
                     type: 'GET',
@@ -877,7 +893,7 @@
                                     var checkDiv = document.createElement('div');
                                     checkDiv.className = 'form-check';
                                     checkDiv.innerHTML = '<input class="form-check-input recipient-cb" type="checkbox" ' +
-                                        'value="' + r.id + '" id="rcpt_' + r.id + '" ' + (r.isDefault ? 'checked' : '') + '>' +
+                                        'value="' + escapeHtml(r.email || '') + '" id="rcpt_' + r.id + '" checked>' +
                                         '<label class="form-check-label" for="rcpt_' + r.id + '">' +
                                         escapeHtml(r.name) + (r.email ? ' <span class="text-muted small">(' + escapeHtml(r.email) + ')</span>' : '') +
                                         '</label>';
@@ -996,10 +1012,10 @@
                     orderItems[idx].quantity = parseFloat(input.value) || 0;
                 });
 
-                // Collect recipients
-                var recipientIds = [];
+                // Collect recipient emails
+                var selectedEmails = [];
                 document.querySelectorAll('.recipient-cb:checked').forEach(function (cb) {
-                    recipientIds.push(parseInt(cb.value));
+                    if (cb.value) selectedEmails.push(cb.value);
                 });
 
                 var priority = document.querySelector('input[name="orderPriority"]:checked').value;
@@ -1008,14 +1024,17 @@
                 var requestData = {
                     productionOrderId: productionOrderId,
                     items: orderItems.map(function (item) {
+                        // Artikelgruppe: nur Code-Teil vor " - " speichern (z.B. "940" statt "940 - Kleinmaterial Allgemein")
+                        var groupCode = item.articleGroup ? item.articleGroup.split(' - ')[0].trim() : null;
                         return {
                             articleNumber: item.articleNumber,
                             articleDescription: item.description,
+                            articleGroup: groupCode,
                             quantity: item.quantity,
                             position: item.position
                         };
                     }),
-                    recipientIds: recipientIds,
+                    selectedEmails: selectedEmails,
                     priority: priority,
                     notes: notes
                 };

@@ -239,6 +239,11 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Kommissionierwagen (IsPickingTransport)**: Wagen-Lagerplaetze werden an mehreren Stellen gefiltert: (1) Stueckliste: nicht in Lagerplatz-Bestand und nicht in Quell-/Ziel-Dropdown (`GetStockByArticleNumbersAsync`, `GetAllOrderedExcludingPickingTransportAsync`), (2) Bestandsuebersicht: keine Meldebestand-Farbcodierung, (3) StockCheckService: keine Benachrichtigungen. NICHT filtern in: Bestandsuebersicht-Liste (dort sollen Wagen sichtbar bleiben) und Bewegungshistorie
 - **Bestandsuebersicht FA-Filter**: `GetStockByProductionOrderAsync()` ist eine eigene Methode — NICHT in `GetCurrentStockAsync` eingebaut. FA-Filter zeigt den Netto-Bestand der Buchungen mit dieser FA, nicht den Gesamtbestand der Artikel
 - **enaio object1.id ist int**: Im Gegensatz zu OSEON (bigint) ist enaio `object1.id` ein `int` — daher `Convert.ToInt64(reader.GetValue(0))` verwenden statt `reader.GetInt64(0)`
+- **Artikelgruppe BOM vs Articles-Tabelle**: Die SAGE-View liefert Artikelgruppen als `"940 - Kleinmaterial Allgemein"` (Code + Beschreibung), aber die `Articles`-Tabelle speichert nur `"940"` (reiner Code). Beim Matching (z.B. Empfaenger-Routing, Mappings) immer `.split(' - ')[0].trim()` verwenden um den Code-Teil zu extrahieren
+- **Picking-Checkbox ist client-seitig**: Checkboxen in der Stueckliste (`Bom.cshtml`) speichern NICHT mehr sofort in die DB. `IsPicked` wird erst beim "Umbuchen" gesetzt. Die `TogglePicked`-Action existiert noch, wird aber nicht mehr aufgerufen
+- **Razor v@ wird als E-Mail interpretiert**: `v@Namespace.Class.Property` wird von Razor als E-Mail-Adresse geparst. Immer `v@(Namespace.Class.Property)` mit Klammern verwenden
+- **Select2-Text-Format fuer Artikel**: Die Select2-API (`/api/articles/search`) liefert `"ArticleNumber - Description"` (mit Hyphen ` - `). Bei Text-Parsing immer `.split(' - ')[0]` verwenden, NICHT Em-Dash `' — '`
+- **Bedarfsmeldung Empfaenger**: Im Bestell-Modal werden Empfaenger per E-Mail-Adresse (nicht per ID) an den Server gesendet. Checkbox-Value = E-Mail, Request-Property = `SelectedEmails`. `OrderRecipientGroupId` wird server-seitig aus dem Artikelgruppen-Mapping ermittelt
 
 ## Standard-Daten (Neuinstallation)
 

@@ -8,7 +8,14 @@
       "Read(//c/Entwicklung/C#/AKEBDELight/$HOME/.claude/get-shit-done/**)",
       "Bash(rm -rf /tmp/gsd-install)",
       "Bash(\"C:/Users/gerald.weichbold/.claude/get-shit-done/VERSION\")",
-      "Read(//c/Users/gerald.weichbold/.claude/get-shit-done/**)"
+      "Read(//c/Users/gerald.weichbold/.claude/get-shit-done/**)",
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "Agent(*)"
     ]
   },
   "enabledPlugins": {

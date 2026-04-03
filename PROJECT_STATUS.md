@@ -39,10 +39,24 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Bedarfsmeldungen aus Stueckliste | Fertig |
 
 ## Version
-- **Web-App**: v1.1.0 (03.04.2026)
-- **Service**: v1.1.0 (03.04.2026)
+- **Web-App**: v1.1.1 (03.04.2026)
+- **Service**: v1.1.1 (03.04.2026)
 
 ## Aenderungen (03.04.2026)
+
+### v1.1.1 — Bugfixes Bestellungen & Kommissionierung
+
+#### Verbesserungen
+- **Kommissionierung: Picking erst beim Umbuchen** — Checkboxen in der Stueckliste sind rein client-seitig. Erst beim Klick auf "Gepickte Artikel umbuchen" werden alle ausgewaehlten Artikel mit Quell-Lagerplatz in einer Transaktion an den Server gesendet
+- **Empfaengergruppen: Redirect nach Create auf Edit** — Nach Erstellen direkt zur Bearbeitung, damit sofort Empfaenger hinzugefuegt werden koennen
+- **Artikelgruppen-Zuordnung: Spaltenfilter** — filterable-table Klasse ergaenzt
+- **Bedarfsmeldungen: Empfaenger vorausgewaehlt** — Alle aktiven Empfaenger der zugeordneten Gruppe werden im Modal automatisch gecheckt
+
+#### Fehlerbehebungen
+- Wareneingang: Offene Bedarfsmeldungen werden korrekt angezeigt (Em-Dash → Hyphen im Artikel-Split)
+- Bedarfsmeldung: Artikelgruppe wird als reiner Code an API gesendet ("940" statt "940 - Kleinmaterial Allgemein")
+- Bedarfsmeldung: ArticleGroup, OrderRecipientGroupId und SentToEmails werden nun korrekt gespeichert
+- Footer: Versionsnummer korrekt per Razor-Escaping angezeigt (`v@(...)` statt `v@...`)
 
 ### v1.1.0 — Bedarfsmeldungen
 

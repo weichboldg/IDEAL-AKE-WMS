@@ -76,6 +76,19 @@ public class PartRequisitionsApiController : ControllerBase
         var displayName = _currentUserService.GetDisplayName();
         var windowsUser = _currentUserService.GetWindowsUserName();
 
+        // OrderRecipientGroupId aus Artikelgruppen-Mapping ermitteln
+        var articleGroups = request.Items
+            .Select(i => i.ArticleGroup)
+            .Where(g => !string.IsNullOrEmpty(g))
+            .Distinct()
+            .ToList();
+        int? recipientGroupId = null;
+        if (articleGroups.Count > 0)
+        {
+            var groups = await _recipientRepository.GetGroupsByArticleGroupAsync(articleGroups[0]!);
+            recipientGroupId = groups.FirstOrDefault()?.Id;
+        }
+
         var requisitions = request.Items.Select(item => new PartRequisition
         {
             ProductionOrderId = request.ProductionOrderId,
@@ -88,6 +101,7 @@ public class PartRequisitionsApiController : ControllerBase
             Status = PartRequisitionStatus.Offen,
             Priority = request.Priority,
             Notes = request.Notes,
+            OrderRecipientGroupId = recipientGroupId,
             SentToEmails = string.IsNullOrEmpty(sentToEmails) ? null : sentToEmails,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = displayName,

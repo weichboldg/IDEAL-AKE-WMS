@@ -1,5 +1,12 @@
 namespace IdealAkeWms.Services;
 
+public class PickingSelectionItem
+{
+    public int PickingItemId { get; set; }
+    public int? SourceStorageLocationId { get; set; }
+    public bool IsBaugruppe { get; set; }
+}
+
 public class PickingTransferResult
 {
     public bool Success { get; set; }
@@ -24,6 +31,7 @@ public interface IPickingTransferService
         int productionOrderId,
         int targetStorageLocationId,
         bool forceTransfer,
+        List<PickingSelectionItem>? selectedItems,
         int? appUserId,
         string displayName,
         string windowsUser);

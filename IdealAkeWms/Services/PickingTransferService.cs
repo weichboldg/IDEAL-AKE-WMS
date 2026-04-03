@@ -28,10 +28,17 @@ public class PickingTransferService : IPickingTransferService
         int productionOrderId,
         int targetStorageLocationId,
         bool forceTransfer,
+        List<PickingSelectionItem>? selectedItems,
         int? appUserId,
         string displayName,
         string windowsUser)
     {
+        // Wenn selectedItems übergeben: zuerst IsPicked + SourceStorageLocation setzen
+        if (selectedItems != null && selectedItems.Count > 0)
+        {
+            await ApplyPickingSelectionsAsync(selectedItems, displayName, windowsUser);
+        }
+
         var order = await _context.ProductionOrders.FindAsync(productionOrderId);
         var targetLocation = await _context.StorageLocations.FindAsync(targetStorageLocationId);
 
@@ -78,6 +85,53 @@ public class PickingTransferService : IPickingTransferService
             Success = true,
             TransferredCount = count
         };
+    }
+
+    private async Task ApplyPickingSelectionsAsync(List<PickingSelectionItem> items, string userName, string windowsUser)
+    {
+        var now = DateTime.Now;
+
+        // Alle PickingItems dieses Auftrags laden die noch nicht transferiert sind
+        var itemIds = items.Select(i => i.PickingItemId).ToHashSet();
+        var pickingItems = await _context.PickingItems
+            .Where(p => itemIds.Contains(p.Id) && !p.IsTransferred)
+            .ToListAsync();
+
+        // Zuerst alle nicht-transferierten Items auf IsPicked=false setzen (Reset)
+        var allOrderItems = pickingItems.Count > 0
+            ? await _context.PickingItems
+                .Where(p => p.ProductionOrderId == pickingItems.First().ProductionOrderId && !p.IsTransferred)
+                .ToListAsync()
+            : new List<IdealAkeWms.Models.PickingItem>();
+
+        foreach (var item in allOrderItems)
+        {
+            item.IsPicked = false;
+            item.PickedAt = null;
+            item.PickedBy = null;
+            item.PickedByWindows = null;
+            item.SourceStorageLocationId = null;
+        }
+
+        // Dann die ausgewählten Items als gepickt markieren
+        var selectionMap = items.ToDictionary(i => i.PickingItemId);
+        foreach (var item in pickingItems)
+        {
+            if (selectionMap.TryGetValue(item.Id, out var selection))
+            {
+                item.IsPicked = true;
+                item.IsBaugruppe = selection.IsBaugruppe;
+                item.PickedAt = now;
+                item.PickedBy = userName;
+                item.PickedByWindows = windowsUser;
+                item.SourceStorageLocationId = selection.SourceStorageLocationId;
+                item.ModifiedAt = now;
+                item.ModifiedBy = userName;
+                item.ModifiedByWindows = windowsUser;
+            }
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<int> TransferPickedItemsAsync(

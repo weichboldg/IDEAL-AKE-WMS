@@ -102,6 +102,56 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("Articles", (string)null);
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleGroupRecipientMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArticleGroup")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OrderRecipientGroupId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleGroup")
+                        .HasDatabaseName("IX_ArticleGroupRecipientMappings_ArticleGroup");
+
+                    b.HasIndex("OrderRecipientGroupId");
+
+                    b.HasIndex("ArticleGroup", "OrderRecipientGroupId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ArticleGroupRecipientMappings_Group_Recipient");
+
+                    b.ToTable("ArticleGroupRecipientMappings");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.EnaioDmsDocument", b =>
                 {
                     b.Property<int>("Id")
@@ -203,6 +253,100 @@ namespace IdealAkeWms.Migrations
                         .IsUnique();
 
                     b.ToTable("Holidays", (string)null);
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.OrderRecipient", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("OrderRecipientGroupId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderRecipientGroupId")
+                        .HasDatabaseName("IX_OrderRecipients_GroupId");
+
+                    b.ToTable("OrderRecipients");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.OrderRecipientGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OrderRecipientGroups");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OseonOperationConfig", b =>
@@ -401,6 +545,119 @@ namespace IdealAkeWms.Migrations
                         .IsUnique();
 
                     b.ToTable("OseonWorkOperations", (string)null);
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.PartRequisition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArticleDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ArticleGroup")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ArticleNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CancelledBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EmailSentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FulfilledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("FulfilledByStockMovementId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("OrderRecipientGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("SentToEmails")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleNumber")
+                        .HasDatabaseName("IX_PartRequisitions_ArticleNumber");
+
+                    b.HasIndex("FulfilledByStockMovementId");
+
+                    b.HasIndex("OrderRecipientGroupId");
+
+                    b.HasIndex("ProductionOrderId")
+                        .HasDatabaseName("IX_PartRequisitions_ProductionOrderId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_PartRequisitions_Status");
+
+                    b.HasIndex("EmailSentAt", "Status")
+                        .HasDatabaseName("IX_PartRequisitions_EmailSentAt_Status");
+
+                    b.ToTable("PartRequisitions");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.PickingItem", b =>
@@ -1233,6 +1490,28 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("WorkstationUsers", (string)null);
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleGroupRecipientMapping", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.OrderRecipientGroup", "OrderRecipientGroup")
+                        .WithMany("ArticleGroupMappings")
+                        .HasForeignKey("OrderRecipientGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderRecipientGroup");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.OrderRecipient", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.OrderRecipientGroup", "OrderRecipientGroup")
+                        .WithMany("Recipients")
+                        .HasForeignKey("OrderRecipientGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderRecipientGroup");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.OseonProductionOrder", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
@@ -1252,6 +1531,31 @@ namespace IdealAkeWms.Migrations
                         .IsRequired();
 
                     b.Navigation("OseonProductionOrder");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.PartRequisition", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.StockMovement", "FulfilledByStockMovement")
+                        .WithMany()
+                        .HasForeignKey("FulfilledByStockMovementId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("IdealAkeWms.Models.OrderRecipientGroup", "OrderRecipientGroup")
+                        .WithMany()
+                        .HasForeignKey("OrderRecipientGroupId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("IdealAkeWms.Models.ProductionOrder", "ProductionOrder")
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FulfilledByStockMovement");
+
+                    b.Navigation("OrderRecipientGroup");
+
+                    b.Navigation("ProductionOrder");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.PickingItem", b =>
@@ -1403,6 +1707,13 @@ namespace IdealAkeWms.Migrations
             modelBuilder.Entity("IdealAkeWms.Models.Article", b =>
                 {
                     b.Navigation("StockMovements");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.OrderRecipientGroup", b =>
+                {
+                    b.Navigation("ArticleGroupMappings");
+
+                    b.Navigation("Recipients");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OseonProductionOrder", b =>

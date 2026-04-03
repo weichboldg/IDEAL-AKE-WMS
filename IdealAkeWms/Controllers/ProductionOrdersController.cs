@@ -337,7 +337,7 @@ public class ProductionOrdersController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequirePickingAccess]
-    public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId, bool forceTransfer = false)
+    public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId, bool forceTransfer = false, [FromForm] List<PickingSelectionItem>? items = null)
     {
         try
         {
@@ -345,6 +345,7 @@ public class ProductionOrdersController : Controller
                 productionOrderId,
                 targetStorageLocationId,
                 forceTransfer,
+                items,
                 _currentUserService.GetCurrentAppUserId(),
                 _currentUserService.GetDisplayName(),
                 _currentUserService.GetWindowsUserName());

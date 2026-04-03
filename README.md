@@ -153,9 +153,9 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 
 ### Kommissionierung (Stückliste)
 - Mehrstufiger klappbarer Baumstruktur-View der Stückliste (standardmäßig eingeklappt)
-- Picking: Checkbox pro Bauteil mit Quell-Lagerplatz-Auswahl
-- Baugruppen-Picking: Komplette Baugruppe auf einmal kommissionieren
-- Umbuchen: Gepickte Artikel vom Quell- auf Ziel-Lagerplatz buchen (WA wird automatisch vermerkt)
+- Picking: Checkbox pro Bauteil mit Quell-Lagerplatz-Auswahl (rein client-seitig, kein sofortiges Speichern)
+- Baugruppen-Picking: Komplette Baugruppe auf einmal auswählen
+- Umbuchen: Erst beim Klick auf "Gepickte Artikel umbuchen" werden alle ausgewählten Artikel gesammelt und in einer Transaktion vom Quell- auf Ziel-Lagerplatz gebucht (WA wird automatisch vermerkt)
 - Kommissionierwagen-Konfliktprüfung (verschiedene WA auf gleichem Wagen)
 - **Spaltenfilter mit erweiterter Syntax**: `960,886` (OR-Verknüpfung), `!960` (Ausschluss)
 - **Rekursive Suche**: User-Setting — bei aktivem Filter werden alle passenden Positionen angezeigt, unabhängig vom Baum-Status der übergeordneten Baugruppe
@@ -168,7 +168,16 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Unterstützte Formate: QR-Code, Code 128, Code 39, EAN-13, EAN-8, Code 93
 - Lagerplatz-Code max. 12 Zeichen für zuverlässige Barcode-Erkennung
 - **QR mit FA-Nummer**: Per AppSetting `QrMitFaNummer` — extrahiert Fertigungsauftragsnummer aus QR (3. Teil, Komma-Suffix wird abgeschnitten) und füllt das FA-Feld in Ein/Aus/Umbuchung. Bei jedem Scan wird das FA-Feld zuerst geleert.
-- **Kommissionierliste-Scan**: Gescannter Artikel wird in Stückliste gesucht und automatisch als kommissioniert markiert. Nicht gefunden → Modal mit Option "Nächsten Artikel scannen"
+- **Kommissionierliste-Scan**: Gescannter Artikel wird in Stückliste gesucht und automatisch als ausgewählt markiert. Nicht gefunden → Modal mit Option "Nächsten Artikel scannen"
+
+### Bedarfsmeldungen
+- **Einzelbestellung**: Direkt aus der Stückliste per Bestell-Button neben einem Bauteil — Menge, Priorität (Normal/Dringend/Eilt) und Bemerkung angeben
+- **Sammelbestellung**: Mehrere Bauteile per Checkbox auswählen → "Ausgewählte bestellen"
+- **Empfänger-Routing**: Automatische Zuordnung der passenden Empfängergruppe über Artikelgruppen-Mapping; alle aktiven Empfänger werden vorausgewählt
+- **E-Mail-Versand**: Offene Meldungen werden per Windows-Service automatisch versendet (AppSetting `BestellungenAktiv` + Service-Setting `Sync:PartRequisitionEmailEnabled`)
+- **Bestellübersicht**: Alle Bedarfsmeldungen mit Status-Badges, Priorität, Filterung und Pagination
+- **Wareneingang-Integration**: Bei Einbuchung werden offene Meldungen zum Artikel angezeigt und können verknüpft werden
+- **Empfängergruppen (Stammdaten)**: CRUD für Gruppen + Empfänger + Artikelgruppen-Zuordnung (N:M)
 
 ### Berechtigungen
 - **`CanPick`**: Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung — nur sichtbar/zugänglich wenn User-Flag gesetzt
@@ -224,6 +233,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `QrMitFaNummer` | `false` | QR-Code enthält FA-Nummer an 3. Stelle |
 | `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
+| `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stückliste aktivieren |
 
 ## Corporate Design
 

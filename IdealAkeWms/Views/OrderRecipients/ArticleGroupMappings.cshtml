@@ -25,10 +25,10 @@ else
     <form asp-action="SaveArticleGroupMappings" method="post">
         @Html.AntiForgeryToken()
         <div class="table-responsive">
-            <table class="table table-striped mb-0">
+            <table class="table table-striped mb-0 filterable-table">
                 <thead>
                     <tr>
-                        <th>Artikelgruppe</th>
+                        <th data-filterable data-col="0">Artikelgruppe</th>
                         @foreach (var group in Model.AvailableGroups)
                         {
                             <th class="text-center" style="min-width: 120px;">@group.Name</th>
