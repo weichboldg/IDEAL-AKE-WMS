@@ -63,6 +63,31 @@
                         <span asp-validation-for="ProductionOrder" class="text-danger"></span>
                     </div>
 
+                    @if (ViewBag.BestellungenAktiv == true)
+                    {
+                        <div id="openRequisitionsContainer" class="mt-4" style="display: none;">
+                            <h6 class="text-primary">Offene Bedarfsmeldungen für diesen Artikel</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped" id="openRequisitionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;"><input type="checkbox" id="selectAllReqs" class="form-check-input" /></th>
+                                            <th>WA-Nr</th>
+                                            <th class="text-end">Menge</th>
+                                            <th>ME</th>
+                                            <th>Besteller</th>
+                                            <th>Datum</th>
+                                            <th>Priorität</th>
+                                            <th>Bemerkung</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="openRequisitionsBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
                     <button type="submit" class="btn btn-success btn-lg w-100">Einbuchung speichern</button>
                 </form>
             </div>
@@ -75,4 +100,64 @@
     <partial name="_Select2ArticlePartial" />
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    @if (ViewBag.BestellungenAktiv == true)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var articleSelect = document.querySelector('.select2-article');
+                if (!articleSelect) return;
+
+                $(articleSelect).on('select2:select', function (e) {
+                    loadOpenRequisitions(e.params.data.text);
+                });
+
+                $(articleSelect).on('select2:clear select2:unselect', function () {
+                    var container = document.getElementById('openRequisitionsContainer');
+                    if (container) container.style.display = 'none';
+                });
+            });
+
+            function loadOpenRequisitions(articleText) {
+                var articleNumber = articleText.split(' \u2014 ')[0].trim();
+
+                fetch('/api/partrequisitions/open?articleNumber=' + encodeURIComponent(articleNumber))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var container = document.getElementById('openRequisitionsContainer');
+                        var tbody = document.getElementById('openRequisitionsBody');
+
+                        if (data.length === 0) {
+                            container.style.display = 'none';
+                            return;
+                        }
+
+                        tbody.innerHTML = '';
+                        data.forEach(function (req) {
+                            var priorityBadge = '';
+                            if (req.priority === 'Eilt') priorityBadge = '<span class="badge bg-danger">Eilt</span>';
+                            else if (req.priority === 'Dringend') priorityBadge = '<span class="badge bg-warning text-dark">Dringend</span>';
+
+                            var row = '<tr>' +
+                                '<td><input type="checkbox" class="form-check-input req-checkbox" name="fulfilledRequisitionIds" value="' + req.id + '" /></td>' +
+                                '<td>' + (req.orderNumber || '') + '</td>' +
+                                '<td class="text-end">' + req.quantity.toFixed(3) + '</td>' +
+                                '<td>' + (req.unit || '') + '</td>' +
+                                '<td>' + (req.createdBy || '') + '</td>' +
+                                '<td>' + new Date(req.createdAt).toLocaleDateString('de-AT') + '</td>' +
+                                '<td>' + priorityBadge + '</td>' +
+                                '<td>' + (req.notes || '') + '</td>' +
+                                '</tr>';
+                            tbody.innerHTML += row;
+                        });
+
+                        container.style.display = 'block';
+                    });
+            }
+
+            document.getElementById('selectAllReqs')?.addEventListener('change', function () {
+                var checked = this.checked;
+                document.querySelectorAll('.req-checkbox').forEach(function (cb) { cb.checked = checked; });
+            });
+        </script>
+    }
 }

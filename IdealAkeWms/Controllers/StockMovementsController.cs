@@ -16,6 +16,7 @@ public class StockMovementsController : Controller
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
+    private readonly IPartRequisitionRepository _partRequisitionRepository;
 
     public StockMovementsController(
         IStockMovementRepository stockMovementRepository,
@@ -23,7 +24,8 @@ public class StockMovementsController : Controller
         IStorageLocationRepository storageLocationRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
-        IAppSettingRepository settingRepository)
+        IAppSettingRepository settingRepository,
+        IPartRequisitionRepository partRequisitionRepository)
     {
         _stockMovementRepository = stockMovementRepository;
         _articleRepository = articleRepository;
@@ -31,6 +33,7 @@ public class StockMovementsController : Controller
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _settingRepository = settingRepository;
+        _partRequisitionRepository = partRequisitionRepository;
     }
 
     [RequireStockAccess]
@@ -79,13 +82,15 @@ public class StockMovementsController : Controller
             Users = await _userRepository.GetActiveUsersAsync()
         };
         ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var bestellungenAktiv = (await _settingRepository.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.BestellungenAktiv = bestellungenAktiv;
         return View(vm);
     }
 
     [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Inbound(StockMovementCreateViewModel vm)
+    public async Task<IActionResult> Inbound(StockMovementCreateViewModel vm, List<int>? fulfilledRequisitionIds)
     {
         if (!ModelState.IsValid)
         {
@@ -98,6 +103,7 @@ public class StockMovementsController : Controller
                     vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
             }
             ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            ViewBag.BestellungenAktiv = (await _settingRepository.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             return View(vm);
         }
 
@@ -119,6 +125,19 @@ public class StockMovementsController : Controller
         };
 
         await _stockMovementRepository.AddAsync(movement);
+
+        // Bedarfsmeldungen erfüllen
+        if (fulfilledRequisitionIds != null && fulfilledRequisitionIds.Count > 0)
+        {
+            foreach (var reqId in fulfilledRequisitionIds)
+            {
+                await _partRequisitionRepository.FulfillAsync(
+                    reqId, movement.Id,
+                    _currentUserService.GetDisplayName(),
+                    _currentUserService.GetWindowsUserName());
+            }
+        }
+
         TempData["SuccessMessage"] = "Einbuchung erfolgreich gespeichert.";
         return RedirectToAction(nameof(Inbound));
     }
