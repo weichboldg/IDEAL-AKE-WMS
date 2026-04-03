@@ -1,28 +1,71 @@
+@model PickingListViewModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Kommissionierung";
 }
 
 <h2 class="page-header">Kommissionierung</h2>
 
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card">
-            <div class="card-header" style="background-color: var(--ake-secondary);">
-                Werkstattauftrag auswählen
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">Werkstattauftrag suchen und Stückliste zur Kommissionierung öffnen.</p>
-                <div class="mb-3">
-                    <label class="form-label">Werkstattauftrag</label>
-                    <select class="form-select select2-productionorder" id="ProductionOrderId">
-                        <option></option>
-                    </select>
-                </div>
-            </div>
-        </div>
+@if (!Model.Items.Any())
+{
+    <div class="alert alert-info">
+        Aktuell sind keine Auftraege zur Kommissionierung freigegeben.
     </div>
-</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0 filterable-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;" data-filterable data-col="0">Prio</th>
+                    <th data-filterable data-col="1">WA Nr.</th>
+                    <th data-filterable data-col="2">Artikelnummer</th>
+                    <th data-filterable data-col="3">Bezeichnung</th>
+                    <th data-filterable data-col="4">Kunde</th>
+                    <th class="text-end" style="width: 55px;">Stk.</th>
+                    <th data-filterable data-col="6" data-date-filter>Komm.-Termin</th>
+                    <th data-filterable data-col="7">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    var statusBadge = item.PickingStatus switch
+                    {
+                        "abgeschlossen" => "bg-success",
+                        "teilkommissioniert" => "bg-info text-dark",
+                        "in Kommissionierung" => "bg-warning text-dark",
+                        _ => "bg-secondary"
+                    };
+                    var statusText = string.IsNullOrEmpty(item.PickingStatus) ? "offen" : item.PickingStatus;
+                    var kwStr = item.KommissionierTermin.HasValue
+                        ? $"{item.KommissionierTermin.Value:dd.MM.yyyy} KW{ISOWeek.GetWeekOfYear(item.KommissionierTermin.Value)}"
+                        : "";
+
+                    <tr class="clickable-row" data-href="@Url.Action("Bom", new { id = item.Id })" style="cursor: pointer;">
+                        <td><strong>@(item.PickingPriority?.ToString() ?? "-")</strong></td>
+                        <td><strong>@item.OrderNumber</strong></td>
+                        <td>@item.ArticleNumber</td>
+                        <td>@item.Description1</td>
+                        <td>@item.Customer</td>
+                        <td class="text-end">@item.Quantity.ToString("N0")</td>
+                        <td>@kwStr</td>
+                        <td><span class="badge @statusBadge">@statusText</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @section Scripts {
-    <partial name="_Select2ProductionOrderPartial" />
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        document.querySelectorAll('.clickable-row').forEach(function (row) {
+            row.addEventListener('click', function () {
+                window.location.href = this.getAttribute('data-href');
+            });
+        });
+    </script>
 }

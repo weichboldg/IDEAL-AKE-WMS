@@ -1,7 +1,8 @@
 @model ProductionOrderViewModel
 @using System.Globalization
 @{
-    ViewData["Title"] = "Werkstattaufträge";
+    var pageTitle = Model.LeitstandAktiv && Model.CanManagePickingRelease ? "Produktionsaufträge" : "Werkstattaufträge";
+    ViewData["Title"] = pageTitle;
     var today = DateTime.Today;
     // ISO 8601 Kalenderwoche berechnen
     string FormatDateWithKw(DateTime? date)
@@ -13,7 +14,7 @@
     }
 }
 
-<h2 class="page-header">Werkstattaufträge</h2>
+<h2 class="page-header">@pageTitle</h2>
 
 <div class="card filter-card mb-4">
     <div class="card-header">Filter</div>
@@ -72,6 +73,10 @@
                 <th style="width: 55px;" data-filterable data-col="14">Zukauf</th>
                 <th data-filterable data-col="15">Status</th>
                 <th style="width: 80px;"></th>
+                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                {
+                    <th style="width: 160px;">Freigabe</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -200,6 +205,36 @@
                             </form>
                         }
                     </td>
+                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                    {
+                        <td class="text-center text-nowrap">
+                            @if (!item.IsDone)
+                            {
+                                <form asp-action="ToggleRelease" method="post" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                    @if (item.IsReleasedForPicking)
+                                    {
+                                        <button type="submit" class="btn btn-sm btn-success me-1" title="Freigabe zurücknehmen">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                                            </svg>
+                                        </button>
+                                        <input type="number" class="form-control form-control-sm d-inline-block priority-input"
+                                               value="@item.PickingPriority" min="1" style="width:55px"
+                                               data-id="@item.Id" title="Priorität (1 = höchste)" />
+                                    }
+                                    else if (!string.IsNullOrEmpty(item.ArticleNumber))
+                                    {
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Zur Kommissionierung freigeben">
+                                            Freigeben
+                                        </button>
+                                    }
+                                </form>
+                            }
+                        </td>
+                    }
                 </tr>
             }
             @if (!Model.Items.Any())
@@ -246,4 +281,25 @@
             });
         });
     </script>
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <script>
+            document.querySelectorAll('.priority-input').forEach(function (input) {
+                input.addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); });
+                input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+                input.addEventListener('change', function () {
+                    var id = this.getAttribute('data-id');
+                    var priority = this.value ? parseInt(this.value) : null;
+                    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                    $.ajax({
+                        url: '@Url.Action("SetPriority")',
+                        type: 'POST',
+                        data: { id: id, priority: priority },
+                        headers: { 'RequestVerificationToken': token },
+                        error: function () { alert('Fehler beim Speichern der Priorität.'); }
+                    });
+                });
+            });
+        </script>
+    }
 }

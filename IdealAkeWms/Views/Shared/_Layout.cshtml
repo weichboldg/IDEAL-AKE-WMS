@@ -1,5 +1,6 @@
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
+@inject IdealAkeWms.Data.Repositories.IProductionOrderRepository ProductionOrderRepository
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -32,6 +33,9 @@
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                            var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
+                            var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                            var releasedPickingCount = leitstandAktiv && canPick ? await ProductionOrderRepository.GetReleasedForPickingCountAsync() : 0;
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -56,16 +60,34 @@
                                 <a class="nav-link" asp-controller="StockOverview" asp-action="Index">Bestände</a>
                             </li>
                         }
-                        @if (canPick || canViewTracking)
+                        @if (leitstandAktiv)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
-                            </li>
+                            @if (canManagePickingRelease || canViewTracking)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Produktionsaufträge</a>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            @if (canPick || canViewTracking)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Werkstattaufträge</a>
+                                </li>
+                            }
                         }
                         @if (canPick)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">Kommissionierung</a>
+                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">
+                                    Kommissionierung
+                                    @if (leitstandAktiv && releasedPickingCount > 0)
+                                    {
+                                        <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
+                                    }
+                                </a>
                             </li>
                         }
                         @if (bestellungenAktiv && (canPick || canAccessStock))
