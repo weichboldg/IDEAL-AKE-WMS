@@ -1,7 +1,7 @@
 @model ProductionOrderViewModel
 @using System.Globalization
 @{
-    var pageTitle = Model.LeitstandAktiv && Model.CanManagePickingRelease ? "Produktionsaufträge" : "Werkstattaufträge";
+    var pageTitle = Model.LeitstandAktiv && Model.CanManagePickingRelease ? "Produktionsaufträge" : "Fertigungsaufträge";
     ViewData["Title"] = pageTitle;
     var today = DateTime.Today;
     // ISO 8601 Kalenderwoche berechnen
@@ -22,8 +22,8 @@
         <form method="get" asp-action="Index">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">WA Nummer</label>
-                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="WA Nummer" />
+                    <label class="form-label">FA Nummer</label>
+                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="FA Nummer" />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Artikelnummer</label>
@@ -57,7 +57,7 @@
                 {
                     <th style="width: 40px;"></th>
                 }
-                <th style="width: 90px;" data-filterable data-col="1">WA Nr.</th>
+                <th style="width: 90px;" data-filterable data-col="1">FA Nr.</th>
                 <th class="text-end" style="width: 55px;">Stk.</th>
                 <th data-filterable data-col="3">Kunde</th>
                 <th data-filterable data-col="4">Artikelnummer</th>

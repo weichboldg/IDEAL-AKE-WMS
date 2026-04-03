@@ -7,7 +7,7 @@
 <html lang="de">
 <head>
     <meta charset="utf-8" />
-    <title>Stückliste - WA @Model.OrderNumber</title>
+    <title>Stückliste - FA @Model.OrderNumber</title>
     <style>
         * {
             margin: 0;
@@ -180,7 +180,7 @@
             }
         </div>
         <div class="header-right">
-            <div class="wa-number">WA @Model.OrderNumber</div>
+            <div class="wa-number">FA @Model.OrderNumber</div>
             @if (Model.ProductionDate.HasValue)
             {
                 <div class="production-date">Fertigungstermin: @Model.ProductionDate.Value.ToString("dd.MM.yyyy")</div>

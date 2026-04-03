@@ -7,7 +7,7 @@
 <html lang="de">
 <head>
     <meta charset="utf-8" />
-    <title>Kommissionierliste - WA @Model.OrderNumber</title>
+    <title>Kommissionierliste - FA @Model.OrderNumber</title>
     <style>
         * {
             margin: 0;
@@ -109,7 +109,7 @@
 
     <div class="header-info">
         <h1>Kommissionierliste</h1>
-        <p><strong>Werkstattauftrag:</strong> @Model.OrderNumber</p>
+        <p><strong>Fertigungsauftrag:</strong> @Model.OrderNumber</p>
         @if (!string.IsNullOrEmpty(Model.ArticleNumber))
         {
             <p><strong>Artikel:</strong> @Model.ArticleNumber - @Model.Description1</p>

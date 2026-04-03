@@ -1,11 +1,11 @@
 @model BomViewModel
 @{
-    ViewData["Title"] = $"Stückliste - WA {Model.OrderNumber}";
+    ViewData["Title"] = $"Stückliste - FA {Model.OrderNumber}";
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
     <h2 class="page-header">
-        Stückliste - WA @Model.OrderNumber
+        Stückliste - FA @Model.OrderNumber
         @if (!string.IsNullOrEmpty(Model.ArticleNumber))
         {
             <small class="text-muted">| @Model.ArticleNumber - @Model.Description1</small>
@@ -309,7 +309,7 @@
                 <div class="modal-body">
                     <p>Auf dem Lagerplatz <strong id="conflictLocationCode"></strong> (Kommissionierwagen) befinden sich bereits Artikel von:</p>
                     <p class="fs-5 fw-bold text-center" id="conflictCurrentWa"></p>
-                    <p>Neuer Werkstattauftrag: <strong id="conflictNewWa"></strong></p>
+                    <p>Neuer Fertigungsauftrag: <strong id="conflictNewWa"></strong></p>
                     <hr />
                     <p class="mb-0">Wie möchten Sie fortfahren?</p>
                 </div>
@@ -356,7 +356,7 @@
                     <h5 class="modal-title">Kommissionierung Status</h5>
                 </div>
                 <div class="modal-body text-center py-4">
-                    <p class="mb-4">Wie ist der Status der Kommissionierung für diesen Werkstattauftrag?</p>
+                    <p class="mb-4">Wie ist der Status der Kommissionierung für diesen Fertigungsauftrag?</p>
                     <div class="d-flex justify-content-center gap-3">
                         <button type="button" class="btn btn-warning btn-lg set-status-btn" data-status="teilkommissioniert">
                             Teilkommissioniert
@@ -453,7 +453,7 @@
 }
 
 <div class="mt-3">
-    <a asp-action="Index" class="btn btn-outline-secondary">Zurück zur WA-Liste</a>
+    <a asp-action="Index" class="btn btn-outline-secondary">Zurück zur FA-Liste</a>
 </div>
 
 @section Scripts {
