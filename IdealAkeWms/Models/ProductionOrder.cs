@@ -4,9 +4,9 @@ namespace IdealAkeWms.Models;
 
 public class ProductionOrder : AuditableEntity
 {
-    [Required(ErrorMessage = "WA Nummer ist erforderlich")]
+    [Required(ErrorMessage = "FA Nummer ist erforderlich")]
     [StringLength(100)]
-    [Display(Name = "WA Nummer")]
+    [Display(Name = "FA Nummer")]
     public string OrderNumber { get; set; } = string.Empty;
 
     [Display(Name = "Stückzahl")]

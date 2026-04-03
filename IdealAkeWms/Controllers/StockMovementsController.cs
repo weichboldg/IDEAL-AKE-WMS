@@ -339,7 +339,7 @@ public class StockMovementsController : Controller
                 filterStorageLocationId: storageLocationId.Value);
             vm.Items = allStock.Where(s => s.CurrentQuantity > 0).ToList();
 
-            // Bei Kommissionierwagen: neueste WA-Nummer automatisch ermitteln
+            // Bei Kommissionierwagen: neueste FA-Nummer automatisch ermitteln
             if (vm.IsPickingTransport && string.IsNullOrEmpty(vm.ProductionOrder))
             {
                 var waNumbers = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(storageLocationId.Value);

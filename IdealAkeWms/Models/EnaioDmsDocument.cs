@@ -12,7 +12,7 @@ public class EnaioDmsDocument : AuditableEntity
     [MaxLength(100)]
     public string DocumentType { get; set; } = string.Empty;
 
-    /// <summary>WA-Nummer: feld44 (WA) oder left(feld43,7) (Zeichnung)</summary>
+    /// <summary>FA-Nummer: feld44 (FA) oder left(feld43,7) (Zeichnung)</summary>
     [MaxLength(100)]
     public string? OrderNumber { get; set; }
 

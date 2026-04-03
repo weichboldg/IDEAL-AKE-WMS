@@ -66,7 +66,7 @@ public class PickingTransferService : IPickingTransferService
             }
         }
 
-        // Bei forceTransfer: WA-Nummern zusammenführen
+        // Bei forceTransfer: FA-Nummern zusammenführen
         string? productionOrderValue = order?.OrderNumber;
         if (forceTransfer && targetLocation?.IsPickingTransport == true)
         {
@@ -246,7 +246,7 @@ public class PickingTransferService : IPickingTransferService
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex,
-                "TransferPicked fehlgeschlagen für WA-Id {OrderId}. Transaktion zurückgerollt.",
+                "TransferPicked fehlgeschlagen für FA-Id {OrderId}. Transaktion zurückgerollt.",
                 productionOrderId);
             throw;
         }

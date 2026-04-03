@@ -112,7 +112,7 @@ public class ProductionOrdersController : Controller
 
         if (!order.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
         {
-            TempData["WarningMessage"] = $"WA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
+            TempData["WarningMessage"] = $"FA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
             if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
             return RedirectToAction(nameof(Index));
         }
@@ -310,7 +310,7 @@ public class ProductionOrdersController : Controller
             return item;
         }).ToList();
 
-        // enaio DMS-Links laden (Bulk-Lookup fuer alle WA-Nummern)
+        // enaio DMS-Links laden (Bulk-Lookup fuer alle FA-Nummern)
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
 
@@ -365,7 +365,7 @@ public class ProductionOrdersController : Controller
 
         if (string.IsNullOrEmpty(order.ArticleNumber))
         {
-            TempData["SuccessMessage"] = "Dieser Werkstattauftrag hat keine Artikelnummer.";
+            TempData["SuccessMessage"] = "Dieser Fertigungsauftrag hat keine Artikelnummer.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -557,7 +557,7 @@ public class ProductionOrdersController : Controller
 
         order.PickingStatus = status;
 
-        // Kommissionierung abgeschlossen → WA automatisch erledigt setzen
+        // Kommissionierung abgeschlossen → FA automatisch erledigt setzen
         if (status == "abgeschlossen")
             order.IsDone = true;
 
@@ -695,7 +695,7 @@ public class ProductionOrdersController : Controller
             "Fotos", "Kommissionierung");
         Directory.CreateDirectory(photosDir);
 
-        // Bestehende Fotos für diesen WA zählen
+        // Bestehende Fotos für diesen FA zählen
         var existingPhotos = Directory.GetFiles(photosDir, $"{order.OrderNumber}_*");
         var seq = existingPhotos.Length + 1;
 

@@ -14,7 +14,7 @@ public class ProductionOrderViewModel
     public bool CanManagePickingRelease { get; set; }
     public bool LeitstandAktiv { get; set; }
 
-    /// <summary>enaio DMS-Links pro WA-Nummer (Key=OrderNumber, Value=Liste von DMS-Dokumenten)</summary>
+    /// <summary>enaio DMS-Links pro FA-Nummer (Key=OrderNumber, Value=Liste von DMS-Dokumenten)</summary>
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
 }
 
