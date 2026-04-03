@@ -92,6 +92,10 @@
                 <th data-filterable data-col="8">Artikelgruppe</th>
                 <th>Lagerplatz</th>
                 <th>Quell-Lagerplatz</th>
+                @if (ViewBag.BestellungenAktiv == true)
+                {
+                    <th style="width: 80px;">Bestellen</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -180,12 +184,44 @@
                             </select>
                         }
                     </td>
+                    @if (ViewBag.BestellungenAktiv == true)
+                    {
+                        <td class="text-center">
+                            @{
+                                var openReqs = (List<IdealAkeWms.Models.PartRequisition>)ViewBag.OpenRequisitions;
+                                var existingReq = openReqs?.FirstOrDefault(r => r.ArticleNumber == item.Ressourcenummer && r.Status == IdealAkeWms.Models.PartRequisitionStatus.Offen);
+                            }
+                            @if (existingReq != null)
+                            {
+                                <span class="badge rounded-pill" style="background-color: var(--ake-orange);"
+                                      title="Bestellt am @existingReq.CreatedAt.ToString("dd.MM.yyyy HH:mm") von @existingReq.CreatedBy">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+                                    </svg>
+                                </span>
+                            }
+                            @if (!item.IsBaugruppe)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-warning order-single-btn" title="Bestellen"
+                                        data-article-number="@item.Ressourcenummer"
+                                        data-article-description="@item.Bezeichnung1"
+                                        data-article-group="@item.Artikelgruppe"
+                                        data-position="@item.Position"
+                                        data-quantity="@item.Menge"
+                                        data-production-order-id="@Model.ProductionOrderId">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+                                    </svg>
+                                </button>
+                            }
+                        </td>
+                    }
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
+                    <td colspan="@(ViewBag.BestellungenAktiv == true ? 12 : 11)" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
                 </tr>
             }
         </tbody>
@@ -225,6 +261,17 @@
                 <div class="col-auto">
                     <a asp-action="PrintPicking" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary">Drucken</a>
                 </div>
+                @if (ViewBag.BestellungenAktiv == true)
+                {
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-warning" id="btnBulkOrder" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                                <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+                            </svg>
+                            Ausgewählte bestellen
+                        </button>
+                    </div>
+                }
             </form>
         </div>
     </div>
@@ -322,6 +369,87 @@
             </div>
         </div>
     </div>
+
+    @if (ViewBag.BestellungenAktiv == true)
+    {
+        <!-- Bedarfsmeldung-Modal -->
+        <div class="modal fade" id="orderModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header" style="background-color: var(--ake-orange); color: white;">
+                        <h5 class="modal-title">Bedarfsmeldung erstellen</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Warnung bei bestehenden Meldungen -->
+                        <div id="orderExistingWarning" class="alert alert-warning d-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                            </svg>
+                            <span id="orderExistingWarningText"></span>
+                        </div>
+
+                        <!-- Artikel-Tabelle -->
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Artikelnummer</th>
+                                        <th>Bezeichnung</th>
+                                        <th class="text-end" style="width: 120px;">Menge</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orderItemsBody">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Empfänger -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Empfänger</label>
+                            <div id="orderRecipientsArea">
+                                <div class="text-muted small">Empfänger werden geladen...</div>
+                            </div>
+                        </div>
+
+                        <!-- Priorität -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Priorität</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="orderPriority" id="priorityNormal" value="Normal" checked>
+                                    <label class="form-check-label" for="priorityNormal">Normal</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="orderPriority" id="priorityDringend" value="Dringend">
+                                    <label class="form-check-label text-warning fw-bold" for="priorityDringend">Dringend</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="orderPriority" id="priorityEilt" value="Eilt">
+                                    <label class="form-check-label text-danger fw-bold" for="priorityEilt">Eilt</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bemerkung -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="orderNotes">Bemerkung</label>
+                            <textarea class="form-control" id="orderNotes" rows="2" placeholder="Optionale Bemerkung..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-warning" id="btnSubmitOrder">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                                <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+                            </svg>
+                            Bestellen
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 <div class="mt-3">
@@ -676,6 +804,239 @@
 
             if (typeof initPhotoUpload === 'function') {
                 initPhotoUpload(productionOrderId, token);
+            }
+
+            // ========== Bedarfsmeldungen (Bestellen) ==========
+
+            @if (ViewBag.BestellungenAktiv == true)
+            {
+                <text>
+            var orderModal = null;
+            var orderItems = []; // Array of { articleNumber, description, quantity, articleGroup, position }
+
+            function showOrderModal(items) {
+                orderItems = items;
+                var tbody = document.getElementById('orderItemsBody');
+                tbody.innerHTML = '';
+
+                items.forEach(function (item, idx) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + escapeHtml(item.articleNumber) + '</td>' +
+                        '<td>' + escapeHtml(item.description || '') + '</td>' +
+                        '<td class="text-end"><input type="number" class="form-control form-control-sm text-end order-qty" ' +
+                        'data-idx="' + idx + '" value="' + item.quantity + '" min="0.001" step="any" style="width: 100px; display:inline-block;" /></td>';
+                    tbody.appendChild(tr);
+                });
+
+                // Reset form
+                document.getElementById('orderNotes').value = '';
+                document.querySelector('input[name="orderPriority"][value="Normal"]').checked = true;
+                document.getElementById('orderExistingWarning').classList.add('d-none');
+
+                // Load recipients
+                var articleGroups = [...new Set(items.map(function (i) { return i.articleGroup; }).filter(Boolean))];
+                loadRecipients(articleGroups);
+
+                // Check for existing requisitions
+                checkExistingRequisitions(items);
+
+                if (!orderModal) {
+                    orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
+                }
+                orderModal.show();
+            }
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function loadRecipients(articleGroups) {
+                var area = document.getElementById('orderRecipientsArea');
+                area.innerHTML = '<div class="text-muted small">Empfänger werden geladen...</div>';
+
+                var groupParam = articleGroups.length > 0 ? articleGroups[0] : '';
+                $.ajax({
+                    url: '/api/partrequisitions/recipients?articleGroup=' + encodeURIComponent(groupParam),
+                    type: 'GET',
+                    success: function (data) {
+                        area.innerHTML = '';
+                        if (!data || data.length === 0) {
+                            area.innerHTML = '<div class="text-muted small">Keine Empfänger konfiguriert.</div>';
+                            return;
+                        }
+
+                        data.forEach(function (group) {
+                            var groupDiv = document.createElement('div');
+                            groupDiv.className = 'mb-2';
+                            groupDiv.innerHTML = '<strong class="small">' + escapeHtml(group.groupName) + '</strong>';
+
+                            if (group.recipients && group.recipients.length > 0) {
+                                group.recipients.forEach(function (r) {
+                                    var checkDiv = document.createElement('div');
+                                    checkDiv.className = 'form-check';
+                                    checkDiv.innerHTML = '<input class="form-check-input recipient-cb" type="checkbox" ' +
+                                        'value="' + r.id + '" id="rcpt_' + r.id + '" ' + (r.isDefault ? 'checked' : '') + '>' +
+                                        '<label class="form-check-label" for="rcpt_' + r.id + '">' +
+                                        escapeHtml(r.name) + (r.email ? ' <span class="text-muted small">(' + escapeHtml(r.email) + ')</span>' : '') +
+                                        '</label>';
+                                    groupDiv.appendChild(checkDiv);
+                                });
+                            }
+
+                            area.appendChild(groupDiv);
+                        });
+                    },
+                    error: function () {
+                        area.innerHTML = '<div class="text-danger small">Fehler beim Laden der Empfänger.</div>';
+                    }
+                });
+            }
+
+            function checkExistingRequisitions(items) {
+                var warningDiv = document.getElementById('orderExistingWarning');
+                var warningText = document.getElementById('orderExistingWarningText');
+                warningDiv.classList.add('d-none');
+
+                var checks = items.map(function (item) {
+                    return $.ajax({
+                        url: '/api/partrequisitions/check?productionOrderId=' + productionOrderId + '&articleNumber=' + encodeURIComponent(item.articleNumber),
+                        type: 'GET'
+                    });
+                });
+
+                Promise.all(checks.map(function (p) { return p.then(function (v) { return v; }, function () { return null; }); }))
+                    .then(function (results) {
+                        var warnings = [];
+                        results.forEach(function (result, idx) {
+                            if (result && result.hasOpenRequisition) {
+                                warnings.push(items[idx].articleNumber);
+                            }
+                        });
+                        if (warnings.length > 0) {
+                            warningText.textContent = 'Offene Bedarfsmeldung vorhanden für: ' + warnings.join(', ');
+                            warningDiv.classList.remove('d-none');
+                        }
+                    });
+            }
+
+            // Single order button click
+            document.querySelectorAll('.order-single-btn').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    showOrderModal([{
+                        articleNumber: this.getAttribute('data-article-number'),
+                        description: this.getAttribute('data-article-description'),
+                        quantity: parseFloat(this.getAttribute('data-quantity')),
+                        articleGroup: this.getAttribute('data-article-group'),
+                        position: this.getAttribute('data-position')
+                    }]);
+                });
+            });
+
+            // Bulk order button visibility
+            function updateBulkOrderButton() {
+                var btn = document.getElementById('btnBulkOrder');
+                if (!btn) return;
+                var checked = document.querySelectorAll('.picking-checkbox:checked');
+                btn.style.display = checked.length > 0 ? '' : 'none';
+            }
+
+            document.querySelectorAll('.picking-checkbox').forEach(function (cb) {
+                cb.addEventListener('change', updateBulkOrderButton);
+            });
+
+            // Bulk order button click
+            var bulkBtn = document.getElementById('btnBulkOrder');
+            if (bulkBtn) {
+                bulkBtn.addEventListener('click', function () {
+                    var items = [];
+                    document.querySelectorAll('.picking-checkbox:checked').forEach(function (cb) {
+                        var row = cb.closest('tr');
+                        var articleNumber = row.getAttribute('data-article-number');
+                        var position = row.getAttribute('data-position');
+                        // Find matching order button data or extract from row cells
+                        var orderBtn = row.querySelector('.order-single-btn');
+                        if (orderBtn) {
+                            items.push({
+                                articleNumber: orderBtn.getAttribute('data-article-number'),
+                                description: orderBtn.getAttribute('data-article-description'),
+                                quantity: parseFloat(orderBtn.getAttribute('data-quantity')),
+                                articleGroup: orderBtn.getAttribute('data-article-group'),
+                                position: orderBtn.getAttribute('data-position')
+                            });
+                        } else if (articleNumber) {
+                            // Fallback: extract from row cells
+                            var cells = row.querySelectorAll('td');
+                            items.push({
+                                articleNumber: articleNumber,
+                                description: cells[4] ? cells[4].textContent.trim() : '',
+                                quantity: cells[6] ? parseFloat(cells[6].textContent.replace(/\./g, '').replace(',', '.')) : 1,
+                                articleGroup: cells[8] ? cells[8].textContent.trim() : '',
+                                position: position || ''
+                            });
+                        }
+                    });
+
+                    if (items.length > 0) {
+                        showOrderModal(items);
+                    }
+                });
+            }
+
+            // Submit order
+            document.getElementById('btnSubmitOrder').addEventListener('click', function () {
+                var submitBtn = this;
+                submitBtn.disabled = true;
+
+                // Collect quantities from inputs
+                document.querySelectorAll('.order-qty').forEach(function (input) {
+                    var idx = parseInt(input.getAttribute('data-idx'));
+                    orderItems[idx].quantity = parseFloat(input.value) || 0;
+                });
+
+                // Collect recipients
+                var recipientIds = [];
+                document.querySelectorAll('.recipient-cb:checked').forEach(function (cb) {
+                    recipientIds.push(parseInt(cb.value));
+                });
+
+                var priority = document.querySelector('input[name="orderPriority"]:checked').value;
+                var notes = document.getElementById('orderNotes').value.trim();
+
+                var requestData = {
+                    productionOrderId: productionOrderId,
+                    items: orderItems.map(function (item) {
+                        return {
+                            articleNumber: item.articleNumber,
+                            articleDescription: item.description,
+                            quantity: item.quantity,
+                            position: item.position
+                        };
+                    }),
+                    recipientIds: recipientIds,
+                    priority: priority,
+                    notes: notes
+                };
+
+                $.ajax({
+                    url: '/api/partrequisitions/create',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(requestData),
+                    headers: { 'RequestVerificationToken': token },
+                    success: function () {
+                        if (orderModal) orderModal.hide();
+                        window.location.reload();
+                    },
+                    error: function (xhr) {
+                        submitBtn.disabled = false;
+                        alert(xhr.responseText || 'Fehler beim Erstellen der Bedarfsmeldung.');
+                    }
+                });
+            });
+                </text>
             }
         });
     </script>

@@ -24,6 +24,7 @@ public class ProductionOrdersController : Controller
     private readonly IUserRepository _userRepository;
     private readonly IWebHostEnvironment _env;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
+    private readonly IPartRequisitionRepository _partRequisitionRepository;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -39,7 +40,8 @@ public class ProductionOrdersController : Controller
         IPickingTransferService pickingTransferService,
         IUserRepository userRepository,
         IWebHostEnvironment env,
-        IEnaioDmsDocumentRepository enaioDmsDocumentRepository)
+        IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
+        IPartRequisitionRepository partRequisitionRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _currentUserService = currentUserService;
@@ -55,6 +57,7 @@ public class ProductionOrdersController : Controller
         _userRepository = userRepository;
         _env = env;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
+        _partRequisitionRepository = partRequisitionRepository;
     }
 
     [RequirePickingAccess]
@@ -304,6 +307,14 @@ public class ProductionOrdersController : Controller
             DataSource = bomResult.DataSource,
             RecursiveFilterSearch = recursiveFilterSearch
         };
+
+        // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden
+        var bestellungenAktiv = (await _settingRepository.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.BestellungenAktiv = bestellungenAktiv;
+        var openRequisitions = bestellungenAktiv
+            ? await _partRequisitionRepository.GetByProductionOrderAsync(id)
+            : new List<PartRequisition>();
+        ViewBag.OpenRequisitions = openRequisitions;
 
         return View(vm);
     }
