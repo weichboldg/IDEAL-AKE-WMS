@@ -53,5 +53,18 @@ public class ProductionOrder : AuditableEntity
     public int? ProductionWorkplaceId { get; set; }
     public ProductionWorkplace? ProductionWorkplace { get; set; }
 
+    [Display(Name = "Freigegeben")]
+    public bool IsReleasedForPicking { get; set; }
+
+    [Display(Name = "Priorität")]
+    public int? PickingPriority { get; set; }
+
+    [Display(Name = "Freigegeben am")]
+    public DateTime? ReleasedAt { get; set; }
+
+    [StringLength(200)]
+    [Display(Name = "Freigegeben von")]
+    public string? ReleasedBy { get; set; }
+
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();
 }

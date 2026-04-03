@@ -106,6 +106,7 @@ using (var scope = app.Services.CreateScope())
         (RoleKeys.StockKeyUser, "Lager Keyuser", "Lager + Lagerplatz ausbuchen/umbuchen", 40),
         (RoleKeys.Tracking, "Teileverfolgung", "OSEON Teileverfolgung und Rückmeldungen", 50),
         (RoleKeys.Reporting, "Betriebsdaten (BDE)", "Arbeitsgänge stempeln und rückmelden", 60),
+        (RoleKeys.Leitstand, "Leitstand", "Produktionsaufträge freigeben und priorisieren", 70),
     };
     foreach (var (key, name, description, sortOrder) in defaultRoles)
     {
@@ -171,6 +172,25 @@ using (var scope = app.Services.CreateScope())
         ("SageRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Sage zurueckgeschrieben werden"),
     };
     foreach (var (key, value, description) in trackingSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
+    // Leitstand AppSettings
+    var leitstandSettings = new (string Key, string Value, string Description)[]
+    {
+        ("LeitstandAktiv", "false", "Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren"),
+    };
+    foreach (var (key, value, description) in leitstandSettings)
     {
         if (!db.AppSettings.Any(s => s.Key == key))
         {

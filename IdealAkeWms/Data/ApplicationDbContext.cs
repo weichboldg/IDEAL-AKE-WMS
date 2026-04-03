@@ -234,6 +234,10 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.IsDone);
             entity.HasIndex(e => e.ProductionWorkplaceId);
 
+            entity.Property(e => e.ReleasedBy).HasMaxLength(200);
+            entity.HasIndex(e => new { e.IsReleasedForPicking, e.IsDone })
+                .HasDatabaseName("IX_ProductionOrders_IsReleasedForPicking_IsDone");
+
             entity.HasOne(e => e.ProductionWorkplace)
                 .WithMany(w => w.ProductionOrders)
                 .HasForeignKey(e => e.ProductionWorkplaceId)

@@ -9,4 +9,5 @@ public static class RoleKeys
     public const string StockKeyUser = "stock_keyuser";
     public const string Tracking = "tracking";
     public const string Reporting = "reporting";
+    public const string Leitstand = "leitstand";
 }

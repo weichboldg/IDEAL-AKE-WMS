@@ -1,7 +1,7 @@
 -- =============================================
 -- IDEAL-AKE WMS - Konsolidiertes Neuinstallations-Script
 -- Erstellt alle Tabellen, Views und Standarddaten im finalen Zustand.
--- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-33) verwenden.
+-- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-37) verwenden.
 -- =============================================
 
 -- Datenbank erstellen
@@ -222,6 +222,10 @@ BEGIN
         [HasGlass]                BIT               NOT NULL DEFAULT 0,
         [HasExternalPurchase]     BIT               NOT NULL DEFAULT 0,
         [ProductionWorkplaceId]   INT               NULL,
+        [IsReleasedForPicking]    BIT               NOT NULL DEFAULT 0,
+        [PickingPriority]         INT               NULL,
+        [ReleasedAt]              DATETIME2         NULL,
+        [ReleasedBy]              NVARCHAR(200)     NULL,
         [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]               NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
@@ -482,7 +486,8 @@ BEGIN
         ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle'),
         ('OseonAmpelGelbTage', '1', 'OSEON Ampel: Gelb ab X Tagen vor Termin'),
         ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin'),
-        ('BestellungenAktiv', 'false', 'Bedarfsmeldungen aus Stueckliste aktivieren');
+        ('BestellungenAktiv', 'false', 'Bedarfsmeldungen aus Stueckliste aktivieren'),
+        ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
@@ -558,6 +563,8 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDon
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsDone] ON [dbo].[ProductionOrders]([IsDone]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsReleasedForPicking_IsDone')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsReleasedForPicking_IsDone] ON [dbo].[ProductionOrders]([IsReleasedForPicking], [IsDone]) INCLUDE ([PickingPriority], [ProductionDate]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_ProductionOrderId')
     CREATE NONCLUSTERED INDEX [IX_PickingItems_ProductionOrderId] ON [dbo].[PickingItems]([ProductionOrderId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_POId_IsPicked')
@@ -695,7 +702,8 @@ BEGIN
         ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   NULL, 1, 3, GETDATE(), 'system', 'system'),
         ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     NULL, 1, 4, GETDATE(), 'system', 'system'),
         ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             NULL, 1, 5, GETDATE(), 'system', 'system'),
-        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                NULL, 1, 6, GETDATE(), 'system', 'system');
+        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                NULL, 1, 6, GETDATE(), 'system', 'system'),
+        ('leitstand',    'Leitstand',           'Produktionsauftraege freigeben und priorisieren',                              NULL, 1, 7, GETDATE(), 'system', 'system');
     PRINT 'Standard-Rollen eingefuegt.';
 END
 GO
@@ -900,6 +908,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] L
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260330120000_AddOseonOperationConfig', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260403055243_AddPartRequisitions')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403055243_AddPartRequisitions', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260403161339_AddPickingRelease')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403161339_AddPickingRelease', '10.0.0');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
