@@ -61,18 +61,185 @@ public class ProductionOrdersController : Controller
     }
 
     [RequirePickingAccess]
-    public IActionResult Picking()
+    public async Task<IActionResult> Picking()
     {
-        return View();
+        var leitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (!leitstandAktiv)
+            return View("PickingDropdown");
+
+        var releasedOrders = await _productionOrderRepository.GetReleasedForPickingAsync();
+
+        var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
+        var holidays = await _holidayRepository.GetHolidayDatesAsync();
+
+        var items = releasedOrders.Select(o =>
+        {
+            var item = new PickingListItem
+            {
+                Id = o.Id,
+                PickingPriority = o.PickingPriority,
+                OrderNumber = o.OrderNumber,
+                ArticleNumber = o.ArticleNumber,
+                Description1 = o.Description1,
+                Customer = o.Customer,
+                Quantity = o.Quantity,
+                ProductionDate = o.ProductionDate,
+                PickingStatus = o.PickingStatus
+            };
+
+            if (o.ProductionDate.HasValue)
+            {
+                item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
+                    o.ProductionDate.Value, kommissionierTage, holidays);
+            }
+
+            return item;
+        }).ToList();
+
+        return View(new PickingListViewModel { Items = items });
     }
 
-    [RequirePickingOrTrackingAccess]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> ToggleRelease(int id, string? returnUrl)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null)
+            return NotFound();
+
+        if (!order.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
+        {
+            TempData["WarningMessage"] = $"WA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
+            if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
+
+        order.IsReleasedForPicking = !order.IsReleasedForPicking;
+        if (order.IsReleasedForPicking)
+        {
+            order.ReleasedAt = DateTime.UtcNow;
+            order.ReleasedBy = _currentUserService.GetDisplayName();
+
+            if (!order.PickingPriority.HasValue)
+            {
+                var maxPrio = (await _productionOrderRepository.GetReleasedForPickingAsync())
+                    .Where(o => o.PickingPriority.HasValue && o.Id != order.Id)
+                    .Select(o => o.PickingPriority!.Value)
+                    .DefaultIfEmpty(0)
+                    .Max();
+                order.PickingPriority = maxPrio + 1;
+            }
+        }
+
+        order.ModifiedAt = DateTime.UtcNow;
+        order.ModifiedBy = _currentUserService.GetDisplayName();
+        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+        await _productionOrderRepository.UpdateAsync(order);
+
+        if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> BulkRelease(List<int> ids, bool release, string? returnUrl)
+    {
+        if (ids == null || ids.Count == 0)
+        {
+            if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
+
+        var maxPrio = 0;
+        if (release)
+        {
+            var existing = await _productionOrderRepository.GetReleasedForPickingAsync();
+            maxPrio = existing
+                .Where(o => o.PickingPriority.HasValue)
+                .Select(o => o.PickingPriority!.Value)
+                .DefaultIfEmpty(0)
+                .Max();
+        }
+
+        var displayName = _currentUserService.GetDisplayName();
+        var windowsUser = _currentUserService.GetWindowsUserName();
+        var skipped = new List<string>();
+
+        foreach (var id in ids)
+        {
+            var order = await _productionOrderRepository.GetByIdAsync(id);
+            if (order == null) continue;
+
+            if (release && string.IsNullOrEmpty(order.ArticleNumber))
+            {
+                skipped.Add(order.OrderNumber);
+                continue;
+            }
+
+            order.IsReleasedForPicking = release;
+            if (release)
+            {
+                order.ReleasedAt = DateTime.UtcNow;
+                order.ReleasedBy = displayName;
+                if (!order.PickingPriority.HasValue)
+                    order.PickingPriority = ++maxPrio;
+            }
+
+            order.ModifiedAt = DateTime.UtcNow;
+            order.ModifiedBy = displayName;
+            order.ModifiedByWindows = windowsUser;
+            await _productionOrderRepository.UpdateAsync(order);
+        }
+
+        var count = ids.Count - skipped.Count;
+        if (release)
+            TempData["SuccessMessage"] = $"{count} Auftrag/Aufträge freigegeben.";
+        else
+            TempData["SuccessMessage"] = $"{count} Freigabe(n) zurückgenommen.";
+
+        if (skipped.Count > 0)
+            TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", skipped)}";
+
+        if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> SetPriority(int id, int? priority)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null)
+            return NotFound();
+
+        order.PickingPriority = priority;
+        order.ModifiedAt = DateTime.UtcNow;
+        order.ModifiedBy = _currentUserService.GetDisplayName();
+        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+        await _productionOrderRepository.UpdateAsync(order);
+
+        return Ok();
+    }
+
     public async Task<IActionResult> Index(
         string? filterOrderNumber,
         string? filterArticleNumber,
         string? filterCustomer,
         bool showDone = false)
     {
+        // Zugriff: Picking, Tracking oder Leitstand
+        if (!await _currentUserService.CanPickAsync()
+            && !await _currentUserService.CanViewTrackingAsync()
+            && !await _currentUserService.CanManagePickingReleaseAsync())
+        {
+            return RedirectToAction("AccessDenied", "Account");
+        }
+
         var orders = await _productionOrderRepository.GetAllOrderedAsync();
 
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
@@ -119,7 +286,11 @@ public class ProductionOrdersController : Controller
                 PickingStatus = o.PickingStatus,
                 HasGlass = o.HasGlass,
                 HasExternalPurchase = o.HasExternalPurchase,
-                WorkplaceName = o.ProductionWorkplace?.Name
+                WorkplaceName = o.ProductionWorkplace?.Name,
+                IsReleasedForPicking = o.IsReleasedForPicking,
+                PickingPriority = o.PickingPriority,
+                ReleasedAt = o.ReleasedAt,
+                ReleasedBy = o.ReleasedBy
             };
 
             if (o.ProductionDate.HasValue)
@@ -152,6 +323,9 @@ public class ProductionOrdersController : Controller
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
             CanPick = await _currentUserService.CanPickAsync(),
+            CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync(),
+            LeitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
+                ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true,
             EnaioDmsLinks = dmsLinks
         };
 
