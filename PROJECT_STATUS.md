@@ -36,10 +36,44 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Bestandsuebersicht FA-Filter + QR-Scan | Fertig |
 | Responsive Design (Mobile) | Fertig |
 | Versionierung + Changelog | Fertig |
+| Bedarfsmeldungen aus Stueckliste | Fertig |
 
 ## Version
-- **Web-App**: v1.0.0 (01.04.2026)
-- **Service**: v1.0.0 (01.04.2026)
+- **Web-App**: v1.1.0 (03.04.2026)
+- **Service**: v1.1.0 (03.04.2026)
+
+## Aenderungen (03.04.2026)
+
+### v1.1.0 — Bedarfsmeldungen
+
+#### Neue Funktionen
+- **Bedarfsmeldungen aus Stueckliste**: Fehlteile koennen direkt aus der Stueckliste als interne Bedarfsmeldung erfasst werden (Einzel- oder Sammelbestellung)
+- **E-Mail-Benachrichtigung**: Bedarfsmeldungen werden automatisch per E-Mail an konfigurierbare Empfaengergruppen versendet (inkl. Prioritaeten: Normal, Dringend, Eilt)
+- **Bestelluebersicht**: Neue Seite zur Uebersicht aller Bedarfsmeldungen mit Status-Badges, Prioritaet, Filterung und Pagination
+- **Empfaenger-Verwaltung**: Stammdaten fuer Empfaengergruppen mit Empfaenger-Management und Artikelgruppen-Zuordnung (N:M)
+- **Wareneingang-Integration**: Offene Bedarfsmeldungen werden bei der Einbuchung angezeigt und koennen mit der Buchung verknuepft werden
+
+#### Neue Tabellen
+- `PartRequisitions` — Bedarfsmeldungen (Status, Prioritaet, E-Mail-Tracking, WA-Verknuepfung)
+- `OrderRecipientGroups` — Empfaengergruppen
+- `OrderRecipients` — Einzelne Empfaenger pro Gruppe
+- `ArticleGroupRecipientMappings` — Artikelgruppe-Empfaengergruppe Zuordnung (N:M)
+
+#### Neue Dateien
+- `Controllers/PartRequisitionsController.cs` — Bestelluebersicht + Stornierung
+- `Controllers/OrderRecipientGroupsController.cs` — CRUD Empfaengergruppen
+- `Controllers/Api/PartRequisitionsApiController.cs` — API fuer Bedarfsmeldungen aus Stueckliste
+- `Models/PartRequisition.cs`, `OrderRecipientGroup.cs`, `OrderRecipient.cs`, `ArticleGroupRecipientMapping.cs`
+- `Data/Repositories/PartRequisitionRepository.cs`, `OrderRecipientGroupRepository.cs`
+- `IDEALAKEWMSService/Services/PartRequisitionEmailService.cs`
+- `Views/PartRequisitions/Index.cshtml`, `Views/OrderRecipientGroups/` (CRUD)
+- `Filters/RequirePickingOrStockAccessAttribute.cs`
+- `SQL/36_AddPartRequisitions.sql`
+
+#### Tests
+- Unit-Tests fuer PartRequisitionRepository, OrderRecipientGroupRepository
+- Unit-Tests fuer PartRequisitionsApiController (Einzel-/Sammelbestellung)
+- Unit-Tests fuer RequirePickingOrStockAccessAttribute
 
 ## Aenderungen (01.04.2026)
 

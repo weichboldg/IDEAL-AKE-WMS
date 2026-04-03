@@ -142,6 +142,10 @@
 - **`[RequireReportingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanReportOperationsAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Rollen: `admin`, `reporting` (fuer spätere BDE-Controller)
+- **`[RequirePickingOrStockAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `CanPickAsync() || CanAccessStockAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Angewendet auf: `PartRequisitionsController`, `OrderRecipientGroupsController`
+  - Rollen: `admin`, `picking`, `stock`, `stock_keyuser`
 
 ## Rollenkonzept
 
@@ -276,6 +280,7 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `QrMitFaNummer` | `false` | QR-Code enthält Fertigungsauftragsnummer an 3. Stelle |
 | `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
+| `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stueckliste aktivieren |
 
 ## Service-Konfiguration (appsettings.json)
 
@@ -290,6 +295,7 @@ Sync-Toggles und Worker-Settings stehen in `IDEALAKEWMSService/appsettings.json`
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall in Minuten |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus (keine DB-Aenderungen) |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
+| `Sync:PartRequisitionEmailEnabled` | `false` | Bedarfsmeldungs-E-Mail-Versand aktiv |
 
 Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonConnection` (OSEON), `EnaioDmsConnection` (enaio)
 
@@ -330,6 +336,17 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - **View**: Werkstattauftraege-Index zeigt enaio-Icons neben WA-Nummer (orange Dokument/Zeichnungs-Icon)
 - **Bulk-Lookup**: `GetByOrderNumbersAsync()` laedt alle DMS-Links fuer die angezeigten WA-Nummern in einem Query
 - **SQL**: `SQL/35_AddEnaioDmsDocuments.sql`
+
+## Bedarfsmeldungen
+
+- **Tabellen**: `PartRequisitions` (Bedarfsmeldung), `OrderRecipientGroups` (Empfaengergruppen), `OrderRecipients` (Empfaenger), `ArticleGroupRecipientMappings` (Artikelgruppe-Empfaengergruppe N:M)
+- **Status-Workflow**: `Offen` → `Erfuellt` (bei Wareneingang verknuepft) oder `Storniert` (manuell)
+- **Prioritaeten**: `Normal`, `Dringend`, `Eilt` — dargestellt als farbige Badges
+- **E-Mail-Versand**: `PartRequisitionEmailService` im IDEALAKEWMSService — versendet offene Meldungen (wo `EmailSentAt IS NULL`) per SMTP
+- **Empfaenger-Routing**: `ArticleGroupRecipientMappings` ordnet Artikelgruppen zu Empfaengergruppen zu — Meldungen werden automatisch an die passende Gruppe geroutet
+- **Wareneingang-Integration**: Bei Einbuchung werden offene Meldungen zum Artikel angezeigt, Verknuepfung ueber `FulfilledByStockMovementId`
+- **AppSetting**: `BestellungenAktiv` (`false`) — Globaler Schalter fuer das Feature
+- **SQL**: `SQL/36_AddPartRequisitions.sql`
 
 ## KW-Filter (Werkstattauftraege)
 
@@ -411,6 +428,20 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `wwwroot/js/barcode-scanner.js` — QR/Barcode-Scanner (scanTypes: article, storageLocation, productionOrder)
 - `Services/BusinessDayService.cs` — Arbeitstage-Berechnung (Wochenenden + Feiertage)
 - `Controllers/StockOverviewController.cs` — Bestandsuebersicht mit FA-Filter
+- `Controllers/PartRequisitionsController.cs` — Bedarfsmeldungen (Erstellen, Uebersicht, Stornieren)
+- `Controllers/OrderRecipientGroupsController.cs` — CRUD fuer Empfaengergruppen + Empfaenger + Artikelgruppen-Zuordnung
+- `Controllers/Api/PartRequisitionsApiController.cs` — API fuer Bedarfsmeldungen (Erstellen aus Stueckliste, Sammelbestellung)
+- `Models/PartRequisition.cs` — Bedarfsmeldung-Entity (Status, Prioritaet, E-Mail-Tracking)
+- `Models/OrderRecipientGroup.cs` — Empfaengergruppe mit Navigation zu Empfaengern + Artikelgruppen-Mappings
+- `Models/OrderRecipient.cs` — Einzelner Empfaenger (Name, E-Mail, IsActive)
+- `Models/ArticleGroupRecipientMapping.cs` — Artikelgruppe-Empfaengergruppe Zuordnung (N:M)
+- `Data/Repositories/PartRequisitionRepository.cs` — Repository fuer Bedarfsmeldungen (inkl. offene Meldungen pro Artikel)
+- `Data/Repositories/OrderRecipientGroupRepository.cs` — Repository fuer Empfaengergruppen + Routing-Logik
+- `IDEALAKEWMSService/Services/PartRequisitionEmailService.cs` — E-Mail-Versand fuer Bedarfsmeldungen
+- `Views/PartRequisitions/Index.cshtml` — Bestelluebersicht mit Status-Badges und Pagination
+- `Views/OrderRecipientGroups/` — CRUD-Views fuer Empfaengergruppen-Verwaltung
+- `Filters/RequirePickingOrStockAccessAttribute.cs` — Zugriffskontrolle Picking ODER Lager
+- `SQL/36_AddPartRequisitions.sql` — Migration fuer Bedarfsmeldungs-Tabellen
 
 ## Bestandsuebersicht
 
