@@ -93,6 +93,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanTransferStockAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.StockKeyUser, RoleKeys.Picking);
 
+    public async Task<bool> CanManagePickingReleaseAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Leitstand);
+
     private async Task<HashSet<string>> LoadRoleKeysAsync()
     {
         if (_cachedRoleKeys != null)

@@ -18,4 +18,5 @@ public interface ICurrentUserService
     Task<bool> CanReportOperationsAsync();
     Task<bool> CanAccessStockAsync();
     Task<bool> CanTransferStockAsync();
+    Task<bool> CanManagePickingReleaseAsync();
 }
