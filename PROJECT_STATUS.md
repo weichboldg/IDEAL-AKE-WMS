@@ -37,12 +37,35 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Responsive Design (Mobile) | Fertig |
 | Versionierung + Changelog | Fertig |
 | Bedarfsmeldungen aus Stueckliste | Fertig |
+| Leitstand (Kommissionier-Freigabe + Priorisierung) | Fertig |
 
 ## Version
-- **Web-App**: v1.1.1 (03.04.2026)
-- **Service**: v1.1.1 (03.04.2026)
+- **Web-App**: v1.2.0 (03.04.2026)
+- **Service**: v1.2.0 (03.04.2026)
 
 ## Aenderungen (03.04.2026)
+
+### v1.2.0 — Leitstand: Kommissionier-Freigabe & Priorisierung
+
+#### Neue Funktionen
+- **Leitstand-Rolle**: Neue Rolle `leitstand` fuer Produktionsplanung — kann Auftraege freigeben und priorisieren
+- **Kommissionier-Freigabe**: Einzel- und Massenfreigabe von Produktionsauftraegen zur Kommissionierung
+- **Priorisierung**: Numerische Prioritaet (1 = hoechste), Auto-Vorschlag bei Freigabe, inline aenderbar per AJAX
+- **Neue Kommissionierliste**: Tabelle mit freigegebenen Auftraegen (Prio, WA, Artikel, Kunde, Komm.-Termin, Status)
+- **Menue-Badge**: Anzahl offener freigegebener Auftraege im Menuepunkt "Kommissionierung"
+- **Feature-Toggle**: `LeitstandAktiv` AppSetting (Default: false) — bei Deaktivierung alles wie bisher
+
+#### Neue DB-Spalten
+- `ProductionOrders.IsReleasedForPicking` (BIT, DEFAULT 0)
+- `ProductionOrders.PickingPriority` (INT, NULL)
+- `ProductionOrders.ReleasedAt` (DATETIME2, NULL)
+- `ProductionOrders.ReleasedBy` (NVARCHAR(200), NULL)
+
+#### Neue Dateien
+- `SQL/37_AddPickingRelease.sql` — Migration
+- `Filters/RequireLeitstandAccessAttribute.cs` — Action-Filter
+- `Models/ViewModels/PickingListViewModel.cs` — ViewModel
+- `Views/ProductionOrders/PickingDropdown.cshtml` — Fallback-View
 
 ### v1.1.1 — Bugfixes Bestellungen & Kommissionierung
 

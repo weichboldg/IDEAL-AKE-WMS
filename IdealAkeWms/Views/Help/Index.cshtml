@@ -134,6 +134,39 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Leitstand (Kommissionier-Freigabe)</strong></div>
+            <div class="card-body">
+                <p>
+                    Der Leitstand steuert, welche Produktionsauftraege kommissioniert werden und in welcher Reihenfolge.
+                    Das Feature muss unter <em>Stammdaten &rarr; Einstellungen</em> per <code>LeitstandAktiv</code> aktiviert werden.
+                </p>
+                <dl>
+                    <dt>Freigabe</dt>
+                    <dd>In der Produktionsauftraege-Liste koennen Auftraege einzeln oder per Massenauswahl
+                        zur Kommissionierung freigegeben werden. Voraussetzung: Der Auftrag muss eine Artikelnummer haben.
+                        Freigegebene Auftraege erscheinen in der Kommissionierliste der Kommissionierer.</dd>
+
+                    <dt>Priorisierung</dt>
+                    <dd>Jeder freigegebene Auftrag erhaelt eine numerische Prioritaet (1 = hoechste).
+                        Bei Freigabe wird automatisch die naechste freie Nummer vorgeschlagen.
+                        Die Prioritaet kann jederzeit per Inline-Eingabe geaendert werden.
+                        Auftraege ohne Prioritaet werden ans Ende sortiert.</dd>
+
+                    <dt>Freigabe zuruecknehmen</dt>
+                    <dd>Eine Freigabe kann jederzeit zurueckgenommen werden. Der Auftrag verschwindet
+                        aus der Kommissionierliste. Bereits kommissionierte Teile bleiben erhalten.</dd>
+
+                    <dt>Rollen</dt>
+                    <dd>
+                        <strong>Leitstand</strong> &mdash; Kann alle Auftraege sehen, freigeben und priorisieren<br />
+                        <strong>Kommissionierer</strong> &mdash; Sieht nur freigegebene Auftraege in der Kommissionierliste<br />
+                        <strong>Admin</strong> &mdash; Hat Zugriff auf beides
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Kommissionierung (Stückliste)</strong></div>
             <div class="card-body">
                 <ol>

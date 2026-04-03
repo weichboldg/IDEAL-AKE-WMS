@@ -146,6 +146,10 @@
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Angewendet auf: `PartRequisitionsController`, `OrderRecipientGroupsController`
   - Rollen: `admin`, `picking`, `stock`, `stock_keyuser`
+- **`[RequireLeitstandAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanManagePickingReleaseAsync()`
+  - Redirectet bei Ablehnung auf `Account/AccessDenied`
+  - Angewendet auf: `ProductionOrdersController` (ToggleRelease, BulkRelease, SetPriority)
+  - Rollen: `admin`, `leitstand`
 
 ## Rollenkonzept
 
@@ -164,6 +168,7 @@
 | `stock_keyuser` | Lager Keyuser | Lager + Lagerplatz ausbuchen/umbuchen |
 | `tracking` | Teileverfolgung | OSEON Auftraege + Rueckmeldungen |
 | `reporting` | Betriebsdaten (BDE) | Arbeitsgaenge stempeln (Zukunft) |
+| `leitstand` | Leitstand | Produktionsauftraege freigeben und priorisieren |
 
 ## ICurrentUserService
 
@@ -182,6 +187,7 @@ Task<bool> CanReportOperationsAsync(); // admin, reporting
 Task<bool> CanPickAsync();            // admin, picking
 Task<bool> CanAccessStockAsync();     // admin, stock, stock_keyuser, picking
 Task<bool> CanTransferStockAsync();   // admin, stock_keyuser, picking
+Task<bool> CanManagePickingReleaseAsync(); // admin, leitstand
 ```
 
 Alle Berechtigungsmethoden delegieren intern an `HasAnyRoleAsync()` mit den entsprechenden Rollen-Keys.
@@ -244,6 +250,10 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Razor v@ wird als E-Mail interpretiert**: `v@Namespace.Class.Property` wird von Razor als E-Mail-Adresse geparst. Immer `v@(Namespace.Class.Property)` mit Klammern verwenden
 - **Select2-Text-Format fuer Artikel**: Die Select2-API (`/api/articles/search`) liefert `"ArticleNumber - Description"` (mit Hyphen ` - `). Bei Text-Parsing immer `.split(' - ')[0]` verwenden, NICHT Em-Dash `' — '`
 - **Bedarfsmeldung Empfaenger**: Im Bestell-Modal werden Empfaenger per E-Mail-Adresse (nicht per ID) an den Server gesendet. Checkbox-Value = E-Mail, Request-Property = `SelectedEmails`. `OrderRecipientGroupId` wird server-seitig aus dem Artikelgruppen-Mapping ermittelt
+- **Leitstand Toggle-Verhalten**: Wenn `LeitstandAktiv=false`, zeigt Picking() die alte Dropdown-View (`PickingDropdown.cshtml`). Wenn `true`, die neue Tabelle. Menuetext wechselt zwischen "Werkstattauftraege" und "Produktionsauftraege"
+- **Leitstand Index-Action hat kein Filter-Attribut**: Die Index-Action von ProductionOrdersController prueft Berechtigungen manuell im Methoden-Body (CanPick OR CanViewTracking OR CanManagePickingRelease), weil kein bestehender Filter alle drei Rollen abdeckt
+- **Leitstand Freigabe ohne Artikelnummer**: `ToggleRelease` prueft ob `ArticleNumber` vorhanden ist. Ohne Artikelnummer → TempData WarningMessage, keine Freigabe. Die `BulkRelease`-Action ueberspringt solche Auftraege und meldet sie als "uebersprungen"
+- **Leitstand PickingPriority NULL = niedrigste**: Auftraege ohne Prioritaet werden ans Ende sortiert (`OrderBy PickingPriority.HasValue ? 0 : 1, ThenBy PickingPriority`)
 
 ## Standard-Daten (Neuinstallation)
 
@@ -286,6 +296,7 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stueckliste aktivieren |
+| `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
 
 ## Service-Konfiguration (appsettings.json)
 
@@ -447,6 +458,10 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `Views/OrderRecipientGroups/` — CRUD-Views fuer Empfaengergruppen-Verwaltung
 - `Filters/RequirePickingOrStockAccessAttribute.cs` — Zugriffskontrolle Picking ODER Lager
 - `SQL/36_AddPartRequisitions.sql` — Migration fuer Bedarfsmeldungs-Tabellen
+- `Filters/RequireLeitstandAccessAttribute.cs` — Zugriffskontrolle fuer Leitstand-Funktionen
+- `Models/ViewModels/PickingListViewModel.cs` — ViewModel fuer Kommissionierliste (Tabelle)
+- `Views/ProductionOrders/PickingDropdown.cshtml` — Fallback-View (alte Dropdown-Auswahl bei LeitstandAktiv=false)
+- `SQL/37_AddPickingRelease.sql` — Migration fuer Leitstand-Felder + Rolle + AppSetting
 
 ## Bestandsuebersicht
 

@@ -151,6 +151,15 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Konfigurierbar: `OseonAmpelGelbTage`, `OseonAmpelBlauTage` in AppSettings
 - Voraussetzung: AppSetting `TeileverfolgungAktiv = true` + User-Berechtigung `CanViewTracking`
 
+### Leitstand (Kommissionier-Freigabe)
+- **Feature-Toggle**: Per AppSetting `LeitstandAktiv` aktivierbar (Default: aus). Bei Deaktivierung funktioniert alles wie bisher.
+- **Freigabe**: Leitstand-User geben Produktionsaufträge zur Kommissionierung frei (Einzel- oder Massenfreigabe). Voraussetzung: Artikelnummer vorhanden.
+- **Priorisierung**: Numerische Priorität (1 = höchste). Auto-Vorschlag bei Freigabe (MAX+1), inline änderbar.
+- **Kommissionierliste**: Kommissionierer sehen nur freigegebene Aufträge in einer Tabelle mit Priorität, Kommissioniertermin (KW), Status.
+- **Menü-Badge**: Anzahl offener freigegebener Aufträge im Menüpunkt "Kommissionierung".
+- **Menü-Trennung**: Leitstand/Tracking sehen "Produktionsaufträge", Kommissionierer sehen nur "Kommissionierung".
+- Voraussetzung: Rolle `leitstand` + AppSetting `LeitstandAktiv = true`
+
 ### Kommissionierung (Stückliste)
 - Mehrstufiger klappbarer Baumstruktur-View der Stückliste (standardmäßig eingeklappt)
 - Picking: Checkbox pro Bauteil mit Quell-Lagerplatz-Auswahl (rein client-seitig, kein sofortiges Speichern)
@@ -234,6 +243,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stückliste aktivieren |
+| `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
 
 ## Corporate Design
 

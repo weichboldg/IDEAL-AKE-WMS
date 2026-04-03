@@ -9,6 +9,48 @@
 
         <div class="card mb-3">
             <div class="card-header" style="background-color: var(--ake-primary);">
+                <strong>v1.2.0</strong>
+                <span class="text-white-50 ms-2">03.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">Neue Funktionen</h6>
+                <ul>
+                    <li>
+                        <strong>Leitstand: Kommissionier-Freigabe</strong><br />
+                        Neue Rolle &bdquo;Leitstand&ldquo; kann Produktionsauftraege zur Kommissionierung freigeben
+                        und zuruecknehmen. Einzel- und Massenfreigabe moeglich.
+                        Voraussetzung: Artikelnummer muss vorhanden sein.
+                    </li>
+                    <li>
+                        <strong>Leitstand: Priorisierung</strong><br />
+                        Freigegebene Auftraege erhalten eine numerische Prioritaet (1 = hoechste).
+                        Bei Freigabe wird automatisch die naechste freie Nummer vorgeschlagen.
+                        Prioritaet kann jederzeit per Inline-Eingabe geaendert werden.
+                    </li>
+                    <li>
+                        <strong>Neue Kommissionierliste</strong><br />
+                        Kommissionierer sehen eine Tabelle aller freigegebenen Auftraege
+                        mit Prioritaet, Kommissioniertermin (KW), Status und Spaltenfilter.
+                        Klick auf einen Auftrag oeffnet die Stueckliste.
+                    </li>
+                    <li>
+                        <strong>Menue-Badge</strong><br />
+                        Im Menuepunkt &bdquo;Kommissionierung&ldquo; zeigt ein Badge die Anzahl
+                        offener, freigegebener Auftraege an.
+                    </li>
+                </ul>
+
+                <h6>Verbesserungen</h6>
+                <ul>
+                    <li>Menuepunkt &bdquo;Werkstattauftraege&ldquo; heisst bei aktiviertem Leitstand &bdquo;Produktionsauftraege&ldquo;</li>
+                    <li>Kommissionierer sehen bei aktiviertem Leitstand nur noch die Kommissionierliste (nicht die volle WA-Liste)</li>
+                    <li>Feature per AppSetting <code>LeitstandAktiv</code> aktivierbar &mdash; bei Deaktivierung funktioniert alles wie bisher</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary);">
                 <strong>v1.1.1</strong>
                 <span class="text-white-50 ms-2">03.04.2026</span>
             </div>
