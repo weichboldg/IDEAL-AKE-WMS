@@ -1,18 +1,68 @@
-# Navigation & Controller Umstrukturierung
+# Navigation, Controller & Terminologie Umstrukturierung
 
 ## Zusammenfassung
 
-Die App-Struktur wird nach Domänen reorganisiert: Lager, Produktionsaufträge, Kommissionierung, Bestellungen, Teileverfolgung, Stammdaten. Der überladene `ProductionOrdersController` (15 Actions, 3 Domänen) wird in `ProductionOrdersController`, `PickingController` und `PhotoController` aufgeteilt. Views und Menü folgen der neuen Struktur.
+Drei zusammenhängende Verbesserungen:
+
+1. **Controller-Split**: `ProductionOrdersController` (15 Actions) → `ProductionOrdersController` + `PickingController` + `PhotoController`
+2. **Menü-Umstrukturierung**: Klare Domänen-Trennung (Lager, Fertigungsaufträge, Kommissionierung, Bestellungen, Teileverfolgung, Stammdaten) inkl. Dashboard
+3. **Terminologie-Rename**: "Werkstattauftrag/WA" → "Fertigungsauftrag/FA" durchgängig in UI, Docs, Labels
 
 ## Motivation
 
-Der `ProductionOrdersController` ist ein God Object: 15 Actions, 18 Dependencies, mischt Produktionsplanung (WA-Liste, Leitstand), Kommissionierung (Picking, Bom, Transfer) und Medien (Fotos). Das Menü gruppiert nicht nach Domänen — Kommissionierer und Leitstand teilen sich dieselben Navigationspfade. Die Umstrukturierung schafft klare Zuständigkeiten und ermöglicht zukünftige Erweiterungen (BDE/Betriebsdatenerfassung als eigenen Bereich).
+- `ProductionOrdersController` mischt 3 Domänen (Produktionsplanung, Kommissionierung, Fotos)
+- Menü gruppiert nicht nach Domänen
+- Dashboard zeigt nicht die neue Struktur
+- Terminologie "Werkstattauftrag" ist intern nicht mehr gebräuchlich — "Fertigungsauftrag" ist der korrekte Term
 
 ## Keine Datenbankänderungen
 
-Diese Umstrukturierung ist rein Code/UI/Routing. Alle DB-Tabellen, Spalten und Indizes bleiben unverändert. Keine SQL-Migration nötig.
+Rein Code/UI/Routing/Docs. DB-Tabellen (`ProductionOrders`), Spalten (`OrderNumber`) und Property-Namen (`OrderNumber`) bleiben unverändert. Nur Display-Attribute und UI-Labels ändern sich.
 
-## Neue Menüstruktur
+---
+
+## 1. Terminologie-Rename
+
+### Globale Ersetzung
+
+| Vorher | Nachher | Kontext |
+|--------|---------|---------|
+| Werkstattauftrag | Fertigungsauftrag | Singular, Prosa |
+| Werkstattaufträge | Fertigungsaufträge | Plural, Überschriften |
+| WA Nummer | FA Nummer | Labels, Filter |
+| WA Nr. | FA Nr. | Spaltenköpfe |
+| WA-Nr. | FA-Nr. | Kurzform mit Bindestrich |
+| WA-Nummer | FA-Nummer | Labels in Tracking |
+| WA-Liste | FA-Liste | Docs/Kommentare |
+| WA @Model.OrderNumber | FA @Model.OrderNumber | Seitentitel (Bom, PrintBom) |
+| z.B. WA-001 | z.B. FA-001 | Platzhalter |
+
+### Model Display Attribute
+
+`ProductionOrder.cs` Zeile 9:
+```
+[Display(Name = "WA Nummer")] → [Display(Name = "FA Nummer")]
+```
+
+### Betroffene Dateien (~40 Stellen)
+
+**Views** (12 Dateien): Index.cshtml, Picking.cshtml, Bom.cshtml, PrintBom.cshtml, PrintPicking.cshtml, PickingDropdown.cshtml, Home/Index.cshtml, Help/Index.cshtml, Help/Changelog.cshtml, Tracking/Index.cshtml, Tracking/ByWorkplace.cshtml, PartRequisitions/Index.cshtml, StockOverview/Index.cshtml, StockMovements/Inbound.cshtml, StockMovements/OutboundAll.cshtml, StorageLocations/Create+Edit.cshtml, _Layout.cshtml, _Select2ProductionOrderPartial.cshtml
+
+**Docs** (4 Dateien): CLAUDE.md, README.md, PROJECT_STATUS.md, ANALYSIS.md
+
+### Was NICHT umbenannt wird
+
+- C#-Property-Namen (`OrderNumber`, `ProductionOrder`, etc.)
+- DB-Spalten und Tabellen
+- URL-Routen (`/ProductionOrders/Index` bleibt)
+- CSS-Klassen (`.wa-number` — intern)
+- Variable-Namen in JavaScript
+
+---
+
+## 2. Menüstruktur
+
+### Neue Navigation
 
 ```
 LAGER (Dropdown)                          canAccessStock || canPick
@@ -25,7 +75,7 @@ LAGER (Dropdown)                          canAccessStock || canPick
   Bestände
   Bewegungshistorie
 
-PRODUKTIONSAUFTRÄGE (Link)                Bedingung abhängig von LeitstandAktiv
+FERTIGUNGSAUFTRÄGE (Link)                 Bedingung abhängig von LeitstandAktiv
   → wenn leitstandAktiv: canManagePickingRelease || canViewTracking
   → sonst:               canPick || canViewTracking
 
@@ -43,23 +93,48 @@ STAMMDATEN (Dropdown)                     wie bisher
   ...
 ```
 
-## Controller-Split
+### Dashboard (Home/Index.cshtml)
+
+Das Dashboard wird nach denselben Domänen gruppiert. Aktuell zeigt es 9 Karten in loser Reihenfolge.
+
+**Neue Gruppierung:**
+
+```
+LAGER                                     canAccessStock || canPick
+  [Einbuchung]  [Ausbuchung]  [Bestände]  [Bewegungshistorie]
+
+FERTIGUNGSAUFTRÄGE                        canPick || canViewTracking || canManagePickingRelease
+  [Fertigungsaufträge]
+
+KOMMISSIONIERUNG                          canPick
+  [Kommissionierung]
+
+TEILEVERFOLGUNG                           teileverfolgungAktiv && canViewTracking
+  [Teileverfolgung]
+
+STAMMDATEN                                HasMasterDataAccess || immer (Artikel, Lagerplätze)
+  [Artikel]  [Lagerplätze]  [Benutzer]  [Arbeitsplätze]
+```
+
+Jede Gruppe bekommt eine kleine Überschrift (`<h5>` oder `<h6>` mit Trennlinie). Karten innerhalb der Gruppe bleiben als Cards.
+
+---
+
+## 3. Controller-Split
 
 ### Vorher: ProductionOrdersController (15 Actions)
 
 ### Nachher: 3 Controller
 
-#### `ProductionOrdersController` — Produktionsaufträge / WA-Liste
+#### `ProductionOrdersController` — Fertigungsaufträge
 
 | Action | HTTP | Beschreibung |
 |--------|------|-------------|
-| `Index` | GET | WA-Liste mit Filtern, Terminen, Freigabe-Spalte |
+| `Index` | GET | FA-Liste mit Filtern, Terminen, Freigabe-Spalte |
 | `ToggleRelease` | POST | Einzelfreigabe |
 | `BulkRelease` | POST | Massenfreigabe |
 | `SetPriority` | POST | Priorität setzen (AJAX) |
 | `ToggleDone` | POST | Erledigt-Toggle |
-
-Access: Manuelle Prüfung (CanPick OR CanViewTracking OR CanManagePickingRelease), Leitstand-Actions: `[RequireLeitstandAccess]`
 
 #### `PickingController` — Kommissionierung
 
@@ -72,50 +147,37 @@ Access: Manuelle Prüfung (CanPick OR CanViewTracking OR CanManagePickingRelease
 | `PrintBom` | GET | Stückliste drucken |
 | `PrintPicking` | GET | Kommissionierliste drucken |
 
-Access: `[RequirePickingAccess]`
-
 #### `PhotoController` — Fotos (API)
 
-| Action | HTTP | Beschreibung |
-|--------|------|-------------|
-| `Upload` | POST | Foto hochladen |
-| `Get` | GET | Fotos abrufen |
-| `Delete` | POST | Foto löschen |
+| Action | HTTP | Route | Beschreibung |
+|--------|------|-------|-------------|
+| `Upload` | POST | `api/photos/upload` | Foto hochladen |
+| `Get` | GET | `api/photos/{productionOrderId}` | Fotos abrufen |
+| `Delete` | POST | `api/photos/delete` | Foto löschen |
 
-Access: `[RequirePickingAccess]`, Route: `api/photos`
+#### `ProductionOrdersApiController` — unverändert
 
-#### `ProductionOrdersApiController` — bleibt unverändert
+---
 
-| Action | HTTP | Beschreibung |
-|--------|------|-------------|
-| `Search` | GET | Select2-Suche |
-| `ToggleField` | POST | Glas/Zukauf Toggle |
-
-### `PartRequisitionsApiController` — bleibt unverändert
-
-## View-Ordner-Struktur
-
-### Vorher
-```
-Views/ProductionOrders/
-  Index.cshtml, Picking.cshtml, PickingDropdown.cshtml,
-  Bom.cshtml, PrintBom.cshtml, PrintPicking.cshtml
-```
+## 4. View-Ordner-Struktur
 
 ### Nachher
+
 ```
 Views/ProductionOrders/
-  Index.cshtml                (WA-Liste)
+  Index.cshtml                (FA-Liste)
 
 Views/Picking/
-  Index.cshtml                (Kommissionierliste — war Picking.cshtml)
-  IndexDropdown.cshtml        (Fallback — war PickingDropdown.cshtml)
-  Bom.cshtml                  (Stückliste — verschoben)
-  PrintBom.cshtml             (Druck — verschoben)
-  PrintPicking.cshtml         (Druck — verschoben)
+  Index.cshtml                (Kommissionierliste)
+  IndexDropdown.cshtml        (Fallback bei LeitstandAktiv=false)
+  Bom.cshtml                  (Stückliste)
+  PrintBom.cshtml             (Druck)
+  PrintPicking.cshtml         (Druck)
 ```
 
-## URL-Änderungen
+---
+
+## 5. URL-Änderungen
 
 | Vorher | Nachher |
 |--------|---------|
@@ -128,42 +190,62 @@ Views/Picking/
 | `/ProductionOrders/GetPhotos/123` | `/api/photos/123` |
 | `/ProductionOrders/Index` | `/ProductionOrders/Index` (unverändert) |
 
-Keine Redirects von alten URLs — sauberer Schnitt.
+---
 
-## Referenz-Updates
+## 6. Referenz-Updates (Fallstricke)
 
-Alle Stellen die auf die alten Controller/Actions verweisen müssen aktualisiert werden:
+### Kritische Stellen
 
-- **Views**: `asp-controller="ProductionOrders"` → `asp-controller="Picking"` wo relevant
-- **JavaScript**: `Url.Action("Bom", "ProductionOrders")` → `Url.Action("Bom", "Picking")`
-- **Layout.cshtml**: Menü-Links
-- **Index.cshtml** (WA-Liste): Link zur Stückliste zeigt jetzt auf Picking/Bom
-- **Bom.cshtml**: Alle internen Links (TransferPicked, SetPickingStatus, etc.)
-- **_Select2ProductionOrderPartial.cshtml**: URL für Select2-Redirect nach Picking/Bom
+| Stelle | Warum kritisch |
+|--------|---------------|
+| `Bom.cshtml` (~1000 Zeilen) | Viele `Url.Action()`-Aufrufe in JS: TransferPicked, SetPickingStatus, TogglePicked, PrintBom. Alle müssen auf `Picking`-Controller zeigen |
+| `_Select2ProductionOrderPartial.cshtml` | Select2-Redirect nach FA-Auswahl → muss auf `/Picking/Bom/{id}` zeigen |
+| `Index.cshtml` (FA-Liste) | Link zur Stückliste: `asp-action="Bom"` braucht `asp-controller="Picking"` |
+| `_Layout.cshtml` | Alle Menü-Links + Badge-Count |
+| `Home/Index.cshtml` | Dashboard-Karten-Links + Gruppierung |
+| `Help/Index.cshtml` | Alle Hilfe-Texte mit "Werkstattauftrag" |
+| `Help/Changelog.cshtml` | Historische Einträge — NUR aktuelle Version umbenennen, ältere bleiben |
+
+### Regex-Safe Replacements
+
+Die meisten Ersetzungen sind sichere String-Replacements:
+- `Werkstattauftrag` → `Fertigungsauftrag` (nur in UI-Texten, nicht in Code)
+- `WA Nr.` → `FA Nr.` / `WA Nummer` → `FA Nummer` (Labels)
+- `WA @Model.` → `FA @Model.` (Razor-Ausdrücke)
+- `asp-controller="ProductionOrders" asp-action="Bom"` → `asp-controller="Picking" asp-action="Bom"`
+
+---
 
 ## Nicht im Scope
 
-- DB-Änderungen
+- DB-Änderungen (Tabellen, Spalten bleiben)
+- C#-Property-Renames (OrderNumber, ProductionOrder bleiben)
 - Neue Features
-- BDE/Betriebsdatenerfassung (nur Menü-Platz vorgesehen)
-- Refactoring von anderen Controllern (StockMovements, Tracking, etc.)
-- Test-Änderungen (keine Controller-Tests vorhanden die brechen könnten)
+- BDE (nur Menü-Platz vorgesehen)
+- Redirect von alten URLs
+- Refactoring anderer Controller
 
 ## Risiken
 
-- **Viele Dateien betroffen**: ~10 Views mit internen Links die aktualisiert werden müssen
-- **Bom.cshtml ist groß**: ~1000 Zeilen, viele interne JS-Referenzen auf Actions
-- **Select2-Partial**: Leitet nach WA-Auswahl direkt auf Bom weiter — URL muss angepasst werden
-- **Kein automatischer Test-Schutz**: Keine Controller-Tests die Routing-Brüche erkennen
+| Risiko | Mitigation |
+|--------|-----------|
+| Vergessene Url.Action()-Referenz in Bom.cshtml | Grep nach "ProductionOrders" in allen Views nach dem Umbau |
+| Historische Changelog-Einträge mit "WA" | Nur aktuellen v1.2.0 Eintrag umbenennen, ältere als historisch belassen |
+| Select2-Partial referenziert alten Controller | Explizit testen nach Umbau |
+| Dashboard-Karten zeigen auf falsche Controller | Explizit prüfen nach Umbau |
 
 ## Testszenarien
 
 | Test | Erwartung |
 |------|-----------|
 | /Picking → Kommissionierliste | Tabelle (wenn LeitstandAktiv) oder Dropdown |
-| /Picking/Bom/123 → Stückliste | Stückliste öffnet, Picking funktioniert |
+| /Picking/Bom/123 → Stückliste | Stückliste öffnet, alle Buttons funktionieren |
 | /Picking/TransferPicked → Umbuchen | AJAX-Umbuchen funktioniert |
-| /ProductionOrders/Index → WA-Liste | WA-Liste mit Freigabe-Spalte |
+| /ProductionOrders/Index → FA-Liste | FA-Liste mit Freigabe-Spalte (wenn Leitstand) |
+| Dashboard | Karten nach Domänen gruppiert, Links korrekt |
 | Menü-Links | Alle verweisen auf korrekte Controller |
-| Foto-Upload in Stückliste | Fotos hochladen/anzeigen/löschen funktioniert |
-| Select2-WA-Suche | Wählt WA → öffnet /Picking/Bom/{id} |
+| Foto-Upload in Stückliste | /api/photos/* funktioniert |
+| Select2-FA-Suche → Bom | Wählt FA → öffnet /Picking/Bom/{id} |
+| Alle Labels zeigen "FA" | Kein "WA" mehr in der UI |
+| Hilfe-Seite | Texte sagen "Fertigungsauftrag" |
+| Grep nach "Werkstattauftrag" in Views | 0 Treffer (nur in Changelog-Historie) |
