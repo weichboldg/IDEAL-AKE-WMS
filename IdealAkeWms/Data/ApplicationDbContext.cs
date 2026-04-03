@@ -30,6 +30,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<OseonOperationConfig> OseonOperationConfigs => Set<OseonOperationConfig>();
     public DbSet<EnaioDmsDocument> EnaioDmsDocuments => Set<EnaioDmsDocument>();
+    public DbSet<OrderRecipientGroup> OrderRecipientGroups => Set<OrderRecipientGroup>();
+    public DbSet<OrderRecipient> OrderRecipients => Set<OrderRecipient>();
+    public DbSet<ArticleGroupRecipientMapping> ArticleGroupRecipientMappings => Set<ArticleGroupRecipientMapping>();
+    public DbSet<PartRequisition> PartRequisitions => Set<PartRequisition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -442,6 +446,71 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Value).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Category).HasMaxLength(100);
             entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // OrderRecipientGroup
+        modelBuilder.Entity<OrderRecipientGroup>(entity =>
+        {
+            entity.HasMany(g => g.Recipients)
+                .WithOne(r => r.OrderRecipientGroup)
+                .HasForeignKey(r => r.OrderRecipientGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(g => g.ArticleGroupMappings)
+                .WithOne(m => m.OrderRecipientGroup)
+                .HasForeignKey(m => m.OrderRecipientGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // OrderRecipient
+        modelBuilder.Entity<OrderRecipient>(entity =>
+        {
+            entity.HasIndex(e => e.OrderRecipientGroupId)
+                .HasDatabaseName("IX_OrderRecipients_GroupId");
+        });
+
+        // ArticleGroupRecipientMapping
+        modelBuilder.Entity<ArticleGroupRecipientMapping>(entity =>
+        {
+            entity.HasIndex(e => e.ArticleGroup)
+                .HasDatabaseName("IX_ArticleGroupRecipientMappings_ArticleGroup");
+
+            entity.HasIndex(e => new { e.ArticleGroup, e.OrderRecipientGroupId })
+                .IsUnique()
+                .HasDatabaseName("UX_ArticleGroupRecipientMappings_Group_Recipient");
+        });
+
+        // PartRequisition
+        modelBuilder.Entity<PartRequisition>(entity =>
+        {
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)");
+
+            entity.HasOne(e => e.ProductionOrder)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.OrderRecipientGroup)
+                .WithMany()
+                .HasForeignKey(e => e.OrderRecipientGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.FulfilledByStockMovement)
+                .WithMany()
+                .HasForeignKey(e => e.FulfilledByStockMovementId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.ProductionOrderId)
+                .HasDatabaseName("IX_PartRequisitions_ProductionOrderId");
+
+            entity.HasIndex(e => e.ArticleNumber)
+                .HasDatabaseName("IX_PartRequisitions_ArticleNumber");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_PartRequisitions_Status");
+
+            entity.HasIndex(e => new { e.EmailSentAt, e.Status })
+                .HasDatabaseName("IX_PartRequisitions_EmailSentAt_Status");
         });
     }
 }
