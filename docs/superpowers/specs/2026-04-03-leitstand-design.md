@@ -84,7 +84,11 @@ IX_ProductionOrders_PickingRelease
 
 ### Menü-Badge
 
-Im Menüpunkt "Kommissionierung" wird ein Badge mit der **Anzahl offener, freigegebener Aufträge** angezeigt (query: `IsReleasedForPicking && !IsDone`).
+Im Menüpunkt "Kommissionierung" wird ein Badge mit der **Anzahl offener, freigegebener Aufträge** angezeigt.
+- Query: `COUNT(*) WHERE IsReleasedForPicking=true AND IsDone=false`
+- Ausführung: In `_Layout.cshtml` im Razor-Block (wie die anderen Permission-Checks)
+- Performance: Einzelner COUNT-Query, nutzt den `IX_ProductionOrders_PickingRelease` Index
+- Nur angezeigt wenn `LeitstandAktiv=true` UND `canPick=true` UND Count > 0
 
 ## Funktionen
 
@@ -97,9 +101,12 @@ Im Menüpunkt "Kommissionierung" wird ein Badge mit der **Anzahl offener, freige
 - Voraussetzung: Artikelnummer muss vorhanden sein. Ohne → Fehlermeldung.
 
 **Massenfreigabe:**
-- Checkboxen pro Zeile in der Produktionsaufträge-Tabelle
-- "Ausgewählte freigeben" / "Freigabe zurücknehmen" Buttons
-- Bei Massenfreigabe: Prioritäten werden automatisch aufsteigend vergeben
+- Checkboxen pro Zeile in der Produktionsaufträge-Tabelle (nur für nicht-erledigte, nicht-freigegebene Aufträge mit Artikelnummer)
+- "Alle auswählen"-Checkbox im Tabellenkopf (selektiert alle sichtbaren/gefilterten Zeilen)
+- "Ausgewählte freigeben" Button (nur sichtbar wenn mindestens eine Checkbox gesetzt)
+- Bei Massenfreigabe: Prioritäten werden automatisch aufsteigend vergeben (MAX+1, MAX+2, ...)
+- Für Rücknahme: Checkboxen bei freigegebenen Aufträgen + "Freigabe zurücknehmen" Button
+- Alle Massenoperationen per einzelnem POST mit Liste von IDs (kein AJAX pro Zeile)
 
 ### F2: Priorisierung
 
@@ -162,6 +169,16 @@ Wenn `LeitstandAktiv=false`:
 
 1. **Kein Fortschrittsbalken in dieser Iteration**: Der Picking-Flow ist derzeit client-seitig — erst beim Umbuchen wird in die DB geschrieben. Ein Progress Bar würde nur den Transfer-Stand zeigen, nicht den tatsächlichen Picking-Fortschritt. Wird adressiert wenn der Picking-Flow serverseitig speichert.
 2. **Keine Freigabe-Validierung gegen BOM-Verfügbarkeit**: Es wird nicht geprüft, ob Teile auf Lager sind. Die Freigabe ist rein organisatorisch.
+3. **BOM-Zugriff ist nicht durch Freigabe geschützt**: Direktlink auf `/ProductionOrders/Bom/{id}` funktioniert auch für nicht-freigegebene Aufträge (benötigt nur `RequirePickingAccess`). Das ist beabsichtigt — die Freigabe steuert die Sichtbarkeit in der Kommissionierliste, nicht den technischen BOM-Zugriff.
+4. **Keine Concurrency-Protection auf ProductionOrder**: Es gibt kein RowVersion-Feld auf `ProductionOrder` (im Gegensatz zu `PickingItem`). Parallele Freigabe/Prioritäts-Änderungen könnten sich theoretisch überschreiben. In der Praxis unwahrscheinlich (ein Leitstand-User). RowVersion ist als separates Improvement geplant, nicht als Blocker.
+
+## Spätere Erweiterungen (nach dieser Iteration)
+
+- Fortschrittsbalken (wenn Picking-Flow serverseitig speichert)
+- RowVersion/Optimistic Concurrency auf ProductionOrder
+- Eigene Leitstand-Dashboard-Seite (aktuell in WA-Liste integriert)
+- Automatische Freigabe (zeitbasiert oder regelbasiert)
+- E-Mail-Benachrichtigung bei Freigabe
 
 ## Testszenarien
 

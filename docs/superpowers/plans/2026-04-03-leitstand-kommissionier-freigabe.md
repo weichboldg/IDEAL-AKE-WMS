@@ -1,46 +1,14 @@
-# Leitstand — Kommissionier-Freigabe & Priorisierung
+# Leitstand — Kommissionier-Freigabe & Priorisierung — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Leitstand-User können Produktionsaufträge zur Kommissionierung freigeben und priorisieren. Kommissionierer sehen nur freigegebene Aufträge mit Fortschrittsanzeige.
+**Goal:** Leitstand-User geben Produktionsaufträge zur Kommissionierung frei und priorisieren sie. Kommissionierer sehen nur freigegebene Aufträge. Feature per AppSetting `LeitstandAktiv` aktivierbar.
 
-**Architecture:** Neue Rolle `leitstand` mit Freigabe/Prioritäts-Verwaltung auf `ProductionOrders`. Bestehende WA-Liste wird um Freigabe-Spalte erweitert. Kommissionierung-View wird von Dropdown auf Tabelle mit Progress Bars umgebaut. Menü-Trennung: Leitstand/Tracking sehen "Produktionsaufträge", Kommissionierer sehen nur "Kommissionierung".
+**Architecture:** 4 neue Spalten auf `ProductionOrders`, neue Rolle `leitstand`, neuer Action-Filter. WA-Liste wird um Freigabe-Spalte erweitert (Toggle-abhängig). Kommissionierung-View wird von Dropdown auf Tabelle umgebaut (Toggle-abhängig). Bisheriges Verhalten bleibt bei deaktiviertem Toggle erhalten.
 
-**Tech Stack:** ASP.NET Core 10.0, EF Core 10.0, SQL Server, Bootstrap 5 Progress Bars, jQuery AJAX
+**Tech Stack:** ASP.NET Core 10.0, EF Core 10.0, SQL Server, Bootstrap 5, jQuery AJAX
 
----
-
-## Review-Ergebnisse & Verbesserungen
-
-### 1. Feature-Toggle `LeitstandAktiv` (NEU)
-Das Feature muss per AppSetting `LeitstandAktiv` (Default: `false`) aktivierbar sein.
-- **Wenn deaktiviert**: Kein Freigabe-Workflow. Kommissionierung funktioniert wie bisher (Dropdown, alle offenen WAs).
-- **Wenn aktiviert**: Freigabe + Priorisierung + neue Kommissionierliste.
-- Pattern: Wie `BestellungenAktiv` und `TeileverfolgungAktiv` — Toggle in Settings-Seite, Prüfung in Controller + Layout.
-- _Layout.cshtml: Menüpunkt "Produktionsaufträge" nur wenn `leitstandAktiv`, sonst wie bisher "Werkstattaufträge"
-- Picking-Action: Wenn `leitstandAktiv=false` → altes Dropdown, wenn `true` → neue Tabelle
-- Index.cshtml: Freigabe-Spalte nur wenn `leitstandAktiv=true`
-
-### 2. Datenbank-Design Überlegungen
-- **`PickingPriority` Uniqueness**: KEIN Unique-Constraint. Gleiche Priorität erlaubt (sortiert dann nach `ProductionDate`). Vereinfacht die UI (kein Umordnen nötig bei gleicher Prio).
-- **`ReleasedAt`/`ReleasedBy`**: Bleiben auch nach Un-Release erhalten (Audit-Trail). Nur `IsReleasedForPicking` wird getoggelt.
-- **Sage-Import**: Neue Spalten haben `DEFAULT 0`/`NULL` → Import-MERGE berührt sie nicht. Sicher.
-- **SetPickingStatus "abgeschlossen"**: Setzt `IsDone=true`. Freigegebener Auftrag verschwindet dann automatisch aus der Kommissionierliste (da `!IsDone` gefiltert).
-
-### 3. Edge Cases
-- **Auftrag freigeben ohne Picking-Items**: PickingItems werden erst beim Öffnen der BOM initialisiert (`InitializePickingAsync`). Fortschrittsbalken zeigt 0/0. Das ist OK — in der Kommissionierliste wird "0/0" angezeigt, beim Klick wird die BOM geladen und Items initialisiert.
-- **Mehrere Leitstand-User**: Kein Problem — Freigabe ist idempotent (Toggle).  Priorität kann überschrieben werden.
-- **Bestehende Daten nach Aktivierung**: Alle bestehenden WAs haben `IsReleasedForPicking=false`. Leitstand muss sie erst freigeben. Das ist Absicht — Rückwärtskompatibilität.
-
-### 4. Potentielle Probleme
-- **Picking-User verliert WA-Zugriff**: Wenn `LeitstandAktiv=true`, sieht Picker nicht mehr die WA-Liste. Direktlink auf `/ProductionOrders/Bom/{id}` funktioniert weiterhin (braucht nur `RequirePickingAccess`). **Kein Blocking-Issue.**
-- **Admin-Zugriff**: Admin hat sowohl `CanPickAsync` als auch `CanManagePickingReleaseAsync`. Admin sieht beides: "Produktionsaufträge" UND "Kommissionierung". Das ist korrekt.
-- **Bom-Action**: Braucht KEINEN Release-Check. Auch nicht-freigegebene Aufträge können per Direktlink geöffnet werden (z.B. vom Leitstand oder Admin). Die Freigabe steuert nur die Sichtbarkeit in der Kommissionierliste.
-
-### 5. Keine Separierung nötig (YAGNI)
-- Kein `CommissioningOrder`-Entity nötig — die Freigabe-Felder direkt auf `ProductionOrder` reichen aus
-- Keine Prioritäts-History nötig — `ModifiedAt`/`ModifiedBy` auf dem Auftrag reicht
-- Kein Drag & Drop — inline Number-Input ist ausreichend und konsistent
+**Spec:** `docs/superpowers/specs/2026-04-03-leitstand-design.md`
 
 ---
 
@@ -50,44 +18,40 @@ Das Feature muss per AppSetting `LeitstandAktiv` (Default: `false`) aktivierbar 
 
 | Datei | Verantwortung |
 |-------|---------------|
-| `SQL/37_AddPickingRelease.sql` | DB-Migration: 4 Spalten, 1 Index, Rolle `leitstand` |
-| `IdealAkeWms/Filters/RequireLeitstandAccessAttribute.cs` | Action-Filter für Leitstand-Zugriff |
+| `SQL/37_AddPickingRelease.sql` | DB-Migration: 4 Spalten, Index, Rolle, AppSetting |
+| `IdealAkeWms/Filters/RequireLeitstandAccessAttribute.cs` | Action-Filter für `CanManagePickingReleaseAsync` |
 | `IdealAkeWms/Models/ViewModels/PickingListViewModel.cs` | ViewModel für neue Kommissionierliste |
+| `IdealAkeWms/Views/ProductionOrders/PickingDropdown.cshtml` | Kopie der alten Picking-View (Fallback) |
 
 ### Geänderte Dateien
 
 | Datei | Änderung |
 |-------|----------|
-| `IdealAkeWms/Models/ProductionOrder.cs` | +4 Properties (Release-Felder) |
-| `IdealAkeWms/Models/RoleKeys.cs` | +1 Konstante `Leitstand` |
-| `IdealAkeWms/Services/ICurrentUserService.cs` | +2 Methoden |
-| `IdealAkeWms/Services/CurrentUserService.cs` | +2 Implementierungen |
+| `IdealAkeWms/Models/ProductionOrder.cs` | +4 Properties |
+| `IdealAkeWms/Models/RoleKeys.cs` | +1 Konstante |
+| `IdealAkeWms/Services/ICurrentUserService.cs` | +1 Methode |
+| `IdealAkeWms/Services/CurrentUserService.cs` | +1 Implementierung |
 | `IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs` | +2 Methoden |
 | `IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs` | +2 Implementierungen |
 | `IdealAkeWms/Models/ViewModels/ProductionOrderViewModel.cs` | +5 Properties |
-| `IdealAkeWms/Controllers/ProductionOrdersController.cs` | Index anpassen, Picking überarbeiten, +2 Actions |
-| `IdealAkeWms/Views/ProductionOrders/Index.cshtml` | Titel + Freigabe-Spalte |
-| `IdealAkeWms/Views/ProductionOrders/Picking.cshtml` | Komplett-Umbau zu Tabelle |
-| `IdealAkeWms/Views/Shared/_Layout.cshtml` | Menü-Umbenennung + Sichtbarkeit |
-| `SQL/00_FreshInstall.sql` | Konsolidierung neue Spalten + Rolle |
-| `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` | Kommentar: neue Felder app-verwaltet |
-| `IdealAkeWms/Program.cs` | AppSetting `LeitstandAktiv` seeden (Default: false) |
-
-### Test-Dateien
-
-| Datei | Tests |
-|-------|-------|
-| `IdealAkeWms.Tests/Repositories/ProductionOrderRepositoryTests.cs` | Neue Methoden testen |
+| `IdealAkeWms/Controllers/ProductionOrdersController.cs` | Index erweitern, Picking überarbeiten, +3 Actions |
+| `IdealAkeWms/Views/ProductionOrders/Index.cshtml` | Titel bedingt, Freigabe-Spalte |
+| `IdealAkeWms/Views/ProductionOrders/Picking.cshtml` | Komplett neu: Tabelle mit freigegebenen Aufträgen |
+| `IdealAkeWms/Views/Shared/_Layout.cshtml` | Menü-Logik + Badge |
+| `IdealAkeWms/Program.cs` | AppSetting `LeitstandAktiv` seeden |
+| `SQL/00_FreshInstall.sql` | Konsolidierung |
+| `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` | Kommentar erweitern |
 
 ---
 
-## Task 1: SQL-Migration + EF-Migration
+## Task 1: DB-Schema + Model + EF-Migration
 
 **Files:**
 - Create: `SQL/37_AddPickingRelease.sql`
 - Modify: `IdealAkeWms/Models/ProductionOrder.cs`
-- Modify: `SQL/00_FreshInstall.sql` (Zeilen ~220-224 ProductionOrders CREATE TABLE)
-- Modify: `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` (Kommentar-Block Zeile 17-24)
+- Modify: `IdealAkeWms/Program.cs:187-203`
+- Modify: `SQL/00_FreshInstall.sql`
+- Modify: `SQL/AgentJobs/01_Import_Produktionsauftraege.sql:17-24`
 
 - [ ] **Step 1: SQL-Migration erstellen**
 
@@ -116,7 +80,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Produ
     ALTER TABLE [dbo].[ProductionOrders] ADD [ReleasedBy] NVARCHAR(200) NULL;
 GO
 
--- Performance-Index fuer Kommissionierliste (freigegebene, offene Auftraege)
+-- Performance-Index fuer Kommissionierliste
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_PickingRelease')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_PickingRelease]
         ON [dbo].[ProductionOrders]([IsReleasedForPicking], [IsDone])
@@ -125,13 +89,11 @@ GO
 
 -- Neue Rolle: Leitstand
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'leitstand')
-BEGIN
     INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [CreatedAt], [CreatedBy], [CreatedByWindows])
     VALUES ('leitstand', 'Leitstand', 'Produktionsauftraege freigeben und Kommissionier-Prioritaeten verwalten', GETUTCDATE(), 'system', 'SYSTEM');
-END
 GO
 
--- AppSetting: Leitstand-Feature aktivieren
+-- AppSetting: Leitstand-Feature
 IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'LeitstandAktiv')
     INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
     VALUES ('LeitstandAktiv', 'false', 'Leitstand-Funktion: Kommissionier-Freigabe und Priorisierung aktivieren');
@@ -144,11 +106,12 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] L
 GO
 ```
 
-- [ ] **Step 2: Model erweitern**
+- [ ] **Step 2: ProductionOrder Model erweitern**
 
-In `IdealAkeWms/Models/ProductionOrder.cs`, nach `ProductionWorkplace` Navigation Property:
+In `IdealAkeWms/Models/ProductionOrder.cs`, nach dem `ProductionWorkplace`-Navigation Property, vor der schließenden Klammer:
 
 ```csharp
+// Leitstand: Kommissionier-Freigabe
 [Display(Name = "Freigegeben")]
 public bool IsReleasedForPicking { get; set; }
 
@@ -163,19 +126,36 @@ public DateTime? ReleasedAt { get; set; }
 public string? ReleasedBy { get; set; }
 ```
 
-- [ ] **Step 3: EF Migration generieren**
+- [ ] **Step 3: Program.cs — LeitstandAktiv seeden**
+
+In `IdealAkeWms/Program.cs`, nach dem `BestellungenAktiv`-Seeding-Block (nach Zeile 203), einfügen:
+
+```csharp
+// Leitstand AppSettings
+if (!db.AppSettings.Any(s => s.Key == "LeitstandAktiv"))
+{
+    db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+    {
+        Key = "LeitstandAktiv",
+        Value = "false",
+        Description = "Leitstand-Funktion: Kommissionier-Freigabe und Priorisierung aktivieren"
+    });
+    db.SaveChanges();
+}
+```
+
+- [ ] **Step 4: EF-Migration generieren**
 
 Run: `dotnet ef migrations add AddPickingRelease --project IdealAkeWms`
-Expected: Migration file created in `Migrations/`
 
-- [ ] **Step 4: Build prüfen**
+- [ ] **Step 5: Build prüfen**
 
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj --no-restore`
+Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj`
 Expected: 0 errors
 
-- [ ] **Step 5: SQL/00_FreshInstall.sql aktualisieren**
+- [ ] **Step 6: SQL/00_FreshInstall.sql aktualisieren**
 
-In der `CREATE TABLE ProductionOrders` Sektion (nach Zeile ~223 `[HasExternalPurchase]`):
+In der `CREATE TABLE ProductionOrders` Sektion (nach `[HasExternalPurchase]` ca. Zeile 223):
 
 ```sql
         [IsReleasedForPicking]    BIT               NOT NULL DEFAULT 0,
@@ -193,7 +173,7 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_Picki
         INCLUDE ([PickingPriority], [OrderNumber], [ArticleNumber], [Customer], [ProductionDate], [PickingStatus]);
 ```
 
-In der Rollen-Seeding-Sektion (nach der letzten Rolle):
+In der Rollen-Seeding-Sektion:
 
 ```sql
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'leitstand')
@@ -201,39 +181,33 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'leitstand')
     VALUES ('leitstand', 'Leitstand', 'Produktionsauftraege freigeben und Kommissionier-Prioritaeten verwalten', GETUTCDATE(), 'system', 'SYSTEM');
 ```
 
-- [ ] **Step 6: Program.cs — AppSetting seeden**
+In der AppSettings-Seeding-Sektion:
 
-Im Startup-Seeding-Block von `Program.cs` (wo `BestellungenAktiv` geseeded wird), analog ergänzen:
-
-```csharp
-if (await settingRepo.GetValueAsync("LeitstandAktiv") == null)
-    await settingRepo.SetValueAsync("LeitstandAktiv", "false", "Leitstand-Funktion: Kommissionier-Freigabe und Priorisierung aktivieren");
+```sql
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'LeitstandAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('LeitstandAktiv', 'false', 'Leitstand-Funktion: Kommissionier-Freigabe und Priorisierung aktivieren');
 ```
 
 - [ ] **Step 7: Agent-Job Kommentar erweitern**
 
-In `SQL/AgentJobs/01_Import_Produktionsauftraege.sql`, Zeile 18 erweitern:
+In `SQL/AgentJobs/01_Import_Produktionsauftraege.sql`, Zeile 18:
 
 ```sql
 --   IsDone, PickingStatus, HasGlass, HasExternalPurchase,
 --   IsReleasedForPicking, PickingPriority, ReleasedAt, ReleasedBy
 ```
 
-- [ ] **Step 8: Build prüfen**
-
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj`
-Expected: 0 errors
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add SQL/37_AddPickingRelease.sql SQL/00_FreshInstall.sql SQL/AgentJobs/01_Import_Produktionsauftraege.sql IdealAkeWms/Models/ProductionOrder.cs IdealAkeWms/Migrations/ IdealAkeWms/Program.cs
-git commit -m "feat: add picking release schema — 4 columns on ProductionOrders, leitstand role, LeitstandAktiv setting, EF migration"
+git add SQL/37_AddPickingRelease.sql SQL/00_FreshInstall.sql SQL/AgentJobs/ IdealAkeWms/Models/ProductionOrder.cs IdealAkeWms/Program.cs IdealAkeWms/Migrations/
+git commit -m "feat: add picking release schema — 4 columns, index, leitstand role, LeitstandAktiv setting"
 ```
 
 ---
 
-## Task 2: Rolle + Berechtigungen + Filter
+## Task 2: Rolle + Berechtigung + Filter
 
 **Files:**
 - Modify: `IdealAkeWms/Models/RoleKeys.cs`
@@ -243,7 +217,7 @@ git commit -m "feat: add picking release schema — 4 columns on ProductionOrder
 
 - [ ] **Step 1: RoleKeys erweitern**
 
-In `IdealAkeWms/Models/RoleKeys.cs`, nach `Reporting`:
+In `IdealAkeWms/Models/RoleKeys.cs`, nach `public const string Reporting = "reporting";`:
 
 ```csharp
 public const string Leitstand = "leitstand";
@@ -251,7 +225,7 @@ public const string Leitstand = "leitstand";
 
 - [ ] **Step 2: ICurrentUserService erweitern**
 
-In `IdealAkeWms/Services/ICurrentUserService.cs`, nach `CanTransferStockAsync()`:
+In `IdealAkeWms/Services/ICurrentUserService.cs`, nach `Task<bool> CanTransferStockAsync();`:
 
 ```csharp
 Task<bool> CanManagePickingReleaseAsync();
@@ -259,7 +233,7 @@ Task<bool> CanManagePickingReleaseAsync();
 
 - [ ] **Step 3: CurrentUserService implementieren**
 
-In `IdealAkeWms/Services/CurrentUserService.cs`, nach `CanTransferStockAsync()` (Zeile 94):
+In `IdealAkeWms/Services/CurrentUserService.cs`, nach `CanTransferStockAsync` (Zeile 94):
 
 ```csharp
 public async Task<bool> CanManagePickingReleaseAsync()
@@ -304,52 +278,39 @@ public class RequireLeitstandAccessFilter : IAsyncActionFilter
 }
 ```
 
-- [ ] **Step 5: Build prüfen**
+- [ ] **Step 5: Build + Tests**
 
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj --no-restore`
-Expected: 0 errors
+Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj && dotnet test IdealAkeWms.Tests`
+Expected: 0 errors, all tests pass
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add IdealAkeWms/Models/RoleKeys.cs IdealAkeWms/Services/ICurrentUserService.cs IdealAkeWms/Services/CurrentUserService.cs IdealAkeWms/Filters/RequireLeitstandAccessAttribute.cs
-git commit -m "feat: add leitstand role, CanManagePickingReleaseAsync permission, RequireLeitstandAccess filter"
+git add IdealAkeWms/Models/RoleKeys.cs IdealAkeWms/Services/ IdealAkeWms/Filters/RequireLeitstandAccessAttribute.cs
+git commit -m "feat: add leitstand role key, CanManagePickingReleaseAsync, RequireLeitstandAccess filter"
 ```
 
 ---
 
-## Task 3: Repository — Freigegebene Aufträge + Fortschritt
+## Task 3: Repository — Freigegebene Aufträge + Badge-Count
 
 **Files:**
 - Modify: `IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs`
 - Modify: `IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs`
-- Test: `IdealAkeWms.Tests/Repositories/ProductionOrderRepositoryTests.cs`
+- Modify or Create: `IdealAkeWms.Tests/Repositories/ProductionOrderRepositoryTests.cs`
 
-- [ ] **Step 1: PickingProgressInfo DTO erstellen**
+- [ ] **Step 1: Interface erweitern**
 
-Am Ende von `IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs`:
-
-```csharp
-public class PickingProgressInfo
-{
-    public int TotalItems { get; set; }
-    public int PickedItems { get; set; }
-    public int TransferredItems { get; set; }
-}
-```
-
-- [ ] **Step 2: Interface erweitern**
-
-In `IProductionOrderRepository`, nach `SearchAsync`:
+In `IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs`, nach `SearchAsync`:
 
 ```csharp
 Task<List<ProductionOrder>> GetReleasedForPickingAsync();
-Task<Dictionary<int, PickingProgressInfo>> GetPickingProgressBulkAsync(List<int> productionOrderIds);
+Task<int> GetReleasedForPickingCountAsync();
 ```
 
-- [ ] **Step 3: GetReleasedForPickingAsync implementieren**
+- [ ] **Step 2: GetReleasedForPickingAsync implementieren**
 
-In `ProductionOrderRepository.cs`:
+In `IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs`:
 
 ```csharp
 public async Task<List<ProductionOrder>> GetReleasedForPickingAsync()
@@ -361,44 +322,14 @@ public async Task<List<ProductionOrder>> GetReleasedForPickingAsync()
         .ThenBy(o => o.ProductionDate)
         .ToListAsync();
 }
-```
 
-- [ ] **Step 4: GetPickingProgressBulkAsync implementieren**
-
-In `ProductionOrderRepository.cs`:
-
-```csharp
-public async Task<Dictionary<int, PickingProgressInfo>> GetPickingProgressBulkAsync(List<int> productionOrderIds)
+public async Task<int> GetReleasedForPickingCountAsync()
 {
-    if (productionOrderIds.Count == 0)
-        return new Dictionary<int, PickingProgressInfo>();
-
-    return await _context.PickingItems
-        .Where(p => productionOrderIds.Contains(p.ProductionOrderId))
-        .GroupBy(p => p.ProductionOrderId)
-        .Select(g => new
-        {
-            ProductionOrderId = g.Key,
-            Total = g.Count(),
-            Picked = g.Count(p => p.IsPicked),
-            Transferred = g.Count(p => p.IsTransferred)
-        })
-        .ToDictionaryAsync(
-            x => x.ProductionOrderId,
-            x => new PickingProgressInfo
-            {
-                TotalItems = x.Total,
-                PickedItems = x.Picked,
-                TransferredItems = x.Transferred
-            });
+    return await _dbSet.CountAsync(o => o.IsReleasedForPicking && !o.IsDone);
 }
 ```
 
-Hinweis: `_context` ist über die Basis-Klasse `Repository<T>` verfügbar. Prüfe ob dort `protected ApplicationDbContext _context` existiert — falls nur `_dbSet`, muss der Context im Konstruktor gespeichert oder über `_dbSet` hergeleitet werden. Referenz: `PickingRepository.cs` greift ebenfalls auf `_context.PickingItems` zu.
-
-- [ ] **Step 5: Tests schreiben**
-
-In `IdealAkeWms.Tests/Repositories/ProductionOrderRepositoryTests.cs` (neue Datei oder erweitern):
+- [ ] **Step 3: Tests schreiben**
 
 ```csharp
 [Fact]
@@ -422,40 +353,33 @@ public async Task GetReleasedForPickingAsync_ReturnsOnlyReleasedAndNotDone()
 }
 
 [Fact]
-public async Task GetPickingProgressBulkAsync_CalculatesCorrectly()
+public async Task GetReleasedForPickingCountAsync_CountsCorrectly()
 {
     using var context = TestDbContextFactory.CreateContext();
-    var order = new ProductionOrder { OrderNumber = "WA-1", CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" };
-    context.ProductionOrders.Add(order);
-    await context.SaveChangesAsync();
-
-    context.PickingItems.AddRange(
-        new PickingItem { ProductionOrderId = order.Id, BomArticleNumber = "A1", Quantity = 1, IsPicked = true, IsTransferred = true, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-        new PickingItem { ProductionOrderId = order.Id, BomArticleNumber = "A2", Quantity = 1, IsPicked = true, IsTransferred = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-        new PickingItem { ProductionOrderId = order.Id, BomArticleNumber = "A3", Quantity = 1, IsPicked = false, IsTransferred = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
+    context.ProductionOrders.AddRange(
+        new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
+        new ProductionOrder { OrderNumber = "WA-2", IsReleasedForPicking = true, IsDone = true, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
+        new ProductionOrder { OrderNumber = "WA-3", IsReleasedForPicking = false, IsDone = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
     );
     await context.SaveChangesAsync();
 
     var repo = new ProductionOrderRepository(context);
-    var result = await repo.GetPickingProgressBulkAsync(new List<int> { order.Id });
+    var count = await repo.GetReleasedForPickingCountAsync();
 
-    result.Should().ContainKey(order.Id);
-    result[order.Id].TotalItems.Should().Be(3);
-    result[order.Id].PickedItems.Should().Be(2);
-    result[order.Id].TransferredItems.Should().Be(1);
+    count.Should().Be(1);
 }
 ```
 
-- [ ] **Step 6: Tests ausführen**
+- [ ] **Step 4: Tests ausführen**
 
 Run: `dotnet test IdealAkeWms.Tests --filter "ProductionOrderRepository"`
 Expected: All tests pass
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs IdealAkeWms.Tests/
-git commit -m "feat: add GetReleasedForPickingAsync + GetPickingProgressBulkAsync with tests"
+git add IdealAkeWms/Data/Repositories/ IdealAkeWms.Tests/
+git commit -m "feat: add GetReleasedForPickingAsync + count with tests"
 ```
 
 ---
@@ -472,6 +396,7 @@ In `ProductionOrderViewModel`, nach `CanPick`:
 
 ```csharp
 public bool CanManagePickingRelease { get; set; }
+public bool LeitstandAktiv { get; set; }
 ```
 
 In `ProductionOrderViewItem`, nach `WorkplaceName`:
@@ -505,60 +430,45 @@ public class PickingListItem
     public string? Customer { get; set; }
     public decimal Quantity { get; set; }
     public DateTime? ProductionDate { get; set; }
+    public DateTime? KommissionierTermin { get; set; }
     public string? PickingStatus { get; set; }
-    public int TotalItems { get; set; }
-    public int PickedItems { get; set; }
-    public int TransferredItems { get; set; }
-    public int ProgressPercent => TotalItems > 0
-        ? (int)Math.Round((PickedItems + TransferredItems) * 100.0 / TotalItems)
-        : 0;
 }
 ```
 
 - [ ] **Step 3: Build prüfen**
 
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj --no-restore`
+Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj`
 Expected: 0 errors
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add IdealAkeWms/Models/ViewModels/ProductionOrderViewModel.cs IdealAkeWms/Models/ViewModels/PickingListViewModel.cs
-git commit -m "feat: add PickingListViewModel and extend ProductionOrderViewModel with release fields"
+git add IdealAkeWms/Models/ViewModels/
+git commit -m "feat: add PickingListViewModel, extend ProductionOrderViewModel with release fields"
 ```
 
 ---
 
-## Task 5: Controller — Index erweitern + Picking überarbeiten + neue Actions
+## Task 5: Controller — Index erweitern, Picking überarbeiten, neue Actions
 
 **Files:**
 - Modify: `IdealAkeWms/Controllers/ProductionOrdersController.cs`
 
-- [ ] **Step 1: Index-Action Access-Filter ändern**
+- [ ] **Step 1: Index-Action — Zugriffsprüfung erweitern + Release-Felder mappen**
 
-Zeile 69: `[RequirePickingOrTrackingAccess]` ersetzen durch eine erweiterte Bedingung.
-
-Da wir keinen neuen Filter-Attribute nur für die Index-Action erstellen wollen (zu viel Overhead), nutzen wir die bestehende Methode im Controller:
+Zeile 69: `[RequirePickingOrTrackingAccess]` entfernen und durch manuelle Prüfung im Action-Body ersetzen. Am Anfang der Methode:
 
 ```csharp
-public async Task<IActionResult> Index(...)
+// Zugriff: Picking, Tracking oder Leitstand
+if (!await _currentUserService.CanPickAsync()
+    && !await _currentUserService.CanViewTrackingAsync()
+    && !await _currentUserService.CanManagePickingReleaseAsync())
 {
-    // Zugriffsprüfung: Leitstand, Picking oder Tracking
-    if (!await _currentUserService.CanPickAsync()
-        && !await _currentUserService.CanViewTrackingAsync()
-        && !await _currentUserService.CanManagePickingReleaseAsync())
-    {
-        return RedirectToAction("AccessDenied", "Account");
-    }
-    // ... rest der Methode
+    return RedirectToAction("AccessDenied", "Account");
 }
 ```
 
-Entferne `[RequirePickingOrTrackingAccess]` von der Index-Action.
-
-- [ ] **Step 2: Release-Felder ins ViewItem mappen**
-
-Im Index-Action ViewItem-Mapping (wo `IsDone`, `PickingStatus` etc. gemappt werden), ergänzen:
+Im ViewItem-Mapping (nach `WorkplaceName = o.ProductionWorkplace?.Name`, Zeile 122):
 
 ```csharp
 IsReleasedForPicking = o.IsReleasedForPicking,
@@ -567,16 +477,17 @@ ReleasedAt = o.ReleasedAt,
 ReleasedBy = o.ReleasedBy,
 ```
 
-Und im ViewModel-Constructor:
+Im ViewModel-Constructor (nach `CanPick`, Zeile 154):
 
 ```csharp
 CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync(),
+LeitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
+    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true,
 ```
 
-- [ ] **Step 3: Picking-Action überarbeiten**
+- [ ] **Step 2: Picking-Action überarbeiten**
 
-Bestehende `Picking()`-Methode (Zeile 63-67) komplett ersetzen.
-**Wichtig**: Wenn `LeitstandAktiv=false`, bisheriges Verhalten (Dropdown-View) beibehalten!
+Bestehende Methode (Zeilen 63-67) komplett ersetzen:
 
 ```csharp
 [RequirePickingAccess]
@@ -586,20 +497,17 @@ public async Task<IActionResult> Picking()
         ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
     if (!leitstandAktiv)
-    {
-        // Bisheriges Verhalten: Dropdown-Auswahl
         return View("PickingDropdown");
-    }
 
-    // Neues Verhalten: Tabelle mit freigegebenen Aufträgen
     var releasedOrders = await _productionOrderRepository.GetReleasedForPickingAsync();
-    var orderIds = releasedOrders.Select(o => o.Id).ToList();
-    var progress = await _productionOrderRepository.GetPickingProgressBulkAsync(orderIds);
+
+    // Kommissioniertermin berechnen
+    var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
+    var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
     var items = releasedOrders.Select(o =>
     {
-        progress.TryGetValue(o.Id, out var p);
-        return new PickingListItem
+        var item = new PickingListItem
         {
             Id = o.Id,
             PickingPriority = o.PickingPriority,
@@ -609,22 +517,23 @@ public async Task<IActionResult> Picking()
             Customer = o.Customer,
             Quantity = o.Quantity,
             ProductionDate = o.ProductionDate,
-            PickingStatus = o.PickingStatus,
-            TotalItems = p?.TotalItems ?? 0,
-            PickedItems = p?.PickedItems ?? 0,
-            TransferredItems = p?.TransferredItems ?? 0
+            PickingStatus = o.PickingStatus
         };
+
+        if (o.ProductionDate.HasValue)
+        {
+            item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
+                o.ProductionDate.Value, kommissionierTage, holidays);
+        }
+
+        return item;
     }).ToList();
 
     return View(new PickingListViewModel { Items = items });
 }
 ```
 
-**Hinweis**: Die bisherige `Picking.cshtml` wird zu `PickingDropdown.cshtml` umbenannt. Die neue `Picking.cshtml` enthält die Tabelle. So bleibt der Fallback sauber.
-
-- [ ] **Step 4: ToggleRelease-Action hinzufügen**
-
-Nach der `Picking`-Action:
+- [ ] **Step 3: ToggleRelease-Action hinzufügen**
 
 ```csharp
 [HttpPost]
@@ -636,11 +545,29 @@ public async Task<IActionResult> ToggleRelease(int id, string? returnUrl)
     if (order == null)
         return NotFound();
 
+    if (!order.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
+    {
+        TempData["WarningMessage"] = $"WA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
+        if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
+
     order.IsReleasedForPicking = !order.IsReleasedForPicking;
     if (order.IsReleasedForPicking)
     {
         order.ReleasedAt = DateTime.UtcNow;
         order.ReleasedBy = _currentUserService.GetDisplayName();
+
+        // Auto-Priorität: nächste freie Nummer vorschlagen
+        if (!order.PickingPriority.HasValue)
+        {
+            var maxPrio = (await _productionOrderRepository.GetReleasedForPickingAsync())
+                .Where(o => o.PickingPriority.HasValue)
+                .Select(o => o.PickingPriority!.Value)
+                .DefaultIfEmpty(0)
+                .Max();
+            order.PickingPriority = maxPrio + 1;
+        }
     }
 
     order.ModifiedAt = DateTime.UtcNow;
@@ -648,8 +575,76 @@ public async Task<IActionResult> ToggleRelease(int id, string? returnUrl)
     order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
     await _productionOrderRepository.UpdateAsync(order);
 
-    if (!string.IsNullOrEmpty(returnUrl))
-        return Redirect(returnUrl);
+    if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+    return RedirectToAction(nameof(Index));
+}
+```
+
+- [ ] **Step 4: BulkRelease-Action hinzufügen**
+
+```csharp
+[HttpPost]
+[ValidateAntiForgeryToken]
+[RequireLeitstandAccess]
+public async Task<IActionResult> BulkRelease(List<int> ids, bool release, string? returnUrl)
+{
+    if (ids == null || ids.Count == 0)
+    {
+        if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
+
+    var maxPrio = 0;
+    if (release)
+    {
+        var existing = await _productionOrderRepository.GetReleasedForPickingAsync();
+        maxPrio = existing
+            .Where(o => o.PickingPriority.HasValue)
+            .Select(o => o.PickingPriority!.Value)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    var displayName = _currentUserService.GetDisplayName();
+    var windowsUser = _currentUserService.GetWindowsUserName();
+    var skipped = new List<string>();
+
+    foreach (var id in ids)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null) continue;
+
+        if (release && string.IsNullOrEmpty(order.ArticleNumber))
+        {
+            skipped.Add(order.OrderNumber);
+            continue;
+        }
+
+        order.IsReleasedForPicking = release;
+        if (release)
+        {
+            order.ReleasedAt = DateTime.UtcNow;
+            order.ReleasedBy = displayName;
+            if (!order.PickingPriority.HasValue)
+                order.PickingPriority = ++maxPrio;
+        }
+
+        order.ModifiedAt = DateTime.UtcNow;
+        order.ModifiedBy = displayName;
+        order.ModifiedByWindows = windowsUser;
+        await _productionOrderRepository.UpdateAsync(order);
+    }
+
+    var count = ids.Count - skipped.Count;
+    if (release)
+        TempData["SuccessMessage"] = $"{count} Auftrag/Aufträge freigegeben.";
+    else
+        TempData["SuccessMessage"] = $"{count} Freigabe(n) zurückgenommen.";
+
+    if (skipped.Count > 0)
+        TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", skipped)}";
+
+    if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
     return RedirectToAction(nameof(Index));
 }
 ```
@@ -678,109 +673,164 @@ public async Task<IActionResult> SetPriority(int id, int? priority)
 
 - [ ] **Step 6: Build prüfen**
 
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj --no-restore`
+Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj`
 Expected: 0 errors
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add IdealAkeWms/Controllers/ProductionOrdersController.cs
-git commit -m "feat: extend Index with release fields, overhaul Picking to table, add ToggleRelease + SetPriority actions"
+git commit -m "feat: extend Index with release fields, overhaul Picking, add ToggleRelease + BulkRelease + SetPriority"
 ```
 
 ---
 
-## Task 6: Views — Produktionsaufträge (Index) + Kommissionierliste (Picking)
+## Task 6: Views — Index + Picking + PickingDropdown
 
 **Files:**
+- Rename: `IdealAkeWms/Views/ProductionOrders/Picking.cshtml` → `PickingDropdown.cshtml`
 - Modify: `IdealAkeWms/Views/ProductionOrders/Index.cshtml`
-- Rename: `IdealAkeWms/Views/ProductionOrders/Picking.cshtml` → `PickingDropdown.cshtml` (Fallback)
 - Create: `IdealAkeWms/Views/ProductionOrders/Picking.cshtml` (neue Tabelle)
 
-- [ ] **Step 1: Index.cshtml — Titel bedingt ändern**
+- [ ] **Step 1: Alte Picking-View als Fallback sichern**
 
-Der Titel hängt davon ab, ob Leitstand aktiv ist. `CanManagePickingRelease` ist bereits im ViewModel.
+```bash
+cp IdealAkeWms/Views/ProductionOrders/Picking.cshtml IdealAkeWms/Views/ProductionOrders/PickingDropdown.cshtml
+```
+
+- [ ] **Step 2: Index.cshtml — Titel bedingt ändern**
+
+Zeile 4 und 16 ersetzen:
 
 ```csharp
 @{
-    var pageTitle = Model.CanManagePickingRelease ? "Produktionsaufträge" : "Werkstattaufträge";
+    var pageTitle = Model.LeitstandAktiv && Model.CanManagePickingRelease ? "Produktionsaufträge" : "Werkstattaufträge";
     ViewData["Title"] = pageTitle;
+    // ... rest des bestehenden Razor-Blocks
 }
+
 <h2 class="page-header">@pageTitle</h2>
 ```
 
-- [ ] **Step 2: Index.cshtml — Freigabe-Spalte hinzufügen**
+- [ ] **Step 3: Index.cshtml — Freigabe-Spalte im Tabellenkopf**
 
-Im `<thead>`, nach der letzten bestehenden Spalte und VOR dem `</tr>`, neue Spalte:
+Nach der letzten `<th>` (Zeile 73, die leere Actions-Spalte) und VOR `</tr>`, einfügen:
 
 ```html
-@if (Model.CanManagePickingRelease)
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
 {
-    <th style="width: 140px;">Freigabe</th>
+    <th style="width: 160px;">Freigabe</th>
 }
 ```
 
-Im `<tbody>`, in jeder Zeile am Ende (vor `</tr>`):
+- [ ] **Step 4: Index.cshtml — Freigabe-Spalte im Tabellenkörper**
+
+In der `@foreach`-Schleife, nach der letzten `<td>` (Actions-Spalte) und VOR `</tr>`:
 
 ```html
-@if (Model.CanManagePickingRelease)
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
 {
     <td class="text-center text-nowrap">
-        <form asp-action="ToggleRelease" method="post" style="display:inline">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="id" value="@item.Id" />
-            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            @if (item.IsReleasedForPicking)
-            {
-                <button type="submit" class="btn btn-sm btn-success" title="Freigabe zurücknehmen">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
-                    </svg>
-                </button>
-                <input type="number" class="form-control form-control-sm d-inline-block priority-input"
-                       value="@item.PickingPriority" min="1" style="width:55px"
-                       data-id="@item.Id" title="Priorität (1 = höchste)" />
-            }
-            else
-            {
-                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Zur Kommissionierung freigeben">
-                    Freigeben
-                </button>
-            }
-        </form>
+        @if (!item.IsDone)
+        {
+            <form asp-action="ToggleRelease" method="post" style="display:inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@item.Id" />
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                @if (item.IsReleasedForPicking)
+                {
+                    <button type="submit" class="btn btn-sm btn-success me-1" title="Freigabe zurücknehmen">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                        </svg>
+                    </button>
+                    <input type="number" class="form-control form-control-sm d-inline-block priority-input"
+                           value="@item.PickingPriority" min="1" style="width:55px"
+                           data-id="@item.Id" title="Priorität (1 = höchste)" />
+                }
+                else if (!string.IsNullOrEmpty(item.ArticleNumber))
+                {
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Zur Kommissionierung freigeben">
+                        Freigeben
+                    </button>
+                }
+            </form>
+        }
     </td>
 }
 ```
 
-- [ ] **Step 3: Index.cshtml — Priorität AJAX-Save**
+- [ ] **Step 5: Index.cshtml — Massenfreigabe-Buttons + Priorität AJAX**
 
-Im `@section Scripts` Block:
+Vor der Tabelle (nach dem Filter-Card, vor `<div class="table-responsive">`):
 
 ```html
-<script>
-    document.querySelectorAll('.priority-input').forEach(function (input) {
-        input.addEventListener('change', function () {
-            var id = this.getAttribute('data-id');
-            var priority = this.value ? parseInt(this.value) : null;
-            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-            $.ajax({
-                url: '@Url.Action("SetPriority")',
-                type: 'POST',
-                data: { id: id, priority: priority },
-                headers: { 'RequestVerificationToken': token },
-                error: function () { alert('Fehler beim Speichern der Priorität.'); }
-            });
-        });
-        // Klick im Input soll NICHT das Form submitten
-        input.addEventListener('click', function (e) { e.stopPropagation(); });
-        input.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
-        });
-    });
-</script>
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+{
+    <form id="bulkReleaseForm" asp-action="BulkRelease" method="post" class="mb-2">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+        <div id="bulkActions" style="display:none;" class="d-flex gap-2 align-items-center">
+            <span class="text-muted small" id="selectedCount">0 ausgewählt</span>
+            <button type="submit" name="release" value="true" class="btn btn-sm btn-success">Ausgewählte freigeben</button>
+            <button type="submit" name="release" value="false" class="btn btn-sm btn-outline-secondary">Freigabe zurücknehmen</button>
+        </div>
+    </form>
+}
 ```
 
-- [ ] **Step 4: Picking.cshtml komplett neu schreiben**
+Im `@section Scripts`-Block am Ende:
+
+```html
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+{
+    <script>
+        // Priorität AJAX-Save
+        document.querySelectorAll('.priority-input').forEach(function (input) {
+            input.addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); });
+            input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+            input.addEventListener('change', function () {
+                var id = this.getAttribute('data-id');
+                var priority = this.value ? parseInt(this.value) : null;
+                var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                $.ajax({
+                    url: '@Url.Action("SetPriority")',
+                    type: 'POST',
+                    data: { id: id, priority: priority },
+                    headers: { 'RequestVerificationToken': token },
+                    error: function () { alert('Fehler beim Speichern der Priorität.'); }
+                });
+            });
+        });
+
+        // Massenfreigabe: Checkboxen
+        var bulkForm = document.getElementById('bulkReleaseForm');
+        var bulkActions = document.getElementById('bulkActions');
+        document.querySelectorAll('.release-checkbox').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                var checked = document.querySelectorAll('.release-checkbox:checked');
+                bulkActions.style.display = checked.length > 0 ? '' : 'none';
+                document.getElementById('selectedCount').textContent = checked.length + ' ausgewählt';
+                // Hidden fields für IDs
+                bulkForm.querySelectorAll('input[name="ids"]').forEach(function (el) { el.remove(); });
+                checked.forEach(function (c) {
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden'; hidden.name = 'ids'; hidden.value = c.value;
+                    bulkForm.appendChild(hidden);
+                });
+            });
+        });
+        document.getElementById('selectAllRelease')?.addEventListener('change', function () {
+            var checked = this.checked;
+            document.querySelectorAll('.release-checkbox').forEach(function (cb) { cb.checked = checked; cb.dispatchEvent(new Event('change')); });
+        });
+    </script>
+}
+```
+
+Hinweis: Die `.release-checkbox` Checkboxen müssen noch in den Tabellenkörper eingefügt werden — als erste Spalte, nur für Leitstand-User. Im Tabellenkopf eine "Alle auswählen"-Checkbox mit `id="selectAllRelease"`. Im Tabellenkörper `<input type="checkbox" class="release-checkbox" value="@item.Id" />`. Die genaue Einfügestelle hängt von der bestehenden Spaltenstruktur ab — vor der Stückliste-Spalte.
+
+- [ ] **Step 6: Neue Picking.cshtml erstellen**
 
 ```html
 @model PickingListViewModel
@@ -808,10 +858,9 @@ else
                     <th data-filterable data-col="2">Artikelnummer</th>
                     <th data-filterable data-col="3">Bezeichnung</th>
                     <th data-filterable data-col="4">Kunde</th>
-                    <th class="text-end">Stk.</th>
-                    <th data-filterable data-col="6" data-date-filter>Fert.-Termin</th>
-                    <th>Status</th>
-                    <th style="width: 200px;">Fortschritt</th>
+                    <th class="text-end" style="width: 55px;">Stk.</th>
+                    <th data-filterable data-col="6" data-date-filter>Komm.-Termin</th>
+                    <th data-filterable data-col="7">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -825,7 +874,9 @@ else
                         _ => "bg-secondary"
                     };
                     var statusText = string.IsNullOrEmpty(item.PickingStatus) ? "offen" : item.PickingStatus;
-                    var kw = item.ProductionDate.HasValue ? $" KW{ISOWeek.GetWeekOfYear(item.ProductionDate.Value)}" : "";
+                    var kwStr = item.KommissionierTermin.HasValue
+                        ? $"{item.KommissionierTermin.Value:dd.MM.yyyy} KW{ISOWeek.GetWeekOfYear(item.KommissionierTermin.Value)}"
+                        : "";
 
                     <tr class="clickable-row" data-href="@Url.Action("Bom", new { id = item.Id })" style="cursor: pointer;">
                         <td><strong>@(item.PickingPriority?.ToString() ?? "-")</strong></td>
@@ -834,28 +885,8 @@ else
                         <td>@item.Description1</td>
                         <td>@item.Customer</td>
                         <td class="text-end">@item.Quantity.ToString("N0")</td>
-                        <td>@(item.ProductionDate?.ToString("dd.MM.yyyy"))@kw</td>
+                        <td>@kwStr</td>
                         <td><span class="badge @statusBadge">@statusText</span></td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="progress flex-grow-1" style="height: 20px;">
-                                    @{
-                                        var transferPct = item.TotalItems > 0 ? (int)Math.Round(item.TransferredItems * 100.0 / item.TotalItems) : 0;
-                                        var pickedPct = item.TotalItems > 0 ? (int)Math.Round((item.PickedItems - item.TransferredItems) * 100.0 / item.TotalItems) : 0;
-                                        if (pickedPct < 0) pickedPct = 0;
-                                    }
-                                    @if (transferPct > 0)
-                                    {
-                                        <div class="progress-bar bg-success" style="width: @(transferPct)%" title="Umgebucht: @item.TransferredItems"></div>
-                                    }
-                                    @if (pickedPct > 0)
-                                    {
-                                        <div class="progress-bar" style="width: @(pickedPct)%; background-color: var(--ake-secondary);" title="Gepickt: @(item.PickedItems - item.TransferredItems)"></div>
-                                    }
-                                </div>
-                                <small class="text-muted text-nowrap">@item.PickedItems/@item.TotalItems</small>
-                            </div>
-                        </td>
                     </tr>
                 }
             </tbody>
@@ -875,41 +906,50 @@ else
 }
 ```
 
-- [ ] **Step 5: Build prüfen**
+- [ ] **Step 7: Build prüfen**
 
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj --no-restore`
+Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj`
 Expected: 0 errors
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add IdealAkeWms/Views/ProductionOrders/Index.cshtml IdealAkeWms/Views/ProductionOrders/Picking.cshtml
-git commit -m "feat: add release column to Index, overhaul Picking to table with progress bars"
+git add IdealAkeWms/Views/ProductionOrders/
+git commit -m "feat: add release column to Index, overhaul Picking to table, keep PickingDropdown as fallback"
 ```
 
 ---
 
-## Task 7: Navigation — Feature-Toggle-abhängige Menü-Anpassung
+## Task 7: Navigation — Menü + Badge
 
 **Files:**
-- Modify: `IdealAkeWms/Views/Shared/_Layout.cshtml`
+- Modify: `IdealAkeWms/Views/Shared/_Layout.cshtml:29-70`
 
 - [ ] **Step 1: Neue Variablen im Nav-Block**
 
-Im Razor-Block am Anfang der Navigation (wo `canPick`, `canViewTracking` etc. deklariert werden):
+In Zeile 34, nach `bestellungenAktiv`:
 
 ```csharp
 var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
-var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))
-    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+var releasedPickingCount = leitstandAktiv && canPick
+    ? await ProductionOrderRepository.GetReleasedForPickingCountAsync()
+    : 0;
 ```
 
-- [ ] **Step 2: Werkstattaufträge / Produktionsaufträge — bedingt nach Toggle**
+Hinweis: `ProductionOrderRepository` muss per `@inject` im Layout verfügbar gemacht werden. Am Anfang der Datei (bei den bestehenden `@inject`-Zeilen):
+
+```csharp
+@inject IdealAkeWms.Data.Repositories.IProductionOrderRepository ProductionOrderRepository
+```
+
+- [ ] **Step 2: Werkstattaufträge/Produktionsaufträge-Menüpunkt**
+
+Zeilen 59-64 ersetzen:
 
 ```html
 @if (leitstandAktiv)
 {
-    @* Leitstand aktiv: Nur Leitstand + Tracking sehen die volle Liste *@
     @if (canManagePickingRelease || canViewTracking)
     {
         <li class="nav-item">
@@ -919,7 +959,6 @@ var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))
 }
 else
 {
-    @* Leitstand deaktiviert: Bisheriges Verhalten — Picking + Tracking sehen WA-Liste *@
     @if (canPick || canViewTracking)
     {
         <li class="nav-item">
@@ -929,27 +968,40 @@ else
 }
 ```
 
-**Wichtig:** Wenn Leitstand deaktiviert → alles wie bisher. Wenn aktiviert → Kommissionierer sehen nur "Kommissionierung".
+- [ ] **Step 3: Kommissionierung-Menüpunkt mit Badge**
 
-- [ ] **Step 3: Kommissionierung bleibt unverändert**
+Zeilen 65-70 ersetzen:
 
-Der Menüpunkt "Kommissionierung" bleibt wie er ist (Bedingung `canPick`). Er zeigt je nach Toggle das Dropdown oder die neue Tabelle.
+```html
+@if (canPick)
+{
+    <li class="nav-item">
+        <a class="nav-link" asp-controller="ProductionOrders" asp-action="Picking">
+            Kommissionierung
+            @if (leitstandAktiv && releasedPickingCount > 0)
+            {
+                <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
+            }
+        </a>
+    </li>
+}
+```
 
 - [ ] **Step 4: Build prüfen**
 
-Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj --no-restore`
+Run: `dotnet build IdealAkeWms/IdealAkeWms.csproj`
 Expected: 0 errors
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add IdealAkeWms/Views/Shared/_Layout.cshtml
-git commit -m "feat: rename menu to Produktionsaufträge, restrict to leitstand+tracking, keep Kommissionierung for pickers"
+git commit -m "feat: conditional menu (Produktionsaufträge/Werkstattaufträge), picking badge count"
 ```
 
 ---
 
-## Task 8: Tests ausführen + Dokumentation
+## Task 8: Tests + Dokumentation + Version
 
 **Files:**
 - Modify: `CLAUDE.md`, `README.md`, `PROJECT_STATUS.md`
@@ -959,70 +1011,54 @@ git commit -m "feat: rename menu to Produktionsaufträge, restrict to leitstand+
 - [ ] **Step 1: Alle Tests ausführen**
 
 Run: `dotnet test IdealAkeWms.Tests`
-Expected: All tests pass (208+ tests)
+Expected: All tests pass
 
-- [ ] **Step 2: Version hochzählen**
+- [ ] **Step 2: Version auf 1.2.0 setzen**
 
-Beide `AppVersion.cs` auf `1.2.0` setzen.
+Beide `AppVersion.cs` (Web + Service): `Version = "1.2.0"`, `Date` auf aktuelles Datum.
 
-- [ ] **Step 3: Changelog + Hilfe + README + PROJECT_STATUS + CLAUDE.md aktualisieren**
+- [ ] **Step 3: Changelog.cshtml — v1.2.0 Block hinzufügen**
 
-Inhalte:
-- Neue Rolle `leitstand` beschreiben
-- Neues Berechtigungskonzept für Produktionsaufträge vs Kommissionierung
-- Freigabe-Workflow dokumentieren
-- Fortschrittsbalken erklären
-- Menü-Änderung (Werkstattaufträge → Produktionsaufträge) dokumentieren
-- CLAUDE.md: Neue Fallstricke ergänzen (Picking ist jetzt client-seitig, Menü-Sichtbarkeit, Agent-Job respektiert neue Felder)
+Neuer Block mit:
+- Leitstand-Funktion: Kommissionier-Freigabe und Priorisierung
+- Neue Rolle "Leitstand"
+- Einzel- und Massenfreigabe
+- Numerische Priorisierung
+- Neue Kommissionierliste (Tabelle statt Dropdown)
+- Feature per Setting aktivierbar
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Help/Index.cshtml — Leitstand-Sektion hinzufügen**
+
+Neue Card mit Anleitung:
+- Aktivierung per Settings
+- Freigabe-Workflow erklären
+- Priorisierung erklären
+- Kommissionierliste erklären
+
+- [ ] **Step 5: README.md, PROJECT_STATUS.md, CLAUDE.md aktualisieren**
+
+- README: Neuer Abschnitt "Leitstand / Kommissionier-Freigabe", AppSetting `LeitstandAktiv`, Rolle `leitstand`
+- PROJECT_STATUS: Version 1.2.0, Feature-Status "Fertig"
+- CLAUDE.md: Neue Rolle, Berechtigung, Menü-Sichtbarkeitsregeln, Fallstricke (Toggle-Verhalten, BOM-Zugriff ohne Release-Check)
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add -A
-git commit -m "docs: update version to 1.2.0, changelog, help page, README, CLAUDE.md for Leitstand feature"
+git commit -m "docs: update version to 1.2.0, changelog, help, README, CLAUDE.md for Leitstand feature"
 ```
 
 ---
 
-## Verifikation (manuell nach Deployment)
+## Zusammenfassung
 
-### A. LeitstandAktiv = false (Rückwärtskompatibilität)
-
-| Test | Erwartung |
-|------|-----------|
-| Menü für Picker | Sieht "Werkstattaufträge" + "Kommissionierung" (wie bisher) |
-| Kommissionierung öffnen | Zeigt Dropdown-Auswahl (wie bisher) |
-| WA-Liste | Keine Freigabe-Spalte sichtbar |
-| Settings-Seite | Zeigt `LeitstandAktiv` Toggle auf "Deaktiviert" |
-
-### B. LeitstandAktiv = true (neues Feature)
-
-| Test | Erwartung |
-|------|-----------|
-| Leitstand-User öffnet Produktionsaufträge | Sieht Freigabe-Spalte mit Toggle-Button + Prioritäts-Eingabe |
-| Leitstand gibt WA frei | Badge "Freigegeben" erscheint, `ReleasedAt`/`ReleasedBy` in DB |
-| Leitstand setzt Priorität 1 | Wird per AJAX gespeichert, kein Page-Reload |
-| Kommissionierer öffnet Menü | Sieht NUR "Kommissionierung", NICHT "Produktionsaufträge" |
-| Kommissionierer öffnet Kommissionierung | Tabelle mit freigegebenen Aufträgen, sortiert nach Priorität |
-| Fortschrittsbalken | Grün = umgebucht, Blau = gepickt, Zahl "12/45" |
-| Klick auf Zeile in Kommissionierliste | Öffnet Stücklisten-View (Bom) |
-| Tracking-User | Sieht "Produktionsaufträge" read-only (keine Freigabe-Spalte) |
-| Admin | Sieht alles (Produktionsaufträge mit Freigabe + Kommissionierung) |
-| Leitstand nimmt Freigabe zurück | WA verschwindet aus Kommissionierliste, PickingItems bleiben |
-| Auftrag ohne PickingItems in Kommissionierliste | Zeigt "0/0", beim Klick wird BOM initialisiert |
-
----
-
-## Design-Entscheidungen
-
-| Frage | Entscheidung | Begründung |
-|-------|-------------|------------|
-| Prioritäts-UI | Inline Number-Input + AJAX | Einfacher als Drag & Drop, konsistent mit bestehenden Patterns |
-| Freigabe-API | POST mit AntiForgery (kein AJAX-Toggle) | Audit-Trail wichtig (ReleasedAt/By werden gesetzt) |
-| Un-Release mit gepickten Items | Erlaubt, Items bleiben | Kein Datenverlust, Re-Release stellt Fortschritt wieder her |
-| Fortschritts-Berechnung | Einzige GROUP BY Query | Vermeidet N+1, performant auch bei vielen Aufträgen |
-| Menü-Sichtbarkeit | Picking-User sehen Produktionsaufträge NICHT | Klare Trennung: Leitstand steuert, Kommissionierer arbeitet ab |
-| Progress Bar | Stacked: grün (transferred) + blau (picked) | Zwei Phasen des Workflows visuell unterscheidbar |
-| Feature-Toggle | `LeitstandAktiv` AppSetting (Default: false) | Rückwärtskompatibilität, schrittweises Rollout |
-| Deaktivierter Toggle | Altes Verhalten (Dropdown, WA-Liste für alle) | Kein Breaking Change bei bestehenden Installationen |
-| Picking.cshtml Fallback | Alte View als `PickingDropdown.cshtml` erhalten | Controller wählt View je nach Toggle |
+| Task | Inhalt | Neue Dateien | Geänderte Dateien |
+|------|--------|-------------|-------------------|
+| 1 | DB-Schema + Model + EF Migration | SQL/37, EF Migration | ProductionOrder.cs, Program.cs, SQL/00, AgentJobs |
+| 2 | Rolle + Permission + Filter | RequireLeitstandAccess.cs | RoleKeys.cs, ICurrentUserService.cs, CurrentUserService.cs |
+| 3 | Repository-Methoden + Tests | Tests | IProductionOrderRepository.cs, ProductionOrderRepository.cs |
+| 4 | ViewModels | PickingListViewModel.cs | ProductionOrderViewModel.cs |
+| 5 | Controller (Index, Picking, 3 neue Actions) | — | ProductionOrdersController.cs |
+| 6 | Views (Index, Picking, PickingDropdown) | Picking.cshtml, PickingDropdown.cshtml | Index.cshtml |
+| 7 | Navigation (Menü + Badge) | — | _Layout.cshtml |
+| 8 | Tests + Dokumentation + Version | — | Alle Docs |
