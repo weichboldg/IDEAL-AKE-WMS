@@ -1,0 +1,53 @@
+@model List<OrderRecipientGroup>
+@{
+    ViewData["Title"] = "Empfängergruppen";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Empfängergruppen</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="ArticleGroupMappings" class="btn btn-outline-secondary">Artikelgruppen-Zuordnung</a>
+        <a asp-action="Create" class="btn btn-primary">Neue Gruppe</a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Beschreibung</th>
+                <th>Empfänger</th>
+                <th style="width: 160px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var group in Model)
+            {
+                <tr>
+                    <td>@group.Name</td>
+                    <td>@group.Description</td>
+                    <td>
+                        <span class="badge bg-secondary">@group.Recipients.Count</span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a asp-action="Edit" asp-route-id="@group.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                            <form asp-action="Delete" asp-route-id="@group.Id" method="post"
+                                  onsubmit="return confirm('Empfängergruppe wirklich löschen?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">Keine Empfängergruppen vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

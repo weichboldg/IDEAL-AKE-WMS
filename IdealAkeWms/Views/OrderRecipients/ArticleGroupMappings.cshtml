@@ -1,0 +1,67 @@
+@model ArticleGroupMappingsPageViewModel
+@{
+    ViewData["Title"] = "Artikelgruppen-Zuordnung";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Artikelgruppen-Zuordnung</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">Zurück zu Empfängergruppen</a>
+</div>
+
+@if (!Model.AvailableGroups.Any())
+{
+    <div class="alert alert-info">
+        Es sind noch keine Empfängergruppen vorhanden. <a asp-action="Create">Erstellen Sie zuerst eine Gruppe.</a>
+    </div>
+}
+else if (!Model.Mappings.Any())
+{
+    <div class="alert alert-info">
+        Es sind noch keine Artikelgruppen vorhanden. Artikelgruppen werden aus den vorhandenen Artikeln ermittelt.
+    </div>
+}
+else
+{
+    <form asp-action="SaveArticleGroupMappings" method="post">
+        @Html.AntiForgeryToken()
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Artikelgruppe</th>
+                        @foreach (var group in Model.AvailableGroups)
+                        {
+                            <th class="text-center" style="min-width: 120px;">@group.Name</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Mappings.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@Model.Mappings[i].ArticleGroup</strong>
+                                <input type="hidden" name="Mappings[@i].ArticleGroup" value="@Model.Mappings[i].ArticleGroup" />
+                            </td>
+                            @foreach (var group in Model.AvailableGroups)
+                            {
+                                var isChecked = Model.Mappings[i].SelectedGroupIds.Contains(group.Id);
+                                <td class="text-center">
+                                    <input type="checkbox"
+                                           name="Mappings[@i].SelectedGroupIds"
+                                           value="@group.Id"
+                                           class="form-check-input"
+                                           @(isChecked ? "checked" : "") />
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Zuordnungen speichern</button>
+        </div>
+    </form>
+}
