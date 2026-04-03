@@ -18,7 +18,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Lagerplatz-Umbuchung (en bloc) | Fertig |
 | Bestandsübersicht | Fertig |
 | Bewegungshistorie | Fertig |
-| Werkstattaufträge | Fertig |
+| Fertigungsaufträge | Fertig |
 | Kommissionierung (BOM/Stückliste) | Fertig |
 | BOM-Filter (Multi-Wert, Ausschluss) | Fertig |
 | BOM-Druck mit Filterübertragung | Fertig |
@@ -31,7 +31,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | OSEON Teileverfolgung | Fertig |
 | OSEON AG-Konfiguration (Soll-Termine + Relevanz) | Fertig |
 | Rollenbasierte Zugriffskontrolle | Fertig (Phase 1) |
-| KW-Filter in Werkstattauftraegen | Fertig |
+| KW-Filter in Fertigungsauftraegen | Fertig |
 | enaio DMS-Integration | Fertig |
 | Bestandsuebersicht FA-Filter + QR-Scan | Fertig |
 | Responsive Design (Mobile) | Fertig |
@@ -117,8 +117,8 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 ### v1.0.0 — Erstrelease mit Versionierung
 
 #### Neue Funktionen
-- **KW-Filter (Werkstattauftraege)**: ISO 8601 Kalenderwoche in allen 5 Datumsspalten. Kalender-Popup im Spaltenfilter mit KW-Spalte — Klick auf KW oder Tag filtert
-- **enaio DMS-Integration**: Entity `EnaioDmsDocument`, Sync-Service im Windows-Service (Delta-Sync aus enaio DB), orange Link-Icons neben WA-Nummern in der Werkstattauftraege-View. Connection String `EnaioDmsConnection` in appsettings.json
+- **KW-Filter (Fertigungsauftraege)**: ISO 8601 Kalenderwoche in allen 5 Datumsspalten. Kalender-Popup im Spaltenfilter mit KW-Spalte — Klick auf KW oder Tag filtert
+- **enaio DMS-Integration**: Entity `EnaioDmsDocument`, Sync-Service im Windows-Service (Delta-Sync aus enaio DB), orange Link-Icons neben FA-Nummern in der Fertigungsauftraege-View. Connection String `EnaioDmsConnection` in appsettings.json
 - **Bestandsuebersicht FA-Filter**: Dedizierte Methode `GetStockByProductionOrderAsync()` zeigt Netto-Bestand pro Artikel+Lagerplatz fuer einen Fertigungsauftrag
 - **Bestandsuebersicht QR-Scan**: Artikel-QR-Scan-Button und FA-QR-Scan-Button (scanType `productionOrder` extrahiert 3. Position)
 - **Responsive Design**: Mobile-first CSS, Touch Targets 44px, Sticky Scrollbar, Navbar-User im Hamburger-Menue, flex-wrap auf Page Headers
@@ -126,7 +126,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 
 #### Verbesserungen
 - **Kommissionierwagen-Filterung**: Wagen nicht in Stuecklisten-Bestand/Dropdowns, keine Meldebestand-Farbcodierung, nicht in BOM `GetStockByArticleNumbersAsync`
-- **Spalten optimiert**: WA-Nr + Stk. verkleinert, Stk. ohne Filter, Positions-Spalte in Stueckliste verkleinert
+- **Spalten optimiert**: FA-Nr + Stk. verkleinert, Stk. ohne Filter, Positions-Spalte in Stueckliste verkleinert
 - **iPhone/iPad Hilfe**: Abschnitt auf Help-Seite fuer dauerhaften Kamerazugriff
 
 #### Fehlerbehebungen
@@ -181,7 +181,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - **EF Migration**: `20260318150710_AddOseonTimestamps`
 
 ### OSEON Teileverfolgung — UI-Verbesserungen
-- **showFinished=true auf OSEON-Link**: Button in WA-Liste (`ProductionOrders/Index`) setzt `asp-route-showFinished="true"`, damit auch abgeschlossene Aufträge sichtbar sind
+- **showFinished=true auf OSEON-Link**: Button in FA-Liste (`ProductionOrders/Index`) setzt `asp-route-showFinished="true"`, damit auch abgeschlossene Aufträge sichtbar sind
 - **Erst-AG/Letzt-AG Badges entfernt**: `IsFirstOperation`/`IsLastOperation`-Anzeige in `OseonIndex.cshtml` ausgeblendet (wurde falsch dargestellt, nicht benötigt)
 - **Hilfe-Seite aktualisiert**: OSEON-Teileverfolgung-Abschnitt beschreibt „Fertige anzeigen" Automatik
 
@@ -197,16 +197,16 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - **IIS App-Pool**: Empfohlene Settings in README dokumentiert (Idle Timeout, AlwaysRunning, Preload)
 
 ### Werkbank-Spalte & Sync
-- **WA-Liste**: Neue Spalte "Werkbank" in ProductionOrders/Index (filterbar, nach Bezeichnung 2)
+- **FA-Liste**: Neue Spalte "Werkbank" in ProductionOrders/Index (filterbar, nach Bezeichnung 2)
 - **Werkbank-Sync**: Neuer Sync-Schritt in `OseonSyncService.SyncWorkplacesToProductionOrdersAsync()` — überträgt `ProductionWorkplaceId` von OSEON-Aufträgen auf Sage-Aufträge (Match: `OrderNumber` ↔ `CustomerOrderNumber`)
 - **Nur fehlende**: Bereits manuell gesetzte Werkbänke werden nicht überschrieben
 - **Automatisch**: Läuft nach OSEON-Tracking-Sync wenn `Sync:OseonTrackingEnabled = true`
 
-### WA-Liste Kompaktierung & Berechtigungen
+### FA-Liste Kompaktierung & Berechtigungen
 - **Kompakte Spaltenheader**: Datums-Spalten verkürzt (Beschicht., BG-Termin, Komm., Fert.-Termin), Glas/Zukauf Spalten schmaler
 - **Tracking-User Zugriff**: `ProductionOrdersController.Index` erlaubt jetzt auch Tracking-User (neuer Filter `[RequirePickingOrTrackingAccess]`)
 - **Read-Only für Tracking-User**: Stückliste-Button, Erledigt-Toggle und Glas/Zukauf-Checkboxen nur für Picking-User sichtbar/aktiv
-- **Navbar**: Werkstattaufträge-Link erscheint auch für Tracking-User (ohne Picking-Berechtigung)
+- **Navbar**: Fertigungsaufträge-Link erscheint auch für Tracking-User (ohne Picking-Berechtigung)
 
 ### OSEON Teileverfolgung - Verbesserungen
 - **Baumstruktur**: Komplett umgebaut — echte Tree-View mit Ordner-Icons, Dokument-Icons, Uhr-Icons pro Ebene, Einrückung und Chevrons (wie Stückliste)
@@ -214,8 +214,8 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - **Filter erweitert**: Suche durchsucht jetzt auch `OseonOrderNumber` (nicht nur `CustomerOrderNumber`)
 - **Gruppen-Logik**: Bei `showFinished=false` nur Gruppen mit offenen Aufträgen, aber ALLE Sub-Aufträge (inkl. fertige) angezeigt
 - **PA-Status**: Aggregierter Status (Badge) auf Gruppenebene (Ebene 0) angezeigt
-- **OSEON-Button in WA-Liste**: Neuer Button in ProductionOrders/Index verlinkt zur OSEON-Teileverfolgung mit WA als Filter
-- **Erledigt-Button**: In WA-Liste nach rechts verschoben (letzte Spalte)
+- **OSEON-Button in FA-Liste**: Neuer Button in ProductionOrders/Index verlinkt zur OSEON-Teileverfolgung mit FA als Filter
+- **Erledigt-Button**: In FA-Liste nach rechts verschoben (letzte Spalte)
 - **Performance-Indizes**: `SQL/30_OseonPerformanceIndexes.sql` — Indizes auf OseonStatus und WorkplaceName mit INCLUDE
 - **Sync-Filter**: OSEON-Query filtert alte fertige Aufträge aus (Status 90/95 älter als 3 Monate)
 - **Alle aufklappen/zuklappen**: Buttons in der OSEON-Teileverfolgung (wie Stückliste)
@@ -259,8 +259,8 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 **Betroffene Dateien**: PickingRepository.cs, ProductionOrdersController.cs, Bom.cshtml
 **Hinweis**: Bestehende PickingItems müssen ggf. gelöscht werden (Neu-Initialisierung beim nächsten Öffnen).
 
-### Werkstattaufträge: Spaltenreihenfolge
-- Neue Reihenfolge: WA Nummer, Stückzahl, Kunde, Artikelnummer, Bezeichnung 1, Bezeichnung 2, **Beschichtung**, **Baugruppentermin** (vorher "Vorkommissionierung"), **Kommissionierung**, Fertigungstermin, Liefertermin, Status
+### Fertigungsaufträge: Spaltenreihenfolge
+- Neue Reihenfolge: FA Nummer, Stückzahl, Kunde, Artikelnummer, Bezeichnung 1, Bezeichnung 2, **Beschichtung**, **Baugruppentermin** (vorher "Vorkommissionierung"), **Kommissionierung**, Fertigungstermin, Liefertermin, Status
 - Kommissionierung: hellblau (CI) + fett; bei Überschreitung rot
 - **Betroffene Dateien**: Views/ProductionOrders/Index.cshtml, wwwroot/css/site.css
 
@@ -433,7 +433,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 
 ### Feature: Teileverfolgung — Phase 2 (UI-Masken)
 - **Neue Ansicht "Teileverfolgung"**: Eigener Menüpunkt in Navbar (sichtbar nur wenn `TeileverfolgungAktiv = true` + User hat `CanViewTracking`)
-- **Auftragsübersicht** (`Tracking/Index`): Aufträge mit aufklappbaren Arbeitsgängen, Filter nach WA-Nummer/Werkbank/Status, Fortschritts-Badge (x/y)
+- **Auftragsübersicht** (`Tracking/Index`): Aufträge mit aufklappbaren Arbeitsgängen, Filter nach FA-Nummer/Werkbank/Status, Fortschritts-Badge (x/y)
 - **Werkbank-Ansicht** (`Tracking/ByWorkplace`): Alle Arbeitsgänge einer Werkbank, sortiert nach Auftrag + Reihenfolge
 - **Rückmeldung**: POST-Actions `Report`/`UndoReport` — nur für User mit `CanReportOperations`
 - **Berechtigungen**: `[RequireTrackingAccess]` Filter-Attribute (Pattern wie RequireMasterDataAccess)
@@ -446,7 +446,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 ### Erledigt: Teileverfolgung — Phase 3 (OSEON Import + Anzeige)
 - **Oseon-Aufträge**: `OseonProductionOrder` + `OseonWorkOperation` Entities, Sync via `OseonSyncService` (IDEALAKEWMSService)
 - **3-Ebenen Baumansicht**: Tree-View mit Ordner/Dokument/Uhr-Icons, Pagination (25/Seite), Ampelsystem
-- **WA-Link**: OSEON-Teileverfolgung-Button in Werkstattaufträge-Liste
+- **FA-Link**: OSEON-Teileverfolgung-Button in Fertigungsaufträge-Liste
 - **Details**: Siehe Änderungen 17.03 + 18.03.2026
 
 ### Zukünftige Funktionen (geplant, noch nicht implementiert)
@@ -459,7 +459,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 ## Änderungen (17.03.2026)
 
 ### Feature: Berechtigungsbasiertes Dashboard + Menü
-- `CanPick`-Berechtigung steuert Sichtbarkeit von Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung (Menü + Dashboard + Controller-Filter `[RequirePickingAccess]`)
+- `CanPick`-Berechtigung steuert Sichtbarkeit von Lagerbewegungen, Bestände, Fertigungsaufträge, Kommissionierung (Menü + Dashboard + Controller-Filter `[RequirePickingAccess]`)
 - Teileverfolgung als Dashboard-Kachel hinzugefügt (sichtbar wenn `TeileverfolgungAktiv + CanViewTracking`)
 - Stammdaten-Kacheln (Benutzer, Arbeitsplätze) nur bei `HasMasterDataAccess`
 - **Neue Datei**: `Filters/RequirePickingAccessAttribute.cs`
@@ -525,7 +525,7 @@ Die VIEW liegt in der `ake`-Datenbank und liefert:
 - `Services/PrintService.cs` - Server-seitiger Druck
 - `Services/OseonTrafficLightService.cs` - OSEON Ampelberechnung
 - `IDEALAKEWMSService/Services/OseonSyncService.cs` - OSEON-Daten-Sync
-- `Views/ProductionOrders/Index.cshtml` - WA-Liste (Stückliste, OSEON-Link, Erledigt)
+- `Views/ProductionOrders/Index.cshtml` - FA-Liste (Stückliste, OSEON-Link, Erledigt)
 - `Views/ProductionOrders/Bom.cshtml` - Stücklisten-View mit Picking + Baum + kombiniertem Filter
 - `Views/ProductionOrders/PrintBom.cshtml` - Druck-View: vollständige Stückliste (mit Filterübertragung)
 - `Views/ProductionOrders/PrintPicking.cshtml` - Druck-View: nur gepickte Artikel

@@ -129,8 +129,8 @@
   - Menüpunkte Kommissionierung nur sichtbar wenn `CanPickAsync() == true`
   - Rollen: `admin`, `picking`
 - **`[RequirePickingOrTrackingAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `CanPickAsync() || CanViewTrackingAsync()`
-  - Angewendet auf: `ProductionOrdersController.Index` — Tracking-User sehen WA-Liste (read-only, ohne Stückliste/Erledigt), können OSEON Teileverfolgung öffnen
-  - Navbar: Werkstattaufträge-Link erscheint auch für Tracking-User (wenn kein Picking-Zugriff)
+  - Angewendet auf: `ProductionOrdersController.Index` — Tracking-User sehen FA-Liste (read-only, ohne Stückliste/Erledigt), können OSEON Teileverfolgung öffnen
+  - Navbar: Fertigungsaufträge-Link erscheint auch für Tracking-User (wenn kein Picking-Zugriff)
 - **`[RequireStockAccess]`** — TypeFilterAttribute in `Filters/`, nutzt `ICurrentUserService.CanAccessStockAsync()`
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Angewendet auf: `StockMovementsController` (Einbuchung, Ausbuchung, Umbuchung, Index), `StockOverviewController`
@@ -250,7 +250,7 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Razor v@ wird als E-Mail interpretiert**: `v@Namespace.Class.Property` wird von Razor als E-Mail-Adresse geparst. Immer `v@(Namespace.Class.Property)` mit Klammern verwenden
 - **Select2-Text-Format fuer Artikel**: Die Select2-API (`/api/articles/search`) liefert `"ArticleNumber - Description"` (mit Hyphen ` - `). Bei Text-Parsing immer `.split(' - ')[0]` verwenden, NICHT Em-Dash `' — '`
 - **Bedarfsmeldung Empfaenger**: Im Bestell-Modal werden Empfaenger per E-Mail-Adresse (nicht per ID) an den Server gesendet. Checkbox-Value = E-Mail, Request-Property = `SelectedEmails`. `OrderRecipientGroupId` wird server-seitig aus dem Artikelgruppen-Mapping ermittelt
-- **Leitstand Toggle-Verhalten**: Wenn `LeitstandAktiv=false`, zeigt Picking() die alte Dropdown-View (`PickingDropdown.cshtml`). Wenn `true`, die neue Tabelle. Menuetext wechselt zwischen "Werkstattauftraege" und "Produktionsauftraege"
+- **Leitstand Toggle-Verhalten**: Wenn `LeitstandAktiv=false`, zeigt Picking() die alte Dropdown-View (`PickingDropdown.cshtml`). Wenn `true`, die neue Tabelle. Menuetext wechselt zwischen "Fertigungsauftraege" und "Produktionsauftraege"
 - **Leitstand Index-Action hat kein Filter-Attribut**: Die Index-Action von ProductionOrdersController prueft Berechtigungen manuell im Methoden-Body (CanPick OR CanViewTracking OR CanManagePickingRelease), weil kein bestehender Filter alle drei Rollen abdeckt
 - **Leitstand Freigabe ohne Artikelnummer**: `ToggleRelease` prueft ob `ArticleNumber` vorhanden ist. Ohne Artikelnummer → TempData WarningMessage, keine Freigabe. Die `BulkRelease`-Action ueberspringt solche Auftraege und meldet sie als "uebersprungen"
 - **Leitstand PickingPriority NULL = niedrigste**: Auftraege ohne Prioritaet werden ans Ende sortiert (`OrderBy PickingPriority.HasValue ? 0 : 1, ThenBy PickingPriority`)
@@ -334,7 +334,7 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - **Pagination**: Server-seitig, 25 Gruppen pro Seite. Repository-Methode `GetPagedAsync()` paginiert nach CustomerOrderNumber-Gruppen
 - **Filter**: Suche durchsucht sowohl `CustomerOrderNumber` als auch `OseonOrderNumber`
 - **Gruppen-Logik**: Bei `showFinished=false` werden nur Gruppen mit mind. einem offenen Auftrag angezeigt, aber ALLE Sub-Aufträge der Gruppe (inkl. fertige) geladen
-- **WA-Link**: ProductionOrders/Index hat OSEON-Teileverfolgung-Button der WA-Nummer als Filter übergibt (`showFinished=true` automatisch gesetzt, damit auch abgeschlossene Aufträge sichtbar)
+- **FA-Link**: ProductionOrders/Index hat OSEON-Teileverfolgung-Button der FA-Nummer als Filter übergibt (`showFinished=true` automatisch gesetzt, damit auch abgeschlossene Aufträge sichtbar)
 - **Navbar**: Teileverfolgung → Dropdown mit "Rückmeldungen" und "OSEON Aufträge"
 - **SQL**: `SQL/29_AddOseonTracking.sql`, `SQL/30_OseonPerformanceIndexes.sql`, `SQL/31_AddOseonTimestamps.sql`
 - **Delta-Sync**: `OseonProductionOrder.LastChangedInOseon` (pa.DateOfLastChange) + `OseonWorkOperation.LastStatusReportInOseon` (aga.LetzteStatusMeldung) — beim Sync wird `MAX(LastChangedInOseon)` gelesen und als Filter auf die OSEON-Query angewendet (mit 5 Min Puffer). Erster Lauf = Full-Sync, danach nur Delta.
@@ -349,8 +349,8 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - **Datenquelle**: enaio DB (`AKESQL20`, DB: `enaio`) — `sysadm.object1` (feld1=Typ, feld44=WA-Nr, feld43=Zeichnungs-Nr)
 - **Sync**: `EnaioDmsSyncService` im IDEALAKEWMSService, gesteuert per `Sync:EnaioDmsEnabled` in appsettings.json — Delta-Sync via `MAX(LastSyncedAt) - 5 Min`
 - **Link-Format**: `http://akeosapp.ake.at/oscontentviewer/viewer/{EnaioDmsObjectId}/?pagecount=1`
-- **View**: Werkstattauftraege-Index zeigt enaio-Icons neben WA-Nummer (orange Dokument/Zeichnungs-Icon)
-- **Bulk-Lookup**: `GetByOrderNumbersAsync()` laedt alle DMS-Links fuer die angezeigten WA-Nummern in einem Query
+- **View**: Fertigungsauftraege-Index zeigt enaio-Icons neben FA-Nummer (orange Dokument/Zeichnungs-Icon)
+- **Bulk-Lookup**: `GetByOrderNumbersAsync()` laedt alle DMS-Links fuer die angezeigten FA-Nummern in einem Query
 - **SQL**: `SQL/35_AddEnaioDmsDocuments.sql`
 
 ## Bedarfsmeldungen
@@ -364,7 +364,7 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - **AppSetting**: `BestellungenAktiv` (`false`) — Globaler Schalter fuer das Feature
 - **SQL**: `SQL/36_AddPartRequisitions.sql`
 
-## KW-Filter (Werkstattauftraege)
+## KW-Filter (Fertigungsauftraege)
 
 - **KW-Anzeige**: Alle 5 Datumsspalten zeigen ISO 8601 KW an (z.B. "07.01.2026 KW2") via `ISOWeek.GetWeekOfYear()`
 - **Kalender-Popup**: Datumsspalten (Attribut `data-date-filter`) haben ein Kalender-Icon im Spaltenfilter. Klick oeffnet Monatskalender mit KW-Spalte. Klick auf KW filtert nach "KWxx", Klick auf Tag filtert nach "dd.MM.yyyy"
@@ -417,7 +417,7 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `Data/Repositories/OseonProductionOrderRepository.cs` — Repository mit `GetPagedAsync()` für server-seitige Paginierung
 - `Models/ViewModels/OseonTrackingViewModel.cs` — ViewModels für 3-Ebenen Tree-View + Pagination
 - `Views/Tracking/OseonIndex.cshtml` — OSEON Tree-View (Ordner/Dokument/Uhr-Icons, Chevrons, Alle auf-/zuklappen)
-- `Views/ProductionOrders/Index.cshtml` — WA-Liste (Stückliste-Button vorne, OSEON+Erledigt-Buttons hinten)
+- `Views/ProductionOrders/Index.cshtml` — FA-Liste (Stückliste-Button vorne, OSEON+Erledigt-Buttons hinten)
 - `IDEALAKEWMSService/Services/OseonSyncService.cs` — OSEON-Daten-Sync (filtert alte fertige Aufträge aus)
 - `Models/Role.cs` — Rollen-Entity (Key, Name, Description, AdGroup)
 - `Models/UserRole.cs` — User-Rolle Junction (Many-to-Many)
