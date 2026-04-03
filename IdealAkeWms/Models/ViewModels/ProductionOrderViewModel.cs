@@ -11,6 +11,8 @@ public class ProductionOrderViewModel
     public int VorkommissionierTage { get; set; }
     public int BeschichtungTage { get; set; }
     public bool CanPick { get; set; }
+    public bool CanManagePickingRelease { get; set; }
+    public bool LeitstandAktiv { get; set; }
 
     /// <summary>enaio DMS-Links pro WA-Nummer (Key=OrderNumber, Value=Liste von DMS-Dokumenten)</summary>
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
@@ -38,4 +40,10 @@ public class ProductionOrderViewItem
     public bool HasGlass { get; set; }
     public bool HasExternalPurchase { get; set; }
     public string? WorkplaceName { get; set; }
+
+    // Leitstand: Freigabe
+    public bool IsReleasedForPicking { get; set; }
+    public int? PickingPriority { get; set; }
+    public DateTime? ReleasedAt { get; set; }
+    public string? ReleasedBy { get; set; }
 }
