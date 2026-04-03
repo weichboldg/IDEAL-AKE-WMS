@@ -87,6 +87,22 @@ public class SyncWorker : BackgroundService
                         enaioDmsResult.Inserted, enaioDmsResult.Updated, enaioDmsResult.Errors,
                         enaioDmsResult.ErrorDetails != null ? $" Details: {enaioDmsResult.ErrorDetails}" : "");
                 }
+
+                // --- Bedarfsmeldungen E-Mail-Versand ---
+                if (_configuration.GetValue<bool>("Sync:PartRequisitionEmailEnabled", false))
+                {
+                    try
+                    {
+                        var emailService = scope.ServiceProvider.GetRequiredService<IPartRequisitionEmailService>();
+                        var sentCount = await emailService.SendPendingEmailsAsync(dryRun, stoppingToken);
+                        if (sentCount > 0)
+                            _logger.LogInformation("Bedarfsmeldungen: {Count} E-Mails versendet.", sentCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Fehler beim Versand der Bedarfsmeldungs-E-Mails.");
+                    }
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {

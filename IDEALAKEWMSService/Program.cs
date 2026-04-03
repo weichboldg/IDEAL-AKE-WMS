@@ -28,6 +28,7 @@ try
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
     builder.Services.AddScoped<IMailService, MailService>();
+    builder.Services.AddScoped<IPartRequisitionEmailService, PartRequisitionEmailService>();
 
     // Workers
     builder.Services.AddHostedService<SyncWorker>();
