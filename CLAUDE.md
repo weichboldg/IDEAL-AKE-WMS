@@ -409,7 +409,7 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `Data/Repositories/BomRepository.cs` — SAGE-View → Fallback OSEON-SP; liefert `BomQueryResult`
 - `Views/Shared/_Layout.cshtml` — Navbar + TempData-Alerts + User-Dropdown
 - `Views/Shared/_Select2ArticlePartial.cshtml` — Select2-Integration (Artikel)
-- `Views/ProductionOrders/Bom.cshtml` — Stücklisten-View (Baum, Picking, Transfer-AJAX, Datenquelle-Badge)
+- `Views/Picking/Bom.cshtml` — Stücklisten-View (Baum, Picking, Transfer-AJAX, Datenquelle-Badge)
 - `Views/Account/Profile.cshtml` — Profil-Seite (Passwort + BOM-Filter + RecursiveFilterSearch)
 - `wwwroot/css/site.css` — Corporate Design, Navbar-Styles, `.navbar-logo-wrapper`
 - `wwwroot/images/ideal-ake-logo.svg` — Logo (eingebettetes PNG, weißer Hintergrund)
@@ -464,7 +464,7 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `SQL/36_AddPartRequisitions.sql` — Migration fuer Bedarfsmeldungs-Tabellen
 - `Filters/RequireLeitstandAccessAttribute.cs` — Zugriffskontrolle fuer Leitstand-Funktionen
 - `Models/ViewModels/PickingListViewModel.cs` — ViewModel fuer Kommissionierliste (Tabelle)
-- `Views/ProductionOrders/PickingDropdown.cshtml` — Fallback-View (alte Dropdown-Auswahl bei LeitstandAktiv=false)
+- `Views/Picking/IndexDropdown.cshtml` — Fallback-View (alte Dropdown-Auswahl bei LeitstandAktiv=false)
 - `SQL/37_AddPickingRelease.sql` — Migration fuer Leitstand-Felder + Rolle + AppSetting
 
 ## Bestandsuebersicht
