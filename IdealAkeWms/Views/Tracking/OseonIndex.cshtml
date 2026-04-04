@@ -31,6 +31,7 @@
             </div>
             <div class="col-auto">
                 <div class="form-check mt-1">
+                    <input type="hidden" name="useRelevanceFilter" value="false" />
                     <input type="checkbox" class="form-check-input" id="useRelevanceFilter" name="useRelevanceFilter" value="true"
                            @(Model.UseRelevanceFilter ? "checked" : "") />
                     <label class="form-check-label small" for="useRelevanceFilter">OSEON-Relevanz</label>
