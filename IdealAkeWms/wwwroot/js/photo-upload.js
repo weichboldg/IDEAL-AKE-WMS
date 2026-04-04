@@ -56,7 +56,7 @@ function initPhotoUpload(productionOrderId, token) {
             formData.append('productionOrderId', productionOrderId);
 
             $.ajax({
-                url: '/ProductionOrders/UploadPhoto',
+                url: '/api/photos/upload',
                 type: 'POST',
                 data: formData,
                 processData: false,
@@ -77,7 +77,7 @@ function initPhotoUpload(productionOrderId, token) {
     }
 
     function loadPhotos() {
-        $.get('/ProductionOrders/GetPhotos?productionOrderId=' + productionOrderId, function (photos) {
+        $.get('/api/photos/' + productionOrderId, function (photos) {
             photoGrid.innerHTML = '';
             photos.forEach(function (photo) {
                 addPhotoThumbnail(photo.fileName, photo.url);
@@ -115,7 +115,7 @@ function initPhotoUpload(productionOrderId, token) {
 
     function deletePhoto(fileName, element) {
         $.ajax({
-            url: '/ProductionOrders/DeletePhoto',
+            url: '/api/photos/delete',
             type: 'POST',
             data: { fileName: fileName },
             headers: { 'RequestVerificationToken': token },
