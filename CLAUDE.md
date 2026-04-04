@@ -236,7 +236,7 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur `Key` (PK), `Value`, `Description`. Kein `CreatedAt`!
 - **PickingItem.RowVersion**: `[Timestamp]` für Optimistic Concurrency — EF InMemory unterstützt das nicht → `TestApplicationDbContext`
 - **Drucker-Pfad-Format**: UNC-Pfad `\\DRUCKSERVER\Druckername` (Workstation.DefaultPrinter)
-- **Dictionary-Binding + Checkbox**: `Dictionary<string, string>` nimmt bei doppelten Keys den ersten Wert → Hidden+Checkbox mit gleichem `name` funktioniert NICHT. Lösung: Checkbox ohne `name`, stattdessen JS aktualisiert den Wert des Hidden-Inputs
+- **Boolean-Checkbox in Forms**: Hidden+Checkbox mit gleichem `name` funktioniert NICHT zuverlaessig in ASP.NET Core. Beim Unchecken wird der Wert nicht korrekt uebermittelt. **Loesung**: Nur das Hidden-Input bekommt `name`, die Checkbox hat KEINEN `name` sondern einen `onchange`-Handler der den Hidden-Wert synchronisiert: `onchange="document.getElementById('hidden-id').value = this.checked ? 'true' : 'false'"`. Gilt fuer ALLE Boolean-Checkboxen in Forms — auch bei einfachen bool-Properties, nicht nur bei Dictionaries. Beispiel: `OperationConfig.cshtml` (IsOseonRelevant)
 - **QR-Code Komma-Suffix**: FA-Nummer im QR kann Komma-Suffix haben (z.B. `2610063,09`) → immer `.split(',')[0]` verwenden
 - **Scanner-Endlosschleife**: `confirm()` nach fehlgeschlagenem Scan → Scanner öffnet sofort → Kamera liest denselben QR → Endlosschleife. Lösung: Bootstrap-Modal statt `confirm()` verwenden
 - **EF PendingModelChangesWarning**: Bei neuen Indizes/Model-Änderungen im `ApplicationDbContext.OnModelCreating` immer `dotnet ef migrations add` ausführen, sonst crasht `db.Database.Migrate()` mit `PendingModelChangesWarning`
