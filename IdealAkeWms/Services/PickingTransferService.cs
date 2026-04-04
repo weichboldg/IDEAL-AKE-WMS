@@ -91,33 +91,27 @@ public class PickingTransferService : IPickingTransferService
     {
         var now = DateTime.Now;
 
-        // Alle PickingItems dieses Auftrags laden die noch nicht transferiert sind
-        var itemIds = items.Select(i => i.PickingItemId).ToHashSet();
-        var pickingItems = await _context.PickingItems
-            .Where(p => itemIds.Contains(p.Id) && !p.IsTransferred)
+        // Get productionOrderId from first item (1 query)
+        var firstItemId = items.First().PickingItemId;
+        var productionOrderId = await _context.PickingItems
+            .Where(p => p.Id == firstItemId)
+            .Select(p => p.ProductionOrderId)
+            .FirstOrDefaultAsync();
+
+        if (productionOrderId == 0) return;
+
+        // Load ALL non-transferred items for this order (1 query instead of 2)
+        var allOrderItems = await _context.PickingItems
+            .Where(p => p.ProductionOrderId == productionOrderId && !p.IsTransferred)
             .ToListAsync();
 
-        // Zuerst alle nicht-transferierten Items auf IsPicked=false setzen (Reset)
-        var allOrderItems = pickingItems.Count > 0
-            ? await _context.PickingItems
-                .Where(p => p.ProductionOrderId == pickingItems.First().ProductionOrderId && !p.IsTransferred)
-                .ToListAsync()
-            : new List<IdealAkeWms.Models.PickingItem>();
+        var selectionMap = items.ToDictionary(i => i.PickingItemId);
+        var selectedIds = items.Select(i => i.PickingItemId).ToHashSet();
 
+        // Reset all, then mark selected ones as picked
         foreach (var item in allOrderItems)
         {
-            item.IsPicked = false;
-            item.PickedAt = null;
-            item.PickedBy = null;
-            item.PickedByWindows = null;
-            item.SourceStorageLocationId = null;
-        }
-
-        // Dann die ausgewählten Items als gepickt markieren
-        var selectionMap = items.ToDictionary(i => i.PickingItemId);
-        foreach (var item in pickingItems)
-        {
-            if (selectionMap.TryGetValue(item.Id, out var selection))
+            if (selectedIds.Contains(item.Id) && selectionMap.TryGetValue(item.Id, out var selection))
             {
                 item.IsPicked = true;
                 item.IsBaugruppe = selection.IsBaugruppe;
@@ -128,6 +122,14 @@ public class PickingTransferService : IPickingTransferService
                 item.ModifiedAt = now;
                 item.ModifiedBy = userName;
                 item.ModifiedByWindows = windowsUser;
+            }
+            else
+            {
+                item.IsPicked = false;
+                item.PickedAt = null;
+                item.PickedBy = null;
+                item.PickedByWindows = null;
+                item.SourceStorageLocationId = null;
             }
         }
 
@@ -153,6 +155,7 @@ public class PickingTransferService : IPickingTransferService
         string displayName,
         string windowsUser)
     {
+        // 1. Load all picked items (1 query)
         var pickedItems = await _context.PickingItems
             .Where(p => p.ProductionOrderId == productionOrderId
                      && p.IsPicked && !p.IsTransferred)
@@ -161,39 +164,110 @@ public class PickingTransferService : IPickingTransferService
         if (!pickedItems.Any())
             throw new InvalidOperationException("Keine gepickten Artikel zum Umbuchen vorhanden.");
 
+        // 2. Batch-load all needed articles into dictionary by ArticleNumber (1 query)
+        var neededArticleNumbers = pickedItems
+            .Select(p => p.BomArticleNumber)
+            .Distinct()
+            .ToList();
+
+        var articleLookup = await _context.Articles
+            .Where(a => neededArticleNumbers.Contains(a.ArticleNumber))
+            .ToDictionaryAsync(a => a.ArticleNumber);
+
+        // 3. Collect all (articleId, sourceLocationId) pairs we need stock for
+        var stockKeys = new HashSet<(int articleId, int locationId)>();
+        foreach (var item in pickedItems)
+        {
+            if (!item.SourceStorageLocationId.HasValue) continue;
+            if (!articleLookup.ContainsKey(item.BomArticleNumber)) continue;
+            stockKeys.Add((articleLookup[item.BomArticleNumber].Id, item.SourceStorageLocationId.Value));
+        }
+
+        var articleIds = stockKeys.Select(k => k.articleId).Distinct().ToList();
+        var locationIds = stockKeys.Select(k => k.locationId).Distinct().ToList();
+
+        // 4. Pre-calculate stock: destSum per (articleId, locationId) — 1 query
+        var destSums = await _context.StockMovements
+            .Where(sm => articleIds.Contains(sm.ArticleId) && locationIds.Contains(sm.StorageLocationId))
+            .GroupBy(sm => new { sm.ArticleId, sm.StorageLocationId })
+            .Select(g => new
+            {
+                g.Key.ArticleId,
+                g.Key.StorageLocationId,
+                Sum = g.Sum(sm =>
+                    sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
+                    sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
+                    -sm.Quantity)
+            })
+            .ToListAsync();
+
+        // 5. Pre-calculate stock: srcSum per (articleId, sourceLocationId) — 1 query
+        var srcSums = await _context.StockMovements
+            .Where(sm => articleIds.Contains(sm.ArticleId)
+                      && sm.SourceStorageLocationId.HasValue
+                      && locationIds.Contains(sm.SourceStorageLocationId.Value)
+                      && sm.MovementType == MovementType.Umbuchung)
+            .GroupBy(sm => new { sm.ArticleId, SourceLocationId = sm.SourceStorageLocationId!.Value })
+            .Select(g => new
+            {
+                g.Key.ArticleId,
+                g.Key.SourceLocationId,
+                Sum = g.Sum(sm => sm.Quantity)
+            })
+            .ToListAsync();
+
+        // Build running stock lookup: currentStock = destSum - srcSum
+        var stockLookup = new Dictionary<(int articleId, int locationId), decimal>();
+        foreach (var key in stockKeys)
+        {
+            var dest = destSums.FirstOrDefault(d => d.ArticleId == key.articleId && d.StorageLocationId == key.locationId)?.Sum ?? 0;
+            var src = srcSums.FirstOrDefault(s => s.ArticleId == key.articleId && s.SourceLocationId == key.locationId)?.Sum ?? 0;
+            stockLookup[key] = dest - src;
+        }
+
+        // 6. Pre-load negative booking settings ONCE (1-2 queries via repository)
+        var negativErlaubt = (await _settingRepository.GetValueAsync("NegativeBuchungErlaubt"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        string? negativLagerplatzCode = null;
+        int? negativLagerplatzId = null;
+        if (negativErlaubt)
+        {
+            negativLagerplatzCode = await _settingRepository.GetValueAsync("NegativeBuchungLagerplatz") ?? "NAN";
+            var negativLagerplatz = await _context.StorageLocations
+                .FirstOrDefaultAsync(sl => sl.Code == negativLagerplatzCode);
+            negativLagerplatzId = negativLagerplatz?.Id;
+        }
+
+        // 7. Process items — NO DB calls in loop
         var now = DateTime.Now;
         var transferredCount = 0;
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
+        // Use transaction if supported (InMemory provider does not support transactions)
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
         try
         {
+            try
+            {
+                transaction = await _context.Database.BeginTransactionAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // InMemory provider — proceed without transaction
+            }
+
             foreach (var item in pickedItems)
             {
                 if (!item.SourceStorageLocationId.HasValue) continue;
 
-                var article = await _context.Articles
-                    .FirstOrDefaultAsync(a => a.ArticleNumber == item.BomArticleNumber);
-                if (article == null) continue;
+                if (!articleLookup.TryGetValue(item.BomArticleNumber, out var article)) continue;
 
-                // Bestandsprüfung am Quell-Lagerplatz
-                var destSum = await _context.StockMovements
-                    .Where(sm => sm.ArticleId == article.Id && sm.StorageLocationId == item.SourceStorageLocationId.Value)
-                    .SumAsync(sm =>
-                        sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
-                        sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
-                        -sm.Quantity);
-                var srcSum = await _context.StockMovements
-                    .Where(sm => sm.ArticleId == article.Id
-                              && sm.SourceStorageLocationId == item.SourceStorageLocationId.Value
-                              && sm.MovementType == MovementType.Umbuchung)
-                    .SumAsync(sm => sm.Quantity);
-                var currentStock = destSum - srcSum;
-
+                var key = (article.Id, item.SourceStorageLocationId.Value);
+                var currentStock = stockLookup.GetValueOrDefault(key, 0);
                 var sourceLocationId = item.SourceStorageLocationId.Value;
 
                 if (currentStock < item.Quantity)
                 {
-                    var negativErlaubt = (await _settingRepository.GetValueAsync("NegativeBuchungErlaubt"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                     if (!negativErlaubt)
                     {
                         throw new InvalidOperationException(
@@ -201,16 +275,16 @@ public class PickingTransferService : IPickingTransferService
                             $"Verfügbar: {currentStock:N3}, Benötigt: {item.Quantity:N3}");
                     }
 
-                    var negativLagerplatzCode = await _settingRepository.GetValueAsync("NegativeBuchungLagerplatz") ?? "NAN";
-                    var negativLagerplatz = await _context.StorageLocations
-                        .FirstOrDefaultAsync(sl => sl.Code == negativLagerplatzCode);
-                    if (negativLagerplatz != null)
-                        sourceLocationId = negativLagerplatz.Id;
+                    if (negativLagerplatzId.HasValue)
+                        sourceLocationId = negativLagerplatzId.Value;
 
                     _logger.LogWarning(
                         "Bestand nicht verfügbar für {Article} (Verfügbar: {Stock}, Benötigt: {Needed}). Buche vom Lagerplatz {Location}.",
                         item.BomArticleNumber, currentStock, item.Quantity, negativLagerplatzCode);
                 }
+
+                // CRITICAL: Decrement running stock counter for duplicate article+location handling
+                stockLookup[key] = currentStock - item.Quantity;
 
                 _context.StockMovements.Add(new StockMovement
                 {
@@ -234,7 +308,7 @@ public class PickingTransferService : IPickingTransferService
             }
 
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            if (transaction != null) await transaction.CommitAsync();
 
             _logger.LogInformation(
                 "TransferPicked: {Count} Artikel umgebucht. ProductionOrder: {ProductionOrder}",
@@ -244,11 +318,15 @@ public class PickingTransferService : IPickingTransferService
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
+            if (transaction != null) await transaction.RollbackAsync();
             _logger.LogError(ex,
                 "TransferPicked fehlgeschlagen für FA-Id {OrderId}. Transaktion zurückgerollt.",
                 productionOrderId);
             throw;
+        }
+        finally
+        {
+            if (transaction != null) await transaction.DisposeAsync();
         }
     }
 }
