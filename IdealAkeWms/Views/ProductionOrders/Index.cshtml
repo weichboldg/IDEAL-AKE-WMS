@@ -1,7 +1,7 @@
 @model ProductionOrderViewModel
 @using System.Globalization
 @{
-    var pageTitle = Model.LeitstandAktiv && Model.CanManagePickingRelease ? "Produktionsaufträge" : "Fertigungsaufträge";
+    var pageTitle = "Fertigungsaufträge";
     ViewData["Title"] = pageTitle;
     var today = DateTime.Today;
     // ISO 8601 Kalenderwoche berechnen

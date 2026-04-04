@@ -157,7 +157,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Priorisierung**: Numerische Priorität (1 = höchste). Auto-Vorschlag bei Freigabe (MAX+1), inline änderbar.
 - **Kommissionierliste**: Kommissionierer sehen nur freigegebene Aufträge in einer Tabelle mit Priorität, Kommissioniertermin (KW), Status.
 - **Menü-Badge**: Anzahl offener freigegebener Aufträge im Menüpunkt "Kommissionierung".
-- **Menü-Trennung**: Leitstand/Tracking sehen "Produktionsaufträge", Kommissionierer sehen nur "Kommissionierung".
+- **Menü-Trennung**: Leitstand/Tracking sehen "Fertigungsaufträge", Kommissionierer sehen nur "Kommissionierung".
 - Voraussetzung: Rolle `leitstand` + AppSetting `LeitstandAktiv = true`
 
 ### Kommissionierung (Stückliste)
