@@ -67,6 +67,7 @@ public enum AttributeType
 | Value | string(200) | Required | z.B. "Alu", "Stahl", "Edelstahl" |
 | SortOrder | int | Default 0 | Reihenfolge im Dropdown |
 
+Kein AuditableEntity — einfaches Child-Entity ohne Audit-Felder (Tracking auf Definition-Ebene reicht).
 OnDelete: `Cascade` — beim Loeschen der Definition werden auch Optionen geloescht.
 Loeschen einer einzelnen Option: Nur wenn keine Artikel diese Option verwenden (UI-Sperre).
 
@@ -203,10 +204,12 @@ Layout:
 
 ### Integration in SyncWorker
 
-Nach dem bestehenden OSEON-Tracking-Block:
-```
-[Sync:OseonArticleCategoryEnabled] → OseonSyncService.SyncArticleCategoriesToWmsAsync()
-```
+**Wichtig:** Der OSEON-Kategorie-Sync muss NACH dem Sage-Artikel-Import laufen (`SageImportService.SyncArticlesAsync()`), damit die Artikel bereits in der DB existieren. Die Reihenfolge im SyncWorker ist:
+
+1. `[Sync:ArticlesEnabled]` → `SageImportService.SyncArticlesAsync()` (bestehend)
+2. `[Sync:OseonArticleCategoryEnabled]` → `OseonSyncService.SyncArticleCategoriesToWmsAsync()` (neu)
+
+Platzierung: Nach dem Artikel-Import, vor oder nach dem OSEON-Tracking-Sync.
 
 ### SQL-Migration
 
