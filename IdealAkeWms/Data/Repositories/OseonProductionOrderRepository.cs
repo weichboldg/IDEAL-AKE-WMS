@@ -10,6 +10,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
     public async Task<List<OseonProductionOrder>> GetAllWithOperationsAsync()
     {
         return await _dbSet
+            .AsNoTracking()
             .Include(o => o.WorkOperations)
             .Include(o => o.ProductionWorkplace)
             .OrderBy(o => o.CustomerOrderNumber)
@@ -98,6 +99,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         // ALLE Orders dieser Gruppen laden (inkl. fertige Sub-Aufträge!)
         // So sehen wir z.B. "1/14 fertig" korrekt und fertige Sub-Orders werden angezeigt
         var items = await _dbSet
+            .AsNoTracking()
             .Include(o => o.WorkOperations)
             .Include(o => o.ProductionWorkplace)
             .Where(o => pagedGroupKeys.Contains(o.CustomerOrderNumber ?? o.OseonOrderNumber))
