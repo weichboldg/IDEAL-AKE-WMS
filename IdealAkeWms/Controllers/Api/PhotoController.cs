@@ -21,6 +21,7 @@ public class PhotoController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(int productionOrderId, IFormFile photo)
     {
         var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
@@ -79,6 +80,7 @@ public class PhotoController : ControllerBase
     }
 
     [HttpPost("delete")]
+    [ValidateAntiForgeryToken]
     public IActionResult Delete(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))

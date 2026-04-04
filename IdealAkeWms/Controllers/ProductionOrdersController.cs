@@ -44,7 +44,7 @@ public class ProductionOrdersController : Controller
         if (!order.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
         {
             TempData["WarningMessage"] = $"FA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
-            if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
             return RedirectToAction(nameof(Index));
         }
 
@@ -81,7 +81,7 @@ public class ProductionOrdersController : Controller
     {
         if (ids == null || ids.Count == 0)
         {
-            if (!string.IsNullOrEmpty(returnUrl)) return Redirect(returnUrl);
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
             return RedirectToAction(nameof(Index));
         }
 

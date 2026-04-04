@@ -22,7 +22,6 @@ public class PickingController : Controller
     private readonly IArticleRepository _articleRepository;
     private readonly IPickingTransferService _pickingTransferService;
     private readonly IUserRepository _userRepository;
-    private readonly IWebHostEnvironment _env;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IPartRequisitionRepository _partRequisitionRepository;
 
@@ -39,7 +38,6 @@ public class PickingController : Controller
         IArticleRepository articleRepository,
         IPickingTransferService pickingTransferService,
         IUserRepository userRepository,
-        IWebHostEnvironment env,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         IPartRequisitionRepository partRequisitionRepository)
     {
@@ -55,7 +53,6 @@ public class PickingController : Controller
         _articleRepository = articleRepository;
         _pickingTransferService = pickingTransferService;
         _userRepository = userRepository;
-        _env = env;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _partRequisitionRepository = partRequisitionRepository;
     }
@@ -117,7 +114,7 @@ public class PickingController : Controller
 
         await _productionOrderRepository.UpdateAsync(order);
 
-        if (!string.IsNullOrEmpty(returnUrl))
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
 
         return RedirectToAction(nameof(Index));
@@ -132,7 +129,7 @@ public class PickingController : Controller
 
         if (string.IsNullOrEmpty(order.ArticleNumber))
         {
-            TempData["SuccessMessage"] = "Dieser Fertigungsauftrag hat keine Artikelnummer.";
+            TempData["WarningMessage"] = "Dieser Fertigungsauftrag hat keine Artikelnummer.";
             return RedirectToAction(nameof(Index));
         }
 
