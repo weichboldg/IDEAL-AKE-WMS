@@ -254,6 +254,8 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Leitstand Index-Action hat kein Filter-Attribut**: Die Index-Action von ProductionOrdersController prueft Berechtigungen manuell im Methoden-Body (CanPick OR CanViewTracking OR CanManagePickingRelease), weil kein bestehender Filter alle drei Rollen abdeckt
 - **Leitstand Freigabe ohne Artikelnummer**: `ToggleRelease` prueft ob `ArticleNumber` vorhanden ist. Ohne Artikelnummer → TempData WarningMessage, keine Freigabe. Die `BulkRelease`-Action ueberspringt solche Auftraege und meldet sie als "uebersprungen"
 - **Leitstand PickingPriority NULL = niedrigste**: Auftraege ohne Prioritaet werden ans Ende sortiert (`OrderBy PickingPriority.HasValue ? 0 : 1, ThenBy PickingPriority`)
+- **Controller-Split**: Kommissionierung ist jetzt in `PickingController`, nicht mehr in `ProductionOrdersController`. `ProductionOrdersController` hat Redirect-Stubs fuer `/ProductionOrders/Bom` und `/ProductionOrders/Picking` (301-Redirect auf neue URLs)
+- **Photo-API**: Fotos werden jetzt ueber `/api/photos/upload`, `/api/photos/{id}`, `/api/photos/delete` angesprochen (war: `/ProductionOrders/UploadPhoto` etc.)
 
 ## Standard-Daten (Neuinstallation)
 
@@ -393,7 +395,9 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 
 - `Program.cs` — DI, Middleware-Pipeline, **Startup-Seeding** (admin + NAN)
 - `Controllers/AccountController.cs` — Login, Logout, **Profil Self-Service** (Passwort + BOM-Filter)
-- `Controllers/ProductionOrdersController.cs` — WA + BOM + Kommissionierung
+- `Controllers/ProductionOrdersController.cs` — FA-Liste, Leitstand-Freigabe (+ Redirect-Stubs fuer alte URLs)
+- `Controllers/PickingController.cs` — Kommissionierung (Index, Bom, Transfer, Status, Print)
+- `Controllers/Api/PhotoController.cs` — Foto-Upload/Download/Delete API
 - `Controllers/StockMovementsController.cs` — Ein/Aus/Umbuchung + OutboundAll
 - `Controllers/Api/ArticlesApiController.cs` — Select2-Suche für Artikel
 - `Filters/RequireMasterDataAccessAttribute.cs` — Zugriffskontrolle für Stammdaten

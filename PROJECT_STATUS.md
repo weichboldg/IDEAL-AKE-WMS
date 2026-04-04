@@ -40,10 +40,17 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Leitstand (Kommissionier-Freigabe + Priorisierung) | Fertig |
 
 ## Version
-- **Web-App**: v1.2.0 (03.04.2026)
-- **Service**: v1.2.0 (03.04.2026)
+- **Web-App**: v1.3.0 (03.04.2026)
+- **Service**: v1.3.0 (03.04.2026)
 
 ## Aenderungen (03.04.2026)
+
+### v1.3.0 — WA→FA Rename, Controller-Split, Menue-Umstrukturierung
+
+#### Verbesserungen
+- **Terminologie: Fertigungsauftrag statt Werkstattauftrag**: Gesamte Oberflaeche verwendet einheitlich "Fertigungsauftrag" (FA) statt "Werkstattauftrag" (WA)
+- **Controller-Split**: `ProductionOrdersController` aufgeteilt in `PickingController` + `PhotoController`
+- **Menue-Umstrukturierung**: Lager als Dropdown, Dashboard nach Domaenen gruppiert
 
 ### v1.2.0 — Leitstand: Kommissionier-Freigabe & Priorisierung
 

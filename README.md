@@ -256,7 +256,11 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
 ```
 IdealAkeWms/
-├── Controllers/          # MVC Controller (inkl. AccountController, TrackingController)
+├── Controllers/
+│   ├── ProductionOrdersController.cs  # FA-Liste, Leitstand-Freigabe
+│   ├── PickingController.cs           # Kommissionierung, Stückliste, Transfer
+│   ├── Api/PhotoController.cs         # Foto-Upload API
+│   └── ...               # AccountController, TrackingController, etc.
 ├── Data/
 │   ├── ApplicationDbContext.cs
 │   └── Repositories/     # Repository-Implementierungen
