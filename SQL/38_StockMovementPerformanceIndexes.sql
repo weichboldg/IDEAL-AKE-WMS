@@ -28,9 +28,9 @@ END
 GO
 
 -- EF Migrations History
-IF NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = '20260404000001_StockMovementPerformanceIndexes')
+IF NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = '20260404095516_StockMovementPerformanceIndexes')
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES ('20260404000001_StockMovementPerformanceIndexes', '10.0.0')
+    VALUES ('20260404095516_StockMovementPerformanceIndexes', '10.0.0')
 END
 GO
