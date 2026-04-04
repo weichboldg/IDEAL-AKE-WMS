@@ -44,13 +44,15 @@ builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
-builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
+builder.Services.AddScoped<HolidayRepository>();
+builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
-builder.Services.AddScoped<IOseonOperationConfigRepository, OseonOperationConfigRepository>();
+builder.Services.AddScoped<OseonOperationConfigRepository>();
+builder.Services.AddScoped<IOseonOperationConfigRepository, CachedOseonOperationConfigRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IEnaioDmsDocumentRepository, EnaioDmsDocumentRepository>();
 builder.Services.AddScoped<IOrderRecipientRepository, OrderRecipientRepository>();
