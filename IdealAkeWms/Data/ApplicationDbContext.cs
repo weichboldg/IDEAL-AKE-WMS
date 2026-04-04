@@ -209,6 +209,18 @@ public class ApplicationDbContext : DbContext
                 .IsRequired(false);
 
             entity.HasIndex(e => e.SourceStorageLocationId);
+
+            // Performance: Stock calculations always group by (ArticleId, StorageLocationId)
+            entity.HasIndex(e => new { e.ArticleId, e.StorageLocationId })
+                .HasDatabaseName("IX_StockMovements_ArticleId_StorageLocationId");
+
+            // Performance: Source deduction queries filter on all three columns
+            entity.HasIndex(e => new { e.ArticleId, e.SourceStorageLocationId, e.MovementType })
+                .HasDatabaseName("IX_StockMovements_ArticleId_SourceStorageLocationId_MovementType");
+
+            // Performance: FA-filter in Bestandsuebersicht and Bewegungshistorie
+            entity.HasIndex(e => e.ProductionOrder)
+                .HasDatabaseName("IX_StockMovements_ProductionOrder");
         });
 
         // ProductionOrder

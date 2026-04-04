@@ -12,26 +12,34 @@
             <div class="card-body">
                 <dl>
                     <dt>Einbuchung</dt>
-                    <dd>Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz können per Barcode/QR-Code gescannt oder manuell ausgewählt werden.</dd>
+                    <dd>Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz koennen per Barcode/QR-Code gescannt oder manuell ausgewaehlt werden.
+                        Sind offene Bedarfsmeldungen zum eingebuchten Artikel vorhanden, werden diese angezeigt und koennen mit der Buchung verknuepft werden.</dd>
 
                     <dt>Ausbuchung</dt>
-                    <dd>Artikel von einem Lagerplatz ausbuchen. Die verfügbare Menge wird geprüft.</dd>
+                    <dd>Artikel von einem Lagerplatz ausbuchen. Die verfuegbare Menge wird geprueft.</dd>
 
                     <dt>Umbuchung</dt>
                     <dd>Artikel von einem Quell-Lagerplatz auf einen Ziel-Lagerplatz umbuchen.</dd>
 
                     <dt>Lagerplatz ausbuchen</dt>
-                    <dd>Alle Artikel eines Lagerplatzes auf einmal ausbuchen. Praktisch für Kommissionierwagen-Rückgabe.</dd>
+                    <dd>Alle Artikel eines Lagerplatzes auf einmal ausbuchen. Praktisch fuer Kommissionierwagen-Rueckgabe.
+                        <br /><small class="text-muted">Nur fuer Lager-Keyuser und Administratoren verfuegbar.</small></dd>
 
                     <dt>Lagerplatz umbuchen</dt>
                     <dd>
-                        Den gesamten Bestand eines Lagerplatzes auf einen anderen umbuchen — z.B. Kommissionierwagen → Lager.
+                        Den gesamten Bestand eines Lagerplatzes auf einen anderen umbuchen — z.B. Kommissionierwagen &rarr; Lager.
                         <ol class="mt-1 mb-0">
-                            <li>Quell-Lagerplatz wählen (oder per Barcode scannen) → Bestand wird angezeigt.</li>
-                            <li>Ziel-Lagerplatz wählen (oder per Barcode scannen).</li>
-                            <li>Button <em>„Alle X Artikel umbuchen"</em> klicken → Bestätigung → alle Artikel werden auf einmal übertragen.</li>
+                            <li>Quell-Lagerplatz waehlen (oder per Barcode scannen) &rarr; Bestand wird angezeigt.</li>
+                            <li>Ziel-Lagerplatz waehlen (oder per Barcode scannen).</li>
+                            <li>Button <em>&bdquo;Alle X Artikel umbuchen&ldquo;</em> klicken &rarr; Bestaetigung &rarr; alle Artikel werden auf einmal uebertragen.</li>
                         </ol>
+                        <small class="text-muted">Nur fuer Lager-Keyuser und Administratoren verfuegbar.</small>
                     </dd>
+
+                    <dt>Bewegungshistorie</dt>
+                    <dd>Chronologische Uebersicht aller Lagerbewegungen (Einbuchungen, Ausbuchungen, Umbuchungen).
+                        Filterbar nach Zeitraum, Artikel, Lagerplatz, Bewegungsart, Benutzer und Fertigungsauftrag.
+                        Erreichbar ueber <em>Lager &rarr; Bewegungshistorie</em>.</dd>
                 </dl>
             </div>
         </div>
@@ -47,6 +55,31 @@
                 <p>
                     <strong>Unterstützte Formate:</strong> QR-Code (Artikel), Code 128, Code 39, EAN-13, EAN-8, Code 93 (Lagerplätze).
                 </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Artikelinfo</strong></div>
+            <div class="card-body">
+                <p>
+                    Schnellzugriff auf Artikeldetails und Lagerbestand — erreichbar ueber die Dashboard-Karte
+                    <em>&bdquo;Artikelinfo&ldquo;</em> oder direkt ueber <code>/Articles/Info</code>.
+                </p>
+                <dl>
+                    <dt>QR-Code scannen</dt>
+                    <dd>Artikelnummer eingeben oder QR-Code scannen. Das QR-Format <code>Artikelnummer;Feld2;FA-Nummer</code>
+                        wird automatisch erkannt — nur die Artikelnummer wird uebernommen.</dd>
+
+                    <dt>Artikeldetails</dt>
+                    <dd>Zeigt Bezeichnung, Einheit, Artikelgruppe, Meldebestand und Gesamtbestand an.
+                        Bei unterschrittenem Meldebestand wird eine Warnung angezeigt.</dd>
+
+                    <dt>Lagerbestand nach Lagerplatz</dt>
+                    <dd>Aufschluesselung des Bestands pro Lagerplatz mit Menge und Einheit.</dd>
+
+                    <dt>VAULT-Link</dt>
+                    <dd>Direkter Link zum Artikel im VAULT-System (oeffnet in neuem Tab).</dd>
+                </dl>
             </div>
         </div>
 
@@ -88,38 +121,76 @@
                     <dt>OSEON Teileverfolgung</dt>
                     <dd>Ueber den <span class="badge bg-info text-white">i</span>-Button oeffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die FA-Nummer. Der Filter &bdquo;Fertige anzeigen&ldquo; ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Auftraege sichtbar sind.</dd>
 
+                    <dt>Erledigt</dt>
+                    <dd>Per Klick auf den gruenen Haekchen-Button kann ein Fertigungsauftrag als erledigt markiert werden.
+                        Erledigte Auftraege koennen ueber den Filter &bdquo;Erledigte anzeigen&ldquo; ein-/ausgeblendet werden.</dd>
+
                     <dt>Status</dt>
                     <dd>
                         <span class="badge bg-secondary">offen</span> — Noch nicht kommissioniert<br />
                         <span class="badge bg-warning text-dark">in Kommissionierung</span> — Teilweise gepickt<br />
-                        <span class="badge bg-info text-dark">teilkommissioniert</span> — Nicht alle Teile verfügbar<br />
-                        <span class="badge bg-success">abgeschlossen</span> — Vollständig kommissioniert
+                        <span class="badge bg-info text-dark">teilkommissioniert</span> — Nicht alle Teile verfuegbar<br />
+                        <span class="badge bg-success">abgeschlossen</span> — Vollstaendig kommissioniert
                     </dd>
                 </dl>
             </div>
         </div>
 
         <div class="card mb-3">
-            <div class="card-header"><strong>OSEON Teileverfolgung</strong></div>
+            <div class="card-header"><strong>Teileverfolgung</strong></div>
             <div class="card-body">
                 <p>
-                    Zeigt OSEON-Produktionsaufträge in einer 3-Ebenen-Baumstruktur an:
+                    Die Teileverfolgung umfasst zwei Bereiche: <strong>Rueckmeldungen</strong> (interne Arbeitsgaenge)
+                    und <strong>OSEON Auftraege</strong> (externe Fertigungsauftraege aus OSEON).
+                    Erreichbar ueber das Menue <em>Teileverfolgung &rarr; Rueckmeldungen / OSEON Auftraege</em>.
+                    Das Modul muss unter <em>Stammdaten &rarr; Einstellungen</em> per <code>TeileverfolgungAktiv</code> aktiviert werden.
                 </p>
+
+                <h6 class="mt-3">Rueckmeldungen</h6>
+                <p class="mb-1">Uebersicht der Arbeitsgaenge pro Fertigungsauftrag mit Rueckmelde-Status:</p>
+                <dl>
+                    <dt>Auftragsgruppierung</dt>
+                    <dd>Arbeitsgaenge werden nach Fertigungsauftrag gruppiert. Pro Auftrag wird ein Fortschrittsbalken
+                        angezeigt (z.B. 3/5 Arbeitsgaenge rueckgemeldet). Klick auf einen Auftrag klappt die einzelnen Arbeitsgaenge auf.</dd>
+
+                    <dt>Rueckmelden</dt>
+                    <dd>Arbeitsgaenge koennen per Button als rueckgemeldet markiert werden.
+                        Eine Rueckmeldung kann auch wieder zurueckgenommen werden.
+                        <br /><small class="text-muted">Nur fuer Benutzer mit der Rolle &bdquo;Betriebsdaten&ldquo; (reporting) oder Admin.</small></dd>
+
+                    <dt>Filter</dt>
+                    <dd>Filterbar nach FA-Nummer und Werkbank. Standardmaessig werden nur offene (nicht rueckgemeldete) Arbeitsgaenge angezeigt —
+                        ueber &bdquo;Rueckgemeldete anzeigen&ldquo; koennen alle sichtbar gemacht werden.</dd>
+
+                    <dt>Werkbank-Ansicht</dt>
+                    <dd>Ueber den Werkbank-Link in der Tabelle gelangt man zur gefilterten Ansicht aller Arbeitsgaenge einer bestimmten Werkbank.</dd>
+                </dl>
+
+                <h6 class="mt-3">OSEON Auftraege</h6>
+                <p class="mb-1">Zeigt OSEON-Produktionsauftraege in einer 3-Ebenen-Baumstruktur an:</p>
                 <ol>
-                    <li><strong>Kundenauftragsnummer</strong> — Gruppierung aller zugehörigen Aufträge</li>
-                    <li><strong>Subaufträge</strong> — Einzelne OSEON-Auftragsnummern mit Artikel, Werkbank, Mengen und Termin</li>
-                    <li><strong>Arbeitsgänge</strong> — Einzelne Fertigungsschritte mit Status</li>
+                    <li><strong>Kundenauftragsnummer</strong> — Gruppierung aller zugehoerigen Auftraege</li>
+                    <li><strong>Subauftraege</strong> — Einzelne OSEON-Auftragsnummern mit Artikel, Werkbank, Mengen und Termin</li>
+                    <li><strong>Arbeitsgaenge</strong> — Einzelne Fertigungsschritte mit Status und Soll-Termin</li>
                 </ol>
+                <p class="mb-1">Die Baumstruktur kann per <em>&bdquo;Alle aufklappen&ldquo;</em> / <em>&bdquo;Alle zuklappen&ldquo;</em> gesteuert werden.</p>
 
                 <h6 class="mt-3">Ampelsystem</h6>
-                <p class="mb-1">Jeder Auftrag wird mit einer Ampelfarbe nach Terminstatus bewertet:</p>
-                <ul class="mb-0">
-                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc3545;vertical-align:middle;"></span> <strong>Rot</strong> — Überfällig (Endtermin überschritten)</li>
-                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffc107;vertical-align:middle;"></span> <strong>Gelb</strong> — Fällig in Kürze (innerhalb konfigurierbarer Tage)</li>
-                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#43A6E2;vertical-align:middle;"></span> <strong>Blau</strong> — Demnächst fällig</li>
-                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#82BF6E;vertical-align:middle;"></span> <strong>Grün</strong> — Fertig oder storniert</li>
+                <p class="mb-1">Jeder Auftrag und Arbeitsgang wird mit einer Ampelfarbe nach Terminstatus bewertet:</p>
+                <ul class="mb-2">
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc3545;vertical-align:middle;"></span> <strong>Rot</strong> — Ueberfaellig (Endtermin ueberschritten)</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffc107;vertical-align:middle;"></span> <strong>Gelb</strong> — Faellig in Kuerze (innerhalb konfigurierbarer Tage)</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#43A6E2;vertical-align:middle;"></span> <strong>Blau</strong> — Demnaechst faellig</li>
+                    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#82BF6E;vertical-align:middle;"></span> <strong>Gruen</strong> — Fertig oder storniert</li>
                     <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#6c757d;vertical-align:middle;"></span> <strong>Grau</strong> — Kein Termin oder noch nicht relevant</li>
                 </ul>
+                <p class="mb-1 text-muted small">Die Auftrags-Ampel zeigt immer die &bdquo;schlimmste&ldquo; Farbe aller relevanten Arbeitsgaenge.
+                    Nicht-relevante Arbeitsgaenge (konfigurierbar unter Einstellungen &rarr; AG-Konfiguration) werden bei der Berechnung ignoriert.</p>
+
+                <h6 class="mt-3">Soll-Termine (Arbeitsgaenge)</h6>
+                <p class="mb-1">Jeder Arbeitsgang erhaelt einen berechneten Soll-Termin basierend auf dem Stanztermin plus einem konfigurierbaren Offset in Arbeitstagen.
+                    Wochenenden und Feiertage werden bei der Berechnung beruecksichtigt.
+                    Die Offsets werden unter <em>Stammdaten &rarr; Einstellungen &rarr; AG-Konfiguration</em> gepflegt.</p>
 
                 <h6 class="mt-3">Filter</h6>
                 <dl class="mb-0">
@@ -128,7 +199,9 @@
                     <dt>Werkbank</dt>
                     <dd>Filtert nach zugeordnetem Produktionsarbeitsplatz.</dd>
                     <dt>Fertige anzeigen</dt>
-                    <dd>Standardmäßig werden nur Gruppen mit offenen Aufträgen angezeigt. Alle Subaufträge (inkl. fertige) einer Gruppe sind immer sichtbar.</dd>
+                    <dd>Standardmaessig werden nur Gruppen mit offenen Auftraegen angezeigt. Alle Subauftraege (inkl. fertige) einer Gruppe sind immer sichtbar.</dd>
+                    <dt>Nur OSEON-relevante AGs</dt>
+                    <dd>Standardmaessig aktiv — zeigt nur Arbeitsgaenge an, die als OSEON-relevant konfiguriert sind. Deaktivieren, um alle Arbeitsgaenge zu sehen.</dd>
                 </dl>
             </div>
         </div>
@@ -137,13 +210,15 @@
             <div class="card-header"><strong>Leitstand (Kommissionier-Freigabe)</strong></div>
             <div class="card-body">
                 <p>
-                    Der Leitstand steuert, welche Produktionsauftraege kommissioniert werden und in welcher Reihenfolge.
+                    Der Leitstand steuert, welche Fertigungsauftraege kommissioniert werden und in welcher Reihenfolge.
                     Das Feature muss unter <em>Stammdaten &rarr; Einstellungen</em> per <code>LeitstandAktiv</code> aktiviert werden.
                 </p>
                 <dl>
                     <dt>Freigabe</dt>
-                    <dd>In der Produktionsauftraege-Liste koennen Auftraege einzeln oder per Massenauswahl
+                    <dd>In der Fertigungsauftraege-Liste koennen Auftraege einzeln oder per Massenauswahl
                         zur Kommissionierung freigegeben werden. Voraussetzung: Der Auftrag muss eine Artikelnummer haben.
+                        Auftraege ohne Artikelnummer werden bei der Massenfreigabe uebersprungen und als
+                        &bdquo;uebersprungen&ldquo; gemeldet.
                         Freigegebene Auftraege erscheinen in der Kommissionierliste der Kommissionierer.</dd>
 
                     <dt>Priorisierung</dt>
@@ -159,7 +234,7 @@
                     <dt>Rollen</dt>
                     <dd>
                         <strong>Leitstand</strong> &mdash; Kann alle Auftraege sehen, freigeben und priorisieren<br />
-                        <strong>Kommissionierer</strong> &mdash; Sieht nur freigegebene Auftraege in der Kommissionierliste<br />
+                        <strong>Kommissionierer</strong> &mdash; Sieht nur freigegebene Auftraege in der Kommissionierliste (siehe Abschnitt &bdquo;Kommissionierung&ldquo;)<br />
                         <strong>Admin</strong> &mdash; Hat Zugriff auf beides
                     </dd>
                 </dl>
@@ -167,34 +242,75 @@
         </div>
 
         <div class="card mb-3">
-            <div class="card-header"><strong>Kommissionierung (Stückliste)</strong></div>
+            <div class="card-header"><strong>Kommissionierung</strong></div>
             <div class="card-body">
+                <p>
+                    Die Kommissionierung bietet zwei Modi, je nachdem ob der Leitstand aktiviert ist:
+                </p>
+
+                <h6 class="mt-2">Mit Leitstand (empfohlen)</h6>
+                <p class="mb-1">
+                    Wenn <code>LeitstandAktiv</code> unter Einstellungen aktiviert ist, sehen Kommissionierer eine
+                    <strong>Kommissionierliste</strong> mit allen freigegebenen Fertigungsauftraegen:
+                </p>
+                <ul class="mb-2">
+                    <li>Auftraege sind nach Prioritaet sortiert (1 = hoechste, ohne Prioritaet am Ende)</li>
+                    <li>Spalten: Prioritaet, FA-Nummer, Artikel, Kunde, Stueck, Kommissioniertermin (KW), Status</li>
+                    <li>Spaltenfilter wie in der Fertigungsauftrags-Liste verfuegbar</li>
+                    <li>Badge im Menue zeigt die Anzahl offener, freigegebener Auftraege</li>
+                    <li>Klick auf einen Auftrag oeffnet die Stueckliste</li>
+                </ul>
+
+                <h6>Ohne Leitstand</h6>
+                <p class="mb-2">Fertigungsauftrag per Dropdown auswaehlen (Suche nach Nummer, Artikel oder Kunde).</p>
+
+                <h6>Stueckliste</h6>
                 <ol>
-                    <li><strong>Fertigungsauftrag waehlen</strong> — Im Dropdown nach Nummer, Artikel oder Kunde suchen.</li>
                     <li><strong>Stueckliste pruefen</strong> — Die Baumstruktur zeigt alle Bauteile und Baugruppen. Baugruppen koennen auf-/zugeklappt werden.</li>
                     <li><strong>Artikel auswaehlen</strong> — Checkbox beim Bauteil setzen und Quell-Lagerplatz waehlen. Baugruppen koennen komplett ausgewaehlt werden. Die Auswahl ist rein visuell &mdash; es wird noch nichts gespeichert.</li>
                     <li><strong>Umbuchen</strong> — Ziel-Lagerplatz waehlen (z.B. Kommissionierwagen) und <em>&bdquo;Gepickte Artikel umbuchen&ldquo;</em> klicken. Erst jetzt werden alle ausgewaehlten Artikel vom Quell- auf den Ziel-Lagerplatz umgebucht.</li>
                 </ol>
-                <p>Stueckliste und Kommissionierliste koennen als A4-PDF gedruckt werden (aktuelle Filterung und Baumstruktur werden beruecksichtigt).</p>
+
+                <h6 class="mt-3">Datenquelle</h6>
+                <p class="mb-1">
+                    Die Stueckliste wird primaer aus der SAGE-Datenbank geladen. Falls SAGE keine Daten liefert,
+                    wird automatisch auf OSEON zurueckgegriffen. Die aktuelle Datenquelle wird als Badge angezeigt:
+                    <span class="badge bg-primary">SAGE</span> oder <span class="badge bg-warning text-dark">OSEON</span>.
+                    Liefert keine Quelle Daten, erscheint <span class="badge bg-secondary">KEINE DATEN</span>.
+                </p>
+
+                <h6 class="mt-3">Fotos</h6>
+                <p class="mb-1">
+                    Im unteren Bereich der Stueckliste koennen Fotos zum Fertigungsauftrag hinterlegt werden.
+                    Per Kamera-Aufnahme oder Bild-Upload koennen Fotos hinzugefuegt und wieder geloescht werden.
+                    Die Fotos sind fuer alle Benutzer sichtbar, die den Auftrag oeffnen.
+                </p>
+
+                <h6 class="mt-3">Drucken</h6>
+                <p class="mb-1">Zwei Druckansichten stehen zur Verfuegung:</p>
+                <ul class="mb-2">
+                    <li><strong>Stueckliste drucken</strong> — Druckt die gesamte Stueckliste (aktuelle Filterung und Baumstruktur werden beruecksichtigt)</li>
+                    <li><strong>Kommissionierliste drucken</strong> — Druckt nur die bereits kommissionierten (gepickten) Artikel</li>
+                </ul>
                 <p class="mb-0"><strong>Kommissionierwagen:</strong> Lagerplaetze vom Typ &bdquo;Wagen&ldquo; werden in der Stueckliste weder in der Bestandsanzeige (Spalte Lagerplatz) noch in den Quell-/Ziel-Lagerplatz-Dropdowns angezeigt.</p>
 
-                <h6 class="mt-3">Spaltenfilter in der Stückliste</h6>
-                <p class="mb-1">Klick auf eine Spaltenüberschrift öffnet ein Filterfeld direkt unter der Überschrift. Der Filter unterstützt drei Modi:</p>
+                <h6 class="mt-3">Spaltenfilter in der Stueckliste</h6>
+                <p class="mb-1">Klick auf eine Spaltenueberschrift oeffnet ein Filterfeld direkt unter der Ueberschrift. Der Filter unterstuetzt drei Modi:</p>
                 <dl class="mb-0">
                     <dt>Einfach</dt>
-                    <dd>Text eingeben → alle Zeilen, die den Text enthalten, werden angezeigt.<br />
-                        Beispiel: <code>960</code> zeigt alle Zeilen, deren Artikelgruppe „960" enthält.</dd>
+                    <dd>Text eingeben &rarr; alle Zeilen, die den Text enthalten, werden angezeigt.<br />
+                        Beispiel: <code>960</code> zeigt alle Zeilen, deren Artikelgruppe &bdquo;960&ldquo; enthaelt.</dd>
 
                     <dt>Mehrfach (Komma-getrennt)</dt>
-                    <dd>Mehrere Werte durch Komma trennen → Zeilen werden angezeigt, wenn <em>einer</em> der Werte passt.<br />
+                    <dd>Mehrere Werte durch Komma trennen &rarr; Zeilen werden angezeigt, wenn <em>einer</em> der Werte passt.<br />
                         Beispiel: <code>886, 960</code> zeigt Artikelgruppen 886 <em>oder</em> 960.</dd>
 
                     <dt>Ausschluss (Negativ-Filter mit <code>!</code>)</dt>
-                    <dd>Ausrufezeichen voranstellen → Zeilen werden nur angezeigt, wenn keiner der angegebenen Werte vorkommt.<br />
-                        Beispiel: <code>!Nein</code> blendet alle Zeilen aus, bei denen „Nein" in der Spalte steht.<br />
+                    <dd>Ausrufezeichen voranstellen &rarr; Zeilen werden nur angezeigt, wenn keiner der angegebenen Werte vorkommt.<br />
+                        Beispiel: <code>!Nein</code> blendet alle Zeilen aus, bei denen &bdquo;Nein&ldquo; in der Spalte steht.<br />
                         Beispiel: <code>!960, 886</code> blendet Artikelgruppen 960 und 886 aus.</dd>
                 </dl>
-                <p class="mt-2 mb-0 text-muted small">Tipp: Standard-Filter können im eigenen Profil hinterlegt werden — diese werden beim Öffnen einer Stückliste automatisch gesetzt.</p>
+                <p class="mt-2 mb-0 text-muted small">Tipp: Standard-Filter koennen im eigenen Profil hinterlegt werden — diese werden beim Oeffnen einer Stueckliste automatisch gesetzt.</p>
             </div>
         </div>
 
@@ -280,20 +396,62 @@
         <div class="card mb-3">
             <div class="card-header"><strong>Stammdaten</strong></div>
             <div class="card-body">
+                <p>Stammdaten sind ueber das Menue <em>Stammdaten</em> erreichbar. Die meisten Bereiche erfordern die Rolle &bdquo;Stammdaten&ldquo; oder &bdquo;Admin&ldquo;.</p>
                 <dl>
-                    <dt>Lagerplätze</dt>
-                    <dd>Code (max. 12 Zeichen für Barcode-Lesbarkeit), Bezeichnung, Zone und Kapazität.
-                        Barcode-Etiketten können einzeln oder gesammelt gedruckt werden.</dd>
-
                     <dt>Artikel</dt>
-                    <dd>Artikelnummer, Bezeichnung, Einheit und Meldebestand.</dd>
+                    <dd>Artikelnummer, Bezeichnung, Einheit und Meldebestand. Artikel werden automatisch per Sage-Import synchronisiert.
+                        Meldebestand und Einheit koennen manuell angepasst werden.</dd>
+
+                    <dt>Lagerplaetze</dt>
+                    <dd>Code (max. 12 Zeichen fuer Barcode-Lesbarkeit), Bezeichnung, Zone und Kapazitaet.
+                        Barcode-Etiketten koennen einzeln oder gesammelt gedruckt werden.
+                        Lagerplaetze koennen als &bdquo;Kommissionierwagen&ldquo; markiert werden (Typ &bdquo;Wagen&ldquo;) —
+                        diese werden in der Stueckliste und bei Meldebestand-Warnungen gesondert behandelt.</dd>
 
                     <dt>Benutzer</dt>
-                    <dd>Name, Personalnummer und Passwort. Nur Benutzer mit Stammdaten-Zugriff können andere Benutzer verwalten.
-                        Standard-BOM-Filter (Beschaffung, Artikelgruppe) können im eigenen Profil gesetzt werden.</dd>
+                    <dd>Name, Personalnummer und Passwort. Jedem Benutzer koennen eine oder mehrere Rollen zugewiesen werden.
+                        Standard-BOM-Filter (Beschaffung, Artikelgruppe) koennen im eigenen Profil gesetzt werden.</dd>
+
+                    <dt>Arbeitsplaetze</dt>
+                    <dd>Konfiguration der Workstations mit Standard-Drucker (UNC-Pfad). Wird fuer den automatischen Etikettendruck verwendet.</dd>
+
+                    <dt>Werkbaenke</dt>
+                    <dd>Produktionsarbeitsplaetze (z.B. Werkbank 1, Werkbank 2). Werden automatisch aus OSEON-Daten angelegt
+                        und koennen Fertigungsauftraegen zugeordnet werden. Dienen als Filter in der Teileverfolgung und Fertigungsauftrags-Liste.</dd>
+
+                    <dt>Rollen</dt>
+                    <dd>Verwaltung der Berechtigungsrollen. Jede Rolle hat einen Schluessel, einen Anzeigenamen und optional eine
+                        AD-Gruppe (Active Directory). Mitglieder der AD-Gruppe erhalten die Rolle automatisch.
+                        <div class="table-responsive">
+                        <table class="table table-sm table-bordered mt-2 mb-0" style="font-size: 0.85em;">
+                            <thead class="table-light">
+                                <tr><th>Rolle</th><th>Beschreibung</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Administrator</td><td>Vollzugriff auf alle Bereiche</td></tr>
+                                <tr><td>Stammdaten</td><td>Benutzer, Arbeitsplaetze, Einstellungen verwalten</td></tr>
+                                <tr><td>Kommissionierer</td><td>Kommissionierung + vollstaendiger Lagerzugriff</td></tr>
+                                <tr><td>Lager</td><td>Einbuchung, Ausbuchung, Bestaende einsehen</td></tr>
+                                <tr><td>Lager Keyuser</td><td>Lager + Lagerplatz ausbuchen / umbuchen</td></tr>
+                                <tr><td>Teileverfolgung</td><td>OSEON-Auftraege und Rueckmeldungen einsehen</td></tr>
+                                <tr><td>Betriebsdaten (BDE)</td><td>Arbeitsgaenge rueckmelden</td></tr>
+                                <tr><td>Leitstand</td><td>Fertigungsauftraege freigeben und priorisieren</td></tr>
+                            </tbody>
+                        </table>
+                        </div>
+                    </dd>
 
                     <dt>Einstellungen</dt>
-                    <dd>Systemparameter wie Kommissioniertage, Vorkommissionierung, Meldebestand-Schwellen und Feiertagsverwaltung.</dd>
+                    <dd>Systemparameter wie Kommissioniertage, Vorkommissionierung, Meldebestand-Schwellen,
+                        Feiertagsverwaltung und Feature-Schalter (Leitstand, Bestellungen, Teileverfolgung).
+                        <br />Unter <em>Einstellungen &rarr; AG-Konfiguration</em> werden die Arbeitsgang-Typen
+                        fuer die OSEON-Teileverfolgung konfiguriert: Anzeigename, Soll-Termin-Offset (Arbeitstage)
+                        und ob der Arbeitsgang OSEON-relevant ist.</dd>
+
+                    <dt>Empfaenger</dt>
+                    <dd>Verwaltung der Empfaengergruppen fuer Bedarfsmeldungen. Hier werden Empfaenger mit
+                        E-Mail-Adressen und die Zuordnung von Artikelgruppen zu Empfaengergruppen gepflegt.
+                        Details siehe Abschnitt &bdquo;Bedarfsmeldungen&ldquo;.</dd>
                 </dl>
             </div>
         </div>
