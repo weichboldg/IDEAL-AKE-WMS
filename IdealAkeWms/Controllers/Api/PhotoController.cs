@@ -21,8 +21,7 @@ public class PhotoController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Upload(int productionOrderId, IFormFile photo)
+    public async Task<IActionResult> Upload([FromForm] int productionOrderId, IFormFile photo)
     {
         var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
         if (order == null)
@@ -80,8 +79,7 @@ public class PhotoController : ControllerBase
     }
 
     [HttpPost("delete")]
-    [ValidateAntiForgeryToken]
-    public IActionResult Delete(string fileName)
+    public IActionResult Delete([FromForm] string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))
             return BadRequest();
