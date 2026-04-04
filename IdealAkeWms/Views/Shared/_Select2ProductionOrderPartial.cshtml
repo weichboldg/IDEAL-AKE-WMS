@@ -24,7 +24,7 @@
                     },
                     cache: true
                 },
-                placeholder: '-- Werkstattauftrag suchen --',
+                placeholder: '-- Fertigungsauftrag suchen --',
                 minimumInputLength: 0,
                 allowClear: true,
                 language: 'de',
@@ -34,7 +34,7 @@
             $el.on('select2:select', function (e) {
                 var id = e.params.data.id;
                 if (id) {
-                    window.location.href = '/ProductionOrders/Bom/' + id;
+                    window.location.href = '/Picking/Bom/' + id;
                 }
             });
         });

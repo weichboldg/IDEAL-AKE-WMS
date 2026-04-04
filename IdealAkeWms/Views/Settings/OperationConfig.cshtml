@@ -51,9 +51,10 @@
                                         <input type="number" name="dueDateOffsetDays" value="@config.DueDateOffsetDays" form="form-update-@config.Id" class="form-control form-control-sm text-center" />
                                     </td>
                                     <td class="text-center">
-                                        <input type="hidden" name="isOseonRelevant" value="false" form="form-update-@config.Id" />
-                                        <input type="checkbox" name="isOseonRelevant" value="true" form="form-update-@config.Id" class="form-check-input"
-                                               @(config.IsOseonRelevant ? "checked" : "") />
+                                        <input type="hidden" name="isOseonRelevant" value="@(config.IsOseonRelevant ? "true" : "false")" form="form-update-@config.Id" id="hidden-oseon-@config.Id" />
+                                        <input type="checkbox" class="form-check-input" form="form-update-@config.Id"
+                                               @(config.IsOseonRelevant ? "checked" : "")
+                                               onchange="document.getElementById('hidden-oseon-@config.Id').value = this.checked ? 'true' : 'false'" />
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">
@@ -126,8 +127,9 @@
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
-                            <input type="hidden" name="isOseonRelevant" value="false" />
-                            <input type="checkbox" name="isOseonRelevant" value="true" class="form-check-input" id="addIsOseonRelevant" checked />
+                            <input type="hidden" name="isOseonRelevant" value="true" id="hidden-add-oseon" />
+                            <input type="checkbox" class="form-check-input" id="addIsOseonRelevant" checked
+                                   onchange="document.getElementById('hidden-add-oseon').value = this.checked ? 'true' : 'false'" />
                             <label class="form-check-label" for="addIsOseonRelevant">OSEON-relevant</label>
                         </div>
                         <small class="text-muted">Nicht-relevante AGs werden bei der Statusberechnung ignoriert.</small>

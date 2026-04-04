@@ -86,7 +86,7 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
             "Dringend" => "[DRINGEND] ",
             _ => ""
         };
-        return $"{prefix}Bedarfsmeldung \u2014 WA {orderNumber}";
+        return $"{prefix}Bedarfsmeldung \u2014 FA {orderNumber}";
     }
 
     private string GetHighestPriority(IEnumerable<string> priorities)
@@ -113,7 +113,7 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
 
         sb.Append($"""
             <h2 style="color: #053153; border-bottom: 2px solid #43A6E2; padding-bottom: 8px;">
-                Werkstattauftrag {first.OrderNumber}
+                Fertigungsauftrag {first.OrderNumber}
             </h2>
             <table style="margin-bottom: 20px;">
                 <tr><td style="padding: 4px 16px 4px 0; font-weight: bold;">Kunde:</td><td>{HtmlEncode(first.Customer ?? "\u2014")}</td></tr>

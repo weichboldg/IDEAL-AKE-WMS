@@ -14,7 +14,7 @@
             <div class="col-md-4">
                 <label class="form-label mb-0 small">Suche</label>
                 <input type="text" name="searchTerm" value="@Model.SearchTerm" class="form-control form-control-sm"
-                       placeholder="WA-Nr., Kunde, Artikelnr., Bezeichnung..." />
+                       placeholder="FA-Nr., Kunde, Artikelnr., Bezeichnung..." />
             </div>
             <div class="col-auto">
                 <div class="form-check mt-1">
@@ -62,7 +62,7 @@ else
                 <tr>
                     <th data-filterable data-col="0">Status</th>
                     <th data-filterable data-col="1">Priorität</th>
-                    <th data-filterable data-col="2">WA-Nr.</th>
+                    <th data-filterable data-col="2">FA-Nr.</th>
                     <th data-filterable data-col="3">Kunde</th>
                     <th data-filterable data-col="4">Ressourcen-Nr.</th>
                     <th data-filterable data-col="5">Bezeichnung</th>
@@ -112,7 +112,7 @@ else
                             }
                         </td>
                         <td>
-                            <a asp-controller="ProductionOrders" asp-action="Bom" asp-route-id="@item.ProductionOrderId"
+                            <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.ProductionOrderId"
                                title="Stückliste anzeigen">@item.OrderNumber</a>
                         </td>
                         <td>@item.Customer</td>

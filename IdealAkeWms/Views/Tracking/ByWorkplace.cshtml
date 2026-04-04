@@ -20,8 +20,8 @@
         <form method="get" asp-action="ByWorkplace" asp-route-id="@Model.Workplace.Id">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4">
-                    <label class="form-label">WA-Nummer</label>
-                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="z.B. WA-001" />
+                    <label class="form-label">FA-Nummer</label>
+                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="z.B. FA-001" />
                 </div>
                 <div class="col-md-4">
                     <div class="form-check mt-4">
@@ -55,7 +55,7 @@ else
         <table class="table table-striped mb-0">
             <thead>
                 <tr>
-                    <th>WA-Nr.</th>
+                    <th>FA-Nr.</th>
                     <th>#</th>
                     <th>AG-Nr.</th>
                     <th>Bezeichnung</th>

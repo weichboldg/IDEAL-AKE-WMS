@@ -10,6 +10,7 @@
 
 @if (canPick)
 {
+    <h6 class="text-muted mb-2 mt-2">Lager</h6>
     <div class="row g-4 mb-4">
         <div class="col-md-6 col-lg-3">
             <a asp-controller="StockMovements" asp-action="Inbound" class="text-decoration-none">
@@ -57,9 +58,10 @@
         </div>
     </div>
 
+    <h6 class="text-muted mb-2 mt-3">Fertigung & Kommissionierung</h6>
     <div class="row g-4 mb-4">
         <div class="col-md-6 col-lg-3">
-            <a asp-controller="ProductionOrders" asp-action="Picking" class="text-decoration-none">
+            <a asp-controller="Picking" asp-action="Index" class="text-decoration-none">
                 <div class="card dashboard-card h-100" style="border-left-color: var(--ake-secondary);">
                     <div class="card-body text-center">
                         <h5 class="card-title">Kommissionierung</h5>
@@ -78,7 +80,7 @@
             <a asp-controller="ProductionOrders" asp-action="Index" class="text-decoration-none">
                 <div class="card dashboard-card h-100">
                     <div class="card-body text-center">
-                        <h5 class="card-title">Werkstattaufträge</h5>
+                        <h5 class="card-title">Fertigungsaufträge</h5>
                         <p class="card-text mb-0" style="font-size: 2rem;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
@@ -86,7 +88,7 @@
                                 <path d="M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z"/>
                             </svg>
                         </p>
-                        <small class="text-muted">Werkstattaufträge verwalten</small>
+                        <small class="text-muted">Fertigungsaufträge verwalten</small>
                     </div>
                 </div>
             </a>
@@ -112,6 +114,7 @@
 
 @if (teileverfolgungAktiv && canViewTracking)
 {
+    <h6 class="text-muted mb-2 mt-3">Teileverfolgung</h6>
     <div class="row g-4 mb-4">
         <div class="col-md-6 col-lg-3">
             <a asp-controller="Tracking" asp-action="Index" class="text-decoration-none">
@@ -131,6 +134,7 @@
     </div>
 }
 
+<h6 class="text-muted mb-2 mt-3">Stammdaten</h6>
 <div class="row g-4">
     <div class="col-md-6 col-lg-3">
         <a asp-controller="Articles" asp-action="Index" class="text-decoration-none">

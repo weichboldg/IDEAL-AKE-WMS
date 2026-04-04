@@ -1,0 +1,243 @@
+@model PrintBomViewModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Stückliste - FA @Model.OrderNumber</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #000;
+            background: #fff;
+            padding: 20px;
+            font-size: 9px;
+        }
+
+        .screen-controls {
+            padding: 15px;
+            text-align: center;
+            background: #053153;
+            color: #fff;
+            margin: -20px -20px 20px -20px;
+        }
+
+        .screen-controls button {
+            background: #fff;
+            color: #053153;
+            border: none;
+            padding: 8px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+
+        .header-info {
+            margin-bottom: 15px;
+            border-bottom: 2px solid #053153;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-left h1 {
+            font-size: 16px;
+            color: #053153;
+        }
+
+        .header-left p {
+            margin-top: 3px;
+            font-size: 12px;
+        }
+
+        .header-right {
+            text-align: right;
+            flex-shrink: 0;
+            margin-left: 20px;
+        }
+
+        .wa-number {
+            font-size: 28px;
+            font-weight: 900;
+            color: #c0392b;
+            line-height: 1.1;
+        }
+
+        .production-date {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5px;
+        }
+
+        th {
+            background: #053153;
+            color: #fff;
+            padding: 4px 6px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f8f8;
+        }
+
+        tr.baugruppe-row {
+            background: #e8f4fd !important;
+            font-weight: 700;
+        }
+
+        .text-end {
+            text-align: right;
+        }
+
+        .pos-cell {
+            white-space: nowrap;
+        }
+
+        .checkbox-col {
+            width: 20px;
+            text-align: center;
+        }
+
+        .checkbox-col-box {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid #333;
+            vertical-align: middle;
+        }
+
+        .footer-info {
+            margin-top: 15px;
+            font-size: 10px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        @@media print {
+            .screen-controls {
+                display: none !important;
+            }
+
+            body {
+                padding: 10px;
+            }
+
+            @@page {
+                size: A4 portrait;
+                margin: 8mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="screen-controls">
+        <button onclick="window.print()">Drucken</button>
+        <button onclick="window.close()">Schließen</button>
+    </div>
+
+    <div class="header-info">
+        <div class="header-left">
+            <h1>Kommissionierliste</h1>
+            @if (!string.IsNullOrEmpty(Model.ArticleNumber))
+            {
+                <p><strong>Artikel:</strong> @Model.ArticleNumber - @Model.Description1</p>
+            }
+            @if (Model.Quantity > 0)
+            {
+                <p><strong>Stückzahl:</strong> @Model.Quantity</p>
+            }
+            <p><strong>Gedruckt:</strong> @DateTime.Now.ToString("dd.MM.yyyy HH:mm")</p>
+            @if (!string.IsNullOrEmpty(Model.FilterInfo))
+            {
+                <p><strong>Filter:</strong> @Model.FilterInfo</p>
+            }
+        </div>
+        <div class="header-right">
+            <div class="wa-number">FA @Model.OrderNumber</div>
+            @if (Model.ProductionDate.HasValue)
+            {
+                <div class="production-date">Fertigungstermin: @Model.ProductionDate.Value.ToString("dd.MM.yyyy")</div>
+            }
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th class="checkbox-col"></th>
+                <th>Position</th>
+                <th>Baugruppe</th>
+                <th>Ressourcenummer</th>
+                <th>Bezeichnung 1</th>
+                <th>Bezeichnung 2</th>
+                <th class="text-end">Menge</th>
+                <th>Beschaffung</th>
+                <th>Artikelgruppe</th>
+                <th>Lagerplatz</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr class="@(item.IsBaugruppe ? "baugruppe-row" : "")">
+                    <td class="checkbox-col">
+                        @if (!item.IsBaugruppe)
+                        {
+                            <span class="checkbox-col-box"></span>
+                        }
+                    </td>
+                    <td class="pos-cell" style="padding-left: @(item.TreeLevel * 16 + 6)px;">
+                        @item.Position
+                    </td>
+                    <td>@item.Baugruppe</td>
+                    <td><strong>@item.Ressourcenummer</strong></td>
+                    <td>@item.Bezeichnung1</td>
+                    <td>@item.Bezeichnung2</td>
+                    <td class="text-end">@item.Menge.ToString("N3")</td>
+                    <td>@item.Beschaffungsartikel</td>
+                    <td>@item.Artikelgruppe</td>
+                    <td>@(item.Lagerplatz ?? "-")</td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 20px; color: #999;">Keine Stücklisten-Positionen vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="footer-info">
+        <span>@Model.Items.Count Positionen</span>
+        <span>IDEAL-AKE WMS</span>
+    </div>
+</body>
+</html>

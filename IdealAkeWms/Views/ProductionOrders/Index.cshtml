@@ -1,7 +1,7 @@
 @model ProductionOrderViewModel
 @using System.Globalization
 @{
-    var pageTitle = Model.LeitstandAktiv && Model.CanManagePickingRelease ? "Produktionsaufträge" : "Werkstattaufträge";
+    var pageTitle = "Fertigungsaufträge";
     ViewData["Title"] = pageTitle;
     var today = DateTime.Today;
     // ISO 8601 Kalenderwoche berechnen
@@ -22,8 +22,8 @@
         <form method="get" asp-action="Index">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">WA Nummer</label>
-                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="WA Nummer" />
+                    <label class="form-label">FA Nummer</label>
+                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="FA Nummer" />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Artikelnummer</label>
@@ -57,7 +57,7 @@
                 {
                     <th style="width: 40px;"></th>
                 }
-                <th style="width: 90px;" data-filterable data-col="1">WA Nr.</th>
+                <th style="width: 90px;" data-filterable data-col="1">FA Nr.</th>
                 <th class="text-end" style="width: 55px;">Stk.</th>
                 <th data-filterable data-col="3">Kunde</th>
                 <th data-filterable data-col="4">Artikelnummer</th>
@@ -88,7 +88,7 @@
                         <td class="text-nowrap">
                             @if (!string.IsNullOrEmpty(item.ArticleNumber))
                             {
-                                <a asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                                <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
                                     </svg>
@@ -182,7 +182,7 @@
                         </a>
                         @if (Model.CanPick)
                         {
-                            <form asp-action="ToggleDone" method="post" class="d-inline">
+                            <form asp-controller="Picking" asp-action="ToggleDone" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@item.Id" />
                                 <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />

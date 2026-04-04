@@ -15,7 +15,9 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.CommandTimeout(120)));
 
 // Authentication - Windows/Negotiate
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
@@ -41,15 +43,18 @@ builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
-builder.Services.AddScoped<IAppSettingRepository, AppSettingRepository>();
+builder.Services.AddScoped<AppSettingRepository>();
+builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
-builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
+builder.Services.AddScoped<HolidayRepository>();
+builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
-builder.Services.AddScoped<IOseonOperationConfigRepository, OseonOperationConfigRepository>();
+builder.Services.AddScoped<OseonOperationConfigRepository>();
+builder.Services.AddScoped<IOseonOperationConfigRepository, CachedOseonOperationConfigRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IEnaioDmsDocumentRepository, EnaioDmsDocumentRepository>();
 builder.Services.AddScoped<IOrderRecipientRepository, OrderRecipientRepository>();

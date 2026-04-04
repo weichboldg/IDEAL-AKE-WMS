@@ -667,6 +667,19 @@ BEGIN
 END
 GO
 
+-- Performance-Indexes StockMovements (38)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId_StorageLocationId' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId_StorageLocationId]
+    ON [StockMovements] ([ArticleId], [StorageLocationId]) INCLUDE ([Quantity], [MovementType]);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId_SourceStorageLocationId_MovementType' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId_SourceStorageLocationId_MovementType]
+    ON [StockMovements] ([ArticleId], [SourceStorageLocationId], [MovementType]) INCLUDE ([Quantity]);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StockMovements_ProductionOrder' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ProductionOrder]
+    ON [StockMovements] ([ProductionOrder]);
+
 -- =============================================
 -- 17. Standard-Daten
 -- =============================================

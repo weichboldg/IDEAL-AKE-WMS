@@ -21,33 +21,88 @@
             <div class="card-body">
                 <form asp-action="SaveSettings" method="post">
                     @Html.AntiForgeryToken()
-                    @foreach (var setting in Model.Settings)
+                    @{
+                        var settingsGroups = new (string Title, string[] Keys)[]
+                        {
+                            ("Kommissionierung", new[] { "KommissionierTage", "VorkommissionierTage", "BeschichtungTage", "BeschichtungAbholtage" }),
+                            ("Lager", new[] { "WarningThresholdPercent", "CriticalThresholdPercent", "NegativeBuchungErlaubt", "NegativeBuchungLagerplatz" }),
+                            ("Teileverfolgung", new[] { "TeileverfolgungAktiv", "OseonRueckmeldungAktiv", "SageRueckmeldungAktiv", "OseonAmpelGelbTage", "OseonAmpelBlauTage" }),
+                            ("Bestellungen", new[] { "BestellungenAktiv" }),
+                            ("Leitstand", new[] { "LeitstandAktiv" }),
+                            ("Allgemein", new[] { "QrMitFaNummer" }),
+                        };
+                        var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        var ungrouped = Model.Settings.Where(s => !groupedKeys.Contains(s.Key)).ToList();
+                    }
+                    @foreach (var group in settingsGroups)
                     {
-                        var isBool = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase)
-                                  || string.Equals(setting.Value, "false", StringComparison.OrdinalIgnoreCase);
-                        var isChecked = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase);
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">@setting.Key</label>
-                            @if (!string.IsNullOrEmpty(setting.Description))
-                            {
-                                <br /><small class="text-muted">@setting.Description</small>
-                            }
-                            @if (isBool)
-                            {
-                                <input type="hidden" name="settings[@setting.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
-                                <div class="form-check form-switch mt-1">
-                                    <input type="checkbox" class="form-check-input bool-toggle" id="setting_@setting.Key"
-                                           @(isChecked ? "checked" : "") />
-                                    <label class="form-check-label" for="setting_@setting.Key">
-                                        @(isChecked ? "Aktiviert" : "Deaktiviert")
-                                    </label>
-                                </div>
-                            }
-                            else
-                            {
-                                <input type="text" name="settings[@setting.Key]" value="@setting.Value" class="form-control" />
-                            }
-                        </div>
+                        var groupSettings = group.Keys
+                            .Select(k => Model.Settings.FirstOrDefault(s => s.Key == k))
+                            .Where(s => s != null)
+                            .ToList();
+                        if (!groupSettings.Any()) continue;
+
+                        <h6 class="text-muted mt-3 mb-2 border-bottom pb-1">@group.Title</h6>
+                        foreach (var setting in groupSettings)
+                        {
+                            var isBool = string.Equals(setting!.Value, "true", StringComparison.OrdinalIgnoreCase)
+                                      || string.Equals(setting.Value, "false", StringComparison.OrdinalIgnoreCase);
+                            var isChecked = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase);
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">@setting.Key</label>
+                                @if (!string.IsNullOrEmpty(setting.Description))
+                                {
+                                    <br /><small class="text-muted">@setting.Description</small>
+                                }
+                                @if (isBool)
+                                {
+                                    <input type="hidden" name="settings[@setting.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
+                                    <div class="form-check form-switch mt-1">
+                                        <input type="checkbox" class="form-check-input bool-toggle" id="setting_@setting.Key"
+                                               @(isChecked ? "checked" : "") />
+                                        <label class="form-check-label" for="setting_@setting.Key">
+                                            @(isChecked ? "Aktiviert" : "Deaktiviert")
+                                        </label>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <input type="text" name="settings[@setting.Key]" value="@setting.Value" class="form-control" />
+                                }
+                            </div>
+                        }
+                    }
+                    @if (ungrouped.Any())
+                    {
+                        <h6 class="text-muted mt-3 mb-2 border-bottom pb-1">Sonstige</h6>
+                        foreach (var setting in ungrouped)
+                        {
+                            var isBool = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase)
+                                      || string.Equals(setting.Value, "false", StringComparison.OrdinalIgnoreCase);
+                            var isChecked = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase);
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">@setting.Key</label>
+                                @if (!string.IsNullOrEmpty(setting.Description))
+                                {
+                                    <br /><small class="text-muted">@setting.Description</small>
+                                }
+                                @if (isBool)
+                                {
+                                    <input type="hidden" name="settings[@setting.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
+                                    <div class="form-check form-switch mt-1">
+                                        <input type="checkbox" class="form-check-input bool-toggle" id="setting_@setting.Key"
+                                               @(isChecked ? "checked" : "") />
+                                        <label class="form-check-label" for="setting_@setting.Key">
+                                            @(isChecked ? "Aktiviert" : "Deaktiviert")
+                                        </label>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <input type="text" name="settings[@setting.Key]" value="@setting.Value" class="form-control" />
+                                }
+                            </div>
+                        }
                     }
                     <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
                 </form>

@@ -63,7 +63,7 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 02 | `SQL/02_CreateTables.sql` | Tabellen anlegen |
 | 03 | `SQL/03_CreateViews.sql` | Views erstellen |
 | 04 | `SQL/04_AlterTables.sql` | Tabellen erweitern |
-| 05 | `SQL/05_CreateProductionOrders.sql` | Werkstattaufträge |
+| 05 | `SQL/05_CreateProductionOrders.sql` | Fertigungsaufträge |
 | 06 | `SQL/06_CreateSettings.sql` | AppSettings + Feiertage + Meldebestand |
 | 07 | `SQL/07_Extensions.sql` | Erweiterungen |
 | 08 | `SQL/08_PickingStatus.sql` | Picking-Status |
@@ -133,14 +133,14 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Paginierte Übersicht aller Buchungen
 - Filter nach Datum, Artikel, Lagerplatz, Buchungsart, Benutzer, Fertigungsauftrag
 
-### Werkstattaufträge (WA)
+### Fertigungsaufträge (FA)
 - Synchronisation mit Sage (über SQL-View)
 - Terminberechnung: Kommissionierung, Vorkommissionierung, Beschichtung
 - Status-Management (offen, in Kommissionierung, teilkommissioniert, abgeschlossen)
 - **Werkbank-Spalte**: Zeigt zugeordneten Produktionsarbeitsplatz — automatisch per Werkbank-Sync aus OSEON befüllt
-- **OSEON-Button**: Direktlink zur OSEON-Teileverfolgung, vorgefiltert auf WA-Nummer
+- **OSEON-Button**: Direktlink zur OSEON-Teileverfolgung, vorgefiltert auf FA-Nummer
 - **Glas/Zukauf**: Checkbox-Spalten direkt in der Tabelle, sofortige DB-Speicherung
-- **Tracking-User**: Benutzer mit Teileverfolgungsberechtigung können die WA-Liste einsehen (read-only, ohne Stückliste/Erledigt)
+- **Tracking-User**: Benutzer mit Teileverfolgungsberechtigung können die FA-Liste einsehen (read-only, ohne Stückliste/Erledigt)
 
 ### OSEON Teileverfolgung
 - 3-Ebenen-Baumstruktur: KundenAuftragsNr → Subaufträge (OSEON-Nr.) → Arbeitsgänge
@@ -157,7 +157,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Priorisierung**: Numerische Priorität (1 = höchste). Auto-Vorschlag bei Freigabe (MAX+1), inline änderbar.
 - **Kommissionierliste**: Kommissionierer sehen nur freigegebene Aufträge in einer Tabelle mit Priorität, Kommissioniertermin (KW), Status.
 - **Menü-Badge**: Anzahl offener freigegebener Aufträge im Menüpunkt "Kommissionierung".
-- **Menü-Trennung**: Leitstand/Tracking sehen "Produktionsaufträge", Kommissionierer sehen nur "Kommissionierung".
+- **Menü-Trennung**: Leitstand/Tracking sehen "Fertigungsaufträge", Kommissionierer sehen nur "Kommissionierung".
 - Voraussetzung: Rolle `leitstand` + AppSetting `LeitstandAktiv = true`
 
 ### Kommissionierung (Stückliste)
@@ -169,7 +169,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Spaltenfilter mit erweiterter Syntax**: `960,886` (OR-Verknüpfung), `!960` (Ausschluss)
 - **Rekursive Suche**: User-Setting — bei aktivem Filter werden alle passenden Positionen angezeigt, unabhängig vom Baum-Status der übergeordneten Baugruppe
 - **Drucken mit Filterübertragung**: Druck übernimmt aktuelle Filterung und Baumstruktur
-- Foto-Upload pro Werkstattauftrag
+- Foto-Upload pro Fertigungsauftrag
 - **BOM-Datenquelle**: SAGE (View) → Fallback OSEON/TRUMPF (Stored Procedure); Quelle wird als Badge im Header angezeigt (SAGE / OSEON / Keine Daten)
 
 ### Barcode/QR-Scanner
@@ -189,7 +189,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Empfängergruppen (Stammdaten)**: CRUD für Gruppen + Empfänger + Artikelgruppen-Zuordnung (N:M)
 
 ### Berechtigungen
-- **`CanPick`**: Lagerbewegungen, Bestände, Werkstattaufträge, Kommissionierung — nur sichtbar/zugänglich wenn User-Flag gesetzt
+- **`CanPick`**: Lagerbewegungen, Bestände, Fertigungsaufträge, Kommissionierung — nur sichtbar/zugänglich wenn User-Flag gesetzt
 - **`CanViewTracking`**: Teileverfolgung — nur sichtbar wenn Flag gesetzt UND AppSetting `TeileverfolgungAktiv = true`
 - **`HasMasterDataAccess`**: Benutzer, Arbeitsplätze, Werkbänke, Einstellungen
 - Dashboard zeigt nur Kacheln die der User-Berechtigung entsprechen
@@ -256,7 +256,11 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
 ```
 IdealAkeWms/
-├── Controllers/          # MVC Controller (inkl. AccountController, TrackingController)
+├── Controllers/
+│   ├── ProductionOrdersController.cs  # FA-Liste, Leitstand-Freigabe
+│   ├── PickingController.cs           # Kommissionierung, Stückliste, Transfer
+│   ├── Api/PhotoController.cs         # Foto-Upload API
+│   └── ...               # AccountController, TrackingController, etc.
 ├── Data/
 │   ├── ApplicationDbContext.cs
 │   └── Repositories/     # Repository-Implementierungen
