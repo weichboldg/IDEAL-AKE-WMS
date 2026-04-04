@@ -42,19 +42,42 @@
         }
 
         .header-info {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border-bottom: 2px solid #053153;
             padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
 
-        .header-info h1 {
-            font-size: 20px;
+        .header-left h1 {
+            font-size: 16px;
             color: #053153;
         }
 
-        .header-info p {
+        .header-left p {
+            margin-top: 3px;
+            font-size: 12px;
+        }
+
+        .header-right {
+            text-align: right;
+            flex-shrink: 0;
+            margin-left: 20px;
+        }
+
+        .wa-number {
+            font-size: 28px;
+            font-weight: 900;
+            color: #c0392b;
+            line-height: 1.1;
+        }
+
+        .production-date {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
             margin-top: 4px;
-            font-size: 14px;
         }
 
         table {
@@ -108,17 +131,25 @@
     </div>
 
     <div class="header-info">
-        <h1>Kommissionierliste</h1>
-        <p><strong>Fertigungsauftrag:</strong> @Model.OrderNumber</p>
-        @if (!string.IsNullOrEmpty(Model.ArticleNumber))
-        {
-            <p><strong>Artikel:</strong> @Model.ArticleNumber - @Model.Description1</p>
-        }
-        @if (!string.IsNullOrEmpty(Model.PickedBy))
-        {
-            <p><strong>Kommissioniert von:</strong> @Model.PickedBy</p>
-        }
-        <p><strong>Datum:</strong> @DateTime.Now.ToString("dd.MM.yyyy HH:mm")</p>
+        <div class="header-left">
+            <h1>Kommissionierliste</h1>
+            @if (!string.IsNullOrEmpty(Model.ArticleNumber))
+            {
+                <p><strong>Artikel:</strong> @Model.ArticleNumber - @Model.Description1</p>
+            }
+            @if (Model.Quantity > 0)
+            {
+                <p><strong>Stückzahl:</strong> @Model.Quantity</p>
+            }
+            <p><strong>Gedruckt:</strong> @DateTime.Now.ToString("dd.MM.yyyy HH:mm")</p>
+        </div>
+        <div class="header-right">
+            <div class="wa-number">FA @Model.OrderNumber</div>
+            @if (Model.ProductionDate.HasValue)
+            {
+                <div class="production-date">Fertigungstermin: @Model.ProductionDate.Value.ToString("dd.MM.yyyy")</div>
+            }
+        </div>
     </div>
 
     <table>

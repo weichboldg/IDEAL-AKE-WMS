@@ -423,6 +423,8 @@ public class PickingController : Controller
             OrderNumber = order.OrderNumber,
             ArticleNumber = order.ArticleNumber,
             Description1 = order.Description1,
+            Quantity = order.Quantity,
+            ProductionDate = order.ProductionDate,
             PickedBy = pickedItems.FirstOrDefault()?.PickedBy,
             Items = pickedItems.Select(p => new PrintPickingItem
             {

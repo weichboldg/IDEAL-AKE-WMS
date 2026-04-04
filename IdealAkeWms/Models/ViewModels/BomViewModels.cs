@@ -67,6 +67,8 @@ public class PrintPickingViewModel
     public string OrderNumber { get; set; } = string.Empty;
     public string? ArticleNumber { get; set; }
     public string? Description1 { get; set; }
+    public decimal Quantity { get; set; }
+    public DateTime? ProductionDate { get; set; }
     public string? PickedBy { get; set; }
     public List<PrintPickingItem> Items { get; set; } = new();
 }
