@@ -41,7 +41,7 @@
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Lagerbewegungen
+                                    Lager
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
@@ -53,11 +53,9 @@
                                     }
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
                                     <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                    <li><a class="dropdown-item" asp-controller="StockOverview" asp-action="Index">Bestände</a></li>
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
                                 </ul>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="StockOverview" asp-action="Index">Bestände</a>
                             </li>
                         }
                         @if (leitstandAktiv)
