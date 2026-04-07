@@ -6,6 +6,10 @@
 
 **Architecture:** The service syncs BOMs via a SAGE batch query + OSEON fallback, using a SHA256 content hash for change detection and `SqlBulkCopy` + MERGE-like upsert for performance. `BomRepository` reads cache-first with a live SAGE/OSEON fallback. `CoatingDetectionService` runs after `BomCacheSync` and updates `HasCoatingParts` via a DB-internal JOIN (`CachedBomItems` → `Articles` → `ArticleCategories`). The UI exposes user-toggleable `IsCoatingDone` via a clickable checkbox in a new Lack-T column.
 
+**Project boundaries:** The Windows service (`IDEALAKEWMSService`, `Sdk.Worker`) and the web app (`IdealAkeWms`, `Sdk.Web`) cannot share a project reference because of the SDK mismatch. The service therefore uses its own internal DTOs (`BomCacheItem`) and raw SQL via `Microsoft.Data.SqlClient` (consistent with `OseonSyncService`, `EnaioDmsSyncService`, `PartRequisitionEmailService`). The web app uses the new `IBomCacheRepository` (registered only in the web DI container) for the cache-first read path.
+
+**Shared helpers:** New common helpers under `IDEALAKEWMSService/Common/` (`ConnectionStrings`, `BulkCopyHelper`) reduce duplication across all sync services. They are introduced as their own task before the BOM-cache work.
+
 **Tech Stack:** ASP.NET Core 10, EF Core 10, SQL Server, Microsoft.Data.SqlClient, xUnit + FluentAssertions + Moq, SHA256.
 
 **Spec:** See `docs/superpowers/specs/2026-04-07-bom-cache-und-lackierteil-erkennung.md` for the full design.
@@ -938,7 +942,7 @@ public async Task<List<ProductionOrder>> GetOpenOrdersInWindowAsync(int weeksAhe
 
     var cutoff = DateTime.Now.AddDays(weeksAhead * 7);
 
-    return await _db.ProductionOrders
+    return await _dbSet
         .Where(po => !po.IsDone
                      && po.ProductionDate != null
                      && po.ProductionDate <= cutoff)
@@ -952,7 +956,7 @@ public async Task SetCoatingFlagsAsync(Dictionary<int, bool> orderIdToHasCoating
     if (orderIdToHasCoatingParts == null || orderIdToHasCoatingParts.Count == 0) return;
 
     var ids = orderIdToHasCoatingParts.Keys.ToList();
-    var orders = await _db.ProductionOrders
+    var orders = await _dbSet
         .Where(po => ids.Contains(po.Id))
         .ToListAsync();
 
@@ -977,9 +981,11 @@ public async Task SetCoatingFlagsAsync(Dictionary<int, bool> orderIdToHasCoating
         }
     }
 
-    await _db.SaveChangesAsync();
+    await _context.SaveChangesAsync();
 }
 ```
+
+> Note: The `Repository<T>` base class exposes `_dbSet` (the DbSet) and `_context` (the ApplicationDbContext). Use `_dbSet` for queries and `_context.SaveChangesAsync()` for persistence — same pattern as the other methods in this file.
 
 ### 4.3 Tests — `IdealAkeWms.Tests/Repositories/ProductionOrderRepositoryCoatingTests.cs`
 
@@ -1100,17 +1106,209 @@ git commit -m "feat: ProductionOrderRepository window query + bulk coating flag 
 
 ---
 
-## Task 5: Hash Utility + BomCacheSyncService Skeleton
+## Task 5a: Common Helpers — ConnectionStrings + BulkCopyHelper
+
+**Goal:** Reduce duplication across sync services and prepare clean infrastructure for the upcoming `BomCacheSyncService`. Two thin helper classes plus a small refactor of the connection-string loading in `BomCacheSyncService` (later tasks). Existing services (`OseonSyncService`, `SageImportService`, etc.) are NOT refactored in this plan to keep scope focused — they may adopt the helpers in a future cleanup.
+
+### 5a.1 Create `IDEALAKEWMSService/Common/ConnectionStrings.cs`
+
+```csharp
+using Microsoft.Extensions.Configuration;
+
+namespace IDEALAKEWMSService.Common;
+
+/// <summary>
+/// Centralised connection-string lookup helpers.
+/// Throws InvalidOperationException with a consistent message if a connection
+/// string is missing from configuration.
+/// </summary>
+public static class ConnectionStrings
+{
+    public static string GetRequired(IConfiguration config, string name)
+        => config.GetConnectionString(name)
+            ?? throw new InvalidOperationException($"{name} nicht konfiguriert.");
+
+    public static string Wms(IConfiguration c) => GetRequired(c, "DefaultConnection");
+    public static string Sage(IConfiguration c) => GetRequired(c, "SageConnection");
+    public static string Oseon(IConfiguration c) => GetRequired(c, "OseonConnection");
+    public static string EnaioDms(IConfiguration c) => GetRequired(c, "EnaioDmsConnection");
+}
+```
+
+### 5a.2 Create `IDEALAKEWMSService/Common/BulkCopyHelper.cs`
+
+```csharp
+using System.Collections.Generic;
+using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
+
+namespace IDEALAKEWMSService.Common;
+
+/// <summary>
+/// Thin wrappers around the SqlBulkCopy + MERGE pattern used by sync services.
+/// Handles boilerplate (column mappings, timeouts, OUTPUT $action parsing)
+/// without imposing a specific table schema.
+/// </summary>
+public static class BulkCopyHelper
+{
+    /// <summary>
+    /// Streams a DataTable into a temp table via SqlBulkCopy with explicit column mappings.
+    /// </summary>
+    public static async Task BulkCopyToTempTableAsync(
+        SqlConnection conn,
+        string tempTableName,
+        DataTable data,
+        Dictionary<string, string> columnMappings,
+        int timeoutSeconds,
+        CancellationToken ct)
+    {
+        using var bulkCopy = new SqlBulkCopy(conn)
+        {
+            DestinationTableName = tempTableName,
+            BulkCopyTimeout = timeoutSeconds
+        };
+        foreach (var (src, dest) in columnMappings)
+            bulkCopy.ColumnMappings.Add(src, dest);
+        await bulkCopy.WriteToServerAsync(data, ct);
+    }
+
+    /// <summary>
+    /// Executes a MERGE (or other DML) statement that emits OUTPUT $action and
+    /// returns counts of inserted vs updated rows.
+    /// </summary>
+    public static async Task<(int Inserted, int Updated)> ExecuteMergeWithOutputAsync(
+        SqlConnection conn,
+        string mergeSql,
+        int timeoutSeconds,
+        CancellationToken ct)
+    {
+        int inserted = 0, updated = 0;
+        await using var cmd = new SqlCommand(mergeSql, conn) { CommandTimeout = timeoutSeconds };
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var action = reader.GetString(0);
+            if (action == "INSERT") inserted++;
+            else if (action == "UPDATE") updated++;
+        }
+        return (inserted, updated);
+    }
+}
+```
+
+### 5a.3 Tests — `IdealAkeWms.Tests/Common/ConnectionStringsTests.cs`
+
+```csharp
+using FluentAssertions;
+using IDEALAKEWMSService.Common;
+using Microsoft.Extensions.Configuration;
+using Xunit;
+
+namespace IdealAkeWms.Tests.Common;
+
+public class ConnectionStringsTests
+{
+    private static IConfiguration Build(params (string Key, string Value)[] entries)
+    {
+        var dict = new Dictionary<string, string?>();
+        foreach (var (k, v) in entries) dict[k] = v;
+        return new ConfigurationBuilder().AddInMemoryCollection(dict).Build();
+    }
+
+    [Fact]
+    public void GetRequired_ReturnsValue_WhenPresent()
+    {
+        var cfg = Build(("ConnectionStrings:DefaultConnection", "Server=A;Database=B"));
+        ConnectionStrings.GetRequired(cfg, "DefaultConnection").Should().Be("Server=A;Database=B");
+    }
+
+    [Fact]
+    public void GetRequired_Throws_WhenMissing()
+    {
+        var cfg = Build();
+        var act = () => ConnectionStrings.GetRequired(cfg, "DefaultConnection");
+        act.Should().Throw<InvalidOperationException>()
+           .WithMessage("*DefaultConnection nicht konfiguriert*");
+    }
+
+    [Fact]
+    public void NamedHelpers_ReturnRespectiveStrings()
+    {
+        var cfg = Build(
+            ("ConnectionStrings:DefaultConnection", "wms"),
+            ("ConnectionStrings:SageConnection", "sage"),
+            ("ConnectionStrings:OseonConnection", "oseon"),
+            ("ConnectionStrings:EnaioDmsConnection", "enaio"));
+
+        ConnectionStrings.Wms(cfg).Should().Be("wms");
+        ConnectionStrings.Sage(cfg).Should().Be("sage");
+        ConnectionStrings.Oseon(cfg).Should().Be("oseon");
+        ConnectionStrings.EnaioDms(cfg).Should().Be("enaio");
+    }
+}
+```
+
+### 5a.4 Build, test, commit
+
+```bash
+dotnet build IdealAkeWms.slnx
+dotnet test IdealAkeWms.Tests/IdealAkeWms.Tests.csproj
+git add IDEALAKEWMSService/Common/ConnectionStrings.cs \
+        IDEALAKEWMSService/Common/BulkCopyHelper.cs \
+        IdealAkeWms.Tests/Common/ConnectionStringsTests.cs
+git commit -m "feat: add ConnectionStrings + BulkCopyHelper common helpers for sync services"
+```
+
+### Checklist
+
+- [ ] `ConnectionStrings.cs` created with 5 methods
+- [ ] `BulkCopyHelper.cs` created with 2 methods
+- [ ] 3 ConnectionStrings tests green
+- [ ] Existing services NOT refactored (out of scope)
+- [ ] Committed
+
+---
+
+## Task 5b: BomCacheSyncService Skeleton + Hash Utility
 
 **Goal:** Create the `BomCacheSyncService` in the Windows service project with a stable content hash function and empty method signatures. Real sync logic follows in Tasks 6–8.
 
-### 5.1 Create `IDEALAKEWMSService/Services/IBomCacheSyncService.cs`
+**Important architectural note:** The service cannot reference the web project (SDK mismatch: `Sdk.Worker` vs `Sdk.Web`). Therefore the service defines its **own internal `BomCacheItem` DTO** with the same shape as `IdealAkeWms.Models.ViewModels.BomItem`. The two classes are independent — keep both in sync if columns change.
+
+### 5b.1 Create `IDEALAKEWMSService/Models/BomCacheItem.cs`
+
+```csharp
+namespace IDEALAKEWMSService.Models;
+
+/// <summary>
+/// Service-internal DTO for a BOM item read from SAGE or OSEON.
+/// Mirrors the shape of <c>IdealAkeWms.Models.ViewModels.BomItem</c>
+/// but is duplicated here because the service project cannot reference
+/// the web project (SDK.Worker vs SDK.Web).
+/// </summary>
+public class BomCacheItem
+{
+    public string Artikelnummer { get; set; } = string.Empty;
+    public string? Position { get; set; }
+    public string? Baugruppe { get; set; }
+    public string? Ressourcenummer { get; set; }
+    public string? Bezeichnung1 { get; set; }
+    public string? Bezeichnung2 { get; set; }
+    public decimal Menge { get; set; }
+    public string? Beschaffungsartikel { get; set; }
+    public string? Artikelgruppe { get; set; }
+}
+```
+
+### 5b.2 Create `IDEALAKEWMSService/Services/IBomCacheSyncService.cs`
 
 ```csharp
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using IDEALAKEWMSService.Models;
+using IDEALAKEWMSService.Services;
 
 namespace IDEALAKEWMSService.Services;
 
@@ -1134,7 +1332,9 @@ public interface IBomCacheSyncService
 }
 ```
 
-### 5.2 Create `IDEALAKEWMSService/Services/BomCacheSyncService.cs`
+> Note: `SyncResult` is the existing record defined in `IDEALAKEWMSService/Services/ISageImportService.cs` (positional record `(int Inserted, int Updated, int Errors, string? ErrorDetails = null)`). It is in the `IDEALAKEWMSService.Services` namespace, no extra import needed.
+
+### 5b.3 Create `IDEALAKEWMSService/Services/BomCacheSyncService.cs`
 
 ```csharp
 using System;
@@ -1145,10 +1345,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using IdealAkeWms.Models.ViewModels;
+using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Models;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace IDEALAKEWMSService.Services;
@@ -1157,22 +1356,19 @@ public class BomCacheSyncService : IBomCacheSyncService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<BomCacheSyncService> _logger;
-    private readonly IServiceProvider _serviceProvider;
 
     public BomCacheSyncService(
         IConfiguration configuration,
-        ILogger<BomCacheSyncService> logger,
-        IServiceProvider serviceProvider)
+        ILogger<BomCacheSyncService> logger)
     {
         _configuration = configuration;
         _logger = logger;
-        _serviceProvider = serviceProvider;
     }
 
     public Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken ct)
     {
         // Implemented in Task 8
-        return Task.FromResult(new SyncResult { Success = true });
+        return Task.FromResult(new SyncResult(0, 0, 0));
     }
 
     public Task<SyncResult> SyncSpecificArticleNumbersAsync(
@@ -1181,7 +1377,7 @@ public class BomCacheSyncService : IBomCacheSyncService
         CancellationToken ct)
     {
         // Implemented in Task 8
-        return Task.FromResult(new SyncResult { Success = true });
+        return Task.FromResult(new SyncResult(0, 0, 0));
     }
 
     /// <summary>
@@ -1189,7 +1385,7 @@ public class BomCacheSyncService : IBomCacheSyncService
     /// The list is sorted by (Position, Ressourcenummer) before hashing
     /// so the hash is stable regardless of SAGE / OSEON row order.
     /// </summary>
-    internal static string ComputeContentHash(List<BomItem> items)
+    internal static string ComputeContentHash(List<BomCacheItem> items)
     {
         var sorted = items
             .OrderBy(i => i.Position ?? string.Empty, StringComparer.Ordinal)
@@ -1216,16 +1412,14 @@ public class BomCacheSyncService : IBomCacheSyncService
 }
 ```
 
-> Note: `BomItem` lives in the web project (`IdealAkeWms.Models.ViewModels`). The Windows service project already references the web project, so the import works. If it doesn't, add a project reference in `IDEALAKEWMSService.csproj`.
-
-### 5.3 Tests — `IdealAkeWms.Tests/Services/BomCacheSyncServiceHashTests.cs`
+### 5b.4 Tests — `IdealAkeWms.Tests/Services/BomCacheSyncServiceHashTests.cs`
 
 ```csharp
 using System.Collections.Generic;
 using System.Reflection;
 using FluentAssertions;
+using IDEALAKEWMSService.Models;
 using IDEALAKEWMSService.Services;
-using IdealAkeWms.Models.ViewModels;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Services;
@@ -1233,7 +1427,7 @@ namespace IdealAkeWms.Tests.Services;
 public class BomCacheSyncServiceHashTests
 {
     // ComputeContentHash is internal static — invoke via reflection for testing.
-    private static string Hash(List<BomItem> items)
+    private static string Hash(List<BomCacheItem> items)
     {
         var mi = typeof(BomCacheSyncService).GetMethod(
             "ComputeContentHash",
@@ -1241,8 +1435,8 @@ public class BomCacheSyncServiceHashTests
         return (string)mi!.Invoke(null, new object[] { items })!;
     }
 
-    private static BomItem Item(string pos, string res, decimal menge, string bez1 = "")
-        => new BomItem
+    private static BomCacheItem Item(string pos, string res, decimal menge, string bez1 = "")
+        => new BomCacheItem
         {
             Position = pos, Ressourcenummer = res, Menge = menge,
             Bezeichnung1 = bez1, Bezeichnung2 = "", Baugruppe = "",
@@ -1252,7 +1446,7 @@ public class BomCacheSyncServiceHashTests
     [Fact]
     public void Hash_IsDeterministic_ForSameInput()
     {
-        var items = new List<BomItem>
+        var items = new List<BomCacheItem>
         {
             Item("10", "R1", 2m, "A"),
             Item("20", "R2", 3m, "B")
@@ -1264,12 +1458,12 @@ public class BomCacheSyncServiceHashTests
     [Fact]
     public void Hash_IsOrderIndependent_DueToSort()
     {
-        var a = new List<BomItem>
+        var a = new List<BomCacheItem>
         {
             Item("10", "R1", 2m, "A"),
             Item("20", "R2", 3m, "B")
         };
-        var b = new List<BomItem>
+        var b = new List<BomCacheItem>
         {
             Item("20", "R2", 3m, "B"),
             Item("10", "R1", 2m, "A")
@@ -1281,8 +1475,8 @@ public class BomCacheSyncServiceHashTests
     [Fact]
     public void Hash_Differs_WhenQuantityChanges()
     {
-        var a = new List<BomItem> { Item("10", "R1", 2m) };
-        var b = new List<BomItem> { Item("10", "R1", 3m) };
+        var a = new List<BomCacheItem> { Item("10", "R1", 2m) };
+        var b = new List<BomCacheItem> { Item("10", "R1", 3m) };
 
         Hash(a).Should().NotBe(Hash(b));
     }
@@ -1290,9 +1484,9 @@ public class BomCacheSyncServiceHashTests
     [Fact]
     public void Hash_HandlesNullFields()
     {
-        var items = new List<BomItem>
+        var items = new List<BomCacheItem>
         {
-            new BomItem { Position = null!, Ressourcenummer = null!, Menge = 1m,
+            new BomCacheItem { Position = null!, Ressourcenummer = null!, Menge = 1m,
                 Bezeichnung1 = null!, Bezeichnung2 = null!, Baugruppe = null!,
                 Beschaffungsartikel = null!, Artikelgruppe = null! }
         };
@@ -1306,19 +1500,20 @@ public class BomCacheSyncServiceHashTests
     [Fact]
     public void Hash_Is64HexChars()
     {
-        var items = new List<BomItem> { Item("10", "R1", 1m) };
+        var items = new List<BomCacheItem> { Item("10", "R1", 1m) };
         Hash(items).Should().MatchRegex("^[0-9a-f]{64}$");
     }
 }
 ```
 
-### 5.4 Build, test, commit
+### 5b.5 Build, test, commit
 
 ```bash
 dotnet build IdealAkeWms.slnx
 dotnet test IdealAkeWms.Tests/IdealAkeWms.Tests.csproj
 
-git add IDEALAKEWMSService/Services/IBomCacheSyncService.cs \
+git add IDEALAKEWMSService/Models/BomCacheItem.cs \
+        IDEALAKEWMSService/Services/IBomCacheSyncService.cs \
         IDEALAKEWMSService/Services/BomCacheSyncService.cs \
         IdealAkeWms.Tests/Services/BomCacheSyncServiceHashTests.cs
 git commit -m "feat: BomCacheSyncService skeleton with deterministic SHA256 content hash"
@@ -1326,6 +1521,7 @@ git commit -m "feat: BomCacheSyncService skeleton with deterministic SHA256 cont
 
 ### Checklist
 
+- [ ] `BomCacheItem` DTO created (service-internal)
 - [ ] Interface + skeleton created
 - [ ] `ComputeContentHash` deterministic + order-independent
 - [ ] 5 hash tests green
@@ -1341,21 +1537,18 @@ git commit -m "feat: BomCacheSyncService skeleton with deterministic SHA256 cont
 
 ```csharp
 using Microsoft.Data.SqlClient;
+using IDEALAKEWMSService.Common;
+using IDEALAKEWMSService.Models;
 // ... existing usings ...
 
-private async Task<Dictionary<string, List<BomItem>>> ReadFromSageBatchAsync(
+private async Task<Dictionary<string, List<BomCacheItem>>> ReadFromSageBatchAsync(
     List<string> articleNumbers,
     CancellationToken ct)
 {
-    var result = new Dictionary<string, List<BomItem>>(StringComparer.Ordinal);
+    var result = new Dictionary<string, List<BomCacheItem>>(StringComparer.Ordinal);
     if (articleNumbers == null || articleNumbers.Count == 0) return result;
 
-    var connStr = _configuration.GetConnectionString("SageConnection");
-    if (string.IsNullOrWhiteSpace(connStr))
-    {
-        _logger.LogWarning("SageConnection string nicht konfiguriert - ueberspringe SAGE-Batch-Query");
-        return result;
-    }
+    var connStr = ConnectionStrings.Sage(_configuration);
 
     // Build parameterised IN clause
     var paramNames = new List<string>();
@@ -1386,12 +1579,13 @@ private async Task<Dictionary<string, List<BomItem>>> ReadFromSageBatchAsync(
 
         if (!result.TryGetValue(artikelnummer, out var list))
         {
-            list = new List<BomItem>();
+            list = new List<BomCacheItem>();
             result[artikelnummer] = list;
         }
 
-        list.Add(new BomItem
+        list.Add(new BomCacheItem
         {
+            Artikelnummer       = artikelnummer,
             Position            = reader.IsDBNull(1) ? "" : reader.GetValue(1).ToString() ?? "",
             Baugruppe           = reader.IsDBNull(2) ? "" : reader.GetString(2),
             Ressourcenummer     = reader.IsDBNull(3) ? "" : reader.GetString(3),
@@ -1438,9 +1632,9 @@ git commit -m "feat: BomCacheSyncService SAGE batch query (IN clause, single rou
 ### 7.1 Add private method `ReadFromOseonAsync` to `BomCacheSyncService.cs`
 
 ```csharp
-private async Task<List<BomItem>> ReadFromOseonAsync(string articleNumber, CancellationToken ct)
+private async Task<List<BomCacheItem>> ReadFromOseonAsync(string articleNumber, CancellationToken ct)
 {
-    var result = new List<BomItem>();
+    var result = new List<BomCacheItem>();
     if (string.IsNullOrWhiteSpace(articleNumber)) return result;
 
     var connStr = _configuration.GetConnectionString("OseonConnection");
@@ -1464,8 +1658,9 @@ private async Task<List<BomItem>> ReadFromOseonAsync(string articleNumber, Cance
         using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            result.Add(new BomItem
+            result.Add(new BomCacheItem
             {
+                Artikelnummer       = articleNumber,
                 Position            = SafeString(reader, "Position"),
                 Baugruppe           = SafeString(reader, "Baugruppe"),
                 Ressourcenummer     = SafeString(reader, "Ressourcenummer"),
@@ -1528,15 +1723,241 @@ git commit -m "feat: BomCacheSyncService OSEON per-article fallback"
 
 ## Task 8: BomCacheSyncService — Main Orchestration
 
-**Goal:** Implement `SyncBomCacheAsync` and `SyncSpecificArticleNumbersAsync` using the helpers from Tasks 5–7 and `IBomCacheRepository` + `IProductionOrderRepository`.
+**Goal:** Implement `SyncBomCacheAsync` and `SyncSpecificArticleNumbersAsync` using the helpers from Tasks 5–7 PLUS direct WMS database access via raw SQL (no web-project repositories — see Project boundaries note in plan header).
+
+**Architecture decision:** The service does NOT use `IProductionOrderRepository` or `IBomCacheRepository` from the web project (SDK.Worker cannot reference SDK.Web). Instead it uses raw `Microsoft.Data.SqlClient` calls against the WMS database — same pattern as `OseonSyncService.BulkMergeOrdersAsync`. The implementer should:
+
+1. **Read window** — `SELECT TOP @max [Id], [ArticleNumber] FROM [ProductionOrders] WHERE [IsDone] = 0 AND [ProductionDate] IS NOT NULL AND [ProductionDate] <= DATEADD(week, @weeks, GETDATE()) ORDER BY [ProductionDate] ASC`
+2. **Read existing hashes** — `SELECT [Artikelnummer], [ContentHash], [CachedAt] FROM [CachedBomHeaders] WHERE [Artikelnummer] IN (...)`
+3. **Upsert per article** — DELETE existing items + UPDATE/INSERT header + bulk-insert items via `SqlBulkCopy` to a temp table, then `INSERT INTO CachedBomItems FROM #tmp` with the resolved `CachedBomHeaderId`
+4. **Orphan cleanup** — `DELETE FROM [CachedBomHeaders] WHERE [Artikelnummer] NOT IN (...)` (cascade removes items)
+
+The Web project's `IBomCacheRepository` (Task 2) is used **only** for the cache-first read path (Task 3). Both code paths read/write the same tables but live in different projects.
+
+The implementation below is provided as reference. Use the existing `OseonSyncService.BulkMergeOrdersAsync` (lines 224-360) as the canonical example for the SqlBulkCopy + MERGE pattern.
 
 ### 8.1 Replace the skeleton methods in `BomCacheSyncService.cs`
 
+The implementation uses raw SQL against the WMS database. Three private helper methods are added: `ReadOpenOrdersInWindowAsync`, `ReadHeaderHashesAsync`, and `UpsertBomToCacheAsync`. The orchestration methods then compose these.
+
 ```csharp
+using IDEALAKEWMSService.Common;
+
+// ============ Private helpers (WMS DB access) ============
+
+private async Task<List<(int OrderId, string ArticleNumber)>> ReadOpenOrdersInWindowAsync(
+    int weeksAhead, int maxOrders, CancellationToken ct)
+{
+    var connStr = ConnectionStrings.Wms(_configuration);
+    var orders = new List<(int, string)>();
+
+    await using var conn = new SqlConnection(connStr);
+    await conn.OpenAsync(ct);
+
+    var sql = @"
+        SELECT TOP (@max) [Id], [ArticleNumber]
+        FROM [ProductionOrders]
+        WHERE [IsDone] = 0
+          AND [ProductionDate] IS NOT NULL
+          AND [ProductionDate] <= DATEADD(week, @weeks, GETDATE())
+          AND [ArticleNumber] IS NOT NULL
+        ORDER BY [ProductionDate] ASC";
+
+    await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
+    cmd.Parameters.AddWithValue("@max", maxOrders);
+    cmd.Parameters.AddWithValue("@weeks", weeksAhead);
+
+    await using var reader = await cmd.ExecuteReaderAsync(ct);
+    while (await reader.ReadAsync(ct))
+    {
+        orders.Add((reader.GetInt32(0), reader.GetString(1)));
+    }
+    return orders;
+}
+
+private async Task<Dictionary<string, (string Hash, DateTime CachedAt)>> ReadHeaderHashesAsync(
+    List<string> articleNumbers, CancellationToken ct)
+{
+    var result = new Dictionary<string, (string, DateTime)>(StringComparer.Ordinal);
+    if (articleNumbers.Count == 0) return result;
+
+    var connStr = ConnectionStrings.Wms(_configuration);
+    await using var conn = new SqlConnection(connStr);
+    await conn.OpenAsync(ct);
+
+    // Build IN clause with parameters
+    var paramNames = new List<string>();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandTimeout = 60;
+    for (int i = 0; i < articleNumbers.Count; i++)
+    {
+        var p = $"@a{i}";
+        paramNames.Add(p);
+        cmd.Parameters.AddWithValue(p, articleNumbers[i]);
+    }
+    cmd.CommandText = $@"
+        SELECT [Artikelnummer], [ContentHash], [CachedAt]
+        FROM [CachedBomHeaders]
+        WHERE [Artikelnummer] IN ({string.Join(",", paramNames)})";
+
+    await using var reader = await cmd.ExecuteReaderAsync(ct);
+    while (await reader.ReadAsync(ct))
+    {
+        result[reader.GetString(0)] = (reader.GetString(1), reader.GetDateTime(2));
+    }
+    return result;
+}
+
+private async Task UpsertBomToCacheAsync(
+    string articleNumber, string source, string contentHash,
+    List<BomCacheItem> items, CancellationToken ct)
+{
+    var connStr = ConnectionStrings.Wms(_configuration);
+    await using var conn = new SqlConnection(connStr);
+    await conn.OpenAsync(ct);
+
+    await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
+
+    try
+    {
+        // 1) Find or create header (within transaction)
+        int headerId;
+        await using (var cmd = new SqlCommand(@"
+            SELECT [Id] FROM [CachedBomHeaders] WHERE [Artikelnummer] = @a", conn, tx))
+        {
+            cmd.Parameters.AddWithValue("@a", articleNumber);
+            var existing = await cmd.ExecuteScalarAsync(ct);
+            if (existing != null && existing != DBNull.Value)
+            {
+                headerId = Convert.ToInt32(existing);
+
+                // Update header
+                await using var upd = new SqlCommand(@"
+                    UPDATE [CachedBomHeaders]
+                    SET [Source] = @s, [ItemCount] = @c, [ContentHash] = @h, [CachedAt] = GETUTCDATE()
+                    WHERE [Id] = @id", conn, tx);
+                upd.Parameters.AddWithValue("@s", source);
+                upd.Parameters.AddWithValue("@c", items.Count);
+                upd.Parameters.AddWithValue("@h", contentHash);
+                upd.Parameters.AddWithValue("@id", headerId);
+                await upd.ExecuteNonQueryAsync(ct);
+
+                // Delete existing items
+                await using var del = new SqlCommand(@"
+                    DELETE FROM [CachedBomItems] WHERE [CachedBomHeaderId] = @id", conn, tx);
+                del.Parameters.AddWithValue("@id", headerId);
+                await del.ExecuteNonQueryAsync(ct);
+            }
+            else
+            {
+                // Insert header
+                await using var ins = new SqlCommand(@"
+                    INSERT INTO [CachedBomHeaders]
+                        ([Artikelnummer], [Source], [ItemCount], [ContentHash], [CachedAt])
+                    OUTPUT INSERTED.[Id]
+                    VALUES (@a, @s, @c, @h, GETUTCDATE())", conn, tx);
+                ins.Parameters.AddWithValue("@a", articleNumber);
+                ins.Parameters.AddWithValue("@s", source);
+                ins.Parameters.AddWithValue("@c", items.Count);
+                ins.Parameters.AddWithValue("@h", contentHash);
+                headerId = Convert.ToInt32(await ins.ExecuteScalarAsync(ct));
+            }
+        }
+
+        // 2) Bulk-insert items
+        if (items.Count > 0)
+        {
+            var dt = new System.Data.DataTable();
+            dt.Columns.Add("CachedBomHeaderId", typeof(int));
+            dt.Columns.Add("Position", typeof(string));
+            dt.Columns.Add("Baugruppe", typeof(string));
+            dt.Columns.Add("Ressourcenummer", typeof(string));
+            dt.Columns.Add("Bezeichnung1", typeof(string));
+            dt.Columns.Add("Bezeichnung2", typeof(string));
+            dt.Columns.Add("Menge", typeof(decimal));
+            dt.Columns.Add("Beschaffungsartikel", typeof(string));
+            dt.Columns.Add("Artikelgruppe", typeof(string));
+            dt.Columns.Add("SortOrder", typeof(int));
+
+            int sortOrder = 0;
+            foreach (var i in items)
+            {
+                dt.Rows.Add(
+                    headerId,
+                    (object?)i.Position ?? DBNull.Value,
+                    (object?)i.Baugruppe ?? DBNull.Value,
+                    (object?)i.Ressourcenummer ?? DBNull.Value,
+                    (object?)i.Bezeichnung1 ?? DBNull.Value,
+                    (object?)i.Bezeichnung2 ?? DBNull.Value,
+                    i.Menge,
+                    (object?)i.Beschaffungsartikel ?? DBNull.Value,
+                    (object?)i.Artikelgruppe ?? DBNull.Value,
+                    sortOrder++);
+            }
+
+            using var bulk = new SqlBulkCopy(conn, SqlBulkCopyOptions.Default, tx)
+            {
+                DestinationTableName = "[CachedBomItems]",
+                BulkCopyTimeout = 120
+            };
+            bulk.ColumnMappings.Add("CachedBomHeaderId", "CachedBomHeaderId");
+            bulk.ColumnMappings.Add("Position", "Position");
+            bulk.ColumnMappings.Add("Baugruppe", "Baugruppe");
+            bulk.ColumnMappings.Add("Ressourcenummer", "Ressourcenummer");
+            bulk.ColumnMappings.Add("Bezeichnung1", "Bezeichnung1");
+            bulk.ColumnMappings.Add("Bezeichnung2", "Bezeichnung2");
+            bulk.ColumnMappings.Add("Menge", "Menge");
+            bulk.ColumnMappings.Add("Beschaffungsartikel", "Beschaffungsartikel");
+            bulk.ColumnMappings.Add("Artikelgruppe", "Artikelgruppe");
+            bulk.ColumnMappings.Add("SortOrder", "SortOrder");
+            await bulk.WriteToServerAsync(dt, ct);
+        }
+
+        await tx.CommitAsync(ct);
+    }
+    catch
+    {
+        await tx.RollbackAsync(ct);
+        throw;
+    }
+}
+
+private async Task<int> DeleteOrphanHeadersAsync(
+    List<string> currentArticleNumbers, CancellationToken ct)
+{
+    var connStr = ConnectionStrings.Wms(_configuration);
+    await using var conn = new SqlConnection(connStr);
+    await conn.OpenAsync(ct);
+
+    if (currentArticleNumbers.Count == 0)
+    {
+        // No window — delete all
+        await using var cmd = new SqlCommand(@"DELETE FROM [CachedBomHeaders]", conn) { CommandTimeout = 120 };
+        return await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    var paramNames = new List<string>();
+    await using var del = conn.CreateCommand();
+    del.CommandTimeout = 120;
+    for (int i = 0; i < currentArticleNumbers.Count; i++)
+    {
+        var p = $"@a{i}";
+        paramNames.Add(p);
+        del.Parameters.AddWithValue(p, currentArticleNumbers[i]);
+    }
+    del.CommandText = $@"
+        DELETE FROM [CachedBomHeaders]
+        WHERE [Artikelnummer] NOT IN ({string.Join(",", paramNames)})";
+    return await del.ExecuteNonQueryAsync(ct);
+}
+
+// ============ Main orchestration ============
+
 public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken ct)
 {
     var sw = System.Diagnostics.Stopwatch.StartNew();
-    var result = new SyncResult { Success = true };
+    int inserted = 0, updated = 0, skipped = 0, errors = 0;
+    string? errorDetails = null;
 
     try
     {
@@ -1544,41 +1965,32 @@ public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken c
         var maxOrders  = _configuration.GetValue<int?>("Sync:BomCacheMaxOrders") ?? 200;
         var maxAgeHrs  = _configuration.GetValue<int?>("Sync:BomCacheMaxAgeHours") ?? 24;
 
-        using var scope = _serviceProvider.CreateScope();
-        var orderRepo = scope.ServiceProvider.GetRequiredService<IdealAkeWms.Data.Repositories.IProductionOrderRepository>();
-        var cacheRepo = scope.ServiceProvider.GetRequiredService<IdealAkeWms.Data.Repositories.IBomCacheRepository>();
-
-        // 1. Window
-        var orders = await orderRepo.GetOpenOrdersInWindowAsync(weeksAhead, maxOrders);
+        // 1) Window
+        var orders = await ReadOpenOrdersInWindowAsync(weeksAhead, maxOrders, ct);
         _logger.LogInformation("BOM-Cache-Sync: {Count} Auftraege im Window ({Weeks}w / max {Max})",
             orders.Count, weeksAhead, maxOrders);
 
-        var missingDate = orders.Count(o => o.ProductionDate == null);
-        if (missingDate > 0)
-        {
-            _logger.LogWarning("BOM-Cache-Sync: {N} Auftraege ohne ProductionDate werden uebersprungen", missingDate);
-        }
-
-        // 2. Distinct Artikelnummern
+        // 2) Distinct article numbers
         var articleNumbers = orders
-            .Where(o => !string.IsNullOrWhiteSpace(o.ArticleNumber))
-            .Select(o => o.ArticleNumber!)
+            .Select(o => o.ArticleNumber)
+            .Where(a => !string.IsNullOrWhiteSpace(a))
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
         if (articleNumbers.Count == 0)
         {
             _logger.LogInformation("BOM-Cache-Sync: Keine Artikelnummern - nothing to do");
-            return result;
+            return new SyncResult(0, 0, 0);
         }
 
-        // 3. Existing hashes
-        var existing = await cacheRepo.GetHeaderHashesAsync(articleNumbers);
+        // 3) Existing hashes
+        var existing = await ReadHeaderHashesAsync(articleNumbers, ct);
 
-        // 4. SAGE batch query
+        // 4) SAGE batch query
         var sageData = await ReadFromSageBatchAsync(articleNumbers, ct);
 
-        // 5. OSEON fallback for missing
+        // 5) OSEON fallback for missing
+        var oseonFilled = new HashSet<string>(StringComparer.Ordinal);
         foreach (var art in articleNumbers)
         {
             if (sageData.ContainsKey(art) && sageData[art].Count > 0) continue;
@@ -1587,12 +1999,13 @@ public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken c
             if (oseonItems.Count > 0)
             {
                 sageData[art] = oseonItems;
+                oseonFilled.Add(art);
             }
         }
 
-        var cutoff = DateTime.Now.AddHours(-maxAgeHrs);
-        int inserted = 0, updated = 0, skipped = 0, errors = 0;
+        var cutoff = DateTime.UtcNow.AddHours(-maxAgeHrs);
 
+        // 6) Process each article
         foreach (var art in articleNumbers)
         {
             ct.ThrowIfCancellationRequested();
@@ -1603,17 +2016,13 @@ public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken c
                 continue;
             }
 
-            var source = items == sageData[art] && sageData.ContainsKey(art)
-                ? DetermineSource(art, sageData) // helper below or inline
-                : "SAGE";
-
             try
             {
                 var newHash = ComputeContentHash(items);
 
-                if (existing.TryGetValue(art, out var existingEntry)
-                    && existingEntry.Hash == newHash
-                    && existingEntry.CachedAt > cutoff)
+                if (existing.TryGetValue(art, out var e)
+                    && e.Hash == newHash
+                    && e.CachedAt > cutoff)
                 {
                     skipped++;
                     continue;
@@ -1625,10 +2034,8 @@ public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken c
                 }
                 else
                 {
-                    // Determine final source: if SAGE returned data it's SAGE, otherwise OSEON.
-                    // We track this in a separate set.
-                    var finalSource = _oseonFilled.Contains(art) ? "OSEON" : "SAGE";
-                    await cacheRepo.UpsertBomAsync(art, finalSource, newHash, items);
+                    var source = oseonFilled.Contains(art) ? "OSEON" : "SAGE";
+                    await UpsertBomToCacheAsync(art, source, newHash, items, ct);
                 }
 
                 if (existing.ContainsKey(art)) updated++;
@@ -1641,57 +2048,54 @@ public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken c
             }
         }
 
-        // 6. Orphan cleanup
+        // 7) Orphan cleanup
         if (!dryRun)
         {
-            await cacheRepo.DeleteOrphansAsync(articleNumbers);
+            var deleted = await DeleteOrphanHeadersAsync(articleNumbers, ct);
+            if (deleted > 0)
+                _logger.LogInformation("BOM-Cache-Sync: {N} verwaiste Header geloescht", deleted);
         }
 
         sw.Stop();
         _logger.LogInformation(
             "BOM-Cache-Sync abgeschlossen in {Ms}ms: {Ins} neu, {Upd} aktualisiert, {Skip} unveraendert, {Err} Fehler",
             sw.ElapsedMilliseconds, inserted, updated, skipped, errors);
-
-        result.Inserted = inserted;
-        result.Updated = updated;
-        result.Skipped = skipped;
-        result.Errors = errors;
     }
     catch (Exception ex)
     {
         _logger.LogError(ex, "BOM-Cache-Sync fehlgeschlagen");
-        result.Success = false;
-        result.ErrorMessage = ex.Message;
+        errors++;
+        errorDetails = ex.Message;
     }
 
-    return result;
+    return new SyncResult(inserted, updated, errors, errorDetails);
 }
-
-private HashSet<string> _oseonFilled = new HashSet<string>(StringComparer.Ordinal);
-
-private string DetermineSource(string art, Dictionary<string, List<BomItem>> data)
-    => _oseonFilled.Contains(art) ? "OSEON" : "SAGE";
 
 public async Task<SyncResult> SyncSpecificArticleNumbersAsync(
     List<string> articleNumbers,
     bool dryRun,
     CancellationToken ct)
 {
-    var result = new SyncResult { Success = true };
-    if (articleNumbers == null || articleNumbers.Count == 0) return result;
+    if (articleNumbers == null || articleNumbers.Count == 0)
+        return new SyncResult(0, 0, 0);
+
+    int inserted = 0, updated = 0, skipped = 0, errors = 0;
+    string? errorDetails = null;
 
     try
     {
         var maxAgeHrs = _configuration.GetValue<int?>("Sync:BomCacheMaxAgeHours") ?? 24;
 
-        using var scope = _serviceProvider.CreateScope();
-        var cacheRepo = scope.ServiceProvider.GetRequiredService<IdealAkeWms.Data.Repositories.IBomCacheRepository>();
+        var distinct = articleNumbers
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (distinct.Count == 0) return new SyncResult(0, 0, 0);
 
-        var distinct = articleNumbers.Distinct(StringComparer.Ordinal).ToList();
-        var existing = await cacheRepo.GetHeaderHashesAsync(distinct);
+        var existing = await ReadHeaderHashesAsync(distinct, ct);
         var sageData = await ReadFromSageBatchAsync(distinct, ct);
 
-        _oseonFilled.Clear();
+        var oseonFilled = new HashSet<string>(StringComparer.Ordinal);
         foreach (var art in distinct)
         {
             if (sageData.ContainsKey(art) && sageData[art].Count > 0) continue;
@@ -1699,12 +2103,11 @@ public async Task<SyncResult> SyncSpecificArticleNumbersAsync(
             if (oseon.Count > 0)
             {
                 sageData[art] = oseon;
-                _oseonFilled.Add(art);
+                oseonFilled.Add(art);
             }
         }
 
-        var cutoff = DateTime.Now.AddHours(-maxAgeHrs);
-        int inserted = 0, updated = 0, skipped = 0, errors = 0;
+        var cutoff = DateTime.UtcNow.AddHours(-maxAgeHrs);
 
         foreach (var art in distinct)
         {
@@ -1721,8 +2124,8 @@ public async Task<SyncResult> SyncSpecificArticleNumbersAsync(
 
                 if (!dryRun)
                 {
-                    var source = _oseonFilled.Contains(art) ? "OSEON" : "SAGE";
-                    await cacheRepo.UpsertBomAsync(art, source, hash, items);
+                    var source = oseonFilled.Contains(art) ? "OSEON" : "SAGE";
+                    await UpsertBomToCacheAsync(art, source, hash, items, ct);
                 }
 
                 if (existing.ContainsKey(art)) updated++; else inserted++;
@@ -1737,24 +2140,23 @@ public async Task<SyncResult> SyncSpecificArticleNumbersAsync(
         _logger.LogInformation(
             "BOM-Cache narrow Sync: {Ins} neu, {Upd} aktualisiert, {Skip} unveraendert, {Err} Fehler",
             inserted, updated, skipped, errors);
-
-        result.Inserted = inserted;
-        result.Updated = updated;
-        result.Skipped = skipped;
-        result.Errors = errors;
     }
     catch (Exception ex)
     {
         _logger.LogError(ex, "BOM-Cache narrow Sync fehlgeschlagen");
-        result.Success = false;
-        result.ErrorMessage = ex.Message;
+        errors++;
+        errorDetails = ex.Message;
     }
 
-    return result;
+    return new SyncResult(inserted, updated, errors, errorDetails);
 }
 ```
 
-> The `_oseonFilled` set tracks which articles came from OSEON so that `Source` is recorded correctly. Clear it at the start of each sync run. If `SyncResult` has different property names in this project, adapt accordingly (check `IDEALAKEWMSService/Models/SyncResult.cs`).
+> Notes:
+> - `oseonFilled` is a **local variable** in each method (not a field) to be safe under concurrent calls.
+> - All DB calls use `ConnectionStrings.Wms(_configuration)` from Task 5a.
+> - The header upsert is wrapped in an explicit transaction (header + items must be consistent).
+> - `SyncResult` is the positional record `(int Inserted, int Updated, int Errors, string? ErrorDetails)` from `IDEALAKEWMSService/Services/ISageImportService.cs`.
 
 ### 8.2 Build, commit
 
@@ -1807,16 +2209,21 @@ public interface ICoatingDetectionService
 
 ### 9.2 Create `IDEALAKEWMSService/Services/CoatingDetectionService.cs`
 
+**Architecture:** Same constraint as `BomCacheSyncService` — the service uses raw SQL, not web-project repositories. The detection is implemented as a single SQL query with JOINs against the WMS DB:
+
+- Window orders: read open orders + their article numbers
+- Lookup: SELECT DISTINCT h.Artikelnummer FROM CachedBomHeaders JOIN CachedBomItems JOIN Articles JOIN ArticleCategories WHERE category name matches
+- Update: bulk SQL UPDATE on `ProductionOrders.HasCoatingParts` and reset `IsCoatingDone` to false where flag becomes false
+
 ```csharp
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using IdealAkeWms.Data.Repositories;
-using IDEALAKEWMSService.Models;
+using IDEALAKEWMSService.Common;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace IDEALAKEWMSService.Services;
@@ -1825,16 +2232,13 @@ public class CoatingDetectionService : ICoatingDetectionService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<CoatingDetectionService> _logger;
-    private readonly IServiceProvider _serviceProvider;
 
     public CoatingDetectionService(
         IConfiguration configuration,
-        ILogger<CoatingDetectionService> logger,
-        IServiceProvider serviceProvider)
+        ILogger<CoatingDetectionService> logger)
     {
         _configuration = configuration;
         _logger = logger;
-        _serviceProvider = serviceProvider;
     }
 
     public async Task<SyncResult> DetectAndUpdateCoatingFlagsAsync(
@@ -1842,210 +2246,261 @@ public class CoatingDetectionService : ICoatingDetectionService
         List<int>? specificOrderIds,
         CancellationToken ct)
     {
-        var result = new SyncResult { Success = true };
+        int updatedTrue = 0, updatedFalse = 0, errors = 0;
+        string? errorDetails = null;
 
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var settingsRepo = scope.ServiceProvider.GetRequiredService<IAppSettingRepository>();
-            var orderRepo    = scope.ServiceProvider.GetRequiredService<IProductionOrderRepository>();
-            var cacheRepo    = scope.ServiceProvider.GetRequiredService<IBomCacheRepository>();
+            var connStr = ConnectionStrings.Wms(_configuration);
+            await using var conn = new SqlConnection(connStr);
+            await conn.OpenAsync(ct);
 
-            var lackName = await settingsRepo.GetValueAsync("LackierteilKategorieName");
+            // 1) Read setting
+            string? lackName;
+            await using (var cmd = new SqlCommand(
+                @"SELECT [Value] FROM [AppSettings] WHERE [Key] = 'LackierteilKategorieName'", conn))
+            {
+                var r = await cmd.ExecuteScalarAsync(ct);
+                lackName = r as string;
+            }
             if (string.IsNullOrWhiteSpace(lackName))
             {
                 _logger.LogWarning("CoatingDetection: LackierteilKategorieName nicht gesetzt - Feature inaktiv");
-                return result;
+                return new SyncResult(0, 0, 0);
             }
 
-            // 1. Determine orders
-            List<Models.ProductionOrder> orders;
+            // 2) Read orders to evaluate
+            var orders = new List<(int Id, string ArticleNumber)>();
             if (specificOrderIds != null && specificOrderIds.Count > 0)
             {
-                // Narrow: fetch by ids
-                orders = await orderRepo.GetByIdsAsync(specificOrderIds);
+                var paramNames = new List<string>();
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 60;
+                for (int i = 0; i < specificOrderIds.Count; i++)
+                {
+                    var p = $"@id{i}";
+                    paramNames.Add(p);
+                    cmd.Parameters.AddWithValue(p, specificOrderIds[i]);
+                }
+                cmd.CommandText = $@"
+                    SELECT [Id], [ArticleNumber]
+                    FROM [ProductionOrders]
+                    WHERE [Id] IN ({string.Join(",", paramNames)})
+                      AND [ArticleNumber] IS NOT NULL";
+                await using var r = await cmd.ExecuteReaderAsync(ct);
+                while (await r.ReadAsync(ct))
+                    orders.Add((r.GetInt32(0), r.GetString(1)));
             }
             else
             {
                 var weeksAhead = _configuration.GetValue<int?>("Sync:BomCacheWeeks") ?? 8;
                 var maxOrders  = _configuration.GetValue<int?>("Sync:BomCacheMaxOrders") ?? 200;
-                orders = await orderRepo.GetOpenOrdersInWindowAsync(weeksAhead, maxOrders);
+
+                await using var cmd = new SqlCommand(@"
+                    SELECT TOP (@max) [Id], [ArticleNumber]
+                    FROM [ProductionOrders]
+                    WHERE [IsDone] = 0
+                      AND [ProductionDate] IS NOT NULL
+                      AND [ProductionDate] <= DATEADD(week, @weeks, GETDATE())
+                      AND [ArticleNumber] IS NOT NULL
+                    ORDER BY [ProductionDate] ASC", conn) { CommandTimeout = 60 };
+                cmd.Parameters.AddWithValue("@max", maxOrders);
+                cmd.Parameters.AddWithValue("@weeks", weeksAhead);
+                await using var r = await cmd.ExecuteReaderAsync(ct);
+                while (await r.ReadAsync(ct))
+                    orders.Add((r.GetInt32(0), r.GetString(1)));
             }
 
             if (orders.Count == 0)
             {
                 _logger.LogInformation("CoatingDetection: Keine Auftraege - nothing to do");
-                return result;
+                return new SyncResult(0, 0, 0);
             }
 
-            // 2. Distinct article numbers
+            // 3) Distinct article numbers
             var articleNumbers = orders
-                .Where(o => !string.IsNullOrWhiteSpace(o.ArticleNumber))
-                .Select(o => o.ArticleNumber!)
+                .Select(o => o.ArticleNumber)
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
-            // 3. Lookup matches
-            var matchSet = await cacheRepo.GetArticleNumbersWithCoatingPartsAsync(lackName, articleNumbers);
+            // 4) Lookup which article numbers have coating items in the cache
+            var matchSet = new HashSet<string>(StringComparer.Ordinal);
+            {
+                var paramNames = new List<string>();
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 120;
+                for (int i = 0; i < articleNumbers.Count; i++)
+                {
+                    var p = $"@a{i}";
+                    paramNames.Add(p);
+                    cmd.Parameters.AddWithValue(p, articleNumbers[i]);
+                }
+                cmd.Parameters.AddWithValue("@cat", lackName);
+                cmd.CommandText = $@"
+                    SELECT DISTINCT h.[Artikelnummer]
+                    FROM [CachedBomHeaders] h
+                    INNER JOIN [CachedBomItems] i ON i.[CachedBomHeaderId] = h.[Id]
+                    INNER JOIN [Articles] a ON a.[ArticleNumber] = i.[Ressourcenummer]
+                    INNER JOIN [ArticleCategories] c ON c.[Id] = a.[ArticleCategoryId]
+                    WHERE h.[Artikelnummer] IN ({string.Join(",", paramNames)})
+                      AND c.[Name] = @cat";
+                await using var r = await cmd.ExecuteReaderAsync(ct);
+                while (await r.ReadAsync(ct))
+                    matchSet.Add(r.GetString(0));
+            }
 
-            // 4. Build flag dictionary
-            var flags = new Dictionary<int, bool>();
+            // 5) Compute flags per order
+            var orderIdsTrue = new List<int>();
+            var orderIdsFalse = new List<int>();
             foreach (var o in orders)
             {
-                var has = !string.IsNullOrWhiteSpace(o.ArticleNumber) && matchSet.Contains(o.ArticleNumber!);
-                flags[o.Id] = has;
+                if (matchSet.Contains(o.ArticleNumber))
+                    orderIdsTrue.Add(o.Id);
+                else
+                    orderIdsFalse.Add(o.Id);
             }
 
             if (dryRun)
             {
-                var yes = flags.Count(f => f.Value);
                 _logger.LogInformation("CoatingDetection (DryRun): {Yes} von {Total} Auftraegen haetten HasCoatingParts=true",
-                    yes, flags.Count);
-            }
-            else
-            {
-                await orderRepo.SetCoatingFlagsAsync(flags);
+                    orderIdsTrue.Count, orders.Count);
+                return new SyncResult(0, 0, 0);
             }
 
-            result.Updated = flags.Count(f => f.Value);
-            result.Skipped = flags.Count(f => !f.Value);
+            // 6) Bulk update — set HasCoatingParts=1 for matches
+            if (orderIdsTrue.Count > 0)
+            {
+                updatedTrue = await BulkUpdateCoatingFlagAsync(conn, orderIdsTrue, hasCoatingParts: true, ct);
+            }
+
+            // 7) Bulk update — set HasCoatingParts=0 AND IsCoatingDone=0 for non-matches
+            // (per spec: when flag becomes false, also reset IsCoatingDone)
+            if (orderIdsFalse.Count > 0)
+            {
+                updatedFalse = await BulkUpdateCoatingFlagAsync(conn, orderIdsFalse, hasCoatingParts: false, ct);
+            }
 
             _logger.LogInformation(
-                "CoatingDetection: {Total} Auftraege geprueft, {Match} mit Lackierteilen",
-                flags.Count, result.Updated);
+                "CoatingDetection: {Total} Auftraege geprueft, {WithCoating} mit Lackierteilen, {Without} ohne",
+                orders.Count, updatedTrue, updatedFalse);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "CoatingDetection fehlgeschlagen");
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
+            errors++;
+            errorDetails = ex.Message;
         }
 
-        return result;
+        // Inserted=updatedTrue (orders with coating), Updated=updatedFalse (orders without)
+        return new SyncResult(updatedTrue, updatedFalse, errors, errorDetails);
+    }
+
+    private async Task<int> BulkUpdateCoatingFlagAsync(
+        SqlConnection conn, List<int> orderIds, bool hasCoatingParts, CancellationToken ct)
+    {
+        // Use a temp table for large IN lists
+        var dt = new System.Data.DataTable();
+        dt.Columns.Add("Id", typeof(int));
+        foreach (var id in orderIds) dt.Rows.Add(id);
+
+        await using (var cmd = new SqlCommand(
+            "CREATE TABLE #TmpOrderIds ([Id] INT NOT NULL PRIMARY KEY)", conn))
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        using (var bulk = new SqlBulkCopy(conn) { DestinationTableName = "#TmpOrderIds" })
+        {
+            bulk.ColumnMappings.Add("Id", "Id");
+            await bulk.WriteToServerAsync(dt, ct);
+        }
+
+        // Update
+        var updateSql = hasCoatingParts
+            ? @"UPDATE p SET p.[HasCoatingParts] = 1,
+                              p.[ModifiedAt] = GETUTCDATE(),
+                              p.[ModifiedBy] = 'CoatingDetection',
+                              p.[ModifiedByWindows] = SYSTEM_USER
+                FROM [ProductionOrders] p
+                INNER JOIN #TmpOrderIds t ON t.[Id] = p.[Id]
+                WHERE p.[HasCoatingParts] = 0"
+            : @"UPDATE p SET p.[HasCoatingParts] = 0,
+                              p.[IsCoatingDone] = 0,
+                              p.[ModifiedAt] = GETUTCDATE(),
+                              p.[ModifiedBy] = 'CoatingDetection',
+                              p.[ModifiedByWindows] = SYSTEM_USER
+                FROM [ProductionOrders] p
+                INNER JOIN #TmpOrderIds t ON t.[Id] = p.[Id]
+                WHERE p.[HasCoatingParts] = 1";
+
+        int affected;
+        await using (var cmd = new SqlCommand(updateSql, conn) { CommandTimeout = 60 })
+        {
+            affected = await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        await using (var cmd = new SqlCommand("DROP TABLE #TmpOrderIds", conn))
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        return affected;
     }
 }
 ```
 
-> If `IProductionOrderRepository` does not yet have `GetByIdsAsync`, add it:
-> ```csharp
-> Task<List<ProductionOrder>> GetByIdsAsync(List<int> ids);
-> // impl:
-> public Task<List<ProductionOrder>> GetByIdsAsync(List<int> ids)
->     => _db.ProductionOrders.Where(p => ids.Contains(p.Id)).ToListAsync();
-> ```
+> Notes:
+> - The query in step 4 is the **core lookup**: a 4-table JOIN entirely within the WMS database. No cross-database query needed.
+> - The bulk update uses a temp table to handle arbitrarily large `orderIds` lists (avoids `IN`-clause parameter limit).
+> - Step 7 implements the spec rule: when `HasCoatingParts` becomes false, also reset `IsCoatingDone` to false.
+> - The update is conditional (`WHERE p.[HasCoatingParts] = 0` / `= 1`) so we only touch rows where the flag actually changes — minimal write impact.
 
 ### 9.3 Tests — `IdealAkeWms.Tests/Services/CoatingDetectionServiceTests.cs`
+
+The service uses raw SQL against a real WMS database, so unit-testing with mocks is not possible. The Web-side coverage is provided by `BomCacheRepositoryTests` (Task 2) and the Web Repository tests (Task 4). For this service we add a single smoke test that verifies the constructor works and the early-return path is reachable when the setting is missing — using a configuration without a `DefaultConnection` so we exercise the early-return guard before any DB call would fail.
 
 ```csharp
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
-using IdealAkeWms.Data.Repositories;
-using IdealAkeWms.Models;
 using IDEALAKEWMSService.Services;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Services;
 
 public class CoatingDetectionServiceTests
 {
-    private static IConfiguration Cfg() => new ConfigurationBuilder().AddInMemoryCollection().Build();
-
-    private static IServiceProvider BuildProvider(
-        Mock<IAppSettingRepository> settings,
-        Mock<IProductionOrderRepository> orders,
-        Mock<IBomCacheRepository> cache)
+    [Fact]
+    public void Constructor_Succeeds_WithMinimalConfig()
     {
-        var sc = new ServiceCollection();
-        sc.AddScoped(_ => settings.Object);
-        sc.AddScoped(_ => orders.Object);
-        sc.AddScoped(_ => cache.Object);
-        return sc.BuildServiceProvider();
+        var cfg = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>()).Build();
+        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance);
+        svc.Should().NotBeNull();
     }
 
     [Fact]
-    public async Task ReturnsEarly_WhenSettingEmpty()
+    public async Task DetectAndUpdate_Throws_WhenWmsConnectionMissing()
     {
-        var settings = new Mock<IAppSettingRepository>();
-        settings.Setup(s => s.GetValueAsync("LackierteilKategorieName")).ReturnsAsync("");
-        var orders = new Mock<IProductionOrderRepository>();
-        var cache = new Mock<IBomCacheRepository>();
+        // No DefaultConnection -> ConnectionStrings.Wms() throws InvalidOperationException
+        // Wrapped in try/catch by service, returns SyncResult with errors > 0
+        var cfg = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>()).Build();
+        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance);
 
-        var svc = new CoatingDetectionService(Cfg(), NullLogger<CoatingDetectionService>.Instance,
-            BuildProvider(settings, orders, cache));
+        var result = await svc.DetectAndUpdateCoatingFlagsAsync(
+            dryRun: false, specificOrderIds: null, CancellationToken.None);
 
-        var result = await svc.DetectAndUpdateCoatingFlagsAsync(dryRun: false, specificOrderIds: null, CancellationToken.None);
-
-        result.Success.Should().BeTrue();
-        orders.Verify(o => o.SetCoatingFlagsAsync(It.IsAny<Dictionary<int, bool>>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task SetsFlags_BasedOnCacheMatches()
-    {
-        var settings = new Mock<IAppSettingRepository>();
-        settings.Setup(s => s.GetValueAsync("LackierteilKategorieName")).ReturnsAsync("Lackierteil");
-
-        var ordersList = new List<ProductionOrder>
-        {
-            new ProductionOrder { Id = 1, OrderNumber = "A1", ArticleNumber = "ART1" },
-            new ProductionOrder { Id = 2, OrderNumber = "A2", ArticleNumber = "ART2" }
-        };
-        var orders = new Mock<IProductionOrderRepository>();
-        orders.Setup(o => o.GetOpenOrdersInWindowAsync(It.IsAny<int>(), It.IsAny<int>()))
-              .ReturnsAsync(ordersList);
-
-        var cache = new Mock<IBomCacheRepository>();
-        cache.Setup(c => c.GetArticleNumbersWithCoatingPartsAsync("Lackierteil", It.IsAny<List<string>>()))
-             .ReturnsAsync(new HashSet<string> { "ART1" });
-
-        Dictionary<int, bool>? captured = null;
-        orders.Setup(o => o.SetCoatingFlagsAsync(It.IsAny<Dictionary<int, bool>>()))
-              .Callback<Dictionary<int, bool>>(d => captured = d)
-              .Returns(Task.CompletedTask);
-
-        var svc = new CoatingDetectionService(Cfg(), NullLogger<CoatingDetectionService>.Instance,
-            BuildProvider(settings, orders, cache));
-
-        var result = await svc.DetectAndUpdateCoatingFlagsAsync(dryRun: false, specificOrderIds: null, CancellationToken.None);
-
-        result.Success.Should().BeTrue();
-        captured.Should().NotBeNull();
-        captured![1].Should().BeTrue();
-        captured[2].Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task DryRun_DoesNotCallSetCoatingFlags()
-    {
-        var settings = new Mock<IAppSettingRepository>();
-        settings.Setup(s => s.GetValueAsync("LackierteilKategorieName")).ReturnsAsync("Lackierteil");
-
-        var orders = new Mock<IProductionOrderRepository>();
-        orders.Setup(o => o.GetOpenOrdersInWindowAsync(It.IsAny<int>(), It.IsAny<int>()))
-              .ReturnsAsync(new List<ProductionOrder>
-              {
-                  new ProductionOrder { Id = 1, OrderNumber = "A1", ArticleNumber = "ART1" }
-              });
-
-        var cache = new Mock<IBomCacheRepository>();
-        cache.Setup(c => c.GetArticleNumbersWithCoatingPartsAsync(It.IsAny<string>(), It.IsAny<List<string>>()))
-             .ReturnsAsync(new HashSet<string> { "ART1" });
-
-        var svc = new CoatingDetectionService(Cfg(), NullLogger<CoatingDetectionService>.Instance,
-            BuildProvider(settings, orders, cache));
-
-        await svc.DetectAndUpdateCoatingFlagsAsync(dryRun: true, specificOrderIds: null, CancellationToken.None);
-
-        orders.Verify(o => o.SetCoatingFlagsAsync(It.IsAny<Dictionary<int, bool>>()), Times.Never);
+        result.Errors.Should().BeGreaterThan(0);
+        result.ErrorDetails.Should().NotBeNullOrEmpty();
     }
 }
 ```
+
+> Real-database integration testing for `CoatingDetectionService` and `BomCacheSyncService` should be done manually against a dev database, or via separate integration tests configured with a LocalDB connection string. They are out of scope for this plan.
 
 ### 9.4 Build, test, commit
 
@@ -2055,10 +2510,8 @@ dotnet test IdealAkeWms.Tests/IdealAkeWms.Tests.csproj
 
 git add IDEALAKEWMSService/Services/ICoatingDetectionService.cs \
         IDEALAKEWMSService/Services/CoatingDetectionService.cs \
-        IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs \
-        IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs \
         IdealAkeWms.Tests/Services/CoatingDetectionServiceTests.cs
-git commit -m "feat: CoatingDetectionService flags orders via BOM cache lookup"
+git commit -m "feat: CoatingDetectionService flags orders via raw SQL BOM cache lookup"
 ```
 
 ### Checklist
@@ -2101,25 +2554,14 @@ Keep all existing keys intact.
 
 ### 10.2 Register services in the service DI container
 
-In the Windows service `Program.cs` (or `HostBuilder` setup — wherever `SageImportService` / `OseonSyncService` are registered), add:
+In `IDEALAKEWMSService/Program.cs`, after the existing `builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();` line, add:
 
 ```csharp
-services.AddScoped<IdealAkeWms.Data.Repositories.IBomCacheRepository,
-                   IdealAkeWms.Data.Repositories.BomCacheRepository>();
-services.AddSingleton<IBomCacheSyncService, BomCacheSyncService>();
-services.AddSingleton<ICoatingDetectionService, CoatingDetectionService>();
+builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
+builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
 ```
 
-If the service DI container doesn't already register `IProductionOrderRepository` and `IAppSettingRepository`, add those too (they are needed by the scoped resolves inside the sync services).
-
-Also make sure `ApplicationDbContext` is registered with the WMS `DefaultConnection`:
-
-```csharp
-services.AddDbContext<IdealAkeWms.Data.ApplicationDbContext>(options =>
-    options.UseSqlServer(hostContext.Configuration.GetConnectionString("DefaultConnection")));
-```
-
-(Skip if already present.)
+That's all — no `ApplicationDbContext`, no web-project repositories. Both new services use raw SQL via `Microsoft.Data.SqlClient` (consistent with the existing services).
 
 ### 10.3 Edit `IDEALAKEWMSService/Workers/SyncWorker.cs`
 
@@ -2136,9 +2578,9 @@ if (_configuration.GetValue<bool>("Sync:BomCacheEnabled"))
         _logger.LogInformation("Starte BOM-Cache-Sync");
         using var scope = _serviceProvider.CreateScope();
         var bomCacheSvc = scope.ServiceProvider.GetRequiredService<IBomCacheSyncService>();
-        var bomResult = await bomCacheSvc.SyncBomCacheAsync(dryRun: _dryRun, ct: stoppingToken);
-        _logger.LogInformation("BOM-Cache-Sync fertig: Success={Success}, Ins={Ins}, Upd={Upd}, Skip={Skip}, Err={Err}",
-            bomResult.Success, bomResult.Inserted, bomResult.Updated, bomResult.Skipped, bomResult.Errors);
+        var bomResult = await bomCacheSvc.SyncBomCacheAsync(dryRun: dryRun, ct: stoppingToken);
+        _logger.LogInformation("BOM-Cache-Sync fertig: Ins={Ins}, Upd={Upd}, Err={Err}",
+            bomResult.Inserted, bomResult.Updated, bomResult.Errors);
     }
     catch (Exception ex)
     {
@@ -2151,7 +2593,7 @@ else
 }
 
 // ---------------------------------------------------------------
-// Coating-Detection-Sync
+// Coating-Detection-Sync (Lackierteil-Erkennung)
 // ---------------------------------------------------------------
 if (_configuration.GetValue<bool>("Sync:CoatingDetectionEnabled"))
 {
@@ -2161,9 +2603,10 @@ if (_configuration.GetValue<bool>("Sync:CoatingDetectionEnabled"))
         using var scope = _serviceProvider.CreateScope();
         var coatSvc = scope.ServiceProvider.GetRequiredService<ICoatingDetectionService>();
         var coatResult = await coatSvc.DetectAndUpdateCoatingFlagsAsync(
-            dryRun: _dryRun, specificOrderIds: null, ct: stoppingToken);
-        _logger.LogInformation("Lackierteil-Erkennung fertig: Success={Success}, MitLack={Upd}, Ohne={Skip}",
-            coatResult.Success, coatResult.Updated, coatResult.Skipped);
+            dryRun: dryRun, specificOrderIds: null, ct: stoppingToken);
+        // SyncResult mapping: Inserted=mit Lackierteilen, Updated=ohne Lackierteile
+        _logger.LogInformation("Lackierteil-Erkennung fertig: MitLack={WithCoat}, OhneLack={WithoutCoat}, Err={Err}",
+            coatResult.Inserted, coatResult.Updated, coatResult.Errors);
     }
     catch (Exception ex)
     {
@@ -2193,7 +2636,7 @@ git commit -m "feat: SyncWorker runs BOM cache and coating detection after exist
 ### Checklist
 
 - [ ] 5 new `Sync:*` settings added
-- [ ] `IBomCacheSyncService`, `ICoatingDetectionService`, `IBomCacheRepository` registered in service DI
+- [ ] `IBomCacheSyncService`, `ICoatingDetectionService` registered in service DI (no web repos)
 - [ ] `SyncWorker` has two new gated blocks in the correct order
 - [ ] Build + tests green
 - [ ] Committed
@@ -2227,19 +2670,80 @@ public SageImportService(
 
 **In `SyncProductionOrdersAsync`:**
 
-Find the insert branch inside the main loop (the `isInsert == true` path after `IF EXISTS`). Track new orders:
+#### Step A: Modify the SQL to return the inserted Id
+
+Find the existing IF EXISTS / ELSE block (around line 81-119 in `SageImportService.cs`). The current INSERT branch ends with:
+
+```sql
+SELECT 1 AS Affected, 1 AS IsInsert
+```
+
+Change it to:
+
+```sql
+SELECT SCOPE_IDENTITY() AS InsertedId, 1 AS Affected, 1 AS IsInsert
+```
+
+And the UPDATE branch:
+
+```sql
+SELECT @@ROWCOUNT AS Affected, 0 AS IsInsert
+```
+
+becomes (for column-count consistency):
+
+```sql
+SELECT NULL AS InsertedId, @@ROWCOUNT AS Affected, 0 AS IsInsert
+```
+
+#### Step B: Read the inserted Id from the reader
+
+The current C# reader code is around line 131-138:
+
+```csharp
+await using var reader = await cmd.ExecuteReaderAsync(ct);
+if (await reader.ReadAsync(ct))
+{
+    var affected = reader.GetInt32(0);
+    var isInsert = reader.GetInt32(1) == 1;
+    if (affected > 0 && isInsert) inserted++;
+    else if (affected > 0) updated++;
+}
+```
+
+Change to (note the column index shift — InsertedId is now col 0, Affected is col 1, IsInsert is col 2):
+
+```csharp
+await using var reader = await cmd.ExecuteReaderAsync(ct);
+if (await reader.ReadAsync(ct))
+{
+    int? newId = reader.IsDBNull(0) ? null : Convert.ToInt32(reader.GetValue(0));
+    var affected = reader.GetInt32(1);
+    var isInsert = reader.GetInt32(2) == 1;
+
+    if (affected > 0 && isInsert)
+    {
+        inserted++;
+        if (newId.HasValue && !string.IsNullOrWhiteSpace(orderFromSage.ArticleNumber))
+        {
+            newArticleNumbers.Add(orderFromSage.ArticleNumber);
+            newOrderIds.Add(newId.Value);
+        }
+    }
+    else if (affected > 0)
+    {
+        updated++;
+    }
+}
+```
+
+#### Step C: Declare the tracking lists at the start of the method
+
+Before the main loop:
 
 ```csharp
 var newArticleNumbers = new List<string>();
 var newOrderIds = new List<int>();
-```
-
-Inside the insert branch, after the insert statement returns the new `Id` (SCOPE_IDENTITY), append to the lists:
-
-```csharp
-if (!string.IsNullOrWhiteSpace(orderFromSage.ArticleNumber))
-    newArticleNumbers.Add(orderFromSage.ArticleNumber);
-newOrderIds.Add(newId);
 ```
 
 At the **end** of `SyncProductionOrdersAsync`, after the main loop, add:
