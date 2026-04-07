@@ -75,8 +75,8 @@ public class CoatingDetectionService : ICoatingDetectionService
             }
             else
             {
-                var weeksAhead = _configuration.GetValue<int?>("Sync:BomCacheWeeks") ?? 8;
-                var maxOrders  = _configuration.GetValue<int?>("Sync:BomCacheMaxOrders") ?? 200;
+                var weeksAhead = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheWeeks", 8, ct);
+                var maxOrders  = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheMaxOrders", 200, ct);
 
                 await using var cmd = new SqlCommand(@"
                     SELECT TOP (@max) [Id], [ArticleNumber]

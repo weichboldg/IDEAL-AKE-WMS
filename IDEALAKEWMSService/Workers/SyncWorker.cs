@@ -1,3 +1,4 @@
+using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services;
 
 namespace IDEALAKEWMSService.Workers;
@@ -119,7 +120,8 @@ public class SyncWorker : BackgroundService
                 // ---------------------------------------------------------------
                 // BOM-Cache-Sync
                 // ---------------------------------------------------------------
-                if (_configuration.GetValue<bool>("Sync:BomCacheEnabled"))
+                var bomCacheEnabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:BomCacheEnabled", false, stoppingToken);
+                if (bomCacheEnabled)
                 {
                     try
                     {
@@ -137,13 +139,14 @@ public class SyncWorker : BackgroundService
                 }
                 else
                 {
-                    _logger.LogDebug("BOM-Cache-Sync deaktiviert (Sync:BomCacheEnabled=false)");
+                    _logger.LogDebug("BOM-Cache-Sync deaktiviert (Sync:BomCacheEnabled=false in ServiceSettings)");
                 }
 
                 // ---------------------------------------------------------------
                 // Coating-Detection-Sync (Lackierteil-Erkennung)
                 // ---------------------------------------------------------------
-                if (_configuration.GetValue<bool>("Sync:CoatingDetectionEnabled"))
+                var coatingEnabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:CoatingDetectionEnabled", false, stoppingToken);
+                if (coatingEnabled)
                 {
                     try
                     {
@@ -163,7 +166,7 @@ public class SyncWorker : BackgroundService
                 }
                 else
                 {
-                    _logger.LogDebug("Lackierteil-Erkennung deaktiviert (Sync:CoatingDetectionEnabled=false)");
+                    _logger.LogDebug("Lackierteil-Erkennung deaktiviert (Sync:CoatingDetectionEnabled=false in ServiceSettings)");
                 }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)

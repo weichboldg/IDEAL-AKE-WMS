@@ -489,7 +489,8 @@ BEGIN
         ('OseonAmpelGelbTage', '1', 'OSEON Ampel: Gelb ab X Tagen vor Termin'),
         ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin'),
         ('BestellungenAktiv', 'false', 'Bedarfsmeldungen aus Stueckliste aktivieren'),
-        ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren');
+        ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren'),
+        ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
@@ -518,6 +519,28 @@ BEGIN
         ('Sync:ArticlesEnabled', 'true', 'Sync', 'Artikel-Sync aus SAGE aktiv (true/false)');
     PRINT 'Standard-ServiceSettings eingefuegt.';
 END
+GO
+
+-- BOM-Cache + Lackierteil-Erkennung ServiceSettings
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheEnabled', 'false', 'BOM-Cache', 'BOM-Cache-Sync aktiv');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheWeeks')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheWeeks', '8', 'BOM-Cache', 'Wochen Fertigungstermin im Cache');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheMaxOrders')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheMaxOrders', '200', 'BOM-Cache', 'Max Auftraege im Cache');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheMaxAgeHours')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheMaxAgeHours', '24', 'BOM-Cache', 'Re-Sync nach X Stunden');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:CoatingDetectionEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:CoatingDetectionEnabled', 'false', 'Lackierteile', 'Lackierteil-Erkennung Sync-Job aktiv');
 GO
 
 -- =============================================

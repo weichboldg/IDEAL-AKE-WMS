@@ -1,3 +1,4 @@
+using IDEALAKEWMSService.Common;
 using Microsoft.Data.SqlClient;
 using System.Text;
 
@@ -162,7 +163,8 @@ public class SageImportService : ISageImportService
             }
 
             // Hook: BOM-Cache + Coating Detection fuer neue Auftraege
-            if (_configuration.GetValue<bool>("Sync:BomCacheEnabled") && newArticleNumbers.Count > 0)
+            var bomCacheEnabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:BomCacheEnabled", false, ct);
+            if (bomCacheEnabled && newArticleNumbers.Count > 0)
             {
                 try
                 {

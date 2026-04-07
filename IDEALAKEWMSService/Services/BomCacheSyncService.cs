@@ -37,9 +37,9 @@ public class BomCacheSyncService : IBomCacheSyncService
 
         try
         {
-            var weeksAhead = _configuration.GetValue<int?>("Sync:BomCacheWeeks") ?? 8;
-            var maxOrders  = _configuration.GetValue<int?>("Sync:BomCacheMaxOrders") ?? 200;
-            var maxAgeHrs  = _configuration.GetValue<int?>("Sync:BomCacheMaxAgeHours") ?? 24;
+            var weeksAhead = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheWeeks", 8, ct);
+            var maxOrders  = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheMaxOrders", 200, ct);
+            var maxAgeHrs  = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheMaxAgeHours", 24, ct);
 
             var orders = await ReadOpenOrdersInWindowAsync(weeksAhead, maxOrders, ct);
             _logger.LogInformation("BOM-Cache-Sync: {Count} Auftraege im Window ({Weeks}w / max {Max})",
@@ -152,7 +152,7 @@ public class BomCacheSyncService : IBomCacheSyncService
 
         try
         {
-            var maxAgeHrs = _configuration.GetValue<int?>("Sync:BomCacheMaxAgeHours") ?? 24;
+            var maxAgeHrs = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheMaxAgeHours", 24, ct);
 
             var distinct = articleNumbers
                 .Where(a => !string.IsNullOrWhiteSpace(a))

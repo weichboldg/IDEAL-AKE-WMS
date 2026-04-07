@@ -212,6 +212,25 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
+    // Lackierteil-Erkennung AppSettings
+    var coatingSettings = new (string Key, string Value, string Description)[]
+    {
+        ("LackierteilKategorieName", "", "Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv (Beschichtungstermin wie vorher fuer alle)"),
+    };
+    foreach (var (key, value, description) in coatingSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
     // Bedarfsmeldungen AppSettings
     var requisitionSettings = new (string Key, string Value, string Description)[]
     {
@@ -240,6 +259,11 @@ using (var scope = app.Services.CreateScope())
         ("Notifications:AppBaseUrl", "", "Notifications", "Basis-URL der App für Links in Mails (z.B. https://wms.ake.at)"),
         ("Sync:ProductionOrdersEnabled", "true", "Sync", "Produktionsaufträge-Sync aus SAGE aktiv (true/false)"),
         ("Sync:ArticlesEnabled", "true", "Sync", "Artikel-Sync aus SAGE aktiv (true/false)"),
+        ("Sync:BomCacheEnabled",         "false", "BOM-Cache",   "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),
+        ("Sync:BomCacheWeeks",           "8",     "BOM-Cache",   "Wieviele Wochen Fertigungstermin in die Zukunft cachen"),
+        ("Sync:BomCacheMaxOrders",       "200",   "BOM-Cache",   "Maximalanzahl Auftraege im BOM-Cache"),
+        ("Sync:BomCacheMaxAgeHours",     "24",    "BOM-Cache",   "Sicherheitsnetz: Re-Sync wenn Cache-Eintrag aelter als X Stunden"),
+        ("Sync:CoatingDetectionEnabled", "false", "Lackierteile","Lackierteil-Erkennung als separater Sync-Job aktiv"),
     };
     foreach (var (key, value, category, description) in serviceSettingSeed)
     {
