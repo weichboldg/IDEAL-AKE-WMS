@@ -8,6 +8,26 @@
     <div class="col-lg-8">
 
         <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <strong>Version 1.5.0</strong> — 07.04.2026
+            </div>
+            <div class="card-body">
+                <h6>Neue Funktionen</h6>
+                <ul>
+                    <li><strong>BOM-Cache:</strong> Stuecklisten der wichtigsten offenen Auftraege werden vom Service in der WMS-Datenbank zwischengespeichert (max. 200, 8 Wochen voraus). Stueckliste-Aufrufe werden dadurch deutlich schneller.</li>
+                    <li><strong>Lackierteil-Erkennung:</strong> Auftraege werden automatisch markiert wenn ihre Stueckliste Lackierteile enthaelt (basiert auf neuer Stammdaten-Einstellung <code>LackierteilKategorieName</code>).</li>
+                    <li><strong>Lack-T Spalte:</strong> Neue Spalte in der FA-Liste mit klickbarer Checkbox (nur sichtbar bei Lackierteil-Auftraegen) &mdash; User koennen Lackierteile als erledigt markieren.</li>
+                    <li><strong>Beschichtungstermin bedingt:</strong> Wird nur noch fuer Auftraege mit Lackierteilen berechnet/angezeigt (wenn Feature aktiv). Backward-kompatibel: leeres Setting = wie vorher fuer alle.</li>
+                </ul>
+                <h6>Verbesserungen</h6>
+                <ul>
+                    <li><strong>Hash-basierte Aenderungserkennung:</strong> BOM-Cache wird nur ueberschrieben wenn sich der Inhalt tatsaechlich geaendert hat (SHA256 Vergleich).</li>
+                    <li><strong>Common-Helper:</strong> Neue gemeinsame Klassen <code>ConnectionStrings</code> und <code>BulkCopyHelper</code> reduzieren Code-Duplikation in Sync-Services.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header" style="background-color: var(--ake-primary);">
                 <strong>v1.4.0</strong>
                 <span class="text-white-50 ms-2">07.04.2026</span>

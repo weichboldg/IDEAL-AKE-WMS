@@ -261,6 +261,11 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Leitstand PickingPriority NULL = niedrigste**: Auftraege ohne Prioritaet werden ans Ende sortiert (`OrderBy PickingPriority.HasValue ? 0 : 1, ThenBy PickingPriority`)
 - **Controller-Split**: Kommissionierung ist jetzt in `PickingController`, nicht mehr in `ProductionOrdersController`. `ProductionOrdersController` hat Redirect-Stubs fuer `/ProductionOrders/Bom` und `/ProductionOrders/Picking` (301-Redirect auf neue URLs)
 - **Photo-API**: Fotos werden jetzt ueber `/api/photos/upload`, `/api/photos/{id}`, `/api/photos/delete` angesprochen (war: `/ProductionOrders/UploadPhoto` etc.)
+- **Service kann Web-Projekt nicht referenzieren**: SDK.Worker (Service) vs SDK.Web (App). Service nutzt eigene DTOs (`BomCacheItem`) und raw SQL via `Microsoft.Data.SqlClient` — keine `IBomCacheRepository`-Resolves im Service-DI
+- **BOM-Cache per Artikelnummer (nicht per ProductionOrder)**: Mehrere Auftraege koennen denselben Artikel haben → ein Cache-Eintrag pro Artikelnummer, nicht pro Auftrag
+- **BOM-Hash sortiert**: Vor Hash-Berechnung muss die Item-Liste nach `(Position, Ressourcenummer)` sortiert werden, sonst sind Hashes instabil
+- **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer ist, wird Beschichtungstermin fuer ALLE Auftraege berechnet (Verhalten wie vor v1.5.0). Erst wenn Setting gesetzt ist, wird gefiltert
+- **HasCoatingParts → IsCoatingDone Cascade**: Wenn `HasCoatingParts` von true auf false wechselt (BOM-Aenderung), wird `IsCoatingDone` automatisch zurueckgesetzt
 
 ## Standard-Daten (Neuinstallation)
 
@@ -304,6 +309,7 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stueckliste aktivieren |
 | `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
+| `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv (Beschichtungstermin wie vorher fuer alle) |
 
 ## Service-Konfiguration (appsettings.json)
 
@@ -320,6 +326,11 @@ Sync-Toggles und Worker-Settings stehen in `IDEALAKEWMSService/appsettings.json`
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
 | `Sync:PartRequisitionEmailEnabled` | `false` | Bedarfsmeldungs-E-Mail-Versand aktiv |
 | `Sync:OseonArticleCategoryEnabled` | `false` | OSEON-Artikelkategorie-Sync aktiv |
+| `Sync:BomCacheEnabled` | `false` | BOM-Cache-Sync aktiv |
+| `Sync:BomCacheWeeks` | `8` | Wieviele Wochen Fertigungstermin in die Zukunft cachen |
+| `Sync:BomCacheMaxOrders` | `200` | Max. Auftraege im Cache |
+| `Sync:BomCacheMaxAgeHours` | `24` | Sicherheitsnetz: erzwingt Re-Sync bei aelteren Eintraegen |
+| `Sync:CoatingDetectionEnabled` | `false` | Lackierteil-Erkennung als separater Job aktiv |
 
 Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonConnection` (OSEON), `EnaioDmsConnection` (enaio)
 
@@ -484,6 +495,13 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `Views/ArticleAttributes/Index.cshtml` — Merkmale-Verwaltung mit Optionen-Details
 - `Models/ViewModels/ArticleEditViewModel.cs` — ViewModel fuer Artikel-Edit mit Kategorie + Merkmalen
 - `SQL/39_AddArticleCategoriesAndAttributes.sql` — Migration fuer 4 neue Tabellen + FK
+- `Models/CachedBomHeader.cs` / `Models/CachedBomItem.cs` — persistenter BOM-Cache (Header/Detail)
+- `Data/Repositories/BomCacheRepository.cs` — Cache-Reads + Coating-Lookup (Web)
+- `IDEALAKEWMSService/Common/ConnectionStrings.cs` / `BulkCopyHelper.cs` — gemeinsame Helper
+- `IDEALAKEWMSService/Services/BomCacheSyncService.cs` — BOM-Cache-Sync (raw SQL, SAGE+OSEON)
+- `IDEALAKEWMSService/Services/CoatingDetectionService.cs` — Lackierteil-Erkennung
+- `IDEALAKEWMSService/Models/BomCacheItem.cs` — Service-internes BOM-DTO
+- `SQL/40_AddBomCacheAndCoatingDetection.sql` — Migration fuer Cache-Tabellen + Coating-Flags
 
 ## Bestandsuebersicht
 

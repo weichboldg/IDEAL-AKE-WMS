@@ -125,6 +125,20 @@
                     <dd>Per Klick auf den gruenen Haekchen-Button kann ein Fertigungsauftrag als erledigt markiert werden.
                         Erledigte Auftraege koennen ueber den Filter &bdquo;Erledigte anzeigen&ldquo; ein-/ausgeblendet werden.</dd>
 
+                    <dt>Lack-T (Lackierteile)</dt>
+                    <dd>
+                        In der Fertigungsauftraege-Liste erscheint die Spalte <strong>Lack-T</strong>
+                        (zwischen Liefertermin und Glas) wenn ein Auftrag Lackierteile in seiner Stueckliste enthaelt.
+                        Per Klick auf die Checkbox koennen Lackierteile als erledigt markiert werden &mdash; danach
+                        wird der Beschichtungstermin nicht mehr rot markiert.
+                        <br />
+                        Die automatische Erkennung erfolgt ueber die Stammdaten-Einstellung
+                        <strong>LackierteilKategorieName</strong> (Name der Artikelkategorie die als Lackierteil gilt).
+                        Wenn das Setting leer ist, wird der Beschichtungstermin fuer alle Auftraege angezeigt
+                        (Verhalten wie vor v1.5.0). Wenn gesetzt, wird der Beschichtungstermin nur bei Auftraegen
+                        mit Lackierteilen angezeigt.
+                    </dd>
+
                     <dt>Status</dt>
                     <dd>
                         <span class="badge bg-secondary">offen</span> — Noch nicht kommissioniert<br />
