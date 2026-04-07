@@ -253,6 +253,11 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Leitstand Toggle-Verhalten**: Wenn `LeitstandAktiv=false`, zeigt Picking() die alte Dropdown-View (`PickingDropdown.cshtml`). Wenn `true`, die neue Tabelle. Menuetext ist immer "Fertigungsauftraege"
 - **Leitstand Index-Action hat kein Filter-Attribut**: Die Index-Action von ProductionOrdersController prueft Berechtigungen manuell im Methoden-Body (CanPick OR CanViewTracking OR CanManagePickingRelease), weil kein bestehender Filter alle drei Rollen abdeckt
 - **Leitstand Freigabe ohne Artikelnummer**: `ToggleRelease` prueft ob `ArticleNumber` vorhanden ist. Ohne Artikelnummer → TempData WarningMessage, keine Freigabe. Die `BulkRelease`-Action ueberspringt solche Auftraege und meldet sie als "uebersprungen"
+- **ArticleAttributeOption kein AuditableEntity**: `ArticleAttributeOption` hat nur `Id`, `FK`, `Value`, `SortOrder` — kein `CreatedAt`/`CreatedBy`. Audit-Tracking auf Definition-Ebene reicht
+- **Merkmal-Typ nicht aenderbar**: `AttributeType` (Boolean/Dropdown) kann nach Erstellung nicht geaendert werden. Altes deaktivieren, neues erstellen
+- **Artikel-Index Merkmal-Performance**: Merkmal-Werte werden per Batch-Query geladen (`GetValuesByArticleIdsAsync`), nicht per Artikel — kein N+1
+- **BOM zeigt nur Kategorie**: In der Stueckliste (BOM) werden nur Kategorien angezeigt, keine Merkmale (zu viele Spalten)
+- **OSEON Kategorie-Sync Reihenfolge**: Kategorie-Sync muss NACH dem Sage-Artikel-Import laufen, damit Artikel existieren
 - **Leitstand PickingPriority NULL = niedrigste**: Auftraege ohne Prioritaet werden ans Ende sortiert (`OrderBy PickingPriority.HasValue ? 0 : 1, ThenBy PickingPriority`)
 - **Controller-Split**: Kommissionierung ist jetzt in `PickingController`, nicht mehr in `ProductionOrdersController`. `ProductionOrdersController` hat Redirect-Stubs fuer `/ProductionOrders/Bom` und `/ProductionOrders/Picking` (301-Redirect auf neue URLs)
 - **Photo-API**: Fotos werden jetzt ueber `/api/photos/upload`, `/api/photos/{id}`, `/api/photos/delete` angesprochen (war: `/ProductionOrders/UploadPhoto` etc.)
@@ -314,6 +319,7 @@ Sync-Toggles und Worker-Settings stehen in `IDEALAKEWMSService/appsettings.json`
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus (keine DB-Aenderungen) |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
 | `Sync:PartRequisitionEmailEnabled` | `false` | Bedarfsmeldungs-E-Mail-Versand aktiv |
+| `Sync:OseonArticleCategoryEnabled` | `false` | OSEON-Artikelkategorie-Sync aktiv |
 
 Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonConnection` (OSEON), `EnaioDmsConnection` (enaio)
 
@@ -466,6 +472,18 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `Models/ViewModels/PickingListViewModel.cs` — ViewModel fuer Kommissionierliste (Tabelle)
 - `Views/Picking/IndexDropdown.cshtml` — Fallback-View (alte Dropdown-Auswahl bei LeitstandAktiv=false)
 - `SQL/37_AddPickingRelease.sql` — Migration fuer Leitstand-Felder + Rolle + AppSetting
+- `Models/ArticleCategory.cs` — Artikelkategorie-Entity (OSEON-sync oder manuell)
+- `Models/ArticleAttributeDefinition.cs` — Merkmal-Definition + Enum `AttributeType` (Boolean/Dropdown)
+- `Models/ArticleAttributeOption.cs` — Dropdown-Vorgabewerte (kein AuditableEntity)
+- `Models/ArticleAttributeValue.cs` — EAV-Wert pro Artikel pro Merkmal
+- `Data/Repositories/ArticleCategoryRepository.cs` — CRUD + Batch-Lookup fuer Kategorien
+- `Data/Repositories/ArticleAttributeRepository.cs` — Definitionen, Optionen, Werte (EAV-Pattern)
+- `Controllers/ArticleCategoriesController.cs` — CRUD Stammdaten (RequireMasterDataAccess)
+- `Controllers/ArticleAttributesController.cs` — CRUD Merkmale + Dropdown-Optionen
+- `Views/ArticleCategories/Index.cshtml` — Kategorien-Verwaltung
+- `Views/ArticleAttributes/Index.cshtml` — Merkmale-Verwaltung mit Optionen-Details
+- `Models/ViewModels/ArticleEditViewModel.cs` — ViewModel fuer Artikel-Edit mit Kategorie + Merkmalen
+- `SQL/39_AddArticleCategoriesAndAttributes.sql` — Migration fuer 4 neue Tabellen + FK
 
 ## Bestandsuebersicht
 
