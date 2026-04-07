@@ -221,6 +221,8 @@ BEGIN
         [PickingStatus]           NVARCHAR(50)      NULL,
         [HasGlass]                BIT               NOT NULL DEFAULT 0,
         [HasExternalPurchase]     BIT               NOT NULL DEFAULT 0,
+        [HasCoatingParts]         BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCoatingParts DEFAULT 0,
+        [IsCoatingDone]           BIT               NOT NULL CONSTRAINT DF_ProductionOrders_IsCoatingDone DEFAULT 0,
         [ProductionWorkplaceId]   INT               NULL,
         [IsReleasedForPicking]    BIT               NOT NULL DEFAULT 0,
         [PickingPriority]         INT               NULL,
@@ -992,6 +994,47 @@ END
 GO
 
 -- =============================================
+-- 17f. CachedBomHeaders + CachedBomItems
+-- =============================================
+IF OBJECT_ID('dbo.CachedBomHeaders', 'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[CachedBomHeaders] (
+        [Id]            INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CachedBomHeaders PRIMARY KEY,
+        [Artikelnummer] NVARCHAR(100)     NOT NULL,
+        [Source]        NVARCHAR(20)      NOT NULL,
+        [ItemCount]     INT               NOT NULL,
+        [ContentHash]   NVARCHAR(64)      NOT NULL,
+        [CachedAt]      DATETIME2         NOT NULL
+    );
+    CREATE UNIQUE INDEX [IX_CachedBomHeaders_Artikelnummer] ON [dbo].[CachedBomHeaders]([Artikelnummer]);
+    PRINT 'Tabelle CachedBomHeaders erstellt.';
+END
+GO
+
+IF OBJECT_ID('dbo.CachedBomItems', 'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[CachedBomItems] (
+        [Id]                  INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CachedBomItems PRIMARY KEY,
+        [CachedBomHeaderId]   INT               NOT NULL,
+        [Position]            NVARCHAR(50)      NULL,
+        [Baugruppe]           NVARCHAR(200)     NULL,
+        [Ressourcenummer]     NVARCHAR(100)     NULL,
+        [Bezeichnung1]        NVARCHAR(500)     NULL,
+        [Bezeichnung2]        NVARCHAR(500)     NULL,
+        [Menge]               DECIMAL(18,3)     NOT NULL,
+        [Beschaffungsartikel] NVARCHAR(100)     NULL,
+        [Artikelgruppe]       NVARCHAR(100)     NULL,
+        [SortOrder]           INT               NOT NULL,
+        CONSTRAINT FK_CachedBomItems_CachedBomHeaders
+            FOREIGN KEY ([CachedBomHeaderId]) REFERENCES [dbo].[CachedBomHeaders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_CachedBomItems_CachedBomHeaderId] ON [dbo].[CachedBomItems]([CachedBomHeaderId]);
+    CREATE INDEX [IX_CachedBomItems_Ressourcenummer] ON [dbo].[CachedBomItems]([Ressourcenummer]);
+    PRINT 'Tabelle CachedBomItems erstellt.';
+END
+GO
+
+-- =============================================
 -- 18. EF Migrations History
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__EFMigrationsHistory')
@@ -1037,6 +1080,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddArticleCategoriesAndAttributes')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407061642_AddArticleCategoriesAndAttributes', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260407091723_AddBomCacheAndCoatingDetection')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407091723_AddBomCacheAndCoatingDetection', '10.0.0');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

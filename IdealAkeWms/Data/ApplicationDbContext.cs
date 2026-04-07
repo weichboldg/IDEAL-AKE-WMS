@@ -38,6 +38,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<ArticleAttributeDefinition> ArticleAttributeDefinitions => Set<ArticleAttributeDefinition>();
     public DbSet<ArticleAttributeOption> ArticleAttributeOptions => Set<ArticleAttributeOption>();
     public DbSet<ArticleAttributeValue> ArticleAttributeValues => Set<ArticleAttributeValue>();
+    public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
+    public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -617,6 +619,36 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(e => new { e.EmailSentAt, e.Status })
                 .HasDatabaseName("IX_PartRequisitions_EmailSentAt_Status");
+        });
+
+        modelBuilder.Entity<CachedBomHeader>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Artikelnummer).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ContentHash).IsRequired().HasMaxLength(64);
+            entity.HasIndex(e => e.Artikelnummer).IsUnique().HasDatabaseName("IX_CachedBomHeaders_Artikelnummer");
+        });
+
+        modelBuilder.Entity<CachedBomItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Position).HasMaxLength(50);
+            entity.Property(e => e.Baugruppe).HasMaxLength(200);
+            entity.Property(e => e.Ressourcenummer).HasMaxLength(100);
+            entity.Property(e => e.Bezeichnung1).HasMaxLength(500);
+            entity.Property(e => e.Bezeichnung2).HasMaxLength(500);
+            entity.Property(e => e.Menge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Beschaffungsartikel).HasMaxLength(100);
+            entity.Property(e => e.Artikelgruppe).HasMaxLength(100);
+
+            entity.HasOne(e => e.CachedBomHeader)
+                  .WithMany(h => h.Items)
+                  .HasForeignKey(e => e.CachedBomHeaderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.CachedBomHeaderId).HasDatabaseName("IX_CachedBomItems_CachedBomHeaderId");
+            entity.HasIndex(e => e.Ressourcenummer).HasDatabaseName("IX_CachedBomItems_Ressourcenummer");
         });
     }
 }

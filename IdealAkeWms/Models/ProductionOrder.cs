@@ -49,6 +49,18 @@ public class ProductionOrder : AuditableEntity
     [Display(Name = "Zukauf")]
     public bool HasExternalPurchase { get; set; }
 
+    /// <summary>
+    /// True if the BOM contains at least one article in the Lackierteil category.
+    /// Sync-calculated, read-only for users.
+    /// </summary>
+    public bool HasCoatingParts { get; set; } = false;
+
+    /// <summary>
+    /// User-toggleable: coating parts are handled / done.
+    /// Reset to false by sync if HasCoatingParts flips to false.
+    /// </summary>
+    public bool IsCoatingDone { get; set; } = false;
+
     [Display(Name = "Werkbank")]
     public int? ProductionWorkplaceId { get; set; }
     public ProductionWorkplace? ProductionWorkplace { get; set; }
