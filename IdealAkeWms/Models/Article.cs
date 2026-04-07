@@ -24,5 +24,10 @@ public class Article : AuditableEntity
     [Display(Name = "Meldebestand")]
     public decimal? ReorderLevel { get; set; }
 
+    [Display(Name = "Kategorie")]
+    public int? ArticleCategoryId { get; set; }
+    public ArticleCategory? ArticleCategory { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
+    public ICollection<ArticleAttributeValue> AttributeValues { get; set; } = new List<ArticleAttributeValue>();
 }

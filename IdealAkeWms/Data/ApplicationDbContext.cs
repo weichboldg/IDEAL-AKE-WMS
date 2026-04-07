@@ -34,6 +34,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrderRecipient> OrderRecipients => Set<OrderRecipient>();
     public DbSet<ArticleGroupRecipientMapping> ArticleGroupRecipientMappings => Set<ArticleGroupRecipientMapping>();
     public DbSet<PartRequisition> PartRequisitions => Set<PartRequisition>();
+    public DbSet<ArticleCategory> ArticleCategories => Set<ArticleCategory>();
+    public DbSet<ArticleAttributeDefinition> ArticleAttributeDefinitions => Set<ArticleAttributeDefinition>();
+    public DbSet<ArticleAttributeOption> ArticleAttributeOptions => Set<ArticleAttributeOption>();
+    public DbSet<ArticleAttributeValue> ArticleAttributeValues => Set<ArticleAttributeValue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -168,6 +172,89 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
             entity.HasIndex(e => e.ArticleNumber).IsUnique();
+
+            entity.HasIndex(e => e.ArticleCategoryId);
+
+            entity.HasOne(e => e.ArticleCategory)
+                .WithMany(c => c.Articles)
+                .HasForeignKey(e => e.ArticleCategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ArticleCategory
+        modelBuilder.Entity<ArticleCategory>(entity =>
+        {
+            entity.ToTable("ArticleCategories");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Source).HasMaxLength(50);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        // ArticleAttributeDefinition
+        modelBuilder.Entity<ArticleAttributeDefinition>(entity =>
+        {
+            entity.ToTable("ArticleAttributeDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.SyncSource).HasMaxLength(50);
+            entity.Property(e => e.SyncFieldName).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        // ArticleAttributeOption
+        modelBuilder.Entity<ArticleAttributeOption>(entity =>
+        {
+            entity.ToTable("ArticleAttributeOptions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Value).HasMaxLength(200).IsRequired();
+
+            entity.HasIndex(e => e.ArticleAttributeDefinitionId);
+
+            entity.HasOne(e => e.ArticleAttributeDefinition)
+                .WithMany(d => d.Options)
+                .HasForeignKey(e => e.ArticleAttributeDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ArticleAttributeValue
+        modelBuilder.Entity<ArticleAttributeValue>(entity =>
+        {
+            entity.ToTable("ArticleAttributeValues");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.ArticleId, e.ArticleAttributeDefinitionId }).IsUnique();
+            entity.HasIndex(e => e.ArticleId);
+
+            entity.HasOne(e => e.Article)
+                .WithMany(a => a.AttributeValues)
+                .HasForeignKey(e => e.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ArticleAttributeDefinition)
+                .WithMany(d => d.Values)
+                .HasForeignKey(e => e.ArticleAttributeDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SelectedOption)
+                .WithMany()
+                .HasForeignKey(e => e.SelectedOptionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // StockMovement
