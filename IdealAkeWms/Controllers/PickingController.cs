@@ -24,6 +24,7 @@ public class PickingController : Controller
     private readonly IUserRepository _userRepository;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IPartRequisitionRepository _partRequisitionRepository;
+    private readonly IArticleAttributeRepository _articleAttributeRepository;
 
     public PickingController(
         IProductionOrderRepository productionOrderRepository,
@@ -39,7 +40,8 @@ public class PickingController : Controller
         IPickingTransferService pickingTransferService,
         IUserRepository userRepository,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
-        IPartRequisitionRepository partRequisitionRepository)
+        IPartRequisitionRepository partRequisitionRepository,
+        IArticleAttributeRepository articleAttributeRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _currentUserService = currentUserService;
@@ -55,6 +57,7 @@ public class PickingController : Controller
         _userRepository = userRepository;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _partRequisitionRepository = partRequisitionRepository;
+        _articleAttributeRepository = articleAttributeRepository;
     }
 
     [RequirePickingAccess]
@@ -162,6 +165,9 @@ public class PickingController : Controller
         var articleNumbers = bomItems.Select(b => b.Ressourcenummer).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).Distinct().ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
 
+        // Batch-load category names for BOM articles
+        var categoryByArticle = await _articleAttributeRepository.GetCategoryNamesByArticleNumbersAsync(articleNumbers);
+
         var allStorageLocations = await _storageLocationRepository.GetAllOrderedExcludingPickingTransportAsync();
 
         // NAN-Lagerplatz als Default wenn kein Bestand
@@ -209,6 +215,7 @@ public class PickingController : Controller
                 Menge = bom.Menge * order.Quantity,
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
+                KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,
                 StockLocations = locations,
                 TreeLevel = treeLevel,
                 IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),

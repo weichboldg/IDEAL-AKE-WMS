@@ -90,6 +90,7 @@
                 <th class="text-end" data-filterable data-col="6">Menge</th>
                 <th data-filterable data-col="7">Beschaffung</th>
                 <th data-filterable data-col="8">Artikelgruppe</th>
+                <th data-filterable data-col="9">Kategorie</th>
                 <th>Lagerplatz</th>
                 <th>Quell-Lagerplatz</th>
                 @if (ViewBag.BestellungenAktiv == true)
@@ -159,6 +160,7 @@
                     <td class="text-end">@item.Menge.ToString("N3")</td>
                     <td>@item.Beschaffungsartikel</td>
                     <td>@item.Artikelgruppe</td>
+                    <td>@(item.KategorieName ?? "")</td>
                     <td>
                         @if (item.StockLocations.Any())
                         {

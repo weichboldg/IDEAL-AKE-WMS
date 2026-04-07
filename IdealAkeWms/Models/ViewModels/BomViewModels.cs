@@ -33,6 +33,7 @@ public class BomItemViewModel
     public decimal Menge { get; set; }
     public string? Beschaffungsartikel { get; set; }
     public string? Artikelgruppe { get; set; }
+    public string? KategorieName { get; set; }
     public List<StockLocationInfo> StockLocations { get; set; } = new();
 
     // Tree structure
