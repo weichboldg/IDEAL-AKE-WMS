@@ -4,4 +4,5 @@ public interface IOseonSyncService
 {
     Task<SyncResult> SyncOseonProductionOrdersAsync(bool dryRun, CancellationToken ct = default);
     Task<SyncResult> SyncWorkplacesToProductionOrdersAsync(bool dryRun, CancellationToken ct = default);
+    Task<SyncResult> SyncArticleCategoriesToWmsAsync(bool dryRun, CancellationToken ct = default);
 }

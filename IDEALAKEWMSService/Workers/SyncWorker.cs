@@ -55,6 +55,19 @@ public class SyncWorker : BackgroundService
                         articleResult.ErrorDetails != null ? $" Details: {articleResult.ErrorDetails}" : "");
                 }
 
+                // OSEON Artikelkategorie-Sync (muss nach Artikel-Import laufen)
+                if (_configuration.GetValue<bool>("Sync:OseonArticleCategoryEnabled", false))
+                {
+                    var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
+
+                    _logger.LogInformation("OSEON-Artikelkategorie-Sync startet...");
+                    var catResult = await oseonSync.SyncArticleCategoriesToWmsAsync(dryRun, stoppingToken);
+                    _logger.LogInformation(
+                        "OSEON-Artikelkategorie-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                        catResult.Inserted, catResult.Updated, catResult.Errors,
+                        catResult.ErrorDetails != null ? $" Details: {catResult.ErrorDetails}" : "");
+                }
+
                 // OSEON Tracking sync + Werkbank-Sync
                 if (_configuration.GetValue<bool>("Sync:OseonTrackingEnabled", false))
                 {

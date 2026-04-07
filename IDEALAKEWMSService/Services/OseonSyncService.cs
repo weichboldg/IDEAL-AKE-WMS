@@ -535,6 +535,145 @@ public class OseonSyncService : IOseonSyncService
         }
     }
 
+    public async Task<SyncResult> SyncArticleCategoriesToWmsAsync(bool dryRun, CancellationToken ct = default)
+    {
+        var oseonConnection = _configuration.GetConnectionString("OseonConnection")
+            ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
+        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
+
+        if (dryRun)
+            _logger.LogInformation("[DryRun] OSEON-Artikelkategorie-Sync — keine Aenderungen werden geschrieben.");
+
+        int inserted = 0, updated = 0, errors = 0;
+        string? errorDetails = null;
+
+        try
+        {
+            // Step 1: Read categories from OSEON
+            var oseonCategories = new List<(string Name, string? Bemerkung, int? Typ)>();
+            await using (var oseonConn = new SqlConnection(oseonConnection))
+            {
+                await oseonConn.OpenAsync(ct);
+                await using var cmd = new SqlCommand("SELECT Name, Bemerkung, Typ FROM ArtikelKategorie", oseonConn)
+                    { CommandTimeout = 60 };
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    var name = reader.GetString(0).Trim();
+                    var bemerkung = reader.IsDBNull(1) ? null : reader.GetString(1).Trim();
+                    var typ = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
+                    if (!string.IsNullOrEmpty(name))
+                        oseonCategories.Add((name, bemerkung, typ));
+                }
+            }
+
+            _logger.LogInformation("OSEON-Artikelkategorien: {Count} Kategorien gelesen.", oseonCategories.Count);
+
+            if (dryRun)
+                return new SyncResult(oseonCategories.Count, 0, 0);
+
+            await using var wmsConn = new SqlConnection(wmsConnection);
+            await wmsConn.OpenAsync(ct);
+
+            // Step 2: Upsert categories
+            foreach (var (name, bemerkung, typ) in oseonCategories)
+            {
+                try
+                {
+                    await using var upsertCmd = new SqlCommand(@"
+                        IF EXISTS (SELECT 1 FROM [ArticleCategories] WHERE [Name] = @Name)
+                        BEGIN
+                            UPDATE [ArticleCategories]
+                            SET [Description] = @Description, [OseonTyp] = @OseonTyp, [Source] = 'OSEON',
+                                [ModifiedAt] = GETDATE(), [ModifiedBy] = 'OseonSync', [ModifiedByWindows] = 'SYSTEM'
+                            WHERE [Name] = @Name;
+                            SELECT 0; -- updated
+                        END
+                        ELSE
+                        BEGIN
+                            INSERT INTO [ArticleCategories] ([Name], [Description], [OseonTyp], [Source], [CreatedAt], [CreatedBy], [CreatedByWindows])
+                            VALUES (@Name, @Description, @OseonTyp, 'OSEON', GETDATE(), 'OseonSync', 'SYSTEM');
+                            SELECT 1; -- inserted
+                        END", wmsConn) { CommandTimeout = 30 };
+
+                    upsertCmd.Parameters.AddWithValue("@Name", name);
+                    upsertCmd.Parameters.AddWithValue("@Description", (object?)bemerkung ?? DBNull.Value);
+                    upsertCmd.Parameters.AddWithValue("@OseonTyp", (object?)typ ?? DBNull.Value);
+
+                    var result = (int)(await upsertCmd.ExecuteScalarAsync(ct))!;
+                    if (result == 1) inserted++;
+                    else updated++;
+                }
+                catch (Exception ex)
+                {
+                    errors++;
+                    _logger.LogWarning(ex, "Fehler beim Upsert der Kategorie '{Name}'.", name);
+                }
+            }
+
+            // Step 3: Read article-category assignments from OSEON
+            var articleCategories = new List<(string ArticleNumber, string CategoryName)>();
+            await using (var oseonConn2 = new SqlConnection(oseonConnection))
+            {
+                await oseonConn2.OpenAsync(ct);
+                await using var cmd2 = new SqlCommand(
+                    "SELECT CAST(Name AS nvarchar(100)) AS Artikelnummer, CAST(Kategorie AS nvarchar(200)) AS Artikelkategorie FROM Artikel WHERE Kategorie IS NOT NULL AND Kategorie != ''",
+                    oseonConn2) { CommandTimeout = 120 };
+                await using var reader2 = await cmd2.ExecuteReaderAsync(ct);
+                while (await reader2.ReadAsync(ct))
+                {
+                    var artNr = reader2.GetString(0).Trim();
+                    var catName = reader2.GetString(1).Trim();
+                    if (!string.IsNullOrEmpty(artNr) && !string.IsNullOrEmpty(catName))
+                        articleCategories.Add((artNr, catName));
+                }
+            }
+
+            _logger.LogInformation("OSEON-Artikel-Zuordnungen: {Count} Zuordnungen gelesen.", articleCategories.Count);
+
+            // Step 4: Bulk-update article category assignments
+            var assignUpdated = 0;
+            await using var assignCmd = new SqlCommand(@"
+                UPDATE a SET a.[ArticleCategoryId] = c.[Id]
+                FROM [Articles] a
+                INNER JOIN [ArticleCategories] c ON c.[Name] = @CategoryName COLLATE Latin1_General_CI_AS
+                WHERE a.[ArticleNumber] = @ArticleNumber COLLATE Latin1_General_CI_AS
+                  AND (a.[ArticleCategoryId] IS NULL OR a.[ArticleCategoryId] != c.[Id])",
+                wmsConn) { CommandTimeout = 30 };
+
+            assignCmd.Parameters.Add("@ArticleNumber", System.Data.SqlDbType.NVarChar, 100);
+            assignCmd.Parameters.Add("@CategoryName", System.Data.SqlDbType.NVarChar, 200);
+
+            foreach (var (artNr, catName) in articleCategories)
+            {
+                try
+                {
+                    assignCmd.Parameters["@ArticleNumber"].Value = artNr;
+                    assignCmd.Parameters["@CategoryName"].Value = catName;
+                    var rows = await assignCmd.ExecuteNonQueryAsync(ct);
+                    if (rows > 0) assignUpdated++;
+                }
+                catch (Exception ex)
+                {
+                    errors++;
+                    _logger.LogWarning(ex, "Fehler beim Zuordnen der Kategorie '{Category}' zu Artikel '{Article}'.", catName, artNr);
+                }
+            }
+
+            _logger.LogInformation("Artikel-Kategorie-Zuordnungen: {Updated} aktualisiert.", assignUpdated);
+            updated += assignUpdated;
+        }
+        catch (Exception ex)
+        {
+            errors++;
+            errorDetails = ex.Message;
+            _logger.LogError(ex, "Fehler beim OSEON-Artikelkategorie-Sync.");
+        }
+
+        return new SyncResult(inserted, updated, errors, errorDetails);
+    }
+
     private class OseonRawRow
     {
         public long OseonId { get; set; }
