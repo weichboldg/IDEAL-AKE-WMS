@@ -48,6 +48,7 @@ builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
 builder.Services.AddScoped<HolidayRepository>();
 builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
+builder.Services.AddScoped<IBomCacheRepository, BomCacheRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
