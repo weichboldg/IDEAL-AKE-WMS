@@ -1,0 +1,182 @@
+@model List<IdealAkeWms.Models.ArticleAttributeDefinition>
+@{
+    ViewData["Title"] = "Artikelmerkmale";
+    var hasValues = ViewBag.HasValues as Dictionary<int, bool> ?? new Dictionary<int, bool>();
+}
+
+<h2 class="page-header">Artikelmerkmale</h2>
+<p class="text-muted mb-3">
+    Definieren Sie Merkmale (Boolean/Dropdown) fuer Artikel. Merkmale erscheinen als filterbare Spalten in der Artikel-Uebersicht und als Eingabefelder in der Artikel-Bearbeitung.
+</p>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                Definierte Merkmale (@Model.Count)
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th style="width: 100px;">Typ</th>
+                                <th style="width: 100px;">Reihenfolge</th>
+                                <th style="width: 80px;">Aktiv</th>
+                                <th style="width: 140px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var def in Model)
+                            {
+                                hasValues.TryGetValue(def.Id, out var hasVals);
+                                <tr>
+                                    <td>
+                                        <form asp-action="UpdateDefinition" method="post" class="d-flex align-items-center gap-1" id="form-def-@def.Id">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@def.Id" />
+                                            <input type="text" name="name" value="@def.Name" class="form-control form-control-sm" required />
+                                        </form>
+                                    </td>
+                                    <td>
+                                        @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
+                                        {
+                                            <span class="badge bg-primary">Boolean</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Dropdown</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <input type="number" name="sortOrder" value="@def.SortOrder" form="form-def-@def.Id" class="form-control form-control-sm text-center" style="width: 80px;" />
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="hidden" name="isActive" value="@(def.IsActive ? "true" : "false")" form="form-def-@def.Id" id="hidden-active-@def.Id" />
+                                        <input type="checkbox" class="form-check-input" form="form-def-@def.Id"
+                                               @(def.IsActive ? "checked" : "")
+                                               onchange="document.getElementById('hidden-active-@def.Id').value = this.checked ? 'true' : 'false'" />
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button type="submit" form="form-def-@def.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                                                </svg>
+                                            </button>
+                                            @if (!hasVals)
+                                            {
+                                                <form asp-action="DeleteDefinition" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@def.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
+                                                            onclick="return confirm('Merkmal \'@def.Name\' wirklich loeschen?');">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <span class="btn btn-sm btn-outline-secondary disabled" title="Merkmal wird verwendet — deaktivieren statt loeschen">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                                                    </svg>
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                                @* Dropdown options sub-section *@
+                                @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Dropdown)
+                                {
+                                    <tr class="table-light">
+                                        <td colspan="5" style="padding-left: 2rem;">
+                                            <details>
+                                                <summary class="text-muted small fw-bold" style="cursor: pointer;">
+                                                    Dropdown-Optionen (@def.Options.Count)
+                                                </summary>
+                                                <div class="mt-2">
+                                                    @if (def.Options.Any())
+                                                    {
+                                                        <ul class="list-group list-group-flush mb-2">
+                                                            @foreach (var opt in def.Options)
+                                                            {
+                                                                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                                                                    <span>@opt.Value <small class="text-muted">(Pos. @opt.SortOrder)</small></span>
+                                                                    <form asp-action="DeleteOption" method="post" class="d-inline">
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="id" value="@opt.Id" />
+                                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Option loeschen"
+                                                                                onclick="return confirm('Option \'@opt.Value\' wirklich loeschen?');">
+                                                                            &times;
+                                                                        </button>
+                                                                    </form>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    }
+                                                    <form asp-action="AddOption" method="post" class="d-flex gap-2 align-items-end">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="definitionId" value="@def.Id" />
+                                                        <input type="text" name="value" class="form-control form-control-sm" placeholder="Neuer Wert" required style="max-width: 200px;" />
+                                                        <input type="number" name="sortOrder" value="@(def.Options.Any() ? def.Options.Max(o => o.SortOrder) + 1 : 0)" class="form-control form-control-sm text-center" style="width: 80px;" title="Reihenfolge" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-primary">Hinzufuegen</button>
+                                                    </form>
+                                                </div>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3">Keine Merkmale definiert.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">Neues Merkmal erstellen</div>
+            <div class="card-body">
+                <form asp-action="CreateDefinition" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="z.B. Laserschnitt" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Typ</label>
+                        <select name="attributeType" class="form-select">
+                            <option value="0">Boolean (Ja/Nein)</option>
+                            <option value="1">Dropdown (Auswahlliste)</option>
+                        </select>
+                        <small class="text-muted">Typ kann nach Erstellung nicht geaendert werden.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">Hinweise</div>
+            <div class="card-body small">
+                <p class="mb-2"><strong>Boolean</strong> = Checkbox (Ja/Nein) in der Artikelbearbeitung.</p>
+                <p class="mb-2"><strong>Dropdown</strong> = Auswahlliste mit vordefinierten Optionen. Optionen koennen nach Erstellung hinzugefuegt werden.</p>
+                <p class="mb-2"><strong>Reihenfolge</strong> bestimmt die Spalten-Position in der Artikel-Uebersicht.</p>
+                <p class="mb-0"><strong>Deaktivierte</strong> Merkmale verschwinden aus der Artikel-Uebersicht/Bearbeitung, Werte bleiben in der DB erhalten.</p>
+            </div>
+        </div>
+    </div>
+</div>
