@@ -121,6 +121,8 @@
                                     <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
                                     <li><a class="dropdown-item" asp-controller="ProductionWorkplaces" asp-action="Index">Werkbänke</a></li>
                                     <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
+                                    <li><a class="dropdown-item" asp-controller="ArticleCategories" asp-action="Index">Artikelkategorien</a></li>
+                                    <li><a class="dropdown-item" asp-controller="ArticleAttributes" asp-action="Index">Artikelmerkmale</a></li>
                                     <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                     <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
                                     @if (await CurrentUserService.IsAdminAsync())
