@@ -7,11 +7,19 @@ public class SageImportService : ISageImportService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<SageImportService> _logger;
+    private readonly IBomCacheSyncService _bomCacheSync;
+    private readonly ICoatingDetectionService _coatingDetection;
 
-    public SageImportService(IConfiguration configuration, ILogger<SageImportService> logger)
+    public SageImportService(
+        IConfiguration configuration,
+        ILogger<SageImportService> logger,
+        IBomCacheSyncService bomCacheSync,
+        ICoatingDetectionService coatingDetection)
     {
         _configuration = configuration;
         _logger = logger;
+        _bomCacheSync = bomCacheSync;
+        _coatingDetection = coatingDetection;
     }
 
     public async Task<SyncResult> SyncProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
@@ -72,11 +80,13 @@ public class SageImportService : ISageImportService
                 return new SyncResult(0, 0, 0, $"DryRun: {sageOrders.Count} Datensätze aus SAGE gelesen.");
 
             int inserted = 0, updated = 0;
+            var newArticleNumbers = new List<string>();
+            var newOrderIds = new List<int>();
 
             await using var wmsConn = new SqlConnection(wmsConnection);
             await wmsConn.OpenAsync(ct);
 
-            foreach (var order in sageOrders)
+            foreach (var orderFromSage in sageOrders)
             {
                 const string mergeSql = """
                     IF EXISTS (SELECT 1 FROM [ProductionOrders] WHERE [OrderNumber] = @OrderNumber)
@@ -102,7 +112,7 @@ public class SageImportService : ISageImportService
                               ISNULL(CAST([ProductionDate] AS date),'1900-01-01') != ISNULL(CAST(@ProductionDate AS date),'1900-01-01') OR
                               ISNULL(CAST([DeliveryDate] AS date),'1900-01-01') != ISNULL(CAST(@DeliveryDate AS date),'1900-01-01')
                           )
-                        SELECT @@ROWCOUNT AS Affected, 0 AS IsInsert
+                        SELECT NULL AS InsertedId, @@ROWCOUNT AS Affected, 0 AS IsInsert
                     END
                     ELSE
                     BEGIN
@@ -114,27 +124,58 @@ public class SageImportService : ISageImportService
                             (@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,
                              @ProductionDate,@DeliveryDate,0,'',0,0,
                              GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
-                        SELECT 1 AS Affected, 1 AS IsInsert
+                        SELECT SCOPE_IDENTITY() AS InsertedId, 1 AS Affected, 1 AS IsInsert
                     END
                     """;
 
                 await using var cmd = new SqlCommand(mergeSql, wmsConn);
-                cmd.Parameters.AddWithValue("@OrderNumber", order.OrderNumber);
-                cmd.Parameters.AddWithValue("@Quantity", order.Quantity);
-                cmd.Parameters.AddWithValue("@Customer", (object?)order.Customer ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@ArticleNumber", (object?)order.ArticleNumber ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Description1", (object?)order.Description1 ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Description2", (object?)order.Description2 ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@ProductionDate", (object?)order.ProductionDate ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@DeliveryDate", (object?)order.DeliveryDate ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@OrderNumber", orderFromSage.OrderNumber);
+                cmd.Parameters.AddWithValue("@Quantity", orderFromSage.Quantity);
+                cmd.Parameters.AddWithValue("@Customer", (object?)orderFromSage.Customer ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@ArticleNumber", (object?)orderFromSage.ArticleNumber ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Description1", (object?)orderFromSage.Description1 ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Description2", (object?)orderFromSage.Description2 ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@ProductionDate", (object?)orderFromSage.ProductionDate ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@DeliveryDate", (object?)orderFromSage.DeliveryDate ?? DBNull.Value);
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 if (await reader.ReadAsync(ct))
                 {
-                    var affected = reader.GetInt32(0);
-                    var isInsert = reader.GetInt32(1) == 1;
-                    if (affected > 0 && isInsert) inserted++;
-                    else if (affected > 0) updated++;
+                    int? newId = reader.IsDBNull(0) ? null : Convert.ToInt32(reader.GetValue(0));
+                    var affected = reader.GetInt32(1);
+                    var isInsert = reader.GetInt32(2) == 1;
+
+                    if (affected > 0 && isInsert)
+                    {
+                        inserted++;
+                        if (newId.HasValue && !string.IsNullOrWhiteSpace(orderFromSage.ArticleNumber))
+                        {
+                            newArticleNumbers.Add(orderFromSage.ArticleNumber);
+                            newOrderIds.Add(newId.Value);
+                        }
+                    }
+                    else if (affected > 0)
+                    {
+                        updated++;
+                    }
+                }
+            }
+
+            // Hook: BOM-Cache + Coating Detection fuer neue Auftraege
+            if (_configuration.GetValue<bool>("Sync:BomCacheEnabled") && newArticleNumbers.Count > 0)
+            {
+                try
+                {
+                    var distinctNew = newArticleNumbers.Distinct().ToList();
+                    _logger.LogInformation("Sage-Import Hook: starte narrow BOM-Cache fuer {N} neue Artikel", distinctNew.Count);
+                    await _bomCacheSync.SyncSpecificArticleNumbersAsync(distinctNew, dryRun, ct);
+
+                    _logger.LogInformation("Sage-Import Hook: starte Lackierteil-Erkennung fuer {N} neue Auftraege", newOrderIds.Count);
+                    await _coatingDetection.DetectAndUpdateCoatingFlagsAsync(dryRun, newOrderIds, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Sage-Import Hook (BOM-Cache / Coating-Detection) fehlgeschlagen");
                 }
             }
 

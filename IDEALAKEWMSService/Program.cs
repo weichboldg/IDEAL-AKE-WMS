@@ -25,6 +25,8 @@ try
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();
     builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();
+    builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
+    builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
     builder.Services.AddScoped<IMailService, MailService>();

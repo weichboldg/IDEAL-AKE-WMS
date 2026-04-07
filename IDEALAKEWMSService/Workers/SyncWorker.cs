@@ -116,6 +116,55 @@ public class SyncWorker : BackgroundService
                         _logger.LogError(ex, "Fehler beim Versand der Bedarfsmeldungs-E-Mails.");
                     }
                 }
+                // ---------------------------------------------------------------
+                // BOM-Cache-Sync
+                // ---------------------------------------------------------------
+                if (_configuration.GetValue<bool>("Sync:BomCacheEnabled"))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Starte BOM-Cache-Sync");
+                        using var bomScope = _scopeFactory.CreateScope();
+                        var bomCacheSvc = bomScope.ServiceProvider.GetRequiredService<IBomCacheSyncService>();
+                        var bomResult = await bomCacheSvc.SyncBomCacheAsync(dryRun: dryRun, ct: stoppingToken);
+                        _logger.LogInformation("BOM-Cache-Sync fertig: Ins={Ins}, Upd={Upd}, Err={Err}",
+                            bomResult.Inserted, bomResult.Updated, bomResult.Errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "BOM-Cache-Sync ist fehlgeschlagen");
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("BOM-Cache-Sync deaktiviert (Sync:BomCacheEnabled=false)");
+                }
+
+                // ---------------------------------------------------------------
+                // Coating-Detection-Sync (Lackierteil-Erkennung)
+                // ---------------------------------------------------------------
+                if (_configuration.GetValue<bool>("Sync:CoatingDetectionEnabled"))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Starte Lackierteil-Erkennung");
+                        using var coatScope = _scopeFactory.CreateScope();
+                        var coatSvc = coatScope.ServiceProvider.GetRequiredService<ICoatingDetectionService>();
+                        var coatResult = await coatSvc.DetectAndUpdateCoatingFlagsAsync(
+                            dryRun: dryRun, specificOrderIds: null, ct: stoppingToken);
+                        // Inserted=mit Lackierteilen, Updated=ohne Lackierteile
+                        _logger.LogInformation("Lackierteil-Erkennung fertig: MitLack={WithCoat}, OhneLack={WithoutCoat}, Err={Err}",
+                            coatResult.Inserted, coatResult.Updated, coatResult.Errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Lackierteil-Erkennung ist fehlgeschlagen");
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("Lackierteil-Erkennung deaktiviert (Sync:CoatingDetectionEnabled=false)");
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
