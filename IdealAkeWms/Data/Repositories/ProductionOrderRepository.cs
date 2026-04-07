@@ -59,4 +59,53 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     {
         return await _dbSet.CountAsync(o => o.IsReleasedForPicking && !o.IsDone);
     }
+
+    public async Task<List<ProductionOrder>> GetOpenOrdersInWindowAsync(int weeksAhead, int maxCount)
+    {
+        if (weeksAhead <= 0) weeksAhead = 8;
+        if (maxCount <= 0) maxCount = 200;
+
+        var cutoff = DateTime.Now.AddDays(weeksAhead * 7);
+
+        return await _dbSet
+            .Where(po => !po.IsDone
+                         && po.ProductionDate != null
+                         && po.ProductionDate <= cutoff)
+            .OrderBy(po => po.ProductionDate)
+            .Take(maxCount)
+            .ToListAsync();
+    }
+
+    public async Task SetCoatingFlagsAsync(Dictionary<int, bool> orderIdToHasCoatingParts)
+    {
+        if (orderIdToHasCoatingParts == null || orderIdToHasCoatingParts.Count == 0) return;
+
+        var ids = orderIdToHasCoatingParts.Keys.ToList();
+        var orders = await _dbSet
+            .Where(po => ids.Contains(po.Id))
+            .ToListAsync();
+
+        foreach (var order in orders)
+        {
+            if (!orderIdToHasCoatingParts.TryGetValue(order.Id, out var newFlag)) continue;
+
+            var changed = order.HasCoatingParts != newFlag;
+            order.HasCoatingParts = newFlag;
+
+            // Spec fallstrick #11: when HasCoatingParts flips to false, reset IsCoatingDone
+            if (!newFlag && order.IsCoatingDone)
+            {
+                order.IsCoatingDone = false;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                order.ModifiedAt = DateTime.Now;
+                // No ModifiedBy — sync job, not a user action
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
 }
