@@ -276,28 +276,8 @@ public class ProductionOrdersController : Controller
         return View(vm);
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ToggleCoatingDone(int id, string? returnUrl)
-    {
-        var order = await _productionOrderRepository.GetByIdAsync(id);
-        if (order == null)
-            return NotFound();
-
-        order.IsCoatingDone = !order.IsCoatingDone;
-        order.ModifiedAt = DateTime.UtcNow;
-        order.ModifiedBy = _currentUserService.GetDisplayName();
-        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
-        await _productionOrderRepository.UpdateAsync(order);
-
-        TempData["SuccessMessage"] = order.IsCoatingDone
-            ? $"Lackierteile fuer {order.OrderNumber} als erledigt markiert."
-            : $"Lackierteil-Status fuer {order.OrderNumber} zurueckgesetzt.";
-
-        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-            return Redirect(returnUrl);
-        return RedirectToAction(nameof(Index));
-    }
+    // ToggleCoatingDone wurde ersetzt durch /api/productionorders/toggle-field
+    // (siehe ProductionOrdersApiController) — gleicher Mechanismus wie HasGlass/HasExternalPurchase
 
     // Redirect-Stubs für verschobene Actions (Abwärtskompatibilität)
     public IActionResult Bom(int id) => RedirectToActionPermanent("Bom", "Picking", new { id });

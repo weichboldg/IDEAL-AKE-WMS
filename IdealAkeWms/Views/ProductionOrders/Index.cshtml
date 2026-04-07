@@ -157,21 +157,9 @@
                     <td class="text-center">
                         @if (item.HasCoatingParts)
                         {
-                            <form asp-action="ToggleCoatingDone" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@item.Id" />
-                                <input type="hidden" name="returnUrl" value="@($"{Context.Request.Path}{Context.Request.QueryString}")" />
-                                <button type="submit" class="btn btn-link p-0 border-0" title="@(item.IsCoatingDone ? "Lackierteile erledigt" : "Lackierteile offen")">
-                                    @if (item.IsCoatingDone)
-                                    {
-                                        <i class="bi bi-check-square-fill text-success" style="font-size: 1.2em;"></i>
-                                    }
-                                    else
-                                    {
-                                        <i class="bi bi-square text-muted" style="font-size: 1.2em;"></i>
-                                    }
-                                </button>
-                            </form>
+                            <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="IsCoatingDone"
+                                   title="Lackierteile erledigt"
+                                   @(item.IsCoatingDone ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                         }
                     </td>
                     <td class="text-center">

@@ -9,7 +9,7 @@ namespace IdealAkeWms.Controllers;
 [RequirePickingAccess]
 public class ProductionOrdersApiController : ControllerBase
 {
-    private static readonly HashSet<string> AllowedToggleFields = ["HasGlass", "HasExternalPurchase"];
+    private static readonly HashSet<string> AllowedToggleFields = ["HasGlass", "HasExternalPurchase", "IsCoatingDone"];
 
     private readonly IProductionOrderRepository _repository;
 
@@ -48,6 +48,8 @@ public class ProductionOrdersApiController : ControllerBase
             order.HasGlass = request.Value;
         else if (request.Field == "HasExternalPurchase")
             order.HasExternalPurchase = request.Value;
+        else if (request.Field == "IsCoatingDone")
+            order.IsCoatingDone = request.Value;
 
         await _repository.UpdateAsync(order);
         return Ok();
