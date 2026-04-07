@@ -11,28 +11,42 @@ public class ArticlesController : Controller
     private readonly IArticleRepository _articleRepository;
     private readonly IStockMovementRepository _stockMovementRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IArticleAttributeRepository _attributeRepository;
+    private readonly IArticleCategoryRepository _categoryRepository;
 
     public ArticlesController(
         IArticleRepository articleRepository,
         IStockMovementRepository stockMovementRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IArticleAttributeRepository attributeRepository,
+        IArticleCategoryRepository categoryRepository)
     {
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
         _currentUserService = currentUserService;
+        _attributeRepository = attributeRepository;
+        _categoryRepository = categoryRepository;
     }
 
     public async Task<IActionResult> Index(int page = 1, int pageSize = 100, string? search = null)
     {
         if (pageSize > 500) pageSize = 500;
         var (items, totalCount) = await _articleRepository.GetPaginatedAsync(page, pageSize, search);
+
+        // Load active attribute definitions + batch-load values for displayed articles
+        var activeDefinitions = await _attributeRepository.GetActiveDefinitionsOrderedAsync();
+        var articleIds = items.Select(a => a.Id).ToList();
+        var attributeValues = await _attributeRepository.GetValuesByArticleIdsAsync(articleIds);
+
         var vm = new ArticleIndexViewModel
         {
             Items = items,
             CurrentPage = page,
             PageSize = pageSize,
             TotalCount = totalCount,
-            Search = search
+            Search = search,
+            AttributeDefinitions = activeDefinitions,
+            AttributeValuesByArticle = attributeValues
         };
         return View(vm);
     }

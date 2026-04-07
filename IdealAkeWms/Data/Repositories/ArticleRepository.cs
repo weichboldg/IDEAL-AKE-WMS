@@ -32,7 +32,7 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
 
     public async Task<(List<Article> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize, string? search)
     {
-        var query = _dbSet.AsQueryable();
+        var query = _dbSet.Include(a => a.ArticleCategory).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(a => a.ArticleNumber.Contains(search) ||
