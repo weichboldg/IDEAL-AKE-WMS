@@ -39,6 +39,8 @@ public class ProductionOrderViewItem
 
     public bool HasGlass { get; set; }
     public bool HasExternalPurchase { get; set; }
+    public bool HasCoatingParts { get; set; }
+    public bool IsCoatingDone { get; set; }
     public string? WorkplaceName { get; set; }
 
     // Leitstand: Freigabe

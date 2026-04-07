@@ -69,6 +69,7 @@
                 <th class="text-nowrap" data-filterable data-col="10" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
                 <th class="text-nowrap" data-filterable data-col="11" data-date-filter>Fert.-Termin</th>
                 <th class="text-nowrap" data-filterable data-col="12" data-date-filter>Liefertermin</th>
+                <th class="text-nowrap text-center" style="width: 55px;">Lack-T</th>
                 <th style="width: 45px;" data-filterable data-col="13">Glas</th>
                 <th style="width: 55px;" data-filterable data-col="14">Zukauf</th>
                 <th data-filterable data-col="15">Status</th>
@@ -132,8 +133,18 @@
                     <td>@item.Description1</td>
                     <td>@item.Description2</td>
                     <td>@item.WorkplaceName</td>
-                    <td class="@(!item.IsDone && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today ? "text-danger fw-bold" : "")">
-                        @FormatDateWithKw(item.BeschichtungTermin)
+                    @{
+                        var lackName = ViewBag.LackierteilKategorieName as string;
+                        var featureInactive = string.IsNullOrWhiteSpace(lackName);
+                        var showBeschicht = featureInactive || item.HasCoatingParts;
+                        var beschichtRed = showBeschicht
+                                           && !item.IsDone
+                                           && !item.IsCoatingDone
+                                           && item.BeschichtungTermin.HasValue
+                                           && item.BeschichtungTermin.Value < today;
+                    }
+                    <td class="@(beschichtRed ? "text-danger fw-bold" : "")">
+                        @(showBeschicht ? FormatDateWithKw(item.BeschichtungTermin) : "")
                     </td>
                     <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
                         @FormatDateWithKw(item.VorkommissionierTermin)
@@ -143,6 +154,26 @@
                     </td>
                     <td>@FormatDateWithKw(item.ProductionDate)</td>
                     <td>@FormatDateWithKw(item.DeliveryDate)</td>
+                    <td class="text-center">
+                        @if (item.HasCoatingParts)
+                        {
+                            <form asp-action="ToggleCoatingDone" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="returnUrl" value="@($"{Context.Request.Path}{Context.Request.QueryString}")" />
+                                <button type="submit" class="btn btn-link p-0 border-0" title="@(item.IsCoatingDone ? "Lackierteile erledigt" : "Lackierteile offen")">
+                                    @if (item.IsCoatingDone)
+                                    {
+                                        <i class="bi bi-check-square-fill text-success" style="font-size: 1.2em;"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-square text-muted" style="font-size: 1.2em;"></i>
+                                    }
+                                </button>
+                            </form>
+                        }
+                    </td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasGlass"
                                @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
@@ -244,7 +275,7 @@
             {
                 <tr>
                     @{
-                        var colCount = 16;
+                        var colCount = 17;
                         if (Model.CanPick) colCount++;
                         if (Model.LeitstandAktiv && Model.CanManagePickingRelease) colCount++;
                     }

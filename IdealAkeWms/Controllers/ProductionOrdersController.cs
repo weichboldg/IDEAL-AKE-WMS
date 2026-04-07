@@ -201,6 +201,9 @@ public class ProductionOrdersController : Controller
         var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync("BeschichtungAbholtage") ?? "Dienstag,Donnerstag";
         var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
+        var lackierteilName = await _settingRepository.GetValueAsync("LackierteilKategorieName");
+        var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
+        ViewBag.LackierteilKategorieName = lackierteilName;
 
         var viewItems = orders.Select(o =>
         {
@@ -219,6 +222,8 @@ public class ProductionOrdersController : Controller
                 PickingStatus = o.PickingStatus,
                 HasGlass = o.HasGlass,
                 HasExternalPurchase = o.HasExternalPurchase,
+                HasCoatingParts = o.HasCoatingParts,
+                IsCoatingDone = o.IsCoatingDone,
                 WorkplaceName = o.ProductionWorkplace?.Name,
                 IsReleasedForPicking = o.IsReleasedForPicking,
                 PickingPriority = o.PickingPriority,
@@ -232,10 +237,16 @@ public class ProductionOrdersController : Controller
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, vorkommissionierTage, holidays);
-                // Beschichtungstermin: Baugruppentermin - BeschichtungTage, dann auf vorherigen Abholtag
-                var rawBeschichtung = _businessDayService.SubtractBusinessDays(
-                    item.VorkommissionierTermin.Value, beschichtungTage, holidays);
-                item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
+                // Backward compat: when feature is inactive (setting empty), calculate for ALL orders
+                // When feature is active, only calculate if HasCoatingParts == true
+                if (!coatingFeatureActive || o.HasCoatingParts)
+                {
+                    // Beschichtungstermin: Baugruppentermin - BeschichtungTage, dann auf vorherigen Abholtag
+                    var rawBeschichtung = _businessDayService.SubtractBusinessDays(
+                        item.VorkommissionierTermin.Value, beschichtungTage, holidays);
+                    item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
+                }
+                // else: leave BeschichtungTermin null
             }
 
             return item;
@@ -263,6 +274,29 @@ public class ProductionOrdersController : Controller
         };
 
         return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleCoatingDone(int id, string? returnUrl)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null)
+            return NotFound();
+
+        order.IsCoatingDone = !order.IsCoatingDone;
+        order.ModifiedAt = DateTime.UtcNow;
+        order.ModifiedBy = _currentUserService.GetDisplayName();
+        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+        await _productionOrderRepository.UpdateAsync(order);
+
+        TempData["SuccessMessage"] = order.IsCoatingDone
+            ? $"Lackierteile fuer {order.OrderNumber} als erledigt markiert."
+            : $"Lackierteil-Status fuer {order.OrderNumber} zurueckgesetzt.";
+
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
     }
 
     // Redirect-Stubs für verschobene Actions (Abwärtskompatibilität)
