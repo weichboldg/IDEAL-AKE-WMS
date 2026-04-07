@@ -90,9 +90,9 @@ public class SageImportService : ISageImportService
             foreach (var orderFromSage in sageOrders)
             {
                 const string mergeSql = """
-                    IF EXISTS (SELECT 1 FROM [ProductionOrders] WHERE [OrderNumber] = @OrderNumber)
+                    IF EXISTS (SELECT 1 FROM [dbo].[ProductionOrders] WHERE [OrderNumber] = @OrderNumber)
                     BEGIN
-                        UPDATE [ProductionOrders] SET
+                        UPDATE [dbo].[ProductionOrders] SET
                             [Quantity]       = @Quantity,
                             [Customer]       = @Customer,
                             [ArticleNumber]  = @ArticleNumber,
@@ -117,7 +117,7 @@ public class SageImportService : ISageImportService
                     END
                     ELSE
                     BEGIN
-                        INSERT INTO [ProductionOrders]
+                        INSERT INTO [dbo].[ProductionOrders]
                             ([OrderNumber],[Quantity],[Customer],[ArticleNumber],[Description1],[Description2],
                              [ProductionDate],[DeliveryDate],[IsDone],[PickingStatus],[HasGlass],[HasExternalPurchase],
                              [CreatedAt],[CreatedBy],[CreatedByWindows])
@@ -246,15 +246,15 @@ public class SageImportService : ISageImportService
             foreach (var article in sageArticles)
             {
                 const string insertSql = """
-                    IF NOT EXISTS (SELECT 1 FROM [Articles] WHERE [ArticleNumber] = @ArticleNumber)
+                    IF NOT EXISTS (SELECT 1 FROM [dbo].[Articles] WHERE [ArticleNumber] = @ArticleNumber)
                     BEGIN
-                        INSERT INTO [Articles] ([ArticleNumber],[Description],[Unit],[ArticleGroup],[CreatedAt],[CreatedBy],[CreatedByWindows])
+                        INSERT INTO [dbo].[Articles] ([ArticleNumber],[Description],[Unit],[ArticleGroup],[CreatedAt],[CreatedBy],[CreatedByWindows])
                         VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
                         SELECT 1
                     END
                     ELSE
                     BEGIN
-                        UPDATE [Articles]
+                        UPDATE [dbo].[Articles]
                         SET [ArticleGroup] = @ArticleGroup
                         WHERE [ArticleNumber] = @ArticleNumber AND ([ArticleGroup] IS NULL OR [ArticleGroup] != @ArticleGroup)
                         SELECT 0

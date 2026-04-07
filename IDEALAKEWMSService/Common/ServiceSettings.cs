@@ -22,7 +22,7 @@ public static class ServiceSettings
         await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(
-            "SELECT [Value] FROM [ServiceSettings] WHERE [Key] = @key", conn);
+            "SELECT [Value] FROM [dbo].[ServiceSettings] WHERE [Key] = @key", conn);
         cmd.Parameters.AddWithValue("@key", key);
         var v = await cmd.ExecuteScalarAsync(ct);
         return v as string;

@@ -46,7 +46,7 @@ public class OseonSyncService : IOseonSyncService
             if (hasTimestampColumns)
             {
                 await using var maxCmd = new SqlCommand(
-                    "SELECT MAX([LastChangedInOseon]) FROM [OseonProductionOrders]", wmsConn) { CommandTimeout = 30 };
+                    "SELECT MAX([LastChangedInOseon]) FROM [dbo].[OseonProductionOrders]", wmsConn) { CommandTimeout = 30 };
                 var result = await maxCmd.ExecuteScalarAsync(ct);
                 if (result != null && result != DBNull.Value)
                     lastSyncDate = (DateTime)result;
@@ -192,10 +192,10 @@ public class OseonSyncService : IOseonSyncService
 
             INSERT INTO #TmpWorkplaces ([Name]) VALUES {0};
 
-            INSERT INTO [ProductionWorkplaces] ([Name], [CreatedAt], [CreatedBy], [CreatedByWindows])
+            INSERT INTO [dbo].[ProductionWorkplaces] ([Name], [CreatedAt], [CreatedBy], [CreatedByWindows])
             SELECT DISTINCT t.[Name], GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER
             FROM #TmpWorkplaces t
-            WHERE NOT EXISTS (SELECT 1 FROM [ProductionWorkplaces] pw WHERE pw.[Name] = t.[Name]);
+            WHERE NOT EXISTS (SELECT 1 FROM [dbo].[ProductionWorkplaces] pw WHERE pw.[Name] = t.[Name]);
 
             DROP TABLE #TmpWorkplaces;
             """;
@@ -306,11 +306,11 @@ public class OseonSyncService : IOseonSyncService
         var tsInsertVals = hasTimestampColumns ? ",\n                        source.[LastChangedInOseon]" : "";
 
         var mergeSql = $"""
-            MERGE [OseonProductionOrders] AS target
+            MERGE [dbo].[OseonProductionOrders] AS target
             USING (
                 SELECT t.*, pw.[Id] AS WorkplaceId
                 FROM #TmpOseonOrders t
-                LEFT JOIN [ProductionWorkplaces] pw ON pw.[Name] = t.[WorkplaceName]
+                LEFT JOIN [dbo].[ProductionWorkplaces] pw ON pw.[Name] = t.[WorkplaceName]
             ) AS source
             ON target.[OseonId] = source.[OseonId]
             WHEN MATCHED THEN
@@ -439,12 +439,12 @@ public class OseonSyncService : IOseonSyncService
         var tsInsertVals = hasTimestampColumns ? ",\n                        source.[LastStatusReportInOseon]" : "";
 
         var mergeSql = $"""
-            MERGE [OseonWorkOperations] AS target
+            MERGE [dbo].[OseonWorkOperations] AS target
             USING (
                 SELECT opo.[Id] AS OrderId, t.[PositionNumber], t.[Name], t.[Description],
                        t.[OseonStatus], t.[IsFirstOperation], t.[IsLastOperation]{tsSelect}
                 FROM #TmpOseonOps t
-                INNER JOIN [OseonProductionOrders] opo ON opo.[OseonOrderNumber] = t.[OseonOrderNumber]
+                INNER JOIN [dbo].[OseonProductionOrders] opo ON opo.[OseonOrderNumber] = t.[OseonOrderNumber]
             ) AS source
             ON target.[OseonProductionOrderId] = source.[OrderId] AND target.[PositionNumber] = source.[PositionNumber]
             WHEN MATCHED THEN
@@ -488,10 +488,10 @@ public class OseonSyncService : IOseonSyncService
             {
                 const string countSql = """
                     SELECT COUNT(*)
-                    FROM ProductionOrders po
+                    FROM [dbo].[ProductionOrders] po
                     INNER JOIN (
                         SELECT CustomerOrderNumber, MIN(ProductionWorkplaceId) AS ProductionWorkplaceId
-                        FROM OseonProductionOrders
+                        FROM [dbo].[OseonProductionOrders]
                         WHERE CustomerOrderNumber IS NOT NULL
                           AND ProductionWorkplaceId IS NOT NULL
                         GROUP BY CustomerOrderNumber
@@ -511,10 +511,10 @@ public class OseonSyncService : IOseonSyncService
                     po.ModifiedAt = GETUTCDATE(),
                     po.ModifiedBy = 'IDEALAKEWMSService',
                     po.ModifiedByWindows = SYSTEM_USER
-                FROM ProductionOrders po
+                FROM [dbo].[ProductionOrders] po
                 INNER JOIN (
                     SELECT CustomerOrderNumber, MIN(ProductionWorkplaceId) AS ProductionWorkplaceId
-                    FROM OseonProductionOrders
+                    FROM [dbo].[OseonProductionOrders]
                     WHERE CustomerOrderNumber IS NOT NULL
                       AND ProductionWorkplaceId IS NOT NULL
                     GROUP BY CustomerOrderNumber
@@ -582,9 +582,9 @@ public class OseonSyncService : IOseonSyncService
                 try
                 {
                     await using var upsertCmd = new SqlCommand(@"
-                        IF EXISTS (SELECT 1 FROM [ArticleCategories] WHERE [Name] = @Name)
+                        IF EXISTS (SELECT 1 FROM [dbo].[ArticleCategories] WHERE [Name] = @Name)
                         BEGIN
-                            UPDATE [ArticleCategories]
+                            UPDATE [dbo].[ArticleCategories]
                             SET [Description] = @Description, [OseonTyp] = @OseonTyp, [Source] = 'OSEON',
                                 [ModifiedAt] = GETDATE(), [ModifiedBy] = 'OseonSync', [ModifiedByWindows] = 'SYSTEM'
                             WHERE [Name] = @Name;
@@ -592,7 +592,7 @@ public class OseonSyncService : IOseonSyncService
                         END
                         ELSE
                         BEGIN
-                            INSERT INTO [ArticleCategories] ([Name], [Description], [OseonTyp], [Source], [CreatedAt], [CreatedBy], [CreatedByWindows])
+                            INSERT INTO [dbo].[ArticleCategories] ([Name], [Description], [OseonTyp], [Source], [CreatedAt], [CreatedBy], [CreatedByWindows])
                             VALUES (@Name, @Description, @OseonTyp, 'OSEON', GETDATE(), 'OseonSync', 'SYSTEM');
                             SELECT 1; -- inserted
                         END", wmsConn) { CommandTimeout = 30 };
@@ -636,8 +636,8 @@ public class OseonSyncService : IOseonSyncService
             var assignUpdated = 0;
             await using var assignCmd = new SqlCommand(@"
                 UPDATE a SET a.[ArticleCategoryId] = c.[Id]
-                FROM [Articles] a
-                INNER JOIN [ArticleCategories] c ON c.[Name] = @CategoryName COLLATE Latin1_General_CI_AS
+                FROM [dbo].[Articles] a
+                INNER JOIN [dbo].[ArticleCategories] c ON c.[Name] = @CategoryName COLLATE Latin1_General_CI_AS
                 WHERE a.[ArticleNumber] = @ArticleNumber COLLATE Latin1_General_CI_AS
                   AND (a.[ArticleCategoryId] IS NULL OR a.[ArticleCategoryId] != c.[Id])",
                 wmsConn) { CommandTimeout = 30 };

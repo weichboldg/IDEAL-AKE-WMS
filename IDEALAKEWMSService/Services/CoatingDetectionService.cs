@@ -40,7 +40,7 @@ public class CoatingDetectionService : ICoatingDetectionService
             // 1) Read setting
             string? lackName;
             await using (var cmd = new SqlCommand(
-                @"SELECT [Value] FROM [AppSettings] WHERE [Key] = 'LackierteilKategorieName'", conn))
+                @"SELECT [Value] FROM [dbo].[AppSettings] WHERE [Key] = 'LackierteilKategorieName'", conn))
             {
                 var r = await cmd.ExecuteScalarAsync(ct);
                 lackName = r as string;
@@ -66,7 +66,7 @@ public class CoatingDetectionService : ICoatingDetectionService
                 }
                 cmd.CommandText = $@"
                     SELECT [Id], [ArticleNumber]
-                    FROM [ProductionOrders]
+                    FROM [dbo].[ProductionOrders]
                     WHERE [Id] IN ({string.Join(",", paramNames)})
                       AND [ArticleNumber] IS NOT NULL";
                 await using var r = await cmd.ExecuteReaderAsync(ct);
@@ -80,7 +80,7 @@ public class CoatingDetectionService : ICoatingDetectionService
 
                 await using var cmd = new SqlCommand(@"
                     SELECT TOP (@max) [Id], [ArticleNumber]
-                    FROM [ProductionOrders]
+                    FROM [dbo].[ProductionOrders]
                     WHERE [IsDone] = 0
                       AND [ProductionDate] IS NOT NULL
                       AND [ProductionDate] <= DATEADD(week, @weeks, GETDATE())
@@ -120,10 +120,10 @@ public class CoatingDetectionService : ICoatingDetectionService
                 cmd.Parameters.AddWithValue("@cat", lackName);
                 cmd.CommandText = $@"
                     SELECT DISTINCT h.[Artikelnummer]
-                    FROM [CachedBomHeaders] h
-                    INNER JOIN [CachedBomItems] i ON i.[CachedBomHeaderId] = h.[Id]
-                    INNER JOIN [Articles] a ON a.[ArticleNumber] = i.[Ressourcenummer]
-                    INNER JOIN [ArticleCategories] c ON c.[Id] = a.[ArticleCategoryId]
+                    FROM [dbo].[CachedBomHeaders] h
+                    INNER JOIN [dbo].[CachedBomItems] i ON i.[CachedBomHeaderId] = h.[Id]
+                    INNER JOIN [dbo].[Articles] a ON a.[ArticleNumber] = i.[Ressourcenummer]
+                    INNER JOIN [dbo].[ArticleCategories] c ON c.[Id] = a.[ArticleCategoryId]
                     WHERE h.[Artikelnummer] IN ({string.Join(",", paramNames)})
                       AND c.[Name] = @cat";
                 await using var r = await cmd.ExecuteReaderAsync(ct);
@@ -203,7 +203,7 @@ public class CoatingDetectionService : ICoatingDetectionService
                               p.[ModifiedAt] = GETUTCDATE(),
                               p.[ModifiedBy] = 'CoatingDetection',
                               p.[ModifiedByWindows] = SYSTEM_USER
-                FROM [ProductionOrders] p
+                FROM [dbo].[ProductionOrders] p
                 INNER JOIN #TmpOrderIds t ON t.[Id] = p.[Id]
                 WHERE p.[HasCoatingParts] = 0"
             : @"UPDATE p SET p.[HasCoatingParts] = 0,
@@ -211,7 +211,7 @@ public class CoatingDetectionService : ICoatingDetectionService
                               p.[ModifiedAt] = GETUTCDATE(),
                               p.[ModifiedBy] = 'CoatingDetection',
                               p.[ModifiedByWindows] = SYSTEM_USER
-                FROM [ProductionOrders] p
+                FROM [dbo].[ProductionOrders] p
                 INNER JOIN #TmpOrderIds t ON t.[Id] = p.[Id]
                 WHERE p.[HasCoatingParts] = 1";
 

@@ -365,7 +365,7 @@ public class BomCacheSyncService : IBomCacheSyncService
 
         var sql = @"
             SELECT TOP (@max) [Id], [ArticleNumber]
-            FROM [ProductionOrders]
+            FROM [dbo].[ProductionOrders]
             WHERE [IsDone] = 0
               AND [ProductionDate] IS NOT NULL
               AND [ProductionDate] <= DATEADD(week, @weeks, GETDATE())
@@ -405,7 +405,7 @@ public class BomCacheSyncService : IBomCacheSyncService
         }
         cmd.CommandText = $@"
             SELECT [Artikelnummer], [ContentHash], [CachedAt]
-            FROM [CachedBomHeaders]
+            FROM [dbo].[CachedBomHeaders]
             WHERE [Artikelnummer] IN ({string.Join(",", paramNames)})";
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -430,7 +430,7 @@ public class BomCacheSyncService : IBomCacheSyncService
         {
             int headerId;
             await using (var cmd = new SqlCommand(@"
-                SELECT [Id] FROM [CachedBomHeaders] WHERE [Artikelnummer] = @a", conn, tx))
+                SELECT [Id] FROM [dbo].[CachedBomHeaders] WHERE [Artikelnummer] = @a", conn, tx))
             {
                 cmd.Parameters.AddWithValue("@a", articleNumber);
                 var existing = await cmd.ExecuteScalarAsync(ct);
@@ -439,7 +439,7 @@ public class BomCacheSyncService : IBomCacheSyncService
                     headerId = Convert.ToInt32(existing);
 
                     await using var upd = new SqlCommand(@"
-                        UPDATE [CachedBomHeaders]
+                        UPDATE [dbo].[CachedBomHeaders]
                         SET [Source] = @s, [ItemCount] = @c, [ContentHash] = @h, [CachedAt] = GETUTCDATE()
                         WHERE [Id] = @id", conn, tx);
                     upd.Parameters.AddWithValue("@s", source);
@@ -449,14 +449,14 @@ public class BomCacheSyncService : IBomCacheSyncService
                     await upd.ExecuteNonQueryAsync(ct);
 
                     await using var del = new SqlCommand(@"
-                        DELETE FROM [CachedBomItems] WHERE [CachedBomHeaderId] = @id", conn, tx);
+                        DELETE FROM [dbo].[CachedBomItems] WHERE [CachedBomHeaderId] = @id", conn, tx);
                     del.Parameters.AddWithValue("@id", headerId);
                     await del.ExecuteNonQueryAsync(ct);
                 }
                 else
                 {
                     await using var ins = new SqlCommand(@"
-                        INSERT INTO [CachedBomHeaders]
+                        INSERT INTO [dbo].[CachedBomHeaders]
                             ([Artikelnummer], [Source], [ItemCount], [ContentHash], [CachedAt])
                         OUTPUT INSERTED.[Id]
                         VALUES (@a, @s, @c, @h, GETUTCDATE())", conn, tx);
@@ -500,7 +500,7 @@ public class BomCacheSyncService : IBomCacheSyncService
 
                 using var bulk = new SqlBulkCopy(conn, SqlBulkCopyOptions.Default, tx)
                 {
-                    DestinationTableName = "[CachedBomItems]",
+                    DestinationTableName = "[dbo].[CachedBomItems]",
                     BulkCopyTimeout = 120
                 };
                 bulk.ColumnMappings.Add("CachedBomHeaderId", "CachedBomHeaderId");
@@ -534,7 +534,7 @@ public class BomCacheSyncService : IBomCacheSyncService
 
         if (currentArticleNumbers.Count == 0)
         {
-            await using var cmd = new SqlCommand(@"DELETE FROM [CachedBomHeaders]", conn) { CommandTimeout = 120 };
+            await using var cmd = new SqlCommand(@"DELETE FROM [dbo].[CachedBomHeaders]", conn) { CommandTimeout = 120 };
             return await cmd.ExecuteNonQueryAsync(ct);
         }
 
@@ -548,7 +548,7 @@ public class BomCacheSyncService : IBomCacheSyncService
             del.Parameters.AddWithValue(p, currentArticleNumbers[i]);
         }
         del.CommandText = $@"
-            DELETE FROM [CachedBomHeaders]
+            DELETE FROM [dbo].[CachedBomHeaders]
             WHERE [Artikelnummer] NOT IN ({string.Join(",", paramNames)})";
         return await del.ExecuteNonQueryAsync(ct);
     }

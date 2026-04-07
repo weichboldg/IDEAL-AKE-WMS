@@ -32,7 +32,7 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             {
                 await wmsConn.OpenAsync(ct);
                 await using var cmd = new SqlCommand(
-                    "SELECT MAX([LastSyncedAt]) FROM [EnaioDmsDocuments]", wmsConn) { CommandTimeout = 30 };
+                    "SELECT MAX([LastSyncedAt]) FROM [dbo].[EnaioDmsDocuments]", wmsConn) { CommandTimeout = 30 };
                 var result = await cmd.ExecuteScalarAsync(ct);
                 if (result is DateTime lastSync)
                     lastSyncDate = lastSync.AddMinutes(-5); // 5 Min Puffer
@@ -133,7 +133,7 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             // MERGE: Insert oder Update
             var now = DateTime.UtcNow;
             await using var mergeCmd = new SqlCommand($@"
-                MERGE [EnaioDmsDocuments] AS target
+                MERGE [dbo].[EnaioDmsDocuments] AS target
                 USING #TmpEnaioDocs AS source
                 ON target.[EnaioDmsObjectId] = source.[EnaioDmsObjectId]
                 WHEN MATCHED THEN

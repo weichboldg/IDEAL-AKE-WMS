@@ -177,8 +177,8 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
                    r.CreatedAt, r.CreatedBy,
                    po.OrderNumber, po.Customer, po.Description1,
                    po.ProductionDate, po.DeliveryDate
-            FROM PartRequisitions r
-            INNER JOIN ProductionOrders po ON r.ProductionOrderId = po.Id
+            FROM [dbo].[PartRequisitions] r
+            INNER JOIN [dbo].[ProductionOrders] po ON r.ProductionOrderId = po.Id
             WHERE r.EmailSentAt IS NULL AND r.Status = 'Offen'
             ORDER BY r.CreatedAt
             """;
@@ -225,7 +225,7 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
 
         // Use parameterized query for safety
         var parameters = ids.Select((id, i) => $"@id{i}").ToList();
-        var sql = $"UPDATE PartRequisitions SET EmailSentAt = GETUTCDATE() WHERE Id IN ({string.Join(",", parameters)})";
+        var sql = $"UPDATE [dbo].[PartRequisitions] SET EmailSentAt = GETUTCDATE() WHERE Id IN ({string.Join(",", parameters)})";
 
         await using var cmd = new SqlCommand(sql, conn);
         for (int i = 0; i < ids.Count; i++)

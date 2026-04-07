@@ -44,16 +44,16 @@ public class StockCheckService : IStockCheckService
                     SELECT STRING_AGG(Code, ', ')
                     FROM (
                         SELECT DISTINCT sl2.Code
-                        FROM StorageLocations sl2
-                        INNER JOIN StockMovements sm2 ON sm2.StorageLocationId = sl2.Id
+                        FROM [dbo].[StorageLocations] sl2
+                        INNER JOIN [dbo].[StockMovements] sm2 ON sm2.StorageLocationId = sl2.Id
                         WHERE sm2.ArticleId = a.Id
                           AND sl2.IsPickingTransport = 0
                     ) AS dl
                 ) AS StorageLocations
-            FROM Articles a
-            INNER JOIN StockMovements sm ON sm.ArticleId = a.Id
-            LEFT JOIN StorageLocations sl_t ON sl_t.Id = sm.StorageLocationId
-            LEFT JOIN StorageLocations sl_s ON sl_s.Id = sm.SourceStorageLocationId
+            FROM [dbo].[Articles] a
+            INNER JOIN [dbo].[StockMovements] sm ON sm.ArticleId = a.Id
+            LEFT JOIN [dbo].[StorageLocations] sl_t ON sl_t.Id = sm.StorageLocationId
+            LEFT JOIN [dbo].[StorageLocations] sl_s ON sl_s.Id = sm.SourceStorageLocationId
             WHERE a.ReorderLevel IS NOT NULL AND a.ReorderLevel > 0
             GROUP BY a.Id, a.ArticleNumber, a.Description, a.Unit, a.ReorderLevel
             HAVING SUM(CASE
@@ -100,7 +100,7 @@ public class StockCheckService : IStockCheckService
         var recipients = new List<string>();
 
         // 1. Feste Empfänger aus ServiceSettings
-        const string settingsSql = "SELECT [Value] FROM [ServiceSettings] WHERE [Key] = 'Notifications:Recipients'";
+        const string settingsSql = "SELECT [Value] FROM [dbo].[ServiceSettings] WHERE [Key] = 'Notifications:Recipients'";
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(settingsSql, conn);
@@ -111,7 +111,7 @@ public class StockCheckService : IStockCheckService
         }
 
         // 2. User.Email wo NotifyOnReorderLevel = 1 AND Email IS NOT NULL
-        const string userSql = "SELECT [Email] FROM [Users] WHERE [NotifyOnReorderLevel] = 1 AND [Email] IS NOT NULL AND [Email] != '' AND [IsActive] = 1";
+        const string userSql = "SELECT [Email] FROM [dbo].[Users] WHERE [NotifyOnReorderLevel] = 1 AND [Email] IS NOT NULL AND [Email] != '' AND [IsActive] = 1";
         await using var cmd2 = new SqlCommand(userSql, conn);
         await using var reader = await cmd2.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
