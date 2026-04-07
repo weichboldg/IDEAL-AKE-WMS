@@ -9,16 +9,24 @@ public class BomRepository : IBomRepository
 {
     private readonly ApplicationDbContext _context;
     private readonly string _oseonConnectionString;
+    private readonly IBomCacheRepository _bomCacheRepository;
 
-    public BomRepository(ApplicationDbContext context, IConfiguration configuration)
+    public BomRepository(ApplicationDbContext context, IConfiguration configuration, IBomCacheRepository bomCacheRepository)
     {
         _context = context;
         _oseonConnectionString = configuration.GetConnectionString("OseonConnection")
             ?? throw new InvalidOperationException("OseonConnection connection string is missing.");
+        _bomCacheRepository = bomCacheRepository;
     }
 
     public async Task<BomQueryResult> GetBomItemsAsync(string productionOrderArticleNumber)
     {
+        // 1. Cache-First
+        var cached = await _bomCacheRepository.GetByArticleNumberAsync(productionOrderArticleNumber);
+        if (cached != null && cached.Items.Count > 0)
+            return cached;
+
+        // 2. Live SAGE query
         var sql = @"
             SELECT
                 [Artikelnummer],
