@@ -10,4 +10,13 @@ public class ArticleInfoViewModel
     public string VaultUrl { get; set; } = string.Empty;
     public List<StockOverviewItem> StockByLocation { get; set; } = new();
     public decimal TotalStock => StockByLocation.Sum(s => s.CurrentQuantity);
+
+    public string? CategoryName { get; set; }
+    public List<AttributeDisplayValue> AttributeDisplayValues { get; set; } = new();
+}
+
+public class AttributeDisplayValue
+{
+    public string Name { get; set; } = string.Empty;
+    public string DisplayValue { get; set; } = string.Empty;
 }

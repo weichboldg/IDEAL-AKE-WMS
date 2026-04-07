@@ -1,4 +1,4 @@
-@model Article
+@model IdealAkeWms.Models.ViewModels.ArticleEditViewModel
 @{
     ViewData["Title"] = "Artikel bearbeiten";
 }
@@ -7,44 +7,92 @@
 
 <div class="row">
     <div class="col-md-6">
-        <div class="card">
+        <div class="card mb-3">
+            <div class="card-header">Stammdaten</div>
             <div class="card-body">
                 <form asp-action="Edit" method="post">
-                    <input type="hidden" asp-for="Id" />
-                    <input type="hidden" asp-for="CreatedAt" />
-                    <input type="hidden" asp-for="CreatedBy" />
-                    <input type="hidden" asp-for="CreatedByWindows" />
+                    <input type="hidden" asp-for="Article.Id" />
+                    <input type="hidden" asp-for="Article.CreatedAt" />
+                    <input type="hidden" asp-for="Article.CreatedBy" />
+                    <input type="hidden" asp-for="Article.CreatedByWindows" />
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                     <div class="mb-3">
-                        <label asp-for="ArticleNumber" class="form-label"></label>
-                        <input asp-for="ArticleNumber" class="form-control" autofocus />
-                        <span asp-validation-for="ArticleNumber" class="text-danger"></span>
+                        <label asp-for="Article.ArticleNumber" class="form-label"></label>
+                        <input asp-for="Article.ArticleNumber" class="form-control" autofocus />
+                        <span asp-validation-for="Article.ArticleNumber" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Description" class="form-label"></label>
-                        <input asp-for="Description" class="form-control" />
-                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <label asp-for="Article.Description" class="form-label"></label>
+                        <input asp-for="Article.Description" class="form-control" />
+                        <span asp-validation-for="Article.Description" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Unit" class="form-label"></label>
-                        <input asp-for="Unit" class="form-control" placeholder="z.B. Stk, kg, m" />
-                        <span asp-validation-for="Unit" class="text-danger"></span>
+                        <label asp-for="Article.Unit" class="form-label"></label>
+                        <input asp-for="Article.Unit" class="form-control" placeholder="z.B. Stk, kg, m" />
+                        <span asp-validation-for="Article.Unit" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="ArticleGroup" class="form-label"></label>
-                        <input asp-for="ArticleGroup" class="form-control" readonly />
+                        <label asp-for="Article.ArticleGroup" class="form-label"></label>
+                        <input asp-for="Article.ArticleGroup" class="form-control" readonly />
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="ReorderLevel" class="form-label"></label>
-                        <input asp-for="ReorderLevel" class="form-control" type="number" step="0.001" min="0" />
-                        <small class="text-muted">Mindestbestand für Warnung in der Bestandsliste</small>
-                        <span asp-validation-for="ReorderLevel" class="text-danger"></span>
+                        <label asp-for="Article.ArticleCategoryId" class="form-label">Kategorie</label>
+                        <select asp-for="Article.ArticleCategoryId" class="form-select">
+                            <option value="">— Keine Kategorie —</option>
+                            @foreach (var cat in Model.Categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
                     </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Article.ReorderLevel" class="form-label"></label>
+                        <input asp-for="Article.ReorderLevel" class="form-control" type="number" step="0.001" min="0" />
+                        <small class="text-muted">Mindestbestand fuer Warnung in der Bestandsliste</small>
+                        <span asp-validation-for="Article.ReorderLevel" class="text-danger"></span>
+                    </div>
+
+                    @if (Model.Attributes.Any())
+                    {
+                        <hr />
+                        <h6 class="text-muted mb-3">Merkmale</h6>
+
+                        @for (var i = 0; i < Model.Attributes.Count; i++)
+                        {
+                            var attr = Model.Attributes[i];
+                            <input type="hidden" name="Attributes[@i].DefinitionId" value="@attr.DefinitionId" />
+
+                            <div class="mb-3">
+                                <label class="form-label">@attr.Name</label>
+                                @if (attr.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
+                                {
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="Attributes[@i].BooleanValue" value="@(attr.BooleanValue == true ? "true" : "false")" id="hidden-bool-@i" />
+                                        <input type="checkbox" class="form-check-input" id="attr-bool-@i"
+                                               @(attr.BooleanValue == true ? "checked" : "")
+                                               onchange="document.getElementById('hidden-bool-@i').value = this.checked ? 'true' : 'false'" />
+                                        <label class="form-check-label" for="attr-bool-@i">Ja</label>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <select name="Attributes[@i].SelectedOptionId" class="form-select">
+                                        <option value="">— Nicht gesetzt —</option>
+                                        @foreach (var opt in attr.Options)
+                                        {
+                                            <option value="@opt.Id" selected="@(attr.SelectedOptionId == opt.Id)">@opt.Value</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
+                        }
+                    }
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Speichern</button>
