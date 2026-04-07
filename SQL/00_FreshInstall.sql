@@ -781,7 +781,7 @@ BEGIN
         CONSTRAINT [FK_ArticleAttributeValues_Definitions]
             FOREIGN KEY ([ArticleAttributeDefinitionId]) REFERENCES [dbo].[ArticleAttributeDefinitions]([Id]) ON DELETE CASCADE,
         CONSTRAINT [FK_ArticleAttributeValues_Options]
-            FOREIGN KEY ([SelectedOptionId]) REFERENCES [dbo].[ArticleAttributeOptions]([Id]) ON DELETE SET NULL
+            FOREIGN KEY ([SelectedOptionId]) REFERENCES [dbo].[ArticleAttributeOptions]([Id]) ON DELETE NO ACTION
     );
     CREATE UNIQUE NONCLUSTERED INDEX [IX_ArticleAttributeValues_ArticleId_DefinitionId]
         ON [dbo].[ArticleAttributeValues] ([ArticleId], [ArticleAttributeDefinitionId]);
@@ -1036,7 +1036,7 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403161339_AddPickingRelease', '10.0.0');
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddArticleCategoriesAndAttributes')
-    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407054029_AddArticleCategoriesAndAttributes', '10.0.0');
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407061642_AddArticleCategoriesAndAttributes', '10.0.0');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

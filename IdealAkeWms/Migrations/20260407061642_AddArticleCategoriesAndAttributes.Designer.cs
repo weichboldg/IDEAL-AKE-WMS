@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdealAkeWms.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260407054029_AddArticleCategoriesAndAttributes")]
+    [Migration("20260407061642_AddArticleCategoriesAndAttributes")]
     partial class AddArticleCategoriesAndAttributes
     {
         /// <inheritdoc />
@@ -1763,7 +1763,7 @@ namespace IdealAkeWms.Migrations
                     b.HasOne("IdealAkeWms.Models.ArticleAttributeOption", "SelectedOption")
                         .WithMany()
                         .HasForeignKey("SelectedOptionId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Article");
 

@@ -1760,7 +1760,7 @@ namespace IdealAkeWms.Migrations
                     b.HasOne("IdealAkeWms.Models.ArticleAttributeOption", "SelectedOption")
                         .WithMany()
                         .HasForeignKey("SelectedOptionId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Article");
 

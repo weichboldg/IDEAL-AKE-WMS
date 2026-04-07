@@ -114,8 +114,7 @@ namespace IdealAkeWms.Migrations
                         name: "FK_ArticleAttributeValues_ArticleAttributeOptions_SelectedOptionId",
                         column: x => x.SelectedOptionId,
                         principalTable: "ArticleAttributeOptions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_ArticleAttributeValues_Articles_ArticleId",
                         column: x => x.ArticleId,

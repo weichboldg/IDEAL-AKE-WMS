@@ -251,10 +251,13 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.ArticleAttributeDefinitionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // NoAction (statt SetNull) — verhindert SQL Server "multiple cascade paths" Fehler.
+            // Article→Values und Definition→Values sind bereits Cascade. UI verhindert Loeschen
+            // einer Option die in Verwendung ist (OptionIsInUseAsync).
             entity.HasOne(e => e.SelectedOption)
                 .WithMany()
                 .HasForeignKey(e => e.SelectedOptionId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         // StockMovement

@@ -110,10 +110,12 @@ BEGIN
             FOREIGN KEY ([ArticleAttributeDefinitionId])
             REFERENCES [dbo].[ArticleAttributeDefinitions]([Id])
             ON DELETE CASCADE,
+        -- NO ACTION (statt SET NULL): verhindert "multiple cascade paths" Fehler
+        -- in SQL Server. UI verhindert Loeschen einer Option in Verwendung.
         CONSTRAINT [FK_ArticleAttributeValues_Options]
             FOREIGN KEY ([SelectedOptionId])
             REFERENCES [dbo].[ArticleAttributeOptions]([Id])
-            ON DELETE SET NULL
+            ON DELETE NO ACTION
     );
 
     CREATE UNIQUE NONCLUSTERED INDEX [IX_ArticleAttributeValues_ArticleId_DefinitionId]
@@ -129,7 +131,7 @@ GO
 -- EF Migrations History
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddArticleCategoriesAndAttributes')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES ('20260407054029_AddArticleCategoriesAndAttributes', '10.0.0');
+    VALUES ('20260407061642_AddArticleCategoriesAndAttributes', '10.0.0');
 GO
 
 PRINT 'Migration 39 (ArticleCategories + ArticleAttributes) abgeschlossen.';
