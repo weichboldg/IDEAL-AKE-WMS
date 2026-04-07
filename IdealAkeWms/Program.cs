@@ -60,6 +60,7 @@ builder.Services.AddScoped<IEnaioDmsDocumentRepository, EnaioDmsDocumentReposito
 builder.Services.AddScoped<IOrderRecipientRepository, OrderRecipientRepository>();
 builder.Services.AddScoped<IPartRequisitionRepository, PartRequisitionRepository>();
 builder.Services.AddScoped<IArticleCategoryRepository, ArticleCategoryRepository>();
+builder.Services.AddScoped<IArticleAttributeRepository, ArticleAttributeRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
