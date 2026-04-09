@@ -197,6 +197,7 @@ using (var scope = app.Services.CreateScope())
     var leitstandSettings = new (string Key, string Value, string Description)[]
     {
         ("LeitstandAktiv", "false", "Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren"),
+    ("KommissionierungMitZuweisung", "false", "Kommissionierung mit Anwenderzuweisung aktivieren"),
     };
     foreach (var (key, value, description) in leitstandSettings)
     {
@@ -237,6 +238,27 @@ using (var scope = app.Services.CreateScope())
         ("BestellungenAktiv", "false", "Bedarfsmeldungen aus Stueckliste aktivieren"),
     };
     foreach (var (key, value, description) in requisitionSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
+    // Fehlende Settings nachseeden (wurden in SQL-Migrationen aber nicht im Seeding angelegt)
+    var missingSettings = new (string Key, string Value, string Description)[]
+    {
+        ("OseonAmpelGelbTage", "1", "OSEON Ampel: Gelb ab X Tagen vor Termin"),
+        ("OseonAmpelBlauTage", "2", "OSEON Ampel: Blau ab X Tagen vor Termin"),
+        ("QrMitFaNummer", "false", "QR-Code enthaelt Fertigungsauftragsnummer"),
+    };
+    foreach (var (key, value, description) in missingSettings)
     {
         if (!db.AppSettings.Any(s => s.Key == key))
         {
