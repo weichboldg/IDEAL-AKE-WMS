@@ -55,6 +55,16 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             .ToListAsync();
     }
 
+    public async Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId)
+    {
+        return await _dbSet
+            .Where(o => o.IsReleasedForPicking && !o.IsDone && o.AssignedPickerId == pickerId)
+            .OrderBy(o => o.PickingPriority.HasValue ? 0 : 1)
+            .ThenBy(o => o.PickingPriority)
+            .ThenBy(o => o.ProductionDate)
+            .ToListAsync();
+    }
+
     public async Task<int> GetReleasedForPickingCountAsync()
     {
         return await _dbSet.CountAsync(o => o.IsReleasedForPicking && !o.IsDone);

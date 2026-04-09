@@ -61,7 +61,7 @@ public class PickingController : Controller
     }
 
     [RequirePickingAccess]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(bool showAll = false)
     {
         var leitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -69,7 +69,21 @@ public class PickingController : Controller
         if (!leitstandAktiv)
             return View("IndexDropdown");
 
-        var releasedOrders = await _productionOrderRepository.GetReleasedForPickingAsync();
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        List<ProductionOrder> releasedOrders;
+        if (pickerAssignmentEnabled && !showAll)
+        {
+            var currentUserId = _currentUserService.GetCurrentAppUserId();
+            releasedOrders = currentUserId.HasValue
+                ? await _productionOrderRepository.GetReleasedForPickingByPickerAsync(currentUserId.Value)
+                : new List<ProductionOrder>();
+        }
+        else
+        {
+            releasedOrders = await _productionOrderRepository.GetReleasedForPickingAsync();
+        }
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
@@ -86,7 +100,9 @@ public class PickingController : Controller
                 Customer = o.Customer,
                 Quantity = o.Quantity,
                 ProductionDate = o.ProductionDate,
-                PickingStatus = o.PickingStatus
+                PickingStatus = o.PickingStatus,
+                AssignedPickerId = o.AssignedPickerId,
+                AssignedPickerName = o.AssignedPickerName
             };
 
             if (o.ProductionDate.HasValue)
@@ -98,7 +114,12 @@ public class PickingController : Controller
             return item;
         }).ToList();
 
-        return View(new PickingListViewModel { Items = items });
+        return View(new PickingListViewModel
+        {
+            Items = items,
+            ShowAllOrders = showAll,
+            PickerAssignmentEnabled = pickerAssignmentEnabled
+        });
     }
 
     [HttpPost]

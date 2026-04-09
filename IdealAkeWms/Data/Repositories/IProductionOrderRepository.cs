@@ -9,6 +9,7 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     Task<ProductionOrder?> GetByOrderNumberAsync(string orderNumber);
     Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20);
     Task<List<ProductionOrder>> GetReleasedForPickingAsync();
+    Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId);
     Task<int> GetReleasedForPickingCountAsync();
 
     /// <summary>

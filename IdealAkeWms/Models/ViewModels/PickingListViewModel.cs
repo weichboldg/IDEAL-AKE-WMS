@@ -3,6 +3,8 @@ namespace IdealAkeWms.Models.ViewModels;
 public class PickingListViewModel
 {
     public List<PickingListItem> Items { get; set; } = new();
+    public bool ShowAllOrders { get; set; }
+    public bool PickerAssignmentEnabled { get; set; }
 }
 
 public class PickingListItem
@@ -17,4 +19,6 @@ public class PickingListItem
     public DateTime? ProductionDate { get; set; }
     public DateTime? KommissionierTermin { get; set; }
     public string? PickingStatus { get; set; }
+    public int? AssignedPickerId { get; set; }
+    public string? AssignedPickerName { get; set; }
 }

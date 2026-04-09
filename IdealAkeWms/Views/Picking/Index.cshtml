@@ -6,10 +6,29 @@
 
 <h2 class="page-header">Kommissionierung</h2>
 
+@if (Model.PickerAssignmentEnabled)
+{
+    <div class="mb-3">
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="showAllOrders"
+                   @(Model.ShowAllOrders ? "checked" : "")
+                   onchange="window.location.href='@Url.Action("Index")?showAll=' + this.checked" />
+            <label class="form-check-label" for="showAllOrders">Alle Kommissionierauftraege anzeigen</label>
+        </div>
+    </div>
+}
+
 @if (!Model.Items.Any())
 {
     <div class="alert alert-info">
-        Aktuell sind keine Auftraege zur Kommissionierung freigegeben.
+        @if (Model.PickerAssignmentEnabled && !Model.ShowAllOrders)
+        {
+            <text>Aktuell sind keine Auftraege fuer Sie zur Kommissionierung freigegeben.</text>
+        }
+        else
+        {
+            <text>Aktuell sind keine Auftraege zur Kommissionierung freigegeben.</text>
+        }
     </div>
 }
 else
@@ -26,6 +45,10 @@ else
                     <th class="text-end" style="width: 55px;">Stk.</th>
                     <th data-filterable data-col="6" data-date-filter>Komm.-Termin</th>
                     <th data-filterable data-col="7">Status</th>
+                    @if (Model.PickerAssignmentEnabled)
+                    {
+                        <th data-filterable data-col="8">Kommissionierer</th>
+                    }
                 </tr>
             </thead>
             <tbody>
@@ -52,6 +75,10 @@ else
                         <td class="text-end">@item.Quantity.ToString("N0")</td>
                         <td>@kwStr</td>
                         <td><span class="badge @statusBadge">@statusText</span></td>
+                        @if (Model.PickerAssignmentEnabled)
+                        {
+                            <td>@item.AssignedPickerName</td>
+                        }
                     </tr>
                 }
             </tbody>
