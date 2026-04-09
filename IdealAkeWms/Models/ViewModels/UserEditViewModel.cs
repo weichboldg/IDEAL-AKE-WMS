@@ -37,6 +37,9 @@ public class UserEditViewModel
     [Display(Name = "Rekursive Suche bei aktiver Filterung")]
     public bool RecursiveFilterSearch { get; set; }
 
+    [Display(Name = "Ist Kommissionierer")]
+    public bool IsPicker { get; set; }
+
     public List<RoleCheckboxItem> AvailableRoles { get; set; } = new();
     public List<int> SelectedRoleIds { get; set; } = new();
 

@@ -60,6 +60,7 @@ public class UsersController : Controller
             DefaultFilterBeschaffung = vm.DefaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = vm.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = vm.RecursiveFilterSearch,
+            IsPicker = vm.IsPicker,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -104,6 +105,7 @@ public class UsersController : Controller
             DefaultFilterBeschaffung = user.DefaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = user.RecursiveFilterSearch,
+            IsPicker = user.IsPicker,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -139,6 +141,7 @@ public class UsersController : Controller
         existing.DefaultFilterBeschaffung = vm.DefaultFilterBeschaffung;
         existing.DefaultFilterArtikelgruppe = vm.DefaultFilterArtikelgruppe;
         existing.RecursiveFilterSearch = vm.RecursiveFilterSearch;
+        existing.IsPicker = vm.IsPicker;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
