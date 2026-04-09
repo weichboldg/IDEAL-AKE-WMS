@@ -15,6 +15,7 @@ public class ProductionOrdersController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
+    private readonly IUserRepository _userRepository;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -22,7 +23,8 @@ public class ProductionOrdersController : Controller
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
-        IEnaioDmsDocumentRepository enaioDmsDocumentRepository)
+        IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
+        IUserRepository userRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _currentUserService = currentUserService;
@@ -30,12 +32,13 @@ public class ProductionOrdersController : Controller
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
+        _userRepository = userRepository;
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireLeitstandAccess]
-    public async Task<IActionResult> ToggleRelease(int id, string? returnUrl)
+    public async Task<IActionResult> ToggleRelease(int id, int? assignedPickerId, string? returnUrl)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -44,6 +47,16 @@ public class ProductionOrdersController : Controller
         if (!order.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
         {
             TempData["WarningMessage"] = $"FA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
+
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (!order.IsReleasedForPicking && pickerAssignmentEnabled && !assignedPickerId.HasValue)
+        {
+            TempData["WarningMessage"] = "Bitte einen Kommissionierer zuweisen.";
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
             return RedirectToAction(nameof(Index));
         }
@@ -63,6 +76,18 @@ public class ProductionOrdersController : Controller
                     .Max();
                 order.PickingPriority = maxPrio + 1;
             }
+
+            if (assignedPickerId.HasValue)
+            {
+                var picker = await _userRepository.GetByIdAsync(assignedPickerId.Value);
+                order.AssignedPickerId = assignedPickerId;
+                order.AssignedPickerName = picker?.Name;
+            }
+        }
+        else
+        {
+            order.AssignedPickerId = null;
+            order.AssignedPickerName = null;
         }
 
         order.ModifiedAt = DateTime.UtcNow;
@@ -77,10 +102,20 @@ public class ProductionOrdersController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireLeitstandAccess]
-    public async Task<IActionResult> BulkRelease(List<int> ids, bool release, string? returnUrl)
+    public async Task<IActionResult> BulkRelease(List<int> ids, bool release, int? assignedPickerId, string? returnUrl)
     {
         if (ids == null || ids.Count == 0)
         {
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
+
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (release && pickerAssignmentEnabled && !assignedPickerId.HasValue)
+        {
+            TempData["WarningMessage"] = "Bitte einen Kommissionierer zuweisen.";
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
             return RedirectToAction(nameof(Index));
         }
@@ -94,6 +129,13 @@ public class ProductionOrdersController : Controller
                 .Select(o => o.PickingPriority!.Value)
                 .DefaultIfEmpty(0)
                 .Max();
+        }
+
+        string? pickerName = null;
+        if (release && assignedPickerId.HasValue)
+        {
+            var picker = await _userRepository.GetByIdAsync(assignedPickerId.Value);
+            pickerName = picker?.Name;
         }
 
         var displayName = _currentUserService.GetDisplayName();
@@ -119,6 +161,13 @@ public class ProductionOrdersController : Controller
                 order.ReleasedBy = displayName;
                 if (!order.PickingPriority.HasValue)
                     order.PickingPriority = ++maxPrio;
+                order.AssignedPickerId = assignedPickerId;
+                order.AssignedPickerName = pickerName;
+            }
+            else
+            {
+                order.AssignedPickerId = null;
+                order.AssignedPickerName = null;
             }
 
             order.ModifiedAt = DateTime.UtcNow;
@@ -151,6 +200,29 @@ public class ProductionOrdersController : Controller
             return NotFound();
 
         order.PickingPriority = priority;
+        order.ModifiedAt = DateTime.UtcNow;
+        order.ModifiedBy = _currentUserService.GetDisplayName();
+        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+        await _productionOrderRepository.UpdateAsync(order);
+
+        return Ok();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> ChangeAssignedPicker(int id, int assignedPickerId)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null)
+            return NotFound();
+
+        var picker = await _userRepository.GetByIdAsync(assignedPickerId);
+        if (picker == null)
+            return BadRequest("Kommissionierer nicht gefunden.");
+
+        order.AssignedPickerId = assignedPickerId;
+        order.AssignedPickerName = picker.Name;
         order.ModifiedAt = DateTime.UtcNow;
         order.ModifiedBy = _currentUserService.GetDisplayName();
         order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
@@ -228,7 +300,9 @@ public class ProductionOrdersController : Controller
                 IsReleasedForPicking = o.IsReleasedForPicking,
                 PickingPriority = o.PickingPriority,
                 ReleasedAt = o.ReleasedAt,
-                ReleasedBy = o.ReleasedBy
+                ReleasedBy = o.ReleasedBy,
+                AssignedPickerId = o.AssignedPickerId,
+                AssignedPickerName = o.AssignedPickerName
             };
 
             if (o.ProductionDate.HasValue)
@@ -256,6 +330,11 @@ public class ProductionOrdersController : Controller
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
 
+        var leitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var pickerAssignmentEnabled = leitstandAktiv && (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
         var vm = new ProductionOrderViewModel
         {
             Items = viewItems,
@@ -268,10 +347,15 @@ public class ProductionOrdersController : Controller
             BeschichtungTage = beschichtungTage,
             CanPick = await _currentUserService.CanPickAsync(),
             CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync(),
-            LeitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
-                ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true,
+            LeitstandAktiv = leitstandAktiv,
+            PickerAssignmentEnabled = pickerAssignmentEnabled,
             EnaioDmsLinks = dmsLinks
         };
+
+        if (pickerAssignmentEnabled)
+        {
+            ViewBag.ActivePickers = await _userRepository.GetActivePickersAsync();
+        }
 
         return View(vm);
     }

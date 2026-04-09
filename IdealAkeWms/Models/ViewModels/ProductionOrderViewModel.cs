@@ -13,6 +13,7 @@ public class ProductionOrderViewModel
     public bool CanPick { get; set; }
     public bool CanManagePickingRelease { get; set; }
     public bool LeitstandAktiv { get; set; }
+    public bool PickerAssignmentEnabled { get; set; }
 
     /// <summary>enaio DMS-Links pro FA-Nummer (Key=OrderNumber, Value=Liste von DMS-Dokumenten)</summary>
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
@@ -48,4 +49,6 @@ public class ProductionOrderViewItem
     public int? PickingPriority { get; set; }
     public DateTime? ReleasedAt { get; set; }
     public string? ReleasedBy { get; set; }
+    public int? AssignedPickerId { get; set; }
+    public string? AssignedPickerName { get; set; }
 }
