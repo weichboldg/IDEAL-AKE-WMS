@@ -251,6 +251,23 @@
                         <strong>Kommissionierer</strong> &mdash; Sieht nur freigegebene Auftraege in der Kommissionierliste (siehe Abschnitt &bdquo;Kommissionierung&ldquo;)<br />
                         <strong>Admin</strong> &mdash; Hat Zugriff auf beides
                     </dd>
+
+                    <dt>Kommissionierer-Zuweisung</dt>
+                    <dd>
+                        Wenn das AppSetting <code>KommissionierungMitZuweisung</code> aktiviert ist
+                        (Voraussetzung: <code>LeitstandAktiv</code> muss ebenfalls aktiv sein),
+                        kann bei der Freigabe ein Kommissionierer zugewiesen werden:
+                        <ul class="mt-1 mb-1">
+                            <li>Im Freigabe-Dialog erscheint ein Dropdown zur Auswahl des Kommissionierers</li>
+                            <li>Nur Benutzer mit der Markierung &bdquo;Ist Kommissionierer&ldquo; stehen zur Auswahl</li>
+                            <li>Kommissionierer sehen in ihrer Picking-Liste standardmaessig nur die ihnen zugewiesenen Auftraege</li>
+                            <li>Ueber &bdquo;Alle anzeigen&ldquo; koennen alle freigegebenen Auftraege eingeblendet werden</li>
+                            <li>Auftraege ohne Zuweisung (z.B. vor Aktivierung des Features freigegeben) erscheinen ebenfalls unter &bdquo;Alle anzeigen&ldquo;</li>
+                        </ul>
+                        <small class="text-muted">
+                            Benutzer als Kommissionierer markieren: <em>Stammdaten &rarr; Benutzer &rarr; Benutzer bearbeiten &rarr; Checkbox &bdquo;Ist Kommissionierer&ldquo;</em>
+                        </small>
+                    </dd>
                 </dl>
             </div>
         </div>

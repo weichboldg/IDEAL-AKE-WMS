@@ -38,10 +38,27 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Versionierung + Changelog | Fertig |
 | Bedarfsmeldungen aus Stueckliste | Fertig |
 | Leitstand (Kommissionier-Freigabe + Priorisierung) | Fertig |
+| Kommissionierer-Zuweisung bei Freigabe | Fertig |
 
 ## Version
-- **Web-App**: v1.3.0 (03.04.2026)
-- **Service**: v1.3.0 (03.04.2026)
+- **Web-App**: v1.4.0 (09.04.2026)
+- **Service**: v1.4.0 (09.04.2026)
+
+## Aenderungen (09.04.2026)
+
+### v1.4.0 — Kommissionierer-Zuweisung
+
+#### Neue Funktionen
+- **Kommissionierer-Zuweisung**: Bei der Leitstand-Freigabe kann ein Kommissionierer zugewiesen werden. Picking-Liste filtert standardmaessig auf eigene Auftraege.
+- **Benutzermerkmal "Ist Kommissionierer"**: Neue Checkbox im Benutzerstamm — nur markierte Benutzer stehen im Zuweisung-Dropdown zur Auswahl.
+- **AppSetting `KommissionierungMitZuweisung`**: Feature-Toggle (Default: false). Voraussetzung: `LeitstandAktiv` muss ebenfalls aktiv sein.
+
+#### Neue DB-Spalten
+- `ProductionOrders.AssignedPickerId` (INT, NULL, FK zu AppUsers)
+- `AppUsers.IsPickingUser` (BIT, DEFAULT 0)
+
+#### Neue Dateien
+- `SQL/38_AddPickerAssignment.sql` — Migration fuer Picker-Zuweisung
 
 ## Aenderungen (03.04.2026)
 

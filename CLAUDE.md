@@ -266,6 +266,7 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **BOM-Hash sortiert**: Vor Hash-Berechnung muss die Item-Liste nach `(Position, Ressourcenummer)` sortiert werden, sonst sind Hashes instabil
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer ist, wird Beschichtungstermin fuer ALLE Auftraege berechnet (Verhalten wie vor v1.5.0). Erst wenn Setting gesetzt ist, wird gefiltert
 - **HasCoatingParts → IsCoatingDone Cascade**: Wenn `HasCoatingParts` von true auf false wechselt (BOM-Aenderung), wird `IsCoatingDone` automatisch zurueckgesetzt
+- **Kommissionierer-Zuweisung nachtraeglich aktiviert**: Wenn `KommissionierungMitZuweisung` nachtraeglich aktiviert wird, haben bereits freigegebene FAs keinen zugewiesenen Picker (`AssignedPickerId=NULL`). Sie erscheinen nur ueber "Alle anzeigen" in der Picking-Liste. Leitstand muss nachtraeglich Picker zuweisen
 
 ## Standard-Daten (Neuinstallation)
 
@@ -309,6 +310,7 @@ Bei DB-Strukturänderungen (neue Pflichtfelder) müssen diese Scripts angepasst 
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stueckliste aktivieren |
 | `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
+| `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Anwenderzuweisung aktivieren |
 | `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv (Beschichtungstermin wie vorher fuer alle) |
 
 ## Service-Konfiguration (appsettings.json)

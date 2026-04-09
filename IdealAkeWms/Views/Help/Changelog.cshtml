@@ -56,6 +56,37 @@
 
         <div class="card mb-3">
             <div class="card-header" style="background-color: var(--ake-primary);">
+                <strong>v1.4.0</strong>
+                <span class="text-white-50 ms-2">09.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">Neue Funktionen</h6>
+                <ul>
+                    <li>
+                        <strong>Kommissionierung mit Anwenderzuweisung</strong><br />
+                        Bei der Freigabe eines Fertigungsauftrags kann nun ein Kommissionierer
+                        aus dem Benutzerstamm zugewiesen werden. Der zugewiesene Kommissionierer
+                        sieht in seiner Picking-Liste standardmaessig nur die ihm zugewiesenen
+                        Auftraege. Ueber &bdquo;Alle anzeigen&ldquo; koennen alle freigegebenen
+                        Auftraege angezeigt werden.
+                    </li>
+                    <li>
+                        <strong>Neues Benutzermerkmal: Ist Kommissionierer</strong><br />
+                        Im Benutzerstamm gibt es eine neue Checkbox &bdquo;Ist Kommissionierer&ldquo;.
+                        Nur als Kommissionierer markierte Benutzer stehen bei der Freigabe
+                        im Zuweisung-Dropdown zur Auswahl.
+                    </li>
+                </ul>
+                <h6>Konfiguration</h6>
+                <ul>
+                    <li>Feature per AppSetting <code>KommissionierungMitZuweisung</code> aktivierbar &mdash; bei Deaktivierung funktioniert die Kommissionierliste wie bisher (ohne Zuweisung)</li>
+                    <li>Voraussetzung: <code>LeitstandAktiv</code> muss ebenfalls aktiviert sein</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary);">
                 <strong>v1.3.0</strong>
                 <span class="text-white-50 ms-2">03.04.2026</span>
             </div>
