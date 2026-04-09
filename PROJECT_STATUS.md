@@ -41,10 +41,15 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Kommissionierer-Zuweisung bei Freigabe | Fertig |
 
 ## Version
-- **Web-App**: v1.4.0 (09.04.2026)
+- **Web-App**: v1.6.1 (09.04.2026)
 - **Service**: v1.4.0 (09.04.2026)
 
 ## Aenderungen (09.04.2026)
+
+### v1.6.1 — Artikelinfo: Fertigungsauftraege aus BOM-Cache
+
+#### Verbesserungen
+- **Artikelinfo**: Neue Tabelle "Teil enthalten in folgenden Fertigungsauftraegen" in `Views/Articles/Info.cshtml` — zeigt offene Fertigungsauftraege in denen der Artikel als Bauteil enthalten ist (Datenquelle: CachedBomItem → CachedBomHeader → ProductionOrder)
 
 ### v1.4.0 — Kommissionierer-Zuweisung
 
