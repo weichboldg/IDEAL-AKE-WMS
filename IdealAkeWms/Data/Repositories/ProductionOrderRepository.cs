@@ -118,4 +118,16 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<ProductionOrder>> GetByArticleNumbersAsync(List<string> articleNumbers)
+    {
+        if (articleNumbers == null || articleNumbers.Count == 0)
+            return new List<ProductionOrder>();
+
+        return await _dbSet
+            .AsNoTracking()
+            .Where(o => o.ArticleNumber != null && articleNumbers.Contains(o.ArticleNumber))
+            .OrderBy(o => o.ProductionDate)
+            .ToListAsync();
+    }
 }

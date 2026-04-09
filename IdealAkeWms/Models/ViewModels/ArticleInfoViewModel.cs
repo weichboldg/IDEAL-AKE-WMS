@@ -13,6 +13,15 @@ public class ArticleInfoViewModel
 
     public string? CategoryName { get; set; }
     public List<AttributeDisplayValue> AttributeDisplayValues { get; set; } = new();
+    public List<ArticleUsageItem> UsedInOrders { get; set; } = new();
+}
+
+public class ArticleUsageItem
+{
+    public int Id { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
+    public DateTime? ProductionDate { get; set; }
+    public DateTime? DeliveryDate { get; set; }
 }
 
 public class AttributeDisplayValue

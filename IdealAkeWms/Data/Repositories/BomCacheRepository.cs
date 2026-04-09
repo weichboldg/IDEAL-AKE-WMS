@@ -141,6 +141,19 @@ public class BomCacheRepository : IBomCacheRepository
         await _db.SaveChangesAsync();
     }
 
+    public async Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber)
+    {
+        if (string.IsNullOrWhiteSpace(componentArticleNumber))
+            return new List<string>();
+
+        return await (
+            from i in _db.CachedBomItems
+            join h in _db.CachedBomHeaders on i.CachedBomHeaderId equals h.Id
+            where i.Ressourcenummer == componentArticleNumber
+            select h.Artikelnummer
+        ).Distinct().ToListAsync();
+    }
+
     public async Task DeleteOrphansAsync(List<string> currentArticleNumbers)
     {
         var current = new HashSet<string>(currentArticleNumbers ?? new List<string>(), StringComparer.Ordinal);

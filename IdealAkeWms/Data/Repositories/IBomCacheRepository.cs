@@ -40,4 +40,10 @@ public interface IBomCacheRepository
     /// Deletes any header whose Artikelnummer is NOT in the given list.
     /// </summary>
     Task DeleteOrphansAsync(List<string> currentArticleNumbers);
+
+    /// <summary>
+    /// Returns device article numbers (CachedBomHeader.Artikelnummer) whose BOMs
+    /// contain a component with the given Ressourcenummer.
+    /// </summary>
+    Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber);
 }

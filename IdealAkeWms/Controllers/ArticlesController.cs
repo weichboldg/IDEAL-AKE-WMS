@@ -13,19 +13,25 @@ public class ArticlesController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IArticleAttributeRepository _attributeRepository;
     private readonly IArticleCategoryRepository _categoryRepository;
+    private readonly IBomCacheRepository _bomCacheRepository;
+    private readonly IProductionOrderRepository _productionOrderRepository;
 
     public ArticlesController(
         IArticleRepository articleRepository,
         IStockMovementRepository stockMovementRepository,
         ICurrentUserService currentUserService,
         IArticleAttributeRepository attributeRepository,
-        IArticleCategoryRepository categoryRepository)
+        IArticleCategoryRepository categoryRepository,
+        IBomCacheRepository bomCacheRepository,
+        IProductionOrderRepository productionOrderRepository)
     {
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
         _currentUserService = currentUserService;
         _attributeRepository = attributeRepository;
         _categoryRepository = categoryRepository;
+        _bomCacheRepository = bomCacheRepository;
+        _productionOrderRepository = productionOrderRepository;
     }
 
     public async Task<IActionResult> Index(int page = 1, int pageSize = 100, string? search = null)
@@ -205,6 +211,25 @@ public class ArticlesController : Controller
             return new AttributeDisplayValue { Name = def.Name, DisplayValue = displayValue };
         }).ToList();
 
+        // Production orders containing this article (via BOM cache)
+        var deviceArticleNumbers = await _bomCacheRepository.GetDeviceArticleNumbersByComponentAsync(article.ArticleNumber);
+        var usedInOrders = new List<ArticleUsageItem>();
+        if (deviceArticleNumbers.Count > 0)
+        {
+            var orders = await _productionOrderRepository.GetByArticleNumbersAsync(deviceArticleNumbers);
+            usedInOrders = orders
+                .Where(o => !o.IsDone)
+                .OrderBy(o => o.ProductionDate)
+                .Select(o => new ArticleUsageItem
+                {
+                    Id = o.Id,
+                    OrderNumber = o.OrderNumber,
+                    ProductionDate = o.ProductionDate,
+                    DeliveryDate = o.DeliveryDate
+                })
+                .ToList();
+        }
+
         var vm = new ArticleInfoViewModel
         {
             ArticleNumber = article.ArticleNumber,
@@ -215,7 +240,8 @@ public class ArticlesController : Controller
             VaultUrl = $"http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Uri.EscapeDataString(article.ArticleNumber)}&searchContext=0",
             StockByLocation = stock,
             CategoryName = categoryName,
-            AttributeDisplayValues = attrDisplayValues
+            AttributeDisplayValues = attrDisplayValues,
+            UsedInOrders = usedInOrders
         };
         return View(vm);
     }

@@ -23,4 +23,9 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     /// HasCoatingParts=false, IsCoatingDone is also reset to false (spec fallstrick #11).
     /// </summary>
     Task SetCoatingFlagsAsync(Dictionary<int, bool> orderIdToHasCoatingParts);
+
+    /// <summary>
+    /// Returns production orders whose ArticleNumber is in the given list.
+    /// </summary>
+    Task<List<ProductionOrder>> GetByArticleNumbersAsync(List<string> articleNumbers);
 }
