@@ -14,6 +14,14 @@ public class UserRepository : Repository<User>, IUserRepository
         return await _dbSet.Where(u => u.IsActive).OrderBy(u => u.Name).ToListAsync();
     }
 
+    public async Task<List<User>> GetActivePickersAsync()
+    {
+        return await _dbSet
+            .Where(u => u.IsActive && u.IsPicker)
+            .OrderBy(u => u.Name)
+            .ToListAsync();
+    }
+
     public async Task<List<User>> GetAllWithRolesAsync()
     {
         return await _context.Users
