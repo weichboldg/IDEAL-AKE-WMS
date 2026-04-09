@@ -28,7 +28,7 @@
                             ("Lager", new[] { "WarningThresholdPercent", "CriticalThresholdPercent", "NegativeBuchungErlaubt", "NegativeBuchungLagerplatz" }),
                             ("Teileverfolgung", new[] { "TeileverfolgungAktiv", "OseonRueckmeldungAktiv", "SageRueckmeldungAktiv", "OseonAmpelGelbTage", "OseonAmpelBlauTage" }),
                             ("Bestellungen", new[] { "BestellungenAktiv" }),
-                            ("Leitstand", new[] { "LeitstandAktiv" }),
+                            ("Leitstand", new[] { "LeitstandAktiv", "KommissionierungMitZuweisung" }),
                             ("Allgemein", new[] { "QrMitFaNummer" }),
                         };
                         var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);
