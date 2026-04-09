@@ -346,6 +346,16 @@ public class ApplicationDbContext : DbContext
                 .WithMany(w => w.ProductionOrders)
                 .HasForeignKey(e => e.ProductionWorkplaceId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(e => e.AssignedPickerName).HasMaxLength(200);
+            entity.HasIndex(e => e.AssignedPickerId)
+                .HasFilter("[AssignedPickerId] IS NOT NULL")
+                .HasDatabaseName("IX_ProductionOrders_AssignedPickerId");
+
+            entity.HasOne(e => e.AssignedPicker)
+                .WithMany()
+                .HasForeignKey(e => e.AssignedPickerId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // AppSetting

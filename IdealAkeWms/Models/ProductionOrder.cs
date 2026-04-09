@@ -78,5 +78,13 @@ public class ProductionOrder : AuditableEntity
     [Display(Name = "Freigegeben von")]
     public string? ReleasedBy { get; set; }
 
+    [Display(Name = "Zugewiesener Kommissionierer")]
+    public int? AssignedPickerId { get; set; }
+    public User? AssignedPicker { get; set; }
+
+    [StringLength(200)]
+    [Display(Name = "Kommissionierer")]
+    public string? AssignedPickerName { get; set; }
+
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();
 }

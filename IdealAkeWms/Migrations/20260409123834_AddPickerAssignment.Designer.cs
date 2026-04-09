@@ -4,6 +4,7 @@ using IdealAkeWms.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdealAkeWms.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409123834_AddPickerAssignment")]
+    partial class AddPickerAssignment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,9 +52,6 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("ArticleCategoryId")
-                        .HasColumnType("int");
 
                     b.Property<string>("ArticleGroup")
                         .HasMaxLength(100)
@@ -99,214 +99,10 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ArticleCategoryId");
-
                     b.HasIndex("ArticleNumber")
                         .IsUnique();
 
                     b.ToTable("Articles", (string)null);
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeDefinition", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttributeType")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SyncFieldName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("SyncSource")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("ArticleAttributeDefinitions", (string)null);
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeOption", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ArticleAttributeDefinitionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleAttributeDefinitionId");
-
-                    b.ToTable("ArticleAttributeOptions", (string)null);
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeValue", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ArticleAttributeDefinitionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ArticleId")
-                        .HasColumnType("int");
-
-                    b.Property<bool?>("BooleanValue")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int?>("SelectedOptionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleAttributeDefinitionId");
-
-                    b.HasIndex("ArticleId");
-
-                    b.HasIndex("SelectedOptionId");
-
-                    b.HasIndex("ArticleId", "ArticleAttributeDefinitionId")
-                        .IsUnique();
-
-                    b.ToTable("ArticleAttributeValues", (string)null);
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleCategory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int?>("OseonTyp")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("ArticleCategories", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleGroupRecipientMapping", b =>
@@ -357,100 +153,6 @@ namespace IdealAkeWms.Migrations
                         .HasDatabaseName("UX_ArticleGroupRecipientMappings_Group_Recipient");
 
                     b.ToTable("ArticleGroupRecipientMappings");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Artikelnummer")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("CachedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ContentHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<int>("ItemCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Artikelnummer")
-                        .IsUnique()
-                        .HasDatabaseName("IX_CachedBomHeaders_Artikelnummer");
-
-                    b.ToTable("CachedBomHeaders");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.CachedBomItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Artikelgruppe")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Baugruppe")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Beschaffungsartikel")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Bezeichnung1")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Bezeichnung2")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("CachedBomHeaderId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Menge")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<string>("Position")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Ressourcenummer")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CachedBomHeaderId")
-                        .HasDatabaseName("IX_CachedBomItems_CachedBomHeaderId");
-
-                    b.HasIndex("Ressourcenummer")
-                        .HasDatabaseName("IX_CachedBomItems_Ressourcenummer");
-
-                    b.ToTable("CachedBomItems");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.EnaioDmsDocument", b =>
@@ -1098,16 +800,10 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<bool>("HasCoatingParts")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("HasExternalPurchase")
                         .HasColumnType("bit");
 
                     b.Property<bool>("HasGlass")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsCoatingDone")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsDone")
@@ -1836,53 +1532,6 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("WorkstationUsers", (string)null);
                 });
 
-            modelBuilder.Entity("IdealAkeWms.Models.Article", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.ArticleCategory", "ArticleCategory")
-                        .WithMany("Articles")
-                        .HasForeignKey("ArticleCategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ArticleCategory");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeOption", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.ArticleAttributeDefinition", "ArticleAttributeDefinition")
-                        .WithMany("Options")
-                        .HasForeignKey("ArticleAttributeDefinitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ArticleAttributeDefinition");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeValue", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.ArticleAttributeDefinition", "ArticleAttributeDefinition")
-                        .WithMany("Values")
-                        .HasForeignKey("ArticleAttributeDefinitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.Article", "Article")
-                        .WithMany("AttributeValues")
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.ArticleAttributeOption", "SelectedOption")
-                        .WithMany()
-                        .HasForeignKey("SelectedOptionId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Article");
-
-                    b.Navigation("ArticleAttributeDefinition");
-
-                    b.Navigation("SelectedOption");
-                });
-
             modelBuilder.Entity("IdealAkeWms.Models.ArticleGroupRecipientMapping", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.OrderRecipientGroup", "OrderRecipientGroup")
@@ -1892,17 +1541,6 @@ namespace IdealAkeWms.Migrations
                         .IsRequired();
 
                     b.Navigation("OrderRecipientGroup");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.CachedBomItem", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.CachedBomHeader", "CachedBomHeader")
-                        .WithMany("Items")
-                        .HasForeignKey("CachedBomHeaderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CachedBomHeader");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OrderRecipient", b =>
@@ -2117,26 +1755,7 @@ namespace IdealAkeWms.Migrations
 
             modelBuilder.Entity("IdealAkeWms.Models.Article", b =>
                 {
-                    b.Navigation("AttributeValues");
-
                     b.Navigation("StockMovements");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeDefinition", b =>
-                {
-                    b.Navigation("Options");
-
-                    b.Navigation("Values");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ArticleCategory", b =>
-                {
-                    b.Navigation("Articles");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>
-                {
-                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OrderRecipientGroup", b =>

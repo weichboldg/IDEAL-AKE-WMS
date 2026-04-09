@@ -53,6 +53,9 @@ public class User : AuditableEntity
     [Display(Name = "Arbeitsgänge rückmelden")]
     public bool CanReportOperations { get; set; }
 
+    [Display(Name = "Ist Kommissionierer")]
+    public bool IsPicker { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();
