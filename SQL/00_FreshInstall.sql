@@ -1,7 +1,7 @@
 -- =============================================
 -- IDEAL-AKE WMS - Konsolidiertes Neuinstallations-Script
 -- Erstellt alle Tabellen, Views und Standarddaten im finalen Zustand.
--- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-37) verwenden.
+-- Fuer bestehende Installationen die einzelnen Migrations-Scripts (01-38) verwenden.
 -- =============================================
 
 -- Datenbank erstellen
@@ -37,6 +37,7 @@ BEGIN
         [CanPick]                   BIT               NOT NULL DEFAULT 0,
         [CanViewTracking]           BIT               NOT NULL DEFAULT 0,
         [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
+        [IsPicker]                  BIT               NOT NULL DEFAULT 0,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -228,6 +229,8 @@ BEGIN
         [PickingPriority]         INT               NULL,
         [ReleasedAt]              DATETIME2         NULL,
         [ReleasedBy]              NVARCHAR(200)     NULL,
+        [AssignedPickerId]        INT               NULL,
+        [AssignedPickerName]      NVARCHAR(200)     NULL,
         [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]               NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
@@ -237,7 +240,9 @@ BEGIN
         CONSTRAINT [PK_ProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [UQ_ProductionOrders_OrderNumber] UNIQUE ([OrderNumber]),
         CONSTRAINT [FK_ProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
-            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL,
+        CONSTRAINT [FK_ProductionOrders_AssignedPicker]
+            FOREIGN KEY ([AssignedPickerId]) REFERENCES [dbo].[Users]([Id]) ON DELETE SET NULL
     );
     PRINT 'Tabelle ProductionOrders erstellt.';
 END
@@ -490,6 +495,7 @@ BEGIN
         ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin'),
         ('BestellungenAktiv', 'false', 'Bedarfsmeldungen aus Stueckliste aktivieren'),
         ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren'),
+        ('KommissionierungMitZuweisung', 'false', 'Kommissionierung mit Anwenderzuweisung aktivieren'),
         ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
@@ -589,7 +595,9 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDon
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsReleasedForPicking_IsDone')
-    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsReleasedForPicking_IsDone] ON [dbo].[ProductionOrders]([IsReleasedForPicking], [IsDone]) INCLUDE ([PickingPriority], [ProductionDate]);
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsReleasedForPicking_IsDone] ON [dbo].[ProductionOrders]([IsReleasedForPicking], [IsDone]) INCLUDE ([PickingPriority], [ProductionDate], [AssignedPickerId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_AssignedPickerId')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_AssignedPickerId] ON [dbo].[ProductionOrders]([AssignedPickerId]) WHERE [AssignedPickerId] IS NOT NULL;
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_ProductionOrderId')
     CREATE NONCLUSTERED INDEX [IX_PickingItems_ProductionOrderId] ON [dbo].[PickingItems]([ProductionOrderId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_POId_IsPicked')
