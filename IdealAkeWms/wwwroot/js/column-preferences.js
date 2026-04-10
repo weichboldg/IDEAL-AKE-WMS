@@ -843,6 +843,29 @@
 
             // Signal to table-filter.js that we are done
             document.dispatchEvent(new CustomEvent('column-preferences-ready'));
+
+            // After table-filter.js creates the filter row, re-apply visibility
+            // so hidden columns also have their filter cells hidden
+            var thead = _table.querySelector('thead');
+            if (thead) {
+                var observer = new MutationObserver(function () {
+                    var filterRow = getFilterRow();
+                    if (filterRow) {
+                        observer.disconnect();
+                        // Re-apply visibility to filter row cells
+                        _settings.columns.forEach(function (cs) {
+                            if (cs.visible === false) {
+                                var idx = colIndexByKey(cs.key);
+                                if (idx >= 0) {
+                                    var filterCells = filterRow.querySelectorAll('th');
+                                    if (filterCells[idx]) filterCells[idx].style.display = 'none';
+                                }
+                            }
+                        });
+                    }
+                });
+                observer.observe(thead, { childList: true });
+            }
         });
     });
 
