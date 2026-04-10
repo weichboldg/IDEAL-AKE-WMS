@@ -40,6 +40,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ArticleAttributeValue> ArticleAttributeValues => Set<ArticleAttributeValue>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
     public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
+    public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -659,6 +660,27 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(e => e.CachedBomHeaderId).HasDatabaseName("IX_CachedBomItems_CachedBomHeaderId");
             entity.HasIndex(e => e.Ressourcenummer).HasDatabaseName("IX_CachedBomItems_Ressourcenummer");
+        });
+
+        // UserViewPreference
+        modelBuilder.Entity<UserViewPreference>(entity =>
+        {
+            entity.ToTable("UserViewPreferences");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ViewKey).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.SettingsJson).IsRequired();
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.UserId, e.ViewKey }).IsUnique()
+                .HasDatabaseName("UQ_UserViewPreferences_User_View");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

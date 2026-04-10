@@ -1065,6 +1065,27 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID(N'dbo.UserViewPreferences', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[UserViewPreferences] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [UserId]            INT NOT NULL,
+        [ViewKey]           NVARCHAR(50) NOT NULL,
+        [SettingsJson]      NVARCHAR(MAX) NOT NULL,
+        [CreatedAt]         DATETIME2 NOT NULL,
+        [CreatedBy]         NVARCHAR(200) NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200) NOT NULL,
+        [ModifiedAt]        DATETIME2 NULL,
+        [ModifiedBy]        NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [PK_UserViewPreferences] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_UserViewPreferences_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [UQ_UserViewPreferences_User_View] UNIQUE ([UserId], [ViewKey])
+    );
+    PRINT 'Tabelle UserViewPreferences erstellt.';
+END
+GO
+
 -- =============================================
 -- 18. EF Migrations History
 -- =============================================
@@ -1113,6 +1134,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] L
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407061642_AddArticleCategoriesAndAttributes', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260407091723_AddBomCacheAndCoatingDetection')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407091723_AddBomCacheAndCoatingDetection', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260410124248_AddUserViewPreferences')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260410124248_AddUserViewPreferences', '10.0.0');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
