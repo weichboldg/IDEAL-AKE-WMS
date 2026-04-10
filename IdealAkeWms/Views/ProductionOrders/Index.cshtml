@@ -50,7 +50,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc">
         <thead>
             <tr>
                 @if (Model.CanPick)
@@ -402,9 +402,6 @@
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Default-Sortierung: Kommissionierung aufsteigend
-            if (typeof triggerSort === 'function') triggerSort('picking-date', 'asc');
-
             // Glas/Zukauf Checkbox-Toggle per AJAX
             document.querySelectorAll('.toggle-field').forEach(function (cb) {
                 cb.addEventListener('change', function () {

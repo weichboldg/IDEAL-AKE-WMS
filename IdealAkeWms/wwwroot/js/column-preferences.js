@@ -472,12 +472,8 @@
             noneOpt.textContent = '— keine —';
             colSelect.appendChild(noneOpt);
 
-            // Add sortable columns (those that have data-sortable in the th)
             _columnConfig.forEach(function (c) {
-                var idx = colIndexByKey(c.key);
-                if (idx < 0) return;
-                var th = _table.querySelectorAll('thead tr:first-child th')[idx];
-                if (!th || !th.hasAttribute('data-sortable')) return;
+                if (!c.label) return; // skip structural columns (empty label = icon-only)
                 var opt = document.createElement('option');
                 opt.value = c.key;
                 opt.textContent = c.label;

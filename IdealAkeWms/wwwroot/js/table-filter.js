@@ -109,6 +109,13 @@
                 sortTable(colKey, newDir);
             });
         });
+
+        // Apply default sort: user preference (from column-preferences.js) takes priority, then HTML fallback
+        var sortCol = _table.dataset.defaultSortColumn || _table.dataset.fallbackSortColumn;
+        var sortDir = _table.dataset.defaultSortDirection || _table.dataset.fallbackSortDirection || 'asc';
+        if (sortCol) {
+            window.triggerSort(sortCol, sortDir);
+        }
     }
 
     // Prüft ob ein Zelltext einem Filterwert entspricht.
