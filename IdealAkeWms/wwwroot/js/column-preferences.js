@@ -27,23 +27,25 @@
         return extra ? url + extra : url;
     }
 
-    function colIndexByKey(key) {
-        // Returns the physical th index for a given col-key
+    var _colIndexCache = null;
+
+    function buildColIndexCache() {
+        _colIndexCache = {};
         var ths = _table.querySelectorAll('thead tr:first-child th');
         for (var i = 0; i < ths.length; i++) {
-            if (ths[i].getAttribute('data-col-key') === key) return i;
+            var key = ths[i].getAttribute('data-col-key');
+            if (key) _colIndexCache[key] = i;
         }
-        return -1;
     }
 
-    function getAllRows() {
-        // Returns all tbody tr + filter row tr cells — for per-column operations
-        var rows = [];
-        var filterRow = _table.querySelector('thead tr.filter-row');
-        if (filterRow) rows.push(filterRow);
-        var tbodyRows = _table.querySelectorAll('tbody tr');
-        tbodyRows.forEach(function (r) { rows.push(r); });
-        return rows;
+    function invalidateColIndexCache() {
+        _colIndexCache = null;
+    }
+
+    function colIndexByKey(key) {
+        if (!_colIndexCache) buildColIndexCache();
+        var idx = _colIndexCache[key];
+        return idx !== undefined ? idx : -1;
     }
 
     function getFilterRow() {
@@ -91,25 +93,22 @@
     function applySettings() {
         if (!_table || !_settings) return;
 
-        // 1. Reorder columns if supported and order differs from current
         if (_viewConfig.supportsReorder) {
             applyColumnOrder();
         }
 
-        // 2. Apply visibility + width for each column
+        var allThs = _table.querySelectorAll('thead tr:first-child th');
         _settings.columns.forEach(function (cs) {
             var idx = colIndexByKey(cs.key);
-            if (idx < 0) return; // column not in DOM (conditional column)
+            if (idx < 0) return;
 
-            var th = _table.querySelectorAll('thead tr:first-child th')[idx];
+            var th = allThs[idx];
             setColVisibility(idx, cs.visible, th);
             if (cs.width) {
                 th.style.width = cs.width + 'px';
                 th.style.minWidth = cs.width + 'px';
             }
         });
-
-        // 3. Apply default sort (dispatch to table-filter after it initialises)
         if (_settings.defaultSortColumn) {
             // Store on table element so table-filter.js can read after init
             _table.dataset.defaultSortColumn = _settings.defaultSortColumn;
@@ -175,6 +174,7 @@
         noCfgCols.forEach(function (i) { newOrder.push(i); });
 
         reorderDomColumns(newOrder);
+        invalidateColIndexCache();
     }
 
     function reorderDomColumns(newPhysicalOrder) {
@@ -557,19 +557,13 @@
             item.style.width = item.offsetWidth + 'px';
             item.style.zIndex = '2000';
             item.style.pointerEvents = 'none';
-            positionDragItem(e);
+            item.style.top = (e.clientY - 20) + 'px';
 
             list.insertBefore(placeholder, item);
 
             document.addEventListener('mousemove', onDragMove);
             document.addEventListener('mouseup', onDragEnd);
         });
-    }
-
-    function positionDragItem(e) {
-        if (!_dragState) return;
-        _dragState.item.style.top = (e.clientY - 20) + 'px';
-        _dragState.item.style.left = (_dragState.item.getBoundingClientRect ? _dragState.item.getBoundingClientRect().left : 0) + 'px';
     }
 
     function onDragMove(e) {

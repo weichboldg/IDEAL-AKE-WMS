@@ -40,12 +40,11 @@
                 var isDateCol = th.hasAttribute('data-date-filter');
 
                 if (isDateCol) {
-                    // Date column: input + calendar icon button
                     var wrapper = document.createElement('div');
                     wrapper.style.display = 'flex';
                     wrapper.style.gap = '2px';
 
-                    var input = document.createElement('input');
+                    let input = document.createElement('input');
                     input.type = 'text';
                     input.className = 'form-control form-control-sm';
                     input.style.fontSize = '0.75rem';
@@ -69,7 +68,7 @@
                     wrapper.appendChild(calBtn);
                     filterTd.appendChild(wrapper);
                 } else {
-                    var input = document.createElement('input');
+                    let input = document.createElement('input');
                     input.type = 'text';
                     input.className = 'form-control form-control-sm';
                     input.style.fontSize = '0.75rem';
@@ -139,18 +138,24 @@
         if (!_filterRow || !_tbody) return;
         var filters = window.getActiveFilters();
 
+        // Resolve column keys to physical indices once before the row loop
+        var resolvedFilters = [];
+        for (var colKey in filters) {
+            var colIndex = getPhysicalIndex(colKey);
+            if (colIndex >= 0) resolvedFilters.push({ index: colIndex, value: filters[colKey] });
+        }
+
         var rows = _tbody.querySelectorAll('tr');
         rows.forEach(function (row) {
-            if (row.querySelector('td[colspan]')) return; // skip "no data" row
+            if (row.querySelector('td[colspan]')) return;
             var visible = true;
+            var cells = row.cells || row.querySelectorAll('td');
 
-            for (var colKey in filters) {
-                var colIndex = getPhysicalIndex(colKey);
-                if (colIndex < 0) continue;
-                var cell = row.querySelectorAll('td')[colIndex];
+            for (var i = 0; i < resolvedFilters.length; i++) {
+                var cell = cells[resolvedFilters[i].index];
                 if (cell) {
                     var text = cell.textContent.toLowerCase();
-                    if (!matchesFilter(text, filters[colKey])) {
+                    if (!matchesFilter(text, resolvedFilters[i].value)) {
                         visible = false;
                         break;
                     }

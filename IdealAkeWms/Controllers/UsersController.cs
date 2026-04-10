@@ -177,7 +177,8 @@ public class UsersController : Controller
         if (!string.IsNullOrEmpty(viewKey))
         {
             await _viewPreferenceRepository.DeleteByUserAndViewAsync(id, viewKey);
-            TempData["SuccessMessage"] = $"Ansichts-Einstellungen '{viewKey}' fuer '{user.Name}' wurden zurueckgesetzt.";
+            var displayName = ColumnDefinitions.GetByViewKey(viewKey)?.DisplayName ?? viewKey;
+            TempData["SuccessMessage"] = $"Ansichts-Einstellungen '{displayName}' fuer '{user.Name}' wurden zurueckgesetzt.";
         }
         else
         {

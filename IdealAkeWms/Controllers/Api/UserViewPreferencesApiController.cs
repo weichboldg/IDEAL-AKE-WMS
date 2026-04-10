@@ -1,4 +1,5 @@
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,11 +9,6 @@ namespace IdealAkeWms.Controllers.Api;
 [Route("api/user-view-preferences")]
 public class UserViewPreferencesApiController : ControllerBase
 {
-    private static readonly HashSet<string> AllowedViewKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ProductionOrders", "Picking", "OseonTracking", "Bom"
-    };
-
     private readonly IUserViewPreferenceRepository _repository;
     private readonly ICurrentUserService _currentUserService;
 
@@ -27,14 +23,13 @@ public class UserViewPreferencesApiController : ControllerBase
     [HttpGet("{viewKey}")]
     public async Task<IActionResult> Get(string viewKey)
     {
-        var userId = _currentUserService.GetCurrentAppUserId();
-        if (!_currentUserService.IsLoggedIn() || userId == null)
+        if (!TryGetCurrentUserId(out var userId))
             return Unauthorized();
 
-        if (!AllowedViewKeys.Contains(viewKey))
+        if (ColumnDefinitions.GetByViewKey(viewKey) == null)
             return BadRequest($"Invalid view key: {viewKey}");
 
-        var pref = await _repository.GetByUserAndViewAsync(userId.Value, viewKey);
+        var pref = await _repository.GetByUserAndViewAsync(userId, viewKey);
         if (pref == null)
             return NoContent();
 
@@ -44,18 +39,17 @@ public class UserViewPreferencesApiController : ControllerBase
     [HttpPut("{viewKey}")]
     public async Task<IActionResult> Put(string viewKey, [FromBody] string settingsJson)
     {
-        var userId = _currentUserService.GetCurrentAppUserId();
-        if (!_currentUserService.IsLoggedIn() || userId == null)
+        if (!TryGetCurrentUserId(out var userId))
             return Unauthorized();
 
-        if (!AllowedViewKeys.Contains(viewKey))
+        if (ColumnDefinitions.GetByViewKey(viewKey) == null)
             return BadRequest($"Invalid view key: {viewKey}");
 
         if (settingsJson != null && settingsJson.Length > 65536)
             return BadRequest("Settings too large (max 64KB)");
 
         await _repository.SaveAsync(
-            userId.Value,
+            userId,
             viewKey,
             settingsJson ?? "{}",
             _currentUserService.GetDisplayName(),
@@ -67,14 +61,20 @@ public class UserViewPreferencesApiController : ControllerBase
     [HttpDelete("{viewKey}")]
     public async Task<IActionResult> Delete(string viewKey)
     {
-        var userId = _currentUserService.GetCurrentAppUserId();
-        if (!_currentUserService.IsLoggedIn() || userId == null)
+        if (!TryGetCurrentUserId(out var userId))
             return Unauthorized();
 
-        if (!AllowedViewKeys.Contains(viewKey))
+        if (ColumnDefinitions.GetByViewKey(viewKey) == null)
             return BadRequest($"Invalid view key: {viewKey}");
 
-        await _repository.DeleteByUserAndViewAsync(userId.Value, viewKey);
+        await _repository.DeleteByUserAndViewAsync(userId, viewKey);
         return Ok();
+    }
+
+    private bool TryGetCurrentUserId(out int userId)
+    {
+        var id = _currentUserService.GetCurrentAppUserId();
+        userId = id ?? 0;
+        return id.HasValue;
     }
 }

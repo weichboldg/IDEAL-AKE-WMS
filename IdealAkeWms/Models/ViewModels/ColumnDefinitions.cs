@@ -2,7 +2,7 @@ namespace IdealAkeWms.Models.ViewModels;
 
 public record ColumnDef(string Key, string Label, bool Locked = false, int? DefaultWidth = null);
 
-public record ViewConfig(string ViewKey, bool SupportsReorder, bool SupportsSortDefault)
+public record ViewConfig(string ViewKey, string DisplayName, bool SupportsReorder, bool SupportsSortDefault)
 {
     public List<ColumnDef> Columns { get; init; } = new();
 }
@@ -16,7 +16,7 @@ public static class ColumnDefinitions
     ///   - "release"   : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
     ///   - "picker"    : rendered only when Model.PickerAssignmentEnabled
     /// </summary>
-    public static readonly ViewConfig ProductionOrders = new("ProductionOrders", SupportsReorder: true, SupportsSortDefault: true)
+    public static readonly ViewConfig ProductionOrders = new("ProductionOrders", "Fertigungsauftraege", SupportsReorder: true, SupportsSortDefault: true)
     {
         Columns =
         [
@@ -53,7 +53,7 @@ public static class ColumnDefinitions
     ///   - "picker" : rendered only when Model.PickerAssignmentEnabled
     /// Note: col index 5 (Stk.) has no data-col attribute in the view.
     /// </summary>
-    public static readonly ViewConfig Picking = new("Picking", SupportsReorder: true, SupportsSortDefault: true)
+    public static readonly ViewConfig Picking = new("Picking", "Kommissionierliste", SupportsReorder: true, SupportsSortDefault: true)
     {
         Columns =
         [
@@ -75,7 +75,7 @@ public static class ColumnDefinitions
     /// This view uses a 3-level tree structure; reorder/sort not supported.
     /// The expand/toggle column (width 30px, no label) is structural/locked.
     /// </summary>
-    public static readonly ViewConfig OseonTracking = new("OseonTracking", SupportsReorder: false, SupportsSortDefault: false)
+    public static readonly ViewConfig OseonTracking = new("OseonTracking", "OSEON Teileverfolgung", SupportsReorder: false, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -99,7 +99,7 @@ public static class ColumnDefinitions
     /// The first unnamed column (width 40px) contains the pick-checkbox/expand control.
     /// The "storage-location" and "source-location" columns have no data-col attribute (not filterable).
     /// </summary>
-    public static readonly ViewConfig Bom = new("Bom", SupportsReorder: false, SupportsSortDefault: false)
+    public static readonly ViewConfig Bom = new("Bom", "Stueckliste (BOM)", SupportsReorder: false, SupportsSortDefault: false)
     {
         Columns =
         [
