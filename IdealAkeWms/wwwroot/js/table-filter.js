@@ -5,13 +5,23 @@
     var _filterRow = null;
     var _headers = null;
     var _tbody = null;
+    var _table = null;
 
-    document.addEventListener('DOMContentLoaded', function () {
-        var table = document.querySelector('.filterable-table');
-        if (!table) return;
+    function getPhysicalIndex(colKey) {
+        if (!_table) return -1;
+        var allThs = _table.querySelectorAll('thead tr:first-child th');
+        for (var i = 0; i < allThs.length; i++) {
+            if (allThs[i].getAttribute('data-col-key') === colKey) return i;
+        }
+        return -1;
+    }
 
-        var thead = table.querySelector('thead');
-        _tbody = table.querySelector('tbody');
+    function init() {
+        _table = document.querySelector('.filterable-table');
+        if (!_table) return;
+
+        var thead = _table.querySelector('thead');
+        _tbody = _table.querySelector('tbody');
         _headers = thead.querySelectorAll('th[data-filterable]');
 
         if (_headers.length === 0) return;
@@ -26,6 +36,7 @@
             filterTd.style.backgroundColor = '#f8f9fa';
 
             if (th.hasAttribute('data-filterable')) {
+                var colKey = th.getAttribute('data-col-key');
                 var isDateCol = th.hasAttribute('data-date-filter');
 
                 if (isDateCol) {
@@ -41,7 +52,7 @@
                     input.style.flex = '1';
                     input.style.minWidth = '0';
                     input.placeholder = 'Filter...';
-                    input.setAttribute('data-col', th.getAttribute('data-col'));
+                    input.setAttribute('data-col-key', colKey);
                     input.addEventListener('input', applyFilters);
 
                     var calBtn = document.createElement('button');
@@ -63,7 +74,7 @@
                     input.className = 'form-control form-control-sm';
                     input.style.fontSize = '0.75rem';
                     input.placeholder = 'Filter...';
-                    input.setAttribute('data-col', th.getAttribute('data-col'));
+                    input.setAttribute('data-col-key', colKey);
                     input.addEventListener('input', applyFilters);
                     filterTd.appendChild(input);
                 }
@@ -83,7 +94,7 @@
             th.appendChild(span);
 
             th.addEventListener('click', function () {
-                var col = parseInt(th.getAttribute('data-col'));
+                var colKey = th.getAttribute('data-col-key');
                 var currentDir = th.getAttribute('data-sort-dir');
                 var newDir = currentDir === 'asc' ? 'desc' : 'asc';
 
@@ -96,10 +107,10 @@
                 th.setAttribute('data-sort-dir', newDir);
                 th.querySelector('.sort-indicator').textContent = newDir === 'asc' ? '\u25B2' : '\u25BC';
 
-                sortTable(col, newDir);
+                sortTable(colKey, newDir);
             });
         });
-    });
+    }
 
     // Prüft ob ein Zelltext einem Filterwert entspricht.
     // Unterstützt: "960,886" (OR-Logik), "!960" (Ausschluss), "!960,886" (beide ausschließen)
@@ -117,9 +128,9 @@
         if (!_filterRow) return {};
         var filters = {};
         _filterRow.querySelectorAll('input').forEach(function (input) {
-            var col = parseInt(input.getAttribute('data-col'));
+            var colKey = input.getAttribute('data-col-key');
             var val = input.value.toLowerCase().trim();
-            if (val) filters[col] = val;
+            if (val && colKey) filters[colKey] = val;
         });
         return filters;
     };
@@ -133,11 +144,13 @@
             if (row.querySelector('td[colspan]')) return; // skip "no data" row
             var visible = true;
 
-            for (var col in filters) {
-                var cell = row.querySelectorAll('td')[parseInt(col)];
+            for (var colKey in filters) {
+                var colIndex = getPhysicalIndex(colKey);
+                if (colIndex < 0) continue;
+                var cell = row.querySelectorAll('td')[colIndex];
                 if (cell) {
                     var text = cell.textContent.toLowerCase();
-                    if (!matchesFilter(text, filters[col])) {
+                    if (!matchesFilter(text, filters[colKey])) {
                         visible = false;
                         break;
                     }
@@ -148,14 +161,17 @@
         });
     }
 
-    function sortTable(col, dir) {
+    function sortTable(colKey, dir) {
         if (!_tbody) return;
+        var colIndex = getPhysicalIndex(colKey);
+        if (colIndex < 0) return;
+
         var rows = Array.from(_tbody.querySelectorAll('tr'));
         var dataRows = rows.filter(function (r) { return !r.querySelector('td[colspan]'); });
 
         dataRows.sort(function (a, b) {
-            var cellA = a.querySelectorAll('td')[col];
-            var cellB = b.querySelectorAll('td')[col];
+            var cellA = a.querySelectorAll('td')[colIndex];
+            var cellB = b.querySelectorAll('td')[colIndex];
             if (!cellA || !cellB) return 0;
 
             var valA = cellA.textContent.trim();
@@ -381,9 +397,9 @@
     }
 
     // Global function: Set a column filter value programmatically
-    window.setColumnFilter = function (colIndex, value) {
+    window.setColumnFilter = function (colKey, value) {
         if (!_filterRow) return;
-        var input = _filterRow.querySelector('input[data-col="' + colIndex + '"]');
+        var input = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
         if (input) {
             input.value = value;
             applyFilters();
@@ -391,11 +407,11 @@
     };
 
     // Global function: Trigger sorting on a column programmatically
-    window.triggerSort = function (colIndex, direction) {
+    window.triggerSort = function (colKey, direction) {
         if (!_headers) return;
         var th = null;
         _headers.forEach(function (h) {
-            if (parseInt(h.getAttribute('data-col')) === colIndex) th = h;
+            if (h.getAttribute('data-col-key') === colKey) th = h;
         });
         if (!th) return;
 
@@ -407,6 +423,34 @@
 
         th.setAttribute('data-sort-dir', direction);
         th.querySelector('.sort-indicator').textContent = direction === 'asc' ? '\u25B2' : '\u25BC';
-        sortTable(colIndex, direction);
+        sortTable(colKey, direction);
     };
+
+    // Deferred init support for column-preferences integration
+    var _initialized = false;
+    document.addEventListener('column-preferences-ready', function () {
+        if (!_initialized) {
+            _initialized = true;
+            init();
+        }
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        var table = document.querySelector('.filterable-table');
+        if (table && !table.hasAttribute('data-view-key')) {
+            // No column-preferences involved — init immediately
+            if (!_initialized) {
+                _initialized = true;
+                init();
+            }
+        }
+        if (table && table.hasAttribute('data-view-key')) {
+            // Wait for column-preferences-ready, but fallback after 2s
+            setTimeout(function () {
+                if (!_initialized) {
+                    _initialized = true;
+                    init();
+                }
+            }, 2000);
+        }
+    });
 })();
