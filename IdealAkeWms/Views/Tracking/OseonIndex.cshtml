@@ -79,17 +79,17 @@ else
     </div>
 
     <div class="table-responsive">
-        <table class="table table-sm mb-0" id="oseonTree">
+        <table class="table table-sm mb-0" id="oseonTree" data-view-key="OseonTracking">
             <thead>
                 <tr>
-                    <th style="width: 30px;"></th>
-                    <th>Auftrag</th>
-                    <th>Artikelnr.</th>
-                    <th>Bezeichnung</th>
-                    <th>Werkbank</th>
-                    <th>Status</th>
-                    <th>Soll / Ist</th>
-                    <th>Endtermin</th>
+                    <th style="width: 30px;" data-col-key="expand"></th>
+                    <th data-col-key="order-number">Auftrag</th>
+                    <th data-col-key="article-number">Artikelnr.</th>
+                    <th data-col-key="description">Bezeichnung</th>
+                    <th data-col-key="workbench">Werkbank</th>
+                    <th data-col-key="status">Status</th>
+                    <th data-col-key="progress">Soll / Ist</th>
+                    <th data-col-key="end-date">Endtermin</th>
                 </tr>
             </thead>
             <tbody>
@@ -282,7 +282,24 @@ else
     </div>
 }
 
+<script type="application/json" id="view-config">
+{ "viewKey": "OseonTracking", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "expand", "label": "", "locked": true, "defaultWidth": 30 },
+    { "key": "order-number", "label": "Auftrag", "locked": true, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikelnr.", "locked": false, "defaultWidth": null },
+    { "key": "description", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "progress", "label": "Soll / Ist", "locked": false, "defaultWidth": null },
+    { "key": "end-date", "label": "Endtermin", "locked": false, "defaultWidth": null }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var expandedGroups = {};

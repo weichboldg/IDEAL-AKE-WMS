@@ -78,10 +78,10 @@
 @Html.AntiForgeryToken()
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable">
+    <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
         <thead>
             <tr>
-                <th style="width: 40px;"></th>
+                <th style="width: 40px;" data-col-key="pick-control"></th>
                 <th style="width: 55px;" data-filterable data-col-key="position">Pos.</th>
                 <th data-filterable data-col-key="assembly-group">Baugruppe</th>
                 <th data-filterable data-col-key="resource-number">Ressourcenummer</th>
@@ -91,11 +91,11 @@
                 <th data-filterable data-col-key="procurement">Beschaffung</th>
                 <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                 <th data-filterable data-col-key="category">Kategorie</th>
-                <th>Lagerplatz</th>
-                <th>Quell-Lagerplatz</th>
+                <th data-col-key="storage-location">Lagerplatz</th>
+                <th data-col-key="source-location">Quell-Lagerplatz</th>
                 @if (ViewBag.BestellungenAktiv == true)
                 {
-                    <th style="width: 80px;">Bestellen</th>
+                    <th style="width: 80px;" data-col-key="order">Bestellen</th>
                 }
             </tr>
         </thead>
@@ -458,9 +458,31 @@
     <a asp-controller="ProductionOrders" asp-action="Index" class="btn btn-outline-secondary">Zurück zur FA-Liste</a>
 </div>
 
+<script type="application/json" id="view-config">
+{ "viewKey": "Bom", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "pick-control", "label": "", "locked": true, "defaultWidth": 40 },
+    { "key": "position", "label": "Pos.", "locked": true, "defaultWidth": 55 },
+    { "key": "assembly-group", "label": "Baugruppe", "locked": false, "defaultWidth": null },
+    { "key": "resource-number", "label": "Ressourcenummer", "locked": false, "defaultWidth": null },
+    { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+    { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
+    { "key": "quantity", "label": "Menge", "locked": false, "defaultWidth": null },
+    { "key": "procurement", "label": "Beschaffung", "locked": false, "defaultWidth": null },
+    { "key": "article-group", "label": "Artikelgruppe", "locked": false, "defaultWidth": null },
+    { "key": "category", "label": "Kategorie", "locked": false, "defaultWidth": null },
+    { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null }
+    @if (ViewBag.BestellungenAktiv == true) { <text>,{ "key": "order", "label": "Bestellen", "locked": false, "defaultWidth": 80 }</text> }
+]
+</script>
+
 @section Scripts {
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script src="~/js/photo-upload.js" asp-append-version="true"></script>
     <script>

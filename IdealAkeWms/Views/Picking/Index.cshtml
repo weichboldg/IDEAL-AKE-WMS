@@ -34,7 +34,7 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0 filterable-table">
+        <table class="table table-striped table-hover mb-0 filterable-table" data-view-key="Picking">
             <thead>
                 <tr>
                     <th style="width: 60px;" data-filterable data-col-key="priority">Prio</th>
@@ -42,7 +42,7 @@ else
                     <th data-filterable data-col-key="article-number">Artikelnummer</th>
                     <th data-filterable data-col-key="description">Bezeichnung</th>
                     <th data-filterable data-col-key="customer">Kunde</th>
-                    <th class="text-end" style="width: 55px;">Stk.</th>
+                    <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
                     <th data-filterable data-col-key="picking-date" data-date-filter>Komm.-Termin</th>
                     <th data-filterable data-col-key="status">Status</th>
                     @if (Model.PickerAssignmentEnabled)
@@ -86,7 +86,25 @@ else
     </div>
 }
 
+<script type="application/json" id="view-config">
+{ "viewKey": "Picking", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "priority", "label": "Prio", "locked": false, "defaultWidth": 60 },
+    { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "description", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
+    { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
+    { "key": "picking-date", "label": "Komm.-Termin", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null }
+    @if (Model.PickerAssignmentEnabled) { <text>,{ "key": "picker", "label": "Kommissionierer", "locked": false, "defaultWidth": null }</text> }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script>
         document.querySelectorAll('.clickable-row').forEach(function (row) {

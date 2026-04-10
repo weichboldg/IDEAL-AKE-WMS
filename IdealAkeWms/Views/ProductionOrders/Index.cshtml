@@ -50,15 +50,15 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders">
         <thead>
             <tr>
                 @if (Model.CanPick)
                 {
-                    <th style="width: 40px;"></th>
+                    <th style="width: 40px;" data-col-key="actions"></th>
                 }
                 <th style="width: 90px;" data-filterable data-col-key="order-number">FA Nr.</th>
-                <th class="text-end" style="width: 55px;">Stk.</th>
+                <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
                 <th data-filterable data-col-key="customer">Kunde</th>
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
@@ -73,10 +73,10 @@
                 <th style="width: 45px;" data-filterable data-col-key="glass">Glas</th>
                 <th style="width: 55px;" data-filterable data-col-key="purchase">Zukauf</th>
                 <th data-filterable data-col-key="status">Status</th>
-                <th style="width: 80px;"></th>
+                <th style="width: 80px;" data-col-key="row-actions"></th>
                 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
                 {
-                    <th style="width: 160px;">Freigabe</th>
+                    <th style="width: 160px;" data-col-key="release">Freigabe</th>
                 }
                 @if (Model.PickerAssignmentEnabled)
                 {
@@ -369,7 +369,36 @@
     </div>
 }
 
+<script type="application/json" id="view-config">
+{ "viewKey": "ProductionOrders", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    @if (Model.CanPick) { <text>{ "key": "actions", "label": "", "locked": true, "defaultWidth": 40 },</text> }
+    { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
+    { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
+    { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+    { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
+    { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "coating-date", "label": "Beschicht.", "locked": false, "defaultWidth": null },
+    { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
+    { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
+    { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
+    { "key": "delivery-date", "label": "Liefertermin", "locked": false, "defaultWidth": null },
+    { "key": "coating-part", "label": "Lack-T", "locked": false, "defaultWidth": 55 },
+    { "key": "glass", "label": "Glas", "locked": false, "defaultWidth": 45 },
+    { "key": "purchase", "label": "Zukauf", "locked": false, "defaultWidth": 55 },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "row-actions", "label": "", "locked": true, "defaultWidth": 80 }
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>,{ "key": "release", "label": "Freigabe", "locked": false, "defaultWidth": 160 }</text> }
+    @if (Model.PickerAssignmentEnabled) { <text>,{ "key": "picker", "label": "Kommissionierer", "locked": false, "defaultWidth": null }</text> }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
