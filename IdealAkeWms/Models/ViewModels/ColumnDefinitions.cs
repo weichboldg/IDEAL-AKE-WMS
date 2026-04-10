@@ -114,7 +114,7 @@ public static class ColumnDefinitions
             new ColumnDef("procurement",      "Beschaffung",    Locked: false),
             new ColumnDef("article-group",    "Artikelgruppe",  Locked: false),
             new ColumnDef("category",         "Kategorie",      Locked: false),
-            // Not filterable (no data-col) but always present
+            // Not filterable (no data-filterable) but always present
             new ColumnDef("storage-location", "Lagerplatz",     Locked: false),
             new ColumnDef("source-location",  "Quell-Lagerplatz",Locked: false),
             // Conditional: only when ViewBag.BestellungenAktiv == true

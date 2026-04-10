@@ -89,6 +89,18 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 28 | `SQL/28_AddQrMitFaNummer.sql` | AppSetting: QR-Code mit FA-Nummer |
 | 29 | `SQL/29_AddOseonTracking.sql` | OSEON Teileverfolgung Tabellen + AppSettings |
 | 30 | `SQL/30_OseonPerformanceIndexes.sql` | Performance-Indizes für OSEON-Tabellen |
+| 31 | `SQL/31_AddOseonTimestamps.sql` | OSEON Delta-Sync Timestamps |
+| 32 | `SQL/32_AddRoles.sql` | Rollen-Tabelle + UserRoles (Many-to-Many) |
+| 33 | `SQL/33_RemoveOldPermissionColumns.sql` | Alte Boolean-Berechtigungsspalten entfernen (Phase 2) |
+| 34 | `SQL/34_AddOseonOperationConfig.sql` | AG-Konfiguration fuer OSEON-Arbeitsgaenge |
+| 35 | `SQL/35_AddEnaioDmsDocuments.sql` | enaio DMS-Dokument-Verknuepfung |
+| 36 | `SQL/36_AddPartRequisitions.sql` | Bedarfsmeldungen + Empfaengergruppen |
+| 37 | `SQL/37_AddPickingRelease.sql` | Leitstand-Felder + Rolle + AppSetting |
+| 38 | `SQL/38_AddPickerAssignment.sql` | Kommissionierer-Zuweisung |
+| 38b | `SQL/38_StockMovementPerformanceIndexes.sql` | Performance-Indizes Lagerbewegungen |
+| 39 | `SQL/39_AddArticleCategoriesAndAttributes.sql` | Artikelkategorien + Merkmale (EAV) |
+| 40 | `SQL/40_AddBomCacheAndCoatingDetection.sql` | BOM-Cache + Lackierteil-Erkennung |
+| 41 | `SQL/41_AddUserViewPreferences.sql` | Benutzerspezifische Ansichts-Einstellungen |
 
 ### 2. ConnectionStrings konfigurieren
 
@@ -188,11 +200,26 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Wareneingang-Integration**: Bei Einbuchung werden offene Meldungen zum Artikel angezeigt und können verknüpft werden
 - **Empfängergruppen (Stammdaten)**: CRUD für Gruppen + Empfänger + Artikelgruppen-Zuordnung (N:M)
 
-### Berechtigungen
-- **`CanPick`**: Lagerbewegungen, Bestände, Fertigungsaufträge, Kommissionierung — nur sichtbar/zugänglich wenn User-Flag gesetzt
-- **`CanViewTracking`**: Teileverfolgung — nur sichtbar wenn Flag gesetzt UND AppSetting `TeileverfolgungAktiv = true`
-- **`HasMasterDataAccess`**: Benutzer, Arbeitsplätze, Werkbänke, Einstellungen
-- Dashboard zeigt nur Kacheln die der User-Berechtigung entsprechen
+### Individuelle Ansichts-Einstellungen
+- **Spalten ein-/ausblenden**: Zahnrad-Icon oben rechts ueber der Tabelle oder Rechtsklick auf Spaltenkopf
+- **Spaltenbreiten aendern**: Am rechten Spaltenrand ziehen (Doppelklick = Standard-Breite)
+- **Spaltenreihenfolge aendern**: Drag & Drop im Einstellungs-Panel (nur Fertigungsauftraege + Kommissionierliste)
+- **Standard-Sortierung**: Im Einstellungs-Panel festlegen
+- Einstellungen werden pro Benutzer automatisch gespeichert
+- Admin kann Einstellungen im Benutzerstamm zuruecksetzen
+- Verfuegbar in: Fertigungsauftraege, Kommissionierliste, OSEON Teileverfolgung, Stueckliste
+
+### Berechtigungen (Rollenbasiert)
+- **Rollenkonzept**: `Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`
+- **`admin`**: Vollzugriff (ueberspringt alle Berechtigungspruefungen)
+- **`picking`**: Kommissionierung + vollstaendiger Lagerzugriff
+- **`stock`**: Einbuchung, Ausbuchung, Bestaende
+- **`stock_keyuser`**: Lager + Lagerplatz ausbuchen/umbuchen
+- **`masterdata`**: Benutzer, Arbeitsplaetze, Einstellungen
+- **`tracking`**: OSEON Auftraege + Rueckmeldungen
+- **`leitstand`**: Produktionsauftraege freigeben und priorisieren
+- **`reporting`**: Betriebsdaten / BDE (Zukunft)
+- Dashboard zeigt nur Kacheln die der Rolle entsprechen
 
 ### Mein Profil (Self-Service)
 - Jeder angemeldete Benutzer kann unter dem Benutzer-Dropdown → **Mein Profil** sein eigenes Passwort ändern sowie die Standard-BOM-Filter (Beschaffung, Artikelgruppe) einstellen
@@ -234,7 +261,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `CriticalThresholdPercent` | `100` | Meldebestand kritische Schwelle (%) |
 | `NegativeBuchungErlaubt` | `false` | Negative Buchungen erlauben |
 | `NegativeBuchungLagerplatz` | `NAN` | Fallback-Lagerplatz bei negativem Bestand |
-| `StammdatenADGruppe` | `BDE_Stammdaten` | AD-Gruppe für Stammdaten-Zugriff |
+| ~~`StammdatenADGruppe`~~ | — | Ersetzt durch `Role.AdGroup` auf der Rolle 'masterdata' |
 | `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
 | `TeileverfolgungAktiv` | `false` | Teileverfolgungs-Modul aktiviert |
 | `OseonRueckmeldungAktiv` | `false` | Rückmeldungen an OSEON zurückschreiben |
@@ -244,6 +271,8 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stückliste aktivieren |
 | `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
+| `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Anwenderzuweisung aktivieren |
+| `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt |
 
 ## Corporate Design
 
@@ -275,11 +304,11 @@ IdealAkeWms/
 │   ├── css/site.css      # Custom Styles
 │   ├── images/           # Logo (ideal-ake-logo.svg)
 │   ├── favicon.ico       # Favicon
-│   └── js/               # barcode-scanner, table-filter, photo-upload
+│   └── js/               # barcode-scanner, table-filter, column-preferences, site
 ├── Migrations/           # EF Core Migrations
 └── SQL/
     ├── 00_FreshInstall.sql   # Komplettes Neuinstallations-Script
-    ├── 01-30_*.sql           # Einzel-Migrations für bestehende Installationen
+    ├── 01-41_*.sql           # Einzel-Migrations fuer bestehende Installationen
     └── AgentJobs/            # SQL Server Agent Job Scripts (Sage-Import)
 
 IdealAkeWms.Tests/

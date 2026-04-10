@@ -150,6 +150,10 @@
   - Redirectet bei Ablehnung auf `Account/AccessDenied`
   - Angewendet auf: `ProductionOrdersController` (ToggleRelease, BulkRelease, SetPriority)
   - Rollen: `admin`, `leitstand`
+- **`UserViewPreferencesApiController` (kein Filter-Attribut)** — Nur Login-Check via `ICurrentUserService.IsLoggedIn()`
+  - Jeder eingeloggte User darf seine eigenen View-Einstellungen lesen/schreiben/loeschen
+  - Kein Rollen-Filter — Einstellungen sind benutzerspezifisch und nicht sicherheitsrelevant
+  - Admin-Reset laeuft ueber `UsersController.ResetViewPreferences` (`[RequireMasterDataAccess]`)
 
 ## Rollenkonzept
 
