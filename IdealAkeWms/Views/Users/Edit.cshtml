@@ -108,6 +108,47 @@
                         <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
                     </div>
                 </form>
+
+                @{
+                    var savedPrefs = ViewBag.SavedViewPreferences as List<IdealAkeWms.Models.UserViewPreference>
+                                     ?? new List<IdealAkeWms.Models.UserViewPreference>();
+                }
+                @if (savedPrefs.Any())
+                {
+                    <hr />
+                    <h6 class="text-muted">Ansichts-Einstellungen</h6>
+
+                    @foreach (var pref in savedPrefs)
+                    {
+                        var displayName = pref.ViewKey switch
+                        {
+                            "ProductionOrders" => "Fertigungsauftraege",
+                            "Picking" => "Kommissionierliste",
+                            "OseonTracking" => "OSEON Teileverfolgung",
+                            "Bom" => "Stueckliste (BOM)",
+                            _ => pref.ViewKey
+                        };
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>@displayName</span>
+                            <form asp-action="ResetViewPreferences" asp-route-id="@Model.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="viewKey" value="@pref.ViewKey" />
+                                <button type="submit" class="btn btn-sm btn-outline-warning"
+                                        onclick="return confirm('Ansichts-Einstellungen fuer @displayName zuruecksetzen?')">
+                                    Zuruecksetzen
+                                </button>
+                            </form>
+                        </div>
+                    }
+
+                    <form asp-action="ResetViewPreferences" asp-route-id="@Model.Id" method="post" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Alle Ansichts-Einstellungen fuer diesen Benutzer zuruecksetzen?')">
+                            Alle Ansichten zuruecksetzen
+                        </button>
+                    </form>
+                }
             </div>
         </div>
     </div>

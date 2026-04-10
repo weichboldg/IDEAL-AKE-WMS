@@ -14,17 +14,20 @@ public class UsersController : Controller
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IPasswordService _passwordService;
+    private readonly IUserViewPreferenceRepository _viewPreferenceRepository;
 
     public UsersController(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         ICurrentUserService currentUserService,
-        IPasswordService passwordService)
+        IPasswordService passwordService,
+        IUserViewPreferenceRepository viewPreferenceRepository)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _currentUserService = currentUserService;
         _passwordService = passwordService;
+        _viewPreferenceRepository = viewPreferenceRepository;
     }
 
     public async Task<IActionResult> Index()
@@ -113,6 +116,7 @@ public class UsersController : Controller
         };
 
         await PopulateRolesAsync(vm, selectedRoleIds);
+        ViewBag.SavedViewPreferences = await _viewPreferenceRepository.GetAllByUserAsync(id);
         return View(vm);
     }
 
@@ -160,6 +164,28 @@ public class UsersController : Controller
 
         TempData["SuccessMessage"] = $"Benutzer '{existing.Name}' wurde erfolgreich gespeichert.";
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetViewPreferences(int id, string? viewKey)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null)
+            return NotFound();
+
+        if (!string.IsNullOrEmpty(viewKey))
+        {
+            await _viewPreferenceRepository.DeleteByUserAndViewAsync(id, viewKey);
+            TempData["SuccessMessage"] = $"Ansichts-Einstellungen '{viewKey}' fuer '{user.Name}' wurden zurueckgesetzt.";
+        }
+        else
+        {
+            await _viewPreferenceRepository.DeleteAllByUserAsync(id);
+            TempData["SuccessMessage"] = $"Alle Ansichts-Einstellungen fuer '{user.Name}' wurden zurueckgesetzt.";
+        }
+
+        return RedirectToAction(nameof(Edit), new { id });
     }
 
     private async Task PopulateRolesAsync(UserEditViewModel vm, List<int> selectedIds)
