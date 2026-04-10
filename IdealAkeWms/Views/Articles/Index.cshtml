@@ -49,21 +49,14 @@
     <table class="table table-striped mb-0 filterable-table">
         <thead>
             <tr>
-                @{ var colIdx = 0; }
-                <th data-filterable data-col="@colIdx">Artikelnummer</th>
-                @{ colIdx++; }
-                <th data-filterable data-col="@colIdx">Bezeichnung</th>
-                @{ colIdx++; }
-                <th data-filterable data-col="@colIdx">Einheit</th>
-                @{ colIdx++; }
-                <th data-filterable data-col="@colIdx">Artikelgruppe</th>
-                @{ colIdx++; }
-                <th data-filterable data-col="@colIdx">Kategorie</th>
-                @{ colIdx++; }
+                <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                <th data-filterable data-col-key="description">Bezeichnung</th>
+                <th data-filterable data-col-key="unit">Einheit</th>
+                <th data-filterable data-col-key="article-group">Artikelgruppe</th>
+                <th data-filterable data-col-key="category">Kategorie</th>
                 @foreach (var def in attrDefs)
                 {
-                    <th data-filterable data-col="@colIdx">@def.Name</th>
-                    colIdx++;
+                    <th data-filterable data-col-key="attr-@def.Id">@def.Name</th>
                 }
                 <th>Erstellt am</th>
                 <th style="width: 100px;"></th>

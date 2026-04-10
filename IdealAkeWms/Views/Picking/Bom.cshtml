@@ -82,15 +82,15 @@
         <thead>
             <tr>
                 <th style="width: 40px;"></th>
-                <th style="width: 55px;" data-filterable data-col="1">Pos.</th>
-                <th data-filterable data-col="2">Baugruppe</th>
-                <th data-filterable data-col="3">Ressourcenummer</th>
-                <th data-filterable data-col="4">Bezeichnung 1</th>
-                <th data-filterable data-col="5">Bezeichnung 2</th>
-                <th class="text-end" data-filterable data-col="6">Menge</th>
-                <th data-filterable data-col="7">Beschaffung</th>
-                <th data-filterable data-col="8">Artikelgruppe</th>
-                <th data-filterable data-col="9">Kategorie</th>
+                <th style="width: 55px;" data-filterable data-col-key="position">Pos.</th>
+                <th data-filterable data-col-key="assembly-group">Baugruppe</th>
+                <th data-filterable data-col-key="resource-number">Ressourcenummer</th>
+                <th data-filterable data-col-key="description1">Bezeichnung 1</th>
+                <th data-filterable data-col-key="description2">Bezeichnung 2</th>
+                <th class="text-end" data-filterable data-col-key="quantity">Menge</th>
+                <th data-filterable data-col-key="procurement">Beschaffung</th>
+                <th data-filterable data-col-key="article-group">Artikelgruppe</th>
+                <th data-filterable data-col-key="category">Kategorie</th>
                 <th>Lagerplatz</th>
                 <th>Quell-Lagerplatz</th>
                 @if (ViewBag.BestellungenAktiv == true)
@@ -640,16 +640,16 @@
 
             // setColumnFilter überschreiben damit auch Programm-seitiges Setzen (Default-Filter) den Baum respektiert
             var origSetColumnFilter = window.setColumnFilter;
-            window.setColumnFilter = function (colIndex, value) {
-                if (origSetColumnFilter) origSetColumnFilter(colIndex, value);
+            window.setColumnFilter = function (colKey, value) {
+                if (origSetColumnFilter) origSetColumnFilter(colKey, value);
                 updateBomVisibility();
             };
 
             // User-Default-Filter in Spaltenfilter vorbelegen (nach Override von setColumnFilter)
             var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
             var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
-            if (defaultBeschaffung && typeof window.setColumnFilter === 'function') window.setColumnFilter(7, defaultBeschaffung);
-            if (defaultArtikelgruppe && typeof window.setColumnFilter === 'function') window.setColumnFilter(8, defaultArtikelgruppe);
+            if (defaultBeschaffung && typeof window.setColumnFilter === 'function') window.setColumnFilter('procurement', defaultBeschaffung);
+            if (defaultArtikelgruppe && typeof window.setColumnFilter === 'function') window.setColumnFilter('article-group', defaultArtikelgruppe);
 
             // ========== Druck: Aktuelle Filterung/Baumstruktur übergeben ==========
             document.getElementById('btnPrintBom').addEventListener('click', function () {

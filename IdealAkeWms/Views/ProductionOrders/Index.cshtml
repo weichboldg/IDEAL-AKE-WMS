@@ -57,22 +57,22 @@
                 {
                     <th style="width: 40px;"></th>
                 }
-                <th style="width: 90px;" data-filterable data-col="1">FA Nr.</th>
+                <th style="width: 90px;" data-filterable data-col-key="order-number">FA Nr.</th>
                 <th class="text-end" style="width: 55px;">Stk.</th>
-                <th data-filterable data-col="3">Kunde</th>
-                <th data-filterable data-col="4">Artikelnummer</th>
-                <th data-filterable data-col="5">Bezeichnung 1</th>
-                <th data-filterable data-col="6">Bezeichnung 2</th>
-                <th data-filterable data-col="7">Werkbank</th>
-                <th class="text-nowrap" data-filterable data-col="8" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
-                <th class="text-nowrap" data-filterable data-col="9" data-date-filter title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
-                <th class="text-nowrap" data-filterable data-col="10" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
-                <th class="text-nowrap" data-filterable data-col="11" data-date-filter>Fert.-Termin</th>
-                <th class="text-nowrap" data-filterable data-col="12" data-date-filter>Liefertermin</th>
-                <th class="text-nowrap text-center" style="width: 55px;" data-col="13">Lack-T</th>
-                <th style="width: 45px;" data-filterable data-col="14">Glas</th>
-                <th style="width: 55px;" data-filterable data-col="15">Zukauf</th>
-                <th data-filterable data-col="16">Status</th>
+                <th data-filterable data-col-key="customer">Kunde</th>
+                <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                <th data-filterable data-col-key="description1">Bezeichnung 1</th>
+                <th data-filterable data-col-key="description2">Bezeichnung 2</th>
+                <th data-filterable data-col-key="workbench">Werkbank</th>
+                <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
+                <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
+                <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
+                <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
+                <th class="text-nowrap" data-filterable data-col-key="delivery-date" data-date-filter>Liefertermin</th>
+                <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
+                <th style="width: 45px;" data-filterable data-col-key="glass">Glas</th>
+                <th style="width: 55px;" data-filterable data-col-key="purchase">Zukauf</th>
+                <th data-filterable data-col-key="status">Status</th>
                 <th style="width: 80px;"></th>
                 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
                 {
@@ -80,7 +80,7 @@
                 }
                 @if (Model.PickerAssignmentEnabled)
                 {
-                    <th data-filterable data-col="picker">Kommissionierer</th>
+                    <th data-filterable data-col-key="picker">Kommissionierer</th>
                 }
             </tr>
         </thead>
@@ -373,8 +373,8 @@
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Default-Sortierung: Kommissionierung (col 10) aufsteigend
-            if (typeof triggerSort === 'function') triggerSort(10, 'asc');
+            // Default-Sortierung: Kommissionierung aufsteigend
+            if (typeof triggerSort === 'function') triggerSort('picking-date', 'asc');
 
             // Glas/Zukauf Checkbox-Toggle per AJAX
             document.querySelectorAll('.toggle-field').forEach(function (cb) {

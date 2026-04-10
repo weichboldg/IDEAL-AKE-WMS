@@ -37,17 +37,17 @@ else
         <table class="table table-striped table-hover mb-0 filterable-table">
             <thead>
                 <tr>
-                    <th style="width: 60px;" data-filterable data-col="0">Prio</th>
-                    <th data-filterable data-col="1">FA Nr.</th>
-                    <th data-filterable data-col="2">Artikelnummer</th>
-                    <th data-filterable data-col="3">Bezeichnung</th>
-                    <th data-filterable data-col="4">Kunde</th>
+                    <th style="width: 60px;" data-filterable data-col-key="priority">Prio</th>
+                    <th data-filterable data-col-key="order-number">FA Nr.</th>
+                    <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                    <th data-filterable data-col-key="description">Bezeichnung</th>
+                    <th data-filterable data-col-key="customer">Kunde</th>
                     <th class="text-end" style="width: 55px;">Stk.</th>
-                    <th data-filterable data-col="6" data-date-filter>Komm.-Termin</th>
-                    <th data-filterable data-col="7">Status</th>
+                    <th data-filterable data-col-key="picking-date" data-date-filter>Komm.-Termin</th>
+                    <th data-filterable data-col-key="status">Status</th>
                     @if (Model.PickerAssignmentEnabled)
                     {
-                        <th data-filterable data-col="8">Kommissionierer</th>
+                        <th data-filterable data-col-key="picker">Kommissionierer</th>
                     }
                 </tr>
             </thead>

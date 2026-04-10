@@ -28,7 +28,7 @@ else
             <table class="table table-striped mb-0 filterable-table">
                 <thead>
                     <tr>
-                        <th data-filterable data-col="0">Artikelgruppe</th>
+                        <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                         @foreach (var group in Model.AvailableGroups)
                         {
                             <th class="text-center" style="min-width: 120px;">@group.Name</th>
