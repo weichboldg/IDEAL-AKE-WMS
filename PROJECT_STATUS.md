@@ -39,10 +39,37 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Bedarfsmeldungen aus Stueckliste | Fertig |
 | Leitstand (Kommissionier-Freigabe + Priorisierung) | Fertig |
 | Kommissionierer-Zuweisung bei Freigabe | Fertig |
+| Individuell anpassbare Tabellenansichten (Spalten) | Fertig |
 
 ## Version
-- **Web-App**: v1.6.1 (09.04.2026)
-- **Service**: v1.4.0 (09.04.2026)
+- **Web-App**: v1.7.0 (10.04.2026)
+- **Service**: v1.7.0 (10.04.2026)
+
+## Aenderungen (10.04.2026)
+
+### v1.7.0 — Individuell anpassbare Tabellenansichten
+
+#### Neue Funktionen
+- **Spalten ein-/ausblenden**: Zahnrad-Icon oben rechts ueber der Tabelle oeffnet Einstellungs-Panel mit Checkboxen pro Spalte
+- **Spaltenreihenfolge per Drag & Drop**: In Fertigungsauftraege und Kommissionierliste koennen Spalten umsortiert werden
+- **Spaltenbreiten anpassen**: Ziehen am Spaltenrand, Doppelklick setzt Standard-Breite zurueck
+- **Standard-Sortierung festlegbar**: Pro View eine Spalte als Default-Sort (auf-/absteigend) konfigurierbar
+- **Rechtsklick-Kontextmenue**: Direkter Zugriff auf Spalten-Einstellungen per Rechtsklick auf Spaltenkopf
+- **"Auf Standard zuruecksetzen"**: Button im Einstellungs-Panel stellt Original-Konfiguration wieder her
+- **Per-User Persistierung**: Einstellungen werden automatisch gespeichert und pro Benutzer in der DB gespeichert
+- **Admin-Reset**: Administratoren koennen View-Einstellungen eines Benutzers im Benutzerstamm zuruecksetzen
+- **Verfuegbar in**: Fertigungsauftraege, Kommissionierliste, OSEON Teileverfolgung, Stueckliste
+
+#### Neue Dateien
+- `Models/UserViewPreference.cs` — Per-User View-Einstellungen Entity
+- `Models/ViewModels/ColumnDefinitions.cs` — Statische Spalten-Konfiguration pro View
+- `Data/Repositories/UserViewPreferenceRepository.cs` — CRUD fuer View-Einstellungen
+- `Controllers/Api/UserViewPreferencesApiController.cs` — REST API fuer View-Einstellungen
+- `wwwroot/js/column-preferences.js` — Client-seitige Spalten-Anpassung
+
+#### Technische Details
+- `data-col-key` Attribut ersetzt alte numerische `data-col` Attribute in allen Views
+- `column-preferences.js` dispatcht `column-preferences-ready` Event, `table-filter.js` wartet darauf
 
 ## Aenderungen (09.04.2026)
 

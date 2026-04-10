@@ -267,6 +267,8 @@ Anzeige in `_Layout.cshtml` als dismissable Bootstrap-Alerts.
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer ist, wird Beschichtungstermin fuer ALLE Auftraege berechnet (Verhalten wie vor v1.5.0). Erst wenn Setting gesetzt ist, wird gefiltert
 - **HasCoatingParts → IsCoatingDone Cascade**: Wenn `HasCoatingParts` von true auf false wechselt (BOM-Aenderung), wird `IsCoatingDone` automatisch zurueckgesetzt
 - **Kommissionierer-Zuweisung nachtraeglich aktiviert**: Wenn `KommissionierungMitZuweisung` nachtraeglich aktiviert wird, haben bereits freigegebene FAs keinen zugewiesenen Picker (`AssignedPickerId=NULL`). Sie erscheinen nur ueber "Alle anzeigen" in der Picking-Liste. Leitstand muss nachtraeglich Picker zuweisen
+- **data-col-key Pflicht**: Alle `<th>` in filterable-tables MUESSEN `data-col-key` Attribut haben (nicht mehr `data-col`). Bei neuen Spalten: Key in `ColumnDefinitions.cs` definieren und in View als `data-col-key` verwenden
+- **column-preferences Init-Reihenfolge**: `column-preferences.js` MUSS vor `table-filter.js` eingebunden werden. `column-preferences.js` dispatcht `column-preferences-ready` Event, `table-filter.js` wartet darauf
 
 ## Standard-Daten (Neuinstallation)
 
@@ -504,6 +506,11 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `IDEALAKEWMSService/Services/CoatingDetectionService.cs` — Lackierteil-Erkennung
 - `IDEALAKEWMSService/Models/BomCacheItem.cs` — Service-internes BOM-DTO
 - `SQL/40_AddBomCacheAndCoatingDetection.sql` — Migration fuer Cache-Tabellen + Coating-Flags
+- `Models/UserViewPreference.cs` — Per-User View-Einstellungen Entity (ViewKey, ColumnSettings JSON)
+- `Models/ViewModels/ColumnDefinitions.cs` — Statische Spalten-Konfiguration pro View (Keys, Defaults)
+- `Data/Repositories/UserViewPreferenceRepository.cs` — CRUD fuer View-Einstellungen
+- `Controllers/Api/UserViewPreferencesApiController.cs` — REST API fuer View-Einstellungen (GET/POST/DELETE)
+- `wwwroot/js/column-preferences.js` — Client-seitige Spalten-Anpassung (Zahnrad-Icon, Kontextmenue, Resize, Drag&Drop)
 
 ## Bestandsuebersicht
 
