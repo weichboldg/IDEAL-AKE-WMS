@@ -190,6 +190,7 @@ public class PickingController : Controller
         var categoryByArticle = await _articleAttributeRepository.GetCategoryNamesByArticleNumbersAsync(articleNumbers);
 
         var allStorageLocations = await _storageLocationRepository.GetAllOrderedExcludingPickingTransportAsync();
+        var targetStorageLocations = await _storageLocationRepository.GetPickingTransportLocationsAsync();
 
         // NAN-Lagerplatz als Default wenn kein Bestand
         var nanLocation = await _storageLocationRepository.GetByCodeAsync("NAN");
@@ -272,6 +273,7 @@ public class PickingController : Controller
             DefaultFilterBeschaffung = defaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
             AllStorageLocations = allStorageLocations,
+            TargetStorageLocations = targetStorageLocations,
             DataSource = bomResult.DataSource,
             RecursiveFilterSearch = recursiveFilterSearch
         };

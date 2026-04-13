@@ -22,6 +22,14 @@ public class StorageLocationRepository : Repository<StorageLocation>, IStorageLo
             .ToListAsync();
     }
 
+    public async Task<List<StorageLocation>> GetPickingTransportLocationsAsync()
+    {
+        return await _dbSet
+            .Where(sl => sl.IsPickingTransport)
+            .OrderBy(sl => sl.Code)
+            .ToListAsync();
+    }
+
     public async Task<StorageLocation?> GetByCodeAsync(string code)
     {
         return await _dbSet.FirstOrDefaultAsync(sl => sl.Code == code);

@@ -243,8 +243,8 @@
                     <label class="form-label">Ziel-Lagerplatz</label>
                     <div class="input-group">
                         <select name="targetStorageLocationId" class="form-select" id="TargetStorageLocationId" required>
-                            <option value="">-- Ziel-Lagerplatz wählen --</option>
-                            @foreach (var sl in Model.AllStorageLocations)
+                            <option value="">-- Wagen wählen --</option>
+                            @foreach (var sl in Model.TargetStorageLocations)
                             {
                                 <option value="@sl.Id">@sl.Code</option>
                             }
