@@ -425,6 +425,11 @@ Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonCo
 - `Controllers/Api/PhotoController.cs` — Foto-Upload/Download/Delete API
 - `Controllers/StockMovementsController.cs` — Ein/Aus/Umbuchung + OutboundAll
 - `Controllers/Api/ArticlesApiController.cs` — Select2-Suche für Artikel
+- `Controllers/Api/ProductionOrdersApiController.cs` — Toggle-Felder (Glas, Zukauf, Lack-T), Prioritaet, Select2-Suche
+- `Controllers/UsersController.cs` — CRUD Benutzer + ResetViewPreferences (Ansichts-Einstellungen zuruecksetzen)
+- `Controllers/WorkstationsController.cs` — CRUD Arbeitsstationen
+- `Controllers/StorageLocationsController.cs` — CRUD Lagerplaetze + Barcode-Etiketten drucken
+- `Controllers/ArticlesController.cs` — CRUD Artikel + Info-Seite (Bestand, Merkmale, FA-Verwendung)
 - `Filters/RequireMasterDataAccessAttribute.cs` — Zugriffskontrolle für Stammdaten
 - `Filters/RequirePickingOrTrackingAccessAttribute.cs` — Kombinierte Zugriffskontrolle (Picking ODER Tracking)
 - `Services/PickingTransferService.cs` — Umbuchen gepickter Artikel (Transaktion)
