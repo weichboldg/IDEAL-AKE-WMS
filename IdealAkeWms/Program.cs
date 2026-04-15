@@ -66,6 +66,7 @@ builder.Services.AddScoped<IUserViewPreferenceRepository, UserViewPreferenceRepo
 builder.Services.AddScoped<IBdeOperatorRepository, BdeOperatorRepository>();
 builder.Services.AddScoped<IBdeActivityRepository, BdeActivityRepository>();
 builder.Services.AddScoped<IBdeTerminalRepository, BdeTerminalRepository>();
+builder.Services.AddScoped<IBdeBookingRepository, BdeBookingRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
