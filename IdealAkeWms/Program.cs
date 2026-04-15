@@ -63,6 +63,7 @@ builder.Services.AddScoped<IPartRequisitionRepository, PartRequisitionRepository
 builder.Services.AddScoped<IArticleCategoryRepository, ArticleCategoryRepository>();
 builder.Services.AddScoped<IArticleAttributeRepository, ArticleAttributeRepository>();
 builder.Services.AddScoped<IUserViewPreferenceRepository, UserViewPreferenceRepository>();
+builder.Services.AddScoped<IBdeOperatorRepository, BdeOperatorRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
