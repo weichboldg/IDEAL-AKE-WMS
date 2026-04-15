@@ -121,6 +121,9 @@ using (var scope = app.Services.CreateScope())
         (RoleKeys.Tracking, "Teileverfolgung", "OSEON Teileverfolgung und Rückmeldungen", 50),
         (RoleKeys.Reporting, "Betriebsdaten (BDE)", "Arbeitsgänge stempeln und rückmelden", 60),
         (RoleKeys.Leitstand, "Leitstand", "Produktionsaufträge freigeben und priorisieren", 70),
+        (RoleKeys.BdeUser, "BDE-Mitarbeiter", "Terminal-Buchung: Arbeitsgänge scannen, Status wechseln, Mengen melden", 100),
+        (RoleKeys.BdeShiftlead, "BDE-Schichtleiter", "BDE-Anwender + Aktivitäts-Kategorien pflegen, Buchungsliste + Cockpit", 101),
+        (RoleKeys.BdeAdmin, "BDE-Admin", "Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren", 102),
     };
     foreach (var (key, name, description, sortOrder) in defaultRoles)
     {
