@@ -124,6 +124,66 @@ public class BdeMasterDataController : Controller
         return RedirectToAction(nameof(Index), new { tab = "operators" });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> EditActivity(int? id)
+    {
+        if (id == null)
+            return View(new BdeActivityEditViewModel());
+
+        var a = await _activityRepository.GetByIdAsync(id.Value);
+        if (a == null)
+            return NotFound();
+
+        return View(new BdeActivityEditViewModel
+        {
+            Id = a.Id,
+            Code = a.Code,
+            Name = a.Name,
+            IsActive = a.IsActive
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditActivity(BdeActivityEditViewModel vm)
+    {
+        if (!ModelState.IsValid)
+            return View(vm);
+
+        if (vm.Id == 0)
+        {
+            var a = new BdeActivity
+            {
+                Code = vm.Code,
+                Name = vm.Name,
+                IsActive = vm.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = _currentUserService.GetDisplayName(),
+                CreatedByWindows = _currentUserService.GetWindowsUserName()
+            };
+            await _activityRepository.AddAsync(a);
+            TempData["SuccessMessage"] = $"Aktivität '{a.Name}' wurde erfolgreich angelegt.";
+        }
+        else
+        {
+            var existing = await _activityRepository.GetByIdAsync(vm.Id);
+            if (existing == null)
+                return NotFound();
+
+            existing.Code = vm.Code;
+            existing.Name = vm.Name;
+            existing.IsActive = vm.IsActive;
+            existing.ModifiedAt = DateTime.UtcNow;
+            existing.ModifiedBy = _currentUserService.GetDisplayName();
+            existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+
+            await _activityRepository.UpdateAsync(existing);
+            TempData["SuccessMessage"] = $"Aktivität '{existing.Name}' wurde erfolgreich gespeichert.";
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "activities" });
+    }
+
     private async Task PopulateUsersAsync()
     {
         var users = await _userRepository.GetActiveUsersAsync();
