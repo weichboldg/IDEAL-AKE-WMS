@@ -93,7 +93,57 @@
                         <td class="text-end">@row.TotalScrap.ToString("0.##")</td>
                         <td>@row.Status</td>
                         <td>
-                            <a asp-action="Edit" asp-route-id="@row.Id" class="btn btn-sm btn-outline-primary">Bearbeiten</a>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-action="Edit" asp-route-id="@row.Id" class="btn btn-outline-primary">Bearbeiten</a>
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-@row.Id">Stornieren</button>
+                                @if (row.EndedAt == null)
+                                {
+                                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#closeModal-@row.Id">Manuell schließen</button>
+                                }
+                            </div>
+
+                            <div class="modal fade" id="cancelModal-@row.Id" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" asp-action="Cancel" asp-route-id="@row.Id" class="modal-content">
+                                        @Html.AntiForgeryToken()
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Buchung #@row.Id stornieren</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <label for="reason-@row.Id" class="form-label">Stornogrund</label>
+                                            <textarea id="reason-@row.Id" name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                            <button type="submit" class="btn btn-danger">Stornieren</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            @if (row.EndedAt == null)
+                            {
+                                <div class="modal fade" id="closeModal-@row.Id" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form method="post" asp-action="ManualClose" asp-route-id="@row.Id" class="modal-content">
+                                            @Html.AntiForgeryToken()
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Buchung #@row.Id manuell schließen</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <label for="endedAt-@row.Id" class="form-label">Endezeitpunkt</label>
+                                                <input type="datetime-local" id="endedAt-@row.Id" name="endedAt" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required />
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                <button type="submit" class="btn btn-warning">Schließen</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
                         </td>
                     </tr>
                 }
