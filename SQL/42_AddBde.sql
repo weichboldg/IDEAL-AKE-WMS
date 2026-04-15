@@ -27,6 +27,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTerminals_UserId' A
     CREATE UNIQUE INDEX [IX_BdeTerminals_UserId] ON [dbo].[BdeTerminals]([UserId]);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTerminals_DefaultProductionWorkplaceId' AND object_id = OBJECT_ID(N'dbo.BdeTerminals'))
+    CREATE INDEX [IX_BdeTerminals_DefaultProductionWorkplaceId] ON [dbo].[BdeTerminals]([DefaultProductionWorkplaceId]);
+GO
+
 -- 2) BdeOperators
 IF OBJECT_ID(N'dbo.BdeOperators', N'U') IS NULL
 BEGIN
@@ -147,6 +151,18 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_StartedAt'
     CREATE INDEX [IX_BdeBookings_StartedAt] ON [dbo].[BdeBookings]([StartedAt]);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_BdeActivityId' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_BdeActivityId] ON [dbo].[BdeBookings]([BdeActivityId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_BdeTerminalId' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_BdeTerminalId] ON [dbo].[BdeBookings]([BdeTerminalId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_ParentBookingId' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_ParentBookingId] ON [dbo].[BdeBookings]([ParentBookingId]);
+GO
+
 -- 5) BdeBookingQuantities
 IF OBJECT_ID(N'dbo.BdeBookingQuantities', N'U') IS NULL
 BEGIN
@@ -176,6 +192,10 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_Booking_Final' AND object_id = OBJECT_ID(N'dbo.BdeBookingQuantities'))
     CREATE UNIQUE INDEX [IX_BdeBookingQuantities_Booking_Final] ON [dbo].[BdeBookingQuantities]([BdeBookingId]) WHERE [IsFinal] = 1;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_BdeOperatorId' AND object_id = OBJECT_ID(N'dbo.BdeBookingQuantities'))
+    CREATE INDEX [IX_BdeBookingQuantities_BdeOperatorId] ON [dbo].[BdeBookingQuantities]([BdeOperatorId]);
 GO
 
 -- 6) Rollen-Seed (Role-Felder: Key, Name, Description, AdGroup, IsSystem, SortOrder)
