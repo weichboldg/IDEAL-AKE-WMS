@@ -1,0 +1,128 @@
+@model List<IdealAkeWms.Models.ViewModels.BdeBookingListViewModel>
+@{
+    ViewData["Title"] = "BDE-Buchungen";
+    var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
+    var workplaces = ViewBag.Workplaces as List<IdealAkeWms.Models.ProductionWorkplace> ?? new List<IdealAkeWms.Models.ProductionWorkplace>();
+    var filter = ViewBag.Filter;
+    int skip = (int)(filter?.skip ?? 0);
+    int take = (int)(filter?.take ?? 50);
+    int? operatorId = (int?)filter?.operatorId;
+    int? workplaceId = (int?)filter?.workplaceId;
+    DateTime? from = (DateTime?)filter?.from;
+    DateTime? to = (DateTime?)filter?.to;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="mb-0">BDE-Buchungen</h2>
+</div>
+
+<form method="get" class="card mb-3">
+    @Html.AntiForgeryToken()
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="from">Von</label>
+                <input type="date" id="from" name="from" class="form-control" value="@(from?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="to">Bis</label>
+                <input type="date" id="to" name="to" class="form-control" value="@(to?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="operatorId">Operator</label>
+                <select id="operatorId" name="operatorId" class="form-select">
+                    <option value="">— alle —</option>
+                    @foreach (var op in operators)
+                    {
+                        <option value="@op.Id" selected="@(operatorId == op.Id)">@op.DisplayName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="workplaceId">Werkbank</label>
+                <select id="workplaceId" name="workplaceId" class="form-select">
+                    <option value="">— alle —</option>
+                    @foreach (var wp in workplaces)
+                    {
+                        <option value="@wp.Id" selected="@(workplaceId == wp.Id)">@wp.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12">
+                <input type="hidden" name="take" value="@take" />
+                <button type="submit" class="btn btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Start</th>
+                <th>Ende</th>
+                <th>Operator</th>
+                <th>Werkbank</th>
+                <th>Typ</th>
+                <th>Ziel</th>
+                <th class="text-end">Gut</th>
+                <th class="text-end">Ausschuss</th>
+                <th>Status</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr><td colspan="10" class="text-center text-muted">Keine Buchungen gefunden.</td></tr>
+            }
+            else
+            {
+                foreach (var row in Model)
+                {
+                    <tr>
+                        <td>@row.StartedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@(row.EndedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                        <td>@row.OperatorName</td>
+                        <td>@row.WorkplaceName</td>
+                        <td>@row.BookingType</td>
+                        <td>@(row.Target ?? "—")</td>
+                        <td class="text-end">@row.TotalGood.ToString("0.##")</td>
+                        <td class="text-end">@row.TotalScrap.ToString("0.##")</td>
+                        <td>@row.Status</td>
+                        <td>
+                            <a asp-action="Edit" asp-route-id="@row.Id" class="btn btn-sm btn-outline-primary">Bearbeiten</a>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<nav aria-label="Paginierung">
+    <ul class="pagination">
+        @if (skip > 0)
+        {
+            var prevSkip = Math.Max(0, skip - take);
+            <li class="page-item">
+                <a class="page-link" asp-action="Index"
+                   asp-route-skip="@prevSkip" asp-route-take="@take"
+                   asp-route-operatorId="@operatorId" asp-route-workplaceId="@workplaceId"
+                   asp-route-from="@(from?.ToString("yyyy-MM-dd"))" asp-route-to="@(to?.ToString("yyyy-MM-dd"))">« Zurück</a>
+            </li>
+        }
+        @if (Model.Count >= take)
+        {
+            var nextSkip = skip + take;
+            <li class="page-item">
+                <a class="page-link" asp-action="Index"
+                   asp-route-skip="@nextSkip" asp-route-take="@take"
+                   asp-route-operatorId="@operatorId" asp-route-workplaceId="@workplaceId"
+                   asp-route-from="@(from?.ToString("yyyy-MM-dd"))" asp-route-to="@(to?.ToString("yyyy-MM-dd"))">Weiter »</a>
+            </li>
+        }
+    </ul>
+</nav>

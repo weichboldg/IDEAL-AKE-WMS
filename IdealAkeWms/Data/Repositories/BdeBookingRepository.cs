@@ -69,6 +69,7 @@ public class BdeBookingRepository : IBdeBookingRepository
             .Include(b => b.WorkOperation)
                 .ThenInclude(w => w!.ProductionOrder)
             .Include(b => b.BdeActivity)
+            .Include(b => b.Quantities)
             .Where(b => !b.IsCancelled);
 
         if (operatorId.HasValue)
