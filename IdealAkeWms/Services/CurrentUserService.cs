@@ -96,6 +96,15 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanManagePickingReleaseAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Leitstand);
 
+    public async Task<bool> CanUseBdeAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeUser, RoleKeys.BdeShiftlead, RoleKeys.BdeAdmin);
+
+    public async Task<bool> CanManageBdeShiftleadAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeShiftlead, RoleKeys.BdeAdmin);
+
+    public async Task<bool> CanManageBdeAdminAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeAdmin);
+
     private async Task<HashSet<string>> LoadRoleKeysAsync()
     {
         if (_cachedRoleKeys != null)
