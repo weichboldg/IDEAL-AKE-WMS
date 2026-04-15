@@ -60,4 +60,12 @@ public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperation
             .ThenBy(wo => wo.Sequence)
             .ToListAsync();
     }
+
+    public Task<WorkOperation?> GetByFaAndOperationAsync(string faNumber, string operationNumber) =>
+        _dbSet
+            .Include(w => w.ProductionOrder)
+            .Include(w => w.ProductionWorkplace)
+            .FirstOrDefaultAsync(w =>
+                w.ProductionOrder.OrderNumber == faNumber &&
+                w.OperationNumber == operationNumber);
 }

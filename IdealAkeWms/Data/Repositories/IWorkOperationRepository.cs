@@ -9,4 +9,5 @@ public interface IWorkOperationRepository : IRepository<WorkOperation>
     Task<List<WorkOperation>> GetAllWithOrderAndWorkplaceAsync();
     Task<List<WorkOperation>> GetByWorkplaceIdAsync(int workplaceId);
     Task<List<WorkOperation>> GetOpenByWorkplaceIdAsync(int workplaceId);
+    Task<WorkOperation?> GetByFaAndOperationAsync(string faNumber, string operationNumber);
 }

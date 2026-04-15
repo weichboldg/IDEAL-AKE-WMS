@@ -192,4 +192,51 @@ public class WorkOperationRepositoryExtendedTests
 
         result.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task GetByFaAndOperationAsync_ReturnsMatch_WithIncludes()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WorkOperationRepository(ctx);
+
+        var wp = CreateWorkplace("Werkbank FA");
+        ctx.ProductionWorkplaces.Add(wp);
+        var po = CreateProductionOrder("FA-100");
+        ctx.ProductionOrders.Add(po);
+        await ctx.SaveChangesAsync();
+
+        ctx.WorkOperations.Add(CreateOperation(po.Id, "10", "Zuschneiden", 1, wp.Id));
+        ctx.WorkOperations.Add(CreateOperation(po.Id, "20", "Schweissen", 2, wp.Id));
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetByFaAndOperationAsync("FA-100", "10");
+
+        result.Should().NotBeNull();
+        result!.OperationNumber.Should().Be("10");
+        result.Name.Should().Be("Zuschneiden");
+        result.ProductionOrder.Should().NotBeNull();
+        result.ProductionOrder.OrderNumber.Should().Be("FA-100");
+        result.ProductionWorkplace.Should().NotBeNull();
+        result.ProductionWorkplace!.Name.Should().Be("Werkbank FA");
+    }
+
+    [Fact]
+    public async Task GetByFaAndOperationAsync_ReturnsNull_WhenNotFound()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WorkOperationRepository(ctx);
+
+        var po = CreateProductionOrder("FA-100");
+        ctx.ProductionOrders.Add(po);
+        await ctx.SaveChangesAsync();
+
+        ctx.WorkOperations.Add(CreateOperation(po.Id, "10", "Op A", 1));
+        await ctx.SaveChangesAsync();
+
+        var missingOp = await repo.GetByFaAndOperationAsync("FA-100", "99");
+        var missingFa = await repo.GetByFaAndOperationAsync("FA-999", "10");
+
+        missingOp.Should().BeNull();
+        missingFa.Should().BeNull();
+    }
 }
