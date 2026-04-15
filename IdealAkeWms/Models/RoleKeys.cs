@@ -10,4 +10,7 @@ public static class RoleKeys
     public const string Tracking = "tracking";
     public const string Reporting = "reporting";
     public const string Leitstand = "leitstand";
+    public const string BdeUser = "bde_user";
+    public const string BdeShiftlead = "bde_shiftlead";
+    public const string BdeAdmin = "bde_admin";
 }
