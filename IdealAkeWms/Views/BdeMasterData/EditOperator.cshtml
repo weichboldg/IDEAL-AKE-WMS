@@ -1,0 +1,73 @@
+@model IdealAkeWms.Models.ViewModels.BdeOperatorEditViewModel
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Operator anlegen" : "Operator bearbeiten";
+    var users = ViewBag.Users as List<IdealAkeWms.Models.User> ?? new List<IdealAkeWms.Models.User>();
+}
+
+<h2 class="page-header">@ViewData["Title"]</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="EditOperator" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="PersonnelNumber" class="form-label"></label>
+                        <input asp-for="PersonnelNumber" class="form-control" autofocus />
+                        <span asp-validation-for="PersonnelNumber" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="FirstName" class="form-label"></label>
+                        <input asp-for="FirstName" class="form-control" />
+                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="LastName" class="form-label"></label>
+                        <input asp-for="LastName" class="form-control" />
+                        <span asp-validation-for="LastName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="UserId" class="form-label"></label>
+                        <select asp-for="UserId" class="form-select">
+                            <option value="">-- Kein WMS-Benutzer --</option>
+                            @foreach (var user in users)
+                            {
+                                if (Model.UserId == user.Id)
+                                {
+                                    <option value="@user.Id" selected>@user.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@user.Id">@user.Name</option>
+                                }
+                            }
+                        </select>
+                        <div class="form-text">Optionale Verknüpfung mit einem WMS-Benutzer.</div>
+                        <span asp-validation-for="UserId" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a asp-action="Index" asp-route-tab="operators" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

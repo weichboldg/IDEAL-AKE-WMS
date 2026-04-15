@@ -1,0 +1,91 @@
+@{
+    ViewData["Title"] = "BDE Stammdaten";
+    var tab = (ViewBag.Tab as string) ?? "operators";
+    var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">BDE Stammdaten</h2>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(tab == "operators" ? "active" : "")"
+           asp-action="Index" asp-route-tab="operators">Operatoren</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(tab == "activities" ? "active" : "")"
+           asp-action="Index" asp-route-tab="activities">Aktivitäten</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(tab == "terminals" ? "active" : "")"
+           asp-action="Index" asp-route-tab="terminals">Terminals</a>
+    </li>
+</ul>
+
+<div class="tab-content">
+    @if (tab == "operators")
+    {
+        <div class="tab-pane active">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="mb-0">Operatoren</h5>
+                <a asp-action="EditOperator" class="btn btn-primary">Neu anlegen</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Personalnummer</th>
+                            <th>Name</th>
+                            <th>Aktiv</th>
+                            <th>WMS-Benutzer</th>
+                            <th style="width: 100px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var op in operators)
+                        {
+                            <tr>
+                                <td>@op.PersonnelNumber</td>
+                                <td>@op.LastName @op.FirstName</td>
+                                <td>
+                                    @if (op.IsActive)
+                                    {
+                                        <span class="badge badge-active">Aktiv</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-inactive">Inaktiv</span>
+                                    }
+                                </td>
+                                <td>@(op.User?.Name ?? "-")</td>
+                                <td>
+                                    <a asp-action="EditOperator" asp-route-id="@op.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                </td>
+                            </tr>
+                        }
+                        @if (!operators.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Keine Operatoren vorhanden.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (tab == "activities")
+    {
+        <div class="tab-pane active">
+            <p class="text-muted">Folgt in späterer Phase.</p>
+        </div>
+    }
+    else if (tab == "terminals")
+    {
+        <div class="tab-pane active">
+            <p class="text-muted">Folgt in späterer Phase.</p>
+        </div>
+    }
+</div>
