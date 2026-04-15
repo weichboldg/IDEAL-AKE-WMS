@@ -38,6 +38,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<ArticleAttributeDefinition> ArticleAttributeDefinitions => Set<ArticleAttributeDefinition>();
     public DbSet<ArticleAttributeOption> ArticleAttributeOptions => Set<ArticleAttributeOption>();
     public DbSet<ArticleAttributeValue> ArticleAttributeValues => Set<ArticleAttributeValue>();
+    public DbSet<BdeActivity> BdeActivities => Set<BdeActivity>();
+    public DbSet<BdeBooking> BdeBookings => Set<BdeBooking>();
+    public DbSet<BdeBookingQuantity> BdeBookingQuantities => Set<BdeBookingQuantity>();
+    public DbSet<BdeOperator> BdeOperators => Set<BdeOperator>();
+    public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
     public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
     public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
@@ -681,6 +686,88 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // BDE: Terminals
+        modelBuilder.Entity<BdeTerminal>(entity =>
+        {
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DefaultProductionWorkplace).WithMany().HasForeignKey(e => e.DefaultProductionWorkplaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.UserId).IsUnique();
+        });
+
+        // BDE: Operators
+        modelBuilder.Entity<BdeOperator>(entity =>
+        {
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.PersonnelNumber).IsUnique();
+            entity.HasIndex(e => e.UserId).IsUnique().HasFilter("[UserId] IS NOT NULL");
+        });
+
+        // BDE: Activities
+        modelBuilder.Entity<BdeActivity>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        // BDE: Bookings
+        modelBuilder.Entity<BdeBooking>(entity =>
+        {
+            entity.HasOne(e => e.BdeOperator).WithMany().HasForeignKey(e => e.BdeOperatorId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ProductionWorkplace).WithMany().HasForeignKey(e => e.ProductionWorkplaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.BdeTerminal).WithMany().HasForeignKey(e => e.BdeTerminalId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.WorkOperation).WithMany().HasForeignKey(e => e.WorkOperationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.BdeActivity).WithMany().HasForeignKey(e => e.BdeActivityId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ParentBooking).WithMany().HasForeignKey(e => e.ParentBookingId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(e => e.BookingType).HasConversion<byte>();
+            entity.Property(e => e.Status).HasConversion<byte>();
+
+            entity.HasIndex(e => e.WorkOperationId)
+                .IsUnique()
+                .HasFilter("[EndedAt] IS NULL AND [IsCancelled] = 0 AND [WorkOperationId] IS NOT NULL")
+                .HasDatabaseName("IX_BdeBookings_WorkOperationId_Active");
+
+            entity.HasIndex(e => e.BdeOperatorId)
+                .IsUnique()
+                .HasFilter("[EndedAt] IS NULL AND [IsCancelled] = 0")
+                .HasDatabaseName("IX_BdeBookings_BdeOperatorId_Active");
+
+            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.EndedAt })
+                .HasDatabaseName("IX_BdeBookings_Workplace_EndedAt");
+
+            entity.HasIndex(e => new { e.BdeOperatorId, e.StartedAt })
+                .HasDatabaseName("IX_BdeBookings_Operator_StartedAt");
+
+            entity.HasIndex(e => e.StartedAt)
+                .HasDatabaseName("IX_BdeBookings_StartedAt");
+
+            entity.ToTable(t => t.HasCheckConstraint("CK_BdeBookings_Target",
+                "([WorkOperationId] IS NOT NULL AND [BdeActivityId] IS NULL) OR ([WorkOperationId] IS NULL AND [BdeActivityId] IS NOT NULL)"));
+
+            entity.ToTable(t => t.HasCheckConstraint("CK_BdeBookings_TypeTarget",
+                "([BookingType] = 3 AND [BdeActivityId] IS NOT NULL) OR ([BookingType] IN (1,2) AND [WorkOperationId] IS NOT NULL)"));
+
+            entity.ToTable(t => t.HasCheckConstraint("CK_BdeBookings_StatusEnded",
+                "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3) AND [EndedAt] IS NOT NULL)"));
+        });
+
+        // BDE: BookingQuantities
+        modelBuilder.Entity<BdeBookingQuantity>(entity =>
+        {
+            entity.HasOne(e => e.BdeBooking).WithMany(b => b.Quantities).HasForeignKey(e => e.BdeBookingId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.BdeOperator).WithMany().HasForeignKey(e => e.BdeOperatorId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(e => e.GoodQuantity).HasPrecision(18, 4);
+            entity.Property(e => e.ScrapQuantity).HasPrecision(18, 4);
+
+            entity.HasIndex(e => new { e.BdeBookingId, e.ReportedAt })
+                .HasDatabaseName("IX_BdeBookingQuantities_Booking_ReportedAt");
+
+            entity.HasIndex(e => e.BdeBookingId)
+                .IsUnique()
+                .HasFilter("[IsFinal] = 1")
+                .HasDatabaseName("IX_BdeBookingQuantities_Booking_Final");
         });
     }
 }
