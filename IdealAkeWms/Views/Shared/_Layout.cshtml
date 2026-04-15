@@ -36,6 +36,8 @@
                             var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
                             var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var releasedPickingCount = leitstandAktiv && canPick ? await ProductionOrderRepository.GetReleasedForPickingCountAsync() : 0;
+                            var canUseBde = await CurrentUserService.CanUseBdeAsync();
+                            var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -104,6 +106,24 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="Tracking" asp-action="Index">Rückmeldungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="Tracking" asp-action="OseonIndex">OSEON Aufträge</a></li>
+                                </ul>
+                            </li>
+                        }
+                        @if (canUseBde)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    BDE
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="BdeTerminal" asp-action="Index">Terminal</a></li>
+                                    @if (canManageBdeShiftlead)
+                                    {
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="BdeCockpit" asp-action="Index">Cockpit</a></li>
+                                        <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
+                                    }
                                 </ul>
                             </li>
                         }
