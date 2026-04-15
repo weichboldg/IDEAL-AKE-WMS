@@ -80,6 +80,7 @@ builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
 builder.Services.AddScoped<IPrintService, PrintService>();
 builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
 builder.Services.AddScoped<IOseonTrafficLightService, OseonTrafficLightService>();
+builder.Services.AddScoped<IBdeBookingService, BdeBookingService>();
 
 // MVC
 builder.Services.AddControllersWithViews();

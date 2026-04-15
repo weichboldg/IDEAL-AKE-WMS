@@ -85,6 +85,38 @@ public static class BdeBookingTestSeed
         };
     }
 
+    public static async Task<int> AddSecondWorkOperationAsync(ApplicationDbContext ctx, Ids ids)
+    {
+        var now = DateTime.Now;
+        var wo = new WorkOperation
+        {
+            ProductionOrderId = ids.ProductionOrderId,
+            OperationNumber = "20",
+            Name = "Second Operation",
+            ProductionWorkplaceId = ids.WorkplaceId,
+            Sequence = 20,
+            IsReportable = true,
+            CreatedAt = now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.WorkOperations.Add(wo);
+        await ctx.SaveChangesAsync();
+        return wo.Id;
+    }
+
+    public static async Task<int> AddSecondOperatorAsync(ApplicationDbContext ctx)
+    {
+        var now = DateTime.Now;
+        var op = new BdeOperator
+        {
+            PersonnelNumber = $"P2{Guid.NewGuid().ToString().Substring(0, 6)}",
+            FirstName = "Other", LastName = "Person", IsActive = true,
+            CreatedAt = now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.BdeOperators.Add(op);
+        await ctx.SaveChangesAsync();
+        return op.Id;
+    }
+
     public static BdeBooking NewBooking(Ids ids, BdeBookingType type, BdeBookingStatus status, DateTime startedAt, DateTime? endedAt = null, bool cancelled = false, int? workOperationId = null, int? activityId = null)
     {
         var now = DateTime.Now;
