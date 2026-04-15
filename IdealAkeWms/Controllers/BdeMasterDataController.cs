@@ -14,6 +14,7 @@ public class BdeMasterDataController : Controller
     private readonly IBdeActivityRepository _activityRepository;
     private readonly IBdeTerminalRepository _terminalRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IProductionWorkplaceRepository _workplaceRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public BdeMasterDataController(
@@ -21,12 +22,14 @@ public class BdeMasterDataController : Controller
         IBdeActivityRepository activityRepository,
         IBdeTerminalRepository terminalRepository,
         IUserRepository userRepository,
+        IProductionWorkplaceRepository workplaceRepository,
         ICurrentUserService currentUserService)
     {
         _operatorRepository = operatorRepository;
         _activityRepository = activityRepository;
         _terminalRepository = terminalRepository;
         _userRepository = userRepository;
+        _workplaceRepository = workplaceRepository;
         _currentUserService = currentUserService;
     }
 
@@ -182,6 +185,99 @@ public class BdeMasterDataController : Controller
         }
 
         return RedirectToAction(nameof(Index), new { tab = "activities" });
+    }
+
+    [HttpGet]
+    [RequireBdeAdminAccess]
+    public async Task<IActionResult> EditTerminal(int? id)
+    {
+        await LoadTerminalSelectListsAsync();
+
+        if (id == null)
+            return View(new BdeTerminalEditViewModel());
+
+        var t = await _terminalRepository.GetByIdAsync(id.Value);
+        if (t == null)
+            return NotFound();
+
+        return View(new BdeTerminalEditViewModel
+        {
+            Id = t.Id,
+            UserId = t.UserId,
+            DefaultProductionWorkplaceId = t.DefaultProductionWorkplaceId,
+            Description = t.Description
+        });
+    }
+
+    [HttpPost]
+    [RequireBdeAdminAccess]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditTerminal(BdeTerminalEditViewModel vm)
+    {
+        if (!ModelState.IsValid)
+        {
+            await LoadTerminalSelectListsAsync();
+            return View(vm);
+        }
+
+        if (vm.Id == 0)
+        {
+            var duplicate = await _terminalRepository.GetByUserIdAsync(vm.UserId);
+            if (duplicate != null)
+            {
+                ModelState.AddModelError(nameof(vm.UserId), "Dieser Benutzer ist bereits einem Terminal zugeordnet.");
+                await LoadTerminalSelectListsAsync();
+                return View(vm);
+            }
+
+            var t = new BdeTerminal
+            {
+                UserId = vm.UserId,
+                DefaultProductionWorkplaceId = vm.DefaultProductionWorkplaceId,
+                Description = vm.Description,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = _currentUserService.GetDisplayName(),
+                CreatedByWindows = _currentUserService.GetWindowsUserName()
+            };
+            await _terminalRepository.AddAsync(t);
+            TempData["SuccessMessage"] = "Terminal wurde erfolgreich angelegt.";
+        }
+        else
+        {
+            var existing = await _terminalRepository.GetByIdAsync(vm.Id);
+            if (existing == null)
+                return NotFound();
+
+            if (existing.UserId != vm.UserId)
+            {
+                var duplicate = await _terminalRepository.GetByUserIdAsync(vm.UserId);
+                if (duplicate != null && duplicate.Id != vm.Id)
+                {
+                    ModelState.AddModelError(nameof(vm.UserId), "Dieser Benutzer ist bereits einem Terminal zugeordnet.");
+                    await LoadTerminalSelectListsAsync();
+                    return View(vm);
+                }
+            }
+
+            existing.UserId = vm.UserId;
+            existing.DefaultProductionWorkplaceId = vm.DefaultProductionWorkplaceId;
+            existing.Description = vm.Description;
+            existing.ModifiedAt = DateTime.UtcNow;
+            existing.ModifiedBy = _currentUserService.GetDisplayName();
+            existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+
+            await _terminalRepository.UpdateAsync(existing);
+            TempData["SuccessMessage"] = "Terminal wurde erfolgreich gespeichert.";
+        }
+
+        return RedirectToAction(nameof(Index), new { tab = "terminals" });
+    }
+
+    private async Task LoadTerminalSelectListsAsync()
+    {
+        var users = await _userRepository.GetActiveUsersAsync();
+        ViewBag.AllUsers = users.OrderBy(u => u.Name).ToList();
+        ViewBag.AllWorkplaces = await _workplaceRepository.GetAllOrderedAsync();
     }
 
     private async Task PopulateUsersAsync()

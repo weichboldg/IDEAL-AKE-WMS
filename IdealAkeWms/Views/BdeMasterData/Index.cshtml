@@ -3,6 +3,7 @@
     var tab = (ViewBag.Tab as string) ?? "operators";
     var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
     var activities = ViewBag.Activities as List<IdealAkeWms.Models.BdeActivity> ?? new List<IdealAkeWms.Models.BdeActivity>();
+    var terminals = ViewBag.Terminals as List<IdealAkeWms.Models.BdeTerminal> ?? new List<IdealAkeWms.Models.BdeTerminal>();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -130,7 +131,42 @@
     else if (tab == "terminals")
     {
         <div class="tab-pane active">
-            <p class="text-muted">Folgt in späterer Phase.</p>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="mb-0">Terminals</h5>
+                <a asp-action="EditTerminal" class="btn btn-primary">Neu anlegen</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Benutzer</th>
+                            <th>Default-Werkbank</th>
+                            <th>Beschreibung</th>
+                            <th style="width: 100px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in terminals)
+                        {
+                            <tr>
+                                <td>@(t.User?.Name ?? "-")</td>
+                                <td>@(t.DefaultProductionWorkplace?.Name ?? "-")</td>
+                                <td>@t.Description</td>
+                                <td>
+                                    <a asp-action="EditTerminal" asp-route-id="@t.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                </td>
+                            </tr>
+                        }
+                        @if (!terminals.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">Keine Terminals vorhanden.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     }
 </div>

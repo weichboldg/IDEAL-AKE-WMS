@@ -1,0 +1,76 @@
+@model IdealAkeWms.Models.ViewModels.BdeTerminalEditViewModel
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Terminal anlegen" : "Terminal bearbeiten";
+    var allUsers = ViewBag.AllUsers as List<IdealAkeWms.Models.User> ?? new List<IdealAkeWms.Models.User>();
+    var allWorkplaces = ViewBag.AllWorkplaces as List<IdealAkeWms.Models.ProductionWorkplace> ?? new List<IdealAkeWms.Models.ProductionWorkplace>();
+}
+
+<h2 class="page-header">@ViewData["Title"]</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="EditTerminal" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="UserId" class="form-label"></label>
+                        <select asp-for="UserId" class="form-select">
+                            <option value="">-- Bitte wählen --</option>
+                            @foreach (var user in allUsers)
+                            {
+                                if (Model.UserId == user.Id)
+                                {
+                                    <option value="@user.Id" selected>@user.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@user.Id">@user.Name</option>
+                                }
+                            }
+                        </select>
+                        <div class="form-text">Benutzer, mit dem sich das Terminal anmeldet.</div>
+                        <span asp-validation-for="UserId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultProductionWorkplaceId" class="form-label"></label>
+                        <select asp-for="DefaultProductionWorkplaceId" class="form-select">
+                            <option value="">-- Bitte wählen --</option>
+                            @foreach (var wp in allWorkplaces)
+                            {
+                                if (Model.DefaultProductionWorkplaceId == wp.Id)
+                                {
+                                    <option value="@wp.Id" selected>@wp.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@wp.Id">@wp.Name</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="DefaultProductionWorkplaceId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a asp-action="Index" asp-route-tab="terminals" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
