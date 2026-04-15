@@ -13,14 +13,17 @@ public class BdeApiController : ControllerBase
     private readonly IBdeActivityRepository _activities;
     private readonly IBdeBookingRepository _bookings;
     private readonly IWorkOperationRepository _workOps;
+    private readonly IProductionWorkplaceRepository _workplaces;
 
     public BdeApiController(IBdeOperatorRepository ops, IBdeActivityRepository activities,
-        IBdeBookingRepository bookings, IWorkOperationRepository workOps)
+        IBdeBookingRepository bookings, IWorkOperationRepository workOps,
+        IProductionWorkplaceRepository workplaces)
     {
         _ops = ops;
         _activities = activities;
         _bookings = bookings;
         _workOps = workOps;
+        _workplaces = workplaces;
     }
 
     [HttpGet("operator/{personnelNumber}")]
@@ -73,6 +76,37 @@ public class BdeApiController : ControllerBase
                 bdeActivityId = b.BdeActivityId
             }
         });
+    }
+
+    [HttpGet("cockpit")]
+    [RequireBdeShiftleadAccess]
+    public async Task<IActionResult> GetCockpit()
+    {
+        var workplaces = await _workplaces.GetAllOrderedAsync();
+        var activeBookings = await _bookings.GetActiveCockpitAsync();
+
+        var tiles = workplaces.Select(wp =>
+        {
+            var b = activeBookings.FirstOrDefault(x => x.ProductionWorkplaceId == wp.Id);
+            if (b == null)
+                return new { workplaceId = wp.Id, workplaceName = wp.Name, status = "Idle",
+                    bookingType = (string?)null, operatorName = (string?)null, orderNumber = (string?)null,
+                    operationNumber = (string?)null, operationName = (string?)null, activityName = (string?)null,
+                    startedAt = (DateTime?)null, runtimeSeconds = 0 };
+            return new {
+                workplaceId = wp.Id, workplaceName = wp.Name,
+                status = b.Status.ToString(), bookingType = (string?)b.BookingType.ToString(),
+                operatorName = (string?)b.BdeOperator.DisplayName,
+                orderNumber = b.WorkOperation?.ProductionOrder.OrderNumber,
+                operationNumber = b.WorkOperation?.OperationNumber,
+                operationName = b.WorkOperation?.Name,
+                activityName = b.BdeActivity?.Name,
+                startedAt = (DateTime?)b.StartedAt,
+                runtimeSeconds = (int)(DateTime.Now - b.StartedAt).TotalSeconds
+            };
+        });
+
+        return Ok(new { workplaces = tiles, serverTime = DateTime.Now });
     }
 
     [HttpGet("workoperation/{id:int}/latest-paused")]

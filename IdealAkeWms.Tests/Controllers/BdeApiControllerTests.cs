@@ -13,9 +13,10 @@ public class BdeApiControllerTests
     private readonly Mock<IBdeActivityRepository> _activities = new();
     private readonly Mock<IBdeBookingRepository> _bookings = new();
     private readonly Mock<IWorkOperationRepository> _workOps = new();
+    private readonly Mock<IProductionWorkplaceRepository> _workplaces = new();
 
     private BdeApiController CreateController() =>
-        new(_ops.Object, _activities.Object, _bookings.Object, _workOps.Object);
+        new(_ops.Object, _activities.Object, _bookings.Object, _workOps.Object, _workplaces.Object);
 
     private static BdeOperator CreateOperator(int id, string personnelNumber, string firstName, string lastName)
     {

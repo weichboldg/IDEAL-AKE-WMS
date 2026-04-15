@@ -1,0 +1,11 @@
+@{ ViewData["Title"] = "BDE-Cockpit"; }
+
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<h2>BDE-Cockpit</h2>
+<div class="text-muted small mb-3">Live-Status aller Werkbänke · Server: <span id="serverTime">—</span></div>
+<div id="cockpitGrid" class="row g-3"></div>
+
+@section Scripts {
+    <script src="~/js/bde-cockpit.js" asp-append-version="true"></script>
+}
