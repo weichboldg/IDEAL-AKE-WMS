@@ -326,6 +326,40 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Betriebsdatenerfassung (BDE)</strong></div>
+            <div class="card-body">
+                <p>
+                    Die Betriebsdatenerfassung ermoeglicht die Scan-basierte Erfassung von Arbeitszeiten
+                    und Mengen an Fertigungsauftraegen. Das Modul umfasst ein Terminal fuer Werker,
+                    ein Live-Cockpit fuer Schichtleiter und Admin-Funktionen zur Buchungskorrektur.
+                </p>
+
+                <h6 class="mt-3">Rollen</h6>
+                <dl>
+                    <dt>bde_user</dt>
+                    <dd>Terminal-Buchung: Personalnummer scannen, Fertigungsauftrag/Arbeitsgang scannen,
+                        Status wechseln (Ruesten, Produktion, Pause, Fortsetzen, Beenden mit Mengen-Erfassung).</dd>
+
+                    <dt>bde_shiftlead</dt>
+                    <dd>Zusaetzlich: BDE-Stammdaten (Operatoren, Aktivitaets-Kategorien), Buchungsliste einsehen,
+                        Live-Cockpit mit 5-Sekunden-Refresh aller Werkbaenke.</dd>
+
+                    <dt>bde_admin</dt>
+                    <dd>Zusaetzlich: Buchungen korrigieren und stornieren (mit Begruendung),
+                        Terminal-Konfigurationen verwalten, vergessene Buchungen manuell schliessen.</dd>
+                </dl>
+
+                <h6 class="mt-3">Terminal-Flow</h6>
+                <ol>
+                    <li><strong>Personalnummer scannen</strong> &mdash; Operator wird identifiziert, offene Buchung wird angezeigt falls vorhanden.</li>
+                    <li><strong>FA/AG scannen</strong> &mdash; Fertigungsauftrag und Arbeitsgang werden erkannt.</li>
+                    <li><strong>Ruesten oder Produktion starten</strong> &mdash; Neuer Vorgang wird gebucht.</li>
+                    <li><strong>Pause oder Beenden</strong> &mdash; Laufenden Vorgang unterbrechen oder mit Gut-/Ausschussmenge abschliessen.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Kommissionierung</strong></div>
             <div class="card-body">
                 <p>
