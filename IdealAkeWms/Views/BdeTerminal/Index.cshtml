@@ -12,7 +12,14 @@
                 <select id="workplaceSwitch" class="form-select form-select-sm d-inline-block w-auto">
                     @foreach (var wp in (IEnumerable<dynamic>)ViewBag.AllWorkplaces)
                     {
-                        <option value="@wp.Id" selected="@(wp.Id == ViewBag.WorkplaceId)">@wp.Name</option>
+                        @if (wp.Id == (int)ViewBag.WorkplaceId)
+                        {
+                            <option value="@wp.Id" selected>@wp.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@wp.Id">@wp.Name</option>
+                        }
                     }
                 </select>
             </small>

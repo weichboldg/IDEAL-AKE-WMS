@@ -98,7 +98,7 @@ public class BdeMasterDataController : Controller
                 LastName = vm.LastName,
                 IsActive = vm.IsActive,
                 UserId = vm.UserId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = _currentUserService.GetDisplayName(),
                 CreatedByWindows = _currentUserService.GetWindowsUserName()
             };
@@ -116,7 +116,7 @@ public class BdeMasterDataController : Controller
             existing.LastName = vm.LastName;
             existing.IsActive = vm.IsActive;
             existing.UserId = vm.UserId;
-            existing.ModifiedAt = DateTime.UtcNow;
+            existing.ModifiedAt = DateTime.Now;
             existing.ModifiedBy = _currentUserService.GetDisplayName();
             existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
@@ -160,7 +160,7 @@ public class BdeMasterDataController : Controller
                 Code = vm.Code,
                 Name = vm.Name,
                 IsActive = vm.IsActive,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = _currentUserService.GetDisplayName(),
                 CreatedByWindows = _currentUserService.GetWindowsUserName()
             };
@@ -176,7 +176,7 @@ public class BdeMasterDataController : Controller
             existing.Code = vm.Code;
             existing.Name = vm.Name;
             existing.IsActive = vm.IsActive;
-            existing.ModifiedAt = DateTime.UtcNow;
+            existing.ModifiedAt = DateTime.Now;
             existing.ModifiedBy = _currentUserService.GetDisplayName();
             existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
@@ -235,7 +235,7 @@ public class BdeMasterDataController : Controller
                 UserId = vm.UserId,
                 DefaultProductionWorkplaceId = vm.DefaultProductionWorkplaceId,
                 Description = vm.Description,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = _currentUserService.GetDisplayName(),
                 CreatedByWindows = _currentUserService.GetWindowsUserName()
             };
@@ -262,7 +262,7 @@ public class BdeMasterDataController : Controller
             existing.UserId = vm.UserId;
             existing.DefaultProductionWorkplaceId = vm.DefaultProductionWorkplaceId;
             existing.Description = vm.Description;
-            existing.ModifiedAt = DateTime.UtcNow;
+            existing.ModifiedAt = DateTime.Now;
             existing.ModifiedBy = _currentUserService.GetDisplayName();
             existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 

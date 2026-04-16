@@ -1,4 +1,5 @@
 @model List<IdealAkeWms.Models.ViewModels.BdeBookingListViewModel>
+@inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @{
     ViewData["Title"] = "BDE-Buchungen";
     var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
@@ -10,6 +11,7 @@
     int? workplaceId = (int?)filter?.workplaceId;
     DateTime? from = (DateTime?)filter?.from;
     DateTime? to = (DateTime?)filter?.to;
+    var canAdminBde = await CurrentUserService.CanManageBdeAdminAsync();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -17,7 +19,6 @@
 </div>
 
 <form method="get" class="card mb-3">
-    @Html.AntiForgeryToken()
     <div class="card-body">
         <div class="row g-2 align-items-end">
             <div class="col-md-3">
@@ -34,7 +35,14 @@
                     <option value="">— alle —</option>
                     @foreach (var op in operators)
                     {
-                        <option value="@op.Id" selected="@(operatorId == op.Id)">@op.DisplayName</option>
+                        @if (operatorId == op.Id)
+                        {
+                            <option value="@op.Id" selected>@op.DisplayName</option>
+                        }
+                        else
+                        {
+                            <option value="@op.Id">@op.DisplayName</option>
+                        }
                     }
                 </select>
             </div>
@@ -44,7 +52,14 @@
                     <option value="">— alle —</option>
                     @foreach (var wp in workplaces)
                     {
-                        <option value="@wp.Id" selected="@(workplaceId == wp.Id)">@wp.Name</option>
+                        @if (workplaceId == wp.Id)
+                        {
+                            <option value="@wp.Id" selected>@wp.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@wp.Id">@wp.Name</option>
+                        }
                     }
                 </select>
             </div>
@@ -70,7 +85,10 @@
                 <th class="text-end">Gut</th>
                 <th class="text-end">Ausschuss</th>
                 <th>Status</th>
-                <th>Aktionen</th>
+                @if (canAdminBde)
+                {
+                    <th>Aktionen</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -93,56 +111,59 @@
                         <td class="text-end">@row.TotalScrap.ToString("0.##")</td>
                         <td>@row.Status</td>
                         <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a asp-action="Edit" asp-route-id="@row.Id" class="btn btn-outline-primary">Bearbeiten</a>
-                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-@row.Id">Stornieren</button>
-                                @if (row.EndedAt == null)
-                                {
-                                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#closeModal-@row.Id">Manuell schließen</button>
-                                }
-                            </div>
-
-                            <div class="modal fade" id="cancelModal-@row.Id" tabindex="-1" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <form method="post" asp-action="Cancel" asp-route-id="@row.Id" class="modal-content">
-                                        @Html.AntiForgeryToken()
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Buchung #@row.Id stornieren</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <label for="reason-@row.Id" class="form-label">Stornogrund</label>
-                                            <textarea id="reason-@row.Id" name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                            <button type="submit" class="btn btn-danger">Stornieren</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-                            @if (row.EndedAt == null)
+                            @if (canAdminBde)
                             {
-                                <div class="modal fade" id="closeModal-@row.Id" tabindex="-1" aria-hidden="true">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a asp-action="Edit" asp-route-id="@row.Id" class="btn btn-outline-primary">Bearbeiten</a>
+                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-@row.Id">Stornieren</button>
+                                    @if (row.EndedAt == null)
+                                    {
+                                        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#closeModal-@row.Id">Manuell schließen</button>
+                                    }
+                                </div>
+
+                                <div class="modal fade" id="cancelModal-@row.Id" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog">
-                                        <form method="post" asp-action="ManualClose" asp-route-id="@row.Id" class="modal-content">
+                                        <form method="post" asp-action="Cancel" asp-route-id="@row.Id" class="modal-content">
                                             @Html.AntiForgeryToken()
                                             <div class="modal-header">
-                                                <h5 class="modal-title">Buchung #@row.Id manuell schließen</h5>
+                                                <h5 class="modal-title">Buchung #@row.Id stornieren</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                             </div>
                                             <div class="modal-body">
-                                                <label for="endedAt-@row.Id" class="form-label">Endezeitpunkt</label>
-                                                <input type="datetime-local" id="endedAt-@row.Id" name="endedAt" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required />
+                                                <label for="reason-@row.Id" class="form-label">Stornogrund</label>
+                                                <textarea id="reason-@row.Id" name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                                <button type="submit" class="btn btn-warning">Schließen</button>
+                                                <button type="submit" class="btn btn-danger">Stornieren</button>
                                             </div>
                                         </form>
                                     </div>
                                 </div>
+
+                                @if (row.EndedAt == null)
+                                {
+                                    <div class="modal fade" id="closeModal-@row.Id" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form method="post" asp-action="ManualClose" asp-route-id="@row.Id" class="modal-content">
+                                                @Html.AntiForgeryToken()
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Buchung #@row.Id manuell schließen</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <label for="endedAt-@row.Id" class="form-label">Endezeitpunkt</label>
+                                                    <input type="datetime-local" id="endedAt-@row.Id" name="endedAt" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required />
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                                    <button type="submit" class="btn btn-warning">Schließen</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                }
                             }
                         </td>
                     </tr>
