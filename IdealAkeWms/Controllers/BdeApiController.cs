@@ -64,6 +64,9 @@ public class BdeApiController : ControllerBase
     {
         var b = await _bookings.GetActiveForOperatorAsync(id);
         if (b == null) return Ok(new { booking = (object?)null });
+        var target = b.WorkOperation != null
+            ? $"{b.WorkOperation.ProductionOrder.OrderNumber}/{b.WorkOperation.OperationNumber} — {b.WorkOperation.Name}"
+            : b.BdeActivity?.Name;
         return Ok(new
         {
             booking = new
@@ -73,9 +76,36 @@ public class BdeApiController : ControllerBase
                 status = b.Status.ToString(),
                 startedAt = b.StartedAt,
                 workOperationId = b.WorkOperationId,
-                bdeActivityId = b.BdeActivityId
+                bdeActivityId = b.BdeActivityId,
+                target,
+                workplaceName = b.ProductionWorkplace?.Name
             }
         });
+    }
+
+    [HttpGet("operator/{id:int}/today-history")]
+    public async Task<IActionResult> GetOperatorTodayHistory(int id)
+    {
+        var today = DateTime.Today;
+        var tomorrow = today.AddDays(1);
+        var bookings = await _bookings.GetHistoryAsync(0, 50, operatorId: id, workplaceId: null, from: today, to: tomorrow);
+        var items = bookings.Select(b => new
+        {
+            id = b.Id,
+            bookingType = b.BookingType.ToString(),
+            status = b.Status.ToString(),
+            startedAt = b.StartedAt,
+            endedAt = b.EndedAt,
+            target = b.WorkOperation != null
+                ? $"{b.WorkOperation.ProductionOrder.OrderNumber}/{b.WorkOperation.OperationNumber} — {b.WorkOperation.Name}"
+                : b.BdeActivity?.Name,
+            totalGood = b.Quantities.Sum(q => q.GoodQuantity),
+            totalScrap = b.Quantities.Sum(q => q.ScrapQuantity),
+            durationMinutes = b.EndedAt.HasValue
+                ? (int)(b.EndedAt.Value - b.StartedAt).TotalMinutes
+                : (int)(DateTime.Now - b.StartedAt).TotalMinutes
+        });
+        return Ok(items);
     }
 
     [HttpGet("cockpit")]

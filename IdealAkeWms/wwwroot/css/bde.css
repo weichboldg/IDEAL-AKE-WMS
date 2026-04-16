@@ -21,3 +21,7 @@
 }
 .bde-op-btn { min-height: 50px; white-space: normal; text-align: left; }
 .cockpit-booking { font-size: 0.95rem; }
+
+#toastContainer .toast { min-width: 250px; font-size: 1.1rem; }
+#todayHistory .table { font-size: 0.9rem; }
+#todayHistory .badge { font-size: 0.8rem; }
