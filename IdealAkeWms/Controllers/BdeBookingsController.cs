@@ -29,6 +29,13 @@ public class BdeBookingsController : Controller
 
     public async Task<IActionResult> Index(int skip = 0, int take = 50, int? operatorId = null, int? workplaceId = null, DateTime? from = null, DateTime? to = null)
     {
+        // Default to today if no date filter provided
+        if (!from.HasValue && !to.HasValue)
+        {
+            from = DateTime.Today;
+            to = DateTime.Today.AddDays(1);
+        }
+
         var list = await _repo.GetHistoryAsync(skip, take, operatorId, workplaceId, from, to);
         var vms = list.Select(b => new BdeBookingListViewModel
         {

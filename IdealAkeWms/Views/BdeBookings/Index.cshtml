@@ -1,5 +1,6 @@
 @model List<IdealAkeWms.Models.ViewModels.BdeBookingListViewModel>
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
+@using System.Globalization
 @{
     ViewData["Title"] = "BDE-Buchungen";
     var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
@@ -12,6 +13,14 @@
     DateTime? from = (DateTime?)filter?.from;
     DateTime? to = (DateTime?)filter?.to;
     var canAdminBde = await CurrentUserService.CanManageBdeAdminAsync();
+
+    string FormatDateWithKw(DateTime? date)
+    {
+        if (!date.HasValue) return "";
+        var d = date.Value;
+        var kw = ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy HH:mm} KW{kw}";
+    }
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -101,8 +110,8 @@
                 foreach (var row in Model)
                 {
                     <tr>
-                        <td data-col-key="started-at">@row.StartedAt.ToString("dd.MM.yyyy HH:mm")</td>
-                        <td data-col-key="ended-at">@(row.EndedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                        <td data-col-key="started-at">@FormatDateWithKw(row.StartedAt)</td>
+                        <td data-col-key="ended-at">@(row.EndedAt.HasValue ? FormatDateWithKw(row.EndedAt) : "—")</td>
                         <td data-col-key="operator">@row.OperatorName</td>
                         <td data-col-key="workplace">@row.WorkplaceName</td>
                         <td data-col-key="booking-type">@row.BookingType</td>
