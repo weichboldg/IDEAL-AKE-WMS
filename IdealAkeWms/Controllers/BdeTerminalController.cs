@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireBdeActive]
 [RequireBdeUserAccess]
 public class BdeTerminalController : Controller
 {

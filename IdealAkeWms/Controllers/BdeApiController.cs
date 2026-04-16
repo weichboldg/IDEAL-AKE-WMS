@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireBdeActive]
 [ApiController]
 [Route("api/bde")]
 [RequireBdeUserAccess]

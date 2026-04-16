@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireBdeActive]
 [RequireBdeShiftleadAccess]
 public class BdeCockpitController : Controller
 {

@@ -7,6 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireBdeActive]
 [RequireBdeShiftleadAccess]
 public class BdeMasterDataController : Controller
 {
