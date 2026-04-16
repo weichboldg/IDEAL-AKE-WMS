@@ -496,7 +496,10 @@ BEGIN
         ('BestellungenAktiv', 'false', 'Bedarfsmeldungen aus Stueckliste aktivieren'),
         ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren'),
         ('KommissionierungMitZuweisung', 'false', 'Kommissionierung mit Anwenderzuweisung aktivieren'),
-        ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv');
+        ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv'),
+        ('BdeAktiv', 'false', 'BDE-Modul (Betriebsdatenerfassung) aktivieren'),
+        ('BdeNurFaMeldung', 'false', 'Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge'),
+        ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO

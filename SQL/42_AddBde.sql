@@ -214,7 +214,23 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'bde_admin')
     VALUES ('bde_admin','BDE-Admin','Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren',NULL,1,102,GETDATE(),'System','System');
 GO
 
--- 7) __EFMigrationsHistory
+-- 8) BDE AppSettings
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key],[Value],[Description])
+    VALUES ('BdeAktiv','false','BDE-Modul (Betriebsdatenerfassung) aktivieren');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeNurFaMeldung')
+    INSERT INTO [dbo].[AppSettings] ([Key],[Value],[Description])
+    VALUES ('BdeNurFaMeldung','false','Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeDefaultArbeitsgang')
+    INSERT INTO [dbo].[AppSettings] ([Key],[Value],[Description])
+    VALUES ('BdeDefaultArbeitsgang','','Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)');
+GO
+
+-- 9) __EFMigrationsHistory
 IF NOT EXISTS (SELECT 1 FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260415121811_AddBde')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId],[ProductVersion])
     VALUES ('20260415121811_AddBde','10.0.0');

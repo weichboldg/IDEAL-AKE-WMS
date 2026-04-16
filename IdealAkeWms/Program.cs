@@ -260,6 +260,27 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
+    // BDE Settings
+    var bdeSettings = new (string Key, string Value, string Description)[]
+    {
+        ("BdeAktiv", "false", "BDE-Modul (Betriebsdatenerfassung) aktivieren"),
+        ("BdeNurFaMeldung", "false", "Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge"),
+        ("BdeDefaultArbeitsgang", "", "Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)"),
+    };
+    foreach (var (key, value, description) in bdeSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
     // Fehlende Settings nachseeden (wurden in SQL-Migrationen aber nicht im Seeding angelegt)
     var missingSettings = new (string Key, string Value, string Description)[]
     {
