@@ -32,14 +32,34 @@
     <div class="row g-3">
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header">Scannen</div>
+                <div class="card-header">1. Operator</div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Personalnummer oder FA-AG scannen</label>
-                        <input type="text" id="scanInput" class="form-control form-control-lg" autofocus placeholder="Scannen…" />
+                    <div id="operatorInfo" class="d-none mb-3">
+                        <div class="bde-operator-badge">
+                            <span id="operatorName" class="fw-bold fs-4"></span>
+                            <button id="btnChangeOperator" class="btn btn-sm btn-outline-secondary ms-2">Wechseln</button>
+                        </div>
                     </div>
-                    <div id="scanFeedback" class="small text-muted"></div>
-                    <button id="btnActivity" class="btn btn-outline-secondary mt-2">Ungeplante Tätigkeit</button>
+                    <div id="operatorScan">
+                        <div class="input-group">
+                            <input type="text" id="scanOperator" class="form-control form-control-lg" placeholder="Personalnummer scannen…" autofocus />
+                            <button id="btnScanOperator" class="btn btn-primary btn-lg">Scannen</button>
+                        </div>
+                        <div id="operatorFeedback" class="small text-danger mt-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3" id="operationsCard" style="display:none">
+                <div class="card-header">2. Arbeitsgang wählen</div>
+                <div class="card-body">
+                    <div id="operationButtons"></div>
+                    <hr />
+                    <div class="input-group mt-2">
+                        <input type="text" id="scanFaAg" class="form-control" placeholder="Oder FA-Nr,AG-Nr scannen…" />
+                        <button id="btnScanFaAg" class="btn btn-outline-primary">Scannen</button>
+                    </div>
+                    <div id="faAgFeedback" class="small text-danger mt-1"></div>
                 </div>
             </div>
         </div>

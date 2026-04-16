@@ -8,49 +8,73 @@
     let currentOperator = null;   // {id, displayName}
     let currentWorkOp = null;     // {id, orderNumber, operationNumber, name}
 
-    const scanInput = document.getElementById('scanInput');
-    const scanFeedback = document.getElementById('scanFeedback');
     const currentBooking = document.getElementById('currentBooking');
     const actionPanel = document.getElementById('actionPanel');
 
-    // Scan-Handler: Enter-Taste = Scan abgeschlossen
-    scanInput.addEventListener('keydown', async (e) => {
-        if (e.key !== 'Enter') return;
-        e.preventDefault();
-        const raw = scanInput.value.trim();
-        scanInput.value = '';
-        if (!raw) return;
-        await handleScan(raw);
+    // --- Operator Scan ---
+    document.getElementById('btnScanOperator').addEventListener('click', scanOperatorInput);
+    document.getElementById('scanOperator').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); scanOperatorInput(); }
     });
 
-    async function handleScan(raw) {
-        // Heuristik: enthält Komma oder Bindestrich + nur Ziffern-Prefix → FA-AG
-        // Alles andere → Personalnummer
-        // (Für Produktion ggf. mit Prefix-Konvention aus QR-Code arbeiten)
-        if (/^[A-Z0-9\-]+,[0-9]+/i.test(raw) || raw.includes('/')) {
-            await scanFaAg(raw);
-        } else {
-            await scanOperator(raw);
-        }
-        renderState();
-    }
-
-    async function scanOperator(personnelNumber) {
-        const r = await fetch(`/api/bde/operator/${encodeURIComponent(personnelNumber)}`);
-        if (!r.ok) { scanFeedback.textContent = 'Unbekannte Personalnummer'; return; }
+    async function scanOperatorInput() {
+        const input = document.getElementById('scanOperator');
+        const raw = input.value.trim();
+        input.value = '';
+        if (!raw) return;
+        const feedback = document.getElementById('operatorFeedback');
+        const r = await fetch(`/api/bde/operator/${encodeURIComponent(raw)}`);
+        if (!r.ok) { feedback.textContent = 'Unbekannte Personalnummer'; return; }
         currentOperator = await r.json();
-        scanFeedback.textContent = `Operator: ${currentOperator.displayName}`;
+        feedback.textContent = '';
+        showOperatorBadge();
+        await renderState();
     }
 
-    async function scanFaAg(raw) {
-        // Format erwartet: "FA-123456,10" oder "FA-123456/10"
-        const [fa, op] = raw.split(/[,\/]/);
-        const r = await fetch(`/api/bde/workoperation?faNumber=${encodeURIComponent(fa)}&opNumber=${encodeURIComponent(op)}`);
-        if (!r.ok) { scanFeedback.textContent = 'Arbeitsgang nicht gefunden'; return; }
+    function showOperatorBadge() {
+        document.getElementById('operatorName').textContent = currentOperator.displayName;
+        document.getElementById('operatorInfo').classList.remove('d-none');
+        document.getElementById('operatorScan').classList.add('d-none');
+        document.getElementById('operationsCard').style.display = '';
+    }
+
+    document.getElementById('btnChangeOperator').addEventListener('click', () => {
+        currentOperator = null;
+        currentWorkOp = null;
+        document.getElementById('operatorInfo').classList.add('d-none');
+        document.getElementById('operatorScan').classList.remove('d-none');
+        document.getElementById('operationsCard').style.display = 'none';
+        document.getElementById('operationButtons').innerHTML = '';
+        document.getElementById('scanOperator').focus();
+        actionPanel.innerHTML = '';
+    });
+
+    // --- FA/AG Scan ---
+    document.getElementById('btnScanFaAg').addEventListener('click', scanFaAgInput);
+    document.getElementById('scanFaAg').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); scanFaAgInput(); }
+    });
+
+    async function scanFaAgInput() {
+        const input = document.getElementById('scanFaAg');
+        const raw = input.value.trim();
+        input.value = '';
+        if (!raw) return;
+        const feedback = document.getElementById('faAgFeedback');
+        const parts = raw.split(/[,\/]/);
+        if (parts.length < 2) {
+            feedback.textContent = 'Format: FA-Nummer,AG-Nummer oder FA-Nummer/AG-Nummer';
+            return;
+        }
+        const [fa, op] = parts;
+        const r = await fetch(`/api/bde/workoperation?faNumber=${encodeURIComponent(fa.trim())}&opNumber=${encodeURIComponent(op.trim())}`);
+        if (!r.ok) { feedback.textContent = 'Arbeitsgang nicht gefunden'; return; }
         currentWorkOp = await r.json();
-        scanFeedback.textContent = `AG: ${currentWorkOp.orderNumber} / ${currentWorkOp.operationNumber} — ${currentWorkOp.name}`;
+        feedback.textContent = '';
+        await renderState();
     }
 
+    // --- State Rendering ---
     async function renderState() {
         if (!currentOperator) { actionPanel.innerHTML = '<em class="text-muted">Zuerst Operator scannen</em>'; return; }
         // Laufende Buchung holen
@@ -67,7 +91,7 @@
         bindActionHandlers();
     }
 
-    function renderActive(b) { /* HTML für aktive Buchung */ return `<strong>${b.bookingType}</strong> seit ${new Date(b.startedAt).toLocaleTimeString()}`; }
+    function renderActive(b) { return `<strong>${b.bookingType}</strong> seit ${new Date(b.startedAt).toLocaleTimeString()}`; }
     function renderActionsForActive(b) {
         if (b.status === 'Running' && b.bookingType === 'Setup') return buttons(['pause','finishSetup','startProduction']);
         if (b.status === 'Running' && b.bookingType === 'Production') return buttons(['pause','reportPartial','finish']);
@@ -115,7 +139,7 @@
                 `AG ist bereits in Arbeit durch ${json.collidingOperator} an ${json.collidingWorkplace} seit ${new Date(json.collidingSince).toLocaleTimeString()}.`;
             bootstrap.Modal.getOrCreateInstance(document.getElementById('collisionModal')).show();
         } else if (json.outcome === 'QuantityRequired') {
-            scanFeedback.textContent = 'Mengen-Eingabe erforderlich — bitte aktuelle Buchung beenden.';
+            document.getElementById('faAgFeedback').textContent = 'Mengen-Eingabe erforderlich — bitte aktuelle Buchung beenden.';
         }
     }
 
@@ -136,15 +160,9 @@
         });
     }
 
-    // Aktivitäts-Flow
-    document.getElementById('btnActivity').addEventListener('click', async () => {
-        if (!currentOperator) { scanFeedback.textContent = 'Zuerst Operator scannen'; return; }
-        const r = await fetch('/api/bde/activities');
-        const list = await r.json();
-        const sel = document.getElementById('activitySelect');
-        sel.innerHTML = list.map(a => `<option value="${a.id}">${a.code} — ${a.name}</option>`).join('');
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('activityModal')).show();
-    });
+    // Aktivitäts-Flow (via modal — still reachable from activity modal)
+    // The activityModal is kept for backward compatibility; Task 3 will add AG buttons
+    // to #operationButtons including unplanned activities
     document.getElementById('btnActivityOk').addEventListener('click', async () => {
         const activityId = parseInt(document.getElementById('activitySelect').value);
         bootstrap.Modal.getOrCreateInstance(document.getElementById('activityModal')).hide();
