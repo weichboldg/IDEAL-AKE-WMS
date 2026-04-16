@@ -122,12 +122,36 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// BdeBookings/Index.cshtml columns.
+    /// Conditional columns:
+    ///   - "actions" : rendered only when canAdminBde
+    /// </summary>
+    public static readonly ViewConfig BdeBookings = new("BdeBookings", "BDE-Buchungen", SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("started-at",   "Start",       Locked: false),
+            new ColumnDef("ended-at",     "Ende",        Locked: false),
+            new ColumnDef("operator",     "Operator",    Locked: false),
+            new ColumnDef("workplace",    "Werkbank",    Locked: false),
+            new ColumnDef("booking-type", "Typ",         Locked: false),
+            new ColumnDef("target",       "Ziel",        Locked: false),
+            new ColumnDef("good-qty",     "Gut",         Locked: false),
+            new ColumnDef("scrap-qty",    "Ausschuss",   Locked: false),
+            new ColumnDef("status",       "Status",      Locked: false),
+            // Conditional: only when canAdminBde
+            new ColumnDef("actions",      "Aktionen",    Locked: true),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
         "Picking"          => Picking,
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,
+        "BdeBookings"      => BdeBookings,
         _                  => null
     };
 }

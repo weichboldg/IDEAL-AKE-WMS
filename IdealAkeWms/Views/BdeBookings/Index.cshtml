@@ -73,21 +73,21 @@
 </form>
 
 <div class="table-responsive">
-    <table class="table table-striped table-hover align-middle">
+    <table class="table table-striped table-hover align-middle filterable-table" data-view-key="BdeBookings" data-fallback-sort-column="started-at" data-fallback-sort-direction="desc">
         <thead>
             <tr>
-                <th>Start</th>
-                <th>Ende</th>
-                <th>Operator</th>
-                <th>Werkbank</th>
-                <th>Typ</th>
-                <th>Ziel</th>
-                <th class="text-end">Gut</th>
-                <th class="text-end">Ausschuss</th>
-                <th>Status</th>
+                <th data-filterable data-col-key="started-at" data-date-filter>Start</th>
+                <th data-filterable data-col-key="ended-at" data-date-filter>Ende</th>
+                <th data-filterable data-col-key="operator">Operator</th>
+                <th data-filterable data-col-key="workplace">Werkbank</th>
+                <th data-filterable data-col-key="booking-type">Typ</th>
+                <th data-filterable data-col-key="target">Ziel</th>
+                <th class="text-end" data-filterable data-col-key="good-qty">Gut</th>
+                <th class="text-end" data-filterable data-col-key="scrap-qty">Ausschuss</th>
+                <th data-filterable data-col-key="status">Status</th>
                 @if (canAdminBde)
                 {
-                    <th>Aktionen</th>
+                    <th data-col-key="actions">Aktionen</th>
                 }
             </tr>
         </thead>
@@ -101,16 +101,16 @@
                 foreach (var row in Model)
                 {
                     <tr>
-                        <td>@row.StartedAt.ToString("dd.MM.yyyy HH:mm")</td>
-                        <td>@(row.EndedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
-                        <td>@row.OperatorName</td>
-                        <td>@row.WorkplaceName</td>
-                        <td>@row.BookingType</td>
-                        <td>@(row.Target ?? "—")</td>
-                        <td class="text-end">@row.TotalGood.ToString("0.##")</td>
-                        <td class="text-end">@row.TotalScrap.ToString("0.##")</td>
-                        <td>@row.Status</td>
-                        <td>
+                        <td data-col-key="started-at">@row.StartedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td data-col-key="ended-at">@(row.EndedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                        <td data-col-key="operator">@row.OperatorName</td>
+                        <td data-col-key="workplace">@row.WorkplaceName</td>
+                        <td data-col-key="booking-type">@row.BookingType</td>
+                        <td data-col-key="target">@(row.Target ?? "—")</td>
+                        <td class="text-end" data-col-key="good-qty">@row.TotalGood.ToString("0.##")</td>
+                        <td class="text-end" data-col-key="scrap-qty">@row.TotalScrap.ToString("0.##")</td>
+                        <td data-col-key="status">@row.Status</td>
+                        <td data-col-key="actions">
                             @if (canAdminBde)
                             {
                                 <div class="btn-group btn-group-sm" role="group">
@@ -197,3 +197,8 @@
         }
     </ul>
 </nav>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}
