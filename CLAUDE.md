@@ -138,6 +138,9 @@
 | `LeitstandAktiv` | `false` | Leitstand: Freigabe und Priorisierung |
 | `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Picker-Zuweisung |
 | `LackierteilKategorieName` | (leer) | Artikelkategorie fuer Lackierteile. Leer = Feature inaktiv |
+| `BdeAktiv` | `false` | BDE-Modul aktiviert |
+| `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG) |
+| `BdeDefaultArbeitsgang` | (leer) | Default-AG Name fuer vereinfachten Modus |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 
