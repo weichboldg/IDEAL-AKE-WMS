@@ -30,6 +30,7 @@
                             ("Bestellungen", new[] { "BestellungenAktiv" }),
                             ("Leitstand", new[] { "LeitstandAktiv", "KommissionierungMitZuweisung" }),
                             ("Allgemein", new[] { "QrMitFaNummer" }),
+                            ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang" }),
                         };
                         var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);
                         var ungrouped = Model.Settings.Where(s => !groupedKeys.Contains(s.Key)).ToList();
@@ -48,7 +49,7 @@
                             var isBool = string.Equals(setting!.Value, "true", StringComparison.OrdinalIgnoreCase)
                                       || string.Equals(setting.Value, "false", StringComparison.OrdinalIgnoreCase);
                             var isChecked = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase);
-                            <div class="mb-3">
+                            <div class="mb-3" data-setting-row="@setting.Key">
                                 <label class="form-label fw-bold">@setting.Key</label>
                                 @if (!string.IsNullOrEmpty(setting.Description))
                                 {
@@ -58,7 +59,7 @@
                                 {
                                     <input type="hidden" name="settings[@setting.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
                                     <div class="form-check form-switch mt-1">
-                                        <input type="checkbox" class="form-check-input bool-toggle" id="setting_@setting.Key"
+                                        <input type="checkbox" class="form-check-input bool-toggle" data-setting-key="@setting.Key" id="setting_@setting.Key"
                                                @(isChecked ? "checked" : "") />
                                         <label class="form-check-label" for="setting_@setting.Key">
                                             @(isChecked ? "Aktiviert" : "Deaktiviert")
@@ -196,6 +197,26 @@
                 var label = this.parentElement.querySelector('.form-check-label');
                 if (label) label.textContent = this.checked ? 'Aktiviert' : 'Deaktiviert';
             });
+        });
+
+        // BDE: BdeDefaultArbeitsgang nur sichtbar wenn BdeNurFaMeldung aktiv
+        (function() {
+            var nurFaToggle = document.querySelector('input[type="checkbox"][data-setting-key="BdeNurFaMeldung"]');
+            var defaultAgRow = document.querySelector('[data-setting-row="BdeDefaultArbeitsgang"]');
+            if (!nurFaToggle || !defaultAgRow) return;
+            function toggle() { defaultAgRow.style.display = nurFaToggle.checked ? '' : 'none'; }
+            nurFaToggle.addEventListener('change', toggle);
+            toggle();
+        })();
+
+        // BDE: Validierung — BdeDefaultArbeitsgang darf nicht leer sein wenn BdeNurFaMeldung aktiv
+        document.querySelector('form').addEventListener('submit', function(e) {
+            var nurFa = document.querySelector('input[data-setting-key="BdeNurFaMeldung"]');
+            var defaultAg = document.querySelector('input[name="settings[BdeDefaultArbeitsgang]"]');
+            if (nurFa && nurFa.checked && defaultAg && !defaultAg.value.trim()) {
+                e.preventDefault();
+                alert('Bei aktivierter FA-Meldung muss ein Default-Arbeitsgang definiert werden.');
+            }
         });
     </script>
 }
