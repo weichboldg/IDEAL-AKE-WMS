@@ -14,11 +14,15 @@ public class BdeTerminalController : Controller
     private readonly IBdeBookingService _bookingSvc;
     private readonly ICurrentUserService _userSvc;
     private readonly IProductionWorkplaceRepository _workplaces;
+    private readonly IBdeDefaultWorkOperationService _defaultWoService;
+    private readonly IAppSettingRepository _settings;
 
     public BdeTerminalController(IBdeTerminalRepository terminals, IBdeBookingService bookingSvc,
-        ICurrentUserService userSvc, IProductionWorkplaceRepository workplaces)
+        ICurrentUserService userSvc, IProductionWorkplaceRepository workplaces,
+        IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings)
     {
         _terminals = terminals; _bookingSvc = bookingSvc; _userSvc = userSvc; _workplaces = workplaces;
+        _defaultWoService = defaultWoService; _settings = settings;
     }
 
     public async Task<IActionResult> Index(int? workplaceId)
@@ -39,7 +43,20 @@ public class BdeTerminalController : Controller
         ViewBag.WorkplaceName = (await _workplaces.GetByIdAsync(activeWorkplaceId))?.Name;
         ViewBag.AllWorkplaces = await _workplaces.GetAllOrderedAsync();
         ViewBag.DefaultWorkplaceId = terminal.DefaultProductionWorkplaceId;
+
+        var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.NurFaMode = nurFa;
+
         return View();
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> StartProductionForOrder(int operatorId, int productionOrderId, int workplaceId, int terminalId)
+    {
+        var workOperationId = await _defaultWoService.FindOrCreateDefaultAsync(productionOrderId, workplaceId);
+        var result = await _bookingSvc.StartProductionAsync(operatorId, workOperationId, workplaceId, terminalId);
+        return Json(MapResult(result));
     }
 
     [HttpPost, ValidateAntiForgeryToken]

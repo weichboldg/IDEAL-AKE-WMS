@@ -1,6 +1,8 @@
+using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Controllers;
 
@@ -15,16 +17,21 @@ public class BdeApiController : ControllerBase
     private readonly IBdeBookingRepository _bookings;
     private readonly IWorkOperationRepository _workOps;
     private readonly IProductionWorkplaceRepository _workplaces;
+    private readonly IAppSettingRepository _settings;
+    private readonly ApplicationDbContext _ctx;
 
     public BdeApiController(IBdeOperatorRepository ops, IBdeActivityRepository activities,
         IBdeBookingRepository bookings, IWorkOperationRepository workOps,
-        IProductionWorkplaceRepository workplaces)
+        IProductionWorkplaceRepository workplaces, IAppSettingRepository settings,
+        ApplicationDbContext ctx)
     {
         _ops = ops;
         _activities = activities;
         _bookings = bookings;
         _workOps = workOps;
         _workplaces = workplaces;
+        _settings = settings;
+        _ctx = ctx;
     }
 
     [HttpGet("operator/{personnelNumber}")]
@@ -63,8 +70,11 @@ public class BdeApiController : ControllerBase
     [HttpGet("operator/{id:int}/active-booking")]
     public async Task<IActionResult> GetActiveBooking(int id)
     {
+        var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
         var b = await _bookings.GetActiveForOperatorAsync(id);
-        if (b == null) return Ok(new { booking = (object?)null });
+        if (b == null) return Ok(new { booking = (object?)null, nurFaMode = nurFa });
         var target = b.WorkOperation != null
             ? $"{b.WorkOperation.ProductionOrder.OrderNumber}/{b.WorkOperation.OperationNumber} — {b.WorkOperation.Name}"
             : b.BdeActivity?.Name;
@@ -79,7 +89,8 @@ public class BdeApiController : ControllerBase
                 workOperationId = b.WorkOperationId,
                 bdeActivityId = b.BdeActivityId,
                 target,
-                workplaceName = b.ProductionWorkplace?.Name
+                workplaceName = b.ProductionWorkplace?.Name,
+                nurFaMode = nurFa
             }
         });
     }
@@ -144,6 +155,26 @@ public class BdeApiController : ControllerBase
     [HttpGet("available-operations/{workplaceId:int}")]
     public async Task<IActionResult> GetAvailableOperations(int workplaceId)
     {
+        var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (nurFa)
+        {
+            // Im NurFA-Modus: offene ProductionOrders an dieser Werkbank
+            var orders = await _ctx.ProductionOrders
+                .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone)
+                .OrderBy(po => po.ProductionDate)
+                .Select(po => new
+                {
+                    id = po.Id,
+                    label = $"{po.OrderNumber} — {po.Description1}",
+                    type = "fa"
+                })
+                .ToListAsync();
+
+            return Ok(new { productive = orders, unplanned = Array.Empty<object>(), nurFaMode = true });
+        }
+
         // Open WorkOperations at this workplace (not reported, not already in active booking)
         var workOps = await _workOps.GetOpenByWorkplaceIdAsync(workplaceId);
         var activeWoIds = (await _bookings.GetActiveCockpitAsync())
@@ -164,7 +195,7 @@ public class BdeApiController : ControllerBase
         var activities = (await _activities.GetAllActiveAsync())
             .Select(a => new { id = a.Id, label = $"{a.Code} — {a.Name}", type = "unplanned" });
 
-        return Ok(new { productive, unplanned = activities });
+        return Ok(new { productive, unplanned = activities, nurFaMode = false });
     }
 
     [HttpGet("workoperation/{id:int}/latest-paused")]
