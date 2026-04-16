@@ -26,19 +26,11 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
 
         try
         {
-            // 1. Delta-Datum aus WMS lesen
-            DateTime? lastSyncDate = null;
-            await using (var wmsConn = new SqlConnection(wmsConnection))
-            {
-                await wmsConn.OpenAsync(ct);
-                await using var cmd = new SqlCommand(
-                    "SELECT MAX([LastSyncedAt]) FROM [dbo].[EnaioDmsDocuments]", wmsConn) { CommandTimeout = 30 };
-                var result = await cmd.ExecuteScalarAsync(ct);
-                if (result is DateTime lastSync)
-                    lastSyncDate = lastSync.AddMinutes(-5); // 5 Min Puffer
-            }
-
-            // 2. Daten aus enaio lesen
+            // Alle Werkstattauftraege und Zeichnungen aus enaio lesen (Full-Sync).
+            // Delta via 'angelegt' funktioniert nicht, weil enaio-Dokumente einmalig
+            // erstellt werden (angelegt = 2013) und feld44 (WaNummer) spaeter
+            // aktualisiert wird, ohne dass sich angelegt aendert.
+            // Das MERGE-Statement verhindert Duplikate und aktualisiert Aenderungen.
             var docs = new List<EnaioDmsRawRow>();
             await using (var enaioDmsConn = new SqlConnection(enaioDmsConnection))
             {
@@ -51,19 +43,7 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
                     FROM sysadm.object1
                     WHERE feld1 IN ('Werkstattauftrag', 'Zeichnung')";
 
-                if (lastSyncDate.HasValue)
-                {
-                    sql += " AND angelegt > @DeltaDate";
-                }
-                else
-                {
-                    // Erster Sync: nur letztes Jahr
-                    sql += " AND angelegt > DATEADD(DAY, -365, GETDATE())";
-                }
-
                 await using var cmd = new SqlCommand(sql, enaioDmsConn) { CommandTimeout = 120 };
-                if (lastSyncDate.HasValue)
-                    cmd.Parameters.AddWithValue("@DeltaDate", lastSyncDate.Value);
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -83,8 +63,7 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
                 }
             }
 
-            _logger.LogInformation("enaio DMS: {Count} Dokumente aus enaio gelesen{Delta}.",
-                docs.Count, lastSyncDate.HasValue ? $" (Delta seit {lastSyncDate:yyyy-MM-dd HH:mm})" : " (Full-Sync)");
+            _logger.LogInformation("enaio DMS: {Count} Dokumente aus enaio gelesen.", docs.Count);
 
             if (docs.Count == 0 || dryRun)
                 return new SyncResult(0, 0, 0);
@@ -131,7 +110,7 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             }
 
             // MERGE: Insert oder Update
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             await using var mergeCmd = new SqlCommand($@"
                 MERGE [dbo].[EnaioDmsDocuments] AS target
                 USING #TmpEnaioDocs AS source
