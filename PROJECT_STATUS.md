@@ -40,10 +40,24 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Leitstand (Kommissionier-Freigabe + Priorisierung) | Fertig |
 | Kommissionierer-Zuweisung bei Freigabe | Fertig |
 | Individuell anpassbare Tabellenansichten (Spalten) | Fertig |
+| Betriebsdatenerfassung (BDE) — Terminal, Cockpit, Korrekturen | Fertig (Phase 1) |
 
 ## Version
-- **Web-App**: v1.7.0 (10.04.2026)
-- **Service**: v1.7.0 (10.04.2026)
+- **Web-App**: v1.8.0 (16.04.2026)
+- **Service**: v1.8.0 (16.04.2026)
+
+## Aenderungen (16.04.2026)
+
+### v1.8.0 — BDE Phase 1 (Betriebsdatenerfassung)
+
+#### Neue Funktionen
+- **BDE-Terminal**: Scan-basierte Buchung (Personalnummer + FA/AG) mit Statusverwaltung (Ruesten, Produktion, Pause, Fortsetzen, Beenden)
+- **Mengen-Erfassung**: Teilfertigmeldungen (Gutmenge + Ausschuss) mitten in laufender Produktion
+- **Ungeplante Taetigkeiten**: Wartung, Reinigung etc. via konfigurierbare Aktivitaets-Kategorien
+- **Live-Cockpit**: 5-Sekunden-Refresh aller Werkbaenke fuer Schichtleiter und Admins
+- **BDE-Stammdaten**: Operatoren, Aktivitaets-Kategorien, Terminal-Konfigurationen
+- **Admin-Korrekturen**: Buchungs-Editor, Storno mit Grund, manuelles Schliessen vergessener Buchungen
+- **Drei neue Rollen**: `bde_user`, `bde_shiftlead`, `bde_admin`
 
 ## Aenderungen (10.04.2026)
 

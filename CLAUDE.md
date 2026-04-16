@@ -48,6 +48,9 @@
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController |
 | `[RequireLeitstandAccess]` | admin, leitstand | ProductionOrdersController (ToggleRelease, BulkRelease, SetPriority) |
 | `[RequireReportingAccess]` | admin, reporting | (fuer spaeteren BDE-Controller) |
+| `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
+| `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
+| `[RequireBdeAdminAccess]` | admin, bde_admin | BdeBookingsController (Edit/Cancel), BdeMasterDataController (Terminals) |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
 **Sonderfaelle:**
@@ -68,6 +71,9 @@
 | `tracking` | OSEON Auftraege + Rueckmeldungen |
 | `reporting` | Betriebsdaten / BDE (Zukunft) |
 | `leitstand` | Produktionsauftraege freigeben und priorisieren |
+| `bde_user` | Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln |
+| `bde_shiftlead` | + BDE-Stammdaten, Buchungsliste, Cockpit |
+| `bde_admin` | + Buchungen korrigieren/stornieren, Terminals konfigurieren |
 
 ## Controller-Muster
 
@@ -97,6 +103,10 @@
 - **Leitstand Index-Action hat kein Filter-Attribut**: Prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur Key (PK), Value, Description
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer → Beschichtungstermin fuer ALLE Auftraege
+- **BDE-Buchung Ein-Operator-Regel**: Gefilterter Unique-Index `IX_BdeBookings_BdeOperatorId_Active` verhindert mehrere offene Buchungen pro Operator. Starten eines neuen AG auf laufender Production → Service gibt `QuantityRequired` zurueck.
+- **BDE-Paused Semantik**: Paused hat `EndedAt = gesetzt`. Fortsetzung erzeugt neue Buchung mit `ParentBookingId`. Cockpit-Query `WHERE EndedAt IS NULL` zeigt nur Running.
+- **BDE-Operator deaktiviert waehrend offener Buchung**: Offene Buchungen bleiben sichtbar. Schichtleiter muss manuell schliessen.
+- **Save-Ordering in BdeBookingService**: Bei Auto-Close-und-New-Start MUSS `SaveChangesAsync` zwischen Schliessen und Add-Neu laufen (Helfer `FinishAndSaveAsync`), eingebettet in `BeginTransactionAsync()`.
 
 ## Standard-Daten (Neuinstallation)
 

@@ -200,6 +200,15 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Wareneingang-Integration**: Bei Einbuchung werden offene Meldungen zum Artikel angezeigt und können verknüpft werden
 - **Empfängergruppen (Stammdaten)**: CRUD für Gruppen + Empfänger + Artikelgruppen-Zuordnung (N:M)
 
+### Betriebsdatenerfassung (BDE)
+- **BDE-Terminal**: Scan-basierte Buchung (Personalnummer + FA/AG) mit Statusverwaltung (Ruesten, Produktion, Pause, Fortsetzen, Beenden)
+- **Mengen-Erfassung**: Teilfertigmeldungen (Gutmenge + Ausschuss) und Abschlussmeldung
+- **Ungeplante Taetigkeiten**: Wartung, Reinigung etc. via konfigurierbare Aktivitaets-Kategorien
+- **Live-Cockpit**: 5-Sekunden-Refresh aller Werkbaenke fuer Schichtleiter und Admins
+- **BDE-Stammdaten**: Operatoren, Aktivitaets-Kategorien, Terminal-Konfigurationen
+- **Admin-Korrekturen**: Buchungs-Editor, Storno mit Grund, manuelles Schliessen vergessener Buchungen
+- **Rollen**: `bde_user` (Terminal), `bde_shiftlead` (+ Stammdaten/Cockpit), `bde_admin` (+ Korrekturen/Terminals)
+
 ### Individuelle Ansichts-Einstellungen
 - **Spalten ein-/ausblenden**: Zahnrad-Icon oben rechts ueber der Tabelle oder Rechtsklick auf Spaltenkopf
 - **Spaltenbreiten aendern**: Am rechten Spaltenrand ziehen (Doppelklick = Standard-Breite)
@@ -219,6 +228,9 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **`tracking`**: OSEON Auftraege + Rueckmeldungen
 - **`leitstand`**: Produktionsauftraege freigeben und priorisieren
 - **`reporting`**: Betriebsdaten / BDE (Zukunft)
+- **`bde_user`**: Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln
+- **`bde_shiftlead`**: + BDE-Stammdaten, Buchungsliste, Cockpit
+- **`bde_admin`**: + Buchungen korrigieren/stornieren, Terminals konfigurieren
 - Dashboard zeigt nur Kacheln die der Rolle entsprechen
 
 ### Mein Profil (Self-Service)
