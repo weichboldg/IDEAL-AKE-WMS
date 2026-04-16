@@ -18,6 +18,8 @@ BDE soll nicht automatisch bei jeder Installation aktiv sein — Kunden die nur 
 
 Settings werden auf der bestehenden Settings-Seite als Toggle-Switches verwaltet (analog `LeitstandAktiv`, `TeileverfolgungAktiv`, `BestellungenAktiv`). `BdeDefaultArbeitsgang` als Textfeld, nur sichtbar/editierbar wenn `BdeNurFaMeldung = true`.
 
+**Settings-UI Pattern:** `Views/Settings/Index.cshtml` nutzt gruppierte Tuple-Arrays `(string Title, string[] Keys)`. Neue Gruppe ergänzen: `("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang" })`. Boolean-Werte werden automatisch als Toggle-Switches gerendert.
+
 ## Setting 1: `BdeAktiv` — Feature-Toggle
 
 ### Navigation
@@ -39,7 +41,14 @@ Alle BDE-Controller prüfen `BdeAktiv`:
 
 Bei `BdeAktiv = false` → Redirect auf Home mit `TempData["WarningMessage"] = "BDE ist nicht aktiviert."`.
 
-**Implementierung:** Neues Filter-Attribut `[RequireBdeActive]` (analog zu bestehenden Filter-Attributen). Liest das Setting aus der DB (via `IAppSettingsService` oder äquivalent). Wird auf jedem BDE-Controller als erstes Attribut gesetzt, vor den Rollen-Filtern.
+**Implementierung:** Neues Filter-Attribut `[RequireBdeActive]` (analog zu bestehenden Filter-Attributen). Liest das Setting aus der DB via `IAppSettingRepository.GetValueAsync("BdeAktiv")` — identisches Pattern wie `LeitstandAktiv` in `_Layout.cshtml`. Wird auf jedem BDE-Controller als erstes Attribut gesetzt, vor den Rollen-Filtern.
+
+**Bestehendes Pattern in `_Layout.cshtml` (Referenz):**
+```csharp
+var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))
+    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+```
+BDE-Navigation analog: `var bdeAktiv = (await AppSettings.GetValueAsync("BdeAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;`
 
 ### Settings-UI
 
@@ -79,7 +88,11 @@ Wenn `BdeNurFaMeldung = true` und ein Operator einen FA wählt:
    - `CreatedBy = "BDE-AutoCreate"`, `CreatedByWindows = "BDE-AutoCreate"`
 3. Buchung wird gegen diese WorkOperation erstellt (normale `BdeBookingService`-Logik)
 
-**Ort der Logik:** Im `BdeApiController` oder in einem neuen Helper `BdeDefaultWorkOperationService` — nicht im `BdeBookingService` (der bleibt WorkOperation-agnostisch).
+**Ort der Logik:** Neuer Service `BdeDefaultWorkOperationService` mit Methode `FindOrCreateDefaultAsync(int productionOrderId, int workplaceId)`. Nicht im `BdeBookingService` (der bleibt WorkOperation-agnostisch).
+
+**Concurrent-Auto-Create-Schutz:** Da kein Unique-Constraint auf `(ProductionOrderId, OperationNumber)` in WorkOperations existiert, muss die Find-Or-Create-Logik in einer Transaktion laufen: `BeginTransaction` → `FirstOrDefault(wo => wo.ProductionOrderId == faId && wo.Name == defaultName)` → falls null: `Add + SaveChanges` → `Commit`. Bei Race-Condition (zwei Terminals gleichzeitig) fängt die Transaktion das ab; im Worst-Case entsteht ein Duplikat — harmlos da die Buchung nur gegen das erste Ergebnis läuft.
+
+**FA/AG-Scan im NurFA-Modus:** Wenn der Scan-Input ein FA+AG-Format enthält (z.B. `FA-12345,10`), wird der AG-Teil **still ignoriert** — nur die FA-Nummer wird verwendet.
 
 ### Terminal-Verhalten im NurFA-Modus
 
@@ -164,6 +177,12 @@ Unterhalb des `BdeAktiv`-Toggles:
 | Auto-Create Service | Neues `Services/BdeDefaultWorkOperationService.cs` |
 | Settings-UI | `Views/Settings/Index.cshtml` (3 neue Felder) |
 | Docs | `CLAUDE.md`, `Views/Help/Index.cshtml`, `Views/Help/Changelog.cshtml` |
+
+## Bekannte Einschränkungen / Edge-Cases
+
+- **SAGE-Import erzeugt echte WorkOperations:** Wenn SAGE Arbeitsgänge für einen FA importiert UND `BdeNurFaMeldung = true`, existieren sowohl der auto-erstellte Default-AG als auch die importierten AGs. Kein Konflikt — der Default-AG wird per Name (`BdeDefaultArbeitsgang`) identifiziert, nicht per OperationNumber. Die importierten AGs sind im Terminal nicht sichtbar (NurFA zeigt nur FAs).
+- **Wechsel NurFA → Normal:** Bestehende Buchungen auf Default-AGs bleiben gültig. Im normalen Modus sieht man sie als reguläre AG-Buchungen. Kein Datenverlust.
+- **Wechsel Normal → NurFA:** Laufende Buchungen auf spezifische AGs laufen weiter. Neue Buchungen gehen über Default-AGs.
 
 ## Nicht in Scope
 
