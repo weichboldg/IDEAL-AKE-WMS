@@ -29,6 +29,7 @@
         feedback.textContent = '';
         showOperatorBadge();
         await renderState();
+        await loadAvailableOperations();
     }
 
     function showOperatorBadge() {
@@ -121,6 +122,7 @@
             case 'reportPartial': await promptQty(async (good, scrap) => await post('/BdeTerminal/ReportPartial', { bookingId: await activeId(), goodQty: good, scrapQty: scrap })); break;
         }
         await renderState();
+        await loadAvailableOperations();
     }
 
     async function activeId() {
@@ -160,6 +162,70 @@
         });
     }
 
+    // --- Available Operations (AG Buttons) ---
+    async function loadAvailableOperations() {
+        const r = await fetch(`/api/bde/available-operations/${workplaceId}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        renderOperationButtons(data.productive, data.unplanned);
+    }
+
+    function renderOperationButtons(productive, unplanned) {
+        const container = document.getElementById('operationButtons');
+        let html = '';
+
+        if (productive.length > 0) {
+            html += '<h6 class="mt-2 text-muted">Produktive Arbeitsgänge</h6>';
+            html += '<div class="d-flex flex-wrap gap-2 mb-3">';
+            productive.forEach(op => {
+                html += `<button class="btn btn-outline-success btn-lg bde-op-btn" data-wo-id="${op.id}" data-type="productive">${op.label}</button>`;
+            });
+            html += '</div>';
+        }
+
+        if (unplanned.length > 0) {
+            html += '<h6 class="text-muted">Ungeplante Tätigkeiten</h6>';
+            html += '<div class="d-flex flex-wrap gap-2 mb-3">';
+            unplanned.forEach(a => {
+                html += `<button class="btn btn-outline-secondary btn-lg bde-op-btn" data-activity-id="${a.id}" data-type="unplanned">${a.label}</button>`;
+            });
+            html += '</div>';
+        }
+
+        if (!productive.length && !unplanned.length) {
+            html = '<p class="text-muted">Keine offenen Arbeitsgänge an dieser Werkbank.</p>';
+        }
+
+        container.innerHTML = html;
+        bindOperationButtonHandlers();
+    }
+
+    function bindOperationButtonHandlers() {
+        document.querySelectorAll('.bde-op-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (btn.dataset.type === 'productive') {
+                    currentWorkOp = { id: parseInt(btn.dataset.woId) };
+                    // Show action buttons (Rüsten/Produktion)
+                    await renderState();
+                } else {
+                    // Start unplanned activity directly
+                    await post('/BdeTerminal/StartActivity', {
+                        operatorId: currentOperator.id,
+                        activityId: parseInt(btn.dataset.activityId),
+                        workplaceId, terminalId
+                    });
+                    await renderState();
+                    await loadAvailableOperations();
+                }
+            });
+        });
+    }
+
+    function clearOperationButtons() {
+        const container = document.getElementById('operationButtons');
+        if (container) container.innerHTML = '';
+    }
+
     // Aktivitäts-Flow (via modal — still reachable from activity modal)
     // The activityModal is kept for backward compatibility; Task 3 will add AG buttons
     // to #operationButtons including unplanned activities
@@ -168,6 +234,7 @@
         bootstrap.Modal.getOrCreateInstance(document.getElementById('activityModal')).hide();
         await post('/BdeTerminal/StartActivity', { operatorId: currentOperator.id, activityId, workplaceId, terminalId });
         await renderState();
+        await loadAvailableOperations();
     });
 
     // Werkbank-Umschaltung

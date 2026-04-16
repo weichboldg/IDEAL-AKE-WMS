@@ -109,6 +109,32 @@ public class BdeApiController : ControllerBase
         return Ok(new { workplaces = tiles, serverTime = DateTime.Now });
     }
 
+    [HttpGet("available-operations/{workplaceId:int}")]
+    public async Task<IActionResult> GetAvailableOperations(int workplaceId)
+    {
+        // Open WorkOperations at this workplace (not reported, not already in active booking)
+        var workOps = await _workOps.GetOpenByWorkplaceIdAsync(workplaceId);
+        var activeWoIds = (await _bookings.GetActiveCockpitAsync())
+            .Where(b => b.WorkOperationId.HasValue)
+            .Select(b => b.WorkOperationId!.Value)
+            .ToHashSet();
+
+        var productive = workOps
+            .Where(wo => !activeWoIds.Contains(wo.Id))
+            .Select(wo => new
+            {
+                id = wo.Id,
+                label = $"{wo.ProductionOrder.OrderNumber} / {wo.OperationNumber} — {wo.Name}",
+                type = "productive"
+            });
+
+        // Unplanned activities
+        var activities = (await _activities.GetAllActiveAsync())
+            .Select(a => new { id = a.Id, label = $"{a.Code} — {a.Name}", type = "unplanned" });
+
+        return Ok(new { productive, unplanned = activities });
+    }
+
     [HttpGet("workoperation/{id:int}/latest-paused")]
     public async Task<IActionResult> GetLatestPaused(int id)
     {
