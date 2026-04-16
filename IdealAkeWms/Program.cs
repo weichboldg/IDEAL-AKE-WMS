@@ -81,6 +81,7 @@ builder.Services.AddScoped<IPrintService, PrintService>();
 builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
 builder.Services.AddScoped<IOseonTrafficLightService, OseonTrafficLightService>();
 builder.Services.AddScoped<IBdeBookingService, BdeBookingService>();
+builder.Services.AddScoped<IBdeDefaultWorkOperationService, BdeDefaultWorkOperationService>();
 
 // MVC
 builder.Services.AddControllersWithViews();
