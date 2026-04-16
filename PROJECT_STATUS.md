@@ -43,10 +43,18 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Betriebsdatenerfassung (BDE) — Terminal, Cockpit, Korrekturen | Fertig (Phase 1) |
 
 ## Version
-- **Web-App**: v1.8.0 (16.04.2026)
-- **Service**: v1.8.0 (16.04.2026)
+- **Web-App**: v1.8.1 (16.04.2026)
+- **Service**: v1.8.1 (16.04.2026)
 
 ## Aenderungen (16.04.2026)
+
+### v1.8.1 — BDE-Verbesserungen + enaio-Fix
+
+#### Verbesserungen
+- **BDE-Terminal**: Getrennte Scan-Felder, Operator-Badge, AG-Buttons (produktiv/ungeplant), Toast-Bestaetigung, Live-Timer, Tageshistorie
+- **BDE-Cockpit**: Mehrere Operatoren pro Werkbank korrekt angezeigt
+- **Buchungsuebersicht**: filterable-table mit Spaltenfiltern, KW-Anzeige, Standard-Filter auf heute
+- **enaio DMS-Sync**: Delta-Filter entfernt — enaio-Dokumente haben statische Erstellungsdaten (Bulk-Import 2013), Full-Sync mit MERGE
 
 ### v1.8.0 — BDE Phase 1 (Betriebsdatenerfassung)
 

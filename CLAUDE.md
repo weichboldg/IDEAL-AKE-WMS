@@ -107,6 +107,7 @@
 - **BDE-Paused Semantik**: Paused hat `EndedAt = gesetzt`. Fortsetzung erzeugt neue Buchung mit `ParentBookingId`. Cockpit-Query `WHERE EndedAt IS NULL` zeigt nur Running.
 - **BDE-Operator deaktiviert waehrend offener Buchung**: Offene Buchungen bleiben sichtbar. Schichtleiter muss manuell schliessen.
 - **Save-Ordering in BdeBookingService**: Bei Auto-Close-und-New-Start MUSS `SaveChangesAsync` zwischen Schliessen und Add-Neu laufen (Helfer `FinishAndSaveAsync`), eingebettet in `BeginTransactionAsync()`.
+- **enaio DMS-Sync kein Delta**: `angelegt`-Spalte in enaio ist statisch (Bulk-Import 2013). Full-Sync statt Delta — MERGE verhindert Duplikate. `EnaioDmsSyncService.cs` liest ALLE Werkstattauftraege/Zeichnungen ohne Datumsfilter.
 
 ## Standard-Daten (Neuinstallation)
 
