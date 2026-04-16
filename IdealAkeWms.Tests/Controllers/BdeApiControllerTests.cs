@@ -2,6 +2,7 @@ using FluentAssertions;
 using IdealAkeWms.Controllers;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
+using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -14,9 +15,14 @@ public class BdeApiControllerTests
     private readonly Mock<IBdeBookingRepository> _bookings = new();
     private readonly Mock<IWorkOperationRepository> _workOps = new();
     private readonly Mock<IProductionWorkplaceRepository> _workplaces = new();
+    private readonly Mock<IAppSettingRepository> _settings = new();
 
-    private BdeApiController CreateController() =>
-        new(_ops.Object, _activities.Object, _bookings.Object, _workOps.Object, _workplaces.Object);
+    private BdeApiController CreateController()
+    {
+        var ctx = TestDbContextFactory.Create();
+        return new(_ops.Object, _activities.Object, _bookings.Object, _workOps.Object,
+            _workplaces.Object, _settings.Object, ctx);
+    }
 
     private static BdeOperator CreateOperator(int id, string personnelNumber, string firstName, string lastName)
     {
@@ -159,7 +165,7 @@ public class BdeApiControllerTests
         var result = await CreateController().GetActiveBooking(7);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        ok.Value.Should().BeEquivalentTo(new { booking = (object?)null });
+        ok.Value.Should().BeEquivalentTo(new { booking = (object?)null, nurFaMode = false });
     }
 
     [Fact]
@@ -192,7 +198,8 @@ public class BdeApiControllerTests
                 status = "Running",
                 startedAt = new DateTime(2026, 4, 14, 8, 0, 0),
                 workOperationId = (int?)42,
-                bdeActivityId = (int?)null
+                bdeActivityId = (int?)null,
+                nurFaMode = false
             }
         });
     }
