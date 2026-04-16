@@ -36,6 +36,7 @@
                             var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
                             var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var releasedPickingCount = leitstandAktiv && canPick ? await ProductionOrderRepository.GetReleasedForPickingCountAsync() : 0;
+                            var bdeAktiv = (await AppSettings.GetValueAsync("BdeAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var canUseBde = await CurrentUserService.CanUseBdeAsync();
                             var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
                         }
@@ -109,7 +110,7 @@
                                 </ul>
                             </li>
                         }
-                        @if (canUseBde)
+                        @if (bdeAktiv && canUseBde)
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
