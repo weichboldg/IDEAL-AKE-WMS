@@ -4,6 +4,7 @@
     const terminalId = parseInt(document.getElementById('terminalId').value);
     let workplaceId = parseInt(document.getElementById('workplaceId').value);
     const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    const nurFaMode = document.getElementById('nurFaMode')?.value === 'true';
 
     let currentOperator = null;   // {id, displayName}
     let currentWorkOp = null;     // {id, orderNumber, operationNumber, name}
@@ -121,6 +122,39 @@
         input.value = '';
         if (!raw) return;
         const feedback = document.getElementById('faAgFeedback');
+
+        if (nurFaMode) {
+            // NurFA: nur FA-Nummer, AG-Teil ignorieren
+            var faNumber = raw.split(/[,\/]/)[0].trim();
+            // Suche den passenden FA-Button und klicke ihn
+            var faBtn = null;
+            document.querySelectorAll('.bde-op-btn[data-type="fa"]').forEach(function (btn) {
+                if (btn.textContent.indexOf(faNumber) !== -1) faBtn = btn;
+            });
+            if (faBtn) {
+                feedback.textContent = '';
+                faBtn.click();
+            } else {
+                // Fallback: Versuche ueber API den Arbeitsgang zu finden
+                var r = await fetch('/api/bde/workoperation?faNumber=' + encodeURIComponent(faNumber) + '&opNumber=01');
+                if (!r.ok) {
+                    feedback.textContent = 'FA nicht gefunden';
+                    return;
+                }
+                var wo = await r.json();
+                await post('/BdeTerminal/StartProduction', {
+                    operatorId: currentOperator.id,
+                    workOperationId: wo.id,
+                    workplaceId: workplaceId, terminalId: terminalId
+                }, 'startProduction');
+                await renderState();
+                await loadAvailableOperations();
+                await loadTodayHistory();
+            }
+            return;
+        }
+
+        // Normaler Modus
         const parts = raw.split(/[,\/]/);
         if (parts.length < 2) {
             feedback.textContent = 'Format: FA-Nummer,AG-Nummer oder FA-Nummer/AG-Nummer';
@@ -181,7 +215,10 @@
         if (b.status === 'Running' && b.bookingType === 'Activity') return buttons(['finishActivity']);
         return '';
     }
-    function renderStartButtons() { return buttons(['startSetup','startProduction']); }
+    function renderStartButtons() {
+        if (nurFaMode) return buttons(['startProduction']);
+        return buttons(['startSetup','startProduction']);
+    }
     function buttons(ids) {
         var labels = { startSetup:'Rüsten starten', startProduction:'Produktion starten', pause:'Pause', finish:'Beenden (mit Mengen)', finishSetup:'Rüsten beenden', finishActivity:'Beenden', reportPartial:'Teilfertigmeldung' };
         return ids.map(function (id) { return '<button data-action="' + id + '" class="btn btn-primary btn-lg m-1">' + labels[id] + '</button>'; }).join('');
@@ -292,15 +329,21 @@
         let html = '';
 
         if (productive.length > 0) {
-            html += '<h6 class="mt-2 text-muted">Produktive Arbeitsgänge</h6>';
+            html += nurFaMode
+                ? '<h6 class="mt-2 text-muted">Produktionsaufträge</h6>'
+                : '<h6 class="mt-2 text-muted">Produktive Arbeitsgänge</h6>';
             html += '<div class="d-flex flex-wrap gap-2 mb-3">';
             productive.forEach(function (op) {
-                html += '<button class="btn btn-outline-success btn-lg bde-op-btn" data-wo-id="' + op.id + '" data-type="productive">' + op.label + '</button>';
+                if (op.type === 'fa') {
+                    html += '<button class="btn btn-outline-success btn-lg bde-op-btn" data-fa-id="' + op.id + '" data-type="fa">' + op.label + '</button>';
+                } else {
+                    html += '<button class="btn btn-outline-success btn-lg bde-op-btn" data-wo-id="' + op.id + '" data-type="productive">' + op.label + '</button>';
+                }
             });
             html += '</div>';
         }
 
-        if (unplanned.length > 0) {
+        if (!nurFaMode && unplanned.length > 0) {
             html += '<h6 class="text-muted">Ungeplante Tätigkeiten</h6>';
             html += '<div class="d-flex flex-wrap gap-2 mb-3">';
             unplanned.forEach(function (a) {
@@ -309,8 +352,10 @@
             html += '</div>';
         }
 
-        if (!productive.length && !unplanned.length) {
-            html = '<p class="text-muted">Keine offenen Arbeitsgänge an dieser Werkbank.</p>';
+        if (!productive.length && (nurFaMode || !unplanned.length)) {
+            html = nurFaMode
+                ? '<p class="text-muted">Keine offenen Produktionsaufträge an dieser Werkbank.</p>'
+                : '<p class="text-muted">Keine offenen Arbeitsgänge an dieser Werkbank.</p>';
         }
 
         container.innerHTML = html;
@@ -320,7 +365,17 @@
     function bindOperationButtonHandlers() {
         document.querySelectorAll('.bde-op-btn').forEach(function (btn) {
             btn.addEventListener('click', async function () {
-                if (btn.dataset.type === 'productive') {
+                if (btn.dataset.type === 'fa') {
+                    // NurFA: direkt Produktion auf FA starten
+                    await post('/BdeTerminal/StartProductionForOrder', {
+                        operatorId: currentOperator.id,
+                        productionOrderId: parseInt(btn.dataset.faId),
+                        workplaceId: workplaceId, terminalId: terminalId
+                    }, 'startProduction');
+                    await renderState();
+                    await loadAvailableOperations();
+                    await loadTodayHistory();
+                } else if (btn.dataset.type === 'productive') {
                     currentWorkOp = { id: parseInt(btn.dataset.woId) };
                     // Show action buttons (Rüsten/Produktion)
                     await renderState();
@@ -358,6 +413,15 @@
     document.getElementById('workplaceSwitch').addEventListener('change', function (e) {
         window.location.href = '/BdeTerminal/Index?workplaceId=' + e.target.value;
     });
+
+    // NurFA-Modus: UI-Anpassungen
+    if (nurFaMode) {
+        var scanFaAgEl = document.getElementById('scanFaAg');
+        if (scanFaAgEl) scanFaAgEl.placeholder = 'Oder FA-Nr scannen\u2026';
+        // Aktivitaets-Modal ausblenden (nicht erreichbar im NurFA-Modus)
+        var activityModal = document.getElementById('activityModal');
+        if (activityModal) activityModal.style.display = 'none';
+    }
 
     renderState();
 })();
