@@ -87,22 +87,23 @@ public class BdeApiController : ControllerBase
 
         var tiles = workplaces.Select(wp =>
         {
-            var b = activeBookings.FirstOrDefault(x => x.ProductionWorkplaceId == wp.Id);
-            if (b == null)
-                return new { workplaceId = wp.Id, workplaceName = wp.Name, status = "Idle",
-                    bookingType = (string?)null, operatorName = (string?)null, orderNumber = (string?)null,
-                    operationNumber = (string?)null, operationName = (string?)null, activityName = (string?)null,
-                    startedAt = (DateTime?)null, runtimeSeconds = 0 };
-            return new {
-                workplaceId = wp.Id, workplaceName = wp.Name,
-                status = b.Status.ToString(), bookingType = (string?)b.BookingType.ToString(),
-                operatorName = (string?)b.BdeOperator.DisplayName,
-                orderNumber = b.WorkOperation?.ProductionOrder.OrderNumber,
-                operationNumber = b.WorkOperation?.OperationNumber,
-                operationName = b.WorkOperation?.Name,
-                activityName = b.BdeActivity?.Name,
-                startedAt = (DateTime?)b.StartedAt,
-                runtimeSeconds = (int)(DateTime.Now - b.StartedAt).TotalSeconds
+            var bookingsAtWp = activeBookings.Where(x => x.ProductionWorkplaceId == wp.Id).ToList();
+            return new
+            {
+                workplaceId = wp.Id,
+                workplaceName = wp.Name,
+                status = bookingsAtWp.Any() ? "Active" : "Idle",
+                bookings = bookingsAtWp.Select(b => new
+                {
+                    bookingType = b.BookingType.ToString(),
+                    operatorName = b.BdeOperator.DisplayName,
+                    orderNumber = b.WorkOperation?.ProductionOrder.OrderNumber,
+                    operationNumber = b.WorkOperation?.OperationNumber,
+                    operationName = b.WorkOperation?.Name,
+                    activityName = b.BdeActivity?.Name,
+                    startedAt = b.StartedAt,
+                    runtimeSeconds = (int)(DateTime.Now - b.StartedAt).TotalSeconds
+                })
             };
         });
 
