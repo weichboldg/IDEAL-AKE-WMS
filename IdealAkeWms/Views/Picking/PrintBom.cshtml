@@ -192,48 +192,69 @@
         </div>
     </div>
 
+    @{
+        bool ShowCol(string key) => !Model.VisibleColumns.Any() || Model.VisibleColumns.Contains(key);
+        int visibleColCount = 0;
+        if (ShowCol("pick-control")) visibleColCount++;
+        if (ShowCol("position")) visibleColCount++;
+        if (ShowCol("assembly-group")) visibleColCount++;
+        if (ShowCol("resource-number")) visibleColCount++;
+        if (ShowCol("description1")) visibleColCount++;
+        if (ShowCol("description2")) visibleColCount++;
+        if (ShowCol("quantity")) visibleColCount++;
+        if (ShowCol("procurement")) visibleColCount++;
+        if (ShowCol("article-group")) visibleColCount++;
+        if (ShowCol("storage-location")) visibleColCount++;
+    }
+
     <table>
         <thead>
             <tr>
-                <th class="checkbox-col"></th>
-                <th>Position</th>
-                <th>Baugruppe</th>
-                <th>Ressourcenummer</th>
-                <th>Bezeichnung 1</th>
-                <th>Bezeichnung 2</th>
-                <th class="text-end">Menge</th>
-                <th>Beschaffung</th>
-                <th>Artikelgruppe</th>
-                <th>Lagerplatz</th>
+                @if (ShowCol("pick-control")) { <th class="checkbox-col"></th> }
+                @if (ShowCol("position")) { <th>Position</th> }
+                @if (ShowCol("assembly-group")) { <th>Baugruppe</th> }
+                @if (ShowCol("resource-number")) { <th>Ressourcenummer</th> }
+                @if (ShowCol("description1")) { <th>Bezeichnung 1</th> }
+                @if (ShowCol("description2")) { <th>Bezeichnung 2</th> }
+                @if (ShowCol("quantity")) { <th class="text-end">Menge</th> }
+                @if (ShowCol("procurement")) { <th>Beschaffung</th> }
+                @if (ShowCol("article-group")) { <th>Artikelgruppe</th> }
+                @if (ShowCol("storage-location")) { <th>Lagerplatz</th> }
             </tr>
         </thead>
         <tbody>
             @foreach (var item in Model.Items)
             {
                 <tr class="@(item.IsBaugruppe ? "baugruppe-row" : "")">
-                    <td class="checkbox-col">
-                        @if (!item.IsBaugruppe)
-                        {
-                            <span class="checkbox-col-box"></span>
-                        }
-                    </td>
-                    <td class="pos-cell" style="padding-left: @(item.TreeLevel * 16 + 6)px;">
-                        @item.Position
-                    </td>
-                    <td>@item.Baugruppe</td>
-                    <td><strong>@item.Ressourcenummer</strong></td>
-                    <td>@item.Bezeichnung1</td>
-                    <td>@item.Bezeichnung2</td>
-                    <td class="text-end">@item.Menge.ToString("N3")</td>
-                    <td>@item.Beschaffungsartikel</td>
-                    <td>@item.Artikelgruppe</td>
-                    <td>@(item.Lagerplatz ?? "-")</td>
+                    @if (ShowCol("pick-control"))
+                    {
+                        <td class="checkbox-col">
+                            @if (!item.IsBaugruppe)
+                            {
+                                <span class="checkbox-col-box"></span>
+                            }
+                        </td>
+                    }
+                    @if (ShowCol("position"))
+                    {
+                        <td class="pos-cell" style="padding-left: @(item.TreeLevel * 16 + 6)px;">
+                            @item.Position
+                        </td>
+                    }
+                    @if (ShowCol("assembly-group")) { <td>@item.Baugruppe</td> }
+                    @if (ShowCol("resource-number")) { <td><strong>@item.Ressourcenummer</strong></td> }
+                    @if (ShowCol("description1")) { <td>@item.Bezeichnung1</td> }
+                    @if (ShowCol("description2")) { <td>@item.Bezeichnung2</td> }
+                    @if (ShowCol("quantity")) { <td class="text-end">@item.Menge.ToString("N3")</td> }
+                    @if (ShowCol("procurement")) { <td>@item.Beschaffungsartikel</td> }
+                    @if (ShowCol("article-group")) { <td>@item.Artikelgruppe</td> }
+                    @if (ShowCol("storage-location")) { <td>@(item.Lagerplatz ?? "-")</td> }
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="10" style="text-align: center; padding: 20px; color: #999;">Keine Stücklisten-Positionen vorhanden.</td>
+                    <td colspan="@visibleColCount" style="text-align: center; padding: 20px; color: #999;">Keine Stücklisten-Positionen vorhanden.</td>
                 </tr>
             }
         </tbody>

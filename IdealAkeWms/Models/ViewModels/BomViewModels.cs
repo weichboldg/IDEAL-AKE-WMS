@@ -94,6 +94,8 @@ public class PrintBomViewModel
     public List<PrintBomItem> Items { get; set; } = new();
     /// <summary>Aktive Filterinfo für Header-Anzeige (z.B. "Artikelgruppe=960")</summary>
     public string? FilterInfo { get; set; }
+    /// <summary>Sichtbare Spalten-Keys aus der interaktiven Ansicht. Leer = alle Spalten anzeigen.</summary>
+    public List<string> VisibleColumns { get; set; } = new();
 }
 
 public class PrintBomItem

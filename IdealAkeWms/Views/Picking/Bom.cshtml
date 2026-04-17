@@ -691,10 +691,20 @@
                     filterParts.push((colNames[col] || 'Spalte ' + col) + '=' + filters[col]);
                 }
 
+                // Collect visible column keys from the BOM table headers
+                var visibleCols = [];
+                document.querySelectorAll('#bomTable thead th[data-col-key]').forEach(function(th) {
+                    if (th.style.display !== 'none' && !th.classList.contains('d-none')) {
+                        visibleCols.push(th.getAttribute('data-col-key'));
+                    }
+                });
+                var visibleColumnsParam = visibleCols.join(',');
+
                 var url = '@Url.Action("PrintBom", new { id = Model.ProductionOrderId })';
                 var params = [];
                 if (visiblePositions.length > 0) params.push('visiblePositions=' + encodeURIComponent(visiblePositions.join(',')));
                 if (filterParts.length > 0) params.push('filterInfo=' + encodeURIComponent(filterParts.join(', ')));
+                if (visibleColumnsParam) params.push('visibleColumns=' + encodeURIComponent(visibleColumnsParam));
                 if (params.length > 0) url += '?' + params.join('&');
 
                 window.open(url, '_blank');
