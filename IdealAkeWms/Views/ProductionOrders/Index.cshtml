@@ -23,11 +23,25 @@
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">FA Nummer</label>
-                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="FA Nummer" />
+                    <div class="input-group">
+                        <input type="text" id="filterOrderNumber" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="FA Nummer" />
+                        <button type="button" id="btnScanOrderNumber" class="btn btn-outline-secondary" title="QR-Code scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Artikelnummer</label>
-                    <input type="text" name="filterArticleNumber" value="@Model.FilterArticleNumber" class="form-control" placeholder="Artikelnummer" />
+                    <div class="input-group">
+                        <input type="text" id="filterArticleNumber" name="filterArticleNumber" value="@Model.FilterArticleNumber" class="form-control" placeholder="Artikelnummer" />
+                        <button type="button" id="btnScanArticleNumber" class="btn btn-outline-secondary" title="QR-Code scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Kunde</label>
@@ -398,10 +412,24 @@
 </script>
 
 @section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // QR scanner for FA number filter — fills input then submits form
+            initTextInputScanner('btnScanOrderNumber', 'filterOrderNumber', 'fa', function() {
+                var form = document.getElementById('filterOrderNumber').closest('form');
+                if (form) form.submit();
+            });
+
+            // QR scanner for article number filter — fills input then submits form
+            initTextInputScanner('btnScanArticleNumber', 'filterArticleNumber', 'article', function() {
+                var form = document.getElementById('filterArticleNumber').closest('form');
+                if (form) form.submit();
+            });
+
             // Glas/Zukauf Checkbox-Toggle per AJAX
             document.querySelectorAll('.toggle-field').forEach(function (cb) {
                 cb.addEventListener('change', function () {
