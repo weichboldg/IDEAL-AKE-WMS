@@ -181,6 +181,10 @@
         </div>
         <div class="header-right">
             <div class="wa-number">FA @Model.OrderNumber</div>
+            @if (!string.IsNullOrEmpty(Model.PrintedBy))
+            {
+                <div style="font-size: 12px; color: #666; margin-top: 2px;">Gedruckt von: @Model.PrintedBy</div>
+            }
             @if (Model.ProductionDate.HasValue)
             {
                 <div class="production-date">Fertigungstermin: @Model.ProductionDate.Value.ToString("dd.MM.yyyy")</div>

@@ -431,6 +431,7 @@ public class PickingController : Controller
             Description1 = order.Description1,
             Quantity = order.Quantity,
             ProductionDate = order.ProductionDate,
+            PrintedBy = _currentUserService.GetDisplayName(),
             Items = items,
             FilterInfo = filterInfo
         };
@@ -455,6 +456,7 @@ public class PickingController : Controller
             Description1 = order.Description1,
             Quantity = order.Quantity,
             ProductionDate = order.ProductionDate,
+            PrintedBy = _currentUserService.GetDisplayName(),
             PickedBy = pickedItems.FirstOrDefault()?.PickedBy,
             Items = pickedItems.Select(p => new PrintPickingItem
             {
