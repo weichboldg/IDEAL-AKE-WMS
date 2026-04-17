@@ -186,9 +186,9 @@
             return;
         }
         const [fa, op] = parts;
-        const r = await fetch(`/api/bde/workoperation?faNumber=${encodeURIComponent(fa.trim())}&opNumber=${encodeURIComponent(op.trim())}`);
-        if (!r.ok) { feedback.textContent = 'Arbeitsgang nicht gefunden'; return; }
-        currentWorkOp = await r.json();
+        var resp = await fetch(`/api/bde/workoperation?faNumber=${encodeURIComponent(fa.trim())}&opNumber=${encodeURIComponent(op.trim())}`);
+        if (!resp.ok) { feedback.textContent = 'Arbeitsgang nicht gefunden'; return; }
+        currentWorkOp = await resp.json();
         feedback.textContent = '';
         await renderState();
     }
