@@ -72,6 +72,7 @@ public class PrintPickingViewModel
     public decimal Quantity { get; set; }
     public DateTime? ProductionDate { get; set; }
     public string? PickedBy { get; set; }
+    public string? PrintedBy { get; set; }
     public List<PrintPickingItem> Items { get; set; } = new();
 }
 
@@ -89,9 +90,12 @@ public class PrintBomViewModel
     public string? Description1 { get; set; }
     public decimal Quantity { get; set; }
     public DateTime? ProductionDate { get; set; }
+    public string? PrintedBy { get; set; }
     public List<PrintBomItem> Items { get; set; } = new();
     /// <summary>Aktive Filterinfo für Header-Anzeige (z.B. "Artikelgruppe=960")</summary>
     public string? FilterInfo { get; set; }
+    /// <summary>Sichtbare Spalten-Keys aus der interaktiven Ansicht. Leer = alle Spalten anzeigen.</summary>
+    public List<string> VisibleColumns { get; set; } = new();
 }
 
 public class PrintBomItem

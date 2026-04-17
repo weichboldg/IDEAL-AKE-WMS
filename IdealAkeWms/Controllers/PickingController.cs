@@ -365,7 +365,7 @@ public class PickingController : Controller
     }
 
     [RequirePickingAccess]
-    public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo)
+    public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo, string? visibleColumns)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -431,8 +431,12 @@ public class PickingController : Controller
             Description1 = order.Description1,
             Quantity = order.Quantity,
             ProductionDate = order.ProductionDate,
+            PrintedBy = _currentUserService.GetDisplayName(),
             Items = items,
-            FilterInfo = filterInfo
+            FilterInfo = filterInfo,
+            VisibleColumns = string.IsNullOrEmpty(visibleColumns)
+                ? new List<string>()
+                : visibleColumns.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
         };
 
         return View(vm);
@@ -455,6 +459,7 @@ public class PickingController : Controller
             Description1 = order.Description1,
             Quantity = order.Quantity,
             ProductionDate = order.ProductionDate,
+            PrintedBy = _currentUserService.GetDisplayName(),
             PickedBy = pickedItems.FirstOrDefault()?.PickedBy,
             Items = pickedItems.Select(p => new PrintPickingItem
             {
