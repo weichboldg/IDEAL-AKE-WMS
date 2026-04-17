@@ -1,10 +1,23 @@
 (function () {
     'use strict';
 
-    const terminalId = parseInt(document.getElementById('terminalId').value);
-    let workplaceId = parseInt(document.getElementById('workplaceId').value);
-    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    console.log('BDE Terminal JS initializing...');
+
+    const terminalIdEl = document.getElementById('terminalId');
+    const workplaceIdEl = document.getElementById('workplaceId');
+    const tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+
+    if (!terminalIdEl || !workplaceIdEl || !tokenEl) {
+        console.error('BDE Terminal: required hidden inputs missing', { terminalIdEl, workplaceIdEl, tokenEl });
+        return;
+    }
+
+    const terminalId = parseInt(terminalIdEl.value);
+    let workplaceId = parseInt(workplaceIdEl.value);
+    const token = tokenEl.value;
     const nurFaMode = document.getElementById('nurFaMode')?.value === 'true';
+
+    console.log('BDE Terminal initialized:', { terminalId, workplaceId, nurFaMode });
 
     let currentOperator = null;   // {id, displayName}
     let currentWorkOp = null;     // {id, orderNumber, operationNumber, name}
@@ -78,14 +91,26 @@
         input.value = '';
         if (!raw) return;
         const feedback = document.getElementById('operatorFeedback');
-        const r = await fetch(`/api/bde/operator/${encodeURIComponent(raw)}`);
-        if (!r.ok) { feedback.textContent = 'Unbekannte Personalnummer'; return; }
-        currentOperator = await r.json();
-        feedback.textContent = '';
-        showOperatorBadge();
-        await renderState();
-        await loadAvailableOperations();
-        await loadTodayHistory();
+        try {
+            const r = await fetch(`/api/bde/operator/${encodeURIComponent(raw)}`);
+            if (r.status === 404) {
+                feedback.textContent = 'Unbekannte Personalnummer: ' + raw;
+                return;
+            }
+            if (!r.ok) {
+                feedback.textContent = 'Fehler: HTTP ' + r.status + ' — ' + r.statusText;
+                return;
+            }
+            currentOperator = await r.json();
+            feedback.textContent = '';
+            showOperatorBadge();
+            await renderState();
+            await loadAvailableOperations();
+            await loadTodayHistory();
+        } catch (err) {
+            feedback.textContent = 'Netzwerkfehler: ' + err.message;
+            console.error('BDE Operator Scan Error:', err);
+        }
     }
 
     function showOperatorBadge() {
