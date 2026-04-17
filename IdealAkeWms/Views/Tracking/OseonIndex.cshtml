@@ -10,7 +10,14 @@
         <form method="get" asp-action="OseonIndex" class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label mb-0 small">Auftrags- / Kundenauftragsnr.</label>
-                <input type="text" name="filterCustomerOrder" value="@Model.FilterCustomerOrder" class="form-control form-control-sm" placeholder="Suche..." />
+                <div class="input-group input-group-sm">
+                    <input type="text" name="filterCustomerOrder" id="filterCustomerOrder" value="@Model.FilterCustomerOrder" class="form-control form-control-sm" placeholder="Suche..." />
+                    <button type="button" id="btnScanCustomerOrder" class="btn btn-outline-secondary" title="QR-Code scannen">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label mb-0 small">Artikelnummer</label>
@@ -344,6 +351,8 @@ else
 </style>
 
 @section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -512,12 +521,20 @@ else
                     if (e.key === 'Enter') { e.preventDefault(); applyArticleFilter(); }
                 });
                 filterArticleInput.addEventListener('input', function() {
-                    if (!this.value) applyArticleFilter();
+                    applyArticleFilter();
                 });
             }
-            if (btnScanArticle) {
-                btnScanArticle.addEventListener('click', applyArticleFilter);
-            }
+
+            // QR scanner for article filter — fills input then applies client-side filter
+            initTextInputScanner('btnScanArticle', 'filterArticle', 'article', function() {
+                applyArticleFilter();
+            });
+
+            // QR scanner for customer order filter — fills input then submits form (server-side)
+            initTextInputScanner('btnScanCustomerOrder', 'filterCustomerOrder', 'fa', function() {
+                var form = document.getElementById('filterCustomerOrder').closest('form');
+                if (form) form.submit();
+            });
 
             // === Lagerbestand-Modal ===
             document.addEventListener('click', function(e) {
