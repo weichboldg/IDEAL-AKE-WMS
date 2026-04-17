@@ -352,6 +352,47 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// --- Text-Input Scanner ---
+// Lightweight scanner for plain text inputs (no Select2).
+// valueExtractor: 'article' | 'fa' | 'raw'
+// onScanned: optional callback(extractedValue) after value is set
+function initTextInputScanner(buttonId, targetInputId, valueExtractor, onScanned) {
+    var btn = document.getElementById(buttonId);
+    var target = document.getElementById(targetInputId);
+    if (!btn || !target) return;
+
+    btn.addEventListener('click', function () {
+        // Store callback info in a global so openScannerModal's pipeline can use it
+        _textInputScanCallback = {
+            targetInputId: targetInputId,
+            valueExtractor: valueExtractor,
+            onScanned: onScanned || null
+        };
+        openScannerModal(targetInputId, valueExtractor === 'fa' ? 'productionOrder' : 'article', false, null);
+    });
+}
+
+var _textInputScanCallback = null;
+
+// Hook into processScannedValue: after filling an INPUT, call the stored callback
+var _origProcessScannedValue = processScannedValue;
+processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, faTargetId) {
+    _origProcessScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId);
+
+    // If there's a pending text-input callback and the target matches, fire it
+    if (_textInputScanCallback && _textInputScanCallback.targetInputId === targetSelectId) {
+        var target = document.getElementById(targetSelectId);
+        if (target && target.tagName === 'INPUT') {
+            // Also dispatch input event (original only dispatches change)
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            if (typeof _textInputScanCallback.onScanned === 'function') {
+                _textInputScanCallback.onScanned(target.value);
+            }
+        }
+        _textInputScanCallback = null;
+    }
+};
+
 // Initialisierung wenn DOM bereit
 document.addEventListener('DOMContentLoaded', function () {
     initScanner('btnScanArticle', 'ArticleId', 'article');
