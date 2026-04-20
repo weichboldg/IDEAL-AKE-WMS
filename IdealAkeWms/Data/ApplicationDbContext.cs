@@ -50,6 +50,7 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema("dbo");
 
         // User
         modelBuilder.Entity<User>(entity =>
