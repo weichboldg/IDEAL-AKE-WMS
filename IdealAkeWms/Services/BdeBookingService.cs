@@ -283,6 +283,10 @@ public class BdeBookingService : IBdeBookingService
         e.ModifiedByWindows = _userSvc.GetWindowsUserName();
     }
 
+    /// <summary>
+    /// Gate-Check: verifiziert, dass die Ziel-Werkbank BDE-aktiv ist.
+    /// Rueckgabe null bedeutet "OK, weiter", sonst ein Invalid-Result das der Aufrufer zurueckgeben muss.
+    /// </summary>
     private async Task<BdeBookingResult?> EnsureWorkplaceIsBdeActiveAsync(int workplaceId)
     {
         var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);

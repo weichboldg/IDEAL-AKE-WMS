@@ -400,5 +400,6 @@ public class BdeBookingServiceTests
 
         result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
         result.Message.Should().Contain("nicht für BDE aktiviert");
+        ctx.BdeBookings.Count().Should().Be(1); // only the pre-seeded paused booking, no new one
     }
 }
