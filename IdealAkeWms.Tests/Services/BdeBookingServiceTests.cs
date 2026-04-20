@@ -3,6 +3,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Services;
@@ -324,5 +325,80 @@ public class BdeBookingServiceTests
         result.CollidingBooking!.ProductionWorkplace.Should().NotBeNull();
         result.CollidingBooking.BdeOperatorId.Should().Be(ids.OperatorId);
         result.CollidingBooking.ProductionWorkplaceId.Should().Be(ids.WorkplaceId);
+    }
+
+    [Fact]
+    public async Task StartProduction_RejectsInactiveWorkplace()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        // Werkbank nachträglich deaktivieren
+        var wp = await ctx.ProductionWorkplaces.FindAsync(ids.WorkplaceId);
+        wp!.BdeAktiv = false;
+        await ctx.SaveChangesAsync();
+
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
+        userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
+        var svc = new BdeBookingService(ctx, userSvc.Object);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht für BDE aktiviert");
+        ctx.BdeBookings.Count().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task StartActivity_RejectsInactiveWorkplace()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var wp = await ctx.ProductionWorkplaces.FindAsync(ids.WorkplaceId);
+        wp!.BdeAktiv = false;
+        await ctx.SaveChangesAsync();
+
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
+        userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
+        var svc = new BdeBookingService(ctx, userSvc.Object);
+
+        var result = await svc.StartActivityAsync(ids.OperatorId, ids.ActivityId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht für BDE aktiviert");
+        ctx.BdeBookings.Count().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Resume_RejectsInactiveWorkplace()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        // Pausierte Buchung anlegen
+        var paused = BdeBookingTestSeed.NewBooking(
+            ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-1),
+            endedAt: DateTime.Now.AddMinutes(-30));
+        ctx.BdeBookings.Add(paused);
+        await ctx.SaveChangesAsync();
+
+        // Werkbank deaktivieren
+        var wp = await ctx.ProductionWorkplaces.FindAsync(ids.WorkplaceId);
+        wp!.BdeAktiv = false;
+        await ctx.SaveChangesAsync();
+
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
+        userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
+        var svc = new BdeBookingService(ctx, userSvc.Object);
+
+        var result = await svc.ResumeAsync(paused.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht für BDE aktiviert");
     }
 }

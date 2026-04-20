@@ -34,6 +34,9 @@ public class BdeBookingService : IBdeBookingService
     {
         return InTransactionAsync(async () =>
         {
+            var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
+            if (gateError != null) return gateError;
+
             // 1) Kollision: laeuft WorkOperation bereits bei anderem Operator?
             var existingOnWo = await _ctx.BdeBookings
                 .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
@@ -76,6 +79,9 @@ public class BdeBookingService : IBdeBookingService
     {
         return InTransactionAsync(async () =>
         {
+            var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
+            if (gateError != null) return gateError;
+
             var existingOwn = await _ctx.BdeBookings
                 .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled);
 
@@ -128,6 +134,9 @@ public class BdeBookingService : IBdeBookingService
     {
         return InTransactionAsync(async () =>
         {
+            var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
+            if (gateError != null) return gateError;
+
             var parent = await _ctx.BdeBookings.FindAsync(pausedBookingId);
             if (parent == null) return BdeBookingResult.NotFound();
             if (parent.Status != BdeBookingStatus.Paused)
@@ -272,6 +281,14 @@ public class BdeBookingService : IBdeBookingService
         e.ModifiedAt = DateTime.Now;
         e.ModifiedBy = _userSvc.GetDisplayName();
         e.ModifiedByWindows = _userSvc.GetWindowsUserName();
+    }
+
+    private async Task<BdeBookingResult?> EnsureWorkplaceIsBdeActiveAsync(int workplaceId)
+    {
+        var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
+        if (workplace == null || !workplace.BdeAktiv)
+            return BdeBookingResult.Invalid("Werkbank ist nicht für BDE aktiviert.");
+        return null;
     }
 
     /// <summary>
