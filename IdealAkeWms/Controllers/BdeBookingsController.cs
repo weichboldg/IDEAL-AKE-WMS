@@ -56,7 +56,7 @@ public class BdeBookingsController : Controller
         }).ToList();
 
         ViewBag.Operators = await _ops.GetAllActiveAsync();
-        ViewBag.Workplaces = await _workplaces.GetAllOrderedAsync();
+        ViewBag.Workplaces = await _workplaces.GetBdeActiveAsync();
         ViewBag.Filter = new { skip, take, operatorId, workplaceId, from, to };
 
         return View(vms);
@@ -180,6 +180,6 @@ public class BdeBookingsController : Controller
     private async Task LoadEditSelectLists()
     {
         ViewBag.Operators = await _ops.GetAllAsync();
-        ViewBag.Workplaces = await _workplaces.GetAllOrderedAsync();
+        ViewBag.Workplaces = await _workplaces.GetBdeActiveAsync();
     }
 }

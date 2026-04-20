@@ -278,7 +278,7 @@ public class BdeMasterDataController : Controller
     {
         var users = await _userRepository.GetActiveUsersAsync();
         ViewBag.AllUsers = users.OrderBy(u => u.Name).ToList();
-        ViewBag.AllWorkplaces = await _workplaceRepository.GetAllOrderedAsync();
+        ViewBag.AllWorkplaces = await _workplaceRepository.GetBdeActiveAsync();
     }
 
     private async Task PopulateUsersAsync()
