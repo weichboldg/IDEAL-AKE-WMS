@@ -178,4 +178,23 @@ public class BdeDefaultWorkOperationServiceTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*nicht konfiguriert*");
     }
+
+    [Fact]
+    public async Task FindOrCreate_NonexistentWorkplace_Throws()
+    {
+        var (ctx, svc) = Setup(defaultAgName: "PRODUKTION");
+        var po = new ProductionOrder
+        {
+            OrderNumber = "FA-204", Quantity = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionOrders.Add(po);
+        ctx.SaveChanges();
+
+        // Werkbank-Id 999 existiert nicht
+        var act = async () => await svc.FindOrCreateDefaultAsync(po.Id, 999);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*nicht gefunden*");
+    }
 }

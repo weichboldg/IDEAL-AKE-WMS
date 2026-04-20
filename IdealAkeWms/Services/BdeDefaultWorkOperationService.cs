@@ -51,7 +51,10 @@ public class BdeDefaultWorkOperationService : IBdeDefaultWorkOperationService
         var workplace = await _ctx.ProductionWorkplaces
             .FirstOrDefaultAsync(w => w.Id == workplaceId);
 
-        if (!string.IsNullOrWhiteSpace(workplace?.BdeDefaultArbeitsgang))
+        if (workplace == null)
+            throw new InvalidOperationException($"Werkbank mit Id {workplaceId} nicht gefunden.");
+
+        if (!string.IsNullOrWhiteSpace(workplace.BdeDefaultArbeitsgang))
             return workplace.BdeDefaultArbeitsgang.Trim();
 
         var global = await _settings.GetValueAsync("BdeDefaultArbeitsgang");
