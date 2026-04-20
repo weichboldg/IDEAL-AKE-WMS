@@ -124,7 +124,7 @@ public class BdeApiController : ControllerBase
     [RequireBdeShiftleadAccess]
     public async Task<IActionResult> GetCockpit()
     {
-        var workplaces = await _workplaces.GetAllOrderedAsync();
+        var workplaces = await _workplaces.GetBdeActiveAsync();
         var activeBookings = await _bookings.GetActiveCockpitAsync();
 
         var tiles = workplaces.Select(wp =>
@@ -155,6 +155,12 @@ public class BdeApiController : ControllerBase
     [HttpGet("available-operations/{workplaceId:int}")]
     public async Task<IActionResult> GetAvailableOperations(int workplaceId)
     {
+        var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
+        if (workplace == null || !workplace.BdeAktiv)
+        {
+            return Ok(new { productive = Array.Empty<object>(), unplanned = Array.Empty<object>(), nurFaMode = false });
+        }
+
         var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 

@@ -238,4 +238,59 @@ public class BdeApiControllerTests
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         ok.Value.Should().BeEquivalentTo(new { id = 99, bookingType = "Setup", operatorName = "Anna Admin" });
     }
+
+    [Fact]
+    public async Task GetCockpit_ExcludesInactiveWorkplaces()
+    {
+        // Only the active workplace is returned by GetBdeActiveAsync
+        var wpActive = new ProductionWorkplace
+        {
+            Id = 1,
+            Name = "Aktiv",
+            BdeAktiv = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var wpInactive = new ProductionWorkplace
+        {
+            Id = 2,
+            Name = "Inaktiv",
+            BdeAktiv = false,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+
+        _workplaces.Setup(r => r.GetBdeActiveAsync()).ReturnsAsync(new List<ProductionWorkplace> { wpActive });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+
+        var result = await CreateController().GetCockpit();
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("Aktiv");
+        json.Should().NotContain("Inaktiv");
+        _ = wpInactive; // suppress unused warning
+    }
+
+    [Fact]
+    public async Task GetAvailableOperations_ReturnsEmpty_WhenWorkplaceInactive()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var wpInactive = new ProductionWorkplace
+        {
+            Name = "Inaktiv",
+            BdeAktiv = false,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wpInactive);
+        await ctx.SaveChangesAsync();
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+
+        var result = await controller.GetAvailableOperations(wpInactive.Id);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("\"productive\":[]");
+        json.Should().Contain("\"unplanned\":[]");
+    }
 }
