@@ -18,11 +18,7 @@ public class BdeDefaultWorkOperationService : IBdeDefaultWorkOperationService
 
     public async Task<int> FindOrCreateDefaultAsync(int productionOrderId, int workplaceId)
     {
-        var defaultName = await _settings.GetValueAsync("BdeDefaultArbeitsgang")
-            ?? throw new InvalidOperationException("BdeDefaultArbeitsgang ist nicht konfiguriert.");
-
-        if (string.IsNullOrWhiteSpace(defaultName))
-            throw new InvalidOperationException("BdeDefaultArbeitsgang ist leer.");
+        var defaultName = await ResolveDefaultArbeitsgangAsync(workplaceId);
 
         // Find existing
         var existing = await _ctx.WorkOperations
@@ -48,5 +44,21 @@ public class BdeDefaultWorkOperationService : IBdeDefaultWorkOperationService
         _ctx.WorkOperations.Add(wo);
         await _ctx.SaveChangesAsync();
         return wo.Id;
+    }
+
+    private async Task<string> ResolveDefaultArbeitsgangAsync(int workplaceId)
+    {
+        var workplace = await _ctx.ProductionWorkplaces
+            .FirstOrDefaultAsync(w => w.Id == workplaceId);
+
+        if (!string.IsNullOrWhiteSpace(workplace?.BdeDefaultArbeitsgang))
+            return workplace.BdeDefaultArbeitsgang.Trim();
+
+        var global = await _settings.GetValueAsync("BdeDefaultArbeitsgang");
+        if (!string.IsNullOrWhiteSpace(global))
+            return global.Trim();
+
+        throw new InvalidOperationException(
+            "Default-Arbeitsgang ist nicht konfiguriert (weder auf der Werkbank noch global).");
     }
 }

@@ -82,4 +82,100 @@ public class BdeDefaultWorkOperationServiceTests
         wo.Name.Should().Be("PRODUKTION");
         ctx.WorkOperations.Count(w => w.ProductionOrderId == poId).Should().Be(2); // Fräsen + PRODUKTION
     }
+
+    [Fact]
+    public async Task FindOrCreate_WerkbankOverride_Wins()
+    {
+        var (ctx, svc) = Setup(defaultAgName: "PRODUKTION");
+        var wp = new ProductionWorkplace
+        {
+            Name = "WB1", BdeAktiv = true, BdeDefaultArbeitsgang = "BOHREN",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var po = new ProductionOrder
+        {
+            OrderNumber = "FA-200", Quantity = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionOrders.Add(po);
+        ctx.SaveChanges();
+
+        var woId = await svc.FindOrCreateDefaultAsync(po.Id, wp.Id);
+
+        var wo = ctx.WorkOperations.First(w => w.Id == woId);
+        wo.Name.Should().Be("BOHREN");
+    }
+
+    [Fact]
+    public async Task FindOrCreate_WhitespaceWerkbank_FallsBackToGlobal()
+    {
+        var (ctx, svc) = Setup(defaultAgName: "PRODUKTION");
+        var wp = new ProductionWorkplace
+        {
+            Name = "WB1", BdeAktiv = true, BdeDefaultArbeitsgang = "   ",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var po = new ProductionOrder
+        {
+            OrderNumber = "FA-201", Quantity = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionOrders.Add(po);
+        ctx.SaveChanges();
+
+        var woId = await svc.FindOrCreateDefaultAsync(po.Id, wp.Id);
+
+        var wo = ctx.WorkOperations.First(w => w.Id == woId);
+        wo.Name.Should().Be("PRODUKTION");
+    }
+
+    [Fact]
+    public async Task FindOrCreate_WerkbankTrimmed()
+    {
+        var (ctx, svc) = Setup(defaultAgName: "PRODUKTION");
+        var wp = new ProductionWorkplace
+        {
+            Name = "WB1", BdeAktiv = true, BdeDefaultArbeitsgang = "  BOHREN  ",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var po = new ProductionOrder
+        {
+            OrderNumber = "FA-202", Quantity = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionOrders.Add(po);
+        ctx.SaveChanges();
+
+        var woId = await svc.FindOrCreateDefaultAsync(po.Id, wp.Id);
+
+        var wo = ctx.WorkOperations.First(w => w.Id == woId);
+        wo.Name.Should().Be("BOHREN");
+    }
+
+    [Fact]
+    public async Task FindOrCreate_BothEmpty_Throws()
+    {
+        var (ctx, svc) = Setup(defaultAgName: "");
+        var wp = new ProductionWorkplace
+        {
+            Name = "WB1", BdeAktiv = true, BdeDefaultArbeitsgang = null,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var po = new ProductionOrder
+        {
+            OrderNumber = "FA-203", Quantity = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionOrders.Add(po);
+        ctx.SaveChanges();
+
+        var act = async () => await svc.FindOrCreateDefaultAsync(po.Id, wp.Id);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*nicht konfiguriert*");
+    }
 }
