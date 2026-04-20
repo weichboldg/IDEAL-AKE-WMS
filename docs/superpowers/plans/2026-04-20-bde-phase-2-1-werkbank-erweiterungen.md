@@ -461,8 +461,8 @@ clear message."
 
         var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
 
-        result.ResultType.Should().Be(BdeBookingResultType.Invalid);
-        result.ErrorMessage.Should().Contain("nicht für BDE aktiviert");
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht für BDE aktiviert");
         ctx.BdeBookings.Count().Should().Be(0);
     }
 
@@ -483,8 +483,8 @@ clear message."
 
         var result = await svc.StartActivityAsync(ids.OperatorId, ids.ActivityId, ids.WorkplaceId, ids.TerminalId);
 
-        result.ResultType.Should().Be(BdeBookingResultType.Invalid);
-        result.ErrorMessage.Should().Contain("nicht für BDE aktiviert");
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht für BDE aktiviert");
         ctx.BdeBookings.Count().Should().Be(0);
     }
 
@@ -514,18 +514,12 @@ clear message."
 
         var result = await svc.ResumeAsync(paused.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
 
-        result.ResultType.Should().Be(BdeBookingResultType.Invalid);
-        result.ErrorMessage.Should().Contain("nicht für BDE aktiviert");
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht für BDE aktiviert");
     }
 ```
 
-**Hinweis:** `BdeBookingResultType` und `ErrorMessage` müssen den Feldern in `BdeBookingResult` entsprechen. Falls die Typen anders heißen, die Test-Assertions mit `grep` gegen die real definierte API abgleichen — die Tests sollen gegen die echte Result-API assertieren, nicht gegen erfundene Namen:
-
-```bash
-grep -n "public " "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Services/BdeBookingResult.cs"
-```
-
-Bei abweichenden Namen (z.B. `Status` statt `ResultType`, oder `Message` statt `ErrorMessage`) die Tests entsprechend anpassen, bevor du weiterläufst.
+**API-Referenz:** `BdeBookingResult` hat die Felder `Outcome` (Enum `BdeBookingOutcome`) und `Message` (string?). Factory-Methoden: `Success`, `Collision`, `QuantityRequired`, `Invalid(string)`, `NotFound`. Die Tests oben verwenden diese Namen direkt.
 
 - [ ] **Step 2: Tests ausführen — 3 neue sollten fehlschlagen**
 
