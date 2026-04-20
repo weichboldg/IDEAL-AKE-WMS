@@ -13,7 +13,7 @@ public class BdeTerminalRepositoryTests
     {
         using var ctx = TestDbContextFactory.Create();
         var user = new User { Name = "Terminal 1", PasswordHash = "x", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
-        var wp = new ProductionWorkplace { Name = "Werkbank 1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wp = new ProductionWorkplace { Name = "Werkbank 1", BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         ctx.Users.Add(user);
         ctx.ProductionWorkplaces.Add(wp);
         await ctx.SaveChangesAsync();
@@ -49,8 +49,8 @@ public class BdeTerminalRepositoryTests
         using var ctx = TestDbContextFactory.Create();
         var u1 = new User { Name = "u1", PasswordHash = "x", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         var u2 = new User { Name = "u2", PasswordHash = "x", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
-        var wpZ = new ProductionWorkplace { Name = "Zeta", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
-        var wpA = new ProductionWorkplace { Name = "Alpha", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpZ = new ProductionWorkplace { Name = "Zeta", BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpA = new ProductionWorkplace { Name = "Alpha", BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         ctx.Users.AddRange(u1, u2);
         ctx.ProductionWorkplaces.AddRange(wpZ, wpA);
         await ctx.SaveChangesAsync();

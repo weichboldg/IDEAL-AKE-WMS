@@ -57,8 +57,8 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - **Terminal-Validierung**: Fehlermeldung &bdquo;Werkbank ist nicht fuer BDE aktiviert&ldquo; beim Scan, wenn Werkbank nicht als BDE-aktiv markiert
 
 #### Technische Details
-- Neue DB-Spalten: `ProductionWorkplaces.BdeAktiv` (BIT DEFAULT 0), `ProductionWorkplaces.BdeDefaultArbeitsgang` (NVARCHAR(100) NULL)
-- Migration: `SQL/47_AddWorkplaceBdeSettings.sql`
+- Neue DB-Spalten: `ProductionWorkplaces.BdeAktiv` (BIT DEFAULT 0), `ProductionWorkplaces.BdeDefaultArbeitsgang` (NVARCHAR(200) NULL)
+- Migration: `SQL/43_AddBdeWerkbankSettings.sql`
 - Alle BDE-Abfragen gefiltert auf `BdeAktiv = true`
 
 ## Aenderungen (16.04.2026)
