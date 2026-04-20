@@ -191,6 +191,8 @@ BEGIN
         [Name]                   NVARCHAR(200)     NOT NULL,
         [Hall]                   NVARCHAR(200)     NULL,
         [OverridePrePickingDays] INT               NULL,
+        [BdeAktiv]               BIT               NOT NULL DEFAULT (0),
+        [BdeDefaultArbeitsgang]  NVARCHAR(200)     NULL,
         [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]              NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
@@ -1348,6 +1350,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260410124248_AddUserViewPreferences', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260415121811_AddBde')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260415121811_AddBde', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260420104948_AddBdeWerkbankSettings')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260420104948_AddBdeWerkbankSettings', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
