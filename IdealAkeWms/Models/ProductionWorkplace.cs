@@ -17,6 +17,13 @@ public class ProductionWorkplace : AuditableEntity
     [Range(0, 365)]
     public int? OverridePrePickingDays { get; set; }
 
+    [Display(Name = "BDE aktiv")]
+    public bool BdeAktiv { get; set; } = false;
+
+    [StringLength(200)]
+    [Display(Name = "Default-Arbeitsgang (BDE)")]
+    public string? BdeDefaultArbeitsgang { get; set; }
+
     public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
     public ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();

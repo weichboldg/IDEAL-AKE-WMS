@@ -22,7 +22,7 @@ public class BdeDefaultWorkOperationServiceTests
 
     private static int SeedFaAndWorkplace(ApplicationDbContext ctx)
     {
-        var wp = new ProductionWorkplace { Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wp = new ProductionWorkplace { Name = "WB1", BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         var po = new ProductionOrder { OrderNumber = "FA-100", Quantity = 10, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t", ProductionWorkplaceId = wp.Id };
         ctx.ProductionWorkplaces.Add(wp);
         ctx.ProductionOrders.Add(po);

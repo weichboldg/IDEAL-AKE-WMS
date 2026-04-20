@@ -26,7 +26,7 @@ public static class BdeBookingTestSeed
         const string actor = "t";
 
         var user = new User { Name = $"terminaluser{suffix}", PasswordHash = "x", CreatedAt = now, CreatedBy = actor, CreatedByWindows = actor };
-        var wp = new ProductionWorkplace { Name = $"Werkbank{suffix}", CreatedAt = now, CreatedBy = actor, CreatedByWindows = actor };
+        var wp = new ProductionWorkplace { Name = $"Werkbank{suffix}", BdeAktiv = true, CreatedAt = now, CreatedBy = actor, CreatedByWindows = actor };
         ctx.Users.Add(user);
         ctx.ProductionWorkplaces.Add(wp);
         await ctx.SaveChangesAsync();
