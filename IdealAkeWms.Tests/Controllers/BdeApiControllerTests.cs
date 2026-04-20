@@ -250,14 +250,6 @@ public class BdeApiControllerTests
             BdeAktiv = true,
             CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
         };
-        var wpInactive = new ProductionWorkplace
-        {
-            Id = 2,
-            Name = "Inaktiv",
-            BdeAktiv = false,
-            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
-        };
-
         _workplaces.Setup(r => r.GetBdeActiveAsync()).ReturnsAsync(new List<ProductionWorkplace> { wpActive });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
 
@@ -267,7 +259,6 @@ public class BdeApiControllerTests
         var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
         json.Should().Contain("Aktiv");
         json.Should().NotContain("Inaktiv");
-        _ = wpInactive; // suppress unused warning
     }
 
     [Fact]
@@ -292,5 +283,6 @@ public class BdeApiControllerTests
         var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
         json.Should().Contain("\"productive\":[]");
         json.Should().Contain("\"unplanned\":[]");
+        json.Should().Contain("\"nurFaMode\":false");
     }
 }
