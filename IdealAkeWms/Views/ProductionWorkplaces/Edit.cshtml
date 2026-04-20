@@ -43,7 +43,26 @@
                         <small class="form-text text-muted">Halten Sie Strg gedrückt, um mehrere Benutzer auszuwählen.</small>
                     </div>
 
-                    <div class="d-flex gap-2">
+                    <div class="card mt-3">
+                        <div class="card-header">BDE-Einstellungen</div>
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-3">
+                                <input asp-for="BdeAktiv" class="form-check-input" role="switch" />
+                                <label asp-for="BdeAktiv" class="form-check-label"></label>
+                                <div class="form-text">Werkbank erscheint in BDE-Cockpit, Terminal und Buchungsübersicht.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="BdeDefaultArbeitsgang" class="form-label"></label>
+                                <input asp-for="BdeDefaultArbeitsgang" class="form-control" placeholder="z.B. PRODUKTION (leer = globales Setting verwenden)" />
+                                <div class="form-text">
+                                    Überschreibt das globale Setting. Aktuell global: <strong>@ViewBag.GlobalDefaultArbeitsgang</strong>
+                                </div>
+                                <span asp-validation-for="BdeDefaultArbeitsgang" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-primary">Speichern</button>
                         <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
                     </div>
