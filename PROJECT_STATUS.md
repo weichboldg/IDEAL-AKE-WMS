@@ -41,10 +41,25 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Kommissionierer-Zuweisung bei Freigabe | Fertig |
 | Individuell anpassbare Tabellenansichten (Spalten) | Fertig |
 | Betriebsdatenerfassung (BDE) — Terminal, Cockpit, Korrekturen | Fertig (Phase 1) |
+| BDE Phase 2.1 — Werkbank-Erweiterungen (BdeAktiv, Default-AG) | Fertig (Phase 2.1) |
 
 ## Version
-- **Web-App**: v1.8.1 (16.04.2026)
+- **Web-App**: v1.8.2 (20.04.2026)
 - **Service**: v1.8.1 (16.04.2026)
+
+## Aenderungen (20.04.2026)
+
+### v1.8.2 — BDE Phase 2.1: Werkbank-Erweiterungen
+
+#### Neue Funktionen
+- **BdeAktiv-Flag pro Werkbank**: Neue Checkbox im Werkbank-Stamm — nur aktivierte Werkbaenke erscheinen im Cockpit, Terminal-Auswahl und Buchungs-Dropdown
+- **Default-Arbeitsgang pro Werkbank**: Werkbank-spezifischer AG-Name als Fallback-Quelle vor globalem Setting (`BdeDefaultArbeitsgang`)
+- **Terminal-Validierung**: Fehlermeldung &bdquo;Werkbank ist nicht fuer BDE aktiviert&ldquo; beim Scan, wenn Werkbank nicht als BDE-aktiv markiert
+
+#### Technische Details
+- Neue DB-Spalten: `ProductionWorkplaces.BdeAktiv` (BIT DEFAULT 0), `ProductionWorkplaces.BdeDefaultArbeitsgang` (NVARCHAR(100) NULL)
+- Migration: `SQL/47_AddWorkplaceBdeSettings.sql`
+- Alle BDE-Abfragen gefiltert auf `BdeAktiv = true`
 
 ## Aenderungen (16.04.2026)
 
