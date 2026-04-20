@@ -18,7 +18,7 @@ public class ProductionWorkplace : AuditableEntity
     public int? OverridePrePickingDays { get; set; }
 
     [Display(Name = "BDE aktiv")]
-    public bool BdeAktiv { get; set; } = false;
+    public bool BdeAktiv { get; set; }
 
     [StringLength(200)]
     [Display(Name = "Default-Arbeitsgang (BDE)")]
