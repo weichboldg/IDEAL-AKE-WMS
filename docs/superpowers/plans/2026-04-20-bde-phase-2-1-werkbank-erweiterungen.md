@@ -76,6 +76,21 @@ cd "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms" && dotnet ef migrations add
 
 Erwartet: neue Migration-Datei in `IdealAkeWms/Migrations/`, Name endet auf `_AddBdeWerkbankSettings.cs`. `ApplicationDbContextModelSnapshot.cs` wird automatisch aktualisiert.
 
+- [ ] **Step 3a: Migration-Inhalt prüfen (keine ungewollten Änderungen)**
+
+Die generierte Migration öffnen und sicherstellen, dass nur die beiden neuen Spalten dazukommen:
+
+```bash
+cat "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Migrations/"*_AddBdeWerkbankSettings.cs
+```
+
+Erwartet: `Up()` enthält zwei `migrationBuilder.AddColumn<...>`-Aufrufe für `BdeAktiv` (bool) und `BdeDefaultArbeitsgang` (string) auf Tabelle `ProductionWorkplaces`. `Down()` enthält zwei `DropColumn`. **Keine anderen Änderungen.**
+
+Wenn andere Änderungen drin sind (z.B. Index-Renames, unrelated `AlterColumn`), wurde ein pending Model-Drift mit aufgesammelt. In dem Fall:
+1. Migration löschen: `dotnet ef migrations remove`
+2. Ursache des Drifts untersuchen (`git diff IdealAkeWms/Migrations/ApplicationDbContextModelSnapshot.cs`)
+3. Drift beheben, dann Migration erneut generieren
+
 - [ ] **Step 4: Build zur Verifikation**
 
 ```bash
@@ -533,7 +548,7 @@ Erwartet: 3 neue Tests rot (Buchung wird angelegt obwohl Werkbank inaktiv). Alle
 
 In `IdealAkeWms/Services/BdeBookingService.cs`:
 
-1) Am Anfang der Klasse einen privaten Helper einfügen (nach dem Konstruktor):
+1) Einen privaten Helper zum Block "Interne Helfer" am Ende der Klasse hinzufügen (wo auch `FinishInternalAsync`, `FinishAndSaveAsync`, `CreatePartialQuantity`, `SetAudit`, `SetAuditModified`, `InTransactionAsync` leben):
 
 ```csharp
     private async Task<BdeBookingResult?> EnsureWorkplaceIsBdeActiveAsync(int workplaceId)
@@ -674,11 +689,13 @@ terminal assignments and direct API calls."
     }
 ```
 
-**Hinweis:** Der Test nimmt an, dass `BdeApiControllerTests` einen `CreateController(ctx)`-Helper bereits hat. Wenn nicht, grep die Datei nach dem Setup-Pattern der anderen Tests und baue das Controller-Instanziieren analog nach.
+**Hinweis:** Der Test nimmt an, dass `BdeApiControllerTests` einen `CreateController(ctx)`-Helper bereits hat. Zuerst verifizieren:
 
 ```bash
-grep -n "new BdeApiController\|CreateController" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms.Tests/Controllers/BdeApiControllerTests.cs"
+grep -n "new BdeApiController\|CreateController\|private.*Controller" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms.Tests/Controllers/BdeApiControllerTests.cs"
 ```
+
+**Falls kein `CreateController`-Helper existiert**, das Controller-Setup aus einem anderen existierenden Test in derselben Datei kopieren (erste `new BdeApiController(...)`-Zeile). Das Konstruktor-Signatur-Problem damit: Der BdeApiController hat viele Dependencies (DB-Context, Services, ICurrentUserService etc.) — den kompletten Setup des Controllers aus einem Nachbartest übernehmen, um Wiederholung zu vermeiden. Falls der Controller kein passender Nachbartest existiert (z.B. der erste `GetActiveCockpit`-Test ist anders konstruiert), den Test-Setup aus dem jeweils ähnlichsten Test kopieren.
 
 - [ ] **Step 2: Test ausführen, fehlschlagen erwartet**
 
@@ -773,9 +790,17 @@ Keine neuen Tests — diese Änderungen sind reine Dropdown-Quellenwechsel und w
 
 - [ ] **Step 1: Betroffene Aufrufe finden**
 
+Erst alle BDE-relevanten Aufrufe von `GetAllOrderedAsync` im gesamten Projekt greppen, um keinen Call-Site zu übersehen:
+
 ```bash
-grep -n "GetAllOrderedAsync\|GetAllWithUsersOrderedAsync" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Controllers/BdeMasterDataController.cs" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Controllers/BdeBookingsController.cs"
+grep -rn "GetAllOrderedAsync\|GetAllWithUsersOrderedAsync" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Controllers/" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Views/"
 ```
+
+Entscheidung pro Treffer:
+- **BdeMasterDataController** (Terminal-Edit-Dropdown): auf `GetBdeActiveAsync()` umstellen
+- **BdeBookingsController** (Werkbank-Filter im Buchungsübersicht-Filter): auf `GetBdeActiveAsync()` umstellen
+- **Andere Controller** (Tracking, ProductionOrders, Masterdata-Übersicht, OseonTracking): **nicht ändern** — WMS-Stammdaten-Use-Cases sollen alle Werkbänke zeigen
+- **ProductionWorkplacesController** (Werkbänke-Index): **nicht ändern** — Stammdatenpflege muss alle sehen, auch inaktive, um sie aktivieren zu können
 
 - [ ] **Step 2: BdeMasterDataController anpassen**
 
@@ -1208,6 +1233,16 @@ Im Troubleshooting-Bereich (falls vorhanden, sonst am Ende des BDE-Abschnitts) e
 <p>Tritt beim Scan am Terminal auf, wenn die zugewiesene Werkbank nicht als BDE-aktiv markiert ist. Lösung: Stammdaten → Werkbänke → betroffene Werkbank bearbeiten → <em>BDE aktiv</em> einschalten.</p>
 ```
 
+- [ ] **Step 1a: PROJECT_STATUS.md fortschreiben**
+
+Falls `PROJECT_STATUS.md` im Repo-Root existiert und BDE-Phasen trackt, einen neuen Eintrag "Phase 2.1 Werkbank-Erweiterungen — abgeschlossen" ergänzen mit kurzer Beschreibung (Werkbank-BdeAktiv-Flag + werkbank-spezifischer Default-AG mit Fallback aufs globale Setting).
+
+```bash
+grep -n "BDE\|Phase" "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/PROJECT_STATUS.md" | head -20
+```
+
+Einen Eintrag in passender Form zum Stil der anderen Phase-Einträge hinzufügen. Falls das Dokument nicht existiert oder kein BDE-Tracking enthält, diesen Step überspringen.
+
 - [ ] **Step 2: Build + alle Tests final**
 
 ```bash
@@ -1227,25 +1262,29 @@ App starten:
 cd "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms" && dotnet run --no-build --urls="http://localhost:5088"
 ```
 
+Voraussetzung: das globale AppSetting `BdeAktiv = true` ist gesetzt (sonst ist das BDE-Menü unsichtbar). Für Schritte 8+9 zusätzlich `BdeNurFaMeldung = true` im AppSettings setzen.
+
 Manuell prüfen (Reihenfolge):
-1. `/ProductionWorkplaces` — "BDE"-Spalte vorhanden, alle Werkbänke "Inaktiv" (da Default 0).
-2. Eine Werkbank bearbeiten, "BDE aktiv" einschalten, "Default-Arbeitsgang" leer lassen, speichern.
-3. Zurück zur Liste — die Werkbank zeigt jetzt "Aktiv".
-4. `/BdeCockpit` (falls BdeAktiv global = true) — nur die eine aktive Werkbank erscheint als Kachel (bzw. keine wenn keine laufende Buchung vorhanden).
-5. `/BdeBookings` — Werkbank-Filter-Dropdown zeigt nur die aktive Werkbank.
-6. `/BdeMasterData/EditTerminal/<id>` — Werkbank-Dropdown zeigt nur die aktive Werkbank.
-7. Werkbank bearbeiten → "Default-Arbeitsgang" auf "BOHREN" setzen, speichern.
-8. Im NurFA-Modus (BdeNurFaMeldung = true): einen FA an dieser Werkbank scannen → neuer WorkOperation hat Name "BOHREN", nicht "PRODUKTION".
-9. Werkbank wieder auf "Inaktiv" setzen → im Terminal erscheint beim Scan "Werkbank ist nicht für BDE aktiviert".
+1. `/ProductionWorkplaces` — neue "BDE"-Spalte vorhanden, alle Werkbänke zeigen Badge "Inaktiv" (da Werkbank-Default `BdeAktiv = 0`).
+2. Eine Werkbank bearbeiten, Toggle "BDE aktiv" einschalten, "Default-Arbeitsgang" leer lassen, speichern.
+3. Zurück zur Liste — dieselbe Werkbank zeigt jetzt Badge "Aktiv".
+4. `/BdeCockpit` — nur die eine werkbank-aktive Werkbank erscheint als Kachel (bzw. keine Kachel wenn dort keine laufende Buchung existiert — leere Kachel-Liste ist OK).
+5. `/BdeBookings` — Werkbank-Filter-Dropdown zeigt nur die werkbank-aktive Werkbank (historische Buchungen auf inaktiven Werkbänken sind weiterhin in der Ergebnisliste sichtbar, falls vorhanden).
+6. `/BdeMasterData/EditTerminal/<id>` eines beliebigen Terminals — Werkbank-Dropdown zeigt nur werkbank-aktive Werkbänke.
+7. Die werkbank-aktive Werkbank erneut bearbeiten → "Default-Arbeitsgang" auf "BOHREN" setzen, speichern.
+8. Im NurFA-Modus (globales AppSetting `BdeNurFaMeldung = true`): einen FA an dieser Werkbank am Terminal scannen → neu erzeugter WorkOperation hat Name "BOHREN" (nicht "PRODUKTION"). Prüfung in der Datenbank oder über die Buchungsübersicht.
+9. Werkbank wieder auf "BDE aktiv = false" setzen → am Terminal erscheint beim nächsten FA-Scan die Fehlermeldung "Werkbank ist nicht für BDE aktiviert".
 
 Server stoppen (Ctrl+C).
 
 - [ ] **Step 4: Commit + Final-Log**
 
 ```bash
-git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" add IdealAkeWms/Views/Help/Index.cshtml
-git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" commit -m "docs(bde): help section for workplace BDE activation + troubleshooting"
+git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" add IdealAkeWms/Views/Help/Index.cshtml PROJECT_STATUS.md
+git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" commit -m "docs(bde): help section + PROJECT_STATUS for Phase 2.1"
 git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" log --oneline -12
 ```
+
+Falls `PROJECT_STATUS.md` in Step 1a nicht verändert wurde, diesen Pfad aus dem `git add` entfernen.
 
 Erwartet: die letzten 10 Commits zeigen die Phase-2.1-Umsetzung.
