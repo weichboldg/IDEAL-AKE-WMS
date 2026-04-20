@@ -13,15 +13,18 @@ public class ProductionWorkplacesController : Controller
     private readonly IProductionWorkplaceRepository _repository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAppSettingRepository _appSettings;
 
     public ProductionWorkplacesController(
         IProductionWorkplaceRepository repository,
         IUserRepository userRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAppSettingRepository appSettings)
     {
         _repository = repository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
+        _appSettings = appSettings;
     }
 
     public async Task<IActionResult> Index()
@@ -36,6 +39,7 @@ public class ProductionWorkplacesController : Controller
         {
             AvailableUsers = await _userRepository.GetActiveUsersAsync()
         };
+        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
         return View(vm);
     }
 
@@ -46,6 +50,7 @@ public class ProductionWorkplacesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
+            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
             return View(vm);
         }
 
@@ -54,6 +59,10 @@ public class ProductionWorkplacesController : Controller
             Name = vm.Name,
             Hall = vm.Hall,
             OverridePrePickingDays = vm.OverridePrePickingDays,
+            BdeAktiv = vm.BdeAktiv,
+            BdeDefaultArbeitsgang = string.IsNullOrWhiteSpace(vm.BdeDefaultArbeitsgang)
+                ? null
+                : vm.BdeDefaultArbeitsgang.Trim(),
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -86,10 +95,13 @@ public class ProductionWorkplacesController : Controller
             Name = workplace.Name,
             Hall = workplace.Hall,
             OverridePrePickingDays = workplace.OverridePrePickingDays,
+            BdeAktiv = workplace.BdeAktiv,
+            BdeDefaultArbeitsgang = workplace.BdeDefaultArbeitsgang,
             SelectedUserIds = workplace.ProductionWorkplaceUsers.Select(wu => wu.UserId).ToList(),
             AvailableUsers = await _userRepository.GetActiveUsersAsync()
         };
 
+        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
         return View(vm);
     }
 
@@ -103,6 +115,7 @@ public class ProductionWorkplacesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
+            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
             return View(vm);
         }
 
@@ -113,6 +126,10 @@ public class ProductionWorkplacesController : Controller
         existing.Name = vm.Name;
         existing.Hall = vm.Hall;
         existing.OverridePrePickingDays = vm.OverridePrePickingDays;
+        existing.BdeAktiv = vm.BdeAktiv;
+        existing.BdeDefaultArbeitsgang = string.IsNullOrWhiteSpace(vm.BdeDefaultArbeitsgang)
+            ? null
+            : vm.BdeDefaultArbeitsgang.Trim();
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();

@@ -19,6 +19,13 @@ public class ProductionWorkplaceEditViewModel
     [Range(0, 365, ErrorMessage = "Muss zwischen 0 und 365 liegen.")]
     public int? OverridePrePickingDays { get; set; }
 
+    [Display(Name = "BDE aktiv")]
+    public bool BdeAktiv { get; set; }
+
+    [MaxLength(200)]
+    [Display(Name = "Default-Arbeitsgang (BDE)")]
+    public string? BdeDefaultArbeitsgang { get; set; }
+
     [Display(Name = "Zugeordnete Benutzer")]
     public List<int> SelectedUserIds { get; set; } = new();
 
