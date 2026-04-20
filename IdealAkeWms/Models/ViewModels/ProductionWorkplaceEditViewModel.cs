@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace IdealAkeWms.Models.ViewModels;
 
@@ -26,8 +27,10 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "Default-Arbeitsgang (BDE)")]
     public string? BdeDefaultArbeitsgang { get; set; }
 
+    [ValidateNever]
     [Display(Name = "Zugeordnete Benutzer")]
     public List<int> SelectedUserIds { get; set; } = new();
 
+    [ValidateNever]
     public List<User> AvailableUsers { get; set; } = new();
 }
