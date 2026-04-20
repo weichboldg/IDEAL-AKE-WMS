@@ -7,5 +7,6 @@ public interface IProductionWorkplaceRepository : IRepository<ProductionWorkplac
     Task<List<ProductionWorkplace>> GetAllOrderedAsync();
     Task<ProductionWorkplace?> GetByIdWithUsersAsync(int id);
     Task<List<ProductionWorkplace>> GetAllWithUsersOrderedAsync();
+    Task<List<ProductionWorkplace>> GetBdeActiveAsync();
     Task SetProductionWorkplaceUsersAsync(int workplaceId, List<int> userIds, string createdBy, string createdByWindows);
 }

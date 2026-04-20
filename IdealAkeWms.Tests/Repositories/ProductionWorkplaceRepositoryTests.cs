@@ -147,4 +147,48 @@ public class ProductionWorkplaceRepositoryTests
 
         result.Select(w => w.Name).Should().ContainInOrder("Alpha", "Beta", "Gamma");
     }
+
+    private static ProductionWorkplace NewWp(string name, bool bdeAktiv)
+        => new()
+        {
+            Name = name,
+            BdeAktiv = bdeAktiv,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+
+    [Fact]
+    public async Task GetBdeActiveAsync_ReturnsOnlyActiveWorkplaces()
+    {
+        var ctx = TestDbContextFactory.Create();
+        ctx.ProductionWorkplaces.AddRange(
+            NewWp("Active A", bdeAktiv: true),
+            NewWp("Inactive B", bdeAktiv: false),
+            NewWp("Active C", bdeAktiv: true));
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionWorkplaceRepository(ctx);
+
+        var result = await repo.GetBdeActiveAsync();
+
+        result.Should().HaveCount(2);
+        result.Select(w => w.Name).Should().BeEquivalentTo(new[] { "Active A", "Active C" });
+    }
+
+    [Fact]
+    public async Task GetBdeActiveAsync_OrdersByName()
+    {
+        var ctx = TestDbContextFactory.Create();
+        ctx.ProductionWorkplaces.AddRange(
+            NewWp("Zeta", bdeAktiv: true),
+            NewWp("Alpha", bdeAktiv: true));
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionWorkplaceRepository(ctx);
+
+        var result = await repo.GetBdeActiveAsync();
+
+        result.Select(w => w.Name).Should().ContainInOrder("Alpha", "Zeta");
+    }
 }

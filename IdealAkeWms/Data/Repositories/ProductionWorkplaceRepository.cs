@@ -33,6 +33,14 @@ public class ProductionWorkplaceRepository : Repository<ProductionWorkplace>, IP
             .ToListAsync();
     }
 
+    public async Task<List<ProductionWorkplace>> GetBdeActiveAsync()
+    {
+        return await _dbSet
+            .Where(w => w.BdeAktiv)
+            .OrderBy(w => w.Name)
+            .ToListAsync();
+    }
+
     public async Task SetProductionWorkplaceUsersAsync(int workplaceId, List<int> userIds, string createdBy, string createdByWindows)
     {
         var existing = await _context.ProductionWorkplaceUsers
