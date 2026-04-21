@@ -98,6 +98,43 @@ public class BdeTerminalControllerTests
     }
 
     [Fact]
+    public async Task PausedBookings_ExcludesParentsAlreadyResumed()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        // Pausierte Parent-Buchung
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+
+        // Resumed Child-Buchung (mit ParentBookingId → parent)
+        ctx.BdeBookings.Add(new BdeBooking {
+            BdeOperatorId = ids.OperatorId,
+            WorkOperationId = ids.WorkOperationId,
+            BdeTerminalId = ids.TerminalId,
+            ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production,
+            Status = BdeBookingStatus.Running,
+            StartedAt = DateTime.Now.AddMinutes(-30),
+            ParentBookingId = parent.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateTerminalController(ctx);
+        var result = await controller.PausedBookings(ids.OperatorId);
+
+        var ok = result as OkObjectResult;
+        ok.Should().NotBeNull();
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+        // Parent sollte NICHT in der paused-list auftauchen, weil bereits resumed
+        parsed.GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
     public async Task Finish_MultiMaEnabledAndFinalQty_IncludesOtherActiveBookings()
     {
         var ctx = TestDbContextFactory.Create();

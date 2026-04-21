@@ -147,7 +147,8 @@ public class BdeTerminalController : Controller
                 .ThenInclude(wo => wo!.ProductionOrder)
             .Where(b => b.BdeOperatorId == operatorId
                      && b.Status == BdeBookingStatus.Paused
-                     && !b.IsCancelled)
+                     && !b.IsCancelled
+                     && !_ctx.BdeBookings.Any(child => child.ParentBookingId == b.Id))
             .OrderBy(b => b.StartedAt)
             .Select(b => new {
                 bookingId = b.Id,
