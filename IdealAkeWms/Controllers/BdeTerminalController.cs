@@ -1,8 +1,10 @@
+using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Controllers;
 
@@ -16,13 +18,15 @@ public class BdeTerminalController : Controller
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IBdeDefaultWorkOperationService _defaultWoService;
     private readonly IAppSettingRepository _settings;
+    private readonly ApplicationDbContext _ctx;
 
     public BdeTerminalController(IBdeTerminalRepository terminals, IBdeBookingService bookingSvc,
         ICurrentUserService userSvc, IProductionWorkplaceRepository workplaces,
-        IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings)
+        IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings,
+        ApplicationDbContext ctx)
     {
         _terminals = terminals; _bookingSvc = bookingSvc; _userSvc = userSvc; _workplaces = workplaces;
-        _defaultWoService = defaultWoService; _settings = settings;
+        _defaultWoService = defaultWoService; _settings = settings; _ctx = ctx;
     }
 
     public async Task<IActionResult> Index(int? workplaceId)
@@ -98,7 +102,34 @@ public class BdeTerminalController : Controller
     public async Task<IActionResult> Finish(int bookingId, decimal? goodQty, decimal? scrapQty)
     {
         var result = await _bookingSvc.FinishAsync(bookingId, goodQty, scrapQty);
-        return Json(MapResult(result));
+
+        object[] otherActiveBookings = Array.Empty<object>();
+
+        if (result.Outcome == BdeBookingOutcome.Success
+            && (goodQty.HasValue || scrapQty.HasValue)
+            && result.Booking?.WorkOperationId is int woId)
+        {
+            var multiMa = (await _settings.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
+                ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+            if (multiMa)
+            {
+                otherActiveBookings = await _ctx.BdeBookings
+                    .Include(b => b.BdeOperator)
+                    .Where(b => b.WorkOperationId == woId
+                             && b.BdeOperatorId != result.Booking.BdeOperatorId
+                             && b.EndedAt == null
+                             && !b.IsCancelled)
+                    .Select(b => (object)new {
+                        operatorId = b.BdeOperatorId,
+                        operatorName = b.BdeOperator!.FirstName + " " + b.BdeOperator.LastName,
+                        startedAt = b.StartedAt
+                    })
+                    .ToArrayAsync();
+            }
+        }
+
+        return Json(MapResultWithOthers(result, otherActiveBookings));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -106,6 +137,35 @@ public class BdeTerminalController : Controller
     {
         var result = await _bookingSvc.ReportPartialQuantityAsync(bookingId, goodQty, scrapQty);
         return Json(MapResult(result));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PausedBookings(int operatorId)
+    {
+        var paused = await _ctx.BdeBookings
+            .Include(b => b.WorkOperation)
+                .ThenInclude(wo => wo!.ProductionOrder)
+            .Where(b => b.BdeOperatorId == operatorId
+                     && b.Status == BdeBookingStatus.Paused
+                     && !b.IsCancelled)
+            .OrderBy(b => b.StartedAt)
+            .Select(b => new {
+                bookingId = b.Id,
+                orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
+                operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
+                operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
+                pausedAt = b.EndedAt
+            })
+            .ToListAsync();
+
+        return Ok(paused);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CloseOthers(int workOperationId, int operatorId)
+    {
+        var result = await _bookingSvc.CloseOtherBookingsOnWorkOperationAsync(workOperationId, exceptOperatorId: operatorId);
+        return Ok(new { closedCount = result.ClosedCount });
     }
 
     private static object MapResult(BdeBookingResult r) => new
@@ -116,5 +176,17 @@ public class BdeTerminalController : Controller
         collidingWorkplace = r.CollidingBooking?.ProductionWorkplace?.Name,
         collidingSince = r.CollidingBooking?.StartedAt,
         message = r.Message
+    };
+
+    private static object MapResultWithOthers(BdeBookingResult r, object[] otherActiveBookings) => new
+    {
+        outcome = r.Outcome.ToString(),
+        bookingId = r.Booking?.Id,
+        workOperationId = r.Booking?.WorkOperationId,
+        collidingOperator = r.CollidingBooking?.BdeOperator?.DisplayName,
+        collidingWorkplace = r.CollidingBooking?.ProductionWorkplace?.Name,
+        collidingSince = r.CollidingBooking?.StartedAt,
+        message = r.Message,
+        otherActiveBookings
     };
 }
