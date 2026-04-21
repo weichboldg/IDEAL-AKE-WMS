@@ -410,9 +410,9 @@ public class BdeBookingServiceTests
         userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
 
         var settingsMock = new Mock<IdealAkeWms.Data.Repositories.IAppSettingRepository>();
-        settingsMock.Setup(s => s.GetValueAsync("BdeMehrfachBuchungProArbeitsgang"))
+        settingsMock.Setup(s => s.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
             .ReturnsAsync(multiMa ? "true" : "false");
-        settingsMock.Setup(s => s.GetValueAsync("BdeMehrfachBuchungProOperator"))
+        settingsMock.Setup(s => s.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProOperator))
             .ReturnsAsync(multiOp ? "true" : "false");
 
         return new BdeBookingService(ctx, userSvc.Object, settingsMock.Object);

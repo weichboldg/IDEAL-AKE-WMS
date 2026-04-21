@@ -42,10 +42,11 @@ public class BdeBookingService : IBdeBookingService
             if (gateError != null) return gateError;
 
             // Settings lesen
-            var multiMa = await ReadBoolSettingAsync("BdeMehrfachBuchungProArbeitsgang");
-            var multiOp = await ReadBoolSettingAsync("BdeMehrfachBuchungProOperator");
+            var multiMa = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang);
+            var multiOp = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProOperator);
 
-            // Collision-Check: Setup immer strikt, Production nur wenn multiMa=false
+            // Collision-Check (Rule 0): Setup immer strikt, Production nur wenn multiMa=false
+            // Queries über alle Operatoren → bleibt separate DB-Abfrage
             if (type == BdeBookingType.Setup || !multiMa)
             {
                 var existingOnWo = await _ctx.BdeBookings
@@ -56,46 +57,40 @@ public class BdeBookingService : IBdeBookingService
                     return BdeBookingResult.Collision(existingOnWo);
             }
 
+            // Einmalige DB-Abfrage: alle aktiven Buchungen dieses Operators (Rules 1-4)
+            var activeOwn = await _ctx.BdeBookings
+                .Where(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled)
+                .ToListAsync();
+
+            var setupSameWo  = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Setup   && b.WorkOperationId == workOperationId);
+            var setupOtherWo = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Setup   && b.WorkOperationId != workOperationId);
+            var activity     = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Activity);
+            var production   = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Production);
+
             // Rule 1 (Terminal): Setup auf demselben AG + type=Production → Transition
-            if (type == BdeBookingType.Production)
+            if (type == BdeBookingType.Production && setupSameWo != null)
             {
-                var existingSetupSameWo = await _ctx.BdeBookings
-                    .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
-                                              && b.BookingType == BdeBookingType.Setup && b.WorkOperationId == workOperationId);
-                if (existingSetupSameWo != null)
-                {
-                    await FinishAndSaveAsync(existingSetupSameWo, null, null);
-                    return await CreatePlannedAsync(operatorId, workOperationId, workplaceId, terminalId, type, existingSetupSameWo.Id);
-                }
+                await FinishAndSaveAsync(setupSameWo, null, null);
+                return await CreatePlannedAsync(operatorId, workOperationId, workplaceId, terminalId, type, setupSameWo.Id);
             }
 
             // Rule 2 (Cumulative): Setup auf anderem AG schließen
-            var setupDifferentWo = await _ctx.BdeBookings
-                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
-                                          && b.BookingType == BdeBookingType.Setup && b.WorkOperationId != workOperationId);
-            if (setupDifferentWo != null)
-                await FinishAndSaveAsync(setupDifferentWo, null, null);
+            if (setupOtherWo != null)
+                await FinishAndSaveAsync(setupOtherWo, null, null);
 
             // Rule 3 (Cumulative): Activity schließen
-            var activity = await _ctx.BdeBookings
-                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
-                                          && b.BookingType == BdeBookingType.Activity);
             if (activity != null)
                 await FinishAndSaveAsync(activity, null, null);
 
             // Rule 4 (Terminal): Production-Prüfung
-            var existingProduction = await _ctx.BdeBookings
-                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
-                                          && b.BookingType == BdeBookingType.Production);
-
-            if (existingProduction != null)
+            if (production != null)
             {
                 if (type == BdeBookingType.Setup)
-                    return BdeBookingResult.QuantityRequired(existingProduction);
+                    return BdeBookingResult.QuantityRequired(production);
 
                 // type == Production
                 if (!multiOp)
-                    return BdeBookingResult.QuantityRequired(existingProduction);
+                    return BdeBookingResult.QuantityRequired(production);
                 // multiOp=true → weiter zum Create
             }
 
