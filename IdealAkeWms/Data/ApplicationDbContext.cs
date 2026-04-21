@@ -725,12 +725,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Status).HasConversion<byte>();
 
             entity.HasIndex(e => e.WorkOperationId)
-                .IsUnique()
                 .HasFilter("[EndedAt] IS NULL AND [IsCancelled] = 0 AND [WorkOperationId] IS NOT NULL")
                 .HasDatabaseName("IX_BdeBookings_WorkOperationId_Active");
 
             entity.HasIndex(e => e.BdeOperatorId)
-                .IsUnique()
                 .HasFilter("[EndedAt] IS NULL AND [IsCancelled] = 0")
                 .HasDatabaseName("IX_BdeBookings_BdeOperatorId_Active");
 
