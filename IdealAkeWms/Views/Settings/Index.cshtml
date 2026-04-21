@@ -30,7 +30,7 @@
                             ("Bestellungen", new[] { "BestellungenAktiv" }),
                             ("Leitstand", new[] { "LeitstandAktiv", "KommissionierungMitZuweisung" }),
                             ("Allgemein", new[] { "QrMitFaNummer" }),
-                            ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang" }),
+                            ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang", "BdeMehrfachBuchungProOperator", "BdeMehrfachBuchungProArbeitsgang" }),
                         };
                         var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);
                         var ungrouped = Model.Settings.Where(s => !groupedKeys.Contains(s.Key)).ToList();
