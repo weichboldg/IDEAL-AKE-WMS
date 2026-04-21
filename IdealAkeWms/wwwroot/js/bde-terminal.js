@@ -107,6 +107,7 @@
             await renderState();
             await loadAvailableOperations();
             await loadTodayHistory();
+            await loadPausedBookings(currentOperator.id);
         } catch (err) {
             feedback.textContent = 'Netzwerkfehler: ' + err.message;
             console.error('BDE Operator Scan Error:', err);
@@ -133,6 +134,8 @@
         document.getElementById('scanOperator').focus();
         actionPanel.innerHTML = '';
         currentBooking.innerHTML = '<em class="text-muted">Keine aktive Buchung</em>';
+        var pausedHint = document.getElementById('paused-bookings-hint');
+        if (pausedHint) { pausedHint.classList.add('d-none'); document.getElementById('paused-bookings-list').innerHTML = ''; }
     });
 
     // --- FA/AG Scan ---
@@ -260,7 +263,12 @@
             case 'startSetup': await post('/BdeTerminal/StartSetup', { operatorId: currentOperator.id, workOperationId: currentWorkOp.id, workplaceId: workplaceId, terminalId: terminalId }, action); break;
             case 'startProduction': await post('/BdeTerminal/StartProduction', { operatorId: currentOperator.id, workOperationId: currentWorkOp.id, workplaceId: workplaceId, terminalId: terminalId }, action); break;
             case 'pause': await promptQty(async function (good, scrap) { await post('/BdeTerminal/Pause', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action); }); break;
-            case 'finish': await promptQty(async function (good, scrap) { await post('/BdeTerminal/Finish', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action); }); break;
+            case 'finish': await promptQty(async function (good, scrap) {
+                const response = await post('/BdeTerminal/Finish', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action);
+                if (response && response.outcome === 'Success' && response.otherActiveBookings && response.otherActiveBookings.length > 0) {
+                    showCloseOthersModal(response);
+                }
+            }); break;
             case 'finishSetup': await post('/BdeTerminal/Finish', { bookingId: await activeId() }, action); break;
             case 'finishActivity': await post('/BdeTerminal/Finish', { bookingId: await activeId() }, action); break;
             case 'reportPartial': await promptQty(async function (good, scrap) { await post('/BdeTerminal/ReportPartial', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action); }); break;
@@ -290,6 +298,7 @@
         } else if (json.outcome === 'QuantityRequired') {
             showToast('Mengen-Eingabe erforderlich', 'warning');
         }
+        return json;
     }
 
     function promptQty(callback) {
@@ -446,6 +455,108 @@
         // Aktivitaets-Modal ausblenden (nicht erreichbar im NurFA-Modus)
         var activityModal = document.getElementById('activityModal');
         if (activityModal) activityModal.style.display = 'none';
+    }
+
+    // --- Paused Bookings Hint ---
+    async function loadPausedBookings(operatorId) {
+        const hint = document.getElementById('paused-bookings-hint');
+        const list = document.getElementById('paused-bookings-list');
+        if (!hint || !list) return;
+
+        try {
+            const res = await fetch(`/BdeTerminal/PausedBookings?operatorId=${operatorId}`);
+            if (!res.ok) { hint.classList.add('d-none'); return; }
+            const items = await res.json();
+
+            if (!items || items.length === 0) {
+                hint.classList.add('d-none');
+                list.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = items.map(function (i) {
+                return '<li class="mb-2">' +
+                    '<strong>' + i.orderNumber + ' / ' + i.operationNumber + ' ' + (i.operationName || '') + '</strong>' +
+                    '<small class="text-muted d-block">pausiert seit ' + (i.pausedAt ? new Date(i.pausedAt).toLocaleString('de-DE') : '') + '</small>' +
+                    '<button type="button" class="btn btn-sm btn-warning mt-1" data-booking-id="' + i.bookingId + '" data-resume>Fortsetzen</button>' +
+                    '</li>';
+            }).join('');
+            hint.classList.remove('d-none');
+        } catch (e) {
+            console.error('Error loading paused bookings', e);
+            hint.classList.add('d-none');
+        }
+    }
+
+    // Fortsetzen-Button-Handler (event delegation, einmalig registriert)
+    document.getElementById('paused-bookings-list').addEventListener('click', async function (e) {
+        var btn = e.target.closest('[data-resume]');
+        if (!btn) return;
+        var bookingId = parseInt(btn.dataset.bookingId, 10);
+        if (!currentOperator) return;
+
+        var form = new FormData();
+        form.append('pausedBookingId', bookingId);
+        form.append('operatorId', currentOperator.id);
+        form.append('resumeAs', '2'); // 2 = Production
+        form.append('workplaceId', workplaceId);
+        form.append('terminalId', terminalId);
+        form.append('__RequestVerificationToken', token);
+
+        try {
+            var res = await fetch('/BdeTerminal/Resume', { method: 'POST', body: form });
+            if (res.ok) {
+                btn.closest('li')?.remove();
+                if (!document.querySelectorAll('#paused-bookings-list li').length) {
+                    document.getElementById('paused-bookings-hint').classList.add('d-none');
+                }
+                await renderState();
+                await loadTodayHistory();
+            } else {
+                showToast('Fortsetzen fehlgeschlagen', 'danger');
+            }
+        } catch (err) {
+            console.error('Error resuming booking', err);
+            showToast('Fortsetzen fehlgeschlagen', 'danger');
+        }
+    });
+
+    // --- Close-Others-Modal ---
+    function showCloseOthersModal(response) {
+        var list = document.getElementById('close-others-list');
+        list.innerHTML = response.otherActiveBookings.map(function (o) {
+            return '<li>' + o.operatorName + ' \u2014 seit ' + new Date(o.startedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + '</li>';
+        }).join('');
+
+        var modalEl = document.getElementById('close-others-modal');
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        // Alten Event-Listener via cloneNode entfernen, um Mehrfach-Registrierung zu vermeiden
+        var confirmBtn = document.getElementById('close-others-confirm');
+        var newBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+        newBtn.addEventListener('click', async function () {
+            var workOperationId = response.workOperationId || (currentWorkOp && currentWorkOp.id);
+            var form = new FormData();
+            form.append('workOperationId', workOperationId);
+            form.append('operatorId', currentOperator.id);
+            form.append('__RequestVerificationToken', token);
+
+            try {
+                var res = await fetch('/BdeTerminal/CloseOthers', { method: 'POST', body: form });
+                if (res.ok) {
+                    var data = await res.json();
+                    modal.hide();
+                    showToast(data.closedCount + ' weitere Buchungen beendet.');
+                } else {
+                    showToast('Schliessen fehlgeschlagen', 'danger');
+                }
+            } catch (err) {
+                console.error('Error closing others', err);
+                showToast('Schliessen fehlgeschlagen', 'danger');
+            }
+        });
     }
 
     renderState();
