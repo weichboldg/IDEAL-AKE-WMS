@@ -105,28 +105,49 @@ SQL-Script `SQL/45_RelaxBdeBookingConstraints.sql`: idempotent:
 
 Die Constraints wandern aus den Indizes in den Service. Alle Service-Methoden, die neue Buchungen erzeugen (`StartPlannedAsync`, `StartActivityAsync`, `ResumeAsync`), prüfen die Settings am Start der Transaktion und skip-pen Checks konditional.
 
-### `StartPlannedAsync` (Setup + Production)
+### Ableitung der Enforcement-Regeln
 
-**Setup-Start (type == Setup):**
-- Collision-Check bleibt immer aktiv (siehe Sonderregel). Bei Kollision → `BdeBookingResult.Collision(existing)`.
-- Auto-Close der eigenen existierenden Buchung bleibt wie Phase 1 (selbe Logik).
+Die beiden Settings wirken **ausschließlich auf Production-Buchungen**:
 
-**Production-Start (type == Production):**
-- **Collision-Check** (anderer Operator hat laufende Buchung auf dieser WorkOperation):
-  - `BdeMehrfachBuchungProArbeitsgang = false` → wie heute, Collision abweisen
-  - `BdeMehrfachBuchungProArbeitsgang = true` → überspringen (zweite parallele Buchung erlaubt)
-- **Auto-Close der eigenen Buchung** (eigener Operator hat offene Buchung):
-  - `BdeMehrfachBuchungProOperator = false` → wie heute (QuantityRequired / Setup→Production-Übergang / Auto-Close je nach Typ)
-  - `BdeMehrfachBuchungProOperator = true` → überspringen; parallele Production-Buchung wird angelegt
-  - **Ausnahme (greift immer):** Setup→Production-Transition auf demselben AG schließt das Setup und setzt `ParentBookingId`. Das ist keine parallele Buchung, sondern ein Typ-Wechsel.
+- `BdeMehrfachBuchungProArbeitsgang` steuert, ob eine laufende Production-Buchung eines **anderen** Operators auf derselben WorkOperation als Collision gilt.
+- `BdeMehrfachBuchungProOperator` steuert, ob eine laufende Production-Buchung des **eigenen** Operators `QuantityRequired` erzwingt.
+
+Setup- und Activity-Starts folgen unverändert der Phase-1-Logik (mit einer Ausnahme: der Setup-Collision-Check ignoriert `BdeMehrfachBuchungProArbeitsgang` — Setup bleibt 1-Operator-pro-AG).
+
+### `StartPlannedAsync` — Setup (type = Setup)
+
+Unverändert gegenüber Phase 1, mit einer Präzisierung:
+
+- **Collision-Check** (anderer Operator hat laufende Buchung auf dieser WorkOperation): bei Kollision → `BdeBookingResult.Collision(existing)`. **Unabhängig von `BdeMehrfachBuchungProArbeitsgang`** — Setup ist immer exklusiv pro AG.
+- **Auto-Close der eigenen Buchung**: Phase-1-Logik. Insbesondere: wenn eigener Operator aktive Production(s) hat → `QuantityRequired` (Setup nicht erlaubt, solange Production läuft).
+
+### `StartPlannedAsync` — Production (type = Production)
+
+**Collision-Check** (anderer Operator hat laufende Buchung auf derselben WorkOperation):
+- `BdeMehrfachBuchungProArbeitsgang = false` → Collision abweisen
+- `BdeMehrfachBuchungProArbeitsgang = true` → überspringen
+
+**Eigener-Operator-Check** — Reihenfolge strikt abarbeiten:
+1. Wenn Operator aktive Setup-Buchung auf **demselben AG** hat → Setup schließen, `ParentBookingId` setzen, Production starten. (Setup→Production-Transition, unabhängig von Settings.)
+2. Wenn Operator aktive Setup-Buchung auf **anderem AG** hat → diese Setup-Buchung schließen (Setup ist operator-exklusiv, kann nicht parallel zu neuer Production laufen).
+3. Wenn Operator aktive Activity-Buchung hat → Activity schließen (Activity nicht parallel zu Production).
+4. Wenn Operator aktive Production-Buchung(en) hat:
+   - `BdeMehrfachBuchungProOperator = false` → `QuantityRequired` (eine der bestehenden Productions muss zuerst mit Mengen beendet werden)
+   - `BdeMehrfachBuchungProOperator = true` → keine Auto-Close, die neue Production wird parallel angelegt
 
 ### `StartActivityAsync`
 
-Activity bleibt single-active pro Operator, unabhängig von Settings. Auto-Close der existierenden Buchung wie Phase 1.
+Activity bleibt **single-active pro Operator** unabhängig von Settings:
+- Wenn Operator aktive Production hat → `QuantityRequired`
+- Wenn Operator aktive Setup hat → Setup schließen
+- Wenn Operator aktive Activity hat → diese Activity schließen, neue starten
+- Sonst → neue Activity starten
 
 ### `ResumeAsync`
 
-Verhält sich wie `StartPlannedAsync` mit denselben konditionalen Checks. Setup→Production-Resume-Transition auf demselben AG bleibt exklusiv.
+Resume legt eine neue Buchung mit gleichem `WorkOperationId` und gesetztem `ParentBookingId` an. Die Enforcement läuft analog zu `StartPlannedAsync`:
+- Bei Production-Resume: Collision-Check + Eigener-Operator-Check wie oben
+- Bei Setup-Resume: Collision-Check streng, Eigener-Operator-Check wie Phase 1
 
 ### Neue Methode `CloseOtherBookingsOnWorkOperationAsync`
 
@@ -185,7 +206,7 @@ public record BookingSplit(int BookingId, TimeSpan EffectiveDuration);
 
 ### `ComputeEffectiveDurationAsync(bookingId)`
 
-Convenience-Wrapper: lädt die Buchung, ermittelt Operator und Tag, delegiert an `ComputeForOperatorDayAsync`, filtert den passenden `BookingSplit`.
+Convenience-Wrapper für Einzel-Buchungen. Die Buchung wird geladen; ihr Zeitintervall `[StartedAt, EndedAt ?? DateTime.Now]` kann mehrere Kalendertage spannen. Der Wrapper iteriert über alle Tage in diesem Span, ruft `ComputeForOperatorDayAsync` pro Tag auf und summiert die `BookingSplit`-Anteile derselben `bookingId` auf. Rückgabe: die Gesamt-Effektiv-Dauer über alle Tage.
 
 ### Pausierte Buchungen
 
@@ -231,9 +252,13 @@ Controller prüft: BdeMehrfachBuchungProArbeitsgang aktiv + IsFinal=true + ander
 ```csharp
 [HttpPost]
 [ValidateAntiForgeryToken]
-public async Task<IActionResult> CloseOthers(int workOperationId)
+public async Task<IActionResult> CloseOthers(int workOperationId, int operatorId)
 ```
-Ruft `_bookingService.CloseOtherBookingsOnWorkOperationAsync(workOperationId, currentOperatorId)`. Rückgabe JSON `{ closedCount: N }`.
+- `operatorId` = der Operator, der gerade die Abschluss-Meldung gemacht hat (dessen Buchung NICHT geschlossen werden soll)
+- Ruft `_bookingService.CloseOtherBookingsOnWorkOperationAsync(workOperationId, exceptOperatorId: operatorId)`
+- Rückgabe JSON `{ closedCount: N }`
+
+Das Terminal-JS kennt `operatorId` aus dem laufenden Operator-Scan-Kontext und sendet ihn mit dem Request.
 
 ### Terminal-JS (`bde-terminal.js`)
 
@@ -281,9 +306,9 @@ public Dictionary<int, TimeSpan> EffectiveDurations { get; set; } = new();
 ```
 
 `BdeBookingsController.Index` nach dem Laden der Buchungen:
-- Gruppieren nach `(OperatorId, DateOnly(StartedAt))`
-- Pro Gruppe einen Aufruf `BdeTimeSplitService.ComputeForOperatorDayAsync(opId, day)`
-- Resultierende Splits flach in das Dictionary
+- Pro Operator die Union aller Tage sammeln, die irgendeine seiner sichtbaren Buchungen spannt (inkl. Cross-Day-Buchungen: `StartedAt.Date` bis `(EndedAt ?? Now).Date`)
+- Pro `(OperatorId, Tag)`-Kombination einmal `BdeTimeSplitService.ComputeForOperatorDayAsync` aufrufen
+- Alle zurückgegebenen `BookingSplit`-Einträge pro `bookingId` **aufsummieren** (eine Buchung kann in mehreren Tagen einen Anteil haben) und das aggregierte Dictionary ins ViewModel einhängen
 
 View nutzt `Model.EffectiveDurations.GetValueOrDefault(booking.Id, TimeSpan.Zero)` und formatiert als `hh\:mm`.
 
@@ -308,6 +333,7 @@ View nutzt `Model.EffectiveDurations.GetValueOrDefault(booking.Id, TimeSpan.Zero
 | `FallbackToEqual_WhenNoSollmenge` | Keine Gutmenge + keine Sollmenge → gleichmäßig |
 | `PausedBookingIgnored` | Pausierte Buchung (EndedAt gesetzt) zählt nur bis zum Pausen-Zeitpunkt |
 | `CrossDayBooking_ClippedToDay` | 22:00–02:00 → Tag N clipped bei 24:00, Tag N+1 ab 00:00 |
+| `ComputeEffectiveDurationAsync_SumsAcrossDays` | Cross-Day-Buchung 22:00-02:00 → Wrapper summiert Anteile aus Tag N + Tag N+1 |
 | `NoBookings_ReturnsEmpty` | Keine Buchungen am Tag → leere Liste |
 | `CancelledBookingsIgnored` | Stornierte Buchungen werden nicht einbezogen |
 
