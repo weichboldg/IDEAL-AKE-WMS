@@ -131,9 +131,10 @@ public static class ColumnDefinitions
     {
         Columns =
         [
-            new ColumnDef("started-at",   "Start",       Locked: false),
-            new ColumnDef("ended-at",     "Ende",        Locked: false),
-            new ColumnDef("operator",     "Operator",    Locked: false),
+            new ColumnDef("started-at",         "Start",          Locked: false),
+            new ColumnDef("ended-at",           "Ende",           Locked: false),
+            new ColumnDef("effective-duration", "Effektive Zeit", Locked: false),
+            new ColumnDef("operator",           "Operator",       Locked: false),
             new ColumnDef("workplace",    "Werkbank",    Locked: false),
             new ColumnDef("booking-type", "Typ",         Locked: false),
             new ColumnDef("target",       "Ziel",        Locked: false),

@@ -59,6 +59,10 @@
                     <label asp-for="Status" class="form-label"></label>
                     <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<BdeBookingStatus>()"></select>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Effektive Zeit</label>
+                    <input type="text" class="form-control-plaintext" readonly value="@((ViewBag.EffectiveDuration as TimeSpan?)?.ToString(@"hh\:mm") ?? "—")" />
+                </div>
             </div>
         </div>
     </div>

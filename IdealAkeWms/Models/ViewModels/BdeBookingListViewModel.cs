@@ -3,6 +3,7 @@ namespace IdealAkeWms.Models.ViewModels;
 public class BdeBookingListViewModel
 {
     public int Id { get; set; }
+    public int BdeOperatorId { get; set; }
     public string OperatorName { get; set; } = "";
     public string WorkplaceName { get; set; } = "";
     public string BookingType { get; set; } = "";
@@ -13,4 +14,10 @@ public class BdeBookingListViewModel
     public decimal TotalGood { get; set; }
     public decimal TotalScrap { get; set; }
     public bool IsCancelled { get; set; }
+}
+
+public class BdeBookingsIndexViewModel
+{
+    public List<BdeBookingListViewModel> Bookings { get; set; } = new();
+    public Dictionary<int, TimeSpan> EffectiveDurations { get; set; } = new();
 }

@@ -1,4 +1,4 @@
-@model List<IdealAkeWms.Models.ViewModels.BdeBookingListViewModel>
+@model IdealAkeWms.Models.ViewModels.BdeBookingsIndexViewModel
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @using System.Globalization
 @{
@@ -87,6 +87,7 @@
             <tr>
                 <th data-filterable data-col-key="started-at" data-date-filter>Start</th>
                 <th data-filterable data-col-key="ended-at" data-date-filter>Ende</th>
+                <th data-col-key="effective-duration">Effektive Zeit</th>
                 <th data-filterable data-col-key="operator">Operator</th>
                 <th data-filterable data-col-key="workplace">Werkbank</th>
                 <th data-filterable data-col-key="booking-type">Typ</th>
@@ -101,17 +102,26 @@
             </tr>
         </thead>
         <tbody>
-            @if (!Model.Any())
+            @if (!Model.Bookings.Any())
             {
                 <tr><td colspan="10" class="text-center text-muted">Keine Buchungen gefunden.</td></tr>
             }
             else
             {
-                foreach (var row in Model)
+                foreach (var row in Model.Bookings)
                 {
                     <tr>
                         <td data-col-key="started-at">@FormatDateWithKw(row.StartedAt)</td>
                         <td data-col-key="ended-at">@(row.EndedAt.HasValue ? FormatDateWithKw(row.EndedAt) : "—")</td>
+                        <td data-col-key="effective-duration">
+                            @{
+                                var eff = Model.EffectiveDurations.GetValueOrDefault(row.Id, TimeSpan.Zero);
+                                var runningSuffix = row.EndedAt == null ? "*" : "";
+                            }
+                            <span title="@(row.EndedAt == null ? "Wird nach Beenden angepasst" : "")">
+                                @eff.ToString(@"hh\:mm")@runningSuffix
+                            </span>
+                        </td>
                         <td data-col-key="operator">@row.OperatorName</td>
                         <td data-col-key="workplace">@row.WorkplaceName</td>
                         <td data-col-key="booking-type">@row.BookingType</td>
@@ -194,7 +204,7 @@
                    asp-route-from="@(from?.ToString("yyyy-MM-dd"))" asp-route-to="@(to?.ToString("yyyy-MM-dd"))">« Zurück</a>
             </li>
         }
-        @if (Model.Count >= take)
+        @if (Model.Bookings.Count >= take)
         {
             var nextSkip = skip + take;
             <li class="page-item">

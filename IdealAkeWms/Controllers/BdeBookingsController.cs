@@ -15,17 +15,20 @@ public class BdeBookingsController : Controller
     private readonly IBdeOperatorRepository _ops;
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly ICurrentUserService _userSvc;
+    private readonly IBdeTimeSplitService _timeSplitSvc;
 
     public BdeBookingsController(
         IBdeBookingRepository repo,
         IBdeOperatorRepository ops,
         IProductionWorkplaceRepository workplaces,
-        ICurrentUserService userSvc)
+        ICurrentUserService userSvc,
+        IBdeTimeSplitService timeSplitSvc)
     {
         _repo = repo;
         _ops = ops;
         _workplaces = workplaces;
         _userSvc = userSvc;
+        _timeSplitSvc = timeSplitSvc;
     }
 
     public async Task<IActionResult> Index(int skip = 0, int take = 50, int? operatorId = null, int? workplaceId = null, DateTime? from = null, DateTime? to = null)
@@ -38,9 +41,10 @@ public class BdeBookingsController : Controller
         }
 
         var list = await _repo.GetHistoryAsync(skip, take, operatorId, workplaceId, from, to);
-        var vms = list.Select(b => new BdeBookingListViewModel
+        var bookingVms = list.Select(b => new BdeBookingListViewModel
         {
             Id = b.Id,
+            BdeOperatorId = b.BdeOperatorId,
             OperatorName = b.BdeOperator.DisplayName,
             WorkplaceName = b.ProductionWorkplace.Name,
             BookingType = b.BookingType.ToString(),
@@ -55,11 +59,34 @@ public class BdeBookingsController : Controller
             IsCancelled = b.IsCancelled
         }).ToList();
 
+        var vm = new BdeBookingsIndexViewModel { Bookings = bookingVms };
+
+        // Compute effective durations for all visible bookings
+        var operatorDays = new HashSet<(int OperatorId, DateTime Day)>();
+        foreach (var b in vm.Bookings)
+        {
+            var startDay = b.StartedAt.Date;
+            var endDay = (b.EndedAt ?? DateTime.Now).Date;
+            for (var d = startDay; d <= endDay; d = d.AddDays(1))
+                operatorDays.Add((b.BdeOperatorId, d));
+        }
+
+        foreach (var (opId, day) in operatorDays)
+        {
+            var splits = await _timeSplitSvc.ComputeForOperatorDayAsync(opId, day);
+            foreach (var s in splits)
+            {
+                if (!vm.EffectiveDurations.ContainsKey(s.BookingId))
+                    vm.EffectiveDurations[s.BookingId] = TimeSpan.Zero;
+                vm.EffectiveDurations[s.BookingId] += s.EffectiveDuration;
+            }
+        }
+
         ViewBag.Operators = await _ops.GetAllActiveAsync();
         ViewBag.Workplaces = await _workplaces.GetBdeActiveAsync();
         ViewBag.Filter = new { skip, take, operatorId, workplaceId, from, to };
 
-        return View(vms);
+        return View(vm);
     }
 
     [HttpGet("BdeBookings/Edit/{id:int}")]
@@ -87,6 +114,8 @@ public class BdeBookingsController : Controller
                 Delete = false
             }).ToList()
         };
+
+        ViewBag.EffectiveDuration = await _timeSplitSvc.ComputeEffectiveDurationAsync(b.Id);
 
         await LoadEditSelectLists();
         return View(vm);
