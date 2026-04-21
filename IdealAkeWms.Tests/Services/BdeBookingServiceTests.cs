@@ -671,4 +671,52 @@ public class BdeBookingServiceTests
         closed.ModifiedAt.Should().NotBeNull();
         closed.ModifiedBy.Should().Be("tester");
     }
+
+    [Fact]
+    public async Task Resume_MultiOperatorEnabled_AllowsParallel()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var secondWoId = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        // Pausierte Buchung auf WO1
+        var paused = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(paused);
+
+        // Aktive Production auf WO2
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddMinutes(-30), workOperationId: secondWoId));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: true);
+
+        var result = await svc.ResumeAsync(paused.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        result.Booking!.ParentBookingId.Should().Be(paused.Id);
+        ctx.BdeBookings.Count(b => b.BdeOperatorId == ids.OperatorId && b.EndedAt == null).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Resume_MultiOperatorDisabled_RequiresQuantity()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var secondWoId = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        var paused = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(paused);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddMinutes(-30), workOperationId: secondWoId));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: false);
+
+        var result = await svc.ResumeAsync(paused.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.QuantityRequired);
+    }
 }

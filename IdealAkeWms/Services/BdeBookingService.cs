@@ -165,22 +165,40 @@ public class BdeBookingService : IBdeBookingService
             if (parent.Status != BdeBookingStatus.Paused)
                 return BdeBookingResult.Invalid("Ziel-Buchung ist nicht pausiert.");
 
-            if (parent.WorkOperationId.HasValue)
+            var multiMa = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang);
+            var multiOp = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProOperator);
+
+            // Collision-Check: Setup ist immer exklusiv; Production nur wenn multiMa deaktiviert
+            if (parent.WorkOperationId.HasValue && (resumeAs == BdeBookingType.Setup || !multiMa))
             {
                 var collision = await _ctx.BdeBookings
                     .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
                     .FirstOrDefaultAsync(b => b.WorkOperationId == parent.WorkOperationId && b.EndedAt == null && !b.IsCancelled);
-                if (collision != null)
+                if (collision != null && collision.BdeOperatorId != operatorId)
                     return BdeBookingResult.Collision(collision);
             }
 
-            var existingOwn = await _ctx.BdeBookings
-                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled);
-            if (existingOwn != null)
+            // Eigener-Operator-Check: aktive Buchungen des Operators schließen oder ablehnen
+            var activeOwn = await _ctx.BdeBookings
+                .Where(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled)
+                .ToListAsync();
+
+            var setupOtherWo = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Setup && b.WorkOperationId != parent.WorkOperationId);
+            if (setupOtherWo != null)
+                await FinishAndSaveAsync(setupOtherWo, null, null);
+
+            var activity = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Activity);
+            if (activity != null)
+                await FinishAndSaveAsync(activity, null, null);
+
+            var production = activeOwn.FirstOrDefault(b => b.BookingType == BdeBookingType.Production);
+            if (production != null)
             {
-                if (existingOwn.BookingType == BdeBookingType.Production)
-                    return BdeBookingResult.QuantityRequired(existingOwn);
-                await FinishAndSaveAsync(existingOwn, null, null);
+                if (resumeAs == BdeBookingType.Setup)
+                    return BdeBookingResult.QuantityRequired(production);
+                if (resumeAs == BdeBookingType.Production && !multiOp)
+                    return BdeBookingResult.QuantityRequired(production);
+                // multiOp=true → parallele Production erlaubt
             }
 
             var now = DateTime.Now;
