@@ -282,10 +282,58 @@ Erweiterung des Finish-Response-Handlers:
 - Button "Ja, alle beenden" ruft AJAX-POST auf `/BdeTerminal/CloseOthers` mit der WorkOperationId
 - Button "Nein, nur meine" schließt das Modal ohne Aktion
 
+### Hinweis auf pausierte Buchungen nach Operator-Scan
+
+Mit der Lockerung der Ein-Buchung-Regel kann ein Operator mehrere pausierte Buchungen gleichzeitig haben (auf verschiedenen AGs). Damit Operatoren nach einer Pause nicht vergessen, dass noch offene Buchungen existieren, zeigt das Terminal nach dem Operator-Scan einen prominenten Hinweis-Block mit allen pausierten Buchungen dieses Operators.
+
+**Darstellung (oberhalb der AG-Auswahl-Buttons):**
+
+```
+┌─ Hinweis: Sie haben pausierte Aufträge ─────────────┐
+│  • FA-12345 / AG 10 Fräsen — pausiert seit 09:42    │
+│    [Fortsetzen]                                      │
+│  • FA-12348 / AG 20 Schleifen — pausiert seit 11:15 │
+│    [Fortsetzen]                                      │
+└──────────────────────────────────────────────────────┘
+```
+
+- Einblendung **immer** (nicht nur bei Multi-Mode) — die Info ist auch in Phase 1 hilfreich, wenn ein Operator z.B. durch Schichtwechsel/Pause seine Buchung pausiert hat und am Folgetag zurückkehrt
+- Klick auf "Fortsetzen" löst denselben Resume-Flow wie bisher aus (Service-Aufruf `ResumeAsync`)
+- Nach erfolgreichem Resume verschwindet die Zeile aus der Liste (AJAX-Update)
+- Wenn keine pausierten Buchungen existieren: Block wird ausgeblendet
+
+**Neuer API-Endpoint:** `BdeTerminalController.PausedBookings`
+
+```csharp
+[HttpGet]
+public async Task<IActionResult> PausedBookings(int operatorId)
+```
+
+- Query auf `BdeBookings` mit `BdeOperatorId == operatorId` AND `Status == Paused` AND `!IsCancelled`
+- Include WorkOperation + ProductionOrder für die Anzeige (FA-Nr, AG-Nr, AG-Name)
+- Response JSON: `[{ bookingId, orderNumber, operationNumber, operationName, pausedAt }, ...]`
+
+**Terminal-JS-Erweiterung (`bde-terminal.js`):**
+
+- Nach erfolgreichem Operator-Scan zusätzlicher AJAX-Call auf `/BdeTerminal/PausedBookings?operatorId=...`
+- Bei Response mit einträgen: Hinweis-Block rendern
+- "Fortsetzen"-Click triggert existierenden Resume-Flow (`POST /BdeTerminal/Resume`) und entfernt die Zeile aus der Anzeige
+
+**Tests:**
+
+| Test | Szenario |
+|------|----------|
+| `PausedBookings_OperatorHasPausedOnly_ReturnsAll` | Operator mit 2 pausierten → beide im Response |
+| `PausedBookings_OperatorHasRunningAndPaused_ReturnsOnlyPaused` | Running-Buchungen werden ausgefiltert |
+| `PausedBookings_CancelledPaused_Ignored` | Stornierte pausierte Buchungen nicht im Response |
+| `PausedBookings_NoOperator_ReturnsEmpty` | Operator ohne pausierte → leere Liste |
+| `PausedBookings_IncludesFaAndAgInfo` | Response enthält FA-Nummer, AG-Nummer, AG-Name für die Anzeige |
+
 ### Keine Änderung an
 
 - Bestehender Mengen-Dialog (Gut/Ausschuss + IsFinal-Checkbox) bleibt identisch
-- Pause-Flow, Operator-Scan-Flow, Cockpit-Polling
+- Pause-Flow, Cockpit-Polling
+- Operator-Scan-Flow bleibt strukturell identisch, nur um den zusätzlichen PausedBookings-Fetch erweitert
 
 ## Buchungsübersicht — Spalte "Effektive Zeit"
 
@@ -404,6 +452,7 @@ View nutzt `Model.EffectiveDurations.GetValueOrDefault(booking.Id, TimeSpan.Zero
 8. Pro-Segment-Split mit 3-Segment-Szenario (solo + parallel + solo) visuell verifizieren
 9. Setup-Kollision bleibt hart auch bei `...ProArbeitsgang=true`
 10. Activity bleibt single-active auch bei `...ProOperator=true`
+11. Operator mit 2 pausierten Buchungen scannt sich am Terminal → Hinweis-Block zeigt beide mit "Fortsetzen"-Button; Klick setzt Resume fort
 
 ## Migration + Seeding + Dokumentation
 
