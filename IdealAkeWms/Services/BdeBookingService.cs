@@ -229,6 +229,30 @@ public class BdeBookingService : IBdeBookingService
         return BdeBookingResult.Success(b);
     }
 
+    public async Task<CloseOthersResult> CloseOtherBookingsOnWorkOperationAsync(int workOperationId, int exceptOperatorId)
+    {
+        var others = await _ctx.BdeBookings
+            .Where(b => b.WorkOperationId == workOperationId
+                     && b.BdeOperatorId != exceptOperatorId
+                     && b.EndedAt == null
+                     && !b.IsCancelled)
+            .ToListAsync();
+
+        if (others.Count == 0)
+            return new CloseOthersResult(0);
+
+        var now = DateTime.Now;
+        foreach (var b in others)
+        {
+            b.Status = BdeBookingStatus.Finished;
+            b.EndedAt = now;
+            SetAuditModified(b);
+        }
+
+        await _ctx.SaveChangesAsync();
+        return new CloseOthersResult(others.Count);
+    }
+
     // --- Interne Helfer ---
 
     private async Task<BdeBookingResult> CreatePlannedAsync(int operatorId, int workOperationId, int workplaceId, int terminalId, BdeBookingType type, int? parentId)

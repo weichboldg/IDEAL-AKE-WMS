@@ -577,4 +577,98 @@ public class BdeBookingServiceTests
 
         result.Outcome.Should().Be(BdeBookingOutcome.QuantityRequired);
     }
+
+    [Fact]
+    public async Task CloseOtherBookings_FindsOtherOperatorsOnSameWo()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+        var op3 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
+        ctx.BdeBookings.Add(new BdeBooking {
+            BdeOperatorId = op2, WorkOperationId = ids.WorkOperationId, BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-30),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.BdeBookings.Add(new BdeBooking {
+            BdeOperatorId = op3, WorkOperationId = ids.WorkOperationId, BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-15),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var result = await svc.CloseOtherBookingsOnWorkOperationAsync(ids.WorkOperationId, exceptOperatorId: ids.OperatorId);
+
+        result.ClosedCount.Should().Be(2);
+        ctx.BdeBookings.Count(b => b.WorkOperationId == ids.WorkOperationId && b.EndedAt == null).Should().Be(1);
+        ctx.BdeBookings.Single(b => b.BdeOperatorId == ids.OperatorId).EndedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CloseOtherBookings_SkipsCancelled()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        ctx.BdeBookings.Add(new BdeBooking {
+            BdeOperatorId = op2, WorkOperationId = ids.WorkOperationId, BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-30),
+            IsCancelled = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var result = await svc.CloseOtherBookingsOnWorkOperationAsync(ids.WorkOperationId, exceptOperatorId: ids.OperatorId);
+
+        result.ClosedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CloseOtherBookings_NoOthers_ReturnsZero()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-10)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var result = await svc.CloseOtherBookingsOnWorkOperationAsync(ids.WorkOperationId, exceptOperatorId: ids.OperatorId);
+
+        result.ClosedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CloseOtherBookings_SetsAuditFields()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        var other = new BdeBooking {
+            BdeOperatorId = op2, WorkOperationId = ids.WorkOperationId, BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-30),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.BdeBookings.Add(other);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        await svc.CloseOtherBookingsOnWorkOperationAsync(ids.WorkOperationId, exceptOperatorId: ids.OperatorId);
+
+        var closed = ctx.BdeBookings.First(b => b.Id == other.Id);
+        closed.EndedAt.Should().NotBeNull();
+        closed.Status.Should().Be(BdeBookingStatus.Finished);
+        closed.ModifiedAt.Should().NotBeNull();
+        closed.ModifiedBy.Should().Be("tester");
+    }
 }
