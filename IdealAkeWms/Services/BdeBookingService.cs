@@ -1,4 +1,5 @@
 using IdealAkeWms.Data;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -17,11 +18,13 @@ public class BdeBookingService : IBdeBookingService
 {
     private readonly ApplicationDbContext _ctx;
     private readonly ICurrentUserService _userSvc;
+    private readonly IAppSettingRepository _settings;
 
-    public BdeBookingService(ApplicationDbContext ctx, ICurrentUserService userSvc)
+    public BdeBookingService(ApplicationDbContext ctx, ICurrentUserService userSvc, IAppSettingRepository settings)
     {
         _ctx = ctx;
         _userSvc = userSvc;
+        _settings = settings;
     }
 
     public Task<BdeBookingResult> StartSetupAsync(int operatorId, int workOperationId, int workplaceId, int terminalId)
@@ -34,44 +37,69 @@ public class BdeBookingService : IBdeBookingService
     {
         return InTransactionAsync(async () =>
         {
+            // Phase-2.1-Gate: Werkbank muss BDE-aktiv sein
             var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
             if (gateError != null) return gateError;
 
-            // 1) Kollision: laeuft WorkOperation bereits bei anderem Operator?
-            var existingOnWo = await _ctx.BdeBookings
-                .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
-                .FirstOrDefaultAsync(b => b.WorkOperationId == workOperationId && b.EndedAt == null && !b.IsCancelled);
+            // Settings lesen
+            var multiMa = await ReadBoolSettingAsync("BdeMehrfachBuchungProArbeitsgang");
+            var multiOp = await ReadBoolSettingAsync("BdeMehrfachBuchungProOperator");
 
-            if (existingOnWo != null && existingOnWo.BdeOperatorId != operatorId)
-                return BdeBookingResult.Collision(existingOnWo);
-
-            // 2) Auto-Close der eigenen offenen Buchung?
-            var existingOwn = await _ctx.BdeBookings
-                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled);
-
-            int? parentId = null;
-            if (existingOwn != null)
+            // Collision-Check: Setup immer strikt, Production nur wenn multiMa=false
+            if (type == BdeBookingType.Setup || !multiMa)
             {
-                if (existingOwn.WorkOperationId == workOperationId
-                    && existingOwn.BookingType == BdeBookingType.Setup
-                    && type == BdeBookingType.Production)
+                var existingOnWo = await _ctx.BdeBookings
+                    .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
+                    .FirstOrDefaultAsync(b => b.WorkOperationId == workOperationId && b.EndedAt == null && !b.IsCancelled);
+
+                if (existingOnWo != null && existingOnWo.BdeOperatorId != operatorId)
+                    return BdeBookingResult.Collision(existingOnWo);
+            }
+
+            // Rule 1 (Terminal): Setup auf demselben AG + type=Production → Transition
+            if (type == BdeBookingType.Production)
+            {
+                var existingSetupSameWo = await _ctx.BdeBookings
+                    .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
+                                              && b.BookingType == BdeBookingType.Setup && b.WorkOperationId == workOperationId);
+                if (existingSetupSameWo != null)
                 {
-                    // Setup -> Production, selber Operator, selbes AG
-                    await FinishAndSaveAsync(existingOwn, null, null);
-                    parentId = existingOwn.Id;
-                }
-                else if (existingOwn.BookingType == BdeBookingType.Production)
-                {
-                    return BdeBookingResult.QuantityRequired(existingOwn);
-                }
-                else
-                {
-                    // Setup oder Activity -> einfach schliessen
-                    await FinishAndSaveAsync(existingOwn, null, null);
+                    await FinishAndSaveAsync(existingSetupSameWo, null, null);
+                    return await CreatePlannedAsync(operatorId, workOperationId, workplaceId, terminalId, type, existingSetupSameWo.Id);
                 }
             }
 
-            return await CreatePlannedAsync(operatorId, workOperationId, workplaceId, terminalId, type, parentId);
+            // Rule 2 (Cumulative): Setup auf anderem AG schließen
+            var setupDifferentWo = await _ctx.BdeBookings
+                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
+                                          && b.BookingType == BdeBookingType.Setup && b.WorkOperationId != workOperationId);
+            if (setupDifferentWo != null)
+                await FinishAndSaveAsync(setupDifferentWo, null, null);
+
+            // Rule 3 (Cumulative): Activity schließen
+            var activity = await _ctx.BdeBookings
+                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
+                                          && b.BookingType == BdeBookingType.Activity);
+            if (activity != null)
+                await FinishAndSaveAsync(activity, null, null);
+
+            // Rule 4 (Terminal): Production-Prüfung
+            var existingProduction = await _ctx.BdeBookings
+                .FirstOrDefaultAsync(b => b.BdeOperatorId == operatorId && b.EndedAt == null && !b.IsCancelled
+                                          && b.BookingType == BdeBookingType.Production);
+
+            if (existingProduction != null)
+            {
+                if (type == BdeBookingType.Setup)
+                    return BdeBookingResult.QuantityRequired(existingProduction);
+
+                // type == Production
+                if (!multiOp)
+                    return BdeBookingResult.QuantityRequired(existingProduction);
+                // multiOp=true → weiter zum Create
+            }
+
+            return await CreatePlannedAsync(operatorId, workOperationId, workplaceId, terminalId, type, null);
         });
     }
 
@@ -309,5 +337,11 @@ public class BdeBookingService : IBdeBookingService
         var result = await action();
         await tx.CommitAsync();
         return result;
+    }
+
+    private async Task<bool> ReadBoolSettingAsync(string key)
+    {
+        var value = await _settings.GetValueAsync(key);
+        return value?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
     }
 }

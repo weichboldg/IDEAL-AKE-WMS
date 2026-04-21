@@ -13,7 +13,7 @@ public class BdeBookingServiceTests
     private static BdeBookingService NewService(out Data.ApplicationDbContext ctx)
     {
         ctx = TestDbContextFactory.Create();
-        return new BdeBookingService(ctx, new FakeCurrentUserService());
+        return new BdeBookingService(ctx, new FakeCurrentUserService(), Mock.Of<IdealAkeWms.Data.Repositories.IAppSettingRepository>());
     }
 
     [Fact]
@@ -341,7 +341,7 @@ public class BdeBookingServiceTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
         userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
-        var svc = new BdeBookingService(ctx, userSvc.Object);
+        var svc = new BdeBookingService(ctx, userSvc.Object, Mock.Of<IdealAkeWms.Data.Repositories.IAppSettingRepository>());
 
         var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
 
@@ -363,7 +363,7 @@ public class BdeBookingServiceTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
         userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
-        var svc = new BdeBookingService(ctx, userSvc.Object);
+        var svc = new BdeBookingService(ctx, userSvc.Object, Mock.Of<IdealAkeWms.Data.Repositories.IAppSettingRepository>());
 
         var result = await svc.StartActivityAsync(ids.OperatorId, ids.ActivityId, ids.WorkplaceId, ids.TerminalId);
 
@@ -394,12 +394,187 @@ public class BdeBookingServiceTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
         userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
-        var svc = new BdeBookingService(ctx, userSvc.Object);
+        var svc = new BdeBookingService(ctx, userSvc.Object, Mock.Of<IdealAkeWms.Data.Repositories.IAppSettingRepository>());
 
         var result = await svc.ResumeAsync(paused.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
 
         result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
         result.Message.Should().Contain("nicht für BDE aktiviert");
         ctx.BdeBookings.Count().Should().Be(1); // only the pre-seeded paused booking, no new one
+    }
+
+    private static BdeBookingService CreateService(Data.ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false)
+    {
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
+        userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
+
+        var settingsMock = new Mock<IdealAkeWms.Data.Repositories.IAppSettingRepository>();
+        settingsMock.Setup(s => s.GetValueAsync("BdeMehrfachBuchungProArbeitsgang"))
+            .ReturnsAsync(multiMa ? "true" : "false");
+        settingsMock.Setup(s => s.GetValueAsync("BdeMehrfachBuchungProOperator"))
+            .ReturnsAsync(multiOp ? "true" : "false");
+
+        return new BdeBookingService(ctx, userSvc.Object, settingsMock.Object);
+    }
+
+    [Fact]
+    public async Task StartProduction_MultiMaDisabled_RejectsCollision()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var otherOp = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: false);
+
+        var result = await svc.StartProductionAsync(otherOp, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.CollisionOtherOperator);
+    }
+
+    [Fact]
+    public async Task StartProduction_MultiMaEnabled_AllowsSecondOperator()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var otherOp = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: true, multiOp: false);
+
+        var result = await svc.StartProductionAsync(otherOp, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        ctx.BdeBookings.Count(b => b.WorkOperationId == ids.WorkOperationId && b.EndedAt == null).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task StartProduction_MultiOperatorDisabled_RequiresQuantity()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var secondWoId = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: false);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, secondWoId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.QuantityRequired);
+    }
+
+    [Fact]
+    public async Task StartProduction_MultiOperatorEnabled_AllowsParallel()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var secondWoId = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: true);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, secondWoId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        ctx.BdeBookings.Count(b => b.BdeOperatorId == ids.OperatorId && b.EndedAt == null).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task StartSetup_AlwaysExclusive_EvenInMultiMaMode()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var otherOp = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Setup, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-15)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: true, multiOp: true);
+
+        var result = await svc.StartSetupAsync(otherOp, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.CollisionOtherOperator);
+    }
+
+    [Fact]
+    public async Task SetupToProduction_SameAG_AlwaysTransitions()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var setup = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Setup, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-20));
+        ctx.BdeBookings.Add(setup);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: true, multiOp: true);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        result.Booking!.ParentBookingId.Should().Be(setup.Id);
+        ctx.BdeBookings.First(b => b.Id == setup.Id).EndedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task StartProduction_MultiOp_ClosesActiveSetupOnDifferentAg()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var secondWoId = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        var setupOnDifferentAg = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Setup, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-10), workOperationId: secondWoId);
+        ctx.BdeBookings.Add(setupOnDifferentAg);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: true);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        ctx.BdeBookings.First(b => b.Id == setupOnDifferentAg.Id).EndedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task StartProduction_MultiOp_ClosesActiveActivity()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var activity = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Activity, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-10));
+        ctx.BdeBookings.Add(activity);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: false, multiOp: true);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        ctx.BdeBookings.First(b => b.Id == activity.Id).EndedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task StartActivity_AlwaysExclusive_PerOperator_EvenWithMultiOp()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var production = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(production);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, multiMa: true, multiOp: true);
+
+        var result = await svc.StartActivityAsync(ids.OperatorId, ids.ActivityId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.QuantityRequired);
     }
 }
