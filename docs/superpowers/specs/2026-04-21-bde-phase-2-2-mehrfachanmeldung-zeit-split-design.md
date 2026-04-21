@@ -127,13 +127,23 @@ Unverändert gegenüber Phase 1, mit einer Präzisierung:
 - `BdeMehrfachBuchungProArbeitsgang = false` → Collision abweisen
 - `BdeMehrfachBuchungProArbeitsgang = true` → überspringen
 
-**Eigener-Operator-Check** — Reihenfolge strikt abarbeiten:
-1. Wenn Operator aktive Setup-Buchung auf **demselben AG** hat → Setup schließen, `ParentBookingId` setzen, Production starten. (Setup→Production-Transition, unabhängig von Settings.)
-2. Wenn Operator aktive Setup-Buchung auf **anderem AG** hat → diese Setup-Buchung schließen (Setup ist operator-exklusiv, kann nicht parallel zu neuer Production laufen).
-3. Wenn Operator aktive Activity-Buchung hat → Activity schließen (Activity nicht parallel zu Production).
-4. Wenn Operator aktive Production-Buchung(en) hat:
+**Eigener-Operator-Check** — unterteilt in **terminal** (beendet die Logik) und **kumulativ** (können mehrfach feuern):
+
+**Terminal-Regeln (schließen den Flow):**
+1. (T) Wenn Operator aktive Setup-Buchung auf **demselben AG** hat → Setup schließen, `ParentBookingId` setzen, Production starten. Fertig. (Setup→Production-Transition, unabhängig von Settings.)
+
+**Kumulative Regeln (werden beide bei Bedarf durchlaufen, BEVOR Regel 4 greift):**
+2. (K) Wenn Operator aktive Setup-Buchung auf **anderem AG** hat → diese Setup-Buchung schließen. Weiter zu Regel 3.
+3. (K) Wenn Operator aktive Activity-Buchung hat → Activity schließen. Weiter zu Regel 4.
+
+**Terminal-Regel (entscheidet das Ergebnis):**
+4. (T) Wenn Operator nach Regel 2+3 noch aktive Production-Buchung(en) hat:
    - `BdeMehrfachBuchungProOperator = false` → `QuantityRequired` (eine der bestehenden Productions muss zuerst mit Mengen beendet werden)
    - `BdeMehrfachBuchungProOperator = true` → keine Auto-Close, die neue Production wird parallel angelegt
+   
+   Wenn Operator keine Production hat (nach Regel 2+3 nur noch leer) → neue Production wird angelegt.
+
+**Hinweis zur Reihenfolge:** Regel 1 wird als Erstes geprüft, weil Setup→Production-Transition auf demselben AG fachlich anders ist als Auto-Close. Falls Regel 1 nicht zutrifft, werden Regel 2 und 3 **beide** durchlaufen (ein Operator kann vor Rule 4 eine Setup auf AG-X und eine Activity gleichzeitig haben — das sollte im Normalfall durch Phase-1-Enforcement nicht entstehen, könnte aber bei Setting-Aktivierung während laufender Buchungen vorkommen). Erst dann greift Regel 4.
 
 ### `StartActivityAsync`
 
@@ -145,9 +155,10 @@ Activity bleibt **single-active pro Operator** unabhängig von Settings:
 
 ### `ResumeAsync`
 
-Resume legt eine neue Buchung mit gleichem `WorkOperationId` und gesetztem `ParentBookingId` an. Die Enforcement läuft analog zu `StartPlannedAsync`:
-- Bei Production-Resume: Collision-Check + Eigener-Operator-Check wie oben
-- Bei Setup-Resume: Collision-Check streng, Eigener-Operator-Check wie Phase 1
+Resume legt eine neue Buchung an, die Felder (WorkOperationId, BdeActivityId) vom pausierten Parent übernimmt und `ParentBookingId` setzt. Die Enforcement richtet sich nach dem Buchungstyp der neuen Buchung:
+- **Production-Resume**: Collision-Check + Eigener-Operator-Check wie in `StartPlannedAsync — Production`
+- **Setup-Resume**: Collision-Check streng, Eigener-Operator-Check wie in `StartPlannedAsync — Setup` (Phase-1-Logik)
+- **Activity-Resume**: Eigener-Operator-Check wie in `StartActivityAsync` (Phase-1-Logik, single-active)
 
 ### Neue Methode `CloseOtherBookingsOnWorkOperationAsync`
 
@@ -168,6 +179,10 @@ public record CloseOthersResult(int ClosedCount);
 ### `FinishAsync` und `PauseAsync`
 
 Keine Änderung. Mengen-Reporting und Pause-Semantik sind schon heute pro Buchung unabhängig.
+
+### NurFA-Modus — `StartProductionForOrder`
+
+Der in Phase 1 eingeführte `BdeTerminalController.StartProductionForOrder`-Endpoint (NurFA-Modus) ruft intern `BdeDefaultWorkOperationService.FindOrCreateDefaultAsync` (um die Default-WorkOperation zu ermitteln) und anschließend `BdeBookingService.StartProductionAsync`. Die Enforcement-Regeln aus diesem Abschnitt gelten für den NurFA-Modus automatisch — keine eigene Logik nötig.
 
 ## BdeTimeSplitService (neu)
 
@@ -244,9 +259,9 @@ Controller prüft: BdeMehrfachBuchungProArbeitsgang aktiv + IsFinal=true + ander
 ### Controller
 
 **`BdeTerminalController.Finish`** (bestehend, erweitern):
-- Nach erfolgreicher Service-Antwort: wenn beide Bedingungen erfüllt (Setting aktiv + IsFinal=true), Query auf andere aktive Buchungen der selben WorkOperation mit anderem Operator.
+- Nach erfolgreicher Service-Antwort: wenn beide Bedingungen erfüllt (`BdeMehrfachBuchungProArbeitsgang = true` + `IsFinal = true`), Query auf andere aktive Buchungen der selben WorkOperation mit anderem Operator.
 - Response-DTO erhält neues Feld `OtherActiveBookings: [{OperatorId, OperatorName, StartedAt}]`.
-- Andernfalls leere Liste / nicht gesetzt.
+- **Feld ist immer vorhanden im Response** (leeres Array wenn keine anderen aktiven Buchungen oder Bedingungen nicht erfüllt). Das vereinfacht das JS-Handling — `response.otherActiveBookings.length > 0` als einzige Prüfung.
 
 **`BdeTerminalController.CloseOthers`** (neu):
 ```csharp
