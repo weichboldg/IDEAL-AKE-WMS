@@ -400,6 +400,20 @@
 
                 <h6 class="mt-3">Fehler &bdquo;Werkbank ist nicht fuer BDE aktiviert&ldquo;</h6>
                 <p>Tritt beim Scan am Terminal auf, wenn die zugewiesene Werkbank nicht als BDE-aktiv markiert ist. Loesung: Stammdaten &rarr; Werkbaenke &rarr; betroffene Werkbank bearbeiten &rarr; <em>BDE aktiv</em> einschalten.</p>
+
+                <h6 class="mt-3">Mehrfach-Anmeldung konfigurieren</h6>
+                <ol>
+                    <li>Einstellungen &rarr; BDE-Gruppe oeffnen.</li>
+                    <li>&bdquo;Ein Mitarbeiter darf mehrere parallele Buchungen haben&ldquo; aktivieren &mdash; wenn ein Mitarbeiter mehrere Maschinen/Auftraege gleichzeitig bedient.</li>
+                    <li>&bdquo;Ein Arbeitsgang darf mehrere parallele Buchungen haben&ldquo; aktivieren &mdash; wenn mehrere Mitarbeiter gemeinsam an einem Auftrag arbeiten (Montage-Team).</li>
+                    <li>Speichern.</li>
+                </ol>
+
+                <h6 class="mt-3">Zeit-Split bei paralleler Arbeit</h6>
+                <p>Arbeitet ein Mitarbeiter parallel auf mehreren Auftraegen, wird die Gesamtzeit automatisch auf die Auftraege aufgeteilt &mdash; primaer nach tatsaechlicher Gutmenge, bei fehlender Rueckmeldung nach geplanter Sollmenge. Beispiel: 4&nbsp;h parallel auf FA-A (5&nbsp;Stk) und FA-B (5&nbsp;Stk) ergeben je 2&nbsp;h effektive Zeit pro Auftrag. Die effektive Zeit wird in der Buchungsuebersicht in der Spalte &bdquo;Effektive Zeit&ldquo; angezeigt.</p>
+
+                <h6 class="mt-3">Pausierte Auftraege fortsetzen</h6>
+                <p>Nach dem Operator-Scan am Terminal sehen Sie einen Hinweis mit allen Ihren pausierten Auftraegen und koennen diese per Klick fortsetzen.</p>
             </div>
         </div>
 

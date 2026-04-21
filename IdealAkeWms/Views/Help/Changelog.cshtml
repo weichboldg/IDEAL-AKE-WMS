@@ -9,7 +9,7 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
-                <strong>v1.8.2</strong> <span class="text-white-50 ms-2">16.04.2026</span>
+                <strong>v1.8.2</strong> <span class="text-white-50 ms-2">21.04.2026</span>
             </div>
             <div class="card-body">
                 <h6>BDE-Settings</h6>
@@ -24,6 +24,13 @@
                     <li>Werkbank-BDE-Flag: Werkb&auml;nke k&ouml;nnen jetzt pro Werkbank f&uuml;r das BDE-Modul aktiviert/deaktiviert werden (Stammdaten &rarr; Werkb&auml;nke &rarr; BDE-Einstellungen).</li>
                     <li>Werkbank-Default-Arbeitsgang: Pro Werkbank kann ein eigener Default-AG-Name konfiguriert werden, der das globale Setting &uuml;berschreibt.</li>
                     <li>Booking-Validation: Buchungen auf BDE-inaktiven Werkb&auml;nken werden mit Fehlermeldung abgewiesen.</li>
+                </ul>
+                <h6>BDE Phase 2.2 &mdash; Mehrfachanmeldung + Zeit-Split</h6>
+                <ul>
+                    <li>Neue Settings <code>BdeMehrfachBuchungProOperator</code> und <code>BdeMehrfachBuchungProArbeitsgang</code> &mdash; ermoeglichen 1 Mitarbeiter auf mehreren Auftraegen bzw. mehrere Mitarbeiter auf 1 Auftrag (beide Defaults false).</li>
+                    <li>Effektive-Zeit-Berechnung pro Segment bei parallelen Buchungen (Buchungsuebersicht zeigt neue Spalte).</li>
+                    <li>Terminal: Hinweis-Block mit pausierten Auftraegen nach Operator-Scan (mit Fortsetzen-Button).</li>
+                    <li>Terminal: Bei Abschluss-Meldung auf Multi-MA-AG &rarr; Dialog &bdquo;andere Buchungen auch beenden?&ldquo;</li>
                 </ul>
             </div>
         </div>

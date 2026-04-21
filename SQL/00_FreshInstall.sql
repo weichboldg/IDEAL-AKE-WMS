@@ -501,7 +501,9 @@ BEGIN
         ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv'),
         ('BdeAktiv', 'false', 'BDE-Modul (Betriebsdatenerfassung) aktivieren'),
         ('BdeNurFaMeldung', 'false', 'Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge'),
-        ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)');
+        ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)'),
+        ('BdeMehrfachBuchungProOperator', 'false', 'Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)'),
+        ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
@@ -1227,13 +1229,13 @@ END
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_WorkOperationId_Active' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
-    CREATE UNIQUE INDEX [IX_BdeBookings_WorkOperationId_Active]
+    CREATE INDEX [IX_BdeBookings_WorkOperationId_Active]
         ON [dbo].[BdeBookings]([WorkOperationId])
         WHERE [EndedAt] IS NULL AND [IsCancelled] = 0 AND [WorkOperationId] IS NOT NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_BdeOperatorId_Active' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
-    CREATE UNIQUE INDEX [IX_BdeBookings_BdeOperatorId_Active]
+    CREATE INDEX [IX_BdeBookings_BdeOperatorId_Active]
         ON [dbo].[BdeBookings]([BdeOperatorId])
         WHERE [EndedAt] IS NULL AND [IsCancelled] = 0;
 GO

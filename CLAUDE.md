@@ -103,7 +103,7 @@
 - **Leitstand Index-Action hat kein Filter-Attribut**: Prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur Key (PK), Value, Description
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer → Beschichtungstermin fuer ALLE Auftraege
-- **BDE-Buchung Ein-Operator-Regel**: Gefilterter Unique-Index `IX_BdeBookings_BdeOperatorId_Active` verhindert mehrere offene Buchungen pro Operator. Starten eines neuen AG auf laufender Production → Service gibt `QuantityRequired` zurueck.
+- **BDE-Buchung Mehrfach-Regel**: Ohne Konfiguration darf ein Operator nur eine aktive Buchung haben und ein Arbeitsgang nur eine aktive Buchung (Enforcement im Service, nicht mehr als UNIQUE-Index). Die Settings `BdeMehrfachBuchungProOperator` und `BdeMehrfachBuchungProArbeitsgang` lockern diese Constraints jeweils unabhaengig. Die Indexes `IX_BdeBookings_BdeOperatorId_Active` und `IX_BdeBookings_WorkOperationId_Active` sind seit Phase 2.2 nicht mehr UNIQUE (nur noch regulaere gefilterte Indexes).
 - **BDE-Paused Semantik**: Paused hat `EndedAt = gesetzt`. Fortsetzung erzeugt neue Buchung mit `ParentBookingId`. Cockpit-Query `WHERE EndedAt IS NULL` zeigt nur Running.
 - **BDE-Operator deaktiviert waehrend offener Buchung**: Offene Buchungen bleiben sichtbar. Schichtleiter muss manuell schliessen.
 - **Save-Ordering in BdeBookingService**: Bei Auto-Close-und-New-Start MUSS `SaveChangesAsync` zwischen Schliessen und Add-Neu laufen (Helfer `FinishAndSaveAsync`), eingebettet in `BeginTransactionAsync()`.
@@ -141,6 +141,8 @@
 | `BdeAktiv` | `false` | BDE-Modul aktiviert |
 | `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG) |
 | `BdeDefaultArbeitsgang` | (leer) | Default-AG Name fuer vereinfachten Modus |
+| `BdeMehrfachBuchungProOperator` | `false` | Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen) |
+| `BdeMehrfachBuchungProArbeitsgang` | `false` | Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter) |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 

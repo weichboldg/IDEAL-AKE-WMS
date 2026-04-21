@@ -42,10 +42,26 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Individuell anpassbare Tabellenansichten (Spalten) | Fertig |
 | Betriebsdatenerfassung (BDE) — Terminal, Cockpit, Korrekturen | Fertig (Phase 1) |
 | BDE Phase 2.1 — Werkbank-Erweiterungen (BdeAktiv, Default-AG) | Fertig (Phase 2.1) |
+| BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | Fertig (Phase 2.2) |
 
 ## Version
-- **Web-App**: v1.8.2 (20.04.2026)
+- **Web-App**: v1.8.2 (21.04.2026)
 - **Service**: v1.8.1 (16.04.2026)
+
+## Aenderungen (21.04.2026)
+
+### v1.8.2 — BDE Phase 2.2: Mehrfachanmeldung + Zeit-Split
+
+#### Neue Funktionen
+- **BdeMehrfachBuchungProOperator**: Setting erlaubt einem Mitarbeiter mehrere parallele Buchungen auf verschiedenen Arbeitsgaengen
+- **BdeMehrfachBuchungProArbeitsgang**: Setting erlaubt mehrere Mitarbeiter gleichzeitig auf einem Arbeitsgang
+- **Effektive-Zeit-Berechnung**: Bei parallelen Buchungen wird die Zeit anteilig aufgeteilt (nach Gutmenge, Fallback Sollmenge)
+- **Terminal-Pausierten-Hinweis**: Nach Operator-Scan werden pausierte Auftraege mit Fortsetzen-Button angezeigt
+- **Multi-MA-Abschluss-Dialog**: Bei Beenden eines AG mit mehreren aktiven Buchungen → Dialog zum Mitbeenden anderer Buchungen
+
+#### Technische Details
+- Migration: `SQL/45_RelaxBdeBookingConstraints.sql` — UNIQUE-Indexes auf BdeBookings relaxed auf regulaere gefilterte Indexes
+- Neue AppSettings: `BdeMehrfachBuchungProOperator`, `BdeMehrfachBuchungProArbeitsgang`
 
 ## Aenderungen (20.04.2026)
 
