@@ -368,6 +368,7 @@ View nutzt `Model.EffectiveDurations.GetValueOrDefault(booking.Id, TimeSpan.Zero
 | Test | Szenario |
 |------|----------|
 | `Index_PopulatesEffectiveDurations` | Controller gruppiert nach (Operator, Tag), ruft Service, füllt Dict |
+| `Index_CrossDayBooking_AggregatesBothDays` | Cross-Day-Buchung → Dict-Wert = Summe aus beiden Tages-Aufrufen |
 | `Index_EmptyBookings_EmptyDictionary` | Leere Liste → leeres Dict (kein NullRef) |
 
 ### Bestehende Tests anpassen
