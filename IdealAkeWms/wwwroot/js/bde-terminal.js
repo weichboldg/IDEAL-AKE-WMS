@@ -500,16 +500,33 @@
 
         try {
             var res = await fetch('/BdeTerminal/Resume', { method: 'POST', body: form });
-            if (res.ok) {
-                btn.closest('li')?.remove();
-                if (!document.querySelectorAll('#paused-bookings-list li').length) {
-                    document.getElementById('paused-bookings-hint').classList.add('d-none');
-                }
-                await renderState();
-                await loadTodayHistory();
-            } else {
-                showToast('Fortsetzen fehlgeschlagen', 'danger');
+            if (!res.ok) {
+                showToast('Fortsetzen fehlgeschlagen (HTTP ' + res.status + ')', 'danger');
+                return;
             }
+            var data = await res.json();
+            if (data.outcome !== 'Success') {
+                var msg = 'Fortsetzen nicht möglich';
+                if (data.outcome === 'CollisionOtherOperator' && data.collidingOperator) {
+                    msg = 'Arbeitsgang wird bereits von ' + data.collidingOperator + ' bearbeitet';
+                    if (data.collidingSince) {
+                        var since = new Date(data.collidingSince).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                        msg += ' (seit ' + since + ')';
+                    }
+                } else if (data.message) {
+                    msg = data.message;
+                } else if (data.outcome) {
+                    msg = 'Fortsetzen fehlgeschlagen: ' + data.outcome;
+                }
+                showToast(msg, 'danger');
+                return;
+            }
+            btn.closest('li')?.remove();
+            if (!document.querySelectorAll('#paused-bookings-list li').length) {
+                document.getElementById('paused-bookings-hint').classList.add('d-none');
+            }
+            await renderState();
+            await loadTodayHistory();
         } catch (err) {
             console.error('Error resuming booking', err);
             showToast('Fortsetzen fehlgeschlagen', 'danger');
