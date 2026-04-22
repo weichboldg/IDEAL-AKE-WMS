@@ -347,7 +347,8 @@
 
     // --- Available Operations (AG Buttons) ---
     async function loadAvailableOperations() {
-        const r = await fetch(`/api/bde/available-operations/${workplaceId}`);
+        const opParam = currentOperator?.id ? `?operatorId=${currentOperator.id}` : '';
+        const r = await fetch(`/api/bde/available-operations/${workplaceId}${opParam}`);
         if (!r.ok) return;
         const data = await r.json();
         renderOperationButtons(data.productive, data.unplanned);

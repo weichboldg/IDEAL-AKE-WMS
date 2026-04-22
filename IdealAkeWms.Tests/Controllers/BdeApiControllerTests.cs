@@ -363,4 +363,62 @@ public class BdeApiControllerTests
         // Partial-Gemeldet: WO bleibt sichtbar
         json.Should().Contain($"\"id\":{ids.WorkOperationId}");
     }
+
+    [Fact]
+    public async Task GetAvailableOperations_FiltersOutWorkOperationsOperatorAlreadyBooked()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2Id = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        // Operator hat aktive Buchung auf WO1
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddMinutes(-30)));
+        await ctx.SaveChangesAsync();
+
+        var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
+        var wo2 = await ctx.WorkOperations.FindAsync(wo2Id);
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+            .ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+        var result = await controller.GetAvailableOperations(ids.WorkplaceId, operatorId: ids.OperatorId);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        // WO1 wo der Operator schon bucht → ausgeblendet
+        json.Should().NotContain($"\"id\":{ids.WorkOperationId}");
+        // WO2 → sichtbar
+        json.Should().Contain($"\"id\":{wo2Id}");
+    }
+
+    [Fact]
+    public async Task GetAvailableOperations_WithoutOperatorId_UnchangedBehavior()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        // Operator hat aktive Buchung auf WO, aber kein operatorId übergeben
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddMinutes(-30)));
+        await ctx.SaveChangesAsync();
+
+        var wo = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+            .ReturnsAsync(new List<WorkOperation> { wo! });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+        // Kein operatorId → bisheriges Verhalten, kein Crash
+        var result = await controller.GetAvailableOperations(ids.WorkplaceId);
+
+        result.Should().BeOfType<OkObjectResult>();
+    }
 }

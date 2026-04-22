@@ -153,7 +153,7 @@ public class BdeApiController : ControllerBase
     }
 
     [HttpGet("available-operations/{workplaceId:int}")]
-    public async Task<IActionResult> GetAvailableOperations(int workplaceId)
+    public async Task<IActionResult> GetAvailableOperations(int workplaceId, int? operatorId = null)
     {
         var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
         if (workplace == null || !workplace.BdeAktiv)
@@ -167,12 +167,25 @@ public class BdeApiController : ControllerBase
         if (nurFa)
         {
             // Im NurFA-Modus: offene ProductionOrders an dieser Werkbank
-            var orders = await _ctx.ProductionOrders
+            var ordersQuery = _ctx.ProductionOrders
                 .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone
                     && !_ctx.BdeBookingQuantities.Any(q =>
                         q.IsFinal
                         && q.BdeBooking!.WorkOperation!.ProductionOrderId == po.Id
-                        && !q.BdeBooking.IsCancelled))
+                        && !q.BdeBooking.IsCancelled));
+
+            // Wenn Operator bekannt: FAs ausblenden, auf denen der Operator bereits aktiv bucht
+            if (operatorId.HasValue)
+            {
+                ordersQuery = ordersQuery.Where(po =>
+                    !_ctx.BdeBookings.Any(b =>
+                        b.WorkOperation!.ProductionOrderId == po.Id
+                        && b.BdeOperatorId == operatorId.Value
+                        && b.EndedAt == null
+                        && !b.IsCancelled));
+            }
+
+            var orders = await ordersQuery
                 .OrderBy(po => po.ProductionDate)
                 .Select(po => new
                 {
@@ -200,8 +213,21 @@ public class BdeApiController : ControllerBase
             .ToListAsync();
         var finishedWoIdSet = finishedWoIds.ToHashSet();
 
+        // Wenn Operator bekannt: WOs ausblenden, auf denen der Operator bereits aktiv bucht
+        var myActiveWoIds = operatorId.HasValue
+            ? await _ctx.BdeBookings
+                .Where(b => b.BdeOperatorId == operatorId.Value
+                         && b.EndedAt == null
+                         && !b.IsCancelled
+                         && b.WorkOperationId != null)
+                .Select(b => b.WorkOperationId!.Value)
+                .Distinct()
+                .ToListAsync()
+            : new List<int>();
+        var myActiveWoIdSet = myActiveWoIds.ToHashSet();
+
         var productive = workOps
-            .Where(wo => !activeWoIds.Contains(wo.Id) && !finishedWoIdSet.Contains(wo.Id))
+            .Where(wo => !activeWoIds.Contains(wo.Id) && !finishedWoIdSet.Contains(wo.Id) && !myActiveWoIdSet.Contains(wo.Id))
             .Select(wo => new
             {
                 id = wo.Id,
