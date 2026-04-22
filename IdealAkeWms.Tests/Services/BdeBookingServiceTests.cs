@@ -179,6 +179,27 @@ public class BdeBookingServiceTests
     }
 
     [Fact]
+    public async Task Resume_SetsParentStatusToResumed()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var result = await svc.ResumeAsync(parent.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        var updatedParent = await ctx.BdeBookings.FindAsync(parent.Id);
+        updatedParent!.Status.Should().Be(BdeBookingStatus.Resumed);
+        updatedParent.ModifiedAt.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Resume_SameOperator_CreatesNewBookingWithParentId()
     {
         var svc = NewService(out var ctx);

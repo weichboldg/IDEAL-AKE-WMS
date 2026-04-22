@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
@@ -16,19 +18,22 @@ public class BdeBookingsController : Controller
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly ICurrentUserService _userSvc;
     private readonly IBdeTimeSplitService _timeSplitSvc;
+    private readonly ApplicationDbContext _ctx;
 
     public BdeBookingsController(
         IBdeBookingRepository repo,
         IBdeOperatorRepository ops,
         IProductionWorkplaceRepository workplaces,
         ICurrentUserService userSvc,
-        IBdeTimeSplitService timeSplitSvc)
+        IBdeTimeSplitService timeSplitSvc,
+        ApplicationDbContext ctx)
     {
         _repo = repo;
         _ops = ops;
         _workplaces = workplaces;
         _userSvc = userSvc;
         _timeSplitSvc = timeSplitSvc;
+        _ctx = ctx;
     }
 
     public async Task<IActionResult> Index(int skip = 0, int take = 50, int? operatorId = null, int? workplaceId = null, DateTime? from = null, DateTime? to = null)
@@ -80,6 +85,26 @@ public class BdeBookingsController : Controller
                     vm.EffectiveDurations[s.BookingId] = TimeSpan.Zero;
                 vm.EffectiveDurations[s.BookingId] += s.EffectiveDuration;
             }
+        }
+
+        // Fuer Terminal-Rows (keine weiteren Children): kumulative Zeit statt eigene Zeit
+        var visibleIds = vm.Bookings.Select(b => b.Id).ToList();
+        var parentIdsWithChildren = await _ctx.BdeBookings
+            .AsNoTracking()
+            .Where(b => b.ParentBookingId != null && visibleIds.Contains(b.ParentBookingId.Value))
+            .Select(b => b.ParentBookingId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        foreach (var b in vm.Bookings)
+        {
+            if (!parentIdsWithChildren.Contains(b.Id))
+            {
+                // Terminal-Row: kumulative Zeit (eigene + alle Vorlaeufer)
+                var cumulative = await _timeSplitSvc.ComputeCumulativeEffectiveDurationAsync(b.Id);
+                vm.EffectiveDurations[b.Id] = cumulative;
+            }
+            // else: Vorlaeufer-Row behaelt seine eigene Zeit (bereits im Dict)
         }
 
         ViewBag.Operators = await _ops.GetAllActiveAsync();

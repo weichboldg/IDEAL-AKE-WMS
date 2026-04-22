@@ -295,4 +295,37 @@ public class BdeTimeSplitServiceTests
         // 4h total
         duration.Should().Be(TimeSpan.FromHours(4));
     }
+
+    [Fact]
+    public async Task ComputeCumulativeEffectiveDurationAsync_WalksParentChain()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        // Parent: 08:00-09:00 (1h), Resumed-Status
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Resumed,
+            startedAt: Today(8, 0), endedAt: Today(9, 0));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+
+        // Child: 09:30-11:00 (1h30) mit ParentBookingId = parent.Id
+        var child = new BdeBooking
+        {
+            BdeOperatorId = ids.OperatorId, WorkOperationId = ids.WorkOperationId,
+            BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Finished,
+            StartedAt = Today(9, 30), EndedAt = Today(11, 0),
+            ParentBookingId = parent.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.BdeBookings.Add(child);
+        await ctx.SaveChangesAsync();
+
+        var svc = new BdeTimeSplitService(ctx);
+
+        var cumulative = await svc.ComputeCumulativeEffectiveDurationAsync(child.Id);
+
+        // child 1h30 + parent 1h = 2h30
+        cumulative.Should().Be(TimeSpan.FromMinutes(150));
+    }
 }

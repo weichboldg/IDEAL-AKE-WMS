@@ -216,6 +216,9 @@ public class BdeBookingService : IBdeBookingService
             };
             SetAudit(newBooking);
             _ctx.BdeBookings.Add(newBooking);
+            // Parent auf Resumed setzen (historische Kontinuitaet, kein "Paused"-Zombie)
+            parent.Status = BdeBookingStatus.Resumed;
+            SetAuditModified(parent);
             await _ctx.SaveChangesAsync();
             return BdeBookingResult.Success(newBooking);
         });

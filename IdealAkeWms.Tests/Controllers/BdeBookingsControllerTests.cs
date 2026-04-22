@@ -32,7 +32,7 @@ public class BdeBookingsControllerTests
         // Use real service — pure EF queries
         var timeSplitSvc = new BdeTimeSplitService(ctx);
 
-        return new BdeBookingsController(repo, ops.Object, workplaces.Object, userSvc.Object, timeSplitSvc);
+        return new BdeBookingsController(repo, ops.Object, workplaces.Object, userSvc.Object, timeSplitSvc, ctx);
     }
 
     [Fact]
@@ -66,5 +66,41 @@ public class BdeBookingsControllerTests
         var vm = result!.Model as BdeBookingsIndexViewModel;
         vm.Should().NotBeNull();
         vm!.EffectiveDurations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Index_TerminalBookingShowsCumulativeDuration()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Resumed,
+            startedAt: DateTime.Today.AddHours(8), endedAt: DateTime.Today.AddHours(9));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+
+        var child = new BdeBooking
+        {
+            BdeOperatorId = ids.OperatorId, WorkOperationId = ids.WorkOperationId,
+            BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Finished,
+            StartedAt = DateTime.Today.AddHours(9).AddMinutes(30),
+            EndedAt = DateTime.Today.AddHours(11),
+            ParentBookingId = parent.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.BdeBookings.Add(child);
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateBookingsController(ctx);
+
+        var result = await controller.Index() as ViewResult;
+        var vm = result!.Model as BdeBookingsIndexViewModel;
+        vm.Should().NotBeNull();
+
+        // Parent (has child) → own time: 1h
+        vm!.EffectiveDurations[parent.Id].Should().Be(TimeSpan.FromHours(1));
+        // Child (terminal) → cumulative: 1h parent + 1h30 child = 2h30
+        vm.EffectiveDurations[child.Id].Should().Be(TimeSpan.FromMinutes(150));
     }
 }

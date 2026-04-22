@@ -116,6 +116,22 @@ public class BdeTimeSplitService : IBdeTimeSplitService
         return total;
     }
 
+    public async Task<TimeSpan> ComputeCumulativeEffectiveDurationAsync(int bookingId)
+    {
+        var total = TimeSpan.Zero;
+        int? currentId = bookingId;
+        while (currentId.HasValue)
+        {
+            total += await ComputeEffectiveDurationAsync(currentId.Value);
+            var booking = await _ctx.BdeBookings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == currentId.Value);
+            if (booking == null) break;
+            currentId = booking.ParentBookingId;
+        }
+        return total;
+    }
+
     /// <summary>
     /// Computes weight per booking.
     /// Primary: sum of GoodQuantity entries.
