@@ -286,9 +286,19 @@
         return json;
     }
 
-    function promptQty(callback) {
+    function promptQty(callback, targetQty) {
         return new Promise(function (resolve) {
             const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quantityModal'));
+            const hint = document.getElementById('qty-sollmenge-hint');
+            if (hint) {
+                if (targetQty != null) {
+                    hint.textContent = 'Sollmenge: ' + targetQty;
+                    hint.classList.remove('d-none');
+                } else {
+                    hint.textContent = '';
+                    hint.classList.add('d-none');
+                }
+            }
             modal.show();
             document.getElementById('inputGood').value = '';
             document.getElementById('inputScrap').value = '0';
@@ -544,14 +554,16 @@
             ? (i.activityName || '')
             : (i.orderNumber + ' / ' + i.operationNumber + (i.operationName ? ' \u2014 ' + i.operationName : ''));
         var workplaceRow = i.workplaceName ? '<div class="text-muted small">Werkbank: ' + i.workplaceName + '</div>' : '';
+        var sollmengeRow = (i.targetQuantity != null) ? '<div class="text-muted small">Sollmenge: ' + i.targetQuantity + '</div>' : '';
 
-        return '<div class="active-booking-item px-3 py-3 border-bottom" data-booking-id="' + i.bookingId + '">' +
+        return '<div class="active-booking-item px-3 py-3 border-bottom" data-booking-id="' + i.bookingId + '" data-target-quantity="' + (i.targetQuantity != null ? i.targetQuantity : '') + '">' +
             '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">' +
             '<div>' +
             '<span class="badge ' + badgeClass + '">' + typeLabel + '</span>' +
             '<span class="ms-2 text-muted">seit ' + startedLocal + '</span>' +
             '<div class="fs-5 mt-1">' + orderInfo + '</div>' +
             workplaceRow +
+            sollmengeRow +
             '</div>' +
             '<div class="fs-4 fw-bold elapsed-ticker" data-started-at="' + i.startedAt + '">—</div>' +
             '</div>' +
@@ -564,24 +576,37 @@
     }
 
     async function triggerFinishFlow(bookingId) {
+        const card = document.querySelector('.active-booking-item[data-booking-id="' + bookingId + '"]');
+        const targetQty = (card && card.dataset.targetQuantity !== '') ? parseFloat(card.dataset.targetQuantity) : null;
+
         await promptQty(async function (good, scrap) {
+            if (targetQty != null && good < targetQty) {
+                const ok = confirm('Gutmenge ' + good + ' liegt unter Sollmenge ' + targetQty + '.\nWirklich als fertig melden?');
+                if (!ok) return;
+            }
             var response = await post('/BdeTerminal/Finish', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'finish');
             if (response && response.outcome === 'Success' && response.otherActiveBookings && response.otherActiveBookings.length > 0) {
                 showCloseOthersModal(response);
             }
-        });
+        }, targetQty);
     }
 
     async function triggerPauseFlow(bookingId) {
+        const card = document.querySelector('.active-booking-item[data-booking-id="' + bookingId + '"]');
+        const targetQty = (card && card.dataset.targetQuantity !== '') ? parseFloat(card.dataset.targetQuantity) : null;
+
         await promptQty(async function (good, scrap) {
             await post('/BdeTerminal/Pause', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'pause');
-        });
+        }, targetQty);
     }
 
     async function triggerPartialFlow(bookingId) {
+        const card = document.querySelector('.active-booking-item[data-booking-id="' + bookingId + '"]');
+        const targetQty = (card && card.dataset.targetQuantity !== '') ? parseFloat(card.dataset.targetQuantity) : null;
+
         await promptQty(async function (good, scrap) {
             await post('/BdeTerminal/ReportPartial', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'reportPartial');
-        });
+        }, targetQty);
     }
 
     document.getElementById('active-bookings-list').addEventListener('click', async function (e) {

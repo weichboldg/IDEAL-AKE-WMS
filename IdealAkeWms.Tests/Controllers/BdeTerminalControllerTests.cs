@@ -202,4 +202,21 @@ public class BdeTerminalControllerTests
         var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
         parsed.GetArrayLength().Should().Be(2);
     }
+
+    [Fact]
+    public async Task ActiveBookings_IncludesTargetQuantity()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateTerminalController(ctx);
+        var result = await controller.ActiveBookings(ids.OperatorId);
+
+        var ok = result as OkObjectResult;
+        ok.Should().NotBeNull();
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("\"targetQuantity\":10");
+    }
 }

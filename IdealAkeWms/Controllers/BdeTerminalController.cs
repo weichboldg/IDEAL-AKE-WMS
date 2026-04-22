@@ -183,7 +183,8 @@ public class BdeTerminalController : Controller
                 operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
                 operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
                 activityName = b.BdeActivity != null ? b.BdeActivity.Name : "",
-                workplaceName = b.ProductionWorkplace != null ? b.ProductionWorkplace.Name : ""
+                workplaceName = b.ProductionWorkplace != null ? b.ProductionWorkplace.Name : "",
+                targetQuantity = b.WorkOperation != null ? (decimal?)b.WorkOperation.ProductionOrder!.Quantity : null
             })
             .ToListAsync();
 
