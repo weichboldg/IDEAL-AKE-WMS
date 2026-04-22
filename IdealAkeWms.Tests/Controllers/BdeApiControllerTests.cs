@@ -285,4 +285,82 @@ public class BdeApiControllerTests
         json.Should().Contain("\"unplanned\":[]");
         json.Should().Contain("\"nurFaMode\":false");
     }
+
+    [Fact]
+    public async Task GetAvailableOperations_FiltersOutFinishedWorkOperations()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var secondWoId = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        // Erste WO wird als fertig gemeldet (IsFinal-Quantity)
+        var finishedBooking = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(finishedBooking);
+        await ctx.SaveChangesAsync();
+        ctx.BdeBookingQuantities.Add(new BdeBookingQuantity
+        {
+            BdeBookingId = finishedBooking.Id, BdeOperatorId = ids.OperatorId,
+            GoodQuantity = 5, IsFinal = true, ReportedAt = DateTime.Now.AddHours(-1),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        // Seed WorkOperations into the mocked repository
+        var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
+        var wo2 = await ctx.WorkOperations.FindAsync(secondWoId);
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+            .ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+
+        var result = await controller.GetAvailableOperations(ids.WorkplaceId);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        // Erste WorkOperation (fertig gemeldet) darf nicht im Response sein, zweite schon
+        json.Should().NotContain($"\"id\":{ids.WorkOperationId}");
+        json.Should().Contain($"\"id\":{secondWoId}");
+    }
+
+    [Fact]
+    public async Task GetAvailableOperations_DoesNotFilterOnPartialQuantity()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        // Partial-Quantity (IsFinal=false) sollte NICHT ausgefiltert werden
+        var booking = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddMinutes(-30));
+        ctx.BdeBookings.Add(booking);
+        await ctx.SaveChangesAsync();
+        ctx.BdeBookingQuantities.Add(new BdeBookingQuantity
+        {
+            BdeBookingId = booking.Id, BdeOperatorId = ids.OperatorId,
+            GoodQuantity = 2, IsFinal = false, ReportedAt = DateTime.Now.AddMinutes(-10),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var wo = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+            .ReturnsAsync(new List<WorkOperation> { wo! });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+
+        var result = await controller.GetAvailableOperations(ids.WorkplaceId);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        // Partial-Gemeldet: WO bleibt sichtbar
+        json.Should().Contain($"\"id\":{ids.WorkOperationId}");
+    }
 }

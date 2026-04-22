@@ -168,7 +168,11 @@ public class BdeApiController : ControllerBase
         {
             // Im NurFA-Modus: offene ProductionOrders an dieser Werkbank
             var orders = await _ctx.ProductionOrders
-                .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone)
+                .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone
+                    && !_ctx.BdeBookingQuantities.Any(q =>
+                        q.IsFinal
+                        && q.BdeBooking!.WorkOperation!.ProductionOrderId == po.Id
+                        && !q.BdeBooking.IsCancelled))
                 .OrderBy(po => po.ProductionDate)
                 .Select(po => new
                 {
@@ -188,8 +192,16 @@ public class BdeApiController : ControllerBase
             .Select(b => b.WorkOperationId!.Value)
             .ToHashSet();
 
+        // Ermittle WorkOperation-IDs, die bereits als fertig gemeldet sind (IsFinal=true, nicht storniert)
+        var finishedWoIds = await _ctx.BdeBookingQuantities
+            .Where(q => q.IsFinal && !q.BdeBooking!.IsCancelled && q.BdeBooking.WorkOperationId.HasValue)
+            .Select(q => q.BdeBooking!.WorkOperationId!.Value)
+            .Distinct()
+            .ToListAsync();
+        var finishedWoIdSet = finishedWoIds.ToHashSet();
+
         var productive = workOps
-            .Where(wo => !activeWoIds.Contains(wo.Id))
+            .Where(wo => !activeWoIds.Contains(wo.Id) && !finishedWoIdSet.Contains(wo.Id))
             .Select(wo => new
             {
                 id = wo.Id,
