@@ -545,9 +545,20 @@
                 return parts.some(function (p) { return text.indexOf(p) !== -1; });
             }
 
+            // Hilfsfunktion: Spalten-Key → physikalischer td-Index im bomTable
+            // Wird für updateBomVisibility benötigt (Bug-Fix: parseInt(colKey) war falsch → NaN)
+            function bomColKeyToIndex(colKey) {
+                var ths = document.querySelectorAll('#bomTable thead tr:first-child th');
+                for (var i = 0; i < ths.length; i++) {
+                    if (ths[i].getAttribute('data-col-key') === colKey) return i;
+                }
+                return -1;
+            }
+
             // Kombinierte Sichtbarkeitsfunktion: Baum-State UND aktive Filter
             // Baum hat Vorrang: eine Zeile ist nur sichtbar wenn sie im Baum sichtbar ist UND dem Filter entspricht
-            // Mit rekursiver Suche: bei aktivem Filter wird der Baum-State ignoriert
+            // Mit rekursiver Suche: bei aktivem Filter wird der Baum-State für nicht explizit zugeklappte
+            // Baugruppen ignoriert → alle Treffer sichtbar, aber manuell zugeklappte Zweige bleiben zu.
             function updateBomVisibility() {
                 var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
                 var hasActiveFilter = Object.keys(filters).length > 0;
@@ -560,16 +571,25 @@
                     // Baum-Sichtbarkeit: TreeLevel 0 immer sichtbar, höhere Level nur wenn Parent expanded
                     var treeVisible = !parentPos || expandedState[parentPos] === true;
 
-                    // Rekursive Suche: bei aktivem Filter Baum-State ignorieren → alle Treffer sichtbar
+                    // Bug-Fix 4 (rekursive Suche): bei aktivem Filter Baum-State ignorieren AUSSER für
+                    // Baugruppen die der User explizit zugeklappt hat (expandedState === false).
+                    // So arbeitet recursive-search (zeigt alle Treffer), aber manuelles Zuklappen wirkt weiterhin.
                     if (recursiveFilterSearch && hasActiveFilter) {
-                        treeVisible = true;
+                        var parentExplicitlyClosed = parentPos && expandedState[parentPos] === false;
+                        if (!parentExplicitlyClosed) {
+                            treeVisible = true;
+                        }
                     }
 
-                    // Filter-Sichtbarkeit
+                    // Bug-Fix 1 (Phantom-Spalten): Filter-Index aus Spalten-Key auflösen statt parseInt(colKey)
+                    // parseInt('procurement') = NaN → cell war immer undefined → filterVisible blieb immer true
+                    // → updateBomVisibility hat Zeilen sichtbar gesetzt die table-filter.js korrekt versteckt hatte
                     var filterVisible = true;
-                    for (var col in filters) {
-                        var cell = row.querySelectorAll('td')[parseInt(col)];
-                        if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), filters[col])) {
+                    for (var colKey in filters) {
+                        var colIdx = bomColKeyToIndex(colKey);
+                        if (colIdx < 0) continue;
+                        var cell = row.querySelectorAll('td')[colIdx];
+                        if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), filters[colKey])) {
                             filterVisible = false;
                             break;
                         }
@@ -654,24 +674,37 @@
                 updateBomVisibility();
             });
 
-            // Filter-Row-Inputs (von table-filter.js erstellt) mit updateBomVisibility verknüpfen
-            // table-filter.js DOMContentLoaded läuft VOR diesem Script → Filter-Row ist bereits da
-            document.querySelectorAll('.filter-row input').forEach(function (input) {
-                input.addEventListener('input', updateBomVisibility);
-            });
-
-            // setColumnFilter überschreiben damit auch Programm-seitiges Setzen (Default-Filter) den Baum respektiert
-            var origSetColumnFilter = window.setColumnFilter;
+            // setColumnFilter überschreiben damit Programm-seitiges Setzen (Default-Filter) den Baum respektiert.
+            // table-filter.js definiert window.setColumnFilter synchron beim Script-Load (außerhalb DOMContentLoaded),
+            // daher ist es hier bereits verfügbar. Wir wrappen es so dass updateBomVisibility mitläuft.
+            var _realSetColumnFilter = window.setColumnFilter; // table-filter.js Implementierung sichern
             window.setColumnFilter = function (colKey, value) {
-                if (origSetColumnFilter) origSetColumnFilter(colKey, value);
+                if (_realSetColumnFilter) _realSetColumnFilter(colKey, value);
                 updateBomVisibility();
             };
 
-            // User-Default-Filter in Spaltenfilter vorbelegen (nach Override von setColumnFilter)
-            var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
-            var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
-            if (defaultBeschaffung && typeof window.setColumnFilter === 'function') window.setColumnFilter('procurement', defaultBeschaffung);
-            if (defaultArtikelgruppe && typeof window.setColumnFilter === 'function') window.setColumnFilter('article-group', defaultArtikelgruppe);
+            // Bug-Fix 3 (Filter-Row-Input-Binding) + Bug-Fix 2 (Default-Filter-Timing):
+            // table-filter.js init() läuft NACH column-preferences-ready (async loadSettings fetch).
+            // Zum Zeitpunkt des DOMContentLoaded-Handlers existiert _filterRow in table-filter.js noch nicht →
+            //   - querySelectorAll('.filter-row input') findet keine Elemente → keine Event-Listener
+            //   - setColumnFilter('procurement', ...) läuft ins leere (_filterRow ist null → return)
+            // Lösung: Filter-Row-Binding und Default-Filter nach column-preferences-ready ausführen.
+            // table-filter.js init() läuft synchron im column-preferences-ready-Handler, daher mit setTimeout(0)
+            // warten bis init() fertig ist.
+            document.addEventListener('column-preferences-ready', function () {
+                setTimeout(function () {
+                    // Filter-Row-Inputs mit updateBomVisibility verknüpfen
+                    document.querySelectorAll('.filter-row input').forEach(function (input) {
+                        input.addEventListener('input', updateBomVisibility);
+                    });
+
+                    // Default-Filter in Spaltenfilter vorbelegen
+                    var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
+                    var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
+                    if (defaultBeschaffung) window.setColumnFilter('procurement', defaultBeschaffung);
+                    if (defaultArtikelgruppe) window.setColumnFilter('article-group', defaultArtikelgruppe);
+                }, 0);
+            });
 
             // ========== Druck: Aktuelle Filterung/Baumstruktur übergeben ==========
             document.getElementById('btnPrintBom').addEventListener('click', function () {
