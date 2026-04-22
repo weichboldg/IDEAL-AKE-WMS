@@ -23,7 +23,6 @@
     let currentWorkOp = null;     // {id, orderNumber, operationNumber, name}
     let timerInterval = null;
 
-    const currentBooking = document.getElementById('currentBooking');
     const actionPanel = document.getElementById('actionPanel');
 
     // --- Toast Notifications ---
@@ -59,24 +58,29 @@
         return messages[action] || 'Aktion durchgeführt';
     }
 
-    // --- Running Timer ---
-    function startRunningTimer(startedAt) {
-        if (timerInterval) clearInterval(timerInterval);
-        var start = new Date(startedAt);
-        function update() {
-            var diff = Math.floor((Date.now() - start.getTime()) / 1000);
-            var h = Math.floor(diff / 3600);
-            var m = Math.floor((diff % 3600) / 60);
-            var s = diff % 60;
-            var el = document.getElementById('runningTimer');
-            if (el) el.textContent = h > 0 ? h + 'h ' + m + 'm ' + s + 's' : m + 'm ' + s + 's';
-        }
-        update();
-        timerInterval = setInterval(update, 1000);
+    // --- Elapsed Ticker (for active-bookings-list cards) ---
+    let elapsedTickerHandle = null;
+
+    function updateElapsedTickers() {
+        var now = Date.now();
+        document.querySelectorAll('.elapsed-ticker[data-started-at]').forEach(function (el) {
+            var started = new Date(el.dataset.startedAt).getTime();
+            var secs = Math.max(0, Math.floor((now - started) / 1000));
+            var h = Math.floor(secs / 3600);
+            var m = Math.floor((secs % 3600) / 60);
+            var s = secs % 60;
+            el.textContent = h > 0 ? h + 'h ' + m + 'm ' + s + 's' : m + 'm ' + s + 's';
+        });
     }
 
-    function stopRunningTimer() {
-        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    function startElapsedTicker() {
+        stopElapsedTicker();
+        updateElapsedTickers();
+        elapsedTickerHandle = setInterval(updateElapsedTickers, 1000);
+    }
+
+    function stopElapsedTicker() {
+        if (elapsedTickerHandle) { clearInterval(elapsedTickerHandle); elapsedTickerHandle = null; }
     }
 
     // --- Operator Scan ---
@@ -126,7 +130,7 @@
     document.getElementById('btnChangeOperator').addEventListener('click', function () {
         currentOperator = null;
         currentWorkOp = null;
-        stopRunningTimer();
+        stopElapsedTicker();
         document.getElementById('operatorInfo').classList.add('d-none');
         document.getElementById('operatorScan').classList.remove('d-none');
         document.getElementById('operationsCard').style.display = 'none';
@@ -134,11 +138,13 @@
         document.getElementById('operationButtons').innerHTML = '';
         document.getElementById('scanOperator').focus();
         actionPanel.innerHTML = '';
-        currentBooking.innerHTML = '<em class="text-muted">Keine aktive Buchung</em>';
+        // Reset active-bookings panel
+        var emptyMsg = document.getElementById('active-bookings-empty');
+        var list = document.getElementById('active-bookings-list');
+        if (emptyMsg) emptyMsg.classList.remove('d-none');
+        if (list) list.innerHTML = '';
         var pausedHint = document.getElementById('paused-bookings-hint');
         if (pausedHint) { pausedHint.classList.add('d-none'); document.getElementById('paused-bookings-list').innerHTML = ''; }
-        var activeSection = document.getElementById('active-bookings-section');
-        if (activeSection) { activeSection.classList.add('d-none'); document.getElementById('active-bookings-list').innerHTML = ''; }
     });
 
     // --- FA/AG Scan ---
@@ -202,42 +208,18 @@
     // --- State Rendering ---
     async function renderState() {
         if (!currentOperator) { actionPanel.innerHTML = '<em class="text-muted">Zuerst Operator scannen</em>'; return; }
-        // Laufende Buchung holen
+        // Refresh active-bookings panel and derive action panel state from the same data
+        await loadActiveBookings(currentOperator.id);
+        // Laufende Buchung holen (fuer Action-Panel)
         const r = await fetch(`/api/bde/operator/${currentOperator.id}/active-booking`);
         const data = await r.json();
         const active = data.booking;
         if (active) {
-            currentBooking.innerHTML = renderActiveDetailed(active);
-            startRunningTimer(active.startedAt);
             actionPanel.innerHTML = renderActionsForActive(active);
         } else {
-            stopRunningTimer();
-            currentBooking.innerHTML = '<em class="text-muted">Keine aktive Buchung</em>';
             actionPanel.innerHTML = currentWorkOp ? renderStartButtons() : '';
         }
         bindActionHandlers();
-    }
-
-    function renderActiveDetailed(b) {
-        var typeColors = { 'Setup': 'bg-orange', 'Production': 'bg-success', 'Activity': 'bg-info' };
-        var typeLabels = { 'Setup': 'Rüsten', 'Production': 'Produktion', 'Activity': 'Aktivität' };
-        var color = typeColors[b.bookingType] || 'bg-secondary';
-        var label = typeLabels[b.bookingType] || b.bookingType;
-        var startTime = new Date(b.startedAt).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
-        var statusBadge = b.status === 'Paused' ? ' <span class="badge bg-warning text-dark ms-1">Pausiert</span>' : '';
-
-        var html = '<div class="d-flex align-items-center mb-2">' +
-            '<span class="badge ' + color + ' text-white fs-6 me-2">' + label + '</span>' + statusBadge +
-            '<span class="text-muted">seit ' + startTime + '</span>' +
-            '<span class="ms-auto fw-bold fs-5" id="runningTimer">—</span>' +
-            '</div>';
-        if (b.target) {
-            html += '<div class="fs-5 mb-1">' + b.target + '</div>';
-        }
-        if (b.workplaceName) {
-            html += '<div class="text-muted small">Werkbank: ' + b.workplaceName + '</div>';
-        }
-        return html;
     }
 
     function renderActionsForActive(b) {
@@ -524,53 +506,61 @@
         }
     });
 
-    // --- Active Bookings List ---
+    // --- Active Bookings Panel (merged into "Aktuelle Buchungen" card) ---
     async function loadActiveBookings(operatorId) {
-        var section = document.getElementById('active-bookings-section');
+        var emptyMsg = document.getElementById('active-bookings-empty');
         var list = document.getElementById('active-bookings-list');
-        if (!section || !list) return;
+        if (!emptyMsg || !list) return;
 
         try {
             var res = await fetch('/BdeTerminal/ActiveBookings?operatorId=' + operatorId);
-            if (!res.ok) { section.classList.add('d-none'); return; }
+            if (!res.ok) { emptyMsg.classList.remove('d-none'); list.innerHTML = ''; stopElapsedTicker(); return; }
             var items = await res.json();
 
             if (!items || items.length === 0) {
-                section.classList.add('d-none');
+                emptyMsg.classList.remove('d-none');
                 list.innerHTML = '';
+                stopElapsedTicker();
                 return;
             }
 
-            list.innerHTML = items.map(function (i) {
-                var title = i.bookingType === 'Activity'
-                    ? i.activityName
-                    : (i.orderNumber + ' / ' + i.operationNumber + ' ' + (i.operationName || '')).trim();
-                var typeBadge = i.bookingType === 'Setup' ? 'bg-info'
-                    : i.bookingType === 'Activity' ? 'bg-secondary'
-                    : 'bg-primary';
-                var started = new Date(i.startedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                return '<div class="card" data-booking-id="' + i.bookingId + '">' +
-                    '<div class="card-body">' +
-                    '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">' +
-                    '<div>' +
-                    '<strong>' + title + '</strong>' +
-                    '<span class="badge ' + typeBadge + ' ms-2">' + i.bookingType + '</span>' +
-                    '<small class="text-muted d-block">seit ' + started + '</small>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="d-flex gap-2 flex-wrap">' +
-                    '<button type="button" class="btn btn-sm btn-outline-primary" data-action="partial" data-booking-id="' + i.bookingId + '">Teilfertig</button>' +
-                    '<button type="button" class="btn btn-sm btn-outline-warning" data-action="pause" data-booking-id="' + i.bookingId + '">Pause</button>' +
-                    '<button type="button" class="btn btn-sm btn-success" data-action="finish" data-booking-id="' + i.bookingId + '">Fertig</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>';
-            }).join('');
-            section.classList.remove('d-none');
+            emptyMsg.classList.add('d-none');
+            list.innerHTML = items.map(function (i) { return renderActiveBookingItem(i); }).join('');
+            startElapsedTicker();
         } catch (e) {
             console.error('Error loading active bookings', e);
-            section.classList.add('d-none');
         }
+    }
+
+    function renderActiveBookingItem(i) {
+        var typeLabel = i.bookingType === 'Production' ? 'Produktion'
+            : i.bookingType === 'Setup' ? 'Rüsten'
+            : (i.activityName || 'Tätigkeit');
+        var badgeClass = i.bookingType === 'Production' ? 'bg-success'
+            : i.bookingType === 'Setup' ? 'bg-info text-dark'
+            : 'bg-secondary';
+        var startedLocal = new Date(i.startedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        var orderInfo = i.bookingType === 'Activity'
+            ? (i.activityName || '')
+            : (i.orderNumber + ' / ' + i.operationNumber + (i.operationName ? ' \u2014 ' + i.operationName : ''));
+        var workplaceRow = i.workplaceName ? '<div class="text-muted small">Werkbank: ' + i.workplaceName + '</div>' : '';
+
+        return '<div class="active-booking-item px-3 py-3 border-bottom" data-booking-id="' + i.bookingId + '">' +
+            '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">' +
+            '<div>' +
+            '<span class="badge ' + badgeClass + '">' + typeLabel + '</span>' +
+            '<span class="ms-2 text-muted">seit ' + startedLocal + '</span>' +
+            '<div class="fs-5 mt-1">' + orderInfo + '</div>' +
+            workplaceRow +
+            '</div>' +
+            '<div class="fs-4 fw-bold elapsed-ticker" data-started-at="' + i.startedAt + '">—</div>' +
+            '</div>' +
+            '<div class="d-flex gap-2 mt-2 flex-wrap">' +
+            '<button type="button" class="btn btn-sm btn-outline-primary" data-action="partial" data-booking-id="' + i.bookingId + '">Teilfertig</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-warning" data-action="pause" data-booking-id="' + i.bookingId + '">Pause</button>' +
+            '<button type="button" class="btn btn-sm btn-success" data-action="finish" data-booking-id="' + i.bookingId + '">Fertig</button>' +
+            '</div>' +
+            '</div>';
     }
 
     async function triggerFinishFlow(bookingId) {

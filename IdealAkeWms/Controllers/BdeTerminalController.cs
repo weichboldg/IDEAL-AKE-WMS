@@ -169,6 +169,7 @@ public class BdeTerminalController : Controller
             .Include(b => b.WorkOperation)
                 .ThenInclude(wo => wo!.ProductionOrder)
             .Include(b => b.BdeActivity)
+            .Include(b => b.ProductionWorkplace)
             .Where(b => b.BdeOperatorId == operatorId
                      && b.Status == BdeBookingStatus.Running
                      && b.EndedAt == null
@@ -181,7 +182,8 @@ public class BdeTerminalController : Controller
                 orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
                 operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
                 operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
-                activityName = b.BdeActivity != null ? b.BdeActivity.Name : ""
+                activityName = b.BdeActivity != null ? b.BdeActivity.Name : "",
+                workplaceName = b.ProductionWorkplace != null ? b.ProductionWorkplace.Name : ""
             })
             .ToListAsync();
 
