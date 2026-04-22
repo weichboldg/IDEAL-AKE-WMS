@@ -29,8 +29,8 @@ public class ProductionWorkplaceEditViewModel
 
     [ValidateNever]
     [Display(Name = "Zugeordnete Benutzer")]
-    public List<int> SelectedUserIds { get; set; } = new();
+    public List<int>? SelectedUserIds { get; set; }
 
     [ValidateNever]
-    public List<User> AvailableUsers { get; set; } = new();
+    public List<User>? AvailableUsers { get; set; }
 }

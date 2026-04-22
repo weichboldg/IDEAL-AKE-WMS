@@ -70,7 +70,7 @@ public class ProductionWorkplacesController : Controller
 
         await _repository.AddAsync(workplace);
 
-        if (vm.SelectedUserIds.Count > 0)
+        if (vm.SelectedUserIds is { Count: > 0 })
         {
             await _repository.SetProductionWorkplaceUsersAsync(
                 workplace.Id,
@@ -137,7 +137,7 @@ public class ProductionWorkplacesController : Controller
         await _repository.UpdateAsync(existing);
         await _repository.SetProductionWorkplaceUsersAsync(
             id,
-            vm.SelectedUserIds,
+            vm.SelectedUserIds ?? new List<int>(),
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 

@@ -38,7 +38,7 @@
                     <div class="mb-3">
                         <label asp-for="SelectedUserIds" class="form-label"></label>
                         <select asp-for="SelectedUserIds" class="form-select" multiple size="6"
-                                asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">
+                                asp-items="@(new SelectList(Model.AvailableUsers ?? new List<User>(), "Id", "Name"))">
                         </select>
                         <small class="form-text text-muted">Halten Sie Strg gedrückt, um mehrere Benutzer auszuwählen.</small>
                     </div>
