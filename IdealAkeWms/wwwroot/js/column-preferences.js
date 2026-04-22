@@ -831,18 +831,17 @@
             attachContextMenus();
             attachResizeHandles();
 
-            // Signal to table-filter.js that we are done
-            document.dispatchEvent(new CustomEvent('column-preferences-ready'));
-
-            // After table-filter.js creates the filter row, re-apply visibility
-            // so hidden columns also have their filter cells hidden
+            // Set up MutationObserver BEFORE dispatching column-preferences-ready,
+            // because the event dispatch is synchronous: table-filter.js will
+            // immediately create the filter row inside the same call stack, so an
+            // observer registered after the dispatch would never fire.
             var thead = _table.querySelector('thead');
             if (thead) {
                 var observer = new MutationObserver(function () {
                     var filterRow = getFilterRow();
                     if (filterRow) {
                         observer.disconnect();
-                        // Re-apply visibility to filter row cells
+                        // Re-apply visibility to filter row cells now that the row exists
                         _settings.columns.forEach(function (cs) {
                             if (cs.visible === false) {
                                 var idx = colIndexByKey(cs.key);
@@ -856,6 +855,11 @@
                 });
                 observer.observe(thead, { childList: true });
             }
+
+            // Signal to table-filter.js that column preferences are ready.
+            // This synchronously triggers init() in table-filter.js, which appends
+            // the filter row — the MutationObserver above will catch that insertion.
+            document.dispatchEvent(new CustomEvent('column-preferences-ready'));
         });
     });
 
