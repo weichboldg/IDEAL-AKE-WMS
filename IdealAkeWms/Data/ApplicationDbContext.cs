@@ -748,7 +748,7 @@ public class ApplicationDbContext : DbContext
                 "([BookingType] = 3 AND [BdeActivityId] IS NOT NULL) OR ([BookingType] IN (1,2) AND [WorkOperationId] IS NOT NULL)"));
 
             entity.ToTable(t => t.HasCheckConstraint("CK_BdeBookings_StatusEnded",
-                "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3) AND [EndedAt] IS NOT NULL)"));
+                "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3,4) AND [EndedAt] IS NOT NULL)"));
         });
 
         // BDE: BookingQuantities

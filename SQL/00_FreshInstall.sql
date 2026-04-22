@@ -1221,7 +1221,7 @@ BEGIN
         ),
         CONSTRAINT [CK_BdeBookings_StatusEnded] CHECK (
             ([Status] = 1 AND [EndedAt] IS NULL) OR
-            ([Status] IN (2,3) AND [EndedAt] IS NOT NULL)
+            ([Status] IN (2,3,4) AND [EndedAt] IS NOT NULL)
         )
     );
     PRINT 'Tabelle BdeBookings erstellt.';
