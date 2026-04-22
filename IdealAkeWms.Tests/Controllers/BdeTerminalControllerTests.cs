@@ -6,6 +6,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -34,7 +35,7 @@ public class BdeTerminalControllerTests
         var workplaces = new Mock<IProductionWorkplaceRepository>();
 
         return new BdeTerminalController(terminals.Object, bookingSvc, userSvc.Object,
-            workplaces.Object, defaultWoSvc, settings.Object, ctx);
+            workplaces.Object, defaultWoSvc, settings.Object, ctx, NullLogger<BdeTerminalController>.Instance);
     }
 
     [Fact]

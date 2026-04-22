@@ -5,6 +5,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IdealAkeWms.Controllers;
 
@@ -19,14 +20,15 @@ public class BdeTerminalController : Controller
     private readonly IBdeDefaultWorkOperationService _defaultWoService;
     private readonly IAppSettingRepository _settings;
     private readonly ApplicationDbContext _ctx;
+    private readonly ILogger<BdeTerminalController> _logger;
 
     public BdeTerminalController(IBdeTerminalRepository terminals, IBdeBookingService bookingSvc,
         ICurrentUserService userSvc, IProductionWorkplaceRepository workplaces,
         IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings,
-        ApplicationDbContext ctx)
+        ApplicationDbContext ctx, ILogger<BdeTerminalController> logger)
     {
         _terminals = terminals; _bookingSvc = bookingSvc; _userSvc = userSvc; _workplaces = workplaces;
-        _defaultWoService = defaultWoService; _settings = settings; _ctx = ctx;
+        _defaultWoService = defaultWoService; _settings = settings; _ctx = ctx; _logger = logger;
     }
 
     public async Task<IActionResult> Index(int? workplaceId)
@@ -94,8 +96,21 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Resume(int pausedBookingId, int operatorId, BdeBookingType resumeAs, int workplaceId, int terminalId)
     {
-        var result = await _bookingSvc.ResumeAsync(pausedBookingId, operatorId, resumeAs, workplaceId, terminalId);
-        return Json(MapResult(result));
+        try
+        {
+            var result = await _bookingSvc.ResumeAsync(pausedBookingId, operatorId, resumeAs, workplaceId, terminalId);
+            return Json(MapResult(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Resume failed for bookingId={BookingId} operatorId={OperatorId} resumeAs={ResumeAs}",
+                pausedBookingId, operatorId, resumeAs);
+            return Json(new
+            {
+                outcome = "Exception",
+                message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}"
+            });
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken]

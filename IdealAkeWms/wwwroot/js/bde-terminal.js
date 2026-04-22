@@ -513,6 +513,8 @@
                         var since = new Date(data.collidingSince).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
                         msg += ' (seit ' + since + ')';
                     }
+                } else if (data.outcome === 'Exception' && data.message) {
+                    msg = data.message;
                 } else if (data.message) {
                     msg = data.message;
                 } else if (data.outcome) {
