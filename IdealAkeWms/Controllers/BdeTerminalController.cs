@@ -162,6 +162,32 @@ public class BdeTerminalController : Controller
         return Ok(paused);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ActiveBookings(int operatorId)
+    {
+        var active = await _ctx.BdeBookings
+            .Include(b => b.WorkOperation)
+                .ThenInclude(wo => wo!.ProductionOrder)
+            .Include(b => b.BdeActivity)
+            .Where(b => b.BdeOperatorId == operatorId
+                     && b.Status == BdeBookingStatus.Running
+                     && b.EndedAt == null
+                     && !b.IsCancelled)
+            .OrderBy(b => b.StartedAt)
+            .Select(b => new {
+                bookingId = b.Id,
+                bookingType = b.BookingType.ToString(),
+                startedAt = b.StartedAt,
+                orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
+                operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
+                operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
+                activityName = b.BdeActivity != null ? b.BdeActivity.Name : ""
+            })
+            .ToListAsync();
+
+        return Ok(active);
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CloseOthers(int workOperationId, int operatorId)
     {

@@ -108,6 +108,7 @@
             await loadAvailableOperations();
             await loadTodayHistory();
             await loadPausedBookings(currentOperator.id);
+            await loadActiveBookings(currentOperator.id);
         } catch (err) {
             feedback.textContent = 'Netzwerkfehler: ' + err.message;
             console.error('BDE Operator Scan Error:', err);
@@ -136,6 +137,8 @@
         currentBooking.innerHTML = '<em class="text-muted">Keine aktive Buchung</em>';
         var pausedHint = document.getElementById('paused-bookings-hint');
         if (pausedHint) { pausedHint.classList.add('d-none'); document.getElementById('paused-bookings-list').innerHTML = ''; }
+        var activeSection = document.getElementById('active-bookings-section');
+        if (activeSection) { activeSection.classList.add('d-none'); document.getElementById('active-bookings-list').innerHTML = ''; }
     });
 
     // --- FA/AG Scan ---
@@ -519,6 +522,99 @@
             console.error('Error resuming booking', err);
             showToast('Fortsetzen fehlgeschlagen', 'danger');
         }
+    });
+
+    // --- Active Bookings List ---
+    async function loadActiveBookings(operatorId) {
+        var section = document.getElementById('active-bookings-section');
+        var list = document.getElementById('active-bookings-list');
+        if (!section || !list) return;
+
+        try {
+            var res = await fetch('/BdeTerminal/ActiveBookings?operatorId=' + operatorId);
+            if (!res.ok) { section.classList.add('d-none'); return; }
+            var items = await res.json();
+
+            if (!items || items.length === 0) {
+                section.classList.add('d-none');
+                list.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = items.map(function (i) {
+                var title = i.bookingType === 'Activity'
+                    ? i.activityName
+                    : (i.orderNumber + ' / ' + i.operationNumber + ' ' + (i.operationName || '')).trim();
+                var typeBadge = i.bookingType === 'Setup' ? 'bg-info'
+                    : i.bookingType === 'Activity' ? 'bg-secondary'
+                    : 'bg-primary';
+                var started = new Date(i.startedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                return '<div class="card" data-booking-id="' + i.bookingId + '">' +
+                    '<div class="card-body">' +
+                    '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">' +
+                    '<div>' +
+                    '<strong>' + title + '</strong>' +
+                    '<span class="badge ' + typeBadge + ' ms-2">' + i.bookingType + '</span>' +
+                    '<small class="text-muted d-block">seit ' + started + '</small>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="d-flex gap-2 flex-wrap">' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary" data-action="partial" data-booking-id="' + i.bookingId + '">Teilfertig</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-warning" data-action="pause" data-booking-id="' + i.bookingId + '">Pause</button>' +
+                    '<button type="button" class="btn btn-sm btn-success" data-action="finish" data-booking-id="' + i.bookingId + '">Fertig</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+            section.classList.remove('d-none');
+        } catch (e) {
+            console.error('Error loading active bookings', e);
+            section.classList.add('d-none');
+        }
+    }
+
+    async function triggerFinishFlow(bookingId) {
+        await promptQty(async function (good, scrap) {
+            var response = await post('/BdeTerminal/Finish', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'finish');
+            if (response && response.outcome === 'Success' && response.otherActiveBookings && response.otherActiveBookings.length > 0) {
+                showCloseOthersModal(response);
+            }
+        });
+    }
+
+    async function triggerPauseFlow(bookingId) {
+        await promptQty(async function (good, scrap) {
+            await post('/BdeTerminal/Pause', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'pause');
+        });
+    }
+
+    async function triggerPartialFlow(bookingId) {
+        await promptQty(async function (good, scrap) {
+            await post('/BdeTerminal/ReportPartial', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'reportPartial');
+        });
+    }
+
+    document.getElementById('active-bookings-list').addEventListener('click', async function (e) {
+        var btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        var bookingId = parseInt(btn.dataset.bookingId, 10);
+        var action = btn.dataset.action;
+
+        if (action === 'finish') {
+            await triggerFinishFlow(bookingId);
+        } else if (action === 'pause') {
+            await triggerPauseFlow(bookingId);
+        } else if (action === 'partial') {
+            await triggerPartialFlow(bookingId);
+        }
+
+        // Refresh both lists and main state after any action
+        if (currentOperator && currentOperator.id) {
+            await loadActiveBookings(currentOperator.id);
+            await loadPausedBookings(currentOperator.id);
+        }
+        await renderState();
+        await loadTodayHistory();
     });
 
     // --- Close-Others-Modal ---
