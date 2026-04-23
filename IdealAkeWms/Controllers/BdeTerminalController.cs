@@ -47,7 +47,7 @@ public class BdeTerminalController : Controller
         ViewBag.TerminalId = terminal.Id;
         ViewBag.WorkplaceId = activeWorkplaceId;
         ViewBag.WorkplaceName = (await _workplaces.GetByIdAsync(activeWorkplaceId))?.Name;
-        ViewBag.AllWorkplaces = await _workplaces.GetAllOrderedAsync();
+        ViewBag.AllWorkplaces = await _workplaces.GetBdeActiveAsync();
         ViewBag.DefaultWorkplaceId = terminal.DefaultProductionWorkplaceId;
 
         var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
