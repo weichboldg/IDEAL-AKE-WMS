@@ -270,6 +270,7 @@ using (var scope = app.Services.CreateScope())
         ("BdeDefaultArbeitsgang", "", "Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)"),
         (IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProOperator, "false", "Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)"),
         (IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProArbeitsgang, "false", "Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)"),
+        (IdealAkeWms.Models.AppSettingKeys.BdeGleichzeitigerAbschlussBeiMehrfachStart, "false", "Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)"),
     };
     foreach (var (key, value, description) in bdeSettings)
     {

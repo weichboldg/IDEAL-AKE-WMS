@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 
 namespace IdealAkeWms.Controllers;
 
+public record FinishGroupEntry(int BookingId, decimal? GoodQty, decimal? ScrapQty, bool IsFinal);
+
 [RequireBdeActive]
 [RequireBdeUserAccess]
 public class BdeTerminalController : Controller
@@ -116,35 +118,108 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Finish(int bookingId, decimal? goodQty, decimal? scrapQty)
     {
-        var result = await _bookingSvc.FinishAsync(bookingId, goodQty, scrapQty);
-
-        object[] otherActiveBookings = Array.Empty<object>();
-
-        if (result.Outcome == BdeBookingOutcome.Success
-            && (goodQty.HasValue || scrapQty.HasValue)
-            && result.Booking?.WorkOperationId is int woId)
+        try
         {
-            var multiMa = (await _settings.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
-                ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-            if (multiMa)
+            // GroupFinishRequired check: only for Production bookings
+            var booking = await _ctx.BdeBookings.FindAsync(bookingId);
+            if (booking != null && booking.BookingType == BdeBookingType.Production)
             {
-                otherActiveBookings = await _ctx.BdeBookings
-                    .Include(b => b.BdeOperator)
-                    .Where(b => b.WorkOperationId == woId
-                             && b.BdeOperatorId != result.Booking.BdeOperatorId
-                             && b.EndedAt == null
-                             && !b.IsCancelled)
-                    .Select(b => (object)new {
-                        operatorId = b.BdeOperatorId,
-                        operatorName = b.BdeOperator!.FirstName + " " + b.BdeOperator.LastName,
-                        startedAt = b.StartedAt
-                    })
-                    .ToArrayAsync();
-            }
-        }
+                var groupSetting = (await _settings.GetValueAsync(AppSettingKeys.BdeGleichzeitigerAbschlussBeiMehrfachStart))
+                    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                var multiOp = (await _settings.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProOperator))
+                    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
-        return Json(MapResultWithOthers(result, otherActiveBookings));
+                if (groupSetting && multiOp)
+                {
+                    var activeProductions = await _ctx.BdeBookings
+                        .Include(b => b.WorkOperation)
+                            .ThenInclude(wo => wo!.ProductionOrder)
+                        .Where(b => b.BdeOperatorId == booking.BdeOperatorId
+                                 && b.BookingType == BdeBookingType.Production
+                                 && b.Status == BdeBookingStatus.Running
+                                 && b.EndedAt == null
+                                 && !b.IsCancelled)
+                        .OrderBy(b => b.StartedAt)
+                        .ToListAsync();
+
+                    if (activeProductions.Count >= 2)
+                    {
+                        return Json(new
+                        {
+                            outcome = "GroupFinishRequired",
+                            bookings = activeProductions.Select(b => new
+                            {
+                                bookingId = b.Id,
+                                orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
+                                operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
+                                operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
+                                targetQuantity = b.WorkOperation != null ? (decimal?)b.WorkOperation.ProductionOrder!.Quantity : null,
+                                startedAt = b.StartedAt
+                            }).ToArray()
+                        });
+                    }
+                }
+            }
+
+            // Normal single-finish flow
+            var result = await _bookingSvc.FinishAsync(bookingId, goodQty, scrapQty);
+
+            object[] otherActiveBookings = Array.Empty<object>();
+
+            if (result.Outcome == BdeBookingOutcome.Success
+                && (goodQty.HasValue || scrapQty.HasValue)
+                && result.Booking?.WorkOperationId is int woId)
+            {
+                var multiMa = (await _settings.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
+                    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+                if (multiMa)
+                {
+                    otherActiveBookings = await _ctx.BdeBookings
+                        .Include(b => b.BdeOperator)
+                        .Where(b => b.WorkOperationId == woId
+                                 && b.BdeOperatorId != result.Booking.BdeOperatorId
+                                 && b.EndedAt == null
+                                 && !b.IsCancelled)
+                        .Select(b => (object)new {
+                            operatorId = b.BdeOperatorId,
+                            operatorName = b.BdeOperator!.FirstName + " " + b.BdeOperator.LastName,
+                            startedAt = b.StartedAt
+                        })
+                        .ToArrayAsync();
+                }
+            }
+
+            return Json(MapResultWithOthers(result, otherActiveBookings));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Finish failed for bookingId={BookingId}", bookingId);
+            return Json(new { outcome = "Exception", message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}" });
+        }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> FinishGroup(int operatorId, string entriesJson)
+    {
+        try
+        {
+            var entries = System.Text.Json.JsonSerializer.Deserialize<List<FinishGroupEntry>>(entriesJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+            var serviceEntries = entries.Select(e =>
+                new GroupFinishEntry(e.BookingId, e.GoodQty, e.ScrapQty, e.IsFinal)).ToList();
+            var result = await _bookingSvc.FinishGroupAsync(operatorId, serviceEntries);
+
+            if (!result.IsSuccess)
+                return Json(new { outcome = "Error", message = result.ErrorMessage });
+
+            return Json(new { outcome = "Success", closedCount = result.ClosedCount });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "FinishGroup failed for operatorId={OperatorId}", operatorId);
+            return Json(new { outcome = "Exception", message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}" });
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken]

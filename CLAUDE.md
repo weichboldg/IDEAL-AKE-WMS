@@ -143,6 +143,7 @@
 | `BdeDefaultArbeitsgang` | (leer) | Default-AG Name fuer vereinfachten Modus |
 | `BdeMehrfachBuchungProOperator` | `false` | Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen) |
 | `BdeMehrfachBuchungProArbeitsgang` | `false` | Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter) |
+| `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv) |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 

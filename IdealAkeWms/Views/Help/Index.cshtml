@@ -414,6 +414,16 @@
 
                 <h6 class="mt-3">Pausierte Auftraege fortsetzen</h6>
                 <p>Nach dem Operator-Scan am Terminal sehen Sie einen Hinweis mit allen Ihren pausierten Auftraegen und koennen diese per Klick fortsetzen.</p>
+
+                <h6 class="mt-3">Gleichzeitiger Abschluss mehrerer Auftr&auml;ge</h6>
+                <p>Wenn <code>BdeGleichzeitigerAbschlussBeiMehrfachStart</code> aktiv ist (setzt <code>BdeMehrfachBuchungProOperator</code> voraus), &ouml;ffnet ein Klick auf &bdquo;Fertig&ldquo; bei &ge;2 laufenden Produktionsbuchungen automatisch den <strong>Gruppen-Abschluss-Dialog</strong>:</p>
+                <ul>
+                    <li>Tabelle mit einer Zeile pro aktiver Buchung: FA/AG, Sollmenge, Gut-Menge (Eingabe), Ausschuss-Menge (Eingabe), Abschluss-Checkbox.</li>
+                    <li>Die Abschluss-Checkbox ist standardmaessig aktiviert. Deaktivieren Sie sie, wenn eine Buchung noch nicht endgueltig abgeschlossen werden soll (der Datensatz wird trotzdem beendet, aber <code>IsFinal=false</code> gesetzt).</li>
+                    <li>Ein Klick auf &bdquo;Alle fertig melden&ldquo; schliesst alle Buchungen atomar mit demselben Endzeitpunkt &mdash; wichtig fuer korrekte Effektive-Zeit-Berechnung bei paralleler Arbeit.</li>
+                    <li>Abbrechen verlaesst den Dialog ohne Aenderungen.</li>
+                    <li>Bei nur 1 aktiver Produktionsbuchung wird der normale Einzel-Finish-Dialog verwendet (kein Gruppenabschluss).</li>
+                </ul>
             </div>
         </div>
 

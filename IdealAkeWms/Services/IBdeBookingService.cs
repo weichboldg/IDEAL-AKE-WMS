@@ -12,6 +12,12 @@ public interface IBdeBookingService
     Task<BdeBookingResult> FinishAsync(int bookingId, decimal? goodQty = null, decimal? scrapQty = null);
     Task<BdeBookingResult> ReportPartialQuantityAsync(int bookingId, decimal goodQty, decimal scrapQty);
     Task<CloseOthersResult> CloseOtherBookingsOnWorkOperationAsync(int workOperationId, int exceptOperatorId);
+    Task<GroupFinishResult> FinishGroupAsync(int operatorId, IReadOnlyList<GroupFinishEntry> entries);
 }
 
 public record CloseOthersResult(int ClosedCount);
+public record GroupFinishEntry(int BookingId, decimal? GoodQty, decimal? ScrapQty, bool IsFinal);
+public record GroupFinishResult(int ClosedCount, string? ErrorMessage = null)
+{
+    public bool IsSuccess => ErrorMessage == null;
+}

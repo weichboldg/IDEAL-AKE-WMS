@@ -503,7 +503,8 @@ BEGIN
         ('BdeNurFaMeldung', 'false', 'Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge'),
         ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)'),
         ('BdeMehrfachBuchungProOperator', 'false', 'Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)'),
-        ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)');
+        ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)'),
+        ('BdeGleichzeitigerAbschlussBeiMehrfachStart', 'false', 'Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO

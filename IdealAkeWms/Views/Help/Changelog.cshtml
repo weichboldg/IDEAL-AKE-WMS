@@ -32,6 +32,12 @@
                     <li>Terminal: Hinweis-Block mit pausierten Auftraegen nach Operator-Scan (mit Fortsetzen-Button).</li>
                     <li>Terminal: Bei Abschluss-Meldung auf Multi-MA-AG &rarr; Dialog &bdquo;andere Buchungen auch beenden?&ldquo;</li>
                 </ul>
+                <h6>BDE Phase 2.2-Delta &mdash; Gleichzeitiger Abschluss mehrerer Auftr&auml;ge</h6>
+                <ul>
+                    <li>Neues Setting <code>BdeGleichzeitigerAbschlussBeiMehrfachStart</code> (nur wirksam wenn <code>BdeMehrfachBuchungProOperator</code> aktiv): Bei ≥2 laufenden Produktionsbuchungen eines Mitarbeiters wird beim Fertig-Klick ein Gruppen-Abschluss-Dialog ge&ouml;ffnet statt Einzel-Finish.</li>
+                    <li>Gruppen-Dialog: Tabelle mit allen aktiven Produktionsbuchungen (FA/AG, Sollmenge, Gut-/Ausschussmenge, Abschluss-Checkbox pro Zeile). Einzelner Submit schliesst alle Buchungen atomar mit gemeinsamem <code>EndedAt</code>-Zeitstempel.</li>
+                    <li>Einzel-Finish und Pause/Teilfertig bleiben bei 1 aktiver Production oder deaktiviertem Setting unveraendert.</li>
+                </ul>
             </div>
         </div>
 

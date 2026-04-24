@@ -128,6 +128,38 @@
     </div>
 </div>
 
+<!-- Group-Finish-Modal -->
+<div class="modal fade" id="group-finish-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alle Produktionsauftr&auml;ge abschliessen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>FA / AG</th>
+                                <th>Sollmenge</th>
+                                <th>Gut</th>
+                                <th>Ausschuss</th>
+                                <th>Abschl.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group-finish-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="group-finish-confirm">Alle fertig melden</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Close-Others-Modal -->
 <div class="modal fade" id="close-others-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">

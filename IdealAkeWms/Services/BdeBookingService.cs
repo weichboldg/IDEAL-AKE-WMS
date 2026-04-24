@@ -250,6 +250,43 @@ public class BdeBookingService : IBdeBookingService
         return BdeBookingResult.Success(b);
     }
 
+    public async Task<GroupFinishResult> FinishGroupAsync(int operatorId, IReadOnlyList<GroupFinishEntry> entries)
+    {
+        if (entries.Count == 0)
+            return new GroupFinishResult(0, "Keine Buchungen angegeben.");
+
+        var bookingIds = entries.Select(e => e.BookingId).ToList();
+        var bookings = await _ctx.BdeBookings
+            .Where(b => bookingIds.Contains(b.Id))
+            .ToListAsync();
+
+        if (bookings.Count != entries.Count)
+            return new GroupFinishResult(0, "Nicht alle Buchungen gefunden.");
+        if (bookings.Any(b => b.BdeOperatorId != operatorId))
+            return new GroupFinishResult(0, "Buchung gehoert nicht diesem Operator.");
+        if (bookings.Any(b => b.BookingType != BdeBookingType.Production))
+            return new GroupFinishResult(0, "Gruppen-Abschluss nur fuer Production.");
+        if (bookings.Any(b => b.Status == BdeBookingStatus.Finished))
+            return new GroupFinishResult(0, "Bereits beendete Buchung enthalten.");
+
+        var now = DateTime.Now;
+        foreach (var entry in entries)
+        {
+            var b = bookings.First(x => x.Id == entry.BookingId);
+            b.Status = BdeBookingStatus.Finished;
+            b.EndedAt = now;
+            SetAuditModified(b);
+            if (entry.GoodQty.HasValue || entry.ScrapQty.HasValue)
+            {
+                var q = CreatePartialQuantity(b, entry.GoodQty ?? 0, entry.ScrapQty ?? 0);
+                q.IsFinal = entry.IsFinal;
+                _ctx.BdeBookingQuantities.Add(q);
+            }
+        }
+        await _ctx.SaveChangesAsync();
+        return new GroupFinishResult(bookings.Count);
+    }
+
     public async Task<CloseOthersResult> CloseOtherBookingsOnWorkOperationAsync(int workOperationId, int exceptOperatorId)
     {
         var others = await _ctx.BdeBookings

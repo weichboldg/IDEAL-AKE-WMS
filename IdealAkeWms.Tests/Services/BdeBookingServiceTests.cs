@@ -440,6 +440,84 @@ public class BdeBookingServiceTests
     }
 
     [Fact]
+    public async Task FinishGroup_ClosesAllBookingsWithSharedTimestamp()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2 = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var b2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30), workOperationId: wo2);
+        ctx.BdeBookings.AddRange(b1, b2);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var entries = new List<GroupFinishEntry> {
+            new(b1.Id, 5m, 0m, true),
+            new(b2.Id, 3m, 1m, true)
+        };
+        var result = await svc.FinishGroupAsync(ids.OperatorId, entries);
+
+        result.IsSuccess.Should().BeTrue();
+        result.ClosedCount.Should().Be(2);
+        var b1After = ctx.BdeBookings.First(x => x.Id == b1.Id);
+        var b2After = ctx.BdeBookings.First(x => x.Id == b2.Id);
+        b1After.Status.Should().Be(BdeBookingStatus.Finished);
+        b2After.Status.Should().Be(BdeBookingStatus.Finished);
+        b1After.EndedAt.Should().Be(b2After.EndedAt);
+        ctx.BdeBookingQuantities.Count(q => q.BdeBookingId == b1.Id && q.IsFinal).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task FinishGroup_RejectsIfBookingOtherOperator()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var b2 = new BdeBooking {
+            BdeOperatorId = op2, WorkOperationId = ids.WorkOperationId, BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-30),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.BdeBookings.AddRange(b1, b2);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.FinishGroupAsync(ids.OperatorId, new List<GroupFinishEntry> {
+            new(b1.Id, 5m, 0m, true),
+            new(b2.Id, 3m, 0m, true)
+        });
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Operator");
+    }
+
+    [Fact]
+    public async Task FinishGroup_AcceptsPerRowIsFinalFlag()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2 = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var b2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30), workOperationId: wo2);
+        ctx.BdeBookings.AddRange(b1, b2);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.FinishGroupAsync(ids.OperatorId, new List<GroupFinishEntry> {
+            new(b1.Id, 5m, 0m, IsFinal: true),
+            new(b2.Id, 2m, 0m, IsFinal: false)
+        });
+
+        ctx.BdeBookingQuantities.First(q => q.BdeBookingId == b1.Id).IsFinal.Should().BeTrue();
+        ctx.BdeBookingQuantities.First(q => q.BdeBookingId == b2.Id).IsFinal.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task StartProduction_MultiMaDisabled_RejectsCollision()
     {
         var ctx = TestDbContextFactory.Create();

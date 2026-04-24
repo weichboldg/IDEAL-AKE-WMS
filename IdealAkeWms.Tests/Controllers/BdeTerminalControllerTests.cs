@@ -14,7 +14,7 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class BdeTerminalControllerTests
 {
-    private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false)
+    private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false, bool groupFinish = false)
     {
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
@@ -24,7 +24,9 @@ public class BdeTerminalControllerTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
             .ReturnsAsync(multiMa ? "true" : "false");
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProOperator))
-            .ReturnsAsync("false");
+            .ReturnsAsync(multiOp ? "true" : "false");
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeGleichzeitigerAbschlussBeiMehrfachStart))
+            .ReturnsAsync(groupFinish ? "true" : "false");
         settings.Setup(s => s.GetValueAsync("BdeNurFaMeldung"))
             .ReturnsAsync("false");
 
@@ -219,5 +221,27 @@ public class BdeTerminalControllerTests
         ok.Should().NotBeNull();
         var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
         json.Should().Contain("\"targetQuantity\":10");
+    }
+
+    [Fact]
+    public async Task Finish_GroupSettingOnAndMultipleActive_ReturnsGroupFinishRequired()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2 = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var b2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30), workOperationId: wo2);
+        ctx.BdeBookings.AddRange(b1, b2);
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateTerminalController(ctx, multiOp: true, groupFinish: true);
+
+        var result = await controller.Finish(b1.Id, goodQty: 5m, scrapQty: 0m);
+
+        var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
+        json.Should().Contain("\"outcome\":\"GroupFinishRequired\"");
+        json.Should().Contain($"\"bookingId\":{b1.Id}");
+        json.Should().Contain($"\"bookingId\":{b2.Id}");
     }
 }

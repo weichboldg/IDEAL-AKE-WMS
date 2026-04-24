@@ -7,4 +7,5 @@ public static class AppSettingKeys
 {
     public const string BdeMehrfachBuchungProOperator = "BdeMehrfachBuchungProOperator";
     public const string BdeMehrfachBuchungProArbeitsgang = "BdeMehrfachBuchungProArbeitsgang";
+    public const string BdeGleichzeitigerAbschlussBeiMehrfachStart = "BdeGleichzeitigerAbschlussBeiMehrfachStart";
 }

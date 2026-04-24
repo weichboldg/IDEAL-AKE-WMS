@@ -250,6 +250,10 @@
             case 'pause': await promptQty(async function (good, scrap) { await post('/BdeTerminal/Pause', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action); }); break;
             case 'finish': await promptQty(async function (good, scrap) {
                 const response = await post('/BdeTerminal/Finish', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action);
+                if (response && response.outcome === 'GroupFinishRequired') {
+                    showGroupFinishModal(response);
+                    return;
+                }
                 if (response && response.outcome === 'Success' && response.otherActiveBookings && response.otherActiveBookings.length > 0) {
                     showCloseOthersModal(response);
                 }
@@ -605,6 +609,10 @@
                 if (!ok) return;
             }
             var response = await post('/BdeTerminal/Finish', { bookingId: bookingId, goodQty: good, scrapQty: scrap }, 'finish');
+            if (response && response.outcome === 'GroupFinishRequired') {
+                showGroupFinishModal(response);
+                return;
+            }
             if (response && response.outcome === 'Success' && response.otherActiveBookings && response.otherActiveBookings.length > 0) {
                 showCloseOthersModal(response);
             }
@@ -686,6 +694,65 @@
             } catch (err) {
                 console.error('Error closing others', err);
                 showToast('Schliessen fehlgeschlagen', 'danger');
+            }
+        });
+    }
+
+    // --- Group-Finish-Modal ---
+    function showGroupFinishModal(response) {
+        var tbody = document.getElementById('group-finish-rows');
+        tbody.innerHTML = response.bookings.map(function (b) {
+            return '<tr data-booking-id="' + b.bookingId + '">' +
+                '<td><strong>' + b.orderNumber + '/' + b.operationNumber + '</strong>' + (b.operationName ? ' \u2014 ' + b.operationName : '') + '</td>' +
+                '<td>' + (b.targetQuantity != null ? b.targetQuantity : '\u2014') + '</td>' +
+                '<td><input type="number" min="0" step="0.01" class="form-control form-control-sm group-qty-good" value="0"></td>' +
+                '<td><input type="number" min="0" step="0.01" class="form-control form-control-sm group-qty-scrap" value="0"></td>' +
+                '<td class="text-center"><input type="checkbox" class="form-check-input group-is-final" checked></td>' +
+                '</tr>';
+        }).join('');
+
+        var modalEl = document.getElementById('group-finish-modal');
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        var confirmBtn = document.getElementById('group-finish-confirm');
+        var newBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+        newBtn.addEventListener('click', async function () {
+            var rows = tbody.querySelectorAll('tr[data-booking-id]');
+            var entries = Array.from(rows).map(function (r) {
+                return {
+                    bookingId: parseInt(r.dataset.bookingId, 10),
+                    goodQty: parseFloat(r.querySelector('.group-qty-good').value) || 0,
+                    scrapQty: parseFloat(r.querySelector('.group-qty-scrap').value) || 0,
+                    isFinal: r.querySelector('.group-is-final').checked
+                };
+            });
+
+            var form = new FormData();
+            form.append('operatorId', currentOperator.id);
+            form.append('entriesJson', JSON.stringify(entries));
+            form.append('__RequestVerificationToken', token);
+
+            try {
+                var res = await fetch('/BdeTerminal/FinishGroup', { method: 'POST', body: form });
+                var data = await res.json();
+                modal.hide();
+                if (data.outcome === 'Success') {
+                    showToast(data.closedCount + ' Buchungen fertig gemeldet.', 'success');
+                    if (currentOperator && currentOperator.id) {
+                        await loadActiveBookings(currentOperator.id);
+                        await loadPausedBookings(currentOperator.id);
+                    }
+                    await loadTodayHistory();
+                    await loadAvailableOperations();
+                    await renderState();
+                } else {
+                    showToast(data.message || 'Gruppen-Abschluss fehlgeschlagen', 'danger');
+                }
+            } catch (err) {
+                console.error('Error in FinishGroup', err);
+                showToast('Gruppen-Abschluss fehlgeschlagen', 'danger');
             }
         });
     }
