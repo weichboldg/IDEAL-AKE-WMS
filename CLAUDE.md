@@ -9,8 +9,10 @@
   - [ ] `PROJECT_STATUS.md`, `README.md`, Hilfeseite gepflegt?
   - [ ] Audit-Felder gesetzt (ModifiedAt, ModifiedBy, ModifiedByWindows)?
   - [ ] Version hochgezaehlt + Changelog ergaenzt?
+  - [ ] Testszenarien in `docs/TESTSZENARIEN.md` ergaenzt/aktualisiert?
 - **Verifikation** — Niemals Task als erledigt ohne Beweis (Build, Tests, View)
 - **Einfachheit** — Minimale Code-Auswirkung, Root Cause finden, kein Over-Engineering
+- **Testszenarien-Pflicht** — Bei jedem neuen Feature und jedem Bugfix immer ein vollstaendiges manuelles Testszenario liefern: Vorbedingungen, Schritt-fuer-Schritt-Aktionen, erwartetes Verhalten, ggf. Negativ-Faelle. Zusaetzlich `docs/TESTSZENARIEN.md` mit den neuen Szenarien synchronisieren (das Dokument ist die Single Source of Truth fuer die manuelle Abnahme).
 
 ## Architektur
 
