@@ -24,9 +24,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\IDEALAKEWMSService\IDEALAKEWMSService.csproj" />
-    <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj" />
-    <ProjectReference Include="..\IdealAkeWms.Tests\IdealAkeWms.Tests.csproj" />
+    <ProjectReference Include="..\IDEALAKEWMSService\IDEALAKEWMSService.csproj">
+      <ExcludeAssets>contentFiles</ExcludeAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj">
+      <ExcludeAssets>contentFiles</ExcludeAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\IdealAkeWms.Tests\IdealAkeWms.Tests.csproj">
+      <ExcludeAssets>contentFiles</ExcludeAssets>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

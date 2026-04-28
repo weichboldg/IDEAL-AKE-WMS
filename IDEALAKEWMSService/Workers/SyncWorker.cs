@@ -235,11 +235,14 @@ public class SyncWorker : BackgroundService
         return DateTime.Now - _lastAutoPauseRun.Value >= TimeSpan.FromMinutes(intervalMinutes);
     }
 
-    private async Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
+    private Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
     {
-        var enabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:FeiertagSyncEnabled", false, ct);
-        if (!enabled) return false;
-        if (_lastHolidaySyncRun == null) return true;
-        return DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24);
+        // Read via IConfiguration (same source HolidaySyncOptions binds to in
+        // Program.cs) so the worker gate and the service-internal gate cannot
+        // disagree across the two configuration sources.
+        var enabled = _configuration.GetValue<bool>("Sync:FeiertagSyncEnabled", false);
+        if (!enabled) return Task.FromResult(false);
+        if (_lastHolidaySyncRun == null) return Task.FromResult(true);
+        return Task.FromResult(DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24));
     }
 }

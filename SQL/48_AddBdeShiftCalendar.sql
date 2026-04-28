@@ -55,6 +55,28 @@ IF NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = 'BdeSchichtkalenderAk
     VALUES ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
 GO
 
+-- BDE Auto-Pause + Feiertags-Sync ServiceSettings
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = 'Sync:BdeAutoPauseIntervalMinutes')
+    INSERT INTO dbo.ServiceSettings ([Key], Value, Category, Description)
+    VALUES ('Sync:BdeAutoPauseIntervalMinutes', '60', 'BDE', 'Intervall (Minuten) fuer Auto-Pause am Schichtende');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = 'Sync:FeiertagSyncEnabled')
+    INSERT INTO dbo.ServiceSettings ([Key], Value, Category, Description)
+    VALUES ('Sync:FeiertagSyncEnabled', 'false', 'BDE', 'Feiertags-Sync aus Nager.Date aktiv');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = 'Sync:FeiertagCountryCode')
+    INSERT INTO dbo.ServiceSettings ([Key], Value, Category, Description)
+    VALUES ('Sync:FeiertagCountryCode', 'AT', 'BDE', 'Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = 'Sync:FeiertagRegion')
+    INSERT INTO dbo.ServiceSettings ([Key], Value, Category, Description)
+    VALUES ('Sync:FeiertagRegion', '', 'BDE', 'Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = 'Sync:FeiertagJahreVoraus')
+    INSERT INTO dbo.ServiceSettings ([Key], Value, Category, Description)
+    VALUES ('Sync:FeiertagJahreVoraus', '2', 'BDE', 'Anzahl Folgejahre, die Feiertage vorausgesynct werden');
+GO
+
 IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId LIKE '%_AddBdeShiftCalendar')
 BEGIN
     INSERT INTO dbo.__EFMigrationsHistory (MigrationId, ProductVersion)

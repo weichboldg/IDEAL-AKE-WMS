@@ -21,7 +21,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj" />
+    <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj">
+      <ExcludeAssets>contentFiles</ExcludeAssets>
+    </ProjectReference>
   </ItemGroup>
+
+  <!--
+    The Web project (IdealAkeWms) carries appsettings*.json as Content items
+    that flow into the Service publish output via the ProjectReference and
+    collide with the Service's own appsettings*.json (NETSDK1152). Strip any
+    appsettings*.json originating outside this project's directory from the
+    publish file list before the conflict-resolution step runs.
+  -->
+  <Target Name="RemoveTransitiveAppSettingsFromPublish"
+          BeforeTargets="_HandleFileConflictsForPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.String]::Copy('%(Filename)').StartsWith('appsettings')) AND '%(Extension)' == '.json' AND !$([MSBuild]::ValueOrDefault('%(FullPath)','').StartsWith('$(MSBuildProjectDirectory)'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>
