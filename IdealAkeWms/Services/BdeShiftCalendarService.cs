@@ -40,8 +40,8 @@ public class BdeShiftCalendarService : IBdeShiftCalendarService
 
         var startTimeOfDay = startedAt.TimeOfDay;
 
-        // 1) Schicht in der startedAt liegt
-        var current = shifts.FirstOrDefault(s => s.StartTime <= startTimeOfDay && startTimeOfDay <= s.EndTime);
+        // 1) Schicht in der startedAt liegt (EndTime exklusiv: an exakter Schichtgrenze faellt durch zur naechsten Schicht)
+        var current = shifts.FirstOrDefault(s => s.StartTime <= startTimeOfDay && startTimeOfDay < s.EndTime);
         if (current != null)
             return date + current.EndTime;
 

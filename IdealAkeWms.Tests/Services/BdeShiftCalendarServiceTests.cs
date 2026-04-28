@@ -39,12 +39,10 @@ public class BdeShiftCalendarServiceTests
         CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
     };
 
+    private static readonly DateTime BaseMonday = new(2026, 4, 27);
+
     private static DateTime Monday(int hour, int minute = 0)
-    {
-        var today = DateTime.Today;
-        var diff = ((int)today.DayOfWeek + 6) % 7; // Mo=0
-        return today.AddDays(-diff).AddHours(hour).AddMinutes(minute);
-    }
+        => BaseMonday.AddHours(hour).AddMinutes(minute);
 
     [Fact]
     public async Task MasterToggleOff_ReturnsNull()
@@ -173,5 +171,19 @@ public class BdeShiftCalendarServiceTests
         var result = await svc.GetShiftEndForBookingAsync(wp, monday);
 
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ExactShiftBoundary_PicksLaterShift()
+    {
+        var (ctx, svc) = Setup();
+        var wp = SeedWorkplace(ctx);
+        var monday = Monday(14); // exact boundary: end of early, start of late
+        ctx.BdeShifts.AddRange(NewShift(monday.DayOfWeek, 6, 14), NewShift(monday.DayOfWeek, 14, 22));
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetShiftEndForBookingAsync(wp, monday);
+
+        result.Should().Be(monday.Date.AddHours(22));
     }
 }
