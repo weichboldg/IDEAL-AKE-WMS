@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
@@ -14,17 +16,20 @@ public class ProductionWorkplacesController : Controller
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _appSettings;
+    private readonly ApplicationDbContext _ctx;
 
     public ProductionWorkplacesController(
         IProductionWorkplaceRepository repository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
-        IAppSettingRepository appSettings)
+        IAppSettingRepository appSettings,
+        ApplicationDbContext ctx)
     {
         _repository = repository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _appSettings = appSettings;
+        _ctx = ctx;
     }
 
     public async Task<IActionResult> Index()
@@ -97,6 +102,11 @@ public class ProductionWorkplacesController : Controller
             OverridePrePickingDays = workplace.OverridePrePickingDays,
             BdeAktiv = workplace.BdeAktiv,
             BdeDefaultArbeitsgang = workplace.BdeDefaultArbeitsgang,
+            BdeUseCustomShiftPlan = workplace.BdeUseCustomShiftPlan,
+            CustomShifts = await _ctx.BdeShifts
+                .Where(s => s.ProductionWorkplaceId == workplace.Id)
+                .OrderBy(s => s.DayOfWeek).ThenBy(s => s.StartTime)
+                .ToListAsync(),
             SelectedUserIds = workplace.ProductionWorkplaceUsers.Select(wu => wu.UserId).ToList(),
             AvailableUsers = await _userRepository.GetActiveUsersAsync()
         };
@@ -130,6 +140,7 @@ public class ProductionWorkplacesController : Controller
         existing.BdeDefaultArbeitsgang = string.IsNullOrWhiteSpace(vm.BdeDefaultArbeitsgang)
             ? null
             : vm.BdeDefaultArbeitsgang.Trim();
+        existing.BdeUseCustomShiftPlan = vm.BdeUseCustomShiftPlan;
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();

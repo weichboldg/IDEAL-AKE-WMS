@@ -27,6 +27,12 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "Default-Arbeitsgang (BDE)")]
     public string? BdeDefaultArbeitsgang { get; set; }
 
+    [Display(Name = "Eigener Schichtplan")]
+    public bool BdeUseCustomShiftPlan { get; set; }
+
+    [ValidateNever]
+    public List<BdeShift> CustomShifts { get; set; } = new();
+
     [ValidateNever]
     [Display(Name = "Zugeordnete Benutzer")]
     public List<int>? SelectedUserIds { get; set; }
