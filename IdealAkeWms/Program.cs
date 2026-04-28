@@ -83,6 +83,7 @@ builder.Services.AddScoped<IOseonTrafficLightService, OseonTrafficLightService>(
 builder.Services.AddScoped<IBdeBookingService, BdeBookingService>();
 builder.Services.AddScoped<IBdeDefaultWorkOperationService, BdeDefaultWorkOperationService>();
 builder.Services.AddScoped<IBdeTimeSplitService, BdeTimeSplitService>();
+builder.Services.AddScoped<IBdeShiftCalendarService, BdeShiftCalendarService>();
 
 // MVC
 builder.Services.AddControllersWithViews();
