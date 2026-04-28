@@ -818,4 +818,44 @@ public class BdeBookingServiceTests
 
         result.Outcome.Should().Be(BdeBookingOutcome.QuantityRequired);
     }
+
+    [Fact]
+    public async Task Resume_AcceptsAutoPausedParent()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.AutoPaused,
+            startedAt: DateTime.Now.AddHours(-3), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var result = await svc.ResumeAsync(parent.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        result.Booking!.ParentBookingId.Should().Be(parent.Id);
+        var updatedParent = await ctx.BdeBookings.FindAsync(parent.Id);
+        updatedParent!.Status.Should().Be(BdeBookingStatus.Resumed);
+    }
+
+    [Fact]
+    public async Task Resume_RejectsRunningParent()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var result = await svc.ResumeAsync(parent.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain("nicht pausiert");
+    }
 }

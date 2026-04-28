@@ -162,7 +162,7 @@ public class BdeBookingService : IBdeBookingService
 
             var parent = await _ctx.BdeBookings.FindAsync(pausedBookingId);
             if (parent == null) return BdeBookingResult.NotFound();
-            if (parent.Status != BdeBookingStatus.Paused)
+            if (parent.Status != BdeBookingStatus.Paused && parent.Status != BdeBookingStatus.AutoPaused)
                 return BdeBookingResult.Invalid("Ziel-Buchung ist nicht pausiert.");
 
             var multiMa = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang);
