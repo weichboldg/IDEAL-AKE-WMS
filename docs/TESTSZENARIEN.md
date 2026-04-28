@@ -2343,5 +2343,82 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-*Ende des Dokuments. Stand: v1.8.2 (2026-04-20)*
+## 15. BDE Phase 2.3 — Schichtkalender + Auto-Pause
+
+### TS-15.1 — Default-Schichtkalender anlegen
+**Vorbedingungen:** Admin-Login, `BdeSchichtkalenderAktiv = true`.
+**Schritte:**
+1. Menue BDE -> Schichtkalender oeffnen.
+2. Auf "Montag"-Karte "+ Schicht hinzufuegen" klicken.
+3. Eingabe: Name "Frueh", Beginn 06:00, Ende 14:00, speichern.
+**Erwartet:** Schicht erscheint in der Mo-Karte; Erfolgs-Toast.
+**Negativ:** Beginn 14:00 + Ende 06:00 -> Validation-Hinweis "Ende muss nach dem Beginn liegen".
+
+### TS-15.2 — Werkbank-Override aktivieren
+**Vorbedingungen:** Default-Kalender vorhanden, Werkbank "A1" angelegt.
+**Schritte:**
+1. Stammdaten -> Werkbaenke -> A1 -> Bearbeiten.
+2. Im "Schichtplan (BDE)"-Card Toggle "Eigener Schichtplan" einschalten.
+3. "+ Schicht hinzufuegen", Wochentag/Beginn/Ende eingeben.
+4. Speichern.
+**Erwartet:** Werkbank zeigt eigenen Plan; Default wird ignoriert fuer A1.
+
+### TS-15.3 — Auto-Pause greift am Schichtende
+**Vorbedingungen:** Default Mo-Fr 06-14, Master-Toggle aktiv, MA scannt um 13:50 ein.
+**Schritte:**
+1. Buchung startet 13:50.
+2. Worker tickt nach 14:00 (max. 1h Latenz).
+**Erwartet:** Buchung Status=AutoPaused, EndedAt=14:00. ModifiedBy="BDE-AutoPause".
+
+### TS-15.4 — Resume nach Auto-Pause
+**Vorbedingungen:** TS-15.3 ausgefuehrt, MA scannt am Folge-Tag.
+**Schritte:**
+1. Operator-Scan im Terminal.
+**Erwartet:** Paused-Hint zeigt "auto-pausiert seit ... (Schichtende)" mit Fortsetzen-Button.
+2. Klick Fortsetzen.
+**Erwartet:** Neue Running-Buchung mit ParentBookingId; Parent Status=Resumed.
+
+### TS-15.5 — Feiertag schuetzt vor Auto-Pause
+**Vorbedingungen:** Holiday-Eintrag fuer heutigen Tag, Master-Toggle aktiv.
+**Schritte:** Buchung laeuft, Worker tickt.
+**Erwartet:** Buchung wird NICHT pausiert (Holiday gilt als arbeitsfrei).
+
+### TS-15.6 — Master-Toggle aus
+**Vorbedingungen:** `BdeSchichtkalenderAktiv = false`.
+**Schritte:** Buchung ueber Schichtende laufen lassen, Worker tickt.
+**Erwartet:** Buchung bleibt unveraendert. Phase-2.2-Verhalten.
+
+### TS-15.7 — Buchung startet vor Schichtbeginn
+**Vorbedingungen:** Frueh 06-14, MA stempelt um 04:00 ein.
+**Schritte:** Worker tickt nach 14:00.
+**Erwartet:** Buchung pausiert mit EndedAt=14:00 (P2-Logik).
+
+### TS-15.8 — Buchung startet nach allen Tagesschichten
+**Vorbedingungen:** Frueh 06-14, MA stempelt um 23:00 ein.
+**Schritte:** Worker tickt naechsten Tag.
+**Erwartet:** Buchung NICHT pausiert (kein Schichtende mehr fuer den Tag der StartedAt).
+
+### TS-15.9 — Werkbank Override leer = 24/7 frei
+**Vorbedingungen:** Werkbank-Toggle EIN, 0 eigene Schichten konfiguriert.
+**Schritte:** Buchung laeuft, Worker tickt.
+**Erwartet:** Keine Auto-Pause (Override-Schalter zieht).
+
+### TS-15.10 — Mehrschicht-Uebergang (Frueh -> Spaet)
+**Vorbedingungen:** Default Mo Frueh 06-14 + Spaet 14-22.
+**Schritte:** MA1 startet 13:50, Worker tickt nach 14:00.
+**Erwartet:** MA1-Buchung pausiert mit EndedAt=14:00. MA2 (Spaet) muss neu scannen + Resume.
+
+### TS-15.11 — Feiertags-Sync (Nager.Date)
+**Vorbedingungen:** Service-Settings `FeiertagSyncEnabled=true`, CountryCode=AT, Region=AT-3, JahreVoraus=2.
+**Schritte:** Service starten.
+**Erwartet:** Holidays-Tabelle enthaelt nationale + AT-3-Eintraege fuer aktuelles + 2 Folgejahre. Source=NagerSync.
+
+### TS-15.12 — Manuelle Holiday-Eintraege werden nicht ueberschrieben
+**Vorbedingungen:** Manueller Holiday-Eintrag fuer 06.01., Sync-Eintrag fuer dasselbe Datum noch nicht vorhanden.
+**Schritte:** Sync starten.
+**Erwartet:** Manueller Eintrag bleibt. Source weiterhin Manual. Description unveraendert.
+
+---
+
+*Ende des Dokuments. Stand: v1.8.2 (2026-04-28)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -101,7 +101,7 @@
 - **Kommissionierwagen (IsPickingTransport)**: Gefiltert in: Stueckliste Quell-Dropdown + Bestand, Meldebestand-Farbcodierung, StockCheckService. NICHT gefiltert in: Bestandsuebersicht-Liste, Bewegungshistorie. Ziel-Dropdown zeigt NUR Wagen
 - **Razor v@**: `v@Namespace.Class` wird als E-Mail geparst → `v@(Namespace.Class)` verwenden
 - **Select2-Text-Format**: API liefert `"ArticleNumber - Description"`. Parsing: `.split(' - ')[0]`, NICHT Em-Dash
-- **Service kann Web-Projekt nicht referenzieren**: SDK.Worker vs SDK.Web → Service nutzt eigene DTOs und raw SQL
+- **Service referenziert Web-Projekt (seit BDE Phase 2.3)**: Bis Phase 2.2 nutzte der Service eigene DTOs und raw SQL (SDK.Worker vs SDK.Web). Mit Phase 2.3 referenziert `IDEALAKEWMSService` jetzt das Web-Projekt direkt (BdeAutoPauseWorker braucht `ApplicationDbContext`, `BdeShiftCalendarService`, `BdeBookingStatus`-Enum). Build/Publish/Tests laufen sauber. Bei neuen Service-Features den DB-Zugriff via shared `ApplicationDbContext` und Web-Repositories nutzen statt Dapper-Duplikate
 - **Leitstand Index-Action hat kein Filter-Attribut**: Prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur Key (PK), Value, Description
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer → Beschichtungstermin fuer ALLE Auftraege
@@ -110,6 +110,7 @@
 - **BDE-Operator deaktiviert waehrend offener Buchung**: Offene Buchungen bleiben sichtbar. Schichtleiter muss manuell schliessen.
 - **Save-Ordering in BdeBookingService**: Bei Auto-Close-und-New-Start MUSS `SaveChangesAsync` zwischen Schliessen und Add-Neu laufen (Helfer `FinishAndSaveAsync`), eingebettet in `BeginTransactionAsync()`.
 - **enaio DMS-Sync kein Delta**: `angelegt`-Spalte in enaio ist statisch (Bulk-Import 2013). Full-Sync statt Delta — MERGE verhindert Duplikate. `EnaioDmsSyncService.cs` liest ALLE Werkstattauftraege/Zeichnungen ohne Datumsfilter.
+- **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
 
 ## Standard-Daten (Neuinstallation)
 
@@ -146,6 +147,7 @@
 | `BdeMehrfachBuchungProOperator` | `false` | Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen) |
 | `BdeMehrfachBuchungProArbeitsgang` | `false` | Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter) |
 | `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv) |
+| `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende aktiv |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 
@@ -161,6 +163,11 @@
 | `Sync:BomCacheWeeks` | `8` | Wochen in die Zukunft cachen |
 | `Sync:BomCacheMaxOrders` | `200` | Max. Auftraege im Cache |
 | `Sync:CoatingDetectionEnabled` | `false` | Lackierteil-Erkennung aktiv |
+| `Sync:BdeAutoPauseIntervalMinutes` | `60` | BDE Auto-Pause-Worker Intervall (Minuten) |
+| `Sync:FeiertagSyncEnabled` | `false` | Feiertags-Sync von date.nager.at aktiv |
+| `Sync:FeiertagCountryCode` | `AT` | Laendercode fuer Feiertags-Sync (ISO 3166-1 alpha-2) |
+| `Sync:FeiertagRegion` | (leer) | Optionaler Bundesland-Code (z.&nbsp;B. AT-3 NOe, AT-6 Stmk) |
+| `Sync:FeiertagJahreVoraus` | `2` | Jahre in die Zukunft synchronisieren |
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |

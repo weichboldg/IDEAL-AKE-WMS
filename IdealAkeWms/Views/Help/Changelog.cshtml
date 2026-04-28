@@ -9,9 +9,17 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
-                <strong>v1.8.2</strong> <span class="text-white-50 ms-2">21.04.2026</span>
+                <strong>v1.8.2</strong> <span class="text-white-50 ms-2">28.04.2026</span>
             </div>
             <div class="card-body">
+                <h6>BDE Phase 2.3 &mdash; Schichtkalender + Auto-Pause + Feiertags-Sync</h6>
+                <ul>
+                    <li>Neuer Schichtkalender-Editor (Default + Werkbank-Override) unter BDE &rarr; Schichtkalender.</li>
+                    <li>Auto-Pause-Worker: laufende Buchungen werden am Schichtende automatisch mit Status "Auto-pausiert" beendet.</li>
+                    <li>Feiertags-Sync von date.nager.at (additiv, manuelle Eintraege bleiben).</li>
+                    <li>Neuer Buchungs-Status "Auto-pausiert" (5); Resume akzeptiert ihn analog zu manueller Pause.</li>
+                    <li>Master-Toggle <code>BdeSchichtkalenderAktiv</code> (Default aus) &mdash; Phase-2.2-Verhalten unveraendert wenn nicht aktiviert.</li>
+                </ul>
                 <h6>BDE-Settings</h6>
                 <ul>
                     <li>Feature-Toggle <code>BdeAktiv</code> &mdash; BDE-Modul per Setting aktivierbar</li>

@@ -43,10 +43,28 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Betriebsdatenerfassung (BDE) — Terminal, Cockpit, Korrekturen | Fertig (Phase 1) |
 | BDE Phase 2.1 — Werkbank-Erweiterungen (BdeAktiv, Default-AG) | Fertig (Phase 2.1) |
 | BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | Fertig (Phase 2.2) |
+| BDE Phase 2.3 — Schichtkalender + Auto-Pause + Feiertags-Sync | Fertig (Phase 2.3) |
 
 ## Version
-- **Web-App**: v1.8.2 (21.04.2026)
-- **Service**: v1.8.1 (16.04.2026)
+- **Web-App**: v1.8.2 (28.04.2026)
+- **Service**: v1.8.2 (28.04.2026)
+
+## Aenderungen (28.04.2026)
+
+### v1.8.2 — BDE Phase 2.3: Schichtkalender + Auto-Pause + Feiertags-Sync
+
+#### Neue Funktionen
+- **Schichtkalender-Editor**: Default-Plan pro Wochentag (Mo-So) unter Menue BDE &rarr; Schichtkalender. Pro Werkbank optionaler Override via Toggle "Eigener Schichtplan" im Werkbank-Edit.
+- **Auto-Pause-Worker**: Service pausiert laufende Buchungen automatisch am Schichtende (`EndedAt = exaktes Schichtende`, Status "Auto-pausiert" = 5). Feiertage und Werkbank-Override mit 0 Schichten = 24/7 deaktivieren die Auto-Pause.
+- **Resume nach Auto-Pause**: Im Terminal sichtbar im Paused-Hint mit Marker "(Schichtende)". Fortsetzen erzeugt neue Buchung mit `ParentBookingId`.
+- **Feiertags-Sync (Nager.Date)**: Service kann Feiertage von date.nager.at synchronisieren (national + optional Bundesland-Code, additiv, manuelle Eintraege bleiben). Holiday-Eintraege haben jetzt `Source` (Manual=1, NagerSync=2).
+- **Master-Toggle**: `BdeSchichtkalenderAktiv` (Default aus). Bei aus = Phase-2.2-Verhalten unveraendert.
+
+#### Technische Details
+- Migration: `SQL/48_AddBdeShiftCalendar.sql` — neue Tabelle `BdeShifts`, neue Spalten `Holidays.Source`, `ProductionWorkplaces.BdeUseCustomShiftPlan`. CHECK-Constraint `CK_BdeBookings_StatusEnded` erweitert auf Status IN (2,3,4,5).
+- Neue AppSettings: `BdeSchichtkalenderAktiv`
+- Neue ServiceSettings: `Sync:BdeAutoPauseIntervalMinutes` (60), `Sync:FeiertagSyncEnabled` (false), `Sync:FeiertagCountryCode` (AT), `Sync:FeiertagRegion` (leer), `Sync:FeiertagJahreVoraus` (2)
+- Service referenziert ab dieser Phase das Web-Projekt (geteiltes `ApplicationDbContext`, `BdeShiftCalendarService`, `BdeBookingStatus`-Enum)
 
 ## Aenderungen (21.04.2026)
 

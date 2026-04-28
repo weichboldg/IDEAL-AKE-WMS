@@ -193,6 +193,7 @@ BEGIN
         [OverridePrePickingDays] INT               NULL,
         [BdeAktiv]               BIT               NOT NULL DEFAULT (0),
         [BdeDefaultArbeitsgang]  NVARCHAR(200)     NULL,
+        [BdeUseCustomShiftPlan]  BIT               NOT NULL DEFAULT (0),
         [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]              NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
@@ -504,7 +505,8 @@ BEGIN
         ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)'),
         ('BdeMehrfachBuchungProOperator', 'false', 'Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)'),
         ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)'),
-        ('BdeGleichzeitigerAbschlussBeiMehrfachStart', 'false', 'Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)');
+        ('BdeGleichzeitigerAbschlussBeiMehrfachStart', 'false', 'Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)'),
+        ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
@@ -566,6 +568,7 @@ BEGIN
         [Id]                INT IDENTITY(1,1) NOT NULL,
         [Date]              DATE              NOT NULL,
         [Description]       NVARCHAR(200)     NULL,
+        [Source]            TINYINT           NOT NULL DEFAULT (1),
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -1222,7 +1225,7 @@ BEGIN
         ),
         CONSTRAINT [CK_BdeBookings_StatusEnded] CHECK (
             ([Status] = 1 AND [EndedAt] IS NULL) OR
-            ([Status] IN (2,3,4) AND [EndedAt] IS NOT NULL)
+            ([Status] IN (2,3,4,5) AND [EndedAt] IS NOT NULL)
         )
     );
     PRINT 'Tabelle BdeBookings erstellt.';
@@ -1301,6 +1304,39 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_B
     CREATE INDEX [IX_BdeBookingQuantities_BdeOperatorId] ON [dbo].[BdeBookingQuantities]([BdeOperatorId]);
 GO
 
+-- BdeShifts (Phase 2.3 - Schichtkalender)
+IF OBJECT_ID(N'dbo.BdeShifts', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeShifts] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [DayOfWeek] INT NOT NULL,
+        [StartTime] TIME NOT NULL,
+        [EndTime] TIME NOT NULL,
+        [ProductionWorkplaceId] INT NULL,
+        [Name] NVARCHAR(50) NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(450) NOT NULL,
+        [CreatedByWindows] NVARCHAR(450) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(450) NULL,
+        [ModifiedByWindows] NVARCHAR(450) NULL,
+        CONSTRAINT [FK_BdeShifts_ProductionWorkplaces] FOREIGN KEY ([ProductionWorkplaceId])
+            REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle BdeShifts erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeShifts_Workplace_Day' AND object_id = OBJECT_ID(N'dbo.BdeShifts'))
+    CREATE INDEX [IX_BdeShifts_Workplace_Day] ON [dbo].[BdeShifts]([ProductionWorkplaceId], [DayOfWeek]);
+GO
+
+-- Phase 2.3 AppSetting (idempotent, falls AppSettings-Seed bereits gelaufen)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeSchichtkalenderAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
+GO
+
 -- =============================================
 -- 18. EF Migrations History
 -- =============================================
@@ -1355,6 +1391,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260415121811_AddBde', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260420104948_AddBdeWerkbankSettings')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260420104948_AddBdeWerkbankSettings', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260428071503_AddBdeShiftCalendar')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260428071503_AddBdeShiftCalendar', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

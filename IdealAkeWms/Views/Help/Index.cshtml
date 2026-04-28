@@ -424,6 +424,19 @@
                     <li>Abbrechen verlaesst den Dialog ohne Aenderungen.</li>
                     <li>Bei nur 1 aktiver Produktionsbuchung wird der normale Einzel-Finish-Dialog verwendet (kein Gruppenabschluss).</li>
                 </ul>
+
+                <h6 class="mt-3">Schichtkalender konfigurieren</h6>
+                <ol>
+                    <li>Einstellungen &rarr; BDE-Gruppe: Toggle "Schichtkalender + Auto-Pause" aktivieren.</li>
+                    <li>Menue BDE &rarr; Schichtkalender: Default-Plan pro Wochentag hinzufuegen.</li>
+                    <li>Optional pro Werkbank: Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten &rarr; Schichtplan-Bereich. Toggle "Eigener Schichtplan" + Schichten anlegen.</li>
+                </ol>
+
+                <h6 class="mt-3">Auto-Pause am Schichtende</h6>
+                <p>Wenn der Schichtkalender aktiv ist, pausiert der BDE-Worker laufende Buchungen am Schichtende automatisch (Status "Auto-pausiert"). Die Buchung wird mit der exakten Schicht-Ende-Zeit als Ende markiert &mdash; unabhaengig davon, wann der Service tatsaechlich tickt. Mitarbeiter sehen am Folge-Tag im Paused-Hint "auto-pausiert seit ... (Schichtende)" und koennen mit "Fortsetzen" eine neue Buchung starten. Activity- und Setup-Buchungen werden gleichbehandelt wie Production.</p>
+
+                <h6 class="mt-3">Feiertags-Sync (Nager.Date)</h6>
+                <p>Der Service kann Feiertage automatisch von date.nager.at synchronisieren (Service-Settings: Toggle aktivieren, optional Bundesland AT-3 NOe / AT-6 Stmk / AT-4 OOe / AT-5 Sbg / AT-7 T / AT-8 V / AT-9 W / AT-1 Bgl / AT-2 K). Der Sync ist additiv &mdash; manuelle Eintraege werden nie ueberschrieben. Sync-Eintraege haben Quelle "Sync"; manuelle Eintraege bleiben "Manuell".</p>
             </div>
         </div>
 
