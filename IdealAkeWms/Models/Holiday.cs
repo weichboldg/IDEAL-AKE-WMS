@@ -12,4 +12,8 @@ public class Holiday : AuditableEntity
     [StringLength(200)]
     [Display(Name = "Bezeichnung")]
     public string? Description { get; set; }
+
+    [Required]
+    [Display(Name = "Quelle")]
+    public HolidaySource Source { get; set; } = HolidaySource.Manual;
 }

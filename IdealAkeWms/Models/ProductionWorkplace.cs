@@ -24,6 +24,9 @@ public class ProductionWorkplace : AuditableEntity
     [Display(Name = "Default-Arbeitsgang (BDE)")]
     public string? BdeDefaultArbeitsgang { get; set; }
 
+    [Display(Name = "Eigener Schichtplan")]
+    public bool BdeUseCustomShiftPlan { get; set; }
+
     public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
     public ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();

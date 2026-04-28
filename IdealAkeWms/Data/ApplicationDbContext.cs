@@ -42,6 +42,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<BdeBooking> BdeBookings => Set<BdeBooking>();
     public DbSet<BdeBookingQuantity> BdeBookingQuantities => Set<BdeBookingQuantity>();
     public DbSet<BdeOperator> BdeOperators => Set<BdeOperator>();
+    public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
     public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
@@ -382,6 +383,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Date).HasColumnType("date");
             entity.Property(e => e.Description).HasMaxLength(200);
+            entity.Property(e => e.Source).HasDefaultValue(HolidaySource.Manual);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -748,7 +750,19 @@ public class ApplicationDbContext : DbContext
                 "([BookingType] = 3 AND [BdeActivityId] IS NOT NULL) OR ([BookingType] IN (1,2) AND [WorkOperationId] IS NOT NULL)"));
 
             entity.ToTable(t => t.HasCheckConstraint("CK_BdeBookings_StatusEnded",
-                "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3,4) AND [EndedAt] IS NOT NULL)"));
+                "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3,4,5) AND [EndedAt] IS NOT NULL)"));
+        });
+
+        // BDE: Shifts
+        modelBuilder.Entity<BdeShift>(entity =>
+        {
+            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.DayOfWeek })
+                .HasDatabaseName("IX_BdeShifts_Workplace_Day");
+
+            entity.HasOne(e => e.ProductionWorkplace)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // BDE: BookingQuantities
