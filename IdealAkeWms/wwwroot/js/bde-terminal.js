@@ -475,9 +475,12 @@
             }
 
             list.innerHTML = items.map(function (i) {
+                var isAutoPaused = i.status === 'AutoPaused';
+                var pausedLabel = isAutoPaused ? 'auto-pausiert seit' : 'pausiert seit';
+                var suffix = isAutoPaused ? ' (Schichtende)' : '';
                 return '<li class="mb-2">' +
                     '<strong>' + i.orderNumber + ' / ' + i.operationNumber + ' ' + (i.operationName || '') + '</strong>' +
-                    '<small class="text-muted d-block">pausiert seit ' + (i.pausedAt ? new Date(i.pausedAt).toLocaleString('de-DE') : '') + '</small>' +
+                    '<small class="text-muted d-block">' + pausedLabel + ' ' + (i.pausedAt ? new Date(i.pausedAt).toLocaleString('de-DE') : '') + suffix + '</small>' +
                     '<button type="button" class="btn btn-sm btn-warning mt-1" data-booking-id="' + i.bookingId + '" data-resume>Fortsetzen</button>' +
                     '</li>';
             }).join('');

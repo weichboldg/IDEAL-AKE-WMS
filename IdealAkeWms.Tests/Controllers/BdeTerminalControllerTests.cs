@@ -79,6 +79,29 @@ public class BdeTerminalControllerTests
     }
 
     [Fact]
+    public async Task PausedBookings_IncludesAutoPaused()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.AutoPaused,
+            startedAt: DateTime.Now.AddHours(-3), endedAt: DateTime.Now.AddHours(-1)));
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddMinutes(-30)));
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateTerminalController(ctx);
+        var result = await controller.PausedBookings(ids.OperatorId);
+
+        var ok = result as OkObjectResult;
+        ok.Should().NotBeNull();
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+        parsed.GetArrayLength().Should().Be(2);
+        json.Should().Contain("AutoPaused");
+    }
+
+    [Fact]
     public async Task CloseOthers_DelegatesToService_ReturnsCount()
     {
         var ctx = TestDbContextFactory.Create();

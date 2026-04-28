@@ -236,7 +236,7 @@ public class BdeTerminalController : Controller
             .Include(b => b.WorkOperation)
                 .ThenInclude(wo => wo!.ProductionOrder)
             .Where(b => b.BdeOperatorId == operatorId
-                     && b.Status == BdeBookingStatus.Paused
+                     && (b.Status == BdeBookingStatus.Paused || b.Status == BdeBookingStatus.AutoPaused)
                      && !b.IsCancelled
                      && !_ctx.BdeBookings.Any(child => child.ParentBookingId == b.Id))
             .OrderBy(b => b.StartedAt)
@@ -245,7 +245,8 @@ public class BdeTerminalController : Controller
                 orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
                 operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
                 operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
-                pausedAt = b.EndedAt
+                pausedAt = b.EndedAt,
+                status = b.Status.ToString()
             })
             .ToListAsync();
 
