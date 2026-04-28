@@ -9,6 +9,10 @@ public class SyncWorker : BackgroundService
     private readonly IConfiguration _configuration;
     private readonly IServiceScopeFactory _scopeFactory;
 
+    // Independent run-cadence tracking — BdeAutoPause hat eigenes Intervall, HolidaySync läuft täglich.
+    private DateTime? _lastAutoPauseRun;
+    private DateTime? _lastHolidaySyncRun;
+
     public SyncWorker(ILogger<SyncWorker> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
@@ -168,6 +172,48 @@ public class SyncWorker : BackgroundService
                 {
                     _logger.LogDebug("Lackierteil-Erkennung deaktiviert (Sync:CoatingDetectionEnabled=false in ServiceSettings)");
                 }
+
+                // ---------------------------------------------------------------
+                // BDE Auto-Pause — eigenes Intervall via Sync:BdeAutoPauseIntervalMinutes (default 60)
+                // ---------------------------------------------------------------
+                if (await ShouldRunAutoPauseAsync(stoppingToken))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Starte BDE-AutoPause");
+                        using var autoPauseScope = _scopeFactory.CreateScope();
+                        var autoPause = autoPauseScope.ServiceProvider.GetRequiredService<IBdeAutoPauseService>();
+                        var apResult = await autoPause.RunAsync(stoppingToken);
+                        _logger.LogInformation("BDE-AutoPause fertig: Checked={Checked}, Paused={Paused}, Errors={Err}",
+                            apResult.CheckedCount, apResult.PausedCount, apResult.Errors.Count);
+                        _lastAutoPauseRun = DateTime.Now;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "BDE-AutoPause ist fehlgeschlagen");
+                    }
+                }
+
+                // ---------------------------------------------------------------
+                // Holiday-Sync — täglich (24h), skip wenn Sync:FeiertagSyncEnabled=false
+                // ---------------------------------------------------------------
+                if (await ShouldRunHolidaySyncAsync(stoppingToken))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Starte Holiday-Sync");
+                        using var holidayScope = _scopeFactory.CreateScope();
+                        var holidaySync = holidayScope.ServiceProvider.GetRequiredService<IHolidaySyncService>();
+                        var hResult = await holidaySync.RunAsync(stoppingToken);
+                        _logger.LogInformation("Holiday-Sync fertig: Fetched={F}, Inserted={I}, Errors={Err}",
+                            hResult.FetchedCount, hResult.InsertedCount, hResult.Errors.Count);
+                        _lastHolidaySyncRun = DateTime.Now;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Holiday-Sync ist fehlgeschlagen");
+                    }
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
@@ -179,5 +225,21 @@ public class SyncWorker : BackgroundService
         }
 
         _logger.LogInformation("SyncWorker gestoppt.");
+    }
+
+    private async Task<bool> ShouldRunAutoPauseAsync(CancellationToken ct)
+    {
+        var intervalMinutes = await ServiceSettings.GetIntAsync(_configuration, "Sync:BdeAutoPauseIntervalMinutes", 60, ct);
+        if (intervalMinutes <= 0) return false;
+        if (_lastAutoPauseRun == null) return true;
+        return DateTime.Now - _lastAutoPauseRun.Value >= TimeSpan.FromMinutes(intervalMinutes);
+    }
+
+    private async Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
+    {
+        var enabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:FeiertagSyncEnabled", false, ct);
+        if (!enabled) return false;
+        if (_lastHolidaySyncRun == null) return true;
+        return DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24);
     }
 }

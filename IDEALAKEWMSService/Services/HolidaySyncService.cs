@@ -1,6 +1,7 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
@@ -9,10 +10,18 @@ namespace IDEALAKEWMSService.Services;
 
 public class HolidaySyncOptions
 {
+    [ConfigurationKeyName("FeiertagSyncEnabled")]
     public bool Enabled { get; set; }
+
+    [ConfigurationKeyName("FeiertagCountryCode")]
     public string CountryCode { get; set; } = "AT";
+
+    [ConfigurationKeyName("FeiertagRegion")]
     public string Region { get; set; } = "";
+
+    [ConfigurationKeyName("FeiertagJahreVoraus")]
     public int JahreVoraus { get; set; } = 2;
+
     public bool DryRun { get; set; }
 }
 
