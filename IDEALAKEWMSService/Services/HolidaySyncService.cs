@@ -58,7 +58,9 @@ public class HolidaySyncService : IHolidaySyncService
                 foreach (var h in filtered)
                 {
                     fetched++;
-                    if (!DateTime.TryParse(h.Date, out var date)) continue;
+                    if (!DateTime.TryParseExact(h.Date, "yyyy-MM-dd",
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out var date)) continue;
 
                     if (await _ctx.Holidays.AnyAsync(existing => existing.Date == date.Date, ct))
                         continue; // additive only
@@ -76,16 +78,17 @@ public class HolidaySyncService : IHolidaySyncService
                     });
                     inserted++;
                 }
+
+                if (!opts.DryRun)
+                    await _ctx.SaveChangesAsync(ct);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "HolidaySync failed for year {Year}", year);
                 errors.Add($"Year {year}: {ex.GetType().Name} - {ex.Message}");
+                _ctx.ChangeTracker.Clear();
             }
         }
-
-        if (!opts.DryRun)
-            await _ctx.SaveChangesAsync(ct);
 
         _logger.LogInformation("HolidaySync: fetched={Fetched} inserted={Inserted} errors={Errors}",
             fetched, inserted, errors.Count);
