@@ -271,6 +271,7 @@ using (var scope = app.Services.CreateScope())
         (IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProOperator, "false", "Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)"),
         (IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProArbeitsgang, "false", "Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)"),
         (IdealAkeWms.Models.AppSettingKeys.BdeGleichzeitigerAbschlussBeiMehrfachStart, "false", "Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)"),
+        (IdealAkeWms.Models.AppSettingKeys.BdeSchichtkalenderAktiv, "false", "Schichtkalender + Auto-Pause am Schichtende aktiv"),
     };
     foreach (var (key, value, description) in bdeSettings)
     {
@@ -321,6 +322,11 @@ using (var scope = app.Services.CreateScope())
         ("Sync:BomCacheMaxOrders",       "200",   "BOM-Cache",   "Maximalanzahl Auftraege im BOM-Cache"),
         ("Sync:BomCacheMaxAgeHours",     "24",    "BOM-Cache",   "Sicherheitsnetz: Re-Sync wenn Cache-Eintrag aelter als X Stunden"),
         ("Sync:CoatingDetectionEnabled", "false", "Lackierteile","Lackierteil-Erkennung als separater Sync-Job aktiv"),
+        ("Sync:BdeAutoPauseIntervalMinutes", "60",   "BDE",         "Intervall (Minuten) fuer Auto-Pause am Schichtende"),
+        ("Sync:FeiertagSyncEnabled",         "false","BDE",         "Feiertags-Sync aus Nager.Date aktiv"),
+        ("Sync:FeiertagCountryCode",         "AT",   "BDE",         "Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)"),
+        ("Sync:FeiertagRegion",              "",     "BDE",         "Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)"),
+        ("Sync:FeiertagJahreVoraus",         "2",    "BDE",         "Anzahl Folgejahre, die Feiertage vorausgesynct werden"),
     };
     foreach (var (key, value, category, description) in serviceSettingSeed)
     {
