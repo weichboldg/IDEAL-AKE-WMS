@@ -125,6 +125,11 @@
                                         <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
                                         <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
                                     }
+                                    @if (await CurrentUserService.HasMasterDataAccessAsync())
+                                    {
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="BdeShiftCalendar" asp-action="Index">Schichtkalender</a></li>
+                                    }
                                 </ul>
                             </li>
                         }
