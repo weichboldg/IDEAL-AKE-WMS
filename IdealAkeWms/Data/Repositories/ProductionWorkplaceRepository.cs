@@ -41,6 +41,16 @@ public class ProductionWorkplaceRepository : Repository<ProductionWorkplace>, IP
             .ToListAsync();
     }
 
+    public async Task<List<ProductionWorkplace>> GetByUserIdAsync(int userId)
+    {
+        return await _context.ProductionWorkplaceUsers
+            .AsNoTracking()
+            .Where(wu => wu.UserId == userId)
+            .Select(wu => wu.ProductionWorkplace)
+            .OrderBy(w => w.Name)
+            .ToListAsync();
+    }
+
     public async Task SetProductionWorkplaceUsersAsync(int workplaceId, List<int> userIds, string createdBy, string createdByWindows)
     {
         var existing = await _context.ProductionWorkplaceUsers
