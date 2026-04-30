@@ -26,6 +26,14 @@ public class HomeController : Controller
         var teileverfolgungAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.TeileverfolgungAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.TeileverfolgungAktiv = teileverfolgungAktiv;
+
+        var bdeAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.BdeAktiv))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.BdeAktiv = bdeAktiv;
+        ViewBag.CanUseBde = await _currentUserService.CanUseBdeAsync();
+        ViewBag.CanManageBdeShiftlead = await _currentUserService.CanManageBdeShiftleadAsync();
+        ViewBag.CanReportOperations = await _currentUserService.CanReportOperationsAsync();
+
         return View();
     }
 

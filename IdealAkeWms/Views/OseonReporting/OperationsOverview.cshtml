@@ -41,10 +41,13 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label">AG (CSV)</label>
-            <input name="operationNames" class="form-control form-control-sm"
-                   placeholder="z.B. B,ST"
-                   value="@string.Join(",", Model.Filter.OperationNames)" />
+            <label class="form-label">AG</label>
+            <select name="operationNames" class="form-select form-select-sm" multiple size="3">
+                @foreach (var op in Model.AvailableOperationNames)
+                {
+                    <option value="@op" selected="@(Model.Filter.OperationNames.Contains(op))">@op</option>
+                }
+            </select>
         </div>
         <div class="col-md-2">
             <label class="form-label">Kundenauftrag</label>
@@ -100,7 +103,7 @@
     {
         var url = $"?slice={s}";
         if (Model.Filter.WorkplaceId.HasValue) url += $"&workplaceId={Model.Filter.WorkplaceId}";
-        if (Model.Filter.OperationNames.Count > 0) url += $"&operationNames={string.Join(",", Model.Filter.OperationNames)}";
+        foreach (var op in Model.Filter.OperationNames) url += $"&operationNames={Uri.EscapeDataString(op)}";
         if (!string.IsNullOrEmpty(Model.Filter.CustomerOrderNumber)) url += $"&customerOrderNumber={Model.Filter.CustomerOrderNumber}";
         if (!string.IsNullOrEmpty(Model.Filter.FaNumber)) url += $"&faNumber={Model.Filter.FaNumber}";
         if (Model.Filter.HorizonDaysOverride.HasValue) url += $"&horizonDays={Model.Filter.HorizonDaysOverride}";

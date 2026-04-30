@@ -36,7 +36,7 @@ public class OseonReportingController : Controller
 
     public async Task<IActionResult> OperationsOverview(
         int? workplaceId,
-        string? operationNames,
+        string[]? operationNames,
         string? customerOrderNumber,
         string? faNumber,
         int? horizonDays,
@@ -57,9 +57,9 @@ public class OseonReportingController : Controller
         var fromDate = today.AddDays(-lookbackEffective);
         var toDate = today.AddDays(horizonEffective);
 
-        var opNamesList = string.IsNullOrWhiteSpace(operationNames)
+        var opNamesList = (operationNames == null || operationNames.Length == 0)
             ? null
-            : operationNames.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            : operationNames.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
 
         var queryResult = await _orders.GetRelevantOperationsForReportingAsync(
             workplaceId, opNamesList, customerOrderNumber, faNumber, fromDate, toDate);
@@ -139,7 +139,9 @@ public class OseonReportingController : Controller
             .OrderBy(n => n)
             .ToList();
 
-        var availableWorkplaces = await _workplaces.GetAllAsync();
+        var availableWorkplaces = (await _workplaces.GetAllAsync())
+            .OrderBy(w => w.Name)
+            .ToList();
 
         var vm = new OseonReportingViewModel
         {
@@ -158,7 +160,7 @@ public class OseonReportingController : Controller
                 Slice = effectiveSlice
             },
             AvailableOperationNames = availableOpNames,
-            AvailableWorkplaces = availableWorkplaces.ToList(),
+            AvailableWorkplaces = availableWorkplaces,
             HorizonDaysEffective = horizonEffective
         };
 
