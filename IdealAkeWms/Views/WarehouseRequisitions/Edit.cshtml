@@ -1,0 +1,172 @@
+@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionEditViewModel
+@{
+    ViewData["Title"] = $"Lagerbestellung #{Model.Id}";
+    bool isDraft = Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Draft;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="mb-0">Lagerbestellung #@Model.Id</h2>
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurueck</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body p-2">
+        <strong>Werkbank:</strong> @Model.WorkplaceName
+        <span class="ms-3"><strong>Status:</strong>
+            @switch (Model.Status)
+            {
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Draft: <span class="badge bg-secondary">Entwurf</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert</span> break;
+            }
+        </span>
+        <span class="ms-3"><strong>Erstellt:</strong> @Model.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm" id="items-table">
+        <thead>
+            <tr>
+                <th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Menge</th><th>ME</th><th>Lagerplatz</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var i in Model.Items)
+            {
+                <tr data-item-id="@i.Id">
+                    <td>@i.Position</td>
+                    <td>@i.ArticleNumber</td>
+                    <td>@i.ArticleDescription</td>
+                    <td>
+                        @if (isDraft)
+                        {
+                            <input type="number" step="0.01" value="@i.QuantityRequested" class="form-control form-control-sm qty-edit" data-item-id="@i.Id" style="width:80px;" />
+                        }
+                        else
+                        {
+                            @i.QuantityRequested
+                        }
+                    </td>
+                    <td>@i.Unit</td>
+                    <td class="stock-cell"><span class="text-muted small">…</span></td>
+                    <td>
+                        @if (isDraft)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-item" data-item-id="@i.Id">×</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (isDraft)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">Artikel hinzufuegen</label>
+            <input id="article-search" type="text" class="form-control" placeholder="Artikel-Nr oder Bezeichnung" autocomplete="off" />
+            <div id="article-search-results" class="list-group mt-1" style="max-height: 300px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <form method="post" asp-action="Submit" asp-route-id="@Model.Id" class="d-inline">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-primary" @(Model.Items.Count == 0 ? "disabled" : "")>Abschicken</button>
+    </form>
+}
+
+@if (Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Draft || Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted)
+{
+    <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#cancel-modal">Stornieren</button>
+
+    <div class="modal fade" id="cancel-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="post" asp-action="Cancel" asp-route-id="@Model.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-content">
+                    <div class="modal-header"><h5 class="modal-title">Liste stornieren</h5></div>
+                    <div class="modal-body">
+                        <label class="form-label">Grund (optional)</label>
+                        <textarea name="reason" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-danger">Stornieren</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+(function() {
+    const reqId = @Model.Id;
+
+    function loadStock(row) {
+        const articleNumber = row.cells[1].innerText.trim();
+        if (!articleNumber) return;
+        fetch(`/api/warehouserequisitions/stock?articleNumber=${encodeURIComponent(articleNumber)}`)
+            .then(r => r.json())
+            .then(data => {
+                const cell = row.querySelector('.stock-cell');
+                if (cell) cell.innerHTML = `<small class="text-muted">${data.locations || '—'}</small>`;
+            });
+    }
+    document.querySelectorAll('#items-table tbody tr').forEach(loadStock);
+
+    @if (isDraft)
+    {
+        <text>
+        const search = document.getElementById('article-search');
+        const results = document.getElementById('article-search-results');
+        let timer;
+        search.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const q = search.value.trim();
+                if (q.length < 2) { results.innerHTML = ''; return; }
+                fetch(`/api/articles/search?q=${encodeURIComponent(q)}&limit=20`)
+                    .then(r => r.json())
+                    .then(arr => {
+                        results.innerHTML = arr.map(a => `<button type="button" class="list-group-item list-group-item-action" data-art="${a.text.split(' - ')[0]}">${a.text}</button>`).join('');
+                    });
+            }, 250);
+        });
+        results.addEventListener('click', e => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const articleNumber = btn.dataset.art;
+            fetch(`/api/warehouserequisitions/${reqId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ articleNumber, quantity: 1 })
+            }).then(r => r.ok ? location.reload() : r.json().then(j => alert(j.error || 'Fehler')));
+        });
+
+        document.querySelectorAll('.qty-edit').forEach(inp => {
+            inp.addEventListener('change', () => {
+                fetch(`/api/warehouserequisitions/items/${inp.dataset.itemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantity: parseFloat(inp.value) || 0 })
+                });
+            });
+        });
+        document.querySelectorAll('.remove-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!confirm('Artikel entfernen?')) return;
+                fetch(`/api/warehouserequisitions/items/${btn.dataset.itemId}`, { method: 'DELETE' })
+                    .then(() => location.reload());
+            });
+        });
+        </text>
+    }
+})();
+</script>
+}

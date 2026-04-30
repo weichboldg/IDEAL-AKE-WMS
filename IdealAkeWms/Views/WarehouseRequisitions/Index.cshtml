@@ -1,0 +1,67 @@
+@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionListViewModel
+@{
+    ViewData["Title"] = "Lagerbestellungen — meine Listen";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="mb-0">Lagerbestellungen — meine Listen</h2>
+    <form method="post" asp-action="CreateDraft" class="d-flex gap-2 align-items-center">
+        @Html.AntiForgeryToken()
+        @if (Model.AvailableWorkplaces.Count > 1)
+        {
+            <select name="workplaceId" class="form-select form-select-sm" required>
+                <option value="">— Werkbank waehlen —</option>
+                @foreach (var wp in Model.AvailableWorkplaces)
+                {
+                    <option value="@wp.Id">@wp.Name</option>
+                }
+            </select>
+        }
+        <button type="submit" class="btn btn-sm btn-primary">+ Neue Liste</button>
+    </form>
+</div>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="alert alert-info">Noch keine Listen erfasst.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm filterable-table">
+            <thead>
+                <tr>
+                    <th data-col-key="id">#</th>
+                    <th data-col-key="workplace">Werkbank</th>
+                    <th data-col-key="items">Pos</th>
+                    <th data-col-key="status">Status</th>
+                    <th data-col-key="created">Erstellt</th>
+                    <th data-col-key="submitted">Submit</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var i in Model.Items)
+                {
+                    <tr>
+                        <td>@i.Id</td>
+                        <td>@i.WorkplaceName</td>
+                        <td>@i.ItemCount</td>
+                        <td>
+                            @switch (i.Status)
+                            {
+                                case IdealAkeWms.Models.WarehouseRequisitionStatus.Draft: <span class="badge bg-secondary">Entwurf</span> break;
+                                case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                                case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt</span> break;
+                                case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert</span> break;
+                            }
+                        </td>
+                        <td>@i.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@(i.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                        <td><a asp-action="Edit" asp-route-id="@i.Id" class="btn btn-sm btn-outline-primary">@(i.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Draft ? "Bearbeiten" : "Ansehen")</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
