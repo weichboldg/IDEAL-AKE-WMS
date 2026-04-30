@@ -246,10 +246,11 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
-    // Bedarfsmeldungen AppSettings
+    // Bedarfsmeldungen + Lagerbestellungen AppSettings
     var requisitionSettings = new (string Key, string Value, string Description)[]
     {
         ("BestellungenAktiv", "false", "Bedarfsmeldungen aus Stueckliste aktivieren"),
+        ("DefaultLagerbestellempfaengerId", "", "Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)"),
     };
     foreach (var (key, value, description) in requisitionSettings)
     {
@@ -330,6 +331,7 @@ using (var scope = app.Services.CreateScope())
         ("Sync:FeiertagCountryCode",         "AT",   "BDE",         "Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)"),
         ("Sync:FeiertagRegion",              "",     "BDE",         "Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)"),
         ("Sync:FeiertagJahreVoraus",         "2",    "BDE",         "Anzahl Folgejahre, die Feiertage vorausgesynct werden"),
+        ("Sync:WarehouseRequisitionEmailEnabled", "false", "Lagerbestellung", "Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker"),
     };
     foreach (var (key, value, category, description) in serviceSettingSeed)
     {

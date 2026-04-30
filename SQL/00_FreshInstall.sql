@@ -504,6 +504,7 @@ BEGIN
         ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren'),
         ('KommissionierungMitZuweisung', 'false', 'Kommissionierung mit Anwenderzuweisung aktivieren'),
         ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv'),
+        ('DefaultLagerbestellempfaengerId', '', 'Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)'),
         ('BdeAktiv', 'false', 'BDE-Modul (Betriebsdatenerfassung) aktivieren'),
         ('BdeNurFaMeldung', 'false', 'Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge'),
         ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)'),
@@ -582,6 +583,10 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:Feierta
 IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:FeiertagJahreVoraus')
     INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
     VALUES ('Sync:FeiertagJahreVoraus', '2', 'BDE', 'Anzahl Folgejahre, die Feiertage vorausgesynct werden');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:WarehouseRequisitionEmailEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:WarehouseRequisitionEmailEnabled', 'false', 'Lagerbestellung', 'Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker');
 GO
 
 -- =============================================

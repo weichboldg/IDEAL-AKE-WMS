@@ -14,10 +14,11 @@ public static class AppSettingKeys
     public const string BdeGleichzeitigerAbschlussBeiMehrfachStart = "BdeGleichzeitigerAbschlussBeiMehrfachStart";
     public const string BdeSchichtkalenderAktiv = "BdeSchichtkalenderAktiv";
 
-    // Picking / Leitstand
+    // Picking / Leitstand / Warehouse Requisitions
     public const string LeitstandAktiv = "LeitstandAktiv";
     public const string KommissionierungMitZuweisung = "KommissionierungMitZuweisung";
     public const string BestellungenAktiv = "BestellungenAktiv";
+    public const string DefaultLagerbestellempfaengerId = "DefaultLagerbestellempfaengerId";
 
     // Stock / Buchung
     public const string NegativeBuchungErlaubt = "NegativeBuchungErlaubt";

@@ -64,6 +64,16 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = 'DefaultLagerbestellempfaengerId')
+    INSERT INTO dbo.AppSettings ([Key], [Value], [Description])
+    VALUES ('DefaultLagerbestellempfaengerId', '', 'Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = 'Sync:WarehouseRequisitionEmailEnabled')
+    INSERT INTO dbo.ServiceSettings ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:WarehouseRequisitionEmailEnabled', 'false', 'Lagerbestellung', 'Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker');
+GO
+
 IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory
     WHERE MigrationId LIKE '%_AddWarehouseRequisitions')
 BEGIN
