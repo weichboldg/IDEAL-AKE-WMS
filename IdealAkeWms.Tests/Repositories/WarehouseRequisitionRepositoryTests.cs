@@ -64,7 +64,8 @@ public class WarehouseRequisitionRepositoryTests
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         Func<Task> act = () => repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 3m, "t", "t");
 
-        await act.Should().ThrowAsync<DbUpdateException>();
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*ART-1*bereits*");
     }
 
     [Fact]

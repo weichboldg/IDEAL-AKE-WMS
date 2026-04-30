@@ -92,6 +92,15 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     public async Task AddItemAsync(int requisitionId, string articleNumber, string description, string? unit,
         decimal quantity, string user, string winUser)
     {
+        var alreadyExists = await _context.WarehouseRequisitionItems
+            .AnyAsync(i => i.WarehouseRequisitionId == requisitionId
+                && i.ArticleNumber == articleNumber);
+        if (alreadyExists)
+        {
+            throw new InvalidOperationException(
+                $"Artikel '{articleNumber}' ist bereits in dieser Bestellung enthalten.");
+        }
+
         var nextPos = await _context.WarehouseRequisitionItems
             .Where(i => i.WarehouseRequisitionId == requisitionId)
             .Select(i => (int?)i.Position)
