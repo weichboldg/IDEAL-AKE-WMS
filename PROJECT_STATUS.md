@@ -67,7 +67,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - `Controllers/OseonReportingController.cs`
 - `Models/ViewModels/OseonReportingViewModel.cs`
 - `Services/OseonDueDateCalculator.cs`
-- `Views/OseonReporting/OseonOperations.cshtml`
+- `Views/OseonReporting/OperationsOverview.cshtml`
 
 ## Aenderungen (10.04.2026)
 

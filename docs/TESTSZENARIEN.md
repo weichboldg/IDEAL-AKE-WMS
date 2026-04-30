@@ -41,6 +41,6 @@ Dieses Dokument enthält manuelle Testszenarien für die Hauptfunktionen des IDE
 ### TS-1.6 — Berechtigungs-Block
 **Vorbedingungen:** User OHNE Rolle reporting.
 **Schritte:**
-1. Direkter URL-Aufruf /Reporting/OseonOperations.
+1. Direkter URL-Aufruf /OseonReporting/OperationsOverview.
 
 **Erwartet:** Redirect auf AccessDenied.
