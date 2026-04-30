@@ -1,0 +1,152 @@
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
+using Microsoft.AspNetCore.Mvc;
+
+namespace IdealAkeWms.Controllers;
+
+[RequirePickingOrStockAccess]
+public class WarehouseRequisitionsController : Controller
+{
+    private readonly IWarehouseRequisitionRepository _repo;
+    private readonly IProductionWorkplaceRepository _workplaces;
+    private readonly IOrderRecipientRepository _groups;
+    private readonly ICurrentUserService _user;
+    private readonly IAppSettingRepository _settings;
+
+    public WarehouseRequisitionsController(
+        IWarehouseRequisitionRepository repo,
+        IProductionWorkplaceRepository workplaces,
+        IOrderRecipientRepository groups,
+        ICurrentUserService user,
+        IAppSettingRepository settings)
+    {
+        _repo = repo; _workplaces = workplaces; _groups = groups; _user = user; _settings = settings;
+    }
+
+    public async Task<IActionResult> Index()
+    {
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var displayName = _user.GetDisplayName();
+        var all = await _repo.GetForUserAsync(userId);
+        var ownOnly = all.Where(r => r.CreatedBy == displayName).ToList();
+        var vm = new WarehouseRequisitionListViewModel
+        {
+            Items = ownOnly.Select(r => new WarehouseRequisitionListItemViewModel(
+                r.Id,
+                r.ProductionWorkplace?.Name ?? "",
+                r.CreatedBy,
+                r.CreatedAt,
+                r.SubmittedAt,
+                r.Items.Count,
+                r.Status)).ToList(),
+            AvailableWorkplaces = await _workplaces.GetByUserIdAsync(userId)
+        };
+        return View(vm);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateDraft(int? workplaceId)
+    {
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var workplaces = await _workplaces.GetByUserIdAsync(userId);
+
+        if (workplaces.Count == 0)
+        {
+            TempData["WarningMessage"] = "Bitte Werkbank-Zuordnung in Stammdaten pflegen.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        int chosenWp;
+        if (workplaceId.HasValue && workplaces.Any(w => w.Id == workplaceId.Value))
+        {
+            chosenWp = workplaceId.Value;
+        }
+        else if (workplaces.Count == 1)
+        {
+            chosenWp = workplaces[0].Id;
+        }
+        else
+        {
+            TempData["WarningMessage"] = "Bitte Werkbank waehlen.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var newId = await _repo.CreateDraftAsync(chosenWp, userId, _user.GetDisplayName(), _user.GetWindowsUserName());
+        return RedirectToAction(nameof(Edit), new { id = newId });
+    }
+
+    public async Task<IActionResult> Edit(int id)
+    {
+        var r = await _repo.GetByIdAsync(id);
+        if (r == null) return NotFound();
+        var displayName = _user.GetDisplayName();
+        if (r.CreatedBy != displayName)
+            return Forbid();
+
+        var vm = new WarehouseRequisitionEditViewModel
+        {
+            Id = r.Id,
+            WorkplaceName = r.ProductionWorkplace?.Name ?? "",
+            Status = r.Status,
+            CreatedAt = r.CreatedAt,
+            RowVersion = r.RowVersion,
+            Items = r.Items.OrderBy(i => i.Position).Select(i =>
+                new WarehouseRequisitionEditItemViewModel(i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit, i.QuantityRequested)).ToList()
+        };
+        return View(vm);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Submit(int id)
+    {
+        var r = await _repo.GetByIdAsync(id);
+        if (r == null) return NotFound();
+        if (r.Status != WarehouseRequisitionStatus.Draft)
+        {
+            TempData["WarningMessage"] = "Nur Entwurfe koennen abgeschickt werden.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        if (r.Items.Count == 0)
+        {
+            TempData["WarningMessage"] = "Bitte mindestens einen Artikel hinzufuegen.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        var groupId = await _settings.GetIntValueAsync("DefaultLagerbestellempfaengerId", 0);
+        if (groupId <= 0)
+        {
+            TempData["WarningMessage"] = "Default-Lagerbestellempfaenger nicht konfiguriert (Einstellungen).";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        var grp = await _groups.GetGroupByIdAsync(groupId);
+        if (grp == null)
+        {
+            TempData["WarningMessage"] = "Konfigurierte Empfaenger-Gruppe nicht gefunden.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        await _repo.SubmitAsync(id, groupId, _user.GetCurrentAppUserId() ?? 0,
+            _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+
+        TempData["SuccessMessage"] = $"Liste #{id} abgeschickt — wird per E-Mail gesendet (max. 15 Min).";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cancel(int id, string? reason)
+    {
+        var r = await _repo.GetByIdAsync(id);
+        if (r == null) return NotFound();
+        if (r.Status != WarehouseRequisitionStatus.Draft && r.Status != WarehouseRequisitionStatus.Submitted)
+        {
+            TempData["WarningMessage"] = "Liste kann in diesem Status nicht storniert werden.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
+            _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+        TempData["SuccessMessage"] = $"Liste #{id} storniert.";
+        return RedirectToAction(nameof(Index));
+    }
+}
