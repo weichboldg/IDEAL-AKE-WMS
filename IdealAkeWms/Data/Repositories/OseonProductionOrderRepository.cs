@@ -33,7 +33,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         return await _dbSet.FirstOrDefaultAsync(o => o.OseonId == oseonId);
     }
 
-    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null)
+    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null)
     {
         // Basis-Query mit Such- und Werkbank-Filter (OHNE Status-Filter)
         var baseQuery = _dbSet.AsQueryable();
@@ -44,6 +44,13 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             baseQuery = baseQuery.Where(o =>
                 (o.CustomerOrderNumber != null && o.CustomerOrderNumber.Contains(term)) ||
                 o.OseonOrderNumber.Contains(term));
+        }
+
+        if (!string.IsNullOrWhiteSpace(articleNumber))
+        {
+            var artTerm = articleNumber.Trim();
+            baseQuery = baseQuery.Where(o => o.ArticleNumber != null
+                && o.ArticleNumber.Contains(artTerm));
         }
 
         if (!string.IsNullOrWhiteSpace(workplaceName))
