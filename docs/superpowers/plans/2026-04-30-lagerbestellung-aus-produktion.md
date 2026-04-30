@@ -872,46 +872,19 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return await q.FirstOrDefaultAsync(r => r.Id == id);
     }
 
+    // AuditableEntity hat nur CreatedBy (string), kein CreatedByUserId. userId-Parameter wird hier
+    // nicht direkt im Where verwendet — der Controller filtert post-load via r.CreatedBy == displayName.
+    // GetForUserAsync laedt Drafts (immer) + alle Eintraege der letzten N Tage; der Aufrufer schraenkt ein.
     public async Task<List<WarehouseRequisition>> GetForUserAsync(int userId, int historyDays = 30)
     {
         var cutoff = DateTime.Now.AddDays(-historyDays);
         return await _context.WarehouseRequisitions
             .Include(r => r.ProductionWorkplace)
             .Include(r => r.Items)
-            .Where(r => r.CreatedByUserId == userId
-                ? true  // Placeholder — wir nutzen den Audit-User-Lookup ggf. via JOIN ueber CreatedBy?
-                : false)
-            .ToListAsync();
-        // Hinweis: AuditableEntity hat nur CreatedBy (string). Wir filtern unten nach CreatedByUserId nicht direkt.
-        // Daher: Filter via Service-Layer oder neue Spalte. Fuer MVP: zeige ALLE eigenen Listen via CreatedBy-Match.
-    }
-
-    // ... (siehe Folge-Steps fuer die restliche Impl)
-```
-
-**Wichtig:** `AuditableEntity` hat nur `CreatedBy` (string). Wir filtern `GetForUserAsync` nicht via UserId, sondern via `CreatedBy == userName`. Lese die exakte Property von `AuditableEntity`:
-
-```bash
-cat "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1/IdealAkeWms/Models/AuditableEntity.cs"
-```
-
-Falls dort `int? CreatedByUserId` existiert → benutzen. Sonst: Service-Layer übergibt den Username, Repository matcht string. Diese Einsicht gewinnt im laufenden Coden.
-
-**Vollständige Implementation** der Methoden (in der Reihenfolge wie in Tests benötigt):
-
-```csharp
-    public async Task<List<WarehouseRequisition>> GetForUserAsync(int userId, int historyDays = 30)
-    {
-        var cutoff = DateTime.Now.AddDays(-historyDays);
-        return await _context.WarehouseRequisitions
-            .Include(r => r.ProductionWorkplace)
-            .Include(r => r.Items)
-            .Where(r =>
-                r.Status == WarehouseRequisitionStatus.Draft  // Drafts immer
-                || r.CreatedAt >= cutoff)                     // History last 30 days
+            .Where(r => r.Status == WarehouseRequisitionStatus.Draft
+                || r.CreatedAt >= cutoff)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
-        // Filter "nur eigene" macht der Controller via CreatedBy == currentUser.GetDisplayName()
     }
 
     public async Task<(List<WarehouseRequisition> Items, int TotalCount)> GetForWarehouseAsync(
@@ -1344,10 +1317,10 @@ public class WarehouseRequisitionsControllerTests
     [Fact]
     public async Task Submit_NoItems_RejectsWithWarning()
     {
-        var (ctrl, ctx, userId) = Setup(defaultRecipientGroupId: 1);
-        var grp = new OrderRecipientGroup { Id = 1, Name = "Lager", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        // Items-Check kommt vor dem Settings-Lookup im Controller — Setup ohne grp/setting reicht.
+        var (ctrl, ctx, userId) = Setup();
         var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
-        ctx.OrderRecipientGroups.Add(grp); ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionWorkplaces.Add(wp);
         ctx.SaveChanges();
         var r = new WarehouseRequisition
         {
@@ -1610,8 +1583,8 @@ public class WarehousePickingControllerTests
         var repo = new WarehouseRequisitionRepository(ctx);
         var workplaces = new ProductionWorkplaceRepository(ctx);
         var stock = new Mock<IStockMovementRepository>();
-        stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>()))
-             .ReturnsAsync(new List<(string Code, decimal Quantity)>());
+        stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
+             .ReturnsAsync(new List<StockOverviewItem>());
 
         var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object);
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
@@ -1736,8 +1709,8 @@ public class WarehousePickingController : Controller
         var detailItems = new List<WarehouseRequisitionDetailItemViewModel>();
         foreach (var i in r.Items.OrderBy(x => x.Position))
         {
-            var stock = await _stock.GetCurrentStockAsync(i.ArticleNumber);
-            var locationStr = string.Join(", ", stock.Where(s => s.Quantity > 0).Select(s => $"{s.Code} ({s.Quantity:N3})"));
+            var stock = await _stock.GetCurrentStockAsync(filterArticle: i.ArticleNumber);
+            var locationStr = string.Join(", ", stock.Where(s => s.CurrentQuantity > 0).Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, locationStr));
@@ -1789,8 +1762,8 @@ public class WarehousePickingController : Controller
         var detailItems = new List<WarehouseRequisitionDetailItemViewModel>();
         foreach (var i in r.Items.OrderBy(x => x.Position))
         {
-            var stock = await _stock.GetCurrentStockAsync(i.ArticleNumber);
-            var locationStr = string.Join(", ", stock.Where(s => s.Quantity > 0).Select(s => $"{s.Code} ({s.Quantity:N3})"));
+            var stock = await _stock.GetCurrentStockAsync(filterArticle: i.ArticleNumber);
+            var locationStr = string.Join(", ", stock.Where(s => s.CurrentQuantity > 0).Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, locationStr));
@@ -1890,8 +1863,8 @@ public class WarehouseRequisitionsApiController : ControllerBase
     [HttpGet("stock")]
     public async Task<IActionResult> Stock([FromQuery] string articleNumber)
     {
-        var stock = await _stock.GetCurrentStockAsync(articleNumber);
-        var locationStr = string.Join(", ", stock.Where(s => s.Quantity > 0).Select(s => $"{s.Code} ({s.Quantity:N3})"));
+        var stock = await _stock.GetCurrentStockAsync(filterArticle: articleNumber);
+        var locationStr = string.Join(", ", stock.Where(s => s.CurrentQuantity > 0).Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
         return Ok(new { locations = locationStr });
     }
 }
@@ -2422,10 +2395,11 @@ else
         }
         </tbody>
     </table>
-    <script>window.addEventListener('load', () => { setTimeout(() => window.print(), 300); });</script>
 </body>
 </html>
 ```
+
+(Kein Auto-Print-Trigger — analog `PrintBom.cshtml`: User klickt den "Drucken"-Button manuell.)
 
 - [ ] **Step 4: Build + Tests**
 
@@ -2698,6 +2672,165 @@ git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" commit -m "feat(warehouse): Warehou
 
 ---
 
+## Task 11b: WarehouseRequisitionEmailService-Tests (TDD, 5 Tests)
+
+**Files:**
+- Create: `IDEALAKEWMSService.Tests/Services/WarehouseRequisitionEmailServiceTests.cs`
+
+- [ ] **Step 1: Test-Datei anlegen**
+
+`IDEALAKEWMSService.Tests/Services/WarehouseRequisitionEmailServiceTests.cs`:
+
+```csharp
+using FluentAssertions;
+using IdealAkeWms.Data;
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
+using IdealAkeWms.Tests.Helpers;
+using IDEALAKEWMSService.Services;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using Xunit;
+
+namespace IDEALAKEWMSService.Tests.Services;
+
+public class WarehouseRequisitionEmailServiceTests
+{
+    private static (WarehouseRequisitionEmailService svc, ApplicationDbContext ctx, IWarehouseRequisitionRepository repo, Mock<IMailService> mail) Setup()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var mail = new Mock<IMailService>();
+        var config = new ConfigurationBuilder().Build();
+        var svc = new WarehouseRequisitionEmailService(ctx, repo, mail.Object, config, NullLogger<WarehouseRequisitionEmailService>.Instance);
+        return (svc, ctx, repo, mail);
+    }
+
+    private static async Task<WarehouseRequisition> SeedSubmittedAsync(ApplicationDbContext ctx, IWarehouseRequisitionRepository repo)
+    {
+        var u = new User { Name = "tester", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var grp = new OrderRecipientGroup { Name = "Lager", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.Users.Add(u); ctx.ProductionWorkplaces.Add(wp); ctx.OrderRecipientGroups.Add(grp);
+        await ctx.SaveChangesAsync();
+        ctx.OrderRecipients.Add(new OrderRecipient
+        {
+            OrderRecipientGroupId = grp.Id, Name = "Lager-Team", Email = "lager@ake.at", IsActive = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var id = await repo.CreateDraftAsync(wp.Id, u.Id, "tester", "DOMAIN\\tester");
+        await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "tester", "DOMAIN\\tester");
+        var r = await ctx.WarehouseRequisitions.FindAsync(id);
+        await repo.SubmitAsync(id, grp.Id, u.Id, "tester", "DOMAIN\\tester", r!.RowVersion);
+        return (await ctx.WarehouseRequisitions.FindAsync(id))!;
+    }
+
+    [Fact]
+    public async Task SendPending_SubmittedWithoutEmail_TriggersOneMail()
+    {
+        var (svc, ctx, repo, mail) = Setup();
+        var r = await SeedSubmittedAsync(ctx, repo);
+
+        var result = await svc.SendPendingEmailsAsync(dryRun: false);
+
+        result.SubmitsSent.Should().Be(1);
+        mail.Verify(m => m.SendAsync(
+            It.Is<string>(s => s.Contains($"#{r.Id}") && s.Contains("WB-A")),
+            It.IsAny<string>(),
+            It.Is<IEnumerable<string>>(e => e.Contains("lager@ake.at")),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+        var updated = await ctx.WarehouseRequisitions.FindAsync(r.Id);
+        updated!.EmailSentAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SendPending_BodyContainsItemsAndSubject()
+    {
+        var (svc, ctx, repo, mail) = Setup();
+        await SeedSubmittedAsync(ctx, repo);
+        string? capturedBody = null;
+        mail.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, CancellationToken>((s, b, _, _) => capturedBody = b)
+            .Returns(Task.CompletedTask);
+
+        await svc.SendPendingEmailsAsync(dryRun: false);
+
+        capturedBody.Should().NotBeNull();
+        capturedBody!.Should().Contain("ART-1");
+        capturedBody.Should().Contain("Schraube");
+    }
+
+    [Fact]
+    public async Task SendPending_DryRun_DoesNotMarkEmailSent()
+    {
+        var (svc, ctx, repo, mail) = Setup();
+        var r = await SeedSubmittedAsync(ctx, repo);
+
+        await svc.SendPendingEmailsAsync(dryRun: true);
+
+        var updated = await ctx.WarehouseRequisitions.FindAsync(r.Id);
+        updated!.EmailSentAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SendPending_CancelledWithoutPriorSubmitMail_NoCancellationMail()
+    {
+        var (svc, ctx, repo, mail) = Setup();
+        var r = await SeedSubmittedAsync(ctx, repo);
+        // Direkt cancel ohne dass Submit-Mail je gesendet wurde (EmailSentAt null)
+        await repo.CancelAsync(r.Id, "Falsch", 0, "t", "t", r.RowVersion);
+
+        var result = await svc.SendPendingEmailsAsync(dryRun: false);
+
+        result.CancellationsSent.Should().Be(0, "Storno-Mail nur wenn Submit-Mail vorher rausging");
+    }
+
+    [Fact]
+    public async Task SendPending_CancelledAfterSubmit_TriggersStornoMail()
+    {
+        var (svc, ctx, repo, mail) = Setup();
+        var r = await SeedSubmittedAsync(ctx, repo);
+        // erst Submit-Mail rausgehen lassen
+        await svc.SendPendingEmailsAsync(dryRun: false);
+        // dann cancel
+        var rAfter = await ctx.WarehouseRequisitions.FindAsync(r.Id);
+        await repo.CancelAsync(r.Id, "Falsch erfasst", 0, "t", "t", rAfter!.RowVersion);
+
+        var result = await svc.SendPendingEmailsAsync(dryRun: false);
+
+        result.CancellationsSent.Should().Be(1);
+        mail.Verify(m => m.SendAsync(
+            It.Is<string>(s => s.StartsWith("[STORNO]")),
+            It.IsAny<string>(),
+            It.IsAny<IEnumerable<string>>(),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+}
+```
+
+- [ ] **Step 2: Build + Tests grün**
+
+```bash
+cd "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" && dotnet test --nologo --filter "FullyQualifiedName~WarehouseRequisitionEmailServiceTests" 2>&1 | tail -10
+cd "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" && dotnet test --nologo --no-build 2>&1 | tail -5
+```
+
+Expected: 5 neue Tests grün, full suite weiterhin grün.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" add IDEALAKEWMSService.Tests/Services/WarehouseRequisitionEmailServiceTests.cs
+git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" commit -m "test(warehouse): WarehouseRequisitionEmailService — 5 tests"
+```
+
+---
+
 ## Task 12: AppVersion + Docs + TESTSZENARIEN
 
 **Files:**
@@ -2843,7 +2976,7 @@ git -C "C:/Git/IDEAL-AKE-WMS_WT_bde-phase-1" commit -m "chore(warehouse): v1.8.4
 
 ## Final Summary
 
-12 Tasks, ~22 neue Unit-Tests + 9 manuelle Szenarien. Versions-Bump 1.8.3 → 1.8.4.
+13 Tasks (12 + 11b Email-Service-Tests), ~26 neue Unit-Tests (3 Workplace-Repo + 8 Requisition-Repo + 5 ErfasserController + 2 LagerController + 5 Email-Service + 3 Smoke) + 9 manuelle Szenarien. Versions-Bump 1.8.3 → 1.8.4.
 
 ### Self-Review
 
