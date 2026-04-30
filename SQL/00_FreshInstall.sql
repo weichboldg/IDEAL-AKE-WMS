@@ -381,6 +381,7 @@ BEGIN
     CREATE INDEX [IX_OseonProductionOrders_ProductionWorkplaceId] ON [dbo].[OseonProductionOrders]([ProductionWorkplaceId]);
     CREATE INDEX [IX_OseonProductionOrders_OseonStatus] ON [dbo].[OseonProductionOrders]([OseonStatus]) INCLUDE ([CustomerOrderNumber], [OseonOrderNumber]);
     CREATE INDEX [IX_OseonProductionOrders_WorkplaceName] ON [dbo].[OseonProductionOrders]([WorkplaceName]) INCLUDE ([CustomerOrderNumber], [OseonStatus]);
+    CREATE INDEX [IX_OseonProductionOrders_ArticleNumber] ON [dbo].[OseonProductionOrders]([ArticleNumber]);
     PRINT 'Tabelle OseonProductionOrders erstellt.';
 END
 GO
@@ -493,6 +494,7 @@ BEGIN
         ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
         ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
         ('SageRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Sage zurueckgeschrieben werden'),
+        ('OseonReportingHorizonDays', '10', 'Reporting: Tage in die Zukunft (Default-Horizont)'),
         ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle'),
         ('OseonAmpelGelbTage', '1', 'OSEON Ampel: Gelb ab X Tagen vor Termin'),
         ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin'),

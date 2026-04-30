@@ -513,6 +513,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.OseonId);
             entity.HasIndex(e => e.OseonStatus);
             entity.HasIndex(e => e.WorkplaceName);
+            entity.HasIndex(e => e.ArticleNumber);
 
             entity.HasOne(e => e.ProductionWorkplace)
                 .WithMany()

@@ -9,6 +9,32 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.8.3</strong> <span class="text-white-50 ms-2">30.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>OSEON Reporting &mdash; AG-&Uuml;bersicht</h6>
+                <ul>
+                    <li>Neuer Reporting-Bereich: <strong>OSEON AG-&Uuml;bersicht</strong> mit KPI-Cards (&Uuml;berf&auml;llig / Heute geplant / Heute erledigt / Zukunft) und filter-/sortierbarer AG-Liste.</li>
+                    <li>Filter: Werkbank, AG-Name, Kundenauftrag, FA-Nummer, Horizont (Default 10 Tage).</li>
+                    <li>Banner f&uuml;r AGs ohne Config-Eintrag.</li>
+                    <li>Berechtigung: Rolle <code>reporting</code> via <code>[RequireReportingAccess]</code>.</li>
+                </ul>
+                <h6>OSEON Tracking &mdash; Artikel-Filter Fix</h6>
+                <ul>
+                    <li><strong>Performance-Fix:</strong> Server-seitige Artikel-Suche statt Browser-Live-Filter. Behebt App-Freeze beim Tippen und macht den Filter ueber den Gesamtbestand wirksam.</li>
+                    <li>Neuer DB-Index <code>IX_OseonProductionOrders_ArticleNumber</code> als Performance-Vorbereitung.</li>
+                    <li>Repository <code>GetPagedAsync</code> akzeptiert optionalen <code>articleNumber</code>-Parameter (Contains, Null-safe).</li>
+                    <li>QR-Scan eines Artikel-Codes loest nun Form-Submit aus (analog Auftragsnummer-Scan).</li>
+                </ul>
+                <h6>Refactoring</h6>
+                <ul>
+                    <li>Werktag-/Offset-Berechnung in <code>OseonDueDateCalculator</code>-Helper extrahiert (von Tracking + Reporting genutzt).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.8.2</strong> <span class="text-white-50 ms-2">28.04.2026</span>
             </div>
             <div class="card-body">

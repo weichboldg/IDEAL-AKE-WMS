@@ -46,8 +46,34 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | BDE Phase 2.3 — Schichtkalender + Auto-Pause + Feiertags-Sync | Fertig (Phase 2.3) |
 
 ## Version
-- **Web-App**: v1.8.2 (28.04.2026)
-- **Service**: v1.8.2 (28.04.2026)
+- **Web-App**: v1.8.3 (30.04.2026)
+- **Service**: v1.8.3 (30.04.2026)
+
+## Aenderungen (30.04.2026)
+
+### v1.8.3 — OSEON Reporting + Tracking Artikel-Filter Fix
+
+Merge von `feature/oseon-reporting` in `feature/bde-phase-1`. Kombiniert die parallel zu BDE Phase 2.3 entwickelte OSEON-Reporting-Phase + Tracking-Artikel-Filter-Bug-Fix.
+
+#### Neue Funktionen — OSEON Reporting
+- **OSEON AG-Übersicht**: Neuer Reporting-Bereich unter Menü "Reporting" mit KPI-Cards (Überfällig / Heute geplant / Heute erledigt / Zukunft) und filter-/sortierbarer AG-Liste
+- **Filter**: Werkbank, AG-Name, Kundenauftrag, FA-Nummer, Horizont (Default 10 Tage)
+- **Tabs**: Heute / Überfällig / Zukunft / Alle (Default: Heute)
+- **Banner für AGs ohne Config-Eintrag**: Zeigt OSEON-AG-Namen, die in `OseonOperationConfig` fehlen — diese werden im Reporting ignoriert
+- **Auftragsnummer-Link**: FA-Nummer in der Tabelle führt zur OSEON-Teileverfolgung mit FA-Filter
+- **Berechtigung**: Rolle `reporting` via `[RequireReportingAccess]`
+- Werktag-/Offset-Berechnung in `OseonDueDateCalculator`-Helper extrahiert (von Tracking + Reporting gemeinsam genutzt)
+
+#### Fixes — OSEON Tracking Artikel-Filter
+- **Server-seitiger Artikel-Filter**: Statt Browser-Live-Filter (verursachte App-Freeze beim Tippen)
+- Repository `GetPagedAsync` akzeptiert optionalen `articleNumber`-Parameter (Contains, Null-safe)
+- QR-Scan eines Artikel-Codes löst Form-Submit aus (analog Auftragsnummer-Scan)
+
+#### Technische Details
+- Neue AppSetting: `OseonReportingHorizonDays` (Default 10)
+- Neue Migration: `SQL/49_AddOseonReportingHorizonSetting.sql`, `SQL/50_AddOseonArticleNumberIndex.sql`
+- Neuer DB-Index `IX_OseonProductionOrders_ArticleNumber`
+- Neue Dateien: `Controllers/OseonReportingController.cs`, `Models/ViewModels/OseonReportingViewModel.cs`, `Services/OseonDueDateCalculator.cs`, `Views/OseonReporting/OperationsOverview.cshtml`
 
 ## Aenderungen (28.04.2026)
 

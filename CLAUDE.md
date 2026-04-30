@@ -49,7 +49,7 @@
 | `[RequirePickingOrTrackingAccess]` | picking ODER tracking | ProductionOrdersController.Index |
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController |
 | `[RequireLeitstandAccess]` | admin, leitstand | ProductionOrdersController (ToggleRelease, BulkRelease, SetPriority) |
-| `[RequireReportingAccess]` | admin, reporting | (fuer spaeteren BDE-Controller) |
+| `[RequireReportingAccess]` | admin, reporting | OseonReportingController |
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
 | `[RequireBdeAdminAccess]` | admin, bde_admin | BdeBookingsController (Edit/Cancel), BdeMasterDataController (Terminals) |
@@ -148,6 +148,7 @@
 | `BdeMehrfachBuchungProArbeitsgang` | `false` | Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter) |
 | `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv) |
 | `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende aktiv |
+| `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft (Default-Horizont) |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 

@@ -33,7 +33,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         return await _dbSet.FirstOrDefaultAsync(o => o.OseonId == oseonId);
     }
 
-    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null)
+    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null)
     {
         // Basis-Query mit Such- und Werkbank-Filter (OHNE Status-Filter)
         var baseQuery = _dbSet.AsQueryable();
@@ -44,6 +44,13 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             baseQuery = baseQuery.Where(o =>
                 (o.CustomerOrderNumber != null && o.CustomerOrderNumber.Contains(term)) ||
                 o.OseonOrderNumber.Contains(term));
+        }
+
+        if (!string.IsNullOrWhiteSpace(articleNumber))
+        {
+            var artTerm = articleNumber.Trim();
+            baseQuery = baseQuery.Where(o => o.ArticleNumber != null
+                && o.ArticleNumber.Contains(artTerm));
         }
 
         if (!string.IsNullOrWhiteSpace(workplaceName))
@@ -114,5 +121,69 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<OseonReportingQueryResult> GetRelevantOperationsForReportingAsync(
+        int? workplaceId,
+        IReadOnlyCollection<string>? operationNames,
+        string? customerOrderNumber,
+        string? faNumberPrefix,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken ct = default)
+    {
+        // Aktive Auftragsstatus: 20=Gueltig, 30=Freigegeben, 60=In Arbeit, 90=Fertig
+        var activeOrderStatuses = new[] { 20, 30, 60, 90 };
+
+        var ordersQuery = _context.OseonProductionOrders
+            .AsNoTracking()
+            .Include(o => o.WorkOperations)
+            .Where(o => activeOrderStatuses.Contains(o.OseonStatus))
+            .Where(o => o.DueDate != null);
+
+        if (workplaceId.HasValue)
+            ordersQuery = ordersQuery.Where(o => o.ProductionWorkplaceId == workplaceId.Value);
+
+        if (!string.IsNullOrWhiteSpace(customerOrderNumber))
+            ordersQuery = ordersQuery.Where(o => o.CustomerOrderNumber != null
+                && o.CustomerOrderNumber.StartsWith(customerOrderNumber));
+
+        if (!string.IsNullOrWhiteSpace(faNumberPrefix))
+            ordersQuery = ordersQuery.Where(o => o.OseonOrderNumber.StartsWith(faNumberPrefix));
+
+        var orders = await ordersQuery.ToListAsync(ct);
+
+        var configs = await _context.OseonOperationConfigs.AsNoTracking().ToListAsync(ct);
+        var configByName = configs.ToDictionary(c => c.OperationName, StringComparer.OrdinalIgnoreCase);
+
+        var rows = new List<OseonReportingQueryRow>();
+        var noConfigCount = 0;
+        var opNameSet = operationNames is { Count: > 0 }
+            ? new HashSet<string>(operationNames, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        foreach (var order in orders)
+        {
+            foreach (var wo in order.WorkOperations.Where(w => w.OseonStatus != 95))
+            {
+                if (opNameSet != null && !opNameSet.Contains(wo.Name)) continue;
+
+                if (!configByName.TryGetValue(wo.Name, out var cfg))
+                {
+                    noConfigCount++;
+                    continue;
+                }
+
+                if (!cfg.IsOseonRelevant) continue;
+
+                rows.Add(new OseonReportingQueryRow(wo, order, cfg));
+            }
+        }
+
+        var dataAsOf = orders.Count == 0
+            ? (DateTime?)null
+            : orders.Max(o => o.LastChangedInOseon);
+
+        return new OseonReportingQueryResult(rows, noConfigCount, dataAsOf);
     }
 }

@@ -1,0 +1,50 @@
+@model List<IdealAkeWms.Models.ViewModels.OseonReportingRowViewModel>
+
+<div class="table-responsive">
+    <table class="table table-sm filterable-table">
+        <thead>
+            <tr>
+                <th data-col-key="custOrder">Kunde</th>
+                <th data-col-key="faNumber">Auftrag</th>
+                <th data-col-key="position">Pos</th>
+                <th data-col-key="operationName">AG</th>
+                <th data-col-key="workplace">Werkbank</th>
+                <th data-col-key="dueDate">Soll-Termin (calc.)</th>
+                <th data-col-key="status">Status</th>
+                <th data-col-key="slice">Bereich</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model)
+            {
+                <tr>
+                    <td>@r.CustomerOrderNumber</td>
+                    <td><a asp-controller="Tracking" asp-action="OseonIndex" asp-route-filterCustomerOrder="@r.FaNumber" target="_blank">@r.FaNumber</a></td>
+                    <td>@r.PositionNumber</td>
+                    <td>@r.OperationName</td>
+                    <td>@r.WorkplaceName</td>
+                    <td>@r.CalculatedDueDate.ToString("dd.MM.yyyy")</td>
+                    <td><span class="badge @r.StatusBadgeClass">@r.StatusText</span></td>
+                    <td>
+                        @switch (r.Slice)
+                        {
+                            case IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue:
+                                <span class="badge bg-danger">Überfällig</span>
+                                break;
+                            case IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today:
+                                <span class="badge bg-secondary">Heute</span>
+                                break;
+                            case IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future:
+                                <span class="badge bg-primary">Zukunft</span>
+                                break;
+                        }
+                        @if (r.IsDoneToday)
+                        {
+                            <span class="badge bg-success ms-1">heute fertig</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -263,6 +263,8 @@
                 <dl class="mb-0">
                     <dt>Suche</dt>
                     <dd>Durchsucht Kundenauftragsnummer und OSEON-Auftragsnummer.</dd>
+                    <dt>Artikelnummer</dt>
+                    <dd>Server-seitige Suche (Contains-Match) auf der OSEON-Auftrags-Artikelnummer. QR-Scan eines Artikel-Codes loest Form-Submit aus. Ergebnis ist paginiert ueber den Gesamtbestand.</dd>
                     <dt>Werkbank</dt>
                     <dd>Filtert nach zugeordnetem Produktionsarbeitsplatz.</dd>
                     <dt>Fertige anzeigen</dt>
@@ -270,6 +272,31 @@
                     <dt>Nur OSEON-relevante AGs</dt>
                     <dd>Standardmaessig aktiv — zeigt nur Arbeitsgaenge an, die als OSEON-relevant konfiguriert sind. Deaktivieren, um alle Arbeitsgaenge zu sehen.</dd>
                 </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>OSEON Reporting</strong></div>
+            <div class="card-body">
+                <h6 class="mt-3">AG-Übersicht aufrufen</h6>
+                <p>Im Hauptmenü unter <strong>Reporting &rarr; OSEON AG-Übersicht</strong> öffnen. Sichtbar für Benutzer mit Rolle <code>reporting</code>.</p>
+
+                <h6 class="mt-3">KPI-Cards</h6>
+                <ul>
+                    <li><strong>Überfällig:</strong> AGs deren berechneter Termin in der Vergangenheit liegt und Status &ne; 90.</li>
+                    <li><strong>Heute geplant:</strong> AGs deren berechneter Termin = heute (Status egal).</li>
+                    <li><strong>Heute erledigt:</strong> AGs mit Status = 90 und letzte Statusrückmeldung von heute.</li>
+                    <li><strong>Zukunft (X Tage):</strong> AGs mit berechnetem Termin im Horizont.</li>
+                </ul>
+
+                <h6 class="mt-3">Filter &amp; Tabs</h6>
+                <p>Tabs <em>Heute / Überfällig / Zukunft / Alle</em> wechseln den angezeigten Bereich. Filter (Werkbank, AG-Name, Kundenauftrag, FA-Nummer, Horizont) sind kombinierbar. Auftragsnummer in der Tabelle ist Link zum Tracking-Detail.</p>
+
+                <h6 class="mt-3">AGs ohne Config</h6>
+                <p>Ein gelber Banner zeigt, wenn AG-Namen aus OSEON-Aufträgen keine Config-Zeile in <em>Stammdaten &rarr; OSEON-Arbeitsgänge</em> haben &mdash; diese werden im Reporting ignoriert. Bitte pflegen, sonst fehlen sie auch in den KPIs.</p>
+
+                <h6 class="mt-3">Berechneter AG-Termin</h6>
+                <p>Berechnet als <code>Auftrags-Termin + Offset (Werktage)</code>. Offset stammt aus der OSEON-Config. Wochenenden und Feiertage werden übersprungen.</p>
             </div>
         </div>
 

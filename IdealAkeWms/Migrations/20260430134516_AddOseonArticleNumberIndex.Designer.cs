@@ -4,6 +4,7 @@ using IdealAkeWms.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,13 +12,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdealAkeWms.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430134516_AddOseonArticleNumberIndex")]
+    partial class AddOseonArticleNumberIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("dbo")
                 .HasAnnotation("ProductVersion", "10.0.2")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
@@ -40,7 +42,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Key");
 
-                    b.ToTable("AppSettings", "dbo");
+                    b.ToTable("AppSettings", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.Article", b =>
@@ -105,7 +107,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("ArticleNumber")
                         .IsUnique();
 
-                    b.ToTable("Articles", "dbo");
+                    b.ToTable("Articles", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeDefinition", b =>
@@ -167,7 +169,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("ArticleAttributeDefinitions", "dbo");
+                    b.ToTable("ArticleAttributeDefinitions", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeOption", b =>
@@ -193,7 +195,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("ArticleAttributeDefinitionId");
 
-                    b.ToTable("ArticleAttributeOptions", "dbo");
+                    b.ToTable("ArticleAttributeOptions", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeValue", b =>
@@ -251,7 +253,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("ArticleId", "ArticleAttributeDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("ArticleAttributeValues", "dbo");
+                    b.ToTable("ArticleAttributeValues", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleCategory", b =>
@@ -307,7 +309,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("ArticleCategories", "dbo");
+                    b.ToTable("ArticleCategories", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleGroupRecipientMapping", b =>
@@ -357,380 +359,7 @@ namespace IdealAkeWms.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_ArticleGroupRecipientMappings_Group_Recipient");
 
-                    b.ToTable("ArticleGroupRecipientMappings", "dbo");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeActivity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("BdeActivities", "dbo");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeBooking", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("BdeActivityId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BdeOperatorId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BdeTerminalId")
-                        .HasColumnType("int");
-
-                    b.Property<byte>("BookingType")
-                        .HasColumnType("tinyint");
-
-                    b.Property<string>("CancellationReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsCancelled")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ParentBookingId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductionWorkplaceId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<byte>("Status")
-                        .HasColumnType("tinyint");
-
-                    b.Property<int?>("WorkOperationId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BdeActivityId");
-
-                    b.HasIndex("BdeOperatorId")
-                        .HasDatabaseName("IX_BdeBookings_BdeOperatorId_Active")
-                        .HasFilter("[EndedAt] IS NULL AND [IsCancelled] = 0");
-
-                    b.HasIndex("BdeTerminalId");
-
-                    b.HasIndex("ParentBookingId");
-
-                    b.HasIndex("StartedAt")
-                        .HasDatabaseName("IX_BdeBookings_StartedAt");
-
-                    b.HasIndex("WorkOperationId")
-                        .HasDatabaseName("IX_BdeBookings_WorkOperationId_Active")
-                        .HasFilter("[EndedAt] IS NULL AND [IsCancelled] = 0 AND [WorkOperationId] IS NOT NULL");
-
-                    b.HasIndex("BdeOperatorId", "StartedAt")
-                        .HasDatabaseName("IX_BdeBookings_Operator_StartedAt");
-
-                    b.HasIndex("ProductionWorkplaceId", "EndedAt")
-                        .HasDatabaseName("IX_BdeBookings_Workplace_EndedAt");
-
-                    b.ToTable("BdeBookings", "dbo", t =>
-                        {
-                            t.HasCheckConstraint("CK_BdeBookings_StatusEnded", "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3,4,5) AND [EndedAt] IS NOT NULL)");
-
-                            t.HasCheckConstraint("CK_BdeBookings_Target", "([WorkOperationId] IS NOT NULL AND [BdeActivityId] IS NULL) OR ([WorkOperationId] IS NULL AND [BdeActivityId] IS NOT NULL)");
-
-                            t.HasCheckConstraint("CK_BdeBookings_TypeTarget", "([BookingType] = 3 AND [BdeActivityId] IS NOT NULL) OR ([BookingType] IN (1,2) AND [WorkOperationId] IS NOT NULL)");
-                        });
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeBookingQuantity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BdeBookingId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BdeOperatorId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("GoodQuantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<bool>("IsFinal")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ReportedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("ScrapQuantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BdeBookingId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_BdeBookingQuantities_Booking_Final")
-                        .HasFilter("[IsFinal] = 1");
-
-                    b.HasIndex("BdeOperatorId");
-
-                    b.HasIndex("BdeBookingId", "ReportedAt")
-                        .HasDatabaseName("IX_BdeBookingQuantities_Booking_ReportedAt");
-
-                    b.ToTable("BdeBookingQuantities", "dbo");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeOperator", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PersonnelNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PersonnelNumber")
-                        .IsUnique();
-
-                    b.HasIndex("UserId")
-                        .IsUnique()
-                        .HasFilter("[UserId] IS NOT NULL");
-
-                    b.ToTable("BdeOperators", "dbo");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeShift", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan>("EndTime")
-                        .HasColumnType("time");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("ProductionWorkplaceId")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan>("StartTime")
-                        .HasColumnType("time");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductionWorkplaceId", "DayOfWeek")
-                        .HasDatabaseName("IX_BdeShifts_Workplace_Day");
-
-                    b.ToTable("BdeShifts", "dbo");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeTerminal", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DefaultProductionWorkplaceId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DefaultProductionWorkplaceId");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("BdeTerminals", "dbo");
+                    b.ToTable("ArticleGroupRecipientMappings");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>
@@ -768,7 +397,7 @@ namespace IdealAkeWms.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_CachedBomHeaders_Artikelnummer");
 
-                    b.ToTable("CachedBomHeaders", "dbo");
+                    b.ToTable("CachedBomHeaders");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomItem", b =>
@@ -824,7 +453,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Ressourcenummer")
                         .HasDatabaseName("IX_CachedBomItems_Ressourcenummer");
 
-                    b.ToTable("CachedBomItems", "dbo");
+                    b.ToTable("CachedBomItems");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.EnaioDmsDocument", b =>
@@ -880,7 +509,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("OrderNumber");
 
-                    b.ToTable("EnaioDmsDocuments", "dbo");
+                    b.ToTable("EnaioDmsDocuments", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.Holiday", b =>
@@ -922,17 +551,12 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<byte>("Source")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint")
-                        .HasDefaultValue((byte)1);
-
                     b.HasKey("Id");
 
                     b.HasIndex("Date")
                         .IsUnique();
 
-                    b.ToTable("Holidays", "dbo");
+                    b.ToTable("Holidays", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OrderRecipient", b =>
@@ -984,7 +608,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("OrderRecipientGroupId")
                         .HasDatabaseName("IX_OrderRecipients_GroupId");
 
-                    b.ToTable("OrderRecipients", "dbo");
+                    b.ToTable("OrderRecipients");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OrderRecipientGroup", b =>
@@ -1026,7 +650,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("OrderRecipientGroups", "dbo");
+                    b.ToTable("OrderRecipientGroups");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OseonOperationConfig", b =>
@@ -1057,7 +681,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("OperationName")
                         .IsUnique();
 
-                    b.ToTable("OseonOperationConfigs", "dbo");
+                    b.ToTable("OseonOperationConfigs", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OseonProductionOrder", b =>
@@ -1155,7 +779,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("WorkplaceName");
 
-                    b.ToTable("OseonProductionOrders", "dbo");
+                    b.ToTable("OseonProductionOrders", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OseonWorkOperation", b =>
@@ -1226,7 +850,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("OseonProductionOrderId", "PositionNumber")
                         .IsUnique();
 
-                    b.ToTable("OseonWorkOperations", "dbo");
+                    b.ToTable("OseonWorkOperations", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.PartRequisition", b =>
@@ -1339,7 +963,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("EmailSentAt", "Status")
                         .HasDatabaseName("IX_PartRequisitions_EmailSentAt_Status");
 
-                    b.ToTable("PartRequisitions", "dbo");
+                    b.ToTable("PartRequisitions");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.PickingItem", b =>
@@ -1429,7 +1053,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("ProductionOrderId", "IsPicked");
 
-                    b.ToTable("PickingItems", "dbo");
+                    b.ToTable("PickingItems", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionOrder", b =>
@@ -1554,7 +1178,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("IsReleasedForPicking", "IsDone")
                         .HasDatabaseName("IX_ProductionOrders_IsReleasedForPicking_IsDone");
 
-                    b.ToTable("ProductionOrders", "dbo");
+                    b.ToTable("ProductionOrders", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplace", b =>
@@ -1564,16 +1188,6 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("BdeAktiv")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("BdeDefaultArbeitsgang")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("BdeUseCustomShiftPlan")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -1613,7 +1227,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProductionWorkplaces", "dbo");
+                    b.ToTable("ProductionWorkplaces", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceUser", b =>
@@ -1661,7 +1275,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("ProductionWorkplaceId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ProductionWorkplaceUsers", "dbo");
+                    b.ToTable("ProductionWorkplaceUsers", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.Role", b =>
@@ -1725,7 +1339,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("Roles", "dbo");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ServiceSetting", b =>
@@ -1749,7 +1363,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Key");
 
-                    b.ToTable("ServiceSettings", "dbo");
+                    b.ToTable("ServiceSettings", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.StockMovement", b =>
@@ -1835,7 +1449,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("ArticleId", "SourceStorageLocationId", "MovementType")
                         .HasDatabaseName("IX_StockMovements_ArticleId_SourceStorageLocationId_MovementType");
 
-                    b.ToTable("StockMovements", "dbo");
+                    b.ToTable("StockMovements", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.StorageLocation", b =>
@@ -1898,7 +1512,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("StorageLocations", "dbo");
+                    b.ToTable("StorageLocations", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.User", b =>
@@ -1987,7 +1601,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users", "dbo");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.UserRole", b =>
@@ -2035,7 +1649,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("UserId", "RoleId")
                         .IsUnique();
 
-                    b.ToTable("UserRoles", "dbo");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.UserViewPreference", b =>
@@ -2088,7 +1702,7 @@ namespace IdealAkeWms.Migrations
                         .IsUnique()
                         .HasDatabaseName("UQ_UserViewPreferences_User_View");
 
-                    b.ToTable("UserViewPreferences", "dbo");
+                    b.ToTable("UserViewPreferences", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.WorkOperation", b =>
@@ -2174,7 +1788,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("ProductionOrderId", "Sequence");
 
-                    b.ToTable("WorkOperations", "dbo");
+                    b.ToTable("WorkOperations", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.Workstation", b =>
@@ -2229,7 +1843,7 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("DefaultUserId");
 
-                    b.ToTable("Workstations", "dbo");
+                    b.ToTable("Workstations", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.WorkstationUser", b =>
@@ -2277,7 +1891,7 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("WorkstationId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("WorkstationUsers", "dbo");
+                    b.ToTable("WorkstationUsers", (string)null);
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.Article", b =>
@@ -2336,112 +1950,6 @@ namespace IdealAkeWms.Migrations
                         .IsRequired();
 
                     b.Navigation("OrderRecipientGroup");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeBooking", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.BdeActivity", "BdeActivity")
-                        .WithMany()
-                        .HasForeignKey("BdeActivityId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("IdealAkeWms.Models.BdeOperator", "BdeOperator")
-                        .WithMany()
-                        .HasForeignKey("BdeOperatorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.BdeTerminal", "BdeTerminal")
-                        .WithMany()
-                        .HasForeignKey("BdeTerminalId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.BdeBooking", "ParentBooking")
-                        .WithMany()
-                        .HasForeignKey("ParentBookingId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
-                        .WithMany()
-                        .HasForeignKey("ProductionWorkplaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.WorkOperation", "WorkOperation")
-                        .WithMany()
-                        .HasForeignKey("WorkOperationId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("BdeActivity");
-
-                    b.Navigation("BdeOperator");
-
-                    b.Navigation("BdeTerminal");
-
-                    b.Navigation("ParentBooking");
-
-                    b.Navigation("ProductionWorkplace");
-
-                    b.Navigation("WorkOperation");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeBookingQuantity", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.BdeBooking", "BdeBooking")
-                        .WithMany("Quantities")
-                        .HasForeignKey("BdeBookingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.BdeOperator", "BdeOperator")
-                        .WithMany()
-                        .HasForeignKey("BdeOperatorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("BdeBooking");
-
-                    b.Navigation("BdeOperator");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeOperator", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeShift", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
-                        .WithMany()
-                        .HasForeignKey("ProductionWorkplaceId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("ProductionWorkplace");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeTerminal", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "DefaultProductionWorkplace")
-                        .WithMany()
-                        .HasForeignKey("DefaultProductionWorkplaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("IdealAkeWms.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DefaultProductionWorkplace");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomItem", b =>
@@ -2693,11 +2201,6 @@ namespace IdealAkeWms.Migrations
             modelBuilder.Entity("IdealAkeWms.Models.ArticleCategory", b =>
                 {
                     b.Navigation("Articles");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.BdeBooking", b =>
-                {
-                    b.Navigation("Quantities");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>

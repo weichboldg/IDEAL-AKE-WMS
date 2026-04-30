@@ -182,7 +182,7 @@ public class TrackingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> OseonIndex(string? filterCustomerOrder, string? filterWorkplace, bool showFinished = false, bool useRelevanceFilter = true, int page = 1)
+    public async Task<IActionResult> OseonIndex(string? filterCustomerOrder, string? filterArticle, string? filterWorkplace, bool showFinished = false, bool useRelevanceFilter = true, int page = 1)
     {
         const int pageSize = 25;
         if (page < 1) page = 1;
@@ -201,7 +201,7 @@ public class TrackingController : Controller
         }
 
         // Server-seitig gefiltert + paginiert laden
-        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, pageSize, relevantOpNames);
+        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, pageSize, relevantOpNames, filterArticle);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
         // Ampelfarben + AG-Termine berechnen
@@ -219,15 +219,11 @@ public class TrackingController : Controller
 
                     // AG-spezifischen Soll-Termin berechnen
                     DateTime? calculatedDueDate = null;
-                    if (o.DueDate.HasValue && hasConfig)
+                    if (o.DueDate.HasValue)
                     {
-                        calculatedDueDate = opConfig!.DueDateOffsetDays == 0
-                            ? o.DueDate.Value.Date
-                            : _businessDayService.AddBusinessDays(o.DueDate.Value, opConfig.DueDateOffsetDays, holidays);
-                    }
-                    else if (o.DueDate.HasValue)
-                    {
-                        calculatedDueDate = o.DueDate.Value.Date;
+                        calculatedDueDate = hasConfig
+                            ? OseonDueDateCalculator.Calculate(o.DueDate.Value, opConfig!.DueDateOffsetDays, _businessDayService, holidays)
+                            : o.DueDate.Value.Date;
                     }
 
                     var opColor = await _trafficLightService.GetColorForOperationAsync(op.OseonStatus, calculatedDueDate);
@@ -331,6 +327,7 @@ public class TrackingController : Controller
         {
             OrderGroups = groups,
             FilterCustomerOrder = filterCustomerOrder,
+            FilterArticle = filterArticle,
             FilterWorkplace = filterWorkplace,
             ShowFinished = showFinished,
             UseRelevanceFilter = useRelevanceFilter,

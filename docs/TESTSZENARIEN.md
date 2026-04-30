@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-04-28 (v1.8.2)
+**Stand:** 2026-04-30 (v1.8.3)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -2420,5 +2420,79 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-*Ende des Dokuments. Stand: v1.8.2 (2026-04-28)*
+## 16. OSEON Reporting — AG-Übersicht
+
+### TS-16.1 — KPI-Cards zeigen korrekte Counts
+**Vorbedingungen:** Reporting-Rolle, mindestens 1 AG je Bereich (Überfällig / Heute / Zukunft) im OSEON-Mirror.
+**Schritte:**
+1. Menü Reporting -> OSEON AG-Übersicht öffnen.
+
+**Erwartet:** 4 KPI-Cards zeigen plausible Counts; Summe Heute geplant ≥ Heute erledigt.
+
+### TS-16.2 — Tab-Wechsel filtert Tabelle
+**Vorbedingungen:** Daten in allen 3 Slices vorhanden.
+**Schritte:**
+1. Tabs reihum klicken: Heute / Überfällig / Zukunft / Alle.
+
+**Erwartet:** Tabelle zeigt nur Zeilen des aktiven Slice. Default-Tab ist Heute.
+
+### TS-16.3 — Filter Werkbank + AG-Name greifen
+**Vorbedingungen:** Mehrere Werkbänke, mehrere AG-Namen.
+**Schritte:**
+1. Werkbank-Dropdown auf "WB-A1" stellen, AG-CSV "B" eintragen, Anwenden klicken.
+
+**Erwartet:** Nur AGs vom Typ B an WB-A1 sichtbar. KPI-Counts spiegeln Filter.
+
+### TS-16.4 — Auftragsnummer-Link öffnet Tracking
+**Schritte:**
+1. In der Tabelle auf eine FA-Nummer klicken.
+
+**Erwartet:** OSEON-Tracking-Seite öffnet in neuem Tab, vorgefilltert mit der FA-Nummer.
+
+### TS-16.5 — Banner für ungepflegte Configs
+**Vorbedingungen:** AG-Name "FOO" in OSEON-Auftrag, KEIN Eintrag in OseonOperationConfig.
+**Schritte:**
+1. Reporting öffnen.
+
+**Erwartet:** Gelber Banner "X AG(s) ohne Config-Eintrag".
+
+### TS-16.6 — Berechtigungs-Block
+**Vorbedingungen:** User OHNE Rolle reporting.
+**Schritte:**
+1. Direkter URL-Aufruf /OseonReporting/OperationsOverview.
+
+**Erwartet:** Redirect auf AccessDenied.
+
+## 17. OSEON Tracking — Artikel-Filter
+
+### TS-17.1 — Artikelnummer-Filter via Form-Submit
+**Vorbedingungen:** Tracking-Rolle, mindestens 3 OSEON-Auftraege mit unterschiedlichen Artikelnummern, davon mindestens einer mit Artikelnummer-Pattern "ART-100*".
+**Schritte:**
+1. /Tracking/OseonIndex oeffnen.
+2. In das Feld "Artikelnummer" `100` eingeben.
+3. Auf "Filtern" klicken.
+**Erwartet:** Ergebnis enthaelt nur Customer-Order-Gruppen mit mindestens einem Sub-Auftrag dessen ArticleNumber `100` enthaelt. Innerhalb einer matchenden Gruppe werden ALLE Sub-Auftraege angezeigt (auch nicht-matchende — Group-Pagination). Filter-Wert bleibt im Input. Pagination wirkt auf gefiltertes Group-Ergebnis.
+
+### TS-17.2 — Kombinierter Filter (Artikel + Werkbank + Auftrag)
+**Vorbedingungen:** Daten mit verschiedenen Werkbaenken + Artikelnummern.
+**Schritte:**
+1. Artikelnummer eingeben + Werkbank waehlen + Auftragsnummer-Suchterm eingeben.
+2. "Filtern" klicken.
+**Erwartet:** Schnittmenge aller Filter (konjunktiv auf Group-Ebene). Reset-Link sichtbar.
+
+### TS-17.3 — QR-Scan triggert Form-Submit
+**Schritte:**
+1. Auf den QR-Button neben dem Artikelnummer-Input klicken.
+2. Artikel-QR-Code scannen.
+**Erwartet:** Input wird mit dem gescannten Wert befuellt UND Form wird automatisch submitted (Page-Reload mit Filter aktiv).
+
+### TS-17.4 — Reset entfernt alle Filter inkl. Artikel
+**Vorbedingungen:** Mindestens ein Filter ist aktiv (Artikel, Auftrag, Werkbank, ShowFinished oder useRelevanceFilter=false).
+**Schritte:**
+1. "Zuruecksetzen"-Link klicken.
+**Erwartet:** Alle Filter zurueckgesetzt (Artikel-Input leer), volle Liste sichtbar.
+
+---
+
+*Ende des Dokuments. Stand: v1.8.3 (2026-04-30)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
