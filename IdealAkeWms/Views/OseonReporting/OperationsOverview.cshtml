@@ -72,53 +72,81 @@
     </div>
 </form>
 
-<div class="row g-2 mb-3">
-    <div class="col-md-3">
-        <div class="card border-danger"><div class="card-body p-2">
-            <div class="text-muted small">Überfällig</div>
-            <div class="display-6 text-danger">@Model.Kpis.OverdueCount</div>
-        </div></div>
-    </div>
-    <div class="col-md-3">
-        <div class="card"><div class="card-body p-2">
-            <div class="text-muted small">Heute geplant</div>
-            <div class="display-6">@Model.Kpis.TodayPlannedCount</div>
-        </div></div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-success"><div class="card-body p-2">
-            <div class="text-muted small">Heute erledigt</div>
-            <div class="display-6 text-success">@Model.Kpis.TodayDoneCount</div>
-        </div></div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-primary"><div class="card-body p-2">
-            <div class="text-muted small">Zukunft (@Model.HorizonDaysEffective Tage)</div>
-            <div class="display-6 text-primary">@Model.Kpis.FutureCount</div>
-        </div></div>
-    </div>
-</div>
-
 @{
-    string sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice s)
+    string buildLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice s, bool doneToday)
     {
         var url = $"?slice={s}";
+        if (doneToday) url += "&doneToday=true";
         if (Model.Filter.WorkplaceId.HasValue) url += $"&workplaceId={Model.Filter.WorkplaceId}";
         foreach (var op in Model.Filter.OperationNames) url += $"&operationNames={Uri.EscapeDataString(op)}";
-        if (!string.IsNullOrEmpty(Model.Filter.CustomerOrderNumber)) url += $"&customerOrderNumber={Model.Filter.CustomerOrderNumber}";
-        if (!string.IsNullOrEmpty(Model.Filter.FaNumber)) url += $"&faNumber={Model.Filter.FaNumber}";
+        if (!string.IsNullOrEmpty(Model.Filter.CustomerOrderNumber)) url += $"&customerOrderNumber={Uri.EscapeDataString(Model.Filter.CustomerOrderNumber)}";
+        if (!string.IsNullOrEmpty(Model.Filter.FaNumber)) url += $"&faNumber={Uri.EscapeDataString(Model.Filter.FaNumber)}";
         if (Model.Filter.HorizonDaysOverride.HasValue) url += $"&horizonDays={Model.Filter.HorizonDaysOverride}";
         return url;
     }
+    string sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) => buildLink(s, false);
+
+    string activeKpiClass(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) =>
+        !Model.Filter.DoneToday && Model.Filter.Slice == s ? "shadow border-3" : "";
+    string activeDoneTodayClass() =>
+        Model.Filter.DoneToday ? "shadow border-3" : "";
+
     string activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) =>
-        Model.Filter.Slice == s ? "active" : "";
+        !Model.Filter.DoneToday && Model.Filter.Slice == s ? "active" : "";
 }
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <a href="@buildLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue, false)" class="text-decoration-none">
+            <div class="card border-danger @activeKpiClass(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue)" style="cursor: pointer;">
+                <div class="card-body p-2">
+                    <div class="text-muted small">Überfällig</div>
+                    <div class="display-6 text-danger">@Model.Kpis.OverdueCount</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="@buildLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today, false)" class="text-decoration-none">
+            <div class="card @activeKpiClass(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today)" style="cursor: pointer;">
+                <div class="card-body p-2">
+                    <div class="text-muted small">Heute geplant</div>
+                    <div class="display-6 text-dark">@Model.Kpis.TodayPlannedCount</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="@buildLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.All, true)" class="text-decoration-none">
+            <div class="card border-success @activeDoneTodayClass()" style="cursor: pointer;">
+                <div class="card-body p-2">
+                    <div class="text-muted small">Heute erledigt</div>
+                    <div class="display-6 text-success">@Model.Kpis.TodayDoneCount</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="@buildLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future, false)" class="text-decoration-none">
+            <div class="card border-primary @activeKpiClass(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future)" style="cursor: pointer;">
+                <div class="card-body p-2">
+                    <div class="text-muted small">Zukunft (@Model.HorizonDaysEffective Tage)</div>
+                    <div class="display-6 text-primary">@Model.Kpis.FutureCount</div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
 
 <ul class="nav nav-pills mb-3">
     <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today)">Heute</a></li>
     <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue)">Überfällig</a></li>
     <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future)">Zukunft</a></li>
     <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.All)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.All)">Alle</a></li>
+    @if (Model.Filter.DoneToday)
+    {
+        <li class="nav-item"><a class="nav-link active bg-success border-success" href="#">Heute erledigt</a></li>
+    }
 </ul>
 
 @if (Model.Rows.Count == 0)

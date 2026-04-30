@@ -40,7 +40,8 @@ public class OseonReportingController : Controller
         string? customerOrderNumber,
         string? faNumber,
         int? horizonDays,
-        OseonReportingSlice? slice)
+        OseonReportingSlice? slice,
+        bool doneToday = false)
     {
         var effectiveSlice = slice ?? OseonReportingSlice.Today;
 
@@ -108,24 +109,34 @@ public class OseonReportingController : Controller
             TodayDoneCount: rows.Count(r => r.IsDoneToday),
             FutureCount: rows.Count(r => r.Slice == OseonReportingSlice.Future));
 
-        var filteredRows = effectiveSlice switch
+        // doneToday-Filter ist orthogonal zum Slice. Wenn aktiv: alle heute-erledigten,
+        // unabhaengig vom Slice (Slice-Filter wird ignoriert).
+        IEnumerable<OseonReportingRowViewModel> filteredRows;
+        if (doneToday)
         {
-            OseonReportingSlice.Overdue => rows.Where(r => r.Slice == OseonReportingSlice.Overdue).ToList(),
-            OseonReportingSlice.Today => rows.Where(r => r.Slice == OseonReportingSlice.Today).ToList(),
-            OseonReportingSlice.Future => rows.Where(r => r.Slice == OseonReportingSlice.Future).ToList(),
-            _ => rows
-        };
+            filteredRows = rows.Where(r => r.IsDoneToday);
+        }
+        else
+        {
+            filteredRows = effectiveSlice switch
+            {
+                OseonReportingSlice.Overdue => rows.Where(r => r.Slice == OseonReportingSlice.Overdue),
+                OseonReportingSlice.Today => rows.Where(r => r.Slice == OseonReportingSlice.Today),
+                OseonReportingSlice.Future => rows.Where(r => r.Slice == OseonReportingSlice.Future),
+                _ => rows
+            };
+        }
 
-        filteredRows = filteredRows
+        var filteredRowsList = filteredRows
             .OrderBy(r => r.CalculatedDueDate)
             .ThenBy(r => r.OseonStatus)
             .ThenBy(r => r.PositionNumber)
             .ToList();
 
         var futureGroups = new List<OseonReportingDayGroup>();
-        if (effectiveSlice == OseonReportingSlice.Future)
+        if (!doneToday && effectiveSlice == OseonReportingSlice.Future)
         {
-            futureGroups = filteredRows
+            futureGroups = filteredRowsList
                 .GroupBy(r => r.CalculatedDueDate)
                 .OrderBy(g => g.Key)
                 .Select(g => new OseonReportingDayGroup(g.Key, g.Count(), g.ToList()))
@@ -146,7 +157,7 @@ public class OseonReportingController : Controller
         var vm = new OseonReportingViewModel
         {
             Kpis = kpis,
-            Rows = filteredRows,
+            Rows = filteredRowsList,
             FutureDayGroups = futureGroups,
             OperationsWithoutConfigCount = queryResult.OperationsWithoutConfigCount,
             DataAsOf = queryResult.DataAsOf,
@@ -157,7 +168,8 @@ public class OseonReportingController : Controller
                 CustomerOrderNumber = customerOrderNumber,
                 FaNumber = faNumber,
                 HorizonDaysOverride = horizonDays,
-                Slice = effectiveSlice
+                Slice = effectiveSlice,
+                DoneToday = doneToday
             },
             AvailableOperationNames = availableOpNames,
             AvailableWorkplaces = availableWorkplaces,

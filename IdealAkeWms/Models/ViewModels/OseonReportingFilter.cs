@@ -8,4 +8,5 @@ public class OseonReportingFilter
     public string? FaNumber { get; set; }
     public int? HorizonDaysOverride { get; set; }
     public OseonReportingSlice Slice { get; set; } = OseonReportingSlice.Today;
+    public bool DoneToday { get; set; }
 }
