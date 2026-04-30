@@ -1,0 +1,79 @@
+@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionListViewModel
+@{
+    ViewData["Title"] = "Lagerbestellungen — Lager";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="mb-0">Lagerbestellungen — Lager</h2>
+    <span class="badge bg-primary fs-6">Offen: @Model.OpenCount</span>
+</div>
+
+<form method="get" asp-action="Index" class="card card-body mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Status</label>
+            <select name="statusFilter" class="form-select form-select-sm">
+                <option value="">— Alle (ausser Entwurf) —</option>
+                <option value="Submitted" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted)">Abgeschickt</option>
+                <option value="Closed" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.Closed)">Erledigt</option>
+                <option value="Cancelled" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled)">Storniert</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Werkbank</label>
+            <select name="workplaceId" class="form-select form-select-sm">
+                <option value="">— alle —</option>
+                @foreach (var wp in Model.AvailableWorkplaces)
+                {
+                    <option value="@wp.Id" selected="@(Model.WorkplaceFilter == wp.Id)">@wp.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Filtern</button></div>
+        <div class="col-auto"><a asp-action="Index" class="btn btn-sm btn-outline-secondary">Reset</a></div>
+    </div>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="alert alert-info">Keine Listen gefunden.</div>
+}
+else
+{
+    <div class="table-responsive">
+    <table class="table table-sm filterable-table">
+        <thead>
+            <tr>
+                <th data-col-key="id">#</th>
+                <th data-col-key="workplace">Werkbank</th>
+                <th data-col-key="creator">Erfasser</th>
+                <th data-col-key="submitted">Submit</th>
+                <th data-col-key="items">Pos</th>
+                <th data-col-key="status">Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var i in Model.Items)
+            {
+                <tr>
+                    <td>@i.Id</td>
+                    <td>@i.WorkplaceName</td>
+                    <td>@i.CreatedBy</td>
+                    <td>@(i.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                    <td>@i.ItemCount</td>
+                    <td>
+                        @switch (i.Status)
+                        {
+                            case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                            case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt</span> break;
+                            case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert</span> break;
+                        }
+                    </td>
+                    <td><a asp-action="Details" asp-route-id="@i.Id" class="btn btn-sm btn-outline-primary">Detail</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}

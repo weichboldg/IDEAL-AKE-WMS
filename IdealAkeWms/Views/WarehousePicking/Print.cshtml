@@ -1,0 +1,54 @@
+@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Lagerbestellung #@Model.Id</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #000; background: #fff; padding: 20px; font-size: 11px; }
+        .screen-controls { padding: 15px; text-align: center; background: #053153; color: #fff; margin: -20px -20px 20px -20px; }
+        .screen-controls button { background: #fff; color: #053153; border: none; padding: 8px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; margin: 0 5px; }
+        .header-info { margin-bottom: 15px; border-bottom: 2px solid #053153; padding-bottom: 10px; }
+        .header-info h1 { font-size: 18px; color: #053153; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #888; padding: 4px 6px; text-align: left; }
+        th { background: #f0f0f0; }
+        @@media print { .screen-controls { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="screen-controls">
+        <button onclick="window.print()">Drucken</button>
+        <button onclick="window.close()">Schliessen</button>
+    </div>
+    <div class="header-info">
+        <h1>Lagerbestellung #@Model.Id</h1>
+        <div><strong>Werkbank:</strong> @Model.WorkplaceName &nbsp; <strong>Erfasser:</strong> @Model.CreatedBy</div>
+        <div><strong>Submit:</strong> @(Model.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</div>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th></tr>
+        </thead>
+        <tbody>
+        @foreach (var i in Model.Items)
+        {
+            <tr>
+                <td>@i.Position</td>
+                <td>@i.ArticleNumber</td>
+                <td>@i.ArticleDescription</td>
+                <td>@i.QuantityRequested</td>
+                <td>@(i.QuantityPicked?.ToString() ?? "")</td>
+                <td>@i.Unit</td>
+                <td>@i.StorageLocations</td>
+                <td></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</body>
+</html>

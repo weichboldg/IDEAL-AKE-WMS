@@ -1,0 +1,94 @@
+@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
+@{
+    ViewData["Title"] = $"Lagerbestellung #{Model.Id}";
+    bool isSubmitted = Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="mb-0">Lagerbestellung #@Model.Id</h2>
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurueck</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body p-2">
+        <div><strong>Werkbank:</strong> @Model.WorkplaceName</div>
+        <div><strong>Erfasser:</strong> @Model.CreatedBy</div>
+        <div><strong>Submit:</strong> @(Model.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</div>
+        <div><strong>Status:</strong>
+            @switch (Model.Status)
+            {
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt am @Model.ClosedAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert am @Model.CancelledAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
+            }
+        </div>
+        @if (!string.IsNullOrEmpty(Model.CancellationReason))
+        {
+            <div><strong>Storno-Grund:</strong> @Model.CancellationReason</div>
+        }
+    </div>
+</div>
+
+<form method="post" asp-action="Close" asp-route-id="@Model.Id">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
+    <div class="table-responsive">
+    <table class="table table-sm">
+        <thead>
+            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var i in Model.Items)
+            {
+                <tr>
+                    <td>@i.Position</td>
+                    <td>@i.ArticleNumber</td>
+                    <td>@i.ArticleDescription</td>
+                    <td>@i.QuantityRequested</td>
+                    <td>
+                        <input type="hidden" name="itemIds" value="@i.Id" />
+                        @if (isSubmitted)
+                        {
+                            <input type="number" name="quantitiesPicked" step="0.01" value="@(i.QuantityPicked ?? i.QuantityRequested)" class="form-control form-control-sm" style="width:90px;" />
+                        }
+                        else
+                        {
+                            @(i.QuantityPicked?.ToString() ?? "—")
+                        }
+                    </td>
+                    <td>@i.Unit</td>
+                    <td><small>@i.StorageLocations</small></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+
+    <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-secondary">Drucken</a>
+
+    @if (isSubmitted)
+    {
+        <button type="submit" class="btn btn-success">Abschliessen</button>
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancel-modal">Stornieren</button>
+    }
+</form>
+
+<div class="modal fade" id="cancel-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-action="Cancel" asp-route-id="@Model.Id">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Liste stornieren</h5></div>
+                <div class="modal-body">
+                    <label class="form-label">Grund (optional)</label>
+                    <textarea name="reason" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">Stornieren</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
