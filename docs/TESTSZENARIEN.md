@@ -2494,5 +2494,50 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-*Ende des Dokuments. Stand: v1.8.3 (2026-04-30)*
+## 18. Lagerbestellung aus der Produktion
+
+### TS-18.1 — Erfassen + Submit (1-Werkbank-User)
+Vorbedingungen: User mit genau 1 Werkbank-Zuordnung. AppSetting DefaultLagerbestellempfaengerId gesetzt + Empfaengergruppe mit aktivem Recipient.
+Schritte: Bestellungen &rarr; Lagerbestellungen &rarr; "+ Neue Liste". 2 Artikel ueber Suche hinzufuegen. "Abschicken".
+Erwartet: Liste in Status "Abgeschickt" sichtbar im Erfasser-Index. Lager-Index zeigt sie unter "Submitted".
+
+### TS-18.2 — Werkbank-Auswahl bei N≥2
+Vorbedingungen: User mit 2+ Werkbank-Zuordnungen.
+Schritte: "+ Neue Liste" ohne Werkbank waehlen.
+Erwartet: WarningMessage "Bitte Werkbank waehlen". Nach Auswahl: Liste wird angelegt.
+
+### TS-18.3 — 0 Werkbank-Zuordnungen
+Vorbedingungen: User ohne Werkbank-Zuordnung.
+Schritte: "+ Neue Liste".
+Erwartet: WarningMessage "Bitte Werkbank-Zuordnung in Stammdaten pflegen".
+
+### TS-18.4 — Duplikat-Artikel
+Schritte: zwei Mal denselben Artikel hinzufuegen.
+Erwartet: Beim zweiten Klick Toast/Alert "Artikel ist bereits in der Liste".
+
+### TS-18.5 — Submit-Mail
+Vorbedingungen: TS-18.1, Service-Setting Sync:WarehouseRequisitionEmailEnabled=true.
+Schritte: max. 15 Min warten oder Worker-Tick triggern.
+Erwartet: E-Mail im Postfach des Empfaengers, Subject "Lagerbestellung #X — Werkbank Y", Body mit Items + Deep-Link.
+
+### TS-18.6 — Storno-Mail
+Schritte: nach Submit (TS-18.1) im Erfasser-Edit "Stornieren" mit Grund.
+Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …".
+
+### TS-18.7 — Lager: Detail + Print + Close
+Schritte: Lager-Detail oeffnen, Pro-Position Ist-Menge anpassen, Drucken, Abschliessen.
+Erwartet: Print-Tab oeffnet mit A4-Layout, Submit setzt Status "Erledigt", Items.QuantityPicked geschrieben.
+
+### TS-18.8 — RowVersion-Konflikt
+Schritte: Detail in zwei Tabs oeffnen. Tab 1 Schliessen, Tab 2 Stornieren.
+Erwartet: Tab 2 zeigt WarningMessage "Bestellung wurde inzwischen geaendert — bitte Liste neu laden."
+
+### TS-18.9 — AppSetting nicht gesetzt
+Vorbedingungen: DefaultLagerbestellempfaengerId leer.
+Schritte: Submit.
+Erwartet: WarningMessage "Default-Lagerbestellempfaenger nicht konfiguriert".
+
+---
+
+*Ende des Dokuments. Stand: v1.8.4 (2026-04-30)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

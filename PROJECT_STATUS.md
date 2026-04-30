@@ -44,10 +44,31 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | BDE Phase 2.1 — Werkbank-Erweiterungen (BdeAktiv, Default-AG) | Fertig (Phase 2.1) |
 | BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | Fertig (Phase 2.2) |
 | BDE Phase 2.3 — Schichtkalender + Auto-Pause + Feiertags-Sync | Fertig (Phase 2.3) |
+| Lagerbestellung aus der Produktion (Erfasser + Lager) | Fertig (v1.8.4) |
 
 ## Version
-- **Web-App**: v1.8.3 (30.04.2026)
-- **Service**: v1.8.3 (30.04.2026)
+- **Web-App**: v1.8.4 (30.04.2026)
+- **Service**: v1.8.4 (30.04.2026)
+
+## Aenderungen (30.04.2026)
+
+### v1.8.4 — Lagerbestellung aus der Produktion
+
+Neuer End-to-End-Workflow: Produktionsmitarbeiter erfassen Lagerartikel als Bestellliste fuer ihre Werkbank, das Lager kommissioniert und schliesst die Liste mit Pro-Position-Ist-Mengen ab.
+
+#### Neue Funktionen
+- **Erfasser-Sicht** (`Bestellungen → Lagerbestellungen`): Werkbank-Auto-Resolution (1 Werkbank → automatisch, 0 → Hinweis "Stammdaten pflegen", N → Auswahl-Dropdown), Artikel-Suche, Mengen-Eingabe, Submit/Storno mit RowVersion-Schutz.
+- **Lager-Sicht** (`Bestellungen → Lager: Eingehende Listen`): Eingangsliste, Detail mit Pro-Position-Ist-Mengen, Pickup-Print (A4), Abschliessen, Storno mit optionalem Grund.
+- **Submit-/Storno-E-Mail** asynchron via SyncWorker (max. 15 Min Verzoegerung): Submit-Mail mit Deep-Link zur Detail-Seite, Storno-Mail mit `[STORNO]`-Subject-Prefix.
+- **Layout-Menu**: Top-Level-Eintrag "Bestellungen" wurde Dropdown mit drei Untermenues (Bedarfsmeldungen / Lagerbestellungen / Lager: Eingehende Listen).
+
+#### Technische Details
+- **Neue AppSetting**: `DefaultLagerbestellempfaengerId` (leer = Submit blockt mit WarningMessage).
+- **Neue ServiceSetting**: `Sync:WarehouseRequisitionEmailEnabled` (Default false).
+- **Migration**: `SQL/53_AddWarehouseRequisitions.sql` — Tabellen `WarehouseRequisitions` + `WarehouseRequisitionItems`, Status-Enum (Draft/Submitted/Picked/Cancelled), RowVersion.
+- **Neue Dateien**: 2 Entities + Status-Enum + 5 ViewModels + 3 Controllers (`WarehouseRequisitionsController`, `WarehousePickingController`, `WarehouseRequisitionsApiController`) + 5 Views + 2 Services (Email + Repository) + 1 Migration + SQL-Script.
+- **Tests**: 23 neue Tests gruen (5 EmailService + 2 LagerCtrl + 5 ErfasserCtrl + 8 Repo + 3 WorkplaceRepo) — Gesamt **511/511 gruen**.
+- **Berechtigungen**: Erfasser via `[RequirePickingOrStockAccess]`, Lager via `[RequireStockAccess]`.
 
 ## Aenderungen (30.04.2026)
 

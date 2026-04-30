@@ -44,10 +44,10 @@
 | `[RequireMasterDataAccess]` | admin, masterdata | UsersController, WorkstationsController, SettingsController, RolesController |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
-| `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController |
+| `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController, WarehousePickingController |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
 | `[RequirePickingOrTrackingAccess]` | picking ODER tracking | ProductionOrdersController.Index |
-| `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController |
+| `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController, WarehouseRequisitionsController, WarehouseRequisitionsApiController |
 | `[RequireLeitstandAccess]` | admin, leitstand | ProductionOrdersController (ToggleRelease, BulkRelease, SetPriority) |
 | `[RequireReportingAccess]` | admin, reporting | OseonReportingController |
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
@@ -150,6 +150,7 @@
 | `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende aktiv |
 | `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft (Default-Horizont) |
 | `OseonReportingOverdueLookbackDays` | `90` | Reporting: Tage in die Vergangenheit fuer Ueberfaellig-Slice |
+| `DefaultLagerbestellempfaengerId` | (leer) | OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt) |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 
@@ -170,6 +171,7 @@
 | `Sync:FeiertagCountryCode` | `AT` | Laendercode fuer Feiertags-Sync (ISO 3166-1 alpha-2) |
 | `Sync:FeiertagRegion` | (leer) | Optionaler Bundesland-Code (z.&nbsp;B. AT-3 NOe, AT-6 Stmk) |
 | `Sync:FeiertagJahreVoraus` | `2` | Jahre in die Zukunft synchronisieren |
+| `Sync:WarehouseRequisitionEmailEnabled` | `false` | Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker |
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
