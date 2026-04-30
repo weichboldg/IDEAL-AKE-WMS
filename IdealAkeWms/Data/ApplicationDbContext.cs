@@ -537,6 +537,11 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(e => e.OseonProductionOrderId);
             entity.HasIndex(e => new { e.OseonProductionOrderId, e.PositionNumber }).IsUnique();
+            // Covering index for the EXISTS-subquery in OseonProductionOrderRepository.GetPagedAsync
+            // when showFinished=false AND relevantOperationNames is supplied:
+            // WHERE OseonProductionOrderId = X AND OseonStatus NOT IN (90,95) AND Name IN (...)
+            entity.HasIndex(e => new { e.OseonProductionOrderId, e.OseonStatus, e.Name })
+                .HasDatabaseName("IX_OseonWorkOperations_OrderStatusName");
 
             entity.HasOne(e => e.OseonProductionOrder)
                 .WithMany(o => o.WorkOperations)

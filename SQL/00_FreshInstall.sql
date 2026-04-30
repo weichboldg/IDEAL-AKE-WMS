@@ -413,6 +413,7 @@ BEGIN
     );
     CREATE INDEX [IX_OseonWorkOperations_OseonProductionOrderId] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId]);
     CREATE UNIQUE INDEX [IX_OseonWorkOperations_OseonProductionOrderId_PositionNumber] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId], [PositionNumber]);
+    CREATE INDEX [IX_OseonWorkOperations_OrderStatusName] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId], [OseonStatus], [Name]);
     PRINT 'Tabelle OseonWorkOperations erstellt.';
 END
 GO
