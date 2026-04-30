@@ -94,8 +94,19 @@
                         }
                         @if (bestellungenAktiv && (canPick || canAccessStock))
                         {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PartRequisitions" ? "active" : "")" asp-controller="PartRequisitions" asp-action="Index">Bestellungen</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "PartRequisitions" or "WarehouseRequisitions" or "WarehousePicking") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Bestellungen
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
+                                    <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
+                                    @if (canAccessStock)
+                                    {
+                                        <li><hr class="dropdown-divider" /></li>
+                                        <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
+                                    }
+                                </ul>
                             </li>
                         }
                         @if (teileverfolgungAktiv && canViewTracking)

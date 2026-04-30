@@ -48,6 +48,8 @@ try
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
     builder.Services.AddScoped<IMailService, MailService>();
     builder.Services.AddScoped<IPartRequisitionEmailService, PartRequisitionEmailService>();
+    builder.Services.AddScoped<IWarehouseRequisitionRepository, WarehouseRequisitionRepository>();
+    builder.Services.AddScoped<IWarehouseRequisitionEmailService, WarehouseRequisitionEmailService>();
     builder.Services.AddScoped<IBdeShiftCalendarService, BdeShiftCalendarService>();
     builder.Services.AddScoped<IBdeAutoPauseService, BdeAutoPauseService>();
 

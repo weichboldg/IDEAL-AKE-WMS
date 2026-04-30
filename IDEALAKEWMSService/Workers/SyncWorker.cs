@@ -121,6 +121,23 @@ public class SyncWorker : BackgroundService
                         _logger.LogError(ex, "Fehler beim Versand der Bedarfsmeldungs-E-Mails.");
                     }
                 }
+
+                // --- Lagerbestellungen E-Mail-Versand ---
+                if (_configuration.GetValue<bool>("Sync:WarehouseRequisitionEmailEnabled", false))
+                {
+                    try
+                    {
+                        var emailService = scope.ServiceProvider.GetRequiredService<IWarehouseRequisitionEmailService>();
+                        var result = await emailService.SendPendingEmailsAsync(dryRun, stoppingToken);
+                        if (result.SubmitsSent > 0 || result.CancellationsSent > 0)
+                            _logger.LogInformation("Lagerbestellungen: {Submits} Submit + {Cancels} Storno-Mails versendet.", result.SubmitsSent, result.CancellationsSent);
+                        foreach (var e in result.Errors) _logger.LogWarning("Lagerbestellung-Mail-Fehler: {Err}", e);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Fehler beim Versand der Lagerbestellungs-E-Mails.");
+                    }
+                }
                 // ---------------------------------------------------------------
                 // BOM-Cache-Sync
                 // ---------------------------------------------------------------
