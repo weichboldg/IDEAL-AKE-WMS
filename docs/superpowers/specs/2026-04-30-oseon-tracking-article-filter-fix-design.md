@@ -3,6 +3,7 @@
 **Datum:** 2026-04-30
 **Branch:** `feature/oseon-reporting`
 **Versions-Bump:** v1.7.1 → v1.7.2
+**Branch-Baseline:** AppVersion ist auf `feature/oseon-reporting` bereits 1.7.1 (von Task 8 der OSEON-Reporting-Phase). main steht bei 1.7.0.
 
 ## 1. Problem
 
@@ -16,55 +17,47 @@ Auf `/Tracking/OseonIndex` blockiert die App, sobald der Benutzer im Artikelnumm
 
 ## 3. Lösungs-Ansatz
 
-**Filter ins bestehende GET-Form integrieren** (Variante a). Server bekommt neuen Parameter `filterArticle`, Repository filtert mit `Contains` auf `OseonProductionOrder.ArticleNumber`. Live-JS-Filter wird ersatzlos entfernt. QR-Scanner für Artikel triggert nun Form-Submit (analog zu Auftragsnummer).
+**Filter ins bestehende GET-Form integrieren.** Server bekommt neuen Parameter `filterArticle`, Repository filtert mit `Contains` auf `OseonProductionOrder.ArticleNumber`. Live-JS-Filter wird ersatzlos entfernt. QR-Scanner für Artikel triggert Form-Submit (analog Auftragsnummer).
 
-DB bekommt einen Index auf `ArticleNumber` (klassischer B-Tree-Index — `Contains`-Match nutzt ihn nur bei Prefix-Treffern; trotzdem sinnvoll wegen der häufigen Equality-Vergleiche und als Vorbereitung auf eine spätere Volltextsuche, wenn Bedarf entsteht).
+DB bekommt einen Index auf `ArticleNumber`. Klassischer B-Tree, hilft `Contains` (nicht-SARGable) nur eingeschränkt — primärer Wert: Vorbereitung für künftige Equality-/StartsWith-Lookups, niedriges Schreib-Overhead bei seltenem Article-Update via Sync.
 
-## 4. Architektur & Komponenten
+## 4. AG-Level-Filter-Verhalten (explizit)
 
-### 4.1 Geänderte Files
+Der Filter wirkt auf **Order-Ebene**. Wenn `OseonProductionOrder.ArticleNumber` matcht, wird der Auftrag inkl. **aller** zugehörigen `OseonWorkOperation` angezeigt. Wenn nicht, verschwindet der Auftrag komplett (samt seinen AGs) — kein AG-Level-Filter, kein partielles Anzeigen einzelner AGs unter einem nicht-passenden Order-Header.
 
-- `IdealAkeWms/Controllers/TrackingController.cs` — `OseonIndex` action: neuer Parameter `string? filterArticle`, an Repository durchgereicht.
-- `IdealAkeWms/Data/Repositories/IOseonProductionOrderRepository.cs` — `GetPagedAsync` Signatur: neuer Parameter `string? articleNumber`.
-- `IdealAkeWms/Data/Repositories/OseonProductionOrderRepository.cs` — Where-Klausel um `ArticleNumber.Contains(...)` erweitern.
+## 5. Architektur & Komponenten
+
+### 5.1 Geänderte Files
+
+- `IdealAkeWms/Controllers/TrackingController.cs:185` — `OseonIndex` action: neuer Parameter `string? filterArticle = null`, an Repository durchgereicht, an ViewModel zurückgegeben.
+- `IdealAkeWms/Data/Repositories/IOseonProductionOrderRepository.cs:15` — `GetPagedAsync` Signatur: neuer optionaler Parameter `string? articleNumber = null` **am Ende** (nach `relevantOperationNames`).
+- `IdealAkeWms/Data/Repositories/OseonProductionOrderRepository.cs:36` — Where-Klausel um `ArticleNumber.Contains(...)` mit Null-Check erweitern.
+- `IdealAkeWms/Models/ViewModels/OseonTrackingViewModel.cs` — neue Property `string? FilterArticle { get; set; }`. Property-Name konsistent zu `MovementHistoryViewModel.FilterArticle` und `StockOverviewViewModel.FilterArticle`.
 - `IdealAkeWms/Views/Tracking/OseonIndex.cshtml`:
-  - Filter-Input bekommt `name="filterArticle"` und kommt INS Form.
-  - Live-Filter-JS (Zeilen ~459–525) entfernt.
-  - QR-Scanner-Callback für Artikel triggert Form-Submit.
-  - `data-article-number` Attribute auf Zeilen können bleiben (Anchor für künftige Features), aber sind nicht mehr nötig.
-- `IdealAkeWms/Data/ApplicationDbContext.cs` — `HasIndex(o => o.ArticleNumber)` für `OseonProductionOrder`.
-- `IdealAkeWms/Migrations/<timestamp>_AddOseonArticleNumberIndex.cs` — EF Migration.
-- `SQL/50_AddOseonArticleNumberIndex.sql` — idempotenter SQL-Migration-Script.
-- `SQL/00_FreshInstall.sql` — Index-CREATE-Statement aufnehmen.
-- `IdealAkeWms.Tests/Repositories/OseonProductionOrderRepositoryArticleFilterTests.cs` — neuer Test-File für den Artikel-Filter.
+  - Filter-Input bekommt `name="filterArticle"` und kommt INS `<form method="get">`.
+  - `value="@Model.FilterArticle"` damit Wert nach Submit erhalten bleibt.
+  - Inline-`<style>`-Block mit `.article-filter-hidden` (Zeilen ~348–350) entfernen.
+  - Live-Filter-JS (Zeilen ~459–525, inkl. `applyArticleFilter()` und Keyboard-Handler) ersatzlos entfernen.
+  - QR-Scanner-Callback für Artikel triggert Form-Submit (analog `btnScanCustomerOrder`).
+  - `data-article-number` Attribute auf `<tr>`-Zeilen entfernen (toter Anchor nach JS-Cleanup).
+- `IdealAkeWms/Data/ApplicationDbContext.cs:483-513` — `HasIndex(o => o.ArticleNumber).HasDatabaseName("IX_OseonProductionOrders_ArticleNumber")` für `OseonProductionOrder`.
+- `IdealAkeWms/Migrations/<timestamp>_AddOseonArticleNumberIndex.cs` — EF-generierte Migration.
+- `SQL/50_AddOseonArticleNumberIndex.sql` — idempotenter SQL-Script (Reihen-Nummer 50 schließt direkt an 49 = `AddOseonReportingHorizonSetting` aus diesem Branch an).
+- `SQL/00_FreshInstall.sql:375-380` — neues `CREATE INDEX IX_OseonProductionOrders_ArticleNumber` direkt nach den anderen `OseonProductionOrders`-Indexes.
+- `IdealAkeWms.Tests/Repositories/OseonProductionOrderRepositoryArticleFilterTests.cs` — neue Test-Datei mit 5 Tests (siehe §10).
+- `IdealAkeWms/AppVersion.cs` + `IDEALAKEWMSService/AppVersion.cs` — Version `1.7.2`, Date `2026-04-30`.
+- `IdealAkeWms/Views/Help/Index.cshtml:262-272` — Filter-Liste für OSEON-Tracking um `<dt>Artikelnummer</dt><dd>...</dd>` erweitern.
+- `IdealAkeWms/Views/Help/Changelog.cshtml` — v1.7.2-Block einfügen (über v1.7.1).
+- `PROJECT_STATUS.md` — v1.7.2-Eintrag hinzufügen.
+- `docs/TESTSZENARIEN.md` — neuer Bereich 2 mit TS-2.1..TS-2.4.
 
-### 4.2 Versions + Docs
+### 5.2 Files NICHT angefasst
 
-- `IdealAkeWms/AppVersion.cs` + `IDEALAKEWMSService/AppVersion.cs` — v1.7.2, Date 2026-04-30.
-- `IdealAkeWms/Views/Help/Changelog.cshtml` — v1.7.2-Eintrag.
-- `PROJECT_STATUS.md` — v1.7.2-Eintrag.
-- `docs/TESTSZENARIEN.md` — neue Bereich-2-Szenarien für Artikelfilter.
+- `CLAUDE.md` — keine Änderung nötig (Filter-Set wird dort nicht aufgelistet, AppSettings-Tabelle unverändert, keine neuen Fallstricke).
 
-## 5. Datenfluss
+## 6. Repository-Signatur (Backward-compatibility)
 
-```
-User tippt Artikelnummer + Submit
-  → GET /Tracking/OseonIndex?filterArticle=ABC&filterCustomerOrder=...&...
-  → TrackingController.OseonIndex(filterArticle, filterCustomerOrder, ...)
-  → repo.GetPagedAsync(searchTerm, workplaceName, articleNumber, showFinished, page, 25, relevantOps)
-  → SQL: WHERE
-       (CustomerOrderNumber LIKE '%' + @search + '%' OR OseonOrderNumber LIKE '%' + @search + '%')
-       AND ArticleNumber LIKE '%' + @article + '%'
-       AND WorkplaceName = @workplace
-       AND OseonStatus NOT IN (90, 95)  -- wenn !showFinished
-  → ORDER BY CustomerOrderNumber, OseonOrderNumber
-  → 25 Treffer (mit Pagination)
-  → Razor render → Browser
-```
-
-## 6. Repository-Änderung
-
-Aktuelle Signatur:
+**Aktuell** (auf branch):
 ```csharp
 Task<OseonPagedResult> GetPagedAsync(
     string? searchTerm,
@@ -75,19 +68,21 @@ Task<OseonPagedResult> GetPagedAsync(
     HashSet<string>? relevantOperationNames = null);
 ```
 
-Neue Signatur:
+**Neu** — `articleNumber` **am Ende** mit Default `null`:
 ```csharp
 Task<OseonPagedResult> GetPagedAsync(
     string? searchTerm,
     string? workplaceName,
-    string? articleNumber,           // NEU
     bool showFinished,
     int page,
     int pageSize,
-    HashSet<string>? relevantOperationNames = null);
+    HashSet<string>? relevantOperationNames = null,
+    string? articleNumber = null);
 ```
 
-Where-Klausel-Erweiterung:
+**Begründung:** Diese Position bricht KEINEN der 7 bestehenden positionellen Test-Aufrufe (`OseonProductionOrderRepositoryTests.cs:148/153/177/200/223/247/273`), weil sie alle vor dem neuen Parameter aufhören. Der Controller-Call wird mit `articleNumber: filterArticle` als named argument erweitert. Trade-off: semantische Gruppierung „searchTerm/workplaceName/articleNumber zusammen" wird nicht eingehalten — akzeptiert wegen minimalem Blast-Radius.
+
+**Where-Klausel-Erweiterung** in der Implementation:
 ```csharp
 if (!string.IsNullOrWhiteSpace(articleNumber))
 {
@@ -97,22 +92,24 @@ if (!string.IsNullOrWhiteSpace(articleNumber))
 }
 ```
 
-## 7. View-Änderung
+## 7. View-Änderung (konkret)
 
-**Vorher (außerhalb Form, Zeile ~25):**
+**Vorher (außerhalb Form, ~Zeile 25):**
 ```html
 <input id="filterArticle" placeholder="Artikelnummer scannen..." />
-<button id="btnScanArticle">QR</button>
-```
-
-**Nachher (im Form):**
-```html
-<input id="filterArticle" name="filterArticle" value="@Model.FilterArticle"
-       placeholder="Artikelnummer..." />
 <button id="btnScanArticle" type="button">QR</button>
 ```
 
-QR-Scanner-Callback ändert sich:
+**Nachher (im Form, neben filterCustomerOrder):**
+```html
+<input id="filterArticle" name="filterArticle"
+       value="@Model.FilterArticle"
+       class="form-control form-control-sm"
+       placeholder="Artikelnummer..." />
+<button id="btnScanArticle" type="button" class="btn btn-sm btn-outline-secondary">QR</button>
+```
+
+**QR-Scanner-Callback** (analog zum bestehenden Customer-Order-Pattern, ~Zeile 528):
 ```javascript
 initTextInputScanner('btnScanArticle', 'filterArticle', 'article', function() {
     var form = document.getElementById('filterArticle').closest('form');
@@ -120,11 +117,20 @@ initTextInputScanner('btnScanArticle', 'filterArticle', 'article', function() {
 });
 ```
 
-Live-Filter-Code (Zeilen ~459–525) wird **komplett entfernt**, ebenso die zugehörige CSS-Klasse `.article-filter-hidden` falls separat definiert.
+**Zu entfernen:**
+- Inline-`<style>`-Block mit `.article-filter-hidden` (Zeilen ~348–350)
+- `applyArticleFilter()`-Funktion + Event-Listeners (Zeilen ~459–525)
+- `data-article-number`-Attribute auf den `<tr>`-Render-Zeilen
+- Falls vorhanden: Keyboard-Handler an `#filterArticle`, der `applyArticleFilter()` aufruft
 
-## 8. ViewModel-Änderung
+## 8. UX-Trade-off (explizit)
 
-Aktuelles ViewModel: `OseonTrackingViewModel` (oder ähnlich — siehe Code). Neues nullable-string-Property `FilterArticle`. Ist value="@Model.FilterArticle" auf dem Input setzbar, damit der Wert nach Submit erhalten bleibt.
+QR-Scanner triggert nun Form-Submit → vollständiger Page-Reload mit 25-Zeilen-Pagination des gefilterten Ergebnisses. Vorher: instant-Hide einzelner Zeilen ohne Server-Roundtrip.
+
+Der Trade-off lohnt sich, weil:
+- Live-Filter blockierte den Browser bis zum Freeze (das Problem)
+- Live-Filter sah nur die aktuelle Seite (UX-Mangel)
+- Form-Submit ist bei <500ms Server-Latenz schneller als der gefrorene Browser
 
 ## 9. DB-Index
 
@@ -136,8 +142,11 @@ migrationBuilder.CreateIndex(
     column: "ArticleNumber");
 ```
 
-SQL-Script (idempotent):
+`SQL/50_AddOseonArticleNumberIndex.sql` (idempotent):
 ```sql
+-- Phase: OSEON Tracking Article Filter Fix v1.7.2
+-- Idempotent: Index auf ArticleNumber für Filter-Performance.
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes
     WHERE name = 'IX_OseonProductionOrders_ArticleNumber'
       AND object_id = OBJECT_ID('dbo.OseonProductionOrders'))
@@ -148,38 +157,61 @@ END
 GO
 ```
 
-`Contains`-Suche ist nicht-SARGable (Index hilft nur begrenzt), aber:
-- bei kurzen Tabellen (~10k Zeilen) trotzdem schnell genug
-- der Index wird häufig genutzt: alle Equality-Lookups, Sortierungen, künftige StartsWith-Suche
-- vorbereitend für späteres Volltext-Catalog (out of scope)
+`SQL/00_FreshInstall.sql:375-380` — direkt nach den anderen `OseonProductionOrders`-Indizes (nach `IX_OseonProductionOrders_WorkplaceName`):
+```sql
+CREATE INDEX [IX_OseonProductionOrders_ArticleNumber] ON [OseonProductionOrders]([ArticleNumber]);
+```
+
+**Index-Honesty:** `Contains`-Suche ist nicht-SARGable; SQL Server kann den Index meist nur als Index-Scan nutzen (statt Table-Scan). Bei der erwarteten Tabellengröße (~10k Zeilen) bringt das marginale Performance-Vorteile. Der Index ist primär eine Vorbereitung — falls künftig Volltextsuche, StartsWith oder Equality-Lookups dazukommen, ist die Infrastruktur bereit. Schreib-Overhead vernachlässigbar (OSEON-Sync schreibt Aufträge selten).
 
 ## 10. Tests
 
-**Repository-Tests (3 neue):**
-- `Filter_ByArticleNumber_ReturnsMatch` — exakte Übereinstimmung wird gefunden
-- `Filter_ByArticleNumber_ContainsMatch` — Substring-Match (z.B. „123" findet „A-1234-X")
-- `Filter_ByArticleNumber_CombinedWithSearchTerm` — Artikelfilter UND Auftragsfilter wirken konjunktiv
+**Repository-Tests (5 neue, in `OseonProductionOrderRepositoryArticleFilterTests.cs`):**
 
-**Manueller Test (TESTSZENARIEN Bereich 2):**
-- TS-2.1: Artikelnummer eingeben + Submit → nur passende Aufträge sichtbar
-- TS-2.2: Artikelnummer + Werkbank kombinieren → Schnittmenge
-- TS-2.3: QR-Scan auslöst Submit (Filter wird angewendet ohne weiteren Klick)
-- TS-2.4: Reset entfernt alle Filter (auch Artikel)
-- TS-2.5: Performance-Test: Artikel-Filter mit großem Datenbestand → unter 2 Sekunden
+1. `Filter_ByArticleNumber_ReturnsExactMatch` — `articleNumber: "ART-100"` findet Auftrag mit `ArticleNumber = "ART-100"`.
+2. `Filter_ByArticleNumber_ReturnsContainsMatch` — `articleNumber: "100"` findet Aufträge mit `ArticleNumber = "ART-100"` und `ART-1001`.
+3. `Filter_ByArticleNumber_IgnoresOrdersWithNullArticleNumber` — Aufträge mit `ArticleNumber = null` werden ausgeschlossen, andere Match-Aufträge bleiben sichtbar (kein NRE).
+4. `Filter_ByArticleNumber_WhitespaceOnly_TreatedAsNoFilter` — `articleNumber: "   "` wird wie kein Filter behandelt (alle Aufträge werden geliefert).
+5. `Filter_ByArticleNumber_CombinedWithSearchTermAndWorkplace_AllConjunctive` — Kombinierter Filter (Artikel + Auftragsnummer + Werkbank) wirkt konjunktiv.
+
+**Hinweis zur EF-InMemory-Collation:** SQL Server `Contains` ist case-insensitive (default Collation), EF-InMemory ist case-sensitive. Tests verwenden konsistente Klein-/Großschreibung im Match-String und in den Seed-Daten, um den Unterschied zu vermeiden.
+
+**Manuelle Testszenarien (TESTSZENARIEN.md, Bereich 2):**
+
+- TS-2.1: Artikelnummer eingeben + Submit → nur passende Aufträge sichtbar; Filter-Wert bleibt im Input erhalten.
+- TS-2.2: Artikel + Werkbank + Auftragsnummer kombinieren → Schnittmenge.
+- TS-2.3: QR-Scan eines Artikel-Codes löst automatisch Form-Submit aus, Filter wird angewendet.
+- TS-2.4: Reset-Link entfernt alle Filter (auch Artikel) und liefert die volle Liste zurück.
+
+(Ein expliziter Performance-Test entfällt — Acceptance-Kriterium ist „kein Browser-Freeze beim Tippen".)
 
 ## 11. Out of Scope
 
 - Volltextindex / Lucene
 - Live-Filter mit Debouncing (verworfen — Form-Submit ist sauberer)
-- Artikelnamen-Suche (zusätzliche Spalte) — nur ArticleNumber filtern
+- Artikel-Beschreibungs-Suche (zusätzliche Spalte)
 - Filter-Memory pro User
 - Phonetische Suche / Fuzzy-Match
+- Server-Side StartsWith-Modus statt Contains (Y-A-G-N-I)
 
 ## 12. Risiken & Mitigationen
 
-- **Risiko:** EF-Migration „Pending model changes" wenn Index nur per SQL angelegt wird
-  - **Mitigation:** Migration mit `dotnet ef migrations add` generieren, Snapshot synchron halten.
-- **Risiko:** Tests, die `GetPagedAsync` aufrufen, brechen wegen neuer Signatur
-  - **Mitigation:** Default-Wert `articleNumber = null` an passende Stelle in Signatur — wird durch optional-Parameter konsumiert; alle bestehenden Aufrufe bleiben kompilierfähig.
-- **Risiko:** `OseonProductionOrder.ArticleNumber` ist nullable → NullRef wenn Index leer
-  - **Mitigation:** Where-Klausel checkt `o.ArticleNumber != null` vor `Contains`.
+- **Risiko:** EF-Migration „Pending model changes" wenn nur SQL-Script angelegt wird
+  - **Mitigation:** EF-Migration UND SQL-Script erzeugen, Snapshot synchron halten.
+- **Risiko:** Bestehende `GetPagedAsync`-Aufrufe brechen
+  - **Mitigation:** `articleNumber` als letzter Parameter mit Default `null` — alle 7 Test-Calls bleiben kompilierfähig.
+- **Risiko:** `OseonProductionOrder.ArticleNumber = null` → NullRef
+  - **Mitigation:** Null-Check vor `Contains` in der LINQ-Where-Klausel.
+- **Risiko:** SQL-Server vs. EF-InMemory Case-Sensitivity divergiert
+  - **Mitigation:** Tests verwenden konsistente Schreibweise; im UAT explizit Mixed-Case prüfen.
+- **Risiko:** QR-Scan-Page-Reload wirkt langsamer als Live-Filter (UX-Wahrnehmung)
+  - **Mitigation:** Akzeptiert; Vorgänger-Verhalten war nicht funktional (Freeze). Server-Roundtrip <500ms vs. Browser-Freeze ist eindeutige Verbesserung.
+
+## 13. Tasks-Dekomposition (für Plan)
+
+5 Tasks erwartet:
+1. Repository: Signatur erweitern + Where-Klausel + 5 Tests
+2. Controller + ViewModel: `filterArticle` Parameter durchschleifen, ViewModel-Property `FilterArticle`
+3. View + JS-Cleanup: Form-Integration, Live-Filter weg, Inline-CSS weg, QR-Submit, dead Attributes weg
+4. EF-Migration + SQL/50 + FreshInstall + ApplicationDbContext
+5. AppVersion + Help/Index + Changelog + PROJECT_STATUS + TESTSZENARIEN
