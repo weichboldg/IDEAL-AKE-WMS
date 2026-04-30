@@ -42,7 +42,8 @@
         </div>
         <div class="col-md-2">
             <label class="form-label">AG</label>
-            <select name="operationNames" class="form-select form-select-sm" multiple size="3">
+            <select name="operationNames" class="form-select form-select-sm">
+                <option value="">— alle —</option>
                 @foreach (var op in Model.AvailableOperationNames)
                 {
                     <option value="@op" selected="@(Model.Filter.OperationNames.Contains(op))">@op</option>
