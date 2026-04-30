@@ -98,7 +98,9 @@ public class OseonProductionOrderRepositoryArticleFilterTests
         var result = await repo.GetPagedAsync("K-MATCH", null, false, 1, 25, null, "ART-100");
 
         result.TotalGroupCount.Should().Be(1, "only K-MATCH has an order matching both filters");
+        result.Items.Should().HaveCount(2, "Group-Pagination: alle Sub-Orders der matchenden Gruppe K-MATCH werden geladen");
         result.Items.Should().Contain(i => i.OseonOrderNumber == "FA-1");
+        result.Items.Should().Contain(i => i.OseonOrderNumber == "FA-3");
         result.Items.Should().NotContain(i => i.CustomerOrderNumber == "K-OTHER");
     }
 }

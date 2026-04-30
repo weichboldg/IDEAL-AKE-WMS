@@ -21,9 +21,16 @@ Auf `/Tracking/OseonIndex` blockiert die App, sobald der Benutzer im Artikelnumm
 
 DB bekommt einen Index auf `ArticleNumber`. Klassischer B-Tree, hilft `Contains` (nicht-SARGable) nur eingeschränkt — primärer Wert: Vorbereitung für künftige Equality-/StartsWith-Lookups, niedriges Schreib-Overhead bei seltenem Article-Update via Sync.
 
-## 4. AG-Level-Filter-Verhalten (explizit)
+## 4. Filter-Verhalten (Group-Pagination — explizit)
 
-Der Filter wirkt auf **Order-Ebene**. Wenn `OseonProductionOrder.ArticleNumber` matcht, wird der Auftrag inkl. **aller** zugehörigen `OseonWorkOperation` angezeigt. Wenn nicht, verschwindet der Auftrag komplett (samt seinen AGs) — kein AG-Level-Filter, kein partielles Anzeigen einzelner AGs unter einem nicht-passenden Order-Header.
+Der Filter wirkt auf **Order-Ebene** in der `Where`-Klausel, aber die **Pagination + Anzeige läuft auf Customer-Order-Group-Ebene**. Konkret: matcht mindestens ein Sub-Auftrag einer Customer-Order-Gruppe den `articleNumber`-Filter, wird die **gesamte Gruppe** mit allen Sub-Aufträgen angezeigt — auch nicht-matchende. Auf AG-Ebene gibt es keinen Filter (matchender Auftrag → alle AGs sichtbar; gefilterte Gruppe → komplette Gruppe samt aller AGs verschwindet).
+
+**Begründung:** Die Repository-Architektur in `OseonProductionOrderRepository.GetPagedAsync` ist zweistufig: erst Group-Key-Selektion mit allen Filter-Where-Klauseln, dann zweite Materialisierung „ALLE Sub-Orders der Gruppe laden". Dieses Verhalten ist identisch für `searchTerm`, `workplaceName` und neu `articleNumber` — Konsistenz mit bestehender Filter-Semantik.
+
+**UX-Implikation:** User der nach `ART-100` filtert sieht eventuell auch Sub-Aufträge mit anderen Artikelnummern, sofern sie unter der gleichen Customer-Order-Nummer geführt werden. Akzeptiert, weil:
+- Customer-Order-Kontext ist für Disposition wertvoll
+- Einheitlich mit anderen Filtern
+- Alternative (Order-Level-Filter mit doppelter Where-Anwendung in beiden Stages) ist eine separate Architektur-Änderung, die alle Filter betrifft — out of scope für diesen Bug-Fix.
 
 ## 5. Architektur & Komponenten
 

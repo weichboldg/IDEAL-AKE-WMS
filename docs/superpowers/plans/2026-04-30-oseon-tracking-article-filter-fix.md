@@ -585,7 +585,7 @@ In `docs/TESTSZENARIEN.md` neuen Abschnitt anhängen:
 1. /Tracking/OseonIndex öffnen.
 2. In das Feld "Artikelnummer" `100` eingeben.
 3. Auf "Filtern" klicken.
-**Erwartet:** Ergebnis enthaelt nur Auftraege deren ArticleNumber `100` enthaelt. Filter-Wert bleibt im Input. Pagination wirkt auf gefiltertes Ergebnis.
+**Erwartet:** Ergebnis enthaelt nur Customer-Order-Gruppen mit mindestens einem Sub-Auftrag dessen ArticleNumber `100` enthaelt. Innerhalb einer matchenden Gruppe werden ALLE Sub-Auftraege angezeigt (auch nicht-matchende — siehe Spec §4 Group-Pagination). Filter-Wert bleibt im Input. Pagination wirkt auf gefiltertes Group-Ergebnis.
 
 ### TS-2.2 — Kombinierter Filter (Artikel + Werkbank + Auftrag)
 **Vorbedingungen:** Daten mit verschiedenen Werkbaenken + Artikelnummern.
