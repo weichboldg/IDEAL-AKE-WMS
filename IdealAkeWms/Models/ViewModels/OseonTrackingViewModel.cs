@@ -6,6 +6,7 @@ public class OseonTrackingViewModel
 {
     public List<OseonOrderGroupViewModel> OrderGroups { get; set; } = new();
     public string? FilterCustomerOrder { get; set; }
+    public string? FilterArticle { get; set; }
     public string? FilterWorkplace { get; set; }
     public bool ShowFinished { get; set; }
     public bool UseRelevanceFilter { get; set; } = true;
