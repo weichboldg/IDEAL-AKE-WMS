@@ -9,6 +9,25 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.7.1</strong> <span class="text-white-50 ms-2">30.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Neue Funktionen</h6>
+                <ul>
+                    <li>Neuer Reporting-Bereich: <strong>OSEON AG-Übersicht</strong> mit KPI-Cards (Überfällig / Heute geplant / Heute erledigt / Zukunft) und filter-/sortierbarer AG-Liste.</li>
+                    <li>Filter: Werkbank, AG-Name, Kundenauftrag, FA-Nummer, Horizont (Default 10 Tage).</li>
+                    <li>Banner für AGs ohne Config-Eintrag.</li>
+                    <li>Berechtigung: Rolle <code>reporting</code> via <code>[RequireReportingAccess]</code>.</li>
+                </ul>
+                <h6>Refactoring</h6>
+                <ul>
+                    <li>Werktag-/Offset-Berechnung in <code>OseonDueDateCalculator</code>-Helper extrahiert (von Tracking + Reporting genutzt).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.7.0</strong> <span class="text-white-50 ms-2">10.04.2026</span>
             </div>
             <div class="card-body">

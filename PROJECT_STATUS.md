@@ -42,8 +42,32 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Individuell anpassbare Tabellenansichten (Spalten) | Fertig |
 
 ## Version
-- **Web-App**: v1.7.0 (10.04.2026)
-- **Service**: v1.7.0 (10.04.2026)
+- **Web-App**: v1.7.1 (30.04.2026)
+- **Service**: v1.7.1 (30.04.2026)
+
+## Aenderungen (30.04.2026)
+
+### v1.7.1 — OSEON Reporting
+
+#### Neue Funktionen
+- **OSEON AG-Übersicht**: Neuer Reporting-Bereich unter Menü "Reporting" mit KPI-Cards (Überfällig / Heute geplant / Heute erledigt / Zukunft) und filter-/sortierbarer AG-Liste
+- **Filter**: Werkbank, AG-Name, Kundenauftrag, FA-Nummer, Horizont (Default 10 Tage)
+- **Tabs**: Heute / Überfällig / Zukunft / Alle (Default: Heute)
+- **Banner für AGs ohne Config-Eintrag**: Zeigt OSEON-AG-Namen, die in `OseonOperationConfig` fehlen — diese werden im Reporting ignoriert
+- **Auftragsnummer-Link**: FA-Nummer in der Tabelle führt zur OSEON-Teileverfolgung mit FA-Filter
+- **Berechtigung**: Rolle `reporting` via neues `[RequireReportingAccess]`
+
+#### Refactoring
+- Werktag-/Offset-Berechnung in `OseonDueDateCalculator`-Helper extrahiert (von Tracking + Reporting gemeinsam genutzt)
+
+#### Neue AppSettings
+- `OseonReportingHorizonDays` (Default: 10) — Reporting-Horizont in Tagen
+
+#### Neue Dateien
+- `Controllers/OseonReportingController.cs`
+- `Models/ViewModels/OseonReportingViewModel.cs`
+- `Services/OseonDueDateCalculator.cs`
+- `Views/OseonReporting/OseonOperations.cshtml`
 
 ## Aenderungen (10.04.2026)
 

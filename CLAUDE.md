@@ -47,7 +47,7 @@
 | `[RequirePickingOrTrackingAccess]` | picking ODER tracking | ProductionOrdersController.Index |
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController |
 | `[RequireLeitstandAccess]` | admin, leitstand | ProductionOrdersController (ToggleRelease, BulkRelease, SetPriority) |
-| `[RequireReportingAccess]` | admin, reporting | (fuer spaeteren BDE-Controller) |
+| `[RequireReportingAccess]` | admin, reporting | OseonReportingController |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
 **Sonderfaelle:**
@@ -127,6 +127,7 @@
 | `LeitstandAktiv` | `false` | Leitstand: Freigabe und Priorisierung |
 | `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Picker-Zuweisung |
 | `LackierteilKategorieName` | (leer) | Artikelkategorie fuer Lackierteile. Leer = Feature inaktiv |
+| `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft (Default-Horizont) |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 
