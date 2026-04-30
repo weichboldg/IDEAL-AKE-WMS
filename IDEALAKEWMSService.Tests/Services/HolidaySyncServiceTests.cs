@@ -190,4 +190,39 @@ public class HolidaySyncServiceTests
         result.Errors.Should().NotBeEmpty();
         result.InsertedCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Run_FirstYearThrows_SecondYearStillProcessed_NoCrossContamination()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var year = DateTime.Today.Year;
+
+        // First call (year N) returns 503, second call (year N+1) returns 200 with a holiday.
+        var responses = new Queue<HttpResponseMessage>();
+        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(new[] { Holiday($"{year + 1}-01-01", "Neujahr") }),
+                System.Text.Encoding.UTF8, "application/json")
+        });
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() => responses.Dequeue());
+
+        var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
+        var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 1 });
+
+        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance);
+
+        var result = await svc.RunAsync(CancellationToken.None);
+
+        result.Errors.Should().HaveCount(1, "year N failed");
+        result.Errors[0].Should().Contain($"Year {year}");
+        result.InsertedCount.Should().Be(1, "year N+1 succeeded and inserted Neujahr");
+        ctx.Holidays.Should().HaveCount(1);
+        ctx.Holidays.First().Date.Should().Be(new DateTime(year + 1, 1, 1));
+    }
 }

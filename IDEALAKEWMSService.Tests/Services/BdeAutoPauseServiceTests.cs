@@ -183,4 +183,46 @@ public class BdeAutoPauseServiceTests
 
         result.PausedCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Run_OneBookingThrows_OthersStillProcessed_ErrorsCollected()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var day = DateTime.Today.AddDays(-1);
+
+        var booking1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: day.AddHours(8));
+        var booking2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: day.AddHours(9));
+        ctx.BdeBookings.AddRange(booking1, booking2);
+        await ctx.SaveChangesAsync();
+
+        // Calendar wirft fuer Booking 1, liefert vergangenes Schichtende fuer Booking 2.
+        var calendar = new Mock<IBdeShiftCalendarService>();
+        calendar
+            .Setup(c => c.GetShiftEndForBookingAsync(It.IsAny<int>(), It.Is<DateTime>(d => d == booking1.StartedAt)))
+            .ThrowsAsync(new InvalidOperationException("synthetic failure"));
+        calendar
+            .Setup(c => c.GetShiftEndForBookingAsync(It.IsAny<int>(), It.Is<DateTime>(d => d == booking2.StartedAt)))
+            .ReturnsAsync(day.AddHours(14));
+
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeSchichtkalenderAktiv)).ReturnsAsync("true");
+
+        var svc = new BdeAutoPauseService(ctx, calendar.Object, settings.Object,
+            NullLogger<BdeAutoPauseService>.Instance);
+
+        var result = await svc.RunAsync(CancellationToken.None);
+
+        result.CheckedCount.Should().Be(2);
+        result.PausedCount.Should().Be(1);
+        result.Errors.Should().HaveCount(1);
+        result.Errors[0].Should().Contain($"Booking {booking1.Id}");
+
+        var b1 = await ctx.BdeBookings.FindAsync(booking1.Id);
+        var b2 = await ctx.BdeBookings.FindAsync(booking2.Id);
+        b1!.Status.Should().Be(BdeBookingStatus.Running, "exception path: booking unchanged");
+        b2!.Status.Should().Be(BdeBookingStatus.AutoPaused, "happy path: booking paused");
+    }
 }
