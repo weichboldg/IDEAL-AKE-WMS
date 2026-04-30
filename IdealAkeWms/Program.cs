@@ -179,6 +179,7 @@ using (var scope = app.Services.CreateScope())
         ("TeileverfolgungAktiv", "false", "Globaler Schalter: Teileverfolgungs-Modul aktiviert"),
         ("OseonRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden"),
         ("SageRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Sage zurueckgeschrieben werden"),
+        ("OseonReportingHorizonDays", "10", "Reporting: Tage in die Zukunft (Default-Horizont)"),
     };
     foreach (var (key, value, description) in trackingSettings)
     {

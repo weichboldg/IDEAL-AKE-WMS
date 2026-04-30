@@ -490,6 +490,7 @@ BEGIN
         ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
         ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
         ('SageRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Sage zurueckgeschrieben werden'),
+        ('OseonReportingHorizonDays', '10', 'Reporting: Tage in die Zukunft (Default-Horizont)'),
         ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle'),
         ('OseonAmpelGelbTage', '1', 'OSEON Ampel: Gelb ab X Tagen vor Termin'),
         ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin'),
