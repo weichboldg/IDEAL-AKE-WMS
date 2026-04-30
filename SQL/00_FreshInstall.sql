@@ -378,6 +378,7 @@ BEGIN
     CREATE INDEX [IX_OseonProductionOrders_ProductionWorkplaceId] ON [dbo].[OseonProductionOrders]([ProductionWorkplaceId]);
     CREATE INDEX [IX_OseonProductionOrders_OseonStatus] ON [dbo].[OseonProductionOrders]([OseonStatus]) INCLUDE ([CustomerOrderNumber], [OseonOrderNumber]);
     CREATE INDEX [IX_OseonProductionOrders_WorkplaceName] ON [dbo].[OseonProductionOrders]([WorkplaceName]) INCLUDE ([CustomerOrderNumber], [OseonStatus]);
+    CREATE INDEX [IX_OseonProductionOrders_ArticleNumber] ON [dbo].[OseonProductionOrders]([ArticleNumber]);
     PRINT 'Tabelle OseonProductionOrders erstellt.';
 END
 GO
