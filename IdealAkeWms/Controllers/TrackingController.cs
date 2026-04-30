@@ -219,15 +219,11 @@ public class TrackingController : Controller
 
                     // AG-spezifischen Soll-Termin berechnen
                     DateTime? calculatedDueDate = null;
-                    if (o.DueDate.HasValue && hasConfig)
+                    if (o.DueDate.HasValue)
                     {
-                        calculatedDueDate = opConfig!.DueDateOffsetDays == 0
-                            ? o.DueDate.Value.Date
-                            : _businessDayService.AddBusinessDays(o.DueDate.Value, opConfig.DueDateOffsetDays, holidays);
-                    }
-                    else if (o.DueDate.HasValue)
-                    {
-                        calculatedDueDate = o.DueDate.Value.Date;
+                        calculatedDueDate = hasConfig
+                            ? OseonDueDateCalculator.Calculate(o.DueDate.Value, opConfig!.DueDateOffsetDays, _businessDayService, holidays)
+                            : o.DueDate.Value.Date;
                     }
 
                     var opColor = await _trafficLightService.GetColorForOperationAsync(op.OseonStatus, calculatedDueDate);
