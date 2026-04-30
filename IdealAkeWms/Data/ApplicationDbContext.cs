@@ -47,6 +47,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
     public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
     public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
+    public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
+    public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -787,6 +789,55 @@ public class ApplicationDbContext : DbContext
                 .IsUnique()
                 .HasFilter("[IsFinal] = 1")
                 .HasDatabaseName("IX_BdeBookingQuantities_Booking_Final");
+        });
+
+        modelBuilder.Entity<WarehouseRequisition>(entity =>
+        {
+            entity.ToTable("WarehouseRequisitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CancellationReason).HasMaxLength(500);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ProductionWorkplaceId);
+            entity.HasIndex(e => e.SubmittedAt);
+
+            entity.HasOne(e => e.ProductionWorkplace)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.OrderRecipientGroup)
+                .WithMany()
+                .HasForeignKey(e => e.OrderRecipientGroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<WarehouseRequisitionItem>(entity =>
+        {
+            entity.ToTable("WarehouseRequisitionItems");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ArticleNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ArticleDescription).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Unit).HasMaxLength(20);
+            entity.Property(e => e.QuantityRequested).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.QuantityPicked).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.WarehouseRequisitionId, e.Position });
+            entity.HasIndex(e => new { e.WarehouseRequisitionId, e.ArticleNumber }).IsUnique();
+
+            entity.HasOne(e => e.WarehouseRequisition)
+                .WithMany(r => r.Items)
+                .HasForeignKey(e => e.WarehouseRequisitionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

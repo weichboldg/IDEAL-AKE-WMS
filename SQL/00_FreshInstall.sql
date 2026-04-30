@@ -1063,6 +1063,61 @@ BEGIN
 END
 GO
 
+CREATE TABLE [dbo].[WarehouseRequisitions] (
+    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [ProductionWorkplaceId] INT NOT NULL,
+    [Status] TINYINT NOT NULL,
+    [OrderRecipientGroupId] INT NULL,
+    [SubmittedAt] DATETIME2 NULL,
+    [SubmittedByUserId] INT NULL,
+    [ClosedAt] DATETIME2 NULL,
+    [ClosedByUserId] INT NULL,
+    [CancelledAt] DATETIME2 NULL,
+    [CancelledByUserId] INT NULL,
+    [CancellationReason] NVARCHAR(500) NULL,
+    [EmailSentAt] DATETIME2 NULL,
+    [CancellationEmailSentAt] DATETIME2 NULL,
+    [RowVersion] ROWVERSION NOT NULL,
+    [CreatedAt] DATETIME2 NOT NULL,
+    [CreatedBy] NVARCHAR(200) NOT NULL,
+    [CreatedByWindows] NVARCHAR(200) NOT NULL,
+    [ModifiedAt] DATETIME2 NULL,
+    [ModifiedBy] NVARCHAR(200) NULL,
+    [ModifiedByWindows] NVARCHAR(200) NULL,
+    CONSTRAINT [FK_WarehouseRequisitions_ProductionWorkplaces] FOREIGN KEY ([ProductionWorkplaceId])
+        REFERENCES [dbo].[ProductionWorkplaces]([Id]),
+    CONSTRAINT [FK_WarehouseRequisitions_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
+        REFERENCES [dbo].[OrderRecipientGroups]([Id])
+);
+CREATE INDEX [IX_WarehouseRequisitions_Status] ON [dbo].[WarehouseRequisitions]([Status]);
+CREATE INDEX [IX_WarehouseRequisitions_ProductionWorkplaceId] ON [dbo].[WarehouseRequisitions]([ProductionWorkplaceId]);
+CREATE INDEX [IX_WarehouseRequisitions_SubmittedAt] ON [dbo].[WarehouseRequisitions]([SubmittedAt]);
+GO
+
+CREATE TABLE [dbo].[WarehouseRequisitionItems] (
+    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [WarehouseRequisitionId] INT NOT NULL,
+    [ArticleNumber] NVARCHAR(100) NOT NULL,
+    [ArticleDescription] NVARCHAR(500) NOT NULL,
+    [Unit] NVARCHAR(20) NULL,
+    [QuantityRequested] DECIMAL(18,4) NOT NULL,
+    [QuantityPicked] DECIMAL(18,4) NULL,
+    [Position] INT NOT NULL,
+    [CreatedAt] DATETIME2 NOT NULL,
+    [CreatedBy] NVARCHAR(200) NOT NULL,
+    [CreatedByWindows] NVARCHAR(200) NOT NULL,
+    [ModifiedAt] DATETIME2 NULL,
+    [ModifiedBy] NVARCHAR(200) NULL,
+    [ModifiedByWindows] NVARCHAR(200) NULL,
+    CONSTRAINT [FK_WarehouseRequisitionItems_WarehouseRequisitions] FOREIGN KEY ([WarehouseRequisitionId])
+        REFERENCES [dbo].[WarehouseRequisitions]([Id]) ON DELETE CASCADE
+);
+CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
+    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
+CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
+    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber]);
+GO
+
 -- =============================================
 -- 17f. CachedBomHeaders + CachedBomItems
 -- =============================================
