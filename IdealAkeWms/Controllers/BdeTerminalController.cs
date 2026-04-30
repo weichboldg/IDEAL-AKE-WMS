@@ -52,7 +52,7 @@ public class BdeTerminalController : Controller
         ViewBag.AllWorkplaces = await _workplaces.GetBdeActiveAsync();
         ViewBag.DefaultWorkplaceId = terminal.DefaultProductionWorkplaceId;
 
-        var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
+        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.NurFaMode = nurFa;
 

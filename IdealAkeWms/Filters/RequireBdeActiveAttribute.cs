@@ -1,4 +1,5 @@
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -20,7 +21,7 @@ public class RequireBdeActiveFilter : IAsyncActionFilter
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var bdeAktiv = (await _settings.GetValueAsync("BdeAktiv"))
+        var bdeAktiv = (await _settings.GetValueAsync(AppSettingKeys.BdeAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         if (!bdeAktiv)

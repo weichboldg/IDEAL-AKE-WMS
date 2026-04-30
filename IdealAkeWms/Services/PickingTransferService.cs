@@ -226,14 +226,14 @@ public class PickingTransferService : IPickingTransferService
         }
 
         // 6. Pre-load negative booking settings ONCE (1-2 queries via repository)
-        var negativErlaubt = (await _settingRepository.GetValueAsync("NegativeBuchungErlaubt"))
+        var negativErlaubt = (await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungErlaubt))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         string? negativLagerplatzCode = null;
         int? negativLagerplatzId = null;
         if (negativErlaubt)
         {
-            negativLagerplatzCode = await _settingRepository.GetValueAsync("NegativeBuchungLagerplatz") ?? "NAN";
+            negativLagerplatzCode = await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungLagerplatz) ?? "NAN";
             var negativLagerplatz = await _context.StorageLocations
                 .FirstOrDefaultAsync(sl => sl.Code == negativLagerplatzCode);
             negativLagerplatzId = negativLagerplatz?.Id;

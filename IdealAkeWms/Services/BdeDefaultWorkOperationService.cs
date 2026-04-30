@@ -57,7 +57,7 @@ public class BdeDefaultWorkOperationService : IBdeDefaultWorkOperationService
         if (!string.IsNullOrWhiteSpace(workplace.BdeDefaultArbeitsgang))
             return workplace.BdeDefaultArbeitsgang.Trim();
 
-        var global = await _settings.GetValueAsync("BdeDefaultArbeitsgang");
+        var global = await _settings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang);
         if (!string.IsNullOrWhiteSpace(global))
             return global.Trim();
 

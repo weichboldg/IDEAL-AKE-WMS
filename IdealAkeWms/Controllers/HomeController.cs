@@ -23,7 +23,7 @@ public class HomeController : Controller
         ViewBag.CanPick = await _currentUserService.CanPickAsync();
         ViewBag.CanViewTracking = await _currentUserService.CanViewTrackingAsync();
         ViewBag.HasMasterDataAccess = await _currentUserService.HasMasterDataAccessAsync();
-        var teileverfolgungAktiv = (await _appSettings.GetValueAsync("TeileverfolgungAktiv"))
+        var teileverfolgungAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.TeileverfolgungAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.TeileverfolgungAktiv = teileverfolgungAktiv;
         return View();

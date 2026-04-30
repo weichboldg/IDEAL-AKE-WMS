@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
@@ -51,7 +52,7 @@ public class ProductionOrdersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         if (!order.IsReleasedForPicking && pickerAssignmentEnabled && !assignedPickerId.HasValue)
@@ -110,7 +111,7 @@ public class ProductionOrdersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         if (release && pickerAssignmentEnabled && !assignedPickerId.HasValue)
@@ -270,10 +271,10 @@ public class ProductionOrdersController : Controller
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
-        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync("BeschichtungAbholtage") ?? "Dienstag,Donnerstag";
+        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync(AppSettingKeys.BeschichtungAbholtage) ?? "Dienstag,Donnerstag";
         var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
-        var lackierteilName = await _settingRepository.GetValueAsync("LackierteilKategorieName");
+        var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
@@ -330,9 +331,9 @@ public class ProductionOrdersController : Controller
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
 
-        var leitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
+        var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        var pickerAssignmentEnabled = leitstandAktiv && (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+        var pickerAssignmentEnabled = leitstandAktiv && (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         var vm = new ProductionOrderViewModel

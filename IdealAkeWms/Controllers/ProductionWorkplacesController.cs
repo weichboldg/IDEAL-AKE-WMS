@@ -44,7 +44,7 @@ public class ProductionWorkplacesController : Controller
         {
             AvailableUsers = await _userRepository.GetActiveUsersAsync()
         };
-        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
+        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
         return View(vm);
     }
 
@@ -55,7 +55,7 @@ public class ProductionWorkplacesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
-            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
+            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
             return View(vm);
         }
 
@@ -111,7 +111,7 @@ public class ProductionWorkplacesController : Controller
             AvailableUsers = await _userRepository.GetActiveUsersAsync()
         };
 
-        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
+        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
         return View(vm);
     }
 
@@ -125,7 +125,7 @@ public class ProductionWorkplacesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
-            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync("BdeDefaultArbeitsgang") ?? "(nicht gesetzt)";
+            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
             return View(vm);
         }
 

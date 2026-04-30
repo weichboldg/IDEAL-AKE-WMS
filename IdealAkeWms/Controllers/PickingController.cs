@@ -63,13 +63,13 @@ public class PickingController : Controller
     [RequirePickingAccess]
     public async Task<IActionResult> Index(bool showAll = false)
     {
-        var leitstandAktiv = (await _settingRepository.GetValueAsync("LeitstandAktiv"))
+        var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         if (!leitstandAktiv)
             return View("IndexDropdown");
 
-        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync("KommissionierungMitZuweisung"))
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         List<ProductionOrder> releasedOrders;
@@ -279,7 +279,7 @@ public class PickingController : Controller
         };
 
         // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden
-        var bestellungenAktiv = (await _settingRepository.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var bestellungenAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.BestellungenAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.BestellungenAktiv = bestellungenAktiv;
         var openRequisitions = bestellungenAktiv
             ? await _partRequisitionRepository.GetByProductionOrderAsync(id)

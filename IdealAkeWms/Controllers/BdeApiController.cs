@@ -1,6 +1,7 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -70,7 +71,7 @@ public class BdeApiController : ControllerBase
     [HttpGet("operator/{id:int}/active-booking")]
     public async Task<IActionResult> GetActiveBooking(int id)
     {
-        var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
+        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         var b = await _bookings.GetActiveForOperatorAsync(id);
@@ -161,7 +162,7 @@ public class BdeApiController : ControllerBase
             return Ok(new { productive = Array.Empty<object>(), unplanned = Array.Empty<object>(), nurFaMode = false });
         }
 
-        var nurFa = (await _settings.GetValueAsync("BdeNurFaMeldung"))
+        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         if (nurFa)

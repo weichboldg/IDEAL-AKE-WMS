@@ -81,8 +81,8 @@ public class StockMovementsController : Controller
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
-        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        var bestellungenAktiv = (await _settingRepository.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var bestellungenAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.BestellungenAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.BestellungenAktiv = bestellungenAktiv;
         return View(vm);
     }
@@ -102,8 +102,8 @@ public class StockMovementsController : Controller
                 if (article != null)
                     vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
             }
-            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-            ViewBag.BestellungenAktiv = (await _settingRepository.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            ViewBag.BestellungenAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.BestellungenAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             return View(vm);
         }
 
@@ -150,7 +150,7 @@ public class StockMovementsController : Controller
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
-        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 
@@ -169,7 +169,7 @@ public class StockMovementsController : Controller
                 if (article != null)
                     vm.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
             }
-            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             return View(vm);
         }
 
@@ -181,7 +181,7 @@ public class StockMovementsController : Controller
 
         if (currentStock < vm.Quantity)
         {
-            var negativErlaubt = (await _settingRepository.GetValueAsync("NegativeBuchungErlaubt"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            var negativErlaubt = (await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungErlaubt))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             if (!negativErlaubt)
             {
                 ModelState.AddModelError("", $"Nicht genügend Bestand. Verfügbar: {currentStock:N3}");
@@ -197,7 +197,7 @@ public class StockMovementsController : Controller
             }
 
             // Negative Buchung erlaubt: vom Default-Lagerplatz buchen
-            var negativLagerplatzCode = await _settingRepository.GetValueAsync("NegativeBuchungLagerplatz") ?? "NAN";
+            var negativLagerplatzCode = await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungLagerplatz) ?? "NAN";
             var negativLagerplatz = await _storageLocationRepository.GetByCodeAsync(negativLagerplatzCode);
             if (negativLagerplatz != null)
             {
@@ -237,7 +237,7 @@ public class StockMovementsController : Controller
         {
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync()
         };
-        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 
@@ -254,7 +254,7 @@ public class StockMovementsController : Controller
         if (!ModelState.IsValid)
         {
             vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
-            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync("QrMitFaNummer"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             if (vm.ArticleId > 0)
             {
                 var article = await _articleRepository.GetByIdAsync(vm.ArticleId);
@@ -272,7 +272,7 @@ public class StockMovementsController : Controller
 
         if (currentStockTransfer < vm.Quantity)
         {
-            var negativErlaubt = (await _settingRepository.GetValueAsync("NegativeBuchungErlaubt"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+            var negativErlaubt = (await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungErlaubt))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             if (!negativErlaubt)
             {
                 ModelState.AddModelError("", $"Nicht genügend Bestand am Quell-Lagerplatz. Verfügbar: {currentStockTransfer:N3}");
@@ -286,7 +286,7 @@ public class StockMovementsController : Controller
                 return View(vm);
             }
 
-            var negativLagerplatzCode = await _settingRepository.GetValueAsync("NegativeBuchungLagerplatz") ?? "NAN";
+            var negativLagerplatzCode = await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungLagerplatz) ?? "NAN";
             var negativLagerplatz = await _storageLocationRepository.GetByCodeAsync(negativLagerplatzCode);
             if (negativLagerplatz != null)
             {
