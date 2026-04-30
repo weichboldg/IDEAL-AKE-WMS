@@ -1,0 +1,135 @@
+@model IdealAkeWms.Models.ViewModels.OseonReportingViewModel
+@{
+    ViewData["Title"] = "OSEON AG-Übersicht";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <div>
+        <h2 class="mb-0">OSEON AG-Übersicht</h2>
+        <small class="text-muted">Geplante vs. erledigte Arbeitsgänge</small>
+    </div>
+    <div>
+        @if (Model.DataAsOf.HasValue)
+        {
+            <span class="badge bg-secondary">Daten Stand: @Model.DataAsOf.Value.ToString("dd.MM.yyyy HH:mm")</span>
+        }
+        else
+        {
+            <span class="badge bg-warning text-dark">noch nie synchronisiert</span>
+        }
+    </div>
+</div>
+
+@if (Model.OperationsWithoutConfigCount > 0)
+{
+    <div class="alert alert-warning mt-2 mb-2">
+        <strong>@Model.OperationsWithoutConfigCount AG(s) ohne Config-Eintrag</strong> &mdash;
+        bitte unter <a asp-controller="Settings" asp-action="OperationConfig">Stammdaten &rarr; OSEON-Arbeitsgänge</a> pflegen.
+    </div>
+}
+
+<form method="get" asp-action="OperationsOverview" class="card card-body mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Werkbank</label>
+            <select name="workplaceId" class="form-select form-select-sm">
+                <option value="">— alle —</option>
+                @foreach (var wp in Model.AvailableWorkplaces)
+                {
+                    <option value="@wp.Id" selected="@(Model.Filter.WorkplaceId == wp.Id)">@wp.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">AG (CSV)</label>
+            <input name="operationNames" class="form-control form-control-sm"
+                   placeholder="z.B. B,ST"
+                   value="@string.Join(",", Model.Filter.OperationNames)" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Kundenauftrag</label>
+            <input name="customerOrderNumber" class="form-control form-control-sm"
+                   value="@Model.Filter.CustomerOrderNumber" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">FA-Nummer</label>
+            <input name="faNumber" class="form-control form-control-sm"
+                   value="@Model.Filter.FaNumber" />
+        </div>
+        <div class="col-md-1">
+            <label class="form-label">Horizont</label>
+            <input name="horizonDays" type="number" min="1" max="60" class="form-control form-control-sm"
+                   value="@Model.Filter.HorizonDaysOverride" placeholder="@Model.HorizonDaysEffective" />
+        </div>
+        <div class="col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-primary flex-grow-1">Anwenden</button>
+            <a asp-action="OperationsOverview" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+    </div>
+</form>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <div class="card border-danger"><div class="card-body p-2">
+            <div class="text-muted small">Überfällig</div>
+            <div class="display-6 text-danger">@Model.Kpis.OverdueCount</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body p-2">
+            <div class="text-muted small">Heute geplant</div>
+            <div class="display-6">@Model.Kpis.TodayPlannedCount</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success"><div class="card-body p-2">
+            <div class="text-muted small">Heute erledigt</div>
+            <div class="display-6 text-success">@Model.Kpis.TodayDoneCount</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-primary"><div class="card-body p-2">
+            <div class="text-muted small">Zukunft (@Model.HorizonDaysEffective Tage)</div>
+            <div class="display-6 text-primary">@Model.Kpis.FutureCount</div>
+        </div></div>
+    </div>
+</div>
+
+@{
+    string sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice s)
+    {
+        var url = $"?slice={s}";
+        if (Model.Filter.WorkplaceId.HasValue) url += $"&workplaceId={Model.Filter.WorkplaceId}";
+        if (Model.Filter.OperationNames.Count > 0) url += $"&operationNames={string.Join(",", Model.Filter.OperationNames)}";
+        if (!string.IsNullOrEmpty(Model.Filter.CustomerOrderNumber)) url += $"&customerOrderNumber={Model.Filter.CustomerOrderNumber}";
+        if (!string.IsNullOrEmpty(Model.Filter.FaNumber)) url += $"&faNumber={Model.Filter.FaNumber}";
+        if (Model.Filter.HorizonDaysOverride.HasValue) url += $"&horizonDays={Model.Filter.HorizonDaysOverride}";
+        return url;
+    }
+    string activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) =>
+        Model.Filter.Slice == s ? "active" : "";
+}
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Today)">Heute</a></li>
+    <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Overdue)">Überfällig</a></li>
+    <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future)">Zukunft</a></li>
+    <li class="nav-item"><a class="nav-link @activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice.All)" href="@sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice.All)">Alle</a></li>
+</ul>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="alert alert-info">Keine OSEON-relevanten Arbeitsgänge im gewählten Zeitraum.</div>
+}
+else if (Model.Filter.Slice == IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future && Model.FutureDayGroups.Count > 0)
+{
+    foreach (var grp in Model.FutureDayGroups)
+    {
+        <h6 class="mt-3">@grp.Date.ToString("dddd, dd.MM.yyyy") &mdash; @grp.Count AG(s)</h6>
+        @await Html.PartialAsync("_OseonReportingTable", grp.Rows)
+    }
+}
+else
+{
+    @await Html.PartialAsync("_OseonReportingTable", Model.Rows)
+}
