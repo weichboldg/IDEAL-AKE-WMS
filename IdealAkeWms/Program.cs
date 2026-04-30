@@ -191,6 +191,7 @@ using (var scope = app.Services.CreateScope())
         ("OseonRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden"),
         ("SageRueckmeldungAktiv", "false", "Rueckmeldungen duerfen an Sage zurueckgeschrieben werden"),
         ("OseonReportingHorizonDays", "10", "Reporting: Tage in die Zukunft (Default-Horizont)"),
+        ("OseonReportingOverdueLookbackDays", "90", "Reporting: Tage in die Vergangenheit fuer Ueberfaellig-Slice"),
     };
     foreach (var (key, value, description) in trackingSettings)
     {

@@ -48,8 +48,13 @@ public class OseonReportingController : Controller
         var defaultHorizon = int.TryParse(defaultHorizonText, out var parsed) ? parsed : 10;
         var horizonEffective = Math.Clamp(horizonDays ?? defaultHorizon, 1, 60);
 
+        var lookbackText = await _settings.GetValueAsync(AppSettingKeys.OseonReportingOverdueLookbackDays);
+        var lookbackEffective = int.TryParse(lookbackText, out var lookbackParsed)
+            ? Math.Clamp(lookbackParsed, 1, 365)
+            : 90;
+
         var today = DateTime.Today;
-        var fromDate = today.AddDays(-90);
+        var fromDate = today.AddDays(-lookbackEffective);
         var toDate = today.AddDays(horizonEffective);
 
         var opNamesList = string.IsNullOrWhiteSpace(operationNames)

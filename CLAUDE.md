@@ -149,6 +149,7 @@
 | `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv) |
 | `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende aktiv |
 | `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft (Default-Horizont) |
+| `OseonReportingOverdueLookbackDays` | `90` | Reporting: Tage in die Vergangenheit fuer Ueberfaellig-Slice |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 

@@ -135,11 +135,23 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         // Aktive Auftragsstatus: 20=Gueltig, 30=Freigegeben, 60=In Arbeit, 90=Fertig
         var activeOrderStatuses = new[] { 20, 30, 60, 90 };
 
+        // Configs zuerst laden, um den maximal moeglichen Offset-Drift zu kennen.
+        // calculatedDueDate = DueDate + offsetDays (Werktage). Der aufrufende Code filtert spaeter auf
+        // calculatedDueDate IN [fromDate, toDate]. Damit kein Auftrag durchs Raster faellt, dessen DueDate
+        // ausserhalb [fromDate, toDate] liegt aber dessen calc'd Date innerhalb, erweitern wir den DB-Filter
+        // um den groessten absoluten Offset (max ueber alle Configs).
+        var configs = await _context.OseonOperationConfigs.AsNoTracking().ToListAsync(ct);
+        var configByName = configs.ToDictionary(c => c.OperationName, StringComparer.OrdinalIgnoreCase);
+        var maxOffsetMagnitude = configs.Count == 0 ? 0 : configs.Max(c => Math.Abs(c.DueDateOffsetDays));
+        var dbFromDate = fromDate.AddDays(-maxOffsetMagnitude);
+        var dbToDate = toDate.AddDays(maxOffsetMagnitude);
+
         var ordersQuery = _context.OseonProductionOrders
             .AsNoTracking()
             .Include(o => o.WorkOperations)
             .Where(o => activeOrderStatuses.Contains(o.OseonStatus))
-            .Where(o => o.DueDate != null);
+            .Where(o => o.DueDate != null)
+            .Where(o => o.DueDate >= dbFromDate && o.DueDate <= dbToDate);
 
         if (workplaceId.HasValue)
             ordersQuery = ordersQuery.Where(o => o.ProductionWorkplaceId == workplaceId.Value);
@@ -152,9 +164,6 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             ordersQuery = ordersQuery.Where(o => o.OseonOrderNumber.StartsWith(faNumberPrefix));
 
         var orders = await ordersQuery.ToListAsync(ct);
-
-        var configs = await _context.OseonOperationConfigs.AsNoTracking().ToListAsync(ct);
-        var configByName = configs.ToDictionary(c => c.OperationName, StringComparer.OrdinalIgnoreCase);
 
         var rows = new List<OseonReportingQueryRow>();
         var noConfigCount = 0;
