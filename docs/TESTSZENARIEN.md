@@ -44,3 +44,32 @@ Dieses Dokument enthält manuelle Testszenarien für die Hauptfunktionen des IDE
 1. Direkter URL-Aufruf /OseonReporting/OperationsOverview.
 
 **Erwartet:** Redirect auf AccessDenied.
+
+## 2. OSEON Tracking — Artikel-Filter
+
+### TS-2.1 — Artikelnummer-Filter via Form-Submit
+**Vorbedingungen:** Tracking-Rolle, mindestens 3 OSEON-Auftraege mit unterschiedlichen Artikelnummern, davon mindestens einer mit Artikelnummer-Pattern "ART-100*".
+**Schritte:**
+1. /Tracking/OseonIndex oeffnen.
+2. In das Feld "Artikelnummer" `100` eingeben.
+3. Auf "Filtern" klicken.
+**Erwartet:** Ergebnis enthaelt nur Customer-Order-Gruppen mit mindestens einem Sub-Auftrag dessen ArticleNumber `100` enthaelt. Innerhalb einer matchenden Gruppe werden ALLE Sub-Auftraege angezeigt (auch nicht-matchende — siehe Spec §4 Group-Pagination). Filter-Wert bleibt im Input. Pagination wirkt auf gefiltertes Group-Ergebnis.
+
+### TS-2.2 — Kombinierter Filter (Artikel + Werkbank + Auftrag)
+**Vorbedingungen:** Daten mit verschiedenen Werkbaenken + Artikelnummern.
+**Schritte:**
+1. Artikelnummer eingeben + Werkbank waehlen + Auftragsnummer-Suchterm eingeben.
+2. "Filtern" klicken.
+**Erwartet:** Schnittmenge aller Filter (konjunktiv auf Group-Ebene). Reset-Link sichtbar.
+
+### TS-2.3 — QR-Scan triggert Form-Submit
+**Schritte:**
+1. Auf den QR-Button neben dem Artikelnummer-Input klicken.
+2. Artikel-QR-Code scannen.
+**Erwartet:** Input wird mit dem gescannten Wert befuellt UND Form wird automatisch submitted (Page-Reload mit Filter aktiv).
+
+### TS-2.4 — Reset entfernt alle Filter inkl. Artikel
+**Vorbedingungen:** Mindestens ein Filter ist aktiv (Artikel, Auftrag, Werkbank, ShowFinished oder useRelevanceFilter=false).
+**Schritte:**
+1. "Zuruecksetzen"-Link klicken.
+**Erwartet:** Alle Filter zurueckgesetzt (Artikel-Input leer), volle Liste sichtbar.

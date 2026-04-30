@@ -9,6 +9,21 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.7.2</strong> <span class="text-white-50 ms-2">30.04.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Fixes &amp; Verbesserungen</h6>
+                <ul>
+                    <li><strong>OSEON Tracking Artikel-Filter:</strong> Server-seitige Suche statt Browser-Live-Filter. Behebt App-Freeze beim Tippen und macht den Filter ueber den Gesamtbestand wirksam.</li>
+                    <li>Neuer DB-Index <code>IX_OseonProductionOrders_ArticleNumber</code> als Performance-Vorbereitung.</li>
+                    <li>Repository <code>GetPagedAsync</code> akzeptiert optionalen <code>articleNumber</code>-Parameter (Contains, Null-safe).</li>
+                    <li>QR-Scan eines Artikel-Codes loest nun Form-Submit aus (analog Auftragsnummer-Scan).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.7.1</strong> <span class="text-white-50 ms-2">30.04.2026</span>
             </div>
             <div class="card-body">

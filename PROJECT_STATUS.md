@@ -42,10 +42,18 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Individuell anpassbare Tabellenansichten (Spalten) | Fertig |
 
 ## Version
-- **Web-App**: v1.7.1 (30.04.2026)
-- **Service**: v1.7.1 (30.04.2026)
+- **Web-App**: v1.7.2 (30.04.2026)
+- **Service**: v1.7.2 (30.04.2026)
 
 ## Aenderungen (30.04.2026)
+
+### v1.7.2 — OSEON Tracking Artikel-Filter Fix
+
+#### Fixes & Verbesserungen
+- **OSEON Tracking Artikel-Filter**: Server-seitige Suche statt Browser-Live-Filter. Behebt App-Freeze beim Tippen und macht den Filter ueber den Gesamtbestand wirksam.
+- **Neuer DB-Index** `IX_OseonProductionOrders_ArticleNumber` als Performance-Vorbereitung.
+- **Repository** `GetPagedAsync` akzeptiert optionalen `articleNumber`-Parameter (Contains, Null-safe).
+- **QR-Scan** eines Artikel-Codes loest nun Form-Submit aus (analog Auftragsnummer-Scan).
 
 ### v1.7.1 — OSEON Reporting
 
