@@ -60,6 +60,7 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IEnaioDmsDocumentRepository, EnaioDmsDocumentRepository>();
 builder.Services.AddScoped<IOrderRecipientRepository, OrderRecipientRepository>();
 builder.Services.AddScoped<IPartRequisitionRepository, PartRequisitionRepository>();
+builder.Services.AddScoped<IWarehouseRequisitionRepository, WarehouseRequisitionRepository>();
 builder.Services.AddScoped<IArticleCategoryRepository, ArticleCategoryRepository>();
 builder.Services.AddScoped<IArticleAttributeRepository, ArticleAttributeRepository>();
 builder.Services.AddScoped<IUserViewPreferenceRepository, UserViewPreferenceRepository>();
