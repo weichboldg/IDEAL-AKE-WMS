@@ -1072,6 +1072,7 @@ CREATE TABLE [dbo].[WarehouseRequisitions] (
     [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     [ProductionWorkplaceId] INT NOT NULL,
     [Status] TINYINT NOT NULL,
+    [CreatedByUserId] INT NULL,
     [OrderRecipientGroupId] INT NULL,
     [SubmittedAt] DATETIME2 NULL,
     [SubmittedByUserId] INT NULL,
@@ -1097,6 +1098,7 @@ CREATE TABLE [dbo].[WarehouseRequisitions] (
 CREATE INDEX [IX_WarehouseRequisitions_Status] ON [dbo].[WarehouseRequisitions]([Status]);
 CREATE INDEX [IX_WarehouseRequisitions_ProductionWorkplaceId] ON [dbo].[WarehouseRequisitions]([ProductionWorkplaceId]);
 CREATE INDEX [IX_WarehouseRequisitions_SubmittedAt] ON [dbo].[WarehouseRequisitions]([SubmittedAt]);
+CREATE INDEX [IX_WarehouseRequisitions_CreatedByUserId] ON [dbo].[WarehouseRequisitions]([CreatedByUserId]);
 GO
 
 CREATE TABLE [dbo].[WarehouseRequisitionItems] (
@@ -1482,6 +1484,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430175933_AddOseonWorkOperationsPerformanceIndex', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430183954_AddWarehouseRequisitions')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430183954_AddWarehouseRequisitions', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260502172901_AddWarehouseRequisitionCreatedByUserId')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260502172901_AddWarehouseRequisitionCreatedByUserId', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

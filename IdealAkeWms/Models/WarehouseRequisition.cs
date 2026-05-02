@@ -10,6 +10,8 @@ public class WarehouseRequisition : AuditableEntity
 
     public WarehouseRequisitionStatus Status { get; set; } = WarehouseRequisitionStatus.Draft;
 
+    public int? CreatedByUserId { get; set; }
+
     public int? OrderRecipientGroupId { get; set; }
     public OrderRecipientGroup? OrderRecipientGroup { get; set; }
 

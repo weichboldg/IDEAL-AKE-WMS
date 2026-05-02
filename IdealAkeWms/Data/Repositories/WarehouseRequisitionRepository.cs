@@ -14,6 +14,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         {
             ProductionWorkplaceId = productionWorkplaceId,
             Status = WarehouseRequisitionStatus.Draft,
+            CreatedByUserId = currentUserId,
             CreatedAt = DateTime.Now,
             CreatedBy = currentUserName,
             CreatedByWindows = windowsUserName

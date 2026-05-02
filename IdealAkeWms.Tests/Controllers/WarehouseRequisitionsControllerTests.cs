@@ -70,7 +70,9 @@ public class WarehouseRequisitionsControllerTests
         result.Should().NotBeNull();
         result!.ActionName.Should().Be("Edit");
         ctx.WarehouseRequisitions.Should().ContainSingle();
-        ctx.WarehouseRequisitions.First().ProductionWorkplaceId.Should().Be(wp.Id);
+        var created = ctx.WarehouseRequisitions.First();
+        created.ProductionWorkplaceId.Should().Be(wp.Id);
+        created.CreatedByUserId.Should().Be(userId, "stabiler User-Filter via CreatedByUserId");
     }
 
     [Fact]

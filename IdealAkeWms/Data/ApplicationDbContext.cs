@@ -805,6 +805,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ProductionWorkplaceId);
             entity.HasIndex(e => e.SubmittedAt);
+            entity.HasIndex(e => e.CreatedByUserId);
 
             entity.HasOne(e => e.ProductionWorkplace)
                 .WithMany()

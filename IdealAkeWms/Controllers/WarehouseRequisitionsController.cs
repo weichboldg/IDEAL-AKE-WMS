@@ -31,7 +31,9 @@ public class WarehouseRequisitionsController : Controller
         var userId = _user.GetCurrentAppUserId() ?? 0;
         var displayName = _user.GetDisplayName();
         var all = await _repo.GetForUserAsync(userId);
-        var ownOnly = all.Where(r => r.CreatedBy == displayName).ToList();
+        // Stabiler Filter via CreatedByUserId; Fallback auf CreatedBy fuer Altdaten ohne UserId.
+        var ownOnly = all.Where(r => r.CreatedByUserId == userId
+            || (r.CreatedByUserId == null && r.CreatedBy == displayName)).ToList();
         var vm = new WarehouseRequisitionListViewModel
         {
             Items = ownOnly.Select(r => new WarehouseRequisitionListItemViewModel(
@@ -82,8 +84,13 @@ public class WarehouseRequisitionsController : Controller
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null) return NotFound();
+        var userId = _user.GetCurrentAppUserId() ?? 0;
         var displayName = _user.GetDisplayName();
-        if (r.CreatedBy != displayName)
+        // Wenn CreatedByUserId gesetzt ist, primaer per Id pruefen; sonst Fallback auf Display-Name.
+        var ownsRequisition = r.CreatedByUserId != null
+            ? r.CreatedByUserId == userId
+            : r.CreatedBy == displayName;
+        if (!ownsRequisition)
             return Forbid();
 
         var vm = new WarehouseRequisitionEditViewModel
