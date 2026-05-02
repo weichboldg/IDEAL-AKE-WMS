@@ -86,6 +86,12 @@ public class WarehousePickingController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Close(int id, int[] itemIds, decimal[] quantitiesPicked, byte[] rowVersion)
     {
+        if (quantitiesPicked.Any(q => q < 0m))
+        {
+            TempData["WarningMessage"] = "Ist-Mengen duerfen nicht negativ sein.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         var dict = new Dictionary<int, decimal>();
         for (int idx = 0; idx < itemIds.Length; idx++)
             dict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
