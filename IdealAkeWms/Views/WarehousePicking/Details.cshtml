@@ -40,7 +40,7 @@
         <tbody>
             @foreach (var i in Model.Items)
             {
-                <tr>
+                <tr data-requested="@i.QuantityRequested.ToString(System.Globalization.CultureInfo.InvariantCulture)">
                     <td>@i.Position</td>
                     <td>@i.ArticleNumber</td>
                     <td>@i.ArticleDescription</td>
@@ -49,7 +49,7 @@
                         <input type="hidden" name="itemIds" value="@i.Id" />
                         @if (isSubmitted)
                         {
-                            <input type="number" name="quantitiesPicked" step="0.01" value="@(i.QuantityPicked ?? i.QuantityRequested)" class="form-control form-control-sm" style="width:90px;" />
+                            <input type="number" name="quantitiesPicked" step="0.01" value="@((i.QuantityPicked ?? i.QuantityRequested).ToString(System.Globalization.CultureInfo.InvariantCulture))" class="form-control form-control-sm" style="width:90px;" />
                         }
                         else
                         {
@@ -134,10 +134,10 @@
     });
 
     document.getElementById('close-yes').addEventListener('click', () => {
-        // Soll -> Ist: fill empty/zero with the requested-qty (cells[3] = "Bestellt")
+        // Soll -> Ist: fill empty/zero with the requested-qty from data-requested attribute
         emptyRows().forEach(inp => {
             const tr = inp.closest('tr');
-            const requested = tr.cells[3].innerText.trim();
+            const requested = tr.dataset.requested;
             inp.value = requested;
         });
         modal.hide();
