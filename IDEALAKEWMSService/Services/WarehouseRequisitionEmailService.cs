@@ -1,16 +1,15 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Text;
 
 namespace IDEALAKEWMSService.Services;
 
 public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailService
 {
-    private readonly ApplicationDbContext _ctx;
     private readonly IWarehouseRequisitionRepository _repo;
     private readonly IMailService _mail;
     private readonly IConfiguration _config;
@@ -23,8 +22,10 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         IConfiguration config,
         ILogger<WarehouseRequisitionEmailService> logger)
     {
-        _ctx = ctx; _repo = repo; _mail = mail; _config = config; _logger = logger;
+        _repo = repo; _mail = mail; _config = config; _logger = logger;
     }
+
+    private static string E(string? s) => WebUtility.HtmlEncode(s ?? "");
 
     public async Task<EmailResult> SendPendingEmailsAsync(bool dryRun, CancellationToken ct = default)
     {
@@ -110,19 +111,19 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         var sb = new StringBuilder();
         sb.AppendLine($"<html><body style='font-family:Segoe UI, Arial; color:#000;'>");
         sb.AppendLine($"<h2 style='color:#053153;'>Lagerbestellung #{r.Id}</h2>");
-        sb.AppendLine($"<p><strong>Werkbank:</strong> {r.ProductionWorkplace.Name}<br />");
-        sb.AppendLine($"<strong>Erfasser:</strong> {r.CreatedBy}<br />");
+        sb.AppendLine($"<p><strong>Werkbank:</strong> {E(r.ProductionWorkplace.Name)}<br />");
+        sb.AppendLine($"<strong>Erfasser:</strong> {E(r.CreatedBy)}<br />");
         sb.AppendLine($"<strong>Submit:</strong> {r.SubmittedAt:dd.MM.yyyy HH:mm}</p>");
         sb.AppendLine("<table style='border-collapse:collapse; border:1px solid #888;'>");
         sb.AppendLine("<thead><tr style='background:#f0f0f0;'><th style='border:1px solid #888; padding:4px;'>Pos</th><th style='border:1px solid #888; padding:4px;'>Artikel-Nr</th><th style='border:1px solid #888; padding:4px;'>Bezeichnung</th><th style='border:1px solid #888; padding:4px;'>Menge</th><th style='border:1px solid #888; padding:4px;'>ME</th></tr></thead><tbody>");
         foreach (var i in r.Items.OrderBy(i => i.Position))
         {
-            sb.AppendLine($"<tr><td style='border:1px solid #888; padding:4px;'>{i.Position}</td><td style='border:1px solid #888; padding:4px;'>{i.ArticleNumber}</td><td style='border:1px solid #888; padding:4px;'>{i.ArticleDescription}</td><td style='border:1px solid #888; padding:4px;'>{i.QuantityRequested}</td><td style='border:1px solid #888; padding:4px;'>{i.Unit}</td></tr>");
+            sb.AppendLine($"<tr><td style='border:1px solid #888; padding:4px;'>{i.Position}</td><td style='border:1px solid #888; padding:4px;'>{E(i.ArticleNumber)}</td><td style='border:1px solid #888; padding:4px;'>{E(i.ArticleDescription)}</td><td style='border:1px solid #888; padding:4px;'>{i.QuantityRequested}</td><td style='border:1px solid #888; padding:4px;'>{E(i.Unit)}</td></tr>");
         }
         sb.AppendLine("</tbody></table>");
         if (!string.IsNullOrEmpty(baseUrl))
         {
-            sb.AppendLine($"<p style='margin-top:20px;'><a href='{baseUrl}/WarehousePicking/Details/{r.Id}' style='display:inline-block;background:#43A6E2;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;'>Lagerbestellung oeffnen</a></p>");
+            sb.AppendLine($"<p style='margin-top:20px;'><a href='{E(baseUrl)}/WarehousePicking/Details/{r.Id}' style='display:inline-block;background:#43A6E2;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;'>Lagerbestellung oeffnen</a></p>");
         }
         sb.AppendLine("</body></html>");
         return sb.ToString();
@@ -133,12 +134,12 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         var sb = new StringBuilder();
         sb.AppendLine($"<html><body style='font-family:Segoe UI, Arial; color:#000;'>");
         sb.AppendLine($"<h2 style='color:#c0392b;'>[STORNO] Lagerbestellung #{r.Id}</h2>");
-        sb.AppendLine($"<p><strong>Werkbank:</strong> {r.ProductionWorkplace.Name}<br />");
-        sb.AppendLine($"<strong>Erfasser:</strong> {r.CreatedBy}<br />");
+        sb.AppendLine($"<p><strong>Werkbank:</strong> {E(r.ProductionWorkplace.Name)}<br />");
+        sb.AppendLine($"<strong>Erfasser:</strong> {E(r.CreatedBy)}<br />");
         sb.AppendLine($"<strong>Storniert:</strong> {r.CancelledAt:dd.MM.yyyy HH:mm}</p>");
         if (!string.IsNullOrEmpty(r.CancellationReason))
         {
-            sb.AppendLine($"<p><strong>Grund:</strong> {r.CancellationReason}</p>");
+            sb.AppendLine($"<p><strong>Grund:</strong> {E(r.CancellationReason)}</p>");
         }
         sb.AppendLine("<p><strong>Bitte nicht weiter bearbeiten.</strong></p>");
         sb.AppendLine("</body></html>");
