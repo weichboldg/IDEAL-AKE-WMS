@@ -96,8 +96,16 @@ public class WarehousePickingController : Controller
         for (int idx = 0; idx < itemIds.Length; idx++)
             dict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
 
-        await _repo.CloseAsync(id, dict, _user.GetCurrentAppUserId() ?? 0,
-            _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
+        try
+        {
+            await _repo.CloseAsync(id, dict, _user.GetCurrentAppUserId() ?? 0,
+                _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            TempData["WarningMessage"] = "Bestellung wurde inzwischen geaendert — bitte Liste neu laden.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
         TempData["SuccessMessage"] = $"Liste #{id} abgeschlossen.";
         return RedirectToAction(nameof(Index));
     }
@@ -105,8 +113,16 @@ public class WarehousePickingController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id, string? reason, byte[] rowVersion)
     {
-        await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
-            _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
+        try
+        {
+            await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
+                _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            TempData["WarningMessage"] = "Bestellung wurde inzwischen geaendert — bitte Liste neu laden.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
         TempData["SuccessMessage"] = $"Liste #{id} storniert.";
         return RedirectToAction(nameof(Index));
     }

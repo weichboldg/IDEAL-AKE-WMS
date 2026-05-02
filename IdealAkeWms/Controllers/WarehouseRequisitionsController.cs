@@ -127,8 +127,16 @@ public class WarehouseRequisitionsController : Controller
             return RedirectToAction(nameof(Edit), new { id });
         }
 
-        await _repo.SubmitAsync(id, groupId, _user.GetCurrentAppUserId() ?? 0,
-            _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+        try
+        {
+            await _repo.SubmitAsync(id, groupId, _user.GetCurrentAppUserId() ?? 0,
+                _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            TempData["WarningMessage"] = "Bestellung wurde inzwischen geaendert — bitte Liste neu laden.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
 
         TempData["SuccessMessage"] = $"Liste #{id} abgeschickt — wird per E-Mail gesendet (max. 15 Min).";
         return RedirectToAction(nameof(Index));
@@ -144,8 +152,16 @@ public class WarehouseRequisitionsController : Controller
             TempData["WarningMessage"] = "Liste kann in diesem Status nicht storniert werden.";
             return RedirectToAction(nameof(Edit), new { id });
         }
-        await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
-            _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+        try
+        {
+            await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
+                _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            TempData["WarningMessage"] = "Bestellung wurde inzwischen geaendert — bitte Liste neu laden.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
         TempData["SuccessMessage"] = $"Liste #{id} storniert.";
         return RedirectToAction(nameof(Index));
     }

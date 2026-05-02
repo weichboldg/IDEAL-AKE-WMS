@@ -87,4 +87,41 @@ public class WarehousePickingControllerTests
         updated.Status.Should().Be(WarehouseRequisitionStatus.Closed);
         updated.Items.First().QuantityPicked.Should().Be(4m);
     }
+
+    [Fact]
+    public async Task Close_RowVersionConflict_ShowsWarningAndStays()
+    {
+        // InMemory DB unterstuetzt kein RowVersion → Mock<IWarehouseRequisitionRepository> der DbUpdateConcurrencyException wirft
+        var ctx = TestDbContextFactory.Create();
+        var u = new User { Name = "stocker", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.Users.Add(u); ctx.SaveChanges();
+
+        var current = new Mock<ICurrentUserService>();
+        current.Setup(s => s.GetCurrentAppUserId()).Returns(u.Id);
+        current.Setup(s => s.GetDisplayName()).Returns("stocker");
+        current.Setup(s => s.GetWindowsUserName()).Returns("DOMAIN\\stocker");
+
+        var repo = new Mock<IWarehouseRequisitionRepository>();
+        repo.Setup(r => r.CloseAsync(It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<int, decimal>>(),
+                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var workplaces = new ProductionWorkplaceRepository(ctx);
+        var stock = new Mock<IStockMovementRepository>();
+        stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
+             .ReturnsAsync(new List<StockOverviewItem>());
+
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object);
+        ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            new Microsoft.AspNetCore.Http.DefaultHttpContext(),
+            Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        var staleRowVersion = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+        var result = await ctrl.Close(id: 99, itemIds: new[] { 1 }, quantitiesPicked: new[] { 4m }, rowVersion: staleRowVersion) as RedirectToActionResult;
+
+        result.Should().NotBeNull();
+        result!.ActionName.Should().Be("Details");
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+    }
 }
