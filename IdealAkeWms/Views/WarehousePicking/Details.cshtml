@@ -68,7 +68,7 @@
 
     @if (isSubmitted)
     {
-        <button type="submit" class="btn btn-success">Abschliessen</button>
+        <button type="button" id="btn-close-finish" class="btn btn-success">Abschliessen</button>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancel-modal">Stornieren</button>
     }
 </form>
@@ -92,3 +92,62 @@
         </form>
     </div>
 </div>
+
+<div class="modal fade" id="close-confirm-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Ist-Menge fehlt</h5></div>
+            <div class="modal-body">
+                Bei einigen Positionen wurde keine Ist-Menge eingegeben.<br />
+                <strong>Soll = Ist-Menge buchen?</strong>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="close-yes" class="btn btn-success">Ja</button>
+                <button type="button" id="close-no" class="btn btn-warning">Nein</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const btn = document.getElementById('btn-close-finish');
+    if (!btn) return;
+    const form = btn.closest('form');
+    const modalEl = document.getElementById('close-confirm-modal');
+    const modal = new bootstrap.Modal(modalEl);
+
+    function emptyRows() {
+        return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
+            .filter(i => !i.value || parseFloat(i.value) === 0);
+    }
+
+    btn.addEventListener('click', () => {
+        const empties = emptyRows();
+        if (empties.length === 0) {
+            form.submit();
+            return;
+        }
+        modal.show();
+    });
+
+    document.getElementById('close-yes').addEventListener('click', () => {
+        // Soll -> Ist: fill empty/zero with the requested-qty (cells[3] = "Bestellt")
+        emptyRows().forEach(inp => {
+            const tr = inp.closest('tr');
+            const requested = tr.cells[3].innerText.trim();
+            inp.value = requested;
+        });
+        modal.hide();
+        form.submit();
+    });
+
+    document.getElementById('close-no').addEventListener('click', () => {
+        modal.hide();
+        form.submit();
+    });
+})();
+</script>
+}
