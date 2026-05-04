@@ -87,9 +87,9 @@
     string sliceLink(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) => buildLink(s, false);
 
     string activeKpiClass(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) =>
-        !Model.Filter.DoneToday && Model.Filter.Slice == s ? "shadow border-3" : "";
+        !Model.Filter.DoneToday && Model.Filter.Slice == s ? "kpi-card-active" : "";
     string activeDoneTodayClass() =>
-        Model.Filter.DoneToday ? "shadow border-3" : "";
+        Model.Filter.DoneToday ? "kpi-card-active" : "";
 
     string activeIf(IdealAkeWms.Models.ViewModels.OseonReportingSlice s) =>
         !Model.Filter.DoneToday && Model.Filter.Slice == s ? "active" : "";

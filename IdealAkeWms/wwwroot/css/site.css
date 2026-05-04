@@ -1126,3 +1126,25 @@ th:hover .col-resize-handle {
         display: none !important;
     }
 }
+
+/* KPI-Kacheln im Reporting: aktive (gefilterte) Kachel hervorheben (CI-Orange) */
+.kpi-card-active {
+    border-color: var(--ake-orange) !important;
+    border-width: 2px !important;
+    box-shadow: 0 0 0 3px rgba(239, 125, 0, 0.25), 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+    background-color: rgba(239, 125, 0, 0.06) !important;
+    position: relative;
+}
+.kpi-card-active::before {
+    content: "Filter aktiv";
+    position: absolute;
+    top: -10px;
+    right: 8px;
+    background: var(--ake-orange);
+    color: var(--ake-white);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.02em;
+}
