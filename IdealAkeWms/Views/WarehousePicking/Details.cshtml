@@ -49,7 +49,7 @@
                         <input type="hidden" name="itemIds" value="@i.Id" />
                         @if (isSubmitted)
                         {
-                            <input type="number" name="quantitiesPicked" step="0.01" value="@((i.QuantityPicked ?? i.QuantityRequested).ToString(System.Globalization.CultureInfo.InvariantCulture))" class="form-control form-control-sm" style="width:90px;" />
+                            <input type="number" name="quantitiesPicked" step="0.01" value="@(i.QuantityPicked.HasValue ? i.QuantityPicked.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty)" placeholder="@i.QuantityRequested.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control form-control-sm" style="width:90px;" />
                         }
                         else
                         {
