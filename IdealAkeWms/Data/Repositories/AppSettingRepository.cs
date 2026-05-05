@@ -29,16 +29,19 @@ public class AppSettingRepository : IAppSettingRepository
         return int.TryParse(value, out var result) ? result : defaultValue;
     }
 
-    public async Task SetValueAsync(string key, string value)
+    public async Task SetValueAsync(string key, string? value)
     {
+        // Empty form text-fields bind to null in Dictionary<string, string>; AppSetting.Value is NOT NULL.
+        var safeValue = value ?? string.Empty;
+
         var setting = await _context.AppSettings.FindAsync(key);
         if (setting != null)
         {
-            setting.Value = value;
+            setting.Value = safeValue;
         }
         else
         {
-            _context.AppSettings.Add(new AppSetting { Key = key, Value = value });
+            _context.AppSettings.Add(new AppSetting { Key = key, Value = safeValue });
         }
         await _context.SaveChangesAsync();
     }

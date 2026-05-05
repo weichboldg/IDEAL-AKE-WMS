@@ -33,7 +33,7 @@ public class CachedSettingRepository : IAppSettingRepository
         return int.TryParse(value, out var result) ? result : defaultValue;
     }
 
-    public async Task SetValueAsync(string key, string value)
+    public async Task SetValueAsync(string key, string? value)
     {
         await _inner.SetValueAsync(key, value);
         _cache.Remove(CachePrefix + key);
