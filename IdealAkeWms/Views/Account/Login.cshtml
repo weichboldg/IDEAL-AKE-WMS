@@ -64,12 +64,12 @@
                 <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
 
                 <div class="mb-3">
-                    <label asp-for="UserId" class="form-label">Benutzer</label>
-                    <select asp-for="UserId" class="form-select form-select-lg"
-                            asp-items="@(new SelectList(Model.AvailableUsers, "Id", "Name"))">
-                        <option value="">-- Benutzer wählen --</option>
-                    </select>
-                    <span asp-validation-for="UserId" class="text-danger"></span>
+                    <label asp-for="UserName" class="form-label">Benutzer</label>
+                    <input asp-for="UserName" class="form-control form-control-lg"
+                           placeholder="Benutzername eingeben"
+                           autocomplete="username" autocapitalize="off" autocorrect="off"
+                           spellcheck="false" autofocus />
+                    <span asp-validation-for="UserName" class="text-danger"></span>
                 </div>
 
                 <div class="mb-4">

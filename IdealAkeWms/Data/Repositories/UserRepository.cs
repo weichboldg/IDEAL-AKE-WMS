@@ -29,4 +29,13 @@ public class UserRepository : Repository<User>, IUserRepository
                 .ThenInclude(ur => ur.Role)
             .ToListAsync();
     }
+
+    public async Task<User?> GetByNameAsync(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+
+        var trimmed = name.Trim();
+        return await _dbSet.FirstOrDefaultAsync(u => u.Name == trimmed);
+    }
 }

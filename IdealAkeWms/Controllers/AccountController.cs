@@ -19,31 +19,24 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Login(string? returnUrl = null)
+    public IActionResult Login(string? returnUrl = null)
     {
         // Wenn bereits eingeloggt, zum Dashboard
         if (HttpContext.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue)
             return RedirectToAction("Index", "Home");
 
-        var vm = new LoginViewModel
-        {
-            AvailableUsers = await _userRepository.GetActiveUsersAsync()
-        };
-
         ViewBag.ReturnUrl = returnUrl;
-        return View(vm);
+        return View(new LoginViewModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel vm, string? returnUrl = null)
     {
-        vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
-
         if (!ModelState.IsValid)
             return View(vm);
 
-        var user = await _userRepository.GetByIdAsync(vm.UserId);
+        var user = await _userRepository.GetByNameAsync(vm.UserName);
         if (user == null || !user.IsActive)
         {
             vm.ErrorMessage = "Benutzer nicht gefunden oder inaktiv.";

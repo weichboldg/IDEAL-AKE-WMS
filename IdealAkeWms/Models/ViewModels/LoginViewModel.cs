@@ -4,14 +4,13 @@ namespace IdealAkeWms.Models.ViewModels;
 
 public class LoginViewModel
 {
-    [Required(ErrorMessage = "Bitte wählen Sie einen Benutzer")]
+    [Required(ErrorMessage = "Bitte Benutzernamen eingeben")]
     [Display(Name = "Benutzer")]
-    public int UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
 
     [DataType(DataType.Password)]
     [Display(Name = "Passwort")]
     public string? Password { get; set; }
 
-    public List<User> AvailableUsers { get; set; } = new();
     public string? ErrorMessage { get; set; }
 }
