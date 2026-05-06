@@ -38,6 +38,7 @@ try
     // Repositories (aus IdealAkeWms-Web-Projekt; werden von BdeAutoPause + ShiftCalendar benötigt)
     builder.Services.AddScoped<AppSettingRepository>();
     builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
+    builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>();
 
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();

@@ -68,6 +68,7 @@ builder.Services.AddScoped<IBdeOperatorRepository, BdeOperatorRepository>();
 builder.Services.AddScoped<IBdeActivityRepository, BdeActivityRepository>();
 builder.Services.AddScoped<IBdeTerminalRepository, BdeTerminalRepository>();
 builder.Services.AddScoped<IBdeBookingRepository, BdeBookingRepository>();
+builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>();
 
 // Caching
 builder.Services.AddMemoryCache();
