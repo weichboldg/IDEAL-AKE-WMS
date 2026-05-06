@@ -51,6 +51,31 @@ public class LagerplatzSyncService : ILagerplatzSyncService
             return new LagerplatzSyncResult(0, 0, 0, 0, 0, 1);
         }
 
+        // Sage-Duplikate erkennen und entfernen
+        var dupGroups = sageRecords
+            .Where(r => !string.IsNullOrWhiteSpace(r.Kurzbezeichnung))
+            .GroupBy(r => r.Kurzbezeichnung!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        foreach (var group in dupGroups)
+        {
+            var bereiche = string.Join(", ", group.Select(g => g.Lagerkennung ?? "?"));
+            await _syncLogs.AddAsync(new SyncLog
+            {
+                Service = ServiceName,
+                Level = SyncLogLevel.Warning,
+                Message = $"Sage liefert Lagerplatz '{group.Key}' mehrfach (Bereiche {bereiche}). Eintraege uebersprungen.",
+                Reference = group.Key
+            });
+        }
+
+        var dupCodes = dupGroups.Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        sageRecords = sageRecords
+            .Where(r => string.IsNullOrWhiteSpace(r.Kurzbezeichnung)
+                     || !dupCodes.Contains(r.Kurzbezeichnung!.Trim()))
+            .ToList();
+
         var existing = await _ctx.StorageLocations.ToListAsync(ct);
         var byCode = existing.ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
 

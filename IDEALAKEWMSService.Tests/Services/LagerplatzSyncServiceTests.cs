@@ -172,4 +172,26 @@ public class LagerplatzSyncServiceTests
         var sl = ctx.StorageLocations.Single();
         sl.IsActive.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Run_SageDuplicateCode_SkipsAllAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        reader.Records = new()
+        {
+            new("HALLE-A", "DUP", "Erste Zeile"),
+            new("HALLE-B", "DUP", "Zweite Zeile"),
+            new("HALLE-1", "OK",  "Eindeutiger Eintrag"),
+        };
+
+        var result = await svc.RunAsync();
+
+        result.Inserted.Should().Be(1); // nur OK
+        ctx.StorageLocations.Should().HaveCount(1);
+        ctx.StorageLocations.Single().Code.Should().Be("OK");
+
+        var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
+        warnings.Should().ContainSingle(x => x.Reference == "DUP");
+        warnings[0].Message.Should().Contain("mehrfach");
+    }
 }
