@@ -111,6 +111,8 @@ BEGIN
         [Capacity]          DECIMAL(18,2)     NULL,
         [BarcodeValue]      NVARCHAR(50)      NULL,
         [IsPickingTransport] BIT              NOT NULL DEFAULT 0,
+        [Source]            NVARCHAR(20)      NOT NULL DEFAULT 'Manual',
+        [IsActive]          BIT               NOT NULL DEFAULT 1,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -623,6 +625,10 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_Timesta
     CREATE NONCLUSTERED INDEX [IX_StockMovements_Timestamp] ON [dbo].[StockMovements]([Timestamp]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_SourceStorageLocationId')
     CREATE NONCLUSTERED INDEX [IX_StockMovements_SourceStorageLocationId] ON [dbo].[StockMovements]([SourceStorageLocationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsActive')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_Source] ON [dbo].[StorageLocations]([Source]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_WorkstationId')
     CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_WorkstationId] ON [dbo].[WorkstationUsers]([WorkstationId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_UserId')
@@ -1486,6 +1492,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430183954_AddWarehouseRequisitions', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260502172901_AddWarehouseRequisitionCreatedByUserId')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260502172901_AddWarehouseRequisitionCreatedByUserId', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506053444_AddStorageLocationSyncFields')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506053444_AddStorageLocationSyncFields', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

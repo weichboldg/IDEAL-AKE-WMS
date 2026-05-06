@@ -165,6 +165,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired().HasDefaultValue(StorageLocationSource.Manual);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.Source);
+
             entity.HasIndex(e => e.Code).IsUnique();
         });
 
