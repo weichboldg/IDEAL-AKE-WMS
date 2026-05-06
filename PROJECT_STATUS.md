@@ -45,10 +45,31 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | Fertig (Phase 2.2) |
 | BDE Phase 2.3 — Schichtkalender + Auto-Pause + Feiertags-Sync | Fertig (Phase 2.3) |
 | Lagerbestellung aus der Produktion (Erfasser + Lager) | Fertig (v1.8.4) |
+| Sage Lagerplatz-Sync (Phase 1, Stammdaten) | Fertig (v1.9.0) |
 
 ## Version
-- **Web-App**: v1.8.4 (30.04.2026)
-- **Service**: v1.8.4 (30.04.2026)
+- **Web-App**: v1.9.0 (05.05.2026)
+- **Service**: v1.9.0 (05.05.2026)
+
+## Roadmap
+- v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.
+
+## Aenderungen (05.05.2026)
+
+### v1.9.0 — Sage Lagerplatz-Sync (Phase 1)
+
+Automatischer Sync der Sage-Lagerplatz-Stammdaten in den WMS-Lagerplatz-Stamm. Neue Spalte `Source` (Manuell/Sage), inaktive Sage-Lagerplaetze werden ausgeblendet bzw. als inaktiv markiert. Konflikte und Deaktivierungen werden im neuen Sync-Protokoll dokumentiert.
+
+#### Neue Funktionen
+- **Lagerplatz-Sync-Worker**: Synchronisiert Code, Bereich/Zone und Bezeichnung aus Sage. Aktivierung via ServiceSetting `Sync:LagerplaetzeEnabled` (Default false).
+- **Quelle-Kennzeichen** (`Source`: Manuell/Sage): Bei Sage-Records sind Code/Zone/Bezeichnung im UI gesperrt — Aenderungen erfolgen ausschliesslich in Sage.
+- **Inaktive Lagerplaetze**: In Sage deaktivierte Plaetze werden im WMS deaktiviert. Toggle "Auch inaktive zeigen" auf der Lagerplaetze-Liste. Inaktiv-Badge in der Bestandsuebersicht.
+- **Sync-Protokoll** (Stammdaten-Sicht): Konflikte (manuell vs. Sage gleicher Code), Deaktivierungen, Sync-Lauf-Zusammenfassungen.
+
+#### Technische Details
+- Neue ServiceSetting: `Sync:LagerplaetzeEnabled` (Default false).
+- Neue Migration: Spalte `Source` (Manuell=1, Sage=2) auf `StorageLocations`, neue Tabelle `SyncLogs`.
+- Phase 2 (Lagerbestand-Uebernahme aus Sage) in Planung.
 
 ## Aenderungen (30.04.2026)
 

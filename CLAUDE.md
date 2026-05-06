@@ -172,6 +172,7 @@
 | `Sync:FeiertagRegion` | (leer) | Optionaler Bundesland-Code (z.&nbsp;B. AT-3 NOe, AT-6 Stmk) |
 | `Sync:FeiertagJahreVoraus` | `2` | Jahre in die Zukunft synchronisieren |
 | `Sync:WarehouseRequisitionEmailEnabled` | `false` | Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker |
+| `Sync:LagerplaetzeEnabled` | `false` | Sage-Lagerplatz-Stammdaten-Sync aktiv |
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |

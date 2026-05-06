@@ -711,6 +711,26 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary); color: white;">
+                Lagerplatz-Sync mit Sage
+            </div>
+            <div class="card-body">
+                <p>Lagerplatz-Stammdaten werden aus Sage automatisch synchronisiert. Aktiviert wird das in den Service-Einstellungen unter <code>Sync:LagerplaetzeEnabled</code>.</p>
+                <h6>Was wird synchronisiert</h6>
+                <ul>
+                    <li>Code (Sage: Kurzbezeichnung), Bereich/Zone (Sage: Lagerkennung), Bezeichnung (Sage: Platzbezeichnung).</li>
+                    <li>Lagerplaetze, die in Sage deaktiviert werden, werden im WMS deaktiviert &mdash; bleiben fuer Historie/Bestand sichtbar, lassen aber keine neuen Buchungen mehr zu.</li>
+                </ul>
+                <h6>Quelle-Kennzeichen</h6>
+                <p>Jeder Lagerplatz hat eine Quelle: <strong>Manuell</strong> (von einem Anwender im WMS angelegt) oder <strong>Sage</strong> (vom Sync importiert). Bei Sage-Quelle sind Code/Zone/Bezeichnung gesperrt &mdash; sie werden beim naechsten Abgleich ueberschrieben.</p>
+                <h6>Konflikte</h6>
+                <p>Wenn ein manueller Lagerplatz denselben Code wie ein Sage-Eintrag hat, wird der Sage-Eintrag ignoriert und ein Eintrag im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> als <em>Warning</em> erfasst. Aufloesung: in Absprache mit dem Sage-Verantwortlichen entscheiden, ob der manuelle Lagerplatz geloescht/umbenannt oder direkt in der DB als Sage-Quelle markiert werden soll.</p>
+                <h6>Vor erstem Aktivieren</h6>
+                <p>Wenn das WMS bereits Lagerplaetze hat, deren Codes auch in Sage existieren: vor dem ersten Aktivieren des Syncs <code>Source = 'Sage'</code> auf diesen Records direkt in der DB setzen, sonst werden alle als Konflikt geloggt.</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Mein Profil</strong></div>
             <div class="card-body">
                 <p>

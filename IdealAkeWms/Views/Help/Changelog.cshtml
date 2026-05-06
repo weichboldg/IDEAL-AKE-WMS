@@ -9,6 +9,22 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.9.0</strong> <span class="text-white-50 ms-2">05.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage Lagerplatz-Sync (Phase 1)</h6>
+                <ul>
+                    <li><strong>Automatischer Sync</strong> der Sage-Lagerplaetze (Bereich/Zone, Code, Bezeichnung) im Worker-Service. Aktivieren via ServiceSetting <code>Sync:LagerplaetzeEnabled</code>.</li>
+                    <li>Lagerplaetze haben jetzt ein <strong>Quelle</strong>-Kennzeichen (Manuell / Sage). Bei Sage-Records sind Code/Zone/Bezeichnung im UI gesperrt.</li>
+                    <li>Inaktive Sage-Lagerplaetze werden ausgeblendet &mdash; Toggle "Auch inaktive zeigen" auf der Lagerplaetze-Liste.</li>
+                    <li>Buchungen auf inaktive Lagerplaetze werden im UI nicht mehr angeboten. Bestaende auf inaktiven Plaetzen werden als <em>inaktiv</em>-Badge in der Bestandsuebersicht markiert.</li>
+                    <li>Neue Stammdaten-Sicht: <strong>Sync-Protokoll</strong> (zeigt Konflikte, Deaktivierungen und Sync-Lauf-Zusammenfassungen).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.8.6</strong> <span class="text-white-50 ms-2">05.05.2026</span>
             </div>
             <div class="card-body">
