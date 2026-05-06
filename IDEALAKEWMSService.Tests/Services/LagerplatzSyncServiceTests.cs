@@ -128,4 +128,48 @@ public class LagerplatzSyncServiceTests
         warnings[0].Reference.Should().Be("ABC");
         warnings[0].Message.Should().Contain("manuell");
     }
+
+    [Fact]
+    public async Task Run_SageRecord_NoLongerInSage_SoftDeactivates()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Code = "GONE-1", Zone = "HALLE-X", Description = "war mal in Sage",
+            BarcodeValue = "GONE-1", Source = StorageLocationSource.Sage, IsActive = true,
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = SyncUser_For_Tests, CreatedByWindows = "x"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new(); // leer
+
+        var result = await svc.RunAsync();
+
+        result.Deactivated.Should().Be(1);
+        var sl = ctx.StorageLocations.Single();
+        sl.IsActive.Should().BeFalse();
+        sl.ModifiedAt.Should().NotBeNull();
+
+        var infos = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Info, 10);
+        infos.Should().ContainSingle(x => x.Reference == "GONE-1");
+    }
+
+    [Fact]
+    public async Task Run_DeactivatedSageRecord_ReappearsInSage_ReactivatesAndCountsUpdate()
+    {
+        var (svc, reader, ctx, _) = Build();
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Code = "BACK-1", Zone = "HALLE-1", Description = "war mal weg",
+            BarcodeValue = "BACK-1", Source = StorageLocationSource.Sage, IsActive = false,
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = SyncUser_For_Tests, CreatedByWindows = "x"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "BACK-1", "war mal weg") };
+
+        var result = await svc.RunAsync();
+
+        result.Updated.Should().Be(1);
+        var sl = ctx.StorageLocations.Single();
+        sl.IsActive.Should().BeTrue();
+    }
 }

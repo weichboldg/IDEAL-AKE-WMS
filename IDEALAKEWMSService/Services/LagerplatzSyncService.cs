@@ -120,6 +120,32 @@ public class LagerplatzSyncService : ILagerplatzSyncService
             }
         }
 
+        // Soft-deactivate Sage-Records, die nicht mehr in der Sage-Liste sind
+        var sageCodesInFeed = sageRecords
+            .Select(r => string.IsNullOrWhiteSpace(r.Kurzbezeichnung) ? null : r.Kurzbezeichnung.Trim())
+            .Where(c => c != null)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)!;
+
+        foreach (var loc in existing.Where(l => l.Source == StorageLocationSource.Sage && l.IsActive))
+        {
+            if (!sageCodesInFeed.Contains(loc.Code))
+            {
+                loc.IsActive = false;
+                loc.ModifiedAt = DateTime.Now;
+                loc.ModifiedBy = SyncUser;
+                loc.ModifiedByWindows = Environment.MachineName;
+                deactivated++;
+
+                await _syncLogs.AddAsync(new SyncLog
+                {
+                    Service = ServiceName,
+                    Level = SyncLogLevel.Info,
+                    Message = $"Lagerplatz {loc.Code} aus Sage entfernt -> deaktiviert.",
+                    Reference = loc.Code
+                });
+            }
+        }
+
         await _ctx.SaveChangesAsync(ct);
 
         await _syncLogs.AddAsync(new SyncLog
