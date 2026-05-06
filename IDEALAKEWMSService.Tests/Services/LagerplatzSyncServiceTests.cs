@@ -228,4 +228,20 @@ public class LagerplatzSyncServiceTests
         var infos = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Info, 10);
         infos.Should().Contain(x => x.Reference == "TRUNC-1" && x.Message.Contains("gekuerzt"));
     }
+
+    [Fact]
+    public async Task Run_SageReaderThrows_LogsError_NoCrash()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        reader.ThrowOnRead = new InvalidOperationException("Sage offline");
+
+        var result = await svc.RunAsync();
+
+        result.Errors.Should().Be(1);
+        ctx.StorageLocations.Should().BeEmpty();
+
+        var errors = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Error, 10);
+        errors.Should().ContainSingle();
+        errors[0].Message.Should().Contain("Sage offline");
+    }
 }
