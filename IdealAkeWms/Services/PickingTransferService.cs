@@ -195,9 +195,13 @@ public class PickingTransferService : IPickingTransferService
                 g.Key.ArticleId,
                 g.Key.StorageLocationId,
                 Sum = g.Sum(sm =>
-                    sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
-                    sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
-                    -sm.Quantity)
+                    sm.MovementType == MovementType.Einbuchung || sm.MovementType == MovementType.SageEinbuchung
+                        ? sm.Quantity :
+                    sm.MovementType == MovementType.Umbuchung
+                        ? sm.Quantity :
+                    sm.MovementType == MovementType.Ausbuchung || sm.MovementType == MovementType.SageAusbuchung
+                        ? -sm.Quantity :
+                    0m)
             })
             .ToListAsync();
 
