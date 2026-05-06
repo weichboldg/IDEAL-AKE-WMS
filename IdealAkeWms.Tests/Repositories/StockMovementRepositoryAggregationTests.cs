@@ -151,28 +151,60 @@ public class StockMovementRepositoryAggregationTests
         items[0].Note.Should().Be("Sage-Korrektur: WMS=0, Sage=5, Diff=+5");
     }
 
+    [Fact]
+    public async Task GetCurrentStockByArticleAndLocationAsync_AggregatesAllMovementTypes()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 1);
+        SeedArticleAndLocation(ctx, articleId: 2, locationId: 1);
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 2);
+        ctx.StockMovements.AddRange(
+            NewMovement(articleId: 1, locationId: 1, qty: 10m, MovementType.Einbuchung),
+            NewMovement(articleId: 1, locationId: 1, qty: 3m,  MovementType.SageEinbuchung),
+            NewMovement(articleId: 1, locationId: 1, qty: 4m,  MovementType.Ausbuchung),
+            NewMovement(articleId: 2, locationId: 1, qty: 5m,  MovementType.Einbuchung),
+            NewMovement(articleId: 1, locationId: 2, qty: 7m,  MovementType.Einbuchung),
+            NewMovement(articleId: 1, locationId: 2, qty: 2m,  MovementType.SageAusbuchung)
+        );
+        await ctx.SaveChangesAsync();
+        var repo = new StockMovementRepository(ctx);
+
+        var stock = await repo.GetCurrentStockByArticleAndLocationAsync();
+
+        stock.Should().HaveCount(3);
+        stock[(1, 1)].Should().Be(9m);   // 10 + 3 - 4
+        stock[(2, 1)].Should().Be(5m);
+        stock[(1, 2)].Should().Be(5m);   // 7 - 2
+    }
+
     private static void SeedArticleAndLocation(IdealAkeWms.Data.ApplicationDbContext ctx, int articleId, int locationId)
     {
-        ctx.Articles.Add(new Article
+        if (ctx.Articles.Find(articleId) == null)
         {
-            Id = articleId,
-            ArticleNumber = $"A-{articleId:000}",
-            Description = "Test",
-            Unit = "Stk",
-            CreatedBy = "tester",
-            CreatedByWindows = "tester"
-        });
-        ctx.StorageLocations.Add(new StorageLocation
+            ctx.Articles.Add(new Article
+            {
+                Id = articleId,
+                ArticleNumber = $"A-{articleId:000}",
+                Description = "Test",
+                Unit = "Stk",
+                CreatedBy = "tester",
+                CreatedByWindows = "tester"
+            });
+        }
+        if (ctx.StorageLocations.Find(locationId) == null)
         {
-            Id = locationId,
-            Code = $"L-{locationId:000}",
-            BarcodeValue = $"L-{locationId:000}",
-            IsActive = true,
-            IsPickingTransport = false,
-            Source = StorageLocationSource.Sage,
-            CreatedBy = "tester",
-            CreatedByWindows = "tester"
-        });
+            ctx.StorageLocations.Add(new StorageLocation
+            {
+                Id = locationId,
+                Code = $"L-{locationId:000}",
+                BarcodeValue = $"L-{locationId:000}",
+                IsActive = true,
+                IsPickingTransport = false,
+                Source = StorageLocationSource.Sage,
+                CreatedBy = "tester",
+                CreatedByWindows = "tester"
+            });
+        }
     }
 
     private static StockMovement NewMovement(int articleId, int locationId, decimal qty, MovementType type) => new()

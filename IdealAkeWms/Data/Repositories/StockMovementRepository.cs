@@ -419,4 +419,38 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
 
         return orders;
     }
+
+    public async Task<Dictionary<(int ArticleId, int StorageLocationId), decimal>> GetCurrentStockByArticleAndLocationAsync()
+    {
+        var movements = await _dbSet
+            .AsNoTracking()
+            .ToListAsync();
+
+        var dict = new Dictionary<(int, int), decimal>();
+
+        foreach (var sm in movements)
+        {
+            decimal effect = sm.MovementType switch
+            {
+                MovementType.Einbuchung => sm.Quantity,
+                MovementType.SageEinbuchung => sm.Quantity,
+                MovementType.Umbuchung => sm.Quantity,   // Ziel-Lagerplatz
+                MovementType.Ausbuchung => -sm.Quantity,
+                MovementType.SageAusbuchung => -sm.Quantity,
+                _ => 0m
+            };
+
+            var key = (sm.ArticleId, sm.StorageLocationId);
+            dict[key] = dict.GetValueOrDefault(key, 0m) + effect;
+
+            // Umbuchung-Quell-Seite: -Quantity am SourceStorageLocationId
+            if (sm.MovementType == MovementType.Umbuchung && sm.SourceStorageLocationId.HasValue)
+            {
+                var srcKey = (sm.ArticleId, sm.SourceStorageLocationId.Value);
+                dict[srcKey] = dict.GetValueOrDefault(srcKey, 0m) - sm.Quantity;
+            }
+        }
+
+        return dict;
+    }
 }
