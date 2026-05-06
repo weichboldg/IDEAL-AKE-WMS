@@ -189,8 +189,8 @@ public class PickingController : Controller
         // Batch-load category names for BOM articles
         var categoryByArticle = await _articleAttributeRepository.GetCategoryNamesByArticleNumbersAsync(articleNumbers);
 
-        var allStorageLocations = await _storageLocationRepository.GetAllOrderedExcludingPickingTransportAsync();
-        var targetStorageLocations = await _storageLocationRepository.GetPickingTransportLocationsAsync();
+        var allStorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
+        var targetStorageLocations = await _storageLocationRepository.GetActivePickingTransportLocationsAsync();
 
         // NAN-Lagerplatz als Default wenn kein Bestand
         var nanLocation = await _storageLocationRepository.GetByCodeAsync("NAN");
