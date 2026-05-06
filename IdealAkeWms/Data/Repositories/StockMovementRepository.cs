@@ -45,7 +45,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 sm.StorageLocationId,
                 StorageLocationCode = sm.StorageLocation.Code,
                 StorageLocationDescription = sm.StorageLocation.Description,
-                sm.StorageLocation.IsPickingTransport
+                sm.StorageLocation.IsPickingTransport,
+                StorageLocationIsActive = sm.StorageLocation.IsActive
             })
             .Select(g => new StockOverviewItem
             {
@@ -61,7 +62,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
                     -sm.Quantity),
                 ReorderLevel = g.Key.ReorderLevel,
-                IsPickingTransport = g.Key.IsPickingTransport
+                IsPickingTransport = g.Key.IsPickingTransport,
+                StorageLocationIsActive = g.Key.StorageLocationIsActive
             });
 
         var destinationItems = await destinationQuery.ToListAsync();
@@ -96,7 +98,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationId = sm.SourceStorageLocationId!.Value,
                 StorageLocationCode = sm.SourceStorageLocation!.Code,
                 StorageLocationDescription = sm.SourceStorageLocation!.Description,
-                sm.SourceStorageLocation!.IsPickingTransport
+                sm.SourceStorageLocation!.IsPickingTransport,
+                StorageLocationIsActive = sm.SourceStorageLocation!.IsActive
             })
             .Select(g => new StockOverviewItem
             {
@@ -109,7 +112,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationDescription = g.Key.StorageLocationDescription,
                 CurrentQuantity = -g.Sum(sm => sm.Quantity),
                 ReorderLevel = g.Key.ReorderLevel,
-                IsPickingTransport = g.Key.IsPickingTransport
+                IsPickingTransport = g.Key.IsPickingTransport,
+                StorageLocationIsActive = g.Key.StorageLocationIsActive
             })
             .ToListAsync();
 
@@ -131,7 +135,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     StorageLocationDescription = first.StorageLocationDescription,
                     CurrentQuantity = g.Sum(x => x.CurrentQuantity),
                     ReorderLevel = first.ReorderLevel,
-                    IsPickingTransport = first.IsPickingTransport
+                    IsPickingTransport = first.IsPickingTransport,
+                    StorageLocationIsActive = first.StorageLocationIsActive
                 };
             })
             .ToList();
@@ -170,14 +175,15 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         // Pro Bewegung den Netto-Effekt auf Ziel-Lagerplatz berechnen
         var entries = new List<(int ArticleId, string ArticleNumber, string? ArticleDescription,
             string? Unit, int StorageLocationId, string StorageLocationCode,
-            string? StorageLocationDescription, bool IsPickingTransport, decimal Qty)>();
+            string? StorageLocationDescription, bool IsPickingTransport, bool IsActive, decimal Qty)>();
 
         foreach (var sm in movements)
         {
             var qty = sm.MovementType == MovementType.Ausbuchung ? -sm.Quantity : sm.Quantity;
             entries.Add((sm.ArticleId, sm.Article.ArticleNumber, sm.Article.Description,
                 sm.Article.Unit, sm.StorageLocationId, sm.StorageLocation.Code,
-                sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport, qty));
+                sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport,
+                sm.StorageLocation.IsActive, qty));
         }
 
         return entries
@@ -195,6 +201,7 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     StorageLocationCode = first.StorageLocationCode,
                     StorageLocationDescription = first.StorageLocationDescription,
                     IsPickingTransport = first.IsPickingTransport,
+                    StorageLocationIsActive = first.IsActive,
                     CurrentQuantity = g.Sum(e => e.Qty)
                 };
             })

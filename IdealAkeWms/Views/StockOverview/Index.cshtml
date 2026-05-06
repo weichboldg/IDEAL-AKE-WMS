@@ -120,6 +120,10 @@
                     <td>@item.ArticleDescription</td>
                     <td>
                         <strong>@item.StorageLocationCode</strong>
+                        @if (!item.StorageLocationIsActive && item.CurrentQuantity > 0)
+                        {
+                            <span class="badge bg-warning text-dark ms-1" title="Lagerplatz ist deaktiviert (Sage), Bestand sollte umgebucht werden">inaktiv</span>
+                        }
                         @if (!string.IsNullOrEmpty(item.StorageLocationDescription))
                         {
                             <br /><small class="text-muted">@item.StorageLocationDescription</small>
