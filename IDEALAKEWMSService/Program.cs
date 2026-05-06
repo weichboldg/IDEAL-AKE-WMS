@@ -43,6 +43,7 @@ try
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();
     builder.Services.AddScoped<ISageLagerplatzReader, SageLagerplatzReader>();
+    builder.Services.AddScoped<ISageBestandReader, SageBestandReader>();
     builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();
     builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
     builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();
