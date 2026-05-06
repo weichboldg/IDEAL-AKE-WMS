@@ -63,13 +63,16 @@ public class LagerplatzSyncService : ILagerplatzSyncService
             }
 
             var code = dto.Kurzbezeichnung.Trim();
+            var zone = string.IsNullOrWhiteSpace(dto.Lagerkennung) ? null : dto.Lagerkennung.Trim();
+            var description = string.IsNullOrWhiteSpace(dto.Platzbezeichnung) ? null : dto.Platzbezeichnung.Trim();
+
             if (!byCode.ContainsKey(code))
             {
                 _ctx.StorageLocations.Add(new StorageLocation
                 {
                     Code = code,
-                    Zone = dto.Lagerkennung,
-                    Description = dto.Platzbezeichnung,
+                    Zone = zone,
+                    Description = description,
                     BarcodeValue = code,
                     Source = StorageLocationSource.Sage,
                     IsActive = true,
@@ -80,6 +83,29 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                     CreatedByWindows = Environment.MachineName
                 });
                 inserted++;
+            }
+            else
+            {
+                var existingLoc = byCode[code];
+                if (existingLoc.Source == StorageLocationSource.Sage)
+                {
+                    var diff = existingLoc.Zone != zone
+                            || existingLoc.Description != description
+                            || existingLoc.BarcodeValue != code
+                            || !existingLoc.IsActive;
+
+                    if (diff)
+                    {
+                        existingLoc.Zone = zone;
+                        existingLoc.Description = description;
+                        existingLoc.BarcodeValue = code;
+                        existingLoc.IsActive = true;
+                        existingLoc.ModifiedAt = DateTime.Now;
+                        existingLoc.ModifiedBy = SyncUser;
+                        existingLoc.ModifiedByWindows = Environment.MachineName;
+                        updated++;
+                    }
+                }
             }
         }
 

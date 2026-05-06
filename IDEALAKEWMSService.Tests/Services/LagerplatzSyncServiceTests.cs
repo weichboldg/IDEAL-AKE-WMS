@@ -10,6 +10,8 @@ namespace IDEALAKEWMSService.Tests.Services;
 
 public class LagerplatzSyncServiceTests
 {
+    private const string SyncUser_For_Tests = "system:sync";
+
     private static (LagerplatzSyncService service, FakeSageLagerplatzReader reader, IdealAkeWms.Data.ApplicationDbContext ctx, SyncLogRepository syncLogs)
         Build()
     {
@@ -52,5 +54,49 @@ public class LagerplatzSyncServiceTests
         summary.Should().NotBeNull();
         summary!.Level.Should().Be(SyncLogLevel.Info);
         summary.Message.Should().Contain("3 neu");
+    }
+
+    [Fact]
+    public async Task Run_ExistingSageRecord_DescriptionDiff_UpdatesAndStampsModified()
+    {
+        var (svc, reader, ctx, _) = Build();
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Code = "A-01-01", Zone = "HALLE-1", Description = "Alte Bezeichnung",
+            BarcodeValue = "A-01-01", Source = StorageLocationSource.Sage, IsActive = true,
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = SyncUser_For_Tests, CreatedByWindows = "x"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "A-01-01", "Neue Bezeichnung") };
+
+        var result = await svc.RunAsync();
+
+        result.Updated.Should().Be(1);
+        result.Inserted.Should().Be(0);
+        var sl = ctx.StorageLocations.Single();
+        sl.Description.Should().Be("Neue Bezeichnung");
+        sl.ModifiedAt.Should().NotBeNull();
+        sl.ModifiedBy.Should().Be(SyncUser_For_Tests);
+    }
+
+    [Fact]
+    public async Task Run_ExistingSageRecord_NoDiff_DoesNotUpdate()
+    {
+        var (svc, reader, ctx, _) = Build();
+        var original = new StorageLocation
+        {
+            Code = "A-01-01", Zone = "HALLE-1", Description = "Regal A1",
+            BarcodeValue = "A-01-01", Source = StorageLocationSource.Sage, IsActive = true,
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = SyncUser_For_Tests, CreatedByWindows = "x"
+        };
+        ctx.StorageLocations.Add(original);
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "A-01-01", "Regal A1") };
+
+        var result = await svc.RunAsync();
+
+        result.Updated.Should().Be(0);
+        var sl = ctx.StorageLocations.Single();
+        sl.ModifiedAt.Should().BeNull();
     }
 }
