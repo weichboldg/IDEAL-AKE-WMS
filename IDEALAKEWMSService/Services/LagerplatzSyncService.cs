@@ -9,7 +9,7 @@ namespace IDEALAKEWMSService.Services;
 public class LagerplatzSyncService : ILagerplatzSyncService
 {
     private const string ServiceName = "Lagerplatz";
-    private const int MaxCodeLength = 50;
+    private const int MaxCodeLength = 12;       // matches StorageLocation [StringLength(12)] for barcode readability
     private const int MaxDescriptionLength = 200;
     private const string SyncUser = "system:sync";
 
@@ -81,6 +81,23 @@ public class LagerplatzSyncService : ILagerplatzSyncService
 
         foreach (var dto in sageRecords)
         {
+            if (!string.IsNullOrWhiteSpace(dto.Kurzbezeichnung))
+            {
+                var rawCode = dto.Kurzbezeichnung.Trim();
+                if (rawCode.Length > MaxCodeLength)
+                {
+                    await _syncLogs.AddAsync(new SyncLog
+                    {
+                        Service = ServiceName,
+                        Level = SyncLogLevel.Warning,
+                        Message = $"Lagerplatz-Code '{rawCode}' ist zu lang ({rawCode.Length} > {MaxCodeLength}), uebersprungen.",
+                        Reference = rawCode
+                    });
+                    skipped++;
+                    continue;
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(dto.Kurzbezeichnung))
             {
                 skipped++;
@@ -90,6 +107,18 @@ public class LagerplatzSyncService : ILagerplatzSyncService
             var code = dto.Kurzbezeichnung.Trim();
             var zone = string.IsNullOrWhiteSpace(dto.Lagerkennung) ? null : dto.Lagerkennung.Trim();
             var description = string.IsNullOrWhiteSpace(dto.Platzbezeichnung) ? null : dto.Platzbezeichnung.Trim();
+
+            if (description != null && description.Length > MaxDescriptionLength)
+            {
+                await _syncLogs.AddAsync(new SyncLog
+                {
+                    Service = ServiceName,
+                    Level = SyncLogLevel.Info,
+                    Message = $"Beschreibung von '{code}' auf {MaxDescriptionLength} Zeichen gekuerzt.",
+                    Reference = code
+                });
+                description = description.Substring(0, MaxDescriptionLength);
+            }
 
             if (!byCode.ContainsKey(code))
             {

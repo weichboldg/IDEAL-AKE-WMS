@@ -194,4 +194,38 @@ public class LagerplatzSyncServiceTests
         warnings.Should().ContainSingle(x => x.Reference == "DUP");
         warnings[0].Message.Should().Contain("mehrfach");
     }
+
+    [Fact]
+    public async Task Run_SageCodeTooLong_SkipsAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        var longCode = new string('X', 13); // > 12 (MaxCodeLength = 12 to match StorageLocation [StringLength(12)])
+        reader.Records = new() { new("HALLE-1", longCode, "irgendwas") };
+
+        var result = await svc.RunAsync();
+
+        result.Inserted.Should().Be(0);
+        result.Skipped.Should().Be(1);
+        ctx.StorageLocations.Should().BeEmpty();
+
+        var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
+        warnings.Should().Contain(x => x.Reference == longCode && x.Message.Contains("zu lang"));
+    }
+
+    [Fact]
+    public async Task Run_SageDescriptionTooLong_TruncatesAndLogsInfo()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        var longDesc = new string('Y', 250); // > 200
+        reader.Records = new() { new("HALLE-1", "TRUNC-1", longDesc) };
+
+        var result = await svc.RunAsync();
+
+        result.Inserted.Should().Be(1);
+        var sl = ctx.StorageLocations.Single();
+        sl.Description!.Length.Should().Be(200);
+
+        var infos = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Info, 10);
+        infos.Should().Contain(x => x.Reference == "TRUNC-1" && x.Message.Contains("gekuerzt"));
+    }
 }
