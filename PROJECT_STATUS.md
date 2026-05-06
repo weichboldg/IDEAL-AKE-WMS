@@ -68,7 +68,7 @@ Automatischer Sync der Sage-Lagerplatz-Stammdaten in den WMS-Lagerplatz-Stamm. N
 
 #### Technische Details
 - Neue ServiceSetting: `Sync:LagerplaetzeEnabled` (Default false).
-- Neue Migration: Spalte `Source` (Manuell=1, Sage=2) auf `StorageLocations`, neue Tabelle `SyncLogs`.
+- Neue Migration: Spalte `Source` (NVARCHAR(20), "Manual" / "Sage") auf `StorageLocations`, neue Tabelle `SyncLogs`.
 - Phase 2 (Lagerbestand-Uebernahme aus Sage) in Planung.
 
 ## Aenderungen (30.04.2026)
