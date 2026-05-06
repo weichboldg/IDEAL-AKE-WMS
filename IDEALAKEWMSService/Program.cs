@@ -45,6 +45,7 @@ try
     builder.Services.AddScoped<ISageLagerplatzReader, SageLagerplatzReader>();
     builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();
     builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
+    builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();

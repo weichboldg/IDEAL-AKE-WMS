@@ -231,6 +231,27 @@ public class SyncWorker : BackgroundService
                         _logger.LogError(ex, "Holiday-Sync ist fehlgeschlagen");
                     }
                 }
+
+                // ---------------------------------------------------------------
+                // Lagerplatz-Sync (Sage Stammdaten)
+                // ---------------------------------------------------------------
+                if (_configuration.GetValue<bool>("Sync:LagerplaetzeEnabled", false))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Lagerplatz-Sync startet...");
+                        using var lpScope = _scopeFactory.CreateScope();
+                        var lpSync = lpScope.ServiceProvider.GetRequiredService<ILagerplatzSyncService>();
+                        var lpResult = await lpSync.RunAsync(stoppingToken);
+                        _logger.LogInformation(
+                            "Lagerplatz-Sync: {Inserted} neu, {Updated} aktualisiert, {Conflicts} Konflikte, {Deactivated} deaktiviert, {Skipped} uebersprungen, {Errors} Fehler.",
+                            lpResult.Inserted, lpResult.Updated, lpResult.Conflicts, lpResult.Deactivated, lpResult.Skipped, lpResult.Errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Lagerplatz-Sync ist fehlgeschlagen.");
+                    }
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
