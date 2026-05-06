@@ -20,9 +20,12 @@ public class StorageLocationsController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(bool showInactive = false)
     {
-        var locations = await _storageLocationRepository.GetAllOrderedAsync();
+        var all = await _storageLocationRepository.GetAllOrderedAsync();
+        var locations = showInactive ? all : all.Where(l => l.IsActive).ToList();
+        ViewBag.ShowInactive = showInactive;
+        ViewBag.HasInactive = all.Any(l => !l.IsActive);
         return View(locations);
     }
 
