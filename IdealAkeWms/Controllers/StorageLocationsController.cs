@@ -74,12 +74,24 @@ public class StorageLocationsController : Controller
         if (existing == null)
             return NotFound();
 
-        existing.Code = location.Code;
-        existing.Description = location.Description;
-        existing.Zone = location.Zone;
-        existing.Capacity = location.Capacity;
-        existing.IsPickingTransport = location.IsPickingTransport;
-        existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
+        if (existing.Source == StorageLocationSource.Sage)
+        {
+            // Sage-kontrollierte Felder bleiben unangetastet — der Sync ist Master.
+            existing.Capacity = location.Capacity;
+            existing.IsPickingTransport = location.IsPickingTransport;
+            // IsActive ist Sync-kontrolliert: NICHT aus dem POST uebernehmen.
+        }
+        else
+        {
+            existing.Code = location.Code;
+            existing.Description = location.Description;
+            existing.Zone = location.Zone;
+            existing.Capacity = location.Capacity;
+            existing.IsPickingTransport = location.IsPickingTransport;
+            existing.IsActive = location.IsActive;
+            existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
+        }
+
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
