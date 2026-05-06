@@ -163,7 +163,7 @@ BEGIN
         [StorageLocationId]       INT               NOT NULL,
         [SourceStorageLocationId] INT               NULL,
         [ProductionOrder]         NVARCHAR(500)     NULL,
-        [MovementType]            INT               NOT NULL,  -- 0=Einbuchung, 1=Ausbuchung
+        [MovementType]            INT               NOT NULL,  -- 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung, 3=SageEinbuchung, 4=SageAusbuchung
         [Timestamp]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [UserId]                  INT               NULL,
         [WindowsUser]             NVARCHAR(200)     NOT NULL,
@@ -173,6 +173,7 @@ BEGIN
         [ModifiedAt]              DATETIME2         NULL,
         [ModifiedBy]              NVARCHAR(200)     NULL,
         [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        [Note]                    NVARCHAR(500)     NULL,
         CONSTRAINT [PK_StockMovements] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [FK_StockMovements_Article] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]),
         CONSTRAINT [FK_StockMovements_StorageLocation] FOREIGN KEY ([StorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
@@ -1518,6 +1519,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506053444_AddStorageLocationSyncFields', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506060206_AddSyncLog')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506060206_AddSyncLog', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506134758_AddStockMovementNoteAndSageMovementTypes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506134758_AddStockMovementNoteAndSageMovementTypes', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

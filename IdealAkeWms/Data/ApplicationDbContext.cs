@@ -286,6 +286,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)").IsRequired();
             entity.Property(e => e.ProductionOrder).HasMaxLength(100);
             entity.Property(e => e.WindowsUser).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Note).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
