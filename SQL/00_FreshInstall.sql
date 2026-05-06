@@ -615,6 +615,24 @@ END
 GO
 
 -- =============================================
+-- 14b. SyncLogs (service-uebergreifendes Sync-Protokoll)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SyncLogs')
+BEGIN
+    CREATE TABLE [dbo].[SyncLogs] (
+        [Id]        INT IDENTITY(1,1) NOT NULL,
+        [Timestamp] DATETIME2         NOT NULL CONSTRAINT [DF_SyncLogs_Timestamp] DEFAULT SYSDATETIME(),
+        [Service]   NVARCHAR(50)      NOT NULL,
+        [Level]     NVARCHAR(10)      NOT NULL,
+        [Message]   NVARCHAR(1000)    NOT NULL,
+        [Reference] NVARCHAR(100)     NULL,
+        CONSTRAINT [PK_SyncLogs] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle SyncLogs erstellt.';
+END
+GO
+
+-- =============================================
 -- 15. Indexes
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId')
@@ -629,6 +647,10 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsAct
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_Source] ON [dbo].[StorageLocations]([Source]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Timestamp_Desc')
+    CREATE NONCLUSTERED INDEX [IX_SyncLogs_Timestamp_Desc] ON [dbo].[SyncLogs]([Timestamp] DESC);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Service_Level')
+    CREATE NONCLUSTERED INDEX [IX_SyncLogs_Service_Level] ON [dbo].[SyncLogs]([Service], [Level]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_WorkstationId')
     CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_WorkstationId] ON [dbo].[WorkstationUsers]([WorkstationId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_UserId')
@@ -1494,6 +1516,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260502172901_AddWarehouseRequisitionCreatedByUserId', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506053444_AddStorageLocationSyncFields')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506053444_AddStorageLocationSyncFields', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506060206_AddSyncLog')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506060206_AddSyncLog', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
