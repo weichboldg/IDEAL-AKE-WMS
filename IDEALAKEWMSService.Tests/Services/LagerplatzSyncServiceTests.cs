@@ -99,4 +99,33 @@ public class LagerplatzSyncServiceTests
         var sl = ctx.StorageLocations.Single();
         sl.ModifiedAt.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Run_ExistingManualRecord_SameCodeFromSage_ConflictWithoutWrite()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Code = "ABC", Zone = "MANUAL-ZONE", Description = "Manuell angelegt",
+            BarcodeValue = "ABC", Source = StorageLocationSource.Manual, IsActive = true,
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "ABC", "Sage-Bezeichnung") };
+
+        var result = await svc.RunAsync();
+
+        result.Conflicts.Should().Be(1);
+        result.Updated.Should().Be(0);
+
+        var sl = ctx.StorageLocations.Single();
+        sl.Source.Should().Be(StorageLocationSource.Manual);
+        sl.Zone.Should().Be("MANUAL-ZONE");
+        sl.Description.Should().Be("Manuell angelegt");
+
+        var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
+        warnings.Should().ContainSingle();
+        warnings[0].Reference.Should().Be("ABC");
+        warnings[0].Message.Should().Contain("manuell");
+    }
 }

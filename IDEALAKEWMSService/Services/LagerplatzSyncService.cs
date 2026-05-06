@@ -106,6 +106,17 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                         updated++;
                     }
                 }
+                else // Manual
+                {
+                    await _syncLogs.AddAsync(new SyncLog
+                    {
+                        Service = ServiceName,
+                        Level = SyncLogLevel.Warning,
+                        Message = $"Konflikt: Lagerplatz {code} existiert manuell, Sage-Eintrag ignoriert.",
+                        Reference = code
+                    });
+                    conflicts++;
+                }
             }
         }
 
