@@ -105,4 +105,78 @@ public class StorageLocationsControllerTests
         saved.IsActive.Should().BeFalse();
         saved.BarcodeValue.Should().Be("M-01-NEU");
     }
+
+    [Fact]
+    public async Task Edit_Post_SourceSage_AcceptsIstBuchbarToggle()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var existing = new StorageLocation
+        {
+            Code = "SAGE-1", Zone = "HALLE-1", Description = "Sage",
+            BarcodeValue = "SAGE-1", Source = StorageLocationSource.Sage,
+            IsActive = true, IstBuchbar = false,   // initial nicht freigeschaltet
+            CreatedBy = "x", CreatedByWindows = "x"
+        };
+        ctx.StorageLocations.Add(existing);
+        await ctx.SaveChangesAsync();
+
+        var repo = new StorageLocationRepository(ctx);
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(x => x.GetDisplayName()).Returns("admin");
+        userSvc.Setup(x => x.GetWindowsUserName()).Returns("admin");
+        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+
+        var posted = new StorageLocation
+        {
+            Id = existing.Id,
+            Code = "HACKED",         // Sage-Field — sollte ignoriert werden
+            IstBuchbar = true,        // User-Field — sollte uebernommen werden
+            Capacity = 5,
+            IsPickingTransport = false
+        };
+
+        await ctrl.Edit(existing.Id, posted);
+
+        var saved = ctx.StorageLocations.Single();
+        saved.Code.Should().Be("SAGE-1");        // Sage-Field unveraendert
+        saved.IstBuchbar.Should().BeTrue();      // User-Toggle uebernommen
+    }
+
+    [Fact]
+    public async Task Edit_Post_SourceManual_AcceptsIstBuchbarToggle()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var existing = new StorageLocation
+        {
+            Code = "MAN-1", Zone = "Z1", Description = "Manuell",
+            BarcodeValue = "MAN-1", Source = StorageLocationSource.Manual,
+            IsActive = true, IstBuchbar = true,
+            CreatedBy = "x", CreatedByWindows = "x"
+        };
+        ctx.StorageLocations.Add(existing);
+        await ctx.SaveChangesAsync();
+
+        var repo = new StorageLocationRepository(ctx);
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(x => x.GetDisplayName()).Returns("admin");
+        userSvc.Setup(x => x.GetWindowsUserName()).Returns("admin");
+        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+
+        var posted = new StorageLocation
+        {
+            Id = existing.Id,
+            Code = "MAN-1",
+            Description = "Manuell-Updated",
+            Zone = "Z1",
+            IsActive = true,
+            IstBuchbar = false,         // User stillgelegt
+            IsPickingTransport = false
+        };
+
+        await ctrl.Edit(existing.Id, posted);
+
+        var saved = ctx.StorageLocations.Single();
+        saved.Description.Should().Be("Manuell-Updated");
+        saved.IstBuchbar.Should().BeFalse();
+    }
 }

@@ -85,6 +85,18 @@
                         }
                     </div>
 
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input asp-for="IstBuchbar" class="form-check-input" type="checkbox" role="switch" />
+                            <label asp-for="IstBuchbar" class="form-check-label">F&uuml;r Buchungen freigegeben</label>
+                        </div>
+                        <small class="form-text text-muted">
+                            Wenn deaktiviert, ist der Lagerplatz in Buchungs-Dropdowns
+                            (Einbuchung/Ausbuchung/Umbuchung/Picking) nicht ausw&auml;hlbar.
+                            Bestand auf nicht-buchbaren Pl&auml;tzen wird in der Bestands&uuml;bersicht weiterhin angezeigt.
+                        </small>
+                    </div>
+
                     <div class="mb-3 form-check">
                         <input asp-for="IsPickingTransport" class="form-check-input" />
                         <label asp-for="IsPickingTransport" class="form-check-label"></label>

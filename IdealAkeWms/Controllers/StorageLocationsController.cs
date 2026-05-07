@@ -79,6 +79,7 @@ public class StorageLocationsController : Controller
             // Sage-kontrollierte Felder bleiben unangetastet — der Sync ist Master.
             existing.Capacity = location.Capacity;
             existing.IsPickingTransport = location.IsPickingTransport;
+            existing.IstBuchbar = location.IstBuchbar;       // user-controlled, auch fuer Sage
             // IsActive ist Sync-kontrolliert: NICHT aus dem POST uebernehmen.
         }
         else
@@ -89,6 +90,7 @@ public class StorageLocationsController : Controller
             existing.Capacity = location.Capacity;
             existing.IsPickingTransport = location.IsPickingTransport;
             existing.IsActive = location.IsActive;
+            existing.IstBuchbar = location.IstBuchbar;       // user-controlled
             existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
         }
 
