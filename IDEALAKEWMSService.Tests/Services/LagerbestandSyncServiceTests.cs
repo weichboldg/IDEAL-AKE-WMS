@@ -297,4 +297,23 @@ public class LagerbestandSyncServiceTests
         c.Note.Should().Contain("Sage=5");
         c.Timestamp.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
     }
+
+    [Fact]
+    public async Task Run_DryRun_DoesNotInsertButLogsCounts()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", 5m) };
+
+        var result = await svc.RunAsync(dryRun: true);
+
+        result.CorrectionsPlus.Should().Be(1);
+        result.DryRun.Should().BeTrue();
+        ctx.StockMovements.Should().BeEmpty();   // KEIN Insert
+
+        var summary = (await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Info, 10)).First();
+        summary.Message.Should().StartWith("[DryRun]");
+    }
 }
