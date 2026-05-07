@@ -9,6 +9,22 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.10.0</strong> <span class="text-white-50 ms-2">07.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage Lagerbestand-Sync (Phase 2)</h6>
+                <ul>
+                    <li><strong>Automatischer Bestand-Abgleich</strong> mit Sage. Bei Abweichung werden Korrektur-Buchungen mit neuen Bewegungsarten <strong>Sage-Einbuchung</strong> und <strong>Sage-Ausbuchung</strong> erzeugt &mdash; die WMS-Bewegungshistorie bleibt vollst&auml;ndig erhalten.</li>
+                    <li>Aktivieren via ServiceSetting <code>Sync:LagerbestandEnabled</code>. Optional eigenes Intervall via <code>Sync:LagerbestandIntervalMinutes</code> (Default: nutzt Worker-Standard-15-Min).</li>
+                    <li>Strikte Filterung: nur <strong>Source=Sage</strong>-Lagerpl&auml;tze werden korrigiert. Manuelle Lagerpl&auml;tze, fehlende Artikel oder unbekannte/inaktive Lagerpl&auml;tze werden uebersprungen + im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> als Warning erfasst.</li>
+                    <li>Neues optionales <strong>Notiz</strong>-Feld auf Buchungen &mdash; bei Sage-Korrekturen automatisch gef&uuml;llt mit "Sage-Korrektur: WMS=X, Sage=Y, Diff=Z". Sichtbar als neue Spalte in der Bewegungshistorie.</li>
+                    <li>Bewegungshistorie hat zwei neue Filter-Optionen f&uuml;r die neuen Bewegungsarten.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.9.0</strong> <span class="text-white-50 ms-2">05.05.2026</span>
             </div>
             <div class="card-body">

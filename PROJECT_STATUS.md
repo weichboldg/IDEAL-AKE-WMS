@@ -46,13 +46,35 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | BDE Phase 2.3 — Schichtkalender + Auto-Pause + Feiertags-Sync | Fertig (Phase 2.3) |
 | Lagerbestellung aus der Produktion (Erfasser + Lager) | Fertig (v1.8.4) |
 | Sage Lagerplatz-Sync (Phase 1, Stammdaten) | Fertig (v1.9.0) |
+| Sage Lagerbestand-Sync (Phase 2, Korrektur-Buchungen) | Fertig (v1.10.0) |
 
 ## Version
-- **Web-App**: v1.9.0 (05.05.2026)
-- **Service**: v1.9.0 (05.05.2026)
+- **Web-App**: v1.10.0 (07.05.2026)
+- **Service**: v1.10.0 (07.05.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.
+- v1.10.0 (2026-05-07) — Sage Lagerbestand-Sync (Phase 2). Bestand-Abgleich mit Korrektur-Buchungen.
+
+## Aenderungen (07.05.2026)
+
+### v1.10.0 — Sage Lagerbestand-Sync (Phase 2)
+
+Automatischer Bestand-Abgleich pro Artikel und Lagerplatz mit Sage. Bei Abweichungen werden Korrektur-Buchungen mit neuen Bewegungsarten `SageEinbuchung` und `SageAusbuchung` erzeugt — die WMS-Bewegungshistorie bleibt vollstaendig erhalten.
+
+#### Neue Funktionen
+- **Lagerbestand-Sync-Worker**: Synchronisiert (Artikel, Lagerplatz)-Bestaende aus Sage. Aktivierung via ServiceSetting `Sync:LagerbestandEnabled` (Default false). Optionales eigenes Intervall via `Sync:LagerbestandIntervalMinutes` (0 = nutzt `WorkerSettings:SyncIntervalMinutes`).
+- **Neue Bewegungsarten**: `SageEinbuchung` (Sage-Bestand hoeher als WMS) und `SageAusbuchung` (Sage-Bestand niedriger als WMS). Beide erscheinen in der Bewegungshistorie mit eigenem Badge.
+- **Notiz-Feld auf Buchungen**: Neues optionales Feld auf `StockMovements`. Bei Sage-Korrekturen automatisch gefuellt mit `Sage-Korrektur: WMS=X, Sage=Y, Diff=Z`. Sichtbar als neue Spalte in der Bewegungshistorie.
+- **Filter-Erweiterung Bewegungshistorie**: Zwei neue Filter-Optionen fuer die neuen Bewegungsarten.
+- **Strikte Filterung**: Nur `Source=Sage`-Lagerplaetze werden korrigiert. Manuelle Lagerplaetze, fehlende Artikel oder unbekannte/inaktive Lagerplaetze werden uebersprungen + im Sync-Protokoll als Warning erfasst.
+- **DryRun-Unterstuetzung**: Mit `WorkerSettings:SyncDryRun = true` werden Korrekturen geplant, aber nicht geschrieben. Empfohlen fuer den ersten Lauf, um Volumen abzuschaetzen.
+
+#### Technische Details
+- Neue ServiceSettings: `Sync:LagerbestandEnabled` (Default false), `Sync:LagerbestandIntervalMinutes` (Default 0).
+- Neue Migration: Spalten `Note` (NVARCHAR(500), nullable) auf `StockMovements`, neue MovementType-Enum-Werte (`SageEinbuchung`, `SageAusbuchung`).
+- Aggregations-Anpassung: `StockMovementRepository` und `PickingTransferService` behandeln die neuen MovementTypes als Ein-/Ausbuchungs-Aequivalente.
+- Phase 1 (Lagerplatz-Sync) ist Voraussetzung — Phase 2 korrigiert ausschliesslich Sage-Quellen-Lagerplaetze.
 
 ## Aenderungen (05.05.2026)
 

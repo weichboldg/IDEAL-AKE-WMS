@@ -111,6 +111,7 @@
 - **Save-Ordering in BdeBookingService**: Bei Auto-Close-und-New-Start MUSS `SaveChangesAsync` zwischen Schliessen und Add-Neu laufen (Helfer `FinishAndSaveAsync`), eingebettet in `BeginTransactionAsync()`.
 - **enaio DMS-Sync kein Delta**: `angelegt`-Spalte in enaio ist statisch (Bulk-Import 2013). Full-Sync statt Delta — MERGE verhindert Duplikate. `EnaioDmsSyncService.cs` liest ALLE Werkstattauftraege/Zeichnungen ohne Datumsfilter.
 - **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
+- **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
 
 ## Standard-Daten (Neuinstallation)
 
@@ -173,6 +174,8 @@
 | `Sync:FeiertagJahreVoraus` | `2` | Jahre in die Zukunft synchronisieren |
 | `Sync:WarehouseRequisitionEmailEnabled` | `false` | Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker |
 | `Sync:LagerplaetzeEnabled` | `false` | Sage-Lagerplatz-Stammdaten-Sync aktiv |
+| `Sync:LagerbestandEnabled` | `false` | Sage-Lagerbestand-Sync aktiv (Phase 2) |
+| `Sync:LagerbestandIntervalMinutes` | `0` | Eigenes Intervall in Min (0 = nutzt SyncIntervalMinutes) |
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
