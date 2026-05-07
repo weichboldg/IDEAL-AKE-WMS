@@ -47,6 +47,8 @@ try
     builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();
     builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
     builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();
+    builder.Services.AddScoped<ILagerbestandSyncService, LagerbestandSyncService>();
+    builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
