@@ -761,6 +761,16 @@
                 <p>Phase 2 korrigiert <strong>nur Lagerpl&auml;tze mit Quelle Sage</strong>. Manuell angelegte Lagerpl&auml;tze (auch wenn der Code zuf&auml;llig zu Sage passt) werden uebersprungen. Vor Phase-2-Aktivierung empfehlen wir, die Phase-1-Konfliktliste durchzuarbeiten.</p>
                 <h6>Frequenz konfigurieren</h6>
                 <p>Default-Intervall ist das gemeinsame <code>WorkerSettings:SyncIntervalMinutes</code> (15 Min). Falls Phase 2 seltener laufen soll (z.B. nur 1x pro Stunde), <code>Sync:LagerbestandIntervalMinutes</code> auf gewuenschten Wert setzen (in Minuten). Wert 0 = Standard-Intervall verwenden.</p>
+                <h6>Buchbar-Flag (User-gesteuert)</h6>
+                <p>Jeder Lagerplatz hat zus&auml;tzlich zum Sage-Aktiv-Status ein <strong>Buchbar</strong>-Flag, das vom Admin pro Platz gesetzt werden kann (auch f&uuml;r Sage-Pl&auml;tze).</p>
+                <ul>
+                    <li>Sage-importierte Lagerpl&auml;tze sind <strong>standardm&auml;&szlig;ig nicht buchbar</strong>. Der Admin schaltet die ben&ouml;tigten Pl&auml;tze in der Lagerpl&auml;tze-Liste frei (Stammdaten &rarr; Lagerpl&auml;tze &rarr; Bearbeiten).</li>
+                    <li>Manuell angelegte Lagerpl&auml;tze sind by default buchbar.</li>
+                    <li>Nicht-buchbare Pl&auml;tze sind in den Buchungs-Dropdowns (Einbuchung/Ausbuchung/Umbuchung/Picking) <strong>ausgeblendet</strong>.</li>
+                    <li>Bestand auf nicht-buchbaren Pl&auml;tzen wird in der Bestands&uuml;bersicht <strong>weiterhin angezeigt</strong>, mit Badge "nicht buchbar".</li>
+                    <li>Sage-Bestand-Korrekturen (Phase 2) <strong>respektieren</strong> nicht-buchbare Pl&auml;tze nicht &mdash; Sage bleibt Master f&uuml;r Bestand. Nur die UI-Buchbarkeit ist user-gesteuert.</li>
+                    <li>Der Sync respektiert das Flag &mdash; beim Update eines Sage-Lagerplatzes wird der User-Toggle nicht ver&auml;ndert.</li>
+                </ul>
             </div>
         </div>
 

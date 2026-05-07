@@ -19,6 +19,7 @@
                     <li>Strikte Filterung: nur <strong>Source=Sage</strong>-Lagerpl&auml;tze werden korrigiert. Manuelle Lagerpl&auml;tze, fehlende Artikel oder unbekannte/inaktive Lagerpl&auml;tze werden uebersprungen + im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> als Warning erfasst.</li>
                     <li>Neues optionales <strong>Notiz</strong>-Feld auf Buchungen &mdash; bei Sage-Korrekturen automatisch gef&uuml;llt mit "Sage-Korrektur: WMS=X, Sage=Y, Diff=Z". Sichtbar als neue Spalte in der Bewegungshistorie.</li>
                     <li>Bewegungshistorie hat zwei neue Filter-Optionen f&uuml;r die neuen Bewegungsarten.</li>
+                    <li><strong>Buchbar-Flag (User-gesteuert):</strong> Lagerpl&auml;tze haben jetzt ein zus&auml;tzliches Flag, um sie f&uuml;r UI-Buchungen freizuschalten oder zu sperren. Sage-importierte Pl&auml;tze sind by default <strong>nicht buchbar</strong> &mdash; der Admin schaltet die ben&ouml;tigten Pl&auml;tze in der Lagerpl&auml;tze-Liste frei. Bestand auf nicht-buchbaren Pl&auml;tzen wird weiterhin korrigiert (Sage-Master), nur die UI-Buchungs-Dropdowns blenden sie aus.</li>
                 </ul>
             </div>
         </div>
