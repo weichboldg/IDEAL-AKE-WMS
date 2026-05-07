@@ -176,4 +176,78 @@ public class LagerbestandSyncServiceTests
         var c = ctx.StockMovements.Single(m => m.MovementType == MovementType.SageAusbuchung);
         c.Quantity.Should().Be(4m);
     }
+
+    [Fact]
+    public async Task Run_UnknownArticle_SkipsAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("UNKNOWN-ARTICLE", "L-1", 5m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.Skipped.Should().Be(1);
+        result.CorrectionsPlus.Should().Be(0);
+        ctx.StockMovements.Should().BeEmpty();
+
+        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
+        warnings.Should().Contain(x => x.Message.Contains("UNKNOWN-ARTICLE"));
+    }
+
+    [Fact]
+    public async Task Run_UnknownLocation_SkipsAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "UNKNOWN-LOC", 5m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.Skipped.Should().Be(1);
+        ctx.StockMovements.Should().BeEmpty();
+        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
+        warnings.Should().Contain(x => x.Message.Contains("UNKNOWN-LOC"));
+    }
+
+    [Fact]
+    public async Task Run_ManualLocation_SkipsAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Id = 1, Code = "MAN-1", BarcodeValue = "MAN-1",
+            Source = StorageLocationSource.Manual, IsActive = true,
+            IsPickingTransport = false,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "MAN-1", 5m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.Skipped.Should().Be(1);
+        ctx.StockMovements.Should().BeEmpty();
+        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
+        warnings.Should().Contain(x => x.Message.Contains("Manual"));
+    }
+
+    [Fact]
+    public async Task Run_InactiveSageLocation_SkipsAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1", isActive: false);
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", 5m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.Skipped.Should().Be(1);
+        ctx.StockMovements.Should().BeEmpty();
+        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
+        warnings.Should().Contain(x => x.Message.Contains("deaktiviert"));
+    }
 }

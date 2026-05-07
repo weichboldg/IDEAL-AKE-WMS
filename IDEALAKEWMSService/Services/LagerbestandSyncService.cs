@@ -84,10 +84,38 @@ public class LagerbestandSyncService : ILagerbestandSyncService
                 continue;
             }
 
-            if (!locationByCode.TryGetValue(dto.Lagerplatz, out var loc) ||
-                loc.Source != StorageLocationSource.Sage ||
-                !loc.IsActive)
+            if (!locationByCode.TryGetValue(dto.Lagerplatz, out var loc))
             {
+                await _syncLogs.AddAsync(new SyncLog
+                {
+                    Service = ServiceName, Level = SyncLogLevel.Warning,
+                    Message = $"Lagerplatz {dto.Lagerplatz} nicht im WMS, uebersprungen.",
+                    Reference = dto.Lagerplatz
+                });
+                skipped++;
+                continue;
+            }
+
+            if (loc.Source != StorageLocationSource.Sage)
+            {
+                await _syncLogs.AddAsync(new SyncLog
+                {
+                    Service = ServiceName, Level = SyncLogLevel.Warning,
+                    Message = $"Lagerplatz {dto.Lagerplatz} ist Manual-Quelle, uebersprungen.",
+                    Reference = dto.Lagerplatz
+                });
+                skipped++;
+                continue;
+            }
+
+            if (!loc.IsActive)
+            {
+                await _syncLogs.AddAsync(new SyncLog
+                {
+                    Service = ServiceName, Level = SyncLogLevel.Warning,
+                    Message = $"Lagerplatz {dto.Lagerplatz} ist deaktiviert, uebersprungen.",
+                    Reference = dto.Lagerplatz
+                });
                 skipped++;
                 continue;
             }
