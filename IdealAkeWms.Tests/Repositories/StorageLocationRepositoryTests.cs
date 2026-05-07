@@ -41,12 +41,47 @@ public class StorageLocationRepositoryTests
         result.Should().ContainSingle().Which.Code.Should().Be("WAGEN-1");
     }
 
-    private static StorageLocation New(string code, bool isActive, bool isPickingTransport) => new()
+    [Fact]
+    public async Task GetActiveOrderedExcludingPickingTransport_FiltersNonBookable()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.StorageLocations.AddRange(
+            New("AKTIV-BUCH",     isActive: true,  isPickingTransport: false, istBuchbar: true),
+            New("AKTIV-NICHT",    isActive: true,  isPickingTransport: false, istBuchbar: false),
+            New("INAKTIV-BUCH",   isActive: false, isPickingTransport: false, istBuchbar: true)
+        );
+        await ctx.SaveChangesAsync();
+        var repo = new StorageLocationRepository(ctx);
+
+        var result = await repo.GetActiveOrderedExcludingPickingTransportAsync();
+
+        result.Should().ContainSingle();
+        result[0].Code.Should().Be("AKTIV-BUCH");
+    }
+
+    [Fact]
+    public async Task GetActivePickingTransportLocations_FiltersNonBookable()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.StorageLocations.AddRange(
+            New("WAGEN-BUCH",   isActive: true, isPickingTransport: true,  istBuchbar: true),
+            New("WAGEN-NICHT",  isActive: true, isPickingTransport: true,  istBuchbar: false)
+        );
+        await ctx.SaveChangesAsync();
+        var repo = new StorageLocationRepository(ctx);
+
+        var result = await repo.GetActivePickingTransportLocationsAsync();
+
+        result.Should().ContainSingle().Which.Code.Should().Be("WAGEN-BUCH");
+    }
+
+    private static StorageLocation New(string code, bool isActive, bool isPickingTransport, bool istBuchbar = true) => new()
     {
         Code = code,
         BarcodeValue = code,
         IsActive = isActive,
         IsPickingTransport = isPickingTransport,
+        IstBuchbar = istBuchbar,
         Source = StorageLocationSource.Manual,
         CreatedBy = "tester",
         CreatedByWindows = "tester"

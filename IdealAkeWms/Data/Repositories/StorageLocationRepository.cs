@@ -25,7 +25,7 @@ public class StorageLocationRepository : Repository<StorageLocation>, IStorageLo
     public async Task<List<StorageLocation>> GetActiveOrderedExcludingPickingTransportAsync()
     {
         return await _dbSet
-            .Where(sl => sl.IsActive && !sl.IsPickingTransport)
+            .Where(sl => sl.IsActive && !sl.IsPickingTransport && sl.IstBuchbar)
             .OrderBy(sl => sl.Code)
             .ToListAsync();
     }
@@ -41,7 +41,7 @@ public class StorageLocationRepository : Repository<StorageLocation>, IStorageLo
     public async Task<List<StorageLocation>> GetActivePickingTransportLocationsAsync()
     {
         return await _dbSet
-            .Where(sl => sl.IsActive && sl.IsPickingTransport)
+            .Where(sl => sl.IsActive && sl.IsPickingTransport && sl.IstBuchbar)
             .OrderBy(sl => sl.Code)
             .ToListAsync();
     }
