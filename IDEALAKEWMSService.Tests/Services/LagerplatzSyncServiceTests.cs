@@ -244,4 +244,58 @@ public class LagerplatzSyncServiceTests
         errors.Should().ContainSingle();
         errors[0].Message.Should().Contain("Sage offline");
     }
+
+    [Fact]
+    public async Task Run_NewSageRecord_SetsIstBuchbarFalse()
+    {
+        var (svc, reader, ctx, _) = Build();
+        reader.Records = new() { new("HALLE-1", "NEU-1", "Neuer Sage-Platz") };
+
+        await svc.RunAsync();
+
+        var loc = ctx.StorageLocations.Single();
+        loc.IstBuchbar.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Run_ExistingSageRecord_PreservesIstBuchbarOnUpdate()
+    {
+        var (svc, reader, ctx, _) = Build();
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Code = "EXIST-1", Zone = "HALLE-1", Description = "Alte Bezeichnung",
+            BarcodeValue = "EXIST-1", Source = StorageLocationSource.Sage, IsActive = true,
+            IstBuchbar = true,   // User hat es freigeschaltet
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = "system:sync", CreatedByWindows = "x"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "EXIST-1", "Neue Bezeichnung") };   // Description-Diff
+
+        await svc.RunAsync();
+
+        var loc = ctx.StorageLocations.Single();
+        loc.Description.Should().Be("Neue Bezeichnung");   // Update wurde gemacht
+        loc.IstBuchbar.Should().BeTrue();                   // User-Toggle bleibt
+    }
+
+    [Fact]
+    public async Task Run_ConflictPath_DoesNotTouchManualIstBuchbar()
+    {
+        var (svc, reader, ctx, _) = Build();
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Code = "CONFLICT-1", Zone = "MANUAL-ZONE", Description = "Manuell",
+            BarcodeValue = "CONFLICT-1", Source = StorageLocationSource.Manual, IsActive = true,
+            IstBuchbar = true,   // Manual-Default
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "CONFLICT-1", "Sage-Bezeichnung") };
+
+        await svc.RunAsync();
+
+        var loc = ctx.StorageLocations.Single();
+        loc.IstBuchbar.Should().BeTrue();
+        loc.Source.Should().Be(StorageLocationSource.Manual);
+    }
 }

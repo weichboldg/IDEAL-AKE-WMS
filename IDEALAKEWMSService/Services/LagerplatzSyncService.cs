@@ -130,6 +130,7 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                     BarcodeValue = code,
                     Source = StorageLocationSource.Sage,
                     IsActive = true,
+                    IstBuchbar = false,                       // NEU: Sage-Plaetze sind by default nicht buchbar
                     Capacity = null,
                     IsPickingTransport = false,
                     CreatedAt = DateTime.Now,
