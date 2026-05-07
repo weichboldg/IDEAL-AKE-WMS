@@ -1159,9 +1159,10 @@ th:hover .col-resize-handle {
 }
 
 .badge-sage-ausbuchung {
-    background-color: var(--ake-orange);
-    color: var(--ake-white);
-    padding: 0.35em 0.65em;
+    background-color: var(--ake-white);
+    color: var(--ake-primary);
+    border: 2px solid var(--ake-primary);
+    padding: 0.20em 0.50em;
     border-radius: 4px;
     font-size: 0.85em;
 }
