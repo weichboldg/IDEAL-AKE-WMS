@@ -10,7 +10,7 @@ namespace IdealAkeWms.Controllers;
 public class SyncLogController : Controller
 {
     private const int PageSize = 200;
-    private static readonly string[] KnownServices = new[] { "Lagerplatz", "OseonTracking", "Article", "ProductionOrder", "EnaioDms", "BomCache", "Holiday" };
+    private static readonly string[] KnownServices = new[] { "Lagerplatz", "Lagerbestand", "OseonTracking", "Article", "ProductionOrder", "EnaioDms", "BomCache", "Holiday" };
 
     private readonly ISyncLogRepository _repo;
 
