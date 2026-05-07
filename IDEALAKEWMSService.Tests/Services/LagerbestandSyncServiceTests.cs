@@ -73,4 +73,107 @@ public class LagerbestandSyncServiceTests
         summary.Should().NotBeNull();
         summary!.Level.Should().Be(SyncLogLevel.Info);
     }
+
+    [Fact]
+    public async Task Run_WmsHigherThanSage_InsertsSageAusbuchung()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1,
+            Quantity = 10m, MovementType = MovementType.Einbuchung,
+            Timestamp = DateTime.Now.AddDays(-1),
+            WindowsUser = "tester",
+            CreatedAt = DateTime.Now.AddDays(-1),
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", 7m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.CorrectionsMinus.Should().Be(1);
+        result.CorrectionsPlus.Should().Be(0);
+        var corrections = ctx.StockMovements
+            .Where(m => m.MovementType == MovementType.SageAusbuchung).ToList();
+        corrections.Should().ContainSingle();
+        corrections[0].Quantity.Should().Be(3m);
+        corrections[0].Note.Should().Contain("Diff=-3");
+    }
+
+    [Fact]
+    public async Task Run_WmsEqualsSage_NoCorrection()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 5m,
+            MovementType = MovementType.Einbuchung,
+            Timestamp = DateTime.Now,
+            WindowsUser = "tester", CreatedAt = DateTime.Now,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", 5m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.NoChange.Should().Be(1);
+        result.CorrectionsPlus.Should().Be(0);
+        result.CorrectionsMinus.Should().Be(0);
+        ctx.StockMovements.Where(m => m.MovementType >= MovementType.SageEinbuchung)
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Run_DecimalDiff_PreservesFraction()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 5.7m,
+            MovementType = MovementType.Einbuchung,
+            Timestamp = DateTime.Now, WindowsUser = "tester",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", 6.0m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.CorrectionsPlus.Should().Be(1);
+        var c = ctx.StockMovements.Single(m => m.MovementType == MovementType.SageEinbuchung);
+        c.Quantity.Should().Be(0.3m);
+    }
+
+    [Fact]
+    public async Task Run_SageBestandNull_TreatsAsZero()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 4m,
+            MovementType = MovementType.Einbuchung,
+            Timestamp = DateTime.Now, WindowsUser = "tester",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", null) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.CorrectionsMinus.Should().Be(1);
+        var c = ctx.StockMovements.Single(m => m.MovementType == MovementType.SageAusbuchung);
+        c.Quantity.Should().Be(4m);
+    }
 }
