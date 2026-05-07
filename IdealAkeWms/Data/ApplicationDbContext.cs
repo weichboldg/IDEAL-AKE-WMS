@@ -170,6 +170,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.Source);
+            entity.Property(e => e.IstBuchbar).HasDefaultValue(true);
+            entity.HasIndex(e => e.IstBuchbar);
 
             entity.HasIndex(e => e.Code).IsUnique();
         });

@@ -113,6 +113,7 @@ BEGIN
         [IsPickingTransport] BIT              NOT NULL DEFAULT 0,
         [Source]            NVARCHAR(20)      NOT NULL DEFAULT 'Manual',
         [IsActive]          BIT               NOT NULL DEFAULT 1,
+        [IstBuchbar]        BIT               NOT NULL DEFAULT 1,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -648,6 +649,8 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsAct
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_Source] ON [dbo].[StorageLocations]([Source]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IstBuchbar')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_IstBuchbar] ON [dbo].[StorageLocations]([IstBuchbar]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Timestamp_Desc')
     CREATE NONCLUSTERED INDEX [IX_SyncLogs_Timestamp_Desc] ON [dbo].[SyncLogs]([Timestamp] DESC);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Service_Level')
@@ -1521,6 +1524,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506060206_AddSyncLog', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506134758_AddStockMovementNoteAndSageMovementTypes')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506134758_AddStockMovementNoteAndSageMovementTypes', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260507133624_AddStorageLocationIstBuchbar')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260507133624_AddStorageLocationIstBuchbar', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
