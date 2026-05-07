@@ -2,8 +2,11 @@
 @{
     ViewData["Title"] = "Lagerplätze";
     var showInactive = (bool?)ViewBag.ShowInactive == true;
+    var onlyBookable = (bool?)ViewBag.OnlyBookable == true;
     var hasInactive = (bool?)ViewBag.HasInactive == true;
-    var colCount = showInactive ? 9 : 8;
+    var hasNonBookable = (bool?)ViewBag.HasNonBookable == true;
+    // Spalten: code, description, zone, capacity, type, source, bookable, [is-active], created-at, actions
+    var colCount = showInactive ? 10 : 9;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -14,15 +17,35 @@
     </div>
 </div>
 
-@if (hasInactive)
+@if (hasInactive || hasNonBookable)
 {
-    <form method="get" class="mb-3">
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="showInactiveToggle" name="showInactive" value="true"
-                   @(showInactive ? "checked" : "")
-                   onchange="this.form.submit()" />
-            <label class="form-check-label" for="showInactiveToggle">Auch inaktive Lagerpl&auml;tze zeigen</label>
-        </div>
+    <form method="get" class="d-flex gap-3 mb-3 flex-wrap">
+        @if (hasInactive)
+        {
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="showInactiveToggle" name="showInactive" value="true"
+                       @(showInactive ? "checked" : "")
+                       onchange="this.form.submit()" />
+                <label class="form-check-label" for="showInactiveToggle">Auch inaktive Lagerpl&auml;tze zeigen</label>
+            </div>
+        }
+        @if (hasNonBookable)
+        {
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="onlyBookableToggle" name="onlyBookable" value="true"
+                       @(onlyBookable ? "checked" : "")
+                       onchange="this.form.submit()" />
+                <label class="form-check-label" for="onlyBookableToggle">Nur buchbare Pl&auml;tze zeigen</label>
+            </div>
+        }
+        @if (!hasInactive && showInactive)
+        {
+            <input type="hidden" name="showInactive" value="true" />
+        }
+        @if (!hasNonBookable && onlyBookable)
+        {
+            <input type="hidden" name="onlyBookable" value="true" />
+        }
     </form>
 }
 
@@ -36,6 +59,7 @@
                 <th data-filterable data-col-key="capacity">Kapazität</th>
                 <th data-filterable data-col-key="type">Typ</th>
                 <th data-filterable data-col-key="source">Quelle</th>
+                <th data-filterable data-col-key="bookable">Buchbar</th>
                 @if (showInactive)
                 {
                     <th data-filterable data-col-key="is-active">Aktiv</th>
@@ -61,6 +85,16 @@
                         else
                         {
                             <span class="badge bg-secondary">Manuell</span>
+                        }
+                    </td>
+                    <td data-col-key="bookable">
+                        @if (location.IstBuchbar)
+                        {
+                            <span class="badge bg-success">Ja</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Nein</span>
                         }
                     </td>
                     @if (showInactive)

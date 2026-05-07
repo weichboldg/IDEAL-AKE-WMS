@@ -20,13 +20,20 @@ public class StorageLocationsController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index(bool showInactive = false)
+    public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false)
     {
         var all = await _storageLocationRepository.GetAllOrderedAsync();
-        var locations = showInactive ? all : all.Where(l => l.IsActive).ToList();
+        var query = all.AsQueryable();
+        if (!showInactive)
+            query = query.Where(l => l.IsActive);
+        if (onlyBookable)
+            query = query.Where(l => l.IstBuchbar);
+
         ViewBag.ShowInactive = showInactive;
+        ViewBag.OnlyBookable = onlyBookable;
         ViewBag.HasInactive = all.Any(l => !l.IsActive);
-        return View(locations);
+        ViewBag.HasNonBookable = all.Any(l => !l.IstBuchbar);
+        return View(query.ToList());
     }
 
     public IActionResult Create()
