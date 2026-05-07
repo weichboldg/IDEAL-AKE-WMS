@@ -18,6 +18,10 @@ namespace IdealAkeWms.Migrations
                 nullable: false,
                 defaultValue: true);
 
+            // Existing Sage-records markieren als nicht buchbar — User schaltet manuell frei.
+            // Manual-records bleiben default=true.
+            migrationBuilder.Sql("UPDATE [dbo].[StorageLocations] SET [IstBuchbar] = 0 WHERE [Source] = 'Sage';");
+
             migrationBuilder.CreateIndex(
                 name: "IX_StorageLocations_IstBuchbar",
                 schema: "dbo",
