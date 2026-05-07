@@ -177,6 +177,23 @@ public class StockMovementRepositoryAggregationTests
         stock[(1, 2)].Should().Be(5m);   // 7 - 2
     }
 
+    [Fact]
+    public async Task GetCurrentStockAsync_ProjectsIstBuchbar()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 1);
+        var loc = ctx.StorageLocations.Find(1)!;
+        loc.IstBuchbar = false;
+        ctx.StockMovements.Add(NewMovement(articleId: 1, locationId: 1, qty: 5m, MovementType.Einbuchung));
+        await ctx.SaveChangesAsync();
+        var repo = new StockMovementRepository(ctx);
+
+        var result = await repo.GetCurrentStockAsync();
+
+        result.Should().ContainSingle();
+        result[0].StorageLocationIstBuchbar.Should().BeFalse();
+    }
+
     private static void SeedArticleAndLocation(IdealAkeWms.Data.ApplicationDbContext ctx, int articleId, int locationId)
     {
         if (ctx.Articles.Find(articleId) == null)

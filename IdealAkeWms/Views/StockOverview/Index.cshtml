@@ -124,6 +124,10 @@
                         {
                             <span class="badge bg-warning text-dark ms-1" title="Lagerplatz ist deaktiviert (Sage), Bestand sollte umgebucht werden">inaktiv</span>
                         }
+                        @if (item.StorageLocationIstBuchbar == false && item.CurrentQuantity > 0)
+                        {
+                            <span class="badge bg-secondary ms-1" title="Lagerplatz ist nicht fuer Buchungen freigegeben">nicht buchbar</span>
+                        }
                         @if (!string.IsNullOrEmpty(item.StorageLocationDescription))
                         {
                             <br /><small class="text-muted">@item.StorageLocationDescription</small>

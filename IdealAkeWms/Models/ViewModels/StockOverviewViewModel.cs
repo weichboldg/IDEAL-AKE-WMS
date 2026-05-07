@@ -26,4 +26,5 @@ public class StockOverviewItem
     public decimal? ReorderLevel { get; set; }
     public bool IsPickingTransport { get; set; }
     public bool StorageLocationIsActive { get; set; } = true;
+    public bool StorageLocationIstBuchbar { get; set; } = true;
 }

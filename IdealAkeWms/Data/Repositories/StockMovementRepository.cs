@@ -46,7 +46,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationCode = sm.StorageLocation.Code,
                 StorageLocationDescription = sm.StorageLocation.Description,
                 sm.StorageLocation.IsPickingTransport,
-                StorageLocationIsActive = sm.StorageLocation.IsActive
+                StorageLocationIsActive = sm.StorageLocation.IsActive,
+                StorageLocationIstBuchbar = sm.StorageLocation.IstBuchbar
             })
             .Select(g => new StockOverviewItem
             {
@@ -67,7 +68,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     0m),
                 ReorderLevel = g.Key.ReorderLevel,
                 IsPickingTransport = g.Key.IsPickingTransport,
-                StorageLocationIsActive = g.Key.StorageLocationIsActive
+                StorageLocationIsActive = g.Key.StorageLocationIsActive,
+                StorageLocationIstBuchbar = g.Key.StorageLocationIstBuchbar
             });
 
         var destinationItems = await destinationQuery.ToListAsync();
@@ -103,7 +105,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationCode = sm.SourceStorageLocation!.Code,
                 StorageLocationDescription = sm.SourceStorageLocation!.Description,
                 sm.SourceStorageLocation!.IsPickingTransport,
-                StorageLocationIsActive = sm.SourceStorageLocation!.IsActive
+                StorageLocationIsActive = sm.SourceStorageLocation!.IsActive,
+                StorageLocationIstBuchbar = sm.SourceStorageLocation!.IstBuchbar
             })
             .Select(g => new StockOverviewItem
             {
@@ -117,7 +120,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 CurrentQuantity = -g.Sum(sm => sm.Quantity),
                 ReorderLevel = g.Key.ReorderLevel,
                 IsPickingTransport = g.Key.IsPickingTransport,
-                StorageLocationIsActive = g.Key.StorageLocationIsActive
+                StorageLocationIsActive = g.Key.StorageLocationIsActive,
+                StorageLocationIstBuchbar = g.Key.StorageLocationIstBuchbar
             })
             .ToListAsync();
 
@@ -140,7 +144,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     CurrentQuantity = g.Sum(x => x.CurrentQuantity),
                     ReorderLevel = first.ReorderLevel,
                     IsPickingTransport = first.IsPickingTransport,
-                    StorageLocationIsActive = first.StorageLocationIsActive
+                    StorageLocationIsActive = first.StorageLocationIsActive,
+                    StorageLocationIstBuchbar = first.StorageLocationIstBuchbar
                 };
             })
             .ToList();
@@ -179,7 +184,7 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         // Pro Bewegung den Netto-Effekt auf Ziel-Lagerplatz berechnen
         var entries = new List<(int ArticleId, string ArticleNumber, string? ArticleDescription,
             string? Unit, int StorageLocationId, string StorageLocationCode,
-            string? StorageLocationDescription, bool IsPickingTransport, bool IsActive, decimal Qty)>();
+            string? StorageLocationDescription, bool IsPickingTransport, bool IsActive, bool IstBuchbar, decimal Qty)>();
 
         foreach (var sm in movements)
         {
@@ -195,7 +200,7 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             entries.Add((sm.ArticleId, sm.Article.ArticleNumber, sm.Article.Description,
                 sm.Article.Unit, sm.StorageLocationId, sm.StorageLocation.Code,
                 sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport,
-                sm.StorageLocation.IsActive, qty));
+                sm.StorageLocation.IsActive, sm.StorageLocation.IstBuchbar, qty));
         }
 
         return entries
@@ -214,6 +219,7 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     StorageLocationDescription = first.StorageLocationDescription,
                     IsPickingTransport = first.IsPickingTransport,
                     StorageLocationIsActive = first.IsActive,
+                    StorageLocationIstBuchbar = first.IstBuchbar,
                     CurrentQuantity = g.Sum(e => e.Qty)
                 };
             })
