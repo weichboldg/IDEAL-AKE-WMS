@@ -1152,10 +1152,16 @@ th:hover .col-resize-handle {
 /* Sage-Korrektur-Buchungen — visuell unterschiedlich von manuellen Buchungen */
 .badge-sage-einbuchung {
     background-color: var(--ake-primary);
-    color: white;
+    color: var(--ake-white);
+    padding: 0.35em 0.65em;
+    border-radius: 4px;
+    font-size: 0.85em;
 }
 
 .badge-sage-ausbuchung {
-    background-color: var(--ake-secondary);
-    color: white;
+    background-color: var(--ake-orange);
+    color: var(--ake-white);
+    padding: 0.35em 0.65em;
+    border-radius: 4px;
+    font-size: 0.85em;
 }
