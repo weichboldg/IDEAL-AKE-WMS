@@ -52,6 +52,31 @@ public class LagerbestandSyncService : ILagerbestandSyncService
             return new LagerbestandSyncResult(0, 0, 0, 0, 0, 1, dryRun);
         }
 
+        // Sage-Duplikate erkennen: gleiche (Artikelnummer, Lagerplatz) aus mehreren Lagerorten
+        var dupGroups = sageRows
+            .Where(r => !string.IsNullOrWhiteSpace(r.Artikelnummer) && !string.IsNullOrWhiteSpace(r.Lagerplatz))
+            .GroupBy(r => (r.Artikelnummer!.Trim(), r.Lagerplatz!.Trim()),
+                     new TupleKeyComparer())
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        foreach (var group in dupGroups)
+        {
+            await _syncLogs.AddAsync(new SyncLog
+            {
+                Service = ServiceName,
+                Level = SyncLogLevel.Warning,
+                Message = $"Sage liefert (Artikel '{group.Key.Item1}', Lagerplatz '{group.Key.Item2}') mehrfach. Tupel uebersprungen.",
+                Reference = group.Key.Item2
+            });
+        }
+
+        var dupKeys = dupGroups.Select(g => g.Key).ToHashSet(new TupleKeyComparer());
+        sageRows = sageRows
+            .Where(r => string.IsNullOrWhiteSpace(r.Artikelnummer) || string.IsNullOrWhiteSpace(r.Lagerplatz)
+                     || !dupKeys.Contains((r.Artikelnummer!.Trim(), r.Lagerplatz!.Trim())))
+            .ToList();
+
         // Pre-loading
         var articleByNumber = await _ctx.Articles
             .ToDictionaryAsync(a => a.ArticleNumber, a => a.Id, StringComparer.OrdinalIgnoreCase, ct);
@@ -158,5 +183,16 @@ public class LagerbestandSyncService : ILagerbestandSyncService
         });
 
         return new LagerbestandSyncResult(tuples, plus, minus, noChange, skipped, errors, dryRun);
+    }
+
+    private sealed class TupleKeyComparer : IEqualityComparer<(string, string)>
+    {
+        public bool Equals((string, string) x, (string, string) y) =>
+            string.Equals(x.Item1, y.Item1, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(x.Item2, y.Item2, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string, string) obj) =>
+            StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Item1) ^
+            StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Item2);
     }
 }

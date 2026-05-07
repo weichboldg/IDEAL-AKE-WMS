@@ -316,4 +316,49 @@ public class LagerbestandSyncServiceTests
         var summary = (await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Info, 10)).First();
         summary.Message.Should().StartWith("[DryRun]");
     }
+
+    [Fact]
+    public async Task Run_SageReaderThrows_LogsErrorAndDoesNotCrash()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        reader.ThrowOnRead = new InvalidOperationException("Sage offline");
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.Errors.Should().Be(1);
+        ctx.StockMovements.Should().BeEmpty();
+
+        var errors = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Error, 10);
+        errors.Should().ContainSingle();
+        errors[0].Message.Should().Contain("Sage offline");
+    }
+
+    [Fact]
+    public async Task Run_SageDuplicateTuple_SkipsAllAndLogsWarning()
+    {
+        var (svc, reader, ctx, syncLogs) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        SeedSageLocation(ctx, id: 2, code: "L-2");
+        await ctx.SaveChangesAsync();
+        // Sage liefert (A-1, L-1) zweimal — z.B. aus zwei verschiedenen Lagerorten mit gleichem Lagerplatz-Code
+        reader.Records = new()
+        {
+            new("A-1", "L-1", 5m),
+            new("A-1", "L-1", 7m),
+            new("A-1", "L-2", 3m)   // dieser sollte normal verarbeitet werden
+        };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        // Nur der eindeutige (A-1, L-2)-Tupel wird verarbeitet
+        result.CorrectionsPlus.Should().Be(1);
+        var corrections = ctx.StockMovements
+            .Where(m => m.MovementType == MovementType.SageEinbuchung).ToList();
+        corrections.Should().ContainSingle();
+        corrections[0].StorageLocationId.Should().Be(2);
+
+        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
+        warnings.Should().Contain(x => x.Message.Contains("mehrfach"));
+    }
 }
