@@ -250,4 +250,51 @@ public class LagerbestandSyncServiceTests
         var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
         warnings.Should().Contain(x => x.Message.Contains("deaktiviert"));
     }
+
+    [Fact]
+    public async Task Run_AggregatesMultiplePreMovements_BeforeComputingDelta()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        SeedSageLocation(ctx, id: 2, code: "L-2");
+        ctx.StockMovements.AddRange(
+            new StockMovement { ArticleId = 1, StorageLocationId = 1, Quantity = 10m, MovementType = MovementType.Einbuchung,    Timestamp = DateTime.Now, WindowsUser = "x", CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+            new StockMovement { ArticleId = 1, StorageLocationId = 1, Quantity = 4m,  MovementType = MovementType.Ausbuchung,    Timestamp = DateTime.Now, WindowsUser = "x", CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+            new StockMovement { ArticleId = 1, StorageLocationId = 1, Quantity = 2m,  MovementType = MovementType.Umbuchung,
+                                SourceStorageLocationId = 2,
+                                Timestamp = DateTime.Now, WindowsUser = "x", CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" }
+        );
+        await ctx.SaveChangesAsync();
+        // Effektiver Bestand auf L-1: 10 - 4 + 2 = 8
+        reader.Records = new() { new("A-1", "L-1", 6m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.CorrectionsMinus.Should().Be(1);
+        var c = ctx.StockMovements.Single(m => m.MovementType == MovementType.SageAusbuchung);
+        c.Quantity.Should().Be(2m);   // 8 -> 6, Korrektur -2
+    }
+
+    [Fact]
+    public async Task Run_CorrectionMovement_HasExpectedAuditFields()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-1", 5m) };
+
+        await svc.RunAsync(dryRun: false);
+
+        var c = ctx.StockMovements.Single();
+        c.WindowsUser.Should().Be(SyncUser);
+        c.CreatedBy.Should().Be(SyncUser);
+        c.UserId.Should().BeNull();
+        c.ProductionOrder.Should().BeNull();
+        c.Note.Should().NotBeNull();
+        c.Note.Should().Contain("WMS=0");
+        c.Note.Should().Contain("Sage=5");
+        c.Timestamp.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
+    }
 }
