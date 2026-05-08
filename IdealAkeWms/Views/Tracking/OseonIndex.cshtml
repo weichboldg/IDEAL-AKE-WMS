@@ -614,7 +614,7 @@ else
             }
 
             function updateSortIndicators(activeKey, direction) {
-                document.querySelectorAll('th[data-sortable]').forEach(function (th) {
+                document.querySelectorAll('#oseonTree thead th[data-sortable]').forEach(function (th) {
                     var indicator = th.querySelector('.oseon-sort-indicator');
                     if (!indicator) return;
                     if (th.getAttribute('data-sort-key') === activeKey && direction) {
@@ -625,7 +625,7 @@ else
                 });
             }
 
-            document.querySelectorAll('th[data-sortable]').forEach(function (th) {
+            document.querySelectorAll('#oseonTree thead th[data-sortable]').forEach(function (th) {
                 th.style.cursor = 'pointer';
                 th.addEventListener('click', function () {
                     var clickedKey = th.getAttribute('data-sort-key');
