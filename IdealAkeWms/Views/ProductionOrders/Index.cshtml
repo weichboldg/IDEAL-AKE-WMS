@@ -67,15 +67,15 @@
     <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc">
         <thead>
             <tr>
+                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                {
+                    <th style="width: 32px;" class="bulk-checkbox-col" data-col-key="bulk-select">
+                        <input type="checkbox" id="bulkSelectAll" title="Alle sichtbaren auswählen" />
+                    </th>
+                }
                 @if (Model.CanPick)
                 {
                     <th style="width: 40px;" data-col-key="actions"></th>
-                }
-                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
-                {
-                    <th style="width: 32px;" class="bulk-checkbox-col">
-                        <input type="checkbox" id="bulkSelectAll" title="Alle sichtbaren auswählen" />
-                    </th>
                 }
                 <th style="width: 90px;" data-filterable data-col-key="order-number">FA Nr.</th>
                 <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
@@ -108,6 +108,18 @@
             @foreach (var item in Model.Items)
             {
                 <tr class="@(item.IsDone ? "table-secondary" : "")">
+                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                    {
+                        <td class="bulk-checkbox-col">
+                            @if (!item.IsDone)
+                            {
+                                <input type="checkbox" class="bulk-row-checkbox"
+                                       data-id="@item.Id"
+                                       data-released="@(item.IsReleasedForPicking ? "true" : "false")"
+                                       data-has-article="@(string.IsNullOrEmpty(item.ArticleNumber) ? "false" : "true")" />
+                            }
+                        </td>
+                    }
                     @if (Model.CanPick)
                     {
                         <td class="text-nowrap">
@@ -118,18 +130,6 @@
                                         <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
                                     </svg>
                                 </a>
-                            }
-                        </td>
-                    }
-                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
-                    {
-                        <td class="bulk-checkbox-col">
-                            @if (!item.IsDone)
-                            {
-                                <input type="checkbox" class="bulk-row-checkbox"
-                                       data-id="@item.Id"
-                                       data-released="@(item.IsReleasedForPicking ? "true" : "false")"
-                                       data-has-article="@(string.IsNullOrEmpty(item.ArticleNumber) ? "false" : "true")" />
                             }
                         </td>
                     }
@@ -410,6 +410,7 @@
 </script>
 <script type="application/json" id="column-config">
 [
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>{ "key": "bulk-select", "label": "", "locked": true, "defaultWidth": 32 },</text> }
     @if (Model.CanPick) { <text>{ "key": "actions", "label": "", "locked": true, "defaultWidth": 40 },</text> }
     { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
