@@ -183,6 +183,12 @@ public class PickingController : Controller
 
         var pickingItems = await _pickingRepository.GetByProductionOrderAsync(id);
 
+        // O(1) Lookup statt O(P) FirstOrDefault pro BOM-Item
+        var pickingByKey = pickingItems
+            .Where(p => p.BomArticleNumber != null && p.BomPosition != null)
+            .GroupBy(p => (p.BomArticleNumber!, p.BomPosition!))
+            .ToDictionary(g => g.Key, g => g.First());
+
         var articleNumbers = bomItems.Select(b => b.Ressourcenummer).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).Distinct().ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
 
@@ -205,7 +211,12 @@ public class PickingController : Controller
 
         var viewItems = bomItems.Select(bom =>
         {
-            var picking = pickingItems.FirstOrDefault(p => p.BomArticleNumber == bom.Ressourcenummer && p.BomPosition == bom.Position);
+            PickingItem? picking = null;
+            if (bom.Ressourcenummer != null && bom.Position != null
+                && pickingByKey.TryGetValue((bom.Ressourcenummer, bom.Position), out var found))
+            {
+                picking = found;
+            }
             stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var stockLocations);
             var locations = stockLocations ?? new List<StockLocationInfo>();
 
