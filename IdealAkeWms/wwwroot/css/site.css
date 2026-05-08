@@ -1193,3 +1193,20 @@ th:hover .col-resize-handle {
     cursor: pointer;
     transform: scale(1.2);
 }
+
+/* ===== OSEON Sub-Auftrag Spalten-Sort ===== */
+#oseonTree thead th[data-sortable] {
+    user-select: none;
+}
+
+#oseonTree thead th[data-sortable]:hover {
+    background-color: rgba(67, 166, 226, 0.08);  /* leichter --ake-secondary Schatten */
+}
+
+.oseon-sort-indicator {
+    display: inline-block;
+    margin-left: 0.25rem;
+    font-size: 0.75em;
+    color: var(--ake-secondary);
+    min-width: 0.7em;
+}
