@@ -593,22 +593,15 @@
             }
 
             // Hilfsfunktion: Spalten-Key → physikalischer td-Index im bomTable
-            // Wird für updateBomVisibility benötigt (Bug-Fix: parseInt(colKey) war falsch → NaN)
-            // Spalten-Key zu td-Index Map. Wird einmalig gebaut.
-            // Indizes aendern sich nicht durch Show/Hide — Cache bleibt valid.
-            var bomColKeyMap = null;
-            function buildBomColKeyMap() {
-                bomColKeyMap = {};
+            // Wird für updateBomVisibility benötigt (Bug-Fix: parseInt(colKey) war falsch → NaN).
+            // Kein Cache: column-preferences.js kann Spalten zur Laufzeit umordnen, und der Aufruf
+            // erfolgt nur N-mal pro updateBomVisibility (= Anzahl aktive Filter), nicht pro Zeile.
+            function bomColKeyToIndex(colKey) {
                 var ths = document.querySelectorAll('#bomTable thead tr:first-child th');
                 for (var i = 0; i < ths.length; i++) {
-                    var key = ths[i].getAttribute('data-col-key');
-                    if (key) bomColKeyMap[key] = i;
+                    if (ths[i].getAttribute('data-col-key') === colKey) return i;
                 }
-            }
-            function bomColKeyToIndex(colKey) {
-                if (!bomColKeyMap) buildBomColKeyMap();
-                var idx = bomColKeyMap[colKey];
-                return typeof idx === 'number' ? idx : -1;
+                return -1;
             }
 
             // Kombinierte Sichtbarkeitsfunktion: Baum-State UND aktive Filter
@@ -653,11 +646,7 @@
                     }
 
                     var shouldShow = treeVisible && filterVisible;
-                    if (shouldShow) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
+                    row.style.display = shouldShow ? '' : 'none';
                 });
             }
 
@@ -665,7 +654,7 @@
                 return document.querySelectorAll('#bomTable tbody tr[data-parent-pos="' + parentPos + '"]');
             }
 
-            // Recursion helper: setzt nur State, ruft updateBomVisibility nicht auf.
+            // Recursion-Helfer: setzt nur State, ruft updateBomVisibility nicht auf.
             function expandBaugruppeStateOnly(pos) {
                 expandedState[pos] = true;
                 var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
