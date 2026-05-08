@@ -63,6 +63,29 @@
     </div>
 </div>
 
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+{
+    <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
+        <span class="me-3"><strong id="bulkSelectedCount">0</strong> markiert</span>
+        <form asp-action="BulkRelease" method="post" id="bulkReleaseForm" class="d-inline me-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="release" value="true" />
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkRelease" class="btn btn-sm btn-outline-secondary" disabled>
+                Markierte freigeben
+            </button>
+        </form>
+        <form asp-action="BulkRelease" method="post" id="bulkUnreleaseForm" class="d-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="release" value="false" />
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkUnrelease" class="btn btn-sm btn-outline-success" disabled>
+                Markierte zurücknehmen
+            </button>
+        </form>
+    </div>
+}
+
 <div class="table-responsive">
     <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc">
         <thead>
@@ -544,4 +567,110 @@
             });
         </script>
     }
+    <script>
+        // Bulk-Selection für Leitstand-Freigabe
+        (function () {
+            var bar = document.getElementById('bulkActionBar');
+            if (!bar) return;  // Bulk-Feature inaktiv (kein Leitstand oder keine Berechtigung)
+
+            var selectAll = document.getElementById('bulkSelectAll');
+            var counter = document.getElementById('bulkSelectedCount');
+            var btnRelease = document.getElementById('btnBulkRelease');
+            var btnUnrelease = document.getElementById('btnBulkUnrelease');
+            var formRelease = document.getElementById('bulkReleaseForm');
+            var formUnrelease = document.getElementById('bulkUnreleaseForm');
+
+            function getRowCheckboxes() {
+                return Array.prototype.slice.call(document.querySelectorAll('.bulk-row-checkbox'));
+            }
+            function isVisible(cb) {
+                var tr = cb.closest('tr');
+                return tr && tr.style.display !== 'none';
+            }
+            function getVisibleCheckboxes() {
+                return getRowCheckboxes().filter(isVisible);
+            }
+            function getCheckedCheckboxes() {
+                return getRowCheckboxes().filter(function (cb) { return cb.checked; });
+            }
+
+            function recompute() {
+                var checked = getCheckedCheckboxes();
+                var total = checked.length;
+                var releasedCount = checked.filter(function (cb) { return cb.dataset.released === 'true'; }).length;
+                var unreleasedCount = total - releasedCount;
+                var allHaveArticle = checked.every(function (cb) { return cb.dataset.hasArticle === 'true'; });
+
+                counter.textContent = total;
+                bar.style.display = total > 0 ? 'flex' : 'none';
+
+                // Freigeben: alle Markierten sind nicht-freigegeben UND alle haben Artikelnummer
+                btnRelease.disabled = !(total > 0 && releasedCount === 0 && allHaveArticle);
+                // Zurücknehmen: alle Markierten sind freigegeben (Artikelnummer egal)
+                btnUnrelease.disabled = !(total > 0 && unreleasedCount === 0);
+
+                // SelectAll Tri-State
+                var visible = getVisibleCheckboxes();
+                var visibleChecked = visible.filter(function (cb) { return cb.checked; }).length;
+                if (visibleChecked === 0) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                } else if (visibleChecked === visible.length) {
+                    selectAll.checked = true;
+                    selectAll.indeterminate = false;
+                } else {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = true;
+                }
+            }
+
+            function bulkSyncSelection() {
+                // Filter hat Reihen versteckt — unsichtbare Checkboxen unchecken
+                getRowCheckboxes().forEach(function (cb) {
+                    if (cb.checked && !isVisible(cb)) cb.checked = false;
+                });
+                recompute();
+            }
+
+            // Row-Checkbox change
+            document.addEventListener('change', function (e) {
+                if (e.target.classList && e.target.classList.contains('bulk-row-checkbox')) {
+                    recompute();
+                }
+            });
+
+            // SelectAll click
+            selectAll.addEventListener('click', function () {
+                var newState = selectAll.checked;  // bereits durch Browser umgeschaltet
+                getVisibleCheckboxes().forEach(function (cb) { cb.checked = newState; });
+                recompute();
+            });
+
+            // Filter-Änderung → Auswahl synchronisieren
+            document.addEventListener('table-filter-applied', function (e) {
+                if (e.detail && e.detail.viewKey === 'ProductionOrders') {
+                    bulkSyncSelection();
+                }
+            });
+
+            // Form-Submit-Handler — ids[] anhängen
+            function attachIds(form) {
+                // Vorherige ids[]-Inputs entfernen
+                form.querySelectorAll('input[data-bulk-id]').forEach(function (n) { n.remove(); });
+                getCheckedCheckboxes().forEach(function (cb) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'ids';
+                    input.value = cb.dataset.id;
+                    input.setAttribute('data-bulk-id', '1');
+                    form.appendChild(input);
+                });
+            }
+            formRelease.addEventListener('submit', function () { attachIds(formRelease); });
+            formUnrelease.addEventListener('submit', function () { attachIds(formUnrelease); });
+
+            // Initial-State (für den Fall dass Server-State Pre-checked Checkboxen liefert — aktuell nie der Fall)
+            recompute();
+        })();
+    </script>
 }
