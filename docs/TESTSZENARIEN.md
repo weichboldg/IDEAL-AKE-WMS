@@ -26,7 +26,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.10 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
-| 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 |
+| 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
 | 8. BDE Phase 1 | [→](#8-bde-phase-1) | TS-8.1 – TS-8.15 |
 | 9. BDE Phase 2.1 — Werkbank-Erweiterungen | [→](#9-bde-phase-21--werkbank-erweiterungen) | TS-9.1 – TS-9.5 |
 | 10. BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | [→](#10-bde-phase-22--mehrfachanmeldung--zeit-split) | TS-10.1 – TS-10.15 |
@@ -1337,6 +1337,78 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 - Nur Sub-Auftraege mit Artikel `100-001` werden angezeigt.
 - Filterung ist client-seitig (kein Seiten-Reload).
 - Leeres Feld: alle anzeigen.
+
+---
+
+### TS-7.6a — OSEON Artikel-Filter zeigt nur matchende Sub-Auftraege
+
+**Vorbedingungen:**
+- Ein Kundenauftrag mit vielen Sub-Auftraegen vorhanden, einer der Subs hat Artikel `87015207`.
+- Der Kundenauftrag enthaelt z. B. 99 Subs gesamt.
+
+**Schritte:**
+1. OSEON-Teileverfolgung oeffnen.
+2. Im Filter `Artikelnummer` den Suchbegriff `87015207` eingeben, "Filtern" klicken.
+3. Den gefundenen Kundenauftrag aufklappen.
+
+**Erwartetes Verhalten:**
+- Kundenauftrag-Header zeigt weiterhin `(2 / 99 fertig)` (volle Stats — Kontext bleibt erhalten).
+- Aufgeklappt erscheint nur der eine matchende Sub-Auftrag mit Artikelnummer `87015207`.
+- Andere 98 Subs sind ausgeblendet.
+- Status-Badge der Gruppe zeigt weiterhin den schlechtesten Status der GESAMTEN Gruppe (nicht nur des matchenden Subs).
+
+---
+
+### TS-7.6b — OSEON Sub-Sortierung per Spalten-Klick
+
+**Vorbedingungen:**
+- Ein Kundenauftrag mit mehreren Sub-Auftraegen, unterschiedliche Artikelnummern und Endtermine.
+
+**Schritte:**
+1. OSEON-Teileverfolgung oeffnen.
+2. Den Kundenauftrag aufklappen → Sub-Auftraege sind nach OseonOrderNumber asc sortiert (Default).
+3. Auf Spalten-Header `Artikelnr.` klicken.
+4. Erneut auf `Artikelnr.` klicken.
+5. Erneut (3. Mal) auf `Artikelnr.` klicken.
+
+**Erwartetes Verhalten:**
+- 1. Klick: Sub-Auftraege alphabetisch nach Artikelnummer aufsteigend (▲-Indikator). Operations bleiben unter ihrem Sub.
+- 2. Klick: absteigend (▼-Indikator).
+- 3. Klick: zurueck zu Default-Sort (OseonOrderNumber asc, kein Indikator).
+- Andere Kundenauftraege werden in ihren eigenen Gruppen ebenfalls sortiert (nicht uebergreifend).
+
+---
+
+### TS-7.6c — OSEON Endtermin-Sort: nulls last
+
+**Vorbedingungen:**
+- Mindestens 3 Sub-Auftraege im selben Kundenauftrag — einer davon ohne Endtermin.
+
+**Schritte:**
+1. OSEON-Teileverfolgung oeffnen.
+2. Den Kundenauftrag aufklappen.
+3. Auf Spalten-Header `Endtermin` klicken (asc).
+4. Erneut auf `Endtermin` klicken (desc).
+
+**Erwartetes Verhalten:**
+- Asc: naechste Termine oben, Sub OHNE Endtermin am Ende.
+- Desc: spaeteste Termine oben, Sub OHNE Endtermin trotzdem am Ende (nicht oben).
+- Keine DOM-Glitches, Operations folgen ihrem Sub.
+
+---
+
+### TS-7.6d — OSEON Filter + Sort kombiniert
+
+**Vorbedingungen:**
+- Wie TS-7.6a.
+
+**Schritte:**
+1. Artikel-Filter setzen (= 1 matchender Sub pro Gruppe sichtbar).
+2. Auf Spalten-Header `Artikelnr.` klicken.
+
+**Erwartetes Verhalten:**
+- Sortierung wirkt nur auf die sichtbaren Subs (1 pro Gruppe).
+- Kein JS-Fehler, kein DOM-Glitch.
 
 ---
 

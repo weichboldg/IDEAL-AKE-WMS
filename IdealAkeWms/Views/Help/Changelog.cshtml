@@ -23,6 +23,8 @@
                     <li><strong>Performance:</strong> St&uuml;ckliste-Sicht (Auf-/Zuklappen von Baugruppen) ist nun deutlich schneller. Lagerplatz-Dropdowns laden per Ajax statt vorab gerendert (Initial-Load 5-10x schneller, Toggle sub-100ms auch bei tausenden BOM-Positionen).</li>
                     <li><strong>Leitstand-Bulk-Freigabe:</strong> Mehrere Auftraege per Checkbox markieren und gemeinsam freigeben oder zur&uuml;cknehmen. Sticky-Action-Bar zeigt Auswahl-Status, Header-Checkbox markiert alle sichtbaren Zeilen (respektiert Filter). Mit Picker-Zuweisung &ouml;ffnet sich ein Modal f&uuml;r die Picker-Auswahl.</li>
                     <li><strong>Spalten-Filter-Persistenz:</strong> Spalten-Filter bleiben nach Page-Reload erhalten (per sessionStorage, pro Browser-Tab). Wirkt f&uuml;r alle Tabellen mit View-Identifier (Leitstand, Bestand, Bewegungshistorie, OSEON-Tracking u.a.). "Zur&uuml;cksetzen"-Button leert auch die persistierten Filter.</li>
+                    <li><strong>OSEON Artikel-Filter:</strong> Bei Artikel-Filterung erscheinen nur noch die matchenden Sub-Auftr&auml;ge innerhalb ihres Kundenauftrags. Vorher wurde die gesamte Baugruppe angezeigt &mdash; jetzt sieht man nur noch den gesuchten Artikel im Kontext seiner Kundenauftrag-Gruppe.</li>
+                    <li><strong>OSEON Spalten-Sortierung:</strong> Sub-Auftr&auml;ge k&ouml;nnen per Klick auf einen Spalten-Header sortiert werden (Artikelnr., Bezeichnung, Werkbank, Status, Soll/Ist, Endtermin). Drei-Klick-Zyklus: aufsteigend &rarr; absteigend &rarr; Default. Sortierung wirkt nur innerhalb der Kundenauftrag-Gruppen, Operations folgen ihrem Sub.</li>
                 </ul>
             </div>
         </div>
