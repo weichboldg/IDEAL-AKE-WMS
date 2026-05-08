@@ -56,7 +56,7 @@
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-secondary">Filtern</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+                    <a asp-action="Index" class="btn btn-outline-secondary" data-clear-table-filters="ProductionOrders">Zurücksetzen</a>
                 </div>
             </div>
         </form>
@@ -70,6 +70,12 @@
                 @if (Model.CanPick)
                 {
                     <th style="width: 40px;" data-col-key="actions"></th>
+                }
+                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                {
+                    <th style="width: 32px;" class="bulk-checkbox-col">
+                        <input type="checkbox" id="bulkSelectAll" title="Alle sichtbaren auswählen" />
+                    </th>
                 }
                 <th style="width: 90px;" data-filterable data-col-key="order-number">FA Nr.</th>
                 <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
@@ -112,6 +118,18 @@
                                         <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
                                     </svg>
                                 </a>
+                            }
+                        </td>
+                    }
+                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                    {
+                        <td class="bulk-checkbox-col">
+                            @if (!item.IsDone)
+                            {
+                                <input type="checkbox" class="bulk-row-checkbox"
+                                       data-id="@item.Id"
+                                       data-released="@(item.IsReleasedForPicking ? "true" : "false")"
+                                       data-has-article="@(string.IsNullOrEmpty(item.ArticleNumber) ? "false" : "true")" />
                             }
                         </td>
                     }
@@ -303,7 +321,11 @@
                     @{
                         var colCount = 17;
                         if (Model.CanPick) colCount++;
-                        if (Model.LeitstandAktiv && Model.CanManagePickingRelease) colCount++;
+                        if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                        {
+                            colCount++;
+                            colCount++;
+                        }
                         if (Model.PickerAssignmentEnabled) colCount++;
                     }
                     <td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td>
