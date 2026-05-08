@@ -101,13 +101,27 @@ else
             <thead>
                 <tr>
                     <th style="width: 30px;" data-col-key="expand"></th>
-                    <th data-col-key="order-number">Auftrag</th>
-                    <th data-col-key="article-number">Artikelnr.</th>
-                    <th data-col-key="description">Bezeichnung</th>
-                    <th data-col-key="workbench">Werkbank</th>
-                    <th data-col-key="status">Status</th>
-                    <th data-col-key="progress">Soll / Ist</th>
-                    <th data-col-key="end-date">Endtermin</th>
+                    <th data-col-key="order-number" data-sortable data-sort-key="oseon-order-number">
+                        Auftrag <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="article-number" data-sortable data-sort-key="article-number">
+                        Artikelnr. <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="description" data-sortable data-sort-key="description">
+                        Bezeichnung <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="workbench" data-sortable data-sort-key="workplace">
+                        Werkbank <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="status" data-sortable data-sort-key="status" title="Sortiert nach Status-Phase (Unvollstaendig → Fertig)">
+                        Status <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="progress" data-sortable data-sort-key="progress" title="Sortiert nach Soll-Menge">
+                        Soll / Ist <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="end-date" data-sortable data-sort-key="end-date">
+                        Endtermin <span class="oseon-sort-indicator"></span>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -158,7 +172,17 @@ else
                         var subRowClass = sub.OseonStatus is 90 or 95 ? "oseon-tree-done" : "";
 
                         @* === Ebene 1: Subauftrag === *@
-                        <tr class="oseon-tree-sub @subRowClass" data-parent="@groupKey" data-sub="@subKey" style="display: none; cursor: pointer;">
+                        <tr class="oseon-tree-sub @subRowClass"
+                            data-parent="@groupKey"
+                            data-sub="@subKey"
+                            data-sort-oseon-order-number="@(sub.OseonOrderNumber ?? "")"
+                            data-sort-article-number="@(sub.ArticleNumber ?? "")"
+                            data-sort-description="@(sub.Description1 ?? "")"
+                            data-sort-workplace="@(sub.WorkplaceName ?? "")"
+                            data-sort-status="@sub.OseonStatus"
+                            data-sort-progress="@sub.QuantityTarget.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                            data-sort-end-date="@(sub.DueDate?.ToString("yyyy-MM-dd") ?? "")"
+                            style="display: none; cursor: pointer;">
                             <td><span class="traffic-light traffic-@sub.Color.ToString().ToLower()"></span></td>
                             <td style="padding-left: 28px; white-space: nowrap;">
                                 @if (sub.Operations.Any())
