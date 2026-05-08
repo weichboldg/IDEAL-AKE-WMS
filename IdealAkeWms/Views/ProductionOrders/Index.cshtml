@@ -426,6 +426,44 @@
             </div>
         </div>
     </div>
+
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <!-- Bulk Release Modal -->
+        <div class="modal fade" id="bulkReleaseModal" tabindex="-1" aria-labelledby="bulkReleaseModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form asp-action="BulkRelease" method="post" id="bulkReleaseModalForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="release" value="true" />
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <div id="bulkReleaseModalIds"></div>
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="bulkReleaseModalLabel">Sammel-Freigabe</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong id="bulkReleaseModalCount">0</strong> Aufträge werden freigegeben.</p>
+                            <div class="mb-3">
+                                <label for="bulkAssignedPickerIdSelect" class="form-label">Kommissionierer zuweisen</label>
+                                <select name="assignedPickerId" id="bulkAssignedPickerIdSelect" class="form-select" required>
+                                    <option value="">— bitte wählen —</option>
+                                    @foreach (var p in activePickers)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" id="bulkReleaseModalSubmit" class="btn btn-primary" disabled>Freigeben</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 <script type="application/json" id="view-config">
@@ -573,6 +611,8 @@
             var bar = document.getElementById('bulkActionBar');
             if (!bar) return;  // Bulk-Feature inaktiv (kein Leitstand oder keine Berechtigung)
 
+            var pickerAssignmentEnabled = @(Model.PickerAssignmentEnabled.ToString().ToLower());
+
             var selectAll = document.getElementById('bulkSelectAll');
             var counter = document.getElementById('bulkSelectedCount');
             var btnRelease = document.getElementById('btnBulkRelease');
@@ -655,6 +695,8 @@
 
             // Form-Submit-Handler — ids[] anhängen
             function attachIds(form) {
+                // Bei aktivem PickerAssignment lädt Release-Submit den Modal — keine ids ins eigentliche Form
+                if (pickerAssignmentEnabled && form === formRelease) return;
                 // Vorherige ids[]-Inputs entfernen
                 form.querySelectorAll('input[data-bulk-id]').forEach(function (n) { n.remove(); });
                 getCheckedCheckboxes().forEach(function (cb) {
@@ -668,6 +710,38 @@
             }
             formRelease.addEventListener('submit', function () { attachIds(formRelease); });
             formUnrelease.addEventListener('submit', function () { attachIds(formUnrelease); });
+
+            // PickerAssignment-Pfad: Release-Submit öffnet Modal statt zu submitten
+            if (pickerAssignmentEnabled) {
+                var bulkModal = document.getElementById('bulkReleaseModal');
+                var bulkModalIds = document.getElementById('bulkReleaseModalIds');
+                var bulkModalCount = document.getElementById('bulkReleaseModalCount');
+                var bulkPickerSelect = document.getElementById('bulkAssignedPickerIdSelect');
+                var bulkModalSubmit = document.getElementById('bulkReleaseModalSubmit');
+
+                if (bulkModal && bulkModalIds && bulkModalCount && bulkPickerSelect && bulkModalSubmit) {
+                    formRelease.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        var checked = getCheckedCheckboxes();
+                        bulkModalIds.innerHTML = '';
+                        checked.forEach(function (cb) {
+                            var input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'ids';
+                            input.value = cb.dataset.id;
+                            bulkModalIds.appendChild(input);
+                        });
+                        bulkModalCount.textContent = checked.length;
+                        bulkPickerSelect.value = '';
+                        bulkModalSubmit.disabled = true;
+                        new bootstrap.Modal(bulkModal).show();
+                    });
+
+                    bulkPickerSelect.addEventListener('change', function () {
+                        bulkModalSubmit.disabled = !bulkPickerSelect.value;
+                    });
+                }
+            }
 
             // Initial-State (für den Fall dass Server-State Pre-checked Checkboxen liefert — aktuell nie der Fall)
             recompute();
