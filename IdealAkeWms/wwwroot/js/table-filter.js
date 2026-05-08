@@ -7,6 +7,55 @@
     var _tbody = null;
     var _table = null;
 
+    // ----- Filter-Persistenz (sessionStorage, gegated durch data-view-key) -----
+    function getViewKey() {
+        return _table && _table.getAttribute('data-view-key');
+    }
+
+    function saveFiltersToStorage() {
+        var viewKey = getViewKey();
+        if (!viewKey) return;
+        try {
+            var filters = window.getActiveFilters ? window.getActiveFilters() : {};
+            var key = 'tableFilters:' + viewKey;
+            if (Object.keys(filters).length === 0) {
+                sessionStorage.removeItem(key);
+            } else {
+                sessionStorage.setItem(key, JSON.stringify(filters));
+            }
+        } catch (e) {
+            // sessionStorage nicht verfuegbar (Privacy/Quota) — lautlos no-op
+        }
+    }
+
+    function restoreFiltersFromStorage() {
+        var viewKey = getViewKey();
+        if (!viewKey || !_filterRow) return;
+        try {
+            var key = 'tableFilters:' + viewKey;
+            var raw = sessionStorage.getItem(key);
+            if (!raw) return;
+            var filters = JSON.parse(raw);
+            if (!filters || typeof filters !== 'object') {
+                sessionStorage.removeItem(key);
+                return;
+            }
+            Object.keys(filters).forEach(function (colKey) {
+                var input = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
+                if (input) input.value = filters[colKey];
+            });
+        } catch (e) {
+            try { sessionStorage.removeItem('tableFilters:' + viewKey); } catch (e2) { /* */ }
+        }
+    }
+
+    function dispatchFilterAppliedEvent() {
+        var viewKey = getViewKey();
+        document.dispatchEvent(new CustomEvent('table-filter-applied', {
+            detail: { viewKey: viewKey }
+        }));
+    }
+
     function getPhysicalIndex(colKey) {
         if (!_table) return -1;
         var allThs = _table.querySelectorAll('thead tr:first-child th');
@@ -82,6 +131,9 @@
             _filterRow.appendChild(filterTd);
         });
         thead.appendChild(_filterRow);
+
+        restoreFiltersFromStorage();
+        applyFilters();
 
         // Sorting
         _headers.forEach(function (th) {
@@ -171,6 +223,9 @@
 
             row.style.display = visible ? '' : 'none';
         });
+
+        saveFiltersToStorage();
+        dispatchFilterAppliedEvent();
     }
 
     function sortTable(colKey, dir) {
@@ -464,5 +519,18 @@
                 }
             }, 2000);
         }
+    });
+
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('[data-clear-table-filters]');
+        if (!link) return;
+        var viewKey = link.getAttribute('data-clear-table-filters');
+        if (!viewKey) return;
+        try {
+            sessionStorage.removeItem('tableFilters:' + viewKey);
+        } catch (err) {
+            // lautlos no-op
+        }
+        // Default-Navigation des Links läuft normal weiter
     });
 })();
