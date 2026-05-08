@@ -594,12 +594,21 @@
 
             // Hilfsfunktion: Spalten-Key → physikalischer td-Index im bomTable
             // Wird für updateBomVisibility benötigt (Bug-Fix: parseInt(colKey) war falsch → NaN)
-            function bomColKeyToIndex(colKey) {
+            // Spalten-Key zu td-Index Map. Wird einmalig gebaut.
+            // Indizes aendern sich nicht durch Show/Hide — Cache bleibt valid.
+            var bomColKeyMap = null;
+            function buildBomColKeyMap() {
+                bomColKeyMap = {};
                 var ths = document.querySelectorAll('#bomTable thead tr:first-child th');
                 for (var i = 0; i < ths.length; i++) {
-                    if (ths[i].getAttribute('data-col-key') === colKey) return i;
+                    var key = ths[i].getAttribute('data-col-key');
+                    if (key) bomColKeyMap[key] = i;
                 }
-                return -1;
+            }
+            function bomColKeyToIndex(colKey) {
+                if (!bomColKeyMap) buildBomColKeyMap();
+                var idx = bomColKeyMap[colKey];
+                return typeof idx === 'number' ? idx : -1;
             }
 
             // Kombinierte Sichtbarkeitsfunktion: Baum-State UND aktive Filter
@@ -609,18 +618,20 @@
             function updateBomVisibility() {
                 var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
                 var hasActiveFilter = Object.keys(filters).length > 0;
+                var filterKeys = Object.keys(filters);
 
-                document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
-                    if (row.querySelector('td[colspan]')) return; // "Keine Daten"-Zeile überspringen
+                // Pre-resolve filter colKey -> td index ONCE, not per row
+                var resolvedFilters = filterKeys.map(function (k) {
+                    return { idx: bomColKeyToIndex(k), value: filters[k] };
+                }).filter(function (f) { return f.idx >= 0; });
+
+                var rows = document.querySelectorAll('#bomTable tbody tr');
+                rows.forEach(function (row) {
+                    if (row.querySelector('td[colspan]')) return;
 
                     var parentPos = row.getAttribute('data-parent-pos');
-
-                    // Baum-Sichtbarkeit: TreeLevel 0 immer sichtbar, höhere Level nur wenn Parent expanded
                     var treeVisible = !parentPos || expandedState[parentPos] === true;
 
-                    // Bug-Fix 4 (rekursive Suche): bei aktivem Filter Baum-State ignorieren AUSSER für
-                    // Baugruppen die der User explizit zugeklappt hat (expandedState === false).
-                    // So arbeitet recursive-search (zeigt alle Treffer), aber manuelles Zuklappen wirkt weiterhin.
                     if (recursiveFilterSearch && hasActiveFilter) {
                         var parentExplicitlyClosed = parentPos && expandedState[parentPos] === false;
                         if (!parentExplicitlyClosed) {
@@ -628,21 +639,25 @@
                         }
                     }
 
-                    // Bug-Fix 1 (Phantom-Spalten): Filter-Index aus Spalten-Key auflösen statt parseInt(colKey)
-                    // parseInt('procurement') = NaN → cell war immer undefined → filterVisible blieb immer true
-                    // → updateBomVisibility hat Zeilen sichtbar gesetzt die table-filter.js korrekt versteckt hatte
                     var filterVisible = true;
-                    for (var colKey in filters) {
-                        var colIdx = bomColKeyToIndex(colKey);
-                        if (colIdx < 0) continue;
-                        var cell = row.querySelectorAll('td')[colIdx];
-                        if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), filters[colKey])) {
-                            filterVisible = false;
-                            break;
+                    if (resolvedFilters.length > 0) {
+                        var cells = row.cells;
+                        for (var i = 0; i < resolvedFilters.length; i++) {
+                            var f = resolvedFilters[i];
+                            var cell = cells[f.idx];
+                            if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), f.value)) {
+                                filterVisible = false;
+                                break;
+                            }
                         }
                     }
 
-                    row.style.display = (treeVisible && filterVisible) ? '' : 'none';
+                    var shouldShow = treeVisible && filterVisible;
+                    if (shouldShow) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
                 });
             }
 
@@ -650,35 +665,39 @@
                 return document.querySelectorAll('#bomTable tbody tr[data-parent-pos="' + parentPos + '"]');
             }
 
-            function expandBaugruppe(pos) {
+            // Recursion helper: setzt nur State, ruft updateBomVisibility nicht auf.
+            function expandBaugruppeStateOnly(pos) {
                 expandedState[pos] = true;
                 var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
                 if (chevron) chevron.style.transform = 'rotate(90deg)';
-
-                // Kinder anzeigen (Filter wird danach via updateBomVisibility angewendet)
                 getChildRows(pos).forEach(function (row) {
                     var childPos = row.getAttribute('data-position');
                     if (row.hasAttribute('data-baugruppe-id') && expandedState[childPos]) {
-                        expandBaugruppe(childPos);
+                        expandBaugruppeStateOnly(childPos);
                     }
                 });
+            }
 
+            function collapseBaugruppeStateOnly(pos) {
+                expandedState[pos] = false;
+                var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
+                if (chevron) chevron.style.transform = '';
+                getChildRows(pos).forEach(function (row) {
+                    var childPos = row.getAttribute('data-position');
+                    if (row.hasAttribute('data-baugruppe-id')) {
+                        collapseBaugruppeStateOnly(childPos);
+                    }
+                });
+            }
+
+            // Public APIs: rufen genau einmal updateBomVisibility am Ende auf.
+            function expandBaugruppe(pos) {
+                expandBaugruppeStateOnly(pos);
                 updateBomVisibility();
             }
 
             function collapseBaugruppe(pos) {
-                expandedState[pos] = false;
-                var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
-                if (chevron) chevron.style.transform = '';
-
-                // Kinder rekursiv in expandedState deaktivieren
-                getChildRows(pos).forEach(function (row) {
-                    var childPos = row.getAttribute('data-position');
-                    if (row.hasAttribute('data-baugruppe-id')) {
-                        collapseBaugruppe(childPos);
-                    }
-                });
-
+                collapseBaugruppeStateOnly(pos);
                 updateBomVisibility();
             }
 
