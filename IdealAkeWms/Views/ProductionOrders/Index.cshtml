@@ -443,11 +443,11 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
                         </div>
                         <div class="modal-body">
-                            <p><strong id="bulkReleaseModalCount">0</strong> Aufträge werden freigegeben.</p>
+                            <p><strong id="bulkReleaseModalCount">0</strong> Auftraege werden freigegeben.</p>
                             <div class="mb-3">
                                 <label for="bulkAssignedPickerIdSelect" class="form-label">Kommissionierer zuweisen</label>
                                 <select name="assignedPickerId" id="bulkAssignedPickerIdSelect" class="form-select" required>
-                                    <option value="">— bitte wählen —</option>
+                                    <option value="">— Bitte auswaehlen —</option>
                                     @foreach (var p in activePickers)
                                     {
                                         <option value="@p.Id">@p.Name</option>
@@ -456,7 +456,7 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
                             <button type="submit" id="bulkReleaseModalSubmit" class="btn btn-primary" disabled>Freigeben</button>
                         </div>
                     </form>
@@ -734,7 +734,7 @@
                         bulkModalCount.textContent = checked.length;
                         bulkPickerSelect.value = '';
                         bulkModalSubmit.disabled = true;
-                        new bootstrap.Modal(bulkModal).show();
+                        bootstrap.Modal.getOrCreateInstance(bulkModal).show();
                     });
 
                     bulkPickerSelect.addEventListener('change', function () {
