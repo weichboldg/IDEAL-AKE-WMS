@@ -86,7 +86,11 @@ groups.Add(new OseonOrderGroupViewModel
 
 - `filterArticle` mit Whitespace: trim erledigt. Empty-after-trim: kein Filter aktiv.
 - `ArticleNumber` der Sub-Order ist `null`: ausgeschlossen durch `s.ArticleNumber != null`.
-- Case: `OrdinalIgnoreCase` matchen — User tippt evtl. lowercase, Daten sind oft uppercase.
+- Case: `OrdinalIgnoreCase` matchen — User tippt evtl. lowercase, Daten sind oft uppercase. Stimmt mit dem SQL-Server-Default `_CI_AS`-Collation des Repo-LIKE überein.
+
+### 4.5 Performance-Hinweis (Follow-up)
+
+Die Filterung im Controller lädt vom DB **alle** Sub-Aufträge der gefundenen Kundenauftrag-Gruppen — auch die nicht-matchenden. Bei extrem großen Kundenaufträgen (z. B. 1000+ Subs/Gruppe) wäre das suboptimal. Repo-Filter wäre effizienter, würde aber die `effectiveStatus`-Logik (operation-relevance-Check) duplizieren. **Bewusst nicht jetzt.** Aktuell laden 14 × 99 = 1386 Subs problemlos. Falls künftig nötig: Repo-Filter mit separater leichter Group-Stats-Query.
 
 ## 5. Sortierung — Design
 
@@ -94,17 +98,19 @@ groups.Add(new OseonOrderGroupViewModel
 
 Click-Targets im `<thead>`:
 
-| Spalte | Sort-Key | Sort-Wert (Sub-Row Daten) |
-|--------|----------|--------------------------|
-| Auftrag | `oseon-order-number` | `OseonOrderNumber` (string) |
-| Artikelnr. | `article-number` | `ArticleNumber` (string, leer bei null) |
-| Bezeichnung | `description` | `Description1` (string) |
-| Werkbank | `workplace` | `WorkplaceName` (string) |
-| Status | `status` | `OseonStatus` (numeric) — sortiert wertneutral, Status-Codes sind ordinal (10..95) |
-| Soll/Ist | `progress` | `QuantityTarget` (numeric) — primär das Soll |
-| Endtermin | `end-date` | `DueDate` (yyyy-MM-dd ISO-format für stabile lex.-Sortierung; null = leer) |
+| Spalte | Sort-Key | Sort-Wert (Sub-Row Daten) | Sort-Typ |
+|--------|----------|--------------------------|----------|
+| Auftrag | `oseon-order-number` | `OseonOrderNumber` | string |
+| Artikelnr. | `article-number` | `ArticleNumber` (leer bei null) | string |
+| Bezeichnung | `description` | `Description1` (leer bei null) | string |
+| Werkbank | `workplace` | `WorkplaceName` (leer bei null) | string |
+| Status | `status` | `OseonStatus` (Code 10..95) | numeric, **ordinal nach Status-Phase** (10=Unvollständig, 60=In Arbeit, 90=Fertig, 95=Storniert). Tooltip am Header weist auf Phase-Sort hin. |
+| Soll/Ist | `progress` | `QuantityTarget` (= Soll) | numeric — Sort primär nach Soll-Menge. Ist-Wert nicht in Sort-Key (KISS — kann später erweitert werden). |
+| Endtermin | `end-date` | `DueDate` als ISO `yyyy-MM-dd` | string lex., **nulls always last** (siehe 5.5) |
 
 Nicht sortierbar: Expand-Spalte (`expand`), Traffic-Light (kein eigener Header-Text).
+
+**Wichtig — Decimal-Rendering für `data-sort-progress`:** Razor rendert `decimal` per default mit Thread-Culture (de-AT → "12,5"). `parseFloat("12,5")` = 12 (silente Truncation). **Lösung:** Razor-seitig `@sub.QuantityTarget.ToString(System.Globalization.CultureInfo.InvariantCulture)` für das `data-sort-progress`-Attribut verwenden. Display-Cell bleibt unverändert (zeigt Culture-formatiert).
 
 ### 5.2 Sort-State
 
@@ -194,17 +200,33 @@ function sortValueFromRow(row, sortKey) {
 }
 
 function compare(a, b, sortKey, direction) {
+    // Nulls/Empty always last — unabhaengig von asc/desc.
+    // Beispiel: Endtermin sortiert asc → naechste Termine oben, "ohne Termin" ganz unten.
+    var aEmpty = a === '' || a === null;
+    var bEmpty = b === '' || b === null;
+    if (aEmpty && bEmpty) return 0;
+    if (aEmpty) return 1;
+    if (bEmpty) return -1;
+
     var numericKeys = ['status', 'progress'];
     var numeric = numericKeys.indexOf(sortKey) >= 0;
-    var av = numeric ? parseFloat(a) || 0 : a.toLowerCase();
-    var bv = numeric ? parseFloat(b) || 0 : b.toLowerCase();
+    var av = numeric ? parseFloat(a) : a.toLowerCase();
+    var bv = numeric ? parseFloat(b) : b.toLowerCase();
+    if (numeric && (isNaN(av) || isNaN(bv))) {
+        // Defensiv: NaN-Werte (z. B. fehlerhaftes data-sort-progress) ans Ende
+        if (isNaN(av) && isNaN(bv)) return 0;
+        return isNaN(av) ? 1 : -1;
+    }
     if (av < bv) return direction === 'asc' ? -1 : 1;
     if (av > bv) return direction === 'asc' ? 1 : -1;
     return 0;
 }
 ```
 
-`Endtermin` wird als ISO-yyyy-MM-dd-String sortiert — funktioniert lexikographisch korrekt für Datumssortierung. Leere Werte landen am Anfang bei asc (sortieren als leerer String).
+**Sort-Konventionen:**
+- **Endtermin** als ISO-yyyy-MM-dd lexikographisch sortiert — funktioniert für Datums-Sort.
+- **Nulls/Empty always last:** Sub-Aufträge ohne DueDate / ohne ArticleNumber sortieren in **beiden** Richtungen ans Ende. Begründung: Sortier-Intent ist "wo finde ich das Wichtige?" — leere Werte sind nicht "extreme niedrig", sondern "nicht klassifiziert".
+- **NaN-Defensive für Numeric:** falls `data-sort-progress` aus Versehen mal mit Komma-Decimal rendert (siehe 5.1) → NaN landet ans Ende statt das Sort zu zerstören.
 
 ### 5.6 Edge Cases / Interaktionen
 
@@ -250,7 +272,9 @@ Keine DB-Schema-Änderung. Keine neue Migration. Keine neuen Endpoints.
 
 - **Sub-Reordering bricht Operations-Tracking**: Mitigation: Operations werden anhand `data-parent-sub` gefunden und mit ihrer Sub-Row als Block verschoben.
 - **Performance bei sehr großen Subs-Listen**: Sort über DOM-Move ist O(n log n) Vergleiche + O(n) DOM-Operationen. Bei 99 Subs × 14 Gruppen = 1386 Subs, kein Performance-Problem.
+- **Decimal-Culture-Bug auf `data-sort-progress`**: Razor-default rendert `decimal` mit aktueller Culture → "12,5". `parseFloat` truncated. **Mitigation in 5.1 dokumentiert:** `InvariantCulture` für das data-sort-Attribut.
 - **`data-sort-*`-Attribute bei Razor-Encoding**: Razor encoded HTML automatisch — Spezialzeichen in Bezeichnungen wie `&` / `<` werden korrekt escaped.
+- **Status-Sort ist ordinal nach Code, nicht alphabetisch**: User klickt Status-Header → erwartet evtl. Alpha-Sort der Texte ("Fertig", "Freigegeben"...). Stattdessen Phase-Order (10..95). **Mitigation:** Tooltip am Header "Sortiert nach Status-Phase" — siehe Plan-Schritt.
 
 ## 10. Ablauf
 
