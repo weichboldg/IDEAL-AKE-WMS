@@ -45,6 +45,12 @@ Value: {"order-number":"FA-12","status":"freigegeben"}
 
 Nach jedem `applyFilters()`-Aufruf (= nach jedem `input`-Event in der Filter-Zeile). Save schreibt ALLE aktuellen Filter-Werte. Leere Werte werden weggelassen, damit der gespeicherte JSON klein bleibt. Wenn nach dem Save kein Filter aktiv ist, wird der Storage-Eintrag entfernt.
 
+**Anmerkung:** Programmatisches Setzen von `input.value` (im Restore) löst KEIN `input`-Event aus (Browser-Spec) — daher kein Save-Loop beim Restore.
+
+### 4.3a Cross-Cut-Event für Filter-Reaktionen
+
+`applyFilters()` dispatched nach jedem Lauf ein `CustomEvent('table-filter-applied', { detail: { viewKey } })` auf `document`. Damit kann View-spezifisches JS (z.B. das Bulk-Bar-Sync auf der Leitstand-Seite) reagieren ohne harte Kopplung. Generisches Feature, keine Sonderbehandlung pro Tabelle.
+
 ### 4.4 Restore
 
 Am Ende von `init()` in `table-filter.js`, NACH dem Aufbau der Filter-Zeile, aber VOR der ersten `applyFilters()`-Ausführung. Restore liest sessionStorage und setzt jedes Filter-Input auf den gespeicherten Wert. Anschließend einmal `applyFilters()` aufrufen.
@@ -97,7 +103,7 @@ Checkbox-Spalte und Bulk-Bar nur dann rendern, wenn `Model.LeitstandAktiv && Mod
 
 ### 5.3 Sticky Bulk-Bar
 
-Direkt über dem Tabellen-Container (`.table-responsive`):
+Direkt über dem Tabellen-Container (`.table-responsive`). **Wichtig:** Bar wird als direktes Kind des Page-Layout-Containers platziert (nicht innerhalb scrollbarer/overflow-clippender Wrapper), sonst funktioniert `position: sticky` nicht.
 
 ```cshtml
 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
@@ -136,26 +142,80 @@ Beim Submit reichert JS jedes der beiden Formulare mit `<input type="hidden" nam
   - `#btnBulkUnrelease`: enabled wenn `selectedTotal > 0 && selectedUnreleased === 0` (alle Markierten sind freigegeben).
 - `#bulkActionBar` show/hide via `display: none` / `flex` je nach `selectedTotal`.
 
+**SelectAll-Tri-State** (Standard-Bulk-UI-Pattern):
+- Berechnung nach jedem Selection-Change:
+  - 0 sichtbare Checkboxen checked → `#bulkSelectAll.checked = false`, `indeterminate = false`.
+  - Alle sichtbaren checked → `#bulkSelectAll.checked = true`, `indeterminate = false`.
+  - Sonst → `#bulkSelectAll.checked = false`, `indeterminate = true`.
+
 **Beim Klick auf #bulkSelectAll**:
-- Für alle `.bulk-row-checkbox` deren `<tr>` aktuell sichtbar ist (`tr.style.display !== 'none'`): Checkbox-State = SelectAll-State.
+- Wenn vorher unchecked oder indeterminate → alle sichtbaren `.bulk-row-checkbox` checken.
+- Wenn vorher checked → alle sichtbaren unchecken.
 - Recompute (siehe oben).
+- "Sichtbar" = `checkbox.closest('tr').style.display !== 'none'`.
 
 **Wenn ein Filter sich ändert** (Filter-Row-Input):
-- Existierender `applyFilters` versteckt Zeilen via `display:none`. Nicht-sichtbare Row-Checkboxen sollten **automatisch deselektiert** werden (User-Erwartung: was unsichtbar ist, kann nicht in Bulk-Action). Nach `applyFilters()` einmal `bulkSyncSelection()` aufrufen, der unsichtbare Checkboxen unchecked setzt und Counter aktualisiert.
+- Bulk-JS lauscht auf das `table-filter-applied`-Event (siehe 4.3a) und ruft eigenes `bulkSyncSelection()`:
+  - Iteriert alle `.bulk-row-checkbox`. Wenn `<tr>` jetzt unsichtbar (`display === 'none'`) und Checkbox checked → unchecken (User-Erwartung: was unsichtbar ist, ist nicht Teil der Auswahl).
+  - Recompute Counter + Buttons + SelectAll-Tri-State.
+- Keine harte Kopplung von `table-filter.js` auf Leitstand-JS — alles über das CustomEvent.
 
 ### 5.5 Bulk-Freigeben mit PickerAssignment
 
 Wenn `Model.PickerAssignmentEnabled`:
 
-Der existierende `releaseModal` wird wiederverwendet. Statt `<input name="id" />` braucht der Modal im Bulk-Mode mehrere `<input name="ids" />`. Lösung:
+**Entscheidung: Zwei separate Modals statt Multi-Mode.**
 
-1. Modal-Form bekommt zusätzlich ein bereits vorhandenes `<input type="hidden" name="id" id="releaseModalOrderId" />` UND ein neues `<div id="releaseModalBulkIds"></div>` Container.
-2. JS-Handler beim Klick auf `#btnBulkRelease`:
-   - Bei `PickerAssignmentEnabled`: Default-Submit verhindern (`preventDefault`), Modal öffnen, `<form action>` auf `BulkRelease` setzen, `releaseModalOrderId` clearen, `releaseModalBulkIds` mit hidden `<input name="ids" value="X" />` für jede markierte Zeile füllen, ein verstecktes `<input name="release" value="true">` hinzufügen.
-   - Beim Modal-Submit läuft alles in einem Request an `BulkRelease`.
-3. Single-Klick-Pfad bleibt unverändert: existing per-row Form mit `<input name="id" />` wird per JS-Handler `.open-release-modal` weiter wie vor genutzt — der setzt `releaseModalOrderId` und Modal-`action` auf `ToggleRelease`.
+Begründung: Den existierenden `releaseModal` zur Laufzeit zwischen Single- und Bulk-Modus zu schalten (Form-Action ändern, Hidden-Inputs swappen, beim Cancel zurücksetzen) ist state-bug-anfällig — wenn ein User Bulk öffnet, cancelt, dann per-row klickt, könnten Stale-Inputs mitsubmittet werden. Markup-Duplikation (~30 Zeilen) ist der bessere Trade-off.
 
-Der Modal hält also intern beide Modi ("single" / "bulk") und hängt sein `<form action>` und seinen Hidden-Inputs entsprechend dem letzten Trigger an.
+**Plan:**
+
+1. **`releaseModal` (existing) bleibt komplett unverändert.** Single-Pfad funktioniert wie heute.
+2. **Neuer `bulkReleaseModal`** (eigenes Markup, eigenes Form mit fest verdrahteter `asp-action="BulkRelease"`):
+   ```cshtml
+   <div class="modal fade" id="bulkReleaseModal" tabindex="-1">
+       <div class="modal-dialog">
+           <div class="modal-content">
+               <form asp-action="BulkRelease" method="post" id="bulkReleaseModalForm">
+                   @Html.AntiForgeryToken()
+                   <input type="hidden" name="release" value="true" />
+                   <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                   <div id="bulkReleaseModalIds"></div> <!-- JS füllt mit <input name="ids" /> -->
+                   <div class="modal-header">
+                       <h5 class="modal-title">Sammel-Freigabe</h5>
+                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                   </div>
+                   <div class="modal-body">
+                       <p><strong id="bulkReleaseModalCount">0</strong> Aufträge werden freigegeben.</p>
+                       <div class="mb-3">
+                           <label for="bulkAssignedPickerIdSelect" class="form-label">Kommissionierer zuweisen</label>
+                           <select name="assignedPickerId" id="bulkAssignedPickerIdSelect" class="form-select" required>
+                               <option value="">— bitte wählen —</option>
+                               @foreach (var p in activePickers)
+                               {
+                                   <option value="@p.Id">@p.Name</option>
+                               }
+                           </select>
+                       </div>
+                   </div>
+                   <div class="modal-footer">
+                       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                       <button type="submit" id="bulkReleaseModalSubmit" class="btn btn-primary" disabled>Freigeben</button>
+                   </div>
+               </form>
+           </div>
+       </div>
+   </div>
+   ```
+3. **JS-Klick-Handler auf `#btnBulkRelease`** (nur wenn `PickerAssignmentEnabled`):
+   - `preventDefault`.
+   - `#bulkReleaseModalIds` leeren, dann pro markierter Row-Checkbox ein `<input type="hidden" name="ids" value="X" />` einfügen.
+   - `#bulkReleaseModalCount.textContent` setzen.
+   - Bootstrap-Modal öffnen.
+4. **Submit-Aktivierung**: Picker-Select `change`-Handler enabled `#bulkReleaseModalSubmit` wenn ein Picker gewählt ist (gleicher Pattern wie existing Single-Modal).
+5. **`#btnBulkUnrelease` braucht keinen Modal** — Zurücknehmen erfordert keine Picker-Zuweisung. Per Standard-Form-Submit, JS hängt nur die `ids` an.
+
+**Single-Pfad bleibt unverändert.** Per-row-Buttons nutzen weiter den existierenden `releaseModal` über `.open-release-modal`-Klasse mit `data-order-id`.
 
 ### 5.6 Race Conditions / Datenfrische
 
@@ -224,8 +284,9 @@ Ein neuer Block in `site.css`:
 ## 9. Risiken
 
 - **table-filter.js generisch ändern**: Risiko, dass Tabellen mit `data-view-key` aber ungewohntem Filter-Verhalten regredieren. Mitigation: Save/Restore sind selbst-neutral (no-op bei Fehlern, opt-in via View-Key).
-- **Modal-Mehrzweck**: Single- und Bulk-Pfad teilen sich denselben Modal. Mitigation: klare State-Markierung (Modal-Form-action wird beim Öffnen gesetzt, nicht im Markup fix verdrahtet).
-- **Pre-existing Single-Freigabe bleibt**: User kann Bulk und Single-Freigabe parallel benutzen — Backend ist symmetrisch (beide nutzen identische Felder, nur Endpoint unterscheidet sich).
+- **`table-filter-applied`-Event-Reichweite**: Andere Code-Stellen könnten künftig auf das Event lauschen. Aktuell nur Bulk-Bar. Mitigation: Event ist namespaced (`table-filter-applied`), `detail.viewKey` erlaubt View-spezifische Filterung.
+- **Pre-existing Single-Freigabe bleibt unverändert**: User kann Bulk- und Single-Freigabe parallel benutzen — Backend ist symmetrisch (beide nutzen identische Felder, nur Endpoint unterscheidet sich). Single-Modal und Bulk-Modal sind voneinander unabhängig.
+- **SelectAll und versteckte Reihen**: Header-Checkbox wirkt nur auf sichtbare Reihen. User muss verstehen, dass gefilterte Reihen nicht miterfasst werden. Mitigation: Tooltip "Alle sichtbaren auswählen" auf der Header-Checkbox.
 
 ## 10. Ablauf
 
