@@ -545,6 +545,113 @@ else
                 div.textContent = str;
                 return div.innerHTML;
             }
+
+            // ===== OSEON Sub-Auftrag Spalten-Sort =====
+            var sortState = { key: null, direction: null }; // null = default-Sort (oseon-order-number asc)
+
+            function sortValueFromRow(row, sortKey) {
+                return row.getAttribute('data-sort-' + sortKey) || '';
+            }
+
+            function compareSortValues(a, b, sortKey, direction) {
+                var aEmpty = a === '' || a === null;
+                var bEmpty = b === '' || b === null;
+                // Nulls/Empty always last — unabhaengig von asc/desc
+                if (aEmpty && bEmpty) return 0;
+                if (aEmpty) return 1;
+                if (bEmpty) return -1;
+
+                var numericKeys = ['status', 'progress'];
+                var numeric = numericKeys.indexOf(sortKey) >= 0;
+                var av = numeric ? parseFloat(a) : a.toLowerCase();
+                var bv = numeric ? parseFloat(b) : b.toLowerCase();
+
+                if (numeric && (isNaN(av) || isNaN(bv))) {
+                    if (isNaN(av) && isNaN(bv)) return 0;
+                    return isNaN(av) ? 1 : -1;
+                }
+
+                if (av < bv) return direction === 'asc' ? -1 : 1;
+                if (av > bv) return direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
+            function sortOseonSubs(sortKey, direction) {
+                var groupRows = document.querySelectorAll('tr.oseon-tree-group');
+                groupRows.forEach(function (groupRow) {
+                    var groupKey = groupRow.getAttribute('data-group');
+                    var tbody = groupRow.parentElement;
+                    var subs = Array.prototype.slice.call(
+                        tbody.querySelectorAll('tr.oseon-tree-sub[data-parent="' + groupKey + '"]'));
+                    if (subs.length <= 1) return;
+
+                    // Pro Sub: zugehoerige Operations-Rows sammeln
+                    var blocks = subs.map(function (subRow) {
+                        var subKey = subRow.getAttribute('data-sub');
+                        var ops = Array.prototype.slice.call(
+                            tbody.querySelectorAll('tr.oseon-tree-op[data-parent-sub="' + subKey + '"]'));
+                        return { subRow: subRow, ops: ops };
+                    });
+
+                    // Sortieren
+                    blocks.sort(function (a, b) {
+                        var av = sortValueFromRow(a.subRow, sortKey);
+                        var bv = sortValueFromRow(b.subRow, sortKey);
+                        return compareSortValues(av, bv, sortKey, direction);
+                    });
+
+                    // DOM neu einsortieren — Sub direkt nach Group, Ops direkt nach Sub
+                    var insertAfter = groupRow;
+                    blocks.forEach(function (block) {
+                        insertAfter.after(block.subRow);
+                        insertAfter = block.subRow;
+                        block.ops.forEach(function (opRow) {
+                            insertAfter.after(opRow);
+                            insertAfter = opRow;
+                        });
+                    });
+                });
+            }
+
+            function updateSortIndicators(activeKey, direction) {
+                document.querySelectorAll('th[data-sortable]').forEach(function (th) {
+                    var indicator = th.querySelector('.oseon-sort-indicator');
+                    if (!indicator) return;
+                    if (th.getAttribute('data-sort-key') === activeKey && direction) {
+                        indicator.textContent = direction === 'asc' ? '▲' : '▼';
+                    } else {
+                        indicator.textContent = '';
+                    }
+                });
+            }
+
+            document.querySelectorAll('th[data-sortable]').forEach(function (th) {
+                th.style.cursor = 'pointer';
+                th.addEventListener('click', function () {
+                    var clickedKey = th.getAttribute('data-sort-key');
+                    var nextDirection;
+                    if (sortState.key !== clickedKey) {
+                        // Neue Spalte → starte mit asc
+                        nextDirection = 'asc';
+                    } else if (sortState.direction === 'asc') {
+                        nextDirection = 'desc';
+                    } else if (sortState.direction === 'desc') {
+                        nextDirection = null; // 3. Klick → default
+                    } else {
+                        nextDirection = 'asc';
+                    }
+
+                    if (nextDirection === null) {
+                        sortState = { key: null, direction: null };
+                        sortOseonSubs('oseon-order-number', 'asc');
+                        updateSortIndicators(null, null);
+                    } else {
+                        sortState = { key: clickedKey, direction: nextDirection };
+                        sortOseonSubs(clickedKey, nextDirection);
+                        updateSortIndicators(clickedKey, nextDirection);
+                    }
+                });
+            });
         });
     </script>
 }
