@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-04-30 (v1.8.3)
+**Stand:** 2026-05-08 (v1.10.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -23,7 +23,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
 | 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.11 |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
-| 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.10 |
+| 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.10 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
 | 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 |
@@ -805,22 +805,102 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-### TS-4.9 — Leitstand-Massenfreigabe
+### TS-4.9 — Leitstand-Massenfreigabe (Bulk-Freigabe)
 
 **Vorbedingungen:**
 - AppSetting `LeitstandAktiv = true`.
+- AppSetting `KommissionierungMitZuweisung = false`.
 - Benutzer hat Rolle `leitstand` oder `admin`.
-- Mehrere FAs mit Artikelnummer, nicht freigegeben.
+- Mehrere FAs vorhanden, davon mindestens 3 mit Artikelnummer und nicht freigegeben, eine ohne Artikelnummer.
 
 **Schritte:**
-1. FA-Liste oeffnen.
-2. Checkboxen fuer 3 FAs setzen (darunter eine ohne Artikelnummer).
-3. "Massenfreigabe" Button anklicken.
+1. Leitstand-Liste oeffnen.
+2. Checkboxen fuer 4 FAs setzen — 3 mit Artikelnummer, 1 ohne.
+3. Sticky-Bar oben zeigt "4 markiert".
 
 **Erwartetes Verhalten:**
-- 2 FAs mit Artikelnummer werden freigegeben.
-- 1 FA ohne Artikelnummer wird uebersprungen.
-- Meldung zeigt "2 freigegeben, 1 uebersprungen (keine Artikelnummer)".
+- "Markierte freigeben"-Button ist DISABLED — weil eine markierte FA keine Artikelnummer hat.
+- Nach Demarkierung der FA ohne Artikelnummer (jetzt 3 markiert) ist der Button aktiv.
+- Klick auf "Markierte freigeben" → 3 FAs werden freigegeben. SuccessMessage "3 Auftrag/Auftraege freigegeben."
+- Spalten-Filter (falls gesetzt) bleiben nach Reload aktiv.
+
+**Negativfall:**
+- Mischauswahl (freigegebene + nicht-freigegebene) → beide Bulk-Buttons disabled.
+
+---
+
+### TS-4.9a — Leitstand-Bulk-Zuruecknehmen
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+- Mehrere FAs sind freigegeben.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. Checkboxen fuer 3 freigegebene FAs setzen.
+3. "Markierte zuruecknehmen" anklicken.
+
+**Erwartetes Verhalten:**
+- 3 FAs sind nicht mehr freigegeben (Status zurueckgesetzt).
+- SuccessMessage "3 Freigabe(n) zurueckgenommen."
+- Picker-Zuweisungen wurden entfernt.
+
+---
+
+### TS-4.9b — Leitstand-Bulk-Freigabe mit Picker-Zuweisung
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+- AppSetting `KommissionierungMitZuweisung = true`.
+- Mehrere Picker sind aktiv.
+- Mindestens 5 FAs mit Artikelnummer, nicht freigegeben.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. Checkboxen fuer 5 FAs setzen.
+3. "Markierte freigeben" anklicken.
+
+**Erwartetes Verhalten:**
+- Modal "Sammel-Freigabe" oeffnet sich, zeigt "5 Auftraege werden freigegeben."
+- "Freigeben"-Button im Modal ist disabled.
+- Nach Picker-Auswahl wird der Button aktiv.
+- Submit → alle 5 FAs sind freigegeben mit dem gewaehlten Picker.
+
+---
+
+### TS-4.9c — Leitstand SelectAll respektiert Filter
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+- Leitstand zeigt 50+ FAs.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. In der Spalten-Filter-Zeile "Werkbank" auf einen Wert filtern, sodass nur ~8 Zeilen sichtbar sind.
+3. Header-Checkbox (SelectAll) anklicken.
+
+**Erwartetes Verhalten:**
+- Nur die 8 sichtbaren FAs werden markiert. Counter zeigt "8 markiert".
+- Nach Filter-Entfernen sind die 8 weiterhin markiert; die anderen 42 bleiben unmarkiert.
+
+---
+
+### TS-4.9d — Filter-Persistenz nach Freigabe
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. In der Spalten-Filter-Zeile mehrere Filter setzen (z.B. Werkbank: "WB1").
+3. Eine FA per Single-Klick "Freigeben" → Page reload.
+
+**Erwartetes Verhalten:**
+- Spalten-Filter bleiben nach Reload aktiv.
+- "Zuruecksetzen" leert sowohl URL-Filter als auch Spalten-Filter.
+
+**Negativfall:**
+- Browser-Tab schliessen und neu oeffnen → Filter sind weg (sessionStorage erwartetes Verhalten).
 
 ---
 

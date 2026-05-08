@@ -21,6 +21,8 @@
                     <li>Bewegungshistorie hat zwei neue Filter-Optionen f&uuml;r die neuen Bewegungsarten.</li>
                     <li><strong>Buchbar-Flag (User-gesteuert):</strong> Lagerpl&auml;tze haben jetzt ein zus&auml;tzliches Flag, um sie f&uuml;r UI-Buchungen freizuschalten oder zu sperren. Sage-importierte Pl&auml;tze sind by default <strong>nicht buchbar</strong> &mdash; der Admin schaltet die ben&ouml;tigten Pl&auml;tze in der Lagerpl&auml;tze-Liste frei. Bestand auf nicht-buchbaren Pl&auml;tzen wird weiterhin korrigiert (Sage-Master), nur die UI-Buchungs-Dropdowns blenden sie aus.</li>
                     <li><strong>Performance:</strong> St&uuml;ckliste-Sicht (Auf-/Zuklappen von Baugruppen) ist nun deutlich schneller. Lagerplatz-Dropdowns laden per Ajax statt vorab gerendert (Initial-Load 5-10x schneller, Toggle sub-100ms auch bei tausenden BOM-Positionen).</li>
+                    <li><strong>Leitstand-Bulk-Freigabe:</strong> Mehrere Auftraege per Checkbox markieren und gemeinsam freigeben oder zur&uuml;cknehmen. Sticky-Action-Bar zeigt Auswahl-Status, Header-Checkbox markiert alle sichtbaren Zeilen (respektiert Filter). Mit Picker-Zuweisung &ouml;ffnet sich ein Modal f&uuml;r die Picker-Auswahl.</li>
+                    <li><strong>Spalten-Filter-Persistenz:</strong> Spalten-Filter bleiben nach Page-Reload erhalten (per sessionStorage, pro Browser-Tab). Wirkt f&uuml;r alle Tabellen mit View-Identifier (Leitstand, Bestand, Bewegungshistorie, OSEON-Tracking u.a.). "Zur&uuml;cksetzen"-Button leert auch die persistierten Filter.</li>
                 </ul>
             </div>
         </div>
