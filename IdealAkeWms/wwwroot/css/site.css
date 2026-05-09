@@ -1199,14 +1199,16 @@ th:hover .col-resize-handle {
     user-select: none;
 }
 
+/* Header-Hover muss auf dunkelblauem (.table thead th) Background sichtbar sein.
+   White-tint statt secondary-blau (war 8% rgba unsichtbar auf #053153). */
 #oseonTree thead th[data-sortable]:hover {
-    background-color: rgba(67, 166, 226, 0.08);  /* leichter --ake-secondary Schatten */
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 .oseon-sort-indicator {
     display: inline-block;
     margin-left: 0.25rem;
     font-size: 0.75em;
-    color: var(--ake-secondary);
+    color: var(--ake-white);
     min-width: 0.7em;
 }
