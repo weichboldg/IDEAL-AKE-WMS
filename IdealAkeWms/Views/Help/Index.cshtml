@@ -12,8 +12,20 @@
             <div class="card-body">
                 <dl>
                     <dt>Einbuchung</dt>
-                    <dd>Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz koennen per Barcode/QR-Code gescannt oder manuell ausgewaehlt werden.
-                        Sind offene Bedarfsmeldungen zum eingebuchten Artikel vorhanden, werden diese angezeigt und koennen mit der Buchung verknuepft werden.</dd>
+                    <dd>
+                        Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz koennen per Barcode/QR-Code gescannt
+                        oder manuell ausgewaehlt werden.
+                        <ul class="mt-1 mb-1">
+                            <li>Sind offene Bedarfsmeldungen zum eingebuchten Artikel vorhanden, werden diese angezeigt
+                                und koennen mit der Buchung verknuepft werden.</li>
+                            <li><strong>FA-Lagerplatz-Hinweis:</strong> Sobald die FA-Nummer eingegeben oder gescannt wird,
+                                prueft die App, ob diese FA bereits auf einem Lagerplatz oder Wagen liegt.
+                                Liegt sie an genau einem Platz und ist der Lagerplatz noch nicht gewaehlt &rarr; Platz wird automatisch uebernommen.
+                                Liegt sie an mehreren Plaetzen &rarr; gelbe Warnung mit Mengen; bitte gezielt buchen.
+                                Liegt sie auf einem inaktiven/nicht buchbaren Platz &rarr; gelbe Warnung mit Hinweis,
+                                manuell zu waehlen.</li>
+                        </ul>
+                    </dd>
 
                     <dt>Ausbuchung</dt>
                     <dd>Artikel von einem Lagerplatz ausbuchen. Die verfuegbare Menge wird geprueft.</dd>

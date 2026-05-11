@@ -25,6 +25,15 @@
                     <li><strong>Spalten-Filter-Persistenz:</strong> Spalten-Filter bleiben nach Page-Reload erhalten (per sessionStorage, pro Browser-Tab). Wirkt f&uuml;r alle Tabellen mit View-Identifier (Leitstand, Bestand, Bewegungshistorie, OSEON-Tracking u.a.). "Zur&uuml;cksetzen"-Button leert auch die persistierten Filter.</li>
                     <li><strong>OSEON Artikel-Filter:</strong> Bei Artikel-Filterung erscheinen nur noch die matchenden Sub-Auftr&auml;ge innerhalb ihres Kundenauftrags. Vorher wurde die gesamte Baugruppe angezeigt &mdash; jetzt sieht man nur noch den gesuchten Artikel im Kontext seiner Kundenauftrag-Gruppe.</li>
                     <li><strong>OSEON Spalten-Sortierung:</strong> Sub-Auftr&auml;ge k&ouml;nnen per Klick auf einen Spalten-Header sortiert werden (Artikelnr., Bezeichnung, Werkbank, Status, Soll/Ist, Endtermin). Drei-Klick-Zyklus: aufsteigend &rarr; absteigend &rarr; Default. Sortierung wirkt nur innerhalb der Kundenauftrag-Gruppen, Operations folgen ihrem Sub.</li>
+                    <li><strong>Einbuchung &ndash; FA-Lagerplatz-Hinweis:</strong>
+                        Beim Bef&uuml;llen des Fertigungsauftrag-Felds (Scan oder manuell) pr&uuml;ft die Einbuchung automatisch,
+                        ob die FA bereits auf einem Lagerplatz oder Wagen liegt.
+                        Bei genau einem Treffer wird der Lagerplatz automatisch &uuml;bernommen (falls noch keiner gew&auml;hlt wurde).
+                        Bei mehreren Treffern erscheint eine gelbe Warnung mit allen Pl&auml;tzen.
+                        Verhindert doppelte Anlage derselben FA auf verschiedenen Lagerpl&auml;tzen.</li>
+                    <li><strong>Zugriffsrecht erweitert:</strong>
+                        Der Stock-by-Order-API-Endpunkt steht nun auch Stock-/Stock-Keyuser-Rollen offen
+                        (vorher nur Picking + Tracking) und liefert zus&auml;tzlich die Mengeneinheit.</li>
                 </ul>
             </div>
         </div>
