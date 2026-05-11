@@ -21,7 +21,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Bereich | Abschnitt | Szenarien |
 |---------|-----------|-----------|
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
-| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.11 |
+| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.10 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
@@ -373,6 +373,173 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 - Artikelnummer `100-001` wird automatisch im Artikelfeld eingetragen.
 - Bezeichnung und weitere Daten werden geladen.
 - Kamera-Modal schliesst sich.
+
+---
+
+### TS-2.12 — FA neu (keine bestehende Buchung)
+
+**Vorbedingungen:**
+- FA-Nummer ohne aktuellen Bestand im WMS.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel auswaehlen.
+3. FA-Nummer manuell eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Kein Info-Alert erscheint unter dem FA-Feld.
+- Lagerplatz-Dropdown bleibt unveraendert.
+
+---
+
+### TS-2.13 — FA liegt auf genau 1 Lagerplatz, Storage-Dropdown leer
+
+**Vorbedingungen:**
+- FA-Nummer `12345` liegt auf `K-WAGEN-03` mit positiver Menge (5 Stk Artikel 87015207).
+- Lagerplatz `K-WAGEN-03` ist aktiv und buchbar.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel auswaehlen (Lagerplatz NICHT setzen).
+3. FA `12345` eingeben oder per QR scannen → Tab.
+
+**Erwartetes Verhalten:**
+- Lagerplatz-Dropdown wird automatisch auf `K-WAGEN-03` gesetzt.
+- Blaues Info-Alert: "FA `12345` liegt bereits: Lagerplatz **K-WAGEN-03** — 5,000 Stk Artikel 87015207. → Lagerplatz wurde uebernommen."
+- Submit-Button bleibt aktiv.
+
+---
+
+### TS-2.14 — FA mit 1 Lagerplatz, Storage bereits gewaehlt → kein Overwrite
+
+**Vorbedingungen:**
+- Wie TS-2.13.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel auswaehlen.
+3. Lagerplatz `K-LAGER-05` manuell auswaehlen.
+4. FA `12345` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Lagerplatz bleibt `K-LAGER-05` (kein Overwrite).
+- Blaues Info-Alert: Liste mit `K-WAGEN-03` + Hinweis "→ Deine Auswahl **K-LAGER-05** bleibt."
+
+---
+
+### TS-2.15 — FA auf mehreren Lagerplaetzen → kein Auto-Fill
+
+**Vorbedingungen:**
+- FA `12345` liegt auf `K-WAGEN-03` (5 Stk) und `K-LAGER-05` (3 Stk).
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `12345` eingeben → Tab (Lagerplatz NICHT gewaehlt).
+
+**Erwartetes Verhalten:**
+- Lagerplatz-Dropdown bleibt leer.
+- Gelbes Warning-Alert: "FA `12345` liegt auf mehreren Lagerplaetzen: K-WAGEN-03 — 5,000 Stk; K-LAGER-05 — 3,000 Stk. → Bitte gezielt buchen."
+
+---
+
+### TS-2.16 — QR-Scan triggert Hint
+
+**Vorbedingungen:**
+- AppSetting `QrMitFaNummer = true`.
+- QR-Code mit FA-Anteil generierbar (Artikelnummer;...;FA-Nummer[,Suffix];...).
+- FA aus QR liegt bereits auf genau 1 Platz.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel-QR scannen.
+
+**Erwartetes Verhalten:**
+- Artikel-Dropdown wird gefuellt.
+- FA-Feld wird gefuellt.
+- Hint erscheint wie in TS-2.13 mit Auto-Fill des Lagerplatzes.
+
+---
+
+### TS-2.17 — FA-Feld leeren
+
+**Vorbedingungen:**
+- Nach TS-2.13 (Hint sichtbar, Auto-Fill aktiv auf `K-WAGEN-03`).
+
+**Schritte:**
+1. FA-Feld leeren (alle Zeichen entfernen) → Tab.
+
+**Erwartetes Verhalten:**
+- Hint verschwindet.
+- Lagerplatz-Dropdown behaelt `K-WAGEN-03` (Auswahl wird nicht zurueckgesetzt — defensive).
+
+---
+
+### TS-2.18 — Lagerplatz aus API nicht im Dropdown (inaktiv)
+
+**Vorbedingungen:**
+- FA `12345` liegt auf Lagerplatz `OLD-PLATZ`.
+- `OLD-PLATZ` ist `IsActive = false` ODER `IstBuchbar = false` → nicht im Buchungs-Dropdown.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `12345` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Gelbes Warning-Alert: "FA `12345` liegt bereits: Lagerplatz **OLD-PLATZ** — X Stk Artikel ... → Lagerplatz nicht im Buchungs-Dropdown (evtl. inaktiv oder nicht buchbar). Bitte manuell waehlen."
+- Kein Auto-Fill. Dropdown bleibt leer.
+
+---
+
+### TS-2.19 — Permission: stock-only User
+
+**Vorbedingungen:**
+- User mit Rolle `stock` (KEINE `picking`, KEINE `tracking`).
+- FA `12345` mit Bestand vorhanden.
+
+**Schritte:**
+1. Login als `stock`-User.
+2. Einbuchung oeffnen.
+3. FA `12345` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Hint erscheint normal (kein 302/AccessDenied im Network-Tab).
+- Auto-Fill funktioniert wie in TS-2.13.
+
+---
+
+### TS-2.20 — Validation-Error-Rerender zeigt Hint
+
+**Vorbedingungen:**
+- FA `12345` mit Bestand auf `K-WAGEN-03`.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel waehlen.
+3. FA `12345` eingeben → Tab → Hint erscheint, Auto-Fill auf K-WAGEN-03.
+4. Menge-Feld leer lassen.
+5. "Einbuchung speichern" klicken.
+
+**Erwartetes Verhalten:**
+- Server rendert View neu mit ValidationSummary-Fehler "Menge erforderlich".
+- FA-Feld ist mit `12345` vorbefuellt.
+- Hint-Alert wird beim Page-Load wieder angezeigt (DOM-Ready-Init triggert den Check).
+- Lagerplatz-Dropdown ist nach Rerender weiter auf `K-WAGEN-03` (ModelState-Restore + Auto-Fill).
+
+---
+
+### TS-2.21 — Artikel mit Sondereinheit
+
+**Vorbedingungen:**
+- Artikel mit `Unit = "m"` (z. B. Stahlband-Meterware).
+- FA `78901` liegt auf 1 Platz mit 12,5 m.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `78901` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Hint zeigt "Lagerplatz **X-Y-Z** — 12,500 **m** Artikel ..." (Einheit aus API-Field `unit`, nicht hardcoded "Stk").
+- Falls Artikel-Unit leer ist: Fallback "Stk".
 
 ---
 
