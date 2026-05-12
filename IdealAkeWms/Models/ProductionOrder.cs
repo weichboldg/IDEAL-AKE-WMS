@@ -49,6 +49,21 @@ public class ProductionOrder : AuditableEntity
     [Display(Name = "Zukauf")]
     public bool HasExternalPurchase { get; set; }
 
+    [Display(Name = "VK Kälte")]
+    public bool HasCooling { get; set; }
+
+    [Display(Name = "VL Lüfter")]
+    public bool HasFan { get; set; }
+
+    [Display(Name = "VE Elektro")]
+    public bool HasElectric { get; set; }
+
+    [Display(Name = "VT Türen")]
+    public bool HasDoors { get; set; }
+
+    [Display(Name = "VA Aufbau")]
+    public bool HasSuperstructure { get; set; }
+
     /// <summary>
     /// True if the BOM contains at least one article in the Lackierteil category.
     /// Sync-calculated, read-only for users.

@@ -229,6 +229,11 @@ BEGIN
         [PickingStatus]           NVARCHAR(50)      NULL,
         [HasGlass]                BIT               NOT NULL DEFAULT 0,
         [HasExternalPurchase]     BIT               NOT NULL DEFAULT 0,
+        [HasCooling]              BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCooling DEFAULT 0,
+        [HasFan]                  BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasFan DEFAULT 0,
+        [HasElectric]             BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasElectric DEFAULT 0,
+        [HasDoors]                BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasDoors DEFAULT 0,
+        [HasSuperstructure]       BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasSuperstructure DEFAULT 0,
         [HasCoatingParts]         BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCoatingParts DEFAULT 0,
         [IsCoatingDone]           BIT               NOT NULL CONSTRAINT DF_ProductionOrders_IsCoatingDone DEFAULT 0,
         [ProductionWorkplaceId]   INT               NULL,
@@ -1526,6 +1531,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506134758_AddStockMovementNoteAndSageMovementTypes', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260507133624_AddStorageLocationIstBuchbar')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260507133624_AddStorageLocationIstBuchbar', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512042732_AddProductionOrderAssemblyFlags')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512042732_AddProductionOrderAssemblyFlags', '10.0.3');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
