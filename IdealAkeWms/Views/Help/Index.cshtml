@@ -234,6 +234,20 @@
                         und <code>ProductionOrderAssemblyGroups</code>). Funktional &auml;ndert sich fuer den User nichts &mdash; Checkboxes, Filter und Workflows
                         bleiben unver&auml;ndert. Vorteil: bessere Erweiterbarkeit fuer kuenftige Status-Erg&auml;nzungen.
                     </dd>
+
+                    <dt>View-Aufteilung (seit v1.12.0)</dt>
+                    <dd>
+                        Die Fertigungsauftragsliste ist seit Mai 2026 in zwei Sichten aufgeteilt:
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Fertigungsauftraege</strong> (diese Sicht) &mdash; schlanke FA-Uebersicht ohne Komm-Status-Spalten,
+                                sichtbar fuer alle Picker-, Tracker- und Leitstand-User. Schneller im Laden, weil das Status-Pivot entfaellt.</li>
+                            <li><strong>Kommissionierung &rarr; Leitstand</strong> &mdash; reiche Liste mit allen Status-Spalten
+                                (Glas/Zukauf/VK/VL/VE/VT/VA), Bulk-Freigabe und Picker-Zuweisung. Erreichbar wenn <code>LeitstandAktiv</code>
+                                aktiv ist und der User die <code>picking</code>- oder <code>leitstand</code>-Rolle besitzt.</li>
+                        </ul>
+                        Alte Bookmarks auf <code>/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker</code>
+                        werden per 301-Redirect auf <code>/PickingLeitstand/...</code> umgeleitet.
+                    </dd>
                 </dl>
             </div>
         </div>

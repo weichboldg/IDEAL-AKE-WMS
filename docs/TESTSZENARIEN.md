@@ -1317,6 +1317,134 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
+### TS-4.24 — Slim FA-Index als Tracking-User (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt als User mit AUSSCHLIESSLICH `tracking`-Rolle (keine `picking`-/`leitstand`-Rolle).
+- Mindestens ein FA in der Liste sichtbar.
+
+**Schritte:**
+1. Menue `Fertigungsauftraege` oeffnen (URL `/ProductionOrders/Index`).
+2. Spalten der Tabelle pruefen.
+3. Versuchen, eine Inline-Checkbox (Glas, Zukauf, VK ...) zu klicken.
+
+**Erwartetes Verhalten:**
+- Tabelle zeigt nur Sage-Master-Spalten (FA-Nr, Artikelnummer, Bezeichnung, Termine, Werkbank, IsDone-Spalte).
+- KEINE Komm-Status-Spalten (Glas/Zukauf/VK/VL/VE/VT/VA), keine Picker-Zuweisung, keine Bulk-Freigabe-Checkboxes.
+- Network: KEINE Aufrufe an `/api/picking-status/...` oder `/api/assembly-groups/...` beim Laden.
+
+**Negativfall:**
+- Ohne `tracking`/`picking`/`leitstand`/`admin`-Rolle: 403/302 -> AccessDenied.
+
+---
+
+### TS-4.25 — Leitstand-Page als Picker-User (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0, `LeitstandAktiv` aktiv. Eingeloggt als User mit `picking`-Rolle.
+- Mindestens ein FA in der Liste sichtbar.
+
+**Schritte:**
+1. Menue `Kommissionierung` aufklappen, Sub-Item `Leitstand` waehlen (URL `/PickingLeitstand/Index`).
+2. Spalten der Tabelle pruefen.
+3. Eine Glas-Checkbox togglen, eine VK-Checkbox togglen.
+4. Network-Tab: Request-URLs pruefen.
+
+**Erwartetes Verhalten:**
+- Tabelle zeigt die reichen Status-Spalten: Glas, Zukauf, VK, VL, VE, VT, VA, Lack-T, Freigabe, Prioritaet, Picker, IsDonePicking.
+- Toggle-Klicks: POST `/api/picking-status/toggle` bzw. `/api/assembly-groups/toggle-applicable`, Status 200.
+- Bulk-Auswahl-Header-Checkbox sichtbar, Aktions-Bar fuer Bulk-Freigabe sichtbar.
+
+**Negativfall:**
+- Bei `LeitstandAktiv = false`: Sub-Item `Leitstand` ist nicht im Menue. Direkter URL-Aufruf zeigt eine entsprechende Meldung oder fuehrt zu AccessDenied (je nach Implementierung).
+
+---
+
+### TS-4.26 — Permission-Boundary: Tracking-only-User auf Leitstand-Page (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt mit AUSSCHLIESSLICH `tracking`-Rolle (kein `picking`, kein `leitstand`).
+- `LeitstandAktiv` aktiv.
+
+**Schritte:**
+1. Direkter URL-Aufruf `/PickingLeitstand/Index`.
+2. Browser-Verhalten beobachten (HTTP-Status, Ziel-URL).
+
+**Erwartetes Verhalten:**
+- HTTP 302 -> AccessDenied (oder 403 Forbidden) durch `[RequirePickingOrLeitstandAccess]` auf dem Controller.
+- Keine Anzeige der Status-Spalten, kein Zugriff auf Bulk-Freigabe.
+
+**Negativfall:**
+- Falls Page trotzdem laedt: Filter-Attribut wurde entfernt -> Regression im Controller. Sofort eskalieren.
+
+---
+
+### TS-4.27 — Bulk-Release auf Leitstand-Page funktioniert (Phase-1-Regression)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt als `admin` oder `leitstand`-User. `LeitstandAktiv` aktiv.
+- Mindestens 3 FAs mit Artikelnummer in der Liste, davon mindestens 2 noch nicht freigegeben.
+
+**Schritte:**
+1. `/PickingLeitstand/Index` oeffnen.
+2. Zwei nicht-freigegebene FAs per Zeilen-Checkbox markieren.
+3. Sticky-Action-Bar -> Button `Bulk-Freigabe`.
+4. Im Modal Picker waehlen (falls `KommissionierungMitZuweisung` aktiv) und bestaetigen.
+5. Liste neu laden und Status der beiden FAs pruefen.
+
+**Erwartetes Verhalten:**
+- Beide FAs sind nach Submit `freigegeben`, Prioritaet wird sequentiell vergeben, Picker zugewiesen falls Modus aktiv.
+- TempData-Success-Banner zeigt die Anzahl freigegebener Auftraege.
+- POST geht an `/PickingLeitstand/BulkRelease` (nicht `/ProductionOrders/BulkRelease`).
+
+**Negativfall:**
+- Auftrag ohne Artikelnummer in der Auswahl -> wird uebersprungen + im Banner als "uebersprungen" gemeldet.
+
+---
+
+### TS-4.28 — Compat-Redirect: alte URL liefert 301 (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt als `admin` oder `leitstand`-User.
+- Browser-DevTools mit aktivem Network-Tab und der Option `Preserve log`.
+
+**Schritte:**
+1. Auf `/PickingLeitstand/Index` eine Freigabe togglen (initialer Roundtrip).
+2. Manuell die alte URL als Form-Resubmit triggern (z.&nbsp;B. via Postman oder DevTools "Edit and resend"):
+   `POST /ProductionOrders/ToggleRelease` mit gueltigem AntiForgery-Token und FA-Id.
+3. Im Network-Tab Status der Antwort pruefen.
+
+**Erwartetes Verhalten:**
+- Antwort: HTTP 301 (Moved Permanently) -> Location: `/PickingLeitstand/ToggleRelease`.
+- Browser/Client folgt dem Redirect; nach erfolgreichem Form-Resubmit ist die Freigabe persistiert.
+- Selbe Logik gilt fuer `BulkRelease`, `SetPriority`, `ChangeAssignedPicker`.
+
+**Negativfall:**
+- 404 statt 301: Stub-Action im alten Controller fehlt -> Bookmarks/Stale-Tabs sind broken. Hotfix erforderlich.
+
+---
+
+### TS-4.29 — Nav-Dropdown Sichtbarkeit nach Rolle (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. `LeitstandAktiv` aktiv. Drei Test-User: (a) nur `picking`, (b) nur `leitstand`, (c) nur `tracking`.
+
+**Schritte:**
+1. Mit User (a) einloggen, Nav-Menue oeffnen.
+2. Mit User (b) einloggen, Nav-Menue oeffnen.
+3. Mit User (c) einloggen, Nav-Menue oeffnen.
+
+**Erwartetes Verhalten:**
+- User (a) Picker: Menue `Kommissionierung` ist Dropdown mit Sub-Items `Kommissionierliste` und `Leitstand`.
+- User (b) Leitstand: Menue `Kommissionierung` ist Dropdown mit Sub-Item `Leitstand` (Kommissionierliste ggf. nicht).
+- User (c) reines Tracking: KEIN `Kommissionierung`-Dropdown im Menue. Nur `Fertigungsauftraege`, `Teileverfolgung` und ggf. `OSEON`.
+- Klick auf `Fertigungsauftraege` fuehrt fuer alle drei zur schlanken FA-Liste (`/ProductionOrders/Index`).
+
+**Negativfall:**
+- Bei `LeitstandAktiv = false`: Auch User (a) und (b) sehen kein `Leitstand`-Sub-Item.
+
+---
+
 ## 5. Stueckliste (BOM)
 
 ### TS-5.1 — Stueckliste eines FA aufrufen

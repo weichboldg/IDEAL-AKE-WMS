@@ -9,6 +9,25 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.12.0</strong> <span class="text-white-50 ms-2">12.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Leitstand-Kommissionierungs-Liste extrahiert (Phase 2)</h6>
+                <ul>
+                    <li><strong>Zwei spezialisierte Sichten statt einer Mehrzweck-Liste:</strong> Die bisherige Fertigungsauftragsliste wurde in zwei Sichten aufgeteilt:
+                        <ul>
+                            <li><strong>Fertigungsauftraege</strong> &mdash; schlanke FA-Uebersicht fuer alle Picker-, Tracker- und Leitstand-User. Zeigt nur Sage-Master-Daten, Werkbank und den FA-Abschluss-Status (IsDone) &mdash; ohne Komm-Status-Spalten.</li>
+                            <li><strong>Kommissionierung &rarr; Leitstand</strong> (neu, im Menue als Dropdown) &mdash; reiche Liste mit allen Status-Spalten (Glas/Zukauf/VK/VL/VE/VT/VA), Bulk-Freigabe und Picker-Zuweisung. Sichtbar wenn <code>LeitstandAktiv</code> aktiv ist und der User die <code>picking</code>- oder <code>leitstand</code>-Rolle besitzt.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Performance:</strong> Der schlanke FA-Index laedt schneller, weil das Status-Pivot (PickingStatus-/BdeStatus-/AssemblyGroup-Joins) fuer User entfaellt, die das nicht brauchen.</li>
+                    <li><strong>Backward-Compat:</strong> Alte URL-Routen <code>/ProductionOrders/ToggleRelease</code>, <code>/BulkRelease</code>, <code>/SetPriority</code>, <code>/ChangeAssignedPicker</code> antworten mit 301-Redirect auf die neuen <code>/PickingLeitstand/...</code>-Endpoints. Bookmarks und veraltete Browser-Tabs werden automatisch umgeleitet.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.11.0</strong> <span class="text-white-50 ms-2">12.05.2026</span>
             </div>
             <div class="card-body">

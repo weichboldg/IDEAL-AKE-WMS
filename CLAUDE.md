@@ -46,9 +46,10 @@
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
 | `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController, WarehousePickingController |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
-| `[RequirePickingOrTrackingAccess]` | picking ODER tracking | ProductionOrdersController.Index |
+| `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand | ProductionOrdersController (slim Index) |
+| `[RequirePickingOrLeitstandAccess]` | admin, picking ODER leitstand | PickingLeitstandController (class-level) |
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController, WarehouseRequisitionsController, WarehouseRequisitionsApiController |
-| `[RequireLeitstandAccess]` | admin, leitstand | ProductionOrdersController (ToggleRelease, BulkRelease, SetPriority) |
+| `[RequireLeitstandAccess]` | admin, leitstand | (frueher ProductionOrdersController; ab v1.12.0 ueber Composite-Filter auf PickingLeitstandController) |
 | `[RequireReportingAccess]` | admin, reporting | OseonReportingController |
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
@@ -56,7 +57,6 @@
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
 **Sonderfaelle:**
-- `ProductionOrdersController.Index` prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - Admin-Reset fuer View-Einstellungen laeuft ueber `UsersController.ResetViewPreferences` (`[RequireMasterDataAccess]`)
 
 ## Rollenkonzept
@@ -102,7 +102,6 @@
 - **Razor v@**: `v@Namespace.Class` wird als E-Mail geparst → `v@(Namespace.Class)` verwenden
 - **Select2-Text-Format**: API liefert `"ArticleNumber - Description"`. Parsing: `.split(' - ')[0]`, NICHT Em-Dash
 - **Service referenziert Web-Projekt (seit BDE Phase 2.3)**: Bis Phase 2.2 nutzte der Service eigene DTOs und raw SQL (SDK.Worker vs SDK.Web). Mit Phase 2.3 referenziert `IDEALAKEWMSService` jetzt das Web-Projekt direkt (BdeAutoPauseWorker braucht `ApplicationDbContext`, `BdeShiftCalendarService`, `BdeBookingStatus`-Enum). Build/Publish/Tests laufen sauber. Bei neuen Service-Features den DB-Zugriff via shared `ApplicationDbContext` und Web-Repositories nutzen statt Dapper-Duplikate
-- **Leitstand Index-Action hat kein Filter-Attribut**: Prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur Key (PK), Value, Description
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer → Beschichtungstermin fuer ALLE Auftraege
 - **IsActive vs IstBuchbar**: Zwei unabhaengige Status-Flags auf StorageLocation. `IsActive` ist Sage-controlled (Phase-1-Sync setzt es), `IstBuchbar` ist user-controlled. Buchungs-Dropdowns filtern auf BEIDE; Bestand-Aggregation und Sage-Korrektur-Buchungen ignorieren `IstBuchbar`. Default: Manual=true (buchbar), Sage=false (nicht buchbar — Admin schaltet manuell frei).
@@ -114,6 +113,7 @@
 - **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
 - **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
 - **ProductionOrder Status-Aufteilung (seit v1.11.0)**: Die `ProductionOrders`-Tabelle enthaelt nur noch Sage-Master-Daten. App-Status liegt in 3 verbundenen Tabellen: `ProductionOrderPickingStatus` (1:1, HasGlass/HasExternalPurchase/HasCoatingParts/IsCoatingDone/IsReleasedForPicking/PickingPriority/AssignedPicker/IsDonePicking), `ProductionOrderBdeStatus` (1:1, IsDoneBde), `ProductionOrderAssemblyGroups` (1:N mit 5 Zeilen je FA, GroupKey VK/VL/VE/VT/VA, IsApplicable ersetzt alte HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure). Sage-AgentJob legt diese Status-Zeilen ueber Folge-MERGEs eager an. Toggle-API ist auf 3 separate Endpoints aufgeteilt (`/api/picking-status/toggle`, `/api/assembly-groups/toggle-applicable`, `/api/bde-status/toggle`). FA.IsDone = Sage-Master; App-Komm-Done = PickingStatus.IsDonePicking; App-BDE-Done = BdeStatus.IsDoneBde.
+- **Leitstand-Kommissionierung getrennte View (seit v1.12.0)**: Das `ProductionOrders/Index` ist nur noch eine schlanke FA-Übersicht. Komm-Status-Spalten (PickingStatus/HasGlass/etc.), Bulk-Freigabe und Picker-Zuweisung leben jetzt in `PickingLeitstand/Index`. Routes `/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker` sind 301-Stub-Redirects auf die neuen `/PickingLeitstand/...`-Endpoints. Im Nav-Menü ist "Kommissionierung" jetzt ein Dropdown mit zwei Sub-Items.
 
 ## Standard-Daten (Neuinstallation)
 
