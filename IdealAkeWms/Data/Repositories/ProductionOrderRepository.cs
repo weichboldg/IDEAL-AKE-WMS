@@ -45,31 +45,6 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             .Take(limit).ToListAsync();
     }
 
-    public async Task<List<ProductionOrder>> GetReleasedForPickingAsync()
-    {
-        return await _dbSet
-            .Where(o => o.IsReleasedForPicking && !o.IsDone)
-            .OrderBy(o => o.PickingPriority.HasValue ? 0 : 1)
-            .ThenBy(o => o.PickingPriority)
-            .ThenBy(o => o.ProductionDate)
-            .ToListAsync();
-    }
-
-    public async Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId)
-    {
-        return await _dbSet
-            .Where(o => o.IsReleasedForPicking && !o.IsDone && o.AssignedPickerId == pickerId)
-            .OrderBy(o => o.PickingPriority.HasValue ? 0 : 1)
-            .ThenBy(o => o.PickingPriority)
-            .ThenBy(o => o.ProductionDate)
-            .ToListAsync();
-    }
-
-    public async Task<int> GetReleasedForPickingCountAsync()
-    {
-        return await _dbSet.CountAsync(o => o.IsReleasedForPicking && !o.IsDone);
-    }
-
     public async Task<List<ProductionOrder>> GetOpenOrdersInWindowAsync(int weeksAhead, int maxCount)
     {
         if (weeksAhead <= 0) weeksAhead = 8;
@@ -84,39 +59,6 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             .OrderBy(po => po.ProductionDate)
             .Take(maxCount)
             .ToListAsync();
-    }
-
-    public async Task SetCoatingFlagsAsync(Dictionary<int, bool> orderIdToHasCoatingParts)
-    {
-        if (orderIdToHasCoatingParts == null || orderIdToHasCoatingParts.Count == 0) return;
-
-        var ids = orderIdToHasCoatingParts.Keys.ToList();
-        var orders = await _dbSet
-            .Where(po => ids.Contains(po.Id))
-            .ToListAsync();
-
-        foreach (var order in orders)
-        {
-            if (!orderIdToHasCoatingParts.TryGetValue(order.Id, out var newFlag)) continue;
-
-            var changed = order.HasCoatingParts != newFlag;
-            order.HasCoatingParts = newFlag;
-
-            // Spec fallstrick #11: when HasCoatingParts flips to false, reset IsCoatingDone
-            if (!newFlag && order.IsCoatingDone)
-            {
-                order.IsCoatingDone = false;
-                changed = true;
-            }
-
-            if (changed)
-            {
-                order.ModifiedAt = DateTime.Now;
-                // No ModifiedBy — sync job, not a user action
-            }
-        }
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task<List<ProductionOrder>> GetByArticleNumbersAsync(List<string> articleNumbers)

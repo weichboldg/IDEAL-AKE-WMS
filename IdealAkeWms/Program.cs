@@ -43,6 +43,9 @@ builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
+builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
+builder.Services.AddScoped<IProductionOrderBdeStatusRepository, ProductionOrderBdeStatusRepository>();
+builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOrderAssemblyGroupRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
