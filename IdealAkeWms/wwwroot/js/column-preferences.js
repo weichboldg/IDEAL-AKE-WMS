@@ -64,21 +64,48 @@
 
     function mergeWithDefaults(saved) {
         var defaults = buildDefaultSettings();
-        if (!saved) return defaults;
+        if (!saved || !saved.columns || saved.columns.length === 0) return defaults;
 
-        // Build a map of saved column settings keyed by column key
         var savedMap = {};
-        (saved.columns || []).forEach(function (c) { savedMap[c.key] = c; });
+        saved.columns.forEach(function (c) { savedMap[c.key] = c; });
 
-        // Only include columns that are actually in _columnConfig (ignore unknown keys)
-        defaults.columns = _columnConfig.map(function (c, i) {
+        // Final key order: start with saved keys (in their saved order), then splice in
+        // new config keys at the position implied by their config neighbors.
+        // Prevents order-collision when columns are added to _columnConfig after a user
+        // already saved a preference (new keys would otherwise get raw index orders that
+        // clash with the saved orders of trailing columns).
+        var configKeySet = {};
+        _columnConfig.forEach(function (c) { configKeySet[c.key] = true; });
+
+        var resultKeys = saved.columns
+            .slice()
+            .filter(function (c) { return configKeySet[c.key]; })
+            .sort(function (a, b) { return (a.order || 0) - (b.order || 0); })
+            .map(function (c) { return c.key; });
+
+        _columnConfig.forEach(function (configCol, configIdx) {
+            if (resultKeys.indexOf(configCol.key) >= 0) return;
+
+            var insertAfter = -1;
+            for (var k = configIdx - 1; k >= 0; k--) {
+                var ri = resultKeys.indexOf(_columnConfig[k].key);
+                if (ri >= 0) { insertAfter = ri; break; }
+            }
+
+            if (insertAfter >= 0) {
+                resultKeys.splice(insertAfter + 1, 0, configCol.key);
+            } else {
+                resultKeys.unshift(configCol.key);
+            }
+        });
+
+        defaults.columns = _columnConfig.map(function (c) {
             var s = savedMap[c.key];
-            if (!s) return { key: c.key, visible: true, width: c.defaultWidth || null, order: i };
             return {
                 key: c.key,
-                visible: s.visible !== undefined ? s.visible : true,
-                width: s.width !== undefined ? s.width : (c.defaultWidth || null),
-                order: s.order !== undefined ? s.order : i
+                visible: s && s.visible !== undefined ? s.visible : true,
+                width: s && s.width !== undefined ? s.width : (c.defaultWidth || null),
+                order: resultKeys.indexOf(c.key)
             };
         });
 
