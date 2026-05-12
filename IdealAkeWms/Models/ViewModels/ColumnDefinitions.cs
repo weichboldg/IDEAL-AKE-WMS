@@ -10,11 +10,11 @@ public record ViewConfig(string ViewKey, string DisplayName, bool SupportsReorde
 public static class ColumnDefinitions
 {
     /// <summary>
-    /// ProductionOrders/Index.cshtml columns.
+    /// ProductionOrders/Index.cshtml columns — Phase 2 slim FA-Uebersicht
+    /// (Picker/Tracker/Leitstand). Status-Pivot, Bulk-Release und Picker-Assign
+    /// wandern nach <see cref="PickingLeitstand"/>.
     /// Conditional columns:
-    ///   - "actions"   : rendered only when Model.CanPick (Stückliste-Button column, width 40px)
-    ///   - "release"   : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
-    ///   - "picker"    : rendered only when Model.PickerAssignmentEnabled
+    ///   - "actions"   : rendered only when Model.CanPick (Stueckliste-Button column, width 40px)
     /// </summary>
     public static readonly ViewConfig ProductionOrders = new("ProductionOrders", "Fertigungsauftraege", SupportsReorder: true, SupportsSortDefault: true)
     {
@@ -35,20 +35,8 @@ public static class ColumnDefinitions
             new ColumnDef("production-date","Fert.-Termin",  Locked: false),
             new ColumnDef("delivery-date","Liefertermin",    Locked: false),
             new ColumnDef("coating-part","Lack-T",           Locked: false, DefaultWidth: 55),
-            new ColumnDef("glass",       "Glas",             Locked: false, DefaultWidth: 45),
-            new ColumnDef("purchase",    "Zukauf",           Locked: false, DefaultWidth: 55),
-            new ColumnDef("cooling",        "VK",            Locked: false, DefaultWidth: 40),
-            new ColumnDef("fan",            "VL",            Locked: false, DefaultWidth: 40),
-            new ColumnDef("electric",       "VE",            Locked: false, DefaultWidth: 40),
-            new ColumnDef("doors",          "VT",            Locked: false, DefaultWidth: 40),
-            new ColumnDef("superstructure", "VA",            Locked: false, DefaultWidth: 40),
-            new ColumnDef("status",      "Status",           Locked: false),
-            // Icon/action column (enaio links, OSEON, Erledigt-button)
+            // Icon/action column (enaio links)
             new ColumnDef("row-actions", "",                 Locked: true,  DefaultWidth: 80),
-            // Conditional: only when LeitstandAktiv && CanManagePickingRelease
-            new ColumnDef("release",     "Freigabe",         Locked: false, DefaultWidth: 160),
-            // Conditional: only when PickerAssignmentEnabled
-            new ColumnDef("picker",      "Kommissionierer",  Locked: false),
         ]
     };
 

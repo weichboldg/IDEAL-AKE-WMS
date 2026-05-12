@@ -8,216 +8,49 @@ using IdealAkeWms.Filters;
 
 namespace IdealAkeWms.Controllers;
 
+[RequirePickingOrTrackingOrLeitstandAccess]
 public class ProductionOrdersController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly IProductionOrderPickingStatusRepository _pickingStatusRepository;
-    private readonly IProductionOrderAssemblyGroupRepository _assemblyGroupRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
-    private readonly IUserRepository _userRepository;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
         IProductionOrderPickingStatusRepository pickingStatusRepository,
-        IProductionOrderAssemblyGroupRepository assemblyGroupRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
-        IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
-        IUserRepository userRepository)
+        IEnaioDmsDocumentRepository enaioDmsDocumentRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
-        _assemblyGroupRepository = assemblyGroupRepository;
         _currentUserService = currentUserService;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
-        _userRepository = userRepository;
     }
+
+    // Backward-Compat-Redirects fuer Stale-Tab-Posts auf alte URLs.
+    // Die eigentliche Logik wurde nach PickingLeitstandController verschoben (Phase 2 Task 2).
+    // TODO: nach v1.14.0 entfernen.
+    [HttpPost]
+    public IActionResult ToggleRelease() => RedirectToActionPermanent("Index", "PickingLeitstand");
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequireLeitstandAccess]
-    public async Task<IActionResult> ToggleRelease(int id, int? assignedPickerId, string? returnUrl)
-    {
-        var order = await _productionOrderRepository.GetByIdAsync(id);
-        if (order == null)
-            return NotFound();
-
-        var ps = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
-        if (ps == null)
-            return NotFound("PickingStatus-Zeile fehlt.");
-
-        if (!ps.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
-        {
-            TempData["WarningMessage"] = $"FA {order.OrderNumber} kann nicht freigegeben werden — keine Artikelnummer vorhanden.";
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
-            return RedirectToAction(nameof(Index));
-        }
-
-        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-        if (!ps.IsReleasedForPicking && pickerAssignmentEnabled && !assignedPickerId.HasValue)
-        {
-            TempData["WarningMessage"] = "Bitte einen Kommissionierer zuweisen.";
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
-            return RedirectToAction(nameof(Index));
-        }
-
-        var newReleased = !ps.IsReleasedForPicking;
-        int? newPriority = ps.PickingPriority;
-        if (newReleased && !newPriority.HasValue)
-        {
-            var existing = await _pickingStatusRepository.GetReleasedForPickingAsync();
-            var maxPrio = existing
-                .Where(o => o.Id != id)
-                .Select(o => o.PickingStatus?.PickingPriority ?? 0)
-                .DefaultIfEmpty(0)
-                .Max();
-            newPriority = maxPrio + 1;
-        }
-
-        await _pickingStatusRepository.SetReleaseAsync(
-            id, newReleased, newPriority, _currentUserService.GetDisplayName(),
-            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
-
-        if (newReleased && assignedPickerId.HasValue)
-        {
-            var picker = await _userRepository.GetByIdAsync(assignedPickerId.Value);
-            await _pickingStatusRepository.SetAssignedPickerAsync(
-                id, assignedPickerId, picker?.Name,
-                _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
-        }
-
-        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
-        return RedirectToAction(nameof(Index));
-    }
+    public IActionResult BulkRelease() => RedirectToActionPermanent("Index", "PickingLeitstand");
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequireLeitstandAccess]
-    public async Task<IActionResult> BulkRelease(List<int> ids, bool release, int? assignedPickerId, string? returnUrl)
-    {
-        if (ids == null || ids.Count == 0)
-        {
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
-            return RedirectToAction(nameof(Index));
-        }
-
-        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-        if (release && pickerAssignmentEnabled && !assignedPickerId.HasValue)
-        {
-            TempData["WarningMessage"] = "Bitte einen Kommissionierer zuweisen.";
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
-            return RedirectToAction(nameof(Index));
-        }
-
-        var maxPrio = 0;
-        if (release)
-        {
-            var existing = await _pickingStatusRepository.GetReleasedForPickingAsync();
-            maxPrio = existing
-                .Where(o => o.PickingStatus?.PickingPriority != null)
-                .Select(o => o.PickingStatus!.PickingPriority!.Value)
-                .DefaultIfEmpty(0)
-                .Max();
-        }
-
-        string? pickerName = null;
-        if (release && assignedPickerId.HasValue)
-        {
-            var picker = await _userRepository.GetByIdAsync(assignedPickerId.Value);
-            pickerName = picker?.Name;
-        }
-
-        var displayName = _currentUserService.GetDisplayName();
-        var windowsUser = _currentUserService.GetWindowsUserName();
-        var skipped = new List<string>();
-        var processed = 0;
-
-        foreach (var id in ids)
-        {
-            var order = await _productionOrderRepository.GetByIdAsync(id);
-            if (order == null) continue;
-
-            var ps = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
-            if (ps == null) continue;
-
-            if (release && string.IsNullOrEmpty(order.ArticleNumber))
-            {
-                skipped.Add(order.OrderNumber);
-                continue;
-            }
-
-            int? newPriority = release ? (ps.PickingPriority ?? (++maxPrio)) : ps.PickingPriority;
-            await _pickingStatusRepository.SetReleaseAsync(
-                id, release, newPriority, displayName, displayName, windowsUser);
-
-            if (release && assignedPickerId.HasValue)
-            {
-                await _pickingStatusRepository.SetAssignedPickerAsync(
-                    id, assignedPickerId, pickerName, displayName, windowsUser);
-            }
-            processed++;
-        }
-
-        var count = processed;
-        if (release)
-            TempData["SuccessMessage"] = $"{count} Auftrag/Aufträge freigegeben.";
-        else
-            TempData["SuccessMessage"] = $"{count} Freigabe(n) zurückgenommen.";
-
-        if (skipped.Count > 0)
-            TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", skipped)}";
-
-        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
-        return RedirectToAction(nameof(Index));
-    }
+    public IActionResult SetPriority() => RedirectToActionPermanent("Index", "PickingLeitstand");
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequireLeitstandAccess]
-    public async Task<IActionResult> SetPriority(int id, int? priority)
-    {
-        var order = await _productionOrderRepository.GetByIdAsync(id);
-        if (order == null)
-            return NotFound();
-
-        await _pickingStatusRepository.SetPriorityAsync(
-            id, priority,
-            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
-        return Ok();
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequireLeitstandAccess]
-    public async Task<IActionResult> ChangeAssignedPicker(int id, int assignedPickerId)
-    {
-        var order = await _productionOrderRepository.GetByIdAsync(id);
-        if (order == null)
-            return NotFound();
-
-        var picker = await _userRepository.GetByIdAsync(assignedPickerId);
-        if (picker == null)
-            return BadRequest("Kommissionierer nicht gefunden.");
-
-        await _pickingStatusRepository.SetAssignedPickerAsync(
-            id, assignedPickerId, picker.Name,
-            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
-
-        return Ok();
-    }
+    public IActionResult ChangeAssignedPicker() => RedirectToActionPermanent("Index", "PickingLeitstand");
 
     public async Task<IActionResult> Index(
         string? filterOrderNumber,
@@ -225,14 +58,6 @@ public class ProductionOrdersController : Controller
         string? filterCustomer,
         bool showDone = false)
     {
-        // Zugriff: Picking, Tracking oder Leitstand
-        if (!await _currentUserService.CanPickAsync()
-            && !await _currentUserService.CanViewTrackingAsync()
-            && !await _currentUserService.CanManagePickingReleaseAsync())
-        {
-            return RedirectToAction("AccessDenied", "Account");
-        }
-
         var orders = await _productionOrderRepository.GetAllOrderedAsync();
 
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
@@ -265,17 +90,15 @@ public class ProductionOrdersController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
-        // Bulk-Lookups fuer pivot-basiertes Mapping (Spec 7.3)
+        // PickingStatus-Dict nur fuer HasCoatingParts/IsCoatingDone (Beschichtungstermin-Logik, Spec 6.1)
         var orderIds = orders.Select(o => o.Id).ToList();
-        var groupPivot = await _assemblyGroupRepository.GetIsApplicablePivotAsync(orderIds);
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
 
         var viewItems = orders.Select(o =>
         {
             var ps = pickingStatuses.GetValueOrDefault(o.Id);
-            var grp = groupPivot.GetValueOrDefault(o.Id) ?? new Dictionary<string, bool>();
 
-            var item = new ProductionOrderViewItem
+            var item = new ProductionOrderListItem
             {
                 Id = o.Id,
                 OrderNumber = o.OrderNumber,
@@ -287,23 +110,9 @@ public class ProductionOrdersController : Controller
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
                 IsDone = o.IsDone,
-                PickingStatus = ps?.PickingStatus,
-                HasGlass = ps?.HasGlass ?? false,
-                HasExternalPurchase = ps?.HasExternalPurchase ?? false,
-                HasCooling = grp.GetValueOrDefault("VK"),
-                HasFan = grp.GetValueOrDefault("VL"),
-                HasElectric = grp.GetValueOrDefault("VE"),
-                HasDoors = grp.GetValueOrDefault("VT"),
-                HasSuperstructure = grp.GetValueOrDefault("VA"),
+                WorkplaceName = o.ProductionWorkplace?.Name,
                 HasCoatingParts = ps?.HasCoatingParts ?? false,
                 IsCoatingDone = ps?.IsCoatingDone ?? false,
-                WorkplaceName = o.ProductionWorkplace?.Name,
-                IsReleasedForPicking = ps?.IsReleasedForPicking ?? false,
-                PickingPriority = ps?.PickingPriority,
-                ReleasedAt = ps?.ReleasedAt,
-                ReleasedBy = ps?.ReleasedBy,
-                AssignedPickerId = ps?.AssignedPickerId,
-                AssignedPickerName = ps?.AssignedPickerName
             };
 
             if (o.ProductionDate.HasValue)
@@ -314,14 +123,12 @@ public class ProductionOrdersController : Controller
                     item.KommissionierTermin.Value, vorkommissionierTage, holidays);
                 // Backward compat: when feature is inactive (setting empty), calculate for ALL orders
                 // When feature is active, only calculate if HasCoatingParts == true
-                if (!coatingFeatureActive || (ps?.HasCoatingParts ?? false))
+                if (!coatingFeatureActive || item.HasCoatingParts)
                 {
-                    // Beschichtungstermin: Baugruppentermin - BeschichtungTage, dann auf vorherigen Abholtag
                     var rawBeschichtung = _businessDayService.SubtractBusinessDays(
                         item.VorkommissionierTermin.Value, beschichtungTage, holidays);
                     item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
                 }
-                // else: leave BeschichtungTermin null
             }
 
             return item;
@@ -331,12 +138,7 @@ public class ProductionOrdersController : Controller
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
 
-        var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        var pickerAssignmentEnabled = leitstandAktiv && (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-        var vm = new ProductionOrderViewModel
+        var vm = new ProductionOrderListViewModel
         {
             Items = viewItems,
             FilterOrderNumber = filterOrderNumber,
@@ -347,16 +149,8 @@ public class ProductionOrdersController : Controller
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
             CanPick = await _currentUserService.CanPickAsync(),
-            CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync(),
-            LeitstandAktiv = leitstandAktiv,
-            PickerAssignmentEnabled = pickerAssignmentEnabled,
             EnaioDmsLinks = dmsLinks
         };
-
-        if (pickerAssignmentEnabled)
-        {
-            ViewBag.ActivePickers = await _userRepository.GetActivePickersAsync();
-        }
 
         return View(vm);
     }
