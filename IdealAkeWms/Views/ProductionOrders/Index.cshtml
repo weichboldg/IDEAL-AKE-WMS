@@ -115,6 +115,11 @@
                 <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
                 <th style="width: 45px;" data-filterable data-col-key="glass">Glas</th>
                 <th style="width: 55px;" data-filterable data-col-key="purchase">Zukauf</th>
+                <th style="width: 40px;" data-filterable data-col-key="cooling"        title="VK Kälte">VK</th>
+                <th style="width: 40px;" data-filterable data-col-key="fan"            title="VL Lüfter">VL</th>
+                <th style="width: 40px;" data-filterable data-col-key="electric"       title="VE Elektro">VE</th>
+                <th style="width: 40px;" data-filterable data-col-key="doors"          title="VT Türen">VT</th>
+                <th style="width: 40px;" data-filterable data-col-key="superstructure" title="VA Aufbau">VA</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th style="width: 80px;" data-col-key="row-actions"></th>
                 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
@@ -228,6 +233,26 @@
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasExternalPurchase"
                                @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasCooling"
+                               title="VK Kälte" @(item.HasCooling ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasFan"
+                               title="VL Lüfter" @(item.HasFan ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasElectric"
+                               title="VE Elektro" @(item.HasElectric ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasDoors"
+                               title="VT Türen" @(item.HasDoors ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasSuperstructure"
+                               title="VA Aufbau" @(item.HasSuperstructure ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td>
                         @if (item.IsDone)
@@ -488,6 +513,11 @@
     { "key": "coating-part", "label": "Lack-T", "locked": false, "defaultWidth": 55 },
     { "key": "glass", "label": "Glas", "locked": false, "defaultWidth": 45 },
     { "key": "purchase", "label": "Zukauf", "locked": false, "defaultWidth": 55 },
+    { "key": "cooling", "label": "VK", "locked": false, "defaultWidth": 40 },
+    { "key": "fan", "label": "VL", "locked": false, "defaultWidth": 40 },
+    { "key": "electric", "label": "VE", "locked": false, "defaultWidth": 40 },
+    { "key": "doors", "label": "VT", "locked": false, "defaultWidth": 40 },
+    { "key": "superstructure", "label": "VA", "locked": false, "defaultWidth": 40 },
     { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
     { "key": "row-actions", "label": "", "locked": true, "defaultWidth": 80 }
     @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>,{ "key": "release", "label": "Freigabe", "locked": false, "defaultWidth": 160 }</text> }
