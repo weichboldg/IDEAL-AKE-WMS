@@ -40,6 +40,11 @@ public class ProductionOrderViewItem
 
     public bool HasGlass { get; set; }
     public bool HasExternalPurchase { get; set; }
+    public bool HasCooling { get; set; }
+    public bool HasFan { get; set; }
+    public bool HasElectric { get; set; }
+    public bool HasDoors { get; set; }
+    public bool HasSuperstructure { get; set; }
     public bool HasCoatingParts { get; set; }
     public bool IsCoatingDone { get; set; }
     public string? WorkplaceName { get; set; }
