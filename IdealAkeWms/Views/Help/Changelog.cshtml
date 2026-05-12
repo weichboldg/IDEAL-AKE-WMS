@@ -9,6 +9,36 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.11.0</strong> <span class="text-white-50 ms-2">12.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>ProductionOrder Schema-Refactor (Phase 1)</h6>
+                <ul>
+                    <li><strong>Architektur-Refactor:</strong> Die <code>ProductionOrders</code>-Tabelle wurde von 28 auf ca. 12 Spalten reduziert. Der App-Status (Komm.-Workflow, BDE, Vorbau-Gruppen) liegt nun in 5 spezialisierten Tabellen:
+                        <ul>
+                            <li><code>ProductionOrderPickingStatus</code> (1:1) &mdash; Kommissionierung, Coating-Flags, Glas/Zukauf, Freigabe, Picker-Zuweisung, Priorit&auml;t, Komm-Done.</li>
+                            <li><code>ProductionOrderBdeStatus</code> (1:1) &mdash; BDE-Komplettstatus, erweiterbar.</li>
+                            <li><code>ProductionOrderAssemblyGroups</code> (1:N, 5 Zeilen pro FA fuer VK/VL/VE/VT/VA) &mdash; ersetzt die alten Spalten HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure.</li>
+                            <li><code>ProductionOrderAssemblyGroupSpecs</code> &mdash; Platzhalter fuer Phase 4 (Detail-Vervollst&auml;ndigung pro Baugruppe).</li>
+                            <li><code>ProductionWorkplaceAssemblyGroups</code> &mdash; Platzhalter fuer Phase 5 (Arbeitsplatz-View).</li>
+                        </ul>
+                    </li>
+                    <li><strong>Toggle-API in 3 fokussierte Endpoints aufgeteilt:</strong>
+                        <ul>
+                            <li><code>/api/picking-status/toggle</code> &mdash; HasGlass, HasExternalPurchase, IsCoatingDone, IsDonePicking.</li>
+                            <li><code>/api/assembly-groups/toggle-applicable</code> &mdash; VK/VL/VE/VT/VA.</li>
+                            <li><code>/api/bde-status/toggle</code> &mdash; IsDoneBde.</li>
+                        </ul>
+                        Der alte Endpoint <code>/api/productionorders/toggle-field</code> wurde entfernt.
+                    </li>
+                    <li><strong>User-Sicht unver&auml;ndert:</strong> Alle Checkboxes, Listen, Filter und Workflows funktionieren wie vor v1.10.0. Nur die Datenquelle hat sich gewechselt (JOIN-Lookups statt Direkt-Spalten).</li>
+                    <li><strong>Datenmigration:</strong> Atomar im Wartungsfenster via <code>SQL/60_ProductionOrderSplit.sql</code>. Bestehende FA-Daten 1:1 uebernommen. Der Sage-AgentJob legt fuer jeden neuen Auftrag automatisch die 7 Status-Zeilen (1 Picking + 1 BDE + 5 AssemblyGroups) eager an.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.10.0</strong> <span class="text-white-50 ms-2">07.05.2026</span>
             </div>
             <div class="card-body">

@@ -226,6 +226,14 @@
                         <span class="badge bg-info text-dark">teilkommissioniert</span> — Nicht alle Teile verfuegbar<br />
                         <span class="badge bg-success">abgeschlossen</span> — Vollstaendig kommissioniert
                     </dd>
+
+                    <dt>Datenarchitektur (seit v1.11.0)</dt>
+                    <dd>
+                        Die Auftrags-Status-Felder (Kommissionierung, BDE, Vorbau-Gruppen VK/VL/VE/VT/VA, Glas/Zukauf, Lack-T, Freigabe, Picker-Zuweisung)
+                        sind seit Mai 2026 in eigene Tabellen ausgelagert (<code>ProductionOrderPickingStatus</code>, <code>ProductionOrderBdeStatus</code>
+                        und <code>ProductionOrderAssemblyGroups</code>). Funktional &auml;ndert sich fuer den User nichts &mdash; Checkboxes, Filter und Workflows
+                        bleiben unver&auml;ndert. Vorteil: bessere Erweiterbarkeit fuer kuenftige Status-Erg&auml;nzungen.
+                    </dd>
                 </dl>
             </div>
         </div>

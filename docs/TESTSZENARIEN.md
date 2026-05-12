@@ -1205,6 +1205,118 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
+### TS-4.20 — Toggle-Routing nach Refactor (v1.11.0)
+
+**Vorbedingungen:**
+- App auf v1.11.0, eingeloggt mit `picking`-Rolle, mindestens ein FA in der Liste sichtbar.
+- Browser-DevTools mit aktivem Network-Tab.
+
+**Schritte:**
+1. Produktionsauftragsliste oeffnen.
+2. Glas-Checkbox eines Auftrags togglen.
+3. Zukauf-Checkbox togglen.
+4. VK-Checkbox togglen.
+5. VL-, VE-, VT-, VA-Checkboxen togglen.
+6. Falls Lack-T-Spalte sichtbar: Lackierteile-Checkbox togglen.
+7. Network-Tab: Request-URLs und Payloads pruefen.
+
+**Erwartetes Verhalten:**
+- Glas-Toggle -> POST `/api/picking-status/toggle` mit `field: "HasGlass"`, Status 200.
+- Zukauf-Toggle -> POST `/api/picking-status/toggle` mit `field: "HasExternalPurchase"`, Status 200.
+- VK/VL/VE/VT/VA-Toggle -> POST `/api/assembly-groups/toggle-applicable` mit `groupKey: "VK"` etc., Status 200.
+- Lack-T-Toggle -> POST `/api/picking-status/toggle` mit `field: "IsCoatingDone"`, Status 200.
+- Kein einziger Request an alten Endpoint `/api/productionorders/toggle-field`.
+
+**Negativfall:**
+- Bei fehlender picking-Rolle: 403 oder 302 -> AccessDenied. Datenbank bleibt unveraendert.
+
+---
+
+### TS-4.21 — Migrations-Verifikation Post-Cutover
+
+**Vorbedingungen:**
+- Migrations-SQL `SQL/60_ProductionOrderSplit.sql` (oder EF-Migration) wurde gegen die Produktiv-DB ausgefuehrt.
+
+**Schritte:**
+1. SSMS gegen die DB oeffnen.
+2. Folgende Counts ausfuehren:
+   ```sql
+   SELECT COUNT(*) AS POs FROM dbo.ProductionOrders;
+   SELECT COUNT(*) AS PSs FROM dbo.ProductionOrderPickingStatus;
+   SELECT COUNT(*) AS BDEs FROM dbo.ProductionOrderBdeStatus;
+   SELECT COUNT(*) AS Grps FROM dbo.ProductionOrderAssemblyGroups;
+   ```
+3. Optional: Schlanke Pruefung auf Orphans:
+   ```sql
+   SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus ps
+     LEFT JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId
+   WHERE po.Id IS NULL;
+   ```
+
+**Erwartetes Verhalten:**
+- `POs == PSs == BDEs` (jeweils 1:1).
+- `Grps == 5 * POs` (5 Baugruppen-Zeilen pro FA).
+- Orphan-Pruefung liefert 0.
+
+**Negativfall:**
+- Stimmen die Counts nicht: Migration ist nicht atomar durchgelaufen -> Rollback, Fehler in Sync-Log pruefen, Skript erneut anstossen.
+
+---
+
+### TS-4.22 — AgentJob legt 7 Status-Zeilen eager an
+
+**Vorbedingungen:**
+- Sage-View `vw_AKE_Kommissionierung_WAListe` hat einen NEU angelegten FA, der noch nicht in `ProductionOrders` existiert.
+
+**Schritte:**
+1. SQL Agent Job `01_Import_Produktionsauftraege` manuell ausfuehren.
+2. SSMS: Neuen FA in `ProductionOrders` finden, `Id` notieren.
+3. Folge-Queries:
+   ```sql
+   SELECT * FROM dbo.ProductionOrderPickingStatus WHERE ProductionOrderId = @neuerFaId;
+   SELECT * FROM dbo.ProductionOrderBdeStatus     WHERE ProductionOrderId = @neuerFaId;
+   SELECT GroupKey, IsApplicable FROM dbo.ProductionOrderAssemblyGroups WHERE ProductionOrderId = @neuerFaId ORDER BY GroupKey;
+   ```
+4. Job ein zweites Mal ausfuehren (Idempotenz-Check).
+
+**Erwartetes Verhalten:**
+- 1 Zeile in `ProductionOrderPickingStatus`, alle Boolean-Flags = 0, kein zugewiesener Picker.
+- 1 Zeile in `ProductionOrderBdeStatus`, `IsDoneBde = 0`.
+- 5 Zeilen in `ProductionOrderAssemblyGroups` mit `GroupKey IN ('VK','VL','VE','VT','VA')`, alle `IsApplicable = 0`.
+- Zweite Job-Ausfuehrung legt KEINE Duplikate an (MERGE).
+
+**Negativfall:**
+- Weniger als 7 Zeilen: Folge-MERGEs im AgentJob laufen nicht. Job-History pruefen.
+
+---
+
+### TS-4.23 — Leitstand-Freigabe schreibt in ProductionOrderPickingStatus
+
+**Vorbedingungen:**
+- Test-FA mit Artikelnummer existiert, eingeloggt mit `leitstand`- (und ggf. `picking`-)Rolle.
+- `LeitstandAktiv` und `KommissionierungMitZuweisung` aktiviert.
+
+**Schritte:**
+1. FA-Liste oeffnen, Freigabe-Toggle fuer den Test-FA aktivieren.
+2. Picker-Zuweisung im Modal waehlen und bestaetigen.
+3. Prioritaet auf z.B. 5 setzen.
+4. SSMS pruefen:
+   ```sql
+   SELECT IsReleasedForPicking, PickingPriority, AssignedPickerId, ReleasedBy, ReleasedAt, ModifiedAt, ModifiedBy
+     FROM dbo.ProductionOrderPickingStatus
+    WHERE ProductionOrderId = @testFaId;
+   SELECT TOP 1 * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ProductionOrders') AND name IN ('IsReleasedForPicking','PickingPriority','AssignedPickerId');
+   ```
+
+**Erwartetes Verhalten:**
+- `ProductionOrderPickingStatus` enthaelt: `IsReleasedForPicking = 1`, `PickingPriority = 5`, `AssignedPickerId = <gewaehlter User>`, `ReleasedBy` + `ReleasedAt` gesetzt, Audit-Felder `ModifiedAt`/`ModifiedBy` aktualisiert.
+- Spalten `IsReleasedForPicking`, `PickingPriority`, `AssignedPickerId` existieren NICHT mehr in `dbo.ProductionOrders` (zweite Query liefert 0 Zeilen).
+
+**Negativfall:**
+- Toggle ohne `leitstand`-Rolle: 403/302 -> AccessDenied, kein Schreib-Zugriff auf die Status-Tabelle.
+
+---
+
 ## 5. Stueckliste (BOM)
 
 ### TS-5.1 — Stueckliste eines FA aufrufen
