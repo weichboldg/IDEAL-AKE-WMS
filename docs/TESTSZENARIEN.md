@@ -23,7 +23,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
 | 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
-| 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.10 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz) |
+| 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
 | 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
@@ -1086,6 +1086,122 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Prioritaet wird sofort gespeichert (AJAX).
 - Tabelle sortiert sich entsprechend neu.
+
+---
+
+### TS-4.11 — Neuer Auftrag hat alle 5 Baugruppen-Flags auf false
+
+**Vorbedingungen:**
+- Frisch importierter Auftrag aus Sage.
+
+**Schritte:**
+1. Produktionsauftragsliste oeffnen.
+
+**Erwartetes Verhalten:**
+- Spalten **VK**, **VL**, **VE**, **VT**, **VA** zeigen unchecked Checkboxes fuer den neuen Auftrag.
+
+---
+
+### TS-4.12 — Toggle VK persistiert ueber Page-Reload
+
+**Vorbedingungen:**
+- Ein Auftrag in der Liste sichtbar, User hat picking-Rolle.
+
+**Schritte:**
+1. VK-Checkbox des Auftrags aktivieren.
+2. Page neu laden (F5).
+
+**Erwartetes Verhalten:**
+- VK-Checkbox bleibt nach Reload aktiviert.
+- Andere Flags (VL/VE/VT/VA/Glas/Zukauf) bleiben unveraendert.
+
+---
+
+### TS-4.13 — Alle 5 Baugruppen-Flags unabhaengig toggeln
+
+**Schritte:**
+1. Nur VE aktivieren -> Reload -> nur VE checked.
+2. Zusaetzlich VL aktivieren -> Reload -> VE und VL checked.
+3. VE deaktivieren -> Reload -> nur VL checked.
+
+**Erwartetes Verhalten:**
+- Flags sind voneinander unabhaengig, kein Seiteneffekt.
+
+---
+
+### TS-4.14 — Tooltip-Volltext bei Header-Hover
+
+**Schritte:**
+1. Maus ueber Header `VK` halten (ohne Klick).
+2. Wiederholen fuer VL, VE, VT, VA.
+
+**Erwartetes Verhalten:**
+- Browser-Tooltip erscheint mit Volltext: "VK Kaelte", "VL Luefter", "VE Elektro", "VT Tueren", "VA Aufbau".
+
+---
+
+### TS-4.15 — Spalten-Filter auf den neuen Baugruppen-Spalten
+
+**Schritte:**
+1. Filter-Funktion in der Liste aktivieren.
+2. Spalte VK auf "checked" filtern.
+
+**Erwartetes Verhalten:**
+- Nur Auftraege mit VK=true sind sichtbar (Filter-Pattern aus Glas/Zukauf greift identisch).
+
+---
+
+### TS-4.16 — Berechtigung: Nicht-Picking-User sieht disabled Checkboxes
+
+**Vorbedingungen:**
+- User OHNE picking-Rolle, aber MIT tracking-Rolle (hat Zugang zur Liste).
+
+**Schritte:**
+1. Login als Tracking-User.
+2. Produktionsauftragsliste oeffnen.
+
+**Erwartetes Verhalten:**
+- VK/VL/VE/VT/VA-Checkboxes sind `disabled` (analog zu Glas/Zukauf).
+- Klick darauf hat keine Wirkung. Toggle-API wuerde 302->AccessDenied liefern.
+
+---
+
+### TS-4.17 — Sage-Sync ueberschreibt die Baugruppen-Flags NICHT
+
+**Vorbedingungen:**
+- Auftrag mit VK=true, VL=true gesetzt.
+
+**Schritte:**
+1. Sage-Import-Job manuell anstossen ODER auf naechsten Sync warten.
+2. Produktionsauftragsliste neu laden.
+
+**Erwartetes Verhalten:**
+- VK und VL bleiben `true`.
+- Andere Felder aus Sage (Lieferdatum, Stueckzahl, ...) sind ggf. aktualisiert, aber VK/VL/VE/VT/VA-Flags wurden nicht ueberschrieben.
+
+---
+
+### TS-4.18 — Column-Preferences-Offcanvas
+
+**Schritte:**
+1. "Spalten anpassen"-Button anklicken (oder Offcanvas-Trigger).
+
+**Erwartetes Verhalten:**
+- Die 5 neuen Spalten VK/VL/VE/VT/VA erscheinen in der Liste, koennen ein-/ausgeblendet werden wie Glas/Zukauf.
+- User-Reihenfolge-Aenderungen werden gespeichert und nach Reload wiederhergestellt.
+
+---
+
+### TS-4.19 — Fresh-Install enthaelt die Baugruppen-Spalten
+
+**Vorbedingungen:**
+- Frische DB aus `SQL/00_FreshInstall.sql`.
+
+**Schritte:**
+1. `SELECT name FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ProductionOrders') AND name IN ('HasCooling', 'HasFan', 'HasElectric', 'HasDoors', 'HasSuperstructure');`
+
+**Erwartetes Verhalten:**
+- Query liefert alle 5 Zeilen — Spalten existieren in der frisch installierten DB.
 
 ---
 
