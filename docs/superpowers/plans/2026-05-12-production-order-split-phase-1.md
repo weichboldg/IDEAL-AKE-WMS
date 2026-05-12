@@ -515,30 +515,67 @@ dotnet ef migrations add AddProductionOrderSplit --project IdealAkeWms
 
 Erwartet: 3 neue Dateien unter `IdealAkeWms/Migrations/`. EF erkennt anhand des aktualisierten `DbContext` automatisch alle 5 `CreateTable`s, 16 `DropColumn`s und alle Indexe. **NICHT** den generierten Code blind committen.
 
-- [ ] **Step 3: Migration-`Up()`/`Down()` auf LEER setzen (Round-4-Strategie)**
+- [ ] **Step 3: Migration-`Up()` lädt SQL/60 via CopyToOutput (Round-5-Strategie)**
 
-Den `Up()`- und `Down()`-Body öffnen. EF generiert in `Up()` standardmäßig:
-1. `migrationBuilder.CreateTable(...)` × 5
-2. `migrationBuilder.DropForeignKey(...)` für `FK_ProductionOrders_AssignedPicker`
-3. `migrationBuilder.DropIndex(...)` für `IX_ProductionOrders_IsReleasedForPicking_IsDone`, `IX_ProductionOrders_AssignedPickerId`
-4. `migrationBuilder.DropColumn(...)` × 16
-5. `migrationBuilder.CreateIndex(...)` für neue Indexe
-
-**Alle diese Statements werden gelöscht.** Body soll nach Edit aussehen wie:
+Den `Up()`-Body öffnen. EF generiert standardmäßig 5× CreateTable, FK-/Index-Drops, 16× DropColumn etc. **Alle diese Statements werden gelöscht** und durch einen File-Loader ersetzt:
 
 ```csharp
-protected override void Up(MigrationBuilder migrationBuilder)
-{
-    // Schema + Daten + Drop wurden im Wartungsfenster über SQL/60_ProductionOrderSplit.sql
-    // ausgeführt. __EFMigrationsHistory-Eintrag wird vom SQL-Skript selbst gesetzt
-    // (Section G). Diese Migration ist ein History-Marker für EF-Snapshot-Konsistenz.
-}
+using System;
+using System.IO;
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore.Migrations;
 
-protected override void Down(MigrationBuilder migrationBuilder)
+#nullable disable
+
+namespace IdealAkeWms.Migrations
 {
-    // Rollback erfolgt per Backup-Restore (Roadmap 5.5). Down() ist intentional leer.
+    public partial class AddProductionOrderSplit : Migration
+    {
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            // Dev/Test: SQL-Skript aus bin/.../Migrations/Scripts/ laden (CopyToOutput).
+            // Production-Cutover: DBA fuehrt SQL/60_*.sql manuell vorher in SSMS aus,
+            // Section G inserted History-Eintrag, EF ueberspringt Up() beim naechsten Migrate().
+            var sqlPath = Path.Combine(AppContext.BaseDirectory, "Migrations", "Scripts", "60_ProductionOrderSplit.sql");
+            if (!File.Exists(sqlPath))
+            {
+                // Production-Deploy ohne SQL-File: manuelle Cutover-Ausfuehrung erwartet.
+                return;
+            }
+
+            var sqlContent = File.ReadAllText(sqlPath);
+            var batches = Regex.Split(sqlContent, @"(?im)^\s*GO\s*$");
+            foreach (var batch in batches)
+            {
+                var trimmed = batch.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                {
+                    migrationBuilder.Sql(trimmed);
+                }
+            }
+        }
+
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            // Rollback erfolgt per Backup-Restore (Roadmap 5.5). Down() ist intentional leer.
+        }
+    }
 }
 ```
+
+Zusätzlich muss `IdealAkeWms.csproj` die SQL-Datei als CopyToOutput-File einbinden:
+
+```xml
+<ItemGroup>
+  <None Include="..\SQL\60_ProductionOrderSplit.sql">
+    <Link>Migrations\Scripts\60_ProductionOrderSplit.sql</Link>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+  </None>
+</ItemGroup>
+```
+
+Der Designer-File + ModelSnapshot bleiben unverändert (EF braucht sie für die nächste Migration als Snapshot-Base).
 
 Der Designer-File + ModelSnapshot bleiben unverändert (EF braucht sie für die nächste Migration als Snapshot-Base).
 
@@ -2725,11 +2762,24 @@ Backup-Dauer notieren. Restore-Test in 1-2 Min auf Stage validieren? (Optional.)
 
 In SSMS: `01_Import_Produktionsauftraege` + `02_Import_Artikel` auf "Disabled" stellen. Verify: kein Job l&auml;uft (`sys.dm_exec_jobs`).
 
-- [ ] **Step 5: Migration ausf&uuml;hren (T+2min) — Round-4: Standalone-SQL primär**
+- [ ] **Step 5: Migration ausf&uuml;hren — Round-5: 2 Pfade**
 
-`SQL/60_ProductionOrderSplit.sql` per SSMS manuell ausführen (Spec 8.1 + 14.5). PRINT-Outputs lesen, Counts pr&uuml;fen. Skript enthält Schema + Daten + Drop + `__EFMigrationsHistory`-Eintrag, läuft idempotent (Wiederanlauf-fest bei Fehler).
+**Pfad A (Dev/Test, kleine DB):** Migration läuft **automatisch** beim App-Start (Step 8). EF-`Up()` lädt `SQL/60_*.sql` aus dem Output-Verzeichnis und führt die Batches aus. Bei kleinen DBs (<10k FAs): < 30s, kein Eingriff nötig.
 
-**Round-4-Wichtig:** EF-Migration `Up()` ist leer. App-Start (Step 8) ruft `db.Database.Migrate()`, findet den History-Eintrag, überspringt die Empty-`Up()`. **App startet schnell**, keine minutenlange Migration während App-Start.
+**Pfad B (Produktiv, große DB):** SQL-Skript **manuell vor App-Start** in SSMS ausführen. Section G inserted den `__EFMigrationsHistory`-Eintrag → EF überspringt `Up()` beim App-Start, App startet schnell.
+
+Beide Pfade nutzen denselben `SQL/60_ProductionOrderSplit.sql`-Inhalt (single source). Skript ist idempotent (NOT EXISTS-Guards, OBJECT_ID-Checks).
+
+**Empfehlung für Produktiv-Cutover:** Pfad B wählen, weil:
+- DBA hat volle Kontrolle über die Datenkopie-Phase.
+- PRINTs sind in SSMS live sichtbar (Section E Verifikations-Counts).
+- App-Start ist anschließend in Sekunden durch.
+
+```sql
+-- Pfad B: in SSMS, gegen die Produktiv-DB
+USE [IDEAL_AKE_WMS];
+:r C:\path\to\SQL\60_ProductionOrderSplit.sql
+```
 
 - [ ] **Step 6: Verifikations-Counts pr&uuml;fen (T+~20min)**
 

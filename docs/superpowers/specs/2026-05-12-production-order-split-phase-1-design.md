@@ -451,15 +451,20 @@ Heutige Index-View hat Server-Pagination (max ~50 Items pro Seite) — Chunking 
 
 ## 8. Migration
 
-### 8.1 Migration-Strategie: Standalone-SQL primär, EF-Migration als Empty-Marker
+### 8.1 Migration-Strategie: SQL-Skript als single source, EF lädt es automatisch (Round 5)
 
-**Round-4-Korrektur (Round-3-Ansatz war doppelte Wahrheit):** EF-Migration und SQL-Skript überlappten beide bei Schema + Drop. Jetzt klar getrennt:
+**Round-5-Korrektur:** Round 4 hatte die EF-Migration leer gelassen — Praxis-Test ergab: für Dev/Test ist das unpraktisch, weil App-Start gegen ein nicht-migriertes Schema rennt und 500-Errors wirft. Saubere Variante:
 
-- **`SQL/60_ProductionOrderSplit.sql`** ist die einzige Wahrheit für Schema + Daten + Drop. **Wird manuell vor App-Start ausgeführt** (im Wartungsfenster, durch DBA oder Deploy-Skript). Idempotent, Wiederanlauf-fest.
-- **EF-Migration `AddProductionOrderSplit`** wird via `dotnet ef migrations add AddProductionOrderSplit` generiert, aber **`Up()` und `Down()` werden manuell auf leer gesetzt** (Body-Statements gelöscht). Die Migration ist ein **History-Marker** — sie sorgt nur dafür, dass nach Snapshot-Refactor weitere EF-Migrations korrekt darauf aufbauen.
-- Beim App-Start prüft EF die `__EFMigrationsHistory`-Tabelle. Da das Standalone-SQL den History-Eintrag mit anlegt (Section G in 8.2), sieht EF die Migration als applied und führt die leere `Up()` nicht aus.
+- **`SQL/60_ProductionOrderSplit.sql`** bleibt single source of truth für Schema + Daten + Drop. Idempotent, Wiederanlauf-fest.
+- **EF-Migration `AddProductionOrderSplit.Up()`** lädt das Skript zur Laufzeit aus `bin/.../Migrations/Scripts/60_ProductionOrderSplit.sql`, splittet bei `GO` und ruft `migrationBuilder.Sql()` pro Batch. In `IdealAkeWms.csproj` ist die SQL-Datei als Linked-File mit `CopyToOutputDirectory=PreserveNewest` und `CopyToPublishDirectory=PreserveNewest` eingebunden.
+- **Production-Cutover-Pfad bleibt als Option:** DBA kann das Skript manuell vor App-Start in SSMS ausführen. Section G inserted den `__EFMigrationsHistory`-Eintrag → EF sieht die Migration als applied und überspringt `Up()`.
+- **Fallback bei fehlendem SQL-File:** Wenn das File aus dem Output-Verzeichnis fehlt (defekter Deploy), kehrt `Up()` einfach `return` zurück — kein Crash, App startet, aber Schema bleibt unmigriert. Im Log nicht direkt sichtbar; manuelle Verifikation per `SELECT * FROM __EFMigrationsHistory` empfohlen.
 
-**Vorteil:** App-Start hängt **nicht** an einer minutenlangen Daten-Kopie. Migration-Risiko ist auf den DBA-/Deploy-Schritt isoliert, App-Container kann jederzeit gestartet/gestoppt werden.
+**Beim App-Start:** EF prüft die `__EFMigrationsHistory`-Tabelle.
+- Wenn Migration nicht angewendet: `Up()` lädt SQL-Datei und führt Batches aus.
+- Wenn Migration schon vorab manuell ausgeführt (Section G hat History-Eintrag inserted): `Up()` wird übersprungen.
+
+**Trade-Off:** Bei Produktiv-DBs mit großen FA-Mengen (>50k) sollte DBA das Skript manuell während des Wartungsfensters fahren — dann hängt App-Start nicht an minutenlanger Daten-Kopie. Bei Dev/Test (wenige Hundert FAs) läuft Auto-Migration in Sekunden durch.
 
 **Reihenfolge im SQL-Skript** (siehe 8.2): Section A Schema → Section B/C/D Daten → Section E Verifikation → Section F Drop → Section G History-Eintrag.
 
