@@ -39,67 +39,15 @@ public class ProductionOrder : AuditableEntity
     [Display(Name = "Erledigt")]
     public bool IsDone { get; set; }
 
-    [StringLength(50)]
-    [Display(Name = "Kommissionierung")]
-    public string? PickingStatus { get; set; }
-
-    [Display(Name = "Glas")]
-    public bool HasGlass { get; set; }
-
-    [Display(Name = "Zukauf")]
-    public bool HasExternalPurchase { get; set; }
-
-    [Display(Name = "VK Kälte")]
-    public bool HasCooling { get; set; }
-
-    [Display(Name = "VL Lüfter")]
-    public bool HasFan { get; set; }
-
-    [Display(Name = "VE Elektro")]
-    public bool HasElectric { get; set; }
-
-    [Display(Name = "VT Türen")]
-    public bool HasDoors { get; set; }
-
-    [Display(Name = "VA Aufbau")]
-    public bool HasSuperstructure { get; set; }
-
-    /// <summary>
-    /// True if the BOM contains at least one article in the Lackierteil category.
-    /// Sync-calculated, read-only for users.
-    /// </summary>
-    public bool HasCoatingParts { get; set; } = false;
-
-    /// <summary>
-    /// User-toggleable: coating parts are handled / done.
-    /// Reset to false by sync if HasCoatingParts flips to false.
-    /// </summary>
-    public bool IsCoatingDone { get; set; } = false;
-
     [Display(Name = "Werkbank")]
     public int? ProductionWorkplaceId { get; set; }
     public ProductionWorkplace? ProductionWorkplace { get; set; }
 
-    [Display(Name = "Freigegeben")]
-    public bool IsReleasedForPicking { get; set; }
-
-    [Display(Name = "Priorität")]
-    public int? PickingPriority { get; set; }
-
-    [Display(Name = "Freigegeben am")]
-    public DateTime? ReleasedAt { get; set; }
-
-    [StringLength(200)]
-    [Display(Name = "Freigegeben von")]
-    public string? ReleasedBy { get; set; }
-
-    [Display(Name = "Zugewiesener Kommissionierer")]
-    public int? AssignedPickerId { get; set; }
-    public User? AssignedPicker { get; set; }
-
-    [StringLength(200)]
-    [Display(Name = "Kommissionierer")]
-    public string? AssignedPickerName { get; set; }
-
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();
+
+    // Phase 1 — neue Nav-Properties (siehe Spec 5.1)
+    public ProductionOrderPickingStatus? PickingStatus { get; set; }
+    public ProductionOrderBdeStatus? BdeStatus { get; set; }
+    public ICollection<ProductionOrderAssemblyGroup> AssemblyGroups { get; set; }
+        = new List<ProductionOrderAssemblyGroup>();
 }
