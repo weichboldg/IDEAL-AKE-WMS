@@ -9,6 +9,64 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.10.0</strong> <span class="text-white-50 ms-2">07.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage Lagerbestand-Sync (Phase 2)</h6>
+                <ul>
+                    <li><strong>Automatischer Bestand-Abgleich</strong> mit Sage. Bei Abweichung werden Korrektur-Buchungen mit neuen Bewegungsarten <strong>Sage-Einbuchung</strong> und <strong>Sage-Ausbuchung</strong> erzeugt &mdash; die WMS-Bewegungshistorie bleibt vollst&auml;ndig erhalten.</li>
+                    <li>Aktivieren via ServiceSetting <code>Sync:LagerbestandEnabled</code>. Optional eigenes Intervall via <code>Sync:LagerbestandIntervalMinutes</code> (Default: nutzt Worker-Standard-15-Min).</li>
+                    <li>Strikte Filterung: nur <strong>Source=Sage</strong>-Lagerpl&auml;tze werden korrigiert. Manuelle Lagerpl&auml;tze, fehlende Artikel oder unbekannte/inaktive Lagerpl&auml;tze werden uebersprungen + im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> als Warning erfasst.</li>
+                    <li>Neues optionales <strong>Notiz</strong>-Feld auf Buchungen &mdash; bei Sage-Korrekturen automatisch gef&uuml;llt mit "Sage-Korrektur: WMS=X, Sage=Y, Diff=Z". Sichtbar als neue Spalte in der Bewegungshistorie.</li>
+                    <li>Bewegungshistorie hat zwei neue Filter-Optionen f&uuml;r die neuen Bewegungsarten.</li>
+                    <li><strong>Buchbar-Flag (User-gesteuert):</strong> Lagerpl&auml;tze haben jetzt ein zus&auml;tzliches Flag, um sie f&uuml;r UI-Buchungen freizuschalten oder zu sperren. Sage-importierte Pl&auml;tze sind by default <strong>nicht buchbar</strong> &mdash; der Admin schaltet die ben&ouml;tigten Pl&auml;tze in der Lagerpl&auml;tze-Liste frei. Bestand auf nicht-buchbaren Pl&auml;tzen wird weiterhin korrigiert (Sage-Master), nur die UI-Buchungs-Dropdowns blenden sie aus.</li>
+                    <li><strong>Performance:</strong> St&uuml;ckliste-Sicht (Auf-/Zuklappen von Baugruppen) ist nun deutlich schneller. Lagerplatz-Dropdowns laden per Ajax statt vorab gerendert (Initial-Load 5-10x schneller, Toggle sub-100ms auch bei tausenden BOM-Positionen).</li>
+                    <li><strong>Leitstand-Bulk-Freigabe:</strong> Mehrere Auftraege per Checkbox markieren und gemeinsam freigeben oder zur&uuml;cknehmen. Sticky-Action-Bar zeigt Auswahl-Status, Header-Checkbox markiert alle sichtbaren Zeilen (respektiert Filter). Mit Picker-Zuweisung &ouml;ffnet sich ein Modal f&uuml;r die Picker-Auswahl.</li>
+                    <li><strong>Spalten-Filter-Persistenz:</strong> Spalten-Filter bleiben nach Page-Reload erhalten (per sessionStorage, pro Browser-Tab). Wirkt f&uuml;r alle Tabellen mit View-Identifier (Leitstand, Bestand, Bewegungshistorie, OSEON-Tracking u.a.). "Zur&uuml;cksetzen"-Button leert auch die persistierten Filter.</li>
+                    <li><strong>OSEON Artikel-Filter:</strong> Bei Artikel-Filterung erscheinen nur noch die matchenden Sub-Auftr&auml;ge innerhalb ihres Kundenauftrags. Vorher wurde die gesamte Baugruppe angezeigt &mdash; jetzt sieht man nur noch den gesuchten Artikel im Kontext seiner Kundenauftrag-Gruppe.</li>
+                    <li><strong>OSEON Spalten-Sortierung:</strong> Sub-Auftr&auml;ge k&ouml;nnen per Klick auf einen Spalten-Header sortiert werden (Artikelnr., Bezeichnung, Werkbank, Status, Soll/Ist, Endtermin). Drei-Klick-Zyklus: aufsteigend &rarr; absteigend &rarr; Default. Sortierung wirkt nur innerhalb der Kundenauftrag-Gruppen, Operations folgen ihrem Sub.</li>
+                    <li><strong>Einbuchung &ndash; FA-Lagerplatz-Hinweis:</strong>
+                        Beim Bef&uuml;llen des Fertigungsauftrag-Felds (Scan oder manuell) pr&uuml;ft die Einbuchung automatisch,
+                        ob die FA bereits auf einem Lagerplatz oder Wagen liegt.
+                        Bei genau einem Treffer wird der Lagerplatz automatisch &uuml;bernommen (falls noch keiner gew&auml;hlt wurde).
+                        Bei mehreren Treffern erscheint eine gelbe Warnung mit allen Pl&auml;tzen.
+                        Verhindert doppelte Anlage derselben FA auf verschiedenen Lagerpl&auml;tzen.</li>
+                    <li><strong>Zugriffsrecht erweitert:</strong>
+                        Der Stock-by-Order-API-Endpunkt steht nun auch Stock-/Stock-Keyuser-Rollen offen
+                        (vorher nur Picking + Tracking) und liefert zus&auml;tzlich die Mengeneinheit.</li>
+                    <li><strong>Produktionsauftragsliste &ndash; 5 neue Baugruppen-Flags:</strong>
+                        Zus&auml;tzliche Checkbox-Spalten <strong>VK</strong> (K&auml;lte), <strong>VL</strong> (L&uuml;fter),
+                        <strong>VE</strong> (Elektro), <strong>VT</strong> (T&uuml;ren), <strong>VA</strong> (Aufbau).
+                        Funktional identisch zu Glas/Zukauf: manuell setzbar (Picking-Rolle erforderlich),
+                        Sage-Sync &uuml;berschreibt die Werte nicht. Header zeigt die Abk&uuml;rzung,
+                        Volltext als Tooltip beim Hover.</li>
+                    <li><strong>Spalten-Einstellungen &ndash; stabile Einreihung neuer Spalten:</strong>
+                        Wenn neue Spalten zu einer Listen-Ansicht hinzugefügt werden, erscheinen sie
+                        ab sofort an der vom System vorgesehenen Position (relativ zu ihren Nachbarn),
+                        statt durch Order-Kollision irgendwo in der gespeicherten Spalten-Reihenfolge zu landen.
+                        Wirkt sich auf alle Listen mit konfigurierbarer Spalten-Reihenfolge aus.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.9.0</strong> <span class="text-white-50 ms-2">05.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage Lagerplatz-Sync (Phase 1)</h6>
+                <ul>
+                    <li><strong>Automatischer Sync</strong> der Sage-Lagerplaetze (Bereich/Zone, Code, Bezeichnung) im Worker-Service. Aktivieren via ServiceSetting <code>Sync:LagerplaetzeEnabled</code>.</li>
+                    <li>Lagerplaetze haben jetzt ein <strong>Quelle</strong>-Kennzeichen (Manuell / Sage). Bei Sage-Records sind Code/Zone/Bezeichnung im UI gesperrt.</li>
+                    <li>Inaktive Sage-Lagerplaetze werden ausgeblendet &mdash; Toggle "Auch inaktive zeigen" auf der Lagerplaetze-Liste.</li>
+                    <li>Buchungen auf inaktive Lagerplaetze werden im UI nicht mehr angeboten. Bestaende auf inaktiven Plaetzen werden als <em>inaktiv</em>-Badge in der Bestandsuebersicht markiert.</li>
+                    <li>Neue Stammdaten-Sicht: <strong>Sync-Protokoll</strong> (zeigt Konflikte, Deaktivierungen und Sync-Lauf-Zusammenfassungen).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.8.6</strong> <span class="text-white-50 ms-2">05.05.2026</span>
             </div>
             <div class="card-body">

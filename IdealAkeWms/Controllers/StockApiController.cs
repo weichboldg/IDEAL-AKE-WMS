@@ -6,7 +6,7 @@ namespace IdealAkeWms.Controllers;
 
 [Route("api/stock")]
 [ApiController]
-[RequirePickingOrTrackingAccess]
+[RequireStockOrPickingOrTrackingAccess]
 public class StockApiController : ControllerBase
 {
     private readonly IStockMovementRepository _stockMovementRepository;
@@ -29,7 +29,8 @@ public class StockApiController : ControllerBase
             articleNumber = i.ArticleNumber,
             description = i.ArticleDescription ?? "",
             storageLocation = i.StorageLocationCode,
-            quantity = i.CurrentQuantity
+            quantity = i.CurrentQuantity,
+            unit = i.Unit ?? ""
         }));
     }
 }

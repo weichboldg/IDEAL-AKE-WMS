@@ -12,8 +12,20 @@
             <div class="card-body">
                 <dl>
                     <dt>Einbuchung</dt>
-                    <dd>Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz koennen per Barcode/QR-Code gescannt oder manuell ausgewaehlt werden.
-                        Sind offene Bedarfsmeldungen zum eingebuchten Artikel vorhanden, werden diese angezeigt und koennen mit der Buchung verknuepft werden.</dd>
+                    <dd>
+                        Artikel auf einen Lagerplatz einbuchen. Artikel und Lagerplatz koennen per Barcode/QR-Code gescannt
+                        oder manuell ausgewaehlt werden.
+                        <ul class="mt-1 mb-1">
+                            <li>Sind offene Bedarfsmeldungen zum eingebuchten Artikel vorhanden, werden diese angezeigt
+                                und koennen mit der Buchung verknuepft werden.</li>
+                            <li><strong>FA-Lagerplatz-Hinweis:</strong> Sobald die FA-Nummer eingegeben oder gescannt wird,
+                                prueft die App, ob diese FA bereits auf einem Lagerplatz oder Wagen liegt.
+                                Liegt sie an genau einem Platz und ist der Lagerplatz noch nicht gewaehlt &rarr; Platz wird automatisch uebernommen.
+                                Liegt sie an mehreren Plaetzen &rarr; gelbe Warnung mit Mengen; bitte gezielt buchen.
+                                Liegt sie auf einem inaktiven/nicht buchbaren Platz &rarr; gelbe Warnung mit Hinweis,
+                                manuell zu waehlen.</li>
+                        </ul>
+                    </dd>
 
                     <dt>Ausbuchung</dt>
                     <dd>Artikel von einem Lagerplatz ausbuchen. Die verfuegbare Menge wird geprueft.</dd>
@@ -170,6 +182,21 @@
 
                     <dt>Glas / Zukauf</dt>
                     <dd>Per Checkbox direkt in der Tabelle markieren. Aenderungen werden sofort gespeichert.</dd>
+
+                    <dt>Manuelle Status-Flags (VK/VL/VE/VT/VA)</dt>
+                    <dd>
+                        Pro Auftrag koennen folgende Baugruppen-Flags manuell gesetzt werden (Picking-Rolle erforderlich, Sage-Sync aendert sie nicht):
+                        <ul class="mt-1 mb-0">
+                            <li><strong>Glas</strong> &mdash; Glas-Bauteile vorbereitet</li>
+                            <li><strong>Zukauf</strong> &mdash; Zukauf-Teile bestellt/erhalten</li>
+                            <li><strong>VK</strong> &mdash; K&auml;lte-Baugruppe</li>
+                            <li><strong>VL</strong> &mdash; L&uuml;fter-Baugruppe</li>
+                            <li><strong>VE</strong> &mdash; Elektro-Baugruppe</li>
+                            <li><strong>VT</strong> &mdash; T&uuml;ren-Baugruppe</li>
+                            <li><strong>VA</strong> &mdash; Aufbau-Baugruppe</li>
+                        </ul>
+                        Die Header-Abk&uuml;rzungen zeigen beim Hover den Volltext als Tooltip.
+                    </dd>
 
                     <dt>OSEON Teileverfolgung</dt>
                     <dd>Ueber den <span class="badge bg-info text-white">i</span>-Button oeffnen Sie die OSEON-Teileverfolgung, vorgefiltert auf die FA-Nummer. Der Filter &bdquo;Fertige anzeigen&ldquo; ist dabei automatisch aktiviert, damit auch bereits abgeschlossene Auftraege sichtbar sind.</dd>
@@ -707,6 +734,70 @@
                         E-Mail-Adressen und die Zuordnung von Artikelgruppen zu Empfaengergruppen gepflegt.
                         Details siehe Abschnitt &bdquo;Bedarfsmeldungen&ldquo;.</dd>
                 </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary); color: white;">
+                Lagerplatz-Sync mit Sage
+            </div>
+            <div class="card-body">
+                <p>Lagerplatz-Stammdaten werden aus Sage automatisch synchronisiert. Aktiviert wird das in den Service-Einstellungen unter <code>Sync:LagerplaetzeEnabled</code>.</p>
+                <h6>Was wird synchronisiert</h6>
+                <ul>
+                    <li>Code (Sage: Kurzbezeichnung), Bereich/Zone (Sage: Lagerkennung), Bezeichnung (Sage: Platzbezeichnung).</li>
+                    <li>Lagerplaetze, die in Sage deaktiviert werden, werden im WMS deaktiviert &mdash; bleiben fuer Historie/Bestand sichtbar, lassen aber keine neuen Buchungen mehr zu.</li>
+                </ul>
+                <h6>Quelle-Kennzeichen</h6>
+                <p>Jeder Lagerplatz hat eine Quelle: <strong>Manuell</strong> (von einem Anwender im WMS angelegt) oder <strong>Sage</strong> (vom Sync importiert). Bei Sage-Quelle sind Code/Zone/Bezeichnung gesperrt &mdash; sie werden beim naechsten Abgleich ueberschrieben.</p>
+                <h6>Konflikte</h6>
+                <p>Wenn ein manueller Lagerplatz denselben Code wie ein Sage-Eintrag hat, wird der Sage-Eintrag ignoriert und ein Eintrag im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> als <em>Warning</em> erfasst. Aufloesung: in Absprache mit dem Sage-Verantwortlichen entscheiden, ob der manuelle Lagerplatz geloescht/umbenannt oder direkt in der DB als Sage-Quelle markiert werden soll.</p>
+                <h6>Vor erstem Aktivieren</h6>
+                <p>Wenn das WMS bereits Lagerplaetze hat, deren Codes auch in Sage existieren: vor dem ersten Aktivieren des Syncs <code>Source = 'Sage'</code> auf diesen Records direkt in der DB setzen, sonst werden alle als Konflikt geloggt.</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary); color: white;">
+                Lagerbestand-Sync mit Sage
+            </div>
+            <div class="card-body">
+                <p>Erg&auml;nzend zum Lagerplatz-Sync (Phase 1) gleicht Phase 2 die <strong>Lagerbest&auml;nde pro Artikel und Lagerplatz</strong> mit Sage ab. Aktiviert wird das in den Service-Einstellungen unter <code>Sync:LagerbestandEnabled</code>.</p>
+                <h6>Was wird synchronisiert</h6>
+                <ul>
+                    <li>Sage liefert pro (Artikel, Lagerplatz) den aktuellen Bestand. Wenn der WMS-Bestand abweicht, wird eine Korrektur-Buchung erzeugt:
+                        <ul>
+                            <li><strong>Sage-Einbuchung</strong> wenn Sage h&ouml;heren Bestand hat (WMS war zu niedrig)</li>
+                            <li><strong>Sage-Ausbuchung</strong> wenn Sage niedrigeren Bestand hat (WMS war zu hoch)</li>
+                        </ul>
+                    </li>
+                    <li>Korrektur-Buchungen erscheinen in der <strong>Bewegungshistorie</strong> mit eigenem Badge und der Spalte <strong>Notiz</strong>, in der die Berechnung dokumentiert ist.</li>
+                    <li>WMS-Bewegungshistorie wird <strong>nicht</strong> gel&ouml;scht oder veraendert &mdash; Sage-Korrekturen sind eigene Eintr&auml;ge.</li>
+                </ul>
+                <h6>Vor erstem Aktivieren &mdash; DryRun-Empfehlung</h6>
+                <p>Beim ersten Sync nach Aktivierung k&ouml;nnen <strong>tausende Korrektur-Buchungen</strong> entstehen &mdash; je nachdem, wie sehr der WMS-Bestand vom Sage-Stand abweicht. Empfohlener Workflow:</p>
+                <ol>
+                    <li><code>Sync:LagerbestandEnabled = true</code> setzen.</li>
+                    <li><strong>Wichtig:</strong> <code>WorkerSettings:SyncDryRun = true</code> aktivieren.</li>
+                    <li>Service neu starten, einen Sync-Lauf abwarten.</li>
+                    <li>Im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> den Lagerbestand-Service filtern. Der Summen-Eintrag enth&auml;lt <code>[DryRun] Sync OK: ...</code> mit den geplanten Korrekturen.</li>
+                    <li>Stichproben aus den Warnings pruefen.</li>
+                    <li>Falls plausibel: <code>WorkerSettings:SyncDryRun = false</code>, n&auml;chster Sync schreibt die Korrekturen.</li>
+                </ol>
+                <h6>Phase-1-Voraussetzung</h6>
+                <p>Phase 2 korrigiert <strong>nur Lagerpl&auml;tze mit Quelle Sage</strong>. Manuell angelegte Lagerpl&auml;tze (auch wenn der Code zuf&auml;llig zu Sage passt) werden uebersprungen. Vor Phase-2-Aktivierung empfehlen wir, die Phase-1-Konfliktliste durchzuarbeiten.</p>
+                <h6>Frequenz konfigurieren</h6>
+                <p>Default-Intervall ist das gemeinsame <code>WorkerSettings:SyncIntervalMinutes</code> (15 Min). Falls Phase 2 seltener laufen soll (z.B. nur 1x pro Stunde), <code>Sync:LagerbestandIntervalMinutes</code> auf gewuenschten Wert setzen (in Minuten). Wert 0 = Standard-Intervall verwenden.</p>
+                <h6>Buchbar-Flag (User-gesteuert)</h6>
+                <p>Jeder Lagerplatz hat zus&auml;tzlich zum Sage-Aktiv-Status ein <strong>Buchbar</strong>-Flag, das vom Admin pro Platz gesetzt werden kann (auch f&uuml;r Sage-Pl&auml;tze).</p>
+                <ul>
+                    <li>Sage-importierte Lagerpl&auml;tze sind <strong>standardm&auml;&szlig;ig nicht buchbar</strong>. Der Admin schaltet die ben&ouml;tigten Pl&auml;tze in der Lagerpl&auml;tze-Liste frei (Stammdaten &rarr; Lagerpl&auml;tze &rarr; Bearbeiten).</li>
+                    <li>Manuell angelegte Lagerpl&auml;tze sind by default buchbar.</li>
+                    <li>Nicht-buchbare Pl&auml;tze sind in den Buchungs-Dropdowns (Einbuchung/Ausbuchung/Umbuchung/Picking) <strong>ausgeblendet</strong>.</li>
+                    <li>Bestand auf nicht-buchbaren Pl&auml;tzen wird in der Bestands&uuml;bersicht <strong>weiterhin angezeigt</strong>, mit Badge "nicht buchbar".</li>
+                    <li>Sage-Bestand-Korrekturen (Phase 2) <strong>respektieren</strong> nicht-buchbare Pl&auml;tze nicht &mdash; Sage bleibt Master f&uuml;r Bestand. Nur die UI-Buchbarkeit ist user-gesteuert.</li>
+                    <li>Der Sync respektiert das Flag &mdash; beim Update eines Sage-Lagerplatzes wird der User-Toggle nicht ver&auml;ndert.</li>
+                </ul>
             </div>
         </div>
 

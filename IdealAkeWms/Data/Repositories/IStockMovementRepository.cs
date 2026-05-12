@@ -33,4 +33,11 @@ public interface IStockMovementRepository : IRepository<StockMovement>
     Task<decimal> GetCurrentStockAtLocationAsync(int articleId, int storageLocationId);
 
     Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId);
+
+    /// <summary>
+    /// Liefert den aggregierten WMS-Bestand pro (ArticleId, StorageLocationId).
+    /// Wird vom LagerbestandSyncService genutzt, um effizient gegen Sage-Bestand zu vergleichen.
+    /// Beruecksichtigt alle MovementType-Werte inklusive Umbuchung-Quell-Seite.
+    /// </summary>
+    Task<Dictionary<(int ArticleId, int StorageLocationId), decimal>> GetCurrentStockByArticleAndLocationAsync();
 }

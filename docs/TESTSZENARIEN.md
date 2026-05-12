@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-04-30 (v1.8.3)
+**Stand:** 2026-05-08 (v1.10.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -21,12 +21,12 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Bereich | Abschnitt | Szenarien |
 |---------|-----------|-----------|
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
-| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.11 |
+| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
-| 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.10 |
+| 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
-| 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 |
+| 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
 | 8. BDE Phase 1 | [→](#8-bde-phase-1) | TS-8.1 – TS-8.15 |
 | 9. BDE Phase 2.1 — Werkbank-Erweiterungen | [→](#9-bde-phase-21--werkbank-erweiterungen) | TS-9.1 – TS-9.5 |
 | 10. BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | [→](#10-bde-phase-22--mehrfachanmeldung--zeit-split) | TS-10.1 – TS-10.15 |
@@ -373,6 +373,173 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 - Artikelnummer `100-001` wird automatisch im Artikelfeld eingetragen.
 - Bezeichnung und weitere Daten werden geladen.
 - Kamera-Modal schliesst sich.
+
+---
+
+### TS-2.12 — FA neu (keine bestehende Buchung)
+
+**Vorbedingungen:**
+- FA-Nummer ohne aktuellen Bestand im WMS.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel auswaehlen.
+3. FA-Nummer manuell eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Kein Info-Alert erscheint unter dem FA-Feld.
+- Lagerplatz-Dropdown bleibt unveraendert.
+
+---
+
+### TS-2.13 — FA liegt auf genau 1 Lagerplatz, Storage-Dropdown leer
+
+**Vorbedingungen:**
+- FA-Nummer `12345` liegt auf `K-WAGEN-03` mit positiver Menge (5 Stk Artikel 87015207).
+- Lagerplatz `K-WAGEN-03` ist aktiv und buchbar.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel auswaehlen (Lagerplatz NICHT setzen).
+3. FA `12345` eingeben oder per QR scannen → Tab.
+
+**Erwartetes Verhalten:**
+- Lagerplatz-Dropdown wird automatisch auf `K-WAGEN-03` gesetzt.
+- Blaues Info-Alert: "FA `12345` liegt bereits: Lagerplatz **K-WAGEN-03** — 5,000 Stk Artikel 87015207. → Lagerplatz wurde uebernommen."
+- Submit-Button bleibt aktiv.
+
+---
+
+### TS-2.14 — FA mit 1 Lagerplatz, Storage bereits gewaehlt → kein Overwrite
+
+**Vorbedingungen:**
+- Wie TS-2.13.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel auswaehlen.
+3. Lagerplatz `K-LAGER-05` manuell auswaehlen.
+4. FA `12345` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Lagerplatz bleibt `K-LAGER-05` (kein Overwrite).
+- Blaues Info-Alert: Liste mit `K-WAGEN-03` + Hinweis "→ Deine Auswahl **K-LAGER-05** bleibt."
+
+---
+
+### TS-2.15 — FA auf mehreren Lagerplaetzen → kein Auto-Fill
+
+**Vorbedingungen:**
+- FA `12345` liegt auf `K-WAGEN-03` (5 Stk) und `K-LAGER-05` (3 Stk).
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `12345` eingeben → Tab (Lagerplatz NICHT gewaehlt).
+
+**Erwartetes Verhalten:**
+- Lagerplatz-Dropdown bleibt leer.
+- Gelbes Warning-Alert: "FA `12345` liegt auf mehreren Lagerplaetzen: K-WAGEN-03 — 5,000 Stk; K-LAGER-05 — 3,000 Stk. → Bitte gezielt buchen."
+
+---
+
+### TS-2.16 — QR-Scan triggert Hint
+
+**Vorbedingungen:**
+- AppSetting `QrMitFaNummer = true`.
+- QR-Code mit FA-Anteil generierbar (Artikelnummer;...;FA-Nummer[,Suffix];...).
+- FA aus QR liegt bereits auf genau 1 Platz.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel-QR scannen.
+
+**Erwartetes Verhalten:**
+- Artikel-Dropdown wird gefuellt.
+- FA-Feld wird gefuellt.
+- Hint erscheint wie in TS-2.13 mit Auto-Fill des Lagerplatzes.
+
+---
+
+### TS-2.17 — FA-Feld leeren
+
+**Vorbedingungen:**
+- Nach TS-2.13 (Hint sichtbar, Auto-Fill aktiv auf `K-WAGEN-03`).
+
+**Schritte:**
+1. FA-Feld leeren (alle Zeichen entfernen) → Tab.
+
+**Erwartetes Verhalten:**
+- Hint verschwindet.
+- Lagerplatz-Dropdown behaelt `K-WAGEN-03` (Auswahl wird nicht zurueckgesetzt — defensive).
+
+---
+
+### TS-2.18 — Lagerplatz aus API nicht im Dropdown (inaktiv)
+
+**Vorbedingungen:**
+- FA `12345` liegt auf Lagerplatz `OLD-PLATZ`.
+- `OLD-PLATZ` ist `IsActive = false` ODER `IstBuchbar = false` → nicht im Buchungs-Dropdown.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `12345` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Gelbes Warning-Alert: "FA `12345` liegt bereits: Lagerplatz **OLD-PLATZ** — X Stk Artikel ... → Lagerplatz nicht im Buchungs-Dropdown (evtl. inaktiv oder nicht buchbar). Bitte manuell waehlen."
+- Kein Auto-Fill. Dropdown bleibt leer.
+
+---
+
+### TS-2.19 — Permission: stock-only User
+
+**Vorbedingungen:**
+- User mit Rolle `stock` (KEINE `picking`, KEINE `tracking`).
+- FA `12345` mit Bestand vorhanden.
+
+**Schritte:**
+1. Login als `stock`-User.
+2. Einbuchung oeffnen.
+3. FA `12345` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Hint erscheint normal (kein 302/AccessDenied im Network-Tab).
+- Auto-Fill funktioniert wie in TS-2.13.
+
+---
+
+### TS-2.20 — Validation-Error-Rerender zeigt Hint
+
+**Vorbedingungen:**
+- FA `12345` mit Bestand auf `K-WAGEN-03`.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. Artikel waehlen.
+3. FA `12345` eingeben → Tab → Hint erscheint, Auto-Fill auf K-WAGEN-03.
+4. Menge-Feld leer lassen.
+5. "Einbuchung speichern" klicken.
+
+**Erwartetes Verhalten:**
+- Server rendert View neu mit ValidationSummary-Fehler "Menge erforderlich".
+- FA-Feld ist mit `12345` vorbefuellt.
+- Hint-Alert wird beim Page-Load wieder angezeigt (DOM-Ready-Init triggert den Check).
+- Lagerplatz-Dropdown ist nach Rerender weiter auf `K-WAGEN-03` (ModelState-Restore + Auto-Fill).
+
+---
+
+### TS-2.21 — Artikel mit Sondereinheit
+
+**Vorbedingungen:**
+- Artikel mit `Unit = "m"` (z. B. Stahlband-Meterware).
+- FA `78901` liegt auf 1 Platz mit 12,5 m.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `78901` eingeben → Tab.
+
+**Erwartetes Verhalten:**
+- Hint zeigt "Lagerplatz **X-Y-Z** — 12,500 **m** Artikel ..." (Einheit aus API-Field `unit`, nicht hardcoded "Stk").
+- Falls Artikel-Unit leer ist: Fallback "Stk".
 
 ---
 
@@ -805,22 +972,102 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-### TS-4.9 — Leitstand-Massenfreigabe
+### TS-4.9 — Leitstand-Massenfreigabe (Bulk-Freigabe)
 
 **Vorbedingungen:**
 - AppSetting `LeitstandAktiv = true`.
+- AppSetting `KommissionierungMitZuweisung = false`.
 - Benutzer hat Rolle `leitstand` oder `admin`.
-- Mehrere FAs mit Artikelnummer, nicht freigegeben.
+- Mehrere FAs vorhanden, davon mindestens 3 mit Artikelnummer und nicht freigegeben, eine ohne Artikelnummer.
 
 **Schritte:**
-1. FA-Liste oeffnen.
-2. Checkboxen fuer 3 FAs setzen (darunter eine ohne Artikelnummer).
-3. "Massenfreigabe" Button anklicken.
+1. Leitstand-Liste oeffnen.
+2. Checkboxen fuer 4 FAs setzen — 3 mit Artikelnummer, 1 ohne.
+3. Sticky-Bar oben zeigt "4 markiert".
 
 **Erwartetes Verhalten:**
-- 2 FAs mit Artikelnummer werden freigegeben.
-- 1 FA ohne Artikelnummer wird uebersprungen.
-- Meldung zeigt "2 freigegeben, 1 uebersprungen (keine Artikelnummer)".
+- "Markierte freigeben"-Button ist DISABLED — weil eine markierte FA keine Artikelnummer hat.
+- Nach Demarkierung der FA ohne Artikelnummer (jetzt 3 markiert) ist der Button aktiv.
+- Klick auf "Markierte freigeben" → 3 FAs werden freigegeben. SuccessMessage "3 Auftrag/Auftraege freigegeben."
+- Spalten-Filter (falls gesetzt) bleiben nach Reload aktiv.
+
+**Negativfall:**
+- Mischauswahl (freigegebene + nicht-freigegebene) → beide Bulk-Buttons disabled.
+
+---
+
+### TS-4.9a — Leitstand-Bulk-Zuruecknehmen
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+- Mehrere FAs sind freigegeben.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. Checkboxen fuer 3 freigegebene FAs setzen.
+3. "Markierte zuruecknehmen" anklicken.
+
+**Erwartetes Verhalten:**
+- 3 FAs sind nicht mehr freigegeben (Status zurueckgesetzt).
+- SuccessMessage "3 Freigabe(n) zurueckgenommen."
+- Picker-Zuweisungen wurden entfernt.
+
+---
+
+### TS-4.9b — Leitstand-Bulk-Freigabe mit Picker-Zuweisung
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+- AppSetting `KommissionierungMitZuweisung = true`.
+- Mehrere Picker sind aktiv.
+- Mindestens 5 FAs mit Artikelnummer, nicht freigegeben.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. Checkboxen fuer 5 FAs setzen.
+3. "Markierte freigeben" anklicken.
+
+**Erwartetes Verhalten:**
+- Modal "Sammel-Freigabe" oeffnet sich, zeigt "5 Auftraege werden freigegeben."
+- "Freigeben"-Button im Modal ist disabled.
+- Nach Picker-Auswahl wird der Button aktiv.
+- Submit → alle 5 FAs sind freigegeben mit dem gewaehlten Picker.
+
+---
+
+### TS-4.9c — Leitstand SelectAll respektiert Filter
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+- Leitstand zeigt 50+ FAs.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. In der Spalten-Filter-Zeile "Werkbank" auf einen Wert filtern, sodass nur ~8 Zeilen sichtbar sind.
+3. Header-Checkbox (SelectAll) anklicken.
+
+**Erwartetes Verhalten:**
+- Nur die 8 sichtbaren FAs werden markiert. Counter zeigt "8 markiert".
+- Nach Filter-Entfernen sind die 8 weiterhin markiert; die anderen 42 bleiben unmarkiert.
+
+---
+
+### TS-4.9d — Filter-Persistenz nach Freigabe
+
+**Vorbedingungen:**
+- AppSetting `LeitstandAktiv = true`.
+
+**Schritte:**
+1. Leitstand-Liste oeffnen.
+2. In der Spalten-Filter-Zeile mehrere Filter setzen (z.B. Werkbank: "WB1").
+3. Eine FA per Single-Klick "Freigeben" → Page reload.
+
+**Erwartetes Verhalten:**
+- Spalten-Filter bleiben nach Reload aktiv.
+- "Zuruecksetzen" leert sowohl URL-Filter als auch Spalten-Filter.
+
+**Negativfall:**
+- Browser-Tab schliessen und neu oeffnen → Filter sind weg (sessionStorage erwartetes Verhalten).
 
 ---
 
@@ -839,6 +1086,122 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Prioritaet wird sofort gespeichert (AJAX).
 - Tabelle sortiert sich entsprechend neu.
+
+---
+
+### TS-4.11 — Neuer Auftrag hat alle 5 Baugruppen-Flags auf false
+
+**Vorbedingungen:**
+- Frisch importierter Auftrag aus Sage.
+
+**Schritte:**
+1. Produktionsauftragsliste oeffnen.
+
+**Erwartetes Verhalten:**
+- Spalten **VK**, **VL**, **VE**, **VT**, **VA** zeigen unchecked Checkboxes fuer den neuen Auftrag.
+
+---
+
+### TS-4.12 — Toggle VK persistiert ueber Page-Reload
+
+**Vorbedingungen:**
+- Ein Auftrag in der Liste sichtbar, User hat picking-Rolle.
+
+**Schritte:**
+1. VK-Checkbox des Auftrags aktivieren.
+2. Page neu laden (F5).
+
+**Erwartetes Verhalten:**
+- VK-Checkbox bleibt nach Reload aktiviert.
+- Andere Flags (VL/VE/VT/VA/Glas/Zukauf) bleiben unveraendert.
+
+---
+
+### TS-4.13 — Alle 5 Baugruppen-Flags unabhaengig toggeln
+
+**Schritte:**
+1. Nur VE aktivieren -> Reload -> nur VE checked.
+2. Zusaetzlich VL aktivieren -> Reload -> VE und VL checked.
+3. VE deaktivieren -> Reload -> nur VL checked.
+
+**Erwartetes Verhalten:**
+- Flags sind voneinander unabhaengig, kein Seiteneffekt.
+
+---
+
+### TS-4.14 — Tooltip-Volltext bei Header-Hover
+
+**Schritte:**
+1. Maus ueber Header `VK` halten (ohne Klick).
+2. Wiederholen fuer VL, VE, VT, VA.
+
+**Erwartetes Verhalten:**
+- Browser-Tooltip erscheint mit Volltext: "VK Kaelte", "VL Luefter", "VE Elektro", "VT Tueren", "VA Aufbau".
+
+---
+
+### TS-4.15 — Spalten-Filter auf den neuen Baugruppen-Spalten
+
+**Schritte:**
+1. Filter-Funktion in der Liste aktivieren.
+2. Spalte VK auf "checked" filtern.
+
+**Erwartetes Verhalten:**
+- Nur Auftraege mit VK=true sind sichtbar (Filter-Pattern aus Glas/Zukauf greift identisch).
+
+---
+
+### TS-4.16 — Berechtigung: Nicht-Picking-User sieht disabled Checkboxes
+
+**Vorbedingungen:**
+- User OHNE picking-Rolle, aber MIT tracking-Rolle (hat Zugang zur Liste).
+
+**Schritte:**
+1. Login als Tracking-User.
+2. Produktionsauftragsliste oeffnen.
+
+**Erwartetes Verhalten:**
+- VK/VL/VE/VT/VA-Checkboxes sind `disabled` (analog zu Glas/Zukauf).
+- Klick darauf hat keine Wirkung. Toggle-API wuerde 302->AccessDenied liefern.
+
+---
+
+### TS-4.17 — Sage-Sync ueberschreibt die Baugruppen-Flags NICHT
+
+**Vorbedingungen:**
+- Auftrag mit VK=true, VL=true gesetzt.
+
+**Schritte:**
+1. Sage-Import-Job manuell anstossen ODER auf naechsten Sync warten.
+2. Produktionsauftragsliste neu laden.
+
+**Erwartetes Verhalten:**
+- VK und VL bleiben `true`.
+- Andere Felder aus Sage (Lieferdatum, Stueckzahl, ...) sind ggf. aktualisiert, aber VK/VL/VE/VT/VA-Flags wurden nicht ueberschrieben.
+
+---
+
+### TS-4.18 — Column-Preferences-Offcanvas
+
+**Schritte:**
+1. "Spalten anpassen"-Button anklicken (oder Offcanvas-Trigger).
+
+**Erwartetes Verhalten:**
+- Die 5 neuen Spalten VK/VL/VE/VT/VA erscheinen in der Liste, koennen ein-/ausgeblendet werden wie Glas/Zukauf.
+- User-Reihenfolge-Aenderungen werden gespeichert und nach Reload wiederhergestellt.
+
+---
+
+### TS-4.19 — Fresh-Install enthaelt die Baugruppen-Spalten
+
+**Vorbedingungen:**
+- Frische DB aus `SQL/00_FreshInstall.sql`.
+
+**Schritte:**
+1. `SELECT name FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ProductionOrders') AND name IN ('HasCooling', 'HasFan', 'HasElectric', 'HasDoors', 'HasSuperstructure');`
+
+**Erwartetes Verhalten:**
+- Query liefert alle 5 Zeilen — Spalten existieren in der frisch installierten DB.
 
 ---
 
@@ -1257,6 +1620,78 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 - Nur Sub-Auftraege mit Artikel `100-001` werden angezeigt.
 - Filterung ist client-seitig (kein Seiten-Reload).
 - Leeres Feld: alle anzeigen.
+
+---
+
+### TS-7.6a — OSEON Artikel-Filter zeigt nur matchende Sub-Auftraege
+
+**Vorbedingungen:**
+- Ein Kundenauftrag mit vielen Sub-Auftraegen vorhanden, einer der Subs hat Artikel `87015207`.
+- Der Kundenauftrag enthaelt z. B. 99 Subs gesamt.
+
+**Schritte:**
+1. OSEON-Teileverfolgung oeffnen.
+2. Im Filter `Artikelnummer` den Suchbegriff `87015207` eingeben, "Filtern" klicken.
+3. Den gefundenen Kundenauftrag aufklappen.
+
+**Erwartetes Verhalten:**
+- Kundenauftrag-Header zeigt weiterhin `(2 / 99 fertig)` (volle Stats — Kontext bleibt erhalten).
+- Aufgeklappt erscheint nur der eine matchende Sub-Auftrag mit Artikelnummer `87015207`.
+- Andere 98 Subs sind ausgeblendet.
+- Status-Badge der Gruppe zeigt weiterhin den schlechtesten Status der GESAMTEN Gruppe (nicht nur des matchenden Subs).
+
+---
+
+### TS-7.6b — OSEON Sub-Sortierung per Spalten-Klick
+
+**Vorbedingungen:**
+- Ein Kundenauftrag mit mehreren Sub-Auftraegen, unterschiedliche Artikelnummern und Endtermine.
+
+**Schritte:**
+1. OSEON-Teileverfolgung oeffnen.
+2. Den Kundenauftrag aufklappen → Sub-Auftraege sind nach OseonOrderNumber asc sortiert (Default).
+3. Auf Spalten-Header `Artikelnr.` klicken.
+4. Erneut auf `Artikelnr.` klicken.
+5. Erneut (3. Mal) auf `Artikelnr.` klicken.
+
+**Erwartetes Verhalten:**
+- 1. Klick: Sub-Auftraege alphabetisch nach Artikelnummer aufsteigend (▲-Indikator). Operations bleiben unter ihrem Sub.
+- 2. Klick: absteigend (▼-Indikator).
+- 3. Klick: zurueck zu Default-Sort (OseonOrderNumber asc, kein Indikator).
+- Andere Kundenauftraege werden in ihren eigenen Gruppen ebenfalls sortiert (nicht uebergreifend).
+
+---
+
+### TS-7.6c — OSEON Endtermin-Sort: nulls last
+
+**Vorbedingungen:**
+- Mindestens 3 Sub-Auftraege im selben Kundenauftrag — einer davon ohne Endtermin.
+
+**Schritte:**
+1. OSEON-Teileverfolgung oeffnen.
+2. Den Kundenauftrag aufklappen.
+3. Auf Spalten-Header `Endtermin` klicken (asc).
+4. Erneut auf `Endtermin` klicken (desc).
+
+**Erwartetes Verhalten:**
+- Asc: naechste Termine oben, Sub OHNE Endtermin am Ende.
+- Desc: spaeteste Termine oben, Sub OHNE Endtermin trotzdem am Ende (nicht oben).
+- Keine DOM-Glitches, Operations folgen ihrem Sub.
+
+---
+
+### TS-7.6d — OSEON Filter + Sort kombiniert
+
+**Vorbedingungen:**
+- Wie TS-7.6a.
+
+**Schritte:**
+1. Artikel-Filter setzen (= 1 matchender Sub pro Gruppe sichtbar).
+2. Auf Spalten-Header `Artikelnr.` klicken.
+
+**Erwartetes Verhalten:**
+- Sortierung wirkt nur auf die sichtbaren Subs (1 pro Gruppe).
+- Kein JS-Fehler, kein DOM-Glitch.
 
 ---
 

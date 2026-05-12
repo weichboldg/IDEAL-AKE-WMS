@@ -101,13 +101,27 @@ else
             <thead>
                 <tr>
                     <th style="width: 30px;" data-col-key="expand"></th>
-                    <th data-col-key="order-number">Auftrag</th>
-                    <th data-col-key="article-number">Artikelnr.</th>
-                    <th data-col-key="description">Bezeichnung</th>
-                    <th data-col-key="workbench">Werkbank</th>
-                    <th data-col-key="status">Status</th>
-                    <th data-col-key="progress">Soll / Ist</th>
-                    <th data-col-key="end-date">Endtermin</th>
+                    <th data-col-key="order-number" data-sortable data-sort-key="oseon-order-number">
+                        Auftrag <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="article-number" data-sortable data-sort-key="article-number">
+                        Artikelnr. <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="description" data-sortable data-sort-key="description">
+                        Bezeichnung <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="workbench" data-sortable data-sort-key="workplace">
+                        Werkbank <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="status" data-sortable data-sort-key="status" title="Sortiert nach Status-Phase (Unvollstaendig → Fertig)">
+                        Status <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="progress" data-sortable data-sort-key="progress" title="Sortiert nach Soll-Menge">
+                        Soll / Ist <span class="oseon-sort-indicator"></span>
+                    </th>
+                    <th data-col-key="end-date" data-sortable data-sort-key="end-date">
+                        Endtermin <span class="oseon-sort-indicator"></span>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -158,7 +172,17 @@ else
                         var subRowClass = sub.OseonStatus is 90 or 95 ? "oseon-tree-done" : "";
 
                         @* === Ebene 1: Subauftrag === *@
-                        <tr class="oseon-tree-sub @subRowClass" data-parent="@groupKey" data-sub="@subKey" style="display: none; cursor: pointer;">
+                        <tr class="oseon-tree-sub @subRowClass"
+                            data-parent="@groupKey"
+                            data-sub="@subKey"
+                            data-sort-oseon-order-number="@(sub.OseonOrderNumber ?? "")"
+                            data-sort-article-number="@(sub.ArticleNumber ?? "")"
+                            data-sort-description="@(sub.Description1 ?? "")"
+                            data-sort-workplace="@(sub.WorkplaceName ?? "")"
+                            data-sort-status="@sub.OseonStatus"
+                            data-sort-progress="@sub.QuantityTarget.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                            data-sort-end-date="@(sub.DueDate?.ToString("yyyy-MM-dd") ?? "")"
+                            style="display: none; cursor: pointer;">
                             <td><span class="traffic-light traffic-@sub.Color.ToString().ToLower()"></span></td>
                             <td style="padding-left: 28px; white-space: nowrap;">
                                 @if (sub.Operations.Any())
@@ -521,6 +545,126 @@ else
                 div.textContent = str;
                 return div.innerHTML;
             }
+
+            // ===== OSEON Sub-Auftrag Spalten-Sort =====
+            var sortState = { key: null, direction: null }; // null = default-Sort (oseon-order-number asc)
+
+            function sortValueFromRow(row, sortKey) {
+                return row.getAttribute('data-sort-' + sortKey) || '';
+            }
+
+            function compareSortValues(a, b, sortKey, direction) {
+                var aEmpty = a === '' || a === null;
+                var bEmpty = b === '' || b === null;
+                // Nulls/Empty always last — unabhaengig von asc/desc
+                if (aEmpty && bEmpty) return 0;
+                if (aEmpty) return 1;
+                if (bEmpty) return -1;
+
+                var numericKeys = ['status', 'progress'];
+                var numeric = numericKeys.indexOf(sortKey) >= 0;
+                var av = numeric ? parseFloat(a) : a.toLowerCase();
+                var bv = numeric ? parseFloat(b) : b.toLowerCase();
+
+                if (numeric && (isNaN(av) || isNaN(bv))) {
+                    if (isNaN(av) && isNaN(bv)) return 0;
+                    return isNaN(av) ? 1 : -1;
+                }
+
+                if (av < bv) return direction === 'asc' ? -1 : 1;
+                if (av > bv) return direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
+            function sortOseonSubs(sortKey, direction) {
+                var groupRows = document.querySelectorAll('tr.oseon-tree-group');
+                if (groupRows.length === 0) return;
+                var tbody = groupRows[0].parentElement;
+
+                // Pre-compute Maps ueber EINEN tbody-Scan — vermeidet O(N*M) Selector-Storm bei vielen Subs/Ops.
+                // Vorher: tbody.querySelectorAll innerhalb der subs.map → 14 Gruppen x 99 Subs = 1386 full-tbody-Scans = sek-langer Hang.
+                var subsByGroup = {};
+                tbody.querySelectorAll('tr.oseon-tree-sub').forEach(function (subRow) {
+                    var key = subRow.getAttribute('data-parent');
+                    if (!subsByGroup[key]) subsByGroup[key] = [];
+                    subsByGroup[key].push(subRow);
+                });
+                var opsBySub = {};
+                tbody.querySelectorAll('tr.oseon-tree-op').forEach(function (opRow) {
+                    var key = opRow.getAttribute('data-parent-sub');
+                    if (!opsBySub[key]) opsBySub[key] = [];
+                    opsBySub[key].push(opRow);
+                });
+
+                groupRows.forEach(function (groupRow) {
+                    var groupKey = groupRow.getAttribute('data-group');
+                    var subs = subsByGroup[groupKey] || [];
+                    if (subs.length <= 1) return;
+
+                    var blocks = subs.map(function (subRow) {
+                        var subKey = subRow.getAttribute('data-sub');
+                        return { subRow: subRow, ops: opsBySub[subKey] || [] };
+                    });
+
+                    // Sortieren
+                    blocks.sort(function (a, b) {
+                        var av = sortValueFromRow(a.subRow, sortKey);
+                        var bv = sortValueFromRow(b.subRow, sortKey);
+                        return compareSortValues(av, bv, sortKey, direction);
+                    });
+
+                    // DOM neu einsortieren — Sub direkt nach Group, Ops direkt nach Sub
+                    var insertAfter = groupRow;
+                    blocks.forEach(function (block) {
+                        insertAfter.after(block.subRow);
+                        insertAfter = block.subRow;
+                        block.ops.forEach(function (opRow) {
+                            insertAfter.after(opRow);
+                            insertAfter = opRow;
+                        });
+                    });
+                });
+            }
+
+            function updateSortIndicators(activeKey, direction) {
+                document.querySelectorAll('#oseonTree thead th[data-sortable]').forEach(function (th) {
+                    var indicator = th.querySelector('.oseon-sort-indicator');
+                    if (!indicator) return;
+                    if (th.getAttribute('data-sort-key') === activeKey && direction) {
+                        indicator.textContent = direction === 'asc' ? '▲' : '▼';
+                    } else {
+                        indicator.textContent = '';
+                    }
+                });
+            }
+
+            document.querySelectorAll('#oseonTree thead th[data-sortable]').forEach(function (th) {
+                th.style.cursor = 'pointer';
+                th.addEventListener('click', function () {
+                    var clickedKey = th.getAttribute('data-sort-key');
+                    var nextDirection;
+                    if (sortState.key !== clickedKey) {
+                        // Neue Spalte → starte mit asc
+                        nextDirection = 'asc';
+                    } else if (sortState.direction === 'asc') {
+                        nextDirection = 'desc';
+                    } else if (sortState.direction === 'desc') {
+                        nextDirection = null; // 3. Klick → default
+                    } else {
+                        nextDirection = 'asc';
+                    }
+
+                    if (nextDirection === null) {
+                        sortState = { key: null, direction: null };
+                        sortOseonSubs('oseon-order-number', 'asc');
+                        updateSortIndicators(null, null);
+                    } else {
+                        sortState = { key: clickedKey, direction: nextDirection };
+                        sortOseonSubs(clickedKey, nextDirection);
+                        updateSortIndicators(clickedKey, nextDirection);
+                    }
+                });
+            });
         });
     </script>
 }

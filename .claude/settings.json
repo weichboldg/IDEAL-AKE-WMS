@@ -16,7 +16,8 @@
       "Glob(*)",
       "Grep(*)",
       "Agent(*)",
-      "Read(//c/Git/IDEAL-AKE-WMS_WT_bde-phase-1/**)"
+      "Read(//c/Git/IDEAL-AKE-WMS_WT_bde-phase-1/**)",
+      "PowerShell(*)"
     ]
   },
   "enabledPlugins": {

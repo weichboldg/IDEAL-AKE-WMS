@@ -174,14 +174,22 @@
                     <td>
                         @if (item.PickingItemId.HasValue && !item.IsTransferred)
                         {
-                            <select class="form-select form-select-sm source-location-select" data-id="@item.PickingItemId" style="min-width: 100px;">
+                            <select class="form-select form-select-sm source-location-select"
+                                    data-id="@item.PickingItemId"
+                                    data-article-number="@item.Ressourcenummer"
+                                    style="min-width: 200px;">
                                 <option value="">--</option>
-                                @foreach (var sl in Model.AllStorageLocations)
+                                @if (item.SourceStorageLocationId.HasValue)
                                 {
-                                    var isInStock = item.StockLocations.Any(s => s.StorageLocationId == sl.Id);
-                                    var stockQty = item.StockLocations.FirstOrDefault(s => s.StorageLocationId == sl.Id)?.Quantity;
-                                    var label = isInStock ? $"{sl.Code} ({stockQty:N3})" : sl.Code;
-                                    <option value="@sl.Id" selected="@(item.SourceStorageLocationId == sl.Id)">@label</option>
+                                    var preSelected = Model.AllStorageLocations.FirstOrDefault(sl => sl.Id == item.SourceStorageLocationId.Value);
+                                    if (preSelected != null)
+                                    {
+                                        var stockQty = item.StockLocations.FirstOrDefault(s => s.StorageLocationId == preSelected.Id)?.Quantity;
+                                        var preLabel = stockQty.HasValue && stockQty > 0
+                                            ? $"{preSelected.Code} ({stockQty:N3})"
+                                            : preSelected.Code;
+                                        <option value="@preSelected.Id" selected>@preLabel</option>
+                                    }
                                 }
                             </select>
                         }
@@ -480,6 +488,10 @@
 </script>
 
 @section Scripts {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/de.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
@@ -489,6 +501,41 @@
         document.addEventListener('DOMContentLoaded', function () {
             initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
             initScanner('btnScanBomArticle', 'bomScanArticle', 'article');
+
+            // Select2 + Ajax fuer Quell-Lagerplatz-Dropdowns (statt N*L vorab gerenderter Optionen).
+            // Pro Row wird nur die pre-selected Option gerendert, alles andere wird per Ajax geladen.
+            // dropdownParent: $('body') verhindert Clipping in <td>.
+            $('.source-location-select').each(function () {
+                var $el = $(this);
+                var articleNumber = $el.data('article-number');
+
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    ajax: {
+                        url: '/api/picking/source-locations',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                articleNumber: articleNumber || '',
+                                q: params.term || '',
+                                limit: 50
+                            };
+                        },
+                        processResults: function (data) {
+                            return { results: data };
+                        },
+                        cache: true
+                    },
+                    placeholder: '--',
+                    minimumInputLength: 0,
+                    allowClear: true,
+                    language: 'de',
+                    dropdownAutoWidth: true,
+                    dropdownParent: $('body')
+                });
+            });
 
             // Nach Artikel-Scan: Zeile finden und Picking-Checkbox toggeln
             document.getElementById('bomScanArticle').addEventListener('change', function () {
@@ -546,7 +593,9 @@
             }
 
             // Hilfsfunktion: Spalten-Key → physikalischer td-Index im bomTable
-            // Wird für updateBomVisibility benötigt (Bug-Fix: parseInt(colKey) war falsch → NaN)
+            // Wird für updateBomVisibility benötigt (Bug-Fix: parseInt(colKey) war falsch → NaN).
+            // Kein Cache: column-preferences.js kann Spalten zur Laufzeit umordnen, und der Aufruf
+            // erfolgt nur N-mal pro updateBomVisibility (= Anzahl aktive Filter), nicht pro Zeile.
             function bomColKeyToIndex(colKey) {
                 var ths = document.querySelectorAll('#bomTable thead tr:first-child th');
                 for (var i = 0; i < ths.length; i++) {
@@ -562,18 +611,20 @@
             function updateBomVisibility() {
                 var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
                 var hasActiveFilter = Object.keys(filters).length > 0;
+                var filterKeys = Object.keys(filters);
 
-                document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
-                    if (row.querySelector('td[colspan]')) return; // "Keine Daten"-Zeile überspringen
+                // Pre-resolve filter colKey -> td index ONCE, not per row
+                var resolvedFilters = filterKeys.map(function (k) {
+                    return { idx: bomColKeyToIndex(k), value: filters[k] };
+                }).filter(function (f) { return f.idx >= 0; });
+
+                var rows = document.querySelectorAll('#bomTable tbody tr');
+                rows.forEach(function (row) {
+                    if (row.querySelector('td[colspan]')) return;
 
                     var parentPos = row.getAttribute('data-parent-pos');
-
-                    // Baum-Sichtbarkeit: TreeLevel 0 immer sichtbar, höhere Level nur wenn Parent expanded
                     var treeVisible = !parentPos || expandedState[parentPos] === true;
 
-                    // Bug-Fix 4 (rekursive Suche): bei aktivem Filter Baum-State ignorieren AUSSER für
-                    // Baugruppen die der User explizit zugeklappt hat (expandedState === false).
-                    // So arbeitet recursive-search (zeigt alle Treffer), aber manuelles Zuklappen wirkt weiterhin.
                     if (recursiveFilterSearch && hasActiveFilter) {
                         var parentExplicitlyClosed = parentPos && expandedState[parentPos] === false;
                         if (!parentExplicitlyClosed) {
@@ -581,21 +632,21 @@
                         }
                     }
 
-                    // Bug-Fix 1 (Phantom-Spalten): Filter-Index aus Spalten-Key auflösen statt parseInt(colKey)
-                    // parseInt('procurement') = NaN → cell war immer undefined → filterVisible blieb immer true
-                    // → updateBomVisibility hat Zeilen sichtbar gesetzt die table-filter.js korrekt versteckt hatte
                     var filterVisible = true;
-                    for (var colKey in filters) {
-                        var colIdx = bomColKeyToIndex(colKey);
-                        if (colIdx < 0) continue;
-                        var cell = row.querySelectorAll('td')[colIdx];
-                        if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), filters[colKey])) {
-                            filterVisible = false;
-                            break;
+                    if (resolvedFilters.length > 0) {
+                        var cells = row.cells;
+                        for (var i = 0; i < resolvedFilters.length; i++) {
+                            var f = resolvedFilters[i];
+                            var cell = cells[f.idx];
+                            if (cell && !bomMatchesFilter(cell.textContent.toLowerCase(), f.value)) {
+                                filterVisible = false;
+                                break;
+                            }
                         }
                     }
 
-                    row.style.display = (treeVisible && filterVisible) ? '' : 'none';
+                    var shouldShow = treeVisible && filterVisible;
+                    row.style.display = shouldShow ? '' : 'none';
                 });
             }
 
@@ -603,35 +654,39 @@
                 return document.querySelectorAll('#bomTable tbody tr[data-parent-pos="' + parentPos + '"]');
             }
 
-            function expandBaugruppe(pos) {
+            // Recursion-Helfer: setzt nur State, ruft updateBomVisibility nicht auf.
+            function expandBaugruppeStateOnly(pos) {
                 expandedState[pos] = true;
                 var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
                 if (chevron) chevron.style.transform = 'rotate(90deg)';
-
-                // Kinder anzeigen (Filter wird danach via updateBomVisibility angewendet)
                 getChildRows(pos).forEach(function (row) {
                     var childPos = row.getAttribute('data-position');
                     if (row.hasAttribute('data-baugruppe-id') && expandedState[childPos]) {
-                        expandBaugruppe(childPos);
+                        expandBaugruppeStateOnly(childPos);
                     }
                 });
+            }
 
+            function collapseBaugruppeStateOnly(pos) {
+                expandedState[pos] = false;
+                var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
+                if (chevron) chevron.style.transform = '';
+                getChildRows(pos).forEach(function (row) {
+                    var childPos = row.getAttribute('data-position');
+                    if (row.hasAttribute('data-baugruppe-id')) {
+                        collapseBaugruppeStateOnly(childPos);
+                    }
+                });
+            }
+
+            // Public APIs: rufen genau einmal updateBomVisibility am Ende auf.
+            function expandBaugruppe(pos) {
+                expandBaugruppeStateOnly(pos);
                 updateBomVisibility();
             }
 
             function collapseBaugruppe(pos) {
-                expandedState[pos] = false;
-                var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pos + '"] .bom-chevron');
-                if (chevron) chevron.style.transform = '';
-
-                // Kinder rekursiv in expandedState deaktivieren
-                getChildRows(pos).forEach(function (row) {
-                    var childPos = row.getAttribute('data-position');
-                    if (row.hasAttribute('data-baugruppe-id')) {
-                        collapseBaugruppe(childPos);
-                    }
-                });
-
+                collapseBaugruppeStateOnly(pos);
                 updateBomVisibility();
             }
 

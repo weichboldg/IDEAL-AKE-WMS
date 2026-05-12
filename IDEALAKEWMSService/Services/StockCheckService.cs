@@ -18,13 +18,15 @@ public class StockCheckService : IStockCheckService
         var connectionString = _configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
-        // MovementType ist int-Enum: 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung
+        // MovementType ist int-Enum: 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung, 3=SageEinbuchung, 4=SageAusbuchung
         // Kommissionierwagen (IsPickingTransport = 1) werden NICHT zum Lagerbestand gezählt:
         //   - sl_t = Ziellagerplatz (StorageLocationId), sl_s = Quelllagerplatz (SourceStorageLocationId)
         //   - Einbuchung (0) auf regulären Platz:          +Qty
         //   - Ausbuchung (1) von regulärem Platz:          -Qty
         //   - Umbuchung (2) Ziel regulär:                  +Qty  (Ware kommt auf regulären Platz)
         //   - Umbuchung (2) Quelle regulär:                -Qty  (Ware verlässt regulären Platz)
+        //   - SageEinbuchung (3) auf regulärem Platz:      +Qty  (Sage-Korrektur Plus)
+        //   - SageAusbuchung (4) von regulärem Platz:      -Qty  (Sage-Korrektur Minus)
         //   - Ausbuchung (1) von Kommissionierwagen:        0    (war bereits via Umbuchung abgezogen)
         // STRING_AGG(DISTINCT ...) erst ab SQL Server 2022 — Distinct via Subquery für Kompatibilität.
         const string sql = """
@@ -38,6 +40,8 @@ public class StockCheckService : IStockCheckService
                     WHEN sm.MovementType = 1 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
                     WHEN sm.MovementType = 2 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
                     WHEN sm.MovementType = 2 AND (sl_s.IsPickingTransport = 0 OR sl_s.Id IS NULL) THEN -sm.Quantity
+                    WHEN sm.MovementType = 3 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
+                    WHEN sm.MovementType = 4 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
                     ELSE 0
                 END) AS CurrentStock,
                 (
@@ -61,6 +65,8 @@ public class StockCheckService : IStockCheckService
                 WHEN sm.MovementType = 1 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
                 WHEN sm.MovementType = 2 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
                 WHEN sm.MovementType = 2 AND (sl_s.IsPickingTransport = 0 OR sl_s.Id IS NULL) THEN -sm.Quantity
+                WHEN sm.MovementType = 3 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
+                WHEN sm.MovementType = 4 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
                 ELSE 0
             END) <= a.ReorderLevel
             ORDER BY a.ArticleNumber

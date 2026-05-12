@@ -1,6 +1,12 @@
 @model List<StorageLocation>
 @{
     ViewData["Title"] = "Lagerplätze";
+    var showInactive = (bool?)ViewBag.ShowInactive == true;
+    var onlyBookable = (bool?)ViewBag.OnlyBookable == true;
+    var hasInactive = (bool?)ViewBag.HasInactive == true;
+    var hasNonBookable = (bool?)ViewBag.HasNonBookable == true;
+    // Spalten: code, description, zone, capacity, type, source, bookable, [is-active], created-at, actions
+    var colCount = showInactive ? 10 : 9;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -11,6 +17,38 @@
     </div>
 </div>
 
+@if (hasInactive || hasNonBookable)
+{
+    <form method="get" class="d-flex gap-3 mb-3 flex-wrap">
+        @if (hasInactive)
+        {
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="showInactiveToggle" name="showInactive" value="true"
+                       @(showInactive ? "checked" : "")
+                       onchange="this.form.submit()" />
+                <label class="form-check-label" for="showInactiveToggle">Auch inaktive Lagerpl&auml;tze zeigen</label>
+            </div>
+        }
+        @if (hasNonBookable)
+        {
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="onlyBookableToggle" name="onlyBookable" value="true"
+                       @(onlyBookable ? "checked" : "")
+                       onchange="this.form.submit()" />
+                <label class="form-check-label" for="onlyBookableToggle">Nur buchbare Pl&auml;tze zeigen</label>
+            </div>
+        }
+        @if (!hasInactive && showInactive)
+        {
+            <input type="hidden" name="showInactive" value="true" />
+        }
+        @if (!hasNonBookable && onlyBookable)
+        {
+            <input type="hidden" name="onlyBookable" value="true" />
+        }
+    </form>
+}
+
 <div class="table-responsive">
     <table class="table table-striped mb-0 filterable-table">
         <thead>
@@ -20,6 +58,12 @@
                 <th data-filterable data-col-key="zone">Bereich/Zone</th>
                 <th data-filterable data-col-key="capacity">Kapazität</th>
                 <th data-filterable data-col-key="type">Typ</th>
+                <th data-filterable data-col-key="source">Quelle</th>
+                <th data-filterable data-col-key="bookable">Buchbar</th>
+                @if (showInactive)
+                {
+                    <th data-filterable data-col-key="is-active">Aktiv</th>
+                }
                 <th data-filterable data-col-key="created-at">Erstellt am</th>
                 <th style="width: 100px;"></th>
             </tr>
@@ -27,12 +71,36 @@
         <tbody>
             @foreach (var location in Model)
             {
-                <tr>
+                <tr class="@(location.IsActive ? "" : "text-muted text-decoration-line-through")">
                     <td><strong>@location.Code</strong></td>
                     <td>@location.Description</td>
                     <td>@location.Zone</td>
                     <td>@location.Capacity?.ToString("N2")</td>
                     <td>@if (location.IsPickingTransport) { <span class="badge bg-info">Wagen</span> }</td>
+                    <td data-col-key="source">
+                        @if (location.Source == IdealAkeWms.Models.StorageLocationSource.Sage)
+                        {
+                            <span class="badge bg-info">Sage</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Manuell</span>
+                        }
+                    </td>
+                    <td data-col-key="bookable">
+                        @if (location.IstBuchbar)
+                        {
+                            <span class="badge bg-success">Ja</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Nein</span>
+                        }
+                    </td>
+                    @if (showInactive)
+                    {
+                        <td data-col-key="is-active">@(location.IsActive ? "Ja" : "Nein")</td>
+                    }
                     <td>@location.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="text-nowrap">
                         <a asp-action="PrintLabel" asp-route-id="@location.Id" class="btn btn-sm btn-outline-secondary" title="Etikett drucken">
@@ -48,7 +116,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">Keine Lagerplätze vorhanden.</td>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Lagerplätze vorhanden.</td>
                 </tr>
             }
         </tbody>

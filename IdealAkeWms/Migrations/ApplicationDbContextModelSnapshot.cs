@@ -1485,10 +1485,25 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("HasCoatingParts")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("HasCooling")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasDoors")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasElectric")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("HasExternalPurchase")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("HasFan")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("HasGlass")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasSuperstructure")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsCoatingDone")
@@ -1793,6 +1808,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<int>("MovementType")
                         .HasColumnType("int");
 
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("ProductionOrder")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1878,8 +1897,18 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("IsPickingTransport")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IstBuchbar")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -1892,6 +1921,13 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Manual");
+
                     b.Property<string>("Zone")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1901,7 +1937,55 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IstBuchbar");
+
+                    b.HasIndex("Source");
+
                     b.ToTable("StorageLocations", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.SyncLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp")
+                        .IsDescending()
+                        .HasDatabaseName("IX_SyncLogs_Timestamp_Desc");
+
+                    b.HasIndex("Service", "Level")
+                        .HasDatabaseName("IX_SyncLogs_Service_Level");
+
+                    b.ToTable("SyncLogs", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.User", b =>

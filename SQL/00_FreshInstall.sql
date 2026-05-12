@@ -111,6 +111,9 @@ BEGIN
         [Capacity]          DECIMAL(18,2)     NULL,
         [BarcodeValue]      NVARCHAR(50)      NULL,
         [IsPickingTransport] BIT              NOT NULL DEFAULT 0,
+        [Source]            NVARCHAR(20)      NOT NULL DEFAULT 'Manual',
+        [IsActive]          BIT               NOT NULL DEFAULT 1,
+        [IstBuchbar]        BIT               NOT NULL DEFAULT 1,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -161,7 +164,7 @@ BEGIN
         [StorageLocationId]       INT               NOT NULL,
         [SourceStorageLocationId] INT               NULL,
         [ProductionOrder]         NVARCHAR(500)     NULL,
-        [MovementType]            INT               NOT NULL,  -- 0=Einbuchung, 1=Ausbuchung
+        [MovementType]            INT               NOT NULL,  -- 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung, 3=SageEinbuchung, 4=SageAusbuchung
         [Timestamp]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [UserId]                  INT               NULL,
         [WindowsUser]             NVARCHAR(200)     NOT NULL,
@@ -171,6 +174,7 @@ BEGIN
         [ModifiedAt]              DATETIME2         NULL,
         [ModifiedBy]              NVARCHAR(200)     NULL,
         [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        [Note]                    NVARCHAR(500)     NULL,
         CONSTRAINT [PK_StockMovements] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [FK_StockMovements_Article] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]),
         CONSTRAINT [FK_StockMovements_StorageLocation] FOREIGN KEY ([StorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
@@ -225,6 +229,11 @@ BEGIN
         [PickingStatus]           NVARCHAR(50)      NULL,
         [HasGlass]                BIT               NOT NULL DEFAULT 0,
         [HasExternalPurchase]     BIT               NOT NULL DEFAULT 0,
+        [HasCooling]              BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCooling DEFAULT 0,
+        [HasFan]                  BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasFan DEFAULT 0,
+        [HasElectric]             BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasElectric DEFAULT 0,
+        [HasDoors]                BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasDoors DEFAULT 0,
+        [HasSuperstructure]       BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasSuperstructure DEFAULT 0,
         [HasCoatingParts]         BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCoatingParts DEFAULT 0,
         [IsCoatingDone]           BIT               NOT NULL CONSTRAINT DF_ProductionOrders_IsCoatingDone DEFAULT 0,
         [ProductionWorkplaceId]   INT               NULL,
@@ -613,6 +622,24 @@ END
 GO
 
 -- =============================================
+-- 14b. SyncLogs (service-uebergreifendes Sync-Protokoll)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SyncLogs')
+BEGIN
+    CREATE TABLE [dbo].[SyncLogs] (
+        [Id]        INT IDENTITY(1,1) NOT NULL,
+        [Timestamp] DATETIME2         NOT NULL CONSTRAINT [DF_SyncLogs_Timestamp] DEFAULT SYSDATETIME(),
+        [Service]   NVARCHAR(50)      NOT NULL,
+        [Level]     NVARCHAR(10)      NOT NULL,
+        [Message]   NVARCHAR(1000)    NOT NULL,
+        [Reference] NVARCHAR(100)     NULL,
+        CONSTRAINT [PK_SyncLogs] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle SyncLogs erstellt.';
+END
+GO
+
+-- =============================================
 -- 15. Indexes
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId')
@@ -623,6 +650,16 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_Timesta
     CREATE NONCLUSTERED INDEX [IX_StockMovements_Timestamp] ON [dbo].[StockMovements]([Timestamp]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_SourceStorageLocationId')
     CREATE NONCLUSTERED INDEX [IX_StockMovements_SourceStorageLocationId] ON [dbo].[StockMovements]([SourceStorageLocationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsActive')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_Source] ON [dbo].[StorageLocations]([Source]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IstBuchbar')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_IstBuchbar] ON [dbo].[StorageLocations]([IstBuchbar]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Timestamp_Desc')
+    CREATE NONCLUSTERED INDEX [IX_SyncLogs_Timestamp_Desc] ON [dbo].[SyncLogs]([Timestamp] DESC);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Service_Level')
+    CREATE NONCLUSTERED INDEX [IX_SyncLogs_Service_Level] ON [dbo].[SyncLogs]([Service], [Level]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_WorkstationId')
     CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_WorkstationId] ON [dbo].[WorkstationUsers]([WorkstationId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_UserId')
@@ -1486,6 +1523,16 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430183954_AddWarehouseRequisitions', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260502172901_AddWarehouseRequisitionCreatedByUserId')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260502172901_AddWarehouseRequisitionCreatedByUserId', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506053444_AddStorageLocationSyncFields')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506053444_AddStorageLocationSyncFields', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506060206_AddSyncLog')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506060206_AddSyncLog', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506134758_AddStockMovementNoteAndSageMovementTypes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506134758_AddStockMovementNoteAndSageMovementTypes', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260507133624_AddStorageLocationIstBuchbar')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260507133624_AddStorageLocationIstBuchbar', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512042732_AddProductionOrderAssemblyFlags')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512042732_AddProductionOrderAssemblyFlags', '10.0.3');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

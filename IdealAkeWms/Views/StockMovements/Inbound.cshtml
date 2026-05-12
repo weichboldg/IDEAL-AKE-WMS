@@ -63,6 +63,8 @@
                         <span asp-validation-for="ProductionOrder" class="text-danger"></span>
                     </div>
 
+                    <div id="faStorageHint" class="alert" style="display: none;" role="status" aria-live="polite"></div>
+
                     @if (ViewBag.BestellungenAktiv == true)
                     {
                         <div id="openRequisitionsContainer" class="mt-4" style="display: none;">
@@ -160,4 +162,147 @@
             });
         </script>
     }
+
+    <script>
+        (function () {
+            var faInput = document.getElementById('ProductionOrder');
+            var storageSelect = document.getElementById('StorageLocationId');
+            var hint = document.getElementById('faStorageHint');
+            if (!faInput || !storageSelect || !hint) return;
+
+            var lastFaQuery = null;
+            var requestSeq = 0;
+            var deFormatter = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 3 });
+
+            function escapeHtml(s) {
+                var div = document.createElement('div');
+                div.textContent = (s === null || s === undefined) ? '' : String(s);
+                return div.innerHTML;
+            }
+
+            function findOptionByText(select, text) {
+                for (var i = 0; i < select.options.length; i++) {
+                    if (select.options[i].text.trim() === text) return select.options[i];
+                }
+                return null;
+            }
+
+            function renderHint(htmlBody, kind) {
+                hint.className = 'alert ' + (kind === 'warn' ? 'alert-warning' : 'alert-info');
+                hint.innerHTML = htmlBody;
+                hint.style.display = 'block';
+            }
+
+            function hideHint() {
+                hint.style.display = 'none';
+                hint.innerHTML = '';
+            }
+
+            function buildItemsList(items) {
+                var html = '<ul class="mb-0">';
+                items.forEach(function (i) {
+                    var unit = i.unit && i.unit.trim() !== '' ? i.unit : 'Stk';
+                    html += '<li>Lagerplatz <strong>' + escapeHtml(i.storageLocation) + '</strong> &mdash; '
+                         + escapeHtml(deFormatter.format(i.quantity)) + ' ' + escapeHtml(unit)
+                         + ' Artikel ' + escapeHtml(i.articleNumber) + '</li>';
+                });
+                html += '</ul>';
+                return html;
+            }
+
+            function handleResponse(fa, items) {
+                items = items.filter(function (i) { return i.quantity > 0; });
+                if (items.length === 0) {
+                    hideHint();
+                    return;
+                }
+
+                var distinctLocs = [];
+                items.forEach(function (i) {
+                    if (distinctLocs.indexOf(i.storageLocation) === -1) {
+                        distinctLocs.push(i.storageLocation);
+                    }
+                });
+
+                var userPickedLocation = !!storageSelect.value;
+                var faSafe = escapeHtml(fa);
+                var listHtml = buildItemsList(items);
+
+                if (distinctLocs.length === 1) {
+                    var loc = distinctLocs[0];
+                    if (userPickedLocation) {
+                        var currentText = storageSelect.options[storageSelect.selectedIndex]
+                            ? storageSelect.options[storageSelect.selectedIndex].text.trim()
+                            : '';
+                        renderHint(
+                            '<strong>FA <code>' + faSafe + '</code> liegt bereits:</strong>' + listHtml
+                            + '<p class="mb-0 mt-2"><em>&rarr; Deine Auswahl <strong>'
+                            + escapeHtml(currentText) + '</strong> bleibt.</em></p>',
+                            'info'
+                        );
+                    } else {
+                        var option = findOptionByText(storageSelect, loc);
+                        if (option) {
+                            storageSelect.value = option.value;
+                            storageSelect.dispatchEvent(new Event('change'));
+                            renderHint(
+                                '<strong>FA <code>' + faSafe + '</code> liegt bereits:</strong>' + listHtml
+                                + '<p class="mb-0 mt-2"><em>&rarr; Lagerplatz wurde &uuml;bernommen.</em></p>',
+                                'info'
+                            );
+                        } else {
+                            renderHint(
+                                '<strong>FA <code>' + faSafe + '</code> liegt bereits:</strong>' + listHtml
+                                + '<p class="mb-0 mt-2"><em>&rarr; Lagerplatz nicht im Buchungs-Dropdown '
+                                + '(evtl. inaktiv oder nicht buchbar). Bitte manuell w&auml;hlen.</em></p>',
+                                'warn'
+                            );
+                        }
+                    }
+                } else {
+                    renderHint(
+                        '<strong>FA <code>' + faSafe + '</code> liegt auf mehreren Lagerpl&auml;tzen:</strong>'
+                        + listHtml
+                        + '<p class="mb-0 mt-2"><em>&rarr; Bitte gezielt buchen.</em></p>',
+                        'warn'
+                    );
+                }
+            }
+
+            function checkFa(fa) {
+                if (fa === lastFaQuery) return;
+                lastFaQuery = fa;
+
+                if (!fa) {
+                    hideHint();
+                    return;
+                }
+
+                var seq = ++requestSeq;
+                fetch('/api/stock/by-order/' + encodeURIComponent(fa), {
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                })
+                    .then(function (r) { return r.ok ? r.json() : []; })
+                    .then(function (items) {
+                        if (seq !== requestSeq) return; // älterer Response — verwerfen
+                        handleResponse(fa, items);
+                    })
+                    .catch(function () {
+                        if (seq !== requestSeq) return;
+                        hideHint();
+                    });
+            }
+
+            faInput.addEventListener('change', function () {
+                checkFa(faInput.value.trim());
+            });
+
+            // DOM-Ready-Initial-Check: bei Validation-Error-Rerender kann FA bereits gesetzt sein.
+            // change feuert nicht beim Page-Load, daher hier einmal manuell prüfen.
+            if (faInput.value && faInput.value.trim() !== '') {
+                checkFa(faInput.value.trim());
+            }
+        })();
+    </script>
 }

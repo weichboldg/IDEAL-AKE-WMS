@@ -12,6 +12,7 @@ public class SyncWorker : BackgroundService
     // Independent run-cadence tracking — BdeAutoPause hat eigenes Intervall, HolidaySync läuft täglich.
     private DateTime? _lastAutoPauseRun;
     private DateTime? _lastHolidaySyncRun;
+    private DateTime? _lastLagerbestandRun;
 
     public SyncWorker(ILogger<SyncWorker> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory)
     {
@@ -231,6 +232,50 @@ public class SyncWorker : BackgroundService
                         _logger.LogError(ex, "Holiday-Sync ist fehlgeschlagen");
                     }
                 }
+
+                // ---------------------------------------------------------------
+                // Lagerplatz-Sync (Sage Stammdaten)
+                // ---------------------------------------------------------------
+                if (_configuration.GetValue<bool>("Sync:LagerplaetzeEnabled", false))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Lagerplatz-Sync startet...");
+                        using var lpScope = _scopeFactory.CreateScope();
+                        var lpSync = lpScope.ServiceProvider.GetRequiredService<ILagerplatzSyncService>();
+                        var lpResult = await lpSync.RunAsync(stoppingToken);
+                        _logger.LogInformation(
+                            "Lagerplatz-Sync: {Inserted} neu, {Updated} aktualisiert, {Conflicts} Konflikte, {Deactivated} deaktiviert, {Skipped} uebersprungen, {Errors} Fehler.",
+                            lpResult.Inserted, lpResult.Updated, lpResult.Conflicts, lpResult.Deactivated, lpResult.Skipped, lpResult.Errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Lagerplatz-Sync ist fehlgeschlagen.");
+                    }
+                }
+
+                // ---------------------------------------------------------------
+                // Lagerbestand-Sync (Sage Bestand-Korrektur)
+                // ---------------------------------------------------------------
+                if (ShouldRunLagerbestand())
+                {
+                    try
+                    {
+                        _logger.LogInformation("Lagerbestand-Sync startet (DryRun={DryRun})...", dryRun);
+                        using var lbScope = _scopeFactory.CreateScope();
+                        var lbSync = lbScope.ServiceProvider.GetRequiredService<ILagerbestandSyncService>();
+                        var lbResult = await lbSync.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "Lagerbestand-Sync: {Tuples} Tupel, {Plus} Plus, {Minus} Minus, {NoChange} ohne Aenderung, {Skipped} uebersprungen, {Errors} Fehler.",
+                            lbResult.Tuples, lbResult.CorrectionsPlus, lbResult.CorrectionsMinus,
+                            lbResult.NoChange, lbResult.Skipped, lbResult.Errors);
+                        _lastLagerbestandRun = DateTime.Now;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Lagerbestand-Sync ist fehlgeschlagen.");
+                    }
+                }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
@@ -261,5 +306,18 @@ public class SyncWorker : BackgroundService
         if (!enabled) return Task.FromResult(false);
         if (_lastHolidaySyncRun == null) return Task.FromResult(true);
         return Task.FromResult(DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24));
+    }
+
+    private bool ShouldRunLagerbestand()
+    {
+        if (!_configuration.GetValue<bool>("Sync:LagerbestandEnabled", false))
+            return false;
+
+        var overrideMinutes = _configuration.GetValue<int>("Sync:LagerbestandIntervalMinutes", 0);
+        if (overrideMinutes <= 0)
+            return true;   // nutzt Worker-Standard-Intervall (15 Min)
+
+        if (_lastLagerbestandRun == null) return true;
+        return DateTime.Now - _lastLagerbestandRun.Value >= TimeSpan.FromMinutes(overrideMinutes);
     }
 }

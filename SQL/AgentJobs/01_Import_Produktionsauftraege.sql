@@ -15,13 +15,16 @@
 --   ModifiedAt, ModifiedBy, ModifiedByWindows
 --
 -- Felder die NICHT ueberschrieben werden (App-verwaltet):
---   IsDone, PickingStatus, HasGlass, HasExternalPurchase
+--   IsDone, PickingStatus, HasGlass, HasExternalPurchase,
+--   HasCooling, HasFan, HasElectric, HasDoors, HasSuperstructure,
+--   HasCoatingParts, IsCoatingDone,
 --   CreatedAt, CreatedBy, CreatedByWindows
 --
 -- Felder der Zieltabelle die bei INSERT nicht befuellt werden (haben Defaults):
 --   PickingStatus    → NULL
 --   HasGlass         → 0 (DEFAULT)
 --   HasExternalPurchase → 0 (DEFAULT)
+--   HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure → 0 (DEFAULT)
 -- =============================================
 
 MERGE [IDEAL_AKE_WMS].[dbo].[ProductionOrders] AS p

@@ -1148,3 +1148,67 @@ th:hover .col-resize-handle {
     border-radius: 10px;
     letter-spacing: 0.02em;
 }
+
+/* Sage-Korrektur-Buchungen — visuell unterschiedlich von manuellen Buchungen */
+.badge-sage-einbuchung {
+    background-color: var(--ake-primary);
+    color: var(--ake-white);
+    padding: 0.35em 0.65em;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.badge-sage-ausbuchung {
+    background-color: var(--ake-white);
+    color: var(--ake-primary);
+    border: 2px solid var(--ake-primary);
+    padding: 0.20em 0.50em;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+/* ===== Bulk-Action-Bar (Leitstand) ===== */
+.bulk-action-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bs-body-bg, #ffffff);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+    /* display: none/flex wird per JS gesetzt */
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.bulk-checkbox-col {
+    width: 32px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.bulk-checkbox-col input[type="checkbox"] {
+    cursor: pointer;
+    transform: scale(1.2);
+}
+
+/* ===== OSEON Sub-Auftrag Spalten-Sort ===== */
+#oseonTree thead th[data-sortable] {
+    user-select: none;
+}
+
+/* Header-Hover muss auf dunkelblauem (.table thead th) Background sichtbar sein.
+   White-tint statt secondary-blau (war 8% rgba unsichtbar auf #053153). */
+#oseonTree thead th[data-sortable]:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.oseon-sort-indicator {
+    display: inline-block;
+    margin-left: 0.25rem;
+    font-size: 0.75em;
+    color: var(--ake-white);
+    min-width: 0.7em;
+}

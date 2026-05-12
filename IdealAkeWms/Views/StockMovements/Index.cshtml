@@ -39,6 +39,8 @@
                         <option value="0" selected="@(Model.FilterMovementType == MovementType.Einbuchung)">Einbuchung</option>
                         <option value="1" selected="@(Model.FilterMovementType == MovementType.Ausbuchung)">Ausbuchung</option>
                         <option value="2" selected="@(Model.FilterMovementType == MovementType.Umbuchung)">Umbuchung</option>
+                        <option value="3" selected="@(Model.FilterMovementType == MovementType.SageEinbuchung)">Sage-Einbuchung</option>
+                        <option value="4" selected="@(Model.FilterMovementType == MovementType.SageAusbuchung)">Sage-Ausbuchung</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -75,6 +77,7 @@
                 <th data-filterable data-col-key="movement-type">Bewegungsart</th>
                 <th data-filterable data-col-key="user">Benutzer</th>
                 <th data-filterable data-col-key="production-order">Fertigungsauftrag</th>
+                <th data-col-key="note">Notiz</th>
             </tr>
         </thead>
         <tbody>
@@ -108,8 +111,15 @@
                     </td>
                     <td>
                         @{
-                            var badgeClass = item.MovementType == MovementType.Einbuchung ? "badge-einbuchung" :
-                                             item.MovementType == MovementType.Umbuchung ? "badge-umbuchung" : "badge-ausbuchung";
+                            var badgeClass = item.MovementType switch
+                            {
+                                MovementType.Einbuchung => "badge-einbuchung",
+                                MovementType.Umbuchung => "badge-umbuchung",
+                                MovementType.Ausbuchung => "badge-ausbuchung",
+                                MovementType.SageEinbuchung => "badge-sage-einbuchung",
+                                MovementType.SageAusbuchung => "badge-sage-ausbuchung",
+                                _ => "badge-ausbuchung"
+                            };
                         }
                         <span class="@badgeClass">
                             @item.MovementTypeName
@@ -117,12 +127,13 @@
                     </td>
                     <td>@item.UserName</td>
                     <td>@item.ProductionOrder</td>
+                    <td data-col-key="note">@(item.Note ?? "")</td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">Keine Bewegungen gefunden.</td>
+                    <td colspan="8" class="text-center text-muted py-4">Keine Bewegungen gefunden.</td>
                 </tr>
             }
         </tbody>

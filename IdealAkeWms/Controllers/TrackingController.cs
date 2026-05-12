@@ -293,6 +293,22 @@ public class TrackingController : Controller
                 });
             }
 
+            // Stats aus dem VOLLEN Sub-Set fuer "X/Y fertig"-Counter
+            var totalSubsInGroup = subOrders.Count;
+            var finishedSubsInGroup = subOrders.Count(s => s.OseonStatus is 90 or 95);
+
+            // Bei aktivem Artikel-Filter Sub-Auftraege auf Treffer reduzieren.
+            // Worst-Color/Status weiter aus VOLLEM Set — die Kundenauftrag-Gruppe behaelt ihren Status-Kontext.
+            var displaySubs = subOrders;
+            if (!string.IsNullOrWhiteSpace(filterArticle))
+            {
+                var artTerm = filterArticle.Trim();
+                displaySubs = subOrders
+                    .Where(s => s.ArticleNumber != null
+                                && s.ArticleNumber.Contains(artTerm, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
             // Worst color: Red > Yellow > Blue > Gray > Green
             var worstColor = subOrders.Count > 0
                 ? subOrders.Max(s => s.Color)
@@ -307,11 +323,11 @@ public class TrackingController : Controller
             {
                 CustomerOrderNumber = g.Key,
                 WorstColor = worstColor,
-                TotalSubOrders = subOrders.Count,
-                FinishedSubOrders = subOrders.Count(s => s.OseonStatus is 90 or 95),
+                TotalSubOrders = totalSubsInGroup,
+                FinishedSubOrders = finishedSubsInGroup,
                 GroupStatusText = OseonStatusHelper.GetStatusText(worstStatus),
                 GroupStatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(worstStatus),
-                SubOrders = subOrders
+                SubOrders = displaySubs
             });
         }
 

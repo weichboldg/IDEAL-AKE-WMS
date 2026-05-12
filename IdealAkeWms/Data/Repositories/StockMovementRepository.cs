@@ -45,7 +45,9 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 sm.StorageLocationId,
                 StorageLocationCode = sm.StorageLocation.Code,
                 StorageLocationDescription = sm.StorageLocation.Description,
-                sm.StorageLocation.IsPickingTransport
+                sm.StorageLocation.IsPickingTransport,
+                StorageLocationIsActive = sm.StorageLocation.IsActive,
+                StorageLocationIstBuchbar = sm.StorageLocation.IstBuchbar
             })
             .Select(g => new StockOverviewItem
             {
@@ -57,11 +59,17 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationCode = g.Key.StorageLocationCode,
                 StorageLocationDescription = g.Key.StorageLocationDescription,
                 CurrentQuantity = g.Sum(sm =>
-                    sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
-                    sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
-                    -sm.Quantity),
+                    sm.MovementType == MovementType.Einbuchung || sm.MovementType == MovementType.SageEinbuchung
+                        ? sm.Quantity :
+                    sm.MovementType == MovementType.Umbuchung
+                        ? sm.Quantity :
+                    sm.MovementType == MovementType.Ausbuchung || sm.MovementType == MovementType.SageAusbuchung
+                        ? -sm.Quantity :
+                    0m),
                 ReorderLevel = g.Key.ReorderLevel,
-                IsPickingTransport = g.Key.IsPickingTransport
+                IsPickingTransport = g.Key.IsPickingTransport,
+                StorageLocationIsActive = g.Key.StorageLocationIsActive,
+                StorageLocationIstBuchbar = g.Key.StorageLocationIstBuchbar
             });
 
         var destinationItems = await destinationQuery.ToListAsync();
@@ -96,7 +104,9 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationId = sm.SourceStorageLocationId!.Value,
                 StorageLocationCode = sm.SourceStorageLocation!.Code,
                 StorageLocationDescription = sm.SourceStorageLocation!.Description,
-                sm.SourceStorageLocation!.IsPickingTransport
+                sm.SourceStorageLocation!.IsPickingTransport,
+                StorageLocationIsActive = sm.SourceStorageLocation!.IsActive,
+                StorageLocationIstBuchbar = sm.SourceStorageLocation!.IstBuchbar
             })
             .Select(g => new StockOverviewItem
             {
@@ -109,7 +119,9 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 StorageLocationDescription = g.Key.StorageLocationDescription,
                 CurrentQuantity = -g.Sum(sm => sm.Quantity),
                 ReorderLevel = g.Key.ReorderLevel,
-                IsPickingTransport = g.Key.IsPickingTransport
+                IsPickingTransport = g.Key.IsPickingTransport,
+                StorageLocationIsActive = g.Key.StorageLocationIsActive,
+                StorageLocationIstBuchbar = g.Key.StorageLocationIstBuchbar
             })
             .ToListAsync();
 
@@ -131,7 +143,9 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     StorageLocationDescription = first.StorageLocationDescription,
                     CurrentQuantity = g.Sum(x => x.CurrentQuantity),
                     ReorderLevel = first.ReorderLevel,
-                    IsPickingTransport = first.IsPickingTransport
+                    IsPickingTransport = first.IsPickingTransport,
+                    StorageLocationIsActive = first.StorageLocationIsActive,
+                    StorageLocationIstBuchbar = first.StorageLocationIstBuchbar
                 };
             })
             .ToList();
@@ -170,14 +184,23 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         // Pro Bewegung den Netto-Effekt auf Ziel-Lagerplatz berechnen
         var entries = new List<(int ArticleId, string ArticleNumber, string? ArticleDescription,
             string? Unit, int StorageLocationId, string StorageLocationCode,
-            string? StorageLocationDescription, bool IsPickingTransport, decimal Qty)>();
+            string? StorageLocationDescription, bool IsPickingTransport, bool IsActive, bool IstBuchbar, decimal Qty)>();
 
         foreach (var sm in movements)
         {
-            var qty = sm.MovementType == MovementType.Ausbuchung ? -sm.Quantity : sm.Quantity;
+            var qty = sm.MovementType switch
+            {
+                MovementType.Einbuchung => sm.Quantity,
+                MovementType.SageEinbuchung => sm.Quantity,
+                MovementType.Umbuchung => sm.Quantity,
+                MovementType.Ausbuchung => -sm.Quantity,
+                MovementType.SageAusbuchung => -sm.Quantity,
+                _ => 0m
+            };
             entries.Add((sm.ArticleId, sm.Article.ArticleNumber, sm.Article.Description,
                 sm.Article.Unit, sm.StorageLocationId, sm.StorageLocation.Code,
-                sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport, qty));
+                sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport,
+                sm.StorageLocation.IsActive, sm.StorageLocation.IstBuchbar, qty));
         }
 
         return entries
@@ -195,6 +218,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                     StorageLocationCode = first.StorageLocationCode,
                     StorageLocationDescription = first.StorageLocationDescription,
                     IsPickingTransport = first.IsPickingTransport,
+                    StorageLocationIsActive = first.IsActive,
+                    StorageLocationIstBuchbar = first.IstBuchbar,
                     CurrentQuantity = g.Sum(e => e.Qty)
                 };
             })
@@ -265,9 +290,14 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 SourceStorageLocationCode = sm.SourceStorageLocation != null ? sm.SourceStorageLocation.Code : null,
                 MovementType = sm.MovementType,
                 MovementTypeName = sm.MovementType == MovementType.Einbuchung ? "Einbuchung" :
-                                   sm.MovementType == MovementType.Umbuchung ? "Umbuchung" : "Ausbuchung",
+                                   sm.MovementType == MovementType.Ausbuchung ? "Ausbuchung" :
+                                   sm.MovementType == MovementType.Umbuchung ? "Umbuchung" :
+                                   sm.MovementType == MovementType.SageEinbuchung ? "Sage-Einbuchung" :
+                                   sm.MovementType == MovementType.SageAusbuchung ? "Sage-Ausbuchung" :
+                                   "Unbekannt",
                 UserName = sm.User != null ? sm.User.Name : sm.WindowsUser,
-                ProductionOrder = sm.ProductionOrder
+                ProductionOrder = sm.ProductionOrder,
+                Note = sm.Note
             })
             .ToListAsync();
 
@@ -297,9 +327,13 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 g.Key.StorageLocationId,
                 g.Key.StorageLocationCode,
                 Quantity = g.Sum(sm =>
-                    sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
-                    sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
-                    -sm.Quantity)
+                    sm.MovementType == MovementType.Einbuchung || sm.MovementType == MovementType.SageEinbuchung
+                        ? sm.Quantity :
+                    sm.MovementType == MovementType.Umbuchung
+                        ? sm.Quantity :
+                    sm.MovementType == MovementType.Ausbuchung || sm.MovementType == MovementType.SageAusbuchung
+                        ? -sm.Quantity :
+                    0m)
             })
             .ToListAsync();
 
@@ -351,9 +385,13 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         var destSum = await _dbSet
             .Where(sm => sm.ArticleId == articleId && sm.StorageLocationId == storageLocationId)
             .SumAsync(sm =>
-                sm.MovementType == MovementType.Einbuchung ? sm.Quantity :
-                sm.MovementType == MovementType.Umbuchung ? sm.Quantity :
-                -sm.Quantity);
+                sm.MovementType == MovementType.Einbuchung || sm.MovementType == MovementType.SageEinbuchung
+                    ? sm.Quantity :
+                sm.MovementType == MovementType.Umbuchung
+                    ? sm.Quantity :
+                sm.MovementType == MovementType.Ausbuchung || sm.MovementType == MovementType.SageAusbuchung
+                    ? -sm.Quantity :
+                0m);
 
         var srcSum = await _dbSet
             .Where(sm => sm.ArticleId == articleId
@@ -386,5 +424,39 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             .ToListAsync();
 
         return orders;
+    }
+
+    public async Task<Dictionary<(int ArticleId, int StorageLocationId), decimal>> GetCurrentStockByArticleAndLocationAsync()
+    {
+        var movements = await _dbSet
+            .AsNoTracking()
+            .ToListAsync();
+
+        var dict = new Dictionary<(int, int), decimal>();
+
+        foreach (var sm in movements)
+        {
+            decimal effect = sm.MovementType switch
+            {
+                MovementType.Einbuchung => sm.Quantity,
+                MovementType.SageEinbuchung => sm.Quantity,
+                MovementType.Umbuchung => sm.Quantity,   // Ziel-Lagerplatz
+                MovementType.Ausbuchung => -sm.Quantity,
+                MovementType.SageAusbuchung => -sm.Quantity,
+                _ => 0m
+            };
+
+            var key = (sm.ArticleId, sm.StorageLocationId);
+            dict[key] = dict.GetValueOrDefault(key, 0m) + effect;
+
+            // Umbuchung-Quell-Seite: -Quantity am SourceStorageLocationId
+            if (sm.MovementType == MovementType.Umbuchung && sm.SourceStorageLocationId.HasValue)
+            {
+                var srcKey = (sm.ArticleId, sm.SourceStorageLocationId.Value);
+                dict[srcKey] = dict.GetValueOrDefault(srcKey, 0m) - sm.Quantity;
+            }
+        }
+
+        return dict;
     }
 }

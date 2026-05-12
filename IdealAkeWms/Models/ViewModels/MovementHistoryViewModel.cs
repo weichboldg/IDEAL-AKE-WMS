@@ -35,4 +35,5 @@ public class MovementHistoryItem
     public string MovementTypeName { get; set; } = string.Empty;
     public string? UserName { get; set; }
     public string? ProductionOrder { get; set; }
+    public string? Note { get; set; }
 }

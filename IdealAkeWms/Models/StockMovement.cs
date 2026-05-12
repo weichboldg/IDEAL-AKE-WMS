@@ -37,6 +37,10 @@ public class StockMovement : AuditableEntity
     [Display(Name = "Quell-Lagerplatz")]
     public int? SourceStorageLocationId { get; set; }
 
+    [StringLength(500)]
+    [Display(Name = "Notiz")]
+    public string? Note { get; set; }
+
     public Article Article { get; set; } = null!;
     public StorageLocation StorageLocation { get; set; } = null!;
     public StorageLocation? SourceStorageLocation { get; set; }

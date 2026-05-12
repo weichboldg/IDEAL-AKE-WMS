@@ -28,5 +28,15 @@ public class StorageLocation : AuditableEntity
     [Display(Name = "Kommissionierwagen")]
     public bool IsPickingTransport { get; set; }
 
+    [StringLength(20)]
+    [Display(Name = "Quelle")]
+    public string Source { get; set; } = StorageLocationSource.Manual;
+
+    [Display(Name = "Aktiv")]
+    public bool IsActive { get; set; } = true;
+
+    [Display(Name = "Buchbar")]
+    public bool IstBuchbar { get; set; } = true;
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

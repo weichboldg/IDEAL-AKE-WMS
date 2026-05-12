@@ -20,10 +20,20 @@ public class StorageLocationsController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false)
     {
-        var locations = await _storageLocationRepository.GetAllOrderedAsync();
-        return View(locations);
+        var all = await _storageLocationRepository.GetAllOrderedAsync();
+        var query = all.AsQueryable();
+        if (!showInactive)
+            query = query.Where(l => l.IsActive);
+        if (onlyBookable)
+            query = query.Where(l => l.IstBuchbar);
+
+        ViewBag.ShowInactive = showInactive;
+        ViewBag.OnlyBookable = onlyBookable;
+        ViewBag.HasInactive = all.Any(l => !l.IsActive);
+        ViewBag.HasNonBookable = all.Any(l => !l.IstBuchbar);
+        return View(query.ToList());
     }
 
     public IActionResult Create()
@@ -71,12 +81,26 @@ public class StorageLocationsController : Controller
         if (existing == null)
             return NotFound();
 
-        existing.Code = location.Code;
-        existing.Description = location.Description;
-        existing.Zone = location.Zone;
-        existing.Capacity = location.Capacity;
-        existing.IsPickingTransport = location.IsPickingTransport;
-        existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
+        if (existing.Source == StorageLocationSource.Sage)
+        {
+            // Sage-kontrollierte Felder bleiben unangetastet — der Sync ist Master.
+            existing.Capacity = location.Capacity;
+            existing.IsPickingTransport = location.IsPickingTransport;
+            existing.IstBuchbar = location.IstBuchbar;       // user-controlled, auch fuer Sage
+            // IsActive ist Sync-kontrolliert: NICHT aus dem POST uebernehmen.
+        }
+        else
+        {
+            existing.Code = location.Code;
+            existing.Description = location.Description;
+            existing.Zone = location.Zone;
+            existing.Capacity = location.Capacity;
+            existing.IsPickingTransport = location.IsPickingTransport;
+            existing.IsActive = location.IsActive;
+            existing.IstBuchbar = location.IstBuchbar;       // user-controlled
+            existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
+        }
+
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();

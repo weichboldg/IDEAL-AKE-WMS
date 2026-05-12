@@ -105,12 +105,14 @@
 - **Leitstand Index-Action hat kein Filter-Attribut**: Prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur Key (PK), Value, Description
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer → Beschichtungstermin fuer ALLE Auftraege
+- **IsActive vs IstBuchbar**: Zwei unabhaengige Status-Flags auf StorageLocation. `IsActive` ist Sage-controlled (Phase-1-Sync setzt es), `IstBuchbar` ist user-controlled. Buchungs-Dropdowns filtern auf BEIDE; Bestand-Aggregation und Sage-Korrektur-Buchungen ignorieren `IstBuchbar`. Default: Manual=true (buchbar), Sage=false (nicht buchbar — Admin schaltet manuell frei).
 - **BDE-Buchung Mehrfach-Regel**: Ohne Konfiguration darf ein Operator nur eine aktive Buchung haben und ein Arbeitsgang nur eine aktive Buchung (Enforcement im Service, nicht mehr als UNIQUE-Index). Die Settings `BdeMehrfachBuchungProOperator` und `BdeMehrfachBuchungProArbeitsgang` lockern diese Constraints jeweils unabhaengig. Die Indexes `IX_BdeBookings_BdeOperatorId_Active` und `IX_BdeBookings_WorkOperationId_Active` sind seit Phase 2.2 nicht mehr UNIQUE (nur noch regulaere gefilterte Indexes).
 - **BDE-Paused Semantik**: Paused hat `EndedAt = gesetzt`. Fortsetzung erzeugt neue Buchung mit `ParentBookingId`. Cockpit-Query `WHERE EndedAt IS NULL` zeigt nur Running.
 - **BDE-Operator deaktiviert waehrend offener Buchung**: Offene Buchungen bleiben sichtbar. Schichtleiter muss manuell schliessen.
 - **Save-Ordering in BdeBookingService**: Bei Auto-Close-und-New-Start MUSS `SaveChangesAsync` zwischen Schliessen und Add-Neu laufen (Helfer `FinishAndSaveAsync`), eingebettet in `BeginTransactionAsync()`.
 - **enaio DMS-Sync kein Delta**: `angelegt`-Spalte in enaio ist statisch (Bulk-Import 2013). Full-Sync statt Delta — MERGE verhindert Duplikate. `EnaioDmsSyncService.cs` liest ALLE Werkstattauftraege/Zeichnungen ohne Datumsfilter.
 - **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
+- **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
 
 ## Standard-Daten (Neuinstallation)
 
@@ -172,6 +174,9 @@
 | `Sync:FeiertagRegion` | (leer) | Optionaler Bundesland-Code (z.&nbsp;B. AT-3 NOe, AT-6 Stmk) |
 | `Sync:FeiertagJahreVoraus` | `2` | Jahre in die Zukunft synchronisieren |
 | `Sync:WarehouseRequisitionEmailEnabled` | `false` | Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker |
+| `Sync:LagerplaetzeEnabled` | `false` | Sage-Lagerplatz-Stammdaten-Sync aktiv |
+| `Sync:LagerbestandEnabled` | `false` | Sage-Lagerbestand-Sync aktiv (Phase 2) |
+| `Sync:LagerbestandIntervalMinutes` | `0` | Eigenes Intervall in Min (0 = nutzt SyncIntervalMinutes) |
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus |
 | `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |

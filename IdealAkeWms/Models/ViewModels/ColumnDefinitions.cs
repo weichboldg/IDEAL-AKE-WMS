@@ -37,6 +37,11 @@ public static class ColumnDefinitions
             new ColumnDef("coating-part","Lack-T",           Locked: false, DefaultWidth: 55),
             new ColumnDef("glass",       "Glas",             Locked: false, DefaultWidth: 45),
             new ColumnDef("purchase",    "Zukauf",           Locked: false, DefaultWidth: 55),
+            new ColumnDef("cooling",        "VK",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("fan",            "VL",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("electric",       "VE",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("doors",          "VT",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("superstructure", "VA",            Locked: false, DefaultWidth: 40),
             new ColumnDef("status",      "Status",           Locked: false),
             // Icon/action column (enaio links, OSEON, Erledigt-button)
             new ColumnDef("row-actions", "",                 Locked: true,  DefaultWidth: 80),

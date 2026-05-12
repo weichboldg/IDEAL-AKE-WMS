@@ -78,7 +78,7 @@ public class StockMovementsController : Controller
     {
         var vm = new StockMovementCreateViewModel
         {
-            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
+            StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
         ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -94,7 +94,7 @@ public class StockMovementsController : Controller
     {
         if (!ModelState.IsValid)
         {
-            vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+            vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
             vm.Users = await _userRepository.GetActiveUsersAsync();
             if (vm.ArticleId > 0)
             {
@@ -147,7 +147,7 @@ public class StockMovementsController : Controller
     {
         var vm = new StockMovementCreateViewModel
         {
-            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
+            StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
         ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -161,7 +161,7 @@ public class StockMovementsController : Controller
     {
         if (!ModelState.IsValid)
         {
-            vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+            vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
             vm.Users = await _userRepository.GetActiveUsersAsync();
             if (vm.ArticleId > 0)
             {
@@ -185,7 +185,7 @@ public class StockMovementsController : Controller
             if (!negativErlaubt)
             {
                 ModelState.AddModelError("", $"Nicht genügend Bestand. Verfügbar: {currentStock:N3}");
-                vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+                vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
                 vm.Users = await _userRepository.GetActiveUsersAsync();
                 if (vm.ArticleId > 0)
                 {
@@ -235,7 +235,7 @@ public class StockMovementsController : Controller
     {
         var vm = new StockTransferViewModel
         {
-            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync()
+            StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync()
         };
         ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
@@ -253,7 +253,7 @@ public class StockMovementsController : Controller
 
         if (!ModelState.IsValid)
         {
-            vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+            vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
             ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
             if (vm.ArticleId > 0)
             {
@@ -276,7 +276,7 @@ public class StockMovementsController : Controller
             if (!negativErlaubt)
             {
                 ModelState.AddModelError("", $"Nicht genügend Bestand am Quell-Lagerplatz. Verfügbar: {currentStockTransfer:N3}");
-                vm.StorageLocations = await _storageLocationRepository.GetAllOrderedAsync();
+                vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
                 if (vm.ArticleId > 0)
                 {
                     var art = await _articleRepository.GetByIdAsync(vm.ArticleId);
@@ -325,7 +325,7 @@ public class StockMovementsController : Controller
     {
         var vm = new OutboundAllViewModel
         {
-            StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
+            StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
             StorageLocationId = storageLocationId
         };
 

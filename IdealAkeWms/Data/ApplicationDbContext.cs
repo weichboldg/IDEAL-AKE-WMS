@@ -49,6 +49,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
     public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
     public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
+    public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -165,6 +166,13 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired().HasDefaultValue(StorageLocationSource.Manual);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.Source);
+            entity.Property(e => e.IstBuchbar).HasDefaultValue(true);
+            entity.HasIndex(e => e.IstBuchbar);
+
             entity.HasIndex(e => e.Code).IsUnique();
         });
 
@@ -280,6 +288,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)").IsRequired();
             entity.Property(e => e.ProductionOrder).HasMaxLength(100);
             entity.Property(e => e.WindowsUser).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Note).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -839,6 +848,20 @@ public class ApplicationDbContext : DbContext
                 .WithMany(r => r.Items)
                 .HasForeignKey(e => e.WarehouseRequisitionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // SyncLog
+        modelBuilder.Entity<SyncLog>(entity =>
+        {
+            entity.ToTable("SyncLogs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Service).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Level).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.Reference).HasMaxLength(100);
+
+            entity.HasIndex(e => e.Timestamp).IsDescending().HasDatabaseName("IX_SyncLogs_Timestamp_Desc");
+            entity.HasIndex(e => new { e.Service, e.Level }).HasDatabaseName("IX_SyncLogs_Service_Level");
         });
     }
 }

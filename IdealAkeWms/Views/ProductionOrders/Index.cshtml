@@ -56,17 +56,46 @@
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-secondary">Filtern</button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+                    <a asp-action="Index" class="btn btn-outline-secondary" data-clear-table-filters="ProductionOrders">Zurücksetzen</a>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+{
+    <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
+        <span class="me-3"><strong id="bulkSelectedCount">0</strong> markiert</span>
+        <form asp-action="BulkRelease" method="post" id="bulkReleaseForm" class="d-inline me-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="release" value="true" />
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkRelease" class="btn btn-sm btn-outline-secondary" disabled>
+                Markierte freigeben
+            </button>
+        </form>
+        <form asp-action="BulkRelease" method="post" id="bulkUnreleaseForm" class="d-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="release" value="false" />
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkUnrelease" class="btn btn-sm btn-outline-success" disabled>
+                Markierte zurücknehmen
+            </button>
+        </form>
+    </div>
+}
+
 <div class="table-responsive">
     <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc">
         <thead>
             <tr>
+                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                {
+                    <th style="width: 32px;" class="bulk-checkbox-col" data-col-key="bulk-select">
+                        <input type="checkbox" id="bulkSelectAll" title="Alle sichtbaren auswählen" />
+                    </th>
+                }
                 @if (Model.CanPick)
                 {
                     <th style="width: 40px;" data-col-key="actions"></th>
@@ -86,6 +115,11 @@
                 <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
                 <th style="width: 45px;" data-filterable data-col-key="glass">Glas</th>
                 <th style="width: 55px;" data-filterable data-col-key="purchase">Zukauf</th>
+                <th style="width: 40px;" data-filterable data-col-key="cooling"        title="VK Kälte">VK</th>
+                <th style="width: 40px;" data-filterable data-col-key="fan"            title="VL Lüfter">VL</th>
+                <th style="width: 40px;" data-filterable data-col-key="electric"       title="VE Elektro">VE</th>
+                <th style="width: 40px;" data-filterable data-col-key="doors"          title="VT Türen">VT</th>
+                <th style="width: 40px;" data-filterable data-col-key="superstructure" title="VA Aufbau">VA</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th style="width: 80px;" data-col-key="row-actions"></th>
                 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
@@ -102,6 +136,18 @@
             @foreach (var item in Model.Items)
             {
                 <tr class="@(item.IsDone ? "table-secondary" : "")">
+                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                    {
+                        <td class="bulk-checkbox-col">
+                            @if (!item.IsDone)
+                            {
+                                <input type="checkbox" class="bulk-row-checkbox"
+                                       data-id="@item.Id"
+                                       data-released="@(item.IsReleasedForPicking ? "true" : "false")"
+                                       data-has-article="@(string.IsNullOrEmpty(item.ArticleNumber) ? "false" : "true")" />
+                            }
+                        </td>
+                    }
                     @if (Model.CanPick)
                     {
                         <td class="text-nowrap">
@@ -187,6 +233,26 @@
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasExternalPurchase"
                                @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasCooling"
+                               title="VK Kälte" @(item.HasCooling ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasFan"
+                               title="VL Lüfter" @(item.HasFan ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasElectric"
+                               title="VE Elektro" @(item.HasElectric ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasDoors"
+                               title="VT Türen" @(item.HasDoors ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasSuperstructure"
+                               title="VA Aufbau" @(item.HasSuperstructure ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td>
                         @if (item.IsDone)
@@ -303,7 +369,11 @@
                     @{
                         var colCount = 17;
                         if (Model.CanPick) colCount++;
-                        if (Model.LeitstandAktiv && Model.CanManagePickingRelease) colCount++;
+                        if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                        {
+                            colCount++;
+                            colCount++;
+                        }
                         if (Model.PickerAssignmentEnabled) colCount++;
                     }
                     <td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td>
@@ -381,6 +451,44 @@
             </div>
         </div>
     </div>
+
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <!-- Bulk Release Modal -->
+        <div class="modal fade" id="bulkReleaseModal" tabindex="-1" aria-labelledby="bulkReleaseModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form asp-action="BulkRelease" method="post" id="bulkReleaseModalForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="release" value="true" />
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <div id="bulkReleaseModalIds"></div>
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="bulkReleaseModalLabel">Sammel-Freigabe</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong id="bulkReleaseModalCount">0</strong> Auftraege werden freigegeben.</p>
+                            <div class="mb-3">
+                                <label for="bulkAssignedPickerIdSelect" class="form-label">Kommissionierer zuweisen</label>
+                                <select name="assignedPickerId" id="bulkAssignedPickerIdSelect" class="form-select" required>
+                                    <option value="">— Bitte auswaehlen —</option>
+                                    @foreach (var p in activePickers)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" id="bulkReleaseModalSubmit" class="btn btn-primary" disabled>Freigeben</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 <script type="application/json" id="view-config">
@@ -388,6 +496,7 @@
 </script>
 <script type="application/json" id="column-config">
 [
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>{ "key": "bulk-select", "label": "", "locked": true, "defaultWidth": 32 },</text> }
     @if (Model.CanPick) { <text>{ "key": "actions", "label": "", "locked": true, "defaultWidth": 40 },</text> }
     { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
@@ -404,6 +513,11 @@
     { "key": "coating-part", "label": "Lack-T", "locked": false, "defaultWidth": 55 },
     { "key": "glass", "label": "Glas", "locked": false, "defaultWidth": 45 },
     { "key": "purchase", "label": "Zukauf", "locked": false, "defaultWidth": 55 },
+    { "key": "cooling", "label": "VK", "locked": false, "defaultWidth": 40 },
+    { "key": "fan", "label": "VL", "locked": false, "defaultWidth": 40 },
+    { "key": "electric", "label": "VE", "locked": false, "defaultWidth": 40 },
+    { "key": "doors", "label": "VT", "locked": false, "defaultWidth": 40 },
+    { "key": "superstructure", "label": "VA", "locked": false, "defaultWidth": 40 },
     { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
     { "key": "row-actions", "label": "", "locked": true, "defaultWidth": 80 }
     @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>,{ "key": "release", "label": "Freigabe", "locked": false, "defaultWidth": 160 }</text> }
@@ -521,4 +635,146 @@
             });
         </script>
     }
+    <script>
+        // Bulk-Selection für Leitstand-Freigabe
+        (function () {
+            var bar = document.getElementById('bulkActionBar');
+            if (!bar) return;  // Bulk-Feature inaktiv (kein Leitstand oder keine Berechtigung)
+
+            var pickerAssignmentEnabled = @(Model.PickerAssignmentEnabled.ToString().ToLower());
+
+            var selectAll = document.getElementById('bulkSelectAll');
+            var counter = document.getElementById('bulkSelectedCount');
+            var btnRelease = document.getElementById('btnBulkRelease');
+            var btnUnrelease = document.getElementById('btnBulkUnrelease');
+            var formRelease = document.getElementById('bulkReleaseForm');
+            var formUnrelease = document.getElementById('bulkUnreleaseForm');
+
+            function getRowCheckboxes() {
+                return Array.prototype.slice.call(document.querySelectorAll('.bulk-row-checkbox'));
+            }
+            function isVisible(cb) {
+                var tr = cb.closest('tr');
+                return tr && tr.style.display !== 'none';
+            }
+            function getVisibleCheckboxes() {
+                return getRowCheckboxes().filter(isVisible);
+            }
+            function getCheckedCheckboxes() {
+                return getRowCheckboxes().filter(function (cb) { return cb.checked; });
+            }
+
+            function recompute() {
+                var checked = getCheckedCheckboxes();
+                var total = checked.length;
+                var releasedCount = checked.filter(function (cb) { return cb.dataset.released === 'true'; }).length;
+                var unreleasedCount = total - releasedCount;
+                var allHaveArticle = checked.every(function (cb) { return cb.dataset.hasArticle === 'true'; });
+
+                counter.textContent = total;
+                bar.style.display = total > 0 ? 'flex' : 'none';
+
+                // Freigeben: alle Markierten sind nicht-freigegeben UND alle haben Artikelnummer
+                btnRelease.disabled = !(total > 0 && releasedCount === 0 && allHaveArticle);
+                // Zurücknehmen: alle Markierten sind freigegeben (Artikelnummer egal)
+                btnUnrelease.disabled = !(total > 0 && unreleasedCount === 0);
+
+                // SelectAll Tri-State
+                var visible = getVisibleCheckboxes();
+                var visibleChecked = visible.filter(function (cb) { return cb.checked; }).length;
+                if (visibleChecked === 0) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                } else if (visibleChecked === visible.length) {
+                    selectAll.checked = true;
+                    selectAll.indeterminate = false;
+                } else {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = true;
+                }
+            }
+
+            function bulkSyncSelection() {
+                // Filter hat Reihen versteckt — unsichtbare Checkboxen unchecken
+                getRowCheckboxes().forEach(function (cb) {
+                    if (cb.checked && !isVisible(cb)) cb.checked = false;
+                });
+                recompute();
+            }
+
+            // Row-Checkbox change
+            document.addEventListener('change', function (e) {
+                if (e.target.classList && e.target.classList.contains('bulk-row-checkbox')) {
+                    recompute();
+                }
+            });
+
+            // SelectAll click
+            selectAll.addEventListener('click', function () {
+                var newState = selectAll.checked;  // bereits durch Browser umgeschaltet
+                getVisibleCheckboxes().forEach(function (cb) { cb.checked = newState; });
+                recompute();
+            });
+
+            // Filter-Änderung → Auswahl synchronisieren
+            document.addEventListener('table-filter-applied', function (e) {
+                if (e.detail && e.detail.viewKey === 'ProductionOrders') {
+                    bulkSyncSelection();
+                }
+            });
+
+            // Form-Submit-Handler — ids[] anhängen
+            function attachIds(form) {
+                // Bei aktivem PickerAssignment lädt Release-Submit den Modal — keine ids ins eigentliche Form
+                if (pickerAssignmentEnabled && form === formRelease) return;
+                // Vorherige ids[]-Inputs entfernen
+                form.querySelectorAll('input[data-bulk-id]').forEach(function (n) { n.remove(); });
+                getCheckedCheckboxes().forEach(function (cb) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'ids';
+                    input.value = cb.dataset.id;
+                    input.setAttribute('data-bulk-id', '1');
+                    form.appendChild(input);
+                });
+            }
+            formRelease.addEventListener('submit', function () { attachIds(formRelease); });
+            formUnrelease.addEventListener('submit', function () { attachIds(formUnrelease); });
+
+            // PickerAssignment-Pfad: Release-Submit öffnet Modal statt zu submitten
+            if (pickerAssignmentEnabled) {
+                var bulkModal = document.getElementById('bulkReleaseModal');
+                var bulkModalIds = document.getElementById('bulkReleaseModalIds');
+                var bulkModalCount = document.getElementById('bulkReleaseModalCount');
+                var bulkPickerSelect = document.getElementById('bulkAssignedPickerIdSelect');
+                var bulkModalSubmit = document.getElementById('bulkReleaseModalSubmit');
+
+                if (bulkModal && bulkModalIds && bulkModalCount && bulkPickerSelect && bulkModalSubmit) {
+                    formRelease.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        var checked = getCheckedCheckboxes();
+                        bulkModalIds.innerHTML = '';
+                        checked.forEach(function (cb) {
+                            var input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'ids';
+                            input.value = cb.dataset.id;
+                            bulkModalIds.appendChild(input);
+                        });
+                        bulkModalCount.textContent = checked.length;
+                        bulkPickerSelect.value = '';
+                        bulkModalSubmit.disabled = true;
+                        bootstrap.Modal.getOrCreateInstance(bulkModal).show();
+                    });
+
+                    bulkPickerSelect.addEventListener('change', function () {
+                        bulkModalSubmit.disabled = !bulkPickerSelect.value;
+                    });
+                }
+            }
+
+            // Initial-State (für den Fall dass Server-State Pre-checked Checkboxen liefert — aktuell nie der Fall)
+            recompute();
+        })();
+    </script>
 }
