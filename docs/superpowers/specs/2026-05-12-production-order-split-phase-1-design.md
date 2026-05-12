@@ -418,21 +418,50 @@ item.HasFan = groups?.GetValueOrDefault("VL") ?? false;
 
 `ProductionOrderViewItem` behält die 5 Bool-Properties als View-only-Helper (keine DB-Spalten mehr). Damit bleiben Razor-Markup und filterable-table-Column-Keys stabil — nur die Datenquelle ändert sich.
 
+**Round-4-Korrektur — Chunking gegen 2100-Parameter-Limit:** SQL Server erlaubt max. 2100 Parameter pro Query. Bei Auflistungen ohne Pagination kann `WHERE ProductionOrderId IN (...)` mit > 2000 IDs scheitern. `GetIsApplicablePivotAsync` MUSS daher die Input-IDs in **Chunks zu 1000** aufteilen und die Ergebnisse merge'n:
+
+```csharp
+public async Task<Dictionary<int, Dictionary<string, bool>>> GetIsApplicablePivotAsync(IEnumerable<int> productionOrderIds)
+{
+    var ids = productionOrderIds.Distinct().ToList();
+    var result = new Dictionary<int, Dictionary<string, bool>>();
+    const int chunkSize = 1000;
+    for (int offset = 0; offset < ids.Count; offset += chunkSize)
+    {
+        var chunk = ids.Skip(offset).Take(chunkSize).ToList();
+        var rows = await _db.Set<ProductionOrderAssemblyGroup>()
+            .Where(g => chunk.Contains(g.ProductionOrderId))
+            .Select(g => new { g.ProductionOrderId, g.GroupKey, g.IsApplicable })
+            .ToListAsync();
+        foreach (var r in rows)
+        {
+            if (!result.TryGetValue(r.ProductionOrderId, out var d))
+            {
+                d = new Dictionary<string, bool>();
+                result[r.ProductionOrderId] = d;
+            }
+            d[r.GroupKey] = r.IsApplicable;
+        }
+    }
+    return result;
+}
+```
+
+Heutige Index-View hat Server-Pagination (max ~50 Items pro Seite) — Chunking ist defensive Versicherung gegen zukünftige Konsumer ohne Pagination.
+
 ## 8. Migration
 
-### 8.1 EF-Migration `AddProductionOrderSplit`
+### 8.1 Migration-Strategie: Standalone-SQL primär, EF-Migration als Empty-Marker
 
-Generiert via `dotnet ef migrations add AddProductionOrderSplit`. Erzeugt:
-- 5× `CreateTable` für die neuen Tabellen.
-- 16× `DropColumn` auf `ProductionOrders`.
-- Indexes (UQ + reguläre).
+**Round-4-Korrektur (Round-3-Ansatz war doppelte Wahrheit):** EF-Migration und SQL-Skript überlappten beide bei Schema + Drop. Jetzt klar getrennt:
 
-Der EF-Migration-`Up()` deckt **Schema** ab, aber **nicht Daten**. Daten-Migration läuft über das idempotente SQL-Skript (siehe 8.2). Reihenfolge im fertigen Skript:
+- **`SQL/60_ProductionOrderSplit.sql`** ist die einzige Wahrheit für Schema + Daten + Drop. **Wird manuell vor App-Start ausgeführt** (im Wartungsfenster, durch DBA oder Deploy-Skript). Idempotent, Wiederanlauf-fest.
+- **EF-Migration `AddProductionOrderSplit`** wird via `dotnet ef migrations add AddProductionOrderSplit` generiert, aber **`Up()` und `Down()` werden manuell auf leer gesetzt** (Body-Statements gelöscht). Die Migration ist ein **History-Marker** — sie sorgt nur dafür, dass nach Snapshot-Refactor weitere EF-Migrations korrekt darauf aufbauen.
+- Beim App-Start prüft EF die `__EFMigrationsHistory`-Tabelle. Da das Standalone-SQL den History-Eintrag mit anlegt (Section G in 8.2), sieht EF die Migration als applied und führt die leere `Up()` nicht aus.
 
-1. Schema-Up (neue Tabellen + Indexe).
-2. **Batched Daten-Kopie** aus alten Spalten in neue Tabellen.
-3. Verifikations-Counts (PRINT).
-4. Drop der 16 alten Spalten (inkl. zugehöriger FKs + Indexes auf alten Spalten).
+**Vorteil:** App-Start hängt **nicht** an einer minutenlangen Daten-Kopie. Migration-Risiko ist auf den DBA-/Deploy-Schritt isoliert, App-Container kann jederzeit gestartet/gestoppt werden.
+
+**Reihenfolge im SQL-Skript** (siehe 8.2): Section A Schema → Section B/C/D Daten → Section E Verifikation → Section F Drop → Section G History-Eintrag.
 
 ### 8.2 SQL-Skript `60_ProductionOrderSplit.sql`
 
@@ -500,9 +529,9 @@ GO
 
 Jeder Drop mit `IF EXISTS (SELECT 1 FROM sys.columns ...)`-Guard (Wiederanlauf-fest).
 
-### 8.3 `__EFMigrationsHistory` separat einfügen
+### 8.3 `__EFMigrationsHistory` als Section G im SQL-Skript
 
-Wie üblich (siehe CLAUDE.md Migrations-Workflow):
+Letzte Section des Skripts (nach Drop-Sektion F). Macht das Standalone-SQL self-contained — EF Migrate-Pipeline muss diese Migration nicht ausführen.
 
 ```sql
 IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = '<TIMESTAMP>_AddProductionOrderSplit')
@@ -511,6 +540,8 @@ BEGIN
 END
 GO
 ```
+
+**Beim App-Start:** EF prüft die History-Tabelle, findet den Eintrag, ruft `Up()` **nicht** auf (Body ist ohnehin leer). Migration gilt als applied.
 
 ### 8.4 `00_FreshInstall.sql` Update
 
@@ -621,7 +652,27 @@ In `Views/ProductionOrders/Index.cshtml:548-567` den Inline-JS-Handler durch den
 
 `PickingController.Index` mappt Released-FAs in `PickingListItem` (Zeile 91-114). Die Felder `PickingPriority`, `PickingStatus`, `AssignedPickerId`, `AssignedPickerName` werden jetzt von `PickingStatusRepository.GetReleasedForPickingAsync()` geliefert (Repo-Methode gibt `(ProductionOrder, PickingStatus)`-Paar zurück oder Include-projiziert). `PickingController.SetPickingStatus` (Zeile 357-373) schreibt in `ProductionOrderPickingStatus` statt direkt auf den FA.
 
+**Round-4 explicit: IsDone-Setter umstellen.** Heute setzt der `PickingController` an zwei Stellen direkt das FA-Master-IsDone-Flag, was nach Refactor falsch ist (FA.IsDone = Sage-Master). Beide Stellen müssen auf `PickingStatusRepository.SetIsDonePickingAsync` umgestellt werden:
+
+- [`PickingController.cs:134`](IdealAkeWms/Controllers/PickingController.cs#L134) `order.IsDone = !order.IsDone;` → `await _pickingStatusRepo.ToggleIsDonePickingAsync(order.Id);`
+- [`PickingController.cs:367`](IdealAkeWms/Controllers/PickingController.cs#L367) `order.IsDone = true;` → `await _pickingStatusRepo.SetIsDonePickingAsync(order.Id, true);`
+
+Toggle-API-Mapping (Spec 6.2) deckt `IsDonePicking` als Field-Name im `/api/picking-status/toggle`-Endpoint ab.
+
 `Views/Picking/Bom.cshtml` und `Views/Picking/Index.cshtml` lesen die Felder weiter via `PickingListItem` — kein View-Diff.
+
+### 10.4a `CoatingDetectionService` (Service-Projekt)
+
+[`IDEALAKEWMSService/Services/CoatingDetectionService.cs:147-158`](IDEALAKEWMSService/Services/CoatingDetectionService.cs#L147-L158) setzt heute `ProductionOrder.HasCoatingParts` und ggf. `IsCoatingDone` direkt auf der FA-Tabelle (über `ProductionOrderRepository.SetCoatingFlagsAsync`). Nach Refactor:
+
+```csharp
+// Alt: await _orderRepo.SetCoatingFlagsAsync(orderIdToHasCoatingParts);
+await _pickingStatusRepo.SetCoatingPartsAsync(orderIdToHasCoatingParts);
+```
+
+`SetCoatingPartsAsync` muss in `IProductionOrderPickingStatusRepository` definiert werden mit derselben Semantik wie heute: wenn `HasCoatingParts` von `true` auf `false` wechselt, wird `IsCoatingDone` ebenfalls auf `false` zurückgesetzt (Fallstrick CLAUDE.md #11).
+
+DI in Service: `CoatingDetectionService`-Konstruktor erweitern um `IProductionOrderPickingStatusRepository`; Service-`Program.cs` (im Service-Projekt) Repository registrieren.
 
 ### 10.5 `ProductionOrdersController.ToggleRelease` (Leitstand)
 
@@ -709,6 +760,12 @@ Erwartung: ~25 vorhandene Tests müssen ihre Setup-Daten umstellen (FA + zugehö
 ### 12.10 `IsApplicable`-Default `false` widerspricht heutigem Verhalten
 Heute: `HasCooling` etc. werden vom User per Checkbox auf `true` gesetzt — gespeicherte FAs haben die alten Werte. Migration kopiert sie korrekt. **Neue FAs nach AgentJob:** alle 5 Gruppen `IsApplicable=false`, User toggelt nach Bedarf. Verhalten identisch zu heute (Defaults sind `0` in DB).
 
+### 12.11 Old endpoint `/api/productionorders/toggle-field` hard-removed
+Der bisherige Endpoint wird in Phase 1 entfernt (`ProductionOrdersApiController.ToggleField` gelöscht). User mit Stale-Browser-Cache (vor Deploy geöffnete Tabs) treffen 404 → Checkbox-Klick ohne sichtbare Wirkung. **Mitigation:** `asp-append-version` versionsbusted `site.js` und View-Inline-JS — neue Tab-Loads holen die frische JS-Datei mit `data-endpoint`-Routing. Stale-Tab-Fall ist akzeptiert; User wird bei nächstem Page-Reload automatisch korrigiert. Optional verbessert: Old-Endpoint kurzzeitig (3-7 Tage) als 410 Gone mit Refresh-Hint-Header anbieten — **nicht in Phase 1 umgesetzt**, weil Hard-Cutover-Risiko niedrig.
+
+### 12.12 AgentJob-vs-Service-Sync-Ordering
+`CoatingDetectionService` (Service-Worker) schreibt nach Refactor in `ProductionOrderPickingStatus.HasCoatingParts`. Wenn der Service vor dem AgentJob läuft, treffen die Updates auf nicht-existente Status-Zeilen. **Mitigation:** Cutover-Schritt 10 erzwingt AgentJob-Smoke-Run **vor** Wartungsfenster-Ende. Service-Worker startet erst nach App-Start (= nach AgentJob-Smoke). `SyncIntervalMinutes=15` gibt zusätzlichen Puffer.
+
 ## 13. Manuelle Test-Szenarien (für TESTSZENARIEN.md)
 
 Im Plan-Task "Doku" werden 4 neue Szenarien dem TS-3-Block (FA-Liste) angehängt:
@@ -718,26 +775,33 @@ Im Plan-Task "Doku" werden 4 neue Szenarien dem TS-3-Block (FA-Liste) angehängt
 3. **TS-3.x — AgentJob-Eager-Create**: Neuen FA in Sage anlegen, AgentJob laufen lassen, alle 7 Status-Zeilen müssen existieren.
 4. **TS-3.x — Leitstand-Freigabe nach Refactor**: Freigabe-Toggle, Picker-Assignment, Priorität setzen — alle Werte landen in `ProductionOrderPickingStatus`.
 
-## 14. Deploy-Reihenfolge (aus Roadmap 5.6)
+## 14. Deploy-Reihenfolge (aus Roadmap 5.6, Round-4-korrigiert)
 
 1. Wartungsfenster-Kommunikation (24-48h Vorlauf).
 2. App-Stop.
 3. **DB-Backup** (vollständig).
 4. SQL Agent Job deaktivieren (`01_Import_Produktionsauftraege` und ggf. `02_Import_Artikel`, weil sie auf `ProductionOrders` referenzieren).
-5. `SQL/60_ProductionOrderSplit.sql` ausführen.
-6. Verifikations-Counts prüfen (Skript-PRINTs lesen).
-7. Neue App-Version + neuer AgentJob `01_Import_Produktionsauftraege` deployen.
-8. App-Start. **Migrations laufen automatisch** via `db.Database.Migrate()` (Roadmap-Best-Practice).
-9. **Smoke-Test:**
+5. **`SQL/60_ProductionOrderSplit.sql` manuell ausführen** (Schema + Daten + Drop + `__EFMigrationsHistory`-Eintrag in einer Datei). Daten-Kopie + Verifikations-PRINTs laufen hier.
+6. Verifikations-Counts prüfen — Erwartung: `ProductionOrderPickingStatus.COUNT == ProductionOrders.COUNT` und `ProductionOrderAssemblyGroups.COUNT == 5 × ProductionOrders.COUNT`. Bei Mismatch: STOP, Backup-Restore.
+7. Neue App-Version + neuer AgentJob `01_Import_Produktionsauftraege` deployen (AgentJob bleibt noch deaktiviert).
+8. App-Start. `db.Database.Migrate()` findet den History-Eintrag, ruft die leere `Up()` der EF-Migration nicht aus — kein App-Start-Hänger.
+9. **App-Smoke-Test (vor AgentJob-Reaktivierung):**
    - Index-Liste lädt < 2 s.
    - 1× FA freigeben → Eintrag in `ProductionOrderPickingStatus.IsReleasedForPicking=1`.
    - 1× Toggle pro Endpoint (HasGlass, IsCoatingDone, IsDonePicking, VK, VL, VE, VT, VA, IsDoneBde).
    - 1× Picking-Status setzen (`SetPickingStatus`).
    - 1× Stückliste öffnen.
-10. AgentJob reaktivieren.
-11. Wartungsfenster beenden.
+10. **AgentJob-Smoke-Test (Round-4-Pflicht, vor Wartungsfenster-Ende):**
+    - In Sage einen Test-FA anlegen (oder bereits vorhandenen Sage-WA für Test markieren).
+    - AgentJob `01_Import_Produktionsauftraege` **manuell einmal ausführen**.
+    - SQL-Check: für den neuen FA müssen je 1 `PickingStatus` + 1 `BdeStatus` + 5 `AssemblyGroups` existieren.
+    - Bei Fehler: Job kann angepasst werden, App bleibt online, kein User-Impact.
+11. AgentJob im Scheduler reaktivieren.
+12. Wartungsfenster beenden.
 
-Backup-Restore-Window endet 30 Minuten nach App-Start. Danach Forward-Fix only.
+Backup-Restore-Window endet 30 Minuten nach App-Start (Schritt 8). Danach Forward-Fix only. **AgentJob-Smoke (Schritt 10) ist innerhalb dieser Window-Phase Pflicht** — sonst wird ein AgentJob-Bug erst nach Stunden bei produktivem Sage-Run sichtbar.
+
+**Pre-Cutover-Ordering-Note:** Nach Wartungsfenster läuft der `CoatingDetectionService` (Service-Worker) seinen ersten Sync. Erwartung: AgentJob hat für alle FAs die `PickingStatus`-Zeile angelegt (Schritt 10), bevor `CoatingDetectionService` `SetCoatingPartsAsync` aufruft. Andernfalls würde der Coating-Service auf nicht-existierende Status-Zeilen schreiben. Mitigation: Service-Worker-`SyncIntervalMinutes` ist 15 → AgentJob ist seit ≥1 Run aktiv, bevor `CoatingDetectionService` triggert.
 
 ## 15. Versionierung + Doku
 

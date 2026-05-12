@@ -484,13 +484,17 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ---
 
-## Task 2: EF Migration + SQL Data-Copy Skript
+## Task 2: Standalone-SQL primär + EF-Migration als Empty-Marker
+
+**Round-4-Strategie (Spec 8.1):** Das SQL-Skript `60_ProductionOrderSplit.sql` ist die **einzige Wahrheit** für Schema + Daten + Drop und wird **manuell vor App-Start** ausgeführt (Cutover-Schritt 5). Die EF-Migration wird trotzdem generiert, aber `Up()`/`Down()`-Bodies werden auf **leer** gesetzt — sie dient nur als History-Marker im DbContext-Snapshot. Vorteil: App-Start hängt nicht an minutenlanger Daten-Kopie; Migration-Risiko isoliert auf den DBA-Schritt.
+
+Die in den Steps gezeigten Code-Snippets für Schema + Daten-Kopie + Drop landen also **in `SQL/60_*.sql`, nicht im EF-Migration-`Up()`**. Die EF-Migration-Datei behält nur die History-Information.
 
 **Files:**
-- New: `IdealAkeWms/Migrations/<TIMESTAMP>_AddProductionOrderSplit.cs` (EF-generiert, dann HAND-EDITIERT)
-- New: `IdealAkeWms/Migrations/<TIMESTAMP>_AddProductionOrderSplit.Designer.cs` (EF-generiert)
+- New: `IdealAkeWms/Migrations/<TIMESTAMP>_AddProductionOrderSplit.cs` (EF-generiert, Body **manuell auf leer gesetzt**)
+- New: `IdealAkeWms/Migrations/<TIMESTAMP>_AddProductionOrderSplit.Designer.cs` (EF-generiert — bleibt unverändert)
 - Modify: `IdealAkeWms/Migrations/ApplicationDbContextModelSnapshot.cs` (EF-aktualisiert)
-- New: `SQL/60_ProductionOrderSplit.sql`
+- New: `SQL/60_ProductionOrderSplit.sql` (vollständig — Schema + Daten + Drop + History)
 - Modify: `SQL/00_FreshInstall.sql`
 
 - [ ] **Step 1: Pre-Check — Rebase-Konflikt-Vermeidung (Spec 12.5)**
@@ -511,16 +515,34 @@ dotnet ef migrations add AddProductionOrderSplit --project IdealAkeWms
 
 Erwartet: 3 neue Dateien unter `IdealAkeWms/Migrations/`. EF erkennt anhand des aktualisierten `DbContext` automatisch alle 5 `CreateTable`s, 16 `DropColumn`s und alle Indexe. **NICHT** den generierten Code blind committen.
 
-- [ ] **Step 3: Migration hand-editieren — Datenkopie VOR DropColumn**
+- [ ] **Step 3: Migration-`Up()`/`Down()` auf LEER setzen (Round-4-Strategie)**
 
-Den `Up()`-Body öffnen. EF generiert in dieser Reihenfolge:
+Den `Up()`- und `Down()`-Body öffnen. EF generiert in `Up()` standardmäßig:
 1. `migrationBuilder.CreateTable(...)` × 5
 2. `migrationBuilder.DropForeignKey(...)` für `FK_ProductionOrders_AssignedPicker`
 3. `migrationBuilder.DropIndex(...)` für `IX_ProductionOrders_IsReleasedForPicking_IsDone`, `IX_ProductionOrders_AssignedPickerId`
 4. `migrationBuilder.DropColumn(...)` × 16
 5. `migrationBuilder.CreateIndex(...)` für neue Indexe
 
-Die Datenkopie muss zwischen Schritt 1 und Schritt 4 geschaltet werden — am sichersten **nach allen CreateTable, nach DropForeignKey + DropIndex, aber VOR DropColumn**. EF generiert das alles linear; den Datenkopie-Block via `migrationBuilder.Sql(@"...")` an die richtige Stelle einfügen:
+**Alle diese Statements werden gelöscht.** Body soll nach Edit aussehen wie:
+
+```csharp
+protected override void Up(MigrationBuilder migrationBuilder)
+{
+    // Schema + Daten + Drop wurden im Wartungsfenster über SQL/60_ProductionOrderSplit.sql
+    // ausgeführt. __EFMigrationsHistory-Eintrag wird vom SQL-Skript selbst gesetzt
+    // (Section G). Diese Migration ist ein History-Marker für EF-Snapshot-Konsistenz.
+}
+
+protected override void Down(MigrationBuilder migrationBuilder)
+{
+    // Rollback erfolgt per Backup-Restore (Roadmap 5.5). Down() ist intentional leer.
+}
+```
+
+Der Designer-File + ModelSnapshot bleiben unverändert (EF braucht sie für die nächste Migration als Snapshot-Base).
+
+**Die ursprünglich generierten Statements werden in das Standalone-SQL-Skript verschoben** — siehe Step 4. Die folgenden Code-Snippets (Daten-Kopie etc.) gehören also in `SQL/60_*.sql`, NICHT mehr in die EF-Migration:
 
 ```csharp
 // === DATEN-MIGRATION ZWISCHEN CREATE TABLES UND DROP COLUMNS ===
@@ -1364,19 +1386,32 @@ public class ProductionOrderAssemblyGroupRepository : IProductionOrderAssemblyGr
 
     public async Task<Dictionary<int, Dictionary<string, bool>>> GetIsApplicablePivotAsync(IEnumerable<int> productionOrderIds)
     {
-        var ids = productionOrderIds.ToList();
-        if (ids.Count == 0) return new Dictionary<int, Dictionary<string, bool>>();
+        // Round-4: Chunking gegen SQL-Server-2100-Parameter-Limit (Spec 7.3).
+        // IN-Query mit > 2000 IDs schlaegt fehl. 1000 IDs/Chunk ist defensiv-konservativ.
+        var ids = productionOrderIds.Distinct().ToList();
+        var result = new Dictionary<int, Dictionary<string, bool>>();
+        if (ids.Count == 0) return result;
 
-        var rows = await _context.ProductionOrderAssemblyGroups
-            .Where(g => ids.Contains(g.ProductionOrderId))
-            .Select(g => new { g.ProductionOrderId, g.GroupKey, g.IsApplicable })
-            .ToListAsync();
+        const int chunkSize = 1000;
+        for (int offset = 0; offset < ids.Count; offset += chunkSize)
+        {
+            var chunk = ids.Skip(offset).Take(chunkSize).ToList();
+            var rows = await _context.ProductionOrderAssemblyGroups
+                .Where(g => chunk.Contains(g.ProductionOrderId))
+                .Select(g => new { g.ProductionOrderId, g.GroupKey, g.IsApplicable })
+                .ToListAsync();
 
-        return rows
-            .GroupBy(r => r.ProductionOrderId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.ToDictionary(r => r.GroupKey, r => r.IsApplicable));
+            foreach (var r in rows)
+            {
+                if (!result.TryGetValue(r.ProductionOrderId, out var dict))
+                {
+                    dict = new Dictionary<string, bool>();
+                    result[r.ProductionOrderId] = dict;
+                }
+                dict[r.GroupKey] = r.IsApplicable;
+            }
+        }
+        return result;
     }
 
     public async Task SetIsApplicableAsync(int productionOrderId, string groupKey, bool value,
@@ -1420,13 +1455,41 @@ builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOr
 
 Konsumenten der entfernten Methoden (`CoatingDetectionService`?, `ProductionOrdersController`, `PickingController`) sind hier noch ROT — werden in Task 5 + 6 repariert.
 
-- [ ] **Step 7: Konsumenten von `SetCoatingFlagsAsync` finden + umstellen**
+- [ ] **Step 7: `CoatingDetectionService` konkret umstellen (Round-4-Detail)**
 
-```pwsh
-# Find CoatingDetectionService oder andere caller
+Bekannter Konsumer: [`IDEALAKEWMSService/Services/CoatingDetectionService.cs`](IDEALAKEWMSService/Services/CoatingDetectionService.cs). Die Bulk-Update-Logik (ca. Zeile 147-158) ruft heute `_productionOrderRepository.SetCoatingFlagsAsync(orderIdToHasCoatingParts)`.
+
+Anpassungen:
+
+1. **Konstruktor erweitern:**
+```csharp
+private readonly IProductionOrderPickingStatusRepository _pickingStatusRepository;
+
+public CoatingDetectionService(
+    IProductionOrderRepository orderRepository,
+    IProductionOrderPickingStatusRepository pickingStatusRepository,
+    /* andere bisherige Parameter */)
+{
+    _pickingStatusRepository = pickingStatusRepository;
+    // ...
+}
 ```
 
-Mit Grep nach `SetCoatingFlagsAsync` suchen. Jeden Aufruf umstellen auf `_pickingStatusRepository.SetCoatingPartsAsync(...)`. Falls Konstruktor-DI nicht passt, Konstruktor des betroffenen Services erweitern.
+2. **Aufrufstelle ersetzen:**
+```csharp
+// Alt:
+// await _productionOrderRepository.SetCoatingFlagsAsync(orderIdToHasCoatingParts);
+
+// Neu (Repo-Method-Signatur identisch — Dictionary<orderId, hasCoatingParts>):
+await _pickingStatusRepository.SetCoatingPartsAsync(orderIdToHasCoatingParts);
+```
+
+3. **DI-Registration im Service-Projekt** (`IDEALAKEWMSService/Program.cs` oder analog `ServiceCollectionExtensions`):
+```csharp
+services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
+```
+
+Falls weitere Caller von `SetCoatingFlagsAsync` (heute oder zukünftig) gefunden werden: gleiches Pattern. Build muss nach dieser Anpassung grün sein (Service-Projekt-seitig).
 
 - [ ] **Step 8: Build (immer noch ROT erwartet — Controllers + View)**
 
@@ -1651,6 +1714,11 @@ In `IdealAkeWms/Controllers/ProductionOrdersApiController.cs`:
 - Das statische `AllowedToggleFields`-HashSet (Zeilen 12-15) ENTFERNEN.
 
 Die `Search`-Action (Zeilen 24-38) BLEIBT unverändert.
+
+**Round-4-Stale-Cache-Note (Spec 12.11):** User mit vor Deploy geöffneten Browser-Tabs haben die alte JS-Version (`/api/productionorders/toggle-field`-Aufrufe) im Cache. Nach Deploy treffen diese 404. Mitigation:
+- `asp-append-version` auf `site.js` und View-Inline-JS sorgt für Hash-Bust bei nächstem Page-Reload (View-Markup hat heute z. B. `<script src="~/js/site.js" asp-append-version="true"></script>`).
+- Toast/Banner-Hinweis "Bitte Seite neu laden — Update verfügbar" ist **nicht** in Phase 1 umgesetzt (Risiko niedrig: max. wenige User mit lange offenen Tabs während des Cutovers).
+- Optional als Defensive-Folge-Task: 410-Gone-Stub-Endpoint, der für ~7 Tage als Migration-Hinweis dient. **Nicht in Phase 1.**
 
 Resultat:
 
@@ -1986,6 +2054,8 @@ var items = releasedOrders.Select(o =>
 
 - [ ] **Step 7: `PickingController.SetPickingStatus` umstellen**
 
+**Round-4-Korrektur (Spec 10.4):** Das alte Verhalten "Kommissionierung abgeschlossen → `order.IsDone = true`" setzte das **FA-Master-IsDone-Flag**. Nach Refactor ist `IsDone` Sage-Master-only — App-Komm-Done landet auf `PickingStatus.IsDonePicking`.
+
 Ersetzen (Zeile 354-376):
 
 ```csharp
@@ -2001,17 +2071,46 @@ public async Task<IActionResult> SetPickingStatus(int productionOrderId, string 
         productionOrderId, status,
         _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
-    // Kommissionierung abgeschlossen → FA automatisch erledigt setzen (auf Sage-Master)
+    // Kommissionierung abgeschlossen → IsDonePicking auf PickingStatus setzen
+    // (NICHT mehr order.IsDone — das bleibt Sage-Master-only).
     if (status == "abgeschlossen")
     {
-        order.IsDone = true;
-        order.ModifiedAt = DateTime.Now;
-        order.ModifiedBy = _currentUserService.GetDisplayName();
-        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
-        await _productionOrderRepository.UpdateAsync(order);
+        await _pickingStatusRepository.SetIsDonePickingAsync(
+            productionOrderId, true,
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
     }
 
     return Ok();
+}
+```
+
+`SetIsDonePickingAsync` ist in `IProductionOrderPickingStatusRepository` neben `SetPickingStatusTextAsync` zu definieren (Task 4 Step 3).
+
+- [ ] **Step 7a: `PickingController.ToggleDone` umstellen (Round-4-Neu)**
+
+[`PickingController.cs:125-145`](IdealAkeWms/Controllers/PickingController.cs#L125-L145) ist eine separate Action, die heute `order.IsDone = !order.IsDone` direkt auf der FA setzt. Auch das muss auf `IsDonePicking` umgestellt werden, sonst entsteht eine semantische Inkonsistenz (zwei Done-Aktionen, eine schreibt Sage-Master, eine schreibt PickingStatus).
+
+Ersetzen:
+
+```csharp
+[HttpPost]
+[ValidateAntiForgeryToken]
+[RequirePickingAccess]
+public async Task<IActionResult> ToggleDone(int id, string? returnUrl)
+{
+    var order = await _productionOrderRepository.GetByIdAsync(id);
+    if (order == null) return NotFound();
+
+    var status = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
+    // IsDonePicking togglen (statt FA-Master-IsDone)
+    await _pickingStatusRepository.SetIsDonePickingAsync(
+        id, !(status?.IsDonePicking ?? false),
+        _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+
+    if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        return Redirect(returnUrl);
+
+    return RedirectToAction(nameof(Index));
 }
 ```
 
@@ -2626,10 +2725,11 @@ Backup-Dauer notieren. Restore-Test in 1-2 Min auf Stage validieren? (Optional.)
 
 In SSMS: `01_Import_Produktionsauftraege` + `02_Import_Artikel` auf "Disabled" stellen. Verify: kein Job l&auml;uft (`sys.dm_exec_jobs`).
 
-- [ ] **Step 5: Migration ausf&uuml;hren (T+2min)**
+- [ ] **Step 5: Migration ausf&uuml;hren (T+2min) — Round-4: Standalone-SQL primär**
 
-Option A: `SQL/60_ProductionOrderSplit.sql` per SSMS manuell. PRINTs lesen, Counts erwarten.
-Option B: App-Start → `db.Database.Migrate()` macht es. (Spec 14.8 empfiehlt B als Default.)
+`SQL/60_ProductionOrderSplit.sql` per SSMS manuell ausführen (Spec 8.1 + 14.5). PRINT-Outputs lesen, Counts pr&uuml;fen. Skript enthält Schema + Daten + Drop + `__EFMigrationsHistory`-Eintrag, läuft idempotent (Wiederanlauf-fest bei Fehler).
+
+**Round-4-Wichtig:** EF-Migration `Up()` ist leer. App-Start (Step 8) ruft `db.Database.Migrate()`, findet den History-Eintrag, überspringt die Empty-`Up()`. **App startet schnell**, keine minutenlange Migration während App-Start.
 
 - [ ] **Step 6: Verifikations-Counts pr&uuml;fen (T+~20min)**
 
@@ -2662,11 +2762,35 @@ Smoke-Test-Checkliste (Spec 14.9):
 9. 1× Picking-Status setzen via PickingController → SSMS pr&uuml;fen `ProductionOrderPickingStatus.PickingStatus`.
 10. 1× St&uuml;ckliste &ouml;ffnen → l&auml;dt ohne Fehler.
 
-- [ ] **Step 9: Agent Jobs reaktivieren (T+~45min)**
+- [ ] **Step 9: AgentJob-Smoke-Test (T+~40min) — Round-4-Pflicht**
 
-In SSMS: `01_Import_Produktionsauftraege` + `02_Import_Artikel` "Enabled". Manuellen Job-Start ausl&ouml;sen → Verify keine Fehler im SQL Agent History. Verify: 1 neuer FA in Sage f&uuml;hrt zu 7 Status-Zeilen (siehe TS-3.x AgentJob-Eager-Create).
+**Vor** der Reaktivierung des Scheduler-Jobs: manuell verifizieren, dass der Folge-MERGE die 7 Status-Zeilen pro neuem FA korrekt anlegt. Wenn dieser Test scheitert, wird der Bug innerhalb der Backup-Restore-Window (30 Min nach App-Start) sichtbar — Rollback noch möglich.
 
-- [ ] **Step 10: Wartungsfenster schliessen (T+~50min)**
+```sql
+-- 1. Test-FA in Sage-Quelle anlegen (oder vorhandenen WA als "neu" markieren)
+-- 2. AgentJob-Skript manuell ausführen:
+:r SQL\AgentJobs\01_Import_Produktionsauftraege.sql
+
+-- 3. Verifikation:
+DECLARE @testOrderNumber NVARCHAR(100) = 'FA-TEST-CUTOVER-001'; -- anpassen
+DECLARE @poId INT = (SELECT Id FROM dbo.ProductionOrders WHERE OrderNumber = @testOrderNumber);
+
+SELECT
+    (SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus WHERE ProductionOrderId = @poId) AS PS_Count,
+    (SELECT COUNT(*) FROM dbo.ProductionOrderBdeStatus    WHERE ProductionOrderId = @poId) AS BDE_Count,
+    (SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups WHERE ProductionOrderId = @poId) AS Groups_Count;
+-- Erwartet: PS=1, BDE=1, Groups=5
+```
+
+Bei Mismatch: AgentJob-Skript prüfen + reparieren, Re-Run. **Erst wenn 1/1/5 grün ist, weiter zu Step 10.**
+
+- [ ] **Step 10: Agent Jobs reaktivieren (T+~45min)**
+
+In SSMS: `01_Import_Produktionsauftraege` + `02_Import_Artikel` "Enabled". Scheduler erkennt aktivierten Job beim n&auml;chsten Intervall.
+
+**Pre-Cutover-Ordering-Note (Spec 12.12):** Der `CoatingDetectionService` (Service-Worker, SyncIntervalMinutes=15) startet automatisch beim App-Start (Step 8). Er muss `SetCoatingPartsAsync` auf bereits existierende PickingStatus-Zeilen aufrufen. Daten-Migration in Schritt 5 hat alle existierenden FAs mit PickingStatus versehen → keine Race-Condition. Bei AgentJob-importierten NEUEN FAs sorgt Step 9 (AgentJob-Smoke vor Reaktivierung) dafür, dass die Status-Zeilen mit angelegt werden, bevor Service-Worker triggert.
+
+- [ ] **Step 11: Wartungsfenster schliessen (T+~50min)**
 
 User informieren: System wieder verf&uuml;gbar. Backup-Restore-Window endet 30 Minuten sp&auml;ter (T+~80min). Danach Forward-Fix-Only-Strategie.
 
