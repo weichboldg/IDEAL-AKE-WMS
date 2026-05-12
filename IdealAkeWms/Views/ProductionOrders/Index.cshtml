@@ -221,37 +221,61 @@
                     <td class="text-center">
                         @if (item.HasCoatingParts)
                         {
-                            <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="IsCoatingDone"
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/picking-status/toggle"
+                                   data-field="IsCoatingDone"
                                    title="Lackierteile erledigt"
                                    @(item.IsCoatingDone ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                         }
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasGlass"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/picking-status/toggle"
+                               data-field="HasGlass"
                                @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasExternalPurchase"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/picking-status/toggle"
+                               data-field="HasExternalPurchase"
                                @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasCooling"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VK"
                                title="VK Kälte" @(item.HasCooling ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasFan"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VL"
                                title="VL Lüfter" @(item.HasFan ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasElectric"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VE"
                                title="VE Elektro" @(item.HasElectric ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasDoors"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VT"
                                title="VT Türen" @(item.HasDoors ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field" data-id="@item.Id" data-field="HasSuperstructure"
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VA"
                                title="VA Aufbau" @(item.HasSuperstructure ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td>
@@ -544,16 +568,32 @@
                 if (form) form.submit();
             });
 
-            // Glas/Zukauf Checkbox-Toggle per AJAX
+            // Toggle-Field per AJAX — dispatcht ueber data-endpoint
+            // picking-status sendet { productionOrderId, field, value }
+            // assembly-groups sendet { productionOrderId, groupKey, value }
             document.querySelectorAll('.toggle-field').forEach(function (cb) {
                 cb.addEventListener('change', function () {
                     var id = parseInt(this.getAttribute('data-id'));
+                    var endpoint = this.getAttribute('data-endpoint');
                     var field = this.getAttribute('data-field');
+                    var groupKey = this.getAttribute('data-group-key');
                     var value = this.checked;
-                    fetch('/api/productionorders/toggle-field', {
+
+                    var body;
+                    if (endpoint === '/api/assembly-groups/toggle-applicable') {
+                        body = { productionOrderId: id, groupKey: groupKey, value: value };
+                    } else if (endpoint === '/api/picking-status/toggle' || endpoint === '/api/bde-status/toggle') {
+                        body = { productionOrderId: id, field: field, value: value };
+                    } else {
+                        console.error('Unknown toggle-field endpoint:', endpoint);
+                        cb.checked = !value;
+                        return;
+                    }
+
+                    fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: id, field: field, value: value })
+                        body: JSON.stringify(body)
                     }).then(function (resp) {
                         if (!resp.ok) {
                             cb.checked = !value;

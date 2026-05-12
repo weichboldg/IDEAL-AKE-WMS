@@ -1,6 +1,6 @@
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
-@inject IdealAkeWms.Data.Repositories.IProductionOrderRepository ProductionOrderRepository
+@inject IdealAkeWms.Data.Repositories.IProductionOrderPickingStatusRepository PickingStatusRepository
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -35,7 +35,7 @@
                             var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
                             var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                            var releasedPickingCount = leitstandAktiv && canPick ? await ProductionOrderRepository.GetReleasedForPickingCountAsync() : 0;
+                            var releasedPickingCount = leitstandAktiv && canPick ? await PickingStatusRepository.GetReleasedForPickingCountAsync() : 0;
                             var bdeAktiv = (await AppSettings.GetValueAsync("BdeAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var canUseBde = await CurrentUserService.CanUseBdeAsync();
                             var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
