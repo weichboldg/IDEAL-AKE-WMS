@@ -1,0 +1,825 @@
+@model PickingLeitstandViewModel
+@using System.Globalization
+@{
+    var pageTitle = "Fertigungsaufträge";
+    ViewData["Title"] = pageTitle;
+    var today = DateTime.Today;
+    // ISO 8601 Kalenderwoche berechnen
+    string FormatDateWithKw(DateTime? date)
+    {
+        if (!date.HasValue) return "";
+        var d = date.Value;
+        var kw = ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}";
+    }
+}
+
+<h2 class="page-header">@pageTitle</h2>
+
+<div class="card filter-card mb-4">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">FA Nummer</label>
+                    <div class="input-group">
+                        <input type="text" id="filterOrderNumber" name="filterOrderNumber" value="@Model.FilterOrderNumber" class="form-control" placeholder="FA Nummer" />
+                        <button type="button" id="btnScanOrderNumber" class="btn btn-outline-secondary" title="QR-Code scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Artikelnummer</label>
+                    <div class="input-group">
+                        <input type="text" id="filterArticleNumber" name="filterArticleNumber" value="@Model.FilterArticleNumber" class="form-control" placeholder="Artikelnummer" />
+                        <button type="button" id="btnScanArticleNumber" class="btn btn-outline-secondary" title="QR-Code scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kunde</label>
+                    <input type="text" name="filterCustomer" value="@Model.FilterCustomer" class="form-control" placeholder="Kunde" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="showDone" value="true" class="form-check-input" id="showDone"
+                               @(Model.ShowDone ? "checked" : "") />
+                        <label class="form-check-label" for="showDone">Erledigte anzeigen</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-secondary">Filtern</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary" data-clear-table-filters="PickingLeitstand">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+{
+    <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
+        <span class="me-3"><strong id="bulkSelectedCount">0</strong> markiert</span>
+        <form asp-controller="PickingLeitstand" asp-action="BulkRelease" method="post" id="bulkReleaseForm" class="d-inline me-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="release" value="true" />
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkRelease" class="btn btn-sm btn-outline-secondary" disabled>
+                Markierte freigeben
+            </button>
+        </form>
+        <form asp-controller="PickingLeitstand" asp-action="BulkRelease" method="post" id="bulkUnreleaseForm" class="d-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="release" value="false" />
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkUnrelease" class="btn btn-sm btn-outline-success" disabled>
+                Markierte zurücknehmen
+            </button>
+        </form>
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="PickingLeitstand" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc">
+        <thead>
+            <tr>
+                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                {
+                    <th style="width: 32px;" class="bulk-checkbox-col" data-col-key="bulk-select">
+                        <input type="checkbox" id="bulkSelectAll" title="Alle sichtbaren auswählen" />
+                    </th>
+                }
+                @if (Model.CanPick)
+                {
+                    <th style="width: 40px;" data-col-key="actions"></th>
+                }
+                <th style="width: 90px;" data-filterable data-col-key="order-number">FA Nr.</th>
+                <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
+                <th data-filterable data-col-key="customer">Kunde</th>
+                <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                <th data-filterable data-col-key="description1">Bezeichnung 1</th>
+                <th data-filterable data-col-key="description2">Bezeichnung 2</th>
+                <th data-filterable data-col-key="workbench">Werkbank</th>
+                <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
+                <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
+                <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
+                <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
+                <th class="text-nowrap" data-filterable data-col-key="delivery-date" data-date-filter>Liefertermin</th>
+                <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
+                <th style="width: 45px;" data-filterable data-col-key="glass">Glas</th>
+                <th style="width: 55px;" data-filterable data-col-key="purchase">Zukauf</th>
+                <th style="width: 40px;" data-filterable data-col-key="cooling"        title="VK Kälte">VK</th>
+                <th style="width: 40px;" data-filterable data-col-key="fan"            title="VL Lüfter">VL</th>
+                <th style="width: 40px;" data-filterable data-col-key="electric"       title="VE Elektro">VE</th>
+                <th style="width: 40px;" data-filterable data-col-key="doors"          title="VT Türen">VT</th>
+                <th style="width: 40px;" data-filterable data-col-key="superstructure" title="VA Aufbau">VA</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th style="width: 80px;" data-col-key="row-actions"></th>
+                @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                {
+                    <th style="width: 160px;" data-col-key="release">Freigabe</th>
+                }
+                @if (Model.PickerAssignmentEnabled)
+                {
+                    <th data-filterable data-col-key="picker">Kommissionierer</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr class="@(item.IsDone ? "table-secondary" : "")">
+                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                    {
+                        <td class="bulk-checkbox-col">
+                            @if (!item.IsDone)
+                            {
+                                <input type="checkbox" class="bulk-row-checkbox"
+                                       data-id="@item.Id"
+                                       data-released="@(item.IsReleasedForPicking ? "true" : "false")"
+                                       data-has-article="@(string.IsNullOrEmpty(item.ArticleNumber) ? "false" : "true")" />
+                            }
+                        </td>
+                    }
+                    @if (Model.CanPick)
+                    {
+                        <td class="text-nowrap">
+                            @if (!string.IsNullOrEmpty(item.ArticleNumber))
+                            {
+                                <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
+                                    </svg>
+                                </a>
+                            }
+                        </td>
+                    }
+                    <td>
+                        <strong>@item.OrderNumber</strong>
+                        @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
+                        {
+                            foreach (var dms in dmsLinks)
+                            {
+                                var dmsUrl = $"http://akeosapp.ake.at/oscontentviewer/viewer/{dms.EnaioDmsObjectId}/?pagecount=1";
+                                var dmsTitle = dms.DocumentType == "Zeichnung" ? "Zeichnung in enaio oeffnen" : "Dokument in enaio oeffnen";
+                                if (dms.DocumentType == "Zeichnung")
+                                {
+                                    <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="dms-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/></svg></a>
+                                }
+                                else
+                                {
+                                    <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="dms-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg></a>
+                                }
+                            }
+                        }
+                    </td>
+                    <td class="text-end">@item.Quantity.ToString("N3")</td>
+                    <td>@item.Customer</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(item.ArticleNumber))
+                        {
+                            <strong>@item.ArticleNumber</strong>
+                            <a href="http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search=@item.ArticleNumber&searchContext=0" target="_blank" title="Zeichnung in Vault öffnen" class="vault-link">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
+                                    <path d="M4.5 12.5A.5.5 0 0 1 5 12h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m0-2A.5.5 0 0 1 5 10h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m1.639-3.708 1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047l1.888.974V7.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V7s1.54-1.274 1.639-1.208M6.25 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5"/>
+                                </svg>
+                            </a>
+                        }
+                    </td>
+                    <td>@item.Description1</td>
+                    <td>@item.Description2</td>
+                    <td>@item.WorkplaceName</td>
+                    @{
+                        var lackName = ViewBag.LackierteilKategorieName as string;
+                        var featureInactive = string.IsNullOrWhiteSpace(lackName);
+                        var showBeschicht = featureInactive || item.HasCoatingParts;
+                        var beschichtRed = showBeschicht
+                                           && !item.IsDone
+                                           && !item.IsCoatingDone
+                                           && item.BeschichtungTermin.HasValue
+                                           && item.BeschichtungTermin.Value < today;
+                    }
+                    <td class="@(beschichtRed ? "text-danger fw-bold" : "")">
+                        @(showBeschicht ? FormatDateWithKw(item.BeschichtungTermin) : "")
+                    </td>
+                    <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
+                        @FormatDateWithKw(item.VorkommissionierTermin)
+                    </td>
+                    <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "kommissionier-date")">
+                        @FormatDateWithKw(item.KommissionierTermin)
+                    </td>
+                    <td>@FormatDateWithKw(item.ProductionDate)</td>
+                    <td>@FormatDateWithKw(item.DeliveryDate)</td>
+                    <td class="text-center">
+                        @if (item.HasCoatingParts)
+                        {
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/picking-status/toggle"
+                                   data-field="IsCoatingDone"
+                                   title="Lackierteile erledigt"
+                                   @(item.IsCoatingDone ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        }
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/picking-status/toggle"
+                               data-field="HasGlass"
+                               @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/picking-status/toggle"
+                               data-field="HasExternalPurchase"
+                               @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VK"
+                               title="VK Kälte" @(item.HasCooling ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VL"
+                               title="VL Lüfter" @(item.HasFan ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VE"
+                               title="VE Elektro" @(item.HasElectric ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VT"
+                               title="VT Türen" @(item.HasDoors ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input toggle-field"
+                               data-id="@item.Id"
+                               data-endpoint="/api/assembly-groups/toggle-applicable"
+                               data-group-key="VA"
+                               title="VA Aufbau" @(item.HasSuperstructure ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                    </td>
+                    <td>
+                        @if (item.IsDone)
+                        {
+                            <span class="badge bg-secondary">Erledigt</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Offen</span>
+                        }
+                        @if (!string.IsNullOrEmpty(item.PickingStatus))
+                        {
+                            if (item.PickingStatus == "abgeschlossen")
+                            {
+                                <span class="badge badge-picking-done ms-1">Komm.</span>
+                            }
+                            else if (item.PickingStatus == "teilkommissioniert")
+                            {
+                                <span class="badge badge-picking-partial ms-1">Teilkomm.</span>
+                            }
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        <a asp-controller="Tracking" asp-action="OseonIndex" asp-route-filterCustomerOrder="@item.OrderNumber" asp-route-showFinished="true"
+                           class="btn btn-sm btn-outline-info me-1" title="OSEON Teileverfolgung">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.451.004.09-.41h2.281z"/>
+                                <path d="M8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
+                            </svg>
+                        </a>
+                        @if (Model.CanPick)
+                        {
+                            <form asp-controller="Picking" asp-action="ToggleDone" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
+                                        title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
+                                    @if (item.IsDone)
+                                    {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+                                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                        </svg>
+                                    }
+                                </button>
+                            </form>
+                        }
+                    </td>
+                    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                    {
+                        <td class="text-center text-nowrap">
+                            @if (!item.IsDone)
+                            {
+                                <form asp-controller="PickingLeitstand" asp-action="ToggleRelease" method="post" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                    @if (item.IsReleasedForPicking)
+                                    {
+                                        <button type="submit" class="btn btn-sm btn-success me-1" title="Freigabe zurücknehmen">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                                            </svg>
+                                        </button>
+                                    }
+                                    else if (!string.IsNullOrEmpty(item.ArticleNumber))
+                                    {
+                                        @if (Model.PickerAssignmentEnabled)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-secondary open-release-modal"
+                                                    data-order-id="@item.Id" title="Zur Kommissionierung freigeben">
+                                                Freigeben
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Zur Kommissionierung freigeben">
+                                                Freigeben
+                                            </button>
+                                        }
+                                    }
+                                </form>
+                                @if (item.IsReleasedForPicking)
+                                {
+                                    <input type="number" class="form-control form-control-sm d-inline-block priority-input"
+                                           value="@item.PickingPriority" min="1" style="width:55px"
+                                           data-id="@item.Id" title="Priorität (1 = höchste)" />
+                                }
+                            }
+                        </td>
+                    }
+                    @if (Model.PickerAssignmentEnabled)
+                    {
+                        <td>
+                            @if (item.IsReleasedForPicking && !string.IsNullOrEmpty(item.AssignedPickerName))
+                            {
+                                <a href="#" class="change-picker-link" data-order-id="@item.Id" data-picker-name="@item.AssignedPickerName"
+                                   title="Kommissionierer aendern">@item.AssignedPickerName</a>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    @{
+                        // Rich-View Spalten ohne Conditionals = 22:
+                        // order-number, quantity, customer, article-number, description1, description2,
+                        // workbench, coating-date, bg-date, picking-date, production-date, delivery-date,
+                        // coating-part, glass, purchase, cooling, fan, electric, doors, superstructure,
+                        // status, row-actions
+                        var colCount = 22;
+                        if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+                        {
+                            colCount++; // bulk-select
+                            colCount++; // release
+                        }
+                        if (Model.CanPick) colCount++;                  // actions
+                        if (Model.PickerAssignmentEnabled) colCount++;  // picker
+                    }
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-3 text-muted">
+    <small>@Model.Items.Count Einträge</small>
+</div>
+
+@if (Model.PickerAssignmentEnabled)
+{
+    var activePickers = ViewBag.ActivePickers as List<IdealAkeWms.Models.User> ?? new List<IdealAkeWms.Models.User>();
+
+    <!-- Release Modal -->
+    <div class="modal fade" id="releaseModal" tabindex="-1" aria-labelledby="releaseModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-controller="PickingLeitstand" asp-action="ToggleRelease" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" id="releaseModalOrderId" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="releaseModalLabel">Kommissionier-Freigabe</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="assignedPickerIdSelect" class="form-label">Kommissionierer zuweisen</label>
+                            <select name="assignedPickerId" id="assignedPickerIdSelect" class="form-select" required>
+                                <option value="">— Bitte auswaehlen —</option>
+                                @foreach (var picker in activePickers)
+                                {
+                                    <option value="@picker.Id">@picker.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary" id="releaseModalSubmit" disabled>Freigeben</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Picker Modal -->
+    <div class="modal fade" id="changePickerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Kommissionierer aendern</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="changePickerSelect" class="form-label">Neuer Kommissionierer</label>
+                        <select id="changePickerSelect" class="form-select">
+                            <option value="">— Bitte auswaehlen —</option>
+                            @foreach (var picker in activePickers)
+                            {
+                                <option value="@picker.Id">@picker.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="changePickerSubmit" disabled>Speichern</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <!-- Bulk Release Modal -->
+        <div class="modal fade" id="bulkReleaseModal" tabindex="-1" aria-labelledby="bulkReleaseModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form asp-controller="PickingLeitstand" asp-action="BulkRelease" method="post" id="bulkReleaseModalForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="release" value="true" />
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <div id="bulkReleaseModalIds"></div>
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="bulkReleaseModalLabel">Sammel-Freigabe</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong id="bulkReleaseModalCount">0</strong> Auftraege werden freigegeben.</p>
+                            <div class="mb-3">
+                                <label for="bulkAssignedPickerIdSelect" class="form-label">Kommissionierer zuweisen</label>
+                                <select name="assignedPickerId" id="bulkAssignedPickerIdSelect" class="form-select" required>
+                                    <option value="">— Bitte auswaehlen —</option>
+                                    @foreach (var p in activePickers)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" id="bulkReleaseModalSubmit" class="btn btn-primary" disabled>Freigeben</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<script type="application/json" id="view-config">
+{ "viewKey": "PickingLeitstand", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>{ "key": "bulk-select", "label": "", "locked": true, "defaultWidth": 32 },</text> }
+    @if (Model.CanPick) { <text>{ "key": "actions", "label": "", "locked": true, "defaultWidth": 40 },</text> }
+    { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
+    { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
+    { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+    { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
+    { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "coating-date", "label": "Beschicht.", "locked": false, "defaultWidth": null },
+    { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
+    { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
+    { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
+    { "key": "delivery-date", "label": "Liefertermin", "locked": false, "defaultWidth": null },
+    { "key": "coating-part", "label": "Lack-T", "locked": false, "defaultWidth": 55 },
+    { "key": "glass", "label": "Glas", "locked": false, "defaultWidth": 45 },
+    { "key": "purchase", "label": "Zukauf", "locked": false, "defaultWidth": 55 },
+    { "key": "cooling", "label": "VK", "locked": false, "defaultWidth": 40 },
+    { "key": "fan", "label": "VL", "locked": false, "defaultWidth": 40 },
+    { "key": "electric", "label": "VE", "locked": false, "defaultWidth": 40 },
+    { "key": "doors", "label": "VT", "locked": false, "defaultWidth": 40 },
+    { "key": "superstructure", "label": "VA", "locked": false, "defaultWidth": 40 },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "row-actions", "label": "", "locked": true, "defaultWidth": 80 }
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease) { <text>,{ "key": "release", "label": "Freigabe", "locked": false, "defaultWidth": 160 }</text> }
+    @if (Model.PickerAssignmentEnabled) { <text>,{ "key": "picker", "label": "Kommissionierer", "locked": false, "defaultWidth": null }</text> }
+]
+</script>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // QR scanner for FA number filter — fills input then submits form
+            initTextInputScanner('btnScanOrderNumber', 'filterOrderNumber', 'fa', function() {
+                var form = document.getElementById('filterOrderNumber').closest('form');
+                if (form) form.submit();
+            });
+
+            // QR scanner for article number filter — fills input then submits form
+            initTextInputScanner('btnScanArticleNumber', 'filterArticleNumber', 'article', function() {
+                var form = document.getElementById('filterArticleNumber').closest('form');
+                if (form) form.submit();
+            });
+
+            // Toggle-Field per AJAX — dispatcht ueber data-endpoint
+            // picking-status sendet { productionOrderId, field, value }
+            // assembly-groups sendet { productionOrderId, groupKey, value }
+            document.querySelectorAll('.toggle-field').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    var id = parseInt(this.getAttribute('data-id'));
+                    var endpoint = this.getAttribute('data-endpoint');
+                    var field = this.getAttribute('data-field');
+                    var groupKey = this.getAttribute('data-group-key');
+                    var value = this.checked;
+
+                    var body;
+                    if (endpoint === '/api/assembly-groups/toggle-applicable') {
+                        body = { productionOrderId: id, groupKey: groupKey, value: value };
+                    } else if (endpoint === '/api/picking-status/toggle' || endpoint === '/api/bde-status/toggle') {
+                        body = { productionOrderId: id, field: field, value: value };
+                    } else {
+                        console.error('Unknown toggle-field endpoint:', endpoint);
+                        cb.checked = !value;
+                        return;
+                    }
+
+                    fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    }).then(function (resp) {
+                        if (!resp.ok) {
+                            cb.checked = !value;
+                            alert('Fehler beim Speichern.');
+                        }
+                    }).catch(function () {
+                        cb.checked = !value;
+                        alert('Fehler beim Speichern.');
+                    });
+                });
+            });
+        });
+    </script>
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <script>
+            document.querySelectorAll('.priority-input').forEach(function (input) {
+                input.addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); });
+                input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+                input.addEventListener('change', function () {
+                    var id = this.getAttribute('data-id');
+                    var priority = this.value ? parseInt(this.value) : null;
+                    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                    $.ajax({
+                        url: '@Url.Action("SetPriority", "PickingLeitstand")',
+                        type: 'POST',
+                        data: { id: id, priority: priority },
+                        headers: { 'RequestVerificationToken': token },
+                        error: function () { alert('Fehler beim Speichern der Priorität.'); }
+                    });
+                });
+            });
+        </script>
+    }
+    @if (Model.PickerAssignmentEnabled)
+    {
+        <script>
+            // Release Modal
+            document.querySelectorAll('.open-release-modal').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('releaseModalOrderId').value = this.getAttribute('data-order-id');
+                    document.getElementById('assignedPickerIdSelect').value = '';
+                    document.getElementById('releaseModalSubmit').disabled = true;
+                    var modal = new bootstrap.Modal(document.getElementById('releaseModal'));
+                    modal.show();
+                });
+            });
+            document.getElementById('assignedPickerIdSelect')?.addEventListener('change', function () {
+                document.getElementById('releaseModalSubmit').disabled = !this.value;
+            });
+
+            // Change Picker Modal
+            var changePickerOrderId = null;
+            document.querySelectorAll('.change-picker-link').forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    changePickerOrderId = this.getAttribute('data-order-id');
+                    document.getElementById('changePickerSelect').value = '';
+                    document.getElementById('changePickerSubmit').disabled = true;
+                    var modal = new bootstrap.Modal(document.getElementById('changePickerModal'));
+                    modal.show();
+                });
+            });
+            document.getElementById('changePickerSelect')?.addEventListener('change', function () {
+                document.getElementById('changePickerSubmit').disabled = !this.value;
+            });
+            document.getElementById('changePickerSubmit')?.addEventListener('click', function () {
+                var pickerId = document.getElementById('changePickerSelect').value;
+                if (!changePickerOrderId || !pickerId) return;
+                var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                $.ajax({
+                    url: '@Url.Action("ChangeAssignedPicker", "PickingLeitstand")',
+                    type: 'POST',
+                    data: { id: changePickerOrderId, assignedPickerId: pickerId },
+                    headers: { 'RequestVerificationToken': token },
+                    success: function () { location.reload(); },
+                    error: function () { alert('Fehler beim Aendern des Kommissionierers.'); }
+                });
+            });
+        </script>
+    }
+    <script>
+        // Bulk-Selection für Leitstand-Freigabe
+        (function () {
+            var bar = document.getElementById('bulkActionBar');
+            if (!bar) return;  // Bulk-Feature inaktiv (kein Leitstand oder keine Berechtigung)
+
+            var pickerAssignmentEnabled = @(Model.PickerAssignmentEnabled.ToString().ToLower());
+
+            var selectAll = document.getElementById('bulkSelectAll');
+            var counter = document.getElementById('bulkSelectedCount');
+            var btnRelease = document.getElementById('btnBulkRelease');
+            var btnUnrelease = document.getElementById('btnBulkUnrelease');
+            var formRelease = document.getElementById('bulkReleaseForm');
+            var formUnrelease = document.getElementById('bulkUnreleaseForm');
+
+            function getRowCheckboxes() {
+                return Array.prototype.slice.call(document.querySelectorAll('.bulk-row-checkbox'));
+            }
+            function isVisible(cb) {
+                var tr = cb.closest('tr');
+                return tr && tr.style.display !== 'none';
+            }
+            function getVisibleCheckboxes() {
+                return getRowCheckboxes().filter(isVisible);
+            }
+            function getCheckedCheckboxes() {
+                return getRowCheckboxes().filter(function (cb) { return cb.checked; });
+            }
+
+            function recompute() {
+                var checked = getCheckedCheckboxes();
+                var total = checked.length;
+                var releasedCount = checked.filter(function (cb) { return cb.dataset.released === 'true'; }).length;
+                var unreleasedCount = total - releasedCount;
+                var allHaveArticle = checked.every(function (cb) { return cb.dataset.hasArticle === 'true'; });
+
+                counter.textContent = total;
+                bar.style.display = total > 0 ? 'flex' : 'none';
+
+                // Freigeben: alle Markierten sind nicht-freigegeben UND alle haben Artikelnummer
+                btnRelease.disabled = !(total > 0 && releasedCount === 0 && allHaveArticle);
+                // Zurücknehmen: alle Markierten sind freigegeben (Artikelnummer egal)
+                btnUnrelease.disabled = !(total > 0 && unreleasedCount === 0);
+
+                // SelectAll Tri-State
+                var visible = getVisibleCheckboxes();
+                var visibleChecked = visible.filter(function (cb) { return cb.checked; }).length;
+                if (visibleChecked === 0) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                } else if (visibleChecked === visible.length) {
+                    selectAll.checked = true;
+                    selectAll.indeterminate = false;
+                } else {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = true;
+                }
+            }
+
+            function bulkSyncSelection() {
+                // Filter hat Reihen versteckt — unsichtbare Checkboxen unchecken
+                getRowCheckboxes().forEach(function (cb) {
+                    if (cb.checked && !isVisible(cb)) cb.checked = false;
+                });
+                recompute();
+            }
+
+            // Row-Checkbox change
+            document.addEventListener('change', function (e) {
+                if (e.target.classList && e.target.classList.contains('bulk-row-checkbox')) {
+                    recompute();
+                }
+            });
+
+            // SelectAll click
+            selectAll.addEventListener('click', function () {
+                var newState = selectAll.checked;  // bereits durch Browser umgeschaltet
+                getVisibleCheckboxes().forEach(function (cb) { cb.checked = newState; });
+                recompute();
+            });
+
+            // Filter-Änderung → Auswahl synchronisieren
+            document.addEventListener('table-filter-applied', function (e) {
+                if (e.detail && e.detail.viewKey === 'PickingLeitstand') {
+                    bulkSyncSelection();
+                }
+            });
+
+            // Form-Submit-Handler — ids[] anhängen
+            function attachIds(form) {
+                // Bei aktivem PickerAssignment lädt Release-Submit den Modal — keine ids ins eigentliche Form
+                if (pickerAssignmentEnabled && form === formRelease) return;
+                // Vorherige ids[]-Inputs entfernen
+                form.querySelectorAll('input[data-bulk-id]').forEach(function (n) { n.remove(); });
+                getCheckedCheckboxes().forEach(function (cb) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'ids';
+                    input.value = cb.dataset.id;
+                    input.setAttribute('data-bulk-id', '1');
+                    form.appendChild(input);
+                });
+            }
+            formRelease.addEventListener('submit', function () { attachIds(formRelease); });
+            formUnrelease.addEventListener('submit', function () { attachIds(formUnrelease); });
+
+            // PickerAssignment-Pfad: Release-Submit öffnet Modal statt zu submitten
+            if (pickerAssignmentEnabled) {
+                var bulkModal = document.getElementById('bulkReleaseModal');
+                var bulkModalIds = document.getElementById('bulkReleaseModalIds');
+                var bulkModalCount = document.getElementById('bulkReleaseModalCount');
+                var bulkPickerSelect = document.getElementById('bulkAssignedPickerIdSelect');
+                var bulkModalSubmit = document.getElementById('bulkReleaseModalSubmit');
+
+                if (bulkModal && bulkModalIds && bulkModalCount && bulkPickerSelect && bulkModalSubmit) {
+                    formRelease.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        var checked = getCheckedCheckboxes();
+                        bulkModalIds.innerHTML = '';
+                        checked.forEach(function (cb) {
+                            var input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'ids';
+                            input.value = cb.dataset.id;
+                            bulkModalIds.appendChild(input);
+                        });
+                        bulkModalCount.textContent = checked.length;
+                        bulkPickerSelect.value = '';
+                        bulkModalSubmit.disabled = true;
+                        bootstrap.Modal.getOrCreateInstance(bulkModal).show();
+                    });
+
+                    bulkPickerSelect.addEventListener('change', function () {
+                        bulkModalSubmit.disabled = !bulkPickerSelect.value;
+                    });
+                }
+            }
+
+            // Initial-State (für den Fall dass Server-State Pre-checked Checkboxen liefert — aktuell nie der Fall)
+            recompute();
+        })();
+    </script>
+}
