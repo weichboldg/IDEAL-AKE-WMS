@@ -62,34 +62,35 @@
                                 </ul>
                             </li>
                         }
-                        @if (leitstandAktiv)
-                        {
-                            @if (canManagePickingRelease || canViewTracking)
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Fertigungsaufträge</a>
-                                </li>
-                            }
-                        }
-                        else
-                        {
-                            @if (canPick || canViewTracking)
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Fertigungsaufträge</a>
-                                </li>
-                            }
-                        }
-                        @if (canPick)
+                        @* Phase 2: FA-Übersicht (slim) — für Picker/Tracker/Leitstand sichtbar *@
+                        @if (canPick || canViewTracking || canManagePickingRelease)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Picking" asp-action="Index">
+                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Fertigungsaufträge</a>
+                            </li>
+                        }
+
+                        @* Phase 2: Kommissionierung-Dropdown — Picker-Worklist + Leitstand *@
+                        @if (canPick || canManagePickingRelease)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Kommissionierung
                                     @if (leitstandAktiv && releasedPickingCount > 0)
                                     {
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
                                 </a>
+                                <ul class="dropdown-menu">
+                                    @if (canPick)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Picking" asp-action="Index">Kommissionierliste</a></li>
+                                    }
+                                    @if (leitstandAktiv && (canPick || canManagePickingRelease))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="PickingLeitstand" asp-action="Index">Leitstand</a></li>
+                                    }
+                                </ul>
                             </li>
                         }
                         @if (bestellungenAktiv && (canPick || canAccessStock))
