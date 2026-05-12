@@ -53,6 +53,49 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// PickingLeitstand/Index.cshtml columns — Phase 2 rich Kommissionier-Leitstand-View.
+    /// Conditional columns:
+    ///   - "bulk-select" : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
+    ///   - "actions"     : rendered only when Model.CanPick
+    ///   - "release"     : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
+    ///   - "picker"      : rendered only when Model.PickerAssignmentEnabled
+    /// </summary>
+    public static readonly ViewConfig PickingLeitstand = new(
+        "PickingLeitstand", "Kommissionier-Leitstand",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("bulk-select",    "",              Locked: true,  DefaultWidth: 32),
+            new ColumnDef("actions",        "",              Locked: true,  DefaultWidth: 40),
+            new ColumnDef("order-number",   "FA Nr.",        Locked: true,  DefaultWidth: 90),
+            new ColumnDef("quantity",       "Stk.",          Locked: false, DefaultWidth: 55),
+            new ColumnDef("customer",       "Kunde",         Locked: false),
+            new ColumnDef("article-number", "Artikelnummer", Locked: false),
+            new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
+            new ColumnDef("description2",   "Bezeichnung 2", Locked: false),
+            new ColumnDef("workbench",      "Werkbank",      Locked: false),
+            new ColumnDef("coating-date",   "Beschicht.",    Locked: false),
+            new ColumnDef("bg-date",        "BG-Termin",     Locked: false),
+            new ColumnDef("picking-date",   "Komm.",         Locked: false),
+            new ColumnDef("production-date","Fert.-Termin",  Locked: false),
+            new ColumnDef("delivery-date",  "Liefertermin",  Locked: false),
+            new ColumnDef("coating-part",   "Lack-T",        Locked: false, DefaultWidth: 55),
+            new ColumnDef("glass",          "Glas",          Locked: false, DefaultWidth: 45),
+            new ColumnDef("purchase",       "Zukauf",        Locked: false, DefaultWidth: 55),
+            new ColumnDef("cooling",        "VK",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("fan",            "VL",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("electric",       "VE",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("doors",          "VT",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("superstructure", "VA",            Locked: false, DefaultWidth: 40),
+            new ColumnDef("status",         "Status",        Locked: false),
+            new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 80),
+            new ColumnDef("release",        "Freigabe",      Locked: false, DefaultWidth: 160),
+            new ColumnDef("picker",         "Kommissionierer", Locked: false),
+        ]
+    };
+
+    /// <summary>
     /// Picking/Index.cshtml columns (shown when LeitstandAktiv = true).
     /// Conditional columns:
     ///   - "picker" : rendered only when Model.PickerAssignmentEnabled
@@ -154,6 +197,7 @@ public static class ColumnDefinitions
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
+        "PickingLeitstand" => PickingLeitstand,
         "Picking"          => Picking,
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,
