@@ -273,15 +273,30 @@ Neue Rolle `fa_completion` wird in Phase 4 eingeführt. Bestehende Permission-Fi
 
 ---
 
-## 11. Sofortige Detail-Klärungen für Phase 1
+## 11. Entscheidungen (geklärt am 2026-05-12)
 
-Diese Punkte muss der User vor dem Phase-1-Detail-Plan beantworten:
+Alle initial offenen Fragen sind beantwortet:
 
-- **(Q1)** `IsDone`-Splitting: Empfehlung Sektion 5.1.A — bestätigt?
-- **(Q2)** Eager- vs. Lazy-Create der Status-Tabellen: Empfehlung Sektion 5.2.A — bestätigt?
-- **(Q3)** AgentJob-Anpassung: Folge-MERGE im selben Skript ODER DB-Trigger ODER App-Logik beim Import-Read? Empfehlung: Folge-MERGE im AgentJob.
-- **(Q4)** Wann startet Phase 1? Direkt oder erst nach Merge des aktuellen Bundles in `main`?
-- **(Q5)** AssemblyGroups: 5 Zeilen pro FA (alle Gruppen immer angelegt) ODER nur die Gruppen mit `IsApplicable=true`?
+| # | Thema | Entscheidung | Konsequenz |
+|---|---|---|---|
+| Q1 | `IsDone`-Semantik | **A:** `IsDone` bleibt auf FA (= Sage-Master "WA in Sage erledigt"). Zusätzlich `IsDonePicking` auf `PickingStatus`, `IsDoneBde` auf `BdeStatus`. | Drei orthogonale Wahrheiten. Aggregat "wirklich fertig" wird in der View-Logik abgeleitet, nicht im Schema. |
+| Q2 | Status-Tabellen-Create | **A:** Eager — beim Schema-Refactor wird für jede bestehende FA ein leerer `PickingStatus`- und `BdeStatus`-Datensatz angelegt. Sage-AgentJob legt für neue FAs gleich die Status-Datensätze mit an (Folge-MERGE). | Repo-Code ohne NULL-Check. INNER-JOIN-Read garantiert. |
+| Q3 | AgentJob-Anpassung | **Folge-MERGE im AgentJob-Skript** (kein DB-Trigger, keine App-Logik beim Read). | Sage-Import bleibt deklarativ und idempotent. Eine Datei, eine Transaktion. |
+| Q4 | Phase-1-Start | **Erst nach Merge des aktuellen Bundle-Branchs (`feature/sage-lagerbestand-sync`) in `main`.** Refactor zweigt dann sauber von `main` ab. | Refactor-Branch wird bei Phase-1-Start auf `main` rebased. Konfliktfreie Basis. |
+| Q5 | AssemblyGroups | **A:** Immer alle 5 Zeilen (VK/VL/VE/VT/VA) pro FA, `IsApplicable=false` als Default. | UI kann immer alle 5 Tabs zeigen. Konsistent mit Q2 Eager-Pattern. Migration-Step: pro existierende FA werden 5 Zeilen erzeugt. |
+
+## 12. Phase-1-Voraussetzungen / Trigger
+
+Phase 1 ist **blockiert** bis:
+
+1. ☐ `feature/sage-lagerbestand-sync` ist in `main` gemerged (Bundle-Release inkl. FA-Autofill, Assembly-Flags VK/VL/VE/VT/VA, OSEON-Filter/Sort, Leitstand-Bulk, BOM-Tree-Perf, IstBuchbar, Sage-Lagerbestand-Sync).
+2. ☐ Live-Verifikation der Bundle-Features in Produktion (mindestens 1 Arbeitstag ohne Bugs).
+3. ☐ Refactor-Branch `refactor/production-order-split` auf `main` rebased.
+
+Nach Trigger:
+- **Phase-1 Detail-Spec** schreiben: `docs/superpowers/specs/2026-MM-DD-production-order-split-phase-1-schema-design.md`.
+- **Phase-1 Plan** schreiben: `docs/superpowers/plans/2026-MM-DD-production-order-split-phase-1-schema.md`.
+- Plan deckt: Migrations-Reihenfolge, Daten-Verifikation, Rollback-Pfad, Code-Anpassungen in jeder Konsumer-Schicht (Repo, ViewModel, Controller, View, AgentJob).
 
 ---
 
