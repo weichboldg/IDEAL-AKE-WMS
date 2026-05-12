@@ -5,26 +5,29 @@ using IdealAkeWms.Tests.Helpers;
 
 namespace IdealAkeWms.Tests.Repositories;
 
+/// <summary>
+/// Tests fuer Picker-Assignment-Queries.
+/// Seit Phase 1 (v1.11.0) wandert die Methode <c>GetReleasedForPickingByPickerAsync</c>
+/// vom <see cref="ProductionOrderRepository"/> in den <see cref="ProductionOrderPickingStatusRepository"/>.
+/// Die <c>GetActivePickersAsync</c>-Tests bleiben unveraendert auf dem <see cref="UserRepository"/>.
+/// </summary>
 public class PickerAssignmentRepositoryTests
 {
-    // --- GetReleasedForPickingByPickerAsync Tests ---
+    // --- GetReleasedForPickingByPickerAsync Tests (jetzt auf PickingStatusRepository) ---
 
     [Fact]
     public async Task GetReleasedForPickingByPickerAsync_ReturnsOnlyOrdersForSpecificPicker()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = 1, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-2", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 10, PickingPriority = 2, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-3", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = 3, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-1", releaseForPicking: true, assignedPickerId: 5, pickingPriority: 1);
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-2", releaseForPicking: true, assignedPickerId: 10, pickingPriority: 2);
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-3", releaseForPicking: true, assignedPickerId: 5, pickingPriority: 3);
 
-        var repo = new ProductionOrderRepository(context);
+        var repo = new ProductionOrderPickingStatusRepository(context);
         var result = await repo.GetReleasedForPickingByPickerAsync(5);
 
         result.Should().HaveCount(2);
-        result.Should().OnlyContain(o => o.AssignedPickerId == 5);
+        result.Should().OnlyContain(o => o.PickingStatus!.AssignedPickerId == 5);
         result.Select(o => o.OrderNumber).Should().ContainInOrder("WA-1", "WA-3");
     }
 
@@ -32,13 +35,10 @@ public class PickerAssignmentRepositoryTests
     public async Task GetReleasedForPickingByPickerAsync_DoesNotReturnDoneOrders()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = 1, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-2", IsReleasedForPicking = true, IsDone = true, AssignedPickerId = 5, PickingPriority = 2, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-1", releaseForPicking: true, assignedPickerId: 5, pickingPriority: 1, isDone: false);
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-2", releaseForPicking: true, assignedPickerId: 5, pickingPriority: 2, isDone: true);
 
-        var repo = new ProductionOrderRepository(context);
+        var repo = new ProductionOrderPickingStatusRepository(context);
         var result = await repo.GetReleasedForPickingByPickerAsync(5);
 
         result.Should().ContainSingle()
@@ -49,13 +49,10 @@ public class PickerAssignmentRepositoryTests
     public async Task GetReleasedForPickingByPickerAsync_DoesNotReturnNonReleasedOrders()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = 1, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-2", IsReleasedForPicking = false, IsDone = false, AssignedPickerId = 5, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-1", releaseForPicking: true, assignedPickerId: 5, pickingPriority: 1);
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-2", releaseForPicking: false, assignedPickerId: 5);
 
-        var repo = new ProductionOrderRepository(context);
+        var repo = new ProductionOrderPickingStatusRepository(context);
         var result = await repo.GetReleasedForPickingByPickerAsync(5);
 
         result.Should().ContainSingle()
@@ -66,12 +63,9 @@ public class PickerAssignmentRepositoryTests
     public async Task GetReleasedForPickingByPickerAsync_ReturnsEmptyForUnknownPicker()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.Add(
-            new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-1", releaseForPicking: true, assignedPickerId: 5);
 
-        var repo = new ProductionOrderRepository(context);
+        var repo = new ProductionOrderPickingStatusRepository(context);
         var result = await repo.GetReleasedForPickingByPickerAsync(999);
 
         result.Should().BeEmpty();
@@ -81,14 +75,15 @@ public class PickerAssignmentRepositoryTests
     public async Task GetReleasedForPickingByPickerAsync_OrdersByPriorityThenDate()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-NoPrio", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = null, ProductionDate = new DateTime(2026, 1, 1), CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-Prio3", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = 3, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-Prio1", IsReleasedForPicking = true, IsDone = false, AssignedPickerId = 5, PickingPriority = 1, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-NoPrio",
+            releaseForPicking: true, assignedPickerId: 5, pickingPriority: null,
+            productionDate: new DateTime(2026, 1, 1));
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-Prio3",
+            releaseForPicking: true, assignedPickerId: 5, pickingPriority: 3);
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-Prio1",
+            releaseForPicking: true, assignedPickerId: 5, pickingPriority: 1);
 
-        var repo = new ProductionOrderRepository(context);
+        var repo = new ProductionOrderPickingStatusRepository(context);
         var result = await repo.GetReleasedForPickingByPickerAsync(5);
 
         result.Should().HaveCount(3);
@@ -97,7 +92,7 @@ public class PickerAssignmentRepositoryTests
         result[2].OrderNumber.Should().Be("WA-NoPrio"); // null priority last
     }
 
-    // --- GetActivePickersAsync Tests ---
+    // --- GetActivePickersAsync Tests (unveraendert auf UserRepository) ---
 
     [Fact]
     public async Task GetActivePickersAsync_ReturnsOnlyActivePickerUsers()

@@ -10,9 +10,17 @@ using Moq;
 
 namespace IdealAkeWms.Tests.Controllers;
 
+/// <summary>
+/// Controller-Tests fuer Picker-Assignment-Flows.
+/// Seit Phase 1 (v1.11.0) leben Release-/Picker-/Priority-Werte in
+/// <see cref="ProductionOrderPickingStatus"/>. Die Tests assertieren ueber
+/// Mock-Verifies auf <see cref="IProductionOrderPickingStatusRepository"/>.
+/// </summary>
 public class ProductionOrdersControllerPickerTests
 {
     private readonly Mock<IProductionOrderRepository> _orderRepo = new();
+    private readonly Mock<IProductionOrderPickingStatusRepository> _pickingStatusRepo = new();
+    private readonly Mock<IProductionOrderAssemblyGroupRepository> _assemblyGroupRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
     private readonly Mock<IAppSettingRepository> _settingRepo = new();
     private readonly Mock<IHolidayRepository> _holidayRepo = new();
@@ -28,6 +36,8 @@ public class ProductionOrdersControllerPickerTests
 
         _controller = new ProductionOrdersController(
             _orderRepo.Object,
+            _pickingStatusRepo.Object,
+            _assemblyGroupRepo.Object,
             _currentUser.Object,
             _settingRepo.Object,
             _holidayRepo.Object,
@@ -46,23 +56,39 @@ public class ProductionOrdersControllerPickerTests
         _controller.Url = urlHelper.Object;
     }
 
-    // --- ToggleRelease Tests ---
-
-    [Fact]
-    public async Task ToggleRelease_ReleaseWithPicker_SetsAssignedPickerFields()
-    {
-        var order = new ProductionOrder
+    private static ProductionOrder MakeOrder(int id, string number, string? articleNumber = "ART-001", bool isDone = false) =>
+        new()
         {
-            Id = 1,
-            OrderNumber = "WA-100",
-            ArticleNumber = "ART-001",
-            IsReleasedForPicking = false,
-            IsDone = false,
+            Id = id,
+            OrderNumber = number,
+            ArticleNumber = articleNumber,
+            IsDone = isDone,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "test",
             CreatedByWindows = "test"
         };
 
+    private static ProductionOrderPickingStatus MakePs(int productionOrderId, bool released = false,
+        int? assignedPickerId = null, string? assignedPickerName = null, int? priority = null) =>
+        new()
+        {
+            ProductionOrderId = productionOrderId,
+            IsReleasedForPicking = released,
+            AssignedPickerId = assignedPickerId,
+            AssignedPickerName = assignedPickerName,
+            PickingPriority = priority,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        };
+
+    // --- ToggleRelease Tests ---
+
+    [Fact]
+    public async Task ToggleRelease_ReleaseWithPicker_SetsAssignedPickerFields()
+    {
+        var order = MakeOrder(1, "WA-100");
+        var ps = MakePs(productionOrderId: 1, released: false);
         var picker = new User
         {
             Id = 5,
@@ -75,97 +101,81 @@ public class ProductionOrdersControllerPickerTests
         };
 
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
-        _orderRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps);
+        _pickingStatusRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
         _userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(picker);
 
         await _controller.ToggleRelease(1, assignedPickerId: 5, returnUrl: null);
 
-        order.IsReleasedForPicking.Should().BeTrue();
-        order.AssignedPickerId.Should().Be(5);
-        order.AssignedPickerName.Should().Be("Max Mustermann");
-        _orderRepo.Verify(r => r.UpdateAsync(order), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            1, true, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            1, 5, "Max Mustermann",
+            It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
     public async Task ToggleRelease_Revoke_ClearsPickerFields()
     {
-        var order = new ProductionOrder
-        {
-            Id = 1,
-            OrderNumber = "WA-100",
-            ArticleNumber = "ART-001",
-            IsReleasedForPicking = true,
-            AssignedPickerId = 5,
-            AssignedPickerName = "Max Mustermann",
-            IsDone = false,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
+        var order = MakeOrder(1, "WA-100");
+        var ps = MakePs(productionOrderId: 1, released: true, assignedPickerId: 5, assignedPickerName: "Max Mustermann");
 
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps);
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
 
         await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
 
-        order.IsReleasedForPicking.Should().BeFalse();
-        order.AssignedPickerId.Should().BeNull();
-        order.AssignedPickerName.Should().BeNull();
-        _orderRepo.Verify(r => r.UpdateAsync(order), Times.Once);
+        // Revoke ruft SetReleaseAsync(released=false) auf; Repository selbst loescht AssignedPicker-Felder.
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            1, false, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        // Kein SetAssignedPickerAsync, da nicht released
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(),
+            It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
     public async Task ToggleRelease_ReleaseWithoutPicker_WhenFeatureEnabled_ReturnsWarning()
     {
-        var order = new ProductionOrder
-        {
-            Id = 1,
-            OrderNumber = "WA-100",
-            ArticleNumber = "ART-001",
-            IsReleasedForPicking = false,
-            IsDone = false,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
+        var order = MakeOrder(1, "WA-100");
+        var ps = MakePs(productionOrderId: 1, released: false);
 
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps);
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
 
         var result = await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<RedirectToActionResult>();
         _controller.TempData["WarningMessage"].Should().Be("Bitte einen Kommissionierer zuweisen.");
-        order.IsReleasedForPicking.Should().BeFalse(); // unchanged
-        _orderRepo.Verify(r => r.UpdateAsync(It.IsAny<ProductionOrder>()), Times.Never);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
     public async Task ToggleRelease_ReleaseWithoutPicker_WhenFeatureDisabled_Succeeds()
     {
-        var order = new ProductionOrder
-        {
-            Id = 1,
-            OrderNumber = "WA-100",
-            ArticleNumber = "ART-001",
-            IsReleasedForPicking = false,
-            IsDone = false,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
+        var order = MakeOrder(1, "WA-100");
+        var ps = MakePs(productionOrderId: 1, released: false);
 
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
-        _orderRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps);
+        _pickingStatusRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("false");
 
         await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
 
-        order.IsReleasedForPicking.Should().BeTrue();
-        order.AssignedPickerId.Should().BeNull();
-        order.AssignedPickerName.Should().BeNull();
-        _orderRepo.Verify(r => r.UpdateAsync(order), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            1, true, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(),
+            It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -183,48 +193,62 @@ public class ProductionOrdersControllerPickerTests
     [Fact]
     public async Task BulkRelease_ReleaseWithPicker_AssignsPickerToAllOrders()
     {
-        var orders = new List<ProductionOrder>
-        {
-            new() { Id = 1, OrderNumber = "WA-1", ArticleNumber = "ART-1", IsReleasedForPicking = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new() { Id = 2, OrderNumber = "WA-2", ArticleNumber = "ART-2", IsReleasedForPicking = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        };
-
+        var order1 = MakeOrder(1, "WA-1", articleNumber: "ART-1");
+        var order2 = MakeOrder(2, "WA-2", articleNumber: "ART-2");
+        var ps1 = MakePs(productionOrderId: 1, released: false);
+        var ps2 = MakePs(productionOrderId: 2, released: false);
         var picker = new User { Id = 5, Name = "Max Mustermann", IsActive = true, IsPicker = true, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" };
 
-        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(orders[0]);
-        _orderRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(orders[1]);
-        _orderRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order1);
+        _orderRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(order2);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps1);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(2)).ReturnsAsync(ps2);
+        _pickingStatusRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
         _userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(picker);
 
         await _controller.BulkRelease(new List<int> { 1, 2 }, release: true, assignedPickerId: 5, returnUrl: null);
 
-        orders[0].AssignedPickerId.Should().Be(5);
-        orders[0].AssignedPickerName.Should().Be("Max Mustermann");
-        orders[1].AssignedPickerId.Should().Be(5);
-        orders[1].AssignedPickerName.Should().Be("Max Mustermann");
-        _orderRepo.Verify(r => r.UpdateAsync(It.IsAny<ProductionOrder>()), Times.Exactly(2));
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            1, true, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            2, true, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            1, 5, "Max Mustermann",
+            It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            2, 5, "Max Mustermann",
+            It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
     public async Task BulkRelease_Revoke_ClearsPickerFromAllOrders()
     {
-        var orders = new List<ProductionOrder>
-        {
-            new() { Id = 1, OrderNumber = "WA-1", ArticleNumber = "ART-1", IsReleasedForPicking = true, AssignedPickerId = 5, AssignedPickerName = "Max", CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new() { Id = 2, OrderNumber = "WA-2", ArticleNumber = "ART-2", IsReleasedForPicking = true, AssignedPickerId = 5, AssignedPickerName = "Max", CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        };
+        var order1 = MakeOrder(1, "WA-1", articleNumber: "ART-1");
+        var order2 = MakeOrder(2, "WA-2", articleNumber: "ART-2");
+        var ps1 = MakePs(productionOrderId: 1, released: true, assignedPickerId: 5, assignedPickerName: "Max");
+        var ps2 = MakePs(productionOrderId: 2, released: true, assignedPickerId: 5, assignedPickerName: "Max");
 
-        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(orders[0]);
-        _orderRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(orders[1]);
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order1);
+        _orderRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(order2);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps1);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(2)).ReturnsAsync(ps2);
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
 
         await _controller.BulkRelease(new List<int> { 1, 2 }, release: false, assignedPickerId: null, returnUrl: null);
 
-        orders[0].AssignedPickerId.Should().BeNull();
-        orders[0].AssignedPickerName.Should().BeNull();
-        orders[1].AssignedPickerId.Should().BeNull();
-        orders[1].AssignedPickerName.Should().BeNull();
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            1, false, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            2, false, It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        // Bei Revoke kein SetAssignedPickerAsync — Repository selbst loescht Felder
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(),
+            It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -236,7 +260,9 @@ public class ProductionOrdersControllerPickerTests
 
         result.Should().BeOfType<RedirectToActionResult>();
         _controller.TempData["WarningMessage"].Should().Be("Bitte einen Kommissionierer zuweisen.");
-        _orderRepo.Verify(r => r.UpdateAsync(It.IsAny<ProductionOrder>()), Times.Never);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -245,7 +271,9 @@ public class ProductionOrdersControllerPickerTests
         var result = await _controller.BulkRelease(new List<int>(), release: true, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<RedirectToActionResult>();
-        _orderRepo.Verify(r => r.UpdateAsync(It.IsAny<ProductionOrder>()), Times.Never);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     // --- ChangeAssignedPicker Tests ---
@@ -253,17 +281,7 @@ public class ProductionOrdersControllerPickerTests
     [Fact]
     public async Task ChangeAssignedPicker_ValidOrderAndPicker_ReturnsOk()
     {
-        var order = new ProductionOrder
-        {
-            Id = 1,
-            OrderNumber = "WA-100",
-            AssignedPickerId = 5,
-            AssignedPickerName = "Old Picker",
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
-
+        var order = MakeOrder(1, "WA-100");
         var newPicker = new User { Id = 10, Name = "New Picker", IsActive = true, IsPicker = true, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" };
 
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
@@ -272,9 +290,9 @@ public class ProductionOrdersControllerPickerTests
         var result = await _controller.ChangeAssignedPicker(1, 10);
 
         result.Should().BeOfType<OkResult>();
-        order.AssignedPickerId.Should().Be(10);
-        order.AssignedPickerName.Should().Be("New Picker");
-        _orderRepo.Verify(r => r.UpdateAsync(order), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            1, 10, "New Picker",
+            It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
@@ -290,14 +308,7 @@ public class ProductionOrdersControllerPickerTests
     [Fact]
     public async Task ChangeAssignedPicker_NonExistentPicker_ReturnsBadRequest()
     {
-        var order = new ProductionOrder
-        {
-            Id = 1,
-            OrderNumber = "WA-100",
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
+        var order = MakeOrder(1, "WA-100");
 
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
         _userRepo.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((User?)null);

@@ -1,65 +1,56 @@
 using FluentAssertions;
 using IdealAkeWms.Data.Repositories;
-using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Repositories;
 
+/// <summary>
+/// Tests fuer das ProductionOrderRepository (Sage-Master-Daten).
+/// Released-/Picker-/Priority-Logik liegt seit Phase 1 (v1.11.0) im
+/// <see cref="ProductionOrderPickingStatusRepository"/> — siehe dort die migrierten Tests.
+/// </summary>
 public class ProductionOrderRepositoryTests
 {
     [Fact]
-    public async Task GetReleasedForPickingAsync_ReturnsOnlyReleasedAndNotDone()
+    public async Task GetAllOrderedAsync_OrdersByOrderNumber()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, PickingPriority = 2, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-2", IsReleasedForPicking = true, IsDone = true, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-3", IsReleasedForPicking = false, IsDone = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-4", IsReleasedForPicking = true, IsDone = false, PickingPriority = 1, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-3");
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-1");
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-2");
 
         var repo = new ProductionOrderRepository(context);
-        var result = await repo.GetReleasedForPickingAsync();
+        var result = await repo.GetAllOrderedAsync();
 
-        result.Should().HaveCount(2);
-        result[0].OrderNumber.Should().Be("WA-4"); // Prio 1 zuerst
-        result[1].OrderNumber.Should().Be("WA-1"); // Prio 2 danach
+        result.Should().HaveCount(3);
+        result.Select(o => o.OrderNumber).Should().ContainInOrder("WA-1", "WA-2", "WA-3");
     }
 
     [Fact]
-    public async Task GetReleasedForPickingAsync_NullPriorityComesLast()
+    public async Task GetOpenOrdersAsync_ExcludesDoneOrders()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-A", IsReleasedForPicking = true, IsDone = false, PickingPriority = null, ProductionDate = new DateTime(2026, 5, 1), CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-B", IsReleasedForPicking = true, IsDone = false, PickingPriority = 3, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-OPEN", isDone: false);
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-DONE", isDone: true);
 
         var repo = new ProductionOrderRepository(context);
-        var result = await repo.GetReleasedForPickingAsync();
+        var result = await repo.GetOpenOrdersAsync();
 
-        result.Should().HaveCount(2);
-        result[0].OrderNumber.Should().Be("WA-B"); // Prio 3
-        result[1].OrderNumber.Should().Be("WA-A"); // Keine Prio → ans Ende
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("WA-OPEN");
     }
 
     [Fact]
-    public async Task GetReleasedForPickingCountAsync_CountsCorrectly()
+    public async Task GetByOrderNumberAsync_ReturnsCorrectOrder()
     {
         using var context = TestDbContextFactory.Create();
-        context.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "WA-1", IsReleasedForPicking = true, IsDone = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-2", IsReleasedForPicking = true, IsDone = true, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" },
-            new ProductionOrder { OrderNumber = "WA-3", IsReleasedForPicking = false, IsDone = false, CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test" }
-        );
-        await context.SaveChangesAsync();
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-100");
+        TestDataHelper.CreateOrderWithStatuses(context, "WA-200");
 
         var repo = new ProductionOrderRepository(context);
-        var count = await repo.GetReleasedForPickingCountAsync();
+        var result = await repo.GetByOrderNumberAsync("WA-200");
 
-        count.Should().Be(1);
+        result.Should().NotBeNull();
+        result!.OrderNumber.Should().Be("WA-200");
     }
 }
