@@ -11,6 +11,7 @@ namespace IdealAkeWms.Controllers;
 public class PickingController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
+    private readonly IProductionOrderPickingStatusRepository _pickingStatusRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
@@ -28,6 +29,7 @@ public class PickingController : Controller
 
     public PickingController(
         IProductionOrderRepository productionOrderRepository,
+        IProductionOrderPickingStatusRepository pickingStatusRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
@@ -44,6 +46,7 @@ public class PickingController : Controller
         IArticleAttributeRepository articleAttributeRepository)
     {
         _productionOrderRepository = productionOrderRepository;
+        _pickingStatusRepository = pickingStatusRepository;
         _currentUserService = currentUserService;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -77,12 +80,12 @@ public class PickingController : Controller
         {
             var currentUserId = _currentUserService.GetCurrentAppUserId();
             releasedOrders = currentUserId.HasValue
-                ? await _productionOrderRepository.GetReleasedForPickingByPickerAsync(currentUserId.Value)
+                ? await _pickingStatusRepository.GetReleasedForPickingByPickerAsync(currentUserId.Value)
                 : new List<ProductionOrder>();
         }
         else
         {
-            releasedOrders = await _productionOrderRepository.GetReleasedForPickingAsync();
+            releasedOrders = await _pickingStatusRepository.GetReleasedForPickingAsync();
         }
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
@@ -90,19 +93,20 @@ public class PickingController : Controller
 
         var items = releasedOrders.Select(o =>
         {
+            var ps = o.PickingStatus; // Nav-Property (Include() im Repo)
             var item = new PickingListItem
             {
                 Id = o.Id,
-                PickingPriority = o.PickingPriority,
+                PickingPriority = ps?.PickingPriority,
                 OrderNumber = o.OrderNumber,
                 ArticleNumber = o.ArticleNumber,
                 Description1 = o.Description1,
                 Customer = o.Customer,
                 Quantity = o.Quantity,
                 ProductionDate = o.ProductionDate,
-                PickingStatus = o.PickingStatus,
-                AssignedPickerId = o.AssignedPickerId,
-                AssignedPickerName = o.AssignedPickerName
+                PickingStatus = ps?.PickingStatus,
+                AssignedPickerId = ps?.AssignedPickerId,
+                AssignedPickerName = ps?.AssignedPickerName
             };
 
             if (o.ProductionDate.HasValue)
@@ -131,12 +135,11 @@ public class PickingController : Controller
         if (order == null)
             return NotFound();
 
-        order.IsDone = !order.IsDone;
-        order.ModifiedAt = DateTime.Now;
-        order.ModifiedBy = _currentUserService.GetDisplayName();
-        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
-
-        await _productionOrderRepository.UpdateAsync(order);
+        var status = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
+        // IsDonePicking togglen (statt FA-Master-IsDone; Round-4-Korrektur Spec 10.4)
+        await _pickingStatusRepository.SetIsDonePickingAsync(
+            id, !(status?.IsDonePicking ?? false),
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
@@ -360,17 +363,18 @@ public class PickingController : Controller
         if (order == null)
             return NotFound();
 
-        order.PickingStatus = status;
+        await _pickingStatusRepository.SetPickingStatusTextAsync(
+            productionOrderId, status,
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
-        // Kommissionierung abgeschlossen → FA automatisch erledigt setzen
+        // Kommissionierung abgeschlossen → IsDonePicking auf PickingStatus setzen
+        // (NICHT mehr order.IsDone — das bleibt Sage-Master-only. Round-4-Korrektur Spec 10.4)
         if (status == "abgeschlossen")
-            order.IsDone = true;
-
-        order.ModifiedAt = DateTime.Now;
-        order.ModifiedBy = _currentUserService.GetDisplayName();
-        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
-
-        await _productionOrderRepository.UpdateAsync(order);
+        {
+            await _pickingStatusRepository.SetIsDonePickingAsync(
+                productionOrderId, true,
+                _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+        }
 
         return Ok();
     }

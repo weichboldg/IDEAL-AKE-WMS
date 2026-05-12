@@ -121,6 +121,10 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         await _context.SaveChangesAsync();
     }
 
+    public Task SetIsDonePickingAsync(int productionOrderId, bool value,
+        string modifiedBy, string modifiedByWindows)
+        => SetFieldAsync(productionOrderId, "IsDonePicking", value, modifiedBy, modifiedByWindows);
+
     public async Task SetCoatingPartsAsync(Dictionary<int, bool> orderIdToHasCoatingParts)
     {
         if (orderIdToHasCoatingParts == null || orderIdToHasCoatingParts.Count == 0) return;
@@ -156,27 +160,28 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
 
     public async Task<List<ProductionOrder>> GetReleasedForPickingAsync()
     {
-        return await _context.ProductionOrderPickingStatuses
-            .Where(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone)
-            .OrderBy(s => s.PickingPriority.HasValue ? 0 : 1)
-            .ThenBy(s => s.PickingPriority)
-            .ThenBy(s => s.ProductionOrder.ProductionDate)
-            .Include(s => s.ProductionOrder)
-                .ThenInclude(p => p.ProductionWorkplace)
-            .Select(s => s.ProductionOrder)
+        return await _context.ProductionOrders
+            .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking && !p.IsDone)
+            .Include(p => p.ProductionWorkplace)
+            .Include(p => p.PickingStatus)
+            .OrderBy(p => p.PickingStatus!.PickingPriority.HasValue ? 0 : 1)
+            .ThenBy(p => p.PickingStatus!.PickingPriority)
+            .ThenBy(p => p.ProductionDate)
             .ToListAsync();
     }
 
     public async Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId)
     {
-        return await _context.ProductionOrderPickingStatuses
-            .Where(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && s.AssignedPickerId == pickerId)
-            .OrderBy(s => s.PickingPriority.HasValue ? 0 : 1)
-            .ThenBy(s => s.PickingPriority)
-            .ThenBy(s => s.ProductionOrder.ProductionDate)
-            .Include(s => s.ProductionOrder)
-                .ThenInclude(p => p.ProductionWorkplace)
-            .Select(s => s.ProductionOrder)
+        return await _context.ProductionOrders
+            .Where(p => p.PickingStatus != null
+                        && p.PickingStatus.IsReleasedForPicking
+                        && !p.IsDone
+                        && p.PickingStatus.AssignedPickerId == pickerId)
+            .Include(p => p.ProductionWorkplace)
+            .Include(p => p.PickingStatus)
+            .OrderBy(p => p.PickingStatus!.PickingPriority.HasValue ? 0 : 1)
+            .ThenBy(p => p.PickingStatus!.PickingPriority)
+            .ThenBy(p => p.ProductionDate)
             .ToListAsync();
     }
 
