@@ -1,6 +1,6 @@
 # ProductionOrder-Architektur: Roadmap zur Tabellen-Aufteilung
 
-**Datum:** 2026-05-12 (Round 2 — kritisches Review eingearbeitet)
+**Datum:** 2026-05-12 (Round 3 — kritisches Review eingearbeitet)
 **Branch:** `refactor/production-order-split` (eigener WorkTree)
 **Status:** Roadmap → Detail-Specs pro Phase folgen
 **Phase:** Architektur-Refactor + neue Use-Case-Views. Mehrere AppVersion-Bumps zu erwarten.
@@ -27,27 +27,27 @@ Die `ProductionOrders`-Tabelle hat heute **28 Spalten** in einer einzigen Tabell
 2. **Spezialisierungs-Tabellen** mit FK auf FA, jeweils 1:1 oder 1:N je nach Use Case.
 3. **Mehrere View-Routen**, jede mit eigenem ViewModel + eigener Permission, eigene Liste.
 4. **Neue Rolle + Workflow** für FA-Vervollständigung (Spezifikation der Baugruppen-Ausprägungen).
-5. **Zwei-Schritt-Migration** (Schema+Copy in Phase 1a, Drop-Old in Phase 1b) statt atomar in einem Schritt — ermöglicht Live-Verifikation und Rollback ohne Backup-Restore.
+5. **Big-Bang-Migration** mit Wartungsfenster + Backup-Restore als Rollback-Pfad.
 
-## 3. Out-of-Scope (für diese Roadmap)
+## 3. Out-of-Scope
 
-- **Backward-Compat-Schicht** während des Refactors — Phase 1a hält beide Welten kurz parallel, aber kein dauerhafter Dual-Write.
+- **Backward-Compat-Schicht** während des Refactors — atomare Migration, kein Dual-Write.
 - **OSEON-Tracking-Refactor** — bleibt eigenständig (`OseonProductionOrders` ist separate Tabelle).
 - **WorkOperations** — bleibt unverändert (Beziehung zu FA über `ProductionOrderId`).
 - **Stueckliste / BOM** — Bestand bleibt unverändert; nur Phase 5 nutzt die BOM-ähnliche Anzeige als read-only Specs-View.
 
 ## 4. Neue Tabellen-Architektur
 
-### 4.1 `ProductionOrders` (schlank)
+### 4.1 `ProductionOrders` (schlank, nach Refactor)
 
 Spalten nach Refactor:
 - `Id`, `OrderNumber`, `Quantity`, `Customer`, `ArticleNumber`, `Description1`, `Description2`
 - `ProductionDate`, `DeliveryDate`
-- `ProductionWorkplaceId` (cross-cutting — wird in mehreren Listen genutzt)
-- `IsDone` (= Sage-Status, "WA in Sage erledigt"; bleibt auf der Master-Tabelle als globaler Abschlussindikator)
-- `CreatedAt`, `CreatedBy`, `CreatedByWindows`, `ModifiedAt`, `ModifiedBy`, `ModifiedByWindows`
+- `ProductionWorkplaceId` (cross-cutting)
+- `IsDone` (= Sage-Status, bleibt als globaler Sage-Abschlussindikator)
+- Audit-Felder
 
-**Entfernt** (nach Phase 1b in neue Tabellen):
+**Entfernt** (in Migration in neue Tabellen kopiert + alte Spalten gedroppt):
 - `PickingStatus`, `PickingPriority`, `IsReleasedForPicking`, `ReleasedAt`, `ReleasedBy`, `AssignedPickerId`, `AssignedPickerName`
 - `HasGlass`, `HasExternalPurchase`, `HasCoatingParts`, `IsCoatingDone`
 - `HasCooling`, `HasFan`, `HasElectric`, `HasDoors`, `HasSuperstructure`
@@ -61,18 +61,17 @@ Spalten:
 - `IsReleasedForPicking` (bit)
 - `ReleasedAt` (datetime2?), `ReleasedBy` (nvarchar(200))
 - `AssignedPickerId` (FK auf User), `AssignedPickerName` (nvarchar(200))
-- `HasGlass` (bit)
-- `HasExternalPurchase` (bit)
-- `HasCoatingParts` (bit) — bleibt sync-calculated
+- `HasGlass` (bit), `HasExternalPurchase` (bit)
+- `HasCoatingParts` (bit) — sync-calculated
 - `IsCoatingDone` (bit) — user-toggleable
-- `IsDonePicking` (bit) — = bisheriger `IsDone` für Kommissionierung
+- `IsDonePicking` (bit)
 - Audit-Felder
 
 ### 4.3 `ProductionOrderBdeStatus` (1:1 zu FA, eager-created)
 
 Initiale Spalten:
 - `Id`, `ProductionOrderId` (FK, UNIQUE)
-- `IsDoneBde` (bit) — = "Auftrag komplett über BDE fertiggemeldet"
+- `IsDoneBde` (bit)
 - Audit-Felder
 
 Spätere Felder (Phase 3): Werkbank-Spezifika, Fertigungsphasen, KPIs.
@@ -81,32 +80,34 @@ Spätere Felder (Phase 3): Werkbank-Spezifika, Fertigungsphasen, KPIs.
 
 Spalten:
 - `Id`, `ProductionOrderId` (FK)
-- `GroupKey` (nvarchar(10)) — Enum-Werte: `VK`, `VL`, `VE`, `VT`, `VA`
+- `GroupKey` (nvarchar(10)) — `VK`, `VL`, `VE`, `VT`, `VA`
 - `IsApplicable` (bit) — = bisheriger `HasCooling` / `HasFan` / ...
-- `IsCompleted` (bit) — neue Semantik: "Spezifikation für diese Gruppe ist vollständig dokumentiert"
+- `IsCompleted` (bit) — "Spezifikation ist vollständig dokumentiert"
 - `CompletedAt` (datetime2?), `CompletedBy` (nvarchar(200))
 - Audit-Felder
 
 **Unique Constraint** auf (`ProductionOrderId`, `GroupKey`).
 
+**Naming-Hinweis:** `IsApplicable` ist technisch korrekt, UX-mäßig sperrig. Phase-4-Detail-Spec kann das Display-Label im UI anders setzen (z. B. "Benötigt"). Code-Property bleibt `IsApplicable`.
+
 ### 4.5 `ProductionOrderAssemblyGroupSpecs` (1:N zu AssemblyGroup)
 
-User-Klärung (Phase-4-Use-Case): *"zum FA sollen pro Vormontageplatz zb. (VE) Elektro, (VL) Lüfter ... zusätzliche **Merkmalsausprägungen** pro Vormontageplatz pro Fertigungsauftrag hinterlegt werden können. ... ich wähle zb. VL (Lüfter) und **pflege die definierten Lüfter-Ausprägungen**."*
+User-Klärung (Phase 4): *"pro Vormontageplatz pro Fertigungsauftrag Merkmalsausprägungen hinterlegen ... ich pflege die definierten Lüfter-Ausprägungen."*
 
-Spalten (Phase-1-Schema, initial leer):
+Spalten (Phase-1-Schema, in Phase 1 leer angelegt):
 - `Id`, `AssemblyGroupId` (FK)
-- `ArticleId` (FK auf `Articles`, **optional/nullable**) — wenn die Ausprägung auf einen konkreten Artikel referenziert
-- `Description` (nvarchar(500), required) — Freitext-Beschreibung der Ausprägung (z. B. "Lüfter 230V 80mm 2-stufig")
-- `Quantity` (decimal(18,3)?, optional) — Mengen-Bedarf
+- `ArticleId` (FK auf `Articles`, **nullable**, `ON DELETE SET NULL` — wenn der Artikel später aus dem Master gelöscht wird, bleibt die Spec mit `null`-ArticleId)
+- `Description` (nvarchar(500), required) — Freitext-Beschreibung (z. B. "Lüfter 230V 80mm 2-stufig")
+- `Quantity` (decimal(18,3)?, optional)
 - `Notes` (nvarchar(MAX)?, optional)
-- `SortOrder` (int) — Anzeige-Reihenfolge in der UI
+- `SortOrder` (int) — Anzeige-Reihenfolge
 - Audit-Felder
 
-**Hinweis:** Tabelle wird in Phase 1 leer angelegt. Befüllung kommt mit Phase 4 (Vervollständigungs-UI). Detail-Validierungen, Default-Werte, UI-Felder werden in Phase 4 Detail-Spec festgelegt.
+**Detail-Validierungen, Default-Werte, UI-Felder:** in Phase 4 Spec.
 
-### 4.6 `ProductionWorkplaceAssemblyGroups` (NEU — für Phase 5)
+### 4.6 `ProductionWorkplaceAssemblyGroups` (Junction-Tabelle, für Phase 5)
 
-Werkbank-zu-Baugruppe-Zuordnung. Eine Werkbank zeigt die Spezifikationen der konfigurierten Gruppen aus allen offenen FAs.
+Werkbank-zu-Baugruppe-Zuordnung. Pflege erfolgt in Phase 5, aber Schema wird in Phase 1 bereits angelegt.
 
 Spalten:
 - `Id`, `ProductionWorkplaceId` (FK)
@@ -115,265 +116,330 @@ Spalten:
 
 **Unique Constraint** auf (`ProductionWorkplaceId`, `GroupKey`).
 
-**Beispiel-Konfiguration:**
-- Werkbank "VK-Montage-01" → Zeilen für `VK`
-- Werkbank "Elektro/Lüfter-Station" → Zeilen für `VE` und `VL`
-- Werkbank "Aufbau-Final" → Zeilen für `VA`
+**Designentscheidung Junction-Tabelle vs. CSV-Spalte:** Junction wegen Normalform und FK-Integrität. Bei nur 5 möglichen Werten wäre CSV einfacher, aber Junction-Tabelle erlaubt z. B. zukünftig Audit-Trail pro Zuordnung.
 
-**Pflege:** Stammdaten-Erweiterung am `ProductionWorkplace`-Edit-Form (Checkbox-Liste der 5 GroupKeys). **Implementierung in Phase 5**, nicht Phase 1. Aber Schema wird in Phase 1a bereits angelegt, damit es keine spätere DB-Migration mehr braucht.
+## 5. Phase 1 — Big-Bang Schema-Refactor
 
-## 5. Phasen-Übersicht
+**Ziel:** Schema-Umbau in einem Wartungsfenster mit kompletter Daten-Migration. Nach erfolgreichem Cutover sind alte Spalten weg, App nutzt ausschließlich neue Tabellen.
 
-### Phase 1a — Schema-Setup + Daten-Kopie (alte Spalten bleiben)
+### 5.1 Scope
 
-**Ziel:** Neue Tabellen anlegen, Daten kopieren, alle Konsumer auf neue Struktur umgestellt. **Alte Spalten in `ProductionOrders` bleiben unverändert als Read-only-Backup**, werden vom App-Code nicht mehr beschrieben.
-
-**Scope:**
 - 5 neue Tabellen anlegen (`PickingStatus`, `BdeStatus`, `AssemblyGroups`, `AssemblyGroupSpecs`, `ProductionWorkplaceAssemblyGroups`).
 - EF Migration + idempotentes SQL-Script.
-- Datenmigration: pro existierende FA werden `PickingStatus`, `BdeStatus`, und 5 `AssemblyGroups`-Zeilen (1 je VK/VL/VE/VT/VA mit `IsApplicable` aus alten `HasCooling/HasFan/...`) angelegt.
+- Datenmigration mit **Batch-Inserts** (siehe 5.4) — pro FA wird angelegt: 1× `PickingStatus`, 1× `BdeStatus`, 5× `AssemblyGroups`.
+- Alte 14 Spalten in `ProductionOrders` droppen.
 - App-Code (Repo, ViewModel, Controller, View, Toggle-API, AgentJob) komplett auf neue Tabellen umgestellt.
 - Sage-AgentJob: Folge-MERGE für neue FAs erzeugt automatisch die 7 Status/AssemblyGroup-Zeilen.
+- Toggle-API in separate Endpoints aufgeteilt (siehe 5.3).
 - TESTSZENARIEN: kompletter Regression-Durchlauf der bestehenden FA-Funktionen.
 
-**Verifikation:**
-- Verifikations-Query: pro Feld in der alten Tabelle == aggregiertes Feld in der neuen Tabelle (z. B. `SELECT COUNT(*) FROM ProductionOrders WHERE HasGlass=1` == `SELECT COUNT(*) FROM ProductionOrderPickingStatus WHERE HasGlass=1`).
-- Live-Verifikation min. 5 Arbeitstage in Produktion ohne neue Bugs.
+**Aufwand:** groß. Vermutlich 10-12 Tasks im Plan.
 
-**Aufwand:** groß. Vermutlich 7-10 Tasks im Plan.
+### 5.2 Wartungsfenster (ehrlich)
 
-### Phase 1b — Drop der alten Spalten
+App-Stop ist Pflicht. Dauer-Schätzung:
+- **<10k FAs:** ~10 Minuten Migration + 5 Min Deploy + 5 Min Smoke-Test = **~20 Minuten** Wartungsfenster.
+- **10k–50k FAs:** ~30 Min Migration + Deploy + Smoke = **~45 Minuten** Wartungsfenster.
+- **>50k FAs:** ggf. 1 Stunde Wartungsfenster.
 
-**Ziel:** Nach erfolgreicher Phase-1a-Verifikation die 14 entfernten Spalten in `ProductionOrders` droppen.
+**Pre-Migration:** DB-Backup unmittelbar vor Start. AgentJob deaktivieren.
 
-**Scope:**
-- EF Migration + SQL-Script: `DROP COLUMN` für 14 Spalten.
-- Sage-AgentJob: Spalten-Liste im INSERT/UPDATE entfernen (war seit Phase 1a schon nicht mehr genutzt).
-- Code-Cleanup: alte `[NotMapped]` o. ä. Reste entfernen.
+### 5.3 Toggle-API: Separate Endpoints pro Tabelle
 
-**Trigger:** Nach Phase 1a + 5 Arbeitstage Live-Verifikation **erfolgreich**.
+Heute: ein einziger `POST /api/productionorders/toggle-field` mit Field-Whitelist.
 
-**Rollback-Pfad:** Wenn in Phase 1a-Verifikationsphase Bugs auftauchen, **bevor** Phase 1b durchgeführt wird, kann der App-Code zurückgerollt werden — die alten Spalten enthalten noch die ursprünglichen Daten (sind read-only durch App, aber nicht verändert). Hotfix-fähig ohne Backup-Restore.
+Nach Refactor: drei separate Endpoints, View-JS sendet jeweils den passenden Endpoint:
 
-**Aufwand:** klein. 1-2 Tasks.
+| Endpoint | Felder | Tabelle |
+|---|---|---|
+| `POST /api/picking-status/toggle` | `HasGlass`, `HasExternalPurchase`, `IsCoatingDone`, `IsDonePicking` | `ProductionOrderPickingStatus` |
+| `POST /api/assembly-groups/toggle-applicable` | `IsApplicable` (mit `groupKey`-Parameter) | `ProductionOrderAssemblyGroups` |
+| `POST /api/bde-status/toggle` (Phase 3 ggf. erweitert) | `IsDoneBde` | `ProductionOrderBdeStatus` |
 
-### Phase 2 — Leitstand-Kommissionierung-View extrahieren
+**View-JS-Anpassung (Phase 1):** Das `data-field`-Attribut wird ergänzt um `data-endpoint` und ggf. `data-group-key`. Beispiel:
+
+```html
+<!-- Heute: -->
+<input type="checkbox" class="toggle-field" data-id="@item.Id" data-field="HasCooling" ... />
+
+<!-- Nach Refactor: -->
+<input type="checkbox" class="toggle-field"
+       data-id="@item.Id"
+       data-endpoint="/api/assembly-groups/toggle-applicable"
+       data-group-key="VK"
+       data-field="IsApplicable" ... />
+```
+
+JS-Handler dispatcht auf `data-endpoint` und mappt die Payload. Code-Update in [Index.cshtml:517+](IdealAkeWms/Views/ProductionOrders/Index.cshtml#L517) (toggle-field-Listener).
+
+**Permission:** alle drei Endpoints behalten `[RequirePickingAccess]` (analog zu heute). In Phase 4 wird `assembly-groups/toggle-applicable` zusätzlich für `fa_completion`-Rolle freigeschaltet.
+
+### 5.4 Eager-Create Batching für Migration
+
+Bei N FAs in der Quell-Tabelle entstehen N × 7 = 7N neue Zeilen. Migrations-Skript verwendet Batched-INSERT, nicht eine Mega-Transaktion:
+
+```sql
+-- Pseudo-Code für die Status-Tabellen
+DECLARE @batchSize INT = 5000;
+DECLARE @offset INT = 0;
+WHILE EXISTS (SELECT 1 FROM dbo.ProductionOrders WHERE Id > @offset)
+BEGIN
+    BEGIN TRANSACTION;
+
+    INSERT INTO dbo.ProductionOrderPickingStatus (ProductionOrderId, PickingStatus, HasGlass, ...)
+    SELECT TOP (@batchSize) Id, PickingStatus, HasGlass, ...
+    FROM dbo.ProductionOrders WHERE Id > @offset
+    ORDER BY Id;
+
+    SET @offset = (SELECT MAX(Id) FROM dbo.ProductionOrderPickingStatus);
+
+    COMMIT TRANSACTION;
+    -- Log-Backup zwischen Batches falls FULL recovery model
+END
+```
+
+Gleiches Pattern für `BdeStatus` und `AssemblyGroups` (5 INSERTs pro FA in einer Batch-Iteration). Verhindert Lock-Eskalation und übergroße Transaction-Logs.
+
+**Phase-1-Plan detailliert** das exakte SQL inkl. Idempotenz-Checks (für Wiederanlauf bei Abbruch).
+
+### 5.5 Rollback-Pfad (ehrlich)
+
+- **Während der Migration** (vor App-Start mit neuer Version): SQL-Skript abbrechen + `DROP` der neuen Tabellen + AgentJob reaktivieren. Alte Spalten unverändert.
+- **Nach App-Start mit neuer Version, vor erstem User-Schreibzugriff**: Backup-Restore zur Vor-Migration-Zeit. Sehr enges Zeitfenster (Minuten).
+- **Nach Live-Betrieb (Stunden / Tage)**: kein Rollback ohne Daten-Verlust mehr. **Forward-Fix only.**
+
+→ Phase-1-Plan benennt klar: "Backup-Restore Window endet 30 Minuten nach App-Start. Danach ausschließlich Hotfix-Strategie."
+
+### 5.6 Deploy-Reihenfolge
+
+1. Wartungsfenster ankündigen (User-Kommunikation).
+2. App-Stop.
+3. DB-Backup.
+4. AgentJob deaktivieren.
+5. Migration-Skript ausführen (Schema + Batched Daten-Kopie + DROP der alten Spalten).
+6. Verifikations-Query: pro alter Spalte vorher-Count == neue-Tabelle-nachher-Count.
+7. Neue App-Version deployen + neuer AgentJob.
+8. App-Start.
+9. Smoke-Test (1× FA-Freigabe, 1× Toggle, 1× Stückliste, 1× BDE-Buchung).
+10. AgentJob reaktivieren.
+11. Wartungsfenster beenden.
+
+## 6. Phase 2 — Leitstand-Kommissionierung-View extrahieren
 
 **Ziel:** Bestehende `ProductionOrders/Index` in zwei Views aufspalten:
 - `ProductionOrders/Index` → schlanke FA-Liste (Sage-Master + Cross-Cutting; für allgemeine User).
-- `Picking/Leitstand` (neuer Controller/Action) → die heute schon vorhandenen Komm-spezifischen Spalten + Bulk-Release + Picker-Assign.
+- `Picking/Leitstand` (neuer Controller/Action) → Komm-spezifische Spalten + Bulk-Release + Picker-Assign.
 
 **Scope:**
-- Neuer Controller `PickingLeitstandController` oder neue Action am `PickingController`.
+- Neuer Controller `PickingLeitstandController`.
 - ViewModel-Trennung: `ProductionOrderListItem` (schlank) vs. `PickingLeitstandItem` (mit Status-Joins).
-- Toggle-API in `PickingApiController` extrahiert (HasGlass, HasExternalPurchase, IsCoatingDone landen dort).
 - Permission: `[RequirePickingAccess]` für Picking-Leitstand; ProductionOrders/Index bekommt eine allgemeinere Permission.
 - Routing-Update (Nav-Bar).
-- UserViewPreferences-Migration (Pref auf alte ProductionOrders-Liste → wird auf Picking-Leitstand-Liste übernommen falls Felder dort sichtbar).
+- UserViewPreferences: Detail-Entscheidung im Phase-2-Plan (siehe 8.2 Risiko).
 - TESTSZENARIEN.
 
 **Aufwand:** mittel. 4-5 Tasks.
 
-### Phase 3 — Leitstand-PPS-light/BDE-View (SEQUENTIELL nach Phase 2)
+## 7. Phase 3 — Leitstand-PPS-light/BDE-View
 
-**Ziel:** Neue View `Bde/Leitstand` mit BDE-spezifischen Spalten + Funktionen (initial: IsDoneBde, Werkbank-Aggregat, später erweiterbar).
+**Ziel:** Neue View `Bde/Leitstand` mit BDE-spezifischen Spalten + Funktionen (initial: `IsDoneBde`, Werkbank-Aggregat, später erweiterbar).
 
-**Scope:**
-- Neuer Controller `BdeLeitstandController`.
-- `BdeStatus`-Tabelle wird Hauptdatenquelle (gejoint mit FA).
-- Toggle-API für `IsDoneBde` in `BdeApiController` (oder neuer).
-- Permission: `[RequireBdeShiftleadAccess]` oder neue Permission `bde_leitstand`.
-- TESTSZENARIEN.
+**Sequentiell nach Phase 2** (ViewModel-Pattern wiederverwendet).
 
-**Konkreter Funktionsumfang ist offen** — Detail-Spec in Phase 3 nach Klärung mit User. **Sequentiell nach Phase 2**, weil das ViewModel-Pattern aus Phase 2 wiederverwendet wird.
+**Funktionsumfang ist offen** — Detail-Spec in Phase 3 nach Klärung mit User.
 
 **Aufwand:** mittel-groß, abhängig vom finalen Scope.
 
-### Phase 4 — FA-Vervollständigung
+## 8. Phase 4 — FA-Vervollständigung
 
-**Ziel:** Pro FA eine neue Page mit Tabs für VK/VL/VE/VT/VA, in denen Ausprägungen (Spec-Einträge mit ArticleId/Description/Quantity) gepflegt werden.
+**Ziel:** Pro FA eine neue Page mit Tabs für VK/VL/VE/VT/VA, in denen Ausprägungen gepflegt werden.
 
 **Scope:**
-- Neue Rolle `fa_completion` (siehe Sektion 6 für Naming).
-- Neuer Controller `FaCompletionController` + View `Edit.cshtml` mit Bootstrap-Tabs.
+- Neue Rolle `fa_completion`.
+- Neuer Controller `FaCompletionController` + View mit Bootstrap-Tabs.
 - Pro Tab:
-  - Liste der bestehenden `AssemblyGroupSpec`-Einträge dieser FA × Gruppe (sortiert nach `SortOrder`).
+  - Liste der `AssemblyGroupSpec`-Einträge (sortiert nach `SortOrder`).
   - Add/Edit/Delete-Aktionen.
-  - Add-Form: ArticleId per Select2 (mit Filter auf Artikel-Master, auch nach Artikelgruppe + Freitext), Description (vorbefüllt aus Artikel falls gewählt), Quantity, Notes.
-  - `IsApplicable`-Toggle pro Gruppe (= heutiges VK/VL/...-Flag).
-  - `IsCompleted`-Toggle pro Gruppe ("Vervollständigung abgeschlossen").
+  - Add-Form: ArticleId via Select2 (Filter auf Artikel-Master nach Artikelgruppe + Freitext), Description (vorbefüllt aus Artikel falls gewählt), Quantity, Notes.
+  - `IsApplicable`-Toggle pro Gruppe.
+  - `IsCompleted`-Toggle pro Gruppe.
 - TESTSZENARIEN.
+
+**Permission-Detail:** `fa_completion`-Rolle bekommt zusätzlich `POST /api/assembly-groups/toggle-applicable`-Recht (siehe 5.3).
 
 **Aufwand:** groß. Eigene neue UI-Schicht.
 
-### Phase 5 — Arbeitsplatz-BOM-View
+## 9. Phase 5 — Arbeitsplatz-BOM-View
 
-**Ziel:** Werkbank-Page mit Spec-Listen aller offenen FAs, deren AssemblyGroups der Werkbank zugeordnet sind. Read-only, max. Bestellfunktion.
+**Ziel:** Werkbank-Page mit Spec-Listen aller offenen FAs in den werkbankseits konfigurierten Gruppen. Read-only, max. Bestellfunktion.
 
 **Scope:**
-- Stammdaten-Erweiterung: `ProductionWorkplace`-Edit-Form bekommt Checkbox-Liste der 5 GroupKeys (Pflege der `ProductionWorkplaceAssemblyGroups`-Zuordnung).
-- Neue View `Bde/AssemblyTasks` oder `Workstation/Specs`.
-- Tree-/Liste-Render: für aktuelle Werkbank → finde alle offenen FAs mit `AssemblyGroup.IsApplicable=true` in der Werkbank-konfigurierten Gruppe → liste alle `AssemblyGroupSpec`-Einträge.
-- Filter: per FA / per Spec-ArticleGroup / Freitext.
-- Read-Only-Modus für Picking-Toggle (kein Toggle-API verfügbar).
-- Bestellung-Integration aus dem bestehenden `BestellungenAktiv`-Feature (Bestellen-Button pro Spec-Eintrag).
+- Stammdaten-Erweiterung: `ProductionWorkplace`-Edit-Form bekommt Checkbox-Liste der 5 GroupKeys (Pflege der `ProductionWorkplaceAssemblyGroups`).
+- Neue View (Name TBD: `Bde/AssemblyTasks` oder `Workstation/Specs`).
+- Liste-Render mit **Pagination + Initial-Filter**:
+  - Default-Filter: nur FAs mit `IsApplicable=true` für die konfigurierten Gruppen UND `IsDone=false` UND `IsDonePicking=false` (= "noch zu fertigende FAs").
+  - Pagination: 25 FAs pro Seite (analog OSEON-Tracking).
+  - User-Filter: per FA-Nummer / Artikel / Freitext über Specs.
+- Read-Only-Modus (keine Toggle-API verfügbar).
+- Bestellung-Integration (`BestellungenAktiv`-Feature): Bestellen-Button pro Spec-Eintrag mit nullable ArticleId (kein Bestellen ohne Artikel).
 - TESTSZENARIEN.
+
+**Permission:** entweder bestehende `bde_user`-Rolle oder neue `production_worker`-Rolle. **Klärung in Phase-5-Detail-Spec.**
+
+**Empty-State:** Wenn `fa_completion` noch keine Specs gepflegt hat, ist die Liste leer. Hinweis-Text "Noch keine Ausprägungen für diese Werkbank gepflegt." mit Link zu FA-Vervollständigung (für berechtigte User).
 
 **Aufwand:** mittel.
 
-## 6. Neue Rolle
+## 10. Neue Rolle
 
-Vorschlag: **`fa_completion`** (analog zu `picking`, `tracking`, `bde_user`).
+**`fa_completion`** (analog zu `picking`, `tracking`, `bde_user`).
 
 - Anzeige-Name: "FA-Vervollständigung"
 - AD-Gruppe: optional konfigurierbar (`Role.AdGroup`)
-- Berechtigungen: Lesezugriff auf alle FAs; Schreibzugriff auf `AssemblyGroupSpecs`.
-- Eingeführt in **Phase 4** (nicht früher — andere Phasen brauchen sie nicht).
+- Berechtigungen: Lesezugriff auf alle FAs; Schreibzugriff auf `AssemblyGroupSpecs`; Toggle-Recht auf `IsApplicable` und `IsCompleted` pro AssemblyGroup.
+- Eingeführt in **Phase 4**.
 
-Endgültiges Naming in Phase 4 Spec.
-
-## 7. Abhängigkeiten
+## 11. Abhängigkeiten
 
 ```
-Phase 1a (Schema-Setup + Daten-Kopie)
+Phase 1 (Big-Bang Schema-Refactor)
   │
-  └── Phase 1b (Drop-Old) — nach 5 Arbeitstagen Live-Verifikation
+  ├── Phase 2 (Komm-Liste extrahieren)
+  │     │
+  │     └── Phase 3 (BDE-Leitstand) — sequentiell, nicht parallel
+  │
+  └── Phase 4 (FA-Vervollständigung) — parallel zu Phase 2/3 möglich
          │
-         ├── Phase 2 (Komm-Liste extrahieren)
-         │     │
-         │     └── Phase 3 (BDE-Leitstand) — sequentiell, nicht parallel
-         │
-         └── Phase 4 (FA-Vervollständigung) — kann parallel zu Phase 2/3 starten
-                │
-                └── Phase 5 (Arbeitsplatz-BOM)
+         └── Phase 5 (Arbeitsplatz-BOM)
 ```
 
-**Wichtige Änderung gegenüber Round 1:** Phase 2 und 3 sind nicht mehr parallel. Begründung:
-- Phase 3 reutilisiert das ViewModel-Pattern aus Phase 2.
-- Phase 3 ist konzeptionell vage; Phase 2 zuerst liefert konkrete Lernkurve.
-- Bei parallel parallel besteht Risiko: zwei Teams schreiben zwei separate ViewModel-Schichten, die später konsolidiert werden müssten.
+## 12. Risiken
 
-Phase 4 kann parallel zu Phase 2/3 starten, weil es eine eigene UI-Schicht ist und keine FA-Listen-Logik teilt.
+### 12.1 Datenmigration verliert FA-Status (Phase 1)
+Mitigation: DB-Backup vor Start. Batched-INSERT mit Idempotenz-Checks. Verifikations-Query nach jedem Batch. Wenn Rollback nötig: Backup-Restore innerhalb 30-Minuten-Fenster nach App-Start, danach Forward-Fix.
 
-## 8. Risiken
+### 12.2 UserViewPreferences-Inkompatibilität (Phase 2)
+Pref-Daten referenzieren Column-Keys, die nach Phase 2 wandern. Mitigation: bestehende [`mergeWithDefaults`-Logik](IdealAkeWms/wwwroot/js/column-preferences.js#L65) ignoriert unbekannte Keys bereits. Phase 2 Plan kann optional Daten-Migration (Pref auf neue View kopieren) — Entscheidung im Phase-2-Plan.
 
-### 8.1 Datenmigration verliert FA-Status (Phase 1a)
-Mitigation: 2-Schritt-Migration (Phase 1a behält alte Spalten als Backup). Verifikations-Query nach Migration. Phase-1b erst nach 5 Arbeitstagen Verifikation.
+### 12.3 Sage-Import-Job-Inkompatibilität (Phase 1 Deploy)
+AgentJob muss in derselben Wartung mit neuer MERGE-Logik aktualisiert werden. Phase-1-Plan dokumentiert exakte Reihenfolge (siehe 5.6).
 
-### 8.2 UserViewPreferences-Inkompatibilität (Phase 2)
-Pref-Daten referenzieren Column-Keys, die nach Phase 2 wandern. Mitigation: bestehende [`mergeWithDefaults`-Logik](IdealAkeWms/wwwroot/js/column-preferences.js#L65) ignoriert unbekannte Keys bereits. Phase 2 Plan kann optional eine UserViewPreferences-Daten-Migration aufnehmen, die die alte ProductionOrders-Pref auf die neue Picking-Leitstand-Pref überträgt.
+### 12.4 Permission-Migration
+Neue Rolle `fa_completion` in Phase 4. Mitigation: Phase-4-Detail-Spec dokumentiert exakte Rolle-zu-Feature-Mapping inkl. Toggle-API-Permissions.
 
-### 8.3 Sage-Import-Job-Inkompatibilität (Phase 1a Deploy)
-Job MUSS während des Refactor-Deploys mit der neuen Folge-MERGE-Logik aktualisiert werden. Phase-1-Plan dokumentiert Deploy-Reihenfolge.
+### 12.5 Scope-Creep in Phase 3 (BDE)
+Mitigation: Phase 3 erst starten, wenn User den BDE-spezifischen Funktionsumfang konkret beschreibt.
 
-### 8.4 Permission-Migration
-Neue Rolle `fa_completion` in Phase 4. Bestehende Permission-Filter bleiben unverändert. Mitigation: Phase-4-Detail-Spec dokumentiert exakte Rolle-zu-Feature-Mapping.
+### 12.6 Toggle-API-Refactor erfordert View-JS-Update (Phase 1)
+Heute pingt View einen einzigen Endpoint mit Field-Whitelist. Nach Refactor: drei Endpoints, View-JS dispatcht auf `data-endpoint`. Mitigation: Phase-1-Plan deckt View-Update explizit ab; alle Checkbox-Markups bekommen `data-endpoint`-Attribut.
 
-### 8.5 Scope-Creep in Phase 3 (BDE)
-"PPS light" ist heute kein konkretes Feature-Set, sondern eine Vision. Mitigation: Phase 3 erst starten, wenn der User den BDE-spezifischen Funktionsumfang konkret beschreibt.
+### 12.7 JOIN-Performance auf FA-Liste (Phase 1)
+Heute: FA-Liste liest 5 Bool-Spalten direkt. Nach Refactor: JOIN auf `AssemblyGroups` (5 Zeilen pro FA) + Pivot zu 5 Spalten. Mitigation: Repo-Method per Pivot-Query mit `LEFT JOIN` und Filter `GroupKey IN (...)`. Index auf `(ProductionOrderId, GroupKey)` durch Unique Constraint vorhanden. Phase-1-Plan misst Query-Performance mit Stage-DB vor Produktiv-Deploy.
 
-### 8.6 Toggle-API-Komplexität (Phase 1a)
-Heute: `POST /api/productionorders/toggle-field` schreibt in **eine** Tabelle (8 Branches in if/else). Nach Refactor: muss in 3 Tabellen routen (`PickingStatus` für HasGlass/Purchase/Coating, `AssemblyGroups` für VK/VL/VE/VT/VA mit GroupKey-Mapping). Mitigation: API in Phase 1a entweder als Mapping-Dictionary refactoren oder pro Tabelle eigenen Endpoint anlegen — Detail in Phase 1a Plan. **Bevorzugt:** ein einziger Endpoint mit interner Routing-Map, weil bestehende View-JS schon einheitlich auf `toggle-field` pingt.
-
-### 8.7 JOIN-Performance auf FA-Liste (Phase 1a)
-Heute: FA-Liste liest 5 Bool-Spalten direkt. Nach Refactor: JOIN auf `AssemblyGroups` (5 Zeilen pro FA) + Pivot zu 5 Spalten. Bei 1000 FAs in der Liste = 5000 AssemblyGroup-Zeilen + Pivot. Mitigation: Repo-Method aggregiert per Pivot-Query oder per `LEFT JOIN` mit fünf separaten Joins (auf `GroupKey` gefiltert). Index auf `(ProductionOrderId, GroupKey)` schon vorhanden (Unique Constraint). Phase-1a-Plan verifiziert Query-Performance mit realer Datenmenge bevor Deploy.
-
-### 8.8 WorkTree-Branch-Konflikte
-`refactor/production-order-split` zweigt heute vom Bundle-Branch ab. Phase 1 startet nach Bundle-Merge in `main`. Mitigation: Rebase-Strategie:
-```
+### 12.8 WorkTree-Branch-Konflikte
+`refactor/production-order-split` zweigt heute vom Bundle-Branch ab. Phase 1 startet nach Bundle-Merge in `main`. Rebase-Strategie:
+```pwsh
 git fetch origin
 git rebase origin/main
-# Konflikte lösen (vermutlich nur in Migrations-Snapshot)
+# Konflikte vermutlich nur im ApplicationDbContextModelSnapshot.cs (EF Migration Snapshot)
+# Lösung: bei Konflikt erst Snapshot regenerieren via "dotnet ef migrations remove --force" + neu hinzufügen
 git push --force-with-lease origin refactor/production-order-split
 ```
-Falls Rebase zu schwierig wird: alternativ `git merge origin/main` (Merge-Commit statt linear). Phase-1-Plan-Detail.
 
-## 9. Operational-Strategie
+### 12.9 AgentJob-Komplexitätszuwachs
+Nach Refactor schreibt der Sage-Job in 4 Tabellen statt 1 (1× ProductionOrders, 1× PickingStatus, 1× BdeStatus, 5× AssemblyGroups pro neuem FA). MERGE-Statements werden länger. Mitigation: AgentJob-Skript in benannte Sections aufteilen mit Kommentar-Header je Section. Idempotenz durch `NOT EXISTS`-Guards je Tabelle.
 
-### 9.1 Wartungsfenster
-Phase 1a benötigt **kein** App-Stop, weil 2-Schritt-Migration:
-- Schema-Anlage + Daten-Kopie laufen während App online (Migration schreibt in neue, unbenutzte Tabellen).
-- Sobald App-Deploy mit neuer Codebase erfolgt, lesen/schreiben Requests in neue Tabellen.
-- Alte Tabellen bleiben als Backup.
+### 12.10 AssemblyGroups-Lifecycle bei abgeschlossenen FAs
+Wenn eine FA dauerhaft `IsDone=true` ist, bleiben ihre 5 AssemblyGroups + N Specs für immer. **Akzeptiert für v1.** Bei zukünftigem Archivierungs-Bedarf: separate Migration zum Verschieben in Archive-Tabellen. Roadmap-offen für später.
 
-**Aber:** Sage-AgentJob muss zeitlich abgestimmt sein. Wenn AgentJob mitten in der Migration läuft, schreibt er in alte Spalten. Empfehlung: AgentJob für 10-30 Minuten deaktivieren, Migration laufen lassen, AgentJob mit neuem Skript reaktivieren.
+## 13. Operational-Strategie
 
-Phase 1b benötigt App-Restart (Schema-Change), aber keine Datenmigration → < 5 Minuten Downtime.
+### 13.1 Wartungsfenster
+Big-Bang erfordert App-Stop. Geschätzte Dauer siehe 5.2. Vorab User-Kommunikation 24-48h vor dem Wartungsfenster.
 
-### 9.2 Rollback-Pfade
-- **Während Phase 1a, vor Verifikation:** App-Code zurückrollen (alte App-Version), alte Spalten enthalten weiterhin korrekte Daten. AgentJob auf alte Version setzen.
-- **Während Phase 1a, nach Verifikation:** Bug-Fix in Phase 1a vor Phase 1b. Kein voller Rollback nötig.
-- **Nach Phase 1b:** Backup-Restore. Alte Spalten sind weg.
+### 13.2 Rollback-Pfade
+- **Innerhalb 30 Minuten nach App-Start mit neuer Version**: Backup-Restore möglich.
+- **Nach 30 Min Live-Betrieb**: Forward-Fix only. Hotfix-Strategie:
+  - Bug in Repo-Query → Code-Hotfix + App-Restart.
+  - Daten-Inkonsistenz → manuelles SQL-Fix-Skript.
+  - Schema-Defekt → ad-hoc Migration als Hotfix.
 
-### 9.3 Live-Verifikation während Phase 1a (5 Arbeitstage)
-- Tägliche Verifikations-Query (siehe 8.1).
-- Monitor: SuccessRate des Toggle-API, Picker-Workflow-Completion-Rate.
-- Bei jedem produktiven User-Bericht über "wo ist die Funktion X hin" → Untersuchung + Phase-1a-Hotfix.
+### 13.3 Live-Verifikation (Tag 1-5 nach Deploy)
+- Verifikations-Query täglich (Sum-Counts pro Status-Feld). Erwartung: stabil oder steigt linear mit neuen Buchungen.
+- Monitor SuccessRate der drei Toggle-Endpoints.
+- Picker-Workflow-Completion-Rate beobachten.
+- Bei jedem User-Bericht "wo ist Feature X" → Untersuchung + Hotfix.
 
-### 9.4 Deploy-Reihenfolge Phase 1a
-1. AgentJob deaktivieren.
-2. SQL-Migration laufen lassen (Tabellen + Daten-Kopie + Eager-Create-Status für bestehende FAs).
-3. Verifikations-Query — vorher/nachher-Counts müssen matchen.
-4. Neue App-Version deployen.
-5. Neuen AgentJob deployen.
-6. AgentJob reaktivieren.
-7. Smoke-Test (1 Buchung, 1 FA-Freigabe, 1 BDE-Buchung).
+### 13.4 Test-Coverage-Anforderungen (Phase 1)
+Existing Tests decken Toggle-API und Repo-Projektionen nicht ab. Phase 1 muss explizit Tests für:
+- `ProductionOrderPickingStatusRepository` CRUD + Read-Through.
+- `ProductionOrderAssemblyGroupRepository` CRUD + Pivot-Aggregation (5-Bool-Spalten aus 5 Rows).
+- `PickingStatusApiController.Toggle` mit Whitelist (HasGlass/Purchase/Coating/IsDonePicking).
+- `AssemblyGroupsApiController.ToggleApplicable` mit `groupKey`-Validierung.
+- `BdeStatusApiController.Toggle` (auch wenn nur 1 Feld, für Konsistenz).
+- AgentJob-Sync-Test: nach Sage-Import existiert für neue FA exakt 1× PickingStatus + 1× BdeStatus + 5× AssemblyGroups.
 
-### 9.5 Test-Coverage-Risiko
-Existing Tests decken Toggle-API und Repo-Projektionen nicht ab (siehe vorherige Feature-Implementierungen). Phase 1a sollte **explizit** Tests für:
-- `ProductionOrderPickingStatusRepository`-CRUD
-- `ProductionOrderAssemblyGroupRepository`-CRUD und Pivot-Aggregation
-- Toggle-API-Routing (HasGlass → PickingStatus, HasCooling → AssemblyGroup mit GroupKey=VK)
+Coverage-Anforderung: jeder neue Repo + Endpoint hat mindestens 1 Happy-Path-Test.
 
-Sonst stille Regressionen wahrscheinlich.
+## 14. Ablauf
 
-## 10. Ablauf
-
-1. Roadmap committen + reviewen (heute).
-2. Trigger: Bundle-Branch in `main` gemerged + Live-stabil (siehe Sektion 12).
-3. Phase 1a Detail-Spec + Plan schreiben.
-4. Phase 1a implementieren + 5-Tage-Verifikation.
-5. Phase 1b implementieren (Drop-Old).
+1. Roadmap committen + reviewen (heute, Round 3 abgeschlossen).
+2. Trigger: Bundle-Branch in `main` gemerged + Live-stabil (siehe 16).
+3. Phase 1 Detail-Spec + Plan schreiben.
+4. Phase 1 deployen mit Wartungsfenster.
+5. 5 Tage Live-Verifikation.
 6. Phase 2 → Phase 3 (sequentiell). Parallel: Phase 4 starten.
 7. Phase 5 nach Phase 4.
 
-## 11. Entscheidungen (geklärt am 2026-05-12)
+## 15. Entscheidungen (geklärt am 2026-05-12)
 
 | # | Thema | Entscheidung |
 |---|---|---|
-| Q1 | `IsDone`-Semantik | **A:** `IsDone` bleibt auf FA (= Sage-Master "WA in Sage erledigt"). Zusätzlich `IsDonePicking` auf `PickingStatus`, `IsDoneBde` auf `BdeStatus`. |
-| Q2 | Status-Tabellen-Create | **A:** Eager — beim Schema-Refactor wird für jede bestehende FA ein leerer `PickingStatus`- und `BdeStatus`-Datensatz angelegt. Sage-AgentJob legt für neue FAs gleich die Status-Datensätze mit an (Folge-MERGE). |
-| Q3 | AgentJob-Anpassung | **Folge-MERGE im AgentJob-Skript** (kein DB-Trigger, keine App-Logik beim Read). |
-| Q4 | Phase-1-Start | **Erst nach Merge des aktuellen Bundle-Branchs in `main`.** Refactor zweigt dann sauber von `main` ab (Rebase). |
-| Q5 | AssemblyGroups | **A:** Immer alle 5 Zeilen (VK/VL/VE/VT/VA) pro FA, `IsApplicable=false` als Default. |
-| Q6 (R2) | Phase-4-Spec-Modell | **AssemblyGroupSpecs mit ArticleId (optional), Description (required), Quantity, Notes, SortOrder.** Pro FA × Gruppe können Ausprägungen hinterlegt werden — User-Quote: "pflege die definierten Lüfter-Ausprägungen". |
-| Q7 (R2) | Phase-5-Werkbank-Modell | **`ProductionWorkplaceAssemblyGroups`-Mapping-Tabelle** (Werkbank → konfigurierte GroupKeys). Eine Werkbank zeigt Specs aller offenen FAs in den konfigurierten Gruppen. |
-| Q8 (R2) | Migration-Strategie | **2 Schritte:** Phase 1a (Schema+Copy, alte Spalten bleiben) → 5 Tage Verifikation → Phase 1b (Drop alte Spalten). Ermöglicht Hotfix ohne Backup-Restore. |
+| Q1 (R1) | `IsDone`-Semantik | `IsDone` bleibt auf FA (Sage-Master). Zusätzlich `IsDonePicking` und `IsDoneBde` in den Status-Tabellen. |
+| Q2 (R1) | Status-Tabellen-Create | Eager — beim Refactor wird für jede FA ein leerer Status-Datensatz angelegt. |
+| Q3 (R1) | AgentJob-Anpassung | Folge-MERGE im Skript. |
+| Q4 (R1) | Phase-1-Start | Erst nach Merge des aktuellen Bundle-Branchs in `main`. |
+| Q5 (R1) | AssemblyGroups-Zeilen | Immer alle 5 Zeilen (VK/VL/VE/VT/VA) pro FA, `IsApplicable=false` Default. |
+| Q6 (R2) | Phase-4-Spec-Modell | `AssemblyGroupSpecs` mit ArticleId (optional), Description (required), Quantity, Notes, SortOrder. |
+| Q7 (R2) | Phase-5-Werkbank-Modell | `ProductionWorkplaceAssemblyGroups`-Junction-Tabelle (Werkbank → konfigurierte GroupKeys). |
+| Q8 (R3, **revidiert**) | Migration-Strategie | **Big-Bang mit Wartungsfenster + Backup-Restore-Rollback**. (Round 2: war 2-Schritt, wurde verworfen — Round-3-Review zeigte, dass das Rollback-Versprechen irreführend war.) |
+| Q9 (R3) | Toggle-API-Strategie | **Separate Endpoints pro Tabelle**: `/api/picking-status/toggle`, `/api/assembly-groups/toggle-applicable`, `/api/bde-status/toggle`. View-JS dispatcht auf `data-endpoint`. |
+| Q10 (R3) | ArticleId-Cascade | `ON DELETE SET NULL` auf `AssemblyGroupSpecs.ArticleId` — bei Artikel-Löschung bleibt Spec mit `null`-ArticleId erhalten. |
+| Q11 (R3) | Eager-Create für große DBs | Batched-INSERT (5000 Zeilen/Batch) in eigenen Transaktionen, **nicht** in einer Mega-Transaktion. |
 
-## 12. Phase-1-Voraussetzungen / Trigger
+## 16. Phase-1-Voraussetzungen / Trigger
 
-Phase 1a ist **blockiert** bis:
+Phase 1 ist blockiert bis:
 
 1. ☐ `feature/sage-lagerbestand-sync` ist in `main` gemerged.
 2. ☐ Live-Verifikation der Bundle-Features in Produktion (mindestens 1 Arbeitstag ohne Bugs).
-3. ☐ Refactor-Branch `refactor/production-order-split` auf `main` rebased (siehe Sektion 8.8 für Strategie).
+3. ☐ Refactor-Branch auf `main` rebased (siehe 12.8).
+4. ☐ Wartungsfenster mit Stakeholdern abgestimmt (24-48h Vorlauf).
+5. ☐ DB-Backup-Strategie verifiziert (Restore-Test auf Stage).
 
 Nach Trigger:
-- **Phase-1a Detail-Spec** schreiben: `docs/superpowers/specs/2026-MM-DD-production-order-split-phase-1a-schema-design.md`.
-- **Phase-1a Plan** schreiben: `docs/superpowers/plans/2026-MM-DD-production-order-split-phase-1a-schema.md`.
+- **Phase-1 Detail-Spec** schreiben: `docs/superpowers/specs/2026-MM-DD-production-order-split-phase-1-schema-design.md`.
+- **Phase-1 Plan** schreiben: `docs/superpowers/plans/2026-MM-DD-production-order-split-phase-1-schema.md`.
 
-## 13. Critical-Review-Notizen (Round 2 — 2026-05-12)
+## 17. Critical-Review-Historie
 
-Folgende Punkte wurden gegenüber Round 1 (Commit `cc3a6dc`) geändert:
+### Round 1 (Commit `cc3a6dc`, 2026-05-12 vormittags)
+Ursprünglicher Wurf der Roadmap mit Phasen 1-5, atomare Migration ohne Wartungsfenster-Detail.
 
-- **Phase 4 Schema** (4.5): War "Filter-Speicherung", ist jetzt "Merkmalsausprägungen-Liste" — eigene Spalten ArticleId/Description/Quantity/Notes/SortOrder. Basiert auf User-Klärung.
-- **Phase 5 Werkbank-Mapping** (4.6 NEU): Tabelle `ProductionWorkplaceAssemblyGroups` ergänzt — Werkbank konfiguriert welche Gruppen sie zeigt.
-- **Phase 1 gesplittet in 1a + 1b** (Sektion 5): 2-Schritt-Migration mit 5-Tage-Verifikation zwischen Phase 1a und 1b. Rollback ohne Backup möglich.
-- **Phase 2 vor Phase 3 fixiert** (Sektion 7): nicht mehr parallel, sequentiell. Begründung: Phase 3 reutilisiert Phase-2-Patterns; parallele Arbeit würde Konsolidierung erfordern.
-- **Operational-Strategie ergänzt** (Sektion 9 NEU): Wartungsfenster, Rollback-Pfade, Deploy-Reihenfolge, Test-Coverage-Anforderungen.
-- **Risiken erweitert** (Sektion 8): Toggle-API-Komplexität (8.6) und JOIN-Performance (8.7) ergänzt, weil sie konkrete Implementations-Konsequenzen haben.
-- **WorkTree-Rebase-Strategie konkretisiert** (8.8): exakte git-Kommandos.
-- **Q6/Q7/Q8 in der Entscheidungs-Tabelle ergänzt** (Sektion 11): die Round-2-Klärungen.
+### Round 2 (Commit `32e44c3`, 2026-05-12 nachmittags)
+- Phase 4 Schema konkretisiert (Merkmalsausprägungen statt Filter-Regeln).
+- Phase 5 Werkbank-Mapping ergänzt (`ProductionWorkplaceAssemblyGroups`).
+- Phase 1 versuchsweise in 1a + 1b gesplittet (Rollback-Mitigation).
+- Operational-Strategie, Risiken erweitert.
+
+### Round 3 (dieses Update)
+- **Verworfen: 2-Schritt-Migration.** Rollback-Versprechen war irreführend (App schreibt nach Cutover nur in neue Tabellen, alte Spalten veralten).
+- **Bestätigt: Big-Bang mit Backup-Restore.** Ehrliches Wartungsfenster, klare Rollback-Grenzen.
+- **Toggle-API separiert in 3 Endpoints.** View-JS-Refactor in Phase 1 explizit.
+- **Batching für Migration** dokumentiert (Mega-Transaction vermieden).
+- **AssemblyGroups-Lifecycle, AgentJob-Komplexität, ArticleId-Cascade** als explizite Risiken / Entscheidungen.
+- **Phase 5 Permission + Pagination + Empty-State** klargestellt.
+- **`IsApplicable`-Naming-Trade-off** dokumentiert (Code bleibt, UI-Label kann anders sein).
 
 ---
 
