@@ -197,23 +197,25 @@ public class CoatingDetectionService : ICoatingDetectionService
             await bulk.WriteToServerAsync(dt, ct);
         }
 
-        // Update
+        // Update — seit v1.11.0 leben HasCoatingParts + IsCoatingDone in
+        // ProductionOrderPickingStatus (1:1 zu FA, eager-created). Phase 1 Spec 4.2 / 8.
+        // Audit-Felder werden auf der Status-Tabelle gepflegt, nicht mehr auf FA.
         var updateSql = hasCoatingParts
-            ? @"UPDATE p SET p.[HasCoatingParts] = 1,
-                              p.[ModifiedAt] = GETUTCDATE(),
-                              p.[ModifiedBy] = 'CoatingDetection',
-                              p.[ModifiedByWindows] = SYSTEM_USER
-                FROM [dbo].[ProductionOrders] p
-                INNER JOIN #TmpOrderIds t ON t.[Id] = p.[Id]
-                WHERE p.[HasCoatingParts] = 0"
-            : @"UPDATE p SET p.[HasCoatingParts] = 0,
-                              p.[IsCoatingDone] = 0,
-                              p.[ModifiedAt] = GETUTCDATE(),
-                              p.[ModifiedBy] = 'CoatingDetection',
-                              p.[ModifiedByWindows] = SYSTEM_USER
-                FROM [dbo].[ProductionOrders] p
-                INNER JOIN #TmpOrderIds t ON t.[Id] = p.[Id]
-                WHERE p.[HasCoatingParts] = 1";
+            ? @"UPDATE ps SET ps.[HasCoatingParts] = 1,
+                              ps.[ModifiedAt] = GETUTCDATE(),
+                              ps.[ModifiedBy] = 'CoatingDetection',
+                              ps.[ModifiedByWindows] = SYSTEM_USER
+                FROM [dbo].[ProductionOrderPickingStatus] ps
+                INNER JOIN #TmpOrderIds t ON t.[Id] = ps.[ProductionOrderId]
+                WHERE ps.[HasCoatingParts] = 0"
+            : @"UPDATE ps SET ps.[HasCoatingParts] = 0,
+                              ps.[IsCoatingDone] = 0,
+                              ps.[ModifiedAt] = GETUTCDATE(),
+                              ps.[ModifiedBy] = 'CoatingDetection',
+                              ps.[ModifiedByWindows] = SYSTEM_USER
+                FROM [dbo].[ProductionOrderPickingStatus] ps
+                INNER JOIN #TmpOrderIds t ON t.[Id] = ps.[ProductionOrderId]
+                WHERE ps.[HasCoatingParts] = 1";
 
         int affected;
         await using (var cmd = new SqlCommand(updateSql, conn) { CommandTimeout = 60 })
