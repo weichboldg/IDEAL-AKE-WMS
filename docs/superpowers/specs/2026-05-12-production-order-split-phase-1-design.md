@@ -457,16 +457,18 @@ Heutige Index-View hat Server-Pagination (max ~50 Items pro Seite) — Chunking 
 
 - **`SQL/60_ProductionOrderSplit.sql`** bleibt single source of truth für Schema + Daten + Drop. Idempotent, Wiederanlauf-fest.
 - **EF-Migration `AddProductionOrderSplit.Up()`** lädt das Skript zur Laufzeit aus `bin/.../Migrations/Scripts/60_ProductionOrderSplit.sql`, splittet bei `GO` und ruft `migrationBuilder.Sql()` pro Batch. In `IdealAkeWms.csproj` ist die SQL-Datei als Linked-File mit `CopyToOutputDirectory=PreserveNewest` und `CopyToPublishDirectory=PreserveNewest` eingebunden.
-- **Production-Cutover-Pfad bleibt als Option:** DBA kann das Skript manuell vor App-Start in SSMS ausführen. Section G inserted den `__EFMigrationsHistory`-Eintrag → EF sieht die Migration als applied und überspringt `Up()`.
-- **Fallback bei fehlendem SQL-File:** Wenn das File aus dem Output-Verzeichnis fehlt (defekter Deploy), kehrt `Up()` einfach `return` zurück — kein Crash, App startet, aber Schema bleibt unmigriert. Im Log nicht direkt sichtbar; manuelle Verifikation per `SELECT * FROM __EFMigrationsHistory` empfohlen.
+- **Production-Cutover-Pfad bleibt als Option:** DBA kann das Skript manuell vor App-Start in SSMS ausführen. Beim folgenden App-Start läuft `Up()` erneut, aber alle Sektionen sind idempotent (Section A `OBJECT_ID`-Guards, Section B/C/D `NOT EXISTS`-Guards, Section F `sys.columns`-Guards) → keine Auswirkung, alles wird übersprungen. EF schreibt anschließend den History-Eintrag selbst.
+- **Fallback bei fehlendem SQL-File:** Wenn das File aus dem Output-Verzeichnis fehlt (defekter Deploy), kehrt `Up()` einfach `return` zurück — kein Crash. EF schreibt den History-Eintrag trotzdem, Schema bleibt aber unmigriert. **Verifikation per `SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus` empfohlen.**
 
 **Beim App-Start:** EF prüft die `__EFMigrationsHistory`-Tabelle.
-- Wenn Migration nicht angewendet: `Up()` lädt SQL-Datei und führt Batches aus.
-- Wenn Migration schon vorab manuell ausgeführt (Section G hat History-Eintrag inserted): `Up()` wird übersprungen.
+- Wenn Migration nicht angewendet: `Up()` lädt SQL-Datei und führt Batches aus. EF schreibt anschließend den History-Eintrag.
+- Wenn Migration applied: `Up()` wird übersprungen.
 
-**Trade-Off:** Bei Produktiv-DBs mit großen FA-Mengen (>50k) sollte DBA das Skript manuell während des Wartungsfensters fahren — dann hängt App-Start nicht an minutenlanger Daten-Kopie. Bei Dev/Test (wenige Hundert FAs) läuft Auto-Migration in Sekunden durch.
+**Round-6-Korrektur (2026-05-13):** Section G (manueller History-Insert) wurde entfernt, weil sie mit dem automatischen EF-History-Insert in PK-Konflikt geriet. EF schreibt den Eintrag selbst nach erfolgreichem `Up()`. Manueller Cutover-Pfad funktioniert unverändert — App-Start ruft `Up()` idempotent erneut.
 
-**Reihenfolge im SQL-Skript** (siehe 8.2): Section A Schema → Section B/C/D Daten → Section E Verifikation → Section F Drop → Section G History-Eintrag.
+**Trade-Off:** Bei Produktiv-DBs mit großen FA-Mengen (>50k) sollte DBA das Skript manuell während des Wartungsfensters fahren — dann ist die Migration vor App-Start schon durchgespielt; App-Start lädt nur die Idempotenz-Guards (wenige Sekunden). Bei Dev/Test (wenige Hundert FAs) läuft Auto-Migration in Sekunden durch.
+
+**Reihenfolge im SQL-Skript** (siehe 8.2): Section A Schema → Section B/C/D Daten → Section E Verifikation → Section F Drop. (Section G History-Eintrag wurde in Round 6 entfernt — EF macht das selbst.)
 
 ### 8.2 SQL-Skript `60_ProductionOrderSplit.sql`
 
@@ -534,17 +536,11 @@ GO
 
 Jeder Drop mit `IF EXISTS (SELECT 1 FROM sys.columns ...)`-Guard (Wiederanlauf-fest).
 
-### 8.3 `__EFMigrationsHistory` als Section G im SQL-Skript
+### 8.3 `__EFMigrationsHistory` — von EF verwaltet (Round 6)
 
-Letzte Section des Skripts (nach Drop-Sektion F). Macht das Standalone-SQL self-contained — EF Migrate-Pipeline muss diese Migration nicht ausführen.
+**Round-4/5 hatte eine Section G** im SQL-Skript, die den History-Eintrag manuell inserted hat. **Round 6 entfernt das**, weil EF beim auto-load `Up()` selbst nach erfolgreichem Lauf einen Insert macht — Section G erzeugte einen PK-Konflikt (`PRIMARY KEY constraint __EFMigrationsHistory`).
 
-```sql
-IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = '<TIMESTAMP>_AddProductionOrderSplit')
-BEGIN
-    INSERT INTO dbo.__EFMigrationsHistory (MigrationId, ProductVersion) VALUES ('<TIMESTAMP>_AddProductionOrderSplit', '10.0.0');
-END
-GO
-```
+EF schreibt den Eintrag nach `Up()` automatisch. Beim manuellen Cutover-Pfad: DBA fährt SQL/60 (ohne History-Insert), App-Start ruft `Up()` erneut, alle Sektionen sind idempotent → übersprungen, EF inserted History-Eintrag.
 
 **Beim App-Start:** EF prüft die History-Tabelle, findet den Eintrag, ruft `Up()` **nicht** auf (Body ist ohnehin leer). Migration gilt als applied.
 
@@ -786,7 +782,7 @@ Im Plan-Task "Doku" werden 4 neue Szenarien dem TS-3-Block (FA-Liste) angehängt
 2. App-Stop.
 3. **DB-Backup** (vollständig).
 4. SQL Agent Job deaktivieren (`01_Import_Produktionsauftraege` und ggf. `02_Import_Artikel`, weil sie auf `ProductionOrders` referenzieren).
-5. **`SQL/60_ProductionOrderSplit.sql` manuell ausführen** (Schema + Daten + Drop + `__EFMigrationsHistory`-Eintrag in einer Datei). Daten-Kopie + Verifikations-PRINTs laufen hier.
+5. **`SQL/60_ProductionOrderSplit.sql` manuell ausführen** (Schema + Daten + Drop in einer Datei). Daten-Kopie + Verifikations-PRINTs laufen hier. **History-Eintrag** wird beim folgenden App-Start von EF selbst geschrieben (Round 6).
 6. Verifikations-Counts prüfen — Erwartung: `ProductionOrderPickingStatus.COUNT == ProductionOrders.COUNT` und `ProductionOrderAssemblyGroups.COUNT == 5 × ProductionOrders.COUNT`. Bei Mismatch: STOP, Backup-Restore.
 7. Neue App-Version + neuer AgentJob `01_Import_Produktionsauftraege` deployen (AgentJob bleibt noch deaktiviert).
 8. App-Start. `db.Database.Migrate()` findet den History-Eintrag, ruft die leere `Up()` der EF-Migration nicht aus — kein App-Start-Hänger.

@@ -471,20 +471,18 @@ DEALLOCATE col_cursor;
 GO
 
 -- =============================================
--- SECTION G: __EFMigrationsHistory-Eintrag
--- Sorgt dafuer, dass EF beim App-Start die Migration als applied erkennt
--- und die leere Up()-Methode nicht erneut ausfuehrt.
+-- SECTION G entfernt (Round 6, 2026-05-13)
+--
+-- Frueher: explizite INSERT INTO __EFMigrationsHistory, damit EF beim App-Start
+-- die leere Up() ueberspringt. Round 5 hat Up() umgestellt auf File-Load — EF
+-- ruft Up() ohnehin und inserted danach den History-Eintrag automatisch.
+-- Section G wuerde jetzt mit dem EF-eigenen Insert in PK-Konflikt geraten
+-- (PK-Violation auf MigrationId).
+--
+-- Manueller Cutover-Pfad bleibt funktional: DBA fuehrt SQL/60 manuell aus
+-- (Schema+Daten+Drop), App-Start ruft Up() erneut, alle Idempotenz-Guards
+-- ueberspringen die Wiederholungen, EF schreibt den History-Eintrag normal.
 -- =============================================
-IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory
-               WHERE MigrationId = N'20260512120355_AddProductionOrderSplit')
-BEGIN
-    INSERT INTO dbo.__EFMigrationsHistory ([MigrationId], [ProductVersion])
-    VALUES (N'20260512120355_AddProductionOrderSplit', N'10.0.0');
-    PRINT 'Section G: __EFMigrationsHistory-Eintrag fuer AddProductionOrderSplit angelegt.';
-END
-ELSE
-    PRINT 'Section G: __EFMigrationsHistory-Eintrag bereits vorhanden.';
-GO
 
 PRINT '60_ProductionOrderSplit.sql erfolgreich abgeschlossen.';
 GO
