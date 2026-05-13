@@ -33,6 +33,20 @@ namespace IdealAkeWms.Migrations
             }
 
             var sqlContent = File.ReadAllText(sqlPath);
+
+            // Defensive (Round 6): SQL/60 versions before commit 2483ace hatten eine
+            // "Section G", die INSERT INTO __EFMigrationsHistory selbst gemacht hat.
+            // Wenn dieser Build mit einer stale SQL-Datei im Output deployed wird,
+            // wuerde Section G mit ProductVersion='10.0.0' inserten, EF danach mit
+            // ProductVersion='10.0.2' --> PK violation. Wir strippen daher robust
+            // alle History-INSERTs aus dem SQL bevor wir es ausfuehren --
+            // EF erledigt den History-Insert selbst nach erfolgreichem Up().
+            sqlContent = Regex.Replace(
+                sqlContent,
+                @"INSERT\s+INTO\s+(?:\[dbo\]\.)?(?:dbo\.)?(?:\[__EFMigrationsHistory\]|__EFMigrationsHistory)\b[^;]*;",
+                "-- (Round 6) inline __EFMigrationsHistory INSERT stripped",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
             var batches = Regex.Split(sqlContent, @"(?im)^\s*GO\s*$");
             foreach (var batch in batches)
             {
