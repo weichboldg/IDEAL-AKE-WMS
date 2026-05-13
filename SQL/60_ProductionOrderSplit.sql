@@ -218,7 +218,8 @@ BEGIN
             SET @lastIdB = (SELECT MAX(ProductionOrderId) FROM dbo.ProductionOrderPickingStatus);
         COMMIT TRANSACTION;
     END
-    PRINT 'PickingStatus-Migration abgeschlossen. Zeilen = ' + CAST((SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus) AS NVARCHAR);
+    DECLARE @cntPS INT = (SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus);
+    PRINT 'PickingStatus-Migration abgeschlossen. Zeilen = ' + CAST(@cntPS AS NVARCHAR);
 END
 ELSE
     PRINT 'Section B uebersprungen: Spalte PickingStatus in dbo.ProductionOrders nicht (mehr) vorhanden.';
@@ -252,7 +253,8 @@ BEGIN
         SET @lastIdC = (SELECT MAX(ProductionOrderId) FROM dbo.ProductionOrderBdeStatus);
     COMMIT TRANSACTION;
 END
-PRINT 'BdeStatus-Migration abgeschlossen. Zeilen = ' + CAST((SELECT COUNT(*) FROM dbo.ProductionOrderBdeStatus) AS NVARCHAR);
+DECLARE @cntBde INT = (SELECT COUNT(*) FROM dbo.ProductionOrderBdeStatus);
+PRINT 'BdeStatus-Migration abgeschlossen. Zeilen = ' + CAST(@cntBde AS NVARCHAR);
 GO
 
 -- =============================================
@@ -304,7 +306,8 @@ BEGIN
             SET @lastIdD = (SELECT MAX(ProductionOrderId) FROM dbo.ProductionOrderAssemblyGroups);
         COMMIT TRANSACTION;
     END
-    PRINT 'AssemblyGroups-Migration abgeschlossen (mit Spalten-Kopie). Zeilen = ' + CAST((SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups) AS NVARCHAR);
+    DECLARE @cntAgCopy INT = (SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups);
+    PRINT 'AssemblyGroups-Migration abgeschlossen (mit Spalten-Kopie). Zeilen = ' + CAST(@cntAgCopy AS NVARCHAR);
 END
 ELSE
 BEGIN
@@ -336,7 +339,8 @@ BEGIN
             SET @lastIdD2 = (SELECT MAX(ProductionOrderId) FROM dbo.ProductionOrderAssemblyGroups);
         COMMIT TRANSACTION;
     END
-    PRINT 'AssemblyGroups-Migration abgeschlossen (IsApplicable=0, Section F war bereits gelaufen). Zeilen = ' + CAST((SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups) AS NVARCHAR);
+    DECLARE @cntAgEmpty INT = (SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups);
+    PRINT 'AssemblyGroups-Migration abgeschlossen (IsApplicable=0, Section F war bereits gelaufen). Zeilen = ' + CAST(@cntAgEmpty AS NVARCHAR);
 END
 GO
 
