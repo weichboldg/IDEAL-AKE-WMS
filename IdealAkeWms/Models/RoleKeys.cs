@@ -13,4 +13,5 @@ public static class RoleKeys
     public const string BdeUser = "bde_user";
     public const string BdeShiftlead = "bde_shiftlead";
     public const string BdeAdmin = "bde_admin";
+    public const string FaCompletion = "fa_completion";
 }
