@@ -1,0 +1,112 @@
+@model IdealAkeWms.Models.ViewModels.FaCompletionListViewModel
+@{
+    ViewData["Title"] = "FA-Vervollständigung";
+}
+
+<h2 class="page-header">FA-Vervollständigung</h2>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">FA Nummer</label>
+                    <input type="text" name="filterOrderNumber" value="@Model.FilterOrderNumber"
+                           class="form-control" placeholder="FA Nummer" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Artikelnummer</label>
+                    <input type="text" name="filterArticleNumber" value="@Model.FilterArticleNumber"
+                           class="form-control" placeholder="Artikelnummer" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kunde</label>
+                    <input type="text" name="filterCustomer" value="@Model.FilterCustomer"
+                           class="form-control" placeholder="Kunde" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="showDone" value="true" class="form-check-input" id="showDone"
+                               @(Model.ShowDone ? "checked" : "") />
+                        <label class="form-check-label" for="showDone">Erledigte anzeigen</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-secondary">Filtern</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary"
+                       data-clear-table-filters="FaCompletion">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped filterable-table" data-view-key="FaCompletion">
+        <thead>
+            <tr>
+                <th data-col-key="order-number">FA Nr.</th>
+                <th data-col-key="quantity">Stk.</th>
+                <th data-col-key="customer">Kunde</th>
+                <th data-col-key="article-number">Artikelnummer</th>
+                <th data-col-key="description1">Bezeichnung 1</th>
+                <th data-col-key="production-date">Fert.-Termin</th>
+                <th data-col-key="applicable">Anwendbar</th>
+                <th data-col-key="completed">Vervollständigt</th>
+                <th data-col-key="spec-count">Ausprägungen</th>
+                <th data-col-key="row-actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        Keine Fertigungsaufträge gefunden.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model.Items)
+                {
+                    <tr class="@(item.IsDone ? "table-secondary" : "")">
+                        <td>@item.OrderNumber</td>
+                        <td>@item.Quantity</td>
+                        <td>@item.Customer</td>
+                        <td>@item.ArticleNumber</td>
+                        <td>@item.Description1</td>
+                        <td>@(item.ProductionDate?.ToString("dd.MM.yyyy"))</td>
+                        <td>@item.ApplicableCount / 5</td>
+                        <td>@item.CompletedCount / 5</td>
+                        <td>@item.SpecCount</td>
+                        <td>
+                            <a asp-action="Edit" asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-primary" title="Bearbeiten">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325"/>
+                                </svg>
+                                Bearbeiten
+                            </a>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}
