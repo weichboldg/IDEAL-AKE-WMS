@@ -7,7 +7,7 @@ namespace IdealAkeWms.Controllers;
 
 [Route("api/assembly-groups")]
 [ApiController]
-[RequirePickingAccess]
+[RequirePickingOrFaCompletionAccess]
 public class AssemblyGroupsApiController : ControllerBase
 {
     private static readonly HashSet<string> AllowedGroupKeys = ["VK", "VL", "VE", "VT", "VA"];
