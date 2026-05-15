@@ -9,6 +9,34 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.13.0</strong> <span class="text-white-50 ms-2">15.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Vervollstaendigung (Phase 4)</h6>
+                <ul>
+                    <li><strong>Neues Modul "FA-Vervollstaendigung":</strong> Pro Fertigungsauftrag k&ouml;nnen jetzt
+                        Merkmalsauspr&auml;gungen f&uuml;r die f&uuml;nf Vormontagepl&auml;tze gepflegt werden:
+                        <strong>VK K&auml;lte</strong>, <strong>VL L&uuml;fter</strong>, <strong>VE Elektro</strong>,
+                        <strong>VT T&uuml;ren</strong>, <strong>VA Aufbau</strong>. Eigene FA-Liste, Detail-Seite mit
+                        Bootstrap-Tabs pro Gruppe &mdash; jede Gruppe hat <code>IsApplicable</code>- und
+                        <code>IsCompleted</code>-Status sowie eine pflegbare Liste an Spec-Eintr&auml;gen
+                        (Artikel optional, Beschreibung, Menge, Notizen). Inline Add/Edit/Delete der Eintr&auml;ge.
+                        Die Specs werden f&uuml;r die zuk&uuml;nftige Werkstatt-Anzeige (Phase 5, geplant) vorbereitet.</li>
+                    <li><strong>Neue Rolle <code>fa_completion</code>:</strong> Gibt Schreibzugriff auf die
+                        Merkmalsauspr&auml;gungen sowie die zwei Toggle-Flags <code>IsApplicable</code> (Gruppe
+                        anwendbar?) und <code>IsCompleted</code> (Pflege abgeschlossen?) pro AssemblyGroup.</li>
+                    <li><strong>API-Erweiterung:</strong> Der Endpoint
+                        <code>POST /api/assembly-groups/toggle-applicable</code> ist jetzt zus&auml;tzlich
+                        f&uuml;r die <code>fa_completion</code>-Rolle freigeschaltet (vorher nur <code>picking</code>).
+                        Picker (Phase 2 PickingLeitstand) und FA-Completion-User teilen sich die Toggle-API.</li>
+                    <li><strong>Navigation:</strong> Neuer Men&uuml;punkt &bdquo;FA-Vervollst&auml;ndigung&ldquo;
+                        f&uuml;r Benutzer mit der Rolle <code>fa_completion</code> (bzw. Admins).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.12.0</strong> <span class="text-white-50 ms-2">12.05.2026</span>
             </div>
             <div class="card-body">

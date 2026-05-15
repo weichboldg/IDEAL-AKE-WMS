@@ -43,6 +43,8 @@
 |----------------|--------|---------------|
 | `[RequireMasterDataAccess]` | admin, masterdata | UsersController, WorkstationsController, SettingsController, RolesController |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
+| `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
+| `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | AssemblyGroupsApiController (`/api/assembly-groups/toggle-applicable`) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
 | `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController, WarehousePickingController |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
@@ -73,6 +75,7 @@
 | `tracking` | OSEON Auftraege + Rueckmeldungen |
 | `reporting` | Betriebsdaten / BDE (Zukunft) |
 | `leitstand` | Produktionsauftraege freigeben und priorisieren |
+| `fa_completion` | FA-Vervollstaendigung: Merkmalsauspraegungen pro Vormontageplatz pflegen |
 | `bde_user` | Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln |
 | `bde_shiftlead` | + BDE-Stammdaten, Buchungsliste, Cockpit |
 | `bde_admin` | + Buchungen korrigieren/stornieren, Terminals konfigurieren |
@@ -114,6 +117,7 @@
 - **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
 - **ProductionOrder Status-Aufteilung (seit v1.11.0)**: Die `ProductionOrders`-Tabelle enthaelt nur noch Sage-Master-Daten. App-Status liegt in 3 verbundenen Tabellen: `ProductionOrderPickingStatus` (1:1, HasGlass/HasExternalPurchase/HasCoatingParts/IsCoatingDone/IsReleasedForPicking/PickingPriority/AssignedPicker/IsDonePicking), `ProductionOrderBdeStatus` (1:1, IsDoneBde), `ProductionOrderAssemblyGroups` (1:N mit 5 Zeilen je FA, GroupKey VK/VL/VE/VT/VA, IsApplicable ersetzt alte HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure). Sage-AgentJob legt diese Status-Zeilen ueber Folge-MERGEs eager an. Toggle-API ist auf 3 separate Endpoints aufgeteilt (`/api/picking-status/toggle`, `/api/assembly-groups/toggle-applicable`, `/api/bde-status/toggle`). FA.IsDone = Sage-Master; App-Komm-Done = PickingStatus.IsDonePicking; App-BDE-Done = BdeStatus.IsDoneBde.
 - **Leitstand-Kommissionierung getrennte View (seit v1.12.0)**: Das `ProductionOrders/Index` ist nur noch eine schlanke FA-Übersicht. Komm-Status-Spalten (PickingStatus/HasGlass/etc.), Bulk-Freigabe und Picker-Zuweisung leben jetzt in `PickingLeitstand/Index`. Routes `/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker` sind 301-Stub-Redirects auf die neuen `/PickingLeitstand/...`-Endpoints. Im Nav-Menü ist "Kommissionierung" jetzt ein Dropdown mit zwei Sub-Items.
+- **FA-Vervollstaendigung-Daten leben in AssemblyGroupSpecs (seit v1.13.0)**: Pro FA gibt es 5 AssemblyGroups (Phase 1 eager-created mit IsApplicable=false). Erst wenn ein fa_completion-User über `/FaCompletion/Edit/{id}` eine Gruppe auf IsApplicable=true setzt + Specs hinzufügt, sind die Daten für Phase-5-Anzeige relevant. AssemblyGroup-Toggle (`IsApplicable`) geht via `/api/assembly-groups/toggle-applicable`; AssemblyGroup-Status (`IsCompleted`) via `FaCompletion/ToggleIsCompleted`; Specs-CRUD via `FaCompletion/AddSpec|EditSpec|DeleteSpec`.
 
 ## Standard-Daten (Neuinstallation)
 

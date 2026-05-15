@@ -1445,6 +1445,182 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
+### TS-4.30 — FA-Vervollstaendigung Index als fa_completion-User oeffnen (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als User mit AUSSCHLIESSLICH `fa_completion`-Rolle (keine `picking`-/`tracking`-/`leitstand`-Rolle).
+- Mindestens ein FA mit Sage-Master-Daten und 5 eager angelegten AssemblyGroups (VK/VL/VE/VT/VA) vorhanden.
+
+**Schritte:**
+1. Nav-Bar oeffnen.
+2. Menuepunkt `FA-Vervollstaendigung` anklicken (URL `/FaCompletion/Index`).
+3. Tabelle und Spalten pruefen.
+
+**Erwartetes Verhalten:**
+- Menuepunkt `FA-Vervollstaendigung` ist sichtbar. Andere Bereiche (Lager, Kommissionierung, Tracking) sind nicht sichtbar.
+- Tabelle laedt erfolgreich (HTTP 200), zeigt FA-Liste mit Sage-Master-Spalten und einer `SpecCount`-Spalte (Anzahl Specs ueber alle Gruppen).
+- Pro Zeile ist ein `Bearbeiten`-Button vorhanden, der zu `/FaCompletion/Edit/{id}` fuehrt.
+
+**Negativfall:**
+- Ohne `fa_completion`-/`admin`-Rolle: Menue-Eintrag nicht sichtbar; direkter URL-Aufruf liefert 302 -> AccessDenied.
+
+---
+
+### TS-4.31 — IsApplicable togglen geht an /api/assembly-groups/toggle-applicable (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- FA `FA-2604001` existiert mit 5 AssemblyGroups (alle initial `IsApplicable=false`).
+- DevTools Network-Tab offen.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id-von-FA-2604001>` oeffnen.
+2. Tab `VL` anklicken.
+3. Checkbox `Anwendbar` anhaken.
+4. Network-Tab beobachten.
+5. In SSMS pruefen:
+   ```sql
+   SELECT GroupKey, IsApplicable FROM dbo.ProductionOrderAssemblyGroups
+   WHERE ProductionOrderId = <id> AND GroupKey = 'VL';
+   ```
+
+**Erwartetes Verhalten:**
+- Network: POST `/api/assembly-groups/toggle-applicable` mit Status 200.
+- DB: Zeile `GroupKey='VL'` hat `IsApplicable=1`.
+- UI: Checkbox bleibt nach Reload aktiv; Spec-Liste innerhalb des Tabs ist nun editierbar.
+
+**Negativfall:**
+- Picker ohne `fa_completion`-Rolle aber MIT `picking`-Rolle: Toggle funktioniert ebenfalls (Filter `RequirePickingOrFaCompletionAccess`).
+- Tracking-only-User: 302 -> AccessDenied auf den API-Call.
+
+---
+
+### TS-4.32 — Spec mit Artikel-Auswahl hinzufuegen (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- FA `FA-2604001`, Tab `VL`, `IsApplicable=true` (siehe TS-4.31).
+- Artikel `100023` existiert in `Articles`.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. Inline-Add-Formular: Select2-Feld `Artikel` fokussieren, "100023" eintippen.
+3. Aus der Liste `100023 - <Beschreibung>` waehlen.
+4. Description manuell mit "Test-Lueftermotor" ergaenzen, Quantity `1.000`.
+5. "+"-Button klicken (Form submit).
+6. Page reload abwarten, Tabelle pruefen.
+
+**Erwartetes Verhalten:**
+- Erfolgs-Banner (`TempData["SuccessMessage"]`).
+- Zeile in Spec-Tabelle: ArticleNumber `100023`, Description "Test-Lueftermotor", Quantity `1.000`.
+- DB: Neuer Eintrag in `ProductionOrderAssemblyGroupSpecs` mit `CreatedAt`, `CreatedBy`, `CreatedByWindows` gesetzt.
+- `SpecCount` in der `/FaCompletion/Index`-Liste fuer diesen FA hat sich um +1 erhoeht.
+
+**Negativfall:**
+- Submit ohne Description: `ModelState` invalid -> Form-Validierung zeigt Fehler, kein DB-Insert.
+
+---
+
+### TS-4.33 — Spec editieren setzt Audit-Felder ModifiedAt/By (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User `userB` (unterschiedlich vom Spec-Ersteller `userA`).
+- Spec aus TS-4.32 existiert.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. In der Spec-Zeile Description von "Test-Lueftermotor" auf "Test-Lueftermotor 230V" aendern.
+3. "Speichern" klicken.
+4. Nach Reload: Tabelle pruefen.
+5. DB pruefen:
+   ```sql
+   SELECT Description, ModifiedAt, ModifiedBy, ModifiedByWindows
+   FROM dbo.ProductionOrderAssemblyGroupSpecs WHERE Id = <spec-id>;
+   ```
+
+**Erwartetes Verhalten:**
+- UI: Erfolgs-Banner, neue Description sichtbar.
+- DB: `Description = 'Test-Lueftermotor 230V'`, `ModifiedAt` aktuell, `ModifiedBy = 'userB'`, `ModifiedByWindows = <user-windows-login>`.
+- `CreatedAt`/`CreatedBy` (userA) bleiben unveraendert.
+
+**Negativfall:**
+- Submit mit ungueltiger Quantity (z.&nbsp;B. negativ): ModelState invalid, kein Update.
+
+---
+
+### TS-4.34 — Spec loeschen entfernt den Eintrag (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- Spec aus TS-4.32/4.33 existiert.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. In der Spec-Zeile "Loeschen" klicken -> Confirm-Modal bestaetigen.
+3. Reload abwarten.
+4. DB pruefen:
+   ```sql
+   SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroupSpecs WHERE Id = <spec-id>;
+   ```
+
+**Erwartetes Verhalten:**
+- UI: Erfolgs-Banner, Zeile ist aus der Tabelle entfernt.
+- DB: `COUNT = 0` (harter Delete; kein Soft-Delete).
+- `SpecCount` in `/FaCompletion/Index` hat sich um -1 reduziert.
+
+**Negativfall:**
+- Abbrechen im Confirm-Modal: Spec bleibt unveraendert in DB und UI.
+
+---
+
+### TS-4.35 — IsCompleted togglen setzt CompletedAt + CompletedBy (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- FA `FA-2604001`, Tab `VL`, `IsApplicable=true`, mindestens 1 Spec vorhanden.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. Checkbox `Vervollstaendigt` anhaken -> Form-POST `/FaCompletion/ToggleIsCompleted`.
+3. Reload abwarten, Label pruefen.
+4. DB pruefen:
+   ```sql
+   SELECT IsCompleted, CompletedAt, CompletedBy
+   FROM dbo.ProductionOrderAssemblyGroups
+   WHERE ProductionOrderId = <id> AND GroupKey = 'VL';
+   ```
+5. Erneut Checkbox anklicken (jetzt deaktivieren).
+
+**Erwartetes Verhalten:**
+- Nach Schritt 2-4: `IsCompleted=1`, `CompletedAt=<now>`, `CompletedBy=<current-user>`. Label zeigt User + Timestamp.
+- Nach Schritt 5: `IsCompleted=0`, `CompletedAt=NULL`, `CompletedBy=NULL` (Zuruecksetzen).
+
+**Negativfall:**
+- Toggle ohne `IsApplicable=true`: Je nach Controller-Implementierung ModelState-Fehler oder Toggle bleibt erlaubt. Verifizieren, dass kein unkonsistenter Zustand entsteht.
+
+---
+
+### TS-4.36 — Permission-Boundary: Picker ohne fa_completion kann /FaCompletion nicht oeffnen (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Test-User mit AUSSCHLIESSLICH `picking`-Rolle (kein `fa_completion`, kein `admin`).
+
+**Schritte:**
+1. Mit Picker-User einloggen.
+2. Nav-Bar oeffnen.
+3. Direkter URL-Aufruf `/FaCompletion/Index`.
+4. Direkter URL-Aufruf `/FaCompletion/Edit/<beliebige-id>`.
+
+**Erwartetes Verhalten:**
+- Nav-Menue: KEIN `FA-Vervollstaendigung`-Eintrag (Picker-Rolle alleine reicht nicht).
+- Beide direkte URL-Aufrufe: HTTP 302 -> `/Account/AccessDenied` (Filter `RequireFaCompletionAccess` greift).
+- Toggle-Endpoint `/api/assembly-groups/toggle-applicable` bleibt fuer Picker offen (gemeinsamer Filter `RequirePickingOrFaCompletionAccess`).
+
+**Negativfall:**
+- User hat sowohl `picking` als auch `fa_completion`: Beide Bereiche (PickingLeitstand + FaCompletion) sind sichtbar und voll bedienbar.
+
+---
+
 ## 5. Stueckliste (BOM)
 
 ### TS-5.1 — Stueckliste eines FA aufrufen
