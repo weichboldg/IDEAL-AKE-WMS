@@ -1,5 +1,31 @@
 # IdealAkeWms — Kontext fuer KI-Assistenten
 
+## Projektüberblick
+
+Warehouse-/Operationsmanagement-System für die IDEAL-AKE-Gruppe (Standorte AKE GmbH
+und IDEAL). Web-Anwendung plus Windows-Service für Hintergrundaufgaben. Wird
+intern in der Produktion und im Lager eingesetzt.
+
+**Hauptkomponenten:**
+
+- `IdealAkeWms/` – ASP.NET Core MVC Web-Anwendung (UI + API)
+- `IdealAkeWms.Tests/` – Tests zur Web-Anwendung
+- `IDEALAKEWMSService/` – Windows-Service für geplante Jobs und Integrationen
+- `IDEALAKEWMSService.Tests/` – Tests zum Service
+- `SQL/` – Migrationsskripte und FreshInstall
+- `docs/` – Projektdokumentation
+- `secondbrain/` – Obsidian-Vault mit ADRs, Bugs, Features (siehe unten)
+
+**Tech Stack:** [TODO: .NET-Version, EF Core / Dapper?, SQL Server-Version, Bootstrap-Version]
+
+---
+
+## Knowledge Base – `secondbrain/`
+
+Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
+
+@secondbrain/HOME.md
+
 ## Workflow
 
 - **Plan vor Code** — Bei 3+ Schritten oder Architekturentscheidungen: Plan-Modus verwenden
@@ -118,6 +144,7 @@
 - **ProductionOrder Status-Aufteilung (seit v1.11.0)**: Die `ProductionOrders`-Tabelle enthaelt nur noch Sage-Master-Daten. App-Status liegt in 3 verbundenen Tabellen: `ProductionOrderPickingStatus` (1:1, HasGlass/HasExternalPurchase/HasCoatingParts/IsCoatingDone/IsReleasedForPicking/PickingPriority/AssignedPicker/IsDonePicking), `ProductionOrderBdeStatus` (1:1, IsDoneBde), `ProductionOrderAssemblyGroups` (1:N mit 5 Zeilen je FA, GroupKey VK/VL/VE/VT/VA, IsApplicable ersetzt alte HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure). Sage-AgentJob legt diese Status-Zeilen ueber Folge-MERGEs eager an. Toggle-API ist auf 3 separate Endpoints aufgeteilt (`/api/picking-status/toggle`, `/api/assembly-groups/toggle-applicable`, `/api/bde-status/toggle`). FA.IsDone = Sage-Master; App-Komm-Done = PickingStatus.IsDonePicking; App-BDE-Done = BdeStatus.IsDoneBde.
 - **Leitstand-Kommissionierung getrennte View (seit v1.12.0)**: Das `ProductionOrders/Index` ist nur noch eine schlanke FA-Übersicht. Komm-Status-Spalten (PickingStatus/HasGlass/etc.), Bulk-Freigabe und Picker-Zuweisung leben jetzt in `PickingLeitstand/Index`. Routes `/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker` sind 301-Stub-Redirects auf die neuen `/PickingLeitstand/...`-Endpoints. Im Nav-Menü ist "Kommissionierung" jetzt ein Dropdown mit zwei Sub-Items.
 - **FA-Vervollstaendigung-Daten leben in AssemblyGroupSpecs (seit v1.13.0)**: Pro FA gibt es 5 AssemblyGroups (Phase 1 eager-created mit IsApplicable=false). Erst wenn ein fa_completion-User über `/FaCompletion/Edit/{id}` eine Gruppe auf IsApplicable=true setzt + Specs hinzufügt, sind die Daten für Phase-5-Anzeige relevant. AssemblyGroup-Toggle (`IsApplicable`) geht via `/api/assembly-groups/toggle-applicable`; AssemblyGroup-Status (`IsCompleted`) via `FaCompletion/ToggleIsCompleted`; Specs-CRUD via `FaCompletion/AddSpec|EditSpec|DeleteSpec`.
+- **FreshInstall.sql vs. EF-Migrations**: Bei jeder neuen Migration MUESSEN zwei Stellen in `SQL/00_FreshInstall.sql` synchron gehalten werden: (1) die durch die Migration angelegten/geaenderten Schema-Objekte (Tabellen, Indexe, Constraints) im konsolidierten Schema, UND (2) die `MigrationId` im `__EFMigrationsHistory`-INSERT-Block am Ende. Faehlt einer der beiden Punkte, scheitert entweder FreshInstall direkt oder der erste App-Start danach (EF replayt die fehlende Migration gegen ein Schema, in dem die Objekte bereits existieren → SqlException).
 
 ## Standard-Daten (Neuinstallation)
 

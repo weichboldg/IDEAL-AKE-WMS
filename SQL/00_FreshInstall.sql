@@ -1598,6 +1598,38 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeSchichtkalend
 GO
 
 -- =============================================
+-- 17h. EnaioDmsDocuments (enaio DMS-Sync)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EnaioDmsDocuments')
+BEGIN
+    CREATE TABLE [dbo].[EnaioDmsDocuments] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [EnaioDmsObjectId]  BIGINT            NOT NULL,
+        [DocumentType]      NVARCHAR(100)     NOT NULL,
+        [OrderNumber]       NVARCHAR(100)     NULL,
+        [CreatedInEnaio]    DATETIME2         NOT NULL,
+        [LastSyncedAt]      DATETIME2         NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(MAX)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(MAX)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(MAX)     NULL,
+        [ModifiedByWindows] NVARCHAR(MAX)     NULL,
+        CONSTRAINT [PK_EnaioDmsDocuments] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle EnaioDmsDocuments erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EnaioDmsDocuments_EnaioDmsObjectId' AND object_id = OBJECT_ID(N'dbo.EnaioDmsDocuments'))
+    CREATE UNIQUE INDEX [IX_EnaioDmsDocuments_EnaioDmsObjectId] ON [dbo].[EnaioDmsDocuments]([EnaioDmsObjectId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EnaioDmsDocuments_OrderNumber' AND object_id = OBJECT_ID(N'dbo.EnaioDmsDocuments'))
+    CREATE INDEX [IX_EnaioDmsDocuments_OrderNumber] ON [dbo].[EnaioDmsDocuments]([OrderNumber]);
+GO
+
+-- =============================================
 -- 18. EF Migrations History
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__EFMigrationsHistory')
@@ -1630,29 +1662,47 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260316062006_AddWorkOperationsPhase1', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260317140041_AddOseonTracking')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260317140041_AddOseonTracking', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318083712_OseonPerformanceIndexes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318083712_OseonPerformanceIndexes', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318084530_AddOseonStatusAndWorkplaceIndexes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318084530_AddOseonStatusAndWorkplaceIndexes', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318150710_AddOseonTimestamps')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318150710_AddOseonTimestamps', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260320101049_AddRolesAndUserRoles')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260320101049_AddRolesAndUserRoles', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddOseonOperationConfig')
-    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260330120000_AddOseonOperationConfig', '10.0.0');
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260330142035_AddOseonOperationConfig', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260401063821_AddEnaioDmsDocuments')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260401063821_AddEnaioDmsDocuments', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260403055243_AddPartRequisitions')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403055243_AddPartRequisitions', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260403161339_AddPickingRelease')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403161339_AddPickingRelease', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260404095516_StockMovementPerformanceIndexes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260404095516_StockMovementPerformanceIndexes', '10.0.2');
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddArticleCategoriesAndAttributes')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407061642_AddArticleCategoriesAndAttributes', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260407091723_AddBomCacheAndCoatingDetection')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407091723_AddBomCacheAndCoatingDetection', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260409123834_AddPickerAssignment')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260409123834_AddPickerAssignment', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260410124248_AddUserViewPreferences')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260410124248_AddUserViewPreferences', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260415121811_AddBde')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260415121811_AddBde', '10.0.0');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260420104948_AddBdeWerkbankSettings')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260420104948_AddBdeWerkbankSettings', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260420123329_SetDefaultSchemaDbo')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260420123329_SetDefaultSchemaDbo', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260421082847_RelaxBdeBookingConstraints')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260421082847_RelaxBdeBookingConstraints', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260422092844_ExtendStatusEndedCheckForResumed')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260422092844_ExtendStatusEndedCheckForResumed', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260428071503_AddBdeShiftCalendar')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260428071503_AddBdeShiftCalendar', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430134516_AddOseonArticleNumberIndex')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430134516_AddOseonArticleNumberIndex', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430175933_AddOseonWorkOperationsPerformanceIndex')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430175933_AddOseonWorkOperationsPerformanceIndex', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430183954_AddWarehouseRequisitions')
