@@ -39,6 +39,7 @@
                             var bdeAktiv = (await AppSettings.GetValueAsync("BdeAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var canUseBde = await CurrentUserService.CanUseBdeAsync();
                             var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
+                            var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -91,6 +92,14 @@
                                         <li><a class="dropdown-item" asp-controller="PickingLeitstand" asp-action="Index">Leitstand</a></li>
                                     }
                                 </ul>
+                            </li>
+                        }
+                        @* Phase 4: FA-Vervollstaendigung *@
+                        @if (canFaCompletion)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaCompletion" ? "active" : "")"
+                                   asp-controller="FaCompletion" asp-action="Index">FA-Vervollst&auml;ndigung</a>
                             </li>
                         }
                         @if (bestellungenAktiv && (canPick || canAccessStock))
