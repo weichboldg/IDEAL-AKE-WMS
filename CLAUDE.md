@@ -1,5 +1,31 @@
 # IdealAkeWms — Kontext fuer KI-Assistenten
 
+## Projektüberblick
+
+Warehouse-/Operationsmanagement-System für die IDEAL-AKE-Gruppe (Standorte AKE GmbH
+und IDEAL). Web-Anwendung plus Windows-Service für Hintergrundaufgaben. Wird
+intern in der Produktion und im Lager eingesetzt.
+
+**Hauptkomponenten:**
+
+- `IdealAkeWms/` – ASP.NET Core MVC Web-Anwendung (UI + API)
+- `IdealAkeWms.Tests/` – Tests zur Web-Anwendung
+- `IDEALAKEWMSService/` – Windows-Service für geplante Jobs und Integrationen
+- `IDEALAKEWMSService.Tests/` – Tests zum Service
+- `SQL/` – Migrationsskripte und FreshInstall
+- `docs/` – Projektdokumentation
+- `secondbrain/` – Obsidian-Vault mit ADRs, Bugs, Features (siehe unten)
+
+**Tech Stack:** [TODO: .NET-Version, EF Core / Dapper?, SQL Server-Version, Bootstrap-Version]
+
+---
+
+## Knowledge Base – `secondbrain/`
+
+Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
+
+@secondbrain/HOME.md
+
 ## Workflow
 
 - **Plan vor Code** — Bei 3+ Schritten oder Architekturentscheidungen: Plan-Modus verwenden
@@ -113,6 +139,7 @@
 - **enaio DMS-Sync kein Delta**: `angelegt`-Spalte in enaio ist statisch (Bulk-Import 2013). Full-Sync statt Delta — MERGE verhindert Duplikate. `EnaioDmsSyncService.cs` liest ALLE Werkstattauftraege/Zeichnungen ohne Datumsfilter.
 - **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
 - **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
+- **FreshInstall.sql vs. EF-Migrations**: Bei jeder neuen Migration MUESSEN zwei Stellen in `SQL/00_FreshInstall.sql` synchron gehalten werden: (1) die durch die Migration angelegten/geaenderten Schema-Objekte (Tabellen, Indexe, Constraints) im konsolidierten Schema, UND (2) die `MigrationId` im `__EFMigrationsHistory`-INSERT-Block am Ende. Faehlt einer der beiden Punkte, scheitert entweder FreshInstall direkt oder der erste App-Start danach (EF replayt die fehlende Migration gegen ein Schema, in dem die Objekte bereits existieren → SqlException).
 
 ## Standard-Daten (Neuinstallation)
 
