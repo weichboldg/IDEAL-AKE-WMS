@@ -84,6 +84,28 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// FaCompletion/Index.cshtml columns — Phase 4 FA-Vervollstaendigung-Liste.
+    /// </summary>
+    public static readonly ViewConfig FaCompletion = new(
+        "FaCompletion", "FA-Vervollstaendigung",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("order-number",   "FA Nr.",        Locked: true,  DefaultWidth: 90),
+            new ColumnDef("quantity",       "Stk.",          Locked: false, DefaultWidth: 55),
+            new ColumnDef("customer",       "Kunde",         Locked: false),
+            new ColumnDef("article-number", "Artikelnummer", Locked: false),
+            new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
+            new ColumnDef("production-date","Fert.-Termin",  Locked: false),
+            new ColumnDef("applicable",     "Anwendbar",     Locked: false, DefaultWidth: 100),
+            new ColumnDef("completed",      "Vervollstaendigt", Locked: false, DefaultWidth: 130),
+            new ColumnDef("spec-count",     "Auspraegungen", Locked: false, DefaultWidth: 110),
+            new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 110),
+        ]
+    };
+
+    /// <summary>
     /// Picking/Index.cshtml columns (shown when LeitstandAktiv = true).
     /// Conditional columns:
     ///   - "picker" : rendered only when Model.PickerAssignmentEnabled
@@ -186,6 +208,7 @@ public static class ColumnDefinitions
     {
         "ProductionOrders" => ProductionOrders,
         "PickingLeitstand" => PickingLeitstand,
+        "FaCompletion"     => FaCompletion,
         "Picking"          => Picking,
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,
