@@ -11,4 +11,11 @@ public interface IProductionOrderAssemblyGroupRepository
     Task<Dictionary<int, Dictionary<string, bool>>> GetIsApplicablePivotAsync(IEnumerable<int> productionOrderIds);
 
     Task SetIsApplicableAsync(int productionOrderId, string groupKey, bool value, string modifiedBy, string modifiedByWindows);
+
+    Task<ProductionOrderAssemblyGroup?> GetByIdAsync(int id);
+
+    Task<List<ProductionOrderAssemblyGroup>> GetByProductionOrderIdsAsync(IEnumerable<int> productionOrderIds);
+
+    Task SetIsCompletedAsync(int assemblyGroupId, bool value, string completedBy,
+        string modifiedBy, string modifiedByWindows);
 }

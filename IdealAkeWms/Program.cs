@@ -46,6 +46,7 @@ builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository
 builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
 builder.Services.AddScoped<IProductionOrderBdeStatusRepository, ProductionOrderBdeStatusRepository>();
 builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOrderAssemblyGroupRepository>();
+builder.Services.AddScoped<IProductionOrderAssemblyGroupSpecRepository, ProductionOrderAssemblyGroupSpecRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();

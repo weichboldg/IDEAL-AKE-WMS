@@ -69,4 +69,50 @@ public class ProductionOrderAssemblyGroupRepository : IProductionOrderAssemblyGr
         row.ModifiedByWindows = modifiedByWindows;
         await _context.SaveChangesAsync();
     }
+
+    public Task<ProductionOrderAssemblyGroup?> GetByIdAsync(int id)
+        => _context.ProductionOrderAssemblyGroups.FirstOrDefaultAsync(g => g.Id == id);
+
+    public async Task<List<ProductionOrderAssemblyGroup>> GetByProductionOrderIdsAsync(
+        IEnumerable<int> productionOrderIds)
+    {
+        var ids = productionOrderIds.Distinct().ToList();
+        var result = new List<ProductionOrderAssemblyGroup>();
+        if (ids.Count == 0) return result;
+
+        const int chunkSize = 1000;
+        for (int offset = 0; offset < ids.Count; offset += chunkSize)
+        {
+            var chunk = ids.Skip(offset).Take(chunkSize).ToList();
+            var rows = await _context.ProductionOrderAssemblyGroups
+                .Where(g => chunk.Contains(g.ProductionOrderId))
+                .ToListAsync();
+            result.AddRange(rows);
+        }
+        return result;
+    }
+
+    public async Task SetIsCompletedAsync(int assemblyGroupId, bool value, string completedBy,
+        string modifiedBy, string modifiedByWindows)
+    {
+        var row = await _context.ProductionOrderAssemblyGroups
+            .FirstOrDefaultAsync(g => g.Id == assemblyGroupId)
+            ?? throw new InvalidOperationException($"AssemblyGroup row missing for Id {assemblyGroupId}.");
+
+        row.IsCompleted = value;
+        if (value)
+        {
+            row.CompletedAt = DateTime.Now;
+            row.CompletedBy = completedBy;
+        }
+        else
+        {
+            row.CompletedAt = null;
+            row.CompletedBy = null;
+        }
+        row.ModifiedAt = DateTime.Now;
+        row.ModifiedBy = modifiedBy;
+        row.ModifiedByWindows = modifiedByWindows;
+        await _context.SaveChangesAsync();
+    }
 }
