@@ -47,14 +47,21 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Lagerbestellung aus der Produktion (Erfasser + Lager) | Fertig (v1.8.4) |
 | Sage Lagerplatz-Sync (Phase 1, Stammdaten) | Fertig (v1.9.0) |
 | Sage Lagerbestand-Sync (Phase 2, Korrektur-Buchungen) | Fertig (v1.10.0) |
+| FA-Vervollstaendigung (5 Vormontage-Gruppen) | Fertig (v1.13.0), Feature-Toggle ab v1.14.0 |
+| Einheitliche Listen-Pagination (22 Listen) + User-Default | Fertig (v1.14.0) |
+| Server-Side Spaltenfilter (Text + Datum, OR/NOT-Syntax) | Fertig (v1.14.0) |
+| Leitstand als eigenes Hauptmenue + Dashboard-Sektion | Fertig (v1.14.0) |
+| Lagerbestellungen: Notiz pro Position + INT-Mengen | Fertig (v1.14.0) |
 
 ## Version
-- **Web-App**: v1.10.0 (07.05.2026)
-- **Service**: v1.10.0 (07.05.2026)
+- **Web-App**: v1.14.0 (22.05.2026)
+- **Service**: v1.14.0 (22.05.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.
 - v1.10.0 (2026-05-07) — Sage Lagerbestand-Sync (Phase 2). Bestand-Abgleich mit Korrektur-Buchungen.
+- v1.13.0 (2026-05-15) — FA-Vervollstaendigung Phase 4: Modul fuer Vormontage-Gruppen.
+- v1.14.0 (2026-05-22) — Pagination & Spaltenfilter Roll-Out, Lagerbestellungs-Fixes, StorageLocation-Code 50, FA-Vervollstaendigung als Feature-Toggle, OSEON-Hover-Angleichung.
 
 ## Aenderungen (07.05.2026)
 

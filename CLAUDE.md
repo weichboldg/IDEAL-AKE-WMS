@@ -140,6 +140,12 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
 - **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
 - **FreshInstall.sql vs. EF-Migrations**: Bei jeder neuen Migration MUESSEN zwei Stellen in `SQL/00_FreshInstall.sql` synchron gehalten werden: (1) die durch die Migration angelegten/geaenderten Schema-Objekte (Tabellen, Indexe, Constraints) im konsolidierten Schema, UND (2) die `MigrationId` im `__EFMigrationsHistory`-INSERT-Block am Ende. Faehlt einer der beiden Punkte, scheitert entweder FreshInstall direkt oder der erste App-Start danach (EF replayt die fehlende Migration gegen ein Schema, in dem die Objekte bereits existieren → SqlException).
+- **Decimal/Culture-Bug in HTML-Form-Inputs (v1.14.0)**: Wenn ein `decimal`-Wert mit `ToString(InvariantCulture)` als String in ein `data-`-Attribut/Input-Wert geschrieben wird und die DB-Spalte z.&nbsp;B. `DECIMAL(18,4)` ist, entsteht "4.0000". Der ASP.NET-Core-Default-Model-Binder verwendet jedoch die aktuelle Request-Culture (Deutsch) — und parst "4.0000" als **40000** (Punkt als Tausender). Loesung in Lagerbestellungen: Mengen-Inputs auf `type="number" step="1"` + `int[]`-Binding statt `decimal[]`. Bei kuenftigen Forms mit Mengen-Eingaben: entweder integer verwenden oder explizit `CultureInfo.InvariantCulture` parsen.
+- **Server-Side Column Filter Modus**: Tabellen mit `data-server-column-filter="true"` (FA-Liste, Leitstand, Bestand, Bewegungshistorie, Artikel) navigieren bei Filter-Input zur URL `?colf_<col-key>=value` statt clientseitig zu filtern. Controller liest via `ColumnFilterHelper.ReadFromQuery(HttpContext?.Request)` (null-safe fuer Tests). Pro Liste mappt der Controller/Repo die Col-Keys auf Properties. Datumsspalten werden in C# nach Termin-Berechnung gefiltert (Format `dd.MM.yyyy KWxx` lowercase) — NICHT in SQL.
+- **Pagination-AllCap (5000)**: `PageSize.Resolve` mapped User-Wahl "Alle" (Sentinel 0) auf `PageSize.AllCap = 5000`. `PaginationState.IsCappedAtAll` ist computed (PageSizeRaw==0 && TotalCount > 5000) und triggert den Banner-Hinweis im `_Pagination`-Partial.
+- **Lagermitarbeiter-Notiz-Autosave (Lagerbestellungen)**: Das Notiz-Feld in `WarehousePicking/Details` hat AJAX-Autosave on `blur` und vor `Drucken` (Tab wird synchron mit `about:blank` geoeffnet, dann nach `await saveNotes()` zur Print-URL navigiert — sonst wuerde Popup-Blocker den verzoegerten `window.open` blockieren).
+- **StorageLocation.Code Laenge (v1.14.0)**: DB-Spalte ist `NVARCHAR(50)`. Manuelle Codes bleiben per `IValidatableObject.Validate` auf 12 Zeichen begrenzt (Barcode-Lesbarkeit); Sage-Codes nutzen den vollen Platz. Frontend: Edit-View setzt `maxlength="50"` fuer Sage-Eintraege und `maxlength="12"` fuer manuelle.
+- **Picking Source-Lagerplatz-Fallback**: Auto-Suggest beruecksichtigt nur Lagerplaetze die im Dropdown angezeigt werden koennen (IstBuchbar=true, nicht-Wagen). Sage-Lagerplaetze mit Bestand aber IstBuchbar=false werden NICHT vorgeschlagen — Fallback ist NAN. Auch bereits gespeicherte SourceStorageLocationIds, die nicht mehr buchbar sind, werden ignoriert und durch den neuen Vorschlag ersetzt.
 
 ## Standard-Daten (Neuinstallation)
 
@@ -169,6 +175,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stueckliste |
 | `LeitstandAktiv` | `false` | Leitstand: Freigabe und Priorisierung |
 | `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Picker-Zuweisung |
+| `FaCompletionAktiv` | `false` | FA-Vervollstaendigungs-Modul aktivieren (v1.14.0+) |
 | `LackierteilKategorieName` | (leer) | Artikelkategorie fuer Lackierteile. Leer = Feature inaktiv |
 | `BdeAktiv` | `false` | BDE-Modul aktiviert |
 | `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG) |
@@ -238,6 +245,18 @@ Bei DB-Strukturaenderungen (neue Pflichtfelder) muessen diese Scripts angepasst 
 - Delta-Sync via `LastChangedInOseon` mit 5 Min Puffer
 - Status-Codes: 10=Unvollstaendig, 20=Gueltig, 30=Freigegeben, 60=In Arbeit, 70=Gesperrt, 90=Fertig, 95=Storniert
 - Server-seitige Paginierung (25 Gruppen/Seite)
+
+## Pagination & Server-Side Spaltenfilter (seit v1.14.0)
+
+- **Shared Pagination-Infrastruktur** in [Services/PageSize.cs](IdealAkeWms/Services/PageSize.cs) + [Models/ViewModels/PaginationState.cs](IdealAkeWms/Models/ViewModels/PaginationState.cs) + [Views/Shared/_Pagination.cshtml](IdealAkeWms/Views/Shared/_Pagination.cshtml)
+- **Erlaubte Page-Sizes**: 25 (Default), 50, 100, 0 (= "Alle", in SQL gecappt auf `PageSize.AllCap` = 5000)
+- **User-Default**: `User.DefaultPageSize` (nullable int, NULL = System-Default 25). UI in Profile + Users/Edit. Resolve-Reihenfolge: explizit gewaehlte URL-Pagesize > User-Default > System-Default
+- **JS-Handler**: in `site.js` — Klick auf `.page-link[data-page]` setzt `?page=N`, Change auf `.pagination-page-size` setzt `?pageSize=N` + reset `page=1`. Andere Query-Parameter bleiben erhalten
+- **Server-Side Column Filter**: Tabellen mit `data-server-column-filter="true"` triggern bei Filter-Input debounced (500ms) URL-Navigation mit `?colf_<col-key>=value`. Filter-Werte werden aus URL (nicht sessionStorage) restored
+- **Filter-Mini-Syntax** (Server + Client identisch): OR mit `,` (z.B. `960,886`), NOT mit `!` (z.B. `!960`, `!960,886`)
+- **Pro Liste Mapping** (im Repo oder Controller): jeder Col-Key → Property. Helper [Services/ColumnFilterHelper.cs](IdealAkeWms/Services/ColumnFilterHelper.cs) parsed Tokens und stellt In-Memory-`Apply<T>` bereit
+- **Datumsspalten**: Server-seitig in C# nach Termin-Berechnung gefiltert (Format `dd.MM.yyyy KWxx` lowercase). Wenn Datumsfilter aktiv → Controller laedt alle Text-gefilterten Rows (kein SQL Skip/Take), filtert in C#, paginiert dann
+- **Aktuelle Liste der server-filter-Tabellen**: ProductionOrders (FA-Liste), PickingLeitstand, StockOverview (Bestand), StockMovements (Bewegungshistorie), Articles. Andere Listen filtern weiterhin clientseitig auf der aktuellen Seite — User kann "Alle" waehlen um ueber alle Eintraege zu filtern
 
 ## Responsive Design
 
