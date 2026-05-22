@@ -20,12 +20,24 @@ public class ArticleCategoriesController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var categories = await _categoryRepository.GetAllOrderedAsync();
         var articleCounts = await _categoryRepository.GetArticleCountByCategoryAsync();
         ViewBag.ArticleCounts = articleCounts;
-        return View(categories);
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = categories.Count
+        };
+        return View(categories.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     [HttpPost]

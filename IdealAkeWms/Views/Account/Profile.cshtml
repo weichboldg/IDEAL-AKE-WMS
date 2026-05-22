@@ -72,6 +72,24 @@
                     </div>
 
                     <hr />
+                    <h6 class="text-muted">Listen-Ansicht</h6>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultPageSize" class="form-label"></label>
+                        <select asp-for="DefaultPageSize" class="form-select">
+                            <option value="">Standard (25)</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="0">Alle</option>
+                        </select>
+                        <div class="form-text">
+                            Gilt fuer alle paginierten Listen (FA, Leitstand, Bestand, Bewegungen, ...).
+                            Die Auswahl am Seitenende ueberschreibt diesen Default fuer die aktuelle Seite.
+                        </div>
+                    </div>
+
+                    <hr />
 
                     <div class="mb-3">
                         <label class="form-label">Passwort ändern</label>

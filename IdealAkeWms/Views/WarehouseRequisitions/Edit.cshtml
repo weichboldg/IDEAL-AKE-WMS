@@ -35,6 +35,7 @@
         <tbody>
             @foreach (var i in Model.Items)
             {
+                var requestedInt = (int)Math.Round(i.QuantityRequested, MidpointRounding.AwayFromZero);
                 <tr data-item-id="@i.Id">
                     <td>@i.Position</td>
                     <td>@i.ArticleNumber</td>
@@ -42,11 +43,11 @@
                     <td>
                         @if (isDraft)
                         {
-                            <input type="number" step="0.01" value="@i.QuantityRequested.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control form-control-sm qty-edit" data-item-id="@i.Id" style="width:80px;" />
+                            <input type="number" step="1" min="1" value="@requestedInt" class="form-control form-control-sm qty-edit" data-item-id="@i.Id" style="width:80px;" />
                         }
                         else
                         {
-                            @i.QuantityRequested
+                            @requestedInt
                         }
                     </td>
                     <td>@i.Unit</td>
@@ -149,7 +150,7 @@
                 .map(inp => fetch(`/api/warehouserequisitions/items/${inp.dataset.itemId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quantity: parseFloat(inp.value) || 0 })
+                    body: JSON.stringify({ quantity: parseInt(inp.value, 10) || 0 })
                 }));
             await Promise.all(pending);
 
@@ -171,7 +172,7 @@
                 fetch(`/api/warehouserequisitions/items/${inp.dataset.itemId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quantity: parseFloat(inp.value) || 0 })
+                    body: JSON.stringify({ quantity: parseInt(inp.value, 10) || 0 })
                 });
             });
         });

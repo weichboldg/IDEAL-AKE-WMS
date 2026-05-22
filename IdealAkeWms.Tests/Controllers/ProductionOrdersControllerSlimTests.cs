@@ -65,11 +65,19 @@ public class ProductionOrdersControllerSlimTests
             CreatedByWindows = "test"
         };
 
+    private static LeitstandOrderRow MakeRow(int id, string number, bool isDone = false) =>
+        new(id, number, 1m, null, "ART-001", null, null, null, null, isDone, null);
+
+    private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
+        new(rows.ToList(), rows.Length);
+
     [Fact]
     public async Task Index_ReturnsSlimViewModel_NoStatusPivot()
     {
-        var order = MakeOrder(1, "FA-100");
-        _orderRepo.Setup(r => r.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionOrder> { order });
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100")));
 
         var ps = new ProductionOrderPickingStatus
         {
@@ -85,7 +93,7 @@ public class ProductionOrdersControllerSlimTests
 
         _currentUser.Setup(u => u.CanPickAsync()).ReturnsAsync(true);
 
-        var result = await _controller.Index(null, null, null, false);
+        var result = await _controller.Index(null, null, null, false, 1, null);
 
         var viewResult = result.Should().BeOfType<ViewResult>().Subject;
         var vm = viewResult.Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
@@ -110,15 +118,16 @@ public class ProductionOrdersControllerSlimTests
     [Fact]
     public async Task Index_FilterByOrderNumber_AppliesContainsFilter()
     {
-        _orderRepo.Setup(r => r.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionOrder>
-        {
-            MakeOrder(1, "FA-100"),
-            MakeOrder(2, "FA-200")
-        });
+        // Server-side filtering happens in the repo; controller relays the filter
+        // and uses the rows that came back.
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                "100", It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100")));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
 
-        var result = await _controller.Index("100", null, null, false);
+        var result = await _controller.Index("100", null, null, false, 1, null);
 
         var vm = (ProductionOrderListViewModel)((ViewResult)result).Model!;
         vm.Items.Should().HaveCount(1);

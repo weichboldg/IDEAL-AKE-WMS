@@ -21,10 +21,23 @@ public class OrderRecipientsController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var groups = await _repository.GetAllGroupsAsync();
-        return View(groups);
+        var list = groups.ToList();
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = list.Count
+        };
+        return View(list.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     public IActionResult Create()

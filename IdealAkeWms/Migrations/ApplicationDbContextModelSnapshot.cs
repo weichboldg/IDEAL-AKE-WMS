@@ -2283,6 +2283,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("DefaultPageSize")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -2569,6 +2572,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("ModifiedByWindows")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("Position")
                         .HasColumnType("int");

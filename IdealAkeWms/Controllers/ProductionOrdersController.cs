@@ -3,6 +3,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using PageSize = IdealAkeWms.Services.PageSize;
 
 using IdealAkeWms.Filters;
 
@@ -56,29 +57,32 @@ public class ProductionOrdersController : Controller
         string? filterOrderNumber,
         string? filterArticleNumber,
         string? filterCustomer,
-        bool showDone = false)
+        bool showDone = false,
+        int page = 1,
+        int? pageSize = null)
     {
-        var orders = await _productionOrderRepository.GetAllOrderedAsync();
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
-        if (!string.IsNullOrWhiteSpace(filterOrderNumber))
-        {
-            orders = orders.Where(o => o.OrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
-        if (!string.IsNullOrWhiteSpace(filterArticleNumber))
-        {
-            orders = orders.Where(o => o.ArticleNumber != null && o.ArticleNumber.Contains(filterArticleNumber, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        // Datum-Filter werden in C# nach Termin-Berechnung angewendet.
+        var dateFilters = columnFilters
+            .Where(kv => FaListDateColumnKeys.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+        var hasDateFilters = dateFilters.Count > 0;
+        var sqlColumnFilters = hasDateFilters
+            ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key))
+                           .ToDictionary(kv => kv.Key, kv => kv.Value)
+            : columnFilters;
 
-        if (!string.IsNullOrWhiteSpace(filterCustomer))
-        {
-            orders = orders.Where(o => o.Customer != null && o.Customer.Contains(filterCustomer, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
+        var sqlPage = hasDateFilters ? 1 : page;
 
-        if (!showDone)
-        {
-            orders = orders.Where(o => !o.IsDone).ToList();
-        }
+        var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
+            filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
+        var orders = ordersPage.Rows;
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
@@ -110,7 +114,7 @@ public class ProductionOrdersController : Controller
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
                 IsDone = o.IsDone,
-                WorkplaceName = o.ProductionWorkplace?.Name,
+                WorkplaceName = o.WorkplaceName,
                 HasCoatingParts = ps?.HasCoatingParts ?? false,
                 IsCoatingDone = ps?.IsCoatingDone ?? false,
             };
@@ -134,6 +138,20 @@ public class ProductionOrdersController : Controller
             return item;
         }).ToList();
 
+        // Datum-Filter (Komm., BG, Beschicht., Fert.-Termin, Liefertermin) anwenden + C#-paginieren.
+        int finalTotalCount = ordersPage.TotalCount;
+        if (hasDateFilters)
+        {
+            foreach (var (key, raw) in dateFilters)
+            {
+                var (tokens, negate) = ColumnFilterHelper.Parse(raw);
+                if (tokens.Count == 0) continue;
+                viewItems = viewItems.Where(it => MatchFaListDateFilter(it, key, tokens, negate)).ToList();
+            }
+            finalTotalCount = viewItems.Count;
+            viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+        }
+
         // enaio DMS-Links laden (Bulk-Lookup fuer alle FA-Nummern)
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
@@ -149,10 +167,49 @@ public class ProductionOrdersController : Controller
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
             CanPick = await _currentUserService.CanPickAsync(),
-            EnaioDmsLinks = dmsLinks
+            EnaioDmsLinks = dmsLinks,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = finalTotalCount
+            }
         };
 
         return View(vm);
+    }
+
+    // ---------------------------------------------------------------------
+    // Date-Spalten-Filter (server-seitig, nach C#-Termin-Berechnung)
+    // ---------------------------------------------------------------------
+    private static readonly HashSet<string> FaListDateColumnKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "coating-date", "bg-date", "picking-date", "production-date", "delivery-date"
+    };
+
+    private static string FormatDateForFilter(DateTime? date)
+    {
+        if (!date.HasValue) return string.Empty;
+        var d = date.Value;
+        var kw = System.Globalization.ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
+    }
+
+    private static bool MatchFaListDateFilter(
+        ProductionOrderListItem item, string key, List<string> tokens, bool negate)
+    {
+        var text = key switch
+        {
+            "coating-date" => FormatDateForFilter(item.BeschichtungTermin),
+            "bg-date" => FormatDateForFilter(item.VorkommissionierTermin),
+            "picking-date" => FormatDateForFilter(item.KommissionierTermin),
+            "production-date" => FormatDateForFilter(item.ProductionDate),
+            "delivery-date" => FormatDateForFilter(item.DeliveryDate),
+            _ => string.Empty
+        };
+        var hasMatch = tokens.Any(t => text.Contains(t));
+        return negate ? !hasMatch : hasMatch;
     }
 
     // ToggleCoatingDone wurde ersetzt durch /api/productionorders/toggle-field

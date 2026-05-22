@@ -14,6 +14,8 @@ public class ProductionOrderListViewModel
 
     /// <summary>enaio DMS-Links pro FA-Nummer (Key=OrderNumber, Value=Liste von DMS-Dokumenten)</summary>
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
+
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class ProductionOrderListItem

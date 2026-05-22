@@ -56,6 +56,13 @@ public class User : AuditableEntity
     [Display(Name = "Ist Kommissionierer")]
     public bool IsPicker { get; set; }
 
+    /// <summary>
+    /// User-spezifischer Default fuer die Seitengroesse in Listen.
+    /// Erlaubte Werte: 25, 50, 100, 0 (= Alle, gecappt auf 5000). NULL = System-Default 25.
+    /// </summary>
+    [Display(Name = "Eintraege pro Seite (Standard)")]
+    public int? DefaultPageSize { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();

@@ -219,6 +219,7 @@ using (var scope = app.Services.CreateScope())
     {
         ("LeitstandAktiv", "false", "Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren"),
     ("KommissionierungMitZuweisung", "false", "Kommissionierung mit Anwenderzuweisung aktivieren"),
+    (IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv, "false", "FA-Vervollstaendigungs-Modul aktivieren (Pflege fehlender FA-Daten)"),
     };
     foreach (var (key, value, description) in leitstandSettings)
     {

@@ -188,4 +188,80 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
     public Task<int> GetReleasedForPickingCountAsync()
         => _context.ProductionOrderPickingStatuses
             .CountAsync(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone);
+
+    public async Task<int> GetMaxPickingPriorityAsync(int? excludeProductionOrderId = null)
+    {
+        var q = _context.ProductionOrderPickingStatuses
+            .Where(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && s.PickingPriority != null);
+
+        if (excludeProductionOrderId.HasValue)
+            q = q.Where(s => s.ProductionOrderId != excludeProductionOrderId.Value);
+
+        return await q.MaxAsync(s => (int?)s.PickingPriority) ?? 0;
+    }
+
+    public async Task<BulkReleaseResult> SetReleaseBatchAsync(
+        IEnumerable<int> productionOrderIds,
+        bool release,
+        int? assignedPickerId,
+        string? assignedPickerName,
+        string? releasedBy,
+        string modifiedBy,
+        string modifiedByWindows)
+    {
+        var result = new BulkReleaseResult();
+        var ids = productionOrderIds.Distinct().ToList();
+        if (ids.Count == 0) return result;
+
+        var rows = await _context.ProductionOrderPickingStatuses
+            .Include(s => s.ProductionOrder)
+            .Where(s => ids.Contains(s.ProductionOrderId))
+            .ToListAsync();
+
+        var maxPrio = 0;
+        if (release)
+            maxPrio = await GetMaxPickingPriorityAsync();
+
+        var now = DateTime.UtcNow;
+
+        foreach (var row in rows)
+        {
+            if (row.ProductionOrder == null) continue;
+
+            if (release && string.IsNullOrEmpty(row.ProductionOrder.ArticleNumber))
+            {
+                result.SkippedNoArticle.Add(row.ProductionOrder.OrderNumber);
+                continue;
+            }
+
+            row.IsReleasedForPicking = release;
+            if (release)
+            {
+                row.ReleasedAt = now;
+                row.ReleasedBy = releasedBy;
+                if (!row.PickingPriority.HasValue) row.PickingPriority = ++maxPrio;
+
+                if (assignedPickerId.HasValue)
+                {
+                    row.AssignedPickerId = assignedPickerId;
+                    row.AssignedPickerName = assignedPickerName;
+                }
+            }
+            else
+            {
+                row.AssignedPickerId = null;
+                row.AssignedPickerName = null;
+            }
+
+            row.ModifiedAt = now;
+            row.ModifiedBy = modifiedBy;
+            row.ModifiedByWindows = modifiedByWindows;
+            result.Processed++;
+        }
+
+        if (result.Processed > 0)
+            await _context.SaveChangesAsync();
+
+        return result;
+    }
 }

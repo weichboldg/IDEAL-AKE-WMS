@@ -182,10 +182,15 @@ public class TrackingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> OseonIndex(string? filterCustomerOrder, string? filterArticle, string? filterWorkplace, bool showFinished = false, bool useRelevanceFilter = true, int page = 1)
+    public async Task<IActionResult> OseonIndex(
+        string? filterCustomerOrder, string? filterArticle, string? filterWorkplace,
+        bool showFinished = false, bool useRelevanceFilter = true,
+        int page = 1, int? pageSize = null)
     {
-        const int pageSize = 25;
         if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         // AG-Configs und Feiertage einmalig laden
         var opConfigs = await _operationConfigRepository.GetAllAsDictionaryAsync();
@@ -200,8 +205,9 @@ public class TrackingController : Controller
                 .ToHashSet();
         }
 
+        var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         // Server-seitig gefiltert + paginiert laden
-        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, pageSize, relevantOpNames, filterArticle);
+        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, effectivePageSize, relevantOpNames, filterArticle, columnFilters);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
         // Ampelfarben + AG-Termine berechnen
@@ -350,7 +356,14 @@ public class TrackingController : Controller
             AvailableWorkplaces = workplaces,
             CurrentPage = pagedResult.Page,
             TotalPages = pagedResult.TotalPages,
-            TotalGroupCount = pagedResult.TotalGroupCount
+            TotalGroupCount = pagedResult.TotalGroupCount,
+            Pagination = new PaginationState
+            {
+                CurrentPage = pagedResult.Page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = pagedResult.TotalGroupCount
+            }
         };
 
         return View(vm);

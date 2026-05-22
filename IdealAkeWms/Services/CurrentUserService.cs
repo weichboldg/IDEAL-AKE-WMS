@@ -8,10 +8,12 @@ public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IRoleRepository _roleRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IMemoryCache _memoryCache;
     private readonly IConfiguration _configuration;
 
     private HashSet<string>? _cachedRoleKeys;
+    private (bool Loaded, int? Value) _cachedPageSize;
 
     public const string SessionKeyUserId = "AppUserId";
     public const string SessionKeyUserName = "AppUserName";
@@ -19,11 +21,13 @@ public class CurrentUserService : ICurrentUserService
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
         IRoleRepository roleRepository,
+        IUserRepository userRepository,
         IMemoryCache memoryCache,
         IConfiguration configuration)
     {
         _httpContextAccessor = httpContextAccessor;
         _roleRepository = roleRepository;
+        _userRepository = userRepository;
         _memoryCache = memoryCache;
         _configuration = configuration;
     }
@@ -107,6 +111,22 @@ public class CurrentUserService : ICurrentUserService
 
     public async Task<bool> CanManageBdeAdminAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeAdmin);
+
+    public async Task<int?> GetDefaultPageSizeAsync()
+    {
+        if (_cachedPageSize.Loaded) return _cachedPageSize.Value;
+
+        var userId = GetCurrentAppUserId();
+        int? value = null;
+        if (userId.HasValue)
+        {
+            var user = await _userRepository.GetByIdAsync(userId.Value);
+            value = user?.DefaultPageSize;
+        }
+
+        _cachedPageSize = (true, value);
+        return value;
+    }
 
     private async Task<HashSet<string>> LoadRoleKeysAsync()
     {

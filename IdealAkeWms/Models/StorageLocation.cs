@@ -2,10 +2,15 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IdealAkeWms.Models;
 
-public class StorageLocation : AuditableEntity
+public class StorageLocation : AuditableEntity, IValidatableObject
 {
+    /// <summary>
+    /// DB-Spalte ist NVARCHAR(50) — manuelle Eintraege werden zusaetzlich per
+    /// <see cref="Validate"/> auf 12 Zeichen begrenzt (Barcode-Lesbarkeit).
+    /// Sage-Codes nutzen den vollen Platz.
+    /// </summary>
     [Required(ErrorMessage = "Lagerplatz-Code ist erforderlich")]
-    [StringLength(12, ErrorMessage = "Code darf maximal 12 Zeichen lang sein (Barcode-Lesbarkeit).")]
+    [StringLength(50, ErrorMessage = "Code darf maximal 50 Zeichen lang sein.")]
     [Display(Name = "Code")]
     public string Code { get; set; } = string.Empty;
 
@@ -39,4 +44,15 @@ public class StorageLocation : AuditableEntity
     public bool IstBuchbar { get; set; } = true;
 
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        // Manuelle Eintraege bleiben auf 12 Zeichen begrenzt; Sage-Codes duerfen bis 50.
+        if (Source == StorageLocationSource.Manual && !string.IsNullOrEmpty(Code) && Code.Length > 12)
+        {
+            yield return new ValidationResult(
+                "Manuelle Lagerplatz-Codes duerfen maximal 12 Zeichen lang sein (Barcode-Lesbarkeit). Sage-synchronisierte Codes duerfen bis 50 Zeichen.",
+                new[] { nameof(Code) });
+        }
+    }
 }

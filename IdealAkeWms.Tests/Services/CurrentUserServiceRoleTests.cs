@@ -51,6 +51,7 @@ public class CurrentUserServiceRoleTests
         roleRepoMock.Setup(r => r.GetRolesWithAdGroupAsync())
             .ReturnsAsync(new List<Role>());
 
+        var userRepoMock = new Mock<IUserRepository>();
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
 
         var configuration = new ConfigurationBuilder()
@@ -60,7 +61,7 @@ public class CurrentUserServiceRoleTests
             })
             .Build();
 
-        var service = new CurrentUserService(httpContextAccessor.Object, roleRepoMock.Object, memoryCache, configuration);
+        var service = new CurrentUserService(httpContextAccessor.Object, roleRepoMock.Object, userRepoMock.Object, memoryCache, configuration);
         return (service, roleRepoMock);
     }
 

@@ -20,17 +20,30 @@ public class ArticleAttributesController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var definitions = await _attributeRepository.GetAllDefinitionsAsync();
-        // Pre-load value counts for each definition
+        var paged = definitions.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+        // Pre-load value counts for each definition (only for the current page)
         var valueCounts = new Dictionary<int, bool>();
-        foreach (var def in definitions)
+        foreach (var def in paged)
         {
             valueCounts[def.Id] = await _attributeRepository.DefinitionHasValuesAsync(def.Id);
         }
         ViewBag.HasValues = valueCounts;
-        return View(definitions);
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = definitions.Count
+        };
+        return View(paged);
     }
 
     [HttpPost]

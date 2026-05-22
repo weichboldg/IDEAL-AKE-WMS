@@ -20,8 +20,14 @@ public class StorageLocationsController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false)
+    public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false,
+        int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var all = await _storageLocationRepository.GetAllOrderedAsync();
         var query = all.AsQueryable();
         if (!showInactive)
@@ -29,11 +35,20 @@ public class StorageLocationsController : Controller
         if (onlyBookable)
             query = query.Where(l => l.IstBuchbar);
 
+        var filtered = query.ToList();
+
         ViewBag.ShowInactive = showInactive;
         ViewBag.OnlyBookable = onlyBookable;
         ViewBag.HasInactive = all.Any(l => !l.IsActive);
         ViewBag.HasNonBookable = all.Any(l => !l.IstBuchbar);
-        return View(query.ToList());
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = filtered.Count
+        };
+        return View(filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     public IActionResult Create()

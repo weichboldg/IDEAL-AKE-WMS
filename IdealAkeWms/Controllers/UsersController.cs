@@ -30,10 +30,24 @@ public class UsersController : Controller
         _viewPreferenceRepository = viewPreferenceRepository;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var users = await _userRepository.GetAllWithRolesAsync();
-        return View(users.OrderBy(u => u.Name).ToList());
+        var ordered = users.OrderBy(u => u.Name).ToList();
+
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = ordered.Count
+        };
+        return View(ordered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     public async Task<IActionResult> Create()
@@ -64,6 +78,7 @@ public class UsersController : Controller
             DefaultFilterArtikelgruppe = vm.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = vm.RecursiveFilterSearch,
             IsPicker = vm.IsPicker,
+            DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -109,6 +124,7 @@ public class UsersController : Controller
             DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             IsPicker = user.IsPicker,
+            DefaultPageSize = user.DefaultPageSize,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -146,6 +162,7 @@ public class UsersController : Controller
         existing.DefaultFilterArtikelgruppe = vm.DefaultFilterArtikelgruppe;
         existing.RecursiveFilterSearch = vm.RecursiveFilterSearch;
         existing.IsPicker = vm.IsPicker;
+        existing.DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize);
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -200,4 +217,8 @@ public class UsersController : Controller
             IsSelected = selectedIds.Contains(r.Id)
         }).ToList();
     }
+
+    /// <summary>Akzeptiert nur erlaubte PageSize-Werte; sonst NULL (= System-Default).</summary>
+    private static int? ValidatedPageSize(int? value)
+        => value.HasValue && Services.PageSize.AllowedOptions.Contains(value.Value) ? value : null;
 }

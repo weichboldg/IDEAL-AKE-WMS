@@ -9,6 +9,94 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.14.0</strong> <span class="text-white-50 ms-2">22.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Pagination &amp; Server-Side Spaltenfilter</h6>
+                <ul>
+                    <li><strong>Einheitliche Pagination</strong> auf 22 Listen (FA-Liste, Leitstand,
+                        Kommissionierliste, OSEON Tracking, Bestand, Bewegungshistorie, Artikel,
+                        Bedarfsmeldungen, Lagerbestellungen, Lager-Eingehende, BDE-Buchungen,
+                        BDE-Stammdaten, Users, Roles, Lagerplaetze, Arbeitsplaetze, Werkbaenke,
+                        Artikelkategorien, Artikelmerkmale, Empfaenger). Default 25/Seite, Drop-Down
+                        am Footer: 25 / 50 / 100 / Alle. &bdquo;Alle&ldquo; gecappt auf 5000 (Banner-Hinweis).
+                        Die Stueckliste (BOM) bleibt bewusst unpaginiert.</li>
+                    <li><strong>User-Default Pagesize</strong>: Profil &rarr; &bdquo;Listen-Ansicht&ldquo; bzw.
+                        Stammdaten &rarr; Benutzer &rarr; Edit &mdash; User-spezifischer Default wird in
+                        <code>Users.DefaultPageSize</code> persistiert (NULL = System-Default 25).
+                        Pro-Seite-Auswahl ueberschreibt den Default fuer die jeweilige Ansicht.</li>
+                    <li><strong>Echte Server-Side Spaltenfilter</strong> auf FA-Liste, Leitstand,
+                        Bestand, Bewegungshistorie und Artikel. Filter findet jetzt Treffer
+                        <em>quer ueber alle Seiten</em>. URL-Schema <code>?colf_&lt;col-key&gt;=value</code>,
+                        bestehende OR-/NOT-Syntax (<code>960,886</code> / <code>!960</code>) funktioniert
+                        identisch. Datumsfilter (KW24 etc.) wirken ebenfalls quer ueber Seiten.</li>
+                    <li><strong>Leitstand als eigenes Hauptmenue</strong>: aus dem &bdquo;Kommissionierung&ldquo;-Dropdown
+                        herausgezogen, &bdquo;Kommissionierung&ldquo; ist nun ein einfacher Link mit Badge,
+                        &bdquo;Leitstand&ldquo; ein eigenes Dropdown. Dashboard erhaelt eigene Sektion.</li>
+                </ul>
+
+                <h6 class="mt-3">Lagerbestellungen</h6>
+                <ul>
+                    <li><strong>Notiz pro Position</strong> (Lagermitarbeiter-Sicht): editierbar im
+                        Bearbeitungs-Screen, mit AJAX-Autosave on blur und vor &bdquo;Drucken&ldquo;.
+                        Notizen erscheinen auf dem Druckbeleg und sind nach Abschluss read-only sichtbar.
+                        Neue Spalte <code>WarehouseRequisitionItems.Note</code> (nvarchar 500).</li>
+                    <li><strong>Mengen-Feld ist jetzt INT-only</strong> &mdash; keine Komma-Eingabe mehr,
+                        keine Darstellung wie &bdquo;4,0000&ldquo;. <strong>Bug-Fix:</strong> &bdquo;SOLL = IST&ldquo;-Aktion
+                        hat aufgrund Culture-Mismatch (decimal &bdquo;4.0000&ldquo; vs. deutsche Kultur) bei manchen
+                        Eintraegen ein 1000-faches der Menge gebucht. Mit Integer-Inputs eliminiert.</li>
+                </ul>
+
+                <h6 class="mt-3">FA-Vervollstaendigung &mdash; jetzt Feature-Toggle</h6>
+                <ul>
+                    <li>Neues AppSetting <code>FaCompletionAktiv</code> (Default <strong>false</strong>).
+                        Menuepunkt und Endpoint nur sichtbar/erreichbar wenn aktiviert. Schalter unter
+                        Stammdaten &rarr; Einstellungen &rarr; Sektion &bdquo;FA-Vervollstaendigung&ldquo;.</li>
+                </ul>
+
+                <h6 class="mt-3">Bestand: Quell-Lagerplatz-Vorschlag bei Sage-Lagern</h6>
+                <ul>
+                    <li><strong>Bug-Fix:</strong> Der Auto-Suggest fuer den Quell-Lagerplatz waehlte den
+                        Lagerplatz mit der hoechsten Stueckzahl &mdash; auch wenn dieser nicht buchbar war
+                        (Sage-Lagerplaetze sind by default <code>IstBuchbar=false</code>). Das Dropdown
+                        konnte den Wert dann nicht rendern und blieb leer (&bdquo;--&ldquo;). Jetzt werden nur
+                        buchbare Lagerplaetze als Suggestion beruecksichtigt; sonst Fallback auf NAN.
+                        Stale-Auswahl-Werte aus alten Picking-Items werden ebenfalls auf NAN zurueckgesetzt.</li>
+                </ul>
+
+                <h6 class="mt-3">Sage-Lagerplatz-Sync &mdash; laengere Codes</h6>
+                <ul>
+                    <li><strong>StorageLocation.Code</strong> ist jetzt <code>NVARCHAR(50)</code> (vorher 12).
+                        Sage-Lagerplaetze mit Bereich/Position/Ebene in der Kurzbezeichnung (z.&nbsp;B.
+                        &bdquo;LAGER1.A.01-RG-12&ldquo;) werden nicht mehr abgewiesen. Manuelle Codes bleiben
+                        per Validation auf 12 Zeichen begrenzt (Barcode-Lesbarkeit); Sage darf den vollen
+                        Platz nutzen.</li>
+                </ul>
+
+                <h6 class="mt-3">PickingLeitstand &mdash; Performance &amp; UX</h6>
+                <ul>
+                    <li><strong>Server-side Filterung &amp; Pagination:</strong> alle FA-Liste-/Leitstand-
+                        Filter (Order-Number, Article-Number, Customer, ShowDone) laufen jetzt in SQL.
+                        Frueher wurden ALLE Auftraege geladen und in C# gefiltert.</li>
+                    <li><strong>BulkRelease batched:</strong> Statt N&times;(SELECT+UPDATE) jetzt ein SELECT,
+                        In-Memory-Loop, ein SaveChanges. 50 Eintraege: ~200 Roundtrips &rarr; 2&ndash;3.</li>
+                    <li><strong>MAX(Priority) als Single-Query:</strong> vorher Full-Load der freigegebenen
+                        FAs nur fuer den Max-Wert; jetzt <code>SELECT MAX(PickingPriority) WHERE ...</code>.</li>
+                    <li><strong>Bugfix Spalteneinstellungen-Button</strong>: das Zahnrad oben rechts war im
+                        Leitstand unsichtbar, weil es in die versteckte Bulk-Action-Bar gerendert wurde.
+                        Eigener Toolbar-Container davor gesetzt.</li>
+                </ul>
+
+                <h6 class="mt-3">Navigation &amp; Diverses</h6>
+                <ul>
+                    <li><strong>OSEON-Tracking Tabellen-Hover</strong>: einheitlich AKE-Hellblau wie FA-Liste
+                        und alle anderen Listen (vorher dezente Grau-Toene pro Hierarchie-Ebene).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.13.0</strong> <span class="text-white-50 ms-2">15.05.2026</span>
             </div>
             <div class="card-body">

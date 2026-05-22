@@ -80,7 +80,7 @@ public class WarehousePickingControllerTests
         await ctx.SaveChangesAsync();
         var item = ctx.WarehouseRequisitionItems.First();
 
-        var result = await ctrl.Close(r.Id, new[] { item.Id }, new[] { 4m }, r.RowVersion) as RedirectToActionResult;
+        var result = await ctrl.Close(r.Id, new[] { item.Id }, new[] { 4 }, notes: null, r.RowVersion) as RedirectToActionResult;
 
         result.Should().NotBeNull();
         var updated = ctx.WarehouseRequisitions.Include(x => x.Items).First(x => x.Id == r.Id);
@@ -103,6 +103,7 @@ public class WarehousePickingControllerTests
 
         var repo = new Mock<IWarehouseRequisitionRepository>();
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<int, decimal>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
 
@@ -118,7 +119,7 @@ public class WarehousePickingControllerTests
 
         var staleRowVersion = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-        var result = await ctrl.Close(id: 99, itemIds: new[] { 1 }, quantitiesPicked: new[] { 4m }, rowVersion: staleRowVersion) as RedirectToActionResult;
+        var result = await ctrl.Close(id: 99, itemIds: new[] { 1 }, quantitiesPicked: new[] { 4 }, notes: null, rowVersion: staleRowVersion) as RedirectToActionResult;
 
         result.Should().NotBeNull();
         result!.ActionName.Should().Be("Details");

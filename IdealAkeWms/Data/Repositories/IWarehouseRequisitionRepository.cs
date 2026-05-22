@@ -19,7 +19,17 @@ public interface IWarehouseRequisitionRepository
 
     Task SubmitAsync(int id, int recipientGroupId, int submittedByUserId, string user, string winUser, byte[] rowVersion);
     Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
+        IReadOnlyDictionary<int, string?> itemNotes,
         int closedByUserId, string user, string winUser, byte[] rowVersion);
+
+    /// <summary>
+    /// Setzt nur die Notizen einzelner Positionen (z.B. AJAX-Autosave).
+    /// Aendert weder Status noch Mengen. Ignoriert RowVersion bewusst, weil
+    /// Notizen nicht konfliktrelevant sind.
+    /// </summary>
+    Task SaveNotesAsync(int id, IReadOnlyDictionary<int, string?> itemNotes,
+        string user, string winUser);
+
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 
     Task MarkEmailSentAsync(int id, DateTime sentAt);

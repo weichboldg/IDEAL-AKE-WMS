@@ -40,6 +40,9 @@ public class UserEditViewModel
     [Display(Name = "Ist Kommissionierer")]
     public bool IsPicker { get; set; }
 
+    [Display(Name = "Eintraege pro Seite (Standard)")]
+    public int? DefaultPageSize { get; set; }
+
     public List<RoleCheckboxItem> AvailableRoles { get; set; } = new();
     public List<int> SelectedRoleIds { get; set; } = new();
 

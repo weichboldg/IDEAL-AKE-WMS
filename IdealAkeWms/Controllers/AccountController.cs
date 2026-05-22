@@ -104,7 +104,8 @@ public class AccountController : Controller
             DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             Email = user.Email,
-            NotifyOnReorderLevel = user.NotifyOnReorderLevel
+            NotifyOnReorderLevel = user.NotifyOnReorderLevel,
+            DefaultPageSize = user.DefaultPageSize
         };
         return View(vm);
     }
@@ -129,6 +130,11 @@ public class AccountController : Controller
         user.RecursiveFilterSearch = vm.RecursiveFilterSearch;
         user.Email = vm.Email;
         user.NotifyOnReorderLevel = vm.NotifyOnReorderLevel;
+        // PageSize-Validation: nur erlaubte Werte oder NULL durchlassen
+        user.DefaultPageSize = (vm.DefaultPageSize.HasValue
+            && IdealAkeWms.Services.PageSize.AllowedOptions.Contains(vm.DefaultPageSize.Value))
+            ? vm.DefaultPageSize
+            : null;
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);

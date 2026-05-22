@@ -23,4 +23,10 @@ public interface ICurrentUserService
     Task<bool> CanUseBdeAsync();
     Task<bool> CanManageBdeShiftleadAsync();
     Task<bool> CanManageBdeAdminAsync();
+
+    /// <summary>
+    /// Returns the user's persisted default page size for paginated lists, or null
+    /// when no override is set (caller falls back to <see cref="PageSize.Default"/>).
+    /// </summary>
+    Task<int?> GetDefaultPageSizeAsync();
 }

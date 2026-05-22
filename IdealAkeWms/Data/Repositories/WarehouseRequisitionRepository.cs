@@ -164,6 +164,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     }
 
     public async Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
+        IReadOnlyDictionary<int, string?> itemNotes,
         int closedByUserId, string user, string winUser, byte[] rowVersion)
     {
         var r = await _context.WarehouseRequisitions
@@ -174,6 +175,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         foreach (var item in r.Items)
         {
             item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : item.QuantityRequested;
+            if (itemNotes.TryGetValue(item.Id, out var note))
+                item.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
             item.ModifiedAt = DateTime.Now;
             item.ModifiedBy = user;
             item.ModifiedByWindows = winUser;
@@ -185,6 +188,30 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         r.ModifiedBy = user;
         r.ModifiedByWindows = winUser;
         await _context.SaveChangesAsync();
+    }
+
+    public async Task SaveNotesAsync(int id, IReadOnlyDictionary<int, string?> itemNotes,
+        string user, string winUser)
+    {
+        if (itemNotes.Count == 0) return;
+        var rows = await _context.WarehouseRequisitionItems
+            .Where(i => i.WarehouseRequisitionId == id && itemNotes.Keys.Contains(i.Id))
+            .ToListAsync();
+
+        var now = DateTime.Now;
+        var changed = false;
+        foreach (var row in rows)
+        {
+            if (!itemNotes.TryGetValue(row.Id, out var note)) continue;
+            var normalized = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+            if (row.Note == normalized) continue;
+            row.Note = normalized;
+            row.ModifiedAt = now;
+            row.ModifiedBy = user;
+            row.ModifiedByWindows = winUser;
+            changed = true;
+        }
+        if (changed) await _context.SaveChangesAsync();
     }
 
     public async Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion)

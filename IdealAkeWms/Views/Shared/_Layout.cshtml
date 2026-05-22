@@ -40,6 +40,7 @@
                             var canUseBde = await CurrentUserService.CanUseBdeAsync();
                             var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
                             var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
+                            var faCompletionAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -71,31 +72,33 @@
                             </li>
                         }
 
-                        @* Phase 2: Kommissionierung-Dropdown — Picker-Worklist + Leitstand *@
-                        @if (canPick || canManagePickingRelease)
+                        @* Leitstand — eigenes Hauptmenu (Freigabe + Priorisierung) *@
+                        @if (leitstandAktiv && (canPick || canManagePickingRelease))
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "PickingLeitstand" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Leitstand
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="PickingLeitstand" asp-action="Index">Kommissionierung</a></li>
+                                </ul>
+                            </li>
+                        }
+                        @* Kommissionierung — Picker-Worklist *@
+                        @if (canPick)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Picking" asp-action="Index">
                                     Kommissionierung
                                     @if (leitstandAktiv && releasedPickingCount > 0)
                                     {
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
                                 </a>
-                                <ul class="dropdown-menu">
-                                    @if (canPick)
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="Picking" asp-action="Index">Kommissionierliste</a></li>
-                                    }
-                                    @if (leitstandAktiv && (canPick || canManagePickingRelease))
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="PickingLeitstand" asp-action="Index">Leitstand</a></li>
-                                    }
-                                </ul>
                             </li>
                         }
-                        @* Phase 4: FA-Vervollstaendigung *@
-                        @if (canFaCompletion)
+                        @* FA-Vervollstaendigung — gated by AppSetting FaCompletionAktiv + Role *@
+                        @if (faCompletionAktiv && canFaCompletion)
                         {
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaCompletion" ? "active" : "")"

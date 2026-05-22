@@ -36,8 +36,16 @@ public class BdeBookingsController : Controller
         _ctx = ctx;
     }
 
-    public async Task<IActionResult> Index(int skip = 0, int take = 50, int? operatorId = null, int? workplaceId = null, DateTime? from = null, DateTime? to = null)
+    public async Task<IActionResult> Index(
+        int page = 1, int? pageSize = null,
+        int? operatorId = null, int? workplaceId = null, DateTime? from = null, DateTime? to = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _userSvc.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+        var skip = (page - 1) * effectivePageSize;
+
         // Default to today if no date filter provided
         if (!from.HasValue && !to.HasValue)
         {
@@ -45,7 +53,7 @@ public class BdeBookingsController : Controller
             to = DateTime.Today.AddDays(1);
         }
 
-        var list = await _repo.GetHistoryAsync(skip, take, operatorId, workplaceId, from, to);
+        var list = await _repo.GetHistoryAsync(skip, effectivePageSize, operatorId, workplaceId, from, to);
         var bookingVms = list.Select(b => new BdeBookingListViewModel
         {
             Id = b.Id,
@@ -109,7 +117,17 @@ public class BdeBookingsController : Controller
 
         ViewBag.Operators = await _ops.GetAllActiveAsync();
         ViewBag.Workplaces = await _workplaces.GetBdeActiveAsync();
-        ViewBag.Filter = new { skip, take, operatorId, workplaceId, from, to };
+        ViewBag.Filter = new { operatorId, workplaceId, from, to };
+
+        // Total fuer Pagination (separater Call)
+        var totalCount = await _repo.GetHistoryCountAsync(operatorId, workplaceId, from, to);
+        vm.Pagination = new PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = totalCount
+        };
 
         return View(vm);
     }

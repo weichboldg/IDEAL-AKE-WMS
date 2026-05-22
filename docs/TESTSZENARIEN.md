@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-05-08 (v1.10.0)
+**Stand:** 2026-05-22 (v1.14.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -3390,5 +3390,174 @@ Erwartet: WarningMessage "Default-Lagerbestellempfaenger nicht konfiguriert".
 
 ---
 
-*Ende des Dokuments. Stand: v1.8.4 (2026-04-30)*
+## 19. Listen-Pagination & User-Default (v1.14.0)
+
+### TS-19.1 — Default-Pagesize ist 25
+Vorbedingungen: User ohne gesetzten `DefaultPageSize`.
+Schritte: FA-Liste oeffnen.
+Erwartet: Footer zeigt "Eintraege 1-25 von N", Drop-Down steht auf "25", Pagination-Bar mit Seiten-Links sichtbar wenn N > 25.
+
+### TS-19.2 — Pro-Seite-Auswahl ueberschreibt Default
+Vorbedingungen: User-Default = 25, > 50 FAs vorhanden.
+Schritte: FA-Liste &rarr; Drop-Down auf "50" &rarr; URL wird zu `?pageSize=50` &rarr; "Eintraege 1-50".
+Erwartet: 50 Eintraege sichtbar, Drop-Down zeigt "50", URL hat `pageSize=50`. Browser-Back fuehrt zurueck zu pageSize=25.
+
+### TS-19.3 — User-Default in Profil setzen
+Schritte: Profil &rarr; Sektion "Listen-Ansicht" &rarr; Drop-Down auf "100" &rarr; Speichern &rarr; FA-Liste oeffnen.
+Erwartet: Liste laedt mit 100 Eintraegen/Seite (URL ohne pageSize-Param). Wechsel auf andere Liste (z.&nbsp;B. Bestand) ebenfalls 100/Seite.
+
+### TS-19.4 — User-Default "Alle" mit Cap-Banner
+Vorbedingungen: > 5000 FAs in DB.
+Schritte: Profil &rarr; Default "Alle" &rarr; FA-Liste oeffnen.
+Erwartet: Bis zu 5000 Eintraege geladen, gelbes Banner "Treffer auf 5.000 begrenzt &mdash; bitte Filter eingrenzen".
+
+### TS-19.5 — Admin setzt User-Default
+Schritte: Stammdaten &rarr; Benutzer &rarr; einen User editieren &rarr; "Eintraege pro Seite (Standard)" auf "50" &rarr; Speichern.
+Erwartet: User sieht beim naechsten Login alle Listen mit 50/Seite.
+
+### TS-19.6 — Filter ueberlebt Seitenwechsel + Pagesize-Wechsel
+Schritte: FA-Liste &rarr; Filter "Kunde" eingeben &rarr; Seite 2 &rarr; Pagesize 50.
+Erwartet: Filter "Kunde" bleibt aktiv (URL `?filterCustomer=Kunde&page=2` bzw. `pageSize=50`).
+
+---
+
+## 20. Server-Side Spaltenfilter (v1.14.0)
+
+### TS-20.1 — Filter findet Treffer auf anderer Seite
+Vorbedingungen: FA-Liste mit > 25 Eintraegen; spezifischer Kunde existiert in vorletzter Seite.
+Schritte: Spaltenfilter "Kunde" mit dem Kundennamen befuellen.
+Erwartet: Liste navigiert zu URL `?colf_customer=<name>`, zeigt alle Treffer (auf Seite 1, da Filter resettet `page`), Pagination zeigt korrekte Treffermenge.
+
+### TS-20.2 — OR-Filter
+Schritte: Spaltenfilter "Artikelnummer" mit `886,960` befuellen.
+Erwartet: Liste zeigt Treffer mit Artikelnummer enthaelt "886" ODER "960".
+
+### TS-20.3 — NOT-Filter
+Schritte: Spaltenfilter "Status" mit `!Erledigt` befuellen.
+Erwartet: Liste zeigt nur Auftraege deren Status nicht "Erledigt" enthaelt.
+
+### TS-20.4 — Datumsfilter ueber alle Seiten
+Vorbedingungen: FA-Liste, FAs mit Komm.-Termin in KW24 existieren auf Seite 5+.
+Schritte: Spaltenfilter "Komm." mit `kw24` befuellen.
+Erwartet: Liste zeigt nur Eintraege deren Komm.-Termin in KW24 liegt &mdash; Treffer aus allen Seiten enthalten.
+
+### TS-20.5 — Filter loeschen
+Schritte: Aktiven Filter entfernen (Input leeren).
+Erwartet: URL-Parameter `colf_*` wird entfernt, Liste laedt ohne diesen Filter.
+
+### TS-20.6 — Kombination mit Form-Filter
+Schritte: Filter-Form-Field "Artikelnummer" + Spaltenfilter "Kunde" gleichzeitig.
+Erwartet: Beide Filter wirken (UND-Verknuepfung).
+
+### TS-20.7 — Filter-Persistenz in URL
+Schritte: Filter aktiv setzen, URL kopieren, in neuem Tab oeffnen.
+Erwartet: Filter ist im neuen Tab aktiv.
+
+---
+
+## 21. Leitstand als eigenes Hauptmenue (v1.14.0)
+
+### TS-21.1 — Leitstand-Hauptmenue
+Vorbedingungen: User mit Rolle `leitstand` oder `picking`, `LeitstandAktiv=true`.
+Schritte: Navigation pruefen.
+Erwartet: "Leitstand" als eigenes Hauptmenue (Dropdown) mit Unterpunkt "Kommissionierung". "Kommissionierung" im Hauptmenue ist ein einfacher Link (Picker-Worklist) mit Badge wenn freigegebene Eintraege vorhanden.
+
+### TS-21.2 — Dashboard zeigt Leitstand-Sektion
+Schritte: Startseite/Dashboard oeffnen.
+Erwartet: Eigene Sektion "Leitstand" mit Kachel "Kommissionierung" (Verlinkung auf PickingLeitstand/Index). Sichtbar wenn `LeitstandAktiv=true` && (canPick OR canManagePickingRelease).
+
+---
+
+## 22. Lagerbestellungen — Notiz + INT-Mengen (v1.14.0)
+
+### TS-22.1 — Notiz speichert on Blur
+Vorbedingungen: Lagerbestellung im Status "Abgeschickt", User mit Lager-Berechtigung.
+Schritte: Details oeffnen &rarr; Notiz "Eilig" in Position eintippen &rarr; in anderes Feld klicken (Blur).
+Erwartet: AJAX-Request an `/WarehousePicking/SaveNotes/{id}` mit 200 OK. Liste neu laden &rarr; Notiz noch vorhanden.
+
+### TS-22.2 — Notiz speichert vor Drucken
+Schritte: Notiz eintippen &rarr; sofort auf "Drucken" klicken (ohne Blur).
+Erwartet: Tab oeffnet `about:blank` synchron, Notiz wird gespeichert, dann zur Print-URL navigiert. Notiz erscheint im Druck.
+
+### TS-22.3 — Notiz im Druck
+Vorbedingungen: Notiz auf mind. einer Position.
+Schritte: "Drucken" klicken.
+Erwartet: Print-Tab zeigt Spalte "Notiz" mit Inhalt.
+
+### TS-22.4 — Notiz read-only nach Abschluss
+Vorbedingungen: Lagerbestellung mit Notiz, Status "Erledigt".
+Schritte: Details oeffnen.
+Erwartet: Notiz wird als Text angezeigt (kein Input-Feld).
+
+### TS-22.5 — Mengen sind INT
+Vorbedingungen: Position mit Bestell-Menge 4.
+Schritte: Detail oeffnen &rarr; Ist-Mengen-Feld pruefen.
+Erwartet: Anzeige "4" (nicht "4,0000"), Input akzeptiert keine Kommazahlen (step=1), Bestellt-Spalte zeigt "4".
+
+### TS-22.6 — SOLL = IST bucht korrekt
+Vorbedingungen: Position mit Bestell-Menge 4, Ist-Feld leer.
+Schritte: "Abschliessen" &rarr; Modal "SOLL = IST?" &rarr; "Ja".
+Erwartet: Ist-Menge wird auf 4 gesetzt (NICHT 4000). Liste abgeschlossen, QuantityPicked = 4.
+
+---
+
+## 23. FA-Vervollstaendigung als Feature-Toggle (v1.14.0)
+
+### TS-23.1 — Feature standardmaessig OFF
+Vorbedingungen: Frisch installiertes oder upgradetes System.
+Schritte: User mit Rolle `fa_completion` einloggen.
+Erwartet: Kein Menuepunkt "FA-Vervollstaendigung". Direkter URL-Aufruf `/FaCompletion` &rarr; Redirect AccessDenied.
+
+### TS-23.2 — Aktivieren
+Schritte: Admin &rarr; Stammdaten &rarr; Einstellungen &rarr; Sektion "FA-Vervollstaendigung" &rarr; `FaCompletionAktiv` auf `true` &rarr; Speichern.
+Erwartet: User mit Rolle `fa_completion` sehen nach Reload den Menuepunkt; Zugriff auf `/FaCompletion` funktioniert.
+
+### TS-23.3 — Picker funktionieren weiter
+Vorbedingungen: `FaCompletionAktiv=false`, User mit `picking`-Rolle.
+Schritte: PickingLeitstand &rarr; VK/VL/...-Toggles antippen.
+Erwartet: Toggle funktioniert weiterhin (Endpoint `assembly-groups/toggle-applicable` blockt Picker nicht durch das Setting).
+
+---
+
+## 24. StorageLocation-Code 50 Zeichen (v1.14.0)
+
+### TS-24.1 — Sage-Sync akzeptiert Code > 12 Zeichen
+Vorbedingungen: Sage-View liefert Lagerplatz mit Kurzbezeichnung "LAGER1.A.01-RG-12" (17 Zeichen).
+Schritte: LagerplatzSync triggern.
+Erwartet: Lagerplatz angelegt, Code = "LAGER1.A.01-RG-12", IstBuchbar=false (Default Sage).
+
+### TS-24.2 — Manueller Code max 12 Zeichen
+Schritte: Stammdaten &rarr; Lagerplaetze &rarr; "Neu" &rarr; Code "ABCDEFGHIJKLM" (13 Zeichen) &rarr; Speichern.
+Erwartet: Validierungs-Fehler "Manuelle Lagerplatz-Codes duerfen maximal 12 Zeichen lang sein...".
+
+### TS-24.3 — Sage-Code im Edit-View nicht abgeschnitten
+Vorbedingungen: Sage-Lagerplatz mit 20-Zeichen-Code.
+Schritte: Stammdaten &rarr; Lagerplaetze &rarr; Edit.
+Erwartet: Code-Input zeigt vollen 20-Zeichen-Wert (kein Abschneiden auf 12).
+
+---
+
+## 25. OSEON-Tabellen-Hover (v1.14.0)
+
+### TS-25.1 — Hover-Farbe in OSEON Tracking
+Schritte: OSEON Tracking oeffnen &rarr; mit der Maus ueber eine Auftragsgruppen-/Sub-/AG-Zeile fahren.
+Erwartet: Hover-Farbe einheitlich AKE-Hellblau (`#D9F4FF`) &mdash; identisch zur FA-Liste. Vorher waren es dezente Grau-Toene pro Hierarchie-Ebene.
+
+---
+
+## 26. Bestand: Source-Lagerplatz-Vorschlag bei Sage-Stock (v1.14.0)
+
+### TS-26.1 — NAN-Fallback bei nicht-buchbarem Sage-Stock
+Vorbedingungen: Artikel mit Bestand auf Sage-Lagerplatz "GL;9;1;1" (IstBuchbar=false), NAN-Bestand -1.
+Schritte: BOM-Liste oeffnen &rarr; entsprechende Position.
+Erwartet: Quell-Lagerplatz-Dropdown zeigt **NAN** als Vorschlag (vorher: "--" weil Sage-Platz nicht im Dropdown).
+
+### TS-26.2 — Buchbarer Stock wird bevorzugt
+Vorbedingungen: Artikel mit Bestand auf buchbarem manuellen Platz UND auf Sage-Platz.
+Schritte: BOM-Liste oeffnen.
+Erwartet: Vorschlag = manueller Platz (hoechste Menge unter buchbaren).
+
+---
+
+*Ende des Dokuments. Stand: v1.14.0 (2026-05-22)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

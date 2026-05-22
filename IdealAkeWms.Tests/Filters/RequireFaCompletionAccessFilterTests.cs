@@ -1,5 +1,7 @@
 using FluentAssertions;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -39,13 +41,21 @@ public class RequireFaCompletionAccessFilterTests
         return (actionExecutingContext, next, called);
     }
 
+    private static Mock<IAppSettingRepository> SettingsMock(bool faCompletionAktiv = true)
+    {
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.FaCompletionAktiv))
+            .ReturnsAsync(faCompletionAktiv ? "true" : "false");
+        return settings;
+    }
+
     [Fact]
     public async Task FaCompletionRole_AllowsAccess()
     {
         var currentUserService = new Mock<ICurrentUserService>();
         currentUserService.Setup(x => x.CanFaCompletionAsync()).ReturnsAsync(true);
 
-        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object);
+        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object, SettingsMock().Object);
         var (context, next, called) = CreateFilterContext();
 
         await filter.OnActionExecutionAsync(context, next);
@@ -60,7 +70,7 @@ public class RequireFaCompletionAccessFilterTests
         var currentUserService = new Mock<ICurrentUserService>();
         currentUserService.Setup(x => x.CanFaCompletionAsync()).ReturnsAsync(false);
 
-        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object);
+        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object, SettingsMock().Object);
         var (context, next, called) = CreateFilterContext();
 
         await filter.OnActionExecutionAsync(context, next);
@@ -80,7 +90,23 @@ public class RequireFaCompletionAccessFilterTests
         currentUserService.Setup(x => x.CanPickAsync()).ReturnsAsync(true);
         currentUserService.Setup(x => x.CanFaCompletionAsync()).ReturnsAsync(false);
 
-        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object);
+        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object, SettingsMock().Object);
+        var (context, next, called) = CreateFilterContext();
+
+        await filter.OnActionExecutionAsync(context, next);
+
+        called[0].Should().BeFalse();
+        context.Result.Should().BeOfType<RedirectToActionResult>();
+    }
+
+    [Fact]
+    public async Task FaCompletionRole_ButFeatureInaktiv_RedirectsToAccessDenied()
+    {
+        // Rolle vorhanden, aber AppSetting FaCompletionAktiv=false -> Zugriff verwehrt.
+        var currentUserService = new Mock<ICurrentUserService>();
+        currentUserService.Setup(x => x.CanFaCompletionAsync()).ReturnsAsync(true);
+
+        var filter = new RequireFaCompletionAccessFilter(currentUserService.Object, SettingsMock(faCompletionAktiv: false).Object);
         var (context, next, called) = CreateFilterContext();
 
         await filter.OnActionExecutionAsync(context, next);

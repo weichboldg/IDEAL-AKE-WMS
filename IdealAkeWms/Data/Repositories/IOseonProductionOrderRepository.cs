@@ -12,7 +12,7 @@ public interface IOseonProductionOrderRepository : IRepository<OseonProductionOr
     /// Server-side filtered + paginated query. Filters and pagination are pushed to SQL.
     /// When relevantOperationNames is set, "finished" is determined by whether all relevant operations are done.
     /// </summary>
-    Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null);
+    Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null, IReadOnlyDictionary<string, string>? columnFilters = null);
 
     /// <summary>
     /// Liefert relevante Arbeitsgaenge fuer das OSEON-Reporting.

@@ -169,4 +169,9 @@
             </div>
         </div>
     }
+
+    @if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
+    {
+        <partial name="_Pagination" model="paginationState" />
+    }
 </div>

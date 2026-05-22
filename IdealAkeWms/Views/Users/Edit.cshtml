@@ -95,6 +95,18 @@
                         <label asp-for="RecursiveFilterSearch" class="form-check-label"></label>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="DefaultPageSize" class="form-label"></label>
+                        <select asp-for="DefaultPageSize" class="form-select">
+                            <option value="">Standard (25)</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="0">Alle</option>
+                        </select>
+                        <div class="form-text">User-Default fuer paginierte Listen. Pro-Seite-Auswahl ueberschreibt fuer die jeweilige Anzeige.</div>
+                    </div>
+
                     <hr />
 
                     <div class="mb-3">

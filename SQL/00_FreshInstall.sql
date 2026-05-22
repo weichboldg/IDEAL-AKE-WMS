@@ -38,6 +38,7 @@ BEGIN
         [CanViewTracking]           BIT               NOT NULL DEFAULT 0,
         [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
         [IsPicker]                  BIT               NOT NULL DEFAULT 0,
+        [DefaultPageSize]           INT               NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -105,7 +106,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StorageLocations')
 BEGIN
     CREATE TABLE [dbo].[StorageLocations] (
         [Id]                INT IDENTITY(1,1) NOT NULL,
-        [Code]              NVARCHAR(12)      NOT NULL,
+        [Code]              NVARCHAR(50)      NOT NULL,
         [Description]       NVARCHAR(200)     NULL,
         [Zone]              NVARCHAR(100)     NULL,
         [Capacity]          DECIMAL(18,2)     NULL,
@@ -1283,6 +1284,7 @@ CREATE TABLE [dbo].[WarehouseRequisitionItems] (
     [QuantityRequested] DECIMAL(18,4) NOT NULL,
     [QuantityPicked] DECIMAL(18,4) NULL,
     [Position] INT NOT NULL,
+    [Note] NVARCHAR(500) NULL,
     [CreatedAt] DATETIME2 NOT NULL,
     [CreatedBy] NVARCHAR(200) NOT NULL,
     [CreatedByWindows] NVARCHAR(200) NOT NULL,
@@ -1721,6 +1723,12 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512042732_AddProductionOrderAssemblyFlags', '10.0.3');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512120355_AddProductionOrderSplit')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512120355_AddProductionOrderSplit', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260521141926_ExtendStorageLocationCodeTo50')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260521141926_ExtendStorageLocationCodeTo50', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260521143627_AddUserDefaultPageSize')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260521143627_AddUserDefaultPageSize', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260522070823_AddWarehouseRequisitionItemNote')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260522070823_AddWarehouseRequisitionItemNote', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

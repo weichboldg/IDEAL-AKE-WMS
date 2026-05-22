@@ -199,7 +199,8 @@ public class LagerplatzSyncServiceTests
     public async Task Run_SageCodeTooLong_SkipsAndLogsWarning()
     {
         var (svc, reader, ctx, syncLogs) = Build();
-        var longCode = new string('X', 13); // > 12 (MaxCodeLength = 12 to match StorageLocation [StringLength(12)])
+        // MaxCodeLength = 50 (matches StorageLocation column NVARCHAR(50)).
+        var longCode = new string('X', 51);
         reader.Records = new() { new("HALLE-1", longCode, "irgendwas") };
 
         var result = await svc.RunAsync();
@@ -210,6 +211,20 @@ public class LagerplatzSyncServiceTests
 
         var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
         warnings.Should().Contain(x => x.Reference == longCode && x.Message.Contains("zu lang"));
+    }
+
+    [Fact]
+    public async Task Run_SageCodeUpTo50Chars_IsAccepted()
+    {
+        var (svc, reader, ctx, _) = Build();
+        var sageCode = new string('X', 30); // would have been skipped under old 12-cap
+        reader.Records = new() { new("HALLE-1", sageCode, "Sage Lang-Code") };
+
+        var result = await svc.RunAsync();
+
+        result.Inserted.Should().Be(1);
+        result.Skipped.Should().Be(0);
+        ctx.StorageLocations.Should().ContainSingle(l => l.Code == sageCode);
     }
 
     [Fact]

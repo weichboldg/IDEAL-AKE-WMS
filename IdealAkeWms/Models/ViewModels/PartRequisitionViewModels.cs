@@ -10,6 +10,7 @@ public class PartRequisitionIndexViewModel
     public int TotalCount { get; set; }
     public bool ShowAll { get; set; }
     public string? SearchTerm { get; set; }
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class PartRequisitionListItem

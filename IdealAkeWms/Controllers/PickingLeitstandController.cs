@@ -4,6 +4,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using PageSize = IdealAkeWms.Services.PageSize;
 
 namespace IdealAkeWms.Controllers;
 
@@ -46,29 +47,33 @@ public class PickingLeitstandController : Controller
         string? filterOrderNumber,
         string? filterArticleNumber,
         string? filterCustomer,
-        bool showDone = false)
+        bool showDone = false,
+        int page = 1,
+        int? pageSize = null)
     {
-        var orders = await _productionOrderRepository.GetAllOrderedAsync();
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
-        if (!string.IsNullOrWhiteSpace(filterOrderNumber))
-        {
-            orders = orders.Where(o => o.OrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
-        if (!string.IsNullOrWhiteSpace(filterArticleNumber))
-        {
-            orders = orders.Where(o => o.ArticleNumber != null && o.ArticleNumber.Contains(filterArticleNumber, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        // Datum-Filter werden in C# nach Termin-Berechnung angewendet (Komm., BG, Beschicht.).
+        // Wenn aktiv: alle Text-gefilterten Rows materialisieren, Termine berechnen, dann erst paginieren.
+        var dateFilters = columnFilters
+            .Where(kv => LeitstandDateColumnKeys.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+        var hasDateFilters = dateFilters.Count > 0;
+        var sqlColumnFilters = hasDateFilters
+            ? columnFilters.Where(kv => !LeitstandDateColumnKeys.Contains(kv.Key))
+                           .ToDictionary(kv => kv.Key, kv => kv.Value)
+            : columnFilters;
 
-        if (!string.IsNullOrWhiteSpace(filterCustomer))
-        {
-            orders = orders.Where(o => o.Customer != null && o.Customer.Contains(filterCustomer, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
+        var sqlPage = hasDateFilters ? 1 : page;
 
-        if (!showDone)
-        {
-            orders = orders.Where(o => !o.IsDone).ToList();
-        }
+        var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
+            filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
+        var orders = ordersPage.Rows;
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
@@ -102,7 +107,7 @@ public class PickingLeitstandController : Controller
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
                 IsDone = o.IsDone,
-                WorkplaceName = o.ProductionWorkplace?.Name,
+                WorkplaceName = o.WorkplaceName,
                 PickingStatus = ps?.PickingStatus,
                 HasGlass = ps?.HasGlass ?? false,
                 HasExternalPurchase = ps?.HasExternalPurchase ?? false,
@@ -142,6 +147,20 @@ public class PickingLeitstandController : Controller
             return item;
         }).ToList();
 
+        // Wenn Datum-Filter aktiv waren: Termin-basierten Filter anwenden und C#-seitig paginieren.
+        int finalTotalCount = ordersPage.TotalCount;
+        if (hasDateFilters)
+        {
+            foreach (var (key, raw) in dateFilters)
+            {
+                var (tokens, negate) = ColumnFilterHelper.Parse(raw);
+                if (tokens.Count == 0) continue;
+                viewItems = viewItems.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
+            }
+            finalTotalCount = viewItems.Count;
+            viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+        }
+
         // enaio DMS-Links laden (Bulk-Lookup fuer alle FA-Nummern)
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
@@ -165,7 +184,14 @@ public class PickingLeitstandController : Controller
             CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync(),
             LeitstandAktiv = leitstandAktiv,
             PickerAssignmentEnabled = pickerAssignmentEnabled,
-            EnaioDmsLinks = dmsLinks
+            EnaioDmsLinks = dmsLinks,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = finalTotalCount
+            }
         };
 
         if (pickerAssignmentEnabled)
@@ -210,12 +236,7 @@ public class PickingLeitstandController : Controller
         int? newPriority = ps.PickingPriority;
         if (newReleased && !newPriority.HasValue)
         {
-            var existing = await _pickingStatusRepository.GetReleasedForPickingAsync();
-            var maxPrio = existing
-                .Where(o => o.Id != id)
-                .Select(o => o.PickingStatus?.PickingPriority ?? 0)
-                .DefaultIfEmpty(0)
-                .Max();
+            var maxPrio = await _pickingStatusRepository.GetMaxPickingPriorityAsync(excludeProductionOrderId: id);
             newPriority = maxPrio + 1;
         }
 
@@ -256,17 +277,6 @@ public class PickingLeitstandController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var maxPrio = 0;
-        if (release)
-        {
-            var existing = await _pickingStatusRepository.GetReleasedForPickingAsync();
-            maxPrio = existing
-                .Where(o => o.PickingStatus?.PickingPriority != null)
-                .Select(o => o.PickingStatus!.PickingPriority!.Value)
-                .DefaultIfEmpty(0)
-                .Max();
-        }
-
         string? pickerName = null;
         if (release && assignedPickerId.HasValue)
         {
@@ -276,43 +286,17 @@ public class PickingLeitstandController : Controller
 
         var displayName = _currentUserService.GetDisplayName();
         var windowsUser = _currentUserService.GetWindowsUserName();
-        var skipped = new List<string>();
-        var processed = 0;
 
-        foreach (var id in ids)
-        {
-            var order = await _productionOrderRepository.GetByIdAsync(id);
-            if (order == null) continue;
+        var batch = await _pickingStatusRepository.SetReleaseBatchAsync(
+            ids, release, assignedPickerId, pickerName, displayName, displayName, windowsUser);
 
-            var ps = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
-            if (ps == null) continue;
-
-            if (release && string.IsNullOrEmpty(order.ArticleNumber))
-            {
-                skipped.Add(order.OrderNumber);
-                continue;
-            }
-
-            int? newPriority = release ? (ps.PickingPriority ?? (++maxPrio)) : ps.PickingPriority;
-            await _pickingStatusRepository.SetReleaseAsync(
-                id, release, newPriority, displayName, displayName, windowsUser);
-
-            if (release && assignedPickerId.HasValue)
-            {
-                await _pickingStatusRepository.SetAssignedPickerAsync(
-                    id, assignedPickerId, pickerName, displayName, windowsUser);
-            }
-            processed++;
-        }
-
-        var count = processed;
         if (release)
-            TempData["SuccessMessage"] = $"{count} Auftrag/Aufträge freigegeben.";
+            TempData["SuccessMessage"] = $"{batch.Processed} Auftrag/Aufträge freigegeben.";
         else
-            TempData["SuccessMessage"] = $"{count} Freigabe(n) zurückgenommen.";
+            TempData["SuccessMessage"] = $"{batch.Processed} Freigabe(n) zurückgenommen.";
 
-        if (skipped.Count > 0)
-            TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", skipped)}";
+        if (batch.SkippedNoArticle.Count > 0)
+            TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", batch.SkippedNoArticle)}";
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
@@ -351,5 +335,45 @@ public class PickingLeitstandController : Controller
             _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
         return Ok();
+    }
+
+    // ---------------------------------------------------------------------
+    // Date-Spalten-Filter (server-seitig, nach C#-Termin-Berechnung)
+    // ---------------------------------------------------------------------
+    private static readonly HashSet<string> LeitstandDateColumnKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "coating-date",   // Beschicht.
+        "bg-date",        // BG-Termin (VorkommissionierTermin)
+        "picking-date",   // Komm. (KommissionierTermin)
+        "production-date",// Fert.-Termin (ProductionDate)
+        "delivery-date"   // Liefertermin (DeliveryDate)
+    };
+
+    /// <summary>
+    /// Formatiert ein Datum identisch zur View (<c>dd.MM.yyyy KWxx</c>) und lowercased,
+    /// damit der Server denselben Text matched wie der bisherige clientseitige Filter.
+    /// </summary>
+    private static string FormatDateForFilter(DateTime? date)
+    {
+        if (!date.HasValue) return string.Empty;
+        var d = date.Value;
+        var kw = System.Globalization.ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
+    }
+
+    private static bool MatchLeitstandDateFilter(
+        PickingLeitstandItem item, string key, List<string> tokens, bool negate)
+    {
+        var text = key switch
+        {
+            "coating-date" => FormatDateForFilter(item.BeschichtungTermin),
+            "bg-date" => FormatDateForFilter(item.VorkommissionierTermin),
+            "picking-date" => FormatDateForFilter(item.KommissionierTermin),
+            "production-date" => FormatDateForFilter(item.ProductionDate),
+            "delivery-date" => FormatDateForFilter(item.DeliveryDate),
+            _ => string.Empty
+        };
+        var hasMatch = tokens.Any(t => text.Contains(t));
+        return negate ? !hasMatch : hasMatch;
     }
 }

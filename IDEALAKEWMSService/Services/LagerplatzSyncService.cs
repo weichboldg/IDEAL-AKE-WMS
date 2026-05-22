@@ -9,7 +9,9 @@ namespace IDEALAKEWMSService.Services;
 public class LagerplatzSyncService : ILagerplatzSyncService
 {
     private const string ServiceName = "Lagerplatz";
-    private const int MaxCodeLength = 12;       // matches StorageLocation [StringLength(12)] for barcode readability
+    // Sage-Codes duerfen den vollen DB-Platz nutzen (NVARCHAR(50)). Manuelle
+    // Codes sind via Model-Validation auf 12 Zeichen begrenzt.
+    private const int MaxCodeLength = 50;
     private const int MaxDescriptionLength = 200;
     private const string SyncUser = "system:sync";
 

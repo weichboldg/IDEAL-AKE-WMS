@@ -86,8 +86,11 @@
     </div>
 }
 
+@* Toolbar host fuer column-preferences-Gear-Button (sonst landet er im versteckten bulkActionBar) *@
+<div class="d-flex justify-content-end mb-1"></div>
+
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-view-key="PickingLeitstand" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="PickingLeitstand" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true">
         <thead>
             <tr>
                 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
@@ -412,9 +415,7 @@
     </table>
 </div>
 
-<div class="mt-3 text-muted">
-    <small>@Model.Items.Count Einträge</small>
-</div>
+<partial name="_Pagination" model="Model.Pagination" />
 
 @if (Model.PickerAssignmentEnabled)
 {

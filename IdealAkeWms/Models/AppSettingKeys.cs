@@ -19,6 +19,7 @@ public static class AppSettingKeys
     public const string KommissionierungMitZuweisung = "KommissionierungMitZuweisung";
     public const string BestellungenAktiv = "BestellungenAktiv";
     public const string DefaultLagerbestellempfaengerId = "DefaultLagerbestellempfaengerId";
+    public const string FaCompletionAktiv = "FaCompletionAktiv";
 
     // Stock / Buchung
     public const string NegativeBuchungErlaubt = "NegativeBuchungErlaubt";

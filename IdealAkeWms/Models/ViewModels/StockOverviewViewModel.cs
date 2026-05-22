@@ -11,6 +11,7 @@ public class StockOverviewViewModel
     public List<StorageLocation> StorageLocations { get; set; } = new();
     public int WarningThresholdPercent { get; set; } = 150;
     public int CriticalThresholdPercent { get; set; } = 100;
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class StockOverviewItem

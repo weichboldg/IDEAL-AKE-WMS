@@ -26,7 +26,8 @@ public interface IStockMovementRepository : IRepository<StockMovement>
         int? filterUserId = null,
         string? filterProductionOrder = null,
         int page = 1,
-        int pageSize = 50);
+        int pageSize = 50,
+        IReadOnlyDictionary<string, string>? columnFilters = null);
 
     Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers);
 

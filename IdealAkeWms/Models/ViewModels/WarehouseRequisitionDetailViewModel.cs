@@ -10,7 +10,8 @@ public record WarehouseRequisitionDetailItemViewModel(
     string? Unit,
     decimal QuantityRequested,
     decimal? QuantityPicked,
-    string StorageLocations);
+    string StorageLocations,
+    string? Note = null);
 
 public class WarehouseRequisitionDetailViewModel
 {

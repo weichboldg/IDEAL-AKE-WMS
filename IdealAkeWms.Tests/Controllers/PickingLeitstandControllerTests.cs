@@ -98,13 +98,21 @@ public class PickingLeitstandControllerTests
 
     // --- Index Tests ---
 
+    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null) =>
+        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, null);
+
+    private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
+        new(rows.ToList(), rows.Length);
+
     [Fact]
     public async Task Index_ReturnsRichViewModel_WithStatusPivot()
     {
-        var order1 = MakeOrder(1, "FA-100", articleNumber: "ART-1", customer: "Kunde A");
-        var order2 = MakeOrder(2, "FA-200", articleNumber: "ART-2", customer: "Kunde B");
-        _orderRepo.Setup(r => r.GetAllOrderedAsync())
-            .ReturnsAsync(new List<ProductionOrder> { order1, order2 });
+        var row1 = MakeRow(1, "FA-100", articleNumber: "ART-1", customer: "Kunde A");
+        var row2 = MakeRow(2, "FA-200", articleNumber: "ART-2", customer: "Kunde B");
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row1, row2));
 
         var ps1 = MakePs(1, released: true, priority: 1, hasGlass: true);
         var ps2 = MakePs(2, released: false, hasExternalPurchase: true);
@@ -125,7 +133,7 @@ public class PickingLeitstandControllerTests
         _currentUser.Setup(u => u.CanPickAsync()).ReturnsAsync(true);
         _currentUser.Setup(u => u.CanManagePickingReleaseAsync()).ReturnsAsync(true);
 
-        var result = await _controller.Index(null, null, null, false);
+        var result = await _controller.Index(null, null, null, false, 1, null);
 
         var viewResult = result.Should().BeOfType<ViewResult>().Subject;
         var vm = viewResult.Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
@@ -153,17 +161,17 @@ public class PickingLeitstandControllerTests
     [Fact]
     public async Task Index_FilteringHidesDoneOrders_ByDefault()
     {
-        _orderRepo.Setup(r => r.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionOrder>
-        {
-            MakeOrder(1, "FA-OPEN", isDone: false),
-            MakeOrder(2, "FA-DONE", isDone: true)
-        });
+        // Filter happens server-side in repo; mock returns already-filtered list.
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), false,
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-OPEN", isDone: false)));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
         _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
 
-        var result = await _controller.Index(null, null, null, showDone: false);
+        var result = await _controller.Index(null, null, null, showDone: false, page: 1, pageSize: null);
 
         var vm = (PickingLeitstandViewModel)((ViewResult)result).Model!;
         vm.Items.Should().HaveCount(1);
@@ -292,52 +300,35 @@ public class PickingLeitstandControllerTests
     [Fact]
     public async Task BulkRelease_FlipsMultipleOrders()
     {
-        var o1 = MakeOrder(1, "FA-1", articleNumber: "ART-1");
-        var o2 = MakeOrder(2, "FA-2", articleNumber: "ART-2");
-        var ps1 = MakePs(1, released: false);
-        var ps2 = MakePs(2, released: false);
-
-        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(o1);
-        _orderRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(o2);
-        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps1);
-        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(2)).ReturnsAsync(ps2);
-        _pickingStatusRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
+        _pickingStatusRepo.Setup(r => r.SetReleaseBatchAsync(
+                It.IsAny<IEnumerable<int>>(), true, It.IsAny<int?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new BulkReleaseResult { Processed = 2 });
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("false");
 
         await _controller.BulkRelease(new List<int> { 1, 2 }, release: true, assignedPickerId: null, returnUrl: null);
 
-        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
-            1, true, It.IsAny<int?>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
-            2, true, It.IsAny<int?>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _pickingStatusRepo.Verify(r => r.SetReleaseBatchAsync(
+            It.Is<IEnumerable<int>>(ids => ids.SequenceEqual(new[] { 1, 2 })),
+            true, null, null, "TestUser", "TestUser", "DOMAIN\\testuser"), Times.Once);
     }
 
     [Fact]
     public async Task BulkRelease_SkipsOrdersWithoutArticleNumber()
     {
-        var o1 = MakeOrder(1, "FA-1", articleNumber: "ART-1");
-        var o2 = MakeOrder(2, "FA-2-NO-ART", articleNumber: null);
-        var ps1 = MakePs(1, released: false);
-        var ps2 = MakePs(2, released: false);
-
-        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(o1);
-        _orderRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(o2);
-        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps1);
-        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(2)).ReturnsAsync(ps2);
-        _pickingStatusRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
+        // Repo-Layer is responsible for the skip; controller relays the warning.
+        _pickingStatusRepo.Setup(r => r.SetReleaseBatchAsync(
+                It.IsAny<IEnumerable<int>>(), true, It.IsAny<int?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new BulkReleaseResult
+            {
+                Processed = 1,
+                SkippedNoArticle = new List<string> { "FA-2-NO-ART" }
+            });
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("false");
 
         await _controller.BulkRelease(new List<int> { 1, 2 }, release: true, assignedPickerId: null, returnUrl: null);
 
-        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
-            1, true, It.IsAny<int?>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-        // Skipped — keine Artikelnummer
-        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
-            2, It.IsAny<bool>(), It.IsAny<int?>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _controller.TempData["WarningMessage"].Should().NotBeNull();
         ((string)_controller.TempData["WarningMessage"]!).Should().Contain("FA-2-NO-ART");
     }
@@ -348,9 +339,9 @@ public class PickingLeitstandControllerTests
         var result = await _controller.BulkRelease(new List<int>(), release: true, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<RedirectToActionResult>();
-        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
-            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _pickingStatusRepo.Verify(r => r.SetReleaseBatchAsync(
+            It.IsAny<IEnumerable<int>>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     // --- SetPriority Tests ---

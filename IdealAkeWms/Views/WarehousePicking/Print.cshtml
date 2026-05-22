@@ -37,15 +37,19 @@
         <tbody>
         @foreach (var i in Model.Items)
         {
+            var requestedInt = (int)Math.Round(i.QuantityRequested, MidpointRounding.AwayFromZero);
+            var pickedInt = i.QuantityPicked.HasValue
+                ? (int?)Math.Round(i.QuantityPicked.Value, MidpointRounding.AwayFromZero)
+                : null;
             <tr>
                 <td>@i.Position</td>
                 <td>@i.ArticleNumber</td>
                 <td>@i.ArticleDescription</td>
-                <td>@i.QuantityRequested</td>
-                <td>@(i.QuantityPicked?.ToString() ?? "")</td>
+                <td>@requestedInt</td>
+                <td>@(pickedInt?.ToString() ?? "")</td>
                 <td>@i.Unit</td>
                 <td>@i.StorageLocations</td>
-                <td></td>
+                <td>@i.Note</td>
             </tr>
         }
         </tbody>

@@ -16,6 +16,8 @@ public class PickingLeitstandViewModel
     public bool PickerAssignmentEnabled { get; set; }
 
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
+
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class PickingLeitstandItem
