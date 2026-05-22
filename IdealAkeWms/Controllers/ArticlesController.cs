@@ -34,10 +34,15 @@ public class ArticlesController : Controller
         _productionOrderRepository = productionOrderRepository;
     }
 
-    public async Task<IActionResult> Index(int page = 1, int pageSize = 100, string? search = null)
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null, string? search = null)
     {
-        if (pageSize > 500) pageSize = 500;
-        var (items, totalCount) = await _articleRepository.GetPaginatedAsync(page, pageSize, search);
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
+        var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var (items, totalCount) = await _articleRepository.GetPaginatedAsync(page, effectivePageSize, search, columnFilters);
 
         // Load active attribute definitions + batch-load values for displayed articles
         var activeDefinitions = await _attributeRepository.GetActiveDefinitionsOrderedAsync();
@@ -48,11 +53,18 @@ public class ArticlesController : Controller
         {
             Items = items,
             CurrentPage = page,
-            PageSize = pageSize,
+            PageSize = effectivePageSize,
             TotalCount = totalCount,
             Search = search,
             AttributeDefinitions = activeDefinitions,
-            AttributeValuesByArticle = attributeValues
+            AttributeValuesByArticle = attributeValues,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount
+            }
         };
         return View(vm);
     }

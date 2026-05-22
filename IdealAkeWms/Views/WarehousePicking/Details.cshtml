@@ -35,36 +35,54 @@
     <div class="table-responsive">
     <table class="table table-sm">
         <thead>
-            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th></tr>
+            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th></tr>
         </thead>
         <tbody>
             @foreach (var i in Model.Items)
             {
-                <tr data-requested="@i.QuantityRequested.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                var requestedInt = (int)Math.Round(i.QuantityRequested, MidpointRounding.AwayFromZero);
+                var pickedInt = i.QuantityPicked.HasValue
+                    ? (int?)Math.Round(i.QuantityPicked.Value, MidpointRounding.AwayFromZero)
+                    : null;
+                <tr data-requested="@requestedInt">
                     <td>@i.Position</td>
                     <td>@i.ArticleNumber</td>
                     <td>@i.ArticleDescription</td>
-                    <td>@i.QuantityRequested</td>
+                    <td>@requestedInt</td>
                     <td>
                         <input type="hidden" name="itemIds" value="@i.Id" />
                         @if (isSubmitted)
                         {
-                            <input type="number" name="quantitiesPicked" step="0.01" value="@(i.QuantityPicked.HasValue ? i.QuantityPicked.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty)" placeholder="@i.QuantityRequested.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control form-control-sm" style="width:90px;" />
+                            <input type="number" name="quantitiesPicked" step="1" min="0"
+                                   value="@(pickedInt?.ToString() ?? string.Empty)"
+                                   placeholder="@requestedInt"
+                                   class="form-control form-control-sm" style="width:90px;" />
                         }
                         else
                         {
-                            @(i.QuantityPicked?.ToString() ?? "—")
+                            @(pickedInt?.ToString() ?? "—")
                         }
                     </td>
                     <td>@i.Unit</td>
                     <td><small>@i.StorageLocations</small></td>
+                    <td>
+                        @if (isSubmitted)
+                        {
+                            <input type="text" name="notes" value="@i.Note" maxlength="500"
+                                   class="form-control form-control-sm" placeholder="Notiz (optional)" />
+                        }
+                        else
+                        {
+                            <small>@i.Note</small>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
     </div>
 
-    <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-secondary">Drucken</a>
+    <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-secondary" id="btn-print">Drucken</a>
 
     @if (isSubmitted)
     {
@@ -113,18 +131,70 @@
 @section Scripts {
 <script>
 (function () {
-    const btn = document.getElementById('btn-close-finish');
-    if (!btn) return;
-    const form = btn.closest('form');
+    const closeBtn = document.getElementById('btn-close-finish');
+    const printBtn = document.getElementById('btn-print');
+    // Form ist beim Print-Only-Fall (Status != Submitted) leer — dann beide Buttons skip.
+    const form = (closeBtn || printBtn)?.closest('form');
+    if (!form) return;
+
+    // ----- Notiz-Autosave -----
+    // Status: Notiz-Inputs nur in editierbaren (Submitted) Listen vorhanden.
+    const saveUrl = '@Url.Action("SaveNotes", "WarehousePicking", new { id = Model.Id })';
+    const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    let savingPromise = Promise.resolve();
+    let dirty = false;
+
+    function collectNotes() {
+        const itemIds = Array.from(form.querySelectorAll('input[name="itemIds"]')).map(i => i.value);
+        const notes = Array.from(form.querySelectorAll('input[name="notes"]')).map(i => i.value || '');
+        return { itemIds, notes };
+    }
+
+    function saveNotes() {
+        if (!dirty || !token) return Promise.resolve();
+        const { itemIds, notes } = collectNotes();
+        const body = new FormData();
+        body.append('__RequestVerificationToken', token);
+        itemIds.forEach(v => body.append('itemIds', v));
+        notes.forEach(v => body.append('notes', v));
+        dirty = false;
+        savingPromise = fetch(saveUrl, { method: 'POST', body }).catch(() => { dirty = true; });
+        return savingPromise;
+    }
+
+    // On blur eines Notiz-Inputs: speichern.
+    form.querySelectorAll('input[name="notes"]').forEach(inp => {
+        inp.addEventListener('input', () => { dirty = true; });
+        inp.addEventListener('blur', saveNotes);
+    });
+
+    // Drucken: erst Notizen speichern, dann Print-Tab oeffnen.
+    if (printBtn) {
+        printBtn.addEventListener('click', async (e) => {
+            if (!dirty) return; // nichts geaendert -> normales Verhalten
+            e.preventDefault();
+            const href = printBtn.getAttribute('href');
+            // Synchron Tab oeffnen (sonst Popup-Blocker) und Navigation nachladen.
+            const win = window.open('about:blank', '_blank');
+            await saveNotes();
+            if (win) win.location = href;
+            else window.location = href;
+        });
+    }
+
+    if (!closeBtn) return; // Liste ist nicht mehr editierbar (Closed/Cancelled).
+
+    // ----- Abschliessen / Soll=Ist -----
     const modalEl = document.getElementById('close-confirm-modal');
     const modal = new bootstrap.Modal(modalEl);
 
     function emptyRows() {
+        // Mengen sind ganzzahlig (INT). parseInt mit Radix-10.
         return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .filter(i => !i.value || parseFloat(i.value) === 0);
+            .filter(i => !i.value || parseInt(i.value, 10) === 0);
     }
 
-    btn.addEventListener('click', () => {
+    closeBtn.addEventListener('click', () => {
         const empties = emptyRows();
         if (empties.length === 0) {
             form.submit();

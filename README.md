@@ -101,6 +101,28 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 39 | `SQL/39_AddArticleCategoriesAndAttributes.sql` | Artikelkategorien + Merkmale (EAV) |
 | 40 | `SQL/40_AddBomCacheAndCoatingDetection.sql` | BOM-Cache + Lackierteil-Erkennung |
 | 41 | `SQL/41_AddUserViewPreferences.sql` | Benutzerspezifische Ansichts-Einstellungen |
+| 42 | `SQL/42_AddBde.sql` | BDE-Modul (Operators, Activities, Terminals, Bookings) |
+| 43 | `SQL/43_AddBdeWerkbankSettings.sql` | BDE Phase 2.1: Werkbank-Erweiterungen |
+| 44 | `SQL/44_MoveTablesToDboSchema.sql` | Schema-Aufraeumung |
+| 45 | `SQL/45_RelaxBdeBookingConstraints.sql` | BDE Phase 2.2: Mehrfachanmeldung |
+| 46 | `SQL/46_ExtendStatusEndedCheckForResumed.sql` | BDE Status-Constraint anpassen |
+| 47 | `SQL/47_SeedGroupFinishSetting.sql` | BDE Group-Finish-Setting |
+| 48 | `SQL/48_AddBdeShiftCalendar.sql` | BDE Phase 2.3: Schichtkalender |
+| 49 | `SQL/49_AddOseonReportingHorizonSetting.sql` | OSEON Reporting Horizont |
+| 50 | `SQL/50_AddOseonArticleNumberIndex.sql` | OSEON ArticleNumber Index |
+| 51 | `SQL/51_AddOseonReportingOverdueLookbackSetting.sql` | OSEON Reporting Ueberfaellig |
+| 52 | `SQL/52_AddOseonWorkOperationsPerformanceIndex.sql` | OSEON Performance-Index |
+| 53 | `SQL/53_AddWarehouseRequisitions.sql` | Lagerbestellungen |
+| 54 | `SQL/54_AddWarehouseRequisitionCreatedByUserId.sql` | Lagerbestellungen: CreatedByUserId |
+| 55 | `SQL/55_AddStorageLocationSyncFields.sql` | StorageLocation IsActive + Source (Sage-Sync) |
+| 56 | `SQL/56_AddSyncLog.sql` | SyncLog-Tabelle |
+| 57 | `SQL/57_AddStockMovementNoteAndSageMovementTypes.sql` | StockMovement Notiz + Sage-Bewegungsarten |
+| 58 | `SQL/58_AddStorageLocationIstBuchbar.sql` | StorageLocation IstBuchbar |
+| 59 | `SQL/59_AddProductionOrderAssemblyFlags.sql` | FA-Vervollstaendigung: AssemblyGroups |
+| 60 | `SQL/60_ProductionOrderSplit.sql` | ProductionOrder Split |
+| 61 | `SQL/61_ExtendStorageLocationCodeTo50.sql` | StorageLocation.Code 12 -> 50 Zeichen (Sage-Codes) |
+| 62 | `SQL/62_AddUserDefaultPageSize.sql` | User.DefaultPageSize (Listen-Pagination) |
+| 63 | `SQL/63_AddWarehouseRequisitionItemNote.sql` | Lagerbestellung-Position: Notiz |
 
 ### 2. ConnectionStrings konfigurieren
 
@@ -200,6 +222,12 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Wareneingang-Integration**: Bei Einbuchung werden offene Meldungen zum Artikel angezeigt und können verknüpft werden
 - **Empfängergruppen (Stammdaten)**: CRUD für Gruppen + Empfänger + Artikelgruppen-Zuordnung (N:M)
 
+### FA-Vervollstaendigung (seit v1.13.0)
+- Pflege der Vormontage-Merkmalsauspraegungen pro Fertigungsauftrag (VK/VL/VE/VT/VA)
+- Pro Gruppe: `IsApplicable` (anwendbar fuer diesen FA?) + `IsCompleted` (Pflege abgeschlossen?) + Spec-Liste (Artikel/Menge/Notiz)
+- Rolle `fa_completion` (oder `admin`)
+- **Feature-Toggle** ab v1.14.0: `FaCompletionAktiv` AppSetting (Default `false`) &mdash; Menuepunkt und Endpoint nur sichtbar/erreichbar wenn aktiviert
+
 ### Betriebsdatenerfassung (BDE)
 - **BDE-Terminal**: Scan-basierte Buchung (Personalnummer + FA/AG) mit Statusverwaltung (Ruesten, Produktion, Pause, Fortsetzen, Beenden)
 - **Mengen-Erfassung**: Teilfertigmeldungen (Gutmenge + Ausschuss) und Abschlussmeldung
@@ -217,6 +245,15 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Einstellungen werden pro Benutzer automatisch gespeichert
 - Admin kann Einstellungen im Benutzerstamm zuruecksetzen
 - Verfuegbar in: Fertigungsauftraege, Kommissionierliste, OSEON Teileverfolgung, Stueckliste
+
+### Listen-Pagination & Spaltenfilter (v1.14.0)
+- **Einheitliche Pagination** auf 22 Listen (alle ausser BOM-Stueckliste)
+- **Pro-Seite-Auswahl**: 25 (Default) / 50 / 100 / Alle (gecappt auf 5000 mit Hinweis-Banner)
+- **User-Default**: Profil &rarr; "Listen-Ansicht" oder Stammdaten &rarr; Benutzer &rarr; Edit. Pro-Seite-Auswahl ueberschreibt fuer aktuelle Seite
+- **Server-Side Spaltenfilter** in FA-Liste, Leitstand, Bestand, Bewegungshistorie, Artikel:
+  - Filter wirkt quer ueber alle Seiten (nicht nur die aktuell angezeigte)
+  - OR-Syntax: `960,886` &mdash; NOT: `!960` &mdash; Datum: `kw24`
+- **Filter und Pagination in URL kodiert** &mdash; Browser-Back, Lesezeichen, Teilen per Link funktionieren
 
 ### Berechtigungen (Rollenbasiert)
 - **Rollenkonzept**: `Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`

@@ -26,17 +26,26 @@ public class WarehouseRequisitionsController : Controller
         _repo = repo; _workplaces = workplaces; _groups = groups; _user = user; _settings = settings;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var userId = _user.GetCurrentAppUserId() ?? 0;
         var displayName = _user.GetDisplayName();
         var all = await _repo.GetForUserAsync(userId);
         // Stabiler Filter via CreatedByUserId; Fallback auf CreatedBy fuer Altdaten ohne UserId.
         var ownOnly = all.Where(r => r.CreatedByUserId == userId
             || (r.CreatedByUserId == null && r.CreatedBy == displayName)).ToList();
+
+        var totalCount = ownOnly.Count;
+        var paged = ownOnly.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+
         var vm = new WarehouseRequisitionListViewModel
         {
-            Items = ownOnly.Select(r => new WarehouseRequisitionListItemViewModel(
+            Items = paged.Select(r => new WarehouseRequisitionListItemViewModel(
                 r.Id,
                 r.ProductionWorkplace?.Name ?? "",
                 r.CreatedBy,
@@ -44,7 +53,14 @@ public class WarehouseRequisitionsController : Controller
                 r.SubmittedAt,
                 r.Items.Count,
                 r.Status)).ToList(),
-            AvailableWorkplaces = await _workplaces.GetByUserIdAsync(userId)
+            AvailableWorkplaces = await _workplaces.GetByUserIdAsync(userId),
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount
+            }
         };
         return View(vm);
     }

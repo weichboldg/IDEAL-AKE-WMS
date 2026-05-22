@@ -34,19 +34,44 @@ public class BdeMasterDataController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index(string tab = "operators")
+    public async Task<IActionResult> Index(string tab = "operators", int page = 1, int? pageSize = null)
     {
-        var operators = await _operatorRepository.GetAllAsync();
-        var activities = await _activityRepository.GetAllAsync();
-        var terminals = await _terminalRepository.GetAllAsync();
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
+        var operators = (await _operatorRepository.GetAllAsync())
+            .OrderBy(o => o.LastName).ThenBy(o => o.FirstName).ToList();
+        var activities = (await _activityRepository.GetAllAsync()).ToList();
+        var terminals = (await _terminalRepository.GetAllAsync()).ToList();
+
+        // Pagination greift nur auf den aktiven Tab.
+        int totalForTab = tab switch
+        {
+            "activities" => activities.Count,
+            "terminals" => terminals.Count,
+            _ => operators.Count
+        };
 
         ViewBag.Tab = tab;
-        ViewBag.Operators = operators
-            .OrderBy(o => o.LastName)
-            .ThenBy(o => o.FirstName)
-            .ToList();
-        ViewBag.Activities = activities;
-        ViewBag.Terminals = terminals;
+        ViewBag.Operators = tab == "operators"
+            ? operators.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList()
+            : operators;
+        ViewBag.Activities = tab == "activities"
+            ? activities.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList()
+            : activities;
+        ViewBag.Terminals = tab == "terminals"
+            ? terminals.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList()
+            : terminals;
+
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = totalForTab
+        };
 
         return View();
     }

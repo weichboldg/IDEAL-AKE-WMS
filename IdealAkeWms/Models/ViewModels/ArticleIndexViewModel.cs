@@ -14,4 +14,6 @@ public class ArticleIndexViewModel
 
     /// <summary>Attribute values keyed by ArticleId, then by DefinitionId.</summary>
     public Dictionary<int, List<ArticleAttributeValue>> AttributeValuesByArticle { get; set; } = new();
+
+    public PaginationState Pagination { get; set; } = new();
 }

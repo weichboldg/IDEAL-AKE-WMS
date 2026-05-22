@@ -10,11 +10,11 @@ public record ViewConfig(string ViewKey, string DisplayName, bool SupportsReorde
 public static class ColumnDefinitions
 {
     /// <summary>
-    /// ProductionOrders/Index.cshtml columns.
+    /// ProductionOrders/Index.cshtml columns — Phase 2 slim FA-Uebersicht
+    /// (Picker/Tracker/Leitstand). Status-Pivot, Bulk-Release und Picker-Assign
+    /// wandern nach <see cref="PickingLeitstand"/>.
     /// Conditional columns:
-    ///   - "actions"   : rendered only when Model.CanPick (Stückliste-Button column, width 40px)
-    ///   - "release"   : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
-    ///   - "picker"    : rendered only when Model.PickerAssignmentEnabled
+    ///   - "actions"   : rendered only when Model.CanPick (Stueckliste-Button column, width 40px)
     /// </summary>
     public static readonly ViewConfig ProductionOrders = new("ProductionOrders", "Fertigungsauftraege", SupportsReorder: true, SupportsSortDefault: true)
     {
@@ -35,20 +35,73 @@ public static class ColumnDefinitions
             new ColumnDef("production-date","Fert.-Termin",  Locked: false),
             new ColumnDef("delivery-date","Liefertermin",    Locked: false),
             new ColumnDef("coating-part","Lack-T",           Locked: false, DefaultWidth: 55),
-            new ColumnDef("glass",       "Glas",             Locked: false, DefaultWidth: 45),
-            new ColumnDef("purchase",    "Zukauf",           Locked: false, DefaultWidth: 55),
+            // Icon/action column (enaio links)
+            new ColumnDef("row-actions", "",                 Locked: true,  DefaultWidth: 80),
+        ]
+    };
+
+    /// <summary>
+    /// PickingLeitstand/Index.cshtml columns — Phase 2 rich Kommissionier-Leitstand-View.
+    /// Conditional columns:
+    ///   - "bulk-select" : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
+    ///   - "actions"     : rendered only when Model.CanPick
+    ///   - "release"     : rendered only when Model.LeitstandAktiv &amp;&amp; Model.CanManagePickingRelease
+    ///   - "picker"      : rendered only when Model.PickerAssignmentEnabled
+    /// </summary>
+    public static readonly ViewConfig PickingLeitstand = new(
+        "PickingLeitstand", "Kommissionier-Leitstand",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("bulk-select",    "",              Locked: true,  DefaultWidth: 32),
+            new ColumnDef("actions",        "",              Locked: true,  DefaultWidth: 40),
+            new ColumnDef("order-number",   "FA Nr.",        Locked: true,  DefaultWidth: 90),
+            new ColumnDef("quantity",       "Stk.",          Locked: false, DefaultWidth: 55),
+            new ColumnDef("customer",       "Kunde",         Locked: false),
+            new ColumnDef("article-number", "Artikelnummer", Locked: false),
+            new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
+            new ColumnDef("description2",   "Bezeichnung 2", Locked: false),
+            new ColumnDef("workbench",      "Werkbank",      Locked: false),
+            new ColumnDef("coating-date",   "Beschicht.",    Locked: false),
+            new ColumnDef("bg-date",        "BG-Termin",     Locked: false),
+            new ColumnDef("picking-date",   "Komm.",         Locked: false),
+            new ColumnDef("production-date","Fert.-Termin",  Locked: false),
+            new ColumnDef("delivery-date",  "Liefertermin",  Locked: false),
+            new ColumnDef("coating-part",   "Lack-T",        Locked: false, DefaultWidth: 55),
+            new ColumnDef("glass",          "Glas",          Locked: false, DefaultWidth: 45),
+            new ColumnDef("purchase",       "Zukauf",        Locked: false, DefaultWidth: 55),
             new ColumnDef("cooling",        "VK",            Locked: false, DefaultWidth: 40),
             new ColumnDef("fan",            "VL",            Locked: false, DefaultWidth: 40),
             new ColumnDef("electric",       "VE",            Locked: false, DefaultWidth: 40),
             new ColumnDef("doors",          "VT",            Locked: false, DefaultWidth: 40),
             new ColumnDef("superstructure", "VA",            Locked: false, DefaultWidth: 40),
-            new ColumnDef("status",      "Status",           Locked: false),
-            // Icon/action column (enaio links, OSEON, Erledigt-button)
-            new ColumnDef("row-actions", "",                 Locked: true,  DefaultWidth: 80),
-            // Conditional: only when LeitstandAktiv && CanManagePickingRelease
-            new ColumnDef("release",     "Freigabe",         Locked: false, DefaultWidth: 160),
-            // Conditional: only when PickerAssignmentEnabled
-            new ColumnDef("picker",      "Kommissionierer",  Locked: false),
+            new ColumnDef("status",         "Status",        Locked: false),
+            new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 80),
+            new ColumnDef("release",        "Freigabe",      Locked: false, DefaultWidth: 160),
+            new ColumnDef("picker",         "Kommissionierer", Locked: false),
+        ]
+    };
+
+    /// <summary>
+    /// FaCompletion/Index.cshtml columns — Phase 4 FA-Vervollstaendigung-Liste.
+    /// </summary>
+    public static readonly ViewConfig FaCompletion = new(
+        "FaCompletion", "FA-Vervollstaendigung",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("order-number",   "FA Nr.",        Locked: true,  DefaultWidth: 90),
+            new ColumnDef("quantity",       "Stk.",          Locked: false, DefaultWidth: 55),
+            new ColumnDef("customer",       "Kunde",         Locked: false),
+            new ColumnDef("article-number", "Artikelnummer", Locked: false),
+            new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
+            new ColumnDef("production-date","Fert.-Termin",  Locked: false),
+            new ColumnDef("applicable",     "Anwendbar",     Locked: false, DefaultWidth: 100),
+            new ColumnDef("completed",      "Vervollstaendigt", Locked: false, DefaultWidth: 130),
+            new ColumnDef("spec-count",     "Auspraegungen", Locked: false, DefaultWidth: 110),
+            new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 110),
         ]
     };
 
@@ -154,6 +207,8 @@ public static class ColumnDefinitions
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
+        "PickingLeitstand" => PickingLeitstand,
+        "FaCompletion"     => FaCompletion,
         "Picking"          => Picking,
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,

@@ -12,10 +12,12 @@ public class OseonTrackingViewModel
     public bool UseRelevanceFilter { get; set; } = true;
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
 
-    // Pagination
+    // Pagination (legacy fields)
     public int CurrentPage { get; set; } = 1;
     public int TotalPages { get; set; }
     public int TotalGroupCount { get; set; }
+
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class OseonOrderGroupViewModel

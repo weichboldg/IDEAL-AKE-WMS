@@ -20,4 +20,5 @@ public class BdeBookingsIndexViewModel
 {
     public List<BdeBookingListViewModel> Bookings { get; set; } = new();
     public Dictionary<int, TimeSpan> EffectiveDurations { get; set; } = new();
+    public PaginationState Pagination { get; set; } = new();
 }

@@ -32,10 +32,23 @@ public class ProductionWorkplacesController : Controller
         _ctx = ctx;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var workplaces = await _repository.GetAllWithUsersOrderedAsync();
-        return View(workplaces);
+        var list = workplaces.ToList();
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = list.Count
+        };
+        return View(list.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     public async Task<IActionResult> Create()

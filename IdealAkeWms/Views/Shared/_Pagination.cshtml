@@ -1,0 +1,91 @@
+@model IdealAkeWms.Models.ViewModels.PaginationState
+@{
+    var raw = Model.PageSizeRaw;
+}
+
+@if (Model.IsCappedAtAll)
+{
+    <div class="alert alert-warning py-2 px-3 my-2 small mb-0">
+        <strong>Treffer auf @IdealAkeWms.Services.PageSize.AllCap.ToString("N0") begrenzt</strong> —
+        es koennen weitere Eintraege existieren. Bitte Filter eingrenzen oder spezifischere Suche.
+    </div>
+}
+
+@{
+    // Pagination-Window: bis zu 5 Seitenlinks plus first/last.
+    var windowSize = 5;
+    var totalPages = Math.Max(1, Model.TotalPages);
+    var current = Math.Min(Math.Max(Model.CurrentPage, 1), totalPages);
+    var halfWindow = windowSize / 2;
+    var start = Math.Max(1, current - halfWindow);
+    var end = Math.Min(totalPages, start + windowSize - 1);
+    if (end - start + 1 < windowSize) start = Math.Max(1, end - windowSize + 1);
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pagination-bar"
+     data-page-size-raw="@raw">
+    <div class="text-muted small">
+        @if (Model.TotalCount == 0)
+        {
+            <span>Keine Eintraege</span>
+        }
+        else
+        {
+            <span>Eintraege @Model.FirstItemNumber&ndash;@Model.LastItemNumber von @Model.TotalCount</span>
+        }
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <nav aria-label="Seitennavigation">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(!Model.HasPreviousPage ? "disabled" : "")">
+                    <a class="page-link" href="#" data-page="@(current - 1)" aria-label="Vorherige">&laquo;</a>
+                </li>
+                @if (start > 1)
+                {
+                    <li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>
+                    @if (start > 2)
+                    {
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                    }
+                }
+                @for (int p = start; p <= end; p++)
+                {
+                    <li class="page-item @(p == current ? "active" : "")">
+                        <a class="page-link" href="#" data-page="@p">@p</a>
+                    </li>
+                }
+                @if (end < totalPages)
+                {
+                    @if (end < totalPages - 1)
+                    {
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                    }
+                    <li class="page-item"><a class="page-link" href="#" data-page="@totalPages">@totalPages</a></li>
+                }
+                <li class="page-item @(!Model.HasNextPage ? "disabled" : "")">
+                    <a class="page-link" href="#" data-page="@(current + 1)" aria-label="Naechste">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+    <div class="d-flex align-items-center gap-2">
+        <label class="form-label small mb-0" for="pageSizeSelect_@Guid.NewGuid().ToString("N").Substring(0, 6)">Eintraege/Seite</label>
+        <select class="form-select form-select-sm pagination-page-size" style="width: auto;">
+            @foreach (var opt in new[] { 25, 50, 100, 0 })
+            {
+                var label = opt == 0 ? "Alle" : opt.ToString();
+                if (opt == raw)
+                {
+                    <option value="@opt" selected>@label</option>
+                }
+                else
+                {
+                    <option value="@opt">@label</option>
+                }
+            }
+        </select>
+    </div>
+</div>

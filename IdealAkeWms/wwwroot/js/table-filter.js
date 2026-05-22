@@ -6,6 +6,15 @@
     var _headers = null;
     var _tbody = null;
     var _table = null;
+    var _serverFilterTimer = null;
+
+    // Server-Side Column-Filter Mode: wenn <table data-server-column-filter="true">,
+    // navigieren Filter-Inputs (Non-Date) per debounced URL-Redirect statt clientseitig
+    // zu filtern. Filter-Werte werden aus der URL (?colf_<col-key>=value) restored
+    // anstelle aus sessionStorage.
+    function isServerColumnFilter() {
+        return !!_table && _table.dataset.serverColumnFilter === 'true';
+    }
 
     // ----- Filter-Persistenz (sessionStorage, gegated durch data-view-key) -----
     function getViewKey() {
@@ -13,6 +22,8 @@
     }
 
     function saveFiltersToStorage() {
+        // In Server-Filter-Mode ist die URL die Source-of-Truth — kein sessionStorage.
+        if (isServerColumnFilter()) return;
         var viewKey = getViewKey();
         if (!viewKey) return;
         try {
@@ -28,7 +39,39 @@
         }
     }
 
+    function restoreFiltersFromUrl() {
+        if (!_filterRow) return;
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.forEach(function (value, key) {
+                if (key.indexOf('colf_') !== 0) return;
+                var colKey = key.substring(5);
+                var input = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
+                if (input) input.value = value;
+            });
+        } catch (e) { /* */ }
+    }
+
+    function scheduleServerNavigate() {
+        clearTimeout(_serverFilterTimer);
+        _serverFilterTimer = setTimeout(function () {
+            try {
+                var filters = window.getActiveFilters();
+                var url = new URL(window.location.href);
+                Array.from(url.searchParams.keys())
+                    .filter(function (k) { return k.indexOf('colf_') === 0; })
+                    .forEach(function (k) { url.searchParams.delete(k); });
+                Object.keys(filters).forEach(function (colKey) {
+                    if (filters[colKey]) url.searchParams.set('colf_' + colKey, filters[colKey]);
+                });
+                url.searchParams.delete('page');
+                window.location.href = url.toString();
+            } catch (e) { /* */ }
+        }, 500);
+    }
+
     function restoreFiltersFromStorage() {
+        if (isServerColumnFilter()) return;
         var viewKey = getViewKey();
         if (!viewKey || !_filterRow) return;
         try {
@@ -101,7 +144,13 @@
                     input.style.minWidth = '0';
                     input.placeholder = 'Filter...';
                     input.setAttribute('data-col-key', colKey);
-                    input.addEventListener('input', applyFilters);
+                    // Server-Filter-Mode: auch Date-Spalten triggern URL-Navigation —
+                    // Controller matched gegen das gerenderte Format "dd.MM.yyyy KWxx".
+                    if (isServerColumnFilter()) {
+                        input.addEventListener('input', scheduleServerNavigate);
+                    } else {
+                        input.addEventListener('input', applyFilters);
+                    }
 
                     var calBtn = document.createElement('button');
                     calBtn.type = 'button';
@@ -123,7 +172,13 @@
                     input.style.fontSize = '0.75rem';
                     input.placeholder = 'Filter...';
                     input.setAttribute('data-col-key', colKey);
-                    input.addEventListener('input', applyFilters);
+                    // Server-Filter-Mode: Text-Spalten triggern debounced URL-Navigation
+                    // (Date-Filter laufen weiterhin clientseitig — Komplexitaet KW/Kalender).
+                    if (isServerColumnFilter()) {
+                        input.addEventListener('input', scheduleServerNavigate);
+                    } else {
+                        input.addEventListener('input', applyFilters);
+                    }
                     filterTd.appendChild(input);
                 }
             }
@@ -132,7 +187,11 @@
         });
         thead.appendChild(_filterRow);
 
-        restoreFiltersFromStorage();
+        if (isServerColumnFilter()) {
+            restoreFiltersFromUrl();
+        } else {
+            restoreFiltersFromStorage();
+        }
         applyFilters();
 
         // Sorting

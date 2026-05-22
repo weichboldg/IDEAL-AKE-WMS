@@ -28,13 +28,14 @@
                         <label asp-for="Code" class="form-label"></label>
                         @if (isSage)
                         {
-                            <input asp-for="Code" class="form-control bg-light" maxlength="12" readonly />
+                            <input asp-for="Code" class="form-control bg-light" maxlength="50" readonly />
+                            <div class="form-text">Sage-Code (maximal 50 Zeichen).</div>
                         }
                         else
                         {
                             <input asp-for="Code" class="form-control" maxlength="12" autofocus />
+                            <div class="form-text">Maximal 12 Zeichen (für Barcode-Lesbarkeit).</div>
                         }
-                        <div class="form-text">Maximal 12 Zeichen (für Barcode-Lesbarkeit).</div>
                         <span asp-validation-for="Code" class="text-danger"></span>
                     </div>
 

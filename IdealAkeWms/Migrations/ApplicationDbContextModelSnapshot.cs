@@ -1447,13 +1447,6 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("AssignedPickerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("AssignedPickerName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1482,37 +1475,7 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<bool>("HasCoatingParts")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasCooling")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasDoors")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasElectric")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasExternalPurchase")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasFan")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasGlass")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasSuperstructure")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsCoatingDone")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsDone")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsReleasedForPicking")
                         .HasColumnType("bit");
 
                     b.Property<DateTime?>("ModifiedAt")
@@ -1531,13 +1494,6 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("PickingPriority")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PickingStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<DateTime?>("ProductionDate")
                         .HasColumnType("datetime2");
 
@@ -1546,6 +1502,263 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleNumber");
+
+                    b.HasIndex("IsDone");
+
+                    b.HasIndex("OrderNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ProductionWorkplaceId");
+
+                    b.ToTable("ProductionOrders", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderAssemblyGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CompletedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("IsApplicable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupKey", "IsApplicable")
+                        .HasDatabaseName("IX_ProductionOrderAssemblyGroups_GroupKey_IsApplicable");
+
+                    b.HasIndex("ProductionOrderId", "GroupKey")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_ProductionOrderAssemblyGroups_PO_Key");
+
+                    b.ToTable("ProductionOrderAssemblyGroups", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderAssemblyGroupSpec", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AssemblyGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId")
+                        .HasDatabaseName("IX_ProductionOrderAssemblyGroupSpecs_ArticleId")
+                        .HasFilter("[ArticleId] IS NOT NULL");
+
+                    b.HasIndex("AssemblyGroupId")
+                        .HasDatabaseName("IX_ProductionOrderAssemblyGroupSpecs_AssemblyGroupId");
+
+                    b.ToTable("ProductionOrderAssemblyGroupSpecs", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderBdeStatus", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsDoneBde")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionOrderId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_ProductionOrderBdeStatus_ProductionOrderId");
+
+                    b.ToTable("ProductionOrderBdeStatus", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderPickingStatus", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssignedPickerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AssignedPickerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("HasCoatingParts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasExternalPurchase")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasGlass")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCoatingDone")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDonePicking")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsReleasedForPicking")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("PickingPriority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PickingStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ReleasedAt")
                         .HasColumnType("datetime2");
@@ -1556,23 +1769,18 @@ namespace IdealAkeWms.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ArticleNumber");
-
                     b.HasIndex("AssignedPickerId")
-                        .HasDatabaseName("IX_ProductionOrders_AssignedPickerId")
+                        .HasDatabaseName("IX_ProductionOrderPickingStatus_AssignedPickerId")
                         .HasFilter("[AssignedPickerId] IS NOT NULL");
 
-                    b.HasIndex("IsDone");
+                    b.HasIndex("IsReleasedForPicking")
+                        .HasDatabaseName("IX_ProductionOrderPickingStatus_IsReleasedForPicking");
 
-                    b.HasIndex("OrderNumber")
-                        .IsUnique();
+                    b.HasIndex("ProductionOrderId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_ProductionOrderPickingStatus_ProductionOrderId");
 
-                    b.HasIndex("ProductionWorkplaceId");
-
-                    b.HasIndex("IsReleasedForPicking", "IsDone")
-                        .HasDatabaseName("IX_ProductionOrders_IsReleasedForPicking_IsDone");
-
-                    b.ToTable("ProductionOrders", "dbo");
+                    b.ToTable("ProductionOrderPickingStatus", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplace", b =>
@@ -1632,6 +1840,55 @@ namespace IdealAkeWms.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ProductionWorkplaces", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceAssemblyGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ProductionWorkplaceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionWorkplaceId", "GroupKey")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_ProductionWorkplaceAssemblyGroups_WP_Key");
+
+                    b.ToTable("ProductionWorkplaceAssemblyGroups", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceUser", b =>
@@ -2026,6 +2283,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("DefaultPageSize")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -2312,6 +2572,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("ModifiedByWindows")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("Position")
                         .HasColumnType("int");
@@ -2780,17 +3044,79 @@ namespace IdealAkeWms.Migrations
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionOrder", b =>
                 {
-                    b.HasOne("IdealAkeWms.Models.User", "AssignedPicker")
-                        .WithMany()
-                        .HasForeignKey("AssignedPickerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
                         .WithMany("ProductionOrders")
                         .HasForeignKey("ProductionWorkplaceId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("ProductionWorkplace");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderAssemblyGroup", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.ProductionOrder", "ProductionOrder")
+                        .WithMany("AssemblyGroups")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductionOrder");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderAssemblyGroupSpec", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.Article", "Article")
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("IdealAkeWms.Models.ProductionOrderAssemblyGroup", "AssemblyGroup")
+                        .WithMany("Specs")
+                        .HasForeignKey("AssemblyGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
+
+                    b.Navigation("AssemblyGroup");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderBdeStatus", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.ProductionOrder", "ProductionOrder")
+                        .WithOne("BdeStatus")
+                        .HasForeignKey("IdealAkeWms.Models.ProductionOrderBdeStatus", "ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductionOrder");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderPickingStatus", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.User", "AssignedPicker")
+                        .WithMany()
+                        .HasForeignKey("AssignedPickerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("IdealAkeWms.Models.ProductionOrder", "ProductionOrder")
+                        .WithOne("PickingStatus")
+                        .HasForeignKey("IdealAkeWms.Models.ProductionOrderPickingStatus", "ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("AssignedPicker");
+
+                    b.Navigation("ProductionOrder");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceAssemblyGroup", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
+                        .WithMany()
+                        .HasForeignKey("ProductionWorkplaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("ProductionWorkplace");
                 });
@@ -2996,7 +3322,18 @@ namespace IdealAkeWms.Migrations
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionOrder", b =>
                 {
+                    b.Navigation("AssemblyGroups");
+
+                    b.Navigation("BdeStatus");
+
+                    b.Navigation("PickingStatus");
+
                     b.Navigation("WorkOperations");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderAssemblyGroup", b =>
+                {
+                    b.Navigation("Specs");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplace", b =>

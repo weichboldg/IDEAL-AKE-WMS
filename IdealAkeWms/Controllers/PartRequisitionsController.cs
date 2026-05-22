@@ -21,15 +21,19 @@ public class PartRequisitionsController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index(int page = 1, bool showAll = false, string? searchTerm = null)
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null, bool showAll = false, string? searchTerm = null)
     {
-        const int pageSize = 25;
-        var (items, totalCount) = await _requisitionRepository.GetPagedAsync(page, pageSize, showAll, searchTerm);
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
+        var (items, totalCount) = await _requisitionRepository.GetPagedAsync(page, effectivePageSize, showAll, searchTerm);
 
         var vm = new PartRequisitionIndexViewModel
         {
             CurrentPage = page,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+            TotalPages = (int)Math.Ceiling(totalCount / (double)effectivePageSize),
             TotalCount = totalCount,
             ShowAll = showAll,
             SearchTerm = searchTerm,
@@ -49,7 +53,14 @@ public class PartRequisitionsController : Controller
                 CreatedAt = r.CreatedAt,
                 EmailSentAt = r.EmailSentAt,
                 Notes = r.Notes
-            }).ToList()
+            }).ToList(),
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount
+            }
         };
 
         return View(vm);

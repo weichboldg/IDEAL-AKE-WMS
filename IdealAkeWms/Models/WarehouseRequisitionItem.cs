@@ -21,4 +21,10 @@ public class WarehouseRequisitionItem : AuditableEntity
     public decimal? QuantityPicked { get; set; }
 
     public int Position { get; set; }
+
+    /// <summary>
+    /// Notiz vom Lagermitarbeiter zur Position. Wird auf dem Druck angezeigt.
+    /// </summary>
+    [StringLength(500)]
+    public string? Note { get; set; }
 }

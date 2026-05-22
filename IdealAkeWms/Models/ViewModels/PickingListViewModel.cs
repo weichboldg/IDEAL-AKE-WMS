@@ -5,6 +5,7 @@ public class PickingListViewModel
     public List<PickingListItem> Items { get; set; } = new();
     public bool ShowAllOrders { get; set; }
     public bool PickerAssignmentEnabled { get; set; }
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class PickingListItem

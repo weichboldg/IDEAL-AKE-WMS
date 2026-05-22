@@ -6,6 +6,14 @@ using Xunit;
 
 namespace IdealAkeWms.Tests.Repositories;
 
+/// <summary>
+/// Tests fuer das Sage-Master-Repository:
+/// - <see cref="ProductionOrderRepository.GetOpenOrdersInWindowAsync"/>
+///
+/// Die frueheren Tests fuer <c>SetCoatingFlagsAsync</c> sind seit Phase 1 (v1.11.0)
+/// in <see cref="ProductionOrderPickingStatusRepositoryTests.SetCoatingPartsAsync_FlipsToFalse_ResetsIsCoatingDone"/>
+/// umgezogen — die Coating-Flags leben jetzt auf <see cref="ProductionOrderPickingStatus"/>.
+/// </summary>
 public class ProductionOrderRepositoryCoatingTests
 {
     [Fact]
@@ -63,57 +71,5 @@ public class ProductionOrderRepositoryCoatingTests
         result[0].OrderNumber.Should().Be("WA-01");
         result[1].OrderNumber.Should().Be("WA-02");
         result[2].OrderNumber.Should().Be("WA-03");
-    }
-
-    [Fact]
-    public async Task SetCoatingFlagsAsync_SetsFlag()
-    {
-        using var context = TestDbContextFactory.Create();
-        var order = new ProductionOrder
-        {
-            OrderNumber = "WA-COAT",
-            IsDone = false,
-            HasCoatingParts = false,
-            IsCoatingDone = false,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
-        context.ProductionOrders.Add(order);
-        await context.SaveChangesAsync();
-
-        var repo = new ProductionOrderRepository(context);
-        await repo.SetCoatingFlagsAsync(new Dictionary<int, bool> { { order.Id, true } });
-
-        var updated = context.ProductionOrders.First(po => po.Id == order.Id);
-        updated.HasCoatingParts.Should().BeTrue();
-        updated.IsCoatingDone.Should().BeFalse(); // not touched when setting to true
-        updated.ModifiedAt.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task SetCoatingFlagsAsync_ResetsIsCoatingDone_WhenFlagFlipsToFalse()
-    {
-        using var context = TestDbContextFactory.Create();
-        var order = new ProductionOrder
-        {
-            OrderNumber = "WA-RESET",
-            IsDone = false,
-            HasCoatingParts = true,
-            IsCoatingDone = true, // was marked as coating done
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        };
-        context.ProductionOrders.Add(order);
-        await context.SaveChangesAsync();
-
-        var repo = new ProductionOrderRepository(context);
-        await repo.SetCoatingFlagsAsync(new Dictionary<int, bool> { { order.Id, false } });
-
-        var updated = context.ProductionOrders.First(po => po.Id == order.Id);
-        updated.HasCoatingParts.Should().BeFalse();
-        updated.IsCoatingDone.Should().BeFalse(); // cascade reset
-        updated.ModifiedAt.Should().NotBeNull();
     }
 }

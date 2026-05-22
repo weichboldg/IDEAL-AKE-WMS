@@ -149,6 +149,62 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Listen-Pagination &amp; Filter (seit v1.14.0)</strong></div>
+            <div class="card-body">
+                <p>
+                    Alle Listen verwenden eine einheitliche Pagination. Standardmaessig werden
+                    <strong>25 Eintraege pro Seite</strong> angezeigt; das Drop-Down rechts unten erlaubt
+                    Wechsel auf <strong>50 / 100 / Alle</strong>. &bdquo;Alle&ldquo; ist auf 5000 Eintraege
+                    gecappt &mdash; bei Ueberschreitung erscheint ein gelbes Banner zum Eingrenzen.
+                </p>
+                <dl>
+                    <dt>Mein persoenlicher Default</dt>
+                    <dd>
+                        Unter <em>Mein Profil</em> &rarr; Sektion <em>Listen-Ansicht</em> kann jeder Benutzer
+                        seinen Default einstellen (25 / 50 / 100 / Alle). Die Auswahl im Drop-Down am
+                        Listenende ueberschreibt diesen Default fuer die jeweilige Seite (URL-Parameter).
+                        Administratoren koennen Defaults fremder Benutzer im Benutzerstamm setzen.
+                    </dd>
+
+                    <dt>Spaltenfilter ueber alle Seiten (Server-Side)</dt>
+                    <dd>
+                        In <strong>FA-Liste</strong>, <strong>Leitstand-Kommissionierung</strong>,
+                        <strong>Bestand</strong>, <strong>Bewegungshistorie</strong> und <strong>Artikel</strong>
+                        wird beim Tippen in einen Spaltenfilter die Suche serverseitig ueber den
+                        gesamten Datenbestand ausgefuehrt &mdash; Treffer auf anderen Seiten werden
+                        gefunden und die Pagination zeigt die echte Treffermenge. Auch Datumsfilter
+                        (z.&nbsp;B. <code>KW24</code>) wirken quer ueber Seiten.
+                    </dd>
+
+                    <dt>Filter-Mini-Syntax</dt>
+                    <dd>
+                        <ul class="mt-1 mb-0">
+                            <li><code>960</code> &rarr; enthaelt &bdquo;960&ldquo;</li>
+                            <li><code>960,886</code> &rarr; ODER-Suche (enthaelt &bdquo;960&ldquo; oder &bdquo;886&ldquo;)</li>
+                            <li><code>!960</code> &rarr; NICHT enthaelt &bdquo;960&ldquo;</li>
+                            <li><code>!960,886</code> &rarr; weder 960 noch 886</li>
+                            <li><code>KW24</code> in Datumsspalten &rarr; alle Termine in Kalenderwoche 24</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Andere Listen</dt>
+                    <dd>
+                        Listen ohne Server-Side-Filter (z.&nbsp;B. Bedarfsmeldungen, BDE-Buchungen,
+                        Stammdaten) filtern weiterhin clientseitig &mdash; in diesem Fall wirkt der
+                        Spaltenfilter nur auf der aktuellen Seite. Mit der Drop-Down-Wahl &bdquo;Alle&ldquo;
+                        koennen alle Eintraege auf einmal angezeigt und gefiltert werden.
+                    </dd>
+
+                    <dt>Filter &amp; Pagination ueberleben Seitenwechsel</dt>
+                    <dd>
+                        Alle Filter und die gewaehlte Seitengroesse sind in der URL kodiert &mdash;
+                        Browser-Back, Lesezeichen und das Teilen einer Suche per Link funktionieren.
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Fertigungsaufträge</strong></div>
             <div class="card-body">
                 <p>
@@ -225,6 +281,40 @@
                         <span class="badge bg-warning text-dark">in Kommissionierung</span> — Teilweise gepickt<br />
                         <span class="badge bg-info text-dark">teilkommissioniert</span> — Nicht alle Teile verfuegbar<br />
                         <span class="badge bg-success">abgeschlossen</span> — Vollstaendig kommissioniert
+                    </dd>
+
+                    <dt>Datenarchitektur (seit v1.11.0)</dt>
+                    <dd>
+                        Die Auftrags-Status-Felder (Kommissionierung, BDE, Vorbau-Gruppen VK/VL/VE/VT/VA, Glas/Zukauf, Lack-T, Freigabe, Picker-Zuweisung)
+                        sind seit Mai 2026 in eigene Tabellen ausgelagert (<code>ProductionOrderPickingStatus</code>, <code>ProductionOrderBdeStatus</code>
+                        und <code>ProductionOrderAssemblyGroups</code>). Funktional &auml;ndert sich fuer den User nichts &mdash; Checkboxes, Filter und Workflows
+                        bleiben unver&auml;ndert. Vorteil: bessere Erweiterbarkeit fuer kuenftige Status-Erg&auml;nzungen.
+                    </dd>
+
+                    <dt>View-Aufteilung (seit v1.12.0)</dt>
+                    <dd>
+                        Die Fertigungsauftragsliste ist seit Mai 2026 in zwei Sichten aufgeteilt:
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Fertigungsauftraege</strong> (diese Sicht) &mdash; schlanke FA-Uebersicht ohne Komm-Status-Spalten,
+                                sichtbar fuer alle Picker-, Tracker- und Leitstand-User. Schneller im Laden, weil das Status-Pivot entfaellt.</li>
+                            <li><strong>Kommissionierung &rarr; Leitstand</strong> &mdash; reiche Liste mit allen Status-Spalten
+                                (Glas/Zukauf/VK/VL/VE/VT/VA), Bulk-Freigabe und Picker-Zuweisung. Erreichbar wenn <code>LeitstandAktiv</code>
+                                aktiv ist und der User die <code>picking</code>- oder <code>leitstand</code>-Rolle besitzt.</li>
+                        </ul>
+                        Alte Bookmarks auf <code>/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker</code>
+                        werden per 301-Redirect auf <code>/PickingLeitstand/...</code> umgeleitet.
+                    </dd>
+
+                    <dt>FA-Vervollstaendigung (seit v1.13.0, Feature-Toggle ab v1.14.0)</dt>
+                    <dd>
+                        Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; koennen pro Fertigungsauftrag
+                        Merkmalsauspraegungen fuer die fuenf Vormontageplaetze pflegen (VK Kaelte, VL Luefter,
+                        VE Elektro, VT Tueren, VA Aufbau). Pro Tab werden Artikel + Beschreibung + Menge + Notizen
+                        erfasst. Die Daten werden in Phase 5 (geplant) auf einer Werkstatt-Ansicht ausgespielt.
+                        <br /><strong>Seit v1.14.0</strong> muss das Feature unter <em>Stammdaten &rarr; Einstellungen
+                        &rarr; FA-Vervollstaendigung</em> per <code>FaCompletionAktiv</code> aktiviert werden
+                        (Default <strong>false</strong>). Ohne Aktivierung sind Menuepunkt und Endpoint verborgen,
+                        auch fuer Benutzer mit der Rolle.
                     </dd>
                 </dl>
             </div>
@@ -333,6 +423,11 @@
                 <p>
                     Der Leitstand steuert, welche Fertigungsauftraege kommissioniert werden und in welcher Reihenfolge.
                     Das Feature muss unter <em>Stammdaten &rarr; Einstellungen</em> per <code>LeitstandAktiv</code> aktiviert werden.
+                </p>
+                <p class="small text-muted mb-2">
+                    <strong>Seit v1.14.0:</strong> &bdquo;Leitstand&ldquo; ist ein eigenes Hauptmenue mit der Unterposition
+                    &bdquo;Kommissionierung&ldquo;. &bdquo;Kommissionierung&ldquo; im Hauptmenue ist der Picker-Worklist-Link
+                    (mit Badge fuer freigegebene Eintraege). Das Dashboard hat eine eigene Sektion fuer den Leitstand.
                 </p>
                 <dl>
                     <dt>Freigabe</dt>
@@ -632,6 +727,15 @@
 
                 <h6 class="mt-3">Lager-Workflow</h6>
                 <p>Hauptmenue &rarr; Bestellungen &rarr; Lager: Eingehende Listen. Detail oeffnen, kommissionieren, "Drucken" fuer den Pickup-Druck, dann mit Pro-Position-Ist-Mengen "Abschliessen". Storno mit optionalem Grund moeglich.</p>
+                <ul>
+                    <li><strong>Mengenfeld INT (seit v1.14.0):</strong> Ist-Menge ist ganzzahlig &mdash;
+                        keine Komma-Eingabe mehr. Damit verschwindet das alte Culture-Problem, dass
+                        die Aktion &bdquo;SOLL = IST&ldquo; eine bestellte Menge von 4 als 4000 buchte.</li>
+                    <li><strong>Notiz pro Position (seit v1.14.0):</strong> Jede Position hat ein
+                        Notiz-Feld. Der Inhalt wird <em>automatisch gespeichert</em> beim Verlassen des
+                        Felds oder beim Klick auf &bdquo;Drucken&ldquo;. Notiz erscheint auf dem Druckbeleg
+                        und ist nach Abschluss read-only sichtbar.</li>
+                </ul>
 
                 <h6 class="mt-3">Storno</h6>
                 <p>Erfasser oder Lager koennen eine Liste stornieren. Wenn die Liste vorher abgeschickt war, wird eine [STORNO]-E-Mail an den Empfaenger versendet.</p>
@@ -724,7 +828,8 @@
 
                     <dt>Einstellungen</dt>
                     <dd>Systemparameter wie Kommissioniertage, Vorkommissionierung, Meldebestand-Schwellen,
-                        Feiertagsverwaltung und Feature-Schalter (Leitstand, Bestellungen, Teileverfolgung).
+                        Feiertagsverwaltung und Feature-Schalter (Leitstand, Bestellungen, Teileverfolgung,
+                        FA-Vervollstaendigung, BDE).
                         <br />Unter <em>Einstellungen &rarr; AG-Konfiguration</em> werden die Arbeitsgang-Typen
                         fuer die OSEON-Teileverfolgung konfiguriert: Anzeigename, Soll-Termin-Offset (Arbeitstage)
                         und ob der Arbeitsgang OSEON-relevant ist.</dd>

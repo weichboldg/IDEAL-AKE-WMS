@@ -117,13 +117,17 @@ public class SageImportService : ISageImportService
                     END
                     ELSE
                     BEGIN
+                        -- Seit v1.11.0: PickingStatus/HasGlass/HasExternalPurchase wurden in
+                        -- ProductionOrderPickingStatus ausgelagert. ProductionOrders enthaelt nur
+                        -- noch Sage-Master + IsDone + Audit. Status-Zeilen werden nach dem Loop
+                        -- per Folge-MERGE eager-created (Phase 1 Spec 9).
                         INSERT INTO [dbo].[ProductionOrders]
                             ([OrderNumber],[Quantity],[Customer],[ArticleNumber],[Description1],[Description2],
-                             [ProductionDate],[DeliveryDate],[IsDone],[PickingStatus],[HasGlass],[HasExternalPurchase],
+                             [ProductionDate],[DeliveryDate],[IsDone],
                              [CreatedAt],[CreatedBy],[CreatedByWindows])
                         VALUES
                             (@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,
-                             @ProductionDate,@DeliveryDate,0,'',0,0,
+                             @ProductionDate,@DeliveryDate,0,
                              GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
                         SELECT SCOPE_IDENTITY() AS InsertedId, 1 AS Affected, 1 AS IsInsert
                     END
@@ -160,6 +164,50 @@ public class SageImportService : ISageImportService
                         updated++;
                     }
                 }
+            }
+
+            // Eager-create der Status-Zeilen fuer neue FAs (Phase 1 Spec 9, analog AgentJob).
+            // 3 idempotente MERGEs: PickingStatus (1:1), BdeStatus (1:1), AssemblyGroups (5/FA: VK/VL/VE/VT/VA).
+            // WHEN NOT MATCHED BY TARGET only — bestehende user-gesetzte Werte werden nie ueberschrieben.
+            if (inserted > 0)
+            {
+                const string eagerCreateSql = """
+                    MERGE [dbo].[ProductionOrderPickingStatus] AS s
+                    USING (SELECT Id AS ProductionOrderId FROM [dbo].[ProductionOrders]) AS p
+                    ON s.ProductionOrderId = p.ProductionOrderId
+                    WHEN NOT MATCHED BY TARGET THEN
+                        INSERT (ProductionOrderId, IsReleasedForPicking, HasGlass, HasExternalPurchase,
+                                HasCoatingParts, IsCoatingDone, IsDonePicking,
+                                CreatedAt, CreatedBy, CreatedByWindows)
+                        VALUES (p.ProductionOrderId, 0, 0, 0, 0, 0, 0,
+                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
+
+                    MERGE [dbo].[ProductionOrderBdeStatus] AS s
+                    USING (SELECT Id AS ProductionOrderId FROM [dbo].[ProductionOrders]) AS p
+                    ON s.ProductionOrderId = p.ProductionOrderId
+                    WHEN NOT MATCHED BY TARGET THEN
+                        INSERT (ProductionOrderId, IsDoneBde,
+                                CreatedAt, CreatedBy, CreatedByWindows)
+                        VALUES (p.ProductionOrderId, 0,
+                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
+
+                    MERGE [dbo].[ProductionOrderAssemblyGroups] AS s
+                    USING (
+                        SELECT po.Id AS ProductionOrderId, g.GroupKey
+                        FROM [dbo].[ProductionOrders] po
+                        CROSS JOIN (VALUES ('VK'),('VL'),('VE'),('VT'),('VA')) AS g(GroupKey)
+                    ) AS p
+                    ON s.ProductionOrderId = p.ProductionOrderId AND s.GroupKey = p.GroupKey
+                    WHEN NOT MATCHED BY TARGET THEN
+                        INSERT (ProductionOrderId, GroupKey, IsApplicable, IsCompleted,
+                                CreatedAt, CreatedBy, CreatedByWindows)
+                        VALUES (p.ProductionOrderId, p.GroupKey, 0, 0,
+                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
+                    """;
+
+                await using var eagerCmd = new SqlCommand(eagerCreateSql, wmsConn) { CommandTimeout = 60 };
+                var statusRows = await eagerCmd.ExecuteNonQueryAsync(ct);
+                _logger.LogInformation("Sage-Import Eager-Create: {Rows} Status-Zeilen ergaenzt fuer neue FAs", statusRows);
             }
 
             // Hook: BOM-Cache + Coating Detection fuer neue Auftraege

@@ -123,6 +123,11 @@
     </table>
 </div>
 
+@if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
+{
+    <partial name="_Pagination" model="paginationState" />
+}
+
 @section Scripts {
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

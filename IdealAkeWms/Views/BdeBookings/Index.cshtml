@@ -6,8 +6,6 @@
     var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
     var workplaces = ViewBag.Workplaces as List<IdealAkeWms.Models.ProductionWorkplace> ?? new List<IdealAkeWms.Models.ProductionWorkplace>();
     var filter = ViewBag.Filter;
-    int skip = (int)(filter?.skip ?? 0);
-    int take = (int)(filter?.take ?? 50);
     int? operatorId = (int?)filter?.operatorId;
     int? workplaceId = (int?)filter?.workplaceId;
     DateTime? from = (DateTime?)filter?.from;
@@ -73,7 +71,6 @@
                 </select>
             </div>
             <div class="col-12">
-                <input type="hidden" name="take" value="@take" />
                 <button type="submit" class="btn btn-primary">Filtern</button>
                 <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
             </div>
@@ -192,30 +189,7 @@
     </table>
 </div>
 
-<nav aria-label="Paginierung">
-    <ul class="pagination">
-        @if (skip > 0)
-        {
-            var prevSkip = Math.Max(0, skip - take);
-            <li class="page-item">
-                <a class="page-link" asp-action="Index"
-                   asp-route-skip="@prevSkip" asp-route-take="@take"
-                   asp-route-operatorId="@operatorId" asp-route-workplaceId="@workplaceId"
-                   asp-route-from="@(from?.ToString("yyyy-MM-dd"))" asp-route-to="@(to?.ToString("yyyy-MM-dd"))">« Zurück</a>
-            </li>
-        }
-        @if (Model.Bookings.Count >= take)
-        {
-            var nextSkip = skip + take;
-            <li class="page-item">
-                <a class="page-link" asp-action="Index"
-                   asp-route-skip="@nextSkip" asp-route-take="@take"
-                   asp-route-operatorId="@operatorId" asp-route-workplaceId="@workplaceId"
-                   asp-route-from="@(from?.ToString("yyyy-MM-dd"))" asp-route-to="@(to?.ToString("yyyy-MM-dd"))">Weiter »</a>
-            </li>
-        }
-    </ul>
-</nav>
+<partial name="_Pagination" model="Model.Pagination" />
 
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>

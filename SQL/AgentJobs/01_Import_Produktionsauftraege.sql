@@ -1,6 +1,6 @@
 -- =============================================
 -- SQL Server Agent Job: Produktionsauftraege aus Sage importieren
--- Ziel:    [IDEAL_AKE_WMS].[dbo].[ProductionOrders]
+-- Ziel:    [IDEAL_AKE_WMS].[dbo].[ProductionOrders] (+ 3 Status-Tabellen, siehe unten)
 -- Quelle:  [ake].[dbo].[vw_AKE_Kommissionierung_WAListe]
 --
 -- Beschreibung:
@@ -15,16 +15,42 @@
 --   ModifiedAt, ModifiedBy, ModifiedByWindows
 --
 -- Felder die NICHT ueberschrieben werden (App-verwaltet):
---   IsDone, PickingStatus, HasGlass, HasExternalPurchase,
---   HasCooling, HasFan, HasElectric, HasDoors, HasSuperstructure,
---   HasCoatingParts, IsCoatingDone,
---   CreatedAt, CreatedBy, CreatedByWindows
+--   IsDone, ProductionWorkplaceId, CreatedAt, CreatedBy, CreatedByWindows
 --
--- Felder der Zieltabelle die bei INSERT nicht befuellt werden (haben Defaults):
---   PickingStatus    → NULL
---   HasGlass         → 0 (DEFAULT)
---   HasExternalPurchase → 0 (DEFAULT)
---   HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure → 0 (DEFAULT)
+-- Schema-Hinweis (ab v1.11.0 / Migration AddProductionOrderSplit):
+--   Die 16 fruehere Status-/Flag-Spalten existieren in [ProductionOrders] nicht mehr.
+--   Sie wurden auf 3 dedizierte Tabellen aufgeteilt:
+--
+--     Frueheres Feld auf ProductionOrders        ->  Neue Heimat
+--     -----------------------------------------------------------------------------
+--     PickingStatus                              ->  ProductionOrderPickingStatus.PickingStatus
+--     HasGlass                                   ->  ProductionOrderPickingStatus.HasGlass
+--     HasExternalPurchase                        ->  ProductionOrderPickingStatus.HasExternalPurchase
+--     HasCoatingParts                            ->  ProductionOrderPickingStatus.HasCoatingParts
+--     IsCoatingDone                              ->  ProductionOrderPickingStatus.IsCoatingDone
+--     IsDonePicking                              ->  ProductionOrderPickingStatus.IsDonePicking
+--     IsReleasedForPicking                       ->  ProductionOrderPickingStatus.IsReleasedForPicking
+--     PickingPriority                            ->  ProductionOrderPickingStatus.PickingPriority
+--     ReleasedAt / ReleasedBy                    ->  ProductionOrderPickingStatus.ReleasedAt / ReleasedBy
+--     AssignedPickerId / AssignedPickerName      ->  ProductionOrderPickingStatus.AssignedPickerId / AssignedPickerName
+--     IsDoneBde                                  ->  ProductionOrderBdeStatus.IsDoneBde
+--     HasCooling                                 ->  ProductionOrderAssemblyGroups (GroupKey='VK')
+--     HasFan                                     ->  ProductionOrderAssemblyGroups (GroupKey='VL')
+--     HasElectric                                ->  ProductionOrderAssemblyGroups (GroupKey='VE')
+--     HasDoors                                   ->  ProductionOrderAssemblyGroups (GroupKey='VT')
+--     HasSuperstructure                          ->  ProductionOrderAssemblyGroups (GroupKey='VA')
+--
+--   Die Migration (SQL/60_ProductionOrderSplit.sql) hat fuer alle bestehenden
+--   FAs bereits Status-Zeilen erzeugt. Dieser AgentJob legt ab jetzt fuer
+--   JEDEN neu importierten FA die fehlenden Zeilen via Folge-MERGE eager an:
+--
+--     ProductionOrderPickingStatus    (1 Zeile/FA, alle Bool=0)
+--     ProductionOrderBdeStatus        (1 Zeile/FA, IsDoneBde=0)
+--     ProductionOrderAssemblyGroups   (5 Zeilen/FA: VK/VL/VE/VT/VA, IsApplicable=0)
+--
+--   Alle Folge-MERGEs sind idempotent (WHEN NOT MATCHED BY TARGET).
+--   Es gibt KEIN WHEN MATCHED — vom Anwender gesetzte Status-Werte
+--   (z.B. IsReleasedForPicking=1) werden NIE vom AgentJob ueberschrieben.
 -- =============================================
 
 MERGE [IDEAL_AKE_WMS].[dbo].[ProductionOrders] AS p
@@ -71,3 +97,47 @@ WHEN NOT MATCHED BY TARGET THEN
             src.Description1, src.Description2,
             src.ProductionDate, src.DeliveryDate,
             0, 'Sage_Schnittstelle', GETDATE(), SYSTEM_USER);
+
+-- =============================================
+-- Folge-MERGE 1: ProductionOrderPickingStatus eager-create
+-- Legt fuer JEDEN ProductionOrder genau eine Status-Zeile an, falls noch nicht vorhanden.
+-- Idempotent durch NOT MATCHED BY TARGET (Status wird nie ueberschrieben).
+-- =============================================
+MERGE [IDEAL_AKE_WMS].[dbo].[ProductionOrderPickingStatus] AS s
+USING (SELECT Id FROM [IDEAL_AKE_WMS].[dbo].[ProductionOrders]) AS src
+    ON s.ProductionOrderId = src.Id
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (ProductionOrderId, IsReleasedForPicking,
+            HasGlass, HasExternalPurchase, HasCoatingParts, IsCoatingDone, IsDonePicking,
+            CreatedAt, CreatedBy, CreatedByWindows)
+    VALUES (src.Id, 0, 0, 0, 0, 0, 0,
+            GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);
+
+-- =============================================
+-- Folge-MERGE 2: ProductionOrderBdeStatus eager-create
+-- 1 Zeile pro FA, IsDoneBde=0. Wird nie ueberschrieben.
+-- =============================================
+MERGE [IDEAL_AKE_WMS].[dbo].[ProductionOrderBdeStatus] AS s
+USING (SELECT Id FROM [IDEAL_AKE_WMS].[dbo].[ProductionOrders]) AS src
+    ON s.ProductionOrderId = src.Id
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (ProductionOrderId, IsDoneBde, CreatedAt, CreatedBy, CreatedByWindows)
+    VALUES (src.Id, 0, GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);
+
+-- =============================================
+-- Folge-MERGE 3: ProductionOrderAssemblyGroups eager-create (5/FA)
+-- CROSS JOIN auf VALUES erzeugt fuer jeden FA x jedem GroupKey eine Source-Zeile.
+-- Idempotent: UQ_PO_Key-Index verhindert Duplikate, NOT MATCHED triggert nur fuer Luecken.
+-- =============================================
+MERGE [IDEAL_AKE_WMS].[dbo].[ProductionOrderAssemblyGroups] AS s
+USING (
+    SELECT p.Id AS ProductionOrderId, k.GroupKey
+    FROM [IDEAL_AKE_WMS].[dbo].[ProductionOrders] p
+    CROSS JOIN (VALUES ('VK'),('VL'),('VE'),('VT'),('VA')) k(GroupKey)
+) AS src
+    ON s.ProductionOrderId = src.ProductionOrderId AND s.GroupKey = src.GroupKey
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (ProductionOrderId, GroupKey, IsApplicable, IsCompleted,
+            CreatedAt, CreatedBy, CreatedByWindows)
+    VALUES (src.ProductionOrderId, src.GroupKey, 0, 0,
+            GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);

@@ -87,3 +87,44 @@
         stickyBar.style.width = '';
     }
 })();
+
+// Pagination: shared handler fuer das _Pagination-Partial.
+// - Klick auf .page-link[data-page] setzt ?page=N (1-based, kein Reset von pageSize)
+// - Change auf .pagination-page-size setzt ?pageSize=N und resetted page=1
+// Alle anderen Query-Parameter (Filter etc.) bleiben unveraendert.
+(function () {
+    'use strict';
+
+    function navigate(params) {
+        var url = new URL(window.location.href);
+        Object.keys(params).forEach(function (k) {
+            var v = params[k];
+            if (v === null || v === undefined || v === '') {
+                url.searchParams.delete(k);
+            } else {
+                url.searchParams.set(k, v);
+            }
+        });
+        window.location.href = url.toString();
+    }
+
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('.pagination-bar .page-link[data-page]');
+        if (!link) return;
+        var li = link.closest('li');
+        if (li && li.classList.contains('disabled')) {
+            e.preventDefault();
+            return;
+        }
+        e.preventDefault();
+        var page = parseInt(link.getAttribute('data-page'), 10);
+        if (isNaN(page) || page < 1) return;
+        navigate({ page: page });
+    });
+
+    document.addEventListener('change', function (e) {
+        if (!e.target.classList || !e.target.classList.contains('pagination-page-size')) return;
+        var size = e.target.value;
+        navigate({ pageSize: size, page: 1 });
+    });
+})();

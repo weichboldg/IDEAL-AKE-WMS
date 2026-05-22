@@ -68,7 +68,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true">
         <thead>
             <tr>
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
@@ -148,9 +148,7 @@
     </table>
 </div>
 
-<div class="mt-3 text-muted">
-    <small>@Model.Items.Count Einträge</small>
-</div>
+<partial name="_Pagination" model="Model.Pagination" />
 
 @section Scripts {
     <script src="~/js/table-filter.js" asp-append-version="true"></script>

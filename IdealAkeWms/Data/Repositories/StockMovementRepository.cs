@@ -238,7 +238,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         int? filterUserId = null,
         string? filterProductionOrder = null,
         int page = 1,
-        int pageSize = 50)
+        int pageSize = 50,
+        IReadOnlyDictionary<string, string>? columnFilters = null)
     {
         var query = _dbSet
             .Include(sm => sm.Article)
@@ -272,6 +273,16 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
 
         if (!string.IsNullOrWhiteSpace(filterProductionOrder))
             query = query.Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(filterProductionOrder));
+
+        if (columnFilters != null)
+        {
+            foreach (var (key, raw) in columnFilters)
+            {
+                var (tokens, negate) = Services.ColumnFilterHelper.Parse(raw);
+                if (tokens.Count == 0) continue;
+                query = ApplyMovementColumnFilter(query, key, tokens, negate);
+            }
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -458,5 +469,38 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         }
 
         return dict;
+    }
+
+    /// <summary>Maps Bewegungshistorie Column-Keys auf StockMovement-Properties.</summary>
+    private static IQueryable<StockMovement> ApplyMovementColumnFilter(
+        IQueryable<StockMovement> q, string key, List<string> tokens, bool negate)
+    {
+        var patterns = tokens.Select(t => $"%{t}%").ToList();
+        return key switch
+        {
+            "article" => negate
+                ? q.Where(sm => !patterns.Any(p => EF.Functions.Like(sm.Article.ArticleNumber, p))
+                    && (sm.Article.Description == null || !patterns.Any(p => EF.Functions.Like(sm.Article.Description, p))))
+                : q.Where(sm => patterns.Any(p => EF.Functions.Like(sm.Article.ArticleNumber, p))
+                    || (sm.Article.Description != null && patterns.Any(p => EF.Functions.Like(sm.Article.Description, p)))),
+
+            "storage-location" => negate
+                ? q.Where(sm => !patterns.Any(p => EF.Functions.Like(sm.StorageLocation.Code, p))
+                    && (sm.SourceStorageLocation == null || !patterns.Any(p => EF.Functions.Like(sm.SourceStorageLocation.Code, p))))
+                : q.Where(sm => patterns.Any(p => EF.Functions.Like(sm.StorageLocation.Code, p))
+                    || (sm.SourceStorageLocation != null && patterns.Any(p => EF.Functions.Like(sm.SourceStorageLocation.Code, p)))),
+
+            "user" => negate
+                ? q.Where(sm => (sm.User == null || !patterns.Any(p => EF.Functions.Like(sm.User.Name, p)))
+                    && (sm.WindowsUser == null || !patterns.Any(p => EF.Functions.Like(sm.WindowsUser, p))))
+                : q.Where(sm => (sm.User != null && patterns.Any(p => EF.Functions.Like(sm.User.Name, p)))
+                    || (sm.WindowsUser != null && patterns.Any(p => EF.Functions.Like(sm.WindowsUser, p)))),
+
+            "production-order" => negate
+                ? q.Where(sm => sm.ProductionOrder == null || !patterns.Any(p => EF.Functions.Like(sm.ProductionOrder, p)))
+                : q.Where(sm => sm.ProductionOrder != null && patterns.Any(p => EF.Functions.Like(sm.ProductionOrder, p))),
+
+            _ => q
+        };
     }
 }

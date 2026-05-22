@@ -43,6 +43,10 @@ builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
+builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
+builder.Services.AddScoped<IProductionOrderBdeStatusRepository, ProductionOrderBdeStatusRepository>();
+builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOrderAssemblyGroupRepository>();
+builder.Services.AddScoped<IProductionOrderAssemblyGroupSpecRepository, ProductionOrderAssemblyGroupSpecRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
@@ -126,6 +130,7 @@ using (var scope = app.Services.CreateScope())
         (RoleKeys.Tracking, "Teileverfolgung", "OSEON Teileverfolgung und Rückmeldungen", 50),
         (RoleKeys.Reporting, "Betriebsdaten (BDE)", "Arbeitsgänge stempeln und rückmelden", 60),
         (RoleKeys.Leitstand, "Leitstand", "Produktionsaufträge freigeben und priorisieren", 70),
+        (RoleKeys.FaCompletion, "FA-Vervollständigung", "Fertigungsaufträge nach Kommissionierung vervollständigen", 80),
         (RoleKeys.BdeUser, "BDE-Mitarbeiter", "Terminal-Buchung: Arbeitsgänge scannen, Status wechseln, Mengen melden", 100),
         (RoleKeys.BdeShiftlead, "BDE-Schichtleiter", "BDE-Anwender + Aktivitäts-Kategorien pflegen, Buchungsliste + Cockpit", 101),
         (RoleKeys.BdeAdmin, "BDE-Admin", "Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren", 102),
@@ -214,6 +219,7 @@ using (var scope = app.Services.CreateScope())
     {
         ("LeitstandAktiv", "false", "Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren"),
     ("KommissionierungMitZuweisung", "false", "Kommissionierung mit Anwenderzuweisung aktivieren"),
+    (IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv, "false", "FA-Vervollstaendigungs-Modul aktivieren (Pflege fehlender FA-Daten)"),
     };
     foreach (var (key, value, description) in leitstandSettings)
     {

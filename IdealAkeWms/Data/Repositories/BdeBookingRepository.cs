@@ -84,6 +84,16 @@ public class BdeBookingRepository : IBdeBookingRepository
         return q.OrderByDescending(b => b.StartedAt).Skip(skip).Take(take).ToListAsync();
     }
 
+    public Task<int> GetHistoryCountAsync(int? operatorId, int? workplaceId, DateTime? from, DateTime? to)
+    {
+        var q = _ctx.BdeBookings.AsNoTracking().Where(b => !b.IsCancelled);
+        if (operatorId.HasValue) q = q.Where(b => b.BdeOperatorId == operatorId.Value);
+        if (workplaceId.HasValue) q = q.Where(b => b.ProductionWorkplaceId == workplaceId.Value);
+        if (from.HasValue) q = q.Where(b => b.StartedAt >= from.Value);
+        if (to.HasValue) q = q.Where(b => b.StartedAt <= to.Value);
+        return q.CountAsync();
+    }
+
     public async Task AddAsync(BdeBooking booking)
     {
         _ctx.BdeBookings.Add(booking);

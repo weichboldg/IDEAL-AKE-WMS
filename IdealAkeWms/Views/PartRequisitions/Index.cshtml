@@ -186,71 +186,7 @@ else
         </table>
     </div>
 
-    @* Pagination *@
-    @if (Model.TotalPages > 1)
-    {
-        <nav aria-label="Seitennavigation" class="mt-3">
-            <ul class="pagination pagination-sm justify-content-center">
-                <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
-                    <a class="page-link" asp-action="Index"
-                       asp-route-searchTerm="@Model.SearchTerm"
-                       asp-route-showAll="@(Model.ShowAll ? "true" : null)"
-                       asp-route-page="@(Model.CurrentPage - 1)">‹</a>
-                </li>
-                @{
-                    int startPage = Math.Max(1, Model.CurrentPage - 4);
-                    int endPage = Math.Min(Model.TotalPages, startPage + 8);
-                    if (endPage - startPage < 8)
-                        startPage = Math.Max(1, endPage - 8);
-                }
-                @if (startPage > 1)
-                {
-                    <li class="page-item">
-                        <a class="page-link" asp-action="Index"
-                           asp-route-searchTerm="@Model.SearchTerm"
-                           asp-route-showAll="@(Model.ShowAll ? "true" : null)"
-                           asp-route-page="1">1</a>
-                    </li>
-                    @if (startPage > 2)
-                    {
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    }
-                }
-                @for (int i = startPage; i <= endPage; i++)
-                {
-                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                        <a class="page-link" asp-action="Index"
-                           asp-route-searchTerm="@Model.SearchTerm"
-                           asp-route-showAll="@(Model.ShowAll ? "true" : null)"
-                           asp-route-page="@i">@i</a>
-                    </li>
-                }
-                @if (endPage < Model.TotalPages)
-                {
-                    @if (endPage < Model.TotalPages - 1)
-                    {
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    }
-                    <li class="page-item">
-                        <a class="page-link" asp-action="Index"
-                           asp-route-searchTerm="@Model.SearchTerm"
-                           asp-route-showAll="@(Model.ShowAll ? "true" : null)"
-                           asp-route-page="@Model.TotalPages">@Model.TotalPages</a>
-                    </li>
-                }
-                <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
-                    <a class="page-link" asp-action="Index"
-                       asp-route-searchTerm="@Model.SearchTerm"
-                       asp-route-showAll="@(Model.ShowAll ? "true" : null)"
-                       asp-route-page="@(Model.CurrentPage + 1)">›</a>
-                </li>
-            </ul>
-        </nav>
-    }
-    else
-    {
-        <div class="mt-2 text-muted"><small>@Model.TotalCount Einträge</small></div>
-    }
+    <partial name="_Pagination" model="Model.Pagination" />
 }
 
 @* Modal für Stornier-Bestätigung *@

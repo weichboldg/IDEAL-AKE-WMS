@@ -11,6 +11,7 @@ namespace IdealAkeWms.Controllers;
 public class PickingController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
+    private readonly IProductionOrderPickingStatusRepository _pickingStatusRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
@@ -28,6 +29,7 @@ public class PickingController : Controller
 
     public PickingController(
         IProductionOrderRepository productionOrderRepository,
+        IProductionOrderPickingStatusRepository pickingStatusRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
@@ -44,6 +46,7 @@ public class PickingController : Controller
         IArticleAttributeRepository articleAttributeRepository)
     {
         _productionOrderRepository = productionOrderRepository;
+        _pickingStatusRepository = pickingStatusRepository;
         _currentUserService = currentUserService;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -61,7 +64,7 @@ public class PickingController : Controller
     }
 
     [RequirePickingAccess]
-    public async Task<IActionResult> Index(bool showAll = false)
+    public async Task<IActionResult> Index(bool showAll = false, int page = 1, int? pageSize = null)
     {
         var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -72,37 +75,49 @@ public class PickingController : Controller
         var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         List<ProductionOrder> releasedOrders;
         if (pickerAssignmentEnabled && !showAll)
         {
             var currentUserId = _currentUserService.GetCurrentAppUserId();
             releasedOrders = currentUserId.HasValue
-                ? await _productionOrderRepository.GetReleasedForPickingByPickerAsync(currentUserId.Value)
+                ? await _pickingStatusRepository.GetReleasedForPickingByPickerAsync(currentUserId.Value)
                 : new List<ProductionOrder>();
         }
         else
         {
-            releasedOrders = await _productionOrderRepository.GetReleasedForPickingAsync();
+            releasedOrders = await _pickingStatusRepository.GetReleasedForPickingAsync();
         }
+
+        var totalCount = releasedOrders.Count;
+        if (page < 1) page = 1;
+        var pagedOrders = releasedOrders
+            .Skip((page - 1) * effectivePageSize)
+            .Take(effectivePageSize)
+            .ToList();
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
-        var items = releasedOrders.Select(o =>
+        var items = pagedOrders.Select(o =>
         {
+            var ps = o.PickingStatus; // Nav-Property (Include() im Repo)
             var item = new PickingListItem
             {
                 Id = o.Id,
-                PickingPriority = o.PickingPriority,
+                PickingPriority = ps?.PickingPriority,
                 OrderNumber = o.OrderNumber,
                 ArticleNumber = o.ArticleNumber,
                 Description1 = o.Description1,
                 Customer = o.Customer,
                 Quantity = o.Quantity,
                 ProductionDate = o.ProductionDate,
-                PickingStatus = o.PickingStatus,
-                AssignedPickerId = o.AssignedPickerId,
-                AssignedPickerName = o.AssignedPickerName
+                PickingStatus = ps?.PickingStatus,
+                AssignedPickerId = ps?.AssignedPickerId,
+                AssignedPickerName = ps?.AssignedPickerName
             };
 
             if (o.ProductionDate.HasValue)
@@ -118,7 +133,14 @@ public class PickingController : Controller
         {
             Items = items,
             ShowAllOrders = showAll,
-            PickerAssignmentEnabled = pickerAssignmentEnabled
+            PickerAssignmentEnabled = pickerAssignmentEnabled,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount
+            }
         });
     }
 
@@ -131,12 +153,11 @@ public class PickingController : Controller
         if (order == null)
             return NotFound();
 
-        order.IsDone = !order.IsDone;
-        order.ModifiedAt = DateTime.Now;
-        order.ModifiedBy = _currentUserService.GetDisplayName();
-        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
-
-        await _productionOrderRepository.UpdateAsync(order);
+        var status = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
+        // IsDonePicking togglen (statt FA-Master-IsDone; Round-4-Korrektur Spec 10.4)
+        await _pickingStatusRepository.SetIsDonePickingAsync(
+            id, !(status?.IsDonePicking ?? false),
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
@@ -198,9 +219,13 @@ public class PickingController : Controller
         var allStorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
         var targetStorageLocations = await _storageLocationRepository.GetActivePickingTransportLocationsAsync();
 
-        // NAN-Lagerplatz als Default wenn kein Bestand
+        // NAN-Lagerplatz als Default wenn kein buchbarer Bestand
         var nanLocation = await _storageLocationRepository.GetByCodeAsync("NAN");
         var nanLocationId = nanLocation?.Id;
+
+        // Auto-Suggest darf nur buchbare (IstBuchbar=true), nicht-Wagen-Lagerplaetze
+        // vorschlagen — sonst rendert das Dropdown "--" (Lager ist nicht in der Liste).
+        var buchbarLocationIds = allStorageLocations.Select(sl => sl.Id).ToHashSet();
 
         // Baugruppen-Hierarchie: sammle alle Baugruppen-Werte
         var baugruppen = bomItems
@@ -223,19 +248,31 @@ public class PickingController : Controller
             // TreeLevel aus Position ableiten: Anzahl Punkte = Ebene (z.B. "15" = 0, "15.1" = 1, "15.1.1" = 2)
             var treeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.');
 
-            // Auto-Suggest: Lagerplatz mit höchster Menge, oder NAN als Default
+            // Auto-Suggest: buchbarer Lagerplatz mit hoechster Menge, sonst NAN.
+            // Sage-synchronisierte Lagerplaetze sind by default IstBuchbar=false
+            // und tauchen deshalb nicht im Dropdown auf — wuerden sie hier als
+            // Suggestion gewinnen, blieb das Select leer ("--").
             int? suggestedLocationId = null;
-            if (locations.Any(sl => sl.Quantity > 0))
+            var buchbarStock = locations
+                .Where(sl => sl.Quantity > 0 && buchbarLocationIds.Contains(sl.StorageLocationId))
+                .ToList();
+            if (buchbarStock.Count > 0)
             {
-                suggestedLocationId = locations.OrderByDescending(sl => sl.Quantity).First().StorageLocationId;
+                suggestedLocationId = buchbarStock.OrderByDescending(sl => sl.Quantity).First().StorageLocationId;
             }
             else if (nanLocationId.HasValue)
             {
                 suggestedLocationId = nanLocationId;
             }
 
-            // Wenn PickingItem schon einen SourceStorageLocationId hat, diesen verwenden
-            var sourceLocationId = picking?.SourceStorageLocationId ?? suggestedLocationId;
+            // Gespeicherten SourceStorageLocationId nur uebernehmen, wenn er aktuell
+            // buchbar ist — sonst fiele der Wert im Dropdown unsichtbar weg ("--").
+            var savedSourceId = picking?.SourceStorageLocationId;
+            if (savedSourceId.HasValue && !buchbarLocationIds.Contains(savedSourceId.Value))
+            {
+                savedSourceId = null;
+            }
+            var sourceLocationId = savedSourceId ?? suggestedLocationId;
 
             return new BomItemViewModel
             {
@@ -360,17 +397,18 @@ public class PickingController : Controller
         if (order == null)
             return NotFound();
 
-        order.PickingStatus = status;
+        await _pickingStatusRepository.SetPickingStatusTextAsync(
+            productionOrderId, status,
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
-        // Kommissionierung abgeschlossen → FA automatisch erledigt setzen
+        // Kommissionierung abgeschlossen → IsDonePicking auf PickingStatus setzen
+        // (NICHT mehr order.IsDone — das bleibt Sage-Master-only. Round-4-Korrektur Spec 10.4)
         if (status == "abgeschlossen")
-            order.IsDone = true;
-
-        order.ModifiedAt = DateTime.Now;
-        order.ModifiedBy = _currentUserService.GetDisplayName();
-        order.ModifiedByWindows = _currentUserService.GetWindowsUserName();
-
-        await _productionOrderRepository.UpdateAsync(order);
+        {
+            await _pickingStatusRepository.SetIsDonePickingAsync(
+                productionOrderId, true,
+                _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+        }
 
         return Ok();
     }

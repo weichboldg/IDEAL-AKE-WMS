@@ -20,4 +20,14 @@
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Migration script for AddProductionOrderSplit. Copied to output so the EF migration
+         can load it at runtime via File.ReadAllText. Single source of truth lives in SQL/. -->
+    <None Include="..\SQL\60_ProductionOrderSplit.sql">
+      <Link>Migrations\Scripts\60_ProductionOrderSplit.sql</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

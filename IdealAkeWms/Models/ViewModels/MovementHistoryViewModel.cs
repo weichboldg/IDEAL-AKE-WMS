@@ -13,13 +13,15 @@ public class MovementHistoryViewModel
     public List<StorageLocation> StorageLocations { get; set; } = new();
     public List<User> Users { get; set; } = new();
 
-    // Pagination
+    // Pagination (legacy fields)
     public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 50;
+    public int PageSize { get; set; } = 25;
     public int TotalCount { get; set; }
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
     public bool HasPreviousPage => Page > 1;
     public bool HasNextPage => Page < TotalPages;
+
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class MovementHistoryItem

@@ -21,8 +21,13 @@ public class RolesController : Controller
         _currentUserService = currentUserService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var roles = await _roleRepository.GetAllOrderedAsync();
         var viewModels = roles.Select(r => new RoleEditViewModel
         {
@@ -36,7 +41,14 @@ public class RolesController : Controller
             UserCount = r.UserRoles.Count
         }).ToList();
 
-        return View(viewModels);
+        ViewBag.Pagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page,
+            PageSize = effectivePageSize,
+            PageSizeRaw = rawPageSize,
+            TotalCount = viewModels.Count
+        };
+        return View(viewModels.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     public IActionResult Create()

@@ -42,16 +42,19 @@ public class StockMovementsController : Controller
         string? filterArticle, int? filterStorageLocationId,
         MovementType? filterMovementType, int? filterUserId,
         string? filterProductionOrder,
-        int page = 1, int pageSize = 50)
+        int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
-        if (pageSize < 10) pageSize = 10;
-        if (pageSize > 200) pageSize = 200;
 
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
+        var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var (items, totalCount) = await _stockMovementRepository.GetMovementHistoryAsync(
             dateFrom, dateTo, filterArticle, filterStorageLocationId,
             filterMovementType, filterUserId, filterProductionOrder,
-            page, pageSize);
+            page, effectivePageSize, columnFilters);
 
         var vm = new MovementHistoryViewModel
         {
@@ -66,8 +69,15 @@ public class StockMovementsController : Controller
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             Users = await _userRepository.GetActiveUsersAsync(),
             Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount
+            PageSize = effectivePageSize,
+            TotalCount = totalCount,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount
+            }
         };
 
         return View(vm);

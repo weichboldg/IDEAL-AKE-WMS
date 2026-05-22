@@ -22,10 +22,15 @@ public class HomeController : Controller
         ViewBag.DisplayName = _currentUserService.GetDisplayName();
         ViewBag.CanPick = await _currentUserService.CanPickAsync();
         ViewBag.CanViewTracking = await _currentUserService.CanViewTrackingAsync();
+        ViewBag.CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync();
         ViewBag.HasMasterDataAccess = await _currentUserService.HasMasterDataAccessAsync();
         var teileverfolgungAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.TeileverfolgungAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.TeileverfolgungAktiv = teileverfolgungAktiv;
+
+        var leitstandAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.LeitstandAktiv))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.LeitstandAktiv = leitstandAktiv;
 
         var bdeAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.BdeAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;

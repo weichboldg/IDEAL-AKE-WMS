@@ -27,11 +27,16 @@ public class WarehousePickingController : Controller
         _user = user;
     }
 
-    public async Task<IActionResult> Index(WarehouseRequisitionStatus? statusFilter, int? workplaceId, int page = 1)
+    public async Task<IActionResult> Index(WarehouseRequisitionStatus? statusFilter, int? workplaceId,
+        int page = 1, int? pageSize = null)
     {
-        const int pageSize = 25;
+        if (page < 1) page = 1;
+        var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var effectiveFilter = statusFilter ?? WarehouseRequisitionStatus.Submitted;
-        var (items, total) = await _repo.GetForWarehouseAsync(effectiveFilter, workplaceId, page, pageSize);
+        var (items, total) = await _repo.GetForWarehouseAsync(effectiveFilter, workplaceId, page, effectivePageSize);
         var allWorkplaces = await _workplaces.GetAllAsync();
         var openCount = (await _repo.GetForWarehouseAsync(WarehouseRequisitionStatus.Submitted, null, 1, 1)).TotalCount;
 
@@ -42,11 +47,18 @@ public class WarehousePickingController : Controller
                 r.SubmittedAt, r.Items.Count, r.Status)).ToList(),
             TotalCount = total,
             CurrentPage = page,
-            PageSize = pageSize,
+            PageSize = effectivePageSize,
             StatusFilter = statusFilter,
             WorkplaceFilter = workplaceId,
             AvailableWorkplaces = allWorkplaces.OrderBy(w => w.Name).ToList(),
-            OpenCount = openCount
+            OpenCount = openCount,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = total
+            }
         };
         return View(vm);
     }
@@ -64,7 +76,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note));
         }
 
         var vm = new WarehouseRequisitionDetailViewModel
@@ -84,21 +96,29 @@ public class WarehousePickingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Close(int id, int[] itemIds, decimal[] quantitiesPicked, byte[] rowVersion)
+    public async Task<IActionResult> Close(int id, int[] itemIds, int[] quantitiesPicked, string?[]? notes, byte[] rowVersion)
     {
-        if (quantitiesPicked.Any(q => q < 0m))
+        // Mengen sind seit dem INT-Switch ganzzahlig. Negative Werte sind nicht erlaubt.
+        if (quantitiesPicked.Any(q => q < 0))
         {
             TempData["WarningMessage"] = "Ist-Mengen duerfen nicht negativ sein.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var dict = new Dictionary<int, decimal>();
+        var qtyDict = new Dictionary<int, decimal>();
         for (int idx = 0; idx < itemIds.Length; idx++)
-            dict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
+            qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
+
+        var noteDict = new Dictionary<int, string?>();
+        if (notes != null)
+        {
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
+        }
 
         try
         {
-            await _repo.CloseAsync(id, dict, _user.GetCurrentAppUserId() ?? 0,
+            await _repo.CloseAsync(id, qtyDict, noteDict, _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
@@ -108,6 +128,26 @@ public class WarehousePickingController : Controller
         }
         TempData["SuccessMessage"] = $"Liste #{id} abgeschlossen.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>
+    /// AJAX-Endpoint: speichert nur die Notizen der Positionen (Autosave).
+    /// Wird vom Details-View beim Blur des Notiz-Inputs und vor "Drucken" aufgerufen.
+    /// </summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveNotes(int id, [FromForm] int[] itemIds, [FromForm] string?[]? notes)
+    {
+        if (itemIds == null || itemIds.Length == 0)
+            return BadRequest("itemIds required");
+
+        var noteDict = new Dictionary<int, string?>();
+        for (int idx = 0; idx < itemIds.Length; idx++)
+            noteDict[itemIds[idx]] = notes != null && idx < notes.Length ? notes[idx] : null;
+
+        await _repo.SaveNotesAsync(id, noteDict,
+            _user.GetDisplayName(), _user.GetWindowsUserName());
+
+        return Ok();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -140,7 +180,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note));
         }
         var vm = new WarehouseRequisitionDetailViewModel
         {

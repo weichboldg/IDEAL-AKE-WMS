@@ -69,12 +69,15 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 |----------------|--------|---------------|
 | `[RequireMasterDataAccess]` | admin, masterdata | UsersController, WorkstationsController, SettingsController, RolesController |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
+| `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
+| `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | AssemblyGroupsApiController (`/api/assembly-groups/toggle-applicable`) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
 | `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController, WarehousePickingController |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
-| `[RequirePickingOrTrackingAccess]` | picking ODER tracking | ProductionOrdersController.Index |
+| `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand | ProductionOrdersController (slim Index) |
+| `[RequirePickingOrLeitstandAccess]` | admin, picking ODER leitstand | PickingLeitstandController (class-level) |
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController, OrderRecipientGroupsController, WarehouseRequisitionsController, WarehouseRequisitionsApiController |
-| `[RequireLeitstandAccess]` | admin, leitstand | ProductionOrdersController (ToggleRelease, BulkRelease, SetPriority) |
+| `[RequireLeitstandAccess]` | admin, leitstand | (frueher ProductionOrdersController; ab v1.12.0 ueber Composite-Filter auf PickingLeitstandController) |
 | `[RequireReportingAccess]` | admin, reporting | OseonReportingController |
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
@@ -82,7 +85,6 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
 **Sonderfaelle:**
-- `ProductionOrdersController.Index` prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - Admin-Reset fuer View-Einstellungen laeuft ueber `UsersController.ResetViewPreferences` (`[RequireMasterDataAccess]`)
 
 ## Rollenkonzept
@@ -99,6 +101,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | `tracking` | OSEON Auftraege + Rueckmeldungen |
 | `reporting` | Betriebsdaten / BDE (Zukunft) |
 | `leitstand` | Produktionsauftraege freigeben und priorisieren |
+| `fa_completion` | FA-Vervollstaendigung: Merkmalsauspraegungen pro Vormontageplatz pflegen |
 | `bde_user` | Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln |
 | `bde_shiftlead` | + BDE-Stammdaten, Buchungsliste, Cockpit |
 | `bde_admin` | + Buchungen korrigieren/stornieren, Terminals konfigurieren |
@@ -128,7 +131,6 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **Razor v@**: `v@Namespace.Class` wird als E-Mail geparst → `v@(Namespace.Class)` verwenden
 - **Select2-Text-Format**: API liefert `"ArticleNumber - Description"`. Parsing: `.split(' - ')[0]`, NICHT Em-Dash
 - **Service referenziert Web-Projekt (seit BDE Phase 2.3)**: Bis Phase 2.2 nutzte der Service eigene DTOs und raw SQL (SDK.Worker vs SDK.Web). Mit Phase 2.3 referenziert `IDEALAKEWMSService` jetzt das Web-Projekt direkt (BdeAutoPauseWorker braucht `ApplicationDbContext`, `BdeShiftCalendarService`, `BdeBookingStatus`-Enum). Build/Publish/Tests laufen sauber. Bei neuen Service-Features den DB-Zugriff via shared `ApplicationDbContext` und Web-Repositories nutzen statt Dapper-Duplikate
-- **Leitstand Index-Action hat kein Filter-Attribut**: Prueft Berechtigungen manuell (CanPick OR CanViewTracking OR CanManagePickingRelease)
 - **AppSettings-Tabelle**: KEIN AuditableEntity — nur Key (PK), Value, Description
 - **Beschichtungstermin Backward-Compat**: Wenn `LackierteilKategorieName` leer → Beschichtungstermin fuer ALLE Auftraege
 - **IsActive vs IstBuchbar**: Zwei unabhaengige Status-Flags auf StorageLocation. `IsActive` ist Sage-controlled (Phase-1-Sync setzt es), `IstBuchbar` ist user-controlled. Buchungs-Dropdowns filtern auf BEIDE; Bestand-Aggregation und Sage-Korrektur-Buchungen ignorieren `IstBuchbar`. Default: Manual=true (buchbar), Sage=false (nicht buchbar — Admin schaltet manuell frei).
@@ -139,13 +141,16 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **enaio DMS-Sync kein Delta**: `angelegt`-Spalte in enaio ist statisch (Bulk-Import 2013). Full-Sync statt Delta — MERGE verhindert Duplikate. `EnaioDmsSyncService.cs` liest ALLE Werkstattauftraege/Zeichnungen ohne Datumsfilter.
 - **BDE Auto-Pause EndedAt = exaktes Schichtende**: Der `BdeAutoPauseWorker` setzt `EndedAt` auf den exakten Schicht-Ende-Zeitpunkt (z.&nbsp;B. 14:00:00), NICHT auf `DateTime.Now`. Dadurch ist die Buchungsdauer unabhaengig vom tatsaechlichen Worker-Tick (max. `Sync:BdeAutoPauseIntervalMinutes` Latenz).
 - **MovementType-Aggregation**: Bei jeder neuen `MovementType`-Erweiterung muss die Aggregations-Logik in `StockMovementRepository` (5 Stellen) und `PickingTransferService` aktualisiert werden. Insbesondere die kollabierten Switches (z.B. `Ausbuchung ? -Quantity : Quantity`) sind gefaehrlich, weil sie unbekannte Werte still falsch behandeln.
+- **ProductionOrder Status-Aufteilung (seit v1.11.0)**: Die `ProductionOrders`-Tabelle enthaelt nur noch Sage-Master-Daten. App-Status liegt in 3 verbundenen Tabellen: `ProductionOrderPickingStatus` (1:1, HasGlass/HasExternalPurchase/HasCoatingParts/IsCoatingDone/IsReleasedForPicking/PickingPriority/AssignedPicker/IsDonePicking), `ProductionOrderBdeStatus` (1:1, IsDoneBde), `ProductionOrderAssemblyGroups` (1:N mit 5 Zeilen je FA, GroupKey VK/VL/VE/VT/VA, IsApplicable ersetzt alte HasCooling/HasFan/HasElectric/HasDoors/HasSuperstructure). Sage-AgentJob legt diese Status-Zeilen ueber Folge-MERGEs eager an. Toggle-API ist auf 3 separate Endpoints aufgeteilt (`/api/picking-status/toggle`, `/api/assembly-groups/toggle-applicable`, `/api/bde-status/toggle`). FA.IsDone = Sage-Master; App-Komm-Done = PickingStatus.IsDonePicking; App-BDE-Done = BdeStatus.IsDoneBde.
+- **Leitstand-Kommissionierung getrennte View (seit v1.12.0)**: Das `ProductionOrders/Index` ist nur noch eine schlanke FA-Übersicht. Komm-Status-Spalten (PickingStatus/HasGlass/etc.), Bulk-Freigabe und Picker-Zuweisung leben jetzt in `PickingLeitstand/Index`. Routes `/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker` sind 301-Stub-Redirects auf die neuen `/PickingLeitstand/...`-Endpoints. Ab v1.14.0 ist "Leitstand" ein eigenes Hauptmenue (vorher Sub-Item unter Kommissionierung).
+- **FA-Vervollstaendigung-Daten leben in AssemblyGroupSpecs (seit v1.13.0)**: Pro FA gibt es 5 AssemblyGroups (Phase 1 eager-created mit IsApplicable=false). Erst wenn ein fa_completion-User über `/FaCompletion/Edit/{id}` eine Gruppe auf IsApplicable=true setzt + Specs hinzufügt, sind die Daten für Phase-5-Anzeige relevant. AssemblyGroup-Toggle (`IsApplicable`) geht via `/api/assembly-groups/toggle-applicable`; AssemblyGroup-Status (`IsCompleted`) via `FaCompletion/ToggleIsCompleted`; Specs-CRUD via `FaCompletion/AddSpec|EditSpec|DeleteSpec`. Ab v1.14.0 muss das Modul per AppSetting `FaCompletionAktiv` aktiviert werden (Default false).
 - **FreshInstall.sql vs. EF-Migrations**: Bei jeder neuen Migration MUESSEN zwei Stellen in `SQL/00_FreshInstall.sql` synchron gehalten werden: (1) die durch die Migration angelegten/geaenderten Schema-Objekte (Tabellen, Indexe, Constraints) im konsolidierten Schema, UND (2) die `MigrationId` im `__EFMigrationsHistory`-INSERT-Block am Ende. Faehlt einer der beiden Punkte, scheitert entweder FreshInstall direkt oder der erste App-Start danach (EF replayt die fehlende Migration gegen ein Schema, in dem die Objekte bereits existieren → SqlException).
 - **Decimal/Culture-Bug in HTML-Form-Inputs (v1.14.0)**: Wenn ein `decimal`-Wert mit `ToString(InvariantCulture)` als String in ein `data-`-Attribut/Input-Wert geschrieben wird und die DB-Spalte z.&nbsp;B. `DECIMAL(18,4)` ist, entsteht "4.0000". Der ASP.NET-Core-Default-Model-Binder verwendet jedoch die aktuelle Request-Culture (Deutsch) — und parst "4.0000" als **40000** (Punkt als Tausender). Loesung in Lagerbestellungen: Mengen-Inputs auf `type="number" step="1"` + `int[]`-Binding statt `decimal[]`. Bei kuenftigen Forms mit Mengen-Eingaben: entweder integer verwenden oder explizit `CultureInfo.InvariantCulture` parsen.
-- **Server-Side Column Filter Modus**: Tabellen mit `data-server-column-filter="true"` (FA-Liste, Leitstand, Bestand, Bewegungshistorie, Artikel) navigieren bei Filter-Input zur URL `?colf_<col-key>=value` statt clientseitig zu filtern. Controller liest via `ColumnFilterHelper.ReadFromQuery(HttpContext?.Request)` (null-safe fuer Tests). Pro Liste mappt der Controller/Repo die Col-Keys auf Properties. Datumsspalten werden in C# nach Termin-Berechnung gefiltert (Format `dd.MM.yyyy KWxx` lowercase) — NICHT in SQL.
+- **Server-Side Column Filter Modus (v1.14.0)**: Tabellen mit `data-server-column-filter="true"` (FA-Liste, Leitstand, Bestand, Bewegungshistorie, Artikel) navigieren bei Filter-Input zur URL `?colf_<col-key>=value` statt clientseitig zu filtern. Controller liest via `ColumnFilterHelper.ReadFromQuery(HttpContext?.Request)` (null-safe fuer Tests). Pro Liste mappt der Controller/Repo die Col-Keys auf Properties. Datumsspalten werden in C# nach Termin-Berechnung gefiltert (Format `dd.MM.yyyy KWxx` lowercase) — NICHT in SQL.
 - **Pagination-AllCap (5000)**: `PageSize.Resolve` mapped User-Wahl "Alle" (Sentinel 0) auf `PageSize.AllCap = 5000`. `PaginationState.IsCappedAtAll` ist computed (PageSizeRaw==0 && TotalCount > 5000) und triggert den Banner-Hinweis im `_Pagination`-Partial.
-- **Lagermitarbeiter-Notiz-Autosave (Lagerbestellungen)**: Das Notiz-Feld in `WarehousePicking/Details` hat AJAX-Autosave on `blur` und vor `Drucken` (Tab wird synchron mit `about:blank` geoeffnet, dann nach `await saveNotes()` zur Print-URL navigiert — sonst wuerde Popup-Blocker den verzoegerten `window.open` blockieren).
+- **Lagermitarbeiter-Notiz-Autosave (Lagerbestellungen, v1.14.0)**: Das Notiz-Feld in `WarehousePicking/Details` hat AJAX-Autosave on `blur` und vor `Drucken` (Tab wird synchron mit `about:blank` geoeffnet, dann nach `await saveNotes()` zur Print-URL navigiert — sonst wuerde Popup-Blocker den verzoegerten `window.open` blockieren).
 - **StorageLocation.Code Laenge (v1.14.0)**: DB-Spalte ist `NVARCHAR(50)`. Manuelle Codes bleiben per `IValidatableObject.Validate` auf 12 Zeichen begrenzt (Barcode-Lesbarkeit); Sage-Codes nutzen den vollen Platz. Frontend: Edit-View setzt `maxlength="50"` fuer Sage-Eintraege und `maxlength="12"` fuer manuelle.
-- **Picking Source-Lagerplatz-Fallback**: Auto-Suggest beruecksichtigt nur Lagerplaetze die im Dropdown angezeigt werden koennen (IstBuchbar=true, nicht-Wagen). Sage-Lagerplaetze mit Bestand aber IstBuchbar=false werden NICHT vorgeschlagen — Fallback ist NAN. Auch bereits gespeicherte SourceStorageLocationIds, die nicht mehr buchbar sind, werden ignoriert und durch den neuen Vorschlag ersetzt.
+- **Picking Source-Lagerplatz-Fallback (v1.14.0)**: Auto-Suggest beruecksichtigt nur Lagerplaetze die im Dropdown angezeigt werden koennen (IstBuchbar=true, nicht-Wagen). Sage-Lagerplaetze mit Bestand aber IstBuchbar=false werden NICHT vorgeschlagen — Fallback ist NAN. Auch bereits gespeicherte SourceStorageLocationIds, die nicht mehr buchbar sind, werden ignoriert und durch den neuen Vorschlag ersetzt.
 
 ## Standard-Daten (Neuinstallation)
 

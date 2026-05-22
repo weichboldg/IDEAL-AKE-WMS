@@ -33,7 +33,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         return await _dbSet.FirstOrDefaultAsync(o => o.OseonId == oseonId);
     }
 
-    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null)
+    public async Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null, IReadOnlyDictionary<string, string>? columnFilters = null)
     {
         // Basis-Query mit Such- und Werkbank-Filter (OHNE Status-Filter)
         var baseQuery = _dbSet.AsQueryable();
@@ -55,6 +55,16 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
 
         if (!string.IsNullOrWhiteSpace(workplaceName))
             baseQuery = baseQuery.Where(o => o.WorkplaceName != null && o.WorkplaceName == workplaceName);
+
+        if (columnFilters != null)
+        {
+            foreach (var (key, raw) in columnFilters)
+            {
+                var (tokens, negate) = Services.ColumnFilterHelper.Parse(raw);
+                if (tokens.Count == 0) continue;
+                baseQuery = ApplyOseonColumnFilter(baseQuery, key, tokens, negate);
+            }
+        }
 
         // Gruppen-Keys ermitteln:
         // showFinished=false → nur Gruppen die mindestens einen OFFENEN Auftrag haben
@@ -120,6 +130,41 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             TotalGroupCount = totalGroupCount,
             Page = page,
             PageSize = pageSize
+        };
+    }
+
+    /// <summary>
+    /// Maps OSEON-Tracking-View Column-Keys auf <see cref="OseonProductionOrder"/>-Properties.
+    /// Datums-, Status- und Progress-Spalten werden clientseitig gefiltert.
+    /// </summary>
+    private static IQueryable<OseonProductionOrder> ApplyOseonColumnFilter(
+        IQueryable<OseonProductionOrder> q, string key, List<string> tokens, bool negate)
+    {
+        var patterns = tokens.Select(t => $"%{t}%").ToList();
+
+        return key switch
+        {
+            "order-number" => negate
+                ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OseonOrderNumber, p))
+                    && (o.CustomerOrderNumber == null || !patterns.Any(p => EF.Functions.Like(o.CustomerOrderNumber, p))))
+                : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OseonOrderNumber, p))
+                    || (o.CustomerOrderNumber != null && patterns.Any(p => EF.Functions.Like(o.CustomerOrderNumber, p)))),
+
+            "article-number" => negate
+                ? q.Where(o => o.ArticleNumber == null || !patterns.Any(p => EF.Functions.Like(o.ArticleNumber, p)))
+                : q.Where(o => o.ArticleNumber != null && patterns.Any(p => EF.Functions.Like(o.ArticleNumber, p))),
+
+            "description" => negate
+                ? q.Where(o => (o.Description1 == null || !patterns.Any(p => EF.Functions.Like(o.Description1, p)))
+                    && (o.Description2 == null || !patterns.Any(p => EF.Functions.Like(o.Description2, p))))
+                : q.Where(o => (o.Description1 != null && patterns.Any(p => EF.Functions.Like(o.Description1, p)))
+                    || (o.Description2 != null && patterns.Any(p => EF.Functions.Like(o.Description2, p)))),
+
+            "workbench" => negate
+                ? q.Where(o => o.WorkplaceName == null || !patterns.Any(p => EF.Functions.Like(o.WorkplaceName, p)))
+                : q.Where(o => o.WorkplaceName != null && patterns.Any(p => EF.Functions.Like(o.WorkplaceName, p))),
+
+            _ => q
         };
     }
 

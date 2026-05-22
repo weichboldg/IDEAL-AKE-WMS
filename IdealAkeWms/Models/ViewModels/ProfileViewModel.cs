@@ -27,4 +27,11 @@ public class ProfileViewModel
 
     [Display(Name = "Meldebestand-Benachrichtigung")]
     public bool NotifyOnReorderLevel { get; set; }
+
+    /// <summary>
+    /// User-Default fuer Seitengroesse in Listen. NULL = System-Default (25).
+    /// Erlaubt: 25, 50, 100, 0 (= Alle).
+    /// </summary>
+    [Display(Name = "Eintraege pro Seite (Standard)")]
+    public int? DefaultPageSize { get; set; }
 }

@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-05-08 (v1.10.0)
+**Stand:** 2026-05-22 (v1.14.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -1202,6 +1202,422 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 **Erwartetes Verhalten:**
 - Query liefert alle 5 Zeilen — Spalten existieren in der frisch installierten DB.
+
+---
+
+### TS-4.20 — Toggle-Routing nach Refactor (v1.11.0)
+
+**Vorbedingungen:**
+- App auf v1.11.0, eingeloggt mit `picking`-Rolle, mindestens ein FA in der Liste sichtbar.
+- Browser-DevTools mit aktivem Network-Tab.
+
+**Schritte:**
+1. Produktionsauftragsliste oeffnen.
+2. Glas-Checkbox eines Auftrags togglen.
+3. Zukauf-Checkbox togglen.
+4. VK-Checkbox togglen.
+5. VL-, VE-, VT-, VA-Checkboxen togglen.
+6. Falls Lack-T-Spalte sichtbar: Lackierteile-Checkbox togglen.
+7. Network-Tab: Request-URLs und Payloads pruefen.
+
+**Erwartetes Verhalten:**
+- Glas-Toggle -> POST `/api/picking-status/toggle` mit `field: "HasGlass"`, Status 200.
+- Zukauf-Toggle -> POST `/api/picking-status/toggle` mit `field: "HasExternalPurchase"`, Status 200.
+- VK/VL/VE/VT/VA-Toggle -> POST `/api/assembly-groups/toggle-applicable` mit `groupKey: "VK"` etc., Status 200.
+- Lack-T-Toggle -> POST `/api/picking-status/toggle` mit `field: "IsCoatingDone"`, Status 200.
+- Kein einziger Request an alten Endpoint `/api/productionorders/toggle-field`.
+
+**Negativfall:**
+- Bei fehlender picking-Rolle: 403 oder 302 -> AccessDenied. Datenbank bleibt unveraendert.
+
+---
+
+### TS-4.21 — Migrations-Verifikation Post-Cutover
+
+**Vorbedingungen:**
+- Migrations-SQL `SQL/60_ProductionOrderSplit.sql` (oder EF-Migration) wurde gegen die Produktiv-DB ausgefuehrt.
+
+**Schritte:**
+1. SSMS gegen die DB oeffnen.
+2. Folgende Counts ausfuehren:
+   ```sql
+   SELECT COUNT(*) AS POs FROM dbo.ProductionOrders;
+   SELECT COUNT(*) AS PSs FROM dbo.ProductionOrderPickingStatus;
+   SELECT COUNT(*) AS BDEs FROM dbo.ProductionOrderBdeStatus;
+   SELECT COUNT(*) AS Grps FROM dbo.ProductionOrderAssemblyGroups;
+   ```
+3. Optional: Schlanke Pruefung auf Orphans:
+   ```sql
+   SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus ps
+     LEFT JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId
+   WHERE po.Id IS NULL;
+   ```
+
+**Erwartetes Verhalten:**
+- `POs == PSs == BDEs` (jeweils 1:1).
+- `Grps == 5 * POs` (5 Baugruppen-Zeilen pro FA).
+- Orphan-Pruefung liefert 0.
+
+**Negativfall:**
+- Stimmen die Counts nicht: Migration ist nicht atomar durchgelaufen -> Rollback, Fehler in Sync-Log pruefen, Skript erneut anstossen.
+
+---
+
+### TS-4.22 — AgentJob legt 7 Status-Zeilen eager an
+
+**Vorbedingungen:**
+- Sage-View `vw_AKE_Kommissionierung_WAListe` hat einen NEU angelegten FA, der noch nicht in `ProductionOrders` existiert.
+
+**Schritte:**
+1. SQL Agent Job `01_Import_Produktionsauftraege` manuell ausfuehren.
+2. SSMS: Neuen FA in `ProductionOrders` finden, `Id` notieren.
+3. Folge-Queries:
+   ```sql
+   SELECT * FROM dbo.ProductionOrderPickingStatus WHERE ProductionOrderId = @neuerFaId;
+   SELECT * FROM dbo.ProductionOrderBdeStatus     WHERE ProductionOrderId = @neuerFaId;
+   SELECT GroupKey, IsApplicable FROM dbo.ProductionOrderAssemblyGroups WHERE ProductionOrderId = @neuerFaId ORDER BY GroupKey;
+   ```
+4. Job ein zweites Mal ausfuehren (Idempotenz-Check).
+
+**Erwartetes Verhalten:**
+- 1 Zeile in `ProductionOrderPickingStatus`, alle Boolean-Flags = 0, kein zugewiesener Picker.
+- 1 Zeile in `ProductionOrderBdeStatus`, `IsDoneBde = 0`.
+- 5 Zeilen in `ProductionOrderAssemblyGroups` mit `GroupKey IN ('VK','VL','VE','VT','VA')`, alle `IsApplicable = 0`.
+- Zweite Job-Ausfuehrung legt KEINE Duplikate an (MERGE).
+
+**Negativfall:**
+- Weniger als 7 Zeilen: Folge-MERGEs im AgentJob laufen nicht. Job-History pruefen.
+
+---
+
+### TS-4.23 — Leitstand-Freigabe schreibt in ProductionOrderPickingStatus
+
+**Vorbedingungen:**
+- Test-FA mit Artikelnummer existiert, eingeloggt mit `leitstand`- (und ggf. `picking`-)Rolle.
+- `LeitstandAktiv` und `KommissionierungMitZuweisung` aktiviert.
+
+**Schritte:**
+1. FA-Liste oeffnen, Freigabe-Toggle fuer den Test-FA aktivieren.
+2. Picker-Zuweisung im Modal waehlen und bestaetigen.
+3. Prioritaet auf z.B. 5 setzen.
+4. SSMS pruefen:
+   ```sql
+   SELECT IsReleasedForPicking, PickingPriority, AssignedPickerId, ReleasedBy, ReleasedAt, ModifiedAt, ModifiedBy
+     FROM dbo.ProductionOrderPickingStatus
+    WHERE ProductionOrderId = @testFaId;
+   SELECT TOP 1 * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ProductionOrders') AND name IN ('IsReleasedForPicking','PickingPriority','AssignedPickerId');
+   ```
+
+**Erwartetes Verhalten:**
+- `ProductionOrderPickingStatus` enthaelt: `IsReleasedForPicking = 1`, `PickingPriority = 5`, `AssignedPickerId = <gewaehlter User>`, `ReleasedBy` + `ReleasedAt` gesetzt, Audit-Felder `ModifiedAt`/`ModifiedBy` aktualisiert.
+- Spalten `IsReleasedForPicking`, `PickingPriority`, `AssignedPickerId` existieren NICHT mehr in `dbo.ProductionOrders` (zweite Query liefert 0 Zeilen).
+
+**Negativfall:**
+- Toggle ohne `leitstand`-Rolle: 403/302 -> AccessDenied, kein Schreib-Zugriff auf die Status-Tabelle.
+
+---
+
+### TS-4.24 — Slim FA-Index als Tracking-User (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt als User mit AUSSCHLIESSLICH `tracking`-Rolle (keine `picking`-/`leitstand`-Rolle).
+- Mindestens ein FA in der Liste sichtbar.
+
+**Schritte:**
+1. Menue `Fertigungsauftraege` oeffnen (URL `/ProductionOrders/Index`).
+2. Spalten der Tabelle pruefen.
+3. Versuchen, eine Inline-Checkbox (Glas, Zukauf, VK ...) zu klicken.
+
+**Erwartetes Verhalten:**
+- Tabelle zeigt nur Sage-Master-Spalten (FA-Nr, Artikelnummer, Bezeichnung, Termine, Werkbank, IsDone-Spalte).
+- KEINE Komm-Status-Spalten (Glas/Zukauf/VK/VL/VE/VT/VA), keine Picker-Zuweisung, keine Bulk-Freigabe-Checkboxes.
+- Network: KEINE Aufrufe an `/api/picking-status/...` oder `/api/assembly-groups/...` beim Laden.
+
+**Negativfall:**
+- Ohne `tracking`/`picking`/`leitstand`/`admin`-Rolle: 403/302 -> AccessDenied.
+
+---
+
+### TS-4.25 — Leitstand-Page als Picker-User (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0, `LeitstandAktiv` aktiv. Eingeloggt als User mit `picking`-Rolle.
+- Mindestens ein FA in der Liste sichtbar.
+
+**Schritte:**
+1. Menue `Kommissionierung` aufklappen, Sub-Item `Leitstand` waehlen (URL `/PickingLeitstand/Index`).
+2. Spalten der Tabelle pruefen.
+3. Eine Glas-Checkbox togglen, eine VK-Checkbox togglen.
+4. Network-Tab: Request-URLs pruefen.
+
+**Erwartetes Verhalten:**
+- Tabelle zeigt die reichen Status-Spalten: Glas, Zukauf, VK, VL, VE, VT, VA, Lack-T, Freigabe, Prioritaet, Picker, IsDonePicking.
+- Toggle-Klicks: POST `/api/picking-status/toggle` bzw. `/api/assembly-groups/toggle-applicable`, Status 200.
+- Bulk-Auswahl-Header-Checkbox sichtbar, Aktions-Bar fuer Bulk-Freigabe sichtbar.
+
+**Negativfall:**
+- Bei `LeitstandAktiv = false`: Sub-Item `Leitstand` ist nicht im Menue. Direkter URL-Aufruf zeigt eine entsprechende Meldung oder fuehrt zu AccessDenied (je nach Implementierung).
+
+---
+
+### TS-4.26 — Permission-Boundary: Tracking-only-User auf Leitstand-Page (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt mit AUSSCHLIESSLICH `tracking`-Rolle (kein `picking`, kein `leitstand`).
+- `LeitstandAktiv` aktiv.
+
+**Schritte:**
+1. Direkter URL-Aufruf `/PickingLeitstand/Index`.
+2. Browser-Verhalten beobachten (HTTP-Status, Ziel-URL).
+
+**Erwartetes Verhalten:**
+- HTTP 302 -> AccessDenied (oder 403 Forbidden) durch `[RequirePickingOrLeitstandAccess]` auf dem Controller.
+- Keine Anzeige der Status-Spalten, kein Zugriff auf Bulk-Freigabe.
+
+**Negativfall:**
+- Falls Page trotzdem laedt: Filter-Attribut wurde entfernt -> Regression im Controller. Sofort eskalieren.
+
+---
+
+### TS-4.27 — Bulk-Release auf Leitstand-Page funktioniert (Phase-1-Regression)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt als `admin` oder `leitstand`-User. `LeitstandAktiv` aktiv.
+- Mindestens 3 FAs mit Artikelnummer in der Liste, davon mindestens 2 noch nicht freigegeben.
+
+**Schritte:**
+1. `/PickingLeitstand/Index` oeffnen.
+2. Zwei nicht-freigegebene FAs per Zeilen-Checkbox markieren.
+3. Sticky-Action-Bar -> Button `Bulk-Freigabe`.
+4. Im Modal Picker waehlen (falls `KommissionierungMitZuweisung` aktiv) und bestaetigen.
+5. Liste neu laden und Status der beiden FAs pruefen.
+
+**Erwartetes Verhalten:**
+- Beide FAs sind nach Submit `freigegeben`, Prioritaet wird sequentiell vergeben, Picker zugewiesen falls Modus aktiv.
+- TempData-Success-Banner zeigt die Anzahl freigegebener Auftraege.
+- POST geht an `/PickingLeitstand/BulkRelease` (nicht `/ProductionOrders/BulkRelease`).
+
+**Negativfall:**
+- Auftrag ohne Artikelnummer in der Auswahl -> wird uebersprungen + im Banner als "uebersprungen" gemeldet.
+
+---
+
+### TS-4.28 — Compat-Redirect: alte URL liefert 301 (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. Eingeloggt als `admin` oder `leitstand`-User.
+- Browser-DevTools mit aktivem Network-Tab und der Option `Preserve log`.
+
+**Schritte:**
+1. Auf `/PickingLeitstand/Index` eine Freigabe togglen (initialer Roundtrip).
+2. Manuell die alte URL als Form-Resubmit triggern (z.&nbsp;B. via Postman oder DevTools "Edit and resend"):
+   `POST /ProductionOrders/ToggleRelease` mit gueltigem AntiForgery-Token und FA-Id.
+3. Im Network-Tab Status der Antwort pruefen.
+
+**Erwartetes Verhalten:**
+- Antwort: HTTP 301 (Moved Permanently) -> Location: `/PickingLeitstand/ToggleRelease`.
+- Browser/Client folgt dem Redirect; nach erfolgreichem Form-Resubmit ist die Freigabe persistiert.
+- Selbe Logik gilt fuer `BulkRelease`, `SetPriority`, `ChangeAssignedPicker`.
+
+**Negativfall:**
+- 404 statt 301: Stub-Action im alten Controller fehlt -> Bookmarks/Stale-Tabs sind broken. Hotfix erforderlich.
+
+---
+
+### TS-4.29 — Nav-Dropdown Sichtbarkeit nach Rolle (v1.12.0)
+
+**Vorbedingungen:**
+- App auf v1.12.0. `LeitstandAktiv` aktiv. Drei Test-User: (a) nur `picking`, (b) nur `leitstand`, (c) nur `tracking`.
+
+**Schritte:**
+1. Mit User (a) einloggen, Nav-Menue oeffnen.
+2. Mit User (b) einloggen, Nav-Menue oeffnen.
+3. Mit User (c) einloggen, Nav-Menue oeffnen.
+
+**Erwartetes Verhalten:**
+- User (a) Picker: Menue `Kommissionierung` ist Dropdown mit Sub-Items `Kommissionierliste` und `Leitstand`.
+- User (b) Leitstand: Menue `Kommissionierung` ist Dropdown mit Sub-Item `Leitstand` (Kommissionierliste ggf. nicht).
+- User (c) reines Tracking: KEIN `Kommissionierung`-Dropdown im Menue. Nur `Fertigungsauftraege`, `Teileverfolgung` und ggf. `OSEON`.
+- Klick auf `Fertigungsauftraege` fuehrt fuer alle drei zur schlanken FA-Liste (`/ProductionOrders/Index`).
+
+**Negativfall:**
+- Bei `LeitstandAktiv = false`: Auch User (a) und (b) sehen kein `Leitstand`-Sub-Item.
+
+---
+
+### TS-4.30 — FA-Vervollstaendigung Index als fa_completion-User oeffnen (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als User mit AUSSCHLIESSLICH `fa_completion`-Rolle (keine `picking`-/`tracking`-/`leitstand`-Rolle).
+- Mindestens ein FA mit Sage-Master-Daten und 5 eager angelegten AssemblyGroups (VK/VL/VE/VT/VA) vorhanden.
+
+**Schritte:**
+1. Nav-Bar oeffnen.
+2. Menuepunkt `FA-Vervollstaendigung` anklicken (URL `/FaCompletion/Index`).
+3. Tabelle und Spalten pruefen.
+
+**Erwartetes Verhalten:**
+- Menuepunkt `FA-Vervollstaendigung` ist sichtbar. Andere Bereiche (Lager, Kommissionierung, Tracking) sind nicht sichtbar.
+- Tabelle laedt erfolgreich (HTTP 200), zeigt FA-Liste mit Sage-Master-Spalten und einer `SpecCount`-Spalte (Anzahl Specs ueber alle Gruppen).
+- Pro Zeile ist ein `Bearbeiten`-Button vorhanden, der zu `/FaCompletion/Edit/{id}` fuehrt.
+
+**Negativfall:**
+- Ohne `fa_completion`-/`admin`-Rolle: Menue-Eintrag nicht sichtbar; direkter URL-Aufruf liefert 302 -> AccessDenied.
+
+---
+
+### TS-4.31 — IsApplicable togglen geht an /api/assembly-groups/toggle-applicable (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- FA `FA-2604001` existiert mit 5 AssemblyGroups (alle initial `IsApplicable=false`).
+- DevTools Network-Tab offen.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id-von-FA-2604001>` oeffnen.
+2. Tab `VL` anklicken.
+3. Checkbox `Anwendbar` anhaken.
+4. Network-Tab beobachten.
+5. In SSMS pruefen:
+   ```sql
+   SELECT GroupKey, IsApplicable FROM dbo.ProductionOrderAssemblyGroups
+   WHERE ProductionOrderId = <id> AND GroupKey = 'VL';
+   ```
+
+**Erwartetes Verhalten:**
+- Network: POST `/api/assembly-groups/toggle-applicable` mit Status 200.
+- DB: Zeile `GroupKey='VL'` hat `IsApplicable=1`.
+- UI: Checkbox bleibt nach Reload aktiv; Spec-Liste innerhalb des Tabs ist nun editierbar.
+
+**Negativfall:**
+- Picker ohne `fa_completion`-Rolle aber MIT `picking`-Rolle: Toggle funktioniert ebenfalls (Filter `RequirePickingOrFaCompletionAccess`).
+- Tracking-only-User: 302 -> AccessDenied auf den API-Call.
+
+---
+
+### TS-4.32 — Spec mit Artikel-Auswahl hinzufuegen (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- FA `FA-2604001`, Tab `VL`, `IsApplicable=true` (siehe TS-4.31).
+- Artikel `100023` existiert in `Articles`.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. Inline-Add-Formular: Select2-Feld `Artikel` fokussieren, "100023" eintippen.
+3. Aus der Liste `100023 - <Beschreibung>` waehlen.
+4. Description manuell mit "Test-Lueftermotor" ergaenzen, Quantity `1.000`.
+5. "+"-Button klicken (Form submit).
+6. Page reload abwarten, Tabelle pruefen.
+
+**Erwartetes Verhalten:**
+- Erfolgs-Banner (`TempData["SuccessMessage"]`).
+- Zeile in Spec-Tabelle: ArticleNumber `100023`, Description "Test-Lueftermotor", Quantity `1.000`.
+- DB: Neuer Eintrag in `ProductionOrderAssemblyGroupSpecs` mit `CreatedAt`, `CreatedBy`, `CreatedByWindows` gesetzt.
+- `SpecCount` in der `/FaCompletion/Index`-Liste fuer diesen FA hat sich um +1 erhoeht.
+
+**Negativfall:**
+- Submit ohne Description: `ModelState` invalid -> Form-Validierung zeigt Fehler, kein DB-Insert.
+
+---
+
+### TS-4.33 — Spec editieren setzt Audit-Felder ModifiedAt/By (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User `userB` (unterschiedlich vom Spec-Ersteller `userA`).
+- Spec aus TS-4.32 existiert.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. In der Spec-Zeile Description von "Test-Lueftermotor" auf "Test-Lueftermotor 230V" aendern.
+3. "Speichern" klicken.
+4. Nach Reload: Tabelle pruefen.
+5. DB pruefen:
+   ```sql
+   SELECT Description, ModifiedAt, ModifiedBy, ModifiedByWindows
+   FROM dbo.ProductionOrderAssemblyGroupSpecs WHERE Id = <spec-id>;
+   ```
+
+**Erwartetes Verhalten:**
+- UI: Erfolgs-Banner, neue Description sichtbar.
+- DB: `Description = 'Test-Lueftermotor 230V'`, `ModifiedAt` aktuell, `ModifiedBy = 'userB'`, `ModifiedByWindows = <user-windows-login>`.
+- `CreatedAt`/`CreatedBy` (userA) bleiben unveraendert.
+
+**Negativfall:**
+- Submit mit ungueltiger Quantity (z.&nbsp;B. negativ): ModelState invalid, kein Update.
+
+---
+
+### TS-4.34 — Spec loeschen entfernt den Eintrag (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- Spec aus TS-4.32/4.33 existiert.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. In der Spec-Zeile "Loeschen" klicken -> Confirm-Modal bestaetigen.
+3. Reload abwarten.
+4. DB pruefen:
+   ```sql
+   SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroupSpecs WHERE Id = <spec-id>;
+   ```
+
+**Erwartetes Verhalten:**
+- UI: Erfolgs-Banner, Zeile ist aus der Tabelle entfernt.
+- DB: `COUNT = 0` (harter Delete; kein Soft-Delete).
+- `SpecCount` in `/FaCompletion/Index` hat sich um -1 reduziert.
+
+**Negativfall:**
+- Abbrechen im Confirm-Modal: Spec bleibt unveraendert in DB und UI.
+
+---
+
+### TS-4.35 — IsCompleted togglen setzt CompletedAt + CompletedBy (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Eingeloggt als `fa_completion`-User.
+- FA `FA-2604001`, Tab `VL`, `IsApplicable=true`, mindestens 1 Spec vorhanden.
+
+**Schritte:**
+1. `/FaCompletion/Edit/<id>` oeffnen, Tab `VL`.
+2. Checkbox `Vervollstaendigt` anhaken -> Form-POST `/FaCompletion/ToggleIsCompleted`.
+3. Reload abwarten, Label pruefen.
+4. DB pruefen:
+   ```sql
+   SELECT IsCompleted, CompletedAt, CompletedBy
+   FROM dbo.ProductionOrderAssemblyGroups
+   WHERE ProductionOrderId = <id> AND GroupKey = 'VL';
+   ```
+5. Erneut Checkbox anklicken (jetzt deaktivieren).
+
+**Erwartetes Verhalten:**
+- Nach Schritt 2-4: `IsCompleted=1`, `CompletedAt=<now>`, `CompletedBy=<current-user>`. Label zeigt User + Timestamp.
+- Nach Schritt 5: `IsCompleted=0`, `CompletedAt=NULL`, `CompletedBy=NULL` (Zuruecksetzen).
+
+**Negativfall:**
+- Toggle ohne `IsApplicable=true`: Je nach Controller-Implementierung ModelState-Fehler oder Toggle bleibt erlaubt. Verifizieren, dass kein unkonsistenter Zustand entsteht.
+
+---
+
+### TS-4.36 — Permission-Boundary: Picker ohne fa_completion kann /FaCompletion nicht oeffnen (v1.13.0)
+
+**Vorbedingungen:**
+- App auf v1.13.0. Test-User mit AUSSCHLIESSLICH `picking`-Rolle (kein `fa_completion`, kein `admin`).
+
+**Schritte:**
+1. Mit Picker-User einloggen.
+2. Nav-Bar oeffnen.
+3. Direkter URL-Aufruf `/FaCompletion/Index`.
+4. Direkter URL-Aufruf `/FaCompletion/Edit/<beliebige-id>`.
+
+**Erwartetes Verhalten:**
+- Nav-Menue: KEIN `FA-Vervollstaendigung`-Eintrag (Picker-Rolle alleine reicht nicht).
+- Beide direkte URL-Aufrufe: HTTP 302 -> `/Account/AccessDenied` (Filter `RequireFaCompletionAccess` greift).
+- Toggle-Endpoint `/api/assembly-groups/toggle-applicable` bleibt fuer Picker offen (gemeinsamer Filter `RequirePickingOrFaCompletionAccess`).
+
+**Negativfall:**
+- User hat sowohl `picking` als auch `fa_completion`: Beide Bereiche (PickingLeitstand + FaCompletion) sind sichtbar und voll bedienbar.
 
 ---
 
@@ -2974,5 +3390,174 @@ Erwartet: WarningMessage "Default-Lagerbestellempfaenger nicht konfiguriert".
 
 ---
 
-*Ende des Dokuments. Stand: v1.8.4 (2026-04-30)*
+## 19. Listen-Pagination & User-Default (v1.14.0)
+
+### TS-19.1 — Default-Pagesize ist 25
+Vorbedingungen: User ohne gesetzten `DefaultPageSize`.
+Schritte: FA-Liste oeffnen.
+Erwartet: Footer zeigt "Eintraege 1-25 von N", Drop-Down steht auf "25", Pagination-Bar mit Seiten-Links sichtbar wenn N > 25.
+
+### TS-19.2 — Pro-Seite-Auswahl ueberschreibt Default
+Vorbedingungen: User-Default = 25, > 50 FAs vorhanden.
+Schritte: FA-Liste &rarr; Drop-Down auf "50" &rarr; URL wird zu `?pageSize=50` &rarr; "Eintraege 1-50".
+Erwartet: 50 Eintraege sichtbar, Drop-Down zeigt "50", URL hat `pageSize=50`. Browser-Back fuehrt zurueck zu pageSize=25.
+
+### TS-19.3 — User-Default in Profil setzen
+Schritte: Profil &rarr; Sektion "Listen-Ansicht" &rarr; Drop-Down auf "100" &rarr; Speichern &rarr; FA-Liste oeffnen.
+Erwartet: Liste laedt mit 100 Eintraegen/Seite (URL ohne pageSize-Param). Wechsel auf andere Liste (z.&nbsp;B. Bestand) ebenfalls 100/Seite.
+
+### TS-19.4 — User-Default "Alle" mit Cap-Banner
+Vorbedingungen: > 5000 FAs in DB.
+Schritte: Profil &rarr; Default "Alle" &rarr; FA-Liste oeffnen.
+Erwartet: Bis zu 5000 Eintraege geladen, gelbes Banner "Treffer auf 5.000 begrenzt &mdash; bitte Filter eingrenzen".
+
+### TS-19.5 — Admin setzt User-Default
+Schritte: Stammdaten &rarr; Benutzer &rarr; einen User editieren &rarr; "Eintraege pro Seite (Standard)" auf "50" &rarr; Speichern.
+Erwartet: User sieht beim naechsten Login alle Listen mit 50/Seite.
+
+### TS-19.6 — Filter ueberlebt Seitenwechsel + Pagesize-Wechsel
+Schritte: FA-Liste &rarr; Filter "Kunde" eingeben &rarr; Seite 2 &rarr; Pagesize 50.
+Erwartet: Filter "Kunde" bleibt aktiv (URL `?filterCustomer=Kunde&page=2` bzw. `pageSize=50`).
+
+---
+
+## 20. Server-Side Spaltenfilter (v1.14.0)
+
+### TS-20.1 — Filter findet Treffer auf anderer Seite
+Vorbedingungen: FA-Liste mit > 25 Eintraegen; spezifischer Kunde existiert in vorletzter Seite.
+Schritte: Spaltenfilter "Kunde" mit dem Kundennamen befuellen.
+Erwartet: Liste navigiert zu URL `?colf_customer=<name>`, zeigt alle Treffer (auf Seite 1, da Filter resettet `page`), Pagination zeigt korrekte Treffermenge.
+
+### TS-20.2 — OR-Filter
+Schritte: Spaltenfilter "Artikelnummer" mit `886,960` befuellen.
+Erwartet: Liste zeigt Treffer mit Artikelnummer enthaelt "886" ODER "960".
+
+### TS-20.3 — NOT-Filter
+Schritte: Spaltenfilter "Status" mit `!Erledigt` befuellen.
+Erwartet: Liste zeigt nur Auftraege deren Status nicht "Erledigt" enthaelt.
+
+### TS-20.4 — Datumsfilter ueber alle Seiten
+Vorbedingungen: FA-Liste, FAs mit Komm.-Termin in KW24 existieren auf Seite 5+.
+Schritte: Spaltenfilter "Komm." mit `kw24` befuellen.
+Erwartet: Liste zeigt nur Eintraege deren Komm.-Termin in KW24 liegt &mdash; Treffer aus allen Seiten enthalten.
+
+### TS-20.5 — Filter loeschen
+Schritte: Aktiven Filter entfernen (Input leeren).
+Erwartet: URL-Parameter `colf_*` wird entfernt, Liste laedt ohne diesen Filter.
+
+### TS-20.6 — Kombination mit Form-Filter
+Schritte: Filter-Form-Field "Artikelnummer" + Spaltenfilter "Kunde" gleichzeitig.
+Erwartet: Beide Filter wirken (UND-Verknuepfung).
+
+### TS-20.7 — Filter-Persistenz in URL
+Schritte: Filter aktiv setzen, URL kopieren, in neuem Tab oeffnen.
+Erwartet: Filter ist im neuen Tab aktiv.
+
+---
+
+## 21. Leitstand als eigenes Hauptmenue (v1.14.0)
+
+### TS-21.1 — Leitstand-Hauptmenue
+Vorbedingungen: User mit Rolle `leitstand` oder `picking`, `LeitstandAktiv=true`.
+Schritte: Navigation pruefen.
+Erwartet: "Leitstand" als eigenes Hauptmenue (Dropdown) mit Unterpunkt "Kommissionierung". "Kommissionierung" im Hauptmenue ist ein einfacher Link (Picker-Worklist) mit Badge wenn freigegebene Eintraege vorhanden.
+
+### TS-21.2 — Dashboard zeigt Leitstand-Sektion
+Schritte: Startseite/Dashboard oeffnen.
+Erwartet: Eigene Sektion "Leitstand" mit Kachel "Kommissionierung" (Verlinkung auf PickingLeitstand/Index). Sichtbar wenn `LeitstandAktiv=true` && (canPick OR canManagePickingRelease).
+
+---
+
+## 22. Lagerbestellungen — Notiz + INT-Mengen (v1.14.0)
+
+### TS-22.1 — Notiz speichert on Blur
+Vorbedingungen: Lagerbestellung im Status "Abgeschickt", User mit Lager-Berechtigung.
+Schritte: Details oeffnen &rarr; Notiz "Eilig" in Position eintippen &rarr; in anderes Feld klicken (Blur).
+Erwartet: AJAX-Request an `/WarehousePicking/SaveNotes/{id}` mit 200 OK. Liste neu laden &rarr; Notiz noch vorhanden.
+
+### TS-22.2 — Notiz speichert vor Drucken
+Schritte: Notiz eintippen &rarr; sofort auf "Drucken" klicken (ohne Blur).
+Erwartet: Tab oeffnet `about:blank` synchron, Notiz wird gespeichert, dann zur Print-URL navigiert. Notiz erscheint im Druck.
+
+### TS-22.3 — Notiz im Druck
+Vorbedingungen: Notiz auf mind. einer Position.
+Schritte: "Drucken" klicken.
+Erwartet: Print-Tab zeigt Spalte "Notiz" mit Inhalt.
+
+### TS-22.4 — Notiz read-only nach Abschluss
+Vorbedingungen: Lagerbestellung mit Notiz, Status "Erledigt".
+Schritte: Details oeffnen.
+Erwartet: Notiz wird als Text angezeigt (kein Input-Feld).
+
+### TS-22.5 — Mengen sind INT
+Vorbedingungen: Position mit Bestell-Menge 4.
+Schritte: Detail oeffnen &rarr; Ist-Mengen-Feld pruefen.
+Erwartet: Anzeige "4" (nicht "4,0000"), Input akzeptiert keine Kommazahlen (step=1), Bestellt-Spalte zeigt "4".
+
+### TS-22.6 — SOLL = IST bucht korrekt
+Vorbedingungen: Position mit Bestell-Menge 4, Ist-Feld leer.
+Schritte: "Abschliessen" &rarr; Modal "SOLL = IST?" &rarr; "Ja".
+Erwartet: Ist-Menge wird auf 4 gesetzt (NICHT 4000). Liste abgeschlossen, QuantityPicked = 4.
+
+---
+
+## 23. FA-Vervollstaendigung als Feature-Toggle (v1.14.0)
+
+### TS-23.1 — Feature standardmaessig OFF
+Vorbedingungen: Frisch installiertes oder upgradetes System.
+Schritte: User mit Rolle `fa_completion` einloggen.
+Erwartet: Kein Menuepunkt "FA-Vervollstaendigung". Direkter URL-Aufruf `/FaCompletion` &rarr; Redirect AccessDenied.
+
+### TS-23.2 — Aktivieren
+Schritte: Admin &rarr; Stammdaten &rarr; Einstellungen &rarr; Sektion "FA-Vervollstaendigung" &rarr; `FaCompletionAktiv` auf `true` &rarr; Speichern.
+Erwartet: User mit Rolle `fa_completion` sehen nach Reload den Menuepunkt; Zugriff auf `/FaCompletion` funktioniert.
+
+### TS-23.3 — Picker funktionieren weiter
+Vorbedingungen: `FaCompletionAktiv=false`, User mit `picking`-Rolle.
+Schritte: PickingLeitstand &rarr; VK/VL/...-Toggles antippen.
+Erwartet: Toggle funktioniert weiterhin (Endpoint `assembly-groups/toggle-applicable` blockt Picker nicht durch das Setting).
+
+---
+
+## 24. StorageLocation-Code 50 Zeichen (v1.14.0)
+
+### TS-24.1 — Sage-Sync akzeptiert Code > 12 Zeichen
+Vorbedingungen: Sage-View liefert Lagerplatz mit Kurzbezeichnung "LAGER1.A.01-RG-12" (17 Zeichen).
+Schritte: LagerplatzSync triggern.
+Erwartet: Lagerplatz angelegt, Code = "LAGER1.A.01-RG-12", IstBuchbar=false (Default Sage).
+
+### TS-24.2 — Manueller Code max 12 Zeichen
+Schritte: Stammdaten &rarr; Lagerplaetze &rarr; "Neu" &rarr; Code "ABCDEFGHIJKLM" (13 Zeichen) &rarr; Speichern.
+Erwartet: Validierungs-Fehler "Manuelle Lagerplatz-Codes duerfen maximal 12 Zeichen lang sein...".
+
+### TS-24.3 — Sage-Code im Edit-View nicht abgeschnitten
+Vorbedingungen: Sage-Lagerplatz mit 20-Zeichen-Code.
+Schritte: Stammdaten &rarr; Lagerplaetze &rarr; Edit.
+Erwartet: Code-Input zeigt vollen 20-Zeichen-Wert (kein Abschneiden auf 12).
+
+---
+
+## 25. OSEON-Tabellen-Hover (v1.14.0)
+
+### TS-25.1 — Hover-Farbe in OSEON Tracking
+Schritte: OSEON Tracking oeffnen &rarr; mit der Maus ueber eine Auftragsgruppen-/Sub-/AG-Zeile fahren.
+Erwartet: Hover-Farbe einheitlich AKE-Hellblau (`#D9F4FF`) &mdash; identisch zur FA-Liste. Vorher waren es dezente Grau-Toene pro Hierarchie-Ebene.
+
+---
+
+## 26. Bestand: Source-Lagerplatz-Vorschlag bei Sage-Stock (v1.14.0)
+
+### TS-26.1 — NAN-Fallback bei nicht-buchbarem Sage-Stock
+Vorbedingungen: Artikel mit Bestand auf Sage-Lagerplatz "GL;9;1;1" (IstBuchbar=false), NAN-Bestand -1.
+Schritte: BOM-Liste oeffnen &rarr; entsprechende Position.
+Erwartet: Quell-Lagerplatz-Dropdown zeigt **NAN** als Vorschlag (vorher: "--" weil Sage-Platz nicht im Dropdown).
+
+### TS-26.2 — Buchbarer Stock wird bevorzugt
+Vorbedingungen: Artikel mit Bestand auf buchbarem manuellen Platz UND auf Sage-Platz.
+Schritte: BOM-Liste oeffnen.
+Erwartet: Vorschlag = manueller Platz (hoechste Menge unter buchbaren).
+
+---
+
+*Ende des Dokuments. Stand: v1.14.0 (2026-05-22)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

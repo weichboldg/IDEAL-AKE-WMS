@@ -38,6 +38,7 @@ BEGIN
         [CanViewTracking]           BIT               NOT NULL DEFAULT 0,
         [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
         [IsPicker]                  BIT               NOT NULL DEFAULT 0,
+        [DefaultPageSize]           INT               NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -105,7 +106,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StorageLocations')
 BEGIN
     CREATE TABLE [dbo].[StorageLocations] (
         [Id]                INT IDENTITY(1,1) NOT NULL,
-        [Code]              NVARCHAR(12)      NOT NULL,
+        [Code]              NVARCHAR(50)      NOT NULL,
         [Description]       NVARCHAR(200)     NULL,
         [Zone]              NVARCHAR(100)     NULL,
         [Capacity]          DECIMAL(18,2)     NULL,
@@ -211,7 +212,7 @@ END
 GO
 
 -- =============================================
--- 8. ProductionOrders
+-- 8. ProductionOrders (slim — Status-Felder in 8a..8e ausgelagert)
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrders')
 BEGIN
@@ -226,23 +227,7 @@ BEGIN
         [ProductionDate]          DATETIME2         NULL,
         [DeliveryDate]            DATETIME2         NULL,
         [IsDone]                  BIT               NOT NULL DEFAULT 0,
-        [PickingStatus]           NVARCHAR(50)      NULL,
-        [HasGlass]                BIT               NOT NULL DEFAULT 0,
-        [HasExternalPurchase]     BIT               NOT NULL DEFAULT 0,
-        [HasCooling]              BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCooling DEFAULT 0,
-        [HasFan]                  BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasFan DEFAULT 0,
-        [HasElectric]             BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasElectric DEFAULT 0,
-        [HasDoors]                BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasDoors DEFAULT 0,
-        [HasSuperstructure]       BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasSuperstructure DEFAULT 0,
-        [HasCoatingParts]         BIT               NOT NULL CONSTRAINT DF_ProductionOrders_HasCoatingParts DEFAULT 0,
-        [IsCoatingDone]           BIT               NOT NULL CONSTRAINT DF_ProductionOrders_IsCoatingDone DEFAULT 0,
         [ProductionWorkplaceId]   INT               NULL,
-        [IsReleasedForPicking]    BIT               NOT NULL DEFAULT 0,
-        [PickingPriority]         INT               NULL,
-        [ReleasedAt]              DATETIME2         NULL,
-        [ReleasedBy]              NVARCHAR(200)     NULL,
-        [AssignedPickerId]        INT               NULL,
-        [AssignedPickerName]      NVARCHAR(200)     NULL,
         [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]               NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
@@ -252,11 +237,163 @@ BEGIN
         CONSTRAINT [PK_ProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [UQ_ProductionOrders_OrderNumber] UNIQUE ([OrderNumber]),
         CONSTRAINT [FK_ProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
-            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_ProductionOrders_AssignedPicker]
-            FOREIGN KEY ([AssignedPickerId]) REFERENCES [dbo].[Users]([Id]) ON DELETE SET NULL
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
     );
     PRINT 'Tabelle ProductionOrders erstellt.';
+END
+GO
+
+-- =============================================
+-- 8a. ProductionOrderPickingStatus (1 Zeile/FA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderPickingStatus')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderPickingStatus] (
+        [Id]                    INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]     INT               NOT NULL,
+        [PickingStatus]         NVARCHAR(50)      NULL,
+        [PickingPriority]       INT               NULL,
+        [IsReleasedForPicking]  BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsReleasedForPicking DEFAULT 0,
+        [ReleasedAt]            DATETIME2         NULL,
+        [ReleasedBy]            NVARCHAR(200)     NULL,
+        [AssignedPickerId]      INT               NULL,
+        [AssignedPickerName]    NVARCHAR(200)     NULL,
+        [HasGlass]              BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasGlass DEFAULT 0,
+        [HasExternalPurchase]   BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasExternalPurchase DEFAULT 0,
+        [HasCoatingParts]       BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasCoatingParts DEFAULT 0,
+        [IsCoatingDone]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsCoatingDone DEFAULT 0,
+        [IsDonePicking]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsDonePicking DEFAULT 0,
+        [CreatedAt]             DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]             NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]            DATETIME2         NULL,
+        [ModifiedBy]            NVARCHAR(200)     NULL,
+        [ModifiedByWindows]     NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderPickingStatus] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderPickingStatus_ProductionOrderId] UNIQUE ([ProductionOrderId]),
+        CONSTRAINT [FK_ProductionOrderPickingStatus_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionOrderPickingStatus_AssignedPicker]
+            FOREIGN KEY ([AssignedPickerId]) REFERENCES [dbo].[Users]([Id]) ON DELETE SET NULL
+    );
+    CREATE INDEX [IX_ProductionOrderPickingStatus_IsReleasedForPicking]
+        ON [dbo].[ProductionOrderPickingStatus]([IsReleasedForPicking]);
+    CREATE INDEX [IX_ProductionOrderPickingStatus_AssignedPickerId]
+        ON [dbo].[ProductionOrderPickingStatus]([AssignedPickerId])
+        WHERE [AssignedPickerId] IS NOT NULL;
+    PRINT 'Tabelle ProductionOrderPickingStatus erstellt.';
+END
+GO
+
+-- =============================================
+-- 8b. ProductionOrderBdeStatus (1 Zeile/FA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderBdeStatus')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderBdeStatus] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [IsDoneBde]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderBdeStatus_IsDoneBde DEFAULT 0,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderBdeStatus] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderBdeStatus_ProductionOrderId] UNIQUE ([ProductionOrderId]),
+        CONSTRAINT [FK_ProductionOrderBdeStatus_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle ProductionOrderBdeStatus erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c. ProductionOrderAssemblyGroups (5 Zeilen/FA: VK/VL/VE/VT/VA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderAssemblyGroups')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderAssemblyGroups] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [GroupKey]          NVARCHAR(10)      NOT NULL,
+        [IsApplicable]      BIT               NOT NULL CONSTRAINT DF_ProductionOrderAssemblyGroups_IsApplicable DEFAULT 0,
+        [IsCompleted]       BIT               NOT NULL CONSTRAINT DF_ProductionOrderAssemblyGroups_IsCompleted DEFAULT 0,
+        [CompletedAt]       DATETIME2         NULL,
+        [CompletedBy]       NVARCHAR(200)     NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderAssemblyGroups] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderAssemblyGroups_PO_Key] UNIQUE ([ProductionOrderId], [GroupKey]),
+        CONSTRAINT [FK_ProductionOrderAssemblyGroups_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_ProductionOrderAssemblyGroups_GroupKey_IsApplicable]
+        ON [dbo].[ProductionOrderAssemblyGroups]([GroupKey], [IsApplicable]);
+    PRINT 'Tabelle ProductionOrderAssemblyGroups erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d. ProductionOrderAssemblyGroupSpecs (n Zeilen/Group)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderAssemblyGroupSpecs')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderAssemblyGroupSpecs] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [AssemblyGroupId]   INT               NOT NULL,
+        [ArticleId]         INT               NULL,
+        [Description]       NVARCHAR(500)     NOT NULL,
+        [Quantity]          DECIMAL(18,3)     NULL,
+        [Notes]             NVARCHAR(MAX)     NULL,
+        [SortOrder]         INT               NOT NULL CONSTRAINT DF_ProductionOrderAssemblyGroupSpecs_SortOrder DEFAULT 0,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderAssemblyGroupSpecs] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ProductionOrderAssemblyGroupSpecs_AssemblyGroup]
+            FOREIGN KEY ([AssemblyGroupId]) REFERENCES [dbo].[ProductionOrderAssemblyGroups]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionOrderAssemblyGroupSpecs_Article]
+            FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]) ON DELETE SET NULL
+    );
+    CREATE INDEX [IX_ProductionOrderAssemblyGroupSpecs_AssemblyGroupId]
+        ON [dbo].[ProductionOrderAssemblyGroupSpecs]([AssemblyGroupId]);
+    CREATE INDEX [IX_ProductionOrderAssemblyGroupSpecs_ArticleId]
+        ON [dbo].[ProductionOrderAssemblyGroupSpecs]([ArticleId])
+        WHERE [ArticleId] IS NOT NULL;
+    PRINT 'Tabelle ProductionOrderAssemblyGroupSpecs erstellt.';
+END
+GO
+
+-- =============================================
+-- 8e. ProductionWorkplaceAssemblyGroups (Default-Gruppen je Arbeitsplatz)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceAssemblyGroups')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaceAssemblyGroups] (
+        [Id]                    INT IDENTITY(1,1) NOT NULL,
+        [ProductionWorkplaceId] INT               NOT NULL,
+        [GroupKey]              NVARCHAR(10)      NOT NULL,
+        [CreatedAt]             DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]             NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]            DATETIME2         NULL,
+        [ModifiedBy]            NVARCHAR(200)     NULL,
+        [ModifiedByWindows]     NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionWorkplaceAssemblyGroups] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionWorkplaceAssemblyGroups_WP_Key] UNIQUE ([ProductionWorkplaceId], [GroupKey]),
+        CONSTRAINT [FK_ProductionWorkplaceAssemblyGroups_Workplace]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle ProductionWorkplaceAssemblyGroups erstellt.';
 END
 GO
 
@@ -1147,6 +1284,7 @@ CREATE TABLE [dbo].[WarehouseRequisitionItems] (
     [QuantityRequested] DECIMAL(18,4) NOT NULL,
     [QuantityPicked] DECIMAL(18,4) NULL,
     [Position] INT NOT NULL,
+    [Note] NVARCHAR(500) NULL,
     [CreatedAt] DATETIME2 NOT NULL,
     [CreatedBy] NVARCHAR(200) NOT NULL,
     [CreatedByWindows] NVARCHAR(200) NOT NULL,
@@ -1583,6 +1721,14 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260507133624_AddStorageLocationIstBuchbar', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512042732_AddProductionOrderAssemblyFlags')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512042732_AddProductionOrderAssemblyFlags', '10.0.3');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512120355_AddProductionOrderSplit')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512120355_AddProductionOrderSplit', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260521141926_ExtendStorageLocationCodeTo50')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260521141926_ExtendStorageLocationCodeTo50', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260521143627_AddUserDefaultPageSize')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260521143627_AddUserDefaultPageSize', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260522070823_AddWarehouseRequisitionItemNote')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260522070823_AddWarehouseRequisitionItemNote', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

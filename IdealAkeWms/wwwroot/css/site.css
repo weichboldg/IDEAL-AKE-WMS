@@ -646,26 +646,25 @@ body {
     transition: transform 0.15s;
 }
 
-/* Baumstruktur */
+/* Baumstruktur: pro Hierarchie-Ebene eine eigene Hintergrundfarbe.
+   Hover wird einheitlich mit dem AKE-Hellblau (gleich wie FA-Liste / Bestand /
+   alle anderen Listen) gestylt — vorher nutzte OSEON pro Ebene dezente
+   Grau-Toene was inkonsistent zur restlichen App war. */
 .oseon-tree-group {
     background-color: #f0f4f8 !important;
     font-weight: 500;
 }
-.oseon-tree-group:hover {
-    background-color: #e4ecf4 !important;
-}
 .oseon-tree-sub {
-    background-color: #fafbfc;
-}
-.oseon-tree-sub:hover {
-    background-color: #f0f4f8 !important;
+    background-color: #fafbfc !important;
 }
 .oseon-tree-op {
-    background-color: #fff;
+    background-color: #fff !important;
     font-size: 0.9em;
 }
+.oseon-tree-group:hover,
+.oseon-tree-sub:hover,
 .oseon-tree-op:hover {
-    background-color: #fafbfc !important;
+    background-color: var(--ake-very-light-blue) !important;
 }
 .oseon-tree-done {
     opacity: 0.65;

@@ -106,8 +106,9 @@ public class WarehouseRequisitionRepositoryTests
             [items[0].Id] = 4m,
             [items[1].Id] = 10m
         };
+        var notes = new Dictionary<int, string?>();
 
-        await repo.CloseAsync(id, quantities, userId, "t", "t", rSubmitted!.RowVersion);
+        await repo.CloseAsync(id, quantities, notes, userId, "t", "t", rSubmitted!.RowVersion);
 
         var updated = await ctx.WarehouseRequisitions
             .Include(r => r.Items)
