@@ -28,7 +28,11 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 ## Workflow
 
-- **Plan vor Code** — Bei 3+ Schritten oder Architekturentscheidungen: Plan-Modus verwenden
+- **Skill-basierter Workflow (ab 2026-05-26 verpflichtend)**:
+  - **Vor jeder nicht-trivialen Code-Aenderung**: Plan ueber `superpowers:writing-plans` erstellen. Bei unklarer Anforderung zuerst `superpowers:brainstorming`. *Trivial* = klar abgegrenzter Einzel-Fix wie Typo, einzelne Konstanten-Aenderung, Comment-Update — alles mit Architektur-/Datenmodell-/Mehr-Datei-Impact braucht einen Plan.
+  - **Ausfuehrung agentenbasiert**: Plan-Tasks mit Sub-Agents abarbeiten (`superpowers:subagent-driven-development` oder `superpowers:executing-plans`). Wo Tasks voneinander unabhaengig sind: **parallel** via `superpowers:dispatching-parallel-agents` (mehrere Agent-Tool-Calls in einer Nachricht). Sequentiell nur wenn echte Dependencies bestehen.
+  - **Qualitaetscheck Pflicht** vor Plan-Abschluss / Commit / PR: `superpowers:verification-before-completion` + Code-Review via Skill `code-review` (bzw. `superpowers:requesting-code-review`). Build + Tests gruen sind Mindestbedingung, nicht Beweis genug.
+  - **Bei Debugging**: `superpowers:systematic-debugging` (oder `engineering:debug`) statt Symptome-Patching.
 - **Checkliste nach Aenderungen:**
   - [ ] Migration erstellt + `SQL/XX_*.sql` mit OBJECT_ID-Guard?
   - [ ] `SQL/00_FreshInstall.sql` aktualisiert?
