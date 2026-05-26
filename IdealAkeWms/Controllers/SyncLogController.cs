@@ -3,6 +3,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
@@ -10,7 +11,7 @@ namespace IdealAkeWms.Controllers;
 [RequireMasterDataAccess]
 public class SyncLogController : Controller
 {
-    private static readonly string[] KnownServices = new[] { "Lagerplatz", "Lagerbestand", "OseonTracking", "Article", "ProductionOrder", "EnaioDms", "BomCache", "Holiday" };
+    private static readonly IReadOnlyList<string> KnownServices = SyncLogServices.All;
 
     private readonly ISyncLogRepository _repo;
     private readonly ICurrentUserService _currentUser;
