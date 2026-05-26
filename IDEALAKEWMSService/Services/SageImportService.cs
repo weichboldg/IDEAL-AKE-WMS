@@ -87,8 +87,8 @@ public class SageImportService : ISageImportService
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
                     ["gelesen"] = sageOrders.Count,
-                    ["inserted"] = 0,
-                    ["updated"] = 0,
+                    ["neu"] = 0,
+                    ["aktualisiert"] = 0,
                 }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0, $"DryRun: {sageOrders.Count} Datensätze aus SAGE gelesen.");
             }
@@ -246,8 +246,8 @@ public class SageImportService : ISageImportService
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
-                ["inserted"] = inserted,
-                ["updated"] = updated,
+                ["neu"] = inserted,
+                ["aktualisiert"] = updated,
             }, ct: ct);
 
             return new SyncResult(inserted, updated, 0);
@@ -311,7 +311,7 @@ public class SageImportService : ISageImportService
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
                     ["gelesen"] = sageArticles.Count,
-                    ["inserted"] = 0,
+                    ["neu"] = 0,
                 }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0, $"DryRun: {sageArticles.Count} Datensätze aus SAGE gelesen.");
             }
@@ -353,7 +353,7 @@ public class SageImportService : ISageImportService
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
-                ["inserted"] = inserted,
+                ["neu"] = inserted,
             }, ct: ct);
 
             return new SyncResult(inserted, 0, 0);
