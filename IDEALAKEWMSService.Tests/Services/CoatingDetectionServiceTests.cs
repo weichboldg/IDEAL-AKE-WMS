@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,23 +17,22 @@ public class CoatingDetectionServiceTests
     {
         var cfg = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>()).Build();
-        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance);
+        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance, new FakeSyncLogger());
         svc.Should().NotBeNull();
     }
 
     [Fact]
-    public async Task DetectAndUpdate_ReportsError_WhenWmsConnectionMissing()
+    public async Task DetectAndUpdate_Throws_WhenWmsConnectionMissing()
     {
         // No DefaultConnection -> ConnectionStrings.Wms() throws InvalidOperationException
-        // Wrapped in try/catch by service, returns SyncResult with errors > 0
+        // Since ISyncLogger integration re-throws, the exception propagates
         var cfg = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>()).Build();
-        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance);
+        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance, new FakeSyncLogger());
 
-        var result = await svc.DetectAndUpdateCoatingFlagsAsync(
+        var act = () => svc.DetectAndUpdateCoatingFlagsAsync(
             dryRun: false, specificOrderIds: null, CancellationToken.None);
 
-        result.Errors.Should().BeGreaterThan(0);
-        result.ErrorDetails.Should().NotBeNullOrEmpty();
+        await act.Should().ThrowAsync<Exception>();
     }
 }

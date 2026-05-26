@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,13 +15,16 @@ public class CoatingDetectionService : ICoatingDetectionService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<CoatingDetectionService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
     public CoatingDetectionService(
         IConfiguration configuration,
-        ILogger<CoatingDetectionService> logger)
+        ILogger<CoatingDetectionService> logger,
+        ISyncLogger syncLogger)
     {
         _configuration = configuration;
         _logger = logger;
+        _syncLogger = syncLogger;
     }
 
     public async Task<SyncResult> DetectAndUpdateCoatingFlagsAsync(
@@ -28,8 +32,8 @@ public class CoatingDetectionService : ICoatingDetectionService
         List<int>? specificOrderIds,
         CancellationToken ct)
     {
-        int updatedTrue = 0, updatedFalse = 0, errors = 0;
-        string? errorDetails = null;
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.CoatingDetection, ct);
+        int updatedTrue = 0, updatedFalse = 0;
 
         try
         {
@@ -48,6 +52,12 @@ public class CoatingDetectionService : ICoatingDetectionService
             if (string.IsNullOrWhiteSpace(lackName))
             {
                 _logger.LogWarning("CoatingDetection: LackierteilKategorieName nicht gesetzt - Feature inaktiv");
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["geprueft"] = 0,
+                    ["mit_lackierteilen"] = 0,
+                    ["ohne_lackierteile"] = 0,
+                }, ct: ct);
                 return new SyncResult(0, 0, 0);
             }
 
@@ -96,6 +106,12 @@ public class CoatingDetectionService : ICoatingDetectionService
             if (orders.Count == 0)
             {
                 _logger.LogInformation("CoatingDetection: Keine Auftraege - nothing to do");
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["geprueft"] = 0,
+                    ["mit_lackierteilen"] = 0,
+                    ["ohne_lackierteile"] = 0,
+                }, ct: ct);
                 return new SyncResult(0, 0, 0);
             }
 
@@ -146,6 +162,12 @@ public class CoatingDetectionService : ICoatingDetectionService
             {
                 _logger.LogInformation("CoatingDetection (DryRun): {Yes} von {Total} Auftraegen haetten HasCoatingParts=true",
                     orderIdsTrue.Count, orders.Count);
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["geprueft"] = orders.Count,
+                    ["mit_lackierteilen"] = orderIdsTrue.Count,
+                    ["ohne_lackierteile"] = orderIdsFalse.Count,
+                }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0);
             }
 
@@ -165,16 +187,24 @@ public class CoatingDetectionService : ICoatingDetectionService
             _logger.LogInformation(
                 "CoatingDetection: {Total} Auftraege geprueft, {WithCoating} mit Lackierteilen, {Without} ohne",
                 orders.Count, updatedTrue, updatedFalse);
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["geprueft"] = orders.Count,
+                ["mit_lackierteilen"] = updatedTrue,
+                ["ohne_lackierteile"] = updatedFalse,
+            }, ct: ct);
+
+            // Inserted=updatedTrue (orders with coating), Updated=updatedFalse (orders without)
+            return new SyncResult(updatedTrue, updatedFalse, 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "CoatingDetection fehlgeschlagen");
-            errors++;
-            errorDetails = ex.Message;
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
-
-        // Inserted=updatedTrue (orders with coating), Updated=updatedFalse (orders without)
-        return new SyncResult(updatedTrue, updatedFalse, errors, errorDetails);
     }
 
     private async Task<int> BulkUpdateCoatingFlagAsync(
