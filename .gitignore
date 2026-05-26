@@ -14,3 +14,16 @@ logs/
 ## OS
 Thumbs.db
 .DS_Store
+
+# Obsidian – nur user-spezifische Dateien ignorieren, Konfiguration mitversionieren
+secondbrain/.obsidian/workspace.json
+secondbrain/.obsidian/workspace-mobile.json
+secondbrain/.obsidian/workspaces.json
+secondbrain/.obsidian/cache
+secondbrain/.obsidian/app.json.bak
+secondbrain/.trash/
+# Hardlinks im Vault – Canonical liegt im Repo-Root, lokal via setup-vault-links.cmd
+secondbrain/CLAUDE.md
+secondbrain/README.md
+secondbrain/PROJECT_STATUS.md
+secondbrain/ANALYSIS.md

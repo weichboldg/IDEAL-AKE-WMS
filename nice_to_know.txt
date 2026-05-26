@@ -1,0 +1,5 @@
+cd C:\Git\IDEAL-AKE-WMS\secondbrain
+mklink /H CLAUDE.md          ..\CLAUDE.md
+mklink /H README.md          ..\README.md
+mklink /H PROJECT_STATUS.md  ..\PROJECT_STATUS.md
+mklink /H ANALYSIS.md        ..\ANALYSIS.md
