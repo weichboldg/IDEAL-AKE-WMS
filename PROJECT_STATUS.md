@@ -42,7 +42,7 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 | 15 | CoatingDetectionService integrieren | ✅ erledigt |
 | 16 | SageImportService integrieren (2 Runs) | ✅ erledigt |
 | 17 | Version-Bump v1.15.0 + Changelog | ✅ erledigt |
-| 18 | Hilfe + TESTSZENARIEN + PROJECT_STATUS + CLAUDE.md | ⏳ in Arbeit (dieser Task) |
+| 18 | Hilfe + TESTSZENARIEN + PROJECT_STATUS + CLAUDE.md | ✅ erledigt (a5c11f9) |
 
 ---
 
