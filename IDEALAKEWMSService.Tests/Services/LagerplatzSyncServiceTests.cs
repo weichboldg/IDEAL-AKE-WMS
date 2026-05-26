@@ -1,8 +1,8 @@
 using FluentAssertions;
 using IdealAkeWms.Models;
-using IdealAkeWms.Tests.Helpers;            // TestDbContextFactory liegt im Web-Test-Projekt
+using IdealAkeWms.Tests.Helpers;            // TestDbContextFactory + FakeSyncLogger liegen im Web-Test-Projekt
 using IDEALAKEWMSService.Services;
-using IDEALAKEWMSService.Tests.Helpers;
+using IDEALAKEWMSService.Tests.Helpers;    // FakeSageLagerplatzReader
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IDEALAKEWMSService.Tests.Services;
@@ -11,12 +11,12 @@ public class LagerplatzSyncServiceTests
 {
     private const string SyncUser_For_Tests = "system:sync";
 
-    private static (LagerplatzSyncService service, FakeSageLagerplatzReader reader, IdealAkeWms.Data.ApplicationDbContext ctx, IDEALAKEWMSService.Tests.Helpers.FakeSyncLogger fakeLogger)
+    private static (LagerplatzSyncService service, FakeSageLagerplatzReader reader, IdealAkeWms.Data.ApplicationDbContext ctx, FakeSyncLogger fakeLogger)
         Build()
     {
         var ctx = TestDbContextFactory.Create();
         var reader = new FakeSageLagerplatzReader();
-        var fakeLogger = new IDEALAKEWMSService.Tests.Helpers.FakeSyncLogger();
+        var fakeLogger = new FakeSyncLogger();
         var service = new LagerplatzSyncService(ctx, reader, fakeLogger, NullLogger<LagerplatzSyncService>.Instance);
         return (service, reader, ctx, fakeLogger);
     }
