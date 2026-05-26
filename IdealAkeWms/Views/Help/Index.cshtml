@@ -907,6 +907,31 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header" style="background-color: var(--ake-primary); color: white;">
+                Sync-Protokoll
+            </div>
+            <div class="card-body">
+                <h3>Sync-Protokoll</h3>
+                <p>
+                    Alle Background-Sync-Jobs schreiben Lifecycle- und Diagnose-Eintraege ins Sync-Protokoll
+                    (verfuegbar unter <em>Stammdaten &rarr; Sync-Protokoll</em>, Rolle <code>masterdata</code> oder
+                    <code>admin</code>):
+                </p>
+                <ul>
+                    <li><strong>Start-Eintrag</strong> (Info): "Run gestartet" &mdash; markiert den Beginn jedes Service-Ticks.</li>
+                    <li><strong>Warnings/Errors</strong> waehrend des Runs: Duplikate, fehlende Stammdaten,
+                        Konflikte, HTTP-Fehler etc., jeweils mit Referenz (z.B. Lagerplatz-Code, FA-Nummer).</li>
+                    <li><strong>End-Eintrag</strong> (Info bei Erfolg, Error bei Fehler): "Run erfolgreich beendet &mdash; neu=12,
+                        aktualisiert=5, uebersprungen=0" bzw. "Run fehlgeschlagen: {grund} &mdash; counts".</li>
+                </ul>
+                <p>
+                    Service-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking, EnaioDms,
+                    Holiday, CoatingDetection, ProductionOrder, Article.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Mein Profil</strong></div>
             <div class="card-body">
                 <p>

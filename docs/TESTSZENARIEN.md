@@ -3559,5 +3559,45 @@ Erwartet: Vorschlag = manueller Platz (hoechste Menge unter buchbaren).
 
 ---
 
-*Ende des Dokuments. Stand: v1.14.0 (2026-05-22)*
+## 27. SyncLog-Pflicht fuer alle Sync-Services (v1.15.0)
+
+### Szenario 27.1: LagerplatzSyncService schreibt Start + Ende
+**Vorbedingung:** Lagerplatz-Sync ist aktiviert (`Sync:LagerplaetzeEnabled = true`).
+**Schritt:**
+1. Service starten oder Worker-Tick abwarten.
+2. Im Sync-Protokoll Service-Filter = "Lagerplatz" setzen.
+**Erwartet:** Mindestens 2 Eintraege pro Tick: "Run gestartet" (Info) und "Run erfolgreich beendet
+— neu=…, aktualisiert=…, …" (Info).
+
+### Szenario 27.2: LagerbestandSyncService schreibt Start + Ende
+Wie 27.1, mit Service-Filter "Lagerbestand".
+
+### Szenario 27.3: BomCacheSyncService — Lifecycle im Sync-Protokoll
+**Vorbedingung:** `Sync:BomCacheEnabled = true`.
+**Schritt:** Worker-Tick abwarten, Service-Filter "BomCache".
+**Erwartet:** Start- + End-Eintrag mit Counts (neu, aktualisiert, uebersprungen).
+
+### Szenario 27.4: OseonSyncService — Lifecycle
+Service-Filter "OseonTracking".
+
+### Szenario 27.5: EnaioDmsSyncService — Lifecycle
+Service-Filter "EnaioDms".
+
+### Szenario 27.6: HolidaySyncService — Lifecycle und HTTP-Fehlerpfad
+**Schritt:** Service-Filter "Holiday".
+**Erwartet:** Start + Ende. Falls date.nager.at nicht erreichbar: zusaetzlich ein Warning-Eintrag
+"date.nager.at lieferte {statusCode} fuer Jahr {year}".
+
+### Szenario 27.7: CoatingDetectionService — Lifecycle
+Service-Filter "CoatingDetection".
+
+### Szenario 27.8: SageImportService — zwei Runs pro Tick (Production Orders + Articles)
+**Schritt:** Worker-Tick mit aktiven Sage-Imports.
+**Erwartet:** Im Sync-Protokoll erscheinen pro Tick **zwei** logische Runs:
+- Service "ProductionOrder": Start + Ende
+- Service "Article": Start + Ende
+
+---
+
+*Ende des Dokuments. Stand: v1.15.0 (2026-05-26)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

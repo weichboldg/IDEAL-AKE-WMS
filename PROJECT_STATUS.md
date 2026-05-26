@@ -21,6 +21,31 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 
 ---
 
+### SyncLog-Pflicht fuer alle Sync-Services (v1.15.0)
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 1 | Pre-flight grep nach hartcodierten Service-Strings | ✅ erledigt |
+| 2 | SyncLogServices-Konstanten | ✅ erledigt |
+| 3 | ISyncLogger / ISyncRun Interfaces | ✅ erledigt |
+| 4 | SyncLogger + SyncRun Implementierung (TDD, 6 Tests) | ✅ erledigt |
+| 5 | FakeSyncLogger Test-Helper | ✅ erledigt |
+| 6 | DI-Registrierung Web | ✅ erledigt |
+| 7 | DI-Registrierung Service | ✅ erledigt |
+| 8 | SyncLogController.KnownServices → SyncLogServices.All | ✅ erledigt |
+| 9 | LagerplatzSyncService migrieren | ✅ erledigt |
+| 10 | LagerbestandSyncService migrieren | ✅ erledigt |
+| 11 | HolidaySyncService integrieren | ✅ erledigt |
+| 12 | BomCacheSyncService integrieren | ✅ erledigt |
+| 13 | OseonSyncService integrieren | ✅ erledigt |
+| 14 | EnaioDmsSyncService integrieren | ✅ erledigt |
+| 15 | CoatingDetectionService integrieren | ✅ erledigt |
+| 16 | SageImportService integrieren (2 Runs) | ✅ erledigt |
+| 17 | Version-Bump v1.15.0 + Changelog | ✅ erledigt |
+| 18 | Hilfe + TESTSZENARIEN + PROJECT_STATUS + CLAUDE.md | ⏳ in Arbeit (dieser Task) |
+
+---
+
 ## Projektbeschreibung
 Lagerverwaltungs- und BDE-System (Betriebsdatenerfassung) für AKE.
 ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
@@ -73,6 +98,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Server-Side Spaltenfilter (Text + Datum, OR/NOT-Syntax) | Fertig (v1.14.0) |
 | Leitstand als eigenes Hauptmenue + Dashboard-Sektion | Fertig (v1.14.0) |
 | Lagerbestellungen: Notiz pro Position + INT-Mengen | Fertig (v1.14.0) |
+| SyncLog-Pflicht fuer alle Sync-Services (Lifecycle + Events) | Fertig (v1.15.0) |
 
 ## Version
 - **Web-App**: v1.14.0 (22.05.2026)
@@ -83,6 +109,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - v1.10.0 (2026-05-07) — Sage Lagerbestand-Sync (Phase 2). Bestand-Abgleich mit Korrektur-Buchungen.
 - v1.13.0 (2026-05-15) — FA-Vervollstaendigung Phase 4: Modul fuer Vormontage-Gruppen.
 - v1.14.0 (2026-05-22) — Pagination & Spaltenfilter Roll-Out, Lagerbestellungs-Fixes, StorageLocation-Code 50, FA-Vervollstaendigung als Feature-Toggle, OSEON-Hover-Angleichung.
+- v1.15.0 (2026-05-26) — SyncLog-Pflicht fuer alle 8 Sync-Services. Neuer ISyncLogger mit DbContextFactory-Isolation.
 
 ## Aenderungen (07.05.2026)
 
