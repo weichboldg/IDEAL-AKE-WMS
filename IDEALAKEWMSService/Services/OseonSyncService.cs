@@ -1,4 +1,5 @@
 using System.Data;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.Data.SqlClient;
 
 namespace IDEALAKEWMSService.Services;
@@ -7,15 +8,21 @@ public class OseonSyncService : IOseonSyncService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<OseonSyncService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
-    public OseonSyncService(IConfiguration configuration, ILogger<OseonSyncService> logger)
+    public OseonSyncService(
+        IConfiguration configuration,
+        ILogger<OseonSyncService> logger,
+        ISyncLogger syncLogger)
     {
         _configuration = configuration;
         _logger = logger;
+        _syncLogger = syncLogger;
     }
 
     public async Task<SyncResult> SyncOseonProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
     {
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.OseonTracking, ct);
         var oseonConnection = _configuration.GetConnectionString("OseonConnection")
             ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
         var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
@@ -146,10 +153,24 @@ public class OseonSyncService : IOseonSyncService
             _logger.LogInformation("OSEON: {Count} eindeutige Aufträge.", orderGroups.Count);
 
             if (dryRun)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["neu"] = 0,
+                    ["aktualisiert"] = 0,
+                }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0, $"DryRun: {oseonRows.Count} Zeilen, {orderGroups.Count} Aufträge aus OSEON gelesen.");
+            }
 
             if (orderGroups.Count == 0)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["neu"] = 0,
+                    ["aktualisiert"] = 0,
+                }, ct: ct);
                 return new SyncResult(0, 0, 0, "Keine geänderten Datensätze in OSEON.");
+            }
 
             // 1. Werkbänke auto-anlegen (Bulk-Insert fehlender)
             await EnsureWorkplacesExistBulkAsync(wmsConn, orderGroups, ct);
@@ -163,12 +184,20 @@ public class OseonSyncService : IOseonSyncService
             _logger.LogInformation("OSEON-Tracking-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert.",
                 inserted, updated);
 
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["neu"] = inserted,
+                ["aktualisiert"] = updated,
+            }, ct: ct);
+
             return new SyncResult(inserted, updated, 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fehler beim OSEON-Tracking-Sync.");
-            return new SyncResult(0, 0, 1, ex.Message);
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
     }
 
