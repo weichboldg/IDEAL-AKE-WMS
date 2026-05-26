@@ -1,5 +1,4 @@
 using FluentAssertions;
-using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;            // TestDbContextFactory liegt im Web-Test-Projekt
 using IDEALAKEWMSService.Services;
@@ -12,20 +11,20 @@ public class LagerplatzSyncServiceTests
 {
     private const string SyncUser_For_Tests = "system:sync";
 
-    private static (LagerplatzSyncService service, FakeSageLagerplatzReader reader, IdealAkeWms.Data.ApplicationDbContext ctx, SyncLogRepository syncLogs)
+    private static (LagerplatzSyncService service, FakeSageLagerplatzReader reader, IdealAkeWms.Data.ApplicationDbContext ctx, IDEALAKEWMSService.Tests.Helpers.FakeSyncLogger fakeLogger)
         Build()
     {
         var ctx = TestDbContextFactory.Create();
         var reader = new FakeSageLagerplatzReader();
-        var syncLogs = new SyncLogRepository(ctx);
-        var service = new LagerplatzSyncService(ctx, reader, syncLogs, NullLogger<LagerplatzSyncService>.Instance);
-        return (service, reader, ctx, syncLogs);
+        var fakeLogger = new IDEALAKEWMSService.Tests.Helpers.FakeSyncLogger();
+        var service = new LagerplatzSyncService(ctx, reader, fakeLogger, NullLogger<LagerplatzSyncService>.Instance);
+        return (service, reader, ctx, fakeLogger);
     }
 
     [Fact]
     public async Task Run_EmptyDb_ThreeSagePlaetze_InsertsThree()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         reader.Records = new()
         {
             new("HALLE-1", "A-01-01", "Regal A1"),
@@ -50,10 +49,10 @@ public class LagerplatzSyncServiceTests
         stored[0].Capacity.Should().BeNull();
         stored[0].IsPickingTransport.Should().BeFalse();
 
-        var summary = (await syncLogs.GetRecentAsync("Lagerplatz", null, 10)).FirstOrDefault();
-        summary.Should().NotBeNull();
-        summary!.Level.Should().Be(SyncLogLevel.Info);
-        summary.Message.Should().Contain("3 neu");
+        fakeLogger.Runs.Should().ContainSingle();
+        fakeLogger.Runs[0].ServiceName.Should().Be("Lagerplatz");
+        fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
+        fakeLogger.Runs[0].FinalCounts!["neu"].Should().Be(3);
     }
 
     [Fact]
@@ -103,7 +102,7 @@ public class LagerplatzSyncServiceTests
     [Fact]
     public async Task Run_ExistingManualRecord_SameCodeFromSage_ConflictWithoutWrite()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         ctx.StorageLocations.Add(new StorageLocation
         {
             Code = "ABC", Zone = "MANUAL-ZONE", Description = "Manuell angelegt",
@@ -123,16 +122,14 @@ public class LagerplatzSyncServiceTests
         sl.Zone.Should().Be("MANUAL-ZONE");
         sl.Description.Should().Be("Manuell angelegt");
 
-        var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
-        warnings.Should().ContainSingle();
-        warnings[0].Reference.Should().Be("ABC");
-        warnings[0].Message.Should().Contain("manuell");
+        fakeLogger.Runs[0].Events
+            .Should().Contain(e => e.Level == "Warning" && e.Reference == "ABC" && e.Message.Contains("manuell"));
     }
 
     [Fact]
     public async Task Run_SageRecord_NoLongerInSage_SoftDeactivates()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         ctx.StorageLocations.Add(new StorageLocation
         {
             Code = "GONE-1", Zone = "HALLE-X", Description = "war mal in Sage",
@@ -149,8 +146,8 @@ public class LagerplatzSyncServiceTests
         sl.IsActive.Should().BeFalse();
         sl.ModifiedAt.Should().NotBeNull();
 
-        var infos = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Info, 10);
-        infos.Should().ContainSingle(x => x.Reference == "GONE-1");
+        fakeLogger.Runs[0].Events
+            .Should().Contain(e => e.Level == "Info" && e.Reference == "GONE-1");
     }
 
     [Fact]
@@ -176,7 +173,7 @@ public class LagerplatzSyncServiceTests
     [Fact]
     public async Task Run_SageDuplicateCode_SkipsAllAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         reader.Records = new()
         {
             new("HALLE-A", "DUP", "Erste Zeile"),
@@ -190,15 +187,14 @@ public class LagerplatzSyncServiceTests
         ctx.StorageLocations.Should().HaveCount(1);
         ctx.StorageLocations.Single().Code.Should().Be("OK");
 
-        var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
-        warnings.Should().ContainSingle(x => x.Reference == "DUP");
-        warnings[0].Message.Should().Contain("mehrfach");
+        fakeLogger.Runs[0].Events
+            .Should().Contain(e => e.Level == "Warning" && e.Reference == "DUP" && e.Message.Contains("mehrfach"));
     }
 
     [Fact]
     public async Task Run_SageCodeTooLong_SkipsAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         // MaxCodeLength = 50 (matches StorageLocation column NVARCHAR(50)).
         var longCode = new string('X', 51);
         reader.Records = new() { new("HALLE-1", longCode, "irgendwas") };
@@ -209,8 +205,8 @@ public class LagerplatzSyncServiceTests
         result.Skipped.Should().Be(1);
         ctx.StorageLocations.Should().BeEmpty();
 
-        var warnings = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Warning, 10);
-        warnings.Should().Contain(x => x.Reference == longCode && x.Message.Contains("zu lang"));
+        fakeLogger.Runs[0].Events
+            .Should().Contain(e => e.Level == "Warning" && e.Reference == longCode && e.Message.Contains("zu lang"));
     }
 
     [Fact]
@@ -230,7 +226,7 @@ public class LagerplatzSyncServiceTests
     [Fact]
     public async Task Run_SageDescriptionTooLong_TruncatesAndLogsInfo()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         var longDesc = new string('Y', 250); // > 200
         reader.Records = new() { new("HALLE-1", "TRUNC-1", longDesc) };
 
@@ -240,14 +236,14 @@ public class LagerplatzSyncServiceTests
         var sl = ctx.StorageLocations.Single();
         sl.Description!.Length.Should().Be(200);
 
-        var infos = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Info, 10);
-        infos.Should().Contain(x => x.Reference == "TRUNC-1" && x.Message.Contains("gekuerzt"));
+        fakeLogger.Runs[0].Events
+            .Should().Contain(e => e.Level == "Info" && e.Reference == "TRUNC-1" && e.Message.Contains("gekuerzt"));
     }
 
     [Fact]
     public async Task Run_SageReaderThrows_LogsError_NoCrash()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         reader.ThrowOnRead = new InvalidOperationException("Sage offline");
 
         var result = await svc.RunAsync();
@@ -255,9 +251,10 @@ public class LagerplatzSyncServiceTests
         result.Errors.Should().Be(1);
         ctx.StorageLocations.Should().BeEmpty();
 
-        var errors = await syncLogs.GetRecentAsync("Lagerplatz", SyncLogLevel.Error, 10);
-        errors.Should().ContainSingle();
-        errors[0].Message.Should().Contain("Sage offline");
+        fakeLogger.Runs.Should().ContainSingle();
+        fakeLogger.Runs[0].FinishedFailed.Should().BeTrue();
+        fakeLogger.Runs[0].Events
+            .Should().Contain(e => e.Level == "Error" && e.Message.Contains("Sage offline"));
     }
 
     [Fact]
