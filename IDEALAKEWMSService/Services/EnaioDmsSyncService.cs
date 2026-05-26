@@ -1,4 +1,5 @@
 using System.Data;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.Data.SqlClient;
 
 namespace IDEALAKEWMSService.Services;
@@ -7,15 +8,22 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<EnaioDmsSyncService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
-    public EnaioDmsSyncService(IConfiguration configuration, ILogger<EnaioDmsSyncService> logger)
+    public EnaioDmsSyncService(
+        IConfiguration configuration,
+        ILogger<EnaioDmsSyncService> logger,
+        ISyncLogger syncLogger)
     {
         _configuration = configuration;
         _logger = logger;
+        _syncLogger = syncLogger;
     }
 
     public async Task<SyncResult> SyncDocumentsAsync(bool dryRun, CancellationToken ct = default)
     {
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.EnaioDms, ct);
+
         var enaioDmsConnection = _configuration.GetConnectionString("EnaioDmsConnection")
             ?? throw new InvalidOperationException("EnaioDmsConnection nicht konfiguriert.");
         var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
@@ -66,7 +74,14 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             _logger.LogInformation("enaio DMS: {Count} Dokumente aus enaio gelesen.", docs.Count);
 
             if (docs.Count == 0 || dryRun)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["neu"] = 0,
+                    ["aktualisiert"] = 0,
+                }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
                 return new SyncResult(0, 0, 0);
+            }
 
             // 3. Bulk-Insert in Temp-Table + MERGE
             await using var wmsConn2 = new SqlConnection(wmsConnection);
@@ -145,12 +160,21 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             }
 
             _logger.LogInformation("enaio DMS-Sync: {Inserted} neu, {Updated} aktualisiert.", inserted, updated);
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["neu"] = inserted,
+                ["aktualisiert"] = updated,
+            }, ct: ct);
+
             return new SyncResult(inserted, updated, 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fehler beim enaio DMS-Sync.");
-            return new SyncResult(0, 0, 1, ex.Message);
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
     }
 
