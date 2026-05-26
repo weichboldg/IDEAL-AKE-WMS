@@ -45,7 +45,7 @@ public class HolidaySyncServiceTests
             DryRun = testSettings.DryRun
         });
 
-        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance);
+        var svc = new HolidaySyncService(ctx, http, options, new FakeSyncLogger(), NullLogger<HolidaySyncService>.Instance);
         return (ctx, svc);
     }
 
@@ -183,7 +183,7 @@ public class HolidaySyncServiceTests
         var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
         var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 0 });
 
-        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance);
+        var svc = new HolidaySyncService(ctx, http, options, new FakeSyncLogger(), NullLogger<HolidaySyncService>.Instance);
 
         var result = await svc.RunAsync(CancellationToken.None);
 
@@ -215,7 +215,7 @@ public class HolidaySyncServiceTests
         var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
         var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 1 });
 
-        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance);
+        var svc = new HolidaySyncService(ctx, http, options, new FakeSyncLogger(), NullLogger<HolidaySyncService>.Instance);
 
         var result = await svc.RunAsync(CancellationToken.None);
 
@@ -224,5 +224,36 @@ public class HolidaySyncServiceTests
         result.InsertedCount.Should().Be(1, "year N+1 succeeded and inserted Neujahr");
         ctx.Holidays.Should().HaveCount(1);
         ctx.Holidays.First().Date.Should().Be(new DateTime(year + 1, 1, 1));
+    }
+
+    [Fact]
+    public async Task RunAsync_writes_lifecycle_to_synclogger()
+    {
+        var year = DateTime.Today.Year;
+        var ctx = TestDbContextFactory.Create();
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                var json = JsonSerializer.Serialize(new[] { Holiday($"{year}-01-01", "Neujahr") });
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+                };
+            });
+
+        var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
+        var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 0 });
+        var fakeLogger = new FakeSyncLogger();
+        var service = new HolidaySyncService(ctx, http, options, fakeLogger, NullLogger<HolidaySyncService>.Instance);
+
+        await service.RunAsync(CancellationToken.None);
+
+        fakeLogger.Runs.Should().HaveCount(1);
+        fakeLogger.Runs[0].ServiceName.Should().Be("Holiday");
+        fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
+        fakeLogger.Runs[0].FinalCounts.Should().NotBeNull();
+        fakeLogger.Runs[0].FinalCounts!.Should().ContainKey("importiert");
     }
 }
