@@ -32,6 +32,11 @@ try
             builder.Configuration.GetConnectionString("DefaultConnection"),
             sqlOptions => sqlOptions.CommandTimeout(120)));
 
+    builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions => sqlOptions.CommandTimeout(120)));
+
     // Caching (für CachedSettingRepository)
     builder.Services.AddMemoryCache();
 
@@ -39,6 +44,8 @@ try
     builder.Services.AddScoped<AppSettingRepository>();
     builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
     builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>();
+    builder.Services.AddSingleton<IdealAkeWms.Services.SyncLogger.ISyncLogger,
+                                  IdealAkeWms.Services.SyncLogger.SyncLogger>();
 
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();
