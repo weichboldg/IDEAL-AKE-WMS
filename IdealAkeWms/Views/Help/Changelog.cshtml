@@ -9,6 +9,26 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.15.0</strong> <span class="text-white-50 ms-2">26.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Einheitliches Sync-Audit-Log</h6>
+                <ul>
+                    <li><strong>Alle 8 Sync-Services</strong> (Lagerplatz, Lagerbestand, BomCache,
+                        OSEON-Tracking, enaio DMS, Feiertage, Coating Detection, Sage Import = Production
+                        Orders + Articles) schreiben jetzt Start, Warnings/Errors und Ende-Summary ins Sync-Protokoll.
+                        Vorher waren nur Lagerplatz und Lagerbestand gelistet.</li>
+                    <li><strong>Neue interne Architektur:</strong> <code>ISyncLogger</code> + <code>ISyncRun</code>
+                        (IAsyncDisposable) mit eigenem DbContext pro Insert — SyncLog-Schreibfehler crashen Syncs nie
+                        und werden nicht durch Sync-Transaktionen rolled-back.</li>
+                    <li><strong>Sync-Protokoll-Dropdown</strong> listet automatisch alle 9 Service-Namen
+                        (inkl. neuem <code>CoatingDetection</code>).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.14.0</strong> <span class="text-white-50 ms-2">22.05.2026</span>
             </div>
             <div class="card-body">
