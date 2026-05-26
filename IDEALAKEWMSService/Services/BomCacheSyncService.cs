@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Models;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -18,19 +19,23 @@ public class BomCacheSyncService : IBomCacheSyncService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<BomCacheSyncService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
     public BomCacheSyncService(
         IConfiguration configuration,
-        ILogger<BomCacheSyncService> logger)
+        ILogger<BomCacheSyncService> logger,
+        ISyncLogger syncLogger)
     {
         _configuration = configuration;
         _logger = logger;
+        _syncLogger = syncLogger;
     }
 
     // ============ Main orchestration ============
 
     public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken ct)
     {
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.BomCache, ct);
         var sw = System.Diagnostics.Stopwatch.StartNew();
         int inserted = 0, updated = 0, skipped = 0, errors = 0;
         string? errorDetails = null;
@@ -54,6 +59,12 @@ public class BomCacheSyncService : IBomCacheSyncService
             if (articleNumbers.Count == 0)
             {
                 _logger.LogInformation("BOM-Cache-Sync: Keine Artikelnummern - nothing to do");
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["neu"] = 0,
+                    ["aktualisiert"] = 0,
+                    ["uebersprungen"] = 0,
+                }, ct: ct);
                 return new SyncResult(0, 0, 0);
             }
 
@@ -128,15 +139,23 @@ public class BomCacheSyncService : IBomCacheSyncService
             _logger.LogInformation(
                 "BOM-Cache-Sync abgeschlossen in {Ms}ms: {Ins} neu, {Upd} aktualisiert, {Skip} unveraendert, {Err} Fehler",
                 sw.ElapsedMilliseconds, inserted, updated, skipped, errors);
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["neu"] = inserted,
+                ["aktualisiert"] = updated,
+                ["uebersprungen"] = skipped,
+            }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
+
+            return new SyncResult(inserted, updated, errors, errorDetails);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "BOM-Cache-Sync fehlgeschlagen");
-            errors++;
-            errorDetails = ex.Message;
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
-
-        return new SyncResult(inserted, updated, errors, errorDetails);
     }
 
     public async Task<SyncResult> SyncSpecificArticleNumbersAsync(
