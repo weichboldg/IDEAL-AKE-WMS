@@ -1,3 +1,4 @@
+using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
 using Microsoft.Data.SqlClient;
 using System.Text;
@@ -8,33 +9,37 @@ public class SageImportService : ISageImportService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<SageImportService> _logger;
+    private readonly ISyncLogger _syncLogger;
     private readonly IBomCacheSyncService _bomCacheSync;
     private readonly ICoatingDetectionService _coatingDetection;
 
     public SageImportService(
         IConfiguration configuration,
         ILogger<SageImportService> logger,
+        ISyncLogger syncLogger,
         IBomCacheSyncService bomCacheSync,
         ICoatingDetectionService coatingDetection)
     {
         _configuration = configuration;
         _logger = logger;
+        _syncLogger = syncLogger;
         _bomCacheSync = bomCacheSync;
         _coatingDetection = coatingDetection;
     }
 
     public async Task<SyncResult> SyncProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
     {
-        var sageConnection = _configuration.GetConnectionString("SageConnection")
-            ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
-        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
-
-        if (dryRun)
-            _logger.LogInformation("[DryRun] Produktionsaufträge-Sync — keine Änderungen werden geschrieben.");
-
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.ProductionOrder, ct);
         try
         {
+            var sageConnection = _configuration.GetConnectionString("SageConnection")
+                ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
+            var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
+
+            if (dryRun)
+                _logger.LogInformation("[DryRun] Produktionsaufträge-Sync — keine Änderungen werden geschrieben.");
+
             // Daten aus SAGE lesen
             const string sageSql = """
                 SELECT DISTINCT
@@ -78,7 +83,15 @@ public class SageImportService : ISageImportService
             _logger.LogInformation("SAGE liefert {Count} Produktionsaufträge.", sageOrders.Count);
 
             if (dryRun)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["gelesen"] = sageOrders.Count,
+                    ["inserted"] = 0,
+                    ["updated"] = 0,
+                }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0, $"DryRun: {sageOrders.Count} Datensätze aus SAGE gelesen.");
+            }
 
             int inserted = 0, updated = 0;
             var newArticleNumbers = new List<string>();
@@ -230,27 +243,37 @@ public class SageImportService : ISageImportService
             }
 
             _logger.LogInformation("Produktionsaufträge-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert.", inserted, updated);
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["inserted"] = inserted,
+                ["updated"] = updated,
+            }, ct: ct);
+
             return new SyncResult(inserted, updated, 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fehler beim Produktionsaufträge-Sync.");
-            return new SyncResult(0, 0, 1, ex.Message);
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
     }
 
     public async Task<SyncResult> SyncArticlesAsync(bool dryRun, CancellationToken ct = default)
     {
-        var sageConnection = _configuration.GetConnectionString("SageConnection")
-            ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
-        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
-
-        if (dryRun)
-            _logger.LogInformation("[DryRun] Artikel-Sync — keine Änderungen werden geschrieben.");
-
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.Article, ct);
         try
         {
+            var sageConnection = _configuration.GetConnectionString("SageConnection")
+                ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
+            var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
+
+            if (dryRun)
+                _logger.LogInformation("[DryRun] Artikel-Sync — keine Änderungen werden geschrieben.");
+
             const string sageSql = """
                 SELECT DISTINCT
                     CAST(r.Ressourcenummer AS nvarchar(100))   AS ArticleNumber,
@@ -284,7 +307,14 @@ public class SageImportService : ISageImportService
             _logger.LogInformation("SAGE liefert {Count} Artikel.", sageArticles.Count);
 
             if (dryRun)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["gelesen"] = sageArticles.Count,
+                    ["inserted"] = 0,
+                }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0, $"DryRun: {sageArticles.Count} Datensätze aus SAGE gelesen.");
+            }
 
             int inserted = 0;
 
@@ -320,12 +350,20 @@ public class SageImportService : ISageImportService
             }
 
             _logger.LogInformation("Artikel-Sync abgeschlossen: {Inserted} neu eingefügt.", inserted);
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["inserted"] = inserted,
+            }, ct: ct);
+
             return new SyncResult(inserted, 0, 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fehler beim Artikel-Sync.");
-            return new SyncResult(0, 0, 1, ex.Message);
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
     }
 }
