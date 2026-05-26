@@ -4,6 +4,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdealAkeWms.Tests.Services;
@@ -117,5 +118,92 @@ public class SyncLoggerTests
         // Erwartet: Start + 1x Success-Finish = 2 Eintraege. Kein "Run fehlgeschlagen".
         entries.Should().HaveCount(2);
         entries.Should().NotContain(e => e.Message.StartsWith("Run fehlgeschlagen"));
+    }
+
+    [Fact]
+    public async Task LogInfoAsync_writes_info_entry_with_reference()
+    {
+        var factory = new TestApplicationDbContextFactory();
+        var logger = new SyncLogger(factory, NullLogger<SyncLogger>.Instance);
+
+        await using var run = await logger.BeginRunAsync(SyncLogServices.Lagerplatz);
+        await run.LogInfoAsync("Lagerplatz reaktiviert", reference: "A-001");
+        await run.FinishSuccessAsync();
+
+        using var verify = factory.CreateDbContext();
+        // Filter out the Start-Eintrag and End-Summary to isolate the mid-run Info event.
+        var info = await verify.SyncLogs
+            .Where(e => e.Level == SyncLogLevel.Info && e.Reference == "A-001")
+            .SingleAsync();
+        info.Message.Should().Be("Lagerplatz reaktiviert");
+        info.Service.Should().Be(SyncLogServices.Lagerplatz);
+    }
+
+    [Fact]
+    public async Task Dispose_after_finish_writes_nothing()
+    {
+        var factory = new TestApplicationDbContextFactory();
+        var logger = new SyncLogger(factory, NullLogger<SyncLogger>.Instance);
+
+        await using (var run = await logger.BeginRunAsync(SyncLogServices.BomCache))
+        {
+            await run.FinishSuccessAsync();
+            // exit of using block triggers DisposeAsync
+        }
+
+        using var verify = factory.CreateDbContext();
+        var entries = await verify.SyncLogs.OrderBy(e => e.Id).ToListAsync();
+        // Erwartet: genau Start + Success-Finish = 2 Eintraege.
+        // Kein zusaetzlicher "unerwartet beendet"-Eintrag durch DisposeAsync.
+        entries.Should().HaveCount(2);
+        entries.Should().NotContain(e => e.Message.Contains("unerwartet"));
+    }
+
+    [Fact]
+    public async Task WriteFailure_falls_back_to_serilog_and_does_not_throw()
+    {
+        // Arrange: a factory whose CreateDbContextAsync throws
+        var throwingFactory = new ThrowingDbContextFactory();
+        var recordingLogger = new RecordingLogger<SyncLogger>();
+        var logger = new SyncLogger(throwingFactory, recordingLogger);
+
+        // Act: BeginRunAsync internally calls WriteEntryAsync once.
+        // It must NOT throw, despite the factory throwing.
+        var act = async () => await logger.BeginRunAsync(SyncLogServices.OseonTracking);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+        recordingLogger.WarningCount.Should().BeGreaterThan(0);
+        recordingLogger.LastWarningMessage.Should().Contain("SyncLog write failed");
+    }
+
+    // Test helper: DbContextFactory that always throws — for robustness testing.
+    private sealed class ThrowingDbContextFactory : IDbContextFactory<ApplicationDbContext>
+    {
+        public ApplicationDbContext CreateDbContext()
+            => throw new InvalidOperationException("simulated DB connection failure");
+
+        public Task<ApplicationDbContext> CreateDbContextAsync(CancellationToken ct = default)
+            => throw new InvalidOperationException("simulated DB connection failure");
+    }
+
+    // Test helper: ILogger that records LogWarning calls.
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public int WarningCount { get; private set; }
+        public string? LastWarningMessage { get; private set; }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning)
+            {
+                WarningCount++;
+                LastWarningMessage = formatter(state, exception);
+            }
+        }
     }
 }
