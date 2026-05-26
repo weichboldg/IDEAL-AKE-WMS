@@ -15,7 +15,7 @@ Hintergrund: v1.14.0 hat 22 Listen mit einheitlicher Pagination ausgestattet, dr
 | 3 | [SyncLog/Index](IdealAkeWms/Views/SyncLog/Index.cshtml): harten 200er-Cap durch Pagination ersetzt, neue Repo-Methode `GetPagedAsync` | ✅ erledigt |
 | 4 | [Tracking/Index](IdealAkeWms/Views/Tracking/Index.cshtml) (alte WMS-Teileverfolgung): Pagination ueber Auftragsgruppen, Spalten mit `data-col-key` | ✅ erledigt |
 | 5 | Build + Tests gruen (576 Tests bestanden, 1 Integration-Test skipped wie vorgesehen) | ✅ erledigt |
-| 6 | Commit + Push | ⏳ offen |
+| 6 | Commit + Push (`02f2598`) | ✅ erledigt |
 
 Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog + Help/Index ergaenzen; TESTSZENARIEN um Pagination-Smoke-Tests fuer die drei neuen Views erweitern.
 
