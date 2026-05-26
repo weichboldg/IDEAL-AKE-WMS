@@ -19,6 +19,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.CommandTimeout(120)));
 
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.CommandTimeout(120)));
+
 // Authentication - Windows/Negotiate
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
     .AddNegotiate();
@@ -73,6 +78,8 @@ builder.Services.AddScoped<IBdeActivityRepository, BdeActivityRepository>();
 builder.Services.AddScoped<IBdeTerminalRepository, BdeTerminalRepository>();
 builder.Services.AddScoped<IBdeBookingRepository, BdeBookingRepository>();
 builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>();
+builder.Services.AddSingleton<IdealAkeWms.Services.SyncLogger.ISyncLogger,
+                              IdealAkeWms.Services.SyncLogger.SyncLogger>();
 
 // Caching
 builder.Services.AddMemoryCache();
