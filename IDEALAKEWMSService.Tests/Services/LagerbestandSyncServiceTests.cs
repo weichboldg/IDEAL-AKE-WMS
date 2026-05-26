@@ -13,15 +13,15 @@ public class LagerbestandSyncServiceTests
     private const string SyncUser = "system:sync";
 
     private static (LagerbestandSyncService service, FakeSageBestandReader reader,
-                    IdealAkeWms.Data.ApplicationDbContext ctx, SyncLogRepository syncLogs)
+                    IdealAkeWms.Data.ApplicationDbContext ctx, FakeSyncLogger fakeLogger)
         Build()
     {
         var ctx = TestDbContextFactory.Create();
         var reader = new FakeSageBestandReader();
-        var syncLogs = new SyncLogRepository(ctx);
+        var fakeLogger = new FakeSyncLogger();
         var stockRepo = new StockMovementRepository(ctx);
-        var service = new LagerbestandSyncService(ctx, reader, stockRepo, syncLogs, NullLogger<LagerbestandSyncService>.Instance);
-        return (service, reader, ctx, syncLogs);
+        var service = new LagerbestandSyncService(ctx, reader, stockRepo, fakeLogger, NullLogger<LagerbestandSyncService>.Instance);
+        return (service, reader, ctx, fakeLogger);
     }
 
     private static void SeedArticle(IdealAkeWms.Data.ApplicationDbContext ctx, int id, string number)
@@ -48,7 +48,7 @@ public class LagerbestandSyncServiceTests
     [Fact]
     public async Task Run_EmptyWms_SagePositive_InsertsSageEinbuchung()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedArticle(ctx, id: 1, number: "A-1");
         SeedSageLocation(ctx, id: 1, code: "L-1");
         await ctx.SaveChangesAsync();
@@ -69,9 +69,8 @@ public class LagerbestandSyncServiceTests
         movements[0].WindowsUser.Should().Be(SyncUser);
         movements[0].Note.Should().Contain("Diff=+5");
 
-        var summary = (await syncLogs.GetRecentAsync("Lagerbestand", null, 10)).FirstOrDefault();
-        summary.Should().NotBeNull();
-        summary!.Level.Should().Be(SyncLogLevel.Info);
+        fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
+        fakeLogger.Runs[0].FinalCounts!["einbuchungen"].Should().Be(1);
     }
 
     [Fact]
@@ -180,7 +179,7 @@ public class LagerbestandSyncServiceTests
     [Fact]
     public async Task Run_UnknownArticle_SkipsAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedSageLocation(ctx, id: 1, code: "L-1");
         await ctx.SaveChangesAsync();
         reader.Records = new() { new("UNKNOWN-ARTICLE", "L-1", 5m) };
@@ -191,14 +190,14 @@ public class LagerbestandSyncServiceTests
         result.CorrectionsPlus.Should().Be(0);
         ctx.StockMovements.Should().BeEmpty();
 
-        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
-        warnings.Should().Contain(x => x.Message.Contains("UNKNOWN-ARTICLE"));
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("UNKNOWN-ARTICLE"));
     }
 
     [Fact]
     public async Task Run_UnknownLocation_SkipsAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedArticle(ctx, id: 1, number: "A-1");
         await ctx.SaveChangesAsync();
         reader.Records = new() { new("A-1", "UNKNOWN-LOC", 5m) };
@@ -207,14 +206,14 @@ public class LagerbestandSyncServiceTests
 
         result.Skipped.Should().Be(1);
         ctx.StockMovements.Should().BeEmpty();
-        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
-        warnings.Should().Contain(x => x.Message.Contains("UNKNOWN-LOC"));
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("UNKNOWN-LOC"));
     }
 
     [Fact]
     public async Task Run_ManualLocation_SkipsAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedArticle(ctx, id: 1, number: "A-1");
         ctx.StorageLocations.Add(new StorageLocation
         {
@@ -230,14 +229,14 @@ public class LagerbestandSyncServiceTests
 
         result.Skipped.Should().Be(1);
         ctx.StockMovements.Should().BeEmpty();
-        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
-        warnings.Should().Contain(x => x.Message.Contains("Manual"));
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("Manual"));
     }
 
     [Fact]
     public async Task Run_InactiveSageLocation_SkipsAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedArticle(ctx, id: 1, number: "A-1");
         SeedSageLocation(ctx, id: 1, code: "L-1", isActive: false);
         await ctx.SaveChangesAsync();
@@ -247,8 +246,8 @@ public class LagerbestandSyncServiceTests
 
         result.Skipped.Should().Be(1);
         ctx.StockMovements.Should().BeEmpty();
-        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
-        warnings.Should().Contain(x => x.Message.Contains("deaktiviert"));
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("deaktiviert"));
     }
 
     [Fact]
@@ -301,7 +300,7 @@ public class LagerbestandSyncServiceTests
     [Fact]
     public async Task Run_DryRun_DoesNotInsertButLogsCounts()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedArticle(ctx, id: 1, number: "A-1");
         SeedSageLocation(ctx, id: 1, code: "L-1");
         await ctx.SaveChangesAsync();
@@ -313,14 +312,14 @@ public class LagerbestandSyncServiceTests
         result.DryRun.Should().BeTrue();
         ctx.StockMovements.Should().BeEmpty();   // KEIN Insert
 
-        var summary = (await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Info, 10)).First();
-        summary.Message.Should().StartWith("[DryRun]");
+        fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
+        fakeLogger.Runs[0].FinalCounts!["einbuchungen"].Should().Be(1);
     }
 
     [Fact]
     public async Task Run_SageReaderThrows_LogsErrorAndDoesNotCrash()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         reader.ThrowOnRead = new InvalidOperationException("Sage offline");
 
         var result = await svc.RunAsync(dryRun: false);
@@ -328,15 +327,15 @@ public class LagerbestandSyncServiceTests
         result.Errors.Should().Be(1);
         ctx.StockMovements.Should().BeEmpty();
 
-        var errors = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Error, 10);
-        errors.Should().ContainSingle();
-        errors[0].Message.Should().Contain("Sage offline");
+        fakeLogger.Runs[0].FinishedFailed.Should().BeTrue();
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Error" && e.Message.Contains("Sage offline"));
     }
 
     [Fact]
     public async Task Run_SageDuplicateTuple_SkipsAllAndLogsWarning()
     {
-        var (svc, reader, ctx, syncLogs) = Build();
+        var (svc, reader, ctx, fakeLogger) = Build();
         SeedArticle(ctx, id: 1, number: "A-1");
         SeedSageLocation(ctx, id: 1, code: "L-1");
         SeedSageLocation(ctx, id: 2, code: "L-2");
@@ -358,7 +357,7 @@ public class LagerbestandSyncServiceTests
         corrections.Should().ContainSingle();
         corrections[0].StorageLocationId.Should().Be(2);
 
-        var warnings = await syncLogs.GetRecentAsync("Lagerbestand", SyncLogLevel.Warning, 10);
-        warnings.Should().Contain(x => x.Message.Contains("mehrfach"));
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("mehrfach"));
     }
 }
