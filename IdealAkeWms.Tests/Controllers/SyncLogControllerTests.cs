@@ -21,7 +21,7 @@ public class SyncLogControllerTests
         );
         await ctx.SaveChangesAsync();
         var repo = new SyncLogRepository(ctx);
-        var ctrl = new SyncLogController(repo);
+        var ctrl = new SyncLogController(repo, new FakeCurrentUserService());
 
         var result = await ctrl.Index(service: "Lagerplatz", level: SyncLogLevel.Warning, reference: null);
 

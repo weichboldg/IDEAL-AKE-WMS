@@ -55,17 +55,17 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-striped mb-0">
+        <table class="table table-striped mb-0 filterable-table" data-view-key="Tracking" data-server-column-filter="true">
             <thead>
                 <tr>
-                    <th>FA-Nr.</th>
-                    <th>Artikelnr.</th>
-                    <th>Bezeichnung</th>
-                    <th>Kunde</th>
-                    <th>Fertigungstermin</th>
-                    <th>Werkbank</th>
-                    <th>Fortschritt</th>
-                    <th style="width: 50px;"></th>
+                    <th data-col-key="order-number">FA-Nr.</th>
+                    <th data-col-key="article-number">Artikelnr.</th>
+                    <th data-col-key="description1">Bezeichnung</th>
+                    <th data-col-key="customer">Kunde</th>
+                    <th data-col-key="production-date">Fertigungstermin</th>
+                    <th data-col-key="workplace">Werkbank</th>
+                    <th data-col-key="progress">Fortschritt</th>
+                    <th data-col-key="row-actions" style="width: 50px;"></th>
                 </tr>
             </thead>
             <tbody>
@@ -166,4 +166,11 @@ else
             </tbody>
         </table>
     </div>
+}
+
+@await Html.PartialAsync("_Pagination", Model.Pagination)
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

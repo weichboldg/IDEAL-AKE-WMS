@@ -1,5 +1,26 @@
 # IdealAkeWms - Projektstatus
 
+## Aktueller Fortschritt (laufend)
+
+Stand: **2026-05-26**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+
+### Pagination-Vervollstaendigung (Nachzug zu v1.14.0)
+
+Hintergrund: v1.14.0 hat 22 Listen mit einheitlicher Pagination ausgestattet, drei Listen wurden uebersehen. Diese werden jetzt nachgezogen + CLAUDE.md-Policy fuer kuenftige Views verankert.
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 1 | CLAUDE.md: Policy "Listen-Views — Pflicht-Pattern (ab v1.14.0)" ergaenzt (Pagination + Filter + Layout) | ✅ erledigt |
+| 2 | [FaCompletion/Index](IdealAkeWms/Views/FaCompletion/Index.cshtml): Pagination + Server-Side Column Filter | ✅ erledigt |
+| 3 | [SyncLog/Index](IdealAkeWms/Views/SyncLog/Index.cshtml): harten 200er-Cap durch Pagination ersetzt, neue Repo-Methode `GetPagedAsync` | ✅ erledigt |
+| 4 | [Tracking/Index](IdealAkeWms/Views/Tracking/Index.cshtml) (alte WMS-Teileverfolgung): Pagination ueber Auftragsgruppen, Spalten mit `data-col-key` | ✅ erledigt |
+| 5 | Build + Tests gruen (576 Tests bestanden, 1 Integration-Test skipped wie vorgesehen) | ✅ erledigt |
+| 6 | Commit + Push | ⏳ offen |
+
+Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog + Help/Index ergaenzen; TESTSZENARIEN um Pagination-Smoke-Tests fuer die drei neuen Views erweitern.
+
+---
+
 ## Projektbeschreibung
 Lagerverwaltungs- und BDE-System (Betriebsdatenerfassung) für AKE.
 ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
@@ -48,7 +69,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Sage Lagerplatz-Sync (Phase 1, Stammdaten) | Fertig (v1.9.0) |
 | Sage Lagerbestand-Sync (Phase 2, Korrektur-Buchungen) | Fertig (v1.10.0) |
 | FA-Vervollstaendigung (5 Vormontage-Gruppen) | Fertig (v1.13.0), Feature-Toggle ab v1.14.0 |
-| Einheitliche Listen-Pagination (22 Listen) + User-Default | Fertig (v1.14.0) |
+| Einheitliche Listen-Pagination (alle relevanten Listen) + User-Default | Fertig (v1.14.0, nachgezogen 2026-05-26: FaCompletion, SyncLog, Tracking) |
 | Server-Side Spaltenfilter (Text + Datum, OR/NOT-Syntax) | Fertig (v1.14.0) |
 | Leitstand als eigenes Hauptmenue + Dashboard-Sektion | Fertig (v1.14.0) |
 | Lagerbestellungen: Notiz pro Position + INT-Mengen | Fertig (v1.14.0) |

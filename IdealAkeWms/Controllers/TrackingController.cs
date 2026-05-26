@@ -40,8 +40,17 @@ public class TrackingController : Controller
         _holidayRepository = holidayRepository;
     }
 
-    public async Task<IActionResult> Index(string? filterOrderNumber, int? filterWorkplaceId, bool showReported = false)
+    public async Task<IActionResult> Index(
+        string? filterOrderNumber,
+        int? filterWorkplaceId,
+        bool showReported = false,
+        int page = 1,
+        int? pageSize = null)
     {
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var allOperations = await _workOperationRepository.GetAllWithOrderAndWorkplaceAsync();
 
         // Filter anwenden
@@ -61,7 +70,7 @@ public class TrackingController : Controller
                 .ToList();
 
         // Nach Auftrag gruppieren
-        var groups = allOperations
+        var allGroups = allOperations
             .GroupBy(wo => wo.ProductionOrderId)
             .Select(g =>
             {
@@ -84,18 +93,50 @@ public class TrackingController : Controller
             .OrderBy(g => g.OrderNumber)
             .ToList();
 
+        var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filteredGroups = IdealAkeWms.Services.ColumnFilterHelper
+            .Apply(allGroups, columnFilters, TrackingGroupColumnMap)
+            .ToList();
+
+        var totalCount = filteredGroups.Count;
+        var pagedGroups = filteredGroups
+            .Skip((page - 1) * effectivePageSize)
+            .Take(effectivePageSize)
+            .ToList();
+
         var vm = new TrackingViewModel
         {
-            OrderGroups = groups,
+            OrderGroups = pagedGroups,
             FilterOrderNumber = filterOrderNumber,
             FilterWorkplaceId = filterWorkplaceId,
             ShowReported = showReported,
             AvailableWorkplaces = await _workplaceRepository.GetAllOrderedAsync(),
-            CanReport = await _currentUserService.CanReportOperationsAsync()
+            CanReport = await _currentUserService.CanReportOperationsAsync(),
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount,
+            },
         };
 
         return View(vm);
     }
+
+    private static readonly Dictionary<string, Func<TrackingOrderGroup, string?>> TrackingGroupColumnMap =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["order-number"] = g => g.OrderNumber,
+            ["article-number"] = g => g.ArticleNumber,
+            ["description1"] = g => g.Description1,
+            ["customer"] = g => g.Customer,
+            ["production-date"] = g => g.ProductionDate.HasValue
+                ? $"{g.ProductionDate.Value:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(g.ProductionDate.Value)}"
+                : string.Empty,
+            ["workplace"] = g => g.WorkplaceName,
+            ["progress"] = g => $"{g.ReportedOperations}/{g.TotalOperations}",
+        };
 
     public async Task<IActionResult> ByWorkplace(int id, string? filterOrderNumber, bool showReported = false)
     {

@@ -52,7 +52,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped filterable-table" data-view-key="FaCompletion">
+    <table class="table table-striped filterable-table" data-view-key="FaCompletion" data-server-column-filter="true">
         <thead>
             <tr>
                 <th data-col-key="order-number">FA Nr.</th>
@@ -105,6 +105,8 @@
         </tbody>
     </table>
 </div>
+
+@await Html.PartialAsync("_Pagination", Model.Pagination)
 
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>

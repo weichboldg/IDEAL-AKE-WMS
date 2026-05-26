@@ -11,6 +11,7 @@ public class FaCompletionListViewModel
     public string? FilterArticleNumber { get; set; }
     public string? FilterCustomer { get; set; }
     public bool ShowDone { get; set; }
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class FaCompletionListItem

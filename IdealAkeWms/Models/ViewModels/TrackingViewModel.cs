@@ -8,6 +8,7 @@ public class TrackingViewModel
     public bool ShowReported { get; set; }
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public bool CanReport { get; set; }
+    public PaginationState Pagination { get; set; } = new();
 }
 
 public class TrackingOrderGroup

@@ -50,8 +50,14 @@ public class FaCompletionController : Controller
         string? filterOrderNumber,
         string? filterArticleNumber,
         string? filterCustomer,
-        bool showDone = false)
+        bool showDone = false,
+        int page = 1,
+        int? pageSize = null)
     {
+        var userDefaultPageSize = await _currentUser.GetDefaultPageSizeAsync();
+        var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
         var orders = await _productionOrderRepository.GetAllOrderedAsync();
 
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
@@ -100,7 +106,7 @@ public class FaCompletionController : Controller
                 g => g.Key,
                 g => g.Sum(x => specsByGroup.TryGetValue(x.Id, out var list) ? list.Count : 0));
 
-        var items = orders.Select(o => new FaCompletionListItem
+        var allItems = orders.Select(o => new FaCompletionListItem
         {
             Id = o.Id,
             OrderNumber = o.OrderNumber,
@@ -117,17 +123,49 @@ public class FaCompletionController : Controller
             SpecCount = specCountByOrder.GetValueOrDefault(o.Id),
         }).ToList();
 
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filteredItems = ColumnFilterHelper.Apply(allItems, columnFilters, FaCompletionColumnMap).ToList();
+
+        var totalCount = filteredItems.Count;
+        var pagedItems = filteredItems
+            .Skip((page - 1) * effectivePageSize)
+            .Take(effectivePageSize)
+            .ToList();
+
         var vm = new FaCompletionListViewModel
         {
-            Items = items,
+            Items = pagedItems,
             FilterOrderNumber = filterOrderNumber,
             FilterArticleNumber = filterArticleNumber,
             FilterCustomer = filterCustomer,
             ShowDone = showDone,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = totalCount,
+            },
         };
 
         return View(vm);
     }
+
+    private static readonly Dictionary<string, Func<FaCompletionListItem, string?>> FaCompletionColumnMap =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["order-number"] = i => i.OrderNumber,
+            ["quantity"] = i => i.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["customer"] = i => i.Customer,
+            ["article-number"] = i => i.ArticleNumber,
+            ["description1"] = i => i.Description1,
+            ["production-date"] = i => i.ProductionDate.HasValue
+                ? $"{i.ProductionDate.Value:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(i.ProductionDate.Value)}"
+                : string.Empty,
+            ["applicable"] = i => i.ApplicableCount.ToString(),
+            ["completed"] = i => i.CompletedCount.ToString(),
+            ["spec-count"] = i => i.SpecCount.ToString(),
+        };
 
     // GET /FaCompletion/Edit/{id}
     public async Task<IActionResult> Edit(int id, string? tab = null)

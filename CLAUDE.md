@@ -39,6 +39,14 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **Verifikation** — Niemals Task als erledigt ohne Beweis (Build, Tests, View)
 - **Einfachheit** — Minimale Code-Auswirkung, Root Cause finden, kein Over-Engineering
 - **Testszenarien-Pflicht** — Bei jedem neuen Feature und jedem Bugfix immer ein vollstaendiges manuelles Testszenario liefern: Vorbedingungen, Schritt-fuer-Schritt-Aktionen, erwartetes Verhalten, ggf. Negativ-Faelle. Zusaetzlich `docs/TESTSZENARIEN.md` mit den neuen Szenarien synchronisieren (das Dokument ist die Single Source of Truth fuer die manuelle Abnahme).
+- **Listen-Views — Pflicht-Pattern (ab v1.14.0)** — Jede neue Listen-View (`Views/<Controller>/Index.cshtml` oder vergleichbar) MUSS folgendes Standard-Layout liefern:
+  - **Pagination**: `PageSize.Resolve` + `PaginationState` im Controller, `_Pagination`-Partial am Ende der View, User-Default ueber `_currentUserService.GetDefaultPageSizeAsync()`. Page-Sizes 25/50/100/Alle (Cap 5000). Kein hartcodierter Take/Cap.
+  - **Filter**: `<div class="card filter-card mb-3">` mit Filter-Inputs ueber dem Tabellen-Block. Globale Filter (Freitext, Status-Flags) per `?filter*=...` Query.
+  - **Spalten-Filter (Server-Side)**: `data-server-column-filter="true"` auf `<table class="table table-striped filterable-table" data-view-key="...">`. Alle `<th>` brauchen `data-col-key`. Controller liest `ColumnFilterHelper.ReadFromQuery(HttpContext?.Request)` und mappt Col-Keys auf Properties (in-Memory via `ColumnFilterHelper.Apply<T>` ODER LINQ je nach Repo).
+  - **Datumsspalten**: Falls vorhanden, server-seitig in C# nach Termin-Berechnung filtern (Format `dd.MM.yyyy KWxx` lowercase), nicht in SQL.
+  - **Layout-Konsistenz**: `<h2 class="page-header">`, TempData-Alerts (Success/Warning), `<div class="table-responsive">` um die Tabelle, Page-Header-Buttons via `d-flex justify-content-between flex-wrap gap-2`.
+  - **Reference-Implementierungen**: [ProductionOrdersController.Index](IdealAkeWms/Controllers/ProductionOrdersController.cs) + [Views/ProductionOrders/Index.cshtml](IdealAkeWms/Views/ProductionOrders/Index.cshtml) (mit Datumsfilter), [StockOverviewController](IdealAkeWms/Controllers/StockOverviewController.cs) (einfacher Fall).
+  - **Ausnahmen** (begruendet): Konfig-/Dashboard-/Terminal-Views ohne echte Datenliste (Home, Help, Settings, ServiceSettings, BdeCockpit, BdeShiftCalendar, BdeTerminal). BOM-Tree (hierarchische Spezialdarstellung).
 
 ## Architektur
 
