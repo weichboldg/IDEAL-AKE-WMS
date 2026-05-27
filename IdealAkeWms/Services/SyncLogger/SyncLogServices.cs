@@ -17,9 +17,15 @@ public static class SyncLogServices
     public const string ProductionOrder = "ProductionOrder";  // SageImport-Teil 1
     public const string Article = "Article";                  // SageImport-Teil 2
 
+    // Non-Sync-Aktivitaeten (seit v1.15.1)
+    public const string PartRequisitionEmail = "PartRequisitionEmail";
+    public const string WarehouseRequisitionEmail = "WarehouseRequisitionEmail";
+    public const string BdeAutoPause = "BdeAutoPause";
+
     public static IReadOnlyList<string> All { get; } = new[]
     {
         Lagerplatz, Lagerbestand, BomCache, OseonTracking, EnaioDms,
         Holiday, CoatingDetection, ProductionOrder, Article,
+        PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
     };
 }
