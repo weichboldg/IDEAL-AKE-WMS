@@ -1,12 +1,12 @@
 @model SyncLogIndexViewModel
 @{
-    ViewData["Title"] = "Sync-Protokoll";
+    ViewData["Title"] = "Aktivitaets-Protokoll";
 }
-<h2 class="page-header">Sync-Protokoll</h2>
+<h2 class="page-header">Aktivitaets-Protokoll</h2>
 
 <form method="get" class="row g-2 mb-3">
     <div class="col-md-3">
-        <label class="form-label">Service</label>
+        <label class="form-label">Aktivitaet</label>
         <select name="service" class="form-select" onchange="this.form.submit()">
             <option value="">&mdash; alle &mdash;</option>
             @foreach (var s in Model.AvailableServices)
@@ -39,7 +39,7 @@
         <thead>
             <tr>
                 <th data-col-key="Timestamp">Zeitpunkt</th>
-                <th data-col-key="Service">Service</th>
+                <th data-col-key="Service">Aktivitaet</th>
                 <th data-col-key="Level">Stufe</th>
                 <th data-col-key="Reference">Referenz</th>
                 <th data-col-key="Message">Meldung</th>

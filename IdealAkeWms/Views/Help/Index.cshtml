@@ -856,7 +856,7 @@
                 <h6>Quelle-Kennzeichen</h6>
                 <p>Jeder Lagerplatz hat eine Quelle: <strong>Manuell</strong> (von einem Anwender im WMS angelegt) oder <strong>Sage</strong> (vom Sync importiert). Bei Sage-Quelle sind Code/Zone/Bezeichnung gesperrt &mdash; sie werden beim naechsten Abgleich ueberschrieben.</p>
                 <h6>Konflikte</h6>
-                <p>Wenn ein manueller Lagerplatz denselben Code wie ein Sage-Eintrag hat, wird der Sage-Eintrag ignoriert und ein Eintrag im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> als <em>Warning</em> erfasst. Aufloesung: in Absprache mit dem Sage-Verantwortlichen entscheiden, ob der manuelle Lagerplatz geloescht/umbenannt oder direkt in der DB als Sage-Quelle markiert werden soll.</p>
+                <p>Wenn ein manueller Lagerplatz denselben Code wie ein Sage-Eintrag hat, wird der Sage-Eintrag ignoriert und ein Eintrag im <a asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a> als <em>Warning</em> erfasst. Aufloesung: in Absprache mit dem Sage-Verantwortlichen entscheiden, ob der manuelle Lagerplatz geloescht/umbenannt oder direkt in der DB als Sage-Quelle markiert werden soll.</p>
                 <h6>Vor erstem Aktivieren</h6>
                 <p>Wenn das WMS bereits Lagerplaetze hat, deren Codes auch in Sage existieren: vor dem ersten Aktivieren des Syncs <code>Source = 'Sage'</code> auf diesen Records direkt in der DB setzen, sonst werden alle als Konflikt geloggt.</p>
             </div>
@@ -885,7 +885,7 @@
                     <li><code>Sync:LagerbestandEnabled = true</code> setzen.</li>
                     <li><strong>Wichtig:</strong> <code>WorkerSettings:SyncDryRun = true</code> aktivieren.</li>
                     <li>Service neu starten, einen Sync-Lauf abwarten.</li>
-                    <li>Im <a asp-controller="SyncLog" asp-action="Index">Sync-Protokoll</a> den Lagerbestand-Service filtern. Der Summen-Eintrag enth&auml;lt <code>[DryRun] Sync OK: ...</code> mit den geplanten Korrekturen.</li>
+                    <li>Im <a asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a> den Lagerbestand-Service filtern. Der Summen-Eintrag enth&auml;lt <code>[DryRun] Sync OK: ...</code> mit den geplanten Korrekturen.</li>
                     <li>Stichproben aus den Warnings pruefen.</li>
                     <li>Falls plausibel: <code>WorkerSettings:SyncDryRun = false</code>, n&auml;chster Sync schreibt die Korrekturen.</li>
                 </ol>
@@ -908,13 +908,13 @@
 
         <div class="card mb-3">
             <div class="card-header" style="background-color: var(--ake-primary); color: white;">
-                Sync-Protokoll
+                Aktivitaets-Protokoll
             </div>
             <div class="card-body">
-                <h3>Sync-Protokoll</h3>
+                <h3>Aktivitaets-Protokoll</h3>
                 <p>
-                    Alle Background-Sync-Jobs schreiben Lifecycle- und Diagnose-Eintraege ins Sync-Protokoll
-                    (verfuegbar unter <em>Stammdaten &rarr; Sync-Protokoll</em>, Rolle <code>masterdata</code> oder
+                    Alle Background-Sync-Jobs schreiben Lifecycle- und Diagnose-Eintraege ins Aktivitaets-Protokoll
+                    (verfuegbar unter <em>Stammdaten &rarr; Aktivitaets-Protokoll</em>, Rolle <code>masterdata</code> oder
                     <code>admin</code>):
                 </p>
                 <ul>
@@ -925,8 +925,9 @@
                         aktualisiert=5, uebersprungen=0" bzw. "Run fehlgeschlagen: {grund} &mdash; counts".</li>
                 </ul>
                 <p>
-                    Service-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking, EnaioDms,
-                    Holiday, CoatingDetection, ProductionOrder, Article.
+                    Aktivitaet-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking, EnaioDms,
+                    Holiday, CoatingDetection, ProductionOrder, Article, PartRequisitionEmail,
+                    WarehouseRequisitionEmail, BdeAutoPause.
                 </p>
             </div>
         </div>
