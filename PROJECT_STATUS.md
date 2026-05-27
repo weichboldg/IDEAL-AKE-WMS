@@ -57,7 +57,7 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 | 5 | BdeAutoPauseService integriert + Tests | ✅ erledigt |
 | 6 | UI-Umbenennung 'Sync-Protokoll' → 'Aktivitaets-Protokoll' | ✅ erledigt |
 | 7 | Version-Bump v1.15.1 + Changelog | ✅ erledigt |
-| 8 | Doku (TESTSZENARIEN, PROJECT_STATUS, CLAUDE.md) | ⏳ in Arbeit (dieser Task) |
+| 8 | Doku (TESTSZENARIEN, PROJECT_STATUS, CLAUDE.md) | ✅ erledigt (23304b7) |
 
 ---
 
