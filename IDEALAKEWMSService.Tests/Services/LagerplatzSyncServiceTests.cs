@@ -17,7 +17,7 @@ public class LagerplatzSyncServiceTests
         var ctx = TestDbContextFactory.Create();
         var reader = new FakeSageLagerplatzReader();
         var fakeLogger = new FakeSyncLogger();
-        var service = new LagerplatzSyncService(ctx, reader, fakeLogger, NullLogger<LagerplatzSyncService>.Instance);
+        var service = new LagerplatzSyncService(ctx, reader, NullLogger<LagerplatzSyncService>.Instance, fakeLogger);
         return (service, reader, ctx, fakeLogger);
     }
 

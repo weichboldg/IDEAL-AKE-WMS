@@ -22,8 +22,8 @@ public class LagerplatzSyncService : ILagerplatzSyncService
     public LagerplatzSyncService(
         ApplicationDbContext ctx,
         ISageLagerplatzReader reader,
-        ISyncLogger syncLogger,
-        ILogger<LagerplatzSyncService> logger)
+        ILogger<LagerplatzSyncService> logger,
+        ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _reader = reader;

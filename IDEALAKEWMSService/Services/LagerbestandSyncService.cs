@@ -21,8 +21,8 @@ public class LagerbestandSyncService : ILagerbestandSyncService
         ApplicationDbContext ctx,
         ISageBestandReader reader,
         IStockMovementRepository stockRepo,
-        ISyncLogger syncLogger,
-        ILogger<LagerbestandSyncService> logger)
+        ILogger<LagerbestandSyncService> logger,
+        ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _reader = reader;

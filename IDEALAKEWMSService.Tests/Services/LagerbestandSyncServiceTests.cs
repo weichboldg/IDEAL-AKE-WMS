@@ -20,7 +20,7 @@ public class LagerbestandSyncServiceTests
         var reader = new FakeSageBestandReader();
         var fakeLogger = new FakeSyncLogger();
         var stockRepo = new StockMovementRepository(ctx);
-        var service = new LagerbestandSyncService(ctx, reader, stockRepo, fakeLogger, NullLogger<LagerbestandSyncService>.Instance);
+        var service = new LagerbestandSyncService(ctx, reader, stockRepo, NullLogger<LagerbestandSyncService>.Instance, fakeLogger);
         return (service, reader, ctx, fakeLogger);
     }
 
