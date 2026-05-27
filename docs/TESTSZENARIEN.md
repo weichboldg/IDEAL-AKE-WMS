@@ -3599,5 +3599,36 @@ Service-Filter "CoatingDetection".
 
 ---
 
-*Ende des Dokuments. Stand: v1.15.0 (2026-05-26)*
+## 28. Activity-Log fuer Non-Sync-Services (v1.15.1)
+
+### Szenario 28.1: PartRequisitionEmailService schreibt Lifecycle + Referenzen
+**Vorbedingung:** `Sync:PartRequisitionEmailEnabled = true`, ungesendete Bedarfsmeldungen vorhanden.
+**Schritt:**
+1. Worker-Tick abwarten oder Service manuell starten.
+2. Im Aktivitaets-Protokoll Service-Filter = "PartRequisitionEmail" setzen.
+**Erwartet:**
+- "Run gestartet" (Info)
+- Pro versendete Mail-Gruppe ein Info-Eintrag mit Reference = FA-Nummer
+- Bei "keine aktiven Empfaenger": Warning mit Reference = FA-Nummer
+- "Run erfolgreich beendet — versendet=…, ohne_empfaenger=…, fehler=…"
+
+### Szenario 28.2: WarehouseRequisitionEmailService — Submit + Storno differenziert
+**Vorbedingung:** Je ein offener Submit und Storno in der DB.
+**Schritt:** Worker-Tick, Filter = "WarehouseRequisitionEmail".
+**Erwartet:**
+- Pro Submit-Mail: Info-Eintrag mit Reference = "submit/{id}"
+- Pro Storno-Mail: Info-Eintrag mit Reference = "storno/{id}"
+- End-Summary: "submit_versendet=…, storno_versendet=…, fehler=…"
+
+### Szenario 28.3: BdeAutoPauseService loggt auto-pausierte Bookings
+**Vorbedingung:** `BdeSchichtkalenderAktiv = true`, mindestens eine Running-Buchung nach Schichtende.
+**Schritt:** Worker-Tick (60-Min-Intervall) abwarten, Filter = "BdeAutoPause".
+**Erwartet:**
+- "Run gestartet"
+- Pro auto-pausierten Booking: Info-Eintrag mit Reference = "booking/{id}"
+- End-Summary: "geprueft=…, pausiert=…, fehler=…"
+
+---
+
+*Ende des Dokuments. Stand: v1.15.1 (2026-05-27)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

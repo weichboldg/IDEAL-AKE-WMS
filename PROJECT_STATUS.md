@@ -46,6 +46,21 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 
 ---
 
+### Activity-Log fuer Non-Sync-Services (v1.15.1)
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 1 | Pre-flight grep | ✅ erledigt |
+| 2 | SyncLogServices um 3 Konstanten erweitern | ✅ erledigt |
+| 3 | PartRequisitionEmailService integriert + Test | ✅ erledigt |
+| 4 | WarehouseRequisitionEmailService integriert + Tests | ✅ erledigt |
+| 5 | BdeAutoPauseService integriert + Tests | ✅ erledigt |
+| 6 | UI-Umbenennung 'Sync-Protokoll' → 'Aktivitaets-Protokoll' | ✅ erledigt |
+| 7 | Version-Bump v1.15.1 + Changelog | ✅ erledigt |
+| 8 | Doku (TESTSZENARIEN, PROJECT_STATUS, CLAUDE.md) | ⏳ in Arbeit (dieser Task) |
+
+---
+
 ## Projektbeschreibung
 Lagerverwaltungs- und BDE-System (Betriebsdatenerfassung) für AKE.
 ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
@@ -99,6 +114,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Leitstand als eigenes Hauptmenue + Dashboard-Sektion | Fertig (v1.14.0) |
 | Lagerbestellungen: Notiz pro Position + INT-Mengen | Fertig (v1.14.0) |
 | SyncLog-Pflicht fuer alle Sync-Services (Lifecycle + Events) | Fertig (v1.15.0) |
+| Activity-Log fuer Non-Sync-Services (Mail-Versand + BDE-Auto-Pause) | Fertig (v1.15.1) |
 
 ## Version
 - **Web-App**: v1.14.0 (22.05.2026)
@@ -110,6 +126,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - v1.13.0 (2026-05-15) — FA-Vervollstaendigung Phase 4: Modul fuer Vormontage-Gruppen.
 - v1.14.0 (2026-05-22) — Pagination & Spaltenfilter Roll-Out, Lagerbestellungs-Fixes, StorageLocation-Code 50, FA-Vervollstaendigung als Feature-Toggle, OSEON-Hover-Angleichung.
 - v1.15.0 (2026-05-26) — SyncLog-Pflicht fuer alle 8 Sync-Services. Neuer ISyncLogger mit DbContextFactory-Isolation.
+- v1.15.1 (2026-05-27) — Activity-Log fuer Non-Sync-Services. UI umbenannt zu "Aktivitaets-Protokoll".
 
 ## Aenderungen (07.05.2026)
 
