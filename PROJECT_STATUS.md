@@ -71,7 +71,7 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 | 4 | OseonSyncService.SyncArticleCategoriesToWmsAsync integriert | ✅ erledigt |
 | 5 | HolidaySyncService ctor-position vereinheitlicht + Tests angepasst | ✅ erledigt |
 | 6 | Lifecycle-Tests fuer Oseon/EnaioDms/BomCache/SageImport (7 neue Tests) + Bug-Fix Connection-String-Guards | ✅ erledigt |
-| 7 | Version-Bump v1.15.2 + Doku | ⏳ in Arbeit (dieser Task) |
+| 7 | Version-Bump v1.15.2 + Doku | ✅ erledigt (dfdf099) |
 
 ---
 
