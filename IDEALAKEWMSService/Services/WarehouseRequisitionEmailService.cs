@@ -1,6 +1,7 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net;
@@ -14,83 +15,114 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
     private readonly IMailService _mail;
     private readonly IConfiguration _config;
     private readonly ILogger<WarehouseRequisitionEmailService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
     public WarehouseRequisitionEmailService(
         ApplicationDbContext ctx,
         IWarehouseRequisitionRepository repo,
         IMailService mail,
         IConfiguration config,
-        ILogger<WarehouseRequisitionEmailService> logger)
+        ILogger<WarehouseRequisitionEmailService> logger,
+        ISyncLogger syncLogger)
     {
-        _repo = repo; _mail = mail; _config = config; _logger = logger;
+        _repo = repo; _mail = mail; _config = config; _logger = logger; _syncLogger = syncLogger;
     }
 
     private static string E(string? s) => WebUtility.HtmlEncode(s ?? "");
 
     public async Task<EmailResult> SendPendingEmailsAsync(bool dryRun, CancellationToken ct = default)
     {
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.WarehouseRequisitionEmail, ct);
         var errors = new List<string>();
         var baseUrl = await GetBaseUrlAsync(ct);
 
-        // Submit-Mails
-        var submits = await _repo.GetPendingSubmitEmailsAsync();
-        var submitCount = 0;
-        foreach (var r in submits)
+        try
         {
-            try
+            // Submit-Mails
+            var submits = await _repo.GetPendingSubmitEmailsAsync();
+            var submitCount = 0;
+            foreach (var r in submits)
             {
-                var emails = r.OrderRecipientGroup!.Recipients.Where(x => x.IsActive).Select(x => x.Email).Distinct().ToList();
-                if (emails.Count == 0)
+                try
                 {
-                    errors.Add($"Lagerbestellung #{r.Id}: keine aktiven Empfaenger.");
-                    continue;
+                    var emails = r.OrderRecipientGroup!.Recipients.Where(x => x.IsActive).Select(x => x.Email).Distinct().ToList();
+                    if (emails.Count == 0)
+                    {
+                        errors.Add($"Lagerbestellung #{r.Id}: keine aktiven Empfaenger.");
+                        await run.LogWarningAsync($"Submit-Mail: keine aktiven Empfaenger",
+                                                  reference: $"submit/{r.Id}", ct: ct);
+                        continue;
+                    }
+                    var subject = $"Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
+                    var body = BuildSubmitBody(r, baseUrl);
+                    if (!dryRun)
+                    {
+                        await _mail.SendAsync(subject, body, emails, ct);
+                        await _repo.MarkEmailSentAsync(r.Id, DateTime.Now);
+                    }
+                    await run.LogInfoAsync("Submit-Mail versendet",
+                                           reference: $"submit/{r.Id}", ct: ct);
+                    submitCount++;
                 }
-                var subject = $"Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
-                var body = BuildSubmitBody(r, baseUrl);
-                if (!dryRun)
+                catch (Exception ex)
                 {
-                    await _mail.SendAsync(subject, body, emails, ct);
-                    await _repo.MarkEmailSentAsync(r.Id, DateTime.Now);
+                    _logger.LogError(ex, "Submit-Mail fuer Lagerbestellung {Id} fehlgeschlagen.", r.Id);
+                    errors.Add($"#{r.Id}: {ex.Message}");
+                    await run.LogWarningAsync($"Submit-Mail fehlgeschlagen: {ex.Message}",
+                                              reference: $"submit/{r.Id}", ct: ct);
                 }
-                submitCount++;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Submit-Mail fuer Lagerbestellung {Id} fehlgeschlagen.", r.Id);
-                errors.Add($"#{r.Id}: {ex.Message}");
-            }
-        }
 
-        // Storno-Mails (nur wenn vorher Submit-Mail rausging)
-        var cancels = await _repo.GetPendingCancellationEmailsAsync();
-        var cancelCount = 0;
-        foreach (var r in cancels)
+            // Storno-Mails (nur wenn vorher Submit-Mail rausging)
+            var cancels = await _repo.GetPendingCancellationEmailsAsync();
+            var cancelCount = 0;
+            foreach (var r in cancels)
+            {
+                try
+                {
+                    var emails = r.OrderRecipientGroup!.Recipients.Where(x => x.IsActive).Select(x => x.Email).Distinct().ToList();
+                    if (emails.Count == 0)
+                    {
+                        errors.Add($"Storno #{r.Id}: keine aktiven Empfaenger.");
+                        await run.LogWarningAsync($"Storno-Mail: keine aktiven Empfaenger",
+                                                  reference: $"storno/{r.Id}", ct: ct);
+                        continue;
+                    }
+                    var subject = $"[STORNO] Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
+                    var body = BuildCancellationBody(r, baseUrl);
+                    if (!dryRun)
+                    {
+                        await _mail.SendAsync(subject, body, emails, ct);
+                        await _repo.MarkCancellationEmailSentAsync(r.Id, DateTime.Now);
+                    }
+                    await run.LogInfoAsync("Storno-Mail versendet",
+                                           reference: $"storno/{r.Id}", ct: ct);
+                    cancelCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Storno-Mail fuer Lagerbestellung {Id} fehlgeschlagen.", r.Id);
+                    errors.Add($"#{r.Id}: {ex.Message}");
+                    await run.LogWarningAsync($"Storno-Mail fehlgeschlagen: {ex.Message}",
+                                              reference: $"storno/{r.Id}", ct: ct);
+                }
+            }
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["submit_versendet"] = submitCount,
+                ["storno_versendet"] = cancelCount,
+                ["fehler"] = errors.Count,
+            }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
+
+            return new EmailResult(submitCount, cancelCount, errors);
+        }
+        catch (Exception ex)
         {
-            try
-            {
-                var emails = r.OrderRecipientGroup!.Recipients.Where(x => x.IsActive).Select(x => x.Email).Distinct().ToList();
-                if (emails.Count == 0)
-                {
-                    errors.Add($"Storno #{r.Id}: keine aktiven Empfaenger.");
-                    continue;
-                }
-                var subject = $"[STORNO] Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
-                var body = BuildCancellationBody(r, baseUrl);
-                if (!dryRun)
-                {
-                    await _mail.SendAsync(subject, body, emails, ct);
-                    await _repo.MarkCancellationEmailSentAsync(r.Id, DateTime.Now);
-                }
-                cancelCount++;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Storno-Mail fuer Lagerbestellung {Id} fehlgeschlagen.", r.Id);
-                errors.Add($"#{r.Id}: {ex.Message}");
-            }
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
-
-        return new EmailResult(submitCount, cancelCount, errors);
     }
 
     private async Task<string> GetBaseUrlAsync(CancellationToken ct)

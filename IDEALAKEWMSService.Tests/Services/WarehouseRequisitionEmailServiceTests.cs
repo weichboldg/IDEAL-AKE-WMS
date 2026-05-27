@@ -19,7 +19,7 @@ public class WarehouseRequisitionEmailServiceTests
         var repo = new WarehouseRequisitionRepository(ctx);
         var mail = new Mock<IMailService>();
         var config = new ConfigurationBuilder().Build();
-        var svc = new WarehouseRequisitionEmailService(ctx, repo, mail.Object, config, NullLogger<WarehouseRequisitionEmailService>.Instance);
+        var svc = new WarehouseRequisitionEmailService(ctx, repo, mail.Object, config, NullLogger<WarehouseRequisitionEmailService>.Instance, new FakeSyncLogger());
         return (svc, ctx, repo, mail);
     }
 
@@ -125,5 +125,64 @@ public class WarehouseRequisitionEmailServiceTests
             It.IsAny<IEnumerable<string>>(),
             It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Send_writes_lifecycle_to_synclogger()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var mailMock = new Mock<IMailService>();
+        var config = new ConfigurationBuilder().Build();
+        var fakeLogger = new FakeSyncLogger();
+        var service = new WarehouseRequisitionEmailService(
+            ctx, repo, mailMock.Object, config,
+            NullLogger<WarehouseRequisitionEmailService>.Instance, fakeLogger);
+
+        await service.SendPendingEmailsAsync(dryRun: false, ct: CancellationToken.None);
+
+        fakeLogger.Runs.Should().ContainSingle();
+        fakeLogger.Runs[0].ServiceName.Should().Be("WarehouseRequisitionEmail");
+        fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Send_uses_submit_and_storno_reference_prefixes()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var mailMock = new Mock<IMailService>();
+        mailMock.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var config = new ConfigurationBuilder().Build();
+        var fakeLogger = new FakeSyncLogger();
+        var service = new WarehouseRequisitionEmailService(
+            ctx, repo, mailMock.Object, config,
+            NullLogger<WarehouseRequisitionEmailService>.Instance, fakeLogger);
+
+        // Seed one pending submit
+        var submitReq = await SeedSubmittedAsync(ctx, repo);
+
+        // Send to mark email as sent (sets EmailSentAt)
+        await service.SendPendingEmailsAsync(dryRun: false, ct: CancellationToken.None);
+
+        // Now cancel so there is a pending storno
+        var rAfter = await ctx.WarehouseRequisitions.FindAsync(submitReq.Id);
+        await repo.CancelAsync(submitReq.Id, "Test-Storno", 0, "t", "t", rAfter!.RowVersion);
+
+        // Reset FakeSyncLogger state by creating a fresh one for the second call
+        var fakeLogger2 = new FakeSyncLogger();
+        var service2 = new WarehouseRequisitionEmailService(
+            ctx, repo, mailMock.Object, config,
+            NullLogger<WarehouseRequisitionEmailService>.Instance, fakeLogger2);
+
+        // Seed a second pending submit (different request) for the submit prefix
+        var submitReq2 = await SeedSubmittedAsync(ctx, repo);
+
+        await service2.SendPendingEmailsAsync(dryRun: false, ct: CancellationToken.None);
+
+        var events = fakeLogger2.Runs[0].Events;
+        events.Should().Contain(e => e.Reference != null && e.Reference.StartsWith("submit/"));
+        events.Should().Contain(e => e.Reference != null && e.Reference.StartsWith("storno/"));
     }
 }
