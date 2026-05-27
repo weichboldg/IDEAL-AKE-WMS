@@ -82,7 +82,9 @@ public sealed class SyncRun : ISyncRun
                 Level = level,
                 Message = message,
                 Reference = reference,
-                Timestamp = DateTime.UtcNow,
+                // Timestamp wird per Model-Default auf DateTime.Now (Lokalzeit) gesetzt.
+                // Bewusst NICHT UtcNow, weil das SyncLogController-View ohne Konversion anzeigt
+                // und die Pre-v1.15.0-Eintraege ebenfalls Lokalzeit verwenden.
             });
             await ctx.SaveChangesAsync(ct);
         }

@@ -9,6 +9,25 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.15.3</strong> <span class="text-white-50 ms-2">27.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Bug-Fix: Aktivitaets-Protokoll-Timestamps</h6>
+                <ul>
+                    <li><strong>Bug-Fix:</strong> Seit v1.15.0 wurden neue Aktivitaets-Protokoll-Eintraege mit
+                        <code>DateTime.UtcNow</code> statt Lokalzeit geschrieben. Da die UI ohne Konversion
+                        anzeigt, erschienen neue Eintraege scheinbar 2 Stunden frueher als alte und wurden
+                        in der DESC-Sortierung unter aelteren Eintraegen versteckt. Behoben: Timestamps
+                        werden jetzt konsistent in Lokalzeit geschrieben (wie alle pre-v1.15.0-Eintraege).</li>
+                    <li><em>Bestehende UTC-Timestamps</em> (zwischen v1.15.0 und v1.15.3) bleiben in der DB.
+                        Sie sind 2 Stunden zu frueh datiert. Optional mit einer SQL-Korrektur nachjustierbar
+                        (siehe Operations-Notiz im Release).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.15.2</strong> <span class="text-white-50 ms-2">27.05.2026</span>
             </div>
             <div class="card-body">
