@@ -21,7 +21,7 @@ public class BdeAutoPauseServiceTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeSchichtkalenderAktiv))
             .ReturnsAsync(masterEnabled ? "true" : "false");
         var calendar = new BdeShiftCalendarService(ctx, settings.Object);
-        var svc = new BdeAutoPauseService(ctx, calendar, settings.Object, NullLogger<BdeAutoPauseService>.Instance);
+        var svc = new BdeAutoPauseService(ctx, calendar, settings.Object, NullLogger<BdeAutoPauseService>.Instance, new FakeSyncLogger());
         return (ctx, svc, settings);
     }
 
@@ -211,7 +211,7 @@ public class BdeAutoPauseServiceTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeSchichtkalenderAktiv)).ReturnsAsync("true");
 
         var svc = new BdeAutoPauseService(ctx, calendar.Object, settings.Object,
-            NullLogger<BdeAutoPauseService>.Instance);
+            NullLogger<BdeAutoPauseService>.Instance, new FakeSyncLogger());
 
         var result = await svc.RunAsync(CancellationToken.None);
 
@@ -224,5 +224,56 @@ public class BdeAutoPauseServiceTests
         var b2 = await ctx.BdeBookings.FindAsync(booking2.Id);
         b1!.Status.Should().Be(BdeBookingStatus.Running, "exception path: booking unchanged");
         b2!.Status.Should().Be(BdeBookingStatus.AutoPaused, "happy path: booking paused");
+    }
+
+    [Fact]
+    public async Task RunAsync_writes_lifecycle_to_synclogger()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeSchichtkalenderAktiv))
+                .ReturnsAsync("true");
+        var calendar = new BdeShiftCalendarService(ctx, settings.Object);
+        var fakeLogger = new FakeSyncLogger();
+        var svc = new BdeAutoPauseService(ctx, calendar, settings.Object,
+            NullLogger<BdeAutoPauseService>.Instance, fakeLogger);
+
+        await svc.RunAsync(CancellationToken.None);
+
+        fakeLogger.Runs.Should().ContainSingle();
+        fakeLogger.Runs[0].ServiceName.Should().Be("BdeAutoPause");
+        fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RunAsync_logs_booking_id_in_reference_on_pause()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var day = DateTime.Today.AddDays(-1);
+
+        ctx.BdeShifts.Add(new BdeShift
+        {
+            DayOfWeek = day.DayOfWeek, StartTime = TimeSpan.FromHours(6), EndTime = TimeSpan.FromHours(14),
+            ProductionWorkplaceId = null,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        var booking = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: day.AddHours(8));
+        ctx.BdeBookings.Add(booking);
+        await ctx.SaveChangesAsync();
+
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeSchichtkalenderAktiv))
+                .ReturnsAsync("true");
+        var calendar = new BdeShiftCalendarService(ctx, settings.Object);
+        var fakeLogger = new FakeSyncLogger();
+        var svc = new BdeAutoPauseService(ctx, calendar, settings.Object,
+            NullLogger<BdeAutoPauseService>.Instance, fakeLogger);
+
+        await svc.RunAsync(CancellationToken.None);
+
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Info" && e.Reference == $"booking/{booking.Id}");
     }
 }
