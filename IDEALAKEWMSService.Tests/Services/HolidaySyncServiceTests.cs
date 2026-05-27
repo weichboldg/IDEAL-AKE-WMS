@@ -45,7 +45,7 @@ public class HolidaySyncServiceTests
             DryRun = testSettings.DryRun
         });
 
-        var svc = new HolidaySyncService(ctx, http, options, new FakeSyncLogger(), NullLogger<HolidaySyncService>.Instance);
+        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance, new FakeSyncLogger());
         return (ctx, svc);
     }
 
@@ -183,7 +183,7 @@ public class HolidaySyncServiceTests
         var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
         var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 0 });
 
-        var svc = new HolidaySyncService(ctx, http, options, new FakeSyncLogger(), NullLogger<HolidaySyncService>.Instance);
+        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance, new FakeSyncLogger());
 
         var result = await svc.RunAsync(CancellationToken.None);
 
@@ -215,7 +215,7 @@ public class HolidaySyncServiceTests
         var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
         var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 1 });
 
-        var svc = new HolidaySyncService(ctx, http, options, new FakeSyncLogger(), NullLogger<HolidaySyncService>.Instance);
+        var svc = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance, new FakeSyncLogger());
 
         var result = await svc.RunAsync(CancellationToken.None);
 
@@ -246,7 +246,7 @@ public class HolidaySyncServiceTests
         var http = new HttpClient(handler.Object) { BaseAddress = new Uri("https://date.nager.at/") };
         var options = Options.Create(new HolidaySyncOptions { Enabled = true, CountryCode = "AT", JahreVoraus = 0 });
         var fakeLogger = new FakeSyncLogger();
-        var service = new HolidaySyncService(ctx, http, options, fakeLogger, NullLogger<HolidaySyncService>.Instance);
+        var service = new HolidaySyncService(ctx, http, options, NullLogger<HolidaySyncService>.Instance, fakeLogger);
 
         await service.RunAsync(CancellationToken.None);
 

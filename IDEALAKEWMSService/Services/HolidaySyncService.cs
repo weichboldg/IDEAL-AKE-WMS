@@ -35,7 +35,7 @@ public class HolidaySyncService : IHolidaySyncService
     private readonly ILogger<HolidaySyncService> _logger;
 
     public HolidaySyncService(ApplicationDbContext ctx, HttpClient http,
-        IOptions<HolidaySyncOptions> options, ISyncLogger syncLogger, ILogger<HolidaySyncService> logger)
+        IOptions<HolidaySyncOptions> options, ILogger<HolidaySyncService> logger, ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _http = http;
