@@ -2,7 +2,29 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-05-26**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-05-27**, **letzter Commit `a2a3275` (v1.15.3 Hotfix Timestamp)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+
+### Wo wir aufgehoert haben (2026-05-27)
+
+**Letzter Schritt:** Hotfix v1.15.3 — Timestamp-Bug im SyncLogger behoben. `SyncRun.WriteEntryAsync` schrieb seit v1.15.0 `DateTime.UtcNow` statt der Lokalzeit des Model-Defaults, dadurch erschienen alle v1.15.0+ Aktivitaets-Protokoll-Eintraege 2h frueher als sie tatsaechlich passierten und wurden in der DESC-Sortierung unter aelteren Eintraegen versteckt. User dachte das SyncLog schreibt nicht mehr.
+
+**Was direkt offen ist (Wartungsaktionen, manuell):**
+
+1. **v1.15.3 deployen** auf dem Produktiv-Service (`IDEALAKEWMSService`-Windows-Service neu starten mit dem aktuellen Build). Erst dann werden neue Eintraege mit korrekter Lokalzeit geschrieben.
+2. **Optional: Bestehende UTC-Eintraege in DB korrigieren** (zwischen v1.15.0-Deploy am 2026-05-26 und v1.15.3-Deploy heute). SQL-Query liegt im Changelog v1.15.3 / Commit-Body von `a2a3275`:
+   ```sql
+   UPDATE SyncLogs
+   SET Timestamp = DATEADD(HOUR, 2, Timestamp)
+   WHERE Timestamp BETWEEN '2026-05-26 00:00' AND '2026-05-27 12:00';
+   ```
+   Vorher Backup machen + Zeitfenster ggf. praezisieren.
+
+**Was strategisch offen ist (eigene Specs/Plaene):**
+
+1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
+2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+
+---
 
 ### Pagination-Vervollstaendigung (Nachzug zu v1.14.0)
 
@@ -58,6 +80,20 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 | 6 | UI-Umbenennung 'Sync-Protokoll' → 'Aktivitaets-Protokoll' | ✅ erledigt |
 | 7 | Version-Bump v1.15.1 + Changelog | ✅ erledigt |
 | 8 | Doku (TESTSZENARIEN, PROJECT_STATUS, CLAUDE.md) | ✅ erledigt (23304b7) |
+
+---
+
+### v1.15.3 — Hotfix Timestamp (Lokalzeit statt UTC) + Worktree-Konvention
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 1 | Diagnose: User reportet "SyncLog schreibt nicht mehr" via Screenshot | ✅ erledigt |
+| 2 | Root-Cause-Analyse: `SyncRun.WriteEntryAsync` setzt `DateTime.UtcNow`, Model-Default ist `DateTime.Now`, UI ohne UTC-Konversion | ✅ erledigt |
+| 3 | Fix: Timestamp-Assignment aus SyncRun.WriteEntryAsync entfernt → Model-Default greift | ✅ erledigt |
+| 4 | Version-Bump v1.15.3 + Changelog-Eintrag | ✅ erledigt (`a2a3275`) |
+| 5 | CLAUDE.md: Worktree-Konvention "grosse Aenderungen in eigenem Worktree" verankert | ✅ erledigt (`7efa6e6`) |
+| 6 | Lagerbestand+Lagerplatz ctor-pos vereinheitlicht (alle 11 Services jetzt konsistent) | ✅ erledigt (`cbe00c6`) |
+| 7 | Aufraeumen: refactor/fa-logic Worktree + Branch + alter Stash entfernt | ✅ erledigt |
 
 ---
 
@@ -143,6 +179,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - v1.15.0 (2026-05-26) — SyncLog-Pflicht fuer alle 8 Sync-Services. Neuer ISyncLogger mit DbContextFactory-Isolation.
 - v1.15.1 (2026-05-27) — Activity-Log fuer Non-Sync-Services. UI umbenannt zu "Aktivitaets-Protokoll".
 - v1.15.2 (2026-05-27) — Lifecycle-Tests + OSEON Stammdaten-Imports + ctor-Vereinheitlichung + Connection-String-Guard-Fix.
+- v1.15.3 (2026-05-27) — Hotfix Timestamp: `SyncRun.WriteEntryAsync` schreibt jetzt Lokalzeit statt UTC (UI sortierte vorher neue Eintraege unter aelteren). Plus CLAUDE.md-Konvention "groessere Aenderungen in eigenem Worktree".
 
 ## Aenderungen (07.05.2026)
 
