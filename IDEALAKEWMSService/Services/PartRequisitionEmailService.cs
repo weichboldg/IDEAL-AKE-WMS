@@ -1,3 +1,4 @@
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.Data.SqlClient;
 using System.Text;
 
@@ -8,74 +9,114 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
     private readonly IConfiguration _configuration;
     private readonly IMailService _mailService;
     private readonly ILogger<PartRequisitionEmailService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
     public PartRequisitionEmailService(
         IConfiguration configuration,
         IMailService mailService,
-        ILogger<PartRequisitionEmailService> logger)
+        ILogger<PartRequisitionEmailService> logger,
+        ISyncLogger syncLogger)
     {
         _configuration = configuration;
         _mailService = mailService;
         _logger = logger;
+        _syncLogger = syncLogger;
     }
 
     public async Task<int> SendPendingEmailsAsync(bool dryRun, CancellationToken ct = default)
     {
-        var connectionString = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
-
-        var requisitions = await LoadUnsentRequisitionsAsync(connectionString, ct);
-        if (requisitions.Count == 0) return 0;
-
-        _logger.LogInformation("{Count} ungesendete Bedarfsmeldungen gefunden.", requisitions.Count);
-
-        var groups = requisitions
-            .GroupBy(r => new { r.SentToEmails, r.ProductionOrderId })
-            .ToList();
-
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.PartRequisitionEmail, ct);
         int sentCount = 0;
-        foreach (var group in groups)
+        int skippedCount = 0;
+        int errorCount = 0;
+        try
         {
-            var items = group.ToList();
-            var emails = (group.Key.SentToEmails ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            var connectionString = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
+
+            var requisitions = await LoadUnsentRequisitionsAsync(connectionString, ct);
+            if (requisitions.Count == 0)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["versendet"] = 0,
+                    ["ohne_empfaenger"] = 0,
+                    ["fehler"] = 0,
+                }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
+                return 0;
+            }
+
+            _logger.LogInformation("{Count} ungesendete Bedarfsmeldungen gefunden.", requisitions.Count);
+
+            var groups = requisitions
+                .GroupBy(r => new { r.SentToEmails, r.ProductionOrderId })
                 .ToList();
 
-            if (emails.Count == 0)
-            {
-                _logger.LogWarning("Bedarfsmeldungen {Ids} haben keine Empfänger — übersprungen.",
-                    string.Join(", ", items.Select(i => i.Id)));
-                continue;
-            }
-
-            var highestPriority = GetHighestPriority(items.Select(i => i.Priority));
-            var subject = BuildSubject(highestPriority, items[0].OrderNumber);
-            var htmlBody = BuildHtmlBody(items);
-
-            if (dryRun)
-            {
-                _logger.LogInformation("[DryRun] Mail '{Subject}' an {Emails} — {Count} Teile",
-                    subject, group.Key.SentToEmails, items.Count);
-            }
-            else
+            foreach (var group in groups)
             {
                 try
                 {
-                    await _mailService.SendAsync(subject, htmlBody, emails, ct);
-                    await MarkAsSentAsync(connectionString, items.Select(i => i.Id).ToList(), ct);
-                    sentCount += items.Count;
-                    _logger.LogInformation("Bedarfsmeldung versendet: '{Subject}' an {Count} Empfänger.",
-                        subject, emails.Count);
+                    var items = group.ToList();
+                    var emails = (group.Key.SentToEmails ?? "")
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToList();
+
+                    if (emails.Count == 0)
+                    {
+                        _logger.LogWarning("Bedarfsmeldungen {Ids} haben keine Empfänger — übersprungen.",
+                            string.Join(", ", items.Select(i => i.Id)));
+                        await run.LogWarningAsync("Keine aktiven Empfaenger",
+                                                  reference: items[0].OrderNumber, ct: ct);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    var highestPriority = GetHighestPriority(items.Select(i => i.Priority));
+                    var subject = BuildSubject(highestPriority, items[0].OrderNumber);
+                    var htmlBody = BuildHtmlBody(items);
+
+                    if (dryRun)
+                    {
+                        _logger.LogInformation("[DryRun] Mail '{Subject}' an {Emails} — {Count} Teile",
+                            subject, group.Key.SentToEmails, items.Count);
+                    }
+                    else
+                    {
+                        await _mailService.SendAsync(subject, htmlBody, emails, ct);
+                        await MarkAsSentAsync(connectionString, items.Select(i => i.Id).ToList(), ct);
+                        sentCount += items.Count;
+                        _logger.LogInformation("Bedarfsmeldung versendet: '{Subject}' an {Count} Empfänger.",
+                            subject, emails.Count);
+                    }
+
+                    await run.LogInfoAsync($"Mail versendet ({emails.Count} Empfaenger)",
+                                           reference: items[0].OrderNumber, ct: ct);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Fehler beim Versand der Bedarfsmeldung(en) {Ids}",
-                        string.Join(", ", items.Select(i => i.Id)));
+                        string.Join(", ", group.Select(i => i.Id)));
+                    await run.LogWarningAsync($"Mail-Versand fehlgeschlagen: {ex.Message}",
+                                              reference: group.First().OrderNumber, ct: ct);
+                    errorCount++;
                 }
             }
-        }
 
-        return sentCount;
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["versendet"] = sentCount,
+                ["ohne_empfaenger"] = skippedCount,
+                ["fehler"] = errorCount,
+            }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
+
+            return sentCount;
+        }
+        catch (Exception ex)
+        {
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
+        }
     }
 
     private string BuildSubject(string priority, string orderNumber)
