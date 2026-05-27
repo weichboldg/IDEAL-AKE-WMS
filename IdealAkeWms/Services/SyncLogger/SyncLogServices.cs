@@ -11,6 +11,8 @@ public static class SyncLogServices
     public const string Lagerbestand = "Lagerbestand";
     public const string BomCache = "BomCache";
     public const string OseonTracking = "OseonTracking";
+    public const string OseonWorkplaces = "OseonWorkplaces";
+    public const string OseonArticleCategories = "OseonArticleCategories";
     public const string EnaioDms = "EnaioDms";
     public const string Holiday = "Holiday";
     public const string CoatingDetection = "CoatingDetection";
@@ -24,8 +26,9 @@ public static class SyncLogServices
 
     public static IReadOnlyList<string> All { get; } = new[]
     {
-        Lagerplatz, Lagerbestand, BomCache, OseonTracking, EnaioDms,
-        Holiday, CoatingDetection, ProductionOrder, Article,
+        Lagerplatz, Lagerbestand, BomCache,
+        OseonTracking, OseonWorkplaces, OseonArticleCategories,
+        EnaioDms, Holiday, CoatingDetection, ProductionOrder, Article,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
     };
 }
