@@ -24,16 +24,15 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.EnaioDms, ct);
 
-        var enaioDmsConnection = _configuration.GetConnectionString("EnaioDmsConnection")
-            ?? throw new InvalidOperationException("EnaioDmsConnection nicht konfiguriert.");
-        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
-
         if (dryRun)
             _logger.LogInformation("[DryRun] enaio DMS-Sync — keine Aenderungen werden geschrieben.");
 
         try
         {
+            var enaioDmsConnection = _configuration.GetConnectionString("EnaioDmsConnection")
+                ?? throw new InvalidOperationException("EnaioDmsConnection nicht konfiguriert.");
+            var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
             // Alle Werkstattauftraege und Zeichnungen aus enaio lesen (Full-Sync).
             // Delta via 'angelegt' funktioniert nicht, weil enaio-Dokumente einmalig
             // erstellt werden (angelegt = 2013) und feld44 (WaNummer) spaeter

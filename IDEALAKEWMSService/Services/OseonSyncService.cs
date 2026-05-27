@@ -23,16 +23,16 @@ public class OseonSyncService : IOseonSyncService
     public async Task<SyncResult> SyncOseonProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.OseonTracking, ct);
-        var oseonConnection = _configuration.GetConnectionString("OseonConnection")
-            ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
-        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
         if (dryRun)
             _logger.LogInformation("[DryRun] OSEON-Tracking-Sync — keine Änderungen werden geschrieben.");
 
         try
         {
+            var oseonConnection = _configuration.GetConnectionString("OseonConnection")
+                ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
+            var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
             await using var wmsConn = new SqlConnection(wmsConnection);
             await wmsConn.OpenAsync(ct);
 
@@ -506,11 +506,11 @@ public class OseonSyncService : IOseonSyncService
     public async Task<SyncResult> SyncWorkplacesToProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.OseonWorkplaces, ct);
-        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
         try
         {
+            var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
             await using var conn = new SqlConnection(wmsConnection);
             await conn.OpenAsync(ct);
 
@@ -578,10 +578,6 @@ public class OseonSyncService : IOseonSyncService
     public async Task<SyncResult> SyncArticleCategoriesToWmsAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.OseonArticleCategories, ct);
-        var oseonConnection = _configuration.GetConnectionString("OseonConnection")
-            ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
-        var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
         if (dryRun)
             _logger.LogInformation("[DryRun] OSEON-Artikelkategorie-Sync — keine Aenderungen werden geschrieben.");
@@ -591,6 +587,10 @@ public class OseonSyncService : IOseonSyncService
 
         try
         {
+            var oseonConnection = _configuration.GetConnectionString("OseonConnection")
+                ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
+            var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
             // Step 1: Read categories from OSEON
             var oseonCategories = new List<(string Name, string? Bemerkung, int? Typ)>();
             await using (var oseonConn = new SqlConnection(oseonConnection))
