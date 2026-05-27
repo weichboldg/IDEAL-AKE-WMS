@@ -505,6 +505,7 @@ public class OseonSyncService : IOseonSyncService
 
     public async Task<SyncResult> SyncWorkplacesToProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
     {
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.OseonWorkplaces, ct);
         var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
@@ -531,6 +532,10 @@ public class OseonSyncService : IOseonSyncService
                 await using var cmd = new SqlCommand(countSql, conn);
                 var count = (int)(await cmd.ExecuteScalarAsync(ct))!;
                 _logger.LogInformation("[DryRun] Werkbank-Sync: {Count} Produktionsaufträge würden aktualisiert.", count);
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["aktualisiert"] = count,
+                }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, count, 0, $"DryRun: {count} Aufträge würden Werkbank erhalten.");
             }
 
@@ -555,17 +560,24 @@ public class OseonSyncService : IOseonSyncService
             var updated = await updateCmd.ExecuteNonQueryAsync(ct);
 
             _logger.LogInformation("Werkbank-Sync: {Updated} Produktionsaufträge aktualisiert.", updated);
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["aktualisiert"] = updated,
+            }, ct: ct);
             return new SyncResult(0, updated, 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fehler beim Werkbank-Sync.");
-            return new SyncResult(0, 0, 1, ex.Message);
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
     }
 
     public async Task<SyncResult> SyncArticleCategoriesToWmsAsync(bool dryRun, CancellationToken ct = default)
     {
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.OseonArticleCategories, ct);
         var oseonConnection = _configuration.GetConnectionString("OseonConnection")
             ?? throw new InvalidOperationException("OseonConnection nicht konfiguriert.");
         var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
@@ -600,7 +612,14 @@ public class OseonSyncService : IOseonSyncService
             _logger.LogInformation("OSEON-Artikelkategorien: {Count} Kategorien gelesen.", oseonCategories.Count);
 
             if (dryRun)
+            {
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["neu"] = oseonCategories.Count,
+                    ["aktualisiert"] = 0,
+                }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(oseonCategories.Count, 0, 0);
+            }
 
             await using var wmsConn = new SqlConnection(wmsConnection);
             await wmsConn.OpenAsync(ct);
@@ -692,15 +711,21 @@ public class OseonSyncService : IOseonSyncService
 
             _logger.LogInformation("Artikel-Kategorie-Zuordnungen: {Updated} aktualisiert.", assignUpdated);
             updated += assignUpdated;
+
+            await run.FinishSuccessAsync(new Dictionary<string, int>
+            {
+                ["neu"] = inserted,
+                ["aktualisiert"] = updated,
+            }, ct: ct);
+            return new SyncResult(inserted, updated, errors, errorDetails);
         }
         catch (Exception ex)
         {
-            errors++;
-            errorDetails = ex.Message;
             _logger.LogError(ex, "Fehler beim OSEON-Artikelkategorie-Sync.");
+            await run.LogErrorAsync(ex.Message, ct: ct);
+            await run.FinishFailedAsync(ex.Message, ct: ct);
+            throw;
         }
-
-        return new SyncResult(inserted, updated, errors, errorDetails);
     }
 
     private class OseonRawRow
