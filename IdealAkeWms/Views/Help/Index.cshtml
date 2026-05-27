@@ -885,7 +885,7 @@
                     <li><code>Sync:LagerbestandEnabled = true</code> setzen.</li>
                     <li><strong>Wichtig:</strong> <code>WorkerSettings:SyncDryRun = true</code> aktivieren.</li>
                     <li>Service neu starten, einen Sync-Lauf abwarten.</li>
-                    <li>Im <a asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a> den Lagerbestand-Service filtern. Der Summen-Eintrag enth&auml;lt <code>[DryRun] Sync OK: ...</code> mit den geplanten Korrekturen.</li>
+                    <li>Im <a asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a> den Lagerbestand-Service filtern. Der Summen-Eintrag enth&auml;lt <code>Run erfolgreich beendet &mdash; einbuchungen=..., ausbuchungen=..., uebersprungen=..., fehler=... &mdash; [DryRun]</code> mit den geplanten Korrekturen.</li>
                     <li>Stichproben aus den Warnings pruefen.</li>
                     <li>Falls plausibel: <code>WorkerSettings:SyncDryRun = false</code>, n&auml;chster Sync schreibt die Korrekturen.</li>
                 </ol>
