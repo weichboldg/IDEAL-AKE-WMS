@@ -3630,5 +3630,19 @@ Service-Filter "CoatingDetection".
 
 ---
 
-*Ende des Dokuments. Stand: v1.15.1 (2026-05-27)*
+## Kapitel 29: OSEON Stammdaten-Imports im Aktivitaets-Protokoll (v1.15.2)
+
+### Szenario 29.1: OseonWorkplaces — Lifecycle
+**Vorbedingung:** `Sync:OseonTrackingEnabled = true`, OSEON-Werkbank-Zuordnungen aenderbar.
+**Schritt:** Worker-Tick, Service-Filter "OseonWorkplaces".
+**Erwartet:** Start + End-Summary mit `aktualisiert=N`.
+
+### Szenario 29.2: OseonArticleCategories — Lifecycle
+**Vorbedingung:** `Sync:OseonArticleCategoryEnabled = true`.
+**Schritt:** Worker-Tick, Service-Filter "OseonArticleCategories".
+**Erwartet:** Start + End-Summary mit `neu` + `aktualisiert`.
+
+---
+
+*Ende des Dokuments. Stand: v1.15.2 (2026-05-27)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

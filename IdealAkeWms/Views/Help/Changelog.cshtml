@@ -9,6 +9,31 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.15.2</strong> <span class="text-white-50 ms-2">27.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>OSEON Stammdaten-Imports im Aktivitaets-Protokoll + Lifecycle-Tests</h6>
+                <ul>
+                    <li><strong>OSEON Stammdaten-Imports vollstaendig im Aktivitaets-Protokoll:</strong>
+                        Die zwei OSEON-Helper-Methoden (Werkbank-Zuordnung +
+                        Artikelkategorien-Sync) schreiben jetzt eigenstaendige Eintraege. Service-Filter
+                        zeigt neu <code>OseonWorkplaces</code> + <code>OseonArticleCategories</code>.</li>
+                    <li><strong>Test-Coverage:</strong> Failure-Path-Lifecycle-Tests fuer alle bisher
+                        untestbaren Services nachgezogen (Oseon, enaio DMS, BomCache, Sage Import).
+                        Service-Tests von 84 auf 91 angewachsen.</li>
+                    <li><strong>Bug-Fix:</strong> Connection-String-Guards in 4 Service-Methoden lagen
+                        vor v1.15.2 ausserhalb des try-Blocks &mdash; <code>FinishFailedAsync</code>
+                        wurde dadurch nicht aufgerufen wenn die Config-Verbindung fehlte. Jetzt korrigiert.</li>
+                    <li><strong>Interner Refactor:</strong> Konstruktor-Reihenfolge von
+                        <code>HolidaySyncService</code> auf majority-style umgestellt
+                        (<code>ISyncLogger</code> nach <code>ILogger</code> wie alle anderen
+                        10 Services). Keine API-Aenderung sichtbar.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.15.1</strong> <span class="text-white-50 ms-2">27.05.2026</span>
             </div>
             <div class="card-body">

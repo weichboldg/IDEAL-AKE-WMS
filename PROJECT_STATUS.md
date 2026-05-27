@@ -61,6 +61,20 @@ Offen danach: Version-Bump auf 1.14.1 (Patch) oder Bundle in v1.15.0; Changelog 
 
 ---
 
+### v1.15.2 — Lifecycle-Tests + 2 Oseon-Methoden + Ctor-Vereinheitlichung
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 1 | Pre-flight grep | ✅ erledigt |
+| 2 | SyncLogServices +2 Konstanten (OseonWorkplaces/OseonArticleCategories) | ✅ erledigt |
+| 3 | OseonSyncService.SyncWorkplacesToProductionOrdersAsync integriert | ✅ erledigt |
+| 4 | OseonSyncService.SyncArticleCategoriesToWmsAsync integriert | ✅ erledigt |
+| 5 | HolidaySyncService ctor-position vereinheitlicht + Tests angepasst | ✅ erledigt |
+| 6 | Lifecycle-Tests fuer Oseon/EnaioDms/BomCache/SageImport (7 neue Tests) + Bug-Fix Connection-String-Guards | ✅ erledigt |
+| 7 | Version-Bump v1.15.2 + Doku | ⏳ in Arbeit (dieser Task) |
+
+---
+
 ## Projektbeschreibung
 Lagerverwaltungs- und BDE-System (Betriebsdatenerfassung) für AKE.
 ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
@@ -115,10 +129,11 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | Lagerbestellungen: Notiz pro Position + INT-Mengen | Fertig (v1.14.0) |
 | SyncLog-Pflicht fuer alle Sync-Services (Lifecycle + Events) | Fertig (v1.15.0) |
 | Activity-Log fuer Non-Sync-Services (Mail-Versand + BDE-Auto-Pause) | Fertig (v1.15.1) |
+| OSEON Stammdaten-Imports im Aktivitaets-Protokoll (Workplaces + ArticleCategories) | Fertig (v1.15.2) |
 
 ## Version
-- **Web-App**: v1.14.0 (22.05.2026)
-- **Service**: v1.14.0 (22.05.2026)
+- **Web-App**: v1.15.2 (27.05.2026)
+- **Service**: v1.15.2 (27.05.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.
@@ -127,6 +142,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - v1.14.0 (2026-05-22) — Pagination & Spaltenfilter Roll-Out, Lagerbestellungs-Fixes, StorageLocation-Code 50, FA-Vervollstaendigung als Feature-Toggle, OSEON-Hover-Angleichung.
 - v1.15.0 (2026-05-26) — SyncLog-Pflicht fuer alle 8 Sync-Services. Neuer ISyncLogger mit DbContextFactory-Isolation.
 - v1.15.1 (2026-05-27) — Activity-Log fuer Non-Sync-Services. UI umbenannt zu "Aktivitaets-Protokoll".
+- v1.15.2 (2026-05-27) — Lifecycle-Tests + OSEON Stammdaten-Imports + ctor-Vereinheitlichung + Connection-String-Guard-Fix.
 
 ## Aenderungen (07.05.2026)
 
