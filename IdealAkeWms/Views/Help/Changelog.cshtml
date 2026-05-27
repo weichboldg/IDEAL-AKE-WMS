@@ -9,6 +9,28 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.15.1</strong> <span class="text-white-50 ms-2">27.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Aktivitaets-Protokoll erweitert</h6>
+                <ul>
+                    <li><strong>Aktivitaets-Protokoll erweitert:</strong> Drei weitere Background-Aktivitaeten
+                        schreiben jetzt ins zentrale Audit-Log: Versand von Bedarfsmeldungen
+                        (<code>PartRequisitionEmail</code>), Versand von Lagerbestellungen
+                        (<code>WarehouseRequisitionEmail</code>, sowohl Submits als auch Stornos), und
+                        automatische BDE-Pausen am Schichtende (<code>BdeAutoPause</code>).</li>
+                    <li><strong>UI-Umbenennung:</strong> Der Menue-Eintrag "Sync-Protokoll" wird zu
+                        "Aktivitaets-Protokoll" umbenannt, weil das Log inzwischen mehr als reine Sync-Jobs
+                        umfasst. URLs/Bookmarks bleiben unveraendert (<code>/SyncLog/Index</code>).</li>
+                    <li>Pro versendete E-Mail bzw. pausierten Booking ein detaillierter Eintrag mit
+                        Referenz (FA-Nummer, Requisition-Id, Booking-Id), damit im Log direkt
+                        nachvollziehbar bleibt welche Entitaet betroffen war.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.15.0</strong> <span class="text-white-50 ms-2">26.05.2026</span>
             </div>
             <div class="card-body">
