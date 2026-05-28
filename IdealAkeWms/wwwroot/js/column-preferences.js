@@ -846,12 +846,25 @@
         _table = document.querySelector('table[data-view-key]');
         if (!_table) return;
 
-        if (!readConfig()) {
-            // No config blocks — dispatch ready immediately so table-filter doesn't hang
-            document.dispatchEvent(new CustomEvent('column-preferences-ready'));
-            return;
+        // Defer das schwere Init bis der Browser idle ist — entlastet First-Paint auf
+        // langsamen Geraeten (iOS Safari). Fallback setTimeout 100ms wenn
+        // requestIdleCallback nicht verfuegbar ist.
+        var initFn = function () {
+            if (!readConfig()) {
+                // No config blocks — dispatch ready immediately so table-filter doesn't hang
+                document.dispatchEvent(new CustomEvent('column-preferences-ready'));
+                return;
+            }
+            loadSettingsAndApply();
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(initFn, { timeout: 500 });
+        } else {
+            setTimeout(initFn, 100);
         }
+    });
 
+    function loadSettingsAndApply() {
         loadSettings(function () {
             applySettings();
             insertGearButton();
@@ -888,6 +901,6 @@
             // the filter row — the MutationObserver above will catch that insertion.
             document.dispatchEvent(new CustomEvent('column-preferences-ready'));
         });
-    });
+    }
 
 })();
