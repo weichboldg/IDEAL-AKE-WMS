@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-05-28**, **letzter Commit auf `bugfix/oseon-tracking-ios` (v1.16.0 OSEON-Tracking iOS-Fix)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (v1.17.0 Artikel-Sync-Erweiterung)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -23,6 +23,25 @@ Stand: **2026-05-28**, **letzter Commit auf `bugfix/oseon-tracking-ios` (v1.16.0
 
 1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+
+---
+
+### v1.17.0 — Artikel-Sync-Erweiterung (UNION + Meldebestand + Full-Update)
+
+Hintergrund: Bisheriger Sage-Artikel-Sync lief nur fuer Artikel, die als Ressource in einer Stueckliste auftauchen, und uebernahm nur ArticleGroup bei Updates. Ab v1.17.0 liest der Sync auch aktive Bestellartikel (`IstBestellartikel = -1 AND Aktiv = -1`), uebernimmt den Meldebestand aus `KHKArtikelvarianten` und macht bei bestehenden Artikeln ein Full-Update aller 4 Sage-Felder.
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 0 | Pre-flight + Baseline-Build | ✅ erledigt |
+| 1 | InternalsVisibleTo im Service-csproj | ✅ erledigt |
+| 2 | SageImportHelpers.ParseReorderLevel + 8 Theory-Tests | ✅ erledigt |
+| 3 | SageImportService.SyncArticlesAsync auf UNION + Full-Update umgestellt | ✅ erledigt |
+| 4 | SQL/AgentJobs/02_Import_Artikel.sql DEPRECATED-Header | ✅ erledigt |
+| 5 | AppVersion-Bump v1.17.0 (Web + Service) + Changelog-Card | ✅ erledigt |
+| 6 | TESTSZENARIEN Kapitel 31 (6 manuelle Szenarien) | ✅ erledigt |
+| 7 | CLAUDE.md Fallstrick fuer Sage VB6-Booleans | ✅ erledigt |
+| 8 | Final-Check: Build + Tests + Code-Review | ⏳ offen |
+| 9 | Merge feature/article-sync-erweiterung in main + Worktree-Cleanup | ⏳ offen |
 
 ---
 
