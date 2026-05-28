@@ -9,6 +9,29 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.16.0</strong> <span class="text-white-50 ms-2">28.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>OSEON-Tracking: iOS-Tauglichkeit + Performance-Refactor</h6>
+                <ul>
+                    <li><strong>Lazy-Load der Subauftraege:</strong> Die OSEON-Tracking-Seite rendert
+                        jetzt nur die Top-Level-Kundenauftrag-Zeilen. Beim Aufklappen einer Gruppe werden
+                        die Subauftraege + Arbeitsgaenge per AJAX nachgeladen. Spart ~95% des initialen
+                        DOM-Volumens und macht die Seite auf iOS Safari bedienbar.</li>
+                    <li><strong>iOS-Safari-Bug-Fixes:</strong> Der QR-Code-Button funktioniert jetzt
+                        zuverlaessig (Permission-Pre-Warm im User-Gesture-Stack), html5-qrcode wird
+                        lokal gehostet statt vom CDN, und Spalten-Einstellungen werden mit
+                        <code>requestIdleCallback</code> defered geladen.</li>
+                    <li><strong>Artikel-Filter unveraendert:</strong> Bei gesetztem Artikel-Filter werden
+                        die Treffer-Gruppen weiterhin direkt mit ihren Subauftraegen geladen (Server-Side-Prefetch).</li>
+                    <li><em>Hinweis:</em> Beim ersten Aufklappen einer Gruppe ist ein kurzes Spinner-Symbol
+                        sichtbar (typisch &lt; 200ms). Beim erneuten Aufklappen wird der DOM gecached.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.15.3</strong> <span class="text-white-50 ms-2">27.05.2026</span>
             </div>
             <div class="card-body">
