@@ -1,4 +1,14 @@
 -- =============================================
+-- DEPRECATED seit v1.17.0
+-- Produktiver Sync laueft im IDEALAKEWMSService
+-- (Sync:ArticlesEnabled = true). Dieses Skript ist nur
+-- noch fuer manuelle Failover-Laeufe gedacht und nicht
+-- mehr feature-vollstaendig:
+--   - kein UNION mit IstBestellartikel/Aktiv-Filter
+--   - keine Meldebestand-Uebernahme aus KHKArtikelvarianten
+--   - kein Update bestehender Artikel
+-- Bei Aenderungen am Service-Sync bitte hier NICHT nachziehen.
+-- =============================================
 -- SQL Server Agent Job: Artikel aus Sage importieren
 -- Ziel:    [IDEAL_AKE_WMS].[dbo].[Articles]
 -- Quelle:  [ake].[dbo].[KHKPpsRessourcenPositionen]
