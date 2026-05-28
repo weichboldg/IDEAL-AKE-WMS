@@ -28,6 +28,36 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             .ToListAsync();
     }
 
+    public async Task<List<OseonProductionOrder>> GetSubOrdersForCustomerOrderAsync(
+        string customerOrderNumber,
+        bool showFinished,
+        HashSet<string>? relevantOperationNames,
+        CancellationToken ct = default)
+    {
+        IQueryable<OseonProductionOrder> query = _context.OseonProductionOrders
+            .Include(o => o.WorkOperations)
+            .Where(o => o.CustomerOrderNumber == customerOrderNumber);
+
+        if (!showFinished)
+        {
+            query = query.Where(o => o.OseonStatus != 90 && o.OseonStatus != 95);
+        }
+
+        var results = await query.ToListAsync(ct);
+
+        if (relevantOperationNames != null && relevantOperationNames.Count > 0)
+        {
+            foreach (var order in results)
+            {
+                order.WorkOperations = order.WorkOperations
+                    .Where(op => relevantOperationNames.Contains(op.Name))
+                    .ToList();
+            }
+        }
+
+        return results;
+    }
+
     public async Task<OseonProductionOrder?> GetByOseonIdAsync(long oseonId)
     {
         return await _dbSet.FirstOrDefaultAsync(o => o.OseonId == oseonId);

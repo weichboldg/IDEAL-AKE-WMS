@@ -15,6 +15,16 @@ public interface IOseonProductionOrderRepository : IRepository<OseonProductionOr
     Task<OseonPagedResult> GetPagedAsync(string? searchTerm, string? workplaceName, bool showFinished, int page, int pageSize, HashSet<string>? relevantOperationNames = null, string? articleNumber = null, IReadOnlyDictionary<string, string>? columnFilters = null);
 
     /// <summary>
+    /// Laedt alle Sub-Orders + WorkOperations einer einzelnen Kundenauftrag-Gruppe.
+    /// Wird vom OseonGroupDetails-AJAX-Endpoint genutzt fuer Lazy-Load.
+    /// </summary>
+    Task<List<OseonProductionOrder>> GetSubOrdersForCustomerOrderAsync(
+        string customerOrderNumber,
+        bool showFinished,
+        HashSet<string>? relevantOperationNames,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Liefert relevante Arbeitsgaenge fuer das OSEON-Reporting.
     /// Filter: Aktive Auftragsstatus (20/30/60/90), DueDate NOT NULL, AGs nicht storniert (95),
     /// nur AGs mit Config und IsOseonRelevant=true. AGs ohne Config werden gezaehlt aber nicht zurueckgegeben.
