@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="IDEALAKEWMSService.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj">
       <ExcludeAssets>contentFiles</ExcludeAssets>
     </ProjectReference>
