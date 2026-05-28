@@ -55,4 +55,22 @@ public class SageImportServiceTests
         fakeLogger.Runs[0].ServiceName.Should().Be("Article");
         fakeLogger.Runs[0].FinishedFailed.Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData(null,        null)]
+    [InlineData("",          null)]
+    [InlineData("   ",       null)]
+    [InlineData("0",         null)]
+    [InlineData("0.0000",    null)]
+    [InlineData("10.5",      "10.5")]
+    [InlineData("abc",       null)]
+    [InlineData("-5",        "-5")]
+    public void ParseReorderLevel_handles_edge_cases(string? raw, string? expected)
+    {
+        var result = SageImportHelpers.ParseReorderLevel(raw);
+        if (expected is null)
+            result.Should().BeNull();
+        else
+            result.Should().Be(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
+    }
 }
