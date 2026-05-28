@@ -233,35 +233,10 @@ else
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/oseon-tracking-lazy.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var expandedGroups = {};
             var expandedSubs = {};
-
-            function toggleGroup(groupKey) {
-                var expanded = expandedGroups[groupKey];
-                expandedGroups[groupKey] = !expanded;
-
-                var chevron = document.querySelector('.oseon-toggle[data-target="' + groupKey + '"] .oseon-chevron');
-                if (chevron) chevron.style.transform = expanded ? '' : 'rotate(90deg)';
-
-                // Sub-Rows anzeigen/ausblenden
-                document.querySelectorAll('tr[data-parent="' + groupKey + '"]').forEach(function (row) {
-                    row.style.display = expanded ? 'none' : '';
-                    if (expanded) {
-                        // Beim Zuklappen auch alle Ops zuklappen
-                        var subKey = row.getAttribute('data-sub');
-                        if (subKey && expandedSubs[subKey]) {
-                            expandedSubs[subKey] = false;
-                            var subChevron = row.querySelector('.oseon-chevron');
-                            if (subChevron) subChevron.style.transform = '';
-                            document.querySelectorAll('tr[data-parent-sub="' + subKey + '"]').forEach(function (op) {
-                                op.style.display = 'none';
-                            });
-                        }
-                    }
-                });
-            }
 
             function toggleSub(subKey) {
                 var expanded = expandedSubs[subKey];
@@ -275,14 +250,6 @@ else
                 });
             }
 
-            // Click-Handler für Gruppen-Zeilen
-            document.querySelectorAll('.oseon-tree-group').forEach(function (row) {
-                row.addEventListener('click', function () {
-                    var groupKey = this.getAttribute('data-group');
-                    toggleGroup(groupKey);
-                });
-            });
-
             // Click-Handler für Sub-Zeilen (nur Toggle wenn Chevron vorhanden)
             document.querySelectorAll('.oseon-tree-sub').forEach(function (row) {
                 row.addEventListener('click', function (e) {
@@ -295,8 +262,6 @@ else
             // Alle aufklappen
             document.getElementById('btnExpandAll')?.addEventListener('click', function () {
                 document.querySelectorAll('.oseon-tree-group').forEach(function (row) {
-                    var groupKey = row.getAttribute('data-group');
-                    expandedGroups[groupKey] = true;
                     var chevron = row.querySelector('.oseon-chevron');
                     if (chevron) chevron.style.transform = 'rotate(90deg)';
                 });
@@ -317,8 +282,11 @@ else
 
             // Alle zuklappen
             document.getElementById('btnCollapseAll')?.addEventListener('click', function () {
-                expandedGroups = {};
                 expandedSubs = {};
+                // Gruppen-Details-Tbodies ausblenden (lazy-load handler beachtet display)
+                document.querySelectorAll('tbody.oseon-group-details').forEach(function (tb) {
+                    tb.style.display = 'none';
+                });
                 document.querySelectorAll('.oseon-tree-group .oseon-chevron').forEach(function (c) { c.style.transform = ''; });
                 document.querySelectorAll('.oseon-tree-sub').forEach(function (row) {
                     row.style.display = 'none';
