@@ -5,6 +5,7 @@ using IdealAkeWms.Helpers;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Oseon;
 
 namespace IdealAkeWms.Controllers;
 
@@ -19,6 +20,7 @@ public class TrackingController : Controller
     private readonly IOseonOperationConfigRepository _operationConfigRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IHolidayRepository _holidayRepository;
+    private readonly IOseonGroupViewModelBuilder _groupBuilder;
 
     public TrackingController(
         IWorkOperationRepository workOperationRepository,
@@ -28,7 +30,8 @@ public class TrackingController : Controller
         IOseonTrafficLightService trafficLightService,
         IOseonOperationConfigRepository operationConfigRepository,
         IBusinessDayService businessDayService,
-        IHolidayRepository holidayRepository)
+        IHolidayRepository holidayRepository,
+        IOseonGroupViewModelBuilder groupBuilder)
     {
         _workOperationRepository = workOperationRepository;
         _workplaceRepository = workplaceRepository;
@@ -38,6 +41,7 @@ public class TrackingController : Controller
         _operationConfigRepository = operationConfigRepository;
         _businessDayService = businessDayService;
         _holidayRepository = holidayRepository;
+        _groupBuilder = groupBuilder;
     }
 
     public async Task<IActionResult> Index(
@@ -249,133 +253,14 @@ public class TrackingController : Controller
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         // Server-seitig gefiltert + paginiert laden
         var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, effectivePageSize, relevantOpNames, filterArticle, columnFilters);
-        var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
         // Ampelfarben + AG-Termine berechnen
         var groups = new List<OseonOrderGroupViewModel>();
         foreach (var g in pagedResult.Items.GroupBy(o => o.CustomerOrderNumber ?? o.OseonOrderNumber))
         {
-            var subOrders = new List<OseonSubOrderViewModel>();
-            foreach (var o in g.OrderBy(o => o.OseonOrderNumber))
-            {
-                var operations = new List<OseonOperationViewModel>();
-                foreach (var op in o.WorkOperations.OrderBy(op => op.PositionNumber))
-                {
-                    var hasConfig = opConfigs.TryGetValue(op.Name, out var opConfig);
-                    var isRelevant = !hasConfig || opConfig!.IsOseonRelevant;
-
-                    // AG-spezifischen Soll-Termin berechnen
-                    DateTime? calculatedDueDate = null;
-                    if (o.DueDate.HasValue)
-                    {
-                        calculatedDueDate = hasConfig
-                            ? OseonDueDateCalculator.Calculate(o.DueDate.Value, opConfig!.DueDateOffsetDays, _businessDayService, holidays)
-                            : o.DueDate.Value.Date;
-                    }
-
-                    var opColor = await _trafficLightService.GetColorForOperationAsync(op.OseonStatus, calculatedDueDate);
-
-                    operations.Add(new OseonOperationViewModel
-                    {
-                        PositionNumber = op.PositionNumber,
-                        Name = op.Name,
-                        Description = op.Description,
-                        OseonStatus = op.OseonStatus,
-                        StatusText = OseonStatusHelper.GetStatusText(op.OseonStatus),
-                        StatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(op.OseonStatus),
-                        IsFirstOperation = op.IsFirstOperation,
-                        IsLastOperation = op.IsLastOperation,
-                        Color = opColor,
-                        CalculatedDueDate = calculatedDueDate,
-                        IsOseonRelevant = isRelevant
-                    });
-                }
-
-                // Relevanz-Logik: nur wenn Filter aktiv
-                int effectiveStatus;
-                TrafficLightColor orderColor;
-                if (useRelevanceFilter)
-                {
-                    var relevantOps = operations.Where(op => op.IsOseonRelevant).ToList();
-                    // Keine relevanten AGs = Auftrag ist fertig (z.B. nur ZB + A-BT)
-                    var noRelevantOps = relevantOps.Count == 0 && operations.Count > 0;
-                    var allRelevantFinished = noRelevantOps || (relevantOps.Count > 0 && relevantOps.All(op => op.OseonStatus is 90 or 95));
-
-                    orderColor = allRelevantFinished
-                        ? TrafficLightColor.Green
-                        : (relevantOps.Count > 0 ? relevantOps.Max(op => op.Color) : TrafficLightColor.Gray);
-                    effectiveStatus = allRelevantFinished ? 90 : o.OseonStatus;
-                }
-                else
-                {
-                    // Ohne Relevanz-Filter: Original-Logik (alle AGs zaehlen)
-                    orderColor = await _trafficLightService.GetColorAsync(o.OseonStatus, o.DueDate);
-                    effectiveStatus = o.OseonStatus;
-                }
-
-                // Auftrags-Endtermin = Max der berechneten AG-Soll-Termine (wenn vorhanden)
-                var maxCalculatedDueDate = operations
-                    .Where(op => op.CalculatedDueDate.HasValue)
-                    .Select(op => op.CalculatedDueDate!.Value)
-                    .DefaultIfEmpty()
-                    .Max();
-                var displayDueDate = maxCalculatedDueDate != default ? maxCalculatedDueDate : o.DueDate;
-
-                subOrders.Add(new OseonSubOrderViewModel
-                {
-                    Id = o.Id,
-                    OseonOrderNumber = o.OseonOrderNumber,
-                    ArticleNumber = o.ArticleNumber,
-                    Description1 = o.Description1,
-                    Description2 = o.Description2,
-                    WorkplaceName = o.WorkplaceName,
-                    OseonStatus = effectiveStatus,
-                    StatusText = OseonStatusHelper.GetStatusText(effectiveStatus),
-                    StatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(effectiveStatus),
-                    QuantityTarget = o.QuantityTarget,
-                    QuantityActual = o.QuantityActual,
-                    DueDate = displayDueDate,
-                    Color = orderColor,
-                    Operations = operations
-                });
-            }
-
-            // Stats aus dem VOLLEN Sub-Set fuer "X/Y fertig"-Counter
-            var totalSubsInGroup = subOrders.Count;
-            var finishedSubsInGroup = subOrders.Count(s => s.OseonStatus is 90 or 95);
-
-            // Bei aktivem Artikel-Filter Sub-Auftraege auf Treffer reduzieren.
-            // Worst-Color/Status weiter aus VOLLEM Set — die Kundenauftrag-Gruppe behaelt ihren Status-Kontext.
-            var displaySubs = subOrders;
-            if (!string.IsNullOrWhiteSpace(filterArticle))
-            {
-                var artTerm = filterArticle.Trim();
-                displaySubs = subOrders
-                    .Where(s => s.ArticleNumber != null
-                                && s.ArticleNumber.Contains(artTerm, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            // Worst color: Red > Yellow > Blue > Gray > Green
-            var worstColor = subOrders.Count > 0
-                ? subOrders.Max(s => s.Color)
-                : TrafficLightColor.Gray;
-
-            // Aggregierter Status: der "schlechteste" (= aktivste/dringendste) Status der Gruppe
-            var worstStatus = subOrders.Count > 0
-                ? GetWorstStatus(subOrders.Select(s => s.OseonStatus))
-                : 0;
-
-            groups.Add(new OseonOrderGroupViewModel
-            {
-                CustomerOrderNumber = g.Key,
-                WorstColor = worstColor,
-                TotalSubOrders = totalSubsInGroup,
-                FinishedSubOrders = finishedSubsInGroup,
-                GroupStatusText = OseonStatusHelper.GetStatusText(worstStatus),
-                GroupStatusBadgeClass = OseonStatusHelper.GetStatusBadgeClass(worstStatus),
-                SubOrders = displaySubs
-            });
+            var group = await _groupBuilder.BuildAsync(g.Key, g, useRelevanceFilter, filterArticle, HttpContext.RequestAborted);
+            group.IsPrefetched = !string.IsNullOrWhiteSpace(filterArticle);
+            groups.Add(group);
         }
 
         groups = groups
@@ -410,20 +295,40 @@ public class TrackingController : Controller
         return View(vm);
     }
 
-    /// <summary>
-    /// Bestimmt den "schlechtesten" (= aktivsten) Status einer Gruppe.
-    /// Priorität: Gesperrt (70) > In Arbeit (60) > Freigegeben (30) > Gültig (20) > Unvollständig (10) > Fertig (90) > Storniert (95)
-    /// </summary>
-    private static int GetWorstStatus(IEnumerable<int> statuses)
+    public async Task<IActionResult> OseonGroupDetails(
+        string customerOrderNumber,
+        bool useRelevanceFilter = true,
+        bool showFinished = false,
+        string? filterArticle = null,
+        CancellationToken ct = default)
     {
-        var statusList = statuses.ToList();
-        int[] priority = [70, 60, 30, 20, 10, 90, 95];
-        foreach (var p in priority)
+        if (string.IsNullOrWhiteSpace(customerOrderNumber))
         {
-            if (statusList.Contains(p))
-                return p;
+            return BadRequest("customerOrderNumber is required.");
         }
-        return statusList.FirstOrDefault();
+
+        var opConfigs = await _operationConfigRepository.GetAllAsDictionaryAsync();
+        HashSet<string>? relevantOpNames = null;
+        if (useRelevanceFilter)
+        {
+            relevantOpNames = opConfigs
+                .Where(kvp => kvp.Value.IsOseonRelevant)
+                .Select(kvp => kvp.Key)
+                .ToHashSet();
+        }
+
+        var subOrders = await _oseonRepository.GetSubOrdersForCustomerOrderAsync(
+            customerOrderNumber, showFinished, relevantOpNames, ct);
+
+        if (subOrders.Count == 0)
+        {
+            return NotFound();
+        }
+
+        var group = await _groupBuilder.BuildAsync(
+            customerOrderNumber, subOrders, useRelevanceFilter, filterArticle, ct);
+
+        return PartialView("_OseonGroupDetails", group);
     }
 
     private static TrackingOperationItem MapToItem(Models.WorkOperation wo)

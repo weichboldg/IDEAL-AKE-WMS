@@ -28,6 +28,31 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             .ToListAsync();
     }
 
+    public async Task<List<OseonProductionOrder>> GetSubOrdersForCustomerOrderAsync(
+        string customerOrderNumber,
+        bool showFinished,
+        HashSet<string>? relevantOperationNames,
+        CancellationToken ct = default)
+    {
+        IQueryable<OseonProductionOrder> query = _context.OseonProductionOrders
+            .Include(o => o.WorkOperations)
+            .Where(o => o.CustomerOrderNumber == customerOrderNumber);
+
+        if (!showFinished)
+        {
+            query = query.Where(o => o.OseonStatus != 90 && o.OseonStatus != 95);
+        }
+
+        // WICHTIG: WorkOperations werden hier NICHT gefiltert — alle Ops bleiben drin.
+        // Der OseonGroupViewModelBuilder entscheidet selbst pro Op ob sie OSEON-relevant ist
+        // und braucht ALLE Ops um den Spezialfall "Sub-Order hat nur nicht-relevante Ops -> Fertig"
+        // korrekt zu erkennen. Der relevantOperationNames-Parameter bleibt im Interface fuer
+        // moegliche zukuenftige Group-Level-Filterung; aktuell ungenutzt.
+        _ = relevantOperationNames;
+
+        return await query.ToListAsync(ct);
+    }
+
     public async Task<OseonProductionOrder?> GetByOseonIdAsync(long oseonId)
     {
         return await _dbSet.FirstOrDefaultAsync(o => o.OseonId == oseonId);
