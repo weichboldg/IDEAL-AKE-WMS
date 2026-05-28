@@ -294,6 +294,42 @@ public class TrackingController : Controller
         return View(vm);
     }
 
+    public async Task<IActionResult> OseonGroupDetails(
+        string customerOrderNumber,
+        bool useRelevanceFilter = true,
+        bool showFinished = false,
+        string? filterArticle = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerOrderNumber))
+        {
+            return BadRequest("customerOrderNumber is required.");
+        }
+
+        var opConfigs = await _operationConfigRepository.GetAllAsDictionaryAsync();
+        HashSet<string>? relevantOpNames = null;
+        if (useRelevanceFilter)
+        {
+            relevantOpNames = opConfigs
+                .Where(kvp => kvp.Value.IsOseonRelevant)
+                .Select(kvp => kvp.Key)
+                .ToHashSet();
+        }
+
+        var subOrders = await _oseonRepository.GetSubOrdersForCustomerOrderAsync(
+            customerOrderNumber, showFinished, relevantOpNames, ct);
+
+        if (subOrders.Count == 0)
+        {
+            return NotFound();
+        }
+
+        var group = await _groupBuilder.BuildAsync(
+            customerOrderNumber, subOrders, useRelevanceFilter, filterArticle, ct);
+
+        return PartialView("_OseonGroupDetails", group);
+    }
+
     private static TrackingOperationItem MapToItem(Models.WorkOperation wo)
     {
         return new TrackingOperationItem
