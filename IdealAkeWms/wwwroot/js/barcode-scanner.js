@@ -25,14 +25,46 @@ function isSecureContext() {
     return window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost';
 }
 
-function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetId) {
+/**
+ * Pre-Warm der Camera-Permission im synchronen User-Gesture-Stack.
+ * iOS Safari verweigert sonst die Permission, wenn getUserMedia erst nach Modal-Show
+ * (asynchron) aufgerufen wird. Bei Erfolg: Stream sofort wieder stoppen — wir wollen
+ * nur die Permission etablieren, der eigentliche Scanner startet spaeter via html5-qrcode.
+ *
+ * Returns true bei Erfolg, false bei Fehler (Permission denied, kein Camera-Support, etc.).
+ */
+async function requestCameraPermission() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        return false;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        // Stream sofort wieder stoppen
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+    } catch (err) {
+        console.warn('Camera permission pre-warm failed:', err);
+        return false;
+    }
+}
+
+async function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetId) {
+    // iOS-Fix: Permission im synchronen User-Gesture-Stack anfragen, BEVOR das Modal
+    // geoeffnet wird. html5-qrcode wuerde getUserMedia sonst erst nach Modal-Show rufen,
+    // und iOS Safari verweigert dann die Permission.
+    let cameraAvailable = false;
+    const secureCtx = isSecureContext();
+    if (isCameraSupported() && secureCtx) {
+        cameraAvailable = await requestCameraPermission();
+    }
+
     _scannerClosing = false;
 
     // Altes Modal entfernen
     let modal = document.getElementById('scannerModal');
     if (modal) modal.remove();
-
-    const cameraAvailable = isCameraSupported() && isSecureContext();
     const title = scanType === 'article' ? 'Artikel QR-Code scannen' : 'Lagerplatz Barcode scannen';
 
     modal = document.createElement('div');
@@ -54,7 +86,7 @@ function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetId) {
                 </div>
             ` : `
                 <div class="scanner-info-box">
-                    ${!isSecureContext()
+                    ${!secureCtx
                         ? 'Kamera-Scan erfordert HTTPS. Bitte ein Bild des Codes hochladen.'
                         : 'Kamera nicht verfügbar. Bitte ein Bild des Codes hochladen.'}
                 </div>

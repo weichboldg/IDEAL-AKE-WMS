@@ -310,13 +310,19 @@ else
             // QR scanner for article filter — fills input then submits form (server-side)
             initTextInputScanner('btnScanArticle', 'filterArticle', 'article', function() {
                 var form = document.getElementById('filterArticle').closest('form');
-                if (form) form.submit();
+                if (form) {
+                    // iOS-Fix: setTimeout damit Virtual-Keyboard-State-Teardown vor Navigation komplett ist.
+                    setTimeout(function () { form.submit(); }, 50);
+                }
             });
 
             // QR scanner for customer order filter — fills input then submits form (server-side)
             initTextInputScanner('btnScanCustomerOrder', 'filterCustomerOrder', 'fa', function() {
                 var form = document.getElementById('filterCustomerOrder').closest('form');
-                if (form) form.submit();
+                if (form) {
+                    // iOS-Fix: setTimeout damit Virtual-Keyboard-State-Teardown vor Navigation komplett ist.
+                    setTimeout(function () { form.submit(); }, 50);
+                }
             });
 
             // === Lagerbestand-Modal ===
