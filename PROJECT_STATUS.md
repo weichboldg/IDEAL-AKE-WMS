@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-05-27**, **letzter Commit `a2a3275` (v1.15.3 Hotfix Timestamp)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-05-28**, **letzter Commit auf `bugfix/oseon-tracking-ios` (v1.16.0 OSEON-Tracking iOS-Fix)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -23,6 +23,34 @@ Stand: **2026-05-27**, **letzter Commit `a2a3275` (v1.15.3 Hotfix Timestamp)**. 
 
 1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+
+---
+
+### v1.16.0 — OSEON-Tracking iOS-Fix + Performance-Refactor
+
+Hintergrund: OSEON-Tracking-Seite war auf iOS Safari nicht bedienbar (Slowness, Input-Lock, QR-Button kaputt). Loesung: Architektur-Refactor mit Lazy-Load + iOS-spezifische Defensiv-Fixes.
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 0 | Pre-flight + Baseline-Build | ✅ erledigt |
+| 1 | OseonGroupViewModelBuilder Helper-Service extrahiert | ✅ erledigt |
+| 2 | Repository: GetSubOrdersForCustomerOrderAsync ergaenzt | ✅ erledigt |
+| 3 | PartialView _OseonGroupDetails + OseonGroupDetails Action | ✅ erledigt |
+| 4 | OseonIndex.cshtml auf Lazy-Marker-Tbodys refactored | ✅ erledigt |
+| 5 | oseon-tracking-lazy.js mit AJAX-Click-Handler | ✅ erledigt |
+| - | Bug-Fix: display:none auf Sub-Order-Rows entfernt | ✅ (`01963f6`) |
+| - | Bug-Fix: Sub-Row-Click via Event-Delegation | ✅ (`b3e5ff7`) |
+| - | Bug-Fix: Relevance-Filter im Repo entfernt (zerstoerte Builder-Logik) | ✅ (`fee19b7`) |
+| 6 | html5-qrcode 2.3.8 lokal gehostet (statt CDN) | ✅ erledigt |
+| 7 | barcode-scanner.js Permission-Pre-Warm + form.submit setTimeout(50) | ✅ erledigt |
+| 8 | column-preferences.js requestIdleCallback defer | ✅ erledigt |
+| 9 | Viewport-Meta erweitert (viewport-fit=cover) | ✅ erledigt |
+| 10 | TrackingControllerTests (4 neue Tests, 590 total) | ✅ erledigt |
+| 11 | Version-Bump v1.16.0 + Changelog | ✅ erledigt |
+| 12 | TESTSZENARIEN Kapitel 30 + PROJECT_STATUS + CLAUDE.md | ⏳ in Arbeit (dieser Task) |
+| 13 | iOS-Manual-Test + Merge bugfix/oseon-tracking-ios in main + Worktree-Cleanup | ⏳ offen |
+
+Erste Browser-Tests durch User: Lazy-Load + SubAuftraege + Operations-Toggle + Sub-Status-Berechnung funktionieren. iOS-Manual-Test noch ausstehend.
 
 ---
 
@@ -166,10 +194,11 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | SyncLog-Pflicht fuer alle Sync-Services (Lifecycle + Events) | Fertig (v1.15.0) |
 | Activity-Log fuer Non-Sync-Services (Mail-Versand + BDE-Auto-Pause) | Fertig (v1.15.1) |
 | OSEON Stammdaten-Imports im Aktivitaets-Protokoll (Workplaces + ArticleCategories) | Fertig (v1.15.2) |
+| OSEON-Tracking Lazy-Load + iOS-Tauglichkeit | Fertig (v1.16.0) |
 
 ## Version
-- **Web-App**: v1.15.2 (27.05.2026)
-- **Service**: v1.15.2 (27.05.2026)
+- **Web-App**: v1.16.0 (28.05.2026)
+- **Service**: v1.15.3 (27.05.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.
@@ -180,6 +209,7 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 - v1.15.1 (2026-05-27) — Activity-Log fuer Non-Sync-Services. UI umbenannt zu "Aktivitaets-Protokoll".
 - v1.15.2 (2026-05-27) — Lifecycle-Tests + OSEON Stammdaten-Imports + ctor-Vereinheitlichung + Connection-String-Guard-Fix.
 - v1.15.3 (2026-05-27) — Hotfix Timestamp: `SyncRun.WriteEntryAsync` schreibt jetzt Lokalzeit statt UTC (UI sortierte vorher neue Eintraege unter aelteren). Plus CLAUDE.md-Konvention "groessere Aenderungen in eigenem Worktree".
+- v1.16.0 (2026-05-28) — OSEON-Tracking iOS-Fix + Lazy-Load-Refactor. 50x weniger initiales DOM, QR-Scanner Permission-Pre-Warm, html5-qrcode lokal.
 
 ## Aenderungen (07.05.2026)
 

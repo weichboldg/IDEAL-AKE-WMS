@@ -3644,5 +3644,53 @@ Service-Filter "CoatingDetection".
 
 ---
 
-*Ende des Dokuments. Stand: v1.15.2 (2026-05-27)*
+## Kapitel 30: OSEON-Tracking iOS-Fix + Lazy-Load (v1.16.0)
+
+### Szenario 30.1: Desktop Chrome — Initial-Load-Performance
+**Schritt:**
+1. `/Tracking/OseonIndex` ohne Filter oeffnen.
+2. Devtools-Network-Tab: Hauptrequest abwarten.
+**Erwartet:** Erster Paint < 1s, ~25 Group-Header-Zeilen sichtbar, alle initial collapsed.
+
+### Szenario 30.2: Desktop Chrome — Lazy-Aufklappen
+**Schritt:**
+1. Klick auf Chevron einer Gruppe.
+**Erwartet:** Spinner-Row erscheint, dann SubAuftrags-Zeilen einblenden < 500ms.
+Zweites Click-Toggle: instant (kein AJAX im Network-Tab).
+
+### Szenario 30.3: Desktop Chrome — Artikel-Filter Prefetch
+**Schritt:**
+1. URL: `/Tracking/OseonIndex?filterArticle=12345` (echte Treffer-Nummer).
+**Erwartet:** Treffer-Gruppen sind initial expanded sichtbar mit prefetched SubAuftraegen. Kein zusaetzlicher AJAX-Call beim Aufklappen.
+
+### Szenario 30.4: iOS Safari — Bedienbarkeit
+**Schritt:**
+1. Page auf aktuellem iOS Safari oeffnen (iPhone oder iPad, kein Desktop-Mode).
+2. Artikel-Filter-Input antippen, "12345" eintippen, Filtern.
+**Erwartet:** Scrolling fluessig, Tipp-Input ohne Verzoegerung, Form-Submit ohne Lock-up.
+
+### Szenario 30.5: iOS Safari — QR-Code-Scan
+**Schritt:**
+1. Auf "Artikelnummer scannen"-Button tippen.
+**Erwartet:** Permission-Prompt (Kamera-Zugriff) erscheint sofort. Bei Accept: Modal mit Kamera-Vorschau. Scan eines QR-Codes -> Filter-Input ist gefuellt, Form auto-submitted nach 50ms.
+
+### Szenario 30.6: iOS Safari — QR-Fallback
+**Schritt:**
+1. In Safari-Settings den Kamera-Zugriff fuer die Seite explizit verweigern.
+2. Page neu laden, QR-Button antippen.
+**Erwartet:** Statt Kamera-Modal erscheint File-Upload-UI. User kann Bild auswaehlen, das wird gescannt.
+
+### Szenario 30.7: Sub-Order-Status mit Relevanz-Filter
+**Vorbedingung:** Es gibt einen Sub-Auftrag dessen OSEON-relevante AGs alle als Fertig (Status 90/95) gemeldet sind, aber dessen Sub-Order-Status selbst noch z.B. "In Arbeit" ist.
+**Schritt:** Page laden mit OSEON-Relevanz-Filter aktiv (Checkbox haken).
+**Erwartet:** Der Sub-Auftrag wird mit Status "Fertig" und gruener Ampel angezeigt. (Sub-Order hat keine relevanten offenen AGs mehr — Logik erkennt das.)
+
+### Szenario 30.8: Sub-Order ohne OSEON-relevante AGs
+**Vorbedingung:** Sub-Auftrag hat nur nicht-OSEON-relevante AGs (z.B. nur ZB + A-BT).
+**Schritt:** Page laden mit OSEON-Relevanz-Filter aktiv.
+**Erwartet:** Sub-Auftrag wird automatisch als "Fertig" angezeigt (es gibt nichts zu tracken).
+
+---
+
+*Ende des Dokuments. Stand: v1.16.0 (2026-05-28)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
