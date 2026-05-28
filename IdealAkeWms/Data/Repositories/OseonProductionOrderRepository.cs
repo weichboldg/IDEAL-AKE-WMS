@@ -43,19 +43,14 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
             query = query.Where(o => o.OseonStatus != 90 && o.OseonStatus != 95);
         }
 
-        var results = await query.ToListAsync(ct);
+        // WICHTIG: WorkOperations werden hier NICHT gefiltert — alle Ops bleiben drin.
+        // Der OseonGroupViewModelBuilder entscheidet selbst pro Op ob sie OSEON-relevant ist
+        // und braucht ALLE Ops um den Spezialfall "Sub-Order hat nur nicht-relevante Ops -> Fertig"
+        // korrekt zu erkennen. Der relevantOperationNames-Parameter bleibt im Interface fuer
+        // moegliche zukuenftige Group-Level-Filterung; aktuell ungenutzt.
+        _ = relevantOperationNames;
 
-        if (relevantOperationNames != null && relevantOperationNames.Count > 0)
-        {
-            foreach (var order in results)
-            {
-                order.WorkOperations = order.WorkOperations
-                    .Where(op => relevantOperationNames.Contains(op.Name))
-                    .ToList();
-            }
-        }
-
-        return results;
+        return await query.ToListAsync(ct);
     }
 
     public async Task<OseonProductionOrder?> GetByOseonIdAsync(long oseonId)
