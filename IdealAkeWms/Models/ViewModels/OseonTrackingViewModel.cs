@@ -31,6 +31,10 @@ public class OseonOrderGroupViewModel
     /// <summary>Aggregierter Status-Text der Gruppe (z.B. "In Arbeit" wenn mindestens ein Subauftrag in Arbeit)</summary>
     public string GroupStatusText { get; set; } = string.Empty;
     public string GroupStatusBadgeClass { get; set; } = string.Empty;
+
+    /// <summary>True wenn die Sub-Order/Operation-Details serverseitig vorgerendert wurden (z.B. wegen filterArticle).
+    /// False = lazy: Details-Tbody ist leer und wird via AJAX nachgeladen.</summary>
+    public bool IsPrefetched { get; set; }
 }
 
 public class OseonSubOrderViewModel

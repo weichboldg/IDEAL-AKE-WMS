@@ -259,6 +259,7 @@ public class TrackingController : Controller
         foreach (var g in pagedResult.Items.GroupBy(o => o.CustomerOrderNumber ?? o.OseonOrderNumber))
         {
             var group = await _groupBuilder.BuildAsync(g.Key, g, useRelevanceFilter, filterArticle, HttpContext.RequestAborted);
+            group.IsPrefetched = !string.IsNullOrWhiteSpace(filterArticle);
             groups.Add(group);
         }
 
