@@ -17,6 +17,10 @@
     var subRowClass = sub.OseonStatus is 90 or 95 ? "oseon-tree-done" : "";
 
     @* === Ebene 1: Subauftrag === *@
+    @* HINWEIS: kein style="display: none" mehr — Sub-Order-Rows sind immer sichtbar,
+       sobald sie in den DOM gelangen. Group-Sichtbarkeit wird jetzt am tbody-Container
+       (.oseon-group-details) gesteuert. Operations-Rows (Ebene 2) bleiben weiterhin
+       display:none und werden via toggleSub (Inline-Script) per Klick aufgeklappt. *@
     <tr class="oseon-tree-sub @subRowClass"
         data-parent="@groupKey"
         data-sub="@subKey"
@@ -27,7 +31,7 @@
         data-sort-status="@sub.OseonStatus"
         data-sort-progress="@sub.QuantityTarget.ToString(System.Globalization.CultureInfo.InvariantCulture)"
         data-sort-end-date="@(sub.DueDate?.ToString("yyyy-MM-dd") ?? "")"
-        style="display: none; cursor: pointer;">
+        style="cursor: pointer;">
         <td><span class="traffic-light traffic-@sub.Color.ToString().ToLower()"></span></td>
         <td style="padding-left: 28px; white-space: nowrap;">
             @if (sub.Operations.Any())
