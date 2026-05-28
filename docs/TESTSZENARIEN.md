@@ -3692,5 +3692,94 @@ Zweites Click-Toggle: instant (kein AJAX im Network-Tab).
 
 ---
 
-*Ende des Dokuments. Stand: v1.16.0 (2026-05-28)*
+## 31. Artikel-Sync-Erweiterung (v1.17.0)
+
+Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit aktiven Bestellartikeln, Meldebestand-Uebernahme aus `KHKArtikelvarianten` und Full-Update bei bestehenden Artikeln.
+
+### 31.1 Neuer Bestellartikel ohne BOM-Beteiligung kommt an
+
+**Vorbedingungen:**
+- Test-Artikel `TEST-9999` existiert in Sage `KHKArtikel` mit `IstBestellartikel = -1` und `Aktiv = -1`.
+- `TEST-9999` taucht NICHT in `KHKPpsRessourcenPositionen` auf.
+- `TEST-9999` ist im WMS noch nicht in der `Articles`-Tabelle.
+
+**Schritte:**
+1. Service-Lauf manuell triggern (Service-Restart oder warten auf naechsten Tick).
+2. Aktivitaets-Protokoll (`/SyncLog/Index`) oeffnen, Filter Service = `Article`.
+3. WMS-DB pruefen: `SELECT * FROM Articles WHERE ArticleNumber = 'TEST-9999'`.
+
+**Erwartetes Verhalten:**
+- Aktivitaets-Protokoll-Eintrag mit Counts inkl. `neu >= 1`.
+- `Articles.TEST-9999` ist eingefuegt, `CreatedBy = 'IDEALAKEWMSService'`, `CreatedAt` ≈ jetzt.
+
+### 31.2 Meldebestand-Uebernahme
+
+**Vorbedingungen:**
+- `TEST-9999` in `KHKArtikelvarianten.Meldebestand = 25.0000`.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. `SELECT ReorderLevel FROM Articles WHERE ArticleNumber = 'TEST-9999'`.
+
+**Erwartetes Verhalten:**
+- `ReorderLevel = 25.0000`.
+
+### 31.3 Meldebestand 0 wird zu NULL
+
+**Vorbedingungen:**
+- `TEST-9998` in `KHKArtikel` (mit `IstBestellartikel = -1, Aktiv = -1`) und `KHKArtikelvarianten.Meldebestand = 0`.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. `SELECT ReorderLevel FROM Articles WHERE ArticleNumber = 'TEST-9998'`.
+
+**Erwartetes Verhalten:**
+- `ReorderLevel IS NULL` (nicht 0).
+
+### 31.4 Full-Update bei bestehendem Artikel
+
+**Vorbedingungen:**
+- `TEST-9999` existiert bereits im WMS mit `Description = 'alt'`.
+- In Sage wurde `KHKArtikel.Bezeichnung1` fuer `TEST-9999` auf `'neu'` geaendert.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. `SELECT Description, ModifiedAt, ModifiedBy FROM Articles WHERE ArticleNumber = 'TEST-9999'`.
+
+**Erwartetes Verhalten:**
+- `Description = 'neu'`.
+- `ModifiedAt` ≈ jetzt.
+- `ModifiedBy = 'IDEALAKEWMSService'`.
+- Aktivitaets-Protokoll-Eintrag mit `aktualisiert >= 1`.
+
+### 31.5 Idempotenz: Zweiter Lauf ohne Aenderungen schreibt nichts
+
+**Vorbedingungen:**
+- Sync wurde gerade gelaufen, keine weiteren Aenderungen in Sage.
+
+**Schritte:**
+1. Service-Sync sofort nochmal triggern.
+2. Aktivitaets-Protokoll-Eintrag pruefen.
+
+**Erwartetes Verhalten:**
+- Counts: `neu = 0`, `aktualisiert = 0`, `gelesen > 0`.
+
+### 31.6 DryRun-Modus
+
+**Vorbedingungen:**
+- AppSetting `WorkerSettings:SyncDryRun = true` (per `appsettings.json` oder `ServiceSettings`-Tabelle).
+- Service neu starten damit Config gelesen wird.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. Aktivitaets-Protokoll pruefen.
+3. WMS-Artikel pruefen: `SELECT COUNT(*) FROM Articles WHERE ModifiedAt > [letzter-Sync]`.
+
+**Erwartetes Verhalten:**
+- Aktivitaets-Protokoll-Eintrag mit Suffix `[DryRun]` in der Message und `neu = 0, aktualisiert = 0, gelesen = N`.
+- Keine `Articles`-Aenderungen.
+
+---
+
+*Ende des Dokuments. Stand: v1.17.0 (2026-05-28)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

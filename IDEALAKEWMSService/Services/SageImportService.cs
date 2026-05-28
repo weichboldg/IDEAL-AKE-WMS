@@ -275,17 +275,42 @@ public class SageImportService : ISageImportService
                 _logger.LogInformation("[DryRun] Artikel-Sync — keine Änderungen werden geschrieben.");
 
             const string sageSql = """
-                SELECT DISTINCT
-                    CAST(r.Ressourcenummer AS nvarchar(100))   AS ArticleNumber,
-                    CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
-                    CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
-                    CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup
-                FROM [dbo].[KHKPpsRessourcenPositionen] r
-                LEFT JOIN [dbo].[KHKArtikel] a ON a.Artikelnummer = r.Ressourcenummer
-                WHERE r.Ressourcenummer IS NOT NULL AND r.Ressourcenummer != ''
+                WITH RawArticles AS (
+                    SELECT DISTINCT
+                        CAST(r.Ressourcenummer AS nvarchar(100))   AS ArticleNumber,
+                        CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
+                        CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
+                        CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
+                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel
+                    FROM [dbo].[KHKPpsRessourcenPositionen] r
+                    LEFT JOIN [dbo].[KHKArtikel] a ON a.Artikelnummer = r.Ressourcenummer
+                    LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
+                    WHERE r.Ressourcenummer IS NOT NULL AND r.Ressourcenummer != ''
+
+                    UNION
+
+                    SELECT
+                        CAST(a.Artikelnummer AS nvarchar(100))     AS ArticleNumber,
+                        CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
+                        CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
+                        CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
+                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel
+                    FROM [dbo].[KHKArtikel] a
+                    LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
+                    WHERE a.IstBestellartikel = -1 AND a.Aktiv = -1
+                )
+                SELECT
+                    ArticleNumber,
+                    MAX(Description)  AS Description,
+                    MAX(Unit)         AS Unit,
+                    MAX(ArticleGroup) AS ArticleGroup,
+                    MAX(ReorderLevel) AS ReorderLevel
+                FROM RawArticles
+                WHERE ArticleNumber IS NOT NULL AND ArticleNumber != ''
+                GROUP BY ArticleNumber
                 """;
 
-            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup)>();
+            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel)>();
 
             await using (var sageConn = new SqlConnection(sageConnection))
             {
@@ -295,11 +320,13 @@ public class SageImportService : ISageImportService
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
                 {
+                    string? reorderRaw = reader.IsDBNull(4) ? null : reader.GetString(4);
                     sageArticles.Add((
                         ArticleNumber: reader.GetString(0),
-                        Description: reader.IsDBNull(1) ? null : reader.GetString(1),
-                        Unit: reader.IsDBNull(2) ? null : reader.GetString(2),
-                        ArticleGroup: reader.IsDBNull(3) ? null : reader.GetString(3)
+                        Description:   reader.IsDBNull(1) ? null : reader.GetString(1),
+                        Unit:          reader.IsDBNull(2) ? null : reader.GetString(2),
+                        ArticleGroup:  reader.IsDBNull(3) ? null : reader.GetString(3),
+                        ReorderLevel:  SageImportHelpers.ParseReorderLevel(reorderRaw)
                     ));
                 }
             }
@@ -310,53 +337,78 @@ public class SageImportService : ISageImportService
             {
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
-                    ["gelesen"] = sageArticles.Count,
-                    ["neu"] = 0,
+                    ["gelesen"]      = sageArticles.Count,
+                    ["neu"]          = 0,
+                    ["aktualisiert"] = 0,
                 }, messageSuffix: "[DryRun]", ct: ct);
                 return new SyncResult(0, 0, 0, $"DryRun: {sageArticles.Count} Datensätze aus SAGE gelesen.");
             }
 
-            int inserted = 0;
+            int inserted = 0, updated = 0;
 
             await using var wmsConn = new SqlConnection(wmsConnection);
             await wmsConn.OpenAsync(ct);
 
             foreach (var article in sageArticles)
             {
-                const string insertSql = """
-                    IF NOT EXISTS (SELECT 1 FROM [dbo].[Articles] WHERE [ArticleNumber] = @ArticleNumber)
+                const string upsertSql = """
+                    IF EXISTS (SELECT 1 FROM [dbo].[Articles] WHERE [ArticleNumber] = @ArticleNumber)
                     BEGIN
-                        INSERT INTO [dbo].[Articles] ([ArticleNumber],[Description],[Unit],[ArticleGroup],[CreatedAt],[CreatedBy],[CreatedByWindows])
-                        VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
-                        SELECT 1
+                        UPDATE [dbo].[Articles] SET
+                            [Description]       = @Description,
+                            [Unit]              = @Unit,
+                            [ArticleGroup]      = @ArticleGroup,
+                            [ReorderLevel]      = @ReorderLevel,
+                            [ModifiedAt]        = GETUTCDATE(),
+                            [ModifiedBy]        = 'IDEALAKEWMSService',
+                            [ModifiedByWindows] = SYSTEM_USER
+                        WHERE [ArticleNumber] = @ArticleNumber
+                          AND (
+                              ISNULL([Description],'')   != ISNULL(@Description,'')   OR
+                              ISNULL([Unit],'')          != ISNULL(@Unit,'')          OR
+                              ISNULL([ArticleGroup],'')  != ISNULL(@ArticleGroup,'')  OR
+                              ISNULL([ReorderLevel],-1)  != ISNULL(@ReorderLevel,-1)
+                          )
+                        SELECT 0 AS IsInsert, @@ROWCOUNT AS Affected
                     END
                     ELSE
                     BEGIN
-                        UPDATE [dbo].[Articles]
-                        SET [ArticleGroup] = @ArticleGroup
-                        WHERE [ArticleNumber] = @ArticleNumber AND ([ArticleGroup] IS NULL OR [ArticleGroup] != @ArticleGroup)
-                        SELECT 0
+                        INSERT INTO [dbo].[Articles]
+                            ([ArticleNumber],[Description],[Unit],[ArticleGroup],[ReorderLevel],
+                             [CreatedAt],[CreatedBy],[CreatedByWindows])
+                        VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, @ReorderLevel,
+                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
+                        SELECT 1 AS IsInsert, 1 AS Affected
                     END
                     """;
 
-                await using var cmd = new SqlCommand(insertSql, wmsConn);
+                await using var cmd = new SqlCommand(upsertSql, wmsConn);
                 cmd.Parameters.AddWithValue("@ArticleNumber", article.ArticleNumber);
-                cmd.Parameters.AddWithValue("@Description", (object?)article.Description ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Unit", (object?)article.Unit ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Description",  (object?)article.Description  ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Unit",         (object?)article.Unit         ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@ArticleGroup", (object?)article.ArticleGroup ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@ReorderLevel", (object?)article.ReorderLevel ?? DBNull.Value);
 
-                var result = await cmd.ExecuteScalarAsync(ct);
-                if (result is int i && i == 1) inserted++;
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                if (await reader.ReadAsync(ct))
+                {
+                    var isInsert = reader.GetInt32(0) == 1;
+                    var affected = reader.GetInt32(1);
+                    if (isInsert) inserted++;
+                    else if (affected > 0) updated++;
+                }
             }
 
-            _logger.LogInformation("Artikel-Sync abgeschlossen: {Inserted} neu eingefügt.", inserted);
+            _logger.LogInformation("Artikel-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert.", inserted, updated);
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
-                ["neu"] = inserted,
+                ["gelesen"]      = sageArticles.Count,
+                ["neu"]          = inserted,
+                ["aktualisiert"] = updated,
             }, ct: ct);
 
-            return new SyncResult(inserted, 0, 0);
+            return new SyncResult(inserted, updated, 0);
         }
         catch (Exception ex)
         {
