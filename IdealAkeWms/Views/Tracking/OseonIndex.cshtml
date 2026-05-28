@@ -250,13 +250,16 @@ else
                 });
             }
 
-            // Click-Handler für Sub-Zeilen (nur Toggle wenn Chevron vorhanden)
-            document.querySelectorAll('.oseon-tree-sub').forEach(function (row) {
-                row.addEventListener('click', function (e) {
-                    var subKey = this.getAttribute('data-sub');
-                    var toggle = this.querySelector('.oseon-toggle');
-                    if (toggle) toggleSub(subKey);
-                });
+            // Click-Handler für Sub-Zeilen via Event-Delegation, damit auch
+            // AJAX-spaeter-geladene Rows (via oseon-tracking-lazy.js) funktionieren.
+            document.addEventListener('click', function (e) {
+                var subRow = e.target.closest('.oseon-tree-sub');
+                if (!subRow) return;
+                // Klicks auf interaktive Inner-Elemente nicht abfangen.
+                if (e.target.closest('a, button, input, label, select')) return;
+                var subKey = subRow.getAttribute('data-sub');
+                var toggle = subRow.querySelector('.oseon-toggle');
+                if (toggle && subKey) toggleSub(subKey);
             });
 
             // Alle aufklappen
