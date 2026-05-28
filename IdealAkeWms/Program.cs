@@ -97,6 +97,8 @@ builder.Services.AddScoped<IBdeBookingService, BdeBookingService>();
 builder.Services.AddScoped<IBdeDefaultWorkOperationService, BdeDefaultWorkOperationService>();
 builder.Services.AddScoped<IBdeTimeSplitService, BdeTimeSplitService>();
 builder.Services.AddScoped<IBdeShiftCalendarService, BdeShiftCalendarService>();
+builder.Services.AddScoped<IdealAkeWms.Services.Oseon.IOseonGroupViewModelBuilder,
+                          IdealAkeWms.Services.Oseon.OseonGroupViewModelBuilder>();
 
 // MVC
 builder.Services.AddControllersWithViews();
