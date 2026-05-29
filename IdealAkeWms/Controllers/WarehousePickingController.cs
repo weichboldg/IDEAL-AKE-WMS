@@ -101,9 +101,8 @@ public class WarehousePickingController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Close(int id, int[] itemIds, int[] quantitiesPicked,
-        string?[]? notes, bool[]? isFinalShortages, byte[] rowVersion)
+        string?[]? notes, int[]? shortageStatuses, byte[] rowVersion)
     {
-        // Mengen sind seit dem INT-Switch ganzzahlig. Negative Werte sind nicht erlaubt.
         if (quantitiesPicked.Any(q => q < 0))
         {
             TempData["WarningMessage"] = "Ist-Mengen duerfen nicht negativ sein.";
@@ -116,22 +115,27 @@ public class WarehousePickingController : Controller
 
         var noteDict = new Dictionary<int, string?>();
         if (notes != null)
-        {
             for (int idx = 0; idx < itemIds.Length; idx++)
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
-        }
 
-        var flagDict = new Dictionary<int, bool>();
-        if (isFinalShortages != null)
+        var statusDict = new Dictionary<int, ShortageStatus>();
+        if (shortageStatuses != null)
         {
             for (int idx = 0; idx < itemIds.Length; idx++)
-                flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
+            {
+                var raw = idx < shortageStatuses.Length ? shortageStatuses[idx] : 0;
+                statusDict[itemIds[idx]] = raw switch
+                {
+                    1 => ShortageStatus.WillBeRestocked,
+                    2 => ShortageStatus.NoRestock,
+                    _ => ShortageStatus.None
+                };
+            }
         }
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict,
-                new Dictionary<int, ShortageStatus>(),   // temporaer leer, Task 6 fixt das
+            await _repo.CloseAsync(id, qtyDict, noteDict, statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -169,38 +173,41 @@ public class WarehousePickingController : Controller
         [FromForm] int[] itemIds,
         [FromForm] int?[]? quantitiesPicked,
         [FromForm] string?[]? notes,
-        [FromForm] bool[]? isFinalShortages)
+        [FromForm] int[]? shortageStatuses)
     {
         if (itemIds == null || itemIds.Length == 0) return BadRequest("itemIds required");
 
         var qtyDict = new Dictionary<int, decimal?>();
         if (quantitiesPicked != null)
-        {
             for (int idx = 0; idx < itemIds.Length; idx++)
                 qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? (decimal?)quantitiesPicked[idx] : null;
-        }
         var noteDict = new Dictionary<int, string?>();
         if (notes != null)
-        {
             for (int idx = 0; idx < itemIds.Length; idx++)
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
-        }
-        var flagDict = new Dictionary<int, bool>();
-        if (isFinalShortages != null)
+        var statusDict = new Dictionary<int, ShortageStatus>();
+        if (shortageStatuses != null)
         {
             for (int idx = 0; idx < itemIds.Length; idx++)
-                flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
+            {
+                var raw = idx < shortageStatuses.Length ? shortageStatuses[idx] : 0;
+                statusDict[itemIds[idx]] = raw switch
+                {
+                    1 => ShortageStatus.WillBeRestocked,
+                    2 => ShortageStatus.NoRestock,
+                    _ => ShortageStatus.None
+                };
+            }
         }
 
-        await _repo.SaveProgressAsync(id, qtyDict, noteDict,
-            new Dictionary<int, ShortageStatus>(),   // temporaer leer, Task 6 fixt das
+        await _repo.SaveProgressAsync(id, qtyDict, noteDict, statusDict,
             _user.GetDisplayName(), _user.GetWindowsUserName());
         return Ok();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> PrintAndClose(int id, int[] itemIds, int[] quantitiesPicked,
-        string?[]? notes, bool[]? isFinalShortages, byte[] rowVersion)
+        string?[]? notes, int[]? shortageStatuses, byte[] rowVersion)
     {
         if (quantitiesPicked.Any(q => q < 0))
             return BadRequest(new { error = "Ist-Mengen duerfen nicht negativ sein." });
@@ -212,15 +219,24 @@ public class WarehousePickingController : Controller
         if (notes != null)
             for (int idx = 0; idx < itemIds.Length; idx++)
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
-        var flagDict = new Dictionary<int, bool>();
-        if (isFinalShortages != null)
+        var statusDict = new Dictionary<int, ShortageStatus>();
+        if (shortageStatuses != null)
+        {
             for (int idx = 0; idx < itemIds.Length; idx++)
-                flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
+            {
+                var raw = idx < shortageStatuses.Length ? shortageStatuses[idx] : 0;
+                statusDict[itemIds[idx]] = raw switch
+                {
+                    1 => ShortageStatus.WillBeRestocked,
+                    2 => ShortageStatus.NoRestock,
+                    _ => ShortageStatus.None
+                };
+            }
+        }
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict,
-                new Dictionary<int, ShortageStatus>(),   // temporaer leer, Task 6 fixt das
+            await _repo.CloseAsync(id, qtyDict, noteDict, statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
