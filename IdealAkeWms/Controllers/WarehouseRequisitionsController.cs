@@ -43,7 +43,8 @@ public class WarehouseRequisitionsController : Controller
         var totalCount = ownOnly.Count;
         var paged = ownOnly.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 
-        var (missingItemCount, missingReqCount) = await _repo.GetFinalShortagesCountForUserAsync(userId);
+        var (missingItemCount, missingReqCount, missingNoRestockItemCount, missingNoRestockReqCount) =
+            await _repo.GetShortageCountsForUserAsync(userId);
 
         var vm = new WarehouseRequisitionListViewModel
         {
@@ -63,8 +64,10 @@ public class WarehouseRequisitionsController : Controller
                 PageSizeRaw = rawPageSize,
                 TotalCount = totalCount
             },
-            MissingPartsNoRestockItemCount = missingItemCount,
-            MissingPartsNoRestockRequisitionCount = missingReqCount,
+            MissingPartsWaitingItemCount = missingItemCount,
+            MissingPartsWaitingRequisitionCount = missingReqCount,
+            MissingPartsNoRestockItemCount = missingNoRestockItemCount,
+            MissingPartsNoRestockRequisitionCount = missingNoRestockReqCount,
         };
         return View(vm);
     }

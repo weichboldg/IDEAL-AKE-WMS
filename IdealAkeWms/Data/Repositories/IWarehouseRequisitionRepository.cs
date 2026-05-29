@@ -39,17 +39,20 @@ public interface IWarehouseRequisitionRepository
         string user, string winUser);
 
     Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
-        GetMissingPartsAsync(int? workplaceFilter,
+        GetMissingPartsAsync(ShortageStatus filterStatus,
+                             int? workplaceFilter,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize);
 
     /// <summary>
-    /// Zaehlt offene Final-Shortage-Positionen und betroffene Closed-Bestellungen
-    /// fuer alle Vormontageplaetze, denen <paramref name="userId"/> zugeordnet ist.
+    /// Zaehlt offene Shortage-Positionen (WillBeRestocked + NoRestock) und
+    /// betroffene Bestellungen (Closed + PartiallyDelivered) fuer alle
+    /// Vormontageplaetze, denen <paramref name="userId"/> zugeordnet ist.
     /// </summary>
-    Task<(int ItemCount, int RequisitionCount)>
-        GetFinalShortagesCountForUserAsync(int userId);
+    Task<(int WaitingItemCount, int WaitingRequisitionCount,
+          int NoRestockItemCount, int NoRestockRequisitionCount)>
+        GetShortageCountsForUserAsync(int userId);
 
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 

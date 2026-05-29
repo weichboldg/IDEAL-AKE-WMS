@@ -1,5 +1,6 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -52,6 +53,7 @@ public class MissingPartsController : Controller
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
         var (rawRows, total) = await _repo.GetMissingPartsAsync(
+            ShortageStatus.NoRestock,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             columnFilters,
             null, null, page, effectivePageSize);

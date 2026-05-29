@@ -416,7 +416,7 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
         (await db.WarehouseRequisitions.FindAsync(pdId))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
 
-        var (items, total) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
+        var (items, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
         items.Should().HaveCount(2);
         items.Select(i => i.RequisitionId).Should().BeEquivalentTo(new[] { closedId, pdId });
         total.Should().Be(2);
@@ -461,7 +461,7 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (only1, _) = await repo.GetMissingPartsAsync(1, null, null, null, 1, 100);
+        var (only1, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, 1, null, null, null, 1, 100);
         only1.Should().HaveCount(1);
         only1[0].WorkplaceName.Should().Be("WB1");
     }
@@ -485,12 +485,12 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
 
         var filters = new Dictionary<string, string> { ["ArticleNumber"] = "AAA" };
-        var (filtered, _) = await repo.GetMissingPartsAsync(null, filters, null, null, 1, 100);
+        var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filters, null, null, 1, 100);
         filtered.Should().HaveCount(1);
         filtered[0].ArticleNumber.Should().Be("AAA-1");
 
         var filtersOr = new Dictionary<string, string> { ["ArticleNumber"] = "AAA,BBB" };
-        var (both, _) = await repo.GetMissingPartsAsync(null, filtersOr, null, null, 1, 100);
+        var (both, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filtersOr, null, null, 1, 100);
         both.Should().HaveCount(2);
     }
 
@@ -513,7 +513,7 @@ public class WarehouseRequisitionRepositoryTests
                 1, "u", "w", new byte[0]);
         }
 
-        var (page1, total) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 2);
+        var (page1, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 2);
         page1.Should().HaveCount(2);
         total.Should().Be(5);
     }
@@ -536,86 +536,9 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
         (await db.WarehouseRequisitions.FindAsync(id))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
 
-        var (result, _) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
         result.Should().HaveCount(1);
         result[0].ItemId.Should().Be(items[0].Id);
-    }
-
-    [Fact]
-    public async Task GetFinalShortagesCountForUserAsync_CountsOnlyForUserWorkplaces()
-    {
-        using var db = TestDbContextFactory.Create();
-        db.ProductionWorkplaces.AddRange(
-            new ProductionWorkplace { Id = 1, Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" },
-            new ProductionWorkplace { Id = 2, Name = "WB2", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
-        db.Users.Add(new User { Id = 42, Name = "u42", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
-        await db.SaveChangesAsync();
-        // User 42 ist nur WB1 zugeordnet
-        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
-        {
-            UserId = 42,
-            ProductionWorkplaceId = 1,
-            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
-        });
-        await db.SaveChangesAsync();
-        var repo = new WarehouseRequisitionRepository(db);
-
-        // Closed-Bestellung an WB1 mit 2 NoRestock-Items
-        var r1 = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
-        var i1 = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == r1).OrderBy(i => i.Position).ToList();
-        await repo.CloseAsync(r1,
-            new Dictionary<int, decimal> { [i1[0].Id] = 0m, [i1[1].Id] = 0m },
-            new Dictionary<int, string?>(),
-            new Dictionary<int, ShortageStatus> { [i1[0].Id] = ShortageStatus.NoRestock, [i1[1].Id] = ShortageStatus.NoRestock },
-            1, "u", "w", new byte[0]);
-
-        // Closed-Bestellung an WB2 mit 1 NoRestock-Item (User 42 NICHT zugeordnet)
-        var r2req = new WarehouseRequisition
-        {
-            ProductionWorkplaceId = 2,
-            Status = WarehouseRequisitionStatus.Submitted,
-            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w", SubmittedAt = DateTime.Now
-        };
-        db.WarehouseRequisitions.Add(r2req);
-        await db.SaveChangesAsync();
-        var r2item = new WarehouseRequisitionItem
-        {
-            WarehouseRequisitionId = r2req.Id, Position = 1,
-            ArticleNumber = "X", ArticleDescription = "Y", QuantityRequested = 5m,
-            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w"
-        };
-        db.WarehouseRequisitionItems.Add(r2item);
-        await db.SaveChangesAsync();
-        await repo.CloseAsync(r2req.Id,
-            new Dictionary<int, decimal> { [r2item.Id] = 0m },
-            new Dictionary<int, string?>(),
-            new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
-            1, "u", "w", new byte[0]);
-
-        var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
-        itemCount.Should().Be(2);   // nur WB1
-        reqCount.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task GetFinalShortagesCountForUserAsync_ZeroWhenUserHasNoFinalShortages()
-    {
-        using var db = TestDbContextFactory.Create();
-        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
-        db.Users.Add(new User { Id = 42, Name = "u42", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
-        await db.SaveChangesAsync();
-        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
-        {
-            UserId = 42,
-            ProductionWorkplaceId = 1,
-            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
-        });
-        await db.SaveChangesAsync();
-        var repo = new WarehouseRequisitionRepository(db);
-
-        var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
-        itemCount.Should().Be(0);
-        reqCount.Should().Be(0);
     }
 
     [Fact]
@@ -631,35 +554,8 @@ public class WarehouseRequisitionRepositoryTests
         r!.Status = WarehouseRequisitionStatus.Cancelled;
         await db.SaveChangesAsync();
 
-        var (result, _) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
         result.Should().HaveCount(0);
-    }
-
-    [Fact]
-    public async Task GetFinalShortagesCountForUserAsync_IncludesPartiallyDelivered()
-    {
-        using var db = TestDbContextFactory.Create();
-        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
-        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
-        {
-            UserId = 42, ProductionWorkplaceId = 1,
-            CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test"
-        });
-        await db.SaveChangesAsync();
-        var repo = new WarehouseRequisitionRepository(db);
-
-        var pdId = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.WillBeRestocked));
-        var pdItems = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == pdId).OrderBy(i => i.Position).ToList();
-        await repo.CloseAsync(pdId,
-            new Dictionary<int, decimal> { [pdItems[0].Id] = 0m, [pdItems[1].Id] = 0m },
-            new Dictionary<int, string?>(),
-            new Dictionary<int, ShortageStatus> { [pdItems[0].Id] = ShortageStatus.NoRestock, [pdItems[1].Id] = ShortageStatus.WillBeRestocked },
-            1, "u", "w", new byte[0]);
-        (await db.WarehouseRequisitions.FindAsync(pdId))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
-
-        var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
-        itemCount.Should().Be(1);
-        reqCount.Should().Be(1);
     }
 
     // ===== v1.19.0 — 4 neue Repository-Tests fuer 3-State-Logik =====
@@ -734,5 +630,122 @@ public class WarehouseRequisitionRepositoryTests
         await repo.CloseAsync(id, qty, notes, statuses, 1, "u", "w", new byte[0]);
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_TabWillBeRestocked_ReturnsOnlyMatchingItems()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.WillBeRestocked), (5, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked, [items[1].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var (result, total) = await repo.GetMissingPartsAsync(ShortageStatus.WillBeRestocked, null, null, null, null, 1, 100);
+        result.Should().HaveCount(1);
+        result[0].ItemId.Should().Be(items[0].Id);
+        result[0].Status.Should().Be(ShortageStatus.WillBeRestocked);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_TabNoRestock_ReturnsOnlyMatchingItems()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.WillBeRestocked), (5, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked, [items[1].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var (result, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
+        result.Should().HaveCount(1);
+        result[0].ItemId.Should().Be(items[1].Id);
+        result[0].Status.Should().Be(ShortageStatus.NoRestock);
+    }
+
+    [Fact]
+    public async Task GetShortageCountsForUserAsync_ReturnsBothCounts()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = 42, ProductionWorkplaceId = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        var r1 = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.WillBeRestocked), (5, 0m, ShortageStatus.WillBeRestocked));
+        var i1 = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == r1).OrderBy(i => i.Position).ToList();
+        await repo.CloseAsync(r1,
+            new Dictionary<int, decimal> { [i1[0].Id] = 0m, [i1[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [i1[0].Id] = ShortageStatus.WillBeRestocked, [i1[1].Id] = ShortageStatus.WillBeRestocked },
+            1, "u", "w", new byte[0]);
+
+        var r2 = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock));
+        var i2 = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == r2).Single();
+        await repo.CloseAsync(r2,
+            new Dictionary<int, decimal> { [i2.Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [i2.Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var (waitingItems, waitingReqs, noRestockItems, noRestockReqs) = await repo.GetShortageCountsForUserAsync(42);
+        waitingItems.Should().Be(2);
+        waitingReqs.Should().Be(1);
+        noRestockItems.Should().Be(1);
+        noRestockReqs.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetShortageCountsForUserAsync_OnlyForUserWorkplaces()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.AddRange(
+            new ProductionWorkplace { Id = 1, Name = "WB1" },
+            new ProductionWorkplace { Id = 2, Name = "WB2" });
+        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = 42, ProductionWorkplaceId = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        var r2req = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = 2, Status = WarehouseRequisitionStatus.Submitted,
+            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w", SubmittedAt = DateTime.Now
+        };
+        db.WarehouseRequisitions.Add(r2req); await db.SaveChangesAsync();
+        var r2item = new WarehouseRequisitionItem
+        {
+            WarehouseRequisitionId = r2req.Id, Position = 1, ArticleNumber = "X",
+            ArticleDescription = "Y", QuantityRequested = 5m,
+            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w"
+        };
+        db.WarehouseRequisitionItems.Add(r2item); await db.SaveChangesAsync();
+        await repo.CloseAsync(r2req.Id,
+            new Dictionary<int, decimal> { [r2item.Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var (waitingItems, _, noRestockItems, _) = await repo.GetShortageCountsForUserAsync(42);
+        waitingItems.Should().Be(0);
+        noRestockItems.Should().Be(0);
     }
 }

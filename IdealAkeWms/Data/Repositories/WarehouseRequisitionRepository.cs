@@ -320,7 +320,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     }
 
     public async Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
-        GetMissingPartsAsync(int? workplaceFilter,
+        GetMissingPartsAsync(ShortageStatus filterStatus,
+                             int? workplaceFilter,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize)
@@ -328,7 +329,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         var q = _context.WarehouseRequisitionItems
             .Include(i => i.WarehouseRequisition)
                 .ThenInclude(r => r.ProductionWorkplace)
-            .Where(i => i.ShortageStatus == ShortageStatus.NoRestock
+            .Where(i => i.ShortageStatus == filterStatus
                 && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
                     || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered));
 
@@ -429,23 +430,29 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(Expression.Not(call), param);
     }
 
-    public async Task<(int ItemCount, int RequisitionCount)>
-        GetFinalShortagesCountForUserAsync(int userId)
+    public async Task<(int WaitingItemCount, int WaitingRequisitionCount,
+                       int NoRestockItemCount, int NoRestockRequisitionCount)>
+        GetShortageCountsForUserAsync(int userId)
     {
         var userWorkplaceIds = await _context.ProductionWorkplaceUsers
             .Where(u => u.UserId == userId)
             .Select(u => u.ProductionWorkplaceId)
             .ToListAsync();
-        if (userWorkplaceIds.Count == 0) return (0, 0);
+        if (userWorkplaceIds.Count == 0) return (0, 0, 0, 0);
 
         var q = _context.WarehouseRequisitionItems
-            .Where(i => i.ShortageStatus == ShortageStatus.NoRestock
-                && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
-                    || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
+            .Where(i => (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                         || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
                 && userWorkplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
 
-        int itemCount = await q.CountAsync();
-        int reqCount = await q.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
-        return (itemCount, reqCount);
+        var waiting = q.Where(i => i.ShortageStatus == ShortageStatus.WillBeRestocked);
+        var noRestock = q.Where(i => i.ShortageStatus == ShortageStatus.NoRestock);
+
+        int waitingItems = await waiting.CountAsync();
+        int waitingReqs = await waiting.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
+        int noRestockItems = await noRestock.CountAsync();
+        int noRestockReqs = await noRestock.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
+
+        return (waitingItems, waitingReqs, noRestockItems, noRestockReqs);
     }
 }

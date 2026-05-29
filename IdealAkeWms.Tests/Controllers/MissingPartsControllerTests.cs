@@ -24,7 +24,8 @@ public class MissingPartsControllerTests
         user.Setup(u => u.GetWindowsUserName()).Returns("test\\test");
         wp.Setup(w => w.GetAllAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         wp.Setup(w => w.GetByUserIdAsync(It.IsAny<int>())).ReturnsAsync(new List<ProductionWorkplace>());
-        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<int?>(),
+        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
@@ -43,7 +44,7 @@ public class MissingPartsControllerTests
     {
         var (ctrl, repo, _, _) = Build();
         await ctrl.Index(workplaceId: 5, mineOnly: false);
-        repo.Verify(r => r.GetMissingPartsAsync(5,
+        repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock, 5,
             It.IsAny<IReadOnlyDictionary<string, string>?>(),
             null, null, 1, It.IsAny<int>()), Times.Once);
     }
@@ -56,7 +57,7 @@ public class MissingPartsControllerTests
         wp.Setup(w => w.GetByUserIdAsync(42)).ReturnsAsync(new List<ProductionWorkplace>
             { new ProductionWorkplace { Id = 7, Name = "WB7" } });
         await ctrl.Index(workplaceId: null, mineOnly: true);
-        repo.Verify(r => r.GetMissingPartsAsync(7,
+        repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock, 7,
             It.IsAny<IReadOnlyDictionary<string, string>?>(),
             null, null, 1, It.IsAny<int>()), Times.Once);
     }
