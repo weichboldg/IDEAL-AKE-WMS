@@ -84,7 +84,10 @@ public class WarehousePickingControllerTests
 
         result.Should().NotBeNull();
         var updated = ctx.WarehouseRequisitions.Include(x => x.Items).First(x => x.Id == r.Id);
-        updated.Status.Should().Be(WarehouseRequisitionStatus.Closed);
+        // Mit DeriveStatus-Refactor (Task 2): picked 4 < requested 5 und IsFinalShortage=false
+        // => PartiallyDelivered. Vorher war Status hartkodiert Closed.
+        // Der Controller liefert (noch) keinen IsFinalShortage-Flag durch (Task 7).
+        updated.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
         updated.Items.First().QuantityPicked.Should().Be(4m);
     }
 
@@ -104,6 +107,7 @@ public class WarehousePickingControllerTests
         var repo = new Mock<IWarehouseRequisitionRepository>();
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<int, decimal>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, bool>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
 

@@ -165,6 +165,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
     public async Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
         int closedByUserId, string user, string winUser, byte[] rowVersion)
     {
         var r = await _context.WarehouseRequisitions
@@ -174,20 +175,34 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         _context.Entry(r).Property(x => x.RowVersion).OriginalValue = rowVersion;
         foreach (var item in r.Items)
         {
-            item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : item.QuantityRequested;
+            item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : 0m;
             if (itemNotes.TryGetValue(item.Id, out var note))
                 item.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+            if (itemIsFinalShortages.TryGetValue(item.Id, out var final))
+                item.IsFinalShortage = final;
             item.ModifiedAt = DateTime.Now;
             item.ModifiedBy = user;
             item.ModifiedByWindows = winUser;
         }
-        r.Status = WarehouseRequisitionStatus.Closed;
+        r.Status = DeriveStatus(r);
         r.ClosedAt = DateTime.Now;
         r.ClosedByUserId = closedByUserId;
         r.ModifiedAt = DateTime.Now;
         r.ModifiedBy = user;
         r.ModifiedByWindows = winUser;
         await _context.SaveChangesAsync();
+    }
+
+    private static WarehouseRequisitionStatus DeriveStatus(WarehouseRequisition req)
+    {
+        bool isFullyDelivered = req.Items.All(i =>
+            (i.QuantityPicked ?? 0) >= i.QuantityRequested);
+        bool hasOpenShortage = req.Items.Any(i =>
+            (i.QuantityPicked ?? 0) < i.QuantityRequested && !i.IsFinalShortage);
+
+        return (isFullyDelivered || !hasOpenShortage)
+            ? WarehouseRequisitionStatus.Closed
+            : WarehouseRequisitionStatus.PartiallyDelivered;
     }
 
     public async Task SaveNotesAsync(int id, IReadOnlyDictionary<int, string?> itemNotes,

@@ -107,8 +107,12 @@ public class WarehouseRequisitionRepositoryTests
             [items[1].Id] = 10m
         };
         var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool>
+        {
+            [items[0].Id] = true // ART-1 short (4<5) but marked final -> Closed
+        };
 
-        await repo.CloseAsync(id, quantities, notes, userId, "t", "t", rSubmitted!.RowVersion);
+        await repo.CloseAsync(id, quantities, notes, flags, userId, "t", "t", rSubmitted!.RowVersion);
 
         var updated = await ctx.WarehouseRequisitions
             .Include(r => r.Items)
@@ -174,5 +178,164 @@ public class WarehouseRequisitionRepositoryTests
 
         pending.Should().HaveCount(1);
         pending[0].Id.Should().Be(id);
+    }
+
+    private async Task<int> SeedRequisitionAsync(ApplicationDbContext db, params (int requested, decimal? picked, bool finalShortage)[] items)
+    {
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = 1,
+            Status = WarehouseRequisitionStatus.Submitted,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "test",
+            CreatedByWindows = "test\\test",
+            SubmittedAt = DateTime.Now,
+        };
+        db.WarehouseRequisitions.Add(r);
+        await db.SaveChangesAsync();
+        int pos = 1;
+        foreach (var (req, picked, final) in items)
+        {
+            db.WarehouseRequisitionItems.Add(new WarehouseRequisitionItem
+            {
+                WarehouseRequisitionId = r.Id,
+                Position = pos++,
+                ArticleNumber = $"ART-{pos}",
+                ArticleDescription = $"Article {pos}",
+                QuantityRequested = req,
+                QuantityPicked = picked,
+                IsFinalShortage = final,
+                CreatedAt = DateTime.Now,
+                CreatedBy = "test",
+                CreatedByWindows = "test\\test",
+            });
+        }
+        await db.SaveChangesAsync();
+        return r.Id;
+    }
+
+    [Fact]
+    public async Task CloseAsync_AllItemsFullyDelivered_SetsStatusClosed()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false), (5, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        var qty = new Dictionary<int, decimal> { [items[0].Id] = 10m, [items[1].Id] = 5m };
+        var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool>();
+
+        await repo.CloseAsync(id, qty, notes, flags, 1, "test", "test\\test", new byte[0]);
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
+    }
+
+    [Fact]
+    public async Task CloseAsync_AllShortagesMarkedFinal_SetsStatusClosed()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false), (5, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        var qty = new Dictionary<int, decimal> { [items[0].Id] = 7m, [items[1].Id] = 0m };
+        var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool> { [items[0].Id] = true, [items[1].Id] = true };
+
+        await repo.CloseAsync(id, qty, notes, flags, 1, "test", "test\\test", new byte[0]);
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
+    }
+
+    [Fact]
+    public async Task CloseAsync_OneShortageNotFinal_SetsStatusPartiallyDelivered()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false), (5, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        var qty = new Dictionary<int, decimal> { [items[0].Id] = 10m, [items[1].Id] = 3m };
+        var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool> { [items[0].Id] = false, [items[1].Id] = false };
+
+        await repo.CloseAsync(id, qty, notes, flags, 1, "test", "test\\test", new byte[0]);
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
+    }
+
+    [Fact]
+    public async Task CloseAsync_QuantityPickedNull_TreatedAsZero_StatusPartiallyDelivered_WhenNotFinal()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+        var qty = new Dictionary<int, decimal> { [items[0].Id] = 0m };
+        var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool> { [items[0].Id] = false };
+
+        await repo.CloseAsync(id, qty, notes, flags, 1, "test", "test\\test", new byte[0]);
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
+    }
+
+    [Fact]
+    public async Task CloseAsync_QuantityPickedNull_AndFinalShortageTrue_StatusClosed()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+        var qty = new Dictionary<int, decimal> { [items[0].Id] = 0m };
+        var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool> { [items[0].Id] = true };
+
+        await repo.CloseAsync(id, qty, notes, flags, 1, "test", "test\\test", new byte[0]);
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
+    }
+
+    [Fact]
+    public async Task CloseAsync_ReClose_AfterRestlieferungComplete_TransitionsToClosed()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 3m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, bool> { [items[0].Id] = false },
+            1, "test", "test\\test", new byte[0]);
+        (await db.WarehouseRequisitions.FindAsync(id))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
+
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 10m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, bool> { [items[0].Id] = false },
+            1, "test", "test\\test", new byte[0]);
+        (await db.WarehouseRequisitions.FindAsync(id))!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
+    }
+
+    [Fact]
+    public async Task CloseAsync_IsFinalShortageTrueButFullyDelivered_FlagIgnoredStatusClosed()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+        var qty = new Dictionary<int, decimal> { [items[0].Id] = 10m };
+        var notes = new Dictionary<int, string?>();
+        var flags = new Dictionary<int, bool> { [items[0].Id] = true };
+
+        await repo.CloseAsync(id, qty, notes, flags, 1, "test", "test\\test", new byte[0]);
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
     }
 }

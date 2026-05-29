@@ -118,7 +118,9 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, _user.GetCurrentAppUserId() ?? 0,
+            await _repo.CloseAsync(id, qtyDict, noteDict,
+                new Dictionary<int, bool>(),
+                _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
