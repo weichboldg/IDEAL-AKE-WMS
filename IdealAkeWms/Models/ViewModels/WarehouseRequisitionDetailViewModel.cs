@@ -11,7 +11,8 @@ public record WarehouseRequisitionDetailItemViewModel(
     decimal QuantityRequested,
     decimal? QuantityPicked,
     string StorageLocations,
-    string? Note = null);
+    string? Note = null,
+    bool IsFinalShortage = false);
 
 public class WarehouseRequisitionDetailViewModel
 {

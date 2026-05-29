@@ -13,4 +13,6 @@ public class WarehouseRequisitionListViewModel
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public int OpenCount { get; set; }       // KPI fuer Lager-Sicht
     public PaginationState Pagination { get; set; } = new();
+    public int MissingPartsItemCount { get; set; }
+    public int MissingPartsRequisitionCount { get; set; }
 }
