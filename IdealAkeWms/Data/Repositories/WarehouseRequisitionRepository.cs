@@ -229,6 +229,64 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         if (changed) await _context.SaveChangesAsync();
     }
 
+    public async Task SaveProgressAsync(int id,
+        IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
+        IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        string user, string winUser)
+    {
+        var allKeys = itemQuantitiesPicked.Keys
+            .Concat(itemNotes.Keys)
+            .Concat(itemIsFinalShortages.Keys)
+            .Distinct()
+            .ToList();
+        if (allKeys.Count == 0) return;
+
+        var rows = await _context.WarehouseRequisitionItems
+            .Where(i => i.WarehouseRequisitionId == id && allKeys.Contains(i.Id))
+            .ToListAsync();
+
+        var now = DateTime.Now;
+        bool anyChanged = false;
+        foreach (var row in rows)
+        {
+            bool rowChanged = false;
+            if (itemQuantitiesPicked.TryGetValue(row.Id, out var qty))
+            {
+                if (row.QuantityPicked != qty)
+                {
+                    row.QuantityPicked = qty;
+                    rowChanged = true;
+                }
+            }
+            if (itemNotes.TryGetValue(row.Id, out var note))
+            {
+                var normalized = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+                if (row.Note != normalized)
+                {
+                    row.Note = normalized;
+                    rowChanged = true;
+                }
+            }
+            if (itemIsFinalShortages.TryGetValue(row.Id, out var final))
+            {
+                if (row.IsFinalShortage != final)
+                {
+                    row.IsFinalShortage = final;
+                    rowChanged = true;
+                }
+            }
+            if (rowChanged)
+            {
+                row.ModifiedAt = now;
+                row.ModifiedBy = user;
+                row.ModifiedByWindows = winUser;
+                anyChanged = true;
+            }
+        }
+        if (anyChanged) await _context.SaveChangesAsync();
+    }
+
     public async Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion)
     {
         var r = await _context.WarehouseRequisitions.FindAsync(id)

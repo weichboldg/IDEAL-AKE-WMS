@@ -31,6 +31,12 @@ public interface IWarehouseRequisitionRepository
     Task SaveNotesAsync(int id, IReadOnlyDictionary<int, string?> itemNotes,
         string user, string winUser);
 
+    Task SaveProgressAsync(int id,
+        IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
+        IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        string user, string winUser);
+
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 
     Task MarkEmailSentAsync(int id, DateTime sentAt);

@@ -338,4 +338,44 @@ public class WarehouseRequisitionRepositoryTests
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
     }
+
+    [Fact]
+    public async Task SaveProgressAsync_PersistsQuantitiesNotesAndFlags_WithoutStatusChange()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+
+        await repo.SaveProgressAsync(id,
+            new Dictionary<int, decimal?> { [items[0].Id] = 4m },
+            new Dictionary<int, string?> { [items[0].Id] = "  hello  " },
+            new Dictionary<int, bool> { [items[0].Id] = true },
+            "u", "w");
+
+        var item = await db.WarehouseRequisitionItems.FindAsync(items[0].Id);
+        item!.QuantityPicked.Should().Be(4m);
+        item.Note.Should().Be("hello");
+        item.IsFinalShortage.Should().BeTrue();
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Submitted);  // unveraendert
+    }
+
+    [Fact]
+    public async Task SaveProgressAsync_DoesNotPromoteSubmittedToPartiallyDelivered()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, false));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+
+        await repo.SaveProgressAsync(id,
+            new Dictionary<int, decimal?> { [items[0].Id] = 3m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, bool> { [items[0].Id] = false },
+            "u", "w");
+
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Submitted);  // KEIN PartiallyDelivered
+    }
 }
