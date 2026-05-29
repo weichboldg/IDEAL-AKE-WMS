@@ -26,17 +26,31 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 
 ---
 
-### v1.18.1 — Hotfix MissingParts (PartiallyDelivered mitzaehlen)
+### v1.19.0 — Lagerbestellungen: 3-State + 2-Tab Fehlteile
 
-Hintergrund: In v1.18.0 wurden Items mit `IsFinalShortage=true` aus `PartiallyDelivered`-Bestellungen nicht in `/MissingParts` und nicht in der Werkbank-Karte "Meine Fehlteile" angezeigt. User-Erwartung: sobald das Flag gesetzt ist, soll das Item sofort in der Liste auftauchen. Hotfix: Filter erweitert auf `Status IN (Closed, PartiallyDelivered)`.
+Hintergrund: v1.18.0 fuehrte einen einzelnen `IsFinalShortage`-Bool-Flag ein.
+Beim Testen erkannte der User dass die Label-Semantik unklar war (Lagermitarbeiter
+moechte explizit zwischen "Fehlteil wird nachgeliefert" und "wird nicht nachgeliefert"
+unterscheiden koennen). v1.19.0 ersetzt das Bool durch ein `ShortageStatus`-Enum
+(None / WillBeRestocked / NoRestock) mit 2 Radio-Buttons je Item und 2 Tabs in
+der Fehlteile-Liste. Die im selben Branch begonnene v1.18.1-Filter-Erweiterung
+(MissingParts inkludiert auch PartiallyDelivered) ist Teil von v1.19.0.
 
 | # | Sub-Task | Status |
 |---|---------|--------|
 | 0 | Pre-Flight Baseline | ✅ erledigt |
-| 1 | Repository-Filter + Tests (TDD) | ✅ erledigt |
-| 2 | Version + Doku (Changelog, CLAUDE.md, TESTSZENARIEN, PROJECT_STATUS) | ✅ erledigt |
-| 3 | Final-Check Build + Tests | ⏳ offen |
-| 4 | Merge in main (nach User-Bestaetigung) | ⏳ offen |
+| 1 | ShortageStatus-Enum + Property | ✅ erledigt |
+| 2 | EF Migration + SQL/65 + FreshInstall | ✅ erledigt |
+| 3 | ViewModels migrieren | ✅ erledigt |
+| 4 | Repo CloseAsync + DeriveStatus + SaveProgressAsync (TDD) | ✅ erledigt |
+| 5 | Repo GetMissingPartsAsync Tab + GetShortageCountsForUserAsync (TDD) | ✅ erledigt |
+| 6 | WarehousePickingController migriert (int[] shortageStatuses) | ✅ erledigt |
+| 7 | MissingPartsController Tab-Param + Werkbank 4 Counts | ✅ erledigt |
+| 8 | Details.cshtml mit 2 Radios + 3-State-JS | ✅ erledigt |
+| 9 | MissingParts/Index nav-tabs + Print + Werkbank-Karte | ✅ erledigt |
+| 10 | Version + Changelog + PROJECT_STATUS + CLAUDE.md + TESTSZENARIEN | ✅ erledigt |
+| 11 | Final-Check Build + Tests | ⏳ offen |
+| 12 | Merge in main (NACH User-Bestaetigung) | ⏳ offen |
 
 ---
 

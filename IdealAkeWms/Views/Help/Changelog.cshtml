@@ -9,21 +9,32 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
-                <strong>v1.18.1</strong> <span class="text-white-50 ms-2">29.05.2026</span>
+                <strong>v1.19.0</strong> <span class="text-white-50 ms-2">29.05.2026</span>
             </div>
             <div class="card-body">
-                <h6>Hotfix: Endgueltige Fehlteile sofort sichtbar (auch in teilgelieferten Bestellungen)</h6>
+                <h6>Lagerbestellungen: 3-State-Klassifizierung + 2-Tab Fehlteile-Liste</h6>
                 <ul>
-                    <li><strong>Bug-Fix:</strong> Items die als endgueltig Fehlteil markiert wurden,
-                        erschienen erst dann in der Fehlteile-Liste (<code>/MissingParts</code>) und in der
-                        Werkbank-Karte "Meine Fehlteile", wenn die <em>gesamte</em> Bestellung auf Closed
-                        wechselte. Bei Teillieferungen mit einem endgueltig markierten Fehlteil und
-                        gleichzeitiger Restlieferungs-Erwartung auf anderen Positionen blieb das Item
-                        unsichtbar.</li>
-                    <li><strong>Neues Verhalten:</strong> Items mit <em>Endgueltig Fehlteil</em> erscheinen
-                        sofort in der Fehlteile-Liste, sobald die Checkbox gesetzt ist — unabhaengig
-                        davon ob die Bestellung noch teilgeliefert ist oder bereits abgeschlossen wurde.
-                        Cancelled-Bestellungen bleiben weiterhin ausgeschlossen.</li>
+                    <li><strong>Klare Fehlteil-Klassifizierung:</strong> Pro Item kann der
+                        Lagermitarbeiter jetzt zwischen drei Zustaenden waehlen:
+                        <em>kein Fehlteil</em>, <em>Fehlteil</em> (Restlieferung erwartet)
+                        oder <em>Wird nicht nachgeliefert</em> (endgueltige Eskalation).
+                        Die bisherige einzelne <code>IsFinalShortage</code>-Checkbox wird durch
+                        zwei Radio-Buttons je Item ersetzt. Default bei Ist-Menge=0 ist
+                        <em>Fehlteil</em>.</li>
+                    <li><strong>Zwei Tabs in der Fehlteile-Liste:</strong> Lager- und Werkbank-View
+                        zeigen jetzt einen <em>Offene Fehlteile</em>-Tab (Restlieferungs-Pipeline)
+                        und einen <em>Wird nicht nachgeliefert</em>-Tab (Eskalationen). Beide
+                        Tabs sind unabhaengig filter- und sortierbar.</li>
+                    <li><strong>Werkbank-Karte zeigt beide Counts:</strong> Die "Meine Fehlteile"-Karte
+                        in der Werkbank-Sicht zeigt beide Zahlen mit eigenen Tab-Links (z.B.
+                        "3 Fehlteile (wird nachgeliefert)" + "1 Wird nicht nachgeliefert").</li>
+                    <li><strong>Datenbank-Migration:</strong> Bestehende Bestellungen werden beim
+                        Update automatisch konvertiert — alle PartiallyDelivered-Bestellungen
+                        bleiben PartiallyDelivered, alle bisherigen endgueltigen Fehlteile bleiben
+                        in der Eskalations-Liste sichtbar.</li>
+                    <li><em>Hinweis fuer Admins:</em> Backup der DB vor Deploy empfohlen — die
+                        Migration droppt die alte <code>IsFinalShortage</code>-Spalte nach
+                        Daten-Konvertierung.</li>
                 </ul>
             </div>
         </div>

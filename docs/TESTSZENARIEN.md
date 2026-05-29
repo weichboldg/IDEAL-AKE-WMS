@@ -3847,5 +3847,62 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 
 ---
 
-*Ende des Dokuments. Stand: v1.18.1 (2026-05-29)*
+## 33. ShortageStatus 3-State + 2-Tab Fehlteile (v1.19.0)
+
+### 33.1 Default-Fehlteil bei Ist=0
+**Vorbedingung:** Bestellung in Submitted mit 1 Item, Soll=5.
+**Schritte:** Picking/Details oeffnen. Ist=0 eintragen.
+**Erwartet:** Radio "Fehlteil" wird automatisch aktiv. Hidden-Input shortageStatuses hat Wert "1".
+
+### 33.2 Manueller Wechsel auf "Wird nicht nachgeliefert"
+**Vorbedingung:** Item hat "Fehlteil" aktiv.
+**Schritte:** Klick auf "Wird nicht nachgeliefert"-Radio.
+**Erwartet:** "Fehlteil" deaktiviert, "Wird nicht nachgeliefert" aktiv. Hidden hat Wert "2".
+
+### 33.3 Doppelklick auf aktiven Radio → zurueck zu None
+**Vorbedingung:** Item hat "Fehlteil" aktiv.
+**Schritte:** Klick erneut auf "Fehlteil".
+**Erwartet:** Beide Radios deaktiviert. Hidden hat Wert "0".
+
+### 33.4 Ist=Soll → beide Radios disabled
+**Vorbedingung:** Item mit Soll=5.
+**Schritte:** Ist=5 eintragen.
+**Erwartet:** Beide Radios disabled (grayed out), kein Klick moeglich. Hidden hat Wert "0".
+
+### 33.5 Bestellung mit allen "Fehlteil" → PartiallyDelivered
+**Vorbedingung:** 2 Items.
+**Schritte:** Beide Ist<Soll, beide Radios auf "Fehlteil". "Speichern + Abschliessen".
+**Erwartet:** Status PartiallyDelivered. Bestellung bleibt im Picking/Index.
+
+### 33.6 Bestellung mit allen "Wird nicht nachgeliefert" → Closed
+**Schritte:** Beide Ist<Soll, beide Radios auf "Wird nicht nachgeliefert". Abschliessen.
+**Erwartet:** Status Closed. Beide Items in /MissingParts Tab "Wird nicht nachgeliefert".
+
+### 33.7 Tab "Offene Fehlteile" zeigt nur WillBeRestocked
+**Vorbedingung:** Mischung aus WillBeRestocked und NoRestock Items in der DB.
+**Schritte:** /MissingParts oeffnen (Default-Tab = Offene Fehlteile).
+**Erwartet:** Nur Items mit ShortageStatus=WillBeRestocked sichtbar. Tab-Badge zeigt korrekte Count.
+
+### 33.8 Tab "Wird nicht nachgeliefert" zeigt nur NoRestock
+**Schritte:** /MissingParts?tab=NoRestock oeffnen.
+**Erwartet:** Nur Items mit ShortageStatus=NoRestock sichtbar. Tab-Badge zeigt Count.
+
+### 33.9 Werkbank-Karte zeigt beide Counts mit Tab-Links
+**Vorbedingung:** User hat eigene Items: 2 WillBeRestocked aus 1 Bestellung, 1 NoRestock aus 1 Bestellung.
+**Schritte:** Werkbank-Index (WarehouseRequisitions/Index) oeffnen.
+**Erwartet:** Karte "Meine Fehlteile" zeigt 2 Zeilen:
+  - "2 Fehlteile (wird nachgeliefert) aus 1 Bestellungen" (orange Link auf /MissingParts?tab=WillBeRestocked&mineOnly=true)
+  - "1 Wird nicht nachgeliefert aus 1 Bestellungen" (rot Link auf /MissingParts?tab=NoRestock&mineOnly=true)
+
+### 33.10 Migration: vorhandene v1.18.x PartiallyDelivered-Bestellung bleibt PD nach v1.19.0-Migration
+**Vorbedingung:** DB-Snapshot von vor dem Deploy mit mindestens einer PartiallyDelivered-Bestellung.
+**Schritte:**
+1. v1.19.0 deployen (DB-Backup vorher).
+2. Nach Migration-Run die Bestellung in der DB pruefen: Status weiterhin PartiallyDelivered?
+3. Items pruefen: alle vorher IsFinalShortage=false mit Ist<Soll haben jetzt ShortageStatus=1 (WillBeRestocked)? Alle IsFinalShortage=true haben jetzt ShortageStatus=2 (NoRestock)?
+**Erwartet:** Status bleibt PartiallyDelivered. Items haben korrekte ShortageStatus-Werte. Lager kann die Bestellung erneut oeffnen und editieren wie gewohnt.
+
+---
+
+*Ende des Dokuments. Stand: v1.19.0 (2026-05-29)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
