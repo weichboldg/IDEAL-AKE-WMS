@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
@@ -316,5 +318,113 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         if (r == null) return;
         r.CancellationEmailSentAt = sentAt;
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
+        GetMissingPartsAsync(int? workplaceFilter,
+                             IReadOnlyDictionary<string, string>? columnFilters,
+                             DateTime? closedFrom, DateTime? closedUntil,
+                             int page, int pageSize)
+    {
+        var q = _context.WarehouseRequisitionItems
+            .Include(i => i.WarehouseRequisition)
+                .ThenInclude(r => r.ProductionWorkplace)
+            .Where(i => i.IsFinalShortage
+                && i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed);
+
+        if (workplaceFilter.HasValue)
+            q = q.Where(i => i.WarehouseRequisition.ProductionWorkplaceId == workplaceFilter.Value);
+        if (closedFrom.HasValue)
+            q = q.Where(i => i.WarehouseRequisition.ClosedAt >= closedFrom.Value);
+        if (closedUntil.HasValue)
+            q = q.Where(i => i.WarehouseRequisition.ClosedAt < closedUntil.Value);
+
+        if (columnFilters != null)
+        {
+            if (columnFilters.TryGetValue("ArticleNumber", out var an) && !string.IsNullOrWhiteSpace(an))
+                q = ApplyMissingPartsTextFilter(q, an, isArticleNumber: true);
+            if (columnFilters.TryGetValue("ArticleDescription", out var ad) && !string.IsNullOrWhiteSpace(ad))
+                q = ApplyMissingPartsTextFilter(q, ad, isArticleNumber: false, isDescription: true);
+            if (columnFilters.TryGetValue("WorkplaceName", out var wn) && !string.IsNullOrWhiteSpace(wn))
+                q = ApplyMissingPartsTextFilter(q, wn, isArticleNumber: false, isDescription: false, isWorkplace: true);
+        }
+
+        var total = await q.CountAsync();
+        var rows = await q.OrderByDescending(i => i.WarehouseRequisition.ClosedAt ?? DateTime.MinValue)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(i => new MissingPartRow(
+                i.WarehouseRequisitionId,
+                i.Id,
+                i.Position,
+                i.WarehouseRequisition.ProductionWorkplace.Name,
+                i.ArticleNumber,
+                i.ArticleDescription,
+                i.QuantityRequested,
+                i.QuantityPicked ?? 0m,
+                i.QuantityRequested - (i.QuantityPicked ?? 0m),
+                i.Unit,
+                i.Note,
+                i.WarehouseRequisition.CreatedBy,
+                i.WarehouseRequisition.ClosedAt))
+            .ToListAsync();
+
+        return (rows, total);
+    }
+
+    private static IQueryable<WarehouseRequisitionItem> ApplyMissingPartsTextFilter(
+        IQueryable<WarehouseRequisitionItem> q,
+        string filterValue,
+        bool isArticleNumber,
+        bool isDescription = false,
+        bool isWorkplace = false)
+    {
+        var tokens = filterValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0) return q;
+        var positives = tokens.Where(t => !t.StartsWith("!")).ToList();
+        var negatives = tokens.Where(t => t.StartsWith("!")).Select(t => t.Substring(1)).ToList();
+
+        Expression<Func<WarehouseRequisitionItem, string>> selector =
+            isArticleNumber
+                ? i => i.ArticleNumber
+                : isDescription
+                    ? i => i.ArticleDescription
+                    : i => i.WarehouseRequisition.ProductionWorkplace.Name;
+
+        if (positives.Count > 0)
+        {
+            q = q.Where(BuildOrContains(selector, positives));
+        }
+        foreach (var n in negatives)
+        {
+            var notExpr = BuildNotContains(selector, n);
+            q = q.Where(notExpr);
+        }
+        return q;
+    }
+
+    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildOrContains(
+        Expression<Func<WarehouseRequisitionItem, string>> selector,
+        IReadOnlyList<string> values)
+    {
+        var param = selector.Parameters[0];
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+        Expression? body = null;
+        foreach (var v in values)
+        {
+            var call = Expression.Call(selector.Body, containsMethod, Expression.Constant(v));
+            body = body == null ? (Expression)call : Expression.OrElse(body, call);
+        }
+        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body!, param);
+    }
+
+    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNotContains(
+        Expression<Func<WarehouseRequisitionItem, string>> selector,
+        string value)
+    {
+        var param = selector.Parameters[0];
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+        var call = Expression.Call(selector.Body, containsMethod, Expression.Constant(value));
+        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(Expression.Not(call), param);
     }
 }

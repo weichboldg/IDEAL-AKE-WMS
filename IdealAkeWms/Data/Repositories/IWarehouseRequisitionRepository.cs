@@ -1,4 +1,5 @@
 using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
 
 namespace IdealAkeWms.Data.Repositories;
 
@@ -36,6 +37,12 @@ public interface IWarehouseRequisitionRepository
         IReadOnlyDictionary<int, string?> itemNotes,
         IReadOnlyDictionary<int, bool> itemIsFinalShortages,
         string user, string winUser);
+
+    Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
+        GetMissingPartsAsync(int? workplaceFilter,
+                             IReadOnlyDictionary<string, string>? columnFilters,
+                             DateTime? closedFrom, DateTime? closedUntil,
+                             int page, int pageSize);
 
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 
