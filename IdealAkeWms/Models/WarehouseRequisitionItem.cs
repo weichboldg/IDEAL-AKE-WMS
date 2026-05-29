@@ -29,9 +29,9 @@ public class WarehouseRequisitionItem : AuditableEntity
     public string? Note { get; set; }
 
     /// <summary>
-    /// True = Lagermitarbeiter hat dieses Item als endgueltigen Fehlteil markiert.
-    /// Wird beim Status-Ableitungs-Helper geprueft; treibt Status auf Closed wenn
-    /// alle "kurzen" Items markiert sind.
+    /// Fehlteil-Klassifizierung durch den Lagermitarbeiter.
+    /// Seit v1.19.0 ersetzt das bisherige IsFinalShortage-Bool durch eine
+    /// 3-State-Enum (None / WillBeRestocked / NoRestock).
     /// </summary>
-    public bool IsFinalShortage { get; set; }
+    public ShortageStatus ShortageStatus { get; set; } = ShortageStatus.None;
 }
