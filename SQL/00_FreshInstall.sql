@@ -1285,7 +1285,7 @@ CREATE TABLE [dbo].[WarehouseRequisitionItems] (
     [QuantityPicked] DECIMAL(18,4) NULL,
     [Position] INT NOT NULL,
     [Note] NVARCHAR(500) NULL,
-    [IsFinalShortage] BIT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_IsFinalShortage DEFAULT 0,
+    [ShortageStatus] TINYINT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_ShortageStatus DEFAULT 0,
     [CreatedAt] DATETIME2 NOT NULL,
     [CreatedBy] NVARCHAR(200) NOT NULL,
     [CreatedByWindows] NVARCHAR(200) NOT NULL,
@@ -1299,9 +1299,12 @@ CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
     ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
 CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
     ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber]);
-CREATE INDEX [IX_WarehouseRequisitionItems_IsFinalShortage]
-    ON [dbo].[WarehouseRequisitionItems]([IsFinalShortage])
-    WHERE [IsFinalShortage] = 1;
+CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_WillBeRestocked]
+    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+    WHERE [ShortageStatus] = 1;
+CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_NoRestock]
+    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+    WHERE [ShortageStatus] = 2;
 GO
 
 -- =============================================
@@ -1735,6 +1738,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260522070823_AddWarehouseRequisitionItemNote', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529074719_AddIsFinalShortageToWarehouseRequisitionItems')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529074719_AddIsFinalShortageToWarehouseRequisitionItems', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529101707_ReplaceIsFinalShortageWithShortageStatus')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529101707_ReplaceIsFinalShortageWithShortageStatus', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
