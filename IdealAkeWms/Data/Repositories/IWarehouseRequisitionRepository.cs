@@ -44,6 +44,13 @@ public interface IWarehouseRequisitionRepository
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize);
 
+    /// <summary>
+    /// Zaehlt offene Final-Shortage-Positionen und betroffene Closed-Bestellungen
+    /// fuer alle Vormontageplaetze, denen <paramref name="userId"/> zugeordnet ist.
+    /// </summary>
+    Task<(int ItemCount, int RequisitionCount)>
+        GetFinalShortagesCountForUserAsync(int userId);
+
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 
     Task MarkEmailSentAsync(int id, DateTime sentAt);

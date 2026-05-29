@@ -427,4 +427,23 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         var call = Expression.Call(selector.Body, containsMethod, Expression.Constant(value));
         return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(Expression.Not(call), param);
     }
+
+    public async Task<(int ItemCount, int RequisitionCount)>
+        GetFinalShortagesCountForUserAsync(int userId)
+    {
+        var userWorkplaceIds = await _context.ProductionWorkplaceUsers
+            .Where(u => u.UserId == userId)
+            .Select(u => u.ProductionWorkplaceId)
+            .ToListAsync();
+        if (userWorkplaceIds.Count == 0) return (0, 0);
+
+        var q = _context.WarehouseRequisitionItems
+            .Where(i => i.IsFinalShortage
+                && i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                && userWorkplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
+
+        int itemCount = await q.CountAsync();
+        int reqCount = await q.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
+        return (itemCount, reqCount);
+    }
 }

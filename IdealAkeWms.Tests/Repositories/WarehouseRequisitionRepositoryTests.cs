@@ -523,4 +523,81 @@ public class WarehouseRequisitionRepositoryTests
         var (none, _) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
         none.Should().HaveCount(0);
     }
+
+    [Fact]
+    public async Task GetFinalShortagesCountForUserAsync_CountsOnlyForUserWorkplaces()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.AddRange(
+            new ProductionWorkplace { Id = 1, Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" },
+            new ProductionWorkplace { Id = 2, Name = "WB2", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.Users.Add(new User { Id = 42, Name = "u42", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        await db.SaveChangesAsync();
+        // User 42 ist nur WB1 zugeordnet
+        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = 42,
+            ProductionWorkplaceId = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        // Closed-Bestellung an WB1 mit 2 Final-Shortages
+        var r1 = await SeedRequisitionAsync(db, (10, 0m, true), (5, 0m, true));
+        var i1 = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == r1).OrderBy(i => i.Position).ToList();
+        await repo.CloseAsync(r1,
+            new Dictionary<int, decimal> { [i1[0].Id] = 0m, [i1[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, bool> { [i1[0].Id] = true, [i1[1].Id] = true },
+            1, "u", "w", new byte[0]);
+
+        // Closed-Bestellung an WB2 mit 1 Final-Shortage (User 42 NICHT zugeordnet)
+        var r2req = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = 2,
+            Status = WarehouseRequisitionStatus.Submitted,
+            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w", SubmittedAt = DateTime.Now
+        };
+        db.WarehouseRequisitions.Add(r2req);
+        await db.SaveChangesAsync();
+        var r2item = new WarehouseRequisitionItem
+        {
+            WarehouseRequisitionId = r2req.Id, Position = 1,
+            ArticleNumber = "X", ArticleDescription = "Y", QuantityRequested = 5m,
+            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w"
+        };
+        db.WarehouseRequisitionItems.Add(r2item);
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(r2req.Id,
+            new Dictionary<int, decimal> { [r2item.Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, bool> { [r2item.Id] = true },
+            1, "u", "w", new byte[0]);
+
+        var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
+        itemCount.Should().Be(2);   // nur WB1
+        reqCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetFinalShortagesCountForUserAsync_ZeroWhenUserHasNoFinalShortages()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.Users.Add(new User { Id = 42, Name = "u42", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        await db.SaveChangesAsync();
+        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = 42,
+            ProductionWorkplaceId = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
+        itemCount.Should().Be(0);
+        reqCount.Should().Be(0);
+    }
 }
