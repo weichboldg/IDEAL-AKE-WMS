@@ -156,7 +156,14 @@ public class WarehouseRequisitionRepositoryTests
         var rs = await ctx.WarehouseRequisitions.FindAsync(submittedId);
         await repo.SubmitAsync(submittedId, grpId, userId, "t", "t", rs!.RowVersion);
 
-        var (items, total) = await repo.GetForWarehouseAsync(statusFilter: null, workplaceId: null, page: 1, pageSize: 25);
+        var statuses = new[]
+        {
+            WarehouseRequisitionStatus.Submitted,
+            WarehouseRequisitionStatus.PartiallyDelivered,
+            WarehouseRequisitionStatus.Closed,
+            WarehouseRequisitionStatus.Cancelled
+        };
+        var (items, total) = await repo.GetForWarehouseAsync(statuses, workplaceId: null, page: 1, pageSize: 25);
 
         items.Select(i => i.Id).Should().NotContain(draftId);
         items.Select(i => i.Id).Should().Contain(submittedId);

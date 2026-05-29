@@ -52,13 +52,12 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     }
 
     public async Task<(List<WarehouseRequisition> Items, int TotalCount)> GetForWarehouseAsync(
-        WarehouseRequisitionStatus? statusFilter, int? workplaceId, int page, int pageSize)
+        WarehouseRequisitionStatus[] statuses, int? workplaceId, int page, int pageSize)
     {
         var q = _context.WarehouseRequisitions
             .Include(r => r.ProductionWorkplace)
             .Include(r => r.Items)
-            .Where(r => r.Status != WarehouseRequisitionStatus.Draft);
-        if (statusFilter.HasValue) q = q.Where(r => r.Status == statusFilter.Value);
+            .Where(r => statuses.Contains(r.Status));
         if (workplaceId.HasValue) q = q.Where(r => r.ProductionWorkplaceId == workplaceId.Value);
 
         var total = await q.CountAsync();
