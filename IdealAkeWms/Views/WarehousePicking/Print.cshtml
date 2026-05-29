@@ -1,4 +1,5 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
+@using IdealAkeWms.Models
 @{
     Layout = null;
 }
@@ -59,7 +60,14 @@
                 <td>@i.Unit</td>
                 <td>@i.StorageLocations</td>
                 <td>@i.Note</td>
-                <td>@(i.ShortageStatus == IdealAkeWms.Models.ShortageStatus.NoRestock ? "✓" : "")</td>
+                <td>
+                    @switch (i.ShortageStatus)
+                    {
+                        case ShortageStatus.WillBeRestocked: <text>Fehlteil</text> break;
+                        case ShortageStatus.NoRestock: <text>Wird nicht nachgeliefert</text> break;
+                        default: <text></text> break;
+                    }
+                </td>
             </tr>
         }
         </tbody>
