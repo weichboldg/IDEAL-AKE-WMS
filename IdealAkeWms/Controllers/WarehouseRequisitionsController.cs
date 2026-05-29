@@ -43,6 +43,8 @@ public class WarehouseRequisitionsController : Controller
         var totalCount = ownOnly.Count;
         var paged = ownOnly.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 
+        var (missingItemCount, missingReqCount) = await _repo.GetFinalShortagesCountForUserAsync(userId);
+
         var vm = new WarehouseRequisitionListViewModel
         {
             Items = paged.Select(r => new WarehouseRequisitionListItemViewModel(
@@ -60,7 +62,9 @@ public class WarehouseRequisitionsController : Controller
                 PageSize = effectivePageSize,
                 PageSizeRaw = rawPageSize,
                 TotalCount = totalCount
-            }
+            },
+            MissingPartsItemCount = missingItemCount,
+            MissingPartsRequisitionCount = missingReqCount,
         };
         return View(vm);
     }

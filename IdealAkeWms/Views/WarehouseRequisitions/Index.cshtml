@@ -21,6 +21,19 @@
     </form>
 </div>
 
+@if (Model.MissingPartsItemCount > 0)
+{
+    <div class="card border-warning mb-3">
+        <div class="card-body">
+            <h6 class="card-title">⚠ Meine Fehlteile</h6>
+            <p class="mb-2">@Model.MissingPartsItemCount endgueltige Fehlteile aus
+                @Model.MissingPartsRequisitionCount abgeschlossenen Bestellungen.</p>
+            <a asp-controller="MissingParts" asp-action="Index" asp-route-mineOnly="true"
+               class="btn btn-sm btn-outline-warning">Details ansehen →</a>
+        </div>
+    </div>
+}
+
 @if (Model.Items.Count == 0)
 {
     <div class="alert alert-info">Noch keine Listen erfasst.</div>
@@ -52,6 +65,7 @@ else
                             {
                                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Draft: <span class="badge bg-secondary">Entwurf</span> break;
                                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                                case IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered: <span class="badge bg-warning text-dark">Teilgeliefert</span> break;
                                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt</span> break;
                                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert</span> break;
                             }
