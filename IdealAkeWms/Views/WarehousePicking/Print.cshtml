@@ -59,7 +59,7 @@
                 <td>@i.Unit</td>
                 <td>@i.StorageLocations</td>
                 <td>@i.Note</td>
-                <td>@(i.IsFinalShortage ? "✓" : "")</td>
+                <td>@(i.ShortageStatus == IdealAkeWms.Models.ShortageStatus.NoRestock ? "✓" : "")</td>
             </tr>
         }
         </tbody>

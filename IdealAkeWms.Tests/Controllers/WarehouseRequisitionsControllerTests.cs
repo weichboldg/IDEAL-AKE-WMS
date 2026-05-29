@@ -160,13 +160,13 @@ public class WarehouseRequisitionsControllerTests
         r1.Items.Add(new WarehouseRequisitionItem
         {
             ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
-            IsFinalShortage = true,
+            ShortageStatus = ShortageStatus.NoRestock,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         });
         r1.Items.Add(new WarehouseRequisitionItem
         {
             ArticleNumber = "ART-2", ArticleDescription = "y", QuantityRequested = 1, Position = 2,
-            IsFinalShortage = true,
+            ShortageStatus = ShortageStatus.NoRestock,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         });
         var r2 = new WarehouseRequisition
@@ -178,7 +178,7 @@ public class WarehouseRequisitionsControllerTests
         r2.Items.Add(new WarehouseRequisitionItem
         {
             ArticleNumber = "ART-3", ArticleDescription = "z", QuantityRequested = 1, Position = 1,
-            IsFinalShortage = true,
+            ShortageStatus = ShortageStatus.NoRestock,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         });
         ctx.WarehouseRequisitions.AddRange(r1, r2);
@@ -189,8 +189,8 @@ public class WarehouseRequisitionsControllerTests
         result.Should().NotBeNull();
         var vm = result!.Model as WarehouseRequisitionListViewModel;
         vm.Should().NotBeNull();
-        vm!.MissingPartsItemCount.Should().Be(3);
-        vm.MissingPartsRequisitionCount.Should().Be(2);
+        vm!.MissingPartsNoRestockItemCount.Should().Be(3);
+        vm.MissingPartsNoRestockRequisitionCount.Should().Be(2);
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class WarehouseRequisitionsControllerTests
         result.Should().NotBeNull();
         var vm = result!.Model as WarehouseRequisitionListViewModel;
         vm.Should().NotBeNull();
-        vm!.MissingPartsItemCount.Should().Be(0);
-        vm.MissingPartsRequisitionCount.Should().Be(0);
+        vm!.MissingPartsNoRestockItemCount.Should().Be(0);
+        vm.MissingPartsNoRestockRequisitionCount.Should().Be(0);
     }
 }

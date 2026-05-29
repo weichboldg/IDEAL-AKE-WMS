@@ -21,13 +21,13 @@
     </form>
 </div>
 
-@if (Model.MissingPartsItemCount > 0)
+@if (Model.MissingPartsNoRestockItemCount > 0)
 {
     <div class="card border-warning mb-3">
         <div class="card-body">
             <h6 class="card-title">⚠ Meine Fehlteile</h6>
-            <p class="mb-2">@Model.MissingPartsItemCount endgueltige Fehlteile aus
-                @Model.MissingPartsRequisitionCount abgeschlossenen Bestellungen.</p>
+            <p class="mb-2">@Model.MissingPartsNoRestockItemCount endgueltige Fehlteile aus
+                @Model.MissingPartsNoRestockRequisitionCount abgeschlossenen Bestellungen.</p>
             <a asp-controller="MissingParts" asp-action="Index" asp-route-mineOnly="true"
                class="btn btn-sm btn-outline-warning">Details ansehen →</a>
         </div>

@@ -94,12 +94,12 @@
                     <td class="text-center">
                         @if (isEditable)
                         {
-                            <input type="hidden" name="isFinalShortages" value="@i.IsFinalShortage.ToString().ToLower()" class="final-hidden" />
+                            <input type="hidden" name="isFinalShortages" value="@((i.ShortageStatus == IdealAkeWms.Models.ShortageStatus.NoRestock).ToString().ToLower())" class="final-hidden" />
                             <input type="checkbox" class="form-check-input final-checkbox"
-                                   @(i.IsFinalShortage ? "checked" : "")
+                                   @(i.ShortageStatus == IdealAkeWms.Models.ShortageStatus.NoRestock ? "checked" : "")
                                    title="Endgueltig Fehlteil (keine Restlieferung erwartet)" />
                         }
-                        else if (i.IsFinalShortage)
+                        else if (i.ShortageStatus == IdealAkeWms.Models.ShortageStatus.NoRestock)
                         {
                             <span class="badge bg-warning text-dark">Fehlteil</span>
                         }

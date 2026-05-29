@@ -63,8 +63,8 @@ public class WarehouseRequisitionsController : Controller
                 PageSizeRaw = rawPageSize,
                 TotalCount = totalCount
             },
-            MissingPartsItemCount = missingItemCount,
-            MissingPartsRequisitionCount = missingReqCount,
+            MissingPartsNoRestockItemCount = missingItemCount,
+            MissingPartsNoRestockRequisitionCount = missingReqCount,
         };
         return View(vm);
     }

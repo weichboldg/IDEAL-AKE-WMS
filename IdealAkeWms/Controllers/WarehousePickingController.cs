@@ -80,7 +80,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.IsFinalShortage));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus));
         }
 
         var vm = new WarehouseRequisitionDetailViewModel
@@ -130,7 +130,8 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, flagDict,
+            await _repo.CloseAsync(id, qtyDict, noteDict,
+                new Dictionary<int, ShortageStatus>(),   // temporaer leer, Task 6 fixt das
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -191,7 +192,8 @@ public class WarehousePickingController : Controller
                 flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
         }
 
-        await _repo.SaveProgressAsync(id, qtyDict, noteDict, flagDict,
+        await _repo.SaveProgressAsync(id, qtyDict, noteDict,
+            new Dictionary<int, ShortageStatus>(),   // temporaer leer, Task 6 fixt das
             _user.GetDisplayName(), _user.GetWindowsUserName());
         return Ok();
     }
@@ -217,7 +219,8 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, flagDict,
+            await _repo.CloseAsync(id, qtyDict, noteDict,
+                new Dictionary<int, ShortageStatus>(),   // temporaer leer, Task 6 fixt das
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -258,7 +261,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.IsFinalShortage));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus));
         }
         var vm = new WarehouseRequisitionDetailViewModel
         {

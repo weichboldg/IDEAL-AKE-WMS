@@ -166,7 +166,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
     public async Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
-        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         int closedByUserId, string user, string winUser, byte[] rowVersion)
     {
         var r = await _context.WarehouseRequisitions
@@ -179,8 +179,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : 0m;
             if (itemNotes.TryGetValue(item.Id, out var note))
                 item.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
-            if (itemIsFinalShortages.TryGetValue(item.Id, out var final))
-                item.IsFinalShortage = final;
+            if (itemShortageStatuses.TryGetValue(item.Id, out var status))
+                item.ShortageStatus = status;
             item.ModifiedAt = DateTime.Now;
             item.ModifiedBy = user;
             item.ModifiedByWindows = winUser;
@@ -198,10 +198,10 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     {
         bool isFullyDelivered = req.Items.All(i =>
             (i.QuantityPicked ?? 0) >= i.QuantityRequested);
-        bool hasOpenShortage = req.Items.Any(i =>
-            (i.QuantityPicked ?? 0) < i.QuantityRequested && !i.IsFinalShortage);
+        bool hasWaitingRestock = req.Items.Any(i =>
+            i.ShortageStatus == ShortageStatus.WillBeRestocked);
 
-        return (isFullyDelivered || !hasOpenShortage)
+        return (isFullyDelivered || !hasWaitingRestock)
             ? WarehouseRequisitionStatus.Closed
             : WarehouseRequisitionStatus.PartiallyDelivered;
     }
@@ -233,12 +233,12 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     public async Task SaveProgressAsync(int id,
         IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
-        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         string user, string winUser)
     {
         var allKeys = itemQuantitiesPicked.Keys
             .Concat(itemNotes.Keys)
-            .Concat(itemIsFinalShortages.Keys)
+            .Concat(itemShortageStatuses.Keys)
             .Distinct()
             .ToList();
         if (allKeys.Count == 0) return;
@@ -269,11 +269,11 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                     rowChanged = true;
                 }
             }
-            if (itemIsFinalShortages.TryGetValue(row.Id, out var final))
+            if (itemShortageStatuses.TryGetValue(row.Id, out var status))
             {
-                if (row.IsFinalShortage != final)
+                if (row.ShortageStatus != status)
                 {
-                    row.IsFinalShortage = final;
+                    row.ShortageStatus = status;
                     rowChanged = true;
                 }
             }
@@ -328,7 +328,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         var q = _context.WarehouseRequisitionItems
             .Include(i => i.WarehouseRequisition)
                 .ThenInclude(r => r.ProductionWorkplace)
-            .Where(i => i.IsFinalShortage
+            .Where(i => i.ShortageStatus == ShortageStatus.NoRestock
                 && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
                     || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered));
 
@@ -366,7 +366,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 i.Unit,
                 i.Note,
                 i.WarehouseRequisition.CreatedBy,
-                i.WarehouseRequisition.ClosedAt))
+                i.WarehouseRequisition.ClosedAt,
+                i.ShortageStatus))
             .ToListAsync();
 
         return (rows, total);
@@ -438,7 +439,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         if (userWorkplaceIds.Count == 0) return (0, 0);
 
         var q = _context.WarehouseRequisitionItems
-            .Where(i => i.IsFinalShortage
+            .Where(i => i.ShortageStatus == ShortageStatus.NoRestock
                 && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
                     || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
                 && userWorkplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
