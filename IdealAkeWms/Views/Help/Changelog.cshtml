@@ -9,6 +9,27 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.18.1</strong> <span class="text-white-50 ms-2">29.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Hotfix: Endgueltige Fehlteile sofort sichtbar (auch in teilgelieferten Bestellungen)</h6>
+                <ul>
+                    <li><strong>Bug-Fix:</strong> Items die als endgueltig Fehlteil markiert wurden,
+                        erschienen erst dann in der Fehlteile-Liste (<code>/MissingParts</code>) und in der
+                        Werkbank-Karte "Meine Fehlteile", wenn die <em>gesamte</em> Bestellung auf Closed
+                        wechselte. Bei Teillieferungen mit einem endgueltig markierten Fehlteil und
+                        gleichzeitiger Restlieferungs-Erwartung auf anderen Positionen blieb das Item
+                        unsichtbar.</li>
+                    <li><strong>Neues Verhalten:</strong> Items mit <em>Endgueltig Fehlteil</em> erscheinen
+                        sofort in der Fehlteile-Liste, sobald die Checkbox gesetzt ist — unabhaengig
+                        davon ob die Bestellung noch teilgeliefert ist oder bereits abgeschlossen wurde.
+                        Cancelled-Bestellungen bleiben weiterhin ausgeschlossen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.18.0</strong> <span class="text-white-50 ms-2">29.05.2026</span>
             </div>
             <div class="card-body">

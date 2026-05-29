@@ -26,6 +26,20 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 
 ---
 
+### v1.18.1 — Hotfix MissingParts (PartiallyDelivered mitzaehlen)
+
+Hintergrund: In v1.18.0 wurden Items mit `IsFinalShortage=true` aus `PartiallyDelivered`-Bestellungen nicht in `/MissingParts` und nicht in der Werkbank-Karte "Meine Fehlteile" angezeigt. User-Erwartung: sobald das Flag gesetzt ist, soll das Item sofort in der Liste auftauchen. Hotfix: Filter erweitert auf `Status IN (Closed, PartiallyDelivered)`.
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 0 | Pre-Flight Baseline | ✅ erledigt |
+| 1 | Repository-Filter + Tests (TDD) | ✅ erledigt |
+| 2 | Version + Doku (Changelog, CLAUDE.md, TESTSZENARIEN, PROJECT_STATUS) | ✅ erledigt |
+| 3 | Final-Check Build + Tests | ⏳ offen |
+| 4 | Merge in main (nach User-Bestaetigung) | ⏳ offen |
+
+---
+
 ### v1.18.0 — Lagerbestellungen: Teilgeliefert + Fehlteile + Drucken-und-Abschliessen
 
 Hintergrund: Real-Welt-Fall "Bestellung wurde teilweise geliefert" war im bisherigen

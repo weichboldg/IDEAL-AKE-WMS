@@ -3793,10 +3793,10 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 **Schritte:** Ist=8 + Ist=3, beide Checkboxen "Endgueltig Fehlteil" anhaken. "Speichern + Abschliessen".
 **Erwartet:** Status Closed. Beide Items in Fehlteile-Liste (2 + 2 = Soll-Ist).
 
-### 32.3 Eine offen, eine final -> PartiallyDelivered
+### 32.3 Eine offen, eine final -> PartiallyDelivered (Item 2 erscheint sofort in Fehlteile-Liste)
 **Vorbedingung:** 2 Items.
 **Schritte:** Ist=3 (kein final), Ist=2 (final). Abschliessen.
-**Erwartet:** Status PartiallyDelivered. Item 1 nicht in Fehlteile-Liste (weil PartiallyDelivered). Auch Item 2 nicht (weil noch PartiallyDelivered).
+**Erwartet:** Status PartiallyDelivered. Item 1 NICHT in Fehlteile-Liste (kein final). Item 2 IST in Fehlteile-Liste (final markiert, seit v1.18.1 unabhaengig vom Bestell-Status).
 
 ### 32.4 Vollfehlteil (Ist=0, final) bei alleinigem Item -> Closed mit Fehlteil
 **Vorbedingung:** Bestellung mit 1 Item Soll=5.
@@ -3832,7 +3832,20 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 **Schritte:** Ist=-1 eingeben (per Forms-Manipulation), Abschliessen.
 **Erwartet:** WarningMessage "Ist-Mengen duerfen nicht negativ sein.", Status unveraendert.
 
+### 32.11 Hotfix v1.18.1: Endgueltig Fehlteil aus PartiallyDelivered erscheint sofort
+**Vorbedingung:** Bestellung in Status Submitted mit 2 Items (Soll=2, Soll=1).
+**Schritte:**
+1. Picking/Details. Item 1: Ist=1, Checkbox "Endgueltig Fehlteil" anhaken. Item 2: Ist=0 lassen (keine Aenderung am Flag).
+2. "Speichern + Abschliessen" — Status wird PartiallyDelivered (Item 2 erwartet noch Restlieferung).
+3. Lager-Menue "Fehlteile" (`/MissingParts`) aufrufen.
+4. Werkbank-User "Meine Listen" pruefen — Karte "Meine Fehlteile".
+**Erwartet:**
+- `/MissingParts` zeigt 1 Eintrag: Item 1 mit Fehlt=1, Bestell-ID = die Bestellung, Werkbank korrekt.
+- Werkbank-Karte zeigt "1 endgueltigen Fehlteil aus 1 Bestellung".
+- Detail-Link auf die Bestellung funktioniert und zeigt sie in PartiallyDelivered (editierbar).
+**Negativ:** Vorher (v1.18.0) war die Liste leer — das war der Bug.
+
 ---
 
-*Ende des Dokuments. Stand: v1.18.0 (2026-05-29)*
+*Ende des Dokuments. Stand: v1.18.1 (2026-05-29)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
