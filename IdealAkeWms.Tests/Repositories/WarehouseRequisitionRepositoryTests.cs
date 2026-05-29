@@ -387,12 +387,14 @@ public class WarehouseRequisitionRepositoryTests
     }
 
     [Fact]
-    public async Task GetMissingPartsAsync_ReturnsOnlyClosedRequisitions_WithFinalShortages()
+    public async Task GetMissingPartsAsync_IncludesClosedAndPartiallyDelivered_WithFinalShortages()
     {
         using var db = TestDbContextFactory.Create();
         db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
         await db.SaveChangesAsync();
         var repo = new WarehouseRequisitionRepository(db);
+
+        // Closed-Bestellung mit Final-Shortage
         var closedId = await SeedRequisitionAsync(db, (10, 5m, true));
         var closedItems = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == closedId).ToList();
         await repo.CloseAsync(closedId,
@@ -401,19 +403,20 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, bool> { [closedItems[0].Id] = true },
             1, "u", "w", new byte[0]);
 
-        var pdId = await SeedRequisitionAsync(db, (10, 3m, true));
-        var pdItem = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == pdId).Single();
+        // PartiallyDelivered-Bestellung mit Final-Shortage auf einem Item, anderes offen
+        var pdId = await SeedRequisitionAsync(db, (10, 0m, true), (5, 0m, false));
+        var pdItems = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == pdId).OrderBy(i => i.Position).ToList();
         await repo.CloseAsync(pdId,
-            new Dictionary<int, decimal> { [pdItem.Id] = 3m },
+            new Dictionary<int, decimal> { [pdItems[0].Id] = 0m, [pdItems[1].Id] = 0m },
             new Dictionary<int, string?>(),
-            new Dictionary<int, bool> { [pdItem.Id] = false },
+            new Dictionary<int, bool> { [pdItems[0].Id] = true, [pdItems[1].Id] = false },
             1, "u", "w", new byte[0]);
+        (await db.WarehouseRequisitions.FindAsync(pdId))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
 
         var (items, total) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
-        items.Should().HaveCount(1);
-        items[0].RequisitionId.Should().Be(closedId);
-        items[0].QuantityMissing.Should().Be(5m);
-        total.Should().Be(1);
+        items.Should().HaveCount(2);
+        items.Select(i => i.RequisitionId).Should().BeEquivalentTo(new[] { closedId, pdId });
+        total.Should().Be(2);
     }
 
     [Fact]
@@ -513,7 +516,7 @@ public class WarehouseRequisitionRepositoryTests
     }
 
     [Fact]
-    public async Task GetMissingPartsAsync_OnlyIncludesItemsWithIsFinalShortageTrue()
+    public async Task GetMissingPartsAsync_OnlyIncludesItemsWithIsFinalShortageTrue_InPartiallyDelivered()
     {
         using var db = TestDbContextFactory.Create();
         db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
@@ -526,9 +529,11 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, string?>(),
             new Dictionary<int, bool> { [items[0].Id] = true, [items[1].Id] = false },
             1, "u", "w", new byte[0]);
-        // Resultat: Bestellung wird PartiallyDelivered (Item 2 nicht final) -> 0 MissingParts
-        var (none, _) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
-        none.Should().HaveCount(0);
+        (await db.WarehouseRequisitions.FindAsync(id))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
+
+        var (result, _) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
+        result.Should().HaveCount(1);
+        result[0].ItemId.Should().Be(items[0].Id);
     }
 
     [Fact]
@@ -606,5 +611,49 @@ public class WarehouseRequisitionRepositoryTests
         var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
         itemCount.Should().Be(0);
         reqCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_ExcludesCancelledRequisitions()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        var id = await SeedRequisitionAsync(db, (10, 0m, true));
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status = WarehouseRequisitionStatus.Cancelled;
+        await db.SaveChangesAsync();
+
+        var (result, _) = await repo.GetMissingPartsAsync(null, null, null, null, 1, 100);
+        result.Should().HaveCount(0);
+    }
+
+    [Fact]
+    public async Task GetFinalShortagesCountForUserAsync_IncludesPartiallyDelivered()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        db.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = 42, ProductionWorkplaceId = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        var pdId = await SeedRequisitionAsync(db, (10, 0m, true), (5, 0m, false));
+        var pdItems = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == pdId).OrderBy(i => i.Position).ToList();
+        await repo.CloseAsync(pdId,
+            new Dictionary<int, decimal> { [pdItems[0].Id] = 0m, [pdItems[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, bool> { [pdItems[0].Id] = true, [pdItems[1].Id] = false },
+            1, "u", "w", new byte[0]);
+        (await db.WarehouseRequisitions.FindAsync(pdId))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
+
+        var (itemCount, reqCount) = await repo.GetFinalShortagesCountForUserAsync(42);
+        itemCount.Should().Be(1);
+        reqCount.Should().Be(1);
     }
 }

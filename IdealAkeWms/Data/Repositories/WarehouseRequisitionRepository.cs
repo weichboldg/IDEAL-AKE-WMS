@@ -329,7 +329,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             .Include(i => i.WarehouseRequisition)
                 .ThenInclude(r => r.ProductionWorkplace)
             .Where(i => i.IsFinalShortage
-                && i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed);
+                && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                    || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered));
 
         if (workplaceFilter.HasValue)
             q = q.Where(i => i.WarehouseRequisition.ProductionWorkplaceId == workplaceFilter.Value);
@@ -438,7 +439,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
         var q = _context.WarehouseRequisitionItems
             .Where(i => i.IsFinalShortage
-                && i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                    || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
                 && userWorkplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
 
         int itemCount = await q.CountAsync();
