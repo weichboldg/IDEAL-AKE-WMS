@@ -29,10 +29,19 @@
         <h1>Lagerbestellung #@Model.Id</h1>
         <div><strong>Werkbank:</strong> @Model.WorkplaceName &nbsp; <strong>Erfasser:</strong> @Model.CreatedBy</div>
         <div><strong>Submit:</strong> @(Model.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</div>
+        <div><strong>Status:</strong>
+            @switch (Model.Status)
+            {
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered: <span>Teilgeliefert</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span>Abgeschlossen</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span>Eingereicht (Druck-Zwischenstand)</span> break;
+                default: <span>—</span> break;
+            }
+        </div>
     </div>
     <table>
         <thead>
-            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th></tr>
+            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th><th>Fehlteil</th></tr>
         </thead>
         <tbody>
         @foreach (var i in Model.Items)
@@ -50,6 +59,7 @@
                 <td>@i.Unit</td>
                 <td>@i.StorageLocations</td>
                 <td>@i.Note</td>
+                <td>@(i.IsFinalShortage ? "✓" : "")</td>
             </tr>
         }
         </tbody>

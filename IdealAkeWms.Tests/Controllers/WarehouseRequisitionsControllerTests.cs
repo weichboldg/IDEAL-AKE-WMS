@@ -136,4 +136,83 @@ public class WarehouseRequisitionsControllerTests
         ctrl.TempData["WarningMessage"].Should().NotBeNull();
         ctx.WarehouseRequisitions.First().Status.Should().Be(WarehouseRequisitionStatus.Draft);
     }
+
+    [Fact]
+    public async Task Index_ShowsMissingPartsCard_WhenUserHasFinalShortages()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+
+        // Zwei abgeschlossene Bestellungen mit insgesamt drei Final-Shortage-Items.
+        var r1 = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id, Status = WarehouseRequisitionStatus.Closed,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester",
+            CreatedByUserId = userId,
+        };
+        r1.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            IsFinalShortage = true,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        r1.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-2", ArticleDescription = "y", QuantityRequested = 1, Position = 2,
+            IsFinalShortage = true,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        var r2 = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id, Status = WarehouseRequisitionStatus.Closed,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester",
+            CreatedByUserId = userId,
+        };
+        r2.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-3", ArticleDescription = "z", QuantityRequested = 1, Position = 1,
+            IsFinalShortage = true,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        ctx.WarehouseRequisitions.AddRange(r1, r2);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index() as ViewResult;
+
+        result.Should().NotBeNull();
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm.Should().NotBeNull();
+        vm!.MissingPartsItemCount.Should().Be(3);
+        vm.MissingPartsRequisitionCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Index_HidesMissingPartsCard_WhenNoShortages()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index() as ViewResult;
+
+        result.Should().NotBeNull();
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm.Should().NotBeNull();
+        vm!.MissingPartsItemCount.Should().Be(0);
+        vm.MissingPartsRequisitionCount.Should().Be(0);
+    }
 }

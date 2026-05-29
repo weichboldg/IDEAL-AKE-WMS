@@ -35,10 +35,14 @@ public class WarehousePickingController : Controller
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
-        var effectiveFilter = statusFilter ?? WarehouseRequisitionStatus.Submitted;
-        var (items, total) = await _repo.GetForWarehouseAsync(effectiveFilter, workplaceId, page, effectivePageSize);
+        var statusList = statusFilter.HasValue
+            ? new[] { statusFilter.Value }
+            : new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered };
+        var (items, total) = await _repo.GetForWarehouseAsync(statusList, workplaceId, page, effectivePageSize);
         var allWorkplaces = await _workplaces.GetAllAsync();
-        var openCount = (await _repo.GetForWarehouseAsync(WarehouseRequisitionStatus.Submitted, null, 1, 1)).TotalCount;
+        var openCount = (await _repo.GetForWarehouseAsync(
+            new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered },
+            null, 1, 1)).TotalCount;
 
         var vm = new WarehouseRequisitionListViewModel
         {
@@ -76,7 +80,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.IsFinalShortage));
         }
 
         var vm = new WarehouseRequisitionDetailViewModel
@@ -96,7 +100,8 @@ public class WarehousePickingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Close(int id, int[] itemIds, int[] quantitiesPicked, string?[]? notes, byte[] rowVersion)
+    public async Task<IActionResult> Close(int id, int[] itemIds, int[] quantitiesPicked,
+        string?[]? notes, bool[]? isFinalShortages, byte[] rowVersion)
     {
         // Mengen sind seit dem INT-Switch ganzzahlig. Negative Werte sind nicht erlaubt.
         if (quantitiesPicked.Any(q => q < 0))
@@ -116,9 +121,17 @@ public class WarehousePickingController : Controller
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
         }
 
+        var flagDict = new Dictionary<int, bool>();
+        if (isFinalShortages != null)
+        {
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
+        }
+
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, _user.GetCurrentAppUserId() ?? 0,
+            await _repo.CloseAsync(id, qtyDict, noteDict, flagDict,
+                _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
@@ -151,6 +164,71 @@ public class WarehousePickingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveProgress(int id,
+        [FromForm] int[] itemIds,
+        [FromForm] int?[]? quantitiesPicked,
+        [FromForm] string?[]? notes,
+        [FromForm] bool[]? isFinalShortages)
+    {
+        if (itemIds == null || itemIds.Length == 0) return BadRequest("itemIds required");
+
+        var qtyDict = new Dictionary<int, decimal?>();
+        if (quantitiesPicked != null)
+        {
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? (decimal?)quantitiesPicked[idx] : null;
+        }
+        var noteDict = new Dictionary<int, string?>();
+        if (notes != null)
+        {
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
+        }
+        var flagDict = new Dictionary<int, bool>();
+        if (isFinalShortages != null)
+        {
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
+        }
+
+        await _repo.SaveProgressAsync(id, qtyDict, noteDict, flagDict,
+            _user.GetDisplayName(), _user.GetWindowsUserName());
+        return Ok();
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> PrintAndClose(int id, int[] itemIds, int[] quantitiesPicked,
+        string?[]? notes, bool[]? isFinalShortages, byte[] rowVersion)
+    {
+        if (quantitiesPicked.Any(q => q < 0))
+            return BadRequest(new { error = "Ist-Mengen duerfen nicht negativ sein." });
+
+        var qtyDict = new Dictionary<int, decimal>();
+        for (int idx = 0; idx < itemIds.Length; idx++)
+            qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
+        var noteDict = new Dictionary<int, string?>();
+        if (notes != null)
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
+        var flagDict = new Dictionary<int, bool>();
+        if (isFinalShortages != null)
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                flagDict[itemIds[idx]] = idx < isFinalShortages.Length ? isFinalShortages[idx] : false;
+
+        try
+        {
+            await _repo.CloseAsync(id, qtyDict, noteDict, flagDict,
+                _user.GetCurrentAppUserId() ?? 0,
+                _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            return Conflict(new { error = "Bestellung wurde inzwischen geaendert." });
+        }
+        return Ok(new { redirectUrl = Url.Action(nameof(Print), new { id }) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id, string? reason, byte[] rowVersion)
     {
         try
@@ -180,7 +258,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.IsFinalShortage));
         }
         var vm = new WarehouseRequisitionDetailViewModel
         {

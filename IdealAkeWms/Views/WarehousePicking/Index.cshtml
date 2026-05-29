@@ -15,6 +15,7 @@
             <select name="statusFilter" class="form-select form-select-sm">
                 <option value="">— Alle (ausser Entwurf) —</option>
                 <option value="Submitted" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted)">Abgeschickt</option>
+                <option value="PartiallyDelivered" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered)">Teilgeliefert</option>
                 <option value="Closed" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.Closed)">Erledigt</option>
                 <option value="Cancelled" selected="@(Model.StatusFilter == IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled)">Storniert</option>
             </select>
@@ -66,6 +67,7 @@ else
                         @switch (i.Status)
                         {
                             case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                            case IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered: <span class="badge bg-warning text-dark">Teilgeliefert</span> break;
                             case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt</span> break;
                             case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert</span> break;
                         }

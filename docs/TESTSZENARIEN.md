@@ -3781,5 +3781,58 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 
 ---
 
-*Ende des Dokuments. Stand: v1.17.0 (2026-05-28)*
+## 32. Lagerbestellungen Teilgeliefert + Fehlteile (v1.18.0)
+
+### 32.1 Vollstaendige Lieferung -> Closed
+**Vorbedingung:** Bestellung #X mit 2 Items (Soll 10, Soll 5). Status Submitted.
+**Schritte:** Picking/Details. Ist=10 + Ist=5. "Speichern + Abschliessen".
+**Erwartet:** Status Closed, ClosedAt gesetzt. Keine Eintraege in Fehlteile-Liste.
+
+### 32.2 Alle Shortages als endgueltig markiert -> Closed
+**Vorbedingung:** Bestellung mit 2 Items (Soll 10, Soll 5).
+**Schritte:** Ist=8 + Ist=3, beide Checkboxen "Endgueltig Fehlteil" anhaken. "Speichern + Abschliessen".
+**Erwartet:** Status Closed. Beide Items in Fehlteile-Liste (2 + 2 = Soll-Ist).
+
+### 32.3 Eine offen, eine final -> PartiallyDelivered
+**Vorbedingung:** 2 Items.
+**Schritte:** Ist=3 (kein final), Ist=2 (final). Abschliessen.
+**Erwartet:** Status PartiallyDelivered. Item 1 nicht in Fehlteile-Liste (weil PartiallyDelivered). Auch Item 2 nicht (weil noch PartiallyDelivered).
+
+### 32.4 Vollfehlteil (Ist=0, final) bei alleinigem Item -> Closed mit Fehlteil
+**Vorbedingung:** Bestellung mit 1 Item Soll=5.
+**Schritte:** Ist=0, "Endgueltig Fehlteil" anhaken, Abschliessen.
+**Erwartet:** Status Closed. Item in Fehlteile-Liste mit Fehlt=5.
+
+### 32.5 Restlieferungs-Workflow
+**Vorbedingung:** Bestellung in PartiallyDelivered (Item 1 = 3 von 10 geliefert, kein final).
+**Schritte:** Picking/Details neu oeffnen. Wert auf Ist=10 erhoehen. Abschliessen.
+**Erwartet:** Status wechselt auf Closed.
+
+### 32.6 "Drucken und Abschliessen"-Workflow
+**Vorbedingung:** Submitted-Bestellung.
+**Schritte:** Mengen + Notizen ausfuellen, "Drucken und Abschliessen" klicken.
+**Erwartet:** Neuer Tab oeffnet sich mit Print-View (zeigt aktuelle Ist + Notizen + Fehlteil-Spalte). Hauptfenster navigiert zu Index. Bestellung jetzt Closed (oder PartiallyDelivered je nach Eingaben).
+
+### 32.7 Werkbank-Karte "Meine Fehlteile" sichtbar
+**Vorbedingung:** Werker WB1 hat 1 Closed-Bestellung mit 2 IsFinalShortage-Items.
+**Schritte:** Login als Werker. WarehouseRequisitions/Index oeffnen.
+**Erwartet:** Karte "Meine Fehlteile" zeigt "2 endgueltige Fehlteile aus 1 abgeschlossenen Bestellung". Link fuehrt zu MissingParts/Index?mineOnly=true.
+
+### 32.8 Werkbank-Karte verschwindet bei 0 Fehlteilen
+**Vorbedingung:** Werker ohne Fehlteile.
+**Schritte:** Werkbank-Index oeffnen.
+**Erwartet:** Karte nicht sichtbar.
+
+### 32.9 MissingParts Spaltenfilter
+**Vorbedingung:** 5 IsFinalShortage-Items, Artikel-Nrn AAA-1, AAA-2, BBB-3, CCC-4, DDD-5.
+**Schritte:** Spaltenfilter "ArticleNumber" = "AAA,BBB".
+**Erwartet:** Nur die 3 Eintraege mit AAA-1, AAA-2, BBB-3 sichtbar.
+
+### 32.10 Negativ-Test: Ist-Menge -1
+**Schritte:** Ist=-1 eingeben (per Forms-Manipulation), Abschliessen.
+**Erwartet:** WarningMessage "Ist-Mengen duerfen nicht negativ sein.", Status unveraendert.
+
+---
+
+*Ende des Dokuments. Stand: v1.18.0 (2026-05-29)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

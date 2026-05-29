@@ -27,4 +27,11 @@ public class WarehouseRequisitionItem : AuditableEntity
     /// </summary>
     [StringLength(500)]
     public string? Note { get; set; }
+
+    /// <summary>
+    /// True = Lagermitarbeiter hat dieses Item als endgueltigen Fehlteil markiert.
+    /// Wird beim Status-Ableitungs-Helper geprueft; treibt Status auf Closed wenn
+    /// alle "kurzen" Items markiert sind.
+    /// </summary>
+    public bool IsFinalShortage { get; set; }
 }

@@ -26,6 +26,35 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 
 ---
 
+### v1.18.0 — Lagerbestellungen: Teilgeliefert + Fehlteile + Drucken-und-Abschliessen
+
+Hintergrund: Real-Welt-Fall "Bestellung wurde teilweise geliefert" war im bisherigen
+Submitted/Closed-Workflow nicht abbildbar. Fehlteile wurden nirgends erfasst — keine
+Auswertung moeglich. v1.18.0 erweitert das Modul um PartiallyDelivered-Status,
+pro-Item Fehlteil-Flag und einen kombinierten "Drucken und Abschliessen"-Button.
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 0 | Pre-flight + Baseline-Build | ✅ erledigt |
+| 1 | Enum + Model + Migration + FreshInstall | ✅ erledigt |
+| 2 | DeriveStatus + CloseAsync-Refactor (7 Tests) | ✅ erledigt |
+| 3 | SaveProgressAsync (2 Tests) | ✅ erledigt |
+| 4 | GetMissingPartsAsync + Record (5 Tests) | ✅ erledigt |
+| 5 | GetFinalShortagesCountForUserAsync (2 Tests) | ✅ erledigt |
+| 6 | ViewModels erweitern | ✅ erledigt |
+| 7 | Picking-Controller: Filter + Close + SaveProgress + PrintAndClose (6 Tests) | ✅ erledigt |
+| 8 | Picking/Details.cshtml UI komplett ueberarbeitet | ✅ erledigt |
+| 9 | Picking/Index.cshtml Status-Filter erweitert | ✅ erledigt |
+| 10 | Print.cshtml Fehlteil-Spalte | ✅ erledigt |
+| 11 | MissingPartsController + View (4 Tests) | ✅ erledigt |
+| 12 | _Layout Fehlteile-Menue-Eintrag | ✅ erledigt |
+| 13 | WarehouseRequisitions/Index "Meine Fehlteile"-Karte (2 Tests) | ✅ erledigt |
+| 14 | Version-Bump v1.18.0 + Changelog + TESTSZENARIEN + CLAUDE.md | ✅ erledigt |
+| 15 | Final-Check Build + Tests | ⏳ offen |
+| 16 | Merge in main + Worktree-Cleanup | ⏳ offen |
+
+---
+
 ### v1.17.0 — Artikel-Sync-Erweiterung (UNION + Meldebestand + Full-Update)
 
 Hintergrund: Bisheriger Sage-Artikel-Sync lief nur fuer Artikel, die als Ressource in einer Stueckliste auftauchen, und uebernahm nur ArticleGroup bei Updates. Ab v1.17.0 liest der Sync auch aktive Bestellartikel (`IstBestellartikel = -1 AND Aktiv = -1`), uebernimmt den Meldebestand aus `KHKArtikelvarianten` und macht bei bestehenden Artikeln ein Full-Update aller 4 Sage-Felder.
