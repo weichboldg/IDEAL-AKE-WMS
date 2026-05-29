@@ -1,7 +1,8 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
 @{
     ViewData["Title"] = $"Lagerbestellung #{Model.Id}";
-    bool isSubmitted = Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted;
+    bool isEditable = Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted
+                   || Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
@@ -18,6 +19,7 @@
             @switch (Model.Status)
             {
                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                case IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered: <span class="badge bg-warning text-dark">Teilgeliefert</span> break;
                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt am @Model.ClosedAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
                 case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert am @Model.CancelledAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
             }
@@ -29,13 +31,26 @@
     </div>
 </div>
 
-<form method="post" asp-action="Close" asp-route-id="@Model.Id">
+@if (Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered)
+{
+    <div class="alert alert-warning">
+        <strong>Teilgeliefert.</strong> Items mit Restlieferung erwartet bleiben offen.
+        Setze die Checkbox <em>Endgueltig Fehlteil</em>, sobald entschieden ist dass keine
+        Restlieferung mehr kommt.
+    </div>
+}
+
+<form method="post" asp-action="Close" asp-route-id="@Model.Id" id="detailsForm">
     @Html.AntiForgeryToken()
     <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
     <div class="table-responsive">
     <table class="table table-sm">
         <thead>
-            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th></tr>
+            <tr>
+                <th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th>
+                <th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th>
+                <th title="Endgueltig Fehlteil (keine Restlieferung erwartet)">Fehlteil</th>
+            </tr>
         </thead>
         <tbody>
             @foreach (var i in Model.Items)
@@ -51,12 +66,12 @@
                     <td>@requestedInt</td>
                     <td>
                         <input type="hidden" name="itemIds" value="@i.Id" />
-                        @if (isSubmitted)
+                        @if (isEditable)
                         {
                             <input type="number" name="quantitiesPicked" step="1" min="0"
                                    value="@(pickedInt?.ToString() ?? string.Empty)"
                                    placeholder="@requestedInt"
-                                   class="form-control form-control-sm" style="width:90px;" />
+                                   class="form-control form-control-sm qty-input" style="width:90px;" />
                         }
                         else
                         {
@@ -66,14 +81,27 @@
                     <td>@i.Unit</td>
                     <td><small>@i.StorageLocations</small></td>
                     <td>
-                        @if (isSubmitted)
+                        @if (isEditable)
                         {
                             <input type="text" name="notes" value="@i.Note" maxlength="500"
-                                   class="form-control form-control-sm" placeholder="Notiz (optional)" />
+                                   class="form-control form-control-sm note-input" placeholder="Notiz (optional)" />
                         }
                         else
                         {
                             <small>@i.Note</small>
+                        }
+                    </td>
+                    <td class="text-center">
+                        @if (isEditable)
+                        {
+                            <input type="hidden" name="isFinalShortages" value="@i.IsFinalShortage.ToString().ToLower()" class="final-hidden" />
+                            <input type="checkbox" class="form-check-input final-checkbox"
+                                   @(i.IsFinalShortage ? "checked" : "")
+                                   title="Endgueltig Fehlteil (keine Restlieferung erwartet)" />
+                        }
+                        else if (i.IsFinalShortage)
+                        {
+                            <span class="badge bg-warning text-dark">Fehlteil</span>
                         }
                     </td>
                 </tr>
@@ -82,11 +110,12 @@
     </table>
     </div>
 
-    <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-secondary" id="btn-print">Drucken</a>
+    <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-outline-secondary" id="btn-print">Drucken</a>
 
-    @if (isSubmitted)
+    @if (isEditable)
     {
-        <button type="button" id="btn-close-finish" class="btn btn-success">Abschliessen</button>
+        <button type="button" id="btn-print-and-close" class="btn btn-primary">Drucken und Abschliessen</button>
+        <button type="button" id="btn-close-finish" class="btn btn-success">Speichern + Abschliessen</button>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancel-modal">Stornieren</button>
     }
 </form>
@@ -131,93 +160,141 @@
 @section Scripts {
 <script>
 (function () {
-    const closeBtn = document.getElementById('btn-close-finish');
-    const printBtn = document.getElementById('btn-print');
-    // Form ist beim Print-Only-Fall (Status != Submitted) leer — dann beide Buttons skip.
-    const form = (closeBtn || printBtn)?.closest('form');
+    const form = document.getElementById('detailsForm');
     if (!form) return;
-
-    // ----- Notiz-Autosave -----
-    // Status: Notiz-Inputs nur in editierbaren (Submitted) Listen vorhanden.
-    const saveUrl = '@Url.Action("SaveNotes", "WarehousePicking", new { id = Model.Id })';
+    const isEditable = @Json.Serialize(isEditable);
+    const closeBtn = document.getElementById('btn-close-finish');
+    const printAndCloseBtn = document.getElementById('btn-print-and-close');
+    const printBtn = document.getElementById('btn-print');
+    const saveProgressUrl = '@Url.Action("SaveProgress", "WarehousePicking", new { id = Model.Id })';
+    const printAndCloseUrl = '@Url.Action("PrintAndClose", "WarehousePicking", new { id = Model.Id })';
     const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
-    let savingPromise = Promise.resolve();
     let dirty = false;
 
-    function collectNotes() {
-        const itemIds = Array.from(form.querySelectorAll('input[name="itemIds"]')).map(i => i.value);
-        const notes = Array.from(form.querySelectorAll('input[name="notes"]')).map(i => i.value || '');
-        return { itemIds, notes };
+    function syncFinalCheckbox(row) {
+        const checkbox = row.querySelector('.final-checkbox');
+        const hidden = row.querySelector('.final-hidden');
+        const qtyInput = row.querySelector('.qty-input');
+        if (!checkbox || !hidden) return;
+        const requested = parseInt(row.dataset.requested, 10) || 0;
+        const picked = qtyInput && qtyInput.value ? parseInt(qtyInput.value, 10) : 0;
+        const shortage = picked < requested;
+        checkbox.disabled = !shortage;
+        if (!shortage) checkbox.checked = false;
+        hidden.value = checkbox.checked ? 'true' : 'false';
     }
-
-    function saveNotes() {
-        if (!dirty || !token) return Promise.resolve();
-        const { itemIds, notes } = collectNotes();
-        const body = new FormData();
-        body.append('__RequestVerificationToken', token);
-        itemIds.forEach(v => body.append('itemIds', v));
-        notes.forEach(v => body.append('notes', v));
-        dirty = false;
-        savingPromise = fetch(saveUrl, { method: 'POST', body }).catch(() => { dirty = true; });
-        return savingPromise;
-    }
-
-    // On blur eines Notiz-Inputs: speichern.
-    form.querySelectorAll('input[name="notes"]').forEach(inp => {
-        inp.addEventListener('input', () => { dirty = true; });
-        inp.addEventListener('blur', saveNotes);
-    });
-
-    // Drucken: erst Notizen speichern, dann Print-Tab oeffnen.
-    if (printBtn) {
-        printBtn.addEventListener('click', async (e) => {
-            if (!dirty) return; // nichts geaendert -> normales Verhalten
-            e.preventDefault();
-            const href = printBtn.getAttribute('href');
-            // Synchron Tab oeffnen (sonst Popup-Blocker) und Navigation nachladen.
-            const win = window.open('about:blank', '_blank');
-            await saveNotes();
-            if (win) win.location = href;
-            else window.location = href;
+    if (isEditable) {
+        document.querySelectorAll('#detailsForm tbody tr').forEach(syncFinalCheckbox);
+        document.querySelectorAll('.qty-input').forEach(inp => {
+            inp.addEventListener('input', () => {
+                syncFinalCheckbox(inp.closest('tr'));
+                dirty = true;
+            });
+        });
+        document.querySelectorAll('.final-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const tr = cb.closest('tr');
+                const hidden = tr.querySelector('.final-hidden');
+                hidden.value = cb.checked ? 'true' : 'false';
+                dirty = true;
+            });
+        });
+        document.querySelectorAll('.note-input').forEach(inp => {
+            inp.addEventListener('input', () => { dirty = true; });
+            inp.addEventListener('blur', saveProgress);
         });
     }
 
-    if (!closeBtn) return; // Liste ist nicht mehr editierbar (Closed/Cancelled).
+    function collectProgress() {
+        const itemIds = Array.from(form.querySelectorAll('input[name="itemIds"]')).map(i => i.value);
+        const quantitiesPicked = Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
+            .map(i => i.value || '');
+        const notes = Array.from(form.querySelectorAll('input[name="notes"]')).map(i => i.value || '');
+        const isFinalShortages = Array.from(form.querySelectorAll('input.final-hidden')).map(i => i.value);
+        return { itemIds, quantitiesPicked, notes, isFinalShortages };
+    }
+    async function saveProgress() {
+        if (!dirty || !token) return;
+        const { itemIds, quantitiesPicked, notes, isFinalShortages } = collectProgress();
+        const body = new FormData();
+        body.append('__RequestVerificationToken', token);
+        itemIds.forEach(v => body.append('itemIds', v));
+        quantitiesPicked.forEach(v => body.append('quantitiesPicked', v));
+        notes.forEach(v => body.append('notes', v));
+        isFinalShortages.forEach(v => body.append('isFinalShortages', v));
+        try {
+            await fetch(saveProgressUrl, { method: 'POST', body });
+            dirty = false;
+        } catch { /* bleibt dirty */ }
+    }
 
-    // ----- Abschliessen / Soll=Ist -----
+    if (printBtn) {
+        printBtn.addEventListener('click', async (e) => {
+            if (!dirty) return;
+            e.preventDefault();
+            const href = printBtn.getAttribute('href');
+            const win = window.open('about:blank', '_blank');
+            await saveProgress();
+            if (win) win.location = href; else window.location = href;
+        });
+    }
+
+    if (!closeBtn) return;
+
     const modalEl = document.getElementById('close-confirm-modal');
     const modal = new bootstrap.Modal(modalEl);
-
     function emptyRows() {
-        // Mengen sind ganzzahlig (INT). parseInt mit Radix-10.
         return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
             .filter(i => !i.value || parseInt(i.value, 10) === 0);
+    }
+    function fillSollAsIst() {
+        emptyRows().forEach(inp => {
+            const tr = inp.closest('tr');
+            inp.value = tr.dataset.requested;
+            syncFinalCheckbox(tr);
+        });
     }
 
     closeBtn.addEventListener('click', () => {
         const empties = emptyRows();
-        if (empties.length === 0) {
-            form.submit();
-            return;
-        }
+        if (empties.length === 0) { form.submit(); return; }
         modal.show();
+        document.getElementById('close-yes').onclick = () => { fillSollAsIst(); modal.hide(); form.submit(); };
+        document.getElementById('close-no').onclick = () => { modal.hide(); form.submit(); };
     });
 
-    document.getElementById('close-yes').addEventListener('click', () => {
-        // Soll -> Ist: fill empty/zero with the requested-qty from data-requested attribute
-        emptyRows().forEach(inp => {
-            const tr = inp.closest('tr');
-            const requested = tr.dataset.requested;
-            inp.value = requested;
+    if (printAndCloseBtn) {
+        printAndCloseBtn.addEventListener('click', async () => {
+            const empties = emptyRows();
+            if (empties.length > 0) {
+                modal.show();
+                document.getElementById('close-yes').onclick = () => { fillSollAsIst(); modal.hide(); performPrintAndClose(); };
+                document.getElementById('close-no').onclick = () => { modal.hide(); performPrintAndClose(); };
+                return;
+            }
+            performPrintAndClose();
         });
-        modal.hide();
-        form.submit();
-    });
+    }
 
-    document.getElementById('close-no').addEventListener('click', () => {
-        modal.hide();
-        form.submit();
-    });
+    async function performPrintAndClose() {
+        const printTab = window.open('about:blank', '_blank');
+        const body = new FormData(form);
+        try {
+            const resp = await fetch(printAndCloseUrl, { method: 'POST', body });
+            if (!resp.ok) {
+                if (printTab) printTab.close();
+                alert('Fehler beim Abschliessen — bitte Liste neu laden.');
+                window.location.reload();
+                return;
+            }
+            const data = await resp.json();
+            if (printTab && data.redirectUrl) printTab.location.href = data.redirectUrl;
+            window.location.href = '@Url.Action("Index", "WarehousePicking")';
+        } catch (ex) {
+            if (printTab) printTab.close();
+            alert('Netzwerkfehler — bitte erneut versuchen.');
+        }
+    }
 })();
 </script>
 }
