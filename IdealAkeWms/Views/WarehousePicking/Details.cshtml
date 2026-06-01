@@ -96,14 +96,16 @@
                         {
                             <input type="hidden" name="shortageStatuses" value="@((byte)i.ShortageStatus)" class="shortage-hidden" />
                             <div class="form-check form-check-inline shortage-radio-group">
-                                <input type="radio" class="form-check-input shortage-radio shortage-radio-restock"
+                                <input type="radio" name="shortageGroup_@(i.Id)"
+                                       class="form-check-input shortage-radio shortage-radio-restock"
                                        id="sr_@(i.Id)_1" value="1"
                                        @(i.ShortageStatus == ShortageStatus.WillBeRestocked ? "checked" : "") />
                                 <label class="form-check-label text-warning" for="sr_@(i.Id)_1"
                                        title="Restlieferung wird erwartet">Fehlteil</label>
                             </div>
                             <div class="form-check form-check-inline">
-                                <input type="radio" class="form-check-input shortage-radio shortage-radio-norestock"
+                                <input type="radio" name="shortageGroup_@(i.Id)"
+                                       class="form-check-input shortage-radio shortage-radio-norestock"
                                        id="sr_@(i.Id)_2" value="2"
                                        @(i.ShortageStatus == ShortageStatus.NoRestock ? "checked" : "") />
                                 <label class="form-check-label text-danger" for="sr_@(i.Id)_2"
@@ -286,8 +288,18 @@
     const modalEl = document.getElementById('close-confirm-modal');
     const modal = new bootstrap.Modal(modalEl);
     function emptyRows() {
+        // Ein Row gilt nur als "leer" wenn Ist=0/empty UND ShortageStatus=None.
+        // Wenn der Lager bewusst "Fehlteil" oder "Wird nicht nachgeliefert" markiert
+        // hat, ist Ist=0 eine bewusste Entscheidung — kein Soll=Ist-Modal.
         return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .filter(i => !i.value || parseInt(i.value, 10) === 0);
+            .filter(i => {
+                const isEmpty = !i.value || parseInt(i.value, 10) === 0;
+                if (!isEmpty) return false;
+                const tr = i.closest('tr');
+                const hidden = tr.querySelector('.shortage-hidden');
+                const statusValue = hidden ? hidden.value : '0';
+                return statusValue === '0';
+            });
     }
     function fillSollAsIst() {
         emptyRows().forEach(inp => {
