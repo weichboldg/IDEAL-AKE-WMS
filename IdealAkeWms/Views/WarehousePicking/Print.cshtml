@@ -42,7 +42,7 @@
     </div>
     <table>
         <thead>
-            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th><th>Fehlteil</th></tr>
+            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz Lager</th><th>Notiz EK</th><th>Fehlteil</th></tr>
         </thead>
         <tbody>
         @foreach (var i in Model.Items)
@@ -60,6 +60,7 @@
                 <td>@i.Unit</td>
                 <td>@i.StorageLocations</td>
                 <td>@i.Note</td>
+                <td>@i.NoteEinkauf</td>
                 <td>
                     @switch (i.ShortageStatus)
                     {
