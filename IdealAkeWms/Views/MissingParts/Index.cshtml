@@ -48,7 +48,10 @@
         <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
             <input type="hidden" name="tab" value="@Model.ActiveTab" />
             <label class="form-label mb-0">Werkbank:</label>
-            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;"
+                    onchange="this.form.submit()"
+                    @(Model.MineOnly ? "disabled" : "")
+                    title="@(Model.MineOnly ? "In \"Nur meine Werkbaenke\"-Modus deaktiviert" : "")">
                 <option value="">— Alle —</option>
                 @foreach (var w in Model.AvailableWorkplaces)
                 {
