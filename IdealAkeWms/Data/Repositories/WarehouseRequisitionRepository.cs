@@ -166,6 +166,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
     public async Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
         IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         int closedByUserId, string user, string winUser, byte[] rowVersion)
     {
@@ -179,6 +180,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : 0m;
             if (itemNotes.TryGetValue(item.Id, out var note))
                 item.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+            if (itemNotesEinkauf.TryGetValue(item.Id, out var noteEk))
+                item.NoteEinkauf = string.IsNullOrWhiteSpace(noteEk) ? null : noteEk.Trim();
             if (itemShortageStatuses.TryGetValue(item.Id, out var status))
                 item.ShortageStatus = status;
             item.ModifiedAt = DateTime.Now;
@@ -233,11 +236,13 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     public async Task SaveProgressAsync(int id,
         IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
         IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         string user, string winUser)
     {
         var allKeys = itemQuantitiesPicked.Keys
             .Concat(itemNotes.Keys)
+            .Concat(itemNotesEinkauf.Keys)
             .Concat(itemShortageStatuses.Keys)
             .Distinct()
             .ToList();
@@ -266,6 +271,15 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 if (row.Note != normalized)
                 {
                     row.Note = normalized;
+                    rowChanged = true;
+                }
+            }
+            if (itemNotesEinkauf.TryGetValue(row.Id, out var noteEk))
+            {
+                var normalized = string.IsNullOrWhiteSpace(noteEk) ? null : noteEk.Trim();
+                if (row.NoteEinkauf != normalized)
+                {
+                    row.NoteEinkauf = normalized;
                     rowChanged = true;
                 }
             }
@@ -368,7 +382,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 i.Note,
                 i.WarehouseRequisition.CreatedBy,
                 i.WarehouseRequisition.ClosedAt,
-                i.ShortageStatus))
+                i.ShortageStatus,
+                i.NoteEinkauf))
             .ToListAsync();
 
         return (rows, total);

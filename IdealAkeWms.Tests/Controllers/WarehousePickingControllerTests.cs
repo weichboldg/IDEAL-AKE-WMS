@@ -108,6 +108,7 @@ public class WarehousePickingControllerTests
         var repo = new Mock<IWarehouseRequisitionRepository>();
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<int, decimal>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
@@ -180,11 +181,13 @@ public class WarehousePickingControllerTests
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(),
                 It.IsAny<IReadOnlyDictionary<int, decimal>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .Callback<int, IReadOnlyDictionary<int, decimal>, IReadOnlyDictionary<int, string?>,
-                IReadOnlyDictionary<int, ShortageStatus>, int, string, string, byte[]>(
-                (_, _, _, flags, _, _, _, _) => capturedFlags = flags)
+                IReadOnlyDictionary<int, string?>, IReadOnlyDictionary<int, ShortageStatus>,
+                int, string, string, byte[]>(
+                (_, _, _, _, flags, _, _, _, _) => capturedFlags = flags)
             .Returns(Task.CompletedTask);
 
         await ctrl.Close(id: 42, itemIds: new[] { 1, 2 }, quantitiesPicked: new[] { 5, 3 },
@@ -195,6 +198,7 @@ public class WarehousePickingControllerTests
         capturedFlags![2].Should().Be(ShortageStatus.None);
         repo.Verify(r => r.CloseAsync(42,
             It.IsAny<IReadOnlyDictionary<int, decimal>>(),
+            It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
             It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()),
@@ -215,6 +219,7 @@ public class WarehousePickingControllerTests
         ctrl.TempData["WarningMessage"].Should().NotBeNull();
         repo.Verify(r => r.CloseAsync(It.IsAny<int>(),
             It.IsAny<IReadOnlyDictionary<int, decimal>>(),
+            It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
             It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()),
@@ -251,11 +256,13 @@ public class WarehousePickingControllerTests
         repo.Setup(r => r.SaveProgressAsync(It.IsAny<int>(),
                 It.IsAny<IReadOnlyDictionary<int, decimal?>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<string>(), It.IsAny<string>()))
             .Callback<int, IReadOnlyDictionary<int, decimal?>, IReadOnlyDictionary<int, string?>,
-                IReadOnlyDictionary<int, ShortageStatus>, string, string>(
-                (_, q, n, f, _, _) => { capturedQty = q; capturedNotes = n; capturedFlags = f; })
+                IReadOnlyDictionary<int, string?>, IReadOnlyDictionary<int, ShortageStatus>,
+                string, string>(
+                (_, q, n, _, f, _, _) => { capturedQty = q; capturedNotes = n; capturedFlags = f; })
             .Returns(Task.CompletedTask);
 
         var result = await ctrl.SaveProgress(id: 1, itemIds: new[] { 10 },
@@ -279,6 +286,7 @@ public class WarehousePickingControllerTests
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(),
                 It.IsAny<IReadOnlyDictionary<int, decimal>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .Returns(Task.CompletedTask);
@@ -301,6 +309,7 @@ public class WarehousePickingControllerTests
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(),
                 It.IsAny<IReadOnlyDictionary<int, decimal>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
@@ -319,6 +328,7 @@ public class WarehousePickingControllerTests
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(),
                 It.IsAny<IReadOnlyDictionary<int, decimal>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
             .Returns(Task.CompletedTask);
@@ -331,6 +341,7 @@ public class WarehousePickingControllerTests
 
         repo.Verify(r => r.CloseAsync(1,
             It.IsAny<IReadOnlyDictionary<int, decimal>>(),
+            It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.Is<IReadOnlyDictionary<int, ShortageStatus>>(d =>
                 d[10] == ShortageStatus.WillBeRestocked && d[20] == ShortageStatus.NoRestock),
@@ -346,6 +357,7 @@ public class WarehousePickingControllerTests
         repo.Setup(r => r.SaveProgressAsync(It.IsAny<int>(),
                 It.IsAny<IReadOnlyDictionary<int, decimal?>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
+                It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, ShortageStatus>>(),
                 It.IsAny<string>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -358,6 +370,7 @@ public class WarehousePickingControllerTests
 
         repo.Verify(r => r.SaveProgressAsync(1,
             It.IsAny<IReadOnlyDictionary<int, decimal?>>(),
+            It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.IsAny<IReadOnlyDictionary<int, string?>>(),
             It.Is<IReadOnlyDictionary<int, ShortageStatus>>(d => d[10] == ShortageStatus.WillBeRestocked),
             It.IsAny<string>(), It.IsAny<string>()),

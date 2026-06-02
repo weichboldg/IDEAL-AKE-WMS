@@ -135,7 +135,9 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, statusDict,
+            await _repo.CloseAsync(id, qtyDict, noteDict,
+                new Dictionary<int, string?>(),   // temporaer leer, Task 5 fixt das
+                statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -200,7 +202,9 @@ public class WarehousePickingController : Controller
             }
         }
 
-        await _repo.SaveProgressAsync(id, qtyDict, noteDict, statusDict,
+        await _repo.SaveProgressAsync(id, qtyDict, noteDict,
+            new Dictionary<int, string?>(),   // temporaer leer, Task 5 fixt das
+            statusDict,
             _user.GetDisplayName(), _user.GetWindowsUserName());
         return Ok();
     }
@@ -236,7 +240,9 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, statusDict,
+            await _repo.CloseAsync(id, qtyDict, noteDict,
+                new Dictionary<int, string?>(),   // temporaer leer, Task 5 fixt das
+                statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }

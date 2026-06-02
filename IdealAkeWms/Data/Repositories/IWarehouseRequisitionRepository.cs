@@ -19,10 +19,12 @@ public interface IWarehouseRequisitionRepository
     Task RemoveItemAsync(int itemId);
 
     Task SubmitAsync(int id, int recipientGroupId, int submittedByUserId, string user, string winUser, byte[] rowVersion);
-    Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
-                    IReadOnlyDictionary<int, string?> itemNotes,
-                    IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
-                    int closedByUserId, string user, string winUser, byte[] rowVersion);
+    Task CloseAsync(int id,
+        IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
+        IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
+        int closedByUserId, string user, string winUser, byte[] rowVersion);
 
     /// <summary>
     /// Setzt nur die Notizen einzelner Positionen (z.B. AJAX-Autosave).
@@ -35,6 +37,7 @@ public interface IWarehouseRequisitionRepository
     Task SaveProgressAsync(int id,
         IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
         IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         string user, string winUser);
 

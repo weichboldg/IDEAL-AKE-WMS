@@ -112,7 +112,7 @@ public class WarehouseRequisitionRepositoryTests
             [items[0].Id] = ShortageStatus.NoRestock // ART-1 short (4<5) but marked NoRestock -> Closed
         };
 
-        await repo.CloseAsync(id, quantities, notes, statuses, userId, "t", "t", rSubmitted!.RowVersion);
+        await repo.CloseAsync(id, quantities, notes, new Dictionary<int, string?>(), statuses, userId, "t", "t", rSubmitted!.RowVersion);
 
         var updated = await ctx.WarehouseRequisitions
             .Include(r => r.Items)
@@ -232,7 +232,7 @@ public class WarehouseRequisitionRepositoryTests
         var notes = new Dictionary<int, string?>();
         var statuses = new Dictionary<int, ShortageStatus>();
 
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "test", "test\\test", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "test", "test\\test", new byte[0]);
 
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
@@ -249,7 +249,7 @@ public class WarehouseRequisitionRepositoryTests
         var notes = new Dictionary<int, string?>();
         var statuses = new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.NoRestock };
 
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "test", "test\\test", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "test", "test\\test", new byte[0]);
 
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
@@ -267,7 +267,7 @@ public class WarehouseRequisitionRepositoryTests
         // ART-2 short (3<5) and explicitly marked WillBeRestocked -> PartiallyDelivered
         var statuses = new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.None, [items[1].Id] = ShortageStatus.WillBeRestocked };
 
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "test", "test\\test", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "test", "test\\test", new byte[0]);
 
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
@@ -284,7 +284,7 @@ public class WarehouseRequisitionRepositoryTests
         var notes = new Dictionary<int, string?>();
         var statuses = new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked };
 
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "test", "test\\test", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "test", "test\\test", new byte[0]);
 
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
@@ -301,7 +301,7 @@ public class WarehouseRequisitionRepositoryTests
         var notes = new Dictionary<int, string?>();
         var statuses = new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock };
 
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "test", "test\\test", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "test", "test\\test", new byte[0]);
 
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
@@ -319,6 +319,7 @@ public class WarehouseRequisitionRepositoryTests
         await repo.CloseAsync(id,
             new Dictionary<int, decimal> { [items[0].Id] = 3m },
             new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked },
             1, "test", "test\\test", new byte[0]);
         (await db.WarehouseRequisitions.FindAsync(id))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
@@ -326,6 +327,7 @@ public class WarehouseRequisitionRepositoryTests
         // 2nd close: now fully delivered -> Closed (status doesn't matter once delivered)
         await repo.CloseAsync(id,
             new Dictionary<int, decimal> { [items[0].Id] = 10m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.None },
             1, "test", "test\\test", new byte[0]);
@@ -343,7 +345,7 @@ public class WarehouseRequisitionRepositoryTests
         var notes = new Dictionary<int, string?>();
         var statuses = new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock };
 
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "test", "test\\test", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "test", "test\\test", new byte[0]);
 
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
@@ -360,6 +362,7 @@ public class WarehouseRequisitionRepositoryTests
         await repo.SaveProgressAsync(id,
             new Dictionary<int, decimal?> { [items[0].Id] = 4m },
             new Dictionary<int, string?> { [items[0].Id] = "  hello  " },
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock },
             "u", "w");
 
@@ -382,6 +385,7 @@ public class WarehouseRequisitionRepositoryTests
         await repo.SaveProgressAsync(id,
             new Dictionary<int, decimal?> { [items[0].Id] = 3m },
             new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.None },
             "u", "w");
 
@@ -403,6 +407,7 @@ public class WarehouseRequisitionRepositoryTests
         await repo.CloseAsync(closedId,
             new Dictionary<int, decimal> { [closedItems[0].Id] = 5m },
             new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [closedItems[0].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
@@ -411,6 +416,7 @@ public class WarehouseRequisitionRepositoryTests
         var pdItems = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == pdId).OrderBy(i => i.Position).ToList();
         await repo.CloseAsync(pdId,
             new Dictionary<int, decimal> { [pdItems[0].Id] = 0m, [pdItems[1].Id] = 0m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [pdItems[0].Id] = ShortageStatus.NoRestock, [pdItems[1].Id] = ShortageStatus.WillBeRestocked },
             1, "u", "w", new byte[0]);
@@ -437,6 +443,7 @@ public class WarehouseRequisitionRepositoryTests
         await repo.CloseAsync(r1,
             new Dictionary<int, decimal> { [i1[0].Id] = 0m },
             new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [i1[0].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
@@ -457,6 +464,7 @@ public class WarehouseRequisitionRepositoryTests
         await db.SaveChangesAsync();
         await repo.CloseAsync(r2req.Id,
             new Dictionary<int, decimal> { [r2item.Id] = 0m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
@@ -480,6 +488,7 @@ public class WarehouseRequisitionRepositoryTests
         await db.SaveChangesAsync();
         await repo.CloseAsync(id,
             new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
@@ -509,6 +518,7 @@ public class WarehouseRequisitionRepositoryTests
             await repo.CloseAsync(id,
                 new Dictionary<int, decimal> { [item.Id] = 0m },
                 new Dictionary<int, string?>(),
+                new Dictionary<int, string?>(),
                 new Dictionary<int, ShortageStatus> { [item.Id] = ShortageStatus.NoRestock },
                 1, "u", "w", new byte[0]);
         }
@@ -531,6 +541,7 @@ public class WarehouseRequisitionRepositoryTests
         // items[1]: short (3<5), marked WillBeRestocked => NOT in MissingParts (still expected to be restocked)
         await repo.CloseAsync(id,
             new Dictionary<int, decimal> { [items[0].Id] = 8m, [items[1].Id] = 3m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.WillBeRestocked },
             1, "u", "w", new byte[0]);
@@ -574,7 +585,7 @@ public class WarehouseRequisitionRepositoryTests
             [items[0].Id] = ShortageStatus.WillBeRestocked,
             [items[1].Id] = ShortageStatus.WillBeRestocked
         };
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "u", "w", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "u", "w", new byte[0]);
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
     }
@@ -593,7 +604,7 @@ public class WarehouseRequisitionRepositoryTests
             [items[0].Id] = ShortageStatus.NoRestock,
             [items[1].Id] = ShortageStatus.NoRestock
         };
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "u", "w", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "u", "w", new byte[0]);
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
     }
@@ -612,7 +623,7 @@ public class WarehouseRequisitionRepositoryTests
             [items[0].Id] = ShortageStatus.WillBeRestocked,
             [items[1].Id] = ShortageStatus.NoRestock
         };
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "u", "w", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "u", "w", new byte[0]);
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
     }
@@ -627,7 +638,7 @@ public class WarehouseRequisitionRepositoryTests
         var qty = new Dictionary<int, decimal> { [items[0].Id] = 3m };
         var notes = new Dictionary<int, string?>();
         var statuses = new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.None };
-        await repo.CloseAsync(id, qty, notes, statuses, 1, "u", "w", new byte[0]);
+        await repo.CloseAsync(id, qty, notes, new Dictionary<int, string?>(), statuses, 1, "u", "w", new byte[0]);
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Closed);
     }
@@ -643,6 +654,7 @@ public class WarehouseRequisitionRepositoryTests
         var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
         await repo.CloseAsync(id,
             new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked, [items[1].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
@@ -664,6 +676,7 @@ public class WarehouseRequisitionRepositoryTests
         var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
         await repo.CloseAsync(id,
             new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked, [items[1].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
@@ -692,6 +705,7 @@ public class WarehouseRequisitionRepositoryTests
         await repo.CloseAsync(r1,
             new Dictionary<int, decimal> { [i1[0].Id] = 0m, [i1[1].Id] = 0m },
             new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [i1[0].Id] = ShortageStatus.WillBeRestocked, [i1[1].Id] = ShortageStatus.WillBeRestocked },
             1, "u", "w", new byte[0]);
 
@@ -699,6 +713,7 @@ public class WarehouseRequisitionRepositoryTests
         var i2 = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == r2).Single();
         await repo.CloseAsync(r2,
             new Dictionary<int, decimal> { [i2.Id] = 0m },
+            new Dictionary<int, string?>(),
             new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [i2.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
@@ -741,11 +756,53 @@ public class WarehouseRequisitionRepositoryTests
         await repo.CloseAsync(r2req.Id,
             new Dictionary<int, decimal> { [r2item.Id] = 0m },
             new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
             new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
         var (waitingItems, _, noRestockItems, _) = await repo.GetShortageCountsForUserAsync(42);
         waitingItems.Should().Be(0);
         noRestockItems.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CloseAsync_PersistsNoteEinkauf()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, ShortageStatus.None));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 10m },
+            new Dictionary<int, string?> { [items[0].Id] = "lager note" },
+            new Dictionary<int, string?> { [items[0].Id] = "ek note" },
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.None },
+            1, "u", "w", new byte[0]);
+
+        var item = await db.WarehouseRequisitionItems.FindAsync(items[0].Id);
+        item!.Note.Should().Be("lager note");
+        item.NoteEinkauf.Should().Be("ek note");
+    }
+
+    [Fact]
+    public async Task SaveProgressAsync_PersistsNoteEinkauf_WithoutStatusChange()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, null, ShortageStatus.None));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+
+        await repo.SaveProgressAsync(id,
+            new Dictionary<int, decimal?>(),
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?> { [items[0].Id] = "  ek wert  " },
+            new Dictionary<int, ShortageStatus>(),
+            "u", "w");
+
+        var item = await db.WarehouseRequisitionItems.FindAsync(items[0].Id);
+        item!.NoteEinkauf.Should().Be("ek wert");
+        var r = await db.WarehouseRequisitions.FindAsync(id);
+        r!.Status.Should().Be(WarehouseRequisitionStatus.Submitted);
     }
 }
