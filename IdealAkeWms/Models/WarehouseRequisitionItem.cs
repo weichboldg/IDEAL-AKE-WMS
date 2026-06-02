@@ -23,10 +23,18 @@ public class WarehouseRequisitionItem : AuditableEntity
     public int Position { get; set; }
 
     /// <summary>
-    /// Notiz vom Lagermitarbeiter zur Position. Wird auf dem Druck angezeigt.
+    /// Notiz vom Lagermitarbeiter zur Position (UI-Label "Notiz Lager" seit v1.19.0).
+    /// Wird auf dem Druck angezeigt.
     /// </summary>
     [StringLength(500)]
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Notiz fuer den Einkaeufer (z.B. Lieferanten-Hinweis bei endgueltigem Fehlteil).
+    /// Wird im Picking/Details vom Lagermitarbeiter gefuellt. Werkbank-Edit nicht beeinflusst.
+    /// </summary>
+    [StringLength(500)]
+    public string? NoteEinkauf { get; set; }
 
     /// <summary>
     /// Fehlteil-Klassifizierung durch den Lagermitarbeiter.

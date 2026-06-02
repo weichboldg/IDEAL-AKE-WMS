@@ -1285,6 +1285,7 @@ CREATE TABLE [dbo].[WarehouseRequisitionItems] (
     [QuantityPicked] DECIMAL(18,4) NULL,
     [Position] INT NOT NULL,
     [Note] NVARCHAR(500) NULL,
+    [NoteEinkauf] NVARCHAR(500) NULL,
     [ShortageStatus] TINYINT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_ShortageStatus DEFAULT 0,
     [CreatedAt] DATETIME2 NOT NULL,
     [CreatedBy] NVARCHAR(200) NOT NULL,
@@ -1740,6 +1741,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529074719_AddIsFinalShortageToWarehouseRequisitionItems', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529101707_ReplaceIsFinalShortageWithShortageStatus')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529101707_ReplaceIsFinalShortageWithShortageStatus', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260602133102_AddNoteEinkaufToWarehouseRequisitionItems')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260602133102_AddNoteEinkaufToWarehouseRequisitionItems', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
