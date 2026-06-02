@@ -61,7 +61,7 @@ public class MissingPartsController : Controller
             return View(new MissingPartsListViewModel
             {
                 Items = new List<MissingPartRow>(),
-                AvailableWorkplaces = (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
+                AvailableWorkplaces = (await _workplaces.GetByUserIdAsync(_user.GetCurrentAppUserId() ?? 0)).OrderBy(w => w.Name).ToList(),
                 WorkplaceFilter = workplaceId,
                 MineOnly = mineOnly,
                 ActiveTab = tab,

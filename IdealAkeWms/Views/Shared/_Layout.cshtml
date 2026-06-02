@@ -115,11 +115,11 @@
                                     <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
-                                    <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Fehlteile (Lager)</a></li>
                                     @if (canAccessStock)
                                     {
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Lager: Fehlteile</a></li>
                                     }
                                 </ul>
                             </li>
