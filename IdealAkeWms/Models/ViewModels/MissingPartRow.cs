@@ -16,4 +16,5 @@ public record MissingPartRow(
     string? Note,
     string CreatedBy,
     DateTime? ClosedAt,
-    ShortageStatus Status);
+    ShortageStatus Status,
+    string? NoteEinkauf);

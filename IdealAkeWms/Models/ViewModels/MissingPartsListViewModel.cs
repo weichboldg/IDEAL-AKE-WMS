@@ -18,4 +18,10 @@ public class MissingPartsListViewModel
 
     /// <summary>Total-Count des NoRestock-Tab (fuer Tab-Header-Badge).</summary>
     public int NoRestockTotalCount { get; set; }
+
+    /// <summary>
+    /// True wenn mineOnly aktiv UND User hat keine Workplace-Zuordnung.
+    /// Triggert Banner-Hinweis in der View.
+    /// </summary>
+    public bool HasNoWorkplaceMapping { get; set; }
 }

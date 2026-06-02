@@ -12,7 +12,8 @@ public record WarehouseRequisitionDetailItemViewModel(
     decimal? QuantityPicked,
     string StorageLocations,
     string? Note = null,
-    ShortageStatus ShortageStatus = ShortageStatus.None);
+    ShortageStatus ShortageStatus = ShortageStatus.None,
+    string? NoteEinkauf = null);
 
 public class WarehouseRequisitionDetailViewModel
 {
