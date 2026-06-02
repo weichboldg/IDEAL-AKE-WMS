@@ -3902,6 +3902,38 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 3. Items pruefen: alle vorher IsFinalShortage=false mit Ist<Soll haben jetzt ShortageStatus=1 (WillBeRestocked)? Alle IsFinalShortage=true haben jetzt ShortageStatus=2 (NoRestock)?
 **Erwartet:** Status bleibt PartiallyDelivered. Items haben korrekte ShortageStatus-Werte. Lager kann die Bestellung erneut oeffnen und editieren wie gewohnt.
 
+### 33.11 Notiz EK persistiert
+
+**Vorbedingung:** Submitted-Bestellung mit mindestens einem Item.
+**Schritte:**
+1. Picking/Details oeffnen.
+2. Im Notiz-EK-Feld "Test-EK-Notiz" eintragen.
+3. "Speichern + Abschliessen" klicken.
+4. Bestellung wieder oeffnen (falls Status PartiallyDelivered) ODER Print aufrufen.
+**Erwartet:** "Test-EK-Notiz" ist nach dem Abschliessen weiterhin sichtbar. Print zeigt die Notiz in der "Notiz EK"-Spalte.
+
+### 33.12 MissingParts default mineOnly
+
+**Vorbedingung:** Werkbank-User mit Workplace-Zuordnung; mindestens 1 IsFinalShortage-Item in eigener Bestellung und mindestens 1 in einer fremden Bestellung (Status Closed).
+**Schritte:**
+1. `/MissingParts` direkt im Browser aufrufen (ohne URL-Parameter).
+**Erwartet:** Tab "Wird nicht nachgeliefert" zeigt nur das eigene Item. Toggle "Nur meine Werkbaenke" ist aktiv. Deaktivieren zeigt auch das fremde Item.
+
+### 33.13 No-Workplace-Banner
+
+**Vorbedingung:** Test-User ohne Workplace-Zuordnung.
+**Schritte:**
+1. Login als Test-User.
+2. Menue "Lager" → "Meine Fehlteile" aufrufen.
+**Erwartet:** Banner "Du hast keine Werkbank-Zuordnung. Diese Liste ist deshalb leer. Du kannst entweder den Toggle 'Nur meine Werkbaenke' deaktivieren oder die Zuordnung in den Stammdaten pflegen." erscheint. Items-Tabelle ist leer.
+
+### 33.14 Fehlteile (Lager)-View
+
+**Vorbedingung:** Lager-User (admin/stock/stock_keyuser/picking).
+**Schritte:**
+1. Menue "Lager" → "Fehlteile (Lager)" aufrufen.
+**Erwartet:** Globale Sicht. Kein mineOnly-Toggle in der Filter-Card. Tabs zeigen jeweils Counts aller Werkbaenke. Notiz-Spalten zeigen sowohl "Notiz Lager" als auch "Notiz EK".
+
 ---
 
 *Ende des Dokuments. Stand: v1.19.0 (2026-05-29)*

@@ -51,6 +51,15 @@ der Fehlteile-Liste. Die im selben Branch begonnene v1.18.1-Filter-Erweiterung
 | 10 | Version + Changelog + PROJECT_STATUS + CLAUDE.md + TESTSZENARIEN | ✅ erledigt |
 | 11 | Final-Check Build + Tests | ⏳ offen |
 | 12 | Merge in main (NACH User-Bestaetigung) | ⏳ offen |
+| 13 | NoteEinkauf Column + Migration + FreshInstall | ✅ erledigt |
+| 14 | ViewModels NoteEinkauf + HasNoWorkplaceMapping | ✅ erledigt |
+| 15 | Repo CloseAsync/SaveProgressAsync + Tests | ✅ erledigt |
+| 16 | Repo GetMissingPartsAsync NoteEinkauf-Mapping + Column-Filter | ✅ erledigt |
+| 17 | WarehousePickingController notesEinkauf Form-Binding | ✅ erledigt |
+| 18 | MissingPartsController default mineOnly=true + HasNoWorkplaceMapping | ✅ erledigt |
+| 19 | MissingPartsLagerController + View (NEU) | ✅ erledigt |
+| 20 | Details/Print/MissingParts/Layout UI-Updates | ✅ erledigt |
+| 21 | Doku (Changelog/CLAUDE.md/TESTSZENARIEN) erweitert | ✅ erledigt |
 
 ---
 
