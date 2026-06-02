@@ -6,6 +6,15 @@
 
 <h2 class="page-header">@ViewData["Title"]</h2>
 
+@if (Model.HasNoWorkplaceMapping)
+{
+    <div class="alert alert-info">
+        Du hast keine Werkbank-Zuordnung. Diese Liste ist deshalb leer.
+        Du kannst entweder den Toggle <em>"Nur meine Werkbaenke"</em> deaktivieren
+        oder die Zuordnung in den Stammdaten pflegen.
+    </div>
+}
+
 @if (TempData["SuccessMessage"] != null)
 {
     <div class="alert alert-success">@TempData["SuccessMessage"]</div>
@@ -68,7 +77,8 @@
                 <th data-col-key="QuantityRequested">Soll</th>
                 <th data-col-key="QuantityPicked">Geliefert</th>
                 <th data-col-key="QuantityMissing">Fehlt</th>
-                <th data-col-key="Note">Notiz</th>
+                <th data-col-key="NoteLager">Notiz Lager</th>
+                <th data-col-key="NoteEinkauf">Notiz EK</th>
                 <th data-col-key="CreatedBy">Erfasst von</th>
                 <th data-col-key="ClosedAt">Abgeschlossen am</th>
             </tr>
@@ -85,6 +95,7 @@
                     <td>@((int)Math.Round(row.QuantityPicked, MidpointRounding.AwayFromZero))</td>
                     <td><strong>@((int)Math.Round(row.QuantityMissing, MidpointRounding.AwayFromZero))</strong></td>
                     <td>@row.Note</td>
+                    <td>@row.NoteEinkauf</td>
                     <td>@row.CreatedBy</td>
                     <td>@(row.ClosedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
                 </tr>
