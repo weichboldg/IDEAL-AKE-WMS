@@ -80,7 +80,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus, i.NoteEinkauf));
         }
 
         var vm = new WarehouseRequisitionDetailViewModel
@@ -101,7 +101,7 @@ public class WarehousePickingController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Close(int id, int[] itemIds, int[] quantitiesPicked,
-        string?[]? notes, int[]? shortageStatuses, byte[] rowVersion)
+        string?[]? notes, string?[]? notesEinkauf, int[]? shortageStatuses, byte[] rowVersion)
     {
         if (quantitiesPicked.Any(q => q < 0))
         {
@@ -117,6 +117,11 @@ public class WarehousePickingController : Controller
         if (notes != null)
             for (int idx = 0; idx < itemIds.Length; idx++)
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
+
+        var noteEkDict = new Dictionary<int, string?>();
+        if (notesEinkauf != null)
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                noteEkDict[itemIds[idx]] = idx < notesEinkauf.Length ? notesEinkauf[idx] : null;
 
         var statusDict = new Dictionary<int, ShortageStatus>();
         if (shortageStatuses != null)
@@ -135,9 +140,7 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict,
-                new Dictionary<int, string?>(),   // temporaer leer, Task 5 fixt das
-                statusDict,
+            await _repo.CloseAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -175,6 +178,7 @@ public class WarehousePickingController : Controller
         [FromForm] int[] itemIds,
         [FromForm] int?[]? quantitiesPicked,
         [FromForm] string?[]? notes,
+        [FromForm] string?[]? notesEinkauf,
         [FromForm] int[]? shortageStatuses)
     {
         if (itemIds == null || itemIds.Length == 0) return BadRequest("itemIds required");
@@ -187,6 +191,10 @@ public class WarehousePickingController : Controller
         if (notes != null)
             for (int idx = 0; idx < itemIds.Length; idx++)
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
+        var noteEkDict = new Dictionary<int, string?>();
+        if (notesEinkauf != null)
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                noteEkDict[itemIds[idx]] = idx < notesEinkauf.Length ? notesEinkauf[idx] : null;
         var statusDict = new Dictionary<int, ShortageStatus>();
         if (shortageStatuses != null)
         {
@@ -202,16 +210,14 @@ public class WarehousePickingController : Controller
             }
         }
 
-        await _repo.SaveProgressAsync(id, qtyDict, noteDict,
-            new Dictionary<int, string?>(),   // temporaer leer, Task 5 fixt das
-            statusDict,
+        await _repo.SaveProgressAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
             _user.GetDisplayName(), _user.GetWindowsUserName());
         return Ok();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> PrintAndClose(int id, int[] itemIds, int[] quantitiesPicked,
-        string?[]? notes, int[]? shortageStatuses, byte[] rowVersion)
+        string?[]? notes, string?[]? notesEinkauf, int[]? shortageStatuses, byte[] rowVersion)
     {
         if (quantitiesPicked.Any(q => q < 0))
             return BadRequest(new { error = "Ist-Mengen duerfen nicht negativ sein." });
@@ -223,6 +229,10 @@ public class WarehousePickingController : Controller
         if (notes != null)
             for (int idx = 0; idx < itemIds.Length; idx++)
                 noteDict[itemIds[idx]] = idx < notes.Length ? notes[idx] : null;
+        var noteEkDict = new Dictionary<int, string?>();
+        if (notesEinkauf != null)
+            for (int idx = 0; idx < itemIds.Length; idx++)
+                noteEkDict[itemIds[idx]] = idx < notesEinkauf.Length ? notesEinkauf[idx] : null;
         var statusDict = new Dictionary<int, ShortageStatus>();
         if (shortageStatuses != null)
         {
@@ -240,9 +250,7 @@ public class WarehousePickingController : Controller
 
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict,
-                new Dictionary<int, string?>(),   // temporaer leer, Task 5 fixt das
-                statusDict,
+            await _repo.CloseAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -283,7 +291,7 @@ public class WarehousePickingController : Controller
                 .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
-                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus));
+                i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus, i.NoteEinkauf));
         }
         var vm = new WarehouseRequisitionDetailViewModel
         {
