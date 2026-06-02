@@ -362,6 +362,10 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 q = ApplyMissingPartsTextFilter(q, ad, isArticleNumber: false, isDescription: true);
             if (columnFilters.TryGetValue("WorkplaceName", out var wn) && !string.IsNullOrWhiteSpace(wn))
                 q = ApplyMissingPartsTextFilter(q, wn, isArticleNumber: false, isDescription: false, isWorkplace: true);
+            if (columnFilters.TryGetValue("NoteLager", out var nl) && !string.IsNullOrWhiteSpace(nl))
+                q = ApplyMissingPartsNullableTextFilter(q, nl, isNoteLager: true);
+            if (columnFilters.TryGetValue("NoteEinkauf", out var ne) && !string.IsNullOrWhiteSpace(ne))
+                q = ApplyMissingPartsNullableTextFilter(q, ne, isNoteLager: false);
         }
 
         var total = await q.CountAsync();
@@ -418,6 +422,55 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             q = q.Where(notExpr);
         }
         return q;
+    }
+
+    private static IQueryable<WarehouseRequisitionItem> ApplyMissingPartsNullableTextFilter(
+        IQueryable<WarehouseRequisitionItem> q,
+        string filterValue,
+        bool isNoteLager)
+    {
+        var tokens = filterValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0) return q;
+        var positives = tokens.Where(t => !t.StartsWith("!")).ToList();
+        var negatives = tokens.Where(t => t.StartsWith("!")).Select(t => t.Substring(1)).ToList();
+
+        if (positives.Count > 0)
+            q = q.Where(BuildNullableOrContains(isNoteLager, positives));
+        foreach (var n in negatives)
+            q = q.Where(BuildNullableNotContains(isNoteLager, n));
+        return q;
+    }
+
+    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNullableOrContains(
+        bool isNoteLager, IReadOnlyList<string> values)
+    {
+        var param = Expression.Parameter(typeof(WarehouseRequisitionItem), "i");
+        var prop = Expression.Property(param, isNoteLager ? nameof(WarehouseRequisitionItem.Note) : nameof(WarehouseRequisitionItem.NoteEinkauf));
+        var nullConst = Expression.Constant(null, typeof(string));
+        var notNull = Expression.NotEqual(prop, nullConst);
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+
+        Expression? orBody = null;
+        foreach (var v in values)
+        {
+            var call = Expression.Call(prop, containsMethod, Expression.Constant(v));
+            orBody = orBody == null ? (Expression)call : Expression.OrElse(orBody, call);
+        }
+        var body = Expression.AndAlso(notNull, orBody!);
+        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body, param);
+    }
+
+    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNullableNotContains(
+        bool isNoteLager, string value)
+    {
+        var param = Expression.Parameter(typeof(WarehouseRequisitionItem), "i");
+        var prop = Expression.Property(param, isNoteLager ? nameof(WarehouseRequisitionItem.Note) : nameof(WarehouseRequisitionItem.NoteEinkauf));
+        var nullConst = Expression.Constant(null, typeof(string));
+        var isNull = Expression.Equal(prop, nullConst);
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+        var call = Expression.Call(prop, containsMethod, Expression.Constant(value));
+        var body = Expression.OrElse(isNull, Expression.Not(call));
+        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body, param);
     }
 
     private static Expression<Func<WarehouseRequisitionItem, bool>> BuildOrContains(

@@ -805,4 +805,52 @@ public class WarehouseRequisitionRepositoryTests
         var r = await db.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Submitted);
     }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_FiltersByNoteLager_Column()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        items[0].Note = "lager-hinweis";
+        items[1].Note = "andere notiz";
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var filters = new Dictionary<string, string> { ["NoteLager"] = "lager" };
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filters, null, null, 1, 100);
+        result.Should().HaveCount(1);
+        result[0].ItemId.Should().Be(items[0].Id);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_FiltersByNoteEinkauf_Column()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?> { [items[0].Id] = "ek-hinweis", [items[1].Id] = "egal" },
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var filters = new Dictionary<string, string> { ["NoteEinkauf"] = "ek-hinweis" };
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filters, null, null, 1, 100);
+        result.Should().HaveCount(1);
+        result[0].ItemId.Should().Be(items[0].Id);
+        result[0].NoteEinkauf.Should().Be("ek-hinweis");
+    }
 }
