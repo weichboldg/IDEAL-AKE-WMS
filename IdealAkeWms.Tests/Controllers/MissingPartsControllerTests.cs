@@ -40,7 +40,7 @@ public class MissingPartsControllerTests
     }
 
     [Fact]
-    public async Task Index_NoMineOnly_PassesWorkplaceIdToRepoUnchanged()
+    public async Task Index_MineOnlyFalse_PassesWorkplaceIdToRepoUnchanged()
     {
         var (ctrl, repo, _, _) = Build();
         await ctrl.Index(tab: ShortageStatus.NoRestock, workplaceId: 5, mineOnly: false);
@@ -89,7 +89,7 @@ public class MissingPartsControllerTests
     public async Task Index_DefaultTab_WillBeRestocked()
     {
         var (ctrl, repo, _, _) = Build();
-        await ctrl.Index();
+        await ctrl.Index(mineOnly: false);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.WillBeRestocked,
             It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string,string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -100,7 +100,7 @@ public class MissingPartsControllerTests
     public async Task Index_TabNone_NormalizedToWillBeRestocked()
     {
         var (ctrl, repo, _, _) = Build();
-        await ctrl.Index(tab: ShortageStatus.None);
+        await ctrl.Index(tab: ShortageStatus.None, mineOnly: false);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.WillBeRestocked,
             It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string,string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -121,9 +121,32 @@ public class MissingPartsControllerTests
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow>(), 5));
-        var result = await ctrl.Index();
+        var result = await ctrl.Index(mineOnly: false);
         var vm = (result as ViewResult)?.Model as MissingPartsListViewModel;
         vm!.WaitingTotalCount.Should().Be(3);
         vm.NoRestockTotalCount.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Index_DefaultIsMineOnlyTrue()
+    {
+        var (ctrl, _, wp, user) = Build();
+        user.Setup(u => u.GetCurrentAppUserId()).Returns(42);
+        wp.Setup(w => w.GetByUserIdAsync(42)).ReturnsAsync(new List<ProductionWorkplace>
+            { new ProductionWorkplace { Id = 7, Name = "WB7" } });
+        await ctrl.Index();
+        wp.Verify(w => w.GetByUserIdAsync(42), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task Index_MineOnly_NoWorkplaceMapping_SetsHasNoWorkplaceMappingTrue()
+    {
+        var (ctrl, _, wp, user) = Build();
+        user.Setup(u => u.GetCurrentAppUserId()).Returns(99);
+        wp.Setup(w => w.GetByUserIdAsync(99)).ReturnsAsync(new List<ProductionWorkplace>());
+        var result = await ctrl.Index(mineOnly: true);
+        var vm = (result as ViewResult)?.Model as MissingPartsListViewModel;
+        vm!.HasNoWorkplaceMapping.Should().BeTrue();
+        vm.Items.Should().BeEmpty();
     }
 }

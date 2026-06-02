@@ -27,7 +27,7 @@ public class MissingPartsController : Controller
     public async Task<IActionResult> Index(
         ShortageStatus tab = ShortageStatus.WillBeRestocked,
         int? workplaceId = null,
-        bool mineOnly = false,
+        bool mineOnly = true,
         int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -50,6 +50,32 @@ public class MissingPartsController : Controller
                 effectiveWorkplaceId = -1;
             else if (!workplaceId.HasValue && userWorkplaceIds.Count == 1)
                 effectiveWorkplaceId = userWorkplaceIds[0];
+        }
+
+        bool hasNoWorkplaceMapping = false;
+        if (mineOnly && userWorkplaceIds != null && userWorkplaceIds.Count == 0)
+            hasNoWorkplaceMapping = true;
+
+        if (hasNoWorkplaceMapping)
+        {
+            return View(new MissingPartsListViewModel
+            {
+                Items = new List<MissingPartRow>(),
+                AvailableWorkplaces = (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
+                WorkplaceFilter = workplaceId,
+                MineOnly = mineOnly,
+                ActiveTab = tab,
+                WaitingTotalCount = 0,
+                NoRestockTotalCount = 0,
+                HasNoWorkplaceMapping = true,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = 0
+                }
+            });
         }
 
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
@@ -92,6 +118,7 @@ public class MissingPartsController : Controller
             AvailableWorkplaces = (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
             WorkplaceFilter = workplaceId,
             MineOnly = mineOnly,
+            HasNoWorkplaceMapping = hasNoWorkplaceMapping,
             ActiveTab = tab,
             WaitingTotalCount = waitingResult.TotalCount,
             NoRestockTotalCount = noRestockResult.TotalCount,
