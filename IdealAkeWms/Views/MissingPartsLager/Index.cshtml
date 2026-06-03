@@ -63,6 +63,7 @@
                 <th data-col-key="QuantityRequested">Soll</th>
                 <th data-col-key="QuantityPicked">Geliefert</th>
                 <th data-col-key="QuantityMissing">Fehlt</th>
+                <th data-col-key="StorageLocations">Lagerplatz (Bestand)</th>
                 <th data-col-key="NoteLager">Notiz Lager</th>
                 <th data-col-key="NoteEinkauf">Notiz EK</th>
                 <th data-col-key="CreatedBy">Erfasst von</th>
@@ -80,6 +81,7 @@
                     <td>@((int)Math.Round(row.QuantityRequested, MidpointRounding.AwayFromZero))</td>
                     <td>@((int)Math.Round(row.QuantityPicked, MidpointRounding.AwayFromZero))</td>
                     <td><strong>@((int)Math.Round(row.QuantityMissing, MidpointRounding.AwayFromZero))</strong></td>
+                    <td>@(string.IsNullOrEmpty(row.StorageLocations) ? "—" : row.StorageLocations)</td>
                     <td>@row.Note</td>
                     <td>@row.NoteEinkauf</td>
                     <td>@row.CreatedBy</td>

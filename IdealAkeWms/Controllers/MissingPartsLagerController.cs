@@ -12,14 +12,16 @@ public class MissingPartsLagerController : Controller
 {
     private readonly IWarehouseRequisitionRepository _repo;
     private readonly IProductionWorkplaceRepository _workplaces;
+    private readonly IStockMovementRepository _stock;
     private readonly ICurrentUserService _user;
 
     public MissingPartsLagerController(
         IWarehouseRequisitionRepository repo,
         IProductionWorkplaceRepository workplaces,
+        IStockMovementRepository stock,
         ICurrentUserService user)
     {
-        _repo = repo; _workplaces = workplaces; _user = user;
+        _repo = repo; _workplaces = workplaces; _stock = stock; _user = user;
     }
 
     public async Task<IActionResult> Index(
@@ -39,6 +41,28 @@ public class MissingPartsLagerController : Controller
         var (rows, total) = await _repo.GetMissingPartsAsync(
             tab, workplaceId, columnFilters, null, null, page, effectivePageSize);
 
+        // Lagerplatz-Bestand pro Artikel bulk-fetchen (vermeidet N+1)
+        var articleNumbers = rows.Select(r => r.ArticleNumber)
+                                 .Where(a => !string.IsNullOrWhiteSpace(a))
+                                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                                 .ToList();
+        var stockByArticle = articleNumbers.Count > 0
+            ? await _stock.GetStockByArticleNumbersAsync(articleNumbers)
+            : new Dictionary<string, List<StockLocationInfo>>();
+
+        var enrichedRows = rows.Select(r =>
+        {
+            if (!stockByArticle.TryGetValue(r.ArticleNumber, out var locs) || locs.Count == 0)
+                return r;
+            var nonZero = locs.Where(l => l.Quantity > 0)
+                              .OrderByDescending(l => l.Quantity)
+                              .ToList();
+            if (nonZero.Count == 0) return r;
+            var locStr = string.Join(", ",
+                nonZero.Select(l => $"{l.Code} ({l.Quantity:N3})"));
+            return r with { StorageLocations = locStr };
+        }).ToList();
+
         var waitingResult = await _repo.GetMissingPartsAsync(
             ShortageStatus.WillBeRestocked, workplaceId, null, null, null, 1, 1);
         var noRestockResult = await _repo.GetMissingPartsAsync(
@@ -46,7 +70,7 @@ public class MissingPartsLagerController : Controller
 
         var vm = new MissingPartsListViewModel
         {
-            Items = rows.ToList(),
+            Items = enrichedRows,
             AvailableWorkplaces = (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
             WorkplaceFilter = workplaceId,
             MineOnly = false,
