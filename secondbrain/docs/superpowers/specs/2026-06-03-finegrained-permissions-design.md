@@ -11,7 +11,7 @@
 
 Drei zusammenhaengende Verbesserungen am Berechtigungssystem:
 
-1. **Read/Edit-Split in Stammdaten**: Neue Rolle `masterdata_read` mit Nur-Lesen-Zugriff auf Users / Roles / Workstations / Settings. Bestehende `masterdata` bleibt = Vollzugriff (Edit impliziert Read).
+1. **Read/Edit-Split in Stammdaten**: Neue Rolle `masterdata_read` mit Nur-Lesen-Zugriff auf alle 10 heutigen `[RequireMasterDataAccess]`-Controller (Users, Roles, Workstations, Settings, ProductionWorkplaces, OrderRecipients, ArticleCategories, ArticleAttributes, BdeShiftCalendar, SyncLog). Bestehende `masterdata` bleibt = Vollzugriff (Edit impliziert Read).
 2. **Lager-Sicht nur fuer Lager-Mitarbeiter**: `picking`-User verlieren Zugriff auf "Lager: Eingehende Listen" (WarehousePicking) und "Lager: Fehlteile" (MissingPartsLager). Bestand + Bewegungshistorie bleiben fuer picker zugaenglich.
 3. **Rollen-Uebersicht im Benutzerstamm**: Neue klickbare Uebersichts-Seite "Welche Rolle darf welche Seiten" — hand-gepflegte Tabelle, im Users-Bereich verlinkt, fuer alle Stammdaten-Leser zugaenglich.
 
@@ -23,7 +23,7 @@ Drei zusammenhaengende Verbesserungen am Berechtigungssystem:
 - 19 Filter-Attribute (12 Single-Role + 6 Composite + 1 Modul-Toggle `RequireBdeActive`)
 - `Role` ↔ `UserRole` (Junction) ↔ `User` — Many-to-Many, Union-Semantik (jeder Match grant access; mehr Rollen = mehr Zugriff)
 - Admin-Wildcard ueberspringt alle Pruefungen
-- `[RequireMasterDataAccess]` = admin + masterdata, applied an `UsersController`, `RolesController`, `WorkstationsController`, `SettingsController` (Class-Level)
+- `[RequireMasterDataAccess]` = admin + masterdata, applied an **10 Controller** (CLAUDE.md-Tabelle ist veraltet — listet nur 4): `UsersController`, `RolesController`, `WorkstationsController`, `SettingsController`, `ProductionWorkplacesController`, `OrderRecipientsController`, `ArticleCategoriesController`, `ArticleAttributesController`, `BdeShiftCalendarController`, `SyncLogController` (Class-Level)
 - `[RequireStockAccess]` = admin + stock + stock_keyuser + picking, applied auch an `WarehousePickingController` (Lager-Worklist) und `MissingPartsLagerController` (neu im v1.19.0-Worktree)
 
 ### Probleme
@@ -69,6 +69,12 @@ Beide Attribute folgen dem bestehenden Pattern (siehe `RequireMasterDataAccessAt
 ### 4.3 Filter-Anwendung (Pattern: Class-Level Read + Action-Level Edit-Overrides)
 
 ASP.NET-Filter kumulieren: wenn Class `[RequireRead]` und Action `[RequireEdit]` hat, muss User BEIDE bestehen. Da Read den Edit-Role implizit erlaubt, ist das fuer Vollzugriffs-User transparent.
+
+**Globales Pattern** fuer alle 10 Stammdaten-Controller:
+1. Class-Attribute auf `[RequireMasterDataReadAccess]` umstellen (gewaehrt minimum Read)
+2. Jede schreibende Action (POST/PUT/DELETE) und jede GET-Form-Rendering-Action (Create-/Edit-Form) bekommt ein zusaetzliches `[RequireMasterDataAccess]`
+3. Reine GET-List/Details/Read-Only-Actions: Class-Filter reicht (keine zusaetzlichen Attribute)
+4. Bestehende `[RequireMasterDataAccess]` an Class-Level entfernen
 
 #### UsersController
 | Action | Filter |
@@ -117,6 +123,41 @@ ASP.NET-Filter kumulieren: wenn Class `[RequireRead]` und Action `[RequireEdit]`
 | POST UpdateOperationConfig | `[RequireMasterDataAccess]` |
 | POST DeleteOperationConfig | `[RequireMasterDataAccess]` |
 
+#### ProductionWorkplacesController (Werkbaenke)
+| Action | Filter |
+|---|---|
+| **(Class)** | `[RequireMasterDataReadAccess]` |
+| GET Index | (Class genug) |
+| GET Create | `[RequireMasterDataAccess]` |
+| POST Create | `[RequireMasterDataAccess]` |
+| GET Edit | `[RequireMasterDataAccess]` |
+| POST Edit | `[RequireMasterDataAccess]` |
+
+#### OrderRecipientsController (Bestell-Empfaengergruppen)
+| Action | Filter |
+|---|---|
+| **(Class)** | `[RequireMasterDataReadAccess]` |
+| GET Index | (Class genug) |
+| GET ArticleGroupMappings | (Class genug, ist Listing) |
+| GET Create | `[RequireMasterDataAccess]` |
+| POST Create | `[RequireMasterDataAccess]` |
+| GET Edit | `[RequireMasterDataAccess]` |
+| POST Edit | `[RequireMasterDataAccess]` |
+| POST Delete | `[RequireMasterDataAccess]` |
+| POST AddRecipient | `[RequireMasterDataAccess]` |
+| POST UpdateRecipient | `[RequireMasterDataAccess]` |
+| POST DeleteRecipient | `[RequireMasterDataAccess]` |
+| POST SaveArticleGroupMappings | `[RequireMasterDataAccess]` |
+
+#### ArticleCategoriesController + ArticleAttributesController
+Pattern wie oben: Class auf `[RequireMasterDataReadAccess]`, Edit-Actions zusaetzlich `[RequireMasterDataAccess]`. Genaue Action-Liste wird im Plan ausgearbeitet.
+
+#### BdeShiftCalendarController (Schichtkalender)
+Pattern wie oben. Spezialfall: `BdeShiftCalendar` ist eine spezielle View — POST/Save/Delete fuer Schichtmuster + Feiertags-Overrides bekommen Edit-Filter, View bleibt Read.
+
+#### SyncLogController (Aktivitaets-Protokoll)
+Pattern minimal: nur GET Index (Listing) — keine Edits. **Sonderfall**: Da es nur Read-Actions gibt, ist der Class-Filter `[RequireMasterDataReadAccess]` ausreichend. Keine zusaetzlichen Action-Filter.
+
 #### WarehousePickingController + MissingPartsLagerController
 | Aenderung |
 |---|
@@ -143,6 +184,9 @@ ASP.NET-Filter kumulieren: wenn Class `[RequireRead]` und Action `[RequireEdit]`
 **Initiale Rollen-Liste** (13 Zeilen):
 - `admin`, `masterdata`, `masterdata_read` (NEU), `picking`, `stock`, `stock_keyuser`, `tracking`, `reporting`, `leitstand`, `fa_completion`, `bde_user`, `bde_shiftlead`, `bde_admin`
 
+**Erklaer-Header** oben (deckt den Hilfe-Detail-Zweck mit ab):
+> _"Die Berechtigungen sind als Many-to-Many-Verknuepfung zwischen Benutzern und Rollen abgebildet. Wer mehrere Rollen hat, hat die **Vereinigung** der Rechte (mehr Rollen = mehr Zugriff). Die Rolle `admin` ist ein Wildcard und ueberspringt alle Pruefungen. Rollen koennen optional mit AD-Gruppen verknuepft werden — Login uebernimmt dann die Rollen automatisch."_
+
 **Pflege-Hinweis** oben in der View:
 > _"Diese Uebersicht ist hand-gepflegt. Bei Aenderungen an Controller-Filtern bitte `RoleOverview.cshtml` mit-aktualisieren."_
 
@@ -153,13 +197,14 @@ ASP.NET-Filter kumulieren: wenn Class `[RequireRead]` und Action `[RequireEdit]`
 
 ### 4.5 Button-Verstecken in Read-Only-Mode
 
-Wenn User nur `masterdata_read` hat (NICHT `masterdata`), sollen alle Edit-Buttons in Index-Views ausgeblendet werden:
+Wenn User nur `masterdata_read` hat (NICHT `masterdata`), sollen alle Edit-Buttons in Index/Listing-Views ausgeblendet werden. **Anwendung auf alle 10 Stammdaten-Index-Views** plus die OperationConfig-Sub-View und SettingsController-Form.
 
-- "Neu"-Button im Page-Header (`Users/Index`, `Roles/Index`, `Workstations/Index`)
+Pro View:
+- "Neu"-Button im Page-Header
 - "Bearbeiten"-Link in Aktion-Spalte pro Zeile
 - "Loeschen"-Button in Aktion-Spalte pro Zeile
 
-**Implementation**: Via `@inject ICurrentUserService _user` in der View + `await _user.HasMasterDataAccessAsync()` Check. Beispiel:
+**Implementation**: Via `@inject ICurrentUserService _user` in der View + neue Helper-Methode (siehe 4.7):
 
 ```razor
 @inject IdealAkeWms.Services.ICurrentUserService _user
@@ -172,23 +217,36 @@ Wenn User nur `masterdata_read` hat (NICHT `masterdata`), sollen alle Edit-Butto
 }
 ```
 
-**Settings**: Analog — Save-Buttons in der Form werden bedingt gerendert. Aber: Inputs koennten weiter editierbar erscheinen — entweder die `disabled`-Attribute setzen oder einen Banner "Read-Only-Modus" zeigen. Praeferenz: **Banner + disabled inputs**.
+**Settings-Form (Settings/Index)**: Inline-Edit-Pattern — Save-Buttons werden bedingt gerendert, ALLE Inputs bekommen `disabled` Attribut wenn `!canEdit`, und oben ein Info-Banner: *"Sie haben Nur-Lesen-Zugriff auf die Stammdaten. Aenderungen koennen nicht gespeichert werden."*
 
-### 4.6 Layout-Menue-Anpassung
+**OperationConfig-Form / Andere Inline-Forms** (BdeShiftCalendar, etc.): gleiche Banner+disabled-Strategie.
 
-In `Views/Shared/_Layout.cshtml` existiert heute:
+**Liste der 10 Index-Views** die angepasst werden:
+`Users`, `Roles`, `Workstations`, `Settings`, `ProductionWorkplaces`, `OrderRecipients`, `ArticleCategories`, `ArticleAttributes`, `BdeShiftCalendar`, `SyncLog`. SyncLog hat keine Edit-Buttons → keine Aenderung dort.
+
+### 4.6 Layout-Menue-Anpassung (Stammdaten-Block + Lager-Block)
+
+In `Views/Shared/_Layout.cshtml` Zeilen 154+180 existiert heute der Stammdaten-Block hinter:
 ```razor
-bool canAccessStock = isAdmin || hasRole(stock) || hasRole(stock_keyuser) || hasRole(picking);
-@if (canAccessStock)
+@if (await CurrentUserService.HasMasterDataAccessAsync())
 {
-    // "Lager: Eingehende Listen" + "Lager: Fehlteile"
+    // <hr/> + Eintraege: Benutzer, Rollen, Arbeitsplaetze, Einstellungen, ...
 }
 ```
 
-**Aenderung**:
+**Aenderung Stammdaten-Block:**
 ```razor
-bool canAccessLagerProcessing = isAdmin || hasRole(stock) || hasRole(stock_keyuser);
-@if (canAccessLagerProcessing)
+@if (await CurrentUserService.HasMasterDataReadAccessAsync())  // NEU: Read reicht
+{
+    // <hr/> + Eintraege: Benutzer, Rollen, Arbeitsplaetze, Einstellungen, ... (alle 10 Bereiche werden sichtbar)
+}
+```
+
+Das stellt sicher, dass `masterdata_read`-User die Menue-Eintraege ueberhaupt sehen — Index-Views darunter sind ja lesbar.
+
+**Aenderung Lager-Block** (Zeilen ~118 — heute `canAccessStock`):
+```razor
+@if (await CurrentUserService.CanProcessLagerAsync())  // NEU: ohne picking
 {
     // "Lager: Eingehende Listen" + "Lager: Fehlteile"
 }
@@ -196,21 +254,50 @@ bool canAccessLagerProcessing = isAdmin || hasRole(stock) || hasRole(stock_keyus
 
 `canAccessStock` bleibt fuer Bestand/Bewegungs-Menue-Eintraege erhalten (picker darf weiter sehen).
 
+### 4.7 Neue Helper-Methoden in CurrentUserService
+
+Konvention (siehe `CanAccessStockAsync`, `CanPickAsync`, `HasMasterDataAccessAsync` etc.): jeder Filter hat eine View-Helper-Method.
+
+**Neu hinzu:**
+
+```csharp
+public async Task<bool> HasMasterDataReadAccessAsync()
+    => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.MasterDataRead, RoleKeys.MasterData);
+
+public async Task<bool> CanProcessLagerAsync()
+    => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser);
+```
+
+Bestehende `HasMasterDataAccessAsync()` und `CanAccessStockAsync()` bleiben unveraendert (Edit-Sicht bzw. inkl. picker).
+
+### 4.8 API-Endpoints (Out-of-Scope)
+
+API-Controller (`Controllers/Api/*`) werden in dieser Version NICHT angepasst. Falls in Zukunft API-Endpoints fuer Stammdaten dazukommen, gilt das gleiche Pattern: GET = Read-Filter, POST/PUT/DELETE = Edit-Filter. `UserViewPreferencesApiController` bleibt filterlos (Login-Check reicht).
+
 ## 5. Datenbank-Migration
 
 ### 5.1 EF-Migration `AddMasterDataReadRole`
+
+`Role`-Entity hat Spalten: `Key`, `Name`, `Description`, `AdGroup`, `IsSystem`, `SortOrder` plus AuditableEntity-Felder.
 
 ```csharp
 migrationBuilder.Sql(@"
     IF NOT EXISTS (SELECT 1 FROM Roles WHERE [Key] = 'masterdata_read')
     BEGIN
-        INSERT INTO Roles ([Key], [Name], [Description], [CreatedAt], [CreatedBy], [CreatedByWindows])
+        INSERT INTO Roles ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+                           [CreatedAt], [CreatedBy], [CreatedByWindows])
         VALUES ('masterdata_read', 'Stammdaten ansehen',
-                'Nur-Lesen-Zugriff auf Benutzer, Rollen, Arbeitsplaetze und Einstellungen.',
+                'Nur-Lesen-Zugriff auf alle Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).',
+                NULL, 1, 5,
                 SYSDATETIME(), 'system', 'system')
     END
 ");
 ```
+
+Felder im Detail:
+- `IsSystem = 1`: Verhindert versehentliches Loeschen via Roles/Index
+- `SortOrder = 5`: Platziert die Rolle direkt nach `masterdata` (Sort 4) im Roles-Listing
+- `AdGroup = NULL`: Admin kann spaeter per Roles/Edit eine AD-Gruppe zuweisen
 
 ### 5.2 SQL/67_AddMasterDataReadRole.sql
 
@@ -243,7 +330,18 @@ Identisch zur EF-Migration (idempotenter IF NOT EXISTS-Guard). Wird vom FreshIns
 
 Pro Controller pruefen ob Test-Setup eine Edit-Rolle liefert. Erwartung: alle Tests benutzen `masterdata` → bleiben gruen, weil `RequireMasterDataReadAccess` `masterdata` akzeptiert.
 
+Betroffene Test-Klassen (alle 10 Stammdaten-Controller + WarehousePicking + MissingPartsLager):
+- `UsersControllerTests`, `RolesControllerTests`, `WorkstationsControllerTests`, `SettingsControllerTests`
+- `ProductionWorkplacesControllerTests`, `OrderRecipientsControllerTests`, `ArticleCategoriesControllerTests`, `ArticleAttributesControllerTests`, `BdeShiftCalendarControllerTests`, `SyncLogControllerTests`
+- `WarehousePickingControllerTests`, `MissingPartsLagerControllerTests` (picker-Tests muessen 403 erwarten)
+
 Falls Tests explizit Read-Only-Szenarien dazubekommen: separates Setup mit nur `masterdata_read`-Rolle.
+
+### 6.5 CurrentUserService-Helper-Tests
+
+`CurrentUserServiceTests` um 2 neue Methoden ergaenzen:
+- `HasMasterDataReadAccessAsync_AdminTrue` / `_MasterDataTrue` / `_MasterDataReadTrue` / `_OthersFalse`
+- `CanProcessLagerAsync_AdminTrue` / `_StockTrue` / `_StockKeyUserTrue` / `_PickingFalse` / `_OthersFalse`
 
 ### 6.3 Smoke-Tests fuer neue Action
 
@@ -259,15 +357,18 @@ Falls Tests explizit Read-Only-Szenarien dazubekommen: separates Setup mit nur `
 
 ## 7. Dokumentation
 
-- **`CLAUDE.md`**:
+- **`CLAUDE.md`** — **substantielle Korrektur noetig** (heutige Filter-Tabelle ist veraltet):
   - Rolle-Tabelle: neue Zeile `masterdata_read`
   - Filter-Tabelle: neue Zeilen `RequireMasterDataReadAccess` + `RequireLagerProcessingAccess`
+  - Filter-Tabelle: `RequireMasterDataAccess`-Zeile **vollstaendige Controller-Liste eintragen** (alle 10, nicht nur 4)
   - Filter-Tabelle: WarehousePicking + MissingPartsLager unter `RequireLagerProcessingAccess` statt `RequireStockAccess`
   - Fallstrick: "Class-Level Read + Action-Level Edit ist das kanonische Stammdaten-Pattern fuer weitere xxx_read-Rollen"
+  - Fallstrick: "Rollen-Uebersicht (`/Users/RoleOverview`) ist hand-gepflegt — bei Filter-Aenderungen mit-updaten"
 - **`Views/Help/Changelog.cshtml`** v1.20.0-Karte: 3 Bullets
 - **`PROJECT_STATUS.md`**: kurzer Fortschritts-Hinweis
 - **`docs/TESTSZENARIEN.md`**: neues Kapitel "Feingranulare Berechtigungen"
 - **`AppVersion.cs`** (Web + Service): v1.19.0 → v1.20.0
+- **Keine separate Hilfe-Detail-Seite** (`Views/Help/Berechtigungen.cshtml`) — bewusste Entscheidung. Die Rollen-Uebersicht im Users-Bereich erfuellt den Doku-Zweck. Hinweis dort: Pflegehinweis-Header in der View selbst, und der Pflegehinweis in CLAUDE.md.
 
 ## 8. Abhaengigkeiten
 
