@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using BarcodeStandard;
@@ -7,6 +8,7 @@ using SkiaSharp;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireMasterDataReadAccess]
 public class StorageLocationsController : Controller
 {
     private readonly IStorageLocationRepository _storageLocationRepository;
@@ -51,6 +53,7 @@ public class StorageLocationsController : Controller
         return View(filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public IActionResult Create()
     {
         return View(new StorageLocation());
@@ -58,6 +61,7 @@ public class StorageLocationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(StorageLocation location)
     {
         if (!ModelState.IsValid)
@@ -73,6 +77,7 @@ public class StorageLocationsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var location = await _storageLocationRepository.GetByIdAsync(id);
@@ -84,6 +89,7 @@ public class StorageLocationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, StorageLocation location)
     {
         if (id != location.Id)

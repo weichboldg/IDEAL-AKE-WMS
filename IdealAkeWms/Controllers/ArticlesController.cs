@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireMasterDataReadAccess]
 public class ArticlesController : Controller
 {
     private readonly IArticleRepository _articleRepository;
@@ -69,6 +71,7 @@ public class ArticlesController : Controller
         return View(vm);
     }
 
+    [RequireMasterDataAccess]
     public IActionResult Create()
     {
         return View(new Article());
@@ -76,6 +79,7 @@ public class ArticlesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(Article article)
     {
         if (!ModelState.IsValid)
@@ -89,6 +93,7 @@ public class ArticlesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var article = await _articleRepository.GetByIdAsync(id);
@@ -125,6 +130,7 @@ public class ArticlesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, ArticleEditViewModel vm)
     {
         if (id != vm.Article.Id)

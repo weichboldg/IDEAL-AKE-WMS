@@ -80,8 +80,8 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 | Filter-Attribut | Rollen | Angewendet auf |
 |----------------|--------|---------------|
-| `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 10 Stammdaten-Controllern (UsersController, RolesController, WorkstationsController, SettingsController, ProductionWorkplacesController, OrderRecipientsController, ArticleCategoriesController, ArticleAttributesController, BdeShiftCalendarController, SyncLogController). Class-Level ist seit v1.20.0 [RequireMasterDataReadAccess]. |
-| `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level der 10 Stammdaten-Controller (seit v1.20.0). Read-Filter, Edit-Actions verschaerfen mit [RequireMasterDataAccess]. |
+| `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 12 Stammdaten-Controllern (UsersController, RolesController, WorkstationsController, SettingsController, ProductionWorkplacesController, OrderRecipientsController, ArticleCategoriesController, ArticleAttributesController, BdeShiftCalendarController, SyncLogController, ArticlesController, StorageLocationsController). Class-Level ist seit v1.20.0 [RequireMasterDataReadAccess]. |
+| `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level der 12 Stammdaten-Controller (seit v1.20.0). Read-Filter, Edit-Actions verschaerfen mit [RequireMasterDataAccess]. |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
 | `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
 | `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | AssemblyGroupsApiController (`/api/assembly-groups/toggle-applicable`) |

@@ -15,11 +15,16 @@
                 <h6>Feingranulare Berechtigungen — Read/Edit-Split in Stammdaten, Lager-Worklist nur fuer Lager-Mitarbeiter</h6>
                 <ul>
                     <li><strong>Neue Rolle "Stammdaten ansehen"</strong> (<code>masterdata_read</code>): erlaubt
-                        Nur-Lesen-Zugriff auf alle 10 Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze,
-                        Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute,
-                        Schichtkalender, Aktivitaets-Protokoll). Edit-Buttons + Save-Buttons werden
-                        ausgeblendet, Settings-Form zeigt einen Banner "Nur-Lesen-Modus" + disabled
-                        Inputs.</li>
+                        Nur-Lesen-Zugriff auf alle 12 Stammdaten-Sichten (Artikel, Lagerplaetze, Benutzer,
+                        Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger,
+                        Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).
+                        Edit-Buttons + Save-Buttons werden ausgeblendet, Settings-Form zeigt einen
+                        Banner "Nur-Lesen-Modus" + disabled Inputs.</li>
+                    <li><strong>Stammdaten-Dropdown nur fuer Lese-Berechtigte:</strong> Picker (Rolle
+                        <code>picking</code>) sehen das Stammdaten-Menue ab v1.20.0 nicht mehr — auch
+                        nicht "Artikel" und "Lagerplaetze". Vorher hatten die beiden Controller keinen
+                        Filter, jeder eingeloggte User konnte dort sogar bearbeiten. Behoben mit
+                        gleichem Read/Edit-Split wie die anderen 10 Stammdaten-Controller.</li>
                     <li><strong>Lager-Worklist nur fuer Lager-Mitarbeiter:</strong> "Lager: Eingehende
                         Listen" + "Lager: Fehlteile" sind ab v1.20.0 nicht mehr fuer Komm.-Picker (Rolle
                         <code>picking</code>) sichtbar. Lager-Personal (Rollen <code>stock</code> /
