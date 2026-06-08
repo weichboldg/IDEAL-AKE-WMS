@@ -9,6 +9,36 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.20.0</strong> <span class="text-white-50 ms-2">08.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Feingranulare Berechtigungen — Read/Edit-Split in Stammdaten, Lager-Worklist nur fuer Lager-Mitarbeiter</h6>
+                <ul>
+                    <li><strong>Neue Rolle "Stammdaten ansehen"</strong> (<code>masterdata_read</code>): erlaubt
+                        Nur-Lesen-Zugriff auf alle 10 Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze,
+                        Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute,
+                        Schichtkalender, Aktivitaets-Protokoll). Edit-Buttons + Save-Buttons werden
+                        ausgeblendet, Settings-Form zeigt einen Banner "Nur-Lesen-Modus" + disabled
+                        Inputs.</li>
+                    <li><strong>Lager-Worklist nur fuer Lager-Mitarbeiter:</strong> "Lager: Eingehende
+                        Listen" + "Lager: Fehlteile" sind ab v1.20.0 nicht mehr fuer Komm.-Picker (Rolle
+                        <code>picking</code>) sichtbar. Lager-Personal (Rollen <code>stock</code> /
+                        <code>stock_keyuser</code>) und Admins behalten Zugriff. Bestandsuebersicht +
+                        Bewegungshistorie bleiben fuer picker weiter zugaenglich.</li>
+                    <li><strong>Rollen-Uebersicht im Benutzerstamm:</strong> Neue Seite
+                        <code>/Users/RoleOverview</code> mit Klartext-Tabelle aller 13 Rollen — welche
+                        Rolle hat Zugriff auf welche Seiten. Verlinkt aus Users/Index (Page-Header) und
+                        aus Users/Create + Users/Edit ("Was darf welche Rolle?"). Hand-gepflegt.</li>
+                    <li><strong>Migration:</strong> Bestehende User mit <code>masterdata</code> behalten
+                        vollen Zugriff (Filter inkludiert Edit-Rolle implizit). Kein User-Backfill noetig.
+                        Die neue Rolle <code>masterdata_read</code> wird per Seed-Migration angelegt
+                        (<code>IsSystem=1</code>, nicht loeschbar).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.19.0</strong> <span class="text-white-50 ms-2">29.05.2026</span>
             </div>
             <div class="card-body">
