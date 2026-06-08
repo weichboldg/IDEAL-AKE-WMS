@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class UsersController : Controller
 {
     private readonly IUserRepository _userRepository;
@@ -50,6 +50,7 @@ public class UsersController : Controller
         return View(ordered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create()
     {
         var vm = new UserEditViewModel { IsActive = true };
@@ -59,6 +60,7 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(UserEditViewModel vm, string? newPassword)
     {
         if (!ModelState.IsValid)
@@ -99,6 +101,7 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var user = await _userRepository.GetByIdAsync(id);
@@ -138,6 +141,7 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, UserEditViewModel vm, string? newPassword)
     {
         if (id != vm.Id)
@@ -185,6 +189,7 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> ResetViewPreferences(int id, string? viewKey)
     {
         var user = await _userRepository.GetByIdAsync(id);
@@ -204,6 +209,16 @@ public class UsersController : Controller
         }
 
         return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    /// <summary>
+    /// Hand-gepflegte Uebersicht: welche Rolle hat Zugriff auf welche Seiten.
+    /// Wird von Users/Index|Create|Edit verlinkt. View kommt in Task 9.
+    /// </summary>
+    [HttpGet]
+    public IActionResult RoleOverview()
+    {
+        return View();
     }
 
     private async Task PopulateRolesAsync(UserEditViewModel vm, List<int> selectedIds)
