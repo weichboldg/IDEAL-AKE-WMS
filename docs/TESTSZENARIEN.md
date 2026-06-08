@@ -3936,5 +3936,86 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 
 ---
 
-*Ende des Dokuments. Stand: v1.19.0 (2026-05-29)*
+## Kapitel 34: Feingranulare Berechtigungen (v1.20.0)
+
+### 34.1 Read-Only-User in Stammdaten
+
+**Vorbedingungen:**
+- Admin angelegt einen neuen User "test_read" mit nur der Rolle `masterdata_read`
+- "test_read" ist eingeloggt
+
+**Schritte:**
+1. Im Hauptmenue auf "Stammdaten" klicken → Eintraege sichtbar (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, ...)
+2. Auf "Benutzer" klicken → Index-View laedt
+3. Pruefen: "Neu"-Button ist NICHT vorhanden. "Bearbeiten"-Link pro Zeile ist NICHT vorhanden. "Rollen-Uebersicht"-Button ist sichtbar
+4. URL direkt `/Users/Create` aufrufen → Redirect zu AccessDenied
+5. Auf "Einstellungen" klicken → Index-View mit Banner "Nur-Lesen-Modus" oben
+6. Alle Input-Felder sind disabled (grau, nicht editierbar). Save-Button ist NICHT vorhanden
+
+**Erwartet:** Alle Read-Aktionen funktionieren, alle Schreib-Aktionen sind blockiert (UI + Server).
+
+### 34.2 Picker verliert Lager-Worklist-Zugriff
+
+**Vorbedingungen:**
+- User "test_picker" hat nur die Rolle `picking`
+- Es existieren Lagerbestellungen im Status `Submitted`
+
+**Schritte:**
+1. "test_picker" loggt sich ein
+2. Im Hauptmenue auf "Bestellungen" klicken
+3. Pruefen: "Meine Bestellungen" + "Meine Fehlteile" sind sichtbar. "Lager: Eingehende Listen" + "Lager: Fehlteile" sind NICHT sichtbar
+4. URL direkt `/WarehousePicking/Index` aufrufen → Redirect zu AccessDenied
+5. URL direkt `/MissingPartsLager/Index` aufrufen → Redirect zu AccessDenied
+6. "Bestandsuebersicht" im Lager-Menue ist weiterhin sichtbar + funktioniert
+7. "Bewegungshistorie" im Lager-Menue ist weiterhin sichtbar + funktioniert
+
+**Erwartet:** Picker behaelt Bestand + Bewegungen, verliert Worklist-Sichten.
+
+### 34.3 Multi-Rollen-User
+
+**Vorbedingungen:**
+- User "test_multi" hat Rollen `picking` + `masterdata_read`
+
+**Schritte:**
+1. Login als "test_multi"
+2. Stammdaten-Menue ist sichtbar (Read), Edit-Buttons sind ausgeblendet
+3. Komm.-Sichten (Meine Bestellungen, Picking) sind sichtbar
+4. Lager-Worklist ist NICHT sichtbar (kein stock/stock_keyuser)
+
+**Erwartet:** Union der Rechte — alles was eine der Rollen erlaubt.
+
+### 34.4 Rollen-Uebersicht-Seite
+
+**Vorbedingungen:**
+- Login als beliebiger User mit `masterdata_read` oder `masterdata` oder `admin`
+
+**Schritte:**
+1. Auf Users/Index navigieren
+2. Button "Rollen-Uebersicht" oben klicken
+3. Seite `/Users/RoleOverview` laedt
+4. Tabelle mit 13 Rollen sichtbar (admin, masterdata, masterdata_read, picking, stock, stock_keyuser, tracking, reporting, leitstand, fa_completion, bde_user, bde_shiftlead, bde_admin)
+5. Pro Rolle: Beschreibung + Liste sichtbarer Seiten/Aktionen
+6. Erklaer-Header oben erklaert Many-to-Many + Union-Semantik
+7. Button "Zurueck zur Benutzerliste" funktioniert
+
+**Erwartet:** Alle 13 Rollen-Zeilen mit korrekten Beschreibungen.
+
+### 34.5 Migration
+
+**Vorbedingungen:**
+- Update auf v1.20.0 mit Backup-DB
+
+**Schritte:**
+1. App startet → Migration `AddMasterDataReadRole` laeuft
+2. In SQL pruefen: `SELECT * FROM Roles WHERE [Key]='masterdata_read'` liefert 1 Zeile
+3. Felder: `Name='Stammdaten ansehen'`, `IsSystem=1`, `SortOrder=5`, `AdGroup=NULL`
+4. Bestehende User mit `masterdata` haben weiterhin Vollzugriff
+5. Im Roles/Index ist die neue Rolle sichtbar (zwischen masterdata und picking sortiert)
+6. Versuch die Rolle zu loeschen → blockt wegen `IsSystem=1`
+
+**Erwartet:** Migration laeuft idempotent. Rolle ist als Systemrolle markiert.
+
+---
+
+*Ende des Dokuments. Stand: v1.20.0 (2026-06-08)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

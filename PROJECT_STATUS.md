@@ -26,6 +26,17 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 
 ---
 
+### v1.20.0 (2026-06-08) — Feingranulare Berechtigungen
+
+- Read/Edit-Split in allen 10 Stammdaten-Sichten via neuer Rolle `masterdata_read`
+- Lager-Worklist (`WarehousePicking`, `MissingPartsLager`) jetzt nur fuer
+  Lager-Mitarbeiter (`stock`, `stock_keyuser`) + Admin — picker explizit raus
+- Neue Rollen-Uebersichts-Seite `/Users/RoleOverview` (hand-gepflegt)
+- Migration `AddMasterDataReadRole` legt die neue Rolle als Systemrolle an
+- 2 neue View-Helper in `CurrentUserService`: `HasMasterDataReadAccessAsync`,
+  `CanProcessLagerAsync`
+- 2 neue Filter-Attribute: `[RequireMasterDataReadAccess]`, `[RequireLagerProcessingAccess]`
+
 ### v1.19.0 — Lagerbestellungen: 3-State + 2-Tab Fehlteile
 
 Hintergrund: v1.18.0 fuehrte einen einzelnen `IsFinalShortage`-Bool-Flag ein.
