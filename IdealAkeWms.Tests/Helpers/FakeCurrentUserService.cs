@@ -13,10 +13,12 @@ public class FakeCurrentUserService : ICurrentUserService
     public Task<bool> HasAnyRoleAsync(params string[] roleKeys) => Task.FromResult(true);
     public Task<bool> IsAdminAsync() => Task.FromResult(true);
     public Task<bool> HasMasterDataAccessAsync() => Task.FromResult(true);
+    public Task<bool> HasMasterDataReadAccessAsync() => Task.FromResult(true);
     public Task<bool> CanPickAsync() => Task.FromResult(true);
     public Task<bool> CanViewTrackingAsync() => Task.FromResult(true);
     public Task<bool> CanReportOperationsAsync() => Task.FromResult(true);
     public Task<bool> CanAccessStockAsync() => Task.FromResult(true);
+    public Task<bool> CanProcessLagerAsync() => Task.FromResult(true);
     public Task<bool> CanTransferStockAsync() => Task.FromResult(true);
     public Task<bool> CanManagePickingReleaseAsync() => Task.FromResult(true);
     public Task<bool> CanUseBdeAsync() => Task.FromResult(true);

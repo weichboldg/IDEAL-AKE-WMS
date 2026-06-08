@@ -4,6 +4,7 @@ public static class RoleKeys
 {
     public const string Admin = "admin";
     public const string MasterData = "masterdata";
+    public const string MasterDataRead = "masterdata_read";
     public const string Picking = "picking";
     public const string Stock = "stock";
     public const string StockKeyUser = "stock_keyuser";
