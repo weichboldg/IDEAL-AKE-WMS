@@ -1083,6 +1083,19 @@ BEGIN
 END
 GO
 
+-- Rolle 'masterdata_read' (Nur-Lesen-Zugriff auf Stammdaten, v1.20.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'masterdata_read')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('masterdata_read', 'Stammdaten ansehen',
+            'Nur-Lesen-Zugriff auf alle Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).',
+            NULL, 1, 5,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle masterdata_read eingefuegt.';
+END
+GO
+
 -- Standard-Arbeitsgang-Konfigurationen (OSEON)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[OseonOperationConfigs])
 BEGIN
@@ -1743,6 +1756,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529101707_ReplaceIsFinalShortageWithShortageStatus', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260602133102_AddNoteEinkaufToWarehouseRequisitionItems')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260602133102_AddNoteEinkaufToWarehouseRequisitionItems', '10.0.2');
+-- AddMasterDataReadRole (Migration 67, v1.20.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260608060227_AddMasterDataReadRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260608060227_AddMasterDataReadRole', '10.0.0');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
