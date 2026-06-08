@@ -80,12 +80,14 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 | Filter-Attribut | Rollen | Angewendet auf |
 |----------------|--------|---------------|
-| `[RequireMasterDataAccess]` | admin, masterdata | UsersController, WorkstationsController, SettingsController, RolesController |
+| `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 10 Stammdaten-Controllern (UsersController, RolesController, WorkstationsController, SettingsController, ProductionWorkplacesController, OrderRecipientsController, ArticleCategoriesController, ArticleAttributesController, BdeShiftCalendarController, SyncLogController). Class-Level ist seit v1.20.0 [RequireMasterDataReadAccess]. |
+| `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level der 10 Stammdaten-Controller (seit v1.20.0). Read-Filter, Edit-Actions verschaerfen mit [RequireMasterDataAccess]. |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
 | `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
 | `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | AssemblyGroupsApiController (`/api/assembly-groups/toggle-applicable`) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
-| `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController, WarehousePickingController |
+| `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController |
+| `[RequireLagerProcessingAccess]` | admin, stock, stock_keyuser | WarehousePickingController, MissingPartsLagerController (Lager-Worklist seit v1.20.0 — picker explizit ausgeschlossen) |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
 | `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand | ProductionOrdersController (slim Index) |
 | `[RequirePickingOrLeitstandAccess]` | admin, picking ODER leitstand | PickingLeitstandController (class-level) |
@@ -107,7 +109,8 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | Key | Beschreibung |
 |-----|-------------|
 | `admin` | Vollzugriff |
-| `masterdata` | Benutzer, Arbeitsplaetze, Einstellungen |
+| `masterdata` | Benutzer, Arbeitsplaetze, Einstellungen + 6 weitere Stammdaten-Sichten (lesen + aendern) |
+| `masterdata_read` | Nur-Lesen-Zugriff auf alle Stammdatensichten (seit v1.20.0) |
 | `picking` | Picking + vollstaendiger Lagerzugriff |
 | `stock` | Einbuchung, Ausbuchung, Bestaende |
 | `stock_keyuser` | Lager + Lagerplatz ausbuchen/umbuchen |
@@ -179,6 +182,9 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **Radio-3-State Pattern (Doppelklick → None)**: In `Details.cshtml` benutzen die ShortageStatus-Radios ein selbstgebautes 3-State-Verhalten — Doppelklick auf den aktiven Radio setzt ihn zurueck zu None. Implementiert via `mousedown`-Snapshot des `checked`-Status und `click`-Handler, der den Radio wieder unchecked setzt wenn er bereits aktiv war. Bootstrap-Radios unterstuetzen das per Default nicht.
 - **MissingPartsController default mineOnly=true (seit v1.19.0)**: Werkbank-Sicht (`/MissingParts`) filtert per Default auf eigene Werkbaenke. Lager-Sicht laeuft ueber separaten `MissingPartsLagerController` (`/MissingPartsLager`) ohne mineOnly-Param. Layout-Menue zeigt "Meine Fehlteile" im oberen Bestellungen-Block und "Lager: Fehlteile" im canAccessStock-Sub-Block neben "Lager: Eingehende Listen". User ohne Workplace-Zuordnung sehen leere Liste mit Info-Banner statt automatischem Fallback auf alle Fehlteile. Werkbank-Dropdown in `/MissingParts` filtert die `AvailableWorkplaces` per `GetByUserIdAsync` — der Werker kann nur seine eigenen Werkbaenke als Filter auswaehlen.
 - **Note vs NoteEinkauf (seit v1.19.0)**: Property im Code heisst `WarehouseRequisitionItem.Note`, UI-Label aber "Notiz Lager". Zweite Notiz fuer den Einkauf heisst sowohl im Code als auch im UI `NoteEinkauf` / "Notiz EK". Property-Rename Note→NoteLager bewusst NICHT durchgefuehrt (groesserer Diff, keine semantische Notwendigkeit fuer DB-Layer). Form-Param-Reihenfolge in Picking-Controller-Actions: `notes` vor `notesEinkauf` vor `shortageStatuses`.
+- **Stammdaten Read/Edit-Pattern (seit v1.20.0)**: Class-Level der 10 Stammdaten-Controller traegt `[RequireMasterDataReadAccess]`, schreibende Actions verschaerfen mit `[RequireMasterDataAccess]`. ASP.NET kumuliert beide Filter — Edit-User passieren beide. Read-User (`masterdata_read`) sehen Index/Listing-Views, bekommen Buttons via Razor-Check `await _user.HasMasterDataAccessAsync()` ausgeblendet. Bei Erweiterung weiterer Module nach demselben Pattern: zusaetzlich `xxx_read`-Rolle + `RequireXxxReadAccess`-Filter + Class-Level-Umhaengung.
+- **Rollen-Uebersicht (`/Users/RoleOverview`) ist hand-gepflegt (seit v1.20.0)**: Bei Aenderungen an Controller-Filtern (neuer Controller, Filter-Swap, neue Rolle) bitte `Views/Users/RoleOverview.cshtml` mit-updaten. Pflege-Hinweis steht in der View selbst. Verlinkt aus Users/Index (Page-Header) und Users/Create + Users/Edit ("Was darf welche Rolle?").
+- **Lager-Worklist ist NICHT picker-zugaenglich (seit v1.20.0)**: WarehousePicking + MissingPartsLager nutzen `[RequireLagerProcessingAccess]` (admin/stock/stock_keyuser). Picker behalten Bestand + Bewegungshistorie (`[RequireStockAccess]` inkludiert picking weiter). Layout-Menue zeigt "Lager: ..."-Eintraege hinter `await CurrentUserService.CanProcessLagerAsync()`.
 
 ## Standard-Daten (Neuinstallation)
 
