@@ -6,7 +6,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class ArticleCategoriesController : Controller
 {
     private readonly IArticleCategoryRepository _categoryRepository;
@@ -42,6 +42,7 @@ public class ArticleCategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(string name, string? description)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -72,6 +73,7 @@ public class ArticleCategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Update(int id, string name, string? description)
     {
         var category = await _categoryRepository.GetByIdAsync(id);
@@ -105,6 +107,7 @@ public class ArticleCategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Delete(int id)
     {
         var category = await _categoryRepository.GetByIdAsync(id);

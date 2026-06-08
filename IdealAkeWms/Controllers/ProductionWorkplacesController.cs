@@ -9,7 +9,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class ProductionWorkplacesController : Controller
 {
     private readonly IProductionWorkplaceRepository _repository;
@@ -51,6 +51,7 @@ public class ProductionWorkplacesController : Controller
         return View(list.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create()
     {
         var vm = new ProductionWorkplaceEditViewModel
@@ -63,6 +64,7 @@ public class ProductionWorkplacesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm)
     {
         if (!ModelState.IsValid)
@@ -101,6 +103,7 @@ public class ProductionWorkplacesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var workplace = await _repository.GetByIdWithUsersAsync(id);
@@ -130,6 +133,7 @@ public class ProductionWorkplacesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, ProductionWorkplaceEditViewModel vm)
     {
         if (id != vm.Id)

@@ -6,7 +6,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class ArticleAttributesController : Controller
 {
     private readonly IArticleAttributeRepository _attributeRepository;
@@ -48,6 +48,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> CreateDefinition(string name, AttributeType attributeType)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -80,6 +81,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> UpdateDefinition(int id, string name, int sortOrder, bool isActive)
     {
         var definition = await _attributeRepository.GetDefinitionByIdAsync(id);
@@ -106,6 +108,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteDefinition(int id)
     {
         var definition = await _attributeRepository.GetDefinitionByIdAsync(id);
@@ -126,6 +129,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> AddOption(int definitionId, string value, int sortOrder)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -152,6 +156,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteOption(int id)
     {
         if (await _attributeRepository.OptionIsInUseAsync(id))
