@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class RolesController : Controller
 {
     private readonly IRoleRepository _roleRepository;
@@ -51,6 +51,7 @@ public class RolesController : Controller
         return View(viewModels.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public IActionResult Create()
     {
         var vm = new RoleEditViewModel { SortOrder = 100 };
@@ -59,6 +60,7 @@ public class RolesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(RoleEditViewModel vm)
     {
         if (!ModelState.IsValid)
@@ -90,6 +92,7 @@ public class RolesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var role = await _roleRepository.GetByIdAsync(id);
@@ -113,6 +116,7 @@ public class RolesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, RoleEditViewModel vm)
     {
         if (id != vm.Id)
@@ -166,6 +170,7 @@ public class RolesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Delete(int id)
     {
         var role = await _roleRepository.GetByIdAsync(id);

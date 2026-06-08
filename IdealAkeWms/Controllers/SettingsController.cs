@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class SettingsController : Controller
 {
     private readonly IAppSettingRepository _settingRepository;
@@ -42,6 +42,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> SaveSettings(Dictionary<string, string> settings)
     {
         foreach (var kvp in settings)
@@ -55,6 +56,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> AddHoliday(DateTime date, string? description)
     {
         var holiday = new Holiday
@@ -73,6 +75,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteHoliday(int id)
     {
         await _holidayRepository.DeleteAsync(id);
@@ -82,6 +85,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> SyncHolidays()
     {
         var currentYear = DateTime.Now.Year;
@@ -119,6 +123,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> AddOperationConfig(string operationName, string? displayName, int dueDateOffsetDays, bool isOseonRelevant)
     {
         if (string.IsNullOrWhiteSpace(operationName))
@@ -148,6 +153,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> UpdateOperationConfig(int id, string? displayName, int dueDateOffsetDays, bool isOseonRelevant)
     {
         var config = await _operationConfigRepository.GetByIdAsync(id);
@@ -165,6 +171,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteOperationConfig(int id)
     {
         var config = await _operationConfigRepository.GetByIdAsync(id);

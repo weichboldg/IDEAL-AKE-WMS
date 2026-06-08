@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class WorkstationsController : Controller
 {
     private readonly IWorkstationRepository _workstationRepository;
@@ -43,6 +43,7 @@ public class WorkstationsController : Controller
         return View(list.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create()
     {
         var vm = new WorkstationEditViewModel
@@ -54,6 +55,7 @@ public class WorkstationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(WorkstationEditViewModel vm)
     {
         if (!ModelState.IsValid)
@@ -87,6 +89,7 @@ public class WorkstationsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var workstation = await _workstationRepository.GetByIdWithUsersAsync(id);
@@ -109,6 +112,7 @@ public class WorkstationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, WorkstationEditViewModel vm)
     {
         if (id != vm.Id)
