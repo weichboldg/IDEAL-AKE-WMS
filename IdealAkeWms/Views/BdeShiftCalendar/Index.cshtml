@@ -1,6 +1,8 @@
 @model List<IdealAkeWms.Models.BdeShift>
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Schichtkalender (Default)";
+    var canEdit = await _user.HasMasterDataAccessAsync();
     var days = new[] {
         DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
         DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
@@ -14,6 +16,11 @@
 
 <h2 class="page-header">Schichtkalender (Default)</h2>
 <p class="text-muted">Default-Schichtplan fuer alle Werkbaenke ohne eigenen Plan.</p>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
 
 <div class="row">
 @foreach (var d in days)
@@ -37,20 +44,28 @@
                                 @if (!string.IsNullOrWhiteSpace(s.Name)) { <strong>@s.Name</strong> <span class="text-muted">|</span> }
                                 @s.StartTime.ToString(@"hh\:mm") &ndash; @s.EndTime.ToString(@"hh\:mm")
                             </span>
-                            <form asp-action="Delete" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@s.Id" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger">&times;</button>
-                            </form>
+                            @if (canEdit)
+                            {
+                                <form asp-action="Delete" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@s.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">&times;</button>
+                                </form>
+                            }
                         </li>
                     }
                     </ul>
                 }
-                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#add-shift-@d">+ Schicht hinzufuegen</button>
+                @if (canEdit)
+                {
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#add-shift-@d">+ Schicht hinzufuegen</button>
+                }
             </div>
         </div>
     </div>
 
+    @if (canEdit)
+    {
     <div class="modal fade" id="add-shift-@d" tabindex="-1">
         <div class="modal-dialog">
             <form asp-action="Create" method="post">
@@ -83,5 +98,6 @@
             </form>
         </div>
     </div>
+    }
 }
 </div>
