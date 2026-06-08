@@ -29,6 +29,7 @@
                     <ul class="navbar-nav me-auto">
                         @{
                             var canAccessStock = await CurrentUserService.CanAccessStockAsync();
+                            var canProcessLager = await CurrentUserService.CanProcessLagerAsync();
                             var canPick = await CurrentUserService.CanPickAsync();
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -115,7 +116,7 @@
                                     <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
-                                    @if (canAccessStock)
+                                    @if (canProcessLager)
                                     {
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
@@ -151,7 +152,7 @@
                                         <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
                                         <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
                                     }
-                                    @if (await CurrentUserService.HasMasterDataAccessAsync())
+                                    @if (await CurrentUserService.HasMasterDataReadAccessAsync())
                                     {
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="BdeShiftCalendar" asp-action="Index">Schichtkalender</a></li>
@@ -177,7 +178,7 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Artikel</a></li>
                                 <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
-                                @if (await CurrentUserService.HasMasterDataAccessAsync())
+                                @if (await CurrentUserService.HasMasterDataReadAccessAsync())
                                 {
                                     <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                     <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
