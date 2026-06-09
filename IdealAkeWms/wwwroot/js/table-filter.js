@@ -449,7 +449,7 @@
                     return function (e) {
                         e.stopPropagation();
                         input.value = 'KW' + kwVal;
-                        applyFilters();
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
                         closeDatePicker();
                     };
                 })(kw));
@@ -469,7 +469,7 @@
                                 e.stopPropagation();
                                 var formatted = pad2(dd.getDate()) + '.' + pad2(dd.getMonth() + 1) + '.' + dd.getFullYear();
                                 input.value = formatted;
-                                applyFilters();
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
                                 closeDatePicker();
                             };
                         })(new Date(cellDate)));
@@ -492,7 +492,7 @@
             clearBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 input.value = '';
-                applyFilters();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
                 closeDatePicker();
             });
             popup.appendChild(clearBtn);
@@ -540,7 +540,7 @@
         var input = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
         if (input) {
             input.value = value;
-            applyFilters();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         }
     };
 
