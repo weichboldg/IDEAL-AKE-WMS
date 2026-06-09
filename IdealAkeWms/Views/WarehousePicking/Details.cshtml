@@ -219,12 +219,6 @@
             return;
         }
 
-        if (picked === 0 && !restock.checked && !norestock.checked) {
-            restock.checked = true;
-            hidden.value = '1';
-            return;
-        }
-
         hidden.value = norestock.checked ? '2' : (restock.checked ? '1' : '0');
     }
 
