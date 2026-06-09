@@ -189,10 +189,11 @@
 
         if (isServerColumnFilter()) {
             restoreFiltersFromUrl();
+            // Server hat bereits gefiltert + paginiert — kein Client-Filter noetig.
         } else {
             restoreFiltersFromStorage();
+            applyFilters();
         }
-        applyFilters();
 
         // Sorting
         _headers.forEach(function (th) {
