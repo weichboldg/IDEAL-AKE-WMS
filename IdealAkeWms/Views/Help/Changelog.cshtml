@@ -38,6 +38,11 @@
                         vollen Zugriff (Filter inkludiert Edit-Rolle implizit). Kein User-Backfill noetig.
                         Die neue Rolle <code>masterdata_read</code> wird per Seed-Migration angelegt
                         (<code>IsSystem=1</code>, nicht loeschbar).</li>
+                    <li><strong>Admin-only Stammdaten:</strong> Benutzer, Rollen, Arbeitsplaetze, Einstellungen,
+                        Aktivitaets-Protokoll und Schichtkalender sind ab v1.20.0 ausschliesslich fuer
+                        admin-Rolle sichtbar/zugaenglich (nicht mehr fuer masterdata). masterdata bleibt
+                        fuer die operativen Stammdaten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien,
+                        Artikelmerkmale, Empfaenger).</li>
                 </ul>
             </div>
         </div>

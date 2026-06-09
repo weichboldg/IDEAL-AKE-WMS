@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataReadAccess]
+[RequireAdminAccess]
 public class BdeShiftCalendarController : Controller
 {
     private readonly ApplicationDbContext _ctx;
@@ -30,7 +30,6 @@ public class BdeShiftCalendarController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(BdeShiftEditViewModel vm)
     {
         if (vm.EndTime <= vm.StartTime)
@@ -64,7 +63,6 @@ public class BdeShiftCalendarController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    [RequireMasterDataAccess]
     public async Task<IActionResult> Delete(int id)
     {
         var shift = await _ctx.BdeShifts.FindAsync(id);

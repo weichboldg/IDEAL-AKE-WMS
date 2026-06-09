@@ -152,7 +152,7 @@
                                         <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
                                         <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
                                     }
-                                    @if (await CurrentUserService.HasMasterDataReadAccessAsync())
+                                    @if (await CurrentUserService.IsAdminAsync())
                                     {
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="BdeShiftCalendar" asp-action="Index">Schichtkalender</a></li>
@@ -171,34 +171,39 @@
                                 </ul>
                             </li>
                         }
-                        @if (await CurrentUserService.HasMasterDataReadAccessAsync())
+                        @{
+                            var isAdmin = await CurrentUserService.IsAdminAsync();
+                            var hasMasterDataRead = await CurrentUserService.HasMasterDataReadAccessAsync();
+                        }
+                        @if (hasMasterDataRead)
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Stammdaten
                                 </a>
                                 <ul class="dropdown-menu">
+                                    @* masterdata_read + masterdata sichtbar *@
                                     <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Artikel</a></li>
                                     <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
-                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                    <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
                                     <li><a class="dropdown-item" asp-controller="ProductionWorkplaces" asp-action="Index">Werkbänke</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
                                     <li><a class="dropdown-item" asp-controller="ArticleCategories" asp-action="Index">Artikelkategorien</a></li>
                                     <li><a class="dropdown-item" asp-controller="ArticleAttributes" asp-action="Index">Artikelmerkmale</a></li>
-                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
-                                    @if (await CurrentUserService.IsAdminAsync())
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
-                                    }
-                                    <li><a class="dropdown-item" asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a></li>
                                     @if (bestellungenAktiv)
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="Index">Empfänger</a></li>
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="ArticleGroupMappings">Artikelgruppen-Zuordnung</a></li>
+                                    }
+                                    @* Admin-only Sub-Bloecke *@
+                                    @if (isAdmin)
+                                    {
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a></li>
                                     }
                                 </ul>
                             </li>

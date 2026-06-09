@@ -35,30 +35,31 @@
             <tr class="table-warning">
                 <td><code>admin</code></td>
                 <td>Administrator</td>
-                <td>Wildcard — Vollzugriff auf alles.</td>
+                <td>Wildcard — Vollzugriff auf alles. Nur admin kann Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Aktivitaets-Protokoll und Schichtkalender bearbeiten.</td>
                 <td>Alle Seiten und Aktionen.</td>
             </tr>
             <tr>
                 <td><code>masterdata</code></td>
                 <td>Stammdaten verwalten</td>
-                <td>Lesen UND aendern aller Stammdatensichten.</td>
+                <td>Lesen UND aendern der 6 Stammdaten-Sichten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger).</td>
                 <td>
                     <ul class="mb-0 small">
-                        <li>Benutzer, Rollen, Arbeitsplaetze, Einstellungen (lesen + aendern)</li>
-                        <li>Werkbaenke, Empfaengergruppen, Artikelkategorien/-attribute (lesen + aendern)</li>
-                        <li>BDE-Schichtkalender, Aktivitaets-Protokoll (lesen + aendern)</li>
+                        <li>Artikel, Lagerplaetze (lesen + aendern)</li>
+                        <li>Werkbaenke, Artikelkategorien, Artikelmerkmale (lesen + aendern)</li>
+                        <li>Empfaenger + Artikelgruppen-Zuordnungen (lesen + aendern)</li>
+                        <li>KEIN Zugriff auf Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Aktivitaets-Protokoll, Schichtkalender (admin-only)</li>
                     </ul>
                 </td>
             </tr>
             <tr>
                 <td><code>masterdata_read</code></td>
                 <td>Stammdaten ansehen</td>
-                <td>Nur-Lesen-Zugriff auf alle Stammdatensichten.</td>
+                <td>Nur-Lesen-Zugriff auf die 6 Stammdaten-Sichten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger).</td>
                 <td>
                     <ul class="mb-0 small">
-                        <li>Alle Stammdatensichten lesbar, KEINE Edit-Buttons</li>
-                        <li>Settings-Form wird Read-Only angezeigt</li>
+                        <li>Sechs Stammdatensichten lesbar, KEINE Edit-Buttons</li>
                         <li>Rollen-Uebersicht (diese Seite) sichtbar</li>
+                        <li>KEIN Zugriff auf Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Aktivitaets-Protokoll, Schichtkalender (admin-only)</li>
                     </ul>
                 </td>
             </tr>

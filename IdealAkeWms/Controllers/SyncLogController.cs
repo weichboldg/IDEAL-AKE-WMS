@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataReadAccess]
+[RequireAdminAccess]
 public class SyncLogController : Controller
 {
     private static readonly IReadOnlyList<string> KnownServices = SyncLogServices.All;

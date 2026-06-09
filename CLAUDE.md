@@ -80,8 +80,9 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 | Filter-Attribut | Rollen | Angewendet auf |
 |----------------|--------|---------------|
-| `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 12 Stammdaten-Controllern (UsersController, RolesController, WorkstationsController, SettingsController, ProductionWorkplacesController, OrderRecipientsController, ArticleCategoriesController, ArticleAttributesController, BdeShiftCalendarController, SyncLogController, ArticlesController, StorageLocationsController). Class-Level ist seit v1.20.0 [RequireMasterDataReadAccess]. |
-| `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level der 12 Stammdaten-Controller (seit v1.20.0). Read-Filter, Edit-Actions verschaerfen mit [RequireMasterDataAccess]. |
+| `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 6 Stammdaten-Controllern (ArticlesController, StorageLocationsController, ProductionWorkplacesController, OrderRecipientsController, ArticleCategoriesController, ArticleAttributesController). Class-Level ist [RequireMasterDataReadAccess]. |
+| `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level der 6 operativen Stammdaten-Controller (ArticlesController, StorageLocationsController, ProductionWorkplacesController, OrderRecipientsController, ArticleCategoriesController, ArticleAttributesController). Read-Filter, Edit-Actions verschaerfen mit [RequireMasterDataAccess]. |
+| `[RequireAdminAccess]` | admin | UsersController, RolesController, WorkstationsController, SettingsController, SyncLogController, BdeShiftCalendarController (seit v1.20.0-Refactor) sowie ServiceSettingsController |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
 | `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
 | `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | AssemblyGroupsApiController (`/api/assembly-groups/toggle-applicable`) |
@@ -109,8 +110,8 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | Key | Beschreibung |
 |-----|-------------|
 | `admin` | Vollzugriff |
-| `masterdata` | Benutzer, Arbeitsplaetze, Einstellungen + 6 weitere Stammdaten-Sichten (lesen + aendern) |
-| `masterdata_read` | Nur-Lesen-Zugriff auf alle Stammdatensichten (seit v1.20.0) |
+| `masterdata` | Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger + Artikelgruppen-Zuordnungen (lesen + aendern). Benutzer/Rollen/Settings/Logs sind admin-only. |
+| `masterdata_read` | Nur-Lesen-Zugriff auf dieselben 6 Stammdaten-Sichten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger) (seit v1.20.0) |
 | `picking` | Picking + vollstaendiger Lagerzugriff |
 | `stock` | Einbuchung, Ausbuchung, Bestaende |
 | `stock_keyuser` | Lager + Lagerplatz ausbuchen/umbuchen |
@@ -185,6 +186,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **Stammdaten Read/Edit-Pattern (seit v1.20.0)**: Class-Level der 10 Stammdaten-Controller traegt `[RequireMasterDataReadAccess]`, schreibende Actions verschaerfen mit `[RequireMasterDataAccess]`. ASP.NET kumuliert beide Filter — Edit-User passieren beide. Read-User (`masterdata_read`) sehen Index/Listing-Views, bekommen Buttons via Razor-Check `await _user.HasMasterDataAccessAsync()` ausgeblendet. Bei Erweiterung weiterer Module nach demselben Pattern: zusaetzlich `xxx_read`-Rolle + `RequireXxxReadAccess`-Filter + Class-Level-Umhaengung.
 - **Rollen-Uebersicht (`/Users/RoleOverview`) ist hand-gepflegt (seit v1.20.0)**: Bei Aenderungen an Controller-Filtern (neuer Controller, Filter-Swap, neue Rolle) bitte `Views/Users/RoleOverview.cshtml` mit-updaten. Pflege-Hinweis steht in der View selbst. Verlinkt aus Users/Index (Page-Header) und Users/Create + Users/Edit ("Was darf welche Rolle?").
 - **Lager-Worklist ist NICHT picker-zugaenglich (seit v1.20.0)**: WarehousePicking + MissingPartsLager nutzen `[RequireLagerProcessingAccess]` (admin/stock/stock_keyuser). Picker behalten Bestand + Bewegungshistorie (`[RequireStockAccess]` inkludiert picking weiter). Layout-Menue zeigt "Lager: ..."-Eintraege hinter `await CurrentUserService.CanProcessLagerAsync()`.
+- **Admin-only Stammdaten (v1.20.0-Refactor)**: Benutzer, Rollen, Arbeitsplaetze, Settings, Aktivitaets-Protokoll und BDE-Schichtkalender sind nur fuer `admin` zugaenglich. masterdata-Rolle deckt nur die operativen Stammdaten-Sichten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger, Artikelgruppen-Zuordnungen) ab. Layout-Dropdown teilt das in zwei Bloecke: oben masterdata_read, unten admin-only Sub-Block (Users/Workstations/Roles + Settings/ServiceSettings/SyncLog). BDE-Block-Eintrag "Schichtkalender" haengt ebenfalls hinter `IsAdminAsync()`.
 
 ## Standard-Daten (Neuinstallation)
 

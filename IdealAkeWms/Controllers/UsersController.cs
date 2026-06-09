@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataReadAccess]
+[RequireAdminAccess]
 public class UsersController : Controller
 {
     private readonly IUserRepository _userRepository;
@@ -50,7 +50,6 @@ public class UsersController : Controller
         return View(ordered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
-    [RequireMasterDataAccess]
     public async Task<IActionResult> Create()
     {
         var vm = new UserEditViewModel { IsActive = true };
@@ -60,7 +59,6 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(UserEditViewModel vm, string? newPassword)
     {
         if (!ModelState.IsValid)
@@ -101,7 +99,6 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var user = await _userRepository.GetByIdAsync(id);
@@ -141,7 +138,6 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, UserEditViewModel vm, string? newPassword)
     {
         if (id != vm.Id)
@@ -189,7 +185,6 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [RequireMasterDataAccess]
     public async Task<IActionResult> ResetViewPreferences(int id, string? viewKey)
     {
         var user = await _userRepository.GetByIdAsync(id);
