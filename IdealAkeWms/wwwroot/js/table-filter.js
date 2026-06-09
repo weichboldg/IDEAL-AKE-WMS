@@ -40,23 +40,30 @@
     }
 
     function restoreFiltersFromUrl() {
-        if (!_filterRow) return;
+        console.log('[FILTER-DEBUG] restoreFiltersFromUrl start, _filterRow=', _filterRow);
+        if (!_filterRow) { console.warn('[FILTER-DEBUG] _filterRow is null, abort'); return; }
         try {
             var url = new URL(window.location.href);
+            var foundCount = 0;
             url.searchParams.forEach(function (value, key) {
                 if (key.indexOf('colf_') !== 0) return;
                 var colKey = key.substring(5);
                 var input = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
-                if (input) input.value = value;
+                console.log('[FILTER-DEBUG] restore url-key=' + key + ' colKey=' + colKey + ' value=' + value + ' input-found=', !!input);
+                if (input) { input.value = value; foundCount++; }
             });
-        } catch (e) { /* */ }
+            console.log('[FILTER-DEBUG] restoreFiltersFromUrl done, restored=' + foundCount);
+        } catch (e) { console.error('[FILTER-DEBUG] restoreFiltersFromUrl error:', e); }
     }
 
     function scheduleServerNavigate() {
+        console.log('[FILTER-DEBUG] scheduleServerNavigate called (debounce 500ms)');
         clearTimeout(_serverFilterTimer);
         _serverFilterTimer = setTimeout(function () {
+            console.log('[FILTER-DEBUG] scheduleServerNavigate timer fired');
             try {
                 var filters = window.getActiveFilters();
+                console.log('[FILTER-DEBUG] getActiveFilters returned:', JSON.stringify(filters));
                 var url = new URL(window.location.href);
                 Array.from(url.searchParams.keys())
                     .filter(function (k) { return k.indexOf('colf_') === 0; })
@@ -65,8 +72,9 @@
                     if (filters[colKey]) url.searchParams.set('colf_' + colKey, filters[colKey]);
                 });
                 url.searchParams.delete('page');
+                console.log('[FILTER-DEBUG] navigating to:', url.toString());
                 window.location.href = url.toString();
-            } catch (e) { /* */ }
+            } catch (e) { console.error('[FILTER-DEBUG] scheduleServerNavigate timer error:', e); }
         }, 500);
     }
 
@@ -109,8 +117,10 @@
     }
 
     function init() {
+        console.log('[FILTER-DEBUG] init() called');
         _table = document.querySelector('.filterable-table');
-        if (!_table) return;
+        console.log('[FILTER-DEBUG] _table=', _table, 'isServerColumnFilter=', _table ? _table.dataset.serverColumnFilter : 'n/a');
+        if (!_table) { console.warn('[FILTER-DEBUG] no .filterable-table found, abort init'); return; }
 
         var thead = _table.querySelector('thead');
         _tbody = _table.querySelector('tbody');
@@ -186,6 +196,7 @@
             _filterRow.appendChild(filterTd);
         });
         thead.appendChild(_filterRow);
+        console.log('[FILTER-DEBUG] _filterRow appended with', _filterRow.querySelectorAll('input').length, 'inputs');
 
         if (isServerColumnFilter()) {
             restoreFiltersFromUrl();
