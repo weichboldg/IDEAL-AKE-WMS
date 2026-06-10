@@ -238,16 +238,12 @@
                 const restock = tr.querySelector('.shortage-radio-restock');
                 const norestock = tr.querySelector('.shortage-radio-norestock');
                 const hidden = tr.querySelector('.shortage-hidden');
-                const itemIdInput = tr.querySelector('input[name="itemIds"]');
-                const itemId = itemIdInput ? itemIdInput.value : '?';
-                console.log('[SHORTAGE-DEBUG] click on radio classList=' + r.classList + ' itemId=' + itemId + ' wasChecked=' + wasChecked + ' restock.checked=' + restock.checked + ' norestock.checked=' + norestock.checked);
                 if (wasChecked) {
                     r.checked = false;
                     hidden.value = '0';
                 } else {
                     hidden.value = norestock.checked ? '2' : (restock.checked ? '1' : '0');
                 }
-                console.log('[SHORTAGE-DEBUG] hidden.value set to ' + hidden.value + ' for itemId=' + itemId);
                 dirty = true;
             });
         });
@@ -262,12 +258,15 @@
     }
 
     function collectProgress() {
+        // WICHTIG: leere Strings als '0' senden, sonst skippt der
+        // ASP.NET-Model-Binder fuer int[] sie und die Array-Indices
+        // verschieben sich gegenueber itemIds (zerstoerter Mapping).
         const itemIds = Array.from(form.querySelectorAll('input[name="itemIds"]')).map(i => i.value);
         const quantitiesPicked = Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .map(i => i.value || '');
+            .map(i => (i.value && i.value.trim()) || '0');
         const notes = Array.from(form.querySelectorAll('input[name="notes"]')).map(i => i.value || '');
         const notesEinkauf = Array.from(form.querySelectorAll('input[name="notesEinkauf"]')).map(i => i.value || '');
-        const shortageStatuses = Array.from(form.querySelectorAll('input.shortage-hidden')).map(i => i.value);
+        const shortageStatuses = Array.from(form.querySelectorAll('input.shortage-hidden')).map(i => i.value || '0');
         return { itemIds, quantitiesPicked, notes, notesEinkauf, shortageStatuses };
     }
 
@@ -326,10 +325,10 @@
 
     closeBtn.addEventListener('click', () => {
         const empties = emptyRows();
-        if (empties.length === 0) { form.submit(); return; }
+        if (empties.length === 0) { normalizeEmptyQuantitiesToZero(); form.submit(); return; }
         modal.show();
-        document.getElementById('close-yes').onclick = () => { fillSollAsIst(); modal.hide(); form.submit(); };
-        document.getElementById('close-no').onclick = () => { modal.hide(); form.submit(); };
+        document.getElementById('close-yes').onclick = () => { fillSollAsIst(); normalizeEmptyQuantitiesToZero(); modal.hide(); form.submit(); };
+        document.getElementById('close-no').onclick = () => { normalizeEmptyQuantitiesToZero(); modal.hide(); form.submit(); };
     });
 
     if (printAndCloseBtn) {
@@ -344,16 +343,22 @@
             performPrintAndClose();
         });
     }
+    // Hinweis: performPrintAndClose() ruft normalizeEmptyQuantitiesToZero() selbst auf (siehe unten).
+
+    function normalizeEmptyQuantitiesToZero() {
+        // ASP.NET-Model-Binder fuer int[] skippt leere Strings, was die
+        // Array-Indices zwischen itemIds und quantitiesPicked verschiebt
+        // (Off-by-N Bug). Vor jedem Submit alle leeren quantitiesPicked-
+        // Inputs auf '0' setzen, damit die Arrays parallel bleiben.
+        form.querySelectorAll('input[name="quantitiesPicked"]').forEach(inp => {
+            if (!inp.value || inp.value.trim() === '') inp.value = '0';
+        });
+    }
 
     async function performPrintAndClose() {
+        normalizeEmptyQuantitiesToZero();
         const printTab = window.open('about:blank', '_blank');
         const body = new FormData(form);
-        // DEBUG: dump itemIds + shortageStatuses to console
-        try {
-            console.log('[SUBMIT-DEBUG] itemIds=', body.getAll('itemIds'));
-            console.log('[SUBMIT-DEBUG] quantitiesPicked=', body.getAll('quantitiesPicked'));
-            console.log('[SUBMIT-DEBUG] shortageStatuses=', body.getAll('shortageStatuses'));
-        } catch (e) { console.error('[SUBMIT-DEBUG] dump error:', e); }
         try {
             const resp = await fetch(printAndCloseUrl, { method: 'POST', body });
             if (!resp.ok) {
