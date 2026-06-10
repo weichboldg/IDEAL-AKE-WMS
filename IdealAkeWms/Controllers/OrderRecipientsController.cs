@@ -21,6 +21,18 @@ public class OrderRecipientsController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Empfaenger-Spalte zeigt nur die Anzahl als Badge).
+    /// </summary>
+    private static readonly Dictionary<string, Func<OrderRecipientGroup, string?>> ColumnMap = new()
+    {
+        ["name"] = g => g.Name,
+        ["description"] = g => g.Description,
+        ["recipients"] = g => g.Recipients.Count.ToString(),
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -29,7 +41,11 @@ public class OrderRecipientsController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var groups = await _repository.GetAllGroupsAsync();
-        var list = groups.ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var list = ColumnFilterHelper.Apply(groups, columnFilters, ColumnMap).ToList();
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,
