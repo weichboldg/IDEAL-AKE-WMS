@@ -179,4 +179,32 @@ public class StorageLocationsControllerTests
         saved.Description.Should().Be("Manuell-Updated");
         saved.IstBuchbar.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Index_ColumnFilter_FiltersAcrossAllRows()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.StorageLocations.AddRange(
+            new StorageLocation { Code = "LP-A1", Description = "Erster", Zone = "Z1", BarcodeValue = "LP-A1", IsActive = true, IstBuchbar = true, CreatedBy = "t", CreatedByWindows = "t" },
+            new StorageLocation { Code = "LP-B2", Description = "Zweiter", Zone = "Z1", BarcodeValue = "LP-B2", IsActive = true, IstBuchbar = true, CreatedBy = "t", CreatedByWindows = "t" },
+            new StorageLocation { Code = "LP-C3", Description = "Dritter", Zone = "Z1", BarcodeValue = "LP-C3", IsActive = true, IstBuchbar = true, CreatedBy = "t", CreatedByWindows = "t" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new StorageLocationRepository(ctx);
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
+        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_code=A1");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index() as ViewResult;
+
+        var model = result!.Model as List<StorageLocation>;
+        model!.Should().HaveCount(1);
+        model[0].Code.Should().Be("LP-A1");
+        var pagination = ctrl.ViewBag.Pagination as IdealAkeWms.Models.ViewModels.PaginationState;
+        pagination!.TotalCount.Should().Be(1);
+    }
 }

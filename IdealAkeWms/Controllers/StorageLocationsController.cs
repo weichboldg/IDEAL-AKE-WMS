@@ -22,6 +22,24 @@ public class StorageLocationsController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Badge-Texte "Wagen"/"Sage"/"Manuell"/"Ja"/"Nein", Datum/Kapazitaet im View-Format).
+    /// </summary>
+    private static readonly Dictionary<string, Func<StorageLocation, string?>> ColumnMap = new()
+    {
+        ["code"] = l => l.Code,
+        ["description"] = l => l.Description,
+        ["zone"] = l => l.Zone,
+        ["capacity"] = l => l.Capacity?.ToString("N2"),
+        ["type"] = l => l.IsPickingTransport ? "Wagen" : "",
+        ["source"] = l => l.Source == StorageLocationSource.Sage ? "Sage" : "Manuell",
+        ["bookable"] = l => l.IstBuchbar ? "Ja" : "Nein",
+        ["is-active"] = l => l.IsActive ? "Ja" : "Nein",
+        ["created-at"] = l => l.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
+    };
+
     public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false,
         int page = 1, int? pageSize = null)
     {
@@ -37,7 +55,10 @@ public class StorageLocationsController : Controller
         if (onlyBookable)
             query = query.Where(l => l.IstBuchbar);
 
-        var filtered = query.ToList();
+        // Server-Side-Spaltenfilter: nach den Top-Filtern, vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(query, columnFilters, ColumnMap).ToList();
 
         ViewBag.ShowInactive = showInactive;
         ViewBag.OnlyBookable = onlyBookable;
