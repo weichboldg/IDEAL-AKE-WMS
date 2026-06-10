@@ -408,4 +408,31 @@ public class WarehousePickingControllerTests
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task Index_ColumnFilter_FiltersAcrossAllRows()
+    {
+        var (ctrl, ctx, _) = Setup();
+        var wpA = new ProductionWorkplace { Name = "WB-A1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpB = new ProductionWorkplace { Name = "WB-B2", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpC = new ProductionWorkplace { Name = "WB-C3", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.AddRange(wpA, wpB, wpC); ctx.SaveChanges();
+
+        ctx.WarehouseRequisitions.AddRange(
+            new WarehouseRequisition { ProductionWorkplaceId = wpA.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+            new WarehouseRequisition { ProductionWorkplaceId = wpB.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+            new WarehouseRequisition { ProductionWorkplaceId = wpC.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" });
+        await ctx.SaveChangesAsync();
+
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_workplace=A1");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index(statusFilter: null, workplaceId: null) as ViewResult;
+
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm!.Items.Should().HaveCount(1);
+        vm.Items[0].WorkplaceName.Should().Be("WB-A1");
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
 }

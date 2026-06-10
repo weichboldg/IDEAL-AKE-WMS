@@ -27,6 +27,28 @@ public class WarehousePickingController : Controller
         _user = user;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (deutsche Status-Badge-Texte, Datum im View-Format, "—" fuer leer).
+    /// </summary>
+    private static readonly Dictionary<string, Func<WarehouseRequisitionListItemViewModel, string?>> ColumnMap = new()
+    {
+        ["id"] = r => r.Id.ToString(),
+        ["workplace"] = r => r.WorkplaceName,
+        ["creator"] = r => r.CreatedBy,
+        ["submitted"] = r => r.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—",
+        ["items"] = r => r.ItemCount.ToString(),
+        ["status"] = r => r.Status switch
+        {
+            WarehouseRequisitionStatus.Submitted => "Abgeschickt",
+            WarehouseRequisitionStatus.PartiallyDelivered => "Teilgeliefert",
+            WarehouseRequisitionStatus.Closed => "Erledigt",
+            WarehouseRequisitionStatus.Cancelled => "Storniert",
+            _ => r.Status.ToString()
+        },
+    };
+
     public async Task<IActionResult> Index(WarehouseRequisitionStatus? statusFilter, int? workplaceId,
         int page = 1, int? pageSize = null)
     {
@@ -38,7 +60,19 @@ public class WarehousePickingController : Controller
         var statusList = statusFilter.HasValue
             ? new[] { statusFilter.Value }
             : new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered };
-        var (items, total) = await _repo.GetForWarehouseAsync(statusList, workplaceId, page, effectivePageSize);
+
+        // Server-Side-Spaltenfilter: ALLE Rows laden -> ViewModel -> filtern -> zaehlen -> paginieren.
+        // (Filter muss ueber alle Eintraege wirken, nicht nur die aktuelle Seite.)
+        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, 1, int.MaxValue);
+        var allItems = allRows.Select(r => new WarehouseRequisitionListItemViewModel(
+            r.Id, r.ProductionWorkplace?.Name ?? "", r.CreatedBy, r.CreatedAt,
+            r.SubmittedAt, r.Items.Count, r.Status)).ToList();
+
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
+        var totalCount = filtered.Count;
+        var pagedItems = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+
         var allWorkplaces = await _workplaces.GetAllAsync();
         var openCount = (await _repo.GetForWarehouseAsync(
             new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered },
@@ -46,10 +80,8 @@ public class WarehousePickingController : Controller
 
         var vm = new WarehouseRequisitionListViewModel
         {
-            Items = items.Select(r => new WarehouseRequisitionListItemViewModel(
-                r.Id, r.ProductionWorkplace?.Name ?? "", r.CreatedBy, r.CreatedAt,
-                r.SubmittedAt, r.Items.Count, r.Status)).ToList(),
-            TotalCount = total,
+            Items = pagedItems,
+            TotalCount = totalCount,
             CurrentPage = page,
             PageSize = effectivePageSize,
             StatusFilter = statusFilter,
@@ -61,7 +93,7 @@ public class WarehousePickingController : Controller
                 CurrentPage = page,
                 PageSize = effectivePageSize,
                 PageSizeRaw = rawPageSize,
-                TotalCount = total
+                TotalCount = totalCount
             }
         };
         return View(vm);
