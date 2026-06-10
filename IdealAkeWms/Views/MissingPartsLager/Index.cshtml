@@ -57,15 +57,15 @@
         <thead>
             <tr>
                 <th data-col-key="RequisitionId">Bestell-ID</th>
-                <th data-col-key="WorkplaceName">Werkbank</th>
-                <th data-col-key="ArticleNumber">Artikel-Nr</th>
-                <th data-col-key="ArticleDescription">Bezeichnung</th>
+                <th data-filterable data-col-key="WorkplaceName">Werkbank</th>
+                <th data-filterable data-col-key="ArticleNumber">Artikel-Nr</th>
+                <th data-filterable data-col-key="ArticleDescription">Bezeichnung</th>
                 <th data-col-key="QuantityRequested">Soll</th>
                 <th data-col-key="QuantityPicked">Geliefert</th>
                 <th data-col-key="QuantityMissing">Fehlt</th>
                 <th data-col-key="StorageLocations">Lagerplatz (Bestand)</th>
-                <th data-col-key="NoteLager">Notiz Lager</th>
-                <th data-col-key="NoteEinkauf">Notiz EK</th>
+                <th data-filterable data-col-key="NoteLager">Notiz Lager</th>
+                <th data-filterable data-col-key="NoteEinkauf">Notiz EK</th>
                 <th data-col-key="CreatedBy">Erfasst von</th>
                 <th data-col-key="ClosedAt">Abgeschlossen am</th>
             </tr>
@@ -93,3 +93,8 @@
 </div>
 
 <partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

@@ -60,7 +60,7 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-sm filterable-table" data-server-column-filter="true">
+        <table class="table table-sm filterable-table" data-server-column-filter="true" data-view-key="WarehouseRequisitions">
             <thead>
                 <tr>
                     <th data-filterable data-col-key="id">#</th>
@@ -99,4 +99,9 @@ else
     </div>
 
     <partial name="_Pagination" model="Model.Pagination" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }
