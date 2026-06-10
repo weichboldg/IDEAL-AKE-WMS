@@ -19,15 +19,15 @@
 }
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="ProductionWorkplaces">
         <thead>
             <tr>
-                <th>Bezeichnung</th>
-                <th>Halle</th>
-                <th>BDE</th>
-                <th>Benutzer</th>
-                <th>Abw. Vorkommissioniertage</th>
-                <th style="width: 100px;"></th>
+                <th data-filterable data-col-key="name">Bezeichnung</th>
+                <th data-filterable data-col-key="hall">Halle</th>
+                <th data-filterable data-col-key="bde">BDE</th>
+                <th data-filterable data-col-key="users">Benutzer</th>
+                <th data-filterable data-col-key="pre-picking-days">Abw. Vorkommissioniertage</th>
+                <th data-col-key="actions" style="width: 100px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -88,4 +88,9 @@
 @if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
 {
     <partial name="_Pagination" model="paginationState" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

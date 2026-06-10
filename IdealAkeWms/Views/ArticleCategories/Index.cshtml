@@ -24,14 +24,14 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-striped mb-0">
+                    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="ArticleCategories">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Beschreibung</th>
-                                <th style="width: 100px;">Quelle</th>
-                                <th style="width: 80px;" class="text-center">Artikel</th>
-                                <th style="width: 140px;"></th>
+                                <th data-filterable data-col-key="name">Name</th>
+                                <th data-filterable data-col-key="description">Beschreibung</th>
+                                <th data-filterable data-col-key="source" style="width: 100px;">Quelle</th>
+                                <th data-filterable data-col-key="article-count" style="width: 80px;" class="text-center">Artikel</th>
+                                <th data-col-key="actions" style="width: 140px;"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -129,3 +129,8 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

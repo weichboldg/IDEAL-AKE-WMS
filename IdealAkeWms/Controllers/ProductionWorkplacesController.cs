@@ -32,6 +32,25 @@ public class ProductionWorkplacesController : Controller
         _ctx = ctx;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (BDE-Badge "Aktiv"/"Inaktiv", Benutzer als Anzahl + Namen-Liste bzw. Gedankenstrich,
+    /// Vorkommissioniertage als "X Tage"-Badge bzw. "Standard").
+    /// </summary>
+    private static readonly Dictionary<string, Func<ProductionWorkplace, string?>> ColumnMap = new()
+    {
+        ["name"] = wp => wp.Name,
+        ["hall"] = wp => wp.Hall,
+        ["bde"] = wp => wp.BdeAktiv ? "Aktiv" : "Inaktiv",
+        ["users"] = wp => wp.ProductionWorkplaceUsers.Any()
+            ? $"{wp.ProductionWorkplaceUsers.Count} {string.Join(", ", wp.ProductionWorkplaceUsers.Select(wu => wu.User.Name))}"
+            : "—",
+        ["pre-picking-days"] = wp => wp.OverridePrePickingDays.HasValue
+            ? $"{wp.OverridePrePickingDays} Tage"
+            : "Standard",
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -40,7 +59,11 @@ public class ProductionWorkplacesController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var workplaces = await _repository.GetAllWithUsersOrderedAsync();
-        var list = workplaces.ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var list = ColumnFilterHelper.Apply(workplaces, columnFilters, ColumnMap).ToList();
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,
