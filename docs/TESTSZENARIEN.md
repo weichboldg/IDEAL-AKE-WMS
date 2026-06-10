@@ -4084,5 +4084,114 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 
 ---
 
-*Ende des Dokuments. Stand: v1.20.0 (2026-06-08)*
+## Kapitel 36: Universal-Filter-Rollout (v1.21.0)
+
+Alle Tabellen-Listen sind ab v1.21.0 spaltenfilterbar; Filter wirken ueber den
+Gesamtbestand (alle Seiten), nicht nur die aktuell angezeigte Seite.
+
+### 36.1 Spaltenfilter ueber mehrere Seiten (Beispiel: Benutzer-Liste)
+
+**Vorbedingungen:** Mind. 60 Benutzer in der DB (mehr als 2 Seiten bei
+PageSize 25). Ein eindeutig benannter Benutzer (z.B. Username "zztest")
+der bei alphabetischer/Default-Sortierung auf Seite 3 landet.
+
+**Schritte:**
+1. Als admin `/Users` oeffnen, PageSize 25
+2. Pruefen: "zztest" ist auf Seite 1 NICHT sichtbar
+3. In der Filter-Zeile unter dem Spaltenkopf "Benutzername" `zztest` eintippen
+4. 500ms warten → URL wechselt zu `?colf_username=zztest` (Col-Key je nach View)
+5. Pruefen: "zztest" wird angezeigt, obwohl er ohne Filter auf Seite 3 laege
+6. Pruefen: Pagination zeigt die gefilterte Gesamtanzahl (z.B. "1 Eintrag"), Seite 1
+
+**Erwartet:** Der Filter durchsucht ALLE Eintraege, nicht nur die aktuelle
+Seite. Pagination-Count entspricht der gefilterten Menge.
+
+### 36.2 KW-Datumsfilter Kommissionierung
+
+**Vorbedingungen:** `/Picking` mit mind. 2 freigegebenen Auftraegen, deren
+Komm.-Termine in verschiedenen Kalenderwochen liegen (mind. einer in einer
+zukuenftigen KW).
+
+**Schritte:**
+1. Kommissionierung oeffnen
+2. Auf den Kalender-Button neben der Komm.-Termin-Spalte klicken
+3. Eine zukuenftige KW (Jahr + Woche) im Picker waehlen
+4. Pruefen: URL enthaelt `?colf_picking-date=KWxx`, nur Auftraege dieser KW sichtbar
+5. "Filter entfernen" klicken → alle Auftraege wieder sichtbar
+6. Manuell `kw25` (Beispiel, lowercase) in das Filter-Feld tippen
+7. Pruefen: gleiches Ergebnis wie ueber den Picker
+8. Manuell ein konkretes Datum `10.06.2026` tippen → nur Auftraege mit diesem Termin
+
+**Erwartet:** Picker UND manuelle Eingabe filtern identisch. Termine werden
+vor Filter/Pagination fuer alle Auftraege berechnet — auch Treffer auf
+hinteren Seiten werden gefunden.
+
+### 36.3 OR/NOT-Filter-Syntax
+
+**Vorbedingungen:** Beliebige server-gefilterte Liste (z.B. Artikel) mit
+Eintraegen der Artikelgruppen 960 und 886 sowie weiteren Gruppen.
+
+**Schritte:**
+1. Artikel-Liste oeffnen
+2. Spaltenfilter Artikelgruppe: `960,886` eintragen
+3. Pruefen: nur Eintraege mit 960 ODER 886 sichtbar
+4. Filter aendern auf `!960`
+5. Pruefen: alle Eintraege AUSSER 960 sichtbar
+6. Filter aendern auf `!960,886`
+7. Pruefen: alle Eintraege ausser 960 und 886 sichtbar
+
+**Erwartet:** OR via Komma, NOT via `!` — identisches Verhalten in allen
+Listen (Server- und Client-Modus).
+
+### 36.4 BDE-Buchungsliste: Filter + Pagination-Count konsistent
+
+**Vorbedingungen:** Mind. 30 BDE-Buchungen in der Historie (mehr als 1 Seite),
+davon nur wenige (z.B. 3) von einem bestimmten Operator.
+
+**Schritte:**
+1. Als bde_shiftlead `/BdeBookings` oeffnen
+2. Spaltenfilter Mitarbeiter: Operator-Namen eintragen
+3. Pruefen: nur Buchungen dieses Operators sichtbar
+4. Pruefen: Pagination zeigt den korrekten gefilterten Count (z.B. "3 Eintraege")
+5. Pruefen: KEINE Phantom-Seiten — Seite 2 existiert nicht, wenn nur 3 Treffer
+6. Filter loeschen → voller Count + alle Seiten wieder da
+
+**Erwartet:** Query und Count filtern identisch (SQL-Level). Kein
+Auseinanderlaufen von angezeigten Zeilen und Seitenzahl.
+
+### 36.5 BDE-Stammdaten: Filter pro Tab
+
+**Vorbedingungen:** BDE-Stammdaten mit mehreren Operatoren, Aktivitaeten und
+Terminals.
+
+**Schritte:**
+1. Als bde_shiftlead `/BdeMasterData` oeffnen (Tab "Mitarbeiter")
+2. Spaltenfilter Name: einen Operator-Namen eintragen → Liste filtert
+3. Auf Tab "Aktivitaeten" wechseln (`?tab=activities`)
+4. Pruefen: Aktivitaeten-Liste ist UNGEFILTERT (Filter vom Mitarbeiter-Tab
+   wirkt nicht hinueber)
+5. Im Aktivitaeten-Tab eigenen Filter setzen → nur Aktivitaeten filtern
+6. Zurueck auf Tab "Mitarbeiter" → Filter dort ist zurueckgesetzt
+
+**Erwartet:** Jeder Tab hat eigenen view-key und eigene Filter. Tab-Wechsel
+resettet die Filter des vorherigen Tabs.
+
+### 36.6 Negativtest: Filter ohne Treffer
+
+**Vorbedingungen:** Beliebige server-gefilterte Liste mit Eintraegen.
+
+**Schritte:**
+1. Liste oeffnen (z.B. `/Users`)
+2. Spaltenfilter mit Unsinns-Wert fuellen (z.B. `xyznichtvorhanden`)
+3. Pruefen: Tabelle zeigt keine Datenzeilen
+4. Pruefen: Pagination zeigt 0 Eintraege / keine Seiten-Links, kein JS-Fehler
+   in der Konsole
+5. Filter loeschen → Liste ist wieder vollstaendig
+
+**Erwartet:** Leere Liste + korrekte 0-Anzeige, kein Fehler, Filter-Reset
+stellt den Ausgangszustand wieder her.
+
+---
+
+*Ende des Dokuments. Stand: v1.21.0 (2026-06-10)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

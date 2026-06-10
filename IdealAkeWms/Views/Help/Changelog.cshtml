@@ -9,6 +9,40 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.21.0</strong> <span class="text-white-50 ms-2">10.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Universal-Filter-Rollout</h6>
+                <ul>
+                    <li><strong>Alle Listen-Ansichten haben jetzt Spaltenfilter:</strong> Jede
+                        Tabellen-Liste in der Anwendung kann ueber die Filter-Zeile unter den
+                        Spaltenkoepfen gefiltert werden.</li>
+                    <li><strong>Filter wirken ueber alle Eintraege:</strong> Spaltenfilter
+                        durchsuchen den Gesamtbestand, nicht nur die aktuell angezeigte Seite.
+                        Ein Eintrag auf Seite 3 wird per Filter auch auf Seite 1 gefunden.</li>
+                    <li><strong>Neu filterbar:</strong> Benutzer, Rollen, Arbeitsplaetze,
+                        Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger,
+                        BDE-Stammdaten (alle 3 Tabs) und Arbeitsplatz-Tracking — diese Listen
+                        hatten bisher keinen Spaltenfilter.</li>
+                    <li><strong>Bestehende Listen filtern jetzt server-seitig:</strong>
+                        Lagerbestellungen, Eingehende Listen (Lager), Kommissionierung,
+                        Bedarfsmeldungen, Lagerplaetze und BDE-Buchungen filterten bisher nur
+                        die aktuelle Seite — jetzt ueber den Gesamtbestand.</li>
+                    <li><strong>Kommissionierung mit KW-Datumsfilter:</strong> Die
+                        Komm.-Termin-Spalte kann per Kalender-Picker oder manueller Eingabe
+                        (z.B. <code>KW24</code> oder <code>10.06.2026</code>) gefiltert
+                        werden.</li>
+                    <li><strong>BDE-Buchungsliste filtert auf SQL-Ebene:</strong> Die Filter
+                        laufen direkt in der Datenbank-Query — performant auch bei grosser
+                        Buchungs-Historie.</li>
+                    <li><strong>Filter-Syntax ueberall identisch:</strong> ODER mit Komma
+                        (<code>a,b</code>), Ausschluss mit Rufzeichen (<code>!a</code>).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.20.0</strong> <span class="text-white-50 ms-2">08.06.2026</span>
             </div>
             <div class="card-body">

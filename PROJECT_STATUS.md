@@ -26,6 +26,23 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 
 ---
 
+### v1.21.0 (2026-06-10) — Universal-Filter-Rollout
+
+- JEDE Tabellen-Liste ist jetzt spaltenfilterbar; Filter wirken ueber ALLE
+  Eintraege/Seiten (nicht nur die aktuelle Seite)
+- Bestehende Listen auf Server-Side-Filter umgestellt: WarehousePicking,
+  WarehouseRequisitions, Picking (inkl. KW-Datumsfilter), PartRequisitions,
+  StorageLocations, BdeBookings (SQL-Level: GetHistoryAsync + GetHistoryCountAsync
+  filtern identisch via Expression-Trees)
+- Neu filterbar (vorher kein Filter): Users, Roles, Workstations,
+  ProductionWorkplaces, ArticleCategories, ArticleAttributes, OrderRecipients,
+  BdeMasterData (3 Tabs mit eigenen view-keys), Tracking/ByWorkplace (Client-Filter)
+- Filter-Mini-Syntax ueberall identisch: OR via `,`, NOT via `!`
+- ColumnMap-Pattern: Getter liefern den gerenderten Zellentext, Apply vor
+  Pagination, TotalCount aus gefilterter Menge
+- CLAUDE.md: Spaltenfilter-Pflicht fuer alle Tabellen-Views verankert,
+  TESTSZENARIEN Kapitel 36 ergaenzt
+
 ### v1.20.0 (2026-06-08) — Feingranulare Berechtigungen
 
 - Read/Edit-Split in allen 10 Stammdaten-Sichten via neuer Rolle `masterdata_read`
@@ -300,8 +317,8 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | OSEON-Tracking Lazy-Load + iOS-Tauglichkeit | Fertig (v1.16.0) |
 
 ## Version
-- **Web-App**: v1.16.0 (28.05.2026)
-- **Service**: v1.15.3 (27.05.2026)
+- **Web-App**: v1.21.0 (10.06.2026)
+- **Service**: v1.21.0 (10.06.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.
