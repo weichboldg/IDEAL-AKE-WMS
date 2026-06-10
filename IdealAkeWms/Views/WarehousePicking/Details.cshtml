@@ -238,12 +238,16 @@
                 const restock = tr.querySelector('.shortage-radio-restock');
                 const norestock = tr.querySelector('.shortage-radio-norestock');
                 const hidden = tr.querySelector('.shortage-hidden');
+                const itemIdInput = tr.querySelector('input[name="itemIds"]');
+                const itemId = itemIdInput ? itemIdInput.value : '?';
+                console.log('[SHORTAGE-DEBUG] click on radio classList=' + r.classList + ' itemId=' + itemId + ' wasChecked=' + wasChecked + ' restock.checked=' + restock.checked + ' norestock.checked=' + norestock.checked);
                 if (wasChecked) {
                     r.checked = false;
                     hidden.value = '0';
                 } else {
                     hidden.value = norestock.checked ? '2' : (restock.checked ? '1' : '0');
                 }
+                console.log('[SHORTAGE-DEBUG] hidden.value set to ' + hidden.value + ' for itemId=' + itemId);
                 dirty = true;
             });
         });
@@ -344,6 +348,12 @@
     async function performPrintAndClose() {
         const printTab = window.open('about:blank', '_blank');
         const body = new FormData(form);
+        // DEBUG: dump itemIds + shortageStatuses to console
+        try {
+            console.log('[SUBMIT-DEBUG] itemIds=', body.getAll('itemIds'));
+            console.log('[SUBMIT-DEBUG] quantitiesPicked=', body.getAll('quantitiesPicked'));
+            console.log('[SUBMIT-DEBUG] shortageStatuses=', body.getAll('shortageStatuses'));
+        } catch (e) { console.error('[SUBMIT-DEBUG] dump error:', e); }
         try {
             const resp = await fetch(printAndCloseUrl, { method: 'POST', body });
             if (!resp.ok) {
