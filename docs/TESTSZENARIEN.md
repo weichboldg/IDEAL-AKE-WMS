@@ -4017,5 +4017,72 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 
 ---
 
+## Kapitel 35: v1.20.0-Bugfixes (Post-Initial-Release)
+
+### 35.1 Lagerbestellung — Kein Default-Fehlteil bei Ist=0
+
+**Vorbedingungen:** Lagerbestellung mit mind. 2 Positionen, beide Ist-Mengen leer.
+
+**Schritte:**
+1. Bestellung oeffnen
+2. Keine Ist-Mengen eintragen
+3. Pruefen: beide "Fehlteil"-Radios sind unchecked (nicht vorausgewaehlt)
+4. Eine Ist-Menge mit Soll-Wert ausfuellen
+5. Pruefen: Radios in dieser Zeile werden ausgegraut (shortage=false)
+6. Ist-Menge wieder auf 0 setzen
+7. Pruefen: Radios werden wieder aktiv, aber unchecked (keine Auto-Default)
+
+**Erwartet:** User muss bewusst Fehlteil-Status setzen.
+
+### 35.2 Lagerbestellung — Submit mit gemischten Mengen + Status
+
+**Vorbedingungen:** Lagerbestellung mit 3 Positionen.
+
+**Schritte:**
+1. Bestellung oeffnen
+2. Pos 1: "Fehlteil" klicken, Ist leer
+3. Pos 2: "Wird nicht nachgeliefert" klicken, Ist leer
+4. Pos 3: nichts klicken, Ist leer
+5. "Speichern + Abschliessen" → Modal "soll=ist?" → Ja
+6. DB pruefen via SQL: `SELECT Id, ArticleNumber, QuantityPicked, ShortageStatus FROM WarehouseRequisitionItems WHERE WarehouseRequisitionId = <ID>`
+
+**Erwartet:**
+- Pos 1: QuantityPicked=0, ShortageStatus=1 (WillBeRestocked)
+- Pos 2: QuantityPicked=0, ShortageStatus=2 (NoRestock)
+- Pos 3: QuantityPicked=1, ShortageStatus=0 (None)
+- Order-Status: PartiallyDelivered
+
+### 35.3 Leitstand — Datums-Filter via Kalender-Picker
+
+**Vorbedingungen:** PickingLeitstand-Liste mit mind. 2 FAs mit verschiedenen Komm.-Terminen.
+
+**Schritte:**
+1. Leitstand oeffnen
+2. Auf den Kalender-Button neben "Komm." klicken
+3. Eine KW oder ein Datum waehlen
+4. Pruefen: URL aendert sich zu `?colf_picking-date=...`
+5. Pruefen: nur passende FAs werden angezeigt
+6. "Filter entfernen" im Picker klicken
+7. Pruefen: URL ohne colf_picking-date, alle FAs sichtbar
+
+**Erwartet:** Kalender-Picker-Filter triggert URL-Navigation.
+
+### 35.4 Leitstand — Kombinierte Filter
+
+**Vorbedingungen:** mind. 1 FA mit Bezeichnung1 enthaelt "green" UND Komm.-Termin in KW24 (Beispiel).
+
+**Schritte:**
+1. Leitstand oeffnen
+2. Filter Bezeichnung1 = "green" eintragen
+3. 500ms warten → URL `?colf_description1=green`
+4. Filter Komm. = "KW24" eintragen (oder Kalender-Picker)
+5. 500ms warten → URL `?colf_description1=green&colf_picking-date=KW24`
+6. Pruefen: nur FAs die BEIDE Kriterien erfuellen sind sichtbar
+7. Reihenfolge umkehren: Erst KW24, dann green — gleiches Ergebnis erwartet
+
+**Erwartet:** Reihenfolge der Filter-Eingabe ist egal. Beide Filter sind aktiv.
+
+---
+
 *Ende des Dokuments. Stand: v1.20.0 (2026-06-08)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -37,6 +37,13 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
   `CanProcessLagerAsync`
 - 2 neue Filter-Attribute: `[RequireMasterDataReadAccess]`, `[RequireLagerProcessingAccess]`
 
+**v1.20.0 Bugfixes (Post-Initial-Release):**
+- Articles + StorageLocations bekommen auch den Read/Edit-Split (Scope-Gap)
+- Admin-Only-Block: Benutzer/Rollen/Arbeitsplaetze/Einstellungen/Aktivitaets-Protokoll/Schichtkalender nur fuer admin
+- Lagerbestellungen Detail-View: kein Default-Fehlteil bei Ist=0, Auto-Clear bei voller Lieferung
+- Filter-Bugs in Server-Side-Listen behoben (Date-Picker, applyFilters-Redundanz)
+- WarehousePicking Submit-Bug behoben: leere int[] verloren Index-Mapping (Model-Binder skippt empty strings)
+
 ### v1.19.0 — Lagerbestellungen: 3-State + 2-Tab Fehlteile
 
 Hintergrund: v1.18.0 fuehrte einen einzelnen `IsFinalShortage`-Bool-Flag ein.

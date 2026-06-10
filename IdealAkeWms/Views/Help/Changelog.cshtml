@@ -43,6 +43,25 @@
                         admin-Rolle sichtbar/zugaenglich (nicht mehr fuer masterdata). masterdata bleibt
                         fuer die operativen Stammdaten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien,
                         Artikelmerkmale, Empfaenger).</li>
+                    <li><strong>Lagerbestellungen Detail-View — UX-Fixes:</strong>
+                        Beim Klick auf "Fehlteil" wird der Status nicht mehr automatisch
+                        vorausgewaehlt, wenn die Ist-Menge 0 ist. Der Lager-Mitarbeiter muss
+                        bewusst zwischen "Fehlteil" und "Wird nicht nachgeliefert" waehlen.
+                        Wenn die volle Menge geliefert wird, wird ein vorher gesetzter
+                        Fehlteil-Status automatisch entfernt.</li>
+                    <li><strong>Filter-Bugs in Listen-Views behoben:</strong>
+                        (a) Im Server-Side-Filter-Modus (FA-Liste, Leitstand, etc.) lief
+                        nach dem Filter-Reload eine redundante client-seitige Filterung mit,
+                        was bei kombinierten Filtern zu falschen Ergebnissen fuehrte.
+                        (b) Der Kalender-Picker fuer Datumsspalten setzte den Filter-Wert
+                        programmatisch, was kein input-Event ausloeste — Folge: die URL-
+                        Navigation lief nicht. Beide Bugs behoben.</li>
+                    <li><strong>Lagerbestellungen Submit-Bug behoben:</strong> beim
+                        "Speichern + Abschliessen" mit leeren Ist-Mengen wurden die Werte
+                        falsch zugeordnet (off-by-N). Ursache: ASP.NET-Model-Binder fuer
+                        int[] skippt leere Strings, sodass die Array-Indices zwischen
+                        itemIds und quantitiesPicked verschoben wurden. Fix: leere
+                        Mengen werden jetzt als "0" gesendet.</li>
                 </ul>
             </div>
         </div>
