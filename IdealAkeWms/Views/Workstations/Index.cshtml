@@ -19,15 +19,15 @@
 }
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="Workstations">
         <thead>
             <tr>
-                <th>Bezeichnung</th>
-                <th>Standort</th>
-                <th>Standard-Drucker</th>
-                <th>Standard-Benutzer</th>
-                <th>Zugeordnete Benutzer</th>
-                <th style="width: 100px;"></th>
+                <th data-filterable data-col-key="name">Bezeichnung</th>
+                <th data-filterable data-col-key="location">Standort</th>
+                <th data-filterable data-col-key="default-printer">Standard-Drucker</th>
+                <th data-filterable data-col-key="default-user">Standard-Benutzer</th>
+                <th data-filterable data-col-key="users">Zugeordnete Benutzer</th>
+                <th data-col-key="actions" style="width: 100px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -65,4 +65,9 @@
 @if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
 {
     <partial name="_Pagination" model="paginationState" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

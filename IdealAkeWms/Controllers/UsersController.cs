@@ -30,6 +30,21 @@ public class UsersController : Controller
         _viewPreferenceRepository = viewPreferenceRepository;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Rollen als Namen-Liste in SortOrder, Status-Badge "Aktiv"/"Inaktiv", Datum im View-Format).
+    /// </summary>
+    private static readonly Dictionary<string, Func<User, string?>> ColumnMap = new()
+    {
+        ["name"] = u => u.Name,
+        ["personal-number"] = u => u.PersonalNumber,
+        ["roles"] = u => string.Join(", ", u.UserRoles.OrderBy(ur => ur.Role.SortOrder).Select(ur => ur.Role.Name)),
+        ["email"] = u => u.Email,
+        ["status"] = u => u.IsActive ? "Aktiv" : "Inaktiv",
+        ["created-at"] = u => u.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -38,7 +53,13 @@ public class UsersController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var users = await _userRepository.GetAllWithRolesAsync();
-        var ordered = users.OrderBy(u => u.Name).ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var ordered = ColumnFilterHelper.Apply(users, columnFilters, ColumnMap)
+            .OrderBy(u => u.Name)
+            .ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {

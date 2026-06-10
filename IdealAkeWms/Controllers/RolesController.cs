@@ -21,6 +21,19 @@ public class RolesController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Name inkl. "System"-Badge-Text bei Systemrollen, Benutzer-Anzahl als Zahl).
+    /// </summary>
+    private static readonly Dictionary<string, Func<RoleEditViewModel, string?>> ColumnMap = new()
+    {
+        ["name"] = r => r.IsSystem ? $"{r.Name} System" : r.Name,
+        ["key"] = r => r.Key,
+        ["ad-group"] = r => r.AdGroup,
+        ["user-count"] = r => r.UserCount.ToString(),
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -29,7 +42,7 @@ public class RolesController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var roles = await _roleRepository.GetAllOrderedAsync();
-        var viewModels = roles.Select(r => new RoleEditViewModel
+        var allViewModels = roles.Select(r => new RoleEditViewModel
         {
             Id = r.Id,
             Key = r.Key,
@@ -39,7 +52,12 @@ public class RolesController : Controller
             SortOrder = r.SortOrder,
             IsSystem = r.IsSystem,
             UserCount = r.UserRoles.Count
-        }).ToList();
+        });
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var viewModels = ColumnFilterHelper.Apply(allViewModels, columnFilters, ColumnMap).ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
