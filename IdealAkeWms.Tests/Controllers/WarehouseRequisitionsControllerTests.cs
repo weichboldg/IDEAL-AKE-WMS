@@ -309,4 +309,31 @@ public class WarehouseRequisitionsControllerTests
         vm.MissingPartsNoRestockItemCount.Should().Be(1);
         vm.MissingPartsNoRestockRequisitionCount.Should().Be(1, "selbe Bestellung zaehlt auch fuer NoRestock");
     }
+
+    [Fact]
+    public async Task Index_ColumnFilter_FiltersAcrossAllRows()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wpA = new ProductionWorkplace { Name = "WB-A1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpB = new ProductionWorkplace { Name = "WB-B2", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpC = new ProductionWorkplace { Name = "WB-C3", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.AddRange(wpA, wpB, wpC); ctx.SaveChanges();
+
+        ctx.WarehouseRequisitions.AddRange(
+            new WarehouseRequisition { ProductionWorkplaceId = wpA.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t" },
+            new WarehouseRequisition { ProductionWorkplaceId = wpB.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t" },
+            new WarehouseRequisition { ProductionWorkplaceId = wpC.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t" });
+        await ctx.SaveChangesAsync();
+
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_workplace=A1");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index() as ViewResult;
+
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm!.Items.Should().HaveCount(1);
+        vm.Items[0].WorkplaceName.Should().Be("WB-A1");
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
 }

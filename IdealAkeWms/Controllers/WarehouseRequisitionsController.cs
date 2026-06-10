@@ -26,6 +26,29 @@ public class WarehouseRequisitionsController : Controller
         _repo = repo; _workplaces = workplaces; _groups = groups; _user = user; _settings = settings;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (deutsche Status-Badge-Texte, Datum im View-Format, "—" fuer leer).
+    /// </summary>
+    private static readonly Dictionary<string, Func<WarehouseRequisitionListItemViewModel, string?>> ColumnMap = new()
+    {
+        ["id"] = r => r.Id.ToString(),
+        ["workplace"] = r => r.WorkplaceName,
+        ["items"] = r => r.ItemCount.ToString(),
+        ["status"] = r => r.Status switch
+        {
+            WarehouseRequisitionStatus.Draft => "Entwurf",
+            WarehouseRequisitionStatus.Submitted => "Abgeschickt",
+            WarehouseRequisitionStatus.PartiallyDelivered => "Teilgeliefert",
+            WarehouseRequisitionStatus.Closed => "Erledigt",
+            WarehouseRequisitionStatus.Cancelled => "Storniert",
+            _ => r.Status.ToString()
+        },
+        ["created"] = r => r.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
+        ["submitted"] = r => r.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—",
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -40,22 +63,28 @@ public class WarehouseRequisitionsController : Controller
         var ownOnly = all.Where(r => r.CreatedByUserId == userId
             || (r.CreatedByUserId == null && r.CreatedBy == displayName)).ToList();
 
-        var totalCount = ownOnly.Count;
-        var paged = ownOnly.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+        // Server-Side-Spaltenfilter: ALLE Rows -> ViewModel -> filtern -> zaehlen -> paginieren.
+        // (Filter muss ueber alle Eintraege wirken, nicht nur die aktuelle Seite.)
+        var allItems = ownOnly.Select(r => new WarehouseRequisitionListItemViewModel(
+            r.Id,
+            r.ProductionWorkplace?.Name ?? "",
+            r.CreatedBy,
+            r.CreatedAt,
+            r.SubmittedAt,
+            r.Items.Count,
+            r.Status)).ToList();
+
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
+        var totalCount = filtered.Count;
+        var paged = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 
         var (missingItemCount, missingReqCount, missingNoRestockItemCount, missingNoRestockReqCount) =
             await _repo.GetShortageCountsForUserAsync(userId);
 
         var vm = new WarehouseRequisitionListViewModel
         {
-            Items = paged.Select(r => new WarehouseRequisitionListItemViewModel(
-                r.Id,
-                r.ProductionWorkplace?.Name ?? "",
-                r.CreatedBy,
-                r.CreatedAt,
-                r.SubmittedAt,
-                r.Items.Count,
-                r.Status)).ToList(),
+            Items = paged,
             AvailableWorkplaces = await _workplaces.GetByUserIdAsync(userId),
             Pagination = new PaginationState
             {
