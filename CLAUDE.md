@@ -51,7 +51,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
   - **Datumsspalten**: Falls vorhanden, server-seitig in C# nach Termin-Berechnung filtern (Format `dd.MM.yyyy KWxx` lowercase), nicht in SQL.
   - **Layout-Konsistenz**: `<h2 class="page-header">`, TempData-Alerts (Success/Warning), `<div class="table-responsive">` um die Tabelle, Page-Header-Buttons via `d-flex justify-content-between flex-wrap gap-2`.
   - **Reference-Implementierungen**: [ProductionOrdersController.Index](IdealAkeWms/Controllers/ProductionOrdersController.cs) + [Views/ProductionOrders/Index.cshtml](IdealAkeWms/Views/ProductionOrders/Index.cshtml) (mit Datumsfilter), [StockOverviewController](IdealAkeWms/Controllers/StockOverviewController.cs) (einfacher Fall).
-  - **Ausnahmen** (begruendet): Konfig-/Dashboard-/Terminal-Views ohne echte Datenliste (Home, Help, Settings, ServiceSettings, BdeCockpit, BdeShiftCalendar, BdeTerminal). BOM-Tree (hierarchische Spezialdarstellung).
+  - **Ausnahmen** (begruendet): Konfig-/Dashboard-/Terminal-Views ohne echte Datenliste (Home, Help, Settings, ServiceSettings, BdeCockpit, BdeShiftCalendar, BdeTerminal). BOM-Tree (hierarchische Spezialdarstellung). Tracking/Index (alte WMS-Teileverfolgung): hierarchische Gruppen-+Detail-Rows mit colspan — `data-filterable` wuerde den Client-Sort aktivieren, der Detail-Rows von ihren Gruppen trennt; kein Spaltenfilter solange die Struktur nicht flach ist.
 
 ## Architektur
 
