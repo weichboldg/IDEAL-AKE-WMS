@@ -78,8 +78,8 @@ private static readonly Dictionary<string, Func<User, string?>> ColumnMap = new(
 
 `BdeBookings` waechst unbegrenzt (jede Buchung bleibt historisch). In-Memory-Laden aller Buchungen skaliert nicht.
 
-- `BdeBookingRepository.GetPagedAsync(...)` (bzw. die bestehende Listing-Methode) bekommt einen `IReadOnlyDictionary<string, string>? columnFilters`-Parameter
-- EF-LIKE-Chains nach dem Pattern `ProductionOrderRepository.ApplyLeitstandColumnFilter` (Token → `%token%`, `patterns.Any(p => EF.Functions.Like(...))`, negate-Pfad)
+- `BdeBookingRepository.GetHistoryAsync(skip, take, ...)` UND `GetHistoryCountAsync(...)` bekommen beide einen `IReadOnlyDictionary<string, string>? columnFilters`-Parameter — der Count MUSS identisch filtern (siehe Fallstrick 9.1)
+- Filter-Implementierung mit dem **Expression-Tree-Pattern** aus `WarehouseRequisitionRepository` (`BuildOrContains`/`BuildNullableOrContains`) statt `EF.Functions.Like` — InMemory-Test-kompatibel (siehe Fallstrick 9.5)
 - Datumsspalten (Start/Ende der Buchung): werden nach etabliertem Pattern serverseitig in C# gegen das gerenderte Format gematcht (der Plan ermittelt das exakte Render-Format der BdeBookings-Timestamps, z.B. `dd.MM.yyyy HH:mm`). Wenn ein Datums-Filter aktiv ist: alle SQL-text-gefilterten Rows materialisieren, in C# datums-filtern, dann paginieren (Pattern aus PickingLeitstandController).
 
 ### 4.3 Sonderfall Tracking/ByWorkplace: Client-Filter
@@ -164,7 +164,33 @@ Stichproben-Drehbuch:
 - `PROJECT_STATUS.md`: Fortschritts-Notiz
 - `docs/TESTSZENARIEN.md`: neues Kapitel (Sektion 7.3)
 
-## 9. Architecture Decision Record (Kurz)
+## 9. Bekannte Fallstricke (aus Pre-Spec-Codebase-Check, 2026-06-10)
+
+### 9.1 KRITISCH: Filter-Count muss mitgefiltert werden (BdeBookings)
+`BdeBookingsController` nutzt `GetHistoryAsync(skip, take, ...)` + **separates** `GetHistoryCountAsync(...)`. Beide Methoden muessen den `columnFilters`-Parameter bekommen und identisch anwenden — sonst stimmt die Seitenzahl nicht (Filter wirkt in der Liste, aber der Count zaehlt ungefiltert → Phantom-Seiten).
+
+### 9.2 KRITISCH: Filter VOR Pagination, auf ViewModel-Ebene (Picking/Index)
+`PickingController.Index` berechnet Kommissionier-Termine (BusinessDayService) erst NACH dem Skip/Take — nur fuer die aktuelle Seite. Fuer den Termin-Spalten-Filter muss die Reihenfolge umgestellt werden: **alle Rows → ViewModel inkl. Termine bauen → filtern → paginieren**. Generelle Regel fuer alle Views: der Filter laeuft auf der gerenderten Repraesentation (ViewModel), nicht auf den Roh-Entities — sonst matcht der Filter nicht was der User sieht (z.B. formatierte Termine, Workplace-Namen aus Joins, Status-Badge-Texte).
+
+### 9.3 Single-Table-Limitation von table-filter.js + column-preferences.js
+Beide JS-Module initialisieren nur die ERSTE Tabelle pro Seite (`document.querySelector('.filterable-table')` bzw. `table[data-view-key]`). Alle 15 Ziel-Views haben zur Laufzeit nur 1 Tabelle im DOM — auch `BdeMasterData/Index` (3 Tabellen in 3 Tabs, aber Razor rendert per `@if (tab == ...)` nur den aktiven Tab). Die CLAUDE.md-Regel dokumentiert die Grenze: **maximal eine filterbare Tabelle pro gerenderter Seite**; mehrere Tabellen → server-seitige Tabs wie BdeMasterData.
+
+### 9.4 BdeMasterData: 3 Tabs = 3 ColumnMaps + 3 view-keys
+Pro Tab (operators/activities/terminals) eine eigene ColumnMap im Controller und ein eigener `data-view-key` (z.B. `BdeMasterDataOperators`), damit column-preferences und Filter-Restore nicht zwischen Tabs kollidieren. Der `?tab=`-Parameter bleibt bei Filter-Navigation erhalten (scheduleServerNavigate loescht nur `colf_*` + `page`).
+
+### 9.5 EF.Functions.Like vs. InMemory-Tests (BdeBookings-Repo)
+Der EF-InMemory-Provider hat Probleme mit `.Any(p => x.Contains(p))` auf lokalen Listen (bekannt aus dem MissingParts-Hotfix). Fuer die BdeBookings-SQL-Filter das getestete **Expression-Tree-Pattern** aus `WarehouseRequisitionRepository` (`BuildOrContains`/`BuildNullableOrContains`) verwenden statt `EF.Functions.Like` — damit laufen die Repo-Tests gegen InMemory zuverlaessig.
+
+### 9.6 In-Memory-Pagination schon vorhanden (gute Nachricht)
+Stichproben (Picking, StorageLocations, Users) zeigen: viele Controller laden bereits ALLE Rows und paginieren in C# (`.Skip().Take()` auf der Liste). Dort ist der Umbau minimal: `ColumnFilterHelper.Apply<T>` vor dem Skip/Take einschieben + totalCount aus der gefilterten Liste. Der Plan prueft pro Controller, ob SQL- oder C#-Pagination vorliegt.
+
+### 9.7 Tab-Wechsel reset Filter (akzeptiert)
+Tab-Links (`asp-route-tab`) tragen keine `colf_`-Parameter — beim Tab-Wechsel werden Spaltenfilter zurueckgesetzt. Das ist akzeptiertes Verhalten (frische Sicht pro Tab), kein Bug.
+
+### 9.8 SessionStorage-Reste (harmlos)
+Die 6 bisherigen Client-Filter-Views persistierten Filter in `sessionStorage` (`tableFilters:<viewKey>`). Nach Umstellung auf Server-Mode wird der Storage ignoriert (restore laeuft aus der URL); alte Eintraege bleiben liegen, stoeren aber nicht.
+
+## 10. Architecture Decision Record (Kurz)
 
 **Entscheidung:** Hybrid — in-memory `ColumnFilterHelper.Apply<T>` als Default fuer alle paginierten Listen, SQL-Level nur fuer BdeBookings, Client-Filter fuer unpaginierte Tabellen.
 
