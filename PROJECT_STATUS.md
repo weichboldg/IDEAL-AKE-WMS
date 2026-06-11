@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (v1.17.0 Artikel-Sync-Erweiterung)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-06-11**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1.21.1 FA-Abschliessen-Fix)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -25,6 +25,18 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
 
 ---
+
+### v1.21.1 (2026-06-11) — Bugfix: FA-Abschliessen wirkt wieder
+
+- `Picking/ToggleDone` schreibt seit v1.11 `PickingStatus.IsDonePicking`, aber
+  keine Query/View las das Flag — der Abschliessen-Klick war wirkungslos
+- Jetzt gilt ueberall "erledigt = IsDone || IsDonePicking":
+  `GetForLeitstandAsync` (Filter + Projektion), ViewModel-Mapping FA-Liste +
+  Leitstand, Picking-Worklist (`GetReleasedForPicking*`-Methoden)
+- Sage-`IsDone` wird weiterhin NICHT beschrieben (Sage-Sync wuerde es
+  ueberschreiben) — nur die Lese-Seite wurde gefixt
+- CLAUDE.md Fallstrick "IsDone vs IsDonePicking — Lese-Seite" ergaenzt,
+  TESTSZENARIEN Kapitel 37
 
 ### v1.21.0 (2026-06-10) — Universal-Filter-Rollout
 

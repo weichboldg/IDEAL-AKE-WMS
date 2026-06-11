@@ -4193,5 +4193,36 @@ stellt den Ausgangszustand wieder her.
 
 ---
 
-*Ende des Dokuments. Stand: v1.21.0 (2026-06-10)*
+## Kapitel 37: FA-Abschliessen (v1.21.1)
+
+Der "Abschliessen"-Button (Picking/ToggleDone) schreibt seit v1.11
+`PickingStatus.IsDonePicking` — bis v1.21.0 las aber keine Query/View das Flag,
+der Klick war wirkungslos. Ab v1.21.1 gilt ueberall
+"erledigt = IsDone || IsDonePicking" (FA-Liste, Leitstand, Komm.-Worklist).
+
+### 37.1 Abschliessen wirkt in Leitstand + Kommissionierungs-Worklist
+
+**Vorbedingungen:** Ein offener FA (Sage-`IsDone=false`, App-Status nicht
+abgeschlossen), der im Leitstand (`/PickingLeitstand`) in der Default-Ansicht
+sichtbar ist. Falls `LeitstandAktiv`: FA fuer Kommissionierung freigegeben,
+sodass er in der Kommissionierungs-Worklist (`/Picking`) erscheint.
+
+**Schritte:**
+1. Im Leitstand beim FA den "Abschliessen"-Button klicken
+2. Pruefen: Zeile verschwindet aus der Default-Ansicht (ohne "Erledigte anzeigen")
+3. "Erledigte anzeigen" aktivieren
+4. Pruefen: Zeile erscheint grau dargestellt mit Badge "Erledigt"
+5. Kommissionierung (`/Picking`) oeffnen
+6. Pruefen: FA ist NICHT mehr in der Worklist
+7. Zurueck im Leitstand (showDone-Modus aktiv) beim FA erneut "Abschliessen" klicken (Toggle)
+8. Pruefen: FA ist wieder offen (kein Badge, normale Darstellung) und erscheint
+   wieder in der Kommissionierungs-Worklist
+
+**Erwartet:** Der Abschliessen-Toggle wirkt sofort auf Erledigt-Anzeige und
+Filter in FA-Liste, Leitstand und Komm.-Worklist. Sage-`IsDone` bleibt
+unveraendert (wird nicht beschrieben).
+
+---
+
+*Ende des Dokuments. Stand: v1.21.1 (2026-06-11)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
