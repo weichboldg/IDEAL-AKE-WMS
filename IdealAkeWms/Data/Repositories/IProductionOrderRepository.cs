@@ -13,6 +13,7 @@ public record LeitstandOrderRow(
     DateTime? ProductionDate,
     DateTime? DeliveryDate,
     bool IsDone,
+    bool IsDonePicking,
     string? WorkplaceName);
 
 public record LeitstandOrderPage(List<LeitstandOrderRow> Rows, int TotalCount);
