@@ -119,6 +119,40 @@ public class ProductionOrderPickingStatusRepositoryTests
     }
 
     [Fact]
+    public async Task GetReleasedForPicking_ExcludesKommDoneOrders()
+    {
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-1",
+            releaseForPicking: true, isDonePicking: false);
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-2",
+            releaseForPicking: true, isDonePicking: true);
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.GetReleasedForPickingAsync();
+        var count = await repo.GetReleasedForPickingCountAsync();
+
+        result.Should().HaveCount(1);
+        result[0].OrderNumber.Should().Be("FA-1");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetReleasedForPickingByPicker_ExcludesKommDoneOrders()
+    {
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-1",
+            releaseForPicking: true, isDonePicking: false, assignedPickerId: 7);
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-2",
+            releaseForPicking: true, isDonePicking: true, assignedPickerId: 7);
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.GetReleasedForPickingByPickerAsync(7);
+
+        result.Should().HaveCount(1);
+        result[0].OrderNumber.Should().Be("FA-1");
+    }
+
+    [Fact]
     public async Task SetReleaseAsync_OnRelease_SetsAuditAndReleasedFields()
     {
         using var context = TestDbContextFactory.Create();
