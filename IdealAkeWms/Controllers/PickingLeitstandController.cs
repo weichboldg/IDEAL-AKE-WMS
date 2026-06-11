@@ -106,7 +106,7 @@ public class PickingLeitstandController : Controller
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
-                IsDone = o.IsDone,
+                IsDone = o.IsDone || o.IsDonePicking,
                 WorkplaceName = o.WorkplaceName,
                 PickingStatus = ps?.PickingStatus,
                 HasGlass = ps?.HasGlass ?? false,

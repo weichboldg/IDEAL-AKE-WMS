@@ -98,8 +98,8 @@ public class PickingLeitstandControllerTests
 
     // --- Index Tests ---
 
-    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null) =>
-        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, false, null);
+    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null, bool isDonePicking = false) =>
+        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, isDonePicking, null);
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);
@@ -176,6 +176,27 @@ public class PickingLeitstandControllerTests
         var vm = (PickingLeitstandViewModel)((ViewResult)result).Model!;
         vm.Items.Should().HaveCount(1);
         vm.Items.Single().OrderNumber.Should().Be("FA-OPEN");
+    }
+
+    [Fact]
+    public async Task Index_MapsIsDoneCombined_WhenIsDonePickingTrue()
+    {
+        // ToggleDone schreibt PickingStatus.IsDonePicking — die View bindet item.IsDone.
+        // Erwartung: ViewModel-IsDone = Sage-IsDone ODER App-IsDonePicking.
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100", isDone: false, isDonePicking: true)));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
+
+        var result = await _controller.Index(null, null, null, showDone: true, page: 1, pageSize: null);
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().IsDone.Should().BeTrue();
     }
 
     // --- ToggleRelease Tests ---
