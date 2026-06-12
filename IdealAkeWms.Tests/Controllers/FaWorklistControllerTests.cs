@@ -42,15 +42,35 @@ public class FaWorklistControllerTests
         var settingsRepo = new AppSettingRepository(ctx);
         var holidayRepo = new HolidayRepository(ctx);
         var enaioRepo = new EnaioDmsDocumentRepository(ctx);
+        var stockRepo = new StockMovementRepository(ctx);
+        var articleAttrRepo = new ArticleAttributeRepository(ctx);
+        var userRepo = new UserRepository(ctx);
+
+        // BOM kommt aus SAGE/OSEON (Dapper) -> Mock mit einer Position.
+        var bomMock = new Mock<IBomRepository>();
+        bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<string>()))
+            .ReturnsAsync(new BomQueryResult(new List<BomItem>
+            {
+                new()
+                {
+                    Artikelnummer = "ART-1",
+                    Position = "10",
+                    Ressourcenummer = "RES-1",
+                    Bezeichnung1 = "Teil 1",
+                    Menge = 2m
+                }
+            }, "SAGE"));
 
         var userMock = new Mock<ICurrentUserService>();
         userMock.Setup(x => x.GetDisplayName()).Returns("Max Mustermann");
         userMock.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\max");
         userMock.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
+        userMock.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);
 
         var ctrl = new FaWorklistController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo,
-            settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo, userMock.Object);
+            settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
+            bomMock.Object, stockRepo, articleAttrRepo, userRepo, userMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -237,5 +257,26 @@ public class FaWorklistControllerTests
         vm.Items.Should().HaveCount(1);
         vm.Items.Single().OrderNumber.Should().Be("FA-100");
         vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Bom_ReturnsReadOnlyViewModel()
+    {
+        var (ctx, ctrl) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-BOM", qty: 1m, articleNumber: "ART-1");
+
+        var result = await ctrl.Bom(o.Order.Id, null);
+
+        // Rendert die Picking-Stuecklisten-View, aber mit ReadOnly-Flag (Spec §7).
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        view.ViewName.Should().Be("~/Views/Picking/Bom.cshtml");
+        var vm = view.Model.Should().BeOfType<BomViewModel>().Subject;
+        vm.ReadOnly.Should().BeTrue();
+        vm.ProductionOrderId.Should().Be(o.Order.Id);
+        vm.OrderNumber.Should().Be("FA-BOM");
+        vm.Items.Should().HaveCount(1);
+        // Keine Picking-Daten im Read-only-Modus: kein PickingItem, kein Lagerplatz-Suggest.
+        vm.Items.Single().PickingItemId.Should().BeNull();
+        vm.Items.Single().SourceStorageLocationId.Should().BeNull();
     }
 }

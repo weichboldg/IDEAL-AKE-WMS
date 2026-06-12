@@ -62,6 +62,12 @@ public class BomViewModel
     public List<StorageLocation> TargetStorageLocations { get; set; } = new();
     public string? DataSource { get; set; }
     public bool RecursiveFilterSearch { get; set; }
+
+    /// <summary>
+    /// Read-only-Modus (FA-Abarbeitungsliste, v1.22.0): reine BOM-Anzeige ohne
+    /// Picking-Checkboxen, Lagerplatz-Dropdowns, Umbuchen, Fotos und Bedarfsmeldungen.
+    /// </summary>
+    public bool ReadOnly { get; set; }
 }
 
 public class PrintPickingViewModel
