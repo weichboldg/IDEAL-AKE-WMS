@@ -1,0 +1,192 @@
+@model List<IdealAkeWms.Models.FaAttributeDefinition>
+@inject IdealAkeWms.Services.ICurrentUserService _user
+@{
+    ViewData["Title"] = "FA-Merkmale";
+    var canEdit = await _user.HasMasterDataAccessAsync();
+}
+
+<h2 class="page-header">FA-Merkmale</h2>
+<p class="text-muted mb-3">
+    Definieren Sie Merkmale (Boolean/Dropdown) fuer die FA-Vervollstaendigung. Merkmale werden ueber die
+    Arbeitsgang-Zuordnung den passenden Werkbaenken zugeordnet und dort als Eingabefelder angeboten.
+</p>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                Definierte Merkmale (@Model.Count)
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="FaAttributes">
+                        <thead>
+                            <tr>
+                                <th data-filterable data-col-key="name">Name</th>
+                                <th data-filterable data-col-key="type" style="width: 100px;">Typ</th>
+                                <th data-filterable data-col-key="work-steps" style="width: 160px;">Arbeitsgänge</th>
+                                <th data-filterable data-col-key="sort-order" style="width: 110px;" class="text-center">Reihenfolge</th>
+                                <th data-filterable data-col-key="active" style="width: 80px;">Aktiv</th>
+                                <th data-col-key="actions" style="width: 160px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var def in Model)
+                            {
+                                var workStepCodes = string.Join(", ", def.WorkSteps
+                                    .OrderBy(j => j.WorkStep?.SortOrder ?? 0)
+                                    .Select(j => j.WorkStep?.Code)
+                                    .Where(c => !string.IsNullOrEmpty(c)));
+                                <tr>
+                                    <td><strong>@def.Name</strong></td>
+                                    <td>
+                                        @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
+                                        {
+                                            <span class="badge bg-primary">Boolean</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Dropdown</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (string.IsNullOrEmpty(workStepCodes))
+                                        {
+                                            <span class="text-muted small">—</span>
+                                        }
+                                        else
+                                        {
+                                            @workStepCodes
+                                        }
+                                    </td>
+                                    <td class="text-center">@def.SortOrder</td>
+                                    <td>
+                                        @if (def.IsActive)
+                                        {
+                                            <span class="badge bg-success">Ja</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Nein</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (canEdit)
+                                        {
+                                            <div class="d-flex gap-1">
+                                                <a asp-action="Edit" asp-route-id="@def.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                                <form asp-action="DeleteDefinition" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@def.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
+                                                            onclick="return confirm('Merkmal \'@def.Name\' wirklich loeschen?');">
+                                                        Löschen
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                                @* Dropdown options sub-section (read-only — Pflege auf der Edit-Seite) *@
+                                @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Dropdown)
+                                {
+                                    <tr class="table-light">
+                                        <td colspan="6" style="padding-left: 2rem;">
+                                            <details>
+                                                <summary class="text-muted small fw-bold" style="cursor: pointer;">
+                                                    Dropdown-Optionen (@def.Options.Count)
+                                                </summary>
+                                                <div class="mt-2">
+                                                    @if (def.Options.Any())
+                                                    {
+                                                        <ul class="list-group list-group-flush mb-2">
+                                                            @foreach (var opt in def.Options.OrderBy(o => o.SortOrder).ThenBy(o => o.Value))
+                                                            {
+                                                                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                                                                    <span>
+                                                                        @opt.Value <small class="text-muted">(Pos. @opt.SortOrder)</small>
+                                                                        @if (!opt.IsActive)
+                                                                        {
+                                                                            <span class="badge bg-secondary ms-1">inaktiv</span>
+                                                                        }
+                                                                    </span>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">Keine Optionen definiert.</span>
+                                                    }
+                                                </div>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">Keine Merkmale definiert.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
+                {
+                    <div class="card-body pt-0">
+                        <partial name="_Pagination" model="paginationState" />
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        @if (canEdit)
+        {
+            <div class="card">
+                <div class="card-header">Neues Merkmal erstellen</div>
+                <div class="card-body">
+                    <form asp-action="CreateDefinition" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="z.B. Verdampfergroesse" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Typ</label>
+                            <select name="attributeType" class="form-select">
+                                <option value="0">Boolean (Ja/Nein)</option>
+                                <option value="1">Dropdown (Auswahlliste)</option>
+                            </select>
+                            <small class="text-muted">Typ kann nach Erstellung nicht geaendert werden.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        <div class="card mt-3">
+            <div class="card-header">Hinweise</div>
+            <div class="card-body small">
+                <p class="mb-2"><strong>Boolean</strong> = Checkbox (Ja/Nein) in der FA-Vervollstaendigung.</p>
+                <p class="mb-2"><strong>Dropdown</strong> = Auswahlliste mit vordefinierten Optionen. Optionen werden auf der Bearbeiten-Seite gepflegt.</p>
+                <p class="mb-2"><strong>Arbeitsgänge</strong> bestimmen, bei welchen Vorbaugruppen das Merkmal abgefragt wird (Zuordnung auf der Bearbeiten-Seite).</p>
+                <p class="mb-0"><strong>Deaktivierte</strong> Merkmale verschwinden aus der FA-Vervollstaendigung, Werte bleiben in der DB erhalten.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}
