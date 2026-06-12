@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-05-22 (v1.14.0)
+**Stand:** 2026-06-12 (v1.22.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -4224,5 +4224,138 @@ unveraendert (wird nicht beschrieben).
 
 ---
 
-*Ende des Dokuments. Stand: v1.21.1 (2026-06-11)*
+## Kapitel 38: FA-Vorbau (v1.22.0)
+
+v1.22.0 ersetzt die 5 fixen Vorbau-Kacheln (`ProductionOrderAssemblyGroups`)
+durch einen erweiterbaren Arbeitsgaenge-Katalog (`WorkSteps`) + FA-zu-AG-Tabelle
+(`FaWorkSteps`, automatische Erkennung aus dem BOM-Cache), konfigurierbare
+FA-Merkmale und eine FA-Abarbeitungsliste je Werkbank (neue Rolle `vorbau`).
+
+Allgemeine Vorbedingungen fuer dieses Kapitel:
+- AppSetting `FaCompletionAktiv = true`.
+- BOM-Cache aktiv (`Sync:BomCacheEnabled = true`) und mindestens ein offener FA
+  mit Artikelnummer + BOM-Cache-Eintrag.
+- Benutzer mit Rollen `masterdata` (Stammdaten), `fa_completion`
+  (FA-Vervollstaendigen) und `vorbau` (Abarbeitungsliste) — oder ein Admin.
+
+### 38.1 End-to-End: Suchbegriff → Erkennung → Vervollstaendigen → Abarbeitungsliste
+
+**Vorbedingungen:**
+- Zusaetzlich zu den Kapitel-Vorbedingungen: Service-Setting
+  `Sync:FaWorkStepDetectionEnabled = true`, Windows-Service laeuft.
+- Test-FA `FA-1001` (Platzhalter) mit BOM-Cache-Eintrag, dessen Stueckliste ein
+  Bauteil mit "Luefter" in der Bezeichnung enthaelt. FA hat noch keine
+  FA-Arbeitsgaenge.
+- Werkbank `WB-Test` existiert (Stammdaten → Werkbaenke).
+
+**Schritte:**
+1. *Suchbegriff pflegen:* Stammdaten → Arbeitsgaenge → `VL` bearbeiten →
+   Suchbegriffe `Luefter,Ventilator` eintragen → Speichern.
+2. *Detection-Lauf:* Naechsten Sync-Tick abwarten (oder Service neu starten).
+   Im Aktivitaets-Protokoll (admin) nach Aktivitaet "FaWorkStepDetection" filtern.
+3. Pruefen: End-Eintrag "Run erfolgreich beendet" mit `neu >= 1`.
+4. *Vervollstaendigen:* Fertigungsauftraege → FA-Vervollstaendigen → `FA-1001`
+   oeffnen. Pruefen: AG-Kachel/Tab `VL` ist vorhanden (automatisch erkannt).
+5. Werkbank-Dropdown auf `WB-Test` setzen → Speichern. Pruefen: Badge
+   "Keine Werkbank zugewiesen" verschwindet.
+6. Ueber "AG hinzufuegen" einen zweiten Arbeitsgang (z.B. `VE`) manuell ergaenzen.
+7. Bei `VL` ein zugeordnetes Merkmal erfassen (Dropdown-Wert waehlen bzw.
+   JA/NEIN setzen) — Wert wird per onchange sofort gespeichert.
+8. *Werkbank-Mapping:* Stammdaten → Werkbaenke → `WB-Test` bearbeiten →
+   Checkbox `VL` (NICHT `VE`) ankreuzen → Speichern.
+9. *Abarbeitungsliste:* Fertigungsauftraege → FA-Abarbeitungsliste →
+   Werkbank `WB-Test` waehlen.
+10. Pruefen: `FA-1001` erscheint mit Spalte `VL` (Checkbox), dem erfassten
+    Merkmal-Wert, Terminen (BG/Komm./Fert.) und ggf. enaio-Icons.
+11. *Orphan-Badge:* Pruefen: Neben der FA-Nummer steht der Badge
+    "+1 weitere AG" (der offene `VE` gehoert nicht zum Mapping von `WB-Test`).
+12. *Read-only Stueckliste:* Auf die FA-Nummer klicken.
+13. Pruefen: Stueckliste oeffnet OHNE Picking-Checkboxen, Lagerplatz-Dropdowns,
+    Umbuchen-Button, Foto-Upload und Bedarfsmeldungs-Modal. Filter,
+    Baugruppen-Navigation und "Drucken" funktionieren.
+14. Zurueck in der Abarbeitungsliste die `VL`-Checkbox anhaken.
+15. Pruefen: FA verschwindet aus der Default-Ansicht (alle gemappten AGs
+    erledigt); mit "Erledigte anzeigen" wieder sichtbar.
+16. FA-Vervollstaendigen → `FA-1001`: Pruefen: `VL` ist auch dort als
+    vervollstaendigt/erledigt markiert (gleicher `IsCompleted`-Status).
+
+**Erwartet:** Erkennung, manuelle Pflege, Werkbank-Mapping, Abarbeitungsliste
+(inkl. Orphan-Badge) und read-only Stueckliste greifen nahtlos ineinander;
+der Erledigt-Status ist in Abarbeitungsliste und FA-Vervollstaendigen identisch.
+
+### 38.2 Negativ: Manuell abgewaehlter AG wird vom Sync NICHT wieder hinzugefuegt
+
+**Vorbedingungen:** Zustand nach 38.1 — `FA-1001` hat den Sync-erkannten AG `VL`,
+Detection aktiv.
+
+**Schritte:**
+1. FA-Vervollstaendigen → `FA-1001` → Tab `VL` → "Arbeitsgang entfernen"
+   (Confirm bestaetigen).
+2. Pruefen: Kachel `VL` verschwindet; im Leitstand ist die VL-Checkbox leer.
+3. Naechsten Detection-Lauf abwarten (Aktivitaets-Protokoll prueft Lauf-Ende).
+4. Pruefen: `VL` ist bei `FA-1001` weiterhin NICHT vorhanden — die Erkennung
+   hat den manuell abgewaehlten AG nicht re-added (IsRemoved-Sperre).
+5. Ueber "AG hinzufuegen" `VL` wieder manuell hinzufuegen.
+6. Pruefen: Kachel erscheint wieder (Zeile reaktiviert, kein Duplikat-Fehler).
+
+**Erwartet:** Manuelle Abwahl gewinnt dauerhaft gegen die automatische
+Erkennung; manuelles Wieder-Hinzufuegen reaktiviert dieselbe Zeile.
+
+### 38.3 Negativ: Option mit erfassten Werten nicht loeschbar (Loesch-Guard)
+
+**Vorbedingungen:** Dropdown-Merkmal (z.B. "Verdampfergroesse") mit einer
+Option, die bei mindestens einem FA als Wert erfasst ist (siehe 38.1 Schritt 7).
+
+**Schritte:**
+1. Stammdaten → FA-Merkmale → Merkmal bearbeiten → bei der verwendeten Option
+   auf "Loeschen" klicken.
+2. Pruefen: Loeschen wird mit Warnmeldung verweigert (Option ist in Verwendung).
+3. Option stattdessen deaktivieren.
+4. Pruefen: FA-Vervollstaendigen zeigt den bereits erfassten Wert weiterhin an;
+   das Dropdown bietet die Option fuer NEUE Auswahl nicht mehr an.
+
+**Erwartet:** Techniker-Eingaben verschwinden nie still — Optionen mit
+referenzierten Werten sind nur deaktivierbar.
+
+### 38.4 Negativ: Doppelter Arbeitsgang-Code wird abgelehnt
+
+**Vorbedingungen:** Arbeitsgang `VL` existiert (Seed).
+
+**Schritte:**
+1. Stammdaten → Arbeitsgaenge → "Neu" → Code `VL`, Name `Test-Duplikat` →
+   Speichern.
+2. Pruefen: Validierungsfehler "Code bereits vorhanden" (o.ae.), kein zweiter
+   `VL`-Eintrag in der Liste.
+
+**Erwartet:** Der Arbeitsgang-Code ist eindeutig; Duplikat wird im App-Layer
+mit ModelState-Fehler abgelehnt (kein 500er).
+
+### 38.5 Migrations-Smoke: Kacheln-Daten nach Update vorhanden
+
+**Vorbedingungen:** Update einer Datenbank vom Stand v1.21.x (mit gepflegten
+Vorbau-Kacheln `IsApplicable`/`IsCompleted` + Specs) auf v1.22.0.
+**DB-Backup vor dem Deploy** (siehe Cutover-Doc
+`docs/superpowers/cutover/2026-06-12-fa-vorbau-cutover.md` — AgentJob-Skript
+MUSS im selben Wartungsfenster aktualisiert werden!).
+
+**Schritte:**
+1. Migration einspielen (App-Start mit `db.Database.Migrate()` oder `SQL/68`).
+2. FA-Vervollstaendigen → einen FA oeffnen, der vor dem Update aktive Kacheln
+   (`IsApplicable=true`) hatte.
+3. Pruefen: Die frueher aktiven Gruppen erscheinen als AG-Kacheln, der
+   Vervollstaendigt-Status (`IsCompleted`) ist erhalten, alle Freitext-Specs
+   sind vorhanden.
+4. Einen FA pruefen, der Specs an einer INAKTIVEN Gruppe hatte: Specs sind in
+   der DB erhalten (`FaWorkStepSpecs`), der AG ist aber nicht aktiv
+   (`IsRemoved=1`) — Kachel erscheint erst nach manuellem Hinzufuegen wieder.
+5. Leitstand oeffnen: VK-VA-Haken entsprechen dem Stand vor dem Update.
+6. SQL-Agent-Job (FA-Import) einmal manuell ausfuehren: Lauf erfolgreich,
+   keine Fehler wegen der entfernten `ProductionOrderAssemblyGroups`-Tabelle.
+
+**Erwartet:** Daten-erhaltende Konvertierung — keine Kachel-/Spec-Daten gehen
+verloren; der FA-Import laeuft mit dem aktualisierten Job-Skript fehlerfrei.
+
+---
+
+*Ende des Dokuments. Stand: v1.22.0 (2026-06-12)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

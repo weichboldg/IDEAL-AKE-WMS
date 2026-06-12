@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-06-11**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1.21.1 FA-Abschliessen-Fix)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1.22.0 FA-Vorbau)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -25,6 +25,41 @@ Stand: **2026-06-11**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
 
 ---
+
+### v1.22.0 (2026-06-12) — FA-Vorbau: Arbeitsgaenge-Katalog + Abarbeitungsliste
+
+- **Stammdaten "Arbeitsgaenge"** (`WorkSteps`-Katalog, erweiterbar, Suchbegriffe
+  kommasepariert) + **"FA-Merkmale"** (Definitionen/Optionen/AG-Zuordnung) —
+  beide masterdata_read/masterdata (Read/Edit-Pattern v1.20)
+- **FA-zu-AG (`FaWorkSteps`)** ersetzt die 5 fixen Vorbau-Kacheln
+  (`ProductionOrderAssemblyGroups` gedroppt, daten-erhaltende Konvertierung);
+  automatische Erkennung aus dem BOM-Cache via `FaWorkStepDetectionService`
+  (Setting `Sync:FaWorkStepDetectionEnabled`, Default false; eigener
+  Aktivitaets-Protokoll-Eintrag "FaWorkStepDetection"; nur-hinzufuegend,
+  manuelle Abwahl `IsRemoved=1` sperrt Sync-Re-Add)
+- **FA-Vervollstaendigen umgebaut**: Werkbank-Zuweisung (FA-Feld
+  `ProductionWorkplaceId`), dynamische AG-Kacheln, strukturierte
+  Merkmal-Eingaben (Dropdown/JA-NEIN, Wert je FA in `FaAttributeValues`),
+  Freitext-Specs bleiben (`FaWorkStepSpecs`)
+- **Werkbank-Edit**: Mehrfach-Mapping Vorbaugruppen/Arbeitsgaenge
+  (`ProductionWorkplaceWorkSteps`)
+- **NEU FA-Abarbeitungsliste** (`/FaWorklist`, neue Rolle `vorbau`): je
+  Werkbank, AG-Erledigt-Checkboxen (AJAX `/api/fa-work-steps/toggle-completed`),
+  Orphan-Badge "+N weitere AG", Merkmal-Spalten, Termine BG/Komm/Fertigung,
+  enaio-Links; Klick auf FA → Stueckliste read-only (Druck via
+  `[RequirePickingOrVorbauAccess]`)
+- **Leitstand**: VK-VA-Spalten lesen/schreiben FaWorkSteps (Pivot
+  `GetWorkStepPivotAsync`, Endpoint `/api/fa-work-steps/toggle`); Spalten
+  bleiben bewusst statisch (YAGNI)
+- **Migration** `20260612102225_FaWorkStepsAndAttributes` (8 neue Tabellen,
+  Seeds: WorkSteps VK-VA, 4 Merkmale + Optionen, Rolle vorbau) + `SQL/68` +
+  FreshInstall; Relikt `ProductionWorkplaceAssemblyGroups` gedroppt
+- **DEPLOY-KRITISCH**: AgentJob-MERGE (AssemblyGroups) ersatzlos entfernt —
+  Job-Skript im selben Wartungsfenster aktualisieren, Cutover-Doc
+  `docs/superpowers/cutover/2026-06-12-fa-vorbau-cutover.md`
+- **Menue**: Dropdown "Fertigungsauftraege" (FA-Liste, FA-Vervollstaendigen,
+  FA-Abarbeitungsliste); RoleOverview + CLAUDE.md + Hilfe + TESTSZENARIEN
+  Kapitel 38 aktualisiert
 
 ### v1.21.1 (2026-06-11) — Bugfix: FA-Abschliessen wirkt wieder
 
@@ -329,8 +364,8 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | OSEON-Tracking Lazy-Load + iOS-Tauglichkeit | Fertig (v1.16.0) |
 
 ## Version
-- **Web-App**: v1.21.0 (10.06.2026)
-- **Service**: v1.21.0 (10.06.2026)
+- **Web-App**: v1.22.0 (12.06.2026)
+- **Service**: v1.22.0 (12.06.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.

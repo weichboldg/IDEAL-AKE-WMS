@@ -9,6 +9,55 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.22.0</strong> <span class="text-white-50 ms-2">12.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Vorbau: Arbeitsgaenge-Katalog, automatische Erkennung, FA-Abarbeitungsliste</h6>
+                <ul>
+                    <li><strong>Neue Stammdaten "Arbeitsgaenge":</strong> Der bisher fixe
+                        Vorbau-Katalog (VK/VL/VE/VT/VA) ist jetzt erweiterbar. Pro Arbeitsgang
+                        koennen <em>Suchbegriffe</em> (kommasepariert) gepflegt werden, ueber die
+                        die automatische Erkennung aus der Stueckliste laeuft. Erreichbar unter
+                        <em>Stammdaten &rarr; Arbeitsgaenge</em>.</li>
+                    <li><strong>Neue Stammdaten "FA-Merkmale":</strong> Konfigurierbare
+                        Vorbau-Merkmale (z.B. Verdampfergroesse, Leitungsausgang) als Dropdown
+                        oder JA/NEIN, inkl. Auswahl-Optionen und Zuordnung zu Arbeitsgaengen.
+                        Erreichbar unter <em>Stammdaten &rarr; FA-Merkmale</em>.</li>
+                    <li><strong>Automatische AG-Erkennung aus der Stueckliste:</strong> Ein neuer
+                        Sync-Schritt (<code>Sync:FaWorkStepDetectionEnabled</code>, Default aus)
+                        ordnet offenen FAs anhand der Suchbegriffe die passenden Arbeitsgaenge zu.
+                        Die Erkennung fuegt nur hinzu — manuell abgewaehlte Arbeitsgaenge werden
+                        NICHT wieder hinzugefuegt. Eigener Eintrag "FaWorkStepDetection" im
+                        Aktivitaets-Protokoll.</li>
+                    <li><strong>FA-Vervollstaendigen umgebaut:</strong> Werkbank-Zuweisung direkt
+                        am FA, dynamische Arbeitsgang-Kacheln (statt der 5 fixen Vorbau-Kacheln),
+                        strukturierte Merkmal-Eingaben (Dropdown/JA-NEIN) je Arbeitsgang.
+                        Freitext-Spezifikationen bleiben erhalten.</li>
+                    <li><strong>Neu: FA-Abarbeitungsliste</strong> (<em>Fertigungsauftraege &rarr;
+                        FA-Abarbeitungsliste</em>, neue Rolle <code>vorbau</code>): je Werkbank
+                        eine Liste der offenen FAs mit Erledigt-Checkboxen pro Arbeitsgang,
+                        Merkmal-Spalten, Terminen (BG/Komm./Fertigung) und enaio-Links. Badge
+                        "+N weitere AG" zeigt offene Arbeitsgaenge ausserhalb der gewaehlten
+                        Werkbank. Klick auf die FA-Nummer oeffnet die Stueckliste read-only
+                        (Druck moeglich).</li>
+                    <li><strong>Werkbank-Stammdaten erweitert:</strong> Pro Werkbank koennen
+                        mehrere Vorbaugruppen/Arbeitsgaenge zugeordnet werden — sie bestimmen
+                        die Spalten der Abarbeitungsliste.</li>
+                    <li><strong>Leitstand:</strong> Die Spalten VK/VL/VE/VT/VA lesen und schreiben
+                        jetzt die neue FA-Arbeitsgang-Zuordnung — Bedienung unveraendert.</li>
+                    <li><strong>Menue-Umbau:</strong> Neues Dropdown "Fertigungsauftraege" mit
+                        FA-Liste, FA-Vervollstaendigen und FA-Abarbeitungsliste.</li>
+                    <li><strong>Migration:</strong> Bestehende Vorbau-Kacheln und Spezifikationen
+                        werden daten-erhaltend in das neue System uebernommen.
+                        <strong>Deploy-Hinweis:</strong> Das SQL-Agent-Job-Skript
+                        (FA-Import) muss im selben Wartungsfenster aktualisiert werden
+                        (siehe Cutover-Dokument) — sonst schlaegt der FA-Import fehl.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.21.1</strong> <span class="text-white-50 ms-2">11.06.2026</span>
             </div>
             <div class="card-body">
