@@ -57,6 +57,32 @@ public class FaWorkStepRepository : IFaWorkStepRepository
         return result;
     }
 
+    public async Task<Dictionary<int, FaWorkStepCounts>> GetCountsByProductionOrderIdsAsync(List<int> productionOrderIds)
+    {
+        var ids = productionOrderIds.Distinct().ToList();
+        var result = new Dictionary<int, FaWorkStepCounts>();
+        if (ids.Count == 0) return result;
+
+        const int chunkSize = 1000;
+        for (int offset = 0; offset < ids.Count; offset += chunkSize)
+        {
+            var chunk = ids.Skip(offset).Take(chunkSize).ToList();
+            var rows = await _context.FaWorkSteps
+                .Where(f => chunk.Contains(f.ProductionOrderId) && !f.IsRemoved)
+                .Select(f => new { f.ProductionOrderId, f.IsCompleted, SpecCount = f.Specs.Count })
+                .ToListAsync();
+
+            foreach (var grp in rows.GroupBy(r => r.ProductionOrderId))
+            {
+                result[grp.Key] = new FaWorkStepCounts(
+                    ActiveCount: grp.Count(),
+                    CompletedCount: grp.Count(r => r.IsCompleted),
+                    SpecCount: grp.Sum(r => r.SpecCount));
+            }
+        }
+        return result;
+    }
+
     public async Task SetActiveAsync(int productionOrderId, int workStepId, bool active,
         string modifiedBy, string modifiedByWindows)
     {

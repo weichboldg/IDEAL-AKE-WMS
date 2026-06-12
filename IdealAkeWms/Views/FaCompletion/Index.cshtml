@@ -87,8 +87,8 @@
                         <td>@item.ArticleNumber</td>
                         <td>@item.Description1</td>
                         <td>@(item.ProductionDate?.ToString("dd.MM.yyyy"))</td>
-                        <td>@item.ApplicableCount / 5</td>
-                        <td>@item.CompletedCount / 5</td>
+                        <td>@item.ApplicableCount</td>
+                        <td>@item.CompletedCount / @item.ApplicableCount</td>
                         <td>@item.SpecCount</td>
                         <td>
                             <a asp-action="Edit" asp-route-id="@item.Id"

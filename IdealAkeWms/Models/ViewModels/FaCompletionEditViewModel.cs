@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Models.ViewModels;
 
 /// <summary>
-/// FaCompletion/Edit.cshtml — Phase 4 Top-Level-VM fuer eine FA-Vervollstaendigung.
-/// Enthaelt FA-Master (read-only) und 5 <see cref="AssemblyGroupTabViewModel"/>
-/// (eine pro VK/VL/VE/VT/VA).
+/// FaCompletion/Edit.cshtml — Top-Level-VM fuer eine FA-Vervollstaendigung (v1.22.0).
+/// Enthaelt FA-Master (read-only), Werkbank-Zuordnung und einen Tab je aktivem
+/// <see cref="FaWorkStep"/> (statt der frueheren 5 fixen AssemblyGroups).
 /// </summary>
 public class FaCompletionEditViewModel
 {
@@ -20,57 +21,71 @@ public class FaCompletionEditViewModel
     public DateTime? DeliveryDate { get; set; }
     public bool IsDone { get; set; }
 
-    /// <summary>Aktiv ausgewaehlter Tab (VK/VL/VE/VT/VA). Default "VK".</summary>
-    public string ActiveTab { get; set; } = "VK";
+    /// <summary>Aktuell zugewiesene Werkbank des FA (null = keine).</summary>
+    public int? ProductionWorkplaceId { get; set; }
 
-    public List<AssemblyGroupTabViewModel> Tabs { get; set; } = new();
+    /// <summary>Alle Werkbaenke fuer das Zuweisungs-Dropdown.</summary>
+    public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
+
+    /// <summary>Aktive Katalog-Arbeitsgaenge, die am FA noch NICHT aktiv sind ("AG hinzufuegen").</summary>
+    public List<WorkStep> AvailableWorkSteps { get; set; } = new();
+
+    /// <summary>Aktiv ausgewaehlter Tab (WorkStep.Code). Default = erster aktiver Tab.</summary>
+    public string ActiveTab { get; set; } = string.Empty;
+
+    public List<FaWorkStepTabViewModel> Tabs { get; set; } = new();
 }
 
 /// <summary>
-/// Ein Tab pro AssemblyGroup (VK/VL/VE/VT/VA). Enthaelt Status der Gruppe und Liste
-/// ihrer Auspraegungen.
+/// Ein Tab pro aktivem FaWorkStep. Enthaelt Status, zugeordnete Merkmale und Specs.
 /// </summary>
-public class AssemblyGroupTabViewModel
+public class FaWorkStepTabViewModel
 {
-    public int AssemblyGroupId { get; set; }
-    public string GroupKey { get; set; } = string.Empty;
-    public string GroupName { get; set; } = string.Empty;
-    public bool IsApplicable { get; set; }
+    public int FaWorkStepId { get; set; }
+    public int WorkStepId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public bool IsCompleted { get; set; }
     public DateTime? CompletedAt { get; set; }
     public string? CompletedBy { get; set; }
 
-    public List<AssemblyGroupSpecFormModel> Specs { get; set; } = new();
+    /// <summary>Dem Arbeitsgang zugeordnete aktive Merkmale inkl. aktuellem Wert des FA.</summary>
+    public List<FaAttributeFieldViewModel> Attributes { get; set; } = new();
+
+    public List<FaWorkStepSpecFormModel> Specs { get; set; } = new();
 }
 
 /// <summary>
-/// Display-orientierte Sicht einer einzelnen Spec-Zeile innerhalb eines Tabs.
-/// Wird sowohl fuer die Read-Only-Anzeige als auch fuer Add/Edit-Form-Binding
-/// (POST-Body fuer AddSpec/EditSpec) genutzt.
+/// Ein Merkmal-Eingabefeld innerhalb eines Tabs (Definition + Optionen + aktueller Wert).
 /// </summary>
-public class AssemblyGroupSpecItemViewModel
+public class FaAttributeFieldViewModel
+{
+    public int DefinitionId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public AttributeType AttributeType { get; set; }
+    public List<FaAttributeOptionViewModel> Options { get; set; } = new();
+    public int? SelectedOptionId { get; set; }
+    public bool? BooleanValue { get; set; }
+}
+
+public class FaAttributeOptionViewModel
 {
     public int Id { get; set; }
-    public int AssemblyGroupId { get; set; }
-    public int? ArticleId { get; set; }
-    public string? ArticleNumber { get; set; }
-    public string? ArticleDescription { get; set; }
-    public string Description { get; set; } = string.Empty;
-    public decimal? Quantity { get; set; }
-    public string? Notes { get; set; }
-    public int SortOrder { get; set; }
+    public string Value { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
 }
 
 /// <summary>
-/// Form-Binding-Model fuer Add/Edit-POST einer Spec.
-/// Validation-Attribute spiegeln <see cref="Models.ProductionOrderAssemblyGroupSpec"/>.
+/// Form-Binding-Model fuer Add/Edit-POST einer Spec (Auspraegung).
+/// Validation-Attribute spiegeln <see cref="Models.FaWorkStepSpec"/>.
+/// Wird sowohl fuer die Read-Only-Anzeige als auch fuer Add/Edit-Form-Binding genutzt.
 /// </summary>
-public class AssemblyGroupSpecFormModel
+public class FaWorkStepSpecFormModel
 {
     public int Id { get; set; }
 
     [Required]
-    public int AssemblyGroupId { get; set; }
+    public int FaWorkStepId { get; set; }
 
     public int? ArticleId { get; set; }
 

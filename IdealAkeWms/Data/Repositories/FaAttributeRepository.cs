@@ -23,6 +23,7 @@ public class FaAttributeRepository : IFaAttributeRepository
     public async Task<List<FaAttributeDefinition>> GetActiveForWorkStepsAsync(List<int> workStepIds)
         => await _context.FaAttributeDefinitions
             .Include(d => d.Options)
+            .Include(d => d.WorkSteps)
             .Where(d => d.IsActive
                 && _context.FaAttributeWorkSteps.Any(j =>
                     j.FaAttributeDefinitionId == d.Id && workStepIds.Contains(j.WorkStepId)))
