@@ -42,6 +42,10 @@
                             var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
                             var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
                             var faCompletionAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                            var hasVorbauAccess = await CurrentUserService.HasVorbauAccessAsync();
+                            var showFaList = canPick || canViewTracking || canManagePickingRelease;
+                            var showFaCompletion = faCompletionAktiv && canFaCompletion;
+                            var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -65,11 +69,29 @@
                                 </ul>
                             </li>
                         }
-                        @* Phase 2: FA-Übersicht (slim) — für Picker/Tracker/Leitstand sichtbar *@
-                        @if (canPick || canViewTracking || canManagePickingRelease)
+                        @* Fertigungsauftraege — Dropdown (v1.22.0): FA-Liste (Picker/Tracker/Leitstand),
+                           FA-Vervollstaendigen (FaCompletionAktiv + fa_completion),
+                           FA-Abarbeitungsliste (FaCompletionAktiv + vorbau) *@
+                        @if (showFaList || showFaCompletion || showFaWorklist)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Fertigungsaufträge</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "ProductionOrders" or "FaCompletion" or "FaWorklist") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Fertigungsaufträge
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @if (showFaList)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="ProductionOrders" asp-action="Index">FA-Liste</a></li>
+                                    }
+                                    @if (showFaCompletion)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaCompletion" asp-action="Index">FA-Vervollständigen</a></li>
+                                    }
+                                    @if (showFaWorklist)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaWorklist" asp-action="Index">FA-Abarbeitungsliste</a></li>
+                                    }
+                                </ul>
                             </li>
                         }
 
@@ -96,14 +118,6 @@
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
                                 </a>
-                            </li>
-                        }
-                        @* FA-Vervollstaendigung — gated by AppSetting FaCompletionAktiv + Role *@
-                        @if (faCompletionAktiv && canFaCompletion)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaCompletion" ? "active" : "")"
-                                   asp-controller="FaCompletion" asp-action="Index">FA-Vervollst&auml;ndigung</a>
                             </li>
                         }
                         @if (bestellungenAktiv && (canPick || canAccessStock))
