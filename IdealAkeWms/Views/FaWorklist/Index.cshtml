@@ -1,0 +1,177 @@
+@model IdealAkeWms.Models.ViewModels.FaWorklistViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "FA-Abarbeitungsliste";
+    // ISO 8601 Kalenderwoche (gleiche Darstellung wie FA-Liste)
+    string FormatDateWithKw(DateTime? date)
+    {
+        if (!date.HasValue) return "";
+        var d = date.Value;
+        var kw = ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}";
+    }
+    var columnCount = 6 + Model.AttributeColumns.Count + Model.MappedWorkSteps.Count;
+}
+
+<h2 class="page-header">FA-Abarbeitungsliste</h2>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="workplaceId">Werkbank</label>
+                    <select name="workplaceId" id="workplaceId" class="form-select" onchange="this.form.submit()">
+                        <option value="">– Werkbank wählen –</option>
+                        @foreach (var wp in Model.AvailableWorkplaces)
+                        {
+                            <option value="@wp.Id" selected="@(Model.SelectedWorkplaceId == wp.Id)">@wp.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="showDone" value="true" class="form-check-input" id="showDone"
+                               onchange="this.form.submit()" @(Model.ShowDone ? "checked" : "") />
+                        <label class="form-check-label" for="showDone">Erledigte anzeigen</label>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.SelectedWorkplaceId == null)
+{
+    <div class="alert alert-info">
+        Bitte zuerst eine Werkbank auswählen — die Abarbeitungsliste zeigt die offenen
+        Fertigungsaufträge mit den Arbeitsgängen der gewählten Werkbank.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped filterable-table" data-view-key="FaWorklist" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th data-filterable data-col-key="order-number">FA Nr.</th>
+                    <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                    <th data-filterable data-col-key="quantity">Stk.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
+                    <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
+                    @foreach (var def in Model.AttributeColumns)
+                    {
+                        <th data-filterable data-col-key="attr-@def.Id">@def.Name</th>
+                    }
+                    @foreach (var ws in Model.MappedWorkSteps)
+                    {
+                        <th class="text-center" data-col-key="ws-@ws.Id" title="@ws.Name">@ws.Code</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="@columnCount" class="text-center text-muted py-4">
+                            Keine offenen Fertigungsaufträge für diese Werkbank.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-action="Bom" asp-route-id="@item.ProductionOrderId">@item.OrderNumber</a>
+                                @if (item.OrphanWorkStepCount > 0)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1" title="Offene Arbeitsgaenge ausserhalb dieser Werkbank">+@item.OrphanWorkStepCount weitere AG</span>
+                                }
+                                @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
+                                {
+                                    foreach (var dms in dmsLinks)
+                                    {
+                                        var dmsUrl = $"http://akeosapp.ake.at/oscontentviewer/viewer/{dms.EnaioDmsObjectId}/?pagecount=1";
+                                        var dmsTitle = dms.DocumentType == "Zeichnung" ? "Zeichnung in enaio oeffnen" : "Dokument in enaio oeffnen";
+                                        if (dms.DocumentType == "Zeichnung")
+                                        {
+                                            <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="dms-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/></svg></a>
+                                        }
+                                        else
+                                        {
+                                            <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="dms-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg></a>
+                                        }
+                                    }
+                                }
+                            </td>
+                            <td>@item.ArticleNumber</td>
+                            <td>@item.Quantity</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.KommissionierTermin)</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.ProductionDate)</td>
+                            @foreach (var def in Model.AttributeColumns)
+                            {
+                                <td>@item.AttributeValues.GetValueOrDefault(def.Id)</td>
+                            }
+                            @foreach (var ws in Model.MappedWorkSteps)
+                            {
+                                <td class="text-center">
+                                    @if (item.WorkStepCells.TryGetValue(ws.Id, out var cell))
+                                    {
+                                        <input type="checkbox" class="form-check-input worklist-complete"
+                                               data-fa-work-step-id="@cell.FaWorkStepId" @(cell.IsCompleted ? "checked" : "") />
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", Model.Pagination)
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        // Erledigt-Toggle per AJAX — Event-Delegation, damit es keine per-Row-Handler braucht.
+        // Fehlerfall: Checkbox zuruecksetzen (Muster Leitstand-Toggle-Fields).
+        document.addEventListener('change', function (e) {
+            var cb = e.target.closest('.worklist-complete');
+            if (!cb) return;
+
+            var faWorkStepId = parseInt(cb.getAttribute('data-fa-work-step-id'));
+            var value = cb.checked;
+
+            fetch('/api/fa-work-steps/toggle-completed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ faWorkStepId: faWorkStepId, value: value })
+            }).then(function (resp) {
+                if (!resp.ok) {
+                    cb.checked = !value;
+                    alert('Fehler beim Speichern.');
+                }
+            }).catch(function () {
+                cb.checked = !value;
+                alert('Fehler beim Speichern.');
+            });
+        });
+    </script>
+}

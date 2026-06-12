@@ -1,0 +1,241 @@
+using FluentAssertions;
+using IdealAkeWms.Controllers;
+using IdealAkeWms.Data;
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
+using IdealAkeWms.Tests.Helpers;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Moq;
+using Xunit;
+
+namespace IdealAkeWms.Tests.Controllers;
+
+/// <summary>
+/// Controller-Tests fuer die FA-Abarbeitungsliste (<see cref="FaWorklistController"/>, v1.22.0).
+/// Echte Repositories + InMemory-DbContext (Muster FaCompletionControllerTests), weil
+/// die Worklist Navigation-Properties (WorkStep, Specs, SelectedOption) braucht.
+/// </summary>
+public class FaWorklistControllerTests
+{
+    private static (ApplicationDbContext ctx, FaWorklistController ctrl) Build()
+    {
+        var ctx = TestDbContextFactory.Create();
+
+        // Feature-Gate: FaCompletionAktiv muss true sein, sonst redirect AccessDenied.
+        ctx.AppSettings.Add(new AppSetting
+        {
+            Key = AppSettingKeys.FaCompletionAktiv,
+            Value = "true",
+            Description = "test"
+        });
+        ctx.SaveChanges();
+
+        var prodRepo = new ProductionOrderRepository(ctx);
+        var faWorkStepRepo = new FaWorkStepRepository(ctx);
+        var workStepRepo = new WorkStepRepository(ctx);
+        var attrRepo = new FaAttributeRepository(ctx);
+        var workplaceRepo = new ProductionWorkplaceRepository(ctx);
+        var settingsRepo = new AppSettingRepository(ctx);
+        var holidayRepo = new HolidayRepository(ctx);
+        var enaioRepo = new EnaioDmsDocumentRepository(ctx);
+
+        var userMock = new Mock<ICurrentUserService>();
+        userMock.Setup(x => x.GetDisplayName()).Returns("Max Mustermann");
+        userMock.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\max");
+        userMock.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
+
+        var ctrl = new FaWorklistController(
+            prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo,
+            settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo, userMock.Object);
+
+        ctrl.TempData = new TempDataDictionary(
+            new DefaultHttpContext(),
+            Mock.Of<ITempDataProvider>());
+
+        return (ctx, ctrl);
+    }
+
+    private static ProductionWorkplace SeedWorkplace(ApplicationDbContext ctx, string name)
+    {
+        var wp = new ProductionWorkplace
+        {
+            Name = name,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        return wp;
+    }
+
+    private static WorkStep SeedWorkStep(ApplicationDbContext ctx, string code, string name, int sortOrder = 0)
+    {
+        var ws = new WorkStep
+        {
+            Code = code,
+            Name = name,
+            SortOrder = sortOrder,
+            IsActive = true,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        ctx.WorkSteps.Add(ws);
+        ctx.SaveChanges();
+        return ws;
+    }
+
+    private static void MapWorkStepToWorkplace(ApplicationDbContext ctx, int workplaceId, int workStepId)
+    {
+        ctx.ProductionWorkplaceWorkSteps.Add(new ProductionWorkplaceWorkStep
+        {
+            ProductionWorkplaceId = workplaceId,
+            WorkStepId = workStepId,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
+    }
+
+    private static FaWorkStep SeedFaWorkStep(
+        ApplicationDbContext ctx, int productionOrderId, int workStepId,
+        bool isCompleted = false, bool isRemoved = false)
+    {
+        var row = new FaWorkStep
+        {
+            ProductionOrderId = productionOrderId,
+            WorkStepId = workStepId,
+            IsCompleted = isCompleted,
+            IsRemoved = isRemoved,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        ctx.FaWorkSteps.Add(row);
+        ctx.SaveChanges();
+        return row;
+    }
+
+    [Fact]
+    public async Task Index_FiltersByWorkplaceAndMapping()
+    {
+        var (ctx, ctrl) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung", 1);
+        var vl = SeedWorkStep(ctx, "VL", "Lueftung", 2);
+        MapWorkStepToWorkplace(ctx, wp.Id, vk.Id);
+
+        // Beide FAs auf der Werkbank, aber nur FA-001 hat einen gemappten AG (VK).
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp.Id;
+        o2.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, o1.Order.Id, vk.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, vl.Id); // nicht gemappt -> FA-002 fliegt raus
+
+        var result = await ctrl.Index(wp.Id);
+
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        var vm = view.Model.Should().BeOfType<FaWorklistViewModel>().Subject;
+
+        vm.SelectedWorkplaceId.Should().Be(wp.Id);
+        vm.MappedWorkSteps.Should().ContainSingle(w => w.Code == "VK");
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-001");
+        vm.Items.Single().WorkStepCells.Should().ContainKey(vk.Id);
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Index_HidesFullyCompleted_UnlessShowDone()
+    {
+        var (ctx, ctrl) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung", 1);
+        MapWorkStepToWorkplace(ctx, wp.Id, vk.Id);
+
+        var open = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-OPEN");
+        var done = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-DONE");
+        open.Order.ProductionWorkplaceId = wp.Id;
+        done.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, open.Order.Id, vk.Id, isCompleted: false);
+        SeedFaWorkStep(ctx, done.Order.Id, vk.Id, isCompleted: true);
+
+        // Default: komplett erledigte FAs ausgeblendet
+        var result = await ctrl.Index(wp.Id);
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-OPEN");
+
+        // showDone=true: beide sichtbar
+        var resultShowDone = await ctrl.Index(wp.Id, showDone: true);
+        var vmShowDone = (FaWorklistViewModel)((ViewResult)resultShowDone).Model!;
+        vmShowDone.Items.Should().HaveCount(2);
+        vmShowDone.Items.Select(i => i.OrderNumber)
+            .Should().BeEquivalentTo(new[] { "FA-OPEN", "FA-DONE" });
+    }
+
+    [Fact]
+    public async Task Index_CountsOrphanWorkSteps()
+    {
+        var (ctx, ctrl) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung", 1);
+        var vl = SeedWorkStep(ctx, "VL", "Lueftung", 2);
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 3);
+        MapWorkStepToWorkplace(ctx, wp.Id, vk.Id);
+
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-ORPHAN");
+        o.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, o.Order.Id, vk.Id);                       // gemappt, offen
+        SeedFaWorkStep(ctx, o.Order.Id, vl.Id);                       // Orphan, offen -> zaehlt
+        SeedFaWorkStep(ctx, o.Order.Id, ve.Id, isCompleted: true);    // Orphan, erledigt -> zaehlt NICHT
+
+        var result = await ctrl.Index(wp.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrphanWorkStepCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Index_ColumnFilter_FiltersAcrossAllRows()
+    {
+        var (ctx, ctrl) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung", 1);
+        MapWorkStepToWorkplace(ctx, wp.Id, vk.Id);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-100");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "WA-200");
+        o1.Order.ProductionWorkplaceId = wp.Id;
+        o2.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, o1.Order.Id, vk.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, vk.Id);
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_order-number=FA-100");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index(wp.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-100");
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
+}
