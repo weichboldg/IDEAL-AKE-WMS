@@ -24,7 +24,7 @@ public interface IFaAttributeRepository
     Task<bool> DeleteOptionAsync(int id);
 
     /// <summary>Junction-Sync (add/remove Delta).</summary>
-    Task SetWorkStepsAsync(int definitionId, List<int> workStepIds);
+    Task SetWorkStepsAsync(int definitionId, List<int> workStepIds, string createdBy = "system", string createdByWindows = "system");
 
     /// <summary>Werte eines FA inkl. Definition + SelectedOption.</summary>
     Task<List<FaAttributeValue>> GetValuesByProductionOrderIdAsync(int productionOrderId);

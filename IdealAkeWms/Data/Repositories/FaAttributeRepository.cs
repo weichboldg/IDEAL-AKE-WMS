@@ -87,7 +87,8 @@ public class FaAttributeRepository : IFaAttributeRepository
         return true;
     }
 
-    public async Task SetWorkStepsAsync(int definitionId, List<int> workStepIds)
+    public async Task SetWorkStepsAsync(int definitionId, List<int> workStepIds,
+        string createdBy = "system", string createdByWindows = "system")
     {
         var existing = await _context.FaAttributeWorkSteps
             .Where(j => j.FaAttributeDefinitionId == definitionId)
@@ -96,7 +97,14 @@ public class FaAttributeRepository : IFaAttributeRepository
         var toRemove = existing.Where(j => !workStepIds.Contains(j.WorkStepId)).ToList();
         var existingIds = existing.Select(j => j.WorkStepId).ToHashSet();
         var toAdd = workStepIds.Distinct().Where(id => !existingIds.Contains(id))
-            .Select(id => new FaAttributeWorkStep { FaAttributeDefinitionId = definitionId, WorkStepId = id })
+            .Select(id => new FaAttributeWorkStep
+            {
+                FaAttributeDefinitionId = definitionId,
+                WorkStepId = id,
+                CreatedAt = DateTime.Now,
+                CreatedBy = createdBy,
+                CreatedByWindows = createdByWindows,
+            })
             .ToList();
 
         _context.FaAttributeWorkSteps.RemoveRange(toRemove);

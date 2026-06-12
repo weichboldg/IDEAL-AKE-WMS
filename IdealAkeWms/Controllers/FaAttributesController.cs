@@ -140,7 +140,8 @@ public class FaAttributesController : Controller
         definition.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
         await _attributeRepository.UpdateDefinitionAsync(definition);
-        await _attributeRepository.SetWorkStepsAsync(id, (workStepIds ?? Array.Empty<int>()).ToList());
+        await _attributeRepository.SetWorkStepsAsync(id, (workStepIds ?? Array.Empty<int>()).ToList(),
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
         TempData["SuccessMessage"] = $"Merkmal '{definition.Name}' aktualisiert.";
         return RedirectToAction(nameof(Index));

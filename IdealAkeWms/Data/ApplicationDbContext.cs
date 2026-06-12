@@ -428,8 +428,8 @@ public class ApplicationDbContext : DbContext
 
         // ProductionWorkplaceAssemblyGroup (Phase-1-Platzhalter, nie im Code genutzt) entfernt
         // in v1.22.0 — ersetzt durch ProductionWorkplaceWorkSteps (N:M Werkbank↔Arbeitsgang).
-        // Die DB-Tabelle ProductionWorkplaceAssemblyGroups bleibt vorerst stehen (Drop folgt
-        // in einer spaeteren Migration; sie ist nicht mehr im EF-Model/Snapshot enthalten).
+        // Die DB-Tabelle wird von der Migration FaWorkStepsAndAttributes per guarded Sql
+        // gedroppt (nicht via Snapshot-Diff, da sie nicht mehr im EF-Model enthalten ist).
 
         // WorkStep (FA-Vorbau v1.22.0)
         modelBuilder.Entity<WorkStep>(entity =>
