@@ -16,6 +16,7 @@ public static class SyncLogServices
     public const string EnaioDms = "EnaioDms";
     public const string Holiday = "Holiday";
     public const string CoatingDetection = "CoatingDetection";
+    public const string FaWorkStepDetection = "FaWorkStepDetection";
     public const string ProductionOrder = "ProductionOrder";  // SageImport-Teil 1
     public const string Article = "Article";                  // SageImport-Teil 2
 
@@ -28,7 +29,7 @@ public static class SyncLogServices
     {
         Lagerplatz, Lagerbestand, BomCache,
         OseonTracking, OseonWorkplaces, OseonArticleCategories,
-        EnaioDms, Holiday, CoatingDetection, ProductionOrder, Article,
+        EnaioDms, Holiday, CoatingDetection, FaWorkStepDetection, ProductionOrder, Article,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
     };
 }

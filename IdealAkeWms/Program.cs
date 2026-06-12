@@ -344,6 +344,7 @@ using (var scope = app.Services.CreateScope())
         ("Sync:BomCacheMaxOrders",       "200",   "BOM-Cache",   "Maximalanzahl Auftraege im BOM-Cache"),
         ("Sync:BomCacheMaxAgeHours",     "24",    "BOM-Cache",   "Sicherheitsnetz: Re-Sync wenn Cache-Eintrag aelter als X Stunden"),
         ("Sync:CoatingDetectionEnabled", "false", "Lackierteile","Lackierteil-Erkennung als separater Sync-Job aktiv"),
+        ("Sync:FaWorkStepDetectionEnabled", "false", "FA-Vervollstaendigung", "Automatische FA-Arbeitsgang-Erkennung aus dem BOM-Cache (laeuft direkt nach BomCache-Sync)"),
         ("Sync:BdeAutoPauseIntervalMinutes", "60",   "BDE",         "Intervall (Minuten) fuer Auto-Pause am Schichtende"),
         ("Sync:FeiertagSyncEnabled",         "false","BDE",         "Feiertags-Sync aus Nager.Date aktiv"),
         ("Sync:FeiertagCountryCode",         "AT",   "BDE",         "Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)"),

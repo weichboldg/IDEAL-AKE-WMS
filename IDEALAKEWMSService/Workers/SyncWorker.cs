@@ -165,6 +165,31 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // FA-Arbeitsgang-Erkennung (aus BOM-Cache) — laeuft direkt NACH BomCache
+                // ---------------------------------------------------------------
+                var faDetectionEnabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:FaWorkStepDetectionEnabled", false, stoppingToken);
+                if (faDetectionEnabled)
+                {
+                    try
+                    {
+                        _logger.LogInformation("Starte FA-Arbeitsgang-Erkennung");
+                        using var faScope = _scopeFactory.CreateScope();
+                        var faSvc = faScope.ServiceProvider.GetRequiredService<IFaWorkStepDetectionService>();
+                        var faResult = await faSvc.DetectAsync(dryRun: dryRun, ct: stoppingToken);
+                        _logger.LogInformation("FA-Arbeitsgang-Erkennung fertig: Neu={Ins}, Err={Err}",
+                            faResult.Inserted, faResult.Errors);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "FA-Arbeitsgang-Erkennung ist fehlgeschlagen");
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("FA-Arbeitsgang-Erkennung deaktiviert (Sync:FaWorkStepDetectionEnabled=false in ServiceSettings)");
+                }
+
+                // ---------------------------------------------------------------
                 // Coating-Detection-Sync (Lackierteil-Erkennung)
                 // ---------------------------------------------------------------
                 var coatingEnabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:CoatingDetectionEnabled", false, stoppingToken);
