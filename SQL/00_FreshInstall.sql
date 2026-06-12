@@ -576,29 +576,8 @@ WHERE NOT EXISTS (SELECT 1 FROM [dbo].[FaAttributeOptions] o WHERE o.[FaAttribut
 PRINT 'FA-Vorbau Seeds (WorkSteps, Merkmale, Optionen) eingefuegt.';
 GO
 
--- =============================================
--- 8e. ProductionWorkplaceAssemblyGroups (Default-Gruppen je Arbeitsplatz)
--- =============================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceAssemblyGroups')
-BEGIN
-    CREATE TABLE [dbo].[ProductionWorkplaceAssemblyGroups] (
-        [Id]                    INT IDENTITY(1,1) NOT NULL,
-        [ProductionWorkplaceId] INT               NOT NULL,
-        [GroupKey]              NVARCHAR(10)      NOT NULL,
-        [CreatedAt]             DATETIME2         NOT NULL DEFAULT GETDATE(),
-        [CreatedBy]             NVARCHAR(200)     NOT NULL,
-        [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
-        [ModifiedAt]            DATETIME2         NULL,
-        [ModifiedBy]            NVARCHAR(200)     NULL,
-        [ModifiedByWindows]     NVARCHAR(200)     NULL,
-        CONSTRAINT [PK_ProductionWorkplaceAssemblyGroups] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_ProductionWorkplaceAssemblyGroups_WP_Key] UNIQUE ([ProductionWorkplaceId], [GroupKey]),
-        CONSTRAINT [FK_ProductionWorkplaceAssemblyGroups_Workplace]
-            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE
-    );
-    PRINT 'Tabelle ProductionWorkplaceAssemblyGroups erstellt.';
-END
-GO
+-- (8e. ProductionWorkplaceAssemblyGroups entfernt in v1.22.0 — Relikt aus v1.11,
+--  nie im Code genutzt; ersetzt durch ProductionWorkplaceWorkSteps)
 
 -- =============================================
 -- 9. PickingItems

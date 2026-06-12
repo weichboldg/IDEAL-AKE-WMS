@@ -450,6 +450,12 @@ VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen
             migrationBuilder.DropTable(
                 name: "ProductionOrderAssemblyGroups",
                 schema: "dbo");
+
+            // Relikt aus v1.11 (nie im Code gelesen/geschrieben) — ersetzt durch
+            // ProductionWorkplaceWorkSteps. Guarded Sql statt DropTable, weil die
+            // Tabelle nicht mehr im Model-Snapshot ist (Down stellt sie nicht wieder her).
+            migrationBuilder.Sql(
+                "IF OBJECT_ID(N'dbo.ProductionWorkplaceAssemblyGroups', N'U') IS NOT NULL DROP TABLE [dbo].[ProductionWorkplaceAssemblyGroups];");
         }
 
         /// <inheritdoc />

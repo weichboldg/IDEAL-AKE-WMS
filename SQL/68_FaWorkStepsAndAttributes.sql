@@ -369,6 +369,14 @@ BEGIN
 END
 GO
 
+-- Relikt aus v1.11, nie im Code genutzt — ersetzt durch ProductionWorkplaceWorkSteps
+IF OBJECT_ID(N'dbo.ProductionWorkplaceAssemblyGroups', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[ProductionWorkplaceAssemblyGroups];
+    PRINT 'Tabelle ProductionWorkplaceAssemblyGroups geloescht.';
+END
+GO
+
 -- =============================================
 -- SECTION H: EF MIGRATIONS HISTORY
 -- =============================================
