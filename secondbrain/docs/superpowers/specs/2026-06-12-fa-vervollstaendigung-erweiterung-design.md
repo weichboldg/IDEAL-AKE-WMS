@@ -22,7 +22,7 @@ verwendet. Diese Erweiterung ersetzt das System durch:
 
 Vorbauten zur Erinnerung: VK Kuehlung, VL Lueftung, VE Elektro, VT Tueren, VA Aufbau.
 
-## 2. Datenmodell (7 neue Tabellen)
+## 2. Datenmodell (8 neue Tabellen)
 
 Alle Tabellen erben `AuditableEntity` (ausser N:M-Junctions, die nur CreatedAt/By fuehren
 wie `UserRole`). Namen im Code englisch, UI-Labels deutsch.
