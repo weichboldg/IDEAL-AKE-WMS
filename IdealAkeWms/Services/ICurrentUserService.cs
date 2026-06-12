@@ -22,6 +22,7 @@ public interface ICurrentUserService
     Task<bool> CanTransferStockAsync();
     Task<bool> CanManagePickingReleaseAsync();
     Task<bool> CanFaCompletionAsync();
+    Task<bool> HasVorbauAccessAsync();
     Task<bool> CanUseBdeAsync();
     Task<bool> CanManageBdeShiftleadAsync();
     Task<bool> CanManageBdeAdminAsync();

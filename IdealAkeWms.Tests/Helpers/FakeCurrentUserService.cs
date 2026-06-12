@@ -25,5 +25,6 @@ public class FakeCurrentUserService : ICurrentUserService
     public Task<bool> CanManageBdeShiftleadAsync() => Task.FromResult(true);
     public Task<bool> CanManageBdeAdminAsync() => Task.FromResult(true);
     public Task<bool> CanFaCompletionAsync() => Task.FromResult(true);
+    public Task<bool> HasVorbauAccessAsync() => Task.FromResult(true);
     public Task<int?> GetDefaultPageSizeAsync() => Task.FromResult<int?>(null);
 }

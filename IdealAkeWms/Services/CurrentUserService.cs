@@ -109,6 +109,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanFaCompletionAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.FaCompletion);
 
+    public async Task<bool> HasVorbauAccessAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Vorbau);
+
     public async Task<bool> CanUseBdeAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeUser, RoleKeys.BdeShiftlead, RoleKeys.BdeAdmin);
 
