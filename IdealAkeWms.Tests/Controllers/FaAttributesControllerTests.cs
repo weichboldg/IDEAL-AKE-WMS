@@ -90,7 +90,8 @@ public class FaAttributesControllerTests
             .Which.ActionName.Should().Be(nameof(FaAttributesController.Index));
         repo.Verify(r => r.UpdateDefinitionAsync(It.Is<FaAttributeDefinition>(d => d.Id == 5 && d.SortOrder == 2)), Times.Once);
         repo.Verify(r => r.SetWorkStepsAsync(5, It.Is<List<int>>(l =>
-            l.Count == 2 && l.Contains(10) && l.Contains(11))), Times.Once);
+            l.Count == 2 && l.Contains(10) && l.Contains(11)),
+            It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
