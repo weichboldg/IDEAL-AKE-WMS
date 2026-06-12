@@ -50,8 +50,6 @@ builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
 builder.Services.AddScoped<IProductionOrderBdeStatusRepository, ProductionOrderBdeStatusRepository>();
-builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOrderAssemblyGroupRepository>();
-builder.Services.AddScoped<IProductionOrderAssemblyGroupSpecRepository, ProductionOrderAssemblyGroupSpecRepository>();
 builder.Services.AddScoped<IWorkStepRepository, WorkStepRepository>();
 builder.Services.AddScoped<IFaWorkStepRepository, FaWorkStepRepository>();
 builder.Services.AddScoped<IFaAttributeRepository, FaAttributeRepository>();

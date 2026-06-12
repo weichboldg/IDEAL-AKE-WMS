@@ -19,8 +19,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
-    public DbSet<ProductionOrderAssemblyGroup> ProductionOrderAssemblyGroups => Set<ProductionOrderAssemblyGroup>();
-    public DbSet<ProductionOrderAssemblyGroupSpec> ProductionOrderAssemblyGroupSpecs => Set<ProductionOrderAssemblyGroupSpec>();
     public DbSet<ProductionWorkplaceAssemblyGroup> ProductionWorkplaceAssemblyGroups => Set<ProductionWorkplaceAssemblyGroup>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
@@ -425,57 +423,9 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ProductionOrderAssemblyGroup (Phase 1 — Spec 5.2)
-        modelBuilder.Entity<ProductionOrderAssemblyGroup>(entity =>
-        {
-            entity.ToTable("ProductionOrderAssemblyGroups");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.GroupKey).HasMaxLength(10).IsRequired();
-            entity.Property(e => e.CompletedBy).HasMaxLength(200);
-            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
-            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
-
-            entity.HasIndex(e => new { e.ProductionOrderId, e.GroupKey }).IsUnique()
-                .HasDatabaseName("UQ_ProductionOrderAssemblyGroups_PO_Key");
-            entity.HasIndex(e => new { e.GroupKey, e.IsApplicable })
-                .HasDatabaseName("IX_ProductionOrderAssemblyGroups_GroupKey_IsApplicable");
-
-            entity.HasOne(e => e.ProductionOrder)
-                .WithMany(p => p.AssemblyGroups)
-                .HasForeignKey(e => e.ProductionOrderId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // ProductionOrderAssemblyGroupSpec (Phase 1 — Spec 5.2)
-        modelBuilder.Entity<ProductionOrderAssemblyGroupSpec>(entity =>
-        {
-            entity.ToTable("ProductionOrderAssemblyGroupSpecs");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Description).HasMaxLength(500).IsRequired();
-            entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.Notes).HasColumnType("nvarchar(max)");
-            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
-            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
-
-            entity.HasIndex(e => e.AssemblyGroupId)
-                .HasDatabaseName("IX_ProductionOrderAssemblyGroupSpecs_AssemblyGroupId");
-            entity.HasIndex(e => e.ArticleId)
-                .HasFilter("[ArticleId] IS NOT NULL")
-                .HasDatabaseName("IX_ProductionOrderAssemblyGroupSpecs_ArticleId");
-
-            entity.HasOne(e => e.AssemblyGroup)
-                .WithMany(g => g.Specs)
-                .HasForeignKey(e => e.AssemblyGroupId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.Article)
-                .WithMany()
-                .HasForeignKey(e => e.ArticleId)
-                .OnDelete(DeleteBehavior.SetNull);
-        });
+        // ProductionOrderAssemblyGroups + ProductionOrderAssemblyGroupSpecs entfernt in
+        // v1.22.0 — ersetzt durch FaWorkSteps/FaWorkStepSpecs (daten-erhaltende Migration
+        // FaWorkStepsAndAttributes, siehe Spec 2026-06-12).
 
         // ProductionWorkplaceAssemblyGroup (Phase 1 — Spec 5.2)
         modelBuilder.Entity<ProductionWorkplaceAssemblyGroup>(entity =>

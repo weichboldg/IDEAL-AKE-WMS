@@ -180,7 +180,8 @@ public class SageImportService : ISageImportService
             }
 
             // Eager-create der Status-Zeilen fuer neue FAs (Phase 1 Spec 9, analog AgentJob).
-            // 3 idempotente MERGEs: PickingStatus (1:1), BdeStatus (1:1), AssemblyGroups (5/FA: VK/VL/VE/VT/VA).
+            // 2 idempotente MERGEs: PickingStatus (1:1), BdeStatus (1:1).
+            // AssemblyGroups-MERGE entfernt in v1.22.0 (FaWorkSteps via Detection-Sync).
             // WHEN NOT MATCHED BY TARGET only — bestehende user-gesetzte Werte werden nie ueberschrieben.
             if (inserted > 0)
             {
@@ -202,19 +203,6 @@ public class SageImportService : ISageImportService
                         INSERT (ProductionOrderId, IsDoneBde,
                                 CreatedAt, CreatedBy, CreatedByWindows)
                         VALUES (p.ProductionOrderId, 0,
-                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
-
-                    MERGE [dbo].[ProductionOrderAssemblyGroups] AS s
-                    USING (
-                        SELECT po.Id AS ProductionOrderId, g.GroupKey
-                        FROM [dbo].[ProductionOrders] po
-                        CROSS JOIN (VALUES ('VK'),('VL'),('VE'),('VT'),('VA')) AS g(GroupKey)
-                    ) AS p
-                    ON s.ProductionOrderId = p.ProductionOrderId AND s.GroupKey = p.GroupKey
-                    WHEN NOT MATCHED BY TARGET THEN
-                        INSERT (ProductionOrderId, GroupKey, IsApplicable, IsCompleted,
-                                CreatedAt, CreatedBy, CreatedByWindows)
-                        VALUES (p.ProductionOrderId, p.GroupKey, 0, 0,
                                 GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
                     """;
 
