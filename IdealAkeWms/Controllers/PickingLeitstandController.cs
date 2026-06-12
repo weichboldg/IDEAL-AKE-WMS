@@ -13,7 +13,7 @@ public class PickingLeitstandController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly IProductionOrderPickingStatusRepository _pickingStatusRepository;
-    private readonly IProductionOrderAssemblyGroupRepository _assemblyGroupRepository;
+    private readonly IFaWorkStepRepository _faWorkStepRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
@@ -24,7 +24,7 @@ public class PickingLeitstandController : Controller
     public PickingLeitstandController(
         IProductionOrderRepository productionOrderRepository,
         IProductionOrderPickingStatusRepository pickingStatusRepository,
-        IProductionOrderAssemblyGroupRepository assemblyGroupRepository,
+        IFaWorkStepRepository faWorkStepRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
@@ -34,7 +34,7 @@ public class PickingLeitstandController : Controller
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
-        _assemblyGroupRepository = assemblyGroupRepository;
+        _faWorkStepRepository = faWorkStepRepository;
         _currentUserService = currentUserService;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -85,9 +85,9 @@ public class PickingLeitstandController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
-        // Bulk-Lookups fuer pivot-basiertes Mapping (Spec 7.3)
+        // Bulk-Lookups fuer pivot-basiertes Mapping (seit v1.22.0 aus FaWorkSteps statt AssemblyGroups)
         var orderIds = orders.Select(o => o.Id).ToList();
-        var groupPivot = await _assemblyGroupRepository.GetIsApplicablePivotAsync(orderIds);
+        var groupPivot = await _faWorkStepRepository.GetWorkStepPivotAsync(orderIds);
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
 
         var viewItems = orders.Select(o =>

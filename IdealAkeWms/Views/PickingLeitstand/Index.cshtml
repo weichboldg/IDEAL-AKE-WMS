@@ -249,36 +249,36 @@
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field"
                                data-id="@item.Id"
-                               data-endpoint="/api/assembly-groups/toggle-applicable"
-                               data-group-key="VK"
+                               data-endpoint="/api/fa-work-steps/toggle"
+                               data-work-step-code="VK"
                                title="VK Kälte" @(item.HasCooling ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field"
                                data-id="@item.Id"
-                               data-endpoint="/api/assembly-groups/toggle-applicable"
-                               data-group-key="VL"
+                               data-endpoint="/api/fa-work-steps/toggle"
+                               data-work-step-code="VL"
                                title="VL Lüfter" @(item.HasFan ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field"
                                data-id="@item.Id"
-                               data-endpoint="/api/assembly-groups/toggle-applicable"
-                               data-group-key="VE"
+                               data-endpoint="/api/fa-work-steps/toggle"
+                               data-work-step-code="VE"
                                title="VE Elektro" @(item.HasElectric ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field"
                                data-id="@item.Id"
-                               data-endpoint="/api/assembly-groups/toggle-applicable"
-                               data-group-key="VT"
+                               data-endpoint="/api/fa-work-steps/toggle"
+                               data-work-step-code="VT"
                                title="VT Türen" @(item.HasDoors ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input toggle-field"
                                data-id="@item.Id"
-                               data-endpoint="/api/assembly-groups/toggle-applicable"
-                               data-group-key="VA"
+                               data-endpoint="/api/fa-work-steps/toggle"
+                               data-work-step-code="VA"
                                title="VA Aufbau" @(item.HasSuperstructure ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td>
@@ -576,18 +576,17 @@
 
             // Toggle-Field per AJAX — dispatcht ueber data-endpoint
             // picking-status sendet { productionOrderId, field, value }
-            // assembly-groups sendet { productionOrderId, groupKey, value }
+            // fa-work-steps sendet { productionOrderId, workStepCode, value }
             document.querySelectorAll('.toggle-field').forEach(function (cb) {
                 cb.addEventListener('change', function () {
                     var id = parseInt(this.getAttribute('data-id'));
                     var endpoint = this.getAttribute('data-endpoint');
                     var field = this.getAttribute('data-field');
-                    var groupKey = this.getAttribute('data-group-key');
                     var value = this.checked;
 
                     var body;
-                    if (endpoint === '/api/assembly-groups/toggle-applicable') {
-                        body = { productionOrderId: id, groupKey: groupKey, value: value };
+                    if (endpoint === '/api/fa-work-steps/toggle') {
+                        body = { productionOrderId: id, workStepCode: cb.dataset.workStepCode, value: value };
                     } else if (endpoint === '/api/picking-status/toggle' || endpoint === '/api/bde-status/toggle') {
                         body = { productionOrderId: id, field: field, value: value };
                     } else {

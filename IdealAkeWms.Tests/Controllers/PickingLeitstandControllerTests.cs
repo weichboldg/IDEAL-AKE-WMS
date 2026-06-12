@@ -14,13 +14,14 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>
 /// Controller-Tests fuer den neuen <see cref="PickingLeitstandController"/> (Phase 2 / v1.12.0).
 /// Migriert die 12 Tests aus <c>ProductionOrdersControllerPickerTests</c> auf den neuen
-/// Controller; ergaenzt um Index-Test fuer Rich-ViewModel + AssemblyGroup-Pivot (Spec 11. Phase 2 Task 9).
+/// Controller; ergaenzt um Index-Test fuer Rich-ViewModel + WorkStep-Pivot
+/// (seit v1.22.0 aus <see cref="IFaWorkStepRepository"/> statt AssemblyGroups).
 /// </summary>
 public class PickingLeitstandControllerTests
 {
     private readonly Mock<IProductionOrderRepository> _orderRepo = new();
     private readonly Mock<IProductionOrderPickingStatusRepository> _pickingStatusRepo = new();
-    private readonly Mock<IProductionOrderAssemblyGroupRepository> _assemblyGroupRepo = new();
+    private readonly Mock<IFaWorkStepRepository> _faWorkStepRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
     private readonly Mock<IAppSettingRepository> _settingRepo = new();
     private readonly Mock<IHolidayRepository> _holidayRepo = new();
@@ -46,7 +47,7 @@ public class PickingLeitstandControllerTests
         _controller = new PickingLeitstandController(
             _orderRepo.Object,
             _pickingStatusRepo.Object,
-            _assemblyGroupRepo.Object,
+            _faWorkStepRepo.Object,
             _currentUser.Object,
             _settingRepo.Object,
             _holidayRepo.Object,
@@ -123,7 +124,7 @@ public class PickingLeitstandControllerTests
                 { 2, ps2 }
             });
 
-        _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
+        _faWorkStepRepo.Setup(r => r.GetWorkStepPivotAsync(It.IsAny<List<int>>()))
             .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>
             {
                 { 1, new Dictionary<string, bool> { { "VK", true }, { "VL", false }, { "VE", true }, { "VT", false }, { "VA", false } } },
@@ -168,7 +169,7 @@ public class PickingLeitstandControllerTests
             .ReturnsAsync(MakePage(MakeRow(1, "FA-OPEN", isDone: false)));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
-        _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
+        _faWorkStepRepo.Setup(r => r.GetWorkStepPivotAsync(It.IsAny<List<int>>()))
             .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
 
         var result = await _controller.Index(null, null, null, showDone: false, page: 1, pageSize: null);
@@ -189,7 +190,7 @@ public class PickingLeitstandControllerTests
             .ReturnsAsync(MakePage(MakeRow(1, "FA-100", isDone: false, isDonePicking: true)));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
-        _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
+        _faWorkStepRepo.Setup(r => r.GetWorkStepPivotAsync(It.IsAny<List<int>>()))
             .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
 
         var result = await _controller.Index(null, null, null, showDone: true, page: 1, pageSize: null);
