@@ -54,6 +54,7 @@ builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOr
 builder.Services.AddScoped<IProductionOrderAssemblyGroupSpecRepository, ProductionOrderAssemblyGroupSpecRepository>();
 builder.Services.AddScoped<IWorkStepRepository, WorkStepRepository>();
 builder.Services.AddScoped<IFaWorkStepRepository, FaWorkStepRepository>();
+builder.Services.AddScoped<IFaAttributeRepository, FaAttributeRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
