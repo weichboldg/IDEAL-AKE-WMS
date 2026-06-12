@@ -23,6 +23,8 @@ public class ProductionWorkplacesControllerTests
         var userRepo = new Mock<IUserRepository>();
         userRepo.Setup(u => u.GetActiveUsersAsync()).ReturnsAsync(new List<User>());
 
+        var workStepRepo = new WorkStepRepository(ctx);
+
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
         userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
@@ -31,7 +33,7 @@ public class ProductionWorkplacesControllerTests
         var appSettings = new Mock<IAppSettingRepository>();
         appSettings.Setup(a => a.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
 
-        var controller = new ProductionWorkplacesController(repo, userRepo.Object, userSvc.Object, appSettings.Object, ctx);
+        var controller = new ProductionWorkplacesController(repo, userRepo.Object, workStepRepo, userSvc.Object, appSettings.Object, ctx);
         controller.TempData = new TempDataDictionary(new DefaultHttpContext(), Mock.Of<ITempDataProvider>());
         return controller;
     }
@@ -64,6 +66,29 @@ public class ProductionWorkplacesControllerTests
 
         var updated = await ctx.ProductionWorkplaces.FindAsync(wp.Id);
         updated!.BdeUseCustomShiftPlan.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Edit_SyncsWorkStepAssignments()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var wp = new ProductionWorkplace { Name = "WB", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.WorkSteps.AddRange(
+            new WorkStep { Id = 10, Code = "VK", Name = "Kuehlung" },
+            new WorkStep { Id = 11, Code = "VL", Name = "Lueftung" });
+        await ctx.SaveChangesAsync();
+        ctx.ProductionWorkplaceWorkSteps.Add(new ProductionWorkplaceWorkStep { ProductionWorkplaceId = wp.Id, WorkStepId = 10 });
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateController(ctx);
+        var vm = new ProductionWorkplaceEditViewModel { Id = wp.Id, Name = wp.Name };
+
+        await controller.Edit(wp.Id, vm, new[] { 11 });
+
+        var junctions = ctx.ProductionWorkplaceWorkSteps.Where(x => x.ProductionWorkplaceId == wp.Id).ToList();
+        junctions.Should().ContainSingle(x => x.WorkStepId == 11);
+        junctions.Single().CreatedBy.Should().Be("tester");
     }
 
     [Fact]

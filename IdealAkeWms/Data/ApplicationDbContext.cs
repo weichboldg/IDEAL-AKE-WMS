@@ -19,7 +19,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
-    public DbSet<ProductionWorkplaceAssemblyGroup> ProductionWorkplaceAssemblyGroups => Set<ProductionWorkplaceAssemblyGroup>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
@@ -427,25 +426,10 @@ public class ApplicationDbContext : DbContext
         // v1.22.0 — ersetzt durch FaWorkSteps/FaWorkStepSpecs (daten-erhaltende Migration
         // FaWorkStepsAndAttributes, siehe Spec 2026-06-12).
 
-        // ProductionWorkplaceAssemblyGroup (Phase 1 — Spec 5.2)
-        modelBuilder.Entity<ProductionWorkplaceAssemblyGroup>(entity =>
-        {
-            entity.ToTable("ProductionWorkplaceAssemblyGroups");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.GroupKey).HasMaxLength(10).IsRequired();
-            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
-            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
-
-            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.GroupKey }).IsUnique()
-                .HasDatabaseName("UQ_ProductionWorkplaceAssemblyGroups_WP_Key");
-
-            entity.HasOne(e => e.ProductionWorkplace)
-                .WithMany()
-                .HasForeignKey(e => e.ProductionWorkplaceId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
+        // ProductionWorkplaceAssemblyGroup (Phase-1-Platzhalter, nie im Code genutzt) entfernt
+        // in v1.22.0 — ersetzt durch ProductionWorkplaceWorkSteps (N:M Werkbank↔Arbeitsgang).
+        // Die DB-Tabelle ProductionWorkplaceAssemblyGroups bleibt vorerst stehen (Drop folgt
+        // in einer spaeteren Migration; sie ist nicht mehr im EF-Model/Snapshot enthalten).
 
         // WorkStep (FA-Vorbau v1.22.0)
         modelBuilder.Entity<WorkStep>(entity =>

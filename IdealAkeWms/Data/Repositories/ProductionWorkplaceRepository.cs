@@ -73,4 +73,40 @@ public class ProductionWorkplaceRepository : Repository<ProductionWorkplace>, IP
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<int>> GetWorkStepIdsAsync(int workplaceId)
+    {
+        return await _context.ProductionWorkplaceWorkSteps
+            .AsNoTracking()
+            .Where(ws => ws.ProductionWorkplaceId == workplaceId)
+            .Select(ws => ws.WorkStepId)
+            .ToListAsync();
+    }
+
+    public async Task SetWorkStepsAsync(int workplaceId, List<int> workStepIds, string createdBy = "system", string createdByWindows = "system")
+    {
+        var existing = await _context.ProductionWorkplaceWorkSteps
+            .Where(ws => ws.ProductionWorkplaceId == workplaceId)
+            .ToListAsync();
+
+        // Delta-Sync: ueberzaehlige entfernen (bestehende Zeilen behalten ihre Audit-Daten) ...
+        var toRemove = existing.Where(ws => !workStepIds.Contains(ws.WorkStepId)).ToList();
+        _context.ProductionWorkplaceWorkSteps.RemoveRange(toRemove);
+
+        // ... fehlende adden
+        var existingIds = existing.Select(ws => ws.WorkStepId).ToHashSet();
+        foreach (var workStepId in workStepIds.Distinct().Where(id => !existingIds.Contains(id)))
+        {
+            _context.ProductionWorkplaceWorkSteps.Add(new ProductionWorkplaceWorkStep
+            {
+                ProductionWorkplaceId = workplaceId,
+                WorkStepId = workStepId,
+                CreatedAt = DateTime.Now,
+                CreatedBy = createdBy,
+                CreatedByWindows = createdByWindows
+            });
+        }
+
+        await _context.SaveChangesAsync();
+    }
 }

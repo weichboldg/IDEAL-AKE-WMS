@@ -14,6 +14,7 @@ public class ProductionWorkplacesController : Controller
 {
     private readonly IProductionWorkplaceRepository _repository;
     private readonly IUserRepository _userRepository;
+    private readonly IWorkStepRepository _workStepRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _appSettings;
     private readonly ApplicationDbContext _ctx;
@@ -21,12 +22,14 @@ public class ProductionWorkplacesController : Controller
     public ProductionWorkplacesController(
         IProductionWorkplaceRepository repository,
         IUserRepository userRepository,
+        IWorkStepRepository workStepRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository appSettings,
         ApplicationDbContext ctx)
     {
         _repository = repository;
         _userRepository = userRepository;
+        _workStepRepository = workStepRepository;
         _currentUserService = currentUserService;
         _appSettings = appSettings;
         _ctx = ctx;
@@ -79,7 +82,8 @@ public class ProductionWorkplacesController : Controller
     {
         var vm = new ProductionWorkplaceEditViewModel
         {
-            AvailableUsers = await _userRepository.GetActiveUsersAsync()
+            AvailableUsers = await _userRepository.GetActiveUsersAsync(),
+            AllWorkSteps = await _workStepRepository.GetActiveAsync()
         };
         ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
         return View(vm);
@@ -88,11 +92,13 @@ public class ProductionWorkplacesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireMasterDataAccess]
-    public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm)
+    public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm, int[]? workStepIds = null)
     {
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
+            vm.AllWorkSteps = await _workStepRepository.GetActiveAsync();
+            vm.SelectedWorkStepIds = workStepIds?.ToList() ?? new List<int>();
             ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
             return View(vm);
         }
@@ -122,6 +128,15 @@ public class ProductionWorkplacesController : Controller
                 _currentUserService.GetWindowsUserName());
         }
 
+        if (workStepIds is { Length: > 0 })
+        {
+            await _repository.SetWorkStepsAsync(
+                workplace.Id,
+                workStepIds.ToList(),
+                _currentUserService.GetDisplayName(),
+                _currentUserService.GetWindowsUserName());
+        }
+
         TempData["SuccessMessage"] = $"Werkbank '{workplace.Name}' wurde angelegt.";
         return RedirectToAction(nameof(Index));
     }
@@ -147,7 +162,9 @@ public class ProductionWorkplacesController : Controller
                 .OrderBy(s => s.DayOfWeek).ThenBy(s => s.StartTime)
                 .ToListAsync(),
             SelectedUserIds = workplace.ProductionWorkplaceUsers.Select(wu => wu.UserId).ToList(),
-            AvailableUsers = await _userRepository.GetActiveUsersAsync()
+            AvailableUsers = await _userRepository.GetActiveUsersAsync(),
+            AllWorkSteps = await _workStepRepository.GetActiveAsync(),
+            SelectedWorkStepIds = await _repository.GetWorkStepIdsAsync(workplace.Id)
         };
 
         ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
@@ -157,7 +174,7 @@ public class ProductionWorkplacesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireMasterDataAccess]
-    public async Task<IActionResult> Edit(int id, ProductionWorkplaceEditViewModel vm)
+    public async Task<IActionResult> Edit(int id, ProductionWorkplaceEditViewModel vm, int[]? workStepIds = null)
     {
         if (id != vm.Id)
             return NotFound();
@@ -165,6 +182,8 @@ public class ProductionWorkplacesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
+            vm.AllWorkSteps = await _workStepRepository.GetActiveAsync();
+            vm.SelectedWorkStepIds = workStepIds?.ToList() ?? new List<int>();
             ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
             return View(vm);
         }
@@ -189,6 +208,11 @@ public class ProductionWorkplacesController : Controller
         await _repository.SetProductionWorkplaceUsersAsync(
             id,
             vm.SelectedUserIds ?? new List<int>(),
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName());
+        await _repository.SetWorkStepsAsync(
+            id,
+            workStepIds?.ToList() ?? new List<int>(),
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 

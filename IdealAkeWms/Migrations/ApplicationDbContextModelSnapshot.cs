@@ -2050,55 +2050,6 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("ProductionWorkplaces", "dbo");
                 });
 
-            modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceAssemblyGroup", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("CreatedByWindows")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("GroupKey")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ModifiedByWindows")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("ProductionWorkplaceId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductionWorkplaceId", "GroupKey")
-                        .IsUnique()
-                        .HasDatabaseName("UQ_ProductionWorkplaceAssemblyGroups_WP_Key");
-
-                    b.ToTable("ProductionWorkplaceAssemblyGroups", "dbo");
-                });
-
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceUser", b =>
                 {
                     b.Property<int>("Id")
@@ -3495,17 +3446,6 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("AssignedPicker");
 
                     b.Navigation("ProductionOrder");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceAssemblyGroup", b =>
-                {
-                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
-                        .WithMany()
-                        .HasForeignKey("ProductionWorkplaceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ProductionWorkplace");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplaceUser", b =>
