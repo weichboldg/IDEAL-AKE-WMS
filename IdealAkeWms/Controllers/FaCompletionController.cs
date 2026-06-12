@@ -104,6 +104,7 @@ public class FaCompletionController : Controller
                 CompletedCount = c?.CompletedCount ?? 0,
                 SpecCount = c?.SpecCount ?? 0,
                 HasNoWorkplace = o.ProductionWorkplaceId == null,
+                WorkplaceName = o.ProductionWorkplace?.Name,
             };
         }).ToList();
 
@@ -146,6 +147,7 @@ public class FaCompletionController : Controller
             ["production-date"] = i => i.ProductionDate.HasValue
                 ? $"{i.ProductionDate.Value:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(i.ProductionDate.Value)}"
                 : string.Empty,
+            ["workbench"] = i => i.HasNoWorkplace ? "Keine Werkbank" : i.WorkplaceName,
             ["applicable"] = i => i.ApplicableCount.ToString(),
             ["completed"] = i => i.CompletedCount.ToString(),
             ["spec-count"] = i => i.SpecCount.ToString(),

@@ -141,6 +141,45 @@ else
                 </form>
             </div>
 
+            @* Merkmal-Block: dem Arbeitsgang zugeordnete Merkmale, onchange-Submit auf SaveAttributeValue *@
+            @if (active.Attributes.Count > 0)
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Merkmale</div>
+                    <div class="card-body">
+                        @foreach (var attr in active.Attributes)
+                        {
+                            <form asp-action="SaveAttributeValue" method="post" class="row g-2 align-items-center mb-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.ProductionOrderId" />
+                                <input type="hidden" name="definitionId" value="@attr.DefinitionId" />
+                                <label class="col-sm-3 col-form-label">@attr.Name</label>
+                                <div class="col-sm-6">
+                                    @if (attr.AttributeType == AttributeType.Dropdown)
+                                    {
+                                        <select name="optionId" class="form-select" onchange="this.form.submit()">
+                                            <option value="">(leer)</option>
+                                            @foreach (var opt in attr.Options.Where(o => o.IsActive || o.Id == attr.SelectedOptionId))
+                                            {
+                                                <option value="@opt.Id" selected="@(opt.Id == attr.SelectedOptionId)">@opt.Value</option>
+                                            }
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <select name="boolValue" class="form-select" onchange="this.form.submit()">
+                                            <option value="">(leer)</option>
+                                            <option value="true" selected="@(attr.BooleanValue == true)">JA</option>
+                                            <option value="false" selected="@(attr.BooleanValue == false)">NEIN</option>
+                                        </select>
+                                    }
+                                </div>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+
             @* Spec-Tabelle: bestehende Specs als inline-editable Form-Rows *@
             <div class="table-responsive">
                 <table class="table table-striped align-middle">

@@ -36,4 +36,7 @@ public class FaCompletionListItem
 
     /// <summary>True wenn dem FA keine Werkbank zugewiesen ist (ProductionWorkplaceId == null).</summary>
     public bool HasNoWorkplace { get; set; }
+
+    /// <summary>Name der zugewiesenen Werkbank (null wenn keine zugewiesen ist).</summary>
+    public string? WorkplaceName { get; set; }
 }

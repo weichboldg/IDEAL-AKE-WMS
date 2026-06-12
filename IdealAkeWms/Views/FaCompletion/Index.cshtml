@@ -61,6 +61,7 @@
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                 <th data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
+                <th data-filterable data-col-key="workbench">Werkbank</th>
                 <th data-filterable data-col-key="applicable">Anwendbar</th>
                 <th data-filterable data-col-key="completed">Vervollständigt</th>
                 <th data-filterable data-col-key="spec-count">Ausprägungen</th>
@@ -71,7 +72,7 @@
             @if (Model.Items.Count == 0)
             {
                 <tr>
-                    <td colspan="10" class="text-center text-muted py-4">
+                    <td colspan="11" class="text-center text-muted py-4">
                         Keine Fertigungsaufträge gefunden.
                     </td>
                 </tr>
@@ -87,6 +88,16 @@
                         <td>@item.ArticleNumber</td>
                         <td>@item.Description1</td>
                         <td>@(item.ProductionDate?.ToString("dd.MM.yyyy"))</td>
+                        <td>
+                            @if (item.HasNoWorkplace)
+                            {
+                                <span class="badge bg-warning text-dark">Keine Werkbank</span>
+                            }
+                            else
+                            {
+                                @item.WorkplaceName
+                            }
+                        </td>
                         <td>@item.ApplicableCount</td>
                         <td>@item.CompletedCount / @item.ApplicableCount</td>
                         <td>@item.SpecCount</td>

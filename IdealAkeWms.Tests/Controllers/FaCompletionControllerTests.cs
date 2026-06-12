@@ -164,6 +164,60 @@ public class FaCompletionControllerTests
     }
 
     [Fact]
+    public async Task Index_ColumnFilter_FiltersAcrossAllRows()
+    {
+        var (ctx, ctrl, _) = Build();
+        var kuehlung = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-KUEHL");
+        var montage = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-MONT");
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-NOWP");
+
+        var wp1 = new ProductionWorkplace
+        {
+            Name = "Werkbank Kuehlung",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var wp2 = new ProductionWorkplace
+        {
+            Name = "Montage",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.AddRange(wp1, wp2);
+        await ctx.SaveChangesAsync();
+
+        kuehlung.Order.ProductionWorkplaceId = wp1.Id;
+        montage.Order.ProductionWorkplaceId = wp2.Id;
+        await ctx.SaveChangesAsync();
+
+        // Filter auf Werkbank-Namen
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_workbench=Kuehlung");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index(null, null, null, false);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-KUEHL");
+        vm.Items.Single().WorkplaceName.Should().Be("Werkbank Kuehlung");
+        vm.Pagination.TotalCount.Should().Be(1);
+
+        // Filter auf den gerenderten Badge-Text "Keine Werkbank"
+        var httpCtx2 = new DefaultHttpContext();
+        httpCtx2.Request.QueryString = new QueryString("?colf_workbench=keine%20werkbank");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx2 };
+
+        var result2 = await ctrl.Index(null, null, null, false);
+
+        var vm2 = (FaCompletionListViewModel)((ViewResult)result2).Model!;
+        vm2.Items.Should().HaveCount(1);
+        vm2.Items.Single().OrderNumber.Should().Be("FA-NOWP");
+    }
+
+    [Fact]
     public async Task Index_FiltersByOrderNumber_ReturnsOnlyMatching()
     {
         var (ctx, ctrl, _) = Build();
