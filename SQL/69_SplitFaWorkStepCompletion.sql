@@ -43,18 +43,25 @@ ELSE
 GO
 
 -- =============================================
--- SECTION B: DATEN-VERSCHIEBUNG
+-- SECTION B: DATEN-VERSCHIEBUNG (einmalig — an Migrations-History gekoppelt)
 -- Das alte IsCompleted war semantisch "Spec fertig" (v1.13-/Konvertierungs-Herkunft).
 -- -> nach IsSpecComplete uebernehmen, Arbeit-erledigt frisch starten.
+-- Guard: laeuft NUR wenn die Migration noch nicht registriert ist. Sonst wuerde ein
+-- zweiter Lauf nach echtem Arbeits-Abschluss das IsCompleted faelschlich auf 0 setzen.
 -- =============================================
-UPDATE dbo.FaWorkSteps
-SET IsSpecComplete = IsCompleted,
-    SpecCompletedAt = CompletedAt,
-    SpecCompletedBy = CompletedBy,
-    IsCompleted = 0,
-    CompletedAt = NULL,
-    CompletedBy = NULL;
-PRINT 'Daten-Verschiebung IsCompleted -> IsSpecComplete abgeschlossen.';
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615070236_SplitFaWorkStepCompletion')
+BEGIN
+    UPDATE dbo.FaWorkSteps
+    SET IsSpecComplete = IsCompleted,
+        SpecCompletedAt = CompletedAt,
+        SpecCompletedBy = CompletedBy,
+        IsCompleted = 0,
+        CompletedAt = NULL,
+        CompletedBy = NULL;
+    PRINT 'Daten-Verschiebung IsCompleted -> IsSpecComplete abgeschlossen.';
+END
+ELSE
+    PRINT 'Daten-Verschiebung uebersprungen (Migration bereits registriert).';
 GO
 
 -- =============================================
