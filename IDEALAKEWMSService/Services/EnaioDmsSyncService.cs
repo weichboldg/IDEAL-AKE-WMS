@@ -33,39 +33,35 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
                 ?? throw new InvalidOperationException("EnaioDmsConnection nicht konfiguriert.");
             var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
-            // Alle Werkstattauftraege und Zeichnungen aus enaio lesen (Full-Sync).
+            // Alle relevanten Fertigungsauftrags-Dokumente aus enaio lesen (Full-Sync).
+            // Quelle ist die View vw_IDEAL-AKE_Fertigungsauftraege, die die Indexdaten
+            // bereits aufbereitet liefert: Typ, WaNummer (mit Suffix -01/-02) und
+            // WaNummerTrimmed (die FA-Match-Nummer ohne Suffix). Kein Typ-Filter mehr
+            // noetig — die View liefert die relevanten Zeilen.
             // Delta via 'angelegt' funktioniert nicht, weil enaio-Dokumente einmalig
-            // erstellt werden (angelegt = 2013) und feld44 (WaNummer) spaeter
-            // aktualisiert wird, ohne dass sich angelegt aendert.
-            // Das MERGE-Statement verhindert Duplikate und aktualisiert Aenderungen.
+            // erstellt werden (angelegt = 2013) und spaeter aktualisiert werden, ohne
+            // dass sich angelegt aendert. Das MERGE-Statement verhindert Duplikate und
+            // aktualisiert Aenderungen.
             var docs = new List<EnaioDmsRawRow>();
             await using (var enaioDmsConn = new SqlConnection(enaioDmsConnection))
             {
                 await enaioDmsConn.OpenAsync(ct);
 
                 var sql = @"
-                    SELECT id, angelegt, feld1 AS Typ,
-                           feld44 AS WaNummer,
-                           LEFT(feld43, 7) AS WaNummerZeichnung
-                    FROM sysadm.object1
-                    WHERE feld1 IN ('Werkstattauftrag', 'Zeichnung')";
+                    SELECT id, angelegt, Typ, WaNummer, WaNummerTrimmed
+                    FROM [enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]";
 
                 await using var cmd = new SqlCommand(sql, enaioDmsConn) { CommandTimeout = 120 };
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
                 {
-                    var typ = reader.GetString(2);
-                    var waNr = typ == "Werkstattauftrag"
-                        ? (reader.IsDBNull(3) ? null : reader.GetString(3))
-                        : (reader.IsDBNull(4) ? null : reader.GetString(4));
-
                     docs.Add(new EnaioDmsRawRow
                     {
                         EnaioDmsObjectId = Convert.ToInt64(reader.GetValue(0)),
                         CreatedInEnaio = reader.GetDateTime(1),
-                        DocumentType = typ,
-                        OrderNumber = waNr?.Trim()
+                        DocumentType = reader.GetString(2),
+                        OrderNumber = reader.IsDBNull(4) ? null : reader.GetString(4).Trim()
                     });
                 }
             }
