@@ -454,6 +454,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Source).HasMaxLength(20);
             entity.Property(e => e.CompletedBy).HasMaxLength(200);
+            entity.Property(e => e.SpecCompletedBy).HasMaxLength(200);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);

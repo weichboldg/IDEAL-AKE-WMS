@@ -65,4 +65,42 @@ public class FaWorkStepRepositoryTests
         reloaded.CompletedAt.Should().NotBeNull();
         reloaded.CompletedBy.Should().Be("tester");
     }
+
+    [Fact]
+    public async Task SetIsSpecComplete_SetsSpecFieldsNotWorkDone()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new FaWorkStepRepository(ctx);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1" });
+        ctx.WorkSteps.Add(new WorkStep { Id = 10, Code = "VE", Name = "Elektro" });
+        var row = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10 };
+        ctx.FaWorkSteps.Add(row);
+        await ctx.SaveChangesAsync();
+
+        await repo.SetIsSpecCompleteAsync(row.Id, true, "tester", "win\\tester");
+
+        var reloaded = await ctx.FaWorkSteps.FindAsync(row.Id);
+        reloaded!.IsSpecComplete.Should().BeTrue();
+        reloaded.SpecCompletedAt.Should().NotBeNull();
+        reloaded.SpecCompletedBy.Should().Be("tester");
+        reloaded.IsCompleted.Should().BeFalse(); // Arbeit-erledigt unberuehrt
+    }
+
+    [Fact]
+    public async Task GetCounts_SpecCompleteCount_CountsSpecCompleteNotWorkDone()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new FaWorkStepRepository(ctx);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1" });
+        ctx.WorkSteps.AddRange(new WorkStep { Id = 10, Code = "VE", Name = "E" }, new WorkStep { Id = 11, Code = "VL", Name = "L" });
+        ctx.FaWorkSteps.AddRange(
+            new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, IsSpecComplete = true, IsCompleted = false },
+            new FaWorkStep { ProductionOrderId = 1, WorkStepId = 11, IsSpecComplete = false, IsCompleted = true });
+        await ctx.SaveChangesAsync();
+
+        var counts = await repo.GetCountsByProductionOrderIdsAsync(new List<int> { 1 });
+
+        counts[1].ActiveCount.Should().Be(2);
+        counts[1].SpecCompleteCount.Should().Be(1); // nur die spec-fertige Zeile
+    }
 }

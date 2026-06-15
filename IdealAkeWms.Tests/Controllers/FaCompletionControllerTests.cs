@@ -64,13 +64,14 @@ public class FaCompletionControllerTests
 
     private static FaWorkStep SeedFaWorkStep(
         ApplicationDbContext ctx, int productionOrderId, int workStepId,
-        bool isCompleted = false, bool isRemoved = false)
+        bool isCompleted = false, bool isRemoved = false, bool isSpecComplete = false)
     {
         var row = new FaWorkStep
         {
             ProductionOrderId = productionOrderId,
             WorkStepId = workStepId,
             IsCompleted = isCompleted,
+            IsSpecComplete = isSpecComplete,
             IsRemoved = isRemoved,
             CreatedAt = DateTime.Now,
             CreatedBy = "t",
@@ -109,7 +110,8 @@ public class FaCompletionControllerTests
         var vl = SeedWorkStep(ctx, "VL", "Lueftung", 2);
         var ve = SeedWorkStep(ctx, "VE", "Elektro", 3);
 
-        SeedFaWorkStep(ctx, o2.Order.Id, vk.Id, isCompleted: true);
+        // CompletedCount-Spalte zeigt seit v1.22.0 den Spec-Fertig-Fortschritt (IsSpecComplete).
+        SeedFaWorkStep(ctx, o2.Order.Id, vk.Id, isSpecComplete: true);
         var vlRow = SeedFaWorkStep(ctx, o2.Order.Id, vl.Id);
         SeedSpec(ctx, vlRow.Id, "Lueftermotor");
 

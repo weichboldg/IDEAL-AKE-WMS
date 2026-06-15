@@ -104,7 +104,7 @@ public class FaCompletionController : Controller
                 ProductionDate = o.ProductionDate,
                 IsDone = o.IsDone,
                 ApplicableCount = c?.ActiveCount ?? 0,
-                CompletedCount = c?.CompletedCount ?? 0,
+                CompletedCount = c?.SpecCompleteCount ?? 0,
                 SpecCount = c?.SpecCount ?? 0,
                 HasNoWorkplace = o.ProductionWorkplaceId == null,
                 WorkplaceName = o.ProductionWorkplace?.Name,

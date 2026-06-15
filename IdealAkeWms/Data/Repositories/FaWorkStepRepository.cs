@@ -69,14 +69,14 @@ public class FaWorkStepRepository : IFaWorkStepRepository
             var chunk = ids.Skip(offset).Take(chunkSize).ToList();
             var rows = await _context.FaWorkSteps
                 .Where(f => chunk.Contains(f.ProductionOrderId) && !f.IsRemoved)
-                .Select(f => new { f.ProductionOrderId, f.IsCompleted, SpecCount = f.Specs.Count })
+                .Select(f => new { f.ProductionOrderId, f.IsSpecComplete, SpecCount = f.Specs.Count })
                 .ToListAsync();
 
             foreach (var grp in rows.GroupBy(r => r.ProductionOrderId))
             {
                 result[grp.Key] = new FaWorkStepCounts(
                     ActiveCount: grp.Count(),
-                    CompletedCount: grp.Count(r => r.IsCompleted),
+                    SpecCompleteCount: grp.Count(r => r.IsSpecComplete),
                     SpecCount: grp.Sum(r => r.SpecCount));
             }
         }
@@ -123,6 +123,20 @@ public class FaWorkStepRepository : IFaWorkStepRepository
         row.IsCompleted = value;
         row.CompletedAt = value ? DateTime.Now : null;
         row.CompletedBy = value ? modifiedBy : null;
+        row.ModifiedAt = DateTime.Now;
+        row.ModifiedBy = modifiedBy;
+        row.ModifiedByWindows = modifiedByWindows;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task SetIsSpecCompleteAsync(int faWorkStepId, bool value, string modifiedBy, string modifiedByWindows)
+    {
+        var row = await _context.FaWorkSteps.FirstOrDefaultAsync(f => f.Id == faWorkStepId)
+            ?? throw new InvalidOperationException($"FaWorkStep row missing for Id {faWorkStepId}.");
+
+        row.IsSpecComplete = value;
+        row.SpecCompletedAt = value ? DateTime.Now : null;
+        row.SpecCompletedBy = value ? modifiedBy : null;
         row.ModifiedAt = DateTime.Now;
         row.ModifiedBy = modifiedBy;
         row.ModifiedByWindows = modifiedByWindows;

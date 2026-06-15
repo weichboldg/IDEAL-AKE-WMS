@@ -2,8 +2,8 @@ using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Data.Repositories;
 
-/// <summary>Aggregierte Zaehler je FA (nur aktive Zeilen, IsRemoved=0).</summary>
-public record FaWorkStepCounts(int ActiveCount, int CompletedCount, int SpecCount);
+/// <summary>Aggregierte Zaehler je FA (nur aktive Zeilen, IsRemoved=0). SpecCompleteCount = IsSpecComplete.</summary>
+public record FaWorkStepCounts(int ActiveCount, int SpecCompleteCount, int SpecCount);
 
 public interface IFaWorkStepRepository
 {
@@ -21,6 +21,9 @@ public interface IFaWorkStepRepository
 
     /// <summary>Setzt IsCompleted + CompletedAt/By bzw. null.</summary>
     Task SetIsCompletedAsync(int faWorkStepId, bool value, string modifiedBy, string modifiedByWindows);
+
+    /// <summary>Setzt IsSpecComplete + SpecCompletedAt/By bzw. null (FA-Vervollstaendigung).</summary>
+    Task SetIsSpecCompleteAsync(int faWorkStepId, bool value, string modifiedBy, string modifiedByWindows);
 
     Task<FaWorkStep?> GetByIdAsync(int id);
 

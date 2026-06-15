@@ -18,6 +18,11 @@ public class FaWorkStep : AuditableEntity
     public DateTime? CompletedAt { get; set; }
     public string? CompletedBy { get; set; }
 
+    /// <summary>Spec/Definition fertig (FA-Vervollstaendigung). Blendet NICHT aus.</summary>
+    public bool IsSpecComplete { get; set; }
+    public DateTime? SpecCompletedAt { get; set; }
+    public string? SpecCompletedBy { get; set; }
+
     public string Source { get; set; } = FaWorkStepSources.Manual; // NVARCHAR(20)
 
     /// <summary>Manuell abgewaehlt — Sync darf NICHT re-adden.</summary>
