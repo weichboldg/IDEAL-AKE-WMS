@@ -348,6 +348,9 @@ BEGIN
         [IsCompleted]       BIT               NOT NULL,
         [CompletedAt]       DATETIME2         NULL,
         [CompletedBy]       NVARCHAR(200)     NULL,
+        [IsSpecComplete]    BIT               NOT NULL CONSTRAINT DF_FaWorkSteps_IsSpecComplete DEFAULT 0,
+        [SpecCompletedAt]   DATETIME2         NULL,
+        [SpecCompletedBy]   NVARCHAR(200)     NULL,
         [Source]            NVARCHAR(20)      NOT NULL,
         [IsRemoved]         BIT               NOT NULL,
         [CreatedAt]         DATETIME2         NOT NULL,
@@ -1955,6 +1958,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 -- FaWorkStepsAndAttributes (Migration 68, v1.22.0)
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260612102225_FaWorkStepsAndAttributes')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260612102225_FaWorkStepsAndAttributes', '10.0.2');
+-- SplitFaWorkStepCompletion (Migration 69, v1.22.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615070236_SplitFaWorkStepCompletion')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615070236_SplitFaWorkStepCompletion', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
