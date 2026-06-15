@@ -30,13 +30,14 @@ public class FaCompletionControllerTests
         var workStepRepo = new WorkStepRepository(ctx);
         var attrRepo = new FaAttributeRepository(ctx);
         var workplaceRepo = new ProductionWorkplaceRepository(ctx);
+        var enaioRepo = new EnaioDmsDocumentRepository(ctx);
 
         var userMock = new Mock<ICurrentUserService>();
         userMock.Setup(x => x.GetDisplayName()).Returns("Max Mustermann");
         userMock.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\max");
 
         var ctrl = new FaCompletionController(
-            prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo, userMock.Object);
+            prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo, enaioRepo, userMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -532,6 +533,40 @@ public class FaCompletionControllerTests
         value.FaAttributeDefinitionId.Should().Be(def.Id);
         value.SelectedOptionId.Should().Be(opt.Id);
         value.CreatedBy.Should().Be("Max Mustermann");
+    }
+
+    [Fact]
+    public async Task SaveAttributeValue_RedirectsToSameTab()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-ATTRTAB");
+        var def = new FaAttributeDefinition
+        {
+            Name = "Leitungsausgang",
+            AttributeType = AttributeType.Dropdown,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        ctx.FaAttributeDefinitions.Add(def);
+        await ctx.SaveChangesAsync();
+        var opt = new FaAttributeOption
+        {
+            FaAttributeDefinitionId = def.Id,
+            Value = "Standard",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        ctx.FaAttributeOptions.Add(opt);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.SaveAttributeValue(o.Order.Id, def.Id, opt.Id, null, tab: "VE");
+
+        var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
+        redirect.ActionName.Should().Be("Edit");
+        redirect.RouteValues!["id"].Should().Be(o.Order.Id);
+        redirect.RouteValues!["tab"].Should().Be("VE");
     }
 
     [Fact]

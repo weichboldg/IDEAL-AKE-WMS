@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Models.ViewModels;
@@ -34,6 +35,9 @@ public class FaCompletionEditViewModel
     public string ActiveTab { get; set; } = string.Empty;
 
     public List<FaWorkStepTabViewModel> Tabs { get; set; } = new();
+
+    /// <summary>enaio-DMS-Dokumente zur FA-Nummer (Key = OrderNumber). Fuer Badges im Header.</summary>
+    public Dictionary<string, List<EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
 }
 
 /// <summary>

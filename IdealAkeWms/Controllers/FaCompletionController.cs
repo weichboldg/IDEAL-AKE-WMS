@@ -25,6 +25,7 @@ public class FaCompletionController : Controller
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IFaAttributeRepository _faAttributeRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
+    private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly ICurrentUserService _currentUser;
 
     public FaCompletionController(
@@ -33,6 +34,7 @@ public class FaCompletionController : Controller
         IWorkStepRepository workStepRepository,
         IFaAttributeRepository faAttributeRepository,
         IProductionWorkplaceRepository productionWorkplaceRepository,
+        IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         ICurrentUserService currentUser)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -40,6 +42,7 @@ public class FaCompletionController : Controller
         _workStepRepository = workStepRepository;
         _faAttributeRepository = faAttributeRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
+        _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _currentUser = currentUser;
     }
 
@@ -255,6 +258,8 @@ public class FaCompletionController : Controller
             AvailableWorkSteps = availableWorkSteps,
             ActiveTab = activeTab,
             Tabs = tabs,
+            EnaioDmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(
+                new List<string> { order.OrderNumber }),
         };
 
         return View(vm);
@@ -287,7 +292,7 @@ public class FaCompletionController : Controller
     // POST /FaCompletion/SaveAttributeValue
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveAttributeValue(int id, int definitionId, int? optionId, bool? boolValue)
+    public async Task<IActionResult> SaveAttributeValue(int id, int definitionId, int? optionId, bool? boolValue, string? tab = null)
     {
         await _faAttributeRepository.UpsertValueAsync(
             id,
@@ -297,7 +302,7 @@ public class FaCompletionController : Controller
             _currentUser.GetDisplayName(),
             _currentUser.GetWindowsUserName());
 
-        return RedirectToAction(nameof(Edit), new { id });
+        return RedirectToAction(nameof(Edit), new { id, tab });
     }
 
     // POST /FaCompletion/AddWorkStep
