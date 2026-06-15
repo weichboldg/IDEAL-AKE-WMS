@@ -484,7 +484,7 @@
 <div class="mt-3">
     @if (Model.ReadOnly)
     {
-        <a asp-controller="FaWorklist" asp-action="Index" class="btn btn-outline-secondary">Zurück zur Abarbeitungsliste</a>
+        <a asp-controller="@Model.BackController" asp-action="Index" class="btn btn-outline-secondary">@Model.BackText</a>
     }
     else
     {

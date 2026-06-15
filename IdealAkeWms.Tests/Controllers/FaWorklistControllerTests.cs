@@ -67,10 +67,13 @@ public class FaWorklistControllerTests
         userMock.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
         userMock.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);
 
+        var readOnlyBomBuilder = new ReadOnlyBomBuilder(
+            prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
+
         var ctrl = new FaWorklistController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo,
             settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
-            bomMock.Object, stockRepo, articleAttrRepo, userRepo, userMock.Object);
+            readOnlyBomBuilder, userMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),

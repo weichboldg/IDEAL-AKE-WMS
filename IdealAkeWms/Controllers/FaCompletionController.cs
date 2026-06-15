@@ -26,6 +26,7 @@ public class FaCompletionController : Controller
     private readonly IFaAttributeRepository _faAttributeRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
+    private readonly ReadOnlyBomBuilder _readOnlyBomBuilder;
     private readonly ICurrentUserService _currentUser;
 
     public FaCompletionController(
@@ -35,6 +36,7 @@ public class FaCompletionController : Controller
         IFaAttributeRepository faAttributeRepository,
         IProductionWorkplaceRepository productionWorkplaceRepository,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
+        ReadOnlyBomBuilder readOnlyBomBuilder,
         ICurrentUserService currentUser)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -43,6 +45,7 @@ public class FaCompletionController : Controller
         _faAttributeRepository = faAttributeRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
+        _readOnlyBomBuilder = readOnlyBomBuilder;
         _currentUser = currentUser;
     }
 
@@ -263,6 +266,33 @@ public class FaCompletionController : Controller
         };
 
         return View(vm);
+    }
+
+    // GET /FaCompletion/Bom/{id} — read-only Stueckliste fuer die FA-Vervollstaendigung.
+    // Gemeinsamer ReadOnlyBomBuilder (DRY mit FaWorklist.Bom); Modul-Gate FaCompletionAktiv
+    // greift bereits ueber den Class-Level-Filter [RequireFaCompletionAccess].
+    public async Task<IActionResult> Bom(int id, string? filterText)
+    {
+        var vm = await _readOnlyBomBuilder.BuildAsync(id, filterText, _currentUser.GetCurrentAppUserId());
+        if (vm == null)
+        {
+            // FA fehlt oder hat keine Artikelnummer -> zurueck zur Edit-Ansicht mit Hinweis.
+            var order = await _productionOrderRepository.GetByIdAsync(id);
+            if (order == null)
+            {
+                return NotFound();
+            }
+
+            TempData["WarningMessage"] = "Dieser Fertigungsauftrag hat keine Artikelnummer.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        // Zurueck-Link auf die FA-Vervollstaendigung statt Default (FaWorklist),
+        // damit fa_completion-User nicht auf die fuer sie gesperrte Abarbeitungsliste landen.
+        vm.BackController = "FaCompletion";
+        vm.BackText = "Zurück zur FA-Vervollständigung";
+
+        return View("~/Views/Picking/Bom.cshtml", vm);
     }
 
     // POST /FaCompletion/SetWorkplace

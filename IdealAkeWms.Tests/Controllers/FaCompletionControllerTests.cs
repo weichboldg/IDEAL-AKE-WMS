@@ -31,13 +31,36 @@ public class FaCompletionControllerTests
         var attrRepo = new FaAttributeRepository(ctx);
         var workplaceRepo = new ProductionWorkplaceRepository(ctx);
         var enaioRepo = new EnaioDmsDocumentRepository(ctx);
+        var stockRepo = new StockMovementRepository(ctx);
+        var articleAttrRepo = new ArticleAttributeRepository(ctx);
+        var userRepo = new UserRepository(ctx);
+
+        // BOM kommt aus SAGE/OSEON (Dapper) -> Mock mit einer Position fuer die read-only Stueckliste.
+        var bomMock = new Mock<IBomRepository>();
+        bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<string>()))
+            .ReturnsAsync(new BomQueryResult(new List<BomItem>
+            {
+                new()
+                {
+                    Artikelnummer = "ART-1",
+                    Position = "10",
+                    Ressourcenummer = "RES-1",
+                    Bezeichnung1 = "Teil 1",
+                    Menge = 2m
+                }
+            }, "SAGE"));
+
+        var readOnlyBomBuilder = new ReadOnlyBomBuilder(
+            prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
 
         var userMock = new Mock<ICurrentUserService>();
         userMock.Setup(x => x.GetDisplayName()).Returns("Max Mustermann");
         userMock.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\max");
+        userMock.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);
 
         var ctrl = new FaCompletionController(
-            prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo, enaioRepo, userMock.Object);
+            prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo, enaioRepo,
+            readOnlyBomBuilder, userMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -840,6 +863,52 @@ public class FaCompletionControllerTests
         var (_, ctrl, _) = Build();
 
         var result = await ctrl.ToggleSpecComplete(999_999);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    // ------------------------------------------------------------------- Bom
+
+    [Fact]
+    public async Task Bom_ReturnsReadOnlyBomView()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-BOM", qty: 1m, articleNumber: "ART-1");
+
+        var result = await ctrl.Bom(o.Order.Id, null);
+
+        // Rendert die gemeinsame Picking-Stueckliste mit ReadOnly=true (gemeinsamer ReadOnlyBomBuilder).
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        view.ViewName.Should().Be("~/Views/Picking/Bom.cshtml");
+        var vm = view.Model.Should().BeOfType<BomViewModel>().Subject;
+        vm.ReadOnly.Should().BeTrue();
+        vm.ProductionOrderId.Should().Be(o.Order.Id);
+        vm.OrderNumber.Should().Be("FA-BOM");
+        vm.Items.Should().HaveCount(1);
+        // Zurueck-Link auf die FA-Vervollstaendigung, nicht auf die Abarbeitungsliste.
+        vm.BackController.Should().Be("FaCompletion");
+    }
+
+    [Fact]
+    public async Task Bom_NoArticleNumber_RedirectsToEditWithWarning()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-NOART", articleNumber: null);
+
+        var result = await ctrl.Bom(o.Order.Id, null);
+
+        var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
+        redirect.ActionName.Should().Be("Edit");
+        redirect.RouteValues!["id"].Should().Be(o.Order.Id);
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Bom_UnknownOrder_ReturnsNotFound()
+    {
+        var (_, ctrl, _) = Build();
+
+        var result = await ctrl.Bom(999_999, null);
 
         result.Should().BeOfType<NotFoundResult>();
     }

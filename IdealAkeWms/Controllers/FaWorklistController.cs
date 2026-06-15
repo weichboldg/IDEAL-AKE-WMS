@@ -27,10 +27,7 @@ public class FaWorklistController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
-    private readonly IBomRepository _bomRepository;
-    private readonly IStockMovementRepository _stockMovementRepository;
-    private readonly IArticleAttributeRepository _articleAttributeRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly ReadOnlyBomBuilder _readOnlyBomBuilder;
     private readonly ICurrentUserService _currentUser;
 
     public FaWorklistController(
@@ -43,10 +40,7 @@ public class FaWorklistController : Controller
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
-        IBomRepository bomRepository,
-        IStockMovementRepository stockMovementRepository,
-        IArticleAttributeRepository articleAttributeRepository,
-        IUserRepository userRepository,
+        ReadOnlyBomBuilder readOnlyBomBuilder,
         ICurrentUserService currentUser)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -58,10 +52,7 @@ public class FaWorklistController : Controller
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
-        _bomRepository = bomRepository;
-        _stockMovementRepository = stockMovementRepository;
-        _articleAttributeRepository = articleAttributeRepository;
-        _userRepository = userRepository;
+        _readOnlyBomBuilder = readOnlyBomBuilder;
         _currentUser = currentUser;
     }
 
@@ -206,7 +197,7 @@ public class FaWorklistController : Controller
     }
 
     // GET /FaWorklist/Bom/{id} — read-only Stueckliste fuer die Abarbeitungsliste (Spec §7).
-    // Bewusste Kopie der reinen BOM-Anzeige-Teile aus PickingController.Bom (Plan Task 14):
+    // Reine BOM-Anzeige via gemeinsamem ReadOnlyBomBuilder (DRY mit FaCompletion.Bom):
     // KEINE Picking-Initialisierung, keine Lagerplatz-Suggests/Dropdowns, kein Umbuchen,
     // keine Fotos, keine Bedarfsmeldungen. Rendert die Picking-View mit ReadOnly=true.
     public async Task<IActionResult> Bom(int id, string? filterText)
@@ -229,93 +220,9 @@ public class FaWorklistController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // User-Defaults fuer client-seitige Spaltenfilter (wie PickingController.Bom).
-        string? defaultFilterBeschaffung = null;
-        string? defaultFilterArtikelgruppe = null;
-        var recursiveFilterSearch = false;
-        var appUserId = _currentUser.GetCurrentAppUserId();
-        if (appUserId.HasValue)
-        {
-            var currentUser = await _userRepository.GetByIdAsync(appUserId.Value);
-            if (currentUser != null)
-            {
-                defaultFilterBeschaffung = currentUser.DefaultFilterBeschaffung;
-                defaultFilterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
-                recursiveFilterSearch = currentUser.RecursiveFilterSearch;
-            }
-        }
-
-        var bomResult = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
-        var bomItems = bomResult.Items;
-
-        var articleNumbers = bomItems
-            .Select(b => b.Ressourcenummer)
-            .Where(r => !string.IsNullOrEmpty(r))
-            .Select(r => r!)
-            .Distinct()
-            .ToList();
-        var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
-        var categoryByArticle = await _articleAttributeRepository.GetCategoryNamesByArticleNumbersAsync(articleNumbers);
-
-        // Baugruppen-Hierarchie: sammle alle Baugruppen-Werte (fuer Baum-Navigation).
-        var baugruppen = bomItems
-            .Where(b => !string.IsNullOrEmpty(b.Baugruppe))
-            .Select(b => b.Baugruppe!)
-            .Distinct()
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var viewItems = bomItems.Select(bom =>
-        {
-            stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var stockLocations);
-
-            // TreeLevel aus Position ableiten: Anzahl Punkte = Ebene ("15.1" = 1).
-            var treeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.');
-
-            return new BomItemViewModel
-            {
-                Artikelnummer = bom.Artikelnummer,
-                Position = bom.Position,
-                Baugruppe = bom.Baugruppe,
-                Ressourcenummer = bom.Ressourcenummer,
-                Bezeichnung1 = bom.Bezeichnung1,
-                Bezeichnung2 = bom.Bezeichnung2,
-                Menge = bom.Menge * order.Quantity,
-                Beschaffungsartikel = bom.Beschaffungsartikel,
-                Artikelgruppe = bom.Artikelgruppe,
-                KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,
-                StockLocations = stockLocations ?? new List<StockLocationInfo>(),
-                TreeLevel = treeLevel,
-                IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer)
-            };
-        })
-        .OrderBy(v => v.Position, new NaturalPositionComparer())
-        .ToList();
-
-        if (!string.IsNullOrWhiteSpace(filterText))
-        {
-            viewItems = viewItems.Where(i =>
-                (i.Ressourcenummer != null && i.Ressourcenummer.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Bezeichnung1 != null && i.Bezeichnung1.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Bezeichnung2 != null && i.Bezeichnung2.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Baugruppe != null && i.Baugruppe.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Position != null && i.Position.Contains(filterText, StringComparison.OrdinalIgnoreCase))
-            ).ToList();
-        }
-
-        var vm = new BomViewModel
-        {
-            ProductionOrderId = id,
-            OrderNumber = order.OrderNumber,
-            ArticleNumber = order.ArticleNumber,
-            Description1 = order.Description1,
-            Items = viewItems,
-            FilterText = filterText,
-            DefaultFilterBeschaffung = defaultFilterBeschaffung,
-            DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
-            DataSource = bomResult.DataSource,
-            RecursiveFilterSearch = recursiveFilterSearch,
-            ReadOnly = true
-        };
+        var vm = await _readOnlyBomBuilder.BuildAsync(id, filterText, _currentUser.GetCurrentAppUserId());
+        if (vm == null)
+            return NotFound();
 
         return View("~/Views/Picking/Bom.cshtml", vm);
     }
