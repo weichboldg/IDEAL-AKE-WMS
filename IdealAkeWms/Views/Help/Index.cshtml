@@ -332,6 +332,12 @@
                                 zugeordnet, wird es einmal erfasst und ueberall angezeigt.</li>
                             <li><strong>Freitext-Spezifikationen</strong> (Artikel + Beschreibung + Menge +
                                 Notizen) bleiben wie bisher pro Arbeitsgang erhalten.</li>
+                            <li><strong>&bdquo;Vollstaendig definiert&ldquo;:</strong> Der Schalter pro
+                                Arbeitsgang markiert, dass die Spezifikation (Merkmale/AGs) fertig
+                                festgelegt ist &mdash; eine Planer-Information. Er blendet den FA
+                                <strong>NICHT</strong> aus der FA-Abarbeitungsliste aus; das geschieht erst,
+                                wenn der Werker den Vorbau dort als &bdquo;Erledigt&ldquo; abhakt
+                                (zwei getrennte Status seit v1.22.0).</li>
                         </ul>
                         Das Feature muss unter <em>Stammdaten &rarr; Einstellungen</em> per
                         <code>FaCompletionAktiv</code> aktiviert werden (Default <strong>false</strong>).
@@ -357,12 +363,15 @@
                         Welche Arbeitsgaenge zu einer Werkbank gehoeren, wird unter
                         <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten</em> gepflegt.</dd>
 
-                    <dt>Arbeitsgaenge abhaken</dt>
+                    <dt>Arbeitsgaenge abhaken (&bdquo;Erledigt&ldquo;)</dt>
                     <dd>Pro Zeile erscheint je gemapptem Arbeitsgang eine Erledigt-Checkbox
-                        (leere Zelle = FA braucht diesen Arbeitsgang nicht). Der Haken wird sofort
-                        gespeichert. Sind alle benoetigten Arbeitsgaenge der Werkbank erledigt,
-                        verschwindet der FA aus der Default-Ansicht &mdash; ueber
-                        &bdquo;Erledigte anzeigen&ldquo; bleibt er sichtbar.</dd>
+                        (leere Zelle = FA braucht diesen Arbeitsgang nicht). Der Haken bedeutet
+                        <strong>Vorbau physisch gebaut</strong> (Werker) &mdash; im Gegensatz zum Schalter
+                        &bdquo;Vollstaendig definiert&ldquo; in der FA-Vervollstaendigung, der nur die
+                        Spezifikation/Merkmale als fertig markiert (Planer) und NICHT ausblendet.
+                        Der Haken wird sofort gespeichert. Sind alle benoetigten Arbeitsgaenge der
+                        Werkbank erledigt, verschwindet der FA aus der Default-Ansicht dieser
+                        Werkbank &mdash; ueber &bdquo;Erledigte anzeigen&ldquo; bleibt er sichtbar.</dd>
 
                     <dt>Badge &bdquo;+N weitere AG&ldquo;</dt>
                     <dd>Erscheint neben der FA-Nummer, wenn der Auftrag offene Arbeitsgaenge hat,

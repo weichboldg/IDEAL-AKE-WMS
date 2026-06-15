@@ -4273,15 +4273,13 @@ Allgemeine Vorbedingungen fuer dieses Kapitel:
 13. Pruefen: Stueckliste oeffnet OHNE Picking-Checkboxen, Lagerplatz-Dropdowns,
     Umbuchen-Button, Foto-Upload und Bedarfsmeldungs-Modal. Filter,
     Baugruppen-Navigation und "Drucken" funktionieren.
-14. Zurueck in der Abarbeitungsliste die `VL`-Checkbox anhaken.
+14. Zurueck in der Abarbeitungsliste die `VL`-Checkbox ("Erledigt") anhaken.
 15. Pruefen: FA verschwindet aus der Default-Ansicht (alle gemappten AGs
     erledigt); mit "Erledigte anzeigen" wieder sichtbar.
-16. FA-Vervollstaendigen → `FA-1001`: Pruefen: `VL` ist auch dort als
-    vervollstaendigt/erledigt markiert (gleicher `IsCompleted`-Status).
 
 **Erwartet:** Erkennung, manuelle Pflege, Werkbank-Mapping, Abarbeitungsliste
 (inkl. Orphan-Badge) und read-only Stueckliste greifen nahtlos ineinander;
-der Erledigt-Status ist in Abarbeitungsliste und FA-Vervollstaendigen identisch.
+das "Erledigt"-Abhaken in der Abarbeitungsliste blendet den FA aus.
 
 ### 38.2 Negativ: Manuell abgewaehlter AG wird vom Sync NICHT wieder hinzugefuegt
 
@@ -4378,6 +4376,39 @@ FA-Vervollstaendigen als auch in der FA-Abarbeitungsliste sichtbar ist.
 **Erwartet:** "Erledigt" bedeutet in beiden Vorbau-Views konsistent
 `IsDone || IsDonePicking` — ein nur App-komm-erledigter FA verschwindet genauso
 wie aus der FA-Liste; mit showDone bleibt er in FA-Vervollstaendigen sichtbar.
+
+### 38.7 "Vollstaendig definiert" blendet NICHT aus — nur "Erledigt" tut es
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-3001`,
+Sage-`IsDone=false`, nicht komm-erledigt) mit einem aktiven Arbeitsgang `VL`,
+einer Werkbank-Zuweisung und `VL` zum Werkbank-Mapping gemappt — sodass der FA
+in der FA-Abarbeitungsliste der Werkbank sichtbar ist. `VL` ist in der
+Abarbeitungsliste noch NICHT als "Erledigt" abgehakt.
+
+**Schritte:**
+1. FA-Vervollstaendigen → `FA-3001` → Tab `VL`: Schalter
+   "Vollstaendig definiert" einschalten (setzt `IsSpecComplete=true`).
+2. Pruefen: Erfolgsmeldung; der Tab-Indikator zeigt den Definiert-Status,
+   `SpecCompletedBy`/`SpecCompletedAt` werden angezeigt.
+3. FA-Abarbeitungsliste (`/FaWorklist`) mit der zugehoerigen Werkbank oeffnen
+   (ohne "Erledigte anzeigen").
+4. Pruefen: `FA-3001` ist WEITERHIN sichtbar — "Vollstaendig definiert"
+   blendet den FA NICHT aus der Abarbeitungsliste aus.
+5. Pruefen: Die `VL`-"Erledigt"-Checkbox in der Abarbeitungsliste ist NICHT
+   angehakt (der Definiert-Schalter hat den Arbeit-erledigt-Status nicht
+   veraendert — `IsCompleted` blieb false).
+6. In der Abarbeitungsliste die `VL`-"Erledigt"-Checkbox anhaken
+   (setzt `IsCompleted=true`).
+7. Pruefen: `FA-3001` verschwindet jetzt aus der Default-Ansicht der Werkbank
+   (alle gemappten AGs erledigt); mit "Erledigte anzeigen" wieder sichtbar.
+8. FA-Vervollstaendigen → `FA-3001` → Tab `VL`: Pruefen: "Vollstaendig
+   definiert" ist weiterhin eingeschaltet (vom "Erledigt"-Haken unberuehrt —
+   die beiden Status sind unabhaengig).
+
+**Erwartet:** "Vollstaendig definiert" (Planer, `IsSpecComplete`) und "Erledigt"
+(Werker, `IsCompleted`) sind getrennte Status. Nur der "Erledigt"-Haken in der
+FA-Abarbeitungsliste blendet den FA aus; "Vollstaendig definiert" hat keinen
+Einfluss auf die Sichtbarkeit in der Abarbeitungsliste.
 
 ---
 
