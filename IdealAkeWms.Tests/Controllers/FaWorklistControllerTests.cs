@@ -206,6 +206,32 @@ public class FaWorklistControllerTests
     }
 
     [Fact]
+    public async Task Index_HidesKommDoneOrders()
+    {
+        // FA auf der Werkbank mit gemapptem (offenem) AG, aber komm-erledigt
+        // (IsDonePicking=true) -> wie FA-Liste IMMER ausblenden, auch ohne showDone.
+        var (ctx, ctrl) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung", 1);
+        MapWorkStepToWorkplace(ctx, wp.Id, vk.Id);
+
+        var open = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-OPEN", isDonePicking: false);
+        var kommDone = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-KOMMDONE", isDonePicking: true);
+        open.Order.ProductionWorkplaceId = wp.Id;
+        kommDone.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, open.Order.Id, vk.Id, isCompleted: false);
+        SeedFaWorkStep(ctx, kommDone.Order.Id, vk.Id, isCompleted: false);
+
+        var result = await ctrl.Index(wp.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-OPEN");
+    }
+
+    [Fact]
     public async Task Index_CountsOrphanWorkSteps()
     {
         var (ctx, ctrl) = Build();

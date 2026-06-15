@@ -13,6 +13,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     {
         return await _dbSet
             .Include(o => o.ProductionWorkplace)
+            .Include(o => o.PickingStatus)
             .OrderBy(o => o.OrderNumber)
             .ToListAsync();
     }

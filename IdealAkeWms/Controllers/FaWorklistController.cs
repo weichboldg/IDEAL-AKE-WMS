@@ -117,9 +117,12 @@ public class FaWorklistController : Controller
             ? new List<FaAttributeDefinition>()
             : await _faAttributeRepository.GetActiveForWorkStepsAsync(mappedWorkStepIds);
 
-        // Schritt 3: offene FAs (!IsDone) der Werkbank.
+        // Schritt 3: offene FAs der Werkbank. "Erledigt" = Sage-IsDone ODER
+        // App-Komm-erledigt (IsDonePicking) — konsistent zur FA-Liste/Leitstand.
         var orders = (await _productionOrderRepository.GetAllOrderedAsync())
-            .Where(o => !o.IsDone && o.ProductionWorkplaceId == workplaceId.Value)
+            .Where(o => !o.IsDone
+                        && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
+                        && o.ProductionWorkplaceId == workplaceId.Value)
             .ToList();
 
         // Schritt 4: Termin-Berechnung (KommissionierTage/VorkommissionierTage, OHNE Beschichtung)

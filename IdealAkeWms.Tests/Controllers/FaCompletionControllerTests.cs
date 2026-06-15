@@ -246,6 +246,38 @@ public class FaCompletionControllerTests
         vm.Items.Single().OrderNumber.Should().Be("FA-OPEN");
     }
 
+    [Fact]
+    public async Task Index_HidesKommDoneOrders()
+    {
+        // "Erledigt" = IsDone (Sage) ODER IsDonePicking (App-Komm-erledigt) — wie FA-Liste.
+        var (ctx, ctrl, _) = Build();
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-OPEN", isDone: false, isDonePicking: false);
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-KOMMDONE", isDone: false, isDonePicking: true);
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-SAGEDONE", isDone: true, isDonePicking: false);
+
+        var result = await ctrl.Index(null, null, null, showDone: false);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-OPEN");
+    }
+
+    [Fact]
+    public async Task Index_ShowsKommDone_WhenShowDone()
+    {
+        var (ctx, ctrl, _) = Build();
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-OPEN", isDone: false, isDonePicking: false);
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-KOMMDONE", isDone: false, isDonePicking: true);
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-SAGEDONE", isDone: true, isDonePicking: false);
+
+        var result = await ctrl.Index(null, null, null, showDone: true);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(3);
+        vm.Items.Select(i => i.OrderNumber)
+            .Should().BeEquivalentTo(new[] { "FA-OPEN", "FA-KOMMDONE", "FA-SAGEDONE" });
+    }
+
     // ----------------------------------------------------------------- Edit
 
     [Fact]

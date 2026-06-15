@@ -4355,6 +4355,30 @@ MUSS im selben Wartungsfenster aktualisiert werden!).
 **Erwartet:** Daten-erhaltende Konvertierung — keine Kachel-/Spec-Daten gehen
 verloren; der FA-Import laeuft mit dem aktualisierten Job-Skript fehlerfrei.
 
+### 38.6 Negativ: Komm-erledigter FA verschwindet aus den Vorbau-Views
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-2001`,
+Sage-`IsDone=false`) mit einem aktiven Arbeitsgang, einer Werkbank-Zuweisung und
+einem zu dieser Werkbank gemappten AG, sodass der FA sowohl in
+FA-Vervollstaendigen als auch in der FA-Abarbeitungsliste sichtbar ist.
+
+**Schritte:**
+1. Kommissionierung → `FA-2001` → "Abschliessen" klicken
+   (setzt `PickingStatus.IsDonePicking=true`, NICHT die Sage-`IsDone`).
+2. Pruefen: `FA-2001` verschwindet aus der Fertigungsauftraege-Liste/Leitstand
+   (Verhalten seit v1.21.1).
+3. FA-Vervollstaendigen (`/FaCompletion`) ohne "Erledigte anzeigen" oeffnen.
+4. Pruefen: `FA-2001` erscheint NICHT mehr in der Liste.
+5. "Erledigte anzeigen" (showDone) aktivieren.
+6. Pruefen: `FA-2001` erscheint wieder.
+7. FA-Abarbeitungsliste (`/FaWorklist`) mit der zugehoerigen Werkbank oeffnen.
+8. Pruefen: `FA-2001` erscheint NICHT in der Abarbeitungsliste (komm-erledigt
+   wird wie Sage-`IsDone` immer ausgeblendet).
+
+**Erwartet:** "Erledigt" bedeutet in beiden Vorbau-Views konsistent
+`IsDone || IsDonePicking` — ein nur App-komm-erledigter FA verschwindet genauso
+wie aus der FA-Liste; mit showDone bleibt er in FA-Vervollstaendigen sichtbar.
+
 ---
 
 *Ende des Dokuments. Stand: v1.22.0 (2026-06-12)*
