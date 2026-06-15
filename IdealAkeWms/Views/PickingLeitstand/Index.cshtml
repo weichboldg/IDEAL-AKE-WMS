@@ -168,19 +168,7 @@
                         <strong>@item.OrderNumber</strong>
                         @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
                         {
-                            foreach (var dms in dmsLinks)
-                            {
-                                var dmsUrl = $"http://akeosapp.ake.at/oscontentviewer/viewer/{dms.EnaioDmsObjectId}/?pagecount=1";
-                                var dmsTitle = dms.DocumentType == "Zeichnung" ? "Zeichnung in enaio oeffnen" : "Dokument in enaio oeffnen";
-                                if (dms.DocumentType == "Zeichnung")
-                                {
-                                    <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="dms-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/></svg></a>
-                                }
-                                else
-                                {
-                                    <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="dms-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg></a>
-                                }
-                            }
+                            @await Html.PartialAsync("_EnaioDmsBadges", new IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel(dmsLinks))
                         }
                     </td>
                     <td class="text-end">@item.Quantity.ToString("N3")</td>

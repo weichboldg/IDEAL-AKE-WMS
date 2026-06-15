@@ -43,10 +43,25 @@ public class EnaioDmsDocumentRepository : Repository<EnaioDmsDocument>, IEnaioDm
             .ToDictionary(
                 g => g.Key,
                 g => g.Select(d => new EnaioDmsDocumentLink
-                {
-                    EnaioDmsObjectId = d.EnaioDmsObjectId,
-                    DocumentType = d.DocumentType
-                }).ToList()
+                    {
+                        EnaioDmsObjectId = d.EnaioDmsObjectId,
+                        DocumentType = d.DocumentType
+                    })
+                    // Typ-Vorrang: Werkstattauftrag+Zeichnung zuerst, dann Werkstattauftrag, dann Rest.
+                    .OrderBy(l => DocumentTypeSortRank(l.DocumentType))
+                    .ThenBy(l => l.EnaioDmsObjectId)
+                    .ToList()
             );
     }
+
+    /// <summary>
+    /// Sortier-Rang fuer die Anzeige der enaio-Badges: kleinere Werte erscheinen zuerst.
+    /// Werkstattauftrag+Zeichnung = 0, Werkstattauftrag = 1, sonst (Zeichnung/unbekannt) = 2.
+    /// </summary>
+    private static int DocumentTypeSortRank(string documentType) => documentType switch
+    {
+        "Werkstattauftrag+Zeichnung" => 0,
+        "Werkstattauftrag" => 1,
+        _ => 2
+    };
 }

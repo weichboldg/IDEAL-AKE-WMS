@@ -70,6 +70,12 @@
                         <strong>Deploy-Hinweis:</strong> Das SQL-Agent-Job-Skript
                         (FA-Import) muss im selben Wartungsfenster aktualisiert werden
                         (siehe Cutover-Dokument) — sonst schlaegt der FA-Import fehl.</li>
+                    <li><strong>enaio-Abgleich:</strong> liest die FA-Zuordnung jetzt aus der
+                        neuen View <code>vw_IDEAL-AKE_Fertigungsauftraege</code>
+                        (<code>WaNummerTrimmed</code> als FA-Nummer). Der neue Typ
+                        <em>"Werkstattauftrag + Zeichnung"</em> (Zeichnung direkt am
+                        Werkstattauftrag) hat ein eigenes Icon und wird in der Badge-Liste
+                        jeder FA zuerst angezeigt.</li>
                 </ul>
             </div>
         </div>

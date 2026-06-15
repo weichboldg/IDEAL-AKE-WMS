@@ -917,6 +917,29 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
+### TS-4.5a — enaio "Werkstattauftrag + Zeichnung": eigenes Icon, zuerst angezeigt
+
+**Vorbedingungen:**
+- AppSetting `EnaioDmsEnabled = true` (Service-Einstellungen).
+- Eine FA (z. B. `FA-2604002`) hat in enaio mehrere Dokumente: einen `Werkstattauftrag+Zeichnung` (Zeichnung direkt am WA), zusaetzlich einen reinen `Werkstattauftrag` und eine `Zeichnung`.
+
+**Schritte:**
+1. FA-Liste oeffnen (alternativ Leitstand, FA-Abarbeitungsliste oder FA-Vervollstaendigen — gleiche Badge-Liste).
+2. Zeile der FA finden und die Icon-Reihe neben der FA-Nummer betrachten.
+
+**Erwartetes Verhalten:**
+- Die drei Typen haben drei unterscheidbare Icons:
+  - `Werkstattauftrag+Zeichnung` = Dokument-mit-Zeichenbrett-Icon (Tooltip "Werkstattauftrag + Zeichnung in enaio oeffnen").
+  - `Werkstattauftrag` = Dokument-Icon.
+  - `Zeichnung` = Bild-/Zeichnung-Icon.
+- Reihenfolge der Icons: **`Werkstattauftrag+Zeichnung` zuerst**, dann `Werkstattauftrag`, dann `Zeichnung`.
+- Jedes Icon oeffnet beim Klick das zugehoerige Dokument im enaio Viewer (neuer Tab).
+
+**Negativ-Fall:**
+- FA ohne `Werkstattauftrag+Zeichnung`-Dokument: nur die bisherigen WA-/Zeichnungs-Icons erscheinen, keine Luecke.
+
+---
+
 ### TS-4.6 — Lack-T Checkbox setzen (Lackierteil-Auftrag)
 
 **Vorbedingungen:**
