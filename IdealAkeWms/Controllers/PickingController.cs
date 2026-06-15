@@ -449,9 +449,10 @@ public class PickingController : Controller
         return Ok();
     }
 
-    // PrintBom auch fuer vorbau: der Druck-Button bleibt in der read-only
-    // Stueckliste der FA-Abarbeitungsliste sichtbar (v1.22.0, Spec §7 "Druck bleibt").
-    [RequirePickingOrVorbauAccess]
+    // PrintBom auch fuer vorbau + fa_completion: der Druck-Button bleibt in der
+    // read-only Stueckliste der FA-Abarbeitungsliste (vorbau) sowie der
+    // FA-Vervollstaendigung (fa_completion) sichtbar (v1.22.0, Spec §7 "Druck bleibt").
+    [RequirePickingOrVorbauOrFaCompletionAccess]
     public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo, string? visibleColumns)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
