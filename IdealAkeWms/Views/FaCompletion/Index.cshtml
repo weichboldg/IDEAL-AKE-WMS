@@ -82,7 +82,7 @@
                 @foreach (var item in Model.Items)
                 {
                     <tr class="@(item.IsDone ? "table-secondary" : "")">
-                        <td>@item.OrderNumber</td>
+                        <td><a asp-action="Bom" asp-route-id="@item.Id">@item.OrderNumber</a></td>
                         <td>@item.Quantity</td>
                         <td>@item.Customer</td>
                         <td>@item.ArticleNumber</td>
