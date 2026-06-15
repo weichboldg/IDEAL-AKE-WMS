@@ -3515,7 +3515,7 @@ Erwartet: User mit Rolle `fa_completion` sehen nach Reload den Menuepunkt; Zugri
 ### TS-23.3 — Picker funktionieren weiter
 Vorbedingungen: `FaCompletionAktiv=false`, User mit `picking`-Rolle.
 Schritte: PickingLeitstand &rarr; VK/VL/...-Toggles antippen.
-Erwartet: Toggle funktioniert weiterhin (Endpoint `assembly-groups/toggle-applicable` blockt Picker nicht durch das Setting).
+Erwartet: Toggle funktioniert weiterhin. Seit v1.22.0-Followup togglen die VK-VA-Haken den Erledigt-Status ueber `/api/fa-work-steps/toggle-completed` (blockt Picker nicht). Details siehe Szenario 38.9.
 
 ---
 
@@ -4446,6 +4446,45 @@ dessen Profil noch keinen Standard-Arbeitsgang hat.
 der im Profil hinterlegte Standard-Arbeitsgang wird ohne URL-Parameter
 vorausgewaehlt. Die Liste zeigt FAs verschiedener Werkbaenke mit Werkbank-Spalte;
 der "Erledigt"-Haken des gewaehlten AG blendet den FA aus.
+
+### 38.9 Leitstand VK-VA = Erledigt-Status, synchron zur FA-Abarbeitungsliste
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-5001`,
+Sage-`IsDone=false`, nicht komm-erledigt) mit zwei aktiven Arbeitsgaengen `VE`
+(`IsCompleted=false`) und `VK` (`IsCompleted=true`); KEIN aktiver `VL`. Benutzer
+ist eingeloggt mit Rolle `picking` ODER `leitstand` (oder Admin). Browser-DevTools
+Network-Tab offen.
+
+**Schritte:**
+1. Leitstand Kommissionierung (`/PickingLeitstand`) oeffnen, `FA-5001` finden.
+2. Pruefen: In der `VE`-Spalte steht eine Checkbox, die NICHT angehakt ist
+   (`IsCompleted=false`). In der `VK`-Spalte eine angehakte Checkbox
+   (`IsCompleted=true`). Die `VL`-Zelle ist LEER (kein Checkbox — AG nicht
+   anwendbar).
+3. Die `VE`-Checkbox anhaken. Network-Tab pruefen.
+4. Pruefen: POST an `/api/fa-work-steps/toggle-completed` mit Body
+   `{ faWorkStepId: <Id des VE-FaWorkStep>, value: true }`, Status 200 (KEIN
+   Request an `/api/fa-work-steps/toggle`).
+5. FA-Abarbeitungsliste (`/FaWorklist`) mit Arbeitsgang `VE` oeffnen.
+6. Pruefen: `FA-5001` ist NICHT mehr in der Default-Ansicht (der `VE`-Erledigt-
+   Haken aus dem Leitstand wirkt — gleiches Flag `IsCompleted`). Mit "Erledigte
+   anzeigen" erscheint `FA-5001` mit angehaktem `VE`-Erledigt.
+7. *Gegenrichtung:* In der Abarbeitungsliste (mit "Erledigte anzeigen") den
+   `VE`-Erledigt-Haken bei `FA-5001` wieder entfernen.
+8. Leitstand neu laden: Pruefen, dass die `VE`-Checkbox bei `FA-5001` wieder
+   leer (nicht angehakt) ist.
+
+**Negativfall:**
+- Benutzer ohne picking/leitstand/vorbau/admin: Toggle-Request liefert 302 →
+  AccessDenied (bzw. 403); `IsCompleted` bleibt unveraendert.
+- VK-VA-Spaltenfilter: In der `VK`-Spalte `erledigt` eintippen → nur FAs mit
+  abgehaktem VK bleiben; `offen` zeigt FAs mit anwendbarem, aber nicht erledigtem
+  VK. Leere VK-Zellen (nicht anwendbar) matchen weder `erledigt` noch `offen`.
+
+**Erwartet:** Die VK/VL/VE/VT/VA-Haken im Leitstand zeigen/togglen `IsCompleted`
+(Erledigt) — DASSELBE Flag wie die FA-Abarbeitungsliste; Aenderungen sind in
+beide Richtungen sichtbar. Nicht-anwendbare AGs erscheinen als leere Zelle.
+"Anwendbar" wird im Leitstand nicht mehr gesetzt.
 
 ---
 

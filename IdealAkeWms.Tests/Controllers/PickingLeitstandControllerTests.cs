@@ -124,11 +124,21 @@ public class PickingLeitstandControllerTests
                 { 2, ps2 }
             });
 
-        _faWorkStepRepo.Setup(r => r.GetWorkStepPivotAsync(It.IsAny<List<int>>()))
-            .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>
+        // Detail-Pivot: Code -> Cell(FaWorkStepId, IsCompleted). Fehlender Code = AG nicht anwendbar.
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>
             {
-                { 1, new Dictionary<string, bool> { { "VK", true }, { "VL", false }, { "VE", true }, { "VT", false }, { "VA", false } } },
-                { 2, new Dictionary<string, bool> { { "VK", false }, { "VL", true }, { "VE", false }, { "VT", true }, { "VA", true } } }
+                { 1, new Dictionary<string, FaWorkStepPivotCell>
+                    {
+                        { "VK", new FaWorkStepPivotCell(101, true) },
+                        { "VE", new FaWorkStepPivotCell(103, false) }
+                    } },
+                { 2, new Dictionary<string, FaWorkStepPivotCell>
+                    {
+                        { "VL", new FaWorkStepPivotCell(202, true) },
+                        { "VT", new FaWorkStepPivotCell(204, false) },
+                        { "VA", new FaWorkStepPivotCell(205, true) }
+                    } }
             });
 
         _currentUser.Setup(u => u.CanPickAsync()).ReturnsAsync(true);
@@ -144,16 +154,20 @@ public class PickingLeitstandControllerTests
         item1.IsReleasedForPicking.Should().BeTrue();
         item1.PickingPriority.Should().Be(1);
         item1.HasGlass.Should().BeTrue();
-        item1.HasCooling.Should().BeTrue();        // VK
-        item1.HasElectric.Should().BeTrue();       // VE
-        item1.HasFan.Should().BeFalse();
+        item1.WorkSteps.Should().ContainKey("VK");
+        item1.WorkSteps["VK"].IsCompleted.Should().BeTrue();   // VK erledigt
+        item1.WorkSteps["VK"].FaWorkStepId.Should().Be(101);
+        item1.WorkSteps.Should().ContainKey("VE");
+        item1.WorkSteps["VE"].IsCompleted.Should().BeFalse();  // VE offen
+        item1.WorkSteps.Should().NotContainKey("VL");          // nicht anwendbar -> leere Zelle
 
         var item2 = vm.Items.First(i => i.Id == 2);
         item2.IsReleasedForPicking.Should().BeFalse();
         item2.HasExternalPurchase.Should().BeTrue();
-        item2.HasFan.Should().BeTrue();            // VL
-        item2.HasDoors.Should().BeTrue();          // VT
-        item2.HasSuperstructure.Should().BeTrue(); // VA
+        item2.WorkSteps["VL"].IsCompleted.Should().BeTrue();   // VL erledigt
+        item2.WorkSteps["VA"].IsCompleted.Should().BeTrue();   // VA erledigt
+        item2.WorkSteps["VT"].IsCompleted.Should().BeFalse();  // VT offen
+        item2.WorkSteps.Should().NotContainKey("VK");
 
         vm.CanPick.Should().BeTrue();
         vm.CanManagePickingRelease.Should().BeTrue();
@@ -169,8 +183,8 @@ public class PickingLeitstandControllerTests
             .ReturnsAsync(MakePage(MakeRow(1, "FA-OPEN", isDone: false)));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
-        _faWorkStepRepo.Setup(r => r.GetWorkStepPivotAsync(It.IsAny<List<int>>()))
-            .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
 
         var result = await _controller.Index(null, null, null, showDone: false, page: 1, pageSize: null);
 
@@ -190,8 +204,8 @@ public class PickingLeitstandControllerTests
             .ReturnsAsync(MakePage(MakeRow(1, "FA-100", isDone: false, isDonePicking: true)));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
-        _faWorkStepRepo.Setup(r => r.GetWorkStepPivotAsync(It.IsAny<List<int>>()))
-            .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
 
         var result = await _controller.Index(null, null, null, showDone: true, page: 1, pageSize: null);
 

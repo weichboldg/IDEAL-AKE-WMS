@@ -51,10 +51,8 @@ public class PickingLeitstandItem
     public int? AssignedPickerId { get; set; }
     public string? AssignedPickerName { get; set; }
 
-    // AssemblyGroup-Pivot (5 Bools)
-    public bool HasCooling { get; set; }        // VK
-    public bool HasFan { get; set; }            // VL
-    public bool HasElectric { get; set; }       // VE
-    public bool HasDoors { get; set; }          // VT
-    public bool HasSuperstructure { get; set; } // VA
+    // FaWorkStep-Detail-Pivot: Code (VK/VL/VE/VT/VA) -> Zelle (FaWorkStepId + IsCompleted).
+    // Nur aktive AGs sind enthalten; fehlender Key = AG nicht anwendbar (leere Zelle).
+    // Die Checkbox zeigt/togglet IsCompleted (Erledigt) — dasselbe Flag wie die FA-Abarbeitungsliste.
+    public Dictionary<string, Data.Repositories.FaWorkStepPivotCell> WorkSteps { get; set; } = new();
 }

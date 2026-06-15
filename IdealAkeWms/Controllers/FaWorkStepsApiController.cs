@@ -38,7 +38,7 @@ public class FaWorkStepsApiController : ControllerBase
     }
 
     [HttpPost("toggle-completed")]
-    [RequireVorbauAccess]
+    [RequireVorbauOrPickingOrLeitstandAccess] // Abarbeitungsliste (vorbau) + Leitstand-VK-VA (picking/leitstand)
     public async Task<IActionResult> ToggleCompleted([FromBody] ToggleCompletedRequest req)
     {
         var row = await _faWorkStepRepository.GetByIdAsync(req.FaWorkStepId);

@@ -62,6 +62,36 @@ public class FaWorkStepRepository : IFaWorkStepRepository
         return result;
     }
 
+    public async Task<Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>> GetWorkStepDetailPivotAsync(List<int> productionOrderIds)
+    {
+        // Wie GetWorkStepPivotAsync, aber pro aktiver Zeile zusaetzlich Id + IsCompleted
+        // (Leitstand toggelt das Erledigt-Flag der Vorbau-AGs).
+        var ids = productionOrderIds.Distinct().ToList();
+        var result = new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>();
+        if (ids.Count == 0) return result;
+
+        const int chunkSize = 1000;
+        for (int offset = 0; offset < ids.Count; offset += chunkSize)
+        {
+            var chunk = ids.Skip(offset).Take(chunkSize).ToList();
+            var rows = await _context.FaWorkSteps
+                .Where(f => chunk.Contains(f.ProductionOrderId) && !f.IsRemoved)
+                .Select(f => new { f.ProductionOrderId, f.WorkStep.Code, f.Id, f.IsCompleted })
+                .ToListAsync();
+
+            foreach (var r in rows)
+            {
+                if (!result.TryGetValue(r.ProductionOrderId, out var dict))
+                {
+                    dict = new Dictionary<string, FaWorkStepPivotCell>();
+                    result[r.ProductionOrderId] = dict;
+                }
+                dict[r.Code] = new FaWorkStepPivotCell(r.Id, r.IsCompleted);
+            }
+        }
+        return result;
+    }
+
     public async Task<Dictionary<int, FaWorkStepCounts>> GetCountsByProductionOrderIdsAsync(List<int> productionOrderIds)
     {
         var ids = productionOrderIds.Distinct().ToList();

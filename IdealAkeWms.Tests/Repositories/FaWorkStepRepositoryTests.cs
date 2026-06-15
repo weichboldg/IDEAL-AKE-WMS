@@ -48,6 +48,32 @@ public class FaWorkStepRepositoryTests
     }
 
     [Fact]
+    public async Task GetWorkStepDetailPivot_ReturnsActiveCellsWithCompletion()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new FaWorkStepRepository(ctx);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1" });
+        ctx.WorkSteps.AddRange(
+            new WorkStep { Id = 10, Code = "VE", Name = "Elektro" },
+            new WorkStep { Id = 11, Code = "VL", Name = "Lueftung" },
+            new WorkStep { Id = 12, Code = "VT", Name = "Tueren" });
+        var ve = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, IsRemoved = false, IsCompleted = true };
+        var vl = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 11, IsRemoved = false, IsCompleted = false };
+        var vt = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 12, IsRemoved = true, IsCompleted = false };
+        ctx.FaWorkSteps.AddRange(ve, vl, vt);
+        await ctx.SaveChangesAsync();
+
+        var pivot = await repo.GetWorkStepDetailPivotAsync(new List<int> { 1 });
+
+        pivot[1].Should().ContainKey("VE").And.ContainKey("VL");
+        pivot[1].Should().NotContainKey("VT"); // entfernte Zeile nicht im Dict
+        pivot[1]["VE"].IsCompleted.Should().BeTrue();
+        pivot[1]["VE"].FaWorkStepId.Should().Be(ve.Id);
+        pivot[1]["VL"].IsCompleted.Should().BeFalse();
+        pivot[1]["VL"].FaWorkStepId.Should().Be(vl.Id);
+    }
+
+    [Fact]
     public async Task SetIsCompleted_SetsAuditAndCompletedFields()
     {
         using var ctx = TestDbContextFactory.Create();

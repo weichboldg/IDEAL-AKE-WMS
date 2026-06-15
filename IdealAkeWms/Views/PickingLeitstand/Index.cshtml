@@ -247,39 +247,54 @@
                                @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field"
-                               data-id="@item.Id"
-                               data-endpoint="/api/fa-work-steps/toggle"
-                               data-work-step-code="VK"
-                               title="VK Kälte" @(item.HasCooling ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        @if (item.WorkSteps.TryGetValue("VK", out var vk))
+                        {
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/fa-work-steps/toggle-completed"
+                                   data-fa-work-step-id="@vk.FaWorkStepId"
+                                   title="VK Kälte erledigt" @(vk.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        }
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field"
-                               data-id="@item.Id"
-                               data-endpoint="/api/fa-work-steps/toggle"
-                               data-work-step-code="VL"
-                               title="VL Lüfter" @(item.HasFan ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        @if (item.WorkSteps.TryGetValue("VL", out var vl))
+                        {
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/fa-work-steps/toggle-completed"
+                                   data-fa-work-step-id="@vl.FaWorkStepId"
+                                   title="VL Lüfter erledigt" @(vl.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        }
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field"
-                               data-id="@item.Id"
-                               data-endpoint="/api/fa-work-steps/toggle"
-                               data-work-step-code="VE"
-                               title="VE Elektro" @(item.HasElectric ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        @if (item.WorkSteps.TryGetValue("VE", out var ve))
+                        {
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/fa-work-steps/toggle-completed"
+                                   data-fa-work-step-id="@ve.FaWorkStepId"
+                                   title="VE Elektro erledigt" @(ve.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        }
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field"
-                               data-id="@item.Id"
-                               data-endpoint="/api/fa-work-steps/toggle"
-                               data-work-step-code="VT"
-                               title="VT Türen" @(item.HasDoors ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        @if (item.WorkSteps.TryGetValue("VT", out var vt))
+                        {
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/fa-work-steps/toggle-completed"
+                                   data-fa-work-step-id="@vt.FaWorkStepId"
+                                   title="VT Türen erledigt" @(vt.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        }
                     </td>
                     <td class="text-center">
-                        <input type="checkbox" class="form-check-input toggle-field"
-                               data-id="@item.Id"
-                               data-endpoint="/api/fa-work-steps/toggle"
-                               data-work-step-code="VA"
-                               title="VA Aufbau" @(item.HasSuperstructure ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        @if (item.WorkSteps.TryGetValue("VA", out var va))
+                        {
+                            <input type="checkbox" class="form-check-input toggle-field"
+                                   data-id="@item.Id"
+                                   data-endpoint="/api/fa-work-steps/toggle-completed"
+                                   data-fa-work-step-id="@va.FaWorkStepId"
+                                   title="VA Aufbau erledigt" @(va.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                        }
                     </td>
                     <td>
                         @if (item.IsDone)
@@ -575,8 +590,8 @@
             });
 
             // Toggle-Field per AJAX — dispatcht ueber data-endpoint
-            // picking-status sendet { productionOrderId, field, value }
-            // fa-work-steps sendet { productionOrderId, workStepCode, value }
+            // picking-status/bde-status sendet { productionOrderId, field, value }
+            // fa-work-steps/toggle-completed sendet { faWorkStepId, value } (Erledigt-Haken der VK-VA-AGs)
             document.querySelectorAll('.toggle-field').forEach(function (cb) {
                 cb.addEventListener('change', function () {
                     var id = parseInt(this.getAttribute('data-id'));
@@ -585,8 +600,8 @@
                     var value = this.checked;
 
                     var body;
-                    if (endpoint === '/api/fa-work-steps/toggle') {
-                        body = { productionOrderId: id, workStepCode: cb.dataset.workStepCode, value: value };
+                    if (endpoint === '/api/fa-work-steps/toggle-completed') {
+                        body = { faWorkStepId: parseInt(cb.dataset.faWorkStepId), value: value };
                     } else if (endpoint === '/api/picking-status/toggle' || endpoint === '/api/bde-status/toggle') {
                         body = { productionOrderId: id, field: field, value: value };
                     } else {
