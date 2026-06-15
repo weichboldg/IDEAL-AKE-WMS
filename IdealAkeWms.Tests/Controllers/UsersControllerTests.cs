@@ -10,7 +10,9 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class UsersControllerTests
 {
-    private static UsersController BuildController(Mock<IUserRepository>? userRepo = null)
+    private static UsersController BuildController(
+        Mock<IUserRepository>? userRepo = null,
+        Mock<IWorkStepRepository>? workStepRepo = null)
     {
         userRepo ??= new Mock<IUserRepository>();
         var roleRepo = new Mock<IRoleRepository>();
@@ -18,12 +20,15 @@ public class UsersControllerTests
         currentUser.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
         var passwordService = new Mock<IPasswordService>();
         var viewPrefRepo = new Mock<IUserViewPreferenceRepository>();
+        workStepRepo ??= new Mock<IWorkStepRepository>();
+        workStepRepo.Setup(x => x.GetActiveAsync()).ReturnsAsync(new List<WorkStep>());
         return new UsersController(
             userRepo.Object,
             roleRepo.Object,
             currentUser.Object,
             passwordService.Object,
-            viewPrefRepo.Object);
+            viewPrefRepo.Object,
+            workStepRepo.Object);
     }
 
     [Fact]
@@ -58,5 +63,49 @@ public class UsersControllerTests
         model[0].Name.Should().Be("Bob Builder");
         var pagination = ctrl.ViewBag.Pagination as IdealAkeWms.Models.ViewModels.PaginationState;
         pagination!.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Edit_Post_SavesDefaultWorkStep()
+    {
+        var existing = new User
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .Callback<User>(u => saved = u)
+            .Returns(Task.CompletedTask);
+
+        var workStepRepo = new Mock<IWorkStepRepository>();
+        workStepRepo.Setup(x => x.GetActiveAsync()).ReturnsAsync(new List<WorkStep>
+        {
+            new() { Id = 10, Code = "VE", Name = "Vormontage Elektrik", IsActive = true, CreatedBy = "t", CreatedByWindows = "t" }
+        });
+
+        var ctrl = BuildController(userRepo, workStepRepo);
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            httpCtx, Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        var vm = new IdealAkeWms.Models.ViewModels.UserEditViewModel
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            DefaultWorkStepId = 10
+        };
+
+        await ctrl.Edit(5, vm, null);
+
+        saved.Should().NotBeNull();
+        saved!.DefaultWorkStepId.Should().Be(10);
     }
 }

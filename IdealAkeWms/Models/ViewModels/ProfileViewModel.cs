@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Models.ViewModels;
 
@@ -34,4 +35,13 @@ public class ProfileViewModel
     /// </summary>
     [Display(Name = "Eintraege pro Seite (Standard)")]
     public int? DefaultPageSize { get; set; }
+
+    /// <summary>
+    /// Vorausgewaehlter Arbeitsgang in der FA-Abarbeitungsliste. NULL = keiner.
+    /// </summary>
+    [Display(Name = "Standard-Arbeitsgang (FA-Abarbeitungsliste)")]
+    public int? DefaultWorkStepId { get; set; }
+
+    /// <summary>Aktive Arbeitsgaenge fuer das Dropdown.</summary>
+    public List<WorkStep> AvailableWorkSteps { get; set; } = new();
 }

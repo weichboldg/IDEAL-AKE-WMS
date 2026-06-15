@@ -113,6 +113,18 @@
                         <div class="form-text">User-Default fuer paginierte Listen. Pro-Seite-Auswahl ueberschreibt fuer die jeweilige Anzeige.</div>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="DefaultWorkStepId" class="form-label"></label>
+                        <select asp-for="DefaultWorkStepId" class="form-select">
+                            <option value="">(keiner)</option>
+                            @foreach (var ws in Model.AvailableWorkSteps)
+                            {
+                                <option value="@ws.Id">@ws.Code — @ws.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">Wird in der FA-Abarbeitungsliste automatisch vorausgewaehlt.</div>
+                    </div>
+
                     <hr />
 
                     <div class="mb-3">

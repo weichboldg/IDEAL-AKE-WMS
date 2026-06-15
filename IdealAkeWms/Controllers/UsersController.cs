@@ -15,19 +15,22 @@ public class UsersController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IPasswordService _passwordService;
     private readonly IUserViewPreferenceRepository _viewPreferenceRepository;
+    private readonly IWorkStepRepository _workStepRepository;
 
     public UsersController(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         ICurrentUserService currentUserService,
         IPasswordService passwordService,
-        IUserViewPreferenceRepository viewPreferenceRepository)
+        IUserViewPreferenceRepository viewPreferenceRepository,
+        IWorkStepRepository workStepRepository)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _currentUserService = currentUserService;
         _passwordService = passwordService;
         _viewPreferenceRepository = viewPreferenceRepository;
+        _workStepRepository = workStepRepository;
     }
 
     /// <summary>
@@ -100,6 +103,7 @@ public class UsersController : Controller
             RecursiveFilterSearch = vm.RecursiveFilterSearch,
             IsPicker = vm.IsPicker,
             DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize),
+            DefaultWorkStepId = vm.DefaultWorkStepId,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -146,6 +150,7 @@ public class UsersController : Controller
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             IsPicker = user.IsPicker,
             DefaultPageSize = user.DefaultPageSize,
+            DefaultWorkStepId = user.DefaultWorkStepId,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -184,6 +189,7 @@ public class UsersController : Controller
         existing.RecursiveFilterSearch = vm.RecursiveFilterSearch;
         existing.IsPicker = vm.IsPicker;
         existing.DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize);
+        existing.DefaultWorkStepId = vm.DefaultWorkStepId;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -247,6 +253,7 @@ public class UsersController : Controller
             Key = r.Key,
             IsSelected = selectedIds.Contains(r.Id)
         }).ToList();
+        vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
     }
 
     /// <summary>Akzeptiert nur erlaubte PageSize-Werte; sonst NULL (= System-Default).</summary>

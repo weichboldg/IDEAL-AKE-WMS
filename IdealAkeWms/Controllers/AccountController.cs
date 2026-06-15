@@ -10,12 +10,18 @@ public class AccountController : Controller
     private readonly IUserRepository _userRepository;
     private readonly IPasswordService _passwordService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IWorkStepRepository _workStepRepository;
 
-    public AccountController(IUserRepository userRepository, IPasswordService passwordService, ICurrentUserService currentUserService)
+    public AccountController(
+        IUserRepository userRepository,
+        IPasswordService passwordService,
+        ICurrentUserService currentUserService,
+        IWorkStepRepository workStepRepository)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
         _currentUserService = currentUserService;
+        _workStepRepository = workStepRepository;
     }
 
     [HttpGet]
@@ -105,7 +111,9 @@ public class AccountController : Controller
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             Email = user.Email,
             NotifyOnReorderLevel = user.NotifyOnReorderLevel,
-            DefaultPageSize = user.DefaultPageSize
+            DefaultPageSize = user.DefaultPageSize,
+            DefaultWorkStepId = user.DefaultWorkStepId,
+            AvailableWorkSteps = await _workStepRepository.GetActiveAsync()
         };
         return View(vm);
     }
@@ -119,7 +127,10 @@ public class AccountController : Controller
             return RedirectToAction(nameof(Login));
 
         if (!ModelState.IsValid)
+        {
+            vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
             return View(vm);
+        }
 
         var user = await _userRepository.GetByIdAsync(userId.Value);
         if (user == null)
@@ -135,6 +146,7 @@ public class AccountController : Controller
             && IdealAkeWms.Services.PageSize.AllowedOptions.Contains(vm.DefaultPageSize.Value))
             ? vm.DefaultPageSize
             : null;
+        user.DefaultWorkStepId = vm.DefaultWorkStepId;
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);
