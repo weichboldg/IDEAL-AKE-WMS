@@ -10,6 +10,9 @@ public interface IFaWorkStepRepository
     /// <summary>FA-Arbeitsgaenge inkl. WorkStep + Specs. <paramref name="includeRemoved"/> = auch IsRemoved=1.</summary>
     Task<List<FaWorkStep>> GetByProductionOrderIdAsync(int productionOrderId, bool includeRemoved = false);
 
+    /// <summary>Alle aktiven (IsRemoved=0) FaWorkSteps eines bestimmten Arbeitsgangs (Abarbeitungsliste-Filter).</summary>
+    Task<List<FaWorkStep>> GetForWorkStepAsync(int workStepId);
+
     /// <summary>Pivot orderId -> (WorkStep.Code -> aktiv d.h. IsRemoved=0). Chunked in 1000er-Bloecken (SQL-2100-Limit).</summary>
     Task<Dictionary<int, Dictionary<string, bool>>> GetWorkStepPivotAsync(List<int> productionOrderIds);
 

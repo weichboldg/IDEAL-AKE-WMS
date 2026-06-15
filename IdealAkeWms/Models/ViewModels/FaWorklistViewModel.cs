@@ -3,15 +3,17 @@ using IdealAkeWms.Data.Repositories;
 namespace IdealAkeWms.Models.ViewModels;
 
 /// <summary>
-/// FA-Abarbeitungsliste je Werkbank (v1.22.0): pro offenem FA eine Zeile mit
-/// Erledigt-Checkboxen je gemapptem Arbeitsgang der Werkbank plus Merkmal-Spalten.
+/// FA-Abarbeitungsliste je Arbeitsgang (v1.22.0): pro offenem FA mit aktivem
+/// FaWorkStep des gewaehlten Arbeitsgangs eine Zeile — ueber ALLE Werkbaenke.
+/// Spalten: Werkbank (Info), Merkmal-Spalten des AGs, EINE Erledigt-Checkbox
+/// (der gewaehlte AG, AJAX-Toggle <c>/api/fa-work-steps/toggle-completed</c>).
 /// </summary>
 public class FaWorklistViewModel
 {
-    public int? SelectedWorkplaceId { get; set; }
-    public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
-    public List<WorkStep> MappedWorkSteps { get; set; } = new();          // Spalten dieser Werkbank
-    public List<FaAttributeDefinition> AttributeColumns { get; set; } = new(); // aktive Defs der gemappten AGs
+    public int? SelectedWorkStepId { get; set; }
+    public List<WorkStep> AvailableWorkSteps { get; set; } = new();
+    public WorkStep? SelectedWorkStep { get; set; }                            // Header der Erledigt-Spalte
+    public List<FaAttributeDefinition> AttributeColumns { get; set; } = new(); // Merkmale des gewaehlten AG
     public bool ShowDone { get; set; }
     public List<FaWorklistRow> Items { get; set; } = new();
     public Dictionary<string, List<EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
@@ -24,12 +26,12 @@ public class FaWorklistRow
     public string OrderNumber { get; set; } = string.Empty;
     public string? ArticleNumber { get; set; }
     public decimal Quantity { get; set; }
+    public string? WorkplaceName { get; set; }                  // Werkbank als Info-Spalte
     public DateTime? VorkommissionierTermin { get; set; }  // BG-Termin
     public DateTime? KommissionierTermin { get; set; }
     public DateTime? ProductionDate { get; set; }
-    public Dictionary<int, string?> AttributeValues { get; set; } = new();        // DefinitionId -> Anzeigetext
-    public Dictionary<int, FaWorklistCell> WorkStepCells { get; set; } = new();   // WorkStepId -> Zelle
-    public int OrphanWorkStepCount { get; set; }           // offene AGs ausserhalb des Mappings
+    public Dictionary<int, string?> AttributeValues { get; set; } = new();   // DefinitionId -> Anzeigetext
+    public FaWorklistCell? WorkStepCell { get; set; }                        // genau EIN AG (der gewaehlte)
 }
 
 public class FaWorklistCell

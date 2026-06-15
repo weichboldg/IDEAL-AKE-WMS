@@ -9,10 +9,11 @@ using PageSize = IdealAkeWms.Services.PageSize;
 namespace IdealAkeWms.Controllers;
 
 /// <summary>
-/// FA-Abarbeitungsliste je Werkbank (v1.22.0, Spec §7): pro offenem FA eine Zeile
-/// mit Erledigt-Checkboxen je gemapptem Arbeitsgang der Werkbank (AJAX-Toggle
-/// <c>/api/fa-work-steps/toggle-completed</c>), Merkmal-Spalten der gemappten AGs
-/// und Orphan-Badge fuer offene AGs ausserhalb des Werkbank-Mappings.
+/// FA-Abarbeitungsliste je Arbeitsgang (v1.22.0, Spec §7): Filter ist EIN Arbeitsgang.
+/// Pro offenem FA mit aktivem (IsRemoved=0) FaWorkStep des gewaehlten AGs eine Zeile —
+/// ueber ALLE Werkbaenke. Spalten: Werkbank (Info), Merkmal-Spalten des gewaehlten AGs
+/// und EINE Erledigt-Checkbox (AJAX-Toggle <c>/api/fa-work-steps/toggle-completed</c>).
+/// Default-Arbeitsgang aus <see cref="User.DefaultWorkStepId"/>.
 /// Feature-Gate: AppSetting <c>FaCompletionAktiv</c> (wie FA-Vervollstaendigung).
 /// </summary>
 [RequireVorbauAccess]
@@ -22,7 +23,7 @@ public class FaWorklistController : Controller
     private readonly IFaWorkStepRepository _faWorkStepRepository;
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IFaAttributeRepository _faAttributeRepository;
-    private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
@@ -35,7 +36,7 @@ public class FaWorklistController : Controller
         IFaWorkStepRepository faWorkStepRepository,
         IWorkStepRepository workStepRepository,
         IFaAttributeRepository faAttributeRepository,
-        IProductionWorkplaceRepository productionWorkplaceRepository,
+        IUserRepository userRepository,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
@@ -47,7 +48,7 @@ public class FaWorklistController : Controller
         _faWorkStepRepository = faWorkStepRepository;
         _workStepRepository = workStepRepository;
         _faAttributeRepository = faAttributeRepository;
-        _productionWorkplaceRepository = productionWorkplaceRepository;
+        _userRepository = userRepository;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
@@ -56,9 +57,9 @@ public class FaWorklistController : Controller
         _currentUser = currentUser;
     }
 
-    // GET /FaWorklist?workplaceId=...
+    // GET /FaWorklist?workStepId=...
     public async Task<IActionResult> Index(
-        int? workplaceId,
+        int? workStepId,
         bool showDone = false,
         int page = 1,
         int? pageSize = null)
@@ -76,11 +77,26 @@ public class FaWorklistController : Controller
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
+        // Schritt 1: aktive Arbeitsgaenge als Filter-Optionen.
+        var availableWorkSteps = await _workStepRepository.GetActiveAsync();
+
+        // Schritt 2: Default-Arbeitsgang aus dem aktuellen User (User.DefaultWorkStepId),
+        // falls kein expliziter ?workStepId mitkommt.
+        if (workStepId == null)
+        {
+            var appUserId = _currentUser.GetCurrentAppUserId();
+            if (appUserId.HasValue)
+            {
+                var user = await _userRepository.GetByIdAsync(appUserId.Value);
+                workStepId = user?.DefaultWorkStepId;
+            }
+        }
+
         var vm = new FaWorklistViewModel
         {
-            SelectedWorkplaceId = workplaceId,
+            SelectedWorkStepId = workStepId,
             ShowDone = showDone,
-            AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync(),
+            AvailableWorkSteps = availableWorkSteps,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -90,33 +106,32 @@ public class FaWorklistController : Controller
             },
         };
 
-        // Werkbank ist Pflicht-Filter: ohne Auswahl nur Dropdown rendern, leere Liste.
-        if (workplaceId == null)
+        // Arbeitsgang ist Pflicht-Filter: ohne Auswahl nur Dropdown rendern, leere Liste.
+        if (workStepId == null)
         {
             return View(vm);
         }
 
-        // Schritt 2: gemappte WorkSteps der Werkbank = Spalten; Merkmal-Defs der gemappten AGs.
-        var mappedWorkStepIds = await _productionWorkplaceRepository.GetWorkStepIdsAsync(workplaceId.Value);
-        var mappedIdSet = mappedWorkStepIds.ToHashSet();
-        var allWorkSteps = await _workStepRepository.GetAllAsync();
-        vm.MappedWorkSteps = allWorkSteps
-            .Where(w => mappedIdSet.Contains(w.Id))
-            .OrderBy(w => w.SortOrder).ThenBy(w => w.Code)
-            .ToList();
-        vm.AttributeColumns = mappedWorkStepIds.Count == 0
-            ? new List<FaAttributeDefinition>()
-            : await _faAttributeRepository.GetActiveForWorkStepsAsync(mappedWorkStepIds);
+        // Schritt 3: gewaehlter WorkStep (Header der Erledigt-Spalte) + Merkmal-Defs des AGs.
+        vm.SelectedWorkStep = availableWorkSteps.FirstOrDefault(w => w.Id == workStepId.Value)
+            ?? await _workStepRepository.GetByIdAsync(workStepId.Value);
+        vm.AttributeColumns = await _faAttributeRepository
+            .GetActiveForWorkStepsAsync(new List<int> { workStepId.Value });
 
-        // Schritt 3: offene FAs der Werkbank. "Erledigt" = Sage-IsDone ODER
-        // App-Komm-erledigt (IsDonePicking) — konsistent zur FA-Liste/Leitstand.
+        // Schritt 4: offene FAs MIT aktivem (IsRemoved=0) FaWorkStep des gewaehlten AGs —
+        // ueber ALLE Werkbaenke. "Erledigt" (FA) = Sage-IsDone ODER App-Komm-erledigt
+        // (IsDonePicking), konsistent zur FA-Liste/Leitstand.
+        var orderIdsWithStep = (await _faWorkStepRepository.GetForWorkStepAsync(workStepId.Value))
+            .Select(f => f.ProductionOrderId)
+            .ToHashSet();
+
         var orders = (await _productionOrderRepository.GetAllOrderedAsync())
             .Where(o => !o.IsDone
                         && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
-                        && o.ProductionWorkplaceId == workplaceId.Value)
+                        && orderIdsWithStep.Contains(o.Id))
             .ToList();
 
-        // Schritt 4: Termin-Berechnung (KommissionierTage/VorkommissionierTage, OHNE Beschichtung)
+        // Schritt 5: Termin-Berechnung (KommissionierTage/VorkommissionierTage, OHNE Beschichtung)
         // — VOR Filter/Pagination, weil bg-date/picking-date filterbar sind.
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
@@ -125,18 +140,18 @@ public class FaWorklistController : Controller
         var rows = new List<FaWorklistRow>();
         foreach (var order in orders)
         {
-            // Aktive FA-Arbeitsgaenge (IsRemoved=0) inkl. WorkStep
+            // Aktive FA-Arbeitsgaenge (IsRemoved=0) inkl. WorkStep -> den gewaehlten AG holen.
             var faSteps = await _faWorkStepRepository.GetByProductionOrderIdAsync(order.Id);
-            var mappedSteps = faSteps.Where(f => mappedIdSet.Contains(f.WorkStepId)).ToList();
+            var selectedStep = faSteps.FirstOrDefault(f => f.WorkStepId == workStepId.Value);
 
-            // Nur FAs mit mind. einem gemappten AG dieser Werkbank.
-            if (mappedSteps.Count == 0)
+            // Defensive: kein aktiver FaWorkStep des AGs mehr -> Zeile ueberspringen.
+            if (selectedStep == null)
             {
                 continue;
             }
 
-            // Default: komplett erledigte FAs (alle gemappten AGs IsCompleted) ausblenden.
-            if (!showDone && mappedSteps.All(f => f.IsCompleted))
+            // Default: erledigte FAs (gewaehlter AG IsCompleted) ausblenden.
+            if (!showDone && selectedStep.IsCompleted)
             {
                 continue;
             }
@@ -148,11 +163,12 @@ public class FaWorklistController : Controller
                 ArticleNumber = order.ArticleNumber,
                 Quantity = order.Quantity,
                 ProductionDate = order.ProductionDate,
-                WorkStepCells = mappedSteps.ToDictionary(
-                    f => f.WorkStepId,
-                    f => new FaWorklistCell { FaWorkStepId = f.Id, IsCompleted = f.IsCompleted }),
-                // Schritt 6: offene AGs ausserhalb des Mappings ("+N weitere AG"-Badge).
-                OrphanWorkStepCount = faSteps.Count(f => !mappedIdSet.Contains(f.WorkStepId) && !f.IsCompleted),
+                WorkplaceName = order.ProductionWorkplace?.Name,
+                WorkStepCell = new FaWorklistCell
+                {
+                    FaWorkStepId = selectedStep.Id,
+                    IsCompleted = selectedStep.IsCompleted,
+                },
             };
 
             if (order.ProductionDate.HasValue)
@@ -163,7 +179,7 @@ public class FaWorklistController : Controller
                     row.KommissionierTermin.Value, vorkommissionierTage, holidays);
             }
 
-            // Schritt 5: Merkmal-Werte als Anzeigetext (Dropdown -> Option.Value,
+            // Schritt 6: Merkmal-Werte als Anzeigetext (Dropdown -> Option.Value,
             // Boolean -> JA/NEIN, fehlend -> "").
             var values = await _faAttributeRepository.GetValuesByProductionOrderIdAsync(order.Id);
             var valuesByDefinition = values.ToDictionary(v => v.FaAttributeDefinitionId);
@@ -248,8 +264,8 @@ public class FaWorklistController : Controller
         => d == null ? string.Empty : $"{d:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(d.Value)}".ToLowerInvariant();
 
     /// <summary>
-    /// ColumnMap-Keys: order-number, article-number, quantity, bg-date, picking-date,
-    /// production-date + je Merkmal-Spalte dynamisch "attr-{DefinitionId}".
+    /// ColumnMap-Keys: order-number, workbench (= WorkplaceName), article-number, quantity,
+    /// bg-date, picking-date, production-date + je Merkmal-Spalte dynamisch "attr-{DefinitionId}".
     /// </summary>
     private static Dictionary<string, Func<FaWorklistRow, string?>> BuildColumnMap(
         List<FaAttributeDefinition> attributeColumns)
@@ -257,6 +273,7 @@ public class FaWorklistController : Controller
         var map = new Dictionary<string, Func<FaWorklistRow, string?>>(StringComparer.OrdinalIgnoreCase)
         {
             ["order-number"] = r => r.OrderNumber,
+            ["workbench"] = r => r.WorkplaceName,
             ["article-number"] = r => r.ArticleNumber,
             ["quantity"] = r => r.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["bg-date"] = r => FormatDateForFilter(r.VorkommissionierTermin),

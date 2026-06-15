@@ -10,7 +10,11 @@
         var kw = ISOWeek.GetWeekOfYear(d);
         return $"{d:dd.MM.yyyy} KW{kw}";
     }
-    var columnCount = 6 + Model.AttributeColumns.Count + Model.MappedWorkSteps.Count;
+    var doneHeader = Model.SelectedWorkStep != null
+        ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
+        : "Erledigt";
+    // FA-Nr, Werkbank, Artikel, Stk, BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
+    var columnCount = 7 + Model.AttributeColumns.Count + 1;
 }
 
 <h2 class="page-header">FA-Abarbeitungsliste</h2>
@@ -30,12 +34,12 @@
         <form method="get" asp-action="Index">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label" for="workplaceId">Werkbank</label>
-                    <select name="workplaceId" id="workplaceId" class="form-select" onchange="this.form.submit()">
-                        <option value="">– Werkbank wählen –</option>
-                        @foreach (var wp in Model.AvailableWorkplaces)
+                    <label class="form-label" for="workStepId">Arbeitsgang</label>
+                    <select name="workStepId" id="workStepId" class="form-select" onchange="this.form.submit()">
+                        <option value="">– Arbeitsgang wählen –</option>
+                        @foreach (var ws in Model.AvailableWorkSteps)
                         {
-                            <option value="@wp.Id" selected="@(Model.SelectedWorkplaceId == wp.Id)">@wp.Name</option>
+                            <option value="@ws.Id" selected="@(Model.SelectedWorkStepId == ws.Id)">@ws.Code — @ws.Name</option>
                         }
                     </select>
                 </div>
@@ -51,11 +55,12 @@
     </div>
 </div>
 
-@if (Model.SelectedWorkplaceId == null)
+@if (Model.SelectedWorkStepId == null)
 {
     <div class="alert alert-info">
-        Bitte zuerst eine Werkbank auswählen — die Abarbeitungsliste zeigt die offenen
-        Fertigungsaufträge mit den Arbeitsgängen der gewählten Werkbank.
+        Bitte zuerst einen Arbeitsgang auswählen — die Abarbeitungsliste zeigt die offenen
+        Fertigungsaufträge mit diesem Arbeitsgang über alle Werkbänke. Ein Standard-Arbeitsgang
+        kann im Profil hinterlegt werden.
     </div>
 }
 else
@@ -65,6 +70,7 @@ else
             <thead>
                 <tr>
                     <th data-filterable data-col-key="order-number">FA Nr.</th>
+                    <th data-filterable data-col-key="workbench">Werkbank</th>
                     <th data-filterable data-col-key="article-number">Artikelnummer</th>
                     <th data-filterable data-col-key="quantity">Stk.</th>
                     <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
@@ -74,10 +80,7 @@ else
                     {
                         <th data-filterable data-col-key="attr-@def.Id">@def.Name</th>
                     }
-                    @foreach (var ws in Model.MappedWorkSteps)
-                    {
-                        <th class="text-center" data-col-key="ws-@ws.Id" title="@ws.Name">@ws.Code</th>
-                    }
+                    <th class="text-center" data-col-key="done" title="@doneHeader">@doneHeader</th>
                 </tr>
             </thead>
             <tbody>
@@ -85,7 +88,7 @@ else
                 {
                     <tr>
                         <td colspan="@columnCount" class="text-center text-muted py-4">
-                            Keine offenen Fertigungsaufträge für diese Werkbank.
+                            Keine offenen Fertigungsaufträge für diesen Arbeitsgang.
                         </td>
                     </tr>
                 }
@@ -96,10 +99,6 @@ else
                         <tr>
                             <td>
                                 <a asp-action="Bom" asp-route-id="@item.ProductionOrderId">@item.OrderNumber</a>
-                                @if (item.OrphanWorkStepCount > 0)
-                                {
-                                    <span class="badge bg-warning text-dark ms-1" title="Offene Arbeitsgaenge ausserhalb dieser Werkbank">+@item.OrphanWorkStepCount weitere AG</span>
-                                }
                                 @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
                                 {
                                     foreach (var dms in dmsLinks)
@@ -117,6 +116,7 @@ else
                                     }
                                 }
                             </td>
+                            <td>@item.WorkplaceName</td>
                             <td>@item.ArticleNumber</td>
                             <td>@item.Quantity</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
@@ -126,16 +126,13 @@ else
                             {
                                 <td>@item.AttributeValues.GetValueOrDefault(def.Id)</td>
                             }
-                            @foreach (var ws in Model.MappedWorkSteps)
-                            {
-                                <td class="text-center">
-                                    @if (item.WorkStepCells.TryGetValue(ws.Id, out var cell))
-                                    {
-                                        <input type="checkbox" class="form-check-input worklist-complete"
-                                               data-fa-work-step-id="@cell.FaWorkStepId" @(cell.IsCompleted ? "checked" : "") />
-                                    }
-                                </td>
-                            }
+                            <td class="text-center">
+                                @if (item.WorkStepCell != null)
+                                {
+                                    <input type="checkbox" class="form-check-input worklist-complete"
+                                           data-fa-work-step-id="@item.WorkStepCell.FaWorkStepId" @(item.WorkStepCell.IsCompleted ? "checked" : "") />
+                                }
+                            </td>
                         </tr>
                     }
                 }

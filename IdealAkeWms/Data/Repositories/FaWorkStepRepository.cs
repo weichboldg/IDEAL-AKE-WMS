@@ -27,6 +27,11 @@ public class FaWorkStepRepository : IFaWorkStepRepository
             .ToListAsync();
     }
 
+    public async Task<List<FaWorkStep>> GetForWorkStepAsync(int workStepId)
+        => await _context.FaWorkSteps
+            .Where(f => f.WorkStepId == workStepId && !f.IsRemoved)
+            .ToListAsync();
+
     public async Task<Dictionary<int, Dictionary<string, bool>>> GetWorkStepPivotAsync(List<int> productionOrderIds)
     {
         // Chunking gegen SQL-Server-2100-Parameter-Limit (Pattern aus dem alten
