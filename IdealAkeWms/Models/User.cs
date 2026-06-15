@@ -63,6 +63,11 @@ public class User : AuditableEntity
     [Display(Name = "Eintraege pro Seite (Standard)")]
     public int? DefaultPageSize { get; set; }
 
+    /// <summary>Vorausgewaehlter Arbeitsgang in der FA-Abarbeitungsliste (NULL = keiner).</summary>
+    [Display(Name = "Standard-Arbeitsgang (FA-Abarbeitungsliste)")]
+    public int? DefaultWorkStepId { get; set; }
+    public WorkStep? DefaultWorkStep { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();

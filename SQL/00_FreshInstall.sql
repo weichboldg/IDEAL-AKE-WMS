@@ -39,6 +39,7 @@ BEGIN
         [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
         [IsPicker]                  BIT               NOT NULL DEFAULT 0,
         [DefaultPageSize]           INT               NULL,
+        [DefaultWorkStepId]         INT               NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -333,6 +334,27 @@ BEGIN
     );
     CREATE UNIQUE INDEX [IX_WorkSteps_Code] ON [dbo].[WorkSteps]([Code]);
     PRINT 'Tabelle WorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c2. FA-Vorbau (v1.22.0): Users.DefaultWorkStepId -> WorkSteps (Migration 70)
+--      Index + FK NACH dem WorkSteps-CREATE platziert, da Users (Block 1) vor
+--      WorkSteps angelegt wird und die Zieltabelle hier existieren muss.
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Users_DefaultWorkStepId' AND object_id = OBJECT_ID('dbo.Users'))
+BEGIN
+    CREATE INDEX [IX_Users_DefaultWorkStepId] ON [dbo].[Users] ([DefaultWorkStepId]);
+    PRINT 'Index IX_Users_DefaultWorkStepId erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Users_WorkSteps_DefaultWorkStepId')
+BEGIN
+    ALTER TABLE [dbo].[Users]
+        ADD CONSTRAINT [FK_Users_WorkSteps_DefaultWorkStepId]
+        FOREIGN KEY ([DefaultWorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE SET NULL;
+    PRINT 'FK FK_Users_WorkSteps_DefaultWorkStepId erstellt.';
 END
 GO
 
@@ -1961,6 +1983,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 -- SplitFaWorkStepCompletion (Migration 69, v1.22.0)
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615070236_SplitFaWorkStepCompletion')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615070236_SplitFaWorkStepCompletion', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615074318_AddUserDefaultWorkStep')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615074318_AddUserDefaultWorkStep', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
