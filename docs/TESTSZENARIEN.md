@@ -4261,24 +4261,22 @@ Allgemeine Vorbedingungen fuer dieses Kapitel:
 6. Ueber "AG hinzufuegen" einen zweiten Arbeitsgang (z.B. `VE`) manuell ergaenzen.
 7. Bei `VL` ein zugeordnetes Merkmal erfassen (Dropdown-Wert waehlen bzw.
    JA/NEIN setzen) — Wert wird per onchange sofort gespeichert.
-8. *Werkbank-Mapping:* Stammdaten → Werkbaenke → `WB-Test` bearbeiten →
-   Checkbox `VL` (NICHT `VE`) ankreuzen → Speichern.
-9. *Abarbeitungsliste:* Fertigungsauftraege → FA-Abarbeitungsliste →
-   Werkbank `WB-Test` waehlen.
-10. Pruefen: `FA-1001` erscheint mit Spalte `VL` (Checkbox), dem erfassten
-    Merkmal-Wert, Terminen (BG/Komm./Fert.) und ggf. enaio-Icons.
-11. *Orphan-Badge:* Pruefen: Neben der FA-Nummer steht der Badge
-    "+1 weitere AG" (der offene `VE` gehoert nicht zum Mapping von `WB-Test`).
-12. *Read-only Stueckliste:* Auf die FA-Nummer klicken.
-13. Pruefen: Stueckliste oeffnet OHNE Picking-Checkboxen, Lagerplatz-Dropdowns,
+8. *Abarbeitungsliste:* Fertigungsauftraege → FA-Abarbeitungsliste →
+   Arbeitsgang `VL` waehlen (kein Werkbank-Filter mehr).
+9. Pruefen: `FA-1001` erscheint mit der **Werkbank**-Spalte (`WB-Test`), der
+   einen Erledigt-Checkbox fuer `VL`, dem erfassten Merkmal-Wert, Terminen
+   (BG/Komm./Fert.) und ggf. enaio-Icons. (Kein Orphan-Badge mehr — die Liste
+   ist Arbeitsgang-zentriert; `VE` erscheint einfach beim Filter auf `VE`.)
+10. *Read-only Stueckliste:* Auf die FA-Nummer klicken.
+11. Pruefen: Stueckliste oeffnet OHNE Picking-Checkboxen, Lagerplatz-Dropdowns,
     Umbuchen-Button, Foto-Upload und Bedarfsmeldungs-Modal. Filter,
     Baugruppen-Navigation und "Drucken" funktionieren.
-14. Zurueck in der Abarbeitungsliste die `VL`-Checkbox ("Erledigt") anhaken.
-15. Pruefen: FA verschwindet aus der Default-Ansicht (alle gemappten AGs
-    erledigt); mit "Erledigte anzeigen" wieder sichtbar.
+12. Zurueck in der Abarbeitungsliste die `VL`-Checkbox ("Erledigt") anhaken.
+13. Pruefen: FA verschwindet aus der Default-Ansicht des `VL`-Filters;
+    mit "Erledigte anzeigen" wieder sichtbar.
 
-**Erwartet:** Erkennung, manuelle Pflege, Werkbank-Mapping, Abarbeitungsliste
-(inkl. Orphan-Badge) und read-only Stueckliste greifen nahtlos ineinander;
+**Erwartet:** Erkennung, manuelle Pflege, Arbeitsgang-gefilterte Abarbeitungsliste
+(mit Werkbank-Spalte) und read-only Stueckliste greifen nahtlos ineinander;
 das "Erledigt"-Abhaken in der Abarbeitungsliste blendet den FA aus.
 
 ### 38.2 Negativ: Manuell abgewaehlter AG wird vom Sync NICHT wieder hinzugefuegt
@@ -4409,6 +4407,45 @@ Abarbeitungsliste noch NICHT als "Erledigt" abgehakt.
 (Werker, `IsCompleted`) sind getrennte Status. Nur der "Erledigt"-Haken in der
 FA-Abarbeitungsliste blendet den FA aus; "Vollstaendig definiert" hat keinen
 Einfluss auf die Sichtbarkeit in der Abarbeitungsliste.
+
+---
+
+### 38.8 Arbeitsgang-Filter + Standard-Arbeitsgang im Profil (Werkbank-uebergreifend)
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Mindestens zwei offene FAs
+(`FA-4001`, `FA-4002`, beide Sage-`IsDone=false`, nicht komm-erledigt), die
+**auf verschiedenen Werkbaenken** liegen (`FA-4001` → `WB-A`, `FA-4002` → `WB-B`)
+und beide einen aktiven Arbeitsgang `VE` haben (erkannt oder manuell). Optional
+hat `FA-4001` zusaetzlich `VL`. Ein Benutzer mit Rolle `vorbau` (oder Admin),
+dessen Profil noch keinen Standard-Arbeitsgang hat.
+
+**Schritte:**
+1. *Standard-Arbeitsgang setzen:* Benutzer-Dropdown rechts oben → Mein Profil →
+   Feld "Standard-Arbeitsgang (FA-Abarbeitungsliste)" auf `VE` setzen → Speichern.
+   (Alternativ als Admin im Benutzerstamm: Benutzer → Bearbeiten → selbes Feld.)
+2. *Vorgefiltert oeffnen:* Fertigungsauftraege → FA-Abarbeitungsliste oeffnen
+   OHNE einen Arbeitsgang in der URL/im Dropdown zu waehlen.
+3. Pruefen: Das Arbeitsgang-Dropdown ist bereits auf `VE` vorausgewaehlt (aus dem
+   Profil) — die Liste ist sofort vorgefiltert, ohne manuelle Auswahl.
+4. Pruefen: Sowohl `FA-4001` (Werkbank `WB-A`) als auch `FA-4002` (Werkbank `WB-B`)
+   erscheinen — die Liste ist **werkbank-uebergreifend**.
+5. Pruefen: Es gibt eine **Werkbank**-Spalte, die `WB-A` bzw. `WB-B` anzeigt; sie
+   ist als Spalte filterbar (z.B. `WB-A` eintippen → nur `FA-4001` bleibt). Filter
+   wieder leeren.
+6. Pruefen: Pro Zeile gibt es genau EINE Erledigt-Checkbox (Spalten-Header =
+   gewaehlter AG `VE`), nicht mehrere AG-Spalten.
+7. *Erledigt-Haken blendet aus:* Bei `FA-4001` die `VE`-"Erledigt"-Checkbox anhaken
+   (sofort gespeichert).
+8. Pruefen: `FA-4001` verschwindet aus der Default-Ansicht; `FA-4002` bleibt
+   sichtbar. Mit "Erledigte anzeigen" wird `FA-4001` wieder eingeblendet.
+9. *Anderer AG:* Im Dropdown auf `VL` umstellen.
+10. Pruefen: Nur FAs mit aktivem `VL` (hier `FA-4001`) erscheinen; `FA-4002`
+    (nur `VE`) ist nicht dabei.
+
+**Erwartet:** Die FA-Abarbeitungsliste filtert nach Arbeitsgang (nicht Werkbank);
+der im Profil hinterlegte Standard-Arbeitsgang wird ohne URL-Parameter
+vorausgewaehlt. Die Liste zeigt FAs verschiedener Werkbaenke mit Werkbank-Spalte;
+der "Erledigt"-Haken des gewaehlten AG blendet den FA aus.
 
 ---
 

@@ -332,6 +332,11 @@
                                 zugeordnet, wird es einmal erfasst und ueberall angezeigt.</li>
                             <li><strong>Freitext-Spezifikationen</strong> (Artikel + Beschreibung + Menge +
                                 Notizen) bleiben wie bisher pro Arbeitsgang erhalten.</li>
+                            <li><strong>Kopf mit Stueckliste-Link und enaio-Dokumenten:</strong> Im Kopf
+                                der Edit-Seite stehen ein Link auf die <em>Stueckliste</em> (read-only)
+                                und die verlinkten enaio-Dokumente des FA; die Termine zeigen die
+                                Kalenderwoche. Das Speichern eines Merkmals haelt den aktiven
+                                Arbeitsgang-Tab &mdash; man bleibt nach dem Speichern auf demselben AG.</li>
                             <li><strong>&bdquo;Vollstaendig definiert&ldquo;:</strong> Der Schalter pro
                                 Arbeitsgang markiert, dass die Spezifikation (Merkmale/AGs) fertig
                                 festgelegt ist &mdash; eine Planer-Information. Er blendet den FA
@@ -357,32 +362,28 @@
                     <code>FaCompletionAktiv</code> muss aktiv sein.
                 </p>
                 <dl>
-                    <dt>Werkbank-Filter (Pflicht)</dt>
-                    <dd>Zuerst eine Werkbank waehlen. Die Liste zeigt dann alle offenen Fertigungsauftraege
-                        dieser Werkbank, die mindestens einen offenen Arbeitsgang aus dem Werkbank-Mapping haben.
-                        Welche Arbeitsgaenge zu einer Werkbank gehoeren, wird unter
-                        <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten</em> gepflegt.</dd>
+                    <dt>Arbeitsgang-Filter (Pflicht)</dt>
+                    <dd>Zuerst einen Arbeitsgang waehlen. Die Liste zeigt dann alle offenen
+                        Fertigungsauftraege, die diesen Arbeitsgang benoetigen &mdash;
+                        <strong>ueber alle Werkbaenke hinweg</strong>. Die Werkbank des FA ist eine
+                        Info-Spalte (filterbar), kein Filter mehr. Wer haeufig denselben Arbeitsgang
+                        abarbeitet, hinterlegt ihn als <strong>Standard-Arbeitsgang</strong> im Profil
+                        (siehe unten) &mdash; die Liste oeffnet dann automatisch vorgefiltert.</dd>
 
-                    <dt>Arbeitsgaenge abhaken (&bdquo;Erledigt&ldquo;)</dt>
-                    <dd>Pro Zeile erscheint je gemapptem Arbeitsgang eine Erledigt-Checkbox
-                        (leere Zelle = FA braucht diesen Arbeitsgang nicht). Der Haken bedeutet
-                        <strong>Vorbau physisch gebaut</strong> (Werker) &mdash; im Gegensatz zum Schalter
-                        &bdquo;Vollstaendig definiert&ldquo; in der FA-Vervollstaendigung, der nur die
-                        Spezifikation/Merkmale als fertig markiert (Planer) und NICHT ausblendet.
-                        Der Haken wird sofort gespeichert. Sind alle benoetigten Arbeitsgaenge der
-                        Werkbank erledigt, verschwindet der FA aus der Default-Ansicht dieser
-                        Werkbank &mdash; ueber &bdquo;Erledigte anzeigen&ldquo; bleibt er sichtbar.</dd>
+                    <dt>Arbeitsgang abhaken (&bdquo;Erledigt&ldquo;)</dt>
+                    <dd>Pro Zeile erscheint genau eine Erledigt-Checkbox &mdash; fuer den gewaehlten
+                        Arbeitsgang. Der Haken bedeutet <strong>Vorbau physisch gebaut</strong> (Werker)
+                        &mdash; im Gegensatz zum Schalter &bdquo;Vollstaendig definiert&ldquo; in der
+                        FA-Vervollstaendigung, der nur die Spezifikation/Merkmale als fertig markiert
+                        (Planer) und NICHT ausblendet. Der Haken wird sofort gespeichert. Ist der
+                        Arbeitsgang erledigt, verschwindet der FA aus der Default-Ansicht &mdash; ueber
+                        &bdquo;Erledigte anzeigen&ldquo; bleibt er sichtbar.</dd>
 
-                    <dt>Badge &bdquo;+N weitere AG&ldquo;</dt>
-                    <dd>Erscheint neben der FA-Nummer, wenn der Auftrag offene Arbeitsgaenge hat,
-                        die NICHT zu den Spalten dieser Werkbank gehoeren &mdash; also an einer
-                        anderen Werkbank (oder noch keiner) abzuarbeiten sind.</dd>
-
-                    <dt>Merkmal-Spalten + Termine</dt>
-                    <dd>Die Liste zeigt die FA-Merkmale, die den gemappten Arbeitsgaengen der Werkbank
-                        zugeordnet sind (erfasst in der FA-Vervollstaendigung), sowie BG-Termin,
-                        Komm.-Termin und Fertigungstermin (KW-Format wie in der FA-Liste) und die
-                        enaio-Dokument-Links.</dd>
+                    <dt>Werkbank-Spalte + Merkmal-Spalten + Termine</dt>
+                    <dd>Die Liste zeigt die <strong>Werkbank</strong> des FA als eigene (filterbare)
+                        Spalte, die FA-Merkmale, die dem gewaehlten Arbeitsgang zugeordnet sind
+                        (erfasst in der FA-Vervollstaendigung), sowie BG-Termin, Komm.-Termin und
+                        Fertigungstermin (KW-Format wie in der FA-Liste) und die enaio-Dokument-Links.</dd>
 
                     <dt>Stueckliste (read-only)</dt>
                     <dd>Klick auf die FA-Nummer oeffnet die Stueckliste im Nur-Lesen-Modus:
@@ -877,8 +878,10 @@
                     <dd>Produktionsarbeitsplaetze (z.B. Werkbank 1, Werkbank 2). Werden automatisch aus OSEON-Daten angelegt
                         und koennen Fertigungsauftraegen zugeordnet werden. Dienen als Filter in der Teileverfolgung und Fertigungsauftrags-Liste.
                         <br /><strong>Seit v1.22.0:</strong> Im Bearbeiten-Dialog koennen pro Werkbank mehrere
-                        Vorbaugruppen/Arbeitsgaenge zugeordnet werden (Checkbox-Liste) &mdash; sie bestimmen die
-                        Spalten der FA-Abarbeitungsliste dieser Werkbank.</dd>
+                        Vorbaugruppen/Arbeitsgaenge zugeordnet werden (Checkbox-Liste). Diese Zuordnung
+                        bleibt als Stammdatum erhalten; die FA-Abarbeitungsliste filtert seit dem
+                        Arbeitsgang-Umbau jedoch direkt nach Arbeitsgang (nicht mehr ueber das
+                        Werkbank-Mapping).</dd>
 
                     <dt>Arbeitsgaenge (seit v1.22.0)</dt>
                     <dd>Katalog der Vorbau-Arbeitsgaenge (Standard: VK Kuehlung, VL Lueftung, VE Elektro,
@@ -1055,6 +1058,12 @@
 
                     <dt>Standard-Filter Artikelgruppe</dt>
                     <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt. Unterstützt alle Filtermodi: einfach (<code>886</code>), mehrfach (<code>886, 960</code>) und Ausschluss (<code>!960</code>). Leer lassen = kein automatischer Filter.</dd>
+
+                    <dt>Standard-Arbeitsgang (FA-Abarbeitungsliste)</dt>
+                    <dd>Legt den Arbeitsgang fest, mit dem die <em>FA-Abarbeitungsliste</em> beim
+                        Oeffnen vorgefiltert wird. So muss der Werker den Arbeitsgang nicht jedes Mal
+                        neu waehlen. Leer lassen = keine Vorauswahl (Arbeitsgang manuell waehlen).
+                        Der Standard-Arbeitsgang kann auch vom Admin im Benutzerstamm gepflegt werden.</dd>
                 </dl>
             </div>
         </div>
