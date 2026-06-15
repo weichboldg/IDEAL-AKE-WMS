@@ -13,7 +13,9 @@ namespace IdealAkeWms.Controllers;
 /// inklusive Auspraegungen (<see cref="FaWorkStepSpec"/>), Merkmalswerte
 /// (<see cref="FaAttributeValue"/>) und die Werkbank-Zuweisung. Der AJAX-Toggle
 /// <c>/api/fa-work-steps/toggle</c> bleibt fuer Leitstand + Edit-View;
-/// IsCompleted hat eine eigene Action mit Audit-Lifecycle.
+/// IsSpecComplete ("vollstaendig definiert") hat eine eigene Action mit
+/// Audit-Lifecycle. Arbeit-erledigt (IsCompleted) wird ausschliesslich in der
+/// FA-Abarbeitungsliste gesetzt — NICHT hier.
 /// </summary>
 [RequireFaCompletionAccess]
 public class FaCompletionController : Controller
@@ -189,9 +191,9 @@ public class FaCompletionController : Controller
             WorkStepId = f.WorkStepId,
             Code = f.WorkStep.Code,
             Name = f.WorkStep.Name,
-            IsCompleted = f.IsCompleted,
-            CompletedAt = f.CompletedAt,
-            CompletedBy = f.CompletedBy,
+            IsSpecComplete = f.IsSpecComplete,
+            SpecCompletedAt = f.SpecCompletedAt,
+            SpecCompletedBy = f.SpecCompletedBy,
             Attributes = attributeDefs
                 .Where(d => d.WorkSteps.Any(j => j.WorkStepId == f.WorkStepId))
                 .Select(d =>
@@ -433,10 +435,10 @@ public class FaCompletionController : Controller
         });
     }
 
-    // POST /FaCompletion/ToggleIsCompleted
+    // POST /FaCompletion/ToggleSpecComplete
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ToggleIsCompleted(int faWorkStepId)
+    public async Task<IActionResult> ToggleSpecComplete(int faWorkStepId)
     {
         var row = await _faWorkStepRepository.GetByIdAsync(faWorkStepId);
         if (row == null)
@@ -444,17 +446,17 @@ public class FaCompletionController : Controller
             return NotFound();
         }
 
-        var newValue = !row.IsCompleted;
+        var newValue = !row.IsSpecComplete;
 
-        await _faWorkStepRepository.SetIsCompletedAsync(
+        await _faWorkStepRepository.SetIsSpecCompleteAsync(
             faWorkStepId,
             newValue,
             _currentUser.GetDisplayName(),
             _currentUser.GetWindowsUserName());
 
         TempData["SuccessMessage"] = newValue
-            ? "Arbeitsgang als vervollstaendigt markiert."
-            : "Vervollstaendigung zurueckgesetzt.";
+            ? "Arbeitsgang als vollstaendig definiert markiert."
+            : "Definition zurueckgesetzt.";
 
         return RedirectToAction(nameof(Edit), new { id = row.ProductionOrderId, tab = row.WorkStep.Code });
     }

@@ -45,9 +45,9 @@ public class FaWorkStepTabViewModel
     public int WorkStepId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public bool IsCompleted { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public string? CompletedBy { get; set; }
+    public bool IsSpecComplete { get; set; }
+    public DateTime? SpecCompletedAt { get; set; }
+    public string? SpecCompletedBy { get; set; }
 
     /// <summary>Dem Arbeitsgang zugeordnete aktive Merkmale inkl. aktuellem Wert des FA.</summary>
     public List<FaAttributeFieldViewModel> Attributes { get; set; } = new();

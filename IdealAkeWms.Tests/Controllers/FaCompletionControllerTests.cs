@@ -753,17 +753,17 @@ public class FaCompletionControllerTests
         result.Should().BeOfType<NotFoundResult>();
     }
 
-    // ------------------------------------------------------ ToggleIsCompleted
+    // ------------------------------------------------------ ToggleSpecComplete
 
     [Fact]
-    public async Task ToggleIsCompleted_True_SetsCompletedAtAndBy_AndRedirectsToTab()
+    public async Task ToggleSpecComplete_True_SetsSpecCompletedAtAndBy_AndRedirectsToTab()
     {
         var (ctx, ctrl, _) = Build();
         var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-TOGGLE");
         var vk = SeedWorkStep(ctx, "VK", "Kuehlung", 1);
         var vkRow = SeedFaWorkStep(ctx, o.Order.Id, vk.Id);
 
-        var result = await ctrl.ToggleIsCompleted(vkRow.Id);
+        var result = await ctrl.ToggleSpecComplete(vkRow.Id);
 
         var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
         redirect.ActionName.Should().Be("Edit");
@@ -772,13 +772,15 @@ public class FaCompletionControllerTests
 
         ctx.ChangeTracker.Clear();
         var reloaded = ctx.FaWorkSteps.Find(vkRow.Id)!;
-        reloaded.IsCompleted.Should().BeTrue();
-        reloaded.CompletedAt.Should().NotBeNull();
-        reloaded.CompletedBy.Should().Be("Max Mustermann");
+        reloaded.IsSpecComplete.Should().BeTrue();
+        reloaded.SpecCompletedAt.Should().NotBeNull();
+        reloaded.SpecCompletedBy.Should().Be("Max Mustermann");
+        // Arbeit-erledigt (IsCompleted) bleibt unberuehrt
+        reloaded.IsCompleted.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ToggleIsCompleted_FlipsValue_OnSecondCall()
+    public async Task ToggleSpecComplete_FlipsValue_OnSecondCall()
     {
         var (ctx, ctrl, _) = Build();
         var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-TOGGLE2");
@@ -786,23 +788,23 @@ public class FaCompletionControllerTests
         var vlRow = SeedFaWorkStep(ctx, o.Order.Id, vl.Id);
 
         // First call -> true
-        await ctrl.ToggleIsCompleted(vlRow.Id);
+        await ctrl.ToggleSpecComplete(vlRow.Id);
         // Second call -> false
-        await ctrl.ToggleIsCompleted(vlRow.Id);
+        await ctrl.ToggleSpecComplete(vlRow.Id);
 
         ctx.ChangeTracker.Clear();
         var reloaded = ctx.FaWorkSteps.Find(vlRow.Id)!;
-        reloaded.IsCompleted.Should().BeFalse();
-        reloaded.CompletedAt.Should().BeNull();
-        reloaded.CompletedBy.Should().BeNull();
+        reloaded.IsSpecComplete.Should().BeFalse();
+        reloaded.SpecCompletedAt.Should().BeNull();
+        reloaded.SpecCompletedBy.Should().BeNull();
     }
 
     [Fact]
-    public async Task ToggleIsCompleted_UnknownId_ReturnsNotFound()
+    public async Task ToggleSpecComplete_UnknownId_ReturnsNotFound()
     {
         var (_, ctrl, _) = Build();
 
-        var result = await ctrl.ToggleIsCompleted(999_999);
+        var result = await ctrl.ToggleSpecComplete(999_999);
 
         result.Should().BeOfType<NotFoundResult>();
     }

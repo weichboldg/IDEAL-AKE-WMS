@@ -67,8 +67,8 @@
     <ul class="nav nav-tabs mb-3">
         @foreach (var t in Model.Tabs)
         {
-            var indicator = t.IsCompleted ? " ✓" : " ●";
-            var badgeClass = t.IsCompleted ? "text-success" : "text-warning";
+            var indicator = t.IsSpecComplete ? " ✓" : " ●";
+            var badgeClass = t.IsSpecComplete ? "text-success" : "text-warning";
             <li class="nav-item">
                 <a class="nav-link @(t.Code == Model.ActiveTab ? "active" : "")"
                    asp-action="Edit" asp-route-id="@Model.ProductionOrderId" asp-route-tab="@t.Code">
@@ -109,25 +109,26 @@ else
     <div class="tab-content">
         <div class="tab-pane fade show active">
 
-            @* Status-Bar: Vervollstaendigt-Switch + Arbeitsgang entfernen *@
+            @* Status-Bar: Vollstaendig-definiert-Switch + Arbeitsgang entfernen *@
             <div class="d-flex flex-wrap gap-4 mb-3 align-items-center">
 
-                @* IsCompleted - Form-POST an /FaCompletion/ToggleIsCompleted (Server toggelt) *@
-                <form method="post" asp-action="ToggleIsCompleted" class="form-check form-switch m-0">
+                @* IsSpecComplete - Form-POST an /FaCompletion/ToggleSpecComplete (Server toggelt) *@
+                <form method="post" asp-action="ToggleSpecComplete" class="form-check form-switch m-0">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="faWorkStepId" value="@active.FaWorkStepId" />
                     <input class="form-check-input" type="checkbox"
-                           id="chkCompleted_@active.FaWorkStepId"
+                           id="chkSpecComplete_@active.FaWorkStepId"
                            onchange="this.form.submit()"
-                           @(active.IsCompleted ? "checked" : "") />
-                    <label class="form-check-label" for="chkCompleted_@active.FaWorkStepId">
-                        <strong>Vervollständigt</strong> (<code>IsCompleted</code>)
-                        @if (active.IsCompleted)
+                           @(active.IsSpecComplete ? "checked" : "") />
+                    <label class="form-check-label" for="chkSpecComplete_@active.FaWorkStepId">
+                        <strong>Vollständig definiert</strong>
+                        @if (active.IsSpecComplete)
                         {
                             <span class="text-muted small">
-                                — @active.CompletedBy am @active.CompletedAt?.ToString("dd.MM.yyyy HH:mm")
+                                — @active.SpecCompletedBy am @active.SpecCompletedAt?.ToString("dd.MM.yyyy HH:mm")
                             </span>
                         }
+                        <span class="text-muted small d-block">Markiert die Merkmal-/AG-Definition als fertig — blendet die FA NICHT aus der Abarbeitungsliste aus.</span>
                     </label>
                 </form>
 
