@@ -91,4 +91,22 @@ public class ProductionOrderRepositoryTests
         page.Rows.Single(r => r.OrderNumber == "FA-KOMMDONE").IsDonePicking.Should().BeTrue();
         page.Rows.Single(r => r.OrderNumber == "FA-OPEN").IsDonePicking.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GetOpenOrdersInWindow_ExcludesKommDoneOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var inWindow = DateTime.Now.AddDays(7);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false, ProductionDate = inWindow });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-KOMMDONE", IsDone = false, ProductionDate = inWindow });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 1, IsDonePicking = false });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 2, IsDonePicking = true });
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetOpenOrdersInWindowAsync(weeksAhead: 8, maxCount: 200);
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+    }
 }

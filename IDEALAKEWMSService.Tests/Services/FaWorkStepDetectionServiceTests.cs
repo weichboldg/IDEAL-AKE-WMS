@@ -132,6 +132,24 @@ public class FaWorkStepDetectionServiceTests
     }
 
     [Fact]
+    public async Task Detect_SkipsKommDoneOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.WorkSteps.Add(NewWorkStep("VL", "luefter"));
+        // Offener FA, aber per Kommissionierung abgeschlossen (IsDonePicking=true)
+        var order = NewOrder("FA-1", "ART-1");
+        order.PickingStatus = new ProductionOrderPickingStatus { IsDonePicking = true };
+        ctx.ProductionOrders.Add(order);
+        ctx.CachedBomHeaders.Add(NewBomHeader("ART-1", "Axialluefter 230V"));
+        await ctx.SaveChangesAsync();
+
+        var result = await CreateService(ctx).DetectAsync(dryRun: false);
+
+        result.Inserted.Should().Be(0);
+        (await ctx.FaWorkSteps.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Detect_DryRun_WritesNothing()
     {
         using var ctx = TestDbContextFactory.Create();

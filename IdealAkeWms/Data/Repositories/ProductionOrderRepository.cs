@@ -116,6 +116,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         return await _dbSet
             .Where(po => !po.IsDone
+                         && !(po.PickingStatus != null && po.PickingStatus.IsDonePicking)
                          && po.ProductionDate != null
                          && po.ProductionDate <= cutoff)
             .OrderBy(po => po.ProductionDate)

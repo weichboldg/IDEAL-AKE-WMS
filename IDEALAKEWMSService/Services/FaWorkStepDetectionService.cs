@@ -68,10 +68,14 @@ public class FaWorkStepDetectionService : IFaWorkStepDetectionService
 
                 // 3) Offene FAs zu diesen Artikeln ohne vorhandene Zeile (auch keine IsRemoved!)
                 var matchedFaCount = await _db.ProductionOrders
-                    .Where(o => !o.IsDone && o.ArticleNumber != null && matchedArticles.Contains(o.ArticleNumber!))
+                    .Where(o => !o.IsDone
+                             && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
+                             && o.ArticleNumber != null && matchedArticles.Contains(o.ArticleNumber!))
                     .CountAsync(ct);
                 var candidates = await _db.ProductionOrders
-                    .Where(o => !o.IsDone && o.ArticleNumber != null && matchedArticles.Contains(o.ArticleNumber!))
+                    .Where(o => !o.IsDone
+                             && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
+                             && o.ArticleNumber != null && matchedArticles.Contains(o.ArticleNumber!))
                     .Where(o => !_db.FaWorkSteps.Any(f => f.ProductionOrderId == o.Id && f.WorkStepId == step.Id))
                     .Select(o => o.Id)
                     .ToListAsync(ct);
