@@ -82,7 +82,7 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
                     }
                     else
                     {
-                        await _mailService.SendAsync(subject, htmlBody, emails, ct);
+                        await _mailService.SendAsync(subject, htmlBody, emails, ct: ct);
                         await MarkAsSentAsync(connectionString, items.Select(i => i.Id).ToList(), ct);
                         sentCount += items.Count;
                         _logger.LogInformation("Bedarfsmeldung versendet: '{Subject}' an {Count} Empfänger.",

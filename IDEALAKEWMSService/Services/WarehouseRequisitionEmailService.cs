@@ -55,9 +55,10 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
                     }
                     var subject = $"Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
                     var body = BuildSubmitBody(r, baseUrl);
+                    var textBody = BuildSubmitText(r, baseUrl);
                     if (!dryRun)
                     {
-                        await _mail.SendAsync(subject, body, emails, ct);
+                        await _mail.SendAsync(subject, body, emails, textBody, ct);
                         await _repo.MarkEmailSentAsync(r.Id, DateTime.Now);
                     }
                     await run.LogInfoAsync("Submit-Mail versendet",
@@ -90,9 +91,10 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
                     }
                     var subject = $"[STORNO] Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
                     var body = BuildCancellationBody(r, baseUrl);
+                    var textBody = BuildCancellationText(r, baseUrl);
                     if (!dryRun)
                     {
-                        await _mail.SendAsync(subject, body, emails, ct);
+                        await _mail.SendAsync(subject, body, emails, textBody, ct);
                         await _repo.MarkCancellationEmailSentAsync(r.Id, DateTime.Now);
                     }
                     await run.LogInfoAsync("Storno-Mail versendet",
@@ -175,6 +177,49 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         }
         sb.AppendLine("<p><strong>Bitte nicht weiter bearbeiten.</strong></p>");
         sb.AppendLine("</body></html>");
+        return sb.ToString();
+    }
+
+    // Plain-Text-Alternative zum HTML-Body. Wichtig: nackte URL (kein [..], kein Markup) —
+    // Mail-Clients (Outlook, etc.) linkifizieren das automatisch. Reines HtmlBody fuehrt sonst
+    // in Outlook zu [URL]Text-Rohtext-Darstellung des Links.
+    internal static string BuildSubmitText(WarehouseRequisition r, string baseUrl)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Lagerbestellung #{r.Id}");
+        sb.AppendLine();
+        sb.AppendLine($"Werkbank: {r.ProductionWorkplace.Name}");
+        sb.AppendLine($"Erfasser: {r.CreatedBy}");
+        sb.AppendLine($"Submit: {r.SubmittedAt:dd.MM.yyyy HH:mm}");
+        sb.AppendLine();
+        sb.AppendLine("Positionen:");
+        foreach (var i in r.Items.OrderBy(i => i.Position))
+        {
+            sb.AppendLine($"  {i.Position}. {i.ArticleNumber} - {i.ArticleDescription} ({i.QuantityRequested} {i.Unit})");
+        }
+        if (!string.IsNullOrEmpty(baseUrl))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Lagerbestellung oeffnen: {baseUrl}/WarehousePicking/Details/{r.Id}");
+        }
+        return sb.ToString();
+    }
+
+    internal static string BuildCancellationText(WarehouseRequisition r, string baseUrl)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"[STORNO] Lagerbestellung #{r.Id}");
+        sb.AppendLine();
+        sb.AppendLine($"Werkbank: {r.ProductionWorkplace.Name}");
+        sb.AppendLine($"Erfasser: {r.CreatedBy}");
+        sb.AppendLine($"Storniert: {r.CancelledAt:dd.MM.yyyy HH:mm}");
+        if (!string.IsNullOrEmpty(r.CancellationReason))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Grund: {r.CancellationReason}");
+        }
+        sb.AppendLine();
+        sb.AppendLine("Bitte nicht weiter bearbeiten.");
         return sb.ToString();
     }
 }

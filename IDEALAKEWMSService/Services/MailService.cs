@@ -15,7 +15,7 @@ public class MailService : IMailService
         _logger = logger;
     }
 
-    public async Task SendAsync(string subject, string htmlBody, IEnumerable<string> recipients, CancellationToken ct = default)
+    public async Task SendAsync(string subject, string htmlBody, IEnumerable<string> recipients, string? textBody = null, CancellationToken ct = default)
     {
         var recipientList = recipients.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
         if (recipientList.Count == 0)
@@ -46,6 +46,8 @@ public class MailService : IMailService
         message.Subject = subject;
 
         var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
+        if (!string.IsNullOrWhiteSpace(textBody))
+            bodyBuilder.TextBody = textBody;
         message.Body = bodyBuilder.ToMessageBody();
 
         using var client = new SmtpClient();

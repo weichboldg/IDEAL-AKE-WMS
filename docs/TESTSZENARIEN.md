@@ -3394,9 +3394,14 @@ Vorbedingungen: TS-18.1, Service-Setting Sync:WarehouseRequisitionEmailEnabled=t
 Schritte: max. 15 Min warten oder Worker-Tick triggern.
 Erwartet: E-Mail im Postfach des Empfaengers, Subject "Lagerbestellung #X — Werkbank Y", Body mit Items + Deep-Link.
 
+### TS-18.5a — Submit-Mail: Link klickbar in Outlook (Plain-Text-Alternative)
+Vorbedingungen: wie TS-18.5, Empfaenger nutzt Outlook (Desktop oder Web).
+Schritte: Submit-Mail oeffnen, auf "Lagerbestellung oeffnen" tippen/klicken.
+Erwartet: Der Link wird als klickbarer Button bzw. Hyperlink dargestellt (NICHT als Rohtext `[URL]Lagerbestellung oeffnen`). Klick oeffnet `/WarehousePicking/Details/{id}`. Hintergrund: die Mail ist multipart/alternative (HTML-Button + Plain-Text-Teil mit nackter URL). Negativ-Fall vor dem Fix: Outlook zeigte den Anchor als `[URL]Text`-Rohtext.
+
 ### TS-18.6 — Storno-Mail
 Schritte: nach Submit (TS-18.1) im Erfasser-Edit "Stornieren" mit Grund.
-Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …".
+Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …". Auch hier multipart/alternative (HTML + Plain-Text mit Kopf + Grund).
 
 ### TS-18.7 — Lager: Detail + Print + Close
 Schritte: Lager-Detail oeffnen, Pro-Position Ist-Menge anpassen, Drucken, Abschliessen.
