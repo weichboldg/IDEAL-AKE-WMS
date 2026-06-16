@@ -106,7 +106,7 @@
                     <option value="@ws.Id">@ws.Code — @ws.Name</option>
                 }
             </select>
-            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">+ Arbeitsgang</button>
+            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">+ FA-Vorbau-AG</button>
         </form>
     }
 </div>
@@ -118,7 +118,7 @@
 @if (active == null)
 {
     <div class="alert alert-info">
-        Für diesen FA sind noch keine Arbeitsgänge aktiv. Über „+ Arbeitsgang" einen Arbeitsgang hinzufügen.
+        Für diesen FA sind noch keine FA-Vorbau-AG aktiv. Über „+ FA-Vorbau-AG" einen FA-Vorbau-Arbeitsgang hinzufügen.
     </div>
 }
 else
@@ -151,11 +151,11 @@ else
 
                 @* Arbeitsgang abwaehlen (setzt IsRemoved=1, ersetzt alten IsApplicable-Toggle) *@
                 <form method="post" asp-action="RemoveWorkStep" class="m-0"
-                      onsubmit="return confirm('Arbeitsgang @active.Code wirklich von diesem FA entfernen?');">
+                      onsubmit="return confirm('FA-Vorbau-AG @active.Code wirklich von diesem FA entfernen?');">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@Model.ProductionOrderId" />
                     <input type="hidden" name="workStepId" value="@active.WorkStepId" />
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Arbeitsgang entfernen</button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger">FA-Vorbau-AG entfernen</button>
                 </form>
             </div>
 
@@ -223,7 +223,7 @@ else
                         {
                             <tr>
                                 <td colspan="6" class="text-center text-muted small py-2">
-                                    Noch keine Ausprägungen für diesen Arbeitsgang.
+                                    Noch keine Ausprägungen für diesen FA-Vorbau-Arbeitsgang.
                                 </td>
                             </tr>
                         }

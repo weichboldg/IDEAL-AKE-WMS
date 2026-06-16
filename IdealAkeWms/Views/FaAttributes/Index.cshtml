@@ -8,7 +8,7 @@
 <h2 class="page-header">FA-Merkmale</h2>
 <p class="text-muted mb-3">
     Definieren Sie Merkmale (Boolean/Dropdown/Text) fuer die FA-Vervollstaendigung. Merkmale werden ueber die
-    Arbeitsgang-Zuordnung den passenden Werkbaenken zugeordnet und dort als Eingabefelder angeboten.
+    FA-Vorbau-AG-Zuordnung den passenden Werkbaenken zugeordnet und dort als Eingabefelder angeboten.
 </p>
 
 @if (!canEdit)
@@ -29,7 +29,7 @@
                             <tr>
                                 <th data-filterable data-col-key="name">Name</th>
                                 <th data-filterable data-col-key="type" style="width: 100px;">Typ</th>
-                                <th data-filterable data-col-key="work-steps" style="width: 160px;">Arbeitsgänge</th>
+                                <th data-filterable data-col-key="work-steps" style="width: 160px;">FA-Vorbau-AG</th>
                                 <th data-filterable data-col-key="sort-order" style="width: 110px;" class="text-center">Reihenfolge</th>
                                 <th data-filterable data-col-key="active" style="width: 80px;">Aktiv</th>
                                 <th data-col-key="actions" style="width: 160px;"></th>
@@ -185,7 +185,7 @@
                 <p class="mb-2"><strong>Boolean</strong> = Checkbox (Ja/Nein) in der FA-Vervollstaendigung.</p>
                 <p class="mb-2"><strong>Dropdown</strong> = Auswahlliste mit vordefinierten Optionen. Optionen werden auf der Bearbeiten-Seite gepflegt.</p>
                 <p class="mb-2"><strong>Text</strong> = Freitext-Eingabefeld. Keine Optionen noetig.</p>
-                <p class="mb-2"><strong>Arbeitsgänge</strong> bestimmen, bei welchen Vorbaugruppen das Merkmal abgefragt wird (Zuordnung auf der Bearbeiten-Seite).</p>
+                <p class="mb-2"><strong>FA-Vorbau-AG</strong> bestimmen, bei welchen Vorbaugruppen das Merkmal abgefragt wird (Zuordnung auf der Bearbeiten-Seite).</p>
                 <p class="mb-0"><strong>Deaktivierte</strong> Merkmale verschwinden aus der FA-Vervollstaendigung, Werte bleiben in der DB erhalten.</p>
             </div>
         </div>

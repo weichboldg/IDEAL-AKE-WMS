@@ -64,7 +64,7 @@ public class User : AuditableEntity
     public int? DefaultPageSize { get; set; }
 
     /// <summary>Vorausgewaehlter Arbeitsgang in der FA-Abarbeitungsliste (NULL = keiner).</summary>
-    [Display(Name = "Standard-Arbeitsgang (FA-Abarbeitungsliste)")]
+    [Display(Name = "Standard FA-Vorbau-AG (FA-Abarbeitungsliste)")]
     public int? DefaultWorkStepId { get; set; }
     public WorkStep? DefaultWorkStep { get; set; }
 

@@ -47,7 +47,7 @@ public class UserEditViewModel
     /// <summary>
     /// Vorausgewaehlter Arbeitsgang in der FA-Abarbeitungsliste. NULL = keiner.
     /// </summary>
-    [Display(Name = "Standard-Arbeitsgang (FA-Abarbeitungsliste)")]
+    [Display(Name = "Standard FA-Vorbau-AG (FA-Abarbeitungsliste)")]
     public int? DefaultWorkStepId { get; set; }
 
     /// <summary>Aktive Arbeitsgaenge fuer das Dropdown.</summary>

@@ -1,15 +1,15 @@
 @model List<IdealAkeWms.Models.WorkStep>
 @inject IdealAkeWms.Services.ICurrentUserService _user
 @{
-    ViewData["Title"] = "Arbeitsgänge";
+    ViewData["Title"] = "FA-Vorbau-AG";
     var canEdit = await _user.HasMasterDataAccessAsync();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <h2 class="page-header mb-0">Arbeitsgänge / Vorbaugruppen</h2>
+    <h2 class="page-header mb-0">FA-Vorbau-AG / Vorbaugruppen</h2>
     @if (canEdit)
     {
-        <a asp-action="Create" class="btn btn-primary">Neuen Arbeitsgang anlegen</a>
+        <a asp-action="Create" class="btn btn-primary">Neuen FA-Vorbau-AG anlegen</a>
     }
 </div>
 
@@ -57,7 +57,7 @@
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@step.Id" />
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
-                                            onclick="return confirm('Arbeitsgang \'@step.Name\' wirklich loeschen?');">
+                                            onclick="return confirm('FA-Vorbau-AG \'@step.Name\' wirklich loeschen?');">
                                         Löschen
                                     </button>
                                 </form>
@@ -69,7 +69,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">Keine Arbeitsgänge vorhanden.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Keine FA-Vorbau-AG vorhanden.</td>
                 </tr>
             }
         </tbody>

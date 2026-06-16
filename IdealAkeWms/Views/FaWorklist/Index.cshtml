@@ -34,9 +34,9 @@
         <form method="get" asp-action="Index">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label" for="workStepId">Arbeitsgang</label>
+                    <label class="form-label" for="workStepId">FA-Vorbau-AG</label>
                     <select name="workStepId" id="workStepId" class="form-select" onchange="this.form.submit()">
-                        <option value="">– Arbeitsgang wählen –</option>
+                        <option value="">– FA-Vorbau-AG wählen –</option>
                         @foreach (var ws in Model.AvailableWorkSteps)
                         {
                             <option value="@ws.Id" selected="@(Model.SelectedWorkStepId == ws.Id)">@ws.Code — @ws.Name</option>
@@ -68,8 +68,8 @@
 @if (Model.SelectedWorkStepId == null)
 {
     <div class="alert alert-info">
-        Bitte zuerst einen Arbeitsgang auswählen — die Abarbeitungsliste zeigt die offenen
-        Fertigungsaufträge mit diesem Arbeitsgang über alle Werkbänke. Ein Standard-Arbeitsgang
+        Bitte zuerst einen FA-Vorbau-Arbeitsgang auswählen — die Abarbeitungsliste zeigt die offenen
+        Fertigungsaufträge mit diesem FA-Vorbau-AG über alle Werkbänke. Ein Standard FA-Vorbau-AG
         kann im Profil hinterlegt werden.
     </div>
 }
@@ -98,7 +98,7 @@ else
                 {
                     <tr>
                         <td colspan="@columnCount" class="text-center text-muted py-4">
-                            Keine offenen Fertigungsaufträge für diesen Arbeitsgang.
+                            Keine offenen Fertigungsaufträge für diesen FA-Vorbau-Arbeitsgang.
                         </td>
                     </tr>
                 }

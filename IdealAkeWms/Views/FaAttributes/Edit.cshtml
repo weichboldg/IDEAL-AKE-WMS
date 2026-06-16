@@ -57,13 +57,13 @@
                     </div>
 
                     <hr />
-                    <h6 class="text-muted">Zugeordnete Arbeitsgaenge</h6>
+                    <h6 class="text-muted">Zugeordnete FA-Vorbau-AG</h6>
 
                     <div class="mb-3">
                         <label class="form-label">Bei diesen Vorbaugruppen wird das Merkmal abgefragt</label>
                         @if (!Model.AllWorkSteps.Any())
                         {
-                            <div class="form-text">Keine aktiven Arbeitsgaenge vorhanden.</div>
+                            <div class="form-text">Keine aktiven FA-Vorbau-AG vorhanden.</div>
                         }
                         @foreach (var ws in Model.AllWorkSteps)
                         {
