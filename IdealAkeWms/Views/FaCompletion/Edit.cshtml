@@ -5,11 +5,16 @@
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">FA @Model.OrderNumber</h2>
-    <div class="d-flex gap-2 flex-wrap">
-        @if (!string.IsNullOrEmpty(Model.ArticleNumber))
+    <div class="d-flex gap-3 flex-wrap align-items-center">
+        @await Html.PartialAsync("_FaDocumentLinks", new IdealAkeWms.Models.ViewModels.FaDocumentLinksViewModel
         {
-            <a asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="btn btn-outline-primary">Stückliste</a>
-        }
+            ArticleNumber = Model.ArticleNumber,
+            OrderNumber = Model.OrderNumber,
+            ProductionOrderId = Model.ProductionOrderId,
+            BomController = "FaCompletion",
+            EnaioLinks = Model.EnaioDmsLinks.GetValueOrDefault(Model.OrderNumber),
+            ShowEnaioLabel = true,
+        })
         <a asp-action="Index" class="btn btn-outline-secondary">Zur Übersicht</a>
     </div>
 </div>
@@ -64,13 +69,6 @@
                     }
                 </form>
             </div>
-            @if (Model.EnaioDmsLinks.TryGetValue(Model.OrderNumber, out var dmsLinks) && dmsLinks.Count > 0)
-            {
-                <div class="col-12 d-flex align-items-center flex-wrap gap-2">
-                    <strong>enaio:</strong>
-                    @await Html.PartialAsync("_EnaioDmsBadges", new IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel(dmsLinks, showLabel: true))
-                </div>
-            }
         </div>
     </div>
 </div>

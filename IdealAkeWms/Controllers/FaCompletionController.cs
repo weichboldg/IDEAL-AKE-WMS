@@ -128,6 +128,10 @@ public class FaCompletionController : Controller
             .Take(effectivePageSize)
             .ToList();
 
+        // enaio DMS-Links fuer die einheitlichen FA-Vorbau-Buttons (Bulk-Lookup, nur Seite).
+        var orderNumbers = pagedItems.Select(i => i.OrderNumber).Distinct().ToList();
+        var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
+
         var vm = new FaCompletionListViewModel
         {
             Items = pagedItems,
@@ -135,6 +139,7 @@ public class FaCompletionController : Controller
             FilterArticleNumber = filterArticleNumber,
             FilterCustomer = filterCustomer,
             ShowDone = showDone,
+            EnaioDmsLinks = dmsLinks,
             Pagination = new PaginationState
             {
                 CurrentPage = page,

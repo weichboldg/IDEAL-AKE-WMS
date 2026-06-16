@@ -82,7 +82,19 @@
                 @foreach (var item in Model.Items)
                 {
                     <tr class="@(item.IsDone ? "table-secondary" : "")">
-                        <td><a asp-action="Bom" asp-route-id="@item.Id">@item.OrderNumber</a></td>
+                        <td>
+                            <span class="d-inline-flex align-items-center gap-2 flex-wrap">
+                                <a asp-action="Bom" asp-route-id="@item.Id">@item.OrderNumber</a>
+                                @await Html.PartialAsync("_FaDocumentLinks", new IdealAkeWms.Models.ViewModels.FaDocumentLinksViewModel
+                                {
+                                    ArticleNumber = item.ArticleNumber,
+                                    OrderNumber = item.OrderNumber,
+                                    ProductionOrderId = item.Id,
+                                    BomController = "FaCompletion",
+                                    EnaioLinks = Model.EnaioDmsLinks.GetValueOrDefault(item.OrderNumber),
+                                })
+                            </span>
+                        </td>
                         <td>@item.Quantity</td>
                         <td>@item.Customer</td>
                         <td>@item.ArticleNumber</td>
@@ -118,6 +130,25 @@
 </div>
 
 @await Html.PartialAsync("_Pagination", Model.Pagination)
+
+<script type="application/json" id="view-config">
+{ "viewKey": "FaCompletion", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
+    { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
+    { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+    { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
+    { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "applicable", "label": "Anwendbar", "locked": false, "defaultWidth": null },
+    { "key": "completed", "label": "Vervollständigt", "locked": false, "defaultWidth": null },
+    { "key": "spec-count", "label": "Ausprägungen", "locked": false, "defaultWidth": null },
+    { "key": "row-actions", "label": "", "locked": true, "defaultWidth": null }
+]
+</script>
 
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>

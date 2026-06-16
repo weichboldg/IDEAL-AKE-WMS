@@ -1,3 +1,5 @@
+using IdealAkeWms.Data.Repositories;
+
 namespace IdealAkeWms.Models.ViewModels;
 
 /// <summary>
@@ -11,6 +13,10 @@ public class FaCompletionListViewModel
     public string? FilterArticleNumber { get; set; }
     public string? FilterCustomer { get; set; }
     public bool ShowDone { get; set; }
+
+    /// <summary>enaio-DMS-Links je FA-Nummer (Bulk-Lookup, fuer die einheitlichen FA-Vorbau-Buttons).</summary>
+    public Dictionary<string, List<EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
+
     public PaginationState Pagination { get; set; } = new();
 }
 

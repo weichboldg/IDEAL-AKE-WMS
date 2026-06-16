@@ -98,11 +98,17 @@ else
                     {
                         <tr>
                             <td>
-                                <a asp-action="Bom" asp-route-id="@item.ProductionOrderId">@item.OrderNumber</a>
-                                @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
-                                {
-                                    @await Html.PartialAsync("_EnaioDmsBadges", new IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel(dmsLinks))
-                                }
+                                <span class="d-inline-flex align-items-center gap-2 flex-wrap">
+                                    <a asp-action="Bom" asp-route-id="@item.ProductionOrderId">@item.OrderNumber</a>
+                                    @await Html.PartialAsync("_FaDocumentLinks", new IdealAkeWms.Models.ViewModels.FaDocumentLinksViewModel
+                                    {
+                                        ArticleNumber = item.ArticleNumber,
+                                        OrderNumber = item.OrderNumber,
+                                        ProductionOrderId = item.ProductionOrderId,
+                                        BomController = "FaWorklist",
+                                        EnaioLinks = Model.EnaioDmsLinks.GetValueOrDefault(item.OrderNumber),
+                                    })
+                                </span>
                             </td>
                             <td>@item.WorkplaceName</td>
                             <td>@item.ArticleNumber</td>
@@ -129,6 +135,26 @@ else
     </div>
 
     @await Html.PartialAsync("_Pagination", Model.Pagination)
+
+    <script type="application/json" id="view-config">
+    { "viewKey": "FaWorklist", "supportsReorder": true, "supportsSortDefault": true }
+    </script>
+    <script type="application/json" id="column-config">
+    [
+        { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
+        { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+        { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+        { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
+        { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
+        { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
+        { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
+        @foreach (var def in Model.AttributeColumns)
+        {
+            <text>{ "key": "attr-@def.Id", "label": @Html.Raw(System.Text.Json.JsonSerializer.Serialize(def.Name)), "locked": false, "defaultWidth": null },</text>
+        }
+        { "key": "done", "label": @Html.Raw(System.Text.Json.JsonSerializer.Serialize(doneHeader)), "locked": true, "defaultWidth": null }
+    ]
+    </script>
 }
 
 @section Scripts {
