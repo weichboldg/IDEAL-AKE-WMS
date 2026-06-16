@@ -130,6 +130,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         return await _dbSet
             .AsNoTracking()
+            .Include(o => o.PickingStatus)
             .Where(o => o.ArticleNumber != null && articleNumbers.Contains(o.ArticleNumber))
             .OrderBy(o => o.ProductionDate)
             .ToListAsync();

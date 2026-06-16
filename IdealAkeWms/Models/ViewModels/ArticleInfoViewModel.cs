@@ -11,6 +11,15 @@ public class ArticleInfoViewModel
     public List<StockOverviewItem> StockByLocation { get; set; } = new();
     public decimal TotalStock => StockByLocation.Sum(s => s.CurrentQuantity);
 
+    /// <summary>
+    /// Summe der geplanten Verbraeuche dieses Bauteils ueber alle OFFENEN
+    /// Fertigungsauftraege (BOM-Menge pro Geraet x FA-Stueckzahl).
+    /// </summary>
+    public decimal PlannedConsumption { get; set; }
+
+    /// <summary>Gesamtbestand abzueglich der geplanten Verbraeuche offener FAs.</summary>
+    public decimal AvailableStock => TotalStock - PlannedConsumption;
+
     public string? CategoryName { get; set; }
     public List<AttributeDisplayValue> AttributeDisplayValues { get; set; } = new();
     public List<ArticleUsageItem> UsedInOrders { get; set; } = new();

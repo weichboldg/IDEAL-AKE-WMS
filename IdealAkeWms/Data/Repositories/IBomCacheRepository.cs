@@ -46,4 +46,13 @@ public interface IBomCacheRepository
     /// contain a component with the given Ressourcenummer.
     /// </summary>
     Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber);
+
+    /// <summary>
+    /// Returns the per-device total quantity (Menge) of the given component across all
+    /// cached BOMs that reference it. Keyed by device article number
+    /// (CachedBomHeader.Artikelnummer); the value is the summed Menge of every BOM
+    /// position whose Ressourcenummer matches <paramref name="componentArticleNumber"/>
+    /// for that one device.
+    /// </summary>
+    Task<Dictionary<string, decimal>> GetComponentMengePerDeviceAsync(string componentArticleNumber);
 }
