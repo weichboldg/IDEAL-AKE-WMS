@@ -12,7 +12,8 @@ public class UsersControllerTests
 {
     private static UsersController BuildController(
         Mock<IUserRepository>? userRepo = null,
-        Mock<IWorkStepRepository>? workStepRepo = null)
+        Mock<IWorkStepRepository>? workStepRepo = null,
+        Mock<IProductionWorkplaceRepository>? workplaceRepo = null)
     {
         userRepo ??= new Mock<IUserRepository>();
         var roleRepo = new Mock<IRoleRepository>();
@@ -22,13 +23,16 @@ public class UsersControllerTests
         var viewPrefRepo = new Mock<IUserViewPreferenceRepository>();
         workStepRepo ??= new Mock<IWorkStepRepository>();
         workStepRepo.Setup(x => x.GetActiveAsync()).ReturnsAsync(new List<WorkStep>());
+        workplaceRepo ??= new Mock<IProductionWorkplaceRepository>();
+        workplaceRepo.Setup(x => x.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         return new UsersController(
             userRepo.Object,
             roleRepo.Object,
             currentUser.Object,
             passwordService.Object,
             viewPrefRepo.Object,
-            workStepRepo.Object);
+            workStepRepo.Object,
+            workplaceRepo.Object);
     }
 
     [Fact]
@@ -107,5 +111,49 @@ public class UsersControllerTests
 
         saved.Should().NotBeNull();
         saved!.DefaultWorkStepId.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Edit_Post_SavesDefaultWorkplace()
+    {
+        var existing = new User
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .Callback<User>(u => saved = u)
+            .Returns(Task.CompletedTask);
+
+        var workplaceRepo = new Mock<IProductionWorkplaceRepository>();
+        workplaceRepo.Setup(x => x.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionWorkplace>
+        {
+            new() { Id = 7, Name = "Werkbank 7", CreatedBy = "t", CreatedByWindows = "t" }
+        });
+
+        var ctrl = BuildController(userRepo, workplaceRepo: workplaceRepo);
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            httpCtx, Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        var vm = new IdealAkeWms.Models.ViewModels.UserEditViewModel
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            DefaultWorkplaceId = 7
+        };
+
+        await ctrl.Edit(5, vm, null);
+
+        saved.Should().NotBeNull();
+        saved!.DefaultWorkplaceId.Should().Be(7);
     }
 }

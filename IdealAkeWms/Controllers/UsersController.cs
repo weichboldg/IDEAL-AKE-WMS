@@ -16,6 +16,7 @@ public class UsersController : Controller
     private readonly IPasswordService _passwordService;
     private readonly IUserViewPreferenceRepository _viewPreferenceRepository;
     private readonly IWorkStepRepository _workStepRepository;
+    private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
 
     public UsersController(
         IUserRepository userRepository,
@@ -23,7 +24,8 @@ public class UsersController : Controller
         ICurrentUserService currentUserService,
         IPasswordService passwordService,
         IUserViewPreferenceRepository viewPreferenceRepository,
-        IWorkStepRepository workStepRepository)
+        IWorkStepRepository workStepRepository,
+        IProductionWorkplaceRepository productionWorkplaceRepository)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
@@ -31,6 +33,7 @@ public class UsersController : Controller
         _passwordService = passwordService;
         _viewPreferenceRepository = viewPreferenceRepository;
         _workStepRepository = workStepRepository;
+        _productionWorkplaceRepository = productionWorkplaceRepository;
     }
 
     /// <summary>
@@ -104,6 +107,7 @@ public class UsersController : Controller
             IsPicker = vm.IsPicker,
             DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize),
             DefaultWorkStepId = vm.DefaultWorkStepId,
+            DefaultWorkplaceId = vm.DefaultWorkplaceId,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -151,6 +155,7 @@ public class UsersController : Controller
             IsPicker = user.IsPicker,
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
+            DefaultWorkplaceId = user.DefaultWorkplaceId,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -190,6 +195,7 @@ public class UsersController : Controller
         existing.IsPicker = vm.IsPicker;
         existing.DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize);
         existing.DefaultWorkStepId = vm.DefaultWorkStepId;
+        existing.DefaultWorkplaceId = vm.DefaultWorkplaceId;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -254,6 +260,7 @@ public class UsersController : Controller
             IsSelected = selectedIds.Contains(r.Id)
         }).ToList();
         vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
+        vm.AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
     }
 
     /// <summary>Akzeptiert nur erlaubte PageSize-Werte; sonst NULL (= System-Default).</summary>

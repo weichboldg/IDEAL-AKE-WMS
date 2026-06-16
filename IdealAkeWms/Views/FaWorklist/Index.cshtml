@@ -43,6 +43,16 @@
                         }
                     </select>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="workplaceId">Werkbank</label>
+                    <select name="workplaceId" id="workplaceId" class="form-select" onchange="this.form.submit()">
+                        <option value="" selected="@(Model.SelectedWorkplaceId == null)">(alle)</option>
+                        @foreach (var wp in Model.AvailableWorkplaces)
+                        {
+                            <option value="@wp.Id" selected="@(Model.SelectedWorkplaceId == wp.Id)">@wp.Name</option>
+                        }
+                    </select>
+                </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <div class="form-check mb-2">
                         <input type="checkbox" name="showDone" value="true" class="form-check-input" id="showDone"

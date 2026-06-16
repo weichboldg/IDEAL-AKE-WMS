@@ -24,6 +24,7 @@ public class FaWorklistController : Controller
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IFaAttributeRepository _faAttributeRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
@@ -37,6 +38,7 @@ public class FaWorklistController : Controller
         IWorkStepRepository workStepRepository,
         IFaAttributeRepository faAttributeRepository,
         IUserRepository userRepository,
+        IProductionWorkplaceRepository productionWorkplaceRepository,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
@@ -49,6 +51,7 @@ public class FaWorklistController : Controller
         _workStepRepository = workStepRepository;
         _faAttributeRepository = faAttributeRepository;
         _userRepository = userRepository;
+        _productionWorkplaceRepository = productionWorkplaceRepository;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
@@ -57,9 +60,10 @@ public class FaWorklistController : Controller
         _currentUser = currentUser;
     }
 
-    // GET /FaWorklist?workStepId=...
+    // GET /FaWorklist?workStepId=...&workplaceId=...
     public async Task<IActionResult> Index(
         int? workStepId,
+        int? workplaceId = null,
         bool showDone = false,
         int page = 1,
         int? pageSize = null)
@@ -77,26 +81,37 @@ public class FaWorklistController : Controller
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
-        // Schritt 1: aktive Arbeitsgaenge als Filter-Optionen.
+        // Schritt 1: aktive Arbeitsgaenge + Werkbaenke als Filter-Optionen.
         var availableWorkSteps = await _workStepRepository.GetActiveAsync();
+        var availableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
 
-        // Schritt 2: Default-Arbeitsgang aus dem aktuellen User (User.DefaultWorkStepId),
-        // falls kein expliziter ?workStepId mitkommt.
-        if (workStepId == null)
+        // Schritt 2: Defaults aus dem aktuellen User (User.DefaultWorkStepId / DefaultWorkplaceId),
+        // falls kein expliziter ?workStepId bzw. ?workplaceId mitkommt. Beide aus demselben
+        // User-Objekt (einmal laden).
+        if (workStepId == null || workplaceId == null)
         {
             var appUserId = _currentUser.GetCurrentAppUserId();
             if (appUserId.HasValue)
             {
                 var user = await _userRepository.GetByIdAsync(appUserId.Value);
-                workStepId = user?.DefaultWorkStepId;
+                if (workStepId == null)
+                {
+                    workStepId = user?.DefaultWorkStepId;
+                }
+                if (workplaceId == null)
+                {
+                    workplaceId = user?.DefaultWorkplaceId;
+                }
             }
         }
 
         var vm = new FaWorklistViewModel
         {
             SelectedWorkStepId = workStepId,
+            SelectedWorkplaceId = workplaceId,
             ShowDone = showDone,
             AvailableWorkSteps = availableWorkSteps,
+            AvailableWorkplaces = availableWorkplaces,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -125,10 +140,12 @@ public class FaWorklistController : Controller
             .Select(f => f.ProductionOrderId)
             .ToHashSet();
 
+        // Zusatzfilter Werkbank (UND): nur wenn workplaceId gesetzt ist, sonst alle Werkbaenke.
         var orders = (await _productionOrderRepository.GetAllOrderedAsync())
             .Where(o => !o.IsDone
                         && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
-                        && orderIdsWithStep.Contains(o.Id))
+                        && orderIdsWithStep.Contains(o.Id)
+                        && (workplaceId == null || o.ProductionWorkplaceId == workplaceId))
             .ToList();
 
         // Schritt 5: Termin-Berechnung (KommissionierTage/VorkommissionierTage, OHNE Beschichtung)

@@ -44,4 +44,13 @@ public class ProfileViewModel
 
     /// <summary>Aktive Arbeitsgaenge fuer das Dropdown.</summary>
     public List<WorkStep> AvailableWorkSteps { get; set; } = new();
+
+    /// <summary>
+    /// Vorausgewaehlter Werkbank-Zusatzfilter in der FA-Abarbeitungsliste. NULL = alle.
+    /// </summary>
+    [Display(Name = "Standard-Werkbank (FA-Abarbeitungsliste)")]
+    public int? DefaultWorkplaceId { get; set; }
+
+    /// <summary>Werkbaenke fuer das Dropdown.</summary>
+    public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
 }

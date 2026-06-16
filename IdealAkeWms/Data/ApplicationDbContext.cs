@@ -83,6 +83,11 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DefaultWorkStepId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.DefaultWorkplace)
+                .WithMany()
+                .HasForeignKey(e => e.DefaultWorkplaceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Role

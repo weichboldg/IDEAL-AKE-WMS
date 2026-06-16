@@ -103,6 +103,20 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="DefaultWorkplaceId" class="form-label"></label>
+                        <select asp-for="DefaultWorkplaceId" class="form-select">
+                            <option value="">(alle)</option>
+                            @foreach (var wp in Model.AvailableWorkplaces)
+                            {
+                                <option value="@wp.Id">@wp.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">
+                            Zusatzfilter in der FA-Abarbeitungsliste. (alle) = keine Vorauswahl.
+                        </div>
+                    </div>
+
                     <hr />
 
                     <div class="mb-3">

@@ -45,6 +45,7 @@ public class FaWorklistControllerTests
         var stockRepo = new StockMovementRepository(ctx);
         var articleAttrRepo = new ArticleAttributeRepository(ctx);
         var userRepo = new UserRepository(ctx);
+        var workplaceRepo = new ProductionWorkplaceRepository(ctx);
 
         // BOM kommt aus SAGE/OSEON (Dapper) -> Mock mit einer Position.
         var bomMock = new Mock<IBomRepository>();
@@ -72,7 +73,7 @@ public class FaWorklistControllerTests
 
         var ctrl = new FaWorklistController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, userRepo,
-            settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
+            workplaceRepo, settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
             readOnlyBomBuilder, userMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
@@ -113,12 +114,14 @@ public class FaWorklistControllerTests
         return ws;
     }
 
-    private static User SeedUser(ApplicationDbContext ctx, string name, int? defaultWorkStepId = null)
+    private static User SeedUser(ApplicationDbContext ctx, string name,
+        int? defaultWorkStepId = null, int? defaultWorkplaceId = null)
     {
         var user = new User
         {
             Name = name,
             DefaultWorkStepId = defaultWorkStepId,
+            DefaultWorkplaceId = defaultWorkplaceId,
             CreatedAt = DateTime.Now,
             CreatedBy = "t",
             CreatedByWindows = "t"
@@ -179,6 +182,65 @@ public class FaWorklistControllerTests
         vm.Items.Select(i => i.WorkplaceName).Should().BeEquivalentTo(new[] { "Werkbank 1", "Werkbank 2" });
         vm.Items.Should().OnlyContain(i => i.WorkStepCell != null);
         vm.Pagination.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Index_FiltersByWorkplace_WhenSet()
+    {
+        // Zwei FAs gleicher AG (VE), verschiedene Werkbaenke. Mit workplaceId-Filter
+        // (UND zum AG-Filter) bleibt nur die FA auf der gewaehlten Werkbank.
+        var (ctx, ctrl, _) = Build();
+        var wp1 = SeedWorkplace(ctx, "Werkbank 1");
+        var wp2 = SeedWorkplace(ctx, "Werkbank 2");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp1.Id;
+        o2.Order.ProductionWorkplaceId = wp2.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        var result = await ctrl.Index(ve.Id, workplaceId: wp1.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.SelectedWorkplaceId.Should().Be(wp1.Id);
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-001");
+        vm.Items.Single().WorkplaceName.Should().Be("Werkbank 1");
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Index_UsesUserDefaultWorkplace_WhenNoParam()
+    {
+        // Ohne ?workplaceId greift User.DefaultWorkplaceId als Zusatzfilter.
+        var (ctx, ctrl, userMock) = Build();
+        var wp1 = SeedWorkplace(ctx, "Werkbank 1");
+        var wp2 = SeedWorkplace(ctx, "Werkbank 2");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+        var user = SeedUser(ctx, "vorbau1", defaultWorkStepId: ve.Id, defaultWorkplaceId: wp2.Id);
+        userMock.Setup(x => x.GetCurrentAppUserId()).Returns(user.Id);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp1.Id;
+        o2.Order.ProductionWorkplaceId = wp2.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        // Aufruf OHNE workStepId/workplaceId -> beide Defaults aus dem User.
+        var result = await ctrl.Index(null);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.SelectedWorkStepId.Should().Be(ve.Id);
+        vm.SelectedWorkplaceId.Should().Be(wp2.Id);
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().OrderNumber.Should().Be("FA-002");
     }
 
     [Fact]

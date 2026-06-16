@@ -11,17 +11,20 @@ public class AccountController : Controller
     private readonly IPasswordService _passwordService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IWorkStepRepository _workStepRepository;
+    private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
 
     public AccountController(
         IUserRepository userRepository,
         IPasswordService passwordService,
         ICurrentUserService currentUserService,
-        IWorkStepRepository workStepRepository)
+        IWorkStepRepository workStepRepository,
+        IProductionWorkplaceRepository productionWorkplaceRepository)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
         _currentUserService = currentUserService;
         _workStepRepository = workStepRepository;
+        _productionWorkplaceRepository = productionWorkplaceRepository;
     }
 
     [HttpGet]
@@ -113,7 +116,9 @@ public class AccountController : Controller
             NotifyOnReorderLevel = user.NotifyOnReorderLevel,
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
-            AvailableWorkSteps = await _workStepRepository.GetActiveAsync()
+            AvailableWorkSteps = await _workStepRepository.GetActiveAsync(),
+            DefaultWorkplaceId = user.DefaultWorkplaceId,
+            AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync()
         };
         return View(vm);
     }
@@ -129,6 +134,7 @@ public class AccountController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
+            vm.AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
             return View(vm);
         }
 
@@ -147,6 +153,7 @@ public class AccountController : Controller
             ? vm.DefaultPageSize
             : null;
         user.DefaultWorkStepId = vm.DefaultWorkStepId;
+        user.DefaultWorkplaceId = vm.DefaultWorkplaceId;
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);
