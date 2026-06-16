@@ -4509,6 +4509,108 @@ Network-Tab offen.
 beide Richtungen sichtbar. Nicht-anwendbare AGs erscheinen als leere Zelle.
 "Anwendbar" wird im Leitstand nicht mehr gesetzt.
 
+### 38.10 Spalten-Einstellung per Zahnrad in den FA-Views
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Mindestens ein offener FA, sodass
+beide Listen Zeilen zeigen. Benutzer mit Rolle `fa_completion` UND `vorbau`
+(oder Admin).
+
+**Schritte:**
+1. Fertigungsauftraege → FA-Vervollstaendigen oeffnen.
+2. Auf das Zahnrad-Symbol (Spalten-Einstellung) ueber der Tabelle klicken.
+3. Pruefen: Eine Liste aller Tabellenspalten erscheint mit Ein/Aus-Schaltern.
+4. Eine optionale Spalte (z.B. einen Termin oder eine Merkmal-Spalte) ausblenden
+   und den Dialog schliessen.
+5. Pruefen: Die Spalte ist in der Tabelle nicht mehr sichtbar.
+6. Seite neu laden (F5).
+7. Pruefen: Die ausgeblendete Spalte bleibt ausgeblendet (Auswahl pro Benutzer
+   gespeichert).
+8. Schritte 1-7 analog in der FA-Abarbeitungsliste wiederholen.
+
+**Erwartet:** Beide FA-Views haben ein funktionierendes Zahnrad zum
+Ein-/Ausblenden von Spalten; die Auswahl ueberlebt einen Reload und ist
+pro Benutzer.
+
+### 38.11 Standard-Werkbank im Profil → FA-Abarbeitung zusaetzlich vorgefiltert
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Zwei offene FAs mit aktivem,
+nicht-erledigtem Arbeitsgang `VE` auf **verschiedenen** Werkbaenken
+(`FA-6001` → `WB-A`, `FA-6002` → `WB-B`). Benutzer mit Rolle `vorbau` (oder
+Admin), dessen Profil noch keine Standard-Werkbank gesetzt hat. Standard-
+Arbeitsgang im Profil = `VE` (vgl. 38.8).
+
+**Schritte:**
+1. Benutzer-Dropdown rechts oben → Mein Profil → Feld "Standard-Werkbank
+   (FA-Abarbeitungsliste)" auf `WB-A` setzen → Speichern. (Alternativ als Admin
+   im Benutzerstamm: Benutzer → Bearbeiten → selbes Feld.)
+2. Fertigungsauftraege → FA-Abarbeitungsliste oeffnen OHNE Arbeitsgang oder
+   Werkbank in der URL zu waehlen.
+3. Pruefen: Das Arbeitsgang-Dropdown ist auf `VE` vorausgewaehlt (Standard-AG)
+   UND das Werkbank-Dropdown ist auf `WB-A` vorausgewaehlt (Standard-Werkbank).
+4. Pruefen: Nur `FA-6001` (Werkbank `WB-A`) erscheint; `FA-6002` (`WB-B`) ist
+   ausgeblendet — beide Filter (AG `VE` UND Werkbank `WB-A`) wirken kombiniert.
+5. Im Werkbank-Dropdown auf "(alle)" umstellen.
+6. Pruefen: Jetzt erscheinen sowohl `FA-6001` als auch `FA-6002` (nur noch der
+   AG-Filter `VE` wirkt).
+
+**Negativfall:**
+- Profil ohne Standard-Werkbank: Die Abarbeitungsliste oeffnet werkbank-
+  uebergreifend (alle Werkbaenke), nur der Standard-Arbeitsgang wirkt.
+
+**Erwartet:** Die im Profil hinterlegte Standard-Werkbank wird ohne URL-Parameter
+vorausgewaehlt und UND-verknuepft mit dem Standard-Arbeitsgang angewandt;
+"(alle)" hebt den Werkbank-Filter auf.
+
+### 38.12 Text-Merkmal: Definition → Freitext erfassen → Spalte in der Abarbeitung
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Benutzer mit `masterdata` (fuer
+FA-Merkmale) sowie `fa_completion` + `vorbau` (oder Admin). Ein offener FA
+(`FA-7001`) mit aktivem Arbeitsgang `VE`.
+
+**Schritte:**
+1. *Definition:* Stammdaten → FA-Merkmale → Neu. Bezeichnung z.B.
+   "Sonderhinweis", Typ = **Text** waehlen, Arbeitsgang `VE` zuordnen, speichern.
+2. Pruefen: Bei Typ "Text" ist kein Optionen-Block noetig/sichtbar.
+3. *Gegenprobe Artikelmerkmale:* Stammdaten → Artikelmerkmale → Neu. Pruefen:
+   Das Typ-Dropdown bietet **KEIN** "Text" an (nur Dropdown/JA-NEIN).
+4. *Erfassen:* Fertigungsauftraege → FA-Vervollstaendigen → `FA-7001` → Tab `VE`.
+   Beim Merkmal "Sonderhinweis" einen Freitext eingeben (z.B. "Bitte Schutzfolie
+   dran lassen") und das Feld verlassen (Speichern haelt den aktiven Tab).
+5. Pruefen: Der eingegebene Text bleibt nach Reload erhalten.
+6. *Abarbeitung:* Fertigungsauftraege → FA-Abarbeitungsliste mit Arbeitsgang `VE`.
+7. Pruefen: Es gibt eine Spalte "Sonderhinweis", in der bei `FA-7001` der erfasste
+   Freitext angezeigt wird.
+8. *Leeren:* In FA-Vervollstaendigen den Freitext loeschen und Feld verlassen.
+9. Pruefen: Die Spalte ist bei `FA-7001` jetzt leer (der Wert wurde geloescht).
+
+**Erwartet:** Der Typ "Text" steht nur fuer FA-Merkmale zur Verfuegung (nicht fuer
+Artikelmerkmale); der erfasste Freitext erscheint als Spalte in der
+FA-Abarbeitungsliste; leeren entfernt den Wert.
+
+### 38.13 BOM/enaio/Vault-Buttons in beiden FA-Views sichtbar und konsistent
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-8001`) mit
+gepflegter Artikelnummer und mindestens einem zugeordneten enaio-Dokument
+(Werkstattauftrag/Zeichnung). Benutzer mit `fa_completion` + `vorbau` (oder
+Admin).
+
+**Schritte:**
+1. Fertigungsauftraege → FA-Vervollstaendigen → `FA-8001` oeffnen.
+2. Pruefen: Im Kopf-/Zeilenbereich erscheinen in einheitlicher Reihenfolge und
+   Optik: Stueckliste/BOM-Button, enaio-Badge(s), Vault-Zeichnungs-Link.
+3. Den BOM-Button anklicken → Pruefen: read-only Stueckliste oeffnet (Druck
+   moeglich).
+4. Den Vault-Link anklicken → Pruefen: Vault oeffnet mit der Artikelnummer als
+   Suche (neuer Tab).
+5. Fertigungsauftraege → FA-Abarbeitungsliste mit dem passenden Arbeitsgang
+   oeffnen, `FA-8001` finden.
+6. Pruefen: Dieselben drei Buttons (BOM, enaio, Vault) erscheinen in derselben
+   Reihenfolge/Optik wie in FA-Vervollstaendigen.
+
+**Erwartet:** BOM-, enaio- und Vault-Buttons sind in beiden FA-Views vorhanden und
+einheitlich dargestellt (gemeinsames Partial `_FaDocumentLinks`); die Links fuehren
+zur read-only Stueckliste bzw. zum Vault.
+
 ---
 
 *Ende des Dokuments. Stand: v1.22.0 (2026-06-12)*

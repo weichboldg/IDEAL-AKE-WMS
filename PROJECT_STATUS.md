@@ -61,6 +61,24 @@ Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1
   FA-Abarbeitungsliste); RoleOverview + CLAUDE.md + Hilfe + TESTSZENARIEN
   Kapitel 38 aktualisiert
 
+#### v1.22.0-Folge-Erweiterungen (2026-06-16) — FA-Vorbau-Views-Konsistenz
+
+Faltet in v1.22.0 (kein eigener Versions-Bump), Branch `bugfix/missingparts-include-pd`:
+
+- **Einheitliche FA-View-Buttons**: gemeinsames Partial `_FaDocumentLinks`
+  (BOM/enaio/Vault) in FA-Vervollstaendigen + FA-Abarbeitung; Gear-Spaltenkonfig
+  (`#view-config`) in beiden Listen
+- **Per-Benutzer Standard-Werkbank** in der FA-Abarbeitung
+  (`User.DefaultWorkplaceId`, **Migration 71** `AddUserDefaultWorkplace`) —
+  kombiniert UND mit `DefaultWorkStepId`
+- **Text-Merkmal-Typ** (`AttributeType.Text` + `FaAttributeValue.TextValue`,
+  **Migration 72** `AddFaAttributeTextValue`) — nur FaAttributes, NICHT
+  ArticleAttributes
+- **UI-Umbenennung** "Arbeitsgaenge" → "FA-Vorbau-AG" (nur FA-Vorbau-Labels;
+  Code/Entity/Routen bleiben WorkStep)
+- CLAUDE.md (3 neue Fallstricke) + Changelog (v1.22.0-Card) + TESTSZENARIEN
+  Kapitel 38 (Faelle 38.10-38.13) aktualisiert
+
 ### v1.21.1 (2026-06-11) — Bugfix: FA-Abschliessen wirkt wieder
 
 - `Picking/ToggleDone` schreibt seit v1.11 `PickingStatus.IsDonePicking`, aber
