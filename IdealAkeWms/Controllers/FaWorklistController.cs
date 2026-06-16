@@ -273,6 +273,7 @@ public class FaWorklistController : Controller
                 : value.BooleanValue == false ? "NEIN"
                 : string.Empty,
             AttributeType.Dropdown => value.SelectedOption?.Value ?? string.Empty,
+            AttributeType.Text => value.TextValue ?? string.Empty,
             _ => string.Empty,
         };
     }

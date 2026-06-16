@@ -7,7 +7,7 @@
 
 <h2 class="page-header">FA-Merkmale</h2>
 <p class="text-muted mb-3">
-    Definieren Sie Merkmale (Boolean/Dropdown) fuer die FA-Vervollstaendigung. Merkmale werden ueber die
+    Definieren Sie Merkmale (Boolean/Dropdown/Text) fuer die FA-Vervollstaendigung. Merkmale werden ueber die
     Arbeitsgang-Zuordnung den passenden Werkbaenken zugeordnet und dort als Eingabefelder angeboten.
 </p>
 
@@ -48,6 +48,10 @@
                                         @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
                                         {
                                             <span class="badge bg-primary">Boolean</span>
+                                        }
+                                        else if (def.AttributeType == IdealAkeWms.Models.AttributeType.Text)
+                                        {
+                                            <span class="badge bg-info">Text</span>
                                         }
                                         else
                                         {
@@ -165,6 +169,7 @@
                             <select name="attributeType" class="form-select">
                                 <option value="0">Boolean (Ja/Nein)</option>
                                 <option value="1">Dropdown (Auswahlliste)</option>
+                                <option value="2">Text (Freitext)</option>
                             </select>
                             <small class="text-muted">Typ kann nach Erstellung nicht geaendert werden.</small>
                         </div>
@@ -179,6 +184,7 @@
             <div class="card-body small">
                 <p class="mb-2"><strong>Boolean</strong> = Checkbox (Ja/Nein) in der FA-Vervollstaendigung.</p>
                 <p class="mb-2"><strong>Dropdown</strong> = Auswahlliste mit vordefinierten Optionen. Optionen werden auf der Bearbeiten-Seite gepflegt.</p>
+                <p class="mb-2"><strong>Text</strong> = Freitext-Eingabefeld. Keine Optionen noetig.</p>
                 <p class="mb-2"><strong>Arbeitsgänge</strong> bestimmen, bei welchen Vorbaugruppen das Merkmal abgefragt wird (Zuordnung auf der Bearbeiten-Seite).</p>
                 <p class="mb-0"><strong>Deaktivierte</strong> Merkmale verschwinden aus der FA-Vervollstaendigung, Werte bleiben in der DB erhalten.</p>
             </div>

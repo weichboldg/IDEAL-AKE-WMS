@@ -29,7 +29,8 @@ public interface IFaAttributeRepository
     /// <summary>Werte eines FA inkl. Definition + SelectedOption.</summary>
     Task<List<FaAttributeValue>> GetValuesByProductionOrderIdAsync(int productionOrderId);
 
-    /// <summary>Legt Wert-Zeile an bzw. aktualisiert sie. selectedOptionId UND booleanValue null = "leer" -> Zeile loeschen.</summary>
+    /// <summary>Legt Wert-Zeile an bzw. aktualisiert sie. selectedOptionId, booleanValue UND textValue
+    /// alle null/leer = "leer" -> Zeile loeschen. textValue gilt nur fuer Text-Merkmale.</summary>
     Task UpsertValueAsync(int productionOrderId, int definitionId, int? selectedOptionId, bool? booleanValue,
-        string modifiedBy, string modifiedByWindows);
+        string? textValue, string modifiedBy, string modifiedByWindows);
 }

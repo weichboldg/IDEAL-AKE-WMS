@@ -184,6 +184,12 @@ else
                                             }
                                         </select>
                                     }
+                                    else if (attr.AttributeType == AttributeType.Text)
+                                    {
+                                        <input type="text" name="textValue" class="form-control" maxlength="1000"
+                                               value="@attr.TextValue" placeholder="(leer)"
+                                               onchange="this.form.submit()" />
+                                    }
                                     else
                                     {
                                         <select name="boolValue" class="form-select" onchange="this.form.submit()">

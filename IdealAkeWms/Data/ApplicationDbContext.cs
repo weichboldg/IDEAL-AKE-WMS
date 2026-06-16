@@ -571,6 +571,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.TextValue).HasMaxLength(1000);
 
             entity.HasIndex(e => new { e.ProductionOrderId, e.FaAttributeDefinitionId }).IsUnique();
 

@@ -70,6 +70,9 @@ public class FaAttributeFieldViewModel
     public List<FaAttributeOptionViewModel> Options { get; set; } = new();
     public int? SelectedOptionId { get; set; }
     public bool? BooleanValue { get; set; }
+
+    /// <summary>Aktueller Freitext-Wert fuer Merkmale vom Typ <see cref="AttributeType.Text"/>.</summary>
+    public string? TextValue { get; set; }
 }
 
 public class FaAttributeOptionViewModel

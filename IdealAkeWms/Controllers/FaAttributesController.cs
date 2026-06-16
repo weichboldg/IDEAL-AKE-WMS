@@ -33,13 +33,18 @@ public class FaAttributesController : Controller
     /// <summary>
     /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
     /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
-    /// (Typ-Badge "Boolean"/"Dropdown", Arbeitsgaenge als kommaseparierte Codes,
+    /// (Typ-Badge "Boolean"/"Dropdown"/"Text", Arbeitsgaenge als kommaseparierte Codes,
     /// Aktiv-Badge "Ja"/"Nein").
     /// </summary>
     private static readonly Dictionary<string, Func<FaAttributeDefinition, string?>> ColumnMap = new(StringComparer.OrdinalIgnoreCase)
     {
         ["name"] = d => d.Name,
-        ["type"] = d => d.AttributeType == AttributeType.Boolean ? "Boolean" : "Dropdown",
+        ["type"] = d => d.AttributeType switch
+        {
+            AttributeType.Boolean => "Boolean",
+            AttributeType.Text => "Text",
+            _ => "Dropdown",
+        },
         ["work-steps"] = d => string.Join(", ", d.WorkSteps
             .OrderBy(j => j.WorkStep?.SortOrder ?? 0)
             .Select(j => j.WorkStep?.Code)

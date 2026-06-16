@@ -12,4 +12,7 @@ public class FaAttributeValue : AuditableEntity
     public FaAttributeOption? SelectedOption { get; set; }
 
     public bool? BooleanValue { get; set; }
+
+    /// <summary>Freitext-Wert fuer Merkmale vom Typ <see cref="AttributeType.Text"/> (NULL = leer).</summary>
+    public string? TextValue { get; set; }
 }

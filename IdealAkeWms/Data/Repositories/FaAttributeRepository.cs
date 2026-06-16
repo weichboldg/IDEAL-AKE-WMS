@@ -120,12 +120,14 @@ public class FaAttributeRepository : IFaAttributeRepository
             .ToListAsync();
 
     public async Task UpsertValueAsync(int productionOrderId, int definitionId, int? selectedOptionId, bool? booleanValue,
-        string modifiedBy, string modifiedByWindows)
+        string? textValue, string modifiedBy, string modifiedByWindows)
     {
         var row = await _context.FaAttributeValues
             .FirstOrDefaultAsync(v => v.ProductionOrderId == productionOrderId && v.FaAttributeDefinitionId == definitionId);
 
-        if (selectedOptionId == null && booleanValue == null)
+        var trimmedText = string.IsNullOrWhiteSpace(textValue) ? null : textValue.Trim();
+
+        if (selectedOptionId == null && booleanValue == null && trimmedText == null)
         {
             // "leer" -> Wert-Zeile loeschen
             if (row != null)
@@ -144,6 +146,7 @@ public class FaAttributeRepository : IFaAttributeRepository
                 FaAttributeDefinitionId = definitionId,
                 SelectedOptionId = selectedOptionId,
                 BooleanValue = booleanValue,
+                TextValue = trimmedText,
                 CreatedAt = DateTime.Now,
                 CreatedBy = modifiedBy,
                 CreatedByWindows = modifiedByWindows
@@ -154,6 +157,7 @@ public class FaAttributeRepository : IFaAttributeRepository
         {
             row.SelectedOptionId = selectedOptionId;
             row.BooleanValue = booleanValue;
+            row.TextValue = trimmedText;
             row.ModifiedAt = DateTime.Now;
             row.ModifiedBy = modifiedBy;
             row.ModifiedByWindows = modifiedByWindows;

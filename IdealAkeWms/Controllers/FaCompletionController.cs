@@ -225,6 +225,7 @@ public class FaCompletionController : Controller
                             }).ToList(),
                         SelectedOptionId = value?.SelectedOptionId,
                         BooleanValue = value?.BooleanValue,
+                        TextValue = value?.TextValue,
                     };
                 }).ToList(),
             Specs = f.Specs
@@ -327,13 +328,14 @@ public class FaCompletionController : Controller
     // POST /FaCompletion/SaveAttributeValue
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveAttributeValue(int id, int definitionId, int? optionId, bool? boolValue, string? tab = null)
+    public async Task<IActionResult> SaveAttributeValue(int id, int definitionId, int? optionId, bool? boolValue, string? textValue = null, string? tab = null)
     {
         await _faAttributeRepository.UpsertValueAsync(
             id,
             definitionId,
             optionId,
             boolValue,
+            textValue,
             _currentUser.GetDisplayName(),
             _currentUser.GetWindowsUserName());
 

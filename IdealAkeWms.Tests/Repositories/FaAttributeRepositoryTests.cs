@@ -22,10 +22,32 @@ public class FaAttributeRepositoryTests
         ctx.FaAttributeDefinitions.Add(def); ctx.FaAttributeOptions.Add(opt);
         await ctx.SaveChangesAsync();
 
-        await repo.UpsertValueAsync(1, 5, 50, null, "t", "w");
+        await repo.UpsertValueAsync(1, 5, 50, null, null, "t", "w");
         ctx.FaAttributeValues.Should().ContainSingle(v => v.SelectedOptionId == 50);
 
-        await repo.UpsertValueAsync(1, 5, null, null, "t", "w"); // "leer" -> Zeile weg
+        await repo.UpsertValueAsync(1, 5, null, null, null, "t", "w"); // "leer" -> Zeile weg
+        ctx.FaAttributeValues.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task UpsertValue_StoresAndClearsTextValue()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new FaAttributeRepository(ctx);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1" });
+        ctx.FaAttributeDefinitions.Add(new FaAttributeDefinition { Id = 9, Name = "Seriennummer", AttributeType = AttributeType.Text });
+        await ctx.SaveChangesAsync();
+
+        // Text-Wert anlegen
+        await repo.UpsertValueAsync(1, 9, null, null, "ABC-123", "t", "w");
+        ctx.FaAttributeValues.Should().ContainSingle(v => v.TextValue == "ABC-123");
+
+        // Text-Wert aktualisieren
+        await repo.UpsertValueAsync(1, 9, null, null, "XYZ-999", "t", "w");
+        ctx.FaAttributeValues.Should().ContainSingle(v => v.TextValue == "XYZ-999");
+
+        // Leerer/Whitespace-Text -> Zeile loeschen
+        await repo.UpsertValueAsync(1, 9, null, null, "   ", "t", "w");
         ctx.FaAttributeValues.Should().BeEmpty();
     }
 

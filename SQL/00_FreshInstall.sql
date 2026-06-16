@@ -542,6 +542,7 @@ BEGIN
         [FaAttributeDefinitionId]  INT               NOT NULL,
         [SelectedOptionId]         INT               NULL,
         [BooleanValue]             BIT               NULL,
+        [TextValue]                NVARCHAR(1000)    NULL,
         [CreatedAt]                DATETIME2         NOT NULL,
         [CreatedBy]                NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
@@ -2010,6 +2011,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616070943_AddUserDefaultWorkplace')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616070943_AddUserDefaultWorkplace', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616071945_AddFaAttributeTextValue')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616071945_AddFaAttributeTextValue', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
