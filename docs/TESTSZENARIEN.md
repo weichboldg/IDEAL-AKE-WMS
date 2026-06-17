@@ -4618,5 +4618,63 @@ zur read-only Stueckliste bzw. zum Vault.
 
 ---
 
-*Ende des Dokuments. Stand: v1.22.0 (2026-06-12)*
+## Kapitel 39: UI-Nachzuegler (v1.22.0 Folge-Fixes)
+
+Kleine UI-Korrekturen aus dem laufenden Test der v1.22.0: die Lagerbestellung-
+Detailansicht bekommt das Standard-Filter/Sortier-Pattern, und der Hover auf
+OSEON-Spaltenueberschriften bleibt lesbar.
+
+### 39.1 Lagerbestellung-Detailansicht: Spalten-Filter + Klick-Sortierung
+
+**Vorbedingungen:** Eine offene Lagerbestellung (Status `Submitted` oder
+`PartiallyDelivered`) mit mehreren Positionen (verschiedene Artikelnummern/
+Bezeichnungen). Benutzer mit Rolle `picking` ODER `stock` (oder Admin).
+
+**Schritte:**
+1. Bestellungen → Lagerbestellungen (`/WarehousePicking/Index`) → eine offene
+   Liste oeffnen (`/WarehousePicking/Details`).
+2. Pruefen: Unter den Spaltenueberschriften **Pos, Artikel-Nr, Bezeichnung,
+   Bestellt, ME, Lagerplatz** erscheint je ein Filter-Eingabefeld (wie in den
+   uebrigen Tabellen).
+3. In das Filter-Feld unter "Artikel-Nr" einen Teil einer Nummer eingeben.
+4. Pruefen: Nur Zeilen mit passender Artikelnummer bleiben sichtbar; Filter wieder
+   leeren → alle Zeilen wieder da.
+5. Auf die Ueberschrift "Bezeichnung" klicken → Sortierung aufsteigend (Pfeil ▲),
+   erneuter Klick → absteigend (▼).
+6. Auf "Bestellt" klicken → numerische Sortierung (nicht alphabetisch).
+7. Bei einigen Positionen Ist-Mengen/Notizen erfassen, dann "Speichern +
+   Abschliessen".
+8. Pruefen: Alle Positionen werden korrekt gebucht — auch aktuell **ausgefilterte**
+   und **umsortierte** Zeilen; die Ist-Mengen landen beim richtigen Artikel
+   (kein Index-Versatz zwischen Position und gebuchter Menge).
+
+**Negativfall:**
+- Die Eingabe-Spalten (Ist, Notiz Lager, Notiz EK, Fehlteil-Status) haben bewusst
+  KEIN Filterfeld — sie enthalten Formular-Inputs (keinen filterbaren Text).
+
+**Erwartet:** Die Positions-Tabelle bietet Spalten-Filter + Klick-Sortierung wie
+die uebrigen Tabellen; Filtern/Sortieren beeinflusst das Speichern NICHT
+(alle Items bleiben erhalten, Mengen bleiben den richtigen Positionen zugeordnet).
+
+### 39.2 OSEON-Teileverfolgung: Spaltenueberschrift bleibt beim Hover lesbar
+
+**Vorbedingungen:** AppSetting `TeileverfolgungAktiv = true`; OSEON-Liste mit
+mindestens einem Auftrag.
+
+**Schritte:**
+1. Teileverfolgung → OSEON Auftraege oeffnen.
+2. Mit der Maus ueber eine sortierbare Spaltenueberschrift fahren (z.B. Artikel,
+   Werkbank, Status, Endtermin).
+3. Pruefen: Der Kopf wird nur geringfuegig heller (helleres Blau) — die
+   Hintergrundfarbe bleibt blau, die **weisse Schrift bleibt durchgehend gut
+   lesbar**.
+4. Pruefen (Regression): Der Kopf wird zu keinem Zeitpunkt weiss/sehr hell; die
+   Beschriftung verschwindet nie.
+
+**Erwartet:** Der Header-Hover hellt das Blau nur dezent auf (background-image-
+Overlay statt ersetzender background-color); die weisse Schrift bleibt lesbar.
+
+---
+
+*Ende des Dokuments. Stand: v1.22.0 inkl. Folge-Fixes (2026-06-12)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
