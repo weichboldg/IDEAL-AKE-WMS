@@ -39,6 +39,8 @@ BEGIN
         [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
         [IsPicker]                  BIT               NOT NULL DEFAULT 0,
         [DefaultPageSize]           INT               NULL,
+        [DefaultWorkStepId]         INT               NULL,
+        [DefaultWorkplaceId]        INT               NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -310,92 +312,320 @@ END
 GO
 
 -- =============================================
--- 8c. ProductionOrderAssemblyGroups (5 Zeilen/FA: VK/VL/VE/VT/VA)
+-- 8c. FA-Vorbau (v1.22.0): WorkSteps (Arbeitsgaenge-Katalog)
+--     ProductionOrderAssemblyGroups/-Specs entfernt in v1.22.0
+--     (ersetzt durch FaWorkSteps/FaWorkStepSpecs, Migration 68)
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderAssemblyGroups')
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WorkSteps')
 BEGIN
-    CREATE TABLE [dbo].[ProductionOrderAssemblyGroups] (
+    CREATE TABLE [dbo].[WorkSteps] (
         [Id]                INT IDENTITY(1,1) NOT NULL,
-        [ProductionOrderId] INT               NOT NULL,
-        [GroupKey]          NVARCHAR(10)      NOT NULL,
-        [IsApplicable]      BIT               NOT NULL CONSTRAINT DF_ProductionOrderAssemblyGroups_IsApplicable DEFAULT 0,
-        [IsCompleted]       BIT               NOT NULL CONSTRAINT DF_ProductionOrderAssemblyGroups_IsCompleted DEFAULT 0,
-        [CompletedAt]       DATETIME2         NULL,
-        [CompletedBy]       NVARCHAR(200)     NULL,
-        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [Code]              NVARCHAR(20)      NOT NULL,
+        [Name]              NVARCHAR(100)     NOT NULL,
+        [SearchString]      NVARCHAR(500)     NULL,
+        [SortOrder]         INT               NOT NULL,
+        [IsActive]          BIT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
         [ModifiedAt]        DATETIME2         NULL,
         [ModifiedBy]        NVARCHAR(200)     NULL,
         [ModifiedByWindows] NVARCHAR(200)     NULL,
-        CONSTRAINT [PK_ProductionOrderAssemblyGroups] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_ProductionOrderAssemblyGroups_PO_Key] UNIQUE ([ProductionOrderId], [GroupKey]),
-        CONSTRAINT [FK_ProductionOrderAssemblyGroups_ProductionOrder]
-            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+        CONSTRAINT [PK_WorkSteps] PRIMARY KEY CLUSTERED ([Id])
     );
-    CREATE INDEX [IX_ProductionOrderAssemblyGroups_GroupKey_IsApplicable]
-        ON [dbo].[ProductionOrderAssemblyGroups]([GroupKey], [IsApplicable]);
-    PRINT 'Tabelle ProductionOrderAssemblyGroups erstellt.';
+    CREATE UNIQUE INDEX [IX_WorkSteps_Code] ON [dbo].[WorkSteps]([Code]);
+    PRINT 'Tabelle WorkSteps erstellt.';
 END
 GO
 
 -- =============================================
--- 8d. ProductionOrderAssemblyGroupSpecs (n Zeilen/Group)
+-- 8c2. FA-Vorbau (v1.22.0): Users.DefaultWorkStepId -> WorkSteps (Migration 70)
+--      Index + FK NACH dem WorkSteps-CREATE platziert, da Users (Block 1) vor
+--      WorkSteps angelegt wird und die Zieltabelle hier existieren muss.
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderAssemblyGroupSpecs')
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Users_DefaultWorkStepId' AND object_id = OBJECT_ID('dbo.Users'))
 BEGIN
-    CREATE TABLE [dbo].[ProductionOrderAssemblyGroupSpecs] (
+    CREATE INDEX [IX_Users_DefaultWorkStepId] ON [dbo].[Users] ([DefaultWorkStepId]);
+    PRINT 'Index IX_Users_DefaultWorkStepId erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Users_WorkSteps_DefaultWorkStepId')
+BEGIN
+    ALTER TABLE [dbo].[Users]
+        ADD CONSTRAINT [FK_Users_WorkSteps_DefaultWorkStepId]
+        FOREIGN KEY ([DefaultWorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE SET NULL;
+    PRINT 'FK FK_Users_WorkSteps_DefaultWorkStepId erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c3. FA-Vorbau (v1.22.0): Users.DefaultWorkplaceId -> ProductionWorkplaces (Migration 71)
+--      ProductionWorkplaces (Block 7) existiert bereits vor diesem Punkt; Index + FK
+--      werden NACH dem Users-CREATE platziert.
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Users_DefaultWorkplaceId' AND object_id = OBJECT_ID('dbo.Users'))
+BEGIN
+    CREATE INDEX [IX_Users_DefaultWorkplaceId] ON [dbo].[Users] ([DefaultWorkplaceId]);
+    PRINT 'Index IX_Users_DefaultWorkplaceId erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Users_ProductionWorkplaces_DefaultWorkplaceId')
+BEGIN
+    ALTER TABLE [dbo].[Users]
+        ADD CONSTRAINT [FK_Users_ProductionWorkplaces_DefaultWorkplaceId]
+        FOREIGN KEY ([DefaultWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL;
+    PRINT 'FK FK_Users_ProductionWorkplaces_DefaultWorkplaceId erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d. FA-Vorbau (v1.22.0): FaWorkSteps (FA -> AG)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaWorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[FaWorkSteps] (
         [Id]                INT IDENTITY(1,1) NOT NULL,
-        [AssemblyGroupId]   INT               NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [WorkStepId]        INT               NOT NULL,
+        [IsCompleted]       BIT               NOT NULL,
+        [CompletedAt]       DATETIME2         NULL,
+        [CompletedBy]       NVARCHAR(200)     NULL,
+        [IsSpecComplete]    BIT               NOT NULL CONSTRAINT DF_FaWorkSteps_IsSpecComplete DEFAULT 0,
+        [SpecCompletedAt]   DATETIME2         NULL,
+        [SpecCompletedBy]   NVARCHAR(200)     NULL,
+        [Source]            NVARCHAR(20)      NOT NULL,
+        [IsRemoved]         BIT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaWorkSteps] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaWorkSteps_ProductionOrders_ProductionOrderId]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_FaWorkSteps_WorkSteps_WorkStepId]
+            FOREIGN KEY ([WorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) -- NO ACTION (Restrict)
+    );
+    CREATE INDEX [IX_FaWorkSteps_ProductionOrderId_IsRemoved]
+        ON [dbo].[FaWorkSteps]([ProductionOrderId], [IsRemoved]);
+    CREATE UNIQUE INDEX [IX_FaWorkSteps_ProductionOrderId_WorkStepId]
+        ON [dbo].[FaWorkSteps]([ProductionOrderId], [WorkStepId]);
+    CREATE INDEX [IX_FaWorkSteps_WorkStepId]
+        ON [dbo].[FaWorkSteps]([WorkStepId]);
+    PRINT 'Tabelle FaWorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d2. FA-Vorbau (v1.22.0): FaWorkStepSpecs (Freitext-Specs)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaWorkStepSpecs')
+BEGIN
+    CREATE TABLE [dbo].[FaWorkStepSpecs] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [FaWorkStepId]      INT               NOT NULL,
         [ArticleId]         INT               NULL,
         [Description]       NVARCHAR(500)     NOT NULL,
         [Quantity]          DECIMAL(18,3)     NULL,
         [Notes]             NVARCHAR(MAX)     NULL,
-        [SortOrder]         INT               NOT NULL CONSTRAINT DF_ProductionOrderAssemblyGroupSpecs_SortOrder DEFAULT 0,
-        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [SortOrder]         INT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
         [ModifiedAt]        DATETIME2         NULL,
         [ModifiedBy]        NVARCHAR(200)     NULL,
         [ModifiedByWindows] NVARCHAR(200)     NULL,
-        CONSTRAINT [PK_ProductionOrderAssemblyGroupSpecs] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [FK_ProductionOrderAssemblyGroupSpecs_AssemblyGroup]
-            FOREIGN KEY ([AssemblyGroupId]) REFERENCES [dbo].[ProductionOrderAssemblyGroups]([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_ProductionOrderAssemblyGroupSpecs_Article]
-            FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]) ON DELETE SET NULL
+        CONSTRAINT [PK_FaWorkStepSpecs] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaWorkStepSpecs_Articles_ArticleId]
+            FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]) ON DELETE SET NULL,
+        CONSTRAINT [FK_FaWorkStepSpecs_FaWorkSteps_FaWorkStepId]
+            FOREIGN KEY ([FaWorkStepId]) REFERENCES [dbo].[FaWorkSteps]([Id]) ON DELETE CASCADE
     );
-    CREATE INDEX [IX_ProductionOrderAssemblyGroupSpecs_AssemblyGroupId]
-        ON [dbo].[ProductionOrderAssemblyGroupSpecs]([AssemblyGroupId]);
-    CREATE INDEX [IX_ProductionOrderAssemblyGroupSpecs_ArticleId]
-        ON [dbo].[ProductionOrderAssemblyGroupSpecs]([ArticleId])
-        WHERE [ArticleId] IS NOT NULL;
-    PRINT 'Tabelle ProductionOrderAssemblyGroupSpecs erstellt.';
+    CREATE INDEX [IX_FaWorkStepSpecs_ArticleId]
+        ON [dbo].[FaWorkStepSpecs]([ArticleId]);
+    CREATE INDEX [IX_FaWorkStepSpecs_FaWorkStepId]
+        ON [dbo].[FaWorkStepSpecs]([FaWorkStepId]);
+    PRINT 'Tabelle FaWorkStepSpecs erstellt.';
 END
 GO
 
 -- =============================================
--- 8e. ProductionWorkplaceAssemblyGroups (Default-Gruppen je Arbeitsplatz)
+-- 8d3. FA-Vorbau (v1.22.0): FaAttributeDefinitions (Merkmal-Katalog)
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceAssemblyGroups')
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeDefinitions')
 BEGIN
-    CREATE TABLE [dbo].[ProductionWorkplaceAssemblyGroups] (
+    CREATE TABLE [dbo].[FaAttributeDefinitions] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Name]              NVARCHAR(200)     NOT NULL,
+        [AttributeType]     INT               NOT NULL,
+        [SortOrder]         INT               NOT NULL,
+        [IsActive]          BIT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeDefinitions] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle FaAttributeDefinitions erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d4. FA-Vorbau (v1.22.0): FaAttributeOptions (Dropdown-Werte)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeOptions')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeOptions] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [FaAttributeDefinitionId]  INT               NOT NULL,
+        [Value]                    NVARCHAR(200)     NOT NULL,
+        [SortOrder]                INT               NOT NULL,
+        [IsActive]                 BIT               NOT NULL,
+        [CreatedAt]                DATETIME2         NOT NULL,
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeOptions] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaAttributeOptions_FaAttributeDefinitions_FaAttributeDefinitionId]
+            FOREIGN KEY ([FaAttributeDefinitionId]) REFERENCES [dbo].[FaAttributeDefinitions]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_FaAttributeOptions_FaAttributeDefinitionId]
+        ON [dbo].[FaAttributeOptions]([FaAttributeDefinitionId]);
+    PRINT 'Tabelle FaAttributeOptions erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d5. FA-Vorbau (v1.22.0): FaAttributeWorkSteps (Merkmal -> AG, N:M)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeWorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeWorkSteps] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [FaAttributeDefinitionId]  INT               NOT NULL,
+        [WorkStepId]               INT               NOT NULL,
+        [CreatedAt]                DATETIME2         NOT NULL,
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeWorkSteps] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaAttributeWorkSteps_FaAttributeDefinitions_FaAttributeDefinitionId]
+            FOREIGN KEY ([FaAttributeDefinitionId]) REFERENCES [dbo].[FaAttributeDefinitions]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_FaAttributeWorkSteps_WorkSteps_WorkStepId]
+            FOREIGN KEY ([WorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX [IX_FaAttributeWorkSteps_FaAttributeDefinitionId_WorkStepId]
+        ON [dbo].[FaAttributeWorkSteps]([FaAttributeDefinitionId], [WorkStepId]);
+    CREATE INDEX [IX_FaAttributeWorkSteps_WorkStepId]
+        ON [dbo].[FaAttributeWorkSteps]([WorkStepId]);
+    PRINT 'Tabelle FaAttributeWorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d6. FA-Vorbau (v1.22.0): FaAttributeValues (Werte je FA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeValues')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeValues] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]        INT               NOT NULL,
+        [FaAttributeDefinitionId]  INT               NOT NULL,
+        [SelectedOptionId]         INT               NULL,
+        [BooleanValue]             BIT               NULL,
+        [TextValue]                NVARCHAR(1000)    NULL,
+        [CreatedAt]                DATETIME2         NOT NULL,
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeValues] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaAttributeValues_FaAttributeDefinitions_FaAttributeDefinitionId]
+            FOREIGN KEY ([FaAttributeDefinitionId]) REFERENCES [dbo].[FaAttributeDefinitions]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_FaAttributeValues_FaAttributeOptions_SelectedOptionId]
+            FOREIGN KEY ([SelectedOptionId]) REFERENCES [dbo].[FaAttributeOptions]([Id]), -- NO ACTION (Restrict)
+        CONSTRAINT [FK_FaAttributeValues_ProductionOrders_ProductionOrderId]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_FaAttributeValues_FaAttributeDefinitionId]
+        ON [dbo].[FaAttributeValues]([FaAttributeDefinitionId]);
+    CREATE UNIQUE INDEX [IX_FaAttributeValues_ProductionOrderId_FaAttributeDefinitionId]
+        ON [dbo].[FaAttributeValues]([ProductionOrderId], [FaAttributeDefinitionId]);
+    CREATE INDEX [IX_FaAttributeValues_SelectedOptionId]
+        ON [dbo].[FaAttributeValues]([SelectedOptionId]);
+    PRINT 'Tabelle FaAttributeValues erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d7. FA-Vorbau (v1.22.0): ProductionWorkplaceWorkSteps (Werkbank -> AG, N:M)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceWorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaceWorkSteps] (
         [Id]                    INT IDENTITY(1,1) NOT NULL,
         [ProductionWorkplaceId] INT               NOT NULL,
-        [GroupKey]              NVARCHAR(10)      NOT NULL,
-        [CreatedAt]             DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [WorkStepId]            INT               NOT NULL,
+        [CreatedAt]             DATETIME2         NOT NULL,
         [CreatedBy]             NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
         [ModifiedAt]            DATETIME2         NULL,
         [ModifiedBy]            NVARCHAR(200)     NULL,
         [ModifiedByWindows]     NVARCHAR(200)     NULL,
-        CONSTRAINT [PK_ProductionWorkplaceAssemblyGroups] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_ProductionWorkplaceAssemblyGroups_WP_Key] UNIQUE ([ProductionWorkplaceId], [GroupKey]),
-        CONSTRAINT [FK_ProductionWorkplaceAssemblyGroups_Workplace]
-            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE
+        CONSTRAINT [PK_ProductionWorkplaceWorkSteps] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ProductionWorkplaceWorkSteps_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionWorkplaceWorkSteps_WorkSteps_WorkStepId]
+            FOREIGN KEY ([WorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE CASCADE
     );
-    PRINT 'Tabelle ProductionWorkplaceAssemblyGroups erstellt.';
+    CREATE UNIQUE INDEX [IX_ProductionWorkplaceWorkSteps_ProductionWorkplaceId_WorkStepId]
+        ON [dbo].[ProductionWorkplaceWorkSteps]([ProductionWorkplaceId], [WorkStepId]);
+    CREATE INDEX [IX_ProductionWorkplaceWorkSteps_WorkStepId]
+        ON [dbo].[ProductionWorkplaceWorkSteps]([WorkStepId]);
+    PRINT 'Tabelle ProductionWorkplaceWorkSteps erstellt.';
 END
 GO
+
+-- =============================================
+-- 8d8. FA-Vorbau (v1.22.0): Seeds (WorkSteps VK-VA, Merkmale + Optionen)
+-- =============================================
+INSERT INTO [dbo].[WorkSteps] ([Code], [Name], [SearchString], [SortOrder], [IsActive], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.Code, v.Name, NULL, v.SortOrder, 1, GETDATE(), 'system', 'system'
+FROM (VALUES ('VK','Kuehlung',1),('VL','Lueftung',2),('VE','Elektro',3),('VT','Tueren',4),('VA','Aufbau',5)) v(Code, Name, SortOrder)
+WHERE NOT EXISTS (SELECT 1 FROM [dbo].[WorkSteps] w WHERE w.[Code] = v.Code);
+
+INSERT INTO [dbo].[FaAttributeDefinitions] ([Name], [AttributeType], [SortOrder], [IsActive], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.Name, v.AttrType, v.SortOrder, 1, GETDATE(), 'system', 'system'
+FROM (VALUES ('Verdampfergroesse',1,1),('Leitungsausgang',1,2),('Verdampfergehaeuse',1,3),('Ventil aussenliegend',0,4)) v(Name, AttrType, SortOrder)
+WHERE NOT EXISTS (SELECT 1 FROM [dbo].[FaAttributeDefinitions] d WHERE d.[Name] = v.Name);
+
+INSERT INTO [dbo].[FaAttributeOptions] ([FaAttributeDefinitionId], [Value], [SortOrder], [IsActive], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT d.Id, v.Value, v.SortOrder, 1, GETDATE(), 'system', 'system'
+FROM (VALUES
+ ('Verdampfergroesse','UKW 2/1',1),('Verdampfergroesse','UKW 3/1',2),('Verdampfergroesse','UKW 4/1',3),
+ ('Verdampfergroesse','UKW 5/1 (Euro 4)',4),('Verdampfergroesse','UKW 6/1',5),('Verdampfergroesse','Euro 2',6),
+ ('Verdampfergroesse','Euro 3',7),('Verdampfergroesse','Caleo 80',8),('Verdampfergroesse','Caleo 120',9),
+ ('Verdampfergroesse','Breite 60',10),
+ ('Leitungsausgang','Standard',1),('Leitungsausgang','RG',2),('Leitungsausgang','Links',3),('Leitungsausgang','Links RG',4),
+ ('Verdampfergehaeuse','2/1 Standard',1),('Verdampfergehaeuse','3/1 RG',2),('Verdampfergehaeuse','Sonder',3)
+) v(DefName, Value, SortOrder)
+JOIN [dbo].[FaAttributeDefinitions] d ON d.[Name] = v.DefName
+WHERE NOT EXISTS (SELECT 1 FROM [dbo].[FaAttributeOptions] o WHERE o.[FaAttributeDefinitionId] = d.Id AND o.[Value] = v.Value);
+PRINT 'FA-Vorbau Seeds (WorkSteps, Merkmale, Optionen) eingefuegt.';
+GO
+
+-- (8e. ProductionWorkplaceAssemblyGroups entfernt in v1.22.0 — Relikt aus v1.11,
+--  nie im Code genutzt; ersetzt durch ProductionWorkplaceWorkSteps)
 
 -- =============================================
 -- 9. PickingItems
@@ -1083,6 +1313,30 @@ BEGIN
 END
 GO
 
+-- Rolle 'masterdata_read' (Nur-Lesen-Zugriff auf Stammdaten, v1.20.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'masterdata_read')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('masterdata_read', 'Stammdaten ansehen',
+            'Nur-Lesen-Zugriff auf alle Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).',
+            NULL, 1, 5,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle masterdata_read eingefuegt.';
+END
+GO
+
+-- Rolle 'vorbau' (FA-Abarbeitungsliste, v1.22.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'vorbau')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen und abhaken', NULL, 1,
+            (SELECT MAX([SortOrder]) + 1 FROM [dbo].[Roles]), GETDATE(), 'system', 'system');
+    PRINT 'Rolle vorbau eingefuegt.';
+END
+GO
+
 -- Standard-Arbeitsgang-Konfigurationen (OSEON)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[OseonOperationConfigs])
 BEGIN
@@ -1285,7 +1539,8 @@ CREATE TABLE [dbo].[WarehouseRequisitionItems] (
     [QuantityPicked] DECIMAL(18,4) NULL,
     [Position] INT NOT NULL,
     [Note] NVARCHAR(500) NULL,
-    [IsFinalShortage] BIT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_IsFinalShortage DEFAULT 0,
+    [NoteEinkauf] NVARCHAR(500) NULL,
+    [ShortageStatus] TINYINT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_ShortageStatus DEFAULT 0,
     [CreatedAt] DATETIME2 NOT NULL,
     [CreatedBy] NVARCHAR(200) NOT NULL,
     [CreatedByWindows] NVARCHAR(200) NOT NULL,
@@ -1299,9 +1554,12 @@ CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
     ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
 CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
     ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber]);
-CREATE INDEX [IX_WarehouseRequisitionItems_IsFinalShortage]
-    ON [dbo].[WarehouseRequisitionItems]([IsFinalShortage])
-    WHERE [IsFinalShortage] = 1;
+CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_WillBeRestocked]
+    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+    WHERE [ShortageStatus] = 1;
+CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_NoRestock]
+    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+    WHERE [ShortageStatus] = 2;
 GO
 
 -- =============================================
@@ -1735,6 +1993,27 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260522070823_AddWarehouseRequisitionItemNote', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529074719_AddIsFinalShortageToWarehouseRequisitionItems')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529074719_AddIsFinalShortageToWarehouseRequisitionItems', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529101707_ReplaceIsFinalShortageWithShortageStatus')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529101707_ReplaceIsFinalShortageWithShortageStatus', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260602133102_AddNoteEinkaufToWarehouseRequisitionItems')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260602133102_AddNoteEinkaufToWarehouseRequisitionItems', '10.0.2');
+-- AddMasterDataReadRole (Migration 67, v1.20.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260608060227_AddMasterDataReadRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260608060227_AddMasterDataReadRole', '10.0.0');
+-- FaWorkStepsAndAttributes (Migration 68, v1.22.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260612102225_FaWorkStepsAndAttributes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260612102225_FaWorkStepsAndAttributes', '10.0.2');
+-- SplitFaWorkStepCompletion (Migration 69, v1.22.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615070236_SplitFaWorkStepCompletion')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615070236_SplitFaWorkStepCompletion', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615074318_AddUserDefaultWorkStep')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615074318_AddUserDefaultWorkStep', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616070943_AddUserDefaultWorkplace')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616070943_AddUserDefaultWorkplace', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616071945_AddFaAttributeTextValue')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616071945_AddFaAttributeTextValue', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

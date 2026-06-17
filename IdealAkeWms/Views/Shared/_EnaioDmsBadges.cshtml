@@ -1,0 +1,48 @@
+@model IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel
+@*
+    Shared Partial fuer enaio-DMS-Links einer FA.
+    Drei Icon-Varianten je DocumentType:
+      - "Werkstattauftrag+Zeichnung" -> Dokument-mit-Zeichenbrett-Icon (file-earmark-easel)
+      - "Werkstattauftrag"           -> Dokument-Icon (file-earmark)
+      - sonst (Zeichnung/unbekannt)  -> Bild-/Zeichnung-Icon (image)
+    Die Reihenfolge der Links kommt bereits sortiert aus dem Repository
+    (Werkstattauftrag+Zeichnung zuerst, dann Werkstattauftrag, dann Rest).
+
+    Model.ShowLabel = true  -> Badge mit Text-Label (FA-Vervollstaendigung)
+    Model.ShowLabel = false -> reine Icon-Links (Listen-Views)
+*@
+@{
+    var linkClass = Model.ShowLabel
+        ? "dms-link badge bg-light text-dark border text-decoration-none"
+        : "dms-link";
+}
+@foreach (var dms in Model.Links)
+{
+    var dmsUrl = $"http://akeosapp.ake.at/oscontentviewer/viewer/{dms.EnaioDmsObjectId}/?pagecount=1";
+    string dmsTitle;
+    if (dms.DocumentType == "Werkstattauftrag+Zeichnung")
+    {
+        dmsTitle = "Werkstattauftrag + Zeichnung in enaio oeffnen";
+    }
+    else if (dms.DocumentType == "Zeichnung")
+    {
+        dmsTitle = "Zeichnung in enaio oeffnen";
+    }
+    else
+    {
+        dmsTitle = "Dokument in enaio oeffnen";
+    }
+
+    if (dms.DocumentType == "Werkstattauftrag+Zeichnung")
+    {
+        <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="@linkClass"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M5 6.25a.25.25 0 0 1 .25-.25h5.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-5.5A.25.25 0 0 1 5 6.75zm0 2a.25.25 0 0 1 .25-.25h5.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-5.5A.25.25 0 0 1 5 8.75z"/><path d="M9.293 0H4a2 2 0 0 0-2 2v3.5h1V2a1 1 0 0 1 1-1h5v3a1 1 0 0 0 1 1h3v9a1 1 0 0 1-1 1H7v1h5a2 2 0 0 0 2-2V4.707zM11 1.207 12.793 3H11z"/><path d="M0 10.5A1.5 1.5 0 0 1 1.5 9h2A1.5 1.5 0 0 1 5 10.5V12H4v-1.5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5V14h.5V13H4v1.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5V14H.5a.5.5 0 0 1 0-1H1v-.5H.5a.5.5 0 0 1 0-1H1v-.5a1.5 1.5 0 0 1-1-.5"/></svg>@(Model.ShowLabel ? " Werkstattauftrag + Zeichnung" : null)</a>
+    }
+    else if (dms.DocumentType == "Zeichnung")
+    {
+        <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="@linkClass"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10zM14 2H2a1 1 0 0 0-1 1v6.5l2.7-2.7a.5.5 0 0 1 .6-.1L9 10l2.6-2.6a.5.5 0 0 1 .7 0L15 10V3a1 1 0 0 0-1-1"/></svg>@(Model.ShowLabel ? $" {dms.DocumentType}" : null)</a>
+    }
+    else
+    {
+        <a href="@dmsUrl" target="_blank" title="@dmsTitle" class="@linkClass"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg>@(Model.ShowLabel ? $" {dms.DocumentType}" : null)</a>
+    }
+}

@@ -160,13 +160,13 @@ public class WarehouseRequisitionsControllerTests
         r1.Items.Add(new WarehouseRequisitionItem
         {
             ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
-            IsFinalShortage = true,
+            ShortageStatus = ShortageStatus.NoRestock,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         });
         r1.Items.Add(new WarehouseRequisitionItem
         {
             ArticleNumber = "ART-2", ArticleDescription = "y", QuantityRequested = 1, Position = 2,
-            IsFinalShortage = true,
+            ShortageStatus = ShortageStatus.NoRestock,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         });
         var r2 = new WarehouseRequisition
@@ -178,7 +178,7 @@ public class WarehouseRequisitionsControllerTests
         r2.Items.Add(new WarehouseRequisitionItem
         {
             ArticleNumber = "ART-3", ArticleDescription = "z", QuantityRequested = 1, Position = 1,
-            IsFinalShortage = true,
+            ShortageStatus = ShortageStatus.NoRestock,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         });
         ctx.WarehouseRequisitions.AddRange(r1, r2);
@@ -189,8 +189,8 @@ public class WarehouseRequisitionsControllerTests
         result.Should().NotBeNull();
         var vm = result!.Model as WarehouseRequisitionListViewModel;
         vm.Should().NotBeNull();
-        vm!.MissingPartsItemCount.Should().Be(3);
-        vm.MissingPartsRequisitionCount.Should().Be(2);
+        vm!.MissingPartsNoRestockItemCount.Should().Be(3);
+        vm.MissingPartsNoRestockRequisitionCount.Should().Be(2);
     }
 
     [Fact]
@@ -212,7 +212,128 @@ public class WarehouseRequisitionsControllerTests
         result.Should().NotBeNull();
         var vm = result!.Model as WarehouseRequisitionListViewModel;
         vm.Should().NotBeNull();
-        vm!.MissingPartsItemCount.Should().Be(0);
-        vm.MissingPartsRequisitionCount.Should().Be(0);
+        vm!.MissingPartsWaitingItemCount.Should().Be(0);
+        vm.MissingPartsWaitingRequisitionCount.Should().Be(0);
+        vm.MissingPartsNoRestockItemCount.Should().Be(0);
+        vm.MissingPartsNoRestockRequisitionCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Index_ShowsWaitingCounts_WhenUserHasWillBeRestockedItems()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+
+        // PartiallyDelivered Bestellung mit 2 WillBeRestocked-Items.
+        var r1 = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id, Status = WarehouseRequisitionStatus.PartiallyDelivered,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester",
+            CreatedByUserId = userId,
+        };
+        r1.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            ShortageStatus = ShortageStatus.WillBeRestocked,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        r1.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-2", ArticleDescription = "y", QuantityRequested = 1, Position = 2,
+            ShortageStatus = ShortageStatus.WillBeRestocked,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        ctx.WarehouseRequisitions.Add(r1);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index() as ViewResult;
+
+        result.Should().NotBeNull();
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm.Should().NotBeNull();
+        vm!.MissingPartsWaitingItemCount.Should().Be(2);
+        vm.MissingPartsWaitingRequisitionCount.Should().Be(1);
+        vm.MissingPartsNoRestockItemCount.Should().Be(0);
+        vm.MissingPartsNoRestockRequisitionCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Index_ShowsBothCounts_WhenMixedShortageStatuses()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+
+        // Eine Closed-Bestellung mit gemischten Shortage-Statuses.
+        var r1 = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id, Status = WarehouseRequisitionStatus.Closed,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester",
+            CreatedByUserId = userId,
+        };
+        r1.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            ShortageStatus = ShortageStatus.WillBeRestocked,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        r1.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-2", ArticleDescription = "y", QuantityRequested = 1, Position = 2,
+            ShortageStatus = ShortageStatus.NoRestock,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        ctx.WarehouseRequisitions.Add(r1);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index() as ViewResult;
+
+        result.Should().NotBeNull();
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm.Should().NotBeNull();
+        vm!.MissingPartsWaitingItemCount.Should().Be(1);
+        vm.MissingPartsWaitingRequisitionCount.Should().Be(1, "selbe Bestellung zaehlt fuer Waiting");
+        vm.MissingPartsNoRestockItemCount.Should().Be(1);
+        vm.MissingPartsNoRestockRequisitionCount.Should().Be(1, "selbe Bestellung zaehlt auch fuer NoRestock");
+    }
+
+    [Fact]
+    public async Task Index_ColumnFilter_FiltersAcrossAllRows()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wpA = new ProductionWorkplace { Name = "WB-A1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpB = new ProductionWorkplace { Name = "WB-B2", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var wpC = new ProductionWorkplace { Name = "WB-C3", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.AddRange(wpA, wpB, wpC); ctx.SaveChanges();
+
+        ctx.WarehouseRequisitions.AddRange(
+            new WarehouseRequisition { ProductionWorkplaceId = wpA.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t" },
+            new WarehouseRequisition { ProductionWorkplaceId = wpB.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t" },
+            new WarehouseRequisition { ProductionWorkplaceId = wpC.Id, Status = WarehouseRequisitionStatus.Submitted, SubmittedAt = DateTime.Now, CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t" });
+        await ctx.SaveChangesAsync();
+
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_workplace=A1");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index() as ViewResult;
+
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm!.Items.Should().HaveCount(1);
+        vm.Items[0].WorkplaceName.Should().Be("WB-A1");
+        vm.Pagination.TotalCount.Should().Be(1);
     }
 }

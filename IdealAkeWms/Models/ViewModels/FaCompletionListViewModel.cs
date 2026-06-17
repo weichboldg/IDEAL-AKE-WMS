@@ -1,3 +1,5 @@
+using IdealAkeWms.Data.Repositories;
+
 namespace IdealAkeWms.Models.ViewModels;
 
 /// <summary>
@@ -11,6 +13,10 @@ public class FaCompletionListViewModel
     public string? FilterArticleNumber { get; set; }
     public string? FilterCustomer { get; set; }
     public bool ShowDone { get; set; }
+
+    /// <summary>enaio-DMS-Links je FA-Nummer (Bulk-Lookup, fuer die einheitlichen FA-Vorbau-Buttons).</summary>
+    public Dictionary<string, List<EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
+
     public PaginationState Pagination { get; set; } = new();
 }
 
@@ -25,12 +31,18 @@ public class FaCompletionListItem
     public DateTime? ProductionDate { get; set; }
     public bool IsDone { get; set; }
 
-    /// <summary>Anzahl der AssemblyGroups mit IsApplicable = true (0..5).</summary>
+    /// <summary>Anzahl der aktiven FaWorkSteps (IsRemoved = false) dieses FAs.</summary>
     public int ApplicableCount { get; set; }
 
-    /// <summary>Anzahl der AssemblyGroups mit IsCompleted = true (0..5).</summary>
+    /// <summary>Anzahl der aktiven FaWorkSteps mit IsCompleted = true.</summary>
     public int CompletedCount { get; set; }
 
-    /// <summary>Summe aller Spec-Eintraege ueber alle 5 Gruppen dieses FAs.</summary>
+    /// <summary>Summe aller Spec-Eintraege ueber alle aktiven FaWorkSteps dieses FAs.</summary>
     public int SpecCount { get; set; }
+
+    /// <summary>True wenn dem FA keine Werkbank zugewiesen ist (ProductionWorkplaceId == null).</summary>
+    public bool HasNoWorkplace { get; set; }
+
+    /// <summary>Name der zugewiesenen Werkbank (null wenn keine zugewiesen ist).</summary>
+    public string? WorkplaceName { get; set; }
 }

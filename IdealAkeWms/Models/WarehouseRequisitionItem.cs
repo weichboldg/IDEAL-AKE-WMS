@@ -23,15 +23,23 @@ public class WarehouseRequisitionItem : AuditableEntity
     public int Position { get; set; }
 
     /// <summary>
-    /// Notiz vom Lagermitarbeiter zur Position. Wird auf dem Druck angezeigt.
+    /// Notiz vom Lagermitarbeiter zur Position (UI-Label "Notiz Lager" seit v1.19.0).
+    /// Wird auf dem Druck angezeigt.
     /// </summary>
     [StringLength(500)]
     public string? Note { get; set; }
 
     /// <summary>
-    /// True = Lagermitarbeiter hat dieses Item als endgueltigen Fehlteil markiert.
-    /// Wird beim Status-Ableitungs-Helper geprueft; treibt Status auf Closed wenn
-    /// alle "kurzen" Items markiert sind.
+    /// Notiz fuer den Einkaeufer (z.B. Lieferanten-Hinweis bei endgueltigem Fehlteil).
+    /// Wird im Picking/Details vom Lagermitarbeiter gefuellt. Werkbank-Edit nicht beeinflusst.
     /// </summary>
-    public bool IsFinalShortage { get; set; }
+    [StringLength(500)]
+    public string? NoteEinkauf { get; set; }
+
+    /// <summary>
+    /// Fehlteil-Klassifizierung durch den Lagermitarbeiter.
+    /// Seit v1.19.0 ersetzt das bisherige IsFinalShortage-Bool durch eine
+    /// 3-State-Enum (None / WillBeRestocked / NoRestock).
+    /// </summary>
+    public ShortageStatus ShortageStatus { get; set; } = ShortageStatus.None;
 }

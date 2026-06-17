@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireAdminAccess]
 public class SettingsController : Controller
 {
     private readonly IAppSettingRepository _settingRepository;

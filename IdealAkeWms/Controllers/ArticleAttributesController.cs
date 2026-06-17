@@ -6,7 +6,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class ArticleAttributesController : Controller
 {
     private readonly IArticleAttributeRepository _attributeRepository;
@@ -20,6 +20,21 @@ public class ArticleAttributesController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Typ-Badge "Boolean"/"Dropdown", Reihenfolge als Zahl). Die Aktiv-Spalte rendert
+    /// eine Checkbox ohne Text — Filter-Konvention dafuer ist "Ja"/"Nein"
+    /// (analog StorageLocations).
+    /// </summary>
+    private static readonly Dictionary<string, Func<ArticleAttributeDefinition, string?>> ColumnMap = new()
+    {
+        ["name"] = d => d.Name,
+        ["type"] = d => d.AttributeType == AttributeType.Boolean ? "Boolean" : "Dropdown",
+        ["sort-order"] = d => d.SortOrder.ToString(),
+        ["active"] = d => d.IsActive ? "Ja" : "Nein",
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -28,7 +43,13 @@ public class ArticleAttributesController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var definitions = await _attributeRepository.GetAllDefinitionsAsync();
-        var paged = definitions.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(definitions, columnFilters, ColumnMap).ToList();
+
+        var paged = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
         // Pre-load value counts for each definition (only for the current page)
         var valueCounts = new Dictionary<int, bool>();
         foreach (var def in paged)
@@ -41,13 +62,14 @@ public class ArticleAttributesController : Controller
             CurrentPage = page,
             PageSize = effectivePageSize,
             PageSizeRaw = rawPageSize,
-            TotalCount = definitions.Count
+            TotalCount = filtered.Count
         };
         return View(paged);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> CreateDefinition(string name, AttributeType attributeType)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -80,6 +102,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> UpdateDefinition(int id, string name, int sortOrder, bool isActive)
     {
         var definition = await _attributeRepository.GetDefinitionByIdAsync(id);
@@ -106,6 +129,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteDefinition(int id)
     {
         var definition = await _attributeRepository.GetDefinitionByIdAsync(id);
@@ -126,6 +150,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> AddOption(int definitionId, string value, int sortOrder)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -152,6 +177,7 @@ public class ArticleAttributesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteOption(int id)
     {
         if (await _attributeRepository.OptionIsInUseAsync(id))

@@ -1,0 +1,87 @@
+@model List<IdealAkeWms.Models.WorkStep>
+@inject IdealAkeWms.Services.ICurrentUserService _user
+@{
+    ViewData["Title"] = "FA-Vorbau-AG";
+    var canEdit = await _user.HasMasterDataAccessAsync();
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">FA-Vorbau-AG / Vorbaugruppen</h2>
+    @if (canEdit)
+    {
+        <a asp-action="Create" class="btn btn-primary">Neuen FA-Vorbau-AG anlegen</a>
+    }
+</div>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="WorkSteps">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="code" style="width: 120px;">Code</th>
+                <th data-filterable data-col-key="name">Name</th>
+                <th data-filterable data-col-key="search-string">Suchbegriffe</th>
+                <th data-filterable data-col-key="sort-order" style="width: 120px;" class="text-center">Reihenfolge</th>
+                <th data-filterable data-col-key="active" style="width: 90px;">Aktiv</th>
+                <th data-col-key="actions" style="width: 160px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var step in Model)
+            {
+                <tr>
+                    <td><strong>@step.Code</strong></td>
+                    <td>@step.Name</td>
+                    <td>@step.SearchString</td>
+                    <td class="text-center">@step.SortOrder</td>
+                    <td>
+                        @if (step.IsActive)
+                        {
+                            <span class="badge bg-success">Ja</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Nein</span>
+                        }
+                    </td>
+                    <td>
+                        @if (canEdit)
+                        {
+                            <div class="d-flex gap-1">
+                                <a asp-action="Edit" asp-route-id="@step.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                <form asp-action="Delete" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@step.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
+                                            onclick="return confirm('FA-Vorbau-AG \'@step.Name\' wirklich loeschen?');">
+                                        Löschen
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Keine FA-Vorbau-AG vorhanden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
+{
+    <partial name="_Pagination" model="paginationState" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

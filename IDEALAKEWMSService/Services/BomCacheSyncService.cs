@@ -382,14 +382,22 @@ public class BomCacheSyncService : IBomCacheSyncService
         await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync(ct);
 
+        // "Abgeschlossen" = IsDone (Sage) ODER IsDonePicking (App, Leitstand-Checkbox).
+        // Komm-abgeschlossene FAs (IsDone=0, IsDonePicking=1) duerfen das TOP(@max)-Fenster
+        // NICHT belegen — sonst draengen alte erledigte FAs (frueher Termin, ORDER BY ASC)
+        // echte offene FAs aus dem Cache. Spiegelt die Web-Semantik (v1.21.1) service-seitig.
         var sql = @"
-            SELECT TOP (@max) [Id], [ArticleNumber]
-            FROM [dbo].[ProductionOrders]
-            WHERE [IsDone] = 0
-              AND [ProductionDate] IS NOT NULL
-              AND [ProductionDate] <= DATEADD(week, @weeks, GETDATE())
-              AND [ArticleNumber] IS NOT NULL
-            ORDER BY [ProductionDate] ASC";
+            SELECT TOP (@max) po.[Id], po.[ArticleNumber]
+            FROM [dbo].[ProductionOrders] po
+            WHERE po.[IsDone] = 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM [dbo].[ProductionOrderPickingStatus] ps
+                  WHERE ps.[ProductionOrderId] = po.[Id] AND ps.[IsDonePicking] = 1
+              )
+              AND po.[ProductionDate] IS NOT NULL
+              AND po.[ProductionDate] <= DATEADD(week, @weeks, GETDATE())
+              AND po.[ArticleNumber] IS NOT NULL
+            ORDER BY po.[ProductionDate] ASC";
 
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
         cmd.Parameters.AddWithValue("@max", maxOrders);

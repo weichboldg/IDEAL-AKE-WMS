@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
+[RequireMasterDataReadAccess]
 public class ArticlesController : Controller
 {
     private readonly IArticleRepository _articleRepository;
@@ -69,6 +71,7 @@ public class ArticlesController : Controller
         return View(vm);
     }
 
+    [RequireMasterDataAccess]
     public IActionResult Create()
     {
         return View(new Article());
@@ -76,6 +79,7 @@ public class ArticlesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(Article article)
     {
         if (!ModelState.IsValid)
@@ -89,6 +93,7 @@ public class ArticlesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var article = await _articleRepository.GetByIdAsync(id);
@@ -125,6 +130,7 @@ public class ArticlesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, ArticleEditViewModel vm)
     {
         if (id != vm.Article.Id)
@@ -226,11 +232,17 @@ public class ArticlesController : Controller
         // Production orders containing this article (via BOM cache)
         var deviceArticleNumbers = await _bomCacheRepository.GetDeviceArticleNumbersByComponentAsync(article.ArticleNumber);
         var usedInOrders = new List<ArticleUsageItem>();
+        decimal plannedConsumption = 0m;
         if (deviceArticleNumbers.Count > 0)
         {
             var orders = await _productionOrderRepository.GetByArticleNumbersAsync(deviceArticleNumbers);
-            usedInOrders = orders
-                .Where(o => !o.IsDone)
+
+            // "Abgeschlossen" = Sage-IsDone ODER App-Komm-IsDonePicking (Konvention seit v1.21.1).
+            var openOrders = orders
+                .Where(o => !o.IsDone && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
+                .ToList();
+
+            usedInOrders = openOrders
                 .OrderBy(o => o.ProductionDate)
                 .Select(o => new ArticleUsageItem
                 {
@@ -240,6 +252,12 @@ public class ArticlesController : Controller
                     DeliveryDate = o.DeliveryDate
                 })
                 .ToList();
+
+            // Geplanter Verbrauch je offenem FA = BOM-Menge des Bauteils pro Geraet x FA-Stueckzahl.
+            var mengePerDevice = await _bomCacheRepository.GetComponentMengePerDeviceAsync(article.ArticleNumber);
+            plannedConsumption = openOrders
+                .Where(o => o.ArticleNumber != null)
+                .Sum(o => mengePerDevice.GetValueOrDefault(o.ArticleNumber!) * o.Quantity);
         }
 
         var vm = new ArticleInfoViewModel
@@ -251,6 +269,7 @@ public class ArticlesController : Controller
             ReorderLevel = article.ReorderLevel ?? 0,
             VaultUrl = $"http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Uri.EscapeDataString(article.ArticleNumber)}&searchContext=0",
             StockByLocation = stock,
+            PlannedConsumption = plannedConsumption,
             CategoryName = categoryName,
             AttributeDisplayValues = attrDisplayValues,
             UsedInOrders = usedInOrders

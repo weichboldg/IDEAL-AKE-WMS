@@ -1,5 +1,6 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -23,10 +24,17 @@ public class MissingPartsController : Controller
         _user = user;
     }
 
-    public async Task<IActionResult> Index(int? workplaceId, bool mineOnly = false,
+    public async Task<IActionResult> Index(
+        ShortageStatus tab = ShortageStatus.WillBeRestocked,
+        int? workplaceId = null,
+        bool mineOnly = true,
         int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
+
+        // Tab-Normalisierung: None ist ungueltig fuer die Liste -> Default-Tab
+        if (tab == ShortageStatus.None) tab = ShortageStatus.WillBeRestocked;
+
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
@@ -39,32 +47,48 @@ public class MissingPartsController : Controller
             var userWorkplaces = await _workplaces.GetByUserIdAsync(userId);
             userWorkplaceIds = userWorkplaces.Select(w => w.Id).ToList();
             if (workplaceId.HasValue && !userWorkplaceIds.Contains(workplaceId.Value))
-            {
-                effectiveWorkplaceId = -1;   // inkonsistent -> leer
-            }
+                effectiveWorkplaceId = -1;
             else if (!workplaceId.HasValue && userWorkplaceIds.Count == 1)
-            {
                 effectiveWorkplaceId = userWorkplaceIds[0];
-            }
-            // Bei mehreren User-Workplaces ohne expliziten Filter: in-memory filtern (siehe unten)
+        }
+
+        bool hasNoWorkplaceMapping = false;
+        if (mineOnly && userWorkplaceIds != null && userWorkplaceIds.Count == 0)
+            hasNoWorkplaceMapping = true;
+
+        if (hasNoWorkplaceMapping)
+        {
+            return View(new MissingPartsListViewModel
+            {
+                Items = new List<MissingPartRow>(),
+                AvailableWorkplaces = (await _workplaces.GetByUserIdAsync(_user.GetCurrentAppUserId() ?? 0)).OrderBy(w => w.Name).ToList(),
+                WorkplaceFilter = workplaceId,
+                MineOnly = mineOnly,
+                ActiveTab = tab,
+                WaitingTotalCount = 0,
+                NoRestockTotalCount = 0,
+                HasNoWorkplaceMapping = true,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = 0
+                }
+            });
         }
 
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
         var (rawRows, total) = await _repo.GetMissingPartsAsync(
+            tab,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             columnFilters,
             null, null, page, effectivePageSize);
 
         IReadOnlyList<MissingPartRow> rows = rawRows;
-        if (mineOnly && effectiveWorkplaceId == -1)
+        if (mineOnly && effectiveWorkplaceId == null && userWorkplaceIds != null)
         {
-            rows = new List<MissingPartRow>();
-            total = 0;
-        }
-        else if (mineOnly && effectiveWorkplaceId == null && userWorkplaceIds != null)
-        {
-            // mehrere eigene Werkbaenke: in-memory filter
             var allWp = await _workplaces.GetAllAsync();
             var allowedNames = allWp.Where(w => userWorkplaceIds.Contains(w.Id))
                                     .Select(w => w.Name).ToHashSet();
@@ -72,6 +96,21 @@ public class MissingPartsController : Controller
             rows = filtered;
             total = filtered.Count;
         }
+        else if (mineOnly && effectiveWorkplaceId == -1)
+        {
+            rows = new List<MissingPartRow>();
+            total = 0;
+        }
+
+        // Counts fuer beide Tabs (Tab-Header-Badges)
+        var waitingResult = await _repo.GetMissingPartsAsync(
+            ShortageStatus.WillBeRestocked,
+            effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
+            null, null, null, 1, 1);
+        var noRestockResult = await _repo.GetMissingPartsAsync(
+            ShortageStatus.NoRestock,
+            effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
+            null, null, null, 1, 1);
 
         var vm = new MissingPartsListViewModel
         {
@@ -79,6 +118,10 @@ public class MissingPartsController : Controller
             AvailableWorkplaces = (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
             WorkplaceFilter = workplaceId,
             MineOnly = mineOnly,
+            HasNoWorkplaceMapping = hasNoWorkplaceMapping,
+            ActiveTab = tab,
+            WaitingTotalCount = waitingResult.TotalCount,
+            NoRestockTotalCount = noRestockResult.TotalCount,
             Pagination = new PaginationState
             {
                 CurrentPage = page,

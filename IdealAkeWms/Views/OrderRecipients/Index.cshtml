@@ -1,24 +1,34 @@
 @model List<OrderRecipientGroup>
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Empfängergruppen";
+    var canEdit = await _user.HasMasterDataAccessAsync();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">Empfängergruppen</h2>
-    <div class="d-flex gap-2">
-        <a asp-action="ArticleGroupMappings" class="btn btn-outline-secondary">Artikelgruppen-Zuordnung</a>
-        <a asp-action="Create" class="btn btn-primary">Neue Gruppe</a>
-    </div>
+    @if (canEdit)
+    {
+        <div class="d-flex gap-2">
+            <a asp-action="ArticleGroupMappings" class="btn btn-outline-secondary">Artikelgruppen-Zuordnung</a>
+            <a asp-action="Create" class="btn btn-primary">Neue Gruppe</a>
+        </div>
+    }
 </div>
 
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="OrderRecipients">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Beschreibung</th>
-                <th>Empfänger</th>
-                <th style="width: 160px;"></th>
+                <th data-filterable data-col-key="name">Name</th>
+                <th data-filterable data-col-key="description">Beschreibung</th>
+                <th data-filterable data-col-key="recipients">Empfänger</th>
+                <th data-col-key="actions" style="width: 160px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -31,14 +41,17 @@
                         <span class="badge bg-secondary">@group.Recipients.Count</span>
                     </td>
                     <td>
-                        <div class="d-flex gap-1">
-                            <a asp-action="Edit" asp-route-id="@group.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
-                            <form asp-action="Delete" asp-route-id="@group.Id" method="post"
-                                  onsubmit="return confirm('Empfängergruppe wirklich löschen?');">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
-                            </form>
-                        </div>
+                        @if (canEdit)
+                        {
+                            <div class="d-flex gap-1">
+                                <a asp-action="Edit" asp-route-id="@group.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                <form asp-action="Delete" asp-route-id="@group.Id" method="post"
+                                      onsubmit="return confirm('Empfängergruppe wirklich löschen?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                </form>
+                            </div>
+                        }
                     </td>
                 </tr>
             }
@@ -55,4 +68,9 @@
 @if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
 {
     <partial name="_Pagination" model="paginationState" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

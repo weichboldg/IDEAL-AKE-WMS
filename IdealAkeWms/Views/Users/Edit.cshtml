@@ -36,6 +36,12 @@
                     <hr />
                     <h6 class="text-muted">Rollen</h6>
 
+                    <div class="mb-2">
+                        <a asp-action="RoleOverview" class="text-decoration-none small">
+                            <i class="bi bi-info-circle"></i> Was darf welche Rolle?
+                        </a>
+                    </div>
+
                     @for (int i = 0; i < Model.AvailableRoles.Count; i++)
                     {
                         <div class="mb-2 form-check">
@@ -105,6 +111,30 @@
                             <option value="0">Alle</option>
                         </select>
                         <div class="form-text">User-Default fuer paginierte Listen. Pro-Seite-Auswahl ueberschreibt fuer die jeweilige Anzeige.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultWorkStepId" class="form-label"></label>
+                        <select asp-for="DefaultWorkStepId" class="form-select">
+                            <option value="">(keiner)</option>
+                            @foreach (var ws in Model.AvailableWorkSteps)
+                            {
+                                <option value="@ws.Id">@ws.Code — @ws.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">Wird in der FA-Abarbeitungsliste automatisch vorausgewaehlt.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultWorkplaceId" class="form-label"></label>
+                        <select asp-for="DefaultWorkplaceId" class="form-select">
+                            <option value="">(alle)</option>
+                            @foreach (var wp in Model.AvailableWorkplaces)
+                            {
+                                <option value="@wp.Id">@wp.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">Zusatzfilter in der FA-Abarbeitungsliste. (alle) = keine Vorauswahl.</div>
                     </div>
 
                     <hr />

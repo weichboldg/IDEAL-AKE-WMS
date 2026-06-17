@@ -5,7 +5,11 @@ namespace IdealAkeWms.Models;
 public enum AttributeType
 {
     Boolean = 0,
-    Dropdown = 1
+    Dropdown = 1,
+    // Text = Freitext-Merkmal. Wird AUSSCHLIESSLICH von FaAttribute* angeboten/gehandhabt
+    // (FaAttributeValue.TextValue). ArticleAttribute-UI bietet Text NICHT an —
+    // ArticleAttributeValue hat keine TextValue-Spalte.
+    Text = 2
 }
 
 public class ArticleAttributeDefinition : AuditableEntity

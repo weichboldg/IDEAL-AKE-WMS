@@ -5,7 +5,18 @@
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">FA @Model.OrderNumber</h2>
-    <a asp-action="Index" class="btn btn-outline-secondary">Zur Übersicht</a>
+    <div class="d-flex gap-3 flex-wrap align-items-center">
+        @await Html.PartialAsync("_FaDocumentLinks", new IdealAkeWms.Models.ViewModels.FaDocumentLinksViewModel
+        {
+            ArticleNumber = Model.ArticleNumber,
+            OrderNumber = Model.OrderNumber,
+            ProductionOrderId = Model.ProductionOrderId,
+            BomController = "FaCompletion",
+            EnaioLinks = Model.EnaioDmsLinks.GetValueOrDefault(Model.OrderNumber),
+            ShowEnaioLabel = true,
+        })
+        <a asp-action="Index" class="btn btn-outline-secondary">Zur Übersicht</a>
+    </div>
 </div>
 
 @if (TempData["SuccessMessage"] != null)
@@ -17,7 +28,7 @@
     <div class="alert alert-warning">@TempData["WarningMessage"]</div>
 }
 
-@* FA-Master-Info (read-only) *@
+@* FA-Master-Info (read-only) + Werkbank-Zuweisung *@
 <div class="card mb-3">
     <div class="card-body">
         <div class="row g-2">
@@ -37,235 +48,283 @@
                     <span class="badge bg-success">Offen</span>
                 }
             </div>
-            <div class="col-md-4"><strong>Fert.-Termin:</strong> @(Model.ProductionDate?.ToString("dd.MM.yyyy"))</div>
-            <div class="col-md-4"><strong>Liefertermin:</strong> @(Model.DeliveryDate?.ToString("dd.MM.yyyy"))</div>
+            <div class="col-md-4"><strong>Fert.-Termin:</strong> @Kw(Model.ProductionDate)</div>
+            <div class="col-md-4"><strong>Liefertermin:</strong> @Kw(Model.DeliveryDate)</div>
+            <div class="col-md-4">
+                <form method="post" asp-action="SetWorkplace" class="d-flex align-items-center gap-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.ProductionOrderId" />
+                    <strong>Werkbank:</strong>
+                    <select name="workplaceId" class="form-select form-select-sm w-auto"
+                            onchange="this.form.submit()">
+                        <option value="">(keine)</option>
+                        @foreach (var wp in Model.AvailableWorkplaces)
+                        {
+                            <option value="@wp.Id" selected="@(wp.Id == Model.ProductionWorkplaceId)">@wp.Name</option>
+                        }
+                    </select>
+                    @if (Model.ProductionWorkplaceId == null)
+                    {
+                        <span class="badge bg-warning text-dark">Keine Werkbank zugewiesen</span>
+                    }
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
-@* Bootstrap-Nav-Tabs - URL-state via asp-route-tab *@
-<ul class="nav nav-tabs mb-3">
-    @foreach (var t in Model.Tabs)
-    {
-        var indicator = string.Empty;
-        var badgeClass = string.Empty;
-        if (t.IsApplicable && t.IsCompleted)
-        {
-            indicator = " ✓";
-            badgeClass = "text-success";
-        }
-        else if (t.IsApplicable)
-        {
-            indicator = " ●";
-            badgeClass = "text-warning";
-        }
-        <li class="nav-item">
-            <a class="nav-link @(t.GroupKey == Model.ActiveTab ? "active" : "")"
-               asp-action="Edit" asp-route-id="@Model.ProductionOrderId" asp-route-tab="@t.GroupKey">
-                <strong>@t.GroupKey</strong> @t.GroupName<span class="@badgeClass small">@indicator</span>
-            </a>
-        </li>
-    }
-</ul>
-
-@{
-    var active = Model.Tabs.First(t => t.GroupKey == Model.ActiveTab);
+@functions {
+    string Kw(DateTime? d) => d == null
+        ? ""
+        : $"{d:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(d.Value)}";
 }
 
-<div class="tab-content">
-    <div class="tab-pane fade show active">
+@* Tab-Leiste (aktive FA-Arbeitsgaenge) + "AG hinzufuegen" *@
+<div class="d-flex justify-content-between align-items-end flex-wrap gap-2">
+    <ul class="nav nav-tabs mb-3">
+        @foreach (var t in Model.Tabs)
+        {
+            var indicator = t.IsSpecComplete ? " ✓" : " ●";
+            var badgeClass = t.IsSpecComplete ? "text-success" : "text-warning";
+            <li class="nav-item">
+                <a class="nav-link @(t.Code == Model.ActiveTab ? "active" : "")"
+                   asp-action="Edit" asp-route-id="@Model.ProductionOrderId" asp-route-tab="@t.Code">
+                    <strong>@t.Code</strong> @t.Name<span class="@badgeClass small">@indicator</span>
+                </a>
+            </li>
+        }
+    </ul>
 
-        @* Flags-Bar mit zwei Switches *@
-        <div class="d-flex flex-wrap gap-4 mb-3 align-items-center">
+    @if (Model.AvailableWorkSteps.Count > 0)
+    {
+        <form method="post" asp-action="AddWorkStep" class="d-flex align-items-center gap-2 mb-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.ProductionOrderId" />
+            <select name="workStepId" class="form-select form-select-sm w-auto">
+                @foreach (var ws in Model.AvailableWorkSteps)
+                {
+                    <option value="@ws.Id">@ws.Code — @ws.Name</option>
+                }
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">+ FA-Vorbau-AG</button>
+        </form>
+    }
+</div>
 
-            @* IsApplicable - JSON-Dispatcher an /api/assembly-groups/toggle-applicable (Phase-1-API) *@
-            <div class="form-check form-switch">
-                <input class="form-check-input toggle-field" type="checkbox"
-                       id="chkApplicable_@active.AssemblyGroupId"
-                       data-id="@Model.ProductionOrderId"
-                       data-endpoint="/api/assembly-groups/toggle-applicable"
-                       data-group-key="@active.GroupKey"
-                       @(active.IsApplicable ? "checked" : "") />
-                <label class="form-check-label" for="chkApplicable_@active.AssemblyGroupId">
-                    <strong>Anwendbar</strong> (<code>IsApplicable</code>)
-                </label>
+@{
+    var active = Model.Tabs.FirstOrDefault(t => t.Code == Model.ActiveTab);
+}
+
+@if (active == null)
+{
+    <div class="alert alert-info">
+        Für diesen FA sind noch keine FA-Vorbau-AG aktiv. Über „+ FA-Vorbau-AG" einen FA-Vorbau-Arbeitsgang hinzufügen.
+    </div>
+}
+else
+{
+    <div class="tab-content">
+        <div class="tab-pane fade show active">
+
+            @* Status-Bar: Vollstaendig-definiert-Switch + Arbeitsgang entfernen *@
+            <div class="d-flex flex-wrap gap-4 mb-3 align-items-center">
+
+                @* IsSpecComplete - Form-POST an /FaCompletion/ToggleSpecComplete (Server toggelt) *@
+                <form method="post" asp-action="ToggleSpecComplete" class="form-check form-switch m-0">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="faWorkStepId" value="@active.FaWorkStepId" />
+                    <input class="form-check-input" type="checkbox"
+                           id="chkSpecComplete_@active.FaWorkStepId"
+                           onchange="this.form.submit()"
+                           @(active.IsSpecComplete ? "checked" : "") />
+                    <label class="form-check-label" for="chkSpecComplete_@active.FaWorkStepId">
+                        <strong>Vollständig definiert</strong>
+                        @if (active.IsSpecComplete)
+                        {
+                            <span class="text-muted small">
+                                — @active.SpecCompletedBy am @active.SpecCompletedAt?.ToString("dd.MM.yyyy HH:mm")
+                            </span>
+                        }
+                        <span class="text-muted small d-block">Markiert die Merkmal-/AG-Definition als fertig — blendet die FA NICHT aus der Abarbeitungsliste aus.</span>
+                    </label>
+                </form>
+
+                @* Arbeitsgang abwaehlen (setzt IsRemoved=1, ersetzt alten IsApplicable-Toggle) *@
+                <form method="post" asp-action="RemoveWorkStep" class="m-0"
+                      onsubmit="return confirm('FA-Vorbau-AG @active.Code wirklich von diesem FA entfernen?');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.ProductionOrderId" />
+                    <input type="hidden" name="workStepId" value="@active.WorkStepId" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">FA-Vorbau-AG entfernen</button>
+                </form>
             </div>
 
-            @* IsCompleted - Form-POST an /FaCompletion/ToggleIsCompleted (Server toggelt) *@
-            <form method="post" asp-action="ToggleIsCompleted" class="form-check form-switch m-0">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="assemblyGroupId" value="@active.AssemblyGroupId" />
-                <input class="form-check-input" type="checkbox"
-                       id="chkCompleted_@active.AssemblyGroupId"
-                       onchange="this.form.submit()"
-                       @(active.IsCompleted ? "checked" : "") />
-                <label class="form-check-label" for="chkCompleted_@active.AssemblyGroupId">
-                    <strong>Vervollständigt</strong> (<code>IsCompleted</code>)
-                    @if (active.IsCompleted)
-                    {
-                        <span class="text-muted small">
-                            — @active.CompletedBy am @active.CompletedAt?.ToString("dd.MM.yyyy HH:mm")
-                        </span>
-                    }
-                </label>
-            </form>
-        </div>
-
-        @* Spec-Tabelle: bestehende Specs als inline-editable Form-Rows *@
-        <div class="table-responsive">
-            <table class="table table-striped align-middle">
-                <thead>
-                    <tr>
-                        <th style="width: 22%;">Artikel</th>
-                        <th>Beschreibung</th>
-                        <th style="width: 10%;">Menge</th>
-                        <th style="width: 18%;">Notizen</th>
-                        <th style="width: 80px;">Sort.</th>
-                        <th style="width: 170px;"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (active.Specs.Count == 0)
-                    {
-                        <tr>
-                            <td colspan="6" class="text-center text-muted small py-2">
-                                Noch keine Ausprägungen für diese Baugruppe.
-                            </td>
-                        </tr>
-                    }
-
-                    @foreach (var spec in active.Specs)
-                    {
-                        var formId = $"frmEditSpec_{spec.Id}";
-                        <tr>
-                            @* EditSpec-Form liegt im 1. TD; weitere Inputs referenzieren sie via HTML5 form="..."-Attribut *@
-                            <td>
-                                <form method="post" asp-action="EditSpec" id="@formId" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="Id" value="@spec.Id" />
-                                    <input type="hidden" name="AssemblyGroupId" value="@spec.AssemblyGroupId" />
-                                    <select name="ArticleId" class="form-select form-select-sm select2-article"
-                                            data-pre-id="@(spec.ArticleId.HasValue ? spec.ArticleId.Value.ToString() : "")"
-                                            data-pre-text="@(spec.ArticleText ?? "")">
-                                        @if (spec.ArticleId.HasValue)
-                                        {
-                                            <option value="@spec.ArticleId" selected>@spec.ArticleText</option>
-                                        }
-                                    </select>
-                                </form>
-                            </td>
-                            <td>
-                                <input form="@formId" name="Description" class="form-control form-control-sm"
-                                       value="@spec.Description" maxlength="500" required />
-                            </td>
-                            <td>
-                                <input form="@formId" name="Quantity" type="number" step="0.001"
-                                       class="form-control form-control-sm"
-                                       value="@(spec.Quantity?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
-                            </td>
-                            <td>
-                                <input form="@formId" name="Notes" class="form-control form-control-sm"
-                                       value="@spec.Notes" />
-                            </td>
-                            <td>
-                                <input form="@formId" name="SortOrder" type="number"
-                                       class="form-control form-control-sm" value="@spec.SortOrder" />
-                            </td>
-                            <td class="text-nowrap">
-                                <button type="submit" form="@formId" class="btn btn-sm btn-outline-primary">
-                                    Speichern
-                                </button>
-                                <form method="post" asp-action="DeleteSpec" class="d-inline"
-                                      onsubmit="return confirm('Ausprägung wirklich löschen?');">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="id" value="@spec.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
-                                </form>
-                            </td>
-                        </tr>
-                    }
-
-                    @* Inline-Add-Row als letzte tbody-Zeile (eigene <form> ueber das colspan-TD) *@
-                    <tr class="table-light">
-                        <td colspan="6">
-                            <form method="post" asp-action="AddSpec" class="row g-2 align-items-end">
+            @* Merkmal-Block: dem Arbeitsgang zugeordnete Merkmale, onchange-Submit auf SaveAttributeValue *@
+            @if (active.Attributes.Count > 0)
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Merkmale</div>
+                    <div class="card-body">
+                        @foreach (var attr in active.Attributes)
+                        {
+                            <form asp-action="SaveAttributeValue" method="post" class="row g-2 align-items-center mb-2">
                                 @Html.AntiForgeryToken()
-                                <input type="hidden" name="AssemblyGroupId" value="@active.AssemblyGroupId" />
-
-                                <div class="col-md-3">
-                                    <label class="form-label small mb-0">Artikel</label>
-                                    <select name="ArticleId" class="form-select form-select-sm select2-article"
-                                            data-pre-id="" data-pre-text=""></select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small mb-0">Beschreibung *</label>
-                                    <input name="Description" class="form-control form-control-sm"
-                                           required maxlength="500" placeholder="Ausprägung beschreiben" />
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label small mb-0">Menge</label>
-                                    <input name="Quantity" type="number" step="0.001" class="form-control form-control-sm" />
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label small mb-0">Notizen</label>
-                                    <input name="Notes" class="form-control form-control-sm" />
-                                </div>
-                                <div class="col-md-1">
-                                    <label class="form-label small mb-0">Sort.</label>
-                                    <input name="SortOrder" type="number" class="form-control form-control-sm" value="0" />
-                                </div>
-                                <div class="col-md-1">
-                                    <button type="submit" class="btn btn-primary btn-sm w-100" title="Hinzufügen">
-                                        +
-                                    </button>
+                                <input type="hidden" name="id" value="@Model.ProductionOrderId" />
+                                <input type="hidden" name="definitionId" value="@attr.DefinitionId" />
+                                <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                                <label class="col-sm-3 col-form-label">@attr.Name</label>
+                                <div class="col-sm-6">
+                                    @if (attr.AttributeType == AttributeType.Dropdown)
+                                    {
+                                        <select name="optionId" class="form-select" onchange="this.form.submit()">
+                                            <option value="">(leer)</option>
+                                            @foreach (var opt in attr.Options.Where(o => o.IsActive || o.Id == attr.SelectedOptionId))
+                                            {
+                                                <option value="@opt.Id" selected="@(opt.Id == attr.SelectedOptionId)">@opt.Value</option>
+                                            }
+                                        </select>
+                                    }
+                                    else if (attr.AttributeType == AttributeType.Text)
+                                    {
+                                        <input type="text" name="textValue" class="form-control" maxlength="1000"
+                                               value="@attr.TextValue" placeholder="(leer)"
+                                               onchange="this.form.submit()" />
+                                    }
+                                    else
+                                    {
+                                        <select name="boolValue" class="form-select" onchange="this.form.submit()">
+                                            <option value="">(leer)</option>
+                                            <option value="true" selected="@(attr.BooleanValue == true)">JA</option>
+                                            <option value="false" selected="@(attr.BooleanValue == false)">NEIN</option>
+                                        </select>
+                                    }
                                 </div>
                             </form>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                        }
+                    </div>
+                </div>
+            }
 
+            @* Spec-Tabelle: bestehende Specs als inline-editable Form-Rows *@
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 22%;">Artikel</th>
+                            <th>Beschreibung</th>
+                            <th style="width: 10%;">Menge</th>
+                            <th style="width: 18%;">Notizen</th>
+                            <th style="width: 80px;">Sort.</th>
+                            <th style="width: 170px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (active.Specs.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted small py-2">
+                                    Noch keine Ausprägungen für diesen FA-Vorbau-Arbeitsgang.
+                                </td>
+                            </tr>
+                        }
+
+                        @foreach (var spec in active.Specs)
+                        {
+                            var formId = $"frmEditSpec_{spec.Id}";
+                            <tr>
+                                @* EditSpec-Form liegt im 1. TD; weitere Inputs referenzieren sie via HTML5 form="..."-Attribut *@
+                                <td>
+                                    <form method="post" asp-action="EditSpec" id="@formId" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="Id" value="@spec.Id" />
+                                        <input type="hidden" name="FaWorkStepId" value="@spec.FaWorkStepId" />
+                                        <select name="ArticleId" class="form-select form-select-sm select2-article"
+                                                data-pre-id="@(spec.ArticleId.HasValue ? spec.ArticleId.Value.ToString() : "")"
+                                                data-pre-text="@(spec.ArticleText ?? "")">
+                                            @if (spec.ArticleId.HasValue)
+                                            {
+                                                <option value="@spec.ArticleId" selected>@spec.ArticleText</option>
+                                            }
+                                        </select>
+                                    </form>
+                                </td>
+                                <td>
+                                    <input form="@formId" name="Description" class="form-control form-control-sm"
+                                           value="@spec.Description" maxlength="500" required />
+                                </td>
+                                <td>
+                                    <input form="@formId" name="Quantity" type="number" step="0.001"
+                                           class="form-control form-control-sm"
+                                           value="@(spec.Quantity?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+                                </td>
+                                <td>
+                                    <input form="@formId" name="Notes" class="form-control form-control-sm"
+                                           value="@spec.Notes" />
+                                </td>
+                                <td>
+                                    <input form="@formId" name="SortOrder" type="number"
+                                           class="form-control form-control-sm" value="@spec.SortOrder" />
+                                </td>
+                                <td class="text-nowrap">
+                                    <button type="submit" form="@formId" class="btn btn-sm btn-outline-primary">
+                                        Speichern
+                                    </button>
+                                    <form method="post" asp-action="DeleteSpec" class="d-inline"
+                                          onsubmit="return confirm('Ausprägung wirklich löschen?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@spec.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+
+                        @* Inline-Add-Row als letzte tbody-Zeile (eigene <form> ueber das colspan-TD) *@
+                        <tr class="table-light">
+                            <td colspan="6">
+                                <form method="post" asp-action="AddSpec" class="row g-2 align-items-end">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="FaWorkStepId" value="@active.FaWorkStepId" />
+
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-0">Artikel</label>
+                                        <select name="ArticleId" class="form-select form-select-sm select2-article"
+                                                data-pre-id="" data-pre-text=""></select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-0">Beschreibung *</label>
+                                        <input name="Description" class="form-control form-control-sm"
+                                               required maxlength="500" placeholder="Ausprägung beschreiben" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small mb-0">Menge</label>
+                                        <input name="Quantity" type="number" step="0.001" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small mb-0">Notizen</label>
+                                        <input name="Notes" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-1">
+                                        <label class="form-label small mb-0">Sort.</label>
+                                        <input name="SortOrder" type="number" class="form-control form-control-sm" value="0" />
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="submit" class="btn btn-primary btn-sm w-100" title="Hinzufügen">
+                                            +
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
     </div>
-</div>
+}
 
 @section Scripts {
     @* Select2 fuer Article-Suche (verwendet bestehenden /api/articles/search Endpoint via _Select2ArticlePartial) *@
     <partial name="_Select2ArticlePartial" />
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // IsApplicable-Toggle - JSON-Dispatcher (Pattern analog PickingLeitstand/Index)
-            document.querySelectorAll('.toggle-field').forEach(function (cb) {
-                cb.addEventListener('change', function () {
-                    var id = parseInt(this.getAttribute('data-id'));
-                    var endpoint = this.getAttribute('data-endpoint');
-                    var groupKey = this.getAttribute('data-group-key');
-                    var value = this.checked;
-
-                    if (endpoint !== '/api/assembly-groups/toggle-applicable') {
-                        console.error('Unknown toggle-field endpoint:', endpoint);
-                        cb.checked = !value;
-                        return;
-                    }
-
-                    var body = { productionOrderId: id, groupKey: groupKey, value: value };
-
-                    fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    }).then(function (resp) {
-                        if (!resp.ok) {
-                            cb.checked = !value;
-                            alert('Fehler beim Speichern.');
-                        }
-                    }).catch(function () {
-                        cb.checked = !value;
-                        alert('Fehler beim Speichern.');
-                    });
-                });
-            });
-        });
-    </script>
 }

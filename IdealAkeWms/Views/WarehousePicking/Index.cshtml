@@ -42,16 +42,16 @@
 else
 {
     <div class="table-responsive">
-    <table class="table table-sm filterable-table">
+    <table class="table table-sm filterable-table" data-server-column-filter="true" data-view-key="WarehousePicking">
         <thead>
             <tr>
-                <th data-col-key="id">#</th>
-                <th data-col-key="workplace">Werkbank</th>
-                <th data-col-key="creator">Erfasser</th>
-                <th data-col-key="submitted">Submit</th>
-                <th data-col-key="items">Pos</th>
-                <th data-col-key="status">Status</th>
-                <th></th>
+                <th data-filterable data-col-key="id">#</th>
+                <th data-filterable data-col-key="workplace">Werkbank</th>
+                <th data-filterable data-col-key="creator">Erfasser</th>
+                <th data-filterable data-col-key="submitted">Submit</th>
+                <th data-filterable data-col-key="items">Pos</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-col-key="actions"></th>
             </tr>
         </thead>
         <tbody>
@@ -80,4 +80,9 @@ else
     </div>
 
     <partial name="_Pagination" model="Model.Pagination" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

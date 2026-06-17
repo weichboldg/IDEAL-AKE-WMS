@@ -1,10 +1,12 @@
 @model List<StorageLocation>
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Lagerplätze";
     var showInactive = (bool?)ViewBag.ShowInactive == true;
     var onlyBookable = (bool?)ViewBag.OnlyBookable == true;
     var hasInactive = (bool?)ViewBag.HasInactive == true;
     var hasNonBookable = (bool?)ViewBag.HasNonBookable == true;
+    var canEdit = await _user.HasMasterDataAccessAsync();
     // Spalten: code, description, zone, capacity, type, source, bookable, [is-active], created-at, actions
     var colCount = showInactive ? 10 : 9;
 }
@@ -13,9 +15,17 @@
     <h2 class="page-header mb-0">Lagerplätze</h2>
     <div class="d-flex gap-2">
         <a asp-action="PrintLabels" class="btn btn-secondary">Alle Etiketten drucken</a>
-        <a asp-action="Create" class="btn btn-primary">Neuen Lagerplatz anlegen</a>
+        @if (canEdit)
+        {
+            <a asp-action="Create" class="btn btn-primary">Neuen Lagerplatz anlegen</a>
+        }
     </div>
 </div>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
 
 @if (hasInactive || hasNonBookable)
 {
@@ -50,7 +60,7 @@
 }
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true">
         <thead>
             <tr>
                 <th data-filterable data-col-key="code">Code</th>
@@ -65,7 +75,7 @@
                     <th data-filterable data-col-key="is-active">Aktiv</th>
                 }
                 <th data-filterable data-col-key="created-at">Erstellt am</th>
-                <th style="width: 100px;"></th>
+                <th data-col-key="actions" style="width: 100px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -109,7 +119,10 @@
                                 <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1v-2h8v2a1 1 0 0 1-1 1z"/>
                             </svg>
                         </a>
-                        <a asp-action="Edit" asp-route-id="@location.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                        @if (canEdit)
+                        {
+                            <a asp-action="Edit" asp-route-id="@location.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                        }
                     </td>
                 </tr>
             }

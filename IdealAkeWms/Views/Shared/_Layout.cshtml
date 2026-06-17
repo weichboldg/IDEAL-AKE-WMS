@@ -29,6 +29,7 @@
                     <ul class="navbar-nav me-auto">
                         @{
                             var canAccessStock = await CurrentUserService.CanAccessStockAsync();
+                            var canProcessLager = await CurrentUserService.CanProcessLagerAsync();
                             var canPick = await CurrentUserService.CanPickAsync();
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -41,6 +42,10 @@
                             var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
                             var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
                             var faCompletionAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                            var hasVorbauAccess = await CurrentUserService.HasVorbauAccessAsync();
+                            var showFaList = canPick || canViewTracking || canManagePickingRelease;
+                            var showFaCompletion = faCompletionAktiv && canFaCompletion;
+                            var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
                         }
                         @if (canAccessStock || canPick)
                         {
@@ -64,11 +69,29 @@
                                 </ul>
                             </li>
                         }
-                        @* Phase 2: FA-Übersicht (slim) — für Picker/Tracker/Leitstand sichtbar *@
-                        @if (canPick || canViewTracking || canManagePickingRelease)
+                        @* Fertigungsauftraege — Dropdown (v1.22.0): FA-Liste (Picker/Tracker/Leitstand),
+                           FA-Vervollstaendigen (FaCompletionAktiv + fa_completion),
+                           FA-Abarbeitungsliste (FaCompletionAktiv + vorbau) *@
+                        @if (showFaList || showFaCompletion || showFaWorklist)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="ProductionOrders" asp-action="Index">Fertigungsaufträge</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "ProductionOrders" or "FaCompletion" or "FaWorklist") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Fertigungsaufträge
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @if (showFaList)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="ProductionOrders" asp-action="Index">FA-Liste</a></li>
+                                    }
+                                    @if (showFaCompletion)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaCompletion" asp-action="Index">FA-Vervollständigen</a></li>
+                                    }
+                                    @if (showFaWorklist)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaWorklist" asp-action="Index">FA-Abarbeitungsliste</a></li>
+                                    }
+                                </ul>
                             </li>
                         }
 
@@ -97,14 +120,6 @@
                                 </a>
                             </li>
                         }
-                        @* FA-Vervollstaendigung — gated by AppSetting FaCompletionAktiv + Role *@
-                        @if (faCompletionAktiv && canFaCompletion)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaCompletion" ? "active" : "")"
-                                   asp-controller="FaCompletion" asp-action="Index">FA-Vervollst&auml;ndigung</a>
-                            </li>
-                        }
                         @if (bestellungenAktiv && (canPick || canAccessStock))
                         {
                             <li class="nav-item dropdown">
@@ -114,11 +129,12 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
-                                    <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Fehlteile</a></li>
-                                    @if (canAccessStock)
+                                    <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
+                                    @if (canProcessLager)
                                     {
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Lager: Fehlteile</a></li>
                                     }
                                 </ul>
                             </li>
@@ -150,7 +166,7 @@
                                         <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
                                         <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
                                     }
-                                    @if (await CurrentUserService.HasMasterDataAccessAsync())
+                                    @if (await CurrentUserService.IsAdminAsync())
                                     {
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="BdeShiftCalendar" asp-action="Index">Schichtkalender</a></li>
@@ -169,38 +185,45 @@
                                 </ul>
                             </li>
                         }
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Stammdaten
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Artikel</a></li>
-                                <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
-                                @if (await CurrentUserService.HasMasterDataAccessAsync())
-                                {
-                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                    <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
+                        @{
+                            var isAdmin = await CurrentUserService.IsAdminAsync();
+                            var hasMasterDataRead = await CurrentUserService.HasMasterDataReadAccessAsync();
+                        }
+                        @if (hasMasterDataRead)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Stammdaten
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @* masterdata_read + masterdata sichtbar *@
+                                    <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Artikel</a></li>
+                                    <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
                                     <li><a class="dropdown-item" asp-controller="ProductionWorkplaces" asp-action="Index">Werkbänke</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
                                     <li><a class="dropdown-item" asp-controller="ArticleCategories" asp-action="Index">Artikelkategorien</a></li>
                                     <li><a class="dropdown-item" asp-controller="ArticleAttributes" asp-action="Index">Artikelmerkmale</a></li>
-                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
-                                    @if (await CurrentUserService.IsAdminAsync())
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
-                                    }
-                                    <li><a class="dropdown-item" asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a></li>
+                                    <li><a class="dropdown-item" asp-controller="WorkSteps" asp-action="Index">FA-Vorbau-AG</a></li>
+                                    <li><a class="dropdown-item" asp-controller="FaAttributes" asp-action="Index">FA-Merkmale</a></li>
                                     @if (bestellungenAktiv)
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="Index">Empfänger</a></li>
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="ArticleGroupMappings">Artikelgruppen-Zuordnung</a></li>
                                     }
-                                }
-                            </ul>
-                        </li>
+                                    @* Admin-only Sub-Bloecke *@
+                                    @if (isAdmin)
+                                    {
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
+                                        <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a></li>
+                                    }
+                                </ul>
+                            </li>
+                        }
                     </ul>
                     @* Desktop: user dropdown in navbar *@
                     <span class="user-info d-none d-lg-inline">

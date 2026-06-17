@@ -19,9 +19,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
-    public DbSet<ProductionOrderAssemblyGroup> ProductionOrderAssemblyGroups => Set<ProductionOrderAssemblyGroup>();
-    public DbSet<ProductionOrderAssemblyGroupSpec> ProductionOrderAssemblyGroupSpecs => Set<ProductionOrderAssemblyGroupSpec>();
-    public DbSet<ProductionWorkplaceAssemblyGroup> ProductionWorkplaceAssemblyGroups => Set<ProductionWorkplaceAssemblyGroup>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
@@ -55,6 +52,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
     public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
+    public DbSet<WorkStep> WorkSteps => Set<WorkStep>();
+    public DbSet<FaWorkStep> FaWorkSteps => Set<FaWorkStep>();
+    public DbSet<FaWorkStepSpec> FaWorkStepSpecs => Set<FaWorkStepSpec>();
+    public DbSet<FaAttributeDefinition> FaAttributeDefinitions => Set<FaAttributeDefinition>();
+    public DbSet<FaAttributeOption> FaAttributeOptions => Set<FaAttributeOption>();
+    public DbSet<FaAttributeWorkStep> FaAttributeWorkSteps => Set<FaAttributeWorkStep>();
+    public DbSet<FaAttributeValue> FaAttributeValues => Set<FaAttributeValue>();
+    public DbSet<ProductionWorkplaceWorkStep> ProductionWorkplaceWorkSteps => Set<ProductionWorkplaceWorkStep>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +78,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasOne(e => e.DefaultWorkStep)
+                .WithMany()
+                .HasForeignKey(e => e.DefaultWorkStepId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.DefaultWorkplace)
+                .WithMany()
+                .HasForeignKey(e => e.DefaultWorkplaceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Role
@@ -417,33 +432,62 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // ProductionOrderAssemblyGroup (Phase 1 — Spec 5.2)
-        modelBuilder.Entity<ProductionOrderAssemblyGroup>(entity =>
+        // ProductionOrderAssemblyGroups + ProductionOrderAssemblyGroupSpecs entfernt in
+        // v1.22.0 — ersetzt durch FaWorkSteps/FaWorkStepSpecs (daten-erhaltende Migration
+        // FaWorkStepsAndAttributes, siehe Spec 2026-06-12).
+
+        // ProductionWorkplaceAssemblyGroup (Phase-1-Platzhalter, nie im Code genutzt) entfernt
+        // in v1.22.0 — ersetzt durch ProductionWorkplaceWorkSteps (N:M Werkbank↔Arbeitsgang).
+        // Die DB-Tabelle wird von der Migration FaWorkStepsAndAttributes per guarded Sql
+        // gedroppt (nicht via Snapshot-Diff, da sie nicht mehr im EF-Model enthalten ist).
+
+        // WorkStep (FA-Vorbau v1.22.0)
+        modelBuilder.Entity<WorkStep>(entity =>
         {
-            entity.ToTable("ProductionOrderAssemblyGroups");
+            entity.ToTable("WorkSteps");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.GroupKey).HasMaxLength(10).IsRequired();
-            entity.Property(e => e.CompletedBy).HasMaxLength(200);
+            entity.Property(e => e.Code).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.SearchString).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
-            entity.HasIndex(e => new { e.ProductionOrderId, e.GroupKey }).IsUnique()
-                .HasDatabaseName("UQ_ProductionOrderAssemblyGroups_PO_Key");
-            entity.HasIndex(e => new { e.GroupKey, e.IsApplicable })
-                .HasDatabaseName("IX_ProductionOrderAssemblyGroups_GroupKey_IsApplicable");
-
-            entity.HasOne(e => e.ProductionOrder)
-                .WithMany(p => p.AssemblyGroups)
-                .HasForeignKey(e => e.ProductionOrderId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.Code).IsUnique();
         });
 
-        // ProductionOrderAssemblyGroupSpec (Phase 1 — Spec 5.2)
-        modelBuilder.Entity<ProductionOrderAssemblyGroupSpec>(entity =>
+        // FaWorkStep (FA-Vorbau v1.22.0)
+        modelBuilder.Entity<FaWorkStep>(entity =>
         {
-            entity.ToTable("ProductionOrderAssemblyGroupSpecs");
+            entity.ToTable("FaWorkSteps");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Source).HasMaxLength(20);
+            entity.Property(e => e.CompletedBy).HasMaxLength(200);
+            entity.Property(e => e.SpecCompletedBy).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.ProductionOrderId, e.WorkStepId }).IsUnique();
+            entity.HasIndex(e => e.WorkStepId);
+            entity.HasIndex(e => new { e.ProductionOrderId, e.IsRemoved });
+
+            entity.HasOne(e => e.ProductionOrder)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.WorkStep)
+                .WithMany()
+                .HasForeignKey(e => e.WorkStepId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // FaWorkStepSpec (FA-Vorbau v1.22.0)
+        modelBuilder.Entity<FaWorkStepSpec>(entity =>
+        {
+            entity.ToTable("FaWorkStepSpecs");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Description).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)");
@@ -453,15 +497,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
-            entity.HasIndex(e => e.AssemblyGroupId)
-                .HasDatabaseName("IX_ProductionOrderAssemblyGroupSpecs_AssemblyGroupId");
-            entity.HasIndex(e => e.ArticleId)
-                .HasFilter("[ArticleId] IS NOT NULL")
-                .HasDatabaseName("IX_ProductionOrderAssemblyGroupSpecs_ArticleId");
+            entity.HasIndex(e => e.FaWorkStepId);
 
-            entity.HasOne(e => e.AssemblyGroup)
-                .WithMany(g => g.Specs)
-                .HasForeignKey(e => e.AssemblyGroupId)
+            entity.HasOne(e => e.FaWorkStep)
+                .WithMany(f => f.Specs)
+                .HasForeignKey(e => e.FaWorkStepId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Article)
                 .WithMany()
@@ -469,23 +509,105 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        // ProductionWorkplaceAssemblyGroup (Phase 1 — Spec 5.2)
-        modelBuilder.Entity<ProductionWorkplaceAssemblyGroup>(entity =>
+        // FaAttributeDefinition (FA-Vorbau v1.22.0)
+        modelBuilder.Entity<FaAttributeDefinition>(entity =>
         {
-            entity.ToTable("ProductionWorkplaceAssemblyGroups");
+            entity.ToTable("FaAttributeDefinitions");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.GroupKey).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+        });
+
+        // FaAttributeOption (FA-Vorbau v1.22.0)
+        modelBuilder.Entity<FaAttributeOption>(entity =>
+        {
+            entity.ToTable("FaAttributeOptions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Value).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
-            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.GroupKey }).IsUnique()
-                .HasDatabaseName("UQ_ProductionWorkplaceAssemblyGroups_WP_Key");
+            entity.HasIndex(e => e.FaAttributeDefinitionId);
+
+            entity.HasOne(e => e.Definition)
+                .WithMany(d => d.Options)
+                .HasForeignKey(e => e.FaAttributeDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // FaAttributeWorkStep (FA-Vorbau v1.22.0, N:M Junction)
+        modelBuilder.Entity<FaAttributeWorkStep>(entity =>
+        {
+            entity.ToTable("FaAttributeWorkSteps");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.FaAttributeDefinitionId, e.WorkStepId }).IsUnique();
+
+            entity.HasOne(e => e.Definition)
+                .WithMany(d => d.WorkSteps)
+                .HasForeignKey(e => e.FaAttributeDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.WorkStep)
+                .WithMany()
+                .HasForeignKey(e => e.WorkStepId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // FaAttributeValue (FA-Vorbau v1.22.0)
+        modelBuilder.Entity<FaAttributeValue>(entity =>
+        {
+            entity.ToTable("FaAttributeValues");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.TextValue).HasMaxLength(1000);
+
+            entity.HasIndex(e => new { e.ProductionOrderId, e.FaAttributeDefinitionId }).IsUnique();
+
+            entity.HasOne(e => e.ProductionOrder)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Definition)
+                .WithMany()
+                .HasForeignKey(e => e.FaAttributeDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.SelectedOption)
+                .WithMany()
+                .HasForeignKey(e => e.SelectedOptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ProductionWorkplaceWorkStep (FA-Vorbau v1.22.0, N:M Junction)
+        modelBuilder.Entity<ProductionWorkplaceWorkStep>(entity =>
+        {
+            entity.ToTable("ProductionWorkplaceWorkSteps");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.WorkStepId }).IsUnique();
 
             entity.HasOne(e => e.ProductionWorkplace)
                 .WithMany()
                 .HasForeignKey(e => e.ProductionWorkplaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.WorkStep)
+                .WithMany()
+                .HasForeignKey(e => e.WorkStepId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

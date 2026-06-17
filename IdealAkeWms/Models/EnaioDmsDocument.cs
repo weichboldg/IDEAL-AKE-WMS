@@ -7,7 +7,9 @@ public class EnaioDmsDocument : AuditableEntity
     /// <summary>enaio object1.id</summary>
     public long EnaioDmsObjectId { get; set; }
 
-    /// <summary>"Werkstattauftrag" oder "Zeichnung" (object1.feld1)</summary>
+    /// <summary>enaio-Typ aus vw_IDEAL-AKE_Fertigungsauftraege.Typ: "Werkstattauftrag",
+    /// "Werkstattauftrag+Zeichnung" (Zeichnung direkt am WA, eigenes Icon, zuerst angezeigt)
+    /// oder "Zeichnung".</summary>
     [Required]
     [MaxLength(100)]
     public string DocumentType { get; set; } = string.Empty;

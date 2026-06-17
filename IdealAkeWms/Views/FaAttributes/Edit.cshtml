@@ -1,0 +1,151 @@
+@model IdealAkeWms.Models.ViewModels.FaAttributeEditViewModel
+@{
+    ViewData["Title"] = "FA-Merkmal bearbeiten";
+    var def = Model.Definition;
+}
+
+<h2 class="page-header">FA-Merkmal bearbeiten</h2>
+
+<div class="row">
+    <div class="col-md-6 col-lg-5 mb-4">
+        <div class="card">
+            <div class="card-header">Merkmal</div>
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@def.Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" value="@def.Name" class="form-control" maxlength="200" required />
+                        <span asp-validation-for="Definition.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Typ</label>
+                        <div>
+                            @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
+                            {
+                                <span class="badge bg-primary">Boolean (Ja/Nein)</span>
+                            }
+                            else if (def.AttributeType == IdealAkeWms.Models.AttributeType.Text)
+                            {
+                                <span class="badge bg-info">Text (Freitext)</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Dropdown (Auswahlliste)</span>
+                            }
+                        </div>
+                        <div class="form-text">Typ kann nach Erstellung nicht geaendert werden.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reihenfolge</label>
+                        <input type="number" name="sortOrder" value="@def.SortOrder" class="form-control" />
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        @* Boolean-Checkbox-Fallstrick: Hidden traegt den name, Checkbox synct via onchange. *@
+                        <input type="hidden" name="isActive" value="@(def.IsActive ? "true" : "false")" id="hidden-is-active" />
+                        <input type="checkbox" class="form-check-input" role="switch" id="check-is-active"
+                               @(def.IsActive ? "checked" : "")
+                               onchange="document.getElementById('hidden-is-active').value = this.checked ? 'true' : 'false'" />
+                        <label class="form-check-label" for="check-is-active">Aktiv</label>
+                        <div class="form-text">Inaktive Merkmale werden in der FA-Vervollstaendigung nicht mehr angeboten.</div>
+                    </div>
+
+                    <hr />
+                    <h6 class="text-muted">Zugeordnete FA-Vorbau-AG</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bei diesen Vorbaugruppen wird das Merkmal abgefragt</label>
+                        @if (!Model.AllWorkSteps.Any())
+                        {
+                            <div class="form-text">Keine aktiven FA-Vorbau-AG vorhanden.</div>
+                        }
+                        @foreach (var ws in Model.AllWorkSteps)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="workStepIds" value="@ws.Id"
+                                       id="ws_@ws.Id" @(Model.SelectedWorkStepIds.Contains(ws.Id) ? "checked" : "") />
+                                <label class="form-check-label" for="ws_@ws.Id">@ws.Code — @ws.Name</label>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Dropdown)
+    {
+        <div class="col-md-6 col-lg-5 mb-4">
+            <div class="card">
+                <div class="card-header">Dropdown-Optionen (@def.Options.Count)</div>
+                <div class="card-body">
+                    @if (def.Options.Any())
+                    {
+                        <ul class="list-group list-group-flush mb-3">
+                            @foreach (var opt in def.Options.OrderBy(o => o.SortOrder).ThenBy(o => o.Value))
+                            {
+                                <li class="list-group-item px-0">
+                                    <form asp-action="UpdateOption" method="post" class="d-flex gap-2 align-items-center flex-wrap" id="form-opt-@opt.Id">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@opt.Id" />
+                                        <input type="hidden" name="definitionId" value="@def.Id" />
+                                        <input type="text" name="value" value="@opt.Value" class="form-control form-control-sm" required style="max-width: 200px;" />
+                                        <input type="number" name="sortOrder" value="@opt.SortOrder" class="form-control form-control-sm text-center" style="width: 80px;" title="Reihenfolge" />
+                                        <div class="form-check mb-0">
+                                            @* Boolean-Checkbox-Fallstrick: Hidden traegt den name, Checkbox synct via onchange. *@
+                                            <input type="hidden" name="isActive" value="@(opt.IsActive ? "true" : "false")" id="hidden-opt-active-@opt.Id" />
+                                            <input type="checkbox" class="form-check-input" id="check-opt-active-@opt.Id"
+                                                   @(opt.IsActive ? "checked" : "")
+                                                   onchange="document.getElementById('hidden-opt-active-@opt.Id').value = this.checked ? 'true' : 'false'" />
+                                            <label class="form-check-label small" for="check-opt-active-@opt.Id">Aktiv</label>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Speichern">Speichern</button>
+                                    </form>
+                                    <form asp-action="DeleteOption" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@opt.Id" />
+                                        <input type="hidden" name="definitionId" value="@def.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger mt-1" title="Option loeschen"
+                                                onclick="return confirm('Option \'@opt.Value\' wirklich loeschen?');">
+                                            Löschen
+                                        </button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small">Keine Optionen definiert.</p>
+                    }
+
+                    <form asp-action="AddOption" method="post" class="d-flex gap-2 align-items-end">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="definitionId" value="@def.Id" />
+                        <input type="text" name="value" class="form-control form-control-sm" placeholder="Neuer Wert" required style="max-width: 200px;" />
+                        <input type="number" name="sortOrder" value="@(def.Options.Any() ? def.Options.Max(o => o.SortOrder) + 1 : 1)" class="form-control form-control-sm text-center" style="width: 80px;" title="Reihenfolge" />
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Hinzufuegen</button>
+                    </form>
+                    <div class="form-text mt-2">
+                        Optionen, die bereits an Fertigungsauftraegen verwendet werden, koennen nicht geloescht werden — stattdessen deaktivieren.
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

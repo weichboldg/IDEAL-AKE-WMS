@@ -1,3 +1,5 @@
+using IdealAkeWms.Models;
+
 namespace IdealAkeWms.Models.ViewModels;
 
 public record MissingPartRow(
@@ -13,4 +15,7 @@ public record MissingPartRow(
     string? Unit,
     string? Note,
     string CreatedBy,
-    DateTime? ClosedAt);
+    DateTime? ClosedAt,
+    ShortageStatus Status,
+    string? NoteEinkauf,
+    string? StorageLocations = null);

@@ -14,13 +14,14 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>
 /// Controller-Tests fuer den neuen <see cref="PickingLeitstandController"/> (Phase 2 / v1.12.0).
 /// Migriert die 12 Tests aus <c>ProductionOrdersControllerPickerTests</c> auf den neuen
-/// Controller; ergaenzt um Index-Test fuer Rich-ViewModel + AssemblyGroup-Pivot (Spec 11. Phase 2 Task 9).
+/// Controller; ergaenzt um Index-Test fuer Rich-ViewModel + WorkStep-Pivot
+/// (seit v1.22.0 aus <see cref="IFaWorkStepRepository"/> statt AssemblyGroups).
 /// </summary>
 public class PickingLeitstandControllerTests
 {
     private readonly Mock<IProductionOrderRepository> _orderRepo = new();
     private readonly Mock<IProductionOrderPickingStatusRepository> _pickingStatusRepo = new();
-    private readonly Mock<IProductionOrderAssemblyGroupRepository> _assemblyGroupRepo = new();
+    private readonly Mock<IFaWorkStepRepository> _faWorkStepRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
     private readonly Mock<IAppSettingRepository> _settingRepo = new();
     private readonly Mock<IHolidayRepository> _holidayRepo = new();
@@ -46,7 +47,7 @@ public class PickingLeitstandControllerTests
         _controller = new PickingLeitstandController(
             _orderRepo.Object,
             _pickingStatusRepo.Object,
-            _assemblyGroupRepo.Object,
+            _faWorkStepRepo.Object,
             _currentUser.Object,
             _settingRepo.Object,
             _holidayRepo.Object,
@@ -98,8 +99,8 @@ public class PickingLeitstandControllerTests
 
     // --- Index Tests ---
 
-    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null) =>
-        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, null);
+    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null, bool isDonePicking = false) =>
+        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, isDonePicking, null);
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);
@@ -123,11 +124,21 @@ public class PickingLeitstandControllerTests
                 { 2, ps2 }
             });
 
-        _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
-            .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>
+        // Detail-Pivot: Code -> Cell(FaWorkStepId, IsCompleted). Fehlender Code = AG nicht anwendbar.
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>
             {
-                { 1, new Dictionary<string, bool> { { "VK", true }, { "VL", false }, { "VE", true }, { "VT", false }, { "VA", false } } },
-                { 2, new Dictionary<string, bool> { { "VK", false }, { "VL", true }, { "VE", false }, { "VT", true }, { "VA", true } } }
+                { 1, new Dictionary<string, FaWorkStepPivotCell>
+                    {
+                        { "VK", new FaWorkStepPivotCell(101, true) },
+                        { "VE", new FaWorkStepPivotCell(103, false) }
+                    } },
+                { 2, new Dictionary<string, FaWorkStepPivotCell>
+                    {
+                        { "VL", new FaWorkStepPivotCell(202, true) },
+                        { "VT", new FaWorkStepPivotCell(204, false) },
+                        { "VA", new FaWorkStepPivotCell(205, true) }
+                    } }
             });
 
         _currentUser.Setup(u => u.CanPickAsync()).ReturnsAsync(true);
@@ -143,16 +154,20 @@ public class PickingLeitstandControllerTests
         item1.IsReleasedForPicking.Should().BeTrue();
         item1.PickingPriority.Should().Be(1);
         item1.HasGlass.Should().BeTrue();
-        item1.HasCooling.Should().BeTrue();        // VK
-        item1.HasElectric.Should().BeTrue();       // VE
-        item1.HasFan.Should().BeFalse();
+        item1.WorkSteps.Should().ContainKey("VK");
+        item1.WorkSteps["VK"].IsCompleted.Should().BeTrue();   // VK erledigt
+        item1.WorkSteps["VK"].FaWorkStepId.Should().Be(101);
+        item1.WorkSteps.Should().ContainKey("VE");
+        item1.WorkSteps["VE"].IsCompleted.Should().BeFalse();  // VE offen
+        item1.WorkSteps.Should().NotContainKey("VL");          // nicht anwendbar -> leere Zelle
 
         var item2 = vm.Items.First(i => i.Id == 2);
         item2.IsReleasedForPicking.Should().BeFalse();
         item2.HasExternalPurchase.Should().BeTrue();
-        item2.HasFan.Should().BeTrue();            // VL
-        item2.HasDoors.Should().BeTrue();          // VT
-        item2.HasSuperstructure.Should().BeTrue(); // VA
+        item2.WorkSteps["VL"].IsCompleted.Should().BeTrue();   // VL erledigt
+        item2.WorkSteps["VA"].IsCompleted.Should().BeTrue();   // VA erledigt
+        item2.WorkSteps["VT"].IsCompleted.Should().BeFalse();  // VT offen
+        item2.WorkSteps.Should().NotContainKey("VK");
 
         vm.CanPick.Should().BeTrue();
         vm.CanManagePickingRelease.Should().BeTrue();
@@ -168,14 +183,35 @@ public class PickingLeitstandControllerTests
             .ReturnsAsync(MakePage(MakeRow(1, "FA-OPEN", isDone: false)));
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
-        _assemblyGroupRepo.Setup(r => r.GetIsApplicablePivotAsync(It.IsAny<IEnumerable<int>>()))
-            .ReturnsAsync(new Dictionary<int, Dictionary<string, bool>>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
 
         var result = await _controller.Index(null, null, null, showDone: false, page: 1, pageSize: null);
 
         var vm = (PickingLeitstandViewModel)((ViewResult)result).Model!;
         vm.Items.Should().HaveCount(1);
         vm.Items.Single().OrderNumber.Should().Be("FA-OPEN");
+    }
+
+    [Fact]
+    public async Task Index_MapsIsDoneCombined_WhenIsDonePickingTrue()
+    {
+        // ToggleDone schreibt PickingStatus.IsDonePicking — die View bindet item.IsDone.
+        // Erwartung: ViewModel-IsDone = Sage-IsDone ODER App-IsDonePicking.
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100", isDone: false, isDonePicking: true)));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var result = await _controller.Index(null, null, null, showDone: true, page: 1, pageSize: null);
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(1);
+        vm.Items.Single().IsDone.Should().BeTrue();
     }
 
     // --- ToggleRelease Tests ---

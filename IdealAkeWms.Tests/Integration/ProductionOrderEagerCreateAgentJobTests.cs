@@ -5,12 +5,16 @@ using Xunit;
 namespace IdealAkeWms.Tests.Integration;
 
 /// <summary>
-/// Spec 11.3 / Plan Task 8 Step 7.
+/// Spec 11.3 / Plan Task 8 Step 7 (Phase 1) — angepasst in v1.22.0.
 ///
 /// Verifiziert die Eager-Create-Folge-MERGEs aus
 /// <c>SQL/AgentJobs/01_Import_Produktionsauftraege.sql</c>: nach Lauf gilt fuer
-/// jeden ProductionOrder genau 1 PickingStatus, 1 BdeStatus, 5 AssemblyGroups
-/// (VK/VL/VE/VT/VA). Re-Run ist idempotent (keine Duplikate).
+/// jeden ProductionOrder genau 1 PickingStatus, 1 BdeStatus. Re-Run ist
+/// idempotent (keine Duplikate).
+///
+/// Der fruehere dritte MERGE (ProductionOrderAssemblyGroups, 5 Zeilen VK/VL/VE/VT/VA)
+/// wurde in v1.22.0 ERSATZLOS entfernt — FaWorkSteps entstehen nur noch via
+/// Detection-Sync oder manuell (Spec 2026-06-12, Migration FaWorkStepsAndAttributes).
 ///
 /// Marked <see cref="Xunit.TraitAttribute"/> "Category" = "SqlServerOnly" — InMemory-DB
 /// unterstuetzt kein <c>MERGE</c>. Lokal mit echter Stage-DB ausfuehren via
@@ -18,8 +22,6 @@ namespace IdealAkeWms.Tests.Integration;
 /// <c>WMS_STAGE_CONN</c> (Connection-String zur Stage-DB).
 ///
 /// In CI per Default ausgeschlossen (Filter <c>Category!=SqlServerOnly</c>).
-/// Plan Step 17 "Offene Entscheidung": dieser Test deckt 12.6 (AgentJob-Idempotenz-Bug)
-/// + 12.9 (InMemory-DB-Coverage-Luecke fuer MERGE) ab.
 /// </summary>
 [Trait("Category", "SqlServerOnly")]
 public class ProductionOrderEagerCreateAgentJobTests
@@ -29,7 +31,7 @@ public class ProductionOrderEagerCreateAgentJobTests
     private const string TestOrderNumber = "FA-TEST-EAGERCREATE-001";
 
     /// <summary>
-    /// Die 3 Folge-MERGEs aus <c>SQL/AgentJobs/01_Import_Produktionsauftraege.sql</c>.
+    /// Die 2 Folge-MERGEs aus <c>SQL/AgentJobs/01_Import_Produktionsauftraege.sql</c>.
     /// Auch hier embedded — schaffen sonst eine Pfad-Abhaengigkeit zum SQL-Folder.
     /// </summary>
     private const string EagerCreateMerges = @"
@@ -49,23 +51,10 @@ USING (SELECT Id FROM [dbo].[ProductionOrders]) AS src
 WHEN NOT MATCHED BY TARGET THEN
     INSERT (ProductionOrderId, IsDoneBde, CreatedAt, CreatedBy, CreatedByWindows)
     VALUES (src.Id, 0, GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);
-
-MERGE [dbo].[ProductionOrderAssemblyGroups] AS s
-USING (
-    SELECT p.Id AS ProductionOrderId, k.GroupKey
-    FROM [dbo].[ProductionOrders] p
-    CROSS JOIN (VALUES ('VK'),('VL'),('VE'),('VT'),('VA')) k(GroupKey)
-) AS src
-    ON s.ProductionOrderId = src.ProductionOrderId AND s.GroupKey = src.GroupKey
-WHEN NOT MATCHED BY TARGET THEN
-    INSERT (ProductionOrderId, GroupKey, IsApplicable, IsCompleted,
-            CreatedAt, CreatedBy, CreatedByWindows)
-    VALUES (src.ProductionOrderId, src.GroupKey, 0, 0,
-            GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);
 ";
 
     [SkippableFact]
-    public async Task EagerCreate_ThreeMergesProduce7Rows_PerNewOrder_AndAreIdempotent()
+    public async Task EagerCreate_TwoMergesProduce2Rows_PerNewOrder_AndAreIdempotent()
     {
         var connStr = Environment.GetEnvironmentVariable(EnvVarName);
         Skip.If(string.IsNullOrWhiteSpace(connStr),
@@ -79,8 +68,6 @@ WHEN NOT MATCHED BY TARGET THEN
         {
             // 1. Cleanup: drop any leftover test row
             await ExecAsync(conn, $@"
-                DELETE FROM dbo.ProductionOrderAssemblyGroups
-                WHERE ProductionOrderId IN (SELECT Id FROM dbo.ProductionOrders WHERE OrderNumber = @num);
                 DELETE FROM dbo.ProductionOrderBdeStatus
                 WHERE ProductionOrderId IN (SELECT Id FROM dbo.ProductionOrders WHERE OrderNumber = @num);
                 DELETE FROM dbo.ProductionOrderPickingStatus
@@ -101,28 +88,16 @@ WHEN NOT MATCHED BY TARGET THEN
                 ("@num", TestOrderNumber));
             poId.Should().BeGreaterThan(0, "the test FA must have been inserted");
 
-            // 3. First run of the 3 Eager-Create-MERGEs
+            // 3. First run of the 2 Eager-Create-MERGEs
             await ExecAsync(conn, EagerCreateMerges);
 
-            // Assert: 1×PS, 1×BDE, 5×AG (VK/VL/VE/VT/VA, all IsApplicable=0)
+            // Assert: 1×PS, 1×BDE
             (await CountAsync(conn,
                 "SELECT COUNT(*) FROM dbo.ProductionOrderPickingStatus WHERE ProductionOrderId = @id",
                 ("@id", (int)poId))).Should().Be(1);
             (await CountAsync(conn,
                 "SELECT COUNT(*) FROM dbo.ProductionOrderBdeStatus WHERE ProductionOrderId = @id",
                 ("@id", (int)poId))).Should().Be(1);
-            (await CountAsync(conn,
-                "SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups WHERE ProductionOrderId = @id",
-                ("@id", (int)poId))).Should().Be(5);
-            (await CountAsync(conn,
-                "SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups " +
-                "WHERE ProductionOrderId = @id AND IsApplicable = 0",
-                ("@id", (int)poId))).Should().Be(5,
-                "all 5 groups must default to IsApplicable=0");
-            (await CountAsync(conn,
-                "SELECT COUNT(DISTINCT GroupKey) FROM dbo.ProductionOrderAssemblyGroups " +
-                "WHERE ProductionOrderId = @id AND GroupKey IN ('VK','VL','VE','VT','VA')",
-                ("@id", (int)poId))).Should().Be(5);
 
             // 4. Re-run: idempotent — no duplicates
             await ExecAsync(conn, EagerCreateMerges);
@@ -133,16 +108,11 @@ WHEN NOT MATCHED BY TARGET THEN
             (await CountAsync(conn,
                 "SELECT COUNT(*) FROM dbo.ProductionOrderBdeStatus WHERE ProductionOrderId = @id",
                 ("@id", (int)poId))).Should().Be(1);
-            (await CountAsync(conn,
-                "SELECT COUNT(*) FROM dbo.ProductionOrderAssemblyGroups WHERE ProductionOrderId = @id",
-                ("@id", (int)poId))).Should().Be(5);
         }
         finally
         {
             // Final cleanup — leave the Stage-DB tidy regardless of test outcome
             await ExecAsync(conn, $@"
-                DELETE FROM dbo.ProductionOrderAssemblyGroups
-                WHERE ProductionOrderId IN (SELECT Id FROM dbo.ProductionOrders WHERE OrderNumber = @num);
                 DELETE FROM dbo.ProductionOrderBdeStatus
                 WHERE ProductionOrderId IN (SELECT Id FROM dbo.ProductionOrders WHERE OrderNumber = @num);
                 DELETE FROM dbo.ProductionOrderPickingStatus

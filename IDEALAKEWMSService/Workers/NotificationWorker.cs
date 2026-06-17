@@ -62,7 +62,7 @@ public class NotificationWorker : BackgroundService
                         var baseUrl = await GetServiceSettingAsync("Notifications:AppBaseUrl", stoppingToken) ?? "";
 
                         var htmlBody = BuildMeldebestandHtml(items, baseUrl);
-                        await mailService.SendAsync(subject, htmlBody, recipients, stoppingToken);
+                        await mailService.SendAsync(subject, htmlBody, recipients, ct: stoppingToken);
                     }
                 }
             }

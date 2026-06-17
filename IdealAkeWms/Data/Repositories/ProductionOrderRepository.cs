@@ -13,6 +13,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     {
         return await _dbSet
             .Include(o => o.ProductionWorkplace)
+            .Include(o => o.PickingStatus)
             .OrderBy(o => o.OrderNumber)
             .ToListAsync();
     }
@@ -38,7 +39,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             q = q.Where(o => o.Customer != null && EF.Functions.Like(o.Customer, $"%{filterCustomer}%"));
 
         if (!showDone)
-            q = q.Where(o => !o.IsDone);
+            q = q.Where(o => !o.IsDone && (o.PickingStatus == null || !o.PickingStatus.IsDonePicking));
 
         if (columnFilters != null)
         {
@@ -71,6 +72,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 o.ProductionDate,
                 o.DeliveryDate,
                 o.IsDone,
+                o.PickingStatus != null && o.PickingStatus.IsDonePicking,
                 o.ProductionWorkplace != null ? o.ProductionWorkplace.Name : null))
             .ToListAsync();
 
@@ -114,6 +116,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         return await _dbSet
             .Where(po => !po.IsDone
+                         && !(po.PickingStatus != null && po.PickingStatus.IsDonePicking)
                          && po.ProductionDate != null
                          && po.ProductionDate <= cutoff)
             .OrderBy(po => po.ProductionDate)
@@ -128,6 +131,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         return await _dbSet
             .AsNoTracking()
+            .Include(o => o.PickingStatus)
             .Where(o => o.ArticleNumber != null && articleNumbers.Contains(o.ArticleNumber))
             .OrderBy(o => o.ProductionDate)
             .ToListAsync();

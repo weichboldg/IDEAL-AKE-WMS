@@ -1,13 +1,20 @@
 @model List<IdealAkeWms.Models.ArticleAttributeDefinition>
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Artikelmerkmale";
     var hasValues = ViewBag.HasValues as Dictionary<int, bool> ?? new Dictionary<int, bool>();
+    var canEdit = await _user.HasMasterDataAccessAsync();
 }
 
 <h2 class="page-header">Artikelmerkmale</h2>
 <p class="text-muted mb-3">
     Definieren Sie Merkmale (Boolean/Dropdown) fuer Artikel. Merkmale erscheinen als filterbare Spalten in der Artikel-Uebersicht und als Eingabefelder in der Artikel-Bearbeitung.
 </p>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
 
 <div class="row">
     <div class="col-lg-8 mb-4">
@@ -17,14 +24,14 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-striped mb-0">
+                    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="ArticleAttributes">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th style="width: 100px;">Typ</th>
-                                <th style="width: 100px;">Reihenfolge</th>
-                                <th style="width: 80px;">Aktiv</th>
-                                <th style="width: 140px;"></th>
+                                <th data-filterable data-col-key="name">Name</th>
+                                <th data-filterable data-col-key="type" style="width: 100px;">Typ</th>
+                                <th data-filterable data-col-key="sort-order" style="width: 100px;">Reihenfolge</th>
+                                <th data-filterable data-col-key="active" style="width: 80px;">Aktiv</th>
+                                <th data-col-key="actions" style="width: 140px;"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -36,7 +43,7 @@
                                         <form asp-action="UpdateDefinition" method="post" class="d-flex align-items-center gap-1" id="form-def-@def.Id">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="id" value="@def.Id" />
-                                            <input type="text" name="name" value="@def.Name" class="form-control form-control-sm" required />
+                                            <input type="text" name="name" value="@def.Name" class="form-control form-control-sm" required @(canEdit ? "" : "readonly") />
                                         </form>
                                     </td>
                                     <td>
@@ -59,8 +66,10 @@
                                                onchange="document.getElementById('hidden-active-@def.Id').value = this.checked ? 'true' : 'false'" />
                                     </td>
                                     <td>
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" form="form-def-@def.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
+                                        @if (canEdit)
+                                        {
+                                            <div class="d-flex gap-1">
+                                                <button type="submit" form="form-def-@def.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                                                     <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
                                                 </svg>
@@ -89,6 +98,7 @@
                                                 </span>
                                             }
                                         </div>
+                                        }
                                     </td>
                                 </tr>
                                 @* Dropdown options sub-section *@
@@ -108,25 +118,31 @@
                                                             {
                                                                 <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
                                                                     <span>@opt.Value <small class="text-muted">(Pos. @opt.SortOrder)</small></span>
-                                                                    <form asp-action="DeleteOption" method="post" class="d-inline">
-                                                                        @Html.AntiForgeryToken()
-                                                                        <input type="hidden" name="id" value="@opt.Id" />
-                                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Option loeschen"
-                                                                                onclick="return confirm('Option \'@opt.Value\' wirklich loeschen?');">
-                                                                            &times;
-                                                                        </button>
-                                                                    </form>
+                                                                    @if (canEdit)
+                                                                    {
+                                                                        <form asp-action="DeleteOption" method="post" class="d-inline">
+                                                                            @Html.AntiForgeryToken()
+                                                                            <input type="hidden" name="id" value="@opt.Id" />
+                                                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Option loeschen"
+                                                                                    onclick="return confirm('Option \'@opt.Value\' wirklich loeschen?');">
+                                                                                &times;
+                                                                            </button>
+                                                                        </form>
+                                                                    }
                                                                 </li>
                                                             }
                                                         </ul>
                                                     }
-                                                    <form asp-action="AddOption" method="post" class="d-flex gap-2 align-items-end">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="definitionId" value="@def.Id" />
-                                                        <input type="text" name="value" class="form-control form-control-sm" placeholder="Neuer Wert" required style="max-width: 200px;" />
-                                                        <input type="number" name="sortOrder" value="@(def.Options.Any() ? def.Options.Max(o => o.SortOrder) + 1 : 0)" class="form-control form-control-sm text-center" style="width: 80px;" title="Reihenfolge" />
-                                                        <button type="submit" class="btn btn-sm btn-outline-primary">Hinzufuegen</button>
-                                                    </form>
+                                                    @if (canEdit)
+                                                    {
+                                                        <form asp-action="AddOption" method="post" class="d-flex gap-2 align-items-end">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="definitionId" value="@def.Id" />
+                                                            <input type="text" name="value" class="form-control form-control-sm" placeholder="Neuer Wert" required style="max-width: 200px;" />
+                                                            <input type="number" name="sortOrder" value="@(def.Options.Any() ? def.Options.Max(o => o.SortOrder) + 1 : 0)" class="form-control form-control-sm text-center" style="width: 80px;" title="Reihenfolge" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-primary">Hinzufuegen</button>
+                                                        </form>
+                                                    }
                                                 </div>
                                             </details>
                                         </td>
@@ -153,27 +169,30 @@
     </div>
 
     <div class="col-lg-4 mb-4">
-        <div class="card">
-            <div class="card-header">Neues Merkmal erstellen</div>
-            <div class="card-body">
-                <form asp-action="CreateDefinition" method="post">
-                    @Html.AntiForgeryToken()
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="z.B. Laserschnitt" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Typ</label>
-                        <select name="attributeType" class="form-select">
-                            <option value="0">Boolean (Ja/Nein)</option>
-                            <option value="1">Dropdown (Auswahlliste)</option>
-                        </select>
-                        <small class="text-muted">Typ kann nach Erstellung nicht geaendert werden.</small>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Erstellen</button>
-                </form>
+        @if (canEdit)
+        {
+            <div class="card">
+                <div class="card-header">Neues Merkmal erstellen</div>
+                <div class="card-body">
+                    <form asp-action="CreateDefinition" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="z.B. Laserschnitt" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Typ</label>
+                            <select name="attributeType" class="form-select">
+                                <option value="0">Boolean (Ja/Nein)</option>
+                                <option value="1">Dropdown (Auswahlliste)</option>
+                            </select>
+                            <small class="text-muted">Typ kann nach Erstellung nicht geaendert werden.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+                    </form>
+                </div>
             </div>
-        </div>
+        }
 
         <div class="card mt-3">
             <div class="card-header">Hinweise</div>
@@ -186,3 +205,8 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

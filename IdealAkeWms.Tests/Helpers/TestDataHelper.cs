@@ -8,19 +8,18 @@ namespace IdealAkeWms.Tests.Helpers;
 /// zugehoerigen Status-Zeilen anlegt:
 /// - 1 <see cref="ProductionOrderPickingStatus"/>
 /// - 1 <see cref="ProductionOrderBdeStatus"/>
-/// - 5 <see cref="ProductionOrderAssemblyGroup"/> (VK / VL / VE / VT / VA, alle IsApplicable=false)
 ///
 /// Entspricht dem Spec-Eager-Create-Verhalten des Sage-AgentJobs.
+/// Die frueheren 5 ProductionOrderAssemblyGroup-Zeilen entfallen seit v1.22.0
+/// (ersetzt durch FaWorkSteps — Zeilen entstehen via Detection-Sync oder manuell,
+/// Tests legen sie bei Bedarf selbst an).
 /// </summary>
 public static class TestDataHelper
 {
-    public static readonly string[] AssemblyGroupKeys = { "VK", "VL", "VE", "VT", "VA" };
-
     public sealed record CreatedOrder(
         ProductionOrder Order,
         ProductionOrderPickingStatus PickingStatus,
-        ProductionOrderBdeStatus BdeStatus,
-        List<ProductionOrderAssemblyGroup> Groups);
+        ProductionOrderBdeStatus BdeStatus);
 
     public static CreatedOrder CreateOrderWithStatuses(
         ApplicationDbContext context,
@@ -37,7 +36,6 @@ public static class TestDataHelper
         bool hasCoatingParts = false,
         bool isCoatingDone = false,
         bool isDonePicking = false,
-        Dictionary<string, bool>? applicableGroups = null,
         string? articleNumber = null,
         int orderId = 0)
     {
@@ -88,22 +86,10 @@ public static class TestDataHelper
             CreatedByWindows = "test"
         };
 
-        applicableGroups ??= new Dictionary<string, bool>();
-        var groups = AssemblyGroupKeys.Select(k => new ProductionOrderAssemblyGroup
-        {
-            ProductionOrderId = order.Id,
-            GroupKey = k,
-            IsApplicable = applicableGroups.GetValueOrDefault(k, false),
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test",
-            CreatedByWindows = "test"
-        }).ToList();
-
         context.ProductionOrderPickingStatuses.Add(ps);
         context.ProductionOrderBdeStatuses.Add(bde);
-        context.ProductionOrderAssemblyGroups.AddRange(groups);
         context.SaveChanges();
 
-        return new CreatedOrder(order, ps, bde, groups);
+        return new CreatedOrder(order, ps, bde);
     }
 }

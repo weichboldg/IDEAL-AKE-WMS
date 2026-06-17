@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireAdminAccess]
 public class WorkstationsController : Controller
 {
     private readonly IWorkstationRepository _workstationRepository;
@@ -24,6 +24,20 @@ public class WorkstationsController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (zugeordnete Benutzer als Namen-Badge-Liste in Collection-Reihenfolge).
+    /// </summary>
+    private static readonly Dictionary<string, Func<Workstation, string?>> ColumnMap = new()
+    {
+        ["name"] = w => w.Name,
+        ["location"] = w => w.Location,
+        ["default-printer"] = w => w.DefaultPrinter,
+        ["default-user"] = w => w.DefaultUser?.Name,
+        ["users"] = w => string.Join(", ", w.WorkstationUsers.Select(wu => wu.User.Name)),
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -32,7 +46,11 @@ public class WorkstationsController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var workstations = await _workstationRepository.GetAllWithUsersAsync();
-        var list = workstations.ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var list = ColumnFilterHelper.Apply(workstations, columnFilters, ColumnMap).ToList();
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,

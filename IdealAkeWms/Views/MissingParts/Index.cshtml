@@ -1,9 +1,19 @@
 @model IdealAkeWms.Models.ViewModels.MissingPartsListViewModel
+@using IdealAkeWms.Models
 @{
     ViewData["Title"] = Model.MineOnly ? "Meine Fehlteile" : "Fehlteile";
 }
 
 <h2 class="page-header">@ViewData["Title"]</h2>
+
+@if (Model.HasNoWorkplaceMapping)
+{
+    <div class="alert alert-info">
+        Du hast keine Werkbank-Zuordnung. Diese Liste ist deshalb leer.
+        Du kannst entweder den Toggle <em>"Nur meine Werkbaenke"</em> deaktivieren
+        oder die Zuordnung in den Stammdaten pflegen.
+    </div>
+}
 
 @if (TempData["SuccessMessage"] != null)
 {
@@ -14,11 +24,34 @@
     <div class="alert alert-warning">@TempData["WarningMessage"]</div>
 }
 
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(Model.ActiveTab == ShortageStatus.WillBeRestocked ? "active" : "")"
+           asp-action="Index" asp-route-tab="WillBeRestocked"
+           asp-route-workplaceId="@Model.WorkplaceFilter" asp-route-mineOnly="@Model.MineOnly">
+            Offene Fehlteile
+            <span class="badge bg-warning text-dark ms-1">@Model.WaitingTotalCount</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(Model.ActiveTab == ShortageStatus.NoRestock ? "active" : "")"
+           asp-action="Index" asp-route-tab="NoRestock"
+           asp-route-workplaceId="@Model.WorkplaceFilter" asp-route-mineOnly="@Model.MineOnly">
+            Wird nicht nachgeliefert
+            <span class="badge bg-danger ms-1">@Model.NoRestockTotalCount</span>
+        </a>
+    </li>
+</ul>
+
 <div class="card filter-card mb-3">
     <div class="card-body p-2">
         <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="hidden" name="tab" value="@Model.ActiveTab" />
             <label class="form-label mb-0">Werkbank:</label>
-            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;"
+                    onchange="this.form.submit()"
+                    @(Model.MineOnly ? "disabled" : "")
+                    title="@(Model.MineOnly ? "In \"Nur meine Werkbaenke\"-Modus deaktiviert" : "")">
                 <option value="">— Alle —</option>
                 @foreach (var w in Model.AvailableWorkplaces)
                 {
@@ -41,13 +74,14 @@
         <thead>
             <tr>
                 <th data-col-key="RequisitionId">Bestell-ID</th>
-                <th data-col-key="WorkplaceName">Werkbank</th>
-                <th data-col-key="ArticleNumber">Artikel-Nr</th>
-                <th data-col-key="ArticleDescription">Bezeichnung</th>
+                <th data-filterable data-col-key="WorkplaceName">Werkbank</th>
+                <th data-filterable data-col-key="ArticleNumber">Artikel-Nr</th>
+                <th data-filterable data-col-key="ArticleDescription">Bezeichnung</th>
                 <th data-col-key="QuantityRequested">Soll</th>
                 <th data-col-key="QuantityPicked">Geliefert</th>
                 <th data-col-key="QuantityMissing">Fehlt</th>
-                <th data-col-key="Note">Notiz</th>
+                <th data-filterable data-col-key="NoteLager">Notiz Lager</th>
+                <th data-filterable data-col-key="NoteEinkauf">Notiz EK</th>
                 <th data-col-key="CreatedBy">Erfasst von</th>
                 <th data-col-key="ClosedAt">Abgeschlossen am</th>
             </tr>
@@ -64,6 +98,7 @@
                     <td>@((int)Math.Round(row.QuantityPicked, MidpointRounding.AwayFromZero))</td>
                     <td><strong>@((int)Math.Round(row.QuantityMissing, MidpointRounding.AwayFromZero))</strong></td>
                     <td>@row.Note</td>
+                    <td>@row.NoteEinkauf</td>
                     <td>@row.CreatedBy</td>
                     <td>@(row.ClosedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
                 </tr>
@@ -73,3 +108,8 @@
 </div>
 
 <partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

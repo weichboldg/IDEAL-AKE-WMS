@@ -9,6 +9,271 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.22.0</strong> <span class="text-white-50 ms-2">12.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Vorbau: Arbeitsgaenge-Katalog, automatische Erkennung, FA-Abarbeitungsliste</h6>
+                <ul>
+                    <li><strong>Neue Stammdaten "Arbeitsgaenge":</strong> Der bisher fixe
+                        Vorbau-Katalog (VK/VL/VE/VT/VA) ist jetzt erweiterbar. Pro Arbeitsgang
+                        koennen <em>Suchbegriffe</em> (kommasepariert) gepflegt werden, ueber die
+                        die automatische Erkennung aus der Stueckliste laeuft. Erreichbar unter
+                        <em>Stammdaten &rarr; Arbeitsgaenge</em>.</li>
+                    <li><strong>Neue Stammdaten "FA-Merkmale":</strong> Konfigurierbare
+                        Vorbau-Merkmale (z.B. Verdampfergroesse, Leitungsausgang) als Dropdown
+                        oder JA/NEIN, inkl. Auswahl-Optionen und Zuordnung zu Arbeitsgaengen.
+                        Erreichbar unter <em>Stammdaten &rarr; FA-Merkmale</em>.</li>
+                    <li><strong>Automatische AG-Erkennung aus der Stueckliste:</strong> Ein neuer
+                        Sync-Schritt (<code>Sync:FaWorkStepDetectionEnabled</code>, Default aus)
+                        ordnet offenen FAs anhand der Suchbegriffe die passenden Arbeitsgaenge zu.
+                        Die Erkennung fuegt nur hinzu — manuell abgewaehlte Arbeitsgaenge werden
+                        NICHT wieder hinzugefuegt. Eigener Eintrag "FaWorkStepDetection" im
+                        Aktivitaets-Protokoll.</li>
+                    <li><strong>FA-Vervollstaendigen umgebaut:</strong> Werkbank-Zuweisung direkt
+                        am FA, dynamische Arbeitsgang-Kacheln (statt der 5 fixen Vorbau-Kacheln),
+                        strukturierte Merkmal-Eingaben (Dropdown/JA-NEIN) je Arbeitsgang.
+                        Freitext-Spezifikationen bleiben erhalten.</li>
+                    <li><strong>Neu: FA-Abarbeitungsliste</strong> (<em>Fertigungsauftraege &rarr;
+                        FA-Abarbeitungsliste</em>, neue Rolle <code>vorbau</code>): eine Liste
+                        der offenen FAs zum gewaehlten Arbeitsgang mit einer Erledigt-Checkbox,
+                        Merkmal-Spalten, Terminen (BG/Komm./Fertigung) und enaio-Links. Klick
+                        auf die FA-Nummer oeffnet die Stueckliste read-only (Druck moeglich).</li>
+                    <li><strong>FA-Abarbeitungsliste filtert jetzt nach Arbeitsgang</strong>
+                        (statt Werkbank); die Werkbank wird als Spalte angezeigt. Jeder Benutzer
+                        kann im Profil seinen Standard-Arbeitsgang hinterlegen — die
+                        Abarbeitungsliste oeffnet damit vorgefiltert.</li>
+                    <li><strong>FA-Vervollstaendigen — Komfort:</strong> enaio-Dokumente und ein
+                        Stueckliste-Link sind jetzt im Kopf verlinkt, Kalenderwochen werden bei
+                        den Terminen angezeigt, und das Speichern eines Merkmals haelt den
+                        aktiven Arbeitsgang-Tab.</li>
+                    <li><strong>Werkbank-Stammdaten erweitert:</strong> Pro Werkbank koennen
+                        mehrere Vorbaugruppen/Arbeitsgaenge zugeordnet werden — sie bestimmen
+                        die Spalten der Abarbeitungsliste.</li>
+                    <li><strong>Leitstand Kommissionierung:</strong> Die VK/VL/VE/VT/VA-Haken
+                        zeigen jetzt den <em>Erledigt</em>-Status der Vorbau-Arbeitsgaenge
+                        (gleiches Kennzeichen wie die FA-Abarbeitungsliste) — wird ein Vorbau-AG
+                        dort abgehakt, sieht der Leitstand das und umgekehrt. Nicht-anwendbare
+                        Arbeitsgaenge bleiben leer. Ob ein AG anwendbar ist, wird nur noch in der
+                        FA-Vervollstaendigung bzw. der automatischen Erkennung gesetzt.</li>
+                    <li><strong>FA-Vervollstaendigen und FA-Abarbeitungsliste</strong> blenden
+                        abgeschlossene FAs (Sage- oder Kommissionier-Status) jetzt konsistent zur
+                        Fertigungsauftraege-Liste aus.</li>
+                    <li><strong>Getrennte Status fuer Definition und Abarbeitung:</strong>
+                        FA-Vervollstaendigen und FA-Abarbeitungsliste haben jetzt getrennte Status:
+                        <em>"Vollstaendig definiert"</em> (Merkmale/AGs festgelegt — blendet nicht
+                        aus) in der Vervollstaendigung, <em>"Erledigt"</em> (Vorbau gebaut — blendet
+                        aus) in der Abarbeitungsliste.</li>
+                    <li><strong>Menue-Umbau:</strong> Neues Dropdown "Fertigungsauftraege" mit
+                        FA-Liste, FA-Vervollstaendigen und FA-Abarbeitungsliste.</li>
+                    <li><strong>Einheitliche FA-View-Buttons:</strong> FA-Vervollstaendigen und
+                        FA-Abarbeitungsliste zeigen jetzt konsistent dieselben Dokument-Buttons
+                        (Stueckliste/BOM, enaio-Dokumente, Vault-Zeichnung) in gleicher Optik und
+                        Reihenfolge. Zusaetzlich laesst sich pro Liste ueber das
+                        <em>Zahnrad-Symbol</em> einstellen, welche Spalten ein-/ausgeblendet werden
+                        (die Auswahl bleibt pro Benutzer erhalten).</li>
+                    <li><strong>Per-Benutzer Standard-Werkbank in der FA-Abarbeitung:</strong> Im
+                        Profil (bzw. im Benutzerstamm) laesst sich neben dem Standard-Arbeitsgang
+                        nun auch eine <em>Standard-Werkbank</em> hinterlegen. Die
+                        FA-Abarbeitungsliste oeffnet damit zusaetzlich auf diese Werkbank
+                        vorgefiltert (kombiniert mit dem Standard-Arbeitsgang).</li>
+                    <li><strong>Neues Merkmal-Typ "Text":</strong> FA-Merkmale koennen jetzt neben
+                        Dropdown und JA/NEIN auch als <em>Freitext</em> definiert werden. In der
+                        FA-Vervollstaendigung wird der Text erfasst und erscheint als Spalte in der
+                        FA-Abarbeitungsliste. (Nur fuer FA-Merkmale verfuegbar, nicht fuer
+                        Artikelmerkmale.)</li>
+                    <li><strong>Umbenennung:</strong> Im FA-Vorbau-Kontext heisst der Begriff
+                        "Arbeitsgaenge" jetzt durchgaengig <em>"FA-Vorbau-AG"</em> (Menue, Stammdaten,
+                        FA-Vervollstaendigen/Abarbeitung). Routen und Daten bleiben unveraendert.</li>
+                    <li><strong>Migration:</strong> Bestehende Vorbau-Kacheln und Spezifikationen
+                        werden daten-erhaltend in das neue System uebernommen.
+                        <strong>Deploy-Hinweis:</strong> Das SQL-Agent-Job-Skript
+                        (FA-Import) muss im selben Wartungsfenster aktualisiert werden
+                        (siehe Cutover-Dokument) — sonst schlaegt der FA-Import fehl.</li>
+                    <li><strong>enaio-Abgleich:</strong> liest die FA-Zuordnung jetzt aus der
+                        neuen View <code>vw_IDEAL-AKE_Fertigungsauftraege</code>
+                        (<code>WaNummerTrimmed</code> als FA-Nummer). Der neue Typ
+                        <em>"Werkstattauftrag + Zeichnung"</em> (Zeichnung direkt am
+                        Werkstattauftrag) hat ein eigenes Icon und wird in der Badge-Liste
+                        jeder FA zuerst angezeigt.</li>
+                    <li><strong>Fehlerbehebung Lagerbestellungs-Mails:</strong>
+                        Benachrichtigungs-Mails (Lagerbestellung) enthalten jetzt eine
+                        Plain-Text-Alternative — der "Lagerbestellung oeffnen"-Link wird in
+                        allen Mail-Clients wieder korrekt als klickbarer Link angezeigt
+                        (vorher in Outlook als Rohtext [URL]).</li>
+                    <li><strong>Fehlerbehebung BOM-Cache / FA-Vorbau-Erkennung:</strong> Der
+                        BOM-Cache und die FA-Vorbau-Erkennung behandeln per Kommissionier-Status
+                        abgeschlossene FAs jetzt korrekt als erledigt — verhindert, dass
+                        abgeschlossene Auftraege den BOM-Cache fuellen und offene Auftraege aus
+                        der Artikelinfo verdraengen.</li>
+                    <li><strong>Lagerbestellung-Detailansicht filter-/sortierbar:</strong> Die
+                        Positions-Tabelle in der Lagerbestellung bietet jetzt — wie die uebrigen
+                        Tabellen — Spalten-Filter und Klick-Sortierung (Pos, Artikel-Nr,
+                        Bezeichnung, Bestellt, ME, Lagerplatz).</li>
+                    <li><strong>Fehlerbehebung OSEON-Teileverfolgung:</strong> Beim Ueberfahren
+                        einer sortierbaren Spaltenueberschrift wurde der Kopf weiss und die
+                        Schrift unlesbar — der Hover hellt das Blau jetzt nur noch leicht auf.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.21.1</strong> <span class="text-white-50 ms-2">11.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Bugfix</h6>
+                <ul>
+                    <li><strong>FA-Abschliessen wirkt wieder:</strong> Erledigt-Anzeige und
+                        Filter in FA-Liste, Leitstand und Kommissionierungs-Worklist
+                        beruecksichtigen jetzt den App-Komm-Status (seit v1.11 wurde das
+                        Abschliessen-Flag gespeichert, aber nirgends angezeigt).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.21.0</strong> <span class="text-white-50 ms-2">10.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Universal-Filter-Rollout</h6>
+                <ul>
+                    <li><strong>Alle Listen-Ansichten haben jetzt Spaltenfilter:</strong> Jede
+                        Tabellen-Liste in der Anwendung kann ueber die Filter-Zeile unter den
+                        Spaltenkoepfen gefiltert werden.</li>
+                    <li><strong>Filter wirken ueber alle Eintraege:</strong> Spaltenfilter
+                        durchsuchen den Gesamtbestand, nicht nur die aktuell angezeigte Seite.
+                        Ein Eintrag auf Seite 3 wird per Filter auch auf Seite 1 gefunden.</li>
+                    <li><strong>Neu filterbar:</strong> Benutzer, Rollen, Arbeitsplaetze,
+                        Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger,
+                        BDE-Stammdaten (alle 3 Tabs) und Arbeitsplatz-Tracking — diese Listen
+                        hatten bisher keinen Spaltenfilter.</li>
+                    <li><strong>Bestehende Listen filtern jetzt server-seitig:</strong>
+                        Lagerbestellungen, Eingehende Listen (Lager), Kommissionierung,
+                        Bedarfsmeldungen, Lagerplaetze und BDE-Buchungen filterten bisher nur
+                        die aktuelle Seite — jetzt ueber den Gesamtbestand.</li>
+                    <li><strong>Kommissionierung mit KW-Datumsfilter:</strong> Die
+                        Komm.-Termin-Spalte kann per Kalender-Picker oder manueller Eingabe
+                        (z.B. <code>KW24</code> oder <code>10.06.2026</code>) gefiltert
+                        werden.</li>
+                    <li><strong>BDE-Buchungsliste filtert auf SQL-Ebene:</strong> Die Filter
+                        laufen direkt in der Datenbank-Query — performant auch bei grosser
+                        Buchungs-Historie.</li>
+                    <li><strong>Filter-Syntax ueberall identisch:</strong> ODER mit Komma
+                        (<code>a,b</code>), Ausschluss mit Rufzeichen (<code>!a</code>).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.20.0</strong> <span class="text-white-50 ms-2">08.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Feingranulare Berechtigungen — Read/Edit-Split in Stammdaten, Lager-Worklist nur fuer Lager-Mitarbeiter</h6>
+                <ul>
+                    <li><strong>Neue Rolle "Stammdaten ansehen"</strong> (<code>masterdata_read</code>): erlaubt
+                        Nur-Lesen-Zugriff auf alle 12 Stammdaten-Sichten (Artikel, Lagerplaetze, Benutzer,
+                        Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger,
+                        Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).
+                        Edit-Buttons + Save-Buttons werden ausgeblendet, Settings-Form zeigt einen
+                        Banner "Nur-Lesen-Modus" + disabled Inputs.</li>
+                    <li><strong>Stammdaten-Dropdown nur fuer Lese-Berechtigte:</strong> Picker (Rolle
+                        <code>picking</code>) sehen das Stammdaten-Menue ab v1.20.0 nicht mehr — auch
+                        nicht "Artikel" und "Lagerplaetze". Vorher hatten die beiden Controller keinen
+                        Filter, jeder eingeloggte User konnte dort sogar bearbeiten. Behoben mit
+                        gleichem Read/Edit-Split wie die anderen 10 Stammdaten-Controller.</li>
+                    <li><strong>Lager-Worklist nur fuer Lager-Mitarbeiter:</strong> "Lager: Eingehende
+                        Listen" + "Lager: Fehlteile" sind ab v1.20.0 nicht mehr fuer Komm.-Picker (Rolle
+                        <code>picking</code>) sichtbar. Lager-Personal (Rollen <code>stock</code> /
+                        <code>stock_keyuser</code>) und Admins behalten Zugriff. Bestandsuebersicht +
+                        Bewegungshistorie bleiben fuer picker weiter zugaenglich.</li>
+                    <li><strong>Rollen-Uebersicht im Benutzerstamm:</strong> Neue Seite
+                        <code>/Users/RoleOverview</code> mit Klartext-Tabelle aller 13 Rollen — welche
+                        Rolle hat Zugriff auf welche Seiten. Verlinkt aus Users/Index (Page-Header) und
+                        aus Users/Create + Users/Edit ("Was darf welche Rolle?"). Hand-gepflegt.</li>
+                    <li><strong>Migration:</strong> Bestehende User mit <code>masterdata</code> behalten
+                        vollen Zugriff (Filter inkludiert Edit-Rolle implizit). Kein User-Backfill noetig.
+                        Die neue Rolle <code>masterdata_read</code> wird per Seed-Migration angelegt
+                        (<code>IsSystem=1</code>, nicht loeschbar).</li>
+                    <li><strong>Admin-only Stammdaten:</strong> Benutzer, Rollen, Arbeitsplaetze, Einstellungen,
+                        Aktivitaets-Protokoll und Schichtkalender sind ab v1.20.0 ausschliesslich fuer
+                        admin-Rolle sichtbar/zugaenglich (nicht mehr fuer masterdata). masterdata bleibt
+                        fuer die operativen Stammdaten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien,
+                        Artikelmerkmale, Empfaenger).</li>
+                    <li><strong>Lagerbestellungen Detail-View — UX-Fixes:</strong>
+                        Beim Klick auf "Fehlteil" wird der Status nicht mehr automatisch
+                        vorausgewaehlt, wenn die Ist-Menge 0 ist. Der Lager-Mitarbeiter muss
+                        bewusst zwischen "Fehlteil" und "Wird nicht nachgeliefert" waehlen.
+                        Wenn die volle Menge geliefert wird, wird ein vorher gesetzter
+                        Fehlteil-Status automatisch entfernt.</li>
+                    <li><strong>Filter-Bugs in Listen-Views behoben:</strong>
+                        (a) Im Server-Side-Filter-Modus (FA-Liste, Leitstand, etc.) lief
+                        nach dem Filter-Reload eine redundante client-seitige Filterung mit,
+                        was bei kombinierten Filtern zu falschen Ergebnissen fuehrte.
+                        (b) Der Kalender-Picker fuer Datumsspalten setzte den Filter-Wert
+                        programmatisch, was kein input-Event ausloeste — Folge: die URL-
+                        Navigation lief nicht. Beide Bugs behoben.</li>
+                    <li><strong>Lagerbestellungen Submit-Bug behoben:</strong> beim
+                        "Speichern + Abschliessen" mit leeren Ist-Mengen wurden die Werte
+                        falsch zugeordnet (off-by-N). Ursache: ASP.NET-Model-Binder fuer
+                        int[] skippt leere Strings, sodass die Array-Indices zwischen
+                        itemIds und quantitiesPicked verschoben wurden. Fix: leere
+                        Mengen werden jetzt als "0" gesendet.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.19.0</strong> <span class="text-white-50 ms-2">29.05.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lagerbestellungen: 3-State-Klassifizierung + 2-Tab Fehlteile-Liste</h6>
+                <ul>
+                    <li><strong>Klare Fehlteil-Klassifizierung:</strong> Pro Item kann der
+                        Lagermitarbeiter jetzt zwischen drei Zustaenden waehlen:
+                        <em>kein Fehlteil</em>, <em>Fehlteil</em> (Restlieferung erwartet)
+                        oder <em>Wird nicht nachgeliefert</em> (endgueltige Eskalation).
+                        Die bisherige einzelne <code>IsFinalShortage</code>-Checkbox wird durch
+                        zwei Radio-Buttons je Item ersetzt. Default bei Ist-Menge=0 ist
+                        <em>Fehlteil</em>.</li>
+                    <li><strong>Zwei Tabs in der Fehlteile-Liste:</strong> Lager- und Werkbank-View
+                        zeigen jetzt einen <em>Offene Fehlteile</em>-Tab (Restlieferungs-Pipeline)
+                        und einen <em>Wird nicht nachgeliefert</em>-Tab (Eskalationen). Beide
+                        Tabs sind unabhaengig filter- und sortierbar.</li>
+                    <li><strong>Werkbank-Karte zeigt beide Counts:</strong> Die "Meine Fehlteile"-Karte
+                        in der Werkbank-Sicht zeigt beide Zahlen mit eigenen Tab-Links (z.B.
+                        "3 Fehlteile (wird nachgeliefert)" + "1 Wird nicht nachgeliefert").</li>
+                    <li><strong>Datenbank-Migration:</strong> Bestehende Bestellungen werden beim
+                        Update automatisch konvertiert — alle PartiallyDelivered-Bestellungen
+                        bleiben PartiallyDelivered, alle bisherigen endgueltigen Fehlteile bleiben
+                        in der Eskalations-Liste sichtbar.</li>
+                    <li><em>Hinweis fuer Admins:</em> Backup der DB vor Deploy empfohlen — die
+                        Migration droppt die alte <code>IsFinalShortage</code>-Spalte nach
+                        Daten-Konvertierung.</li>
+                    <li><strong>Notiz EK:</strong> Pro Position gibt es jetzt zwei Notiz-Felder.
+                        Die bestehende Notiz wurde zu "Notiz Lager" umbenannt, daneben neu
+                        "Notiz EK" fuer Hinweise an den Einkauf (z.B. Lieferanten-Info bei
+                        endgueltigem Fehlteil).</li>
+                    <li><strong>Fehlteile getrennt nach Sicht:</strong> Im Bestellungen-Menue
+                        gibt es jetzt "Meine Fehlteile" (Werkbank-Sicht, nur eigene Werkbaenke).
+                        Unter dem Lager-Block daneben ist "Lager: Fehlteile" platziert (globale
+                        Sicht ohne mineOnly-Filter). Der Werkbank-Dropdown in "Meine Fehlteile"
+                        zeigt ausschliesslich die eigenen, in den Stammdaten hinterlegten
+                        Werkbaenke. Werkbank-User ohne Zuordnung sehen einen Hinweis-Banner.</li>
+                    <li><strong>Lagerplatz-Spalte in "Lager: Fehlteile":</strong> Die Fehlteile-Liste
+                        fuers Lager zeigt jetzt pro Position eine zusaetzliche Spalte
+                        "Lagerplatz (Bestand)" mit allen Lagerplaetzen die aktuell Bestand des
+                        Artikels haben (nach Menge absteigend sortiert, Format
+                        <code>Code (Menge)</code>). So sieht das Lager auf einen Blick, ob
+                        mittlerweile wieder Bestand vorhanden ist um den Fehlteil zu schliessen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.18.0</strong> <span class="text-white-50 ms-2">29.05.2026</span>
             </div>
             <div class="card-body">

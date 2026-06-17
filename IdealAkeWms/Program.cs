@@ -50,8 +50,9 @@ builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
 builder.Services.AddScoped<IProductionOrderBdeStatusRepository, ProductionOrderBdeStatusRepository>();
-builder.Services.AddScoped<IProductionOrderAssemblyGroupRepository, ProductionOrderAssemblyGroupRepository>();
-builder.Services.AddScoped<IProductionOrderAssemblyGroupSpecRepository, ProductionOrderAssemblyGroupSpecRepository>();
+builder.Services.AddScoped<IWorkStepRepository, WorkStepRepository>();
+builder.Services.AddScoped<IFaWorkStepRepository, FaWorkStepRepository>();
+builder.Services.AddScoped<IFaAttributeRepository, FaAttributeRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
 builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
@@ -91,6 +92,7 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
 builder.Services.AddScoped<IPrintService, PrintService>();
+builder.Services.AddScoped<ReadOnlyBomBuilder>();
 builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
 builder.Services.AddScoped<IOseonTrafficLightService, OseonTrafficLightService>();
 builder.Services.AddScoped<IBdeBookingService, BdeBookingService>();
@@ -343,6 +345,7 @@ using (var scope = app.Services.CreateScope())
         ("Sync:BomCacheMaxOrders",       "200",   "BOM-Cache",   "Maximalanzahl Auftraege im BOM-Cache"),
         ("Sync:BomCacheMaxAgeHours",     "24",    "BOM-Cache",   "Sicherheitsnetz: Re-Sync wenn Cache-Eintrag aelter als X Stunden"),
         ("Sync:CoatingDetectionEnabled", "false", "Lackierteile","Lackierteil-Erkennung als separater Sync-Job aktiv"),
+        ("Sync:FaWorkStepDetectionEnabled", "false", "FA-Vervollstaendigung", "Automatische FA-Arbeitsgang-Erkennung aus dem BOM-Cache (laeuft direkt nach BomCache-Sync)"),
         ("Sync:BdeAutoPauseIntervalMinutes", "60",   "BDE",         "Intervall (Minuten) fuer Auto-Pause am Schichtende"),
         ("Sync:FeiertagSyncEnabled",         "false","BDE",         "Feiertags-Sync aus Nager.Date aktiv"),
         ("Sync:FeiertagCountryCode",         "AT",   "BDE",         "Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)"),

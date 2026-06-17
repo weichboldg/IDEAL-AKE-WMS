@@ -53,7 +53,24 @@ public class BdeBookingsController : Controller
             to = DateTime.Today.AddDays(1);
         }
 
-        var list = await _repo.GetHistoryAsync(skip, effectivePageSize, operatorId, workplaceId, from, to);
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+
+        // Timestamp-/berechnete Spalten werden in C# gegen das gerenderte Format gematcht
+        // (Pattern PickingLeitstandController). Wenn aktiv: alle Text-gefilterten Rows
+        // materialisieren, in C# filtern, dann erst paginieren.
+        var computedFilters = columnFilters
+            .Where(kv => ComputedColumnKeys.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+        var hasComputedFilters = computedFilters.Count > 0;
+        var sqlColumnFilters = hasComputedFilters
+            ? columnFilters.Where(kv => !ComputedColumnKeys.Contains(kv.Key))
+                           .ToDictionary(kv => kv.Key, kv => kv.Value)
+            : columnFilters;
+
+        var sqlSkip = hasComputedFilters ? 0 : skip;
+        var sqlTake = hasComputedFilters ? int.MaxValue : effectivePageSize;
+
+        var list = await _repo.GetHistoryAsync(sqlSkip, sqlTake, operatorId, workplaceId, from, to, sqlColumnFilters);
         var bookingVms = list.Select(b => new BdeBookingListViewModel
         {
             Id = b.Id,
@@ -71,6 +88,26 @@ public class BdeBookingsController : Controller
             TotalScrap = b.Quantities.Sum(q => q.ScrapQuantity),
             IsCancelled = b.IsCancelled
         }).ToList();
+
+        // C#-Filter fuer Timestamp-/berechnete Spalten + C#-Pagination;
+        // totalCount kommt aus der gefilterten Menge (kein separater Count-Call noetig).
+        int totalCount;
+        if (hasComputedFilters)
+        {
+            foreach (var (key, raw) in computedFilters)
+            {
+                var (tokens, negate) = ColumnFilterHelper.Parse(raw);
+                if (tokens.Count == 0) continue;
+                bookingVms = bookingVms.Where(b => MatchComputedColumnFilter(b, key, tokens, negate)).ToList();
+            }
+            totalCount = bookingVms.Count;
+            bookingVms = bookingVms.Skip(skip).Take(effectivePageSize).ToList();
+        }
+        else
+        {
+            // Count MIT denselben columnFilters wie die Liste — sonst Phantom-Seiten.
+            totalCount = await _repo.GetHistoryCountAsync(operatorId, workplaceId, from, to, sqlColumnFilters);
+        }
 
         var vm = new BdeBookingsIndexViewModel { Bookings = bookingVms };
 
@@ -119,8 +156,6 @@ public class BdeBookingsController : Controller
         ViewBag.Workplaces = await _workplaces.GetBdeActiveAsync();
         ViewBag.Filter = new { operatorId, workplaceId, from, to };
 
-        // Total fuer Pagination (separater Call)
-        var totalCount = await _repo.GetHistoryCountAsync(operatorId, workplaceId, from, to);
         vm.Pagination = new PaginationState
         {
             CurrentPage = page,
@@ -253,5 +288,44 @@ public class BdeBookingsController : Controller
     {
         ViewBag.Operators = await _ops.GetAllAsync();
         ViewBag.Workplaces = await _workplaces.GetBdeActiveAsync();
+    }
+
+    // ---------------------------------------------------------------------
+    // Server-Side Spaltenfilter: Timestamp-/berechnete Spalten (C#-Match
+    // gegen das gerenderte Format; SQL-Filter siehe BdeBookingRepository)
+    // ---------------------------------------------------------------------
+    private static readonly HashSet<string> ComputedColumnKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "started-at", // Start (dd.MM.yyyy HH:mm KWxx)
+        "ended-at",   // Ende (dd.MM.yyyy HH:mm KWxx)
+        "good-qty",   // Gut (Summe, "0.##")
+        "scrap-qty",  // Ausschuss (Summe, "0.##")
+    };
+
+    /// <summary>
+    /// Formatiert einen Timestamp identisch zur View (<c>dd.MM.yyyy HH:mm KWxx</c>) und
+    /// lowercased, damit der Server denselben Text matched wie der clientseitige Filter.
+    /// </summary>
+    private static string FormatDateForFilter(DateTime? date)
+    {
+        if (!date.HasValue) return string.Empty;
+        var d = date.Value;
+        var kw = System.Globalization.ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy HH:mm} KW{kw}".ToLowerInvariant();
+    }
+
+    private static bool MatchComputedColumnFilter(
+        BdeBookingListViewModel b, string key, List<string> tokens, bool negate)
+    {
+        var text = key.ToLowerInvariant() switch
+        {
+            "started-at" => FormatDateForFilter(b.StartedAt),
+            "ended-at" => FormatDateForFilter(b.EndedAt),
+            "good-qty" => b.TotalGood.ToString("0.##").ToLowerInvariant(),
+            "scrap-qty" => b.TotalScrap.ToString("0.##").ToLowerInvariant(),
+            _ => string.Empty
+        };
+        var hasMatch = tokens.Any(t => text.Contains(t));
+        return negate ? !hasMatch : hasMatch;
     }
 }

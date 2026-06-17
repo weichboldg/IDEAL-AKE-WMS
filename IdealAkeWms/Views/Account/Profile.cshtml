@@ -89,6 +89,34 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="DefaultWorkStepId" class="form-label"></label>
+                        <select asp-for="DefaultWorkStepId" class="form-select">
+                            <option value="">(keiner)</option>
+                            @foreach (var ws in Model.AvailableWorkSteps)
+                            {
+                                <option value="@ws.Id">@ws.Code — @ws.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">
+                            Wird in der FA-Abarbeitungsliste automatisch vorausgewaehlt.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultWorkplaceId" class="form-label"></label>
+                        <select asp-for="DefaultWorkplaceId" class="form-select">
+                            <option value="">(alle)</option>
+                            @foreach (var wp in Model.AvailableWorkplaces)
+                            {
+                                <option value="@wp.Id">@wp.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">
+                            Zusatzfilter in der FA-Abarbeitungsliste. (alle) = keine Vorauswahl.
+                        </div>
+                    </div>
+
                     <hr />
 
                     <div class="mb-3">

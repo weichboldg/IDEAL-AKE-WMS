@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireAdminAccess]
 public class UsersController : Controller
 {
     private readonly IUserRepository _userRepository;
@@ -15,20 +15,41 @@ public class UsersController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IPasswordService _passwordService;
     private readonly IUserViewPreferenceRepository _viewPreferenceRepository;
+    private readonly IWorkStepRepository _workStepRepository;
+    private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
 
     public UsersController(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         ICurrentUserService currentUserService,
         IPasswordService passwordService,
-        IUserViewPreferenceRepository viewPreferenceRepository)
+        IUserViewPreferenceRepository viewPreferenceRepository,
+        IWorkStepRepository workStepRepository,
+        IProductionWorkplaceRepository productionWorkplaceRepository)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _currentUserService = currentUserService;
         _passwordService = passwordService;
         _viewPreferenceRepository = viewPreferenceRepository;
+        _workStepRepository = workStepRepository;
+        _productionWorkplaceRepository = productionWorkplaceRepository;
     }
+
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Rollen als Namen-Liste in SortOrder, Status-Badge "Aktiv"/"Inaktiv", Datum im View-Format).
+    /// </summary>
+    private static readonly Dictionary<string, Func<User, string?>> ColumnMap = new()
+    {
+        ["name"] = u => u.Name,
+        ["personal-number"] = u => u.PersonalNumber,
+        ["roles"] = u => string.Join(", ", u.UserRoles.OrderBy(ur => ur.Role.SortOrder).Select(ur => ur.Role.Name)),
+        ["email"] = u => u.Email,
+        ["status"] = u => u.IsActive ? "Aktiv" : "Inaktiv",
+        ["created-at"] = u => u.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
+    };
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
@@ -38,7 +59,13 @@ public class UsersController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var users = await _userRepository.GetAllWithRolesAsync();
-        var ordered = users.OrderBy(u => u.Name).ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var ordered = ColumnFilterHelper.Apply(users, columnFilters, ColumnMap)
+            .OrderBy(u => u.Name)
+            .ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
@@ -79,6 +106,8 @@ public class UsersController : Controller
             RecursiveFilterSearch = vm.RecursiveFilterSearch,
             IsPicker = vm.IsPicker,
             DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize),
+            DefaultWorkStepId = vm.DefaultWorkStepId,
+            DefaultWorkplaceId = vm.DefaultWorkplaceId,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -125,6 +154,8 @@ public class UsersController : Controller
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             IsPicker = user.IsPicker,
             DefaultPageSize = user.DefaultPageSize,
+            DefaultWorkStepId = user.DefaultWorkStepId,
+            DefaultWorkplaceId = user.DefaultWorkplaceId,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -163,6 +194,8 @@ public class UsersController : Controller
         existing.RecursiveFilterSearch = vm.RecursiveFilterSearch;
         existing.IsPicker = vm.IsPicker;
         existing.DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize);
+        existing.DefaultWorkStepId = vm.DefaultWorkStepId;
+        existing.DefaultWorkplaceId = vm.DefaultWorkplaceId;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -206,6 +239,16 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Edit), new { id });
     }
 
+    /// <summary>
+    /// Hand-gepflegte Uebersicht: welche Rolle hat Zugriff auf welche Seiten.
+    /// Wird von Users/Index|Create|Edit verlinkt. View kommt in Task 9.
+    /// </summary>
+    [HttpGet]
+    public IActionResult RoleOverview()
+    {
+        return View();
+    }
+
     private async Task PopulateRolesAsync(UserEditViewModel vm, List<int> selectedIds)
     {
         var roles = await _roleRepository.GetAllOrderedAsync();
@@ -216,6 +259,8 @@ public class UsersController : Controller
             Key = r.Key,
             IsSelected = selectedIds.Contains(r.Id)
         }).ToList();
+        vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
+        vm.AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
     }
 
     /// <summary>Akzeptiert nur erlaubte PageSize-Werte; sonst NULL (= System-Default).</summary>

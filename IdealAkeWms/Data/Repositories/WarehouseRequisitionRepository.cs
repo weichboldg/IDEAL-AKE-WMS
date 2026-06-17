@@ -166,7 +166,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
     public async Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
-        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         int closedByUserId, string user, string winUser, byte[] rowVersion)
     {
         var r = await _context.WarehouseRequisitions
@@ -179,8 +180,10 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : 0m;
             if (itemNotes.TryGetValue(item.Id, out var note))
                 item.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
-            if (itemIsFinalShortages.TryGetValue(item.Id, out var final))
-                item.IsFinalShortage = final;
+            if (itemNotesEinkauf.TryGetValue(item.Id, out var noteEk))
+                item.NoteEinkauf = string.IsNullOrWhiteSpace(noteEk) ? null : noteEk.Trim();
+            if (itemShortageStatuses.TryGetValue(item.Id, out var status))
+                item.ShortageStatus = status;
             item.ModifiedAt = DateTime.Now;
             item.ModifiedBy = user;
             item.ModifiedByWindows = winUser;
@@ -198,10 +201,10 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     {
         bool isFullyDelivered = req.Items.All(i =>
             (i.QuantityPicked ?? 0) >= i.QuantityRequested);
-        bool hasOpenShortage = req.Items.Any(i =>
-            (i.QuantityPicked ?? 0) < i.QuantityRequested && !i.IsFinalShortage);
+        bool hasWaitingRestock = req.Items.Any(i =>
+            i.ShortageStatus == ShortageStatus.WillBeRestocked);
 
-        return (isFullyDelivered || !hasOpenShortage)
+        return (isFullyDelivered || !hasWaitingRestock)
             ? WarehouseRequisitionStatus.Closed
             : WarehouseRequisitionStatus.PartiallyDelivered;
     }
@@ -233,12 +236,14 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     public async Task SaveProgressAsync(int id,
         IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
-        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         string user, string winUser)
     {
         var allKeys = itemQuantitiesPicked.Keys
             .Concat(itemNotes.Keys)
-            .Concat(itemIsFinalShortages.Keys)
+            .Concat(itemNotesEinkauf.Keys)
+            .Concat(itemShortageStatuses.Keys)
             .Distinct()
             .ToList();
         if (allKeys.Count == 0) return;
@@ -269,11 +274,20 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                     rowChanged = true;
                 }
             }
-            if (itemIsFinalShortages.TryGetValue(row.Id, out var final))
+            if (itemNotesEinkauf.TryGetValue(row.Id, out var noteEk))
             {
-                if (row.IsFinalShortage != final)
+                var normalized = string.IsNullOrWhiteSpace(noteEk) ? null : noteEk.Trim();
+                if (row.NoteEinkauf != normalized)
                 {
-                    row.IsFinalShortage = final;
+                    row.NoteEinkauf = normalized;
+                    rowChanged = true;
+                }
+            }
+            if (itemShortageStatuses.TryGetValue(row.Id, out var status))
+            {
+                if (row.ShortageStatus != status)
+                {
+                    row.ShortageStatus = status;
                     rowChanged = true;
                 }
             }
@@ -320,7 +334,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     }
 
     public async Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
-        GetMissingPartsAsync(int? workplaceFilter,
+        GetMissingPartsAsync(ShortageStatus filterStatus,
+                             int? workplaceFilter,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize)
@@ -328,8 +343,9 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         var q = _context.WarehouseRequisitionItems
             .Include(i => i.WarehouseRequisition)
                 .ThenInclude(r => r.ProductionWorkplace)
-            .Where(i => i.IsFinalShortage
-                && i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed);
+            .Where(i => i.ShortageStatus == filterStatus
+                && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                    || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered));
 
         if (workplaceFilter.HasValue)
             q = q.Where(i => i.WarehouseRequisition.ProductionWorkplaceId == workplaceFilter.Value);
@@ -346,6 +362,10 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 q = ApplyMissingPartsTextFilter(q, ad, isArticleNumber: false, isDescription: true);
             if (columnFilters.TryGetValue("WorkplaceName", out var wn) && !string.IsNullOrWhiteSpace(wn))
                 q = ApplyMissingPartsTextFilter(q, wn, isArticleNumber: false, isDescription: false, isWorkplace: true);
+            if (columnFilters.TryGetValue("NoteLager", out var nl) && !string.IsNullOrWhiteSpace(nl))
+                q = ApplyMissingPartsNullableTextFilter(q, nl, isNoteLager: true);
+            if (columnFilters.TryGetValue("NoteEinkauf", out var ne) && !string.IsNullOrWhiteSpace(ne))
+                q = ApplyMissingPartsNullableTextFilter(q, ne, isNoteLager: false);
         }
 
         var total = await q.CountAsync();
@@ -365,7 +385,9 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 i.Unit,
                 i.Note,
                 i.WarehouseRequisition.CreatedBy,
-                i.WarehouseRequisition.ClosedAt))
+                i.WarehouseRequisition.ClosedAt,
+                i.ShortageStatus,
+                i.NoteEinkauf))
             .ToListAsync();
 
         return (rows, total);
@@ -402,6 +424,55 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return q;
     }
 
+    private static IQueryable<WarehouseRequisitionItem> ApplyMissingPartsNullableTextFilter(
+        IQueryable<WarehouseRequisitionItem> q,
+        string filterValue,
+        bool isNoteLager)
+    {
+        var tokens = filterValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0) return q;
+        var positives = tokens.Where(t => !t.StartsWith("!")).ToList();
+        var negatives = tokens.Where(t => t.StartsWith("!")).Select(t => t.Substring(1)).ToList();
+
+        if (positives.Count > 0)
+            q = q.Where(BuildNullableOrContains(isNoteLager, positives));
+        foreach (var n in negatives)
+            q = q.Where(BuildNullableNotContains(isNoteLager, n));
+        return q;
+    }
+
+    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNullableOrContains(
+        bool isNoteLager, IReadOnlyList<string> values)
+    {
+        var param = Expression.Parameter(typeof(WarehouseRequisitionItem), "i");
+        var prop = Expression.Property(param, isNoteLager ? nameof(WarehouseRequisitionItem.Note) : nameof(WarehouseRequisitionItem.NoteEinkauf));
+        var nullConst = Expression.Constant(null, typeof(string));
+        var notNull = Expression.NotEqual(prop, nullConst);
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+
+        Expression? orBody = null;
+        foreach (var v in values)
+        {
+            var call = Expression.Call(prop, containsMethod, Expression.Constant(v));
+            orBody = orBody == null ? (Expression)call : Expression.OrElse(orBody, call);
+        }
+        var body = Expression.AndAlso(notNull, orBody!);
+        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body, param);
+    }
+
+    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNullableNotContains(
+        bool isNoteLager, string value)
+    {
+        var param = Expression.Parameter(typeof(WarehouseRequisitionItem), "i");
+        var prop = Expression.Property(param, isNoteLager ? nameof(WarehouseRequisitionItem.Note) : nameof(WarehouseRequisitionItem.NoteEinkauf));
+        var nullConst = Expression.Constant(null, typeof(string));
+        var isNull = Expression.Equal(prop, nullConst);
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+        var call = Expression.Call(prop, containsMethod, Expression.Constant(value));
+        var body = Expression.OrElse(isNull, Expression.Not(call));
+        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body, param);
+    }
+
     private static Expression<Func<WarehouseRequisitionItem, bool>> BuildOrContains(
         Expression<Func<WarehouseRequisitionItem, string>> selector,
         IReadOnlyList<string> values)
@@ -427,22 +498,29 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(Expression.Not(call), param);
     }
 
-    public async Task<(int ItemCount, int RequisitionCount)>
-        GetFinalShortagesCountForUserAsync(int userId)
+    public async Task<(int WaitingItemCount, int WaitingRequisitionCount,
+                       int NoRestockItemCount, int NoRestockRequisitionCount)>
+        GetShortageCountsForUserAsync(int userId)
     {
         var userWorkplaceIds = await _context.ProductionWorkplaceUsers
             .Where(u => u.UserId == userId)
             .Select(u => u.ProductionWorkplaceId)
             .ToListAsync();
-        if (userWorkplaceIds.Count == 0) return (0, 0);
+        if (userWorkplaceIds.Count == 0) return (0, 0, 0, 0);
 
         var q = _context.WarehouseRequisitionItems
-            .Where(i => i.IsFinalShortage
-                && i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+            .Where(i => (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
+                         || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
                 && userWorkplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
 
-        int itemCount = await q.CountAsync();
-        int reqCount = await q.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
-        return (itemCount, reqCount);
+        var waiting = q.Where(i => i.ShortageStatus == ShortageStatus.WillBeRestocked);
+        var noRestock = q.Where(i => i.ShortageStatus == ShortageStatus.NoRestock);
+
+        int waitingItems = await waiting.CountAsync();
+        int waitingReqs = await waiting.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
+        int noRestockItems = await noRestock.CountAsync();
+        int noRestockReqs = await noRestock.Select(i => i.WarehouseRequisitionId).Distinct().CountAsync();
+
+        return (waitingItems, waitingReqs, noRestockItems, noRestockReqs);
     }
 }

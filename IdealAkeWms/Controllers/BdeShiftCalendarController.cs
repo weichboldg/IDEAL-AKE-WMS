@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireAdminAccess]
 public class BdeShiftCalendarController : Controller
 {
     private readonly ApplicationDbContext _ctx;

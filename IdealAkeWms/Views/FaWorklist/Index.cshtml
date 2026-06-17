@@ -1,0 +1,198 @@
+@model IdealAkeWms.Models.ViewModels.FaWorklistViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "FA-Abarbeitungsliste";
+    // ISO 8601 Kalenderwoche (gleiche Darstellung wie FA-Liste)
+    string FormatDateWithKw(DateTime? date)
+    {
+        if (!date.HasValue) return "";
+        var d = date.Value;
+        var kw = ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}";
+    }
+    var doneHeader = Model.SelectedWorkStep != null
+        ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
+        : "Erledigt";
+    // FA-Nr, Werkbank, Artikel, Stk, BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
+    var columnCount = 7 + Model.AttributeColumns.Count + 1;
+}
+
+<h2 class="page-header">FA-Abarbeitungsliste</h2>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="workStepId">FA-Vorbau-AG</label>
+                    <select name="workStepId" id="workStepId" class="form-select" onchange="this.form.submit()">
+                        <option value="">– FA-Vorbau-AG wählen –</option>
+                        @foreach (var ws in Model.AvailableWorkSteps)
+                        {
+                            <option value="@ws.Id" selected="@(Model.SelectedWorkStepId == ws.Id)">@ws.Code — @ws.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="workplaceId">Werkbank</label>
+                    <select name="workplaceId" id="workplaceId" class="form-select" onchange="this.form.submit()">
+                        <option value="" selected="@(Model.SelectedWorkplaceId == null)">(alle)</option>
+                        @foreach (var wp in Model.AvailableWorkplaces)
+                        {
+                            <option value="@wp.Id" selected="@(Model.SelectedWorkplaceId == wp.Id)">@wp.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="showDone" value="true" class="form-check-input" id="showDone"
+                               onchange="this.form.submit()" @(Model.ShowDone ? "checked" : "") />
+                        <label class="form-check-label" for="showDone">Erledigte anzeigen</label>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.SelectedWorkStepId == null)
+{
+    <div class="alert alert-info">
+        Bitte zuerst einen FA-Vorbau-Arbeitsgang auswählen — die Abarbeitungsliste zeigt die offenen
+        Fertigungsaufträge mit diesem FA-Vorbau-AG über alle Werkbänke. Ein Standard FA-Vorbau-AG
+        kann im Profil hinterlegt werden.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped filterable-table" data-view-key="FaWorklist" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th data-filterable data-col-key="order-number">FA Nr.</th>
+                    <th data-filterable data-col-key="workbench">Werkbank</th>
+                    <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                    <th data-filterable data-col-key="quantity">Stk.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
+                    <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
+                    @foreach (var def in Model.AttributeColumns)
+                    {
+                        <th data-filterable data-col-key="attr-@def.Id">@def.Name</th>
+                    }
+                    <th class="text-center" data-col-key="done" title="@doneHeader">@doneHeader</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="@columnCount" class="text-center text-muted py-4">
+                            Keine offenen Fertigungsaufträge für diesen FA-Vorbau-Arbeitsgang.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <span class="d-inline-flex align-items-center gap-2 flex-wrap">
+                                    <a asp-action="Bom" asp-route-id="@item.ProductionOrderId">@item.OrderNumber</a>
+                                    @await Html.PartialAsync("_FaDocumentLinks", new IdealAkeWms.Models.ViewModels.FaDocumentLinksViewModel
+                                    {
+                                        ArticleNumber = item.ArticleNumber,
+                                        OrderNumber = item.OrderNumber,
+                                        ProductionOrderId = item.ProductionOrderId,
+                                        BomController = "FaWorklist",
+                                        EnaioLinks = Model.EnaioDmsLinks.GetValueOrDefault(item.OrderNumber),
+                                    })
+                                </span>
+                            </td>
+                            <td>@item.WorkplaceName</td>
+                            <td>@item.ArticleNumber</td>
+                            <td>@item.Quantity</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.KommissionierTermin)</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.ProductionDate)</td>
+                            @foreach (var def in Model.AttributeColumns)
+                            {
+                                <td>@item.AttributeValues.GetValueOrDefault(def.Id)</td>
+                            }
+                            <td class="text-center">
+                                @if (item.WorkStepCell != null)
+                                {
+                                    <input type="checkbox" class="form-check-input worklist-complete"
+                                           data-fa-work-step-id="@item.WorkStepCell.FaWorkStepId" @(item.WorkStepCell.IsCompleted ? "checked" : "") />
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @await Html.PartialAsync("_Pagination", Model.Pagination)
+
+    <script type="application/json" id="view-config">
+    { "viewKey": "FaWorklist", "supportsReorder": true, "supportsSortDefault": true }
+    </script>
+    <script type="application/json" id="column-config">
+    [
+        { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
+        { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+        { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+        { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
+        { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
+        { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
+        { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
+        @foreach (var def in Model.AttributeColumns)
+        {
+            <text>{ "key": "attr-@def.Id", "label": @Html.Raw(System.Text.Json.JsonSerializer.Serialize(def.Name)), "locked": false, "defaultWidth": null },</text>
+        }
+        { "key": "done", "label": @Html.Raw(System.Text.Json.JsonSerializer.Serialize(doneHeader)), "locked": true, "defaultWidth": null }
+    ]
+    </script>
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        // Erledigt-Toggle per AJAX — Event-Delegation, damit es keine per-Row-Handler braucht.
+        // Fehlerfall: Checkbox zuruecksetzen (Muster Leitstand-Toggle-Fields).
+        document.addEventListener('change', function (e) {
+            var cb = e.target.closest('.worklist-complete');
+            if (!cb) return;
+
+            var faWorkStepId = parseInt(cb.getAttribute('data-fa-work-step-id'));
+            var value = cb.checked;
+
+            fetch('/api/fa-work-steps/toggle-completed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ faWorkStepId: faWorkStepId, value: value })
+            }).then(function (resp) {
+                if (!resp.ok) {
+                    cb.checked = !value;
+                    alert('Fehler beim Speichern.');
+                }
+            }).catch(function () {
+                cb.checked = !value;
+                alert('Fehler beim Speichern.');
+            });
+        });
+    </script>
+}

@@ -82,6 +82,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> HasMasterDataAccessAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.MasterData);
 
+    public async Task<bool> HasMasterDataReadAccessAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.MasterDataRead, RoleKeys.MasterData);
+
     public async Task<bool> CanPickAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking);
 
@@ -94,6 +97,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanAccessStockAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking);
 
+    public async Task<bool> CanProcessLagerAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser);
+
     public async Task<bool> CanTransferStockAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.StockKeyUser, RoleKeys.Picking);
 
@@ -102,6 +108,9 @@ public class CurrentUserService : ICurrentUserService
 
     public async Task<bool> CanFaCompletionAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.FaCompletion);
+
+    public async Task<bool> HasVorbauAccessAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Vorbau);
 
     public async Task<bool> CanUseBdeAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeUser, RoleKeys.BdeShiftlead, RoleKeys.BdeAdmin);

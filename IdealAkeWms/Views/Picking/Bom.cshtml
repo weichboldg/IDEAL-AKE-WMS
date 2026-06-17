@@ -52,14 +52,17 @@
             }
             <div class="col-auto ms-auto d-flex gap-2 align-items-center">
                 <span class="text-muted small">@Model.Items.Count Positionen</span>
-                <button type="button" id="btnScanBomArticle" class="btn btn-sm btn-secondary" title="Artikel QR-Code scannen zum Kommissionieren">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
-                        <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
-                    </svg>
-                    Artikel scannen
-                </button>
-                <input type="hidden" id="bomScanArticle" />
+                @if (!Model.ReadOnly)
+                {
+                    <button type="button" id="btnScanBomArticle" class="btn btn-sm btn-secondary" title="Artikel QR-Code scannen zum Kommissionieren">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                            <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                        </svg>
+                        Artikel scannen
+                    </button>
+                    <input type="hidden" id="bomScanArticle" />
+                }
                 <button type="button" id="btnExpandAll" class="btn btn-sm btn-outline-secondary" title="Alle aufklappen">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                         <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
@@ -81,7 +84,10 @@
     <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
         <thead>
             <tr>
-                <th style="width: 40px;" data-col-key="pick-control"></th>
+                @if (!Model.ReadOnly)
+                {
+                    <th style="width: 40px;" data-col-key="pick-control"></th>
+                }
                 <th style="width: 55px;" data-filterable data-col-key="position">Pos.</th>
                 <th data-filterable data-col-key="assembly-group">Baugruppe</th>
                 <th data-filterable data-col-key="resource-number">Ressourcenummer</th>
@@ -92,8 +98,11 @@
                 <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                 <th data-filterable data-col-key="category">Kategorie</th>
                 <th data-col-key="storage-location">Lagerplatz</th>
-                <th data-col-key="source-location">Quell-Lagerplatz</th>
-                @if (ViewBag.BestellungenAktiv == true)
+                @if (!Model.ReadOnly)
+                {
+                    <th data-col-key="source-location">Quell-Lagerplatz</th>
+                }
+                @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly)
                 {
                     <th style="width: 80px;" data-col-key="order">Bestellen</th>
                 }
@@ -118,19 +127,22 @@
                     @if (!string.IsNullOrEmpty(parentPos)) { <text>data-parent-pos="@parentPos"</text> }
                     @if (isBg) { <text>data-baugruppe-id="@item.Ressourcenummer"</text> }
                     @if (item.TreeLevel > 0) { <text>style="display:none;"</text> }>
-                    <td>
-                        @if (item.PickingItemId.HasValue && !item.IsTransferred)
-                        {
-                            <input type="checkbox" class="form-check-input picking-checkbox"
-                                   data-id="@item.PickingItemId"
-                                   data-is-baugruppe="@isBg.ToString().ToLower()"
-                                   @(item.IsPicked ? "checked" : "") />
-                        }
-                        else if (item.IsTransferred)
-                        {
-                            <span class="text-muted" title="Umgebucht">&#10003;</span>
-                        }
-                    </td>
+                    @if (!Model.ReadOnly)
+                    {
+                        <td>
+                            @if (item.PickingItemId.HasValue && !item.IsTransferred)
+                            {
+                                <input type="checkbox" class="form-check-input picking-checkbox"
+                                       data-id="@item.PickingItemId"
+                                       data-is-baugruppe="@isBg.ToString().ToLower()"
+                                       @(item.IsPicked ? "checked" : "") />
+                            }
+                            else if (item.IsTransferred)
+                            {
+                                <span class="text-muted" title="Umgebucht">&#10003;</span>
+                            }
+                        </td>
+                    }
                     <td style="padding-left: @(item.TreeLevel * 24 + 5)px; white-space: nowrap;">
                         @if (isBg)
                         {
@@ -171,30 +183,33 @@
                             <span class="text-muted">-</span>
                         }
                     </td>
-                    <td>
-                        @if (item.PickingItemId.HasValue && !item.IsTransferred)
-                        {
-                            <select class="form-select form-select-sm source-location-select"
-                                    data-id="@item.PickingItemId"
-                                    data-article-number="@item.Ressourcenummer"
-                                    style="min-width: 200px;">
-                                <option value="">--</option>
-                                @if (item.SourceStorageLocationId.HasValue)
-                                {
-                                    var preSelected = Model.AllStorageLocations.FirstOrDefault(sl => sl.Id == item.SourceStorageLocationId.Value);
-                                    if (preSelected != null)
+                    @if (!Model.ReadOnly)
+                    {
+                        <td>
+                            @if (item.PickingItemId.HasValue && !item.IsTransferred)
+                            {
+                                <select class="form-select form-select-sm source-location-select"
+                                        data-id="@item.PickingItemId"
+                                        data-article-number="@item.Ressourcenummer"
+                                        style="min-width: 200px;">
+                                    <option value="">--</option>
+                                    @if (item.SourceStorageLocationId.HasValue)
                                     {
-                                        var stockQty = item.StockLocations.FirstOrDefault(s => s.StorageLocationId == preSelected.Id)?.Quantity;
-                                        var preLabel = stockQty.HasValue && stockQty > 0
-                                            ? $"{preSelected.Code} ({stockQty:N3})"
-                                            : preSelected.Code;
-                                        <option value="@preSelected.Id" selected>@preLabel</option>
+                                        var preSelected = Model.AllStorageLocations.FirstOrDefault(sl => sl.Id == item.SourceStorageLocationId.Value);
+                                        if (preSelected != null)
+                                        {
+                                            var stockQty = item.StockLocations.FirstOrDefault(s => s.StorageLocationId == preSelected.Id)?.Quantity;
+                                            var preLabel = stockQty.HasValue && stockQty > 0
+                                                ? $"{preSelected.Code} ({stockQty:N3})"
+                                                : preSelected.Code;
+                                            <option value="@preSelected.Id" selected>@preLabel</option>
+                                        }
                                     }
-                                }
-                            </select>
-                        }
-                    </td>
-                    @if (ViewBag.BestellungenAktiv == true)
+                                </select>
+                            }
+                        </td>
+                    }
+                    @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly)
                     {
                         <td class="text-center">
                             @{
@@ -230,15 +245,19 @@
             }
             @if (!Model.Items.Any())
             {
+                // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2; Bestellen-Spalte +1.
+                var emptyColspan = (Model.ReadOnly ? 10 : 12)
+                    + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0);
                 <tr>
-                    <td colspan="@(ViewBag.BestellungenAktiv == true ? 12 : 11)" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
+                    <td colspan="@emptyColspan" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
                 </tr>
             }
         </tbody>
     </table>
 </div>
 
-@if (Model.Items.Any())
+@* Read-only (Abarbeitungsliste): keine Umbuchung, keine Fotos, keine Picking-Modals, keine Bedarfsmeldungen. *@
+@if (Model.Items.Any() && !Model.ReadOnly)
 {
     <div class="card mt-4">
         <div class="card-header" style="background-color: var(--ake-secondary);">
@@ -463,7 +482,14 @@
 }
 
 <div class="mt-3">
-    <a asp-controller="ProductionOrders" asp-action="Index" class="btn btn-outline-secondary">Zurück zur FA-Liste</a>
+    @if (Model.ReadOnly)
+    {
+        <a asp-controller="@Model.BackController" asp-action="Index" class="btn btn-outline-secondary">@Model.BackText</a>
+    }
+    else
+    {
+        <a asp-controller="ProductionOrders" asp-action="Index" class="btn btn-outline-secondary">Zurück zur FA-Liste</a>
+    }
 </div>
 
 <script type="application/json" id="view-config">
@@ -471,7 +497,7 @@
 </script>
 <script type="application/json" id="column-config">
 [
-    { "key": "pick-control", "label": "", "locked": true, "defaultWidth": 40 },
+    @if (!Model.ReadOnly) { <text>{ "key": "pick-control", "label": "", "locked": true, "defaultWidth": 40 },</text> }
     { "key": "position", "label": "Pos.", "locked": true, "defaultWidth": 55 },
     { "key": "assembly-group", "label": "Baugruppe", "locked": false, "defaultWidth": null },
     { "key": "resource-number", "label": "Ressourcenummer", "locked": false, "defaultWidth": null },
@@ -481,9 +507,9 @@
     { "key": "procurement", "label": "Beschaffung", "locked": false, "defaultWidth": null },
     { "key": "article-group", "label": "Artikelgruppe", "locked": false, "defaultWidth": null },
     { "key": "category", "label": "Kategorie", "locked": false, "defaultWidth": null },
-    { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
-    { "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null }
-    @if (ViewBag.BestellungenAktiv == true) { <text>,{ "key": "order", "label": "Bestellen", "locked": false, "defaultWidth": 80 }</text> }
+    { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null }
+    @if (!Model.ReadOnly) { <text>,{ "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null }</text> }
+    @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly) { <text>,{ "key": "order", "label": "Bestellen", "locked": false, "defaultWidth": 80 }</text> }
 ]
 </script>
 
@@ -499,8 +525,13 @@
     <script src="~/js/photo-upload.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
-            initScanner('btnScanBomArticle', 'bomScanArticle', 'article');
+            // Read-only-Modus (FA-Abarbeitungsliste): Scanner-/Picking-Handler nicht binden.
+            const readOnly = @Json.Serialize(Model.ReadOnly);
+
+            if (!readOnly) {
+                initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');
+                initScanner('btnScanBomArticle', 'bomScanArticle', 'article');
+            }
 
             // Select2 + Ajax fuer Quell-Lagerplatz-Dropdowns (statt N*L vorab gerenderter Optionen).
             // Pro Row wird nur die pre-selected Option gerendert, alles andere wird per Ajax geladen.
@@ -538,7 +569,9 @@
             });
 
             // Nach Artikel-Scan: Zeile finden und Picking-Checkbox toggeln
-            document.getElementById('bomScanArticle').addEventListener('change', function () {
+            // (Input existiert nur im Picking-Modus — im Read-only-Modus nicht gerendert.)
+            var bomScanInput = document.getElementById('bomScanArticle');
+            if (bomScanInput) bomScanInput.addEventListener('change', function () {
                 var scannedValue = this.value.trim();
                 if (!scannedValue) return;
 
@@ -788,7 +821,9 @@
                 });
                 var visibleColumnsParam = visibleCols.join(',');
 
-                var url = '@Url.Action("PrintBom", new { id = Model.ProductionOrderId })';
+                // Controller explizit: im Read-only-Modus (FaWorklist) wuerde der ambiente
+                // Controller sonst /FaWorklist/PrintBom aufloesen (404).
+                var url = '@Url.Action("PrintBom", "Picking", new { id = Model.ProductionOrderId })';
                 var params = [];
                 if (visiblePositions.length > 0) params.push('visiblePositions=' + encodeURIComponent(visiblePositions.join(',')));
                 if (filterParts.length > 0) params.push('filterInfo=' + encodeURIComponent(filterParts.join(', ')));
@@ -797,6 +832,10 @@
 
                 window.open(url, '_blank');
             });
+
+            // Ab hier ausschliesslich Picking-Funktionalitaet (Checkboxen, Umbuchen,
+            // Status-Modal, Scan-Retry, Fotos, Bedarfsmeldungen) — im Read-only-Modus beenden.
+            if (readOnly) return;
 
             // ========== Checkbox-Toggle (Picking) — nur lokal ==========
 

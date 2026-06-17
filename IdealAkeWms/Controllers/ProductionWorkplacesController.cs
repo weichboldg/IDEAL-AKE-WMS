@@ -9,11 +9,12 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class ProductionWorkplacesController : Controller
 {
     private readonly IProductionWorkplaceRepository _repository;
     private readonly IUserRepository _userRepository;
+    private readonly IWorkStepRepository _workStepRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _appSettings;
     private readonly ApplicationDbContext _ctx;
@@ -21,16 +22,37 @@ public class ProductionWorkplacesController : Controller
     public ProductionWorkplacesController(
         IProductionWorkplaceRepository repository,
         IUserRepository userRepository,
+        IWorkStepRepository workStepRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository appSettings,
         ApplicationDbContext ctx)
     {
         _repository = repository;
         _userRepository = userRepository;
+        _workStepRepository = workStepRepository;
         _currentUserService = currentUserService;
         _appSettings = appSettings;
         _ctx = ctx;
     }
+
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (BDE-Badge "Aktiv"/"Inaktiv", Benutzer als Anzahl + Namen-Liste bzw. Gedankenstrich,
+    /// Vorkommissioniertage als "X Tage"-Badge bzw. "Standard").
+    /// </summary>
+    private static readonly Dictionary<string, Func<ProductionWorkplace, string?>> ColumnMap = new()
+    {
+        ["name"] = wp => wp.Name,
+        ["hall"] = wp => wp.Hall,
+        ["bde"] = wp => wp.BdeAktiv ? "Aktiv" : "Inaktiv",
+        ["users"] = wp => wp.ProductionWorkplaceUsers.Any()
+            ? $"{wp.ProductionWorkplaceUsers.Count} {string.Join(", ", wp.ProductionWorkplaceUsers.Select(wu => wu.User.Name))}"
+            : "—",
+        ["pre-picking-days"] = wp => wp.OverridePrePickingDays.HasValue
+            ? $"{wp.OverridePrePickingDays} Tage"
+            : "Standard",
+    };
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
@@ -40,7 +62,11 @@ public class ProductionWorkplacesController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var workplaces = await _repository.GetAllWithUsersOrderedAsync();
-        var list = workplaces.ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var list = ColumnFilterHelper.Apply(workplaces, columnFilters, ColumnMap).ToList();
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,
@@ -51,11 +77,13 @@ public class ProductionWorkplacesController : Controller
         return View(list.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create()
     {
         var vm = new ProductionWorkplaceEditViewModel
         {
-            AvailableUsers = await _userRepository.GetActiveUsersAsync()
+            AvailableUsers = await _userRepository.GetActiveUsersAsync(),
+            AllWorkSteps = await _workStepRepository.GetActiveAsync()
         };
         ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
         return View(vm);
@@ -63,11 +91,14 @@ public class ProductionWorkplacesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm)
+    [RequireMasterDataAccess]
+    public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm, int[]? workStepIds = null)
     {
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
+            vm.AllWorkSteps = await _workStepRepository.GetActiveAsync();
+            vm.SelectedWorkStepIds = workStepIds?.ToList() ?? new List<int>();
             ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
             return View(vm);
         }
@@ -97,10 +128,20 @@ public class ProductionWorkplacesController : Controller
                 _currentUserService.GetWindowsUserName());
         }
 
+        if (workStepIds is { Length: > 0 })
+        {
+            await _repository.SetWorkStepsAsync(
+                workplace.Id,
+                workStepIds.ToList(),
+                _currentUserService.GetDisplayName(),
+                _currentUserService.GetWindowsUserName());
+        }
+
         TempData["SuccessMessage"] = $"Werkbank '{workplace.Name}' wurde angelegt.";
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var workplace = await _repository.GetByIdWithUsersAsync(id);
@@ -121,7 +162,9 @@ public class ProductionWorkplacesController : Controller
                 .OrderBy(s => s.DayOfWeek).ThenBy(s => s.StartTime)
                 .ToListAsync(),
             SelectedUserIds = workplace.ProductionWorkplaceUsers.Select(wu => wu.UserId).ToList(),
-            AvailableUsers = await _userRepository.GetActiveUsersAsync()
+            AvailableUsers = await _userRepository.GetActiveUsersAsync(),
+            AllWorkSteps = await _workStepRepository.GetActiveAsync(),
+            SelectedWorkStepIds = await _repository.GetWorkStepIdsAsync(workplace.Id)
         };
 
         ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
@@ -130,7 +173,8 @@ public class ProductionWorkplacesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, ProductionWorkplaceEditViewModel vm)
+    [RequireMasterDataAccess]
+    public async Task<IActionResult> Edit(int id, ProductionWorkplaceEditViewModel vm, int[]? workStepIds = null)
     {
         if (id != vm.Id)
             return NotFound();
@@ -138,6 +182,8 @@ public class ProductionWorkplacesController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
+            vm.AllWorkSteps = await _workStepRepository.GetActiveAsync();
+            vm.SelectedWorkStepIds = workStepIds?.ToList() ?? new List<int>();
             ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
             return View(vm);
         }
@@ -162,6 +208,11 @@ public class ProductionWorkplacesController : Controller
         await _repository.SetProductionWorkplaceUsersAsync(
             id,
             vm.SelectedUserIds ?? new List<int>(),
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName());
+        await _repository.SetWorkStepsAsync(
+            id,
+            workStepIds?.ToList() ?? new List<int>(),
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 

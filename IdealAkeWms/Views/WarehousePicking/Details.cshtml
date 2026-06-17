@@ -1,8 +1,9 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
+@using IdealAkeWms.Models
 @{
     ViewData["Title"] = $"Lagerbestellung #{Model.Id}";
-    bool isEditable = Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted
-                   || Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered;
+    bool isEditable = Model.Status == WarehouseRequisitionStatus.Submitted
+                   || Model.Status == WarehouseRequisitionStatus.PartiallyDelivered;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
@@ -18,10 +19,10 @@
         <div><strong>Status:</strong>
             @switch (Model.Status)
             {
-                case IdealAkeWms.Models.WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
-                case IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered: <span class="badge bg-warning text-dark">Teilgeliefert</span> break;
-                case IdealAkeWms.Models.WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt am @Model.ClosedAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
-                case IdealAkeWms.Models.WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert am @Model.CancelledAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
+                case WarehouseRequisitionStatus.Submitted: <span class="badge bg-primary">Abgeschickt</span> break;
+                case WarehouseRequisitionStatus.PartiallyDelivered: <span class="badge bg-warning text-dark">Teilgeliefert</span> break;
+                case WarehouseRequisitionStatus.Closed: <span class="badge bg-success">Erledigt am @Model.ClosedAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
+                case WarehouseRequisitionStatus.Cancelled: <span class="badge bg-dark">Storniert am @Model.CancelledAt?.ToString("dd.MM.yyyy HH:mm")</span> break;
             }
         </div>
         @if (!string.IsNullOrEmpty(Model.CancellationReason))
@@ -31,12 +32,11 @@
     </div>
 </div>
 
-@if (Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.PartiallyDelivered)
+@if (Model.Status == WarehouseRequisitionStatus.PartiallyDelivered)
 {
     <div class="alert alert-warning">
-        <strong>Teilgeliefert.</strong> Items mit Restlieferung erwartet bleiben offen.
-        Setze die Checkbox <em>Endgueltig Fehlteil</em>, sobald entschieden ist dass keine
-        Restlieferung mehr kommt.
+        <strong>Teilgeliefert.</strong> Items als <em>Fehlteil</em> markiert bleiben offen (Restlieferung erwartet).
+        Eskalation per <em>Wird nicht nachgeliefert</em>.
     </div>
 }
 
@@ -44,12 +44,19 @@
     @Html.AntiForgeryToken()
     <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
     <div class="table-responsive">
-    <table class="table table-sm">
+    <table class="table table-sm filterable-table">
         <thead>
             <tr>
-                <th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th>
-                <th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz</th>
-                <th title="Endgueltig Fehlteil (keine Restlieferung erwartet)">Fehlteil</th>
+                <th data-col-key="pos" data-filterable>Pos</th>
+                <th data-col-key="article-number" data-filterable>Artikel-Nr</th>
+                <th data-col-key="description" data-filterable>Bezeichnung</th>
+                <th data-col-key="requested" data-filterable>Bestellt</th>
+                <th data-col-key="picked">Ist</th>
+                <th data-col-key="unit" data-filterable>ME</th>
+                <th data-col-key="storage" data-filterable>Lagerplatz</th>
+                <th data-col-key="note-lager">Notiz Lager</th>
+                <th data-col-key="note-ek">Notiz EK</th>
+                <th data-col-key="shortage" title="Fehlteil-Status">Fehlteil-Status</th>
             </tr>
         </thead>
         <tbody>
@@ -84,24 +91,52 @@
                         @if (isEditable)
                         {
                             <input type="text" name="notes" value="@i.Note" maxlength="500"
-                                   class="form-control form-control-sm note-input" placeholder="Notiz (optional)" />
+                                   class="form-control form-control-sm note-input" placeholder="Notiz Lager (optional)" />
                         }
                         else
                         {
                             <small>@i.Note</small>
                         }
                     </td>
-                    <td class="text-center">
+                    <td>
                         @if (isEditable)
                         {
-                            <input type="hidden" name="isFinalShortages" value="@i.IsFinalShortage.ToString().ToLower()" class="final-hidden" />
-                            <input type="checkbox" class="form-check-input final-checkbox"
-                                   @(i.IsFinalShortage ? "checked" : "")
-                                   title="Endgueltig Fehlteil (keine Restlieferung erwartet)" />
+                            <input type="text" name="notesEinkauf" value="@i.NoteEinkauf" maxlength="500"
+                                   class="form-control form-control-sm note-einkauf-input" placeholder="Notiz EK (optional)" />
                         }
-                        else if (i.IsFinalShortage)
+                        else
                         {
-                            <span class="badge bg-warning text-dark">Fehlteil</span>
+                            <small>@i.NoteEinkauf</small>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        @if (isEditable)
+                        {
+                            <input type="hidden" name="shortageStatuses" value="@((byte)i.ShortageStatus)" class="shortage-hidden" />
+                            <div class="form-check form-check-inline shortage-radio-group">
+                                <input type="radio" name="shortageGroup_@(i.Id)"
+                                       class="form-check-input shortage-radio shortage-radio-restock"
+                                       id="sr_@(i.Id)_1" value="1"
+                                       @(i.ShortageStatus == ShortageStatus.WillBeRestocked ? "checked" : "") />
+                                <label class="form-check-label text-warning" for="sr_@(i.Id)_1"
+                                       title="Restlieferung wird erwartet">Fehlteil</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input type="radio" name="shortageGroup_@(i.Id)"
+                                       class="form-check-input shortage-radio shortage-radio-norestock"
+                                       id="sr_@(i.Id)_2" value="2"
+                                       @(i.ShortageStatus == ShortageStatus.NoRestock ? "checked" : "") />
+                                <label class="form-check-label text-danger" for="sr_@(i.Id)_2"
+                                       title="Endgueltig nicht lieferbar">Wird nicht nachgeliefert</label>
+                            </div>
+                        }
+                        else
+                        {
+                            @switch (i.ShortageStatus)
+                            {
+                                case ShortageStatus.WillBeRestocked: <span class="badge bg-warning text-dark">Fehlteil</span> break;
+                                case ShortageStatus.NoRestock: <span class="badge bg-danger">Wird nicht nachgeliefert</span> break;
+                            }
                         }
                     </td>
                 </tr>
@@ -158,6 +193,7 @@
 </div>
 
 @section Scripts {
+<script src="~/js/table-filter.js" asp-append-version="true"></script>
 <script>
 (function () {
     const form = document.getElementById('detailsForm');
@@ -171,31 +207,51 @@
     const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
     let dirty = false;
 
-    function syncFinalCheckbox(row) {
-        const checkbox = row.querySelector('.final-checkbox');
-        const hidden = row.querySelector('.final-hidden');
+    function syncShortageRadios(row) {
+        const hidden = row.querySelector('.shortage-hidden');
+        const restock = row.querySelector('.shortage-radio-restock');
+        const norestock = row.querySelector('.shortage-radio-norestock');
         const qtyInput = row.querySelector('.qty-input');
-        if (!checkbox || !hidden) return;
+        if (!hidden || !restock || !norestock) return;
+
         const requested = parseInt(row.dataset.requested, 10) || 0;
         const picked = qtyInput && qtyInput.value ? parseInt(qtyInput.value, 10) : 0;
         const shortage = picked < requested;
-        checkbox.disabled = !shortage;
-        if (!shortage) checkbox.checked = false;
-        hidden.value = checkbox.checked ? 'true' : 'false';
+
+        restock.disabled = !shortage;
+        norestock.disabled = !shortage;
+        if (!shortage) {
+            restock.checked = false;
+            norestock.checked = false;
+            hidden.value = '0';
+            return;
+        }
+
+        hidden.value = norestock.checked ? '2' : (restock.checked ? '1' : '0');
     }
+
     if (isEditable) {
-        document.querySelectorAll('#detailsForm tbody tr').forEach(syncFinalCheckbox);
+        document.querySelectorAll('#detailsForm tbody tr').forEach(syncShortageRadios);
         document.querySelectorAll('.qty-input').forEach(inp => {
             inp.addEventListener('input', () => {
-                syncFinalCheckbox(inp.closest('tr'));
+                syncShortageRadios(inp.closest('tr'));
                 dirty = true;
             });
         });
-        document.querySelectorAll('.final-checkbox').forEach(cb => {
-            cb.addEventListener('change', () => {
-                const tr = cb.closest('tr');
-                const hidden = tr.querySelector('.final-hidden');
-                hidden.value = cb.checked ? 'true' : 'false';
+        document.querySelectorAll('.shortage-radio').forEach(r => {
+            let wasChecked = r.checked;
+            r.addEventListener('mousedown', () => { wasChecked = r.checked; });
+            r.addEventListener('click', () => {
+                const tr = r.closest('tr');
+                const restock = tr.querySelector('.shortage-radio-restock');
+                const norestock = tr.querySelector('.shortage-radio-norestock');
+                const hidden = tr.querySelector('.shortage-hidden');
+                if (wasChecked) {
+                    r.checked = false;
+                    hidden.value = '0';
+                } else {
+                    hidden.value = norestock.checked ? '2' : (restock.checked ? '1' : '0');
+                }
                 dirty = true;
             });
         });
@@ -203,25 +259,35 @@
             inp.addEventListener('input', () => { dirty = true; });
             inp.addEventListener('blur', saveProgress);
         });
+        document.querySelectorAll('.note-einkauf-input').forEach(inp => {
+            inp.addEventListener('input', () => { dirty = true; });
+            inp.addEventListener('blur', saveProgress);
+        });
     }
 
     function collectProgress() {
+        // WICHTIG: leere Strings als '0' senden, sonst skippt der
+        // ASP.NET-Model-Binder fuer int[] sie und die Array-Indices
+        // verschieben sich gegenueber itemIds (zerstoerter Mapping).
         const itemIds = Array.from(form.querySelectorAll('input[name="itemIds"]')).map(i => i.value);
         const quantitiesPicked = Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .map(i => i.value || '');
+            .map(i => (i.value && i.value.trim()) || '0');
         const notes = Array.from(form.querySelectorAll('input[name="notes"]')).map(i => i.value || '');
-        const isFinalShortages = Array.from(form.querySelectorAll('input.final-hidden')).map(i => i.value);
-        return { itemIds, quantitiesPicked, notes, isFinalShortages };
+        const notesEinkauf = Array.from(form.querySelectorAll('input[name="notesEinkauf"]')).map(i => i.value || '');
+        const shortageStatuses = Array.from(form.querySelectorAll('input.shortage-hidden')).map(i => i.value || '0');
+        return { itemIds, quantitiesPicked, notes, notesEinkauf, shortageStatuses };
     }
+
     async function saveProgress() {
         if (!dirty || !token) return;
-        const { itemIds, quantitiesPicked, notes, isFinalShortages } = collectProgress();
+        const { itemIds, quantitiesPicked, notes, notesEinkauf, shortageStatuses } = collectProgress();
         const body = new FormData();
         body.append('__RequestVerificationToken', token);
         itemIds.forEach(v => body.append('itemIds', v));
         quantitiesPicked.forEach(v => body.append('quantitiesPicked', v));
         notes.forEach(v => body.append('notes', v));
-        isFinalShortages.forEach(v => body.append('isFinalShortages', v));
+        notesEinkauf.forEach(v => body.append('notesEinkauf', v));
+        shortageStatuses.forEach(v => body.append('shortageStatuses', v));
         try {
             await fetch(saveProgressUrl, { method: 'POST', body });
             dirty = false;
@@ -244,23 +310,33 @@
     const modalEl = document.getElementById('close-confirm-modal');
     const modal = new bootstrap.Modal(modalEl);
     function emptyRows() {
+        // Ein Row gilt nur als "leer" wenn Ist=0/empty UND ShortageStatus=None.
+        // Wenn der Lager bewusst "Fehlteil" oder "Wird nicht nachgeliefert" markiert
+        // hat, ist Ist=0 eine bewusste Entscheidung — kein Soll=Ist-Modal.
         return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .filter(i => !i.value || parseInt(i.value, 10) === 0);
+            .filter(i => {
+                const isEmpty = !i.value || parseInt(i.value, 10) === 0;
+                if (!isEmpty) return false;
+                const tr = i.closest('tr');
+                const hidden = tr.querySelector('.shortage-hidden');
+                const statusValue = hidden ? hidden.value : '0';
+                return statusValue === '0';
+            });
     }
     function fillSollAsIst() {
         emptyRows().forEach(inp => {
             const tr = inp.closest('tr');
             inp.value = tr.dataset.requested;
-            syncFinalCheckbox(tr);
+            syncShortageRadios(tr);
         });
     }
 
     closeBtn.addEventListener('click', () => {
         const empties = emptyRows();
-        if (empties.length === 0) { form.submit(); return; }
+        if (empties.length === 0) { normalizeEmptyQuantitiesToZero(); form.submit(); return; }
         modal.show();
-        document.getElementById('close-yes').onclick = () => { fillSollAsIst(); modal.hide(); form.submit(); };
-        document.getElementById('close-no').onclick = () => { modal.hide(); form.submit(); };
+        document.getElementById('close-yes').onclick = () => { fillSollAsIst(); normalizeEmptyQuantitiesToZero(); modal.hide(); form.submit(); };
+        document.getElementById('close-no').onclick = () => { normalizeEmptyQuantitiesToZero(); modal.hide(); form.submit(); };
     });
 
     if (printAndCloseBtn) {
@@ -275,8 +351,20 @@
             performPrintAndClose();
         });
     }
+    // Hinweis: performPrintAndClose() ruft normalizeEmptyQuantitiesToZero() selbst auf (siehe unten).
+
+    function normalizeEmptyQuantitiesToZero() {
+        // ASP.NET-Model-Binder fuer int[] skippt leere Strings, was die
+        // Array-Indices zwischen itemIds und quantitiesPicked verschiebt
+        // (Off-by-N Bug). Vor jedem Submit alle leeren quantitiesPicked-
+        // Inputs auf '0' setzen, damit die Arrays parallel bleiben.
+        form.querySelectorAll('input[name="quantitiesPicked"]').forEach(inp => {
+            if (!inp.value || inp.value.trim() === '') inp.value = '0';
+        });
+    }
 
     async function performPrintAndClose() {
+        normalizeEmptyQuantitiesToZero();
         const printTab = window.open('about:blank', '_blank');
         const body = new FormData(form);
         try {

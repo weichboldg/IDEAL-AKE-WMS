@@ -1,6 +1,6 @@
 -- =============================================
 -- SQL Server Agent Job: Produktionsauftraege aus Sage importieren
--- Ziel:    [IDEAL_AKE_WMS].[dbo].[ProductionOrders] (+ 3 Status-Tabellen, siehe unten)
+-- Ziel:    [IDEAL_AKE_WMS].[dbo].[ProductionOrders] (+ 2 Status-Tabellen, siehe unten)
 -- Quelle:  [ake].[dbo].[vw_AKE_Kommissionierung_WAListe]
 --
 -- Beschreibung:
@@ -34,11 +34,10 @@
 --     ReleasedAt / ReleasedBy                    ->  ProductionOrderPickingStatus.ReleasedAt / ReleasedBy
 --     AssignedPickerId / AssignedPickerName      ->  ProductionOrderPickingStatus.AssignedPickerId / AssignedPickerName
 --     IsDoneBde                                  ->  ProductionOrderBdeStatus.IsDoneBde
---     HasCooling                                 ->  ProductionOrderAssemblyGroups (GroupKey='VK')
---     HasFan                                     ->  ProductionOrderAssemblyGroups (GroupKey='VL')
---     HasElectric                                ->  ProductionOrderAssemblyGroups (GroupKey='VE')
---     HasDoors                                   ->  ProductionOrderAssemblyGroups (GroupKey='VT')
---     HasSuperstructure                          ->  ProductionOrderAssemblyGroups (GroupKey='VA')
+--     HasCooling/HasFan/HasElectric/HasDoors/
+--     HasSuperstructure                          ->  (historisch ProductionOrderAssemblyGroups;
+--                                                    Tabelle entfernt in v1.22.0, ersetzt durch
+--                                                    FaWorkSteps via Detection-Sync im Windows-Service)
 --
 --   Die Migration (SQL/60_ProductionOrderSplit.sql) hat fuer alle bestehenden
 --   FAs bereits Status-Zeilen erzeugt. Dieser AgentJob legt ab jetzt fuer
@@ -46,7 +45,6 @@
 --
 --     ProductionOrderPickingStatus    (1 Zeile/FA, alle Bool=0)
 --     ProductionOrderBdeStatus        (1 Zeile/FA, IsDoneBde=0)
---     ProductionOrderAssemblyGroups   (5 Zeilen/FA: VK/VL/VE/VT/VA, IsApplicable=0)
 --
 --   Alle Folge-MERGEs sind idempotent (WHEN NOT MATCHED BY TARGET).
 --   Es gibt KEIN WHEN MATCHED — vom Anwender gesetzte Status-Werte
@@ -124,20 +122,4 @@ WHEN NOT MATCHED BY TARGET THEN
     INSERT (ProductionOrderId, IsDoneBde, CreatedAt, CreatedBy, CreatedByWindows)
     VALUES (src.Id, 0, GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);
 
--- =============================================
--- Folge-MERGE 3: ProductionOrderAssemblyGroups eager-create (5/FA)
--- CROSS JOIN auf VALUES erzeugt fuer jeden FA x jedem GroupKey eine Source-Zeile.
--- Idempotent: UQ_PO_Key-Index verhindert Duplikate, NOT MATCHED triggert nur fuer Luecken.
--- =============================================
-MERGE [IDEAL_AKE_WMS].[dbo].[ProductionOrderAssemblyGroups] AS s
-USING (
-    SELECT p.Id AS ProductionOrderId, k.GroupKey
-    FROM [IDEAL_AKE_WMS].[dbo].[ProductionOrders] p
-    CROSS JOIN (VALUES ('VK'),('VL'),('VE'),('VT'),('VA')) k(GroupKey)
-) AS src
-    ON s.ProductionOrderId = src.ProductionOrderId AND s.GroupKey = src.GroupKey
-WHEN NOT MATCHED BY TARGET THEN
-    INSERT (ProductionOrderId, GroupKey, IsApplicable, IsCompleted,
-            CreatedAt, CreatedBy, CreatedByWindows)
-    VALUES (src.ProductionOrderId, src.GroupKey, 0, 0,
-            GETDATE(), 'Sage_Schnittstelle', SYSTEM_USER);
+-- AssemblyGroups-MERGE entfernt in v1.22.0 (FaWorkSteps via Detection-Sync, siehe Spec 2026-06-12)

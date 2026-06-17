@@ -46,8 +46,7 @@ public class ProductionOrder : AuditableEntity
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();
 
     // Phase 1 — neue Nav-Properties (siehe Spec 5.1)
+    // AssemblyGroups-Collection entfernt in v1.22.0 (ersetzt durch FaWorkSteps)
     public ProductionOrderPickingStatus? PickingStatus { get; set; }
     public ProductionOrderBdeStatus? BdeStatus { get; set; }
-    public ICollection<ProductionOrderAssemblyGroup> AssemblyGroups { get; set; }
-        = new List<ProductionOrderAssemblyGroup>();
 }

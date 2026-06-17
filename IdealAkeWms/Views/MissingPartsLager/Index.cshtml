@@ -1,0 +1,100 @@
+@model IdealAkeWms.Models.ViewModels.MissingPartsListViewModel
+@using IdealAkeWms.Models
+@{
+    ViewData["Title"] = "Fehlteile (Lager)";
+}
+
+<h2 class="page-header">@ViewData["Title"]</h2>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(Model.ActiveTab == ShortageStatus.WillBeRestocked ? "active" : "")"
+           asp-controller="MissingPartsLager" asp-action="Index" asp-route-tab="WillBeRestocked"
+           asp-route-workplaceId="@Model.WorkplaceFilter">
+            Offene Fehlteile
+            <span class="badge bg-warning text-dark ms-1">@Model.WaitingTotalCount</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(Model.ActiveTab == ShortageStatus.NoRestock ? "active" : "")"
+           asp-controller="MissingPartsLager" asp-action="Index" asp-route-tab="NoRestock"
+           asp-route-workplaceId="@Model.WorkplaceFilter">
+            Wird nicht nachgeliefert
+            <span class="badge bg-danger ms-1">@Model.NoRestockTotalCount</span>
+        </a>
+    </li>
+</ul>
+
+<div class="card filter-card mb-3">
+    <div class="card-body p-2">
+        <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="hidden" name="tab" value="@Model.ActiveTab" />
+            <label class="form-label mb-0">Werkbank:</label>
+            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                <option value="">— Alle —</option>
+                @foreach (var w in Model.AvailableWorkplaces)
+                {
+                    <option value="@w.Id" selected="@(Model.WorkplaceFilter == w.Id)">@w.Name</option>
+                }
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped filterable-table"
+           data-server-column-filter="true"
+           data-view-key="MissingPartsLager">
+        <thead>
+            <tr>
+                <th data-col-key="RequisitionId">Bestell-ID</th>
+                <th data-filterable data-col-key="WorkplaceName">Werkbank</th>
+                <th data-filterable data-col-key="ArticleNumber">Artikel-Nr</th>
+                <th data-filterable data-col-key="ArticleDescription">Bezeichnung</th>
+                <th data-col-key="QuantityRequested">Soll</th>
+                <th data-col-key="QuantityPicked">Geliefert</th>
+                <th data-col-key="QuantityMissing">Fehlt</th>
+                <th data-col-key="StorageLocations">Lagerplatz (Bestand)</th>
+                <th data-filterable data-col-key="NoteLager">Notiz Lager</th>
+                <th data-filterable data-col-key="NoteEinkauf">Notiz EK</th>
+                <th data-col-key="CreatedBy">Erfasst von</th>
+                <th data-col-key="ClosedAt">Abgeschlossen am</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Items)
+            {
+                <tr>
+                    <td><a asp-controller="WarehousePicking" asp-action="Details" asp-route-id="@row.RequisitionId">#@row.RequisitionId</a></td>
+                    <td>@row.WorkplaceName</td>
+                    <td>@row.ArticleNumber</td>
+                    <td>@row.ArticleDescription</td>
+                    <td>@((int)Math.Round(row.QuantityRequested, MidpointRounding.AwayFromZero))</td>
+                    <td>@((int)Math.Round(row.QuantityPicked, MidpointRounding.AwayFromZero))</td>
+                    <td><strong>@((int)Math.Round(row.QuantityMissing, MidpointRounding.AwayFromZero))</strong></td>
+                    <td>@(string.IsNullOrEmpty(row.StorageLocations) ? "—" : row.StorageLocations)</td>
+                    <td>@row.Note</td>
+                    <td>@row.NoteEinkauf</td>
+                    <td>@row.CreatedBy</td>
+                    <td>@(row.ClosedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

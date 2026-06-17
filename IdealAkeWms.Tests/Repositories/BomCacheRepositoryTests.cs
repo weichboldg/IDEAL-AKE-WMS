@@ -165,4 +165,47 @@ public class BomCacheRepositoryTests
 
         result.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task GetComponentMengePerDeviceAsync_SumsMultiplePositionsOfSameComponent()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new BomCacheRepository(db);
+
+        // Device with the same component twice (Menge 2 + 3) -> 5
+        await repo.UpsertBomAsync("DEVICE1", "SAGE", "h", new List<BomItem>
+        {
+            Item("10", "COMP", 2m),
+            Item("20", "COMP", 3m),
+            Item("30", "OTHER", 7m)
+        });
+        // Different device referencing the same component (Menge 4)
+        await repo.UpsertBomAsync("DEVICE2", "SAGE", "h", new List<BomItem>
+        {
+            Item("10", "COMP", 4m)
+        });
+        // Device without the component
+        await repo.UpsertBomAsync("DEVICE3", "SAGE", "h", new List<BomItem>
+        {
+            Item("10", "OTHER", 9m)
+        });
+
+        var result = await repo.GetComponentMengePerDeviceAsync("COMP");
+
+        result.Should().HaveCount(2);
+        result["DEVICE1"].Should().Be(5m);
+        result["DEVICE2"].Should().Be(4m);
+        result.ContainsKey("DEVICE3").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetComponentMengePerDeviceAsync_ReturnsEmpty_WhenComponentBlank()
+    {
+        using var db = TestDbContextFactory.Create();
+        var repo = new BomCacheRepository(db);
+
+        var result = await repo.GetComponentMengePerDeviceAsync("");
+
+        result.Should().BeEmpty();
+    }
 }

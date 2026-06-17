@@ -154,6 +154,22 @@ public class BomCacheRepository : IBomCacheRepository
         ).Distinct().ToListAsync();
     }
 
+    public async Task<Dictionary<string, decimal>> GetComponentMengePerDeviceAsync(string componentArticleNumber)
+    {
+        if (string.IsNullOrWhiteSpace(componentArticleNumber))
+            return new Dictionary<string, decimal>();
+
+        var rows = await (
+            from i in _db.CachedBomItems
+            join h in _db.CachedBomHeaders on i.CachedBomHeaderId equals h.Id
+            where i.Ressourcenummer == componentArticleNumber
+            group i.Menge by h.Artikelnummer into g
+            select new { Artikelnummer = g.Key, Menge = g.Sum() }
+        ).ToListAsync();
+
+        return rows.ToDictionary(r => r.Artikelnummer, r => r.Menge);
+    }
+
     public async Task DeleteOrphansAsync(List<string> currentArticleNumbers)
     {
         var current = new HashSet<string>(currentArticleNumbers ?? new List<string>(), StringComparer.Ordinal);

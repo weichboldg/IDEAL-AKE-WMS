@@ -191,4 +191,38 @@ public class ProductionWorkplaceRepositoryTests
 
         result.Select(w => w.Name).Should().ContainInOrder("Alpha", "Zeta");
     }
+
+    [Fact]
+    public async Task SetWorkSteps_SyncsJunctionRows()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionWorkplaceRepository(ctx);
+        ctx.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "A1" });
+        ctx.WorkSteps.AddRange(new WorkStep { Id = 10, Code = "VK", Name = "K" }, new WorkStep { Id = 11, Code = "VL", Name = "L" });
+        ctx.ProductionWorkplaceWorkSteps.Add(new ProductionWorkplaceWorkStep { ProductionWorkplaceId = 1, WorkStepId = 10 });
+        await ctx.SaveChangesAsync();
+
+        await repo.SetWorkStepsAsync(1, new List<int> { 11 }); // 10 raus, 11 rein
+
+        ctx.ProductionWorkplaceWorkSteps.Should().ContainSingle(x => x.WorkStepId == 11);
+    }
+
+    [Fact]
+    public async Task GetWorkStepIds_ReturnsOnlyIdsOfWorkplace()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionWorkplaceRepository(ctx);
+        ctx.ProductionWorkplaces.AddRange(
+            new ProductionWorkplace { Id = 1, Name = "A1" },
+            new ProductionWorkplace { Id = 2, Name = "A2" });
+        ctx.WorkSteps.AddRange(new WorkStep { Id = 10, Code = "VK", Name = "K" }, new WorkStep { Id = 11, Code = "VL", Name = "L" });
+        ctx.ProductionWorkplaceWorkSteps.AddRange(
+            new ProductionWorkplaceWorkStep { ProductionWorkplaceId = 1, WorkStepId = 10 },
+            new ProductionWorkplaceWorkStep { ProductionWorkplaceId = 2, WorkStepId = 11 });
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetWorkStepIdsAsync(1);
+
+        result.Should().BeEquivalentTo(new List<int> { 10 });
+    }
 }

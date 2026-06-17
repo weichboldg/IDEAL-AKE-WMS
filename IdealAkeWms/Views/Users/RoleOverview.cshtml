@@ -1,0 +1,191 @@
+@{
+    ViewData["Title"] = "Rollen-Uebersicht";
+}
+
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">@ViewData["Title"]</h2>
+    <a asp-controller="Users" asp-action="Index" class="btn btn-secondary">Zurueck zur Benutzerliste</a>
+</div>
+
+<div class="alert alert-info">
+    <strong>Wie funktionieren Berechtigungen?</strong>
+    Ein Benutzer kann mehrere Rollen haben (Many-to-Many). Wer mehrere Rollen hat, hat die
+    <em>Vereinigung</em> der Rechte — mehr Rollen = mehr Zugriff. Die Rolle <code>admin</code> ist ein
+    Wildcard und ueberspringt alle Pruefungen. Rollen koennen optional mit AD-Gruppen verknuepft werden;
+    Login uebernimmt dann die Rollen automatisch.
+</div>
+
+<div class="alert alert-warning small">
+    <strong>Hinweis fuer Entwickler:</strong> Diese Uebersicht ist hand-gepflegt. Bei Aenderungen an
+    Controller-Filtern bitte <code>Views/Users/RoleOverview.cshtml</code> mit-aktualisieren. Die Quelle
+    fuer Filter-Mappings ist <code>CLAUDE.md</code> + die <code>Filters/Require*Attribute.cs</code>-Klassen.
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Rolle-Key</th>
+                <th>Klartext-Name</th>
+                <th>Beschreibung</th>
+                <th>Zugang zu (Auswahl)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="table-warning">
+                <td><code>admin</code></td>
+                <td>Administrator</td>
+                <td>Wildcard — Vollzugriff auf alles. Nur admin kann Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Aktivitaets-Protokoll und Schichtkalender bearbeiten.</td>
+                <td>Alle Seiten und Aktionen.</td>
+            </tr>
+            <tr>
+                <td><code>masterdata</code></td>
+                <td>Stammdaten verwalten</td>
+                <td>Lesen UND aendern der 6 Stammdaten-Sichten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger).</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Artikel, Lagerplaetze (lesen + aendern)</li>
+                        <li>Werkbaenke, Artikelkategorien, Artikelmerkmale (lesen + aendern)</li>
+                        <li>Empfaenger + Artikelgruppen-Zuordnungen (lesen + aendern)</li>
+                        <li>KEIN Zugriff auf Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Aktivitaets-Protokoll, Schichtkalender (admin-only)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>masterdata_read</code></td>
+                <td>Stammdaten ansehen</td>
+                <td>Nur-Lesen-Zugriff auf die 6 Stammdaten-Sichten (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger).</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Sechs Stammdatensichten lesbar, KEINE Edit-Buttons</li>
+                        <li>Rollen-Uebersicht (diese Seite) sichtbar</li>
+                        <li>KEIN Zugriff auf Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Aktivitaets-Protokoll, Schichtkalender (admin-only)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>picking</code></td>
+                <td>Kommissionierung</td>
+                <td>Komm.-Picker an der Werkbank.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Meine Bestellungen / Meine Fehlteile (eigene Werkbaenke)</li>
+                        <li>Picking (FA + Stueckliste)</li>
+                        <li>Bestandsuebersicht + Bewegungshistorie (read-only)</li>
+                        <li>KEIN Zugriff auf Lager-Eingehende-Listen + Lager-Fehlteile</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>stock</code></td>
+                <td>Lager-Mitarbeiter</td>
+                <td>Lager-Worklist + Bestaende.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Lager: Eingehende Listen (Lagerbestellungen kommissionieren)</li>
+                        <li>Lager: Fehlteile (globale Sicht)</li>
+                        <li>Einbuchung / Ausbuchung / Bestandsuebersicht</li>
+                        <li>Bewegungshistorie</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>stock_keyuser</code></td>
+                <td>Lager-Keyuser</td>
+                <td>Lager + Lagerplatz-Sonderaktionen.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Alles von <code>stock</code></li>
+                        <li>Lagerplatz ausbuchen / umbuchen</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>tracking</code></td>
+                <td>OSEON-Tracking</td>
+                <td>OSEON-Auftraege + Rueckmeldungen.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>OSEON-Auftragsbaum + Ampelsystem</li>
+                        <li>Rueckmeldungen scannen</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>reporting</code></td>
+                <td>OSEON-Reporting</td>
+                <td>Reporting-Sichten.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>OSEON-Reporting (Horizont, Ueberfaellig-Slice)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>leitstand</code></td>
+                <td>Leitstand</td>
+                <td>FA freigeben + priorisieren.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Picking-Leitstand (Freigabe, Priorisierung, Picker-Zuweisung)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>fa_completion</code></td>
+                <td>FA-Vervollstaendigung</td>
+                <td>Merkmalsauspraegungen pro Vormontageplatz.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>FA-Vervollstaendigung Edit + Specs-CRUD</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>vorbau</code></td>
+                <td>Vorbau</td>
+                <td>FA-Abarbeitungsliste: FA-Vorbau-AG je Werkbank einsehen und abhaken; Stueckliste read-only.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>FA-Abarbeitungsliste (Werkbank-Filter, Erledigt-Haken je FA-Vorbau-AG)</li>
+                        <li>Stueckliste read-only (inkl. Druck)</li>
+                        <li>Sichtbar nur wenn AppSetting <code>FaCompletionAktiv</code> aktiv ist</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>bde_user</code></td>
+                <td>BDE-Benutzer</td>
+                <td>Terminal-Buchung.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>BDE-Terminal (scannen, Status wechseln)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>bde_shiftlead</code></td>
+                <td>BDE-Schichtleiter</td>
+                <td>+ Stammdaten, Buchungsliste, Cockpit.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Alles von <code>bde_user</code></li>
+                        <li>BDE-Cockpit, Buchungsliste, BDE-Stammdaten</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>bde_admin</code></td>
+                <td>BDE-Admin</td>
+                <td>+ Buchungen korrigieren/stornieren + Terminals.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Alles von <code>bde_shiftlead</code></li>
+                        <li>Buchungen Edit/Cancel</li>
+                        <li>Terminals konfigurieren</li>
+                    </ul>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>

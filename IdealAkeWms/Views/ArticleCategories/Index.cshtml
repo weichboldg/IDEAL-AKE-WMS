@@ -1,13 +1,20 @@
 @model List<IdealAkeWms.Models.ArticleCategory>
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Artikelkategorien";
     var articleCounts = ViewBag.ArticleCounts as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var canEdit = await _user.HasMasterDataAccessAsync();
 }
 
 <h2 class="page-header">Artikelkategorien</h2>
 <p class="text-muted mb-3">
     Verwalten Sie Artikelkategorien. OSEON-synchronisierte Kategorien sind als solche gekennzeichnet.
 </p>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
 
 <div class="row">
     <div class="col-lg-8 mb-4">
@@ -17,14 +24,14 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-striped mb-0">
+                    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="ArticleCategories">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Beschreibung</th>
-                                <th style="width: 100px;">Quelle</th>
-                                <th style="width: 80px;" class="text-center">Artikel</th>
-                                <th style="width: 140px;"></th>
+                                <th data-filterable data-col-key="name">Name</th>
+                                <th data-filterable data-col-key="description">Beschreibung</th>
+                                <th data-filterable data-col-key="source" style="width: 100px;">Quelle</th>
+                                <th data-filterable data-col-key="article-count" style="width: 80px;" class="text-center">Artikel</th>
+                                <th data-col-key="actions" style="width: 140px;"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -36,11 +43,11 @@
                                         <form asp-action="Update" method="post" class="d-flex align-items-center gap-1" id="form-update-@cat.Id">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="id" value="@cat.Id" />
-                                            <input type="text" name="name" value="@cat.Name" class="form-control form-control-sm" required />
+                                            <input type="text" name="name" value="@cat.Name" class="form-control form-control-sm" required @(canEdit ? "" : "readonly") />
                                         </form>
                                     </td>
                                     <td>
-                                        <input type="text" name="description" value="@cat.Description" form="form-update-@cat.Id" class="form-control form-control-sm" placeholder="Beschreibung" />
+                                        <input type="text" name="description" value="@cat.Description" form="form-update-@cat.Id" class="form-control form-control-sm" placeholder="Beschreibung" @(canEdit ? "" : "readonly") />
                                     </td>
                                     <td>
                                         @if (cat.Source == "OSEON")
@@ -56,24 +63,27 @@
                                         @count
                                     </td>
                                     <td>
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" form="form-update-@cat.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
-                                                </svg>
-                                            </button>
-                                            <form asp-action="Delete" method="post" class="d-inline">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@cat.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
-                                                        onclick="return confirm('Kategorie \'@cat.Name\' wirklich loeschen?');">
+                                        @if (canEdit)
+                                        {
+                                            <div class="d-flex gap-1">
+                                                <button type="submit" form="form-update-@cat.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                                        <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
                                                     </svg>
                                                 </button>
-                                            </form>
-                                        </div>
+                                                <form asp-action="Delete" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@cat.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
+                                                            onclick="return confirm('Kategorie \'@cat.Name\' wirklich loeschen?');">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -96,23 +106,31 @@
         </div>
     </div>
 
-    <div class="col-lg-4 mb-4">
-        <div class="card">
-            <div class="card-header">Neue Kategorie erstellen</div>
-            <div class="card-body">
-                <form asp-action="Create" method="post">
-                    @Html.AntiForgeryToken()
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="z.B. Blechtafel_AKE" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Beschreibung</label>
-                        <input type="text" name="description" class="form-control" placeholder="Optionale Beschreibung" />
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Erstellen</button>
-                </form>
+    @if (canEdit)
+    {
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">Neue Kategorie erstellen</div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="z.B. Blechtafel_AKE" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Beschreibung</label>
+                            <input type="text" name="description" class="form-control" placeholder="Optionale Beschreibung" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
+    }
 </div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

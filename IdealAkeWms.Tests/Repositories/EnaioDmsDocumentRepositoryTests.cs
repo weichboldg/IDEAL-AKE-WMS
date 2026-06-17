@@ -81,6 +81,24 @@ public class EnaioDmsDocumentRepositoryTests
     }
 
     [Fact]
+    public async Task GetByOrderNumbersAsync_OrdersByDocumentTypePriority()
+    {
+        using var context = TestDbContextFactory.Create();
+        // In gemischter Reihenfolge angelegt: Zeichnung, Werkstattauftrag, Werkstattauftrag+Zeichnung
+        context.EnaioDmsDocuments.AddRange(
+            CreateDoc(6003, "Zeichnung", "WA200"),
+            CreateDoc(6002, "Werkstattauftrag", "WA200"),
+            CreateDoc(6001, "Werkstattauftrag+Zeichnung", "WA200"));
+        await context.SaveChangesAsync();
+
+        var repo = new EnaioDmsDocumentRepository(context);
+        var result = await repo.GetByOrderNumbersAsync(new[] { "WA200" });
+
+        result["WA200"].Select(l => l.DocumentType).Should().ContainInOrder(
+            "Werkstattauftrag+Zeichnung", "Werkstattauftrag", "Zeichnung");
+    }
+
+    [Fact]
     public async Task GetByOrderNumbersAsync_ReturnsCorrectLinkData()
     {
         using var context = TestDbContextFactory.Create();

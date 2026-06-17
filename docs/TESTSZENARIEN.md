@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-05-22 (v1.14.0)
+**Stand:** 2026-06-12 (v1.22.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -914,6 +914,29 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 **Erwartetes Verhalten:**
 - Dokument oeffnet sich im enaio Viewer (neuer Browser-Tab).
+
+---
+
+### TS-4.5a — enaio "Werkstattauftrag + Zeichnung": eigenes Icon, zuerst angezeigt
+
+**Vorbedingungen:**
+- AppSetting `EnaioDmsEnabled = true` (Service-Einstellungen).
+- Eine FA (z. B. `FA-2604002`) hat in enaio mehrere Dokumente: einen `Werkstattauftrag+Zeichnung` (Zeichnung direkt am WA), zusaetzlich einen reinen `Werkstattauftrag` und eine `Zeichnung`.
+
+**Schritte:**
+1. FA-Liste oeffnen (alternativ Leitstand, FA-Abarbeitungsliste oder FA-Vervollstaendigen — gleiche Badge-Liste).
+2. Zeile der FA finden und die Icon-Reihe neben der FA-Nummer betrachten.
+
+**Erwartetes Verhalten:**
+- Die drei Typen haben drei unterscheidbare Icons:
+  - `Werkstattauftrag+Zeichnung` = Dokument-mit-Zeichenbrett-Icon (Tooltip "Werkstattauftrag + Zeichnung in enaio oeffnen").
+  - `Werkstattauftrag` = Dokument-Icon.
+  - `Zeichnung` = Bild-/Zeichnung-Icon.
+- Reihenfolge der Icons: **`Werkstattauftrag+Zeichnung` zuerst**, dann `Werkstattauftrag`, dann `Zeichnung`.
+- Jedes Icon oeffnet beim Klick das zugehoerige Dokument im enaio Viewer (neuer Tab).
+
+**Negativ-Fall:**
+- FA ohne `Werkstattauftrag+Zeichnung`-Dokument: nur die bisherigen WA-/Zeichnungs-Icons erscheinen, keine Luecke.
 
 ---
 
@@ -3371,9 +3394,14 @@ Vorbedingungen: TS-18.1, Service-Setting Sync:WarehouseRequisitionEmailEnabled=t
 Schritte: max. 15 Min warten oder Worker-Tick triggern.
 Erwartet: E-Mail im Postfach des Empfaengers, Subject "Lagerbestellung #X — Werkbank Y", Body mit Items + Deep-Link.
 
+### TS-18.5a — Submit-Mail: Link klickbar in Outlook (Plain-Text-Alternative)
+Vorbedingungen: wie TS-18.5, Empfaenger nutzt Outlook (Desktop oder Web).
+Schritte: Submit-Mail oeffnen, auf "Lagerbestellung oeffnen" tippen/klicken.
+Erwartet: Der Link wird als klickbarer Button bzw. Hyperlink dargestellt (NICHT als Rohtext `[URL]Lagerbestellung oeffnen`). Klick oeffnet `/WarehousePicking/Details/{id}`. Hintergrund: die Mail ist multipart/alternative (HTML-Button + Plain-Text-Teil mit nackter URL). Negativ-Fall vor dem Fix: Outlook zeigte den Anchor als `[URL]Text`-Rohtext.
+
 ### TS-18.6 — Storno-Mail
 Schritte: nach Submit (TS-18.1) im Erfasser-Edit "Stornieren" mit Grund.
-Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …".
+Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …". Auch hier multipart/alternative (HTML + Plain-Text mit Kopf + Grund).
 
 ### TS-18.7 — Lager: Detail + Print + Close
 Schritte: Lager-Detail oeffnen, Pro-Position Ist-Menge anpassen, Drucken, Abschliessen.
@@ -3515,7 +3543,7 @@ Erwartet: User mit Rolle `fa_completion` sehen nach Reload den Menuepunkt; Zugri
 ### TS-23.3 — Picker funktionieren weiter
 Vorbedingungen: `FaCompletionAktiv=false`, User mit `picking`-Rolle.
 Schritte: PickingLeitstand &rarr; VK/VL/...-Toggles antippen.
-Erwartet: Toggle funktioniert weiterhin (Endpoint `assembly-groups/toggle-applicable` blockt Picker nicht durch das Setting).
+Erwartet: Toggle funktioniert weiterhin. Seit v1.22.0-Followup togglen die VK-VA-Haken den Erledigt-Status ueber `/api/fa-work-steps/toggle-completed` (blockt Picker nicht). Details siehe Szenario 38.9.
 
 ---
 
@@ -3793,10 +3821,10 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 **Schritte:** Ist=8 + Ist=3, beide Checkboxen "Endgueltig Fehlteil" anhaken. "Speichern + Abschliessen".
 **Erwartet:** Status Closed. Beide Items in Fehlteile-Liste (2 + 2 = Soll-Ist).
 
-### 32.3 Eine offen, eine final -> PartiallyDelivered
+### 32.3 Eine offen, eine final -> PartiallyDelivered (Item 2 erscheint sofort in Fehlteile-Liste)
 **Vorbedingung:** 2 Items.
 **Schritte:** Ist=3 (kein final), Ist=2 (final). Abschliessen.
-**Erwartet:** Status PartiallyDelivered. Item 1 nicht in Fehlteile-Liste (weil PartiallyDelivered). Auch Item 2 nicht (weil noch PartiallyDelivered).
+**Erwartet:** Status PartiallyDelivered. Item 1 NICHT in Fehlteile-Liste (kein final). Item 2 IST in Fehlteile-Liste (final markiert, seit v1.18.1 unabhaengig vom Bestell-Status).
 
 ### 32.4 Vollfehlteil (Ist=0, final) bei alleinigem Item -> Closed mit Fehlteil
 **Vorbedingung:** Bestellung mit 1 Item Soll=5.
@@ -3832,7 +3860,821 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 **Schritte:** Ist=-1 eingeben (per Forms-Manipulation), Abschliessen.
 **Erwartet:** WarningMessage "Ist-Mengen duerfen nicht negativ sein.", Status unveraendert.
 
+### 32.11 Hotfix v1.18.1: Endgueltig Fehlteil aus PartiallyDelivered erscheint sofort
+**Vorbedingung:** Bestellung in Status Submitted mit 2 Items (Soll=2, Soll=1).
+**Schritte:**
+1. Picking/Details. Item 1: Ist=1, Checkbox "Endgueltig Fehlteil" anhaken. Item 2: Ist=0 lassen (keine Aenderung am Flag).
+2. "Speichern + Abschliessen" — Status wird PartiallyDelivered (Item 2 erwartet noch Restlieferung).
+3. Lager-Menue "Fehlteile" (`/MissingParts`) aufrufen.
+4. Werkbank-User "Meine Listen" pruefen — Karte "Meine Fehlteile".
+**Erwartet:**
+- `/MissingParts` zeigt 1 Eintrag: Item 1 mit Fehlt=1, Bestell-ID = die Bestellung, Werkbank korrekt.
+- Werkbank-Karte zeigt "1 endgueltigen Fehlteil aus 1 Bestellung".
+- Detail-Link auf die Bestellung funktioniert und zeigt sie in PartiallyDelivered (editierbar).
+**Negativ:** Vorher (v1.18.0) war die Liste leer — das war der Bug.
+
 ---
 
-*Ende des Dokuments. Stand: v1.18.0 (2026-05-29)*
+## 33. ShortageStatus 3-State + 2-Tab Fehlteile (v1.19.0)
+
+### 33.1 Default-Fehlteil bei Ist=0
+**Vorbedingung:** Bestellung in Submitted mit 1 Item, Soll=5.
+**Schritte:** Picking/Details oeffnen. Ist=0 eintragen.
+**Erwartet:** Radio "Fehlteil" wird automatisch aktiv. Hidden-Input shortageStatuses hat Wert "1".
+
+### 33.2 Manueller Wechsel auf "Wird nicht nachgeliefert"
+**Vorbedingung:** Item hat "Fehlteil" aktiv.
+**Schritte:** Klick auf "Wird nicht nachgeliefert"-Radio.
+**Erwartet:** "Fehlteil" deaktiviert, "Wird nicht nachgeliefert" aktiv. Hidden hat Wert "2".
+
+### 33.3 Doppelklick auf aktiven Radio → zurueck zu None
+**Vorbedingung:** Item hat "Fehlteil" aktiv.
+**Schritte:** Klick erneut auf "Fehlteil".
+**Erwartet:** Beide Radios deaktiviert. Hidden hat Wert "0".
+
+### 33.4 Ist=Soll → beide Radios disabled
+**Vorbedingung:** Item mit Soll=5.
+**Schritte:** Ist=5 eintragen.
+**Erwartet:** Beide Radios disabled (grayed out), kein Klick moeglich. Hidden hat Wert "0".
+
+### 33.5 Bestellung mit allen "Fehlteil" → PartiallyDelivered
+**Vorbedingung:** 2 Items.
+**Schritte:** Beide Ist<Soll, beide Radios auf "Fehlteil". "Speichern + Abschliessen".
+**Erwartet:** Status PartiallyDelivered. Bestellung bleibt im Picking/Index.
+
+### 33.6 Bestellung mit allen "Wird nicht nachgeliefert" → Closed
+**Schritte:** Beide Ist<Soll, beide Radios auf "Wird nicht nachgeliefert". Abschliessen.
+**Erwartet:** Status Closed. Beide Items in /MissingParts Tab "Wird nicht nachgeliefert".
+
+### 33.7 Tab "Offene Fehlteile" zeigt nur WillBeRestocked
+**Vorbedingung:** Mischung aus WillBeRestocked und NoRestock Items in der DB.
+**Schritte:** /MissingParts oeffnen (Default-Tab = Offene Fehlteile).
+**Erwartet:** Nur Items mit ShortageStatus=WillBeRestocked sichtbar. Tab-Badge zeigt korrekte Count.
+
+### 33.8 Tab "Wird nicht nachgeliefert" zeigt nur NoRestock
+**Schritte:** /MissingParts?tab=NoRestock oeffnen.
+**Erwartet:** Nur Items mit ShortageStatus=NoRestock sichtbar. Tab-Badge zeigt Count.
+
+### 33.9 Werkbank-Karte zeigt beide Counts mit Tab-Links
+**Vorbedingung:** User hat eigene Items: 2 WillBeRestocked aus 1 Bestellung, 1 NoRestock aus 1 Bestellung.
+**Schritte:** Werkbank-Index (WarehouseRequisitions/Index) oeffnen.
+**Erwartet:** Karte "Meine Fehlteile" zeigt 2 Zeilen:
+  - "2 Fehlteile (wird nachgeliefert) aus 1 Bestellungen" (orange Link auf /MissingParts?tab=WillBeRestocked&mineOnly=true)
+  - "1 Wird nicht nachgeliefert aus 1 Bestellungen" (rot Link auf /MissingParts?tab=NoRestock&mineOnly=true)
+
+### 33.10 Migration: vorhandene v1.18.x PartiallyDelivered-Bestellung bleibt PD nach v1.19.0-Migration
+**Vorbedingung:** DB-Snapshot von vor dem Deploy mit mindestens einer PartiallyDelivered-Bestellung.
+**Schritte:**
+1. v1.19.0 deployen (DB-Backup vorher).
+2. Nach Migration-Run die Bestellung in der DB pruefen: Status weiterhin PartiallyDelivered?
+3. Items pruefen: alle vorher IsFinalShortage=false mit Ist<Soll haben jetzt ShortageStatus=1 (WillBeRestocked)? Alle IsFinalShortage=true haben jetzt ShortageStatus=2 (NoRestock)?
+**Erwartet:** Status bleibt PartiallyDelivered. Items haben korrekte ShortageStatus-Werte. Lager kann die Bestellung erneut oeffnen und editieren wie gewohnt.
+
+### 33.11 Notiz EK persistiert
+
+**Vorbedingung:** Submitted-Bestellung mit mindestens einem Item.
+**Schritte:**
+1. Picking/Details oeffnen.
+2. Im Notiz-EK-Feld "Test-EK-Notiz" eintragen.
+3. "Speichern + Abschliessen" klicken.
+4. Bestellung wieder oeffnen (falls Status PartiallyDelivered) ODER Print aufrufen.
+**Erwartet:** "Test-EK-Notiz" ist nach dem Abschliessen weiterhin sichtbar. Print zeigt die Notiz in der "Notiz EK"-Spalte.
+
+### 33.12 MissingParts default mineOnly
+
+**Vorbedingung:** Werkbank-User mit Workplace-Zuordnung; mindestens 1 IsFinalShortage-Item in eigener Bestellung und mindestens 1 in einer fremden Bestellung (Status Closed).
+**Schritte:**
+1. `/MissingParts` direkt im Browser aufrufen (ohne URL-Parameter).
+**Erwartet:** Tab "Wird nicht nachgeliefert" zeigt nur das eigene Item. Toggle "Nur meine Werkbaenke" ist aktiv. Deaktivieren zeigt auch das fremde Item.
+
+### 33.13 No-Workplace-Banner
+
+**Vorbedingung:** Test-User ohne Workplace-Zuordnung.
+**Schritte:**
+1. Login als Test-User.
+2. Menue "Lager" → "Meine Fehlteile" aufrufen.
+**Erwartet:** Banner "Du hast keine Werkbank-Zuordnung. Diese Liste ist deshalb leer. Du kannst entweder den Toggle 'Nur meine Werkbaenke' deaktivieren oder die Zuordnung in den Stammdaten pflegen." erscheint. Items-Tabelle ist leer.
+
+### 33.14 Fehlteile (Lager)-View
+
+**Vorbedingung:** Lager-User (admin/stock/stock_keyuser/picking).
+**Schritte:**
+1. Menue "Lager" → "Fehlteile (Lager)" aufrufen.
+**Erwartet:** Globale Sicht. Kein mineOnly-Toggle in der Filter-Card. Tabs zeigen jeweils Counts aller Werkbaenke. Notiz-Spalten zeigen sowohl "Notiz Lager" als auch "Notiz EK".
+
+---
+
+## Kapitel 34: Feingranulare Berechtigungen (v1.20.0)
+
+### 34.1 Read-Only-User in Stammdaten
+
+**Vorbedingungen:**
+- Admin angelegt einen neuen User "test_read" mit nur der Rolle `masterdata_read`
+- "test_read" ist eingeloggt
+
+**Schritte:**
+1. Im Hauptmenue auf "Stammdaten" klicken → Eintraege sichtbar (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, ...)
+2. Auf "Benutzer" klicken → Index-View laedt
+3. Pruefen: "Neu"-Button ist NICHT vorhanden. "Bearbeiten"-Link pro Zeile ist NICHT vorhanden. "Rollen-Uebersicht"-Button ist sichtbar
+4. URL direkt `/Users/Create` aufrufen → Redirect zu AccessDenied
+5. Auf "Einstellungen" klicken → Index-View mit Banner "Nur-Lesen-Modus" oben
+6. Alle Input-Felder sind disabled (grau, nicht editierbar). Save-Button ist NICHT vorhanden
+
+**Erwartet:** Alle Read-Aktionen funktionieren, alle Schreib-Aktionen sind blockiert (UI + Server).
+
+### 34.2 Picker verliert Lager-Worklist-Zugriff
+
+**Vorbedingungen:**
+- User "test_picker" hat nur die Rolle `picking`
+- Es existieren Lagerbestellungen im Status `Submitted`
+
+**Schritte:**
+1. "test_picker" loggt sich ein
+2. Im Hauptmenue auf "Bestellungen" klicken
+3. Pruefen: "Meine Bestellungen" + "Meine Fehlteile" sind sichtbar. "Lager: Eingehende Listen" + "Lager: Fehlteile" sind NICHT sichtbar
+4. URL direkt `/WarehousePicking/Index` aufrufen → Redirect zu AccessDenied
+5. URL direkt `/MissingPartsLager/Index` aufrufen → Redirect zu AccessDenied
+6. "Bestandsuebersicht" im Lager-Menue ist weiterhin sichtbar + funktioniert
+7. "Bewegungshistorie" im Lager-Menue ist weiterhin sichtbar + funktioniert
+
+**Erwartet:** Picker behaelt Bestand + Bewegungen, verliert Worklist-Sichten.
+
+### 34.3 Multi-Rollen-User
+
+**Vorbedingungen:**
+- User "test_multi" hat Rollen `picking` + `masterdata_read`
+
+**Schritte:**
+1. Login als "test_multi"
+2. Stammdaten-Menue ist sichtbar (Read), Edit-Buttons sind ausgeblendet
+3. Komm.-Sichten (Meine Bestellungen, Picking) sind sichtbar
+4. Lager-Worklist ist NICHT sichtbar (kein stock/stock_keyuser)
+
+**Erwartet:** Union der Rechte — alles was eine der Rollen erlaubt.
+
+### 34.4 Rollen-Uebersicht-Seite
+
+**Vorbedingungen:**
+- Login als beliebiger User mit `masterdata_read` oder `masterdata` oder `admin`
+
+**Schritte:**
+1. Auf Users/Index navigieren
+2. Button "Rollen-Uebersicht" oben klicken
+3. Seite `/Users/RoleOverview` laedt
+4. Tabelle mit 13 Rollen sichtbar (admin, masterdata, masterdata_read, picking, stock, stock_keyuser, tracking, reporting, leitstand, fa_completion, bde_user, bde_shiftlead, bde_admin)
+5. Pro Rolle: Beschreibung + Liste sichtbarer Seiten/Aktionen
+6. Erklaer-Header oben erklaert Many-to-Many + Union-Semantik
+7. Button "Zurueck zur Benutzerliste" funktioniert
+
+**Erwartet:** Alle 13 Rollen-Zeilen mit korrekten Beschreibungen.
+
+### 34.5 Migration
+
+**Vorbedingungen:**
+- Update auf v1.20.0 mit Backup-DB
+
+**Schritte:**
+1. App startet → Migration `AddMasterDataReadRole` laeuft
+2. In SQL pruefen: `SELECT * FROM Roles WHERE [Key]='masterdata_read'` liefert 1 Zeile
+3. Felder: `Name='Stammdaten ansehen'`, `IsSystem=1`, `SortOrder=5`, `AdGroup=NULL`
+4. Bestehende User mit `masterdata` haben weiterhin Vollzugriff
+5. Im Roles/Index ist die neue Rolle sichtbar (zwischen masterdata und picking sortiert)
+6. Versuch die Rolle zu loeschen → blockt wegen `IsSystem=1`
+
+**Erwartet:** Migration laeuft idempotent. Rolle ist als Systemrolle markiert.
+
+---
+
+## Kapitel 35: v1.20.0-Bugfixes (Post-Initial-Release)
+
+### 35.1 Lagerbestellung — Kein Default-Fehlteil bei Ist=0
+
+**Vorbedingungen:** Lagerbestellung mit mind. 2 Positionen, beide Ist-Mengen leer.
+
+**Schritte:**
+1. Bestellung oeffnen
+2. Keine Ist-Mengen eintragen
+3. Pruefen: beide "Fehlteil"-Radios sind unchecked (nicht vorausgewaehlt)
+4. Eine Ist-Menge mit Soll-Wert ausfuellen
+5. Pruefen: Radios in dieser Zeile werden ausgegraut (shortage=false)
+6. Ist-Menge wieder auf 0 setzen
+7. Pruefen: Radios werden wieder aktiv, aber unchecked (keine Auto-Default)
+
+**Erwartet:** User muss bewusst Fehlteil-Status setzen.
+
+### 35.2 Lagerbestellung — Submit mit gemischten Mengen + Status
+
+**Vorbedingungen:** Lagerbestellung mit 3 Positionen.
+
+**Schritte:**
+1. Bestellung oeffnen
+2. Pos 1: "Fehlteil" klicken, Ist leer
+3. Pos 2: "Wird nicht nachgeliefert" klicken, Ist leer
+4. Pos 3: nichts klicken, Ist leer
+5. "Speichern + Abschliessen" → Modal "soll=ist?" → Ja
+6. DB pruefen via SQL: `SELECT Id, ArticleNumber, QuantityPicked, ShortageStatus FROM WarehouseRequisitionItems WHERE WarehouseRequisitionId = <ID>`
+
+**Erwartet:**
+- Pos 1: QuantityPicked=0, ShortageStatus=1 (WillBeRestocked)
+- Pos 2: QuantityPicked=0, ShortageStatus=2 (NoRestock)
+- Pos 3: QuantityPicked=1, ShortageStatus=0 (None)
+- Order-Status: PartiallyDelivered
+
+### 35.3 Leitstand — Datums-Filter via Kalender-Picker
+
+**Vorbedingungen:** PickingLeitstand-Liste mit mind. 2 FAs mit verschiedenen Komm.-Terminen.
+
+**Schritte:**
+1. Leitstand oeffnen
+2. Auf den Kalender-Button neben "Komm." klicken
+3. Eine KW oder ein Datum waehlen
+4. Pruefen: URL aendert sich zu `?colf_picking-date=...`
+5. Pruefen: nur passende FAs werden angezeigt
+6. "Filter entfernen" im Picker klicken
+7. Pruefen: URL ohne colf_picking-date, alle FAs sichtbar
+
+**Erwartet:** Kalender-Picker-Filter triggert URL-Navigation.
+
+### 35.4 Leitstand — Kombinierte Filter
+
+**Vorbedingungen:** mind. 1 FA mit Bezeichnung1 enthaelt "green" UND Komm.-Termin in KW24 (Beispiel).
+
+**Schritte:**
+1. Leitstand oeffnen
+2. Filter Bezeichnung1 = "green" eintragen
+3. 500ms warten → URL `?colf_description1=green`
+4. Filter Komm. = "KW24" eintragen (oder Kalender-Picker)
+5. 500ms warten → URL `?colf_description1=green&colf_picking-date=KW24`
+6. Pruefen: nur FAs die BEIDE Kriterien erfuellen sind sichtbar
+7. Reihenfolge umkehren: Erst KW24, dann green — gleiches Ergebnis erwartet
+
+**Erwartet:** Reihenfolge der Filter-Eingabe ist egal. Beide Filter sind aktiv.
+
+---
+
+## Kapitel 36: Universal-Filter-Rollout (v1.21.0)
+
+Alle Tabellen-Listen sind ab v1.21.0 spaltenfilterbar; Filter wirken ueber den
+Gesamtbestand (alle Seiten), nicht nur die aktuell angezeigte Seite.
+
+### 36.1 Spaltenfilter ueber mehrere Seiten (Beispiel: Benutzer-Liste)
+
+**Vorbedingungen:** Mind. 60 Benutzer in der DB (mehr als 2 Seiten bei
+PageSize 25). Ein eindeutig benannter Benutzer (z.B. Username "zztest")
+der bei alphabetischer/Default-Sortierung auf Seite 3 landet.
+
+**Schritte:**
+1. Als admin `/Users` oeffnen, PageSize 25
+2. Pruefen: "zztest" ist auf Seite 1 NICHT sichtbar
+3. In der Filter-Zeile unter dem Spaltenkopf "Benutzername" `zztest` eintippen
+4. 500ms warten → URL wechselt zu `?colf_username=zztest` (Col-Key je nach View)
+5. Pruefen: "zztest" wird angezeigt, obwohl er ohne Filter auf Seite 3 laege
+6. Pruefen: Pagination zeigt die gefilterte Gesamtanzahl (z.B. "1 Eintrag"), Seite 1
+
+**Erwartet:** Der Filter durchsucht ALLE Eintraege, nicht nur die aktuelle
+Seite. Pagination-Count entspricht der gefilterten Menge.
+
+### 36.2 KW-Datumsfilter Kommissionierung
+
+**Vorbedingungen:** `/Picking` mit mind. 2 freigegebenen Auftraegen, deren
+Komm.-Termine in verschiedenen Kalenderwochen liegen (mind. einer in einer
+zukuenftigen KW).
+
+**Schritte:**
+1. Kommissionierung oeffnen
+2. Auf den Kalender-Button neben der Komm.-Termin-Spalte klicken
+3. Eine zukuenftige KW (Jahr + Woche) im Picker waehlen
+4. Pruefen: URL enthaelt `?colf_picking-date=KWxx`, nur Auftraege dieser KW sichtbar
+5. "Filter entfernen" klicken → alle Auftraege wieder sichtbar
+6. Manuell `kw25` (Beispiel, lowercase) in das Filter-Feld tippen
+7. Pruefen: gleiches Ergebnis wie ueber den Picker
+8. Manuell ein konkretes Datum `10.06.2026` tippen → nur Auftraege mit diesem Termin
+
+**Erwartet:** Picker UND manuelle Eingabe filtern identisch. Termine werden
+vor Filter/Pagination fuer alle Auftraege berechnet — auch Treffer auf
+hinteren Seiten werden gefunden.
+
+### 36.3 OR/NOT-Filter-Syntax
+
+**Vorbedingungen:** Beliebige server-gefilterte Liste (z.B. Artikel) mit
+Eintraegen der Artikelgruppen 960 und 886 sowie weiteren Gruppen.
+
+**Schritte:**
+1. Artikel-Liste oeffnen
+2. Spaltenfilter Artikelgruppe: `960,886` eintragen
+3. Pruefen: nur Eintraege mit 960 ODER 886 sichtbar
+4. Filter aendern auf `!960`
+5. Pruefen: alle Eintraege AUSSER 960 sichtbar
+6. Filter aendern auf `!960,886`
+7. Pruefen: alle Eintraege ausser 960 und 886 sichtbar
+
+**Erwartet:** OR via Komma, NOT via `!` — identisches Verhalten in allen
+Listen (Server- und Client-Modus).
+
+### 36.4 BDE-Buchungsliste: Filter + Pagination-Count konsistent
+
+**Vorbedingungen:** Mind. 30 BDE-Buchungen in der Historie (mehr als 1 Seite),
+davon nur wenige (z.B. 3) von einem bestimmten Operator.
+
+**Schritte:**
+1. Als bde_shiftlead `/BdeBookings` oeffnen
+2. Spaltenfilter Mitarbeiter: Operator-Namen eintragen
+3. Pruefen: nur Buchungen dieses Operators sichtbar
+4. Pruefen: Pagination zeigt den korrekten gefilterten Count (z.B. "3 Eintraege")
+5. Pruefen: KEINE Phantom-Seiten — Seite 2 existiert nicht, wenn nur 3 Treffer
+6. Filter loeschen → voller Count + alle Seiten wieder da
+
+**Erwartet:** Query und Count filtern identisch (SQL-Level). Kein
+Auseinanderlaufen von angezeigten Zeilen und Seitenzahl.
+
+### 36.5 BDE-Stammdaten: Filter pro Tab
+
+**Vorbedingungen:** BDE-Stammdaten mit mehreren Operatoren, Aktivitaeten und
+Terminals.
+
+**Schritte:**
+1. Als bde_shiftlead `/BdeMasterData` oeffnen (Tab "Mitarbeiter")
+2. Spaltenfilter Name: einen Operator-Namen eintragen → Liste filtert
+3. Auf Tab "Aktivitaeten" wechseln (`?tab=activities`)
+4. Pruefen: Aktivitaeten-Liste ist UNGEFILTERT (Filter vom Mitarbeiter-Tab
+   wirkt nicht hinueber)
+5. Im Aktivitaeten-Tab eigenen Filter setzen → nur Aktivitaeten filtern
+6. Zurueck auf Tab "Mitarbeiter" → Filter dort ist zurueckgesetzt
+
+**Erwartet:** Jeder Tab hat eigenen view-key und eigene Filter. Tab-Wechsel
+resettet die Filter des vorherigen Tabs.
+
+### 36.6 Negativtest: Filter ohne Treffer
+
+**Vorbedingungen:** Beliebige server-gefilterte Liste mit Eintraegen.
+
+**Schritte:**
+1. Liste oeffnen (z.B. `/Users`)
+2. Spaltenfilter mit Unsinns-Wert fuellen (z.B. `xyznichtvorhanden`)
+3. Pruefen: Tabelle zeigt keine Datenzeilen
+4. Pruefen: Pagination zeigt 0 Eintraege / keine Seiten-Links, kein JS-Fehler
+   in der Konsole
+5. Filter loeschen → Liste ist wieder vollstaendig
+
+**Erwartet:** Leere Liste + korrekte 0-Anzeige, kein Fehler, Filter-Reset
+stellt den Ausgangszustand wieder her.
+
+---
+
+## Kapitel 37: FA-Abschliessen (v1.21.1)
+
+Der "Abschliessen"-Button (Picking/ToggleDone) schreibt seit v1.11
+`PickingStatus.IsDonePicking` — bis v1.21.0 las aber keine Query/View das Flag,
+der Klick war wirkungslos. Ab v1.21.1 gilt ueberall
+"erledigt = IsDone || IsDonePicking" (FA-Liste, Leitstand, Komm.-Worklist).
+
+### 37.1 Abschliessen wirkt in Leitstand + Kommissionierungs-Worklist
+
+**Vorbedingungen:** Ein offener FA (Sage-`IsDone=false`, App-Status nicht
+abgeschlossen), der im Leitstand (`/PickingLeitstand`) in der Default-Ansicht
+sichtbar ist. Falls `LeitstandAktiv`: FA fuer Kommissionierung freigegeben,
+sodass er in der Kommissionierungs-Worklist (`/Picking`) erscheint.
+
+**Schritte:**
+1. Im Leitstand beim FA den "Abschliessen"-Button klicken
+2. Pruefen: Zeile verschwindet aus der Default-Ansicht (ohne "Erledigte anzeigen")
+3. "Erledigte anzeigen" aktivieren
+4. Pruefen: Zeile erscheint grau dargestellt mit Badge "Erledigt"
+5. Kommissionierung (`/Picking`) oeffnen
+6. Pruefen: FA ist NICHT mehr in der Worklist
+7. Zurueck im Leitstand (showDone-Modus aktiv) beim FA erneut "Abschliessen" klicken (Toggle)
+8. Pruefen: FA ist wieder offen (kein Badge, normale Darstellung) und erscheint
+   wieder in der Kommissionierungs-Worklist
+
+**Erwartet:** Der Abschliessen-Toggle wirkt sofort auf Erledigt-Anzeige und
+Filter in FA-Liste, Leitstand und Komm.-Worklist. Sage-`IsDone` bleibt
+unveraendert (wird nicht beschrieben).
+
+---
+
+## Kapitel 38: FA-Vorbau (v1.22.0)
+
+v1.22.0 ersetzt die 5 fixen Vorbau-Kacheln (`ProductionOrderAssemblyGroups`)
+durch einen erweiterbaren Arbeitsgaenge-Katalog (`WorkSteps`) + FA-zu-AG-Tabelle
+(`FaWorkSteps`, automatische Erkennung aus dem BOM-Cache), konfigurierbare
+FA-Merkmale und eine FA-Abarbeitungsliste je Werkbank (neue Rolle `vorbau`).
+
+Allgemeine Vorbedingungen fuer dieses Kapitel:
+- AppSetting `FaCompletionAktiv = true`.
+- BOM-Cache aktiv (`Sync:BomCacheEnabled = true`) und mindestens ein offener FA
+  mit Artikelnummer + BOM-Cache-Eintrag.
+- Benutzer mit Rollen `masterdata` (Stammdaten), `fa_completion`
+  (FA-Vervollstaendigen) und `vorbau` (Abarbeitungsliste) — oder ein Admin.
+
+### 38.1 End-to-End: Suchbegriff → Erkennung → Vervollstaendigen → Abarbeitungsliste
+
+**Vorbedingungen:**
+- Zusaetzlich zu den Kapitel-Vorbedingungen: Service-Setting
+  `Sync:FaWorkStepDetectionEnabled = true`, Windows-Service laeuft.
+- Test-FA `FA-1001` (Platzhalter) mit BOM-Cache-Eintrag, dessen Stueckliste ein
+  Bauteil mit "Luefter" in der Bezeichnung enthaelt. FA hat noch keine
+  FA-Arbeitsgaenge.
+- Werkbank `WB-Test` existiert (Stammdaten → Werkbaenke).
+
+**Schritte:**
+1. *Suchbegriff pflegen:* Stammdaten → Arbeitsgaenge → `VL` bearbeiten →
+   Suchbegriffe `Luefter,Ventilator` eintragen → Speichern.
+2. *Detection-Lauf:* Naechsten Sync-Tick abwarten (oder Service neu starten).
+   Im Aktivitaets-Protokoll (admin) nach Aktivitaet "FaWorkStepDetection" filtern.
+3. Pruefen: End-Eintrag "Run erfolgreich beendet" mit `neu >= 1`.
+4. *Vervollstaendigen:* Fertigungsauftraege → FA-Vervollstaendigen → `FA-1001`
+   oeffnen. Pruefen: AG-Kachel/Tab `VL` ist vorhanden (automatisch erkannt).
+5. Werkbank-Dropdown auf `WB-Test` setzen → Speichern. Pruefen: Badge
+   "Keine Werkbank zugewiesen" verschwindet.
+6. Ueber "AG hinzufuegen" einen zweiten Arbeitsgang (z.B. `VE`) manuell ergaenzen.
+7. Bei `VL` ein zugeordnetes Merkmal erfassen (Dropdown-Wert waehlen bzw.
+   JA/NEIN setzen) — Wert wird per onchange sofort gespeichert.
+8. *Abarbeitungsliste:* Fertigungsauftraege → FA-Abarbeitungsliste →
+   Arbeitsgang `VL` waehlen (kein Werkbank-Filter mehr).
+9. Pruefen: `FA-1001` erscheint mit der **Werkbank**-Spalte (`WB-Test`), der
+   einen Erledigt-Checkbox fuer `VL`, dem erfassten Merkmal-Wert, Terminen
+   (BG/Komm./Fert.) und ggf. enaio-Icons. (Kein Orphan-Badge mehr — die Liste
+   ist Arbeitsgang-zentriert; `VE` erscheint einfach beim Filter auf `VE`.)
+10. *Read-only Stueckliste:* Auf die FA-Nummer klicken.
+11. Pruefen: Stueckliste oeffnet OHNE Picking-Checkboxen, Lagerplatz-Dropdowns,
+    Umbuchen-Button, Foto-Upload und Bedarfsmeldungs-Modal. Filter,
+    Baugruppen-Navigation und "Drucken" funktionieren.
+12. Zurueck in der Abarbeitungsliste die `VL`-Checkbox ("Erledigt") anhaken.
+13. Pruefen: FA verschwindet aus der Default-Ansicht des `VL`-Filters;
+    mit "Erledigte anzeigen" wieder sichtbar.
+
+**Erwartet:** Erkennung, manuelle Pflege, Arbeitsgang-gefilterte Abarbeitungsliste
+(mit Werkbank-Spalte) und read-only Stueckliste greifen nahtlos ineinander;
+das "Erledigt"-Abhaken in der Abarbeitungsliste blendet den FA aus.
+
+### 38.2 Negativ: Manuell abgewaehlter AG wird vom Sync NICHT wieder hinzugefuegt
+
+**Vorbedingungen:** Zustand nach 38.1 — `FA-1001` hat den Sync-erkannten AG `VL`,
+Detection aktiv.
+
+**Schritte:**
+1. FA-Vervollstaendigen → `FA-1001` → Tab `VL` → "Arbeitsgang entfernen"
+   (Confirm bestaetigen).
+2. Pruefen: Kachel `VL` verschwindet; im Leitstand ist die VL-Checkbox leer.
+3. Naechsten Detection-Lauf abwarten (Aktivitaets-Protokoll prueft Lauf-Ende).
+4. Pruefen: `VL` ist bei `FA-1001` weiterhin NICHT vorhanden — die Erkennung
+   hat den manuell abgewaehlten AG nicht re-added (IsRemoved-Sperre).
+5. Ueber "AG hinzufuegen" `VL` wieder manuell hinzufuegen.
+6. Pruefen: Kachel erscheint wieder (Zeile reaktiviert, kein Duplikat-Fehler).
+
+**Erwartet:** Manuelle Abwahl gewinnt dauerhaft gegen die automatische
+Erkennung; manuelles Wieder-Hinzufuegen reaktiviert dieselbe Zeile.
+
+### 38.3 Negativ: Option mit erfassten Werten nicht loeschbar (Loesch-Guard)
+
+**Vorbedingungen:** Dropdown-Merkmal (z.B. "Verdampfergroesse") mit einer
+Option, die bei mindestens einem FA als Wert erfasst ist (siehe 38.1 Schritt 7).
+
+**Schritte:**
+1. Stammdaten → FA-Merkmale → Merkmal bearbeiten → bei der verwendeten Option
+   auf "Loeschen" klicken.
+2. Pruefen: Loeschen wird mit Warnmeldung verweigert (Option ist in Verwendung).
+3. Option stattdessen deaktivieren.
+4. Pruefen: FA-Vervollstaendigen zeigt den bereits erfassten Wert weiterhin an;
+   das Dropdown bietet die Option fuer NEUE Auswahl nicht mehr an.
+
+**Erwartet:** Techniker-Eingaben verschwinden nie still — Optionen mit
+referenzierten Werten sind nur deaktivierbar.
+
+### 38.4 Negativ: Doppelter Arbeitsgang-Code wird abgelehnt
+
+**Vorbedingungen:** Arbeitsgang `VL` existiert (Seed).
+
+**Schritte:**
+1. Stammdaten → Arbeitsgaenge → "Neu" → Code `VL`, Name `Test-Duplikat` →
+   Speichern.
+2. Pruefen: Validierungsfehler "Code bereits vorhanden" (o.ae.), kein zweiter
+   `VL`-Eintrag in der Liste.
+
+**Erwartet:** Der Arbeitsgang-Code ist eindeutig; Duplikat wird im App-Layer
+mit ModelState-Fehler abgelehnt (kein 500er).
+
+### 38.5 Migrations-Smoke: Kacheln-Daten nach Update vorhanden
+
+**Vorbedingungen:** Update einer Datenbank vom Stand v1.21.x (mit gepflegten
+Vorbau-Kacheln `IsApplicable`/`IsCompleted` + Specs) auf v1.22.0.
+**DB-Backup vor dem Deploy** (siehe Cutover-Doc
+`docs/superpowers/cutover/2026-06-12-fa-vorbau-cutover.md` — AgentJob-Skript
+MUSS im selben Wartungsfenster aktualisiert werden!).
+
+**Schritte:**
+1. Migration einspielen (App-Start mit `db.Database.Migrate()` oder `SQL/68`).
+2. FA-Vervollstaendigen → einen FA oeffnen, der vor dem Update aktive Kacheln
+   (`IsApplicable=true`) hatte.
+3. Pruefen: Die frueher aktiven Gruppen erscheinen als AG-Kacheln, der
+   Vervollstaendigt-Status (`IsCompleted`) ist erhalten, alle Freitext-Specs
+   sind vorhanden.
+4. Einen FA pruefen, der Specs an einer INAKTIVEN Gruppe hatte: Specs sind in
+   der DB erhalten (`FaWorkStepSpecs`), der AG ist aber nicht aktiv
+   (`IsRemoved=1`) — Kachel erscheint erst nach manuellem Hinzufuegen wieder.
+5. Leitstand oeffnen: VK-VA-Haken entsprechen dem Stand vor dem Update.
+6. SQL-Agent-Job (FA-Import) einmal manuell ausfuehren: Lauf erfolgreich,
+   keine Fehler wegen der entfernten `ProductionOrderAssemblyGroups`-Tabelle.
+
+**Erwartet:** Daten-erhaltende Konvertierung — keine Kachel-/Spec-Daten gehen
+verloren; der FA-Import laeuft mit dem aktualisierten Job-Skript fehlerfrei.
+
+### 38.6 Negativ: Komm-erledigter FA verschwindet aus den Vorbau-Views
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-2001`,
+Sage-`IsDone=false`) mit einem aktiven Arbeitsgang, einer Werkbank-Zuweisung und
+einem zu dieser Werkbank gemappten AG, sodass der FA sowohl in
+FA-Vervollstaendigen als auch in der FA-Abarbeitungsliste sichtbar ist.
+
+**Schritte:**
+1. Kommissionierung → `FA-2001` → "Abschliessen" klicken
+   (setzt `PickingStatus.IsDonePicking=true`, NICHT die Sage-`IsDone`).
+2. Pruefen: `FA-2001` verschwindet aus der Fertigungsauftraege-Liste/Leitstand
+   (Verhalten seit v1.21.1).
+3. FA-Vervollstaendigen (`/FaCompletion`) ohne "Erledigte anzeigen" oeffnen.
+4. Pruefen: `FA-2001` erscheint NICHT mehr in der Liste.
+5. "Erledigte anzeigen" (showDone) aktivieren.
+6. Pruefen: `FA-2001` erscheint wieder.
+7. FA-Abarbeitungsliste (`/FaWorklist`) mit der zugehoerigen Werkbank oeffnen.
+8. Pruefen: `FA-2001` erscheint NICHT in der Abarbeitungsliste (komm-erledigt
+   wird wie Sage-`IsDone` immer ausgeblendet).
+
+**Erwartet:** "Erledigt" bedeutet in beiden Vorbau-Views konsistent
+`IsDone || IsDonePicking` — ein nur App-komm-erledigter FA verschwindet genauso
+wie aus der FA-Liste; mit showDone bleibt er in FA-Vervollstaendigen sichtbar.
+
+### 38.7 "Vollstaendig definiert" blendet NICHT aus — nur "Erledigt" tut es
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-3001`,
+Sage-`IsDone=false`, nicht komm-erledigt) mit einem aktiven Arbeitsgang `VL`,
+einer Werkbank-Zuweisung und `VL` zum Werkbank-Mapping gemappt — sodass der FA
+in der FA-Abarbeitungsliste der Werkbank sichtbar ist. `VL` ist in der
+Abarbeitungsliste noch NICHT als "Erledigt" abgehakt.
+
+**Schritte:**
+1. FA-Vervollstaendigen → `FA-3001` → Tab `VL`: Schalter
+   "Vollstaendig definiert" einschalten (setzt `IsSpecComplete=true`).
+2. Pruefen: Erfolgsmeldung; der Tab-Indikator zeigt den Definiert-Status,
+   `SpecCompletedBy`/`SpecCompletedAt` werden angezeigt.
+3. FA-Abarbeitungsliste (`/FaWorklist`) mit der zugehoerigen Werkbank oeffnen
+   (ohne "Erledigte anzeigen").
+4. Pruefen: `FA-3001` ist WEITERHIN sichtbar — "Vollstaendig definiert"
+   blendet den FA NICHT aus der Abarbeitungsliste aus.
+5. Pruefen: Die `VL`-"Erledigt"-Checkbox in der Abarbeitungsliste ist NICHT
+   angehakt (der Definiert-Schalter hat den Arbeit-erledigt-Status nicht
+   veraendert — `IsCompleted` blieb false).
+6. In der Abarbeitungsliste die `VL`-"Erledigt"-Checkbox anhaken
+   (setzt `IsCompleted=true`).
+7. Pruefen: `FA-3001` verschwindet jetzt aus der Default-Ansicht der Werkbank
+   (alle gemappten AGs erledigt); mit "Erledigte anzeigen" wieder sichtbar.
+8. FA-Vervollstaendigen → `FA-3001` → Tab `VL`: Pruefen: "Vollstaendig
+   definiert" ist weiterhin eingeschaltet (vom "Erledigt"-Haken unberuehrt —
+   die beiden Status sind unabhaengig).
+
+**Erwartet:** "Vollstaendig definiert" (Planer, `IsSpecComplete`) und "Erledigt"
+(Werker, `IsCompleted`) sind getrennte Status. Nur der "Erledigt"-Haken in der
+FA-Abarbeitungsliste blendet den FA aus; "Vollstaendig definiert" hat keinen
+Einfluss auf die Sichtbarkeit in der Abarbeitungsliste.
+
+---
+
+### 38.8 Arbeitsgang-Filter + Standard-Arbeitsgang im Profil (Werkbank-uebergreifend)
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Mindestens zwei offene FAs
+(`FA-4001`, `FA-4002`, beide Sage-`IsDone=false`, nicht komm-erledigt), die
+**auf verschiedenen Werkbaenken** liegen (`FA-4001` → `WB-A`, `FA-4002` → `WB-B`)
+und beide einen aktiven Arbeitsgang `VE` haben (erkannt oder manuell). Optional
+hat `FA-4001` zusaetzlich `VL`. Ein Benutzer mit Rolle `vorbau` (oder Admin),
+dessen Profil noch keinen Standard-Arbeitsgang hat.
+
+**Schritte:**
+1. *Standard-Arbeitsgang setzen:* Benutzer-Dropdown rechts oben → Mein Profil →
+   Feld "Standard-Arbeitsgang (FA-Abarbeitungsliste)" auf `VE` setzen → Speichern.
+   (Alternativ als Admin im Benutzerstamm: Benutzer → Bearbeiten → selbes Feld.)
+2. *Vorgefiltert oeffnen:* Fertigungsauftraege → FA-Abarbeitungsliste oeffnen
+   OHNE einen Arbeitsgang in der URL/im Dropdown zu waehlen.
+3. Pruefen: Das Arbeitsgang-Dropdown ist bereits auf `VE` vorausgewaehlt (aus dem
+   Profil) — die Liste ist sofort vorgefiltert, ohne manuelle Auswahl.
+4. Pruefen: Sowohl `FA-4001` (Werkbank `WB-A`) als auch `FA-4002` (Werkbank `WB-B`)
+   erscheinen — die Liste ist **werkbank-uebergreifend**.
+5. Pruefen: Es gibt eine **Werkbank**-Spalte, die `WB-A` bzw. `WB-B` anzeigt; sie
+   ist als Spalte filterbar (z.B. `WB-A` eintippen → nur `FA-4001` bleibt). Filter
+   wieder leeren.
+6. Pruefen: Pro Zeile gibt es genau EINE Erledigt-Checkbox (Spalten-Header =
+   gewaehlter AG `VE`), nicht mehrere AG-Spalten.
+7. *Erledigt-Haken blendet aus:* Bei `FA-4001` die `VE`-"Erledigt"-Checkbox anhaken
+   (sofort gespeichert).
+8. Pruefen: `FA-4001` verschwindet aus der Default-Ansicht; `FA-4002` bleibt
+   sichtbar. Mit "Erledigte anzeigen" wird `FA-4001` wieder eingeblendet.
+9. *Anderer AG:* Im Dropdown auf `VL` umstellen.
+10. Pruefen: Nur FAs mit aktivem `VL` (hier `FA-4001`) erscheinen; `FA-4002`
+    (nur `VE`) ist nicht dabei.
+
+**Erwartet:** Die FA-Abarbeitungsliste filtert nach Arbeitsgang (nicht Werkbank);
+der im Profil hinterlegte Standard-Arbeitsgang wird ohne URL-Parameter
+vorausgewaehlt. Die Liste zeigt FAs verschiedener Werkbaenke mit Werkbank-Spalte;
+der "Erledigt"-Haken des gewaehlten AG blendet den FA aus.
+
+### 38.9 Leitstand VK-VA = Erledigt-Status, synchron zur FA-Abarbeitungsliste
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-5001`,
+Sage-`IsDone=false`, nicht komm-erledigt) mit zwei aktiven Arbeitsgaengen `VE`
+(`IsCompleted=false`) und `VK` (`IsCompleted=true`); KEIN aktiver `VL`. Benutzer
+ist eingeloggt mit Rolle `picking` ODER `leitstand` (oder Admin). Browser-DevTools
+Network-Tab offen.
+
+**Schritte:**
+1. Leitstand Kommissionierung (`/PickingLeitstand`) oeffnen, `FA-5001` finden.
+2. Pruefen: In der `VE`-Spalte steht eine Checkbox, die NICHT angehakt ist
+   (`IsCompleted=false`). In der `VK`-Spalte eine angehakte Checkbox
+   (`IsCompleted=true`). Die `VL`-Zelle ist LEER (kein Checkbox — AG nicht
+   anwendbar).
+3. Die `VE`-Checkbox anhaken. Network-Tab pruefen.
+4. Pruefen: POST an `/api/fa-work-steps/toggle-completed` mit Body
+   `{ faWorkStepId: <Id des VE-FaWorkStep>, value: true }`, Status 200 (KEIN
+   Request an `/api/fa-work-steps/toggle`).
+5. FA-Abarbeitungsliste (`/FaWorklist`) mit Arbeitsgang `VE` oeffnen.
+6. Pruefen: `FA-5001` ist NICHT mehr in der Default-Ansicht (der `VE`-Erledigt-
+   Haken aus dem Leitstand wirkt — gleiches Flag `IsCompleted`). Mit "Erledigte
+   anzeigen" erscheint `FA-5001` mit angehaktem `VE`-Erledigt.
+7. *Gegenrichtung:* In der Abarbeitungsliste (mit "Erledigte anzeigen") den
+   `VE`-Erledigt-Haken bei `FA-5001` wieder entfernen.
+8. Leitstand neu laden: Pruefen, dass die `VE`-Checkbox bei `FA-5001` wieder
+   leer (nicht angehakt) ist.
+
+**Negativfall:**
+- Benutzer ohne picking/leitstand/vorbau/admin: Toggle-Request liefert 302 →
+  AccessDenied (bzw. 403); `IsCompleted` bleibt unveraendert.
+- VK-VA-Spaltenfilter: In der `VK`-Spalte `erledigt` eintippen → nur FAs mit
+  abgehaktem VK bleiben; `offen` zeigt FAs mit anwendbarem, aber nicht erledigtem
+  VK. Leere VK-Zellen (nicht anwendbar) matchen weder `erledigt` noch `offen`.
+
+**Erwartet:** Die VK/VL/VE/VT/VA-Haken im Leitstand zeigen/togglen `IsCompleted`
+(Erledigt) — DASSELBE Flag wie die FA-Abarbeitungsliste; Aenderungen sind in
+beide Richtungen sichtbar. Nicht-anwendbare AGs erscheinen als leere Zelle.
+"Anwendbar" wird im Leitstand nicht mehr gesetzt.
+
+### 38.10 Spalten-Einstellung per Zahnrad in den FA-Views
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Mindestens ein offener FA, sodass
+beide Listen Zeilen zeigen. Benutzer mit Rolle `fa_completion` UND `vorbau`
+(oder Admin).
+
+**Schritte:**
+1. Fertigungsauftraege → FA-Vervollstaendigen oeffnen.
+2. Auf das Zahnrad-Symbol (Spalten-Einstellung) ueber der Tabelle klicken.
+3. Pruefen: Eine Liste aller Tabellenspalten erscheint mit Ein/Aus-Schaltern.
+4. Eine optionale Spalte (z.B. einen Termin oder eine Merkmal-Spalte) ausblenden
+   und den Dialog schliessen.
+5. Pruefen: Die Spalte ist in der Tabelle nicht mehr sichtbar.
+6. Seite neu laden (F5).
+7. Pruefen: Die ausgeblendete Spalte bleibt ausgeblendet (Auswahl pro Benutzer
+   gespeichert).
+8. Schritte 1-7 analog in der FA-Abarbeitungsliste wiederholen.
+
+**Erwartet:** Beide FA-Views haben ein funktionierendes Zahnrad zum
+Ein-/Ausblenden von Spalten; die Auswahl ueberlebt einen Reload und ist
+pro Benutzer.
+
+### 38.11 Standard-Werkbank im Profil → FA-Abarbeitung zusaetzlich vorgefiltert
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Zwei offene FAs mit aktivem,
+nicht-erledigtem Arbeitsgang `VE` auf **verschiedenen** Werkbaenken
+(`FA-6001` → `WB-A`, `FA-6002` → `WB-B`). Benutzer mit Rolle `vorbau` (oder
+Admin), dessen Profil noch keine Standard-Werkbank gesetzt hat. Standard-
+Arbeitsgang im Profil = `VE` (vgl. 38.8).
+
+**Schritte:**
+1. Benutzer-Dropdown rechts oben → Mein Profil → Feld "Standard-Werkbank
+   (FA-Abarbeitungsliste)" auf `WB-A` setzen → Speichern. (Alternativ als Admin
+   im Benutzerstamm: Benutzer → Bearbeiten → selbes Feld.)
+2. Fertigungsauftraege → FA-Abarbeitungsliste oeffnen OHNE Arbeitsgang oder
+   Werkbank in der URL zu waehlen.
+3. Pruefen: Das Arbeitsgang-Dropdown ist auf `VE` vorausgewaehlt (Standard-AG)
+   UND das Werkbank-Dropdown ist auf `WB-A` vorausgewaehlt (Standard-Werkbank).
+4. Pruefen: Nur `FA-6001` (Werkbank `WB-A`) erscheint; `FA-6002` (`WB-B`) ist
+   ausgeblendet — beide Filter (AG `VE` UND Werkbank `WB-A`) wirken kombiniert.
+5. Im Werkbank-Dropdown auf "(alle)" umstellen.
+6. Pruefen: Jetzt erscheinen sowohl `FA-6001` als auch `FA-6002` (nur noch der
+   AG-Filter `VE` wirkt).
+
+**Negativfall:**
+- Profil ohne Standard-Werkbank: Die Abarbeitungsliste oeffnet werkbank-
+  uebergreifend (alle Werkbaenke), nur der Standard-Arbeitsgang wirkt.
+
+**Erwartet:** Die im Profil hinterlegte Standard-Werkbank wird ohne URL-Parameter
+vorausgewaehlt und UND-verknuepft mit dem Standard-Arbeitsgang angewandt;
+"(alle)" hebt den Werkbank-Filter auf.
+
+### 38.12 Text-Merkmal: Definition → Freitext erfassen → Spalte in der Abarbeitung
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Benutzer mit `masterdata` (fuer
+FA-Merkmale) sowie `fa_completion` + `vorbau` (oder Admin). Ein offener FA
+(`FA-7001`) mit aktivem Arbeitsgang `VE`.
+
+**Schritte:**
+1. *Definition:* Stammdaten → FA-Merkmale → Neu. Bezeichnung z.B.
+   "Sonderhinweis", Typ = **Text** waehlen, Arbeitsgang `VE` zuordnen, speichern.
+2. Pruefen: Bei Typ "Text" ist kein Optionen-Block noetig/sichtbar.
+3. *Gegenprobe Artikelmerkmale:* Stammdaten → Artikelmerkmale → Neu. Pruefen:
+   Das Typ-Dropdown bietet **KEIN** "Text" an (nur Dropdown/JA-NEIN).
+4. *Erfassen:* Fertigungsauftraege → FA-Vervollstaendigen → `FA-7001` → Tab `VE`.
+   Beim Merkmal "Sonderhinweis" einen Freitext eingeben (z.B. "Bitte Schutzfolie
+   dran lassen") und das Feld verlassen (Speichern haelt den aktiven Tab).
+5. Pruefen: Der eingegebene Text bleibt nach Reload erhalten.
+6. *Abarbeitung:* Fertigungsauftraege → FA-Abarbeitungsliste mit Arbeitsgang `VE`.
+7. Pruefen: Es gibt eine Spalte "Sonderhinweis", in der bei `FA-7001` der erfasste
+   Freitext angezeigt wird.
+8. *Leeren:* In FA-Vervollstaendigen den Freitext loeschen und Feld verlassen.
+9. Pruefen: Die Spalte ist bei `FA-7001` jetzt leer (der Wert wurde geloescht).
+
+**Erwartet:** Der Typ "Text" steht nur fuer FA-Merkmale zur Verfuegung (nicht fuer
+Artikelmerkmale); der erfasste Freitext erscheint als Spalte in der
+FA-Abarbeitungsliste; leeren entfernt den Wert.
+
+### 38.13 BOM/enaio/Vault-Buttons in beiden FA-Views sichtbar und konsistent
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-8001`) mit
+gepflegter Artikelnummer und mindestens einem zugeordneten enaio-Dokument
+(Werkstattauftrag/Zeichnung). Benutzer mit `fa_completion` + `vorbau` (oder
+Admin).
+
+**Schritte:**
+1. Fertigungsauftraege → FA-Vervollstaendigen → `FA-8001` oeffnen.
+2. Pruefen: Im Kopf-/Zeilenbereich erscheinen in einheitlicher Reihenfolge und
+   Optik: Stueckliste/BOM-Button, enaio-Badge(s), Vault-Zeichnungs-Link.
+3. Den BOM-Button anklicken → Pruefen: read-only Stueckliste oeffnet (Druck
+   moeglich).
+4. Den Vault-Link anklicken → Pruefen: Vault oeffnet mit der Artikelnummer als
+   Suche (neuer Tab).
+5. Fertigungsauftraege → FA-Abarbeitungsliste mit dem passenden Arbeitsgang
+   oeffnen, `FA-8001` finden.
+6. Pruefen: Dieselben drei Buttons (BOM, enaio, Vault) erscheinen in derselben
+   Reihenfolge/Optik wie in FA-Vervollstaendigen.
+
+**Erwartet:** BOM-, enaio- und Vault-Buttons sind in beiden FA-Views vorhanden und
+einheitlich dargestellt (gemeinsames Partial `_FaDocumentLinks`); die Links fuehren
+zur read-only Stueckliste bzw. zum Vault.
+
+---
+
+## Kapitel 39: UI-Nachzuegler (v1.22.0 Folge-Fixes)
+
+Kleine UI-Korrekturen aus dem laufenden Test der v1.22.0: die Lagerbestellung-
+Detailansicht bekommt das Standard-Filter/Sortier-Pattern, und der Hover auf
+OSEON-Spaltenueberschriften bleibt lesbar.
+
+### 39.1 Lagerbestellung-Detailansicht: Spalten-Filter + Klick-Sortierung
+
+**Vorbedingungen:** Eine offene Lagerbestellung (Status `Submitted` oder
+`PartiallyDelivered`) mit mehreren Positionen (verschiedene Artikelnummern/
+Bezeichnungen). Benutzer mit Rolle `picking` ODER `stock` (oder Admin).
+
+**Schritte:**
+1. Bestellungen → Lagerbestellungen (`/WarehousePicking/Index`) → eine offene
+   Liste oeffnen (`/WarehousePicking/Details`).
+2. Pruefen: Unter den Spaltenueberschriften **Pos, Artikel-Nr, Bezeichnung,
+   Bestellt, ME, Lagerplatz** erscheint je ein Filter-Eingabefeld (wie in den
+   uebrigen Tabellen).
+3. In das Filter-Feld unter "Artikel-Nr" einen Teil einer Nummer eingeben.
+4. Pruefen: Nur Zeilen mit passender Artikelnummer bleiben sichtbar; Filter wieder
+   leeren → alle Zeilen wieder da.
+5. Auf die Ueberschrift "Bezeichnung" klicken → Sortierung aufsteigend (Pfeil ▲),
+   erneuter Klick → absteigend (▼).
+6. Auf "Bestellt" klicken → numerische Sortierung (nicht alphabetisch).
+7. Bei einigen Positionen Ist-Mengen/Notizen erfassen, dann "Speichern +
+   Abschliessen".
+8. Pruefen: Alle Positionen werden korrekt gebucht — auch aktuell **ausgefilterte**
+   und **umsortierte** Zeilen; die Ist-Mengen landen beim richtigen Artikel
+   (kein Index-Versatz zwischen Position und gebuchter Menge).
+
+**Negativfall:**
+- Die Eingabe-Spalten (Ist, Notiz Lager, Notiz EK, Fehlteil-Status) haben bewusst
+  KEIN Filterfeld — sie enthalten Formular-Inputs (keinen filterbaren Text).
+
+**Erwartet:** Die Positions-Tabelle bietet Spalten-Filter + Klick-Sortierung wie
+die uebrigen Tabellen; Filtern/Sortieren beeinflusst das Speichern NICHT
+(alle Items bleiben erhalten, Mengen bleiben den richtigen Positionen zugeordnet).
+
+### 39.2 OSEON-Teileverfolgung: Spaltenueberschrift bleibt beim Hover lesbar
+
+**Vorbedingungen:** AppSetting `TeileverfolgungAktiv = true`; OSEON-Liste mit
+mindestens einem Auftrag.
+
+**Schritte:**
+1. Teileverfolgung → OSEON Auftraege oeffnen.
+2. Mit der Maus ueber eine sortierbare Spaltenueberschrift fahren (z.B. Artikel,
+   Werkbank, Status, Endtermin).
+3. Pruefen: Der Kopf wird nur geringfuegig heller (helleres Blau) — die
+   Hintergrundfarbe bleibt blau, die **weisse Schrift bleibt durchgehend gut
+   lesbar**.
+4. Pruefen (Regression): Der Kopf wird zu keinem Zeitpunkt weiss/sehr hell; die
+   Beschriftung verschwindet nie.
+
+**Erwartet:** Der Header-Hover hellt das Blau nur dezent auf (background-image-
+Overlay statt ersetzender background-color); die weisse Schrift bleibt lesbar.
+
+---
+
+*Ende des Dokuments. Stand: v1.22.0 inkl. Folge-Fixes (2026-06-12)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

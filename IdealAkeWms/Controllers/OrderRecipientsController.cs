@@ -7,7 +7,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class OrderRecipientsController : Controller
 {
     private readonly IOrderRecipientRepository _repository;
@@ -21,6 +21,18 @@ public class OrderRecipientsController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Empfaenger-Spalte zeigt nur die Anzahl als Badge).
+    /// </summary>
+    private static readonly Dictionary<string, Func<OrderRecipientGroup, string?>> ColumnMap = new()
+    {
+        ["name"] = g => g.Name,
+        ["description"] = g => g.Description,
+        ["recipients"] = g => g.Recipients.Count.ToString(),
+    };
+
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -29,7 +41,11 @@ public class OrderRecipientsController : Controller
         var rawPageSize = Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var groups = await _repository.GetAllGroupsAsync();
-        var list = groups.ToList();
+
+        // Server-Side-Spaltenfilter: vor der Pagination —
+        // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var list = ColumnFilterHelper.Apply(groups, columnFilters, ColumnMap).ToList();
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,
@@ -40,6 +56,7 @@ public class OrderRecipientsController : Controller
         return View(list.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    [RequireMasterDataAccess]
     public IActionResult Create()
     {
         var vm = new OrderRecipientGroupViewModel();
@@ -48,6 +65,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(OrderRecipientGroupViewModel vm)
     {
         if (!ModelState.IsValid)
@@ -68,6 +86,7 @@ public class OrderRecipientsController : Controller
         return RedirectToAction(nameof(Edit), new { id = group.Id });
     }
 
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id)
     {
         var group = await _repository.GetGroupByIdAsync(id);
@@ -93,6 +112,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Edit(int id, OrderRecipientGroupViewModel vm)
     {
         if (id != vm.Id)
@@ -135,6 +155,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Delete(int id)
     {
         var group = await _repository.GetGroupByIdAsync(id);
@@ -160,6 +181,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> AddRecipient(int groupId, OrderRecipientEditModel model)
     {
         if (!ModelState.IsValid)
@@ -191,6 +213,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> UpdateRecipient(int groupId, OrderRecipientEditModel model)
     {
         if (!ModelState.IsValid)
@@ -218,6 +241,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> DeleteRecipient(int groupId, int recipientId)
     {
         var recipient = await _repository.GetRecipientByIdAsync(recipientId);
@@ -257,6 +281,7 @@ public class OrderRecipientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> SaveArticleGroupMappings(ArticleGroupMappingsPageViewModel vm)
     {
         var displayName = _currentUserService.GetDisplayName();

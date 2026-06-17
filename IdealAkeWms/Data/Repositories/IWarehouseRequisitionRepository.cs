@@ -19,10 +19,12 @@ public interface IWarehouseRequisitionRepository
     Task RemoveItemAsync(int itemId);
 
     Task SubmitAsync(int id, int recipientGroupId, int submittedByUserId, string user, string winUser, byte[] rowVersion);
-    Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
-                    IReadOnlyDictionary<int, string?> itemNotes,
-                    IReadOnlyDictionary<int, bool> itemIsFinalShortages,
-                    int closedByUserId, string user, string winUser, byte[] rowVersion);
+    Task CloseAsync(int id,
+        IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
+        IReadOnlyDictionary<int, string?> itemNotes,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
+        int closedByUserId, string user, string winUser, byte[] rowVersion);
 
     /// <summary>
     /// Setzt nur die Notizen einzelner Positionen (z.B. AJAX-Autosave).
@@ -35,21 +37,25 @@ public interface IWarehouseRequisitionRepository
     Task SaveProgressAsync(int id,
         IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
-        IReadOnlyDictionary<int, bool> itemIsFinalShortages,
+        IReadOnlyDictionary<int, string?> itemNotesEinkauf,
+        IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
         string user, string winUser);
 
     Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
-        GetMissingPartsAsync(int? workplaceFilter,
+        GetMissingPartsAsync(ShortageStatus filterStatus,
+                             int? workplaceFilter,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize);
 
     /// <summary>
-    /// Zaehlt offene Final-Shortage-Positionen und betroffene Closed-Bestellungen
-    /// fuer alle Vormontageplaetze, denen <paramref name="userId"/> zugeordnet ist.
+    /// Zaehlt offene Shortage-Positionen (WillBeRestocked + NoRestock) und
+    /// betroffene Bestellungen (Closed + PartiallyDelivered) fuer alle
+    /// Vormontageplaetze, denen <paramref name="userId"/> zugeordnet ist.
     /// </summary>
-    Task<(int ItemCount, int RequisitionCount)>
-        GetFinalShortagesCountForUserAsync(int userId);
+    Task<(int WaitingItemCount, int WaitingRequisitionCount,
+          int NoRestockItemCount, int NoRestockRequisitionCount)>
+        GetShortageCountsForUserAsync(int userId);
 
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 

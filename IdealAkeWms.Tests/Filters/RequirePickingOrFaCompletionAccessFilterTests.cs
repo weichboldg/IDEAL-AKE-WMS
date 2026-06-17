@@ -14,7 +14,8 @@ namespace IdealAkeWms.Tests.Filters;
 
 /// <summary>
 /// Tests fuer den 2-Rollen-Composite-Filter aus Phase 4 Task 6 (v1.13.0).
-/// Picking ODER FaCompletion → Zugriff auf AssemblyGroupsApiController.ToggleApplicable.
+/// Picking ODER FaCompletion → Zugriff auf FaWorkStepsApiController.Toggle
+/// (bis v1.21: AssemblyGroupsApiController.ToggleApplicable).
 /// FaCompletion-Pfad zusaetzlich von <c>FaCompletionAktiv</c>-AppSetting gegated.
 /// </summary>
 public class RequirePickingOrFaCompletionAccessFilterTests

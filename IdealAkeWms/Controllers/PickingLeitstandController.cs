@@ -13,7 +13,7 @@ public class PickingLeitstandController : Controller
 {
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly IProductionOrderPickingStatusRepository _pickingStatusRepository;
-    private readonly IProductionOrderAssemblyGroupRepository _assemblyGroupRepository;
+    private readonly IFaWorkStepRepository _faWorkStepRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IHolidayRepository _holidayRepository;
@@ -24,7 +24,7 @@ public class PickingLeitstandController : Controller
     public PickingLeitstandController(
         IProductionOrderRepository productionOrderRepository,
         IProductionOrderPickingStatusRepository pickingStatusRepository,
-        IProductionOrderAssemblyGroupRepository assemblyGroupRepository,
+        IFaWorkStepRepository faWorkStepRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
@@ -34,7 +34,7 @@ public class PickingLeitstandController : Controller
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
-        _assemblyGroupRepository = assemblyGroupRepository;
+        _faWorkStepRepository = faWorkStepRepository;
         _currentUserService = currentUserService;
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -57,19 +57,20 @@ public class PickingLeitstandController : Controller
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
-        // Datum-Filter werden in C# nach Termin-Berechnung angewendet (Komm., BG, Beschicht.).
-        // Wenn aktiv: alle Text-gefilterten Rows materialisieren, Termine berechnen, dann erst paginieren.
-        var dateFilters = columnFilters
-            .Where(kv => LeitstandDateColumnKeys.Contains(kv.Key))
+        // Datum- UND VK-VA-Filter werden in C# nach dem FaWorkStep-Pivot-/Termin-Mapping angewendet
+        // (beide Datenquellen liegen ausserhalb der SQL-Query). Wenn aktiv: alle Text-gefilterten Rows
+        // materialisieren, mappen, dann erst paginieren.
+        var memoryFilters = columnFilters
+            .Where(kv => LeitstandDateColumnKeys.Contains(kv.Key) || LeitstandWorkStepColumnKeys.ContainsKey(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
-        var hasDateFilters = dateFilters.Count > 0;
-        var sqlColumnFilters = hasDateFilters
-            ? columnFilters.Where(kv => !LeitstandDateColumnKeys.Contains(kv.Key))
+        var hasMemoryFilters = memoryFilters.Count > 0;
+        var sqlColumnFilters = hasMemoryFilters
+            ? columnFilters.Where(kv => !LeitstandDateColumnKeys.Contains(kv.Key) && !LeitstandWorkStepColumnKeys.ContainsKey(kv.Key))
                            .ToDictionary(kv => kv.Key, kv => kv.Value)
             : columnFilters;
 
-        var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
-        var sqlPage = hasDateFilters ? 1 : page;
+        var sqlPageSize = hasMemoryFilters ? int.MaxValue : effectivePageSize;
+        var sqlPage = hasMemoryFilters ? 1 : page;
 
         var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
             filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
@@ -85,15 +86,17 @@ public class PickingLeitstandController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
-        // Bulk-Lookups fuer pivot-basiertes Mapping (Spec 7.3)
+        // Bulk-Lookups fuer pivot-basiertes Mapping (seit v1.22.0 aus FaWorkSteps statt AssemblyGroups).
+        // Detail-Pivot liefert pro aktivem AG zusaetzlich FaWorkStepId + IsCompleted — die VK-VA-Haken
+        // im Leitstand zeigen/togglen den Erledigt-Status (gleiches Flag wie die FA-Abarbeitungsliste).
         var orderIds = orders.Select(o => o.Id).ToList();
-        var groupPivot = await _assemblyGroupRepository.GetIsApplicablePivotAsync(orderIds);
+        var groupPivot = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(orderIds);
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
 
         var viewItems = orders.Select(o =>
         {
             var ps = pickingStatuses.GetValueOrDefault(o.Id);
-            var grp = groupPivot.GetValueOrDefault(o.Id) ?? new Dictionary<string, bool>();
+            var grp = groupPivot.GetValueOrDefault(o.Id) ?? new Dictionary<string, FaWorkStepPivotCell>();
 
             var item = new PickingLeitstandItem
             {
@@ -106,7 +109,7 @@ public class PickingLeitstandController : Controller
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
-                IsDone = o.IsDone,
+                IsDone = o.IsDone || o.IsDonePicking,
                 WorkplaceName = o.WorkplaceName,
                 PickingStatus = ps?.PickingStatus,
                 HasGlass = ps?.HasGlass ?? false,
@@ -119,11 +122,7 @@ public class PickingLeitstandController : Controller
                 ReleasedBy = ps?.ReleasedBy,
                 AssignedPickerId = ps?.AssignedPickerId,
                 AssignedPickerName = ps?.AssignedPickerName,
-                HasCooling = grp.GetValueOrDefault("VK"),
-                HasFan = grp.GetValueOrDefault("VL"),
-                HasElectric = grp.GetValueOrDefault("VE"),
-                HasDoors = grp.GetValueOrDefault("VT"),
-                HasSuperstructure = grp.GetValueOrDefault("VA"),
+                WorkSteps = grp,
             };
 
             if (o.ProductionDate.HasValue)
@@ -147,15 +146,18 @@ public class PickingLeitstandController : Controller
             return item;
         }).ToList();
 
-        // Wenn Datum-Filter aktiv waren: Termin-basierten Filter anwenden und C#-seitig paginieren.
+        // Wenn Datum-/VK-VA-Filter aktiv waren: in-Memory filtern und C#-seitig paginieren.
         int finalTotalCount = ordersPage.TotalCount;
-        if (hasDateFilters)
+        if (hasMemoryFilters)
         {
-            foreach (var (key, raw) in dateFilters)
+            foreach (var (key, raw) in memoryFilters)
             {
                 var (tokens, negate) = ColumnFilterHelper.Parse(raw);
                 if (tokens.Count == 0) continue;
-                viewItems = viewItems.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
+                if (LeitstandWorkStepColumnKeys.TryGetValue(key, out var code))
+                    viewItems = viewItems.Where(it => MatchLeitstandWorkStepFilter(it, code, tokens, negate)).ToList();
+                else
+                    viewItems = viewItems.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
             }
             finalTotalCount = viewItems.Count;
             viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
@@ -348,6 +350,37 @@ public class PickingLeitstandController : Controller
         "production-date",// Fert.-Termin (ProductionDate)
         "delivery-date"   // Liefertermin (DeliveryDate)
     };
+
+    /// <summary>
+    /// VK-VA-Spalten-Filter-Keys -> WorkStep-Code. Die Zelle stammt aus dem FaWorkStep-Detail-Pivot
+    /// (ausserhalb der SQL-Query), darum wird hier — wie bei den Datumsspalten — in C# gefiltert.
+    /// </summary>
+    private static readonly Dictionary<string, string> LeitstandWorkStepColumnKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["cooling"] = "VK",
+        ["fan"] = "VL",
+        ["electric"] = "VE",
+        ["doors"] = "VT",
+        ["superstructure"] = "VA"
+    };
+
+    /// <summary>
+    /// Gerenderter Zellentext fuer eine VK-VA-Spalte (damit der Filter sinnvoll bleibt):
+    /// AG nicht anwendbar -> "" (leere Zelle), anwendbar + erledigt -> "erledigt", offen -> "offen".
+    /// </summary>
+    private static string FormatWorkStepForFilter(PickingLeitstandItem item, string code)
+    {
+        if (!item.WorkSteps.TryGetValue(code, out var cell)) return string.Empty;
+        return cell.IsCompleted ? "erledigt" : "offen";
+    }
+
+    private static bool MatchLeitstandWorkStepFilter(
+        PickingLeitstandItem item, string code, List<string> tokens, bool negate)
+    {
+        var text = FormatWorkStepForFilter(item, code);
+        var hasMatch = tokens.Any(t => text.Contains(t));
+        return negate ? !hasMatch : hasMatch;
+    }
 
     /// <summary>
     /// Formatiert ein Datum identisch zur View (<c>dd.MM.yyyy KWxx</c>) und lowercased,

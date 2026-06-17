@@ -57,6 +57,7 @@ try
     builder.Services.AddScoped<ILagerbestandSyncService, LagerbestandSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
+    builder.Services.AddScoped<IFaWorkStepDetectionService, FaWorkStepDetectionService>();
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
     builder.Services.AddScoped<IMailService, MailService>();

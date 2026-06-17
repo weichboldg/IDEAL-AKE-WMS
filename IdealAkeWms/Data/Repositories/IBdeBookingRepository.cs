@@ -9,8 +9,8 @@ public interface IBdeBookingRepository
     Task<BdeBooking?> GetActiveForWorkOperationAsync(int workOperationId);
     Task<BdeBooking?> GetLatestPausedForWorkOperationAsync(int workOperationId);
     Task<List<BdeBooking>> GetActiveCockpitAsync();
-    Task<List<BdeBooking>> GetHistoryAsync(int skip, int take, int? operatorId, int? workplaceId, DateTime? from, DateTime? to);
-    Task<int> GetHistoryCountAsync(int? operatorId, int? workplaceId, DateTime? from, DateTime? to);
+    Task<List<BdeBooking>> GetHistoryAsync(int skip, int take, int? operatorId, int? workplaceId, DateTime? from, DateTime? to, IReadOnlyDictionary<string, string>? columnFilters = null);
+    Task<int> GetHistoryCountAsync(int? operatorId, int? workplaceId, DateTime? from, DateTime? to, IReadOnlyDictionary<string, string>? columnFilters = null);
     Task AddAsync(BdeBooking booking);
     Task UpdateAsync(BdeBooking booking);
     Task<decimal> GetTotalGoodAsync(int bookingId);

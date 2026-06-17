@@ -18,7 +18,7 @@ public class NotificationWorkerTests
         var mockMailService = new Mock<IMailService>();
 
         mockMailService
-            .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var mockServiceProvider = new Mock<IServiceProvider>();
@@ -64,7 +64,7 @@ public class NotificationWorkerTests
         await worker.StopAsync(CancellationToken.None);
 
         mailService.Verify(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()),
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
     }
 
@@ -85,7 +85,7 @@ public class NotificationWorkerTests
         await worker.StopAsync(CancellationToken.None);
 
         mailService.Verify(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()),
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -105,8 +105,8 @@ public class NotificationWorkerTests
 
         string? capturedHtml = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((_, html, _, _) => capturedHtml = html)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((_, html, _, _, _) => capturedHtml = html)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
@@ -133,8 +133,8 @@ public class NotificationWorkerTests
 
         string? capturedHtml = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((_, html, _, _) => capturedHtml = html)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((_, html, _, _, _) => capturedHtml = html)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
@@ -161,8 +161,8 @@ public class NotificationWorkerTests
 
         string? capturedHtml = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((_, html, _, _) => capturedHtml = html)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((_, html, _, _, _) => capturedHtml = html)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
@@ -187,8 +187,8 @@ public class NotificationWorkerTests
 
         string? capturedHtml = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((_, html, _, _) => capturedHtml = html)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((_, html, _, _, _) => capturedHtml = html)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
@@ -218,8 +218,8 @@ public class NotificationWorkerTests
 
         string? capturedHtml = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((_, html, _, _) => capturedHtml = html)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((_, html, _, _, _) => capturedHtml = html)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
@@ -246,8 +246,8 @@ public class NotificationWorkerTests
 
         IEnumerable<string>? capturedRecipients = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((_, _, recipients, _) => capturedRecipients = recipients)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((_, _, recipients, _, _) => capturedRecipients = recipients)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
@@ -296,8 +296,8 @@ public class NotificationWorkerTests
 
         string? capturedSubject = null;
         mailService.Setup(x =>
-            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((subject, _, _, _) => capturedSubject = subject)
+            x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((subject, _, _, _, _) => capturedSubject = subject)
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);

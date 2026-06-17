@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using Xunit;
 
@@ -52,5 +53,60 @@ public class ProductionOrderRepositoryTests
 
         result.Should().NotBeNull();
         result!.OrderNumber.Should().Be("WA-200");
+    }
+
+    [Fact]
+    public async Task GetForLeitstand_ExcludesKommDoneOrders_WhenShowDoneFalse()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-KOMMDONE", IsDone = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 3, OrderNumber = "FA-SAGEDONE", IsDone = true });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 1, IsDonePicking = false });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 2, IsDonePicking = true });
+        await ctx.SaveChangesAsync();
+
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: false, page: 1, pageSize: 100);
+
+        page.Rows.Should().ContainSingle(r => r.OrderNumber == "FA-OPEN");
+        page.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetForLeitstand_IncludesKommDoneWithFlag_WhenShowDoneTrue()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-KOMMDONE", IsDone = false });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 2, IsDonePicking = true });
+        await ctx.SaveChangesAsync();
+
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 100);
+
+        page.Rows.Should().HaveCount(2);
+        page.Rows.Single(r => r.OrderNumber == "FA-KOMMDONE").IsDonePicking.Should().BeTrue();
+        page.Rows.Single(r => r.OrderNumber == "FA-OPEN").IsDonePicking.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetOpenOrdersInWindow_ExcludesKommDoneOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var inWindow = DateTime.Now.AddDays(7);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false, ProductionDate = inWindow });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-KOMMDONE", IsDone = false, ProductionDate = inWindow });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 1, IsDonePicking = false });
+        ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus { ProductionOrderId = 2, IsDonePicking = true });
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetOpenOrdersInWindowAsync(weeksAhead: 8, maxCount: 200);
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
     }
 }

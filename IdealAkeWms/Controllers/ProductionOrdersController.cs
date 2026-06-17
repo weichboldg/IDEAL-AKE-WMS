@@ -113,7 +113,7 @@ public class ProductionOrdersController : Controller
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
-                IsDone = o.IsDone,
+                IsDone = o.IsDone || o.IsDonePicking,
                 WorkplaceName = o.WorkplaceName,
                 HasCoatingParts = ps?.HasCoatingParts ?? false,
                 IsCoatingDone = ps?.IsCoatingDone ?? false,

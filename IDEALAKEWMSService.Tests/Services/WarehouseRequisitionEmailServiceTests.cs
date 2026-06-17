@@ -57,6 +57,7 @@ public class WarehouseRequisitionEmailServiceTests
             It.Is<string>(s => s.Contains($"#{r.Id}") && s.Contains("WB-A")),
             It.IsAny<string>(),
             It.Is<IEnumerable<string>>(e => e.Contains("lager@ake.at")),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()),
             Times.Once);
         var updated = await ctx.WarehouseRequisitions.FindAsync(r.Id);
@@ -69,8 +70,8 @@ public class WarehouseRequisitionEmailServiceTests
         var (svc, ctx, repo, mail) = Setup();
         await SeedSubmittedAsync(ctx, repo);
         string? capturedBody = null;
-        mail.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, IEnumerable<string>, CancellationToken>((s, b, _, _) => capturedBody = b)
+        mail.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IEnumerable<string>, string?, CancellationToken>((s, b, _, _, _) => capturedBody = b)
             .Returns(Task.CompletedTask);
 
         await svc.SendPendingEmailsAsync(dryRun: false);
@@ -123,6 +124,7 @@ public class WarehouseRequisitionEmailServiceTests
             It.Is<string>(s => s.StartsWith("[STORNO]")),
             It.IsAny<string>(),
             It.IsAny<IEnumerable<string>>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -152,7 +154,7 @@ public class WarehouseRequisitionEmailServiceTests
         using var ctx = TestDbContextFactory.Create();
         var repo = new WarehouseRequisitionRepository(ctx);
         var mailMock = new Mock<IMailService>();
-        mailMock.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+        mailMock.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         var config = new ConfigurationBuilder().Build();
         var fakeLogger = new FakeSyncLogger();
@@ -184,5 +186,35 @@ public class WarehouseRequisitionEmailServiceTests
         var events = fakeLogger2.Runs[0].Events;
         events.Should().Contain(e => e.Reference != null && e.Reference.StartsWith("submit/"));
         events.Should().Contain(e => e.Reference != null && e.Reference.StartsWith("storno/"));
+    }
+
+    [Fact]
+    public void BuildSubmitText_ContainsNakedLinkAndItems()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 42,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-A" },
+            CreatedBy = "tester",
+            SubmittedAt = new DateTime(2026, 6, 16, 8, 0, 0),
+            Items =
+            {
+                new WarehouseRequisitionItem { Position = 1, ArticleNumber = "ART-1", ArticleDescription = "Schraube", Unit = "Stk", QuantityRequested = 5m },
+                new WarehouseRequisitionItem { Position = 2, ArticleNumber = "ART-2", ArticleDescription = "Mutter", Unit = "Stk", QuantityRequested = 3m },
+            }
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildSubmitText(r, "https://wms.ake.at");
+
+        // Nackte, klickbare URL — kein Markdown-/HTML-Markup
+        text.Should().Contain("Lagerbestellung oeffnen: https://wms.ake.at/WarehousePicking/Details/42");
+        text.Should().NotContain("<a");
+        text.Should().NotContain("[");
+        text.Should().NotContain("]");
+        // Positionsdaten
+        text.Should().Contain("ART-1");
+        text.Should().Contain("Schraube");
+        text.Should().Contain("ART-2");
+        text.Should().Contain("WB-A");
     }
 }

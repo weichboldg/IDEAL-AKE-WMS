@@ -1,6 +1,8 @@
 @model IdealAkeWms.Models.ViewModels.OseonOperationConfigViewModel
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Arbeitsgang-Konfiguration";
+    var canEdit = await _user.HasMasterDataAccessAsync();
 }
 
 <h2 class="page-header">Arbeitsgang-Konfiguration (OSEON)</h2>
@@ -8,6 +10,14 @@
     Konfigurieren Sie pro Arbeitsgang den Soll-Termin (Offset in Arbeitstagen relativ zum Stanztermin)
     und ob der AG fuer die OSEON-Statusberechnung relevant ist.
 </p>
+
+@if (!canEdit)
+{
+    <div class="alert alert-warning">
+        <strong>Nur-Lesen-Modus:</strong> Sie haben keine Berechtigung, Einstellungen zu aendern.
+        Eingaben sind deaktiviert.
+    </div>
+}
 
 <div class="row">
     <div class="col-lg-8 mb-4">
@@ -44,37 +54,40 @@
                                         <form asp-action="UpdateOperationConfig" method="post" class="d-flex align-items-center gap-1" id="form-update-@config.Id">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="id" value="@config.Id" />
-                                            <input type="text" name="displayName" value="@config.DisplayName" class="form-control form-control-sm" placeholder="z.B. Stanzen" />
+                                            <input type="text" name="displayName" value="@config.DisplayName" class="form-control form-control-sm" placeholder="z.B. Stanzen" disabled="@(!canEdit)" />
                                         </form>
                                     </td>
                                     <td>
-                                        <input type="number" name="dueDateOffsetDays" value="@config.DueDateOffsetDays" form="form-update-@config.Id" class="form-control form-control-sm text-center" />
+                                        <input type="number" name="dueDateOffsetDays" value="@config.DueDateOffsetDays" form="form-update-@config.Id" class="form-control form-control-sm text-center" disabled="@(!canEdit)" />
                                     </td>
                                     <td class="text-center">
                                         <input type="hidden" name="isOseonRelevant" value="@(config.IsOseonRelevant ? "true" : "false")" form="form-update-@config.Id" id="hidden-oseon-@config.Id" />
                                         <input type="checkbox" class="form-check-input" form="form-update-@config.Id"
                                                @(config.IsOseonRelevant ? "checked" : "")
-                                               onchange="document.getElementById('hidden-oseon-@config.Id').value = this.checked ? 'true' : 'false'" />
+                                               onchange="document.getElementById('hidden-oseon-@config.Id').value = this.checked ? 'true' : 'false'" disabled="@(!canEdit)" />
                                     </td>
                                     <td>
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" form="form-update-@config.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
-                                                </svg>
-                                            </button>
-                                            <form asp-action="DeleteOperationConfig" method="post" class="d-inline">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@config.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
-                                                        onclick="return confirm('Arbeitsgang \'@config.OperationName\' wirklich loeschen?');">
+                                        @if (canEdit)
+                                        {
+                                            <div class="d-flex gap-1">
+                                                <button type="submit" form="form-update-@config.Id" class="btn btn-sm btn-outline-primary" title="Speichern">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                                        <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
                                                     </svg>
                                                 </button>
-                                            </form>
-                                        </div>
+                                                <form asp-action="DeleteOperationConfig" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@config.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Loeschen"
+                                                            onclick="return confirm('Arbeitsgang \'@config.OperationName\' wirklich loeschen?');">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -101,40 +114,43 @@
                         <label class="form-label fw-bold">AG-Name</label>
                         @if (Model.UnconfiguredNames.Any())
                         {
-                            <select name="operationName" class="form-select" id="operationNameSelect">
+                            <select name="operationName" class="form-select" id="operationNameSelect" disabled="@(!canEdit)">
                                 <option value="">-- Waehlen oder eingeben --</option>
                                 @foreach (var name in Model.UnconfiguredNames)
                                 {
                                     <option value="@name">@name (aus OSEON)</option>
                                 }
                             </select>
-                            <input type="text" id="operationNameInput" class="form-control mt-2" placeholder="Oder manuell eingeben..." />
+                            <input type="text" id="operationNameInput" class="form-control mt-2" placeholder="Oder manuell eingeben..." disabled="@(!canEdit)" />
                             <small class="text-muted">Waehlen Sie einen nicht konfigurierten AG aus OSEON oder geben Sie einen neuen Namen ein.</small>
                         }
                         else
                         {
-                            <input type="text" name="operationName" class="form-control" placeholder="z.B. BG" required />
+                            <input type="text" name="operationName" class="form-control" placeholder="z.B. BG" required disabled="@(!canEdit)" />
                         }
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Anzeigename</label>
-                        <input type="text" name="displayName" class="form-control" placeholder="z.B. Biegen" />
+                        <input type="text" name="displayName" class="form-control" placeholder="z.B. Biegen" disabled="@(!canEdit)" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Offset (Arbeitstage)</label>
-                        <input type="number" name="dueDateOffsetDays" value="0" class="form-control" />
+                        <input type="number" name="dueDateOffsetDays" value="0" class="form-control" disabled="@(!canEdit)" />
                         <small class="text-muted">Negativ = vor Stanztermin, Positiv = nach Stanztermin</small>
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
                             <input type="hidden" name="isOseonRelevant" value="true" id="hidden-add-oseon" />
                             <input type="checkbox" class="form-check-input" id="addIsOseonRelevant" checked
-                                   onchange="document.getElementById('hidden-add-oseon').value = this.checked ? 'true' : 'false'" />
+                                   onchange="document.getElementById('hidden-add-oseon').value = this.checked ? 'true' : 'false'" disabled="@(!canEdit)" />
                             <label class="form-check-label" for="addIsOseonRelevant">OSEON-relevant</label>
                         </div>
                         <small class="text-muted">Nicht-relevante AGs werden bei der Statusberechnung ignoriert.</small>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Hinzufuegen</button>
+                    @if (canEdit)
+                    {
+                        <button type="submit" class="btn btn-primary w-100">Hinzufuegen</button>
+                    }
                 </form>
             </div>
         </div>

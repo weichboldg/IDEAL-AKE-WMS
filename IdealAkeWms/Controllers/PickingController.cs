@@ -63,6 +63,36 @@ public class PickingController : Controller
         _articleAttributeRepository = articleAttributeRepository;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+    /// (Termin im View-Format "dd.MM.yyyy KWxx" lowercase, "Offen" fuer leeren Status, "-" fuer fehlende Prio).
+    /// </summary>
+    private static readonly Dictionary<string, Func<PickingListItem, string?>> ColumnMap = new()
+    {
+        ["priority"] = i => i.PickingPriority?.ToString() ?? "-",
+        ["order-number"] = i => i.OrderNumber,
+        ["article-number"] = i => i.ArticleNumber,
+        ["description"] = i => i.Description1,
+        ["customer"] = i => i.Customer,
+        ["quantity"] = i => i.Quantity.ToString("N0"),
+        ["picking-date"] = i => FormatDateForFilter(i.KommissionierTermin),
+        ["status"] = i => string.IsNullOrEmpty(i.PickingStatus) ? "Offen" : i.PickingStatus,
+        ["picker"] = i => i.AssignedPickerName,
+    };
+
+    /// <summary>
+    /// Formatiert ein Datum identisch zur View (<c>dd.MM.yyyy KWxx</c>) und lowercased,
+    /// damit der Server denselben Text matched wie der clientseitige Filter.
+    /// </summary>
+    private static string FormatDateForFilter(DateTime? date)
+    {
+        if (!date.HasValue) return string.Empty;
+        var d = date.Value;
+        var kw = System.Globalization.ISOWeek.GetWeekOfYear(d);
+        return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
+    }
+
     [RequirePickingAccess]
     public async Task<IActionResult> Index(bool showAll = false, int page = 1, int? pageSize = null)
     {
@@ -92,17 +122,13 @@ public class PickingController : Controller
             releasedOrders = await _pickingStatusRepository.GetReleasedForPickingAsync();
         }
 
-        var totalCount = releasedOrders.Count;
-        if (page < 1) page = 1;
-        var pagedOrders = releasedOrders
-            .Skip((page - 1) * effectivePageSize)
-            .Take(effectivePageSize)
-            .ToList();
-
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
-        var items = pagedOrders.Select(o =>
+        // Termin-Berechnung fuer ALLE freigegebenen FAs (nicht nur die aktuelle Seite):
+        // der Termin-Spaltenfilter (dd.MM.yyyy KWxx) muss ueber alle Eintraege wirken.
+        // Reine In-Memory-Datumsmathematik, unkritisch fuer die Performance.
+        var allItems = releasedOrders.Select(o =>
         {
             var ps = o.PickingStatus; // Nav-Property (Include() im Repo)
             var item = new PickingListItem
@@ -128,6 +154,16 @@ public class PickingController : Controller
 
             return item;
         }).ToList();
+
+        // Server-Side-Spaltenfilter VOR Pagination: filtern -> zaehlen -> Skip/Take.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
+        var totalCount = filtered.Count;
+        if (page < 1) page = 1;
+        var items = filtered
+            .Skip((page - 1) * effectivePageSize)
+            .Take(effectivePageSize)
+            .ToList();
 
         return View(new PickingListViewModel
         {
@@ -413,7 +449,10 @@ public class PickingController : Controller
         return Ok();
     }
 
-    [RequirePickingAccess]
+    // PrintBom auch fuer vorbau + fa_completion: der Druck-Button bleibt in der
+    // read-only Stueckliste der FA-Abarbeitungsliste (vorbau) sowie der
+    // FA-Vervollstaendigung (fa_completion) sichtbar (v1.22.0, Spec §7 "Druck bleibt").
+    [RequirePickingOrVorbauOrFaCompletionAccess]
     public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo, string? visibleColumns)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);

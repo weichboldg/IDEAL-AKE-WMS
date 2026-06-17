@@ -42,6 +42,25 @@
                         <small class="form-text text-muted">Halten Sie Strg gedrückt, um mehrere Benutzer auszuwählen.</small>
                     </div>
 
+                    <hr />
+                    <h6 class="text-muted">Arbeitsgang-Zuordnung</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label">Vorbaugruppen / Arbeitsgaenge dieser Werkbank</label>
+                        @if (!Model.AllWorkSteps.Any())
+                        {
+                            <div class="form-text">Keine aktiven Arbeitsgaenge vorhanden.</div>
+                        }
+                        @foreach (var ws in Model.AllWorkSteps)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="workStepIds" value="@ws.Id"
+                                       id="ws_@ws.Id" @(Model.SelectedWorkStepIds.Contains(ws.Id) ? "checked" : "") />
+                                <label class="form-check-label" for="ws_@ws.Id">@ws.Code — @ws.Name</label>
+                            </div>
+                        }
+                    </div>
+
                     <div class="card mt-3">
                         <div class="card-header">BDE-Einstellungen</div>
                         <div class="card-body">

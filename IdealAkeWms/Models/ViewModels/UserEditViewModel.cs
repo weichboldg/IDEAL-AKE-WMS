@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Models.ViewModels;
 
@@ -42,6 +43,24 @@ public class UserEditViewModel
 
     [Display(Name = "Eintraege pro Seite (Standard)")]
     public int? DefaultPageSize { get; set; }
+
+    /// <summary>
+    /// Vorausgewaehlter Arbeitsgang in der FA-Abarbeitungsliste. NULL = keiner.
+    /// </summary>
+    [Display(Name = "Standard FA-Vorbau-AG (FA-Abarbeitungsliste)")]
+    public int? DefaultWorkStepId { get; set; }
+
+    /// <summary>Aktive Arbeitsgaenge fuer das Dropdown.</summary>
+    public List<WorkStep> AvailableWorkSteps { get; set; } = new();
+
+    /// <summary>
+    /// Vorausgewaehlter Werkbank-Zusatzfilter in der FA-Abarbeitungsliste. NULL = alle.
+    /// </summary>
+    [Display(Name = "Standard-Werkbank (FA-Abarbeitungsliste)")]
+    public int? DefaultWorkplaceId { get; set; }
+
+    /// <summary>Werkbaenke fuer das Dropdown.</summary>
+    public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
 
     public List<RoleCheckboxItem> AvailableRoles { get; set; } = new();
     public List<int> SelectedRoleIds { get; set; } = new();

@@ -34,6 +34,35 @@ public class BdeMasterDataController : Controller
         _currentUserService = currentUserService;
     }
 
+    /// <summary>
+    /// Server-Side-Spaltenfilter (Tab "Operatoren"): Col-Key -> gerenderter Zell-Text.
+    /// Die Getter MUESSEN exakt das liefern, was die View rendert
+    /// (Name als "Nachname Vorname", Aktiv-Badge "Aktiv"/"Inaktiv", WMS-Benutzer bzw. "-").
+    /// </summary>
+    private static readonly Dictionary<string, Func<BdeOperator, string?>> OperatorColumnMap = new()
+    {
+        ["personnel-number"] = o => o.PersonnelNumber,
+        ["name"] = o => $"{o.LastName} {o.FirstName}",
+        ["active"] = o => o.IsActive ? "Aktiv" : "Inaktiv",
+        ["user"] = o => o.User?.Name ?? "-",
+    };
+
+    /// <summary>Server-Side-Spaltenfilter (Tab "Aktivitäten"): Col-Key -> gerenderter Zell-Text.</summary>
+    private static readonly Dictionary<string, Func<BdeActivity, string?>> ActivityColumnMap = new()
+    {
+        ["code"] = a => a.Code,
+        ["name"] = a => a.Name,
+        ["active"] = a => a.IsActive ? "Aktiv" : "Inaktiv",
+    };
+
+    /// <summary>Server-Side-Spaltenfilter (Tab "Terminals"): Col-Key -> gerenderter Zell-Text.</summary>
+    private static readonly Dictionary<string, Func<BdeTerminal, string?>> TerminalColumnMap = new()
+    {
+        ["user"] = t => t.User?.Name ?? "-",
+        ["workplace"] = t => t.DefaultProductionWorkplace?.Name ?? "-",
+        ["description"] = t => t.Description,
+    };
+
     public async Task<IActionResult> Index(string tab = "operators", int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -45,6 +74,22 @@ public class BdeMasterDataController : Controller
             .OrderBy(o => o.LastName).ThenBy(o => o.FirstName).ToList();
         var activities = (await _activityRepository.GetAllAsync()).ToList();
         var terminals = (await _terminalRepository.GetAllAsync()).ToList();
+
+        // Server-Side-Spaltenfilter: greift nur auf die Tabelle des aktiven Tabs
+        // (die View rendert pro Request nur EINE Tabelle), vor der Pagination.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        switch (tab)
+        {
+            case "activities":
+                activities = ColumnFilterHelper.Apply(activities, columnFilters, ActivityColumnMap).ToList();
+                break;
+            case "terminals":
+                terminals = ColumnFilterHelper.Apply(terminals, columnFilters, TerminalColumnMap).ToList();
+                break;
+            default:
+                operators = ColumnFilterHelper.Apply(operators, columnFilters, OperatorColumnMap).ToList();
+                break;
+        }
 
         // Pagination greift nur auf den aktiven Tab.
         int totalForTab = tab switch

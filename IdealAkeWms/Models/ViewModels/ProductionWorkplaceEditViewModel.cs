@@ -39,4 +39,11 @@ public class ProductionWorkplaceEditViewModel
 
     [ValidateNever]
     public List<User>? AvailableUsers { get; set; }
+
+    /// <summary>Aktive Arbeitsgaenge fuer die Checkbox-Liste (POST-Wert kommt als int[] workStepIds).</summary>
+    [ValidateNever]
+    public List<WorkStep> AllWorkSteps { get; set; } = new();
+
+    [ValidateNever]
+    public List<int> SelectedWorkStepIds { get; set; } = new();
 }

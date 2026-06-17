@@ -1,4 +1,5 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionListViewModel
+@using IdealAkeWms.Models
 @{
     ViewData["Title"] = "Lagerbestellungen — meine Listen";
 }
@@ -21,15 +22,33 @@
     </form>
 </div>
 
-@if (Model.MissingPartsItemCount > 0)
+@if (Model.MissingPartsWaitingItemCount > 0 || Model.MissingPartsNoRestockItemCount > 0)
 {
     <div class="card border-warning mb-3">
         <div class="card-body">
             <h6 class="card-title">⚠ Meine Fehlteile</h6>
-            <p class="mb-2">@Model.MissingPartsItemCount endgueltige Fehlteile aus
-                @Model.MissingPartsRequisitionCount abgeschlossenen Bestellungen.</p>
-            <a asp-controller="MissingParts" asp-action="Index" asp-route-mineOnly="true"
-               class="btn btn-sm btn-outline-warning">Details ansehen →</a>
+            @if (Model.MissingPartsWaitingItemCount > 0)
+            {
+                <div class="mb-1">
+                    <a asp-controller="MissingParts" asp-action="Index"
+                       asp-route-tab="WillBeRestocked" asp-route-mineOnly="true"
+                       class="text-warning fw-semibold text-decoration-none">
+                        @Model.MissingPartsWaitingItemCount Fehlteile (wird nachgeliefert)
+                        <small class="text-muted">aus @Model.MissingPartsWaitingRequisitionCount Bestellungen →</small>
+                    </a>
+                </div>
+            }
+            @if (Model.MissingPartsNoRestockItemCount > 0)
+            {
+                <div>
+                    <a asp-controller="MissingParts" asp-action="Index"
+                       asp-route-tab="NoRestock" asp-route-mineOnly="true"
+                       class="text-danger fw-semibold text-decoration-none">
+                        @Model.MissingPartsNoRestockItemCount Wird nicht nachgeliefert
+                        <small class="text-muted">aus @Model.MissingPartsNoRestockRequisitionCount Bestellungen →</small>
+                    </a>
+                </div>
+            }
         </div>
     </div>
 }
@@ -41,16 +60,16 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-sm filterable-table">
+        <table class="table table-sm filterable-table" data-server-column-filter="true" data-view-key="WarehouseRequisitions">
             <thead>
                 <tr>
-                    <th data-col-key="id">#</th>
-                    <th data-col-key="workplace">Werkbank</th>
-                    <th data-col-key="items">Pos</th>
-                    <th data-col-key="status">Status</th>
-                    <th data-col-key="created">Erstellt</th>
-                    <th data-col-key="submitted">Submit</th>
-                    <th></th>
+                    <th data-filterable data-col-key="id">#</th>
+                    <th data-filterable data-col-key="workplace">Werkbank</th>
+                    <th data-filterable data-col-key="items">Pos</th>
+                    <th data-filterable data-col-key="status">Status</th>
+                    <th data-filterable data-col-key="created">Erstellt</th>
+                    <th data-filterable data-col-key="submitted">Submit</th>
+                    <th data-col-key="actions"></th>
                 </tr>
             </thead>
             <tbody>
@@ -80,4 +99,9 @@ else
     </div>
 
     <partial name="_Pagination" model="Model.Pagination" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

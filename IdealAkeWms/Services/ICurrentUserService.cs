@@ -13,13 +13,16 @@ public interface ICurrentUserService
 
     Task<bool> IsAdminAsync();
     Task<bool> HasMasterDataAccessAsync();
+    Task<bool> HasMasterDataReadAccessAsync();
     Task<bool> CanPickAsync();
     Task<bool> CanViewTrackingAsync();
     Task<bool> CanReportOperationsAsync();
     Task<bool> CanAccessStockAsync();
+    Task<bool> CanProcessLagerAsync();
     Task<bool> CanTransferStockAsync();
     Task<bool> CanManagePickingReleaseAsync();
     Task<bool> CanFaCompletionAsync();
+    Task<bool> HasVorbauAccessAsync();
     Task<bool> CanUseBdeAsync();
     Task<bool> CanManageBdeShiftleadAsync();
     Task<bool> CanManageBdeAdminAsync();

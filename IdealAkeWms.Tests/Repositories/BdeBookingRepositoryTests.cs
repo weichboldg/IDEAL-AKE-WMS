@@ -151,4 +151,80 @@ public class BdeBookingRepositoryTests
         (await repo.GetTotalGoodAsync(booking.Id)).Should().Be(0m);
         (await repo.GetTotalScrapAsync(booking.Id)).Should().Be(0m);
     }
+
+    private static async Task<BdeBookingTestSeed.Ids> SeedThreeOperatorBookingsAsync(IdealAkeWms.Data.ApplicationDbContext ctx)
+    {
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var now = DateTime.Now;
+
+        var lastNames = new[] { "Maier", "Huber", "Schulz" };
+        foreach (var lastName in lastNames)
+        {
+            var op = new BdeOperator
+            {
+                PersonnelNumber = $"P-{lastName}",
+                FirstName = "Test",
+                LastName = lastName,
+                IsActive = true,
+                CreatedAt = now, CreatedBy = "t", CreatedByWindows = "t"
+            };
+            ctx.BdeOperators.Add(op);
+            await ctx.SaveChangesAsync();
+
+            var booking = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished, now.AddHours(-2), endedAt: now.AddHours(-1));
+            booking.BdeOperatorId = op.Id;
+            ctx.BdeBookings.Add(booking);
+            await ctx.SaveChangesAsync();
+        }
+
+        return ids;
+    }
+
+    [Fact]
+    public async Task GetHistory_ColumnFilter_Operator()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedThreeOperatorBookingsAsync(ctx);
+        var repo = new BdeBookingRepository(ctx);
+        var filters = new Dictionary<string, string> { ["operator"] = "maier" };
+
+        var list = await repo.GetHistoryAsync(0, 50, null, null, null, null, filters);
+        var count = await repo.GetHistoryCountAsync(null, null, null, null, filters);
+
+        list.Should().HaveCount(1);
+        list[0].BdeOperator.LastName.Should().Be("Maier");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetHistory_ColumnFilter_Negate()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedThreeOperatorBookingsAsync(ctx);
+        var repo = new BdeBookingRepository(ctx);
+        var filters = new Dictionary<string, string> { ["operator"] = "!maier" };
+
+        var list = await repo.GetHistoryAsync(0, 50, null, null, null, null, filters);
+        var count = await repo.GetHistoryCountAsync(null, null, null, null, filters);
+
+        list.Should().HaveCount(2);
+        list.Select(b => b.BdeOperator.LastName).Should().BeEquivalentTo("Huber", "Schulz");
+        count.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetHistory_ColumnFilter_Or()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedThreeOperatorBookingsAsync(ctx);
+        var repo = new BdeBookingRepository(ctx);
+        var filters = new Dictionary<string, string> { ["operator"] = "maier,huber" };
+
+        var list = await repo.GetHistoryAsync(0, 50, null, null, null, null, filters);
+        var count = await repo.GetHistoryCountAsync(null, null, null, null, filters);
+
+        list.Should().HaveCount(2);
+        list.Select(b => b.BdeOperator.LastName).Should().BeEquivalentTo("Maier", "Huber");
+        count.Should().Be(2);
+    }
 }

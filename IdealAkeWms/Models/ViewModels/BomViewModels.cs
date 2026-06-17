@@ -62,6 +62,23 @@ public class BomViewModel
     public List<StorageLocation> TargetStorageLocations { get; set; } = new();
     public string? DataSource { get; set; }
     public bool RecursiveFilterSearch { get; set; }
+
+    /// <summary>
+    /// Read-only-Modus (FA-Abarbeitungsliste, v1.22.0): reine BOM-Anzeige ohne
+    /// Picking-Checkboxen, Lagerplatz-Dropdowns, Umbuchen, Fotos und Bedarfsmeldungen.
+    /// </summary>
+    public bool ReadOnly { get; set; }
+
+    /// <summary>
+    /// Ziel-Controller des "Zurueck"-Buttons im Read-only-Modus. Default
+    /// <c>FaWorklist</c> (Abarbeitungsliste); FaCompletion setzt <c>FaCompletion</c>,
+    /// damit fa_completion-User nicht auf die nicht-erreichbare FaWorklist-Index geleitet
+    /// werden. Im Picking-Modus ungenutzt.
+    /// </summary>
+    public string BackController { get; set; } = "FaWorklist";
+
+    /// <summary>Beschriftung des "Zurueck"-Buttons im Read-only-Modus.</summary>
+    public string BackText { get; set; } = "Zurück zur Abarbeitungsliste";
 }
 
 public class PrintPickingViewModel

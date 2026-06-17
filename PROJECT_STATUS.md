@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (v1.17.0 Artikel-Sync-Erweiterung)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1.22.0 FA-Vorbau)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -23,6 +23,143 @@ Stand: **2026-05-28**, **letzter Commit auf `feature/article-sync-erweiterung` (
 
 1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+
+---
+
+### v1.22.0 (2026-06-12) — FA-Vorbau: Arbeitsgaenge-Katalog + Abarbeitungsliste
+
+- **Stammdaten "Arbeitsgaenge"** (`WorkSteps`-Katalog, erweiterbar, Suchbegriffe
+  kommasepariert) + **"FA-Merkmale"** (Definitionen/Optionen/AG-Zuordnung) —
+  beide masterdata_read/masterdata (Read/Edit-Pattern v1.20)
+- **FA-zu-AG (`FaWorkSteps`)** ersetzt die 5 fixen Vorbau-Kacheln
+  (`ProductionOrderAssemblyGroups` gedroppt, daten-erhaltende Konvertierung);
+  automatische Erkennung aus dem BOM-Cache via `FaWorkStepDetectionService`
+  (Setting `Sync:FaWorkStepDetectionEnabled`, Default false; eigener
+  Aktivitaets-Protokoll-Eintrag "FaWorkStepDetection"; nur-hinzufuegend,
+  manuelle Abwahl `IsRemoved=1` sperrt Sync-Re-Add)
+- **FA-Vervollstaendigen umgebaut**: Werkbank-Zuweisung (FA-Feld
+  `ProductionWorkplaceId`), dynamische AG-Kacheln, strukturierte
+  Merkmal-Eingaben (Dropdown/JA-NEIN, Wert je FA in `FaAttributeValues`),
+  Freitext-Specs bleiben (`FaWorkStepSpecs`)
+- **Werkbank-Edit**: Mehrfach-Mapping Vorbaugruppen/Arbeitsgaenge
+  (`ProductionWorkplaceWorkSteps`)
+- **NEU FA-Abarbeitungsliste** (`/FaWorklist`, neue Rolle `vorbau`): je
+  Werkbank, AG-Erledigt-Checkboxen (AJAX `/api/fa-work-steps/toggle-completed`),
+  Orphan-Badge "+N weitere AG", Merkmal-Spalten, Termine BG/Komm/Fertigung,
+  enaio-Links; Klick auf FA → Stueckliste read-only (Druck via
+  `[RequirePickingOrVorbauAccess]`)
+- **Leitstand**: VK-VA-Spalten lesen/schreiben FaWorkSteps (Pivot
+  `GetWorkStepPivotAsync`, Endpoint `/api/fa-work-steps/toggle`); Spalten
+  bleiben bewusst statisch (YAGNI)
+- **Migration** `20260612102225_FaWorkStepsAndAttributes` (8 neue Tabellen,
+  Seeds: WorkSteps VK-VA, 4 Merkmale + Optionen, Rolle vorbau) + `SQL/68` +
+  FreshInstall; Relikt `ProductionWorkplaceAssemblyGroups` gedroppt
+- **DEPLOY-KRITISCH**: AgentJob-MERGE (AssemblyGroups) ersatzlos entfernt —
+  Job-Skript im selben Wartungsfenster aktualisieren, Cutover-Doc
+  `docs/superpowers/cutover/2026-06-12-fa-vorbau-cutover.md`
+- **Menue**: Dropdown "Fertigungsauftraege" (FA-Liste, FA-Vervollstaendigen,
+  FA-Abarbeitungsliste); RoleOverview + CLAUDE.md + Hilfe + TESTSZENARIEN
+  Kapitel 38 aktualisiert
+
+#### v1.22.0-Folge-Erweiterungen (2026-06-16) — FA-Vorbau-Views-Konsistenz
+
+Faltet in v1.22.0 (kein eigener Versions-Bump), Branch `bugfix/missingparts-include-pd`:
+
+- **Einheitliche FA-View-Buttons**: gemeinsames Partial `_FaDocumentLinks`
+  (BOM/enaio/Vault) in FA-Vervollstaendigen + FA-Abarbeitung; Gear-Spaltenkonfig
+  (`#view-config`) in beiden Listen
+- **Per-Benutzer Standard-Werkbank** in der FA-Abarbeitung
+  (`User.DefaultWorkplaceId`, **Migration 71** `AddUserDefaultWorkplace`) —
+  kombiniert UND mit `DefaultWorkStepId`
+- **Text-Merkmal-Typ** (`AttributeType.Text` + `FaAttributeValue.TextValue`,
+  **Migration 72** `AddFaAttributeTextValue`) — nur FaAttributes, NICHT
+  ArticleAttributes
+- **UI-Umbenennung** "Arbeitsgaenge" → "FA-Vorbau-AG" (nur FA-Vorbau-Labels;
+  Code/Entity/Routen bleiben WorkStep)
+- CLAUDE.md (3 neue Fallstricke) + Changelog (v1.22.0-Card) + TESTSZENARIEN
+  Kapitel 38 (Faelle 38.10-38.13) aktualisiert
+
+### v1.21.1 (2026-06-11) — Bugfix: FA-Abschliessen wirkt wieder
+
+- `Picking/ToggleDone` schreibt seit v1.11 `PickingStatus.IsDonePicking`, aber
+  keine Query/View las das Flag — der Abschliessen-Klick war wirkungslos
+- Jetzt gilt ueberall "erledigt = IsDone || IsDonePicking":
+  `GetForLeitstandAsync` (Filter + Projektion), ViewModel-Mapping FA-Liste +
+  Leitstand, Picking-Worklist (`GetReleasedForPicking*`-Methoden)
+- Sage-`IsDone` wird weiterhin NICHT beschrieben (Sage-Sync wuerde es
+  ueberschreiben) — nur die Lese-Seite wurde gefixt
+- CLAUDE.md Fallstrick "IsDone vs IsDonePicking — Lese-Seite" ergaenzt,
+  TESTSZENARIEN Kapitel 37
+
+### v1.21.0 (2026-06-10) — Universal-Filter-Rollout
+
+- JEDE Tabellen-Liste ist jetzt spaltenfilterbar; Filter wirken ueber ALLE
+  Eintraege/Seiten (nicht nur die aktuelle Seite)
+- Bestehende Listen auf Server-Side-Filter umgestellt: WarehousePicking,
+  WarehouseRequisitions, Picking (inkl. KW-Datumsfilter), PartRequisitions,
+  StorageLocations, BdeBookings (SQL-Level: GetHistoryAsync + GetHistoryCountAsync
+  filtern identisch via Expression-Trees)
+- Neu filterbar (vorher kein Filter): Users, Roles, Workstations,
+  ProductionWorkplaces, ArticleCategories, ArticleAttributes, OrderRecipients,
+  BdeMasterData (3 Tabs mit eigenen view-keys), Tracking/ByWorkplace (Client-Filter)
+- Filter-Mini-Syntax ueberall identisch: OR via `,`, NOT via `!`
+- ColumnMap-Pattern: Getter liefern den gerenderten Zellentext, Apply vor
+  Pagination, TotalCount aus gefilterter Menge
+- CLAUDE.md: Spaltenfilter-Pflicht fuer alle Tabellen-Views verankert,
+  TESTSZENARIEN Kapitel 36 ergaenzt
+
+### v1.20.0 (2026-06-08) — Feingranulare Berechtigungen
+
+- Read/Edit-Split in allen 10 Stammdaten-Sichten via neuer Rolle `masterdata_read`
+- Lager-Worklist (`WarehousePicking`, `MissingPartsLager`) jetzt nur fuer
+  Lager-Mitarbeiter (`stock`, `stock_keyuser`) + Admin — picker explizit raus
+- Neue Rollen-Uebersichts-Seite `/Users/RoleOverview` (hand-gepflegt)
+- Migration `AddMasterDataReadRole` legt die neue Rolle als Systemrolle an
+- 2 neue View-Helper in `CurrentUserService`: `HasMasterDataReadAccessAsync`,
+  `CanProcessLagerAsync`
+- 2 neue Filter-Attribute: `[RequireMasterDataReadAccess]`, `[RequireLagerProcessingAccess]`
+
+**v1.20.0 Bugfixes (Post-Initial-Release):**
+- Articles + StorageLocations bekommen auch den Read/Edit-Split (Scope-Gap)
+- Admin-Only-Block: Benutzer/Rollen/Arbeitsplaetze/Einstellungen/Aktivitaets-Protokoll/Schichtkalender nur fuer admin
+- Lagerbestellungen Detail-View: kein Default-Fehlteil bei Ist=0, Auto-Clear bei voller Lieferung
+- Filter-Bugs in Server-Side-Listen behoben (Date-Picker, applyFilters-Redundanz)
+- WarehousePicking Submit-Bug behoben: leere int[] verloren Index-Mapping (Model-Binder skippt empty strings)
+
+### v1.19.0 — Lagerbestellungen: 3-State + 2-Tab Fehlteile
+
+Hintergrund: v1.18.0 fuehrte einen einzelnen `IsFinalShortage`-Bool-Flag ein.
+Beim Testen erkannte der User dass die Label-Semantik unklar war (Lagermitarbeiter
+moechte explizit zwischen "Fehlteil wird nachgeliefert" und "wird nicht nachgeliefert"
+unterscheiden koennen). v1.19.0 ersetzt das Bool durch ein `ShortageStatus`-Enum
+(None / WillBeRestocked / NoRestock) mit 2 Radio-Buttons je Item und 2 Tabs in
+der Fehlteile-Liste. Die im selben Branch begonnene v1.18.1-Filter-Erweiterung
+(MissingParts inkludiert auch PartiallyDelivered) ist Teil von v1.19.0.
+
+| # | Sub-Task | Status |
+|---|---------|--------|
+| 0 | Pre-Flight Baseline | ✅ erledigt |
+| 1 | ShortageStatus-Enum + Property | ✅ erledigt |
+| 2 | EF Migration + SQL/65 + FreshInstall | ✅ erledigt |
+| 3 | ViewModels migrieren | ✅ erledigt |
+| 4 | Repo CloseAsync + DeriveStatus + SaveProgressAsync (TDD) | ✅ erledigt |
+| 5 | Repo GetMissingPartsAsync Tab + GetShortageCountsForUserAsync (TDD) | ✅ erledigt |
+| 6 | WarehousePickingController migriert (int[] shortageStatuses) | ✅ erledigt |
+| 7 | MissingPartsController Tab-Param + Werkbank 4 Counts | ✅ erledigt |
+| 8 | Details.cshtml mit 2 Radios + 3-State-JS | ✅ erledigt |
+| 9 | MissingParts/Index nav-tabs + Print + Werkbank-Karte | ✅ erledigt |
+| 10 | Version + Changelog + PROJECT_STATUS + CLAUDE.md + TESTSZENARIEN | ✅ erledigt |
+| 11 | Final-Check Build + Tests | ⏳ offen |
+| 12 | Merge in main (NACH User-Bestaetigung) | ⏳ offen |
+| 13 | NoteEinkauf Column + Migration + FreshInstall | ✅ erledigt |
+| 14 | ViewModels NoteEinkauf + HasNoWorkplaceMapping | ✅ erledigt |
+| 15 | Repo CloseAsync/SaveProgressAsync + Tests | ✅ erledigt |
+| 16 | Repo GetMissingPartsAsync NoteEinkauf-Mapping + Column-Filter | ✅ erledigt |
+| 17 | WarehousePickingController notesEinkauf Form-Binding | ✅ erledigt |
+| 18 | MissingPartsController default mineOnly=true + HasNoWorkplaceMapping | ✅ erledigt |
+| 19 | MissingPartsLagerController + View (NEU) | ✅ erledigt |
+| 20 | Details/Print/MissingParts/Layout UI-Updates | ✅ erledigt |
+| 21 | Doku (Changelog/CLAUDE.md/TESTSZENARIEN) erweitert | ✅ erledigt |
 
 ---
 
@@ -245,8 +382,8 @@ ASP.NET Core 10.0, SQL Server (AKESQL20.ake.at), Windows-Authentifizierung.
 | OSEON-Tracking Lazy-Load + iOS-Tauglichkeit | Fertig (v1.16.0) |
 
 ## Version
-- **Web-App**: v1.16.0 (28.05.2026)
-- **Service**: v1.15.3 (27.05.2026)
+- **Web-App**: v1.22.0 (12.06.2026)
+- **Service**: v1.22.0 (12.06.2026)
 
 ## Roadmap
 - v1.9.0 (2026-05-05) — Sage Lagerplatz-Sync (Phase 1, Stammdaten). Phase 2 (Lagerbestand-Uebernahme) folgt.

@@ -1,22 +1,32 @@
 @model List<RoleEditViewModel>
+@inject IdealAkeWms.Services.ICurrentUserService _user
 @{
     ViewData["Title"] = "Rollen";
+    var canEdit = await _user.HasMasterDataAccessAsync();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">Rollen</h2>
-    <a asp-action="Create" class="btn btn-primary">Neue Rolle anlegen</a>
+    @if (canEdit)
+    {
+        <a asp-action="Create" class="btn btn-primary">Neue Rolle anlegen</a>
+    }
 </div>
 
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
 <div class="table-responsive">
-    <table class="table table-striped mb-0">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="Roles">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Schlüssel</th>
-                <th>AD-Gruppe</th>
-                <th>Benutzer</th>
-                <th style="width: 100px;"></th>
+                <th data-filterable data-col-key="name">Name</th>
+                <th data-filterable data-col-key="key">Schlüssel</th>
+                <th data-filterable data-col-key="ad-group">AD-Gruppe</th>
+                <th data-filterable data-col-key="user-count">Benutzer</th>
+                <th data-col-key="actions" style="width: 100px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -34,7 +44,10 @@
                     <td>@role.AdGroup</td>
                     <td>@role.UserCount</td>
                     <td>
-                        <a asp-action="Edit" asp-route-id="@role.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                        @if (canEdit)
+                        {
+                            <a asp-action="Edit" asp-route-id="@role.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                        }
                     </td>
                 </tr>
             }
@@ -51,4 +64,9 @@
 @if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
 {
     <partial name="_Pagination" model="paginationState" />
+}
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

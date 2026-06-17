@@ -252,6 +252,10 @@
                             <li><strong>VA</strong> &mdash; Aufbau-Baugruppe</li>
                         </ul>
                         Die Header-Abk&uuml;rzungen zeigen beim Hover den Volltext als Tooltip.
+                        <br /><strong>Seit v1.22.0:</strong> Die VK&ndash;VA-Checkboxen lesen und schreiben die
+                        FA-Vorbau-AG-Zuordnung (siehe FA-Vervollstaendigung / FA-Abarbeitungsliste) &mdash;
+                        ein Haken entspricht &bdquo;FA braucht diesen FA-Vorbau-Arbeitsgang&ldquo;, das Abwaehlen
+                        entfernt ihn (die automatische Erkennung fuegt ihn nicht wieder hinzu).
                     </dd>
 
                     <dt>OSEON Teileverfolgung</dt>
@@ -285,9 +289,10 @@
 
                     <dt>Datenarchitektur (seit v1.11.0)</dt>
                     <dd>
-                        Die Auftrags-Status-Felder (Kommissionierung, BDE, Vorbau-Gruppen VK/VL/VE/VT/VA, Glas/Zukauf, Lack-T, Freigabe, Picker-Zuweisung)
+                        Die Auftrags-Status-Felder (Kommissionierung, BDE, FA-Vorbau-AG VK/VL/VE/VT/VA, Glas/Zukauf, Lack-T, Freigabe, Picker-Zuweisung)
                         sind seit Mai 2026 in eigene Tabellen ausgelagert (<code>ProductionOrderPickingStatus</code>, <code>ProductionOrderBdeStatus</code>
-                        und <code>ProductionOrderAssemblyGroups</code>). Funktional &auml;ndert sich fuer den User nichts &mdash; Checkboxes, Filter und Workflows
+                        und seit v1.22.0 <code>FaWorkSteps</code> &mdash; vorher <code>ProductionOrderAssemblyGroups</code>).
+                        Funktional &auml;ndert sich fuer den User nichts &mdash; Checkboxes, Filter und Workflows
                         bleiben unver&auml;ndert. Vorteil: bessere Erweiterbarkeit fuer kuenftige Status-Erg&auml;nzungen.
                     </dd>
 
@@ -305,17 +310,86 @@
                         werden per 301-Redirect auf <code>/PickingLeitstand/...</code> umgeleitet.
                     </dd>
 
-                    <dt>FA-Vervollstaendigung (seit v1.13.0, Feature-Toggle ab v1.14.0)</dt>
+                    <dt>FA-Vervollstaendigung (seit v1.13.0, umgebaut in v1.22.0)</dt>
                     <dd>
-                        Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; koennen pro Fertigungsauftrag
-                        Merkmalsauspraegungen fuer die fuenf Vormontageplaetze pflegen (VK Kaelte, VL Luefter,
-                        VE Elektro, VT Tueren, VA Aufbau). Pro Tab werden Artikel + Beschreibung + Menge + Notizen
-                        erfasst. Die Daten werden in Phase 5 (geplant) auf einer Werkstatt-Ansicht ausgespielt.
-                        <br /><strong>Seit v1.14.0</strong> muss das Feature unter <em>Stammdaten &rarr; Einstellungen
-                        &rarr; FA-Vervollstaendigung</em> per <code>FaCompletionAktiv</code> aktiviert werden
-                        (Default <strong>false</strong>). Ohne Aktivierung sind Menuepunkt und Endpoint verborgen,
-                        auch fuer Benutzer mit der Rolle.
+                        Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; pflegen pro Fertigungsauftrag
+                        die FA-Vorbau-AG und deren Merkmale. Erreichbar ueber
+                        <em>Fertigungsauftraege &rarr; FA-Vervollst&auml;ndigen</em>.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Werkbank waehlen:</strong> Oben auf der Edit-Seite wird die Werkbank
+                                des FA zugewiesen (vorbelegt, wenn der Sync sie liefert). Ohne Werkbank
+                                erscheint der FA in keiner Abarbeitungsliste &mdash; ein gelber Badge
+                                &bdquo;Keine Werkbank zugewiesen&ldquo; weist darauf hin.</li>
+                            <li><strong>FA-Vorbau-AG-Kacheln (dynamisch):</strong> Statt der frueheren fuenf
+                                fixen Vorbau-Kacheln werden die FA-Vorbau-AG des FA als Tabs angezeigt
+                                (automatisch erkannt oder manuell gepflegt). Ueber &bdquo;AG hinzufuegen&ldquo;
+                                wird ein FA-Vorbau-Arbeitsgang aus dem Katalog ergaenzt; &bdquo;FA-Vorbau-AG
+                                entfernen&ldquo; waehlt ihn ab &mdash; die automatische Erkennung fuegt
+                                manuell abgewaehlte FA-Vorbau-AG NICHT wieder hinzu.</li>
+                            <li><strong>Merkmale erfassen:</strong> Pro FA-Vorbau-AG erscheinen die
+                                zugeordneten FA-Merkmale als Dropdown (mit Leer-Option) bzw. JA/NEIN.
+                                Der Wert gilt je FA &mdash; ist ein Merkmal mehreren FA-Vorbau-AG
+                                zugeordnet, wird es einmal erfasst und ueberall angezeigt.</li>
+                            <li><strong>Freitext-Spezifikationen</strong> (Artikel + Beschreibung + Menge +
+                                Notizen) bleiben wie bisher pro FA-Vorbau-AG erhalten.</li>
+                            <li><strong>Kopf mit Stueckliste-Link und enaio-Dokumenten:</strong> Im Kopf
+                                der Edit-Seite stehen ein Link auf die <em>Stueckliste</em> (read-only)
+                                und die verlinkten enaio-Dokumente des FA; die Termine zeigen die
+                                Kalenderwoche. Das Speichern eines Merkmals haelt den aktiven
+                                FA-Vorbau-AG-Tab &mdash; man bleibt nach dem Speichern auf demselben AG.</li>
+                            <li><strong>&bdquo;Vollstaendig definiert&ldquo;:</strong> Der Schalter pro
+                                FA-Vorbau-AG markiert, dass die Spezifikation (Merkmale/AGs) fertig
+                                festgelegt ist &mdash; eine Planer-Information. Er blendet den FA
+                                <strong>NICHT</strong> aus der FA-Abarbeitungsliste aus; das geschieht erst,
+                                wenn der Werker den Vorbau dort als &bdquo;Erledigt&ldquo; abhakt
+                                (zwei getrennte Status seit v1.22.0).</li>
+                        </ul>
+                        Das Feature muss unter <em>Stammdaten &rarr; Einstellungen</em> per
+                        <code>FaCompletionAktiv</code> aktiviert werden (Default <strong>false</strong>).
+                        Ohne Aktivierung sind Menuepunkt und Endpoint verborgen, auch fuer Benutzer mit der Rolle.
                     </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>FA-Abarbeitungsliste (Vorbau, seit v1.22.0)</strong></div>
+            <div class="card-body">
+                <p>
+                    Digitale Abarbeitungsliste fuer die Vorbau-Werkbaenke (ersetzt die Papier-Liste).
+                    Erreichbar ueber <em>Fertigungsauftraege &rarr; FA-Abarbeitungsliste</em> &mdash;
+                    Rolle &bdquo;Vorbau&ldquo; (<code>vorbau</code>) oder Admin, Feature-Schalter
+                    <code>FaCompletionAktiv</code> muss aktiv sein.
+                </p>
+                <dl>
+                    <dt>FA-Vorbau-AG-Filter (Pflicht)</dt>
+                    <dd>Zuerst einen FA-Vorbau-Arbeitsgang waehlen. Die Liste zeigt dann alle offenen
+                        Fertigungsauftraege, die diesen FA-Vorbau-AG benoetigen &mdash;
+                        <strong>ueber alle Werkbaenke hinweg</strong>. Die Werkbank des FA ist eine
+                        Info-Spalte (filterbar), kein Filter mehr. Wer haeufig denselben FA-Vorbau-AG
+                        abarbeitet, hinterlegt ihn als <strong>Standard FA-Vorbau-AG</strong> im Profil
+                        (siehe unten) &mdash; die Liste oeffnet dann automatisch vorgefiltert.</dd>
+
+                    <dt>FA-Vorbau-AG abhaken (&bdquo;Erledigt&ldquo;)</dt>
+                    <dd>Pro Zeile erscheint genau eine Erledigt-Checkbox &mdash; fuer den gewaehlten
+                        FA-Vorbau-AG. Der Haken bedeutet <strong>Vorbau physisch gebaut</strong> (Werker)
+                        &mdash; im Gegensatz zum Schalter &bdquo;Vollstaendig definiert&ldquo; in der
+                        FA-Vervollstaendigung, der nur die Spezifikation/Merkmale als fertig markiert
+                        (Planer) und NICHT ausblendet. Der Haken wird sofort gespeichert. Ist der
+                        FA-Vorbau-AG erledigt, verschwindet der FA aus der Default-Ansicht &mdash; ueber
+                        &bdquo;Erledigte anzeigen&ldquo; bleibt er sichtbar.</dd>
+
+                    <dt>Werkbank-Spalte + Merkmal-Spalten + Termine</dt>
+                    <dd>Die Liste zeigt die <strong>Werkbank</strong> des FA als eigene (filterbare)
+                        Spalte, die FA-Merkmale, die dem gewaehlten FA-Vorbau-AG zugeordnet sind
+                        (erfasst in der FA-Vervollstaendigung), sowie BG-Termin, Komm.-Termin und
+                        Fertigungstermin (KW-Format wie in der FA-Liste) und die enaio-Dokument-Links.</dd>
+
+                    <dt>Stueckliste (read-only)</dt>
+                    <dd>Klick auf die FA-Nummer oeffnet die Stueckliste im Nur-Lesen-Modus:
+                        Picking-Checkboxen, Lagerplatz-Auswahl, Umbuchen, Foto-Upload und
+                        Bedarfsmeldungen sind ausgeblendet. Filter, Baugruppen-Navigation und
+                        <strong>Drucken</strong> funktionieren wie gewohnt.</dd>
                 </dl>
             </div>
         </div>
@@ -802,7 +876,42 @@
 
                     <dt>Werkbaenke</dt>
                     <dd>Produktionsarbeitsplaetze (z.B. Werkbank 1, Werkbank 2). Werden automatisch aus OSEON-Daten angelegt
-                        und koennen Fertigungsauftraegen zugeordnet werden. Dienen als Filter in der Teileverfolgung und Fertigungsauftrags-Liste.</dd>
+                        und koennen Fertigungsauftraegen zugeordnet werden. Dienen als Filter in der Teileverfolgung und Fertigungsauftrags-Liste.
+                        <br /><strong>Seit v1.22.0:</strong> Im Bearbeiten-Dialog koennen pro Werkbank mehrere
+                        Vorbaugruppen/FA-Vorbau-AG zugeordnet werden (Checkbox-Liste). Diese Zuordnung
+                        bleibt als Stammdatum erhalten; die FA-Abarbeitungsliste filtert seit dem
+                        FA-Vorbau-AG-Umbau jedoch direkt nach FA-Vorbau-AG (nicht mehr ueber das
+                        Werkbank-Mapping).</dd>
+
+                    <dt>FA-Vorbau-AG (seit v1.22.0)</dt>
+                    <dd>Katalog der FA-Vorbau-AG (Standard: VK Kuehlung, VL Lueftung, VE Elektro,
+                        VT Tueren, VA Aufbau) &mdash; erweiterbar um eigene Eintraege.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Code</strong> (z.B. <code>VL</code>) muss eindeutig sein, <strong>Name</strong> ist der Anzeigetext.</li>
+                            <li><strong>Suchbegriffe</strong> steuern die automatische Erkennung aus der Stueckliste:
+                                mehrere Begriffe <strong>kommasepariert</strong> eingeben (z.B.
+                                <code>Luefter,Ventilator</code>). Ein Begriff matcht als
+                                <strong>Teilstring</strong> in der Bauteil-Bezeichnung,
+                                <strong>Gross-/Kleinschreibung ist egal</strong>. Leer = keine
+                                automatische Erkennung fuer diesen FA-Vorbau-AG.</li>
+                            <li>FA-Vorbau-AG mit bestehenden FA-Zuordnungen koennen nicht geloescht,
+                                nur <strong>deaktiviert</strong> werden (bestehende Haken bleiben sichtbar).</li>
+                        </ul>
+                    </dd>
+
+                    <dt>FA-Merkmale (seit v1.22.0)</dt>
+                    <dd>Konfigurierbare Vorbau-Merkmale fuer die FA-Vervollstaendigung
+                        (z.B. Verdampfergroesse, Leitungsausgang, Ventil aussenliegend).
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Typ:</strong> Dropdown (mit eigenen Auswahl-Optionen) oder JA/NEIN.</li>
+                            <li><strong>Optionen:</strong> Pro Dropdown-Merkmal werden die Auswahlwerte gepflegt.
+                                Optionen mit bereits erfassten Techniker-Eingaben koennen nicht geloescht,
+                                nur deaktiviert werden &mdash; vorhandene Werte bleiben sichtbar.</li>
+                            <li><strong>FA-Vorbau-AG-Zuordnung:</strong> Checkbox-Liste, welchen FA-Vorbau-AG
+                                das Merkmal zugeordnet ist. Ohne Zuordnung erscheint es nirgends;
+                                bei Mehrfach-Zuordnung wird der Wert einmal je FA erfasst und ueberall angezeigt.</li>
+                        </ul>
+                    </dd>
 
                     <dt>Rollen</dt>
                     <dd>Verwaltung der Berechtigungsrollen. Jede Rolle hat einen Schluessel, einen Anzeigenamen und optional eine
@@ -821,6 +930,7 @@
                                 <tr><td>Teileverfolgung</td><td>OSEON-Auftraege und Rueckmeldungen einsehen</td></tr>
                                 <tr><td>Betriebsdaten (BDE)</td><td>Arbeitsgaenge rueckmelden</td></tr>
                                 <tr><td>Leitstand</td><td>Fertigungsauftraege freigeben und priorisieren</td></tr>
+                                <tr><td>Vorbau</td><td>FA-Abarbeitungsliste: FA-Vorbau-AG einsehen und abhaken (seit v1.22.0)</td></tr>
                             </tbody>
                         </table>
                         </div>
@@ -927,7 +1037,8 @@
                 <p>
                     Aktivitaet-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking,
                     OseonWorkplaces, OseonArticleCategories, EnaioDms, Holiday, CoatingDetection,
-                    ProductionOrder, Article, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause.
+                    FaWorkStepDetection, ProductionOrder, Article, PartRequisitionEmail,
+                    WarehouseRequisitionEmail, BdeAutoPause.
                 </p>
             </div>
         </div>
@@ -947,6 +1058,12 @@
 
                     <dt>Standard-Filter Artikelgruppe</dt>
                     <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt. Unterstützt alle Filtermodi: einfach (<code>886</code>), mehrfach (<code>886, 960</code>) und Ausschluss (<code>!960</code>). Leer lassen = kein automatischer Filter.</dd>
+
+                    <dt>Standard FA-Vorbau-AG (FA-Abarbeitungsliste)</dt>
+                    <dd>Legt den FA-Vorbau-Arbeitsgang fest, mit dem die <em>FA-Abarbeitungsliste</em> beim
+                        Oeffnen vorgefiltert wird. So muss der Werker den FA-Vorbau-AG nicht jedes Mal
+                        neu waehlen. Leer lassen = keine Vorauswahl (FA-Vorbau-AG manuell waehlen).
+                        Der Standard FA-Vorbau-AG kann auch vom Admin im Benutzerstamm gepflegt werden.</dd>
                 </dl>
             </div>
         </div>

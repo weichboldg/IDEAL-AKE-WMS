@@ -35,14 +35,16 @@
             </div>
 
             <div class="table-responsive">
-                <table class="table table-striped mb-0">
+                @* Nur die Tabelle des aktiven Tabs wird gerendert (Razor-Conditional) —
+                   table-filter.js/column-preferences.js sind Single-Table, daher pro Tab eigener view-key. *@
+                <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="BdeMasterDataOperators">
                     <thead>
                         <tr>
-                            <th>Personalnummer</th>
-                            <th>Name</th>
-                            <th>Aktiv</th>
-                            <th>WMS-Benutzer</th>
-                            <th style="width: 100px;"></th>
+                            <th data-filterable data-col-key="personnel-number">Personalnummer</th>
+                            <th data-filterable data-col-key="name">Name</th>
+                            <th data-filterable data-col-key="active">Aktiv</th>
+                            <th data-filterable data-col-key="user">WMS-Benutzer</th>
+                            <th data-col-key="actions" style="width: 100px;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -87,13 +89,13 @@
             </div>
 
             <div class="table-responsive">
-                <table class="table table-striped mb-0">
+                <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="BdeMasterDataActivities">
                     <thead>
                         <tr>
-                            <th>Code</th>
-                            <th>Bezeichnung</th>
-                            <th>Aktiv</th>
-                            <th style="width: 100px;"></th>
+                            <th data-filterable data-col-key="code">Code</th>
+                            <th data-filterable data-col-key="name">Bezeichnung</th>
+                            <th data-filterable data-col-key="active">Aktiv</th>
+                            <th data-col-key="actions" style="width: 100px;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -137,13 +139,13 @@
             </div>
 
             <div class="table-responsive">
-                <table class="table table-striped mb-0">
+                <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="BdeMasterDataTerminals">
                     <thead>
                         <tr>
-                            <th>Benutzer</th>
-                            <th>Default-Werkbank</th>
-                            <th>Beschreibung</th>
-                            <th style="width: 100px;"></th>
+                            <th data-filterable data-col-key="user">Benutzer</th>
+                            <th data-filterable data-col-key="workplace">Default-Werkbank</th>
+                            <th data-filterable data-col-key="description">Beschreibung</th>
+                            <th data-col-key="actions" style="width: 100px;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,3 +177,8 @@
         <partial name="_Pagination" model="paginationState" />
     }
 </div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

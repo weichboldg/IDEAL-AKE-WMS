@@ -6,7 +6,7 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireMasterDataAccess]
+[RequireMasterDataReadAccess]
 public class ArticleCategoriesController : Controller
 {
     private readonly IArticleCategoryRepository _categoryRepository;
@@ -30,18 +30,36 @@ public class ArticleCategoriesController : Controller
         var categories = await _categoryRepository.GetAllOrderedAsync();
         var articleCounts = await _categoryRepository.GetArticleCountByCategoryAsync();
         ViewBag.ArticleCounts = articleCounts;
+
+        // Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
+        // Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
+        // (Quelle-Badge "OSEON"/"Manuell", Artikel-Anzahl aus dem articleCounts-Dictionary).
+        // Map wird lokal gebaut, weil die Artikel-Anzahl pro Request aus articleCounts kommt.
+        var columnMap = new Dictionary<string, Func<ArticleCategory, string?>>
+        {
+            ["name"] = c => c.Name,
+            ["description"] = c => c.Description,
+            ["source"] = c => c.Source == "OSEON" ? "OSEON" : "Manuell",
+            ["article-count"] = c => (articleCounts.TryGetValue(c.Id, out var count) ? count : 0).ToString(),
+        };
+
+        // Filter vor der Pagination — muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(categories, columnFilters, columnMap).ToList();
+
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,
             PageSize = effectivePageSize,
             PageSizeRaw = rawPageSize,
-            TotalCount = categories.Count
+            TotalCount = filtered.Count
         };
-        return View(categories.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
+        return View(filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Create(string name, string? description)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -72,6 +90,7 @@ public class ArticleCategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Update(int id, string name, string? description)
     {
         var category = await _categoryRepository.GetByIdAsync(id);
@@ -105,6 +124,7 @@ public class ArticleCategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireMasterDataAccess]
     public async Task<IActionResult> Delete(int id)
     {
         var category = await _categoryRepository.GetByIdAsync(id);
