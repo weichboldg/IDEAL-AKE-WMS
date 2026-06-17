@@ -1199,9 +1199,13 @@ th:hover .col-resize-handle {
 }
 
 /* Header-Hover muss auf dunkelblauem (.table thead th) Background sichtbar sein.
-   White-tint statt secondary-blau (war 8% rgba unsichtbar auf #053153). */
+   WICHTIG: per background-IMAGE ueberlagern, NICHT background-color — eine
+   semi-transparente background-color ERSETZT die solide --ake-primary (gleiche
+   Property), sodass die Zelle ueber dem weissen Tabellen-Background quasi weiss
+   wird und die weisse Schrift verschwindet. Ein linear-gradient liegt ueber der
+   erhaltenen background-color und hellt das Blau nur leicht auf. */
 #oseonTree thead th[data-sortable]:hover {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.15));
 }
 
 .oseon-sort-indicator {

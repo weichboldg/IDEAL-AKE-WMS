@@ -44,12 +44,19 @@
     @Html.AntiForgeryToken()
     <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
     <div class="table-responsive">
-    <table class="table table-sm">
+    <table class="table table-sm filterable-table">
         <thead>
             <tr>
-                <th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th>
-                <th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz Lager</th><th>Notiz EK</th>
-                <th title="Fehlteil-Status">Fehlteil-Status</th>
+                <th data-col-key="pos" data-filterable>Pos</th>
+                <th data-col-key="article-number" data-filterable>Artikel-Nr</th>
+                <th data-col-key="description" data-filterable>Bezeichnung</th>
+                <th data-col-key="requested" data-filterable>Bestellt</th>
+                <th data-col-key="picked">Ist</th>
+                <th data-col-key="unit" data-filterable>ME</th>
+                <th data-col-key="storage" data-filterable>Lagerplatz</th>
+                <th data-col-key="note-lager">Notiz Lager</th>
+                <th data-col-key="note-ek">Notiz EK</th>
+                <th data-col-key="shortage" title="Fehlteil-Status">Fehlteil-Status</th>
             </tr>
         </thead>
         <tbody>
@@ -186,6 +193,7 @@
 </div>
 
 @section Scripts {
+<script src="~/js/table-filter.js" asp-append-version="true"></script>
 <script>
 (function () {
     const form = document.getElementById('detailsForm');
