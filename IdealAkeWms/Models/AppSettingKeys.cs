@@ -34,4 +34,8 @@ public static class AppSettingKeys
     // OSEON / Reporting
     public const string OseonReportingHorizonDays = "OseonReportingHorizonDays";
     public const string OseonReportingOverdueLookbackDays = "OseonReportingOverdueLookbackDays";
+
+    // Windows Auth / AD
+    public const string WindowsAuthAktiv = "WindowsAuthAktiv";
+    public const string WindowsAuthBerechtigungsgruppe = "WindowsAuthBerechtigungsgruppe";
 }
