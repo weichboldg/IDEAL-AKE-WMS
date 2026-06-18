@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using Xunit;
 
@@ -26,6 +27,35 @@ public class ProductionOrderPickingStatusRepositoryTests
         reloaded.ModifiedAt.Should().NotBeNull();
         reloaded.ModifiedBy.Should().Be("alice");
         reloaded.ModifiedByWindows.Should().Be("DOMAIN\\alice");
+    }
+
+    [Fact]
+    public async Task SetFieldAsync_MissingStatusRow_CreatesRowAndPersists()
+    {
+        // Root-Cause-Regression: FAs ohne ProductionOrderPickingStatus-Zeile (Alt-Daten /
+        // AgentJob hat die Zeile nicht eager angelegt) liessen "Abschliessen/Erledigt"
+        // fehlschlagen (SetFieldAsync warf InvalidOperationException). Statt zu werfen,
+        // muss die Zeile angelegt werden.
+        using var context = TestDbContextFactory.Create();
+        var order = new ProductionOrder
+        {
+            OrderNumber = "WA-NOSTATUS",
+            Quantity = 1m,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        };
+        context.ProductionOrders.Add(order);
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        await repo.SetIsDonePickingAsync(order.Id, true, "alice", "DOMAIN\\alice");
+
+        var reloaded = await repo.GetByProductionOrderIdAsync(order.Id);
+        reloaded.Should().NotBeNull();
+        reloaded!.IsDonePicking.Should().BeTrue();
+        reloaded.CreatedBy.Should().Be("alice");
+        reloaded.ModifiedBy.Should().Be("alice");
     }
 
     [Fact]

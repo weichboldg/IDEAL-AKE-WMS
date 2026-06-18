@@ -35,8 +35,21 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             throw new ArgumentException($"Field '{field}' is not toggleable.", nameof(field));
 
         var row = await _context.ProductionOrderPickingStatuses
-            .FirstOrDefaultAsync(s => s.ProductionOrderId == productionOrderId)
-            ?? throw new InvalidOperationException($"PickingStatus row missing for FA {productionOrderId}.");
+            .FirstOrDefaultAsync(s => s.ProductionOrderId == productionOrderId);
+        if (row == null)
+        {
+            // Defensiv: Die PickingStatus-Zeile sollte vom Sage-AgentJob eager angelegt werden,
+            // fehlt aber bei Alt-Daten / nicht aktualisiertem AgentJob. Statt zu werfen (-> das
+            // Abschliessen/Erledigt-Setzen brach mit 500) die Zeile anlegen.
+            row = new ProductionOrderPickingStatus
+            {
+                ProductionOrderId = productionOrderId,
+                CreatedAt = DateTime.Now,
+                CreatedBy = modifiedBy,
+                CreatedByWindows = modifiedByWindows
+            };
+            _context.ProductionOrderPickingStatuses.Add(row);
+        }
 
         switch (field)
         {

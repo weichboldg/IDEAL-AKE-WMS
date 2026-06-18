@@ -100,18 +100,23 @@ public class PickingStatusApiControllerTests
     }
 
     [Fact]
-    public async Task Toggle_MissingPickingStatusRow_Returns404()
+    public async Task Toggle_MissingPickingStatusRow_UpsertsAndReturnsOk()
     {
+        // Fehlt die PickingStatus-Zeile (Alt-Daten / AgentJob hat sie nicht eager angelegt),
+        // legt SetFieldAsync sie an (Upsert) statt mit 404 zu blocken — sonst liesse sich
+        // "Abschliessen/Erledigt" fuer solche FAs nie setzen (gemeldeter Bug).
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "WA-1"));
-        _pickingStatus.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync((ProductionOrderPickingStatus?)null);
 
         var result = await _controller.Toggle(new PickingStatusToggleRequest
         {
             ProductionOrderId = 1,
-            Field = "HasGlass",
+            Field = "IsDonePicking",
             Value = true
         });
 
-        result.Should().BeOfType<NotFoundObjectResult>();
+        result.Should().BeOfType<OkResult>();
+        _pickingStatus.Verify(r => r.SetFieldAsync(
+            1, "IsDonePicking", true,
+            "TestUser", "DOMAIN\\testuser"), Times.Once);
     }
 }
