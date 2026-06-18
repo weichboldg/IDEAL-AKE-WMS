@@ -74,6 +74,8 @@ public class AccountController : Controller
         // Session setzen
         HttpContext.Session.SetInt32(CurrentUserService.SessionKeyUserId, user.Id);
         HttpContext.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie);
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.AutoLoginTriedCookie);
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
@@ -86,6 +88,8 @@ public class AccountController : Controller
     public IActionResult Logout()
     {
         HttpContext.Session.Clear();
+        Response.Cookies.Append(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie, "1",
+            new CookieOptions { HttpOnly = true, IsEssential = true });
         return RedirectToAction(nameof(Login));
     }
 
