@@ -7,13 +7,36 @@
 
 ## 1. Kontext & Problem
 
-Negotiate/Windows-Auth ist in `Program.cs` bereits aktiv (`AddNegotiate()`), d. h. bei
-korrekt konfiguriertem IIS füllt sich `HttpContext.User` mit der Domänen-Identität
-(`DOMAIN\sam`). Der App-Login ist aber ein **separates Formular** (`AccountController`),
-das `AppUserId`/`AppUserName` in die Session schreibt; die `LoginRedirect`-Middleware
-lässt nur durch, wer eine **App-Session** hat. Ergebnis (bestätigtes Symptom): ein
+Der App-Login ist ein **separates Formular** (`AccountController`), das
+`AppUserId`/`AppUserName` in die Session schreibt; die `LoginRedirect`-Middleware lässt
+nur durch, wer eine **App-Session** hat. Ergebnis (bestätigtes Symptom): ein
 windows-authentifizierter Benutzer landet **trotzdem auf dem Login-Formular**, weil es
 keine Überführung „Windows-Identität → App-Session" gibt.
+
+### 1.1 Kritische Korrektur — Hosting-Modell (Code-Verifikation 2026-06-18)
+
+`web.config` deployt **IIS in-process** (`hostingModel="inprocess"`) mit **beiden**
+Auth-Modi aktiv: `anonymousAuthentication=true` UND `windowsAuthentication=true`.
+`Program.cs` registriert aber `AddNegotiate()` — und **`AddNegotiate()` ist für
+Kestrel/HTTP.sys gedacht, NICHT für IIS in-process**. Das ist die wahrscheinliche Ursache
+der bisherigen Windows-Auth-Probleme. Zwei daraus folgende Korrekturen am Design:
+
+1. **Auth-Registrierung umstellen:** Unter IIS in-process wird Windows-Auth über die
+   **IIS-Integration** geführt: `AddAuthentication(IISServerDefaults.AuthenticationScheme)`
+   (statt `AddNegotiate()`). Die Windows-Identität fließt dann von IIS in `HttpContext.User`
+   (`IISServerOptions.AutomaticAuthentication` = true, Default). `AddNegotiate()` +
+   `Microsoft.AspNetCore.Authentication.Negotiate` werden entfernt.
+2. **Challenge ist nötig:** Weil IIS-Anonymous **aktiv bleiben muss** (sonst kämen lokale/
+   Nicht-Domänen-Benutzer gar nicht erst zum Formular-Fallback) und die App kein globales
+   `[Authorize]` nutzt, sendet der Browser **von sich aus keine** Windows-Credentials →
+   `HttpContext.User` bleibt anonym. Die Middleware muss daher **aktiv einmalig challengen**
+   (`ChallengeAsync(IISServerDefaults.AuthenticationScheme)` → 401 Negotiate). Ein
+   Domänen-Browser im Intranet-Zone antwortet **still** (kein Popup) → Identität ist da →
+   Auto-Login. Ein Nicht-Domänen-Browser zeigt einmal einen Windows-Dialog → Abbruch →
+   **Formular-Fallback**. Eine Cookie-Markierung verhindert eine Challenge-Schleife.
+3. **Dev (Kestrel via `dotnet run`):** keine IIS-Integration → Windows-Auth inaktiv. Da
+   `WindowsAuthAktiv` per Default **false** ist, ist das Verhalten in Dev unverändert
+   (nur Formular). Die echte SSO-Strecke wird im IIS-Zielsystem getestet.
 
 Heutige Rollenvergabe: lokale `UserRole`-Zuordnung **plus** automatische
 `Role.AdGroup`-Zuordnung (AD-**Gruppe** → Rolle, via `User.IsInRole(adGroup)`, gegated
@@ -63,21 +86,34 @@ existiert nicht; `User` hat kein Feld für den Windows-Benutzernamen.
 | `CurrentUserService` | geändert | AD-Gruppen-Rollen-Logik entfernt; Rollen nur aus `UserRoles` |
 | `Role.AdGroup` + zugehörige UI | entfernt | Automatik fällt weg |
 | `AccountController.Logout/Login` | geändert | Logout setzt „kein-Auto-Login"-Marker; Login löscht ihn |
+| `Program.cs` Auth-Registrierung | geändert | `AddNegotiate()` → `AddAuthentication(IISServerDefaults.AuthenticationScheme)` |
 
 ### Datenfluss — Login
 
 ```
-Browser → IIS/Negotiate setzt HttpContext.User (DOMAIN\sam)
+Browser → IIS (anonymous ODER windows-auth) → HttpContext.User (anonym oder DOMAIN\sam)
   → [Session-Middleware]
-  → [WindowsAutoLoginMiddleware]
-        wenn WindowsAuthAktiv && keine AppUserId && Windows-Identität:
+  → [WindowsAutoLoginMiddleware]   (nur wenn WindowsAuthAktiv && keine AppUserId
+                                     && kein NoAutoLogin-Cookie && Nicht-Ausnahmepfad)
+        Fall A — Identität bereits da (IsAuthenticated):
            sam = WindowsAccountHelper.ExtractSam(User.Identity.Name)
            user = UserRepository.GetActiveByWindowsUserNameAsync(sam)
-           wenn Treffer: Session.AppUserId/AppUserName setzen
-           sonst / Fehler / NoAutoLogin-Cookie: nichts tun (durchfallen)
+           Treffer → Session.AppUserId/AppUserName setzen → weiter
+           kein Treffer/inaktiv → AutoLoginTried-Cookie setzen → durchfallen (Formular)
+        Fall B — anonym && AutoLoginTried-Cookie NICHT gesetzt:
+           AutoLoginTried-Cookie setzen → ChallengeAsync(IISServerDefaults) (401 Negotiate)
+           → Domänen-Browser antwortet still → Re-Request landet in Fall A
+           → Nicht-Domänen-Browser bricht ab → Re-Request bleibt anonym → Fall C
+        Fall C — anonym && AutoLoginTried-Cookie gesetzt:
+           nichts tun → durchfallen (Formular)
+        (alles in try/catch: jeder Fehler → Log → durchfallen)
   → [LoginRedirect]  → bei Session: weiter zur Zielseite
                       → ohne Session: Redirect /Account/Login (Formular-Fallback)
 ```
+
+Der `AutoLoginTried`-Cookie ist ein kurzlebiger Session-Cookie, der genau **eine**
+Challenge je Browser-Session erzwingt (keine Endlosschleife für Nicht-Domänen-Browser).
+Nach erfolgreichem Auto-Login bzw. Formular-Login wird er gelöscht.
 
 ### Datenfluss — AD-User anlegen
 
@@ -150,13 +186,22 @@ public record AdUserCandidate(string SamAccountName, string? DisplayName, string
   (Registrierung als scoped Service + `app.UseMiddleware<WindowsAutoLoginMiddleware>()`).
 - Reihenfolge: nach `UseSession()`, **vor** der `LoginRedirect`-Middleware.
 - Skippt dieselben Pfade wie LoginRedirect (`/account/*`, `/api/*`, statische Dateien).
-- Frühes Return, wenn bereits eine `AppUserId` in der Session liegt (kein DB-Treffer-
-  Aufwand für eingeloggte User).
-- Liest `WindowsAuthAktiv` (AppSettings); aus → nichts tun.
-- Prüft `NoAutoLogin`-Cookie → gesetzt → nichts tun (Formular gewünscht).
-- `User.Identity.IsAuthenticated` + Name vorhanden → `sam` extrahieren →
-  `UserRepository.GetActiveByWindowsUserNameAsync(sam)` → Treffer → Session setzen.
-- **Alles in try/catch**: jeder Fehler → Log + durchfallen (Formular-Fallback).
+- **Vorbedingungen** (sonst sofort `await next()`): `WindowsAuthAktiv`=true; keine
+  `AppUserId` in Session; kein `NoAutoLogin`-Cookie.
+- **Entscheidungslogik** (vgl. Datenfluss §4):
+  - *Fall A — `User.Identity.IsAuthenticated`:* `sam` extrahieren →
+    `GetActiveByWindowsUserNameAsync(sam)` → Treffer → Session setzen + `AutoLoginTried`/
+    `NoAutoLogin`-Cookies löschen → `next()`. Kein Treffer → `AutoLoginTried`-Cookie setzen
+    → `next()` (LoginRedirect schickt zum Formular).
+  - *Fall B — anonym && kein `AutoLoginTried`-Cookie:* Cookie setzen, dann
+    `return ChallengeAsync(IISServerDefaults.AuthenticationScheme)` (401 Negotiate; **kein**
+    `next()`). Domänen-Browser antwortet still → Re-Request → Fall A.
+  - *Fall C — anonym && `AutoLoginTried`-Cookie gesetzt:* `next()` (Formular-Fallback;
+    keine erneute Challenge → keine Schleife).
+- **Alles in try/catch**: jeder Fehler → Log → `next()` (Formular-Fallback).
+- `AutoLoginTried` ist ein Session-Cookie (HttpOnly), das nur den einmaligen Challenge-
+  Versuch je Browser-Session markiert; wird bei erfolgreichem Login (Auto oder Formular)
+  gelöscht.
 
 ### 7.4 `UserRepository.GetActiveByWindowsUserNameAsync(string sam)`
 - `Users` WHERE `WindowsUserName != null` AND `LOWER(WindowsUserName) == LOWER(sam)` AND
@@ -200,9 +245,10 @@ public record AdUserCandidate(string SamAccountName, string? DisplayName, string
 
 | Fall | Verhalten |
 |------|-----------|
-| Auto-Login: kein/inaktiver Datensatz | durchfallen → Login-Formular |
+| Auto-Login: kein/inaktiver Datensatz | `AutoLoginTried`-Cookie setzen → durchfallen → Login-Formular |
 | Auto-Login: Laufzeitfehler | try/catch → Log → durchfallen → Formular |
-| `NoAutoLogin`-Cookie gesetzt | Auto-Login übersprungen → Formular |
+| Nicht-Domänen-Browser (Challenge abgebrochen) | 1× Windows-Dialog → Abbruch → `AutoLoginTried` gesetzt → Formular (keine erneute Challenge) |
+| `NoAutoLogin`-Cookie gesetzt (nach Logout) | Auto-Login + Challenge übersprungen → Formular |
 | Picker: AD nicht erreichbar / Gruppe leer | leere Liste + Info-Banner; Login unberührt |
 | `WindowsAuthAktiv=false` | Middleware inaktiv → exakt heutiges Verhalten |
 | Nicht-Windows-Host (Dev/Test) | AD-Service liefert leer; Auto-Login matcht nur lokale DB-Datensätze (kein LDAP nötig) |
@@ -220,10 +266,17 @@ public record AdUserCandidate(string SamAccountName, string? DisplayName, string
 ## 10. Tests
 
 - `WindowsAccountHelper.ExtractSam` — Theory (`DOMAIN\\u`, `u`, `u@d`, null/leer).
-- `WindowsAutoLoginMiddleware` — Unit (Flag an/aus; Session vorhanden→noop; Windows-Identität
-  fehlt→noop; Treffer→Session gesetzt; kein Treffer/inaktiv→keine Session; Exception→keine
-  Session, kein Throw; NoAutoLogin-Cookie→noop). Mit Fake-`IUserRepository` + TestServer/
-  konstruiertem `HttpContext`.
+- `WindowsAutoLoginMiddleware` — Unit über konstruierten `HttpContext` + Fake-`IUserRepository`
+  + Fake-AppSettings:
+  - Flag aus → `next()` aufgerufen, nichts gesetzt.
+  - Session vorhanden → `next()`, kein DB-Zugriff.
+  - `NoAutoLogin`-Cookie → `next()`, keine Challenge.
+  - Fall A Identität vorhanden + Treffer → Session gesetzt, Cookies gelöscht.
+  - Fall A Identität vorhanden + kein Treffer/inaktiv → keine Session, `AutoLoginTried` gesetzt.
+  - Fall B anonym + kein `AutoLoginTried` → Challenge ausgelöst (401), `next()` NICHT aufgerufen,
+    Cookie gesetzt. (Challenge über injizierbare Abstraktion, damit kein echter IIS-Handler nötig.)
+  - Fall C anonym + `AutoLoginTried` gesetzt → `next()`, keine Challenge (keine Schleife).
+  - Exception im Pfad → `next()`, kein Throw.
 - `UserRepository.GetActiveByWindowsUserNameAsync` — Treffer case-insensitiv, inaktiv
   ausgeschlossen, null-WindowsUserName ignoriert.
 - `UsersController.CreateAdUser` — GET filtert importierte raus (Fake-AD-Service); POST legt
@@ -234,24 +287,39 @@ public record AdUserCandidate(string SamAccountName, string? DisplayName, string
 
 ## 11. Migration / Deploy
 
+- **Auth-Registrierung umstellen** (§1.1): in `Program.cs` `AddAuthentication(NegotiateDefaults…)
+  .AddNegotiate()` ersetzen durch `AddAuthentication(IISServerDefaults.AuthenticationScheme)`;
+  PackageReference `Microsoft.AspNetCore.Authentication.Negotiate` entfernen. `IISServerOptions`
+  ggf. konfigurieren (`AutomaticAuthentication` bleibt Default true).
 - NuGet `System.DirectoryServices.AccountManagement` ins Web-Projekt; TFM bleibt `net10.0`,
   Windows-Gating via `OperatingSystem.IsWindows()` + `[SupportedOSPlatform("windows")]`
   (CA1416-sauber).
 - Migration 73 + `SQL/73` + FreshInstall + History.
 - Version-Bump **v1.23.0** (`AppVersion.cs` Web + Service) + Changelog + Hilfe.
 - TESTSZENARIEN: neues Kapitel.
-- **Deploy-Voraussetzungen:** Webserver domänen-gebunden; App-Pool-Identität darf AD lesen
-  (Standard-Domänen-User genügt); IIS „Windows Authentication" aktiv + „Anonymous" je nach
-  Setup (für den Negotiate-Flow). `WindowsAuthAktiv` erst NACH Anlage der ersten AD-User
-  einschalten (sonst sperren sich Domänen-User ohne Datensatz unnötig aufs Formular —
-  funktioniert zwar via Fallback, ist aber Verwirrungsquelle).
+- **IIS-Voraussetzungen (unverändert lassen!):** `web.config` hat bereits
+  `windowsAuthentication=true` UND `anonymousAuthentication=true` — **beide bleiben aktiv**.
+  Windows liefert die SSO-Identität (auf Challenge), Anonymous hält den Formular-Fallback
+  für lokale/Nicht-Domänen-Benutzer offen. Webserver domänen-gebunden; App-Pool-Identität
+  darf AD lesen (Standard-Domänen-User genügt).
+- **Reihenfolge beim Aktivieren:** `WindowsAuthAktiv` erst NACH Anlage der ersten AD-User
+  einschalten (sonst landen Domänen-User ohne Datensatz nach der Challenge auf dem Formular —
+  funktioniert via Fallback, ist aber Verwirrungsquelle).
 
 ## 12. Offene Punkte / Risiken
 
-- **IIS-Konfiguration** (Windows Authentication / Anonymous / SPN) ist Deploy-seitig und
-  außerhalb des App-Codes — wird als Voraussetzung dokumentiert, nicht im Code gelöst.
+- **Auto-Login-Strecke ist nur im echten IIS-Zielsystem voll testbar** (Negotiate-Challenge +
+  Domänen-Browser). Unit-Tests decken die Middleware-**Entscheidungslogik** ab (Fälle A/B/C
+  über ein gefaketes `AuthenticationService`/`IISServerDefaults`-Ergebnis bzw. gesetzte
+  Identität); der echte 401-Negotiate-Handshake wird manuell im Zielsystem verifiziert
+  (TESTSZENARIEN). Analog zur raw-SQL beim BomCache als Fallstrick dokumentieren.
+- **Nicht-Domänen-Browser sehen einmalig einen Windows-Dialog** vor dem Formular-Fallback
+  (unvermeidbar bei „Anonymous aktiv + Auto-SSO"). Für ein Intranet-WMS akzeptiert; per
+  `AutoLoginTried`-Cookie auf genau eine Challenge je Browser-Session begrenzt.
 - **CA1416 / Windows-only Package:** Build muss auf dem CI/Dev-Rechner sauber bleiben; ggf.
   `<NoWarn>` gezielt für CA1416 in der Impl-Datei oder Attribut-Gating.
 - **`Role.AdGroup`-Drop ist datenverändernd** (Spalte weg) — falls jemand Werte gepflegt
   hat, gehen sie verloren. Da die Automatik ohnehin abgelöst wird, akzeptiert; DB-Backup
   vor Deploy empfohlen.
+- **Hosting-Annahme:** Korrektur §1.1 gilt für IIS in-process (laut `web.config`). Würde je
+  auf Kestrel/HTTP.sys gewechselt, müsste die Auth-Registrierung erneut angepasst werden.
