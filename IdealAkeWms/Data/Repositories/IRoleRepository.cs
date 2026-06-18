@@ -10,7 +10,6 @@ public interface IRoleRepository
     Task AddAsync(Role role);
     Task UpdateAsync(Role role);
     Task DeleteAsync(Role role);
-    Task<List<Role>> GetRolesWithAdGroupAsync();
     Task<List<string>> GetRoleKeysByUserIdAsync(int userId);
     Task SetUserRolesAsync(int userId, List<int> roleIds, string createdBy, string createdByWindows);
 }

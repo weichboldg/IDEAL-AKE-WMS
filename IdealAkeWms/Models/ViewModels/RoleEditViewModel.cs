@@ -20,10 +20,6 @@ public class RoleEditViewModel
     [Display(Name = "Beschreibung")]
     public string? Description { get; set; }
 
-    [StringLength(200)]
-    [Display(Name = "AD-Gruppe")]
-    public string? AdGroup { get; set; }
-
     [Display(Name = "Sortierung")]
     public int SortOrder { get; set; }
 

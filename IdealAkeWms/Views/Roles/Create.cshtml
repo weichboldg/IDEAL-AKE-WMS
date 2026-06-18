@@ -32,13 +32,6 @@
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="AdGroup" class="form-label"></label>
-                        <input asp-for="AdGroup" class="form-control" placeholder="z.B. WMS_Lager" />
-                        <div class="form-text">SAMAccountName der AD-Gruppe (nur Gruppenname, kein DN). Mitglieder dieser Gruppe erhalten die Rolle automatisch.</div>
-                        <span asp-validation-for="AdGroup" class="text-danger"></span>
-                    </div>
-
-                    <div class="mb-3">
                         <label asp-for="SortOrder" class="form-label"></label>
                         <input asp-for="SortOrder" class="form-control" type="number" />
                         <span asp-validation-for="SortOrder" class="text-danger"></span>

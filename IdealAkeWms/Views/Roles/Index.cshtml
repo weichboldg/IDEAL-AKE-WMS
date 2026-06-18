@@ -24,7 +24,6 @@
             <tr>
                 <th data-filterable data-col-key="name">Name</th>
                 <th data-filterable data-col-key="key">Schlüssel</th>
-                <th data-filterable data-col-key="ad-group">AD-Gruppe</th>
                 <th data-filterable data-col-key="user-count">Benutzer</th>
                 <th data-col-key="actions" style="width: 100px;"></th>
             </tr>
@@ -41,7 +40,6 @@
                         }
                     </td>
                     <td><code>@role.Key</code></td>
-                    <td>@role.AdGroup</td>
                     <td>@role.UserCount</td>
                     <td>
                         @if (canEdit)
@@ -54,7 +52,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Keine Rollen vorhanden.</td>
+                    <td colspan="4" class="text-center text-muted py-4">Keine Rollen vorhanden.</td>
                 </tr>
             }
         </tbody>

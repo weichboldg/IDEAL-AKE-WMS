@@ -1,6 +1,5 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace IdealAkeWms.Services;
 
@@ -9,8 +8,6 @@ public class CurrentUserService : ICurrentUserService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IMemoryCache _memoryCache;
-    private readonly IConfiguration _configuration;
 
     private HashSet<string>? _cachedRoleKeys;
     private (bool Loaded, int? Value) _cachedPageSize;
@@ -21,15 +18,11 @@ public class CurrentUserService : ICurrentUserService
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
         IRoleRepository roleRepository,
-        IUserRepository userRepository,
-        IMemoryCache memoryCache,
-        IConfiguration configuration)
+        IUserRepository userRepository)
     {
         _httpContextAccessor = httpContextAccessor;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
-        _memoryCache = memoryCache;
-        _configuration = configuration;
     }
 
     public string GetWindowsUserName()
@@ -152,38 +145,7 @@ public class CurrentUserService : ICurrentUserService
                 roleKeys.Add(key);
         }
 
-        var adRoles = await GetAdGroupRolesAsync();
-        foreach (var key in adRoles)
-            roleKeys.Add(key);
-
         _cachedRoleKeys = roleKeys;
         return roleKeys;
-    }
-
-    private async Task<List<string>> GetAdGroupRolesAsync()
-    {
-        var httpContext = _httpContextAccessor.HttpContext;
-        var windowsUser = httpContext?.User;
-        if (windowsUser?.Identity?.IsAuthenticated != true)
-            return new List<string>();
-
-        var cacheMinutes = _configuration.GetValue("Security:AdGroupCacheMinutes", 5);
-        var windowsName = windowsUser.Identity.Name ?? "UNKNOWN";
-        var cacheKey = $"AdGroupRoles:{windowsName}";
-
-        if (_memoryCache.TryGetValue(cacheKey, out List<string>? cached) && cached != null)
-            return cached;
-
-        var rolesWithAdGroup = await _roleRepository.GetRolesWithAdGroupAsync();
-        var matchedKeys = new List<string>();
-
-        foreach (var role in rolesWithAdGroup)
-        {
-            if (!string.IsNullOrEmpty(role.AdGroup) && windowsUser.IsInRole(role.AdGroup))
-                matchedKeys.Add(role.Key);
-        }
-
-        _memoryCache.Set(cacheKey, matchedKeys, TimeSpan.FromMinutes(cacheMinutes));
-        return matchedKeys;
     }
 }

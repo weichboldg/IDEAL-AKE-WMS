@@ -98,7 +98,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Key).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.AdGroup).HasMaxLength(200);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);

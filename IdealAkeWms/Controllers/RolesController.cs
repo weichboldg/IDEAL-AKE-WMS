@@ -30,7 +30,6 @@ public class RolesController : Controller
     {
         ["name"] = r => r.IsSystem ? $"{r.Name} System" : r.Name,
         ["key"] = r => r.Key,
-        ["ad-group"] = r => r.AdGroup,
         ["user-count"] = r => r.UserCount.ToString(),
     };
 
@@ -48,7 +47,6 @@ public class RolesController : Controller
             Key = r.Key,
             Name = r.Name,
             Description = r.Description,
-            AdGroup = r.AdGroup,
             SortOrder = r.SortOrder,
             IsSystem = r.IsSystem,
             UserCount = r.UserRoles.Count
@@ -94,7 +92,6 @@ public class RolesController : Controller
             Key = vm.Key,
             Name = vm.Name,
             Description = vm.Description,
-            AdGroup = vm.AdGroup,
             SortOrder = vm.SortOrder,
             IsSystem = false,
             CreatedAt = DateTime.UtcNow,
@@ -120,7 +117,6 @@ public class RolesController : Controller
             Key = role.Key,
             Name = role.Name,
             Description = role.Description,
-            AdGroup = role.AdGroup,
             SortOrder = role.SortOrder,
             IsSystem = role.IsSystem,
             UserCount = role.UserRoles.Count
@@ -143,12 +139,11 @@ public class RolesController : Controller
         if (existing == null)
             return NotFound();
 
-        // System roles: only Name, Description, and AdGroup can be changed
+        // System roles: only Name and Description can be changed
         if (existing.IsSystem)
         {
             existing.Name = vm.Name;
             existing.Description = vm.Description;
-            existing.AdGroup = vm.AdGroup;
         }
         else
         {
@@ -168,7 +163,6 @@ public class RolesController : Controller
             existing.Key = vm.Key;
             existing.Name = vm.Name;
             existing.Description = vm.Description;
-            existing.AdGroup = vm.AdGroup;
             existing.SortOrder = vm.SortOrder;
         }
 

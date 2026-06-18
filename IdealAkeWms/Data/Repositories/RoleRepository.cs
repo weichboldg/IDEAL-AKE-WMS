@@ -51,13 +51,6 @@ public class RoleRepository : IRoleRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<List<Role>> GetRolesWithAdGroupAsync()
-    {
-        return await _context.Roles
-            .Where(r => r.AdGroup != null && r.AdGroup != "")
-            .ToListAsync();
-    }
-
     public async Task<List<string>> GetRoleKeysByUserIdAsync(int userId)
     {
         return await _context.UserRoles

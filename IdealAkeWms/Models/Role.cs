@@ -18,10 +18,6 @@ public class Role : AuditableEntity
     [Display(Name = "Beschreibung")]
     public string? Description { get; set; }
 
-    [StringLength(200)]
-    [Display(Name = "AD-Gruppe")]
-    public string? AdGroup { get; set; }
-
     [Display(Name = "Systemrolle")]
     public bool IsSystem { get; set; }
 
