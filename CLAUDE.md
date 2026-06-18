@@ -57,7 +57,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 - ASP.NET Core 10.0 MVC + Repository Pattern + DI
 - EF Core 10.0 mit SQL Server (`AKESQL20.ake.at`, DB: `IDEAL_AKE_WMS`)
-- Dual-Auth: Windows/Negotiate (IIS) + Session-basierter App-Login (Middleware in Program.cs)
+- Dual-Auth: Windows-Auth (IIS in-process, `IISServerDefaults.AuthenticationScheme`) + Session-basierter App-Login (Middleware in Program.cs). `WindowsAutoLoginMiddleware` ueberfuehrt die Windows-Identitaet in eine App-Session (hinter `WindowsAuthAktiv`, Default false). Seit v1.23.0 NICHT mehr `AddNegotiate()` (war unter IIS in-process falsch — siehe Fallstrick)
 - BOM-Daten: primaer aus SAGE-View; Fallback auf OSEON-SP. `BomRepository` liefert `BomQueryResult(Items, DataSource)`
 - `CachedBomRepository` wrapped `BomRepository` (Decorator-Pattern, 5 min MemoryCache)
 
@@ -71,10 +71,12 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 ## Session & Authentifizierung
 
+- **Hosting/Windows-Auth**: IIS in-process (`web.config` `hostingModel="inprocess"`, **beide** Auth-Modi aktiv: `windowsAuthentication=true` UND `anonymousAuthentication=true`). Windows-Auth laeuft seit v1.23.0 ueber die IIS-Integration via `AddAuthentication(IISServerDefaults.AuthenticationScheme)` — NICHT mehr `AddNegotiate()` (das war unter IIS in-process falsch). Package `Microsoft.AspNetCore.Authentication.Negotiate` entfernt.
 - **Session-Timeout**: 8 Stunden, Cookie: `IdealAkeWms.Session`
 - **Session-Keys**: `AppUserId` (Int32), `AppUserName` (String)
-- **Middleware-Reihenfolge**: HttpsRedirection → Routing → Authentication → Authorization → **Session** → SerilogRequestLogging → **LoginRedirect** → StaticFiles → MapControllerRoute
+- **Middleware-Reihenfolge**: HttpsRedirection → Routing → Authentication → Authorization → **Session** → **WindowsAutoLoginMiddleware** → SerilogRequestLogging → **LoginRedirect** → StaticFiles → MapControllerRoute. `WindowsAutoLoginMiddleware` laeuft **nach** Session, **vor** LoginRedirect (hinter `WindowsAuthAktiv`); challenged anonyme Domaenen-Browser einmalig (Negotiate 401), matcht die SAM-Identitaet auf `User.WindowsUserName` und setzt die App-Session — jeder Fehler/kein Treffer faellt zum Formular durch. Logout setzt einen `NoAutoLogin`-Cookie (Benutzerwechsel moeglich), erfolgreicher Login loescht ihn.
 - **Login-Redirect-Ausnahmen**: `/account/*`, `/api/*`, statische Dateien, `/lib/*`, `/css/*`, `/js/*`
+- **Login-Schluessel AD-User**: `User.WindowsUserName` (SAM ohne Domaene, case-insensitiv; Migration 73 `20260618070606_AddWindowsUserNameDropAdGroup`). AD-User = `WindowsUserName` gesetzt + `PasswordHash` NULL; lokaler User = `PasswordHash` + `WindowsUserName` NULL. AD-User-Anlage ueber `UsersController.CreateAdUser` (Picker liest Mitglieder der `WindowsAuthBerechtigungsgruppe` live per LDAP via `IActiveDirectoryService`, Windows-only).
 
 ## Zugriffsschutz
 
@@ -108,7 +110,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 
 ## Rollenkonzept
 
-`Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`. Admin-Wildcard ueberspringt alle Pruefungen. Rollen koennen optional AD-Gruppen haben (`Role.AdGroup`).
+`Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`. Admin-Wildcard ueberspringt alle Pruefungen. Rollen werden ausschliesslich explizit pro Benutzer (UserRole) zugewiesen — die fruehere `Role.AdGroup`-Automatik (AD-Gruppe → Rolle) wurde in v1.23.0 entfernt (Spalte gedroppt).
 
 | Key | Beschreibung |
 |-----|-------------|
@@ -208,6 +210,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 - **Text-Merkmal nur fuer FaAttributes, NIE fuer ArticleAttributes (v1.22.0-Followup)**: Der Enum `AttributeType` (in `ArticleAttributeDefinition.cs`, shared zwischen Article- und FA-Merkmalen) hat jetzt `Text = 2`. Der Freitext-Wert lebt ausschliesslich in `FaAttributeValue.TextValue` (`NVARCHAR(1000)` NULL, **Migration 72** `AddFaAttributeTextValue`) — `ArticleAttributeValue` hat KEIN TextValue-Feld. Folglich darf die ArticleAttributes-Stammdaten-UI den Typ `Text` NIEMALS anbieten; nur die FaAttributes-Definition-Form. `FaAttributeRepository.UpsertValueAsync(... string? textValue ...)` loescht die Zeile wenn alle Werte (OptionId/BoolValue/TextValue) leer sind. Anzeige via `FaWorklistController.FormatAttributeValue` → `AttributeType.Text` gibt `TextValue ?? ""` zurueck. Doku/Beweise: `SQL/72_AddFaAttributeTextValue.sql` + FreshInstall (Spalte `FaAttributeValues.TextValue` + History-Insert `20260616071945_AddFaAttributeTextValue`).
 - **UI-Label "Arbeitsgaenge" → "FA-Vorbau-AG", Code/Entity bleibt WorkStep (v1.22.0-Followup)**: Im FA-Vorbau-Kontext (Stammdaten-Menue, `WorkSteps`-Views, FaAttributes-AG-Zuordnung, FaCompletion/FaWorklist) heisst der Begriff in der UI jetzt durchgaengig **"FA-Vorbau-AG"** (bzw. "FA-Vorbau-Arbeitsgang"). NUR Anzeige-Labels — Controller (`WorkStepsController`), Routen (`/WorkSteps/...`), Entity (`WorkStep`) und alle Code-Bezeichner bleiben unveraendert. BDE-Arbeitsgaenge und OSEON-Arbeitsgaenge/Teileverfolgung sind ein ANDERER Kontext und behalten "Arbeitsgang".
 - **Mails immer multipart/alternative (HtmlBody + TextBody mit nackter URL)**: `IMailService.SendAsync` nimmt einen optionalen `string? textBody` (vor `ct`). Reines `HtmlBody` ohne Plain-Text-Teil fuehrt in Outlook/Copilot zur `[URL]Text`-Rohtext-Darstellung von `<a>`-Links. Loesung: immer einen Plain-Text-Teil mit **nackter** URL (kein `[..]`, kein Markup — Clients linkifizieren selbst) mitschicken. `WarehouseRequisitionEmailService.BuildSubmitText/BuildCancellationText` sind die Referenz; `NotificationWorker`/`PartRequisitionEmailService` lassen `textBody` noch auf null (optional). Moq-Setups/Verifies/Callbacks auf `SendAsync` brauchen jetzt einen zusaetzlichen `It.IsAny<string?>()`-Parameter vor dem `CancellationToken`.
+- **Windows-Auth + AD-LDAP nicht InMemory-testbar (v1.23.0)**: Die echte `ActiveDirectoryService`-LDAP-Abfrage (Mitglieder der Berechtigungsgruppe via `System.DirectoryServices.AccountManagement`, `[SupportedOSPlatform("windows")]`) UND der IIS-Negotiate-Challenge-Handshake (401 Negotiate → still antwortender Domaenen-Browser) sind **nur im IIS-Zielsystem** verifizierbar — analog zur raw-SQL beim BomCache. Die **Entscheidungslogik** der `WindowsAutoLoginMiddleware` (Faelle A/B/C: Identitaet-da-Treffer / anonym-challengen / anonym-durchfallen, plus Flag-aus / Session-da / NoAutoLogin-Cookie / Exception → `next()`) ist ueber eine injizierbare `IChallengeIssuer`-Abstraktion + Fake-`IUserRepository` voll unit-getestet; nur der echte 401-Handshake und die LDAP-Strecke bleiben Manual-UAT (TESTSZENARIEN Kapitel 40). **`AddNegotiate()` war unter IIS in-process falsch** — korrekt ist `AddAuthentication(IISServerDefaults.AuthenticationScheme)` (IIS-Integration setzt `HttpContext.User` aus der Windows-Identitaet; `AddNegotiate()` ist fuer Kestrel/HTTP.sys). Beide IIS-Auth-Modi (windows + anonymous) muessen aktiv bleiben — anonymous haelt den Formular-Fallback offen.
 
 ## Standard-Daten (Neuinstallation)
 
@@ -249,6 +252,8 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft (Default-Horizont) |
 | `OseonReportingOverdueLookbackDays` | `90` | Reporting: Tage in die Vergangenheit fuer Ueberfaellig-Slice |
 | `DefaultLagerbestellempfaengerId` | (leer) | OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt) |
+| `WindowsAuthAktiv` | `false` | Master-Schalter Windows-SSO Auto-Login (`WindowsAutoLoginMiddleware`) (v1.23.0) |
+| `WindowsAuthBerechtigungsgruppe` | (leer) | SAM-Name der AD-Berechtigungsgruppe fuer den AD-Benutzer-Picker (v1.23.0) |
 
 ## Service-Konfiguration (appsettings.json / ServiceSettings DB)
 
@@ -276,7 +281,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | `Sync:LagerbestandIntervalMinutes` | `0` | Eigenes Intervall in Min (0 = nutzt SyncIntervalMinutes) |
 | `WorkerSettings:SyncIntervalMinutes` | `15` | Sync-Intervall |
 | `WorkerSettings:SyncDryRun` | `false` | DryRun-Modus |
-| `Security:AdGroupCacheMinutes` | `5` | AD-Gruppen-Cache Dauer |
+| `Security:AdDomain` | (leer) | Optional: Domaene/LDAP-Container fuer die AD-Abfrage (AD-Benutzer-Picker); leer = aktuelle Maschinen-Domaene (v1.23.0) |
 
 Connection Strings: `DefaultConnection` (WMS), `SageConnection` (Sage), `OseonConnection` (OSEON), `EnaioDmsConnection` (enaio)
 

@@ -11,8 +11,8 @@
     <strong>Wie funktionieren Berechtigungen?</strong>
     Ein Benutzer kann mehrere Rollen haben (Many-to-Many). Wer mehrere Rollen hat, hat die
     <em>Vereinigung</em> der Rechte — mehr Rollen = mehr Zugriff. Die Rolle <code>admin</code> ist ein
-    Wildcard und ueberspringt alle Pruefungen. Rollen koennen optional mit AD-Gruppen verknuepft werden;
-    Login uebernimmt dann die Rollen automatisch.
+    Wildcard und ueberspringt alle Pruefungen. Rollen werden ausschliesslich explizit pro Benutzer
+    zugewiesen (seit v1.23.0 kein automatisches AD-Gruppen-Mapping mehr).
 </div>
 
 <div class="alert alert-warning small">

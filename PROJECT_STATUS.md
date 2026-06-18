@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1.22.0 FA-Vorbau)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.23.0 Windows-Auth + AD-Benutzer)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -23,6 +23,39 @@ Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1
 
 1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+
+---
+
+### v1.23.0 (2026-06-18) — Windows-Authentifizierung + AD-Benutzer-Rollen
+
+- **Windows-SSO Auto-Login** via `WindowsAutoLoginMiddleware` (nach Session, vor
+  LoginRedirect; hinter AppSetting `WindowsAuthAktiv`, Default false): Domaenen-User
+  mit hinterlegtem Datensatz werden ohne Formular angemeldet, jeder Fehler/kein
+  Treffer faellt zum Formular-Fallback durch. Logout setzt `NoAutoLogin`-Cookie
+  (Benutzerwechsel), Login loescht ihn.
+- **Hosting-Korrektur**: `AddNegotiate()` → `AddAuthentication(IISServerDefaults.AuthenticationScheme)`
+  (IIS in-process; `AddNegotiate()` war hier falsch). Package
+  `Microsoft.AspNetCore.Authentication.Negotiate` entfernt; beide IIS-Auth-Modi
+  (windows + anonymous) bleiben aktiv.
+- **`User.WindowsUserName`** (SAM, case-insensitiv) als Login-Schluessel;
+  **Migration 73** `20260618070606_AddWindowsUserNameDropAdGroup` (+ `SQL/73` +
+  FreshInstall). AD-User = WindowsUserName gesetzt + PasswordHash NULL.
+- **AD-Benutzer-Picker** (`UsersController.CreateAdUser`): liest Mitglieder der
+  `WindowsAuthBerechtigungsgruppe` live per LDAP (`IActiveDirectoryService`,
+  Windows-only, kein Throw bei Nicht-Windows/Fehler). Users-Liste mit Typ-Spalte
+  AD/Lokal.
+- **`Role.AdGroup`-Automatik entfernt** (Spalte gedroppt) — Rollen nur noch
+  explizit pro Benutzer (UserRole). `Security:AdGroupCacheMinutes` entfaellt; neu
+  `Security:AdDomain` (appsettings.json, optional).
+- **Neue AppSettings**: `WindowsAuthAktiv` (false), `WindowsAuthBerechtigungsgruppe`.
+- **Tests**: `WindowsAccountHelper.ExtractSam` (Theory), Middleware-Entscheidungslogik
+  (Faelle A/B/C via `IChallengeIssuer`-Abstraktion + Fake-Repo),
+  `GetActiveByWindowsUserNameAsync`, `CreateAdUser`, `CurrentUserService`
+  (nur UserRoles). Echte LDAP- + IIS-Negotiate-Strecke = Manual-UAT
+  (TESTSZENARIEN Kapitel 40).
+- **Doku**: Changelog v1.23.0, Hilfeseite (Abschnitt „Windows-Anmeldung &
+  AD-Benutzer"), CLAUDE.md (Dual-Auth/Session/AppSettings/Fallstrick/Rollenkonzept),
+  TESTSZENARIEN Kapitel 40, RoleOverview (AdGroup-Spalte raus).
 
 ---
 

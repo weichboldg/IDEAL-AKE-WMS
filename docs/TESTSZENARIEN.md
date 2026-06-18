@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-06-12 (v1.22.0)
+**Stand:** 2026-06-18 (v1.23.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -4676,5 +4676,122 @@ Overlay statt ersetzender background-color); die weisse Schrift bleibt lesbar.
 
 ---
 
-*Ende des Dokuments. Stand: v1.22.0 inkl. Folge-Fixes (2026-06-12)*
+## Kapitel 40: Windows-Authentifizierung & AD-Benutzer (v1.23.0)
+
+Windows-SSO Auto-Login (hinter Schalter `WindowsAuthAktiv`, Default aus) plus
+AD-Benutzer-Anlage ueber eine Berechtigungsgruppe. Rollen werden ausschliesslich
+explizit pro Benutzer vergeben — die fruehere automatische AD-Gruppen-Zuordnung
+(`Role.AdGroup`) ist entfernt.
+
+> **Hinweis:** Die echte SSO-Strecke (IIS Negotiate-Challenge + Domaenen-Browser)
+> und die LDAP-Abfrage sind nur im IIS-Zielsystem voll testbar (nicht in Dev/Kestrel).
+> Vorbedingung fuer 40.1–40.4: Deploy auf einem domaenen-gebundenen IIS, `web.config`
+> mit aktivierter **Windows-** UND **Anonymer Authentifizierung**, App-Pool-Identitaet
+> darf das AD lesen.
+
+### TS-40.1 — Domaenen-User MIT Datensatz → Auto-Login ohne Formular
+
+**Vorbedingungen:**
+- `WindowsAuthAktiv = true` (Stammdaten → Einstellungen).
+- Im Benutzerstamm existiert ein aktiver AD-Benutzer, dessen `WindowsUserName`
+  (SAM) dem angemeldeten Windows-Konto entspricht (siehe TS-40.4 zum Anlegen).
+- Aufruf aus einem Domaenen-Browser (Intranet-Zone), KEIN `NoAutoLogin`-Cookie.
+
+**Schritte:**
+1. Browser-Session frisch oeffnen (oder Cookies fuer die Seite loeschen).
+2. Die App-Startseite aufrufen.
+
+**Erwartet:** Der Benutzer wird **ohne** Anmelde-Formular direkt angemeldet
+(landet auf dem Dashboard). Kein Passwort/Benutzername noetig. Der angemeldete
+Name entspricht dem AD-Benutzer-Datensatz.
+
+### TS-40.2 — Domaenen-User OHNE Datensatz → Formular-Fallback
+
+**Vorbedingungen:** `WindowsAuthAktiv = true`. Der angemeldete Windows-Benutzer
+hat **keinen** (oder nur einen inaktiven) Datensatz im WMS.
+
+**Schritte:**
+1. Frische Browser-Session, App-Startseite aufrufen.
+2. Die einmalige Negotiate-Challenge laeuft im Domaenen-Browser still ab.
+
+**Erwartet:** Nach der einmaligen Challenge erscheint die **normale Login-Maske**
+(kein Auto-Login). Es kommt zu **keiner** Challenge-Schleife (genau eine Challenge
+je Browser-Session, per `AutoLoginTried`-Cookie begrenzt). Eine Formular-Anmeldung
+mit lokalen Credentials funktioniert normal.
+
+### TS-40.3 — Logout → Formular, kein sofortiges Re-Login, anderer User moeglich
+
+**Vorbedingungen:** Wie TS-40.1 (Auto-Login waere moeglich). Benutzer ist
+angemeldet. Zusaetzlich existiert ein lokaler Benutzer mit Passwort.
+
+**Schritte:**
+1. Als (auto-angemeldeter) Benutzer auf **Abmelden** klicken.
+2. Die App-Startseite erneut aufrufen.
+3. Im Formular mit den Credentials des **lokalen** Benutzers anmelden.
+
+**Erwartet:**
+- Nach dem Abmelden erscheint das Anmelde-**Formular** — KEIN sofortiges
+  automatisches Wieder-Anmelden (der `NoAutoLogin`-Cookie unterdrueckt den
+  Auto-Login).
+- Die Anmeldung als lokaler Benutzer gelingt; man ist als dieser angemeldet.
+- Nach einem erneuten erfolgreichen Login ist der `NoAutoLogin`-Marker
+  aufgehoben (Auto-Login bei der naechsten frischen Session wieder moeglich).
+
+### TS-40.4 — AD-Benutzer anlegen (Picker + Rollen)
+
+**Vorbedingungen:**
+- Admin angemeldet.
+- `WindowsAuthBerechtigungsgruppe` ist auf eine existierende AD-Gruppe gesetzt,
+  die mindestens ein Mitglied hat, das noch NICHT im WMS angelegt ist.
+- App laeuft auf dem domaenen-gebundenen IIS (LDAP erreichbar).
+
+**Schritte:**
+1. Stammdaten → Benutzer öffnen.
+2. Button **„AD-Benutzer anlegen"** klicken.
+3. Pruefen: Es erscheint eine Liste der Gruppenmitglieder (SAM, Anzeigename,
+   E-Mail, aktiv/inaktiv). Bereits importierte Mitglieder fehlen in der Liste.
+4. Ein Mitglied auswaehlen, eine oder mehrere Rollen ankreuzen, **Anlegen**.
+
+**Erwartet:**
+- Der Benutzer erscheint in der Benutzerliste mit Typ-Spalte **„AD"** (nicht
+  „Lokal"), ohne Passwort, aktiv.
+- Die vergebenen Rollen sind gesetzt (im Bearbeiten-Dialog sichtbar).
+- Der `WindowsUserName` (SAM) ist hinterlegt — danach greift fuer diesen Benutzer
+  der Auto-Login (TS-40.1).
+
+**Negativfaelle:**
+- Versuch, ein bereits vorhandenes Mitglied erneut anzulegen → abgelehnt
+  (Duplikat-Guard auf `WindowsUserName`).
+- AD nicht erreichbar / Gruppe leer → Info-Banner („keine Mitglieder gefunden /
+  AD nicht erreichbar"); die manuelle Anlage ueber „Benutzer anlegen" bleibt
+  verfuegbar. Der Login-Pfad ist davon unberuehrt.
+
+### TS-40.5 — `WindowsAuthAktiv = false` → Verhalten wie bisher
+
+**Vorbedingungen:** `WindowsAuthAktiv = false` (Default).
+
+**Schritte:**
+1. Frische Browser-Session, App-Startseite aufrufen.
+
+**Erwartet:** Es erscheint **direkt** das Anmelde-Formular — KEINE Challenge,
+KEIN Auto-Login. Verhalten exakt wie vor v1.23.0. (Gilt auch fuer Dev/Kestrel,
+wo keine IIS-Windows-Auth verfuegbar ist.)
+
+### TS-40.6 — Rollen nur noch pro Benutzer (AdGroup entfernt)
+
+**Vorbedingungen:** Admin angemeldet.
+
+**Schritte:**
+1. Stammdaten → Rollen → eine Rolle bearbeiten.
+2. Stammdaten → Benutzer → einen Benutzer bearbeiten.
+
+**Erwartet:**
+- In den Rollen-Stammdaten gibt es **kein** AD-Gruppen-Feld mehr (weder in der
+  Liste noch im Bearbeiten-Formular).
+- Rollen werden ausschliesslich am Benutzer (Checkbox-Liste) zugewiesen; es gibt
+  keine automatische Rollen-Zuweisung ueber AD-Gruppenmitgliedschaft mehr.
+
+---
+
+*Ende des Dokuments. Stand: v1.23.0 (2026-06-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

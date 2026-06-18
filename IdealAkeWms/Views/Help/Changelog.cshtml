@@ -9,6 +9,45 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.23.0</strong> <span class="text-white-50 ms-2">18.06.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Windows-Anmeldung (SSO) &amp; AD-Benutzer</h6>
+                <ul>
+                    <li><strong>Windows-SSO Auto-Login:</strong> Domaenen-Benutzer mit hinterlegtem
+                        Datensatz werden ohne Anmelde-Formular automatisch angemeldet. Das Verhalten
+                        haengt an einem Schalter (<code>WindowsAuthAktiv</code>, Default <strong>aus</strong>) —
+                        solange er aus ist, verhaelt sich die App wie bisher (nur Formular).</li>
+                    <li><strong>Formular-Fallback bei jedem Problem:</strong> Gibt es keinen passenden
+                        Benutzer-Datensatz oder tritt ein Fehler auf, erscheint die normale Login-Maske.
+                        Lokale Passwort-Benutzer und Nicht-Domaenen-Geraete bleiben so jederzeit
+                        anmeldbar.</li>
+                    <li><strong>AD-Benutzer anlegen:</strong> Im Benutzerstamm gibt es den Button
+                        <em>&bdquo;AD-Benutzer anlegen&ldquo;</em>. Er schlaegt die Mitglieder einer
+                        konfigurierten <em>Berechtigungsgruppe</em> live aus dem Active Directory vor;
+                        der Admin waehlt ein Mitglied aus und vergibt Rollen wie bei lokalen Benutzern.</li>
+                    <li><strong>Typ-Spalte AD/Lokal:</strong> Die Benutzerliste zeigt je Benutzer, ob es
+                        sich um einen <em>AD</em>- oder einen <em>lokalen</em> Benutzer handelt
+                        (spalten-filterbar).</li>
+                    <li><strong>Abmelden / Benutzerwechsel weiterhin moeglich:</strong> Nach dem Abmelden
+                        erscheint wieder das Formular (kein sofortiges automatisches Wieder-Anmelden) —
+                        so kann man sich z.&nbsp;B. als anderer (lokaler) Benutzer anmelden.</li>
+                    <li><strong>Automatische AD-Gruppen-Rollen entfernt:</strong> Rollen werden jetzt
+                        ausschliesslich explizit pro Benutzer vergeben. Die fruehere Automatik
+                        (AD-Gruppe einer Rolle) und das AD-Gruppen-Feld in den Rollen-Stammdaten
+                        entfallen.</li>
+                    <li><strong>Deploy-Hinweis:</strong> Auf dem IIS muessen <em>Windows-</em> UND
+                        <em>Anonyme Authentifizierung</em> aktiv bleiben (Windows liefert die
+                        SSO-Identitaet, Anonym haelt den Formular-Fallback offen). Der Server muss
+                        domaenen-gebunden sein und die App-Pool-Identitaet muss das AD lesen duerfen.
+                        <code>WindowsAuthAktiv</code> bitte erst <strong>nach</strong> dem Anlegen der
+                        ersten AD-Benutzer einschalten.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.22.0</strong> <span class="text-white-50 ms-2">12.06.2026</span>
             </div>
             <div class="card-body">

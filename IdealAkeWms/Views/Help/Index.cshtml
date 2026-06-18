@@ -869,7 +869,11 @@
 
                     <dt>Benutzer</dt>
                     <dd>Name, Personalnummer und Passwort. Jedem Benutzer koennen eine oder mehrere Rollen zugewiesen werden.
-                        Standard-BOM-Filter (Beschaffung, Artikelgruppe) koennen im eigenen Profil gesetzt werden.</dd>
+                        Standard-BOM-Filter (Beschaffung, Artikelgruppe) koennen im eigenen Profil gesetzt werden.
+                        <br /><strong>Seit v1.23.0:</strong> Benutzer koennen entweder <em>lokal</em> (mit Passwort)
+                        oder als <em>AD-Benutzer</em> (Windows-Anmeldung, ohne Passwort) angelegt werden &mdash;
+                        siehe Abschnitt &bdquo;Windows-Anmeldung &amp; AD-Benutzer&ldquo;. Die Liste zeigt den
+                        Typ (AD/Lokal) in einer eigenen Spalte.</dd>
 
                     <dt>Arbeitsplaetze</dt>
                     <dd>Konfiguration der Workstations mit Standard-Drucker (UNC-Pfad). Wird fuer den automatischen Etikettendruck verwendet.</dd>
@@ -914,8 +918,9 @@
                     </dd>
 
                     <dt>Rollen</dt>
-                    <dd>Verwaltung der Berechtigungsrollen. Jede Rolle hat einen Schluessel, einen Anzeigenamen und optional eine
-                        AD-Gruppe (Active Directory). Mitglieder der AD-Gruppe erhalten die Rolle automatisch.
+                    <dd>Verwaltung der Berechtigungsrollen. Jede Rolle hat einen Schluessel und einen Anzeigenamen.
+                        Rollen werden ausschliesslich explizit pro Benutzer zugewiesen
+                        (seit v1.23.0 gibt es kein automatisches AD-Gruppen-Mapping mehr).
                         <div class="table-responsive">
                         <table class="table table-sm table-bordered mt-2 mb-0" style="font-size: 0.85em;">
                             <thead class="table-light">
@@ -1040,6 +1045,57 @@
                     FaWorkStepDetection, ProductionOrder, Article, PartRequisitionEmail,
                     WarehouseRequisitionEmail, BdeAutoPause.
                 </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Windows-Anmeldung &amp; AD-Benutzer (seit v1.23.0)</strong></div>
+            <div class="card-body">
+                <p>
+                    Domaenen-Benutzer koennen sich ohne Anmelde-Formular automatisch anmelden
+                    (Windows-SSO). Das Verhalten haengt am Schalter
+                    <code>WindowsAuthAktiv</code> (<em>Stammdaten &rarr; Einstellungen</em>,
+                    Default <strong>aus</strong>) &mdash; solange er aus ist, gibt es nur das
+                    normale Anmelde-Formular.
+                </p>
+                <dl>
+                    <dt>Automatische Anmeldung (Auto-Login)</dt>
+                    <dd>Ist der Schalter aktiv und der angemeldete Windows-Benutzer im WMS als
+                        <em>AD-Benutzer</em> hinterlegt, wird er beim Aufruf der App direkt
+                        angemeldet &mdash; ohne Eingabe von Benutzername/Passwort.</dd>
+
+                    <dt>Was passiert bei Problemen?</dt>
+                    <dd>Gibt es <strong>keinen</strong> passenden Datensatz (oder ist er inaktiv),
+                        oder tritt ein Fehler auf, erscheint automatisch die <strong>normale
+                        Anmelde-Maske</strong>. Lokale Passwort-Benutzer und Geraete ausserhalb der
+                        Domaene melden sich weiterhin ueber das Formular an. Auf einem
+                        Nicht-Domaenen-Geraet kann einmalig ein Windows-Dialog erscheinen &mdash;
+                        nach dem Abbrechen kommt das Formular.</dd>
+
+                    <dt>Abmelden &amp; Benutzerwechsel</dt>
+                    <dd>Nach dem Abmelden erscheint wieder das Formular &mdash; es findet
+                        <strong>kein</strong> sofortiges automatisches Wieder-Anmelden statt. So kann
+                        man sich bewusst als anderer (z.&nbsp;B. lokaler) Benutzer anmelden.</dd>
+
+                    <dt>AD-Benutzer anlegen (Admin)</dt>
+                    <dd>
+                        <ol class="mt-1 mb-1">
+                            <li><em>Stammdaten &rarr; Benutzer</em> oeffnen.</li>
+                            <li>Button <em>&bdquo;AD-Benutzer anlegen&ldquo;</em> klicken.</li>
+                            <li>Aus der Liste der Mitglieder der konfigurierten
+                                <strong>Berechtigungsgruppe</strong> ein Mitglied auswaehlen.</li>
+                            <li>Die gewuenschten Rollen vergeben (wie bei lokalen Benutzern) und
+                                anlegen.</li>
+                        </ol>
+                        Der neue Benutzer erscheint in der Liste mit Typ <em>&bdquo;AD&ldquo;</em>.
+                        Ist das AD nicht erreichbar oder die Gruppe leer, erscheint ein Hinweis &mdash;
+                        die manuelle Anlage ueber <em>&bdquo;Benutzer anlegen&ldquo;</em> bleibt verfuegbar.
+                        <br />
+                        <small class="text-muted">Die Berechtigungsgruppe wird unter
+                        <em>Stammdaten &rarr; Einstellungen</em> (<code>WindowsAuthBerechtigungsgruppe</code>)
+                        konfiguriert.</small>
+                    </dd>
+                </dl>
             </div>
         </div>
 
