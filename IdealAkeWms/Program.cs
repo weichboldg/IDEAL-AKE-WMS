@@ -1,8 +1,9 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Middleware;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
-using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -24,9 +25,8 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.CommandTimeout(120)));
 
-// Authentication - Windows/Negotiate
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-    .AddNegotiate();
+// Authentication - Windows-Auth über IIS in-process Hosting
+builder.Services.AddAuthentication(IISServerDefaults.AuthenticationScheme);
 
 builder.Services.AddAuthorization();
 
@@ -42,6 +42,8 @@ builder.Services.AddSession(options =>
 
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<WindowsAutoLoginMiddleware>();
+builder.Services.AddScoped<IChallengeIssuer, IdealAkeWms.Middleware.IISChallengeIssuer>();
 builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
 builder.Services.AddScoped<IProductionWorkplaceRepository, ProductionWorkplaceRepository>();
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
@@ -421,6 +423,9 @@ app.UseSession();
 
 // Serilog Request-Logging
 app.UseSerilogRequestLogging();
+
+// Windows-Auto-Login: vor dem Login-Redirect — versucht Session-Login per Windows-Identity
+app.UseMiddleware<WindowsAutoLoginMiddleware>();
 
 // Login-Redirect Middleware: Wenn kein Benutzer in Session, auf Login umleiten
 app.Use(async (context, next) =>
