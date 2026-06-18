@@ -59,9 +59,17 @@ public class WindowsAutoLoginMiddleware : IMiddleware
     /// <returns>true = Challenge ausgelöst (Response übernommen, kein next()).</returns>
     private async Task<bool> TryAutoLoginOrChallengeAsync(HttpContext context)
     {
-        if (context.User?.Identity?.IsAuthenticated == true)
+        var isAuthenticated = context.User?.Identity?.IsAuthenticated == true;
+        var identityName = context.User?.Identity?.Name;
+        // DIAGNOSE: zeigt, ob/welche Windows-Identität von IIS ankommt.
+        _logger.LogInformation(
+            "WindowsAutoLogin-Diagnose: Pfad={Path} IsAuthenticated={IsAuth} IdentityName={IdentityName} AuthType={AuthType}",
+            context.Request.Path.Value, isAuthenticated, identityName ?? "(null)",
+            context.User?.Identity?.AuthenticationType ?? "(null)");
+
+        if (isAuthenticated)
         {
-            var sam = WindowsAccountHelper.ExtractSam(context.User.Identity.Name);
+            var sam = WindowsAccountHelper.ExtractSam(identityName);
             var user = sam == null ? null : await _userRepository.GetActiveByWindowsUserNameAsync(sam);
             if (user != null)
             {
@@ -69,18 +77,29 @@ public class WindowsAutoLoginMiddleware : IMiddleware
                 context.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
                 context.Response.Cookies.Delete(AutoLoginTriedCookie);
                 context.Response.Cookies.Delete(NoAutoLoginCookie);
+                _logger.LogInformation(
+                    "WindowsAutoLogin-Diagnose: TREFFER — SAM={Sam} -> UserId={UserId} ({UserName}), Auto-Login gesetzt.",
+                    sam, user.Id, user.Name);
                 return false;
             }
+            _logger.LogInformation(
+                "WindowsAutoLogin-Diagnose: KEIN aktiver Benutzer-Datensatz fuer SAM={Sam} (IdentityName={IdentityName}) -> Formular-Fallback.",
+                sam ?? "(null)", identityName ?? "(null)");
             context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
             return false;
         }
 
         if (!context.Request.Cookies.ContainsKey(AutoLoginTriedCookie))
         {
+            _logger.LogInformation("WindowsAutoLogin-Diagnose: anonym -> sende Negotiate-Challenge (Pfad={Path}).",
+                context.Request.Path.Value);
             context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
             await _challenge.ChallengeAsync(context);
             return true;
         }
+        _logger.LogInformation(
+            "WindowsAutoLogin-Diagnose: anonym + bereits gechallenged (AutoLoginTried-Cookie) -> Formular-Fallback (Pfad={Path}).",
+            context.Request.Path.Value);
         return false;
     }
 }
