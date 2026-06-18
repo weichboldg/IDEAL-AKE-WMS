@@ -3,6 +3,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Middleware;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -24,6 +25,23 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.CommandTimeout(120)));
+
+// DataProtection-Keys PERSISTENT ablegen. Sonst nutzt der IIS-App-Pool (ohne geladenes
+// Benutzerprofil) ein ephemeres Key-Repository -> bei jedem Recycle neue Keys -> bereits
+// ausgegebene Antiforgery-Tokens lassen sich nicht mehr entschluesseln -> Fehlerseite beim
+// naechsten Formular-POST (z. B. Abmelden). Pfad ueber Config 'DataProtection:KeysPath'
+// ueberschreibbar; Default unter %ProgramData% (ueberlebt Redeploys).
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    dataProtectionKeysPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "IdealAkeWms", "DataProtection-Keys");
+}
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("IdealAkeWms");
 
 // Authentication - Windows-Auth über IIS in-process Hosting
 builder.Services.AddAuthentication(IISServerDefaults.AuthenticationScheme);
