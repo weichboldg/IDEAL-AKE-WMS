@@ -899,7 +899,9 @@ BEGIN
         ('BdeMehrfachBuchungProOperator', 'false', 'Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)'),
         ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)'),
         ('BdeGleichzeitigerAbschlussBeiMehrfachStart', 'false', 'Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)'),
-        ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
+        ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv'),
+        ('WindowsAuthAktiv', 'false', 'Windows-Anmeldung (Auto-Login) aktivieren'),
+        ('WindowsAuthBerechtigungsgruppe', '', 'AD-Berechtigungsgruppe (SAM-Name) fuer ''AD-Benutzer anlegen''');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
@@ -1871,6 +1873,17 @@ GO
 IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeSchichtkalenderAktiv')
     INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
     VALUES ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
+GO
+
+-- v1.23.0 Windows-Auth AppSettings (idempotent, falls AppSettings-Seed bereits gelaufen)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'WindowsAuthAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('WindowsAuthAktiv', 'false', 'Windows-Anmeldung (Auto-Login) aktivieren');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'WindowsAuthBerechtigungsgruppe')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('WindowsAuthBerechtigungsgruppe', '', 'AD-Berechtigungsgruppe (SAM-Name) fuer ''AD-Benutzer anlegen''');
 GO
 
 -- =============================================

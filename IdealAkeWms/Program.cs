@@ -288,6 +288,26 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
+    // Windows-Auth / AD AppSettings
+    var windowsAuthSettings = new (string Key, string Value, string Description)[]
+    {
+        (IdealAkeWms.Models.AppSettingKeys.WindowsAuthAktiv, "false", "Windows-Anmeldung (Auto-Login) aktivieren"),
+        (IdealAkeWms.Models.AppSettingKeys.WindowsAuthBerechtigungsgruppe, "", "AD-Berechtigungsgruppe (SAM-Name) fuer 'AD-Benutzer anlegen'"),
+    };
+    foreach (var (key, value, description) in windowsAuthSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
     // BDE Settings
     var bdeSettings = new (string Key, string Value, string Description)[]
     {

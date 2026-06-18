@@ -85,7 +85,7 @@ public class UsersControllerAdUserTests
             });
 
         var userRepo = new Mock<IUserRepository>();
-        userRepo.Setup(r => r.GetActiveByWindowsUserNameAsync("sam3")).ReturnsAsync((User?)null);
+        userRepo.Setup(r => r.GetAllWithRolesAsync()).ReturnsAsync(new List<User>());
         User? added = null;
         userRepo.Setup(r => r.AddAsync(It.IsAny<User>()))
             .Callback<User>(u => { u.Id = 42; added = u; })
@@ -117,5 +117,44 @@ public class UsersControllerAdUserTests
         added.IsActive.Should().BeTrue();
         rolesUserId.Should().Be(42);
         rolesAssigned.Should().Equal(new List<int> { 7 });
+    }
+
+    [Fact]
+    public async Task CreateAdUser_Post_RejectsDuplicate_EvenWhenExistingUserInactive()
+    {
+        var ad = new Mock<IActiveDirectoryService>();
+        ad.Setup(x => x.GetAuthorizationGroupMembersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AdUserCandidate>
+            {
+                new("sam4", "Sam Four", "sam4@ake.at", true)
+            });
+
+        var userRepo = new Mock<IUserRepository>();
+        // Existing INACTIVE user with same Windows-Login (different casing) -> must be detected
+        userRepo.Setup(r => r.GetAllWithRolesAsync()).ReturnsAsync(new List<User>
+        {
+            new() { Id = 9, Name = "Old Sam", WindowsUserName = "SAM4", IsActive = false, CreatedBy = "t", CreatedByWindows = "t" }
+        });
+        User? added = null;
+        userRepo.Setup(r => r.AddAsync(It.IsAny<User>()))
+            .Callback<User>(u => { added = u; })
+            .ReturnsAsync((User u) => u);
+
+        var ctrl = BuildController(userRepo, ad);
+
+        var vm = new AdUserCreateViewModel
+        {
+            SamAccountName = "sam4",
+            DisplayName = "Sam Four",
+            SelectedRoleIds = new List<int>()
+        };
+
+        var result = await ctrl.CreateAdUser(vm);
+
+        result.Should().BeOfType<ViewResult>();
+        added.Should().BeNull();
+        ctrl.ModelState.IsValid.Should().BeFalse();
+        ctrl.ModelState.Should().ContainKey(nameof(vm.SamAccountName));
+        userRepo.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 }

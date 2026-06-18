@@ -157,8 +157,13 @@ public class UsersController : Controller
             ModelState.AddModelError(nameof(vm.SamAccountName), "Windows-Benutzer ist erforderlich.");
 
         var sam = vm.SamAccountName?.Trim() ?? "";
-        if (!string.IsNullOrEmpty(sam) && await _userRepository.GetActiveByWindowsUserNameAsync(sam) != null)
-            ModelState.AddModelError(nameof(vm.SamAccountName), "Für diesen Windows-Benutzer existiert bereits ein Datensatz.");
+        if (!string.IsNullOrEmpty(sam))
+        {
+            var allUsers = await _userRepository.GetAllWithRolesAsync();
+            if (allUsers.Any(u => u.WindowsUserName != null
+                                  && u.WindowsUserName.Equals(sam, StringComparison.OrdinalIgnoreCase)))
+                ModelState.AddModelError(nameof(vm.SamAccountName), "Für diesen Windows-Benutzer existiert bereits ein Datensatz.");
+        }
 
         if (!ModelState.IsValid)
         {
