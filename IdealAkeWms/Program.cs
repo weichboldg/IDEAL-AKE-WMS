@@ -88,6 +88,7 @@ builder.Services.AddMemoryCache();
 // Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
