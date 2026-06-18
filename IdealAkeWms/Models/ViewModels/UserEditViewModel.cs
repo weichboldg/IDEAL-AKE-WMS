@@ -12,6 +12,10 @@ public class UserEditViewModel
     [Display(Name = "Name")]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>AD-Login (SamAccountName). Nur gesetzt bei AD-Benutzern, read-only im UI.</summary>
+    [Display(Name = "Windows-Benutzer")]
+    public string? WindowsUserName { get; set; }
+
     [StringLength(50)]
     [Display(Name = "Personalnummer")]
     public string? PersonalNumber { get; set; }

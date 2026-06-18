@@ -12,6 +12,7 @@
         @if (canEdit)
         {
             <a asp-action="Create" class="btn btn-primary">Neuen Benutzer anlegen</a>
+            <a asp-action="CreateAdUser" class="btn btn-outline-primary">AD-Benutzer anlegen</a>
         }
     </div>
 </div>
@@ -26,6 +27,7 @@
         <thead>
             <tr>
                 <th data-filterable data-col-key="name">Name</th>
+                <th data-filterable data-col-key="auth-type">Typ</th>
                 <th data-filterable data-col-key="personal-number">Personalnummer</th>
                 <th data-filterable data-col-key="roles">Rollen</th>
                 <th data-filterable data-col-key="email">E-Mail</th>
@@ -39,6 +41,7 @@
             {
                 <tr>
                     <td>@user.Name</td>
+                    <td>@(user.WindowsUserName != null ? "AD" : "Lokal")</td>
                     <td>@user.PersonalNumber</td>
                     <td>
                         @foreach (var ur in user.UserRoles.OrderBy(ur => ur.Role.SortOrder))
@@ -70,7 +73,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">Keine Benutzer vorhanden.</td>
+                    <td colspan="8" class="text-center text-muted py-4">Keine Benutzer vorhanden.</td>
                 </tr>
             }
         </tbody>

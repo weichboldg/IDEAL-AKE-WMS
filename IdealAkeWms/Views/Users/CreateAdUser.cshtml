@@ -1,0 +1,49 @@
+@model IdealAkeWms.Models.ViewModels.AdUserCreateViewModel
+@{ ViewData["Title"] = "AD-Benutzer anlegen"; }
+
+<h2 class="page-header">AD-Benutzer anlegen</h2>
+
+@if (Model.AdQueryFailed)
+{
+    <div class="alert alert-warning">Keine Mitglieder gefunden oder AD nicht erreichbar.
+        Berechtigungsgruppe in den Einstellungen prüfen, oder Benutzer
+        <a asp-action="Create">manuell anlegen</a>.</div>
+}
+
+<div class="row"><div class="col-md-8"><div class="card"><div class="card-body">
+<form asp-action="CreateAdUser" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <div class="mb-3">
+        <label class="form-label">AD-Benutzer (Berechtigungsgruppe)</label>
+        <select name="SamAccountName" id="adSelect" class="form-select"
+                asp-items="@(new SelectList(Model.Candidates, nameof(IdealAkeWms.Services.AdUserCandidate.SamAccountName), nameof(IdealAkeWms.Services.AdUserCandidate.DisplayName)))">
+            <option value="">— bitte wählen —</option>
+        </select>
+        <input type="hidden" name="DisplayName" id="adDisplay" />
+        <span asp-validation-for="SamAccountName" class="text-danger"></span>
+    </div>
+    <hr /><h6 class="text-muted">Rollen</h6>
+    @for (int i = 0; i < Model.AvailableRoles.Count; i++)
+    {
+        <div class="mb-2 form-check">
+            <input type="checkbox" name="SelectedRoleIds" value="@Model.AvailableRoles[i].Id"
+                   id="role_@Model.AvailableRoles[i].Id" class="form-check-input"
+                   @(Model.AvailableRoles[i].IsSelected ? "checked" : "") />
+            <label for="role_@Model.AvailableRoles[i].Id" class="form-check-label">@Model.AvailableRoles[i].Name</label>
+        </div>
+    }
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Anlegen</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+    </div>
+</form>
+</div></div></div></div>
+
+@section Scripts {
+<script>
+  const sel = document.getElementById('adSelect');
+  sel?.addEventListener('change', () => {
+    document.getElementById('adDisplay').value = sel.options[sel.selectedIndex]?.text || '';
+  });
+</script>
+}

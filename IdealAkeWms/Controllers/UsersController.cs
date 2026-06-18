@@ -17,6 +17,7 @@ public class UsersController : Controller
     private readonly IUserViewPreferenceRepository _viewPreferenceRepository;
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
+    private readonly IActiveDirectoryService _activeDirectory;
 
     public UsersController(
         IUserRepository userRepository,
@@ -25,7 +26,8 @@ public class UsersController : Controller
         IPasswordService passwordService,
         IUserViewPreferenceRepository viewPreferenceRepository,
         IWorkStepRepository workStepRepository,
-        IProductionWorkplaceRepository productionWorkplaceRepository)
+        IProductionWorkplaceRepository productionWorkplaceRepository,
+        IActiveDirectoryService activeDirectory)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
@@ -34,6 +36,7 @@ public class UsersController : Controller
         _viewPreferenceRepository = viewPreferenceRepository;
         _workStepRepository = workStepRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
+        _activeDirectory = activeDirectory;
     }
 
     /// <summary>
@@ -44,6 +47,7 @@ public class UsersController : Controller
     private static readonly Dictionary<string, Func<User, string?>> ColumnMap = new()
     {
         ["name"] = u => u.Name,
+        ["auth-type"] = u => u.WindowsUserName != null ? "AD" : "Lokal",
         ["personal-number"] = u => u.PersonalNumber,
         ["roles"] = u => string.Join(", ", u.UserRoles.OrderBy(ur => ur.Role.SortOrder).Select(ur => ur.Role.Name)),
         ["email"] = u => u.Email,
@@ -128,6 +132,71 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    public async Task<IActionResult> CreateAdUser()
+    {
+        var members = await _activeDirectory.GetAuthorizationGroupMembersAsync();
+        var existing = (await _userRepository.GetAllWithRolesAsync())
+            .Where(u => u.WindowsUserName != null)
+            .Select(u => u.WindowsUserName!.ToLowerInvariant())
+            .ToHashSet();
+
+        var vm = new AdUserCreateViewModel
+        {
+            Candidates = members.Where(m => !existing.Contains(m.SamAccountName.ToLowerInvariant())).ToList(),
+            AdQueryFailed = members.Count == 0
+        };
+        await PopulateAdRolesAsync(vm, new List<int>());
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateAdUser(AdUserCreateViewModel vm)
+    {
+        if (string.IsNullOrWhiteSpace(vm.SamAccountName))
+            ModelState.AddModelError(nameof(vm.SamAccountName), "Windows-Benutzer ist erforderlich.");
+
+        var sam = vm.SamAccountName?.Trim() ?? "";
+        if (!string.IsNullOrEmpty(sam) && await _userRepository.GetActiveByWindowsUserNameAsync(sam) != null)
+            ModelState.AddModelError(nameof(vm.SamAccountName), "Für diesen Windows-Benutzer existiert bereits ein Datensatz.");
+
+        if (!ModelState.IsValid)
+        {
+            var members = await _activeDirectory.GetAuthorizationGroupMembersAsync();
+            vm.Candidates = members.ToList();
+            await PopulateAdRolesAsync(vm, vm.SelectedRoleIds);
+            return View(vm);
+        }
+
+        var user = new User
+        {
+            Name = string.IsNullOrWhiteSpace(vm.DisplayName) ? sam : vm.DisplayName!.Trim(),
+            WindowsUserName = sam,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = _currentUserService.GetDisplayName(),
+            CreatedByWindows = _currentUserService.GetWindowsUserName()
+        };
+        await _userRepository.AddAsync(user);
+        await _roleRepository.SetUserRolesAsync(user.Id, vm.SelectedRoleIds,
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+
+        TempData["SuccessMessage"] = $"AD-Benutzer '{user.Name}' wurde angelegt.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task PopulateAdRolesAsync(AdUserCreateViewModel vm, List<int> selectedIds)
+    {
+        var roles = await _roleRepository.GetAllOrderedAsync();
+        vm.AvailableRoles = roles.Select(r => new RoleCheckboxItem
+        {
+            Id = r.Id,
+            Name = r.Name,
+            Key = r.Key,
+            IsSelected = selectedIds.Contains(r.Id)
+        }).ToList();
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var user = await _userRepository.GetByIdAsync(id);
@@ -145,6 +214,7 @@ public class UsersController : Controller
         {
             Id = user.Id,
             Name = user.Name,
+            WindowsUserName = user.WindowsUserName,
             PersonalNumber = user.PersonalNumber,
             IsActive = user.IsActive,
             Email = user.Email,
