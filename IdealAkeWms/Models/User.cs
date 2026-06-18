@@ -19,6 +19,10 @@ public class User : AuditableEntity
     [StringLength(500)]
     public string? PasswordHash { get; set; }
 
+    [StringLength(200)]
+    [Display(Name = "Windows-Benutzer")]
+    public string? WindowsUserName { get; set; }
+
     [Display(Name = "Stammdaten-Zugriff")]
     public bool HasMasterDataAccess { get; set; }
 

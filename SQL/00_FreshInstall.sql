@@ -26,6 +26,7 @@ BEGIN
         [Name]                      NVARCHAR(200)     NOT NULL,
         [PersonalNumber]            NVARCHAR(50)      NULL,
         [PasswordHash]              NVARCHAR(500)     NULL,
+        [WindowsUserName]           NVARCHAR(200)     NULL,
         [IsActive]                  BIT               NOT NULL DEFAULT 1,
         [DefaultFilterBeschaffung]  NVARCHAR(100)     NULL,
         [DefaultFilterArtikelgruppe] NVARCHAR(100)    NULL,
@@ -377,6 +378,18 @@ BEGIN
         ADD CONSTRAINT [FK_Users_ProductionWorkplaces_DefaultWorkplaceId]
         FOREIGN KEY ([DefaultWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL;
     PRINT 'FK FK_Users_ProductionWorkplaces_DefaultWorkplaceId erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c4. Windows-Auth (v1.23.0): Users.WindowsUserName gefilterter Unique-Index (Migration 73)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_Users_WindowsUserName' AND object_id = OBJECT_ID('dbo.Users'))
+BEGIN
+    CREATE UNIQUE INDEX [UQ_Users_WindowsUserName]
+        ON [dbo].[Users] ([WindowsUserName])
+        WHERE [WindowsUserName] IS NOT NULL;
+    PRINT 'Index UQ_Users_WindowsUserName erstellt.';
 END
 GO
 
@@ -804,7 +817,6 @@ BEGIN
         [Key]               NVARCHAR(50)      NOT NULL,
         [Name]              NVARCHAR(100)     NOT NULL,
         [Description]       NVARCHAR(500)     NULL,
-        [AdGroup]           NVARCHAR(200)     NULL,
         [IsSystem]          BIT               NOT NULL DEFAULT 0,
         [SortOrder]         INT               NOT NULL DEFAULT 0,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
@@ -1297,18 +1309,18 @@ GO
 -- Standard-Rollen
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'admin')
 BEGIN
-    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows]) VALUES
-        ('admin',         'Administrator',      'Vollzugriff auf alle Funktionen',                                          NULL, 1, 0, GETDATE(), 'system', 'system'),
-        ('masterdata',    'Stammdaten',          'Zugriff auf Stammdatenverwaltung (Benutzer, Arbeitsplaetze, Einstellungen)', 'BDE_Stammdaten', 1, 1, GETDATE(), 'system', 'system'),
-        ('picking',       'Kommissionierung',    'Kommissionierung, Lagerbewegungen, Bestaende',                             NULL, 1, 2, GETDATE(), 'system', 'system'),
-        ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   NULL, 1, 3, GETDATE(), 'system', 'system'),
-        ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     NULL, 1, 4, GETDATE(), 'system', 'system'),
-        ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             NULL, 1, 5, GETDATE(), 'system', 'system'),
-        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                NULL, 1, 6, GETDATE(), 'system', 'system'),
-        ('leitstand',    'Leitstand',           'Produktionsauftraege freigeben und priorisieren',                              NULL, 1, 7, GETDATE(), 'system', 'system'),
-        ('bde_user',      'BDE-Mitarbeiter',     'Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln, Mengen melden',  NULL, 1, 100, GETDATE(), 'system', 'system'),
-        ('bde_shiftlead', 'BDE-Schichtleiter',   'BDE-Anwender + Aktivitaets-Kategorien pflegen, Buchungsliste + Cockpit',   NULL, 1, 101, GETDATE(), 'system', 'system'),
-        ('bde_admin',     'BDE-Admin',           'Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren', NULL, 1, 102, GETDATE(), 'system', 'system');
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows]) VALUES
+        ('admin',         'Administrator',      'Vollzugriff auf alle Funktionen',                                          1, 0, GETDATE(), 'system', 'system'),
+        ('masterdata',    'Stammdaten',          'Zugriff auf Stammdatenverwaltung (Benutzer, Arbeitsplaetze, Einstellungen)', 1, 1, GETDATE(), 'system', 'system'),
+        ('picking',       'Kommissionierung',    'Kommissionierung, Lagerbewegungen, Bestaende',                             1, 2, GETDATE(), 'system', 'system'),
+        ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   1, 3, GETDATE(), 'system', 'system'),
+        ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     1, 4, GETDATE(), 'system', 'system'),
+        ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             1, 5, GETDATE(), 'system', 'system'),
+        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                1, 6, GETDATE(), 'system', 'system'),
+        ('leitstand',    'Leitstand',           'Produktionsauftraege freigeben und priorisieren',                              1, 7, GETDATE(), 'system', 'system'),
+        ('bde_user',      'BDE-Mitarbeiter',     'Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln, Mengen melden',  1, 100, GETDATE(), 'system', 'system'),
+        ('bde_shiftlead', 'BDE-Schichtleiter',   'BDE-Anwender + Aktivitaets-Kategorien pflegen, Buchungsliste + Cockpit',   1, 101, GETDATE(), 'system', 'system'),
+        ('bde_admin',     'BDE-Admin',           'Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren', 1, 102, GETDATE(), 'system', 'system');
     PRINT 'Standard-Rollen eingefuegt.';
 END
 GO
@@ -1316,11 +1328,11 @@ GO
 -- Rolle 'masterdata_read' (Nur-Lesen-Zugriff auf Stammdaten, v1.20.0)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'masterdata_read')
 BEGIN
-    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
                                [CreatedAt], [CreatedBy], [CreatedByWindows])
     VALUES ('masterdata_read', 'Stammdaten ansehen',
             'Nur-Lesen-Zugriff auf alle Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).',
-            NULL, 1, 5,
+            1, 5,
             GETDATE(), 'system', 'system');
     PRINT 'Rolle masterdata_read eingefuegt.';
 END
@@ -1329,9 +1341,9 @@ GO
 -- Rolle 'vorbau' (FA-Abarbeitungsliste, v1.22.0)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'vorbau')
 BEGIN
-    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
                                [CreatedAt], [CreatedBy], [CreatedByWindows])
-    VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen und abhaken', NULL, 1,
+    VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen und abhaken', 1,
             (SELECT MAX([SortOrder]) + 1 FROM [dbo].[Roles]), GETDATE(), 'system', 'system');
     PRINT 'Rolle vorbau eingefuegt.';
 END
@@ -2014,6 +2026,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616071945_AddFaAttributeTextValue')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616071945_AddFaAttributeTextValue', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260618070606_AddWindowsUserNameDropAdGroup')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260618070606_AddWindowsUserNameDropAdGroup', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

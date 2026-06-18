@@ -74,6 +74,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
             entity.Property(e => e.PersonalNumber).HasMaxLength(50);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
+            entity.Property(e => e.WindowsUserName).HasMaxLength(200);
+            entity.HasIndex(e => e.WindowsUserName)
+                .IsUnique()
+                .HasFilter("[WindowsUserName] IS NOT NULL")
+                .HasDatabaseName("UQ_Users_WindowsUserName");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
