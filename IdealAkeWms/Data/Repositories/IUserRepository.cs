@@ -8,4 +8,5 @@ public interface IUserRepository : IRepository<User>
     Task<List<User>> GetActivePickersAsync();
     Task<List<User>> GetAllWithRolesAsync();
     Task<User?> GetByNameAsync(string name);
+    Task<User?> GetActiveByWindowsUserNameAsync(string samAccountName);
 }
