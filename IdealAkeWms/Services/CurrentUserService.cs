@@ -90,6 +90,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanAccessStockAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking);
 
+    public async Task<bool> CanAccessLagerbestellungAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Lagerbestellung);
+
     public async Task<bool> CanProcessLagerAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser);
 

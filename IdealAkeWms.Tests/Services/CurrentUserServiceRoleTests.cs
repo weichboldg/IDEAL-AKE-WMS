@@ -174,4 +174,41 @@ public class CurrentUserServiceRoleTests
 
         roleRepoMock.Verify(r => r.GetRoleKeysByUserIdAsync(It.IsAny<int>()), Times.Once);
     }
+
+    [Fact]
+    public async Task CanAccessLagerbestellungAsync_WithLagerbestellungRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Lagerbestellung });
+
+        (await service.CanAccessLagerbestellungAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessLagerbestellungAsync_WithAdminRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Admin });
+
+        (await service.CanAccessLagerbestellungAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessLagerbestellungAsync_WithUnrelatedRole_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Stock });
+
+        (await service.CanAccessLagerbestellungAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task LagerbestellungRole_DoesNotGrantPickingOrStock()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Lagerbestellung });
+
+        (await service.CanPickAsync()).Should().BeFalse();
+        (await service.CanAccessStockAsync()).Should().BeFalse();
+    }
 }
