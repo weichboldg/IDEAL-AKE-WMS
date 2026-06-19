@@ -1351,6 +1351,19 @@ BEGIN
 END
 GO
 
+-- Rolle 'lagerbestellung' (nur Lagerbestellungen + eigene Fehlteile, v1.23.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'lagerbestellung')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('lagerbestellung', 'Lagerbestellungen',
+            'Lagerbestellungen erfassen und eigene Fehlteile verfolgen (Zugriff nur auf Meine Lagerbestellungen + Meine Fehlteile).',
+            1, 8,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle lagerbestellung eingefuegt.';
+END
+GO
+
 -- Standard-Arbeitsgang-Konfigurationen (OSEON)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[OseonOperationConfigs])
 BEGIN
@@ -2042,6 +2055,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260618070606_AddWindowsUserNameDropAdGroup')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260618070606_AddWindowsUserNameDropAdGroup', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260619063919_AddLagerbestellungRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260619063919_AddLagerbestellungRole', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
