@@ -4793,5 +4793,40 @@ wo keine IIS-Windows-Auth verfuegbar ist.)
 
 ---
 
+## Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0)
+
+**Vorbedingung:** `BestellungenAktiv=true`. Ein Benutzer `lb-test` mit NUR der Rolle
+`lagerbestellung`. Ein Benutzer `md-test` mit NUR der Rolle `masterdata_read`.
+
+### TS-41.1 — Lagerbestellung-User: erlaubte Sichten
+1. Als `lb-test` einloggen.
+2. Menü „Bestellungen" öffnen.
+   - **Erwartet:** Einträge „Lagerbestellungen" + „Meine Fehlteile" sichtbar.
+   - **Erwartet:** „Bedarfsmeldungen" NICHT sichtbar; „Lager: …" NICHT sichtbar.
+3. „Lagerbestellungen" öffnen → Liste lädt (kein AccessDenied).
+4. „Meine Fehlteile" öffnen → Liste lädt (kein AccessDenied).
+
+### TS-41.2 — Lagerbestellung-User: verweigerte Sichten (Negativ)
+1. Als `lb-test` direkt `/PartRequisitions`, `/StockOverview`, `/StockMovements`,
+   `/MissingPartsLager` aufrufen.
+   - **Erwartet:** jeweils Redirect auf `/Account/AccessDenied`.
+
+### TS-41.3 — Regression picking/stock
+1. Als picking-User und als stock-User je „Lagerbestellungen" + „Meine Fehlteile" öffnen.
+   - **Erwartet:** unverändert erreichbar; „Bedarfsmeldungen" weiterhin sichtbar.
+
+### TS-41.4 — Artikelinfo-Kachel für masterdata_read
+1. Als `md-test` das Dashboard öffnen.
+   - **Erwartet:** Sektion „Artikel" mit der Artikelinfo-Kachel sichtbar.
+   - **Erwartet:** KEINE Lager-/Kommissionier-Kacheln.
+2. Artikelinfo-Kachel klicken → `Articles/Info` öffnet (kein AccessDenied).
+
+### TS-41.5 — Regression picking-Dashboard
+1. Als picking-User das Dashboard öffnen.
+   - **Erwartet:** Artikelinfo-Kachel weiterhin in der Kommissionier-Sektion
+     (nicht doppelt, nicht fehlend).
+
+---
+
 *Ende des Dokuments. Stand: v1.23.0 (2026-06-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

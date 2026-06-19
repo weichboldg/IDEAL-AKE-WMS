@@ -56,6 +56,15 @@ Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.
 - **Doku**: Changelog v1.23.0, Hilfeseite (Abschnitt „Windows-Anmeldung &
   AD-Benutzer"), CLAUDE.md (Dual-Auth/Session/AppSettings/Fallstrick/Rollenkonzept),
   TESTSZENARIEN Kapitel 40, RoleOverview (AdGroup-Spalte raus).
+- **Rolle `lagerbestellung` + Artikelinfo-Kachel** (Folge-Erweiterung): neue, eng
+  abgegrenzte Rolle (nur `/WarehouseRequisitions` + `/MissingParts`) ueber zwei
+  additive Composite-Filter (`RequirePickingOrStockOrLagerbestellungAccess`,
+  `RequireStockOrLagerbestellungAccess`; geteilte Filter unveraendert),
+  **Migration 74** `20260619063919_AddLagerbestellungRole` (+ `SQL/74` +
+  FreshInstall). Zusaetzlich: Artikelinfo-Dashboard-Kachel (`Articles/Info`) jetzt
+  auch fuer `masterdata_read` sichtbar (Partial `_ArtikelinfoTile.cshtml`,
+  `ViewBag.HasMasterDataReadAccess`). Doku: Changelog v1.23.0, CLAUDE.md
+  (Zugriffsschutz/Rollenkonzept/Fallstrick), RoleOverview, TESTSZENARIEN Kapitel 41.
 
 ---
 
