@@ -31,6 +31,7 @@
                             var canAccessStock = await CurrentUserService.CanAccessStockAsync();
                             var canProcessLager = await CurrentUserService.CanProcessLagerAsync();
                             var canPick = await CurrentUserService.CanPickAsync();
+                            var canAccessLagerbestellung = await CurrentUserService.CanAccessLagerbestellungAsync();
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -120,14 +121,17 @@
                                 </a>
                             </li>
                         }
-                        @if (bestellungenAktiv && (canPick || canAccessStock))
+                        @if (bestellungenAktiv && (canPick || canAccessStock || canAccessLagerbestellung))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "PartRequisitions" or "WarehouseRequisitions" or "WarehousePicking") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Bestellungen
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
+                                    @if (canPick || canAccessStock)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
+                                    }
                                     <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
                                     @if (canProcessLager)
