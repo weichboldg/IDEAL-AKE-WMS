@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
-[RequirePickingOrStockAccess]
+[RequirePickingOrStockOrLagerbestellungAccess]
 public class WarehouseRequisitionsController : Controller
 {
     private readonly IWarehouseRequisitionRepository _repo;

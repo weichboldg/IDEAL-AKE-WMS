@@ -8,7 +8,7 @@ namespace IdealAkeWms.Controllers.Api;
 
 [ApiController]
 [Route("api/warehouserequisitions")]
-[RequirePickingOrStockAccess]
+[RequirePickingOrStockOrLagerbestellungAccess]
 public class WarehouseRequisitionsApiController : ControllerBase
 {
     private readonly IWarehouseRequisitionRepository _repo;
