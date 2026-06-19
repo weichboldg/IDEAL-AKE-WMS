@@ -6,6 +6,7 @@
     bool teileverfolgungAktiv = ViewBag.TeileverfolgungAktiv ?? false;
     bool leitstandAktiv = ViewBag.LeitstandAktiv ?? false;
     bool hasMasterDataAccess = ViewBag.HasMasterDataAccess ?? false;
+    bool hasMasterDataReadAccess = ViewBag.HasMasterDataReadAccess ?? false;
     bool bdeAktiv = ViewBag.BdeAktiv ?? false;
     bool canUseBde = ViewBag.CanUseBde ?? false;
     bool canManageBdeShiftlead = ViewBag.CanManageBdeShiftlead ?? false;
@@ -99,22 +100,15 @@
                 </div>
             </a>
         </div>
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="Articles" asp-action="Info" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-secondary);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Artikelinfo</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-secondary); font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
-                                <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">QR-Code scannen → Details &amp; Bestand</small>
-                    </div>
-                </div>
-            </a>
-        </div>
+        @await Html.PartialAsync("_ArtikelinfoTile")
+    </div>
+}
+
+@if (!canPick && hasMasterDataReadAccess)
+{
+    <h6 class="text-muted mb-2 mt-2">Artikel</h6>
+    <div class="row g-4 mb-4">
+        @await Html.PartialAsync("_ArtikelinfoTile")
     </div>
 }
 
