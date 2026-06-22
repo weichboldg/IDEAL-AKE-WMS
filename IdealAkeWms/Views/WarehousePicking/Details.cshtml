@@ -44,7 +44,7 @@
     @Html.AntiForgeryToken()
     <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
     <div class="table-responsive">
-    <table class="table table-sm filterable-table">
+    <table class="table table-sm filterable-table" data-view-key="WarehousePickingDetails" data-fallback-sort-column="pos" data-fallback-sort-direction="asc">
         <thead>
             <tr>
                 <th data-col-key="pos" data-filterable>Pos</th>
@@ -192,7 +192,26 @@
     </div>
 </div>
 
+<script type="application/json" id="view-config">
+{ "viewKey": "WarehousePickingDetails", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "pos", "label": "Pos", "locked": true, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikel-Nr", "locked": true, "defaultWidth": null },
+    { "key": "description", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "requested", "label": "Bestellt", "locked": false, "defaultWidth": null },
+    { "key": "picked", "label": "Ist", "locked": false, "defaultWidth": null },
+    { "key": "unit", "label": "ME", "locked": false, "defaultWidth": null },
+    { "key": "storage", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "note-lager", "label": "Notiz Lager", "locked": false, "defaultWidth": null },
+    { "key": "note-ek", "label": "Notiz EK", "locked": false, "defaultWidth": null },
+    { "key": "shortage", "label": "Fehlteil-Status", "locked": false, "defaultWidth": null }
+]
+</script>
+
 @section Scripts {
+<script src="~/js/column-preferences.js" asp-append-version="true"></script>
 <script src="~/js/table-filter.js" asp-append-version="true"></script>
 <script>
 (function () {
@@ -294,14 +313,36 @@
         } catch { /* bleibt dirty */ }
     }
 
+    function buildPrintUrl() {
+        const base = printBtn.getAttribute('href');
+        const params = new URLSearchParams();
+        // Live-Sortierung: aktuell sortierter Spaltenkopf
+        const sortedTh = document.querySelector('table.filterable-table th[data-sort-dir]');
+        if (sortedTh) {
+            const k = sortedTh.getAttribute('data-col-key');
+            const d = sortedTh.getAttribute('data-sort-dir');
+            if (k && d) { params.set('sortCol', k); params.set('sortDir', d); }
+        }
+        // Live-Filter: window.getActiveFilters() aus table-filter.js ({ colKey: value })
+        if (typeof window.getActiveFilters === 'function') {
+            const filters = window.getActiveFilters();
+            Object.keys(filters).forEach(k => params.set('colf_' + k, filters[k]));
+        }
+        const qs = params.toString();
+        return qs ? (base + (base.indexOf('?') >= 0 ? '&' : '?') + qs) : base;
+    }
+
     if (printBtn) {
         printBtn.addEventListener('click', async (e) => {
-            if (!dirty) return;
             e.preventDefault();
-            const href = printBtn.getAttribute('href');
-            const win = window.open('about:blank', '_blank');
-            await saveProgress();
-            if (win) win.location = href; else window.location = href;
+            const url = buildPrintUrl();
+            if (dirty) {
+                const win = window.open('about:blank', '_blank');
+                await saveProgress();
+                if (win) win.location = url; else window.location = url;
+            } else {
+                window.open(url, '_blank');
+            }
         });
     }
 
