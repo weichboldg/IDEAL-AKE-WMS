@@ -16,7 +16,8 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class WarehousePickingControllerTests
 {
-    private static (WarehousePickingController ctrl, ApplicationDbContext ctx, int userId) Setup()
+    private static (WarehousePickingController ctrl, ApplicationDbContext ctx, int userId,
+        Mock<IUserViewPreferenceRepository> viewPrefs) Setup()
     {
         var ctx = TestDbContextFactory.Create();
         var u = new User { Name = "stocker", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
@@ -33,17 +34,21 @@ public class WarehousePickingControllerTests
         stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
              .ReturnsAsync(new List<StockOverviewItem>());
 
-        var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object);
+        var viewPrefs = new Mock<IUserViewPreferenceRepository>();
+        viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
+                 .ReturnsAsync((UserViewPreference?)null); // Default: keine Prefs
+
+        var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object, viewPrefs.Object);
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
-        return (ctrl, ctx, u.Id);
+        return (ctrl, ctx, u.Id, viewPrefs);
     }
 
     [Fact]
     public async Task Index_ShowsOnlyNonDraft()
     {
-        var (ctrl, ctx, userId) = Setup();
+        var (ctrl, ctx, userId, _) = Setup();
         var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         ctx.ProductionWorkplaces.Add(wp); ctx.SaveChanges();
 
@@ -62,7 +67,7 @@ public class WarehousePickingControllerTests
     [Fact]
     public async Task Close_WritesItemQuantitiesPickedAndSetsStatus()
     {
-        var (ctrl, ctx, userId) = Setup();
+        var (ctrl, ctx, userId, _) = Setup();
         var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         ctx.ProductionWorkplaces.Add(wp); ctx.SaveChanges();
         var r = new WarehouseRequisition
@@ -118,7 +123,11 @@ public class WarehousePickingControllerTests
         stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
              .ReturnsAsync(new List<StockOverviewItem>());
 
-        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object);
+        var viewPrefs = new Mock<IUserViewPreferenceRepository>();
+        viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
+                 .ReturnsAsync((UserViewPreference?)null);
+
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object);
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
@@ -155,7 +164,11 @@ public class WarehousePickingControllerTests
         stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
              .ReturnsAsync(new List<StockOverviewItem>());
 
-        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object);
+        var viewPrefs = new Mock<IUserViewPreferenceRepository>();
+        viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
+                 .ReturnsAsync((UserViewPreference?)null);
+
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object);
         var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         ctrl.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
         {
@@ -412,7 +425,7 @@ public class WarehousePickingControllerTests
     [Fact]
     public async Task Index_ColumnFilter_FiltersAcrossAllRows()
     {
-        var (ctrl, ctx, _) = Setup();
+        var (ctrl, ctx, _, _) = Setup();
         var wpA = new ProductionWorkplace { Name = "WB-A1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         var wpB = new ProductionWorkplace { Name = "WB-B2", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
         var wpC = new ProductionWorkplace { Name = "WB-C3", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
@@ -434,5 +447,82 @@ public class WarehousePickingControllerTests
         vm!.Items.Should().HaveCount(1);
         vm.Items[0].WorkplaceName.Should().Be("WB-A1");
         vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    private static WarehouseRequisition SeedOrderWithItems(ApplicationDbContext ctx)
+    {
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp); ctx.SaveChanges();
+
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id, Status = WarehouseRequisitionStatus.Submitted,
+            SubmittedAt = DateTime.Now, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x",
+            Items = new List<WarehouseRequisitionItem>
+            {
+                new() { Position = 1, ArticleNumber = "ART-A", ArticleDescription = "Alpha", Unit = "Stk", QuantityRequested = 1, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+                new() { Position = 2, ArticleNumber = "ART-B", ArticleDescription = "Beta",  Unit = "Stk", QuantityRequested = 1, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+                new() { Position = 3, ArticleNumber = "ART-C", ArticleDescription = "Gamma", Unit = "Stk", QuantityRequested = 1, CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x" },
+            }
+        };
+        ctx.WarehouseRequisitions.Add(r); ctx.SaveChanges();
+        return r;
+    }
+
+    [Fact]
+    public async Task Print_NoPrefs_AllColumns_PositionOrder()
+    {
+        var (ctrl, ctx, _, _) = Setup();
+        var r = SeedOrderWithItems(ctx);
+
+        var result = await ctrl.Print(r.Id, sortCol: null, sortDir: null) as ViewResult;
+        var vm = result!.Model as WarehouseRequisitionPrintViewModel;
+
+        vm!.Columns.Select(c => c.Key).Should().Equal(
+            "pos", "article-number", "description", "requested", "picked",
+            "unit", "storage", "note-lager", "note-ek", "shortage");
+        vm.Items.Select(i => i.Position).Should().Equal(1, 2, 3);
+    }
+
+    [Fact]
+    public async Task Print_SortParam_SortsItems()
+    {
+        var (ctrl, ctx, _, _) = Setup();
+        var r = SeedOrderWithItems(ctx);
+
+        var result = await ctrl.Print(r.Id, sortCol: "article-number", sortDir: "desc") as ViewResult;
+        var vm = result!.Model as WarehouseRequisitionPrintViewModel;
+
+        vm!.Items.Select(i => i.ArticleNumber).Should().Equal("ART-C", "ART-B", "ART-A");
+    }
+
+    [Fact]
+    public async Task Print_WithPrefs_AppliesVisibilityAndOrder()
+    {
+        var (ctrl, ctx, userId, viewPrefs) = Setup();
+        var r = SeedOrderWithItems(ctx);
+
+        var json = """
+        {"columns":[
+          {"key":"pos","visible":true,"order":0},
+          {"key":"article-number","visible":true,"order":1},
+          {"key":"description","visible":true,"order":2},
+          {"key":"requested","visible":true,"order":3},
+          {"key":"picked","visible":true,"order":4},
+          {"key":"unit","visible":true,"order":5},
+          {"key":"storage","visible":true,"order":6},
+          {"key":"note-lager","visible":true,"order":7},
+          {"key":"note-ek","visible":false,"order":8},
+          {"key":"shortage","visible":true,"order":9}
+        ],"defaultSortColumn":null,"defaultSortDirection":"asc"}
+        """;
+        viewPrefs.Setup(p => p.GetByUserAndViewAsync(userId, "WarehousePickingDetails"))
+                 .ReturnsAsync(new UserViewPreference { UserId = userId, ViewKey = "WarehousePickingDetails", SettingsJson = json });
+
+        var result = await ctrl.Print(r.Id, sortCol: null, sortDir: null) as ViewResult;
+        var vm = result!.Model as WarehouseRequisitionPrintViewModel;
+
+        vm!.Columns.Select(c => c.Key).Should().NotContain("note-ek");
+        vm.Columns.Select(c => c.Key).Should().Contain("pos");
     }
 }

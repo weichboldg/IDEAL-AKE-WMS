@@ -14,17 +14,20 @@ public class WarehousePickingController : Controller
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IStockMovementRepository _stock;
     private readonly ICurrentUserService _user;
+    private readonly IUserViewPreferenceRepository _viewPrefs;
 
     public WarehousePickingController(
         IWarehouseRequisitionRepository repo,
         IProductionWorkplaceRepository workplaces,
         IStockMovementRepository stock,
-        ICurrentUserService user)
+        ICurrentUserService user,
+        IUserViewPreferenceRepository viewPrefs)
     {
         _repo = repo;
         _workplaces = workplaces;
         _stock = stock;
         _user = user;
+        _viewPrefs = viewPrefs;
     }
 
     /// <summary>
@@ -310,7 +313,7 @@ public class WarehousePickingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Print(int id)
+    public async Task<IActionResult> Print(int id, string? sortCol = null, string? sortDir = null)
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null || r.Status == WarehouseRequisitionStatus.Draft) return NotFound();
@@ -325,14 +328,32 @@ public class WarehousePickingController : Controller
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus, i.NoteEinkauf));
         }
-        var vm = new WarehouseRequisitionDetailViewModel
+
+        // Spalten-Preferences (Sichtbarkeit/Reihenfolge + konfigurierter Default-Sort) des Users lesen.
+        WarehousePickingPrintLayout.PrintPrefs? prefs = null;
+        var userId = _user.GetCurrentAppUserId();
+        if (userId.HasValue)
+        {
+            var pref = await _viewPrefs.GetByUserAndViewAsync(userId.Value, "WarehousePickingDetails");
+            prefs = WarehousePickingPrintLayout.ParsePrefs(pref?.SettingsJson);
+        }
+
+        // Filter (live aus ?colf_*) -> Sortierung (live ?sortCol/sortDir, sonst Default-Sort) -> sichtbare Spalten.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, WarehousePickingPrintLayout.ColumnMap);
+        var sorted = WarehousePickingPrintLayout.SortItems(
+            filtered, sortCol, sortDir, prefs?.DefaultSortColumn, prefs?.DefaultSortDirection);
+        var columns = WarehousePickingPrintLayout.ResolveColumns(prefs);
+
+        var vm = new WarehouseRequisitionPrintViewModel
         {
             Id = r.Id,
             WorkplaceName = r.ProductionWorkplace?.Name ?? "",
             CreatedBy = r.CreatedBy,
             SubmittedAt = r.SubmittedAt,
             Status = r.Status,
-            Items = detailItems
+            Columns = columns,
+            Items = sorted
         };
         return View(vm);
     }
