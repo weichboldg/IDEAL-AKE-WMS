@@ -1,5 +1,6 @@
-@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
+@model IdealAkeWms.Models.ViewModels.WarehouseRequisitionPrintViewModel
 @using IdealAkeWms.Models
+@using IdealAkeWms.Services
 @{
     Layout = null;
 }
@@ -42,33 +43,21 @@
     </div>
     <table>
         <thead>
-            <tr><th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Bestellt</th><th>Ist</th><th>ME</th><th>Lagerplatz</th><th>Notiz Lager</th><th>Notiz EK</th><th>Fehlteil</th></tr>
+            <tr>
+                @foreach (var col in Model.Columns)
+                {
+                    <th>@col.Label</th>
+                }
+            </tr>
         </thead>
         <tbody>
         @foreach (var i in Model.Items)
         {
-            var requestedInt = (int)Math.Round(i.QuantityRequested, MidpointRounding.AwayFromZero);
-            var pickedInt = i.QuantityPicked.HasValue
-                ? (int?)Math.Round(i.QuantityPicked.Value, MidpointRounding.AwayFromZero)
-                : null;
             <tr>
-                <td>@i.Position</td>
-                <td>@i.ArticleNumber</td>
-                <td>@i.ArticleDescription</td>
-                <td>@requestedInt</td>
-                <td>@(pickedInt?.ToString() ?? "")</td>
-                <td>@i.Unit</td>
-                <td>@i.StorageLocations</td>
-                <td>@i.Note</td>
-                <td>@i.NoteEinkauf</td>
-                <td>
-                    @switch (i.ShortageStatus)
-                    {
-                        case ShortageStatus.WillBeRestocked: <text>Fehlteil</text> break;
-                        case ShortageStatus.NoRestock: <text>Wird nicht nachgeliefert</text> break;
-                        default: <text></text> break;
-                    }
-                </td>
+                @foreach (var col in Model.Columns)
+                {
+                    <td>@WarehousePickingPrintLayout.CellText(i, col.Key)</td>
+                }
             </tr>
         }
         </tbody>
