@@ -4828,5 +4828,41 @@ wo keine IIS-Windows-Auth verfuegbar ist.)
 
 ---
 
+## Kapitel 42: Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) (v1.23.0)
+
+**Vorbedingung:** `BestellungenAktiv=true`. Eine Lagerbestellung mit mehreren Positionen
+(Status Abgeschickt/Teilgeliefert). Angemeldet als Lager-/Picking-/Admin-User.
+
+### TS-42.1 Spalten ein-/ausblenden + Reihenfolge
+1. `WarehousePicking/Details/<id>` öffnen. Zahnrad-Menü (rechts in der Tabelle) erscheint.
+2. Spalte „Notiz EK" ausblenden, „Lagerplatz" nach vorne ziehen. Seite neu laden.
+   - **Erwartet:** Einstellung bleibt erhalten (persistent pro User).
+3. „Drucken" klicken.
+   - **Erwartet:** Druckseite zeigt „Notiz EK" NICHT, „Lagerplatz" an der verschobenen Position;
+     „Pos" + „Artikel-Nr" sind immer vorhanden (nicht ausblendbar).
+
+### TS-42.2 Sortierung übernehmen
+1. In Details auf den Spaltenkopf „Lagerplatz" klicken (absteigend sortieren).
+2. „Drucken".
+   - **Erwartet:** Druck-Zeilen in derselben Reihenfolge wie der Bildschirm (Lagerplatz absteigend).
+3. Numerische Spalte testen: nach „Bestellt" sortieren (z. B. 2, 9, 10).
+   - **Erwartet:** numerische Reihenfolge (2, 9, 10) — NICHT lexikalisch (10, 2, 9).
+
+### TS-42.3 Filter übernehmen
+1. In Details einen Spaltenfilter setzen (z. B. „Artikel-Nr" enthält einen Teilstring).
+2. „Drucken".
+   - **Erwartet:** Druck zeigt nur die gefilterten (sichtbaren) Zeilen.
+
+### TS-42.4 Default-Zustand (Regression)
+1. Neuer User ohne Spalten-Einstellungen, kein Klick-Sort, kein Filter → „Drucken".
+   - **Erwartet:** alle 10 Spalten in Standard-Reihenfolge, sortiert nach Position — wie bisher.
+
+### TS-42.5 Mengen/Notizen-Speichern (Regression)
+1. In Details Menge/Notiz ändern, dann „Drucken".
+   - **Erwartet:** Änderung wird vor dem Druck gespeichert (Autosave), Druck zeigt den neuen Stand;
+     Spalten-Reorder hat das Speichern nicht beschädigt.
+
+---
+
 *Ende des Dokuments. Stand: v1.23.0 (2026-06-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

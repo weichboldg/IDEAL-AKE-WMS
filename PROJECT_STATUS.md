@@ -65,6 +65,11 @@ Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.
   auch fuer `masterdata_read` sichtbar (Partial `_ArtikelinfoTile.cshtml`,
   `ViewBag.HasMasterDataReadAccess`). Doku: Changelog v1.23.0, CLAUDE.md
   (Zugriffsschutz/Rollenkonzept/Fallstrick), RoleOverview, TESTSZENARIEN Kapitel 41.
+- **Lagerbestellungs-Druck spiegelt GUI** (Folge-Erweiterung): `WarehousePicking/Print`
+  übernimmt Spalten-Sichtbarkeit/-Reihenfolge (neues Zahnrad-Prefs-Muster, view-key
+  `WarehousePickingDetails`) + Live-Sortierung + Live-Filter. Reine Layout-Logik in
+  `WarehousePickingPrintLayout` (GUI-gleicher Vergleich, repliziert `table-filter.js`).
+  Kein Migrations-Eingriff. TESTSZENARIEN Kapitel 42.
 
 ---
 
