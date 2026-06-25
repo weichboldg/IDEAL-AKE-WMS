@@ -60,10 +60,10 @@ public class FaWorklistController : Controller
         _currentUser = currentUser;
     }
 
-    // GET /FaWorklist?workStepId=...&workplaceId=...
+    // GET /FaWorklist?workStepId=...&workbenches=...
     public async Task<IActionResult> Index(
         int? workStepId,
-        int? workplaceId = null,
+        string? workbenches = null,
         bool showDone = false,
         int page = 1,
         int? pageSize = null)
@@ -85,10 +85,15 @@ public class FaWorklistController : Controller
         var availableWorkSteps = await _workStepRepository.GetActiveAsync();
         var availableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
 
-        // Schritt 2: Defaults aus dem aktuellen User (User.DefaultWorkStepId / DefaultWorkplaceId),
-        // falls kein expliziter ?workStepId bzw. ?workplaceId mitkommt. Beide aus demselben
-        // User-Objekt (einmal laden).
-        if (workStepId == null || workplaceId == null)
+        // Schritt 2: Defaults aus dem aktuellen User. WorkStep-Default greift wenn ?workStepId fehlt.
+        // Werkbank-Filter: explizit, wenn der Query-Param "workbenches" vorhanden ist (auch leer =
+        // "alle"); sonst User.DefaultWorkbenches. (Param-Wert kann durch leeres GET-Feld null sein,
+        // daher zusaetzlich Query.ContainsKey pruefen.)
+        bool workbenchesProvided = workbenches != null
+            || (HttpContext?.Request?.Query.ContainsKey("workbenches") ?? false);
+        string? effectiveWorkbenches = workbenchesProvided ? (workbenches ?? string.Empty) : null;
+
+        if (workStepId == null || !workbenchesProvided)
         {
             var appUserId = _currentUser.GetCurrentAppUserId();
             if (appUserId.HasValue)
@@ -98,9 +103,9 @@ public class FaWorklistController : Controller
                 {
                     workStepId = user?.DefaultWorkStepId;
                 }
-                if (workplaceId == null)
+                if (!workbenchesProvided)
                 {
-                    workplaceId = user?.DefaultWorkplaceId;
+                    effectiveWorkbenches = user?.DefaultWorkbenches;
                 }
             }
         }
@@ -108,7 +113,7 @@ public class FaWorklistController : Controller
         var vm = new FaWorklistViewModel
         {
             SelectedWorkStepId = workStepId,
-            SelectedWorkplaceId = workplaceId,
+            Workbenches = effectiveWorkbenches,
             ShowDone = showDone,
             AvailableWorkSteps = availableWorkSteps,
             AvailableWorkplaces = availableWorkplaces,
@@ -140,12 +145,12 @@ public class FaWorklistController : Controller
             .Select(f => f.ProductionOrderId)
             .ToHashSet();
 
-        // Zusatzfilter Werkbank (UND): nur wenn workplaceId gesetzt ist, sonst alle Werkbaenke.
+        // Zusatzfilter Werkbank (UND): Komma-OR-Contains auf den Werkbank-Namen (leer = alle).
         var orders = (await _productionOrderRepository.GetAllOrderedAsync())
             .Where(o => !o.IsDone
                         && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
                         && orderIdsWithStep.Contains(o.Id)
-                        && (workplaceId == null || o.ProductionWorkplaceId == workplaceId))
+                        && WorkbenchFilter.Matches(o.ProductionWorkplace?.Name, effectiveWorkbenches))
             .ToList();
 
         // Schritt 5: Termin-Berechnung (KommissionierTage/VorkommissionierTage, OHNE Beschichtung)

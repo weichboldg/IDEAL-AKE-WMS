@@ -72,10 +72,9 @@ public class User : AuditableEntity
     public int? DefaultWorkStepId { get; set; }
     public WorkStep? DefaultWorkStep { get; set; }
 
-    /// <summary>Vorausgewaehlter Werkbank-Zusatzfilter in der FA-Abarbeitungsliste (NULL = alle).</summary>
-    [Display(Name = "Standard-Werkbank (FA-Abarbeitungsliste)")]
-    public int? DefaultWorkplaceId { get; set; }
-    public ProductionWorkplace? DefaultWorkplace { get; set; }
+    /// <summary>Standard-Werkbaenke (kommasepariert) fuer die FA-Abarbeitungsliste (NULL/leer = alle).</summary>
+    [Display(Name = "Standard-Werkbaenke (FA-Abarbeitungsliste, kommasepariert)")]
+    public string? DefaultWorkbenches { get; set; }
 
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 

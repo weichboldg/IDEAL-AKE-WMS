@@ -111,7 +111,7 @@ public class UsersController : Controller
             IsPicker = vm.IsPicker,
             DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize),
             DefaultWorkStepId = vm.DefaultWorkStepId,
-            DefaultWorkplaceId = vm.DefaultWorkplaceId,
+            DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim(),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -230,7 +230,7 @@ public class UsersController : Controller
             IsPicker = user.IsPicker,
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
-            DefaultWorkplaceId = user.DefaultWorkplaceId,
+            DefaultWorkbenches = user.DefaultWorkbenches,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -270,7 +270,7 @@ public class UsersController : Controller
         existing.IsPicker = vm.IsPicker;
         existing.DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize);
         existing.DefaultWorkStepId = vm.DefaultWorkStepId;
-        existing.DefaultWorkplaceId = vm.DefaultWorkplaceId;
+        existing.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);

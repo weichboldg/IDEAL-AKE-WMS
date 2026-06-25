@@ -89,10 +89,7 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.DefaultWorkStepId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.DefaultWorkplace)
-                .WithMany()
-                .HasForeignKey(e => e.DefaultWorkplaceId)
-                .OnDelete(DeleteBehavior.SetNull);
+            entity.Property(e => e.DefaultWorkbenches).HasMaxLength(400);
         });
 
         // Role

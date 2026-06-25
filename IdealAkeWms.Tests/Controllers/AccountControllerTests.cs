@@ -81,7 +81,7 @@ public class AccountControllerTests
     }
 
     [Fact]
-    public async Task Profile_Post_SavesDefaultWorkplace()
+    public async Task Profile_Post_SavesDefaultWorkbenches()
     {
         var user = new User
         {
@@ -107,12 +107,12 @@ public class AccountControllerTests
         var vm = new ProfileViewModel
         {
             Name = "Tester",
-            DefaultWorkplaceId = 7
+            DefaultWorkbenches = "Werkbank 7"
         };
 
         await ctrl.Profile(vm, null);
 
         saved.Should().NotBeNull();
-        saved!.DefaultWorkplaceId.Should().Be(7);
+        saved!.DefaultWorkbenches.Should().Be("Werkbank 7");
     }
 }

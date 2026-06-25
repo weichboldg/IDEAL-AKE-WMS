@@ -13,7 +13,7 @@ public class FaWorklistViewModel
     public int? SelectedWorkStepId { get; set; }
     public List<WorkStep> AvailableWorkSteps { get; set; } = new();
     public WorkStep? SelectedWorkStep { get; set; }                            // Header der Erledigt-Spalte
-    public int? SelectedWorkplaceId { get; set; }                              // Zusatzfilter Werkbank (NULL = alle)
+    public string? Workbenches { get; set; }                                   // Komma-Werkbank-Filter (NULL/leer = alle)
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public List<FaAttributeDefinition> AttributeColumns { get; set; } = new(); // Merkmale des gewaehlten AG
     public bool ShowDone { get; set; }

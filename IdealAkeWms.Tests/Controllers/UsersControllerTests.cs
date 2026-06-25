@@ -116,7 +116,7 @@ public class UsersControllerTests
     }
 
     [Fact]
-    public async Task Edit_Post_SavesDefaultWorkplace()
+    public async Task Edit_Post_SavesDefaultWorkbenches()
     {
         var existing = new User
         {
@@ -150,12 +150,12 @@ public class UsersControllerTests
             Id = 5,
             Name = "Dora",
             IsActive = true,
-            DefaultWorkplaceId = 7
+            DefaultWorkbenches = "Werkbank 7"
         };
 
         await ctrl.Edit(5, vm, null);
 
         saved.Should().NotBeNull();
-        saved!.DefaultWorkplaceId.Should().Be(7);
+        saved!.DefaultWorkbenches.Should().Be("Werkbank 7");
     }
 }

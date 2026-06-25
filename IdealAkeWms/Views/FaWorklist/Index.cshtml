@@ -44,14 +44,15 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="workplaceId">Werkbank</label>
-                    <select name="workplaceId" id="workplaceId" class="form-select" onchange="this.form.submit()">
-                        <option value="" selected="@(Model.SelectedWorkplaceId == null)">(alle)</option>
+                    <label class="form-label" for="workbenches">Werkbänke (kommasepariert)</label>
+                    <input type="text" name="workbenches" id="workbenches" class="form-control" list="workbenchOptions"
+                           value="@Model.Workbenches" placeholder="alle" onchange="this.form.submit()" />
+                    <datalist id="workbenchOptions">
                         @foreach (var wp in Model.AvailableWorkplaces)
                         {
-                            <option value="@wp.Id" selected="@(Model.SelectedWorkplaceId == wp.Id)">@wp.Name</option>
+                            <option value="@wp.Name"></option>
                         }
-                    </select>
+                    </datalist>
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <div class="form-check mb-2">

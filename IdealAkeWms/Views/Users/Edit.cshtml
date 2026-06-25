@@ -134,15 +134,16 @@
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="DefaultWorkplaceId" class="form-label"></label>
-                        <select asp-for="DefaultWorkplaceId" class="form-select">
-                            <option value="">(alle)</option>
+                        <label asp-for="DefaultWorkbenches" class="form-label"></label>
+                        <input asp-for="DefaultWorkbenches" class="form-control" list="workbenchOptions"
+                               placeholder="z. B. Werkbank 1, Werkbank 2" />
+                        <datalist id="workbenchOptions">
                             @foreach (var wp in Model.AvailableWorkplaces)
                             {
-                                <option value="@wp.Id">@wp.Name</option>
+                                <option value="@wp.Name"></option>
                             }
-                        </select>
-                        <div class="form-text">Zusatzfilter in der FA-Abarbeitungsliste. (alle) = keine Vorauswahl.</div>
+                        </datalist>
+                        <div class="form-text">Standard-Werkbänke für die FA-Abarbeitungsliste, kommasepariert. Leer = alle.</div>
                     </div>
 
                     <hr />

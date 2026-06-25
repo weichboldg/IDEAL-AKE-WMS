@@ -121,7 +121,7 @@ public class AccountController : Controller
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
             AvailableWorkSteps = await _workStepRepository.GetActiveAsync(),
-            DefaultWorkplaceId = user.DefaultWorkplaceId,
+            DefaultWorkbenches = user.DefaultWorkbenches,
             AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync()
         };
         return View(vm);
@@ -157,7 +157,7 @@ public class AccountController : Controller
             ? vm.DefaultPageSize
             : null;
         user.DefaultWorkStepId = vm.DefaultWorkStepId;
-        user.DefaultWorkplaceId = vm.DefaultWorkplaceId;
+        user.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);
