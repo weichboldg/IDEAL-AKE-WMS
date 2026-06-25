@@ -452,4 +452,35 @@ public class FaWorklistControllerTests
         var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
         vm.Items.Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task Index_PopulatesAndFiltersDescriptions()
+    {
+        var (ctx, ctrl, _) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp.Id;
+        o2.Order.ProductionWorkplaceId = wp.Id;
+        o1.Order.Description1 = "Alpha"; o1.Order.Description2 = "Eins";
+        o2.Order.Description1 = "Beta";  o2.Order.Description2 = "Zwei";
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        // Bezeichnung wird in die Rows uebernommen.
+        var result = await ctrl.Index(ve.Id);
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Single(i => i.OrderNumber == "FA-001").Description1.Should().Be("Alpha");
+        vm.Items.Single(i => i.OrderNumber == "FA-001").Description2.Should().Be("Eins");
+
+        // Spaltenfilter description1 wirkt.
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_description1=Beta");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        var filtered = (FaWorklistViewModel)((ViewResult)(await ctrl.Index(ve.Id))).Model!;
+        filtered.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-002");
+    }
 }

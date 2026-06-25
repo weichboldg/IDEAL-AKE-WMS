@@ -27,6 +27,8 @@ public class FaWorklistRow
     public int ProductionOrderId { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public string? ArticleNumber { get; set; }
+    public string? Description1 { get; set; }
+    public string? Description2 { get; set; }
     public decimal Quantity { get; set; }
     public string? WorkplaceName { get; set; }                  // Werkbank als Info-Spalte
     public DateTime? VorkommissionierTermin { get; set; }  // BG-Termin

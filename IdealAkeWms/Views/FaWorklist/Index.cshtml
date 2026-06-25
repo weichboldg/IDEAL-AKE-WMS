@@ -13,8 +13,8 @@
     var doneHeader = Model.SelectedWorkStep != null
         ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
         : "Erledigt";
-    // FA-Nr, Werkbank, Artikel, Stk, BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
-    var columnCount = 7 + Model.AttributeColumns.Count + 1;
+    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
+    var columnCount = 9 + Model.AttributeColumns.Count + 1;
 }
 
 <h2 class="page-header">FA-Abarbeitungsliste</h2>
@@ -83,6 +83,8 @@ else
                     <th data-filterable data-col-key="order-number">FA Nr.</th>
                     <th data-filterable data-col-key="workbench">Werkbank</th>
                     <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                    <th data-filterable data-col-key="description1">Bezeichnung 1</th>
+                    <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                     <th data-filterable data-col-key="quantity">Stk.</th>
                     <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
                     <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
@@ -123,6 +125,8 @@ else
                             </td>
                             <td>@item.WorkplaceName</td>
                             <td>@item.ArticleNumber</td>
+                            <td>@item.Description1</td>
+                            <td>@item.Description2</td>
                             <td>@item.Quantity</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.KommissionierTermin)</td>
@@ -155,6 +159,8 @@ else
         { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
         { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
         { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+        { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+        { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
         { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
         { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
         { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
