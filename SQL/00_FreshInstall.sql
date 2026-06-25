@@ -41,7 +41,7 @@ BEGIN
         [IsPicker]                  BIT               NOT NULL DEFAULT 0,
         [DefaultPageSize]           INT               NULL,
         [DefaultWorkStepId]         INT               NULL,
-        [DefaultWorkplaceId]        INT               NULL,
+        [DefaultWorkbenches]        NVARCHAR(400)     NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -357,27 +357,6 @@ BEGIN
         ADD CONSTRAINT [FK_Users_WorkSteps_DefaultWorkStepId]
         FOREIGN KEY ([DefaultWorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE SET NULL;
     PRINT 'FK FK_Users_WorkSteps_DefaultWorkStepId erstellt.';
-END
-GO
-
--- =============================================
--- 8c3. FA-Vorbau (v1.22.0): Users.DefaultWorkplaceId -> ProductionWorkplaces (Migration 71)
---      ProductionWorkplaces (Block 7) existiert bereits vor diesem Punkt; Index + FK
---      werden NACH dem Users-CREATE platziert.
--- =============================================
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Users_DefaultWorkplaceId' AND object_id = OBJECT_ID('dbo.Users'))
-BEGIN
-    CREATE INDEX [IX_Users_DefaultWorkplaceId] ON [dbo].[Users] ([DefaultWorkplaceId]);
-    PRINT 'Index IX_Users_DefaultWorkplaceId erstellt.';
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Users_ProductionWorkplaces_DefaultWorkplaceId')
-BEGIN
-    ALTER TABLE [dbo].[Users]
-        ADD CONSTRAINT [FK_Users_ProductionWorkplaces_DefaultWorkplaceId]
-        FOREIGN KEY ([DefaultWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL;
-    PRINT 'FK FK_Users_ProductionWorkplaces_DefaultWorkplaceId erstellt.';
 END
 GO
 
@@ -2058,6 +2037,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260619063919_AddLagerbestellungRole')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260619063919_AddLagerbestellungRole', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
