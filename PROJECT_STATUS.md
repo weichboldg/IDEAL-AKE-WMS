@@ -70,6 +70,9 @@ Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.
   `WarehousePickingDetails`) + Live-Sortierung + Live-Filter. Reine Layout-Logik in
   `WarehousePickingPrintLayout` (GUI-gleicher Vergleich, repliziert `table-filter.js`).
   Kein Migrations-Eingriff. TESTSZENARIEN Kapitel 42.
+- FA-Abarbeitungsliste: `User.DefaultWorkplaceId` (FK) → `User.DefaultWorkbenches`
+  (komma-separierter Werkbank-Filter, Enthält-Semantik via `WorkbenchFilter`, **Migration 75**
+  destruktiv) + Textfeld/Datalist in Profil/Benutzerstamm + neue Spalten Bezeichnung 1/2.
 
 ---
 

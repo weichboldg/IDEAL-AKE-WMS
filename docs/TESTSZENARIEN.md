@@ -4864,5 +4864,37 @@ wo keine IIS-Windows-Auth verfuegbar ist.)
 
 ---
 
+## Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0)
+
+**Vorbedingung:** `FaCompletionAktiv=true`. Mehrere Werkbänke (z. B. „WB-A", „WB-A2", „WB-B").
+Offene FAs mit einem FA-Vorbau-AG auf verschiedenen Werkbänken, gefüllten Bezeichnungen.
+Angemeldet als vorbau/admin-User.
+
+### TS-43.1 Standard-Werkbänke im Profil (Textfeld)
+1. Profil öffnen → Feld „Standard-Werkbänke (FA-Abarbeitungsliste, kommasepariert)".
+   - **Erwartet:** Textfeld (kein Dropdown), Datalist schlägt vorhandene Werkbank-Namen vor.
+2. „WB-A, WB-B" eintragen, speichern.
+3. FA-Abarbeitungsliste öffnen (AG gewählt).
+   - **Erwartet:** Werkbank-Feld vorbefüllt „WB-A, WB-B"; Liste zeigt nur FAs auf WB-A/WB-A2/WB-B
+     (Enthält: „WB-A" trifft auch „WB-A2").
+
+### TS-43.2 In-Listen-Filter override + leeren
+1. In der Abarbeitungsliste ins Werkbank-Textfeld „WB-B" eintragen → Liste neu.
+   - **Erwartet:** nur FAs deren Werkbank „WB-B" enthält.
+2. Feld leeren, Liste neu.
+   - **Erwartet:** ALLE Werkbänke (Default greift nicht, weil explizit geleert).
+
+### TS-43.3 Bezeichnungs-Spalten
+1. Abarbeitungsliste mit gewähltem AG.
+   - **Erwartet:** Spalten „Bezeichnung 1" + „Bezeichnung 2" nach „Artikelnummer", gefüllt.
+2. In „Bezeichnung 1" einen Spaltenfilter setzen.
+   - **Erwartet:** Liste auf passende Zeilen reduziert.
+
+### TS-43.4 Benutzerstamm (Admin)
+1. Benutzer bearbeiten → „Standard-Werkbänke"-Textfeld pflegen/speichern.
+   - **Erwartet:** wie Profil; Wert wird gespeichert.
+
+---
+
 *Ende des Dokuments. Stand: v1.23.0 (2026-06-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
