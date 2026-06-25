@@ -1,111 +1,142 @@
-# FA-AG-Erkennung: Aktivitäts-Protokoll granular aufgliedern — Design
+# FA-AG-Erkennung + BOM-Cache: Aktivitäts-Protokoll granular aufgliedern — Design
 
-> Status: Entwurf zur Review
+> Status: Entwurf zur Review (v2 — um Cache-Abdeckung erweitert)
 > Datum: 2026-06-25
 > Branch: `feature/windows-auth-ad-users` (Worktree `.claude/worktrees/missingparts-include-pd`)
 > Ziel-Version: v1.23.0 (zusätzlicher Changelog-Punkt)
 
 ## 1. Kontext & Ziel
 
-Der `FaWorkStepDetectionService` (Windows-Service) durchsucht den BOM-Cache: pro aktivem
-WorkStep werden die komma-separierten **Suchbegriffe** (`WorkStep.SearchString`) in den
-Bezeichnungen der BOM-Items gesucht; trifft ein Begriff, bekommen alle offenen FAs des
-betroffenen Artikels den Arbeitsgang (`FaWorkStep`, `Source='Sync'`). Heute protokolliert der
-Lauf im Aktivitäts-Protokoll nur zwei Zähler: `neu` + `uebersprungen`.
+Die automatische FA-zu-Arbeitsgang-Erkennung läuft als Kette:
+`BomCache-Sync` (cacht die Stücklisten offener FAs im Fenster) → `FaWorkStepDetectionService`
+(durchsucht die gecachten Stücklisten nach den Suchbegriffen der WorkSteps). Heute protokolliert
+jeder Schritt nur grobe Zähler (`neu`/`aktualisiert`/`uebersprungen`).
 
-**Ziel:** Den Lauf granularer protokollieren, damit der Planer
-1. die **nicht identifizierten Suchbegriffe** (Begriffe, die in diesem Lauf **null** BOM-Treffer
-   hatten) sieht — zur Pflege des Suchbegriff-Katalogs, und
-2. je **neu erkanntem FA** sieht, **welcher Begriff** (und welcher AG) die Erkennung ausgelöst
-   hat — inkl. **FA-Nummer**.
+**Auslöser:** Bei FA 2604089 / Artikel S1401380 wurde **kein** AG erkannt, obwohl die Stückliste
+eindeutig passende Begriffe enthält. Root Cause (debuggt): Der Artikel lag **nicht im BOM-Cache**
+(200er-Cap durch überfällige Alt-FAs überschritten) — die Erkennung sah seine Stückliste also nie.
+Das war im Protokoll **nicht sichtbar**: weder „diese FA hat keinen Cache-Eintrag" noch „dieser
+Begriff hat nichts getroffen".
+
+**Ziel — zwei Transparenz-Erweiterungen im Aktivitäts-Protokoll:**
+- **Teil A (FaWorkStepDetection):** je Lauf sichtbar machen, welche **Suchbegriffe nichts getroffen**
+  haben und je **neu erkanntem FA**, welcher Begriff/AG ausgelöst hat (inkl. FA-Nummer).
+- **Teil B (BomCache):** je Lauf sichtbar machen, **wie viele offene FAs im Fenster der Cap raus
+  gedrängt** hat (→ keine Erkennung möglich) und welche Artikel im Fenster **keine BOM-Daten**
+  liefern. So fällt ein Fall wie S1401380 sofort auf.
 
 ## 2. Nicht-Ziele (YAGNI)
 
 - **Kein** Datenmodell-/Migrations-Eingriff. Das Aktivitäts-Protokoll (`SyncLog`) trägt Counts +
-  Detailzeilen bereits; es kommen nur neue Count-Keys, eine Message-Erweiterung und Info-Zeilen.
-- **Keine** Änderung an der Erkennungs-**Logik** selbst (welche FAs erkannt werden). Nur die
-  internen Zwischenergebnisse werden feiner geführt und protokolliert.
-- **Keine** neue UI-Seite. Die Ausgabe erscheint im bestehenden Aktivitäts-Protokoll
-  (`/SyncLog`, Service-Eintrag `FaWorkStepDetection`).
-- **Keine** „Begriffs-Vorschläge" (Tokens im BOM, die kein Suchbegriff sind) — das ist ein
-  anderes, größeres Thema.
+  Detailzeilen (Info/Warning) bereits.
+- **Keine** Änderung an der Erkennungs- oder Cache-**Auswahllogik** (welche FAs/Artikel
+  erkannt/gecacht werden). NUR feinere Zwischenergebnisse + Protokollierung. (Die `ORDER BY
+  ProductionDate ASC`-Auswahl bzw. Cap-Höhe ist ein separates Thema — hier nur sichtbar machen.)
+- **Keine** neue UI-Seite. Ausgabe erscheint im bestehenden Aktivitäts-Protokoll (`/SyncLog`,
+  Service-Einträge `BomCache` + `FaWorkStepDetection`).
+- **Keine** „Begriffs-Vorschläge" (Tokens im BOM, die kein Suchbegriff sind).
 
-## 3. Architektur & Datenfluss
+## 3. Teil A — FaWorkStepDetection granular
 
-Umbau in `IDEALAKEWMSService/Services/FaWorkStepDetectionService.DetectAsync`:
+Umbau in `IDEALAKEWMSService/Services/FaWorkStepDetectionService.DetectAsync` (nutzt EF →
+InMemory-testbar).
 
 ### 3.1 Feinere Zwischenergebnisse
-Bisher wird pro WorkStep über alle Begriffe eine Artikel-Menge (`matchedArticles`, HashSet)
-gebildet — die Zuordnung „welcher Begriff traf welchen Artikel" geht verloren. Neu:
-- Pro Begriff die getroffenen Artikel merken: `Dictionary<string term, HashSet<string> articles>`
-  (je WorkStep). Daraus ableitbar:
-  - **Begriffe ohne Treffer** = Begriffe mit leerer Artikel-Menge.
-  - **auslösende Begriffe je Artikel** = invertierte Map (Artikel → Begriffe), für die FA-Zeile.
-- Die Kandidaten-Query liefert zusätzlich `OrderNumber` + `ArticleNumber` (nicht nur `Id`), damit
-  die FA-Zeile FA-Nummer + auslösenden Begriff nennen kann.
+Bisher wird pro WorkStep über alle Begriffe eine Artikel-Menge gebildet — „welcher Begriff traf
+welchen Artikel" geht verloren. Neu: pro Begriff die getroffenen Artikel merken
+(`term → HashSet<artikel>`, je WorkStep). Daraus ableitbar: Begriffe ohne Treffer + auslösende
+Begriffe je Artikel. Die Kandidaten-Query liefert zusätzlich `OrderNumber` + `ArticleNumber`.
 
-### 3.2 Protokoll-Ausgabe (3 Teile)
+### 3.2 Protokoll-Ausgabe
+**(a) Zusatz-Zähler** (zu `neu`/`uebersprungen`): `suchbegriffe gesamt`, `mit treffer`,
+`ohne treffer` — je (WorkStep, Begriff)-Kombination.
 
-**(a) Zusatz-Zähler** in `FinishSuccessAsync(counts)` — zu den bestehenden `neu`/`uebersprungen`:
-- `suchbegriffe gesamt` — Anzahl verarbeiteter (WorkStep, Begriff)-Kombinationen.
-- `mit treffer` — Kombinationen mit ≥ 1 getroffenem Artikel.
-- `ohne treffer` — Kombinationen mit 0 getroffenen Artikeln.
-
-**(b) Nicht gefundene Begriffe** — als **kompakte Liste in der Lauf-Zusammenfassungs-Message**
-(`messageSuffix`), **eine** Zeile pro Lauf (kein Zeilen-Spam bei 15-Min-Intervall):
-- Format: `Ohne Treffer: <begriff> (<AGCode>), <begriff> (<AGCode>), …`
-- Nur, wenn es welche gibt; sonst kein Suffix.
-- Cap: maximal 50 Begriffe gelistet, danach `… (+N weitere)`, damit die Message nicht ausufert.
+**(b) Nicht gefundene Begriffe** — kompakte Liste in der Lauf-Zusammenfassung (`messageSuffix`),
+**1 Zeile/Lauf**: `Ohne Treffer: kühl (VE), foo (VL)`. Cap 50 (`… +N weitere`). Kein Suffix, wenn
+keine.
 
 **(c) Je NEU erkanntem FA** eine **Info-Detailzeile** (`LogInfoAsync`):
-- Format: `FA <OrderNumber> → AG <Code> <Name> erkannt (Begriff: <term[, term2]>)`
-- `reference` = `OrderNumber`.
-- **Nur** für tatsächlich neu hinzugefügte `FaWorkStep`-Zeilen (NICHT die bereits vorhandenen /
-  `uebersprungen`). Dadurch im eingeschwungenen Zustand 0 Zeilen → kein Spam; Zeilen erscheinen
-  nur bei echter Neu-Erkennung. Bei mehreren auslösenden Begriffen werden sie komma-getrennt
-  genannt.
+`FA <OrderNumber> → AG <Code> <Name> erkannt (Begriff: <term[, term2]>)`, `reference` =
+`OrderNumber`. **Nur** tatsächlich neu hinzugefügte Zeilen → im eingeschwungenen Zustand 0 Zeilen
+(kein Spam). Mehrere auslösende Begriffe komma-getrennt (zeigt False-Positive-Trigger, z. B.
+`spange, aufbau, rahmen`).
 
-### 3.3 Schweregrad & Vorbehalt
-- (b) und (c) sind **Info** (kein Warning). Begründung/Vorbehalt: „ohne Treffer" heißt nicht
-  zwingend „falscher Begriff" — die passenden Artikel können auch nur außerhalb des aktuellen
-  **BOM-Cache-Fensters** (`Sync:BomCacheWeeks` / `Sync:BomCacheMaxOrders`) liegen. Daher neutral.
-  Dieser Vorbehalt wird in Hilfe + CLAUDE.md festgehalten.
+### 3.3 Schweregrad
+(b)+(c) = **Info**. Vorbehalt (Doku): „ohne Treffer" kann auch nur am Cache-Fenster liegen.
 
 ### 3.4 DryRun
-Im DryRun werden dieselben Counts + Liste + Info-Zeilen erzeugt (die Zeilen beschreiben, was
-erkannt **würde**); der Run trägt wie bisher `[DryRun]` im Message-Suffix und persistiert nichts.
+Gleiche Counts/Liste/Zeilen; Run trägt `[DryRun]`; keine Persistenz.
 
-## 4. Counts-Semantik (Vokabular)
-Konsistent zur bestehenden deutschsprachigen Counts-Konvention (`neu`/`uebersprungen`):
-`suchbegriffe gesamt`, `mit treffer`, `ohne treffer`. (Klein, ohne Sonderzeichen — passt zum
-`"key=value, key=value"`-Renderer von `FinishSuccessAsync`.)
+## 4. Teil B — BomCache Cache-Abdeckung sichtbar machen
 
-## 5. Tests
-**Service-Unit-Tests** (`IDEALAKEWMSService.Tests`, InMemory-DbContext + `FakeSyncLogger`):
-- Begriff ohne BOM-Treffer → erscheint in `ohne treffer`-Count UND in der `messageSuffix`-Liste;
-  `mit treffer` zählt nur die treffenden Begriffe; `gesamt` = Summe.
-- Neu erkannter FA → genau **eine** `LogInfoAsync`-Zeile mit FA-Nummer, AG-Code und auslösendem
-  Begriff; `reference` = OrderNumber.
-- Bereits vorhandener (oder `IsRemoved`) FaWorkStep → **keine** Info-Zeile (nur `uebersprungen`-Count).
-- Mehrere auslösende Begriffe für denselben FA → komma-getrennt in einer Zeile.
-- DryRun → Counts/Liste/Zeilen vorhanden, aber keine DB-Persistenz.
+Erweiterung in `IDEALAKEWMSService/Services/BomCacheSyncService.SyncBomCacheAsync` (nutzt raw
+ADO.NET → **nicht** InMemory-testbar; testbare Logik wird in einen reinen Helper extrahiert).
 
-> Voraussetzung: `FakeSyncLogger`/`FakeSyncRun` (Test-Helper aus der SyncLog-Infrastruktur) erfasst
-> `LogInfoAsync`-Aufrufe + die `FinishSuccessAsync`-Counts + `messageSuffix`. Falls eine
-> Erfassungs-Lücke besteht, wird der Fake im Plan minimal erweitert.
+### 4.1 Zusätzliche Kennzahlen ermitteln
+- `ReadOpenOrdersInWindowAsync` liefert zusätzlich die **Gesamtzahl** der im Fenster
+  eignungsfähigen offenen FAs (gleiches `WHERE`, aber `COUNT(*)` **ohne** `TOP`), nicht nur die
+  `TOP(@max)`-Auswahl. (Eine zusätzliche, billige Count-Query.)
+- Im bestehenden Artikel-Loop wird mitgezählt, für welche Artikel SAGE **und** OSEON **keine**
+  BOM-Items liefern (`items.Count == 0` → heute `continue`).
 
-## 6. Doku & Versionierung
-- `IDEALAKEWMSService`/`IdealAkeWms` AppVersion unverändert (v1.23.0); `Changelog.cshtml`-Bullet.
-- `CLAUDE.md`: Fallstrick-Eintrag zum `FaWorkStepDetectionService` um die neue Protokoll-Ausgabe +
-  den Cache-Fenster-Vorbehalt ergänzen.
-- `docs/TESTSZENARIEN.md`: kurzes Szenario (Lauf auslösen → Protokoll prüfen).
-- `Views/Help/Index.cshtml` (Aktivitäts-Protokoll/FA-Erkennung): kurzer Hinweis auf die neue
-  Aufgliederung + Vorbehalt.
+### 4.2 Protokoll-Ausgabe
+**(a) Zusatz-Zähler** (zu `neu`/`aktualisiert`/`uebersprungen`):
+`fa im fenster` (Gesamt eignungsfähig), `fa gecacht` (= `TOP`-Auswahl), `artikel ohne bom`
+(Artikel im Fenster ohne BOM-Daten).
+
+**(b) Cap-Warnung** (`LogWarningAsync`) **nur wenn** `fa im fenster > Cap`:
+`Cap erreicht: <fa gecacht> von <fa im fenster> offenen FAs gecacht (Cap <max>) — <diff> FAs
+ohne Cache-Eintrag, werden NICHT automatisch erkannt.` Das ist das Signal, das S1401380 sofort
+sichtbar gemacht hätte.
+
+**(c) Artikel-ohne-BOM-Hinweis** (`LogWarningAsync`) **nur wenn** `artikel ohne bom > 0`:
+kompakte, gecappte Liste `Artikel ohne BOM-Daten (SAGE+OSEON leer): art1, art2, … (+N weitere)`.
+
+### 4.3 Testbare Logik extrahieren
+Die reine Auswertung/Formatierung kommt in einen Helper (z. B.
+`BomCacheCoverage.Build(totalEligible, capped, cap, articlesWithoutBom)`), der die Counts-Keys +
+die beiden Warn-Strings (oder `null`) liefert — voll unit-testbar. Die `COUNT(*)`-Query selbst
+bleibt Manual-UAT (wie der restliche raw-SQL-Pfad des BomCacheSyncService).
+
+## 5. Counts-Vokabular
+Konsistent zur deutschsprachigen Konvention (`neu`/`aktualisiert`/`uebersprungen`):
+- Detection: `suchbegriffe gesamt`, `mit treffer`, `ohne treffer`.
+- BomCache: `fa im fenster`, `fa gecacht`, `artikel ohne bom`.
+Klein, ohne Sonderzeichen (passt zum `"key=value, …"`-Renderer).
+
+## 6. Tests
+**Teil A — Service-Unit (`IDEALAKEWMSService.Tests`, InMemory + `FakeSyncLogger`):**
+- Begriff ohne Treffer → in `ohne treffer`-Count + `messageSuffix`-Liste.
+- Neu erkannter FA → genau **eine** `LogInfoAsync`-Zeile (FA-Nr, AG-Code, Begriff; `reference`=Nr).
+- Bereits vorhandener/`IsRemoved`-FaWorkStep → **keine** Zeile (nur `uebersprungen`).
+- Mehrere auslösende Begriffe → komma-getrennt in einer Zeile.
+- DryRun → Counts/Liste/Zeilen vorhanden, keine Persistenz.
+
+**Teil B — Pure-Helper-Unit (`BomCacheCoverage`):**
+- `total > cap` → korrekte `fa ohne cache`-Diff + Cap-Warn-String.
+- `total ≤ cap` → kein Cap-Warn-String.
+- `articlesWithoutBom > 0` → Hinweis-String mit gecappter Liste; sonst `null`.
+- Counts-Keys korrekt gefüllt.
+
+> Voraussetzung: `FakeSyncLogger`/`FakeSyncRun` erfasst `LogInfoAsync`/`LogWarningAsync` +
+> `FinishSuccessAsync`-Counts + `messageSuffix`. Falls Lücke → Fake im Plan minimal erweitern.
+
+## 7. Doku & Versionierung
+- `Changelog.cshtml`-Bullet (v1.23.0).
+- `CLAUDE.md`: Fallstrick `FaWorkStepDetectionService` + `BomCacheSyncService` um die neue
+  Protokoll-Ausgabe + den Cache-Fenster/Cap-Vorbehalt ergänzen.
+- `docs/TESTSZENARIEN.md`: Szenario (Lauf auslösen → Protokoll prüfen; Cap-Warnung bei vollem Cache).
+- `Views/Help/Index.cshtml`: kurzer Hinweis auf die Aufgliederung + Vorbehalt.
 - `PROJECT_STATUS.md`: kurzer Eintrag.
 
-## 7. Risiken / offene Punkte
-- **Mehr BOM-Queries vermeiden:** Die getroffenen Artikel je Begriff werden aus der ohnehin
-  ausgeführten Per-Begriff-Query gewonnen (keine zusätzlichen DB-Roundtrips gegenüber heute).
-- **Message-Länge:** Cap (50 Begriffe + „+N weitere") schützt vor übergroßer End-Message.
-- **Volumen der Info-Zeilen:** bewusst nur bei Neu-Erkennung → bei stabilem Cache 0 Zeilen/Lauf;
-  ein einmaliger Burst beim erstmaligen Befüllen ist akzeptabel.
+## 8. Risiken / offene Punkte
+- **Keine zusätzlichen BOM-Roundtrips** in Teil A (Treffer je Begriff aus der ohnehin laufenden
+  Query). Teil B: **eine** zusätzliche `COUNT(*)`-Query je Lauf — vernachlässigbar.
+- **Message-/Listen-Länge:** Caps (50 Begriffe / N Artikel + „+N weitere") schützen vor
+  übergroßen Messages.
+- **Volumen der Info-Zeilen (Teil A c):** nur bei Neu-Erkennung → eingeschwungen 0/Lauf.
+- **Cap-Warnung wiederholt sich** je Lauf solange der Cap voll ist — bewusst (es IST ein
+  Dauerzustand, der Handlung erfordert: Cap erhöhen oder Auswahl ändern). 1 Warn-Zeile/Lauf, kein
+  Spam.
+- **Separat (nicht Teil dieser Spec):** Ob die `ORDER BY ProductionDate ASC`-Auswahl / Cap-Höhe
+  geändert werden muss, zeigt erst Teil B im Betrieb — eigener Bugfix bei Bedarf.
