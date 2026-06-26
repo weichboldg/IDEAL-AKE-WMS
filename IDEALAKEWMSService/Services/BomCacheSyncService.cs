@@ -46,7 +46,8 @@ public class BomCacheSyncService : IBomCacheSyncService
             var maxOrders  = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheMaxOrders", 200, ct);
             var maxAgeHrs  = await ServiceSettings.GetIntAsync(_configuration, "Sync:BomCacheMaxAgeHours", 24, ct);
 
-            var orders = await ReadOpenOrdersInWindowAsync(weeksAhead, maxOrders, ct);
+            var (orders, totalEligibleFas) = await ReadOpenOrdersInWindowAsync(weeksAhead, maxOrders, ct);
+            var articlesWithoutBom = new List<string>();
             _logger.LogInformation("BOM-Cache-Sync: {Count} Auftraege im Window ({Weeks}w / max {Max})",
                 orders.Count, weeksAhead, maxOrders);
 
@@ -92,6 +93,7 @@ public class BomCacheSyncService : IBomCacheSyncService
 
                 if (!sageData.TryGetValue(art, out var items) || items.Count == 0)
                 {
+                    articlesWithoutBom.Add(art);
                     _logger.LogDebug("BOM-Cache-Sync: Keine BOM-Daten fuer {Article}", art);
                     continue;
                 }
@@ -140,12 +142,19 @@ public class BomCacheSyncService : IBomCacheSyncService
                 "BOM-Cache-Sync abgeschlossen in {Ms}ms: {Ins} neu, {Upd} aktualisiert, {Skip} unveraendert, {Err} Fehler",
                 sw.ElapsedMilliseconds, inserted, updated, skipped, errors);
 
-            await run.FinishSuccessAsync(new Dictionary<string, int>
+            var coverage = BomCacheCoverage.Build(totalEligibleFas, orders.Count, maxOrders, articlesWithoutBom);
+            if (coverage.CapWarning != null) await run.LogWarningAsync(coverage.CapWarning, ct: ct);
+            if (coverage.NoBomWarning != null) await run.LogWarningAsync(coverage.NoBomWarning, ct: ct);
+
+            var finalCounts = new Dictionary<string, int>
             {
                 ["neu"] = inserted,
                 ["aktualisiert"] = updated,
                 ["uebersprungen"] = skipped,
-            }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
+            };
+            foreach (var kv in coverage.Counts) finalCounts[kv.Key] = kv.Value;
+
+            await run.FinishSuccessAsync(finalCounts, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
 
             return new SyncResult(inserted, updated, errors, errorDetails);
         }
@@ -373,7 +382,7 @@ public class BomCacheSyncService : IBomCacheSyncService
 
     // ============ WMS DB helpers ============
 
-    private async Task<List<(int OrderId, string ArticleNumber)>> ReadOpenOrdersInWindowAsync(
+    private async Task<(List<(int OrderId, string ArticleNumber)> Orders, int TotalEligible)> ReadOpenOrdersInWindowAsync(
         int weeksAhead, int maxOrders, CancellationToken ct)
     {
         var connStr = ConnectionStrings.Wms(_configuration);
@@ -382,13 +391,9 @@ public class BomCacheSyncService : IBomCacheSyncService
         await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync(ct);
 
-        // "Abgeschlossen" = IsDone (Sage) ODER IsDonePicking (App, Leitstand-Checkbox).
-        // Komm-abgeschlossene FAs (IsDone=0, IsDonePicking=1) duerfen das TOP(@max)-Fenster
-        // NICHT belegen — sonst draengen alte erledigte FAs (frueher Termin, ORDER BY ASC)
-        // echte offene FAs aus dem Cache. Spiegelt die Web-Semantik (v1.21.1) service-seitig.
-        var sql = @"
-            SELECT TOP (@max) po.[Id], po.[ArticleNumber]
-            FROM [dbo].[ProductionOrders] po
+        // "Abgeschlossen" = IsDone (Sage) ODER IsDonePicking (App). Komm-abgeschlossene FAs
+        // (IsDone=0, IsDonePicking=1) duerfen das Fenster NICHT belegen (Web-Semantik v1.21.1).
+        const string whereClause = @"
             WHERE po.[IsDone] = 0
               AND NOT EXISTS (
                   SELECT 1 FROM [dbo].[ProductionOrderPickingStatus] ps
@@ -396,7 +401,22 @@ public class BomCacheSyncService : IBomCacheSyncService
               )
               AND po.[ProductionDate] IS NOT NULL
               AND po.[ProductionDate] <= DATEADD(week, @weeks, GETDATE())
-              AND po.[ArticleNumber] IS NOT NULL
+              AND po.[ArticleNumber] IS NOT NULL";
+
+        // 1) Gesamtzahl eignungsfaehiger offener FAs (OHNE TOP) — fuer die Cap-Abdeckung.
+        int totalEligible;
+        await using (var countCmd = new SqlCommand(
+            $"SELECT COUNT(*) FROM [dbo].[ProductionOrders] po {whereClause}", conn) { CommandTimeout = 60 })
+        {
+            countCmd.Parameters.AddWithValue("@weeks", weeksAhead);
+            totalEligible = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
+        }
+
+        // 2) TOP(@max)-Auswahl (unveraendert).
+        var sql = $@"
+            SELECT TOP (@max) po.[Id], po.[ArticleNumber]
+            FROM [dbo].[ProductionOrders] po
+            {whereClause}
             ORDER BY po.[ProductionDate] ASC";
 
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
@@ -408,7 +428,7 @@ public class BomCacheSyncService : IBomCacheSyncService
         {
             orders.Add((reader.GetInt32(0), reader.GetString(1)));
         }
-        return orders;
+        return (orders, totalEligible);
     }
 
     private async Task<Dictionary<string, (string Hash, DateTime CachedAt)>> ReadHeaderHashesAsync(
