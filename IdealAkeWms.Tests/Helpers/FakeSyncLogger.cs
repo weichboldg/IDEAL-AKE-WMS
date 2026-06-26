@@ -26,6 +26,7 @@ public sealed class FakeSyncRun : ISyncRun
     public bool FinishedFailed { get; private set; }
     public IReadOnlyDictionary<string, int>? FinalCounts { get; private set; }
     public string? FinalErrorMessage { get; private set; }
+    public string? FinalMessageSuffix { get; private set; }
     public bool Disposed { get; private set; }
 
     public FakeSyncRun(string serviceName)
@@ -58,6 +59,7 @@ public sealed class FakeSyncRun : ISyncRun
         if (FinishedSuccess || FinishedFailed) return Task.CompletedTask;
         FinishedSuccess = true;
         FinalCounts = counts;
+        FinalMessageSuffix = messageSuffix;
         return Task.CompletedTask;
     }
 
