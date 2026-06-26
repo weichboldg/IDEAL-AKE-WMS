@@ -73,6 +73,9 @@ Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.
 - FA-Abarbeitungsliste: `User.DefaultWorkplaceId` (FK) → `User.DefaultWorkbenches`
   (komma-separierter Werkbank-Filter, Enthält-Semantik via `WorkbenchFilter`, **Migration 75**
   destruktiv) + Textfeld/Datalist in Profil/Benutzerstamm + neue Spalten Bezeichnung 1/2.
+- FA-AG-Erkennungs-Pipeline im Aktivitäts-Protokoll aufgeschlüsselt: `FaWorkStepDetection`
+  (nicht gefundene Begriffe + Begriff je erkanntem FA), `BomCache` (Cap-/BOM-Abdeckungs-Warnung
+  via `BomCacheCoverage`-Helper). Reines Logging, kein Migrations-Eingriff.
 
 ---
 

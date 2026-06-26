@@ -4896,5 +4896,29 @@ Angemeldet als vorbau/admin-User.
 
 ---
 
+## Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0)
+
+**Vorbedingung:** `Sync:BomCacheEnabled` + `Sync:FaWorkStepDetectionEnabled` aktiv. WorkSteps mit
+Suchbegriffen gepflegt. Service-Lauf auslösen (oder Neustart).
+
+### TS-44.1 Nicht gefundene Suchbegriffe
+1. Einen Suchbegriff pflegen, der in keiner gecachten Stückliste vorkommt (z. B. Tippfehler).
+2. Lauf abwarten → `/SyncLog` → Eintrag `FaWorkStepDetection`.
+   - **Erwartet:** Counts `ohne treffer` ≥ 1; in der Lauf-Message „Ohne Treffer: <begriff> (<Code>)".
+
+### TS-44.2 Begriff je erkanntem FA
+1. Einen offenen FA mit gecachter Stückliste, dessen BOM einen Suchbegriff enthält, neu erkennen lassen.
+   - **Erwartet:** `FaWorkStepDetection`-Detailzeilen `FA <Nr> → AG <Code> <Name> erkannt (Begriff: <term>)`.
+2. Nächster Lauf (nichts Neues) → **keine** neuen Detailzeilen (kein Spam).
+
+### TS-44.3 BOM-Cache Cap-Warnung
+1. `Sync:BomCacheMaxOrders` kleiner setzen als die Zahl offener FAs im Fenster.
+2. Lauf abwarten → `/SyncLog` → Eintrag `BomCache`.
+   - **Erwartet:** Counts `fa im fenster` > `fa gecacht`; Warn-Zeile „Cap erreicht: X von Y … Z FAs
+     ohne Cache-Eintrag, werden NICHT automatisch erkannt."
+3. Cap groß genug setzen → nächster Lauf: keine Cap-Warnung; die zuvor fehlende FA wird gecacht und erkannt.
+
+---
+
 *Ende des Dokuments. Stand: v1.23.0 (2026-06-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
