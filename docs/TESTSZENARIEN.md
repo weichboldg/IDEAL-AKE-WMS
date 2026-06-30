@@ -4920,5 +4920,66 @@ Suchbegriffen gepflegt. Service-Lauf auslösen (oder Neustart).
 
 ---
 
-*Ende des Dokuments. Stand: v1.23.0 (2026-06-18)*
+## Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0)
+
+**Vorbedingung global:** `FaCompletionAktiv=true`. Rolle `vorbau` (oder `admin`) fuer die
+FA-Abarbeitungsliste, Rolle `picking`/`leitstand` (oder `admin`) fuer den Leitstand.
+
+### TS-45.1 3-Wert-Status in der FA-Abarbeitungsliste (Offen → in Bearbeitung → Fertig)
+**Vorbedingung:** Eine offene FA mit einem aktiven Vorbau-AG (`FaWorkStep` mit `IsRemoved=0`).
+1. `/FaWorklist` oeffnen, den FA-Vorbau-AG der Test-FA waehlen (oder als Standard-AG im Profil hinterlegt).
+   - **Erwartet:** Die FA erscheint, in der Status-Spalte ein Auswahlfeld mit Wert **Offen**.
+2. Status auf **in Bearbeitung** stellen.
+   - **Erwartet:** Auswahl wird sofort gespeichert (AJAX); die FA **bleibt sichtbar** (kein Ausblenden).
+3. Status auf **Fertig** stellen.
+   - **Erwartet:** Die FA **verschwindet** aus der Default-Ansicht. Mit „Erledigte anzeigen" ist sie
+     weiterhin sichtbar und zeigt den Wert **Fertig**.
+4. DB-Pruefung: `SELECT Status, CompletedAt, CompletedBy FROM FaWorkSteps WHERE Id=<FaWorkStepId>`.
+   - **Erwartet:** `Status=2` (Fertig) → `CompletedAt`/`CompletedBy` gesetzt. Zurueck auf Offen/in
+     Bearbeitung (`Status=0`/`1`) → `CompletedAt`/`CompletedBy` wieder `NULL`.
+
+### TS-45.2 Gleicher Status im Leitstand (VK-VA), synchron zur Abarbeitungsliste
+**Vorbedingung:** `LeitstandAktiv=true`; dieselbe FA wie in TS-45.1 mit aktivem VK-VA-AG.
+1. `/PickingLeitstand` oeffnen.
+   - **Erwartet:** In der zum AG passenden VK-VA-Zelle erscheint dasselbe Status-Auswahlfeld
+     (Offen/in Bearbeitung/Fertig). Fehlt der AG fuer die FA → leere Zelle (kein Auswahlfeld).
+2. Im Leitstand den Status auf **Fertig** stellen.
+   - **Erwartet:** Aenderung wirkt sofort (AJAX, `/api/fa-work-steps/set-status`).
+3. `/FaWorklist` neu laden (gleicher AG).
+   - **Erwartet:** Die FA spiegelt den im Leitstand gesetzten Status (Fertig → ausgeblendet bzw. unter
+     „Erledigte anzeigen" als Fertig).
+
+### TS-45.3 Negativ: ungueltiger Status liefert HTTP 400
+1. POST auf `/api/fa-work-steps/set-status` mit Body `{ "faWorkStepId": <gueltigeId>, "status": 9 }`
+   (ungueltiger Enum-Wert).
+   - **Erwartet:** HTTP **400 Bad Request**; der Status in der DB bleibt unveraendert.
+
+### TS-45.4 Beschichtungstermin-Spalte in der Abarbeitungsliste
+**Vorbedingung:** `BeschichtungTage`/`BeschichtungAbholtage` wie ueblich konfiguriert.
+1. **Fall A — `LackierteilKategorieName` leer:** `/FaWorklist` oeffnen.
+   - **Erwartet:** Spalte „Beschicht." ist fuer **ALLE** FAs gefuellt (Backward-Compat-Regel).
+2. **Fall B — `LackierteilKategorieName` gesetzt:** `/FaWorklist` oeffnen.
+   - **Erwartet:** „Beschicht." ist nur fuer FAs mit Lackierteilen (`HasCoatingParts`) gefuellt, sonst leer.
+3. Spaltenfilter „Beschicht." nutzen (KW-/Datums-Filter ueber das Kalender-Popup oder Texteingabe + ENTER).
+   - **Erwartet:** Die Liste filtert korrekt auf die gewaehlte KW/das Datum.
+4. Quervergleich: dieselbe FA im Leitstand oeffnen.
+   - **Erwartet:** Der Beschichtungstermin ist **identisch** zum Wert in der Abarbeitungsliste
+     (gemeinsame Formel `CoatingDateCalculator.Compute`).
+
+### TS-45.5 Server-Mode-Spaltenfilter filtern erst bei ENTER
+**Vorbedingung:** Eine Server-Mode-Liste (FA-Liste, Leitstand, Bestand, FA-Abarbeitungsliste).
+1. In ein Spaltenfilter-Feld tippen (mehrere Zeichen, ohne ENTER).
+   - **Erwartet:** **KEIN** Seiten-Reload/Navigation waehrend des Tippens.
+2. **ENTER** druecken.
+   - **Erwartet:** Jetzt navigiert die Seite und filtert (URL `?colf_<col-key>=...`).
+3. Kalender-KW-Klick auf einer Datumsspalte.
+   - **Erwartet:** Filtert **sofort** (ohne ENTER).
+4. „Filter entfernen" im Kalender-Popup.
+   - **Erwartet:** Wirkt **sofort**.
+5. Client-Mode-Gegenprobe: `/Tracking/ByWorkplace` (Client-Filter) — in ein Filter-Feld tippen.
+   - **Erwartet:** Filterung bleibt **live beim Tippen** (kein ENTER noetig, da kein Server-Mode).
+
+---
+
+*Ende des Dokuments. Stand: v1.24.0 (2026-06-30)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

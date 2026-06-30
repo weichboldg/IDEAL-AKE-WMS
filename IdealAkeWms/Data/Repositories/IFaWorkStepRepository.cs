@@ -21,7 +21,7 @@ public interface IFaWorkStepRepository
 
     /// <summary>
     /// Detail-Pivot orderId -> (WorkStep.Code -> <see cref="FaWorkStepPivotCell"/>). Nur aktive Zeilen
-    /// (IsRemoved=0); Zelle traegt FaWorkStepId + IsCompleted. Chunked in 1000er-Bloecken (SQL-2100-Limit).
+    /// (IsRemoved=0); Zelle traegt FaWorkStepId + Status. Chunked in 1000er-Bloecken (SQL-2100-Limit).
     /// </summary>
     Task<Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>> GetWorkStepDetailPivotAsync(List<int> productionOrderIds);
 

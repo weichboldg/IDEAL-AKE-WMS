@@ -6,8 +6,8 @@ namespace IdealAkeWms.Models.ViewModels;
 /// <summary>
 /// FA-Abarbeitungsliste je Arbeitsgang (v1.22.0): pro offenem FA mit aktivem
 /// FaWorkStep des gewaehlten Arbeitsgangs eine Zeile — ueber ALLE Werkbaenke.
-/// Spalten: Werkbank (Info), Merkmal-Spalten des AGs, EINE Erledigt-Checkbox
-/// (der gewaehlte AG, AJAX-Toggle <c>/api/fa-work-steps/toggle-completed</c>).
+/// Spalten: Werkbank (Info), Merkmal-Spalten des AGs, EIN Status-Auswahlfeld
+/// (der gewaehlte AG, 3-Wert, AJAX <c>/api/fa-work-steps/set-status</c>).
 /// </summary>
 public class FaWorklistViewModel
 {

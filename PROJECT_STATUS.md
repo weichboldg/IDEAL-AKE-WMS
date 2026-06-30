@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.23.0 Windows-Auth + AD-Benutzer)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-06-30**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.24.0 FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -25,6 +25,32 @@ Stand: **2026-06-18**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
 
 ---
+
+### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
+
+- **FA-Vorbau-Erledigt = 3-Wert-Status**: `FaWorkStep.IsCompleted` (bool) ersetzt durch
+  `Status` (`FaWorkStepStatus` Offen=0/InBearbeitung=1/Fertig=2), als Auswahlfeld in der
+  FA-Abarbeitungsliste UND im Leitstand (VK-VA). Nur **Fertig** blendet eine FA aus der
+  Abarbeitungsliste aus (in Bearbeitung bleibt sichtbar). Schreib-Pfad: API
+  `/api/fa-work-steps/set-status {faWorkStepId, status}` → `SetStatusAsync`
+  (`CompletedAt`/`CompletedBy` nur bei Fertig). Shared Partial `_FaWorkStepStatusSelect`
+  + JS `fa-work-step-status.js`; Pivot-Zelle `FaWorkStepPivotCell(FaWorkStepId, Status)`.
+  Der alte `toggle-completed`-Endpoint + die Erledigt-Checkboxen sind entfallen.
+- **Migration 76** `20260630104647_ReplaceFaWorkStepIsCompletedWithStatus`
+  (+ `SQL/76` + FreshInstall): **daten-konvertierend** (IsCompleted=1 → Fertig(2)) und
+  **dropt die `IsCompleted`-Spalte**. Down() verliert die Offen/InBearbeitung-Unterscheidung
+  → **DB-Backup vor Produktions-Deploy empfohlen**.
+- **Beschichtungstermin in der FA-Abarbeitungsliste**: zusaetzliche, filterbare Spalte
+  `coating-date`. Formel jetzt zentral in `CoatingDateCalculator.Compute(...)` (DRY: Leitstand
+  + Abarbeitungsliste). Backward-Compat-Regel: bei leerem `LackierteilKategorieName` fuer ALLE
+  FAs gefuellt, sonst nur fuer FAs mit Lackierteilen (`HasCoatingParts`).
+- **Server-Mode-Spaltenfilter erst bei ENTER**: `table-filter.js` navigiert im Server-Mode
+  jetzt erst auf ENTER (kein Debounce-Tippen mehr); Kalender/„Filter entfernen"/`setColumnFilter`
+  rufen `applyColumnFilterNow()` und wirken sofort. Client-Mode (Tracking/ByWorkplace) bleibt
+  live beim Tippen.
+- **Doku**: Changelog v1.24.0, Hilfeseite (FA-Abarbeitungsliste-Abschnitt), CLAUDE.md
+  (neuer Fallstrick + Pagination-Abschnitt + v1.20.0-Date-Picker-Fallstrick reconciled),
+  TESTSZENARIEN Kapitel 45, Versions-Bump Web + Service.
 
 ### v1.23.0 (2026-06-18) — Windows-Authentifizierung + AD-Benutzer-Rollen
 

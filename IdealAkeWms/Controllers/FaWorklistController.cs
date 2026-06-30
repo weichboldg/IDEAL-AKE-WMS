@@ -12,7 +12,7 @@ namespace IdealAkeWms.Controllers;
 /// FA-Abarbeitungsliste je Arbeitsgang (v1.22.0, Spec §7): Filter ist EIN Arbeitsgang.
 /// Pro offenem FA mit aktivem (IsRemoved=0) FaWorkStep des gewaehlten AGs eine Zeile —
 /// ueber ALLE Werkbaenke. Spalten: Werkbank (Info), Merkmal-Spalten des gewaehlten AGs
-/// und EINE Erledigt-Checkbox (AJAX-Toggle <c>/api/fa-work-steps/toggle-completed</c>).
+/// und EIN Status-Auswahlfeld (3-Wert, AJAX <c>/api/fa-work-steps/set-status</c>).
 /// Default-Arbeitsgang aus <see cref="User.DefaultWorkStepId"/>.
 /// Feature-Gate: AppSetting <c>FaCompletionAktiv</c> (wie FA-Vervollstaendigung).
 /// </summary>

@@ -87,8 +87,8 @@ public class PickingLeitstandController : Controller
         ViewBag.LackierteilKategorieName = lackierteilName;
 
         // Bulk-Lookups fuer pivot-basiertes Mapping (seit v1.22.0 aus FaWorkSteps statt AssemblyGroups).
-        // Detail-Pivot liefert pro aktivem AG zusaetzlich FaWorkStepId + IsCompleted — die VK-VA-Haken
-        // im Leitstand zeigen/togglen den Erledigt-Status (gleiches Flag wie die FA-Abarbeitungsliste).
+        // Detail-Pivot liefert pro aktivem AG zusaetzlich FaWorkStepId + Status — die VK-VA-Zellen
+        // im Leitstand zeigen/setzen den 3-Wert-Erledigt-Status (gleiches Flag wie die FA-Abarbeitungsliste).
         var orderIds = orders.Select(o => o.Id).ToList();
         var groupPivot = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(orderIds);
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);

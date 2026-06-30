@@ -370,20 +370,33 @@
                         abarbeitet, hinterlegt ihn als <strong>Standard FA-Vorbau-AG</strong> im Profil
                         (siehe unten) &mdash; die Liste oeffnet dann automatisch vorgefiltert.</dd>
 
-                    <dt>FA-Vorbau-AG abhaken (&bdquo;Erledigt&ldquo;)</dt>
-                    <dd>Pro Zeile erscheint genau eine Erledigt-Checkbox &mdash; fuer den gewaehlten
-                        FA-Vorbau-AG. Der Haken bedeutet <strong>Vorbau physisch gebaut</strong> (Werker)
-                        &mdash; im Gegensatz zum Schalter &bdquo;Vollstaendig definiert&ldquo; in der
-                        FA-Vervollstaendigung, der nur die Spezifikation/Merkmale als fertig markiert
-                        (Planer) und NICHT ausblendet. Der Haken wird sofort gespeichert. Ist der
-                        FA-Vorbau-AG erledigt, verschwindet der FA aus der Default-Ansicht &mdash; ueber
-                        &bdquo;Erledigte anzeigen&ldquo; bleibt er sichtbar.</dd>
+                    <dt>FA-Vorbau-AG-Status (Offen / in Bearbeitung / Fertig, seit v1.24.0)</dt>
+                    <dd>Pro Zeile erscheint genau ein <strong>Status-Auswahlfeld</strong> &mdash; fuer den
+                        gewaehlten FA-Vorbau-AG. Statt der frueheren Erledigt-Checkbox gibt es jetzt drei
+                        Werte: <strong>Offen</strong>, <strong>in Bearbeitung</strong> und
+                        <strong>Fertig</strong>. Der Status bedeutet, wie weit der <strong>Vorbau physisch
+                        gebaut</strong> ist (Werker) &mdash; im Gegensatz zum Schalter &bdquo;Vollstaendig
+                        definiert&ldquo; in der FA-Vervollstaendigung, der nur die Spezifikation/Merkmale
+                        als fertig markiert (Planer) und NICHT ausblendet. Die Auswahl wird sofort
+                        gespeichert. Nur <strong>Fertig</strong> blendet den FA aus der Default-Ansicht aus
+                        &mdash; &bdquo;in Bearbeitung&ldquo; bleibt sichtbar; ueber
+                        &bdquo;Erledigte anzeigen&ldquo; bleiben auch fertige FAs sichtbar. Dasselbe
+                        Status-Auswahlfeld erscheint im Leitstand in den VK&ndash;VA-Zellen &mdash; eine
+                        Aenderung dort wirkt sofort.</dd>
 
                     <dt>Werkbank-Spalte + Merkmal-Spalten + Termine</dt>
                     <dd>Die Liste zeigt die <strong>Werkbank</strong> des FA als eigene (filterbare)
                         Spalte, die FA-Merkmale, die dem gewaehlten FA-Vorbau-AG zugeordnet sind
-                        (erfasst in der FA-Vervollstaendigung), sowie BG-Termin, Komm.-Termin und
+                        (erfasst in der FA-Vervollstaendigung), sowie <strong>Beschichtungstermin</strong>
+                        (seit v1.24.0, filterbare Spalte), BG-Termin, Komm.-Termin und
                         Fertigungstermin (KW-Format wie in der FA-Liste) und die enaio-Dokument-Links.</dd>
+
+                    <dt>Spaltenfilter (seit v1.24.0)</dt>
+                    <dd>In den grossen Listen (Server-Modus, z.&nbsp;B. FA-Abarbeitungsliste, FA-Liste,
+                        Leitstand, Bestand) filtern die Spaltenfilter erst, wenn man <strong>ENTER</strong>
+                        drueckt &mdash; nicht mehr waehrend des Tippens. So gibt es keinen stoerenden
+                        Seiten-Reload mitten in der Eingabe. Kalender-KW-Klick und
+                        &bdquo;Filter entfernen&ldquo; wirken weiterhin sofort.</dd>
 
                     <dt>Stueckliste (read-only)</dt>
                     <dd>Klick auf die FA-Nummer oeffnet die Stueckliste im Nur-Lesen-Modus:

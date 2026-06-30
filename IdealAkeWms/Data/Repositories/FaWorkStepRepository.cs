@@ -64,8 +64,8 @@ public class FaWorkStepRepository : IFaWorkStepRepository
 
     public async Task<Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>> GetWorkStepDetailPivotAsync(List<int> productionOrderIds)
     {
-        // Wie GetWorkStepPivotAsync, aber pro aktiver Zeile zusaetzlich Id + IsCompleted
-        // (Leitstand toggelt das Erledigt-Flag der Vorbau-AGs).
+        // Wie GetWorkStepPivotAsync, aber pro aktiver Zeile zusaetzlich Id + Status
+        // (Leitstand setzt den 3-Wert-Erledigt-Status der Vorbau-AGs).
         var ids = productionOrderIds.Distinct().ToList();
         var result = new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>();
         if (ids.Count == 0) return result;

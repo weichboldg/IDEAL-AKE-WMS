@@ -11,9 +11,9 @@ using Moq;
 namespace IdealAkeWms.Tests.Filters;
 
 /// <summary>
-/// Tests fuer den Composite-Filter des Erledigt-Toggle-Endpoints
-/// (<c>/api/fa-work-steps/toggle-completed</c>): admin / vorbau / picking / leitstand duerfen
-/// togglen. Der Endpoint wird von der FA-Abarbeitungsliste (vorbau) UND den VK-VA-Spalten des
+/// Tests fuer den Composite-Filter des Erledigt-Status-Endpoints
+/// (<c>/api/fa-work-steps/set-status</c>): admin / vorbau / picking / leitstand duerfen
+/// setzen. Der Endpoint wird von der FA-Abarbeitungsliste (vorbau) UND den VK-VA-Spalten des
 /// Leitstands Kommissionierung (picking/leitstand) genutzt.
 /// </summary>
 public class RequireVorbauOrPickingOrLeitstandAccessFilterTests
