@@ -133,13 +133,13 @@ public class FaWorklistControllerTests
 
     private static FaWorkStep SeedFaWorkStep(
         ApplicationDbContext ctx, int productionOrderId, int workStepId,
-        bool isCompleted = false, bool isRemoved = false)
+        bool isCompleted = false, bool isRemoved = false, FaWorkStepStatus? status = null)
     {
         var row = new FaWorkStep
         {
             ProductionOrderId = productionOrderId,
             WorkStepId = workStepId,
-            IsCompleted = isCompleted,
+            Status = status ?? (isCompleted ? FaWorkStepStatus.Fertig : FaWorkStepStatus.Offen),
             IsRemoved = isRemoved,
             CreatedAt = DateTime.Now,
             CreatedBy = "t",
@@ -266,6 +266,31 @@ public class FaWorklistControllerTests
         vmShowDone.Items.Should().HaveCount(2);
         vmShowDone.Items.Select(i => i.OrderNumber)
             .Should().BeEquivalentTo(new[] { "FA-OPEN", "FA-DONE" });
+    }
+
+    [Fact]
+    public async Task Index_DoesNotHide_InBearbeitung()
+    {
+        // Status==InBearbeitung ist NICHT erledigt -> bleibt auch bei showDone:false sichtbar.
+        // Nur Status==Fertig blendet die FA aus (Plan Task 2, 3-State-Verhalten).
+        var (ctx, ctrl, _) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var inProgress = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-INPROGRESS");
+        inProgress.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, inProgress.Order.Id, ve.Id, status: FaWorkStepStatus.InBearbeitung);
+
+        // Default (showDone:false): FA mit InBearbeitung-AG bleibt sichtbar.
+        var result = await ctrl.Index(ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle();
+        var item = vm.Items.Single();
+        item.OrderNumber.Should().Be("FA-INPROGRESS");
+        item.WorkStepCell!.Status.Should().Be(FaWorkStepStatus.InBearbeitung);
     }
 
     [Fact]

@@ -66,7 +66,7 @@ public class FaWorkStepsApiControllerTests
     }
 
     [Fact]
-    public async Task ToggleCompleted_SetsIsCompleted()
+    public async Task SetStatus_SetsStatus_ForValidValue()
     {
         _faWorkSteps.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(new FaWorkStep
         {
@@ -75,11 +75,23 @@ public class FaWorkStepsApiControllerTests
             WorkStepId = 10
         });
 
-        var result = await _controller.ToggleCompleted(
-            new FaWorkStepsApiController.ToggleCompletedRequest(5, true));
+        var result = await _controller.SetStatus(
+            new FaWorkStepsApiController.SetStatusRequest(5, 2));
 
         result.Should().BeOfType<OkResult>();
-        _faWorkSteps.Verify(r => r.SetIsCompletedAsync(
-            5, true, "TestUser", "DOMAIN\\testuser"), Times.Once);
+        _faWorkSteps.Verify(r => r.SetStatusAsync(
+            5, FaWorkStepStatus.Fertig, "TestUser", "DOMAIN\\testuser"), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetStatus_ReturnsBadRequest_ForInvalidValue()
+    {
+        var result = await _controller.SetStatus(
+            new FaWorkStepsApiController.SetStatusRequest(5, 9));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        _faWorkSteps.Verify(r => r.SetStatusAsync(
+            It.IsAny<int>(), It.IsAny<FaWorkStepStatus>(),
+            It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 }
