@@ -1,5 +1,6 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,7 +23,7 @@ public class FaWorkStepsApiController : ControllerBase
     }
 
     public record ToggleRequest(int ProductionOrderId, string WorkStepCode, bool Value);
-    public record ToggleCompletedRequest(int FaWorkStepId, bool Value);
+    public record SetStatusRequest(int FaWorkStepId, int Status);
 
     [HttpPost("toggle")]
     [RequirePickingOrFaCompletionAccess] // wie alter assembly-groups-Endpoint
@@ -37,14 +38,17 @@ public class FaWorkStepsApiController : ControllerBase
         return Ok();
     }
 
-    [HttpPost("toggle-completed")]
+    [HttpPost("set-status")]
     [RequireVorbauOrPickingOrLeitstandAccess] // Abarbeitungsliste (vorbau) + Leitstand-VK-VA (picking/leitstand)
-    public async Task<IActionResult> ToggleCompleted([FromBody] ToggleCompletedRequest req)
+    public async Task<IActionResult> SetStatus([FromBody] SetStatusRequest req)
     {
+        if (!Enum.IsDefined(typeof(FaWorkStepStatus), req.Status))
+            return BadRequest(new { error = $"Ungueltiger Status: {req.Status}" });
+
         var row = await _faWorkStepRepository.GetByIdAsync(req.FaWorkStepId);
         if (row == null) return NotFound();
 
-        await _faWorkStepRepository.SetIsCompletedAsync(req.FaWorkStepId, req.Value,
+        await _faWorkStepRepository.SetStatusAsync(req.FaWorkStepId, (FaWorkStepStatus)req.Status,
             _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
         return Ok();
     }

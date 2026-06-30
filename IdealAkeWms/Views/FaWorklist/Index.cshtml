@@ -138,8 +138,11 @@ else
                             <td class="text-center">
                                 @if (item.WorkStepCell != null)
                                 {
-                                    <input type="checkbox" class="form-check-input worklist-complete"
-                                           data-fa-work-step-id="@item.WorkStepCell.FaWorkStepId" @(item.WorkStepCell.IsCompleted ? "checked" : "") />
+                                    @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel
+                                    {
+                                        FaWorkStepId = item.WorkStepCell.FaWorkStepId,
+                                        Status = item.WorkStepCell.Status,
+                                    })
                                 }
                             </td>
                         </tr>
@@ -177,29 +180,5 @@ else
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
-    <script>
-        // Erledigt-Toggle per AJAX — Event-Delegation, damit es keine per-Row-Handler braucht.
-        // Fehlerfall: Checkbox zuruecksetzen (Muster Leitstand-Toggle-Fields).
-        document.addEventListener('change', function (e) {
-            var cb = e.target.closest('.worklist-complete');
-            if (!cb) return;
-
-            var faWorkStepId = parseInt(cb.getAttribute('data-fa-work-step-id'));
-            var value = cb.checked;
-
-            fetch('/api/fa-work-steps/toggle-completed', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ faWorkStepId: faWorkStepId, value: value })
-            }).then(function (resp) {
-                if (!resp.ok) {
-                    cb.checked = !value;
-                    alert('Fehler beim Speichern.');
-                }
-            }).catch(function () {
-                cb.checked = !value;
-                alert('Fehler beim Speichern.');
-            });
-        });
-    </script>
+    <script src="~/js/fa-work-step-status.js" asp-append-version="true"></script>
 }

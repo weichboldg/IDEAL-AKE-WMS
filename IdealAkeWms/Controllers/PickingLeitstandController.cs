@@ -366,12 +366,17 @@ public class PickingLeitstandController : Controller
 
     /// <summary>
     /// Gerenderter Zellentext fuer eine VK-VA-Spalte (damit der Filter sinnvoll bleibt):
-    /// AG nicht anwendbar -> "" (leere Zelle), anwendbar + erledigt -> "erledigt", offen -> "offen".
+    /// AG nicht anwendbar -> "" (leere Zelle), sonst der Status-Text "offen"/"in bearbeitung"/"fertig".
     /// </summary>
     private static string FormatWorkStepForFilter(PickingLeitstandItem item, string code)
     {
         if (!item.WorkSteps.TryGetValue(code, out var cell)) return string.Empty;
-        return cell.IsCompleted ? "erledigt" : "offen";
+        return cell.Status switch
+        {
+            FaWorkStepStatus.Fertig => "fertig",
+            FaWorkStepStatus.InBearbeitung => "in bearbeitung",
+            _ => "offen"
+        };
     }
 
     private static bool MatchLeitstandWorkStepFilter(

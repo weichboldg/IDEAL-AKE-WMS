@@ -76,7 +76,7 @@ public class FaWorkStepRepository : IFaWorkStepRepository
             var chunk = ids.Skip(offset).Take(chunkSize).ToList();
             var rows = await _context.FaWorkSteps
                 .Where(f => chunk.Contains(f.ProductionOrderId) && !f.IsRemoved)
-                .Select(f => new { f.ProductionOrderId, f.WorkStep.Code, f.Id, f.IsCompleted })
+                .Select(f => new { f.ProductionOrderId, f.WorkStep.Code, f.Id, f.Status })
                 .ToListAsync();
 
             foreach (var r in rows)
@@ -86,7 +86,7 @@ public class FaWorkStepRepository : IFaWorkStepRepository
                     dict = new Dictionary<string, FaWorkStepPivotCell>();
                     result[r.ProductionOrderId] = dict;
                 }
-                dict[r.Code] = new FaWorkStepPivotCell(r.Id, r.IsCompleted);
+                dict[r.Code] = new FaWorkStepPivotCell(r.Id, r.Status);
             }
         }
         return result;
@@ -150,14 +150,15 @@ public class FaWorkStepRepository : IFaWorkStepRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task SetIsCompletedAsync(int faWorkStepId, bool value, string modifiedBy, string modifiedByWindows)
+    public async Task SetStatusAsync(int faWorkStepId, FaWorkStepStatus status, string modifiedBy, string modifiedByWindows)
     {
         var row = await _context.FaWorkSteps.FirstOrDefaultAsync(f => f.Id == faWorkStepId)
             ?? throw new InvalidOperationException($"FaWorkStep row missing for Id {faWorkStepId}.");
 
-        row.IsCompleted = value;
-        row.CompletedAt = value ? DateTime.Now : null;
-        row.CompletedBy = value ? modifiedBy : null;
+        row.Status = status;
+        var done = status == FaWorkStepStatus.Fertig;
+        row.CompletedAt = done ? DateTime.Now : null;
+        row.CompletedBy = done ? modifiedBy : null;
         row.ModifiedAt = DateTime.Now;
         row.ModifiedBy = modifiedBy;
         row.ModifiedByWindows = modifiedByWindows;

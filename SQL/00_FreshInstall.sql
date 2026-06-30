@@ -381,7 +381,7 @@ BEGIN
         [Id]                INT IDENTITY(1,1) NOT NULL,
         [ProductionOrderId] INT               NOT NULL,
         [WorkStepId]        INT               NOT NULL,
-        [IsCompleted]       BIT               NOT NULL,
+        [Status]            INT               NOT NULL CONSTRAINT DF_FaWorkSteps_Status DEFAULT 0,
         [CompletedAt]       DATETIME2         NULL,
         [CompletedBy]       NVARCHAR(200)     NULL,
         [IsSpecComplete]    BIT               NOT NULL CONSTRAINT DF_FaWorkSteps_IsSpecComplete DEFAULT 0,
@@ -2040,6 +2040,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260630104647_ReplaceFaWorkStepIsCompletedWithStatus')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260630104647_ReplaceFaWorkStepIsCompletedWithStatus', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

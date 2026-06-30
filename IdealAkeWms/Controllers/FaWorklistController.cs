@@ -172,8 +172,8 @@ public class FaWorklistController : Controller
                 continue;
             }
 
-            // Default: erledigte FAs (gewaehlter AG IsCompleted) ausblenden.
-            if (!showDone && selectedStep.IsCompleted)
+            // Default: fertige FAs (gewaehlter AG Status==Fertig) ausblenden — InBearbeitung bleibt sichtbar.
+            if (!showDone && selectedStep.Status == FaWorkStepStatus.Fertig)
             {
                 continue;
             }
@@ -191,7 +191,7 @@ public class FaWorklistController : Controller
                 WorkStepCell = new FaWorklistCell
                 {
                     FaWorkStepId = selectedStep.Id,
-                    IsCompleted = selectedStep.IsCompleted,
+                    Status = selectedStep.Status,
                 },
             };
 

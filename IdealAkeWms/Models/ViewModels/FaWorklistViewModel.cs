@@ -1,4 +1,5 @@
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Models.ViewModels;
 
@@ -41,5 +42,5 @@ public class FaWorklistRow
 public class FaWorklistCell
 {
     public int FaWorkStepId { get; set; }
-    public bool IsCompleted { get; set; }
+    public FaWorkStepStatus Status { get; set; }
 }
