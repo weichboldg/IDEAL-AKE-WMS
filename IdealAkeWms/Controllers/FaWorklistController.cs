@@ -158,6 +158,11 @@ public class FaWorklistController : Controller
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
+        var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
+        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync(AppSettingKeys.BeschichtungAbholtage) ?? "Dienstag,Donnerstag";
+        var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
+        var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
+        var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
 
         var rows = new List<FaWorklistRow>();
         foreach (var order in orders)
@@ -201,6 +206,10 @@ public class FaWorklistController : Controller
                     order.ProductionDate.Value, kommissionierTage, holidays);
                 row.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     row.KommissionierTermin.Value, vorkommissionierTage, holidays);
+                // Beschichtungstermin: shared CoatingDateCalculator (DRY mit Leitstand).
+                row.BeschichtungTermin = CoatingDateCalculator.Compute(
+                    row.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
+                    order.PickingStatus?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
 
             // Schritt 6: Merkmal-Werte als Anzeigetext (Dropdown -> Option.Value,
@@ -303,6 +312,7 @@ public class FaWorklistController : Controller
             ["description1"] = r => r.Description1,
             ["description2"] = r => r.Description2,
             ["quantity"] = r => r.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["coating-date"] = r => FormatDateForFilter(r.BeschichtungTermin),
             ["bg-date"] = r => FormatDateForFilter(r.VorkommissionierTermin),
             ["picking-date"] = r => FormatDateForFilter(r.KommissionierTermin),
             ["production-date"] = r => FormatDateForFilter(r.ProductionDate),

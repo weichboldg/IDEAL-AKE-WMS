@@ -13,8 +13,8 @@
     var doneHeader = Model.SelectedWorkStep != null
         ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
         : "Erledigt";
-    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
-    var columnCount = 9 + Model.AttributeColumns.Count + 1;
+    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, Beschicht., BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
+    var columnCount = 10 + Model.AttributeColumns.Count + 1;
 }
 
 <h2 class="page-header">FA-Abarbeitungsliste</h2>
@@ -86,6 +86,7 @@ else
                     <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                     <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                     <th data-filterable data-col-key="quantity">Stk.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter>Beschicht.</th>
                     <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
                     <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
                     <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
@@ -128,6 +129,7 @@ else
                             <td>@item.Description1</td>
                             <td>@item.Description2</td>
                             <td>@item.Quantity</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.BeschichtungTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.KommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.ProductionDate)</td>
@@ -165,6 +167,7 @@ else
         { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
         { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
         { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
+        { "key": "coating-date", "label": "Beschicht.", "locked": false, "defaultWidth": null },
         { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
         { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
         { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },

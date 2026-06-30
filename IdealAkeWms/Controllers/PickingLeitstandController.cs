@@ -131,16 +131,11 @@ public class PickingLeitstandController : Controller
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, vorkommissionierTage, holidays);
-                // Backward compat: when feature is inactive (setting empty), calculate for ALL orders
-                // When feature is active, only calculate if HasCoatingParts == true
-                if (!coatingFeatureActive || (ps?.HasCoatingParts ?? false))
-                {
-                    // Beschichtungstermin: Baugruppentermin - BeschichtungTage, dann auf vorherigen Abholtag
-                    var rawBeschichtung = _businessDayService.SubtractBusinessDays(
-                        item.VorkommissionierTermin.Value, beschichtungTage, holidays);
-                    item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
-                }
-                // else: leave BeschichtungTermin null
+                // Beschichtungstermin: shared CoatingDateCalculator (DRY mit FA-Abarbeitungsliste).
+                // Backward compat: Feature inaktiv => fuer ALLE Auftraege; aktiv => nur HasCoatingParts.
+                item.BeschichtungTermin = CoatingDateCalculator.Compute(
+                    item.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
+                    ps?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
 
             return item;

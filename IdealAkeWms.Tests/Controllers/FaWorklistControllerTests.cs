@@ -382,6 +382,30 @@ public class FaWorklistControllerTests
     }
 
     [Fact]
+    public async Task Index_ComputesBeschichtungTermin_WhenFeatureInactive()
+    {
+        // Kein LackierteilKategorieName-Setting -> Feature inaktiv -> Beschichtungstermin
+        // wird fuer ALLE Auftraege mit ProductionDate berechnet (Backward-Compat, wie Leitstand).
+        var (ctx, ctrl, _) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var order = TestDataHelper.CreateOrderWithStatuses(
+            ctx, "FA-COAT", productionDate: new DateTime(2026, 7, 1));
+        order.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, order.Order.Id, ve.Id);
+
+        var result = await ctrl.Index(ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        var item = vm.Items.Should().ContainSingle().Subject;
+        item.OrderNumber.Should().Be("FA-COAT");
+        item.BeschichtungTermin.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Bom_ReturnsReadOnlyViewModel()
     {
         var (ctx, ctrl, _) = Build();

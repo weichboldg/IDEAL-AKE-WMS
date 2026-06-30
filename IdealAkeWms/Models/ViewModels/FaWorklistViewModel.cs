@@ -33,6 +33,7 @@ public class FaWorklistRow
     public decimal Quantity { get; set; }
     public string? WorkplaceName { get; set; }                  // Werkbank als Info-Spalte
     public DateTime? VorkommissionierTermin { get; set; }  // BG-Termin
+    public DateTime? BeschichtungTermin { get; set; }
     public DateTime? KommissionierTermin { get; set; }
     public DateTime? ProductionDate { get; set; }
     public Dictionary<int, string?> AttributeValues { get; set; } = new();   // DefinitionId -> Anzeigetext
