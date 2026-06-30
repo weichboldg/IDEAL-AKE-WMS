@@ -6,7 +6,6 @@
     var _headers = null;
     var _tbody = null;
     var _table = null;
-    var _serverFilterTimer = null;
 
     // Server-Side Column-Filter Mode: wenn <table data-server-column-filter="true">,
     // navigieren Filter-Inputs (Non-Date) per debounced URL-Redirect statt clientseitig
@@ -52,22 +51,37 @@
         } catch (e) { /* */ }
     }
 
-    function scheduleServerNavigate() {
-        clearTimeout(_serverFilterTimer);
-        _serverFilterTimer = setTimeout(function () {
-            try {
-                var filters = window.getActiveFilters();
-                var url = new URL(window.location.href);
-                Array.from(url.searchParams.keys())
-                    .filter(function (k) { return k.indexOf('colf_') === 0; })
-                    .forEach(function (k) { url.searchParams.delete(k); });
-                Object.keys(filters).forEach(function (colKey) {
-                    if (filters[colKey]) url.searchParams.set('colf_' + colKey, filters[colKey]);
-                });
-                url.searchParams.delete('page');
-                window.location.href = url.toString();
-            } catch (e) { /* */ }
-        }, 500);
+    function applyServerFilters() {
+        try {
+            var filters = window.getActiveFilters();
+            var url = new URL(window.location.href);
+            Array.from(url.searchParams.keys())
+                .filter(function (k) { return k.indexOf('colf_') === 0; })
+                .forEach(function (k) { url.searchParams.delete(k); });
+            Object.keys(filters).forEach(function (colKey) {
+                if (filters[colKey]) url.searchParams.set('colf_' + colKey, filters[colKey]);
+            });
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        } catch (e) { /* */ }
+    }
+
+    // ENTER im Server-Mode loest die Navigation aus (Tippen tut es NICHT mehr).
+    function onServerFilterKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyServerFilters();
+        }
+    }
+
+    // Einheitlicher Trigger fuer programmatische Aenderungen (Kalender, Clear, setColumnFilter):
+    // Server-Mode navigiert sofort, Client-Mode filtert live.
+    function applyColumnFilterNow() {
+        if (isServerColumnFilter()) {
+            applyServerFilters();
+        } else {
+            applyFilters();
+        }
     }
 
     function restoreFiltersFromStorage() {
@@ -144,10 +158,10 @@
                     input.style.minWidth = '0';
                     input.placeholder = 'Filter...';
                     input.setAttribute('data-col-key', colKey);
-                    // Server-Filter-Mode: auch Date-Spalten triggern URL-Navigation —
-                    // Controller matched gegen das gerenderte Format "dd.MM.yyyy KWxx".
+                    // Server-Filter-Mode: Tippen navigiert NICHT (sonst Reload mitten im Tippen) —
+                    // erst ENTER. Kalender-Auswahl wirkt weiterhin sofort.
                     if (isServerColumnFilter()) {
-                        input.addEventListener('input', scheduleServerNavigate);
+                        input.addEventListener('keydown', onServerFilterKeydown);
                     } else {
                         input.addEventListener('input', applyFilters);
                     }
@@ -172,10 +186,9 @@
                     input.style.fontSize = '0.75rem';
                     input.placeholder = 'Filter...';
                     input.setAttribute('data-col-key', colKey);
-                    // Server-Filter-Mode: Text-Spalten triggern debounced URL-Navigation
-                    // (Date-Filter laufen weiterhin clientseitig — Komplexitaet KW/Kalender).
+                    // Server-Filter-Mode: Tippen navigiert NICHT — erst ENTER.
                     if (isServerColumnFilter()) {
-                        input.addEventListener('input', scheduleServerNavigate);
+                        input.addEventListener('keydown', onServerFilterKeydown);
                     } else {
                         input.addEventListener('input', applyFilters);
                     }
@@ -438,7 +451,7 @@
                     return function (e) {
                         e.stopPropagation();
                         input.value = 'KW' + kwVal;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        applyColumnFilterNow();
                         closeDatePicker();
                     };
                 })(kw));
@@ -458,7 +471,7 @@
                                 e.stopPropagation();
                                 var formatted = pad2(dd.getDate()) + '.' + pad2(dd.getMonth() + 1) + '.' + dd.getFullYear();
                                 input.value = formatted;
-                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                applyColumnFilterNow();
                                 closeDatePicker();
                             };
                         })(new Date(cellDate)));
@@ -481,7 +494,7 @@
             clearBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 input.value = '';
-                input.dispatchEvent(new Event('input', { bubbles: true }));
+                applyColumnFilterNow();
                 closeDatePicker();
             });
             popup.appendChild(clearBtn);
@@ -529,7 +542,7 @@
         var input = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
         if (input) {
             input.value = value;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
+            applyColumnFilterNow();
         }
     };
 
