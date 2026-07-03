@@ -161,6 +161,11 @@
                     // Server-Filter-Mode: Tippen navigiert NICHT (sonst Reload mitten im Tippen) —
                     // erst ENTER. Kalender-Auswahl wirkt weiterhin sofort.
                     if (isServerColumnFilter()) {
+                        // Android-Tablets: ohne enterkeyhint zeigt die Soft-Tastatur bei mehreren
+                        // Textfeldern eine "Weiter"-Taste, die nur ins naechste Feld springt statt
+                        // ENTER auszuloesen. "search" macht daraus eine Aktionstaste (Lupe), die ein
+                        // Enter-keydown feuert -> onServerFilterKeydown navigiert. (iOS: unschaedlich.)
+                        input.setAttribute('enterkeyhint', 'search');
                         input.addEventListener('keydown', onServerFilterKeydown);
                     } else {
                         input.addEventListener('input', applyFilters);
@@ -188,6 +193,11 @@
                     input.setAttribute('data-col-key', colKey);
                     // Server-Filter-Mode: Tippen navigiert NICHT — erst ENTER.
                     if (isServerColumnFilter()) {
+                        // Android-Tablets: ohne enterkeyhint zeigt die Soft-Tastatur bei mehreren
+                        // Textfeldern eine "Weiter"-Taste, die nur ins naechste Feld springt statt
+                        // ENTER auszuloesen. "search" macht daraus eine Aktionstaste (Lupe), die ein
+                        // Enter-keydown feuert -> onServerFilterKeydown navigiert. (iOS: unschaedlich.)
+                        input.setAttribute('enterkeyhint', 'search');
                         input.addEventListener('keydown', onServerFilterKeydown);
                     } else {
                         input.addEventListener('input', applyFilters);

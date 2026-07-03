@@ -4980,6 +4980,14 @@ FA-Abarbeitungsliste, Rolle `picking`/`leitstand` (oder `admin`) fuer den Leitst
 5. Client-Mode-Gegenprobe: `/Tracking/ByWorkplace` (Client-Filter) — in ein Filter-Feld tippen.
    - **Erwartet:** Filterung bleibt **live beim Tippen** (kein ENTER noetig, da kein Server-Mode).
 
+### TS-45.6 Android-Tablet: Spaltenfilter per Bildschirmtastatur ausloesen
+**Vorbedingung:** Android-Tablet (Chrome/Gboard), eine Server-Mode-Liste (z. B. FA-Liste, Leitstand, Bestand, FA-Abarbeitungsliste).
+1. In ein Spaltenfilter-Feld tippen, sodass die Bildschirmtastatur erscheint.
+   - **Erwartet:** Die Aktionstaste unten rechts ist eine **Such-/Lupe-Taste** (`enterkeyhint="search"`), **nicht** eine „Weiter"-Taste.
+2. Die Such-/Lupe-Taste druecken.
+   - **Erwartet:** Die Liste **navigiert und filtert** (URL `?colf_<col-key>=...`) — genau wie ENTER am Desktop. Der Fokus springt **nicht** stumm ins naechste Spaltenfeld.
+3. Negativ-Gegenprobe Desktop (unveraendert): ENTER filtert, blosses Tippen nicht.
+
 ---
 
 *Ende des Dokuments. Stand: v1.24.0 (2026-06-30)*
