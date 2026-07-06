@@ -53,9 +53,11 @@ public class WarehousePickingController : Controller
     };
 
     public async Task<IActionResult> Index(WarehouseRequisitionStatus? statusFilter, int? workplaceId,
-        int page = 1, int? pageSize = null)
+        WarehouseRequisitionType type = WarehouseRequisitionType.Lager, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
+        // Defensive: geforgte ?type=99-URLs auf den Default zuruecksetzen (Konsistenz mit CreateDraft-Guard).
+        if (!Enum.IsDefined(type)) type = WarehouseRequisitionType.Lager;
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
@@ -66,7 +68,7 @@ public class WarehousePickingController : Controller
 
         // Server-Side-Spaltenfilter: ALLE Rows laden -> ViewModel -> filtern -> zaehlen -> paginieren.
         // (Filter muss ueber alle Eintraege wirken, nicht nur die aktuelle Seite.)
-        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, null, 1, int.MaxValue);
+        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, type, 1, int.MaxValue);
         var allItems = allRows.Select(r => new WarehouseRequisitionListItemViewModel(
             r.Id, r.ProductionWorkplace?.Name ?? "", r.CreatedBy, r.CreatedAt,
             r.SubmittedAt, r.Items.Count, r.Status)).ToList();
@@ -79,7 +81,7 @@ public class WarehousePickingController : Controller
         var allWorkplaces = await _workplaces.GetAllAsync();
         var openCount = (await _repo.GetForWarehouseAsync(
             new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered },
-            null, null, 1, 1)).TotalCount;
+            null, type, 1, 1)).TotalCount;
 
         var vm = new WarehouseRequisitionListViewModel
         {
@@ -89,6 +91,9 @@ public class WarehousePickingController : Controller
             PageSize = effectivePageSize,
             StatusFilter = statusFilter,
             WorkplaceFilter = workplaceId,
+            ActiveType = type,
+            CanOrderLager = true,
+            CanOrderGlas = true,
             AvailableWorkplaces = allWorkplaces.OrderBy(w => w.Name).ToList(),
             OpenCount = openCount,
             Pagination = new PaginationState

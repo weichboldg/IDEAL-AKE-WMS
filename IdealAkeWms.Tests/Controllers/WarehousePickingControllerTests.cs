@@ -260,6 +260,31 @@ public class WarehousePickingControllerTests
     }
 
     [Fact]
+    public async Task Index_FiltertNachTyp_UndReichtTypAnRepoDurch()
+    {
+        var (ctrl, repo) = SetupWithMockRepo();
+        var capturedTypes = new List<WarehouseRequisitionType?>();
+        repo.Setup(r => r.GetForWarehouseAsync(
+                It.IsAny<WarehouseRequisitionStatus[]>(),
+                It.IsAny<int?>(), It.IsAny<WarehouseRequisitionType?>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Callback<WarehouseRequisitionStatus[], int?, WarehouseRequisitionType?, int, int>(
+                (_, _, type, _, _) => capturedTypes.Add(type))
+            .ReturnsAsync((new List<WarehouseRequisition>(), 0));
+
+        var result = await ctrl.Index(statusFilter: null, workplaceId: null,
+            type: WarehouseRequisitionType.Glas) as ViewResult;
+
+        // Haupt-Listen-Aufruf (erster Repo-Call) MUSS exakt den gewaehlten Typ durchreichen —
+        // und auch der OpenCount-Aufruf ist typ-bezogen (alle Calls = Glas).
+        capturedTypes.Should().NotBeEmpty();
+        capturedTypes[0].Should().Be(WarehouseRequisitionType.Glas);
+        capturedTypes.Should().OnlyContain(t => t == WarehouseRequisitionType.Glas);
+
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
     public async Task SaveProgress_PersistsAllFields_ReturnsOk()
     {
         var (ctrl, repo) = SetupWithMockRepo();

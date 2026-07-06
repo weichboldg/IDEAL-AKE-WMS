@@ -1,14 +1,29 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionListViewModel
 @{
-    ViewData["Title"] = "Lagerbestellungen — Lager";
+    var typeTitle = (Model.ActiveType == IdealAkeWms.Models.WarehouseRequisitionType.Glas ? "Glasbestellungen" : "Lagerbestellungen") + " — Lager";
+    ViewData["Title"] = typeTitle;
 }
 
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(Model.ActiveType == IdealAkeWms.Models.WarehouseRequisitionType.Lager ? "active" : "")"
+           asp-action="Index" asp-route-type="Lager"
+           asp-route-statusFilter="@Model.StatusFilter" asp-route-workplaceId="@Model.WorkplaceFilter">Lager</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(Model.ActiveType == IdealAkeWms.Models.WarehouseRequisitionType.Glas ? "active" : "")"
+           asp-action="Index" asp-route-type="Glas"
+           asp-route-statusFilter="@Model.StatusFilter" asp-route-workplaceId="@Model.WorkplaceFilter">Glas</a>
+    </li>
+</ul>
+
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
-    <h2 class="mb-0">Lagerbestellungen — Lager</h2>
+    <h2 class="mb-0">@typeTitle</h2>
     <span class="badge bg-primary fs-6">Offen: @Model.OpenCount</span>
 </div>
 
 <form method="get" asp-action="Index" class="card card-body mb-3">
+    <input type="hidden" name="type" value="@Model.ActiveType" />
     <div class="row g-2 align-items-end">
         <div class="col-md-3">
             <label class="form-label">Status</label>
@@ -31,7 +46,7 @@
             </select>
         </div>
         <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Filtern</button></div>
-        <div class="col-auto"><a asp-action="Index" class="btn btn-sm btn-outline-secondary">Reset</a></div>
+        <div class="col-auto"><a asp-action="Index" asp-route-type="@Model.ActiveType" class="btn btn-sm btn-outline-secondary">Reset</a></div>
     </div>
 </form>
 
