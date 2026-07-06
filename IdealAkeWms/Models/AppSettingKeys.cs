@@ -19,6 +19,9 @@ public static class AppSettingKeys
     public const string KommissionierungMitZuweisung = "KommissionierungMitZuweisung";
     public const string BestellungenAktiv = "BestellungenAktiv";
     public const string DefaultLagerbestellempfaengerId = "DefaultLagerbestellempfaengerId";
+    public const string DefaultGlasbestellempfaengerId = "DefaultGlasbestellempfaengerId";
+    public const string GlasArtikelgruppen = "GlasArtikelgruppen";
+    public const string GemeinsameArtikelgruppen = "GemeinsameArtikelgruppen";
     public const string FaCompletionAktiv = "FaCompletionAktiv";
 
     // Stock / Buchung

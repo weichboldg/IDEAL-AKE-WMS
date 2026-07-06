@@ -291,6 +291,9 @@ using (var scope = app.Services.CreateScope())
     {
         ("BestellungenAktiv", "false", "Bedarfsmeldungen aus Stueckliste aktivieren"),
         ("DefaultLagerbestellempfaengerId", "", "Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)"),
+        ("DefaultGlasbestellempfaengerId", "", "Default-OrderRecipientGroup-ID fuer Glas-Bestellungen (leer = Submit blockt)"),
+        ("GlasArtikelgruppen", "", "Kommaseparierte Artikelgruppen fuer Glas-Bestellungen (in der Lager-Bestellung ausgenommen)"),
+        ("GemeinsameArtikelgruppen", "EUZ", "Kommaseparierte Artikelgruppen, die in Lager- UND Glas-Bestellungen verfuegbar sind"),
     };
     foreach (var (key, value, description) in requisitionSettings)
     {
