@@ -211,4 +211,184 @@ public class CurrentUserServiceRoleTests
         (await service.CanPickAsync()).Should().BeFalse();
         (await service.CanAccessStockAsync()).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task CanAccessGlasbestellungAsync_WithGlasbestellungRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Glasbestellung });
+
+        (await service.CanAccessGlasbestellungAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessGlasbestellungAsync_WithAdminRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Admin });
+
+        (await service.CanAccessGlasbestellungAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessGlasbestellungAsync_WithLagerbestellungRole_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Lagerbestellung });
+
+        (await service.CanAccessGlasbestellungAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanAccessGlasbestellungAsync_WithStockRole_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Stock });
+
+        (await service.CanAccessGlasbestellungAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanAccessGlasbestellungAsync_WithPickingRole_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Picking });
+
+        (await service.CanAccessGlasbestellungAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanAccessGlasbestellungAsync_WithNoRoles_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string>());
+
+        (await service.CanAccessGlasbestellungAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithAdminRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Admin });
+
+        (await service.CanOrderLagerAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithPickingRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Picking });
+
+        (await service.CanOrderLagerAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithStockRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Stock });
+
+        (await service.CanOrderLagerAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithStockKeyUserRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.StockKeyUser });
+
+        (await service.CanOrderLagerAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithLagerbestellungRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Lagerbestellung });
+
+        (await service.CanOrderLagerAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithGlasbestellungRoleOnly_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Glasbestellung });
+
+        (await service.CanOrderLagerAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanOrderLagerAsync_WithNoRoles_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string>());
+
+        (await service.CanOrderLagerAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithAdminRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Admin });
+
+        (await service.CanOrderGlasAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithPickingRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Picking });
+
+        (await service.CanOrderGlasAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithStockRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Stock });
+
+        (await service.CanOrderGlasAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithStockKeyUserRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.StockKeyUser });
+
+        (await service.CanOrderGlasAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithGlasbestellungRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Glasbestellung });
+
+        (await service.CanOrderGlasAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithLagerbestellungRoleOnly_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Lagerbestellung });
+
+        (await service.CanOrderGlasAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanOrderGlasAsync_WithNoRoles_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string>());
+
+        (await service.CanOrderGlasAsync()).Should().BeFalse();
+    }
 }
