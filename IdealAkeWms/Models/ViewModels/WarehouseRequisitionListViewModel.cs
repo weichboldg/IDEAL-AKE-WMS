@@ -12,6 +12,10 @@ public class WarehouseRequisitionListViewModel
     public int? WorkplaceFilter { get; set; }
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public int OpenCount { get; set; }       // KPI fuer Lager-Sicht
+    /// <summary>Aktiver Bestelltyp-Reiter (Lager/Glas, v1.25.0).</summary>
+    public WarehouseRequisitionType ActiveType { get; set; } = WarehouseRequisitionType.Lager;
+    public bool CanOrderLager { get; set; }
+    public bool CanOrderGlas { get; set; }
     public PaginationState Pagination { get; set; } = new();
     public int MissingPartsWaitingItemCount { get; set; }
     public int MissingPartsWaitingRequisitionCount { get; set; }
