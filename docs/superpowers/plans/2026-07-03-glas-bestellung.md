@@ -14,7 +14,7 @@
 **Wichtige Projektregeln:**
 - Alle Pfade relativ zum Worktree-Root. IMMER im Worktree arbeiten (`Set-Location` vor git).
 - Commits: PowerShell here-string `@'…'@` (schliessendes `'@` auf Spalte 0), Trailer `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
-- Build: `dotnet build IdealAkeWms.sln` · Web-Tests: `dotnet test IdealAkeWms.Tests` · Service-Tests: `dotnet test IDEALAKEWMSService.Tests`.
+- Build: `dotnet build IdealAkeWms.slnx` · Web-Tests: `dotnet test IdealAkeWms.Tests` · Service-Tests: `dotnet test IDEALAKEWMSService.Tests`.
 - InMemory: kein rowversion → Tests nutzen `TestDbContextFactory.Create()` (liefert `TestApplicationDbContext`).
 - UI-Texte Deutsch, Code Englisch. TempData nur `SuccessMessage`/`WarningMessage`.
 
@@ -63,7 +63,7 @@ Tests: bestehende Dateien `IdealAkeWms.Tests/Controllers/WarehouseRequisitionsCo
 ### Task 0: Pre-Flight Baseline
 
 - [ ] **Step 0.1:** `Set-Location C:\Git\IDEAL-AKE-WMS\.claude\worktrees\glas-bestellung`; `git status --short` (muss leer sein), `git log --oneline -1` (erwartet `16ea5bc`).
-- [ ] **Step 0.2:** `dotnet build IdealAkeWms.sln` → 0 Errors.
+- [ ] **Step 0.2:** `dotnet build IdealAkeWms.slnx` → 0 Errors.
 - [ ] **Step 0.3:** `dotnet test IdealAkeWms.Tests --nologo` + `dotnet test IDEALAKEWMSService.Tests --nologo` → alle grün. Anzahl notieren (Baseline).
 
 ---
@@ -177,7 +177,7 @@ END CATCH
   2. Nach dem `lagerbestellung`-Rollen-Block (Zeile ~1333–1344) analogen Block für `glasbestellung` (Text wie SQL/77, `GETDATE()` statt `SYSDATETIME()` — Stil des FreshInstall-Blocks spiegeln, SortOrder 9).
   3. Im `__EFMigrationsHistory`-INSERT-Block am Ende: neue Zeile `('<TIMESTAMP>_AddWarehouseRequisitionTypeAndGlasRole', N'10.0.2'),` in der bestehenden Werteliste (Formatierung der Nachbarzeilen exakt spiegeln).
 
-- [ ] **Step 1.7: Verifizieren** — `dotnet build IdealAkeWms.sln` (0 Errors) und `dotnet ef migrations has-pending-model-changes --project IdealAkeWms` → „No changes have been made to the model...". `dotnet test IdealAkeWms.Tests --nologo` → grün (Type-Default 1 bricht nichts).
+- [ ] **Step 1.7: Verifizieren** — `dotnet build IdealAkeWms.slnx` (0 Errors) und `dotnet ef migrations has-pending-model-changes --project IdealAkeWms` → „No changes have been made to the model...". `dotnet test IdealAkeWms.Tests --nologo` → grün (Type-Default 1 bricht nichts).
 
 - [ ] **Step 1.8: Commit** — `feat(model): WarehouseRequisitionType (Lager/Glas) + Rolle glasbestellung (Migration 77)`
 
@@ -832,7 +832,7 @@ Menü-Einträge bleiben unverändert („Lagerbestellungen" + „Meine Fehlteile
 
 ### Task 14: Final-Check + Review
 
-- [ ] **Step 14.1:** `dotnet build IdealAkeWms.sln` → 0 Errors/0 Warnings-Regression.
+- [ ] **Step 14.1:** `dotnet build IdealAkeWms.slnx` → 0 Errors/0 Warnings-Regression.
 - [ ] **Step 14.2:** `dotnet test IdealAkeWms.Tests --nologo` + `dotnet test IDEALAKEWMSService.Tests --nologo` → ALLE grün (Baseline + neue).
 - [ ] **Step 14.3:** `dotnet ef migrations has-pending-model-changes --project IdealAkeWms` → keine Änderungen.
 - [ ] **Step 14.4:** Konsistenz-Greps:
