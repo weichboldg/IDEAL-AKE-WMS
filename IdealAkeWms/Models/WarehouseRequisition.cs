@@ -10,6 +10,9 @@ public class WarehouseRequisition : AuditableEntity
 
     public WarehouseRequisitionStatus Status { get; set; } = WarehouseRequisitionStatus.Draft;
 
+    /// <summary>Bestelltyp (Lager/Glas, v1.25.0). Wird bei Anlage gesetzt, kein Wechsel.</summary>
+    public WarehouseRequisitionType Type { get; set; } = WarehouseRequisitionType.Lager;
+
     public int? CreatedByUserId { get; set; }
 
     public int? OrderRecipientGroupId { get; set; }

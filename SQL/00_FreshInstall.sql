@@ -1343,6 +1343,19 @@ BEGIN
 END
 GO
 
+-- Rolle 'glasbestellung' (nur Glas-Bestellungen + eigene Fehlteile, v1.25.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'glasbestellung')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('glasbestellung', 'Glasbestellungen',
+            'Glas-Bestellungen erfassen und eigene Fehlteile verfolgen (Zugriff nur auf Lagerbestellungen (Reiter Glas) + Meine Fehlteile).',
+            1, 9,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle glasbestellung eingefuegt.';
+END
+GO
+
 -- Standard-Arbeitsgang-Konfigurationen (OSEON)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[OseonOperationConfigs])
 BEGIN
@@ -1506,6 +1519,7 @@ CREATE TABLE [dbo].[WarehouseRequisitions] (
     [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     [ProductionWorkplaceId] INT NOT NULL,
     [Status] TINYINT NOT NULL,
+    [Type] INT NOT NULL CONSTRAINT [DF_WarehouseRequisitions_Type] DEFAULT 1,
     [CreatedByUserId] INT NULL,
     [OrderRecipientGroupId] INT NULL,
     [SubmittedAt] DATETIME2 NULL,
@@ -2043,6 +2057,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260630104647_ReplaceFaWorkStepIsCompletedWithStatus')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260630104647_ReplaceFaWorkStepIsCompletedWithStatus', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260706074119_AddWarehouseRequisitionTypeAndGlasRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260706074119_AddWarehouseRequisitionTypeAndGlasRole', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

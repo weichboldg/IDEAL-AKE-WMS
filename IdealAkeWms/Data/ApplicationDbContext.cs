@@ -1039,6 +1039,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable("WarehouseRequisitions");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).HasDefaultValue(WarehouseRequisitionType.Lager);
             entity.Property(e => e.CancellationReason).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
