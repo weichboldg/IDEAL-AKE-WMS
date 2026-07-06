@@ -24,6 +24,7 @@ public class MissingPartsLagerControllerTests
         user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
         wp.Setup(w => w.GetAllAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -53,6 +54,7 @@ public class MissingPartsLagerControllerTests
         var (ctrl, repo, _, _, _) = Build();
         await ctrl.Index(tab: ShortageStatus.NoRestock);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock,
+            It.IsAny<WarehouseRequisitionType?>(),
             It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string, string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<int>(), It.IsAny<int>()), Times.AtLeastOnce);
@@ -81,6 +83,7 @@ public class MissingPartsLagerControllerTests
             Status: ShortageStatus.WillBeRestocked,
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -119,6 +122,7 @@ public class MissingPartsLagerControllerTests
             Status: ShortageStatus.WillBeRestocked,
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),

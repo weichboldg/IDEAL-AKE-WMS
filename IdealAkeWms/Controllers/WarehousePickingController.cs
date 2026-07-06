@@ -66,7 +66,7 @@ public class WarehousePickingController : Controller
 
         // Server-Side-Spaltenfilter: ALLE Rows laden -> ViewModel -> filtern -> zaehlen -> paginieren.
         // (Filter muss ueber alle Eintraege wirken, nicht nur die aktuelle Seite.)
-        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, 1, int.MaxValue);
+        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, null, 1, int.MaxValue);
         var allItems = allRows.Select(r => new WarehouseRequisitionListItemViewModel(
             r.Id, r.ProductionWorkplace?.Name ?? "", r.CreatedBy, r.CreatedAt,
             r.SubmittedAt, r.Items.Count, r.Status)).ToList();
@@ -79,7 +79,7 @@ public class WarehousePickingController : Controller
         var allWorkplaces = await _workplaces.GetAllAsync();
         var openCount = (await _repo.GetForWarehouseAsync(
             new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered },
-            null, 1, 1)).TotalCount;
+            null, null, 1, 1)).TotalCount;
 
         var vm = new WarehouseRequisitionListViewModel
         {

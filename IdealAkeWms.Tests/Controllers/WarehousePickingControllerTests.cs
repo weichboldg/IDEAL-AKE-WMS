@@ -246,9 +246,9 @@ public class WarehousePickingControllerTests
         WarehouseRequisitionStatus[]? capturedStatuses = null;
         repo.Setup(r => r.GetForWarehouseAsync(
                 It.IsAny<WarehouseRequisitionStatus[]>(),
-                It.IsAny<int?>(), It.IsAny<int>(), It.IsAny<int>()))
-            .Callback<WarehouseRequisitionStatus[], int?, int, int>(
-                (statuses, _, _, _) => capturedStatuses ??= statuses)
+                It.IsAny<int?>(), It.IsAny<WarehouseRequisitionType?>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Callback<WarehouseRequisitionStatus[], int?, WarehouseRequisitionType?, int, int>(
+                (statuses, _, _, _, _) => capturedStatuses ??= statuses)
             .ReturnsAsync((new List<WarehouseRequisition>(), 0));
 
         await ctrl.Index(statusFilter: null, workplaceId: null, page: 1);

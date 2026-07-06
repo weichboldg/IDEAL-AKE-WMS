@@ -39,7 +39,7 @@ public class MissingPartsLagerController : Controller
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
         var (rows, total) = await _repo.GetMissingPartsAsync(
-            tab, workplaceId, columnFilters, null, null, page, effectivePageSize);
+            tab, null, workplaceId, columnFilters, null, null, page, effectivePageSize);
 
         // Lagerplatz-Bestand pro Artikel bulk-fetchen (vermeidet N+1)
         var articleNumbers = rows.Select(r => r.ArticleNumber)
@@ -64,9 +64,9 @@ public class MissingPartsLagerController : Controller
         }).ToList();
 
         var waitingResult = await _repo.GetMissingPartsAsync(
-            ShortageStatus.WillBeRestocked, workplaceId, null, null, null, 1, 1);
+            ShortageStatus.WillBeRestocked, null, workplaceId, null, null, null, 1, 1);
         var noRestockResult = await _repo.GetMissingPartsAsync(
-            ShortageStatus.NoRestock, workplaceId, null, null, null, 1, 1);
+            ShortageStatus.NoRestock, null, workplaceId, null, null, null, 1, 1);
 
         var vm = new MissingPartsListViewModel
         {

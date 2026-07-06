@@ -128,7 +128,7 @@ public class WarehouseRequisitionsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var newId = await _repo.CreateDraftAsync(chosenWp, userId, _user.GetDisplayName(), _user.GetWindowsUserName());
+        var newId = await _repo.CreateDraftAsync(chosenWp, WarehouseRequisitionType.Lager, userId, _user.GetDisplayName(), _user.GetWindowsUserName());
         return RedirectToAction(nameof(Edit), new { id = newId });
     }
 

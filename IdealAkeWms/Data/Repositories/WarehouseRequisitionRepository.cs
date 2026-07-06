@@ -10,12 +10,13 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     private readonly ApplicationDbContext _context;
     public WarehouseRequisitionRepository(ApplicationDbContext context) { _context = context; }
 
-    public async Task<int> CreateDraftAsync(int productionWorkplaceId, int currentUserId, string currentUserName, string windowsUserName)
+    public async Task<int> CreateDraftAsync(int productionWorkplaceId, WarehouseRequisitionType type, int currentUserId, string currentUserName, string windowsUserName)
     {
         var r = new WarehouseRequisition
         {
             ProductionWorkplaceId = productionWorkplaceId,
             Status = WarehouseRequisitionStatus.Draft,
+            Type = type,
             CreatedByUserId = currentUserId,
             CreatedAt = DateTime.Now,
             CreatedBy = currentUserName,
@@ -52,13 +53,14 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     }
 
     public async Task<(List<WarehouseRequisition> Items, int TotalCount)> GetForWarehouseAsync(
-        WarehouseRequisitionStatus[] statuses, int? workplaceId, int page, int pageSize)
+        WarehouseRequisitionStatus[] statuses, int? workplaceId, WarehouseRequisitionType? type, int page, int pageSize)
     {
         var q = _context.WarehouseRequisitions
             .Include(r => r.ProductionWorkplace)
             .Include(r => r.Items)
             .Where(r => statuses.Contains(r.Status));
         if (workplaceId.HasValue) q = q.Where(r => r.ProductionWorkplaceId == workplaceId.Value);
+        if (type.HasValue) q = q.Where(r => r.Type == type.Value);
 
         var total = await q.CountAsync();
         var items = await q.OrderByDescending(r => r.SubmittedAt ?? r.CreatedAt)
@@ -335,6 +337,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
     public async Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
         GetMissingPartsAsync(ShortageStatus filterStatus,
+                             WarehouseRequisitionType? type,
                              int? workplaceFilter,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
@@ -347,6 +350,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
                 && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
                     || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered));
 
+        if (type.HasValue)
+            q = q.Where(i => i.WarehouseRequisition.Type == type.Value);
         if (workplaceFilter.HasValue)
             q = q.Where(i => i.WarehouseRequisition.ProductionWorkplaceId == workplaceFilter.Value);
         if (closedFrom.HasValue)

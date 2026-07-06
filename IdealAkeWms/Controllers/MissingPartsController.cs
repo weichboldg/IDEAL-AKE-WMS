@@ -82,6 +82,7 @@ public class MissingPartsController : Controller
 
         var (rawRows, total) = await _repo.GetMissingPartsAsync(
             tab,
+            null,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             columnFilters,
             null, null, page, effectivePageSize);
@@ -105,10 +106,12 @@ public class MissingPartsController : Controller
         // Counts fuer beide Tabs (Tab-Header-Badges)
         var waitingResult = await _repo.GetMissingPartsAsync(
             ShortageStatus.WillBeRestocked,
+            null,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             null, null, null, 1, 1);
         var noRestockResult = await _repo.GetMissingPartsAsync(
             ShortageStatus.NoRestock,
+            null,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             null, null, null, 1, 1);
 

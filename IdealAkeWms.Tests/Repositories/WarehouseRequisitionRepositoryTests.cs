@@ -27,7 +27,7 @@ public class WarehouseRequisitionRepositoryTests
         var (userId, wpId, _) = await SeedAsync(ctx);
 
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "tester", "DOMAIN\\tester");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "tester", "DOMAIN\\tester");
 
         var r = await ctx.WarehouseRequisitions.FindAsync(id);
         r!.Status.Should().Be(WarehouseRequisitionStatus.Draft);
@@ -42,7 +42,7 @@ public class WarehouseRequisitionRepositoryTests
         var ctx = TestDbContextFactory.Create();
         var (userId, wpId, _) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
 
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         await repo.AddItemAsync(id, "ART-2", "Mutter", "Stk", 10m, "t", "t");
@@ -59,7 +59,7 @@ public class WarehouseRequisitionRepositoryTests
         var ctx = TestDbContextFactory.Create();
         var (userId, wpId, _) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
 
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         Func<Task> act = () => repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 3m, "t", "t");
@@ -74,7 +74,7 @@ public class WarehouseRequisitionRepositoryTests
         var ctx = TestDbContextFactory.Create();
         var (userId, wpId, grpId) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
 
         var r = await ctx.WarehouseRequisitions.FindAsync(id);
@@ -93,7 +93,7 @@ public class WarehouseRequisitionRepositoryTests
         var ctx = TestDbContextFactory.Create();
         var (userId, wpId, grpId) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         await repo.AddItemAsync(id, "ART-2", "Mutter", "Stk", 10m, "t", "t");
         var rBefore = await ctx.WarehouseRequisitions.FindAsync(id);
@@ -128,7 +128,7 @@ public class WarehouseRequisitionRepositoryTests
         var ctx = TestDbContextFactory.Create();
         var (userId, wpId, grpId) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         var r1 = await ctx.WarehouseRequisitions.FindAsync(id);
         await repo.SubmitAsync(id, grpId, userId, "t", "t", r1!.RowVersion);
@@ -150,8 +150,8 @@ public class WarehouseRequisitionRepositoryTests
         var (userId, wpId, grpId) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
 
-        var draftId = await repo.CreateDraftAsync(wpId, userId, "t", "t");
-        var submittedId = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var draftId = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
+        var submittedId = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
         await repo.AddItemAsync(submittedId, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         var rs = await ctx.WarehouseRequisitions.FindAsync(submittedId);
         await repo.SubmitAsync(submittedId, grpId, userId, "t", "t", rs!.RowVersion);
@@ -163,7 +163,7 @@ public class WarehouseRequisitionRepositoryTests
             WarehouseRequisitionStatus.Closed,
             WarehouseRequisitionStatus.Cancelled
         };
-        var (items, total) = await repo.GetForWarehouseAsync(statuses, workplaceId: null, page: 1, pageSize: 25);
+        var (items, total) = await repo.GetForWarehouseAsync(statuses, workplaceId: null, type: null, page: 1, pageSize: 25);
 
         items.Select(i => i.Id).Should().NotContain(draftId);
         items.Select(i => i.Id).Should().Contain(submittedId);
@@ -176,7 +176,7 @@ public class WarehouseRequisitionRepositoryTests
         var ctx = TestDbContextFactory.Create();
         var (userId, wpId, grpId) = await SeedAsync(ctx);
         var repo = new WarehouseRequisitionRepository(ctx);
-        var id = await repo.CreateDraftAsync(wpId, userId, "t", "t");
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "t", "t");
         var r = await ctx.WarehouseRequisitions.FindAsync(id);
         await repo.SubmitAsync(id, grpId, userId, "t", "t", r!.RowVersion);
@@ -422,7 +422,7 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
         (await db.WarehouseRequisitions.FindAsync(pdId))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
 
-        var (items, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
+        var (items, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, null, 1, 100);
         items.Should().HaveCount(2);
         items.Select(i => i.RequisitionId).Should().BeEquivalentTo(new[] { closedId, pdId });
         total.Should().Be(2);
@@ -469,7 +469,7 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (only1, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, 1, null, null, null, 1, 100);
+        var (only1, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, 1, null, null, null, 1, 100);
         only1.Should().HaveCount(1);
         only1[0].WorkplaceName.Should().Be("WB1");
     }
@@ -494,12 +494,12 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
 
         var filters = new Dictionary<string, string> { ["ArticleNumber"] = "AAA" };
-        var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filters, null, null, 1, 100);
+        var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
         filtered.Should().HaveCount(1);
         filtered[0].ArticleNumber.Should().Be("AAA-1");
 
         var filtersOr = new Dictionary<string, string> { ["ArticleNumber"] = "AAA,BBB" };
-        var (both, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filtersOr, null, null, 1, 100);
+        var (both, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filtersOr, null, null, 1, 100);
         both.Should().HaveCount(2);
     }
 
@@ -523,7 +523,7 @@ public class WarehouseRequisitionRepositoryTests
                 1, "u", "w", new byte[0]);
         }
 
-        var (page1, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 2);
+        var (page1, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, null, 1, 2);
         page1.Should().HaveCount(2);
         total.Should().Be(5);
     }
@@ -547,7 +547,7 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
         (await db.WarehouseRequisitions.FindAsync(id))!.Status.Should().Be(WarehouseRequisitionStatus.PartiallyDelivered);
 
-        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, null, 1, 100);
         result.Should().HaveCount(1);
         result[0].ItemId.Should().Be(items[0].Id);
     }
@@ -565,7 +565,7 @@ public class WarehouseRequisitionRepositoryTests
         r!.Status = WarehouseRequisitionStatus.Cancelled;
         await db.SaveChangesAsync();
 
-        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, null, 1, 100);
         result.Should().HaveCount(0);
     }
 
@@ -659,7 +659,7 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked, [items[1].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (result, total) = await repo.GetMissingPartsAsync(ShortageStatus.WillBeRestocked, null, null, null, null, 1, 100);
+        var (result, total) = await repo.GetMissingPartsAsync(ShortageStatus.WillBeRestocked, null, null, null, null, null, 1, 100);
         result.Should().HaveCount(1);
         result[0].ItemId.Should().Be(items[0].Id);
         result[0].Status.Should().Be(ShortageStatus.WillBeRestocked);
@@ -681,7 +681,7 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.WillBeRestocked, [items[1].Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (result, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, 1, 100);
+        var (result, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, null, null, null, 1, 100);
         result.Should().HaveCount(1);
         result[0].ItemId.Should().Be(items[1].Id);
         result[0].Status.Should().Be(ShortageStatus.NoRestock);
@@ -826,7 +826,7 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
 
         var filters = new Dictionary<string, string> { ["NoteLager"] = "lager" };
-        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filters, null, null, 1, 100);
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
         result.Should().HaveCount(1);
         result[0].ItemId.Should().Be(items[0].Id);
     }
@@ -848,9 +848,103 @@ public class WarehouseRequisitionRepositoryTests
             1, "u", "w", new byte[0]);
 
         var filters = new Dictionary<string, string> { ["NoteEinkauf"] = "ek-hinweis" };
-        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, filters, null, null, 1, 100);
+        var (result, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
         result.Should().HaveCount(1);
         result[0].ItemId.Should().Be(items[0].Id);
         result[0].NoteEinkauf.Should().Be("ek-hinweis");
+    }
+
+    // ===== Glas-Bestellung (Task 5) — WarehouseRequisitionType durch das Repository ziehen =====
+
+    [Fact]
+    public async Task CreateDraftAsync_SetztTyp()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (_, wpId, _) = await SeedAsync(ctx);
+
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var id = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Glas, 1, "t", "win");
+
+        var r = await ctx.WarehouseRequisitions.FindAsync(id);
+        r!.Type.Should().Be(WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
+    public async Task GetForWarehouseAsync_FiltertNachTyp()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (userId, wpId, grpId) = await SeedAsync(ctx);
+        var repo = new WarehouseRequisitionRepository(ctx);
+
+        var lagerId = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Lager, userId, "t", "t");
+        var rLager = await ctx.WarehouseRequisitions.FindAsync(lagerId);
+        await repo.SubmitAsync(lagerId, grpId, userId, "t", "t", rLager!.RowVersion);
+
+        var glasId = await repo.CreateDraftAsync(wpId, WarehouseRequisitionType.Glas, userId, "t", "t");
+        var rGlas = await ctx.WarehouseRequisitions.FindAsync(glasId);
+        await repo.SubmitAsync(glasId, grpId, userId, "t", "t", rGlas!.RowVersion);
+
+        var statuses = new[] { WarehouseRequisitionStatus.Submitted };
+
+        var (glasItems, glasTotal) = await repo.GetForWarehouseAsync(
+            statuses, workplaceId: null, type: WarehouseRequisitionType.Glas, page: 1, pageSize: 25);
+        glasTotal.Should().Be(1);
+        glasItems.Should().ContainSingle().Which.Id.Should().Be(glasId);
+        glasItems.Should().OnlyContain(r => r.Type == WarehouseRequisitionType.Glas);
+
+        var (_, allTotal) = await repo.GetForWarehouseAsync(
+            statuses, workplaceId: null, type: null, page: 1, pageSize: 25);
+        allTotal.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_FiltertNachTyp()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+
+        var lager = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = 1,
+            Status = WarehouseRequisitionStatus.PartiallyDelivered,
+            Type = WarehouseRequisitionType.Lager,
+            CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test",
+            SubmittedAt = DateTime.Now
+        };
+        var glas = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = 1,
+            Status = WarehouseRequisitionStatus.PartiallyDelivered,
+            Type = WarehouseRequisitionType.Glas,
+            CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test",
+            SubmittedAt = DateTime.Now
+        };
+        db.WarehouseRequisitions.AddRange(lager, glas);
+        await db.SaveChangesAsync();
+        db.WarehouseRequisitionItems.AddRange(
+            new WarehouseRequisitionItem
+            {
+                WarehouseRequisitionId = lager.Id, Position = 1, ArticleNumber = "A1",
+                ArticleDescription = "Lager-Teil", QuantityRequested = 5m, QuantityPicked = 0m,
+                ShortageStatus = ShortageStatus.WillBeRestocked,
+                CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test"
+            },
+            new WarehouseRequisitionItem
+            {
+                WarehouseRequisitionId = glas.Id, Position = 1, ArticleNumber = "G1",
+                ArticleDescription = "Glas-Teil", QuantityRequested = 5m, QuantityPicked = 0m,
+                ShortageStatus = ShortageStatus.WillBeRestocked,
+                CreatedAt = DateTime.Now, CreatedBy = "test", CreatedByWindows = "test\\test"
+            });
+        await db.SaveChangesAsync();
+
+        var (result, total) = await repo.GetMissingPartsAsync(
+            ShortageStatus.WillBeRestocked, WarehouseRequisitionType.Glas, null, null, null, null, 1, 100);
+
+        result.Should().HaveCount(1);
+        result[0].ArticleNumber.Should().Be("G1");
+        total.Should().Be(1);
     }
 }

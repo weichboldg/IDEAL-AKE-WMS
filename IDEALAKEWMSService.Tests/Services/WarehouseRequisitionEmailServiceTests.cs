@@ -37,7 +37,7 @@ public class WarehouseRequisitionEmailServiceTests
         });
         await ctx.SaveChangesAsync();
 
-        var id = await repo.CreateDraftAsync(wp.Id, u.Id, "tester", "DOMAIN\\tester");
+        var id = await repo.CreateDraftAsync(wp.Id, WarehouseRequisitionType.Lager, u.Id, "tester", "DOMAIN\\tester");
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "tester", "DOMAIN\\tester");
         var r = await ctx.WarehouseRequisitions.FindAsync(id);
         await repo.SubmitAsync(id, grp.Id, u.Id, "tester", "DOMAIN\\tester", r!.RowVersion);
