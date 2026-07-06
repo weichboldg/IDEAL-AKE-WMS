@@ -15,15 +15,18 @@ public class WarehouseRequisitionsApiController : ControllerBase
     private readonly IArticleRepository _articles;
     private readonly IStockMovementRepository _stock;
     private readonly ICurrentUserService _user;
+    private readonly IAppSettingRepository _settings;
 
     public WarehouseRequisitionsApiController(
         IWarehouseRequisitionRepository repo, IArticleRepository articles,
-        IStockMovementRepository stock, ICurrentUserService user)
+        IStockMovementRepository stock, ICurrentUserService user,
+        IAppSettingRepository settings)
     {
         _repo = repo;
         _articles = articles;
         _stock = stock;
         _user = user;
+        _settings = settings;
     }
 
     public record AddItemRequest(string ArticleNumber, decimal Quantity);
@@ -35,6 +38,22 @@ public class WarehouseRequisitionsApiController : ControllerBase
         var article = await _articles.GetByArticleNumberAsync(body.ArticleNumber);
         if (article == null)
             return BadRequest(new { error = "Artikel nicht gefunden." });
+
+        var requisition = await _repo.GetByIdAsync(id, includeItems: false);
+        if (requisition == null)
+            return NotFound();
+
+        var glasGroups = GlasArticleGroupFilter.ParseGroups(
+            await _settings.GetValueAsync(AppSettingKeys.GlasArtikelgruppen));
+        var sharedGroups = GlasArticleGroupFilter.ParseGroups(
+            await _settings.GetValueAsync(AppSettingKeys.GemeinsameArtikelgruppen));
+        if (!GlasArticleGroupFilter.IsAllowedForType(article.ArticleGroup, requisition.Type, glasGroups, sharedGroups))
+        {
+            var msg = requisition.Type == WarehouseRequisitionType.Glas
+                ? $"Artikelgruppe '{article.ArticleGroup}' ist keine Glas-Artikelgruppe — Artikel gehoert in die Lager-Bestellung."
+                : $"Artikelgruppe '{article.ArticleGroup}' gehoert zur Glas-Bestellung.";
+            return BadRequest(new { error = msg });
+        }
 
         try
         {
