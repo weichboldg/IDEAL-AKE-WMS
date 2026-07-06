@@ -1,17 +1,23 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionEditViewModel
 @{
-    ViewData["Title"] = $"Lagerbestellung #{Model.Id}";
+    string typeLabel = Model.Type == WarehouseRequisitionType.Glas ? "Glasbestellung" : "Lagerbestellung";
+    ViewData["Title"] = $"{typeLabel} #{Model.Id}";
     bool isDraft = Model.Status == IdealAkeWms.Models.WarehouseRequisitionStatus.Draft;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
-    <h2 class="mb-0">Lagerbestellung #@Model.Id</h2>
+    <h2 class="mb-0">@typeLabel #@Model.Id</h2>
     <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurueck</a>
 </div>
 
 <div class="card mb-3">
     <div class="card-body p-2">
         <strong>Werkbank:</strong> @Model.WorkplaceName
+        <span class="ms-3"><strong>Typ:</strong>
+            <span class="badge @(Model.Type == WarehouseRequisitionType.Glas ? "bg-info text-dark" : "bg-secondary")">
+                @(Model.Type == WarehouseRequisitionType.Glas ? "Glas" : "Lager")
+            </span>
+        </span>
         <span class="ms-3"><strong>Status:</strong>
             @switch (Model.Status)
             {
@@ -132,7 +138,7 @@
             timer = setTimeout(() => {
                 const q = search.value.trim();
                 if (q.length < 2) { results.innerHTML = ''; return; }
-                fetch(`/api/articles/search?q=${encodeURIComponent(q)}&limit=20`)
+                fetch(`/api/articles/search?q=${encodeURIComponent(q)}&limit=20&type=@Model.Type`)
                     .then(r => r.json())
                     .then(arr => {
                         results.innerHTML = arr.map(a => `<button type="button" class="list-group-item list-group-item-action" data-art="${a.text.split(' - ')[0]}">${a.text}</button>`).join('');
