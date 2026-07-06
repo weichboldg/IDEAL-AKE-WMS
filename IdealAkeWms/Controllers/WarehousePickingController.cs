@@ -56,7 +56,7 @@ public class WarehousePickingController : Controller
         WarehouseRequisitionType type = WarehouseRequisitionType.Lager, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
-        // Defensive: geforgte ?type=99-URLs auf den Default zuruecksetzen (Konsistenz mit CreateDraft-Guard).
+        // Geforgte ?type=99-URLs: lesend still auf Lager korrigieren (CreateDraft lehnt schreibend ab).
         if (!Enum.IsDefined(type)) type = WarehouseRequisitionType.Lager;
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
@@ -133,6 +133,7 @@ public class WarehousePickingController : Controller
             CancelledAt = r.CancelledAt,
             CancellationReason = r.CancellationReason,
             Status = r.Status,
+            Type = r.Type,
             RowVersion = r.RowVersion,
             Items = detailItems
         };
@@ -190,7 +191,8 @@ public class WarehousePickingController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} abgeschlossen.";
-        return RedirectToAction(nameof(Index));
+        var closed = await _repo.GetByIdAsync(id, includeItems: false);
+        return RedirectToAction(nameof(Index), new { type = closed?.Type ?? WarehouseRequisitionType.Lager });
     }
 
     /// <summary>
@@ -315,7 +317,8 @@ public class WarehousePickingController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} storniert.";
-        return RedirectToAction(nameof(Index));
+        var cancelled = await _repo.GetByIdAsync(id, includeItems: false);
+        return RedirectToAction(nameof(Index), new { type = cancelled?.Type ?? WarehouseRequisitionType.Lager });
     }
 
     public async Task<IActionResult> Print(int id, string? sortCol = null, string? sortDir = null)

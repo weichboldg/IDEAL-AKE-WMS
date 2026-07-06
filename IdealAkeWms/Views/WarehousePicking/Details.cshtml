@@ -8,7 +8,7 @@
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
     <h2 class="mb-0">Lagerbestellung #@Model.Id</h2>
-    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurueck</a>
+    <a asp-action="Index" asp-route-type="@Model.Type" class="btn btn-sm btn-outline-secondary">Zurueck</a>
 </div>
 
 <div class="card mb-3">
@@ -418,7 +418,7 @@
             }
             const data = await resp.json();
             if (printTab && data.redirectUrl) printTab.location.href = data.redirectUrl;
-            window.location.href = '@Url.Action("Index", "WarehousePicking")';
+            window.location.href = '@Url.Action("Index", "WarehousePicking", new { type = Model.Type })';
         } catch (ex) {
             if (printTab) printTab.close();
             alert('Netzwerkfehler — bitte erneut versuchen.');
