@@ -497,4 +497,79 @@ public class WarehouseRequisitionsControllerTests
         vm.Should().NotBeNull();
         vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
     }
+
+    [Fact]
+    public async Task CreateDraft_UngueltigerTyp_Warnung()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.CreateDraft(wp.Id, (WarehouseRequisitionType)99) as RedirectToActionResult;
+
+        result.Should().NotBeNull();
+        result!.ActionName.Should().Be("Index");
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+        ctx.WarehouseRequisitions.Should().BeEmpty("undefinierter Bestelltyp darf keinen Draft erzeugen");
+    }
+
+    [Fact]
+    public async Task Submit_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id,
+            CreatedByUserId = userId + 1000,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        };
+        r.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        });
+        ctx.WarehouseRequisitions.Add(r);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Submit(r.Id);
+
+        result.Should().BeOfType<ForbidResult>("fremde Bestellungen duerfen nicht submitted werden");
+        ctx.WarehouseRequisitions.First().Status.Should().Be(WarehouseRequisitionStatus.Draft);
+    }
+
+    [Fact]
+    public async Task Cancel_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id,
+            CreatedByUserId = userId + 1000,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        };
+        r.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        });
+        ctx.WarehouseRequisitions.Add(r);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Cancel(r.Id, null);
+
+        result.Should().BeOfType<ForbidResult>("fremde Bestellungen duerfen nicht storniert werden");
+        ctx.WarehouseRequisitions.First().Status.Should().Be(WarehouseRequisitionStatus.Draft);
+    }
 }

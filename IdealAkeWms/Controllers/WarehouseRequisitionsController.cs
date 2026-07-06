@@ -114,6 +114,12 @@ public class WarehouseRequisitionsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateDraft(int? workplaceId, WarehouseRequisitionType type = WarehouseRequisitionType.Lager)
     {
+        if (!Enum.IsDefined(type))
+        {
+            TempData["WarningMessage"] = "Ungueltiger Bestelltyp.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var allowed = type == WarehouseRequisitionType.Glas
             ? await _user.CanOrderGlasAsync()
             : await _user.CanOrderLagerAsync();
@@ -183,6 +189,14 @@ public class WarehouseRequisitionsController : Controller
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null) return NotFound();
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var displayName = _user.GetDisplayName();
+        // Wenn CreatedByUserId gesetzt ist, primaer per Id pruefen; sonst Fallback auf Display-Name.
+        var ownsRequisition = r.CreatedByUserId != null
+            ? r.CreatedByUserId == userId
+            : r.CreatedBy == displayName;
+        if (!ownsRequisition)
+            return Forbid();
         if (r.Status != WarehouseRequisitionStatus.Draft)
         {
             TempData["WarningMessage"] = "Nur Entwurfe koennen abgeschickt werden.";
@@ -213,8 +227,8 @@ public class WarehouseRequisitionsController : Controller
 
         try
         {
-            await _repo.SubmitAsync(id, groupId, _user.GetCurrentAppUserId() ?? 0,
-                _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+            await _repo.SubmitAsync(id, groupId, userId,
+                displayName, _user.GetWindowsUserName(), r.RowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
@@ -231,6 +245,14 @@ public class WarehouseRequisitionsController : Controller
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null) return NotFound();
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var displayName = _user.GetDisplayName();
+        // Wenn CreatedByUserId gesetzt ist, primaer per Id pruefen; sonst Fallback auf Display-Name.
+        var ownsRequisition = r.CreatedByUserId != null
+            ? r.CreatedByUserId == userId
+            : r.CreatedBy == displayName;
+        if (!ownsRequisition)
+            return Forbid();
         if (r.Status != WarehouseRequisitionStatus.Draft && r.Status != WarehouseRequisitionStatus.Submitted)
         {
             TempData["WarningMessage"] = "Liste kann in diesem Status nicht storniert werden.";
@@ -238,8 +260,8 @@ public class WarehouseRequisitionsController : Controller
         }
         try
         {
-            await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
-                _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+            await _repo.CancelAsync(id, reason, userId,
+                displayName, _user.GetWindowsUserName(), r.RowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
