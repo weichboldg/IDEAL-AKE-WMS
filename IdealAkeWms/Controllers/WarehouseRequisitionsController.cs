@@ -237,7 +237,7 @@ public class WarehouseRequisitionsController : Controller
         }
 
         TempData["SuccessMessage"] = $"Liste #{id} abgeschickt — wird per E-Mail gesendet (max. 15 Min).";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), new { type = r.Type });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -269,6 +269,6 @@ public class WarehouseRequisitionsController : Controller
             return RedirectToAction(nameof(Edit), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} storniert.";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), new { type = r.Type });
     }
 }

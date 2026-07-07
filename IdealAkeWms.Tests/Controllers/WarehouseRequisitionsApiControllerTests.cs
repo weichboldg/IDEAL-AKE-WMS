@@ -44,7 +44,14 @@ public class WarehouseRequisitionsApiControllerTests
         ctx.SaveChanges();
     }
 
+    // Setup-User: GetCurrentAppUserId() == 1, GetDisplayName() == "tester".
+    private const int SetupUserId = 1;
+
     private static int SeedDraft(ApplicationDbContext ctx, WarehouseRequisitionType type)
+        => SeedRequisition(ctx, type, WarehouseRequisitionStatus.Draft, SetupUserId);
+
+    private static int SeedRequisition(ApplicationDbContext ctx, WarehouseRequisitionType type,
+        WarehouseRequisitionStatus status, int createdByUserId)
     {
         var wp = new ProductionWorkplace
         {
@@ -58,11 +65,30 @@ public class WarehouseRequisitionsApiControllerTests
         {
             ProductionWorkplaceId = wp.Id,
             Type = type,
+            Status = status,
+            CreatedByUserId = createdByUserId,
             CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
         };
         ctx.WarehouseRequisitions.Add(r);
         ctx.SaveChanges();
         return r.Id;
+    }
+
+    private static int SeedItem(ApplicationDbContext ctx, int requisitionId, string articleNumber, decimal qty)
+    {
+        var item = new WarehouseRequisitionItem
+        {
+            WarehouseRequisitionId = requisitionId,
+            ArticleNumber = articleNumber,
+            ArticleDescription = "desc",
+            Unit = "Stk",
+            QuantityRequested = qty,
+            Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        };
+        ctx.WarehouseRequisitionItems.Add(item);
+        ctx.SaveChanges();
+        return item.Id;
     }
 
     [Fact]
@@ -124,5 +150,84 @@ public class WarehouseRequisitionsApiControllerTests
         lagerResult.Should().BeOfType<OkResult>("gemeinsame Gruppe EUZ ist in Lager-Bestellung erlaubt");
         glasResult.Should().BeOfType<OkResult>("gemeinsame Gruppe EUZ ist in Glas-Bestellung erlaubt");
         ctx.WarehouseRequisitionItems.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task AddItem_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx) = Setup();
+        SeedArticles(ctx);
+        // Fremde Bestellung (anderer Owner), aber Draft.
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Draft, SetupUserId + 1000);
+
+        var result = await ctrl.AddItem(reqId,
+            new WarehouseRequisitionsApiController.AddItemRequest("ART-EUZ", 1));
+
+        result.Should().BeOfType<ForbidResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty("fremde Bestellung darf nicht bearbeitet werden");
+    }
+
+    [Fact]
+    public async Task AddItem_NichtDraft_BadRequest()
+    {
+        var (ctrl, ctx) = Setup();
+        SeedArticles(ctx);
+        // Eigene Bestellung, aber bereits abgeschickt.
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Submitted, SetupUserId);
+
+        var result = await ctrl.AddItem(reqId,
+            new WarehouseRequisitionsApiController.AddItemRequest("ART-EUZ", 1));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty("nicht-Entwurf darf nicht mehr bearbeitet werden");
+    }
+
+    [Fact]
+    public async Task UpdateItem_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx) = Setup();
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Draft, SetupUserId + 1000);
+        var itemId = SeedItem(ctx, reqId, "ART-EUZ", 5);
+
+        var result = await ctrl.UpdateItem(itemId,
+            new WarehouseRequisitionsApiController.UpdateItemRequest(99));
+
+        result.Should().BeOfType<ForbidResult>();
+        ctx.WarehouseRequisitionItems.Single(i => i.Id == itemId)
+            .QuantityRequested.Should().Be(5, "fremde Position darf nicht geaendert werden");
+    }
+
+    [Fact]
+    public async Task RemoveItem_NichtDraft_BadRequest()
+    {
+        var (ctrl, ctx) = Setup();
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Submitted, SetupUserId);
+        var itemId = SeedItem(ctx, reqId, "ART-EUZ", 5);
+
+        var result = await ctrl.RemoveItem(itemId);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().ContainSingle(i => i.Id == itemId,
+            "Position einer abgeschickten Bestellung darf nicht geloescht werden");
+    }
+
+    [Fact]
+    public async Task UpdateItem_EigenerDraft_Ok()
+    {
+        var (ctrl, ctx) = Setup();
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Draft, SetupUserId);
+        var itemId = SeedItem(ctx, reqId, "ART-EUZ", 5);
+
+        var result = await ctrl.UpdateItem(itemId,
+            new WarehouseRequisitionsApiController.UpdateItemRequest(42));
+
+        result.Should().BeOfType<OkResult>();
+        ctx.WarehouseRequisitionItems.Single(i => i.Id == itemId)
+            .QuantityRequested.Should().Be(42, "eigener Entwurf ist bearbeitbar");
     }
 }

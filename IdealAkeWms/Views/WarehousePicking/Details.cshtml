@@ -1,13 +1,14 @@
 @model IdealAkeWms.Models.ViewModels.WarehouseRequisitionDetailViewModel
 @using IdealAkeWms.Models
 @{
-    ViewData["Title"] = $"Lagerbestellung #{Model.Id}";
+    string typeLabel = Model.Type == WarehouseRequisitionType.Glas ? "Glasbestellung" : "Lagerbestellung";
+    ViewData["Title"] = $"{typeLabel} #{Model.Id}";
     bool isEditable = Model.Status == WarehouseRequisitionStatus.Submitted
                    || Model.Status == WarehouseRequisitionStatus.PartiallyDelivered;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
-    <h2 class="mb-0">Lagerbestellung #@Model.Id</h2>
+    <h2 class="mb-0">@typeLabel #@Model.Id</h2>
     <a asp-action="Index" asp-route-type="@Model.Type" class="btn btn-sm btn-outline-secondary">Zurueck</a>
 </div>
 

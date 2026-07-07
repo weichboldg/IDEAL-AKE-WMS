@@ -37,6 +37,14 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return await q.FirstOrDefaultAsync(r => r.Id == id);
     }
 
+    public async Task<WarehouseRequisition?> GetByItemIdAsync(int itemId)
+    {
+        return await _context.WarehouseRequisitionItems
+            .Where(i => i.Id == itemId)
+            .Select(i => i.WarehouseRequisition)
+            .FirstOrDefaultAsync();
+    }
+
     // AuditableEntity hat nur CreatedBy (string), kein CreatedByUserId. userId-Parameter wird hier
     // nicht direkt im Where verwendet — der Controller filtert post-load via r.CreatedBy == displayName.
     // GetForUserAsync laedt Drafts (immer) + alle Eintraege der letzten N Tage; der Aufrufer schraenkt ein.

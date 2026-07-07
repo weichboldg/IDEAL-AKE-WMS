@@ -32,6 +32,24 @@ public class WarehouseRequisitionsApiController : ControllerBase
     public record AddItemRequest(string ArticleNumber, decimal Quantity);
     public record UpdateItemRequest(decimal Quantity);
 
+    /// <summary>
+    /// Einheitlicher Guard fuer die Item-Endpoints: nur der Ersteller (Ownership,
+    /// wie Submit/Cancel) darf Positionen einer Bestellung im Draft-Status aendern.
+    /// Liefert bei Verletzung das kurzschliessende Result, sonst null.
+    /// </summary>
+    private IActionResult? CheckOwnershipAndDraft(WarehouseRequisition requisition)
+    {
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var displayName = _user.GetDisplayName();
+        var owns = requisition.CreatedByUserId != null
+            ? requisition.CreatedByUserId == userId
+            : requisition.CreatedBy == displayName;
+        if (!owns) return Forbid();
+        if (requisition.Status != WarehouseRequisitionStatus.Draft)
+            return BadRequest(new { error = "Bestellung ist nicht mehr im Entwurf." });
+        return null;
+    }
+
     [HttpPost("{id:int}/items")]
     public async Task<IActionResult> AddItem(int id, [FromBody] AddItemRequest body)
     {
@@ -42,6 +60,9 @@ public class WarehouseRequisitionsApiController : ControllerBase
         var requisition = await _repo.GetByIdAsync(id, includeItems: false);
         if (requisition == null)
             return NotFound();
+
+        var guard = CheckOwnershipAndDraft(requisition);
+        if (guard != null) return guard;
 
         var glasGroups = GlasArticleGroupFilter.ParseGroups(
             await _settings.GetValueAsync(AppSettingKeys.GlasArtikelgruppen));
@@ -71,6 +92,11 @@ public class WarehouseRequisitionsApiController : ControllerBase
     [HttpPut("items/{itemId:int}")]
     public async Task<IActionResult> UpdateItem(int itemId, [FromBody] UpdateItemRequest body)
     {
+        var requisition = await _repo.GetByItemIdAsync(itemId);
+        if (requisition == null) return NotFound();
+        var guard = CheckOwnershipAndDraft(requisition);
+        if (guard != null) return guard;
+
         await _repo.UpdateItemQuantityAsync(itemId, body.Quantity, _user.GetDisplayName(), _user.GetWindowsUserName());
         return Ok();
     }
@@ -78,6 +104,11 @@ public class WarehouseRequisitionsApiController : ControllerBase
     [HttpDelete("items/{itemId:int}")]
     public async Task<IActionResult> RemoveItem(int itemId)
     {
+        var requisition = await _repo.GetByItemIdAsync(itemId);
+        if (requisition == null) return NotFound();
+        var guard = CheckOwnershipAndDraft(requisition);
+        if (guard != null) return guard;
+
         await _repo.RemoveItemAsync(itemId);
         return Ok();
     }

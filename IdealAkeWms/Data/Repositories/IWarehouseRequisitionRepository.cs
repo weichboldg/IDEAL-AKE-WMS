@@ -7,6 +7,9 @@ public interface IWarehouseRequisitionRepository
 {
     Task<int> CreateDraftAsync(int productionWorkplaceId, WarehouseRequisitionType type, int currentUserId, string currentUserName, string windowsUserName);
     Task<WarehouseRequisition?> GetByIdAsync(int id, bool includeItems = true);
+
+    /// <summary>Liefert die Eltern-Bestellung einer Position (ohne Items) oder null, wenn die Position nicht existiert.</summary>
+    Task<WarehouseRequisition?> GetByItemIdAsync(int itemId);
     Task<List<WarehouseRequisition>> GetForUserAsync(int userId, int historyDays = 30);
     Task<(List<WarehouseRequisition> Items, int TotalCount)> GetForWarehouseAsync(
         WarehouseRequisitionStatus[] statuses, int? workplaceId, WarehouseRequisitionType? type, int page, int pageSize);
