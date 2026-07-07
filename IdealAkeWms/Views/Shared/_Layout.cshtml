@@ -32,6 +32,7 @@
                             var canProcessLager = await CurrentUserService.CanProcessLagerAsync();
                             var canPick = await CurrentUserService.CanPickAsync();
                             var canAccessLagerbestellung = await CurrentUserService.CanAccessLagerbestellungAsync();
+                            var canAccessGlasbestellung = await CurrentUserService.CanAccessGlasbestellungAsync();
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -121,7 +122,7 @@
                                 </a>
                             </li>
                         }
-                        @if (bestellungenAktiv && (canPick || canAccessStock || canAccessLagerbestellung))
+                        @if (bestellungenAktiv && (canPick || canAccessStock || canAccessLagerbestellung || canAccessGlasbestellung))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "PartRequisitions" or "WarehouseRequisitions" or "WarehousePicking") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
