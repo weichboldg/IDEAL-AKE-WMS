@@ -6,6 +6,7 @@ using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Moq;
 
 namespace IdealAkeWms.Tests.Controllers;
@@ -27,6 +28,9 @@ public class ArticlesControllerTests
         var category = new Mock<IArticleCategoryRepository>();
         var bom = new Mock<IBomCacheRepository>();
         var orders = new Mock<IProductionOrderRepository>();
+        var storageLocations = new Mock<IStorageLocationRepository>();
+        storageLocations.Setup(s => s.GetActiveOrderedExcludingPickingTransportAsync())
+            .ReturnsAsync(new List<StorageLocation>());
 
         attr.Setup(a => a.GetActiveDefinitionsOrderedAsync())
             .ReturnsAsync(new List<ArticleAttributeDefinition>());
@@ -35,7 +39,7 @@ public class ArticlesControllerTests
 
         var ctrl = new ArticlesController(
             article.Object, stock.Object, user.Object, attr.Object,
-            category.Object, bom.Object, orders.Object);
+            category.Object, bom.Object, orders.Object, storageLocations.Object);
         ctrl.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -125,5 +129,65 @@ public class ArticlesControllerTests
         vm.UsedInOrders.Should().BeEmpty();
         vm.PlannedConsumption.Should().Be(0m);
         vm.AvailableStock.Should().Be(50m);
+    }
+
+    [Fact]
+    public async Task EditPost_SageControlledPrimary_DoesNotOverwriteFk()
+    {
+        var (ctrl, article, _, _, category, _, _) = Build();
+
+        // Existing article: Sage-controlled Hauptlagerplatz (SagePrimaryStorageLocation gesetzt), FK = 5.
+        var existing = new Article
+        {
+            Id = 42,
+            ArticleNumber = "A",
+            PrimaryStorageLocationId = 5,
+            SagePrimaryStorageLocation = "SAGE-L1"
+        };
+        article.Setup(a => a.GetByIdAsync(42)).ReturnsAsync(existing);
+        category.Setup(c => c.GetAllOrderedAsync()).ReturnsAsync(new List<ArticleCategory>());
+        ctrl.TempData = new TempDataDictionary(ctrl.HttpContext, Mock.Of<ITempDataProvider>());
+
+        // Tampered form: attacker versucht FK auf 999 zu setzen.
+        var vm = new ArticleEditViewModel
+        {
+            Article = new Article { Id = 42, ArticleNumber = "A", PrimaryStorageLocationId = 999 }
+        };
+
+        var result = await ctrl.Edit(42, vm);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        // Guard: Sage-Wert bleibt, eingehende 999 ignoriert.
+        existing.PrimaryStorageLocationId.Should().Be(5);
+        article.Verify(a => a.UpdateAsync(It.Is<Article>(x => x.PrimaryStorageLocationId == 5)), Times.Once);
+    }
+
+    [Fact]
+    public async Task EditPost_AppControlledPrimary_UpdatesFk()
+    {
+        var (ctrl, article, _, _, category, _, _) = Build();
+
+        // Existing article: kein Sage-Wert -> app-editierbar.
+        var existing = new Article
+        {
+            Id = 42,
+            ArticleNumber = "A",
+            PrimaryStorageLocationId = 5,
+            SagePrimaryStorageLocation = null
+        };
+        article.Setup(a => a.GetByIdAsync(42)).ReturnsAsync(existing);
+        category.Setup(c => c.GetAllOrderedAsync()).ReturnsAsync(new List<ArticleCategory>());
+        ctrl.TempData = new TempDataDictionary(ctrl.HttpContext, Mock.Of<ITempDataProvider>());
+
+        var vm = new ArticleEditViewModel
+        {
+            Article = new Article { Id = 42, ArticleNumber = "A", PrimaryStorageLocationId = 7 }
+        };
+
+        var result = await ctrl.Edit(42, vm);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        existing.PrimaryStorageLocationId.Should().Be(7);
+        article.Verify(a => a.UpdateAsync(It.Is<Article>(x => x.PrimaryStorageLocationId == 7)), Times.Once);
     }
 }
