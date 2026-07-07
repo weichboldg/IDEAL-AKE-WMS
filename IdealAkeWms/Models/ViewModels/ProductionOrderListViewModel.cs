@@ -12,6 +12,9 @@ public class ProductionOrderListViewModel
     public int BeschichtungTage { get; set; }
     public bool CanPick { get; set; }
 
+    /// <summary>vorbau-Zugriff (read-only Stueckliste-Button in der FA-Liste, v1.25.0).</summary>
+    public bool HasVorbauAccess { get; set; }
+
     /// <summary>enaio DMS-Links pro FA-Nummer (Key=OrderNumber, Value=Liste von DMS-Dokumenten)</summary>
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
 

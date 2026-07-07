@@ -167,6 +167,7 @@ public class ProductionOrdersController : Controller
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
             CanPick = await _currentUserService.CanPickAsync(),
+            HasVorbauAccess = await _currentUserService.HasVorbauAccessAsync(),
             EnaioDmsLinks = dmsLinks,
             Pagination = new PaginationState
             {

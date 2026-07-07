@@ -45,7 +45,7 @@
                             var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
                             var faCompletionAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var hasVorbauAccess = await CurrentUserService.HasVorbauAccessAsync();
-                            var showFaList = canPick || canViewTracking || canManagePickingRelease;
+                            var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             var showFaCompletion = faCompletionAktiv && canFaCompletion;
                             var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
                         }

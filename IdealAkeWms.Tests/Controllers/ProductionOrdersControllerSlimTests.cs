@@ -116,6 +116,35 @@ public class ProductionOrdersControllerSlimTests
     }
 
     [Fact]
+    public async Task Index_SetztHasVorbauAccessAusService()
+    {
+        // vorbau bekommt den read-only Stueckliste-Button in der FA-Liste (v1.25.0).
+        // Das ViewModel muss HasVorbauAccess aus ICurrentUserService.HasVorbauAccessAsync() spiegeln.
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100")));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        // Fall 1: vorbau-Zugriff vorhanden
+        _currentUser.Setup(u => u.CanPickAsync()).ReturnsAsync(false);
+        _currentUser.Setup(u => u.HasVorbauAccessAsync()).ReturnsAsync(true);
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = (ProductionOrderListViewModel)((ViewResult)result).Model!;
+        vm.HasVorbauAccess.Should().BeTrue();
+        vm.CanPick.Should().BeFalse();
+
+        // Fall 2: kein vorbau-Zugriff
+        _currentUser.Setup(u => u.HasVorbauAccessAsync()).ReturnsAsync(false);
+
+        var result2 = await _controller.Index(null, null, null, false, 1, null);
+        var vm2 = (ProductionOrderListViewModel)((ViewResult)result2).Model!;
+        vm2.HasVorbauAccess.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Index_FilterByOrderNumber_AppliesContainsFilter()
     {
         // Server-side filtering happens in the repo; controller relays the filter

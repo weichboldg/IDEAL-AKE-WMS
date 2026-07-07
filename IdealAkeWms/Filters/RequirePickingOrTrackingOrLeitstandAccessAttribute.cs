@@ -4,6 +4,9 @@ using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Filters;
 
+// Zugriff: admin, picking ODER tracking ODER leitstand — seit v1.25.0 auch vorbau
+// (FA-Liste + read-only Stueckliste-Button verlinkt fuer vorbau auf FaWorklist/Bom).
+// Filter-NAME unveraendert.
 public class RequirePickingOrTrackingOrLeitstandAccessAttribute : TypeFilterAttribute
 {
     public RequirePickingOrTrackingOrLeitstandAccessAttribute() : base(typeof(RequirePickingOrTrackingOrLeitstandAccessFilter)) { }
@@ -22,7 +25,8 @@ public class RequirePickingOrTrackingOrLeitstandAccessFilter : IAsyncActionFilte
     {
         if (!await _currentUserService.CanPickAsync()
             && !await _currentUserService.CanViewTrackingAsync()
-            && !await _currentUserService.CanManagePickingReleaseAsync())
+            && !await _currentUserService.CanManagePickingReleaseAsync()
+            && !await _currentUserService.HasVorbauAccessAsync())
         {
             context.Result = new RedirectToActionResult("AccessDenied", "Account", null);
             return;

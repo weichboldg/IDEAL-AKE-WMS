@@ -67,7 +67,7 @@
     <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true">
         <thead>
             <tr>
-                @if (Model.CanPick)
+                @if (Model.CanPick || Model.HasVorbauAccess)
                 {
                     <th style="width: 40px;" data-col-key="actions"></th>
                 }
@@ -91,16 +91,28 @@
             @foreach (var item in Model.Items)
             {
                 <tr class="@(item.IsDone ? "table-secondary" : "")">
-                    @if (Model.CanPick)
+                    @if (Model.CanPick || Model.HasVorbauAccess)
                     {
                         <td class="text-nowrap">
                             @if (!string.IsNullOrEmpty(item.ArticleNumber))
                             {
-                                <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
-                                    </svg>
-                                </a>
+                                @if (Model.CanPick)
+                                {
+                                    <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
+                                        </svg>
+                                    </a>
+                                }
+                                else
+                                {
+                                    @* vorbau: read-only Stueckliste ueber FaWorklist/Bom (v1.25.0) *@
+                                    <a asp-controller="FaWorklist" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
+                                        </svg>
+                                    </a>
+                                }
                             }
                         </td>
                     }
@@ -201,7 +213,7 @@
                 <tr>
                     @{
                         var colCount = 14;
-                        if (Model.CanPick) colCount++;
+                        if (Model.CanPick || Model.HasVorbauAccess) colCount++;
                     }
                     <td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td>
                 </tr>
@@ -217,7 +229,7 @@
 </script>
 <script type="application/json" id="column-config">
 [
-    @if (Model.CanPick) { <text>{ "key": "actions", "label": "", "locked": true, "defaultWidth": 40 },</text> }
+    @if (Model.CanPick || Model.HasVorbauAccess) { <text>{ "key": "actions", "label": "", "locked": true, "defaultWidth": 40 },</text> }
     { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
     { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
