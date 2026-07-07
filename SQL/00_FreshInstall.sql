@@ -143,6 +143,8 @@ BEGIN
         [Unit]              NVARCHAR(20)      NULL,
         [ReorderLevel]      DECIMAL(18,3)     NULL,
         [ArticleGroup]      NVARCHAR(100)     NULL,
+        [PrimaryStorageLocationId]   INT           NULL,
+        [SagePrimaryStorageLocation] NVARCHAR(100) NULL,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -1190,6 +1192,28 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Articles') AND name = 'PrimaryStorageLocationId')
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD [PrimaryStorageLocationId] INT NULL;
+    ALTER TABLE [dbo].[Articles] ADD [SagePrimaryStorageLocation] NVARCHAR(100) NULL;
+    PRINT 'Spalten [Articles].[PrimaryStorageLocationId]/[SagePrimaryStorageLocation] erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Articles_PrimaryStorageLocationId' AND object_id = OBJECT_ID('dbo.Articles'))
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_Articles_PrimaryStorageLocationId] ON [dbo].[Articles] ([PrimaryStorageLocationId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Articles_StorageLocations_PrimaryStorageLocationId' AND parent_object_id = OBJECT_ID('dbo.Articles'))
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD CONSTRAINT [FK_Articles_StorageLocations_PrimaryStorageLocationId]
+        FOREIGN KEY ([PrimaryStorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]) ON DELETE SET NULL;
+    PRINT 'FK [FK_Articles_StorageLocations_PrimaryStorageLocationId] erstellt.';
+END
+GO
+
 -- =============================================
 -- 16d. ArticleAttributeDefinitions + Options + Values
 -- =============================================
@@ -2079,6 +2103,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707113155_AddStockReadRole')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707113155_AddStockReadRole', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707131400_AddArticlePrimaryStorageLocation')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707131400_AddArticlePrimaryStorageLocation', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
