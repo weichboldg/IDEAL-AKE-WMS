@@ -15,11 +15,27 @@
     <div class="alert alert-warning">@TempData["WarningMessage"]</div>
 }
 
+@if (Model.CanOrderLager && Model.CanOrderGlas)
+{
+    <ul class="nav nav-pills mb-2">
+        <li class="nav-item">
+            <a class="nav-link @(Model.ActiveType == WarehouseRequisitionType.Lager ? "active" : "")"
+               asp-controller="MissingPartsLager" asp-action="Index" asp-route-type="Lager"
+               asp-route-tab="@Model.ActiveTab" asp-route-workplaceId="@Model.WorkplaceFilter">Lager</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.ActiveType == WarehouseRequisitionType.Glas ? "active" : "")"
+               asp-controller="MissingPartsLager" asp-action="Index" asp-route-type="Glas"
+               asp-route-tab="@Model.ActiveTab" asp-route-workplaceId="@Model.WorkplaceFilter">Glas</a>
+        </li>
+    </ul>
+}
+
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
         <a class="nav-link @(Model.ActiveTab == ShortageStatus.WillBeRestocked ? "active" : "")"
            asp-controller="MissingPartsLager" asp-action="Index" asp-route-tab="WillBeRestocked"
-           asp-route-workplaceId="@Model.WorkplaceFilter">
+           asp-route-type="@Model.ActiveType" asp-route-workplaceId="@Model.WorkplaceFilter">
             Offene Fehlteile
             <span class="badge bg-warning text-dark ms-1">@Model.WaitingTotalCount</span>
         </a>
@@ -27,7 +43,7 @@
     <li class="nav-item">
         <a class="nav-link @(Model.ActiveTab == ShortageStatus.NoRestock ? "active" : "")"
            asp-controller="MissingPartsLager" asp-action="Index" asp-route-tab="NoRestock"
-           asp-route-workplaceId="@Model.WorkplaceFilter">
+           asp-route-type="@Model.ActiveType" asp-route-workplaceId="@Model.WorkplaceFilter">
             Wird nicht nachgeliefert
             <span class="badge bg-danger ms-1">@Model.NoRestockTotalCount</span>
         </a>
@@ -38,6 +54,7 @@
     <div class="card-body p-2">
         <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
             <input type="hidden" name="tab" value="@Model.ActiveTab" />
+            <input type="hidden" name="type" value="@Model.ActiveType" />
             <label class="form-label mb-0">Werkbank:</label>
             <select name="workplaceId" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
                 <option value="">— Alle —</option>

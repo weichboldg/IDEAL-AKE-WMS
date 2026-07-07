@@ -26,11 +26,13 @@ public class MissingPartsLagerController : Controller
 
     public async Task<IActionResult> Index(
         ShortageStatus tab = ShortageStatus.WillBeRestocked,
+        WarehouseRequisitionType type = WarehouseRequisitionType.Lager,
         int? workplaceId = null,
         int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
         if (tab == ShortageStatus.None) tab = ShortageStatus.WillBeRestocked;
+        if (!Enum.IsDefined(type)) type = WarehouseRequisitionType.Lager;
 
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
@@ -39,7 +41,7 @@ public class MissingPartsLagerController : Controller
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
         var (rows, total) = await _repo.GetMissingPartsAsync(
-            tab, null, workplaceId, columnFilters, null, null, page, effectivePageSize);
+            tab, type, workplaceId, columnFilters, null, null, page, effectivePageSize);
 
         // Lagerplatz-Bestand pro Artikel bulk-fetchen (vermeidet N+1)
         var articleNumbers = rows.Select(r => r.ArticleNumber)
@@ -64,9 +66,9 @@ public class MissingPartsLagerController : Controller
         }).ToList();
 
         var waitingResult = await _repo.GetMissingPartsAsync(
-            ShortageStatus.WillBeRestocked, null, workplaceId, null, null, null, 1, 1);
+            ShortageStatus.WillBeRestocked, type, workplaceId, null, null, null, 1, 1);
         var noRestockResult = await _repo.GetMissingPartsAsync(
-            ShortageStatus.NoRestock, null, workplaceId, null, null, null, 1, 1);
+            ShortageStatus.NoRestock, type, workplaceId, null, null, null, 1, 1);
 
         var vm = new MissingPartsListViewModel
         {
@@ -75,6 +77,7 @@ public class MissingPartsLagerController : Controller
             WorkplaceFilter = workplaceId,
             MineOnly = false,
             ActiveTab = tab,
+            ActiveType = type,
             WaitingTotalCount = waitingResult.TotalCount,
             NoRestockTotalCount = noRestockResult.TotalCount,
             HasNoWorkplaceMapping = false,

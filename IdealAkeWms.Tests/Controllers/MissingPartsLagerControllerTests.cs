@@ -108,6 +108,35 @@ public class MissingPartsLagerControllerTests
     }
 
     [Fact]
+    public async Task Index_TypGlas_ReichtTypScharfDurch()
+    {
+        var (ctrl, repo, _, _, _) = Build();
+        var capturedTypes = new List<WarehouseRequisitionType?>();
+        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
+                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>(),
+                It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<int>(), It.IsAny<int>()))
+            .Callback<ShortageStatus, WarehouseRequisitionType?, int?,
+                IReadOnlyDictionary<string, string>?, DateTime?, DateTime?, int, int>(
+                (_, type, _, _, _, _, _, _) => capturedTypes.Add(type))
+            .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow>(), 0));
+
+        var result = await ctrl.Index(tab: ShortageStatus.WillBeRestocked,
+            type: WarehouseRequisitionType.Glas) as ViewResult;
+
+        // Haupt-Listen-Aufruf (erster Repo-Call) MUSS exakt den gewaehlten Typ durchreichen —
+        // und auch beide Count-Aufrufe sind typ-bezogen (alle Calls = Glas).
+        capturedTypes.Should().NotBeEmpty();
+        capturedTypes[0].Should().Be(WarehouseRequisitionType.Glas);
+        capturedTypes.Should().OnlyContain(t => t == WarehouseRequisitionType.Glas);
+
+        var vm = result!.Model as MissingPartsListViewModel;
+        vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
     public async Task Index_RowsWithoutStock_HaveNullStorageLocations()
     {
         var (ctrl, repo, _, stock, _) = Build();
