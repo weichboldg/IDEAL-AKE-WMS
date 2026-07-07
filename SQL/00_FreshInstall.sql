@@ -1359,6 +1359,19 @@ BEGIN
 END
 GO
 
+-- Rolle 'stock_read' (Nur-Lesen Bestände+Bewegungen, v1.25.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'stock_read')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('stock_read', 'Lagerbestand-Ansicht',
+            'Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie.',
+            1, 35,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle stock_read eingefuegt.';
+END
+GO
+
 -- Standard-Arbeitsgang-Konfigurationen (OSEON)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[OseonOperationConfigs])
 BEGIN
@@ -2063,6 +2076,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260706074119_AddWarehouseRequisitionTypeAndGlasRole')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260706074119_AddWarehouseRequisitionTypeAndGlasRole', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707113155_AddStockReadRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707113155_AddStockReadRole', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

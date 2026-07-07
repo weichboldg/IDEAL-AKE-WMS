@@ -159,6 +159,7 @@ using (var scope = app.Services.CreateScope())
         (RoleKeys.Picking, "Kommissionierer", "Kommissionierung und vollständiger Lagerzugriff", 20),
         (RoleKeys.Stock, "Lager", "Einbuchung, Ausbuchung und Bestandsübersicht", 30),
         (RoleKeys.StockKeyUser, "Lager Keyuser", "Lager + Lagerplatz ausbuchen/umbuchen", 40),
+        (RoleKeys.StockRead, "Lagerbestand-Ansicht", "Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie", 35),
         (RoleKeys.Tracking, "Teileverfolgung", "OSEON Teileverfolgung und Rückmeldungen", 50),
         (RoleKeys.Reporting, "Betriebsdaten (BDE)", "Arbeitsgänge stempeln und rückmelden", 60),
         (RoleKeys.Leitstand, "Leitstand", "Produktionsaufträge freigeben und priorisieren", 70),
