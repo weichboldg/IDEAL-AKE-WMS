@@ -36,7 +36,7 @@ public class StockMovementsController : Controller
         _partRequisitionRepository = partRequisitionRepository;
     }
 
-    [RequireStockAccess]
+    [RequireStockReadAccess]
     public async Task<IActionResult> Index(
         DateTime? dateFrom, DateTime? dateTo,
         string? filterArticle, int? filterStorageLocationId,
