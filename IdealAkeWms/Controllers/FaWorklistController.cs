@@ -148,6 +148,7 @@ public class FaWorklistController : Controller
         // Zusatzfilter Werkbank (UND): Komma-OR-Contains auf den Werkbank-Namen (leer = alle).
         var orders = (await _productionOrderRepository.GetAllOrderedAsync())
             .Where(o => !o.IsDone
+                        && !o.IsCancelled
                         && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
                         && orderIdsWithStep.Contains(o.Id)
                         && WorkbenchFilter.Matches(o.ProductionWorkplace?.Name, effectiveWorkbenches))

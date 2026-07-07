@@ -66,7 +66,7 @@ public class ProductionOrdersControllerSlimTests
         };
 
     private static LeitstandOrderRow MakeRow(int id, string number, bool isDone = false, bool isDonePicking = false) =>
-        new(id, number, 1m, null, "ART-001", null, null, null, null, isDone, isDonePicking, null);
+        new(id, number, 1m, null, "ART-001", null, null, null, null, isDone, isDonePicking, false, null);
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);

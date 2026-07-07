@@ -33,6 +33,7 @@ public class ProductionOrderListItem
     public DateTime? ProductionDate { get; set; }
     public DateTime? DeliveryDate { get; set; }
     public bool IsDone { get; set; }
+    public bool IsCancelled { get; set; }
     public string? WorkplaceName { get; set; }
 
     // Calculated dates

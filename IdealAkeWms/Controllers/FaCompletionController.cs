@@ -91,7 +91,7 @@ public class FaCompletionController : Controller
         {
             // "Erledigt" = Sage-IsDone ODER App-Komm-erledigt (IsDonePicking) — konsistent zur FA-Liste.
             orders = orders
-                .Where(o => !o.IsDone && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
+                .Where(o => !o.IsDone && !o.IsCancelled && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
                 .ToList();
         }
 

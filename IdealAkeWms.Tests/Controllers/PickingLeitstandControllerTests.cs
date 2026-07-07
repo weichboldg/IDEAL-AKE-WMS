@@ -100,7 +100,7 @@ public class PickingLeitstandControllerTests
     // --- Index Tests ---
 
     private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null, bool isDonePicking = false) =>
-        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, isDonePicking, null);
+        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, isDonePicking, false, null);
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);

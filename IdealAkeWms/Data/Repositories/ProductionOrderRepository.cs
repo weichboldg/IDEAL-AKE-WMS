@@ -39,7 +39,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             q = q.Where(o => o.Customer != null && EF.Functions.Like(o.Customer, $"%{filterCustomer}%"));
 
         if (!showDone)
-            q = q.Where(o => !o.IsDone && (o.PickingStatus == null || !o.PickingStatus.IsDonePicking));
+            q = q.Where(o => !o.IsDone && !o.IsCancelled && (o.PickingStatus == null || !o.PickingStatus.IsDonePicking));
 
         if (columnFilters != null)
         {
@@ -73,6 +73,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 o.DeliveryDate,
                 o.IsDone,
                 o.PickingStatus != null && o.PickingStatus.IsDonePicking,
+                o.IsCancelled,
                 o.ProductionWorkplace != null ? o.ProductionWorkplace.Name : null))
             .ToListAsync();
 
@@ -81,7 +82,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
     public async Task<List<ProductionOrder>> GetOpenOrdersAsync()
     {
-        return await _dbSet.Where(o => !o.IsDone).OrderBy(o => o.OrderNumber).ToListAsync();
+        return await _dbSet.Where(o => !o.IsDone && !o.IsCancelled).OrderBy(o => o.OrderNumber).ToListAsync();
     }
 
     public async Task<ProductionOrder?> GetByOrderNumberAsync(string orderNumber)
@@ -116,6 +117,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         return await _dbSet
             .Where(po => !po.IsDone
+                         && !po.IsCancelled
                          && !(po.PickingStatus != null && po.PickingStatus.IsDonePicking)
                          && po.ProductionDate != null
                          && po.ProductionDate <= cutoff)

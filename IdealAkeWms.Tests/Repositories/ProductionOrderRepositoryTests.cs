@@ -109,4 +109,67 @@ public class ProductionOrderRepositoryTests
 
         result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
     }
+
+    [Fact]
+    public async Task GetOpenOrdersAsync_ExcludesCancelledOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-OPEN", IsDone = false, IsCancelled = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-CANCELLED", IsDone = false, IsCancelled = true });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var result = await repo.GetOpenOrdersAsync();
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+    }
+
+    [Fact]
+    public async Task GetForLeitstand_ExcludesCancelled_WhenShowDoneFalse()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false, IsCancelled = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-CANCELLED", IsDone = false, IsCancelled = true });
+        await ctx.SaveChangesAsync();
+
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: false, page: 1, pageSize: 100);
+
+        page.Rows.Should().ContainSingle(r => r.OrderNumber == "FA-OPEN");
+        page.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetForLeitstand_IncludesCancelledWithFlag_WhenShowDoneTrue()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false, IsCancelled = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-CANCELLED", IsDone = false, IsCancelled = true });
+        await ctx.SaveChangesAsync();
+
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 100);
+
+        page.Rows.Should().HaveCount(2);
+        page.Rows.Single(r => r.OrderNumber == "FA-CANCELLED").IsCancelled.Should().BeTrue();
+        page.Rows.Single(r => r.OrderNumber == "FA-OPEN").IsCancelled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetOpenOrdersInWindow_ExcludesCancelled()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var inWindow = DateTime.Now.AddDays(7);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-OPEN", IsDone = false, IsCancelled = false, ProductionDate = inWindow });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-CANCELLED", IsDone = false, IsCancelled = true, ProductionDate = inWindow });
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetOpenOrdersInWindowAsync(weeksAhead: 8, maxCount: 200);
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+    }
 }
