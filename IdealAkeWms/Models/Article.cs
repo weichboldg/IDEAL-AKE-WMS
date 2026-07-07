@@ -28,6 +28,14 @@ public class Article : AuditableEntity
     public int? ArticleCategoryId { get; set; }
     public ArticleCategory? ArticleCategory { get; set; }
 
+    [Display(Name = "Hauptlagerplatz")]
+    public int? PrimaryStorageLocationId { get; set; }
+    public StorageLocation? PrimaryStorageLocation { get; set; }
+
+    /// <summary>Sage-Rohcode (KHKLagerplaetze.Kurzbezeichnung). Nicht leer ⇒ aus Sage ⇒ in der App gesperrt.</summary>
+    [StringLength(100)]
+    public string? SagePrimaryStorageLocation { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
     public ICollection<ArticleAttributeValue> AttributeValues { get; set; } = new List<ArticleAttributeValue>();
 }

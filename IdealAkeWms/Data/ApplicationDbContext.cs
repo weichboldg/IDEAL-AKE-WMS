@@ -220,6 +220,15 @@ public class ApplicationDbContext : DbContext
                 .WithMany(c => c.Articles)
                 .HasForeignKey(e => e.ArticleCategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(e => e.SagePrimaryStorageLocation).HasMaxLength(100);
+
+            entity.HasIndex(e => e.PrimaryStorageLocationId);
+
+            entity.HasOne(e => e.PrimaryStorageLocation)
+                .WithMany()
+                .HasForeignKey(e => e.PrimaryStorageLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ArticleCategory
