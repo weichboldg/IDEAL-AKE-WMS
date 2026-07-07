@@ -18,8 +18,13 @@ In der FA-Liste (`ProductionOrders/Index`) sehen vorbau-User den Stückliste-But
 3. Der Button verlinkt auf `PickingController.Bom` = `[RequirePickingAccess]` (nur picking) → selbst bei Sichtbarkeit → AccessDenied. Zudem zeigt die Picking-Stückliste interaktive Kommissionier-Controls (TogglePicked etc.), die vorbau nicht haben soll.
 
 ### Lösung (entschieden)
-Den Button in der FA-Liste auch für vorbau anzeigen, für vorbau aber auf die **read-only** `FaWorklist/Bom` verlinken (dieselbe Stückliste wie in der Abarbeitungsliste) — **nicht** auf die interaktive `Picking/Bom`. Picker bleiben unverändert. **Keine** Berechtigungs-/Migrations-Änderung, kein Privileg-Leak.
+Zwei Teile: **(A)** vorbau bekommt **Zugang zur FA-Liste** (User-Entscheidung — dann sind tracking/leitstand nicht mehr nötig), **(B)** der Button wird für vorbau auf die **read-only** `FaWorklist/Bom` verlinkt (dieselbe Stückliste wie in der Abarbeitungsliste) — **nicht** auf die interaktive `Picking/Bom`. Picker bleiben unverändert, kein Privileg-Leak. Keine Migration/kein Datenmodell-Change.
 
+**(A) FA-Listen-Zugang für vorbau:**
+- `Filters/RequirePickingOrTrackingOrLeitstandAccessAttribute.cs`: Filter-Bedingung additiv um `|| await _currentUserService.HasVorbauAccessAsync()` erweitern. Filter-**NAME bleibt** (nur an `ProductionOrdersController` verwendet; Projekt-Präzedenz = glasbestellung-Filter-Erweiterung ohne Rename). Klassen-XML-Kommentar „seit v1.25.0 auch vorbau" ergänzen.
+- `Views/Shared/_Layout.cshtml`: die FA-Listen-Menü-Sichtbarkeit `showFaList` um `|| hasVorbauAccess` erweitern (`hasVorbauAccess` wird dort bereits berechnet), damit der Menüpunkt auch für pure-vorbau erscheint.
+
+**(B) Button in der FA-Liste:**
 - `ProductionOrderListViewModel`: neues Property `public bool HasVorbauAccess { get; set; }` (`CanPick` existiert bereits).
 - `ProductionOrdersController.Index`: `vm.HasVorbauAccess = await _currentUserService.HasVorbauAccessAsync();` (an der Stelle wo `CanPick` gesetzt wird).
 - `Views/ProductionOrders/Index.cshtml`:
@@ -27,10 +32,11 @@ Den Button in der FA-Liste auch für vorbau anzeigen, für vorbau aber auf die *
   - Button-Zelle: wenn `CanPick` → Link `Picking/Bom` (wie bisher); sonst wenn `HasVorbauAccess` → Link `FaWorklist/Bom` (read-only). Gleiches Icon/Title „Stückliste". `asp-route-id="@item.Id"` in beiden Fällen (item.Id = ProductionOrderId, passt zu beiden Bom-Actions).
 
 ### Out of scope
-Pure-vorbau-Usern **Zugang zur FA-Liste selbst** zu geben (Controller-Filter erweitern) ist NICHT Teil des Wunsches. Die Änderung betrifft nur die Button-Sichtbarkeit+Ziel für User, die die FA-Liste bereits erreichen. `fa_completion` erhält den Button ebenfalls nicht (nicht angefragt, erreicht die FA-Liste ohnehin nur mit Zusatzrolle).
+`fa_completion` erhält weder FA-Listen-Zugang noch den Button (nicht angefragt). Die FA-Liste bleibt inhaltlich unverändert — nur Zugang (Filter) + Menüpunkt + read-only-Stückliste-Button für vorbau werden ergänzt; keine neuen vorbau-spezifischen Spalten/Aktionen.
 
 ### Tests
-- `ProductionOrdersController`-Test: bei `HasVorbauAccessAsync()==true` (Mock) enthält das zurückgegebene VM `HasVorbauAccess==true`; bei false → false. (CanPick-Verhalten unverändert.)
+- Filter: falls ein Test für `RequirePickingOrTrackingOrLeitstandAccess` existiert bzw. leicht machbar — vorbau-User passiert den Filter (kein AccessDenied-Redirect).
+- `ProductionOrdersController`-Test: bei `HasVorbauAccessAsync()==true` (Mock) enthält das zurückgegebene VM `HasVorbauAccess==true`; bei false → false. (`CanPick`-Verhalten unverändert.)
 - View-Logik (bedingter Link) ist Razor → Build-verifiziert + Manual-UAT.
 
 ---
