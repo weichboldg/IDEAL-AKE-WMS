@@ -232,6 +232,9 @@ BEGIN
         [ProductionDate]          DATETIME2         NULL,
         [DeliveryDate]            DATETIME2         NULL,
         [IsDone]                  BIT               NOT NULL DEFAULT 0,
+        [IsCancelled]             BIT               NOT NULL DEFAULT 0,
+        [CancelledAt]             DATETIME2         NULL,
+        [CancelledBy]             NVARCHAR(256)     NULL,
         [ProductionWorkplaceId]   INT               NULL,
         [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]               NVARCHAR(200)     NOT NULL,
@@ -1035,6 +1038,8 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_Artic
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ArticleNumber] ON [dbo].[ProductionOrders]([ArticleNumber]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDone')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsDone] ON [dbo].[ProductionOrders]([IsDone]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsCancelled')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsCancelled] ON [dbo].[ProductionOrders]([IsCancelled]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsReleasedForPicking_IsDone')
@@ -2105,6 +2110,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707113155_AddStockReadRole', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707131400_AddArticlePrimaryStorageLocation')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707131400_AddArticlePrimaryStorageLocation', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707140249_AddProductionOrderCancellation')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707140249_AddProductionOrderCancellation', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
