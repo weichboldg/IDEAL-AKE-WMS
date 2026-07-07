@@ -92,7 +92,8 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | `[RequireVorbauOrPickingOrLeitstandAccess]` | admin, vorbau ODER picking ODER leitstand | FaWorkStepsApiController (`/api/fa-work-steps/set-status`, bis v1.23: `toggle-completed`) — Erledigt-Status aus FA-Abarbeitungsliste (vorbau) UND Leitstand-VK-VA (picking/leitstand) (v1.22.0-Followup; 3-State seit v1.24.0) |
 | `[RequirePickingOrVorbauOrFaCompletionAccess]` | admin, picking ODER vorbau ODER fa_completion | PickingController.PrintBom (Druck aus read-only Stueckliste; seit v1.22.0, um fa_completion erweitert — read-only BOM auch aus FA-Vervollstaendigung erreichbar) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
-| `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController, StockOverviewController |
+| `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController (Schreib-Actions: Ein-/Aus-/Umbuchung). Seit v1.25.0 tragen StockOverviewController (class-level) + StockMovementsController.Index das Read-Filter `[RequireStockReadAccess]` — die uebrigen StockMovements-Actions bleiben `[RequireStockAccess]` |
+| `[RequireStockReadAccess]` | admin, stock, stock_keyuser, picking, stock_read | StockOverviewController (class-level), StockMovementsController.Index — read-only Bestände + Bewegungshistorie (seit v1.25.0) |
 | `[RequireLagerProcessingAccess]` | admin, stock, stock_keyuser | WarehousePickingController, MissingPartsLagerController (Lager-Worklist seit v1.20.0 — picker explizit ausgeschlossen) |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
 | `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand | ProductionOrdersController (slim Index) |
@@ -122,6 +123,7 @@ Strukturierte Wissensbasis als Obsidian-Vault im Repo. Konsultiere ihn aktiv:
 | `picking` | Picking + vollstaendiger Lagerzugriff |
 | `stock` | Einbuchung, Ausbuchung, Bestaende |
 | `stock_keyuser` | Lager + Lagerplatz ausbuchen/umbuchen |
+| `stock_read` | Nur-Lesen-Zugriff auf Lagerbestand: Bestände + Bewegungshistorie (seit v1.25.0) |
 | `tracking` | OSEON Auftraege + Rueckmeldungen |
 | `reporting` | Betriebsdaten / BDE (Zukunft) |
 | `leitstand` | Produktionsauftraege freigeben und priorisieren |

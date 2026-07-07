@@ -5108,5 +5108,38 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
+## Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0)
+
+**Vorbedingung global:** App laeuft; ein Admin kann Benutzer + Rollen zuweisen.
+
+### TS-48.1 `stock_read` sieht nur Bestände + Bewegungshistorie (read-only)
+**Vorbedingung:** Ein Benutzer, dem **NUR** die Rolle `stock_read` zugewiesen ist (keine weitere Rolle).
+1. Als dieser Benutzer einloggen und das Hauptmenue oeffnen.
+   - **Erwartet:** Das Dropdown **„Lager"** ist sichtbar und enthaelt **ausschliesslich** die Eintraege
+     **„Bestände"** und **„Bewegungshistorie"**. **KEINE** Eintraege „Einbuchung", „Ausbuchung",
+     „Umbuchung", „Lagerplatz ausbuchen", „Lagerplatz umbuchen" und kein Divider davor.
+2. „Bestände" oeffnen (`/StockOverview`) und „Bewegungshistorie" oeffnen (`/StockMovements`).
+   - **Erwartet:** Beide Seiten oeffnen sich read-only (Anzeige/Filter, keine Buchungs-Bedienelemente).
+3. **Negativ (Direktaufruf Schreib-URLs):** Nacheinander `/StockMovements/Inbound`,
+   `/StockMovements/Outbound`, `/StockMovements/OutboundAll` direkt aufrufen.
+   - **Erwartet:** Jeweils **AccessDenied** (kein Zugriff — die Schreib-Actions tragen `[RequireStockAccess]`
+     bzw. `[RequireStockKeyUserAccess]`).
+4. **Gegenprobe (unveraendert):** Als `admin`, `stock`, `stock_keyuser` bzw. `picking` einloggen.
+   - **Erwartet:** Das „Lager"-Dropdown zeigt weiterhin **alle** Eintraege (Ein-/Aus-/Umbuchung,
+     Bestände, Bewegungshistorie, Lagerplatz-Sonderaktionen bei `stock_keyuser`/`picking`/`admin`);
+     Buchungen funktionieren wie bisher.
+
+### TS-48.2 FA-Liste + read-only Stückliste fuer `vorbau`
+**Vorbedingung:** `FaCompletionAktiv=true`; ein Benutzer mit **nur** der Rolle `vorbau`.
+1. Als dieser Benutzer einloggen und das Menue **„Fertigungsaufträge"** oeffnen.
+   - **Erwartet:** Der Eintrag **„FA-Liste"** ist sichtbar; die FA-Liste (`/ProductionOrders`) oeffnet sich.
+2. In einer FA-Zeile den **Stückliste-Button** anklicken.
+   - **Erwartet:** Die read-only Stückliste `FaWorklist/Bom` oeffnet sich — **keine**
+     Kommissionier- oder Erledigt-Bedienelemente (rein lesend, Druck moeglich).
+3. **Gegenprobe Picker:** Als Benutzer mit Rolle `picking` einloggen und den Stückliste-Button oeffnen.
+   - **Erwartet:** Es oeffnet sich weiterhin `Picking/Bom` (Picker-Variante), nicht die Vorbau-Sicht.
+
+---
+
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

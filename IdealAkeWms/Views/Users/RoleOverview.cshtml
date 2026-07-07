@@ -90,6 +90,18 @@
                 </td>
             </tr>
             <tr>
+                <td><code>stock_read</code></td>
+                <td>Lagerbestand-Ansicht</td>
+                <td>Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Bestandsuebersicht (<code>/StockOverview</code>, read-only)</li>
+                        <li>Bewegungshistorie (<code>/StockMovements</code> Index, read-only)</li>
+                        <li>KEIN Zugriff auf Ein-/Aus-/Umbuchung, Lagerplatz-Sonderaktionen, Lager-Worklist, Bedarfsmeldungen</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
                 <td><code>stock_keyuser</code></td>
                 <td>Lager-Keyuser</td>
                 <td>Lager + Lagerplatz-Sonderaktionen.</td>
