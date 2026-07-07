@@ -50,6 +50,10 @@ Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 G
   ist ein veralteter Snapshot (~v1.14.0, ~50 Migrationen im Rueckstand) und wurde bewusst NICHT
   angeglichen.
 - **DB-Deploy**: Migration 77 ist additiv (nicht destruktiv) — Default `Lager` fuer Altbestand.
+- **Hauptlagerplatz am Artikel** (Teil von v1.25.0): Sage-Sync + manueller Fallback (Sage-Wert →
+  gesperrt, sonst app-editierbar), zentrale Sortierung „Haupt zuerst" in den Bestand-je-Lagerplatz-
+  Anzeigen, ⭐-Badge in der Bestandsübersicht; **Migration 79** `AddArticlePrimaryStorageLocation`
+  (additiv). Warn-Count `hauptlagerplatz_fehlt` im Aktivitäts-Protokoll bei fehlendem WMS-Lagerplatz.
 
 ### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
 

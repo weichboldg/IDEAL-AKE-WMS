@@ -5139,6 +5139,42 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 3. **Gegenprobe Picker:** Als Benutzer mit Rolle `picking` einloggen und den Stückliste-Button oeffnen.
    - **Erwartet:** Es oeffnet sich weiterhin `Picking/Bom` (Picker-Variante), nicht die Vorbau-Sicht.
 
+## Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0)
+
+**Feature:** Artikel haben einen Hauptlagerplatz. Wert primär aus Sage (dann gesperrt), sonst in der App setzbar. In allen Bestand-je-Lagerplatz-Anzeigen steht der Hauptlagerplatz zuerst; Bestandsübersicht zeigt ein ⭐-Badge.
+
+### 49.1 Manuellen Hauptlagerplatz setzen (Sage liefert keinen)
+**Vorbedingung:** Rolle admin oder masterdata. Ein Artikel ohne Sage-Hauptlagerplatz (`SagePrimaryStorageLocation` leer). Mindestens zwei aktive, nicht-Wagen-Lagerplätze existieren.
+1. Stammdaten → Artikel → Artikel bearbeiten öffnen.
+2. Feld **Hauptlagerplatz** ist ein editierbares Dropdown mit Leer-Option „—".
+3. Einen Lagerplatz wählen, Speichern.
+**Erwartet:** Erfolgsmeldung „Artikel gespeichert."; nach erneutem Öffnen ist der gewählte Lagerplatz vorausgewählt.
+
+### 49.2 Sage-Lock (Hauptlagerplatz aus Sage gesperrt)
+**Vorbedingung:** Ein Artikel, bei dem `SagePrimaryStorageLocation` gesetzt ist (nach einem Artikel-Sync mit gepflegtem `KHKArtikel.PlatzID`).
+1. Artikel bearbeiten öffnen.
+**Erwartet:** Das Hauptlagerplatz-Dropdown ist **disabled**; darunter eine blaue Info-Box „Hauptlagerplatz aus Sage übernommen (gesperrt): <Code>". Ein Änderungsversuch (z. B. per Browser-DevTools den Hidden-Wert ändern und posten) darf den Wert NICHT ändern — der Server ignoriert die eingehende Id.
+
+### 49.3 Sortierung „Hauptlagerplatz zuerst" in der Bestandsübersicht
+**Vorbedingung:** Ein Artikel mit Bestand auf mindestens zwei Lagerplätzen; Hauptlagerplatz = derjenige mit der ALPHABETISCH späteren/kleineren Menge (bewusst nicht der „natürliche" erste).
+1. Bestand → Artikelbestände öffnen, nach dem Artikel filtern.
+**Erwartet:** Die Zeile des Hauptlagerplatzes steht je Artikel ganz oben, unabhängig von Code-Alphabet und Menge; sie trägt ein gelbes Badge „★ Haupt". Die übrigen Lagerplatz-Zeilen folgen nach Code sortiert (kein Badge).
+
+### 49.4 Sortierung im Kommissionier-Quellvorschlag
+**Vorbedingung:** Ein FA mit einem Bauteil, das Bestand auf Hauptlagerplatz (buchbar, Menge > 0) und einem weiteren buchbaren Lagerplatz mit HÖHERER Menge hat.
+1. Kommissionierung → Stückliste des FA öffnen.
+**Erwartet:** Der vorgeschlagene Quell-Lagerplatz für dieses Bauteil ist der **Hauptlagerplatz** (nicht der mit der höchsten Menge). Im Quell-Dropdown (Suche) steht der Hauptlagerplatz an erster Stelle. Hat der Hauptlagerplatz keinen buchbaren Bestand, greift der bisherige Fallback (höchste Menge), sonst NAN.
+
+### 49.5 Sortierung in „Lager: Fehlteile"
+**Vorbedingung:** Ein Fehlteil-Item, dessen Artikel Bestand auf Hauptlagerplatz (kleinere Menge) + weiterem Lagerplatz (größere Menge) hat.
+1. Lager → Lager: Fehlteile öffnen.
+**Erwartet:** In der Lagerplatz-Spalte des Items steht der Hauptlagerplatz zuerst, auch bei geringerer Menge.
+
+### 49.6 Fehlender WMS-Lagerplatz (Negativfall)
+**Vorbedingung:** Sage liefert einen Hauptlagerplatz-Code (`Kurzbezeichnung`), zu dem KEIN WMS-`StorageLocation` mit passendem `Code` existiert.
+1. Artikel-Sync laufen lassen (Windows-Service).
+**Erwartet:** Der Artikel behält den Sage-Rohcode sichtbar + gesperrt (49.2), `PrimaryStorageLocationId` bleibt leer, keine Sortier-Priorisierung. Im Aktivitäts-Protokoll (Service „Article") ist der Count `hauptlagerplatz_fehlt` > 0; im Service-Log steht eine Warnung mit Artikelnummer + Code. Nach Anlegen/Sync des fehlenden Lagerplatzes matcht der FK beim nächsten Lauf.
+
 ---
 
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
