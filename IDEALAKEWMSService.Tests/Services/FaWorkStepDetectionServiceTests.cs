@@ -235,4 +235,33 @@ public class FaWorkStepDetectionServiceTests
         run.FinalCounts!["neu"].Should().Be(0);
         run.FinalCounts!["uebersprungen"].Should().Be(1);
     }
+
+    [Fact]
+    public async Task Detect_SkipsCancelledOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var step = NewWorkStep("VL", "luefter");
+        // Offene FA -> wird erkannt.
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "FA-OPEN", ArticleNumber = "ART-1", IsDone = false, IsCancelled = false,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+        });
+        // Stornierte FA (gleiche Artikelnummer) -> darf NICHT erkannt werden.
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "FA-CANCELLED", ArticleNumber = "ART-1", IsDone = false, IsCancelled = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+        });
+        ctx.WorkSteps.Add(step);
+        ctx.CachedBomHeaders.Add(NewBomHeader("ART-1", "Axialluefter 230V"));
+        await ctx.SaveChangesAsync();
+
+        var result = await CreateService(ctx).DetectAsync(dryRun: false);
+
+        result.Inserted.Should().Be(1);
+        var row = await ctx.FaWorkSteps.SingleAsync();
+        var openOrder = await ctx.ProductionOrders.SingleAsync(o => o.OrderNumber == "FA-OPEN");
+        row.ProductionOrderId.Should().Be(openOrder.Id);
+    }
 }

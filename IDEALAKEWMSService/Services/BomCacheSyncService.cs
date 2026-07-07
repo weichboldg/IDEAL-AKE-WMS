@@ -393,8 +393,10 @@ public class BomCacheSyncService : IBomCacheSyncService
 
         // "Abgeschlossen" = IsDone (Sage) ODER IsDonePicking (App). Komm-abgeschlossene FAs
         // (IsDone=0, IsDonePicking=1) duerfen das Fenster NICHT belegen (Web-Semantik v1.21.1).
+        // Stornierte FAs (IsCancelled=1, FA-Reconciliation v1.25.0) ebenfalls ausschliessen.
         const string whereClause = @"
             WHERE po.[IsDone] = 0
+              AND po.[IsCancelled] = 0
               AND NOT EXISTS (
                   SELECT 1 FROM [dbo].[ProductionOrderPickingStatus] ps
                   WHERE ps.[ProductionOrderId] = po.[Id] AND ps.[IsDonePicking] = 1

@@ -87,11 +87,13 @@ public class FaWorkStepDetectionService : IFaWorkStepDetectionService
 
                 var matchedFaCount = await _db.ProductionOrders
                     .Where(o => !o.IsDone
+                             && !o.IsCancelled
                              && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
                              && o.ArticleNumber != null && stepMatchedArticles.Contains(o.ArticleNumber!))
                     .CountAsync(ct);
                 var candidates = await _db.ProductionOrders
                     .Where(o => !o.IsDone
+                             && !o.IsCancelled
                              && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
                              && o.ArticleNumber != null && stepMatchedArticles.Contains(o.ArticleNumber!))
                     .Where(o => !_db.FaWorkSteps.Any(f => f.ProductionOrderId == o.Id && f.WorkStepId == step.Id))
