@@ -100,52 +100,21 @@ public class SageImportService : ISageImportService
             await using var wmsConn = new SqlConnection(wmsConnection);
             await wmsConn.OpenAsync(ct);
 
+            // Schema-Bewusstsein: Das IDEAL-Schema hat ProductionOrders.SubOrderNumber (NOT NULL + UNIQUE),
+            // das AKE-Schema nicht. Der INSERT-Zweig schreibt SubOrderNumber=OrderNumber NUR wenn die Spalte
+            // existiert — sonst wuerde der INSERT gegen das IDEAL-Schema mit SqlException 515 scheitern.
+            bool hasSubOrderNumber;
+            await using (var colCmd = new SqlCommand(
+                "SELECT CASE WHEN COL_LENGTH('dbo.ProductionOrders','SubOrderNumber') IS NULL THEN 0 ELSE 1 END", wmsConn))
+            {
+                hasSubOrderNumber = Convert.ToInt32(await colCmd.ExecuteScalarAsync(ct)) == 1;
+            }
+            var mergeSql = SageProductionOrderSql.BuildUpsert(hasSubOrderNumber);
+            if (hasSubOrderNumber)
+                _logger.LogInformation("ProductionOrders-Sync: SubOrderNumber-Spalte vorhanden — wird mit OrderNumber befuellt (IDEAL-Schema-Kompatibilitaet).");
+
             foreach (var orderFromSage in sageOrders)
             {
-                const string mergeSql = """
-                    IF EXISTS (SELECT 1 FROM [dbo].[ProductionOrders] WHERE [OrderNumber] = @OrderNumber)
-                    BEGIN
-                        UPDATE [dbo].[ProductionOrders] SET
-                            [Quantity]       = @Quantity,
-                            [Customer]       = @Customer,
-                            [ArticleNumber]  = @ArticleNumber,
-                            [Description1]   = @Description1,
-                            [Description2]   = @Description2,
-                            [ProductionDate] = @ProductionDate,
-                            [DeliveryDate]   = @DeliveryDate,
-                            [ModifiedAt]     = GETUTCDATE(),
-                            [ModifiedBy]     = 'IDEALAKEWMSService',
-                            [ModifiedByWindows] = SYSTEM_USER
-                        WHERE [OrderNumber] = @OrderNumber
-                          AND (
-                              [Quantity] != @Quantity OR
-                              ISNULL([Customer],'') != ISNULL(@Customer,'') OR
-                              ISNULL([ArticleNumber],'') != ISNULL(@ArticleNumber,'') OR
-                              ISNULL([Description1],'') != ISNULL(@Description1,'') OR
-                              ISNULL([Description2],'') != ISNULL(@Description2,'') OR
-                              ISNULL(CAST([ProductionDate] AS date),'1900-01-01') != ISNULL(CAST(@ProductionDate AS date),'1900-01-01') OR
-                              ISNULL(CAST([DeliveryDate] AS date),'1900-01-01') != ISNULL(CAST(@DeliveryDate AS date),'1900-01-01')
-                          )
-                        SELECT NULL AS InsertedId, @@ROWCOUNT AS Affected, 0 AS IsInsert
-                    END
-                    ELSE
-                    BEGIN
-                        -- Seit v1.11.0: PickingStatus/HasGlass/HasExternalPurchase wurden in
-                        -- ProductionOrderPickingStatus ausgelagert. ProductionOrders enthaelt nur
-                        -- noch Sage-Master + IsDone + Audit. Status-Zeilen werden nach dem Loop
-                        -- per Folge-MERGE eager-created (Phase 1 Spec 9).
-                        INSERT INTO [dbo].[ProductionOrders]
-                            ([OrderNumber],[Quantity],[Customer],[ArticleNumber],[Description1],[Description2],
-                             [ProductionDate],[DeliveryDate],[IsDone],
-                             [CreatedAt],[CreatedBy],[CreatedByWindows])
-                        VALUES
-                            (@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,
-                             @ProductionDate,@DeliveryDate,0,
-                             GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
-                        SELECT SCOPE_IDENTITY() AS InsertedId, 1 AS Affected, 1 AS IsInsert
-                    END
-                    """;
-
                 await using var cmd = new SqlCommand(mergeSql, wmsConn);
                 cmd.Parameters.AddWithValue("@OrderNumber", orderFromSage.OrderNumber);
                 cmd.Parameters.AddWithValue("@Quantity", orderFromSage.Quantity);
