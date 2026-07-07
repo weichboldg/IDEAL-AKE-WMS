@@ -238,10 +238,12 @@ public class SageImportService : ISageImportService
                         CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
                         CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
                         CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
-                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel
+                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel,
+                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation
                     FROM [dbo].[KHKPpsRessourcenPositionen] r
                     LEFT JOIN [dbo].[KHKArtikel] a ON a.Artikelnummer = r.Ressourcenummer
                     LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
+                    LEFT JOIN [dbo].[KHKLagerplaetze] lp ON a.PlatzID = lp.PlatzID
                     WHERE r.Ressourcenummer IS NOT NULL AND r.Ressourcenummer != ''
 
                     UNION
@@ -251,9 +253,11 @@ public class SageImportService : ISageImportService
                         CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
                         CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
                         CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
-                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel
+                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel,
+                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation
                     FROM [dbo].[KHKArtikel] a
                     LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
+                    LEFT JOIN [dbo].[KHKLagerplaetze] lp ON a.PlatzID = lp.PlatzID
                     WHERE a.IstBestellartikel = -1 AND a.Aktiv = -1
                 )
                 SELECT
@@ -261,13 +265,14 @@ public class SageImportService : ISageImportService
                     MAX(Description)  AS Description,
                     MAX(Unit)         AS Unit,
                     MAX(ArticleGroup) AS ArticleGroup,
-                    MAX(ReorderLevel) AS ReorderLevel
+                    MAX(ReorderLevel) AS ReorderLevel,
+                    MAX(PrimaryStorageLocation) AS PrimaryStorageLocation
                 FROM RawArticles
                 WHERE ArticleNumber IS NOT NULL AND ArticleNumber != ''
                 GROUP BY ArticleNumber
                 """;
 
-            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel)>();
+            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel, string? PrimaryStorageLocation)>();
 
             await using (var sageConn = new SqlConnection(sageConnection))
             {
@@ -278,12 +283,14 @@ public class SageImportService : ISageImportService
                 while (await reader.ReadAsync(ct))
                 {
                     string? reorderRaw = reader.IsDBNull(4) ? null : reader.GetString(4);
+                    string? primaryRaw = reader.IsDBNull(5) ? null : reader.GetString(5);
                     sageArticles.Add((
                         ArticleNumber: reader.GetString(0),
                         Description:   reader.IsDBNull(1) ? null : reader.GetString(1),
                         Unit:          reader.IsDBNull(2) ? null : reader.GetString(2),
                         ArticleGroup:  reader.IsDBNull(3) ? null : reader.GetString(3),
-                        ReorderLevel:  SageImportHelpers.ParseReorderLevel(reorderRaw)
+                        ReorderLevel:  SageImportHelpers.ParseReorderLevel(reorderRaw),
+                        PrimaryStorageLocation: SageImportHelpers.NormalizeLocationCode(primaryRaw)
                     ));
                 }
             }
@@ -301,10 +308,24 @@ public class SageImportService : ISageImportService
                 return new SyncResult(0, 0, 0, $"DryRun: {sageArticles.Count} Datensätze aus SAGE gelesen.");
             }
 
-            int inserted = 0, updated = 0;
-
             await using var wmsConn = new SqlConnection(wmsConnection);
             await wmsConn.OpenAsync(ct);
+
+            // Code -> StorageLocationId einmal pro Lauf laden (case-insensitiv, getrimmt).
+            var locationIdByCode = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            await using (var locCmd = new SqlCommand(
+                "SELECT [Id], [Code] FROM [dbo].[StorageLocations] WHERE [Code] IS NOT NULL", wmsConn))
+            {
+                await using var locReader = await locCmd.ExecuteReaderAsync(ct);
+                while (await locReader.ReadAsync(ct))
+                {
+                    var code = locReader.GetString(1).Trim();
+                    if (code.Length > 0)
+                        locationIdByCode[code] = locReader.GetInt32(0);
+                }
+            }
+
+            int inserted = 0, updated = 0, missingPrimaryLocation = 0;
 
             foreach (var article in sageArticles)
             {
@@ -312,10 +333,12 @@ public class SageImportService : ISageImportService
                     IF EXISTS (SELECT 1 FROM [dbo].[Articles] WHERE [ArticleNumber] = @ArticleNumber)
                     BEGIN
                         UPDATE [dbo].[Articles] SET
-                            [Description]       = @Description,
-                            [Unit]              = @Unit,
-                            [ArticleGroup]      = @ArticleGroup,
-                            [ReorderLevel]      = @ReorderLevel,
+                            [Description]                = @Description,
+                            [Unit]                       = @Unit,
+                            [ArticleGroup]               = @ArticleGroup,
+                            [ReorderLevel]               = @ReorderLevel,
+                            [SagePrimaryStorageLocation] = @SagePrimaryStorageLocation,
+                            [PrimaryStorageLocationId]   = CASE WHEN @UpdatePrimaryId = 1 THEN @PrimaryStorageLocationId ELSE [PrimaryStorageLocationId] END,
                             [ModifiedAt]        = GETUTCDATE(),
                             [ModifiedBy]        = 'IDEALAKEWMSService',
                             [ModifiedByWindows] = SYSTEM_USER
@@ -324,7 +347,9 @@ public class SageImportService : ISageImportService
                               ISNULL([Description],'')   != ISNULL(@Description,'')   OR
                               ISNULL([Unit],'')          != ISNULL(@Unit,'')          OR
                               ISNULL([ArticleGroup],'')  != ISNULL(@ArticleGroup,'')  OR
-                              ISNULL([ReorderLevel],-1)  != ISNULL(@ReorderLevel,-1)
+                              ISNULL([ReorderLevel],-1)  != ISNULL(@ReorderLevel,-1)  OR
+                              ISNULL([SagePrimaryStorageLocation],'') != ISNULL(@SagePrimaryStorageLocation,'') OR
+                              (@UpdatePrimaryId = 1 AND ISNULL([PrimaryStorageLocationId],-1) != ISNULL(@PrimaryStorageLocationId,-1))
                           )
                         SELECT 0 AS IsInsert, @@ROWCOUNT AS Affected
                     END
@@ -332,12 +357,38 @@ public class SageImportService : ISageImportService
                     BEGIN
                         INSERT INTO [dbo].[Articles]
                             ([ArticleNumber],[Description],[Unit],[ArticleGroup],[ReorderLevel],
+                             [PrimaryStorageLocationId],[SagePrimaryStorageLocation],
                              [CreatedAt],[CreatedBy],[CreatedByWindows])
                         VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, @ReorderLevel,
+                                @PrimaryStorageLocationId, @SagePrimaryStorageLocation,
                                 GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
                         SELECT 1 AS IsInsert, 1 AS Affected
                     END
                     """;
+
+                // Upsert-Regeln (Spec §Upsert-Logik):
+                //  - Sage liefert Wert: SagePrimaryStorageLocation = code; PrimaryStorageLocationId = lookup[code]
+                //    oder null (kein Match -> Warn-Count). Immer aktualisieren (@UpdatePrimaryId = 1).
+                //  - Sage leer: SagePrimaryStorageLocation = null; PrimaryStorageLocationId NICHT anfassen
+                //    (bewahrt manuelle App-Wahl) -> @UpdatePrimaryId = 0.
+                string? sageCode = article.PrimaryStorageLocation;
+                int? primaryId = null;
+                int updatePrimaryId = 0;
+                if (sageCode is not null)
+                {
+                    updatePrimaryId = 1;
+                    if (locationIdByCode.TryGetValue(sageCode, out var foundId))
+                    {
+                        primaryId = foundId;
+                    }
+                    else
+                    {
+                        missingPrimaryLocation++;
+                        _logger.LogWarning(
+                            "Hauptlagerplatz '{Code}' fuer Artikel {ArticleNumber} nicht als WMS-Lagerplatz gefunden — FK bleibt leer.",
+                            sageCode, article.ArticleNumber);
+                    }
+                }
 
                 await using var cmd = new SqlCommand(upsertSql, wmsConn);
                 cmd.Parameters.AddWithValue("@ArticleNumber", article.ArticleNumber);
@@ -345,6 +396,9 @@ public class SageImportService : ISageImportService
                 cmd.Parameters.AddWithValue("@Unit",         (object?)article.Unit         ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@ArticleGroup", (object?)article.ArticleGroup ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@ReorderLevel", (object?)article.ReorderLevel ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@SagePrimaryStorageLocation", (object?)sageCode ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@PrimaryStorageLocationId", (object?)primaryId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@UpdatePrimaryId", updatePrimaryId);
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 if (await reader.ReadAsync(ct))
@@ -356,13 +410,14 @@ public class SageImportService : ISageImportService
                 }
             }
 
-            _logger.LogInformation("Artikel-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert.", inserted, updated);
+            _logger.LogInformation("Artikel-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert, {Missing} ohne WMS-Hauptlagerplatz.", inserted, updated, missingPrimaryLocation);
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
-                ["gelesen"]      = sageArticles.Count,
-                ["neu"]          = inserted,
-                ["aktualisiert"] = updated,
+                ["gelesen"]              = sageArticles.Count,
+                ["neu"]                  = inserted,
+                ["aktualisiert"]         = updated,
+                ["hauptlagerplatz_fehlt"] = missingPrimaryLocation,
             }, ct: ct);
 
             return new SyncResult(inserted, updated, 0);

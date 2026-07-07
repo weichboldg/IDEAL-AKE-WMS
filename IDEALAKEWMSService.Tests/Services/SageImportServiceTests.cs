@@ -73,4 +73,15 @@ public class SageImportServiceTests
         else
             result.Should().Be(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
     }
+
+    [Theory]
+    [InlineData(null,          null)]
+    [InlineData("",            null)]
+    [InlineData("   ",         null)]
+    [InlineData("A-01",        "A-01")]
+    [InlineData("  A-01  ",    "A-01")]
+    public void NormalizeLocationCode_trims_and_nulls_empty(string? raw, string? expected)
+    {
+        SageImportHelpers.NormalizeLocationCode(raw).Should().Be(expected);
+    }
 }
