@@ -4990,5 +4990,82 @@ FA-Abarbeitungsliste, Rolle `picking`/`leitstand` (oder `admin`) fuer den Leitst
 
 ---
 
-*Ende des Dokuments. Stand: v1.24.0 (2026-06-30)*
+## Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0)
+
+**Vorbedingung global:** `BestellungenAktiv=true` (bzw. Lagerbestellungen freigeschaltet).
+Einstellungen: `GlasArtikelgruppen` = z. B. `GLAS,SPIEGEL` (Codes wie in den Artikeln gespeichert),
+`GemeinsameArtikelgruppen` = `EUZ`, `DefaultLagerbestellempfaengerId` gesetzt. Es existieren
+Artikel in mindestens einer Glas-Gruppe, einer reinen Lager-Gruppe und der gemeinsamen Gruppe `EUZ`.
+Der Test-Benutzer hat eine Werkbank-Zuordnung.
+
+### TS-46.1 Glas-Draft anlegen
+**Vorbedingung:** Benutzer mit Zugriff auf beide Reiter (z. B. `picking`/`stock`/`admin`).
+1. `/WarehouseRequisitions` oeffnen.
+   - **Erwartet:** Oben zwei Reiter **Lager** und **Glas**.
+2. Auf den Reiter **Glas** wechseln und &bdquo;+ Neue Liste&ldquo; klicken (ggf. Werkbank waehlen).
+   - **Erwartet:** Ein neuer Entwurf wird angelegt und die Bearbeiten-Ansicht geoeffnet; ein
+     **Typ-Badge Glas** ist sichtbar.
+3. DB-Pruefung: `SELECT Type FROM WarehouseRequisitions WHERE Id=<neu>`.
+   - **Erwartet:** `Type=2` (Glas).
+
+### TS-46.2 Artikelsuche respektiert den Bestelltyp
+**Vorbedingung:** Je ein Glas-Draft und ein Lager-Draft (beide in Bearbeitung).
+1. Im **Glas-Draft** im Artikel-Suchfeld nach einem Glas-Artikel suchen.
+   - **Erwartet:** Glas-Gruppen-Artikel + `EUZ`-Artikel erscheinen; reine Lager-Gruppen-Artikel
+     erscheinen **nicht**.
+2. Im **Lager-Draft** nach demselben Glas-Artikel suchen.
+   - **Erwartet:** Glas-Gruppen-Artikel erscheinen **nicht**; `EUZ`-Artikel und reine
+     Lager-Gruppen-Artikel erscheinen sehr wohl.
+
+### TS-46.3 AddItem-Schutz (Server-Enforcement)
+**Vorbedingung:** Ein Glas-Draft.
+1. Im Glas-Draft versuchen, einen Artikel einer **reinen Lager-Gruppe** hinzuzufuegen —
+   z. B. per zweitem Browser-Tab / manipulierter API-Anfrage (`AddItem` mit einer ArticleId,
+   die nicht zum Typ passt).
+   - **Erwartet:** Der Server lehnt ab (Fehlermeldung/`BadRequest`); **kein** Item wird angelegt.
+   - Gegenprobe: derselbe Aufruf mit einem erlaubten (Glas- oder `EUZ`-)Artikel legt das Item an.
+
+### TS-46.4 Submit Glas — Empfaenger + Betreff
+1. **Ohne** `DefaultGlasbestellempfaengerId`: Einen Glas-Draft mit mind. einem Item abschicken.
+   - **Erwartet:** Warnung &bdquo;Default-Glasbestellempfaenger nicht konfiguriert&ldquo;; kein Versand.
+2. `DefaultGlasbestellempfaengerId` auf eine Glas-Empfaenger-Gruppe setzen, `Sync:WarehouseRequisitionEmailEnabled=true`.
+   Denselben (oder einen neuen) Glas-Draft abschicken.
+   - **Erwartet:** Mail geht an die **Glas**-Empfaenger-Gruppe; Betreff enthaelt
+     &bdquo;Glasbestellung #&hellip;&ldquo;. Gegenprobe Lager-Bestellung → Betreff
+     &bdquo;Lagerbestellung #&hellip;&ldquo; an den Lager-Empfaenger.
+
+### TS-46.5 Lager: Eingehende Listen — Reiter-Trennung
+**Vorbedingung:** Je eine abgeschickte Lager- und Glas-Bestellung; Benutzer mit Lager-Verarbeitung.
+1. `/WarehousePicking` oeffnen.
+   - **Erwartet:** Reiter **Lager**/**Glas** trennen die eingehenden Listen; jede Liste erscheint
+     nur unter ihrem Typ.
+2. Auf dem **Glas**-Reiter eine Glas-Liste oeffnen und **Abschliessen** (oder **Stornieren**).
+   - **Erwartet:** Nach dem Zurueckspringen ist man weiterhin auf dem **Glas**-Reiter (Typ-Erhalt).
+
+### TS-46.6 Fehlteile (Werker + Lager) — Typ × Status
+**Vorbedingung:** Glas- und Lager-Bestellungen mit Fehlteil-Positionen in verschiedenen
+Status (`WillBeRestocked`, `NoRestock`).
+1. `/MissingParts` (Werker) oeffnen.
+   - **Erwartet:** Aeussere Typ-Reiter (Lager/Glas) × innere Status-Reiter; die Badge-Counts stimmen
+     je Kombination (nur die zum gewaehlten Typ passenden Fehlteile werden gezaehlt/gezeigt).
+2. `/MissingPartsLager` (Lager) oeffnen.
+   - **Erwartet:** Dieselbe Typ×Status-Aufteilung mit korrekten Counts.
+
+### TS-46.7 Rollen-Matrix
+1. Benutzer nur mit Rolle `lagerbestellung`.
+   - **Erwartet:** In &bdquo;Lagerbestellungen&ldquo; **kein** Glas-Reiter; nur Lager sichtbar.
+2. Benutzer nur mit Rolle `glasbestellung`.
+   - **Erwartet:** Nur der **Glas**-Reiter; das Menue zeigt **kein** &bdquo;Bedarfsmeldungen&ldquo;.
+3. Benutzer mit `picking` bzw. `stock`.
+   - **Erwartet:** **Beide** Reiter (Lager + Glas) sichtbar.
+
+### TS-46.8 Bestandsbestellungen aus der Zeit vor dem Update
+**Vorbedingung:** Migration 77 (`AddWarehouseRequisitionTypeAndGlasRole`) wurde eingespielt.
+1. Eine Bestellung, die **vor** dem Update angelegt wurde, oeffnen bzw. in der Liste suchen.
+   - **Erwartet:** Sie hat Typ **Lager** (Migrations-Default `Type=1`) und erscheint im
+     **Lager**-Reiter — nicht im Glas-Reiter.
+
+---
+
+*Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

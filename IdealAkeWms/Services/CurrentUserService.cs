@@ -96,6 +96,7 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanAccessGlasbestellungAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Glasbestellung);
 
+    // MUSS deckungsgleich bleiben mit RequirePickingOrStockOrLagerbestellungAccess (Filter komponiert CanPick/Stock/Lagerbestellung/Glasbestellung).
     public async Task<bool> CanOrderLagerAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking, RoleKeys.Stock,
             RoleKeys.StockKeyUser, RoleKeys.Lagerbestellung);

@@ -836,6 +836,54 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Glas-Bestellung</strong></div>
+            <div class="card-body">
+                <h5 class="mt-4">Glas-Bestellung (Reiter Lager / Glas)</h5>
+                <p>Lagerbestellungen sind in zwei Bestelltypen aufgeteilt. Beide Ansichten
+                    (Lagerbestellungen, Lager: Eingehende Listen, Fehlteile) haben oben die Reiter
+                    <strong>Lager</strong> und <strong>Glas</strong>; die Fehlteile-Ansichten kombinieren
+                    diese aeusseren Typ-Reiter mit den inneren Fehlteil-Status-Reitern.</p>
+
+                <h6 class="mt-3">Was die Reiter bedeuten</h6>
+                <ul>
+                    <li><strong>Reiter Lager:</strong> normale Lagerbestellung. Enthaelt alle Artikelgruppen
+                        <em>ausser</em> den konfigurierten Glas-Artikelgruppen (gemeinsame Gruppen bleiben
+                        erlaubt).</li>
+                    <li><strong>Reiter Glas:</strong> Glas-Bestellung. Enthaelt <em>nur</em> die konfigurierten
+                        Glas-Artikelgruppen plus die gemeinsamen Gruppen.</li>
+                    <li>Der Bestelltyp wird beim Anlegen einer Liste festgelegt (&bdquo;+ Neue Liste&ldquo;
+                        auf dem jeweiligen Reiter) und laesst sich danach <strong>nicht mehr wechseln</strong> —
+                        es gibt keine gemischten Listen. In der Erfassungs-/Detailansicht zeigt ein Badge den Typ.</li>
+                </ul>
+
+                <h6 class="mt-3">Einrichtung (Admin)</h6>
+                <ol>
+                    <li><strong>Empfaenger-Gruppe fuer Glas anlegen:</strong> Ueber die bestehende
+                        Empfaenger-Verwaltung (Stammdaten &rarr; Empfaenger / Empfaenger-Gruppen) eine
+                        Gruppe fuer die Glas-Bestellungen anlegen. Deren ID in die Einstellung
+                        <code>DefaultGlasbestellempfaengerId</code> eintragen (leer = Abschicken einer
+                        Glas-Bestellung wird blockiert).</li>
+                    <li><strong>Glas-Artikelgruppen festlegen:</strong> Einstellung
+                        <code>GlasArtikelgruppen</code> = kommaseparierte Artikelgruppen-Codes, genau so
+                        wie in den Artikeln gespeichert (z.&nbsp;B. <code>GLAS,SPIEGEL</code>). Diese
+                        Gruppen erscheinen nur im Glas-Reiter und sind aus der normalen Lagerbestellung
+                        ausgenommen.</li>
+                    <li><strong>Gemeinsame Gruppen pruefen:</strong> Einstellung
+                        <code>GemeinsameArtikelgruppen</code> (Default <code>EUZ</code>) = Gruppen, die in
+                        <em>beiden</em> Bestelltypen waehlbar sind.</li>
+                </ol>
+
+                <h6 class="mt-3">Wer welche Reiter sieht</h6>
+                <ul>
+                    <li>Rolle <code>lagerbestellung</code> &rarr; nur der <strong>Lager</strong>-Reiter.</li>
+                    <li>Rolle <code>glasbestellung</code> &rarr; nur der <strong>Glas</strong>-Reiter.</li>
+                    <li>Breite Lager-/Kommissionier-Rollen (<code>picking</code>, <code>stock</code>,
+                        <code>stock_keyuser</code>, <code>admin</code>) &rarr; <strong>beide</strong> Reiter.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Bestandsuebersicht</strong></div>
             <div class="card-body">
                 <p>

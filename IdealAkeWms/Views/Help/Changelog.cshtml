@@ -9,6 +9,36 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.25.0</strong> <span class="text-white-50 ms-2">03.07.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Glas-Bestellung als eigener Bestelltyp</h6>
+                <ul>
+                    <li><strong>Glas-Bestellung als eigener Reiter:</strong> In &bdquo;Lagerbestellungen&ldquo;
+                        gibt es jetzt die Reiter <strong>Lager</strong> und <strong>Glas</strong>; dieselbe
+                        Aufteilung gibt es in &bdquo;Lager: Eingehende Listen&ldquo; und in beiden
+                        Fehlteile-Ansichten (Werker und Lager). Der Bestelltyp steht bei der Anlage fest
+                        und laesst sich danach nicht mehr wechseln.</li>
+                    <li><strong>Getrennte Empfaenger je Typ + neue Rolle:</strong> Glas-Bestellungen gehen
+                        an einen eigenen Mail-Empfaenger (Betreff &bdquo;Glasbestellung #&hellip;&ldquo;),
+                        Lager-Bestellungen wie bisher an den Lager-Empfaenger. Neue Rolle
+                        <code>glasbestellung</code> (analog <code>lagerbestellung</code>) fuer Benutzer,
+                        die nur Glas-Bestellungen erfassen sollen.</li>
+                    <li><strong>Artikelgruppen-Trennung:</strong> Eine Glas-Bestellung enthaelt nur
+                        Glas-Artikelgruppen (konfigurierbar), die normale Lager-Bestellung nimmt genau
+                        diese Gruppen aus. Gemeinsame Gruppen (Default <strong>EUZ</strong>) sind in
+                        beiden Bestelltypen verfuegbar.</li>
+                    <li><strong>Hinweis fuer Admins:</strong> Die Rolle <code>glasbestellung</code> wird
+                        beim Update automatisch angelegt. In den Einstellungen bitte
+                        <code>DefaultGlasbestellempfaengerId</code> und <code>GlasArtikelgruppen</code>
+                        konfigurieren und <code>GemeinsameArtikelgruppen</code> (Default <code>EUZ</code>)
+                        pruefen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.24.0</strong> <span class="text-white-50 ms-2">30.06.2026</span>
             </div>
             <div class="card-body">

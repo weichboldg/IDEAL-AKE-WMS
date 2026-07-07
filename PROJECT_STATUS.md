@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-06-30**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.24.0 FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 Glas-Bestellung als eigener Bestelltyp)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -25,6 +25,31 @@ Stand: **2026-06-30**, **letzter Commit auf `feature/windows-auth-ad-users` (v1.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
 
 ---
+
+### v1.25.0 (2026-07-03) — Glas-Bestellung als eigener Bestelltyp
+
+- **Bestelltyp Lager/Glas**: Enum `WarehouseRequisitionType` (Lager=1/Glas=2), Spalte
+  `WarehouseRequisitions.Type` (**Migration 77** `20260706074119_AddWarehouseRequisitionTypeAndGlasRole`,
+  additiv, `HasDefaultValue(Lager)`). Typ steht bei der Anlage fest — kein Wechsel, keine gemischten
+  Auftraege. Bestehende Bestellungen werden per Default zu Typ Lager.
+- **Neue Rolle `glasbestellung`** (analog `lagerbestellung`) — wird von der Migration automatisch
+  angelegt (idempotent) und ist im FreshInstall-Rollen-Seed enthalten. Composite-Filter
+  `RequirePickingOrStockOrLagerbestellungAccess` + `RequireStockOrLagerbestellungAccess` um
+  glasbestellung erweitert; `CanAccessGlasbestellungAsync`/`CanOrderGlasAsync`/`CanOrderLagerAsync`
+  im `CurrentUserService` steuern die Reiter-Sichtbarkeit.
+- **Artikelgruppen-Trennung**: Helper `GlasArticleGroupFilter` (`NormalizeGroup`/`IsAllowedForType`).
+  3 AppSettings: `DefaultGlasbestellempfaengerId`, `GlasArtikelgruppen`, `GemeinsameArtikelgruppen`
+  (Default `EUZ`). Enforcement zweifach: Artikelsuche `?type=` + AddItem-API server-seitig.
+- **Lager/Glas-Reiter** in WarehouseRequisitions/WarehousePicking/MissingParts/MissingPartsLager
+  (Typ aussen, Fehlteil-Status innen; Typ-Erhalt auf Rueckspruengen). Typabhaengiger Empfaenger-Key +
+  Mail-Betreff/Label beim Submit ("Glasbestellung #…" vs "Lagerbestellung #…").
+- **Doku**: Changelog v1.25.0, Hilfeseite (neuer Abschnitt „Glas-Bestellung" mit Admin-Einrichtung),
+  CLAUDE.md (Rolle + Composite-Filter + 3 AppSettings + neuer Fallstrick), TESTSZENARIEN Kapitel 46
+  (TS-46.1–46.8), Versions-Bump Web + Service. `SQL/00_FreshInstall.sql` gespiegelt (Type-Spalte,
+  Rolle, 3 AppSettings, Migrations-History). **Offener Punkt:** `secondbrain/sql/00_FreshInstall.sql`
+  ist ein veralteter Snapshot (~v1.14.0, ~50 Migrationen im Rueckstand) und wurde bewusst NICHT
+  angeglichen.
+- **DB-Deploy**: Migration 77 ist additiv (nicht destruktiv) — Default `Lager` fuer Altbestand.
 
 ### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
 
