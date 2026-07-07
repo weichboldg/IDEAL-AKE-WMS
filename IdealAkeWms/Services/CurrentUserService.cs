@@ -90,6 +90,10 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanAccessStockAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking);
 
+    // Additive Lese-Rolle: alle bisherigen Stock-Zugriffsrollen PLUS stock_read (v1.25.0).
+    public async Task<bool> CanAccessStockReadAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking, RoleKeys.StockRead);
+
     public async Task<bool> CanAccessLagerbestellungAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Lagerbestellung);
 

@@ -391,4 +391,67 @@ public class CurrentUserServiceRoleTests
 
         (await service.CanOrderGlasAsync()).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithAdminRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Admin });
+
+        (await service.CanAccessStockReadAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithStockRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Stock });
+
+        (await service.CanAccessStockReadAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithStockKeyUserRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.StockKeyUser });
+
+        (await service.CanAccessStockReadAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithPickingRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Picking });
+
+        (await service.CanAccessStockReadAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithStockReadRole_ReturnsTrue()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.StockRead });
+
+        (await service.CanAccessStockReadAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithTrackingRoleOnly_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string> { RoleKeys.Tracking });
+
+        (await service.CanAccessStockReadAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanAccessStockReadAsync_WithNoRoles_ReturnsFalse()
+    {
+        var (service, _) = CreateService(sessionUserId: 1,
+            roleKeys: new List<string>());
+
+        (await service.CanAccessStockReadAsync()).Should().BeFalse();
+    }
 }

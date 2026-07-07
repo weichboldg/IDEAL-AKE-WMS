@@ -18,6 +18,7 @@ public class FakeCurrentUserService : ICurrentUserService
     public Task<bool> CanViewTrackingAsync() => Task.FromResult(true);
     public Task<bool> CanReportOperationsAsync() => Task.FromResult(true);
     public Task<bool> CanAccessStockAsync() => Task.FromResult(true);
+    public Task<bool> CanAccessStockReadAsync() => Task.FromResult(true);
     public Task<bool> CanAccessLagerbestellungAsync() => Task.FromResult(true);
     public Task<bool> CanAccessGlasbestellungAsync() => Task.FromResult(true);
     public Task<bool> CanOrderLagerAsync() => Task.FromResult(true);

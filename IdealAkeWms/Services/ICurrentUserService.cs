@@ -18,6 +18,7 @@ public interface ICurrentUserService
     Task<bool> CanViewTrackingAsync();
     Task<bool> CanReportOperationsAsync();
     Task<bool> CanAccessStockAsync();
+    Task<bool> CanAccessStockReadAsync();
     Task<bool> CanAccessLagerbestellungAsync();
     Task<bool> CanAccessGlasbestellungAsync();
     /// <summary>Darf der User Lager-Bestellungen sehen/anlegen (Reiter Lager)?</summary>

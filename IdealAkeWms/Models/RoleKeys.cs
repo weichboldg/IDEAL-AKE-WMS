@@ -18,4 +18,5 @@ public static class RoleKeys
     public const string Vorbau = "vorbau";
     public const string Lagerbestellung = "lagerbestellung";
     public const string Glasbestellung = "glasbestellung";
+    public const string StockRead = "stock_read";
 }
