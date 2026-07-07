@@ -379,10 +379,12 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.CancelledBy).HasMaxLength(256);
 
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.ArticleNumber);
             entity.HasIndex(e => e.IsDone);
+            entity.HasIndex(e => e.IsCancelled);
             entity.HasIndex(e => e.ProductionWorkplaceId);
 
             entity.HasOne(e => e.ProductionWorkplace)
