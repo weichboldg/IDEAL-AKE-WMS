@@ -61,6 +61,7 @@ try
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
     builder.Services.AddScoped<IMailService, MailService>();
+    builder.Services.AddScoped<ISyncErrorNotifier, SyncErrorNotifier>();
     builder.Services.AddScoped<IPartRequisitionEmailService, PartRequisitionEmailService>();
     builder.Services.AddScoped<IWarehouseRequisitionRepository, WarehouseRequisitionRepository>();
     builder.Services.AddScoped<IWarehouseRequisitionEmailService, WarehouseRequisitionEmailService>();
