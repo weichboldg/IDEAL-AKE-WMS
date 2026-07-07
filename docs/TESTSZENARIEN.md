@@ -5065,6 +5065,47 @@ Status (`WillBeRestocked`, `NoRestock`).
    - **Erwartet:** Sie hat Typ **Lager** (Migrations-Default `Type=1`) und erscheint im
      **Lager**-Reiter — nicht im Glas-Reiter.
 
+## Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0)
+
+**Vorbedingung global:** Der Windows-Service (`IDEALAKEWMSService`) laeuft; der ProductionOrders-Sync
+ist aktiv (`Sync:ProductionOrdersEnabled=true`). SMTP ist konfiguriert.
+
+### TS-47.1 ProductionOrders-Sync gegen IDEAL-Schema-DB (515-Fix)
+**Vorbedingung:** Eine WMS-DB, deren Tabelle `ProductionOrders` die Spalte `SubOrderNumber`
+mit Constraint **NOT NULL** hat (IDEAL-Schema). Der Nicht-IDEAL-Service (windows-auth/glas-Linie)
+laeuft gegen genau diese DB.
+1. Service-Sync ausloesen (Service neu starten oder den naechsten Sync-Zyklus abwarten).
+   - **Erwartet:** KEIN Fehler **515** („Cannot insert the value NULL into column 'SubOrderNumber'") mehr.
+2. Neue FAs pruefen: `SELECT OrderNumber, SubOrderNumber FROM ProductionOrders WHERE Id=<neu>`.
+   - **Erwartet:** Neue FAs werden angelegt; `SubOrderNumber = OrderNumber`.
+3. Aktivitaets-Protokoll (`/SyncLog`) oeffnen.
+   - **Erwartet:** Der ProductionOrders-Lauf zeigt Erfolg (neu/aktualisiert-Counts, kein Fehler).
+   - **Gegenprobe:** Gegen eine DB **ohne** `SubOrderNumber`-Spalte laeuft der Sync weiterhin fehlerfrei
+     (der `COL_LENGTH`-Check laesst die Spalte im Upsert dann weg).
+
+### TS-47.2 Sync-Resilienz — ein Fehler stoppt die anderen nicht
+**Vorbedingung:** Ein Sync-Schritt wird gezielt zum Scheitern gebracht, z. B. die
+ProductionOrders-Quell-View temporaer unerreichbar machen (Verbindung/Rechte entziehen), waehrend
+Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
+1. Einen vollen Sync-Zyklus laufen lassen.
+   - **Erwartet:** Log/Aktivitaets-Protokoll zeigt den **ProductionOrders-Fehler**.
+2. Die nachfolgenden Sync-Schritte im **selben Zyklus** pruefen (Artikel/OSEON/BOM …).
+   - **Erwartet:** Sie laufen weiter und melden ihre eigenen Ergebnisse (frueher: ein Fehler
+     im ProductionOrders-Sync stoppte alle Folge-Syncs des Zyklus).
+
+### TS-47.3 Fehlermail bei Sync-Fehler
+**Vorbedingung:** `ErrorNotification:Enabled=true`, gueltige `ErrorNotification:Recipients`
+(mind. eine Adresse), SMTP konfiguriert.
+1. Einen Sync-Fehler ausloesen (z. B. Quell-View wie in TS-47.2 unerreichbar).
+   - **Erwartet:** Eine E-Mail mit Betreff **„[IDEAL-AKE-WMS] Sync-Fehler: &lt;Schritt&gt;"** trifft bei
+     den Empfaengern ein. Inhalt enthaelt: betroffener **Schritt**, **Zeitpunkt**, **Maschine**,
+     **Version** sowie **Fehlermeldung + Stacktrace**.
+2. **Negativ a):** `ErrorNotification:Enabled=false` setzen und denselben Fehler ausloesen.
+   - **Erwartet:** **KEINE** Mail wird gesendet (der Sync-Fehler wird weiterhin protokolliert).
+3. **Negativ b):** `Enabled=true`, aber `Recipients` leer.
+   - **Erwartet:** **KEINE** Mail wird gesendet; der Notifier wirft **keinen** Fehler
+     (Sync-Zyklus laeuft unbeeintraechtigt weiter).
+
 ---
 
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
