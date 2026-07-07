@@ -30,6 +30,9 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
 
     private static string E(string? s) => WebUtility.HtmlEncode(s ?? "");
 
+    internal static string TypeLabel(WarehouseRequisition r)
+        => r.Type == WarehouseRequisitionType.Glas ? "Glasbestellung" : "Lagerbestellung";
+
     public async Task<EmailResult> SendPendingEmailsAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.WarehouseRequisitionEmail, ct);
@@ -48,12 +51,12 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
                     var emails = r.OrderRecipientGroup!.Recipients.Where(x => x.IsActive).Select(x => x.Email).Distinct().ToList();
                     if (emails.Count == 0)
                     {
-                        errors.Add($"Lagerbestellung #{r.Id}: keine aktiven Empfaenger.");
+                        errors.Add($"{TypeLabel(r)} #{r.Id}: keine aktiven Empfaenger.");
                         await run.LogWarningAsync($"Submit-Mail: keine aktiven Empfaenger",
                                                   reference: $"submit/{r.Id}", ct: ct);
                         continue;
                     }
-                    var subject = $"Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
+                    var subject = $"{TypeLabel(r)} #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
                     var body = BuildSubmitBody(r, baseUrl);
                     var textBody = BuildSubmitText(r, baseUrl);
                     if (!dryRun)
@@ -89,7 +92,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
                                                   reference: $"storno/{r.Id}", ct: ct);
                         continue;
                     }
-                    var subject = $"[STORNO] Lagerbestellung #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
+                    var subject = $"[STORNO] {TypeLabel(r)} #{r.Id} \u2014 Werkbank {r.ProductionWorkplace.Name}";
                     var body = BuildCancellationBody(r, baseUrl);
                     var textBody = BuildCancellationText(r, baseUrl);
                     if (!dryRun)
@@ -144,7 +147,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
     {
         var sb = new StringBuilder();
         sb.AppendLine($"<html><body style='font-family:Segoe UI, Arial; color:#000;'>");
-        sb.AppendLine($"<h2 style='color:#053153;'>Lagerbestellung #{r.Id}</h2>");
+        sb.AppendLine($"<h2 style='color:#053153;'>{TypeLabel(r)} #{r.Id}</h2>");
         sb.AppendLine($"<p><strong>Werkbank:</strong> {E(r.ProductionWorkplace.Name)}<br />");
         sb.AppendLine($"<strong>Erfasser:</strong> {E(r.CreatedBy)}<br />");
         sb.AppendLine($"<strong>Submit:</strong> {r.SubmittedAt:dd.MM.yyyy HH:mm}</p>");
@@ -157,7 +160,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         sb.AppendLine("</tbody></table>");
         if (!string.IsNullOrEmpty(baseUrl))
         {
-            sb.AppendLine($"<p style='margin-top:20px;'><a href='{E(baseUrl)}/WarehousePicking/Details/{r.Id}' style='display:inline-block;background:#43A6E2;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;'>Lagerbestellung oeffnen</a></p>");
+            sb.AppendLine($"<p style='margin-top:20px;'><a href='{E(baseUrl)}/WarehousePicking/Details/{r.Id}' style='display:inline-block;background:#43A6E2;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;'>{TypeLabel(r)} oeffnen</a></p>");
         }
         sb.AppendLine("</body></html>");
         return sb.ToString();
@@ -167,7 +170,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
     {
         var sb = new StringBuilder();
         sb.AppendLine($"<html><body style='font-family:Segoe UI, Arial; color:#000;'>");
-        sb.AppendLine($"<h2 style='color:#c0392b;'>[STORNO] Lagerbestellung #{r.Id}</h2>");
+        sb.AppendLine($"<h2 style='color:#c0392b;'>[STORNO] {TypeLabel(r)} #{r.Id}</h2>");
         sb.AppendLine($"<p><strong>Werkbank:</strong> {E(r.ProductionWorkplace.Name)}<br />");
         sb.AppendLine($"<strong>Erfasser:</strong> {E(r.CreatedBy)}<br />");
         sb.AppendLine($"<strong>Storniert:</strong> {r.CancelledAt:dd.MM.yyyy HH:mm}</p>");
@@ -186,7 +189,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
     internal static string BuildSubmitText(WarehouseRequisition r, string baseUrl)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Lagerbestellung #{r.Id}");
+        sb.AppendLine($"{TypeLabel(r)} #{r.Id}");
         sb.AppendLine();
         sb.AppendLine($"Werkbank: {r.ProductionWorkplace.Name}");
         sb.AppendLine($"Erfasser: {r.CreatedBy}");
@@ -200,7 +203,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         if (!string.IsNullOrEmpty(baseUrl))
         {
             sb.AppendLine();
-            sb.AppendLine($"Lagerbestellung oeffnen: {baseUrl}/WarehousePicking/Details/{r.Id}");
+            sb.AppendLine($"{TypeLabel(r)} oeffnen: {baseUrl}/WarehousePicking/Details/{r.Id}");
         }
         return sb.ToString();
     }
@@ -208,7 +211,7 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
     internal static string BuildCancellationText(WarehouseRequisition r, string baseUrl)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"[STORNO] Lagerbestellung #{r.Id}");
+        sb.AppendLine($"[STORNO] {TypeLabel(r)} #{r.Id}");
         sb.AppendLine();
         sb.AppendLine($"Werkbank: {r.ProductionWorkplace.Name}");
         sb.AppendLine($"Erfasser: {r.CreatedBy}");

@@ -217,4 +217,45 @@ public class WarehouseRequisitionEmailServiceTests
         text.Should().Contain("ART-2");
         text.Should().Contain("WB-A");
     }
+
+    [Fact]
+    public void BuildSubmitText_GlasBestellung_LabelGlasbestellung()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 77,
+            Type = WarehouseRequisitionType.Glas,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-Glas" },
+            CreatedBy = "tester",
+            SubmittedAt = new DateTime(2026, 6, 16, 8, 0, 0),
+            Items =
+            {
+                new WarehouseRequisitionItem { Position = 1, ArticleNumber = "GLAS-1", ArticleDescription = "Glasscheibe", Unit = "Stk", QuantityRequested = 2m },
+            }
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildSubmitText(r, "https://wms.ake.at");
+
+        text.Should().StartWith("Glasbestellung #77");
+        text.Should().Contain("Glasbestellung oeffnen: https://wms.ake.at/WarehousePicking/Details/77");
+        text.Should().NotContain("Lagerbestellung");
+    }
+
+    [Fact]
+    public void BuildCancellationText_GlasBestellung_LabelGlasbestellung()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 88,
+            Type = WarehouseRequisitionType.Glas,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-Glas" },
+            CreatedBy = "tester",
+            CancelledAt = new DateTime(2026, 6, 16, 9, 0, 0),
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildCancellationText(r, "https://wms.ake.at");
+
+        text.Should().StartWith("[STORNO] Glasbestellung #88");
+        text.Should().NotContain("Lagerbestellung");
+    }
 }
