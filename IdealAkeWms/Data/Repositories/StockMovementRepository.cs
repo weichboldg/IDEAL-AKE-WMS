@@ -166,7 +166,25 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             merged = merged.Where(g => g.CurrentQuantity <= filterMaxQuantity.Value).ToList();
         }
 
-        return merged.OrderBy(g => g.ArticleNumber).ThenBy(g => g.StorageLocationCode).ToList();
+        // Hauptlagerplatz je Artikel laden (nur die abgefragten Artikel).
+        var articleIds = merged.Select(m => m.ArticleId).Distinct().ToList();
+        var primaryByArticleId = await _context.Set<Article>()
+            .Where(a => articleIds.Contains(a.Id) && a.PrimaryStorageLocationId != null)
+            .Select(a => new { a.Id, a.PrimaryStorageLocationId })
+            .ToDictionaryAsync(a => a.Id, a => a.PrimaryStorageLocationId!.Value);
+
+        foreach (var item in merged)
+        {
+            item.IsPrimaryStorageLocation =
+                primaryByArticleId.TryGetValue(item.ArticleId, out var primaryLocId)
+                && item.StorageLocationId == primaryLocId;
+        }
+
+        return merged
+            .OrderBy(g => g.ArticleNumber)
+            .ThenBy(g => g.IsPrimaryStorageLocation ? 0 : 1)
+            .ThenBy(g => g.StorageLocationCode)
+            .ToList();
     }
 
     public async Task<List<StockOverviewItem>> GetStockByProductionOrderAsync(string productionOrder)
@@ -371,6 +389,14 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             })
             .ToListAsync();
 
+        // Hauptlagerplatz je Artikelnummer laden (nur abgefragte Artikel).
+        var primaryByArticleNumber = await _dbSet
+            .Where(sm => articleNumbers.Contains(sm.Article.ArticleNumber)
+                      && sm.Article.PrimaryStorageLocationId != null)
+            .Select(sm => new { sm.Article.ArticleNumber, PrimaryId = sm.Article.PrimaryStorageLocationId!.Value })
+            .Distinct()
+            .ToDictionaryAsync(x => x.ArticleNumber, x => x.PrimaryId);
+
         return destItems.Concat(srcItems)
             .GroupBy(x => new { x.ArticleNumber, x.StorageLocationId, x.StorageLocationCode })
             .Select(g => new
@@ -380,14 +406,20 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 {
                     StorageLocationId = g.Key.StorageLocationId,
                     Code = g.Key.StorageLocationCode,
-                    Quantity = g.Sum(x => x.Quantity)
+                    Quantity = g.Sum(x => x.Quantity),
+                    IsPrimaryStorageLocation =
+                        primaryByArticleNumber.TryGetValue(g.Key.ArticleNumber, out var primaryId)
+                        && g.Key.StorageLocationId == primaryId
                 }
             })
             .Where(x => x.Info.Quantity != 0)
             .GroupBy(x => x.ArticleNumber)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(x => x.Info).OrderBy(i => i.Code).ToList()
+                g => g.Select(x => x.Info)
+                      .OrderBy(i => i.IsPrimaryStorageLocation ? 0 : 1)
+                      .ThenBy(i => i.Code)
+                      .ToList()
             );
     }
 

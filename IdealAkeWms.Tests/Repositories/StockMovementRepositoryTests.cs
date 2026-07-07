@@ -39,6 +39,12 @@ public class StockMovementRepositoryTests
         return (article, loc1, loc2);
     }
 
+    private static void SetPrimaryLocation(Data.ApplicationDbContext ctx, Article article, StorageLocation loc)
+    {
+        article.PrimaryStorageLocationId = loc.Id;
+        ctx.SaveChanges();
+    }
+
     private static StockMovement CreateMovement(Article article, StorageLocation location,
         decimal qty, MovementType type, int? sourceLocId = null)
     {
@@ -173,5 +179,66 @@ public class StockMovementRepositoryTests
         totalCount.Should().Be(1);
         history.Should().ContainSingle();
         history[0].Quantity.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetCurrentStock_PrimaryLocation_SortedFirstPerArticle()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, loc2) = SeedBaseData(ctx);
+        var repo = new StockMovementRepository(ctx);
+
+        // L01 kommt alphabetisch vor L02; wir machen L02 zum Hauptlagerplatz.
+        await repo.AddAsync(CreateMovement(article, loc1, 5, MovementType.Einbuchung));
+        await repo.AddAsync(CreateMovement(article, loc2, 3, MovementType.Einbuchung));
+        SetPrimaryLocation(ctx, article, loc2);
+
+        var stock = await repo.GetCurrentStockAsync();
+
+        stock.Should().HaveCount(2);
+        stock[0].StorageLocationCode.Should().Be("L02");
+        stock[0].IsPrimaryStorageLocation.Should().BeTrue();
+        stock[1].StorageLocationCode.Should().Be("L01");
+        stock[1].IsPrimaryStorageLocation.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetCurrentStock_NoPrimaryLocation_SortedByCode()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, loc2) = SeedBaseData(ctx);
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc2, 3, MovementType.Einbuchung));
+        await repo.AddAsync(CreateMovement(article, loc1, 5, MovementType.Einbuchung));
+
+        var stock = await repo.GetCurrentStockAsync();
+
+        stock.Should().HaveCount(2);
+        stock[0].StorageLocationCode.Should().Be("L01");
+        stock[1].StorageLocationCode.Should().Be("L02");
+        stock.All(s => !s.IsPrimaryStorageLocation).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetStockByArticleNumbers_PrimaryLocation_SortedFirstWithFlag()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, loc2) = SeedBaseData(ctx);
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc1, 5, MovementType.Einbuchung));
+        await repo.AddAsync(CreateMovement(article, loc2, 3, MovementType.Einbuchung));
+        SetPrimaryLocation(ctx, article, loc2);
+
+        var result = await repo.GetStockByArticleNumbersAsync(new List<string> { "ART-001" });
+
+        result.Should().ContainKey("ART-001");
+        var locs = result["ART-001"];
+        locs.Should().HaveCount(2);
+        locs[0].Code.Should().Be("L02");
+        locs[0].IsPrimaryStorageLocation.Should().BeTrue();
+        locs[1].Code.Should().Be("L01");
+        locs[1].IsPrimaryStorageLocation.Should().BeFalse();
     }
 }
