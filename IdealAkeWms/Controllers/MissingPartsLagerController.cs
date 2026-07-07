@@ -57,7 +57,8 @@ public class MissingPartsLagerController : Controller
             if (!stockByArticle.TryGetValue(r.ArticleNumber, out var locs) || locs.Count == 0)
                 return r;
             var nonZero = locs.Where(l => l.Quantity > 0)
-                              .OrderByDescending(l => l.Quantity)
+                              .OrderByDescending(l => l.IsPrimaryStorageLocation)
+                              .ThenByDescending(l => l.Quantity)
                               .ToList();
             if (nonZero.Count == 0) return r;
             var locStr = string.Join(", ",

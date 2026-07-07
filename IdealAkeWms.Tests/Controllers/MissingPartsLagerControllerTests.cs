@@ -137,6 +137,45 @@ public class MissingPartsLagerControllerTests
     }
 
     [Fact]
+    public async Task Index_HauptlagerplatzZuerst_TrotzGeringererMenge()
+    {
+        var (ctrl, repo, _, stock, _) = Build();
+        var row = new MissingPartRow(
+            RequisitionId: 1, ItemId: 10, Position: 1,
+            WorkplaceName: "A1",
+            ArticleNumber: "20623",
+            ArticleDescription: "LED-Stromversorger",
+            QuantityRequested: 4m, QuantityPicked: 0m, QuantityMissing: 4m,
+            Unit: "Stk", Note: null,
+            CreatedBy: "user", ClosedAt: null,
+            Status: ShortageStatus.WillBeRestocked,
+            NoteEinkauf: null);
+        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
+                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>(),
+                It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow> { row }, 1));
+        // Hauptlagerplatz (LP-B2) hat die KLEINERE Menge — muss trotzdem zuerst stehen.
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.Is<List<string>>(l => l.Contains("20623"))))
+            .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>
+            {
+                ["20623"] = new List<StockLocationInfo>
+                {
+                    new StockLocationInfo { Code = "LP-A1", Quantity = 5m, StorageLocationId = 1, IsPrimaryStorageLocation = false },
+                    new StockLocationInfo { Code = "LP-B2", Quantity = 2m, StorageLocationId = 2, IsPrimaryStorageLocation = true }
+                }
+            });
+
+        var result = await ctrl.Index();
+        var vm = (result as ViewResult)!.Model as MissingPartsListViewModel;
+        vm!.Items.Should().HaveCount(1);
+        // Hauptlagerplatz zuerst, trotz geringerer Menge
+        vm.Items[0].StorageLocations.Should().Be("LP-B2 (2,000), LP-A1 (5,000)");
+    }
+
+    [Fact]
     public async Task Index_RowsWithoutStock_HaveNullStorageLocations()
     {
         var (ctrl, repo, _, stock, _) = Build();
