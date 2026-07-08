@@ -14,12 +14,14 @@ public class SageImportServiceTests
         var config = new ConfigurationBuilder().Build(); // no connection strings
         var bomMock = new Mock<IBomCacheSyncService>();
         var coatingMock = new Mock<ICoatingDetectionService>();
+        var notifierMock = new Mock<ISyncErrorNotifier>();
         return new SageImportService(
             config,
             NullLogger<SageImportService>.Instance,
             fakeLogger,
             bomMock.Object,
-            coatingMock.Object);
+            coatingMock.Object,
+            notifierMock.Object);
     }
 
     [Fact]
