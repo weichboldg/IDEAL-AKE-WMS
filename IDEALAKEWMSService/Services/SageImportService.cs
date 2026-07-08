@@ -240,6 +240,9 @@ public class SageImportService : ISageImportService
             }
             else if (dryRun)
             {
+                // Hinweis: Aktuell nicht erreichbar — der DryRun-Pfad returned frueh (siehe oben,
+                // direkt nach dem Sage-Read), bevor die Reconcile-Sektion laeuft. Defensiv belassen,
+                // falls der fruehe Return spaeter entfaellt (dann greift diese schreibfreie Vorschau).
                 _logger.LogInformation(
                     "[DryRun] FA-Reconciliation — {Cancel} Storno-Kandidaten, {React} Reaktivierungen (nichts geschrieben). Skipped={Skipped} {Reason}",
                     reconcilePlan.ToCancel.Count, reconcilePlan.ToReactivate.Count,
@@ -280,15 +283,15 @@ public class SageImportService : ISageImportService
                 }
                 else
                 {
-                    var now = DateTime.Now;
                     foreach (var orderNumber in reconcilePlan.ToCancel)
                     {
+                        // CancelledAt via GETUTCDATE() (wie ModifiedAt) — beide Audit-Spalten
+                        // derselben Zeile in derselben Zeitbasis (kein Local/UTC-Mix).
                         await using var cancelCmd = new SqlCommand(
-                            "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 1, [CancelledAt] = @Now, [CancelledBy] = 'System-Reconcile', " +
+                            "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 1, [CancelledAt] = GETUTCDATE(), [CancelledBy] = 'System-Reconcile', " +
                             "[ModifiedAt] = GETUTCDATE(), [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
                             "WHERE [OrderNumber] = @OrderNumber AND [IsDone] = 0 AND [IsCancelled] = 0",
                             wmsConn) { CommandTimeout = 60 };
-                        cancelCmd.Parameters.AddWithValue("@Now", now);
                         cancelCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
                         cancelled += await cancelCmd.ExecuteNonQueryAsync(ct);
                     }
