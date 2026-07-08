@@ -47,6 +47,7 @@
                         zuerst; in der Bestands&uuml;bersicht tr&auml;gt er ein &#9733;-Badge. Fehlt der
                         Lagerplatz ausnahmsweise im WMS, bleibt der Sage-Code sichtbar und der Fall wird
                         im Aktivit&auml;ts-Protokoll gez&auml;hlt (<code>hauptlagerplatz_fehlt</code>).</li>
+                    <li><strong>FA-Reconciliation:</strong> Der FA-Sync erkennt in Sage gelöschte, bei uns noch offene Fertigungsaufträge und storniert sie automatisch (verschwinden aus allen offenen Sichten; Badge „In Sage gelöscht" bei „Erledigte anzeigen"). Taucht eine FA wieder in Sage auf, wird sie reaktiviert. Sicherheits-Guard (leerer Sage-Read) + Cap (max. Storni/Lauf → Fehlermail) verhindern versehentliches Massen-Stornieren. Opt-in über <code>Sync:ProductionOrderReconcileEnabled</code> (Default aus).</li>
                 </ul>
             </div>
         </div>

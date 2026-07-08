@@ -54,6 +54,7 @@ Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 G
   gesperrt, sonst app-editierbar), zentrale Sortierung „Haupt zuerst" in den Bestand-je-Lagerplatz-
   Anzeigen, ⭐-Badge in der Bestandsübersicht; **Migration 79** `AddArticlePrimaryStorageLocation`
   (additiv). Warn-Count `hauptlagerplatz_fehlt` im Aktivitäts-Protokoll bei fehlendem WMS-Lagerplatz.
+- **FA-Reconciliation (v1.25.0):** Service-Sync storniert in Sage gelöschte, offene FAs (`ProductionOrder.IsCancelled`, Migration 80); Guard + Cap + Reaktivierung + Fehlermail; Opt-in `Sync:ProductionOrderReconcileEnabled` (Default aus). Badge „In Sage gelöscht" in der FA-Liste.
 
 ### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
 

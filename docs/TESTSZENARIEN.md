@@ -5177,5 +5177,45 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
+## Kapitel 50 — FA-Reconciliation (verwaiste FAs stornieren) (v1.25.0)
+
+**Vorbedingungen:**
+- WMS-DB mit mindestens einer offenen FA (`IsDone=0`, `IsCancelled=0`), deren `OrderNumber` in der Sage-View `vw_AKE_Kommissionierung_WAListe` NICHT (mehr) vorkommt (= verwaiste FA).
+- Service läuft, `Sync:ProductionOrdersEnabled=true`.
+- DB-Backup vor dem ersten scharfen Lauf.
+
+### 1. DryRun-Kontroll-Lauf (Flag AUS — nichts wird geschrieben)
+1. `Sync:ProductionOrderReconcileEnabled = false` (Default), `WorkerSettings:SyncDryRun = false`.
+2. Sync-Zyklus auslösen (oder Intervall abwarten).
+3. **Erwartet:** Im Log/Aktivitäts-Protokoll erscheint „FA-Reconciliation deaktiviert … Plan: N Storno-Kandidaten, M Reaktivierungen (nichts geschrieben)". In der DB ist KEINE FA storniert. Der Admin liest N ab und prüft Plausibilität.
+
+### 2. Scharfschalten — verwaiste FA wird storniert
+1. `Sync:ProductionOrderReconcileEnabled = true`. `Sync:ReconcileMaxCancelPerRun` ausreichend hoch (Default 100).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** Die verwaiste FA hat `IsCancelled=1`, `CancelledAt`=jetzt (UTC), `CancelledBy='System-Reconcile'`. Aktivitäts-Protokoll-Counts zeigen `storniert=N`. Die FA verschwindet aus FA-Liste, Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste, Picking-Worklist und aus dem BOM-Cache-Fenster.
+4. FA-Liste mit „Erledigte anzeigen" öffnen → die FA erscheint mit rotem Badge **„In Sage gelöscht"** (nicht „erledigt").
+
+### 3. Reaktivierung — FA taucht wieder in Sage auf
+1. Die stornierte FA wieder in der Sage-View verfügbar machen (Testdaten).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** `IsCancelled=0`, `CancelledAt=NULL`, `CancelledBy=NULL`. Counts zeigen `reaktiviert=1`. FA ist wieder in den offenen Sichten.
+
+### 4. Guard — leerer Sage-Read storniert NICHTS
+1. Sage-View liefert (simuliert) 0 Zeilen (z. B. View temporär leer / Verbindungsproblem am Read).
+2. Sync-Zyklus mit Flag AN auslösen.
+3. **Erwartet:** KEINE FA wird storniert. Aktivitäts-Protokoll-Warnung „Reconcile übersprungen: Sage-Read leer". Keine Fehlermail (Guard ist kein Cap).
+
+### 5. Cap — zu viele Storno-Kandidaten → kein Storno + Fehlermail
+1. `Sync:ReconcileMaxCancelPerRun = 1`. Mehr als 1 verwaiste offene FA vorhanden.
+2. `ErrorNotification:Enabled=true` + `ErrorNotification:Recipients` gesetzt.
+3. Sync-Zyklus mit Flag AN auslösen.
+4. **Erwartet:** KEINE FA storniert (Cap überschritten). Warnung im Protokoll „Reconcile übersprungen: Cap ueberschritten (N > 1)". Fehlermail an die Empfänger mit Sage-Count + Cap. Etwaige Reaktivierungen im selben Lauf werden trotzdem geschrieben.
+
+**Negativ/Regression:**
+- Erledigte FAs (`IsDone=1`), die nicht in Sage sind, werden NIE storniert (nur offene).
+- Bereits stornierte FAs, die weiterhin fehlen, werden nicht erneut storniert (kein Doppel-Storno, Counts bleiben 0).
+
+---
+
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
