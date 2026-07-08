@@ -90,7 +90,7 @@
         <tbody>
             @foreach (var item in Model.Items)
             {
-                <tr class="@(item.IsDone ? "table-secondary" : "")">
+                <tr class="@(item.IsCancelled ? "table-danger" : item.IsDone ? "table-secondary" : "")">
                     @if (Model.CanPick || Model.HasVorbauAccess)
                     {
                         <td class="text-nowrap">
@@ -118,6 +118,10 @@
                     }
                     <td>
                         <strong>@item.OrderNumber</strong>
+                        @if (item.IsCancelled)
+                        {
+                            <span class="badge bg-danger ms-1" title="Dieser Fertigungsauftrag existiert nicht mehr in Sage und wurde automatisch storniert.">In Sage gelöscht</span>
+                        }
                         @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
                         {
                             @await Html.PartialAsync("_EnaioDmsBadges", new IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel(dmsLinks))
