@@ -206,99 +206,144 @@ public class SageImportService : ISageImportService
             // Verwaiste WMS-offene FAs, die nicht mehr in der Sage-View sind, stornieren;
             // wieder aufgetauchte reaktivieren. Guard (leerer Read) + Cap schuetzen vor
             // versehentlichem Massen-Stornieren. Opt-in per Flag; DryRun schreibt nichts.
-            var reconcileEnabled = await ServiceSettings.GetBoolAsync(
-                _configuration, "Sync:ProductionOrderReconcileEnabled", false, ct);
-            var maxCancelPerRun = await ServiceSettings.GetIntAsync(
-                _configuration, "Sync:ReconcileMaxCancelPerRun", 100, ct);
-
-            var sageOrderNumbers = sageOrders.Select(o => o.OrderNumber).ToList();
-
-            // WMS-Zustaende laden: alle offenen ODER stornierten FAs.
-            var wmsStates = new List<WmsOrderState>();
-            await using (var stateCmd = new SqlCommand(
-                "SELECT [OrderNumber], [IsDone], [IsCancelled] FROM [dbo].[ProductionOrders] WHERE [IsDone] = 0 OR [IsCancelled] = 1",
-                wmsConn) { CommandTimeout = 120 })
-            await using (var stateReader = await stateCmd.ExecuteReaderAsync(ct))
+            //
+            // Eigener Aktivitaets-Protokoll-Lauf (v1.25.0-Followup): Der Reconcile ist zwar
+            // in den ProductionOrder-Sync eingebettet, erscheint aber als SEPARATER SyncLog-
+            // Eintrag (ProductionOrderReconciliation) — auch im Flag-AUS-Fall (Info: was WUERDE
+            // passieren). Ein Fehler hier laesst den reconcileRun als "failed" enden und wird
+            // (wie bisher) an den aeusseren ProductionOrder-Lauf weitergereicht (re-throw).
+            await using var reconcileRun = await _syncLogger.BeginRunAsync(SyncLogServices.ProductionOrderReconciliation, ct);
+            try
             {
-                while (await stateReader.ReadAsync(ct))
+                var reconcileEnabled = await ServiceSettings.GetBoolAsync(
+                    _configuration, "Sync:ProductionOrderReconcileEnabled", false, ct);
+                var maxCancelPerRun = await ServiceSettings.GetIntAsync(
+                    _configuration, "Sync:ReconcileMaxCancelPerRun", 100, ct);
+
+                var sageOrderNumbers = sageOrders.Select(o => o.OrderNumber).ToList();
+
+                // WMS-Zustaende laden: alle offenen ODER stornierten FAs.
+                var wmsStates = new List<WmsOrderState>();
+                await using (var stateCmd = new SqlCommand(
+                    "SELECT [OrderNumber], [IsDone], [IsCancelled] FROM [dbo].[ProductionOrders] WHERE [IsDone] = 0 OR [IsCancelled] = 1",
+                    wmsConn) { CommandTimeout = 120 })
+                await using (var stateReader = await stateCmd.ExecuteReaderAsync(ct))
                 {
-                    wmsStates.Add(new WmsOrderState(
-                        stateReader.GetString(0),
-                        stateReader.GetBoolean(1),
-                        stateReader.GetBoolean(2)));
-                }
-            }
-
-            var reconcilePlan = ProductionOrderReconciler.Plan(sageOrderNumbers, wmsStates, maxCancelPerRun);
-            int cancelled = 0, reactivated = 0;
-
-            if (!reconcileEnabled)
-            {
-                _logger.LogInformation(
-                    "FA-Reconciliation deaktiviert (Sync:ProductionOrderReconcileEnabled=false) — Plan: {Cancel} Storno-Kandidaten, {React} Reaktivierungen (nichts geschrieben).",
-                    reconcilePlan.ToCancel.Count, reconcilePlan.ToReactivate.Count);
-            }
-            else if (dryRun)
-            {
-                // Hinweis: Aktuell nicht erreichbar — der DryRun-Pfad returned frueh (siehe oben,
-                // direkt nach dem Sage-Read), bevor die Reconcile-Sektion laeuft. Defensiv belassen,
-                // falls der fruehe Return spaeter entfaellt (dann greift diese schreibfreie Vorschau).
-                _logger.LogInformation(
-                    "[DryRun] FA-Reconciliation — {Cancel} Storno-Kandidaten, {React} Reaktivierungen (nichts geschrieben). Skipped={Skipped} {Reason}",
-                    reconcilePlan.ToCancel.Count, reconcilePlan.ToReactivate.Count,
-                    reconcilePlan.Skipped, reconcilePlan.SkipReason);
-                await run.LogInfoAsync(
-                    $"[DryRun] Reconcile: {reconcilePlan.ToCancel.Count} wuerden storniert, {reconcilePlan.ToReactivate.Count} reaktiviert.", ct: ct);
-            }
-            else
-            {
-                // Reaktivieren laeuft IMMER (auch bei Guard/Cap-Skip — Reaktivierungen sind nie gefaehrlich).
-                foreach (var orderNumber in reconcilePlan.ToReactivate)
-                {
-                    await using var reactCmd = new SqlCommand(
-                        "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 0, [CancelledAt] = NULL, [CancelledBy] = NULL, " +
-                        "[ModifiedAt] = GETUTCDATE(), [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
-                        "WHERE [OrderNumber] = @OrderNumber",
-                        wmsConn) { CommandTimeout = 60 };
-                    reactCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
-                    reactivated += await reactCmd.ExecuteNonQueryAsync(ct);
-                }
-
-                if (reconcilePlan.Skipped)
-                {
-                    var reason = reconcilePlan.SkipReason ?? "unbekannt";
-                    _logger.LogWarning("FA-Reconciliation uebersprungen: {Reason}. Kein Storno geschrieben.", reason);
-                    await run.LogWarningAsync($"Reconcile uebersprungen: {reason}. Kein Storno.", ct: ct);
-
-                    // Cap-Skip zusaetzlich per Fehlermail melden (Sage-Teil-Read-Verdacht).
-                    if (reason.StartsWith("Cap", StringComparison.OrdinalIgnoreCase))
+                    while (await stateReader.ReadAsync(ct))
                     {
-                        await _errorNotifier.NotifyAsync(
-                            SyncLogServices.ProductionOrder,
-                            new InvalidOperationException(
-                                $"FA-Reconciliation Cap ueberschritten: {reason}. Sage lieferte {sageOrderNumbers.Count} FAs, " +
-                                $"Cap={maxCancelPerRun}. Kein Storno geschrieben — moeglicher Sage-Teil-Read."),
-                            ct);
+                        wmsStates.Add(new WmsOrderState(
+                            stateReader.GetString(0),
+                            stateReader.GetBoolean(1),
+                            stateReader.GetBoolean(2)));
                     }
+                }
+
+                var reconcilePlan = ProductionOrderReconciler.Plan(sageOrderNumbers, wmsStates, maxCancelPerRun);
+                int cancelled = 0, reactivated = 0;
+
+                if (!reconcileEnabled)
+                {
+                    _logger.LogInformation(
+                        "FA-Reconciliation deaktiviert (Sync:ProductionOrderReconcileEnabled=false) — Plan: {Cancel} Storno-Kandidaten, {React} Reaktivierungen (nichts geschrieben).",
+                        reconcilePlan.ToCancel.Count, reconcilePlan.ToReactivate.Count);
+                    await reconcileRun.LogInfoAsync(
+                        $"Deaktiviert (Sync:ProductionOrderReconcileEnabled=false) — Plan: {reconcilePlan.ToCancel.Count} Storno-Kandidaten, {reconcilePlan.ToReactivate.Count} Reaktivierungen — nichts geschrieben", ct: ct);
+                    await reconcileRun.FinishSuccessAsync(new Dictionary<string, int>
+                    {
+                        ["storniert"] = 0,
+                        ["reaktiviert"] = 0,
+                        ["storno-kandidaten"] = reconcilePlan.ToCancel.Count,
+                    }, ct: ct);
+                }
+                else if (dryRun)
+                {
+                    // Hinweis: Aktuell nicht erreichbar — der DryRun-Pfad returned frueh (siehe oben,
+                    // direkt nach dem Sage-Read), bevor die Reconcile-Sektion laeuft. Defensiv belassen,
+                    // falls der fruehe Return spaeter entfaellt (dann greift diese schreibfreie Vorschau).
+                    _logger.LogInformation(
+                        "[DryRun] FA-Reconciliation — {Cancel} Storno-Kandidaten, {React} Reaktivierungen (nichts geschrieben). Skipped={Skipped} {Reason}",
+                        reconcilePlan.ToCancel.Count, reconcilePlan.ToReactivate.Count,
+                        reconcilePlan.Skipped, reconcilePlan.SkipReason);
+                    await reconcileRun.LogInfoAsync(
+                        $"[DryRun] Reconcile: {reconcilePlan.ToCancel.Count} wuerden storniert, {reconcilePlan.ToReactivate.Count} reaktiviert.", ct: ct);
+                    await reconcileRun.FinishSuccessAsync(new Dictionary<string, int>
+                    {
+                        ["storniert"] = 0,
+                        ["reaktiviert"] = 0,
+                        ["storno-kandidaten"] = reconcilePlan.ToCancel.Count,
+                    }, messageSuffix: "[DryRun]", ct: ct);
                 }
                 else
                 {
-                    foreach (var orderNumber in reconcilePlan.ToCancel)
+                    // Reaktivieren laeuft IMMER (auch bei Guard/Cap-Skip — Reaktivierungen sind nie gefaehrlich).
+                    foreach (var orderNumber in reconcilePlan.ToReactivate)
                     {
-                        // CancelledAt via GETUTCDATE() (wie ModifiedAt) — beide Audit-Spalten
-                        // derselben Zeile in derselben Zeitbasis (kein Local/UTC-Mix).
-                        await using var cancelCmd = new SqlCommand(
-                            "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 1, [CancelledAt] = GETUTCDATE(), [CancelledBy] = 'System-Reconcile', " +
+                        await using var reactCmd = new SqlCommand(
+                            "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 0, [CancelledAt] = NULL, [CancelledBy] = NULL, " +
                             "[ModifiedAt] = GETUTCDATE(), [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
-                            "WHERE [OrderNumber] = @OrderNumber AND [IsDone] = 0 AND [IsCancelled] = 0",
+                            "WHERE [OrderNumber] = @OrderNumber",
                             wmsConn) { CommandTimeout = 60 };
-                        cancelCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
-                        cancelled += await cancelCmd.ExecuteNonQueryAsync(ct);
+                        reactCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
+                        var reactRows = await reactCmd.ExecuteNonQueryAsync(ct);
+                        reactivated += reactRows;
+                        if (reactRows > 0)
+                            await reconcileRun.LogInfoAsync(
+                                $"FA {orderNumber} reaktiviert (wieder in Sage)", reference: orderNumber, ct: ct);
                     }
-                }
 
-                _logger.LogInformation(
-                    "FA-Reconciliation: {Cancelled} storniert, {Reactivated} reaktiviert.", cancelled, reactivated);
+                    if (reconcilePlan.Skipped)
+                    {
+                        var reason = reconcilePlan.SkipReason ?? "unbekannt";
+                        _logger.LogWarning("FA-Reconciliation uebersprungen: {Reason}. Kein Storno geschrieben.", reason);
+                        await reconcileRun.LogWarningAsync($"Uebersprungen: {reason}", ct: ct);
+
+                        // Cap-Skip zusaetzlich per Fehlermail melden (Sage-Teil-Read-Verdacht).
+                        if (reason.StartsWith("Cap", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await _errorNotifier.NotifyAsync(
+                                SyncLogServices.ProductionOrder,
+                                new InvalidOperationException(
+                                    $"FA-Reconciliation Cap ueberschritten: {reason}. Sage lieferte {sageOrderNumbers.Count} FAs, " +
+                                    $"Cap={maxCancelPerRun}. Kein Storno geschrieben — moeglicher Sage-Teil-Read."),
+                                ct);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var orderNumber in reconcilePlan.ToCancel)
+                        {
+                            // CancelledAt via GETUTCDATE() (wie ModifiedAt) — beide Audit-Spalten
+                            // derselben Zeile in derselben Zeitbasis (kein Local/UTC-Mix).
+                            await using var cancelCmd = new SqlCommand(
+                                "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 1, [CancelledAt] = GETUTCDATE(), [CancelledBy] = 'System-Reconcile', " +
+                                "[ModifiedAt] = GETUTCDATE(), [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
+                                "WHERE [OrderNumber] = @OrderNumber AND [IsDone] = 0 AND [IsCancelled] = 0",
+                                wmsConn) { CommandTimeout = 60 };
+                            cancelCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
+                            var cancelRows = await cancelCmd.ExecuteNonQueryAsync(ct);
+                            cancelled += cancelRows;
+                            if (cancelRows > 0)
+                                await reconcileRun.LogInfoAsync(
+                                    $"FA {orderNumber} storniert (in Sage nicht mehr vorhanden)", reference: orderNumber, ct: ct);
+                        }
+                    }
+
+                    _logger.LogInformation(
+                        "FA-Reconciliation: {Cancelled} storniert, {Reactivated} reaktiviert.", cancelled, reactivated);
+
+                    await reconcileRun.FinishSuccessAsync(new Dictionary<string, int>
+                    {
+                        ["storniert"] = cancelled,
+                        ["reaktiviert"] = reactivated,
+                    }, ct: ct);
+                }
+            }
+            catch (Exception reconcileEx)
+            {
+                _logger.LogError(reconcileEx, "Fehler bei FA-Reconciliation.");
+                await reconcileRun.LogErrorAsync(reconcileEx.Message, ct: ct);
+                await reconcileRun.FinishFailedAsync(reconcileEx.Message, ct: ct);
+                throw; // Verhalten wie bisher: Fehler propagiert an den aeusseren ProductionOrder-Lauf.
             }
             // ---- Ende FA-Reconciliation ---------------------------------------
 
@@ -308,8 +353,6 @@ public class SageImportService : ISageImportService
             {
                 ["neu"] = inserted,
                 ["aktualisiert"] = updated,
-                ["storniert"] = cancelled,
-                ["reaktiviert"] = reactivated,
             }, ct: ct);
 
             return new SyncResult(inserted, updated, 0);
@@ -492,6 +535,12 @@ public class SageImportService : ISageImportService
                         _logger.LogWarning(
                             "Hauptlagerplatz '{Code}' fuer Artikel {ArticleNumber} nicht als WMS-Lagerplatz gefunden — FK bleibt leer.",
                             sageCode, article.ArticleNumber);
+                        // Protokoll-Detailzeile (Cap 100 — der Serilog-Eintrag oben bleibt fuer ALLE).
+                        // Der Count-Key hauptlagerplatz_fehlt im FinishSuccess bleibt die volle Zahl.
+                        if (missingPrimaryLocation <= 100)
+                            await run.LogWarningAsync(
+                                $"Hauptlagerplatz '{sageCode}' fuer Artikel {article.ArticleNumber} nicht als WMS-Lagerplatz gefunden — FK bleibt leer",
+                                reference: article.ArticleNumber, ct: ct);
                     }
                 }
 
