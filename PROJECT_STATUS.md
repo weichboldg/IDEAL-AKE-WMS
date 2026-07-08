@@ -55,6 +55,7 @@ Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 G
   Anzeigen, ⭐-Badge in der Bestandsübersicht; **Migration 79** `AddArticlePrimaryStorageLocation`
   (additiv). Warn-Count `hauptlagerplatz_fehlt` im Aktivitäts-Protokoll bei fehlendem WMS-Lagerplatz.
 - **FA-Reconciliation (v1.25.0):** Service-Sync storniert in Sage gelöschte, offene FAs (`ProductionOrder.IsCancelled`, Migration 80); Guard + Cap + Reaktivierung + Fehlermail; Opt-in `Sync:ProductionOrderReconcileEnabled` (Default aus). Badge „In Sage gelöscht" in der FA-Liste.
+- **ServiceSettings typisiert + vollstaendig (v1.25.0):** Katalog `ServiceSettingDefinitions.All` treibt Seeding (`Program.cs`) + typisierte `/ServiceSettings`-UI (Bool-Toggle/Int/String, nach Kategorie gruppiert). 8 Service-Lesestellen (Worker-Intervall/DryRun, NotificationCheckIntervalMinutes, ErrorNotification:Enabled/Recipients, Feiertag-Country/Region/JahreVoraus) DB-first mit resilientem Fallback (`GetBoolSafeAsync`/`GetIntSafeAsync`/`GetValueSafeAsync`). DB gewinnt; nur MailSettings/ConnectionStrings bleiben appsettings. `HolidaySyncService`-Override in lokale Variablen (keine Shared-IOptions-Mutation). Tests: `ServiceSettingDefinitionsTests` (Drift-Guard) + `ServiceSettingsControllerTests` (Merge + Int-Validierung). Kein Schema-Change, kein AppVersion-Bump. TESTSZENARIEN Kap. 51.
 
 ### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
 

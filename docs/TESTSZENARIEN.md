@@ -5219,5 +5219,45 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
+## Kapitel 51: Typisierte, vollständige Service-Einstellungen (v1.25.0)
+
+**Vorbedingung:** Als `admin` eingeloggt. Windows-Dienst läuft (für die Wirkungs-Checks).
+
+### TS-51.1 — Vollständigkeit + Typisierung
+1. `/ServiceSettings` öffnen.
+2. **Erwartet:** Jede Einstellung erscheint typgerecht: Bool-Keys (z. B. `Sync:BomCacheEnabled`, `WorkerSettings:SyncDryRun`, `ErrorNotification:Enabled`) als **Aktiv/Inaktiv**-Schalter; Int-Keys (z. B. `Sync:BomCacheWeeks`, `WorkerSettings:SyncIntervalMinutes`) als **Zahlenfeld**; String-Keys (z. B. `Sync:FeiertagCountryCode`, `ErrorNotification:Recipients`) als **Textfeld/Textarea**. Alle Katalog-Keys sind sichtbar, nach Kategorie gruppiert (Sync, BOM-Cache, FA-Vervollstaendigung, Lackierteile, BDE, Feiertage, Worker, Fehlermail, Benachrichtigungen).
+
+### TS-51.2 — Bool-Toggle speichern + Wirkung (nächster Sync)
+1. `Sync:ProductionOrderReconcileEnabled` von Inaktiv auf **Aktiv** schalten → „Einstellungen speichern".
+2. **Erwartet:** Erfolgs-Alert; nach Reload steht der Toggle auf Aktiv. In DB `[ServiceSettings]` Key = `Sync:ProductionOrderReconcileEnabled`, Value = `true` (NICHT `1`).
+3. Nächsten Sync-Zyklus abwarten → im Aktivitäts-Protokoll erscheint der `ProductionOrderReconciliation`-Lauf scharf (nicht mehr „Deaktiviert").
+
+### TS-51.3 — Int-Feld speichern + Wirkung
+1. `WorkerSettings:SyncIntervalMinutes` von `15` auf `5` setzen → speichern.
+2. **Erwartet:** Nach Reload steht `5`. Der Dienst taktet ab dem nächsten Loop mit 5 Minuten (Manual-UAT: wertabhängiger Sync-Pfad — nur über die DB-Lesestelle beobachtbar, nicht InMemory getestet).
+
+### TS-51.4 — Int-Validierung (Negativfall)
+1. In `Sync:BomCacheWeeks` `abc` eintippen (Zahlenfeld erlaubt das ggf. nur per Paste/DevTools — alternativ ein anderes Int-Feld leeren und Buchstaben einfügen) → speichern.
+2. **Erwartet:** KEIN Erfolgs-Redirect; oben ein Warn-Alert „'Sync:BomCacheWeeks' erwartet eine ganze Zahl". Der Wert in der DB bleibt unverändert; gültige Felder im selben Submit wurden gespeichert.
+
+### TS-51.5 — String/Textarea (Empfänger)
+1. `ErrorNotification:Recipients` = `a@ake.at, b@ake.at` speichern.
+2. **Erwartet:** Nach Reload steht der Komma-String im Feld. Bei einem provozierten Sync-Fehler (und `ErrorNotification:Enabled` = Aktiv) geht eine Fehlermail an beide Adressen (Split auf Komma). (Wertabhängiger Mail-Pfad = Manual-UAT.)
+
+### TS-51.6 — Reconcile scharfschalten via Toggle
+1. `Sync:ProductionOrderReconcileEnabled` = Aktiv (TS-51.2) UND eine verwaiste offene FA vorhanden (siehe Kap. 50).
+2. Sync-Zyklus abwarten.
+3. **Erwartet:** Die FA wird storniert (Wirkung der DB-Einstellung greift ohne appsettings-Änderung). Das beweist: der Bool-Wert wird vom Service aus der DB gelesen, nicht aus appsettings.
+
+### TS-51.7 — DB gewinnt über appsettings
+1. In `appsettings.json` des Dienstes `WorkerSettings:SyncIntervalMinutes` = `99` setzen, aber in `/ServiceSettings` `15` lassen.
+2. **Erwartet:** Der Dienst taktet mit **15** (DB-Wert), nicht 99 — die appsettings-Zahl wird ignoriert.
+
+**Deploy-Hinweis (WICHTIG):** Nach dem Deploy von v1.25.0 werden die Blöcke `Sync:*`/`WorkerSettings:*`/`ErrorNotification:*` (+ ggf. Feiertag) aus `appsettings.json` vom Dienst **nicht mehr gelesen** — die DB gewinnt. Deshalb müssen alle betriebswichtigen Werte einmalig in `/ServiceSettings` gesetzt/kontrolliert werden, insbesondere `ErrorNotification:Enabled` + `ErrorNotification:Recipients` (sonst gehen keine Fehlermails raus) sowie ggf. `WorkerSettings:SyncIntervalMinutes`/`SyncDryRun` und die Feiertags-Keys. `ConnectionStrings:*` + `MailSettings:*` (SMTP) bleiben in `appsettings.json`.
+
+**Test-Coverage-Hinweis:** Katalog-Konsistenz + Drift-Guard (`ServiceSettingDefinitionsTests`) und der Speicher-Merge inkl. Int-Validierung (`ServiceSettingsControllerTests`) sind automatisiert grün. Die **wertabhängigen** Sync-Pfade (tatsächliches Worker-Takten mit dem DB-Wert, Fehlermail-Versand an die DB-Empfänger, Reconcile-Scharfschaltung) laufen über DB-Lesestellen im laufenden Dienst und sind **Manual-UAT** (nicht InMemory testbar) — siehe TS-51.2/51.3/51.5/51.6.
+
+---
+
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
