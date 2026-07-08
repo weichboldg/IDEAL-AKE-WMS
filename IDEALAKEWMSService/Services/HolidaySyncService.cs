@@ -59,16 +59,21 @@ public class HolidaySyncService : IHolidaySyncService
 
             // DB-first (v1.25.0): Country/Region/JahreVoraus aus ServiceSettings ueberschreiben
             // (DB gewinnt). Enable-Flag bleibt aus IConfiguration/Options (Gate-Konsistenz).
+            // Lokale Variablen statt Mutation der geteilten IOptions-Singleton-Instanz.
+            var countryCode = opts.CountryCode;
+            var region = opts.Region;
+            var jahreVoraus = opts.JahreVoraus;
+
             var dbCountry = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
                 _config, "Sync:FeiertagCountryCode", ct);
-            if (!string.IsNullOrWhiteSpace(dbCountry)) opts.CountryCode = dbCountry.Trim();
+            if (!string.IsNullOrWhiteSpace(dbCountry)) countryCode = dbCountry.Trim();
 
             var dbRegion = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
                 _config, "Sync:FeiertagRegion", ct);
-            if (dbRegion != null) opts.Region = dbRegion.Trim(); // leer erlaubt (= keine Region)
+            if (dbRegion != null) region = dbRegion.Trim(); // leer erlaubt (= keine Region)
 
-            opts.JahreVoraus = await IDEALAKEWMSService.Common.ServiceSettings.GetIntSafeAsync(
-                _config, "Sync:FeiertagJahreVoraus", opts.JahreVoraus, ct);
+            jahreVoraus = await IDEALAKEWMSService.Common.ServiceSettings.GetIntSafeAsync(
+                _config, "Sync:FeiertagJahreVoraus", jahreVoraus, ct);
 
             if (!opts.Enabled)
             {
@@ -81,17 +86,17 @@ public class HolidaySyncService : IHolidaySyncService
             }
 
             var startYear = DateTime.Today.Year;
-            for (int year = startYear; year <= startYear + opts.JahreVoraus; year++)
+            for (int year = startYear; year <= startYear + jahreVoraus; year++)
             {
                 try
                 {
-                    var url = $"api/v3/PublicHolidays/{year}/{opts.CountryCode}";
+                    var url = $"api/v3/PublicHolidays/{year}/{countryCode}";
                     var holidays = await _http.GetFromJsonAsync<List<NagerHoliday>>(url, ct);
                     if (holidays == null) continue;
 
-                    var filtered = string.IsNullOrWhiteSpace(opts.Region)
+                    var filtered = string.IsNullOrWhiteSpace(region)
                         ? holidays.Where(h => h.Counties == null || h.Counties.Length == 0)
-                        : holidays.Where(h => h.Counties == null || h.Counties.Length == 0 || h.Counties.Contains(opts.Region));
+                        : holidays.Where(h => h.Counties == null || h.Counties.Length == 0 || h.Counties.Contains(region));
 
                     foreach (var h in filtered)
                     {
