@@ -167,6 +167,45 @@ public class ProductionOrderPickingStatusRepositoryTests
     }
 
     [Fact]
+    public async Task GetReleasedForPicking_ExcludesCancelledOrders()
+    {
+        // FA-Reconciliation (v1.25.0): eine vor der Loeschung freigegebene, dann stornierte FA
+        // (IsReleasedForPicking=true, IsCancelled=1) darf weder in der Worklist erscheinen
+        // noch im Nav-Zaehler mitgezaehlt werden.
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-OPEN",
+            releaseForPicking: true);
+        var cancelled = TestDataHelper.CreateOrderWithStatuses(context, "FA-CANCELLED",
+            releaseForPicking: true);
+        cancelled.Order.IsCancelled = true;
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.GetReleasedForPickingAsync();
+        var count = await repo.GetReleasedForPickingCountAsync();
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetReleasedForPickingByPicker_ExcludesCancelledOrders()
+    {
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-OPEN",
+            releaseForPicking: true, assignedPickerId: 7);
+        var cancelled = TestDataHelper.CreateOrderWithStatuses(context, "FA-CANCELLED",
+            releaseForPicking: true, assignedPickerId: 7);
+        cancelled.Order.IsCancelled = true;
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.GetReleasedForPickingByPickerAsync(7);
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+    }
+
+    [Fact]
     public async Task GetReleasedForPickingByPicker_ExcludesKommDoneOrders()
     {
         using var context = TestDbContextFactory.Create();

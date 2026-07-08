@@ -174,7 +174,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
     public async Task<List<ProductionOrder>> GetReleasedForPickingAsync()
     {
         return await _context.ProductionOrders
-            .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking && !p.IsDone && !p.PickingStatus.IsDonePicking)
+            .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking && !p.IsDone && !p.IsCancelled && !p.PickingStatus.IsDonePicking)
             .Include(p => p.ProductionWorkplace)
             .Include(p => p.PickingStatus)
             .OrderBy(p => p.PickingStatus!.PickingPriority.HasValue ? 0 : 1)
@@ -189,6 +189,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             .Where(p => p.PickingStatus != null
                         && p.PickingStatus.IsReleasedForPicking
                         && !p.IsDone
+                        && !p.IsCancelled
                         && !p.PickingStatus.IsDonePicking
                         && p.PickingStatus.AssignedPickerId == pickerId)
             .Include(p => p.ProductionWorkplace)
@@ -201,12 +202,12 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
 
     public Task<int> GetReleasedForPickingCountAsync()
         => _context.ProductionOrderPickingStatuses
-            .CountAsync(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && !s.IsDonePicking);
+            .CountAsync(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && !s.ProductionOrder.IsCancelled && !s.IsDonePicking);
 
     public async Task<int> GetMaxPickingPriorityAsync(int? excludeProductionOrderId = null)
     {
         var q = _context.ProductionOrderPickingStatuses
-            .Where(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && s.PickingPriority != null);
+            .Where(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && !s.ProductionOrder.IsCancelled && s.PickingPriority != null);
 
         if (excludeProductionOrderId.HasValue)
             q = q.Where(s => s.ProductionOrderId != excludeProductionOrderId.Value);
