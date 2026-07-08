@@ -376,38 +376,18 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
-    // Standard Service-Settings
-    var serviceSettingSeed = new (string Key, string Value, string Category, string Description)[]
+    // Standard Service-Settings — vollstaendig aus dem typisierten Katalog geseedet.
+    // Idempotent: bestehende Zeilen (User-Werte) bleiben unberuehrt.
+    foreach (var def in IdealAkeWms.Models.ServiceSettingDefinitions.All)
     {
-        ("Notifications:MeldebestandEnabled", "true", "Notifications", "Meldebestand-Mail aktiv (true/false)"),
-        ("Notifications:MeldebestandSubject", "Meldebestand unterschritten — IDEAL AKE WMS", "Notifications", "Betreff der Meldebestand-Mail"),
-        ("Notifications:Recipients", "", "Notifications", "Feste Empfänger für Meldebestand-Mail (kommagetrennt, z.B. lager@ake.at,leitung@ake.at)"),
-        ("Notifications:AppBaseUrl", "", "Notifications", "Basis-URL der App für Links in Mails (z.B. https://wms.ake.at)"),
-        ("Sync:ProductionOrdersEnabled", "true", "Sync", "Produktionsaufträge-Sync aus SAGE aktiv (true/false)"),
-        ("Sync:ArticlesEnabled", "true", "Sync", "Artikel-Sync aus SAGE aktiv (true/false)"),
-        ("Sync:BomCacheEnabled",         "false", "BOM-Cache",   "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),
-        ("Sync:BomCacheWeeks",           "8",     "BOM-Cache",   "Wieviele Wochen Fertigungstermin in die Zukunft cachen"),
-        ("Sync:BomCacheMaxOrders",       "200",   "BOM-Cache",   "Maximalanzahl Auftraege im BOM-Cache"),
-        ("Sync:BomCacheMaxAgeHours",     "24",    "BOM-Cache",   "Sicherheitsnetz: Re-Sync wenn Cache-Eintrag aelter als X Stunden"),
-        ("Sync:CoatingDetectionEnabled", "false", "Lackierteile","Lackierteil-Erkennung als separater Sync-Job aktiv"),
-        ("Sync:FaWorkStepDetectionEnabled", "false", "FA-Vervollstaendigung", "Automatische FA-Arbeitsgang-Erkennung aus dem BOM-Cache (laeuft direkt nach BomCache-Sync)"),
-        ("Sync:BdeAutoPauseIntervalMinutes", "60",   "BDE",         "Intervall (Minuten) fuer Auto-Pause am Schichtende"),
-        ("Sync:FeiertagSyncEnabled",         "false","BDE",         "Feiertags-Sync aus Nager.Date aktiv"),
-        ("Sync:FeiertagCountryCode",         "AT",   "BDE",         "Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)"),
-        ("Sync:FeiertagRegion",              "",     "BDE",         "Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)"),
-        ("Sync:FeiertagJahreVoraus",         "2",    "BDE",         "Anzahl Folgejahre, die Feiertage vorausgesynct werden"),
-        ("Sync:WarehouseRequisitionEmailEnabled", "false", "Lagerbestellung", "Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker"),
-    };
-    foreach (var (key, value, category, description) in serviceSettingSeed)
-    {
-        if (!db.ServiceSettings.Any(s => s.Key == key))
+        if (!db.ServiceSettings.Any(s => s.Key == def.Key))
         {
             db.ServiceSettings.Add(new IdealAkeWms.Models.ServiceSetting
             {
-                Key = key,
-                Value = value,
-                Category = category,
-                Description = description
+                Key = def.Key,
+                Value = def.DefaultValue,
+                Category = def.Category,
+                Description = def.Description
             });
         }
     }
