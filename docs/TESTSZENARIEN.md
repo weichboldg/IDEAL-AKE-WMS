@@ -5177,7 +5177,7 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
-## Kapitel 50 — FA-Reconciliation (verwaiste FAs stornieren) (v1.25.0)
+## Kapitel 50: FA-Reconciliation (verwaiste FAs stornieren) (v1.25.0)
 
 **Vorbedingungen:**
 - WMS-DB mit mindestens einer offenen FA (`IsDone=0`, `IsCancelled=0`), deren `OrderNumber` in der Sage-View `vw_AKE_Kommissionierung_WAListe` NICHT (mehr) vorkommt (= verwaiste FA).
