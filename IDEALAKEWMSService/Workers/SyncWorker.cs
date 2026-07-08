@@ -28,8 +28,8 @@ public class SyncWorker : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var intervalMinutes = _configuration.GetValue<int>("WorkerSettings:SyncIntervalMinutes", 15);
-            var dryRun = _configuration.GetValue<bool>("WorkerSettings:SyncDryRun", false);
+            var intervalMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "WorkerSettings:SyncIntervalMinutes", 15, stoppingToken);
+            var dryRun = await ServiceSettings.GetBoolSafeAsync(_configuration, "WorkerSettings:SyncDryRun", false, stoppingToken);
 
             if (dryRun)
                 _logger.LogInformation("SyncWorker läuft im DryRun-Modus — keine Änderungen werden geschrieben.");

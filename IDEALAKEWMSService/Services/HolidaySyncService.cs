@@ -30,15 +30,17 @@ public class HolidaySyncService : IHolidaySyncService
 {
     private readonly ApplicationDbContext _ctx;
     private readonly HttpClient _http;
+    private readonly IConfiguration _config;
     private readonly IOptions<HolidaySyncOptions> _options;
     private readonly ISyncLogger _syncLogger;
     private readonly ILogger<HolidaySyncService> _logger;
 
-    public HolidaySyncService(ApplicationDbContext ctx, HttpClient http,
+    public HolidaySyncService(ApplicationDbContext ctx, HttpClient http, IConfiguration config,
         IOptions<HolidaySyncOptions> options, ILogger<HolidaySyncService> logger, ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _http = http;
+        _config = config;
         _options = options;
         _syncLogger = syncLogger;
         _logger = logger;
@@ -54,6 +56,20 @@ public class HolidaySyncService : IHolidaySyncService
         try
         {
             var opts = _options.Value;
+
+            // DB-first (v1.25.0): Country/Region/JahreVoraus aus ServiceSettings ueberschreiben
+            // (DB gewinnt). Enable-Flag bleibt aus IConfiguration/Options (Gate-Konsistenz).
+            var dbCountry = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
+                _config, "Sync:FeiertagCountryCode", ct);
+            if (!string.IsNullOrWhiteSpace(dbCountry)) opts.CountryCode = dbCountry.Trim();
+
+            var dbRegion = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
+                _config, "Sync:FeiertagRegion", ct);
+            if (dbRegion != null) opts.Region = dbRegion.Trim(); // leer erlaubt (= keine Region)
+
+            opts.JahreVoraus = await IDEALAKEWMSService.Common.ServiceSettings.GetIntSafeAsync(
+                _config, "Sync:FeiertagJahreVoraus", opts.JahreVoraus, ct);
+
             if (!opts.Enabled)
             {
                 await run.FinishSuccessAsync(new Dictionary<string, int>

@@ -28,8 +28,10 @@ public class SyncErrorNotifier : ISyncErrorNotifier
     {
         try
         {
-            var enabled = _config.GetValue<bool>("ErrorNotification:Enabled", false);
-            var recipients = _config.GetSection("ErrorNotification:Recipients").Get<string[]>() ?? Array.Empty<string>();
+            var enabled = await IDEALAKEWMSService.Common.ServiceSettings.GetBoolSafeAsync(_config, "ErrorNotification:Enabled", false, ct);
+            var recipientsRaw = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(_config, "ErrorNotification:Recipients", ct);
+            var recipients = (recipientsRaw ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             if (!enabled || recipients.Length == 0)
             {

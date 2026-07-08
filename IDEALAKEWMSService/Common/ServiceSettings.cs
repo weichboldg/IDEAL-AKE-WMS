@@ -41,4 +41,38 @@ public static class ServiceSettings
         if (int.TryParse(v, out var i)) return i;
         return defaultValue;
     }
+
+    /// <summary>
+    /// Wie <see cref="GetBoolAsync"/>, faengt aber transiente DB-Fehler ab und
+    /// liefert dann den Default (statt zu werfen). Fuer Takt-relevante Reads,
+    /// die den Worker-Loop nicht abwuergen duerfen.
+    /// </summary>
+    public static async Task<bool> GetBoolSafeAsync(IConfiguration config, string key, bool defaultValue, CancellationToken ct = default)
+    {
+        try { return await GetBoolAsync(config, key, defaultValue, ct); }
+        catch (OperationCanceledException) { throw; }
+        catch { return defaultValue; }
+    }
+
+    /// <summary>
+    /// Wie <see cref="GetIntAsync"/>, faengt aber transiente DB-Fehler ab und
+    /// liefert dann den Default (statt zu werfen).
+    /// </summary>
+    public static async Task<int> GetIntSafeAsync(IConfiguration config, string key, int defaultValue, CancellationToken ct = default)
+    {
+        try { return await GetIntAsync(config, key, defaultValue, ct); }
+        catch (OperationCanceledException) { throw; }
+        catch { return defaultValue; }
+    }
+
+    /// <summary>
+    /// Wie <see cref="GetValueAsync"/>, faengt aber transiente DB-Fehler ab und
+    /// liefert dann null (statt zu werfen).
+    /// </summary>
+    public static async Task<string?> GetValueSafeAsync(IConfiguration config, string key, CancellationToken ct = default)
+    {
+        try { return await GetValueAsync(config, key, ct); }
+        catch (OperationCanceledException) { throw; }
+        catch { return null; }
+    }
 }
