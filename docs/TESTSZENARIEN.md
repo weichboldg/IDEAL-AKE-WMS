@@ -5173,7 +5173,7 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 ### 49.6 Fehlender WMS-Lagerplatz (Negativfall)
 **Vorbedingung:** Sage liefert einen Hauptlagerplatz-Code (`Kurzbezeichnung`), zu dem KEIN WMS-`StorageLocation` mit passendem `Code` existiert.
 1. Artikel-Sync laufen lassen (Windows-Service).
-**Erwartet:** Der Artikel behält den Sage-Rohcode sichtbar + gesperrt (49.2), `PrimaryStorageLocationId` bleibt leer, keine Sortier-Priorisierung. Im Aktivitäts-Protokoll (Service „Article") ist der Count `hauptlagerplatz_fehlt` > 0; im Service-Log steht eine Warnung mit Artikelnummer + Code. Nach Anlegen/Sync des fehlenden Lagerplatzes matcht der FK beim nächsten Lauf.
+**Erwartet:** Der Artikel behält den Sage-Rohcode sichtbar + gesperrt (49.2), `PrimaryStorageLocationId` bleibt leer, keine Sortier-Priorisierung. Im Aktivitäts-Protokoll (Service „Article") ist der Count `hauptlagerplatz_fehlt` > 0; **zusätzlich erscheint im selben Article-Lauf je fehlendem Lagerplatz eine Warn-Detailzeile** „Hauptlagerplatz '<Code>' fuer Artikel <Nr> nicht als WMS-Lagerplatz gefunden — FK bleibt leer" (gecappt auf max. 100 Zeilen je Lauf; der `hauptlagerplatz_fehlt`-Count zählt aber ALLE). Im Service-Log (Serilog-Datei) steht dieselbe Warnung für alle (ungecappt). Nach Anlegen/Sync des fehlenden Lagerplatzes matcht der FK beim nächsten Lauf.
 
 ---
 
@@ -5184,32 +5184,34 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 - Service läuft, `Sync:ProductionOrdersEnabled=true`.
 - DB-Backup vor dem ersten scharfen Lauf.
 
+> **Hinweis Aktivitäts-Protokoll:** Die Reconcile läuft im ProductionOrder-Sync, erscheint aber als **eigener** Protokoll-Eintrag mit Service-Namen **`ProductionOrderReconciliation`** (im Protokoll-Filter-Dropdown auswählbar) — getrennt vom `ProductionOrder`-Eintrag (der nur noch `neu`/`aktualisiert` zählt). Die Counts `storniert`/`reaktiviert` stehen ausschließlich im `ProductionOrderReconciliation`-Eintrag.
+
 ### 1. DryRun-Kontroll-Lauf (Flag AUS — nichts wird geschrieben)
 1. `Sync:ProductionOrderReconcileEnabled = false` (Default), `WorkerSettings:SyncDryRun = false`.
 2. Sync-Zyklus auslösen (oder Intervall abwarten).
-3. **Erwartet:** Im Log/Aktivitäts-Protokoll erscheint „FA-Reconciliation deaktiviert … Plan: N Storno-Kandidaten, M Reaktivierungen (nichts geschrieben)". In der DB ist KEINE FA storniert. Der Admin liest N ab und prüft Plausibilität.
+3. **Erwartet:** Es entsteht ein `ProductionOrderReconciliation`-Eintrag mit einer Info-Detailzeile „Deaktiviert (Sync:ProductionOrderReconcileEnabled=false) — Plan: N Storno-Kandidaten, M Reaktivierungen — nichts geschrieben" und Counts `storniert=0, reaktiviert=0, storno-kandidaten=N`. In der DB ist KEINE FA storniert. Der Admin liest N ab und prüft Plausibilität.
 
 ### 2. Scharfschalten — verwaiste FA wird storniert
 1. `Sync:ProductionOrderReconcileEnabled = true`. `Sync:ReconcileMaxCancelPerRun` ausreichend hoch (Default 100).
 2. Sync-Zyklus auslösen.
-3. **Erwartet:** Die verwaiste FA hat `IsCancelled=1`, `CancelledAt`=jetzt (UTC), `CancelledBy='System-Reconcile'`. Aktivitäts-Protokoll-Counts zeigen `storniert=N`. Die FA verschwindet aus FA-Liste, Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste, Picking-Worklist und aus dem BOM-Cache-Fenster.
+3. **Erwartet:** Die verwaiste FA hat `IsCancelled=1`, `CancelledAt`=jetzt (UTC), `CancelledBy='System-Reconcile'`. Der `ProductionOrderReconciliation`-Eintrag zeigt Counts `storniert=N` **und je storniertem FA eine Info-Detailzeile** „FA <Nr> storniert (in Sage nicht mehr vorhanden)" (Reference = FA-Nummer). Die FA verschwindet aus FA-Liste, Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste, Picking-Worklist und aus dem BOM-Cache-Fenster.
 4. FA-Liste mit „Erledigte anzeigen" öffnen → die FA erscheint mit rotem Badge **„In Sage gelöscht"** (nicht „erledigt").
 
 ### 3. Reaktivierung — FA taucht wieder in Sage auf
 1. Die stornierte FA wieder in der Sage-View verfügbar machen (Testdaten).
 2. Sync-Zyklus auslösen.
-3. **Erwartet:** `IsCancelled=0`, `CancelledAt=NULL`, `CancelledBy=NULL`. Counts zeigen `reaktiviert=1`. FA ist wieder in den offenen Sichten.
+3. **Erwartet:** `IsCancelled=0`, `CancelledAt=NULL`, `CancelledBy=NULL`. Der `ProductionOrderReconciliation`-Eintrag zeigt Counts `reaktiviert=1` **und eine Info-Detailzeile** „FA <Nr> reaktiviert (wieder in Sage)". FA ist wieder in den offenen Sichten.
 
 ### 4. Guard — leerer Sage-Read storniert NICHTS
 1. Sage-View liefert (simuliert) 0 Zeilen (z. B. View temporär leer / Verbindungsproblem am Read).
 2. Sync-Zyklus mit Flag AN auslösen.
-3. **Erwartet:** KEINE FA wird storniert. Aktivitäts-Protokoll-Warnung „Reconcile übersprungen: Sage-Read leer". Keine Fehlermail (Guard ist kein Cap).
+3. **Erwartet:** KEINE FA wird storniert. Im `ProductionOrderReconciliation`-Eintrag steht eine Warn-Detailzeile „Uebersprungen: Sage-Read leer". Keine Fehlermail (Guard ist kein Cap).
 
 ### 5. Cap — zu viele Storno-Kandidaten → kein Storno + Fehlermail
 1. `Sync:ReconcileMaxCancelPerRun = 1`. Mehr als 1 verwaiste offene FA vorhanden.
 2. `ErrorNotification:Enabled=true` + `ErrorNotification:Recipients` gesetzt.
 3. Sync-Zyklus mit Flag AN auslösen.
-4. **Erwartet:** KEINE FA storniert (Cap überschritten). Warnung im Protokoll „Reconcile übersprungen: Cap ueberschritten (N > 1)". Fehlermail an die Empfänger mit Sage-Count + Cap. Etwaige Reaktivierungen im selben Lauf werden trotzdem geschrieben.
+4. **Erwartet:** KEINE FA storniert (Cap überschritten). Im `ProductionOrderReconciliation`-Eintrag steht eine Warn-Detailzeile „Uebersprungen: Cap ueberschritten (N > 1)". Fehlermail an die Empfänger mit Sage-Count + Cap. Etwaige Reaktivierungen im selben Lauf werden trotzdem geschrieben (mit je einer „FA <Nr> reaktiviert"-Detailzeile).
 
 **Negativ/Regression:**
 - Erledigte FAs (`IsDone=1`), die nicht in Sage sind, werden NIE storniert (nur offene).

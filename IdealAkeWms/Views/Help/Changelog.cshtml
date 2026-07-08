@@ -48,6 +48,11 @@
                         Lagerplatz ausnahmsweise im WMS, bleibt der Sage-Code sichtbar und der Fall wird
                         im Aktivit&auml;ts-Protokoll gez&auml;hlt (<code>hauptlagerplatz_fehlt</code>).</li>
                     <li><strong>FA-Reconciliation:</strong> Der FA-Sync erkennt in Sage gelöschte, bei uns noch offene Fertigungsaufträge und storniert sie automatisch (verschwinden aus allen offenen Sichten; Badge „In Sage gelöscht" bei „Erledigte anzeigen"). Taucht eine FA wieder in Sage auf, wird sie reaktiviert. Sicherheits-Guard (leerer Sage-Read) + Cap (max. Storni/Lauf → Fehlermail) verhindern versehentliches Massen-Stornieren. Opt-in über <code>Sync:ProductionOrderReconcileEnabled</code> (Default aus).</li>
+                    <li><strong>Mehr Transparenz im Aktivit&auml;ts-Protokoll:</strong> Die FA-Reconciliation
+                        erscheint als eigener Protokoll-Eintrag (<code>ProductionOrderReconciliation</code>) mit
+                        Detailzeilen je storniertem/reaktiviertem FA &ndash; auch wenn sie deaktiviert ist
+                        (dann als Info, was passieren <em>w&uuml;rde</em>). Fehlende Hauptlagerpl&auml;tze
+                        werden jetzt zus&auml;tzlich als Warn-Detailzeilen im Artikel-Lauf protokolliert.</li>
                 </ul>
             </div>
         </div>
