@@ -256,8 +256,9 @@ public class ArticlesController : Controller
             var orders = await _productionOrderRepository.GetByArticleNumbersAsync(deviceArticleNumbers);
 
             // "Abgeschlossen" = Sage-IsDone ODER App-Komm-IsDonePicking (Konvention seit v1.21.1).
+            // Stornierte FAs (IsCancelled) verhalten sich wie erledigte (FA-Reconciliation v1.25.0).
             var openOrders = orders
-                .Where(o => !o.IsDone && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
+                .Where(o => !o.IsDone && !o.IsCancelled && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
                 .ToList();
 
             usedInOrders = openOrders

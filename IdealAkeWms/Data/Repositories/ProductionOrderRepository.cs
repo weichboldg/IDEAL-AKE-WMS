@@ -92,7 +92,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
     public async Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20)
     {
-        var q = _dbSet.Where(o => !o.IsDone);
+        var q = _dbSet.Where(o => !o.IsDone && !o.IsCancelled);
 
         if (!string.IsNullOrWhiteSpace(query))
         {

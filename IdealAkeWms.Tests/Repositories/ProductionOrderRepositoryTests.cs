@@ -172,4 +172,18 @@ public class ProductionOrderRepositoryTests
 
         result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
     }
+
+    [Fact]
+    public async Task SearchAsync_ExcludesCancelledOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-OPEN", IsDone = false, IsCancelled = false });
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-CANCELLED", IsDone = false, IsCancelled = true });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var result = await repo.SearchAsync("FA-");
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+    }
 }

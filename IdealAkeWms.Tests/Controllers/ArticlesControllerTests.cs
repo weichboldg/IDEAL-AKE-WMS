@@ -54,13 +54,14 @@ public class ArticlesControllerTests
     };
 
     private static ProductionOrder Order(int id, string articleNumber, decimal quantity,
-        bool isDone = false, bool isDonePicking = false) => new ProductionOrder
+        bool isDone = false, bool isDonePicking = false, bool isCancelled = false) => new ProductionOrder
     {
         Id = id,
         OrderNumber = $"FA{id}",
         ArticleNumber = articleNumber,
         Quantity = quantity,
         IsDone = isDone,
+        IsCancelled = isCancelled,
         PickingStatus = new ProductionOrderPickingStatus { IsDonePicking = isDonePicking }
     };
 
@@ -129,6 +130,38 @@ public class ArticlesControllerTests
         vm.UsedInOrders.Should().BeEmpty();
         vm.PlannedConsumption.Should().Be(0m);
         vm.AvailableStock.Should().Be(50m);
+    }
+
+    [Fact]
+    public async Task Info_ExcludesCancelledOrders()
+    {
+        var (ctrl, article, stock, _, _, bom, orders) = Build();
+
+        article.Setup(a => a.GetByArticleNumberAsync("COMP"))
+            .ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
+        stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null))
+            .ReturnsAsync(new List<StockOverviewItem> { Stock(100m) });
+        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
+            .ReturnsAsync(new List<string> { "DEV1", "DEV2" });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
+            .ReturnsAsync(new Dictionary<string, decimal> { ["DEV1"] = 2m, ["DEV2"] = 3m });
+
+        // FA1 open (DEV1, qty 4); FA2 cancelled (DEV2, qty 5) -> must be excluded from list AND plannedConsumption
+        orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync(new List<ProductionOrder>
+            {
+                Order(1, "DEV1", 4m, isCancelled: false),
+                Order(2, "DEV2", 5m, isCancelled: true)
+            });
+
+        var result = await ctrl.Info("COMP");
+
+        var vm = result.Should().BeOfType<ViewResult>().Subject.Model
+            .Should().BeOfType<ArticleInfoViewModel>().Subject;
+
+        vm.UsedInOrders.Should().ContainSingle(o => o.OrderNumber == "FA1");
+        // Planned consumption = Menge(DEV1)=2 x FA1.Quantity=4 = 8 (FA2 cancelled -> excluded)
+        vm.PlannedConsumption.Should().Be(8m);
     }
 
     [Fact]
