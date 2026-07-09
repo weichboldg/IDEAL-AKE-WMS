@@ -73,6 +73,15 @@
                         <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/>
                     </svg>
                 </button>
+                @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+                {
+                    <button type="button" id="btnBulkWarehouseOrder" class="btn btn-sm btn-primary" style="display:none;" title="Ausgewaehlte als Lagerbestellung">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                            <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M5.5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+                        </svg>
+                        Lagerbestellung (Auswahl)
+                    </button>
+                }
             </div>
         </form>
     </div>
@@ -105,6 +114,10 @@
                 @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly)
                 {
                     <th style="width: 80px;" data-col-key="order">Bestellen</th>
+                }
+                @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+                {
+                    <th style="width: 90px;" data-col-key="warehouse-order">Lagerbestellung</th>
                 }
             </tr>
         </thead>
@@ -241,13 +254,35 @@
                             }
                         </td>
                     }
+                    @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+                    {
+                        <td class="text-center">
+                            @if (!item.IsBaugruppe)
+                            {
+                                <input type="checkbox" class="form-check-input warehouse-select me-1"
+                                       data-article-number="@item.Ressourcenummer"
+                                       data-description="@item.Bezeichnung1"
+                                       data-quantity="@item.Menge.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                <button type="button" class="btn btn-sm btn-outline-primary order-warehouse-btn" title="Lagerbestellung"
+                                        data-article-number="@item.Ressourcenummer"
+                                        data-description="@item.Bezeichnung1"
+                                        data-quantity="@item.Menge.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zM5 8H3.89l.5 2H5zm1 2h2V8H6zm3 0h2V8H9zm3 0h1.11l.5-2H12zm-6.5 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+                                    </svg>
+                                </button>
+                            }
+                        </td>
+                    }
                 </tr>
             }
             @if (!Model.Items.Any())
             {
-                // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2; Bestellen-Spalte +1.
+                // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2;
+                // Bestellen-Spalte +1; Lagerbestellung-Spalte +1.
                 var emptyColspan = (Model.ReadOnly ? 10 : 12)
-                    + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0);
+                    + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0)
+                    + (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true ? 1 : 0);
                 <tr>
                     <td colspan="@emptyColspan" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
                 </tr>
@@ -481,6 +516,62 @@
     }
 }
 
+@if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+{
+    <!-- Lagerbestellung Einzel-Modal (v1.25.0) -->
+    <div class="modal fade" id="warehouseOrderModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--ake-secondary); color: white;">
+                    <h5 class="modal-title">Lagerbestellung erstellen</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-1"><strong id="whSingleArticle"></strong></p>
+                    <p class="text-muted small mb-3" id="whSingleDesc"></p>
+                    <label class="form-label fw-bold" for="whSingleQty">Menge</label>
+                    <input type="number" id="whSingleQty" class="form-control" min="0.001" step="any" />
+                    <input type="hidden" id="whSingleArticleNumber" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="btnWarehouseSingleSubmit">Zur Bestellung hinzufuegen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lagerbestellung Bulk-Modal (v1.25.0) -->
+    <div class="modal fade" id="warehouseOrderBulkModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--ake-secondary); color: white;">
+                    <h5 class="modal-title">Lagerbestellung (Auswahl)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive mb-0">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Artikelnummer</th>
+                                    <th>Bezeichnung</th>
+                                    <th class="text-end" style="width: 120px;">Menge</th>
+                                </tr>
+                            </thead>
+                            <tbody id="warehouseBulkBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="btnWarehouseBulkSubmit">Zur Bestellung hinzufuegen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="mt-3">
     @if (Model.ReadOnly)
     {
@@ -510,6 +601,7 @@
     { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null }
     @if (!Model.ReadOnly) { <text>,{ "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null }</text> }
     @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly) { <text>,{ "key": "order", "label": "Bestellen", "locked": false, "defaultWidth": 80 }</text> }
+    @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true) { <text>,{ "key": "warehouse-order", "label": "Lagerbestellung", "locked": false, "defaultWidth": 90 }</text> }
 ]
 </script>
 
@@ -832,6 +924,118 @@
 
                 window.open(url, '_blank');
             });
+
+            // ========== Lagerbestellung aus Stueckliste (v1.25.0) ==========
+            // Laeuft in BEIDEN Modi (auch Read-only/Vorbau) — daher VOR `if (readOnly) return;`.
+            @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+            {
+                <text>
+            (function () {
+                var whModalEl = document.getElementById('warehouseOrderModal');
+                var whBulkModalEl = document.getElementById('warehouseOrderBulkModal');
+                if (!whModalEl || !whBulkModalEl) return;
+                var whModal = null, whBulkModal = null;
+
+                function whEscape(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+
+                function handleQuickAddResult(data) {
+                    var skippedMsg = (data.skipped && data.skipped.length)
+                        ? '\nUebersprungen:\n' + data.skipped.map(function (s) { return s.articleNumber + ': ' + s.reason; }).join('\n')
+                        : '';
+                    if (data.lagerRequisitionId && data.glasRequisitionId) {
+                        alert('Zu Lager: ' + data.addedLager + ', zu Glas: ' + data.addedGlas + ' hinzugefuegt.' + skippedMsg);
+                        window.location = '/WarehouseRequisitions';
+                    } else if (data.lagerRequisitionId) {
+                        if (skippedMsg) alert('Hinzugefuegt.' + skippedMsg);
+                        window.location = '/WarehouseRequisitions/Edit/' + data.lagerRequisitionId;
+                    } else if (data.glasRequisitionId) {
+                        if (skippedMsg) alert('Hinzugefuegt.' + skippedMsg);
+                        window.location = '/WarehouseRequisitions/Edit/' + data.glasRequisitionId;
+                    }
+                }
+
+                function postQuickAdd(items, submitBtn) {
+                    if (!items.length) return;
+                    submitBtn.disabled = true;
+                    $.ajax({
+                        url: '/api/warehouserequisitions/quick-add',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ items: items }),
+                        headers: { 'RequestVerificationToken': token },
+                        success: function (data) { handleQuickAddResult(data); },
+                        error: function (xhr) {
+                            submitBtn.disabled = false;
+                            var r = xhr.responseJSON;
+                            if (r && r.skipped && r.skipped.length) {
+                                alert('Nichts hinzugefuegt.\n' + r.skipped.map(function (s) { return s.articleNumber + ': ' + s.reason; }).join('\n'));
+                            } else {
+                                alert((r && r.error) ? r.error : 'Fehler beim Erstellen der Lagerbestellung.');
+                            }
+                        }
+                    });
+                }
+
+                // --- Einzel ---
+                document.querySelectorAll('.order-warehouse-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        document.getElementById('whSingleArticle').textContent = this.getAttribute('data-article-number');
+                        document.getElementById('whSingleDesc').textContent = this.getAttribute('data-description') || '';
+                        document.getElementById('whSingleArticleNumber').value = this.getAttribute('data-article-number');
+                        document.getElementById('whSingleQty').value = this.getAttribute('data-quantity');
+                        if (!whModal) whModal = new bootstrap.Modal(whModalEl);
+                        whModal.show();
+                    });
+                });
+                document.getElementById('btnWarehouseSingleSubmit').addEventListener('click', function () {
+                    var articleNumber = document.getElementById('whSingleArticleNumber').value;
+                    var qty = parseFloat(document.getElementById('whSingleQty').value) || 0;
+                    postQuickAdd([{ articleNumber: articleNumber, quantity: qty }], this);
+                });
+
+                // --- Bulk ---
+                var whBulkBtn = document.getElementById('btnBulkWarehouseOrder');
+                function updateWhBulkBtn() {
+                    if (!whBulkBtn) return;
+                    var n = document.querySelectorAll('.warehouse-select:checked').length;
+                    whBulkBtn.style.display = n > 0 ? '' : 'none';
+                }
+                document.querySelectorAll('.warehouse-select').forEach(function (cb) {
+                    cb.addEventListener('change', updateWhBulkBtn);
+                });
+                if (whBulkBtn) {
+                    whBulkBtn.addEventListener('click', function () {
+                        var body = document.getElementById('warehouseBulkBody');
+                        body.innerHTML = '';
+                        document.querySelectorAll('.warehouse-select:checked').forEach(function (cb) {
+                            var an = cb.getAttribute('data-article-number');
+                            var desc = cb.getAttribute('data-description') || '';
+                            var qty = cb.getAttribute('data-quantity');
+                            var tr = document.createElement('tr');
+                            tr.innerHTML = '<td>' + whEscape(an) + '</td><td>' + whEscape(desc) + '</td>' +
+                                '<td class="text-end"><input type="number" class="form-control form-control-sm text-end wh-bulk-qty" ' +
+                                'data-article-number="' + whEscape(an) + '" value="' + whEscape(qty) + '" min="0.001" step="any" ' +
+                                'style="width: 100px; display:inline-block;" /></td>';
+                            body.appendChild(tr);
+                        });
+                        if (!whBulkModal) whBulkModal = new bootstrap.Modal(whBulkModalEl);
+                        whBulkModal.show();
+                    });
+                }
+                document.getElementById('btnWarehouseBulkSubmit').addEventListener('click', function () {
+                    var items = [];
+                    document.querySelectorAll('#warehouseBulkBody .wh-bulk-qty').forEach(function (inp) {
+                        items.push({
+                            articleNumber: inp.getAttribute('data-article-number'),
+                            quantity: parseFloat(inp.value) || 0
+                        });
+                    });
+                    postQuickAdd(items, this);
+                });
+            })();
+                </text>
+            }
 
             // Ab hier ausschliesslich Picking-Funktionalitaet (Checkboxen, Umbuchen,
             // Status-Modal, Scan-Retry, Fotos, Bedarfsmeldungen) — im Read-only-Modus beenden.
