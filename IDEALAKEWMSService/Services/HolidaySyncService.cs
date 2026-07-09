@@ -57,12 +57,17 @@ public class HolidaySyncService : IHolidaySyncService
         {
             var opts = _options.Value;
 
-            // DB-first (v1.25.0): Country/Region/JahreVoraus aus ServiceSettings ueberschreiben
-            // (DB gewinnt). Enable-Flag bleibt aus IConfiguration/Options (Gate-Konsistenz).
-            // Lokale Variablen statt Mutation der geteilten IOptions-Singleton-Instanz.
+            // DB-first (v1.25.0): Enable/Country/Region/JahreVoraus aus ServiceSettings
+            // ueberschreiben (DB gewinnt). Lokale Variablen statt Mutation der geteilten
+            // IOptions-Singleton-Instanz. Fallback jeweils = bisheriger Options-Wert, damit
+            // sich das Verhalten ohne DB-Zeile nicht aendert.
+            var enabled = opts.Enabled;
             var countryCode = opts.CountryCode;
             var region = opts.Region;
             var jahreVoraus = opts.JahreVoraus;
+
+            enabled = await IDEALAKEWMSService.Common.ServiceSettings.GetBoolSafeAsync(
+                _config, "Sync:FeiertagSyncEnabled", enabled, ct);
 
             var dbCountry = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
                 _config, "Sync:FeiertagCountryCode", ct);
@@ -75,7 +80,7 @@ public class HolidaySyncService : IHolidaySyncService
             jahreVoraus = await IDEALAKEWMSService.Common.ServiceSettings.GetIntSafeAsync(
                 _config, "Sync:FeiertagJahreVoraus", jahreVoraus, ct);
 
-            if (!opts.Enabled)
+            if (!enabled)
             {
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
