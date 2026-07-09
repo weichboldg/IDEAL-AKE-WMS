@@ -13,7 +13,8 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class WarehouseRequisitionsApiControllerTests
 {
-    private static (WarehouseRequisitionsApiController ctrl, ApplicationDbContext ctx) Setup()
+    private static (WarehouseRequisitionsApiController ctrl, ApplicationDbContext ctx, Mock<ICurrentUserService> user) Setup(
+        bool canOrderLager = true, bool canOrderGlas = true)
     {
         var ctx = TestDbContextFactory.Create();
 
@@ -21,6 +22,8 @@ public class WarehouseRequisitionsApiControllerTests
         currentUser.Setup(s => s.GetCurrentAppUserId()).Returns(1);
         currentUser.Setup(s => s.GetDisplayName()).Returns("tester");
         currentUser.Setup(s => s.GetWindowsUserName()).Returns("DOMAIN\\tester");
+        currentUser.Setup(s => s.CanOrderLagerAsync()).ReturnsAsync(canOrderLager);
+        currentUser.Setup(s => s.CanOrderGlasAsync()).ReturnsAsync(canOrderGlas);
 
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.GlasArtikelgruppen)).ReturnsAsync("GLAS");
@@ -29,10 +32,27 @@ public class WarehouseRequisitionsApiControllerTests
         var repo = new WarehouseRequisitionRepository(ctx);
         var articles = new ArticleRepository(ctx);
         var stock = new Mock<IStockMovementRepository>();
+        var workplaces = new ProductionWorkplaceRepository(ctx);
 
         var ctrl = new WarehouseRequisitionsApiController(
-            repo, articles, stock.Object, currentUser.Object, settings.Object);
-        return (ctrl, ctx);
+            repo, articles, stock.Object, currentUser.Object, settings.Object, workplaces);
+        return (ctrl, ctx, currentUser);
+    }
+
+    private static void SeedUserWorkplace(ApplicationDbContext ctx, int userId = SetupUserId)
+    {
+        var wp = new ProductionWorkplace
+        {
+            Name = "WB-Default", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            ProductionWorkplaceId = wp.Id, UserId = userId,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
     }
 
     private static void SeedArticles(ApplicationDbContext ctx)
@@ -94,7 +114,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task AddItem_LagerBestellung_GlasArtikel_BadRequest()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         SeedArticles(ctx);
         var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
 
@@ -108,7 +128,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task AddItem_GlasBestellung_NormalerArtikel_BadRequest()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         SeedArticles(ctx);
         var reqId = SeedDraft(ctx, WarehouseRequisitionType.Glas);
 
@@ -122,7 +142,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task AddItem_GlasBestellung_GlasArtikel_Ok()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         SeedArticles(ctx);
         var reqId = SeedDraft(ctx, WarehouseRequisitionType.Glas);
 
@@ -137,7 +157,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task AddItem_EuzArtikel_InBeidenErlaubt()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         SeedArticles(ctx);
         var lagerId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
         var glasId = SeedDraft(ctx, WarehouseRequisitionType.Glas);
@@ -155,7 +175,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task AddItem_FremdeBestellung_Forbid()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         SeedArticles(ctx);
         // Fremde Bestellung (anderer Owner), aber Draft.
         var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
@@ -171,7 +191,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task AddItem_NichtDraft_BadRequest()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         SeedArticles(ctx);
         // Eigene Bestellung, aber bereits abgeschickt.
         var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
@@ -187,7 +207,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task UpdateItem_FremdeBestellung_Forbid()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
             WarehouseRequisitionStatus.Draft, SetupUserId + 1000);
         var itemId = SeedItem(ctx, reqId, "ART-EUZ", 5);
@@ -203,7 +223,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task RemoveItem_NichtDraft_BadRequest()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
             WarehouseRequisitionStatus.Submitted, SetupUserId);
         var itemId = SeedItem(ctx, reqId, "ART-EUZ", 5);
@@ -218,7 +238,7 @@ public class WarehouseRequisitionsApiControllerTests
     [Fact]
     public async Task UpdateItem_EigenerDraft_Ok()
     {
-        var (ctrl, ctx) = Setup();
+        var (ctrl, ctx, _) = Setup();
         var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
             WarehouseRequisitionStatus.Draft, SetupUserId);
         var itemId = SeedItem(ctx, reqId, "ART-EUZ", 5);
@@ -229,5 +249,158 @@ public class WarehouseRequisitionsApiControllerTests
         result.Should().BeOfType<OkResult>();
         ctx.WarehouseRequisitionItems.Single(i => i.Id == itemId)
             .QuantityRequested.Should().Be(42, "eigener Entwurf ist bearbeitbar");
+    }
+
+    [Fact]
+    public async Task QuickAdd_EinLagerArtikel_NeuerLagerDraftPlusItem()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem>
+            {
+                new("ART-940", 3)
+            }));
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)ok.Value!;
+        resp.AddedLager.Should().Be(1);
+        resp.AddedGlas.Should().Be(0);
+        resp.LagerRequisitionId.Should().NotBeNull();
+        resp.GlasRequisitionId.Should().BeNull();
+        ctx.WarehouseRequisitions.Should().ContainSingle(r => r.Type == WarehouseRequisitionType.Lager && r.Status == WarehouseRequisitionStatus.Draft);
+        ctx.WarehouseRequisitionItems.Should().ContainSingle(i => i.ArticleNumber == "ART-940" && i.QuantityRequested == 3);
+    }
+
+    [Fact]
+    public async Task QuickAdd_EinGlasArtikel_NeuerGlasDraft()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-GLAS", 2) }));
+
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)result.Should().BeOfType<OkObjectResult>().Subject.Value!;
+        resp.AddedGlas.Should().Be(1);
+        resp.GlasRequisitionId.Should().NotBeNull();
+        resp.LagerRequisitionId.Should().BeNull();
+        ctx.WarehouseRequisitions.Should().ContainSingle(r => r.Type == WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
+    public async Task QuickAdd_ZweiLagerArtikel_SelberDraft()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-940", 1), new("ART-EUZ", 2) }));
+
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)result.Should().BeOfType<OkObjectResult>().Subject.Value!;
+        resp.AddedLager.Should().Be(2);
+        ctx.WarehouseRequisitions.Count(r => r.Type == WarehouseRequisitionType.Lager).Should().Be(1, "beide Lager-Items in EINEN Draft");
+        ctx.WarehouseRequisitionItems.Count().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task QuickAdd_VorhandenerOffenerDraft_Wiederverwendet()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+        var existing = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-940", 1) }));
+
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)result.Should().BeOfType<OkObjectResult>().Subject.Value!;
+        resp.LagerRequisitionId.Should().Be(existing, "offener Draft wird wiederverwendet, kein neuer");
+        ctx.WarehouseRequisitions.Count(r => r.Type == WarehouseRequisitionType.Lager).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task QuickAdd_GemischteListe_ZweiDrafts()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-940", 1), new("ART-GLAS", 1) }));
+
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)result.Should().BeOfType<OkObjectResult>().Subject.Value!;
+        resp.AddedLager.Should().Be(1);
+        resp.AddedGlas.Should().Be(1);
+        resp.LagerRequisitionId.Should().NotBeNull();
+        resp.GlasRequisitionId.Should().NotBeNull();
+        ctx.WarehouseRequisitions.Count(r => r.Type == WarehouseRequisitionType.Lager).Should().Be(1);
+        ctx.WarehouseRequisitions.Count(r => r.Type == WarehouseRequisitionType.Glas).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task QuickAdd_FehlendesGlasRecht_Skipped()
+    {
+        var (ctrl, ctx, _) = Setup(canOrderLager: true, canOrderGlas: false);
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-GLAS", 1) }));
+
+        // alles skipped -> BadRequest
+        var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)bad.Value!;
+        resp.Skipped.Should().ContainSingle(s => s.ArticleNumber == "ART-GLAS");
+        ctx.WarehouseRequisitions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task QuickAdd_ArtikelNichtGefunden_Skipped()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-940", 1), new("UNBEKANNT", 1) }));
+
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)result.Should().BeOfType<OkObjectResult>().Subject.Value!;
+        resp.AddedLager.Should().Be(1);
+        resp.Skipped.Should().ContainSingle(s => s.ArticleNumber == "UNBEKANNT");
+    }
+
+    [Fact]
+    public async Task QuickAdd_MengeNullOderNegativ_Skipped()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        SeedUserWorkplace(ctx);
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-940", 0) }));
+
+        var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        var resp = (WarehouseRequisitionsApiController.QuickAddResponse)bad.Value!;
+        resp.Skipped.Should().ContainSingle(s => s.ArticleNumber == "ART-940");
+        ctx.WarehouseRequisitionItems.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task QuickAdd_KeineWerkbank_BadRequest()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        // KEIN SeedUserWorkplace -> Werkbank nicht aufloesbar
+
+        var result = await ctrl.QuickAdd(new WarehouseRequisitionsApiController.QuickAddRequest(
+            new List<WarehouseRequisitionsApiController.QuickAddItem> { new("ART-940", 1) }));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitions.Should().BeEmpty();
     }
 }
