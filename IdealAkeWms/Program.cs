@@ -295,6 +295,7 @@ using (var scope = app.Services.CreateScope())
         ("DefaultGlasbestellempfaengerId", "", "Default-OrderRecipientGroup-ID fuer Glas-Bestellungen (leer = Submit blockt)"),
         ("GlasArtikelgruppen", "", "Kommaseparierte Artikelgruppen fuer Glas-Bestellungen (in der Lager-Bestellung ausgenommen)"),
         ("GemeinsameArtikelgruppen", "EUZ", "Kommaseparierte Artikelgruppen, die in Lager- UND Glas-Bestellungen verfuegbar sind"),
+        (IdealAkeWms.Models.AppSettingKeys.LagerbestellungAktiv, "true", "Lagerbestellungs-Modul aktivieren (Lager+Glas, Meine Fehlteile, Lager-Worklists, BOM-Button). Default true — bestehende Systeme bleiben aktiv."),
     };
     foreach (var (key, value, description) in requisitionSettings)
     {

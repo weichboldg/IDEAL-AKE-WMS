@@ -18,6 +18,7 @@ public static class AppSettingKeys
     public const string LeitstandAktiv = "LeitstandAktiv";
     public const string KommissionierungMitZuweisung = "KommissionierungMitZuweisung";
     public const string BestellungenAktiv = "BestellungenAktiv";
+    public const string LagerbestellungAktiv = "LagerbestellungAktiv";
     public const string DefaultLagerbestellempfaengerId = "DefaultLagerbestellempfaengerId";
     public const string DefaultGlasbestellempfaengerId = "DefaultGlasbestellempfaengerId";
     public const string GlasArtikelgruppen = "GlasArtikelgruppen";
