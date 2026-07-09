@@ -5267,5 +5267,56 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
+## Kapitel 52: Lagerbestellung aus der Stückliste + Master-Schalter (v1.25.0)
+
+### Vorbedingungen
+- `LagerbestellungAktiv` = true (Einstellungen → Bestellungen).
+- `GlasArtikelgruppen` (z. B. `GLAS`), `GemeinsameArtikelgruppen` (`EUZ`), `DefaultLagerbestellempfaengerId`, `DefaultGlasbestellempfaengerId` konfiguriert.
+- Test-User A: Rolle `picking` (darf Lager UND Glas ordern) + mindestens eine Werkbank zugeordnet.
+- Test-User B: nur Rolle `vorbau`, KEIN Bestell-Recht.
+- Test-User C: nur Rolle `lagerbestellung` (Lager, nicht Glas).
+- Eine offene FA mit Stückliste, darunter ein Lager-Artikel (z. B. Gruppe 940), ein Glas-Artikel (Gruppe GLAS), ein EUZ-Artikel.
+
+### Szenario 1 — Button-Sichtbarkeit je Rolle
+1. Als User A: Kommissionierung → FA → Stückliste öffnen.
+   - Erwartet: Spalte „Lagerbestellung" mit Checkbox + Button je Nicht-Baugruppen-Zeile; Baugruppen-Zeilen leer.
+2. Als User B (nur vorbau): FA-Abarbeitungsliste → Stückliste (read-only) öffnen.
+   - Erwartet: KEIN Lagerbestellung-Button (kein Bestell-Recht), obwohl read-only-BOM.
+3. Als User A: dieselbe read-only-BOM aus der Abarbeitungsliste (falls Rolle vorhanden) — Button sichtbar (unabhängig von ReadOnly).
+
+### Szenario 2 — Einzelbestellung Lager (neuer Draft)
+1. Als User A ohne offenen Lager-Draft: Lager-Artikel-Button klicken → Modal zeigt Artikel + editierbare Menge (BOM-Menge vorbelegt).
+2. Menge bestätigen → „Zur Bestellung hinzufuegen".
+   - Erwartet: Weiterleitung auf `/WarehouseRequisitions/Edit/{id}`, neuer Lager-Draft mit der Position.
+
+### Szenario 3 — Zweite Position → selber Draft
+1. Zweiten Lager-Artikel per Einzel-Button hinzufügen.
+   - Erwartet: KEIN neuer Draft — dieselbe offene Bestellung, zweite Position.
+
+### Szenario 4 — Glas-Ableitung
+1. Glas-Artikel (Gruppe GLAS) per Button bestellen.
+   - Erwartet: landet in einem GLAS-Draft (eigener Typ), Weiterleitung auf dessen Edit.
+2. EUZ-Artikel bestellen → landet im Lager-Draft (gemeinsame Gruppe → Lager).
+
+### Szenario 5 — Bulk (gemischt)
+1. Lager-Artikel + Glas-Artikel markieren (Checkboxen) → „Lagerbestellung (Auswahl)" erscheint.
+2. Bulk-Button → Modal listet beide mit Mengen → bestätigen.
+   - Erwartet: EIN Lager-Draft + EIN Glas-Draft, Positionen korrekt verteilt; Weiterleitung auf `/WarehouseRequisitions` (Übersicht) + Meldung „Zu Lager: 1, zu Glas: 1 hinzugefügt".
+
+### Szenario 6 — Rechte-Fehler / Übersprungen
+1. Als User C (nur lagerbestellung, kein Glas-Recht): Glas-Artikel per Button bestellen.
+   - Erwartet: Fehlermeldung „Nichts hinzugefuegt … Keine Glasbestell-Berechtigung", nichts angelegt.
+2. Bulk mit Lager-Artikel + Glas-Artikel als User C.
+   - Erwartet: Lager-Artikel hinzugefügt, Glas-Artikel in „Uebersprungen".
+
+### Szenario 7 — Master-Schalter aus
+1. Einstellungen → `LagerbestellungAktiv` = false → speichern.
+2. Menü prüfen: „Lagerbestellungen", „Meine Fehlteile", „Lager: Eingehende Listen", „Lager: Fehlteile" sind weg; „Bedarfsmeldungen" nur sichtbar wenn `BestellungenAktiv` an.
+3. Direkter Aufruf `/WarehouseRequisitions` → Redirect Home + Warnhinweis.
+4. Stückliste öffnen → KEIN Lagerbestellung-Button/-Spalte.
+5. `LagerbestellungAktiv` wieder auf true → alles wieder sichtbar.
+
+---
+
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
