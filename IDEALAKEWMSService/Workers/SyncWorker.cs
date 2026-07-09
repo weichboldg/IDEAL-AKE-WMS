@@ -40,7 +40,7 @@ public class SyncWorker : BackgroundService
                 var sageImport = scope.ServiceProvider.GetRequiredService<ISageImportService>();
 
                 // Produktionsaufträge sync
-                if (_configuration.GetValue<bool>("Sync:ProductionOrdersEnabled", true))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ProductionOrdersEnabled", true, stoppingToken))
                 {
                     await RunResilientAsync("Produktionsauftraege-Sync", async () =>
                     {
@@ -54,7 +54,7 @@ public class SyncWorker : BackgroundService
                 }
 
                 // Artikel sync
-                if (_configuration.GetValue<bool>("Sync:ArticlesEnabled", true))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ArticlesEnabled", true, stoppingToken))
                 {
                     await RunResilientAsync("Artikel-Sync", async () =>
                     {
@@ -68,7 +68,7 @@ public class SyncWorker : BackgroundService
                 }
 
                 // OSEON Artikelkategorie-Sync (muss nach Artikel-Import laufen)
-                if (_configuration.GetValue<bool>("Sync:OseonArticleCategoryEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:OseonArticleCategoryEnabled", false, stoppingToken))
                 {
                     await RunResilientAsync("OSEON-Artikelkategorie-Sync", async () =>
                     {
@@ -84,7 +84,7 @@ public class SyncWorker : BackgroundService
                 }
 
                 // OSEON Tracking sync + Werkbank-Sync
-                if (_configuration.GetValue<bool>("Sync:OseonTrackingEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:OseonTrackingEnabled", false, stoppingToken))
                 {
                     await RunResilientAsync("OSEON-Tracking-Sync", async () =>
                     {
@@ -107,7 +107,7 @@ public class SyncWorker : BackgroundService
                     }, stoppingToken);
                 }
                 // enaio DMS-Sync
-                if (_configuration.GetValue<bool>("Sync:EnaioDmsEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:EnaioDmsEnabled", false, stoppingToken))
                 {
                     await RunResilientAsync("enaio DMS-Sync", async () =>
                     {
@@ -123,7 +123,7 @@ public class SyncWorker : BackgroundService
                 }
 
                 // --- Bedarfsmeldungen E-Mail-Versand ---
-                if (_configuration.GetValue<bool>("Sync:PartRequisitionEmailEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:PartRequisitionEmailEnabled", false, stoppingToken))
                 {
                     try
                     {
@@ -140,7 +140,7 @@ public class SyncWorker : BackgroundService
                 }
 
                 // --- Lagerbestellungen E-Mail-Versand ---
-                if (_configuration.GetValue<bool>("Sync:WarehouseRequisitionEmailEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:WarehouseRequisitionEmailEnabled", false, stoppingToken))
                 {
                     try
                     {
@@ -283,7 +283,7 @@ public class SyncWorker : BackgroundService
                 // ---------------------------------------------------------------
                 // Lagerplatz-Sync (Sage Stammdaten)
                 // ---------------------------------------------------------------
-                if (_configuration.GetValue<bool>("Sync:LagerplaetzeEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:LagerplaetzeEnabled", false, stoppingToken))
                 {
                     try
                     {
@@ -305,7 +305,7 @@ public class SyncWorker : BackgroundService
                 // ---------------------------------------------------------------
                 // Lagerbestand-Sync (Sage Bestand-Korrektur)
                 // ---------------------------------------------------------------
-                if (ShouldRunLagerbestand())
+                if (await ShouldRunLagerbestandAsync(stoppingToken))
                 {
                     try
                     {
@@ -347,23 +347,24 @@ public class SyncWorker : BackgroundService
         return DateTime.Now - _lastAutoPauseRun.Value >= TimeSpan.FromMinutes(intervalMinutes);
     }
 
-    private Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
+    private async Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
     {
-        // Read via IConfiguration (same source HolidaySyncOptions binds to in
-        // Program.cs) so the worker gate and the service-internal gate cannot
-        // disagree across the two configuration sources.
-        var enabled = _configuration.GetValue<bool>("Sync:FeiertagSyncEnabled", false);
-        if (!enabled) return Task.FromResult(false);
-        if (_lastHolidaySyncRun == null) return Task.FromResult(true);
-        return Task.FromResult(DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24));
+        // DB-first (v1.25.0-Followup): Gate liest aus ServiceSettings (DB gewinnt).
+        // Safe-Reader: DB-Hickup → Default false, Worker-Loop laeuft weiter.
+        var enabled = await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:FeiertagSyncEnabled", false, ct);
+        if (!enabled) return false;
+        if (_lastHolidaySyncRun == null) return true;
+        return DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24);
     }
 
-    private bool ShouldRunLagerbestand()
+    private async Task<bool> ShouldRunLagerbestandAsync(CancellationToken ct)
     {
-        if (!_configuration.GetValue<bool>("Sync:LagerbestandEnabled", false))
+        // DB-first (v1.25.0-Followup): beide Gate-Reads aus ServiceSettings (DB gewinnt),
+        // Safe-Reader → Default bei DB-Hickup, Worker-Loop laeuft weiter.
+        if (!await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:LagerbestandEnabled", false, ct))
             return false;
 
-        var overrideMinutes = _configuration.GetValue<int>("Sync:LagerbestandIntervalMinutes", 0);
+        var overrideMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:LagerbestandIntervalMinutes", 0, ct);
         if (overrideMinutes <= 0)
             return true;   // nutzt Worker-Standard-Intervall (15 Min)
 

@@ -37,16 +37,33 @@ public class SyncWorkerTests
     private static IConfiguration BuildConfig(Dictionary<string, string?> values)
         => new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
+    // ------------------------------------------------------------------
+    // DB-first Fail-Safe-Invarianten (v1.25.0-Followup)
+    //
+    // Seit dieser Umstellung lesen ALLE Sync:*Enabled-Block-Gates ihren Wert
+    // DB-first (ServiceSettings.GetBoolSafeAsync) statt aus IConfiguration.
+    // Im Unit-Test gibt es KEINE erreichbare DB → der Safe-Reader liefert je
+    // Gate seinen dokumentierten Default. Die IConfiguration-Seeds "Sync:*Enabled"
+    // wirken auf diese Gates NICHT mehr; ein wertabhaengiger "laeuft-wenn-in-DB-
+    // enabled"-Pfad ist damit Manual-UAT.
+    //
+    // Testbar (und hier abgesichert) bleibt die Fail-Safe-Invariante:
+    //   - true-Default-Gates (ProductionOrders/Articles) laufen OHNE DB weiter,
+    //   - false-Default-Gates werden ohne DB uebersprungen,
+    //   - der Worker crasht in keinem Fall.
+    // ------------------------------------------------------------------
+
     [Fact]
-    public async Task SyncWorker_CallsProductionOrdersSync_WhenEnabled()
+    public async Task SyncWorker_RunsTrueDefaultGates_WhenDbUnreachable()
     {
+        // Fail-Safe: ohne DB fallen ProductionOrders + Articles auf ihren
+        // true-Default → beide Syncs laufen weiter (Sync-Betrieb bleibt am Leben).
         var (sageImport, scopeFactory) = CreateScopeFactoryMock();
         var config = BuildConfig(new()
         {
+            // Bewusst KEINE Sync:*Enabled-Seeds: die Gates ziehen ihren Default.
             ["WorkerSettings:SyncIntervalMinutes"] = "0",
             ["WorkerSettings:SyncDryRun"] = "false",
-            ["Sync:ProductionOrdersEnabled"] = "true",
-            ["Sync:ArticlesEnabled"] = "false",
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
@@ -58,57 +75,18 @@ public class SyncWorkerTests
         sageImport.Verify(x =>
             x.SyncProductionOrdersAsync(false, It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
-    }
-
-    [Fact]
-    public async Task SyncWorker_SkipsProductionOrdersSync_WhenDisabled()
-    {
-        var (sageImport, scopeFactory) = CreateScopeFactoryMock();
-        var config = BuildConfig(new()
-        {
-            ["WorkerSettings:SyncIntervalMinutes"] = "0",
-            ["WorkerSettings:SyncDryRun"] = "false",
-            ["Sync:ProductionOrdersEnabled"] = "false",
-            ["Sync:ArticlesEnabled"] = "false",
-        });
-
-        using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
-
-        sageImport.Verify(x =>
-            x.SyncProductionOrdersAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    [Fact]
-    public async Task SyncWorker_CallsArticlesSync_WhenEnabled()
-    {
-        var (sageImport, scopeFactory) = CreateScopeFactoryMock();
-        var config = BuildConfig(new()
-        {
-            ["WorkerSettings:SyncIntervalMinutes"] = "0",
-            ["WorkerSettings:SyncDryRun"] = "false",
-            ["Sync:ProductionOrdersEnabled"] = "false",
-            ["Sync:ArticlesEnabled"] = "true",
-        });
-
-        using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
-
         sageImport.Verify(x =>
             x.SyncArticlesAsync(false, It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
     }
 
     [Fact]
-    public async Task SyncWorker_SkipsArticlesSync_WhenDisabled()
+    public async Task SyncWorker_IgnoresIConfigurationDisableSeed_ForBlockGates()
     {
+        // Fail-Safe / Regressionsschutz: ein IConfiguration-Seed "false" auf einem
+        // true-Default-Gate darf den Sync NICHT mehr abschalten — die Gates lesen
+        // DB-first, IConfiguration wirkt hier nicht. (Der echte "disabled"-Pfad
+        // wird ueber die DB gesteuert und ist Manual-UAT.)
         var (sageImport, scopeFactory) = CreateScopeFactoryMock();
         var config = BuildConfig(new()
         {
@@ -124,9 +102,13 @@ public class SyncWorkerTests
         await Task.Delay(150);
         await worker.StopAsync(CancellationToken.None);
 
+        // Trotz IConfiguration=false laufen beide (true-Default gewinnt ohne DB).
         sageImport.Verify(x =>
-            x.SyncArticlesAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+            x.SyncProductionOrdersAsync(false, It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce);
+        sageImport.Verify(x =>
+            x.SyncArticlesAsync(false, It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce);
     }
 
     [Fact]
