@@ -274,6 +274,12 @@ public class FaWorklistController : Controller
         if (vm == null)
             return NotFound();
 
+        // Lagerbestellung-Button auch im Read-only-Vorbau (v1.25.0), unabhaengig von ReadOnly.
+        var lagerbestellungAktivRaw = await _settingRepository.GetValueAsync(AppSettingKeys.LagerbestellungAktiv);
+        ViewBag.LagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
+        ViewBag.CanOrderWarehouse = await _currentUser.CanOrderLagerAsync()
+            || await _currentUser.CanOrderGlasAsync();
+
         return View("~/Views/Picking/Bom.cshtml", vm);
     }
 

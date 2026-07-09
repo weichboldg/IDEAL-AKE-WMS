@@ -378,6 +378,13 @@ public class PickingController : Controller
             : new List<PartRequisition>();
         ViewBag.OpenRequisitions = openRequisitions;
 
+        // Lagerbestellung-Button (v1.25.0): Master-Schalter (Default true: nur "false" sperrt)
+        // + Order-Recht (Lager ODER Glas). Unabhaengig von Bedarfsmeldungen (BestellungenAktiv).
+        var lagerbestellungAktivRaw = await _settingRepository.GetValueAsync(AppSettingKeys.LagerbestellungAktiv);
+        ViewBag.LagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
+        ViewBag.CanOrderWarehouse = await _currentUserService.CanOrderLagerAsync()
+            || await _currentUserService.CanOrderGlasAsync();
+
         return View(vm);
     }
 
