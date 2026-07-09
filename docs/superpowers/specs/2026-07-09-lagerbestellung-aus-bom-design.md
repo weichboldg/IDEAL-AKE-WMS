@@ -11,7 +11,7 @@ Neben dem bestehenden **Bedarfsmeldung**-Button in der Stückliste bekommt jede 
 
 ## Ziel / Anforderung
 
-1. In der BOM/Stückliste (Picking-BOM **und** read-only FA-Vorbau-BOM) ein zusätzlicher Button je Zeile: **neue Lager-/Glasbestellung** erstellen.
+1. In der BOM/Stückliste (Picking-BOM **und** read-only FA-Vorbau-BOM) ein zusätzlicher **Einzel-Button je Zeile** UND ein **Bulk-Button für markierte Zeilen** (Multi-Select, analog Bedarfsmeldung): **neue Lager-/Glasbestellung** erstellen.
 2. Sichtbar nur wenn (a) das Lagerbestellungs-Modul aktiv ist **und** (b) der User Lager-/Glasbestell-Rechte hat.
 3. Typ (Lager vs. Glas) **automatisch** aus der Artikelgruppe; mehrdeutig (gemeinsame Gruppen, z. B. EUZ) → **Lager**.
 4. Klick → offener Entwurf des Users je Typ wird wiederverwendet (sonst neu angelegt), Item hinzugefügt, dann zur Bestell-Bearbeiten-Seite navigiert.
@@ -46,20 +46,23 @@ Neben dem bestehenden **Bedarfsmeldung**-Button in der Stückliste bekommt jede 
 - **Beide Controller** setzen die zwei ViewBags:
   - `ViewBag.LagerbestellungAktiv` = AppSetting.
   - `ViewBag.CanOrderWarehouse` = `await _user.CanOrderLagerAsync() || await _user.CanOrderGlasAsync()`.
-- Klick → kleiner Dialog `#warehouseOrderModal` mit vorbelegter, editierbarer **Menge** (aus `data-quantity`) → AJAX POST an die quick-add-API; bei Erfolg `window.location = '/WarehouseRequisitions/Edit/' + requisitionId`; bei Fehler Alert mit `error`-Meldung. (Bestehendes Bedarfsmeldung-Modal/JS bleibt unberührt — eigenes Modal/Handler.)
+- **Einzel:** Klick → kleiner Dialog `#warehouseOrderModal` mit vorbelegter, editierbarer **Menge** (aus `data-quantity`) → AJAX POST an die quick-add-API (1 Item).
+- **Bulk (Multi-Select):** analog zum Bedarfsmeldung-Bulk. Die bestehenden Zeilen-Auswahl-Checkboxen (die der Bedarfsmeldung-Bulk nutzt) werden wiederverwendet (falls keine existieren: pro Nicht-Baugruppen-Zeile eine Checkbox ergänzen). Ein Bulk-Button **„Lagerbestellung (Auswahl)"** neben dem Bulk-Bedarfsmeldung-Button (gleich gated) → Dialog `#warehouseOrderBulkModal`, der die markierten Zeilen mit vorbelegter, editierbarer Menge je Zeile listet → Bestätigen → EIN AJAX POST mit der Item-Liste.
+- **Navigation/Ergebnis:** bei Erfolg wenn **genau ein Typ** betroffen → `window.location = '/WarehouseRequisitions/Edit/' + requisitionId`; bei **gemischt** (Lager UND Glas) → `window.location = '/WarehouseRequisitions'` (Übersicht) + Erfolgsmeldung „X zu Lager, Y zu Glas hinzugefügt". **Übersprungene** Items (fehlendes Recht / Artikel nicht gefunden) werden in der Meldung gelistet. Bei Fehler Alert mit `error`-Meldung. (Bestehendes Bedarfsmeldung-Modal/JS bleibt unberührt — eigene Modals/Handler.)
 
 ### 3. Quick-Add-API
 
-`WarehouseRequisitionsApiController` — neue Action `POST /api/warehouserequisitions/quick-add`, `[RequirePickingOrStockOrLagerbestellungAccess]` (class-level) + `[RequireLagerbestellungAktiv]`.
-Request: `QuickAddRequest { string ArticleNumber; decimal Quantity; }`.
-Ablauf:
-1. Menge > 0 validieren; Artikel per `ArticleNumber` laden (existiert? sonst `BadRequest("Artikel nicht gefunden")`).
+`WarehouseRequisitionsApiController` — neue Action `POST /api/warehouserequisitions/quick-add`, `[RequirePickingOrStockOrLagerbestellungAccess]` (class-level) + `[RequireLagerbestellungAktiv]`. **Ein Endpunkt für Einzel UND Bulk** (Einzel = Liste mit 1 Item).
+Request: `QuickAddRequest { List<QuickAddItem> Items; }`, `QuickAddItem { string ArticleNumber; decimal Quantity; }`.
+Ablauf (je Item, mit pro Typ genau EINEM Draft je Lauf):
+1. Menge > 0 + Artikel-Existenz je Item validieren; ungültige/fehlende → in `skipped` mit Grund, NICHT abbrechen.
 2. **Typ automatisch bestimmen:** `GlasArticleGroupFilter.NormalizeGroup(article.ArticleGroup)` ∈ `ParseGroups(GlasArtikelgruppen)` → **Glas**, sonst → **Lager**. (Gemeinsame Gruppen/EUZ sind KEINE reinen Glas-Gruppen → Lager. Konsistent mit „mehrdeutig → Lager".)
-3. **Rechte-Check für den bestimmten Typ:** Glas → `CanOrderGlasAsync`, Lager → `CanOrderLagerAsync`. Fehlt → `BadRequest` mit klarer Meldung („Artikel gehört zur Glas-Bestellung — dir fehlt die Glasbestell-Berechtigung." bzw. Lager).
-4. **Offenen Entwurf finden:** der User-eigene `WarehouseRequisition` mit `Status == Draft && Type == bestimmterTyp` (via `GetForUserAsync(userId)` oder eine neue Repo-Methode `GetOpenDraftForUserAndTypeAsync(userId, type)`). Vorhanden → wiederverwenden.
-5. **Sonst neu anlegen:** `CreateDraftAsync(workplaceId, type, userId, name, winName)` mit der **User-Default-Werkbank** (die bestehende `CreateDraft`-Werkbank-Auflösung für `workplaceId == null` wiederverwenden). Ist keine Werkbank auflösbar → `BadRequest("Bitte Standard-Werkbank im Profil hinterlegen")`.
-6. **Item hinzufügen:** bestehendes `AddItemAsync(reqId, articleNumber, description, unit, quantity, user, winUser)`. Die vorhandene Typ-gegen-Artikelgruppe-Validierung (aus dem Glas-Rollout) greift zusätzlich — konsistent, weil der Typ ja aus der Artikelgruppe abgeleitet wurde.
-7. Rückgabe `Ok(new { requisitionId, type })`.
+3. **Rechte-Check für den bestimmten Typ:** Glas → `CanOrderGlasAsync`, Lager → `CanOrderLagerAsync`. Fehlt → Item in `skipped` mit Grund („keine Glasbestell-Berechtigung" bzw. Lager), NICHT abbrechen.
+4. **Draft je Typ (lazy, EINER pro Typ pro Lauf):** beim ersten Lager-Item den offenen Lager-Draft des Users holen/anlegen, beim ersten Glas-Item den Glas-Draft — dann für alle weiteren Items desselben Typs wiederverwenden.
+   - **Offenen Entwurf finden:** User-eigener `WarehouseRequisition` mit `Status == Draft && Type == t` (neue Repo-Methode `GetOpenDraftForUserAndTypeAsync(userId, type)` ODER `GetForUserAsync`-Filter). Vorhanden → wiederverwenden.
+   - **Sonst neu:** `CreateDraftAsync(workplaceId, t, userId, name, winName)` mit der **User-Default-Werkbank** (bestehende `CreateDraft`-Werkbank-Auflösung für `workplaceId == null`). Keine Werkbank auflösbar → gesamter Request `BadRequest("Bitte Standard-Werkbank im Profil hinterlegen")`.
+5. **Item hinzufügen:** bestehendes `AddItemAsync(reqId, articleNumber, description, unit, quantity, user, winUser)`. Die vorhandene Typ-gegen-Artikelgruppe-Validierung greift zusätzlich — konsistent, weil der Typ aus der Artikelgruppe abgeleitet wurde.
+6. Rückgabe `Ok(new { lagerRequisitionId?, glasRequisitionId?, addedLager, addedGlas, skipped: [{ articleNumber, reason }] })`. Wurde gar nichts hinzugefügt (alles skipped) → `BadRequest` mit der skipped-Liste. Das Frontend leitet die Navigation daraus ab (nur ein Typ → dessen Edit; beide → Übersicht).
 
 **Kein neues Datenmodell / keine Migration** — Reuse von `CreateDraftAsync`, `AddItemAsync`, `GlasArticleGroupFilter`, `CanOrderLager/GlasAsync`.
 
@@ -74,7 +77,8 @@ Ablauf:
 ## Tests
 
 - **`GlasArticleGroupFilter`/Typ-Ableitung** (falls nötig ergänzend): Glas-Gruppe → Glas, Nicht-Glas → Lager, EUZ/gemeinsam → Lager. (Der Filter ist bereits unit-getestet; ggf. ein Test der Quick-Add-Typ-Ableitung.)
-- **Quick-Add (Controller-Test, InMemory):** (a) Lager-Artikel → Lager-Draft (neu) + Item; (b) Glas-Artikel → Glas-Draft; (c) zweiter Lager-Artikel → derselbe offene Draft (kein neuer); (d) fehlendes Recht für den Typ → BadRequest; (e) Artikel nicht gefunden → BadRequest; (f) Menge ≤ 0 → BadRequest.
+- **Quick-Add (Controller-Test, InMemory):** (a) 1 Lager-Artikel → Lager-Draft (neu) + Item; (b) 1 Glas-Artikel → Glas-Draft; (c) zweiter Lager-Artikel → derselbe offene Draft (kein neuer); (d) fehlendes Recht für den Typ → Item in `skipped`; (e) Artikel nicht gefunden → `skipped`; (f) Menge ≤ 0 → `skipped`; (g) **alles skipped** → `BadRequest`.
+- **Bulk (Controller-Test, InMemory):** (h) gemischte Liste (Lager+Glas) → genau EIN Lager-Draft + EIN Glas-Draft, Items korrekt verteilt, `addedLager`/`addedGlas`/`skipped` stimmen; (i) mehrere Lager-Items → alle in EINEN Lager-Draft (kein Draft je Item).
 - **`RequireLagerbestellungAktivAttribute`** (Filter-Test oder Controller-Test): bei aus → Redirect (MVC) bzw. 404 (API).
 - View-Button/Modal/JS + Layout-Gating = Build + Manual-UAT.
 
@@ -86,12 +90,11 @@ Ablauf:
 
 ## Out of scope
 
-- **Bulk** (mehrere markierte Zeilen auf einmal in die Lagerbestellung) — pro-Zeile ist der Kern; Bulk (mit Typ-Split über mehrere Drafts) ggf. als Folge.
-- Kein Umbau des Bedarfsmeldung-Buttons/-Flows (bleibt an `BestellungenAktiv`).
+- Kein Umbau des Bedarfsmeldung-Buttons/-Flows (bleibt an `BestellungenAktiv`) — Bulk-Lagerbestellung spiegelt nur dessen UX (Checkboxen + Bulk-Button + Mengen-Dialog).
 - Werkbank-Wahl im Dialog (Werkbank = User-Default, FA-unabhängig — User-Entscheid).
 
 ## Betroffene Dateien (Überblick)
 
 - **Neu:** `Filters/RequireLagerbestellungAktivAttribute.cs`; Tests (`WarehouseRequisitionsApiControllerTests` quick-add, Filter-Test).
-- **Geändert:** `Models/AppSettingKeys.cs`, `Program.cs` (Seed), `Views/Settings/Index.cshtml` (Toggle); `Controllers/Api/WarehouseRequisitionsApiController.cs` (quick-add + Filter), `WarehouseRequisitionsController.cs`/`MissingPartsController.cs`/`MissingPartsLagerController.cs`/`WarehousePickingController.cs` (Filter class-level); `Controllers/PickingController.cs` + `Controllers/FaWorklistController.cs` (2 ViewBags); `Views/Picking/Bom.cshtml` (Button + Modal + JS); `Views/Shared/_Layout.cshtml` (Menü-Gating); ggf. `IWarehouseRequisitionRepository`/Impl (Open-Draft-Query).
+- **Geändert:** `Models/AppSettingKeys.cs`, `Program.cs` (Seed), `Views/Settings/Index.cshtml` (Toggle); `Controllers/Api/WarehouseRequisitionsApiController.cs` (quick-add + Filter), `WarehouseRequisitionsController.cs`/`MissingPartsController.cs`/`MissingPartsLagerController.cs`/`WarehousePickingController.cs` (Filter class-level); `Controllers/PickingController.cs` + `Controllers/FaWorklistController.cs` (2 ViewBags); `Views/Picking/Bom.cshtml` (Einzel-Button + Bulk-Button + Zeilen-Checkboxen + 2 Modals + JS); `Views/Shared/_Layout.cshtml` (Menü-Gating); `IWarehouseRequisitionRepository`/Impl (`GetOpenDraftForUserAndTypeAsync`).
 - **Doku:** `CLAUDE.md`, `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md`, `PROJECT_STATUS.md`.
