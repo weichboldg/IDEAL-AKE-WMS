@@ -7,9 +7,10 @@ namespace IDEALAKEWMSService.Services;
 
 /// <summary>
 /// Versendet bei jedem Sync-Fehler eine Detail-Fehlermail (Schritt, Zeit, Maschine,
-/// Version, Exception + Stacktrace). Empfaenger + Enable-Flag konfigurierbar unter
-/// <c>ErrorNotification</c> in appsettings.json. Wirft NIE — ein Versand-Fehler
-/// darf den Worker nicht crashen.
+/// Version, Exception + Stacktrace). <c>ErrorNotification:Enabled</c> + <c>Recipients</c>
+/// werden seit v1.25.0 DB-first aus der <c>[ServiceSettings]</c>-Tabelle gelesen
+/// (steuerbar unter <c>/ServiceSettings</c>; appsettings.json wird dafuer nicht mehr
+/// gelesen). Wirft NIE — ein Versand-Fehler darf den Worker nicht crashen.
 /// </summary>
 public class SyncErrorNotifier : ISyncErrorNotifier
 {
