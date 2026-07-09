@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace IdealAkeWms.Controllers;
 
 [RequireLagerProcessingAccess]
+[RequireLagerbestellungAktiv]
 public class MissingPartsLagerController : Controller
 {
     private readonly IWarehouseRequisitionRepository _repo;
