@@ -27,6 +27,16 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return r.Id;
     }
 
+    public async Task<WarehouseRequisition?> GetOpenDraftForUserAndTypeAsync(int userId, WarehouseRequisitionType type)
+    {
+        return await _context.WarehouseRequisitions
+            .Where(r => r.Status == WarehouseRequisitionStatus.Draft
+                && r.Type == type
+                && r.CreatedByUserId == userId)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<WarehouseRequisition?> GetByIdAsync(int id, bool includeItems = true)
     {
         var q = _context.WarehouseRequisitions

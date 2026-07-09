@@ -6,6 +6,12 @@ namespace IdealAkeWms.Data.Repositories;
 public interface IWarehouseRequisitionRepository
 {
     Task<int> CreateDraftAsync(int productionWorkplaceId, WarehouseRequisitionType type, int currentUserId, string currentUserName, string windowsUserName);
+
+    /// <summary>
+    /// Liefert den offenen (Status==Draft) Entwurf des Users fuer den gegebenen Typ
+    /// (neuester zuerst) oder null. Fuer die BOM-Quick-Add-Wiederverwendung (v1.25.0).
+    /// </summary>
+    Task<WarehouseRequisition?> GetOpenDraftForUserAndTypeAsync(int userId, WarehouseRequisitionType type);
     Task<WarehouseRequisition?> GetByIdAsync(int id, bool includeItems = true);
 
     /// <summary>Liefert die Eltern-Bestellung einer Position (ohne Items) oder null, wenn die Position nicht existiert.</summary>

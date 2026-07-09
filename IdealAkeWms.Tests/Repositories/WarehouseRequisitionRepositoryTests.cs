@@ -947,4 +947,59 @@ public class WarehouseRequisitionRepositoryTests
         result[0].ArticleNumber.Should().Be("G1");
         total.Should().Be(1);
     }
+
+    // ===== Glas-Bestellung (Task 3) — GetOpenDraftForUserAndTypeAsync =====
+
+    [Fact]
+    public async Task GetOpenDraftForUserAndType_FindetOffenenDraftJeTyp()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var wp = new ProductionWorkplace { Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+
+        var lagerId = await repo.CreateDraftAsync(wp.Id, WarehouseRequisitionType.Lager, 7, "u", "w");
+        var glasId  = await repo.CreateDraftAsync(wp.Id, WarehouseRequisitionType.Glas, 7, "u", "w");
+
+        var foundLager = await repo.GetOpenDraftForUserAndTypeAsync(7, WarehouseRequisitionType.Lager);
+        var foundGlas  = await repo.GetOpenDraftForUserAndTypeAsync(7, WarehouseRequisitionType.Glas);
+
+        foundLager!.Id.Should().Be(lagerId);
+        foundGlas!.Id.Should().Be(glasId);
+    }
+
+    [Fact]
+    public async Task GetOpenDraftForUserAndType_KeinDraft_Null()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var found = await repo.GetOpenDraftForUserAndTypeAsync(7, WarehouseRequisitionType.Lager);
+        found.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetOpenDraftForUserAndType_IgnoriertFremdeUndNichtDraft()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var repo = new WarehouseRequisitionRepository(ctx);
+        var wp = new ProductionWorkplace { Name = "WB1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+
+        // fremder Draft (anderer User)
+        await repo.CreateDraftAsync(wp.Id, WarehouseRequisitionType.Lager, 999, "u", "w");
+        // eigener, aber abgeschickt
+        var submitted = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id, Type = WarehouseRequisitionType.Lager,
+            Status = WarehouseRequisitionStatus.Submitted, CreatedByUserId = 7,
+            CreatedAt = DateTime.Now, CreatedBy = "u", CreatedByWindows = "w"
+        };
+        ctx.WarehouseRequisitions.Add(submitted);
+        ctx.SaveChanges();
+
+        var found = await repo.GetOpenDraftForUserAndTypeAsync(7, WarehouseRequisitionType.Lager);
+        found.Should().BeNull("weder fremde noch abgeschickte Bestellungen zaehlen");
+    }
 }
