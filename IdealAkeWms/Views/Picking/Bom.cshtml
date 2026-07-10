@@ -73,21 +73,46 @@
                         <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/>
                     </svg>
                 </button>
-                @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
-                {
-                    <button type="button" id="btnBulkWarehouseOrder" class="btn btn-sm btn-primary" style="display:none;" title="Ausgewaehlte als Lagerbestellung">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1">
-                            <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M5.5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
-                        </svg>
-                        Lagerbestellung (Auswahl)
-                    </button>
-                }
             </div>
         </form>
     </div>
 </div>
 
 @Html.AntiForgeryToken()
+
+@* Sticky Auswahl-Balken (analog PickingLeitstand #bulkActionBar): klebt oben und zeigt die
+   markierte Anzahl + den jeweiligen Bulk-Button dauerhaft, auch beim Durchscrollen langer
+   Stuecklisten. Zwei unabhaengige Abschnitte (Lagerbestellung + Bedarfsmeldung); jeder erscheint
+   nur bei >=1 Markierung, der ganze Balken ist ausgeblendet wenn keine Auswahl aktiv ist. *@
+@if ((ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true) || (ViewBag.BestellungenAktiv == true && !Model.ReadOnly))
+{
+    <div id="bomBulkActionBar" class="bulk-action-bar" style="display:none;">
+        @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+        {
+            <div id="bomBulkWhSection" style="display:none; align-items:center; gap:.5rem;">
+                <span><strong id="whBulkCount">0</strong> markiert</span>
+                <button type="button" id="btnBulkWarehouseOrder" class="btn btn-sm btn-primary" title="Ausgewaehlte als Lagerbestellung">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M5.5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+                    </svg>
+                    Lagerbestellung (Auswahl)
+                </button>
+            </div>
+        }
+        @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly)
+        {
+            <div id="bomBulkOrderSection" style="display:none; align-items:center; gap:.5rem;">
+                <span><strong id="orderBulkCount">0</strong> markiert</span>
+                <button type="button" id="btnBulkOrder" class="btn btn-sm btn-warning" title="Ausgewaehlte bestellen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                        <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+                    </svg>
+                    Ausgewählte bestellen
+                </button>
+            </div>
+        }
+    </div>
+}
 
 <div class="table-responsive">
     <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
@@ -325,17 +350,6 @@
                 <div class="col-auto">
                     <a asp-action="PrintPicking" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary">Drucken</a>
                 </div>
-                @if (ViewBag.BestellungenAktiv == true)
-                {
-                    <div class="col-auto">
-                        <button type="button" class="btn btn-warning" id="btnBulkOrder" style="display:none;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
-                                <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
-                            </svg>
-                            Ausgewählte bestellen
-                        </button>
-                    </div>
-                }
             </form>
         </div>
     </div>
@@ -702,6 +716,38 @@
             var productionOrderId = @Model.ProductionOrderId;
             var recursiveFilterSearch = @(Model.RecursiveFilterSearch ? "true" : "false");
 
+            // ========== Sticky Bulk-Auswahl-Balken ==========
+            // EIN sticky Balken (#bomBulkActionBar) oberhalb der Tabelle mit bis zu zwei
+            // Abschnitten: Lagerbestellung (.warehouse-select — auch im Read-only/Vorbau) und
+            // Bedarfsmeldung (.picking-checkbox — nur !ReadOnly). Jeder Abschnitt erscheint nur
+            // bei >=1 Markierung; der ganze Balken ist ausgeblendet wenn keine Auswahl aktiv ist.
+            // Funktions-Deklaration → in beiden JS-Bloecken (Warehouse-IIFE + Order-Block) per
+            // Closure erreichbar. Aktualisiert nur Zaehler + Balken-Sichtbarkeit; die bestehende
+            // Submit-/Modal-Logik der Buttons bleibt unangetastet.
+            function bomSyncBulkBar() {
+                var bar = document.getElementById('bomBulkActionBar');
+                if (!bar) return;
+
+                var whCount = document.querySelectorAll('.warehouse-select:checked').length;
+                var orderCount = document.querySelectorAll('.picking-checkbox:checked').length;
+
+                var whSection = document.getElementById('bomBulkWhSection');
+                if (whSection) {
+                    whSection.style.display = whCount > 0 ? 'inline-flex' : 'none';
+                    var whCountEl = document.getElementById('whBulkCount');
+                    if (whCountEl) whCountEl.textContent = whCount;
+                }
+
+                var orderSection = document.getElementById('bomBulkOrderSection');
+                if (orderSection) {
+                    orderSection.style.display = orderCount > 0 ? 'inline-flex' : 'none';
+                    var orderCountEl = document.getElementById('orderBulkCount');
+                    if (orderCountEl) orderCountEl.textContent = orderCount;
+                }
+
+                bar.style.display = (whCount > 0 || orderCount > 0) ? 'flex' : 'none';
+            }
+
             // ========== Baum: Ein-/Ausklappen ==========
 
             // Zustand der Baugruppen (true = expanded)
@@ -1002,7 +1048,10 @@
                     whBulkBtn.style.display = n > 0 ? '' : 'none';
                 }
                 document.querySelectorAll('.warehouse-select').forEach(function (cb) {
-                    cb.addEventListener('change', updateWhBulkBtn);
+                    cb.addEventListener('change', function () {
+                        updateWhBulkBtn();
+                        bomSyncBulkBar();
+                    });
                 });
                 if (whBulkBtn) {
                     whBulkBtn.addEventListener('click', function () {
@@ -1037,6 +1086,11 @@
                 </text>
             }
 
+            // Sticky Bulk-Balken initial synchronisieren — laeuft in BEIDEN Modi (vor dem
+            // readOnly-Return), damit die Lagerbestellungs-Auswahl auch im Vorbau-Read-only greift
+            // und ein FA mit bereits gepickten Positionen den Bedarfsmeldung-Zaehler zeigt.
+            bomSyncBulkBar();
+
             // Ab hier ausschliesslich Picking-Funktionalitaet (Checkboxen, Umbuchen,
             // Status-Modal, Scan-Retry, Fotos, Bedarfsmeldungen) — im Read-only-Modus beenden.
             if (readOnly) return;
@@ -1051,6 +1105,7 @@
                     } else {
                         row.classList.remove('table-success');
                     }
+                    bomSyncBulkBar();
                 });
             });
 
