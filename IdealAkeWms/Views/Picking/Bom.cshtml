@@ -114,6 +114,12 @@
     </div>
 }
 
+@* Toolbar-Host fuer den column-preferences-Zahnrad-Button: MUSS ein immer sichtbares Element
+   direkt vor .table-responsive sein. Sonst haengt column-preferences.js das Zahnrad an das
+   vorige Geschwister — das waere #bomBulkActionBar (display:none bis zur Auswahl), wodurch das
+   Zahnrad nur bei aktiver Auswahl sichtbar waere. (analog PickingLeitstand) *@
+<div class="d-flex justify-content-end mb-1"></div>
+
 <div class="table-responsive">
     <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
         <thead>
