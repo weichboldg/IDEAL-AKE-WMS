@@ -5316,6 +5316,30 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 4. Stückliste öffnen → KEIN Lagerbestellung-Button/-Spalte.
 5. `LagerbestellungAktiv` wieder auf true → alles wieder sichtbar.
 
+### Stückliste-UX: Spalten umsortieren + Sticky-Auswahlleiste (v1.25.0)
+
+#### TS-52.1 — Spalten in der Stückliste umsortieren
+1. Als User A: Kommissionierung → FA → Stückliste öffnen.
+2. Zahnrad „Spalten konfigurieren" öffnen → Spalte „Lagerbestellung" per Drag an die 2. Position ziehen → speichern/schließen.
+   - Erwartet: „Lagerbestellung" steht jetzt an 2. Stelle; „Auswahl/Pick" und „Position" bleiben als Anker ganz vorne (nicht verschiebbar).
+3. Seite neu laden (F5).
+   - Erwartet: Die geänderte Spaltenreihenfolge bleibt erhalten.
+4. Eine Baugruppen-Zeile auf-/zuklappen.
+   - Erwartet: Die Baum-Hierarchie funktioniert unverändert; die Umsortierung hat die Einrückung/Verschachtelung nicht zerstört (es werden nur die Zellen je Zeile umgeordnet).
+5. Read-only Vorbau-Stückliste (aus der FA-Abarbeitungsliste) öffnen → dieselbe Umsortierung ist ebenfalls möglich und bleibt nach Reload.
+
+#### TS-52.2 — Sticky-Auswahlleiste in der Stückliste
+1. Als User A in der Kommissionierungs-Stückliste: mehrere Lagerbestellungs-Checkboxen (`.warehouse-select`) markieren.
+   - Erwartet: Oben klebende Auswahlleiste erscheint, zeigt „N markiert" und den Button „Lagerbestellung (Auswahl)".
+2. In der Stückliste nach unten scrollen.
+   - Erwartet: Die Auswahlleiste bleibt oben sichtbar (sticky), Zähler + Button bleiben erreichbar.
+3. Alle Häkchen wieder entfernen.
+   - Erwartet: Die Auswahlleiste verschwindet (bzw. zeigt keine Aktion mehr).
+4. Read-only Vorbau-Stückliste: Lagerbestellungs-Zeilen markieren.
+   - Erwartet: Sticky-Leiste + „Lagerbestellung (Auswahl)"-Button funktionieren ebenso (read-only-sicher, kein JS-Fehler durch fehlende Bedarfsmeldungs-Checkboxen).
+5. Bei aktivierter Bedarfsmeldung (`BestellungenAktiv` = true, `!ReadOnly`): sowohl Bedarfsmeldungs- (`.picking-checkbox`) als auch Lagerbestellungs-Zeilen markieren.
+   - Erwartet: Die Sticky-Leiste zeigt beide Abschnitte gleichzeitig — je Auswahl-Set eigener Zähler + eigener Sammel-Button (Bedarfsmeldung UND Lagerbestellung).
+
 ---
 
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
