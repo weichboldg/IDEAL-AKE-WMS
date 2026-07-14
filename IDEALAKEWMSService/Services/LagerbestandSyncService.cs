@@ -2,7 +2,9 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
+using IDEALAKEWMSService.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IDEALAKEWMSService.Services;
@@ -14,19 +16,25 @@ public class LagerbestandSyncService : ILagerbestandSyncService
     private readonly ApplicationDbContext _ctx;
     private readonly ISageBestandReader _reader;
     private readonly IStockMovementRepository _stockRepo;
-    private readonly ISyncLogger _syncLogger;
+    private readonly IConfiguration _config;
+    private readonly ISyncErrorNotifier _errorNotifier;
     private readonly ILogger<LagerbestandSyncService> _logger;
+    private readonly ISyncLogger _syncLogger;
 
     public LagerbestandSyncService(
         ApplicationDbContext ctx,
         ISageBestandReader reader,
         IStockMovementRepository stockRepo,
+        IConfiguration config,
+        ISyncErrorNotifier errorNotifier,
         ILogger<LagerbestandSyncService> logger,
         ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _reader = reader;
         _stockRepo = stockRepo;
+        _config = config;
+        _errorNotifier = errorNotifier;
         _syncLogger = syncLogger;
         _logger = logger;
     }
@@ -58,6 +66,11 @@ public class LagerbestandSyncService : ILagerbestandSyncService
                 return new LagerbestandSyncResult(0, 0, 0, 0, 0, 1, dryRun);
             }
 
+            // Roh-Zeilen (VOR Dedup) fuer den Nullsetz-Abgleich festhalten: sagePresentKeys
+            // muss auch Duplikat-Keys enthalten (die sind in Sage vorhanden, nur mehrdeutig).
+            var rawSageRows = sageRows;
+            var sageRowCountRaw = rawSageRows.Count;
+
             // Sage-Duplikate erkennen: gleiche (Artikelnummer, Lagerplatz) aus mehreren Lagerorten
             var dupGroups = sageRows
                 .Where(r => !string.IsNullOrWhiteSpace(r.Artikelnummer) && !string.IsNullOrWhiteSpace(r.Lagerplatz))
@@ -88,6 +101,20 @@ public class LagerbestandSyncService : ILagerbestandSyncService
                     l => (l.Id, l.Source, l.IsActive),
                     StringComparer.OrdinalIgnoreCase, ct);
             var wmsStock = await _stockRepo.GetCurrentStockByArticleAndLocationAsync();
+
+            // "In-Sage-vorhanden"-Set aus den ROH-Zeilen (inkl. Duplikat-Keys + inaktive/manuelle
+            // Plaetze — schaden nicht, sind ohnehin keine Nullsetz-Kandidaten).
+            var sagePresentKeys = new HashSet<(int ArticleId, int StorageLocationId)>();
+            foreach (var raw in rawSageRows)
+            {
+                if (string.IsNullOrWhiteSpace(raw.Artikelnummer) || string.IsNullOrWhiteSpace(raw.Lagerplatz))
+                    continue;
+                if (!articleByNumber.TryGetValue(raw.Artikelnummer, out var presentArticleId))
+                    continue;
+                if (!locationByCode.TryGetValue(raw.Lagerplatz, out var presentLoc))
+                    continue;
+                sagePresentKeys.Add((presentArticleId, presentLoc.Id));
+            }
 
             foreach (var dto in sageRows)
             {
@@ -162,12 +189,95 @@ public class LagerbestandSyncService : ILagerbestandSyncService
                 if (delta > 0) plus++; else minus++;
             }
 
+            // ---- Nullsetzen verwaister Bestaende (in Sage verschwundene Paare) ----------
+            // managedStock = wmsStock gefiltert auf Sage-Quelle + aktiv + Menge != 0.
+            // (GetCurrentStockByArticleAndLocationAsync enthaelt auch Netto-0-Paare UND
+            //  Umbuchungs-Quellseiten-Keys -> beides MUSS raus.)
+            var locationInfoById = locationByCode.Values
+                .ToDictionary(v => v.Id, v => (v.Source, v.IsActive));
+            var managedStock = wmsStock
+                .Where(kv => kv.Value != 0m
+                          && locationInfoById.TryGetValue(kv.Key.StorageLocationId, out var li)
+                          && li.Source == StorageLocationSource.Sage
+                          && li.IsActive)
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+            var maxPerRun = await ServiceSettings.GetIntSafeAsync(
+                _config, "Sync:LagerbestandNullsetzenMaxPerRun", 100, ct);
+
+            var zeroPlan = LagerbestandZeroingPlanner.Plan(
+                sageRowCountRaw, sagePresentKeys, managedStock, maxPerRun);
+
+            int nullgesetzt = 0;
+            if (zeroPlan.Skipped)
+            {
+                var reason = zeroPlan.SkipReason ?? "unbekannt";
+                await run.LogWarningAsync($"Nullsetzen uebersprungen: {reason}", ct: ct);
+                _logger.LogWarning("Lagerbestand-Nullsetzen uebersprungen: {Reason}", reason);
+
+                // Cap-Skip zusaetzlich per Fehlermail (Sage-Teil-Read-Verdacht). Guard (leer) NICHT.
+                if (reason.StartsWith("Cap", StringComparison.OrdinalIgnoreCase))
+                {
+                    await _errorNotifier.NotifyAsync(
+                        "Lagerbestand-Nullsetzen: Cap ueberschritten",
+                        new InvalidOperationException(
+                            $"Lagerbestand-Nullsetzen Cap ueberschritten: {reason}. " +
+                            $"Sage lieferte {sageRowCountRaw} Zeilen, Cap={maxPerRun}. " +
+                            $"Kein Nullsetzen geschrieben — moeglicher Sage-Teil-Read."),
+                        ct);
+                }
+            }
+            else
+            {
+                // Reverse-Lookups fuer lesbare Detailzeilen (Artikel-Nummer / Lagerplatz-Code).
+                var articleNumberById = articleByNumber.ToDictionary(kv => kv.Value, kv => kv.Key);
+                var codeById = locationByCode.ToDictionary(kv => kv.Value.Id, kv => kv.Key);
+                int infoLines = 0;
+
+                foreach (var (articleId, locId, wmsBestand) in zeroPlan.ToZero)
+                {
+                    if (!dryRun)
+                    {
+                        _ctx.StockMovements.Add(new StockMovement
+                        {
+                            ArticleId = articleId,
+                            StorageLocationId = locId,
+                            Quantity = Math.Abs(wmsBestand),
+                            MovementType = wmsBestand > 0 ? MovementType.SageAusbuchung : MovementType.SageEinbuchung,
+                            Note = $"Sage-Korrektur: in Sage nicht mehr vorhanden -> auf 0 gesetzt (WMS war {wmsBestand})",
+                            Timestamp = DateTime.Now,
+                            UserId = null,
+                            WindowsUser = SyncUser,
+                            CreatedAt = DateTime.Now,
+                            CreatedBy = SyncUser,
+                            CreatedByWindows = Environment.MachineName
+                        });
+                    }
+
+                    nullgesetzt++;
+                    if (infoLines < 100)
+                    {
+                        var articleNumber = articleNumberById.GetValueOrDefault(articleId, articleId.ToString());
+                        var code = codeById.GetValueOrDefault(locId, locId.ToString());
+                        await run.LogInfoAsync(
+                            $"Bestand auf 0 gesetzt: {articleNumber} @ {code} (WMS war {wmsBestand})",
+                            reference: code, ct: ct);
+                        infoLines++;
+                    }
+                }
+
+                if (nullgesetzt > 0)
+                    _logger.LogInformation("Lagerbestand-Nullsetzen: {Count} Paar(e) auf 0 gesetzt.", nullgesetzt);
+            }
+            // ---- Ende Nullsetzen ---------------------------------------------------------
+
             if (!dryRun) await _ctx.SaveChangesAsync(ct);
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
                 ["einbuchungen"] = plus,
                 ["ausbuchungen"] = minus,
+                ["nullgesetzt"] = nullgesetzt,
                 ["uebersprungen"] = skipped,
                 ["fehler"] = errors,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
