@@ -81,6 +81,14 @@
                         Zeilen zeigt eine oben klebende Leiste die Anzahl der markierten Zeilen und den
                         passenden Sammel-Button (Lagerbestellung bzw. Bedarfsmeldung) dauerhaft &ndash; auch
                         beim Scrollen (analog zum Leitstand).</li>
+                    <li><strong>Lagerbestand-Sync: verschwundene Sage-Best&auml;nde werden auf 0 gesetzt:</strong>
+                        F&auml;llt der Sage-Bestand eines Artikels auf einem Lagerplatz auf 0 (Sage liefert die
+                        Zeile dann gar nicht mehr), setzt der Lagerbestand-Sync den WMS-Bestand jetzt automatisch
+                        ebenfalls auf 0 &ndash; nur f&uuml;r Sage-Lagerpl&auml;tze (aktiv). Verwaiste Sage-Pl&auml;tze
+                        mit noch offenem WMS-Bestand werden so genullt. Gesch&uuml;tzt durch einen Leer-Guard
+                        (leerer Sage-Read nullt nichts) und einen Sicherheits-Cap
+                        (<code>Sync:LagerbestandNullsetzenMaxPerRun</code>, Default 100) mit Fehlermail bei
+                        Verdacht auf einen Sage-Teil-Read.</li>
                 </ul>
             </div>
         </div>

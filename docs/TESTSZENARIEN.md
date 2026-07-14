@@ -5342,5 +5342,49 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
+## Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0)
+
+**Vorbedingungen:**
+- Service läuft, `Sync:LagerbestandEnabled = true` (in `/ServiceSettings`), `WorkerSettings:SyncDryRun = false`.
+- Mindestens ein Artikel mit WMS-Bestand > 0 auf einem **Sage**-Lagerplatz (`Source=Sage`, `IsActive=true`), dessen `(Artikel, Lagerplatz)`-Paar in der Sage-Bestand-Quelle NICHT (mehr) vorkommt (Sage liefert 0-Bestand-Zeilen gar nicht — die Zeile verschwindet).
+
+> **Hinweis Aktivitäts-Protokoll:** Das Nullsetzen läuft im bestehenden `Lagerbestand`-Sync (kein eigener Protokoll-Eintrag). Der Counts-Schlüssel `nullgesetzt` zählt die auf 0 gesetzten Paare.
+
+### 1. Verwaistes Paar wird auf 0 gesetzt
+1. Bestand für ein Sage-aktives Paar (Artikel X @ Lagerplatz Y) im WMS aufbauen (z. B. +5 Einbuchung), das in Sage 0 ist (Sage liefert die Zeile nicht).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** Eine `SageAusbuchung` über 5 wird gebucht (WMS-Bestand auf Y danach 0), Note „Sage-Korrektur: in Sage nicht mehr vorhanden -> auf 0 gesetzt (WMS war 5)". Der `Lagerbestand`-Eintrag zeigt Count `nullgesetzt=1` und eine Info-Detailzeile „Bestand auf 0 gesetzt: <ArtNr> @ <Code> (WMS war 5)".
+
+### 2. Guard — leerer Sage-Read nullt NICHTS
+1. Sage-Bestand-Quelle liefert (simuliert) 0 Zeilen.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung. Warn-Detailzeile „Nullsetzen uebersprungen: Sage-Read leer (0 Zeilen)". Keine Fehlermail (Guard ist kein Cap).
+
+### 3. Cap — zu viele Kandidaten → kein Nullsetzen + Fehlermail
+1. `Sync:LagerbestandNullsetzenMaxPerRun` niedrig setzen (z. B. 1), mehr als 1 verwaistes Paar vorhanden. `ErrorNotification:Enabled=true` + Empfänger gesetzt.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung. Warn-Detailzeile „Nullsetzen uebersprungen: Cap ueberschritten: N > 1 — kein Nullsetzen". Fehlermail an die Empfänger.
+
+### 4. Manueller/inaktiver Lagerplatz bleibt unberührt
+1. Verwaistes Paar mit WMS-Bestand > 0 auf einem `Source=Manual`-Platz ODER einem inaktiven Sage-Platz.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung für dieses Paar (nur Sage-aktive Paare werden genullt). NAN und Kommissionierwagen (Manual) sind ebenfalls ausgeschlossen.
+
+### 5. Duplikat-Paar in Sage bleibt unberührt
+1. Sage liefert dasselbe `(Artikel, Lagerplatz)`-Paar mehrfach (mehrdeutig).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** Das Paar wird als Duplikat übersprungen (Warn „mehrfach"), aber NICHT genullt (es ist in Sage vorhanden, nur mehrdeutig — `sagePresentKeys` wird aus den Roh-Zeilen gebaut).
+
+### 6. DryRun schreibt nicht
+1. `WorkerSettings:SyncDryRun = true`, sonst wie Szenario 1.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung in der DB, aber `nullgesetzt=1` im Protokoll (Simulation).
+
+**Negativ/Regression:**
+- Bestehende Bestandskorrekturen (Delta ≠ 0 für in Sage vorhandene Paare) funktionieren unverändert.
+- Netto-0-Paare (z. B. +5/−5) werden NICHT als verwaist genullt (managedStock filtert `qty != 0`).
+
+---
+
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
