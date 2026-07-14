@@ -4794,6 +4794,54 @@ wo keine IIS-Windows-Auth verfuegbar ist.)
 
 ---
 
+### TS-40.7 — Android/iPhone → sofort Formular, KEIN Windows-Dialog (v1.25.0-Fold)
+
+**Vorbedingungen:** `WindowsAuthAktiv = true`. Aufruf von einem Android-Handy
+oder iPhone/iPad (Mobile-Browser), frische Session (keine Cookies).
+
+**Schritte:**
+1. Die App-Startseite vom Mobilgeraet aufrufen.
+
+**Erwartet:** Es erscheint **direkt** das Anmelde-Formular. **Kein**
+Windows-Anmeldedialog, kein Passwort-Prompt-Popup. Es wird KEINE
+Negotiate-Challenge gesendet (UA-Gate). Eine Formular-Anmeldung mit lokalen
+Credentials funktioniert normal. (Auch nach mehrfachem Neuladen kein Dialog.)
+
+### TS-40.8 — Windows-Desktop → Auto-Login wie bisher (v1.25.0-Fold)
+
+**Vorbedingungen:** Wie TS-40.1 (`WindowsAuthAktiv = true`, AD-Benutzer-Datensatz
+vorhanden), aber ausdruecklich aus einem **Windows-Desktop-Browser** (Chrome/Edge/
+Firefox auf Windows, Intranet-Zone).
+
+**Schritte:**
+1. Frische Session, App-Startseite aufrufen.
+
+**Erwartet:** Der Windows-Desktop-Browser erhaelt die stille Negotiate-Challenge
+und der Benutzer wird **ohne Formular** angemeldet (Verhalten exakt wie vor dem
+UA-Gate). Genau eine Challenge je Session (`AutoLoginTried`-Cookie).
+
+### TS-40.9 — Button „Mit Windows anmelden" erzwingt SSO auf Nicht-Windows-Client (v1.25.0-Fold)
+
+**Vorbedingungen:** `WindowsAuthAktiv = true`. Ein Windows-Geraet, das per UA
+NICHT als Windows-Desktop erkannt wird (exotischer Browser) ODER ein Mac/Linux im
+Domaenennetz, dessen Windows-Identitaet IIS liefern kann. AD-Benutzer-Datensatz
+zum angemeldeten Windows-Konto vorhanden.
+
+**Schritte:**
+1. App-Startseite aufrufen → es erscheint das Formular (kein Auto-Login, da UA
+   nicht als Windows-Desktop erkannt).
+2. Pruefen: Der Button **„Mit Windows anmelden"** ist sichtbar.
+3. Auf den Button klicken.
+
+**Erwartet:**
+- Der Button fuehrt auf `/Account/WindowsLogin` (setzt Force-Cookie) und weiter
+  auf die Startseite; dort erzwingt die Middleware die Negotiate-Challenge.
+- Nach erfolgreichem SAM-Match ist der Benutzer angemeldet (Dashboard); der
+  Force-Cookie ist wieder geloescht (kein Challenge-Loop).
+- **Negativfall:** Ist `WindowsAuthAktiv = false`, erscheint der Button **nicht**.
+
+---
+
 ## Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0)
 
 **Vorbedingung:** `BestellungenAktiv=true`. Ein Benutzer `lb-test` mit NUR der Rolle
