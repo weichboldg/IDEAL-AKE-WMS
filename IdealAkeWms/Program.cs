@@ -458,6 +458,7 @@ app.Use(async (context, next) =>
     // Login-Seite und statische Dateien ausschließen
     if (path.StartsWith("/account/login") ||
         path.StartsWith("/account/logout") ||
+        path.StartsWith("/account/windowslogin") ||
         path.StartsWith("/api/") ||
         path.StartsWith("/lib/") ||
         path.StartsWith("/css/") ||
