@@ -139,6 +139,34 @@ public class WindowsAutoLoginMiddlewareTests
     }
 
     [Fact]
+    public async Task Anonymous_NoAutoLoginCookie_WithForceSso_Challenges()
+    {
+        // ForceSso hebt die NoAutoLogin-Sperre nach Logout auf.
+        var challenge = new Mock<IChallengeIssuer>();
+        var ctx = MakeContext(false, null);
+        ctx.Request.Headers["Cookie"] =
+            $"{WindowsAutoLoginMiddleware.NoAutoLoginCookie}=1; {WindowsAutoLoginMiddleware.ForceSsoCookie}=1";
+        var called = false;
+        await Build(new Mock<IUserRepository>(), true, challenge).InvokeAsync(ctx, _ => { called = true; return Task.CompletedTask; });
+        called.Should().BeFalse();
+        challenge.Verify(c => c.ChallengeAsync(ctx), Times.Once);
+    }
+
+    [Fact]
+    public async Task Anonymous_AlreadyTried_WithForceSso_Challenges()
+    {
+        // ForceSso erzwingt die Challenge trotz gesetztem AutoLoginTried-Cookie.
+        var challenge = new Mock<IChallengeIssuer>();
+        var ctx = MakeContext(false, null);
+        ctx.Request.Headers["Cookie"] =
+            $"{WindowsAutoLoginMiddleware.AutoLoginTriedCookie}=1; {WindowsAutoLoginMiddleware.ForceSsoCookie}=1";
+        var called = false;
+        await Build(new Mock<IUserRepository>(), true, challenge).InvokeAsync(ctx, _ => { called = true; return Task.CompletedTask; });
+        called.Should().BeFalse();
+        challenge.Verify(c => c.ChallengeAsync(ctx), Times.Once);
+    }
+
+    [Fact]
     public async Task IdentityMatches_WithForceSso_SetsSession_DeletesForceSso()
     {
         var repo = new Mock<IUserRepository>();

@@ -51,7 +51,10 @@ public class WindowsAutoLoginMiddleware : IMiddleware
             return false;
         if (context.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue)
             return false;
-        if (context.Request.Cookies.ContainsKey(NoAutoLoginCookie))
+        // ForceSso (manueller "Mit Windows anmelden"-Button) haelt die Windows-Anmeldung
+        // durch, auch wenn nach einem Logout ein NoAutoLogin-Cookie gesetzt ist.
+        if (context.Request.Cookies.ContainsKey(NoAutoLoginCookie)
+            && !context.Request.Cookies.ContainsKey(ForceSsoCookie))
             return false;
         var flag = await _appSettings.GetValueAsync(AppSettingKeys.WindowsAuthAktiv);
         return string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
@@ -93,31 +96,26 @@ public class WindowsAutoLoginMiddleware : IMiddleware
         }
 
         var forceSso = context.Request.Cookies.ContainsKey(ForceSsoCookie);
+        var alreadyTried = context.Request.Cookies.ContainsKey(AutoLoginTriedCookie);
+        var userAgent = context.Request.Headers.UserAgent.ToString();
+        var isWindowsDesktop = UserAgentHelper.IsWindowsDesktop(userAgent);
 
-        if (!context.Request.Cookies.ContainsKey(AutoLoginTriedCookie))
+        // ForceSso erzwingt die Challenge IMMER (auch wenn bereits gechallenged wurde);
+        // sonst nur bei Windows-Desktop-UA und noch nicht versuchtem Auto-Login.
+        if (forceSso || (!alreadyTried && isWindowsDesktop))
         {
-            var userAgent = context.Request.Headers.UserAgent.ToString();
-            if (UserAgentHelper.IsWindowsDesktop(userAgent) || forceSso)
-            {
-                _logger.LogInformation(
-                    "WindowsAutoLogin-Diagnose: anonym -> sende Negotiate-Challenge (Pfad={Path}, ForceSso={Force}).",
-                    context.Request.Path.Value, forceSso);
-                context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
-                context.Response.Cookies.Delete(ForceSsoCookie);
-                await _challenge.ChallengeAsync(context);
-                return true;
-            }
             _logger.LogInformation(
-                "WindowsAutoLogin-Diagnose: anonym + Nicht-Windows-UA ohne ForceSso -> Formular-Fallback ohne Challenge (Pfad={Path}).",
-                context.Request.Path.Value);
-            return false;
+                "WindowsAutoLogin-Diagnose: anonym -> sende Negotiate-Challenge (Pfad={Path}, ForceSso={Force}, UaWindows={UaWin}).",
+                context.Request.Path.Value, forceSso, isWindowsDesktop);
+            context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
+            context.Response.Cookies.Delete(ForceSsoCookie);
+            await _challenge.ChallengeAsync(context);
+            return true;
         }
 
-        if (forceSso)
-            context.Response.Cookies.Delete(ForceSsoCookie);
         _logger.LogInformation(
-            "WindowsAutoLogin-Diagnose: anonym + bereits gechallenged (AutoLoginTried-Cookie) -> Formular-Fallback (Pfad={Path}).",
-            context.Request.Path.Value);
+            "WindowsAutoLogin-Diagnose: anonym -> keine Challenge (Pfad={Path}, alreadyTried={Tried}, UaWindows={UaWin}) -> Formular-Fallback.",
+            context.Request.Path.Value, alreadyTried, isWindowsDesktop);
         return false;
     }
 }
