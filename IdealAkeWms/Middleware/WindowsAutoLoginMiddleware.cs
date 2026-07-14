@@ -9,6 +9,7 @@ public class WindowsAutoLoginMiddleware : IMiddleware
 {
     public const string AutoLoginTriedCookie = "IdealAkeWms.AutoLoginTried";
     public const string NoAutoLoginCookie = "IdealAkeWms.NoAutoLogin";
+    public const string ForceSsoCookie = "IdealAkeWms.ForceSso";
 
     private readonly IAppSettingRepository _appSettings;
     private readonly IUserRepository _userRepository;
@@ -77,6 +78,7 @@ public class WindowsAutoLoginMiddleware : IMiddleware
                 context.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
                 context.Response.Cookies.Delete(AutoLoginTriedCookie);
                 context.Response.Cookies.Delete(NoAutoLoginCookie);
+                context.Response.Cookies.Delete(ForceSsoCookie);
                 _logger.LogInformation(
                     "WindowsAutoLogin-Diagnose: TREFFER — SAM={Sam} -> UserId={UserId} ({UserName}), Auto-Login gesetzt.",
                     sam, user.Id, user.Name);
@@ -85,18 +87,34 @@ public class WindowsAutoLoginMiddleware : IMiddleware
             _logger.LogInformation(
                 "WindowsAutoLogin-Diagnose: KEIN aktiver Benutzer-Datensatz fuer SAM={Sam} (IdentityName={IdentityName}) -> Formular-Fallback.",
                 sam ?? "(null)", identityName ?? "(null)");
+            context.Response.Cookies.Delete(ForceSsoCookie);
             context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
             return false;
         }
 
+        var forceSso = context.Request.Cookies.ContainsKey(ForceSsoCookie);
+
         if (!context.Request.Cookies.ContainsKey(AutoLoginTriedCookie))
         {
-            _logger.LogInformation("WindowsAutoLogin-Diagnose: anonym -> sende Negotiate-Challenge (Pfad={Path}).",
+            var userAgent = context.Request.Headers.UserAgent.ToString();
+            if (UserAgentHelper.IsWindowsDesktop(userAgent) || forceSso)
+            {
+                _logger.LogInformation(
+                    "WindowsAutoLogin-Diagnose: anonym -> sende Negotiate-Challenge (Pfad={Path}, ForceSso={Force}).",
+                    context.Request.Path.Value, forceSso);
+                context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
+                context.Response.Cookies.Delete(ForceSsoCookie);
+                await _challenge.ChallengeAsync(context);
+                return true;
+            }
+            _logger.LogInformation(
+                "WindowsAutoLogin-Diagnose: anonym + Nicht-Windows-UA ohne ForceSso -> Formular-Fallback ohne Challenge (Pfad={Path}).",
                 context.Request.Path.Value);
-            context.Response.Cookies.Append(AutoLoginTriedCookie, "1", new CookieOptions { HttpOnly = true, IsEssential = true });
-            await _challenge.ChallengeAsync(context);
-            return true;
+            return false;
         }
+
+        if (forceSso)
+            context.Response.Cookies.Delete(ForceSsoCookie);
         _logger.LogInformation(
             "WindowsAutoLogin-Diagnose: anonym + bereits gechallenged (AutoLoginTried-Cookie) -> Formular-Fallback (Pfad={Path}).",
             context.Request.Path.Value);
