@@ -26,6 +26,7 @@ public static class ServiceSettingDefinitions
         new("Sync:LagerplaetzeEnabled",              ServiceSettingType.Bool, "false", "Sync", "Sage-Lagerplatz-Stammdaten-Sync aktiv"),
         new("Sync:LagerbestandEnabled",              ServiceSettingType.Bool, "false", "Sync", "Sage-Lagerbestand-Sync (Bestand-Korrektur) aktiv"),
         new("Sync:LagerbestandIntervalMinutes",      ServiceSettingType.Int,  "0",     "Sync", "Eigenes Intervall (Minuten) fuer Lagerbestand-Sync (0 = Worker-Standard)"),
+        new("Sync:LagerbestandNullsetzenMaxPerRun",  ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr in Sage verschwundene Bestand-Paare je Lauf -> kein Nullsetzen + Fehlermail"),
         new("Sync:ProductionOrderReconcileEnabled",  ServiceSettingType.Bool, "false", "Sync", "Verwaiste (in Sage geloeschte) offene FAs automatisch stornieren (Opt-in)"),
         new("Sync:ReconcileMaxCancelPerRun",         ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Storno-Kandidaten je Lauf -> kein Storno + Fehlermail"),
 

@@ -73,6 +73,7 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:LagerplaetzeEnabled")]
     [InlineData("Sync:LagerbestandEnabled")]
     [InlineData("Sync:LagerbestandIntervalMinutes")]
+    [InlineData("Sync:LagerbestandNullsetzenMaxPerRun")]
     [InlineData("Sync:ProductionOrderReconcileEnabled")]
     [InlineData("Sync:ReconcileMaxCancelPerRun")]
     [InlineData("Sync:BomCacheEnabled")]
