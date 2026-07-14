@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
@@ -12,29 +13,39 @@ public class AccountController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
+    private readonly IAppSettingRepository _appSettingRepository;
 
     public AccountController(
         IUserRepository userRepository,
         IPasswordService passwordService,
         ICurrentUserService currentUserService,
         IWorkStepRepository workStepRepository,
-        IProductionWorkplaceRepository productionWorkplaceRepository)
+        IProductionWorkplaceRepository productionWorkplaceRepository,
+        IAppSettingRepository appSettingRepository)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
         _currentUserService = currentUserService;
         _workStepRepository = workStepRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
+        _appSettingRepository = appSettingRepository;
+    }
+
+    private async Task SetWindowsAuthAktivAsync()
+    {
+        var flag = await _appSettingRepository.GetValueAsync(AppSettingKeys.WindowsAuthAktiv);
+        ViewBag.WindowsAuthAktiv = string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     [HttpGet]
-    public IActionResult Login(string? returnUrl = null)
+    public async Task<IActionResult> Login(string? returnUrl = null)
     {
         // Wenn bereits eingeloggt, zum Dashboard
         if (HttpContext.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue)
             return RedirectToAction("Index", "Home");
 
         ViewBag.ReturnUrl = returnUrl;
+        await SetWindowsAuthAktivAsync();
         return View(new LoginViewModel());
     }
 
@@ -43,12 +54,16 @@ public class AccountController : Controller
     public async Task<IActionResult> Login(LoginViewModel vm, string? returnUrl = null)
     {
         if (!ModelState.IsValid)
+        {
+            await SetWindowsAuthAktivAsync();
             return View(vm);
+        }
 
         var user = await _userRepository.GetByNameAsync(vm.UserName);
         if (user == null || !user.IsActive)
         {
             vm.ErrorMessage = "Benutzer nicht gefunden oder inaktiv.";
+            await SetWindowsAuthAktivAsync();
             return View(vm);
         }
 
@@ -58,6 +73,7 @@ public class AccountController : Controller
             if (!_passwordService.VerifyPassword(user.PasswordHash, vm.Password ?? string.Empty))
             {
                 vm.ErrorMessage = "Falsches Passwort.";
+                await SetWindowsAuthAktivAsync();
                 return View(vm);
             }
         }
@@ -67,6 +83,7 @@ public class AccountController : Controller
             if (!string.IsNullOrEmpty(vm.Password))
             {
                 vm.ErrorMessage = "Für diesen Benutzer ist kein Passwort hinterlegt.";
+                await SetWindowsAuthAktivAsync();
                 return View(vm);
             }
         }
@@ -91,6 +108,19 @@ public class AccountController : Controller
         Response.Cookies.Append(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie, "1",
             new CookieOptions { HttpOnly = true, IsEssential = true });
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult WindowsLogin()
+    {
+        // Force-SSO: einmalige Negotiate-Challenge auch fuer per UA nicht erkannte
+        // Windows-Clients erzwingen. /Account/* ist von der Middleware ausgeschlossen,
+        // deshalb auf / (Home) redirecten, wo die Middleware greift.
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie);
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.AutoLoginTriedCookie);
+        Response.Cookies.Append(Middleware.WindowsAutoLoginMiddleware.ForceSsoCookie, "1",
+            new CookieOptions { HttpOnly = true, IsEssential = true });
+        return RedirectToAction("Index", "Home");
     }
 
     public IActionResult AccessDenied()
