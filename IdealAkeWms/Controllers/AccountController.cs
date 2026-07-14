@@ -100,8 +100,14 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Home");
     }
 
+    // KEIN [ValidateAntiForgeryToken]: Nach einem Windows-SSO-Login wird die Seite unter der
+    // Windows-Identitaet gerendert -> der Antiforgery-Token ist an diese Identitaet gebunden.
+    // Mobile-Browser (Android/iOS) senden bei nachfolgenden POSTs KEIN NTLM erneut -> der
+    // Logout-POST kommt anonym an -> Token-Identitaet != Request-Identitaet -> 400. Der Token
+    // laesst sich nicht fuer Desktop (NTLM-Resend) UND Mobile (anonym) gleichzeitig passend
+    // binden. Logout ist Low-Risk fuer CSRF (schlimmstenfalls Abmeldung, kein Datenzugriff),
+    // daher hier bewusst ohne Antiforgery-Pruefung.
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public IActionResult Logout()
     {
         HttpContext.Session.Clear();
