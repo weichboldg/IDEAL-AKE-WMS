@@ -26,6 +26,9 @@ public static class SyncLogServices
     public const string WarehouseRequisitionEmail = "WarehouseRequisitionEmail";
     public const string BdeAutoPause = "BdeAutoPause";
 
+    // Cleanup-Jobs (seit v1.25.0)
+    public const string CleanupActivityLog = "CleanupAktivitaetsprotokoll";
+
     public static IReadOnlyList<string> All { get; } = new[]
     {
         Lagerplatz, Lagerbestand, BomCache,
@@ -33,5 +36,6 @@ public static class SyncLogServices
         EnaioDms, Holiday, CoatingDetection, FaWorkStepDetection,
         ProductionOrder, ProductionOrderReconciliation, Article,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
+        CleanupActivityLog,
     };
 }
