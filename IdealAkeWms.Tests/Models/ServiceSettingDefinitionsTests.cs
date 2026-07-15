@@ -96,6 +96,7 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Notifications:MeldebestandSubject")]
     [InlineData("Notifications:Recipients")]
     [InlineData("Notifications:AppBaseUrl")]
+    [InlineData("Cleanup:AktivitaetsprotokollAufbewahrungTage")]
     public void All_ContainsDocumentedServiceReadKey(string key)
     {
         ServiceSettingDefinitions.All.Select(d => d.Key).Should().Contain(key);

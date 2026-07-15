@@ -49,6 +49,9 @@ public static class ServiceSettingDefinitions
         new("Sync:FeiertagRegion",                   ServiceSettingType.String, "",    "Feiertage", "Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)"),
         new("Sync:FeiertagJahreVoraus",              ServiceSettingType.Int,  "2",     "Feiertage", "Anzahl Folgejahre, die Feiertage vorausgesynct werden"),
 
+        // ----- Bereinigung (Cleanup-Jobs) -----
+        new("Cleanup:AktivitaetsprotokollAufbewahrungTage", ServiceSettingType.Int, "180", "Bereinigung", "Aktivitaets-Protokoll: Eintraege aelter als X Tage werden taeglich geloescht (0 = nie loeschen)"),
+
         // ----- Worker -----
         new("WorkerSettings:SyncIntervalMinutes",    ServiceSettingType.Int,  "15",    "Worker", "Sync-Intervall (Minuten) fuer den SyncWorker"),
         new("WorkerSettings:NotificationCheckIntervalMinutes", ServiceSettingType.Int, "60", "Worker", "Intervall (Minuten) fuer die Meldebestand-Pruefung (NotificationWorker)"),
