@@ -100,6 +100,14 @@
                         <em>&bdquo;Mit Windows anmelden&ldquo;</em> erzwingt die Windows-Anmeldung jetzt
                         zuverlaessig &ndash; auch direkt nach einem Logout oder einem ersten fehlgeschlagenen
                         Anmeldeversuch.</li>
+                    <li><strong>Aktivit&auml;ts-Protokoll-Bereinigung (neuer Cleanup-Abschnitt):</strong>
+                        Ein neuer Bereinigungs-Job im Windows-Dienst l&ouml;scht t&auml;glich
+                        Aktivit&auml;ts-Protokoll-Eintr&auml;ge, die &auml;lter als die eingestellte
+                        Aufbewahrung sind (Service-Einstellung
+                        <code>Cleanup:AktivitaetsprotokollAufbewahrungTage</code>, Default 180 Tage,
+                        <code>0</code> = nie l&ouml;schen). Neue Kategorie &bdquo;Bereinigung&ldquo; unter
+                        Einstellungen &rarr; Service-Einstellungen. Grundlage f&uuml;r weitere
+                        Bereinigungs-Jobs.</li>
                 </ul>
             </div>
         </div>

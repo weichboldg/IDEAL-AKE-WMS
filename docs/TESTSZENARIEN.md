@@ -5434,5 +5434,39 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
+## Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0)
+
+**Vorbedingungen:**
+- Service läuft. Die Bereinigung läuft im neuen `CleanupWorker` (24h-Takt); beim Service-Start läuft sie einmal an. Zum sofortigen Test den Service neu starten.
+- Die Aufbewahrung wird über die Service-Einstellung `Cleanup:AktivitaetsprotokollAufbewahrungTage` gesteuert (Default 180, `0` = nie löschen), Kategorie „Bereinigung" in `/ServiceSettings`.
+- Im Aktivitäts-Protokoll (`/SyncLog`) existieren Einträge mit unterschiedlichem Alter (Timestamp).
+
+> **Hinweis Aktivitäts-Protokoll:** Der Bereinigungslauf erscheint als eigener Protokoll-Eintrag mit Service-Namen `CleanupAktivitaetsprotokoll` und Count `geloescht=<N>`. Der eigene Lauf-Eintrag ist neuer als der Stichtag und wird deshalb nicht selbst gelöscht (Self-cleaning).
+
+### TS-54.1 Löschen aktiv
+1. `Cleanup:AktivitaetsprotokollAufbewahrungTage = 30` setzen. Sicherstellen, dass Protokoll-Einträge älter als 30 Tage existieren (ggf. Timestamps in der DB manipulieren).
+2. Service neu starten (bzw. einen CleanupWorker-Durchlauf abwarten).
+3. **Erwartet:** Einträge älter als 30 Tage sind weg, jüngere bleiben. Ein neuer `CleanupAktivitaetsprotokoll`-Lauf-Eintrag mit `geloescht=<N>` und Suffix „Aufbewahrung 30 Tage, Stichtag <dd.MM.yyyy>" erscheint.
+
+### TS-54.2 Deaktiviert
+1. `Cleanup:AktivitaetsprotokollAufbewahrungTage = 0` setzen.
+2. Service neu starten (bzw. Durchlauf abwarten).
+3. **Erwartet:** KEIN Löschen. KEIN `CleanupAktivitaetsprotokoll`-Eintrag (deaktiviert = still).
+
+### TS-54.3 DryRun
+1. `WorkerSettings:SyncDryRun = true`, `Cleanup:AktivitaetsprotokollAufbewahrungTage = 30`. Einträge älter als 30 Tage vorhanden.
+2. Service neu starten (bzw. Durchlauf abwarten).
+3. **Erwartet:** NICHTS gelöscht (alle Einträge bleiben). Ein `CleanupAktivitaetsprotokoll`-Lauf-Eintrag mit Suffix „(DryRun — nichts geloescht)" und `geloescht=<Kandidatenzahl>` (= Zahl der Einträge, die gelöscht würden).
+
+### TS-54.4 Editor
+1. `/ServiceSettings` öffnen.
+2. **Erwartet:** Die Kategorie „Bereinigung" zeigt das Int-Feld `Cleanup:AktivitaetsprotokollAufbewahrungTage`. Wert ändern und speichern → Wert wird persistiert (DB-first); der nächste CleanupWorker-Durchlauf nutzt den neuen Wert.
+
+**Negativ/Regression:**
+- Ein transienter DB-Fehler beim Lesen der Aufbewahrung würgt den Worker-Loop nicht ab (Default-Fallback via `GetIntSafeAsync`).
+- Ein Fehler im Bereinigungslauf stoppt den CleanupWorker-Loop nicht (resilient) und löst optional eine Fehlermail aus (bei aktivierter `ErrorNotification`).
+
+---
+
 *Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
