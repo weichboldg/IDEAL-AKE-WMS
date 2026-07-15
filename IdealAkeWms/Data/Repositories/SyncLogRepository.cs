@@ -48,4 +48,25 @@ public class SyncLogRepository : ISyncLogRepository
             .ToListAsync();
         return (rows, totalCount);
     }
+
+    public async Task<int> DeleteOlderThanAsync(DateTime cutoff, int batchSize, bool dryRun, CancellationToken ct = default)
+    {
+        if (dryRun)
+            return await _context.SyncLogs.CountAsync(x => x.Timestamp < cutoff, ct);
+
+        var total = 0;
+        while (true)
+        {
+            var batch = await _context.SyncLogs
+                .Where(x => x.Timestamp < cutoff)
+                .Take(batchSize)
+                .ToListAsync(ct);
+            if (batch.Count == 0) break;
+            _context.SyncLogs.RemoveRange(batch);
+            await _context.SaveChangesAsync(ct);
+            total += batch.Count;
+            if (batch.Count < batchSize) break;
+        }
+        return total;
+    }
 }

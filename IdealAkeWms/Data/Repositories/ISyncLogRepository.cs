@@ -7,4 +7,5 @@ public interface ISyncLogRepository
     Task AddAsync(SyncLog entry);
     Task<List<SyncLog>> GetRecentAsync(string? service, string? level, int limit);
     Task<(List<SyncLog> Rows, int TotalCount)> GetPagedAsync(string? service, string? level, string? reference, int page, int pageSize);
+    Task<int> DeleteOlderThanAsync(DateTime cutoff, int batchSize, bool dryRun, CancellationToken ct = default);
 }
