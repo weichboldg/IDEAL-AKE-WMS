@@ -67,6 +67,7 @@ try
     builder.Services.AddScoped<IWarehouseRequisitionEmailService, WarehouseRequisitionEmailService>();
     builder.Services.AddScoped<IBdeShiftCalendarService, BdeShiftCalendarService>();
     builder.Services.AddScoped<IBdeAutoPauseService, BdeAutoPauseService>();
+    builder.Services.AddScoped<IActivityLogCleanupService, ActivityLogCleanupService>();
 
     // HolidaySync — typed HttpClient gegen Nager.Date
     builder.Services.Configure<HolidaySyncOptions>(builder.Configuration.GetSection("Sync"));
@@ -79,6 +80,7 @@ try
     // Workers
     builder.Services.AddHostedService<SyncWorker>();
     builder.Services.AddHostedService<NotificationWorker>();
+    builder.Services.AddHostedService<CleanupWorker>();
 
     var host = builder.Build();
     host.Run();
