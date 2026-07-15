@@ -97,4 +97,20 @@ public class SyncLogRepositoryTests
         deleted.Should().Be(5);
         (await ctx.SyncLogs.CountAsync()).Should().Be(0);
     }
+
+    [Fact]
+    public async Task DeleteOlderThanAsync_terminates_on_exact_multiple_of_batchSize()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var cutoff = new DateTime(2026, 06, 01);
+        for (var i = 0; i < 4; i++)
+            ctx.SyncLogs.Add(new SyncLog { Service = "X", Level = SyncLogLevel.Info, Message = $"alt{i}", Timestamp = cutoff.AddDays(-1) });
+        await ctx.SaveChangesAsync();
+        var repo = new SyncLogRepository(ctx);
+
+        var deleted = await repo.DeleteOlderThanAsync(cutoff, batchSize: 2, dryRun: false);
+
+        deleted.Should().Be(4);
+        (await ctx.SyncLogs.CountAsync()).Should().Be(0);
+    }
 }

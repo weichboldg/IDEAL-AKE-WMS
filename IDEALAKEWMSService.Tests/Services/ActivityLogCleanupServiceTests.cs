@@ -55,9 +55,9 @@ public class ActivityLogCleanupServiceTests
     }
 
     [Fact]
-    public async Task RunAsync_dryRun_passes_dryRun_to_repo()
+    public async Task RunAsync_dryRun_passes_dryRun_to_repo_and_marks_suffix()
     {
-        var (svc, repo, _, _) = Build();
+        var (svc, repo, _, run) = Build();
         repo.Setup(r => r.DeleteOlderThanAsync(It.IsAny<System.DateTime>(), It.IsAny<int>(), true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(3);
 
@@ -65,5 +65,23 @@ public class ActivityLogCleanupServiceTests
 
         result.Deleted.Should().Be(3);
         repo.Verify(r => r.DeleteOlderThanAsync(It.IsAny<System.DateTime>(), It.IsAny<int>(), true, It.IsAny<CancellationToken>()), Times.Once);
+        run.Verify(r => r.FinishSuccessAsync(
+            It.IsAny<IReadOnlyDictionary<string, int>>(),
+            It.Is<string>(s => s.Contains("DryRun")),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunAsync_when_delete_throws_finishes_failed_and_rethrows()
+    {
+        var (svc, repo, _, run) = Build();
+        repo.Setup(r => r.DeleteOlderThanAsync(It.IsAny<System.DateTime>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new System.InvalidOperationException("boom"));
+
+        var act = async () => await svc.RunAsync(retentionDays: 180, dryRun: false, CancellationToken.None);
+
+        await act.Should().ThrowAsync<System.InvalidOperationException>().WithMessage("boom");
+        run.Verify(r => r.FinishFailedAsync("boom", It.IsAny<IReadOnlyDictionary<string, int>>(), It.IsAny<CancellationToken>()), Times.Once);
+        run.Verify(r => r.FinishSuccessAsync(It.IsAny<IReadOnlyDictionary<string, int>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

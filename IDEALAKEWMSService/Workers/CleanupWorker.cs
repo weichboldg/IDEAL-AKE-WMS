@@ -63,7 +63,9 @@ public class CleanupWorker : BackgroundService
                 _logger.LogInformation("Aktivitaetsprotokoll-Bereinigung fertig: {Deleted} geloescht (DryRun={DryRun}).",
                     result.Deleted, dryRun);
         }
-        catch (Exception ex)
+        // Cancellation (Service-Shutdown) ist kein Job-Fehler -> nicht als Fehler loggen/melden
+        // (analog SyncWorker.RunResilientAsync). Die OCE propagiert dann sauber aus dem Worker.
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Aktivitaetsprotokoll-Bereinigung ist fehlgeschlagen.");
             await NotifyErrorAsync("Aktivitaetsprotokoll-Bereinigung", ex, ct);
