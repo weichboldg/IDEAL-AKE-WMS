@@ -193,6 +193,31 @@ public class WindowsAutoLoginMiddlewareTests
     }
 
     [Fact]
+    public async Task LoginPage_NormalizesAuthenticatedUser_EvenWithoutSession()
+    {
+        // /account/* wird normalisiert, damit auch der Login-Formular-Token konsistent
+        // anonym-gebunden ist (dort laeuft kein SAM-Match, der die Identitaet braucht).
+        var ctx = MakeContext(true, "AKE\\jmuster");
+        ctx.Request.Path = "/account/login";
+        await Build(new Mock<IUserRepository>(), true, new Mock<IChallengeIssuer>())
+            .InvokeAsync(ctx, _ => Task.CompletedTask);
+        ctx.Session.GetInt32(CurrentUserService.SessionKeyUserId).Should().BeNull();
+        ctx.User.Identity!.IsAuthenticated.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StaticPath_NotNormalized_NoSessionAccess()
+    {
+        // Statische Pfade werden ausgelassen (kein Session-Laden, kein Strippen).
+        var ctx = MakeContext(true, "AKE\\jmuster");
+        ctx.Request.Path = "/css/site.css";
+        ctx.Session.SetInt32(CurrentUserService.SessionKeyUserId, 42);
+        await Build(new Mock<IUserRepository>(), true, new Mock<IChallengeIssuer>())
+            .InvokeAsync(ctx, _ => Task.CompletedTask);
+        ctx.User.Identity!.IsAuthenticated.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task NoSession_DoesNotNormalize()
     {
         // Ohne App-Session (z. B. Login-Seite) bleibt die Windows-Identitaet erhalten,

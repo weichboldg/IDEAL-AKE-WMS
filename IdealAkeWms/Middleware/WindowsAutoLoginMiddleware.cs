@@ -45,15 +45,16 @@ public class WindowsAutoLoginMiddleware : IMiddleware
     }
 
     /// <summary>
-    /// Sobald eine App-Session besteht, ist die (unter IIS-Windows-Auth per Verbindung
-    /// schwankende) Windows-Identitaet fuer den Rest der Pipeline irrelevant — die App
-    /// authentifiziert ueber die Session. Wir setzen <c>HttpContext.User</c> auf anonym,
-    /// damit der Antiforgery-Token NICHT an die mal-vorhandene/mal-fehlende Windows-Identitaet
-    /// gebunden wird (sonst 400 bei POST, wenn Render- und Submit-Identitaet abweichen).
-    /// Der Windows-Name fuers Audit wurde beim Login in die Session uebernommen.
-    /// Ohne Session (z. B. Login-Seite) bleibt die Identitaet erhalten, damit der SAM-Match
-    /// und die Windows-Namen-Uebernahme funktionieren. Statische Pfade werden ausgelassen,
-    /// um unnoetiges Session-Laden zu vermeiden.
+    /// Setzt <c>HttpContext.User</c> auf anonym, damit der Antiforgery-Token NICHT an die
+    /// (unter IIS-Windows-Auth per Verbindung schwankende) Windows-Identitaet gebunden wird
+    /// (sonst 400 bei POST, wenn Render- und Submit-Identitaet abweichen). Normalisiert wird:
+    /// (a) sobald eine App-Session besteht — alle geschuetzten Seiten authentifizieren ohnehin
+    /// ueber die Session; und (b) auf <c>/account/*</c> (Login/Logout) — dort laeuft nie ein
+    /// SAM-Match, der die live Windows-Identitaet braucht, sodass auch der Login-Formular-Token
+    /// konsistent anonym-gebunden ist. Der Windows-Name fuers Audit wird beim Login in die
+    /// Session uebernommen (SSO-SAM-Match + Formular-Login). Statische/gepunktete Pfade werden
+    /// ausgelassen (kein unnoetiges Session-Laden; MVC-POST-Routen enthalten keinen Punkt).
+    /// Best-effort: ein Session-Lesefehler darf den Request nicht abbrechen.
     /// </summary>
     private static void NormalizeUserForSession(HttpContext context)
     {
@@ -62,10 +63,16 @@ public class WindowsAutoLoginMiddleware : IMiddleware
             || path.StartsWith("/_framework/") || path.Contains('.'))
             return;
 
-        if (context.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue
-            && context.User?.Identity?.IsAuthenticated == true)
+        try
         {
-            context.User = new ClaimsPrincipal(new ClaimsIdentity());
+            var normalize = path.StartsWith("/account/")
+                            || context.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue;
+            if (normalize && context.User?.Identity?.IsAuthenticated == true)
+                context.User = new ClaimsPrincipal(new ClaimsIdentity());
+        }
+        catch
+        {
+            // Session nicht lesbar → Identitaet unveraendert lassen (kein Request-Abbruch).
         }
     }
 
