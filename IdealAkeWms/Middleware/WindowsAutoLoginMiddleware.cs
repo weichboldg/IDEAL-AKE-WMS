@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
@@ -39,7 +40,33 @@ public class WindowsAutoLoginMiddleware : IMiddleware
         {
             _logger.LogWarning(ex, "WindowsAutoLogin fehlgeschlagen — Fallback Formular");
         }
+        NormalizeUserForSession(context);
         await next(context);
+    }
+
+    /// <summary>
+    /// Sobald eine App-Session besteht, ist die (unter IIS-Windows-Auth per Verbindung
+    /// schwankende) Windows-Identitaet fuer den Rest der Pipeline irrelevant — die App
+    /// authentifiziert ueber die Session. Wir setzen <c>HttpContext.User</c> auf anonym,
+    /// damit der Antiforgery-Token NICHT an die mal-vorhandene/mal-fehlende Windows-Identitaet
+    /// gebunden wird (sonst 400 bei POST, wenn Render- und Submit-Identitaet abweichen).
+    /// Der Windows-Name fuers Audit wurde beim Login in die Session uebernommen.
+    /// Ohne Session (z. B. Login-Seite) bleibt die Identitaet erhalten, damit der SAM-Match
+    /// und die Windows-Namen-Uebernahme funktionieren. Statische Pfade werden ausgelassen,
+    /// um unnoetiges Session-Laden zu vermeiden.
+    /// </summary>
+    private static void NormalizeUserForSession(HttpContext context)
+    {
+        var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+        if (path.StartsWith("/lib/") || path.StartsWith("/css/") || path.StartsWith("/js/")
+            || path.StartsWith("/_framework/") || path.Contains('.'))
+            return;
+
+        if (context.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue
+            && context.User?.Identity?.IsAuthenticated == true)
+        {
+            context.User = new ClaimsPrincipal(new ClaimsIdentity());
+        }
     }
 
     private async Task<bool> ShouldTryAsync(HttpContext context)
@@ -79,6 +106,9 @@ public class WindowsAutoLoginMiddleware : IMiddleware
             {
                 context.Session.SetInt32(CurrentUserService.SessionKeyUserId, user.Id);
                 context.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
+                // Windows-Name fuers Audit in die Session — danach normalisiert NormalizeUserForSession
+                // die Identitaet auf anonym, live aus User.Identity.Name waere dann nicht mehr lesbar.
+                context.Session.SetString(CurrentUserService.SessionKeyWindowsUserName, identityName ?? "");
                 context.Response.Cookies.Delete(AutoLoginTriedCookie);
                 context.Response.Cookies.Delete(NoAutoLoginCookie);
                 context.Response.Cookies.Delete(ForceSsoCookie);

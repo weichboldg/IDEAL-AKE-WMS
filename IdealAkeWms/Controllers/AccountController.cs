@@ -91,6 +91,9 @@ public class AccountController : Controller
         // Session setzen
         HttpContext.Session.SetInt32(CurrentUserService.SessionKeyUserId, user.Id);
         HttpContext.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
+        // Windows-Name (falls die Anmeldung ueber ein Domaenen-Geraet lief) fuers Audit in die
+        // Session — die Middleware normalisiert HttpContext.User bei bestehender Session auf anonym.
+        HttpContext.Session.SetString(CurrentUserService.SessionKeyWindowsUserName, HttpContext.User?.Identity?.Name ?? "");
         Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie);
         Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.AutoLoginTriedCookie);
 

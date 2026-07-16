@@ -14,6 +14,11 @@ public class CurrentUserService : ICurrentUserService
 
     public const string SessionKeyUserId = "AppUserId";
     public const string SessionKeyUserName = "AppUserName";
+    // Windows-Login-Name (z. B. "AKE\jmuster"), einmal beim Login in die Session uebernommen.
+    // Grund: Die WindowsAutoLoginMiddleware normalisiert HttpContext.User bei bestehender
+    // Session auf anonym (Antiforgery-Fix) — der Windows-Name fuers Audit kommt daher aus der
+    // Session, nicht mehr live aus User.Identity.Name.
+    public const string SessionKeyWindowsUserName = "WindowsUserName";
 
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
@@ -27,6 +32,11 @@ public class CurrentUserService : ICurrentUserService
 
     public string GetWindowsUserName()
     {
+        // Primaer aus der Session (beim Login uebernommen) — HttpContext.User wird bei
+        // bestehender Session von der WindowsAutoLoginMiddleware auf anonym normalisiert.
+        var fromSession = _httpContextAccessor.HttpContext?.Session.GetString(SessionKeyWindowsUserName);
+        if (!string.IsNullOrEmpty(fromSession))
+            return fromSession;
         return _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "SYSTEM";
     }
 

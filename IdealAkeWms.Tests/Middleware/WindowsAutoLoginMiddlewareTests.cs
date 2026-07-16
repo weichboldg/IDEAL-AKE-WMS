@@ -167,6 +167,44 @@ public class WindowsAutoLoginMiddlewareTests
     }
 
     [Fact]
+    public async Task SessionExists_NormalizesAuthenticatedWindowsUserToAnonymous()
+    {
+        // Antiforgery-Fix: sobald eine App-Session besteht, wird die (per Verbindung
+        // schwankende) Windows-Identitaet auf anonym gesetzt, damit der Antiforgery-Token
+        // konsistent gebunden ist und POSTs unter SSO nicht mit 400 fehlschlagen.
+        var ctx = MakeContext(true, "AKE\\jmuster");
+        ctx.Session.SetInt32(CurrentUserService.SessionKeyUserId, 42);
+        await Build(new Mock<IUserRepository>(), true, new Mock<IChallengeIssuer>())
+            .InvokeAsync(ctx, _ => Task.CompletedTask);
+        ctx.User.Identity!.IsAuthenticated.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IdentityMatches_CapturesWindowsUserNameInSession_AndNormalizes()
+    {
+        var repo = new Mock<IUserRepository>();
+        repo.Setup(r => r.GetActiveByWindowsUserNameAsync("jmuster"))
+            .ReturnsAsync(new User { Id = 42, Name = "Max", WindowsUserName = "jmuster", IsActive = true });
+        var ctx = MakeContext(true, "AKE\\jmuster");
+        await Build(repo, true, new Mock<IChallengeIssuer>()).InvokeAsync(ctx, _ => Task.CompletedTask);
+        // Windows-Name fuers Audit in der Session, User danach normalisiert
+        ctx.Session.GetString(CurrentUserService.SessionKeyWindowsUserName).Should().Be("AKE\\jmuster");
+        ctx.User.Identity!.IsAuthenticated.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NoSession_DoesNotNormalize()
+    {
+        // Ohne App-Session (z. B. Login-Seite) bleibt die Windows-Identitaet erhalten,
+        // damit der Login-Flow den Windows-Namen noch lesen kann.
+        var ctx = MakeContext(true, "AKE\\jmuster");
+        await Build(new Mock<IUserRepository>(), false, new Mock<IChallengeIssuer>())
+            .InvokeAsync(ctx, _ => Task.CompletedTask);
+        ctx.Session.GetInt32(CurrentUserService.SessionKeyUserId).Should().BeNull();
+        ctx.User.Identity!.IsAuthenticated.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task IdentityMatches_WithForceSso_SetsSession_DeletesForceSso()
     {
         var repo = new Mock<IUserRepository>();

@@ -112,6 +112,12 @@
                         AD-Benutzers wird die im Active Directory hinterlegte E-Mail-Adresse
                         automatisch in den Benutzerstamm uebernommen (kann danach im Benutzer
                         weiter bearbeitet werden).</li>
+                    <li><strong>Fehlerbehebung Formular-Speichern unter Windows-Anmeldung:</strong>
+                        Nach einer Windows-Anmeldung konnten Formulare (z.&nbsp;B. &bdquo;AD-Benutzer
+                        anlegen&ldquo;, Abmelden) sporadisch mit einer Fehlerseite (400) abbrechen.
+                        Ursache war die schwankende Windows-Identitaet in Kombination mit dem
+                        Formular-Schutz; das ist nun behoben &ndash; die Anmeldung laeuft app-intern
+                        ueber die Sitzung, Formulare speichern zuverlaessig.</li>
                 </ul>
             </div>
         </div>
