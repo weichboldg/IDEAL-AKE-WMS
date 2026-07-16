@@ -120,6 +120,73 @@ public class UsersControllerAdUserTests
     }
 
     [Fact]
+    public async Task CreateAdUser_Post_TakesEmailFromAdCandidate()
+    {
+        var ad = new Mock<IActiveDirectoryService>();
+        ad.Setup(x => x.GetAuthorizationGroupMembersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AdUserCandidate>
+            {
+                new("sam5", "Sam Five", "sam5@ake.at", true)
+            });
+
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetAllWithRolesAsync()).ReturnsAsync(new List<User>());
+        User? added = null;
+        userRepo.Setup(r => r.AddAsync(It.IsAny<User>()))
+            .Callback<User>(u => { u.Id = 43; added = u; })
+            .ReturnsAsync((User u) => u);
+
+        var ctrl = BuildController(userRepo, ad);
+
+        // SAM absichtlich in anderer Schreibweise -> Match muss case-insensitiv sein
+        var vm = new AdUserCreateViewModel
+        {
+            SamAccountName = "SAM5",
+            DisplayName = "Sam Five",
+            SelectedRoleIds = new List<int>()
+        };
+
+        var result = await ctrl.CreateAdUser(vm);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        added.Should().NotBeNull();
+        added!.Email.Should().Be("sam5@ake.at");
+    }
+
+    [Fact]
+    public async Task CreateAdUser_Post_CandidateWithoutEmail_LeavesEmailNull()
+    {
+        var ad = new Mock<IActiveDirectoryService>();
+        ad.Setup(x => x.GetAuthorizationGroupMembersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AdUserCandidate>
+            {
+                new("sam6", "Sam Six", null, true)
+            });
+
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetAllWithRolesAsync()).ReturnsAsync(new List<User>());
+        User? added = null;
+        userRepo.Setup(r => r.AddAsync(It.IsAny<User>()))
+            .Callback<User>(u => { u.Id = 44; added = u; })
+            .ReturnsAsync((User u) => u);
+
+        var ctrl = BuildController(userRepo, ad);
+
+        var vm = new AdUserCreateViewModel
+        {
+            SamAccountName = "sam6",
+            DisplayName = "Sam Six",
+            SelectedRoleIds = new List<int>()
+        };
+
+        var result = await ctrl.CreateAdUser(vm);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        added.Should().NotBeNull();
+        added!.Email.Should().BeNull();
+    }
+
+    [Fact]
     public async Task CreateAdUser_Post_RejectsDuplicate_EvenWhenExistingUserInactive()
     {
         var ad = new Mock<IActiveDirectoryService>();

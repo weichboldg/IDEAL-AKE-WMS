@@ -165,18 +165,25 @@ public class UsersController : Controller
                 ModelState.AddModelError(nameof(vm.SamAccountName), "Für diesen Windows-Benutzer existiert bereits ein Datensatz.");
         }
 
+        // AD-Mitglieder einmal lesen — fuer die Re-Render-Kandidatenliste UND um die
+        // E-Mail des gewaehlten Benutzers server-seitig (autoritativ) zu uebernehmen.
+        var members = await _activeDirectory.GetAuthorizationGroupMembersAsync();
+
         if (!ModelState.IsValid)
         {
-            var members = await _activeDirectory.GetAuthorizationGroupMembersAsync();
             vm.Candidates = members.ToList();
             await PopulateAdRolesAsync(vm, vm.SelectedRoleIds);
             return View(vm);
         }
 
+        var candidate = members.FirstOrDefault(m =>
+            m.SamAccountName.Equals(sam, StringComparison.OrdinalIgnoreCase));
+
         var user = new User
         {
             Name = string.IsNullOrWhiteSpace(vm.DisplayName) ? sam : vm.DisplayName!.Trim(),
             WindowsUserName = sam,
+            Email = string.IsNullOrWhiteSpace(candidate?.Email) ? null : candidate.Email.Trim(),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
