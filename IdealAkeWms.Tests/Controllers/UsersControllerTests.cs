@@ -25,6 +25,7 @@ public class UsersControllerTests
         workStepRepo.Setup(x => x.GetActiveAsync()).ReturnsAsync(new List<WorkStep>());
         workplaceRepo ??= new Mock<IProductionWorkplaceRepository>();
         workplaceRepo.Setup(x => x.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionWorkplace>());
+        var activeDirectory = new Mock<IActiveDirectoryService>();
         return new UsersController(
             userRepo.Object,
             roleRepo.Object,
@@ -32,7 +33,8 @@ public class UsersControllerTests
             passwordService.Object,
             viewPrefRepo.Object,
             workStepRepo.Object,
-            workplaceRepo.Object);
+            workplaceRepo.Object,
+            activeDirectory.Object);
     }
 
     [Fact]
@@ -114,7 +116,7 @@ public class UsersControllerTests
     }
 
     [Fact]
-    public async Task Edit_Post_SavesDefaultWorkplace()
+    public async Task Edit_Post_SavesDefaultWorkbenches()
     {
         var existing = new User
         {
@@ -148,12 +150,12 @@ public class UsersControllerTests
             Id = 5,
             Name = "Dora",
             IsActive = true,
-            DefaultWorkplaceId = 7
+            DefaultWorkbenches = "Werkbank 7"
         };
 
         await ctrl.Edit(5, vm, null);
 
         saved.Should().NotBeNull();
-        saved!.DefaultWorkplaceId.Should().Be(7);
+        saved!.DefaultWorkbenches.Should().Be("Werkbank 7");
     }
 }

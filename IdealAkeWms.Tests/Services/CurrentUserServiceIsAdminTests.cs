@@ -3,8 +3,6 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace IdealAkeWms.Tests.Services;
@@ -51,20 +49,10 @@ public class CurrentUserServiceIsAdminTests
         var roleRepoMock = new Mock<IRoleRepository>();
         roleRepoMock.Setup(r => r.GetRoleKeysByUserIdAsync(It.IsAny<int>()))
             .ReturnsAsync(roleKeys ?? new List<string>());
-        roleRepoMock.Setup(r => r.GetRolesWithAdGroupAsync())
-            .ReturnsAsync(new List<Role>());
 
         var userRepoMock = new Mock<IUserRepository>();
-        var memoryCache = new MemoryCache(new MemoryCacheOptions());
 
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                { "Security:AdGroupCacheMinutes", "5" }
-            })
-            .Build();
-
-        var service = new CurrentUserService(httpContextAccessor.Object, roleRepoMock.Object, userRepoMock.Object, memoryCache, configuration);
+        var service = new CurrentUserService(httpContextAccessor.Object, roleRepoMock.Object, userRepoMock.Object);
         return (service, roleRepoMock);
     }
 

@@ -7,7 +7,7 @@ using IdealAkeWms.Filters;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireStockAccess]
+[RequireStockReadAccess]
 public class StockOverviewController : Controller
 {
     private readonly IStockMovementRepository _stockMovementRepository;

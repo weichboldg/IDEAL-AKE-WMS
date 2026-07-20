@@ -74,6 +74,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
             entity.Property(e => e.PersonalNumber).HasMaxLength(50);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
+            entity.Property(e => e.WindowsUserName).HasMaxLength(200);
+            entity.HasIndex(e => e.WindowsUserName)
+                .IsUnique()
+                .HasFilter("[WindowsUserName] IS NOT NULL")
+                .HasDatabaseName("UQ_Users_WindowsUserName");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -84,10 +89,7 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.DefaultWorkStepId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.DefaultWorkplace)
-                .WithMany()
-                .HasForeignKey(e => e.DefaultWorkplaceId)
-                .OnDelete(DeleteBehavior.SetNull);
+            entity.Property(e => e.DefaultWorkbenches).HasMaxLength(400);
         });
 
         // Role
@@ -98,7 +100,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Key).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.AdGroup).HasMaxLength(200);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -218,6 +219,15 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.ArticleCategory)
                 .WithMany(c => c.Articles)
                 .HasForeignKey(e => e.ArticleCategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(e => e.SagePrimaryStorageLocation).HasMaxLength(100);
+
+            entity.HasIndex(e => e.PrimaryStorageLocationId);
+
+            entity.HasOne(e => e.PrimaryStorageLocation)
+                .WithMany()
+                .HasForeignKey(e => e.PrimaryStorageLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -369,10 +379,12 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.CancelledBy).HasMaxLength(256);
 
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.ArticleNumber);
             entity.HasIndex(e => e.IsDone);
+            entity.HasIndex(e => e.IsCancelled);
             entity.HasIndex(e => e.ProductionWorkplaceId);
 
             entity.HasOne(e => e.ProductionWorkplace)
@@ -1038,6 +1050,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable("WarehouseRequisitions");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).HasDefaultValue(WarehouseRequisitionType.Lager);
             entity.Property(e => e.CancellationReason).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();

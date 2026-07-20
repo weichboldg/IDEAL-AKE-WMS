@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
-[RequireStockAccess]
+[RequireStockOrLagerbestellungAccess]
+[RequireLagerbestellungAktiv]
 public class MissingPartsController : Controller
 {
     private readonly IWarehouseRequisitionRepository _repo;
@@ -26,6 +27,7 @@ public class MissingPartsController : Controller
 
     public async Task<IActionResult> Index(
         ShortageStatus tab = ShortageStatus.WillBeRestocked,
+        WarehouseRequisitionType? type = null,
         int? workplaceId = null,
         bool mineOnly = true,
         int page = 1, int? pageSize = null)
@@ -34,6 +36,14 @@ public class MissingPartsController : Controller
 
         // Tab-Normalisierung: None ist ungueltig fuer die Liste -> Default-Tab
         if (tab == ShortageStatus.None) tab = ShortageStatus.WillBeRestocked;
+
+        // Typ-Auflösung (aeussere Lager/Glas-Reiter): nur erlaubte Typen zulassen
+        var canOrderLager = await _user.CanOrderLagerAsync();
+        var canOrderGlas = await _user.CanOrderGlasAsync();
+        var activeType = type ?? (canOrderLager ? WarehouseRequisitionType.Lager : WarehouseRequisitionType.Glas);
+        if (!Enum.IsDefined(activeType)) activeType = WarehouseRequisitionType.Lager;
+        if (activeType == WarehouseRequisitionType.Glas && !canOrderGlas) activeType = WarehouseRequisitionType.Lager;
+        if (activeType == WarehouseRequisitionType.Lager && !canOrderLager && canOrderGlas) activeType = WarehouseRequisitionType.Glas;
 
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
@@ -65,6 +75,9 @@ public class MissingPartsController : Controller
                 WorkplaceFilter = workplaceId,
                 MineOnly = mineOnly,
                 ActiveTab = tab,
+                ActiveType = activeType,
+                CanOrderLager = canOrderLager,
+                CanOrderGlas = canOrderGlas,
                 WaitingTotalCount = 0,
                 NoRestockTotalCount = 0,
                 HasNoWorkplaceMapping = true,
@@ -82,6 +95,7 @@ public class MissingPartsController : Controller
 
         var (rawRows, total) = await _repo.GetMissingPartsAsync(
             tab,
+            activeType,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             columnFilters,
             null, null, page, effectivePageSize);
@@ -105,10 +119,12 @@ public class MissingPartsController : Controller
         // Counts fuer beide Tabs (Tab-Header-Badges)
         var waitingResult = await _repo.GetMissingPartsAsync(
             ShortageStatus.WillBeRestocked,
+            activeType,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             null, null, null, 1, 1);
         var noRestockResult = await _repo.GetMissingPartsAsync(
             ShortageStatus.NoRestock,
+            activeType,
             effectiveWorkplaceId == -1 ? null : effectiveWorkplaceId,
             null, null, null, 1, 1);
 
@@ -120,6 +136,9 @@ public class MissingPartsController : Controller
             MineOnly = mineOnly,
             HasNoWorkplaceMapping = hasNoWorkplaceMapping,
             ActiveTab = tab,
+            ActiveType = activeType,
+            CanOrderLager = canOrderLager,
+            CanOrderGlas = canOrderGlas,
             WaitingTotalCount = waitingResult.TotalCount,
             NoRestockTotalCount = noRestockResult.TotalCount,
             Pagination = new PaginationState

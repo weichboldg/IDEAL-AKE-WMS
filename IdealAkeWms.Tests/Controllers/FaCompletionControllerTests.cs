@@ -94,7 +94,7 @@ public class FaCompletionControllerTests
         {
             ProductionOrderId = productionOrderId,
             WorkStepId = workStepId,
-            IsCompleted = isCompleted,
+            Status = isCompleted ? FaWorkStepStatus.Fertig : FaWorkStepStatus.Offen,
             IsSpecComplete = isSpecComplete,
             IsRemoved = isRemoved,
             CreatedAt = DateTime.Now,
@@ -833,8 +833,8 @@ public class FaCompletionControllerTests
         reloaded.IsSpecComplete.Should().BeTrue();
         reloaded.SpecCompletedAt.Should().NotBeNull();
         reloaded.SpecCompletedBy.Should().Be("Max Mustermann");
-        // Arbeit-erledigt (IsCompleted) bleibt unberuehrt
-        reloaded.IsCompleted.Should().BeFalse();
+        // Arbeit-erledigt (Status) bleibt unberuehrt
+        reloaded.Status.Should().Be(FaWorkStepStatus.Offen);
     }
 
     [Fact]

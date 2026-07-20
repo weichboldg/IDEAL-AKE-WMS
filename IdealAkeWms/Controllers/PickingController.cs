@@ -284,7 +284,8 @@ public class PickingController : Controller
             // TreeLevel aus Position ableiten: Anzahl Punkte = Ebene (z.B. "15" = 0, "15.1" = 1, "15.1.1" = 2)
             var treeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.');
 
-            // Auto-Suggest: buchbarer Lagerplatz mit hoechster Menge, sonst NAN.
+            // Auto-Suggest: Hauptlagerplatz bevorzugen (wenn dort buchbarer Bestand > 0),
+            // sonst buchbarer Lagerplatz mit hoechster Menge, sonst NAN.
             // Sage-synchronisierte Lagerplaetze sind by default IstBuchbar=false
             // und tauchen deshalb nicht im Dropdown auf — wuerden sie hier als
             // Suggestion gewinnen, blieb das Select leer ("--").
@@ -292,7 +293,14 @@ public class PickingController : Controller
             var buchbarStock = locations
                 .Where(sl => sl.Quantity > 0 && buchbarLocationIds.Contains(sl.StorageLocationId))
                 .ToList();
-            if (buchbarStock.Count > 0)
+            // 1. Hauptlagerplatz bevorzugen, wenn dort buchbarer Bestand > 0 liegt.
+            var primaryBuchbar = buchbarStock
+                .FirstOrDefault(sl => sl.IsPrimaryStorageLocation);
+            if (primaryBuchbar != null)
+            {
+                suggestedLocationId = primaryBuchbar.StorageLocationId;
+            }
+            else if (buchbarStock.Count > 0)
             {
                 suggestedLocationId = buchbarStock.OrderByDescending(sl => sl.Quantity).First().StorageLocationId;
             }
@@ -369,6 +377,13 @@ public class PickingController : Controller
             ? await _partRequisitionRepository.GetByProductionOrderAsync(id)
             : new List<PartRequisition>();
         ViewBag.OpenRequisitions = openRequisitions;
+
+        // Lagerbestellung-Button (v1.25.0): Master-Schalter (Default true: nur "false" sperrt)
+        // + Order-Recht (Lager ODER Glas). Unabhaengig von Bedarfsmeldungen (BestellungenAktiv).
+        var lagerbestellungAktivRaw = await _settingRepository.GetValueAsync(AppSettingKeys.LagerbestellungAktiv);
+        ViewBag.LagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
+        ViewBag.CanOrderWarehouse = await _currentUserService.CanOrderLagerAsync()
+            || await _currentUserService.CanOrderGlasAsync();
 
         return View(vm);
     }

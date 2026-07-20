@@ -167,4 +167,101 @@ public class FaWorkStepDetectionServiceTests
         fakeLogger.Runs[0].FinishedSuccess.Should().BeTrue();
         fakeLogger.Runs[0].FinalCounts!["neu"].Should().Be(1);
     }
+
+    [Fact]
+    public async Task Detect_TermWithoutHit_CountedAndListedInSuffix()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.WorkSteps.Add(NewWorkStep("VX", "gibtsnichtimbom"));
+        ctx.CachedBomHeaders.Add(NewBomHeader("ART-1", "Irgendein Teil"));
+        ctx.ProductionOrders.Add(NewOrder("FA-1", "ART-1"));
+        await ctx.SaveChangesAsync();
+
+        var fake = new FakeSyncLogger();
+        await CreateService(ctx, fake).DetectAsync(dryRun: false);
+
+        var run = fake.Runs.Single();
+        run.FinalCounts!["suchbegriffe gesamt"].Should().Be(1);
+        run.FinalCounts!["mit treffer"].Should().Be(0);
+        run.FinalCounts!["ohne treffer"].Should().Be(1);
+        run.FinalMessageSuffix.Should().Contain("Ohne Treffer:").And.Contain("gibtsnichtimbom (VX)");
+    }
+
+    [Fact]
+    public async Task Detect_NewlyDetectedFa_WritesInfoLineWithTermAndOrderNumber()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.WorkSteps.Add(NewWorkStep("VL", "luefter"));
+        ctx.CachedBomHeaders.Add(NewBomHeader("ART-1", "Axialluefter 230V"));
+        ctx.ProductionOrders.Add(NewOrder("FA-1", "ART-1"));
+        await ctx.SaveChangesAsync();
+
+        var fake = new FakeSyncLogger();
+        await CreateService(ctx, fake).DetectAsync(dryRun: false);
+
+        var run = fake.Runs.Single();
+        var info = run.Events.Where(e => e.Level == "Info").ToList();
+        info.Should().ContainSingle(e =>
+            e.Message.Contains("FA FA-1")
+            && e.Message.Contains("AG VL")
+            && e.Message.Contains("Begriff: luefter")
+            && e.Reference == "FA-1");
+        run.FinalCounts!["neu"].Should().Be(1);
+        run.FinalCounts!["mit treffer"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Detect_AlreadyAssignedFa_WritesNoInfoLine()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var step = NewWorkStep("VL", "luefter");
+        var order = NewOrder("FA-1", "ART-1");
+        ctx.WorkSteps.Add(step);
+        ctx.CachedBomHeaders.Add(NewBomHeader("ART-1", "Axialluefter 230V"));
+        ctx.ProductionOrders.Add(order);
+        await ctx.SaveChangesAsync();
+        ctx.FaWorkSteps.Add(new FaWorkStep
+        {
+            ProductionOrderId = order.Id, WorkStepId = step.Id, Source = FaWorkStepSources.Sync,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+        });
+        await ctx.SaveChangesAsync();
+
+        var fake = new FakeSyncLogger();
+        await CreateService(ctx, fake).DetectAsync(dryRun: false);
+
+        var run = fake.Runs.Single();
+        run.Events.Where(e => e.Level == "Info").Should().BeEmpty();
+        run.FinalCounts!["neu"].Should().Be(0);
+        run.FinalCounts!["uebersprungen"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Detect_SkipsCancelledOrders()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var step = NewWorkStep("VL", "luefter");
+        // Offene FA -> wird erkannt.
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "FA-OPEN", ArticleNumber = "ART-1", IsDone = false, IsCancelled = false,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+        });
+        // Stornierte FA (gleiche Artikelnummer) -> darf NICHT erkannt werden.
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "FA-CANCELLED", ArticleNumber = "ART-1", IsDone = false, IsCancelled = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+        });
+        ctx.WorkSteps.Add(step);
+        ctx.CachedBomHeaders.Add(NewBomHeader("ART-1", "Axialluefter 230V"));
+        await ctx.SaveChangesAsync();
+
+        var result = await CreateService(ctx).DetectAsync(dryRun: false);
+
+        result.Inserted.Should().Be(1);
+        var row = await ctx.FaWorkSteps.SingleAsync();
+        var openOrder = await ctx.ProductionOrders.SingleAsync(o => o.OrderNumber == "FA-OPEN");
+        row.ProductionOrderId.Should().Be(openOrder.Id);
+    }
 }

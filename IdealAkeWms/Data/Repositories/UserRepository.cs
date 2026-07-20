@@ -38,4 +38,16 @@ public class UserRepository : Repository<User>, IUserRepository
         var trimmed = name.Trim();
         return await _dbSet.FirstOrDefaultAsync(u => u.Name == trimmed);
     }
+
+    public async Task<User?> GetActiveByWindowsUserNameAsync(string samAccountName)
+    {
+        if (string.IsNullOrWhiteSpace(samAccountName))
+            return null;
+
+        var sam = samAccountName.Trim().ToLowerInvariant();
+        return await _dbSet
+            .FirstOrDefaultAsync(u => u.IsActive
+                && u.WindowsUserName != null
+                && u.WindowsUserName.ToLower() == sam);
+    }
 }

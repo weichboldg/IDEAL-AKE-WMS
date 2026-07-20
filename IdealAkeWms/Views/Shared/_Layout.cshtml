@@ -29,11 +29,16 @@
                     <ul class="navbar-nav me-auto">
                         @{
                             var canAccessStock = await CurrentUserService.CanAccessStockAsync();
+                            var canAccessStockRead = await CurrentUserService.CanAccessStockReadAsync();
                             var canProcessLager = await CurrentUserService.CanProcessLagerAsync();
                             var canPick = await CurrentUserService.CanPickAsync();
+                            var canAccessLagerbestellung = await CurrentUserService.CanAccessLagerbestellungAsync();
+                            var canAccessGlasbestellung = await CurrentUserService.CanAccessGlasbestellungAsync();
                             var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
                             var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                            var lagerbestellungAktivRaw = await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.LagerbestellungAktiv);
+                            var lagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
                             var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
                             var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var releasedPickingCount = leitstandAktiv && canPick ? await PickingStatusRepository.GetReleasedForPickingCountAsync() : 0;
@@ -43,21 +48,24 @@
                             var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
                             var faCompletionAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
                             var hasVorbauAccess = await CurrentUserService.HasVorbauAccessAsync();
-                            var showFaList = canPick || canViewTracking || canManagePickingRelease;
+                            var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             var showFaCompletion = faCompletionAktiv && canFaCompletion;
                             var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
                         }
-                        @if (canAccessStock || canPick)
+                        @if (canAccessStock || canPick || canAccessStockRead)
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Lager
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
-                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
-                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
-                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                    @if (canAccessStock || canPick)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
+                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
+                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                    }
                                     <li><a class="dropdown-item" asp-controller="StockOverview" asp-action="Index">Bestände</a></li>
                                     <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
                                     @if (await CurrentUserService.CanTransferStockAsync())
@@ -120,21 +128,27 @@
                                 </a>
                             </li>
                         }
-                        @if (bestellungenAktiv && (canPick || canAccessStock))
+                        @if ((bestellungenAktiv || lagerbestellungAktiv) && (canPick || canAccessStock || canAccessLagerbestellung || canAccessGlasbestellung))
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "PartRequisitions" or "WarehouseRequisitions" or "WarehousePicking") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "PartRequisitions" or "WarehouseRequisitions" or "WarehousePicking" or "MissingParts" or "MissingPartsLager") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Bestellungen
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
-                                    <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
-                                    <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
-                                    @if (canProcessLager)
+                                    @if (bestellungenAktiv && (canPick || canAccessStock))
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                        <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Lager: Fehlteile</a></li>
+                                        <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
+                                    }
+                                    @if (lagerbestellungAktiv)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
+                                        <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
+                                        @if (canProcessLager)
+                                        {
+                                            <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                            <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
+                                            <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Lager: Fehlteile</a></li>
+                                        }
                                     }
                                 </ul>
                             </li>

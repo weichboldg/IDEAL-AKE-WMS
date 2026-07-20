@@ -37,9 +37,8 @@ public class PickingStatusApiController : ControllerBase
         var order = await _productionOrders.GetByIdAsync(req.ProductionOrderId);
         if (order == null) return NotFound();
 
-        var row = await _pickingStatus.GetByProductionOrderIdAsync(req.ProductionOrderId);
-        if (row == null) return NotFound("PickingStatus-Zeile fehlt (sollte durch AgentJob eager-created sein).");
-
+        // SetFieldAsync legt die PickingStatus-Zeile bei Bedarf an (Upsert) — frueher blockte
+        // hier ein 404, wenn der AgentJob die Zeile nicht eager angelegt hatte.
         await _pickingStatus.SetFieldAsync(
             req.ProductionOrderId, req.Field, req.Value,
             _currentUser.GetDisplayName(), _currentUser.GetWindowsUserName());

@@ -1,3 +1,5 @@
+using IdealAkeWms.Models;
+
 namespace IdealAkeWms.Models.ViewModels;
 
 public class ArticleEditViewModel
@@ -5,6 +7,8 @@ public class ArticleEditViewModel
     public Article Article { get; set; } = null!;
     public List<ArticleCategory> Categories { get; set; } = new();
     public List<AttributeEditItem> Attributes { get; set; } = new();
+    public List<StorageLocation> StorageLocations { get; set; } = new();
+    public bool IsPrimarySageControlled { get; set; }
 }
 
 public class AttributeEditItem

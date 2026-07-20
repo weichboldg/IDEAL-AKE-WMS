@@ -12,7 +12,7 @@ namespace IdealAkeWms.Controllers;
 /// FA-Abarbeitungsliste je Arbeitsgang (v1.22.0, Spec §7): Filter ist EIN Arbeitsgang.
 /// Pro offenem FA mit aktivem (IsRemoved=0) FaWorkStep des gewaehlten AGs eine Zeile —
 /// ueber ALLE Werkbaenke. Spalten: Werkbank (Info), Merkmal-Spalten des gewaehlten AGs
-/// und EINE Erledigt-Checkbox (AJAX-Toggle <c>/api/fa-work-steps/toggle-completed</c>).
+/// und EIN Status-Auswahlfeld (3-Wert, AJAX <c>/api/fa-work-steps/set-status</c>).
 /// Default-Arbeitsgang aus <see cref="User.DefaultWorkStepId"/>.
 /// Feature-Gate: AppSetting <c>FaCompletionAktiv</c> (wie FA-Vervollstaendigung).
 /// </summary>
@@ -60,10 +60,10 @@ public class FaWorklistController : Controller
         _currentUser = currentUser;
     }
 
-    // GET /FaWorklist?workStepId=...&workplaceId=...
+    // GET /FaWorklist?workStepId=...&workbenches=...
     public async Task<IActionResult> Index(
         int? workStepId,
-        int? workplaceId = null,
+        string? workbenches = null,
         bool showDone = false,
         int page = 1,
         int? pageSize = null)
@@ -85,10 +85,15 @@ public class FaWorklistController : Controller
         var availableWorkSteps = await _workStepRepository.GetActiveAsync();
         var availableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
 
-        // Schritt 2: Defaults aus dem aktuellen User (User.DefaultWorkStepId / DefaultWorkplaceId),
-        // falls kein expliziter ?workStepId bzw. ?workplaceId mitkommt. Beide aus demselben
-        // User-Objekt (einmal laden).
-        if (workStepId == null || workplaceId == null)
+        // Schritt 2: Defaults aus dem aktuellen User. WorkStep-Default greift wenn ?workStepId fehlt.
+        // Werkbank-Filter: explizit, wenn der Query-Param "workbenches" vorhanden ist (auch leer =
+        // "alle"); sonst User.DefaultWorkbenches. (Param-Wert kann durch leeres GET-Feld null sein,
+        // daher zusaetzlich Query.ContainsKey pruefen.)
+        bool workbenchesProvided = workbenches != null
+            || (HttpContext?.Request?.Query.ContainsKey("workbenches") ?? false);
+        string? effectiveWorkbenches = workbenchesProvided ? (workbenches ?? string.Empty) : null;
+
+        if (workStepId == null || !workbenchesProvided)
         {
             var appUserId = _currentUser.GetCurrentAppUserId();
             if (appUserId.HasValue)
@@ -98,9 +103,9 @@ public class FaWorklistController : Controller
                 {
                     workStepId = user?.DefaultWorkStepId;
                 }
-                if (workplaceId == null)
+                if (!workbenchesProvided)
                 {
-                    workplaceId = user?.DefaultWorkplaceId;
+                    effectiveWorkbenches = user?.DefaultWorkbenches;
                 }
             }
         }
@@ -108,7 +113,7 @@ public class FaWorklistController : Controller
         var vm = new FaWorklistViewModel
         {
             SelectedWorkStepId = workStepId,
-            SelectedWorkplaceId = workplaceId,
+            Workbenches = effectiveWorkbenches,
             ShowDone = showDone,
             AvailableWorkSteps = availableWorkSteps,
             AvailableWorkplaces = availableWorkplaces,
@@ -140,12 +145,13 @@ public class FaWorklistController : Controller
             .Select(f => f.ProductionOrderId)
             .ToHashSet();
 
-        // Zusatzfilter Werkbank (UND): nur wenn workplaceId gesetzt ist, sonst alle Werkbaenke.
+        // Zusatzfilter Werkbank (UND): Komma-OR-Contains auf den Werkbank-Namen (leer = alle).
         var orders = (await _productionOrderRepository.GetAllOrderedAsync())
             .Where(o => !o.IsDone
+                        && !o.IsCancelled
                         && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking)
                         && orderIdsWithStep.Contains(o.Id)
-                        && (workplaceId == null || o.ProductionWorkplaceId == workplaceId))
+                        && WorkbenchFilter.Matches(o.ProductionWorkplace?.Name, effectiveWorkbenches))
             .ToList();
 
         // Schritt 5: Termin-Berechnung (KommissionierTage/VorkommissionierTage, OHNE Beschichtung)
@@ -153,6 +159,11 @@ public class FaWorklistController : Controller
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
+        var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
+        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync(AppSettingKeys.BeschichtungAbholtage) ?? "Dienstag,Donnerstag";
+        var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
+        var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
+        var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
 
         var rows = new List<FaWorklistRow>();
         foreach (var order in orders)
@@ -167,8 +178,8 @@ public class FaWorklistController : Controller
                 continue;
             }
 
-            // Default: erledigte FAs (gewaehlter AG IsCompleted) ausblenden.
-            if (!showDone && selectedStep.IsCompleted)
+            // Default: fertige FAs (gewaehlter AG Status==Fertig) ausblenden — InBearbeitung bleibt sichtbar.
+            if (!showDone && selectedStep.Status == FaWorkStepStatus.Fertig)
             {
                 continue;
             }
@@ -178,13 +189,15 @@ public class FaWorklistController : Controller
                 ProductionOrderId = order.Id,
                 OrderNumber = order.OrderNumber,
                 ArticleNumber = order.ArticleNumber,
+                Description1 = order.Description1,
+                Description2 = order.Description2,
                 Quantity = order.Quantity,
                 ProductionDate = order.ProductionDate,
                 WorkplaceName = order.ProductionWorkplace?.Name,
                 WorkStepCell = new FaWorklistCell
                 {
                     FaWorkStepId = selectedStep.Id,
-                    IsCompleted = selectedStep.IsCompleted,
+                    Status = selectedStep.Status,
                 },
             };
 
@@ -194,6 +207,10 @@ public class FaWorklistController : Controller
                     order.ProductionDate.Value, kommissionierTage, holidays);
                 row.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     row.KommissionierTermin.Value, vorkommissionierTage, holidays);
+                // Beschichtungstermin: shared CoatingDateCalculator (DRY mit Leitstand).
+                row.BeschichtungTermin = CoatingDateCalculator.Compute(
+                    row.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
+                    order.PickingStatus?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
 
             // Schritt 6: Merkmal-Werte als Anzeigetext (Dropdown -> Option.Value,
@@ -257,6 +274,12 @@ public class FaWorklistController : Controller
         if (vm == null)
             return NotFound();
 
+        // Lagerbestellung-Button auch im Read-only-Vorbau (v1.25.0), unabhaengig von ReadOnly.
+        var lagerbestellungAktivRaw = await _settingRepository.GetValueAsync(AppSettingKeys.LagerbestellungAktiv);
+        ViewBag.LagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
+        ViewBag.CanOrderWarehouse = await _currentUser.CanOrderLagerAsync()
+            || await _currentUser.CanOrderGlasAsync();
+
         return View("~/Views/Picking/Bom.cshtml", vm);
     }
 
@@ -293,7 +316,10 @@ public class FaWorklistController : Controller
             ["order-number"] = r => r.OrderNumber,
             ["workbench"] = r => r.WorkplaceName,
             ["article-number"] = r => r.ArticleNumber,
+            ["description1"] = r => r.Description1,
+            ["description2"] = r => r.Description2,
             ["quantity"] = r => r.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["coating-date"] = r => FormatDateForFilter(r.BeschichtungTermin),
             ["bg-date"] = r => FormatDateForFilter(r.VorkommissionierTermin),
             ["picking-date"] = r => FormatDateForFilter(r.KommissionierTermin),
             ["production-date"] = r => FormatDateForFilter(r.ProductionDate),

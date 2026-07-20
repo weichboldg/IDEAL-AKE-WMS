@@ -177,6 +177,15 @@ public class SyncLoggerTests
         recordingLogger.LastWarningMessage.Should().Contain("SyncLog write failed");
     }
 
+    [Fact]
+    public void All_contains_ProductionOrderReconciliation()
+    {
+        // Der Reconcile-Lauf schreibt unter diesem Service-Namen; der SyncLog-Filter
+        // (SyncLogController.KnownServices = SyncLogServices.All) muss ihn kennen.
+        SyncLogServices.All.Should().Contain(SyncLogServices.ProductionOrderReconciliation);
+        SyncLogServices.ProductionOrderReconciliation.Should().Be("ProductionOrderReconciliation");
+    }
+
     // Test helper: DbContextFactory that always throws — for robustness testing.
     private sealed class ThrowingDbContextFactory : IDbContextFactory<ApplicationDbContext>
     {

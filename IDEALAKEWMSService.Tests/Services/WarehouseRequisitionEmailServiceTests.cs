@@ -37,7 +37,7 @@ public class WarehouseRequisitionEmailServiceTests
         });
         await ctx.SaveChangesAsync();
 
-        var id = await repo.CreateDraftAsync(wp.Id, u.Id, "tester", "DOMAIN\\tester");
+        var id = await repo.CreateDraftAsync(wp.Id, WarehouseRequisitionType.Lager, u.Id, "tester", "DOMAIN\\tester");
         await repo.AddItemAsync(id, "ART-1", "Schraube", "Stk", 5m, "tester", "DOMAIN\\tester");
         var r = await ctx.WarehouseRequisitions.FindAsync(id);
         await repo.SubmitAsync(id, grp.Id, u.Id, "tester", "DOMAIN\\tester", r!.RowVersion);
@@ -216,5 +216,46 @@ public class WarehouseRequisitionEmailServiceTests
         text.Should().Contain("Schraube");
         text.Should().Contain("ART-2");
         text.Should().Contain("WB-A");
+    }
+
+    [Fact]
+    public void BuildSubmitText_GlasBestellung_LabelGlasbestellung()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 77,
+            Type = WarehouseRequisitionType.Glas,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-Glas" },
+            CreatedBy = "tester",
+            SubmittedAt = new DateTime(2026, 6, 16, 8, 0, 0),
+            Items =
+            {
+                new WarehouseRequisitionItem { Position = 1, ArticleNumber = "GLAS-1", ArticleDescription = "Glasscheibe", Unit = "Stk", QuantityRequested = 2m },
+            }
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildSubmitText(r, "https://wms.ake.at");
+
+        text.Should().StartWith("Glasbestellung #77");
+        text.Should().Contain("Glasbestellung oeffnen: https://wms.ake.at/WarehousePicking/Details/77");
+        text.Should().NotContain("Lagerbestellung");
+    }
+
+    [Fact]
+    public void BuildCancellationText_GlasBestellung_LabelGlasbestellung()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 88,
+            Type = WarehouseRequisitionType.Glas,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-Glas" },
+            CreatedBy = "tester",
+            CancelledAt = new DateTime(2026, 6, 16, 9, 0, 0),
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildCancellationText(r, "https://wms.ake.at");
+
+        text.Should().StartWith("[STORNO] Glasbestellung #88");
+        text.Should().NotContain("Lagerbestellung");
     }
 }

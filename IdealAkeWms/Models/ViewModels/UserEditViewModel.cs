@@ -12,6 +12,10 @@ public class UserEditViewModel
     [Display(Name = "Name")]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>AD-Login (SamAccountName). Nur gesetzt bei AD-Benutzern, read-only im UI.</summary>
+    [Display(Name = "Windows-Benutzer")]
+    public string? WindowsUserName { get; set; }
+
     [StringLength(50)]
     [Display(Name = "Personalnummer")]
     public string? PersonalNumber { get; set; }
@@ -54,10 +58,10 @@ public class UserEditViewModel
     public List<WorkStep> AvailableWorkSteps { get; set; } = new();
 
     /// <summary>
-    /// Vorausgewaehlter Werkbank-Zusatzfilter in der FA-Abarbeitungsliste. NULL = alle.
+    /// Standard-Werkbaenke (kommasepariert) fuer die FA-Abarbeitungsliste. Leer = alle.
     /// </summary>
-    [Display(Name = "Standard-Werkbank (FA-Abarbeitungsliste)")]
-    public int? DefaultWorkplaceId { get; set; }
+    [Display(Name = "Standard-Werkbaenke (FA-Abarbeitungsliste, kommasepariert)")]
+    public string? DefaultWorkbenches { get; set; }
 
     /// <summary>Werkbaenke fuer das Dropdown.</summary>
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();

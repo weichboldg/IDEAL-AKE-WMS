@@ -169,7 +169,7 @@ public class BdeApiController : ControllerBase
         {
             // Im NurFA-Modus: offene ProductionOrders an dieser Werkbank
             var ordersQuery = _ctx.ProductionOrders
-                .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone
+                .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone && !po.IsCancelled
                     && !_ctx.BdeBookingQuantities.Any(q =>
                         q.IsFinal
                         && q.BdeBooking!.WorkOperation!.ProductionOrderId == po.Id

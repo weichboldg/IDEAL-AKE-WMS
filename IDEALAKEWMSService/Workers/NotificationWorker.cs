@@ -22,7 +22,7 @@ public class NotificationWorker : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var intervalMinutes = _configuration.GetValue<int>("WorkerSettings:NotificationCheckIntervalMinutes", 60);
+            var intervalMinutes = await IDEALAKEWMSService.Common.ServiceSettings.GetIntSafeAsync(_configuration, "WorkerSettings:NotificationCheckIntervalMinutes", 60, stoppingToken);
 
             try
             {

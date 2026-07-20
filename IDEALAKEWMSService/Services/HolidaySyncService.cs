@@ -30,15 +30,17 @@ public class HolidaySyncService : IHolidaySyncService
 {
     private readonly ApplicationDbContext _ctx;
     private readonly HttpClient _http;
+    private readonly IConfiguration _config;
     private readonly IOptions<HolidaySyncOptions> _options;
     private readonly ISyncLogger _syncLogger;
     private readonly ILogger<HolidaySyncService> _logger;
 
-    public HolidaySyncService(ApplicationDbContext ctx, HttpClient http,
+    public HolidaySyncService(ApplicationDbContext ctx, HttpClient http, IConfiguration config,
         IOptions<HolidaySyncOptions> options, ILogger<HolidaySyncService> logger, ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _http = http;
+        _config = config;
         _options = options;
         _syncLogger = syncLogger;
         _logger = logger;
@@ -54,7 +56,31 @@ public class HolidaySyncService : IHolidaySyncService
         try
         {
             var opts = _options.Value;
-            if (!opts.Enabled)
+
+            // DB-first (v1.25.0): Enable/Country/Region/JahreVoraus aus ServiceSettings
+            // ueberschreiben (DB gewinnt). Lokale Variablen statt Mutation der geteilten
+            // IOptions-Singleton-Instanz. Fallback jeweils = bisheriger Options-Wert, damit
+            // sich das Verhalten ohne DB-Zeile nicht aendert.
+            var enabled = opts.Enabled;
+            var countryCode = opts.CountryCode;
+            var region = opts.Region;
+            var jahreVoraus = opts.JahreVoraus;
+
+            enabled = await IDEALAKEWMSService.Common.ServiceSettings.GetBoolSafeAsync(
+                _config, "Sync:FeiertagSyncEnabled", enabled, ct);
+
+            var dbCountry = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
+                _config, "Sync:FeiertagCountryCode", ct);
+            if (!string.IsNullOrWhiteSpace(dbCountry)) countryCode = dbCountry.Trim();
+
+            var dbRegion = await IDEALAKEWMSService.Common.ServiceSettings.GetValueSafeAsync(
+                _config, "Sync:FeiertagRegion", ct);
+            if (dbRegion != null) region = dbRegion.Trim(); // leer erlaubt (= keine Region)
+
+            jahreVoraus = await IDEALAKEWMSService.Common.ServiceSettings.GetIntSafeAsync(
+                _config, "Sync:FeiertagJahreVoraus", jahreVoraus, ct);
+
+            if (!enabled)
             {
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
@@ -65,17 +91,17 @@ public class HolidaySyncService : IHolidaySyncService
             }
 
             var startYear = DateTime.Today.Year;
-            for (int year = startYear; year <= startYear + opts.JahreVoraus; year++)
+            for (int year = startYear; year <= startYear + jahreVoraus; year++)
             {
                 try
                 {
-                    var url = $"api/v3/PublicHolidays/{year}/{opts.CountryCode}";
+                    var url = $"api/v3/PublicHolidays/{year}/{countryCode}";
                     var holidays = await _http.GetFromJsonAsync<List<NagerHoliday>>(url, ct);
                     if (holidays == null) continue;
 
-                    var filtered = string.IsNullOrWhiteSpace(opts.Region)
+                    var filtered = string.IsNullOrWhiteSpace(region)
                         ? holidays.Where(h => h.Counties == null || h.Counties.Length == 0)
-                        : holidays.Where(h => h.Counties == null || h.Counties.Length == 0 || h.Counties.Contains(opts.Region));
+                        : holidays.Where(h => h.Counties == null || h.Counties.Length == 0 || h.Counties.Contains(region));
 
                     foreach (var h in filtered)
                     {

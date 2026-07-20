@@ -8,23 +8,27 @@ using Microsoft.AspNetCore.Mvc;
 namespace IdealAkeWms.Controllers;
 
 [RequireLagerProcessingAccess]
+[RequireLagerbestellungAktiv]
 public class WarehousePickingController : Controller
 {
     private readonly IWarehouseRequisitionRepository _repo;
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IStockMovementRepository _stock;
     private readonly ICurrentUserService _user;
+    private readonly IUserViewPreferenceRepository _viewPrefs;
 
     public WarehousePickingController(
         IWarehouseRequisitionRepository repo,
         IProductionWorkplaceRepository workplaces,
         IStockMovementRepository stock,
-        ICurrentUserService user)
+        ICurrentUserService user,
+        IUserViewPreferenceRepository viewPrefs)
     {
         _repo = repo;
         _workplaces = workplaces;
         _stock = stock;
         _user = user;
+        _viewPrefs = viewPrefs;
     }
 
     /// <summary>
@@ -50,9 +54,11 @@ public class WarehousePickingController : Controller
     };
 
     public async Task<IActionResult> Index(WarehouseRequisitionStatus? statusFilter, int? workplaceId,
-        int page = 1, int? pageSize = null)
+        WarehouseRequisitionType type = WarehouseRequisitionType.Lager, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
+        // Geforgte ?type=99-URLs: lesend still auf Lager korrigieren (CreateDraft lehnt schreibend ab).
+        if (!Enum.IsDefined(type)) type = WarehouseRequisitionType.Lager;
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
@@ -63,7 +69,7 @@ public class WarehousePickingController : Controller
 
         // Server-Side-Spaltenfilter: ALLE Rows laden -> ViewModel -> filtern -> zaehlen -> paginieren.
         // (Filter muss ueber alle Eintraege wirken, nicht nur die aktuelle Seite.)
-        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, 1, int.MaxValue);
+        var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, type, 1, int.MaxValue);
         var allItems = allRows.Select(r => new WarehouseRequisitionListItemViewModel(
             r.Id, r.ProductionWorkplace?.Name ?? "", r.CreatedBy, r.CreatedAt,
             r.SubmittedAt, r.Items.Count, r.Status)).ToList();
@@ -76,7 +82,7 @@ public class WarehousePickingController : Controller
         var allWorkplaces = await _workplaces.GetAllAsync();
         var openCount = (await _repo.GetForWarehouseAsync(
             new[] { WarehouseRequisitionStatus.Submitted, WarehouseRequisitionStatus.PartiallyDelivered },
-            null, 1, 1)).TotalCount;
+            null, type, 1, 1)).TotalCount;
 
         var vm = new WarehouseRequisitionListViewModel
         {
@@ -86,6 +92,9 @@ public class WarehousePickingController : Controller
             PageSize = effectivePageSize,
             StatusFilter = statusFilter,
             WorkplaceFilter = workplaceId,
+            ActiveType = type,
+            CanOrderLager = true,
+            CanOrderGlas = true,
             AvailableWorkplaces = allWorkplaces.OrderBy(w => w.Name).ToList(),
             OpenCount = openCount,
             Pagination = new PaginationState
@@ -125,6 +134,7 @@ public class WarehousePickingController : Controller
             CancelledAt = r.CancelledAt,
             CancellationReason = r.CancellationReason,
             Status = r.Status,
+            Type = r.Type,
             RowVersion = r.RowVersion,
             Items = detailItems
         };
@@ -182,7 +192,8 @@ public class WarehousePickingController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} abgeschlossen.";
-        return RedirectToAction(nameof(Index));
+        var closed = await _repo.GetByIdAsync(id, includeItems: false);
+        return RedirectToAction(nameof(Index), new { type = closed?.Type ?? WarehouseRequisitionType.Lager });
     }
 
     /// <summary>
@@ -307,10 +318,11 @@ public class WarehousePickingController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} storniert.";
-        return RedirectToAction(nameof(Index));
+        var cancelled = await _repo.GetByIdAsync(id, includeItems: false);
+        return RedirectToAction(nameof(Index), new { type = cancelled?.Type ?? WarehouseRequisitionType.Lager });
     }
 
-    public async Task<IActionResult> Print(int id)
+    public async Task<IActionResult> Print(int id, string? sortCol = null, string? sortDir = null)
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null || r.Status == WarehouseRequisitionStatus.Draft) return NotFound();
@@ -325,14 +337,32 @@ public class WarehousePickingController : Controller
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus, i.NoteEinkauf));
         }
-        var vm = new WarehouseRequisitionDetailViewModel
+
+        // Spalten-Preferences (Sichtbarkeit/Reihenfolge + konfigurierter Default-Sort) des Users lesen.
+        WarehousePickingPrintLayout.PrintPrefs? prefs = null;
+        var userId = _user.GetCurrentAppUserId();
+        if (userId.HasValue)
+        {
+            var pref = await _viewPrefs.GetByUserAndViewAsync(userId.Value, "WarehousePickingDetails");
+            prefs = WarehousePickingPrintLayout.ParsePrefs(pref?.SettingsJson);
+        }
+
+        // Filter (live aus ?colf_*) -> Sortierung (live ?sortCol/sortDir, sonst Default-Sort) -> sichtbare Spalten.
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, WarehousePickingPrintLayout.ColumnMap);
+        var sorted = WarehousePickingPrintLayout.SortItems(
+            filtered, sortCol, sortDir, prefs?.DefaultSortColumn, prefs?.DefaultSortDirection);
+        var columns = WarehousePickingPrintLayout.ResolveColumns(prefs);
+
+        var vm = new WarehouseRequisitionPrintViewModel
         {
             Id = r.Id,
             WorkplaceName = r.ProductionWorkplace?.Name ?? "",
             CreatedBy = r.CreatedBy,
             SubmittedAt = r.SubmittedAt,
             Status = r.Status,
-            Items = detailItems
+            Columns = columns,
+            Items = sorted
         };
         return View(vm);
     }

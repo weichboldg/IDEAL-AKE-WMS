@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
 
-[RequirePickingOrStockAccess]
+[RequirePickingOrStockOrLagerbestellungAccess]
+[RequireLagerbestellungAktiv]
 public class WarehouseRequisitionsController : Controller
 {
     private readonly IWarehouseRequisitionRepository _repo;
@@ -49,19 +50,26 @@ public class WarehouseRequisitionsController : Controller
         ["submitted"] = r => r.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—",
     };
 
-    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
+    public async Task<IActionResult> Index(WarehouseRequisitionType? type = null, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
         var userDefaultPageSize = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
+        var canOrderLager = await _user.CanOrderLagerAsync();
+        var canOrderGlas = await _user.CanOrderGlasAsync();
+        var activeType = type ?? (canOrderLager ? WarehouseRequisitionType.Lager : WarehouseRequisitionType.Glas);
+        if (activeType == WarehouseRequisitionType.Glas && !canOrderGlas) activeType = WarehouseRequisitionType.Lager;
+        if (activeType == WarehouseRequisitionType.Lager && !canOrderLager && canOrderGlas) activeType = WarehouseRequisitionType.Glas;
+
         var userId = _user.GetCurrentAppUserId() ?? 0;
         var displayName = _user.GetDisplayName();
         var all = await _repo.GetForUserAsync(userId);
         // Stabiler Filter via CreatedByUserId; Fallback auf CreatedBy fuer Altdaten ohne UserId.
         var ownOnly = all.Where(r => r.CreatedByUserId == userId
-            || (r.CreatedByUserId == null && r.CreatedBy == displayName)).ToList();
+            || (r.CreatedByUserId == null && r.CreatedBy == displayName))
+            .Where(r => r.Type == activeType).ToList();
 
         // Server-Side-Spaltenfilter: ALLE Rows -> ViewModel -> filtern -> zaehlen -> paginieren.
         // (Filter muss ueber alle Eintraege wirken, nicht nur die aktuelle Seite.)
@@ -97,20 +105,38 @@ public class WarehouseRequisitionsController : Controller
             MissingPartsWaitingRequisitionCount = missingReqCount,
             MissingPartsNoRestockItemCount = missingNoRestockItemCount,
             MissingPartsNoRestockRequisitionCount = missingNoRestockReqCount,
+            ActiveType = activeType,
+            CanOrderLager = canOrderLager,
+            CanOrderGlas = canOrderGlas,
         };
         return View(vm);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateDraft(int? workplaceId)
+    public async Task<IActionResult> CreateDraft(int? workplaceId, WarehouseRequisitionType type = WarehouseRequisitionType.Lager)
     {
+        if (!Enum.IsDefined(type))
+        {
+            TempData["WarningMessage"] = "Ungueltiger Bestelltyp.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var allowed = type == WarehouseRequisitionType.Glas
+            ? await _user.CanOrderGlasAsync()
+            : await _user.CanOrderLagerAsync();
+        if (!allowed)
+        {
+            TempData["WarningMessage"] = "Keine Berechtigung fuer diesen Bestelltyp.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var userId = _user.GetCurrentAppUserId() ?? 0;
         var workplaces = await _workplaces.GetByUserIdAsync(userId);
 
         if (workplaces.Count == 0)
         {
             TempData["WarningMessage"] = "Bitte Werkbank-Zuordnung in Stammdaten pflegen.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), new { type });
         }
 
         int chosenWp;
@@ -125,10 +151,10 @@ public class WarehouseRequisitionsController : Controller
         else
         {
             TempData["WarningMessage"] = "Bitte Werkbank waehlen.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), new { type });
         }
 
-        var newId = await _repo.CreateDraftAsync(chosenWp, userId, _user.GetDisplayName(), _user.GetWindowsUserName());
+        var newId = await _repo.CreateDraftAsync(chosenWp, type, userId, _user.GetDisplayName(), _user.GetWindowsUserName());
         return RedirectToAction(nameof(Edit), new { id = newId });
     }
 
@@ -150,6 +176,7 @@ public class WarehouseRequisitionsController : Controller
             Id = r.Id,
             WorkplaceName = r.ProductionWorkplace?.Name ?? "",
             Status = r.Status,
+            Type = r.Type,
             CreatedAt = r.CreatedAt,
             RowVersion = r.RowVersion,
             Items = r.Items.OrderBy(i => i.Position).Select(i =>
@@ -163,6 +190,14 @@ public class WarehouseRequisitionsController : Controller
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null) return NotFound();
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var displayName = _user.GetDisplayName();
+        // Wenn CreatedByUserId gesetzt ist, primaer per Id pruefen; sonst Fallback auf Display-Name.
+        var ownsRequisition = r.CreatedByUserId != null
+            ? r.CreatedByUserId == userId
+            : r.CreatedBy == displayName;
+        if (!ownsRequisition)
+            return Forbid();
         if (r.Status != WarehouseRequisitionStatus.Draft)
         {
             TempData["WarningMessage"] = "Nur Entwurfe koennen abgeschickt werden.";
@@ -173,10 +208,15 @@ public class WarehouseRequisitionsController : Controller
             TempData["WarningMessage"] = "Bitte mindestens einen Artikel hinzufuegen.";
             return RedirectToAction(nameof(Edit), new { id });
         }
-        var groupId = await _settings.GetIntValueAsync("DefaultLagerbestellempfaengerId", 0);
+        var settingKey = r.Type == WarehouseRequisitionType.Glas
+            ? AppSettingKeys.DefaultGlasbestellempfaengerId
+            : AppSettingKeys.DefaultLagerbestellempfaengerId;
+        var groupId = await _settings.GetIntValueAsync(settingKey, 0);
         if (groupId <= 0)
         {
-            TempData["WarningMessage"] = "Default-Lagerbestellempfaenger nicht konfiguriert (Einstellungen).";
+            TempData["WarningMessage"] = r.Type == WarehouseRequisitionType.Glas
+                ? "Default-Glasbestellempfaenger nicht konfiguriert (Einstellungen)."
+                : "Default-Lagerbestellempfaenger nicht konfiguriert (Einstellungen).";
             return RedirectToAction(nameof(Edit), new { id });
         }
         var grp = await _groups.GetGroupByIdAsync(groupId);
@@ -188,8 +228,8 @@ public class WarehouseRequisitionsController : Controller
 
         try
         {
-            await _repo.SubmitAsync(id, groupId, _user.GetCurrentAppUserId() ?? 0,
-                _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+            await _repo.SubmitAsync(id, groupId, userId,
+                displayName, _user.GetWindowsUserName(), r.RowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
@@ -198,7 +238,7 @@ public class WarehouseRequisitionsController : Controller
         }
 
         TempData["SuccessMessage"] = $"Liste #{id} abgeschickt — wird per E-Mail gesendet (max. 15 Min).";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), new { type = r.Type });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -206,6 +246,14 @@ public class WarehouseRequisitionsController : Controller
     {
         var r = await _repo.GetByIdAsync(id);
         if (r == null) return NotFound();
+        var userId = _user.GetCurrentAppUserId() ?? 0;
+        var displayName = _user.GetDisplayName();
+        // Wenn CreatedByUserId gesetzt ist, primaer per Id pruefen; sonst Fallback auf Display-Name.
+        var ownsRequisition = r.CreatedByUserId != null
+            ? r.CreatedByUserId == userId
+            : r.CreatedBy == displayName;
+        if (!ownsRequisition)
+            return Forbid();
         if (r.Status != WarehouseRequisitionStatus.Draft && r.Status != WarehouseRequisitionStatus.Submitted)
         {
             TempData["WarningMessage"] = "Liste kann in diesem Status nicht storniert werden.";
@@ -213,8 +261,8 @@ public class WarehouseRequisitionsController : Controller
         }
         try
         {
-            await _repo.CancelAsync(id, reason, _user.GetCurrentAppUserId() ?? 0,
-                _user.GetDisplayName(), _user.GetWindowsUserName(), r.RowVersion);
+            await _repo.CancelAsync(id, reason, userId,
+                displayName, _user.GetWindowsUserName(), r.RowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
@@ -222,6 +270,6 @@ public class WarehouseRequisitionsController : Controller
             return RedirectToAction(nameof(Edit), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} storniert.";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), new { type = r.Type });
     }
 }

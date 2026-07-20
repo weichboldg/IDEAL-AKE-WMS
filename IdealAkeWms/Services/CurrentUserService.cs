@@ -1,6 +1,5 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace IdealAkeWms.Services;
 
@@ -9,31 +8,35 @@ public class CurrentUserService : ICurrentUserService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IMemoryCache _memoryCache;
-    private readonly IConfiguration _configuration;
 
     private HashSet<string>? _cachedRoleKeys;
     private (bool Loaded, int? Value) _cachedPageSize;
 
     public const string SessionKeyUserId = "AppUserId";
     public const string SessionKeyUserName = "AppUserName";
+    // Windows-Login-Name (z. B. "AKE\jmuster"), einmal beim Login in die Session uebernommen.
+    // Grund: Die WindowsAutoLoginMiddleware normalisiert HttpContext.User bei bestehender
+    // Session auf anonym (Antiforgery-Fix) — der Windows-Name fuers Audit kommt daher aus der
+    // Session, nicht mehr live aus User.Identity.Name.
+    public const string SessionKeyWindowsUserName = "WindowsUserName";
 
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
         IRoleRepository roleRepository,
-        IUserRepository userRepository,
-        IMemoryCache memoryCache,
-        IConfiguration configuration)
+        IUserRepository userRepository)
     {
         _httpContextAccessor = httpContextAccessor;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
-        _memoryCache = memoryCache;
-        _configuration = configuration;
     }
 
     public string GetWindowsUserName()
     {
+        // Primaer aus der Session (beim Login uebernommen) — HttpContext.User wird bei
+        // bestehender Session von der WindowsAutoLoginMiddleware auf anonym normalisiert.
+        var fromSession = _httpContextAccessor.HttpContext?.Session.GetString(SessionKeyWindowsUserName);
+        if (!string.IsNullOrEmpty(fromSession))
+            return fromSession;
         return _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "SYSTEM";
     }
 
@@ -97,6 +100,25 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanAccessStockAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking);
 
+    // Additive Lese-Rolle: alle bisherigen Stock-Zugriffsrollen PLUS stock_read (v1.25.0).
+    public async Task<bool> CanAccessStockReadAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser, RoleKeys.Picking, RoleKeys.StockRead);
+
+    public async Task<bool> CanAccessLagerbestellungAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Lagerbestellung);
+
+    public async Task<bool> CanAccessGlasbestellungAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Glasbestellung);
+
+    // MUSS deckungsgleich bleiben mit RequirePickingOrStockOrLagerbestellungAccess (Filter komponiert CanPick/Stock/Lagerbestellung/Glasbestellung).
+    public async Task<bool> CanOrderLagerAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking, RoleKeys.Stock,
+            RoleKeys.StockKeyUser, RoleKeys.Lagerbestellung);
+
+    public async Task<bool> CanOrderGlasAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking, RoleKeys.Stock,
+            RoleKeys.StockKeyUser, RoleKeys.Glasbestellung);
+
     public async Task<bool> CanProcessLagerAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Stock, RoleKeys.StockKeyUser);
 
@@ -152,38 +174,7 @@ public class CurrentUserService : ICurrentUserService
                 roleKeys.Add(key);
         }
 
-        var adRoles = await GetAdGroupRolesAsync();
-        foreach (var key in adRoles)
-            roleKeys.Add(key);
-
         _cachedRoleKeys = roleKeys;
         return roleKeys;
-    }
-
-    private async Task<List<string>> GetAdGroupRolesAsync()
-    {
-        var httpContext = _httpContextAccessor.HttpContext;
-        var windowsUser = httpContext?.User;
-        if (windowsUser?.Identity?.IsAuthenticated != true)
-            return new List<string>();
-
-        var cacheMinutes = _configuration.GetValue("Security:AdGroupCacheMinutes", 5);
-        var windowsName = windowsUser.Identity.Name ?? "UNKNOWN";
-        var cacheKey = $"AdGroupRoles:{windowsName}";
-
-        if (_memoryCache.TryGetValue(cacheKey, out List<string>? cached) && cached != null)
-            return cached;
-
-        var rolesWithAdGroup = await _roleRepository.GetRolesWithAdGroupAsync();
-        var matchedKeys = new List<string>();
-
-        foreach (var role in rolesWithAdGroup)
-        {
-            if (!string.IsNullOrEmpty(role.AdGroup) && windowsUser.IsInRole(role.AdGroup))
-                matchedKeys.Add(role.Key);
-        }
-
-        _memoryCache.Set(cacheKey, matchedKeys, TimeSpan.FromMinutes(cacheMinutes));
-        return matchedKeys;
     }
 }

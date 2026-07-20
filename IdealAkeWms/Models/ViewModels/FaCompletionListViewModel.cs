@@ -34,7 +34,7 @@ public class FaCompletionListItem
     /// <summary>Anzahl der aktiven FaWorkSteps (IsRemoved = false) dieses FAs.</summary>
     public int ApplicableCount { get; set; }
 
-    /// <summary>Anzahl der aktiven FaWorkSteps mit IsCompleted = true.</summary>
+    /// <summary>Anzahl der aktiven FaWorkSteps mit IsSpecComplete = true ("vollstaendig definiert").</summary>
     public int CompletedCount { get; set; }
 
     /// <summary>Summe aller Spec-Eintraege ueber alle aktiven FaWorkSteps dieses FAs.</summary>

@@ -14,7 +14,11 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class WarehouseRequisitionsControllerTests
 {
-    private static (WarehouseRequisitionsController ctrl, ApplicationDbContext ctx, int userId) Setup(int? defaultRecipientGroupId = null)
+    private static (WarehouseRequisitionsController ctrl, ApplicationDbContext ctx, int userId) Setup(
+        int? defaultRecipientGroupId = null,
+        int? glasRecipientGroupId = null,
+        bool canOrderLager = true,
+        bool canOrderGlas = true)
     {
         var ctx = TestDbContextFactory.Create();
         var u = new User { Name = "tester", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
@@ -25,10 +29,14 @@ public class WarehouseRequisitionsControllerTests
         currentUser.Setup(s => s.GetCurrentAppUserId()).Returns(u.Id);
         currentUser.Setup(s => s.GetDisplayName()).Returns("tester");
         currentUser.Setup(s => s.GetWindowsUserName()).Returns("DOMAIN\\tester");
+        currentUser.Setup(s => s.CanOrderLagerAsync()).ReturnsAsync(canOrderLager);
+        currentUser.Setup(s => s.CanOrderGlasAsync()).ReturnsAsync(canOrderGlas);
 
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetIntValueAsync("DefaultLagerbestellempfaengerId", 0))
                 .ReturnsAsync(defaultRecipientGroupId ?? 0);
+        settings.Setup(s => s.GetIntValueAsync("DefaultGlasbestellempfaengerId", 0))
+                .ReturnsAsync(glasRecipientGroupId ?? 0);
 
         var workplaces = new ProductionWorkplaceRepository(ctx);
         var requisitions = new WarehouseRequisitionRepository(ctx);
@@ -335,5 +343,233 @@ public class WarehouseRequisitionsControllerTests
         vm!.Items.Should().HaveCount(1);
         vm.Items[0].WorkplaceName.Should().Be("WB-A1");
         vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateDraft_Glas_SetztTypGlas()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.CreateDraft(wp.Id, WarehouseRequisitionType.Glas) as RedirectToActionResult;
+
+        result.Should().NotBeNull();
+        result!.ActionName.Should().Be("Edit");
+        ctx.WarehouseRequisitions.Should().ContainSingle();
+        ctx.WarehouseRequisitions.First().Type.Should().Be(WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
+    public async Task CreateDraft_Glas_OhneGlasRecht_Warnung()
+    {
+        var (ctrl, ctx, userId) = Setup(canOrderGlas: false);
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.CreateDraft(wp.Id, WarehouseRequisitionType.Glas) as RedirectToActionResult;
+
+        result.Should().NotBeNull();
+        result!.ActionName.Should().Be("Index");
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+        ctx.WarehouseRequisitions.Should().BeEmpty("ohne Glas-Recht darf kein Glas-Draft entstehen");
+    }
+
+    [Fact]
+    public async Task Submit_GlasBestellung_NutztGlasEmpfaengerSetting()
+    {
+        // Frischer InMemory-Kontext: die erste OrderRecipientGroup bekommt Id 1 —
+        // Setup mockt DefaultGlasbestellempfaengerId=1, Lager-Setting bleibt 0 (beweist Key-Auswahl).
+        var (ctrl, ctx, userId) = Setup(defaultRecipientGroupId: 0, glasRecipientGroupId: 1);
+        var grp = new OrderRecipientGroup { Name = "Glas-Empfaenger", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.OrderRecipientGroups.Add(grp);
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        grp.Id.Should().Be(1, "Setup mockt DefaultGlasbestellempfaengerId=1 — die Gruppe muss diese Id tragen");
+
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id,
+            Type = WarehouseRequisitionType.Glas,
+            CreatedByUserId = userId,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        };
+        r.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "GLAS-1", ArticleDescription = "Scheibe", QuantityRequested = 1, Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        ctx.WarehouseRequisitions.Add(r);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Submit(r.Id) as RedirectToActionResult;
+
+        result!.ActionName.Should().Be("Index");
+        var saved = ctx.WarehouseRequisitions.First();
+        saved.Status.Should().Be(WarehouseRequisitionStatus.Submitted);
+        saved.OrderRecipientGroupId.Should().Be(grp.Id, "Glas-Bestellung nutzt DefaultGlasbestellempfaengerId, nicht das Lager-Setting");
+    }
+
+    [Fact]
+    public async Task Submit_GlasBestellung_OhneGlasSetting_Blockt()
+    {
+        // Lager-Setting gesetzt, Glas-Setting 0 → Glas-Submit muss trotzdem blocken.
+        var (ctrl, ctx, userId) = Setup(defaultRecipientGroupId: 99, glasRecipientGroupId: 0);
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id,
+            Type = WarehouseRequisitionType.Glas,
+            CreatedByUserId = userId,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        };
+        r.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "GLAS-1", ArticleDescription = "Scheibe", QuantityRequested = 1, Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "DOMAIN\\tester"
+        });
+        ctx.WarehouseRequisitions.Add(r);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Submit(r.Id) as RedirectToActionResult;
+
+        result!.ActionName.Should().Be("Edit");
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("Glasbestellempfaenger");
+        ctx.WarehouseRequisitions.First().Status.Should().Be(WarehouseRequisitionStatus.Draft);
+    }
+
+    [Fact]
+    public async Task Index_FiltertNachAktivemTyp()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+
+        ctx.WarehouseRequisitions.AddRange(
+            new WarehouseRequisition
+            {
+                ProductionWorkplaceId = wp.Id, Type = WarehouseRequisitionType.Lager,
+                CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t"
+            },
+            new WarehouseRequisition
+            {
+                ProductionWorkplaceId = wp.Id, Type = WarehouseRequisitionType.Glas,
+                CreatedByUserId = userId, CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "t"
+            });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index(type: WarehouseRequisitionType.Glas) as ViewResult;
+
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm.Should().NotBeNull();
+        vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
+        vm.Items.Should().HaveCount(1, "nur die Glas-Requisition gehoert auf den Glas-Reiter");
+        var glasId = ctx.WarehouseRequisitions.First(x => x.Type == WarehouseRequisitionType.Glas).Id;
+        vm.Items[0].Id.Should().Be(glasId);
+    }
+
+    [Fact]
+    public async Task Index_GlasOnlyUser_FaelltAufGlasZurueck()
+    {
+        var (ctrl, _, _) = Setup(canOrderLager: false, canOrderGlas: true);
+
+        var result = await ctrl.Index() as ViewResult;
+
+        var vm = result!.Model as WarehouseRequisitionListViewModel;
+        vm.Should().NotBeNull();
+        vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
+    public async Task CreateDraft_UngueltigerTyp_Warnung()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.ProductionWorkplaceUsers.Add(new ProductionWorkplaceUser
+        {
+            UserId = userId, ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.CreateDraft(wp.Id, (WarehouseRequisitionType)99) as RedirectToActionResult;
+
+        result.Should().NotBeNull();
+        result!.ActionName.Should().Be("Index");
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+        ctx.WarehouseRequisitions.Should().BeEmpty("undefinierter Bestelltyp darf keinen Draft erzeugen");
+    }
+
+    [Fact]
+    public async Task Submit_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id,
+            CreatedByUserId = userId + 1000,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        };
+        r.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        });
+        ctx.WarehouseRequisitions.Add(r);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Submit(r.Id);
+
+        result.Should().BeOfType<ForbidResult>("fremde Bestellungen duerfen nicht submitted werden");
+        ctx.WarehouseRequisitions.First().Status.Should().Be(WarehouseRequisitionStatus.Draft);
+    }
+
+    [Fact]
+    public async Task Cancel_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx, userId) = Setup();
+        var wp = new ProductionWorkplace { Name = "WB-A", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+        var r = new WarehouseRequisition
+        {
+            ProductionWorkplaceId = wp.Id,
+            CreatedByUserId = userId + 1000,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        };
+        r.Items.Add(new WarehouseRequisitionItem
+        {
+            ArticleNumber = "ART-1", ArticleDescription = "x", QuantityRequested = 1, Position = 1,
+            CreatedAt = DateTime.Now, CreatedBy = "fremder", CreatedByWindows = "DOMAIN\\fremder"
+        });
+        ctx.WarehouseRequisitions.Add(r);
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Cancel(r.Id, null);
+
+        result.Should().BeOfType<ForbidResult>("fremde Bestellungen duerfen nicht storniert werden");
+        ctx.WarehouseRequisitions.First().Status.Should().Be(WarehouseRequisitionStatus.Draft);
     }
 }

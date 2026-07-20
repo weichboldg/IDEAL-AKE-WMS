@@ -51,8 +51,8 @@ public class PickingLeitstandItem
     public int? AssignedPickerId { get; set; }
     public string? AssignedPickerName { get; set; }
 
-    // FaWorkStep-Detail-Pivot: Code (VK/VL/VE/VT/VA) -> Zelle (FaWorkStepId + IsCompleted).
+    // FaWorkStep-Detail-Pivot: Code (VK/VL/VE/VT/VA) -> Zelle (FaWorkStepId + Status).
     // Nur aktive AGs sind enthalten; fehlender Key = AG nicht anwendbar (leere Zelle).
-    // Die Checkbox zeigt/togglet IsCompleted (Erledigt) — dasselbe Flag wie die FA-Abarbeitungsliste.
+    // Das Auswahlfeld zeigt/setzt Status (3-Wert-Erledigt) — dasselbe Flag wie die FA-Abarbeitungsliste.
     public Dictionary<string, Data.Repositories.FaWorkStepPivotCell> WorkSteps { get; set; } = new();
 }

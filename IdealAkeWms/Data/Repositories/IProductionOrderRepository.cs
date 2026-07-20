@@ -14,6 +14,7 @@ public record LeitstandOrderRow(
     DateTime? DeliveryDate,
     bool IsDone,
     bool IsDonePicking,
+    bool IsCancelled,
     string? WorkplaceName);
 
 public record LeitstandOrderPage(List<LeitstandOrderRow> Rows, int TotalCount);

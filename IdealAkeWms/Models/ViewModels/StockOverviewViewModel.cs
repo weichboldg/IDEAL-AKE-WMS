@@ -28,4 +28,5 @@ public class StockOverviewItem
     public bool IsPickingTransport { get; set; }
     public bool StorageLocationIsActive { get; set; } = true;
     public bool StorageLocationIstBuchbar { get; set; } = true;
+    public bool IsPrimaryStorageLocation { get; set; }
 }

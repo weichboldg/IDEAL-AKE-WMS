@@ -114,6 +114,7 @@ public class ProductionOrdersController : Controller
                 ProductionDate = o.ProductionDate,
                 DeliveryDate = o.DeliveryDate,
                 IsDone = o.IsDone || o.IsDonePicking,
+                IsCancelled = o.IsCancelled,
                 WorkplaceName = o.WorkplaceName,
                 HasCoatingParts = ps?.HasCoatingParts ?? false,
                 IsCoatingDone = ps?.IsCoatingDone ?? false,
@@ -167,6 +168,7 @@ public class ProductionOrdersController : Controller
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
             CanPick = await _currentUserService.CanPickAsync(),
+            HasVorbauAccess = await _currentUserService.HasVorbauAccessAsync(),
             EnaioDmsLinks = dmsLinks,
             Pagination = new PaginationState
             {

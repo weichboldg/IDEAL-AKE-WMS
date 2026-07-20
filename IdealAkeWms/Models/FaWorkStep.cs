@@ -14,8 +14,9 @@ public class FaWorkStep : AuditableEntity
     public int WorkStepId { get; set; }
     public WorkStep WorkStep { get; set; } = null!;
 
-    public bool IsCompleted { get; set; }
-    public DateTime? CompletedAt { get; set; }
+    /// <summary>Erledigt-Status (Abarbeitungsliste + Leitstand). Fertig blendet die FA aus.</summary>
+    public FaWorkStepStatus Status { get; set; }
+    public DateTime? CompletedAt { get; set; }   // gesetzt wenn Status==Fertig, sonst null
     public string? CompletedBy { get; set; }
 
     /// <summary>Spec/Definition fertig (FA-Vervollstaendigung). Blendet NICHT aus.</summary>

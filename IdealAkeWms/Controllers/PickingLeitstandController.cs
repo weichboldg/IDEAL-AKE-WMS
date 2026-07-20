@@ -87,8 +87,8 @@ public class PickingLeitstandController : Controller
         ViewBag.LackierteilKategorieName = lackierteilName;
 
         // Bulk-Lookups fuer pivot-basiertes Mapping (seit v1.22.0 aus FaWorkSteps statt AssemblyGroups).
-        // Detail-Pivot liefert pro aktivem AG zusaetzlich FaWorkStepId + IsCompleted — die VK-VA-Haken
-        // im Leitstand zeigen/togglen den Erledigt-Status (gleiches Flag wie die FA-Abarbeitungsliste).
+        // Detail-Pivot liefert pro aktivem AG zusaetzlich FaWorkStepId + Status — die VK-VA-Zellen
+        // im Leitstand zeigen/setzen den 3-Wert-Erledigt-Status (gleiches Flag wie die FA-Abarbeitungsliste).
         var orderIds = orders.Select(o => o.Id).ToList();
         var groupPivot = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(orderIds);
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
@@ -131,16 +131,11 @@ public class PickingLeitstandController : Controller
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, vorkommissionierTage, holidays);
-                // Backward compat: when feature is inactive (setting empty), calculate for ALL orders
-                // When feature is active, only calculate if HasCoatingParts == true
-                if (!coatingFeatureActive || (ps?.HasCoatingParts ?? false))
-                {
-                    // Beschichtungstermin: Baugruppentermin - BeschichtungTage, dann auf vorherigen Abholtag
-                    var rawBeschichtung = _businessDayService.SubtractBusinessDays(
-                        item.VorkommissionierTermin.Value, beschichtungTage, holidays);
-                    item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
-                }
-                // else: leave BeschichtungTermin null
+                // Beschichtungstermin: shared CoatingDateCalculator (DRY mit FA-Abarbeitungsliste).
+                // Backward compat: Feature inaktiv => fuer ALLE Auftraege; aktiv => nur HasCoatingParts.
+                item.BeschichtungTermin = CoatingDateCalculator.Compute(
+                    item.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
+                    ps?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
 
             return item;
@@ -366,12 +361,17 @@ public class PickingLeitstandController : Controller
 
     /// <summary>
     /// Gerenderter Zellentext fuer eine VK-VA-Spalte (damit der Filter sinnvoll bleibt):
-    /// AG nicht anwendbar -> "" (leere Zelle), anwendbar + erledigt -> "erledigt", offen -> "offen".
+    /// AG nicht anwendbar -> "" (leere Zelle), sonst der Status-Text "offen"/"in bearbeitung"/"fertig".
     /// </summary>
     private static string FormatWorkStepForFilter(PickingLeitstandItem item, string code)
     {
         if (!item.WorkSteps.TryGetValue(code, out var cell)) return string.Empty;
-        return cell.IsCompleted ? "erledigt" : "offen";
+        return cell.Status switch
+        {
+            FaWorkStepStatus.Fertig => "fertig",
+            FaWorkStepStatus.InBearbeitung => "in bearbeitung",
+            _ => "offen"
+        };
     }
 
     private static bool MatchLeitstandWorkStepFilter(

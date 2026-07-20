@@ -20,6 +20,7 @@ public class StockLocationInfo
     public string Code { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
     public int StorageLocationId { get; set; }
+    public bool IsPrimaryStorageLocation { get; set; }
 }
 
 public class BomItemViewModel

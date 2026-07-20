@@ -91,8 +91,15 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("PrimaryStorageLocationId")
+                        .HasColumnType("int");
+
                     b.Property<decimal?>("ReorderLevel")
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("SagePrimaryStorageLocation")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Unit")
                         .HasMaxLength(20)
@@ -104,6 +111,8 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("ArticleNumber")
                         .IsUnique();
+
+                    b.HasIndex("PrimaryStorageLocationId");
 
                     b.ToTable("Articles", "dbo");
                 });
@@ -1123,9 +1132,6 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsRemoved")
                         .HasColumnType("bit");
 
@@ -1157,6 +1163,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("SpecCompletedBy")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<int>("WorkStepId")
                         .HasColumnType("int");
@@ -1798,6 +1807,13 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CancelledBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1825,6 +1841,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("Description2")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDone")
                         .HasColumnType("bit");
@@ -1857,6 +1876,8 @@ namespace IdealAkeWms.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ArticleNumber");
+
+                    b.HasIndex("IsCancelled");
 
                     b.HasIndex("IsDone");
 
@@ -2167,10 +2188,6 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AdGroup")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -2510,8 +2527,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("DefaultWorkStepId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("DefaultWorkplaceId")
-                        .HasColumnType("int");
+                    b.Property<string>("DefaultWorkbenches")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(200)
@@ -2559,11 +2577,18 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("RecursiveFilterSearch")
                         .HasColumnType("bit");
 
+                    b.Property<string>("WindowsUserName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DefaultWorkStepId");
 
-                    b.HasIndex("DefaultWorkplaceId");
+                    b.HasIndex("WindowsUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_Users_WindowsUserName")
+                        .HasFilter("[WindowsUserName] IS NOT NULL");
 
                     b.ToTable("Users", "dbo");
                 });
@@ -2746,6 +2771,11 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<int?>("SubmittedByUserId")
                         .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.HasKey("Id");
 
@@ -3097,7 +3127,14 @@ namespace IdealAkeWms.Migrations
                         .HasForeignKey("ArticleCategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("IdealAkeWms.Models.StorageLocation", "PrimaryStorageLocation")
+                        .WithMany()
+                        .HasForeignKey("PrimaryStorageLocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("ArticleCategory");
+
+                    b.Navigation("PrimaryStorageLocation");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleAttributeOption", b =>
@@ -3550,14 +3587,7 @@ namespace IdealAkeWms.Migrations
                         .HasForeignKey("DefaultWorkStepId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "DefaultWorkplace")
-                        .WithMany()
-                        .HasForeignKey("DefaultWorkplaceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("DefaultWorkStep");
-
-                    b.Navigation("DefaultWorkplace");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.UserRole", b =>

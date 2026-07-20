@@ -204,6 +204,32 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// WarehousePicking/Details.cshtml — Positionsliste einer Lagerbestellung.
+    /// Client-Mode-Tabelle (kleine, vorgefilterte Liste je Bestellung), aber mit
+    /// vollem Spalten-Preferences-Muster. pos + article-number sind Locked
+    /// (Identitaet der Position). Labels muessen mit den &lt;th&gt; in Details.cshtml
+    /// UND dem inline #column-config JSON uebereinstimmen.
+    /// </summary>
+    public static readonly ViewConfig WarehousePickingDetails = new(
+        "WarehousePickingDetails", "Lagerbestellung-Positionen",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("pos",            "Pos",             Locked: true),
+            new ColumnDef("article-number", "Artikel-Nr",      Locked: true),
+            new ColumnDef("description",    "Bezeichnung",     Locked: false),
+            new ColumnDef("requested",      "Bestellt",        Locked: false),
+            new ColumnDef("picked",         "Ist",             Locked: false),
+            new ColumnDef("unit",           "ME",              Locked: false),
+            new ColumnDef("storage",        "Lagerplatz",      Locked: false),
+            new ColumnDef("note-lager",     "Notiz Lager",     Locked: false),
+            new ColumnDef("note-ek",        "Notiz EK",        Locked: false),
+            new ColumnDef("shortage",       "Fehlteil-Status", Locked: false),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -213,6 +239,7 @@ public static class ColumnDefinitions
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,
         "BdeBookings"      => BdeBookings,
+        "WarehousePickingDetails" => WarehousePickingDetails,
         _                  => null
     };
 }

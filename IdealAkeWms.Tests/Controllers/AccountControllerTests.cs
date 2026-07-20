@@ -1,6 +1,7 @@
 using FluentAssertions;
 using IdealAkeWms.Controllers;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Middleware;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
@@ -20,6 +21,7 @@ public class AccountControllerTests
         int? currentUserId = 1)
     {
         var passwordService = new Mock<IPasswordService>();
+        var appSettings = new Mock<IAppSettingRepository>();
         var currentUser = new Mock<ICurrentUserService>();
         currentUser.Setup(x => x.GetCurrentAppUserId()).Returns(currentUserId);
         currentUser.Setup(x => x.GetCurrentAppUserName()).Returns("tester");
@@ -34,7 +36,8 @@ public class AccountControllerTests
             passwordService.Object,
             currentUser.Object,
             workStepRepo.Object,
-            workplaceRepo.Object);
+            workplaceRepo.Object,
+            appSettings.Object);
         var httpContext = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext
         {
@@ -81,7 +84,7 @@ public class AccountControllerTests
     }
 
     [Fact]
-    public async Task Profile_Post_SavesDefaultWorkplace()
+    public async Task Profile_Post_SavesDefaultWorkbenches()
     {
         var user = new User
         {
@@ -107,12 +110,29 @@ public class AccountControllerTests
         var vm = new ProfileViewModel
         {
             Name = "Tester",
-            DefaultWorkplaceId = 7
+            DefaultWorkbenches = "Werkbank 7"
         };
 
         await ctrl.Profile(vm, null);
 
         saved.Should().NotBeNull();
-        saved!.DefaultWorkplaceId.Should().Be(7);
+        saved!.DefaultWorkbenches.Should().Be("Werkbank 7");
+    }
+
+    [Fact]
+    public void WindowsLogin_SetsForceSso_DeletesAutoLoginCookies_RedirectsHome()
+    {
+        var ctrl = BuildController(new Mock<IUserRepository>());
+
+        var result = ctrl.WindowsLogin();
+
+        var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
+        redirect.ActionName.Should().Be("Index");
+        redirect.ControllerName.Should().Be("Home");
+
+        var setCookie = ctrl.Response.Headers["Set-Cookie"].ToString();
+        setCookie.Should().Contain($"{WindowsAutoLoginMiddleware.ForceSsoCookie}=1");
+        setCookie.Should().Contain(WindowsAutoLoginMiddleware.NoAutoLoginCookie);
+        setCookie.Should().Contain(WindowsAutoLoginMiddleware.AutoLoginTriedCookie);
     }
 }

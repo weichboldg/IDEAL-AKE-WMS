@@ -27,7 +27,7 @@
             </small>
         </h2>
         <div class="text-muted small">
-            Angemeldet: @(User.Identity?.Name) | Session läuft bis: <span id="sessionExpiry">—</span>
+            Angemeldet: @Context.Session.GetString(IdealAkeWms.Services.CurrentUserService.SessionKeyUserName) | Session läuft bis: <span id="sessionExpiry">—</span>
         </div>
     </div>
 

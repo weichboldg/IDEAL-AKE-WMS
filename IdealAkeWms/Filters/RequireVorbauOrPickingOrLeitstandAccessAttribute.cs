@@ -6,9 +6,9 @@ namespace IdealAkeWms.Filters;
 
 /// <summary>
 /// Erfordert Vorbau- ODER Picking- ODER Leitstand-Zugriff
-/// (admin ODER vorbau ODER picking ODER leitstand) — der Erledigt-Haken (IsCompleted)
+/// (admin ODER vorbau ODER picking ODER leitstand) — der Erledigt-Status (Status, 3-Wert)
 /// der Vorbau-Arbeitsgaenge wird sowohl in der FA-Abarbeitungsliste (vorbau) als auch in
-/// den VK-VA-Spalten des Leitstands Kommissionierung (picking/leitstand) gesetzt (seit v1.22.0).
+/// den VK-VA-Spalten des Leitstands Kommissionierung (picking/leitstand) gesetzt (seit v1.22.0, 3-State seit v1.24.0).
 /// </summary>
 public class RequireVorbauOrPickingOrLeitstandAccessAttribute : TypeFilterAttribute
 {

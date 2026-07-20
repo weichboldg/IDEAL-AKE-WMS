@@ -25,6 +25,7 @@ public class WarehouseRequisitionDetailViewModel
     public DateTime? CancelledAt { get; set; }
     public string? CancellationReason { get; set; }
     public WarehouseRequisitionStatus Status { get; set; }
+    public WarehouseRequisitionType Type { get; set; }
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     public List<WarehouseRequisitionDetailItemViewModel> Items { get; set; } = new();
 }

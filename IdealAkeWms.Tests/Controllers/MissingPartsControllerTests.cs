@@ -25,6 +25,7 @@ public class MissingPartsControllerTests
         wp.Setup(w => w.GetAllAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         wp.Setup(w => w.GetByUserIdAsync(It.IsAny<int>())).ReturnsAsync(new List<ProductionWorkplace>());
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -45,7 +46,7 @@ public class MissingPartsControllerTests
         var (ctrl, repo, _, _) = Build();
         await ctrl.Index(tab: ShortageStatus.NoRestock, workplaceId: 5, mineOnly: false);
         // Haupt-Listing-Call (mit columnFilters Dictionary, pageSize > 1)
-        repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock, 5,
+        repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock, It.IsAny<WarehouseRequisitionType?>(), 5,
             It.Is<IReadOnlyDictionary<string, string>?>(d => d != null),
             null, null, 1, It.Is<int>(s => s > 1)), Times.Once);
     }
@@ -59,7 +60,7 @@ public class MissingPartsControllerTests
             { new ProductionWorkplace { Id = 7, Name = "WB7" } });
         await ctrl.Index(tab: ShortageStatus.NoRestock, workplaceId: null, mineOnly: true);
         // Haupt-Listing-Call (mit columnFilters Dictionary, pageSize > 1)
-        repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock, 7,
+        repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock, It.IsAny<WarehouseRequisitionType?>(), 7,
             It.Is<IReadOnlyDictionary<string, string>?>(d => d != null),
             null, null, 1, It.Is<int>(s => s > 1)), Times.Once);
     }
@@ -91,6 +92,7 @@ public class MissingPartsControllerTests
         var (ctrl, repo, _, _) = Build();
         await ctrl.Index(mineOnly: false);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.WillBeRestocked,
+            It.IsAny<WarehouseRequisitionType?>(),
             It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string,string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<int>(), It.IsAny<int>()), Times.AtLeastOnce);
@@ -102,6 +104,7 @@ public class MissingPartsControllerTests
         var (ctrl, repo, _, _) = Build();
         await ctrl.Index(tab: ShortageStatus.None, mineOnly: false);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.WillBeRestocked,
+            It.IsAny<WarehouseRequisitionType?>(),
             It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string,string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<int>(), It.IsAny<int>()), Times.AtLeastOnce);
@@ -112,11 +115,13 @@ public class MissingPartsControllerTests
     {
         var (ctrl, repo, _, _) = Build();
         repo.Setup(r => r.GetMissingPartsAsync(ShortageStatus.WillBeRestocked,
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string,string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow>(), 3));
         repo.Setup(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock,
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string,string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
@@ -148,5 +153,36 @@ public class MissingPartsControllerTests
         var vm = (result as ViewResult)?.Model as MissingPartsListViewModel;
         vm!.HasNoWorkplaceMapping.Should().BeTrue();
         vm.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Index_TypGlas_ReichtTypScharfDurch()
+    {
+        var (ctrl, repo, _, user) = Build();
+        user.Setup(u => u.CanOrderLagerAsync()).ReturnsAsync(true);
+        user.Setup(u => u.CanOrderGlasAsync()).ReturnsAsync(true);
+        var capturedTypes = new List<WarehouseRequisitionType?>();
+        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
+                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>(),
+                It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<int>(), It.IsAny<int>()))
+            .Callback<ShortageStatus, WarehouseRequisitionType?, int?,
+                IReadOnlyDictionary<string, string>?, DateTime?, DateTime?, int, int>(
+                (_, type, _, _, _, _, _, _) => capturedTypes.Add(type))
+            .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow>(), 0));
+
+        var result = await ctrl.Index(tab: ShortageStatus.WillBeRestocked,
+            type: WarehouseRequisitionType.Glas, mineOnly: false) as ViewResult;
+
+        // Haupt-Listen-Aufruf (erster Repo-Call) MUSS exakt den gewaehlten Typ durchreichen —
+        // und auch beide Count-Aufrufe sind typ-bezogen (alle Calls = Glas).
+        capturedTypes.Should().NotBeEmpty();
+        capturedTypes[0].Should().Be(WarehouseRequisitionType.Glas);
+        capturedTypes.Should().OnlyContain(t => t == WarehouseRequisitionType.Glas);
+
+        var vm = result!.Model as MissingPartsListViewModel;
+        vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
     }
 }

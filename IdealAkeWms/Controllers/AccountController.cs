@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
@@ -12,29 +13,39 @@ public class AccountController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
+    private readonly IAppSettingRepository _appSettingRepository;
 
     public AccountController(
         IUserRepository userRepository,
         IPasswordService passwordService,
         ICurrentUserService currentUserService,
         IWorkStepRepository workStepRepository,
-        IProductionWorkplaceRepository productionWorkplaceRepository)
+        IProductionWorkplaceRepository productionWorkplaceRepository,
+        IAppSettingRepository appSettingRepository)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
         _currentUserService = currentUserService;
         _workStepRepository = workStepRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
+        _appSettingRepository = appSettingRepository;
+    }
+
+    private async Task SetWindowsAuthAktivAsync()
+    {
+        var flag = await _appSettingRepository.GetValueAsync(AppSettingKeys.WindowsAuthAktiv);
+        ViewBag.WindowsAuthAktiv = string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     [HttpGet]
-    public IActionResult Login(string? returnUrl = null)
+    public async Task<IActionResult> Login(string? returnUrl = null)
     {
         // Wenn bereits eingeloggt, zum Dashboard
         if (HttpContext.Session.GetInt32(CurrentUserService.SessionKeyUserId).HasValue)
             return RedirectToAction("Index", "Home");
 
         ViewBag.ReturnUrl = returnUrl;
+        await SetWindowsAuthAktivAsync();
         return View(new LoginViewModel());
     }
 
@@ -43,12 +54,16 @@ public class AccountController : Controller
     public async Task<IActionResult> Login(LoginViewModel vm, string? returnUrl = null)
     {
         if (!ModelState.IsValid)
+        {
+            await SetWindowsAuthAktivAsync();
             return View(vm);
+        }
 
         var user = await _userRepository.GetByNameAsync(vm.UserName);
         if (user == null || !user.IsActive)
         {
             vm.ErrorMessage = "Benutzer nicht gefunden oder inaktiv.";
+            await SetWindowsAuthAktivAsync();
             return View(vm);
         }
 
@@ -58,6 +73,7 @@ public class AccountController : Controller
             if (!_passwordService.VerifyPassword(user.PasswordHash, vm.Password ?? string.Empty))
             {
                 vm.ErrorMessage = "Falsches Passwort.";
+                await SetWindowsAuthAktivAsync();
                 return View(vm);
             }
         }
@@ -67,6 +83,7 @@ public class AccountController : Controller
             if (!string.IsNullOrEmpty(vm.Password))
             {
                 vm.ErrorMessage = "Für diesen Benutzer ist kein Passwort hinterlegt.";
+                await SetWindowsAuthAktivAsync();
                 return View(vm);
             }
         }
@@ -74,6 +91,11 @@ public class AccountController : Controller
         // Session setzen
         HttpContext.Session.SetInt32(CurrentUserService.SessionKeyUserId, user.Id);
         HttpContext.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
+        // Windows-Name (falls die Anmeldung ueber ein Domaenen-Geraet lief) fuers Audit in die
+        // Session — die Middleware normalisiert HttpContext.User bei bestehender Session auf anonym.
+        HttpContext.Session.SetString(CurrentUserService.SessionKeyWindowsUserName, HttpContext.User?.Identity?.Name ?? "");
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie);
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.AutoLoginTriedCookie);
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
@@ -81,12 +103,33 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Home");
     }
 
+    // KEIN [ValidateAntiForgeryToken]: Nach einem Windows-SSO-Login wird die Seite unter der
+    // Windows-Identitaet gerendert -> der Antiforgery-Token ist an diese Identitaet gebunden.
+    // Mobile-Browser (Android/iOS) senden bei nachfolgenden POSTs KEIN NTLM erneut -> der
+    // Logout-POST kommt anonym an -> Token-Identitaet != Request-Identitaet -> 400. Der Token
+    // laesst sich nicht fuer Desktop (NTLM-Resend) UND Mobile (anonym) gleichzeitig passend
+    // binden. Logout ist Low-Risk fuer CSRF (schlimmstenfalls Abmeldung, kein Datenzugriff),
+    // daher hier bewusst ohne Antiforgery-Pruefung.
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public IActionResult Logout()
     {
         HttpContext.Session.Clear();
+        Response.Cookies.Append(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie, "1",
+            new CookieOptions { HttpOnly = true, IsEssential = true });
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult WindowsLogin()
+    {
+        // Force-SSO: einmalige Negotiate-Challenge auch fuer per UA nicht erkannte
+        // Windows-Clients erzwingen. /Account/* ist von der Middleware ausgeschlossen,
+        // deshalb auf / (Home) redirecten, wo die Middleware greift.
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.NoAutoLoginCookie);
+        Response.Cookies.Delete(Middleware.WindowsAutoLoginMiddleware.AutoLoginTriedCookie);
+        Response.Cookies.Append(Middleware.WindowsAutoLoginMiddleware.ForceSsoCookie, "1",
+            new CookieOptions { HttpOnly = true, IsEssential = true });
+        return RedirectToAction("Index", "Home");
     }
 
     public IActionResult AccessDenied()
@@ -117,7 +160,7 @@ public class AccountController : Controller
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
             AvailableWorkSteps = await _workStepRepository.GetActiveAsync(),
-            DefaultWorkplaceId = user.DefaultWorkplaceId,
+            DefaultWorkbenches = user.DefaultWorkbenches,
             AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync()
         };
         return View(vm);
@@ -153,7 +196,7 @@ public class AccountController : Controller
             ? vm.DefaultPageSize
             : null;
         user.DefaultWorkStepId = vm.DefaultWorkStepId;
-        user.DefaultWorkplaceId = vm.DefaultWorkplaceId;
+        user.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);

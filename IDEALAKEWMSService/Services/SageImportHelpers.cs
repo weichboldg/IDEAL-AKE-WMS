@@ -17,4 +17,14 @@ internal static class SageImportHelpers
         if (!decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var value)) return null;
         return value == 0m ? null : value;
     }
+
+    /// <summary>
+    /// Normalisiert einen Sage-Lagerplatz-Rohcode (Kurzbezeichnung): Trim,
+    /// leer/whitespace -> null. Case bleibt erhalten (Lookup ist separat case-insensitiv).
+    /// </summary>
+    internal static string? NormalizeLocationCode(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        return raw.Trim();
+    }
 }

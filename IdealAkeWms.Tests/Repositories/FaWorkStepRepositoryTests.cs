@@ -57,9 +57,9 @@ public class FaWorkStepRepositoryTests
             new WorkStep { Id = 10, Code = "VE", Name = "Elektro" },
             new WorkStep { Id = 11, Code = "VL", Name = "Lueftung" },
             new WorkStep { Id = 12, Code = "VT", Name = "Tueren" });
-        var ve = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, IsRemoved = false, IsCompleted = true };
-        var vl = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 11, IsRemoved = false, IsCompleted = false };
-        var vt = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 12, IsRemoved = true, IsCompleted = false };
+        var ve = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, IsRemoved = false, Status = FaWorkStepStatus.Fertig };
+        var vl = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 11, IsRemoved = false, Status = FaWorkStepStatus.Offen };
+        var vt = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 12, IsRemoved = true, Status = FaWorkStepStatus.Offen };
         ctx.FaWorkSteps.AddRange(ve, vl, vt);
         await ctx.SaveChangesAsync();
 
@@ -67,14 +67,14 @@ public class FaWorkStepRepositoryTests
 
         pivot[1].Should().ContainKey("VE").And.ContainKey("VL");
         pivot[1].Should().NotContainKey("VT"); // entfernte Zeile nicht im Dict
-        pivot[1]["VE"].IsCompleted.Should().BeTrue();
+        pivot[1]["VE"].Status.Should().Be(FaWorkStepStatus.Fertig);
         pivot[1]["VE"].FaWorkStepId.Should().Be(ve.Id);
-        pivot[1]["VL"].IsCompleted.Should().BeFalse();
+        pivot[1]["VL"].Status.Should().Be(FaWorkStepStatus.Offen);
         pivot[1]["VL"].FaWorkStepId.Should().Be(vl.Id);
     }
 
     [Fact]
-    public async Task SetIsCompleted_SetsAuditAndCompletedFields()
+    public async Task SetStatus_Fertig_SetsAuditAndCompletedFields()
     {
         using var ctx = TestDbContextFactory.Create();
         var repo = new FaWorkStepRepository(ctx);
@@ -84,12 +84,31 @@ public class FaWorkStepRepositoryTests
         ctx.FaWorkSteps.Add(row);
         await ctx.SaveChangesAsync();
 
-        await repo.SetIsCompletedAsync(row.Id, true, "tester", "win\\tester");
+        await repo.SetStatusAsync(row.Id, FaWorkStepStatus.Fertig, "tester", "win\\tester");
 
         var reloaded = await ctx.FaWorkSteps.FindAsync(row.Id);
-        reloaded!.IsCompleted.Should().BeTrue();
+        reloaded!.Status.Should().Be(FaWorkStepStatus.Fertig);
         reloaded.CompletedAt.Should().NotBeNull();
         reloaded.CompletedBy.Should().Be("tester");
+    }
+
+    [Fact]
+    public async Task SetStatus_InBearbeitung_ClearsCompletedFields()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new FaWorkStepRepository(ctx);
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1" });
+        ctx.WorkSteps.Add(new WorkStep { Id = 10, Code = "VL", Name = "L" });
+        var row = new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, Status = FaWorkStepStatus.Fertig, CompletedAt = DateTime.Now, CompletedBy = "x" };
+        ctx.FaWorkSteps.Add(row);
+        await ctx.SaveChangesAsync();
+
+        await repo.SetStatusAsync(row.Id, FaWorkStepStatus.InBearbeitung, "tester", "win\\tester");
+
+        var reloaded = await ctx.FaWorkSteps.FindAsync(row.Id);
+        reloaded!.Status.Should().Be(FaWorkStepStatus.InBearbeitung);
+        reloaded.CompletedAt.Should().BeNull();
+        reloaded.CompletedBy.Should().BeNull();
     }
 
     [Fact]
@@ -109,7 +128,7 @@ public class FaWorkStepRepositoryTests
         reloaded!.IsSpecComplete.Should().BeTrue();
         reloaded.SpecCompletedAt.Should().NotBeNull();
         reloaded.SpecCompletedBy.Should().Be("tester");
-        reloaded.IsCompleted.Should().BeFalse(); // Arbeit-erledigt unberuehrt
+        reloaded.Status.Should().Be(FaWorkStepStatus.Offen); // Arbeit-erledigt unberuehrt
     }
 
     [Fact]
@@ -120,8 +139,8 @@ public class FaWorkStepRepositoryTests
         ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1" });
         ctx.WorkSteps.AddRange(new WorkStep { Id = 10, Code = "VE", Name = "E" }, new WorkStep { Id = 11, Code = "VL", Name = "L" });
         ctx.FaWorkSteps.AddRange(
-            new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, IsSpecComplete = true, IsCompleted = false },
-            new FaWorkStep { ProductionOrderId = 1, WorkStepId = 11, IsSpecComplete = false, IsCompleted = true });
+            new FaWorkStep { ProductionOrderId = 1, WorkStepId = 10, IsSpecComplete = true, Status = FaWorkStepStatus.Offen },
+            new FaWorkStep { ProductionOrderId = 1, WorkStepId = 11, IsSpecComplete = false, Status = FaWorkStepStatus.Fertig });
         await ctx.SaveChangesAsync();
 
         var counts = await repo.GetCountsByProductionOrderIdsAsync(new List<int> { 1 });

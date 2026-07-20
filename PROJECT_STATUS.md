@@ -2,7 +2,7 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1.22.0 FA-Vorbau)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 Glas-Bestellung als eigener Bestelltyp)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
 
 ### Wo wir aufgehoert haben (2026-05-27)
 
@@ -23,6 +23,121 @@ Stand: **2026-06-12**, **letzter Commit auf `bugfix/missingparts-include-pd` (v1
 
 1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
 2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+
+---
+
+### v1.25.0 (2026-07-03) — Glas-Bestellung als eigener Bestelltyp
+
+- **Bestelltyp Lager/Glas**: Enum `WarehouseRequisitionType` (Lager=1/Glas=2), Spalte
+  `WarehouseRequisitions.Type` (**Migration 77** `20260706074119_AddWarehouseRequisitionTypeAndGlasRole`,
+  additiv, `HasDefaultValue(Lager)`). Typ steht bei der Anlage fest — kein Wechsel, keine gemischten
+  Auftraege. Bestehende Bestellungen werden per Default zu Typ Lager.
+- **Neue Rolle `glasbestellung`** (analog `lagerbestellung`) — wird von der Migration automatisch
+  angelegt (idempotent) und ist im FreshInstall-Rollen-Seed enthalten. Composite-Filter
+  `RequirePickingOrStockOrLagerbestellungAccess` + `RequireStockOrLagerbestellungAccess` um
+  glasbestellung erweitert; `CanAccessGlasbestellungAsync`/`CanOrderGlasAsync`/`CanOrderLagerAsync`
+  im `CurrentUserService` steuern die Reiter-Sichtbarkeit.
+- **Artikelgruppen-Trennung**: Helper `GlasArticleGroupFilter` (`NormalizeGroup`/`IsAllowedForType`).
+  3 AppSettings: `DefaultGlasbestellempfaengerId`, `GlasArtikelgruppen`, `GemeinsameArtikelgruppen`
+  (Default `EUZ`). Enforcement zweifach: Artikelsuche `?type=` + AddItem-API server-seitig.
+- **Lager/Glas-Reiter** in WarehouseRequisitions/WarehousePicking/MissingParts/MissingPartsLager
+  (Typ aussen, Fehlteil-Status innen; Typ-Erhalt auf Rueckspruengen). Typabhaengiger Empfaenger-Key +
+  Mail-Betreff/Label beim Submit ("Glasbestellung #…" vs "Lagerbestellung #…").
+- **Doku**: Changelog v1.25.0, Hilfeseite (neuer Abschnitt „Glas-Bestellung" mit Admin-Einrichtung),
+  CLAUDE.md (Rolle + Composite-Filter + 3 AppSettings + neuer Fallstrick), TESTSZENARIEN Kapitel 46
+  (TS-46.1–46.8), Versions-Bump Web + Service. `SQL/00_FreshInstall.sql` gespiegelt (Type-Spalte,
+  Rolle, 3 AppSettings, Migrations-History). **Offener Punkt:** `secondbrain/sql/00_FreshInstall.sql`
+  ist ein veralteter Snapshot (~v1.14.0, ~50 Migrationen im Rueckstand) und wurde bewusst NICHT
+  angeglichen.
+- **DB-Deploy**: Migration 77 ist additiv (nicht destruktiv) — Default `Lager` fuer Altbestand.
+- **Hauptlagerplatz am Artikel** (Teil von v1.25.0): Sage-Sync + manueller Fallback (Sage-Wert →
+  gesperrt, sonst app-editierbar), zentrale Sortierung „Haupt zuerst" in den Bestand-je-Lagerplatz-
+  Anzeigen, ⭐-Badge in der Bestandsübersicht; **Migration 79** `AddArticlePrimaryStorageLocation`
+  (additiv). Warn-Count `hauptlagerplatz_fehlt` im Aktivitäts-Protokoll bei fehlendem WMS-Lagerplatz.
+- **FA-Reconciliation (v1.25.0):** Service-Sync storniert in Sage gelöschte, offene FAs (`ProductionOrder.IsCancelled`, Migration 80); Guard + Cap + Reaktivierung + Fehlermail; Opt-in `Sync:ProductionOrderReconcileEnabled` (Default aus). Badge „In Sage gelöscht" in der FA-Liste.
+- **ServiceSettings typisiert + vollstaendig (v1.25.0):** Katalog `ServiceSettingDefinitions.All` treibt Seeding (`Program.cs`) + typisierte `/ServiceSettings`-UI (Bool-Toggle/Int/String, nach Kategorie gruppiert). 8 Service-Lesestellen (Worker-Intervall/DryRun, NotificationCheckIntervalMinutes, ErrorNotification:Enabled/Recipients, Feiertag-Country/Region/JahreVoraus) DB-first mit resilientem Fallback (`GetBoolSafeAsync`/`GetIntSafeAsync`/`GetValueSafeAsync`). DB gewinnt; nur MailSettings/ConnectionStrings bleiben appsettings. `HolidaySyncService`-Override in lokale Variablen (keine Shared-IOptions-Mutation). Tests: `ServiceSettingDefinitionsTests` (Drift-Guard) + `ServiceSettingsControllerTests` (Merge + Int-Validierung). Kein Schema-Change, kein AppVersion-Bump. TESTSZENARIEN Kap. 51.
+- **Lagerbestellung aus BOM (Einzel + Bulk) + Master-Schalter `LagerbestellungAktiv` (v1.25.0):** In der Stückliste (Kommissionierung + Vorbau-Abarbeitung, auch read-only) je Nicht-Baugruppen-Zeile ein Lagerbestellung-Button (`.warehouse-select`-Checkbox) + Bulk-Button für die Auswahl. Neue Quick-Add-API `POST /api/warehouserequisitions/quick-add` (list-basiert): Typ aus Artikelgruppe abgeleitet (Glas → Glas, sonst/EUZ → Lager), je Typ genau EIN Draft/Lauf (offener Draft via `GetOpenDraftForUserAndTypeAsync` wiederverwendet), Werkbank = erste zugeordnete User-Werkbank; ungültige Items → `skipped`; Redirect ein-Typ → Edit, gemischt → Übersicht. Master-Gate-Filter `RequireLagerbestellungAktivAttribute` (class-level auf 5 Controller, MVC→Redirect Home / API→404) + Menü-Gating; AppSetting `LagerbestellungAktiv` (Default **true**, nur `"false"` sperrt). Layout-Dropdown erscheint bei `BestellungenAktiv` ODER `LagerbestellungAktiv`. Kein Schema-Change, keine Migration, **kein AppVersion-Bump** (in v1.25.0 gefaltet). Doku: Changelog, CLAUDE.md (Zugriffsschutz + AppSettings + Fallstrick), TESTSZENARIEN Kap. 52.
+- **BOM-UX (v1.25.0-Followup):** Stückliste-Spalten umsortierbar (`supportsReorder:true`, Baum-Anker `pick-control`+`position` locked, Hierarchie unberührt) + Sticky-Auswahlleiste `#bomBulkActionBar` (beide Bulk-Sets Lagerbestellung/Bedarfsmeldung, read-only-sicher). Kein Schema-Change/keine Migration/kein AppVersion-Bump. TESTSZENARIEN Kap. 52 (TS-52.1/52.2).
+- **Bugfix Lagerbestand-Nullsetzen (v1.25.0-Fold):** Lagerbestand-Sync setzt in Sage verschwundene Bestand-Paare (Sage-aktive Lagerplätze, WMS-Bestand ≠ 0) auf 0 (`LagerbestandZeroingPlanner.Plan`, `sagePresentKeys` aus Roh-Zeilen, `managedStock` = Sage+aktiv+≠0). Leer-Guard + Cap (`Sync:LagerbestandNullsetzenMaxPerRun`, Default 100) + Fehlermail bei Cap-Skip; `SageAusbuchung`/`SageEinbuchung` auf 0, Counts-Key `nullgesetzt`. Kein Schema-Change, keine Migration, kein AppVersion-Bump. TESTSZENARIEN Kap. 53.
+- **Windows-Auth UA-Gate + SSO-Button (v1.25.0-Fold):** `WindowsAutoLoginMiddleware` sendet die Negotiate-Challenge nur noch bei Windows-Desktop-UA (`UserAgentHelper.IsWindowsDesktop`) ODER gesetztem `ForceSsoCookie`; Nicht-Windows-Clients (Android/iOS/Mac/Linux) fallen prompt-frei aufs Formular durch (kein `AutoLoginTried`-Cookie, wenn nicht gechallenged). Neue GET-Action `AccountController.WindowsLogin` (loescht NoAutoLogin/AutoLoginTried, setzt ForceSso, Redirect Home) + Button „Mit Windows anmelden" im Login-Formular (nur bei `WindowsAuthAktiv`). Kein Schema-Change, keine Migration, **kein AppVersion-Bump**, kein neues AppSetting (nur Cookie-Konstante). Tests: `UserAgentHelperTests` (Theory) + erweiterte `WindowsAutoLoginMiddlewareTests` (Android/ForceSso) + `AccountControllerTests.WindowsLogin`. Manual-UAT: TESTSZENARIEN Kap. 40 (TS-40.7–40.9).
+- **Cleanup-Jobs im Service (v1.25.0-Fold):** Neuer erweiterbarer `CleanupWorker` (BackgroundService, 24h-Takt, DryRun-bewusst, resilient) als „Bereinigung"-Abschnitt. Erster Cleaner: Aktivitäts-Protokoll (`SyncLogs`) — löscht Einträge `Timestamp < DateTime.Now.AddDays(-N)` gebatcht (5000) via `ISyncLogRepository.DeleteOlderThanAsync`; N = neuer Service-Key `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, 0 = deaktiviert = still). Reine Stichtag-Logik im unit-getesteten `ActivityLogCleanupPlanner`, Lösch-/Protokoll-Lauf im `ActivityLogCleanupService` (`retentionDays` als Parameter → testbar; eigener Protokoll-Eintrag `CleanupAktivitaetsprotokoll` mit Count `geloescht`). Damit ist der lange offene „Retention/Cleanup-Job für SyncLogs" (siehe oben) abgehakt. Kein Schema-Change, keine Migration, **kein AppVersion-Bump** (in v1.25.0 gefaltet). Tests: `SyncLogRepositoryTests` (+3), `ServiceSettingDefinitionsTests` (Drift-Guard +1), `ActivityLogCleanupPlannerTests` (+3), `ActivityLogCleanupServiceTests` (+3). Doku: Changelog, CLAUDE.md (Service-Config + Fallstrick), TESTSZENARIEN Kap. 54. Manual-UAT (Takt 24h / Worker-Read der Aufbewahrung): TESTSZENARIEN Kap. 54.
+
+### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
+
+- **FA-Vorbau-Erledigt = 3-Wert-Status**: `FaWorkStep.IsCompleted` (bool) ersetzt durch
+  `Status` (`FaWorkStepStatus` Offen=0/InBearbeitung=1/Fertig=2), als Auswahlfeld in der
+  FA-Abarbeitungsliste UND im Leitstand (VK-VA). Nur **Fertig** blendet eine FA aus der
+  Abarbeitungsliste aus (in Bearbeitung bleibt sichtbar). Schreib-Pfad: API
+  `/api/fa-work-steps/set-status {faWorkStepId, status}` → `SetStatusAsync`
+  (`CompletedAt`/`CompletedBy` nur bei Fertig). Shared Partial `_FaWorkStepStatusSelect`
+  + JS `fa-work-step-status.js`; Pivot-Zelle `FaWorkStepPivotCell(FaWorkStepId, Status)`.
+  Der alte `toggle-completed`-Endpoint + die Erledigt-Checkboxen sind entfallen.
+- **Migration 76** `20260630104647_ReplaceFaWorkStepIsCompletedWithStatus`
+  (+ `SQL/76` + FreshInstall): **daten-konvertierend** (IsCompleted=1 → Fertig(2)) und
+  **dropt die `IsCompleted`-Spalte**. Down() verliert die Offen/InBearbeitung-Unterscheidung
+  → **DB-Backup vor Produktions-Deploy empfohlen**.
+- **Beschichtungstermin in der FA-Abarbeitungsliste**: zusaetzliche, filterbare Spalte
+  `coating-date`. Formel jetzt zentral in `CoatingDateCalculator.Compute(...)` (DRY: Leitstand
+  + Abarbeitungsliste). Backward-Compat-Regel: bei leerem `LackierteilKategorieName` fuer ALLE
+  FAs gefuellt, sonst nur fuer FAs mit Lackierteilen (`HasCoatingParts`).
+- **Server-Mode-Spaltenfilter erst bei ENTER**: `table-filter.js` navigiert im Server-Mode
+  jetzt erst auf ENTER (kein Debounce-Tippen mehr); Kalender/„Filter entfernen"/`setColumnFilter`
+  rufen `applyColumnFilterNow()` und wirken sofort. Client-Mode (Tracking/ByWorkplace) bleibt
+  live beim Tippen.
+- **Doku**: Changelog v1.24.0, Hilfeseite (FA-Abarbeitungsliste-Abschnitt), CLAUDE.md
+  (neuer Fallstrick + Pagination-Abschnitt + v1.20.0-Date-Picker-Fallstrick reconciled),
+  TESTSZENARIEN Kapitel 45, Versions-Bump Web + Service.
+
+### v1.23.0 (2026-06-18) — Windows-Authentifizierung + AD-Benutzer-Rollen
+
+- **Windows-SSO Auto-Login** via `WindowsAutoLoginMiddleware` (nach Session, vor
+  LoginRedirect; hinter AppSetting `WindowsAuthAktiv`, Default false): Domaenen-User
+  mit hinterlegtem Datensatz werden ohne Formular angemeldet, jeder Fehler/kein
+  Treffer faellt zum Formular-Fallback durch. Logout setzt `NoAutoLogin`-Cookie
+  (Benutzerwechsel), Login loescht ihn.
+- **Hosting-Korrektur**: `AddNegotiate()` → `AddAuthentication(IISServerDefaults.AuthenticationScheme)`
+  (IIS in-process; `AddNegotiate()` war hier falsch). Package
+  `Microsoft.AspNetCore.Authentication.Negotiate` entfernt; beide IIS-Auth-Modi
+  (windows + anonymous) bleiben aktiv.
+- **`User.WindowsUserName`** (SAM, case-insensitiv) als Login-Schluessel;
+  **Migration 73** `20260618070606_AddWindowsUserNameDropAdGroup` (+ `SQL/73` +
+  FreshInstall). AD-User = WindowsUserName gesetzt + PasswordHash NULL.
+- **AD-Benutzer-Picker** (`UsersController.CreateAdUser`): liest Mitglieder der
+  `WindowsAuthBerechtigungsgruppe` live per LDAP (`IActiveDirectoryService`,
+  Windows-only, kein Throw bei Nicht-Windows/Fehler). Users-Liste mit Typ-Spalte
+  AD/Lokal.
+- **`Role.AdGroup`-Automatik entfernt** (Spalte gedroppt) — Rollen nur noch
+  explizit pro Benutzer (UserRole). `Security:AdGroupCacheMinutes` entfaellt; neu
+  `Security:AdDomain` (appsettings.json, optional).
+- **Neue AppSettings**: `WindowsAuthAktiv` (false), `WindowsAuthBerechtigungsgruppe`.
+- **Tests**: `WindowsAccountHelper.ExtractSam` (Theory), Middleware-Entscheidungslogik
+  (Faelle A/B/C via `IChallengeIssuer`-Abstraktion + Fake-Repo),
+  `GetActiveByWindowsUserNameAsync`, `CreateAdUser`, `CurrentUserService`
+  (nur UserRoles). Echte LDAP- + IIS-Negotiate-Strecke = Manual-UAT
+  (TESTSZENARIEN Kapitel 40).
+- **Doku**: Changelog v1.23.0, Hilfeseite (Abschnitt „Windows-Anmeldung &
+  AD-Benutzer"), CLAUDE.md (Dual-Auth/Session/AppSettings/Fallstrick/Rollenkonzept),
+  TESTSZENARIEN Kapitel 40, RoleOverview (AdGroup-Spalte raus).
+- **Rolle `lagerbestellung` + Artikelinfo-Kachel** (Folge-Erweiterung): neue, eng
+  abgegrenzte Rolle (nur `/WarehouseRequisitions` + `/MissingParts`) ueber zwei
+  additive Composite-Filter (`RequirePickingOrStockOrLagerbestellungAccess`,
+  `RequireStockOrLagerbestellungAccess`; geteilte Filter unveraendert),
+  **Migration 74** `20260619063919_AddLagerbestellungRole` (+ `SQL/74` +
+  FreshInstall). Zusaetzlich: Artikelinfo-Dashboard-Kachel (`Articles/Info`) jetzt
+  auch fuer `masterdata_read` sichtbar (Partial `_ArtikelinfoTile.cshtml`,
+  `ViewBag.HasMasterDataReadAccess`). Doku: Changelog v1.23.0, CLAUDE.md
+  (Zugriffsschutz/Rollenkonzept/Fallstrick), RoleOverview, TESTSZENARIEN Kapitel 41.
+- **Lagerbestellungs-Druck spiegelt GUI** (Folge-Erweiterung): `WarehousePicking/Print`
+  übernimmt Spalten-Sichtbarkeit/-Reihenfolge (neues Zahnrad-Prefs-Muster, view-key
+  `WarehousePickingDetails`) + Live-Sortierung + Live-Filter. Reine Layout-Logik in
+  `WarehousePickingPrintLayout` (GUI-gleicher Vergleich, repliziert `table-filter.js`).
+  Kein Migrations-Eingriff. TESTSZENARIEN Kapitel 42.
+- FA-Abarbeitungsliste: `User.DefaultWorkplaceId` (FK) → `User.DefaultWorkbenches`
+  (komma-separierter Werkbank-Filter, Enthält-Semantik via `WorkbenchFilter`, **Migration 75**
+  destruktiv) + Textfeld/Datalist in Profil/Benutzerstamm + neue Spalten Bezeichnung 1/2.
+- FA-AG-Erkennungs-Pipeline im Aktivitäts-Protokoll aufgeschlüsselt: `FaWorkStepDetection`
+  (nicht gefundene Begriffe + Begriff je erkanntem FA), `BomCache` (Cap-/BOM-Abdeckungs-Warnung
+  via `BomCacheCoverage`-Helper). Reines Logging, kein Migrations-Eingriff.
 
 ---
 

@@ -237,51 +237,31 @@
                     <td class="text-center">
                         @if (item.WorkSteps.TryGetValue("VK", out var vk))
                         {
-                            <input type="checkbox" class="form-check-input toggle-field"
-                                   data-id="@item.Id"
-                                   data-endpoint="/api/fa-work-steps/toggle-completed"
-                                   data-fa-work-step-id="@vk.FaWorkStepId"
-                                   title="VK Kälte erledigt" @(vk.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vk.FaWorkStepId, Status = vk.Status, Disabled = !Model.CanPick })
                         }
                     </td>
                     <td class="text-center">
                         @if (item.WorkSteps.TryGetValue("VL", out var vl))
                         {
-                            <input type="checkbox" class="form-check-input toggle-field"
-                                   data-id="@item.Id"
-                                   data-endpoint="/api/fa-work-steps/toggle-completed"
-                                   data-fa-work-step-id="@vl.FaWorkStepId"
-                                   title="VL Lüfter erledigt" @(vl.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vl.FaWorkStepId, Status = vl.Status, Disabled = !Model.CanPick })
                         }
                     </td>
                     <td class="text-center">
                         @if (item.WorkSteps.TryGetValue("VE", out var ve))
                         {
-                            <input type="checkbox" class="form-check-input toggle-field"
-                                   data-id="@item.Id"
-                                   data-endpoint="/api/fa-work-steps/toggle-completed"
-                                   data-fa-work-step-id="@ve.FaWorkStepId"
-                                   title="VE Elektro erledigt" @(ve.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = ve.FaWorkStepId, Status = ve.Status, Disabled = !Model.CanPick })
                         }
                     </td>
                     <td class="text-center">
                         @if (item.WorkSteps.TryGetValue("VT", out var vt))
                         {
-                            <input type="checkbox" class="form-check-input toggle-field"
-                                   data-id="@item.Id"
-                                   data-endpoint="/api/fa-work-steps/toggle-completed"
-                                   data-fa-work-step-id="@vt.FaWorkStepId"
-                                   title="VT Türen erledigt" @(vt.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vt.FaWorkStepId, Status = vt.Status, Disabled = !Model.CanPick })
                         }
                     </td>
                     <td class="text-center">
                         @if (item.WorkSteps.TryGetValue("VA", out var va))
                         {
-                            <input type="checkbox" class="form-check-input toggle-field"
-                                   data-id="@item.Id"
-                                   data-endpoint="/api/fa-work-steps/toggle-completed"
-                                   data-fa-work-step-id="@va.FaWorkStepId"
-                                   title="VA Aufbau erledigt" @(va.IsCompleted ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = va.FaWorkStepId, Status = va.Status, Disabled = !Model.CanPick })
                         }
                     </td>
                     <td>
@@ -563,6 +543,7 @@
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script src="~/js/fa-work-step-status.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // QR scanner for FA number filter — fills input then submits form
@@ -579,7 +560,6 @@
 
             // Toggle-Field per AJAX — dispatcht ueber data-endpoint
             // picking-status/bde-status sendet { productionOrderId, field, value }
-            // fa-work-steps/toggle-completed sendet { faWorkStepId, value } (Erledigt-Haken der VK-VA-AGs)
             document.querySelectorAll('.toggle-field').forEach(function (cb) {
                 cb.addEventListener('change', function () {
                     var id = parseInt(this.getAttribute('data-id'));
@@ -588,9 +568,7 @@
                     var value = this.checked;
 
                     var body;
-                    if (endpoint === '/api/fa-work-steps/toggle-completed') {
-                        body = { faWorkStepId: parseInt(cb.dataset.faWorkStepId), value: value };
-                    } else if (endpoint === '/api/picking-status/toggle' || endpoint === '/api/bde-status/toggle') {
+                    if (endpoint === '/api/picking-status/toggle' || endpoint === '/api/bde-status/toggle') {
                         body = { productionOrderId: id, field: field, value: value };
                     } else {
                         console.error('Unknown toggle-field endpoint:', endpoint);

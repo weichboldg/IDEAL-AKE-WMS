@@ -14,8 +14,8 @@ namespace IdealAkeWms.Controllers;
 /// (<see cref="FaAttributeValue"/>) und die Werkbank-Zuweisung. Der AJAX-Toggle
 /// <c>/api/fa-work-steps/toggle</c> bleibt fuer Leitstand + Edit-View;
 /// IsSpecComplete ("vollstaendig definiert") hat eine eigene Action mit
-/// Audit-Lifecycle. Arbeit-erledigt (IsCompleted) wird ausschliesslich in der
-/// FA-Abarbeitungsliste gesetzt — NICHT hier.
+/// Audit-Lifecycle. Arbeit-erledigt (Status, 3-Wert) wird ausschliesslich in der
+/// FA-Abarbeitungsliste / im Leitstand gesetzt — NICHT hier.
 /// </summary>
 [RequireFaCompletionAccess]
 public class FaCompletionController : Controller
@@ -91,7 +91,7 @@ public class FaCompletionController : Controller
         {
             // "Erledigt" = Sage-IsDone ODER App-Komm-erledigt (IsDonePicking) — konsistent zur FA-Liste.
             orders = orders
-                .Where(o => !o.IsDone && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
+                .Where(o => !o.IsDone && !o.IsCancelled && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
                 .ToList();
         }
 

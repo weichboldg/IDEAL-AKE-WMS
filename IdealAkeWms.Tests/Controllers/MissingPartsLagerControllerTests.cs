@@ -24,6 +24,7 @@ public class MissingPartsLagerControllerTests
         user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
         wp.Setup(w => w.GetAllAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -53,6 +54,7 @@ public class MissingPartsLagerControllerTests
         var (ctrl, repo, _, _, _) = Build();
         await ctrl.Index(tab: ShortageStatus.NoRestock);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock,
+            It.IsAny<WarehouseRequisitionType?>(),
             It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string, string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<int>(), It.IsAny<int>()), Times.AtLeastOnce);
@@ -81,6 +83,7 @@ public class MissingPartsLagerControllerTests
             Status: ShortageStatus.WillBeRestocked,
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
@@ -105,6 +108,74 @@ public class MissingPartsLagerControllerTests
     }
 
     [Fact]
+    public async Task Index_TypGlas_ReichtTypScharfDurch()
+    {
+        var (ctrl, repo, _, _, _) = Build();
+        var capturedTypes = new List<WarehouseRequisitionType?>();
+        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
+                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>(),
+                It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<int>(), It.IsAny<int>()))
+            .Callback<ShortageStatus, WarehouseRequisitionType?, int?,
+                IReadOnlyDictionary<string, string>?, DateTime?, DateTime?, int, int>(
+                (_, type, _, _, _, _, _, _) => capturedTypes.Add(type))
+            .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow>(), 0));
+
+        var result = await ctrl.Index(tab: ShortageStatus.WillBeRestocked,
+            type: WarehouseRequisitionType.Glas) as ViewResult;
+
+        // Haupt-Listen-Aufruf (erster Repo-Call) MUSS exakt den gewaehlten Typ durchreichen —
+        // und auch beide Count-Aufrufe sind typ-bezogen (alle Calls = Glas).
+        capturedTypes.Should().NotBeEmpty();
+        capturedTypes[0].Should().Be(WarehouseRequisitionType.Glas);
+        capturedTypes.Should().OnlyContain(t => t == WarehouseRequisitionType.Glas);
+
+        var vm = result!.Model as MissingPartsListViewModel;
+        vm!.ActiveType.Should().Be(WarehouseRequisitionType.Glas);
+    }
+
+    [Fact]
+    public async Task Index_HauptlagerplatzZuerst_TrotzGeringererMenge()
+    {
+        var (ctrl, repo, _, stock, _) = Build();
+        var row = new MissingPartRow(
+            RequisitionId: 1, ItemId: 10, Position: 1,
+            WorkplaceName: "A1",
+            ArticleNumber: "20623",
+            ArticleDescription: "LED-Stromversorger",
+            QuantityRequested: 4m, QuantityPicked: 0m, QuantityMissing: 4m,
+            Unit: "Stk", Note: null,
+            CreatedBy: "user", ClosedAt: null,
+            Status: ShortageStatus.WillBeRestocked,
+            NoteEinkauf: null);
+        repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
+                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>(),
+                It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow> { row }, 1));
+        // Hauptlagerplatz (LP-B2) hat die KLEINERE Menge — muss trotzdem zuerst stehen.
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.Is<List<string>>(l => l.Contains("20623"))))
+            .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>
+            {
+                ["20623"] = new List<StockLocationInfo>
+                {
+                    new StockLocationInfo { Code = "LP-A1", Quantity = 5m, StorageLocationId = 1, IsPrimaryStorageLocation = false },
+                    new StockLocationInfo { Code = "LP-B2", Quantity = 2m, StorageLocationId = 2, IsPrimaryStorageLocation = true }
+                }
+            });
+
+        var result = await ctrl.Index();
+        var vm = (result as ViewResult)!.Model as MissingPartsListViewModel;
+        vm!.Items.Should().HaveCount(1);
+        // Hauptlagerplatz zuerst, trotz geringerer Menge
+        vm.Items[0].StorageLocations.Should().Be("LP-B2 (2,000), LP-A1 (5,000)");
+    }
+
+    [Fact]
     public async Task Index_RowsWithoutStock_HaveNullStorageLocations()
     {
         var (ctrl, repo, _, stock, _) = Build();
@@ -119,6 +190,7 @@ public class MissingPartsLagerControllerTests
             Status: ShortageStatus.WillBeRestocked,
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
+                It.IsAny<WarehouseRequisitionType?>(),
                 It.IsAny<int?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),

@@ -14,12 +14,14 @@ public class SageImportServiceTests
         var config = new ConfigurationBuilder().Build(); // no connection strings
         var bomMock = new Mock<IBomCacheSyncService>();
         var coatingMock = new Mock<ICoatingDetectionService>();
+        var notifierMock = new Mock<ISyncErrorNotifier>();
         return new SageImportService(
             config,
             NullLogger<SageImportService>.Instance,
             fakeLogger,
             bomMock.Object,
-            coatingMock.Object);
+            coatingMock.Object,
+            notifierMock.Object);
     }
 
     [Fact]
@@ -72,5 +74,16 @@ public class SageImportServiceTests
             result.Should().BeNull();
         else
             result.Should().Be(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(null,          null)]
+    [InlineData("",            null)]
+    [InlineData("   ",         null)]
+    [InlineData("A-01",        "A-01")]
+    [InlineData("  A-01  ",    "A-01")]
+    public void NormalizeLocationCode_trims_and_nulls_empty(string? raw, string? expected)
+    {
+        SageImportHelpers.NormalizeLocationCode(raw).Should().Be(expected);
     }
 }

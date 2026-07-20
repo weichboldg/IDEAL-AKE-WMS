@@ -13,8 +13,8 @@
     var doneHeader = Model.SelectedWorkStep != null
         ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
         : "Erledigt";
-    // FA-Nr, Werkbank, Artikel, Stk, BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
-    var columnCount = 7 + Model.AttributeColumns.Count + 1;
+    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, Beschicht., BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
+    var columnCount = 10 + Model.AttributeColumns.Count + 1;
 }
 
 <h2 class="page-header">FA-Abarbeitungsliste</h2>
@@ -44,14 +44,15 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="workplaceId">Werkbank</label>
-                    <select name="workplaceId" id="workplaceId" class="form-select" onchange="this.form.submit()">
-                        <option value="" selected="@(Model.SelectedWorkplaceId == null)">(alle)</option>
+                    <label class="form-label" for="workbenches">Werkbänke (kommasepariert)</label>
+                    <input type="text" name="workbenches" id="workbenches" class="form-control" list="workbenchOptions"
+                           value="@Model.Workbenches" placeholder="alle" onchange="this.form.submit()" />
+                    <datalist id="workbenchOptions">
                         @foreach (var wp in Model.AvailableWorkplaces)
                         {
-                            <option value="@wp.Id" selected="@(Model.SelectedWorkplaceId == wp.Id)">@wp.Name</option>
+                            <option value="@wp.Name"></option>
                         }
-                    </select>
+                    </datalist>
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <div class="form-check mb-2">
@@ -82,7 +83,10 @@ else
                     <th data-filterable data-col-key="order-number">FA Nr.</th>
                     <th data-filterable data-col-key="workbench">Werkbank</th>
                     <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                    <th data-filterable data-col-key="description1">Bezeichnung 1</th>
+                    <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                     <th data-filterable data-col-key="quantity">Stk.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter>Beschicht.</th>
                     <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
                     <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
                     <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
@@ -122,7 +126,10 @@ else
                             </td>
                             <td>@item.WorkplaceName</td>
                             <td>@item.ArticleNumber</td>
+                            <td>@item.Description1</td>
+                            <td>@item.Description2</td>
                             <td>@item.Quantity</td>
+                            <td class="text-nowrap">@FormatDateWithKw(item.BeschichtungTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.KommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.ProductionDate)</td>
@@ -133,8 +140,11 @@ else
                             <td class="text-center">
                                 @if (item.WorkStepCell != null)
                                 {
-                                    <input type="checkbox" class="form-check-input worklist-complete"
-                                           data-fa-work-step-id="@item.WorkStepCell.FaWorkStepId" @(item.WorkStepCell.IsCompleted ? "checked" : "") />
+                                    @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel
+                                    {
+                                        FaWorkStepId = item.WorkStepCell.FaWorkStepId,
+                                        Status = item.WorkStepCell.Status,
+                                    })
                                 }
                             </td>
                         </tr>
@@ -154,7 +164,10 @@ else
         { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
         { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
         { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+        { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+        { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
         { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
+        { "key": "coating-date", "label": "Beschicht.", "locked": false, "defaultWidth": null },
         { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
         { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
         { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
@@ -170,29 +183,5 @@ else
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
-    <script>
-        // Erledigt-Toggle per AJAX — Event-Delegation, damit es keine per-Row-Handler braucht.
-        // Fehlerfall: Checkbox zuruecksetzen (Muster Leitstand-Toggle-Fields).
-        document.addEventListener('change', function (e) {
-            var cb = e.target.closest('.worklist-complete');
-            if (!cb) return;
-
-            var faWorkStepId = parseInt(cb.getAttribute('data-fa-work-step-id'));
-            var value = cb.checked;
-
-            fetch('/api/fa-work-steps/toggle-completed', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ faWorkStepId: faWorkStepId, value: value })
-            }).then(function (resp) {
-                if (!resp.ok) {
-                    cb.checked = !value;
-                    alert('Fehler beim Speichern.');
-                }
-            }).catch(function () {
-                cb.checked = !value;
-                alert('Fehler beim Speichern.');
-            });
-        });
-    </script>
+    <script src="~/js/fa-work-step-status.js" asp-append-version="true"></script>
 }

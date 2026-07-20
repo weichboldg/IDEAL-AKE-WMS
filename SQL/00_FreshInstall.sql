@@ -26,6 +26,7 @@ BEGIN
         [Name]                      NVARCHAR(200)     NOT NULL,
         [PersonalNumber]            NVARCHAR(50)      NULL,
         [PasswordHash]              NVARCHAR(500)     NULL,
+        [WindowsUserName]           NVARCHAR(200)     NULL,
         [IsActive]                  BIT               NOT NULL DEFAULT 1,
         [DefaultFilterBeschaffung]  NVARCHAR(100)     NULL,
         [DefaultFilterArtikelgruppe] NVARCHAR(100)    NULL,
@@ -40,7 +41,7 @@ BEGIN
         [IsPicker]                  BIT               NOT NULL DEFAULT 0,
         [DefaultPageSize]           INT               NULL,
         [DefaultWorkStepId]         INT               NULL,
-        [DefaultWorkplaceId]        INT               NULL,
+        [DefaultWorkbenches]        NVARCHAR(400)     NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -142,6 +143,8 @@ BEGIN
         [Unit]              NVARCHAR(20)      NULL,
         [ReorderLevel]      DECIMAL(18,3)     NULL,
         [ArticleGroup]      NVARCHAR(100)     NULL,
+        [PrimaryStorageLocationId]   INT           NULL,
+        [SagePrimaryStorageLocation] NVARCHAR(100) NULL,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -229,6 +232,9 @@ BEGIN
         [ProductionDate]          DATETIME2         NULL,
         [DeliveryDate]            DATETIME2         NULL,
         [IsDone]                  BIT               NOT NULL DEFAULT 0,
+        [IsCancelled]             BIT               NOT NULL DEFAULT 0,
+        [CancelledAt]             DATETIME2         NULL,
+        [CancelledBy]             NVARCHAR(256)     NULL,
         [ProductionWorkplaceId]   INT               NULL,
         [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]               NVARCHAR(200)     NOT NULL,
@@ -360,23 +366,14 @@ END
 GO
 
 -- =============================================
--- 8c3. FA-Vorbau (v1.22.0): Users.DefaultWorkplaceId -> ProductionWorkplaces (Migration 71)
---      ProductionWorkplaces (Block 7) existiert bereits vor diesem Punkt; Index + FK
---      werden NACH dem Users-CREATE platziert.
+-- 8c4. Windows-Auth (v1.23.0): Users.WindowsUserName gefilterter Unique-Index (Migration 73)
 -- =============================================
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Users_DefaultWorkplaceId' AND object_id = OBJECT_ID('dbo.Users'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_Users_WindowsUserName' AND object_id = OBJECT_ID('dbo.Users'))
 BEGIN
-    CREATE INDEX [IX_Users_DefaultWorkplaceId] ON [dbo].[Users] ([DefaultWorkplaceId]);
-    PRINT 'Index IX_Users_DefaultWorkplaceId erstellt.';
-END
-GO
-
-IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Users_ProductionWorkplaces_DefaultWorkplaceId')
-BEGIN
-    ALTER TABLE [dbo].[Users]
-        ADD CONSTRAINT [FK_Users_ProductionWorkplaces_DefaultWorkplaceId]
-        FOREIGN KEY ([DefaultWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL;
-    PRINT 'FK FK_Users_ProductionWorkplaces_DefaultWorkplaceId erstellt.';
+    CREATE UNIQUE INDEX [UQ_Users_WindowsUserName]
+        ON [dbo].[Users] ([WindowsUserName])
+        WHERE [WindowsUserName] IS NOT NULL;
+    PRINT 'Index UQ_Users_WindowsUserName erstellt.';
 END
 GO
 
@@ -389,7 +386,7 @@ BEGIN
         [Id]                INT IDENTITY(1,1) NOT NULL,
         [ProductionOrderId] INT               NOT NULL,
         [WorkStepId]        INT               NOT NULL,
-        [IsCompleted]       BIT               NOT NULL,
+        [Status]            INT               NOT NULL CONSTRAINT DF_FaWorkSteps_Status DEFAULT 0,
         [CompletedAt]       DATETIME2         NULL,
         [CompletedBy]       NVARCHAR(200)     NULL,
         [IsSpecComplete]    BIT               NOT NULL CONSTRAINT DF_FaWorkSteps_IsSpecComplete DEFAULT 0,
@@ -804,7 +801,6 @@ BEGIN
         [Key]               NVARCHAR(50)      NOT NULL,
         [Name]              NVARCHAR(100)     NOT NULL,
         [Description]       NVARCHAR(500)     NULL,
-        [AdGroup]           NVARCHAR(200)     NULL,
         [IsSystem]          BIT               NOT NULL DEFAULT 0,
         [SortOrder]         INT               NOT NULL DEFAULT 0,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
@@ -881,13 +877,18 @@ BEGIN
         ('KommissionierungMitZuweisung', 'false', 'Kommissionierung mit Anwenderzuweisung aktivieren'),
         ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv'),
         ('DefaultLagerbestellempfaengerId', '', 'Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)'),
+        ('DefaultGlasbestellempfaengerId', '', 'Default-OrderRecipientGroup-ID fuer Glas-Bestellungen (leer = Submit blockt)'),
+        ('GlasArtikelgruppen', '', 'Kommaseparierte Artikelgruppen fuer Glas-Bestellungen (in der Lager-Bestellung ausgenommen)'),
+        ('GemeinsameArtikelgruppen', 'EUZ', 'Kommaseparierte Artikelgruppen, die in Lager- UND Glas-Bestellungen verfuegbar sind'),
         ('BdeAktiv', 'false', 'BDE-Modul (Betriebsdatenerfassung) aktivieren'),
         ('BdeNurFaMeldung', 'false', 'Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge'),
         ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)'),
         ('BdeMehrfachBuchungProOperator', 'false', 'Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)'),
         ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)'),
         ('BdeGleichzeitigerAbschlussBeiMehrfachStart', 'false', 'Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)'),
-        ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
+        ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv'),
+        ('WindowsAuthAktiv', 'false', 'Windows-Anmeldung (Auto-Login) aktivieren'),
+        ('WindowsAuthBerechtigungsgruppe', '', 'AD-Berechtigungsgruppe (SAM-Name) fuer ''AD-Benutzer anlegen''');
     PRINT 'Standard-Einstellungen eingefuegt.';
 END
 GO
@@ -1037,6 +1038,8 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_Artic
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ArticleNumber] ON [dbo].[ProductionOrders]([ArticleNumber]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDone')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsDone] ON [dbo].[ProductionOrders]([IsDone]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsCancelled')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsCancelled] ON [dbo].[ProductionOrders]([IsCancelled]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsReleasedForPicking_IsDone')
@@ -1194,6 +1197,28 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Articles') AND name = 'PrimaryStorageLocationId')
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD [PrimaryStorageLocationId] INT NULL;
+    ALTER TABLE [dbo].[Articles] ADD [SagePrimaryStorageLocation] NVARCHAR(100) NULL;
+    PRINT 'Spalten [Articles].[PrimaryStorageLocationId]/[SagePrimaryStorageLocation] erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Articles_PrimaryStorageLocationId' AND object_id = OBJECT_ID('dbo.Articles'))
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_Articles_PrimaryStorageLocationId] ON [dbo].[Articles] ([PrimaryStorageLocationId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Articles_StorageLocations_PrimaryStorageLocationId' AND parent_object_id = OBJECT_ID('dbo.Articles'))
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD CONSTRAINT [FK_Articles_StorageLocations_PrimaryStorageLocationId]
+        FOREIGN KEY ([PrimaryStorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]) ON DELETE SET NULL;
+    PRINT 'FK [FK_Articles_StorageLocations_PrimaryStorageLocationId] erstellt.';
+END
+GO
+
 -- =============================================
 -- 16d. ArticleAttributeDefinitions + Options + Values
 -- =============================================
@@ -1297,18 +1322,18 @@ GO
 -- Standard-Rollen
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'admin')
 BEGIN
-    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows]) VALUES
-        ('admin',         'Administrator',      'Vollzugriff auf alle Funktionen',                                          NULL, 1, 0, GETDATE(), 'system', 'system'),
-        ('masterdata',    'Stammdaten',          'Zugriff auf Stammdatenverwaltung (Benutzer, Arbeitsplaetze, Einstellungen)', 'BDE_Stammdaten', 1, 1, GETDATE(), 'system', 'system'),
-        ('picking',       'Kommissionierung',    'Kommissionierung, Lagerbewegungen, Bestaende',                             NULL, 1, 2, GETDATE(), 'system', 'system'),
-        ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   NULL, 1, 3, GETDATE(), 'system', 'system'),
-        ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     NULL, 1, 4, GETDATE(), 'system', 'system'),
-        ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             NULL, 1, 5, GETDATE(), 'system', 'system'),
-        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                NULL, 1, 6, GETDATE(), 'system', 'system'),
-        ('leitstand',    'Leitstand',           'Produktionsauftraege freigeben und priorisieren',                              NULL, 1, 7, GETDATE(), 'system', 'system'),
-        ('bde_user',      'BDE-Mitarbeiter',     'Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln, Mengen melden',  NULL, 1, 100, GETDATE(), 'system', 'system'),
-        ('bde_shiftlead', 'BDE-Schichtleiter',   'BDE-Anwender + Aktivitaets-Kategorien pflegen, Buchungsliste + Cockpit',   NULL, 1, 101, GETDATE(), 'system', 'system'),
-        ('bde_admin',     'BDE-Admin',           'Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren', NULL, 1, 102, GETDATE(), 'system', 'system');
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows]) VALUES
+        ('admin',         'Administrator',      'Vollzugriff auf alle Funktionen',                                          1, 0, GETDATE(), 'system', 'system'),
+        ('masterdata',    'Stammdaten',          'Zugriff auf Stammdatenverwaltung (Benutzer, Arbeitsplaetze, Einstellungen)', 1, 1, GETDATE(), 'system', 'system'),
+        ('picking',       'Kommissionierung',    'Kommissionierung, Lagerbewegungen, Bestaende',                             1, 2, GETDATE(), 'system', 'system'),
+        ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   1, 3, GETDATE(), 'system', 'system'),
+        ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     1, 4, GETDATE(), 'system', 'system'),
+        ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             1, 5, GETDATE(), 'system', 'system'),
+        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                1, 6, GETDATE(), 'system', 'system'),
+        ('leitstand',    'Leitstand',           'Produktionsauftraege freigeben und priorisieren',                              1, 7, GETDATE(), 'system', 'system'),
+        ('bde_user',      'BDE-Mitarbeiter',     'Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln, Mengen melden',  1, 100, GETDATE(), 'system', 'system'),
+        ('bde_shiftlead', 'BDE-Schichtleiter',   'BDE-Anwender + Aktivitaets-Kategorien pflegen, Buchungsliste + Cockpit',   1, 101, GETDATE(), 'system', 'system'),
+        ('bde_admin',     'BDE-Admin',           'Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren', 1, 102, GETDATE(), 'system', 'system');
     PRINT 'Standard-Rollen eingefuegt.';
 END
 GO
@@ -1316,11 +1341,11 @@ GO
 -- Rolle 'masterdata_read' (Nur-Lesen-Zugriff auf Stammdaten, v1.20.0)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'masterdata_read')
 BEGIN
-    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
                                [CreatedAt], [CreatedBy], [CreatedByWindows])
     VALUES ('masterdata_read', 'Stammdaten ansehen',
             'Nur-Lesen-Zugriff auf alle Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).',
-            NULL, 1, 5,
+            1, 5,
             GETDATE(), 'system', 'system');
     PRINT 'Rolle masterdata_read eingefuegt.';
 END
@@ -1329,11 +1354,50 @@ GO
 -- Rolle 'vorbau' (FA-Abarbeitungsliste, v1.22.0)
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'vorbau')
 BEGIN
-    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [AdGroup], [IsSystem], [SortOrder],
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
                                [CreatedAt], [CreatedBy], [CreatedByWindows])
-    VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen und abhaken', NULL, 1,
+    VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen und abhaken', 1,
             (SELECT MAX([SortOrder]) + 1 FROM [dbo].[Roles]), GETDATE(), 'system', 'system');
     PRINT 'Rolle vorbau eingefuegt.';
+END
+GO
+
+-- Rolle 'lagerbestellung' (nur Lagerbestellungen + eigene Fehlteile, v1.23.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'lagerbestellung')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('lagerbestellung', 'Lagerbestellungen',
+            'Lagerbestellungen erfassen und eigene Fehlteile verfolgen (Zugriff nur auf Meine Lagerbestellungen + Meine Fehlteile).',
+            1, 8,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle lagerbestellung eingefuegt.';
+END
+GO
+
+-- Rolle 'glasbestellung' (nur Glas-Bestellungen + eigene Fehlteile, v1.25.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'glasbestellung')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('glasbestellung', 'Glasbestellungen',
+            'Glas-Bestellungen erfassen und eigene Fehlteile verfolgen (Zugriff nur auf Lagerbestellungen (Reiter Glas) + Meine Fehlteile).',
+            1, 9,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle glasbestellung eingefuegt.';
+END
+GO
+
+-- Rolle 'stock_read' (Nur-Lesen Bestände+Bewegungen, v1.25.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'stock_read')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('stock_read', 'Lagerbestand-Ansicht',
+            'Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie.',
+            1, 35,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle stock_read eingefuegt.';
 END
 GO
 
@@ -1500,6 +1564,7 @@ CREATE TABLE [dbo].[WarehouseRequisitions] (
     [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     [ProductionWorkplaceId] INT NOT NULL,
     [Status] TINYINT NOT NULL,
+    [Type] INT NOT NULL CONSTRAINT [DF_WarehouseRequisitions_Type] DEFAULT 1,
     [CreatedByUserId] INT NULL,
     [OrderRecipientGroupId] INT NULL,
     [SubmittedAt] DATETIME2 NULL,
@@ -1861,6 +1926,17 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeSchichtkalend
     VALUES ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
 GO
 
+-- v1.23.0 Windows-Auth AppSettings (idempotent, falls AppSettings-Seed bereits gelaufen)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'WindowsAuthAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('WindowsAuthAktiv', 'false', 'Windows-Anmeldung (Auto-Login) aktivieren');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'WindowsAuthBerechtigungsgruppe')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('WindowsAuthBerechtigungsgruppe', '', 'AD-Berechtigungsgruppe (SAM-Name) fuer ''AD-Benutzer anlegen''');
+GO
+
 -- =============================================
 -- 17h. EnaioDmsDocuments (enaio DMS-Sync)
 -- =============================================
@@ -2014,6 +2090,28 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616071945_AddFaAttributeTextValue')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616071945_AddFaAttributeTextValue', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260618070606_AddWindowsUserNameDropAdGroup')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260618070606_AddWindowsUserNameDropAdGroup', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260619063919_AddLagerbestellungRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260619063919_AddLagerbestellungRole', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260630104647_ReplaceFaWorkStepIsCompletedWithStatus')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260630104647_ReplaceFaWorkStepIsCompletedWithStatus', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260706074119_AddWarehouseRequisitionTypeAndGlasRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260706074119_AddWarehouseRequisitionTypeAndGlasRole', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707113155_AddStockReadRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707113155_AddStockReadRole', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707131400_AddArticlePrimaryStorageLocation')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707131400_AddArticlePrimaryStorageLocation', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707140249_AddProductionOrderCancellation')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707140249_AddProductionOrderCancellation', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

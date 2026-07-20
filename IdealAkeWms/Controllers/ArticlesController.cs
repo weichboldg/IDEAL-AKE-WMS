@@ -17,6 +17,7 @@ public class ArticlesController : Controller
     private readonly IArticleCategoryRepository _categoryRepository;
     private readonly IBomCacheRepository _bomCacheRepository;
     private readonly IProductionOrderRepository _productionOrderRepository;
+    private readonly IStorageLocationRepository _storageLocationRepository;
 
     public ArticlesController(
         IArticleRepository articleRepository,
@@ -25,7 +26,8 @@ public class ArticlesController : Controller
         IArticleAttributeRepository attributeRepository,
         IArticleCategoryRepository categoryRepository,
         IBomCacheRepository bomCacheRepository,
-        IProductionOrderRepository productionOrderRepository)
+        IProductionOrderRepository productionOrderRepository,
+        IStorageLocationRepository storageLocationRepository)
     {
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
@@ -34,6 +36,7 @@ public class ArticlesController : Controller
         _categoryRepository = categoryRepository;
         _bomCacheRepository = bomCacheRepository;
         _productionOrderRepository = productionOrderRepository;
+        _storageLocationRepository = storageLocationRepository;
     }
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null, string? search = null)
@@ -118,11 +121,15 @@ public class ArticlesController : Controller
             };
         }).ToList();
 
+        var storageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
+
         var vm = new ArticleEditViewModel
         {
             Article = article,
             Categories = categories,
-            Attributes = attributeItems
+            Attributes = attributeItems,
+            StorageLocations = storageLocations,
+            IsPrimarySageControlled = !string.IsNullOrWhiteSpace(article.SagePrimaryStorageLocation)
         };
 
         return View(vm);
@@ -140,6 +147,9 @@ public class ArticlesController : Controller
         if (!ModelState.IsValid)
         {
             vm.Categories = await _categoryRepository.GetAllOrderedAsync();
+            vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
+            var sageCheck = await _articleRepository.GetByIdAsync(id);
+            vm.IsPrimarySageControlled = !string.IsNullOrWhiteSpace(sageCheck?.SagePrimaryStorageLocation);
             var activeDefinitions = await _attributeRepository.GetActiveDefinitionsOrderedAsync();
             // Re-fill options for dropdown attributes
             foreach (var attr in vm.Attributes)
@@ -164,6 +174,14 @@ public class ArticlesController : Controller
         existing.Unit = vm.Article.Unit;
         existing.ReorderLevel = vm.Article.ReorderLevel;
         existing.ArticleCategoryId = vm.Article.ArticleCategoryId;
+
+        // POST-Guard: Sage-kontrollierter Hauptlagerplatz ist read-only — eingehende Id ignorieren.
+        var isSagePrimary = !string.IsNullOrWhiteSpace(existing.SagePrimaryStorageLocation);
+        if (!isSagePrimary)
+        {
+            existing.PrimaryStorageLocationId = vm.Article.PrimaryStorageLocationId;
+        }
+
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
@@ -238,8 +256,9 @@ public class ArticlesController : Controller
             var orders = await _productionOrderRepository.GetByArticleNumbersAsync(deviceArticleNumbers);
 
             // "Abgeschlossen" = Sage-IsDone ODER App-Komm-IsDonePicking (Konvention seit v1.21.1).
+            // Stornierte FAs (IsCancelled) verhalten sich wie erledigte (FA-Reconciliation v1.25.0).
             var openOrders = orders
-                .Where(o => !o.IsDone && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
+                .Where(o => !o.IsDone && !o.IsCancelled && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
                 .ToList();
 
             usedInOrders = openOrders

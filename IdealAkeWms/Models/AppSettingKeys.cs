@@ -18,7 +18,11 @@ public static class AppSettingKeys
     public const string LeitstandAktiv = "LeitstandAktiv";
     public const string KommissionierungMitZuweisung = "KommissionierungMitZuweisung";
     public const string BestellungenAktiv = "BestellungenAktiv";
+    public const string LagerbestellungAktiv = "LagerbestellungAktiv";
     public const string DefaultLagerbestellempfaengerId = "DefaultLagerbestellempfaengerId";
+    public const string DefaultGlasbestellempfaengerId = "DefaultGlasbestellempfaengerId";
+    public const string GlasArtikelgruppen = "GlasArtikelgruppen";
+    public const string GemeinsameArtikelgruppen = "GemeinsameArtikelgruppen";
     public const string FaCompletionAktiv = "FaCompletionAktiv";
 
     // Stock / Buchung
@@ -34,4 +38,8 @@ public static class AppSettingKeys
     // OSEON / Reporting
     public const string OseonReportingHorizonDays = "OseonReportingHorizonDays";
     public const string OseonReportingOverdueLookbackDays = "OseonReportingOverdueLookbackDays";
+
+    // Windows Auth / AD
+    public const string WindowsAuthAktiv = "WindowsAuthAktiv";
+    public const string WindowsAuthBerechtigungsgruppe = "WindowsAuthBerechtigungsgruppe";
 }

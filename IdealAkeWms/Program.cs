@@ -1,8 +1,10 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Middleware;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
-using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -24,9 +26,25 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.CommandTimeout(120)));
 
-// Authentication - Windows/Negotiate
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-    .AddNegotiate();
+// DataProtection-Keys PERSISTENT ablegen. Sonst nutzt der IIS-App-Pool (ohne geladenes
+// Benutzerprofil) ein ephemeres Key-Repository -> bei jedem Recycle neue Keys -> bereits
+// ausgegebene Antiforgery-Tokens lassen sich nicht mehr entschluesseln -> Fehlerseite beim
+// naechsten Formular-POST (z. B. Abmelden). Pfad ueber Config 'DataProtection:KeysPath'
+// ueberschreibbar; Default unter %ProgramData% (ueberlebt Redeploys).
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    dataProtectionKeysPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "IdealAkeWms", "DataProtection-Keys");
+}
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("IdealAkeWms");
+
+// Authentication - Windows-Auth über IIS in-process Hosting
+builder.Services.AddAuthentication(IISServerDefaults.AuthenticationScheme);
 
 builder.Services.AddAuthorization();
 
@@ -42,6 +60,8 @@ builder.Services.AddSession(options =>
 
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<WindowsAutoLoginMiddleware>();
+builder.Services.AddScoped<IChallengeIssuer, IdealAkeWms.Middleware.IISChallengeIssuer>();
 builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
 builder.Services.AddScoped<IProductionWorkplaceRepository, ProductionWorkplaceRepository>();
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
@@ -88,6 +108,7 @@ builder.Services.AddMemoryCache();
 // Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
@@ -138,6 +159,7 @@ using (var scope = app.Services.CreateScope())
         (RoleKeys.Picking, "Kommissionierer", "Kommissionierung und vollständiger Lagerzugriff", 20),
         (RoleKeys.Stock, "Lager", "Einbuchung, Ausbuchung und Bestandsübersicht", 30),
         (RoleKeys.StockKeyUser, "Lager Keyuser", "Lager + Lagerplatz ausbuchen/umbuchen", 40),
+        (RoleKeys.StockRead, "Lagerbestand-Ansicht", "Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie", 35),
         (RoleKeys.Tracking, "Teileverfolgung", "OSEON Teileverfolgung und Rückmeldungen", 50),
         (RoleKeys.Reporting, "Betriebsdaten (BDE)", "Arbeitsgänge stempeln und rückmelden", 60),
         (RoleKeys.Leitstand, "Leitstand", "Produktionsaufträge freigeben und priorisieren", 70),
@@ -270,8 +292,32 @@ using (var scope = app.Services.CreateScope())
     {
         ("BestellungenAktiv", "false", "Bedarfsmeldungen aus Stueckliste aktivieren"),
         ("DefaultLagerbestellempfaengerId", "", "Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)"),
+        ("DefaultGlasbestellempfaengerId", "", "Default-OrderRecipientGroup-ID fuer Glas-Bestellungen (leer = Submit blockt)"),
+        ("GlasArtikelgruppen", "", "Kommaseparierte Artikelgruppen fuer Glas-Bestellungen (in der Lager-Bestellung ausgenommen)"),
+        ("GemeinsameArtikelgruppen", "EUZ", "Kommaseparierte Artikelgruppen, die in Lager- UND Glas-Bestellungen verfuegbar sind"),
+        (IdealAkeWms.Models.AppSettingKeys.LagerbestellungAktiv, "true", "Lagerbestellungs-Modul aktivieren (Lager+Glas, Meine Fehlteile, Lager-Worklists, BOM-Button). Default true — bestehende Systeme bleiben aktiv."),
     };
     foreach (var (key, value, description) in requisitionSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
+    // Windows-Auth / AD AppSettings
+    var windowsAuthSettings = new (string Key, string Value, string Description)[]
+    {
+        (IdealAkeWms.Models.AppSettingKeys.WindowsAuthAktiv, "false", "Windows-Anmeldung (Auto-Login) aktivieren"),
+        (IdealAkeWms.Models.AppSettingKeys.WindowsAuthBerechtigungsgruppe, "", "AD-Berechtigungsgruppe (SAM-Name) fuer 'AD-Benutzer anlegen'"),
+    };
+    foreach (var (key, value, description) in windowsAuthSettings)
     {
         if (!db.AppSettings.Any(s => s.Key == key))
         {
@@ -331,38 +377,18 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
-    // Standard Service-Settings
-    var serviceSettingSeed = new (string Key, string Value, string Category, string Description)[]
+    // Standard Service-Settings — vollstaendig aus dem typisierten Katalog geseedet.
+    // Idempotent: bestehende Zeilen (User-Werte) bleiben unberuehrt.
+    foreach (var def in IdealAkeWms.Models.ServiceSettingDefinitions.All)
     {
-        ("Notifications:MeldebestandEnabled", "true", "Notifications", "Meldebestand-Mail aktiv (true/false)"),
-        ("Notifications:MeldebestandSubject", "Meldebestand unterschritten — IDEAL AKE WMS", "Notifications", "Betreff der Meldebestand-Mail"),
-        ("Notifications:Recipients", "", "Notifications", "Feste Empfänger für Meldebestand-Mail (kommagetrennt, z.B. lager@ake.at,leitung@ake.at)"),
-        ("Notifications:AppBaseUrl", "", "Notifications", "Basis-URL der App für Links in Mails (z.B. https://wms.ake.at)"),
-        ("Sync:ProductionOrdersEnabled", "true", "Sync", "Produktionsaufträge-Sync aus SAGE aktiv (true/false)"),
-        ("Sync:ArticlesEnabled", "true", "Sync", "Artikel-Sync aus SAGE aktiv (true/false)"),
-        ("Sync:BomCacheEnabled",         "false", "BOM-Cache",   "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),
-        ("Sync:BomCacheWeeks",           "8",     "BOM-Cache",   "Wieviele Wochen Fertigungstermin in die Zukunft cachen"),
-        ("Sync:BomCacheMaxOrders",       "200",   "BOM-Cache",   "Maximalanzahl Auftraege im BOM-Cache"),
-        ("Sync:BomCacheMaxAgeHours",     "24",    "BOM-Cache",   "Sicherheitsnetz: Re-Sync wenn Cache-Eintrag aelter als X Stunden"),
-        ("Sync:CoatingDetectionEnabled", "false", "Lackierteile","Lackierteil-Erkennung als separater Sync-Job aktiv"),
-        ("Sync:FaWorkStepDetectionEnabled", "false", "FA-Vervollstaendigung", "Automatische FA-Arbeitsgang-Erkennung aus dem BOM-Cache (laeuft direkt nach BomCache-Sync)"),
-        ("Sync:BdeAutoPauseIntervalMinutes", "60",   "BDE",         "Intervall (Minuten) fuer Auto-Pause am Schichtende"),
-        ("Sync:FeiertagSyncEnabled",         "false","BDE",         "Feiertags-Sync aus Nager.Date aktiv"),
-        ("Sync:FeiertagCountryCode",         "AT",   "BDE",         "Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)"),
-        ("Sync:FeiertagRegion",              "",     "BDE",         "Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)"),
-        ("Sync:FeiertagJahreVoraus",         "2",    "BDE",         "Anzahl Folgejahre, die Feiertage vorausgesynct werden"),
-        ("Sync:WarehouseRequisitionEmailEnabled", "false", "Lagerbestellung", "Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker"),
-    };
-    foreach (var (key, value, category, description) in serviceSettingSeed)
-    {
-        if (!db.ServiceSettings.Any(s => s.Key == key))
+        if (!db.ServiceSettings.Any(s => s.Key == def.Key))
         {
             db.ServiceSettings.Add(new IdealAkeWms.Models.ServiceSetting
             {
-                Key = key,
-                Value = value,
-                Category = category,
-                Description = description
+                Key = def.Key,
+                Value = def.DefaultValue,
+                Category = def.Category,
+                Description = def.Description
             });
         }
     }
@@ -421,6 +447,9 @@ app.UseSession();
 // Serilog Request-Logging
 app.UseSerilogRequestLogging();
 
+// Windows-Auto-Login: vor dem Login-Redirect — versucht Session-Login per Windows-Identity
+app.UseMiddleware<WindowsAutoLoginMiddleware>();
+
 // Login-Redirect Middleware: Wenn kein Benutzer in Session, auf Login umleiten
 app.Use(async (context, next) =>
 {
@@ -429,6 +458,7 @@ app.Use(async (context, next) =>
     // Login-Seite und statische Dateien ausschließen
     if (path.StartsWith("/account/login") ||
         path.StartsWith("/account/logout") ||
+        path.StartsWith("/account/windowslogin") ||
         path.StartsWith("/api/") ||
         path.StartsWith("/lib/") ||
         path.StartsWith("/css/") ||

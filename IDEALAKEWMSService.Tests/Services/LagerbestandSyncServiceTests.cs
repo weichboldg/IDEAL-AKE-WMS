@@ -4,7 +4,9 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
 using IDEALAKEWMSService.Tests.Helpers;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace IDEALAKEWMSService.Tests.Services;
 
@@ -16,12 +18,25 @@ public class LagerbestandSyncServiceTests
                     IdealAkeWms.Data.ApplicationDbContext ctx, FakeSyncLogger fakeLogger)
         Build()
     {
+        var (service, reader, ctx, fakeLogger, _) = BuildWithNotifier();
+        return (service, reader, ctx, fakeLogger);
+    }
+
+    private static (LagerbestandSyncService service, FakeSageBestandReader reader,
+                    IdealAkeWms.Data.ApplicationDbContext ctx, FakeSyncLogger fakeLogger,
+                    Mock<ISyncErrorNotifier> notifier)
+        BuildWithNotifier()
+    {
         var ctx = TestDbContextFactory.Create();
         var reader = new FakeSageBestandReader();
         var fakeLogger = new FakeSyncLogger();
         var stockRepo = new StockMovementRepository(ctx);
-        var service = new LagerbestandSyncService(ctx, reader, stockRepo, NullLogger<LagerbestandSyncService>.Instance, fakeLogger);
-        return (service, reader, ctx, fakeLogger);
+        var config = new ConfigurationBuilder().Build();   // kein Connection-String -> Cap faellt auf Default 100
+        var notifier = new Mock<ISyncErrorNotifier>();
+        var service = new LagerbestandSyncService(
+            ctx, reader, stockRepo, config, notifier.Object,
+            NullLogger<LagerbestandSyncService>.Instance, fakeLogger);
+        return (service, reader, ctx, fakeLogger, notifier);
     }
 
     private static void SeedArticle(IdealAkeWms.Data.ApplicationDbContext ctx, int id, string number)
@@ -266,7 +281,9 @@ public class LagerbestandSyncServiceTests
         );
         await ctx.SaveChangesAsync();
         // Effektiver Bestand auf L-1: 10 - 4 + 2 = 8
-        reader.Records = new() { new("A-1", "L-1", 6m) };
+        // L-2 (Umbuchungs-Quellseite, WMS = -2) explizit im Sage-Read mit exakt -2 abbilden,
+        // damit L-2 als "in Sage vorhanden + deckungsgleich" gilt: kein Delta, kein Nullsetzen.
+        reader.Records = new() { new("A-1", "L-1", 6m), new("A-1", "L-2", -2m) };
 
         var result = await svc.RunAsync(dryRun: false);
 
@@ -359,5 +376,237 @@ public class LagerbestandSyncServiceTests
 
         fakeLogger.Runs[0].Events.Should().Contain(e =>
             e.Level == "Warning" && e.Message.Contains("mehrfach"));
+    }
+
+    // (f) Verwaistes Paar mit WMS > 0 auf Sage-aktivem Platz -> genau eine SageAusbuchung auf 0.
+    [Fact]
+    public async Task Run_OrphanPairWithStock_BooksSageAusbuchungToZero()
+    {
+        var (svc, reader, ctx, fakeLogger) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");   // verwaist (nicht in Sage-Read)
+        SeedSageLocation(ctx, id: 2, code: "L-P");   // in Sage-Read vorhanden
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 5m,
+            MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now,
+            WindowsUser = "tester", CreatedAt = DateTime.Now,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        // Sage-Snapshot: nur (A-1, L-P), Bestand 0 (present, noChange). (A-1, L-1) fehlt -> verwaist.
+        reader.Records = new() { new("A-1", "L-P", 0m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        var zeroing = ctx.StockMovements
+            .Where(m => m.MovementType == MovementType.SageAusbuchung).ToList();
+        zeroing.Should().ContainSingle();
+        zeroing[0].StorageLocationId.Should().Be(1);
+        zeroing[0].Quantity.Should().Be(5m);
+        zeroing[0].WindowsUser.Should().Be(SyncUser);
+        zeroing[0].Note.Should().Contain("auf 0 gesetzt");
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(1);
+        result.CorrectionsMinus.Should().Be(0); // Zeroing zaehlt NICHT als Korrektur
+    }
+
+    // (g) Leerer Sage-Read -> keine Nullbuchung, Warn "leer", kein NotifyAsync.
+    [Fact]
+    public async Task Run_EmptySageRead_NoZeroing_LogsLeerWarning()
+    {
+        var (svc, reader, ctx, fakeLogger, notifier) = BuildWithNotifier();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 5m,
+            MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now,
+            WindowsUser = "tester", CreatedAt = DateTime.Now,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new();   // leerer Read
+
+        await svc.RunAsync(dryRun: false);
+
+        ctx.StockMovements.Where(m => m.MovementType >= MovementType.SageEinbuchung)
+            .Should().BeEmpty();
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(0);
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("leer"));
+        notifier.Verify(n => n.NotifyAsync(
+            It.IsAny<string>(), It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // (h) Cap ueberschritten -> keine Nullbuchung + NotifyAsync aufgerufen.
+    // Hinweis: ServiceSettings liest aus der DB, in Tests faellt der Cap immer auf Default 100 zurueck
+    // -> 101 verwaiste Paare noetig, um den Cap zu ueberschreiten.
+    [Fact]
+    public async Task Run_CapExceeded_NoZeroing_CallsNotify()
+    {
+        var (svc, reader, ctx, fakeLogger, notifier) = BuildWithNotifier();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        for (int i = 1; i <= 101; i++)
+        {
+            SeedSageLocation(ctx, id: i, code: $"L-{i}");
+            ctx.StockMovements.Add(new StockMovement
+            {
+                ArticleId = 1, StorageLocationId = i, Quantity = 1m,
+                MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now,
+                WindowsUser = "tester", CreatedAt = DateTime.Now,
+                CreatedBy = "tester", CreatedByWindows = "tester"
+            });
+        }
+        SeedSageLocation(ctx, id: 200, code: "L-P");   // present, damit Read nicht leer
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-P", 0m) };   // 101 Paare (L-1..L-101) verwaist
+
+        await svc.RunAsync(dryRun: false);
+
+        ctx.StockMovements.Where(m => m.MovementType >= MovementType.SageEinbuchung)
+            .Should().BeEmpty();
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(0);
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("Cap"));
+        notifier.Verify(n => n.NotifyAsync(
+            It.IsAny<string>(), It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // (i) Verwaistes Paar auf manuellem/inaktivem Platz -> NICHT genullt.
+    [Fact]
+    public async Task Run_OrphanOnManualOrInactiveLocation_NotZeroed()
+    {
+        var (svc, reader, ctx, _) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        ctx.StorageLocations.Add(new StorageLocation
+        {
+            Id = 1, Code = "MAN-1", BarcodeValue = "MAN-1",
+            Source = StorageLocationSource.Manual, IsActive = true,
+            IsPickingTransport = false, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        SeedSageLocation(ctx, id: 2, code: "INACT-1", isActive: false);
+        SeedSageLocation(ctx, id: 3, code: "L-P");
+        ctx.StockMovements.AddRange(
+            new StockMovement { ArticleId = 1, StorageLocationId = 1, Quantity = 5m, MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now, WindowsUser = "t", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" },
+            new StockMovement { ArticleId = 1, StorageLocationId = 2, Quantity = 5m, MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now, WindowsUser = "t", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" }
+        );
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-P", 0m) };
+
+        await svc.RunAsync(dryRun: false);
+
+        ctx.StockMovements.Where(m => m.MovementType >= MovementType.SageEinbuchung)
+            .Should().BeEmpty();
+    }
+
+    // (j) Duplikat-Key in Sage -> NICHT genullt (Dups sind in Sage vorhanden, nur mehrdeutig).
+    [Fact]
+    public async Task Run_DuplicateSageKey_NotZeroed()
+    {
+        var (svc, reader, ctx, fakeLogger) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 5m,
+            MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now,
+            WindowsUser = "t", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        // (A-1, L-1) doppelt -> Korrektur-Schleife ueberspringt (Warn "mehrfach"),
+        // aber sagePresentKeys (aus Roh-Zeilen) enthaelt (A-1, L-1) -> KEIN Nullsetzen.
+        reader.Records = new() { new("A-1", "L-1", 5m), new("A-1", "L-1", 7m) };
+
+        await svc.RunAsync(dryRun: false);
+
+        ctx.StockMovements.Where(m => m.MovementType >= MovementType.SageEinbuchung)
+            .Should().BeEmpty();
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(0);
+        fakeLogger.Runs[0].Events.Should().Contain(e =>
+            e.Level == "Warning" && e.Message.Contains("mehrfach"));
+    }
+
+    // (k) DryRun -> keine Writes, aber Count + Log.
+    [Fact]
+    public async Task Run_DryRun_NoZeroingWrites_ButCounts()
+    {
+        var (svc, reader, ctx, fakeLogger) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");   // verwaist
+        SeedSageLocation(ctx, id: 2, code: "L-P");
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 5m,
+            MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now,
+            WindowsUser = "t", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("A-1", "L-P", 0m) };
+
+        await svc.RunAsync(dryRun: true);
+
+        ctx.StockMovements.Where(m => m.MovementType == MovementType.SageAusbuchung)
+            .Should().BeEmpty();   // KEIN Write
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(1);   // Count trotzdem
+    }
+
+    // (l) Verwaistes Paar mit NEGATIVEM WMS-Bestand -> genau eine SageEinbuchung auf 0 (Math.Abs).
+    //     Deckt den wmsBestand > 0 ? SageAusbuchung : SageEinbuchung-Negativzweig ab.
+    [Fact]
+    public async Task Run_OrphanPairWithNegativeStock_BooksSageEinbuchungToZero()
+    {
+        var (svc, reader, ctx, fakeLogger) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");   // verwaist (nicht in Sage-Read)
+        SeedSageLocation(ctx, id: 2, code: "L-P");   // in Sage-Read vorhanden
+        ctx.StockMovements.Add(new StockMovement
+        {
+            ArticleId = 1, StorageLocationId = 1, Quantity = 3m,
+            MovementType = MovementType.Ausbuchung, Timestamp = DateTime.Now,
+            WindowsUser = "tester", CreatedAt = DateTime.Now,
+            CreatedBy = "tester", CreatedByWindows = "tester"
+        });
+        await ctx.SaveChangesAsync();
+        // WMS-Bestand auf L-1 = -3 (reine Ausbuchung). (A-1, L-1) fehlt im Sage-Read -> verwaist.
+        reader.Records = new() { new("A-1", "L-P", 0m) };
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        var zeroing = ctx.StockMovements
+            .Where(m => m.MovementType == MovementType.SageEinbuchung).ToList();
+        zeroing.Should().ContainSingle();
+        zeroing[0].StorageLocationId.Should().Be(1);
+        zeroing[0].Quantity.Should().Be(3m);   // Math.Abs(-3)
+        zeroing[0].WindowsUser.Should().Be(SyncUser);
+        zeroing[0].Note.Should().Contain("auf 0 gesetzt");
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(1);
+        result.CorrectionsPlus.Should().Be(0);   // Zeroing zaehlt NICHT als Korrektur
+
+        // Bestand danach 0: -3 (Ausbuchung) + 3 (SageEinbuchung) = 0
+        var stockAfter = await new StockMovementRepository(ctx).GetCurrentStockByArticleAndLocationAsync();
+        stockAfter.GetValueOrDefault((1, 1), 0m).Should().Be(0m);
+    }
+
+    // (m) Netto-0-Paar (z.B. +5/-5) verwaist -> NICHT genullt (value != 0m-Filter greift).
+    [Fact]
+    public async Task Run_OrphanPairWithNetZeroStock_NotZeroed()
+    {
+        var (svc, reader, ctx, fakeLogger) = Build();
+        SeedArticle(ctx, id: 1, number: "A-1");
+        SeedSageLocation(ctx, id: 1, code: "L-1");   // verwaist, aber netto-0
+        SeedSageLocation(ctx, id: 2, code: "L-P");
+        ctx.StockMovements.AddRange(
+            new StockMovement { ArticleId = 1, StorageLocationId = 1, Quantity = 5m, MovementType = MovementType.Einbuchung, Timestamp = DateTime.Now, WindowsUser = "tester", CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "tester" },
+            new StockMovement { ArticleId = 1, StorageLocationId = 1, Quantity = 5m, MovementType = MovementType.Ausbuchung, Timestamp = DateTime.Now, WindowsUser = "tester", CreatedAt = DateTime.Now, CreatedBy = "tester", CreatedByWindows = "tester" }
+        );
+        await ctx.SaveChangesAsync();
+        // (A-1, L-1) fehlt im Sage-Read -> verwaist, aber WMS-Bestand netto 0 -> kein Nullsetzen.
+        reader.Records = new() { new("A-1", "L-P", 0m) };
+
+        await svc.RunAsync(dryRun: false);
+
+        ctx.StockMovements.Where(m => m.MovementType >= MovementType.SageEinbuchung)
+            .Should().BeEmpty();
+        fakeLogger.Runs[0].FinalCounts!["nullgesetzt"].Should().Be(0);
     }
 }

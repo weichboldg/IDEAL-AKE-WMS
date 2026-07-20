@@ -80,6 +80,46 @@
 
 @Html.AntiForgeryToken()
 
+@* Sticky Auswahl-Balken (analog PickingLeitstand #bulkActionBar): klebt oben und zeigt die
+   markierte Anzahl + den jeweiligen Bulk-Button dauerhaft, auch beim Durchscrollen langer
+   Stuecklisten. Zwei unabhaengige Abschnitte (Lagerbestellung + Bedarfsmeldung); jeder erscheint
+   nur bei >=1 Markierung, der ganze Balken ist ausgeblendet wenn keine Auswahl aktiv ist. *@
+@if ((ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true) || (ViewBag.BestellungenAktiv == true && !Model.ReadOnly))
+{
+    <div id="bomBulkActionBar" class="bulk-action-bar" style="display:none;">
+        @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+        {
+            <div id="bomBulkWhSection" style="display:none; align-items:center; gap:.5rem;">
+                <span><strong id="whBulkCount">0</strong> markiert</span>
+                <button type="button" id="btnBulkWarehouseOrder" class="btn btn-sm btn-primary" title="Ausgewaehlte als Lagerbestellung">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M5.5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+                    </svg>
+                    Lagerbestellung (Auswahl)
+                </button>
+            </div>
+        }
+        @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly)
+        {
+            <div id="bomBulkOrderSection" style="display:none; align-items:center; gap:.5rem;">
+                <span><strong id="orderBulkCount">0</strong> markiert</span>
+                <button type="button" id="btnBulkOrder" class="btn btn-sm btn-warning" title="Ausgewaehlte bestellen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                        <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+                    </svg>
+                    Ausgewählte bestellen
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@* Toolbar-Host fuer den column-preferences-Zahnrad-Button: MUSS ein immer sichtbares Element
+   direkt vor .table-responsive sein. Sonst haengt column-preferences.js das Zahnrad an das
+   vorige Geschwister — das waere #bomBulkActionBar (display:none bis zur Auswahl), wodurch das
+   Zahnrad nur bei aktiver Auswahl sichtbar waere. (analog PickingLeitstand) *@
+<div class="d-flex justify-content-end mb-1"></div>
+
 <div class="table-responsive">
     <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
         <thead>
@@ -105,6 +145,10 @@
                 @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly)
                 {
                     <th style="width: 80px;" data-col-key="order">Bestellen</th>
+                }
+                @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+                {
+                    <th style="width: 90px;" data-col-key="warehouse-order">Lagerbestellung</th>
                 }
             </tr>
         </thead>
@@ -241,13 +285,35 @@
                             }
                         </td>
                     }
+                    @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+                    {
+                        <td class="text-center">
+                            @if (!item.IsBaugruppe)
+                            {
+                                <input type="checkbox" class="form-check-input warehouse-select me-1"
+                                       data-article-number="@item.Ressourcenummer"
+                                       data-description="@item.Bezeichnung1"
+                                       data-quantity="@item.Menge.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                <button type="button" class="btn btn-sm btn-outline-primary order-warehouse-btn" title="Lagerbestellung"
+                                        data-article-number="@item.Ressourcenummer"
+                                        data-description="@item.Bezeichnung1"
+                                        data-quantity="@item.Menge.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zM5 8H3.89l.5 2H5zm1 2h2V8H6zm3 0h2V8H9zm3 0h1.11l.5-2H12zm-6.5 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+                                    </svg>
+                                </button>
+                            }
+                        </td>
+                    }
                 </tr>
             }
             @if (!Model.Items.Any())
             {
-                // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2; Bestellen-Spalte +1.
+                // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2;
+                // Bestellen-Spalte +1; Lagerbestellung-Spalte +1.
                 var emptyColspan = (Model.ReadOnly ? 10 : 12)
-                    + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0);
+                    + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0)
+                    + (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true ? 1 : 0);
                 <tr>
                     <td colspan="@emptyColspan" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
                 </tr>
@@ -290,17 +356,6 @@
                 <div class="col-auto">
                     <a asp-action="PrintPicking" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary">Drucken</a>
                 </div>
-                @if (ViewBag.BestellungenAktiv == true)
-                {
-                    <div class="col-auto">
-                        <button type="button" class="btn btn-warning" id="btnBulkOrder" style="display:none;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
-                                <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
-                            </svg>
-                            Ausgewählte bestellen
-                        </button>
-                    </div>
-                }
             </form>
         </div>
     </div>
@@ -481,6 +536,62 @@
     }
 }
 
+@if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+{
+    <!-- Lagerbestellung Einzel-Modal (v1.25.0) -->
+    <div class="modal fade" id="warehouseOrderModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--ake-secondary); color: white;">
+                    <h5 class="modal-title">Lagerbestellung erstellen</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-1"><strong id="whSingleArticle"></strong></p>
+                    <p class="text-muted small mb-3" id="whSingleDesc"></p>
+                    <label class="form-label fw-bold" for="whSingleQty">Menge</label>
+                    <input type="number" id="whSingleQty" class="form-control" min="0.001" step="any" />
+                    <input type="hidden" id="whSingleArticleNumber" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="btnWarehouseSingleSubmit">Zur Bestellung hinzufuegen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lagerbestellung Bulk-Modal (v1.25.0) -->
+    <div class="modal fade" id="warehouseOrderBulkModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--ake-secondary); color: white;">
+                    <h5 class="modal-title">Lagerbestellung (Auswahl)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive mb-0">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Artikelnummer</th>
+                                    <th>Bezeichnung</th>
+                                    <th class="text-end" style="width: 120px;">Menge</th>
+                                </tr>
+                            </thead>
+                            <tbody id="warehouseBulkBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="btnWarehouseBulkSubmit">Zur Bestellung hinzufuegen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="mt-3">
     @if (Model.ReadOnly)
     {
@@ -493,7 +604,7 @@
 </div>
 
 <script type="application/json" id="view-config">
-{ "viewKey": "Bom", "supportsReorder": false, "supportsSortDefault": false }
+{ "viewKey": "Bom", "supportsReorder": true, "supportsSortDefault": false }
 </script>
 <script type="application/json" id="column-config">
 [
@@ -510,6 +621,7 @@
     { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null }
     @if (!Model.ReadOnly) { <text>,{ "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null }</text> }
     @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly) { <text>,{ "key": "order", "label": "Bestellen", "locked": false, "defaultWidth": 80 }</text> }
+    @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true) { <text>,{ "key": "warehouse-order", "label": "Lagerbestellung", "locked": false, "defaultWidth": 90 }</text> }
 ]
 </script>
 
@@ -609,6 +721,38 @@
             var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
             var productionOrderId = @Model.ProductionOrderId;
             var recursiveFilterSearch = @(Model.RecursiveFilterSearch ? "true" : "false");
+
+            // ========== Sticky Bulk-Auswahl-Balken ==========
+            // EIN sticky Balken (#bomBulkActionBar) oberhalb der Tabelle mit bis zu zwei
+            // Abschnitten: Lagerbestellung (.warehouse-select — auch im Read-only/Vorbau) und
+            // Bedarfsmeldung (.picking-checkbox — nur !ReadOnly). Jeder Abschnitt erscheint nur
+            // bei >=1 Markierung; der ganze Balken ist ausgeblendet wenn keine Auswahl aktiv ist.
+            // Funktions-Deklaration → in beiden JS-Bloecken (Warehouse-IIFE + Order-Block) per
+            // Closure erreichbar. Aktualisiert nur Zaehler + Balken-Sichtbarkeit; die bestehende
+            // Submit-/Modal-Logik der Buttons bleibt unangetastet.
+            function bomSyncBulkBar() {
+                var bar = document.getElementById('bomBulkActionBar');
+                if (!bar) return;
+
+                var whCount = document.querySelectorAll('.warehouse-select:checked').length;
+                var orderCount = document.querySelectorAll('.picking-checkbox:checked').length;
+
+                var whSection = document.getElementById('bomBulkWhSection');
+                if (whSection) {
+                    whSection.style.display = whCount > 0 ? 'inline-flex' : 'none';
+                    var whCountEl = document.getElementById('whBulkCount');
+                    if (whCountEl) whCountEl.textContent = whCount;
+                }
+
+                var orderSection = document.getElementById('bomBulkOrderSection');
+                if (orderSection) {
+                    orderSection.style.display = orderCount > 0 ? 'inline-flex' : 'none';
+                    var orderCountEl = document.getElementById('orderBulkCount');
+                    if (orderCountEl) orderCountEl.textContent = orderCount;
+                }
+
+                bar.style.display = (whCount > 0 || orderCount > 0) ? 'flex' : 'none';
+            }
 
             // ========== Baum: Ein-/Ausklappen ==========
 
@@ -833,6 +977,126 @@
                 window.open(url, '_blank');
             });
 
+            // ========== Lagerbestellung aus Stueckliste (v1.25.0) ==========
+            // Laeuft in BEIDEN Modi (auch Read-only/Vorbau) — daher VOR `if (readOnly) return;`.
+            @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
+            {
+                <text>
+            (function () {
+                var whModalEl = document.getElementById('warehouseOrderModal');
+                var whBulkModalEl = document.getElementById('warehouseOrderBulkModal');
+                if (!whModalEl || !whBulkModalEl) return;
+                var whModal = null, whBulkModal = null;
+
+                function whEscape(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+
+                function handleQuickAddResult(data) {
+                    var skippedMsg = (data.skipped && data.skipped.length)
+                        ? '\nUebersprungen:\n' + data.skipped.map(function (s) { return s.articleNumber + ': ' + s.reason; }).join('\n')
+                        : '';
+                    if (data.lagerRequisitionId && data.glasRequisitionId) {
+                        alert('Zu Lager: ' + data.addedLager + ', zu Glas: ' + data.addedGlas + ' hinzugefuegt.' + skippedMsg);
+                        window.location = '/WarehouseRequisitions';
+                    } else if (data.lagerRequisitionId) {
+                        if (skippedMsg) alert('Hinzugefuegt.' + skippedMsg);
+                        window.location = '/WarehouseRequisitions/Edit/' + data.lagerRequisitionId;
+                    } else if (data.glasRequisitionId) {
+                        if (skippedMsg) alert('Hinzugefuegt.' + skippedMsg);
+                        window.location = '/WarehouseRequisitions/Edit/' + data.glasRequisitionId;
+                    }
+                }
+
+                function postQuickAdd(items, submitBtn) {
+                    if (!items.length) return;
+                    submitBtn.disabled = true;
+                    $.ajax({
+                        url: '/api/warehouserequisitions/quick-add',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ items: items }),
+                        headers: { 'RequestVerificationToken': token },
+                        success: function (data) { handleQuickAddResult(data); },
+                        error: function (xhr) {
+                            submitBtn.disabled = false;
+                            var r = xhr.responseJSON;
+                            if (r && r.skipped && r.skipped.length) {
+                                alert('Nichts hinzugefuegt.\n' + r.skipped.map(function (s) { return s.articleNumber + ': ' + s.reason; }).join('\n'));
+                            } else {
+                                alert((r && r.error) ? r.error : 'Fehler beim Erstellen der Lagerbestellung.');
+                            }
+                        }
+                    });
+                }
+
+                // --- Einzel ---
+                document.querySelectorAll('.order-warehouse-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        document.getElementById('whSingleArticle').textContent = this.getAttribute('data-article-number');
+                        document.getElementById('whSingleDesc').textContent = this.getAttribute('data-description') || '';
+                        document.getElementById('whSingleArticleNumber').value = this.getAttribute('data-article-number');
+                        document.getElementById('whSingleQty').value = this.getAttribute('data-quantity');
+                        if (!whModal) whModal = new bootstrap.Modal(whModalEl);
+                        whModal.show();
+                    });
+                });
+                document.getElementById('btnWarehouseSingleSubmit').addEventListener('click', function () {
+                    var articleNumber = document.getElementById('whSingleArticleNumber').value;
+                    var qty = parseFloat(document.getElementById('whSingleQty').value) || 0;
+                    postQuickAdd([{ articleNumber: articleNumber, quantity: qty }], this);
+                });
+
+                // --- Bulk ---
+                var whBulkBtn = document.getElementById('btnBulkWarehouseOrder');
+                function updateWhBulkBtn() {
+                    if (!whBulkBtn) return;
+                    var n = document.querySelectorAll('.warehouse-select:checked').length;
+                    whBulkBtn.style.display = n > 0 ? '' : 'none';
+                }
+                document.querySelectorAll('.warehouse-select').forEach(function (cb) {
+                    cb.addEventListener('change', function () {
+                        updateWhBulkBtn();
+                        bomSyncBulkBar();
+                    });
+                });
+                if (whBulkBtn) {
+                    whBulkBtn.addEventListener('click', function () {
+                        var body = document.getElementById('warehouseBulkBody');
+                        body.innerHTML = '';
+                        document.querySelectorAll('.warehouse-select:checked').forEach(function (cb) {
+                            var an = cb.getAttribute('data-article-number');
+                            var desc = cb.getAttribute('data-description') || '';
+                            var qty = cb.getAttribute('data-quantity');
+                            var tr = document.createElement('tr');
+                            tr.innerHTML = '<td>' + whEscape(an) + '</td><td>' + whEscape(desc) + '</td>' +
+                                '<td class="text-end"><input type="number" class="form-control form-control-sm text-end wh-bulk-qty" ' +
+                                'data-article-number="' + whEscape(an) + '" value="' + whEscape(qty) + '" min="0.001" step="any" ' +
+                                'style="width: 100px; display:inline-block;" /></td>';
+                            body.appendChild(tr);
+                        });
+                        if (!whBulkModal) whBulkModal = new bootstrap.Modal(whBulkModalEl);
+                        whBulkModal.show();
+                    });
+                }
+                document.getElementById('btnWarehouseBulkSubmit').addEventListener('click', function () {
+                    var items = [];
+                    document.querySelectorAll('#warehouseBulkBody .wh-bulk-qty').forEach(function (inp) {
+                        items.push({
+                            articleNumber: inp.getAttribute('data-article-number'),
+                            quantity: parseFloat(inp.value) || 0
+                        });
+                    });
+                    postQuickAdd(items, this);
+                });
+            })();
+                </text>
+            }
+
+            // Sticky Bulk-Balken initial synchronisieren — laeuft in BEIDEN Modi (vor dem
+            // readOnly-Return), damit die Lagerbestellungs-Auswahl auch im Vorbau-Read-only greift
+            // und ein FA mit bereits gepickten Positionen den Bedarfsmeldung-Zaehler zeigt.
+            bomSyncBulkBar();
+
             // Ab hier ausschliesslich Picking-Funktionalitaet (Checkboxen, Umbuchen,
             // Status-Modal, Scan-Retry, Fotos, Bedarfsmeldungen) — im Read-only-Modus beenden.
             if (readOnly) return;
@@ -847,6 +1111,7 @@
                     } else {
                         row.classList.remove('table-success');
                     }
+                    bomSyncBulkBar();
                 });
             });
 

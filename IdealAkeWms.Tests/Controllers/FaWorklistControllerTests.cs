@@ -115,13 +115,13 @@ public class FaWorklistControllerTests
     }
 
     private static User SeedUser(ApplicationDbContext ctx, string name,
-        int? defaultWorkStepId = null, int? defaultWorkplaceId = null)
+        int? defaultWorkStepId = null, string? defaultWorkbenches = null)
     {
         var user = new User
         {
             Name = name,
             DefaultWorkStepId = defaultWorkStepId,
-            DefaultWorkplaceId = defaultWorkplaceId,
+            DefaultWorkbenches = defaultWorkbenches,
             CreatedAt = DateTime.Now,
             CreatedBy = "t",
             CreatedByWindows = "t"
@@ -133,13 +133,13 @@ public class FaWorklistControllerTests
 
     private static FaWorkStep SeedFaWorkStep(
         ApplicationDbContext ctx, int productionOrderId, int workStepId,
-        bool isCompleted = false, bool isRemoved = false)
+        bool isCompleted = false, bool isRemoved = false, FaWorkStepStatus? status = null)
     {
         var row = new FaWorkStep
         {
             ProductionOrderId = productionOrderId,
             WorkStepId = workStepId,
-            IsCompleted = isCompleted,
+            Status = status ?? (isCompleted ? FaWorkStepStatus.Fertig : FaWorkStepStatus.Offen),
             IsRemoved = isRemoved,
             CreatedAt = DateTime.Now,
             CreatedBy = "t",
@@ -185,10 +185,8 @@ public class FaWorklistControllerTests
     }
 
     [Fact]
-    public async Task Index_FiltersByWorkplace_WhenSet()
+    public async Task Index_FiltersByWorkbenches_WhenSet()
     {
-        // Zwei FAs gleicher AG (VE), verschiedene Werkbaenke. Mit workplaceId-Filter
-        // (UND zum AG-Filter) bleibt nur die FA auf der gewaehlten Werkbank.
         var (ctx, ctrl, _) = Build();
         var wp1 = SeedWorkplace(ctx, "Werkbank 1");
         var wp2 = SeedWorkplace(ctx, "Werkbank 2");
@@ -203,25 +201,23 @@ public class FaWorklistControllerTests
         SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
         SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
 
-        var result = await ctrl.Index(ve.Id, workplaceId: wp1.Id);
+        var result = await ctrl.Index(ve.Id, workbenches: "Werkbank 1");
 
         var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
-        vm.SelectedWorkplaceId.Should().Be(wp1.Id);
+        vm.Workbenches.Should().Be("Werkbank 1");
         vm.Items.Should().HaveCount(1);
         vm.Items.Single().OrderNumber.Should().Be("FA-001");
-        vm.Items.Single().WorkplaceName.Should().Be("Werkbank 1");
-        vm.Pagination.TotalCount.Should().Be(1);
     }
 
     [Fact]
-    public async Task Index_UsesUserDefaultWorkplace_WhenNoParam()
+    public async Task Index_UsesUserDefaultWorkbenches_WhenNoParam()
     {
-        // Ohne ?workplaceId greift User.DefaultWorkplaceId als Zusatzfilter.
+        // Ohne ?workbenches greift User.DefaultWorkbenches als Filter.
         var (ctx, ctrl, userMock) = Build();
         var wp1 = SeedWorkplace(ctx, "Werkbank 1");
         var wp2 = SeedWorkplace(ctx, "Werkbank 2");
         var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
-        var user = SeedUser(ctx, "vorbau1", defaultWorkStepId: ve.Id, defaultWorkplaceId: wp2.Id);
+        var user = SeedUser(ctx, "vorbau1", defaultWorkStepId: ve.Id, defaultWorkbenches: "Werkbank 2");
         userMock.Setup(x => x.GetCurrentAppUserId()).Returns(user.Id);
 
         var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
@@ -233,12 +229,11 @@ public class FaWorklistControllerTests
         SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
         SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
 
-        // Aufruf OHNE workStepId/workplaceId -> beide Defaults aus dem User.
         var result = await ctrl.Index(null);
 
         var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
         vm.SelectedWorkStepId.Should().Be(ve.Id);
-        vm.SelectedWorkplaceId.Should().Be(wp2.Id);
+        vm.Workbenches.Should().Be("Werkbank 2");
         vm.Items.Should().HaveCount(1);
         vm.Items.Single().OrderNumber.Should().Be("FA-002");
     }
@@ -271,6 +266,31 @@ public class FaWorklistControllerTests
         vmShowDone.Items.Should().HaveCount(2);
         vmShowDone.Items.Select(i => i.OrderNumber)
             .Should().BeEquivalentTo(new[] { "FA-OPEN", "FA-DONE" });
+    }
+
+    [Fact]
+    public async Task Index_DoesNotHide_InBearbeitung()
+    {
+        // Status==InBearbeitung ist NICHT erledigt -> bleibt auch bei showDone:false sichtbar.
+        // Nur Status==Fertig blendet die FA aus (Plan Task 2, 3-State-Verhalten).
+        var (ctx, ctrl, _) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var inProgress = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-INPROGRESS");
+        inProgress.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, inProgress.Order.Id, ve.Id, status: FaWorkStepStatus.InBearbeitung);
+
+        // Default (showDone:false): FA mit InBearbeitung-AG bleibt sichtbar.
+        var result = await ctrl.Index(ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle();
+        var item = vm.Items.Single();
+        item.OrderNumber.Should().Be("FA-INPROGRESS");
+        item.WorkStepCell!.Status.Should().Be(FaWorkStepStatus.InBearbeitung);
     }
 
     [Fact]
@@ -362,6 +382,30 @@ public class FaWorklistControllerTests
     }
 
     [Fact]
+    public async Task Index_ComputesBeschichtungTermin_WhenFeatureInactive()
+    {
+        // Kein LackierteilKategorieName-Setting -> Feature inaktiv -> Beschichtungstermin
+        // wird fuer ALLE Auftraege mit ProductionDate berechnet (Backward-Compat, wie Leitstand).
+        var (ctx, ctrl, _) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var order = TestDataHelper.CreateOrderWithStatuses(
+            ctx, "FA-COAT", productionDate: new DateTime(2026, 7, 1));
+        order.Order.ProductionWorkplaceId = wp.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, order.Order.Id, ve.Id);
+
+        var result = await ctrl.Index(ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        var item = vm.Items.Should().ContainSingle().Subject;
+        item.OrderNumber.Should().Be("FA-COAT");
+        item.BeschichtungTermin.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Bom_ReturnsReadOnlyViewModel()
     {
         var (ctx, ctrl, _) = Build();
@@ -380,5 +424,112 @@ public class FaWorklistControllerTests
         // Keine Picking-Daten im Read-only-Modus: kein PickingItem, kein Lagerplatz-Suggest.
         vm.Items.Single().PickingItemId.Should().BeNull();
         vm.Items.Single().SourceStorageLocationId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Index_ExplicitWorkbenches_OverridesUserDefault()
+    {
+        var (ctx, ctrl, userMock) = Build();
+        var wp1 = SeedWorkplace(ctx, "Werkbank 1");
+        var wp2 = SeedWorkplace(ctx, "Werkbank 2");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+        var user = SeedUser(ctx, "vorbau1", defaultWorkStepId: ve.Id, defaultWorkbenches: "Werkbank 1");
+        userMock.Setup(x => x.GetCurrentAppUserId()).Returns(user.Id);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp1.Id;
+        o2.Order.ProductionWorkplaceId = wp2.Id;
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        var result = await ctrl.Index(ve.Id, workbenches: "Werkbank 2");
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-002");
+    }
+
+    [Fact]
+    public async Task Index_EmptyWorkbenchesParam_ShowsAll_IgnoresDefault()
+    {
+        var (ctx, ctrl, userMock) = Build();
+        var wp1 = SeedWorkplace(ctx, "Werkbank 1");
+        var wp2 = SeedWorkplace(ctx, "Werkbank 2");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+        var user = SeedUser(ctx, "vorbau1", defaultWorkStepId: ve.Id, defaultWorkbenches: "Werkbank 1");
+        userMock.Setup(x => x.GetCurrentAppUserId()).Returns(user.Id);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp1.Id;
+        o2.Order.ProductionWorkplaceId = wp2.Id;
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        // ?workbenches= (present-empty) -> alle, Default greift NICHT.
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?workbenches=");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index(ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Index_WorkbenchFilter_ContainsMatchesPrefix()
+    {
+        var (ctx, ctrl, _) = Build();
+        var wpA = SeedWorkplace(ctx, "WB-A");
+        var wpA2 = SeedWorkplace(ctx, "WB-A2");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wpA.Id;
+        o2.Order.ProductionWorkplaceId = wpA2.Id;
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        // Token "WB-A" trifft "WB-A" UND "WB-A2" (Contains).
+        var result = await ctrl.Index(ve.Id, workbenches: "WB-A");
+
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Index_PopulatesAndFiltersDescriptions()
+    {
+        var (ctx, ctrl, _) = Build();
+        var wp = SeedWorkplace(ctx, "Werkbank 1");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-002");
+        o1.Order.ProductionWorkplaceId = wp.Id;
+        o2.Order.ProductionWorkplaceId = wp.Id;
+        o1.Order.Description1 = "Alpha"; o1.Order.Description2 = "Eins";
+        o2.Order.Description1 = "Beta";  o2.Order.Description2 = "Zwei";
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        // Bezeichnung wird in die Rows uebernommen.
+        var result = await ctrl.Index(ve.Id);
+        var vm = (FaWorklistViewModel)((ViewResult)result).Model!;
+        vm.Items.Single(i => i.OrderNumber == "FA-001").Description1.Should().Be("Alpha");
+        vm.Items.Single(i => i.OrderNumber == "FA-001").Description2.Should().Be("Eins");
+
+        // Spaltenfilter description1 wirkt.
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_description1=Beta");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        var filtered = (FaWorklistViewModel)((ViewResult)(await ctrl.Index(ve.Id))).Model!;
+        filtered.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-002");
     }
 }

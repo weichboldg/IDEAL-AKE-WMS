@@ -23,22 +23,26 @@ public class PickingApiController : ControllerBase
     /// <summary>
     /// Liefert Source-Location-Auswahl fuer Bom-Picking-Dropdown.
     /// Aktive, buchbare, nicht-Picking-Transport-Lagerplaetze.
-    /// Sortiert: Bestand absteigend, dann Code.
+    /// Sortiert: Hauptlagerplatz zuerst, dann Bestand absteigend, dann Code.
     /// </summary>
     [HttpGet("source-locations")]
     public async Task<IActionResult> SearchSourceLocations(string? articleNumber, string? q, int limit = 50)
     {
         var locations = await _storageLocations.GetActiveOrderedExcludingPickingTransportAsync();
 
-        // Stock pro Article einmal laden
+        // Stock + Hauptlagerplatz-Ids pro Article einmal laden
         var stockByLoc = new Dictionary<int, decimal>();
+        var primaryLocIds = new HashSet<int>();
         if (!string.IsNullOrWhiteSpace(articleNumber))
         {
             var stockDict = await _stockMovements.GetStockByArticleNumbersAsync(new List<string> { articleNumber });
             if (stockDict.TryGetValue(articleNumber, out var stockList))
             {
                 foreach (var s in stockList)
+                {
                     stockByLoc[s.StorageLocationId] = s.Quantity;
+                    if (s.IsPrimaryStorageLocation) primaryLocIds.Add(s.StorageLocationId);
+                }
             }
         }
 
@@ -53,10 +57,12 @@ public class PickingApiController : ControllerBase
             {
                 stockByLoc.TryGetValue(l.Id, out var qty);
                 var hasStock = qty > 0;
+                var isPrimary = primaryLocIds.Contains(l.Id);
                 var label = hasStock ? $"{l.Code} ({qty:N3})" : l.Code;
-                return new { id = l.Id, text = label, qty, hasStock };
+                return new { id = l.Id, text = label, qty, hasStock, isPrimary };
             })
-            .OrderByDescending(x => x.hasStock)
+            .OrderByDescending(x => x.isPrimary)
+            .ThenByDescending(x => x.hasStock)
             .ThenByDescending(x => x.qty)
             .ThenBy(x => x.text)
             .Take(limit)

@@ -24,4 +24,9 @@ public class MissingPartsListViewModel
     /// Triggert Banner-Hinweis in der View.
     /// </summary>
     public bool HasNoWorkplaceMapping { get; set; }
+
+    /// <summary>Aktiver Bestelltyp-Reiter (aeussere Ebene, v1.25.0).</summary>
+    public WarehouseRequisitionType ActiveType { get; set; } = WarehouseRequisitionType.Lager;
+    public bool CanOrderLager { get; set; } = true;
+    public bool CanOrderGlas { get; set; } = true;
 }

@@ -11,8 +11,8 @@
     <strong>Wie funktionieren Berechtigungen?</strong>
     Ein Benutzer kann mehrere Rollen haben (Many-to-Many). Wer mehrere Rollen hat, hat die
     <em>Vereinigung</em> der Rechte — mehr Rollen = mehr Zugriff. Die Rolle <code>admin</code> ist ein
-    Wildcard und ueberspringt alle Pruefungen. Rollen koennen optional mit AD-Gruppen verknuepft werden;
-    Login uebernimmt dann die Rollen automatisch.
+    Wildcard und ueberspringt alle Pruefungen. Rollen werden ausschliesslich explizit pro Benutzer
+    zugewiesen (seit v1.23.0 kein automatisches AD-Gruppen-Mapping mehr).
 </div>
 
 <div class="alert alert-warning small">
@@ -90,6 +90,18 @@
                 </td>
             </tr>
             <tr>
+                <td><code>stock_read</code></td>
+                <td>Lagerbestand-Ansicht</td>
+                <td>Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Bestandsuebersicht (<code>/StockOverview</code>, read-only)</li>
+                        <li>Bewegungshistorie (<code>/StockMovements</code> Index, read-only)</li>
+                        <li>KEIN Zugriff auf Ein-/Aus-/Umbuchung, Lagerplatz-Sonderaktionen, Lager-Worklist, Bedarfsmeldungen</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
                 <td><code>stock_keyuser</code></td>
                 <td>Lager-Keyuser</td>
                 <td>Lager + Lagerplatz-Sonderaktionen.</td>
@@ -97,6 +109,30 @@
                     <ul class="mb-0 small">
                         <li>Alles von <code>stock</code></li>
                         <li>Lagerplatz ausbuchen / umbuchen</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>lagerbestellung</code></td>
+                <td>Lagerbestellungen</td>
+                <td>Lagerbestellungen erfassen + eigene Fehlteile verfolgen — eng abgegrenzt, ohne picking/stock.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Meine Lagerbestellungen (<code>/WarehouseRequisitions</code>, Filter <code>RequirePickingOrStockOrLagerbestellungAccess</code> — … ODER glasbestellung seit v1.25.0)</li>
+                        <li>Meine Fehlteile (<code>/MissingParts</code>, Filter <code>RequireStockOrLagerbestellungAccess</code> — … ODER glasbestellung seit v1.25.0)</li>
+                        <li>Kein Zugriff auf Bedarfsmeldungen, Bestand, Bewegungen, Lager-Worklist</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>glasbestellung</code></td>
+                <td>Glas-Bestellungen</td>
+                <td>Glas-Bestellungen erfassen + eigene Fehlteile verfolgen (nur <code>/WarehouseRequisitions</code> Reiter Glas + <code>/MissingParts</code>). Analog lagerbestellung, seit v1.25.0.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Meine Lagerbestellungen — Reiter Glas (<code>/WarehouseRequisitions</code>, Filter <code>RequirePickingOrStockOrLagerbestellungAccess</code>)</li>
+                        <li>Meine Fehlteile (<code>/MissingParts</code>, Filter <code>RequireStockOrLagerbestellungAccess</code>)</li>
+                        <li>Kein Zugriff auf Bedarfsmeldungen, Bestand, Bewegungen, Lager-Worklist</li>
                     </ul>
                 </td>
             </tr>

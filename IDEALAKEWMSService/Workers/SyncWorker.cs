@@ -28,8 +28,8 @@ public class SyncWorker : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var intervalMinutes = _configuration.GetValue<int>("WorkerSettings:SyncIntervalMinutes", 15);
-            var dryRun = _configuration.GetValue<bool>("WorkerSettings:SyncDryRun", false);
+            var intervalMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "WorkerSettings:SyncIntervalMinutes", 15, stoppingToken);
+            var dryRun = await ServiceSettings.GetBoolSafeAsync(_configuration, "WorkerSettings:SyncDryRun", false, stoppingToken);
 
             if (dryRun)
                 _logger.LogInformation("SyncWorker läuft im DryRun-Modus — keine Änderungen werden geschrieben.");
@@ -40,75 +40,90 @@ public class SyncWorker : BackgroundService
                 var sageImport = scope.ServiceProvider.GetRequiredService<ISageImportService>();
 
                 // Produktionsaufträge sync
-                if (_configuration.GetValue<bool>("Sync:ProductionOrdersEnabled", true))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ProductionOrdersEnabled", true, stoppingToken))
                 {
-                    _logger.LogInformation("Produktionsaufträge-Sync startet...");
-                    var waResult = await sageImport.SyncProductionOrdersAsync(dryRun, stoppingToken);
-                    _logger.LogInformation(
-                        "Produktionsaufträge-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
-                        waResult.Inserted, waResult.Updated, waResult.Errors,
-                        waResult.ErrorDetails != null ? $" Details: {waResult.ErrorDetails}" : "");
+                    await RunResilientAsync("Produktionsauftraege-Sync", async () =>
+                    {
+                        _logger.LogInformation("Produktionsaufträge-Sync startet...");
+                        var waResult = await sageImport.SyncProductionOrdersAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "Produktionsaufträge-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                            waResult.Inserted, waResult.Updated, waResult.Errors,
+                            waResult.ErrorDetails != null ? $" Details: {waResult.ErrorDetails}" : "");
+                    }, stoppingToken);
                 }
 
                 // Artikel sync
-                if (_configuration.GetValue<bool>("Sync:ArticlesEnabled", true))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ArticlesEnabled", true, stoppingToken))
                 {
-                    _logger.LogInformation("Artikel-Sync startet...");
-                    var articleResult = await sageImport.SyncArticlesAsync(dryRun, stoppingToken);
-                    _logger.LogInformation(
-                        "Artikel-Sync: {Inserted} neu, {Errors} Fehler.{Details}",
-                        articleResult.Inserted, articleResult.Errors,
-                        articleResult.ErrorDetails != null ? $" Details: {articleResult.ErrorDetails}" : "");
+                    await RunResilientAsync("Artikel-Sync", async () =>
+                    {
+                        _logger.LogInformation("Artikel-Sync startet...");
+                        var articleResult = await sageImport.SyncArticlesAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "Artikel-Sync: {Inserted} neu, {Errors} Fehler.{Details}",
+                            articleResult.Inserted, articleResult.Errors,
+                            articleResult.ErrorDetails != null ? $" Details: {articleResult.ErrorDetails}" : "");
+                    }, stoppingToken);
                 }
 
                 // OSEON Artikelkategorie-Sync (muss nach Artikel-Import laufen)
-                if (_configuration.GetValue<bool>("Sync:OseonArticleCategoryEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:OseonArticleCategoryEnabled", false, stoppingToken))
                 {
-                    var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
+                    await RunResilientAsync("OSEON-Artikelkategorie-Sync", async () =>
+                    {
+                        var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
 
-                    _logger.LogInformation("OSEON-Artikelkategorie-Sync startet...");
-                    var catResult = await oseonSync.SyncArticleCategoriesToWmsAsync(dryRun, stoppingToken);
-                    _logger.LogInformation(
-                        "OSEON-Artikelkategorie-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
-                        catResult.Inserted, catResult.Updated, catResult.Errors,
-                        catResult.ErrorDetails != null ? $" Details: {catResult.ErrorDetails}" : "");
+                        _logger.LogInformation("OSEON-Artikelkategorie-Sync startet...");
+                        var catResult = await oseonSync.SyncArticleCategoriesToWmsAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "OSEON-Artikelkategorie-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                            catResult.Inserted, catResult.Updated, catResult.Errors,
+                            catResult.ErrorDetails != null ? $" Details: {catResult.ErrorDetails}" : "");
+                    }, stoppingToken);
                 }
 
                 // OSEON Tracking sync + Werkbank-Sync
-                if (_configuration.GetValue<bool>("Sync:OseonTrackingEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:OseonTrackingEnabled", false, stoppingToken))
                 {
-                    var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
+                    await RunResilientAsync("OSEON-Tracking-Sync", async () =>
+                    {
+                        var oseonSync = scope.ServiceProvider.GetRequiredService<IOseonSyncService>();
 
-                    _logger.LogInformation("OSEON-Tracking-Sync startet...");
-                    var oseonResult = await oseonSync.SyncOseonProductionOrdersAsync(dryRun, stoppingToken);
-                    _logger.LogInformation(
-                        "OSEON-Tracking-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
-                        oseonResult.Inserted, oseonResult.Updated, oseonResult.Errors,
-                        oseonResult.ErrorDetails != null ? $" Details: {oseonResult.ErrorDetails}" : "");
+                        _logger.LogInformation("OSEON-Tracking-Sync startet...");
+                        var oseonResult = await oseonSync.SyncOseonProductionOrdersAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "OSEON-Tracking-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                            oseonResult.Inserted, oseonResult.Updated, oseonResult.Errors,
+                            oseonResult.ErrorDetails != null ? $" Details: {oseonResult.ErrorDetails}" : "");
 
-                    // Werkbank von OSEON-Aufträgen auf Sage-Aufträge übertragen
-                    _logger.LogInformation("Werkbank-Sync (OSEON → Produktionsaufträge) startet...");
-                    var wpResult = await oseonSync.SyncWorkplacesToProductionOrdersAsync(dryRun, stoppingToken);
-                    _logger.LogInformation(
-                        "Werkbank-Sync: {Updated} aktualisiert, {Errors} Fehler.{Details}",
-                        wpResult.Updated, wpResult.Errors,
-                        wpResult.ErrorDetails != null ? $" Details: {wpResult.ErrorDetails}" : "");
+                        // Werkbank von OSEON-Aufträgen auf Sage-Aufträge übertragen
+                        _logger.LogInformation("Werkbank-Sync (OSEON → Produktionsaufträge) startet...");
+                        var wpResult = await oseonSync.SyncWorkplacesToProductionOrdersAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "Werkbank-Sync: {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                            wpResult.Updated, wpResult.Errors,
+                            wpResult.ErrorDetails != null ? $" Details: {wpResult.ErrorDetails}" : "");
+                    }, stoppingToken);
                 }
                 // enaio DMS-Sync
-                if (_configuration.GetValue<bool>("Sync:EnaioDmsEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:EnaioDmsEnabled", false, stoppingToken))
                 {
-                    var enaioDmsSync = scope.ServiceProvider.GetRequiredService<IEnaioDmsSyncService>();
+                    await RunResilientAsync("enaio DMS-Sync", async () =>
+                    {
+                        var enaioDmsSync = scope.ServiceProvider.GetRequiredService<IEnaioDmsSyncService>();
 
-                    _logger.LogInformation("enaio DMS-Sync startet...");
-                    var enaioDmsResult = await enaioDmsSync.SyncDocumentsAsync(dryRun, stoppingToken);
-                    _logger.LogInformation(
-                        "enaio DMS-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
-                        enaioDmsResult.Inserted, enaioDmsResult.Updated, enaioDmsResult.Errors,
-                        enaioDmsResult.ErrorDetails != null ? $" Details: {enaioDmsResult.ErrorDetails}" : "");
+                        _logger.LogInformation("enaio DMS-Sync startet...");
+                        var enaioDmsResult = await enaioDmsSync.SyncDocumentsAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "enaio DMS-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                            enaioDmsResult.Inserted, enaioDmsResult.Updated, enaioDmsResult.Errors,
+                            enaioDmsResult.ErrorDetails != null ? $" Details: {enaioDmsResult.ErrorDetails}" : "");
+                    }, stoppingToken);
                 }
 
                 // --- Bedarfsmeldungen E-Mail-Versand ---
-                if (_configuration.GetValue<bool>("Sync:PartRequisitionEmailEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:PartRequisitionEmailEnabled", false, stoppingToken))
                 {
                     try
                     {
@@ -120,11 +135,12 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Fehler beim Versand der Bedarfsmeldungs-E-Mails.");
+                        await NotifyErrorAsync("Bedarfsmeldungs-E-Mail-Versand", ex, stoppingToken);
                     }
                 }
 
                 // --- Lagerbestellungen E-Mail-Versand ---
-                if (_configuration.GetValue<bool>("Sync:WarehouseRequisitionEmailEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:WarehouseRequisitionEmailEnabled", false, stoppingToken))
                 {
                     try
                     {
@@ -137,6 +153,7 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Fehler beim Versand der Lagerbestellungs-E-Mails.");
+                        await NotifyErrorAsync("Lagerbestellungs-E-Mail-Versand", ex, stoppingToken);
                     }
                 }
                 // ---------------------------------------------------------------
@@ -157,6 +174,7 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "BOM-Cache-Sync ist fehlgeschlagen");
+                        await NotifyErrorAsync("BOM-Cache-Sync", ex, stoppingToken);
                     }
                 }
                 else
@@ -182,6 +200,7 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "FA-Arbeitsgang-Erkennung ist fehlgeschlagen");
+                        await NotifyErrorAsync("FA-Arbeitsgang-Erkennung", ex, stoppingToken);
                     }
                 }
                 else
@@ -209,6 +228,7 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Lackierteil-Erkennung ist fehlgeschlagen");
+                        await NotifyErrorAsync("Lackierteil-Erkennung", ex, stoppingToken);
                     }
                 }
                 else
@@ -234,6 +254,7 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "BDE-AutoPause ist fehlgeschlagen");
+                        await NotifyErrorAsync("BDE-AutoPause", ex, stoppingToken);
                     }
                 }
 
@@ -255,13 +276,14 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Holiday-Sync ist fehlgeschlagen");
+                        await NotifyErrorAsync("Holiday-Sync", ex, stoppingToken);
                     }
                 }
 
                 // ---------------------------------------------------------------
                 // Lagerplatz-Sync (Sage Stammdaten)
                 // ---------------------------------------------------------------
-                if (_configuration.GetValue<bool>("Sync:LagerplaetzeEnabled", false))
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:LagerplaetzeEnabled", false, stoppingToken))
                 {
                     try
                     {
@@ -276,13 +298,14 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Lagerplatz-Sync ist fehlgeschlagen.");
+                        await NotifyErrorAsync("Lagerplatz-Sync", ex, stoppingToken);
                     }
                 }
 
                 // ---------------------------------------------------------------
                 // Lagerbestand-Sync (Sage Bestand-Korrektur)
                 // ---------------------------------------------------------------
-                if (ShouldRunLagerbestand())
+                if (await ShouldRunLagerbestandAsync(stoppingToken))
                 {
                     try
                     {
@@ -299,12 +322,14 @@ public class SyncWorker : BackgroundService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Lagerbestand-Sync ist fehlgeschlagen.");
+                        await NotifyErrorAsync("Lagerbestand-Sync", ex, stoppingToken);
                     }
                 }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Unerwarteter Fehler im SyncWorker.");
+                await NotifyErrorAsync("SyncWorker (unerwartet)", ex, stoppingToken);
             }
 
             _logger.LogDebug("SyncWorker: Nächster Durchlauf in {IntervalMinutes} Minuten.", intervalMinutes);
@@ -322,27 +347,52 @@ public class SyncWorker : BackgroundService
         return DateTime.Now - _lastAutoPauseRun.Value >= TimeSpan.FromMinutes(intervalMinutes);
     }
 
-    private Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
+    private async Task<bool> ShouldRunHolidaySyncAsync(CancellationToken ct)
     {
-        // Read via IConfiguration (same source HolidaySyncOptions binds to in
-        // Program.cs) so the worker gate and the service-internal gate cannot
-        // disagree across the two configuration sources.
-        var enabled = _configuration.GetValue<bool>("Sync:FeiertagSyncEnabled", false);
-        if (!enabled) return Task.FromResult(false);
-        if (_lastHolidaySyncRun == null) return Task.FromResult(true);
-        return Task.FromResult(DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24));
+        // DB-first (v1.25.0-Followup): Gate liest aus ServiceSettings (DB gewinnt).
+        // Safe-Reader: DB-Hickup → Default false, Worker-Loop laeuft weiter.
+        var enabled = await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:FeiertagSyncEnabled", false, ct);
+        if (!enabled) return false;
+        if (_lastHolidaySyncRun == null) return true;
+        return DateTime.Now - _lastHolidaySyncRun.Value >= TimeSpan.FromHours(24);
     }
 
-    private bool ShouldRunLagerbestand()
+    private async Task<bool> ShouldRunLagerbestandAsync(CancellationToken ct)
     {
-        if (!_configuration.GetValue<bool>("Sync:LagerbestandEnabled", false))
+        // DB-first (v1.25.0-Followup): beide Gate-Reads aus ServiceSettings (DB gewinnt),
+        // Safe-Reader → Default bei DB-Hickup, Worker-Loop laeuft weiter.
+        if (!await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:LagerbestandEnabled", false, ct))
             return false;
 
-        var overrideMinutes = _configuration.GetValue<int>("Sync:LagerbestandIntervalMinutes", 0);
+        var overrideMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:LagerbestandIntervalMinutes", 0, ct);
         if (overrideMinutes <= 0)
             return true;   // nutzt Worker-Standard-Intervall (15 Min)
 
         if (_lastLagerbestandRun == null) return true;
         return DateTime.Now - _lastLagerbestandRun.Value >= TimeSpan.FromMinutes(overrideMinutes);
+    }
+
+    private async Task NotifyErrorAsync(string stepName, Exception ex, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var notifier = scope.ServiceProvider.GetRequiredService<ISyncErrorNotifier>();
+            await notifier.NotifyAsync(stepName, ex, ct);
+        }
+        catch (Exception notifyEx)
+        {
+            _logger.LogError(notifyEx, "Fehlermail-Benachrichtigung fuer {Step} fehlgeschlagen.", stepName);
+        }
+    }
+
+    private async Task RunResilientAsync(string stepName, Func<Task> step, CancellationToken ct)
+    {
+        try { await step(); }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "{Step} ist fehlgeschlagen — fahre mit weiteren Syncs fort.", stepName);
+            await NotifyErrorAsync(stepName, ex, ct);
+        }
     }
 }

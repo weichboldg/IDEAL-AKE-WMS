@@ -49,4 +49,16 @@ public class ProductionOrder : AuditableEntity
     // AssemblyGroups-Collection entfernt in v1.22.0 (ersetzt durch FaWorkSteps)
     public ProductionOrderPickingStatus? PickingStatus { get; set; }
     public ProductionOrderBdeStatus? BdeStatus { get; set; }
+
+    // FA-Reconciliation (v1.25.0): verwaiste FAs, die in Sage geloescht wurden.
+    // IsCancelled verhaelt sich in allen Offen-Queries wie IsDone (raus aus offenen Sichten).
+    [Display(Name = "Storniert")]
+    public bool IsCancelled { get; set; }
+
+    [Display(Name = "Storniert am")]
+    public DateTime? CancelledAt { get; set; }
+
+    [StringLength(256)]
+    [Display(Name = "Storniert von")]
+    public string? CancelledBy { get; set; }
 }

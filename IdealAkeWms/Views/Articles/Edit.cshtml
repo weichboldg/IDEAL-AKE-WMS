@@ -58,6 +58,32 @@
                         <span asp-validation-for="Article.ReorderLevel" class="text-danger"></span>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="Article.PrimaryStorageLocationId" class="form-label">Hauptlagerplatz</label>
+                        @if (Model.IsPrimarySageControlled)
+                        {
+                            <input type="hidden" asp-for="Article.PrimaryStorageLocationId" />
+                            <select class="form-select bg-light" disabled>
+                                <option>@Model.Article.SagePrimaryStorageLocation</option>
+                            </select>
+                            <div class="alert alert-info mt-2 mb-0 py-2">
+                                Hauptlagerplatz aus Sage &uuml;bernommen (gesperrt):
+                                <strong>@Model.Article.SagePrimaryStorageLocation</strong>
+                            </div>
+                        }
+                        else
+                        {
+                            <select asp-for="Article.PrimaryStorageLocationId" class="form-select">
+                                <option value="">&mdash;</option>
+                                @foreach (var sl in Model.StorageLocations)
+                                {
+                                    <option value="@sl.Id">@sl.Code@(string.IsNullOrEmpty(sl.Description) ? "" : $" — {sl.Description}")</option>
+                                }
+                            </select>
+                            <small class="text-muted">Bestimmt die Sortierung &bdquo;Hauptlagerplatz zuerst&ldquo; in den Best&auml;nden.</small>
+                        }
+                    </div>
+
                     @if (Model.Attributes.Any())
                     {
                         <hr />

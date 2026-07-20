@@ -1,0 +1,7 @@
+@using IdealAkeWms.Models
+@model IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel
+<select class="form-select form-select-sm fa-status-select" data-fa-work-step-id="@Model.FaWorkStepId" @(Model.Disabled ? "disabled" : "")>
+    <option value="0" selected="@(Model.Status == FaWorkStepStatus.Offen)">Offen</option>
+    <option value="1" selected="@(Model.Status == FaWorkStepStatus.InBearbeitung)">in Bearbeitung</option>
+    <option value="2" selected="@(Model.Status == FaWorkStepStatus.Fertig)">Fertig</option>
+</select>

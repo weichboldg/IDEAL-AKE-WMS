@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using Xunit;
 
@@ -26,6 +27,35 @@ public class ProductionOrderPickingStatusRepositoryTests
         reloaded.ModifiedAt.Should().NotBeNull();
         reloaded.ModifiedBy.Should().Be("alice");
         reloaded.ModifiedByWindows.Should().Be("DOMAIN\\alice");
+    }
+
+    [Fact]
+    public async Task SetFieldAsync_MissingStatusRow_CreatesRowAndPersists()
+    {
+        // Root-Cause-Regression: FAs ohne ProductionOrderPickingStatus-Zeile (Alt-Daten /
+        // AgentJob hat die Zeile nicht eager angelegt) liessen "Abschliessen/Erledigt"
+        // fehlschlagen (SetFieldAsync warf InvalidOperationException). Statt zu werfen,
+        // muss die Zeile angelegt werden.
+        using var context = TestDbContextFactory.Create();
+        var order = new ProductionOrder
+        {
+            OrderNumber = "WA-NOSTATUS",
+            Quantity = 1m,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        };
+        context.ProductionOrders.Add(order);
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        await repo.SetIsDonePickingAsync(order.Id, true, "alice", "DOMAIN\\alice");
+
+        var reloaded = await repo.GetByProductionOrderIdAsync(order.Id);
+        reloaded.Should().NotBeNull();
+        reloaded!.IsDonePicking.Should().BeTrue();
+        reloaded.CreatedBy.Should().Be("alice");
+        reloaded.ModifiedBy.Should().Be("alice");
     }
 
     [Fact]
@@ -134,6 +164,45 @@ public class ProductionOrderPickingStatusRepositoryTests
         result.Should().HaveCount(1);
         result[0].OrderNumber.Should().Be("FA-1");
         count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetReleasedForPicking_ExcludesCancelledOrders()
+    {
+        // FA-Reconciliation (v1.25.0): eine vor der Loeschung freigegebene, dann stornierte FA
+        // (IsReleasedForPicking=true, IsCancelled=1) darf weder in der Worklist erscheinen
+        // noch im Nav-Zaehler mitgezaehlt werden.
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-OPEN",
+            releaseForPicking: true);
+        var cancelled = TestDataHelper.CreateOrderWithStatuses(context, "FA-CANCELLED",
+            releaseForPicking: true);
+        cancelled.Order.IsCancelled = true;
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.GetReleasedForPickingAsync();
+        var count = await repo.GetReleasedForPickingCountAsync();
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetReleasedForPickingByPicker_ExcludesCancelledOrders()
+    {
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "FA-OPEN",
+            releaseForPicking: true, assignedPickerId: 7);
+        var cancelled = TestDataHelper.CreateOrderWithStatuses(context, "FA-CANCELLED",
+            releaseForPicking: true, assignedPickerId: 7);
+        cancelled.Order.IsCancelled = true;
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.GetReleasedForPickingByPickerAsync(7);
+
+        result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
     }
 
     [Fact]

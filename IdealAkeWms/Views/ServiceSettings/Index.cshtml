@@ -1,64 +1,149 @@
-@model List<IdealAkeWms.Models.ServiceSetting>
+@model IdealAkeWms.Models.ViewModels.ServiceSettingsViewModel
+@using IdealAkeWms.Models
 @{
     ViewData["Title"] = "Service-Einstellungen";
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">Service-Einstellungen</h2>
-    <a asp-action="Create" class="btn btn-primary">Neue Einstellung</a>
 </div>
 
-<div class="alert alert-info mb-3">
-    <strong>Hinweis:</strong> Grundlegende Einstellungen (Datenbankverbindungen, SMTP) befinden sich in
-    <code>appsettings.json</code> des Windows-Dienstes. Diese Tabelle enthält laufzeitveränderliche
-    Konfigurationen (Benachrichtigungsempfänger, Sync-Schalter, etc.).
-</div>
-
-@{
-    var categories = Model.Select(s => s.Category ?? "Allgemein").Distinct().OrderBy(c => c).ToList();
-}
-
-@foreach (var category in categories)
+@if (TempData["SuccessMessage"] != null)
 {
-    var items = Model.Where(s => (s.Category ?? "Allgemein") == category).ToList();
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">@category</div>
-        <div class="table-responsive">
-            <table class="table table-striped mb-0">
-                <thead>
-                    <tr>
-                        <th style="width: 30%">Schlüssel</th>
-                        <th style="width: 30%">Wert</th>
-                        <th>Beschreibung</th>
-                        <th style="width: 130px;"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in items)
-                    {
-                        <tr>
-                            <td><code>@item.Key</code></td>
-                            <td>@item.Value</td>
-                            <td class="text-muted small">@item.Description</td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a asp-action="Edit" asp-route-id="@item.Key" class="btn btn-sm btn-secondary">Bearbeiten</a>
-                                    <form asp-action="Delete" asp-route-id="@item.Key" method="post" class="m-0"
-                                          onsubmit="return confirm('Einstellung \'@item.Key\' löschen?');">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-warning">
+        <strong>Nicht gespeichert:</strong>
+        <ul class="mb-0">
+            @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>@err.ErrorMessage</li>
+            }
+        </ul>
     </div>
 }
 
-@if (!Model.Any())
-{
-    <div class="text-center text-muted py-5">Keine Einstellungen vorhanden.</div>
+<div class="alert alert-info mb-3">
+    <strong>Hinweis:</strong> Diese Werte werden vom Windows-Dienst gelesen (DB gewinnt).
+    Datenbankverbindungen (<code>ConnectionStrings</code>) und SMTP (<code>MailSettings</code>)
+    bleiben in <code>appsettings.json</code> des Dienstes.
+</div>
+
+<form asp-action="SaveSettings" method="post">
+    @Html.AntiForgeryToken()
+    @foreach (var group in Model.Groups)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">@group.Category</div>
+            <div class="card-body">
+                @foreach (var item in group.Items)
+                {
+                    <div class="mb-3" data-setting-row="@item.Key">
+                        <label class="form-label fw-bold">@item.Key</label>
+                        @if (!string.IsNullOrEmpty(item.Description))
+                        {
+                            <br /><small class="text-muted">@item.Description</small>
+                        }
+                        @if (item.Type == ServiceSettingType.Bool)
+                        {
+                            var isChecked = string.Equals(item.Value, "true", StringComparison.OrdinalIgnoreCase);
+                            <input type="hidden" name="settings[@item.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
+                            <div class="form-check form-switch mt-1">
+                                <input type="checkbox" class="form-check-input bool-toggle" id="setting_@item.Key" @(isChecked ? "checked" : "") />
+                                <label class="form-check-label" for="setting_@item.Key">@(isChecked ? "Aktiviert" : "Deaktiviert")</label>
+                            </div>
+                        }
+                        else if (item.Type == ServiceSettingType.Int)
+                        {
+                            <input type="number" step="1" name="settings[@item.Key]" value="@item.Value" class="form-control" />
+                        }
+                        else if (item.Multiline)
+                        {
+                            <textarea name="settings[@item.Key]" rows="2" class="form-control">@item.Value</textarea>
+                        }
+                        else
+                        {
+                            <input type="text" name="settings[@item.Key]" value="@item.Value" class="form-control" />
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary mb-4">Einstellungen speichern</button>
+</form>
+
+<div class="card mb-3">
+    <div class="card-header">
+        <button class="btn btn-link p-0 text-decoration-none fw-semibold" type="button"
+                data-bs-toggle="collapse" data-bs-target="#orphanSection" aria-expanded="false">
+            Sonstige / Erweitert (@Model.OrphanEntries.Count)
+        </button>
+        <a asp-action="Create" class="btn btn-sm btn-outline-primary float-end">Neu</a>
+    </div>
+    <div id="orphanSection" class="collapse">
+        <div class="card-body">
+            @if (!Model.OrphanEntries.Any())
+            {
+                <p class="text-muted mb-0">Keine zusaetzlichen (nicht-katalogisierten) Eintraege.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%">Schlüssel</th>
+                                <th style="width: 30%">Wert</th>
+                                <th>Beschreibung</th>
+                                <th style="width: 130px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.OrphanEntries)
+                            {
+                                <tr>
+                                    <td><code>@item.Key</code></td>
+                                    <td>@item.Value</td>
+                                    <td class="text-muted small">@item.Description</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a asp-action="Edit" asp-route-id="@item.Key" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                                            <form asp-action="Delete" asp-route-id="@item.Key" method="post" class="m-0"
+                                                  onsubmit="return confirm('Einstellung \'@item.Key\' löschen?');">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Bool-Toggle: synchronisiert den Hidden-Wert + Label (Fallstrick: Hidden+Checkbox
+        // gleicher name funktioniert NICHT — Checkbox hat KEIN name, Hidden traegt den name).
+        document.querySelectorAll('.bool-toggle').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                var hidden = this.closest('[data-setting-row]').querySelector('.bool-hidden');
+                if (hidden) hidden.value = this.checked ? 'true' : 'false';
+                var label = this.parentElement.querySelector('.form-check-label');
+                if (label) label.textContent = this.checked ? 'Aktiviert' : 'Deaktiviert';
+            });
+        });
+    </script>
 }
