@@ -729,6 +729,28 @@
                 </ul>
                 <p class="mb-0"><strong>Kommissionierwagen:</strong> Lagerplaetze vom Typ &bdquo;Wagen&ldquo; werden in der Stueckliste weder in der Bestandsanzeige (Spalte Lagerplatz) noch in den Quell-/Ziel-Lagerplatz-Dropdowns angezeigt.</p>
 
+                <h6 class="mt-3">Lagerbestellung aus der Stueckliste (seit v1.25.0)</h6>
+                <ul class="mb-2">
+                    <li>Neben der Bedarfsmeldung gibt es je Bauteil-Zeile eine
+                        <strong>Lagerbestellung</strong>-Auswahl und einen <strong>Sammel-Button</strong>
+                        fuer markierte Zeilen &mdash; auch in der read-only Vorbau-Stueckliste.</li>
+                    <li>Der Bestelltyp (Lager/Glas) wird automatisch aus der Artikelgruppe abgeleitet;
+                        die Positionen landen im <strong>offenen Bestell-Entwurf</strong> des passenden
+                        Typs (wird bei Bedarf neu angelegt). Werkbank = erste zugeordnete eigene Werkbank.</li>
+                    <li>Sichtbar nur bei aktivem Lagerbestellungs-Modul
+                        (Einstellung <code>LagerbestellungAktiv</code>).</li>
+                </ul>
+
+                <h6 class="mt-3">Spalten &amp; Auswahlleiste (seit v1.25.0)</h6>
+                <ul class="mb-2">
+                    <li>Ueber das Zahnrad &bdquo;Spalten konfigurieren&ldquo; lassen sich die
+                        Stuecklisten-Spalten per Drag <strong>umordnen</strong> (die Baum-Hierarchie
+                        mit Auf-/Zuklappen bleibt unberuehrt).</li>
+                    <li>Beim Markieren mehrerer Zeilen erscheint oben eine <strong>klebende
+                        Auswahlleiste</strong> mit Anzahl und den passenden Sammel-Buttons
+                        (Lagerbestellung bzw. Bedarfsmeldung) &mdash; auch beim Scrollen sichtbar.</li>
+                </ul>
+
                 <h6 class="mt-3">Spaltenfilter in der Stueckliste</h6>
                 <p class="mb-1">Klick auf eine Spaltenueberschrift oeffnet ein Filterfeld direkt unter der Ueberschrift. Der Filter unterstuetzt drei Modi:</p>
                 <dl class="mb-0">
@@ -827,10 +849,18 @@
                 <h6 class="mt-3">Storno</h6>
                 <p>Erfasser oder Lager koennen eine Liste stornieren. Wenn die Liste vorher abgeschickt war, wird eine [STORNO]-E-Mail an den Empfaenger versendet.</p>
 
+                <h6 class="mt-3">Erfassen direkt aus der Stueckliste (seit v1.25.0)</h6>
+                <p>Positionen koennen auch direkt aus der Stueckliste in den offenen Bestell-Entwurf
+                    uebernommen werden (Einzel- und Sammel-Button; Bestelltyp Lager/Glas wird aus der
+                    Artikelgruppe abgeleitet) &mdash; Details im Abschnitt &bdquo;Kommissionierung&ldquo;.</p>
+
                 <h6 class="mt-3">Konfiguration</h6>
                 <ul>
+                    <li><code>LagerbestellungAktiv</code> (Einstellungen, Default <strong>aktiv</strong>) —
+                        Master-Schalter fuer das gesamte Modul (Lagerbestellungen, Glas, Fehlteile,
+                        Lager-Worklists, Stuecklisten-Button). Nur der Wert <code>false</code> sperrt.</li>
                     <li><code>DefaultLagerbestellempfaengerId</code> (Einstellungen) — ID der Empfaenger-Gruppe.</li>
-                    <li><code>Sync:WarehouseRequisitionEmailEnabled</code> (Service) — aktiviert den Mail-Versand.</li>
+                    <li><code>Sync:WarehouseRequisitionEmailEnabled</code> (Service-Einstellungen) — aktiviert den Mail-Versand.</li>
                 </ul>
             </div>
         </div>
@@ -909,6 +939,12 @@
                         <span class="stock-warning" style="padding: 1px 6px; border-radius: 3px;">orange</span> = Warnschwelle erreicht,
                         <span class="stock-critical" style="padding: 1px 6px; border-radius: 3px;">rot</span> = kritischer Bestand.
                     </dd>
+
+                    <dt>Hauptlagerplatz (seit v1.25.0)</dt>
+                    <dd>Hat ein Artikel einen Hauptlagerplatz (siehe Stammdaten &rarr; Artikel), steht
+                        dieser in der Liste <strong>zuerst</strong> und traegt ein
+                        &#9733;-Badge &bdquo;Haupt&ldquo;. Auch die Quell-Lagerplatz-Vorschlaege in
+                        Kommissionierung und Lager-Worklist bevorzugen den Hauptlagerplatz.</dd>
                 </dl>
             </div>
         </div>
@@ -920,10 +956,18 @@
                 <dl>
                     <dt>Artikel</dt>
                     <dd>Artikelnummer, Bezeichnung, Einheit und Meldebestand. Artikel werden automatisch per Sage-Import synchronisiert.
-                        Meldebestand und Einheit koennen manuell angepasst werden.</dd>
+                        Meldebestand und Einheit koennen manuell angepasst werden.
+                        <br /><strong>Hauptlagerplatz (seit v1.25.0):</strong> Liefert Sage einen
+                        Hauptlagerplatz, wird er uebernommen und ist im Artikel <em>gesperrt</em>;
+                        liefert Sage keinen, kann er in &bdquo;Artikel bearbeiten&ldquo; manuell
+                        gewaehlt werden. Ueberall wo Bestand pro Lagerplatz angezeigt wird, steht
+                        der Hauptlagerplatz zuerst (Bestandsuebersicht: &#9733;-Badge
+                        &bdquo;Haupt&ldquo;). Fehlt der Sage-Lagerplatz im WMS, wird das im
+                        Aktivitaets-Protokoll gezaehlt (<code>hauptlagerplatz_fehlt</code>).</dd>
 
                     <dt>Lagerplaetze</dt>
-                    <dd>Code (max. 12 Zeichen fuer Barcode-Lesbarkeit), Bezeichnung, Zone und Kapazitaet.
+                    <dd>Code (manuell angelegte Plaetze max. 12 Zeichen fuer Barcode-Lesbarkeit,
+                        Sage-Codes bis 50 Zeichen), Bezeichnung, Zone und Kapazitaet.
                         Barcode-Etiketten koennen einzeln oder gesammelt gedruckt werden.
                         Lagerplaetze koennen als &bdquo;Kommissionierwagen&ldquo; markiert werden (Typ &bdquo;Wagen&ldquo;) —
                         diese werden in der Stueckliste und bei Meldebestand-Warnungen gesondert behandelt.</dd>
@@ -988,15 +1032,21 @@
                                 <tr><th>Rolle</th><th>Beschreibung</th></tr>
                             </thead>
                             <tbody>
-                                <tr><td>Administrator</td><td>Vollzugriff auf alle Bereiche</td></tr>
-                                <tr><td>Stammdaten</td><td>Benutzer, Arbeitsplaetze, Einstellungen verwalten</td></tr>
+                                <tr><td>Administrator</td><td>Vollzugriff auf alle Bereiche (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Service-Einstellungen, Aktivitaets-Protokoll sind admin-only)</td></tr>
+                                <tr><td>Stammdaten</td><td>Operative Stammdaten lesen + aendern (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger)</td></tr>
+                                <tr><td>Stammdaten ansehen</td><td>Dieselben Stammdaten-Sichten nur lesen (seit v1.20.0)</td></tr>
                                 <tr><td>Kommissionierer</td><td>Kommissionierung + vollstaendiger Lagerzugriff</td></tr>
                                 <tr><td>Lager</td><td>Einbuchung, Ausbuchung, Bestaende einsehen</td></tr>
                                 <tr><td>Lager Keyuser</td><td>Lager + Lagerplatz ausbuchen / umbuchen</td></tr>
+                                <tr><td>Lagerbestand-Ansicht</td><td>Bestaende + Bewegungshistorie nur lesen, ohne Buchungsrechte (seit v1.25.0)</td></tr>
                                 <tr><td>Teileverfolgung</td><td>OSEON-Auftraege und Rueckmeldungen einsehen</td></tr>
-                                <tr><td>Betriebsdaten (BDE)</td><td>Arbeitsgaenge rueckmelden</td></tr>
+                                <tr><td>Reporting</td><td>OSEON Reporting (AG-Uebersicht)</td></tr>
                                 <tr><td>Leitstand</td><td>Fertigungsauftraege freigeben und priorisieren</td></tr>
+                                <tr><td>FA-Vervollstaendigung</td><td>Werkbank, FA-Vorbau-AG und Merkmale pro FA pflegen</td></tr>
                                 <tr><td>Vorbau</td><td>FA-Abarbeitungsliste: FA-Vorbau-AG einsehen und abhaken (seit v1.22.0)</td></tr>
+                                <tr><td>Lagerbestellung</td><td>Lagerbestellungen erfassen + eigene Fehlteile verfolgen &mdash; eng abgegrenzt, ohne Lager-/Picking-Zugriff (seit v1.23.0)</td></tr>
+                                <tr><td>Glasbestellung</td><td>Wie Lagerbestellung, aber fuer den Bestelltyp Glas (seit v1.25.0)</td></tr>
+                                <tr><td>BDE-Benutzer / BDE-Schichtleiter / BDE-Admin</td><td>Terminal-Buchung / + Stammdaten, Buchungsliste, Cockpit / + Korrekturen, Storno, Terminals</td></tr>
                             </tbody>
                         </table>
                         </div>
@@ -1103,8 +1153,20 @@
                 <p>
                     Aktivitaet-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking,
                     OseonWorkplaces, OseonArticleCategories, EnaioDms, Holiday, CoatingDetection,
-                    FaWorkStepDetection, ProductionOrder, Article, PartRequisitionEmail,
-                    WarehouseRequisitionEmail, BdeAutoPause.
+                    FaWorkStepDetection, ProductionOrder, ProductionOrderReconciliation, Article,
+                    PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
+                    CleanupAktivitaetsprotokoll.
+                </p>
+                <h6 class="mt-3">Automatische Bereinigung (seit v1.25.0)</h6>
+                <p class="mb-1">
+                    Der Windows-Dienst loescht taeglich Protokoll-Eintraege, die aelter als die
+                    eingestellte Aufbewahrung sind (Service-Einstellung
+                    <code>Cleanup:AktivitaetsprotokollAufbewahrungTage</code>, Kategorie
+                    &bdquo;Bereinigung&ldquo; unter <em>Stammdaten &rarr; Service-Einstellungen</em>;
+                    Default <strong>180 Tage</strong>, <code>0</code> = nie loeschen).
+                    Jeder Bereinigungslauf erscheint selbst als Protokoll-Eintrag
+                    (<code>CleanupAktivitaetsprotokoll</code>) mit der Anzahl geloeschter Zeilen;
+                    im DryRun-Modus wird nur gezaehlt, nichts geloescht.
                 </p>
                 <p>
                     Im Aktivitäts-Protokoll zeigt der Eintrag <strong>FaWorkStepDetection</strong> nicht
@@ -1132,13 +1194,24 @@
                         <em>AD-Benutzer</em> hinterlegt, wird er beim Aufruf der App direkt
                         angemeldet &mdash; ohne Eingabe von Benutzername/Passwort.</dd>
 
+                    <dt>Handys, Tablets, Mac/Linux (seit v1.25.0)</dt>
+                    <dd>Die automatische Windows-Anmeldung wird nur noch auf
+                        <strong>Windows-Desktop-Browsern</strong> versucht. Mobilgeraete
+                        (Android/iPhone/iPad) sowie Mac/Linux bekommen <strong>sofort das
+                        Anmelde-Formular</strong> &mdash; ohne stoerenden Windows-Anmeldedialog.</dd>
+
+                    <dt>Button &bdquo;Mit Windows anmelden&ldquo; (seit v1.25.0)</dt>
+                    <dd>Auf dem Anmelde-Formular erscheint (nur bei aktivierter
+                        Windows-Anmeldung) ein Button, der die Windows-Anmeldung
+                        <strong>erzwingt</strong> &mdash; z.&nbsp;B. nach einem Abmelden, nach einem
+                        fehlgeschlagenen ersten Versuch oder auf einem Geraet, das nicht als
+                        Windows-Desktop erkannt wurde.</dd>
+
                     <dt>Was passiert bei Problemen?</dt>
                     <dd>Gibt es <strong>keinen</strong> passenden Datensatz (oder ist er inaktiv),
                         oder tritt ein Fehler auf, erscheint automatisch die <strong>normale
                         Anmelde-Maske</strong>. Lokale Passwort-Benutzer und Geraete ausserhalb der
-                        Domaene melden sich weiterhin ueber das Formular an. Auf einem
-                        Nicht-Domaenen-Geraet kann einmalig ein Windows-Dialog erscheinen &mdash;
-                        nach dem Abbrechen kommt das Formular.</dd>
+                        Domaene melden sich weiterhin ueber das Formular an.</dd>
 
                     <dt>Abmelden &amp; Benutzerwechsel</dt>
                     <dd>Nach dem Abmelden erscheint wieder das Formular &mdash; es findet
@@ -1156,6 +1229,8 @@
                                 anlegen.</li>
                         </ol>
                         Der neue Benutzer erscheint in der Liste mit Typ <em>&bdquo;AD&ldquo;</em>.
+                        Die im Active Directory hinterlegte <strong>E-Mail-Adresse wird automatisch
+                        uebernommen</strong> (seit v1.25.0; danach im Benutzerstamm aenderbar).
                         Ist das AD nicht erreichbar oder die Gruppe leer, erscheint ein Hinweis &mdash;
                         die manuelle Anlage ueber <em>&bdquo;Benutzer anlegen&ldquo;</em> bleibt verfuegbar.
                         <br />

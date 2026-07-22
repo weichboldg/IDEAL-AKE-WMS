@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-05-22 (v1.14.0)
+**Stand:** 2026-06-18 (v1.23.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -34,6 +34,46 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 12. Print + OSEON-Tracking-Verbesserungen | [→](#12-print--oseon-tracking-verbesserungen) | TS-12.1 – TS-12.6 |
 | 13. Spalten-Konfiguration & Filter | [→](#13-spalten-konfiguration--filter) | TS-13.1 – TS-13.7 |
 | 14. Service / Sync (read-only Verifikation) | [→](#14-service--sync-read-only-verifikation) | TS-14.1 – TS-14.4 |
+| 15. BDE Phase 2.3 — Schichtkalender + Auto-Pause | [→](#15-bde-phase-23--schichtkalender--auto-pause) | TS-15.1 – TS-15.12 |
+| 16. OSEON Reporting — AG-Übersicht | [→](#16-oseon-reporting--ag-übersicht) | TS-16.1 – TS-16.6 |
+| 17. OSEON Tracking — Artikel-Filter | [→](#17-oseon-tracking--artikel-filter) | TS-17.1 – TS-17.4 |
+| 18. Lagerbestellung aus der Produktion | [→](#18-lagerbestellung-aus-der-produktion) | TS-18.1 – TS-18.9 |
+| 19. Listen-Pagination & User-Default (v1.14.0) | [→](#19-listen-pagination--user-default-v1140) | TS-19.1 – TS-19.6 |
+| 20. Server-Side Spaltenfilter (v1.14.0) | [→](#20-server-side-spaltenfilter-v1140) | TS-20.1 – TS-20.7 |
+| 21. Leitstand als eigenes Hauptmenue (v1.14.0) | [→](#21-leitstand-als-eigenes-hauptmenue-v1140) | TS-21.1 – TS-21.2 |
+| 22. Lagerbestellungen — Notiz + INT-Mengen (v1.14.0) | [→](#22-lagerbestellungen--notiz--int-mengen-v1140) | TS-22.1 – TS-22.6 |
+| 23. FA-Vervollstaendigung als Feature-Toggle (v1.14.0) | [→](#23-fa-vervollstaendigung-als-feature-toggle-v1140) | TS-23.1 – TS-23.3 |
+| 24. StorageLocation-Code 50 Zeichen (v1.14.0) | [→](#24-storagelocation-code-50-zeichen-v1140) | TS-24.1 – TS-24.3 |
+| 25. OSEON-Tabellen-Hover (v1.14.0) | [→](#25-oseon-tabellen-hover-v1140) | TS-25.1 |
+| 26. Bestand: Source-Lagerplatz-Vorschlag bei Sage-Stock (v1.14.0) | [→](#26-bestand-source-lagerplatz-vorschlag-bei-sage-stock-v1140) | TS-26.1 – TS-26.2 |
+| 27. SyncLog-Pflicht fuer alle Sync-Services (v1.15.0) | [→](#27-synclog-pflicht-fuer-alle-sync-services-v1150) | — |
+| 28. Activity-Log fuer Non-Sync-Services (v1.15.1) | [→](#28-activity-log-fuer-non-sync-services-v1151) | — |
+| Kapitel 29: OSEON Stammdaten-Imports im Aktivitaets-Protokoll (v1.15.2) | [→](#kapitel-29-oseon-stammdaten-imports-im-aktivitaets-protokoll-v1152) | — |
+| Kapitel 30: OSEON-Tracking iOS-Fix + Lazy-Load (v1.16.0) | [→](#kapitel-30-oseon-tracking-ios-fix--lazy-load-v1160) | — |
+| 31. Artikel-Sync-Erweiterung (v1.17.0) | [→](#31-artikel-sync-erweiterung-v1170) | — |
+| 32. Lagerbestellungen Teilgeliefert + Fehlteile (v1.18.0) | [→](#32-lagerbestellungen-teilgeliefert--fehlteile-v1180) | — |
+| 33. ShortageStatus 3-State + 2-Tab Fehlteile (v1.19.0) | [→](#33-shortagestatus-3-state--2-tab-fehlteile-v1190) | — |
+| Kapitel 34: Feingranulare Berechtigungen (v1.20.0) | [→](#kapitel-34-feingranulare-berechtigungen-v1200) | — |
+| Kapitel 35: v1.20.0-Bugfixes (Post-Initial-Release) | [→](#kapitel-35-v1200-bugfixes-post-initial-release) | — |
+| Kapitel 36: Universal-Filter-Rollout (v1.21.0) | [→](#kapitel-36-universal-filter-rollout-v1210) | — |
+| Kapitel 37: FA-Abschliessen (v1.21.1) | [→](#kapitel-37-fa-abschliessen-v1211) | — |
+| Kapitel 38: FA-Vorbau (v1.22.0) | [→](#kapitel-38-fa-vorbau-v1220) | — |
+| Kapitel 39: UI-Nachzuegler (v1.22.0 Folge-Fixes) | [→](#kapitel-39-ui-nachzuegler-v1220-folge-fixes) | — |
+| Kapitel 40: Windows-Authentifizierung & AD-Benutzer (v1.23.0) | [→](#kapitel-40-windows-authentifizierung--ad-benutzer-v1230) | TS-40.1 – TS-40.12 |
+| Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0) | [→](#kapitel-41-rolle-lagerbestellung--artikelinfo-für-stammdaten-ansehen-v1230) | TS-41.1 – TS-41.5 |
+| Kapitel 42: Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) (v1.23.0) | [→](#kapitel-42-lagerbestellungs-druck-spiegelt-gui-spaltensortfilter-v1230) | TS-42.1 – TS-42.5 |
+| Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.4 |
+| Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0) | [→](#kapitel-44-fa-ag-erkennung--bom-cache--protokoll-aufgliederung-v1230) | TS-44.1 – TS-44.3 |
+| Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0) | [→](#kapitel-45-fa-vorbau-3-wert-status--beschichtungstermin--enter-spaltenfilter-v1240) | TS-45.1 – TS-45.6 |
+| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.8 |
+| Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0) | [→](#kapitel-47-service-resilienz--fehlermail--productionorders-515-fix-v1250) | TS-47.1 – TS-47.3 |
+| Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0) | [→](#kapitel-48-rolle-stockread-read-only-lagerbestand--fa-listestückliste-fuer-vorbau-v1250) | TS-48.1 – TS-48.2 |
+| Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0) | [→](#kapitel-49-hauptlagerplatz-am-artikel-v1250) | — |
+| Kapitel 50: FA-Reconciliation (verwaiste FAs stornieren) (v1.25.0) | [→](#kapitel-50-fa-reconciliation-verwaiste-fas-stornieren-v1250) | — |
+| Kapitel 51: Typisierte, vollständige Service-Einstellungen (v1.25.0) | [→](#kapitel-51-typisierte-vollständige-service-einstellungen-v1250) | TS-51.1 – TS-51.8 |
+| Kapitel 52: Lagerbestellung aus der Stückliste + Master-Schalter (v1.25.0) | [→](#kapitel-52-lagerbestellung-aus-der-stückliste--master-schalter-v1250) | — |
+| Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
+| Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 
 ---
 
@@ -914,6 +954,29 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 **Erwartetes Verhalten:**
 - Dokument oeffnet sich im enaio Viewer (neuer Browser-Tab).
+
+---
+
+### TS-4.5a — enaio "Werkstattauftrag + Zeichnung": eigenes Icon, zuerst angezeigt
+
+**Vorbedingungen:**
+- AppSetting `EnaioDmsEnabled = true` (Service-Einstellungen).
+- Eine FA (z. B. `FA-2604002`) hat in enaio mehrere Dokumente: einen `Werkstattauftrag+Zeichnung` (Zeichnung direkt am WA), zusaetzlich einen reinen `Werkstattauftrag` und eine `Zeichnung`.
+
+**Schritte:**
+1. FA-Liste oeffnen (alternativ Leitstand, FA-Abarbeitungsliste oder FA-Vervollstaendigen — gleiche Badge-Liste).
+2. Zeile der FA finden und die Icon-Reihe neben der FA-Nummer betrachten.
+
+**Erwartetes Verhalten:**
+- Die drei Typen haben drei unterscheidbare Icons:
+  - `Werkstattauftrag+Zeichnung` = Dokument-mit-Zeichenbrett-Icon (Tooltip "Werkstattauftrag + Zeichnung in enaio oeffnen").
+  - `Werkstattauftrag` = Dokument-Icon.
+  - `Zeichnung` = Bild-/Zeichnung-Icon.
+- Reihenfolge der Icons: **`Werkstattauftrag+Zeichnung` zuerst**, dann `Werkstattauftrag`, dann `Zeichnung`.
+- Jedes Icon oeffnet beim Klick das zugehoerige Dokument im enaio Viewer (neuer Tab).
+
+**Negativ-Fall:**
+- FA ohne `Werkstattauftrag+Zeichnung`-Dokument: nur die bisherigen WA-/Zeichnungs-Icons erscheinen, keine Luecke.
 
 ---
 
@@ -3371,9 +3434,14 @@ Vorbedingungen: TS-18.1, Service-Setting Sync:WarehouseRequisitionEmailEnabled=t
 Schritte: max. 15 Min warten oder Worker-Tick triggern.
 Erwartet: E-Mail im Postfach des Empfaengers, Subject "Lagerbestellung #X — Werkbank Y", Body mit Items + Deep-Link.
 
+### TS-18.5a — Submit-Mail: Link klickbar in Outlook (Plain-Text-Alternative)
+Vorbedingungen: wie TS-18.5, Empfaenger nutzt Outlook (Desktop oder Web).
+Schritte: Submit-Mail oeffnen, auf "Lagerbestellung oeffnen" tippen/klicken.
+Erwartet: Der Link wird als klickbarer Button bzw. Hyperlink dargestellt (NICHT als Rohtext `[URL]Lagerbestellung oeffnen`). Klick oeffnet `/WarehousePicking/Details/{id}`. Hintergrund: die Mail ist multipart/alternative (HTML-Button + Plain-Text-Teil mit nackter URL). Negativ-Fall vor dem Fix: Outlook zeigte den Anchor als `[URL]Text`-Rohtext.
+
 ### TS-18.6 — Storno-Mail
 Schritte: nach Submit (TS-18.1) im Erfasser-Edit "Stornieren" mit Grund.
-Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …".
+Erwartet: Liste Status "Storniert". Nach Worker-Tick zweite Mail mit Subject "[STORNO] …". Auch hier multipart/alternative (HTML + Plain-Text mit Kopf + Grund).
 
 ### TS-18.7 — Lager: Detail + Print + Close
 Schritte: Lager-Detail oeffnen, Pro-Position Ist-Menge anpassen, Drucken, Abschliessen.
@@ -3514,8 +3582,8 @@ Erwartet: User mit Rolle `fa_completion` sehen nach Reload den Menuepunkt; Zugri
 
 ### TS-23.3 — Picker funktionieren weiter
 Vorbedingungen: `FaCompletionAktiv=false`, User mit `picking`-Rolle.
-Schritte: PickingLeitstand &rarr; VK/VL/...-Toggles antippen.
-Erwartet: Toggle funktioniert weiterhin (Endpoint `assembly-groups/toggle-applicable` blockt Picker nicht durch das Setting).
+Schritte: PickingLeitstand &rarr; VK/VL/...-Status-Auswahlfeld aendern.
+Erwartet: Aenderung funktioniert weiterhin. Seit v1.22.0-Followup setzen die VK-VA-Auswahlfelder den Erledigt-Status; seit v1.24.0 als 3-Wert (Offen/in Bearbeitung/Fertig) ueber `/api/fa-work-steps/set-status` (blockt Picker nicht). Details siehe Szenario 38.9.
 
 ---
 
@@ -3559,5 +3627,1945 @@ Erwartet: Vorschlag = manueller Platz (hoechste Menge unter buchbaren).
 
 ---
 
-*Ende des Dokuments. Stand: v1.14.0 (2026-05-22)*
+## 27. SyncLog-Pflicht fuer alle Sync-Services (v1.15.0)
+
+### Szenario 27.1: LagerplatzSyncService schreibt Start + Ende
+**Vorbedingung:** Lagerplatz-Sync ist aktiviert (`Sync:LagerplaetzeEnabled = true`).
+**Schritt:**
+1. Service starten oder Worker-Tick abwarten.
+2. Im Sync-Protokoll Service-Filter = "Lagerplatz" setzen.
+**Erwartet:** Mindestens 2 Eintraege pro Tick: "Run gestartet" (Info) und "Run erfolgreich beendet
+— neu=…, aktualisiert=…, …" (Info).
+
+### Szenario 27.2: LagerbestandSyncService schreibt Start + Ende
+Wie 27.1, mit Service-Filter "Lagerbestand".
+
+### Szenario 27.3: BomCacheSyncService — Lifecycle im Sync-Protokoll
+**Vorbedingung:** `Sync:BomCacheEnabled = true`.
+**Schritt:** Worker-Tick abwarten, Service-Filter "BomCache".
+**Erwartet:** Start- + End-Eintrag mit Counts (neu, aktualisiert, uebersprungen).
+
+### Szenario 27.4: OseonSyncService — Lifecycle
+Service-Filter "OseonTracking".
+
+### Szenario 27.5: EnaioDmsSyncService — Lifecycle
+Service-Filter "EnaioDms".
+
+### Szenario 27.6: HolidaySyncService — Lifecycle und HTTP-Fehlerpfad
+**Schritt:** Service-Filter "Holiday".
+**Erwartet:** Start + Ende. Falls date.nager.at nicht erreichbar: zusaetzlich ein Warning-Eintrag
+"date.nager.at lieferte {statusCode} fuer Jahr {year}".
+
+### Szenario 27.7: CoatingDetectionService — Lifecycle
+Service-Filter "CoatingDetection".
+
+### Szenario 27.8: SageImportService — zwei Runs pro Tick (Production Orders + Articles)
+**Schritt:** Worker-Tick mit aktiven Sage-Imports.
+**Erwartet:** Im Sync-Protokoll erscheinen pro Tick **zwei** logische Runs:
+- Service "ProductionOrder": Start + Ende
+- Service "Article": Start + Ende
+
+---
+
+## 28. Activity-Log fuer Non-Sync-Services (v1.15.1)
+
+### Szenario 28.1: PartRequisitionEmailService schreibt Lifecycle + Referenzen
+**Vorbedingung:** `Sync:PartRequisitionEmailEnabled = true`, ungesendete Bedarfsmeldungen vorhanden.
+**Schritt:**
+1. Worker-Tick abwarten oder Service manuell starten.
+2. Im Aktivitaets-Protokoll Service-Filter = "PartRequisitionEmail" setzen.
+**Erwartet:**
+- "Run gestartet" (Info)
+- Pro versendete Mail-Gruppe ein Info-Eintrag mit Reference = FA-Nummer
+- Bei "keine aktiven Empfaenger": Warning mit Reference = FA-Nummer
+- "Run erfolgreich beendet — versendet=…, ohne_empfaenger=…, fehler=…"
+
+### Szenario 28.2: WarehouseRequisitionEmailService — Submit + Storno differenziert
+**Vorbedingung:** Je ein offener Submit und Storno in der DB.
+**Schritt:** Worker-Tick, Filter = "WarehouseRequisitionEmail".
+**Erwartet:**
+- Pro Submit-Mail: Info-Eintrag mit Reference = "submit/{id}"
+- Pro Storno-Mail: Info-Eintrag mit Reference = "storno/{id}"
+- End-Summary: "submit_versendet=…, storno_versendet=…, fehler=…"
+
+### Szenario 28.3: BdeAutoPauseService loggt auto-pausierte Bookings
+**Vorbedingung:** `BdeSchichtkalenderAktiv = true`, mindestens eine Running-Buchung nach Schichtende.
+**Schritt:** Worker-Tick (60-Min-Intervall) abwarten, Filter = "BdeAutoPause".
+**Erwartet:**
+- "Run gestartet"
+- Pro auto-pausierten Booking: Info-Eintrag mit Reference = "booking/{id}"
+- End-Summary: "geprueft=…, pausiert=…, fehler=…"
+
+---
+
+## Kapitel 29: OSEON Stammdaten-Imports im Aktivitaets-Protokoll (v1.15.2)
+
+### Szenario 29.1: OseonWorkplaces — Lifecycle
+**Vorbedingung:** `Sync:OseonTrackingEnabled = true`, OSEON-Werkbank-Zuordnungen aenderbar.
+**Schritt:** Worker-Tick, Service-Filter "OseonWorkplaces".
+**Erwartet:** Start + End-Summary mit `aktualisiert=N`.
+
+### Szenario 29.2: OseonArticleCategories — Lifecycle
+**Vorbedingung:** `Sync:OseonArticleCategoryEnabled = true`.
+**Schritt:** Worker-Tick, Service-Filter "OseonArticleCategories".
+**Erwartet:** Start + End-Summary mit `neu` + `aktualisiert`.
+
+---
+
+## Kapitel 30: OSEON-Tracking iOS-Fix + Lazy-Load (v1.16.0)
+
+### Szenario 30.1: Desktop Chrome — Initial-Load-Performance
+**Schritt:**
+1. `/Tracking/OseonIndex` ohne Filter oeffnen.
+2. Devtools-Network-Tab: Hauptrequest abwarten.
+**Erwartet:** Erster Paint < 1s, ~25 Group-Header-Zeilen sichtbar, alle initial collapsed.
+
+### Szenario 30.2: Desktop Chrome — Lazy-Aufklappen
+**Schritt:**
+1. Klick auf Chevron einer Gruppe.
+**Erwartet:** Spinner-Row erscheint, dann SubAuftrags-Zeilen einblenden < 500ms.
+Zweites Click-Toggle: instant (kein AJAX im Network-Tab).
+
+### Szenario 30.3: Desktop Chrome — Artikel-Filter Prefetch
+**Schritt:**
+1. URL: `/Tracking/OseonIndex?filterArticle=12345` (echte Treffer-Nummer).
+**Erwartet:** Treffer-Gruppen sind initial expanded sichtbar mit prefetched SubAuftraegen. Kein zusaetzlicher AJAX-Call beim Aufklappen.
+
+### Szenario 30.4: iOS Safari — Bedienbarkeit
+**Schritt:**
+1. Page auf aktuellem iOS Safari oeffnen (iPhone oder iPad, kein Desktop-Mode).
+2. Artikel-Filter-Input antippen, "12345" eintippen, Filtern.
+**Erwartet:** Scrolling fluessig, Tipp-Input ohne Verzoegerung, Form-Submit ohne Lock-up.
+
+### Szenario 30.5: iOS Safari — QR-Code-Scan
+**Schritt:**
+1. Auf "Artikelnummer scannen"-Button tippen.
+**Erwartet:** Permission-Prompt (Kamera-Zugriff) erscheint sofort. Bei Accept: Modal mit Kamera-Vorschau. Scan eines QR-Codes -> Filter-Input ist gefuellt, Form auto-submitted nach 50ms.
+
+### Szenario 30.6: iOS Safari — QR-Fallback
+**Schritt:**
+1. In Safari-Settings den Kamera-Zugriff fuer die Seite explizit verweigern.
+2. Page neu laden, QR-Button antippen.
+**Erwartet:** Statt Kamera-Modal erscheint File-Upload-UI. User kann Bild auswaehlen, das wird gescannt.
+
+### Szenario 30.7: Sub-Order-Status mit Relevanz-Filter
+**Vorbedingung:** Es gibt einen Sub-Auftrag dessen OSEON-relevante AGs alle als Fertig (Status 90/95) gemeldet sind, aber dessen Sub-Order-Status selbst noch z.B. "In Arbeit" ist.
+**Schritt:** Page laden mit OSEON-Relevanz-Filter aktiv (Checkbox haken).
+**Erwartet:** Der Sub-Auftrag wird mit Status "Fertig" und gruener Ampel angezeigt. (Sub-Order hat keine relevanten offenen AGs mehr — Logik erkennt das.)
+
+### Szenario 30.8: Sub-Order ohne OSEON-relevante AGs
+**Vorbedingung:** Sub-Auftrag hat nur nicht-OSEON-relevante AGs (z.B. nur ZB + A-BT).
+**Schritt:** Page laden mit OSEON-Relevanz-Filter aktiv.
+**Erwartet:** Sub-Auftrag wird automatisch als "Fertig" angezeigt (es gibt nichts zu tracken).
+
+---
+
+## 31. Artikel-Sync-Erweiterung (v1.17.0)
+
+Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit aktiven Bestellartikeln, Meldebestand-Uebernahme aus `KHKArtikelvarianten` und Full-Update bei bestehenden Artikeln.
+
+### 31.1 Neuer Bestellartikel ohne BOM-Beteiligung kommt an
+
+**Vorbedingungen:**
+- Test-Artikel `TEST-9999` existiert in Sage `KHKArtikel` mit `IstBestellartikel = -1` und `Aktiv = -1`.
+- `TEST-9999` taucht NICHT in `KHKPpsRessourcenPositionen` auf.
+- `TEST-9999` ist im WMS noch nicht in der `Articles`-Tabelle.
+
+**Schritte:**
+1. Service-Lauf manuell triggern (Service-Restart oder warten auf naechsten Tick).
+2. Aktivitaets-Protokoll (`/SyncLog/Index`) oeffnen, Filter Service = `Article`.
+3. WMS-DB pruefen: `SELECT * FROM Articles WHERE ArticleNumber = 'TEST-9999'`.
+
+**Erwartetes Verhalten:**
+- Aktivitaets-Protokoll-Eintrag mit Counts inkl. `neu >= 1`.
+- `Articles.TEST-9999` ist eingefuegt, `CreatedBy = 'IDEALAKEWMSService'`, `CreatedAt` ≈ jetzt.
+
+### 31.2 Meldebestand-Uebernahme
+
+**Vorbedingungen:**
+- `TEST-9999` in `KHKArtikelvarianten.Meldebestand = 25.0000`.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. `SELECT ReorderLevel FROM Articles WHERE ArticleNumber = 'TEST-9999'`.
+
+**Erwartetes Verhalten:**
+- `ReorderLevel = 25.0000`.
+
+### 31.3 Meldebestand 0 wird zu NULL
+
+**Vorbedingungen:**
+- `TEST-9998` in `KHKArtikel` (mit `IstBestellartikel = -1, Aktiv = -1`) und `KHKArtikelvarianten.Meldebestand = 0`.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. `SELECT ReorderLevel FROM Articles WHERE ArticleNumber = 'TEST-9998'`.
+
+**Erwartetes Verhalten:**
+- `ReorderLevel IS NULL` (nicht 0).
+
+### 31.4 Full-Update bei bestehendem Artikel
+
+**Vorbedingungen:**
+- `TEST-9999` existiert bereits im WMS mit `Description = 'alt'`.
+- In Sage wurde `KHKArtikel.Bezeichnung1` fuer `TEST-9999` auf `'neu'` geaendert.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. `SELECT Description, ModifiedAt, ModifiedBy FROM Articles WHERE ArticleNumber = 'TEST-9999'`.
+
+**Erwartetes Verhalten:**
+- `Description = 'neu'`.
+- `ModifiedAt` ≈ jetzt.
+- `ModifiedBy = 'IDEALAKEWMSService'`.
+- Aktivitaets-Protokoll-Eintrag mit `aktualisiert >= 1`.
+
+### 31.5 Idempotenz: Zweiter Lauf ohne Aenderungen schreibt nichts
+
+**Vorbedingungen:**
+- Sync wurde gerade gelaufen, keine weiteren Aenderungen in Sage.
+
+**Schritte:**
+1. Service-Sync sofort nochmal triggern.
+2. Aktivitaets-Protokoll-Eintrag pruefen.
+
+**Erwartetes Verhalten:**
+- Counts: `neu = 0`, `aktualisiert = 0`, `gelesen > 0`.
+
+### 31.6 DryRun-Modus
+
+**Vorbedingungen:**
+- AppSetting `WorkerSettings:SyncDryRun = true` (per `appsettings.json` oder `ServiceSettings`-Tabelle).
+- Service neu starten damit Config gelesen wird.
+
+**Schritte:**
+1. Service-Sync triggern.
+2. Aktivitaets-Protokoll pruefen.
+3. WMS-Artikel pruefen: `SELECT COUNT(*) FROM Articles WHERE ModifiedAt > [letzter-Sync]`.
+
+**Erwartetes Verhalten:**
+- Aktivitaets-Protokoll-Eintrag mit Suffix `[DryRun]` in der Message und `neu = 0, aktualisiert = 0, gelesen = N`.
+- Keine `Articles`-Aenderungen.
+
+---
+
+## 32. Lagerbestellungen Teilgeliefert + Fehlteile (v1.18.0)
+
+### 32.1 Vollstaendige Lieferung -> Closed
+**Vorbedingung:** Bestellung #X mit 2 Items (Soll 10, Soll 5). Status Submitted.
+**Schritte:** Picking/Details. Ist=10 + Ist=5. "Speichern + Abschliessen".
+**Erwartet:** Status Closed, ClosedAt gesetzt. Keine Eintraege in Fehlteile-Liste.
+
+### 32.2 Alle Shortages als endgueltig markiert -> Closed
+**Vorbedingung:** Bestellung mit 2 Items (Soll 10, Soll 5).
+**Schritte:** Ist=8 + Ist=3, beide Checkboxen "Endgueltig Fehlteil" anhaken. "Speichern + Abschliessen".
+**Erwartet:** Status Closed. Beide Items in Fehlteile-Liste (2 + 2 = Soll-Ist).
+
+### 32.3 Eine offen, eine final -> PartiallyDelivered (Item 2 erscheint sofort in Fehlteile-Liste)
+**Vorbedingung:** 2 Items.
+**Schritte:** Ist=3 (kein final), Ist=2 (final). Abschliessen.
+**Erwartet:** Status PartiallyDelivered. Item 1 NICHT in Fehlteile-Liste (kein final). Item 2 IST in Fehlteile-Liste (final markiert, seit v1.18.1 unabhaengig vom Bestell-Status).
+
+### 32.4 Vollfehlteil (Ist=0, final) bei alleinigem Item -> Closed mit Fehlteil
+**Vorbedingung:** Bestellung mit 1 Item Soll=5.
+**Schritte:** Ist=0, "Endgueltig Fehlteil" anhaken, Abschliessen.
+**Erwartet:** Status Closed. Item in Fehlteile-Liste mit Fehlt=5.
+
+### 32.5 Restlieferungs-Workflow
+**Vorbedingung:** Bestellung in PartiallyDelivered (Item 1 = 3 von 10 geliefert, kein final).
+**Schritte:** Picking/Details neu oeffnen. Wert auf Ist=10 erhoehen. Abschliessen.
+**Erwartet:** Status wechselt auf Closed.
+
+### 32.6 "Drucken und Abschliessen"-Workflow
+**Vorbedingung:** Submitted-Bestellung.
+**Schritte:** Mengen + Notizen ausfuellen, "Drucken und Abschliessen" klicken.
+**Erwartet:** Neuer Tab oeffnet sich mit Print-View (zeigt aktuelle Ist + Notizen + Fehlteil-Spalte). Hauptfenster navigiert zu Index. Bestellung jetzt Closed (oder PartiallyDelivered je nach Eingaben).
+
+### 32.7 Werkbank-Karte "Meine Fehlteile" sichtbar
+**Vorbedingung:** Werker WB1 hat 1 Closed-Bestellung mit 2 IsFinalShortage-Items.
+**Schritte:** Login als Werker. WarehouseRequisitions/Index oeffnen.
+**Erwartet:** Karte "Meine Fehlteile" zeigt "2 endgueltige Fehlteile aus 1 abgeschlossenen Bestellung". Link fuehrt zu MissingParts/Index?mineOnly=true.
+
+### 32.8 Werkbank-Karte verschwindet bei 0 Fehlteilen
+**Vorbedingung:** Werker ohne Fehlteile.
+**Schritte:** Werkbank-Index oeffnen.
+**Erwartet:** Karte nicht sichtbar.
+
+### 32.9 MissingParts Spaltenfilter
+**Vorbedingung:** 5 IsFinalShortage-Items, Artikel-Nrn AAA-1, AAA-2, BBB-3, CCC-4, DDD-5.
+**Schritte:** Spaltenfilter "ArticleNumber" = "AAA,BBB".
+**Erwartet:** Nur die 3 Eintraege mit AAA-1, AAA-2, BBB-3 sichtbar.
+
+### 32.10 Negativ-Test: Ist-Menge -1
+**Schritte:** Ist=-1 eingeben (per Forms-Manipulation), Abschliessen.
+**Erwartet:** WarningMessage "Ist-Mengen duerfen nicht negativ sein.", Status unveraendert.
+
+### 32.11 Hotfix v1.18.1: Endgueltig Fehlteil aus PartiallyDelivered erscheint sofort
+**Vorbedingung:** Bestellung in Status Submitted mit 2 Items (Soll=2, Soll=1).
+**Schritte:**
+1. Picking/Details. Item 1: Ist=1, Checkbox "Endgueltig Fehlteil" anhaken. Item 2: Ist=0 lassen (keine Aenderung am Flag).
+2. "Speichern + Abschliessen" — Status wird PartiallyDelivered (Item 2 erwartet noch Restlieferung).
+3. Lager-Menue "Fehlteile" (`/MissingParts`) aufrufen.
+4. Werkbank-User "Meine Listen" pruefen — Karte "Meine Fehlteile".
+**Erwartet:**
+- `/MissingParts` zeigt 1 Eintrag: Item 1 mit Fehlt=1, Bestell-ID = die Bestellung, Werkbank korrekt.
+- Werkbank-Karte zeigt "1 endgueltigen Fehlteil aus 1 Bestellung".
+- Detail-Link auf die Bestellung funktioniert und zeigt sie in PartiallyDelivered (editierbar).
+**Negativ:** Vorher (v1.18.0) war die Liste leer — das war der Bug.
+
+---
+
+## 33. ShortageStatus 3-State + 2-Tab Fehlteile (v1.19.0)
+
+### 33.1 Default-Fehlteil bei Ist=0
+**Vorbedingung:** Bestellung in Submitted mit 1 Item, Soll=5.
+**Schritte:** Picking/Details oeffnen. Ist=0 eintragen.
+**Erwartet:** Radio "Fehlteil" wird automatisch aktiv. Hidden-Input shortageStatuses hat Wert "1".
+
+### 33.2 Manueller Wechsel auf "Wird nicht nachgeliefert"
+**Vorbedingung:** Item hat "Fehlteil" aktiv.
+**Schritte:** Klick auf "Wird nicht nachgeliefert"-Radio.
+**Erwartet:** "Fehlteil" deaktiviert, "Wird nicht nachgeliefert" aktiv. Hidden hat Wert "2".
+
+### 33.3 Doppelklick auf aktiven Radio → zurueck zu None
+**Vorbedingung:** Item hat "Fehlteil" aktiv.
+**Schritte:** Klick erneut auf "Fehlteil".
+**Erwartet:** Beide Radios deaktiviert. Hidden hat Wert "0".
+
+### 33.4 Ist=Soll → beide Radios disabled
+**Vorbedingung:** Item mit Soll=5.
+**Schritte:** Ist=5 eintragen.
+**Erwartet:** Beide Radios disabled (grayed out), kein Klick moeglich. Hidden hat Wert "0".
+
+### 33.5 Bestellung mit allen "Fehlteil" → PartiallyDelivered
+**Vorbedingung:** 2 Items.
+**Schritte:** Beide Ist<Soll, beide Radios auf "Fehlteil". "Speichern + Abschliessen".
+**Erwartet:** Status PartiallyDelivered. Bestellung bleibt im Picking/Index.
+
+### 33.6 Bestellung mit allen "Wird nicht nachgeliefert" → Closed
+**Schritte:** Beide Ist<Soll, beide Radios auf "Wird nicht nachgeliefert". Abschliessen.
+**Erwartet:** Status Closed. Beide Items in /MissingParts Tab "Wird nicht nachgeliefert".
+
+### 33.7 Tab "Offene Fehlteile" zeigt nur WillBeRestocked
+**Vorbedingung:** Mischung aus WillBeRestocked und NoRestock Items in der DB.
+**Schritte:** /MissingParts oeffnen (Default-Tab = Offene Fehlteile).
+**Erwartet:** Nur Items mit ShortageStatus=WillBeRestocked sichtbar. Tab-Badge zeigt korrekte Count.
+
+### 33.8 Tab "Wird nicht nachgeliefert" zeigt nur NoRestock
+**Schritte:** /MissingParts?tab=NoRestock oeffnen.
+**Erwartet:** Nur Items mit ShortageStatus=NoRestock sichtbar. Tab-Badge zeigt Count.
+
+### 33.9 Werkbank-Karte zeigt beide Counts mit Tab-Links
+**Vorbedingung:** User hat eigene Items: 2 WillBeRestocked aus 1 Bestellung, 1 NoRestock aus 1 Bestellung.
+**Schritte:** Werkbank-Index (WarehouseRequisitions/Index) oeffnen.
+**Erwartet:** Karte "Meine Fehlteile" zeigt 2 Zeilen:
+  - "2 Fehlteile (wird nachgeliefert) aus 1 Bestellungen" (orange Link auf /MissingParts?tab=WillBeRestocked&mineOnly=true)
+  - "1 Wird nicht nachgeliefert aus 1 Bestellungen" (rot Link auf /MissingParts?tab=NoRestock&mineOnly=true)
+
+### 33.10 Migration: vorhandene v1.18.x PartiallyDelivered-Bestellung bleibt PD nach v1.19.0-Migration
+**Vorbedingung:** DB-Snapshot von vor dem Deploy mit mindestens einer PartiallyDelivered-Bestellung.
+**Schritte:**
+1. v1.19.0 deployen (DB-Backup vorher).
+2. Nach Migration-Run die Bestellung in der DB pruefen: Status weiterhin PartiallyDelivered?
+3. Items pruefen: alle vorher IsFinalShortage=false mit Ist<Soll haben jetzt ShortageStatus=1 (WillBeRestocked)? Alle IsFinalShortage=true haben jetzt ShortageStatus=2 (NoRestock)?
+**Erwartet:** Status bleibt PartiallyDelivered. Items haben korrekte ShortageStatus-Werte. Lager kann die Bestellung erneut oeffnen und editieren wie gewohnt.
+
+### 33.11 Notiz EK persistiert
+
+**Vorbedingung:** Submitted-Bestellung mit mindestens einem Item.
+**Schritte:**
+1. Picking/Details oeffnen.
+2. Im Notiz-EK-Feld "Test-EK-Notiz" eintragen.
+3. "Speichern + Abschliessen" klicken.
+4. Bestellung wieder oeffnen (falls Status PartiallyDelivered) ODER Print aufrufen.
+**Erwartet:** "Test-EK-Notiz" ist nach dem Abschliessen weiterhin sichtbar. Print zeigt die Notiz in der "Notiz EK"-Spalte.
+
+### 33.12 MissingParts default mineOnly
+
+**Vorbedingung:** Werkbank-User mit Workplace-Zuordnung; mindestens 1 IsFinalShortage-Item in eigener Bestellung und mindestens 1 in einer fremden Bestellung (Status Closed).
+**Schritte:**
+1. `/MissingParts` direkt im Browser aufrufen (ohne URL-Parameter).
+**Erwartet:** Tab "Wird nicht nachgeliefert" zeigt nur das eigene Item. Toggle "Nur meine Werkbaenke" ist aktiv. Deaktivieren zeigt auch das fremde Item.
+
+### 33.13 No-Workplace-Banner
+
+**Vorbedingung:** Test-User ohne Workplace-Zuordnung.
+**Schritte:**
+1. Login als Test-User.
+2. Menue "Lager" → "Meine Fehlteile" aufrufen.
+**Erwartet:** Banner "Du hast keine Werkbank-Zuordnung. Diese Liste ist deshalb leer. Du kannst entweder den Toggle 'Nur meine Werkbaenke' deaktivieren oder die Zuordnung in den Stammdaten pflegen." erscheint. Items-Tabelle ist leer.
+
+### 33.14 Fehlteile (Lager)-View
+
+**Vorbedingung:** Lager-User (admin/stock/stock_keyuser/picking).
+**Schritte:**
+1. Menue "Lager" → "Fehlteile (Lager)" aufrufen.
+**Erwartet:** Globale Sicht. Kein mineOnly-Toggle in der Filter-Card. Tabs zeigen jeweils Counts aller Werkbaenke. Notiz-Spalten zeigen sowohl "Notiz Lager" als auch "Notiz EK".
+
+---
+
+## Kapitel 34: Feingranulare Berechtigungen (v1.20.0)
+
+### 34.1 Read-Only-User in Stammdaten
+
+**Vorbedingungen:**
+- Admin angelegt einen neuen User "test_read" mit nur der Rolle `masterdata_read`
+- "test_read" ist eingeloggt
+
+**Schritte:**
+1. Im Hauptmenue auf "Stammdaten" klicken → Eintraege sichtbar (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, ...)
+2. Auf "Benutzer" klicken → Index-View laedt
+3. Pruefen: "Neu"-Button ist NICHT vorhanden. "Bearbeiten"-Link pro Zeile ist NICHT vorhanden. "Rollen-Uebersicht"-Button ist sichtbar
+4. URL direkt `/Users/Create` aufrufen → Redirect zu AccessDenied
+5. Auf "Einstellungen" klicken → Index-View mit Banner "Nur-Lesen-Modus" oben
+6. Alle Input-Felder sind disabled (grau, nicht editierbar). Save-Button ist NICHT vorhanden
+
+**Erwartet:** Alle Read-Aktionen funktionieren, alle Schreib-Aktionen sind blockiert (UI + Server).
+
+### 34.2 Picker verliert Lager-Worklist-Zugriff
+
+**Vorbedingungen:**
+- User "test_picker" hat nur die Rolle `picking`
+- Es existieren Lagerbestellungen im Status `Submitted`
+
+**Schritte:**
+1. "test_picker" loggt sich ein
+2. Im Hauptmenue auf "Bestellungen" klicken
+3. Pruefen: "Meine Bestellungen" + "Meine Fehlteile" sind sichtbar. "Lager: Eingehende Listen" + "Lager: Fehlteile" sind NICHT sichtbar
+4. URL direkt `/WarehousePicking/Index` aufrufen → Redirect zu AccessDenied
+5. URL direkt `/MissingPartsLager/Index` aufrufen → Redirect zu AccessDenied
+6. "Bestandsuebersicht" im Lager-Menue ist weiterhin sichtbar + funktioniert
+7. "Bewegungshistorie" im Lager-Menue ist weiterhin sichtbar + funktioniert
+
+**Erwartet:** Picker behaelt Bestand + Bewegungen, verliert Worklist-Sichten.
+
+### 34.3 Multi-Rollen-User
+
+**Vorbedingungen:**
+- User "test_multi" hat Rollen `picking` + `masterdata_read`
+
+**Schritte:**
+1. Login als "test_multi"
+2. Stammdaten-Menue ist sichtbar (Read), Edit-Buttons sind ausgeblendet
+3. Komm.-Sichten (Meine Bestellungen, Picking) sind sichtbar
+4. Lager-Worklist ist NICHT sichtbar (kein stock/stock_keyuser)
+
+**Erwartet:** Union der Rechte — alles was eine der Rollen erlaubt.
+
+### 34.4 Rollen-Uebersicht-Seite
+
+**Vorbedingungen:**
+- Login als beliebiger User mit `masterdata_read` oder `masterdata` oder `admin`
+
+**Schritte:**
+1. Auf Users/Index navigieren
+2. Button "Rollen-Uebersicht" oben klicken
+3. Seite `/Users/RoleOverview` laedt
+4. Tabelle mit 13 Rollen sichtbar (admin, masterdata, masterdata_read, picking, stock, stock_keyuser, tracking, reporting, leitstand, fa_completion, bde_user, bde_shiftlead, bde_admin)
+5. Pro Rolle: Beschreibung + Liste sichtbarer Seiten/Aktionen
+6. Erklaer-Header oben erklaert Many-to-Many + Union-Semantik
+7. Button "Zurueck zur Benutzerliste" funktioniert
+
+**Erwartet:** Alle 13 Rollen-Zeilen mit korrekten Beschreibungen.
+
+### 34.5 Migration
+
+**Vorbedingungen:**
+- Update auf v1.20.0 mit Backup-DB
+
+**Schritte:**
+1. App startet → Migration `AddMasterDataReadRole` laeuft
+2. In SQL pruefen: `SELECT * FROM Roles WHERE [Key]='masterdata_read'` liefert 1 Zeile
+3. Felder: `Name='Stammdaten ansehen'`, `IsSystem=1`, `SortOrder=5`, `AdGroup=NULL`
+4. Bestehende User mit `masterdata` haben weiterhin Vollzugriff
+5. Im Roles/Index ist die neue Rolle sichtbar (zwischen masterdata und picking sortiert)
+6. Versuch die Rolle zu loeschen → blockt wegen `IsSystem=1`
+
+**Erwartet:** Migration laeuft idempotent. Rolle ist als Systemrolle markiert.
+
+---
+
+## Kapitel 35: v1.20.0-Bugfixes (Post-Initial-Release)
+
+### 35.1 Lagerbestellung — Kein Default-Fehlteil bei Ist=0
+
+**Vorbedingungen:** Lagerbestellung mit mind. 2 Positionen, beide Ist-Mengen leer.
+
+**Schritte:**
+1. Bestellung oeffnen
+2. Keine Ist-Mengen eintragen
+3. Pruefen: beide "Fehlteil"-Radios sind unchecked (nicht vorausgewaehlt)
+4. Eine Ist-Menge mit Soll-Wert ausfuellen
+5. Pruefen: Radios in dieser Zeile werden ausgegraut (shortage=false)
+6. Ist-Menge wieder auf 0 setzen
+7. Pruefen: Radios werden wieder aktiv, aber unchecked (keine Auto-Default)
+
+**Erwartet:** User muss bewusst Fehlteil-Status setzen.
+
+### 35.2 Lagerbestellung — Submit mit gemischten Mengen + Status
+
+**Vorbedingungen:** Lagerbestellung mit 3 Positionen.
+
+**Schritte:**
+1. Bestellung oeffnen
+2. Pos 1: "Fehlteil" klicken, Ist leer
+3. Pos 2: "Wird nicht nachgeliefert" klicken, Ist leer
+4. Pos 3: nichts klicken, Ist leer
+5. "Speichern + Abschliessen" → Modal "soll=ist?" → Ja
+6. DB pruefen via SQL: `SELECT Id, ArticleNumber, QuantityPicked, ShortageStatus FROM WarehouseRequisitionItems WHERE WarehouseRequisitionId = <ID>`
+
+**Erwartet:**
+- Pos 1: QuantityPicked=0, ShortageStatus=1 (WillBeRestocked)
+- Pos 2: QuantityPicked=0, ShortageStatus=2 (NoRestock)
+- Pos 3: QuantityPicked=1, ShortageStatus=0 (None)
+- Order-Status: PartiallyDelivered
+
+### 35.3 Leitstand — Datums-Filter via Kalender-Picker
+
+**Vorbedingungen:** PickingLeitstand-Liste mit mind. 2 FAs mit verschiedenen Komm.-Terminen.
+
+**Schritte:**
+1. Leitstand oeffnen
+2. Auf den Kalender-Button neben "Komm." klicken
+3. Eine KW oder ein Datum waehlen
+4. Pruefen: URL aendert sich zu `?colf_picking-date=...`
+5. Pruefen: nur passende FAs werden angezeigt
+6. "Filter entfernen" im Picker klicken
+7. Pruefen: URL ohne colf_picking-date, alle FAs sichtbar
+
+**Erwartet:** Kalender-Picker-Filter triggert URL-Navigation.
+
+### 35.4 Leitstand — Kombinierte Filter
+
+**Vorbedingungen:** mind. 1 FA mit Bezeichnung1 enthaelt "green" UND Komm.-Termin in KW24 (Beispiel).
+
+**Schritte:**
+1. Leitstand oeffnen
+2. Filter Bezeichnung1 = "green" eintragen
+3. 500ms warten → URL `?colf_description1=green`
+4. Filter Komm. = "KW24" eintragen (oder Kalender-Picker)
+5. 500ms warten → URL `?colf_description1=green&colf_picking-date=KW24`
+6. Pruefen: nur FAs die BEIDE Kriterien erfuellen sind sichtbar
+7. Reihenfolge umkehren: Erst KW24, dann green — gleiches Ergebnis erwartet
+
+**Erwartet:** Reihenfolge der Filter-Eingabe ist egal. Beide Filter sind aktiv.
+
+---
+
+## Kapitel 36: Universal-Filter-Rollout (v1.21.0)
+
+Alle Tabellen-Listen sind ab v1.21.0 spaltenfilterbar; Filter wirken ueber den
+Gesamtbestand (alle Seiten), nicht nur die aktuell angezeigte Seite.
+
+### 36.1 Spaltenfilter ueber mehrere Seiten (Beispiel: Benutzer-Liste)
+
+**Vorbedingungen:** Mind. 60 Benutzer in der DB (mehr als 2 Seiten bei
+PageSize 25). Ein eindeutig benannter Benutzer (z.B. Username "zztest")
+der bei alphabetischer/Default-Sortierung auf Seite 3 landet.
+
+**Schritte:**
+1. Als admin `/Users` oeffnen, PageSize 25
+2. Pruefen: "zztest" ist auf Seite 1 NICHT sichtbar
+3. In der Filter-Zeile unter dem Spaltenkopf "Benutzername" `zztest` eintippen
+4. 500ms warten → URL wechselt zu `?colf_username=zztest` (Col-Key je nach View)
+5. Pruefen: "zztest" wird angezeigt, obwohl er ohne Filter auf Seite 3 laege
+6. Pruefen: Pagination zeigt die gefilterte Gesamtanzahl (z.B. "1 Eintrag"), Seite 1
+
+**Erwartet:** Der Filter durchsucht ALLE Eintraege, nicht nur die aktuelle
+Seite. Pagination-Count entspricht der gefilterten Menge.
+
+### 36.2 KW-Datumsfilter Kommissionierung
+
+**Vorbedingungen:** `/Picking` mit mind. 2 freigegebenen Auftraegen, deren
+Komm.-Termine in verschiedenen Kalenderwochen liegen (mind. einer in einer
+zukuenftigen KW).
+
+**Schritte:**
+1. Kommissionierung oeffnen
+2. Auf den Kalender-Button neben der Komm.-Termin-Spalte klicken
+3. Eine zukuenftige KW (Jahr + Woche) im Picker waehlen
+4. Pruefen: URL enthaelt `?colf_picking-date=KWxx`, nur Auftraege dieser KW sichtbar
+5. "Filter entfernen" klicken → alle Auftraege wieder sichtbar
+6. Manuell `kw25` (Beispiel, lowercase) in das Filter-Feld tippen
+7. Pruefen: gleiches Ergebnis wie ueber den Picker
+8. Manuell ein konkretes Datum `10.06.2026` tippen → nur Auftraege mit diesem Termin
+
+**Erwartet:** Picker UND manuelle Eingabe filtern identisch. Termine werden
+vor Filter/Pagination fuer alle Auftraege berechnet — auch Treffer auf
+hinteren Seiten werden gefunden.
+
+### 36.3 OR/NOT-Filter-Syntax
+
+**Vorbedingungen:** Beliebige server-gefilterte Liste (z.B. Artikel) mit
+Eintraegen der Artikelgruppen 960 und 886 sowie weiteren Gruppen.
+
+**Schritte:**
+1. Artikel-Liste oeffnen
+2. Spaltenfilter Artikelgruppe: `960,886` eintragen
+3. Pruefen: nur Eintraege mit 960 ODER 886 sichtbar
+4. Filter aendern auf `!960`
+5. Pruefen: alle Eintraege AUSSER 960 sichtbar
+6. Filter aendern auf `!960,886`
+7. Pruefen: alle Eintraege ausser 960 und 886 sichtbar
+
+**Erwartet:** OR via Komma, NOT via `!` — identisches Verhalten in allen
+Listen (Server- und Client-Modus).
+
+### 36.4 BDE-Buchungsliste: Filter + Pagination-Count konsistent
+
+**Vorbedingungen:** Mind. 30 BDE-Buchungen in der Historie (mehr als 1 Seite),
+davon nur wenige (z.B. 3) von einem bestimmten Operator.
+
+**Schritte:**
+1. Als bde_shiftlead `/BdeBookings` oeffnen
+2. Spaltenfilter Mitarbeiter: Operator-Namen eintragen
+3. Pruefen: nur Buchungen dieses Operators sichtbar
+4. Pruefen: Pagination zeigt den korrekten gefilterten Count (z.B. "3 Eintraege")
+5. Pruefen: KEINE Phantom-Seiten — Seite 2 existiert nicht, wenn nur 3 Treffer
+6. Filter loeschen → voller Count + alle Seiten wieder da
+
+**Erwartet:** Query und Count filtern identisch (SQL-Level). Kein
+Auseinanderlaufen von angezeigten Zeilen und Seitenzahl.
+
+### 36.5 BDE-Stammdaten: Filter pro Tab
+
+**Vorbedingungen:** BDE-Stammdaten mit mehreren Operatoren, Aktivitaeten und
+Terminals.
+
+**Schritte:**
+1. Als bde_shiftlead `/BdeMasterData` oeffnen (Tab "Mitarbeiter")
+2. Spaltenfilter Name: einen Operator-Namen eintragen → Liste filtert
+3. Auf Tab "Aktivitaeten" wechseln (`?tab=activities`)
+4. Pruefen: Aktivitaeten-Liste ist UNGEFILTERT (Filter vom Mitarbeiter-Tab
+   wirkt nicht hinueber)
+5. Im Aktivitaeten-Tab eigenen Filter setzen → nur Aktivitaeten filtern
+6. Zurueck auf Tab "Mitarbeiter" → Filter dort ist zurueckgesetzt
+
+**Erwartet:** Jeder Tab hat eigenen view-key und eigene Filter. Tab-Wechsel
+resettet die Filter des vorherigen Tabs.
+
+### 36.6 Negativtest: Filter ohne Treffer
+
+**Vorbedingungen:** Beliebige server-gefilterte Liste mit Eintraegen.
+
+**Schritte:**
+1. Liste oeffnen (z.B. `/Users`)
+2. Spaltenfilter mit Unsinns-Wert fuellen (z.B. `xyznichtvorhanden`)
+3. Pruefen: Tabelle zeigt keine Datenzeilen
+4. Pruefen: Pagination zeigt 0 Eintraege / keine Seiten-Links, kein JS-Fehler
+   in der Konsole
+5. Filter loeschen → Liste ist wieder vollstaendig
+
+**Erwartet:** Leere Liste + korrekte 0-Anzeige, kein Fehler, Filter-Reset
+stellt den Ausgangszustand wieder her.
+
+---
+
+## Kapitel 37: FA-Abschliessen (v1.21.1)
+
+Der "Abschliessen"-Button (Picking/ToggleDone) schreibt seit v1.11
+`PickingStatus.IsDonePicking` — bis v1.21.0 las aber keine Query/View das Flag,
+der Klick war wirkungslos. Ab v1.21.1 gilt ueberall
+"erledigt = IsDone || IsDonePicking" (FA-Liste, Leitstand, Komm.-Worklist).
+
+### 37.1 Abschliessen wirkt in Leitstand + Kommissionierungs-Worklist
+
+**Vorbedingungen:** Ein offener FA (Sage-`IsDone=false`, App-Status nicht
+abgeschlossen), der im Leitstand (`/PickingLeitstand`) in der Default-Ansicht
+sichtbar ist. Falls `LeitstandAktiv`: FA fuer Kommissionierung freigegeben,
+sodass er in der Kommissionierungs-Worklist (`/Picking`) erscheint.
+
+**Schritte:**
+1. Im Leitstand beim FA den "Abschliessen"-Button klicken
+2. Pruefen: Zeile verschwindet aus der Default-Ansicht (ohne "Erledigte anzeigen")
+3. "Erledigte anzeigen" aktivieren
+4. Pruefen: Zeile erscheint grau dargestellt mit Badge "Erledigt"
+5. Kommissionierung (`/Picking`) oeffnen
+6. Pruefen: FA ist NICHT mehr in der Worklist
+7. Zurueck im Leitstand (showDone-Modus aktiv) beim FA erneut "Abschliessen" klicken (Toggle)
+8. Pruefen: FA ist wieder offen (kein Badge, normale Darstellung) und erscheint
+   wieder in der Kommissionierungs-Worklist
+
+**Erwartet:** Der Abschliessen-Toggle wirkt sofort auf Erledigt-Anzeige und
+Filter in FA-Liste, Leitstand und Komm.-Worklist. Sage-`IsDone` bleibt
+unveraendert (wird nicht beschrieben).
+
+---
+
+## Kapitel 38: FA-Vorbau (v1.22.0)
+
+v1.22.0 ersetzt die 5 fixen Vorbau-Kacheln (`ProductionOrderAssemblyGroups`)
+durch einen erweiterbaren Arbeitsgaenge-Katalog (`WorkSteps`) + FA-zu-AG-Tabelle
+(`FaWorkSteps`, automatische Erkennung aus dem BOM-Cache), konfigurierbare
+FA-Merkmale und eine FA-Abarbeitungsliste je Werkbank (neue Rolle `vorbau`).
+
+Allgemeine Vorbedingungen fuer dieses Kapitel:
+- AppSetting `FaCompletionAktiv = true`.
+- BOM-Cache aktiv (`Sync:BomCacheEnabled = true`) und mindestens ein offener FA
+  mit Artikelnummer + BOM-Cache-Eintrag.
+- Benutzer mit Rollen `masterdata` (Stammdaten), `fa_completion`
+  (FA-Vervollstaendigen) und `vorbau` (Abarbeitungsliste) — oder ein Admin.
+
+### 38.1 End-to-End: Suchbegriff → Erkennung → Vervollstaendigen → Abarbeitungsliste
+
+**Vorbedingungen:**
+- Zusaetzlich zu den Kapitel-Vorbedingungen: Service-Setting
+  `Sync:FaWorkStepDetectionEnabled = true`, Windows-Service laeuft.
+- Test-FA `FA-1001` (Platzhalter) mit BOM-Cache-Eintrag, dessen Stueckliste ein
+  Bauteil mit "Luefter" in der Bezeichnung enthaelt. FA hat noch keine
+  FA-Arbeitsgaenge.
+- Werkbank `WB-Test` existiert (Stammdaten → Werkbaenke).
+
+**Schritte:**
+1. *Suchbegriff pflegen:* Stammdaten → Arbeitsgaenge → `VL` bearbeiten →
+   Suchbegriffe `Luefter,Ventilator` eintragen → Speichern.
+2. *Detection-Lauf:* Naechsten Sync-Tick abwarten (oder Service neu starten).
+   Im Aktivitaets-Protokoll (admin) nach Aktivitaet "FaWorkStepDetection" filtern.
+3. Pruefen: End-Eintrag "Run erfolgreich beendet" mit `neu >= 1`.
+4. *Vervollstaendigen:* Fertigungsauftraege → FA-Vervollstaendigen → `FA-1001`
+   oeffnen. Pruefen: AG-Kachel/Tab `VL` ist vorhanden (automatisch erkannt).
+5. Werkbank-Dropdown auf `WB-Test` setzen → Speichern. Pruefen: Badge
+   "Keine Werkbank zugewiesen" verschwindet.
+6. Ueber "AG hinzufuegen" einen zweiten Arbeitsgang (z.B. `VE`) manuell ergaenzen.
+7. Bei `VL` ein zugeordnetes Merkmal erfassen (Dropdown-Wert waehlen bzw.
+   JA/NEIN setzen) — Wert wird per onchange sofort gespeichert.
+8. *Abarbeitungsliste:* Fertigungsauftraege → FA-Abarbeitungsliste →
+   Arbeitsgang `VL` waehlen (kein Werkbank-Filter mehr).
+9. Pruefen: `FA-1001` erscheint mit der **Werkbank**-Spalte (`WB-Test`), der
+   einen Erledigt-Checkbox fuer `VL`, dem erfassten Merkmal-Wert, Terminen
+   (BG/Komm./Fert.) und ggf. enaio-Icons. (Kein Orphan-Badge mehr — die Liste
+   ist Arbeitsgang-zentriert; `VE` erscheint einfach beim Filter auf `VE`.)
+10. *Read-only Stueckliste:* Auf die FA-Nummer klicken.
+11. Pruefen: Stueckliste oeffnet OHNE Picking-Checkboxen, Lagerplatz-Dropdowns,
+    Umbuchen-Button, Foto-Upload und Bedarfsmeldungs-Modal. Filter,
+    Baugruppen-Navigation und "Drucken" funktionieren.
+12. Zurueck in der Abarbeitungsliste die `VL`-Checkbox ("Erledigt") anhaken.
+13. Pruefen: FA verschwindet aus der Default-Ansicht des `VL`-Filters;
+    mit "Erledigte anzeigen" wieder sichtbar.
+
+**Erwartet:** Erkennung, manuelle Pflege, Arbeitsgang-gefilterte Abarbeitungsliste
+(mit Werkbank-Spalte) und read-only Stueckliste greifen nahtlos ineinander;
+das "Erledigt"-Abhaken in der Abarbeitungsliste blendet den FA aus.
+
+### 38.2 Negativ: Manuell abgewaehlter AG wird vom Sync NICHT wieder hinzugefuegt
+
+**Vorbedingungen:** Zustand nach 38.1 — `FA-1001` hat den Sync-erkannten AG `VL`,
+Detection aktiv.
+
+**Schritte:**
+1. FA-Vervollstaendigen → `FA-1001` → Tab `VL` → "Arbeitsgang entfernen"
+   (Confirm bestaetigen).
+2. Pruefen: Kachel `VL` verschwindet; im Leitstand ist die VL-Checkbox leer.
+3. Naechsten Detection-Lauf abwarten (Aktivitaets-Protokoll prueft Lauf-Ende).
+4. Pruefen: `VL` ist bei `FA-1001` weiterhin NICHT vorhanden — die Erkennung
+   hat den manuell abgewaehlten AG nicht re-added (IsRemoved-Sperre).
+5. Ueber "AG hinzufuegen" `VL` wieder manuell hinzufuegen.
+6. Pruefen: Kachel erscheint wieder (Zeile reaktiviert, kein Duplikat-Fehler).
+
+**Erwartet:** Manuelle Abwahl gewinnt dauerhaft gegen die automatische
+Erkennung; manuelles Wieder-Hinzufuegen reaktiviert dieselbe Zeile.
+
+### 38.3 Negativ: Option mit erfassten Werten nicht loeschbar (Loesch-Guard)
+
+**Vorbedingungen:** Dropdown-Merkmal (z.B. "Verdampfergroesse") mit einer
+Option, die bei mindestens einem FA als Wert erfasst ist (siehe 38.1 Schritt 7).
+
+**Schritte:**
+1. Stammdaten → FA-Merkmale → Merkmal bearbeiten → bei der verwendeten Option
+   auf "Loeschen" klicken.
+2. Pruefen: Loeschen wird mit Warnmeldung verweigert (Option ist in Verwendung).
+3. Option stattdessen deaktivieren.
+4. Pruefen: FA-Vervollstaendigen zeigt den bereits erfassten Wert weiterhin an;
+   das Dropdown bietet die Option fuer NEUE Auswahl nicht mehr an.
+
+**Erwartet:** Techniker-Eingaben verschwinden nie still — Optionen mit
+referenzierten Werten sind nur deaktivierbar.
+
+### 38.4 Negativ: Doppelter Arbeitsgang-Code wird abgelehnt
+
+**Vorbedingungen:** Arbeitsgang `VL` existiert (Seed).
+
+**Schritte:**
+1. Stammdaten → Arbeitsgaenge → "Neu" → Code `VL`, Name `Test-Duplikat` →
+   Speichern.
+2. Pruefen: Validierungsfehler "Code bereits vorhanden" (o.ae.), kein zweiter
+   `VL`-Eintrag in der Liste.
+
+**Erwartet:** Der Arbeitsgang-Code ist eindeutig; Duplikat wird im App-Layer
+mit ModelState-Fehler abgelehnt (kein 500er).
+
+### 38.5 Migrations-Smoke: Kacheln-Daten nach Update vorhanden
+
+**Vorbedingungen:** Update einer Datenbank vom Stand v1.21.x (mit gepflegten
+Vorbau-Kacheln `IsApplicable`/`IsCompleted` + Specs) auf v1.22.0.
+**DB-Backup vor dem Deploy** (siehe Cutover-Doc
+`docs/superpowers/cutover/2026-06-12-fa-vorbau-cutover.md` — AgentJob-Skript
+MUSS im selben Wartungsfenster aktualisiert werden!).
+
+**Schritte:**
+1. Migration einspielen (App-Start mit `db.Database.Migrate()` oder `SQL/68`).
+2. FA-Vervollstaendigen → einen FA oeffnen, der vor dem Update aktive Kacheln
+   (`IsApplicable=true`) hatte.
+3. Pruefen: Die frueher aktiven Gruppen erscheinen als AG-Kacheln, der
+   Vervollstaendigt-Status (`IsCompleted`) ist erhalten, alle Freitext-Specs
+   sind vorhanden.
+4. Einen FA pruefen, der Specs an einer INAKTIVEN Gruppe hatte: Specs sind in
+   der DB erhalten (`FaWorkStepSpecs`), der AG ist aber nicht aktiv
+   (`IsRemoved=1`) — Kachel erscheint erst nach manuellem Hinzufuegen wieder.
+5. Leitstand oeffnen: VK-VA-Haken entsprechen dem Stand vor dem Update.
+6. SQL-Agent-Job (FA-Import) einmal manuell ausfuehren: Lauf erfolgreich,
+   keine Fehler wegen der entfernten `ProductionOrderAssemblyGroups`-Tabelle.
+
+**Erwartet:** Daten-erhaltende Konvertierung — keine Kachel-/Spec-Daten gehen
+verloren; der FA-Import laeuft mit dem aktualisierten Job-Skript fehlerfrei.
+
+### 38.6 Negativ: Komm-erledigter FA verschwindet aus den Vorbau-Views
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-2001`,
+Sage-`IsDone=false`) mit einem aktiven Arbeitsgang, einer Werkbank-Zuweisung und
+einem zu dieser Werkbank gemappten AG, sodass der FA sowohl in
+FA-Vervollstaendigen als auch in der FA-Abarbeitungsliste sichtbar ist.
+
+**Schritte:**
+1. Kommissionierung → `FA-2001` → "Abschliessen" klicken
+   (setzt `PickingStatus.IsDonePicking=true`, NICHT die Sage-`IsDone`).
+2. Pruefen: `FA-2001` verschwindet aus der Fertigungsauftraege-Liste/Leitstand
+   (Verhalten seit v1.21.1).
+3. FA-Vervollstaendigen (`/FaCompletion`) ohne "Erledigte anzeigen" oeffnen.
+4. Pruefen: `FA-2001` erscheint NICHT mehr in der Liste.
+5. "Erledigte anzeigen" (showDone) aktivieren.
+6. Pruefen: `FA-2001` erscheint wieder.
+7. FA-Abarbeitungsliste (`/FaWorklist`) mit der zugehoerigen Werkbank oeffnen.
+8. Pruefen: `FA-2001` erscheint NICHT in der Abarbeitungsliste (komm-erledigt
+   wird wie Sage-`IsDone` immer ausgeblendet).
+
+**Erwartet:** "Erledigt" bedeutet in beiden Vorbau-Views konsistent
+`IsDone || IsDonePicking` — ein nur App-komm-erledigter FA verschwindet genauso
+wie aus der FA-Liste; mit showDone bleibt er in FA-Vervollstaendigen sichtbar.
+
+### 38.7 "Vollstaendig definiert" blendet NICHT aus — nur "Erledigt" tut es
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-3001`,
+Sage-`IsDone=false`, nicht komm-erledigt) mit einem aktiven Arbeitsgang `VL`,
+einer Werkbank-Zuweisung und `VL` zum Werkbank-Mapping gemappt — sodass der FA
+in der FA-Abarbeitungsliste der Werkbank sichtbar ist. `VL` ist in der
+Abarbeitungsliste noch NICHT als "Erledigt" abgehakt.
+
+**Schritte:**
+1. FA-Vervollstaendigen → `FA-3001` → Tab `VL`: Schalter
+   "Vollstaendig definiert" einschalten (setzt `IsSpecComplete=true`).
+2. Pruefen: Erfolgsmeldung; der Tab-Indikator zeigt den Definiert-Status,
+   `SpecCompletedBy`/`SpecCompletedAt` werden angezeigt.
+3. FA-Abarbeitungsliste (`/FaWorklist`) mit der zugehoerigen Werkbank oeffnen
+   (ohne "Erledigte anzeigen").
+4. Pruefen: `FA-3001` ist WEITERHIN sichtbar — "Vollstaendig definiert"
+   blendet den FA NICHT aus der Abarbeitungsliste aus.
+5. Pruefen: Die `VL`-"Erledigt"-Checkbox in der Abarbeitungsliste ist NICHT
+   angehakt (der Definiert-Schalter hat den Arbeit-erledigt-Status nicht
+   veraendert — `IsCompleted` blieb false).
+6. In der Abarbeitungsliste die `VL`-"Erledigt"-Checkbox anhaken
+   (setzt `IsCompleted=true`).
+7. Pruefen: `FA-3001` verschwindet jetzt aus der Default-Ansicht der Werkbank
+   (alle gemappten AGs erledigt); mit "Erledigte anzeigen" wieder sichtbar.
+8. FA-Vervollstaendigen → `FA-3001` → Tab `VL`: Pruefen: "Vollstaendig
+   definiert" ist weiterhin eingeschaltet (vom "Erledigt"-Haken unberuehrt —
+   die beiden Status sind unabhaengig).
+
+**Erwartet:** "Vollstaendig definiert" (Planer, `IsSpecComplete`) und "Erledigt"
+(Werker, `IsCompleted`) sind getrennte Status. Nur der "Erledigt"-Haken in der
+FA-Abarbeitungsliste blendet den FA aus; "Vollstaendig definiert" hat keinen
+Einfluss auf die Sichtbarkeit in der Abarbeitungsliste.
+
+---
+
+### 38.8 Arbeitsgang-Filter + Standard-Arbeitsgang im Profil (Werkbank-uebergreifend)
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Mindestens zwei offene FAs
+(`FA-4001`, `FA-4002`, beide Sage-`IsDone=false`, nicht komm-erledigt), die
+**auf verschiedenen Werkbaenken** liegen (`FA-4001` → `WB-A`, `FA-4002` → `WB-B`)
+und beide einen aktiven Arbeitsgang `VE` haben (erkannt oder manuell). Optional
+hat `FA-4001` zusaetzlich `VL`. Ein Benutzer mit Rolle `vorbau` (oder Admin),
+dessen Profil noch keinen Standard-Arbeitsgang hat.
+
+**Schritte:**
+1. *Standard-Arbeitsgang setzen:* Benutzer-Dropdown rechts oben → Mein Profil →
+   Feld "Standard-Arbeitsgang (FA-Abarbeitungsliste)" auf `VE` setzen → Speichern.
+   (Alternativ als Admin im Benutzerstamm: Benutzer → Bearbeiten → selbes Feld.)
+2. *Vorgefiltert oeffnen:* Fertigungsauftraege → FA-Abarbeitungsliste oeffnen
+   OHNE einen Arbeitsgang in der URL/im Dropdown zu waehlen.
+3. Pruefen: Das Arbeitsgang-Dropdown ist bereits auf `VE` vorausgewaehlt (aus dem
+   Profil) — die Liste ist sofort vorgefiltert, ohne manuelle Auswahl.
+4. Pruefen: Sowohl `FA-4001` (Werkbank `WB-A`) als auch `FA-4002` (Werkbank `WB-B`)
+   erscheinen — die Liste ist **werkbank-uebergreifend**.
+5. Pruefen: Es gibt eine **Werkbank**-Spalte, die `WB-A` bzw. `WB-B` anzeigt; sie
+   ist als Spalte filterbar (z.B. `WB-A` eintippen → nur `FA-4001` bleibt). Filter
+   wieder leeren.
+6. Pruefen: Pro Zeile gibt es genau EINE Erledigt-Checkbox (Spalten-Header =
+   gewaehlter AG `VE`), nicht mehrere AG-Spalten.
+7. *Erledigt-Haken blendet aus:* Bei `FA-4001` die `VE`-"Erledigt"-Checkbox anhaken
+   (sofort gespeichert).
+8. Pruefen: `FA-4001` verschwindet aus der Default-Ansicht; `FA-4002` bleibt
+   sichtbar. Mit "Erledigte anzeigen" wird `FA-4001` wieder eingeblendet.
+9. *Anderer AG:* Im Dropdown auf `VL` umstellen.
+10. Pruefen: Nur FAs mit aktivem `VL` (hier `FA-4001`) erscheinen; `FA-4002`
+    (nur `VE`) ist nicht dabei.
+
+**Erwartet:** Die FA-Abarbeitungsliste filtert nach Arbeitsgang (nicht Werkbank);
+der im Profil hinterlegte Standard-Arbeitsgang wird ohne URL-Parameter
+vorausgewaehlt. Die Liste zeigt FAs verschiedener Werkbaenke mit Werkbank-Spalte;
+der "Erledigt"-Haken des gewaehlten AG blendet den FA aus.
+
+### 38.9 Leitstand VK-VA = Erledigt-Status, synchron zur FA-Abarbeitungsliste
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-5001`,
+Sage-`IsDone=false`, nicht komm-erledigt) mit zwei aktiven Arbeitsgaengen `VE`
+(`Status=Offen`) und `VK` (`Status=Fertig`); KEIN aktiver `VL`. Benutzer
+ist eingeloggt mit Rolle `picking` ODER `leitstand` (oder Admin). Browser-DevTools
+Network-Tab offen.
+
+**Schritte:**
+1. Leitstand Kommissionierung (`/PickingLeitstand`) oeffnen, `FA-5001` finden.
+2. Pruefen: In der `VE`-Spalte steht ein Auswahlfeld auf `Offen`. In der
+   `VK`-Spalte ein Auswahlfeld auf `Fertig`. Die `VL`-Zelle ist LEER (kein
+   Auswahlfeld — AG nicht anwendbar).
+3. Das `VE`-Auswahlfeld auf `Fertig` stellen. Network-Tab pruefen.
+4. Pruefen: POST an `/api/fa-work-steps/set-status` mit Body
+   `{ faWorkStepId: <Id des VE-FaWorkStep>, status: 2 }`, Status 200 (KEIN
+   Request an `/api/fa-work-steps/toggle`).
+5. FA-Abarbeitungsliste (`/FaWorklist`) mit Arbeitsgang `VE` oeffnen.
+6. Pruefen: `FA-5001` ist NICHT mehr in der Default-Ansicht (der `VE`-Status
+   `Fertig` aus dem Leitstand wirkt — gleiches Flag `Status`). Mit "Erledigte
+   anzeigen" erscheint `FA-5001` mit `VE`-Status `Fertig`.
+7. *Gegenrichtung:* In der Abarbeitungsliste (mit "Erledigte anzeigen") den
+   `VE`-Status bei `FA-5001` wieder auf `Offen` stellen.
+8. Leitstand neu laden: Pruefen, dass das `VE`-Auswahlfeld bei `FA-5001` wieder
+   auf `Offen` steht.
+
+**Negativfall:**
+- Benutzer ohne picking/leitstand/vorbau/admin: set-status-Request liefert 302 →
+  AccessDenied (bzw. 403); `Status` bleibt unveraendert.
+- VK-VA-Spaltenfilter: In der `VK`-Spalte `fertig` eintippen → nur FAs mit
+  VK-Status `Fertig` bleiben; `offen` bzw. `in bearbeitung` zeigt FAs mit
+  anwendbarem VK im jeweiligen Status. Leere VK-Zellen (nicht anwendbar) matchen
+  keinen Status-Text.
+
+**Erwartet:** Die VK/VL/VE/VT/VA-Auswahlfelder im Leitstand zeigen/setzen
+`Status` (Erledigt, 3-Wert Offen/in Bearbeitung/Fertig) — DASSELBE Flag wie die
+FA-Abarbeitungsliste; Aenderungen sind in beide Richtungen sichtbar.
+Nicht-anwendbare AGs erscheinen als leere Zelle. "Anwendbar" wird im Leitstand
+nicht mehr gesetzt.
+
+### 38.10 Spalten-Einstellung per Zahnrad in den FA-Views
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Mindestens ein offener FA, sodass
+beide Listen Zeilen zeigen. Benutzer mit Rolle `fa_completion` UND `vorbau`
+(oder Admin).
+
+**Schritte:**
+1. Fertigungsauftraege → FA-Vervollstaendigen oeffnen.
+2. Auf das Zahnrad-Symbol (Spalten-Einstellung) ueber der Tabelle klicken.
+3. Pruefen: Eine Liste aller Tabellenspalten erscheint mit Ein/Aus-Schaltern.
+4. Eine optionale Spalte (z.B. einen Termin oder eine Merkmal-Spalte) ausblenden
+   und den Dialog schliessen.
+5. Pruefen: Die Spalte ist in der Tabelle nicht mehr sichtbar.
+6. Seite neu laden (F5).
+7. Pruefen: Die ausgeblendete Spalte bleibt ausgeblendet (Auswahl pro Benutzer
+   gespeichert).
+8. Schritte 1-7 analog in der FA-Abarbeitungsliste wiederholen.
+
+**Erwartet:** Beide FA-Views haben ein funktionierendes Zahnrad zum
+Ein-/Ausblenden von Spalten; die Auswahl ueberlebt einen Reload und ist
+pro Benutzer.
+
+### 38.11 Standard-Werkbank im Profil → FA-Abarbeitung zusaetzlich vorgefiltert
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Zwei offene FAs mit aktivem,
+nicht-erledigtem Arbeitsgang `VE` auf **verschiedenen** Werkbaenken
+(`FA-6001` → `WB-A`, `FA-6002` → `WB-B`). Benutzer mit Rolle `vorbau` (oder
+Admin), dessen Profil noch keine Standard-Werkbank gesetzt hat. Standard-
+Arbeitsgang im Profil = `VE` (vgl. 38.8).
+
+**Schritte:**
+1. Benutzer-Dropdown rechts oben → Mein Profil → Feld "Standard-Werkbank
+   (FA-Abarbeitungsliste)" auf `WB-A` setzen → Speichern. (Alternativ als Admin
+   im Benutzerstamm: Benutzer → Bearbeiten → selbes Feld.)
+2. Fertigungsauftraege → FA-Abarbeitungsliste oeffnen OHNE Arbeitsgang oder
+   Werkbank in der URL zu waehlen.
+3. Pruefen: Das Arbeitsgang-Dropdown ist auf `VE` vorausgewaehlt (Standard-AG)
+   UND das Werkbank-Dropdown ist auf `WB-A` vorausgewaehlt (Standard-Werkbank).
+4. Pruefen: Nur `FA-6001` (Werkbank `WB-A`) erscheint; `FA-6002` (`WB-B`) ist
+   ausgeblendet — beide Filter (AG `VE` UND Werkbank `WB-A`) wirken kombiniert.
+5. Im Werkbank-Dropdown auf "(alle)" umstellen.
+6. Pruefen: Jetzt erscheinen sowohl `FA-6001` als auch `FA-6002` (nur noch der
+   AG-Filter `VE` wirkt).
+
+**Negativfall:**
+- Profil ohne Standard-Werkbank: Die Abarbeitungsliste oeffnet werkbank-
+  uebergreifend (alle Werkbaenke), nur der Standard-Arbeitsgang wirkt.
+
+**Erwartet:** Die im Profil hinterlegte Standard-Werkbank wird ohne URL-Parameter
+vorausgewaehlt und UND-verknuepft mit dem Standard-Arbeitsgang angewandt;
+"(alle)" hebt den Werkbank-Filter auf.
+
+### 38.12 Text-Merkmal: Definition → Freitext erfassen → Spalte in der Abarbeitung
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Benutzer mit `masterdata` (fuer
+FA-Merkmale) sowie `fa_completion` + `vorbau` (oder Admin). Ein offener FA
+(`FA-7001`) mit aktivem Arbeitsgang `VE`.
+
+**Schritte:**
+1. *Definition:* Stammdaten → FA-Merkmale → Neu. Bezeichnung z.B.
+   "Sonderhinweis", Typ = **Text** waehlen, Arbeitsgang `VE` zuordnen, speichern.
+2. Pruefen: Bei Typ "Text" ist kein Optionen-Block noetig/sichtbar.
+3. *Gegenprobe Artikelmerkmale:* Stammdaten → Artikelmerkmale → Neu. Pruefen:
+   Das Typ-Dropdown bietet **KEIN** "Text" an (nur Dropdown/JA-NEIN).
+4. *Erfassen:* Fertigungsauftraege → FA-Vervollstaendigen → `FA-7001` → Tab `VE`.
+   Beim Merkmal "Sonderhinweis" einen Freitext eingeben (z.B. "Bitte Schutzfolie
+   dran lassen") und das Feld verlassen (Speichern haelt den aktiven Tab).
+5. Pruefen: Der eingegebene Text bleibt nach Reload erhalten.
+6. *Abarbeitung:* Fertigungsauftraege → FA-Abarbeitungsliste mit Arbeitsgang `VE`.
+7. Pruefen: Es gibt eine Spalte "Sonderhinweis", in der bei `FA-7001` der erfasste
+   Freitext angezeigt wird.
+8. *Leeren:* In FA-Vervollstaendigen den Freitext loeschen und Feld verlassen.
+9. Pruefen: Die Spalte ist bei `FA-7001` jetzt leer (der Wert wurde geloescht).
+
+**Erwartet:** Der Typ "Text" steht nur fuer FA-Merkmale zur Verfuegung (nicht fuer
+Artikelmerkmale); der erfasste Freitext erscheint als Spalte in der
+FA-Abarbeitungsliste; leeren entfernt den Wert.
+
+### 38.13 BOM/enaio/Vault-Buttons in beiden FA-Views sichtbar und konsistent
+
+**Vorbedingungen:** `FaCompletionAktiv=true`. Ein offener FA (`FA-8001`) mit
+gepflegter Artikelnummer und mindestens einem zugeordneten enaio-Dokument
+(Werkstattauftrag/Zeichnung). Benutzer mit `fa_completion` + `vorbau` (oder
+Admin).
+
+**Schritte:**
+1. Fertigungsauftraege → FA-Vervollstaendigen → `FA-8001` oeffnen.
+2. Pruefen: Im Kopf-/Zeilenbereich erscheinen in einheitlicher Reihenfolge und
+   Optik: Stueckliste/BOM-Button, enaio-Badge(s), Vault-Zeichnungs-Link.
+3. Den BOM-Button anklicken → Pruefen: read-only Stueckliste oeffnet (Druck
+   moeglich).
+4. Den Vault-Link anklicken → Pruefen: Vault oeffnet mit der Artikelnummer als
+   Suche (neuer Tab).
+5. Fertigungsauftraege → FA-Abarbeitungsliste mit dem passenden Arbeitsgang
+   oeffnen, `FA-8001` finden.
+6. Pruefen: Dieselben drei Buttons (BOM, enaio, Vault) erscheinen in derselben
+   Reihenfolge/Optik wie in FA-Vervollstaendigen.
+
+**Erwartet:** BOM-, enaio- und Vault-Buttons sind in beiden FA-Views vorhanden und
+einheitlich dargestellt (gemeinsames Partial `_FaDocumentLinks`); die Links fuehren
+zur read-only Stueckliste bzw. zum Vault.
+
+---
+
+## Kapitel 39: UI-Nachzuegler (v1.22.0 Folge-Fixes)
+
+Kleine UI-Korrekturen aus dem laufenden Test der v1.22.0: die Lagerbestellung-
+Detailansicht bekommt das Standard-Filter/Sortier-Pattern, und der Hover auf
+OSEON-Spaltenueberschriften bleibt lesbar.
+
+### 39.1 Lagerbestellung-Detailansicht: Spalten-Filter + Klick-Sortierung
+
+**Vorbedingungen:** Eine offene Lagerbestellung (Status `Submitted` oder
+`PartiallyDelivered`) mit mehreren Positionen (verschiedene Artikelnummern/
+Bezeichnungen). Benutzer mit Rolle `picking` ODER `stock` (oder Admin).
+
+**Schritte:**
+1. Bestellungen → Lagerbestellungen (`/WarehousePicking/Index`) → eine offene
+   Liste oeffnen (`/WarehousePicking/Details`).
+2. Pruefen: Unter den Spaltenueberschriften **Pos, Artikel-Nr, Bezeichnung,
+   Bestellt, ME, Lagerplatz** erscheint je ein Filter-Eingabefeld (wie in den
+   uebrigen Tabellen).
+3. In das Filter-Feld unter "Artikel-Nr" einen Teil einer Nummer eingeben.
+4. Pruefen: Nur Zeilen mit passender Artikelnummer bleiben sichtbar; Filter wieder
+   leeren → alle Zeilen wieder da.
+5. Auf die Ueberschrift "Bezeichnung" klicken → Sortierung aufsteigend (Pfeil ▲),
+   erneuter Klick → absteigend (▼).
+6. Auf "Bestellt" klicken → numerische Sortierung (nicht alphabetisch).
+7. Bei einigen Positionen Ist-Mengen/Notizen erfassen, dann "Speichern +
+   Abschliessen".
+8. Pruefen: Alle Positionen werden korrekt gebucht — auch aktuell **ausgefilterte**
+   und **umsortierte** Zeilen; die Ist-Mengen landen beim richtigen Artikel
+   (kein Index-Versatz zwischen Position und gebuchter Menge).
+
+**Negativfall:**
+- Die Eingabe-Spalten (Ist, Notiz Lager, Notiz EK, Fehlteil-Status) haben bewusst
+  KEIN Filterfeld — sie enthalten Formular-Inputs (keinen filterbaren Text).
+
+**Erwartet:** Die Positions-Tabelle bietet Spalten-Filter + Klick-Sortierung wie
+die uebrigen Tabellen; Filtern/Sortieren beeinflusst das Speichern NICHT
+(alle Items bleiben erhalten, Mengen bleiben den richtigen Positionen zugeordnet).
+
+### 39.2 OSEON-Teileverfolgung: Spaltenueberschrift bleibt beim Hover lesbar
+
+**Vorbedingungen:** AppSetting `TeileverfolgungAktiv = true`; OSEON-Liste mit
+mindestens einem Auftrag.
+
+**Schritte:**
+1. Teileverfolgung → OSEON Auftraege oeffnen.
+2. Mit der Maus ueber eine sortierbare Spaltenueberschrift fahren (z.B. Artikel,
+   Werkbank, Status, Endtermin).
+3. Pruefen: Der Kopf wird nur geringfuegig heller (helleres Blau) — die
+   Hintergrundfarbe bleibt blau, die **weisse Schrift bleibt durchgehend gut
+   lesbar**.
+4. Pruefen (Regression): Der Kopf wird zu keinem Zeitpunkt weiss/sehr hell; die
+   Beschriftung verschwindet nie.
+
+**Erwartet:** Der Header-Hover hellt das Blau nur dezent auf (background-image-
+Overlay statt ersetzender background-color); die weisse Schrift bleibt lesbar.
+
+---
+
+## Kapitel 40: Windows-Authentifizierung & AD-Benutzer (v1.23.0)
+
+Windows-SSO Auto-Login (hinter Schalter `WindowsAuthAktiv`, Default aus) plus
+AD-Benutzer-Anlage ueber eine Berechtigungsgruppe. Rollen werden ausschliesslich
+explizit pro Benutzer vergeben — die fruehere automatische AD-Gruppen-Zuordnung
+(`Role.AdGroup`) ist entfernt.
+
+> **Hinweis:** Die echte SSO-Strecke (IIS Negotiate-Challenge + Domaenen-Browser)
+> und die LDAP-Abfrage sind nur im IIS-Zielsystem voll testbar (nicht in Dev/Kestrel).
+> Vorbedingung fuer 40.1–40.4: Deploy auf einem domaenen-gebundenen IIS, `web.config`
+> mit aktivierter **Windows-** UND **Anonymer Authentifizierung**, App-Pool-Identitaet
+> darf das AD lesen.
+
+### TS-40.1 — Domaenen-User MIT Datensatz → Auto-Login ohne Formular
+
+**Vorbedingungen:**
+- `WindowsAuthAktiv = true` (Stammdaten → Einstellungen).
+- Im Benutzerstamm existiert ein aktiver AD-Benutzer, dessen `WindowsUserName`
+  (SAM) dem angemeldeten Windows-Konto entspricht (siehe TS-40.4 zum Anlegen).
+- Aufruf aus einem Domaenen-Browser (Intranet-Zone), KEIN `NoAutoLogin`-Cookie.
+
+**Schritte:**
+1. Browser-Session frisch oeffnen (oder Cookies fuer die Seite loeschen).
+2. Die App-Startseite aufrufen.
+
+**Erwartet:** Der Benutzer wird **ohne** Anmelde-Formular direkt angemeldet
+(landet auf dem Dashboard). Kein Passwort/Benutzername noetig. Der angemeldete
+Name entspricht dem AD-Benutzer-Datensatz.
+
+### TS-40.2 — Domaenen-User OHNE Datensatz → Formular-Fallback
+
+**Vorbedingungen:** `WindowsAuthAktiv = true`. Der angemeldete Windows-Benutzer
+hat **keinen** (oder nur einen inaktiven) Datensatz im WMS.
+
+**Schritte:**
+1. Frische Browser-Session, App-Startseite aufrufen.
+2. Die einmalige Negotiate-Challenge laeuft im Domaenen-Browser still ab.
+
+**Erwartet:** Nach der einmaligen Challenge erscheint die **normale Login-Maske**
+(kein Auto-Login). Es kommt zu **keiner** Challenge-Schleife (genau eine Challenge
+je Browser-Session, per `AutoLoginTried`-Cookie begrenzt). Eine Formular-Anmeldung
+mit lokalen Credentials funktioniert normal.
+
+### TS-40.3 — Logout → Formular, kein sofortiges Re-Login, anderer User moeglich
+
+**Vorbedingungen:** Wie TS-40.1 (Auto-Login waere moeglich). Benutzer ist
+angemeldet. Zusaetzlich existiert ein lokaler Benutzer mit Passwort.
+
+**Schritte:**
+1. Als (auto-angemeldeter) Benutzer auf **Abmelden** klicken.
+2. Die App-Startseite erneut aufrufen.
+3. Im Formular mit den Credentials des **lokalen** Benutzers anmelden.
+
+**Erwartet:**
+- Nach dem Abmelden erscheint das Anmelde-**Formular** — KEIN sofortiges
+  automatisches Wieder-Anmelden (der `NoAutoLogin`-Cookie unterdrueckt den
+  Auto-Login).
+- Die Anmeldung als lokaler Benutzer gelingt; man ist als dieser angemeldet.
+- Nach einem erneuten erfolgreichen Login ist der `NoAutoLogin`-Marker
+  aufgehoben (Auto-Login bei der naechsten frischen Session wieder moeglich).
+
+### TS-40.4 — AD-Benutzer anlegen (Picker + Rollen)
+
+**Vorbedingungen:**
+- Admin angemeldet.
+- `WindowsAuthBerechtigungsgruppe` ist auf eine existierende AD-Gruppe gesetzt,
+  die mindestens ein Mitglied hat, das noch NICHT im WMS angelegt ist.
+- App laeuft auf dem domaenen-gebundenen IIS (LDAP erreichbar).
+
+**Schritte:**
+1. Stammdaten → Benutzer öffnen.
+2. Button **„AD-Benutzer anlegen"** klicken.
+3. Pruefen: Es erscheint eine Liste der Gruppenmitglieder (SAM, Anzeigename,
+   E-Mail, aktiv/inaktiv). Bereits importierte Mitglieder fehlen in der Liste.
+4. Ein Mitglied auswaehlen, eine oder mehrere Rollen ankreuzen, **Anlegen**.
+
+**Erwartet:**
+- Der Benutzer erscheint in der Benutzerliste mit Typ-Spalte **„AD"** (nicht
+  „Lokal"), ohne Passwort, aktiv.
+- Die vergebenen Rollen sind gesetzt (im Bearbeiten-Dialog sichtbar).
+- Der `WindowsUserName` (SAM) ist hinterlegt — danach greift fuer diesen Benutzer
+  der Auto-Login (TS-40.1).
+
+**Negativfaelle:**
+- Versuch, ein bereits vorhandenes Mitglied erneut anzulegen → abgelehnt
+  (Duplikat-Guard auf `WindowsUserName`).
+- AD nicht erreichbar / Gruppe leer → Info-Banner („keine Mitglieder gefunden /
+  AD nicht erreichbar"); die manuelle Anlage ueber „Benutzer anlegen" bleibt
+  verfuegbar. Der Login-Pfad ist davon unberuehrt.
+
+### TS-40.5 — `WindowsAuthAktiv = false` → Verhalten wie bisher
+
+**Vorbedingungen:** `WindowsAuthAktiv = false` (Default).
+
+**Schritte:**
+1. Frische Browser-Session, App-Startseite aufrufen.
+
+**Erwartet:** Es erscheint **direkt** das Anmelde-Formular — KEINE Challenge,
+KEIN Auto-Login. Verhalten exakt wie vor v1.23.0. (Gilt auch fuer Dev/Kestrel,
+wo keine IIS-Windows-Auth verfuegbar ist.)
+
+### TS-40.6 — Rollen nur noch pro Benutzer (AdGroup entfernt)
+
+**Vorbedingungen:** Admin angemeldet.
+
+**Schritte:**
+1. Stammdaten → Rollen → eine Rolle bearbeiten.
+2. Stammdaten → Benutzer → einen Benutzer bearbeiten.
+
+**Erwartet:**
+- In den Rollen-Stammdaten gibt es **kein** AD-Gruppen-Feld mehr (weder in der
+  Liste noch im Bearbeiten-Formular).
+- Rollen werden ausschliesslich am Benutzer (Checkbox-Liste) zugewiesen; es gibt
+  keine automatische Rollen-Zuweisung ueber AD-Gruppenmitgliedschaft mehr.
+
+---
+
+### TS-40.7 — Android/iPhone → sofort Formular, KEIN Windows-Dialog (v1.25.0-Fold)
+
+**Vorbedingungen:** `WindowsAuthAktiv = true`. Aufruf von einem Android-Handy
+oder iPhone/iPad (Mobile-Browser), frische Session (keine Cookies).
+
+**Schritte:**
+1. Die App-Startseite vom Mobilgeraet aufrufen.
+
+**Erwartet:** Es erscheint **direkt** das Anmelde-Formular. **Kein**
+Windows-Anmeldedialog, kein Passwort-Prompt-Popup. Es wird KEINE
+Negotiate-Challenge gesendet (UA-Gate). Eine Formular-Anmeldung mit lokalen
+Credentials funktioniert normal. (Auch nach mehrfachem Neuladen kein Dialog.)
+
+### TS-40.8 — Windows-Desktop → Auto-Login wie bisher (v1.25.0-Fold)
+
+**Vorbedingungen:** Wie TS-40.1 (`WindowsAuthAktiv = true`, AD-Benutzer-Datensatz
+vorhanden), aber ausdruecklich aus einem **Windows-Desktop-Browser** (Chrome/Edge/
+Firefox auf Windows, Intranet-Zone).
+
+**Schritte:**
+1. Frische Session, App-Startseite aufrufen.
+
+**Erwartet:** Der Windows-Desktop-Browser erhaelt die stille Negotiate-Challenge
+und der Benutzer wird **ohne Formular** angemeldet (Verhalten exakt wie vor dem
+UA-Gate). Genau eine Challenge je Session (`AutoLoginTried`-Cookie).
+
+### TS-40.9 — Button „Mit Windows anmelden" erzwingt SSO auf Nicht-Windows-Client (v1.25.0-Fold)
+
+**Vorbedingungen:** `WindowsAuthAktiv = true`. Ein Windows-Geraet, das per UA
+NICHT als Windows-Desktop erkannt wird (exotischer Browser) ODER ein Mac/Linux im
+Domaenennetz, dessen Windows-Identitaet IIS liefern kann. AD-Benutzer-Datensatz
+zum angemeldeten Windows-Konto vorhanden.
+
+**Schritte:**
+1. App-Startseite aufrufen → es erscheint das Formular (kein Auto-Login, da UA
+   nicht als Windows-Desktop erkannt).
+2. Pruefen: Der Button **„Mit Windows anmelden"** ist sichtbar.
+3. Auf den Button klicken.
+
+**Erwartet:**
+- Der Button fuehrt auf `/Account/WindowsLogin` (setzt Force-Cookie) und weiter
+  auf die Startseite; dort erzwingt die Middleware die Negotiate-Challenge.
+- Nach erfolgreichem SAM-Match ist der Benutzer angemeldet (Dashboard); der
+  Force-Cookie ist wieder geloescht (kein Challenge-Loop).
+- **Negativfall:** Ist `WindowsAuthAktiv = false`, erscheint der Button **nicht**.
+
+### TS-40.10 — AD-Benutzer anlegen: E-Mail wird aus dem AD uebernommen (v1.25.0)
+
+**Vorbedingungen:** Wie TS-40.4. Mindestens ein noch nicht importiertes Gruppenmitglied
+hat im AD eine E-Mail-Adresse hinterlegt, ein weiteres (falls vorhanden) keine.
+
+**Schritte:**
+1. Stammdaten → Benutzer → **„AD-Benutzer anlegen"**.
+2. Ein Mitglied MIT E-Mail auswaehlen, Rolle(n) ankreuzen, **Anlegen**.
+3. Den neuen Benutzer in Stammdaten → Benutzer → **Bearbeiten** oeffnen.
+
+**Erwartet:**
+- Das Feld **E-Mail** ist mit der AD-Adresse des Mitglieds vorbefuellt (server-seitig
+  uebernommen — unabhaengig davon, was der Browser gesendet hat).
+- Die Adresse kann danach im Benutzerstamm normal geaendert werden.
+
+**Negativfaelle:**
+- Mitglied OHNE AD-E-Mail → Benutzer wird angelegt, E-Mail bleibt **leer** (kein Fehler).
+- Der SAM-Match ist case-insensitiv (Gross-/Kleinschreibung des gewaehlten Eintrags egal).
+
+### TS-40.11 — Formulare unter Windows-SSO speichern ohne Fehler 400 (Antiforgery-Wurzel-Fix, v1.25.0)
+
+**Hintergrund:** Vor dem Fix band ASP.NET den Antiforgery-Token an die (unter IIS
+per Verbindung schwankende) Windows-Identitaet — POSTs direkt nach einem SSO-Login
+konnten mit **Fehlerseite 400** abbrechen (z. B. „AD-Benutzer anlegen"). Seit dem Fix
+normalisiert die Middleware `HttpContext.User` (App-Session + `/account/*`) auf anonym.
+
+**Vorbedingungen:** Deploy am IIS, `WindowsAuthAktiv = true`, Admin-AD-Benutzer vorhanden.
+
+**Schritte:**
+1. Frische Browser-Session am Domaenen-PC → Auto-Login laeuft (TS-40.1).
+2. **Direkt danach** (ohne Umwege): Stammdaten → Benutzer → „AD-Benutzer anlegen" →
+   Mitglied waehlen → **Anlegen** (POST).
+3. Beliebige weitere POST-Formulare pruefen (z. B. Einstellungen speichern, Profil speichern).
+4. Zusaetzlich am Domaenen-PC: **Abmelden** → im Formular als lokaler Benutzer anmelden (POST).
+
+**Erwartet:**
+- **Kein** HTTP 400 („Bad Request"/Fehlerseite) bei irgendeinem POST — weder nach
+  SSO-Auto-Login noch beim Formular-Login auf einem Domaenen-Geraet.
+- Der Benutzer wird angelegt bzw. das Formular normal gespeichert.
+- Audit-Hinweis: Bei SSO-Login wird der Windows-Name (Domaene\User) fuer die
+  Audit-Spalten aus der Session uebernommen; beim reinen Formular-Login lokaler
+  Konten steht dort weiterhin „SYSTEM" (bewusst akzeptiert).
+
+### TS-40.12 — Logout nach SSO: Desktop UND Mobile ohne 400/405 (v1.25.0)
+
+**Vorbedingungen:** Wie TS-40.11. Zusaetzlich ein Mobilgeraet (Android/iPhone), auf dem
+sich ein Benutzer ueber den Button „Mit Windows anmelden" (TS-40.9) oder das Formular
+angemeldet hat.
+
+**Schritte:**
+1. Am Desktop nach SSO-Login: **Abmelden** klicken.
+2. Am Mobilgeraet nach Login: **Abmelden** klicken.
+
+**Erwartet:** In beiden Faellen landet man auf dem Anmelde-Formular — **kein**
+Fehler 400 (Antiforgery) und **kein** 405 (Method Not Allowed nach Mobile-Reload).
+Hintergrund: Logout war unter SSO auf Mobilgeraeten mit 400/405 fehlgeschlagen, weil
+der Token an die Windows-Identitaet gebunden war; behoben durch den Wurzel-Fix
+(TS-40.11) plus bewusst tokenfreien Logout.
+
+---
+
+## Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0)
+
+**Vorbedingung:** `BestellungenAktiv=true`. Ein Benutzer `lb-test` mit NUR der Rolle
+`lagerbestellung`. Ein Benutzer `md-test` mit NUR der Rolle `masterdata_read`.
+
+### TS-41.1 — Lagerbestellung-User: erlaubte Sichten
+1. Als `lb-test` einloggen.
+2. Menü „Bestellungen" öffnen.
+   - **Erwartet:** Einträge „Lagerbestellungen" + „Meine Fehlteile" sichtbar.
+   - **Erwartet:** „Bedarfsmeldungen" NICHT sichtbar; „Lager: …" NICHT sichtbar.
+3. „Lagerbestellungen" öffnen → Liste lädt (kein AccessDenied).
+4. „Meine Fehlteile" öffnen → Liste lädt (kein AccessDenied).
+
+### TS-41.2 — Lagerbestellung-User: verweigerte Sichten (Negativ)
+1. Als `lb-test` direkt `/PartRequisitions`, `/StockOverview`, `/StockMovements`,
+   `/MissingPartsLager` aufrufen.
+   - **Erwartet:** jeweils Redirect auf `/Account/AccessDenied`.
+
+### TS-41.3 — Regression picking/stock
+1. Als picking-User und als stock-User je „Lagerbestellungen" + „Meine Fehlteile" öffnen.
+   - **Erwartet:** unverändert erreichbar; „Bedarfsmeldungen" weiterhin sichtbar.
+
+### TS-41.4 — Artikelinfo-Kachel für masterdata_read
+1. Als `md-test` das Dashboard öffnen.
+   - **Erwartet:** Sektion „Artikel" mit der Artikelinfo-Kachel sichtbar.
+   - **Erwartet:** KEINE Lager-/Kommissionier-Kacheln.
+2. Artikelinfo-Kachel klicken → `Articles/Info` öffnet (kein AccessDenied).
+
+### TS-41.5 — Regression picking-Dashboard
+1. Als picking-User das Dashboard öffnen.
+   - **Erwartet:** Artikelinfo-Kachel weiterhin in der Kommissionier-Sektion
+     (nicht doppelt, nicht fehlend).
+
+---
+
+## Kapitel 42: Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) (v1.23.0)
+
+**Vorbedingung:** `BestellungenAktiv=true`. Eine Lagerbestellung mit mehreren Positionen
+(Status Abgeschickt/Teilgeliefert). Angemeldet als Lager-/Picking-/Admin-User.
+
+### TS-42.1 Spalten ein-/ausblenden + Reihenfolge
+1. `WarehousePicking/Details/<id>` öffnen. Zahnrad-Menü (rechts in der Tabelle) erscheint.
+2. Spalte „Notiz EK" ausblenden, „Lagerplatz" nach vorne ziehen. Seite neu laden.
+   - **Erwartet:** Einstellung bleibt erhalten (persistent pro User).
+3. „Drucken" klicken.
+   - **Erwartet:** Druckseite zeigt „Notiz EK" NICHT, „Lagerplatz" an der verschobenen Position;
+     „Pos" + „Artikel-Nr" sind immer vorhanden (nicht ausblendbar).
+
+### TS-42.2 Sortierung übernehmen
+1. In Details auf den Spaltenkopf „Lagerplatz" klicken (absteigend sortieren).
+2. „Drucken".
+   - **Erwartet:** Druck-Zeilen in derselben Reihenfolge wie der Bildschirm (Lagerplatz absteigend).
+3. Numerische Spalte testen: nach „Bestellt" sortieren (z. B. 2, 9, 10).
+   - **Erwartet:** numerische Reihenfolge (2, 9, 10) — NICHT lexikalisch (10, 2, 9).
+
+### TS-42.3 Filter übernehmen
+1. In Details einen Spaltenfilter setzen (z. B. „Artikel-Nr" enthält einen Teilstring).
+2. „Drucken".
+   - **Erwartet:** Druck zeigt nur die gefilterten (sichtbaren) Zeilen.
+
+### TS-42.4 Default-Zustand (Regression)
+1. Neuer User ohne Spalten-Einstellungen, kein Klick-Sort, kein Filter → „Drucken".
+   - **Erwartet:** alle 10 Spalten in Standard-Reihenfolge, sortiert nach Position — wie bisher.
+
+### TS-42.5 Mengen/Notizen-Speichern (Regression)
+1. In Details Menge/Notiz ändern, dann „Drucken".
+   - **Erwartet:** Änderung wird vor dem Druck gespeichert (Autosave), Druck zeigt den neuen Stand;
+     Spalten-Reorder hat das Speichern nicht beschädigt.
+
+---
+
+## Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0)
+
+**Vorbedingung:** `FaCompletionAktiv=true`. Mehrere Werkbänke (z. B. „WB-A", „WB-A2", „WB-B").
+Offene FAs mit einem FA-Vorbau-AG auf verschiedenen Werkbänken, gefüllten Bezeichnungen.
+Angemeldet als vorbau/admin-User.
+
+### TS-43.1 Standard-Werkbänke im Profil (Textfeld)
+1. Profil öffnen → Feld „Standard-Werkbänke (FA-Abarbeitungsliste, kommasepariert)".
+   - **Erwartet:** Textfeld (kein Dropdown), Datalist schlägt vorhandene Werkbank-Namen vor.
+2. „WB-A, WB-B" eintragen, speichern.
+3. FA-Abarbeitungsliste öffnen (AG gewählt).
+   - **Erwartet:** Werkbank-Feld vorbefüllt „WB-A, WB-B"; Liste zeigt nur FAs auf WB-A/WB-A2/WB-B
+     (Enthält: „WB-A" trifft auch „WB-A2").
+
+### TS-43.2 In-Listen-Filter override + leeren
+1. In der Abarbeitungsliste ins Werkbank-Textfeld „WB-B" eintragen → Liste neu.
+   - **Erwartet:** nur FAs deren Werkbank „WB-B" enthält.
+2. Feld leeren, Liste neu.
+   - **Erwartet:** ALLE Werkbänke (Default greift nicht, weil explizit geleert).
+
+### TS-43.3 Bezeichnungs-Spalten
+1. Abarbeitungsliste mit gewähltem AG.
+   - **Erwartet:** Spalten „Bezeichnung 1" + „Bezeichnung 2" nach „Artikelnummer", gefüllt.
+2. In „Bezeichnung 1" einen Spaltenfilter setzen.
+   - **Erwartet:** Liste auf passende Zeilen reduziert.
+
+### TS-43.4 Benutzerstamm (Admin)
+1. Benutzer bearbeiten → „Standard-Werkbänke"-Textfeld pflegen/speichern.
+   - **Erwartet:** wie Profil; Wert wird gespeichert.
+
+---
+
+## Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0)
+
+**Vorbedingung:** `Sync:BomCacheEnabled` + `Sync:FaWorkStepDetectionEnabled` aktiv. WorkSteps mit
+Suchbegriffen gepflegt. Service-Lauf auslösen (oder Neustart).
+
+### TS-44.1 Nicht gefundene Suchbegriffe
+1. Einen Suchbegriff pflegen, der in keiner gecachten Stückliste vorkommt (z. B. Tippfehler).
+2. Lauf abwarten → `/SyncLog` → Eintrag `FaWorkStepDetection`.
+   - **Erwartet:** Counts `ohne treffer` ≥ 1; in der Lauf-Message „Ohne Treffer: <begriff> (<Code>)".
+
+### TS-44.2 Begriff je erkanntem FA
+1. Einen offenen FA mit gecachter Stückliste, dessen BOM einen Suchbegriff enthält, neu erkennen lassen.
+   - **Erwartet:** `FaWorkStepDetection`-Detailzeilen `FA <Nr> → AG <Code> <Name> erkannt (Begriff: <term>)`.
+2. Nächster Lauf (nichts Neues) → **keine** neuen Detailzeilen (kein Spam).
+
+### TS-44.3 BOM-Cache Cap-Warnung
+1. `Sync:BomCacheMaxOrders` kleiner setzen als die Zahl offener FAs im Fenster.
+2. Lauf abwarten → `/SyncLog` → Eintrag `BomCache`.
+   - **Erwartet:** Counts `fa im fenster` > `fa gecacht`; Warn-Zeile „Cap erreicht: X von Y … Z FAs
+     ohne Cache-Eintrag, werden NICHT automatisch erkannt."
+3. Cap groß genug setzen → nächster Lauf: keine Cap-Warnung; die zuvor fehlende FA wird gecacht und erkannt.
+
+---
+
+## Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0)
+
+**Vorbedingung global:** `FaCompletionAktiv=true`. Rolle `vorbau` (oder `admin`) fuer die
+FA-Abarbeitungsliste, Rolle `picking`/`leitstand` (oder `admin`) fuer den Leitstand.
+
+### TS-45.1 3-Wert-Status in der FA-Abarbeitungsliste (Offen → in Bearbeitung → Fertig)
+**Vorbedingung:** Eine offene FA mit einem aktiven Vorbau-AG (`FaWorkStep` mit `IsRemoved=0`).
+1. `/FaWorklist` oeffnen, den FA-Vorbau-AG der Test-FA waehlen (oder als Standard-AG im Profil hinterlegt).
+   - **Erwartet:** Die FA erscheint, in der Status-Spalte ein Auswahlfeld mit Wert **Offen**.
+2. Status auf **in Bearbeitung** stellen.
+   - **Erwartet:** Auswahl wird sofort gespeichert (AJAX); die FA **bleibt sichtbar** (kein Ausblenden).
+3. Status auf **Fertig** stellen.
+   - **Erwartet:** Die FA **verschwindet** aus der Default-Ansicht. Mit „Erledigte anzeigen" ist sie
+     weiterhin sichtbar und zeigt den Wert **Fertig**.
+4. DB-Pruefung: `SELECT Status, CompletedAt, CompletedBy FROM FaWorkSteps WHERE Id=<FaWorkStepId>`.
+   - **Erwartet:** `Status=2` (Fertig) → `CompletedAt`/`CompletedBy` gesetzt. Zurueck auf Offen/in
+     Bearbeitung (`Status=0`/`1`) → `CompletedAt`/`CompletedBy` wieder `NULL`.
+
+### TS-45.2 Gleicher Status im Leitstand (VK-VA), synchron zur Abarbeitungsliste
+**Vorbedingung:** `LeitstandAktiv=true`; dieselbe FA wie in TS-45.1 mit aktivem VK-VA-AG.
+1. `/PickingLeitstand` oeffnen.
+   - **Erwartet:** In der zum AG passenden VK-VA-Zelle erscheint dasselbe Status-Auswahlfeld
+     (Offen/in Bearbeitung/Fertig). Fehlt der AG fuer die FA → leere Zelle (kein Auswahlfeld).
+2. Im Leitstand den Status auf **Fertig** stellen.
+   - **Erwartet:** Aenderung wirkt sofort (AJAX, `/api/fa-work-steps/set-status`).
+3. `/FaWorklist` neu laden (gleicher AG).
+   - **Erwartet:** Die FA spiegelt den im Leitstand gesetzten Status (Fertig → ausgeblendet bzw. unter
+     „Erledigte anzeigen" als Fertig).
+
+### TS-45.3 Negativ: ungueltiger Status liefert HTTP 400
+1. POST auf `/api/fa-work-steps/set-status` mit Body `{ "faWorkStepId": <gueltigeId>, "status": 9 }`
+   (ungueltiger Enum-Wert).
+   - **Erwartet:** HTTP **400 Bad Request**; der Status in der DB bleibt unveraendert.
+
+### TS-45.4 Beschichtungstermin-Spalte in der Abarbeitungsliste
+**Vorbedingung:** `BeschichtungTage`/`BeschichtungAbholtage` wie ueblich konfiguriert.
+1. **Fall A — `LackierteilKategorieName` leer:** `/FaWorklist` oeffnen.
+   - **Erwartet:** Spalte „Beschicht." ist fuer **ALLE** FAs gefuellt (Backward-Compat-Regel).
+2. **Fall B — `LackierteilKategorieName` gesetzt:** `/FaWorklist` oeffnen.
+   - **Erwartet:** „Beschicht." ist nur fuer FAs mit Lackierteilen (`HasCoatingParts`) gefuellt, sonst leer.
+3. Spaltenfilter „Beschicht." nutzen (KW-/Datums-Filter ueber das Kalender-Popup oder Texteingabe + ENTER).
+   - **Erwartet:** Die Liste filtert korrekt auf die gewaehlte KW/das Datum.
+4. Quervergleich: dieselbe FA im Leitstand oeffnen.
+   - **Erwartet:** Der Beschichtungstermin ist **identisch** zum Wert in der Abarbeitungsliste
+     (gemeinsame Formel `CoatingDateCalculator.Compute`).
+
+### TS-45.5 Server-Mode-Spaltenfilter filtern erst bei ENTER
+**Vorbedingung:** Eine Server-Mode-Liste (FA-Liste, Leitstand, Bestand, FA-Abarbeitungsliste).
+1. In ein Spaltenfilter-Feld tippen (mehrere Zeichen, ohne ENTER).
+   - **Erwartet:** **KEIN** Seiten-Reload/Navigation waehrend des Tippens.
+2. **ENTER** druecken.
+   - **Erwartet:** Jetzt navigiert die Seite und filtert (URL `?colf_<col-key>=...`).
+3. Kalender-KW-Klick auf einer Datumsspalte.
+   - **Erwartet:** Filtert **sofort** (ohne ENTER).
+4. „Filter entfernen" im Kalender-Popup.
+   - **Erwartet:** Wirkt **sofort**.
+5. Client-Mode-Gegenprobe: `/Tracking/ByWorkplace` (Client-Filter) — in ein Filter-Feld tippen.
+   - **Erwartet:** Filterung bleibt **live beim Tippen** (kein ENTER noetig, da kein Server-Mode).
+
+### TS-45.6 Android-Tablet: Spaltenfilter per Bildschirmtastatur ausloesen
+**Vorbedingung:** Android-Tablet (Chrome/Gboard), eine Server-Mode-Liste (z. B. FA-Liste, Leitstand, Bestand, FA-Abarbeitungsliste).
+1. In ein Spaltenfilter-Feld tippen, sodass die Bildschirmtastatur erscheint.
+   - **Erwartet:** Die Aktionstaste unten rechts ist eine **Such-/Lupe-Taste** (`enterkeyhint="search"`), **nicht** eine „Weiter"-Taste.
+2. Die Such-/Lupe-Taste druecken.
+   - **Erwartet:** Die Liste **navigiert und filtert** (URL `?colf_<col-key>=...`) — genau wie ENTER am Desktop. Der Fokus springt **nicht** stumm ins naechste Spaltenfeld.
+3. Negativ-Gegenprobe Desktop (unveraendert): ENTER filtert, blosses Tippen nicht.
+
+---
+
+## Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0)
+
+**Vorbedingung global:** `BestellungenAktiv=true` (bzw. Lagerbestellungen freigeschaltet).
+Einstellungen: `GlasArtikelgruppen` = z. B. `GLAS,SPIEGEL` (Codes wie in den Artikeln gespeichert),
+`GemeinsameArtikelgruppen` = `EUZ`, `DefaultLagerbestellempfaengerId` gesetzt. Es existieren
+Artikel in mindestens einer Glas-Gruppe, einer reinen Lager-Gruppe und der gemeinsamen Gruppe `EUZ`.
+Der Test-Benutzer hat eine Werkbank-Zuordnung.
+
+### TS-46.1 Glas-Draft anlegen
+**Vorbedingung:** Benutzer mit Zugriff auf beide Reiter (z. B. `picking`/`stock`/`admin`).
+1. `/WarehouseRequisitions` oeffnen.
+   - **Erwartet:** Oben zwei Reiter **Lager** und **Glas**.
+2. Auf den Reiter **Glas** wechseln und &bdquo;+ Neue Liste&ldquo; klicken (ggf. Werkbank waehlen).
+   - **Erwartet:** Ein neuer Entwurf wird angelegt und die Bearbeiten-Ansicht geoeffnet; ein
+     **Typ-Badge Glas** ist sichtbar.
+3. DB-Pruefung: `SELECT Type FROM WarehouseRequisitions WHERE Id=<neu>`.
+   - **Erwartet:** `Type=2` (Glas).
+
+### TS-46.2 Artikelsuche respektiert den Bestelltyp
+**Vorbedingung:** Je ein Glas-Draft und ein Lager-Draft (beide in Bearbeitung).
+1. Im **Glas-Draft** im Artikel-Suchfeld nach einem Glas-Artikel suchen.
+   - **Erwartet:** Glas-Gruppen-Artikel + `EUZ`-Artikel erscheinen; reine Lager-Gruppen-Artikel
+     erscheinen **nicht**.
+2. Im **Lager-Draft** nach demselben Glas-Artikel suchen.
+   - **Erwartet:** Glas-Gruppen-Artikel erscheinen **nicht**; `EUZ`-Artikel und reine
+     Lager-Gruppen-Artikel erscheinen sehr wohl.
+
+### TS-46.3 AddItem-Schutz (Server-Enforcement)
+**Vorbedingung:** Ein Glas-Draft.
+1. Im Glas-Draft versuchen, einen Artikel einer **reinen Lager-Gruppe** hinzuzufuegen —
+   z. B. per zweitem Browser-Tab / manipulierter API-Anfrage (`AddItem` mit einer ArticleId,
+   die nicht zum Typ passt).
+   - **Erwartet:** Der Server lehnt ab (Fehlermeldung/`BadRequest`); **kein** Item wird angelegt.
+   - Gegenprobe: derselbe Aufruf mit einem erlaubten (Glas- oder `EUZ`-)Artikel legt das Item an.
+
+### TS-46.4 Submit Glas — Empfaenger + Betreff
+1. **Ohne** `DefaultGlasbestellempfaengerId`: Einen Glas-Draft mit mind. einem Item abschicken.
+   - **Erwartet:** Warnung &bdquo;Default-Glasbestellempfaenger nicht konfiguriert&ldquo;; kein Versand.
+2. `DefaultGlasbestellempfaengerId` auf eine Glas-Empfaenger-Gruppe setzen, `Sync:WarehouseRequisitionEmailEnabled=true`.
+   Denselben (oder einen neuen) Glas-Draft abschicken.
+   - **Erwartet:** Mail geht an die **Glas**-Empfaenger-Gruppe; Betreff enthaelt
+     &bdquo;Glasbestellung #&hellip;&ldquo;. Gegenprobe Lager-Bestellung → Betreff
+     &bdquo;Lagerbestellung #&hellip;&ldquo; an den Lager-Empfaenger.
+
+### TS-46.5 Lager: Eingehende Listen — Reiter-Trennung
+**Vorbedingung:** Je eine abgeschickte Lager- und Glas-Bestellung; Benutzer mit Lager-Verarbeitung.
+1. `/WarehousePicking` oeffnen.
+   - **Erwartet:** Reiter **Lager**/**Glas** trennen die eingehenden Listen; jede Liste erscheint
+     nur unter ihrem Typ.
+2. Auf dem **Glas**-Reiter eine Glas-Liste oeffnen und **Abschliessen** (oder **Stornieren**).
+   - **Erwartet:** Nach dem Zurueckspringen ist man weiterhin auf dem **Glas**-Reiter (Typ-Erhalt).
+
+### TS-46.6 Fehlteile (Werker + Lager) — Typ × Status
+**Vorbedingung:** Glas- und Lager-Bestellungen mit Fehlteil-Positionen in verschiedenen
+Status (`WillBeRestocked`, `NoRestock`).
+1. `/MissingParts` (Werker) oeffnen.
+   - **Erwartet:** Aeussere Typ-Reiter (Lager/Glas) × innere Status-Reiter; die Badge-Counts stimmen
+     je Kombination (nur die zum gewaehlten Typ passenden Fehlteile werden gezaehlt/gezeigt).
+2. `/MissingPartsLager` (Lager) oeffnen.
+   - **Erwartet:** Dieselbe Typ×Status-Aufteilung mit korrekten Counts.
+
+### TS-46.7 Rollen-Matrix
+1. Benutzer nur mit Rolle `lagerbestellung`.
+   - **Erwartet:** In &bdquo;Lagerbestellungen&ldquo; **kein** Glas-Reiter; nur Lager sichtbar.
+2. Benutzer nur mit Rolle `glasbestellung`.
+   - **Erwartet:** Nur der **Glas**-Reiter; das Menue zeigt **kein** &bdquo;Bedarfsmeldungen&ldquo;.
+3. Benutzer mit `picking` bzw. `stock`.
+   - **Erwartet:** **Beide** Reiter (Lager + Glas) sichtbar.
+
+### TS-46.8 Bestandsbestellungen aus der Zeit vor dem Update
+**Vorbedingung:** Migration 77 (`AddWarehouseRequisitionTypeAndGlasRole`) wurde eingespielt.
+1. Eine Bestellung, die **vor** dem Update angelegt wurde, oeffnen bzw. in der Liste suchen.
+   - **Erwartet:** Sie hat Typ **Lager** (Migrations-Default `Type=1`) und erscheint im
+     **Lager**-Reiter — nicht im Glas-Reiter.
+
+## Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0)
+
+**Vorbedingung global:** Der Windows-Service (`IDEALAKEWMSService`) laeuft; der ProductionOrders-Sync
+ist aktiv (`Sync:ProductionOrdersEnabled=true`). SMTP ist konfiguriert.
+
+### TS-47.1 ProductionOrders-Sync gegen IDEAL-Schema-DB (515-Fix)
+**Vorbedingung:** Eine WMS-DB, deren Tabelle `ProductionOrders` die Spalte `SubOrderNumber`
+mit Constraint **NOT NULL** hat (IDEAL-Schema). Der Nicht-IDEAL-Service (windows-auth/glas-Linie)
+laeuft gegen genau diese DB.
+1. Service-Sync ausloesen (Service neu starten oder den naechsten Sync-Zyklus abwarten).
+   - **Erwartet:** KEIN Fehler **515** („Cannot insert the value NULL into column 'SubOrderNumber'") mehr.
+2. Neue FAs pruefen: `SELECT OrderNumber, SubOrderNumber FROM ProductionOrders WHERE Id=<neu>`.
+   - **Erwartet:** Neue FAs werden angelegt; `SubOrderNumber = OrderNumber`.
+3. Aktivitaets-Protokoll (`/SyncLog`) oeffnen.
+   - **Erwartet:** Der ProductionOrders-Lauf zeigt Erfolg (neu/aktualisiert-Counts, kein Fehler).
+   - **Gegenprobe:** Gegen eine DB **ohne** `SubOrderNumber`-Spalte laeuft der Sync weiterhin fehlerfrei
+     (der `COL_LENGTH`-Check laesst die Spalte im Upsert dann weg).
+
+### TS-47.2 Sync-Resilienz — ein Fehler stoppt die anderen nicht
+**Vorbedingung:** Ein Sync-Schritt wird gezielt zum Scheitern gebracht, z. B. die
+ProductionOrders-Quell-View temporaer unerreichbar machen (Verbindung/Rechte entziehen), waehrend
+Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
+1. Einen vollen Sync-Zyklus laufen lassen.
+   - **Erwartet:** Log/Aktivitaets-Protokoll zeigt den **ProductionOrders-Fehler**.
+2. Die nachfolgenden Sync-Schritte im **selben Zyklus** pruefen (Artikel/OSEON/BOM …).
+   - **Erwartet:** Sie laufen weiter und melden ihre eigenen Ergebnisse (frueher: ein Fehler
+     im ProductionOrders-Sync stoppte alle Folge-Syncs des Zyklus).
+
+### TS-47.3 Fehlermail bei Sync-Fehler
+**Vorbedingung:** `ErrorNotification:Enabled=true`, gueltige `ErrorNotification:Recipients`
+(mind. eine Adresse), SMTP konfiguriert.
+1. Einen Sync-Fehler ausloesen (z. B. Quell-View wie in TS-47.2 unerreichbar).
+   - **Erwartet:** Eine E-Mail mit Betreff **„[IDEAL-AKE-WMS] Sync-Fehler: &lt;Schritt&gt;"** trifft bei
+     den Empfaengern ein. Inhalt enthaelt: betroffener **Schritt**, **Zeitpunkt**, **Maschine**,
+     **Version** sowie **Fehlermeldung + Stacktrace**.
+2. **Negativ a):** `ErrorNotification:Enabled=false` setzen und denselben Fehler ausloesen.
+   - **Erwartet:** **KEINE** Mail wird gesendet (der Sync-Fehler wird weiterhin protokolliert).
+3. **Negativ b):** `Enabled=true`, aber `Recipients` leer.
+   - **Erwartet:** **KEINE** Mail wird gesendet; der Notifier wirft **keinen** Fehler
+     (Sync-Zyklus laeuft unbeeintraechtigt weiter).
+
+---
+
+## Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0)
+
+**Vorbedingung global:** App laeuft; ein Admin kann Benutzer + Rollen zuweisen.
+
+### TS-48.1 `stock_read` sieht nur Bestände + Bewegungshistorie (read-only)
+**Vorbedingung:** Ein Benutzer, dem **NUR** die Rolle `stock_read` zugewiesen ist (keine weitere Rolle).
+1. Als dieser Benutzer einloggen und das Hauptmenue oeffnen.
+   - **Erwartet:** Das Dropdown **„Lager"** ist sichtbar und enthaelt **ausschliesslich** die Eintraege
+     **„Bestände"** und **„Bewegungshistorie"**. **KEINE** Eintraege „Einbuchung", „Ausbuchung",
+     „Umbuchung", „Lagerplatz ausbuchen", „Lagerplatz umbuchen" und kein Divider davor.
+2. „Bestände" oeffnen (`/StockOverview`) und „Bewegungshistorie" oeffnen (`/StockMovements`).
+   - **Erwartet:** Beide Seiten oeffnen sich read-only (Anzeige/Filter, keine Buchungs-Bedienelemente).
+3. **Negativ (Direktaufruf Schreib-URLs):** Nacheinander `/StockMovements/Inbound`,
+   `/StockMovements/Outbound`, `/StockMovements/OutboundAll` direkt aufrufen.
+   - **Erwartet:** Jeweils **AccessDenied** (kein Zugriff — die Schreib-Actions tragen `[RequireStockAccess]`
+     bzw. `[RequireStockKeyUserAccess]`).
+4. **Gegenprobe (unveraendert):** Als `admin`, `stock`, `stock_keyuser` bzw. `picking` einloggen.
+   - **Erwartet:** Das „Lager"-Dropdown zeigt weiterhin **alle** Eintraege (Ein-/Aus-/Umbuchung,
+     Bestände, Bewegungshistorie, Lagerplatz-Sonderaktionen bei `stock_keyuser`/`picking`/`admin`);
+     Buchungen funktionieren wie bisher.
+
+### TS-48.2 FA-Liste + read-only Stückliste fuer `vorbau`
+**Vorbedingung:** `FaCompletionAktiv=true`; ein Benutzer mit **nur** der Rolle `vorbau`.
+1. Als dieser Benutzer einloggen und das Menue **„Fertigungsaufträge"** oeffnen.
+   - **Erwartet:** Der Eintrag **„FA-Liste"** ist sichtbar; die FA-Liste (`/ProductionOrders`) oeffnet sich.
+2. In einer FA-Zeile den **Stückliste-Button** anklicken.
+   - **Erwartet:** Die read-only Stückliste `FaWorklist/Bom` oeffnet sich — **keine**
+     Kommissionier- oder Erledigt-Bedienelemente (rein lesend, Druck moeglich).
+3. **Gegenprobe Picker:** Als Benutzer mit Rolle `picking` einloggen und den Stückliste-Button oeffnen.
+   - **Erwartet:** Es oeffnet sich weiterhin `Picking/Bom` (Picker-Variante), nicht die Vorbau-Sicht.
+
+## Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0)
+
+**Feature:** Artikel haben einen Hauptlagerplatz. Wert primär aus Sage (dann gesperrt), sonst in der App setzbar. In allen Bestand-je-Lagerplatz-Anzeigen steht der Hauptlagerplatz zuerst; Bestandsübersicht zeigt ein ⭐-Badge.
+
+### 49.1 Manuellen Hauptlagerplatz setzen (Sage liefert keinen)
+**Vorbedingung:** Rolle admin oder masterdata. Ein Artikel ohne Sage-Hauptlagerplatz (`SagePrimaryStorageLocation` leer). Mindestens zwei aktive, nicht-Wagen-Lagerplätze existieren.
+1. Stammdaten → Artikel → Artikel bearbeiten öffnen.
+2. Feld **Hauptlagerplatz** ist ein editierbares Dropdown mit Leer-Option „—".
+3. Einen Lagerplatz wählen, Speichern.
+**Erwartet:** Erfolgsmeldung „Artikel gespeichert."; nach erneutem Öffnen ist der gewählte Lagerplatz vorausgewählt.
+
+### 49.2 Sage-Lock (Hauptlagerplatz aus Sage gesperrt)
+**Vorbedingung:** Ein Artikel, bei dem `SagePrimaryStorageLocation` gesetzt ist (nach einem Artikel-Sync mit gepflegtem `KHKArtikel.PlatzID`).
+1. Artikel bearbeiten öffnen.
+**Erwartet:** Das Hauptlagerplatz-Dropdown ist **disabled**; darunter eine blaue Info-Box „Hauptlagerplatz aus Sage übernommen (gesperrt): <Code>". Ein Änderungsversuch (z. B. per Browser-DevTools den Hidden-Wert ändern und posten) darf den Wert NICHT ändern — der Server ignoriert die eingehende Id.
+
+### 49.3 Sortierung „Hauptlagerplatz zuerst" in der Bestandsübersicht
+**Vorbedingung:** Ein Artikel mit Bestand auf mindestens zwei Lagerplätzen; Hauptlagerplatz = derjenige mit der ALPHABETISCH späteren/kleineren Menge (bewusst nicht der „natürliche" erste).
+1. Bestand → Artikelbestände öffnen, nach dem Artikel filtern.
+**Erwartet:** Die Zeile des Hauptlagerplatzes steht je Artikel ganz oben, unabhängig von Code-Alphabet und Menge; sie trägt ein gelbes Badge „★ Haupt". Die übrigen Lagerplatz-Zeilen folgen nach Code sortiert (kein Badge).
+
+### 49.4 Sortierung im Kommissionier-Quellvorschlag
+**Vorbedingung:** Ein FA mit einem Bauteil, das Bestand auf Hauptlagerplatz (buchbar, Menge > 0) und einem weiteren buchbaren Lagerplatz mit HÖHERER Menge hat.
+1. Kommissionierung → Stückliste des FA öffnen.
+**Erwartet:** Der vorgeschlagene Quell-Lagerplatz für dieses Bauteil ist der **Hauptlagerplatz** (nicht der mit der höchsten Menge). Im Quell-Dropdown (Suche) steht der Hauptlagerplatz an erster Stelle. Hat der Hauptlagerplatz keinen buchbaren Bestand, greift der bisherige Fallback (höchste Menge), sonst NAN.
+
+### 49.5 Sortierung in „Lager: Fehlteile"
+**Vorbedingung:** Ein Fehlteil-Item, dessen Artikel Bestand auf Hauptlagerplatz (kleinere Menge) + weiterem Lagerplatz (größere Menge) hat.
+1. Lager → Lager: Fehlteile öffnen.
+**Erwartet:** In der Lagerplatz-Spalte des Items steht der Hauptlagerplatz zuerst, auch bei geringerer Menge.
+
+### 49.6 Fehlender WMS-Lagerplatz (Negativfall)
+**Vorbedingung:** Sage liefert einen Hauptlagerplatz-Code (`Kurzbezeichnung`), zu dem KEIN WMS-`StorageLocation` mit passendem `Code` existiert.
+1. Artikel-Sync laufen lassen (Windows-Service).
+**Erwartet:** Der Artikel behält den Sage-Rohcode sichtbar + gesperrt (49.2), `PrimaryStorageLocationId` bleibt leer, keine Sortier-Priorisierung. Im Aktivitäts-Protokoll (Service „Article") ist der Count `hauptlagerplatz_fehlt` > 0; **zusätzlich erscheint im selben Article-Lauf je fehlendem Lagerplatz eine Warn-Detailzeile** „Hauptlagerplatz '<Code>' fuer Artikel <Nr> nicht als WMS-Lagerplatz gefunden — FK bleibt leer" (gecappt auf max. 100 Zeilen je Lauf; der `hauptlagerplatz_fehlt`-Count zählt aber ALLE). Im Service-Log (Serilog-Datei) steht dieselbe Warnung für alle (ungecappt). Nach Anlegen/Sync des fehlenden Lagerplatzes matcht der FK beim nächsten Lauf.
+
+---
+
+## Kapitel 50: FA-Reconciliation (verwaiste FAs stornieren) (v1.25.0)
+
+**Vorbedingungen:**
+- WMS-DB mit mindestens einer offenen FA (`IsDone=0`, `IsCancelled=0`), deren `OrderNumber` in der Sage-View `vw_AKE_Kommissionierung_WAListe` NICHT (mehr) vorkommt (= verwaiste FA).
+- Service läuft, `Sync:ProductionOrdersEnabled=true`.
+- DB-Backup vor dem ersten scharfen Lauf.
+
+> **Hinweis Aktivitäts-Protokoll:** Die Reconcile läuft im ProductionOrder-Sync, erscheint aber als **eigener** Protokoll-Eintrag mit Service-Namen **`ProductionOrderReconciliation`** (im Protokoll-Filter-Dropdown auswählbar) — getrennt vom `ProductionOrder`-Eintrag (der nur noch `neu`/`aktualisiert` zählt). Die Counts `storniert`/`reaktiviert` stehen ausschließlich im `ProductionOrderReconciliation`-Eintrag.
+
+### 1. DryRun-Kontroll-Lauf (Flag AUS — nichts wird geschrieben)
+1. `Sync:ProductionOrderReconcileEnabled = false` (Default), `WorkerSettings:SyncDryRun = false`.
+2. Sync-Zyklus auslösen (oder Intervall abwarten).
+3. **Erwartet:** Es entsteht ein `ProductionOrderReconciliation`-Eintrag mit einer Info-Detailzeile „Deaktiviert (Sync:ProductionOrderReconcileEnabled=false) — Plan: N Storno-Kandidaten, M Reaktivierungen — nichts geschrieben" und Counts `storniert=0, reaktiviert=0, storno-kandidaten=N`. In der DB ist KEINE FA storniert. Der Admin liest N ab und prüft Plausibilität.
+
+### 2. Scharfschalten — verwaiste FA wird storniert
+1. `Sync:ProductionOrderReconcileEnabled = true`. `Sync:ReconcileMaxCancelPerRun` ausreichend hoch (Default 100).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** Die verwaiste FA hat `IsCancelled=1`, `CancelledAt`=jetzt (UTC), `CancelledBy='System-Reconcile'`. Der `ProductionOrderReconciliation`-Eintrag zeigt Counts `storniert=N` **und je storniertem FA eine Info-Detailzeile** „FA <Nr> storniert (in Sage nicht mehr vorhanden)" (Reference = FA-Nummer). Die FA verschwindet aus FA-Liste, Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste, Picking-Worklist und aus dem BOM-Cache-Fenster.
+4. FA-Liste mit „Erledigte anzeigen" öffnen → die FA erscheint mit rotem Badge **„In Sage gelöscht"** (nicht „erledigt").
+
+### 3. Reaktivierung — FA taucht wieder in Sage auf
+1. Die stornierte FA wieder in der Sage-View verfügbar machen (Testdaten).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** `IsCancelled=0`, `CancelledAt=NULL`, `CancelledBy=NULL`. Der `ProductionOrderReconciliation`-Eintrag zeigt Counts `reaktiviert=1` **und eine Info-Detailzeile** „FA <Nr> reaktiviert (wieder in Sage)". FA ist wieder in den offenen Sichten.
+
+### 4. Guard — leerer Sage-Read storniert NICHTS
+1. Sage-View liefert (simuliert) 0 Zeilen (z. B. View temporär leer / Verbindungsproblem am Read).
+2. Sync-Zyklus mit Flag AN auslösen.
+3. **Erwartet:** KEINE FA wird storniert. Im `ProductionOrderReconciliation`-Eintrag steht eine Warn-Detailzeile „Uebersprungen: Sage-Read leer". Keine Fehlermail (Guard ist kein Cap).
+
+### 5. Cap — zu viele Storno-Kandidaten → kein Storno + Fehlermail
+1. `Sync:ReconcileMaxCancelPerRun = 1`. Mehr als 1 verwaiste offene FA vorhanden.
+2. `ErrorNotification:Enabled=true` + `ErrorNotification:Recipients` gesetzt.
+3. Sync-Zyklus mit Flag AN auslösen.
+4. **Erwartet:** KEINE FA storniert (Cap überschritten). Im `ProductionOrderReconciliation`-Eintrag steht eine Warn-Detailzeile „Uebersprungen: Cap ueberschritten (N > 1)". Fehlermail an die Empfänger mit Sage-Count + Cap. Etwaige Reaktivierungen im selben Lauf werden trotzdem geschrieben (mit je einer „FA <Nr> reaktiviert"-Detailzeile).
+
+**Negativ/Regression:**
+- Erledigte FAs (`IsDone=1`), die nicht in Sage sind, werden NIE storniert (nur offene).
+- Bereits stornierte FAs, die weiterhin fehlen, werden nicht erneut storniert (kein Doppel-Storno, Counts bleiben 0).
+
+---
+
+## Kapitel 51: Typisierte, vollständige Service-Einstellungen (v1.25.0)
+
+**Vorbedingung:** Als `admin` eingeloggt. Windows-Dienst läuft (für die Wirkungs-Checks).
+
+### TS-51.1 — Vollständigkeit + Typisierung
+1. `/ServiceSettings` öffnen.
+2. **Erwartet:** Jede Einstellung erscheint typgerecht: Bool-Keys (z. B. `Sync:BomCacheEnabled`, `WorkerSettings:SyncDryRun`, `ErrorNotification:Enabled`) als **Aktiv/Inaktiv**-Schalter; Int-Keys (z. B. `Sync:BomCacheWeeks`, `WorkerSettings:SyncIntervalMinutes`) als **Zahlenfeld**; String-Keys (z. B. `Sync:FeiertagCountryCode`, `ErrorNotification:Recipients`) als **Textfeld/Textarea**. Alle Katalog-Keys sind sichtbar, nach Kategorie gruppiert (Sync, BOM-Cache, FA-Vervollstaendigung, Lackierteile, BDE, Feiertage, Worker, Fehlermail, Benachrichtigungen).
+
+### TS-51.2 — Bool-Toggle speichern + Wirkung (nächster Sync)
+1. `Sync:ProductionOrderReconcileEnabled` von Inaktiv auf **Aktiv** schalten → „Einstellungen speichern".
+2. **Erwartet:** Erfolgs-Alert; nach Reload steht der Toggle auf Aktiv. In DB `[ServiceSettings]` Key = `Sync:ProductionOrderReconcileEnabled`, Value = `true` (NICHT `1`).
+3. Nächsten Sync-Zyklus abwarten → im Aktivitäts-Protokoll erscheint der `ProductionOrderReconciliation`-Lauf scharf (nicht mehr „Deaktiviert").
+
+### TS-51.3 — Int-Feld speichern + Wirkung
+1. `WorkerSettings:SyncIntervalMinutes` von `15` auf `5` setzen → speichern.
+2. **Erwartet:** Nach Reload steht `5`. Der Dienst taktet ab dem nächsten Loop mit 5 Minuten (Manual-UAT: wertabhängiger Sync-Pfad — nur über die DB-Lesestelle beobachtbar, nicht InMemory getestet).
+
+### TS-51.4 — Int-Validierung (Negativfall)
+1. In `Sync:BomCacheWeeks` `abc` eintippen (Zahlenfeld erlaubt das ggf. nur per Paste/DevTools — alternativ ein anderes Int-Feld leeren und Buchstaben einfügen) → speichern.
+2. **Erwartet:** KEIN Erfolgs-Redirect; oben ein Warn-Alert „'Sync:BomCacheWeeks' erwartet eine ganze Zahl". Der Wert in der DB bleibt unverändert; gültige Felder im selben Submit wurden gespeichert.
+
+### TS-51.5 — String/Textarea (Empfänger)
+1. `ErrorNotification:Recipients` = `a@ake.at, b@ake.at` speichern.
+2. **Erwartet:** Nach Reload steht der Komma-String im Feld. Bei einem provozierten Sync-Fehler (und `ErrorNotification:Enabled` = Aktiv) geht eine Fehlermail an beide Adressen (Split auf Komma). (Wertabhängiger Mail-Pfad = Manual-UAT.)
+
+### TS-51.6 — Reconcile scharfschalten via Toggle
+1. `Sync:ProductionOrderReconcileEnabled` = Aktiv (TS-51.2) UND eine verwaiste offene FA vorhanden (siehe Kap. 50).
+2. Sync-Zyklus abwarten.
+3. **Erwartet:** Die FA wird storniert (Wirkung der DB-Einstellung greift ohne appsettings-Änderung). Das beweist: der Bool-Wert wird vom Service aus der DB gelesen, nicht aus appsettings.
+
+### TS-51.7 — DB gewinnt über appsettings
+1. In `appsettings.json` des Dienstes `WorkerSettings:SyncIntervalMinutes` = `99` setzen, aber in `/ServiceSettings` `15` lassen.
+2. **Erwartet:** Der Dienst taktet mit **15** (DB-Wert), nicht 99 — die appsettings-Zahl wird ignoriert.
+
+### TS-51.8 — Sync-Block-Gate via Toggle scharfschalten (jetzt ALLE Gates DB-first)
+1. Einen bisher deaktivierten Sync-Schalter in `/ServiceSettings` auf **Aktiv** setzen — z. B. `Sync:OseonTrackingEnabled` (Default false) — und speichern. In `appsettings.json` diesen Wert unverändert auf `false` lassen.
+2. Nächsten Sync-Zyklus abwarten.
+3. **Erwartet:** Der OSEON-Tracking-Sync läuft (Aktivitäts-Protokoll-Eintrag erscheint), obwohl `appsettings.json` `false` sagt — der DB-Toggle greift. Das beweist: seit v1.25.0-Followup lesen **alle** `Sync:*Enabled`-Block-Gates (nicht nur die 8 Spec-Keys) ihren Wert DB-first. (Wertabhängiger Sync-Pfad = Manual-UAT.)
+4. **Negativ-Fall:** Denselben Schalter wieder auf **Inaktiv** setzen → nach dem nächsten Zyklus läuft der Sync nicht mehr, auch wenn `appsettings.json` `true` stünde.
+
+**Deploy-Checkliste (WICHTIG):** Nach dem Deploy ist die `/ServiceSettings`-Seite die **EINZIGE** Steuerung für alle Sync-/Worker-/Feiertag-/Fehlermail-Einstellungen. Die Blöcke `Sync:*` (inkl. **aller** `*Enabled`-Block-Gates), `WorkerSettings:*`, `ErrorNotification:*` und die `Feiertag`-Keys aus `appsettings.json` werden vom Dienst **nicht mehr gelesen** — die DB gewinnt vollständig. `ConnectionStrings:*` + `MailSettings:*` (SMTP) bleiben `appsettings.json`.
+
+→ **Jeden gewünschten Sync-Schalter nach dem Deploy einmalig in der GUI (`/ServiceSettings`) auf `Aktiv` setzen** — z. B. OSEON-Tracking (`Sync:OseonTrackingEnabled`), OSEON-Artikelkategorie (`Sync:OseonArticleCategoryEnabled`), enaio (`Sync:EnaioDmsEnabled`), Bedarfsmeldungs-Mail (`Sync:PartRequisitionEmailEnabled`), Lagerbestellungs-Mail (`Sync:WarehouseRequisitionEmailEnabled`), Lagerplätze (`Sync:LagerplaetzeEnabled`), Lagerbestand (`Sync:LagerbestandEnabled`), Feiertags-Sync (`Sync:FeiertagSyncEnabled`), FA-Arbeitsgang-Erkennung (`Sync:FaWorkStepDetectionEnabled`), BOM-Cache (`Sync:BomCacheEnabled`), Lackierteil-Erkennung (`Sync:CoatingDetectionEnabled`), FA-Reconcile (`Sync:ProductionOrderReconcileEnabled`) — **sonst laufen sie nach dem Deploy NICHT**, egal was in `appsettings.json` steht. Ebenso `ErrorNotification:Enabled` + `ErrorNotification:Recipients` kontrollieren (sonst gehen keine Fehlermails raus). `Sync:ProductionOrdersEnabled` + `Sync:ArticlesEnabled` haben Default `true` und laufen auch ohne DB-Eintrag weiter (Fail-Safe).
+
+**Test-Coverage-Hinweis:** Katalog-Konsistenz + Drift-Guard (`ServiceSettingDefinitionsTests`) und der Speicher-Merge inkl. Int-Validierung (`ServiceSettingsControllerTests`) sind automatisiert grün. Für den `SyncWorker` sichern `SyncWorkerTests` die **Fail-Safe-Invarianten** ab (ohne erreichbare DB laufen die true-Default-Gates `ProductionOrders`/`Articles` weiter, ein IConfiguration-false-Seed schaltet sie nicht mehr ab, der Worker crasht nie). Die **wertabhängigen** Sync-Pfade (tatsächliches Worker-Takten mit dem DB-Wert, DB-getriebenes Scharfschalten der `Sync:*Enabled`-Block-Gates, Fehlermail-Versand an die DB-Empfänger, Reconcile-Scharfschaltung) laufen über DB-Lesestellen im laufenden Dienst und sind **Manual-UAT** (nicht InMemory testbar) — siehe TS-51.2/51.3/51.5/51.6/51.8.
+
+---
+
+## Kapitel 52: Lagerbestellung aus der Stückliste + Master-Schalter (v1.25.0)
+
+### Vorbedingungen
+- `LagerbestellungAktiv` = true (Einstellungen → Bestellungen).
+- `GlasArtikelgruppen` (z. B. `GLAS`), `GemeinsameArtikelgruppen` (`EUZ`), `DefaultLagerbestellempfaengerId`, `DefaultGlasbestellempfaengerId` konfiguriert.
+- Test-User A: Rolle `picking` (darf Lager UND Glas ordern) + mindestens eine Werkbank zugeordnet.
+- Test-User B: nur Rolle `vorbau`, KEIN Bestell-Recht.
+- Test-User C: nur Rolle `lagerbestellung` (Lager, nicht Glas).
+- Eine offene FA mit Stückliste, darunter ein Lager-Artikel (z. B. Gruppe 940), ein Glas-Artikel (Gruppe GLAS), ein EUZ-Artikel.
+
+### Szenario 1 — Button-Sichtbarkeit je Rolle
+1. Als User A: Kommissionierung → FA → Stückliste öffnen.
+   - Erwartet: Spalte „Lagerbestellung" mit Checkbox + Button je Nicht-Baugruppen-Zeile; Baugruppen-Zeilen leer.
+2. Als User B (nur vorbau): FA-Abarbeitungsliste → Stückliste (read-only) öffnen.
+   - Erwartet: KEIN Lagerbestellung-Button (kein Bestell-Recht), obwohl read-only-BOM.
+3. Als User A: dieselbe read-only-BOM aus der Abarbeitungsliste (falls Rolle vorhanden) — Button sichtbar (unabhängig von ReadOnly).
+
+### Szenario 2 — Einzelbestellung Lager (neuer Draft)
+1. Als User A ohne offenen Lager-Draft: Lager-Artikel-Button klicken → Modal zeigt Artikel + editierbare Menge (BOM-Menge vorbelegt).
+2. Menge bestätigen → „Zur Bestellung hinzufuegen".
+   - Erwartet: Weiterleitung auf `/WarehouseRequisitions/Edit/{id}`, neuer Lager-Draft mit der Position.
+
+### Szenario 3 — Zweite Position → selber Draft
+1. Zweiten Lager-Artikel per Einzel-Button hinzufügen.
+   - Erwartet: KEIN neuer Draft — dieselbe offene Bestellung, zweite Position.
+
+### Szenario 4 — Glas-Ableitung
+1. Glas-Artikel (Gruppe GLAS) per Button bestellen.
+   - Erwartet: landet in einem GLAS-Draft (eigener Typ), Weiterleitung auf dessen Edit.
+2. EUZ-Artikel bestellen → landet im Lager-Draft (gemeinsame Gruppe → Lager).
+
+### Szenario 5 — Bulk (gemischt)
+1. Lager-Artikel + Glas-Artikel markieren (Checkboxen) → „Lagerbestellung (Auswahl)" erscheint.
+2. Bulk-Button → Modal listet beide mit Mengen → bestätigen.
+   - Erwartet: EIN Lager-Draft + EIN Glas-Draft, Positionen korrekt verteilt; Weiterleitung auf `/WarehouseRequisitions` (Übersicht) + Meldung „Zu Lager: 1, zu Glas: 1 hinzugefügt".
+
+### Szenario 6 — Rechte-Fehler / Übersprungen
+1. Als User C (nur lagerbestellung, kein Glas-Recht): Glas-Artikel per Button bestellen.
+   - Erwartet: Fehlermeldung „Nichts hinzugefuegt … Keine Glasbestell-Berechtigung", nichts angelegt.
+2. Bulk mit Lager-Artikel + Glas-Artikel als User C.
+   - Erwartet: Lager-Artikel hinzugefügt, Glas-Artikel in „Uebersprungen".
+
+### Szenario 7 — Master-Schalter aus
+1. Einstellungen → `LagerbestellungAktiv` = false → speichern.
+2. Menü prüfen: „Lagerbestellungen", „Meine Fehlteile", „Lager: Eingehende Listen", „Lager: Fehlteile" sind weg; „Bedarfsmeldungen" nur sichtbar wenn `BestellungenAktiv` an.
+3. Direkter Aufruf `/WarehouseRequisitions` → Redirect Home + Warnhinweis.
+4. Stückliste öffnen → KEIN Lagerbestellung-Button/-Spalte.
+5. `LagerbestellungAktiv` wieder auf true → alles wieder sichtbar.
+
+### Stückliste-UX: Spalten umsortieren + Sticky-Auswahlleiste (v1.25.0)
+
+#### TS-52.1 — Spalten in der Stückliste umsortieren
+1. Als User A: Kommissionierung → FA → Stückliste öffnen.
+2. Zahnrad „Spalten konfigurieren" öffnen → Spalte „Lagerbestellung" per Drag an die 2. Position ziehen → speichern/schließen.
+   - Erwartet: „Lagerbestellung" steht jetzt an 2. Stelle; „Auswahl/Pick" und „Position" bleiben als Anker ganz vorne (nicht verschiebbar).
+3. Seite neu laden (F5).
+   - Erwartet: Die geänderte Spaltenreihenfolge bleibt erhalten.
+4. Eine Baugruppen-Zeile auf-/zuklappen.
+   - Erwartet: Die Baum-Hierarchie funktioniert unverändert; die Umsortierung hat die Einrückung/Verschachtelung nicht zerstört (es werden nur die Zellen je Zeile umgeordnet).
+5. Read-only Vorbau-Stückliste (aus der FA-Abarbeitungsliste) öffnen → dieselbe Umsortierung ist ebenfalls möglich und bleibt nach Reload.
+
+#### TS-52.2 — Sticky-Auswahlleiste in der Stückliste
+1. Als User A in der Kommissionierungs-Stückliste: mehrere Lagerbestellungs-Checkboxen (`.warehouse-select`) markieren.
+   - Erwartet: Oben klebende Auswahlleiste erscheint, zeigt „N markiert" und den Button „Lagerbestellung (Auswahl)".
+2. In der Stückliste nach unten scrollen.
+   - Erwartet: Die Auswahlleiste bleibt oben sichtbar (sticky), Zähler + Button bleiben erreichbar.
+3. Alle Häkchen wieder entfernen.
+   - Erwartet: Die Auswahlleiste verschwindet (bzw. zeigt keine Aktion mehr).
+4. Read-only Vorbau-Stückliste: Lagerbestellungs-Zeilen markieren.
+   - Erwartet: Sticky-Leiste + „Lagerbestellung (Auswahl)"-Button funktionieren ebenso (read-only-sicher, kein JS-Fehler durch fehlende Bedarfsmeldungs-Checkboxen).
+5. Bei aktivierter Bedarfsmeldung (`BestellungenAktiv` = true, `!ReadOnly`): sowohl Bedarfsmeldungs- (`.picking-checkbox`) als auch Lagerbestellungs-Zeilen markieren.
+   - Erwartet: Die Sticky-Leiste zeigt beide Abschnitte gleichzeitig — je Auswahl-Set eigener Zähler + eigener Sammel-Button (Bedarfsmeldung UND Lagerbestellung).
+
+---
+
+## Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0)
+
+**Vorbedingungen:**
+- Service läuft, `Sync:LagerbestandEnabled = true` (in `/ServiceSettings`), `WorkerSettings:SyncDryRun = false`.
+- Mindestens ein Artikel mit WMS-Bestand > 0 auf einem **Sage**-Lagerplatz (`Source=Sage`, `IsActive=true`), dessen `(Artikel, Lagerplatz)`-Paar in der Sage-Bestand-Quelle NICHT (mehr) vorkommt (Sage liefert 0-Bestand-Zeilen gar nicht — die Zeile verschwindet).
+
+> **Hinweis Aktivitäts-Protokoll:** Das Nullsetzen läuft im bestehenden `Lagerbestand`-Sync (kein eigener Protokoll-Eintrag). Der Counts-Schlüssel `nullgesetzt` zählt die auf 0 gesetzten Paare.
+
+### 1. Verwaistes Paar wird auf 0 gesetzt
+1. Bestand für ein Sage-aktives Paar (Artikel X @ Lagerplatz Y) im WMS aufbauen (z. B. +5 Einbuchung), das in Sage 0 ist (Sage liefert die Zeile nicht).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** Eine `SageAusbuchung` über 5 wird gebucht (WMS-Bestand auf Y danach 0), Note „Sage-Korrektur: in Sage nicht mehr vorhanden -> auf 0 gesetzt (WMS war 5)". Der `Lagerbestand`-Eintrag zeigt Count `nullgesetzt=1` und eine Info-Detailzeile „Bestand auf 0 gesetzt: <ArtNr> @ <Code> (WMS war 5)".
+
+### 2. Guard — leerer Sage-Read nullt NICHTS
+1. Sage-Bestand-Quelle liefert (simuliert) 0 Zeilen.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung. Warn-Detailzeile „Nullsetzen uebersprungen: Sage-Read leer (0 Zeilen)". Keine Fehlermail (Guard ist kein Cap).
+
+### 3. Cap — zu viele Kandidaten → kein Nullsetzen + Fehlermail
+1. `Sync:LagerbestandNullsetzenMaxPerRun` niedrig setzen (z. B. 1), mehr als 1 verwaistes Paar vorhanden. `ErrorNotification:Enabled=true` + Empfänger gesetzt.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung. Warn-Detailzeile „Nullsetzen uebersprungen: Cap ueberschritten: N > 1 — kein Nullsetzen". Fehlermail an die Empfänger.
+
+### 4. Manueller/inaktiver Lagerplatz bleibt unberührt
+1. Verwaistes Paar mit WMS-Bestand > 0 auf einem `Source=Manual`-Platz ODER einem inaktiven Sage-Platz.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung für dieses Paar (nur Sage-aktive Paare werden genullt). NAN und Kommissionierwagen (Manual) sind ebenfalls ausgeschlossen.
+
+### 5. Duplikat-Paar in Sage bleibt unberührt
+1. Sage liefert dasselbe `(Artikel, Lagerplatz)`-Paar mehrfach (mehrdeutig).
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** Das Paar wird als Duplikat übersprungen (Warn „mehrfach"), aber NICHT genullt (es ist in Sage vorhanden, nur mehrdeutig — `sagePresentKeys` wird aus den Roh-Zeilen gebaut).
+
+### 6. DryRun schreibt nicht
+1. `WorkerSettings:SyncDryRun = true`, sonst wie Szenario 1.
+2. Sync-Zyklus auslösen.
+3. **Erwartet:** KEINE Nullbuchung in der DB, aber `nullgesetzt=1` im Protokoll (Simulation).
+
+**Negativ/Regression:**
+- Bestehende Bestandskorrekturen (Delta ≠ 0 für in Sage vorhandene Paare) funktionieren unverändert.
+- Netto-0-Paare (z. B. +5/−5) werden NICHT als verwaist genullt (managedStock filtert `qty != 0`).
+
+---
+
+## Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0)
+
+**Vorbedingungen:**
+- Service läuft. Die Bereinigung läuft im neuen `CleanupWorker` (24h-Takt); beim Service-Start läuft sie einmal an. Zum sofortigen Test den Service neu starten.
+- Die Aufbewahrung wird über die Service-Einstellung `Cleanup:AktivitaetsprotokollAufbewahrungTage` gesteuert (Default 180, `0` = nie löschen), Kategorie „Bereinigung" in `/ServiceSettings`.
+- Im Aktivitäts-Protokoll (`/SyncLog`) existieren Einträge mit unterschiedlichem Alter (Timestamp).
+
+> **Hinweis Aktivitäts-Protokoll:** Der Bereinigungslauf erscheint als eigener Protokoll-Eintrag mit Service-Namen `CleanupAktivitaetsprotokoll` und Count `geloescht=<N>`. Der eigene Lauf-Eintrag ist neuer als der Stichtag und wird deshalb nicht selbst gelöscht (Self-cleaning).
+
+### TS-54.1 Löschen aktiv
+1. `Cleanup:AktivitaetsprotokollAufbewahrungTage = 30` setzen. Sicherstellen, dass Protokoll-Einträge älter als 30 Tage existieren (ggf. Timestamps in der DB manipulieren).
+2. Service neu starten (bzw. einen CleanupWorker-Durchlauf abwarten).
+3. **Erwartet:** Einträge älter als 30 Tage sind weg, jüngere bleiben. Ein neuer `CleanupAktivitaetsprotokoll`-Lauf-Eintrag mit `geloescht=<N>` und Suffix „Aufbewahrung 30 Tage, Stichtag <dd.MM.yyyy>" erscheint.
+
+### TS-54.2 Deaktiviert
+1. `Cleanup:AktivitaetsprotokollAufbewahrungTage = 0` setzen.
+2. Service neu starten (bzw. Durchlauf abwarten).
+3. **Erwartet:** KEIN Löschen. KEIN `CleanupAktivitaetsprotokoll`-Eintrag (deaktiviert = still).
+
+### TS-54.3 DryRun
+1. `WorkerSettings:SyncDryRun = true`, `Cleanup:AktivitaetsprotokollAufbewahrungTage = 30`. Einträge älter als 30 Tage vorhanden.
+2. Service neu starten (bzw. Durchlauf abwarten).
+3. **Erwartet:** NICHTS gelöscht (alle Einträge bleiben). Ein `CleanupAktivitaetsprotokoll`-Lauf-Eintrag mit Suffix „(DryRun — nichts geloescht)" und `geloescht=<Kandidatenzahl>` (= Zahl der Einträge, die gelöscht würden).
+
+### TS-54.4 Editor
+1. `/ServiceSettings` öffnen.
+2. **Erwartet:** Die Kategorie „Bereinigung" zeigt das Int-Feld `Cleanup:AktivitaetsprotokollAufbewahrungTage`. Wert ändern und speichern → Wert wird persistiert (DB-first); der nächste CleanupWorker-Durchlauf nutzt den neuen Wert.
+
+**Negativ/Regression:**
+- Ein transienter DB-Fehler beim Lesen der Aufbewahrung würgt den Worker-Loop nicht ab (Default-Fallback via `GetIntSafeAsync`).
+- Ein Fehler im Bereinigungslauf stoppt den CleanupWorker-Loop nicht (resilient) und löst optional eine Fehlermail aus (bei aktivierter `ErrorNotification`).
+
+---
+
+*Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

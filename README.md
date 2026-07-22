@@ -123,6 +123,26 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 61 | `SQL/61_ExtendStorageLocationCodeTo50.sql` | StorageLocation.Code 12 -> 50 Zeichen (Sage-Codes) |
 | 62 | `SQL/62_AddUserDefaultPageSize.sql` | User.DefaultPageSize (Listen-Pagination) |
 | 63 | `SQL/63_AddWarehouseRequisitionItemNote.sql` | Lagerbestellung-Position: Notiz |
+| 64 | `SQL/64_AddIsFinalShortageToWarehouseRequisitionItems.sql` | Fehlteil-Flag (v1.18, durch 65 abgeloest) |
+| 65 | `SQL/65_ReplaceIsFinalShortageWithShortageStatus.sql` | ShortageStatus 3-State (ersetzt IsFinalShortage) |
+| 66 | `SQL/66_AddNoteEinkaufToWarehouseRequisitionItems.sql` | Lagerbestellung-Position: Notiz Einkauf |
+| 67 | `SQL/67_AddMasterDataReadRole.sql` | Rolle `masterdata_read` (Stammdaten nur lesen) |
+| 68 | `SQL/68_FaWorkStepsAndAttributes.sql` | FA-Vorbau: WorkSteps + FA-Merkmale (ersetzt AssemblyGroups) |
+| 69 | `SQL/69_SplitFaWorkStepCompletion.sql` | FaWorkStep: Split IsSpecComplete / IsCompleted |
+| 70 | `SQL/70_AddUserDefaultWorkStep.sql` | User.DefaultWorkStepId (FA-Abarbeitungsliste) |
+| 71 | `SQL/71_AddUserDefaultWorkplace.sql` | User.DefaultWorkplaceId (durch 75 abgeloest) |
+| 72 | `SQL/72_AddFaAttributeTextValue.sql` | FA-Merkmal: Freitext-Wert |
+| 73 | `SQL/73_AddWindowsUserNameDropAdGroup.sql` | Windows-Auth: User.WindowsUserName, Role.AdGroup entfernt |
+| 74 | `SQL/74_AddLagerbestellungRole.sql` | Rolle `lagerbestellung` |
+| 75 | `SQL/75_ReplaceUserDefaultWorkplaceWithWorkbenches.sql` | User.DefaultWorkbenches (Komma-Liste, ersetzt FK) |
+| 76 | `SQL/76_ReplaceFaWorkStepIsCompletedWithStatus.sql` | FA-Vorbau-Status 3-State (**daten-konvertierend — DB-Backup!**) |
+| 77 | `SQL/77_AddWarehouseRequisitionTypeAndGlasRole.sql` | Glas-Bestellung: Bestelltyp + Rolle `glasbestellung` |
+| 78 | `SQL/78_AddStockReadRole.sql` | Rolle `stock_read` (Lagerbestand nur lesen) |
+| 79 | `SQL/79_AddArticlePrimaryStorageLocation.sql` | Hauptlagerplatz am Artikel |
+| 80 | `SQL/80_AddProductionOrderCancellation.sql` | FA-Reconciliation: IsCancelled/CancelledAt/CancelledBy |
+
+> **Backup-Hinweis:** Vor dem Einspielen von 65, 76 und 80 ein DB-Backup ziehen — diese Migrationen
+> konvertieren Daten; ihr Down() verliert Detail-Status.
 
 ### 2. ConnectionStrings konfigurieren
 
@@ -162,6 +182,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Filter nach Artikel, Lagerplatz, Min/Max-Menge
 - Meldebestand-Warnung (farblich: gelb/rot)
 - 0-Bestände werden standardmäßig ausgeblendet
+- **Hauptlagerplatz zuerst (v1.25.0)**: Artikel können einen Hauptlagerplatz haben (aus Sage übernommen und dann gesperrt, sonst manuell wählbar). Überall wo Bestand pro Lagerplatz angezeigt wird, steht er zuerst; in der Bestandsübersicht mit ⭐-Badge „Haupt"
 
 ### Bewegungshistorie
 - Paginierte Übersicht aller Buchungen
@@ -209,7 +230,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 ### Barcode/QR-Scanner
 - html5-qrcode Integration für Kamera-Scan (HTTPS) und Bild-Upload
 - Unterstützte Formate: QR-Code, Code 128, Code 39, EAN-13, EAN-8, Code 93
-- Lagerplatz-Code max. 12 Zeichen für zuverlässige Barcode-Erkennung
+- Lagerplatz-Code: manuell angelegte Plätze max. 12 Zeichen für zuverlässige Barcode-Erkennung (Sage-Codes bis 50 Zeichen, seit v1.14.0)
 - **QR mit FA-Nummer**: Per AppSetting `QrMitFaNummer` — extrahiert Fertigungsauftragsnummer aus QR (3. Teil, Komma-Suffix wird abgeschnitten) und füllt das FA-Feld in Ein/Aus/Umbuchung. Bei jedem Scan wird das FA-Feld zuerst geleert.
 - **Kommissionierliste-Scan**: Gescannter Artikel wird in Stückliste gesucht und automatisch als ausgewählt markiert. Nicht gefunden → Modal mit Option "Nächsten Artikel scannen"
 
@@ -222,11 +243,20 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Wareneingang-Integration**: Bei Einbuchung werden offene Meldungen zum Artikel angezeigt und können verknüpft werden
 - **Empfängergruppen (Stammdaten)**: CRUD für Gruppen + Empfänger + Artikelgruppen-Zuordnung (N:M)
 
-### FA-Vervollstaendigung (seit v1.13.0)
-- Pflege der Vormontage-Merkmalsauspraegungen pro Fertigungsauftrag (VK/VL/VE/VT/VA)
-- Pro Gruppe: `IsApplicable` (anwendbar fuer diesen FA?) + `IsCompleted` (Pflege abgeschlossen?) + Spec-Liste (Artikel/Menge/Notiz)
-- Rolle `fa_completion` (oder `admin`)
-- **Feature-Toggle** ab v1.14.0: `FaCompletionAktiv` AppSetting (Default `false`) &mdash; Menuepunkt und Endpoint nur sichtbar/erreichbar wenn aktiviert
+### Lagerbestellungen & Glas-Bestellung (v1.14.0 – v1.25.0)
+- **Lagerbestellungen**: Produktionsmitarbeiter erfassen Bestelllisten für ihre Werkbank; das Lager kommissioniert („Lager: Eingehende Listen"), druckt und schließt mit Ist-Mengen ab. E-Mail an Empfängergruppe (`DefaultLagerbestellempfaengerId`)
+- **Glas-Bestellung (v1.25.0)**: eigener Bestelltyp mit eigenen Reitern (Lager / Glas), eigenem Empfänger (`DefaultGlasbestellempfaengerId`) und Artikelgruppen-Trennung (`GlasArtikelgruppen`, `GemeinsameArtikelgruppen`). Typ steht bei Anlage fest, keine gemischten Listen
+- **Fehlteile (v1.18/v1.19)**: Teillieferungen bleiben offen (`PartiallyDelivered`); pro Position 3-Wert-Fehlteil-Status (Restlieferung erwartet / wird nicht nachgeliefert). Werker-Sicht „Meine Fehlteile" + Lager-Sicht „Lager: Fehlteile", je mit Status-Tabs
+- **Lagerbestellung aus der Stückliste (v1.25.0)**: Button + Bulk-Button in der BOM legen Positionen direkt in den offenen Bestell-Entwurf (Typ automatisch aus der Artikelgruppe abgeleitet)
+- **Master-Schalter**: `LagerbestellungAktiv` (Default an) schaltet das komplette Modul ab
+- **Rollen**: eng abgegrenzte Rollen `lagerbestellung` und `glasbestellung` für reine Besteller (ohne Lager-/Picking-Zugriff)
+
+### FA-Vervollstaendigung & FA-Vorbau (seit v1.13.0, Umbau v1.22.0)
+- **FA-Vorbau-AG-Katalog** (`WorkSteps`, seit v1.22.0): erweiterbarer Katalog der Vorbau-Arbeitsgaenge (Standard VK/VL/VE/VT/VA). Zuordnung je FA in `FaWorkSteps` — automatisch per Erkennungs-Sync aus der Stueckliste (Suchbegriffe) oder manuell
+- **FA-Vervollstaendigung**: Werkbank, FA-Vorbau-AG und Merkmalsauspraegungen pro FA pflegen; „Vollstaendig definiert"-Schalter (`IsSpecComplete`). Rolle `fa_completion`
+- **FA-Abarbeitungsliste** (Vorbau, seit v1.22.0): arbeitsgang-zentrierte Worklist mit 3-Wert-Erledigt-Status (Offen / In Bearbeitung / Fertig, seit v1.24.0); Filter nach FA-Vorbau-AG + Werkbaenke (Komma-Liste), User-Defaults im Profil. Rolle `vorbau`
+- **FA-Merkmale**: konfigurierbare Vorbau-Merkmale (Dropdown / JA-NEIN / Freitext) mit FA-Vorbau-AG-Zuordnung, Wert einmal je FA
+- **Feature-Toggle**: `FaCompletionAktiv` AppSetting (Default `false`) — gated FA-Vervollstaendigung UND FA-Abarbeitungsliste
 
 ### Betriebsdatenerfassung (BDE)
 - **BDE-Terminal**: Scan-basierte Buchung (Personalnummer + FA/AG) mit Statusverwaltung (Ruesten, Produktion, Pause, Fortsetzen, Beenden)
@@ -236,6 +266,19 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **BDE-Stammdaten**: Operatoren, Aktivitaets-Kategorien, Terminal-Konfigurationen
 - **Admin-Korrekturen**: Buchungs-Editor, Storno mit Grund, manuelles Schliessen vergessener Buchungen
 - **Rollen**: `bde_user` (Terminal), `bde_shiftlead` (+ Stammdaten/Cockpit), `bde_admin` (+ Korrekturen/Terminals)
+
+### Windows-Anmeldung / SSO (seit v1.23.0)
+- **Auto-Login**: Domänen-Benutzer werden ohne Formular angemeldet (`WindowsAutoLoginMiddleware`, IIS Windows-Auth). Master-Schalter `WindowsAuthAktiv` (Default aus)
+- **AD-Benutzer**: Anlage über einen Picker, der die Mitglieder der `WindowsAuthBerechtigungsgruppe` live per LDAP liest; E-Mail wird aus dem AD übernommen (v1.25.0). AD-Benutzer haben `WindowsUserName` (SAM) statt Passwort
+- **UA-Gate (v1.25.0)**: Nur Windows-Desktop-Browser bekommen die stille Negotiate-Challenge; Handys/Tablets/Mac/Linux landen direkt am Formular. Button „Mit Windows anmelden" erzwingt SSO bei Bedarf
+- **Formular-Fallback**: Kein Treffer / Fehler / lokale Benutzer → normale Anmelde-Maske; Logout verhindert sofortiges Re-Login (Benutzerwechsel möglich)
+- **Voraussetzung IIS**: in-process Hosting, Windows- UND anonyme Authentifizierung aktiv
+
+### Aktivitäts-Protokoll & Bereinigung (v1.15.0 / v1.25.0)
+- Alle Hintergrund-Syncs und -Services schreiben Lifecycle- und Diagnose-Einträge in das Aktivitäts-Protokoll (Stammdaten → Aktivitäts-Protokoll, admin-only; DB-Tabelle `SyncLogs`)
+- Pro Lauf: Start-/End-Eintrag mit Counts (`neu`, `aktualisiert`, `uebersprungen`, `fehler`, …) plus Warn-/Fehler-Detailzeilen
+- **Bereinigung (v1.25.0)**: der `CleanupWorker` im Windows-Service löscht täglich Einträge, die älter als `Cleanup:AktivitaetsprotokollAufbewahrungTage` sind (Default 180, `0` = nie); eigener Protokoll-Eintrag `CleanupAktivitaetsprotokoll`
+- **Fehlermail (v1.25.0)**: Sync-Fehler lösen optional eine Fehlermail aus (`ErrorNotification:Enabled` + `Recipients`)
 
 ### Individuelle Ansichts-Einstellungen
 - **Spalten ein-/ausblenden**: Zahnrad-Icon oben rechts ueber der Tabelle oder Rechtsklick auf Spaltenkopf
@@ -256,19 +299,26 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Filter und Pagination in URL kodiert** &mdash; Browser-Back, Lesezeichen, Teilen per Link funktionieren
 
 ### Berechtigungen (Rollenbasiert)
-- **Rollenkonzept**: `Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`
-- **`admin`**: Vollzugriff (ueberspringt alle Berechtigungspruefungen)
+- **Rollenkonzept**: `Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`. Rollen werden ausschliesslich explizit pro Benutzer zugewiesen (die fruehere `Role.AdGroup`-Automatik wurde in v1.23.0 entfernt)
+- **`admin`**: Vollzugriff (ueberspringt alle Berechtigungspruefungen). Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Service-Einstellungen, Aktivitaets-Protokoll und BDE-Schichtkalender sind admin-only
+- **`masterdata`**: operative Stammdaten lesen + aendern (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger)
+- **`masterdata_read`**: dieselben 6 Stammdaten-Sichten nur lesen (seit v1.20.0)
 - **`picking`**: Kommissionierung + vollstaendiger Lagerzugriff
 - **`stock`**: Einbuchung, Ausbuchung, Bestaende
 - **`stock_keyuser`**: Lager + Lagerplatz ausbuchen/umbuchen
-- **`masterdata`**: Benutzer, Arbeitsplaetze, Einstellungen
+- **`stock_read`**: Bestaende + Bewegungshistorie nur lesen (seit v1.25.0)
 - **`tracking`**: OSEON Auftraege + Rueckmeldungen
 - **`leitstand`**: Produktionsauftraege freigeben und priorisieren
-- **`reporting`**: Betriebsdaten / BDE (Zukunft)
+- **`reporting`**: OSEON Reporting (AG-Uebersicht)
+- **`fa_completion`**: FA-Vervollstaendigung (Werkbank, FA-Vorbau-AG, Merkmale pro FA)
+- **`vorbau`**: FA-Abarbeitungsliste (FA-Vorbau-AG einsehen und abhaken, seit v1.22.0)
+- **`lagerbestellung`**: Lagerbestellungen erfassen + eigene Fehlteile (eng abgegrenzt, seit v1.23.0)
+- **`glasbestellung`**: wie `lagerbestellung`, aber fuer den Bestelltyp Glas (seit v1.25.0)
 - **`bde_user`**: Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln
 - **`bde_shiftlead`**: + BDE-Stammdaten, Buchungsliste, Cockpit
 - **`bde_admin`**: + Buchungen korrigieren/stornieren, Terminals konfigurieren
 - Dashboard zeigt nur Kacheln die der Rolle entsprechen
+- **Rollen-Uebersicht**: `/Users/RoleOverview` zeigt die vollstaendige Rollen-/Rechte-Matrix (hand-gepflegt)
 
 ### Mein Profil (Self-Service)
 - Jeder angemeldete Benutzer kann unter dem Benutzer-Dropdown → **Mein Profil** sein eigenes Passwort ändern sowie die Standard-BOM-Filter (Beschaffung, Artikelgruppe) einstellen
@@ -276,12 +326,17 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Rekursive Suche**: Checkbox-Option — wenn aktiv, werden bei aktivem Filter alle passenden BOM-Positionen angezeigt, auch wenn ihre Baugruppe eingeklappt ist
 
 ### Stammdaten
-- **Lagerplätze**: Code (max. 12 Zeichen), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite); `NAN` ist Standard-Fallback-Lagerplatz
-- **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand
-- **Anwender**: Name, Personalnummer, Passwort, Aktiv-Flag, Stammdaten-Zugriff, Standard-BOM-Filter; Standard-Admin: `admin` / leer
-- **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker
-- **Werkbänke**: Produktionsarbeitsplätze mit Bezeichnung, Halle und abweichenden Vorkommissioniertagen
-- **Einstellungen**: Key-Value AppSettings (Boolean-Werte als Toggle-Switches) + Feiertagsverwaltung
+- **Lagerplätze**: Code (manuell max. 12 Zeichen, Sage bis 50), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite); `NAN` ist Standard-Fallback-Lagerplatz; Flags `IsActive` (Sage-gesteuert) + `IstBuchbar` (user-gesteuert)
+- **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand, Hauptlagerplatz (Sage-gesperrt oder manuell, v1.25.0)
+- **Artikelkategorien + Artikelmerkmale**: EAV-Modell für Artikel-Zusatzinfos (u.a. Lackierteil-Erkennung)
+- **Benutzer**: lokal (Passwort) oder AD (WindowsUserName), Rollen-Zuweisung, Standard-BOM-Filter, Listen-Default, FA-Abarbeitungs-Defaults; Standard-Admin: `admin` / leer (admin-only)
+- **Rollen**: Berechtigungsrollen inkl. Rollen-Übersicht `/Users/RoleOverview` (admin-only)
+- **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker (admin-only)
+- **Werkbänke**: Produktionsarbeitsplätze mit Bezeichnung, Halle, abweichenden Vorkommissioniertagen und FA-Vorbau-AG-Zuordnung
+- **FA-Vorbau-AG + FA-Merkmale** (v1.22.0): Katalog der Vorbau-Arbeitsgänge (mit Erkennungs-Suchbegriffen) und der FA-Merkmale
+- **Empfänger**: Empfängergruppen + Artikelgruppen-Zuordnung für Bedarfsmeldungen/Bestellungen
+- **Einstellungen**: Key-Value AppSettings (Boolean-Werte als Toggle-Switches) + Feiertagsverwaltung (admin-only)
+- **Service-Einstellungen**: typisierter, katalog-getriebener Editor aller Service-Keys — DB-first, siehe Windows-Service-Abschnitt (admin-only)
 
 ### Hilfe
 - Integrierte Hilfe-Seite mit Anleitungen zu allen Funktionen (Footer-Link)
@@ -310,7 +365,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `CriticalThresholdPercent` | `100` | Meldebestand kritische Schwelle (%) |
 | `NegativeBuchungErlaubt` | `false` | Negative Buchungen erlauben |
 | `NegativeBuchungLagerplatz` | `NAN` | Fallback-Lagerplatz bei negativem Bestand |
-| ~~`StammdatenADGruppe`~~ | — | Ersetzt durch `Role.AdGroup` auf der Rolle 'masterdata' |
+| ~~`StammdatenADGruppe`~~ | — | Entfernt — Rollen werden seit v1.23.0 ausschliesslich pro Benutzer zugewiesen |
 | `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
 | `TeileverfolgungAktiv` | `false` | Teileverfolgungs-Modul aktiviert |
 | `OseonRueckmeldungAktiv` | `false` | Rückmeldungen an OSEON zurückschreiben |
@@ -322,6 +377,23 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
 | `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Anwenderzuweisung aktivieren |
 | `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt |
+| `FaCompletionAktiv` | `false` | FA-Vervollständigung + FA-Abarbeitungsliste aktivieren |
+| `BdeAktiv` | `false` | BDE-Modul aktivieren |
+| `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG) |
+| `BdeDefaultArbeitsgang` | (leer) | Default-AG-Name für vereinfachten BDE-Modus |
+| `BdeMehrfachBuchungProOperator` | `false` | Mitarbeiter darf mehrere parallele Buchungen haben |
+| `BdeMehrfachBuchungProArbeitsgang` | `false` | Arbeitsgang darf mehrere parallele Buchungen haben |
+| `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Parallel gestartete Buchungen gemeinsam fertigmelden |
+| `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende |
+| `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft |
+| `OseonReportingOverdueLookbackDays` | `90` | Reporting: Rückblick für Überfällig-Slice |
+| `DefaultLagerbestellempfaengerId` | (leer) | Empfängergruppe für Lagerbestellungen (leer = Submit blockt) |
+| `DefaultGlasbestellempfaengerId` | (leer) | Empfängergruppe für Glas-Bestellungen (v1.25.0) |
+| `GlasArtikelgruppen` | (leer) | Artikelgruppen-Codes für Glas-Bestellungen, kommasepariert (v1.25.0) |
+| `GemeinsameArtikelgruppen` | `EUZ` | Artikelgruppen, die in Lager- UND Glas-Bestellungen verfügbar sind (v1.25.0) |
+| `LagerbestellungAktiv` | `true` | Master-Schalter Lagerbestellungs-Modul — nur `false` sperrt (v1.25.0) |
+| `WindowsAuthAktiv` | `false` | Master-Schalter Windows-SSO Auto-Login (v1.23.0) |
+| `WindowsAuthBerechtigungsgruppe` | (leer) | AD-Gruppe (SAM) für den AD-Benutzer-Picker (v1.23.0) |
 
 ## Corporate Design
 
@@ -357,7 +429,7 @@ IdealAkeWms/
 ├── Migrations/           # EF Core Migrations
 └── SQL/
     ├── 00_FreshInstall.sql   # Komplettes Neuinstallations-Script
-    ├── 01-41_*.sql           # Einzel-Migrations fuer bestehende Installationen
+    ├── 01-80_*.sql           # Einzel-Migrations fuer bestehende Installationen
     └── AgentJobs/            # SQL Server Agent Job Scripts (Sage-Import)
 
 IdealAkeWms.Tests/
@@ -367,10 +439,12 @@ IdealAkeWms.Tests/
 
 IDEALAKEWMSService/        # Windows Service (Hintergrundprozesse)
 ├── Workers/
-│   ├── SyncWorker.cs         # Schnittstellenabgleich SAGE/OSEON → WMS (Aufträge, Artikel, Tracking, Werkbank)
-│   └── NotificationWorker.cs # Mail-Notifications (Meldebestand)
+│   ├── SyncWorker.cs         # Schnittstellenabgleich SAGE/OSEON/enaio → WMS (Aufträge, Artikel, Tracking, BOM-Cache, Lagerplätze/-bestand, Mails, …)
+│   ├── NotificationWorker.cs # Mail-Notifications (Meldebestand)
+│   ├── BdeAutoPauseWorker.cs # BDE: Auto-Pause am Schichtende (Schichtkalender)
+│   └── CleanupWorker.cs      # Bereinigung (Aktivitäts-Protokoll-Retention, erweiterbar) (v1.25.0)
 ├── Program.cs            # Startup: UseWindowsService(), DI, Serilog
-└── appsettings.json      # ConnectionStrings, MailSettings, WorkerSettings
+└── appsettings.json      # ConnectionStrings, MailSettings (alles andere DB-first via /ServiceSettings)
 ```
 
 ## Windows Service (IDEALAKEWMSService)
@@ -539,14 +613,29 @@ Standard-Pfad: relativ zum Executable, also z. B. `C:\Services\IDEALAKEWMSServic
 
 ### Funktionen
 
-**SyncWorker** (alle `WorkerSettings:SyncIntervalMinutes` Minuten, default 15):
-- Produktionsaufträge aus SAGE (`vw_AKE_Kommissionierung_WAListe`) → WMS (`ProductionOrders`) — MERGE (Insert + Update)
-- Artikel aus SAGE (`KHKPpsRessourcenPositionen` + `KHKArtikel`) → WMS (`Articles`) — nur neue
-- **OSEON-Tracking**: Produktionsaufträge + Arbeitsgänge aus OSEON-DB → WMS (`OseonProductionOrders`, `OseonWorkOperations`) — Upsert, Werkbänke auto-anlegen
-- **Werkbank-Sync**: Überträgt `ProductionWorkplaceId` von OSEON-Aufträgen auf Sage-Aufträge (Match: `OrderNumber` ↔ `CustomerOrderNumber`), nur wo noch keine Werkbank gesetzt ist
-- Konfigurierbar: `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:OseonTrackingEnabled` (in ServiceSettings-Tabelle)
-- **DryRun-Modus**: `WorkerSettings:SyncDryRun = true` → nur Logging, keine DB-Änderungen (Testphase neben SQL Agent Jobs)
-- Logs in `logs/sync/sync-YYYYMMDD.log` (30 Tage Retention)
+> **Konfiguration ist DB-first (seit v1.25.0):** Alle `Sync:*`-, `WorkerSettings:*`-, `ErrorNotification:*`-,
+> `Cleanup:*`- und Feiertag-Keys liest der Service aus der `ServiceSettings`-Tabelle (gepflegt über
+> **Stammdaten → Service-Einstellungen**, typisierter Editor, Katalog `ServiceSettingDefinitions.All`).
+> Die appsettings.json-Werte sind nur noch Default-Referenz — **nach einem Deploy jeden gewünschten
+> Sync einmalig auf der Seite aktivieren**. Nur `ConnectionStrings:*` und `MailSettings:*` bleiben
+> appsettings-only.
+
+**SyncWorker** (alle `WorkerSettings:SyncIntervalMinutes` Minuten, default 15) — jeder Block einzeln aktivierbar und resilient gekapselt (ein Fehler stoppt die anderen Syncs nicht; optional Fehlermail via `ErrorNotification:*`):
+- Produktionsaufträge aus SAGE (`vw_AKE_Kommissionierung_WAListe`) → WMS (`ProductionOrders`) — MERGE (Insert + Update); optional **FA-Reconciliation** (in Sage gelöschte offene FAs stornieren, `Sync:ProductionOrderReconcileEnabled`, mit Guard + Cap)
+- Artikel aus SAGE → WMS (`Articles`) — Full-Update inkl. Meldebestand + **Hauptlagerplatz** (v1.25.0)
+- **OSEON-Tracking**: Produktionsaufträge + Arbeitsgänge aus OSEON-DB → WMS — Upsert, Werkbänke auto-anlegen; Werkbank-Sync auf Sage-Aufträge
+- **enaio DMS**: Werkstattauftrags-/Zeichnungs-Links aus enaio (Full-Sync mit MERGE)
+- **BOM-Cache + Erkennungen**: Stücklisten-Cache für offene FAs; Lackierteil-Erkennung; FA-Vorbau-AG-Erkennung (`Sync:FaWorkStepDetectionEnabled`)
+- **Lagerplatz-/Lagerbestand-Sync** aus Sage (Phase 1 + 2), inkl. Nullsetzen verwaister Bestands-Paare (v1.25.0, mit Cap)
+- **Feiertags-Sync** (date.nager.at), **Bedarfsmeldungs-** und **Lagerbestellungs-Mails**
+- **DryRun-Modus**: `WorkerSettings:SyncDryRun = true` → nur Logging, keine DB-Änderungen
+- Alle Läufe protokollieren ins **Aktivitäts-Protokoll** (Web-UI) + `logs/sync/sync-YYYYMMDD.log`
+
+**BdeAutoPauseWorker** (alle `Sync:BdeAutoPauseIntervalMinutes` Minuten, default 60):
+- Pausiert laufende BDE-Buchungen am Schichtende automatisch (`BdeSchichtkalenderAktiv`); `EndedAt` = exaktes Schichtende
+
+**CleanupWorker** (24h-Takt, v1.25.0):
+- Erweiterbarer Bereinigungs-Abschnitt; erster Cleaner: Aktivitäts-Protokoll — löscht Einträge älter als `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen), DryRun-bewusst, eigener Protokoll-Eintrag `CleanupAktivitaetsprotokoll`
 
 **NotificationWorker** (alle `WorkerSettings:NotificationCheckIntervalMinutes` Minuten, default 60):
 - Prüft Artikel mit Bestand unter Meldebestand (`Article.ReorderLevel`)
@@ -566,25 +655,22 @@ Datenbankverbindungen und grundlegende Einstellungen in `IDEALAKEWMSService/apps
 | `MailSettings:SmtpHost` | SMTP-Server für Mail-Versand |
 | `MailSettings:SmtpPort` | SMTP-Port (default 25) |
 | `MailSettings:FromAddress` | Absender-Adresse |
-| `WorkerSettings:SyncIntervalMinutes` | Sync-Intervall in Minuten (default 15) |
-| `WorkerSettings:NotificationCheckIntervalMinutes` | Benachrichtigungs-Intervall in Minuten (default 60) |
-| `WorkerSettings:SyncDryRun` | `true` = nur Logging, keine DB-Änderungen |
+| `WorkerSettings:SyncIntervalMinutes` | Nur Default-Referenz — produktiv aus der DB gelesen (siehe unten) |
 
-Laufzeitveränderliche Einstellungen in der `ServiceSettings`-Tabelle (Admin-Bereich der Web-App):
+Alle übrigen Einstellungen liegen **DB-first** in der `ServiceSettings`-Tabelle und werden über
+**Stammdaten → Service-Einstellungen** (Rolle `admin`) typisiert gepflegt — Bool-Schalter, Zahlen-
+und Textfelder, gruppiert nach Kategorien (Sync, Worker, Benachrichtigungen, Fehlermail, Feiertage,
+Bereinigung). Die vollständige Key-Liste mit Defaults steht im Katalog
+`IdealAkeWms/Models/ServiceSettingDefinitions.All` sowie in [CLAUDE.md](CLAUDE.md) (Abschnitt
+„Service-Konfiguration"). Wichtige Gruppen:
 
-| Key | Beschreibung |
-|-----|-------------|
-| `Notifications:MeldebestandEnabled` | Meldebestand-Mail aktiv (`true`/`false`) |
-| `Notifications:MeldebestandSubject` | E-Mail-Betreff |
-| `Notifications:Recipients` | Feste Empfänger (kommagetrennt) |
-| `Notifications:AppBaseUrl` | App-URL für Links in Mails |
-| `Sync:ProductionOrdersEnabled` | Produktionsaufträge-Sync aktiv |
-| `Sync:ArticlesEnabled` | Artikel-Sync aktiv |
-| `Sync:OseonTrackingEnabled` | OSEON-Tracking + Werkbank-Sync aktiv |
-
-### Service-Einstellungen verwalten
-
-Im Browser: **Stammdaten → Service-Einstellungen** (nur für Benutzer mit `IsAdmin = true` sichtbar).
+| Gruppe | Beispiele |
+|--------|-----------|
+| Sync-Gates | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:OseonTrackingEnabled`, `Sync:EnaioDmsEnabled`, `Sync:BomCacheEnabled`, `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FeiertagSyncEnabled` |
+| Erkennung/Reconciliation | `Sync:CoatingDetectionEnabled`, `Sync:FaWorkStepDetectionEnabled`, `Sync:ProductionOrderReconcileEnabled` (+ `Sync:ReconcileMaxCancelPerRun`) |
+| Mails | `Sync:PartRequisitionEmailEnabled`, `Sync:WarehouseRequisitionEmailEnabled`, `Notifications:*`, `ErrorNotification:Enabled`/`Recipients` |
+| Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
+| Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
 
 ### Logging
 
@@ -614,6 +700,11 @@ dotnet test IDEALAKEWMSService.Tests
 ```
 
 ### Testabdeckung
+
+> Stand v1.25.0 (2026-07): **955 Web-Tests** (IdealAkeWms.Tests) + **153 Service-Tests**
+> (IDEALAKEWMSService.Tests), alle grün. Die folgende Liste nennt exemplarisch die
+> wichtigsten Testbereiche der ersten Ausbaustufen — inzwischen sind praktisch alle
+> Repositories, Controller-Actions und Sync-/Cleanup-Services abgedeckt.
 
 **IdealAkeWms.Tests** — Web-App:
 - `PasswordService` — Hash/Verify-Roundtrip, Salt-Randomness

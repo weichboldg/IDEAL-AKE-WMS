@@ -34,6 +34,46 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 12. Print + OSEON-Tracking-Verbesserungen | [→](#12-print--oseon-tracking-verbesserungen) | TS-12.1 – TS-12.6 |
 | 13. Spalten-Konfiguration & Filter | [→](#13-spalten-konfiguration--filter) | TS-13.1 – TS-13.7 |
 | 14. Service / Sync (read-only Verifikation) | [→](#14-service--sync-read-only-verifikation) | TS-14.1 – TS-14.4 |
+| 15. BDE Phase 2.3 — Schichtkalender + Auto-Pause | [→](#15-bde-phase-23--schichtkalender--auto-pause) | TS-15.1 – TS-15.12 |
+| 16. OSEON Reporting — AG-Übersicht | [→](#16-oseon-reporting--ag-übersicht) | TS-16.1 – TS-16.6 |
+| 17. OSEON Tracking — Artikel-Filter | [→](#17-oseon-tracking--artikel-filter) | TS-17.1 – TS-17.4 |
+| 18. Lagerbestellung aus der Produktion | [→](#18-lagerbestellung-aus-der-produktion) | TS-18.1 – TS-18.9 |
+| 19. Listen-Pagination & User-Default (v1.14.0) | [→](#19-listen-pagination--user-default-v1140) | TS-19.1 – TS-19.6 |
+| 20. Server-Side Spaltenfilter (v1.14.0) | [→](#20-server-side-spaltenfilter-v1140) | TS-20.1 – TS-20.7 |
+| 21. Leitstand als eigenes Hauptmenue (v1.14.0) | [→](#21-leitstand-als-eigenes-hauptmenue-v1140) | TS-21.1 – TS-21.2 |
+| 22. Lagerbestellungen — Notiz + INT-Mengen (v1.14.0) | [→](#22-lagerbestellungen--notiz--int-mengen-v1140) | TS-22.1 – TS-22.6 |
+| 23. FA-Vervollstaendigung als Feature-Toggle (v1.14.0) | [→](#23-fa-vervollstaendigung-als-feature-toggle-v1140) | TS-23.1 – TS-23.3 |
+| 24. StorageLocation-Code 50 Zeichen (v1.14.0) | [→](#24-storagelocation-code-50-zeichen-v1140) | TS-24.1 – TS-24.3 |
+| 25. OSEON-Tabellen-Hover (v1.14.0) | [→](#25-oseon-tabellen-hover-v1140) | TS-25.1 |
+| 26. Bestand: Source-Lagerplatz-Vorschlag bei Sage-Stock (v1.14.0) | [→](#26-bestand-source-lagerplatz-vorschlag-bei-sage-stock-v1140) | TS-26.1 – TS-26.2 |
+| 27. SyncLog-Pflicht fuer alle Sync-Services (v1.15.0) | [→](#27-synclog-pflicht-fuer-alle-sync-services-v1150) | — |
+| 28. Activity-Log fuer Non-Sync-Services (v1.15.1) | [→](#28-activity-log-fuer-non-sync-services-v1151) | — |
+| Kapitel 29: OSEON Stammdaten-Imports im Aktivitaets-Protokoll (v1.15.2) | [→](#kapitel-29-oseon-stammdaten-imports-im-aktivitaets-protokoll-v1152) | — |
+| Kapitel 30: OSEON-Tracking iOS-Fix + Lazy-Load (v1.16.0) | [→](#kapitel-30-oseon-tracking-ios-fix--lazy-load-v1160) | — |
+| 31. Artikel-Sync-Erweiterung (v1.17.0) | [→](#31-artikel-sync-erweiterung-v1170) | — |
+| 32. Lagerbestellungen Teilgeliefert + Fehlteile (v1.18.0) | [→](#32-lagerbestellungen-teilgeliefert--fehlteile-v1180) | — |
+| 33. ShortageStatus 3-State + 2-Tab Fehlteile (v1.19.0) | [→](#33-shortagestatus-3-state--2-tab-fehlteile-v1190) | — |
+| Kapitel 34: Feingranulare Berechtigungen (v1.20.0) | [→](#kapitel-34-feingranulare-berechtigungen-v1200) | — |
+| Kapitel 35: v1.20.0-Bugfixes (Post-Initial-Release) | [→](#kapitel-35-v1200-bugfixes-post-initial-release) | — |
+| Kapitel 36: Universal-Filter-Rollout (v1.21.0) | [→](#kapitel-36-universal-filter-rollout-v1210) | — |
+| Kapitel 37: FA-Abschliessen (v1.21.1) | [→](#kapitel-37-fa-abschliessen-v1211) | — |
+| Kapitel 38: FA-Vorbau (v1.22.0) | [→](#kapitel-38-fa-vorbau-v1220) | — |
+| Kapitel 39: UI-Nachzuegler (v1.22.0 Folge-Fixes) | [→](#kapitel-39-ui-nachzuegler-v1220-folge-fixes) | — |
+| Kapitel 40: Windows-Authentifizierung & AD-Benutzer (v1.23.0) | [→](#kapitel-40-windows-authentifizierung--ad-benutzer-v1230) | TS-40.1 – TS-40.12 |
+| Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0) | [→](#kapitel-41-rolle-lagerbestellung--artikelinfo-für-stammdaten-ansehen-v1230) | TS-41.1 – TS-41.5 |
+| Kapitel 42: Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) (v1.23.0) | [→](#kapitel-42-lagerbestellungs-druck-spiegelt-gui-spaltensortfilter-v1230) | TS-42.1 – TS-42.5 |
+| Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.4 |
+| Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0) | [→](#kapitel-44-fa-ag-erkennung--bom-cache--protokoll-aufgliederung-v1230) | TS-44.1 – TS-44.3 |
+| Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0) | [→](#kapitel-45-fa-vorbau-3-wert-status--beschichtungstermin--enter-spaltenfilter-v1240) | TS-45.1 – TS-45.6 |
+| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.8 |
+| Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0) | [→](#kapitel-47-service-resilienz--fehlermail--productionorders-515-fix-v1250) | TS-47.1 – TS-47.3 |
+| Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0) | [→](#kapitel-48-rolle-stockread-read-only-lagerbestand--fa-listestückliste-fuer-vorbau-v1250) | TS-48.1 – TS-48.2 |
+| Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0) | [→](#kapitel-49-hauptlagerplatz-am-artikel-v1250) | — |
+| Kapitel 50: FA-Reconciliation (verwaiste FAs stornieren) (v1.25.0) | [→](#kapitel-50-fa-reconciliation-verwaiste-fas-stornieren-v1250) | — |
+| Kapitel 51: Typisierte, vollständige Service-Einstellungen (v1.25.0) | [→](#kapitel-51-typisierte-vollständige-service-einstellungen-v1250) | TS-51.1 – TS-51.8 |
+| Kapitel 52: Lagerbestellung aus der Stückliste + Master-Schalter (v1.25.0) | [→](#kapitel-52-lagerbestellung-aus-der-stückliste--master-schalter-v1250) | — |
+| Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
+| Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 
 ---
 
@@ -4839,6 +4879,65 @@ zum angemeldeten Windows-Konto vorhanden.
 - Nach erfolgreichem SAM-Match ist der Benutzer angemeldet (Dashboard); der
   Force-Cookie ist wieder geloescht (kein Challenge-Loop).
 - **Negativfall:** Ist `WindowsAuthAktiv = false`, erscheint der Button **nicht**.
+
+### TS-40.10 — AD-Benutzer anlegen: E-Mail wird aus dem AD uebernommen (v1.25.0)
+
+**Vorbedingungen:** Wie TS-40.4. Mindestens ein noch nicht importiertes Gruppenmitglied
+hat im AD eine E-Mail-Adresse hinterlegt, ein weiteres (falls vorhanden) keine.
+
+**Schritte:**
+1. Stammdaten → Benutzer → **„AD-Benutzer anlegen"**.
+2. Ein Mitglied MIT E-Mail auswaehlen, Rolle(n) ankreuzen, **Anlegen**.
+3. Den neuen Benutzer in Stammdaten → Benutzer → **Bearbeiten** oeffnen.
+
+**Erwartet:**
+- Das Feld **E-Mail** ist mit der AD-Adresse des Mitglieds vorbefuellt (server-seitig
+  uebernommen — unabhaengig davon, was der Browser gesendet hat).
+- Die Adresse kann danach im Benutzerstamm normal geaendert werden.
+
+**Negativfaelle:**
+- Mitglied OHNE AD-E-Mail → Benutzer wird angelegt, E-Mail bleibt **leer** (kein Fehler).
+- Der SAM-Match ist case-insensitiv (Gross-/Kleinschreibung des gewaehlten Eintrags egal).
+
+### TS-40.11 — Formulare unter Windows-SSO speichern ohne Fehler 400 (Antiforgery-Wurzel-Fix, v1.25.0)
+
+**Hintergrund:** Vor dem Fix band ASP.NET den Antiforgery-Token an die (unter IIS
+per Verbindung schwankende) Windows-Identitaet — POSTs direkt nach einem SSO-Login
+konnten mit **Fehlerseite 400** abbrechen (z. B. „AD-Benutzer anlegen"). Seit dem Fix
+normalisiert die Middleware `HttpContext.User` (App-Session + `/account/*`) auf anonym.
+
+**Vorbedingungen:** Deploy am IIS, `WindowsAuthAktiv = true`, Admin-AD-Benutzer vorhanden.
+
+**Schritte:**
+1. Frische Browser-Session am Domaenen-PC → Auto-Login laeuft (TS-40.1).
+2. **Direkt danach** (ohne Umwege): Stammdaten → Benutzer → „AD-Benutzer anlegen" →
+   Mitglied waehlen → **Anlegen** (POST).
+3. Beliebige weitere POST-Formulare pruefen (z. B. Einstellungen speichern, Profil speichern).
+4. Zusaetzlich am Domaenen-PC: **Abmelden** → im Formular als lokaler Benutzer anmelden (POST).
+
+**Erwartet:**
+- **Kein** HTTP 400 („Bad Request"/Fehlerseite) bei irgendeinem POST — weder nach
+  SSO-Auto-Login noch beim Formular-Login auf einem Domaenen-Geraet.
+- Der Benutzer wird angelegt bzw. das Formular normal gespeichert.
+- Audit-Hinweis: Bei SSO-Login wird der Windows-Name (Domaene\User) fuer die
+  Audit-Spalten aus der Session uebernommen; beim reinen Formular-Login lokaler
+  Konten steht dort weiterhin „SYSTEM" (bewusst akzeptiert).
+
+### TS-40.12 — Logout nach SSO: Desktop UND Mobile ohne 400/405 (v1.25.0)
+
+**Vorbedingungen:** Wie TS-40.11. Zusaetzlich ein Mobilgeraet (Android/iPhone), auf dem
+sich ein Benutzer ueber den Button „Mit Windows anmelden" (TS-40.9) oder das Formular
+angemeldet hat.
+
+**Schritte:**
+1. Am Desktop nach SSO-Login: **Abmelden** klicken.
+2. Am Mobilgeraet nach Login: **Abmelden** klicken.
+
+**Erwartet:** In beiden Faellen landet man auf dem Anmelde-Formular — **kein**
+Fehler 400 (Antiforgery) und **kein** 405 (Method Not Allowed nach Mobile-Reload).
+Hintergrund: Logout war unter SSO auf Mobilgeraeten mit 400/405 fehlgeschlagen, weil
+der Token an die Windows-Identitaet gebunden war; behoben durch den Wurzel-Fix
+(TS-40.11) plus bewusst tokenfreien Logout.
 
 ---
 

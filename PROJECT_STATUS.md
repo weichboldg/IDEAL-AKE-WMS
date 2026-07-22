@@ -2,27 +2,42 @@
 
 ## Aktueller Fortschritt (laufend)
 
-Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 Glas-Bestellung als eigener Bestelltyp)**. Bei Wiedereinstieg hier ablesen, welche Sub-Tasks erledigt sind und wo der naechste Schritt anfaengt.
+Stand: **2026-07-22**. Das komplette Bundle **v1.23.0 → v1.25.0** (`feature/glas-bestellung`) ist in
+`main` **gemergt** (Merge-Commit `3b127f2`, `--no-ff`) und zu `origin/main` (GitHub) **gepusht**.
+`AppVersion` = **1.25.0 (2026-07-16)** in Web + Service. Web 955 + Service 153 Tests gruen.
+Branch `feature/glas-bestellung` + Worktree `.claude/worktrees/glas-bestellung` bleiben bewusst
+stehen, bis der Produktiv-Deploy verifiziert ist (Aufraeumen nur auf explizite Freigabe).
 
-### Wo wir aufgehoert haben (2026-05-27)
+### Wo wir aufgehoert haben (2026-07-22)
 
-**Letzter Schritt:** Hotfix v1.15.3 — Timestamp-Bug im SyncLogger behoben. `SyncRun.WriteEntryAsync` schrieb seit v1.15.0 `DateTime.UtcNow` statt der Lokalzeit des Model-Defaults, dadurch erschienen alle v1.15.0+ Aktivitaets-Protokoll-Eintraege 2h frueher als sie tatsaechlich passierten und wurden in der DESC-Sortierung unter aelteren Eintraegen versteckt. User dachte das SyncLog schreibt nicht mehr.
+**Letzter Schritt:** Doku-Vervollstaendigung nach dem Merge (README, PROJECT_STATUS, TESTSZENARIEN
+Kap. 40, Hilfeseite, Changelog-Datum, Superpowers-Specs/Plans konsolidiert).
 
-**Was direkt offen ist (Wartungsaktionen, manuell):**
+**Was direkt offen ist (Deploy-Checkliste, cutover-kritisch):**
 
-1. **v1.15.3 deployen** auf dem Produktiv-Service (`IDEALAKEWMSService`-Windows-Service neu starten mit dem aktuellen Build). Erst dann werden neue Eintraege mit korrekter Lokalzeit geschrieben.
-2. **Optional: Bestehende UTC-Eintraege in DB korrigieren** (zwischen v1.15.0-Deploy am 2026-05-26 und v1.15.3-Deploy heute). SQL-Query liegt im Changelog v1.15.3 / Commit-Body von `a2a3275`:
-   ```sql
-   UPDATE SyncLogs
-   SET Timestamp = DATEADD(HOUR, 2, Timestamp)
-   WHERE Timestamp BETWEEN '2026-05-26 00:00' AND '2026-05-27 12:00';
-   ```
-   Vorher Backup machen + Zeitfenster ggf. praezisieren.
+1. **DB-Backup vor dem Deploy** — Migrationen **76** (FaWorkStep-Status, daten-konvertierend) und
+   **80** (FA-Cancellation) einspielen; Down() verliert Detail-Status.
+2. **AgentJob `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` im SELBEN Wartungsfenster
+   aktualisieren** (AssemblyGroups-MERGE wurde in v1.22.0 entfernt — sonst schlaegt der FA-Import fehl).
+3. **Web UND Windows-Service neu publishen** (Service enthaelt CleanupWorker + Resilienz + DB-first
+   Settings). Am Startup-Log pruefen: `Version 1.25.0 (2026-07-16)` + `CleanupWorker gestartet`.
+4. **IIS-Konfiguration**: in-process, Windows- UND anonyme Authentifizierung aktiv;
+   `WindowsAuthAktiv` erst nach Anlage der AD-Benutzer scharfschalten.
+5. **`/ServiceSettings` einmalig durchgehen** — alle gewuenschten Syncs aktivieren (DB-first,
+   appsettings-Werte greifen nicht mehr).
+6. **Manual-UAT am IIS** (TESTSZENARIEN Kap. 40): SSO-Auto-Login, Button „Mit Windows anmelden",
+   AD-Benutzer anlegen (inkl. E-Mail-Uebernahme), SSO-POSTs ohne 400 (Antiforgery-Wurzel-Fix),
+   Logout Desktop + Mobile.
 
-**Was strategisch offen ist (eigene Specs/Plaene):**
+**Was strategisch offen ist:**
 
-1. **Retention/Cleanup-Job fuer `SyncLogs`-Tabelle** — bei 14 Service-Namen × 96 Ticks/Tag waechst die Tabelle. Bisher kein Cleanup. Brainstorming faellig: Worker-basiert vs SQL-Agent-Job, Aufbewahrungs-Policy.
-2. **Konvention zu eigenen Worktrees** (CLAUDE.md seit `7efa6e6` verpflichtend): die letzten 3 Rollouts (v1.15.0/1/2) liefen direkt auf `main` — ab jetzt sollen groessere Aenderungen in eigenen Worktrees. Beim naechsten Rollout dran denken.
+1. **`[ValidateAntiForgeryToken]` auf `AccountController.Logout` wiederherstellen**, sobald der
+   Antiforgery-Wurzel-Fix am IIS bestaetigt ist (durch die Identitaets-Normalisierung ist die
+   per-Action-Entschaerfung redundant geworden — bewusst offen gelassen).
+2. **Weitere Cleanup-Jobs** nach dem dokumentierten 5-Schritte-Rezept (CLAUDE.md, Abschnitt
+   „Cleanup-Jobs im Service").
+3. ~~Retention/Cleanup-Job fuer `SyncLogs`~~ — **erledigt in v1.25.0** (CleanupWorker, s.u.).
+4. ~~v1.15.3-Deploy + UTC-Korrektur~~ — erledigt (Deploy 2026-05-27, Timestamps seitdem Lokalzeit).
 
 ---
 
@@ -46,9 +61,9 @@ Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 G
 - **Doku**: Changelog v1.25.0, Hilfeseite (neuer Abschnitt „Glas-Bestellung" mit Admin-Einrichtung),
   CLAUDE.md (Rolle + Composite-Filter + 3 AppSettings + neuer Fallstrick), TESTSZENARIEN Kapitel 46
   (TS-46.1–46.8), Versions-Bump Web + Service. `SQL/00_FreshInstall.sql` gespiegelt (Type-Spalte,
-  Rolle, 3 AppSettings, Migrations-History). **Offener Punkt:** `secondbrain/sql/00_FreshInstall.sql`
-  ist ein veralteter Snapshot (~v1.14.0, ~50 Migrationen im Rueckstand) und wurde bewusst NICHT
-  angeglichen.
+  Rolle, 3 AppSettings, Migrations-History). **Hinweis aufgeloest (2026-07-22):** `secondbrain/sql`
+  ist eine NTFS-Junction auf `SQL/` (ebenso `secondbrain/docs` → `docs/`) — physisch identische
+  Dateien; die Git-Blobs unter dem secondbrain-Pfad wurden mit der Doku-Konsolidierung angeglichen.
 - **DB-Deploy**: Migration 77 ist additiv (nicht destruktiv) — Default `Lager` fuer Altbestand.
 - **Hauptlagerplatz am Artikel** (Teil von v1.25.0): Sage-Sync + manueller Fallback (Sage-Wert →
   gesperrt, sonst app-editierbar), zentrale Sortierung „Haupt zuerst" in den Bestand-je-Lagerplatz-
@@ -60,7 +75,11 @@ Stand: **2026-07-03**, **letzter Commit auf `feature/glas-bestellung` (v1.25.0 G
 - **BOM-UX (v1.25.0-Followup):** Stückliste-Spalten umsortierbar (`supportsReorder:true`, Baum-Anker `pick-control`+`position` locked, Hierarchie unberührt) + Sticky-Auswahlleiste `#bomBulkActionBar` (beide Bulk-Sets Lagerbestellung/Bedarfsmeldung, read-only-sicher). Kein Schema-Change/keine Migration/kein AppVersion-Bump. TESTSZENARIEN Kap. 52 (TS-52.1/52.2).
 - **Bugfix Lagerbestand-Nullsetzen (v1.25.0-Fold):** Lagerbestand-Sync setzt in Sage verschwundene Bestand-Paare (Sage-aktive Lagerplätze, WMS-Bestand ≠ 0) auf 0 (`LagerbestandZeroingPlanner.Plan`, `sagePresentKeys` aus Roh-Zeilen, `managedStock` = Sage+aktiv+≠0). Leer-Guard + Cap (`Sync:LagerbestandNullsetzenMaxPerRun`, Default 100) + Fehlermail bei Cap-Skip; `SageAusbuchung`/`SageEinbuchung` auf 0, Counts-Key `nullgesetzt`. Kein Schema-Change, keine Migration, kein AppVersion-Bump. TESTSZENARIEN Kap. 53.
 - **Windows-Auth UA-Gate + SSO-Button (v1.25.0-Fold):** `WindowsAutoLoginMiddleware` sendet die Negotiate-Challenge nur noch bei Windows-Desktop-UA (`UserAgentHelper.IsWindowsDesktop`) ODER gesetztem `ForceSsoCookie`; Nicht-Windows-Clients (Android/iOS/Mac/Linux) fallen prompt-frei aufs Formular durch (kein `AutoLoginTried`-Cookie, wenn nicht gechallenged). Neue GET-Action `AccountController.WindowsLogin` (loescht NoAutoLogin/AutoLoginTried, setzt ForceSso, Redirect Home) + Button „Mit Windows anmelden" im Login-Formular (nur bei `WindowsAuthAktiv`). Kein Schema-Change, keine Migration, **kein AppVersion-Bump**, kein neues AppSetting (nur Cookie-Konstante). Tests: `UserAgentHelperTests` (Theory) + erweiterte `WindowsAutoLoginMiddlewareTests` (Android/ForceSso) + `AccountControllerTests.WindowsLogin`. Manual-UAT: TESTSZENARIEN Kap. 40 (TS-40.7–40.9).
-- **Cleanup-Jobs im Service (v1.25.0-Fold):** Neuer erweiterbarer `CleanupWorker` (BackgroundService, 24h-Takt, DryRun-bewusst, resilient) als „Bereinigung"-Abschnitt. Erster Cleaner: Aktivitäts-Protokoll (`SyncLogs`) — löscht Einträge `Timestamp < DateTime.Now.AddDays(-N)` gebatcht (5000) via `ISyncLogRepository.DeleteOlderThanAsync`; N = neuer Service-Key `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, 0 = deaktiviert = still). Reine Stichtag-Logik im unit-getesteten `ActivityLogCleanupPlanner`, Lösch-/Protokoll-Lauf im `ActivityLogCleanupService` (`retentionDays` als Parameter → testbar; eigener Protokoll-Eintrag `CleanupAktivitaetsprotokoll` mit Count `geloescht`). Damit ist der lange offene „Retention/Cleanup-Job für SyncLogs" (siehe oben) abgehakt. Kein Schema-Change, keine Migration, **kein AppVersion-Bump** (in v1.25.0 gefaltet). Tests: `SyncLogRepositoryTests` (+3), `ServiceSettingDefinitionsTests` (Drift-Guard +1), `ActivityLogCleanupPlannerTests` (+3), `ActivityLogCleanupServiceTests` (+3). Doku: Changelog, CLAUDE.md (Service-Config + Fallstrick), TESTSZENARIEN Kap. 54. Manual-UAT (Takt 24h / Worker-Read der Aufbewahrung): TESTSZENARIEN Kap. 54.
+- **Cleanup-Jobs im Service (v1.25.0-Fold):** Neuer erweiterbarer `CleanupWorker` (BackgroundService, 24h-Takt, DryRun-bewusst, resilient) als „Bereinigung"-Abschnitt. Erster Cleaner: Aktivitäts-Protokoll (`SyncLogs`) — löscht Einträge `Timestamp < DateTime.Now.AddDays(-N)` gebatcht (5000) via `ISyncLogRepository.DeleteOlderThanAsync`; N = neuer Service-Key `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, 0 = deaktiviert = still). Reine Stichtag-Logik im unit-getesteten `ActivityLogCleanupPlanner`, Lösch-/Protokoll-Lauf im `ActivityLogCleanupService` (`retentionDays` als Parameter → testbar; eigener Protokoll-Eintrag `CleanupAktivitaetsprotokoll` mit Count `geloescht`). Damit ist der lange offene „Retention/Cleanup-Job für SyncLogs" (siehe oben) abgehakt. Kein Schema-Change, keine Migration, **kein AppVersion-Bump** (in v1.25.0 gefaltet). Tests: `SyncLogRepositoryTests` (+3), `ServiceSettingDefinitionsTests` (Drift-Guard +1), `ActivityLogCleanupPlannerTests` (+3), `ActivityLogCleanupServiceTests` (+3). Doku: Changelog, CLAUDE.md (Service-Config + Fallstrick), TESTSZENARIEN Kap. 54. Manual-UAT (Takt 24h / Worker-Read der Aufbewahrung): TESTSZENARIEN Kap. 54. **Live verifiziert 2026-07-16** (Service-Log: „CleanupWorker gestartet", „Aktivitaetsprotokoll-Bereinigung fertig: 0 geloescht (DryRun=false)").
+- **AD-Benutzer: E-Mail-Uebernahme (v1.25.0-Fold, Commit `1879ad2`):** Beim `UsersController.CreateAdUser`-POST wird die E-Mail des gewaehlten AD-Mitglieds server-seitig (autoritativ, kein Client-Trust) aus den live gelesenen Gruppenmitgliedern uebernommen (`AdUserCandidate.Email` aus `UserPrincipal.EmailAddress`; SAM-Match case-insensitiv; leer/kein Kandidat → NULL). Tests: `UsersControllerAdUserTests` (+2). Kein Schema-Change.
+- **Windows-SSO-Fix-Kette (v1.25.0-Fold, Commits `f1010cc`/`67e733b`/`2f1ee23`/`a82fdf8`/`db47a95`):** Vier nacheinander gefundene Sperren des SSO-Flows behoben — (1) ForceSso ueberschreibt `NoAutoLogin`- UND `AutoLoginTried`-Sperre in der Middleware; (2) `/account/windowslogin` in die LoginRedirect-Ausnahmeliste (die Button-Action lief sonst nie an); (3) Logout ohne `[ValidateAntiForgeryToken]` (Mobile-400/405 nach SSO); (4) **Wurzel-Fix Antiforgery-400 unter SSO**: `WindowsAutoLoginMiddleware.NormalizeUserForSession` setzt `HttpContext.User` bei App-Session + auf `/account/*` auf anonym → alle Antiforgery-Token konsistent anonym-gebunden; Windows-Name fuers Audit wandert beim Login in die Session (`CurrentUserService.SessionKeyWindowsUserName`). Verifiziert: kein `[Authorize]`/`User.Identity`-basierter Autorisierungspfad in der App (grep + adversarial Review); `BdeTerminal/Index` zeigt jetzt `AppUserName`. Tests: `WindowsAutoLoginMiddlewareTests` (16 gesamt). Manual-UAT am IIS ausstehend (Kap. 40).
+- **AppVersion.Date 2026-07-03 → 2026-07-16** (Web + Service, Commit `e406d14`) — Builds am Zielsystem unterscheidbar (Version bleibt 1.25.0).
+- **Merge + Push (2026-07-22):** `feature/glas-bestellung` → `main` (Merge-Commit `3b127f2`, `--no-ff`), Push `f34c9a0..3b127f2` nach `origin/main`. Build auf main 0 Fehler.
 
 ### v1.24.0 (2026-06-30) — FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter
 
