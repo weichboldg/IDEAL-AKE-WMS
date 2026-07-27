@@ -1,6 +1,6 @@
 # Testszenarien — IDEAL-AKE WMS
 
-**Stand:** 2026-06-18 (v1.23.0)
+**Stand:** 2026-07-22 (v1.26.0)
 
 Dieses Dokument enthaelt alle manuellen Testszenarien fuer die End-to-End-Abnahme der Anwendung.
 Es ist die **Single Source of Truth fuer die UAT** — bei jedem neuen Feature ODER Bugfix MUSS dieses
@@ -74,6 +74,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 52: Lagerbestellung aus der Stückliste + Master-Schalter (v1.25.0) | [→](#kapitel-52-lagerbestellung-aus-der-stückliste--master-schalter-v1250) | — |
 | Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
 | Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
+| Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0) | [→](#kapitel-55-fa-zusatzinfos-sage-v1260) | TS-55.1 – TS-55.13 |
 
 ---
 
@@ -5567,5 +5568,185 @@ Artikel-/OSEON-/BOM-Sync weiter aktiv und funktionsfaehig sind.
 
 ---
 
-*Ende des Dokuments. Stand: v1.25.0 (2026-07-03)*
+## Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0)
+
+**Vorbedingungen:**
+- Sage-View `dbo.vw_IDEAL_AKE_WMS_FAZusatzinformationen` existiert am Zielsystem und liefert
+  Zeilen (`SELECT TOP 1 ...` — Spaltennamen `[WA Nummer]`, `Kaeltemittel`, `Ventil`,
+  `[Ausfuehrung E/Z]`, `Maschine`, `Status`).
+- **Deploy-Daten-Check:** Pruefen, dass KEIN bestehender FA-Vorbau-AG den Code `ALLGEMEIN` traegt
+  (`SELECT * FROM dbo.WorkSteps WHERE UPPER(Code)='ALLGEMEIN'`) — ein Altbestand wuerde mit dem
+  neuen Pseudo-Reiter kollidieren (Neuanlage ist seit v1.26.0 gesperrt).
+- Web v1.26.0 deployed (Migration 81 gelaufen, `Sync:FaZusatzinfoEnabled` in `/ServiceSettings`
+  sichtbar, Default AUS), Windows-Service v1.26.0 published.
+- Rollen: `fa_completion` (Reiter ALLGEMEIN), `vorbau` (Abarbeitungsliste), `picking`/`leitstand`
+  (FA-Liste/Leitstand), `admin` (ServiceSettings + Aktivitaets-Protokoll).
+- `FaCompletionAktiv = true` (fuer FA-Vervollstaendigung + Abarbeitungsliste).
+
+> **Hinweis Aktivitaets-Protokoll:** Der Sync erscheint als Eintrag `FaZusatzinfo` mit Counts
+> `gelesen/neu/aktualisiert/uebersprungen/erledigt-gesetzt` (bei Cap-Skip zusaetzlich
+> `erledigt-kandidaten`). „uebersprungen" = WA-Zeilen ohne FA im WMS (alte/erledigte WAs —
+> normal, KEINE Warn-Zeile je WA). Erhoehte Skip-Counts nach einem FA-Import-Fehler sind
+> KEIN Bug (heilt sich im Folgezyklus). „erledigt-gesetzt" = FAs, die der Lauf wegen
+> Sage-Status verpackt/abgeholt automatisch auf Komm-Erledigt gesetzt hat — je FA eine
+> Info-Detailzeile „FA <Nr> auf erledigt gesetzt (Sage-Status: <status>)" (Detailzeilen
+> gecappt auf 100/Lauf, der Count zaehlt alle).
+
+### TS-55.1 Gate aus → an (Erstlauf mit DryRun-Pflicht)
+1. `/ServiceSettings`: `Sync:FaZusatzinfoEnabled` ist AUS. Einen Sync-Zyklus abwarten.
+2. **Erwartet:** KEIN `FaZusatzinfo`-Eintrag im Aktivitaets-Protokoll.
+3. **PFLICHT-Vorschritt (Reconcile-Muster):** `WorkerSettings:SyncDryRun = true` setzen,
+   DANN das Gate auf AN stellen, Zyklus abwarten.
+4. **Erwartet:** `FaZusatzinfo`-Eintrag mit Suffix `[DryRun]`. Count `erledigt-gesetzt`
+   kontrollieren — das ist die Erstlauf-Aufraeum-Zahl (ALLE in der App offenen FAs, die in
+   Sage bereits verpackt/abgeholt sind, wuerden geschlossen). Plausibel → weiter. Meldet der
+   Lauf stattdessen `erledigt-kandidaten` + Warn-Zeile „Auto-Erledigt uebersprungen: N
+   Kandidaten > Cap M ..." → Cap `Sync:FaZusatzinfoAutoDoneMaxPerRun` temporaer erhoehen
+   ODER in Etappen scharfschalten.
+5. DryRun aus → naechster Zyklus schreibt tatsaechlich: `ProductionOrderExtraInfo`-Zeilen
+   (CreatedBy `FaZusatzinfoSync`) UND setzt die verpackt/abgeholt-FAs auf Komm-Erledigt
+   (`ProductionOrderPickingStatus.IsDonePicking = 1`, ModifiedBy `FaZusatzinfoSync`).
+
+### TS-55.2 DryRun
+1. `WorkerSettings:SyncDryRun = true`, Gate AN. Zyklus abwarten.
+2. **Erwartet:** `FaZusatzinfo`-Eintrag mit Suffix `[DryRun]` und ECHTEN Would-be-Counts
+   (`neu`/`aktualisiert` wie ein Echtlauf sie schreiben wuerde) — aber KEINE neuen/geaenderten
+   Zeilen in `ProductionOrderExtraInfo`.
+3. DryRun aus → naechster Zyklus schreibt die Zeilen tatsaechlich.
+
+### TS-55.3 View fehlt (Warn-Skip, keine Mail)
+1. Auf einem System OHNE die View (bzw. View temporaer umbenennen): Gate AN, Zyklus abwarten.
+2. **Erwartet:** `FaZusatzinfo`-Lauf endet REGULAER (kein Fehler-Status) mit Warn-Zeile
+   „View ... nicht vorhanden — Sync uebersprungen" und Message-Suffix „View nicht vorhanden".
+   KEINE Fehlermail (auch bei aktivierter `ErrorNotification`). Kein Mail-Spam alle 15 min.
+
+### TS-55.4 WA ohne FA
+1. Die View liefert eine WA-Nummer, die es im WMS nicht (mehr) gibt.
+2. **Erwartet:** Zeile zaehlt als `uebersprungen`; KEINE Warn-Detailzeile je WA.
+
+### TS-55.5 FA ohne Zusatzinfo
+1. Einen FA oeffnen, dessen WA-Nummer die View NICHT liefert: FA-Vervollstaendigung →
+   Reiter ALLGEMEIN.
+2. **Erwartet:** Hinweis „Noch keine Zusatzinformationen aus Sage vorhanden." In
+   Abarbeitungsliste/FA-Liste/Leitstand sind die 5 Zellen dieses FA leer.
+
+### TS-55.6 Update-Fall
+1. In Sage einen Wert aendern (z. B. Kaeltemittel), Zyklus abwarten.
+2. **Erwartet:** Count `aktualisiert=1`; die Zeile traegt `ModifiedAt`/`ModifiedBy =
+   FaZusatzinfoSync`; die Views zeigen den neuen Wert. Unveraenderte Zeilen behalten
+   `ModifiedAt = NULL` (kein Blind-Update).
+
+### TS-55.7 Gate an → aus (letzter Stand bleibt)
+1. Gate AUS stellen, mehrere Zyklen abwarten.
+2. **Erwartet:** Kein neuer `FaZusatzinfo`-Eintrag; die vorhandenen Zusatzinfos bleiben in
+   allen Views sichtbar (kein Loeschen). Gleiches gilt fuer WAs, die aus der View
+   verschwinden: letzter bekannter Stand bleibt stehen.
+3. **Erwartet:** Auch die Auto-Erledigt-Automatik stoppt (Gate aus = kein Lauf = kein
+   Erledigt-Setzen); bereits automatisch geschlossene FAs bleiben erledigt (Einweg).
+
+### TS-55.8 Spalten-Defaults + Prefs
+1. Als BESTANDS-User mit bereits GESPEICHERTEN Spalten-Einstellungen (Zahnrad je View
+   mindestens einmal benutzt) FA-Liste und Leitstand oeffnen.
+2. **Erwartet:** Die 5 neuen Spalten sind dort NICHT sichtbar (defaultHidden greift auch im
+   Merge mit gespeicherten Prefs). Ueber das Zahnrad lassen sie sich einblenden; die Wahl
+   ueberlebt einen Reload.
+3. Die FA-Abarbeitungsliste oeffnen.
+4. **Erwartet:** Dort sind die 5 Spalten SICHTBAR (Default eingeblendet). Spalten per Zahnrad
+   aus-/einblenden → Einstellungen ueberleben den Reload (Prefs-Bug-Fix: vorher 400 der
+   Prefs-API fuer ViewKey „FaWorklist"). Spaltenfilter (ENTER) auf `Kaeltemittel` etc.
+   filtern serverseitig; in FA-Liste/Leitstand filtert ein per URL geteilter
+   `?colf_kaeltemittel=...` auch bei ausgeblendeter Spalte (unsichtbar — dokumentiertes
+   Verhalten).
+
+### TS-55.9 Reiter ALLGEMEIN + reservierter Code
+1. FA mit FA-Vorbau-AGs oeffnen (FA-Vervollstaendigung → Bearbeiten).
+2. **Erwartet:** Reiter ALLGEMEIN steht VOR den AG-Reitern (ohne ✓/●-Indikator); aktiv ist
+   weiterhin der ERSTE AG-Reiter. Klick auf ALLGEMEIN zeigt die read-only `dl` (Kaeltemittel,
+   Ventil, Ausfuehrung E/Z, Maschine, Sage-Status), keine Eingabefelder. `?tab=allgemein`
+   (klein) funktioniert ebenfalls.
+3. Werkbank im Kopf aendern, waehrend ALLGEMEIN aktiv ist.
+4. **Erwartet:** Nach dem Speichern bleibt ALLGEMEIN der aktive Reiter (Tab-Erhalt).
+5. FA OHNE FA-Vorbau-AGs oeffnen.
+6. **Erwartet:** ALLGEMEIN ist der aktive (einzige) Reiter; darunter erscheint zusaetzlich der
+   Hinweis „+ FA-Vorbau-AG hinzufuegen".
+7. Stammdaten → FA-Vorbau-AG → Neu: Code `ALLGEMEIN` (auch `allgemein`) anlegen.
+8. **Erwartet:** Validierungsfehler „Code 'ALLGEMEIN' ist reserviert ..." — kein Anlegen;
+   dasselbe beim Umbenennen eines bestehenden AGs auf `ALLGEMEIN`.
+
+### TS-55.10 Auto-Erledigt bei verpackt/abgeholt (inkl. Teilkommissionierung)
+1. Einen in der App OFFENEN FA waehlen (nicht erledigt, nicht storniert), dessen WA in Sage
+   den Status „verpackt" ODER „abgeholt" traegt. Gate AN (nach TS-55.1-DryRun-Kontrolle),
+   Zyklus abwarten.
+2. **Erwartet:** Der FA verschwindet aus FA-Liste, Komm-Worklist, FA-Vervollstaendigung und
+   FA-Abarbeitungsliste (wie beim manuellen Abschliessen-Button). Aktivitaets-Protokoll:
+   Count `erledigt-gesetzt` >= 1 + Info-Zeile „FA <Nr> auf erledigt gesetzt (Sage-Status:
+   <status>)". In FA-Liste/Leitstand unter „Erledigte anzeigen" ist der FA sichtbar; die
+   einblendbare Spalte „Sage-Status" zeigt den Grund.
+3. Teilkomm-Fall: einen FA mit bereits auf den Kommissionierwagen gebuchten Teilen verwenden.
+4. **Erwartet:** Auch dieser FA wird geschlossen; die gebuchten Teile bleiben auf dem Wagen
+   stehen (bewusste Semantik, wie beim manuellen Abschluss).
+5. IDEAL-Linie (mehrere Sub-FAs je WA): ALLE offenen Sub-FAs der WA werden geschlossen
+   (N Counts + N Detailzeilen).
+
+### TS-55.11 Einweg-Semantik + Ping-Pong
+1. FA aus TS-55.10: In Sage faellt der Status zurueck (z. B. wieder „in Produktion").
+   Zyklus abwarten.
+2. **Erwartet:** Der FA BLEIBT erledigt (Einweg — kein Auto-Reopen); `aktualisiert` zaehlt
+   nur den Satellit-Feldwechsel.
+3. Bereits erledigte FAs (Sage-`IsDone` ODER Komm-Erledigt) und stornierte FAs
+   (`IsCancelled`) mit Sage-Status verpackt/abgeholt.
+4. **Erwartet:** KEIN `erledigt-gesetzt`-Count fuer diese FAs (kein Doppel-Setzen;
+   Stornierte bleiben unangetastet).
+5. Offener FA mit anderem Status (z. B. „in Produktion") → kein Erledigt-Setzen.
+6. Ping-Pong: Einen automatisch geschlossenen FA manuell wieder oeffnen (FA-Liste/Leitstand
+   → „Erledigte anzeigen" → Erledigt-Toggle); Sage meldet weiterhin „abgeholt". Zyklus
+   abwarten.
+7. **Erwartet:** Der naechste Lauf schliesst den FA ERNEUT (bewusst, kein Suppress-Marker —
+   dauerhaftes Offenhalten erfordert einen Sage-Statuswechsel).
+
+### TS-55.12 BDE-Sperre: Start/Resume gesperrt + Terminal-Meldung + Listen-Hygiene
+Vorbedingung: `BdeAktiv = true`, BDE-aktive Werkbank, FA mit AG an dieser Werkbank, FA traegt
+`SageStatus` „verpackt" oder „abgeholt" (Zusatzinfo-Satellit vorhanden).
+1. Am BDE-Terminal den AG des gesperrten FA per FA-/AG-Scan aufrufen und „Ruesten starten"
+   bzw. „Produktion starten" klicken.
+2. **Erwartet:** Roter Toast „FA <Nr> ist bereits <status> — keine BDE-Buchung mehr
+   moeglich." KEINE neue Buchung (Buchungsuebersicht kontrollieren).
+3. Eine VOR der Statusaenderung pausierte Buchung des FA ueber das Paused-Panel fortsetzen.
+4. **Erwartet:** Gleiche Meldung; keine neue Buchung, die pausierte bleibt pausiert.
+5. Terminal-Auswahllisten pruefen (normaler AG-Modus UND NurFA-Modus).
+6. **Erwartet:** Der gesperrte FA/AG erscheint NICHT mehr in den Auswahllisten; FAs ohne
+   Zusatzinfo-Satellit und FAs mit anderem Status bleiben enthalten. Das alte Tracking-Modul
+   (Teileverfolgung → ByWorkplace) zeigt die AGs des gesperrten FA WEITERHIN (bewusst
+   ungefiltert, Default-Parameter).
+7. FA ohne Zusatzinfo-Daten (Sync aus / Satellit fehlt): Start wie bisher moeglich (keine
+   Sperre).
+
+### TS-55.13 BDE-Sperre: laufende Buchung bleibt abschliessbar
+1. Buchung auf einem FA starten; DANACH wird der FA in Sage „verpackt" (Sync-Zyklus
+   abwarten).
+2. **Erwartet:** Teilmengen melden, Pausieren und Beenden (inkl. finaler Mengen-Eingabe)
+   funktionieren weiter — kein gestrandeter Operator. Nur NEUE Starts/Fortsetzungen sind
+   gesperrt.
+3. Ungeplante Taetigkeit (z. B. Wartung) an derselben Werkbank starten.
+4. **Erwartet:** Startet normal (werkbank-bezogen, ohne FA — keine Sperre).
+5. Laufendes Ruesten auf dem FA, dann „Produktion starten" klicken.
+6. **Erwartet:** Meldung wie TS-55.12; das Ruesten LAEUFT WEITER (der abgelehnte Start
+   schliesst es NICHT — Guard liegt vor der Auto-Close-Transition).
+
+**Recovery (Fehlerfall Auto-Erledigt):** Hat ein View-Defekt trotz Cap FAs faelschlich
+geschlossen, laesst sich der Stand zurueckdrehen:
+`UPDATE ProductionOrderPickingStatus SET IsDonePicking = 0 WHERE ModifiedBy = 'FaZusatzinfoSync' AND ModifiedAt >= '<Zeitfenster>'`
+(Zeitfenster = Beginn des fehlerhaften Laufs; danach zuerst die Ursache beheben — sonst
+schliesst der naechste Lauf erneut.)
+
+**Negativ/Regression:**
+- Ein Fehler im FA-Zusatzinfo-Sync (z. B. Sage nicht erreichbar) stoppt die uebrigen Syncs des
+  Zyklus NICHT (`RunResilientAsync`) und loest bei aktivierter `ErrorNotification` eine
+  Fehlermail aus; der `FaZusatzinfo`-Lauf steht auf „fehlgeschlagen".
+- Leitstand/FA-Liste: SQL-Pagination bleibt bei aktivem Zusatzinfo-Spaltenfilter erhalten
+  (kein Force-Full-Load — im Gegensatz zu Datums-/VK-VA-Filtern).
+
+---
+
+*Ende des Dokuments. Stand: v1.26.0 (2026-07-22)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

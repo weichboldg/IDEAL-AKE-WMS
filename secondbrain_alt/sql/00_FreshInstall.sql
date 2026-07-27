@@ -318,6 +318,35 @@ END
 GO
 
 -- =============================================
+-- 8b2. ProductionOrderExtraInfo (FA-Zusatzinfos aus Sage, 1 Zeile/FA, v1.26.0)
+--      Befuellt nur vom FaZusatzinfoSyncService — KEIN AgentJob-Eager-Create.
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderExtraInfo')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderExtraInfo] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [Kaeltemittel]      NVARCHAR(200)     NULL,
+        [Ventil]            NVARCHAR(200)     NULL,
+        [AusfuehrungEZ]     NVARCHAR(200)     NULL,
+        [Maschine]          NVARCHAR(200)     NULL,
+        [SageStatus]        NVARCHAR(200)     NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderExtraInfo] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderExtraInfo_ProductionOrderId] UNIQUE ([ProductionOrderId]),
+        CONSTRAINT [FK_ProductionOrderExtraInfo_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle ProductionOrderExtraInfo erstellt.';
+END
+GO
+
+-- =============================================
 -- 8c. FA-Vorbau (v1.22.0): WorkSteps (Arbeitsgaenge-Katalog)
 --     ProductionOrderAssemblyGroups/-Specs entfernt in v1.22.0
 --     (ersetzt durch FaWorkSteps/FaWorkStepSpecs, Migration 68)
@@ -2112,6 +2141,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707131400_AddArticlePrimaryStorageLocation', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707140249_AddProductionOrderCancellation')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707140249_AddProductionOrderCancellation', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260722132805_AddProductionOrderExtraInfo')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260722132805_AddProductionOrderExtraInfo', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
