@@ -1,4 +1,4 @@
-﻿---
+---
 type: referenz
 ---
 # Bekannte Fallstricke

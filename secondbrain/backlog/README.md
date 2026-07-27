@@ -1,4 +1,4 @@
-﻿# Backlog
+# Backlog
 
 Hier legst DU (oder ein Kollege) formlose Anforderungen als .md ab.
 Dateiname: YYYY-MM-DD-kurzer-slug.md. Inhalt: Freitext genuegt -

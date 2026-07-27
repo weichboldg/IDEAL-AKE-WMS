@@ -1,4 +1,4 @@
-﻿---
+---
 type: aufgabe
 title: <Kurztitel>
 status: NEU

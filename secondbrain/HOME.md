@@ -1,4 +1,4 @@
-﻿# WMS Second Brain - Dashboard
+# WMS Second Brain - Dashboard
 
 ## Pipeline
 

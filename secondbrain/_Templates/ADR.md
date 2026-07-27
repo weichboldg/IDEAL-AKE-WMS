@@ -1,4 +1,4 @@
-﻿---
+---
 type: adr
 id: NNNN
 title: <Entscheidung als Aussage>

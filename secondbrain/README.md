@@ -1,4 +1,4 @@
-﻿# IdealAkeWms Second Brain
+# IdealAkeWms Second Brain
 
 Single Source of Truth des Projekts. Regeln:
 

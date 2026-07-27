@@ -1,4 +1,4 @@
-﻿---
+---
 type: feature-map
 updated: <wird von Agenten gepflegt>
 ---
