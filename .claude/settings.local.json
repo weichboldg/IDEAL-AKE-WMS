@@ -46,7 +46,27 @@
       "Bash(done)",
       "Bash(cp -r \"$SRC/get-shit-done/\"* \"$CLAUDE_DIR/get-shit-done/\")",
       "Bash(cp \"$SRC/hooks/\"* \"$CLAUDE_DIR/hooks/\")",
-      "Bash(cp \"$SRC/CHANGELOG.md\" \"$CLAUDE_DIR/get-shit-done/CHANGELOG.md\")"
+      "Bash(cp \"$SRC/CHANGELOG.md\" \"$CLAUDE_DIR/get-shit-done/CHANGELOG.md\")",
+      "Bash(xargs grep -l \"Kommissionierung\\\\|FA-Nummer\\\\|Belegnummer\")",
+      "PowerShell(git -C $wt add IdealAkeWms/wwwroot/js/table-filter.js IdealAkeWms/Views/Help/Changelog.cshtml docs/TESTSZENARIEN.md CLAUDE.md)",
+      "PowerShell(git -C $wt log --oneline -1)",
+      "PowerShell(git -C $wt status --short)",
+      "PowerShell($wt = 'C:\\\\Git\\\\IDEAL-AKE-WMS\\\\.claude\\\\worktrees\\\\missingparts-include-pd')",
+      "PowerShell(git -C $main worktree add $wt -b feature/glas-bestellung feature/windows-auth-ad-users)",
+      "PowerShell(git -C $wt rev-parse --abbrev-ref HEAD)",
+      "PowerShell(git -C $wt log --oneline -2)",
+      "PowerShell($main = 'C:\\\\Git\\\\IDEAL-AKE-WMS')",
+      "PowerShell($wt   = 'C:\\\\Git\\\\IDEAL-AKE-WMS\\\\.claude\\\\worktrees\\\\glas-bestellung')",
+      "PowerShell(git -C $wt add docs/superpowers/specs/2026-07-03-glas-bestellung-design.md)",
+      "PowerShell($wt = 'C:\\\\Git\\\\IDEAL-AKE-WMS\\\\.claude\\\\worktrees\\\\glas-bestellung')",
+      "Bash(git rev-list *)",
+      "Bash(git merge-base *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python -c \"import json; json.load\\(open\\('IDEALAKEWMSService/appsettings.json'\\)\\); print\\('JSON OK'\\)\")",
+      "Bash(dotnet ef *)"
     ],
     "additionalDirectories": [
       "C:\\Entwicklung\\C#\\AKEBDELight\\$HOME\\.claude\\skills"
