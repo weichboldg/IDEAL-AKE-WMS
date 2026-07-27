@@ -22,8 +22,3 @@ secondbrain/.obsidian/workspaces.json
 secondbrain/.obsidian/cache
 secondbrain/.obsidian/app.json.bak
 secondbrain/.trash/
-# Hardlinks im Vault – Canonical liegt im Repo-Root, lokal via setup-vault-links.cmd
-secondbrain/CLAUDE.md
-secondbrain/README.md
-secondbrain/PROJECT_STATUS.md
-secondbrain/ANALYSIS.md

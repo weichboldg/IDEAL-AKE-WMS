@@ -1,75 +1,28 @@
-# 🏠 IDEAL-AKE-WMS – Second Brain
+﻿# WMS Second Brain - Dashboard
 
-Zentraler Einstieg für alle Projekt-Notizen.
+## Pipeline
 
-## 📂 Bereiche
-
-| Ordner | Inhalt |
-|--------|--------|
-| [[00_Inbox]] | Schnelle Captures, noch nicht sortiert |
-| [[01_Daily]] | Tagesnotizen |
-| [[02_Decisions]] | Architecture Decision Records (ADRs) |
-| [[03_Features]] | Feature-Specs und Modulnotizen |
-| [[04_Bugs]] | Bug-Investigations und Post-Mortems |
-| [[05_Research]] | Spikes, Bibliotheksvergleiche, Lernen |
-| [[06_Meetings]] | Besprechungsnotizen |
-| [[07_Snippets]] | SQL-, PowerShell-, C#-Häppchen |
-| [[90_Archive]] | Abgeschlossen / nicht mehr aktiv |
-
-## 🔥 Aktive Arbeit
-
-### Offene Bugs
+### Backlog (noch ohne Spec)
 ```dataview
-TABLE severity, component, file.mtime AS "Geändert"
-FROM "04_Bugs"
-WHERE status = "open"
-SORT severity DESC, file.mtime DESC
+LIST FROM "backlog" SORT file.ctime DESC
 ```
 
-### Features in Arbeit
+### Specs im Entwurf (warten auf Freigabe - Schranke 1)
 ```dataview
-TABLE status, owner, file.mtime AS "Geändert"
-FROM "03_Features"
-WHERE status = "in-progress" OR status = "spec"
-SORT file.mtime DESC
+TABLE status, created, open_questions FROM "specs/entwurf" WHERE type = "spec" SORT created DESC
 ```
 
-### Offene Action Items aus Meetings
+### Freigegeben / in Umsetzung / testbereit
 ```dataview
-TASK
-FROM "06_Meetings"
-WHERE !completed
-SORT file.mtime DESC
-LIMIT 20
+TABLE status, branch, updated FROM "specs/freigegeben" WHERE type = "spec" SORT updated DESC
 ```
 
-## 🧭 Entscheidungen
-
+## Offene Bugs
 ```dataview
-TABLE status, deciders, file.mtime AS "Geändert"
-FROM "02_Decisions"
-SORT file.mtime DESC
-LIMIT 10
+TABLE status, severity, file.mtime AS "Geaendert" FROM "bugs" WHERE status != "behoben" SORT severity DESC
 ```
 
-## 📅 Letzte Tage
-
+## Letzte ADRs
 ```dataview
-LIST
-FROM "01_Daily"
-SORT file.name DESC
-LIMIT 7
+TABLE id, status, date FROM "architektur/adr" SORT date DESC LIMIT 10
 ```
-
-## 🔗 Externe Projektdokumente
-
-Diese Dateien liegen im Repo-Root und sind nur außerhalb des Vaults zu finden:
-
-- `../CLAUDE.md` – Prompt-Konvention für Claude Code
-- `../README.md` – Projekt-Readme
-- `../PROJECT_STATUS.md` – Aktueller Projektstatus
-- `../ANALYSIS.md` – Analyse-Dokumente
-- `../docs/` – Erweiterte Doku
-- `../SQL/` – SQL-Migrationen
-
-> 💡 Tipp: Mit Junctions/Symlinks (`mklink`) können diese auch direkt im Vault sichtbar gemacht werden.

@@ -1,0 +1,253 @@
+{
+  "main": {
+    "id": "8aecd15ea087edf2",
+    "type": "split",
+    "children": [
+      {
+        "id": "58c15f22f8c998de",
+        "type": "tabs",
+        "dimension": 22.512919896640827,
+        "children": [
+          {
+            "id": "323afb2e049e6509",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/superpowers/plans/2026-03-20-rollenkonzept-plan.md",
+                "mode": "source",
+                "source": false,
+                "backlinks": true,
+                "backlinkOpts": {
+                  "collapseAll": false,
+                  "extraContext": false,
+                  "sortOrder": "alphabetical",
+                  "showSearch": false,
+                  "searchQuery": "",
+                  "backlinkCollapsed": false,
+                  "unlinkedCollapsed": true
+                }
+              },
+              "icon": "lucide-file",
+              "title": "2026-03-20-rollenkonzept-plan"
+            }
+          }
+        ]
+      },
+      {
+        "id": "531b16e07246e9c7",
+        "type": "tabs",
+        "dimension": 77.48708010335918,
+        "children": [
+          {
+            "id": "ff9700513b00b2ad",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "4ebfdd36d0d609f2",
+    "type": "split",
+    "children": [
+      {
+        "id": "a005444ff62474a8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1e3ae840ec2e3350",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "1609c13d3f292312",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Suchen"
+            }
+          },
+          {
+            "id": "a1d7ebee735dac87",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Lesezeichen"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "f1b4b9e696f6e63e",
+    "type": "split",
+    "children": [
+      {
+        "id": "2f7d77865f11d570",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "653111942ff5d7e1",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Willkommen.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Rückverweise auf Willkommen"
+            }
+          },
+          {
+            "id": "90581482d673a3dc",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Willkommen.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Ausgehende Links von Willkommen öffnen"
+            }
+          },
+          {
+            "id": "02172f99dce79d9a",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "20a4dd976ca86675",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Alle Eigenschaften"
+            }
+          },
+          {
+            "id": "05d2ba681a6ae9f2",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Willkommen.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Gliederung von Willkommen"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "ff9700513b00b2ad",
+  "lastOpenFiles": [
+    "Untitled.canvas",
+    "Willkommen.md",
+    "README.md",
+    "PROJECT_STATUS.md",
+    "CLAUDE.md",
+    "ANALYSIS.md",
+    "02_Decisions/ADR-0001-obsidian-second-brain-im-repo.md",
+    "docs/superpowers/plans/2026-03-20-rollenkonzept-plan.md",
+    "sql/AgentJobs/02_Import_Artikel.sql",
+    "sql/AgentJobs/01_Import_Produktionsauftraege.sql",
+    "sql/59_AddProductionOrderAssemblyFlags.sql",
+    "sql/58_AddStorageLocationIstBuchbar.sql",
+    "sql/AgentJobs",
+    "sql/57_AddStockMovementNoteAndSageMovementTypes.sql",
+    "sql/56_AddSyncLog.sql",
+    "sql/54_AddWarehouseRequisitionCreatedByUserId.sql",
+    "sql/53_AddWarehouseRequisitions.sql",
+    "sql/55_AddStorageLocationSyncFields.sql",
+    "docs/superpowers/specs/2026-05-07-storagelocation-istbuchbar-design.md",
+    "docs/superpowers/specs/2026-05-11-production-order-assembly-flags-design.md",
+    "docs/superpowers/specs/2026-05-11-einbuchung-fa-autofill-design.md",
+    "docs/superpowers/specs/2026-04-27-bde-phase-2-3-schichtkalender-auto-pause-design.md",
+    "docs/superpowers/specs/2026-05-08-oseon-search-sort-design.md",
+    "docs/superpowers/specs/2026-05-08-leitstand-filter-bulk-design.md",
+    "docs/superpowers/specs/2026-05-06-sage-lagerbestand-sync-design.md",
+    "docs/superpowers/specs/2026-04-30-oseon-tracking-article-filter-fix-design.md",
+    "docs/superpowers/specs/2026-05-05-sage-lagerplatz-sync-design.md",
+    "docs/superpowers/specs/2026-04-30-oseon-reporting-ag-uebersicht-design.md",
+    "docs/superpowers/specs/2026-04-30-lagerbestellung-aus-produktion-design.md",
+    "docs/superpowers/specs/2026-04-21-bde-phase-2-2-mehrfachanmeldung-zeit-split-design.md",
+    "docs/superpowers/specs/2026-04-20-bde-phase-2-1-werkbank-erweiterungen-design.md",
+    "docs/superpowers/specs/2026-04-17-print-tracking-improvements-design.md",
+    "docs/superpowers/specs/2026-04-16-bde-settings-design.md",
+    "docs/superpowers/specs/2026-04-14-bde-phase-1-design.md",
+    "docs/superpowers/specs/2026-04-07-bom-cache-und-lackierteil-erkennung.md",
+    "docs/superpowers/specs/2026-04-10-customizable-view-preferences-design.md"
+  ]
+}
