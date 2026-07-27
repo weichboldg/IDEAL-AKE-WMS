@@ -53,6 +53,31 @@ public class SyncWorker : BackgroundService
                     }, stoppingToken);
                 }
 
+                // FA-Zusatzinfos aus Sage (v1.26.0) — direkt NACH dem FA-Import.
+                // Gate DB-first (Default false); Resolve INNERHALB des gegateten Blocks,
+                // sonst werfen die SyncWorkerTests (Mock-Provider kennt nur ISageImportService).
+                // Akzeptiert: schlaegt der FA-Import fehl/ist er aus, laeuft dieser Sync gegen
+                // den alten FA-Stand — neue WAs zaehlen als uebersprungen und heilen sich im
+                // Folgezyklus (erhoehte Skip-Counts nach FA-Import-Fehlern sind KEIN Bug).
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:FaZusatzinfoEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("FA-Zusatzinfo-Sync", async () =>
+                    {
+                        var zusatzinfoSync = scope.ServiceProvider.GetRequiredService<IFaZusatzinfoSyncService>();
+                        // Cap DB-first lesen (Default 100) und als Parameter durchreichen
+                        // (Muster ActivityLogCleanupService.RunAsync(retentionDays, ...)).
+                        var autoDoneCap = await ServiceSettings.GetIntSafeAsync(
+                            _configuration, "Sync:FaZusatzinfoAutoDoneMaxPerRun", 100, stoppingToken);
+
+                        _logger.LogInformation("FA-Zusatzinfo-Sync startet...");
+                        var ziResult = await zusatzinfoSync.SyncAsync(dryRun, autoDoneCap, stoppingToken);
+                        _logger.LogInformation(
+                            "FA-Zusatzinfo-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
+                            ziResult.Inserted, ziResult.Updated, ziResult.Errors,
+                            ziResult.ErrorDetails != null ? $" Details: {ziResult.ErrorDetails}" : "");
+                    }, stoppingToken);
+                }
+
                 // Artikel sync
                 if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ArticlesEnabled", true, stoppingToken))
                 {

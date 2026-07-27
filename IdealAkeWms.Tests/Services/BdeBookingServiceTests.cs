@@ -858,4 +858,172 @@ public class BdeBookingServiceTests
         result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
         result.Message.Should().Contain("nicht pausiert");
     }
+
+    // ===== Fold 2 (v1.26.0, Spec §10.6): BDE-Sperre bei Sage-Status verpackt/abgeholt =====
+
+    // §10.6-1/2) Start mit FA verpackt/abgeholt (+ Case/Trim) -> InvalidState, keine Buchung
+    [Theory]
+    [InlineData("verpackt")]
+    [InlineData("abgeholt")]
+    [InlineData(" Verpackt ")]
+    public async Task StartProduction_FaPacked_ReturnsInvalidState_NoBooking(string sageStatus)
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var order = await ctx.ProductionOrders.FindAsync(ids.ProductionOrderId);
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, sageStatus);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        result.Message.Should().Contain(order!.OrderNumber);
+        result.Message.Should().Contain(sageStatus.Trim());
+        result.Message.Should().Contain("keine BDE-Buchung mehr moeglich");
+        (await ctx.BdeBookings.CountAsync()).Should().Be(0);
+    }
+
+    // §10.6-1) Auch der Setup-Start ist gesperrt (StartPlannedAsync deckt beide Typen)
+    [Fact]
+    public async Task StartSetup_FaPacked_ReturnsInvalidState_NoBooking()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "abgeholt");
+
+        var result = await svc.StartSetupAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        (await ctx.BdeBookings.CountAsync()).Should().Be(0);
+    }
+
+    // §10.6-3) Anderer Status -> Buchung startet normal
+    [Fact]
+    public async Task StartProduction_OtherSageStatus_Succeeds()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "in Produktion");
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+    }
+
+    // §10.6-4) Ohne ExtraInfo-Satellit (Sync aus / View fehlt) -> keine Sperre
+    [Fact]
+    public async Task StartProduction_NoExtraInfo_Succeeds()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var result = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+    }
+
+    // §10.6-5) Resume einer pausierten Buchung, FA inzwischen abgeholt -> InvalidState, keine neue Buchung
+    [Fact]
+    public async Task Resume_FaPackedMeanwhile_ReturnsInvalidState_NoNewBooking()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(parent);
+        await ctx.SaveChangesAsync();
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "abgeholt");
+
+        var result = await svc.ResumeAsync(parent.Id, ids.OperatorId, BdeBookingType.Production, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        (await ctx.BdeBookings.CountAsync()).Should().Be(1); // nur der Parent
+        (await ctx.BdeBookings.FindAsync(parent.Id))!.Status.Should().Be(BdeBookingStatus.Paused);
+    }
+
+    // §10.6-6a) Laufende Buchung: Finish funktioniert weiter (kein Guard in Beenden-Pfaden)
+    [Fact]
+    public async Task Finish_RunningBooking_FaPackedMeanwhile_StillWorks()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var running = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(running);
+        await ctx.SaveChangesAsync();
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "verpackt");
+
+        var finish = await svc.FinishAsync(running.Id, goodQty: 10m, scrapQty: 1m);
+
+        finish.Outcome.Should().Be(BdeBookingOutcome.Success);
+        (await ctx.BdeBookings.FindAsync(running.Id))!.Status.Should().Be(BdeBookingStatus.Finished);
+    }
+
+    // §10.6-6b) Laufende Buchung: Pause funktioniert weiter
+    [Fact]
+    public async Task Pause_RunningBooking_FaPackedMeanwhile_StillWorks()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var running = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
+            startedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(running);
+        await ctx.SaveChangesAsync();
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "verpackt");
+
+        var pause = await svc.PauseAsync(running.Id, goodQty: 2m, scrapQty: 0m);
+
+        pause.Outcome.Should().Be(BdeBookingOutcome.Success);
+        (await ctx.BdeBookings.FindAsync(running.Id))!.Status.Should().Be(BdeBookingStatus.Paused);
+    }
+
+    // §10.6-7) Ungeplante Taetigkeit (werkbank-bezogen, ohne FA) startet trotz gesperrter FA
+    [Fact]
+    public async Task StartActivity_WorksDespitePackedFa()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "abgeholt");
+
+        var result = await svc.StartActivityAsync(ids.OperatorId, ids.ActivityId, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+    }
+
+    // §10.6-9) Setup-Transition: laufendes Ruesten + FA wird verpackt -> StartProduction
+    //          InvalidState, das Setup bleibt Running (Guard VOR der Auto-Close-Transition)
+    [Fact]
+    public async Task SetupRunning_FaPacked_StartProductionRejected_SetupStaysRunning()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var setup = await svc.StartSetupAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+        setup.Outcome.Should().Be(BdeBookingOutcome.Success);
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "verpackt");
+
+        var prod = await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId);
+
+        prod.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
+        var setupDb = await ctx.BdeBookings.FindAsync(setup.Booking!.Id);
+        setupDb!.Status.Should().Be(BdeBookingStatus.Running); // kein gestrandeter Operator
+        setupDb.EndedAt.Should().BeNull();
+    }
+
+    // §10.6-10) Resume einer pausierten Activity-Buchung (WorkOperationId NULL) bleibt moeglich
+    [Fact]
+    public async Task Resume_PausedActivityBooking_SucceedsDespitePackedFa()
+    {
+        var svc = NewService(out var ctx);
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var pausedActivity = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Activity, BdeBookingStatus.Paused,
+            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(pausedActivity);
+        await ctx.SaveChangesAsync();
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "verpackt");
+
+        var result = await svc.ResumeAsync(pausedActivity.Id, ids.OperatorId, BdeBookingType.Activity, ids.WorkplaceId, ids.TerminalId);
+
+        result.Outcome.Should().Be(BdeBookingOutcome.Success);
+        result.Booking!.WorkOperationId.Should().BeNull();
+        result.Booking.BookingType.Should().Be(BdeBookingType.Activity);
+    }
 }

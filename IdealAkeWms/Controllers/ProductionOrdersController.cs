@@ -116,6 +116,11 @@ public class ProductionOrdersController : Controller
                 IsDone = o.IsDone || o.IsDonePicking,
                 IsCancelled = o.IsCancelled,
                 WorkplaceName = o.WorkplaceName,
+                Kaeltemittel = o.Kaeltemittel,
+                Ventil = o.Ventil,
+                AusfuehrungEZ = o.AusfuehrungEZ,
+                Maschine = o.Maschine,
+                SageStatus = o.SageStatus,
                 HasCoatingParts = ps?.HasCoatingParts ?? false,
                 IsCoatingDone = ps?.IsCoatingDone ?? false,
             };

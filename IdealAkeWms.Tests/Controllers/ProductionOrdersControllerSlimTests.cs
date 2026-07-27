@@ -226,4 +226,59 @@ public class ProductionOrdersControllerSlimTests
         redirect.ActionName.Should().Be("Index");
         redirect.ControllerName.Should().Be("PickingLeitstand");
     }
+
+    // ---------------------------------------------------- FA-Zusatzinfos (Sage, v1.26.0)
+
+    [Fact]
+    public async Task Index_MapsExtraInfoFields_FromLeitstandRow()
+    {
+        var row = new LeitstandOrderRow(
+            1, "FA-100", 1m, null, "ART-001", null, null, null, null,
+            false, false, false, null,
+            Kaeltemittel: "R290", Ventil: "Danfoss", AusfuehrungEZ: "E",
+            Maschine: "M1", SageStatus: "verpackt");
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var result = await _controller.Index(null, null, null) as ViewResult;
+
+        var vm = result!.Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+        var item = vm.Items.Should().ContainSingle().Subject;
+        item.Kaeltemittel.Should().Be("R290");
+        item.Ventil.Should().Be("Danfoss");
+        item.AusfuehrungEZ.Should().Be("E");
+        item.Maschine.Should().Be("M1");
+        item.SageStatus.Should().Be("verpackt");
+    }
+
+    [Fact]
+    public async Task Index_ZusatzinfoColumnFilter_IsPassedToSqlFilters()
+    {
+        // Invariante: die 5 neuen Keys sind KEINE Datums-Keys -> sie MUESSEN in den
+        // SQL-Filter-Pfad (GetForLeitstandAsync columnFilters) laufen, nicht in den
+        // C#-Memory-Filter (kein Force-Full-Load, Spec §5.3).
+        IReadOnlyDictionary<string, string>? captured = null;
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .Callback<string?, string?, string?, bool, int, int, IReadOnlyDictionary<string, string>?>(
+                (_, _, _, _, _, _, colf) => captured = colf)
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100")));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_kaeltemittel=r290&colf_sage-status=verpackt");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        await _controller.Index(null, null, null);
+
+        captured.Should().NotBeNull();
+        captured!.Should().ContainKey("kaeltemittel").WhoseValue.Should().Be("r290");
+        captured!.Should().ContainKey("sage-status").WhoseValue.Should().Be("verpackt");
+    }
 }

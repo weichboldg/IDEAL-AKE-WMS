@@ -55,7 +55,8 @@
     function buildDefaultSettings() {
         return {
             columns: _columnConfig.map(function (c, i) {
-                return { key: c.key, visible: true, width: c.defaultWidth || null, order: i };
+                // defaultHidden (v1.26.0): neue Spalten koennen per Config default-unsichtbar sein
+                return { key: c.key, visible: !c.defaultHidden, width: c.defaultWidth || null, order: i };
             }),
             defaultSortColumn: null,
             defaultSortDirection: 'asc'
@@ -103,7 +104,7 @@
             var s = savedMap[c.key];
             return {
                 key: c.key,
-                visible: s && s.visible !== undefined ? s.visible : true,
+                visible: s && s.visible !== undefined ? s.visible : !c.defaultHidden,
                 width: s && s.width !== undefined ? s.width : (c.defaultWidth || null),
                 order: resultKeys.indexOf(c.key)
             };

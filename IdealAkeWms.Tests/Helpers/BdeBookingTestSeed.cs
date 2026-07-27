@@ -137,4 +137,21 @@ public static class BdeBookingTestSeed
             CreatedByWindows = "t"
         };
     }
+
+    /// <summary>
+    /// Fold 2 (v1.26.0, Spec §10.6): legt den ExtraInfo-Satelliten mit gegebenem
+    /// SageStatus an (fuer BDE-Sperre-Tests).
+    /// </summary>
+    public static async Task SetSageStatusAsync(ApplicationDbContext ctx, int productionOrderId, string? sageStatus)
+    {
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = productionOrderId,
+            SageStatus = sageStatus,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+    }
 }

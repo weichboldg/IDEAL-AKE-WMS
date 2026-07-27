@@ -286,6 +286,10 @@
             bootstrap.Modal.getOrCreateInstance(document.getElementById('collisionModal')).show();
         } else if (json.outcome === 'QuantityRequired') {
             showToast('Mengen-Eingabe erforderlich', 'warning');
+        } else if (json.outcome === 'InvalidState') {
+            // Fold 2 (Spec §10.6): InvalidState wurde bisher verschluckt (betraf auch die
+            // Werkbank-Gate-Meldung). BDE-Sperre + Gate zeigen jetzt die Server-Meldung.
+            showToast(json.message || 'Aktion nicht möglich', 'danger');
         }
         return json;
     }

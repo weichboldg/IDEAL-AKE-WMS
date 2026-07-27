@@ -309,7 +309,7 @@ public class BdeApiControllerTests
         // Seed WorkOperations into the mocked repository
         var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
         var wo2 = await ctx.WorkOperations.FindAsync(secondWoId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
             .ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -347,7 +347,7 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var wo = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
             .ReturnsAsync(new List<WorkOperation> { wo! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -378,7 +378,7 @@ public class BdeApiControllerTests
 
         var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
         var wo2 = await ctx.WorkOperations.FindAsync(wo2Id);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
             .ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -408,7 +408,7 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var wo = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
             .ReturnsAsync(new List<WorkOperation> { wo! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -420,5 +420,75 @@ public class BdeApiControllerTests
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
         result.Should().BeOfType<OkObjectResult>();
+    }
+
+    // ===== Fold 2 (v1.26.0, Spec §10.6): Listen-Hygiene NurFA-Modus =====
+
+    [Fact]
+    public async Task GetAvailableOperations_NurFaMode_ExcludesPackedOrders()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var wp = new ProductionWorkplace
+        {
+            Name = "WB", BdeAktiv = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(wp);
+        await ctx.SaveChangesAsync();
+
+        var poOpen = new ProductionOrder
+        {
+            OrderNumber = "FA-OFFEN", ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var poPacked = new ProductionOrder
+        {
+            OrderNumber = "FA-GESPERRT", ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var poNullStatus = new ProductionOrder
+        {
+            OrderNumber = "FA-NULLSTATUS", ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        var poInProduction = new ProductionOrder
+        {
+            OrderNumber = "FA-INPRODUKTION", ProductionWorkplaceId = wp.Id,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionOrders.AddRange(poOpen, poPacked, poNullStatus, poInProduction);
+        await ctx.SaveChangesAsync();
+
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poPacked.Id, SageStatus = " Verpackt ",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poNullStatus.Id, SageStatus = null,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poInProduction.Id, SageStatus = "in Produktion",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("true");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+
+        var result = await controller.GetAvailableOperations(wp.Id);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("FA-OFFEN");
+        json.Should().Contain("FA-NULLSTATUS"); // Null-Guard: ohne Status bleibt der FA drin
+        json.Should().Contain("FA-INPRODUKTION"); // Nicht-gesperrter Status bleibt enthalten
+        json.Should().NotContain("FA-GESPERRT");
+        json.Should().Contain("\"nurFaMode\":true");
     }
 }

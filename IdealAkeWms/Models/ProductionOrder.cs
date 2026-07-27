@@ -50,6 +50,9 @@ public class ProductionOrder : AuditableEntity
     public ProductionOrderPickingStatus? PickingStatus { get; set; }
     public ProductionOrderBdeStatus? BdeStatus { get; set; }
 
+    /// <summary>FA-Zusatzinfos aus Sage (v1.26.0, read-only Satellit).</summary>
+    public ProductionOrderExtraInfo? ExtraInfo { get; set; }
+
     // FA-Reconciliation (v1.25.0): verwaiste FAs, die in Sage geloescht wurden.
     // IsCancelled verhaelt sich in allen Offen-Queries wie IsDone (raus aus offenen Sichten).
     [Display(Name = "Storniert")]

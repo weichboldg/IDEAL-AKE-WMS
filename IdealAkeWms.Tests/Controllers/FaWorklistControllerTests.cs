@@ -532,4 +532,80 @@ public class FaWorklistControllerTests
         var filtered = (FaWorklistViewModel)((ViewResult)(await ctrl.Index(ve.Id))).Model!;
         filtered.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-002");
     }
+
+    // ---------------------------------------------------- FA-Zusatzinfos (Sage, v1.26.0)
+
+    private static void SeedFaWorkStepRow(ApplicationDbContext ctx, int productionOrderId, int workStepId)
+    {
+        ctx.FaWorkSteps.Add(new FaWorkStep
+        {
+            ProductionOrderId = productionOrderId,
+            WorkStepId = workStepId,
+            Source = FaWorkStepSources.Manual,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
+    }
+
+    private static void SeedExtraInfoRow(ApplicationDbContext ctx, int productionOrderId, string kaelte)
+    {
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = productionOrderId,
+            Kaeltemittel = kaelte,
+            Ventil = "Danfoss",
+            AusfuehrungEZ = "E",
+            Maschine = "M1",
+            SageStatus = "in Produktion",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Index_MapsExtraInfoColumns()
+    {
+        var (ctx, ctrl, _) = Build();
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung");
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-100");
+        SeedFaWorkStepRow(ctx, o.Order.Id, vk.Id);
+        SeedExtraInfoRow(ctx, o.Order.Id, "R290");
+
+        var result = await ctrl.Index(vk.Id) as ViewResult;
+
+        var vm = result!.Model.Should().BeOfType<FaWorklistViewModel>().Subject;
+        var row = vm.Items.Should().ContainSingle().Subject;
+        row.Kaeltemittel.Should().Be("R290");
+        row.Ventil.Should().Be("Danfoss");
+        row.AusfuehrungEZ.Should().Be("E");
+        row.Maschine.Should().Be("M1");
+        row.SageStatus.Should().Be("in Produktion");
+    }
+
+    [Fact]
+    public async Task Index_FiltersOnKaeltemittelColumn()
+    {
+        var (ctx, ctrl, _) = Build();
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung");
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-100");
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-200");
+        SeedFaWorkStepRow(ctx, o1.Order.Id, vk.Id);
+        SeedFaWorkStepRow(ctx, o2.Order.Id, vk.Id);
+        SeedExtraInfoRow(ctx, o1.Order.Id, "R290");
+        SeedExtraInfoRow(ctx, o2.Order.Id, "R134a");
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString($"?workStepId={vk.Id}&colf_kaeltemittel=r290");
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await ctrl.Index(vk.Id) as ViewResult;
+
+        var vm = result!.Model.Should().BeOfType<FaWorklistViewModel>().Subject;
+        vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-100");
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
 }

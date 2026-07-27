@@ -2,6 +2,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
+using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -170,6 +171,11 @@ public class BdeApiController : ControllerBase
             // Im NurFA-Modus: offene ProductionOrders an dieser Werkbank
             var ordersQuery = _ctx.ProductionOrders
                 .Where(po => po.ProductionWorkplaceId == workplaceId && !po.IsDone && !po.IsCancelled
+                    // Fold 2 (Spec §10.6) Listen-Hygiene: FAs mit Sage-Status verpackt/
+                    // abgeholt gar nicht erst anbieten (der Start-Guard wuerde ablehnen).
+                    && (po.ExtraInfo == null || po.ExtraInfo.SageStatus == null
+                        || (po.ExtraInfo.SageStatus.Trim().ToLower() != FaZusatzinfoStatus.Verpackt
+                            && po.ExtraInfo.SageStatus.Trim().ToLower() != FaZusatzinfoStatus.Abgeholt))
                     && !_ctx.BdeBookingQuantities.Any(q =>
                         q.IsFinal
                         && q.BdeBooking!.WorkOperation!.ProductionOrderId == po.Id
@@ -200,7 +206,7 @@ public class BdeApiController : ControllerBase
         }
 
         // Open WorkOperations at this workplace (not reported, not already in active booking)
-        var workOps = await _workOps.GetOpenByWorkplaceIdAsync(workplaceId);
+        var workOps = await _workOps.GetOpenByWorkplaceIdAsync(workplaceId, excludePackedOrders: true);
         var activeWoIds = (await _bookings.GetActiveCockpitAsync())
             .Where(b => b.WorkOperationId.HasValue)
             .Select(b => b.WorkOperationId!.Value)

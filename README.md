@@ -622,6 +622,7 @@ Standard-Pfad: relativ zum Executable, also z. B. `C:\Services\IDEALAKEWMSServic
 
 **SyncWorker** (alle `WorkerSettings:SyncIntervalMinutes` Minuten, default 15) — jeder Block einzeln aktivierbar und resilient gekapselt (ein Fehler stoppt die anderen Syncs nicht; optional Fehlermail via `ErrorNotification:*`):
 - Produktionsaufträge aus SAGE (`vw_AKE_Kommissionierung_WAListe`) → WMS (`ProductionOrders`) — MERGE (Insert + Update); optional **FA-Reconciliation** (in Sage gelöschte offene FAs stornieren, `Sync:ProductionOrderReconcileEnabled`, mit Guard + Cap)
+- **FA-Zusatzinfos (Sage)**: Kältemittel/Ventil/Ausführung E-Z/Maschine/Status je FA aus `vw_IDEAL_AKE_WMS_FAZusatzinformationen` → `ProductionOrderExtraInfo` (1:1-Satellit, in der App read-only, kein Löschen; `Sync:FaZusatzinfoEnabled`, v1.26.0). Fold 2: FAs mit Sage-Status **verpackt/abgeholt** setzt der Sync automatisch auf Komm-Erledigt (`PickingStatus.IsDonePicking` — die einzige Schreib-Wirkung außerhalb des Satelliten; einweg, Cap `Sync:FaZusatzinfoAutoDoneMaxPerRun` Default 100, vor dem Scharfschalten DryRun prüfen), und das BDE-Terminal sperrt neue Buchungen auf solche FAs
 - Artikel aus SAGE → WMS (`Articles`) — Full-Update inkl. Meldebestand + **Hauptlagerplatz** (v1.25.0)
 - **OSEON-Tracking**: Produktionsaufträge + Arbeitsgänge aus OSEON-DB → WMS — Upsert, Werkbänke auto-anlegen; Werkbank-Sync auf Sage-Aufträge
 - **enaio DMS**: Werkstattauftrags-/Zeichnungs-Links aus enaio (Full-Sync mit MERGE)
@@ -666,7 +667,7 @@ Bereinigung). Die vollständige Key-Liste mit Defaults steht im Katalog
 
 | Gruppe | Beispiele |
 |--------|-----------|
-| Sync-Gates | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:OseonTrackingEnabled`, `Sync:EnaioDmsEnabled`, `Sync:BomCacheEnabled`, `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FeiertagSyncEnabled` |
+| Sync-Gates | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:FaZusatzinfoEnabled`, `Sync:OseonTrackingEnabled`, `Sync:EnaioDmsEnabled`, `Sync:BomCacheEnabled`, `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FeiertagSyncEnabled` |
 | Erkennung/Reconciliation | `Sync:CoatingDetectionEnabled`, `Sync:FaWorkStepDetectionEnabled`, `Sync:ProductionOrderReconcileEnabled` (+ `Sync:ReconcileMaxCancelPerRun`) |
 | Mails | `Sync:PartRequisitionEmailEnabled`, `Sync:WarehouseRequisitionEmailEnabled`, `Notifications:*`, `ErrorNotification:Enabled`/`Recipients` |
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |

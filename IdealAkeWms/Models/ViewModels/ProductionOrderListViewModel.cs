@@ -36,6 +36,13 @@ public class ProductionOrderListItem
     public bool IsCancelled { get; set; }
     public string? WorkplaceName { get; set; }
 
+    // FA-Zusatzinfos aus Sage (v1.26.0) — read-only, Default-ausgeblendete Spalten.
+    public string? Kaeltemittel { get; set; }
+    public string? Ventil { get; set; }
+    public string? AusfuehrungEZ { get; set; }
+    public string? Maschine { get; set; }
+    public string? SageStatus { get; set; }
+
     // Calculated dates
     public DateTime? KommissionierTermin { get; set; }
     public DateTime? VorkommissionierTermin { get; set; }

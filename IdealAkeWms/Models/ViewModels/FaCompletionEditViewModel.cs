@@ -38,6 +38,16 @@ public class FaCompletionEditViewModel
 
     /// <summary>enaio-DMS-Dokumente zur FA-Nummer (Key = OrderNumber). Fuer Badges im Header.</summary>
     public Dictionary<string, List<EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
+
+    // ------------------------------------------------------------------
+    // FA-Zusatzinfos aus Sage (v1.26.0) — read-only Reiter „ALLGEMEIN".
+    // ------------------------------------------------------------------
+    public bool HasExtraInfo { get; set; }
+    public string? ExtraKaeltemittel { get; set; }
+    public string? ExtraVentil { get; set; }
+    public string? ExtraAusfuehrungEZ { get; set; }
+    public string? ExtraMaschine { get; set; }
+    public string? ExtraSageStatus { get; set; }
 }
 
 /// <summary>

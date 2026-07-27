@@ -9,6 +9,52 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.26.0</strong> <span class="text-white-50 ms-2">22.07.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Zusatzinfos (Sage)</h6>
+                <ul>
+                    <li><strong>Neue FA-Zusatzinfos aus Sage:</strong> Kaeltemittel, Ventil,
+                        Ausfuehrung E/Z, Maschine und Sage-Status werden je Fertigungsauftrag
+                        per Service-Sync aus Sage uebernommen. Die Daten sind in der App
+                        <strong>read-only</strong> &mdash; Sage ist Master; verschwindet ein
+                        Auftrag aus der Sage-Sicht, bleibt der letzte Stand sichtbar.</li>
+                    <li><strong>FA-Vervollstaendigung:</strong> neuer erster Reiter
+                        <strong>ALLGEMEIN</strong> zeigt die Zusatzinfos. Standardmaessig
+                        oeffnet weiterhin der erste FA-Vorbau-AG-Reiter; ein FA ohne
+                        FA-Vorbau-AG oeffnet auf ALLGEMEIN. Der Code
+                        <code>ALLGEMEIN</code> ist fuer FA-Vorbau-AG jetzt reserviert.</li>
+                    <li><strong>FA-Abarbeitungsliste:</strong> fuenf neue filterbare Spalten
+                        (standardmaessig eingeblendet, per Zahnrad ausblendbar). Zusaetzlich
+                        merkt sich die Liste die Zahnrad-Einstellungen jetzt dauerhaft
+                        (vorher gingen sie beim Neuladen verloren).</li>
+                    <li><strong>FA-Liste + Leitstand:</strong> dieselben fuenf Spalten,
+                        standardmaessig <strong>ausgeblendet</strong> &mdash; bei Bedarf ueber
+                        das Zahnrad (Tabellenansicht anpassen) einblenden.</li>
+                    <li><strong>Automatisch erledigt bei Sage-Status verpackt/abgeholt:</strong>
+                        Meldet Sage einen FA als <em>verpackt</em> oder <em>abgeholt</em>, setzt
+                        der Sync ihn automatisch auf Komm-Erledigt (wie der Abschliessen-Button)
+                        &mdash; der FA verschwindet aus den offenen Sichten. Einweg: faellt der
+                        Status zurueck, bleibt der FA erledigt. Sicherheits-Cap
+                        <code>Sync:FaZusatzinfoAutoDoneMaxPerRun</code> (Default 100) verhindert
+                        Massen-Schliessungen bei View-Defekten. Vor dem Scharfschalten DryRun
+                        fahren und den Count <code>erledigt-gesetzt</code> pruefen.</li>
+                    <li><strong>BDE-Buchungs-Sperre:</strong> Fuer FAs mit Sage-Status
+                        verpackt/abgeholt sind am BDE-Terminal keine NEUEN Buchungen (Start +
+                        Fortsetzen) mehr moeglich &mdash; laufende Buchungen lassen sich normal
+                        beenden, ungeplante Taetigkeiten bleiben moeglich. Das Terminal zeigt
+                        eine Meldung; gesperrte FAs verschwinden aus den Auswahllisten.</li>
+                    <li><strong>Hinweis fuer Admins:</strong> Der Sync ist Opt-in &mdash; in den
+                        Service-Einstellungen <code>Sync:FaZusatzinfoEnabled</code> aktivieren
+                        (Default aus). Fehlt die Sage-View am System, ueberspringt der Sync mit
+                        Warnhinweis (keine Fehlermail). Neuer Aktivitaets-Protokoll-Filter
+                        <code>FaZusatzinfo</code>.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.25.0</strong> <span class="text-white-50 ms-2">16.07.2026</span>
             </div>
             <div class="card-body">

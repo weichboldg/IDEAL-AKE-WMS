@@ -246,9 +246,26 @@ public class FaCompletionController : Controller
                 }).ToList(),
         }).ToList();
 
-        var activeTab = !string.IsNullOrWhiteSpace(tab) && tabs.Any(t => t.Code == tab)
-            ? tab!
-            : tabs.FirstOrDefault()?.Code ?? string.Empty;
+        // Reiter ALLGEMEIN (v1.26.0): Pseudo-Tab fuer die read-only FA-Zusatzinfos aus
+        // Sage — NICHT in tabs. Vergleich OrdinalIgnoreCase. Default-aktiv bleibt der
+        // erste FA-Vorbau-AG-Reiter (User-Entscheid); FA ganz ohne AG-Reiter -> ALLGEMEIN.
+        const string allgemeinTab = "ALLGEMEIN";
+        string activeTab;
+        if (!string.IsNullOrWhiteSpace(tab)
+            && string.Equals(tab, allgemeinTab, StringComparison.OrdinalIgnoreCase))
+        {
+            activeTab = allgemeinTab;
+        }
+        else if (!string.IsNullOrWhiteSpace(tab) && tabs.Any(t => t.Code == tab))
+        {
+            activeTab = tab!;
+        }
+        else
+        {
+            activeTab = tabs.FirstOrDefault()?.Code ?? allgemeinTab;
+        }
+
+        var extraInfo = await _productionOrderRepository.GetExtraInfoAsync(id);
 
         var vm = new FaCompletionEditViewModel
         {
@@ -267,6 +284,12 @@ public class FaCompletionController : Controller
             AvailableWorkSteps = availableWorkSteps,
             ActiveTab = activeTab,
             Tabs = tabs,
+            HasExtraInfo = extraInfo != null,
+            ExtraKaeltemittel = extraInfo?.Kaeltemittel,
+            ExtraVentil = extraInfo?.Ventil,
+            ExtraAusfuehrungEZ = extraInfo?.AusfuehrungEZ,
+            ExtraMaschine = extraInfo?.Maschine,
+            ExtraSageStatus = extraInfo?.SageStatus,
             EnaioDmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(
                 new List<string> { order.OrderNumber }),
         };
@@ -304,7 +327,7 @@ public class FaCompletionController : Controller
     // POST /FaCompletion/SetWorkplace
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SetWorkplace(int id, int? workplaceId)
+    public async Task<IActionResult> SetWorkplace(int id, int? workplaceId, string? tab = null)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -322,7 +345,7 @@ public class FaCompletionController : Controller
         TempData["SuccessMessage"] = workplaceId.HasValue
             ? "Werkbank zugewiesen."
             : "Werkbank-Zuweisung entfernt.";
-        return RedirectToAction(nameof(Edit), new { id });
+        return RedirectToAction(nameof(Edit), new { id, tab });
     }
 
     // POST /FaCompletion/SaveAttributeValue
@@ -364,7 +387,7 @@ public class FaCompletionController : Controller
     // POST /FaCompletion/RemoveWorkStep
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveWorkStep(int id, int workStepId)
+    public async Task<IActionResult> RemoveWorkStep(int id, int workStepId, string? tab = null)
     {
         var step = await _workStepRepository.GetByIdAsync(workStepId);
         if (step == null)
@@ -377,7 +400,7 @@ public class FaCompletionController : Controller
             _currentUser.GetDisplayName(), _currentUser.GetWindowsUserName());
 
         TempData["SuccessMessage"] = $"Arbeitsgang {step.Code} entfernt.";
-        return RedirectToAction(nameof(Edit), new { id });
+        return RedirectToAction(nameof(Edit), new { id, tab });
     }
 
     // POST /FaCompletion/AddSpec

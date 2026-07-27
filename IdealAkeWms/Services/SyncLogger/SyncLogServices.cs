@@ -20,6 +20,7 @@ public static class SyncLogServices
     public const string ProductionOrder = "ProductionOrder";  // SageImport-Teil 1
     public const string ProductionOrderReconciliation = "ProductionOrderReconciliation"; // SageImport-Reconcile (v1.25.0)
     public const string Article = "Article";                  // SageImport-Teil 2
+    public const string FaZusatzinfo = "FaZusatzinfo";        // FA-Zusatzinfos aus Sage (v1.26.0)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -34,7 +35,7 @@ public static class SyncLogServices
         Lagerplatz, Lagerbestand, BomCache,
         OseonTracking, OseonWorkplaces, OseonArticleCategories,
         EnaioDms, Holiday, CoatingDetection, FaWorkStepDetection,
-        ProductionOrder, ProductionOrderReconciliation, Article,
+        ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };

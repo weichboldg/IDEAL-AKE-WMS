@@ -41,6 +41,12 @@ public class BdeBookingService : IBdeBookingService
             var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
             if (gateError != null) return gateError;
 
+            // Fold 2 (Spec §10.6): FA in Sage bereits verpackt/abgeholt -> keine neue
+            // Buchung. Liegt VOR der Auto-Close-Transition (Rule 1) — ein laufendes
+            // Ruesten bleibt bei abgelehntem Produktion-Start unangetastet.
+            var packedError = await EnsureOrderNotPackedAsync(workOperationId);
+            if (packedError != null) return packedError;
+
             // Settings lesen
             var multiMa = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang);
             var multiOp = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProOperator);
@@ -164,6 +170,15 @@ public class BdeBookingService : IBdeBookingService
             if (parent == null) return BdeBookingResult.NotFound();
             if (parent.Status != BdeBookingStatus.Paused && parent.Status != BdeBookingStatus.AutoPaused)
                 return BdeBookingResult.Invalid("Ziel-Buchung ist nicht pausiert.");
+
+            // Fold 2 (Spec §10.6): Resume erzeugt eine NEUE Buchung -> gleiche Sperre wie
+            // Start. Nur fuer geplante Buchungen — pausierte Activity-Buchungen
+            // (WorkOperationId NULL, erreichbar ueber das Paused-Panel) NICHT blocken.
+            if (parent.WorkOperationId.HasValue)
+            {
+                var packedError = await EnsureOrderNotPackedAsync(parent.WorkOperationId.Value);
+                if (packedError != null) return packedError;
+            }
 
             var multiMa = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang);
             var multiOp = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProOperator);
@@ -397,6 +412,31 @@ public class BdeBookingService : IBdeBookingService
         var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
         if (workplace == null || !workplace.BdeAktiv)
             return BdeBookingResult.Invalid("Werkbank ist nicht für BDE aktiviert.");
+        return null;
+    }
+
+    /// <summary>
+    /// Fold 2 (v1.26.0, Spec §10.6): BDE-Sperre — ist der FA in Sage bereits
+    /// verpackt/abgeholt (ExtraInfo.SageStatus), sind keine NEUEN Buchungen mehr
+    /// moeglich (Start + Resume). Laufende Buchungen bleiben unangetastet (bewusst
+    /// KEIN Guard in Beenden-/Pausieren-/Mengen-Pfaden); ohne Zusatzinfo-Daten
+    /// (Sync aus / kein Satellit) keine Sperre. Rueckgabe null bedeutet "OK, weiter".
+    /// </summary>
+    private async Task<BdeBookingResult?> EnsureOrderNotPackedAsync(int workOperationId)
+    {
+        var orderInfo = await _ctx.WorkOperations
+            .Where(w => w.Id == workOperationId)
+            .Select(w => new
+            {
+                w.ProductionOrder.OrderNumber,
+                SageStatus = w.ProductionOrder.ExtraInfo != null ? w.ProductionOrder.ExtraInfo.SageStatus : null
+            })
+            .FirstOrDefaultAsync();
+
+        if (orderInfo != null && FaZusatzinfoStatus.IstVerpacktOderAbgeholt(orderInfo.SageStatus))
+            return BdeBookingResult.Invalid(
+                $"FA {orderInfo.OrderNumber} ist bereits {orderInfo.SageStatus!.Trim()} — keine BDE-Buchung mehr moeglich.");
+
         return null;
     }
 

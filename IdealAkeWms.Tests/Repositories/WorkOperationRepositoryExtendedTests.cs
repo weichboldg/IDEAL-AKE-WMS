@@ -239,4 +239,76 @@ public class WorkOperationRepositoryExtendedTests
         missingOp.Should().BeNull();
         missingFa.Should().BeNull();
     }
+
+    // ===== Fold 2 (v1.26.0, Spec §10.6): excludePackedOrders-Filter =====
+
+    [Fact]
+    public async Task GetOpenByWorkplaceIdAsync_ExcludePackedOrders_FiltersPackedFas()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WorkOperationRepository(ctx);
+
+        var wp = CreateWorkplace("Werkbank P");
+        ctx.ProductionWorkplaces.Add(wp);
+        var poOpen = CreateProductionOrder("WA-OFFEN");
+        var poPacked = CreateProductionOrder("WA-VERPACKT");
+        var poNullStatus = CreateProductionOrder("WA-NULLSTATUS");
+        var poInProduction = CreateProductionOrder("WA-INPRODUKTION");
+        ctx.ProductionOrders.AddRange(poOpen, poPacked, poNullStatus, poInProduction);
+        await ctx.SaveChangesAsync();
+
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poPacked.Id, SageStatus = " Abgeholt ", // Case/Trim greift auch hier
+            CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = "TEST\\user"
+        });
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poNullStatus.Id, SageStatus = null, // Null-Guard: bleibt drin
+            CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = "TEST\\user"
+        });
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poInProduction.Id, SageStatus = "in Produktion", // Nicht-gesperrter Status: bleibt drin
+            CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = "TEST\\user"
+        });
+        ctx.WorkOperations.AddRange(
+            CreateOperation(poOpen.Id, "10", "Op offen", 1, wp.Id),
+            CreateOperation(poPacked.Id, "10", "Op verpackt", 1, wp.Id),
+            CreateOperation(poNullStatus.Id, "10", "Op null-status", 1, wp.Id),
+            CreateOperation(poInProduction.Id, "10", "Op in Produktion", 1, wp.Id));
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetOpenByWorkplaceIdAsync(wp.Id, excludePackedOrders: true);
+
+        result.Select(o => o.ProductionOrder.OrderNumber)
+            .Should().BeEquivalentTo(new[] { "WA-OFFEN", "WA-NULLSTATUS", "WA-INPRODUKTION" });
+    }
+
+    [Fact]
+    public async Task GetOpenByWorkplaceIdAsync_DefaultParameter_KeepsPackedFas()
+    {
+        // Tracking-Aufrufer (TrackingController.ByWorkplace) bleibt bewusst ungefiltert.
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WorkOperationRepository(ctx);
+
+        var wp = CreateWorkplace("Werkbank T");
+        ctx.ProductionWorkplaces.Add(wp);
+        var poPacked = CreateProductionOrder("WA-VERPACKT");
+        ctx.ProductionOrders.Add(poPacked);
+        await ctx.SaveChangesAsync();
+
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = poPacked.Id, SageStatus = "verpackt",
+            CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = "TEST\\user"
+        });
+        ctx.WorkOperations.Add(CreateOperation(poPacked.Id, "10", "Op verpackt", 1, wp.Id));
+        await ctx.SaveChangesAsync();
+
+        var result = await repo.GetOpenByWorkplaceIdAsync(wp.Id);
+
+        result.Should().HaveCount(1);
+        result[0].ProductionOrder.OrderNumber.Should().Be("WA-VERPACKT");
+    }
 }

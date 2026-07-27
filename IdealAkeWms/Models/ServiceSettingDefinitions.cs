@@ -29,6 +29,8 @@ public static class ServiceSettingDefinitions
         new("Sync:LagerbestandNullsetzenMaxPerRun",  ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr in Sage verschwundene Bestand-Paare je Lauf -> kein Nullsetzen + Fehlermail"),
         new("Sync:ProductionOrderReconcileEnabled",  ServiceSettingType.Bool, "false", "Sync", "Verwaiste (in Sage geloeschte) offene FAs automatisch stornieren (Opt-in)"),
         new("Sync:ReconcileMaxCancelPerRun",         ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Storno-Kandidaten je Lauf -> kein Storno + Fehlermail"),
+        new("Sync:FaZusatzinfoEnabled",              ServiceSettingType.Bool, "false", "Sync", "FA-Zusatzinfos (Sage): Kaeltemittel/Ventil/Ausfuehrung/Maschine/Status je FA synchronisieren. ACHTUNG: setzt FAs mit Sage-Status verpackt/abgeholt automatisch auf Komm-Erledigt (vorher DryRun pruefen)"),
+        new("Sync:FaZusatzinfoAutoDoneMaxPerRun",    ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Auto-Erledigt-Kandidaten (Sage-Status verpackt/abgeholt) je Lauf -> kein Erledigt-Setzen + Warnung + Fehlermail (Schutz vor View-Defekten)"),
 
         // ----- BOM-Cache -----
         new("Sync:BomCacheEnabled",                  ServiceSettingType.Bool, "false", "BOM-Cache", "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),

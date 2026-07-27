@@ -51,6 +51,8 @@ try
     builder.Services.AddScoped<ISageImportService, SageImportService>();
     builder.Services.AddScoped<ISageLagerplatzReader, SageLagerplatzReader>();
     builder.Services.AddScoped<ISageBestandReader, SageBestandReader>();
+    builder.Services.AddScoped<ISageZusatzinfoReader, SageZusatzinfoReader>();
+    builder.Services.AddScoped<IFaZusatzinfoSyncService, FaZusatzinfoSyncService>();
     builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();
     builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
     builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();

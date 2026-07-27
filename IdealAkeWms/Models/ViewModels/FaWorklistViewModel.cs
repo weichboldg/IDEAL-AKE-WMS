@@ -32,6 +32,12 @@ public class FaWorklistRow
     public string? Description2 { get; set; }
     public decimal Quantity { get; set; }
     public string? WorkplaceName { get; set; }                  // Werkbank als Info-Spalte
+    // FA-Zusatzinfos aus Sage (v1.26.0) — read-only Anzeige-Spalten.
+    public string? Kaeltemittel { get; set; }
+    public string? Ventil { get; set; }
+    public string? AusfuehrungEZ { get; set; }
+    public string? Maschine { get; set; }
+    public string? SageStatus { get; set; }
     public DateTime? VorkommissionierTermin { get; set; }  // BG-Termin
     public DateTime? BeschichtungTermin { get; set; }
     public DateTime? KommissionierTermin { get; set; }

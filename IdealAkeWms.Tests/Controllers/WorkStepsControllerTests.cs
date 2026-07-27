@@ -83,4 +83,36 @@ public class WorkStepsControllerTests
         ctrl.ModelState[nameof(WorkStep.Code)]!.Errors.Should().NotBeEmpty();
         repo.Verify(r => r.AddAsync(It.IsAny<WorkStep>()), Times.Never);
     }
+
+    // ------------------------------------------------ Reservierter Code ALLGEMEIN (v1.26.0)
+
+    [Theory]
+    [InlineData("ALLGEMEIN")]
+    [InlineData("allgemein")]
+    [InlineData(" Allgemein ")]
+    public async Task Create_RejectsReservedCodeAllgemein(string code)
+    {
+        var (ctrl, repo) = CreateController();
+        repo.Setup(r => r.GetByCodeAsync(It.IsAny<string>())).ReturnsAsync((WorkStep?)null);
+
+        var result = await ctrl.Create(new WorkStep { Code = code, Name = "Pseudo" });
+
+        result.Should().BeOfType<ViewResult>();
+        ctrl.ModelState.IsValid.Should().BeFalse();
+        ctrl.ModelState[nameof(WorkStep.Code)]!.Errors.Should().NotBeEmpty();
+        repo.Verify(r => r.AddAsync(It.IsAny<WorkStep>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Edit_RejectsReservedCodeAllgemein()
+    {
+        var (ctrl, repo) = CreateController();
+        repo.Setup(r => r.GetByCodeAsync(It.IsAny<string>())).ReturnsAsync((WorkStep?)null);
+
+        var result = await ctrl.Edit(7, new WorkStep { Id = 7, Code = "ALLGEMEIN", Name = "Pseudo" });
+
+        result.Should().BeOfType<ViewResult>();
+        ctrl.ModelState.IsValid.Should().BeFalse();
+        repo.Verify(r => r.UpdateAsync(It.IsAny<WorkStep>()), Times.Never);
+    }
 }

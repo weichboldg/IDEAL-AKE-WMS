@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using IdealAkeWms.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +15,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         return await _dbSet
             .Include(o => o.ProductionWorkplace)
             .Include(o => o.PickingStatus)
+            .Include(o => o.ExtraInfo)
             .OrderBy(o => o.OrderNumber)
             .ToListAsync();
     }
@@ -74,7 +76,12 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 o.IsDone,
                 o.PickingStatus != null && o.PickingStatus.IsDonePicking,
                 o.IsCancelled,
-                o.ProductionWorkplace != null ? o.ProductionWorkplace.Name : null))
+                o.ProductionWorkplace != null ? o.ProductionWorkplace.Name : null,
+                o.ExtraInfo != null ? o.ExtraInfo.Kaeltemittel : null,
+                o.ExtraInfo != null ? o.ExtraInfo.Ventil : null,
+                o.ExtraInfo != null ? o.ExtraInfo.AusfuehrungEZ : null,
+                o.ExtraInfo != null ? o.ExtraInfo.Maschine : null,
+                o.ExtraInfo != null ? o.ExtraInfo.SageStatus : null))
             .ToListAsync();
 
         return new LeitstandOrderPage(rows, totalCount);
@@ -178,7 +185,74 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 ? q.Where(o => o.ProductionWorkplace == null || !patterns.Any(p => EF.Functions.Like(o.ProductionWorkplace.Name, p)))
                 : q.Where(o => o.ProductionWorkplace != null && patterns.Any(p => EF.Functions.Like(o.ProductionWorkplace.Name, p))),
 
+            // FA-Zusatzinfos (Sage, v1.26.0): Contains-basiert mit Null-Guards —
+            // KEIN EF.Functions.Like (InMemory-Testbarkeit, Spec §5.3). Tokens sind
+            // lowercase (ColumnFilterHelper.Parse), daher ToLower() auf dem Wert.
+            // OR-Kette als Expression-Tree (BdeBookings-Pattern): ein nested
+            // tokens.Any(...)-Lambda auf der nullable Navigation uebersetzt der
+            // InMemory-Provider nicht.
+            "kaeltemittel" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.Kaeltemittel, tokens, negate)),
+            "ventil" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.Ventil, tokens, negate)),
+            "ausfuehrung" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.AusfuehrungEZ, tokens, negate)),
+            "maschine" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.Maschine, tokens, negate)),
+            "sage-status" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.SageStatus, tokens, negate)),
+
             _ => q
         };
+    }
+
+    /// <summary>
+    /// FA-Zusatzinfos (Sage, v1.26.0): baut fuer ein ExtraInfo-Feld eine OR-Kette
+    /// von <c>value.ToLower().Contains(token)</c>-Calls als Expression-Tree mit
+    /// Null-Guards auf <c>ExtraInfo</c> UND dem Feld selbst.
+    /// Positiv: <c>ExtraInfo != null &amp;&amp; value != null &amp;&amp; (contains t1 || ...)</c>;
+    /// Negation: <c>ExtraInfo == null || value == null || !(contains t1 || ...)</c>
+    /// (leere Zelle matcht NOT — identisch zum Client-Filter).
+    /// KEIN EF.Functions.Like und KEIN nested tokens.Any(...)-Lambda — beides
+    /// scheitert am InMemory-Provider (Pattern aus BdeBookingRepository).
+    /// </summary>
+    private static Expression<Func<ProductionOrder, bool>> BuildExtraInfoOrContains(
+        Expression<Func<ProductionOrder, string?>> selector,
+        IReadOnlyList<string> tokens,
+        bool negate)
+    {
+        var param = selector.Parameters[0];
+        var valueExpr = (MemberExpression)selector.Body;          // o.ExtraInfo.X
+        var extraInfoExpr = valueExpr.Expression!;                // o.ExtraInfo
+
+        var toLowerMethod = typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!;
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
+        var lowered = Expression.Call(valueExpr, toLowerMethod);
+
+        Expression? orChain = null;
+        foreach (var t in tokens)
+        {
+            var call = Expression.Call(lowered, containsMethod, Expression.Constant(t));
+            orChain = orChain == null ? (Expression)call : Expression.OrElse(orChain, call);
+        }
+
+        var nullExtraInfo = Expression.Constant(null, extraInfoExpr.Type);
+        var nullString = Expression.Constant(null, typeof(string));
+
+        Expression body = negate
+            ? Expression.OrElse(
+                Expression.Equal(extraInfoExpr, nullExtraInfo),
+                Expression.OrElse(
+                    Expression.Equal(valueExpr, nullString),
+                    Expression.Not(orChain!)))
+            : Expression.AndAlso(
+                Expression.NotEqual(extraInfoExpr, nullExtraInfo),
+                Expression.AndAlso(
+                    Expression.NotEqual(valueExpr, nullString),
+                    orChain!));
+
+        return Expression.Lambda<Func<ProductionOrder, bool>>(body, param);
+    }
+
+    public async Task<ProductionOrderExtraInfo?> GetExtraInfoAsync(int productionOrderId)
+    {
+        return await _context.ProductionOrderExtraInfos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.ProductionOrderId == productionOrderId);
     }
 }

@@ -110,6 +110,11 @@
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                 <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                 <th data-filterable data-col-key="workbench">Werkbank</th>
+                <th data-filterable data-col-key="kaeltemittel">Kältemittel</th>
+                <th data-filterable data-col-key="ventil">Ventil</th>
+                <th data-filterable data-col-key="ausfuehrung">Ausführung E/Z</th>
+                <th data-filterable data-col-key="maschine">Maschine</th>
+                <th data-filterable data-col-key="sage-status">Sage-Status</th>
                 <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
                 <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
@@ -188,6 +193,11 @@
                     <td>@item.Description1</td>
                     <td>@item.Description2</td>
                     <td>@item.WorkplaceName</td>
+                    <td>@item.Kaeltemittel</td>
+                    <td>@item.Ventil</td>
+                    <td>@item.AusfuehrungEZ</td>
+                    <td>@item.Maschine</td>
+                    <td>@item.SageStatus</td>
                     @{
                         var lackName = ViewBag.LackierteilKategorieName as string;
                         var featureInactive = string.IsNullOrWhiteSpace(lackName);
@@ -377,12 +387,13 @@
             {
                 <tr>
                     @{
-                        // Rich-View Spalten ohne Conditionals = 22:
+                        // Rich-View Spalten ohne Conditionals = 27:
                         // order-number, quantity, customer, article-number, description1, description2,
-                        // workbench, coating-date, bg-date, picking-date, production-date, delivery-date,
+                        // workbench, kaeltemittel, ventil, ausfuehrung, maschine, sage-status,
+                        // coating-date, bg-date, picking-date, production-date, delivery-date,
                         // coating-part, glass, purchase, cooling, fan, electric, doors, superstructure,
                         // status, row-actions
-                        var colCount = 22;
+                        var colCount = 27;
                         if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
                         {
                             colCount++; // bulk-select
@@ -518,6 +529,11 @@
     { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
     { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
     { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "kaeltemittel", "label": "Kältemittel", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "ventil", "label": "Ventil", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "ausfuehrung", "label": "Ausführung E/Z", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "maschine", "label": "Maschine", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "sage-status", "label": "Sage-Status", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "coating-date", "label": "Beschicht.", "locked": false, "defaultWidth": null },
     { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
     { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },

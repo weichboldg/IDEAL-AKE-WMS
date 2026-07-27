@@ -460,4 +460,62 @@ public class PickingLeitstandControllerTests
         result.Should().BeOfType<BadRequestObjectResult>();
         ((BadRequestObjectResult)result).Value.Should().Be("Kommissionierer nicht gefunden.");
     }
+
+    // ---------------------------------------------------- FA-Zusatzinfos (Sage, v1.26.0)
+
+    [Fact]
+    public async Task Index_MapsExtraInfoFields_FromLeitstandRow()
+    {
+        var row = new LeitstandOrderRow(
+            1, "FA-100", 1m, null, "ART-001", null, null, null, null,
+            false, false, false, null,
+            Kaeltemittel: "R290", Ventil: "Danfoss", AusfuehrungEZ: "Z",
+            Maschine: "M2", SageStatus: "abgeholt");
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var result = await _controller.Index(null, null, null) as ViewResult;
+
+        var vm = result!.Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
+        var item = vm.Items.Should().ContainSingle().Subject;
+        item.Kaeltemittel.Should().Be("R290");
+        item.Ventil.Should().Be("Danfoss");
+        item.AusfuehrungEZ.Should().Be("Z");
+        item.Maschine.Should().Be("M2");
+        item.SageStatus.Should().Be("abgeholt");
+    }
+
+    [Fact]
+    public async Task Index_ZusatzinfoColumnFilter_IsPassedToSqlFilters_NotMemoryFiltered()
+    {
+        // Invariante: die 5 neuen Keys duerfen NICHT in LeitstandDateColumnKeys /
+        // LeitstandWorkStepColumnKeys landen — sie laufen als SQL-Filter durch
+        // (SQL-Pagination bleibt erhalten, Spec §5.3).
+        IReadOnlyDictionary<string, string>? captured = null;
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .Callback<string?, string?, string?, bool, int, int, IReadOnlyDictionary<string, string>?>(
+                (_, _, _, _, _, _, colf) => captured = colf)
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100")));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_maschine=m1");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        await _controller.Index(null, null, null);
+
+        captured.Should().NotBeNull();
+        captured!.Should().ContainKey("maschine").WhoseValue.Should().Be("m1");
+    }
 }

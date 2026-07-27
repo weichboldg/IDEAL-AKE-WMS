@@ -76,6 +76,8 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:LagerbestandNullsetzenMaxPerRun")]
     [InlineData("Sync:ProductionOrderReconcileEnabled")]
     [InlineData("Sync:ReconcileMaxCancelPerRun")]
+    [InlineData("Sync:FaZusatzinfoEnabled")]
+    [InlineData("Sync:FaZusatzinfoAutoDoneMaxPerRun")]
     [InlineData("Sync:BomCacheEnabled")]
     [InlineData("Sync:BomCacheWeeks")]
     [InlineData("Sync:BomCacheMaxOrders")]

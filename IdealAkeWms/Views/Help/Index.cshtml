@@ -310,12 +310,34 @@
                         werden per 301-Redirect auf <code>/PickingLeitstand/...</code> umgeleitet.
                     </dd>
 
+                    <dt>FA-Zusatzinfos aus Sage in FA-Liste + Leitstand (seit v1.26.0)</dt>
+                    <dd>Die FA-Liste und der Kommissionier-Leitstand kennen fuenf zusaetzliche
+                        Spalten <strong>Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine,
+                        Sage-Status</strong> (read-only aus Sage). Sie sind dort standardmaessig
+                        <strong>ausgeblendet</strong> und werden bei Bedarf ueber das Zahnrad
+                        (Tabellenansicht anpassen) eingeblendet. Befuellt werden sie vom
+                        Windows-Dienst &mdash; Service-Einstellung
+                        <code>Sync:FaZusatzinfoEnabled</code> (Default aus) aktivieren.
+                        Zusaetzlich setzt der Sync FAs mit Sage-Status
+                        <strong>verpackt</strong>/<strong>abgeholt</strong> automatisch auf
+                        Komm-Erledigt (ACHTUNG beim Aktivieren: vorher DryRun pruefen).
+                        Hinweis: bei ausgeblendeter Spalte ist auch deren Filterzelle versteckt
+                        &mdash; ein per URL geteilter Spaltenfilter filtert dann unsichtbar.</dd>
+
                     <dt>FA-Vervollstaendigung (seit v1.13.0, umgebaut in v1.22.0)</dt>
                     <dd>
                         Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; pflegen pro Fertigungsauftrag
                         die FA-Vorbau-AG und deren Merkmale. Erreichbar ueber
                         <em>Fertigungsauftraege &rarr; FA-Vervollst&auml;ndigen</em>.
                         <ul class="mt-1 mb-1">
+                            <li><strong>Reiter ALLGEMEIN (seit v1.26.0):</strong> Erster Reiter
+                                mit den FA-Zusatzinfos aus Sage (Kaeltemittel, Ventil,
+                                Ausfuehrung E/Z, Maschine, Sage-Status) &mdash; read-only,
+                                Sage ist Master. Ohne Sage-Daten erscheint der Hinweis
+                                &bdquo;Noch keine Zusatzinformationen aus Sage vorhanden.&ldquo;
+                                Standardmaessig oeffnet weiterhin der erste FA-Vorbau-AG-Reiter;
+                                ein FA ganz ohne FA-Vorbau-AG oeffnet auf ALLGEMEIN. Der Code
+                                <code>ALLGEMEIN</code> ist fuer FA-Vorbau-AG reserviert.</li>
                             <li><strong>Werkbank waehlen:</strong> Oben auf der Edit-Seite wird die Werkbank
                                 des FA zugewiesen (vorbelegt, wenn der Sync sie liefert). Ohne Werkbank
                                 erscheint der FA in keiner Abarbeitungsliste &mdash; ein gelber Badge
@@ -390,6 +412,14 @@
                         (erfasst in der FA-Vervollstaendigung), sowie <strong>Beschichtungstermin</strong>
                         (seit v1.24.0, filterbare Spalte), BG-Termin, Komm.-Termin und
                         Fertigungstermin (KW-Format wie in der FA-Liste) und die enaio-Dokument-Links.</dd>
+
+                    <dt>FA-Zusatzinfos aus Sage (seit v1.26.0)</dt>
+                    <dd>Fuenf zusaetzliche filterbare Spalten <strong>Kaeltemittel, Ventil,
+                        Ausfuehrung E/Z, Maschine, Sage-Status</strong> &mdash; standardmaessig
+                        eingeblendet, ueber das Zahnrad ausblendbar (die Zahnrad-Einstellungen
+                        der Liste werden seit v1.26.0 dauerhaft gespeichert). Die Werte kommen
+                        per Service-Sync aus Sage (read-only; leer, solange Sage nichts
+                        liefert).</dd>
 
                     <dt>Spaltenfilter (seit v1.24.0)</dt>
                     <dd>In den grossen Listen (Server-Modus, z.&nbsp;B. FA-Abarbeitungsliste, FA-Liste,
@@ -534,6 +564,16 @@
                     <dd>Eine Freigabe kann jederzeit zurueckgenommen werden. Der Auftrag verschwindet
                         aus der Kommissionierliste. Bereits kommissionierte Teile bleiben erhalten.</dd>
 
+                    <dt>Automatisch erledigt bei Sage-Status verpackt/abgeholt (seit v1.26.0)</dt>
+                    <dd>Meldet Sage einen FA als <em>verpackt</em> oder <em>abgeholt</em>, setzt
+                        der Zusatzinfo-Sync ihn automatisch auf Komm-Erledigt &mdash; der FA
+                        verschwindet aus FA-Liste, Leitstand und Komm-Worklist (wie der
+                        Abschliessen-Button). Der Grund ist ueber die einblendbare Spalte
+                        <strong>Sage-Status</strong> (unter &bdquo;Erledigte anzeigen&ldquo;)
+                        nachvollziehbar. Einweg: faellt der Sage-Status zurueck, bleibt der FA
+                        erledigt; manuelles Wieder-Oeffnen haelt nur, bis Sage erneut
+                        verpackt/abgeholt meldet.</dd>
+
                     <dt>Rollen</dt>
                     <dd>
                         <strong>Leitstand</strong> &mdash; Kann alle Auftraege sehen, freigeben und priorisieren<br />
@@ -597,6 +637,18 @@
                 <p class="mt-2 mb-1">
                     Nach jeder Aktion (Starten, Pausieren, Beenden, Teilmenge) erscheint eine <strong>gruene Bestaetigungs-Meldung</strong> (Toast) am oberen Bildschirmrand.
                     Unterhalb der aktuellen Buchung wird die <strong>Tageshistorie</strong> des Operators angezeigt — eine Tabelle aller heutigen Buchungen mit Zeiten, Status und Mengen.
+                </p>
+
+                <h6 class="mt-3">FA bereits verpackt/abgeholt (seit v1.26.0)</h6>
+                <p>
+                    Sobald ein FA in Sage den Status <em>verpackt</em> oder <em>abgeholt</em>
+                    traegt, sind am Terminal <strong>keine neuen Buchungen</strong> mehr
+                    moeglich &mdash; Start und Fortsetzen werden mit der Meldung
+                    &bdquo;FA &lt;Nr&gt; ist bereits &lt;Status&gt; &mdash; keine BDE-Buchung
+                    mehr moeglich.&ldquo; abgelehnt, und der FA verschwindet aus den
+                    Auswahllisten. <strong>Laufende Buchungen</strong> koennen normal beendet,
+                    pausiert und mit Mengen gemeldet werden; ungeplante Taetigkeiten bleiben
+                    moeglich. Ohne Zusatzinfo-Daten (Sync aus) greift keine Sperre.
                 </p>
 
                 <h6 class="mt-3">Cockpit (Schichtleiter/Admin)</h6>
@@ -681,6 +733,13 @@
             <div class="card-body">
                 <p>
                     Die Kommissionierung bietet zwei Modi, je nachdem ob der Leitstand aktiviert ist:
+                </p>
+
+                <p class="small text-muted mb-2">
+                    <strong>Seit v1.26.0:</strong> Ein FA verschwindet automatisch aus der
+                    Kommissionierliste, wenn Sage ihn als <em>verpackt</em> oder
+                    <em>abgeholt</em> meldet (Auto-Erledigt) &mdash; der Grund ist in
+                    FA-Liste/Leitstand ueber die Spalte &bdquo;Sage-Status&ldquo; einblendbar.
                 </p>
 
                 <h6 class="mt-2">Mit Leitstand (empfohlen)</h6>
@@ -1154,7 +1213,7 @@
                     Aktivitaet-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking,
                     OseonWorkplaces, OseonArticleCategories, EnaioDms, Holiday, CoatingDetection,
                     FaWorkStepDetection, ProductionOrder, ProductionOrderReconciliation, Article,
-                    PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
+                    FaZusatzinfo, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
                     CleanupAktivitaetsprotokoll.
                 </p>
                 <h6 class="mt-3">Automatische Bereinigung (seit v1.25.0)</h6>

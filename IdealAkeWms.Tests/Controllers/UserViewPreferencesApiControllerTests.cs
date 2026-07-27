@@ -84,4 +84,19 @@ public class UserViewPreferencesApiControllerTests
         var result = await controller.Get("ProductionOrders");
         result.Should().BeOfType<UnauthorizedResult>();
     }
+
+    [Fact]
+    public async Task Get_FaWorklistViewKey_IsAccepted()
+    {
+        // Prefs-Bug-Fix (v1.26.0): "FaWorklist" war nicht in ColumnDefinitions.GetByViewKey
+        // registriert -> die API antwortete 400 und Zahnrad-Einstellungen gingen bei jedem
+        // Reload verloren. Jetzt: gueltiger ViewKey -> 204 (keine Prefs gespeichert).
+        var controller = CreateController();
+        _repoMock.Setup(r => r.GetByUserAndViewAsync(42, "FaWorklist"))
+            .ReturnsAsync((UserViewPreference?)null);
+
+        var result = await controller.Get("FaWorklist");
+
+        result.Should().BeOfType<NoContentResult>();
+    }
 }

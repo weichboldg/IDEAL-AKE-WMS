@@ -194,6 +194,11 @@ public class FaWorklistController : Controller
                 Quantity = order.Quantity,
                 ProductionDate = order.ProductionDate,
                 WorkplaceName = order.ProductionWorkplace?.Name,
+                Kaeltemittel = order.ExtraInfo?.Kaeltemittel,
+                Ventil = order.ExtraInfo?.Ventil,
+                AusfuehrungEZ = order.ExtraInfo?.AusfuehrungEZ,
+                Maschine = order.ExtraInfo?.Maschine,
+                SageStatus = order.ExtraInfo?.SageStatus,
                 WorkStepCell = new FaWorklistCell
                 {
                     FaWorkStepId = selectedStep.Id,
@@ -306,7 +311,9 @@ public class FaWorklistController : Controller
 
     /// <summary>
     /// ColumnMap-Keys: order-number, workbench (= WorkplaceName), article-number, quantity,
-    /// bg-date, picking-date, production-date + je Merkmal-Spalte dynamisch "attr-{DefinitionId}".
+    /// bg-date, picking-date, production-date, coating-date, description1, description2,
+    /// kaeltemittel, ventil, ausfuehrung, maschine, sage-status (FA-Zusatzinfos, v1.26.0)
+    /// + je Merkmal-Spalte dynamisch "attr-{DefinitionId}".
     /// </summary>
     private static Dictionary<string, Func<FaWorklistRow, string?>> BuildColumnMap(
         List<FaAttributeDefinition> attributeColumns)
@@ -323,6 +330,11 @@ public class FaWorklistController : Controller
             ["bg-date"] = r => FormatDateForFilter(r.VorkommissionierTermin),
             ["picking-date"] = r => FormatDateForFilter(r.KommissionierTermin),
             ["production-date"] = r => FormatDateForFilter(r.ProductionDate),
+            ["kaeltemittel"] = r => r.Kaeltemittel,
+            ["ventil"] = r => r.Ventil,
+            ["ausfuehrung"] = r => r.AusfuehrungEZ,
+            ["maschine"] = r => r.Maschine,
+            ["sage-status"] = r => r.SageStatus,
         };
 
         foreach (var def in attributeColumns)

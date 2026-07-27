@@ -69,6 +69,15 @@ public class WorkStepsController : Controller
     [RequireMasterDataAccess]
     public async Task<IActionResult> Create(WorkStep model)
     {
+        // Reserviert (v1.26.0): "ALLGEMEIN" ist der Pseudo-Tab der FA-Vervollstaendigung
+        // (FA-Zusatzinfos aus Sage) — als WorkStep-Code verboten, case-insensitiv.
+        if (!string.IsNullOrWhiteSpace(model.Code)
+            && string.Equals(model.Code.Trim(), "ALLGEMEIN", StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(WorkStep.Code),
+                "Code 'ALLGEMEIN' ist reserviert (Reiter der FA-Vervollstaendigung).");
+        }
+
         // App-Layer-Unique-Check: InMemory-DB enforced den Unique-Index auf Code nicht.
         if (!string.IsNullOrWhiteSpace(model.Code))
         {
@@ -114,6 +123,15 @@ public class WorkStepsController : Controller
     {
         if (id != model.Id)
             return NotFound();
+
+        // Reserviert (v1.26.0): "ALLGEMEIN" ist der Pseudo-Tab der FA-Vervollstaendigung
+        // (FA-Zusatzinfos aus Sage) — als WorkStep-Code verboten, case-insensitiv.
+        if (!string.IsNullOrWhiteSpace(model.Code)
+            && string.Equals(model.Code.Trim(), "ALLGEMEIN", StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(WorkStep.Code),
+                "Code 'ALLGEMEIN' ist reserviert (Reiter der FA-Vervollstaendigung).");
+        }
 
         // App-Layer-Unique-Check (ohne sich selbst): InMemory enforced Unique nicht.
         if (!string.IsNullOrWhiteSpace(model.Code))

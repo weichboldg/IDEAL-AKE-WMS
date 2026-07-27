@@ -202,4 +202,48 @@ public class SyncWorkerTests
             x.SyncArticlesAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
     }
+
+    [Fact]
+    public async Task SyncWorker_SkipsFaZusatzinfoSync_WhenDbUnreachable()
+    {
+        // Fail-Safe-Invariante (v1.26.0): Sync:FaZusatzinfoEnabled hat Default false →
+        // ohne erreichbare DB laeuft der Block NICHT und IFaZusatzinfoSyncService wird
+        // NIE resolved (der Mock-Provider kennt nur ISageImportService — ein Resolve
+        // wuerde InvalidOperationException werfen). Der IConfiguration-Seed "true"
+        // wirkt NICHT (Gate liest DB-first via ServiceSettings.GetBoolSafeAsync).
+        var mockSageImport = new Mock<ISageImportService>();
+        mockSageImport.Setup(x => x.SyncProductionOrdersAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SyncResult(1, 2, 0));
+        mockSageImport.Setup(x => x.SyncArticlesAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SyncResult(3, 0, 0));
+
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider
+            .Setup(x => x.GetService(typeof(ISageImportService)))
+            .Returns(mockSageImport.Object);
+
+        var mockScope = new Mock<IServiceScope>();
+        mockScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+        var mockScopeFactory = new Mock<IServiceScopeFactory>();
+        mockScopeFactory.Setup(x => x.CreateScope()).Returns(mockScope.Object);
+
+        var config = BuildConfig(new()
+        {
+            ["WorkerSettings:SyncIntervalMinutes"] = "0",
+            ["WorkerSettings:SyncDryRun"] = "false",
+            ["Sync:FaZusatzinfoEnabled"] = "true",
+        });
+
+        using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, mockScopeFactory.Object);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        var run = async () =>
+        {
+            await worker.StartAsync(cts.Token);
+            await Task.Delay(150);
+            await worker.StopAsync(CancellationToken.None);
+        };
+
+        await run.Should().NotThrowAsync();
+        mockServiceProvider.Verify(x => x.GetService(typeof(IFaZusatzinfoSyncService)), Times.Never());
+    }
 }

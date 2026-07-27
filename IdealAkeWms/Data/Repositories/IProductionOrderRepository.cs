@@ -15,7 +15,14 @@ public record LeitstandOrderRow(
     bool IsDone,
     bool IsDonePicking,
     bool IsCancelled,
-    string? WorkplaceName);
+    string? WorkplaceName,
+    // FA-Zusatzinfos aus Sage (v1.26.0) — aus der ExtraInfo-Projektion,
+    // Defaults halten bestehende Konstruktor-Aufrufe kompatibel.
+    string? Kaeltemittel = null,
+    string? Ventil = null,
+    string? AusfuehrungEZ = null,
+    string? Maschine = null,
+    string? SageStatus = null);
 
 public record LeitstandOrderPage(List<LeitstandOrderRow> Rows, int TotalCount);
 
@@ -38,6 +45,12 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     Task<List<ProductionOrder>> GetByArticleNumbersAsync(List<string> articleNumbers);
 
     /// <summary>
+    /// FA-Zusatzinfos (Sage, v1.26.0): liest den 1:1-Satelliten zu einem FA
+    /// (ein gezielter Read, AsNoTracking). Null wenn (noch) keine Sage-Daten da sind.
+    /// </summary>
+    Task<ProductionOrderExtraInfo?> GetExtraInfoAsync(int productionOrderId);
+
+    /// <summary>
     /// FA-/Leitstand-Liste mit Server-Side-Filterung, Projection und Pagination.
     /// Filter laufen in SQL; nur die in der View angezeigten Spalten werden
     /// materialisiert. AsNoTracking. <paramref name="page"/> ist 1-basiert.
@@ -45,7 +58,8 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     /// <param name="columnFilters">
     /// Optionale Spalten-Filter aus der URL (<c>colf_&lt;col-key&gt;=value</c>).
     /// Bekannte Keys: order-number, customer, article-number, description1,
-    /// description2, workbench. OR-/NOT-Syntax wie clientseitig.
+    /// description2, workbench, kaeltemittel, ventil, ausfuehrung, maschine,
+    /// sage-status. OR-/NOT-Syntax wie clientseitig.
     /// </param>
     Task<LeitstandOrderPage> GetForLeitstandAsync(
         string? filterOrderNumber,

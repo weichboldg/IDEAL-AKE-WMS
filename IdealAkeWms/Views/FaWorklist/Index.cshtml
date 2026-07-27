@@ -13,8 +13,9 @@
     var doneHeader = Model.SelectedWorkStep != null
         ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
         : "Erledigt";
-    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, Beschicht., BG, Komm, Fert + Merkmale + 1 Erledigt-Spalte
-    var columnCount = 10 + Model.AttributeColumns.Count + 1;
+    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, Beschicht., BG, Komm, Fert,
+    // Kaeltemittel, Ventil, Ausfuehrung, Maschine, Sage-Status + Merkmale + 1 Erledigt-Spalte
+    var columnCount = 15 + Model.AttributeColumns.Count + 1;
 }
 
 <h2 class="page-header">FA-Abarbeitungsliste</h2>
@@ -90,6 +91,11 @@ else
                     <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
                     <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
                     <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
+                    <th data-filterable data-col-key="kaeltemittel">Kältemittel</th>
+                    <th data-filterable data-col-key="ventil">Ventil</th>
+                    <th data-filterable data-col-key="ausfuehrung">Ausführung E/Z</th>
+                    <th data-filterable data-col-key="maschine">Maschine</th>
+                    <th data-filterable data-col-key="sage-status">Sage-Status</th>
                     @foreach (var def in Model.AttributeColumns)
                     {
                         <th data-filterable data-col-key="attr-@def.Id">@def.Name</th>
@@ -133,6 +139,11 @@ else
                             <td class="text-nowrap">@FormatDateWithKw(item.VorkommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.KommissionierTermin)</td>
                             <td class="text-nowrap">@FormatDateWithKw(item.ProductionDate)</td>
+                            <td>@item.Kaeltemittel</td>
+                            <td>@item.Ventil</td>
+                            <td>@item.AusfuehrungEZ</td>
+                            <td>@item.Maschine</td>
+                            <td>@item.SageStatus</td>
                             @foreach (var def in Model.AttributeColumns)
                             {
                                 <td>@item.AttributeValues.GetValueOrDefault(def.Id)</td>
@@ -171,6 +182,11 @@ else
         { "key": "bg-date", "label": "BG-Termin", "locked": false, "defaultWidth": null },
         { "key": "picking-date", "label": "Komm.", "locked": false, "defaultWidth": null },
         { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
+        { "key": "kaeltemittel", "label": "Kältemittel", "locked": false, "defaultWidth": null },
+        { "key": "ventil", "label": "Ventil", "locked": false, "defaultWidth": null },
+        { "key": "ausfuehrung", "label": "Ausführung E/Z", "locked": false, "defaultWidth": null },
+        { "key": "maschine", "label": "Maschine", "locked": false, "defaultWidth": null },
+        { "key": "sage-status", "label": "Sage-Status", "locked": false, "defaultWidth": null },
         @foreach (var def in Model.AttributeColumns)
         {
             <text>{ "key": "attr-@def.Id", "label": @Html.Raw(System.Text.Json.JsonSerializer.Serialize(def.Name)), "locked": false, "defaultWidth": null },</text>

@@ -8,6 +8,23 @@ Stand: **2026-07-22**. Das komplette Bundle **v1.23.0 → v1.25.0** (`feature/gl
 Branch `feature/glas-bestellung` + Worktree `.claude/worktrees/glas-bestellung` bleiben bewusst
 stehen, bis der Produktiv-Deploy verifiziert ist (Aufraeumen nur auf explizite Freigabe).
 
+**In Arbeit (Worktree `.claude/worktrees/pa-zusatzinfos`, Branch `feature/pa-zusatzinfos`): v1.26.0
+„FA-Zusatzinfos (Sage)"** — neuer read-only Satellit `ProductionOrderExtraInfo` (Migration 81,
+additiv) + `FaZusatzinfoSyncService` (Gate `Sync:FaZusatzinfoEnabled`, Default aus, View-Guard)
++ Anzeige in FA-Vervollstaendigung (Reiter ALLGEMEIN), FA-Abarbeitungsliste (5 Spalten default
+sichtbar, inkl. Prefs-Bug-Fix ViewKey „FaWorklist"), FA-Liste + Leitstand (5 Spalten default
+versteckt via neuer `defaultHidden`-Mechanik). Spec:
+`docs/superpowers/specs/2026-07-22-pa-zusatzinfos-design.md`, Plan:
+`docs/superpowers/plans/2026-07-22-pa-zusatzinfos.md`. Deploy-Reihenfolge zwingend:
+Sage-View verifizieren → Web (Migration+Katalog-Seed) → Service publishen → DryRun → scharf.
+**Fold 2 (gleicher Branch, v1.26.0, kein Schema-Change):** Auto-Erledigt bei Sage-Status
+verpackt/abgeholt (`PickingStatus.IsDonePicking`, einweg, Cap
+`Sync:FaZusatzinfoAutoDoneMaxPerRun` Default 100, Counts `erledigt-gesetzt`/
+`erledigt-kandidaten`) + BDE-Buchungs-Sperre (Guard in Start/Resume, Listen-Hygiene,
+InvalidState-Toast). Plan: `docs/superpowers/plans/2026-07-22-pa-zusatzinfos-fold2-auto-done.md`.
+Erstlauf-Pflicht: DryRun fahren + `erledigt-gesetzt` kontrollieren (TESTSZENARIEN Kap. 55,
+TS-55.1/55.10–55.13).
+
 ### Wo wir aufgehoert haben (2026-07-22)
 
 **Letzter Schritt:** Doku-Vervollstaendigung nach dem Merge (README, PROJECT_STATUS, TESTSZENARIEN

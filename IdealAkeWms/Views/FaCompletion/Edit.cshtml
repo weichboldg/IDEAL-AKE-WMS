@@ -54,6 +54,7 @@
                 <form method="post" asp-action="SetWorkplace" class="d-flex align-items-center gap-2">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@Model.ProductionOrderId" />
+                    <input type="hidden" name="tab" value="@Model.ActiveTab" />
                     <strong>Werkbank:</strong>
                     <select name="workplaceId" class="form-select form-select-sm w-auto"
                             onchange="this.form.submit()">
@@ -82,6 +83,13 @@
 @* Tab-Leiste (aktive FA-Arbeitsgaenge) + "AG hinzufuegen" *@
 <div class="d-flex justify-content-between align-items-end flex-wrap gap-2">
     <ul class="nav nav-tabs mb-3">
+        @* Pseudo-Tab ALLGEMEIN (v1.26.0): FA-Zusatzinfos aus Sage, read-only — NICHT in Model.Tabs *@
+        <li class="nav-item">
+            <a class="nav-link @(Model.ActiveTab == "ALLGEMEIN" ? "active" : "")"
+               asp-action="Edit" asp-route-id="@Model.ProductionOrderId" asp-route-tab="ALLGEMEIN">
+                <strong>ALLGEMEIN</strong>
+            </a>
+        </li>
         @foreach (var t in Model.Tabs)
         {
             var indicator = t.IsSpecComplete ? " ✓" : " ●";
@@ -115,7 +123,46 @@
     var active = Model.Tabs.FirstOrDefault(t => t.Code == Model.ActiveTab);
 }
 
-@if (active == null)
+@if (Model.ActiveTab == "ALLGEMEIN")
+{
+    @* FA-Zusatzinfos aus Sage (v1.26.0) — read-only, Sage ist Master, keine Eingabefelder/POSTs *@
+    <div class="tab-content">
+        <div class="tab-pane fade show active">
+            <div class="card mb-3">
+                <div class="card-header">FA-Zusatzinfos aus Sage</div>
+                <div class="card-body">
+                    @if (!Model.HasExtraInfo)
+                    {
+                        <p class="text-muted mb-0">Noch keine Zusatzinformationen aus Sage vorhanden.</p>
+                    }
+                    else
+                    {
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">Kältemittel</dt>
+                            <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.ExtraKaeltemittel) ? "–" : Model.ExtraKaeltemittel)</dd>
+                            <dt class="col-sm-3">Ventil</dt>
+                            <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.ExtraVentil) ? "–" : Model.ExtraVentil)</dd>
+                            <dt class="col-sm-3">Ausführung E/Z</dt>
+                            <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.ExtraAusfuehrungEZ) ? "–" : Model.ExtraAusfuehrungEZ)</dd>
+                            <dt class="col-sm-3">Maschine</dt>
+                            <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.ExtraMaschine) ? "–" : Model.ExtraMaschine)</dd>
+                            <dt class="col-sm-3">Sage-Status</dt>
+                            <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.ExtraSageStatus) ? "–" : Model.ExtraSageStatus)</dd>
+                        </dl>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Tabs.Count == 0)
+    {
+        <div class="alert alert-info">
+            Für diesen FA sind noch keine FA-Vorbau-AG aktiv. Über „+ FA-Vorbau-AG" einen FA-Vorbau-Arbeitsgang hinzufügen.
+        </div>
+    }
+}
+else if (active == null)
 {
     <div class="alert alert-info">
         Für diesen FA sind noch keine FA-Vorbau-AG aktiv. Über „+ FA-Vorbau-AG" einen FA-Vorbau-Arbeitsgang hinzufügen.
@@ -155,6 +202,7 @@ else
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@Model.ProductionOrderId" />
                     <input type="hidden" name="workStepId" value="@active.WorkStepId" />
+                    <input type="hidden" name="tab" value="@Model.ActiveTab" />
                     <button type="submit" class="btn btn-sm btn-outline-danger">FA-Vorbau-AG entfernen</button>
                 </form>
             </div>

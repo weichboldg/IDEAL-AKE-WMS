@@ -912,4 +912,117 @@ public class FaCompletionControllerTests
 
         result.Should().BeOfType<NotFoundResult>();
     }
+
+    // ---------------------------------------------------------- Reiter ALLGEMEIN (v1.26.0)
+
+    private static void SeedExtraInfo(ApplicationDbContext ctx, int productionOrderId,
+        string? kaelte = "R290", string? ventil = "Danfoss", string? ausfuehrung = "E",
+        string? maschine = "M1", string? sageStatus = "in Produktion")
+    {
+        ctx.ProductionOrderExtraInfos.Add(new ProductionOrderExtraInfo
+        {
+            ProductionOrderId = productionOrderId,
+            Kaeltemittel = kaelte,
+            Ventil = ventil,
+            AusfuehrungEZ = ausfuehrung,
+            Maschine = maschine,
+            SageStatus = sageStatus,
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Edit_TabAllgemein_SetsActiveTabAndExtraFields()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung");
+        SeedFaWorkStep(ctx, o.Order.Id, vk.Id);
+        SeedExtraInfo(ctx, o.Order.Id);
+
+        var result = await ctrl.Edit(o.Order.Id, tab: "ALLGEMEIN");
+
+        var vm = result.Should().BeOfType<ViewResult>().Subject
+            .Model.Should().BeOfType<FaCompletionEditViewModel>().Subject;
+        vm.ActiveTab.Should().Be("ALLGEMEIN");
+        vm.HasExtraInfo.Should().BeTrue();
+        vm.ExtraKaeltemittel.Should().Be("R290");
+        vm.ExtraVentil.Should().Be("Danfoss");
+        vm.ExtraAusfuehrungEZ.Should().Be("E");
+        vm.ExtraMaschine.Should().Be("M1");
+        vm.ExtraSageStatus.Should().Be("in Produktion");
+    }
+
+    [Fact]
+    public async Task Edit_TabAllgemein_IsCaseInsensitive()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+
+        var result = await ctrl.Edit(o.Order.Id, tab: "allgemein");
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<FaCompletionEditViewModel>().Subject;
+        vm.ActiveTab.Should().Be("ALLGEMEIN");
+    }
+
+    [Fact]
+    public async Task Edit_DefaultTab_StaysFirstWorkStep_WhenAgsExist()
+    {
+        // User-Entscheid Spec §5.1: Default-aktiv bleibt der erste FA-Vorbau-AG-Reiter.
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var vk = SeedWorkStep(ctx, "VK", "Kuehlung");
+        SeedFaWorkStep(ctx, o.Order.Id, vk.Id);
+        SeedExtraInfo(ctx, o.Order.Id);
+
+        var result = await ctrl.Edit(o.Order.Id);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<FaCompletionEditViewModel>().Subject;
+        vm.ActiveTab.Should().Be("VK");
+    }
+
+    [Fact]
+    public async Task Edit_NoWorkSteps_DefaultsToAllgemein()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+
+        var result = await ctrl.Edit(o.Order.Id);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<FaCompletionEditViewModel>().Subject;
+        vm.ActiveTab.Should().Be("ALLGEMEIN");
+        vm.Tabs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Edit_NoExtraInfo_HasExtraInfoFalse()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+
+        var result = await ctrl.Edit(o.Order.Id, tab: "ALLGEMEIN");
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<FaCompletionEditViewModel>().Subject;
+        vm.HasExtraInfo.Should().BeFalse();
+        vm.ExtraKaeltemittel.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SetWorkplace_PreservesTab()
+    {
+        var (ctx, ctrl, _) = Build();
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        var wp = new ProductionWorkplace { Name = "WB-1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(wp);
+        ctx.SaveChanges();
+
+        var result = await ctrl.SetWorkplace(o.Order.Id, wp.Id, tab: "ALLGEMEIN");
+
+        var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
+        redirect.ActionName.Should().Be(nameof(FaCompletionController.Edit));
+        redirect.RouteValues!["tab"].Should().Be("ALLGEMEIN");
+    }
 }

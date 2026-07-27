@@ -1,6 +1,6 @@
 namespace IdealAkeWms.Models.ViewModels;
 
-public record ColumnDef(string Key, string Label, bool Locked = false, int? DefaultWidth = null);
+public record ColumnDef(string Key, string Label, bool Locked = false, int? DefaultWidth = null, bool DefaultHidden = false);
 
 public record ViewConfig(string ViewKey, string DisplayName, bool SupportsReorder, bool SupportsSortDefault)
 {
@@ -29,6 +29,12 @@ public static class ColumnDefinitions
             new ColumnDef("description1","Bezeichnung 1",    Locked: false),
             new ColumnDef("description2","Bezeichnung 2",    Locked: false),
             new ColumnDef("workbench",   "Werkbank",         Locked: false),
+            // FA-Zusatzinfos aus Sage (v1.26.0) — Default AUSGEBLENDET (Zahnrad blendet ein)
+            new ColumnDef("kaeltemittel","Kaeltemittel",    Locked: false, DefaultHidden: true),
+            new ColumnDef("ventil",      "Ventil",          Locked: false, DefaultHidden: true),
+            new ColumnDef("ausfuehrung", "Ausfuehrung E/Z", Locked: false, DefaultHidden: true),
+            new ColumnDef("maschine",    "Maschine",        Locked: false, DefaultHidden: true),
+            new ColumnDef("sage-status", "Sage-Status",     Locked: false, DefaultHidden: true),
             new ColumnDef("coating-date","Beschicht.",       Locked: false),
             new ColumnDef("bg-date",     "BG-Termin",        Locked: false),
             new ColumnDef("picking-date","Komm.",            Locked: false),
@@ -63,6 +69,12 @@ public static class ColumnDefinitions
             new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
             new ColumnDef("description2",   "Bezeichnung 2", Locked: false),
             new ColumnDef("workbench",      "Werkbank",      Locked: false),
+            // FA-Zusatzinfos aus Sage (v1.26.0) — Default AUSGEBLENDET (Zahnrad blendet ein)
+            new ColumnDef("kaeltemittel","Kaeltemittel",    Locked: false, DefaultHidden: true),
+            new ColumnDef("ventil",      "Ventil",          Locked: false, DefaultHidden: true),
+            new ColumnDef("ausfuehrung", "Ausfuehrung E/Z", Locked: false, DefaultHidden: true),
+            new ColumnDef("maschine",    "Maschine",        Locked: false, DefaultHidden: true),
+            new ColumnDef("sage-status", "Sage-Status",     Locked: false, DefaultHidden: true),
             new ColumnDef("coating-date",   "Beschicht.",    Locked: false),
             new ColumnDef("bg-date",        "BG-Termin",     Locked: false),
             new ColumnDef("picking-date",   "Komm.",         Locked: false),
@@ -102,6 +114,38 @@ public static class ColumnDefinitions
             new ColumnDef("completed",      "Vervollstaendigt", Locked: false, DefaultWidth: 130),
             new ColumnDef("spec-count",     "Auspraegungen", Locked: false, DefaultWidth: 110),
             new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 110),
+        ]
+    };
+
+    /// <summary>
+    /// FaWorklist/Index.cshtml columns — FA-Abarbeitungsliste (v1.22.0).
+    /// Registrierung seit v1.26.0: vorher kannte GetByViewKey den Key nicht,
+    /// die Prefs-API antwortete 400 und Zahnrad-Einstellungen gingen bei jedem
+    /// Reload verloren. Dynamische Merkmal-Spalten ("attr-{id}") sind bewusst
+    /// NICHT enthalten (die API-Validierung prueft nur den ViewKey).
+    /// </summary>
+    public static readonly ViewConfig FaWorklist = new(
+        "FaWorklist", "FA-Abarbeitungsliste",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("order-number",   "FA Nr.",           Locked: true),
+            new ColumnDef("workbench",      "Werkbank",         Locked: false),
+            new ColumnDef("article-number", "Artikelnummer",    Locked: false),
+            new ColumnDef("description1",   "Bezeichnung 1",    Locked: false),
+            new ColumnDef("description2",   "Bezeichnung 2",    Locked: false),
+            new ColumnDef("quantity",       "Stk.",             Locked: false),
+            new ColumnDef("coating-date",   "Beschicht.",       Locked: false),
+            new ColumnDef("bg-date",        "BG-Termin",        Locked: false),
+            new ColumnDef("picking-date",   "Komm.",            Locked: false),
+            new ColumnDef("production-date","Fert.-Termin",     Locked: false),
+            new ColumnDef("kaeltemittel",   "Kaeltemittel",     Locked: false),
+            new ColumnDef("ventil",         "Ventil",           Locked: false),
+            new ColumnDef("ausfuehrung",    "Ausfuehrung E/Z",  Locked: false),
+            new ColumnDef("maschine",       "Maschine",         Locked: false),
+            new ColumnDef("sage-status",    "Sage-Status",      Locked: false),
+            new ColumnDef("done",           "Erledigt",         Locked: true),
         ]
     };
 
@@ -235,6 +279,7 @@ public static class ColumnDefinitions
         "ProductionOrders" => ProductionOrders,
         "PickingLeitstand" => PickingLeitstand,
         "FaCompletion"     => FaCompletion,
+        "FaWorklist"       => FaWorklist,
         "Picking"          => Picking,
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,

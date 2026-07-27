@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
+    public DbSet<ProductionOrderExtraInfo> ProductionOrderExtraInfos => Set<ProductionOrderExtraInfo>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
@@ -441,6 +442,30 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.ProductionOrder)
                 .WithOne(p => p.BdeStatus)
                 .HasForeignKey<ProductionOrderBdeStatus>(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ProductionOrderExtraInfo (FA-Zusatzinfos aus Sage, v1.26.0)
+        modelBuilder.Entity<ProductionOrderExtraInfo>(entity =>
+        {
+            entity.ToTable("ProductionOrderExtraInfo");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Kaeltemittel).HasMaxLength(200);
+            entity.Property(e => e.Ventil).HasMaxLength(200);
+            entity.Property(e => e.AusfuehrungEZ).HasMaxLength(200);
+            entity.Property(e => e.Maschine).HasMaxLength(200);
+            entity.Property(e => e.SageStatus).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.ProductionOrderId).IsUnique()
+                .HasDatabaseName("UQ_ProductionOrderExtraInfo_ProductionOrderId");
+
+            entity.HasOne(e => e.ProductionOrder)
+                .WithOne(p => p.ExtraInfo)
+                .HasForeignKey<ProductionOrderExtraInfo>(e => e.ProductionOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
