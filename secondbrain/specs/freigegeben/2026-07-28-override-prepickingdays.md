@@ -2,7 +2,7 @@
 type: spec
 title: ProductionWorkplace.OverridePrePickingDays wirksam machen (Variante A) oder entfernen (Variante B)
 slug: 2026-07-28-override-prepickingdays
-status: Testbereit
+status: Gemerged
 created: 2026-07-28
 updated: 2026-07-28
 qa:
@@ -10,6 +10,11 @@ qa:
   datum: 2026-07-28
   commit: ae7ee17
   blocker: 0
+merge:
+  datum: 2026-07-28
+  merge_commit: 0548449
+  build: gruen
+  tests: gruen (1024 Web + 176 Service, 0 Fehler, 1 uebersprungen)
 source_backlog: secondbrain/backlog/2026-07-28-override-prepickingdays.md
 freigabe:
   entscheidung: A

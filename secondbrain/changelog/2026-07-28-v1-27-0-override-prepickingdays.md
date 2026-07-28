@@ -36,4 +36,10 @@ date: 2026-07-28
 - Aufloest den Fallstrick-Eintrag „`OverridePrePickingDays` ist wirkungslos" in [[fallstricke]]
   und Zeile 141 in [[feature-map]].
 - Branch `feature/override-prepickingdays` (Worktree `.claude/worktrees/override-prepickingdays`).
-  **Noch nicht gemerged** — Schranke 2 (manueller Test) steht aus.
+  Schranke 2 (manueller Test) am 2026-07-28 genommen, **gemerged nach `main`** mit
+  `--no-ff`, Merge-Commit `0548449`. Nachweis **auf dem Merge-Commit** (= Deploy-Stand):
+  Build 0 Fehler, Tests 1024 (Web) + 176 (Service) gruen, 0 Fehler, 1 uebersprungen
+  (`ProductionOrderEagerCreateAgentJobTests` — braucht echten SQL Server, kein InMemory).
+- **Offen nach dem Merge:** `git push` (macht der Mensch), Deploy Web + Service, danach erst
+  Worktree/Branch aufraeumen. Vor dem Deploy die Abstimmung mit der Fertigung zu `A1` (siehe
+  Deploy-Risiko oben).

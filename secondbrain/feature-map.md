@@ -138,7 +138,7 @@ Release-Details je Version: `changelog/` (39 Eintraege v1.0.0 – v1.26.0).
 | IDEAL-Anpassungen (Sub-FA-Granularitaet, `SubOrderNumber` unique) neu nachbilden | Backlog — Branch `feature/ideal-anpassungen-v1` wurde nie gemergt und 2026-07-27 geloescht | `backlog/2026-07-27-ideal-anpassungen-neu-nachbilden.md` |
 | `[ValidateAntiForgeryToken]` auf `AccountController.Logout` wiederherstellen | offen, wartet auf IIS-Bestaetigung des Antiforgery-Wurzel-Fix | [[2026-07-deploy-v1-25-0]] |
 | Weitere Cleanup-Jobs nach dem 5-Schritte-Rezept | offen | `../docs/superpowers/specs/2026-07-15-cleanup-jobs-service-design.md` |
-| `OverridePrePickingDays` (Werkbank) in die Terminberechnung einbeziehen | **TESTBEREIT** — v1.27.0, Variante A umgesetzt auf `feature/override-prepickingdays` (nicht gemergt); Regel in `Services/PrePickingDaysResolver.cs`, Fallstrick aufgeloest → [[fallstricke]] | [[2026-07-28-override-prepickingdays]] |
+| `OverridePrePickingDays` (Werkbank) in die Terminberechnung einbeziehen | **GEMERGED** — v1.27.0, Variante A, in `main` (Merge-Commit `0548449`, 2026-07-28); Deploy steht aus. Regel in `Services/PrePickingDaysResolver.cs`, Fallstrick aufgeloest → [[fallstricke]] | [[2026-07-28-override-prepickingdays]] |
 | Server-seitiger Druck (Vollausbau): `PrintService` mit echtem Drucker testen, Kommissionier-Druck an den Arbeitsplatz-Drucker binden | Grundstruktur vorhanden | Alt-Notiz „Offene Aufgaben" |
 
 ### Ideen-Backlog (aus PROJECT_STATUS „Zukuenftige Funktionen", nie begonnen)
