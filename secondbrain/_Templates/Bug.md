@@ -1,11 +1,12 @@
 ---
 type: bug
 title: <Kurzbeschreibung>
-status: offen
-severity: mittel
+status: offen          # offen | in-arbeit | behoben
+severity: mittel       # niedrig | mittel | hoch | kritisch
 created: <yyyy-mm-dd>
 affected_code: []
-spec: ""
+source_backlog: ""      # [[backlog-datei]], falls aus einer Backlog-Notiz entstanden
+spec: ""               # [[fix-spec]], sobald ein Fix spezifiziert wird
 ---
 
 ## Symptom

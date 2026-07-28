@@ -65,6 +65,7 @@ Freigabe fuer Merge (Schranke 2 wurde genommen): $($spec.Name) liegt in specs/me
 3. Spec-Frontmatter status: Gemerged, updated heute. Verschiebe die Spec von specs/merge-freigegeben/ zurueck nach specs/freigegeben/ (Ablage), damit merge-freigegeben/ leer bleibt.
 4. secondbrain/feature-map.md: Feature auf Gemerged; secondbrain/changelog/ pruefen/ergaenzen.
 5. Commit auf main ("merge: $branch -> main + brain update").
+6. Gib zum Schluss die Deploy-Info aus der Spec aus: was muss deployt werden (deploy.web/service/migration) und die exakten Publish-Befehle aus dem Deploy-Abschnitt - auf main auszufuehren. Fuehre sie NICHT selbst aus.
 Verboten: git push (macht der Mensch), Worktree entfernen, Branch loeschen (erst nach Deploy-Verifikation).
 "@
         & claude -p $prompt `
@@ -97,7 +98,22 @@ Verboten: git push (macht der Mensch), Worktree entfernen, Branch loeschen (erst
         git add secondbrain/specs
         git commit -m "merge: $branch -> main"
         Write-Host "GEMERGED. Feature-Map/Changelog jetzt aktualisieren (z. B. via claude), dann 'git push' von Hand."
-        Write-Host "Worktree erst nach Deploy-Verifikation entfernen:"
+        # Deploy-Hinweis direkt aus der Spec ziehen
+        $deployWeb     = $content -match '(?m)^\s*web:\s*true'
+        $deployService = $content -match '(?m)^\s*service:\s*true'
+        $deployMig     = $content -match '(?m)^\s*migration:\s*true'
+        Write-Host "`n--- Deploy laut Spec ---"
+        Write-Host ("  Web-App : {0}" -f ($(if($deployWeb){'JA'}else{'nein'})))
+        Write-Host ("  Service : {0}" -f ($(if($deployService){'JA'}else{'nein'})))
+        Write-Host ("  Migration: {0}" -f ($(if($deployMig){'JA'}else{'nein'})))
+        if ($deployWeb) {
+            Write-Host '  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb'
+        }
+        if ($deployService) {
+            Write-Host '  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService'
+        }
+        Write-Host "  (Publish-Befehle stehen vollstaendig im Deploy-Abschnitt der Spec.)"
+        Write-Host "`nWorktree erst nach Deploy-Verifikation entfernen:"
         Write-Host "  git worktree remove .claude/worktrees/<slug> ; git branch -d $branch"
     }
 }

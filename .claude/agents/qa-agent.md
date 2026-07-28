@@ -21,6 +21,19 @@ Verification checklist (all mandatory, capture real output as evidence):
 
 On success:
 - Edit the spec frontmatter: status: Testbereit, updated: today.
+- FINALIZE the Deploy section from the real diff (this is the reliable source,
+  not the spec-agent's provisional guess): set deploy.web / deploy.service /
+  deploy.migration in the frontmatter to true/false based on what actually
+  changed (files under IdealAkeWms/ -> web; under IDEALAKEWMSService/ ->
+  service; a new file under */Migrations/ -> migration). Fill the Deploy
+  section body with the exact publish command(s) for ONLY the affected
+  component(s). The human's flow is: publish FROM THE WORKTREE -> test system
+  -> test -> then merge. So write the worktree publish command(s), and add a
+  one-line note: after the merge, re-publish from main only if the merge
+  actually combined tested files with parallel main changes.
+    dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+    dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  If a migration is included, note ordering (DB update, service stop if needed).
 - Append to the spec: an evidence block (build result, test counts per
   project) and a numbered manual-test checklist for the human.
 On failure:

@@ -16,7 +16,26 @@ READ BEFORE ACTING (brain-first, in this order):
    Ressourcenummer, Rollenkonzept)
 5. The backlog file you were given.
 
-OUTPUT (exactly one file):
+BUG HANDLING (before writing the spec):
+- If the backlog file's frontmatter has `typ: bug` (or `type: bug`), OR its
+  content clearly describes a defect (something behaves wrong / is broken),
+  FIRST create a matching bug record in secondbrain/bugs/YYYY-MM-DD-<slug>.md
+  from secondbrain/_templates/bug.md: fill Symptom, Reproduktion, known Root
+  Cause if evident, affected_code, severity, status: offen, and
+  source_backlog: "[[<backlog-datei>]]". THEN write the fix spec as usual and
+  link them both ways (spec.affected_code may reference the bug; set the bug's
+  spec: "[[<spec-datei>]]"). This keeps bugs/ as the defect register while the
+  spec drives the pipeline. A pure feature request gets NO bug record.
+
+DEPLOY SECTION (fill provisionally):
+- Best-effort set deploy.web / deploy.service / deploy.migration in the
+  frontmatter and sketch the Deploy section from what the codebase map implies
+  (web controllers/views changed -> web; service worker changed -> service;
+  new EF migration -> migration). Mark it clearly as provisional - the Dev run
+  confirms it against the real diff. Publish commands run on main after merge,
+  never in the worktree.
+
+OUTPUT (the spec, plus a bug record only in the bug case above):
 - secondbrain/specs/entwurf/YYYY-MM-DD-<slug>.md based on
   secondbrain/_templates/spec.md. Frontmatter: status: Entwurf,
   source_backlog: "<backlog filename>", created/updated: today.
@@ -36,7 +55,8 @@ OUTPUT (exactly one file):
 
 Hard rules:
 - Do not modify application code, CLAUDE.md, or files outside
-  secondbrain/specs/entwurf/. Never move anything into specs/freigegeben/
+  secondbrain/specs/entwurf/ and secondbrain/bugs/ (the latter only for the
+  bug record described above). Never move anything into specs/freigegeben/
   (that folder change is the human approval gate).
 - Escalation: if required brain context is missing or the backlog item is
   unintelligible, still write the spec skeleton with status: Entwurf and put
