@@ -27,6 +27,12 @@ OUTPUT (exactly one file):
   for any new table view, Testszenarien outline for docs/TESTSZENARIEN.md.
 - Put every ambiguity into open_questions - NEVER guess on migrations,
   audit fields, roles or integration boundaries.
+- PREFILL the "Freigabe-Antworten" section: emit one numbered line per open
+  question, in the SAME order and numbering as "Offene Rueckfragen", each
+  ending in an arrow so the human only fills the answer. Keep open_questions
+  (frontmatter list) and the numbered body questions in sync (same count).
+- For a decision spec (variant A vs B): recommend with reasons inside the
+  spec, but leave freigabe.entscheidung EMPTY - the human decides at gate 1.
 
 Hard rules:
 - Do not modify application code, CLAUDE.md, or files outside

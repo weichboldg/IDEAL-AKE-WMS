@@ -1,7 +1,12 @@
 # Second Brain + Agenten-Pipeline — Schritt-für-Schritt-Anleitung
 
-Repo: `C:\Git\IDEAL-AKE-WMS` · Stand: 2026-07-27
+Repo: `C:\Git\IDEAL-AKE-WMS` · Stand: 2026-07-28
 Jeder Schritt hat ein **Warum** — das System soll verstanden, nicht nur ausgeführt werden.
+
+> Diese Datei ist der **Aufbau-Pfad** (einmalige Einrichtung, Schritte 0–10).
+> Für den täglichen Betrieb und die genaue Agenten-/Task-Mechanik siehe
+> `docs/AGENTEN-UND-TASKS.md`. Beide Schranken sind Ordner-Gesten
+> (Spec-Freigabe → `specs/freigegeben/`, Merge → `specs/merge-freigegeben/`).
 
 **Reihenfolge im Überblick:**
 
@@ -45,11 +50,13 @@ scripts\setup-vault.ps1            # Vault-Struktur + Templates anlegen
 scripts\new-worktree.ps1           # Worktree je Spec
 scripts\sync-onedrive-specs.ps1    # Kollegen-Freigabe via OneDrive
 scripts\watch-backlog.ps1          # der Motor (Watcher + claude -p)
+scripts\approve-merge.ps1          # Schranke 2: Merge-Freigabe ausfuehren
 scripts\register-watcher-task.ps1  # Dauerbetrieb via Task Scheduler
 .claude\agents\task-scout.md       # Erkennung (haiku, read-only)
 .claude\agents\spec-agent.md       # Anforderung -> Spec (sonnet)
 .claude\agents\qa-agent.md         # Beweis vor "Testbereit" (sonnet)
 docs\SECOND-BRAIN-ANLEITUNG.md     # dieses Dokument
+docs\AGENTEN-UND-TASKS.md          # Betriebs-/Agenten-Referenz
 ```
 
 Danach committen: `git add scripts .claude/agents docs/SECOND-BRAIN-ANLEITUNG.md && git commit -m "chore: second-brain pipeline scaffolding"`
@@ -134,7 +141,7 @@ Deine CLAUDE.md hat 381 Zeilen (~95 KB): Rollen-Tabellen, Zugriffsschutz-Matrix,
    ```powershell
    claude -p "Freigegebene Spec secondbrain/specs/freigegeben/<datei>.md umsetzen: Worktree via scripts/new-worktree.ps1, Umsetzung gemaess CLAUDE.md-Workflow im Worktree, dann qa-agent (dotnet build + dotnet test muessen gruen sein, Beweis in die Spec, TESTSZENARIEN.md ergaenzen). Bei Erfolg status: Testbereit. Kein Merge, kein Push, main nicht anfassen." --allowedTools "Read" "Glob" "Grep" "Write" "Edit" "Agent" "Bash(dotnet build:*)" "Bash(dotnet test:*)" "Bash(git status:*)" "Bash(git add:*)" "Bash(git commit:*)" "Bash(git diff:*)" "Bash(git worktree:*)" "Bash(powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1:*)" --max-turns 60
    ```
-5. **Schranke 2 von Hand:** Manuelle Test-Checkliste aus der Spec im Worktree abarbeiten (`dotnet run` bzw. lokaler IIS Express). Wenn gut: auf `main` mergen wie gewohnt, `status: Gemerged` setzen, Feature-Map + `changelog/`-Eintrag ergänzen (dafür kannst du wieder eine kurze Claude-Session nehmen), Worktree erst nach verifiziertem Deploy aufräumen — wie in eurer bisherigen Praxis.
+5. **Schranke 2 — Merge-Freigabe (Ordner-Geste):** Manuelle Test-Checkliste aus der Spec abarbeiten (`dotnet run` bzw. lokaler IIS Express). Wenn gut: Spec von `specs\freigegeben\` nach `specs\merge-freigegeben\` verschieben und `pwsh -File scripts\approve-merge.ps1 -UseAgent` starten (merged nach main, prüft Build+Tests, setzt `status: Gemerged`, aktualisiert Feature-Map + Changelog). `git push` und Worktree-Aufräumen bleiben deine Hand — Worktree erst nach verifiziertem Deploy. Siehe `docs/AGENTEN-UND-TASKS.md` Abschnitt 7.
 
 **Erst wenn dieser Durchlauf sauber war, weiter zu Schritt 7.**
 
@@ -200,9 +207,9 @@ Ergänze in `.claude/settings.json` einen **deny**-Block (deny schlägt allow, g
 2. Watcher → Spec-Agent → Spec liegt in `specs\entwurf\` (und via Sync in OneDrive).
 3. **Schranke 1:** Du oder Kollege verschiebt die Datei nach `freigegeben`.
 4. Watcher → Worktree → Umsetzung (Skill-Workflow) → QA (Build+Tests grün, Testszenarien) → `status: Testbereit` + manuelle Test-Checkliste.
-5. **Schranke 2:** Du testest manuell, mergst, setzt `Gemerged`, Feature-Map + Changelog, Worktree-Aufräumen nach Deploy-Verifikation.
+5. **Schranke 2 (Ordner-Geste):** Du testest manuell; wenn gut, verschiebst du die Spec nach `specs\merge-freigegeben\` und startest `approve-merge.ps1`. Der merged, prüft Build+Tests auf main, setzt `Gemerged`, aktualisiert Feature-Map + Changelog. `git push` + Worktree-Aufräumen (nach Deploy-Verifikation) bleiben deine Hand.
 
-Dein manueller Aufwand: zwei Gesten und ein manueller Test. Alles andere: Brain-first, mit Beweis statt Behauptung.
+Dein manueller Aufwand: zwei Ordner-Gesten und ein manueller Test. Alles andere: Brain-first, mit Beweis statt Behauptung. Der Watcher merged nie selbst — er stoppt immer bei `Testbereit`.
 
 ## Troubleshooting
 
@@ -213,4 +220,6 @@ Dein manueller Aufwand: zwei Gesten und ein manueller Test. Alles andere: Brain-
 | Spec wird doppelt erzeugt | `source_backlog` im Frontmatter fehlt/falsch — task-scout erkennt Verarbeitung darüber |
 | Freigabe kommt nicht an | OneDrive-Sync-Latenz (Skript wartet auf stabile Datei) oder Konfliktkopie (Warnung im Log, manuell klären) |
 | Task läuft nach Reboot nicht | Du warst nicht angemeldet — Trigger ist AtLogOn; anmelden genügt |
+| `approve-merge.ps1`: „Kein branch im Frontmatter" | Die Spec trägt kein `branch:` — vom Dev-Lauf nicht gesetzt; Branch von Hand ins Frontmatter eintragen |
+| Merge-Konflikt beim Approve | Skript stoppt bewusst; Konflikt manuell lösen, committen, dann Spec-Status selbst auf `Gemerged` setzen |
 | Verwaiste claude-Prozesse | `Get-Process claude* \| Stop-Process`; tritt mit dem Watcher-Design normalerweise nicht auf |

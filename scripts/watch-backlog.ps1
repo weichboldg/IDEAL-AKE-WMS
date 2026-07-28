@@ -11,6 +11,8 @@
 #   - Rechner bleibt wach (Energieoptionen!)
 # NICHT AUTOMATISIERT:
 #   - Schranke 1 (Spec-Freigabe) und Schranke 2 (Merge) - bewusst Mensch.
+#     Merge laeuft ueber scripts\approve-merge.ps1, NICHT ueber diesen Watcher
+#     (ein Dateiereignis darf nie main veraendern).
 #   - Keine Konfliktaufloesung, kein git push.
 # WARUM SO:
 #   - Ereignisgetrieben statt Minutentakt: claude -p zaehlt gegen dein
@@ -29,7 +31,8 @@ param(
     [int]$QuietSeconds = 8,
     [int]$CooldownSeconds = 120,
     [int]$SyncMinutes = 5,
-    [int]$MaxTurns = 60
+    [int]$SpecMaxTurns = 30,
+    [int]$DevMaxTurns = 180
 )
 $ErrorActionPreference = "Stop"
 Set-Location $Repo
@@ -58,8 +61,8 @@ $AllowedTools = @(
     "Agent"
 )  # als Array: PowerShell uebergibt jedes Element als eigenes Argument
 
-function Invoke-Claude([string]$Prompt, [string]$Tag) {
-    Log "CLAUDE START [$Tag]"
+function Invoke-Claude([string]$Prompt, [string]$Tag, [int]$MaxTurns) {
+    Log "CLAUDE START [$Tag] (max-turns=$MaxTurns)"
     try {
         # Ausgabe mitloggen; Fehler brechen den Watcher nicht ab
         & claude -p $Prompt --allowedTools $AllowedTools --max-turns $MaxTurns 2>&1 |
@@ -133,7 +136,7 @@ Neue Backlog-Datei erkannt: $path
 2. Fuer jede gefundene Datei: Nutze den Subagenten spec-agent, um eine vollstaendige Spec nach secondbrain/specs/entwurf/ zu schreiben (Template secondbrain/_templates/spec.md, status: Entwurf).
 3. Committe NUR die neuen/geaenderten Dateien unter secondbrain/ mit Message "spec: <slug> (Entwurf)".
 Verboten: Dateien nach specs/freigegeben verschieben, Anwendungscode aendern, mergen, main anfassen.
-"@ "SPEC"
+"@ "SPEC" $SpecMaxTurns
         }
         elseif ($path -like "*\secondbrain\specs\freigegeben\*") {
             Log "Freigabe-Ereignis: $path"
@@ -141,13 +144,16 @@ Verboten: Dateien nach specs/freigegeben verschieben, Anwendungscode aendern, me
             Invoke-Claude @"
 Freigegebene Spec erkannt: $path (Schranke 1 wurde genommen).
 Pruefe zuerst: Frontmatter muss status: Freigegeben haben UND worktree/branch muessen leer sein (sonst laeuft die Umsetzung schon - dann NICHTS tun und beenden).
+Lies den Abschnitt 'Freigabe-Antworten' der Spec als verbindlichen Auftrag: er beantwortet die offenen Rueckfragen. Ist eine Rueckfrage dort unbeantwortet (nur Pfeil, keine Antwort) ODER ist es eine Varianten-Spec ohne gesetztes freigabe.entscheidung im Frontmatter: NICHT umsetzen, Status auf Entwurf zuruecksetzen, Grund in die Spec schreiben, beenden.
 Dann:
 1. Worktree anlegen: powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1 -Slug <slug-aus-spec>. Trage worktree + branch ins Spec-Frontmatter ein, status: InUmsetzung, und lege eine Aufgaben-Datei in secondbrain/aufgaben/ an.
-2. Setze IM WORKTREE um, gemaess CLAUDE.md-Workflow: superpowers:writing-plans, dann subagent-driven-development (unabhaengige Tasks parallel via dispatching-parallel-agents).
-3. Qualitaet: superpowers:verification-before-completion + code-review. dotnet build und dotnet test muessen gruen sein - Ausgaben als Beweis in die Spec uebernehmen. docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md ergaenzen. Nutze dafuer den Subagenten qa-agent.
-4. NUR bei Erfolg: Spec-Frontmatter status: Testbereit + Checkliste fuer den manuellen Test ans Spec-Ende. Commit im Worktree.
+2. Setze IM WORKTREE um, gemaess CLAUDE.md-Workflow: superpowers:writing-plans, dann subagent-driven-development (unabhaengige Tasks parallel via dispatching-parallel-agents). Committe Zwischenstaende regelmaessig im Worktree ("wip: <slug>"), damit bei einem Abbruch nichts verloren geht.
+3. PFLICHT vor der QA-Phase: committe den vollstaendigen Arbeitsstand im Worktree ("wip: <slug> feature-complete").
+4. Qualitaet: superpowers:verification-before-completion + code-review. dotnet build und dotnet test muessen gruen sein - Ausgaben als Beweis in die Spec uebernehmen. docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md ergaenzen. Nutze dafuer den Subagenten qa-agent.
+5. NUR bei Erfolg: Spec-Frontmatter status: Testbereit + Checkliste fuer den manuellen Test ans Spec-Ende. Commit im Worktree.
+Wenn du merkst, dass die Aufgabe zu gross fuer das Turn-Limit ist: committe den Stand als "wip: <slug>" und schreibe in die Spec, wo du stehst - NICHT unvollstaendig auf Testbereit setzen.
 Verboten: Merge nach main, git push, Worktree loeschen, status Gemerged setzen (alles Schranke 2 = Mensch).
-"@ "DEV"
+"@ "DEV" $DevMaxTurns
         }
     }
 }

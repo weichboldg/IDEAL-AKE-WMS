@@ -21,7 +21,8 @@ Single Source of Truth des Projekts. Regeln:
 | `glossar/` | Domaenensprache (FA, Kommissionierung, Rollen ...) |
 | `backlog/` | Formlose neue Anforderungen (Mensch legt ab) |
 | `specs/entwurf/` | Vom Spec-Agent ausgearbeitete Specs (Status: Entwurf) |
-| `specs/freigegeben/` | Freigegebene Specs = Startsignal Entwicklung (Schranke 1) |
+| `specs/freigegeben/` | Freigegebene Specs = Startsignal Entwicklung (Schranke 1); auch Ablage nach dem Merge |
+| `specs/merge-freigegeben/` | Merge-Freigabe (Schranke 2) — Spec hierher verschieben, dann `approve-merge.ps1` |
 | `aufgaben/` | Task-Tracking je Aufgabe |
 | `bugs/` | Bugs + bekannte Probleme mit Status |
 | `tests/` | Index der Testszenarien, verlinkt ../docs/TESTSZENARIEN.md |
@@ -37,7 +38,7 @@ Aussenkarte — **immer der genannten Datei folgen, nicht raten**:
 |---|---|
 | `../CLAUDE.md` | Die verbindlichen Regeln (Constitution). Verweist zurueck ins Brain. |
 | `../README.md` | Betrieb + Anwendung: Voraussetzungen, **IIS-Konfiguration**, Installation/Skript-Reihenfolge, Service-Publish, **AppSettings-Tabelle (35 Keys)**, Corporate Design |
-| `../PROJECT_STATUS.md` | Release-Historie je Version + **offene Deploy-Checkliste** („Wo wir aufgehoert haben") |
+| `../PROJECT_STATUS.md` | **Eingefroren (07/2026)** — nur noch Stub mit Wegweiser; Release-Historie jetzt in `changelog/`, offene Deploy-Punkte in `aufgaben/` |
 | `../docs/TESTSZENARIEN.md` | Manuelle Abnahme, 55 Kapitel → Index: [[testszenarien-index]] |
 | `../docs/superpowers/specs/` + `plans/` + `cutover/` | Historische Specs/Plaene (vor dem Brain) → zugeordnet in [[feature-map]] |
 | `../docs/SECOND-BRAIN-ANLEITUNG.md` | Aufbau und Betrieb dieser Pipeline selbst |
@@ -57,4 +58,7 @@ NEU -> SPEZIFIZIERT (Entwurf) -> FREIGEGEBEN -> IN_UMSETZUNG -> TESTBEREIT -> GE
 
 Schranke 1 (manuell): Spec von entwurf/ nach freigegeben/ verschieben
 UND `status: Freigegeben` setzen (macht sync-onedrive-specs.ps1 bzw. der Mensch).
-Schranke 2 (manuell): Merge nach main erst nach erfolgreichem manuellem Test.
+Der Watcher setzt dann autonom bis TESTBEREIT fort.
+Schranke 2 (manuell): nach erfolgreichem manuellem Test die Spec von
+freigegeben/ nach merge-freigegeben/ verschieben und `scripts/approve-merge.ps1`
+starten — der Merge laeuft nie autonom aus einem Dateiereignis.
