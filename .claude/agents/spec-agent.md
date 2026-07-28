@@ -38,7 +38,11 @@ DEPLOY SECTION (fill provisionally):
 OUTPUT (the spec, plus a bug record only in the bug case above):
 - secondbrain/specs/entwurf/YYYY-MM-DD-<slug>.md based on
   secondbrain/_templates/spec.md. Frontmatter: status: Entwurf,
-  source_backlog: "<backlog filename>", created/updated: today.
+  source_backlog: "[[<backlog-datei-ohne-pfad-ohne-endung>]]" (a real Obsidian
+  WIKILINK, e.g. "[[2026-07-28-foo]]" - NOT a path string like
+  "secondbrain/backlog/2026-07-28-foo.md"; Dataview needs the wikilink to link
+  the backlog item to its spec, otherwise the HOME dashboard shows it as still
+  open), created/updated: today.
 - German prose; English identifiers/code terms. Fill EVERY section.
 - Acceptance criteria must be individually testable.
 - Cover explicitly: Migrations-/SQL impact (OBJECT_ID guard, FreshInstall),

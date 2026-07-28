@@ -15,7 +15,7 @@ merge:
   merge_commit: 0548449
   build: gruen
   tests: gruen (1024 Web + 176 Service, 0 Fehler, 1 uebersprungen)
-source_backlog: secondbrain/backlog/2026-07-28-override-prepickingdays.md
+source_backlog: "[[backlog/2026-07-28-override-prepickingdays|2026-07-28-override-prepickingdays]]"
 freigabe:
   entscheidung: A
   datum: 2026-07-28

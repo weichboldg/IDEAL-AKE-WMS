@@ -5,7 +5,7 @@ slug: 2026-07-28-ideal-anpassungen-neu-nachbilden
 status: Entwurf
 created: 2026-07-28
 updated: 2026-07-28
-source_backlog: "secondbrain/backlog/2026-07-27-ideal-anpassungen-neu-nachbilden.md"
+source_backlog: "[[2026-07-27-ideal-anpassungen-neu-nachbilden]]"
 task: ""
 worktree: ""
 branch: ""

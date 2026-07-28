@@ -5,7 +5,7 @@ slug: <yyyy-mm-dd-slug>
 status: Entwurf
 created: <yyyy-mm-dd>
 updated: <yyyy-mm-dd>
-source_backlog: ""
+source_backlog: ""        # [[backlog-datei]] als Wikilink, NICHT als Pfad-String
 task: ""
 worktree: ""
 branch: ""
