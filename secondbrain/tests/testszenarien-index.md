@@ -26,7 +26,7 @@ gewachsen, bewusst nicht umsortiert (die TS-Ids sind in Abnahmeprotokollen refer
 | 6. Kommissionierung / Picking | TS-6.1 – 6.10 | Kommissionierliste mit/ohne Leitstand, Picker-Zuweisung, Menue-Badge, Status, Druck, Spaltenfilter |
 | 7. OSEON Teileverfolgung | TS-7.1 – 7.10 | Auftragsliste, 3-Ebenen-Baum, Ampel, Filter, Werkbank-Filter, Artikelsuche + QR |
 | 8. BDE Phase 1 | TS-8.1 – 8.15 | `2026-04-14-bde-phase-1-design.md` |
-| 9. BDE Phase 2.1 — Werkbank-Erweiterungen | TS-9.1 – 9.5 | `2026-04-20-bde-phase-2-1-werkbank-erweiterungen-design.md` |
+| 9. BDE Phase 2.1 — Werkbank-Erweiterungen | TS-9.1 – 9.10 | `2026-04-20-bde-phase-2-1-werkbank-erweiterungen-design.md`; TS-9.6 – 9.10 = Werkbank-Override Vorkommissioniertage (v1.27.0, [[2026-07-28-override-prepickingdays]]) |
 | 10. BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | TS-10.1 – 10.15 | `2026-04-21-bde-phase-2-2-mehrfachanmeldung-zeit-split-design.md` |
 | 11. Bestellungen / Bedarfsmeldungen | TS-11.1 – 11.7 | `2026-04-02-bedarfsmeldungen-design.md` |
 | 12. Print + OSEON-Tracking-Verbesserungen | TS-12.1 – 12.6 | `2026-04-17-print-tracking-improvements-design.md` |

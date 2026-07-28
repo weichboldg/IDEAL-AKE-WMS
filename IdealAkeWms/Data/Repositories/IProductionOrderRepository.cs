@@ -22,7 +22,10 @@ public record LeitstandOrderRow(
     string? Ventil = null,
     string? AusfuehrungEZ = null,
     string? Maschine = null,
-    string? SageStatus = null);
+    string? SageStatus = null,
+    // Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) — null = globaler
+    // Settings-Wert gilt. Aufloesung ueber PrePickingDaysResolver.
+    int? WorkplaceOverridePrePickingDays = null);
 
 public record LeitstandOrderPage(List<LeitstandOrderRow> Rows, int TotalCount);
 

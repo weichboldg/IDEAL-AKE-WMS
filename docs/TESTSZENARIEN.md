@@ -28,7 +28,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
 | 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
 | 8. BDE Phase 1 | [→](#8-bde-phase-1) | TS-8.1 – TS-8.15 |
-| 9. BDE Phase 2.1 — Werkbank-Erweiterungen | [→](#9-bde-phase-21--werkbank-erweiterungen) | TS-9.1 – TS-9.5 |
+| 9. BDE Phase 2.1 — Werkbank-Erweiterungen | [→](#9-bde-phase-21--werkbank-erweiterungen) | TS-9.1 – TS-9.10 |
 | 10. BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | [→](#10-bde-phase-22--mehrfachanmeldung--zeit-split) | TS-10.1 – TS-10.15 |
 | 11. Bestellungen / Bedarfsmeldungen | [→](#11-bestellungen--bedarfsmeldungen) | TS-11.1 – TS-11.7 |
 | 12. Print + OSEON-Tracking-Verbesserungen | [→](#12-print--oseon-tracking-verbesserungen) | TS-12.1 – TS-12.6 |
@@ -2592,6 +2592,120 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - `WB-AKTIV` erscheint im Dropdown.
 - `WB-INAKTIV` erscheint NICHT im Dropdown.
+
+---
+
+### TS-9.6 — Werkbank-Override ueberschreibt globale Vorkommissioniertage (FA-Liste)
+
+**Vorbedingungen:**
+- Globales AppSetting `VorkommissionierTage = 1`, `KommissionierTage = 4`.
+- Werkbank `WB-OVERRIDE` hat „Abweichende Vorkommissioniertage" = `3`
+  (Stammdaten → Werkbaenke → Bearbeiten).
+- Werkbank `WB-STANDARD` hat das Feld **leer** („Standard" in der Werkbank-Liste).
+- FA `FA-TEST-01` ist der Werkbank `WB-OVERRIDE` zugeordnet und hat einen Fertigungstermin
+  an einem bekannten Werktag (z. B. Montag).
+- FA `FA-TEST-02` ist `WB-STANDARD` zugeordnet, gleicher Fertigungstermin.
+
+**Schritte:**
+1. FA-Liste (Fertigungsauftraege → Uebersicht) oeffnen.
+2. Spalte „BG-Termin" fuer `FA-TEST-01` und `FA-TEST-02` ablesen.
+
+**Erwartetes Verhalten:**
+- `FA-TEST-01`: BG-Termin = Kommissioniertermin **minus 3 Arbeitstage** (nicht minus 1).
+- `FA-TEST-02`: BG-Termin = Kommissioniertermin **minus 1 Arbeitstag** (globaler Standard,
+  unveraendert gegenueber v1.26.0).
+- Wochenenden und Feiertage werden wie bisher uebersprungen (Arbeitstage, keine Kalendertage).
+
+**Negativfall:**
+- FA **ohne** Werkbank-Zuordnung verhaelt sich wie `FA-TEST-02` (globaler Wert), keine
+  Fehlermeldung, kein leerer BG-Termin.
+
+---
+
+### TS-9.7 — Override konsistent ueber FA-Liste, Leitstand und FA-Abarbeitungsliste je AG
+
+**Vorbedingungen:**
+- Wie TS-9.6; `FA-TEST-01` hat zusaetzlich einen aktiven FA-Vorbau-Arbeitsgang (z. B. `VE`),
+  Feature `FaCompletionAktiv = true`.
+
+**Schritte:**
+1. `FA-TEST-01` in der FA-Liste oeffnen und BG-Termin notieren.
+2. Denselben FA im **Leitstand** suchen, BG-Termin ablesen.
+3. **FA-Abarbeitungsliste je Arbeitsgang** fuer den AG `VE` oeffnen, BG-Termin ablesen.
+
+**Erwartetes Verhalten:**
+- Alle drei Listen zeigen **exakt denselben** BG-Termin (Kommissioniertermin minus 3 Arbeitstage).
+
+**Negativfall:**
+- Wird der Override an der Werkbank wieder geleert, zeigen alle drei Listen wieder den
+  globalen Wert — ohne App-Neustart (Wert wird pro Request gelesen).
+
+---
+
+### TS-9.8 — Override `0` wird als expliziter Wert behandelt, nicht als „kein Override"
+
+**Vorbedingungen:**
+- Werkbank `WB-ZERO` hat „Abweichende Vorkommissioniertage" = `0` (gespeichert, nicht leer).
+- FA `FA-TEST-03` ist `WB-ZERO` zugeordnet, Fertigungstermin gesetzt.
+
+**Schritte:**
+1. FA-Liste oeffnen, Spalten „Komm." und „BG-Termin" fuer `FA-TEST-03` vergleichen.
+
+**Erwartetes Verhalten:**
+- BG-Termin **gleich** Kommissioniertermin (0 Arbeitstage Vorlauf).
+- In der Werkbank-Liste steht bei `WB-ZERO` „0 Tage" (nicht „Standard").
+
+**Negativfall:**
+- Werkbank mit **leerem** Feld (`null`) zeigt in der Werkbank-Liste „Standard" und verhaelt
+  sich in den FA-Listen weiter wie der globale Wert — `0` und leer sind **nicht** dasselbe.
+
+---
+
+### TS-9.9 — Override wirkt kaskadierend auf den Beschichtungstermin
+
+**Vorbedingungen:**
+- Beschichtungs-Feature aktiv (`LackierteilKategorieName` gesetzt), `BeschichtungTage = 10`,
+  `BeschichtungAbholtage = Dienstag,Donnerstag`.
+- `FA-TEST-01` (Werkbank `WB-OVERRIDE`, Override 3) hat Lackierteile (`Lack-T`-Kennzeichen gesetzt).
+- Vergleichs-FA `FA-TEST-02` (Werkbank `WB-STANDARD`) mit gleichem Fertigungstermin und
+  ebenfalls Lackierteilen.
+
+**Schritte:**
+1. Spalte „Beschicht." fuer beide FAs in der FA-Liste bzw. im Leitstand ablesen.
+
+**Erwartetes Verhalten:**
+- Der Beschichtungstermin von `FA-TEST-01` liegt gegenueber `FA-TEST-02` um die Differenz
+  Override ./. globaler Wert (hier 3 − 1 = 2 Arbeitstage) **frueher**, danach wie bisher auf den
+  vorherigen Abholtag zurueckgezogen.
+
+**Negativfall:**
+- FA **ohne** Lackierteile bei aktivem Feature hat weiterhin **keinen** Beschichtungstermin —
+  der Override aendert daran nichts.
+
+---
+
+### TS-9.10 — UI-Rueckmeldung: Badge/Tooltip an der Werkbank-Zelle
+
+**Vorbedingungen:**
+- Wie TS-9.6.
+
+**Schritte:**
+1. FA-Liste, Leitstand und FA-Abarbeitungsliste je AG oeffnen.
+2. Werkbank-Zelle von `FA-TEST-01` ansehen und mit der Maus darauf zeigen.
+3. Mit der Maus auf den Spaltenkopf „BG-Termin" zeigen.
+
+**Erwartetes Verhalten:**
+- In **allen drei** Listen steht neben dem Werkbank-Namen ein Badge „BG 3".
+- Der Tooltip des Badges lautet „Abweichende Vorkommissioniertage dieser Werkbank: 3
+  Arbeitstag(e) statt Standard 1".
+- Der Spaltenkopf-Tooltip „BG-Termin" nennt den Standard und weist darauf hin, dass er je
+  Werkbank abweichen kann.
+
+**Negativfall:**
+- `FA-TEST-02` (kein Override) zeigt **kein** Badge und keinen zusaetzlichen Tooltip —
+  die Zelle sieht aus wie vor v1.27.0.
+- Der Spaltenfilter „Werkbank" filtert weiterhin nur nach dem Werkbank-Namen; das Badge
+  beeinflusst Filter und Sortierung nicht.
 
 ---
 

@@ -83,11 +83,13 @@ public class FaWorklistControllerTests
         return (ctx, ctrl, userMock);
     }
 
-    private static ProductionWorkplace SeedWorkplace(ApplicationDbContext ctx, string name)
+    private static ProductionWorkplace SeedWorkplace(ApplicationDbContext ctx, string name,
+        int? overridePrePickingDays = null)
     {
         var wp = new ProductionWorkplace
         {
             Name = name,
+            OverridePrePickingDays = overridePrePickingDays,
             CreatedAt = DateTime.Now,
             CreatedBy = "t",
             CreatedByWindows = "t"
@@ -607,5 +609,87 @@ public class FaWorklistControllerTests
         var vm = result!.Model.Should().BeOfType<FaWorklistViewModel>().Subject;
         vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-100");
         vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    // ------------------------- Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0)
+
+    [Fact]
+    public async Task Index_WerkbankOverride_SchlaegtGlobalenVorkommissionierWert()
+    {
+        // Echter BusinessDayService: die Erwartung wird mit demselben Dienst gerechnet,
+        // getestet wird also die verwendete TAGE-ANZAHL (3 statt global 1).
+        var (ctx, ctrl, _) = Build();
+        var wpOverride = SeedWorkplace(ctx, "WB-OVERRIDE", overridePrePickingDays: 3);
+        var wpStandard = SeedWorkplace(ctx, "WB-STANDARD");
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var productionDate = new DateTime(2026, 8, 10);
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-OVR", productionDate: productionDate);
+        var o2 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-STD", productionDate: productionDate);
+        o1.Order.ProductionWorkplaceId = wpOverride.Id;
+        o2.Order.ProductionWorkplaceId = wpStandard.Id;
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, o2.Order.Id, ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)await ctrl.Index(ve.Id)).Model!;
+
+        var bd = new BusinessDayService();
+        var noHolidays = new HashSet<DateTime>();
+        var komm = bd.SubtractBusinessDays(productionDate, 4, noHolidays);      // KommissionierTage-Default
+        var expectedOverride = bd.SubtractBusinessDays(komm, 3, noHolidays);    // Werkbank-Override
+        var expectedStandard = bd.SubtractBusinessDays(komm, 1, noHolidays);    // globaler Default
+
+        var rowOverride = vm.Items.Single(i => i.OrderNumber == "FA-OVR");
+        rowOverride.VorkommissionierTermin.Should().Be(expectedOverride);
+        rowOverride.PrePickingDaysOverride.Should().Be(3);
+
+        var rowStandard = vm.Items.Single(i => i.OrderNumber == "FA-STD");
+        rowStandard.VorkommissionierTermin.Should().Be(expectedStandard);
+        rowStandard.PrePickingDaysOverride.Should().BeNull();
+
+        expectedOverride.Should().NotBe(expectedStandard);   // Guard: der Test kann ueberhaupt greifen
+        vm.VorkommissionierTage.Should().Be(1);              // Standard-Referenz fuer den Tooltip
+    }
+
+    [Fact]
+    public async Task Index_WerkbankOverrideNull_IstExpliziterWert_NichtKeinOverride()
+    {
+        var (ctx, ctrl, _) = Build();
+        var wpZero = SeedWorkplace(ctx, "WB-ZERO", overridePrePickingDays: 0);
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-ZERO", productionDate: new DateTime(2026, 8, 10));
+        o.Order.ProductionWorkplaceId = wpZero.Id;
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, o.Order.Id, ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)await ctrl.Index(ve.Id)).Model!;
+
+        var row = vm.Items.Single();
+        row.VorkommissionierTermin.Should().Be(row.KommissionierTermin);
+        row.PrePickingDaysOverride.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Index_FaOhneWerkbank_NutztGlobalenWert()
+    {
+        var (ctx, ctrl, _) = Build();
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-NOWP", productionDate: new DateTime(2026, 8, 10));
+        SeedFaWorkStep(ctx, o.Order.Id, ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)await ctrl.Index(ve.Id)).Model!;
+
+        var bd = new BusinessDayService();
+        var noHolidays = new HashSet<DateTime>();
+        var komm = bd.SubtractBusinessDays(new DateTime(2026, 8, 10), 4, noHolidays);
+
+        var row = vm.Items.Single();
+        row.WorkplaceName.Should().BeNull();
+        row.VorkommissionierTermin.Should().Be(bd.SubtractBusinessDays(komm, 1, noHolidays));
+        row.PrePickingDaysOverride.Should().BeNull();
     }
 }

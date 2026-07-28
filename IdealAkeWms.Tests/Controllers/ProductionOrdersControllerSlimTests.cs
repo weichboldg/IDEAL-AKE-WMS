@@ -65,8 +65,10 @@ public class ProductionOrdersControllerSlimTests
             CreatedByWindows = "test"
         };
 
-    private static LeitstandOrderRow MakeRow(int id, string number, bool isDone = false, bool isDonePicking = false) =>
-        new(id, number, 1m, null, "ART-001", null, null, null, null, isDone, isDonePicking, false, null);
+    private static LeitstandOrderRow MakeRow(int id, string number, bool isDone = false, bool isDonePicking = false,
+        DateTime? productionDate = null, string? workplaceName = null, int? overridePrePickingDays = null) =>
+        new(id, number, 1m, null, "ART-001", null, null, productionDate, null, isDone, isDonePicking, false, workplaceName,
+            null, null, null, null, null, overridePrePickingDays);
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);
@@ -280,5 +282,68 @@ public class ProductionOrdersControllerSlimTests
         captured.Should().NotBeNull();
         captured!.Should().ContainKey("kaeltemittel").WhoseValue.Should().Be("r290");
         captured!.Should().ContainKey("sage-status").WhoseValue.Should().Be("verpackt");
+    }
+
+    // ------------------------- Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0)
+
+    /// <summary>Kalendertage statt Arbeitstage — testet die verwendete TAGE-ANZAHL, nicht BusinessDayService.</summary>
+    private void SetupCalendarDaySubtraction() =>
+        _businessDayService.Setup(b => b.SubtractBusinessDays(
+                It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<HashSet<DateTime>>()))
+            .Returns((DateTime d, int days, HashSet<DateTime> _) => d.AddDays(-days));
+
+    private void SetupRow(LeitstandOrderRow row)
+    {
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+    }
+
+    [Fact]
+    public async Task Index_WerkbankOverride_SchlaegtGlobalenVorkommissionierWert()
+    {
+        // Global VorkommissionierTage = 1 (Default), Werkbank-Override = 7 -> 7 gewinnt.
+        SetupCalendarDaySubtraction();
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "A1", overridePrePickingDays: 7));
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        item.KommissionierTermin.Should().Be(new DateTime(2026, 8, 6));    // 10.08. - 4
+        item.VorkommissionierTermin.Should().Be(new DateTime(2026, 7, 30)); // 06.08. - 7 (nicht -1)
+        item.PrePickingDaysOverride.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Index_OhneWerkbankOverride_NutztGlobalenWert()
+    {
+        SetupCalendarDaySubtraction();
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "B2", overridePrePickingDays: null));
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        item.VorkommissionierTermin.Should().Be(new DateTime(2026, 8, 5));  // 06.08. - 1 (global)
+        item.PrePickingDaysOverride.Should().BeNull();                      // keine UI-Rueckmeldung
+    }
+
+    [Fact]
+    public async Task Index_WerkbankOverrideNull_IstExpliziterWert_NichtKeinOverride()
+    {
+        // 0 = Vorkommissionierung am selben Tag wie der Kommissioniertermin.
+        SetupCalendarDaySubtraction();
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "C3", overridePrePickingDays: 0));
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        item.VorkommissionierTermin.Should().Be(item.KommissionierTermin);
+        item.PrePickingDaysOverride.Should().Be(0);
     }
 }

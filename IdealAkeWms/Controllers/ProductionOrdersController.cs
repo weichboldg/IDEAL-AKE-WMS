@@ -125,12 +125,18 @@ public class ProductionOrdersController : Controller
                 IsCoatingDone = ps?.IsCoatingDone ?? false,
             };
 
+            // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
+            var effectivePrePickingDays = PrePickingDaysResolver.Resolve(
+                o.WorkplaceOverridePrePickingDays, vorkommissionierTage);
+            if (PrePickingDaysResolver.IsOverrideActive(o.WorkplaceOverridePrePickingDays))
+                item.PrePickingDaysOverride = effectivePrePickingDays;
+
             if (o.ProductionDate.HasValue)
             {
                 item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
-                    item.KommissionierTermin.Value, vorkommissionierTage, holidays);
+                    item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
                 // Backward compat: when feature is inactive (setting empty), calculate for ALL orders
                 // When feature is active, only calculate if HasCoatingParts == true
                 if (!coatingFeatureActive || item.HasCoatingParts)

@@ -164,6 +164,7 @@ public class FaWorklistController : Controller
         var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
         var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
+        vm.VorkommissionierTage = vorkommissionierTage;   // Standard-Referenz fuer den Override-Tooltip
 
         var rows = new List<FaWorklistRow>();
         foreach (var order in orders)
@@ -206,12 +207,19 @@ public class FaWorklistController : Controller
                 },
             };
 
+            // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
+            // ProductionWorkplace ist via GetAllOrderedAsync bereits Include-geladen.
+            var workplaceOverride = order.ProductionWorkplace?.OverridePrePickingDays;
+            var effectivePrePickingDays = PrePickingDaysResolver.Resolve(workplaceOverride, vorkommissionierTage);
+            if (PrePickingDaysResolver.IsOverrideActive(workplaceOverride))
+                row.PrePickingDaysOverride = effectivePrePickingDays;
+
             if (order.ProductionDate.HasValue)
             {
                 row.KommissionierTermin = _businessDayService.SubtractBusinessDays(
                     order.ProductionDate.Value, kommissionierTage, holidays);
                 row.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
-                    row.KommissionierTermin.Value, vorkommissionierTage, holidays);
+                    row.KommissionierTermin.Value, effectivePrePickingDays, holidays);
                 // Beschichtungstermin: shared CoatingDateCalculator (DRY mit Leitstand).
                 row.BeschichtungTermin = CoatingDateCalculator.Compute(
                     row.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
