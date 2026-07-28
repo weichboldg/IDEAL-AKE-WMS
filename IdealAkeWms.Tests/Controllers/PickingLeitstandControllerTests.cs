@@ -99,8 +99,11 @@ public class PickingLeitstandControllerTests
 
     // --- Index Tests ---
 
-    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false, string? customer = null, bool isDonePicking = false) =>
-        new(id, number, 1m, customer, articleNumber, null, null, null, null, isDone, isDonePicking, false, null);
+    private static LeitstandOrderRow MakeRow(int id, string number, string? articleNumber = "ART-001", bool isDone = false,
+        string? customer = null, bool isDonePicking = false,
+        DateTime? productionDate = null, string? workplaceName = null, int? overridePrePickingDays = null) =>
+        new(id, number, 1m, customer, articleNumber, null, null, productionDate, null, isDone, isDonePicking, false, workplaceName,
+            null, null, null, null, null, overridePrePickingDays);
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);
@@ -517,5 +520,88 @@ public class PickingLeitstandControllerTests
 
         captured.Should().NotBeNull();
         captured!.Should().ContainKey("maschine").WhoseValue.Should().Be("m1");
+    }
+
+    // ------------------------- Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0)
+
+    /// <summary>Kalendertage statt Arbeitstage — testet die verwendete TAGE-ANZAHL, nicht BusinessDayService.</summary>
+    private void SetupCalendarDaySubtraction() =>
+        _businessDayService.Setup(b => b.SubtractBusinessDays(
+                It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<HashSet<DateTime>>()))
+            .Returns((DateTime d, int days, HashSet<DateTime> _) => d.AddDays(-days));
+
+    private void SetupRow(LeitstandOrderRow row)
+    {
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+    }
+
+    [Fact]
+    public async Task Index_WerkbankOverride_SchlaegtGlobalenVorkommissionierWert()
+    {
+        // Muss dasselbe Ergebnis liefern wie ProductionOrdersController (gemeinsamer
+        // PrePickingDaysResolver, gemeinsame LeitstandOrderRow-Projection).
+        SetupCalendarDaySubtraction();
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "A1", overridePrePickingDays: 7));
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        item.KommissionierTermin.Should().Be(new DateTime(2026, 8, 6));
+        item.VorkommissionierTermin.Should().Be(new DateTime(2026, 7, 30));
+        item.PrePickingDaysOverride.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Index_OhneWerkbankOverride_NutztGlobalenWert()
+    {
+        SetupCalendarDaySubtraction();
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "B2", overridePrePickingDays: null));
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        item.VorkommissionierTermin.Should().Be(new DateTime(2026, 8, 5));
+        item.PrePickingDaysOverride.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Index_WerkbankOverrideNull_IstExpliziterWert_NichtKeinOverride()
+    {
+        SetupCalendarDaySubtraction();
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "C3", overridePrePickingDays: 0));
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        item.VorkommissionierTermin.Should().Be(item.KommissionierTermin);
+        item.PrePickingDaysOverride.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Index_WerkbankOverride_VerschiebtBeschichtungsterminKaskadierend()
+    {
+        // Kaskade ueber CoatingDateCalculator: frueherer BG-Termin => fruehere Beschichtung.
+        // Feature inaktiv (LackierteilKategorieName = null) => Termin fuer ALLE Auftraege.
+        SetupCalendarDaySubtraction();
+        _businessDayService.Setup(b => b.FindPreviousPickupDay(It.IsAny<DateTime>(), It.IsAny<HashSet<DayOfWeek>>()))
+            .Returns((DateTime d, HashSet<DayOfWeek> _) => d);
+        SetupRow(MakeRow(1, "FA-100", productionDate: new DateTime(2026, 8, 10),
+            workplaceName: "A1", overridePrePickingDays: 7));
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null)).Model!;
+
+        var item = vm.Items.Single();
+        // BG 30.07. - BeschichtungTage (Default 10) = 20.07. — ohne Override waere es der 26.07.
+        item.BeschichtungTermin.Should().Be(new DateTime(2026, 7, 20));
     }
 }

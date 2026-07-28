@@ -130,12 +130,18 @@ public class PickingLeitstandController : Controller
                 WorkSteps = grp,
             };
 
+            // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
+            var effectivePrePickingDays = PrePickingDaysResolver.Resolve(
+                o.WorkplaceOverridePrePickingDays, vorkommissionierTage);
+            if (PrePickingDaysResolver.IsOverrideActive(o.WorkplaceOverridePrePickingDays))
+                item.PrePickingDaysOverride = effectivePrePickingDays;
+
             if (o.ProductionDate.HasValue)
             {
                 item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
-                    item.KommissionierTermin.Value, vorkommissionierTage, holidays);
+                    item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
                 // Beschichtungstermin: shared CoatingDateCalculator (DRY mit FA-Abarbeitungsliste).
                 // Backward compat: Feature inaktiv => fuer ALLE Auftraege; aktiv => nur HasCoatingParts.
                 item.BeschichtungTermin = CoatingDateCalculator.Compute(

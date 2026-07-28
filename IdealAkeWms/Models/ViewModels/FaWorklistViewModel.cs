@@ -18,6 +18,10 @@ public class FaWorklistViewModel
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public List<FaAttributeDefinition> AttributeColumns { get; set; } = new(); // Merkmale des gewaehlten AG
     public bool ShowDone { get; set; }
+
+    /// <summary>Globaler Settings-Wert <c>VorkommissionierTage</c> — Standard-Referenz im Override-Tooltip.</summary>
+    public int VorkommissionierTage { get; set; }
+
     public List<FaWorklistRow> Items { get; set; } = new();
     public Dictionary<string, List<EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
     public PaginationState Pagination { get; set; } = new();
@@ -32,6 +36,12 @@ public class FaWorklistRow
     public string? Description2 { get; set; }
     public decimal Quantity { get; set; }
     public string? WorkplaceName { get; set; }                  // Werkbank als Info-Spalte
+
+    /// <summary>
+    /// Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) — nur gesetzt, wenn fuer
+    /// diese Zeile tatsaechlich ein Override statt des globalen Werts griff (UI-Rueckmeldung).
+    /// </summary>
+    public int? PrePickingDaysOverride { get; set; }
     // FA-Zusatzinfos aus Sage (v1.26.0) — read-only Anzeige-Spalten.
     public string? Kaeltemittel { get; set; }
     public string? Ventil { get; set; }

@@ -88,7 +88,7 @@ else
                     <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                     <th data-filterable data-col-key="quantity">Stk.</th>
                     <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter>Beschicht.</th>
-                    <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter>BG-Termin</th>
+                    <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - Vorkommissioniertage (Standard @Model.VorkommissionierTage Arbeitstag(e), je Werkbank abweichend)">BG-Termin</th>
                     <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter>Komm.</th>
                     <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
                     <th data-filterable data-col-key="kaeltemittel">Kältemittel</th>
@@ -130,7 +130,15 @@ else
                                     })
                                 </span>
                             </td>
-                            <td>@item.WorkplaceName</td>
+                            <td>
+                                @item.WorkplaceName
+                                @if (item.PrePickingDaysOverride.HasValue)
+                                {
+                                    @* Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) *@
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1"
+                                          title="Abweichende Vorkommissioniertage dieser Werkbank: @item.PrePickingDaysOverride Arbeitstag(e) statt Standard @Model.VorkommissionierTage">BG @item.PrePickingDaysOverride</span>
+                                }
+                            </td>
                             <td>@item.ArticleNumber</td>
                             <td>@item.Description1</td>
                             <td>@item.Description2</td>

@@ -116,7 +116,7 @@
                 <th data-filterable data-col-key="maschine">Maschine</th>
                 <th data-filterable data-col-key="sage-status">Sage-Status</th>
                 <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
-                <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - @Model.VorkommissionierTage Arbeitstag(e)">BG-Termin</th>
+                <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - Vorkommissioniertage (Standard @Model.VorkommissionierTage Arbeitstag(e), je Werkbank abweichend)">BG-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
                 <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="delivery-date" data-date-filter>Liefertermin</th>
@@ -192,7 +192,15 @@
                     </td>
                     <td>@item.Description1</td>
                     <td>@item.Description2</td>
-                    <td>@item.WorkplaceName</td>
+                    <td>
+                        @item.WorkplaceName
+                        @if (item.PrePickingDaysOverride.HasValue)
+                        {
+                            @* Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) *@
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1"
+                                  title="Abweichende Vorkommissioniertage dieser Werkbank: @item.PrePickingDaysOverride Arbeitstag(e) statt Standard @Model.VorkommissionierTage">BG @item.PrePickingDaysOverride</span>
+                        }
+                    </td>
                     <td>@item.Kaeltemittel</td>
                     <td>@item.Ventil</td>
                     <td>@item.AusfuehrungEZ</td>

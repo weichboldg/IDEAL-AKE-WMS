@@ -81,7 +81,8 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 o.ExtraInfo != null ? o.ExtraInfo.Ventil : null,
                 o.ExtraInfo != null ? o.ExtraInfo.AusfuehrungEZ : null,
                 o.ExtraInfo != null ? o.ExtraInfo.Maschine : null,
-                o.ExtraInfo != null ? o.ExtraInfo.SageStatus : null))
+                o.ExtraInfo != null ? o.ExtraInfo.SageStatus : null,
+                o.ProductionWorkplace != null ? o.ProductionWorkplace.OverridePrePickingDays : null))
             .ToListAsync();
 
         return new LeitstandOrderPage(rows, totalCount);

@@ -593,14 +593,24 @@ auf alle Fehlteile. Das Werkbank-Dropdown zeigt nur eigene Werkbaenke (`GetByUse
 **Warum:** Ein stiller Fallback auf „alle" haette dem Werker eine fremde Arbeitsliste als seine
 eigene praesentiert.
 
-### `ProductionWorkplace.OverridePrePickingDays` ist wirkungslos (Stand 2026-07-27)
-Das Feld „Abweichende Vorkommissioniertage" je Werkbank wird gepflegt, gespeichert und in der
-Werkbank-Liste angezeigt — aber von **keiner** Terminberechnung gelesen (`BusinessDayService` und
-die Termin-Getter kennen es nicht; verifiziert per grep, nur CRUD- und Anzeige-Treffer).
-**Warum das gefaehrlich ist:** ein Admin kann pro Werkbank einen Override setzen und erwartet eine
-Wirkung auf den Vorkommissioniertermin — es passiert nichts, ohne Fehlermeldung. Entweder das Feld
-in `BusinessDayService` einbeziehen oder es im UI als „derzeit ohne Funktion" kennzeichnen. Steht
-als offener Punkt in [[feature-map]].
+### `ProductionWorkplace.OverridePrePickingDays`: Vorrang vor dem globalen Wert, `0` zaehlt
+*(Historie: Das Feld war von der Werkbank-Einfuehrung bis v1.26.0 **wirkungslos** — gepflegt,
+gespeichert, angezeigt, aber von keiner Terminberechnung gelesen. Aufgeloest in v1.27.0,
+Spec [[2026-07-28-override-prepickingdays]], Variante A.)*
+
+Die Vorkommissioniertage einer FA-Zeile kommen **nicht** direkt aus dem AppSetting
+`VorkommissionierTage`, sondern aus `PrePickingDaysResolver.Resolve(workplaceOverride, global)`:
+ist an der Werkbank ein Wert hinterlegt, gewinnt dieser — **inklusive `0`**. `0` heisst „BG-Termin
+= Kommissioniertermin", ein **leeres** Feld heisst „globaler Standard". Wer die Unterscheidung auf
+`> 0` statt `HasValue` umbaut, killt den Null-Vorlauf still.
+**Warum der Resolver:** dieselbe Terminlogik liegt in drei Controllern
+(`ProductionOrders`, `PickingLeitstand`, `FaWorklist`). Steht die Prioritaetsregel dort dreimal,
+driftet der BG-Termin derselben FA je nach Liste auseinander — genau das darf nicht passieren
+(und weil `CoatingDateCalculator` auf dem BG-Termin aufsetzt, driftet der Beschichtungstermin mit).
+Neue Stelle, die Vorkommissioniertage braucht → **Resolver aufrufen, nicht das Setting lesen**.
+**Fallstrick UI:** Spaltenkopf-Tooltips duerfen die Tage-Zahl nicht mehr als feste Zahl nennen —
+sie gilt nur noch fuer Zeilen ohne Override (deshalb der generische Header-Text + das
+Pro-Zeile-Badge an der Werkbank-Zelle).
 
 ### `StorageLocation.Code`: DB 50 Zeichen, manuell 12
 DB-Spalte ist `NVARCHAR(50)`; manuelle Codes bleiben per `IValidatableObject.Validate` auf 12

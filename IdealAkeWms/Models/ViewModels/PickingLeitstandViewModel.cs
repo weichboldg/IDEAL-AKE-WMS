@@ -35,6 +35,12 @@ public class PickingLeitstandItem
     public bool IsDone { get; set; }
     public string? WorkplaceName { get; set; }
 
+    /// <summary>
+    /// Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) — nur gesetzt, wenn fuer
+    /// diese Zeile tatsaechlich ein Override statt des globalen Werts griff (UI-Rueckmeldung).
+    /// </summary>
+    public int? PrePickingDaysOverride { get; set; }
+
     // FA-Zusatzinfos aus Sage (v1.26.0) — read-only, Default-ausgeblendete Spalten.
     public string? Kaeltemittel { get; set; }
     public string? Ventil { get; set; }
