@@ -1,4 +1,4 @@
-﻿---
+---
 type: spec
 title: <Kurztitel>
 slug: <yyyy-mm-dd-slug>

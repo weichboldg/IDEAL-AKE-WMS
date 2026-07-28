@@ -27,6 +27,30 @@ Single Source of Truth des Projekts. Regeln:
 | `tests/` | Index der Testszenarien, verlinkt ../docs/TESTSZENARIEN.md |
 | `changelog/` | Aenderungshistorie (Basis der Release-Seite) |
 
+## Ausserhalb des Vaults — wer besitzt was
+
+Der Vault ist die Wahrheit fuer Architektur, Wissen und Prozess. Betrieb, Installation und
+Anwenderdoku bleiben bewusst im Repo. Damit nichts unerreichbar ist, hier die vollstaendige
+Aussenkarte — **immer der genannten Datei folgen, nicht raten**:
+
+| Repo-Datei | Besitzt (Single Source of Truth fuer …) |
+|---|---|
+| `../CLAUDE.md` | Die verbindlichen Regeln (Constitution). Verweist zurueck ins Brain. |
+| `../README.md` | Betrieb + Anwendung: Voraussetzungen, **IIS-Konfiguration**, Installation/Skript-Reihenfolge, Service-Publish, **AppSettings-Tabelle (35 Keys)**, Corporate Design |
+| `../PROJECT_STATUS.md` | Release-Historie je Version + **offene Deploy-Checkliste** („Wo wir aufgehoert haben") |
+| `../docs/TESTSZENARIEN.md` | Manuelle Abnahme, 55 Kapitel → Index: [[testszenarien-index]] |
+| `../docs/superpowers/specs/` + `plans/` + `cutover/` | Historische Specs/Plaene (vor dem Brain) → zugeordnet in [[feature-map]] |
+| `../docs/SECOND-BRAIN-ANLEITUNG.md` | Aufbau und Betrieb dieser Pipeline selbst |
+| `../docs/CLAUDE-full-backup-2026-07.md` | **Archiv** der CLAUDE.md-Vorfassung (382 Zeilen) — nicht pflegen |
+| `../ANALYSIS.md`, `../HANDOFF.md` | Historische Analyse (05/2026) bzw. Session-Handoff (v1.20.0) — Altbestand |
+
+**Konfiguration ist auf zwei Orte verteilt** (nicht verwechseln):
+`AppSettings` = fachliche Feature-Toggles der Web-App, gepflegt unter `/Settings` → Liste in
+`../README.md`, Konzept in [[0011-feature-toggles-ueber-appsettings]].
+`ServiceSettings` = Service-Verhalten, gepflegt unter `/ServiceSettings` → vollstaendige
+36-Key-Tabelle in [[services]], Konzept in
+[[0008-servicesettings-db-first-mit-typisiertem-katalog]].
+
 ## Status-Automat
 
 NEU -> SPEZIFIZIERT (Entwurf) -> FREIGEGEBEN -> IN_UMSETZUNG -> TESTBEREIT -> GEMERGED

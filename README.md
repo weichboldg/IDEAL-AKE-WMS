@@ -2,6 +2,15 @@
 
 Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für IDEAL-AKE.
 
+> **Diese Datei ist die Betriebs- und Anwenderdoku**: Voraussetzungen, IIS, Installation,
+> AppSettings, Service-Deployment.
+>
+> Projektwissen liegt im Second Brain — Einstieg **[secondbrain/README.md](secondbrain/README.md)**:
+> Architektur-Entscheidungen (ADRs), Stolperfallen mit Begründung, Codebase-Karte, Glossar,
+> Feature-Status, Release-Historie je Version und offene Aufgaben.
+> Die verbindlichen Entwicklungsregeln stehen in **[CLAUDE.md](CLAUDE.md)**.
+> `PROJECT_STATUS.md` ist seit 2026-07 eingefroren (Inhalt im Brain).
+
 ## Tech-Stack
 
 - **Backend**: ASP.NET Core 10.0, Entity Framework Core 10.0
@@ -662,8 +671,9 @@ Alle übrigen Einstellungen liegen **DB-first** in der `ServiceSettings`-Tabelle
 **Stammdaten → Service-Einstellungen** (Rolle `admin`) typisiert gepflegt — Bool-Schalter, Zahlen-
 und Textfelder, gruppiert nach Kategorien (Sync, Worker, Benachrichtigungen, Fehlermail, Feiertage,
 Bereinigung). Die vollständige Key-Liste mit Defaults steht im Katalog
-`IdealAkeWms/Models/ServiceSettingDefinitions.All` sowie in [CLAUDE.md](CLAUDE.md) (Abschnitt
-„Service-Konfiguration"). Wichtige Gruppen:
+`IdealAkeWms/Models/ServiceSettingDefinitions.All` (maßgeblich) und als gepflegte Tabelle in
+[secondbrain/codebase/services.md](secondbrain/codebase/services.md) → „Service-Einstellungen —
+vollständiger Katalog". Wichtige Gruppen:
 
 | Gruppe | Beispiele |
 |--------|-----------|

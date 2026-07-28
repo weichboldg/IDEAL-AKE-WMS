@@ -1,4 +1,4 @@
-﻿---
+---
 type: bug
 title: <Kurzbeschreibung>
 status: offen

@@ -1,4 +1,4 @@
-﻿# Codebase-Karte
+# Codebase-Karte
 
 Navigierbare Karte - KEIN Code-Dump. Verweise auf Dateien/Ordner, 1-3 Saetze Zweck.
 
