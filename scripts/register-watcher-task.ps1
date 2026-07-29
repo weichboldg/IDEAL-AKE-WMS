@@ -18,7 +18,9 @@
 [CmdletBinding()]
 param(
     [string]$Repo = "C:\Git\IDEAL-AKE-WMS",
-    [string]$TaskName = "IdealAkeWms-BrainWatcher"
+    [string]$TaskName = "IdealAkeWms-BrainWatcher",
+    [ValidateSet("interactive","headless")]
+    [string]$Mode = "interactive"
 )
 $ErrorActionPreference = "Stop"
 
@@ -27,7 +29,7 @@ if (-not $shell) { $shell = Get-Command powershell }
 $exe = $shell.Source
 
 $action = New-ScheduledTaskAction -Execute $exe `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Repo\scripts\watch-backlog.ps1`" -Repo `"$Repo`"" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Repo\scripts\watch-backlog.ps1`" -Repo `"$Repo`" -Mode $Mode" `
     -WorkingDirectory $Repo
 
 $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
@@ -41,6 +43,8 @@ $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interac
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
     -Settings $settings -Principal $principal -Force | Out-Null
 
-Write-Host "Task '$TaskName' registriert (Start bei Anmeldung, Auto-Restart)."
+Write-Host "Task '$TaskName' registriert (Mode=$Mode, Start bei Anmeldung, Auto-Restart)."
+Write-Host "Hinweis: Im interactive-Modus meldet der Watcher Auftraege in secondbrain\inbox\ -"
+Write-Host "         du fuehrst sie in deiner offenen Claude-Session per @ aus. headless startet claude -p selbst."
 Write-Host "Sofort starten: Start-ScheduledTask -TaskName '$TaskName'"
 Write-Host "Log ansehen:    Get-Content '$Repo\scripts\logs\watcher-*.log' -Tail 50 -Wait"

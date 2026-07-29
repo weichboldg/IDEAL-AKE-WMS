@@ -50,6 +50,7 @@ $dirs = @(
     "$Root\architektur\muster",
     "$Root\codebase",
     "$Root\glossar",
+    "$Root\ideen",
     "$Root\backlog",
     "$Root\specs\entwurf",
     "$Root\specs\freigegeben",

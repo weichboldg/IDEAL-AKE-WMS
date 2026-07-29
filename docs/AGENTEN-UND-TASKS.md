@@ -1,170 +1,180 @@
-# Agenten & geplante Aufgaben — Anlage-Referenz
+# Agenten, Prompts & Betrieb — Referenz
 
-Stand: 2026-07-28. Was WO liegt, welcher BEFEHL was tut, und wie du die zwei
-autonomen Trigger (Backlog-Erkennung, Freigabe-Erkennung) als Dauerbetrieb anlegst.
-Die zwei manuellen Schranken (Spec-Freigabe, Merge) sind beide Ordner-Gesten —
-siehe Abschnitt 6 und 7.
+Stand: 2026-07-29. Was WO liegt, welcher Befehl was tut, die zwei Betriebs-
+Modi, und wie die groesseren Anforderungen (split / epic / Anhaenge) laufen.
+
+Die zwei manuellen Schranken bleiben immer: Spec-Freigabe (Schranke 1) und
+Merge (Schranke 2), beide als Ordner-Geste — siehe Abschnitt 7 und 8.
 
 ---
 
-## 1. Die drei Subagenten (liegen bereits im Repo)
+## 1. Die drei Subagenten (liegen im Repo)
 
-`.claude/agents/` — versioniert, in jeder Session verfügbar. Nichts anzulegen,
-nur zur Übersicht:
+`.claude/agents/` — versioniert, in jeder Session verfuegbar.
 
-| Datei | Zweck | Input (Brain) | Output (Brain) | Modell | Abbruch/Eskalation |
+| Datei | Zweck | Input (Brain) | Output | Modell | Eskalation |
 |---|---|---|---|---|---|
-| `task-scout.md` | Findet Backlog-Dateien ohne Spec | `backlog/`, `specs/*` | nur Meldung (read-only) | haiku | `ESCALATE: vault missing` |
-| `spec-agent.md` | Anforderung → vollständige Spec | `architektur/`, `codebase/`, `glossar/`, Backlog-Datei | 1 Datei in `specs/entwurf/` | sonnet | Blocker als erste offene Rückfrage |
-| `qa-agent.md` | Beweis vor „Testbereit" | Spec, `docs/TESTSZENARIEN.md` | `status: Testbereit` + Evidenz | sonnet | nach 2 Fix-Versuchen `ESCALATE` |
+| `task-scout.md` | Backlog-Dateien ohne Spec finden | `backlog/`, `specs/*` | Meldung (read-only) | haiku | `ESCALATE: vault missing` |
+| `spec-agent.md` | Anforderung → Spec(s); split/epic/bug/anhaenge | `architektur/`, `codebase/`, `glossar/`, Backlog + Anhaenge | Spec(s) in `specs/entwurf/`, ggf. Bug in `bugs/` | sonnet | Blocker als erste offene Rueckfrage |
+| `qa-agent.md` | Beweis vor „Testbereit"; Deploy-Abschnitt finalisieren | Spec, `docs/TESTSZENARIEN.md` | `status: Testbereit` + Evidenz | sonnet | nach 2 Fix-Versuchen `ESCALATE` |
 
-Prüfen, dass Claude sie sieht:
-```powershell
-claude
-# in der Session:
-/agents
-```
-Sie erscheinen unter „project agents". Delegiert werden sie automatisch über ihre
-`description` — oder du nennst sie explizit im Prompt („nutze den spec-agent").
+Pruefen: `claude` starten, `/agents` — sie erscheinen unter „project agents".
 
 ---
 
-## 2. Manuelle Befehle (Schritt 6 — der End-to-End-Testlauf)
+## 2. Die Prompt-Bibliothek (`secondbrain/prompts/`)
 
-Diese brauchst du zum Kennenlernen der Kette, BEVOR der Motor läuft.
+Alle Pipeline-Auftraege liegen als versionierte Dateien — auffindbar, nicht in
+fluechtigen Chats verstreut, und in beiden Modi identisch verwendet:
 
-### 2a. Spec-Lauf (Backlog → Entwurf)
-```powershell
-cd C:\Git\IDEAL-AKE-WMS
-claude -p "Nutze task-scout, dann spec-agent: erstelle fuer alle unverarbeiteten Backlog-Dateien vollstaendige Specs in secondbrain/specs/entwurf/ (status: Entwurf). Nichts freigeben, keinen Code aendern." --allowedTools "Read" "Glob" "Grep" "Write" "Agent" --max-turns 30
-```
+| Prompt | Zweck |
+|---|---|
+| `spec.md` | Backlog → Spec(s) |
+| `dev.md` | freigegebene Spec → Umsetzung + QA → Testbereit |
+| `epic-stage.md` | naechste Etappe eines Epic |
+| `merge.md` | Merge-Freigabe (Schranke 2) |
 
-### 2b. Dev+QA-Lauf (Freigegeben → Testbereit)
-```powershell
-cd C:\Git\IDEAL-AKE-WMS
-claude -p "Freigegebene Spec secondbrain/specs/freigegeben/<DATEINAME>.md umsetzen. Lies zuerst den Abschnitt 'Freigabe-Antworten' als Auftrag; ist eine Frage unbeantwortet oder fehlt bei Varianten-Specs freigabe.entscheidung, NICHT umsetzen. Sonst: Worktree via scripts/new-worktree.ps1, Umsetzung gemaess CLAUDE.md-Workflow im Worktree, dann qa-agent (dotnet build + dotnet test muessen gruen sein, Beweis in die Spec, TESTSZENARIEN.md ergaenzen). Bei Erfolg status: Testbereit. Kein Merge, kein Push, main nicht anfassen." --allowedTools "Read" "Glob" "Grep" "Write" "Edit" "Agent" "Bash(dotnet build:*)" "Bash(dotnet test:*)" "Bash(git status:*)" "Bash(git add:*)" "Bash(git commit:*)" "Bash(git diff:*)" "Bash(git worktree:*)" "Bash(powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1:*)" --max-turns 60
-```
-
-> `<DATEINAME>` durch den echten Spec-Dateinamen ersetzen. Erst wenn 2a+2b von
-> Hand sauber liefen, weiter zum Motor (Abschnitt 3). Hinweis: der Watcher nutzt
-> getrennte Turn-Limits (Spec 30, Dev 180); der manuelle 2b-Aufruf oben nutzt 60
-> — fuer groessere Aufgaben `--max-turns` hochsetzen oder besser interaktiv
-> (`claude` im Worktree) fortsetzen, dort gilt kein Limit.
+Platzhalter `<BACKLOG_PATH>` / `<SPEC_PATH>` — der Watcher ersetzt sie; interaktiv
+den echten Pfad einsetzen oder nach der `@`-Referenz nennen.
 
 ---
 
-## 3. Der autonome Motor (Watcher) — beide Trigger in einem
+## 3. Zwei Betriebs-Modi (der Kern)
 
-Statt zwei getrennter geplanter Tasks läuft EIN ereignisgetriebener Watcher,
-der beide Quellen überwacht: neue Backlog-Datei → 2a, neue freigegebene Spec → 2b.
-Das ist sparsamer (feuert nur bei echten Ereignissen, schont dein Max-Kontingent)
-und robuster als ein Minutentakt-Scheduler.
+Der Watcher hat einen `-Mode`-Schalter:
 
-### 3a. Erst im Vordergrund testen (zusehen!)
+| Modus | Was der Watcher tut | Ausfuehrung | Wann |
+|---|---|---|---|
+| **interactive** (Standard) | schreibt den Auftrag nach `secondbrain/inbox/` + optional Ton | **DU** in offener Session per `@` | tagsueber, Zusehen, grosse/kontextreiche Aufgaben, Anhaenge |
+| **headless** | ruft `claude -p` selbst mit enger Allowlist | autonom, Turn-Limit | simple, klar umrissene Nacht-Batches |
+
+**interactive** loest die headless-Schwaechen (Turn-Limit, wenig Kontext, Bilder
+unzuverlaessig), weil DU in einer offenen Session mit vollem Kontext ausfuehrst.
+Der einzige Handgriff: ein `@`-Tippen pro Auftrag.
+
+### interactive-Ablauf
 ```powershell
+# Watcher als Melder starten (Ton bei neuem Auftrag):
 cd C:\Git\IDEAL-AKE-WMS
-pwsh -File scripts\watch-backlog.ps1 -NoOneDrive
+pwsh -File scripts\watch-backlog.ps1 -Mode interactive -Notify -NoOneDrive
 ```
-Dann in einem zweiten Fenster eine Backlog-Datei ablegen und im Watcher-Log
-(`scripts\logs\watcher-*.log`) zusehen. Abbruch mit `Ctrl+C`. `-NoOneDrive`
-schaltet den Kollegen-Sync ab, solange du allein testest.
+Neue Backlog-/Freigabe-Ereignisse landen als fertiger Auftrag in
+`secondbrain\inbox\`. In deiner OFFENEN `claude`-Session:
+```
+@secondbrain/inbox/<datei>.md
+```
+Claude fuehrt ihn aus, du siehst zu. Danach die Inbox-Datei loeschen.
 
-### 3b. Als Dauerbetrieb registrieren (Admin-PowerShell)
+### headless-Ablauf
 ```powershell
+pwsh -File scripts\watch-backlog.ps1 -Mode headless -NoOneDrive
+```
+Der Watcher startet `claude -p` selbst. Bild-/PDF-Anhaenge und Epic-Specs
+werden dabei bewusst NICHT headless verarbeitet (Log-Meldung „interaktiv noetig").
+
+---
+
+## 4. Manuelle Einzel-Laeufe (ohne Watcher)
+
+Zum Testen oder gezielt. Interaktiv (empfohlen) — in offener `claude`-Session:
+```
+@secondbrain/prompts/spec.md    (dann Backlog-Pfad nennen)
+@secondbrain/prompts/dev.md     (dann Spec-Pfad nennen)
+```
+Oder headless als Einzelaufruf:
+```powershell
+claude -p "$(Get-Content secondbrain\prompts\spec.md -Raw)" --allowedTools "Read" "Glob" "Grep" "Write" "Agent" --max-turns 30
+```
+
+---
+
+## 5. Grosse Anforderungen: split / epic / Anhaenge
+
+Steuerung ueber das Backlog-Frontmatter (Details: `secondbrain/backlog/README.md`):
+
+- **`split: true`** — mehrere einzeln mergbare Teil-Specs (`-teil-N-spec`) +
+  Uebersicht. Jede laeuft einzeln durch die Pipeline. **Bevorzugt**, haelt den
+  Abstand zu main klein.
+- **`epic: true`** — EIN langlebiger Worktree, mehrere Etappen (je ein Commit),
+  ein Merge am Ende. Fuer unteilbare/bewusst am Stueck gebaute Pakete. Laeuft
+  bewusst NICHT ueber den Watcher:
+  ```powershell
+  # pro Etappe:
+  pwsh -File scripts\run-epic-stage.ps1 -SpecPath secondbrain\specs\freigegeben\<spec>.md
+  # dazwischen den Branch auf main-Stand halten:
+  pwsh -File scripts\sync-worktree.ps1 -Slug <slug>
+  ```
+- **`anhaenge:`** — Input-Dateien pro Backlog in `backlog/anhaenge/<slug>/`.
+  Bild/PDF nur interaktiv verlaesslich; der Watcher meldet solche Notizen im
+  headless-Modus als „interaktiv noetig".
+
+Faustregel: im Zweifel **split**; **epic** nur wenn wirklich unteilbar.
+
+---
+
+## 6. Dauerbetrieb registrieren
+
+```powershell
+# Admin-PowerShell (Standard = interactive; fuer headless -Mode im Skript anpassen):
 pwsh -File C:\Git\IDEAL-AKE-WMS\scripts\register-watcher-task.ps1
 Start-ScheduledTask -TaskName "IdealAkeWms-BrainWatcher"
+powercfg /change standby-timeout-ac 0   # Rechner darf nicht schlafen
 ```
-Das legt EINEN geplanten Task an: Start bei Anmeldung, Auto-Restart bei Absturz,
-kein Zeitlimit. Er startet den Watcher, der beide Trigger bedient — du legst also
-NICHT zwei Aufgaben im Taskplaner an, sondern diese eine.
-
-Einmalig noch Energieoptionen (Rechner darf nicht schlafen):
+Steuern:
 ```powershell
-powercfg /change standby-timeout-ac 0
-```
-
-### 3c. Betrieb beobachten / steuern
-```powershell
-# Live-Log:
 Get-Content C:\Git\IDEAL-AKE-WMS\scripts\logs\watcher-*.log -Tail 50 -Wait
-# Status:
-Get-ScheduledTask -TaskName "IdealAkeWms-BrainWatcher"
-# Stoppen / wieder starten:
 Stop-ScheduledTask  -TaskName "IdealAkeWms-BrainWatcher"
 Start-ScheduledTask -TaskName "IdealAkeWms-BrainWatcher"
-# Ganz entfernen:
 Unregister-ScheduledTask -TaskName "IdealAkeWms-BrainWatcher" -Confirm:$false
 ```
+Genau EIN Task traegt die ganze Autonomie. Die zwei Schranken bleiben manuell.
+
+> Hinweis: `register-watcher-task.ps1` startet den Watcher im Standard-Modus
+> (interactive). Willst du den Dauer-Task headless, ergaenze `-Mode headless`
+> im Argument des Task-Skripts.
 
 ---
 
-## 4. OneDrive-Sync für die Kollegen-Freigabe (Schritt 8, optional zuschaltbar)
+## 7. Freigabe einer Spec (Schranke 1)
 
-Läuft im Watcher automatisch alle 5 min mit (sofern NICHT mit `-NoOneDrive`
-gestartet). Einmal manuell testen:
-```powershell
-pwsh -File C:\Git\IDEAL-AKE-WMS\scripts\sync-onedrive-specs.ps1
-```
-Voraussetzung: OneDrive-Ordner `WMS-Freigaben` existiert und ist für die Kollegen
-freigegeben. Der Watcher im Dauerbetrieb ruft dieses Skript selbst auf — kein
-eigener Task nötig.
-
----
-
-## 5. Zusammengefasst: was du tatsächlich anlegst
-
-| Was | Wie oft | Befehl |
-|---|---|---|
-| Subagenten | schon da | — (nur `/agents` zum Prüfen) |
-| Spec-Lauf manuell | zum Testen | Abschnitt 2a |
-| Dev+QA-Lauf manuell | zum Testen | Abschnitt 2b |
-| **Watcher als Dauer-Task** | **einmal** | Abschnitt 3b |
-| OneDrive-Sync | im Watcher enthalten | — (3b deckt es ab) |
-
-Genau **ein** geplanter Task (`IdealAkeWms-BrainWatcher`) trägt die ganze
-Autonomie. Die zwei Schranken (Spec-Freigabe, Merge) bleiben manuell.
-
----
-
-## 6. Freigabe einer Spec (Schranke 1) — die Geste in voller Form
-
-1. Offene Rückfragen im Abschnitt **„Freigabe-Antworten"** der Spec beantworten
-   (in Obsidian, je Frage in **fett** hinter dem Pfeil).
-2. Bei Varianten-Specs zusätzlich im Frontmatter `freigabe.entscheidung: A`
-   (oder B) setzen.
+1. Rueckfragen im Abschnitt **„Freigabe-Antworten"** der Spec beantworten
+   (Obsidian, je Frage in **fett** hinter dem Pfeil).
+2. Bei Varianten-Specs `freigabe.entscheidung: A` (oder B) im Frontmatter.
 3. `status: Freigegeben` setzen.
 4. Datei von `specs\entwurf\` nach `specs\freigegeben\` verschieben.
-5. Committen. Der Watcher (oder dein manueller 2b-Lauf) übernimmt ab hier.
+5. Committen. Watcher/Dev-Lauf uebernimmt (bzw. meldet in die Inbox).
 
 Ohne beantwortete Fragen bzw. ohne `freigabe.entscheidung` setzt der Dev-Lauf
-die Spec zurück auf `Entwurf` und rührt keinen Code an — das ist die Sicherung.
+die Spec zurueck auf `Entwurf` — die Sicherung.
 
 ---
 
-## 7. Merge freigeben (Schranke 2) — die zweite Ordner-Geste
+## 8. Merge freigeben (Schranke 2)
 
-Symmetrisch zu Schranke 1, aber mit einem bewussten Unterschied: Die Geste
-startet KEINEN Hintergrund-Lauf. Der Merge verändert `main` und ist die
-riskanteste Operation — er darf nie aus einem Dateiereignis kommen. Deshalb
-löst DU ihn bewusst aus; der Ordner ist nur das Signal, deine Anwesenheit die
-Schranke.
+Ordner-Geste, aber KEIN Hintergrund-Lauf (Merge veraendert main). Du loest aus:
 
 1. Manuellen Test bestehen (Checkliste am Spec-Ende).
 2. Spec von `specs\freigegeben\` nach `specs\merge-freigegeben\` verschieben.
-3. Merge auslösen — zwei Modi:
+3. Merge ausloesen:
 ```powershell
 cd C:\Git\IDEAL-AKE-WMS
-# du siehst jeden git-Schritt selbst:
-pwsh -File scripts\approve-merge.ps1
-# oder ein Agent fuehrt aus (du hast ja freigegeben):
-pwsh -File scripts\approve-merge.ps1 -UseAgent
+pwsh -File scripts\approve-merge.ps1           # du siehst jeden git-Schritt
+pwsh -File scripts\approve-merge.ps1 -UseAgent # ein Agent fuehrt aus (du hast freigegeben)
 ```
+Merged nach main, prueft Build+Tests auf main, setzt `status: Gemerged`, legt
+die Spec zur Ablage nach `freigegeben/` zurueck, zeigt die Deploy-Info. `git push`
+und Worktree-Aufraeumen (nach Deploy-Verifikation) bleiben deine Hand.
 
-Das Skript liest den Branch aus dem Spec-Frontmatter, merged nach main, prüft
-Build+Tests **auf main** (erst der Merge-Commit ist der Deploy-Stand), setzt
-`status: Gemerged` und legt die Spec zur Ablage nach `freigegeben/` zurück
-(`merge-freigegeben/` bleibt leer). `git push` und das Aufräumen des Worktrees
-bleiben bewusst deine Hand — Push wegen des privaten GitHub, Worktree erst nach
-verifiziertem Deploy.
+Der Watcher fasst `git merge` nie an; er stoppt immer bei `Testbereit`.
 
-Der autonome Watcher fasst `git merge` nie an; er stoppt immer bei `Testbereit`.
+---
+
+## 9. Was du tatsaechlich anlegst
+
+| Was | Wie oft | Wie |
+|---|---|---|
+| Subagenten, Prompts | schon da | — |
+| Watcher als Dauer-Task | einmal | Abschnitt 6 |
+| Spec-Freigabe | pro Feature | Abschnitt 7 (Ordner-Geste) |
+| Merge-Freigabe | pro Feature | Abschnitt 8 (Ordner-Geste) |
+| Epic-Etappen / Worktree-Sync | pro Epic | Abschnitt 5 |

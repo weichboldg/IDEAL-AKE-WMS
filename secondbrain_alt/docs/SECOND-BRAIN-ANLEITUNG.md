@@ -1,12 +1,13 @@
 # Second Brain + Agenten-Pipeline — Schritt-für-Schritt-Anleitung
 
-Repo: `C:\Git\IDEAL-AKE-WMS` · Stand: 2026-07-28
+Repo: `C:\Git\IDEAL-AKE-WMS` · Stand: 2026-07-29
 Jeder Schritt hat ein **Warum** — das System soll verstanden, nicht nur ausgeführt werden.
 
 > Diese Datei ist der **Aufbau-Pfad** (einmalige Einrichtung, Schritte 0–10).
-> Für den täglichen Betrieb und die genaue Agenten-/Task-Mechanik siehe
-> `docs/AGENTEN-UND-TASKS.md`. Beide Schranken sind Ordner-Gesten
-> (Spec-Freigabe → `specs/freigegeben/`, Merge → `specs/merge-freigegeben/`).
+> Für den täglichen Betrieb, die zwei Modi (interactive/headless), die
+> Prompt-Bibliothek und split/epic/Anhaenge siehe `docs/AGENTEN-UND-TASKS.md`.
+> Beide Schranken sind Ordner-Gesten (Spec-Freigabe → `specs/freigegeben/`,
+> Merge → `specs/merge-freigegeben/`).
 
 **Reihenfolge im Überblick:**
 
@@ -48,13 +49,16 @@ ZIP nach `C:\Git\IDEAL-AKE-WMS` entpacken (Ordnerstruktur passt exakt):
 ```
 scripts\setup-vault.ps1            # Vault-Struktur + Templates anlegen
 scripts\new-worktree.ps1           # Worktree je Spec
+scripts\sync-worktree.ps1          # Epic-Branch auf main-Stand halten
 scripts\sync-onedrive-specs.ps1    # Kollegen-Freigabe via OneDrive
-scripts\watch-backlog.ps1          # der Motor (Watcher + claude -p)
+scripts\watch-backlog.ps1          # der Motor (Watcher; -Mode interactive|headless)
+scripts\run-epic-stage.ps1         # naechste Etappe eines Epic
 scripts\approve-merge.ps1          # Schranke 2: Merge-Freigabe ausfuehren
 scripts\register-watcher-task.ps1  # Dauerbetrieb via Task Scheduler
 .claude\agents\task-scout.md       # Erkennung (haiku, read-only)
 .claude\agents\spec-agent.md       # Anforderung -> Spec (sonnet)
 .claude\agents\qa-agent.md         # Beweis vor "Testbereit" (sonnet)
+secondbrain\prompts\*.md           # versionierte Auftraege (spec/dev/epic-stage/merge)
 docs\SECOND-BRAIN-ANLEITUNG.md     # dieses Dokument
 docs\AGENTEN-UND-TASKS.md          # Betriebs-/Agenten-Referenz
 ```
@@ -149,12 +153,17 @@ Deine CLAUDE.md hat 381 Zeilen (~95 KB): Rollen-Tabellen, Zugriffsschutz-Matrix,
 
 ```powershell
 cd C:\Git\IDEAL-AKE-WMS
-pwsh -File scripts\watch-backlog.ps1 -NoOneDrive
+# interactive (Standard): meldet Auftraege in secondbrain\inbox\, du fuehrst per @ aus
+pwsh -File scripts\watch-backlog.ps1 -Mode interactive -Notify -NoOneDrive
+# oder headless: Watcher startet claude -p selbst
+pwsh -File scripts\watch-backlog.ps1 -Mode headless -NoOneDrive
 ```
 
-Dann eine zweite Backlog-Datei ablegen und zusehen: Der Watcher wartet das Ruhefenster ab (Debounce, 8 s), startet den Spec-Lauf, loggt alles nach `scripts\logs\watcher-YYYY-MM.log`. Danach eine Spec freigeben (verschieben + status) und den Dev+QA-Lauf beobachten. Abbruch: `Ctrl+C`.
+Im **interactive**-Modus (empfohlen) legst du eine Backlog-Datei ab, der Watcher schreibt den fertigen Auftrag nach `secondbrain\inbox\` und piept; in deiner offenen `claude`-Session tippst du `@secondbrain/inbox/<datei>.md`. Im **headless**-Modus startet der Watcher `claude -p` selbst. Beides loggt nach `scripts\logs\watcher-YYYY-MM.log`. Abbruch: `Ctrl+C`.
 
-**Warum ereignisgetrieben statt Polling:** Jeder `claude -p`-Lauf kostet Abo-Kontingent. Der Watcher feuert nur bei echten Dateiereignissen, hat Cooldown (Standard 120 s zwischen Läufen), Event-Dedupe und einen Mutex gegen Doppelstart. Genau das umgeht auch den bekannten Windows-Bug verwaister headless-`claude`-Prozesse beim naiven Minutentakt-Scheduling.
+**Warum zwei Modi:** headless ist voll autonom, hat aber Turn-Limit, wenig Kontext und liest Bilder unzuverlaessig — gut fuer simple Nacht-Batches. interactive verbindet autonome *Erkennung* mit interaktiver *Ausfuehrung* (voller Kontext, kein Limit, du siehst zu), zum Preis eines `@`-Tastendrucks. Details: `docs/AGENTEN-UND-TASKS.md` Abschnitt 3.
+
+**Warum ereignisgetrieben statt Polling:** Jeder `claude -p`-Lauf kostet Abo-Kontingent. Der Watcher feuert nur bei echten Dateiereignissen, hat Cooldown (headless), Event-Dedupe und einen Mutex gegen Doppelstart. Das umgeht auch den bekannten Windows-Bug verwaister headless-`claude`-Prozesse beim naiven Minutentakt-Scheduling.
 
 **Warum enge `--allowedTools` statt `--dangerously-skip-permissions`:** Deine `settings.json` erlaubt interaktiv `Bash(*)` — okay, wenn du danebensitzt. Headless gilt: nur Lesen/Schreiben, `dotnet build/test`, eng begrenzte git-Kommandos, Worktree-Skript. Kein `git push`, kein `rm`, kein Zugriff auf Secrets. Fail-loud: Was nicht erlaubt ist, schlägt fehl und steht im Log.
 

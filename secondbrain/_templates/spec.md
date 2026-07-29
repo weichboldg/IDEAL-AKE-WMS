@@ -1,7 +1,7 @@
 ---
 type: spec
 title: <Kurztitel>
-slug: <yyyy-mm-dd-slug>
+slug: <yyyy-mm-dd-slug>-spec        # Spec-Slug endet auf -spec (keine Namensgleichheit mit Backlog)
 status: Entwurf
 created: <yyyy-mm-dd>
 updated: <yyyy-mm-dd>
@@ -11,6 +11,8 @@ worktree: ""
 branch: ""
 affected_code: []
 open_questions: []
+epic: false             # true = grosses Paket in EINEM langlebigen Worktree (Etappen, ein Merge am Ende)
+etappen: []             # nur bei epic: true - geordnete Liste der Etappen (je Etappe ein Commit)
 deploy:
   web: false            # muss die Web-App neu deployt werden?
   service: false        # muss der Windows-Service neu deployt werden?
@@ -40,6 +42,20 @@ freigabe:
 
 ## Test-Szenarien
 <!-- Verweis auf docs/TESTSZENARIEN.md Kapitel; neue Szenarien skizzieren -->
+
+## Etappen (nur bei epic: true)
+<!--
+  Ein Epic wird in EINEM Worktree, aber in mehreren Etappen umgesetzt - je
+  Etappe ein sauberer Commit. So bleibt jeder Dev-Lauf im Turn-Limit und der
+  naechste dockt am letzten Commit an. QA + Merge (Schranke 2) erst, wenn ALLE
+  Etappen fertig sind. Waehrend der Arbeit den Branch mit
+  scripts/sync-worktree.ps1 -Slug <slug> regelmaessig auf main-Stand halten.
+  Jede Etappe: testbarer Teilschritt, KEIN eigener Merge.
+-->
+
+| # | Etappe | Status | Commit |
+|---|--------|--------|--------|
+| 1 |        | offen  |        |
 
 ## Deploy
 <!--

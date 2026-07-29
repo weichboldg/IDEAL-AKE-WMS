@@ -1,7 +1,7 @@
 ---
 type: spec
 title: IDEAL-Standort-Anpassungen neu nachbilden — FA-Hierarchie-Inversion (Sub-FA), Belegnummer, konfigurierbare Sage-Views, BOM-Artikelmatchcode
-slug: 2026-07-28-ideal-anpassungen-neu-nachbilden
+slug: 2026-07-28-ideal-anpassungen-neu-nachbilden-spec
 status: Entwurf
 created: 2026-07-28
 updated: 2026-07-28

@@ -8,11 +8,12 @@ const aktiv = dv.pages('"specs"')
   .where(p => p.type == "spec" && p.status != "Gemerged")
   .sort(p => rang[p.status] ?? 99, 'asc');
 if (aktiv.length) {
-  dv.table(["Spec", "Status", "Branch", "Offene Fragen"],
+  dv.table(["Spec", "Status", "Branch", "Haengt ab von", "Offene Fragen"],
     aktiv.map(p => [
       p.file.link,
       p.status,
       p.branch || "\u2014",
+      p.depends_on || "\u2014",
       (p.open_questions && p.open_questions.length) ? p.open_questions.length : "\u2014"
     ]));
 } else {
@@ -84,3 +85,12 @@ TABLE status, severity, file.mtime AS "Geaendert" FROM "bugs" WHERE status != "b
 ```dataview
 TABLE id, status, date FROM "architektur/adr" SORT date DESC LIMIT 10
 ```
+
+---
+
+## Ideen (Denkraum - loest nichts aus)
+```dataview
+LIST FROM "ideen" WHERE file.name != "README" SORT file.mtime DESC
+```
+> Reifen lassen. Der Watcher beobachtet `ideen/` NICHT. Erst wenn du eine Idee
+> nach `backlog/` verschiebst, startet die Kette.

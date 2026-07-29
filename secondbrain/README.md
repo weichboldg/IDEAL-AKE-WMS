@@ -19,7 +19,8 @@ Single Source of Truth des Projekts. Regeln:
 | `architektur/` | ADRs (MADR), Muster, [[fallstricke]] - das "Warum" |
 | `codebase/` | Navigierbare Karte: Module, Controller, Services, Datenmodell, Integrationen |
 | `glossar/` | Domaenensprache (FA, Kommissionierung, Rollen ...) |
-| `backlog/` | Formlose neue Anforderungen (Mensch legt ab) |
+| `ideen/` | Denkraum VOR dem Backlog - reifen lassen, loest nichts aus |
+| `backlog/` | Formlose neue Anforderungen (Mensch legt ab) - Ankunft startet die Kette |
 | `specs/entwurf/` | Vom Spec-Agent ausgearbeitete Specs (Status: Entwurf) |
 | `specs/freigegeben/` | Freigegebene Specs = Startsignal Entwicklung (Schranke 1); auch Ablage nach dem Merge |
 | `specs/merge-freigegeben/` | Merge-Freigabe (Schranke 2) — Spec hierher verschieben, dann `approve-merge.ps1` |
@@ -54,8 +55,11 @@ Aussenkarte — **immer der genannten Datei folgen, nicht raten**:
 
 ## Status-Automat
 
-NEU -> SPEZIFIZIERT (Entwurf) -> FREIGEGEBEN -> IN_UMSETZUNG -> TESTBEREIT -> GEMERGED
+(IDEE) -> NEU -> SPEZIFIZIERT (Entwurf) -> FREIGEGEBEN -> IN_UMSETZUNG -> TESTBEREIT -> GEMERGED
 
+Schranke 0 (manuell, optional): Idee in ideen/ reifen lassen; per Verschieben
+nach backlog/ zur Aufgabe machen. Erst dieser Umzug startet die Kette - ideen/
+wird vom Watcher nicht beobachtet.
 Schranke 1 (manuell): Spec von entwurf/ nach freigegeben/ verschieben
 UND `status: Freigegeben` setzen (macht sync-onedrive-specs.ps1 bzw. der Mensch).
 Der Watcher setzt dann autonom bis TESTBEREIT fort.

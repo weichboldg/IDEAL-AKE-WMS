@@ -10,6 +10,11 @@ publish/
 
 ## Logs
 logs/
+scripts/logs/
+
+## Watcher-Inbox (fluechtige Auftraege; Vorlagen liegen versioniert in secondbrain/prompts/)
+secondbrain/inbox/*
+!secondbrain/inbox/README.md
 
 ## OS
 Thumbs.db
