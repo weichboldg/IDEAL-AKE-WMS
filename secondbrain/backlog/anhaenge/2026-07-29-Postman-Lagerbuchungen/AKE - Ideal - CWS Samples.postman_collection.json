@@ -1,0 +1,417 @@
+{
+	"info": {
+		"_postman_id": "eebd9c6f-1dab-4357-b7e2-c36c869fb338",
+		"name": "AKE / Ideal - CWS Samples",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Lager",
+			"item": [
+				{
+					"name": "Lagerbuchung ZUGANG sage 100",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Memo\": \"Meine Lagerbuchungs Memo\",\r\n    \"Standardtext\": \"Zugang Material\",\r\n    \"Lagerbuchungen\": [\r\n        {\r\n            \"Lagerbewegungsart\": \"Zugang\",\r\n            \"Artikelnummer\": \"00200050\",\r\n            \"AuspraegungHandle\": 0,\r\n            \"HerkunftLagerkennung\": \"\",\r\n            \"HerkunftLagerplatzId\": 0,\r\n            \"ZielLagerkennung\": \"Haupt01;0;0;0\",\r\n            \"ZielLagerplatzId\": 1,\r\n            \"MengeLager\": 10.0,\r\n            \"Seriennummern\": [\r\n                {\r\n                    \"Seriennummer\": \"\"\r\n                }\r\n            ],\r\n            \"Chargen\": [\r\n                {\r\n                    \"Charge\": \"\",\r\n                    \"Menge\": 0.0,\r\n                    \"Verfallsdatum\": null\r\n                }\r\n            ]\r\n        }\r\n    ]\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_servicecontract}}/{{dataset}}/$service/LagerbuchungService",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_servicecontract}}",
+								"{{dataset}}",
+								"$service",
+								"LagerbuchungService"
+							]
+						},
+						"description": "Bucht einen Lagerzugang\r\n\r\nFür andere Buchungsarten sind folgende Werte möglich: \r\n<xs:enumeration sme:label=\"Zugang\" value=\"1\"/>\r\n<xs:enumeration sme:label=\"Entnahme\" value=\"2\"/>\r\n<xs:enumeration sme:label=\"Umbuchung\" value=\"3\"/>\r\n\r\nBei Umbuchung müssen Herkunft & Ziel gepflegt sein. \r\nBei Entnahme entsprechend das Herkunftslager."
+					},
+					"response": []
+				},
+				{
+					"name": "Lagerbuchung ABGANG sage 100",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Memo\": \"Meine Lagerbuchungs Memo\",\r\n    \"Standardtext\": \"Abgang / Entnahme Material\",\r\n    \"Lagerbuchungen\": [\r\n        {\r\n            \"Lagerbewegungsart\": \"Entnahme\",\r\n            \"Artikelnummer\": \"00200050\",\r\n            \"AuspraegungHandle\": 0,\r\n            \"HerkunftLagerkennung\": \"Haupt01;0;0;0\",\r\n            \"HerkunftLagerplatzId\": 1,\r\n            \"ZielLagerkennung\": \"\",\r\n            \"ZielLagerplatzId\": 0,\r\n            \"MengeLager\": 10.0,\r\n            \"Seriennummern\": [\r\n                {\r\n                    \"Seriennummer\": \"\"\r\n                }\r\n            ],\r\n            \"Chargen\": [\r\n                {\r\n                    \"Charge\": \"\",\r\n                    \"Menge\": 0.0,\r\n                    \"Verfallsdatum\": null\r\n                }\r\n            ]\r\n        }\r\n    ]\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_servicecontract}}/{{dataset}}/$service/LagerbuchungService",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_servicecontract}}",
+								"{{dataset}}",
+								"$service",
+								"LagerbuchungService"
+							]
+						},
+						"description": "Bucht einen Lagerzugang\r\n\r\nFür andere Buchungsarten sind folgende Werte möglich: \r\n<xs:enumeration sme:label=\"Zugang\" value=\"1\"/>\r\n<xs:enumeration sme:label=\"Entnahme\" value=\"2\"/>\r\n<xs:enumeration sme:label=\"Umbuchung\" value=\"3\"/>\r\n\r\nBei Umbuchung müssen Herkunft & Ziel gepflegt sein. \r\nBei Entnahme entsprechend das Herkunftslager."
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "basic"
+			},
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Stammdaten",
+			"item": [
+				{
+					"name": "Abruf Adressen",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Accept-Charset",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_contract}}/{{dataset}}/Adressen?format=application/json",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_contract}}",
+								"{{dataset}}",
+								"Adressen"
+							],
+							"query": [
+								{
+									"key": "format",
+									"value": "application/json"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Abruf aktive Adressen",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept-Charset",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "",
+								"type": "text",
+								"value": ""
+							}
+						],
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_contract}}/{{dataset}}/Adressen?where=aktiv eq -1&format=application/json&",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_contract}}",
+								"{{dataset}}",
+								"Adressen"
+							],
+							"query": [
+								{
+									"key": "where",
+									"value": "aktiv eq -1"
+								},
+								{
+									"key": "format",
+									"value": "application/json"
+								},
+								{
+									"key": "",
+									"value": null
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Abruf Artikel",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept-Charset",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "",
+								"type": "text",
+								"value": ""
+							}
+						],
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_contract}}/{{dataset}}/Artikel?format=application/json",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_contract}}",
+								"{{dataset}}",
+								"Artikel"
+							],
+							"query": [
+								{
+									"key": "format",
+									"value": "application/json"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Abruf Artikel inkl. Children",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept-Charset",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "",
+								"type": "text",
+								"value": ""
+							}
+						],
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_contract}}/{{dataset}}/Artikel?include=$children&format=application/json",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_contract}}",
+								"{{dataset}}",
+								"Artikel"
+							],
+							"query": [
+								{
+									"key": "include",
+									"value": "$children"
+								},
+								{
+									"key": "format",
+									"value": "application/json"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "basic"
+			},
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Schema",
+			"item": [
+				{
+					"name": "Schema Abruf",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "sage",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{sdata_base_url}}/{{sdata_contract}}/{{dataset}}/$schema",
+							"host": [
+								"{{sdata_base_url}}"
+							],
+							"path": [
+								"{{sdata_contract}}",
+								"{{dataset}}",
+								"$schema"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "basic"
+			},
+			"protocolProfileBehavior": {}
+		}
+	],
+	"auth": {
+		"type": "basic",
+		"basic": [
+			{
+				"key": "username",
+				"value": "sage",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "2d92a99c-bba4-49d7-b029-917677a445d6",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "fcb1fe85-2cc2-4af2-81bf-85ff186794a5",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"id": "26790c9b-a7ec-40b4-a32f-6add48fb450a",
+			"key": "sdata_base_url",
+			"value": "https://FQDN:5493/sdata/ol"
+		},
+		{
+			"id": "ffbf6677-b6ba-4b28-b94d-dbd5d587bddc",
+			"key": "sdata_contract",
+			"value": "CommonWawiServicesResources"
+		},
+		{
+			"id": "b6fc8730-0b60-44f8-ab52-62818986e75e",
+			"key": "dataset",
+			"value": ""
+		},
+		{
+			"id": "25eea192-3981-43c2-a4b5-3dfc4918cfe4",
+			"key": "sdata_servicecontract",
+			"value": "CommonWawiServices"
+		}
+	],
+	"protocolProfileBehavior": {}
+}
