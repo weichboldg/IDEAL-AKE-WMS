@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<SageBookingQueueItem> SageBookingQueueItems => Set<SageBookingQueueItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
@@ -195,6 +196,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.IstBuchbar).HasDefaultValue(true);
             entity.HasIndex(e => e.IstBuchbar);
 
+            entity.Property(e => e.SageBuchungErlaubt).HasDefaultValue(false);
+            entity.Property(e => e.SageLagerkennung).HasMaxLength(50);
+
             entity.HasIndex(e => e.Code).IsUnique();
         });
 
@@ -363,6 +367,27 @@ public class ApplicationDbContext : DbContext
             // Performance: FA-filter in Bestandsuebersicht and Bewegungshistorie
             entity.HasIndex(e => e.ProductionOrder)
                 .HasDatabaseName("IX_StockMovements_ProductionOrder");
+        });
+
+        // SageBookingQueueItem (ausgehende Sage-Lagerbuchungen)
+        modelBuilder.Entity<SageBookingQueueItem>(entity =>
+        {
+            entity.ToTable("SageBookingQueueItems");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.LastError).HasMaxLength(2000);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasOne(e => e.StockMovement)
+                .WithMany()
+                .HasForeignKey(e => e.StockMovementId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Worker-Read-Pfad filtert auf Status (offene/haengende Eintraege laden).
+            entity.HasIndex(e => e.Status);
         });
 
         // ProductionOrder

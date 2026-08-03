@@ -32,6 +32,16 @@ public static class ServiceSettingDefinitions
         new("Sync:FaZusatzinfoEnabled",              ServiceSettingType.Bool, "false", "Sync", "FA-Zusatzinfos (Sage): Kaeltemittel/Ventil/Ausfuehrung/Maschine/Status je FA synchronisieren. ACHTUNG: setzt FAs mit Sage-Status verpackt/abgeholt automatisch auf Komm-Erledigt (vorher DryRun pruefen)"),
         new("Sync:FaZusatzinfoAutoDoneMaxPerRun",    ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Auto-Erledigt-Kandidaten (Sage-Status verpackt/abgeholt) je Lauf -> kein Erledigt-Setzen + Warnung + Fehlermail (Schutz vor View-Defekten)"),
 
+        // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
+        new("SageLagerbuchungAktiv",                 ServiceSettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
+        new("SData:BaseUrl",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Basis-URL der Sage-SData-API (z.B. https://sageserver/sdata/CommonWawiServices)"),
+        new("SData:Dataset",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Mandant/dataset-Segment der SData-URL (pro Standort/Instanz)"),
+        new("Sync:SageLagerbuchungIntervalSeconds",  ServiceSettingType.Int,  "20",    "Sage-Lagerbuchung", "Poll-Intervall (Sekunden) des SageBookingWorker fuer offene Queue-Eintraege ('fast live')"),
+        new("Sync:SageLagerbuchungBatchSize",        ServiceSettingType.Int,  "50",    "Sage-Lagerbuchung", "Maximale Anzahl Queue-Eintraege, die je Worker-Tick verarbeitet werden"),
+        new("Sync:SageLagerbuchungMaxRetries",       ServiceSettingType.Int,  "5",     "Sage-Lagerbuchung", "Maximale automatische Sende-Versuche je Eintrag; danach bleibt er auf 'Fehler' und braucht ein manuelles Requeue"),
+        new("Sync:SageLagerbuchungMaxErrorsPerRun",  ServiceSettingType.Int,  "50",    "Sage-Lagerbuchung", "Sicherheits-Cap: mehr Fehler je Lauf -> Fehlermail (ISyncErrorNotifier)"),
+        new("Sync:SageLagerbuchungStuckMinutes",     ServiceSettingType.Int,  "10",    "Sage-Lagerbuchung", "Ein 'Gesendet'-Eintrag aelter als X Minuten gilt als haengend und wird ueber den Sage-Memo-Lookup aufgeloest (nie blind neu gesendet)"),
+
         // ----- BOM-Cache -----
         new("Sync:BomCacheEnabled",                  ServiceSettingType.Bool, "false", "BOM-Cache", "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),
         new("Sync:BomCacheWeeks",                    ServiceSettingType.Int,  "8",     "BOM-Cache", "Wieviele Wochen Fertigungstermin in die Zukunft cachen"),

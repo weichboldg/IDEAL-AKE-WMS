@@ -2,13 +2,13 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-07-29
 updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-07-29-sage-lagerbuchungen-umsetzung]]"
+worktree: ".claude/worktrees/2026-07-29-sage-lagerbuchungen"
+branch: "feature/2026-07-29-sage-lagerbuchungen"
 affected_code:
   - IdealAkeWms/Models/StorageLocation.cs (neue Felder SageBuchungErlaubt, SageLagerkennung, SageLagerplatzId)
   - IdealAkeWms/Models/SageBookingQueueItem.cs (neu)
