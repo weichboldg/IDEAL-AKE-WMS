@@ -2,7 +2,7 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-07-29
 updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
@@ -1299,3 +1299,36 @@ noetig.
 
 **ESCALATE:** nein (erster Fund, kein Fixversuch unternommen — Nachbesserung ist eine reine
 Dokumentationsergaenzung durch den Umsetzungs-Agenten, kein QA-Retry-Fall).
+
+### Re-Re-Verifikation QA (2026-08-03, nach Commit 2afb77f "TS-56.12/56.13 nachgezogen")
+
+Luecke geschlossen. `git diff 54c1a38..2afb77f` betrifft ausschliesslich `docs/TESTSZENARIEN.md`
+(+20 Zeilen: Vorbedingungs-Hinweis TLS am Testsystem + TS-56.12 mit a/b/c inkl. Negativfall
+fail-safe + TS-56.13 Vor-Produktivgang-Check) und `secondbrain/tests/testszenarien-index.md`
+(Zeile 56 auf TS-56.1–56.13 erweitert, TLS-Schalter explizit benannt). Keine Code-Datei
+veraendert — die inhaltliche Pruefung (a-f) aus der vorigen Runde bleibt unveraendert gueltig.
+
+**Beweis Build:**
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)  (unveraendert: NU1902 MailKit/MimeKit + 1 CS8602 TrackingController)
+    0 Fehler(en)
+```
+
+**Beweis Tests:**
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1056, übersprungen: 1, gesamt: 1057
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  186, übersprungen: 0, gesamt:  186
+```
+Identisch zur vorigen Runde (nur Doku geaendert, keine Testverschiebung).
+
+**Kapitel-56-Pruefung:** Vorbedingungen-Block nennt jetzt den TLS-Workaround fuer TS-56.3/56.4/
+56.7/56.8 explizit; TS-56.12 deckt Aus/Sichtbarkeit-an-3-Stellen/An-ohne-Neustart + Negativfall
+fail-safe ab; TS-56.13 deckt „vor Produktivgang auf true" ab. Index-Zeile 56 verweist korrekt auf
+TS-56.1–56.13 und nennt den TLS-Schalter. Alle vier Punkte aus dem Gap-Report erfuellt.
+
+**Entscheidung: Testbereit.** Build gruen, Tests gruen (1056+186, 1 uebersprungen wie durchgehend),
+inhaltliche Ergaenzung (a-f) weiterhin korrekt, Testszenarien-Pflicht jetzt vollstaendig erfuellt
+(Spec + docs/TESTSZENARIEN.md + Index synchron). Status zurueck auf Testbereit.
