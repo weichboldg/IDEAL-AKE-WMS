@@ -2,7 +2,7 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-07-29
 updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
@@ -578,20 +578,34 @@ Verhalten/Negativfall je Testszenarien-Pflicht):
 
 ## Deploy
 
+**QA-Finalisierung (2026-08-03):** Diff `3eca9ea..HEAD` bestaetigt web=true, service=true,
+migration=true — Web (`IdealAkeWms/*`), Service (`IDEALAKEWMSService/*`) und zwei neue Migrationen
+(`IdealAkeWms/Migrations/20260803104055_AddStorageLocationSageLagerbuchung`,
+`20260803112322_AddSageBookingQueue`) sind alle drei betroffen, wie im Frontmatter bereits
+vorgemerkt.
+
 - **Web-App:** ja — neues Stammdatenfeld + Spalte (`StorageLocationsController`/`Views`), neue
-  Queue-Repository-Registrierung, ggf. neue Monitoring-View.
+  Queue-Repository-Registrierung + Decorator, neue Monitoring-View `/SageBookingQueue` inkl. Requeue.
 - **Service:** ja — neuer `SageBookingWorker`, neuer `ISageLagerbuchungClient`, DI-Registrierung in
   `IDEALAKEWMSService/Program.cs`, neuer appsettings-Block `SageLagerbuchung:Username`/`Password`.
-- **Migration:** ja — zwei additive Migrationen (`SQL/82_*`, `SQL/83_*`), kein DB-Backup zwingend
-  (nicht daten-destruktiv), aber wie ueblich vor einem Produktiv-Deploy empfohlen.
-- **Publish-Befehle** (im Worktree, nach Testfreigabe vor dem Merge):
-  ```
-  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
-  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
-  ```
-- **Reihenfolge:** DB-Migration zuerst (additiv, unkritisch fuer den laufenden Betrieb) → Web-App
-  neu deployen → Service stoppen, Binaries + `appsettings.json`-Ergaenzung (`SageLagerbuchung`-Block
-  mit echten Credentials) einspielen, Service starten.
+- **Migration:** ja — zwei additive Migrationen (`SQL/82_*`, `SQL/83_*`, inkl. UNIQUE-Index auf
+  `SageBookingQueueItems.StockMovementId` gegen Doppel-Enqueue), kein DB-Backup zwingend (nicht
+  daten-destruktiv), aber wie ueblich vor einem Produktiv-Deploy empfohlen.
+
+**Publish-Befehle (aus dem Worktree, VOR dem Merge — Fluss: Publish aus dem Worktree → Testsystem →
+Test → dann Merge):**
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Beide Komponenten sind betroffen — beide Befehle ausfuehren. Hinweis: **nach dem Merge** nur dann
+erneut aus `main` publishen, wenn der Merge tatsaechlich getestete Dateien mit parallelen
+main-Aenderungen zusammengefuehrt hat (Konflikt-Merge/Nicht-Fast-Forward); bei einem sauberen
+Fast-Forward-Merge ist der bereits im Worktree gebaute/getestete Stand identisch mit main.
+
+- **Reihenfolge:** DB-Migration zuerst (additiv, unkritisch fuer den laufenden Betrieb, `SQL/82_*`
+  dann `SQL/83_*`) → Web-App neu deployen → Service stoppen, Binaries + `appsettings.json`-Ergaenzung
+  (`SageLagerbuchung`-Block mit echten Credentials) einspielen, Service starten.
 - **appsettings-Secret am Server:** `IDEALAKEWMSService/appsettings.json` (bzw. die
   Produktions-Overlay-Datei) muss am Zielserver **manuell** um den `SageLagerbuchung`-Block ergaenzt
   werden — analog zu `ConnectionStrings`/`MailSettings` heute, das geschieht **nicht** automatisch
@@ -601,9 +615,13 @@ Verhalten/Negativfall je Testszenarien-Pflicht):
   `SData:BaseUrl`/`SData:Dataset`-Werte setzen sowie je gewuenschtem Lagerplatz
   `SageBuchungErlaubt` aktivieren (ADR 0008: DB gewinnt, appsettings-Defaults greifen nicht mehr;
   `docs/TESTSZENARIEN.md` Kap. 51 „Nach jedem Deploy `/ServiceSettings` durchgehen").
+- **Ein-Instanz-Voraussetzung (H5):** genau **ein** laufender `SageBookingWorker` — kein
+  Doppel-Deploy/Failover auf derselben Queue, sonst Doppelbuchung (der Idempotenz-Baustein schuetzt
+  nur bei einer einzigen Instanz).
 - **Empfehlung:** vor der produktiven Aktivierung mit einem einzelnen, unkritischen Testartikel und
-  einem klar identifizierbaren Testlagerplatz am Sage-Testsystem beginnen (siehe TS-X.3/X.4), erst
-  danach breiter ausrollen.
+  einem klar identifizierbaren Testlagerplatz am Sage-Testsystem beginnen (siehe TS-56.3/56.4), erst
+  danach breiter ausrollen. Detaillierte Deploy-Checkliste zusaetzlich in
+  `secondbrain/aufgaben/2026-08-03-deploy-v1-28-0-sage-lagerbuchungen.md`.
 
 ## Offene Rueckfragen
 
@@ -1022,3 +1040,132 @@ weiterer menschlicher Input noetig):
 - **S7** hartes Regressions-Kriterium „bei Toggle aus bit-identisches Verhalten" ergaenzen.
 
 Den Freigabe-Block im Frontmatter fuellt weiterhin der Mensch — ich habe ihn bewusst nicht gesetzt.
+
+---
+
+## QA-Abnahme (2026-08-03) — Status: Testbereit
+
+Durchgefuehrt im Worktree `.claude/worktrees/2026-07-29-sage-lagerbuchungen`,
+Branch `feature/2026-07-29-sage-lagerbuchungen`, Diff `3eca9ea..6386f05`.
+
+### Beweis: Build
+
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)   (bestehende NU1902-Advisories MailKit/MimeKit + 1 CS8602 in TrackingController,
+                     beide nicht Teil dieser Aenderung)
+    0 Fehler(en)
+```
+
+### Beweis: Tests
+
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1043, übersprungen: 1, gesamt: 1044
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  186, übersprungen: 0, gesamt:  186
+```
+Der eine uebersprungene Test (`ProductionOrderEagerCreateAgentJobTests...`) ist ein bestehender,
+umgebungsabhaengiger Integrationstest, unabhaengig von dieser Spec.
+
+### Akzeptanzkriterien-Abdeckung (automatisiert vs. Manual-UAT)
+
+| AK | Abdeckung |
+|---|---|
+| AK1 (Edit/Liste/Filter) | Manual-UAT (View) |
+| AK2/AK3 (Toggle-Gating) | `SageBookingEnqueueDecisionTests`, `SageBookingEnqueueingStockMovementRepositoryTests` (InMemory) |
+| AK4/AK5 (Enqueue bei Inbound/Outbound/OutboundAllConfirm) | Decorator-Test deckt `AddAsync`-Pfad ab; Controller-Actions selbst Manual-UAT |
+| AK6 (Feedback-Loop-Schutz SageEinbuchung/-Ausbuchung) | `SageBookingEnqueueDecisionTests.ShouldEnqueue_NonBookableType_AlwaysFalse...`, Decorator-Test |
+| AK7/AK8 (Payload spiegelbildlich Zugang/Entnahme) | `SageLagerbuchungPayloadBuilderTests` (isoliert, ohne HTTP/DB) |
+| AK9 (fehlende Sage-Referenz → Fehler statt Absturz) | `SageLagerbuchungPayloadBuilderTests.Build_MissingSageLagerkennung/PlatzId_Throws...`; Worker faengt `SageBookingPayloadException` ab (Code-Review, TS-56.6 Manual-UAT) |
+| AK10 (Status vor HTTP-Call auf Gesendet) | Code-verifiziert (`SageBookingWorker.cs:186` `MarkSentAsync` vor `:189` `client.SendAsync`); Timeout-Fall selbst nicht InMemory-testbar → TS-56.7 Manual-UAT |
+| AK11 (Aktivitaets-Protokoll) | TS-56.10 Manual-UAT (kein SyncLog-InMemory-Vorbild) |
+| AK12 (Build/Test gruen) | siehe oben, erfuellt |
+| AK13 (Migrationen idempotent, FreshInstall an beiden Stellen) | siehe unten |
+| B4 (Enqueue-Fehler faellt Buchung nicht) | Code-verifiziert: try/catch in `SageBookingEnqueueingStockMovementRepository.AddAsync`, nie wirft; Reconciliation-Sweep `EnqueueMissingAsync` |
+| S6 (Decorator = Subclassing) | Code-verifiziert: `class SageBookingEnqueueingStockMovementRepository : StockMovementRepository`, nur `override AddAsync` |
+| S7 (Pass-through bei Toggle aus) | `AddAsync_ToggleOff_CreatesNoQueueItem_ButStillSavesMovement` (InMemory) |
+| Idempotenz-Guard (Doppel-Enqueue) | `EnqueueAsync_SameMovementTwice_CreatesOnlyOneItem` + UNIQUE-Index `IX_SageBookingQueueItems_StockMovementId` (SQL/83 + FreshInstall) |
+
+Alle Luecken (HTTP/SData-Sende-Pfad, Sage-Memo-Lookup gegen echtes Sage-Testsystem,
+Aktivitaets-Protokoll-Anzeige) sind explizit als Manual-UAT in `docs/TESTSZENARIEN.md` Kapitel 56
+(TS-56.1–56.11) und `secondbrain/tests/testszenarien-index.md` (Zeile 81/93) gefuehrt — konsistent
+mit `secondbrain/architektur/fallstricke.md` „Raw-SQL-/Fremdsystem-Pfade sind nicht
+InMemory-testbar".
+
+### Migrations-/SQL-Konsistenz (verifiziert)
+
+- `IdealAkeWms/Migrations/20260803112322_AddSageBookingQueue.cs`: `CreateIndex(... "IX_SageBookingQueueItems_StockMovementId", ..., unique: true)`.
+- `SQL/83_AddSageBookingQueue.sql`: `CREATE UNIQUE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId]`, `OBJECT_ID`-Guard, DDL/Index/History je eigener Batch, MigrationId `20260803112322_AddSageBookingQueue`.
+- `SQL/00_FreshInstall.sql`: Zeilen 121-123 (Spalten `StorageLocations`), 198-222 (Tabelle `SageBookingQueueItems`), 1082-1085 (beide Indizes inkl. UNIQUE), 2182-2185 (beide `MigrationId`s im `__EFMigrationsHistory`-Block) — Schema **und** MigrationId an beiden Pflichtstellen nachgezogen.
+- `SQL/82_AddStorageLocationSageLagerbuchung.sql`: `COL_LENGTH`-Guard je Spalte, MigrationId `20260803104055_AddStorageLocationSageLagerbuchung`.
+
+### Code-Review (durchgefuehrt als QA-Agent, kein separater Subagent-Dispatch verfuegbar in dieser Session)
+
+Gezielt gegen die eigenen Blocker/Sollte-Punkte der Kritischen Pruefungen gegengelesen:
+- B4 (nicht-transaktionaler Enqueue): geloest — try/catch faengt, wirft nie, Reconciliation-Sweep
+  als Netz.
+- S6 (Decorator-Bauweise): Subclassing wie festgelegt, kein 15-Methoden-Delegations-Boilerplate.
+- S7 (Pass-through-Regression): durch expliziten Test abgesichert.
+- DI-Registrierung: Web registriert den Decorator auf `IStockMovementRepository`; Service registriert
+  weiterhin die plain `StockMovementRepository` (dort werden nie manuelle Buchungen erzeugt — korrekt,
+  keine Doppel-Registrierung).
+- Migrations-Dreiklang und Audit-Felder wie oben verifiziert.
+- Keine kritischen oder wichtigen Befunde offen; keine Code-Aenderung durch die QA-Abnahme noetig.
+
+### Entscheidung
+
+**Testbereit.** Build und Tests gruen, alle testbaren Akzeptanzkriterien abgedeckt, die
+Nicht-InMemory-testbaren Teile sauber als Manual-UAT in `docs/TESTSZENARIEN.md` Kapitel 56
+dokumentiert, Migrations-/SQL-Konsistenz verifiziert, Deploy-Abschnitt aus dem echten Diff
+finalisiert.
+
+## Manuelle Test-Checkliste (Schranke 2 — vor dem Merge, am Sage-Testsystem)
+
+**Vorbedingung einmalig:** Migration 82+83 eingespielt, `IDEALAKEWMSService/appsettings.json` →
+`SageLagerbuchung:Username/Password` gesetzt, `/ServiceSettings` → `SData:BaseUrl`/`SData:Dataset`
+gesetzt (Toggle `SageLagerbuchungAktiv` zunaechst **aus**), Lagerplatz-Sync mind. einmal gelaufen.
+
+1. **Toggle-Gating (TS-56.1/56.2):** Mit `SageLagerbuchungAktiv=false` und einem Lagerplatz mit
+   `SageBuchungErlaubt=true` eine manuelle Einbuchung durchfuehren → `/SageBookingQueue` bleibt leer.
+   Danach Toggle an, Lagerplatz-Flag aus → wieder kein Eintrag. Erst mit **beiden** an entsteht ein
+   Eintrag mit Status „Offen".
+2. **Echte Zugangs-Buchung (TS-56.3):** Einbuchung auf einem Sage-freigegebenen Testlagerplatz mit
+   Testartikel durchfuehren, einen Worker-Tick abwarten. Erwartung: `/SageBookingQueue`-Eintrag
+   durchlaeuft Offen → Gesendet → Bestaetigt; die Buchung ist im Sage-Testsystem als **Zugang** auf
+   dem korrekten Platz sichtbar (Kurzbezeichnung inkl. Ebenen, z. B. „LL;1;4;0", nicht die
+   Lager-Wurzel „LL;0;0;0").
+3. **Echte Entnahme-Buchung (TS-56.4):** Spiegelbildlich mit einer Ausbuchung — Sage zeigt
+   **Entnahme**, Herkunft/Ziel vertauscht gegenueber Schritt 2.
+4. **Timeout-/Doppelbuchungs-Schutz (TS-56.7):** Sende-Timeout simulieren (z. B. Netzwerk kurz
+   kappen waehrend eines Sende-Versuchs). Erwartung: Eintrag bleibt auf „Gesendet"; beim naechsten
+   Worker-Tick **kein** zweiter automatischer Sende-Versuch — der Recovery-Pfad prueft per
+   Sage-Memo-Lookup, ob die Buchung schon existiert, und setzt ggf. auf „Bestaetigt" statt erneut zu
+   senden.
+5. **Requeue eines Fehler-Eintrags (TS-56.8):** Einen Eintrag mit Status „Fehler" ueber
+   „Erneut senden" in `/SageBookingQueue` (Rolle `stock_keyuser`) requeuen. Erwartung: Status wird
+   „Offen"; der Worker prueft vor dem erneuten Senden per Memo-Lookup — existiert die Buchung in
+   Sage bereits, landet der Eintrag direkt auf „Bestaetigt" statt ein zweites Mal zu senden.
+6. **Fehlerpfad Konfigurationsfehler (TS-56.6):** `SageBuchungErlaubt=true` auf einem **manuellen**
+   Lagerplatz (ohne `SageLagerkennung`/`SageLagerplatzId`) setzen, dort einbuchen. Erwartung:
+   Queue-Eintrag landet auf „Fehler" mit sprechender Meldung, der Worker laeuft weiter (kein
+   Absturz, kein haengenbleiben), Folgeeintraege werden normal weiterverarbeitet.
+7. **Toggle-Aus-Regression (TS-56.11, S7):** Bei `SageLagerbuchungAktiv=false` stichprobenartig
+   Ein-/Ausbuchung, Bestand, Historie und eine Kommissionierung durchspielen — Verhalten muss
+   **exakt** wie vor diesem Update sein (der Decorator ist reiner Pass-through, wenn der Toggle
+   aus ist).
+8. **Aktivitaets-Protokoll (TS-56.10):** Nach den vorigen Schritten `/SyncLog` oeffnen. Erwartung:
+   Lauf „SageLagerbuchung" sichtbar mit Counts `gesendet`/`bestaetigt`/`fehler`/`nacherfasst`/
+   `uebersprungen`.
+
+**Dev-Lauf-Verifikationen am Testsystem (parallel zu den obigen Schritten zu bestaetigen):**
+9. **Memo vs. Referenz:** Pruefen, ob der Sage-Memo-Lookup (`SageBuchungLookupReader`) tatsaechlich
+   gegen die richtige Spalte (`Memo`) matcht, oder ob `Referenz` die verlaesslichere Korrelation
+   waere — ggf. eine Zeile in `IDEALAKEWMSService/Services/SageBuchungLookupReader.cs` anpassen.
+10. **PlatzID-Quelle:** Bestaetigen, dass `KHKLagerplaetze.PlatzID` tatsaechlich der numerische Wert
+    ist, den die SData-API als `Herkunft-/ZielLagerplatzId` erwartet (H1-Annahme).
+11. **Artikelnummer-Abgleich:** Stichprobenartig `Article.ArticleNumber` gegen die Sage-Artikelnummer
+    im `GET Artikel`-Response vergleichen (Frage 4-Annahme, strukturell erwartet identisch).
+
+Ein-Instanz-Voraussetzung beachten (siehe Deploy-Abschnitt): waehrend des Manual-UAT darf nur
+**eine** `SageBookingWorker`-Instanz laufen.
