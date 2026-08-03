@@ -7,8 +7,8 @@
     var hasInactive = (bool?)ViewBag.HasInactive == true;
     var hasNonBookable = (bool?)ViewBag.HasNonBookable == true;
     var canEdit = await _user.HasMasterDataAccessAsync();
-    // Spalten: code, description, zone, capacity, type, source, bookable, [is-active], created-at, actions
-    var colCount = showInactive ? 10 : 9;
+    // Spalten: code, description, zone, capacity, type, source, bookable, sage-buchung, [is-active], created-at, actions
+    var colCount = showInactive ? 11 : 10;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -70,6 +70,7 @@
                 <th data-filterable data-col-key="type">Typ</th>
                 <th data-filterable data-col-key="source">Quelle</th>
                 <th data-filterable data-col-key="bookable">Buchbar</th>
+                <th data-filterable data-col-key="sage-buchung">Sage-Buchung</th>
                 @if (showInactive)
                 {
                     <th data-filterable data-col-key="is-active">Aktiv</th>
@@ -99,6 +100,16 @@
                     </td>
                     <td data-col-key="bookable">
                         @if (location.IstBuchbar)
+                        {
+                            <span class="badge bg-success">Ja</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Nein</span>
+                        }
+                    </td>
+                    <td data-col-key="sage-buchung">
+                        @if (location.SageBuchungErlaubt)
                         {
                             <span class="badge bg-success">Ja</span>
                         }
