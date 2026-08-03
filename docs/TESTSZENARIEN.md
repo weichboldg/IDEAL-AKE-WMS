@@ -5875,7 +5875,11 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 - Migration 82/83 eingespielt (`StorageLocations.SageBuchungErlaubt/SageLagerkennung/SageLagerplatzId`,
   Tabelle `SageBookingQueueItems`).
 - `IDEALAKEWMSService/appsettings.json` → Block `SageLagerbuchung:Username/Password` am Server gesetzt.
-- `/ServiceSettings` → `SData:BaseUrl`, `SData:Dataset` gesetzt; `SageLagerbuchungAktiv` zunächst aus.
+- `/ServiceSettings` → `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`),
+  `SData:Application` (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`),
+  `SData:Dataset` (Mandant, z.B. `ake_TEST2026;1`) gesetzt; `SageLagerbuchungAktiv` zunächst aus.
+  Ziel-URL = `{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`
+  (Semikolon im Dataset und `$` der Resource bleiben literal — nicht kodieren).
 - Lagerplatz-Sync (`Sync:LagerplaetzeEnabled`) mindestens einmal gelaufen, damit Sage-Plätze
   `SageLagerkennung` (= Code) und `SageLagerplatzId` (= `KHKLagerplaetze.PlatzID`) tragen.
 - **TLS am Testsystem:** `sagetest01.ake.at` hat aktuell ein ungültiges Zertifikat (`PartialChain`,

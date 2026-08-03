@@ -96,6 +96,10 @@ public class SageBookingWorker : BackgroundService
 
         var endpoint = new SageBookingEndpoint(
             BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
+            // Application/ServiceContract sind i.d.R. konstant; Fallback auf die Katalog-Defaults,
+            // falls der DB-Read scheitert (null).
+            Application: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Application", ct) ?? "ol",
+            ServiceContract: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:ServiceContract", ct) ?? "CommonWawiServices",
             Dataset: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Dataset", ct) ?? string.Empty,
             Username: _configuration["SageLagerbuchung:Username"] ?? string.Empty,
             Password: _configuration["SageLagerbuchung:Password"] ?? string.Empty);

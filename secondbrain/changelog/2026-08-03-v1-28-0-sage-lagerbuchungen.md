@@ -34,10 +34,18 @@ date: 2026-08-03
 - **Migrationen:** `82_AddStorageLocationSageLagerbuchung` (3 Spalten) + `83_AddSageBookingQueue`
   (Tabelle `SageBookingQueueItems`, FK→`StockMovements`, Index `Status`). Beide additiv, idempotent,
   `SQL/00_FreshInstall.sql` an beiden Stellen nachgezogen. `SQL/AgentJobs/*` **nicht** betroffen.
-- **ServiceSettings** (DB-first, Katalog): `SageLagerbuchungAktiv`, `SData:BaseUrl`, `SData:Dataset`,
+- **ServiceSettings** (DB-first, Katalog): `SageLagerbuchungAktiv`, `SData:BaseUrl`,
+  `SData:Application`, `SData:ServiceContract`, `SData:Dataset`,
   `Sync:SageLagerbuchungIntervalSeconds/BatchSize/MaxRetries/MaxErrorsPerRun/StuckMinutes`,
   `SageLagerbuchungSslZertifikatPruefen`. **appsettings-only** (Geheimnis, ADR 0008):
   `SageLagerbuchung:Username/Password` (nur Service). Neuer `SyncLogServices.SageLagerbuchung`.
+- **SData-URL + Kodierung (2026-08-03):** Ziel-URL =
+  `{SData:BaseUrl}/sdata/{SData:Application}/{SData:ServiceContract}/{SData:Dataset}/$service/LagerbuchungService`
+  (reiner Builder `SageLagerbuchungClient.BuildServiceUrl`). **Neu konfigurierbar:** `SData:Application`
+  (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`) — nicht mehr hart verdrahtet.
+  **Kodierung:** `;` im Dataset (`ake_TEST2026;1`) und `$` der Resource bleiben **literal** (kein
+  `Uri.EscapeDataString`; RFC-3986-sub-delims; .NET-`Uri` laesst sie im Pfad unangetastet). Test
+  `SageLagerbuchungClientUrlTests` prueft die exakte Discovery-URL inkl. literalem `;`/`$`.
 - **TLS-Schalter (2026-08-03):** `SageLagerbuchungSslZertifikatPruefen` (Bool, Default `true`,
   **fail-safe:** fehlend/unparsebar → geprueft; `IdealAkeWms/Services/SageTlsPolicy.cs`) wirkt **nur**
   auf den `ISageLagerbuchungClient` via `ConfigurePrimaryHttpMessageHandler`. Der

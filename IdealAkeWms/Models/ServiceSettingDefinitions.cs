@@ -34,8 +34,10 @@ public static class ServiceSettingDefinitions
 
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 ServiceSettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
-        new("SData:BaseUrl",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Basis-URL der Sage-SData-API (z.B. https://sageserver/sdata/CommonWawiServices)"),
-        new("SData:Dataset",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Mandant/dataset-Segment der SData-URL (pro Standort/Instanz)"),
+        new("SData:BaseUrl",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Host+Port der Sage-SData-API OHNE Pfad (z.B. https://sagetest01.ake.at:5493). Ziel-URL = {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService"),
+        new("SData:Application",                     ServiceSettingType.String, "ol",  "Sage-Lagerbuchung", "SData-Application-Segment (per SData-Discovery ermittelt, i.d.R. konstant 'ol')"),
+        new("SData:ServiceContract",                 ServiceSettingType.String, "CommonWawiServices", "Sage-Lagerbuchung", "SData-ServiceContract-Segment (i.d.R. konstant 'CommonWawiServices')"),
+        new("SData:Dataset",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Mandant/dataset-Segment der SData-URL (pro Standort/Instanz, z.B. ake_TEST2026;1 — Semikolon literal, NICHT kodieren)"),
         new("Sync:SageLagerbuchungIntervalSeconds",  ServiceSettingType.Int,  "20",    "Sage-Lagerbuchung", "Poll-Intervall (Sekunden) des SageBookingWorker fuer offene Queue-Eintraege ('fast live')"),
         new("Sync:SageLagerbuchungBatchSize",        ServiceSettingType.Int,  "50",    "Sage-Lagerbuchung", "Maximale Anzahl Queue-Eintraege, die je Worker-Tick verarbeitet werden"),
         new("Sync:SageLagerbuchungMaxRetries",       ServiceSettingType.Int,  "5",     "Sage-Lagerbuchung", "Maximale automatische Sende-Versuche je Eintrag; danach bleibt er auf 'Fehler' und braucht ein manuelles Requeue"),

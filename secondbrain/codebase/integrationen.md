@@ -176,7 +176,9 @@ werden asynchron ueber eine Queue an die Sage-SData-REST-API gemeldet. Details:
 - **Queue:** Tabelle `SageBookingQueueItems` (Status Offen→Gesendet→Bestaetigt/Fehler),
   `ISageBookingQueueRepository`/`SageBookingQueueRepository` (geteilt Web+Service).
 - **Senden:** `SageBookingWorker` (eigener BackgroundService, Kurztakt) → `ISageLagerbuchungClient`
-  (typed HttpClient, Basic-Auth, `POST {SData:BaseUrl}/{SData:Dataset}/$service/LagerbuchungService`),
+  (typed HttpClient, Basic-Auth, `POST {SData:BaseUrl}/sdata/{SData:Application}/{SData:ServiceContract}/{SData:Dataset}/$service/LagerbuchungService`
+  — reiner Builder `SageLagerbuchungClient.BuildServiceUrl`; `;` im Dataset und `$` der Resource bleiben
+  **literal** (kein `Uri.EscapeDataString`, RFC-3986-sub-delims)),
   Payload aus `SageLagerbuchungPayloadBuilder` (Einbuchung→„Zugang" Ziel gesetzt, Ausbuchung→
   „Entnahme" Herkunft gesetzt; `Herkunft-/ZielLagerkennung` = `StorageLocation.Code`,
   `...LagerplatzId` = `SageLagerplatzId` = `KHKLagerplaetze.PlatzID`).

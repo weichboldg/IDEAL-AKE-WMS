@@ -534,8 +534,12 @@ C:\Services\IDEALAKEWMSService\
 > SData-API) ist **appsettings-only** und muss am Zielserver manuell befüllt werden (wie
 > `ConnectionStrings`/`MailSettings`). Alle übrigen Werte sind DB-first unter `/ServiceSettings`
 > (Kategorie „Sage-Lagerbuchung"): globaler Schalter `SageLagerbuchungAktiv` (Default aus),
-> `SData:BaseUrl`, `SData:Dataset`, sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz
-> das Feld „Sage-Buchung erlaubt". Ohne diese Aktivierung wird **nichts** an Sage gemeldet.
+> `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`
+> (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`), `SData:Dataset` (Mandant,
+> z.B. `ake_TEST2026;1`), sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz das Feld
+> „Sage-Buchung erlaubt". Ohne diese Aktivierung wird **nichts** an Sage gemeldet. Ziel-URL =
+> `{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`; das
+> Semikolon im Dataset und das `$` der Resource bleiben **literal** (nicht URL-kodieren).
 >
 > **TLS-Zertifikatsprüfung:** `SageLagerbuchungSslZertifikatPruefen` (Default `true`) schaltet die
 > Zertifikatsprüfung des Sage-Clients — **nur** für Testsysteme mit ungültigem Zertifikat auf `false`

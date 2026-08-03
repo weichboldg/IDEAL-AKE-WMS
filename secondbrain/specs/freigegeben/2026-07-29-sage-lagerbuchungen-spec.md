@@ -2,7 +2,7 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-07-29
 updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
@@ -452,6 +452,29 @@ einen expliziten Schalter:
   `/SageBookingQueue` zeigt ein Warn-Banner oben. Kein stilles Kaestchen.
 - **Test:** `SageTlsPolicyTests` sichert die Invariante (Default `true`; fehlender/ungueltiger Wert →
   `true`; nur explizit `false` → `false`; Katalog-Default = `true`).
+
+#### Nachtrag (2026-08-03): SData-URL-Zusammensetzung + Kodierung
+
+Per SData-Discovery ermittelte Werte (Testsystem) und die daraus gebaute Ziel-URL:
+
+- `SData:BaseUrl` = `https://sagetest01.ake.at:5493` (Host+Port **ohne** Pfad)
+- `SData:Application` = `ol` (**neu, konfigurierbar** — Default `ol`, i.d.R. konstant)
+- `SData:ServiceContract` = `CommonWawiServices` (Default `CommonWawiServices`)
+- `SData:Dataset` = `ake_TEST2026;1` (Mandant, pro Instanz)
+
+Zusammensetzung (reiner, testbarer Builder `SageLagerbuchungClient.BuildServiceUrl`):
+```
+{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService
+= https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/LagerbuchungService
+```
+
+**Kodierung (nicht verhandelbar):** Der Dataset enthaelt ein `;`, die Resource beginnt mit `$`.
+Beide sind laut RFC 3986 sub-delims und in Pfadsegmenten gueltig — sie **muessen literal bleiben**
+(`;` **nicht** `%3B`, `$` **nicht** `%24`). Der SData-Feed liefert die href-Werte ebenfalls
+unkodiert (Referenz). Deshalb **kein** `Uri.EscapeDataString` auf Dataset/Resource; die URL wird per
+String-Interpolation gebaut, und die .NET-`Uri`-Pipeline (die `HttpRequestMessage` intern nutzt)
+laesst diese sub-delims im Pfad unangetastet. `SageLagerbuchungClientUrlTests` prueft die exakte
+Ziel-URL **inklusive** literalem `;` und `$` und dass `new Uri(url).AbsoluteUri` sie nicht kodiert.
 
 ### 7. Optionale Monitoring-UI
 
