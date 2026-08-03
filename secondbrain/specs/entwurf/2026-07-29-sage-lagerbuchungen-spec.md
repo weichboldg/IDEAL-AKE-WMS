@@ -225,10 +225,11 @@ bloc). `StorageLocationsController` ist `[RequireMasterDataReadAccess]` class-le
 - BDE-Rueckmeldung an Sage — eigener, separater Kanal, eigene (noch ausstehende)
   Schnittstellendoku.
 - `Auspraegung`/Artikelvarianten (`AuspraegungHandle` wird fix `0` gesendet).
-- Umbuchung (`MovementType.Umbuchung`, Wert `3` in der SData-Enum) — **vorbehaltlich** offener
-  Rueckfrage 1; Default-Annahme dieser Spec ist „out", weil weder die kommissionierungs-getriebene
-  noch eine konsistente Behandlung aller Umbuchungs-Quellen ohne weitere Abstimmung sauber
-  umsetzbar ist (siehe Ist-Zustand).
+- Umbuchung (`MovementType.Umbuchung`, Wert `3` in der SData-Enum) — **ENTSCHIEDEN out** (Schranke 1,
+  Antwort B1: „Umbuchung herauslassen", 2026-08-03). Der Decorator-Filter bleibt bei
+  `Einbuchung`/`Ausbuchung`; die manuellen Umbuchungs-Actions (`Transfer`, `LocationTransferConfirm`)
+  erzeugen **keinen** Queue-Eintrag. Umbuchung wird — falls je gewuenscht — ein sauber definierter
+  spaeterer Step (inkl. beider Lagerplatz-Enden, Gating-Regel, Behandlung same-Lagerkennung-Moves).
 - Ruecklesen/Abgleich der Sage-Stammdaten `GET Adressen`/`GET Artikel`/`$schema` als eigener Sync —
   dient hier nur der manuellen Verifikation der offenen Rueckfragen, kein Feature dieser Spec.
 - Aenderung von `LagerbestandSyncService` (Sage→WMS-Korrektur) — bleibt unangetastet, ist die
@@ -280,10 +281,18 @@ Neue Properties (Migration `AddStorageLocationSageLagerbuchung`):
 public bool SageBuchungErlaubt { get; set; }        // Default false, user-controlled
 
 [StringLength(50)]
-public string? SageLagerkennung { get; set; }        // z.B. "Haupt01" (ohne ";0;0;0"-Suffix)
+public string? SageLagerkennung { get; set; }        // KORRIGIERT (Schranke 1, s.u.): volle Sage-Kurzbezeichnung inkl. Ebenen, z.B. "LL;1;4;0" — identisch zu StorageLocation.Code fuer Sage-Plaetze
 
-public int? SageLagerplatzId { get; set; }            // Sage-interne numerische Id
+public int? SageLagerplatzId { get; set; }            // Sage-interne numerische Id = KHKLagerplaetze.PlatzID
 ```
+
+> **KORREKTUR nach Schranke-1-Antwort B3 (2026-08-03):** Die urspruengliche Annahme „Kennung ohne
+> Ebenen-Suffix + hartes `;0;0;0`" ist **falsch**. Der Screenshot zeigt: die adressierbare
+> Kurzbezeichnung eines realen Platzes ist `LL;1;4;0` (Format `Lagerkennung;Reihe;Platz;Ebene`,
+> **Semikolon**), und `LL;0;0;0` ist ein **anderer** Datensatz (die Lager-Wurzel). Diese volle
+> Kurzbezeichnung liegt bereits in `StorageLocation.Code` (`LagerplatzSyncService.cs:85,91`,
+> `code = dto.Kurzbezeichnung`). Der Payload muss diese **volle** Zeichenkette senden, nicht
+> `<bare-Lagerkennung>;0;0;0`. Details siehe konsolidierten Abschnitt am Ende.
 `SageBuchungErlaubt` ist **kumulativ** zu `IstBuchbar` und **unabhaengig** von `IsActive`/`Source` —
 ein Admin kann es theoretisch auch fuer einen manuellen (Nicht-Sage-)Lagerplatz setzen, was aber
 ins Leere liefe, weil `SageLagerkennung`/`SageLagerplatzId` dort nie befuellt werden (kein
@@ -389,10 +398,10 @@ unit-testbar:
     "Lagerbewegungsart": "Zugang" | "Entnahme",
     "Artikelnummer": "<Article.ArticleNumber>",
     "AuspraegungHandle": 0,
-    "HerkunftLagerkennung": "" | "<SageLagerkennung>;0;0;0",
-    "HerkunftLagerplatzId": 0 | <SageLagerplatzId>,
-    "ZielLagerkennung": "<SageLagerkennung>;0;0;0" | "",
-    "ZielLagerplatzId": <SageLagerplatzId> | 0,
+    "HerkunftLagerkennung": "" | "<StorageLocation.Code, z.B. LL;1;4;0>",   // KORRIGIERT B3: volle Kurzbezeichnung, KEIN ";0;0;0"-Suffix
+    "HerkunftLagerplatzId": 0 | <SageLagerplatzId = PlatzID>,
+    "ZielLagerkennung": "<StorageLocation.Code, z.B. LL;1;4;0>" | "",       // KORRIGIERT B3
+    "ZielLagerplatzId": <SageLagerplatzId = PlatzID> | 0,
     "MengeLager": <Quantity>,
     "Seriennummern": [{ "Seriennummer": "" }],
     "Chargen": [{ "Charge": "", "Menge": 0.0, "Verfallsdatum": null }]
@@ -916,3 +925,87 @@ Payload-Ebenenformat), **B4** ist eine Entwurfs-Korrektur. Solange die vier offe
 weitere Re-Reviews ohne geaenderte Antworten nichts — die drei Durchgaenge decken den pruefbaren
 Stand ab. Nach dem Beantworten von B1/B2/B3 lohnt ein gezielter vierter Blick **nur** auf die dann
 angepassten Stellen.
+
+---
+
+## Schranke-1-Antworten — konsolidiert und geprueft (2026-08-03)
+
+Der Mensch hat die Blocker im Kritik-Abschnitt beantwortet (inline `=>ANTWORT`-Zeilen + zwei
+Screenshots). Hier sauber zusammengefuehrt, gegen die Screenshots und den Code geprueft, mit der
+jeweiligen **Konsequenz fuer die Umsetzung**. Die rohen Antworten oben bleiben als Provenienz stehen.
+
+### B1 — Umbuchung: **RAUS.** ✅ geloest
+Antwort: „Umbuchung herauslassen." Damit steht der Original-Scope wieder: nur `Einbuchung`/
+`Ausbuchung`, Decorator-Filter `is Einbuchung or Ausbuchung`. Out-of-Scope-Abschnitt entsprechend
+verschaerft (kein „vorbehaltlich" mehr). Kein Umbuchungs-Payload, keine Gating-Mehrdeutigkeit mehr.
+**Nichts weiter zu tun.**
+
+### B2 — Idempotenz/Doppelbuchung: Memo ist im Sage-Job vorhanden → Lookup statt Blind-Resend. ✅ Mechanismus geklaert, Detail fuer den Dev-Lauf
+Antwort + Screenshot (`Pasted image 20260803102037.png`): Es gibt die Sage-Tabellen
+`KHKLagerplatzbuchungen` (+ `KHKLagerplatzbuchungenJobs`) mit den Spalten **`Memo`**, **`Referenz`**
+(z. B. „2007-200001"), `Status`, `Bewegungsart`, `Artikelnummer`, `Bewegungsdatum`. **Konsequenz:**
+Die Idempotenz laesst sich sauber loesen — der `SageBookingWorker` bettet eine eindeutige Korrelation
+(z. B. `StockMovement.Id`) in `Memo` **und** setzt sie fuer den Timeout-/Requeue-Fall als
+Lookup-Schluessel ein:
+- Vor einem Requeue (oder beim Aufraeumen haengender `Gesendet`-Eintraege, S3): **erst per Read gegen
+  `KHKLagerplatzbuchungen` pruefen**, ob zu dieser Korrelation bereits eine Buchung existiert. Wenn ja
+  → Eintrag auf `Bestaetigt` setzen (nicht erneut senden). Wenn nein → senden erlaubt.
+- Der Read geht ueber die bereits vorhandene `SageConnection` (Raw-SQL, wie `SageLagerplatzReader`/
+  `SageImportService`) — **kein** neuer Zugriffsweg noetig.
+- **Dev-Lauf-Auftrag (am Testsystem zu fixieren):** exakte Spalte fuer die Korrelation waehlen
+  (`Memo` frei setzbar? oder `Referenz`?) und das reale Antwortformat des `LagerbuchungService`
+  bestaetigen. Damit ist B2 **kein Blocker mehr**, sondern eine umsetzbare, verifizierbare Strategie.
+- **Achtung Bewegungsart:** im persistierten Datensatz steht `Bewegungsart` als Code (`EA`), nicht als
+  „Zugang"/„Entnahme" — das betrifft nur den Lese-Abgleich, nicht den SData-POST (der die Klartext-
+  Bewegungsart aus dem Postman-Sample sendet).
+
+### B3 — Payload-Kennung: `;0;0;0` war **falsch**; volle Kurzbezeichnung nutzen. ✅ geloest + Spec korrigiert
+Antwort + Screenshot (`Pasted image 20260803102655.png`, Lager „LL | Lagerlift"): die
+Kurzbezeichnung eines realen Platzes ist **`LL;1;4;0`** (Format `Lagerkennung;Reihe;Platz;Ebene`,
+Semikolon-getrennt) — und `LL;0;0;0` ist die **Lager-Wurzel**, ein **anderer** Platz. Verifiziert im
+Code: diese volle Kurzbezeichnung liegt bereits in `StorageLocation.Code`
+(`LagerplatzSyncService.cs:85` Dictionary-Key `Code`, `:91` `code = dto.Kurzbezeichnung`).
+**Konsequenz (in Abschnitt 1 + 5 bereits eingearbeitet):**
+- `HerkunftLagerkennung`/`ZielLagerkennung` = **`StorageLocation.Code`** (volle Kurzbezeichnung,
+  z. B. `LL;1;4;0`) — **kein** hartes `;0;0;0`.
+- `HerkunftLagerplatzId`/`ZielLagerplatzId` = `SageLagerplatzId` (= `KHKLagerplaetze.PlatzID`,
+  Frage 7). Beide Felder zeigen konsistent auf **denselben** Platz — robust, egal ob Sage die Kennung
+  oder die PlatzId als fuehrend behandelt.
+- **Feld-Klarstellung:** `SageLagerkennung` soll die **volle** Kurzbezeichnung tragen (= `Code`), nicht
+  die bare Lagerkennung („LL"). Damit ist der Payload-Pfad entkoppelt vom frei editierbaren `Zone`
+  (Antwort 8: „Zone lassen und SageLagerkennung"). Alternativ kann der Payload direkt `Code` lesen und
+  `SageLagerkennung` entfaellt — **eine** von beiden Varianten der Dev-Lauf waehlen (Empfehlung: direkt
+  `Code` verwenden, `SageLagerkennung` nur wenn ein von `Code` entkoppelter Wert fachlich gewollt ist).
+
+### B4 — Nicht-transaktionaler Enqueue: als Entwurfs-Korrektur akzeptiert (keine Menschen-Frage)
+Bleibt umzusetzen (kein menschlicher Input noetig): Enqueue-Fehler im Decorator **fangen +
+protokollieren, nie werfen**; zusaetzlich Reconciliation-Sweep im Worker (Ein-/Ausbuchungen auf
+Sage-Plaetzen ohne Queue-Eintrag nachtraeglich einreihen). Akzeptanzkriterium „Enqueue-Fehler laesst
+die WMS-Buchung weder scheitern noch verloren gehen" ergaenzen. Passt gut zum B2-Lookup: der Sweep
+kann dieselbe Korrelations-Pruefung nutzen.
+
+### Restpunkte — Status
+- **S1 (Monitoring-/Requeue-UI):** durch Antwort 6 („requeue sinnvoll") **In-Scope**. In-Scope-Liste,
+  `affected_code` und ein Requeue-Akzeptanzkriterium (mit B2-Lookup) sind beim Dev-Lauf zu ergaenzen.
+- **S2 (Groesse):** mit Umbuchung **raus** (B1) wieder knapper — bleibt aber mit Requeue-UI ein
+  grosser Einzel-Lauf. Empfehlung: read-only Monitoring + Requeue zusammen halten, aber QA in zwei
+  Etappen (Sende-Pfad zuerst gruen, dann Requeue).
+- **S3 (haengende `Gesendet`):** durch B2 jetzt loesbar — Recovery = B2-Lookup, kein Blind-Resend.
+- **S4 (Flag-Benennung):** Antwort 1 blieb hier vage („FLAG SageSync" bzw. „nur WMS Buchungslager").
+  **Offen gebliebene Praezisierung** — Vorschlag: beim positiven Opt-in `SageBuchungErlaubt`
+  (Default false) bleiben; bitte kurz bestaetigen, sonst faellt die Default-Richtung dem Dev-Lauf zu.
+- **S5 (Standorteinstellungs-Maske, Antwort 5):** als **out-of-scope dieser Spec** gefuehrt;
+  `SData:Dataset` bleibt ein einfacher ServiceSetting. Idee als eigene Backlog-Notiz festhalten.
+- **S6 (Decorator-Bauweise):** Subclassing + `override AddAsync` festlegen (eine Methode statt ~15).
+- **S7 (Regressions-AK):** „bei Toggle aus bit-identisches Verhalten" als hartes Kriterium ergaenzen.
+- **H3 (Frontmatter):** `open_questions` noch als offen gelistet; beim Uebergang nach `freigegeben/`
+  mit diesen Entscheidungen abgleichen.
+
+### Empfehlung (nach Schranke-1-Antworten)
+
+**Die drei geschaeftskritischen Blocker sind geloest:** B1 (Umbuchung raus), B2 (Idempotenz per
+Memo-Lookup gegen `KHKLagerplatzbuchungen`), B3 (volle Kurzbezeichnung statt `;0;0;0`, im Spec-Text
+korrigiert). **Verbleibend vor der Freigabe:** eine **kurze** Bestaetigung zu S4 (Flag-Default) — und
+die Kenntnisnahme, dass B4/S1/S3/S6/S7 als **Umsetzungs-Auftraege in den Dev-Lauf** wandern (kein
+weiterer menschlicher Input noetig). **Empfehlung: BEREIT ZUR FREIGABE, sobald S4 bestaetigt ist**;
+den Freigabe-Block im Frontmatter fuellt weiterhin der Mensch — ich habe ihn bewusst nicht gesetzt.
