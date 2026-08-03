@@ -2,7 +2,7 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-07-29
 updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
@@ -1203,3 +1203,99 @@ gesetzt (Toggle `SageLagerbuchungAktiv` zunaechst **aus**), Lagerplatz-Sync mind
 
 Ein-Instanz-Voraussetzung beachten (siehe Deploy-Abschnitt): waehrend des Manual-UAT darf nur
 **eine** `SageBookingWorker`-Instanz laufen.
+
+## Re-Verifikation QA (2026-08-03, nach Commit fd3bec8 "TLS-Zertifikatspruefung schaltbar")
+
+Re-Pruefung des Nachtrags `fd3bec8` (Diff `cf0e799..HEAD`, 14 geaenderte Dateien) gegen die zuvor
+mit `cf0e799` bestaetigte Testbereit-Basis.
+
+### Beweis: Build
+
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)   (bestehende NU1902-Advisories MailKit/MimeKit + 1 CS8602 in TrackingController,
+                     unveraendert gegenueber der cf0e799-Basis, nicht Teil dieser Ergaenzung)
+    0 Fehler(en)
+```
+
+### Beweis: Tests
+
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1056, übersprungen: 1, gesamt: 1057
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  186, übersprungen: 0, gesamt:  186
+```
+Gezielter Re-Lauf `--filter "FullyQualifiedName~ServiceSettingDefinitions|FullyQualifiedName~SageTlsPolicy"`:
+55/55 gruen (Drift-Guard-Katalogtest + alle 4 `SageTlsPolicyTests`-Theorien).
+
+### Inhaltliche Pruefung der Ergaenzung (a-f)
+
+- **(a) Fail-safe-Semantik:** `SageTlsPolicy.ShouldVerifyCertificate` — `!bool.TryParse(...) || verify`.
+  Fehlend/leer/nicht-parsebar (`null`, `""`, `"yes"`, `"1"`, `"tru"`) → `true` (geprueft); nur ein
+  explizit parsebares `false` deaktiviert. Bewusst nicht `ServiceSettings.GetBoolAsync` (waere
+  fail-open). **Korrekt.**
+- **(b) Wirkung nur auf Sage-Client:** `ConfigurePrimaryHttpMessageHandler` haengt ausschliesslich
+  am `AddHttpClient<ISageLagerbuchungClient, SageLagerbuchungClient>(...)`-Builder in
+  `IDEALAKEWMSService/Program.cs`. Kein `ServicePointManager`, keine globale Handler-Aenderung,
+  kein anderer Client betroffen. **Korrekt.**
+- **(c) Laufzeit-Lesen im Callback:** `ServerCertificateCustomValidationCallback` ruft
+  `ServiceSettings.GetValueSafeAsync(...)` **bei jedem Handshake** auf (kein Capture eines
+  einmalig gelesenen Werts beim `ConfigurePrimaryHttpMessageHandler`-Setup); `ServiceSettings.*`
+  liest laut eigenem Klassenkommentar bewusst ungecacht direkt aus der DB. **Korrekt**, Aenderung
+  greift ohne Dienst-Neustart.
+- **(d) Warnungen an allen drei Stellen:** `SageBookingWorker.ExecuteAsync` loggt beim Start
+  (`LogWarning(SageTlsPolicy.DisabledWarning)`, wenn deaktiviert); `Views/ServiceSettings/Index.cshtml`
+  zeigt am Eintrag ein Warn-Alert; `Views/SageBookingQueue/Index.cshtml` zeigt ein Banner oben, wenn
+  `SslCheckDisabled` (Controller liest den Key live via `IServiceSettingRepository`). Alle drei
+  vorhanden. **Korrekt.**
+- **(e) Testabdeckung der Invarianten:** `SageTlsPolicyTests` deckt fehlend/leer/whitespace/nicht-
+  parsebar → `true`, explizites `false` (inkl. Gross-/Kleinschreibung, Leerzeichen) → `false`,
+  explizites `true` → `true`, sowie den Katalog-Default (`ServiceSettingDefinitions.All` enthaelt den
+  Key mit `DefaultValue == "true"` und dieser Default erfuellt selbst die Invariante). **Korrekt.**
+- **(f) "Vor Produktivgang auf true" in der Checkliste:** Vorhanden — Spec-Manual-Checkliste Punkt 13
+  ("Vor Produktivgang: pruefen, dass `SageLagerbuchungSslZertifikatPruefen` auf `true` steht"),
+  zusaetzlich in README.md, `secondbrain/aufgaben/2026-08-03-deploy-v1-28-0-sage-lagerbuchungen.md`
+  und `secondbrain/changelog/2026-08-03-v1-28-0-sage-lagerbuchungen.md`. **Korrekt.**
+
+### Drift-Guard/Katalog
+
+`SageLagerbuchungSslZertifikatPruefen` ist in `ServiceSettingDefinitions.All` eingetragen
+(Kategorie „Sage-Lagerbuchung", Bool, Default `"true"`). `ServiceSettingDefinitionsTests` (Teil des
+Gesamtlaufs, 1056/1056 gruen) zeigt keinen Drift.
+
+### Gefundene Luecke — NICHT bestaetigt
+
+**`docs/TESTSZENARIEN.md` Kapitel 56 und `secondbrain/tests/testszenarien-index.md` (Zeile 81) wurden
+durch Commit `fd3bec8` NICHT aktualisiert** (`git diff cf0e799..HEAD -- docs/TESTSZENARIEN.md
+secondbrain/tests/testszenarien-index.md` ist leer). Die Ergaenzung ist zwar an sechs anderen
+Stellen sauber dokumentiert (Spec-Nachtrag Abschnitt 6, Spec-Manual-Checkliste Punkt 12/13, README,
+Brain-Changelog, `codebase/services.md`, Deploy-Aufgabe) — CLAUDE.md verlangt aber explizit
+„Testszenarien-Pflicht ... **nicht verhandelbar**": jedes Feature braucht ein synchronisiertes
+`docs/TESTSZENARIEN.md` als „Single Source of Truth der Abnahme", danach den Index-Nachzug. Ein
+Tester, der ausschliesslich Kapitel 56 (TS-56.1–56.11) folgt, ohne die Spec zu lesen, erfaehrt dort
+nichts vom TLS-Schalter — relevant, weil `sagetest01.ake.at` aktuell ein ungueltiges Zertifikat hat
+und TS-56.3/56.4 (echte Buchung am Testsystem) sonst an einem TLS-Handshake-Fehler scheitern, ohne
+dass die Ursache dokumentiert ist.
+
+**Konkret fehlend:**
+1. Ein bis zwei neue TS-Eintraege in Kapitel 56 (z. B. TS-56.12/56.13), die den bereits in der
+   Spec-Checkliste (Punkt 12/13) beschriebenen TLS-Schalter-Ablauf im offiziellen TS-Format
+   (Vorbedingung/Schritt/Erwartung) abbilden — oder mindestens ein Vorbedingungs-Hinweis bei
+   TS-56.3/56.4, dass am aktuellen Testsystem vorher `SageLagerbuchungSslZertifikatPruefen=false`
+   zu setzen ist.
+2. `secondbrain/tests/testszenarien-index.md` Zeile 81 entsprechend nachziehen (TS-Nummernbereich
+   und/oder Hinweistext).
+
+**Ursache:** vermutlich Umfangs-Annahme des Umsetzungs-Agenten, dass die Spec-Manual-Checkliste
+(Punkt 12/13) fuer diesen kleinen Nachtrag ausreicht — reicht nach dem harten CLAUDE.md-Wortlaut
+aber nicht, da `docs/TESTSZENARIEN.md` explizit als separates Pflichtdokument benannt ist.
+
+**Kein Code-/Logik-Defekt.** Build, Tests, TLS-Policy-Logik, Warnhinweise und Drift-Guard sind
+vollstaendig verifiziert und korrekt (siehe oben a-f). Status bleibt daher **InUmsetzung** bis die
+beiden obigen Punkte nachgezogen sind; danach ist eine erneute (voraussichtlich sehr kurze)
+QA-Runde ausreichend, um wieder auf Testbereit zu setzen — kein neuer vollstaendiger Review-Zyklus
+noetig.
+
+**ESCALATE:** nein (erster Fund, kein Fixversuch unternommen — Nachbesserung ist eine reine
+Dokumentationsergaenzung durch den Umsetzungs-Agenten, kein QA-Retry-Fall).
