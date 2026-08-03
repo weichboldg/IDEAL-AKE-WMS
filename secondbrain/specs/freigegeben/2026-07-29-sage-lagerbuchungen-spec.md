@@ -425,6 +425,34 @@ in `IDEALAKEWMSService/appsettings.json` (Vorbild `MailSettings`-Block, Z. 8-16)
 appsettings-only nach ADR 0008 (Geheimnis, nicht UI-editierbar) — muss am Server **einmalig** manuell
 ergaenzt werden (wie `ConnectionStrings`/`MailSettings` heute schon).
 
+#### Nachtrag (2026-08-03): TLS-Zertifikatspruefung schaltbar
+
+Der Sage-Testserver (`sagetest01.ake.at`) hat derzeit kein gueltiges Zertifikat (`PartialChain`,
+interne PKI noch nicht fertig). Analog zu Postmans „Enable SSL certificate verification" gibt es
+einen expliziten Schalter:
+
+- **ServiceSetting** `SageLagerbuchungSslZertifikatPruefen` (Bool, **Default `true`**, Kategorie
+  „Sage-Lagerbuchung"). **Positiver** Schluesselname. **Fail-safe:** fehlt der Wert oder ist er
+  nicht parsebar, wird **geprueft** (nicht fail-open). Reine Logik in
+  `IdealAkeWms/Services/SageTlsPolicy.cs` (`ShouldVerifyCertificate` = true, sofern nicht explizit
+  `false` parsebar — bewusst **nicht** `ServiceSettings.GetBoolAsync`, dessen Semantik fail-open waere).
+- **Wirkung ausschliesslich** auf den typisierten `ISageLagerbuchungClient` via
+  `ConfigurePrimaryHttpMessageHandler` (`HttpClientHandler.ServerCertificateCustomValidationCallback`).
+  **Kein** `ServicePointManager`, keine globale Aenderung, **keine** Auswirkung auf
+  OSEON/enaio/HolidaySync oder sonstige Clients.
+- **Laufzeit-Gueltigkeit (wichtig):** Der Primary Handler wird bei der DI-Registrierung erzeugt und
+  gepoolt. Der Wert wird deshalb **nicht** einmalig beim Registrieren gelesen, sondern **innerhalb des
+  Validation-Callbacks** aus der aktuellen Konfiguration (`ServiceSettings.GetValueSafeAsync` ueber den
+  im Closure gehaltenen `IServiceProvider`/`IConfiguration`). Eine Aenderung greift damit **ohne
+  Dienst-Neustart** (spaetestens beim naechsten TLS-Handshake / neuer Verbindung; bestehende gepoolte
+  Verbindungen laufen aus).
+- **Sichtbarkeit bei `false`:** (a) `SageBookingWorker` loggt beim Start eine Warnung
+  („TLS-Zertifikatspruefung fuer Sage-Lagerbuchungen ist DEAKTIVIERT - nur fuer Testsysteme
+  zulaessig"); (b) `/ServiceSettings` zeigt am Eintrag einen Warnhinweis; (c) die Monitoring-Liste
+  `/SageBookingQueue` zeigt ein Warn-Banner oben. Kein stilles Kaestchen.
+- **Test:** `SageTlsPolicyTests` sichert die Invariante (Default `true`; fehlender/ungueltiger Wert →
+  `true`; nur explizit `false` → `false`; Katalog-Default = `true`).
+
 ### 7. Optionale Monitoring-UI
 
 Empfehlung: minimale Read-only-Liste `/SageBookingQueue` (Listen-View-Pattern, ADR 0005) unter
@@ -1166,6 +1194,12 @@ gesetzt (Toggle `SageLagerbuchungAktiv` zunaechst **aus**), Lagerplatz-Sync mind
     ist, den die SData-API als `Herkunft-/ZielLagerplatzId` erwartet (H1-Annahme).
 11. **Artikelnummer-Abgleich:** Stichprobenartig `Article.ArticleNumber` gegen die Sage-Artikelnummer
     im `GET Artikel`-Response vergleichen (Frage 4-Annahme, strukturell erwartet identisch).
+12. **TLS-Schalter am Testsystem (2026-08-03):** Da `sagetest01.ake.at` derzeit kein gueltiges
+    Zertifikat hat, fuer den UAT `SageLagerbuchungSslZertifikatPruefen=false` setzen und pruefen, dass
+    (a) die Buchung durchlaeuft, (b) Worker-Start-Log **und** `/ServiceSettings` **und**
+    `/SageBookingQueue` den Warnhinweis zeigen, (c) ein Umschalten auf `true` **ohne Dienst-Neustart**
+    wieder greift (naechster Handshake schlaegt bei ungueltigem Zertifikat fehl).
+13. **Vor Produktivgang:** pruefen, dass `SageLagerbuchungSslZertifikatPruefen` auf **`true`** steht.
 
 Ein-Instanz-Voraussetzung beachten (siehe Deploy-Abschnitt): waehrend des Manual-UAT darf nur
 **eine** `SageBookingWorker`-Instanz laufen.

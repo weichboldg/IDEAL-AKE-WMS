@@ -17,13 +17,16 @@ public class SageBookingQueueController : Controller
 {
     private readonly ISageBookingQueueRepository _queue;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IServiceSettingRepository _serviceSettings;
 
     public SageBookingQueueController(
         ISageBookingQueueRepository queue,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IServiceSettingRepository serviceSettings)
     {
         _queue = queue;
         _currentUserService = currentUserService;
+        _serviceSettings = serviceSettings;
     }
 
     public static string StatusText(SageBookingQueueStatus s) => s switch
@@ -71,10 +74,13 @@ public class SageBookingQueueController : Controller
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var filtered = ColumnFilterHelper.Apply(all.AsQueryable(), columnFilters, ColumnMap).ToList();
 
+        var sslRaw = await _serviceSettings.GetValueAsync(SageTlsPolicy.SettingKey);
+
         var vm = new SageBookingQueueViewModel
         {
             Items = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList(),
             FilterStatus = status,
+            SslCheckDisabled = !SageTlsPolicy.ShouldVerifyCertificate(sslRaw),
             Pagination = new PaginationState
             {
                 CurrentPage = page,

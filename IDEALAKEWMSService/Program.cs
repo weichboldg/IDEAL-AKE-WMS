@@ -85,6 +85,27 @@ try
     builder.Services.AddHttpClient<ISageLagerbuchungClient, SageLagerbuchungClient>(client =>
     {
         client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+    {
+        // Der Primary Handler wird EINMAL erzeugt und gepoolt. Der Zertifikats-Callback liest den
+        // Schalter deshalb ZUR LAUFZEIT (nicht hier bei der Registrierung) aus ServiceSettings, damit
+        // eine Aenderung ohne Dienst-Neustart greift. Wirkt ausschliesslich auf DIESEN Client.
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        return new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (request, cert, chain, errors) =>
+            {
+                if (errors == System.Net.Security.SslPolicyErrors.None)
+                    return true;
+                // Fail-safe: DB-Fehler -> null -> geprueft; nur explizit 'false' deaktiviert.
+                var raw = IDEALAKEWMSService.Common.ServiceSettings
+                    .GetValueSafeAsync(configuration, IdealAkeWms.Services.SageTlsPolicy.SettingKey)
+                    .GetAwaiter().GetResult();
+                // pruefen -> ungueltiges Zertifikat ablehnen; deaktiviert -> trotz Fehler akzeptieren.
+                return !IdealAkeWms.Services.SageTlsPolicy.ShouldVerifyCertificate(raw);
+            }
+        };
     });
 
     // Workers

@@ -35,9 +35,16 @@ date: 2026-08-03
   (Tabelle `SageBookingQueueItems`, FK→`StockMovements`, Index `Status`). Beide additiv, idempotent,
   `SQL/00_FreshInstall.sql` an beiden Stellen nachgezogen. `SQL/AgentJobs/*` **nicht** betroffen.
 - **ServiceSettings** (DB-first, Katalog): `SageLagerbuchungAktiv`, `SData:BaseUrl`, `SData:Dataset`,
-  `Sync:SageLagerbuchungIntervalSeconds/BatchSize/MaxRetries/MaxErrorsPerRun/StuckMinutes`.
-  **appsettings-only** (Geheimnis, ADR 0008): `SageLagerbuchung:Username/Password` (nur Service).
-  Neuer `SyncLogServices.SageLagerbuchung`.
+  `Sync:SageLagerbuchungIntervalSeconds/BatchSize/MaxRetries/MaxErrorsPerRun/StuckMinutes`,
+  `SageLagerbuchungSslZertifikatPruefen`. **appsettings-only** (Geheimnis, ADR 0008):
+  `SageLagerbuchung:Username/Password` (nur Service). Neuer `SyncLogServices.SageLagerbuchung`.
+- **TLS-Schalter (2026-08-03):** `SageLagerbuchungSslZertifikatPruefen` (Bool, Default `true`,
+  **fail-safe:** fehlend/unparsebar → geprueft; `IdealAkeWms/Services/SageTlsPolicy.cs`) wirkt **nur**
+  auf den `ISageLagerbuchungClient` via `ConfigurePrimaryHttpMessageHandler`. Der
+  `ServerCertificateCustomValidationCallback` liest den Wert **zur Laufzeit** aus ServiceSettings
+  (nicht bei DI-Registrierung) → Aenderung greift **ohne Dienst-Neustart**. Bei `false`: Warnung im
+  Worker-Start-Log + Warnhinweis in `/ServiceSettings` und `/SageBookingQueue`. Grund: Testserver
+  `sagetest01.ake.at` hat `PartialChain` (interne PKI unfertig).
 - **Deploy-Risiken:** kein daten-destruktiver Schritt. **Server-Handgriffe:** appsettings-Credentials
   am Service ergaenzen; `/ServiceSettings` → `SData:BaseUrl`/`SData:Dataset` + Toggle + je Lagerplatz
   `SageBuchungErlaubt` setzen. **Ein-Instanz-Voraussetzung** (Idempotenz schuetzt nur bei genau einem

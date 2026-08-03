@@ -1,5 +1,6 @@
 @model IdealAkeWms.Models.ViewModels.ServiceSettingsViewModel
 @using IdealAkeWms.Models
+@using IdealAkeWms.Services
 @{
     ViewData["Title"] = "Service-Einstellungen";
 }
@@ -49,6 +50,13 @@
                         @if (!string.IsNullOrEmpty(item.Description))
                         {
                             <br /><small class="text-muted">@item.Description</small>
+                        }
+                        @if (item.Key == SageTlsPolicy.SettingKey && !SageTlsPolicy.ShouldVerifyCertificate(item.Value))
+                        {
+                            <div class="alert alert-warning py-2 px-3 mt-2 mb-1 small">
+                                <strong>&#9888; TLS-Zertifikatsprüfung ist deaktiviert.</strong>
+                                Nur für Testsysteme zulässig &mdash; vor Produktivgang wieder aktivieren.
+                            </div>
                         }
                         @if (item.Type == ServiceSettingType.Bool)
                         {

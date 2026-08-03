@@ -36,4 +36,8 @@ Offen nach dem Dev-Lauf (Reihenfolge; Schranke 2 = Mensch: manueller Test → Me
 ## Risiken
 - **Ein-Instanz-Voraussetzung:** genau **ein** laufender `SageBookingWorker` (kein Doppel-Deploy/Failover
   auf derselben Queue) — sonst Doppelbuchung.
+- **TLS-Schalter:** `SageLagerbuchungSslZertifikatPruefen` (ServiceSetting, Default `true`) darf am
+  Testsystem (`sagetest01.ake.at`, aktuell `PartialChain`) auf `false` — **vor Produktivgang zwingend
+  auf `true` zuruecksetzen** (Warnhinweis erscheint im Worker-Log, `/ServiceSettings` und
+  `/SageBookingQueue`, solange aus).
 - Nicht daten-destruktiv; DB-Backup wie ueblich empfohlen.

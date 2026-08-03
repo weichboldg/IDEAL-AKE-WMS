@@ -41,6 +41,7 @@ public static class ServiceSettingDefinitions
         new("Sync:SageLagerbuchungMaxRetries",       ServiceSettingType.Int,  "5",     "Sage-Lagerbuchung", "Maximale automatische Sende-Versuche je Eintrag; danach bleibt er auf 'Fehler' und braucht ein manuelles Requeue"),
         new("Sync:SageLagerbuchungMaxErrorsPerRun",  ServiceSettingType.Int,  "50",    "Sage-Lagerbuchung", "Sicherheits-Cap: mehr Fehler je Lauf -> Fehlermail (ISyncErrorNotifier)"),
         new("Sync:SageLagerbuchungStuckMinutes",     ServiceSettingType.Int,  "10",    "Sage-Lagerbuchung", "Ein 'Gesendet'-Eintrag aelter als X Minuten gilt als haengend und wird ueber den Sage-Memo-Lookup aufgeloest (nie blind neu gesendet)"),
+        new("SageLagerbuchungSslZertifikatPruefen",  ServiceSettingType.Bool, "true",  "Sage-Lagerbuchung", "TLS-Zertifikat des Sage-SData-Servers pruefen. NUR fuer Testsysteme mit ungueltigem Zertifikat auf 'false' setzen (analog Postman 'Enable SSL certificate verification'). Wirkt nur auf den Sage-Lagerbuchungs-Client. Fehlt/unparsebar -> geprueft (fail-safe)."),
 
         // ----- BOM-Cache -----
         new("Sync:BomCacheEnabled",                  ServiceSettingType.Bool, "false", "BOM-Cache", "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),

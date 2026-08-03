@@ -536,6 +536,12 @@ C:\Services\IDEALAKEWMSService\
 > (Kategorie „Sage-Lagerbuchung"): globaler Schalter `SageLagerbuchungAktiv` (Default aus),
 > `SData:BaseUrl`, `SData:Dataset`, sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz
 > das Feld „Sage-Buchung erlaubt". Ohne diese Aktivierung wird **nichts** an Sage gemeldet.
+>
+> **TLS-Zertifikatsprüfung:** `SageLagerbuchungSslZertifikatPruefen` (Default `true`) schaltet die
+> Zertifikatsprüfung des Sage-Clients — **nur** für Testsysteme mit ungültigem Zertifikat auf `false`
+> setzen (fail-safe: fehlender/ungültiger Wert = geprüft; wirkt nur auf den Lagerbuchungs-Client, kein
+> globaler Effekt; Änderung greift ohne Dienst-Neustart). Bei `false` erscheint ein Warnhinweis im
+> Worker-Log, unter `/ServiceSettings` und in `/SageBookingQueue`. **Vor Produktivgang auf `true`.**
 
 #### Schritt 3 — Windows Service registrieren
 

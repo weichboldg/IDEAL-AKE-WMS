@@ -1,4 +1,5 @@
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Services;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services;
@@ -48,6 +49,11 @@ public class SageBookingWorker : BackgroundService
     {
         _logger.LogInformation("SageBookingWorker gestartet. Version {Version} ({Date}).",
             IDEALAKEWMSService.AppVersion.Version, IDEALAKEWMSService.AppVersion.Date);
+
+        // Beim Start warnen, falls die TLS-Zertifikatspruefung deaktiviert ist (nur Testsysteme).
+        var tlsRaw = await ServiceSettings.GetValueSafeAsync(_configuration, SageTlsPolicy.SettingKey, stoppingToken);
+        if (!SageTlsPolicy.ShouldVerifyCertificate(tlsRaw))
+            _logger.LogWarning(SageTlsPolicy.DisabledWarning);
 
         while (!stoppingToken.IsCancellationRequested)
         {
