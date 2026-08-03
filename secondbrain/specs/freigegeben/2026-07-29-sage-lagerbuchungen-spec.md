@@ -2,7 +2,7 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-07-29
 updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
@@ -1355,3 +1355,69 @@ TS-56.1–56.13 und nennt den TLS-Schalter. Alle vier Punkte aus dem Gap-Report 
 **Entscheidung: Testbereit.** Build gruen, Tests gruen (1056+186, 1 uebersprungen wie durchgehend),
 inhaltliche Ergaenzung (a-f) weiterhin korrekt, Testszenarien-Pflicht jetzt vollstaendig erfuellt
 (Spec + docs/TESTSZENARIEN.md + Index synchron). Status zurueck auf Testbereit.
+
+### Re-Verifikation QA (2026-08-03, nach Commit 8bf911a "SData-URL konfigurierbar + literale ;/$-Kodierung")
+
+`git diff c64c5e8..8bf911a` — 10 Dateien, ausschliesslich der SData-URL-Rework (kein TLS-Code
+mehr angefasst): `SData:Application`/`SData:ServiceContract` neu im Katalog, reiner Builder
+`SageLagerbuchungClient.BuildServiceUrl`, `SageBookingEndpoint` um zwei Felder erweitert,
+`SageLagerbuchungClientUrlTests` (neu, 4 Theorien), Doku (Spec/README/TESTSZENARIEN/Brain-
+Changelog/`integrationen.md`) nachgezogen.
+
+**Beweis Build:**
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)  (unveraendert: NU1902 MailKit/MimeKit + 1 CS8602 TrackingController)
+    0 Fehler(en)
+```
+
+**Beweis Tests:**
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1056, übersprungen: 1, gesamt: 1057
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  190, übersprungen: 0, gesamt:  190
+```
+Service-Zahl von 186 → 190 (+4 = die neuen `SageLagerbuchungClientUrlTests`). Web unveraendert.
+Gezielt: `ServiceSettingDefinitions`-Filter 42/42 gruen (Drift-Guard inkl. der zwei neuen Keys),
+`SageLagerbuchungClientUrlTests`-Filter 4/4 gruen.
+
+**Pruefpunkte (a-c) laut Auftrag:**
+- **(a) Katalog/Drift-Guard:** `SData:Application` (Default `"ol"`) und `SData:ServiceContract`
+  (Default `"CommonWawiServices"`) sind in `ServiceSettingDefinitions.All` eingetragen, Kategorie
+  „Sage-Lagerbuchung". `SageBookingWorker.ExecuteAsync` liest beide live per
+  `ServiceSettings.GetValueSafeAsync` mit denselben Katalog-Defaults als Fallback bei DB-Fehler.
+  `ServiceSettingDefinitionsTests` (Teil von 1056/1056) zeigt keinen Drift. **Korrekt.**
+- **(b) `BuildServiceUrl` exakte Discovery-URL:** `SageLagerbuchungClientUrlTests` prueft (1) exakte
+  Ziel-URL `https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/
+  LagerbuchungService`, (2) `;`/`$` bleiben literal (kein `%3B`/`%24`), (3) `new Uri(url).AbsoluteUri`
+  kodiert nicht nach — Beweis, dass auch die von `HttpRequestMessage` intern genutzte `Uri`-Pipeline
+  die sub-delims nicht anfasst, (4) Slash-Trimming zwischen Segmenten. Alle 4 gruen. `SendAsync`
+  validiert jetzt alle vier Segmente (`BaseUrl`/`Application`/`ServiceContract`/`Dataset`) statt nur
+  zwei. **Korrekt.**
+- **(c) Doku-Konsistenz — ueberwiegend erfuellt, 3 kleine Alt-Reste gefunden (nicht blockierend):**
+  Die tester-/betriebsrelevanten Dokumente sind vollstaendig auf die neue 4-Segment-URL umgestellt:
+  README, `docs/TESTSZENARIEN.md` Vorbedingungen, `ServiceSettingDefinitions`-Beschreibungstexte
+  (im UI sichtbar) und der Spec-Nachtrag „SData-URL-Zusammensetzung + Kodierung" (Abschnitt 6,
+  Zeilen 456-477) sind konsistent und korrekt. Drei **rein kosmetische** Alt-Referenzen mit der
+  fruehen 2-Segment-Form `{BaseUrl}/{Dataset}/$service/LagerbuchungService` blieben stehen:
+  1. `IDEALAKEWMSService/Services/ISageLagerbuchungClient.cs:21` — der XML-Doc-Kommentar auf dem
+     `SendAsync`-Interface widerspricht der (korrekten) 4-Segment-Form direkt darueber im selben
+     File (Zeilen 4-6). Empfehlung: Zeile 21 auf die 4-Segment-Form angleichen (Ein-Zeilen-Fix,
+     keine Logik-Aenderung).
+  2. `secondbrain/changelog/2026-08-03-v1-28-0-sage-lagerbuchungen.md:22` — fruehe Formulierung im
+     Bullet „Sende-Pfad (Service)"; wird durch den spaeteren, expliziten Bullet „SData-URL +
+     Kodierung (2026-08-03)" (Zeilen 42-48) bereits korrekt ueberschrieben/ergaenzt.
+  3. Spec Akzeptanzkriterium 4 (Zeile 251, `{{sdata_base_url}}/{{sdata_servicecontract}}/{{dataset}}`
+     — Postman-Variablennamen aus der urspruenglichen Spezifikation) wird durch den spaeteren
+     Nachtrag (Zeilen 456-477) bereits korrekt praezisiert.
+  Keiner der drei Punkte ist tester-facing (kein manueller Testschritt liest diese Zeilen), keiner
+  hat Code-/Logik-Auswirkung — daher **nicht blockierend**, aber als Nachbesserungshinweis fuer den
+  naechsten trivialen Commit festgehalten (insbesondere Punkt 1, da er im selben Code-File der
+  korrekten Version widerspricht).
+
+**Entscheidung: Testbereit (bestaetigt).** Build gruen, Tests gruen (1056+190, 1 uebersprungen),
+Drift-Guard gruen, `BuildServiceUrl` exakt gegen die Discovery-URL verifiziert, Kodierungs-Invariante
+(literal `;`/`$`) durch 4 Tests inkl. `Uri`-Pipeline-Beweis abgesichert. Drei kosmetische, nicht
+tester-facing Alt-Referenzen gefunden — dokumentiert, nicht blockierend. Status zurueck auf
+Testbereit.
