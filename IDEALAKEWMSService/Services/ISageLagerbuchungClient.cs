@@ -18,8 +18,9 @@ public sealed record SageBookingSendResult(bool Success, string? ResponseRaw, st
 
 /// <summary>
 /// Sendet eine einzelne Lagerbuchung an die Sage-SData-API
-/// (<c>POST {BaseUrl}/{Dataset}/$service/LagerbuchungService</c>, Basic-Auth). Manual-UAT — der
-/// HTTP-/SData-Pfad ist nicht InMemory-testbar.
+/// (<c>POST {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService</c>,
+/// Basic-Auth; URL via <c>SageLagerbuchungClient.BuildServiceUrl</c>). Manual-UAT — der HTTP-/SData-Pfad
+/// ist nicht InMemory-testbar.
 /// </summary>
 public interface ISageLagerbuchungClient
 {

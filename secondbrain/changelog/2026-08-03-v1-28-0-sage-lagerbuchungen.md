@@ -18,8 +18,8 @@ date: 2026-08-03
 - **Sende-Pfad (Service):** neuer `SageBookingWorker` (eigener BackgroundService, Kurztakt
   `Sync:SageLagerbuchungIntervalSeconds`, Default 20s). Je Tick: Reconciliation-Sweep (B4, 15-Min-
   Rueckblick) → Recovery haengender `Gesendet` (S3) → offene senden (`Gesendet` VOR dem HTTP-Call, AK10)
-  → Fehler-Cap-Mail. `ISageLagerbuchungClient` (typed HttpClient, Basic-Auth, POST
-  `{BaseUrl}/{Dataset}/$service/LagerbuchungService`), `SageLagerbuchungPayloadBuilder` (rein, testbar).
+  → Fehler-Cap-Mail. `ISageLagerbuchungClient` (typed HttpClient, Basic-Auth; URL siehe „SData-URL"
+  unten), `SageLagerbuchungPayloadBuilder` (rein, testbar).
 - **Idempotenz (B2):** Korrelation `SM#<id>#` im Sage-`Memo`; vor jedem **erneuten** Senden (Requeue /
   haengender Gesendet) Read-Lookup gegen `KHKLagerplatzbuchungen` (`SageBuchungLookupReader`, Raw-SQL
   ueber `SageConnection`) — nie blindes Resend. **Dev-Lauf/UAT:** exakte Korrelationsspalte

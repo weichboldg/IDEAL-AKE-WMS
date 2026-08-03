@@ -248,7 +248,8 @@ bloc). `StorageLocationsController` ist `[RequireMasterDataReadAccess]` class-le
    Anwenders** ein Queue-Eintrag mit Status `offen`.
 4. Der Windows-Service verarbeitet offene Queue-Eintraege in kurzer Taktfrequenz (Sekunden- statt
    Minutenbereich, siehe offene Rueckfrage 2) und sendet sie einzeln an
-   `POST {{sdata_base_url}}/{{sdata_servicecontract}}/{{dataset}}/$service/LagerbuchungService`.
+   `POST {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`
+   (konkrete Werte + Kodierung siehe Nachtrag in Abschnitt 6).
 5. `Einbuchung` wird als `Lagerbewegungsart: "Zugang"` mit gesetztem Ziel-Lagerplatz (leerer
    Herkunft) gesendet; `Ausbuchung` als `"Entnahme"` mit gesetztem Herkunfts-Lagerplatz (leeres
    Ziel) — exakt spiegelbildlich zu den beiden Postman-Beispielen.
