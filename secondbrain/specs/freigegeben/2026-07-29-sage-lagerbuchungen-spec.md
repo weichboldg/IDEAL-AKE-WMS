@@ -2,9 +2,9 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-08-03
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
 task: ""
 worktree: ""
@@ -42,10 +42,10 @@ open_questions:
   - "Buchungs-Auslöser-Scope: nur manuelle Ein-/Ausbuchung oder auch Umbuchung, kommissionierungsgetrieben?"
   - "Fast-live-Kadenz: Poll-Intervall in Sekunden bestätigen"
   - "Idempotenz/Timeout-Handling: reicht Statuswechsel offen→gesendet oder braucht es eine Korrelations-Id?"
-  - "Artikelnummer-Abgleich WMS Article.ArticleNumber == Sage Artikelnummer bestätigen"
-  - "Mandant/dataset-Wert je Instanz (AKE vs. IDEAL) klären"
+  - Artikelnummer-Abgleich WMS Article.ArticleNumber == Sage Artikelnummer bestätigen
+  - Mandant/dataset-Wert je Instanz (AKE vs. IDEAL) klären
   - "Fehler-/Retry-Politik: max. Versuche, Backoff, Fehlermail-Schwelle, manuelle Requeue-UI?"
-  - "Sage-Spalte für den numerischen LagerplatzId (SageLagerplatzReader liest sie heute nicht)"
+  - Sage-Spalte für den numerischen LagerplatzId (SageLagerplatzReader liest sie heute nicht)
   - "Zone vs. neues Feld SageLagerkennung: Redundanz, da Zone die Lagerkennung heute schon speichert"
 epic: false
 etappen: []
@@ -53,10 +53,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe:
-  entscheidung: ""
-  von: ""
-  am: ""
+freigabe_entscheidung: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-03
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -994,6 +993,13 @@ kann dieselbe Korrelations-Pruefung nutzen.
 - **S4 (Flag-Benennung):** Antwort 1 blieb hier vage („FLAG SageSync" bzw. „nur WMS Buchungslager").
   **Offen gebliebene Praezisierung** — Vorschlag: beim positiven Opt-in `SageBuchungErlaubt`
   (Default false) bleiben; bitte kurz bestaetigen, sonst faellt die Default-Richtung dem Dev-Lauf zu.
+  =>ANTWORT (2026-08-03): **`SageBuchungErlaubt`** — positives Opt-in, **Default `false`**, kumulativ
+  zum globalen Toggle `SageLagerbuchungAktiv` (UND-Verknuepfung, nicht ODER). Es wird **kein**
+  invertiertes Flag („nur WMS Buchungslager") gebaut: reine WMS-Lagerplaetze (`Source == Manual`)
+  haben ohnehin nie `SageLagerkennung`/`SageLagerplatzId` und laufen damit strukturell in den
+  definierten Fehlerpfad (Akzeptanzkriterium 9) statt an Sage zu senden. Damit bleiben Benennung,
+  Default und Semantik exakt wie im Loesungsentwurf (Abschnitt 1) und in den Akzeptanzkriterien
+  2-4 beschrieben — **keine Anpassung des Entwurfs noetig.**
 - **S5 (Standorteinstellungs-Maske, Antwort 5):** als **out-of-scope dieser Spec** gefuehrt;
   `SData:Dataset` bleibt ein einfacher ServiceSetting. Idee als eigene Backlog-Notiz festhalten.
 - **S6 (Decorator-Bauweise):** Subclassing + `override AddAsync` festlegen (eine Methode statt ~15).
@@ -1003,9 +1009,16 @@ kann dieselbe Korrelations-Pruefung nutzen.
 
 ### Empfehlung (nach Schranke-1-Antworten)
 
-**Die drei geschaeftskritischen Blocker sind geloest:** B1 (Umbuchung raus), B2 (Idempotenz per
+**Alle geschaeftskritischen Blocker sind geloest:** B1 (Umbuchung raus), B2 (Idempotenz per
 Memo-Lookup gegen `KHKLagerplatzbuchungen`), B3 (volle Kurzbezeichnung statt `;0;0;0`, im Spec-Text
-korrigiert). **Verbleibend vor der Freigabe:** eine **kurze** Bestaetigung zu S4 (Flag-Default) — und
-die Kenntnisnahme, dass B4/S1/S3/S6/S7 als **Umsetzungs-Auftraege in den Dev-Lauf** wandern (kein
-weiterer menschlicher Input noetig). **Empfehlung: BEREIT ZUR FREIGABE, sobald S4 bestaetigt ist**;
-den Freigabe-Block im Frontmatter fuellt weiterhin der Mensch — ich habe ihn bewusst nicht gesetzt.
+korrigiert), S4 (Flag bleibt `SageBuchungErlaubt`, positives Opt-in, Default `false`).
+
+**BEREIT ZUR FREIGABE.** B4/S1/S3/S6/S7 wandern als **Umsetzungs-Auftraege in den Dev-Lauf** (kein
+weiterer menschlicher Input noetig):
+- **B4** Enqueue-Fehler fangen + protokollieren, nie werfen; Reconciliation-Sweep im Worker.
+- **S1** Monitoring-Liste `/SageBookingQueue` inkl. Requeue ist In-Scope (Antwort 6).
+- **S3** haengende `Gesendet`-Eintraege ueber den B2-Lookup aufloesen, nie blind neu senden.
+- **S6** Decorator als **Subclassing** (`: StockMovementRepository`, nur `override AddAsync`).
+- **S7** hartes Regressions-Kriterium „bei Toggle aus bit-identisches Verhalten" ergaenzen.
+
+Den Freigabe-Block im Frontmatter fuellt weiterhin der Mensch — ich habe ihn bewusst nicht gesetzt.

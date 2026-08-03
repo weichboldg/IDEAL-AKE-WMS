@@ -1,6 +1,10 @@
-Freigegebene Spec umsetzen (Schranke 1 wurde genommen): <SPEC_PATH>
+---
+description: Freigegebene Spec im Worktree umsetzen inkl. QA bis Testbereit. Nicht fuer Epics.
+argument-hint: <pfad-zur-freigegebenen-spec>
+---
+Freigegebene Spec umsetzen (Schranke 1 wurde genommen): $1
 
-Diese Spec ist KEIN Epic (Epics laufen ueber epic-stage.md / run-epic-stage.ps1).
+Diese Spec ist KEIN Epic (Epics laufen ueber /epic-stage bzw. run-epic-stage.ps1).
 
 Pruefe zuerst:
 - Frontmatter status muss Freigegeben sein UND worktree/branch muessen leer sein
@@ -9,6 +13,9 @@ Pruefe zuerst:
   die offenen Rueckfragen. Ist eine Rueckfrage unbeantwortet (nur Pfeil, keine Antwort)
   ODER ist es eine Varianten-Spec ohne gesetztes freigabe_entscheidung:
   NICHT umsetzen, Status auf Entwurf zuruecksetzen, Grund in die Spec schreiben, beenden.
+- Gibt es einen Abschnitt 'Kritische Pruefung' mit offenen BLOCKER-Befunden, die weder
+  ausgeraeumt noch in den Freigabe-Antworten beantwortet sind: NICHT umsetzen, Grund in
+  die Spec schreiben, beenden. (Ein BLOCKER, der nachweislich geklaert wurde, ist ok.)
 
 Dann:
 1. Worktree anlegen: powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1 -Slug <slug-OHNE-suffix-spec>

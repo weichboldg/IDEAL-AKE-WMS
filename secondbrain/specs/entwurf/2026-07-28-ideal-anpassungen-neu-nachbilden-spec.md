@@ -46,6 +46,9 @@ open_questions:
   - "FA-Reconciliation-SQL (OrderNumber-Update) auf SubOrderNumber umstellen? Fachliche Freigabe noetig"
   - "Auto-Erledigt (FA-Zusatzinfos) je Sub-FA oder nur Hauptauftrag?"
   - "Zielinstallation: welche Datenbank/welcher Standort erhaelt diese Aenderung wirklich (IDEAL only oder beide Linien im selben Codebestand)?"
+freigabe_entscheidung: ""
+freigabe_von: ""
+freigabe_am: ""
 ---
 
 ## Ziel / Nutzen (das Warum)
