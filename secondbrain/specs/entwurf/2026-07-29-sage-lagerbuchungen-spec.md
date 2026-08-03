@@ -793,3 +793,76 @@ manuellen Plaetzen — gut, dass er getestet wird.
 **NACHBESSERUNG NOETIG: Umbuchungs-Scope (B1) und Idempotenz/Doppelbuchung (B2) sind ungeklaert und
 teils widerspruechlich — beide sind geschaeftskritisch und muessen vor dem Dev-Lauf entschieden
 werden.**
+
+---
+
+## Kritische Pruefung — 2. Durchgang (2026-08-03)
+
+Zweiter Anwalt-des-Teufels-Durchgang. Die **Freigabe-Antworten sind unveraendert** seit dem ersten
+Durchgang — **B1, B2 und B3 oben stehen unveraendert** und sind weiterhin die entscheidenden
+Blocker. Dieser Durchgang ging tiefer in den **Implementierungs-Entwurf** (Decorator, Transaktions-
+Grenzen, Repository-Basisklasse) und foerderte Risiken zutage, die der erste Durchgang nicht
+abgedeckt hat. Verifiziert an `Repository.cs`, `StockMovementRepository.cs`,
+`IStockMovementRepository.cs`, `CachedSettingRepository.cs`, `SQL/`-Verzeichnis.
+
+### BLOCKER-nah (starkes SOLLTE) — vor dem Dev-Lauf loesen
+
+**B4 — Der Enqueue ist nicht transaktional mit der Buchung, und ein Enqueue-Fehler reisst die
+bereits gespeicherte WMS-Buchung mit.** Verifiziert: `Repository<T>.AddAsync` ruft
+`SaveChangesAsync()` **sofort** (`Repository.cs:35-37`). Der `StockMovement` ist also bereits
+**committed**, wenn der Decorator danach `MaybeEnqueueAsync(saved)` ausfuehrt — das ist eine zweite,
+getrennte Transaktion. Zwei konkrete Loecher:
+- **Stiller Verlust:** Crasht der Prozess (oder wirft der Enqueue) **zwischen** den beiden
+  SaveChanges, ist der `StockMovement` persistiert, aber es entsteht **kein** Queue-Eintrag. Die
+  Buchung erreicht Sage **nie**, und **nichts** meldet den Verlust. Fuer das erklaerte Ziel „Sage
+  kennt den echten Bestand" ist das ein stiller Datenverlust im geschaeftskritischen Pfad.
+- **Fehlerhafte Buchungs-Rueckmeldung:** Wirft `MaybeEnqueueAsync` (z. B. transienter DB-Fehler beim
+  Nachladen der `StorageLocation`), propagiert die Exception durch den Decorator zum Controller —
+  obwohl die WMS-Buchung **schon gespeichert** ist. Der Anwender sieht „Buchung fehlgeschlagen" und
+  bucht evtl. erneut → **doppelte WMS-Buchung**. Der Sketch (`await
+  _enqueueDecision.MaybeEnqueueAsync(saved);`, Abschnitt 3) hat kein try/catch.
+
+  **Vorschlag (keine Menschen-Entscheidung noetig, aber im Entwurf zu fixieren):** entweder (a) den
+  Enqueue in **dieselbe** SaveChanges/Transaktion wie den `StockMovement` ziehen (echte Atomaritaet
+  — erfordert, den direkten `SaveChanges` in `AddAsync` fuer diesen Pfad zu umgehen), oder (b) den
+  Enqueue-Fehler im Decorator **fangen + protokollieren, nie werfen** und zusaetzlich einen
+  **Reconciliation-Sweep** im Worker vorsehen (Ein-/Ausbuchungen auf Sage-Plaetzen ohne
+  Queue-Eintrag nachtraeglich einreihen). Akzeptanzkriterium ergaenzen: „Ein Enqueue-Fehler laesst
+  die WMS-Buchung weder scheitern noch verloren gehen."
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S6 — Der Decorator-Sketch mischt zwei Bauweisen und ist als Vorlage so nicht baubar.** Verifiziert:
+`StockMovementRepository : Repository<StockMovement>, IStockMovementRepository`, `AddAsync` ist
+`virtual` (`Repository.cs:33`); `IStockMovementRepository` erbt `IRepository<T>` **plus** sieben
+eigene Methoden (`IStockMovementRepository.cs:6-44`). Der Sketch schreibt `public override async Task
+AddAsync` (= **Subclassing**), die Prosa sagt aber „umschliesst die konkrete `StockMovementRepository`
+(Vorbild `CachedSettingRepository`)" — und `CachedSettingRepository` ist ein **Kompositions**-Decorator
+**ohne** `override` (`CachedSettingRepository.cs:6-17`). Das sind zwei unvereinbare Ansaetze:
+- **Komposition** (wie das zitierte Vorbild): `IStockMovementRepository` implementieren, `_inner`
+  umschliessen, **alle ~15 Methoden** an `_inner` delegieren, **kein** `override`.
+- **Subclassing**: `: StockMovementRepository`, nur `override AddAsync`, alles andere geerbt — passt
+  zum `override` im Sketch und ist **deutlich** weniger Boilerplate (eine Methode statt fuenfzehn).
+
+  **Vorschlag:** eine Bauweise festlegen — Subclassing ist hier klar guenstiger. Dann die
+  `CachedSettingRepository`-Referenz als „Vorbild nur fuer die **DI-Registrierung**, nicht fuer die
+  **Klassenstruktur**" kennzeichnen, sonst delegiert der Dev unnoetig 15 Methoden von Hand (mit dem
+  Risiko, beim naechsten Interface-Zuwachs eine zu vergessen).
+
+### HINWEIS — Beobachtung ohne Handlungszwang
+
+**H4 — Migrationsnummern 82/83 sind auf `main` aktuell frei** (hoechste ist
+`81_AddProductionOrderExtraInfo.sql`) — die Spec-Annahme stimmt heute. Aber laut Brain sind Branches
+in Arbeit (OverridePrePickingDays v1.27, IDEAL-Anpassungen-Rebuild). Unmittelbar vor dem Dev-Lauf
+pruefen, dass keine parallele Arbeit 82/83 belegt hat, sonst kollidieren die
+`__EFMigrationsHistory`-Inserts und `SQL/00_FreshInstall.sql`.
+
+**H5 — Ein-Instanz-Annahme unausgesprochen.** Der Idempotenz-Baustein („Status auf `Gesendet` vor dem
+Call") schuetzt nur bei **genau einer** laufenden Service-Instanz. Bei zwei Hosts (Failover,
+versehentlicher Doppel-Deploy) auf derselben Queue senden beide → Doppelbuchung. Kurz als
+Voraussetzung festhalten: „genau eine `SageBookingWorker`-Instanz".
+
+### Empfehlung (2. Durchgang)
+
+**NACHBESSERUNG NOETIG: unveraendert wegen B1/B2/B3; zusaetzlich B4 (nicht-transaktionaler Enqueue
+mit stillem Verlust bzw. Doppelbuchungs-Pfad) im Entwurf schliessen, bevor gebaut wird.**
