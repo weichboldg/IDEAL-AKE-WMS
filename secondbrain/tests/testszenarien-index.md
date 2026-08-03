@@ -78,7 +78,7 @@ gewachsen, bewusst nicht umsortiert (die TS-Ids sind in Abnahmeprotokollen refer
 | 53. Lagerbestand-Nullsetzen verwaister Paare | v1.25.0 | `2026-07-09-lagerbestand-nullsetzen-verwaist-design.md` |
 | 54. Aktivitaets-Protokoll-Bereinigung | v1.25.0 | `2026-07-15-cleanup-jobs-service-design.md` (TS-54.1 – 54.4) |
 | 55. FA-Zusatzinfos (Sage) | v1.26.0 | `2026-07-22-pa-zusatzinfos-design.md` (TS-55.1 – 55.13). **Erstlauf-Pflicht:** DryRun fahren und `erledigt-gesetzt` kontrollieren (TS-55.1, 55.10–55.13); Recovery-SQL steht im Kapitel |
-| 56. Sage-Lagerbuchungen (ausgehend) | v1.28.0 | [[2026-07-29-sage-lagerbuchungen-spec]] (TS-56.1 – 56.11). **Manual-UAT:** echte Buchung am Sage-Testsystem (Zugang/Entnahme), Timeout-/Requeue-Doppelbuchungsschutz per Memo-Lookup; automatisiert nur PayloadBuilder/EnqueueDecision/Decorator/Correlation |
+| 56. Sage-Lagerbuchungen (ausgehend) | v1.28.0 | [[2026-07-29-sage-lagerbuchungen-spec]] (TS-56.1 – 56.13). **Manual-UAT:** echte Buchung am Sage-Testsystem (Zugang/Entnahme), Timeout-/Requeue-Doppelbuchungsschutz per Memo-Lookup, **TLS-Zertifikatsschalter TS-56.12/56.13** (Testsystem `sagetest01` hat ungültiges Zertifikat → `SageLagerbuchungSslZertifikatPruefen=false`, vor Produktivgang wieder `true`); automatisiert nur PayloadBuilder/EnqueueDecision/Decorator/Correlation/TlsPolicy |
 
 ## Kapitel mit besonderem Gewicht
 

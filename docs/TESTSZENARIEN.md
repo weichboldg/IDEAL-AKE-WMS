@@ -5878,6 +5878,11 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 - `/ServiceSettings` → `SData:BaseUrl`, `SData:Dataset` gesetzt; `SageLagerbuchungAktiv` zunächst aus.
 - Lagerplatz-Sync (`Sync:LagerplaetzeEnabled`) mindestens einmal gelaufen, damit Sage-Plätze
   `SageLagerkennung` (= Code) und `SageLagerplatzId` (= `KHKLagerplaetze.PlatzID`) tragen.
+- **TLS am Testsystem:** `sagetest01.ake.at` hat aktuell ein ungültiges Zertifikat (`PartialChain`,
+  interne PKI unfertig). Für die Sende-Szenarien (TS-56.3/56.4/56.7/56.8) am Testsystem daher
+  `/ServiceSettings` → `SageLagerbuchungSslZertifikatPruefen=false` setzen — sonst scheitert der
+  SData-POST an einem TLS-Fehler (`SageResponseRaw`/`LastError` zeigen den Zertifikatsfehler). Siehe
+  TS-56.12. **Vor Produktivgang zwingend wieder `true`** (TS-56.13).
 
 - **TS-56.1 — Globaler Toggle aus, Lagerplatz-Flag an: keine Buchung.** Vorbedingung:
   `SageLagerbuchungAktiv=false`, Ziel-Lagerplatz `SageBuchungErlaubt=true`. Schritt: manuelle
@@ -5914,6 +5919,21 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
   Erwartung: Ein-/Aus-/Umbuchung, Bestand, Historie, Kommissionierung verhalten sich **exakt** wie
   vor dem Update (der Decorator ist reiner Pass-through) — automatisiert im Enqueue-Decorator-Test,
   manuell stichprobenartig gegengeprüft.
+- **TS-56.12 — TLS-Zertifikatsschalter (Testsystem, v1.28.0).** Der Schalter
+  `SageLagerbuchungSslZertifikatPruefen` (`/ServiceSettings`, Default `true`) wirkt **nur** auf den
+  Sage-Lagerbuchungs-Client. Schritte/Erwartung:
+  - **a) Aus → Buchung läuft:** `SageLagerbuchungSslZertifikatPruefen=false` setzen, dann TS-56.3
+    wiederholen. Erwartung: Der SData-POST an `sagetest01.ake.at` (ungültiges Zertifikat) läuft nun
+    durch (`Bestätigt`), obwohl das Zertifikat ungültig ist.
+  - **b) Sichtbarkeit bei aus:** Der Warnhinweis erscheint an **drei** Stellen — Worker-Start-Log
+    („TLS-Zertifikatsprüfung … ist DEAKTIVIERT"), `/ServiceSettings` (Warn-Box am Eintrag) und
+    `/SageBookingQueue` (Warn-Banner oben). Kein stilles Kästchen.
+  - **c) An → greift ohne Neustart:** Schalter wieder auf `true` setzen (Dienst **nicht** neu starten),
+    erneut buchen. Erwartung: Der nächste Sende-Versuch scheitert wieder am Zertifikatsfehler
+    (`LastError`/`SageResponseRaw`) — die Änderung greift zur Laufzeit (spätestens mit einer neuen
+    Verbindung). Negativfall: fehlt der Wert oder ist er unparsebar, wird **geprüft** (fail-safe).
+- **TS-56.13 — Vor Produktivgang.** Prüfen, dass `SageLagerbuchungSslZertifikatPruefen` auf **`true`**
+  steht (und kein Warnhinweis mehr erscheint), bevor gegen das Produktiv-Sage gebucht wird.
 
 **Negativ/Regression:**
 - Ein Fehler im Sende-Pfad (Sage nicht erreichbar) stoppt die übrigen Worker/Sync-Blöcke NICHT
