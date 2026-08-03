@@ -704,7 +704,8 @@ Payload oder Kriterien angepasst waeren. Konkrete, im Code verifizierte Konseque
   **Empfehlung:** Umbuchung wie im Original-Entwurf **aus Step 1 herauslassen** und als klar
   definierten Step 2 nachziehen — sonst geht ein halbgares, inkonsistentes Umbuchungs-Verhalten
   produktiv.
-
+	=>ANTWORT: Umubuchung herauslassen.
+	
 **B2 — Idempotenz/Doppelbuchung ist ungeloest (Antwort 3: „ist mir nicht bekannt") und Antwort 6
 („requeue sinnvoll") verschaerft genau diesen Fall.** Das Backlog nennt das selbst
 geschaeftskritisch („muss die Spec loesen"). Der Entwurfs-Baustein „Status **vor** dem HTTP-Call auf
@@ -724,6 +725,8 @@ unbelegt (Antwortformat des `LagerbuchungService` nicht dokumentiert).
   „im Sage pruefen, dass keine Buchung existiert, erst dann erneut senden" definieren (nie blindes
   Auto-/Manuell-Resend nach Timeout). Ohne diese Klaerung ist der geschaeftskritischste Teil der
   Integration nicht spezifiziert.
+=>ANTWORT: es gibt memo möglichkeit im Job 
+![[Pasted image 20260803102037.png]]
 
 **B3 — Der Payload hartkodiert das Ebenen-Suffix `;0;0;0`, aber die realen Lager haben Ebenen.**
 Der Screenshot zu Frage 7 zeigt: `PlatzID` (aus `KHKLagerplaetze`, per Lagerplatz eindeutig)
@@ -738,6 +741,8 @@ ganze Lager** — geschaeftskritisch.
   **Frage an den Menschen:** Ist am Sage-Testsystem die `LagerplatzId` allein fuehrend (dann ist
   `;0;0;0` egal), oder muss die Lagerkennung die echten Ebenen tragen? Cheap jetzt zu klaeren, teuer
   erst im UAT (TS-X.3) zu entdecken.
+ANTWORT hier ein beispiel zum LL (Lagerlift)
+![[Pasted image 20260803102655.png]]
 
 ### SOLLTE — macht den Dev-Lauf sicherer
 
@@ -866,3 +871,48 @@ Voraussetzung festhalten: „genau eine `SageBookingWorker`-Instanz".
 
 **NACHBESSERUNG NOETIG: unveraendert wegen B1/B2/B3; zusaetzlich B4 (nicht-transaktionaler Enqueue
 mit stillem Verlust bzw. Doppelbuchungs-Pfad) im Entwurf schliessen, bevor gebaut wird.**
+
+---
+
+## Kritische Pruefung — 3. Durchgang (2026-08-03)
+
+Dritter Durchgang. **Die Freigabe-Antworten sind weiterhin unveraendert** — alle bisherigen Blocker
+(**B1 Umbuchung-Widerspruch, B2 Idempotenz „ist mir nicht bekannt", B3 `;0;0;0`-Payload, B4
+nicht-transaktionaler Enqueue**) stehen **unveraendert** und sind die offenen Punkte. Dieser
+Durchgang hat den **Regressionspfad** des Decorator-Umbaus geprueft (Blast-Radius, Bestandstests).
+Ergebnis ehrlich: **ein neuer Befund, eine Entwarnung** — mehr gibt der aktuelle Stand ohne
+geaenderte Antworten nicht her.
+
+### SOLLTE
+
+**S7 — Es fehlt ein Regressions-Akzeptanzkriterium „Bestandsverhalten unveraendert".** Verifiziert:
+**zwoelf** Consumer injizieren `IStockMovementRepository` (`StockMovementsController`,
+`PickingController`, `WarehousePickingController`, `StockOverviewController`, `StockApiController`,
+`PickingApiController`, `WarehouseRequisitionsApiController`, `ArticlesController`,
+`MissingPartsLagerController`, `ReadOnlyBomBuilder`, `PickingTransferService`, +Registrierung in
+`Program.cs`). Der DI-Umbau leitet **alle** durch den Decorator. Die 13 Akzeptanzkriterien pruefen,
+dass bei Toggle aus **kein Queue-Eintrag** entsteht (AK2/AK3), aber **keines** sichert zu, dass die
+**Buchung selbst** und alle uebrigen Repository-Methoden fuer diese zwoelf Aufrufer **exakt
+unveraendert** bleiben. Das ist genau die Zusicherung, die der Decorator-Umbau braucht.
+**Vorschlag:** ein hartes Kriterium ergaenzen — „Bei `SageLagerbuchungAktiv=false` ist das Verhalten
+aller `IStockMovementRepository`-Aufrufer **bit-identisch** zum Ist-Zustand (Buchung, Bestand,
+Historie, Kommissionierung); der Decorator ist fuer alle Methoden ausser `AddAsync` ein reiner
+Pass-through." Das schaerft zugleich S6 (bei Komposition darf keine der ~15 Methoden vergessen
+werden — sonst bricht sie fuer bis zu zwoelf Aufrufer).
+
+### HINWEIS
+
+**H6 — Entwarnung Test-Regression:** Die bestehenden Repository-Tests konstruieren `new
+StockMovementRepository(ctx)` **direkt** (`StockMovementRepositoryTests.cs:71,86,102,126,138`, u. a.),
+nicht ueber DI. Der DI-Umbau auf den Decorator laesst diese Tests also unberuehrt — das
+Regressions-Risiko liegt **im Laufzeit-Verhalten** (S7), nicht in den Unit-Tests. Die neuen Tests
+(`SageLagerbuchungPayloadBuilderTests`, Enqueue-Helper) sind davon unabhaengig.
+
+### Empfehlung (3. Durchgang)
+
+**NACHBESSERUNG NOETIG — unveraendert.** Die Entscheidung liegt jetzt beim Menschen: **B1/B2/B3**
+sind Menschen-Entscheidungen (Umbuchung-Scope, Idempotenz-Strategie am Sage-Testsystem,
+Payload-Ebenenformat), **B4** ist eine Entwurfs-Korrektur. Solange die vier offen sind, aendern
+weitere Re-Reviews ohne geaenderte Antworten nichts — die drei Durchgaenge decken den pruefbaren
+Stand ab. Nach dem Beantworten von B1/B2/B3 lohnt ein gezielter vierter Blick **nur** auf die dann
+angepassten Stellen.
