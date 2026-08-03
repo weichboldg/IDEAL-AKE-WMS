@@ -77,6 +77,10 @@ public class SageLagerbuchungClient : ISageLagerbuchungClient
             if (response.IsSuccessStatusCode)
                 return new SageBookingSendResult(true, Cap(body), null);
 
+            // Fehlerantwort samt Body ins Log (der eigentliche Sage-Fehler steht im Body, nicht im Status).
+            _logger.LogWarning("Sage-LagerbuchungService antwortete {Status} {Reason} auf {Url}. Antwort: {Body}",
+                (int)response.StatusCode, response.ReasonPhrase, url, Cap(body));
+
             return new SageBookingSendResult(false, Cap(body),
                 $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
         }

@@ -87,11 +87,21 @@
                     <td class="text-nowrap">@(q.ConfirmedAt?.ToString("dd.MM.yyyy HH:mm"))</td>
                     <td>@q.AttemptCount</td>
                     <td>
-                        @if (!string.IsNullOrEmpty(q.LastError))
+                        @if (!string.IsNullOrEmpty(q.LastError) || !string.IsNullOrEmpty(q.SageResponseRaw))
                         {
-                            <span class="text-danger small" title="@q.LastError">
-                                @(q.LastError.Length > 60 ? q.LastError.Substring(0, 60) + "…" : q.LastError)
+                            var detail = string.Join("\n\n",
+                                new[] { q.LastError, q.SageResponseRaw }.Where(s => !string.IsNullOrEmpty(s)));
+                            var shown = q.LastError ?? q.SageResponseRaw ?? "";
+                            <span class="text-danger small" title="@detail">
+                                @(shown.Length > 60 ? shown.Substring(0, 60) + "…" : shown)
                             </span>
+                            @if (!string.IsNullOrEmpty(q.SageResponseRaw))
+                            {
+                                <details class="small">
+                                    <summary class="text-muted" style="cursor:pointer;">Sage-Antwort</summary>
+                                    <pre class="mb-0 mt-1" style="white-space:pre-wrap;max-height:12rem;overflow:auto;">@q.SageResponseRaw</pre>
+                                </details>
+                            }
                         }
                     </td>
                     <td class="text-nowrap">
