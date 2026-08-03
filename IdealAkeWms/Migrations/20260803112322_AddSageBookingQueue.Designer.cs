@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdealAkeWms.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260803104128_AddSageBookingQueue")]
+    [Migration("20260803112322_AddSageBookingQueue")]
     partial class AddSageBookingQueue
     {
         /// <inheritdoc />
@@ -2369,7 +2369,8 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("StockMovementId");
+                    b.HasIndex("StockMovementId")
+                        .IsUnique();
 
                     b.ToTable("SageBookingQueueItems", "dbo");
                 });

@@ -1082,7 +1082,7 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_SourceS
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_Status')
     CREATE NONCLUSTERED INDEX [IX_SageBookingQueueItems_Status] ON [dbo].[SageBookingQueueItems]([Status]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_StockMovementId')
-    CREATE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId] ON [dbo].[SageBookingQueueItems]([StockMovementId]);
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId] ON [dbo].[SageBookingQueueItems]([StockMovementId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsActive')
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
@@ -2181,8 +2181,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260722132805_AddProductionOrderExtraInfo', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803104055_AddStorageLocationSageLagerbuchung')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803104055_AddStorageLocationSageLagerbuchung', '10.0.2');
-IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803104128_AddSageBookingQueue')
-    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803104128_AddSageBookingQueue', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803112322_AddSageBookingQueue')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803112322_AddSageBookingQueue', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -101,4 +101,22 @@ public class SageBookingEnqueueingStockMovementRepositoryTests
 
         (await ctx.SageBookingQueueItems.CountAsync()).Should().Be(0);
     }
+
+    [Fact]
+    public async Task EnqueueAsync_SameMovementTwice_CreatesOnlyOneItem()
+    {
+        // App-Layer-Guard gegen Doppel-Enqueue (Web-Decorator vs. Reconciliation-Sweep) —
+        // InMemory erzwingt den UNIQUE-Index nicht, daher der explizite Guard.
+        var (_, ctx, artId, locId) = Build(toggleOn: true, locationAllows: true);
+        var queue = new SageBookingQueueRepository(ctx);
+        var mv = Movement(artId, locId, MovementType.Einbuchung);
+        ctx.StockMovements.Add(mv);
+        await ctx.SaveChangesAsync();
+
+        var first = await queue.EnqueueAsync(mv);
+        var second = await queue.EnqueueAsync(mv);
+
+        second.Id.Should().Be(first.Id);
+        (await ctx.SageBookingQueueItems.CountAsync()).Should().Be(1);
+    }
 }

@@ -17,6 +17,13 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
 
     public async Task<SageBookingQueueItem> EnqueueAsync(StockMovement movement)
     {
+        // Idempotent + App-Layer-Guard (InMemory erzwingt den UNIQUE-Index nicht): existiert bereits
+        // ein Eintrag zu dieser Buchung, keinen zweiten anlegen (Doppelbuchungs-Schutz).
+        var existing = await _context.SageBookingQueueItems
+            .FirstOrDefaultAsync(q => q.StockMovementId == movement.Id);
+        if (existing != null)
+            return existing;
+
         var item = new SageBookingQueueItem
         {
             StockMovementId = movement.Id,
@@ -140,9 +147,10 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
             .Take(max)
             .ToListAsync();
 
+        int enqueued = 0;
         foreach (var m in candidates)
         {
-            await _context.SageBookingQueueItems.AddAsync(new SageBookingQueueItem
+            var item = new SageBookingQueueItem
             {
                 StockMovementId = m.Id,
                 Status = SageBookingQueueStatus.Offen,
@@ -150,13 +158,22 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
                 CreatedAt = DateTime.Now,
                 CreatedBy = ServiceActor,
                 CreatedByWindows = ServiceActor
-            });
+            };
+            _context.SageBookingQueueItems.Add(item);
+            try
+            {
+                // Einzeln speichern: raced der Web-Decorator parallel denselben StockMovement ein,
+                // scheitert nur DIESER Insert am UNIQUE-Index (kein Doppel-Enqueue) — der Rest laeuft weiter.
+                await _context.SaveChangesAsync();
+                enqueued++;
+            }
+            catch (DbUpdateException)
+            {
+                _context.Entry(item).State = EntityState.Detached;
+            }
         }
 
-        if (candidates.Count > 0)
-            await _context.SaveChangesAsync();
-
-        return candidates.Count;
+        return enqueued;
     }
 
     private static void Touch(SageBookingQueueItem item)

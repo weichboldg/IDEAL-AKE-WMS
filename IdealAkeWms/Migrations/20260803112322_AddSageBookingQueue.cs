@@ -55,7 +55,8 @@ namespace IdealAkeWms.Migrations
                 name: "IX_SageBookingQueueItems_StockMovementId",
                 schema: "dbo",
                 table: "SageBookingQueueItems",
-                column: "StockMovementId");
+                column: "StockMovementId",
+                unique: true);
         }
 
         /// <inheritdoc />

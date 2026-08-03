@@ -386,6 +386,11 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.StockMovementId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Genau EIN Queue-Eintrag je Buchung — verhindert prozessuebergreifende Doppel-Enqueues
+            // (Web-Decorator vs. Reconciliation-Sweep) und damit eine automatische Doppelbuchung.
+            // Requeue verwendet denselben Eintrag wieder (kein zweiter Insert).
+            entity.HasIndex(e => e.StockMovementId).IsUnique();
+
             // Worker-Read-Pfad filtert auf Status (offene/haengende Eintraege laden).
             entity.HasIndex(e => e.Status);
         });

@@ -2366,7 +2366,8 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("StockMovementId");
+                    b.HasIndex("StockMovementId")
+                        .IsUnique();
 
                     b.ToTable("SageBookingQueueItems", "dbo");
                 });

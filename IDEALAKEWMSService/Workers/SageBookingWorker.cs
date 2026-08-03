@@ -26,8 +26,10 @@ public class SageBookingWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ISyncLogger _syncLogger;
 
-    // Kurzes Rueckblickfenster fuer den Reconciliation-Sweep: faengt Enqueue-Fehler (Crash zwischen
-    // Buchung und Queue-Insert), holt aber NICHT Buchungen aus einer Toggle-Aus-Phase nach.
+    // Kurzes Rueckblickfenster fuer den Reconciliation-Sweep: faengt in erster Linie Enqueue-Fehler
+    // (Crash zwischen Buchung und Queue-Insert). BEWUSSTER TRADEOFF: liegt eine Toggle-Aus-Phase
+    // innerhalb dieses Fensters, werden die in ihr gebuchten Ein-/Ausbuchungen beim Wiedereinschalten
+    // mit nachgesendet (das Fenster begrenzt den Umfang, schliesst diesen Fall aber nicht voellig aus).
     private static readonly TimeSpan ReconcileLookback = TimeSpan.FromMinutes(15);
 
     public SageBookingWorker(

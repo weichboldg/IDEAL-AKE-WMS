@@ -41,16 +41,17 @@ IF OBJECT_ID('dbo.SageBookingQueueItems', 'U') IS NOT NULL
         ON [dbo].[SageBookingQueueItems]([Status]);
 GO
 
+-- UNIQUE: genau ein Queue-Eintrag je StockMovement (Doppel-Enqueue-/Doppelbuchungs-Schutz).
 IF OBJECT_ID('dbo.SageBookingQueueItems', 'U') IS NOT NULL
    AND NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_StockMovementId')
-    CREATE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId]
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId]
         ON [dbo].[SageBookingQueueItems]([StockMovementId]);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory
-    WHERE MigrationId = '20260803104128_AddSageBookingQueue')
+    WHERE MigrationId = '20260803112322_AddSageBookingQueue')
 BEGIN
     INSERT INTO dbo.__EFMigrationsHistory (MigrationId, ProductVersion)
-    VALUES ('20260803104128_AddSageBookingQueue', '10.0.2');
+    VALUES ('20260803112322_AddSageBookingQueue', '10.0.2');
 END
 GO
