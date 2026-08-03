@@ -649,11 +649,147 @@ Verhalten/Negativfall je Testszenarien-Pflicht):
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
-6. →
-7. →
-8. →
+1. →Umbuchung auch gleich mitnehmen. 
+   es gibt am Lagerplatz normalerweise bereits ein FLAG istBuchbar oder so. 
+   Ein zusätzliches FLAG SageSync pro Lagerort bzw. ein Flag nur WMS Buchungslager. 
+2. →ok
+3. →ist mir nicht bekannt
+4. →sollte so sein, ja
+5. →Mandant ist derzeit pro Standort gleich - getrennte eigene Systeme. 
+   eventuell neue Settingsmaske - Standorteinstellungen, Firmenname, Adresse, Mandant, Fertigungsauftragslogik, für zukünftige anpassungen 
+6. →ja, requeue sinnvoll.
+7. →hier hast du einen Screenshot mit der übersicht möglicher spalten. ![[Pasted image 20260803094629.png]]
+8. →Zone lassen und SageLagerkennung 
+
+## Kritische Pruefung (2026-08-03)
+
+Anwalt-des-Teufels-Durchsicht vor Schranke 1. Geprueft gegen Spec, Backlog
+`2026-07-29-Postman-Lagerbuchungen`, Screenshot zu Frage 7 und den echten Code
+(`StockMovement.cs`, `StockMovementsController.cs`, `SageLagerplatzReader.cs`,
+`LagerplatzSyncService.cs`). Es gibt substanzielle Befunde — der Entwurf ist gut recherchiert,
+aber **drei der acht Antworten reissen den Entwurf auf**, weil sie ihm widersprechen oder eine
+offene, geschaeftskritische Frage offen lassen.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B1 — Antwort 1 („Umbuchung auch gleich mitnehmen") widerspricht dem gesamten Loesungsentwurf.**
+Der komplette Entwurf ist auf `Einbuchung`/`Ausbuchung` gebaut: Out-of-Scope nennt Umbuchung
+explizit „out", der Payload kennt nur `Zugang`/`Entnahme`, die Akzeptanzkriterien 4/5/7/8 nur
+Ein-/Ausbuchung, und der Decorator-Filter (`saved.MovementType is Einbuchung or Ausbuchung`,
+Abschnitt 3) schliesst Umbuchung aktiv aus. Die Antwort dreht das um, ohne dass Entwurfstext,
+Payload oder Kriterien angepasst waeren. Konkrete, im Code verifizierte Konsequenzen:
+- **Inkonsistente Teilabdeckung.** Die beiden *manuellen* Umbuchungen (`Transfer`
+  `StockMovementsController.cs:326`, `LocationTransferConfirm` `:480`) laufen durchs Repository und
+  wuerden vom Decorator erfasst. Die *kommissionierungs-getriebenen* Umbuchungen
+  (`PickingTransferService`, direkter `_context.Add`) laufen **nicht** durchs Repository und wuerden
+  **nie** an Sage gemeldet. Ergebnis: Sage sieht manuelle Umlagerungen, aber nie die aus der
+  Kommissionierung — genau die Inkonsistenz, vor der die Spec in Rueckfrage 1 selbst warnt.
+- **Kein Payload fuer Umbuchung.** Ein `Umbuchung`-`StockMovement` traegt **beide** Enden
+  (`StorageLocationId` = Ziel *und* `SourceStorageLocationId` = Herkunft, `StockMovement.cs:18,38`).
+  Der Entwurf definiert aber nur „Ziel gesetzt / Herkunft leer" (Zugang) bzw. umgekehrt (Entnahme).
+  Welchen `Lagerbewegungsart`-String (SData-Enum-Wert 3) eine Umbuchung sendet und dass **beide**
+  Lagerplaetze gefuellt werden, steht nirgends.
+- **Gating unklar.** „`SageBuchungErlaubt` am beteiligten Lagerplatz" ist bei zwei Lagerplaetzen
+  mehrdeutig: Herkunft, Ziel oder beide? Und ein Sonderfall: der Negativ-Lagerplatz-Auto-Transfer
+  (`StockMovementsController.cs:300-305`) erzeugt eine WMS-interne Umbuchung, die bei Sage vermutlich
+  Rauschen waere.
+- **Fachlich fraglich.** Eine Umlagerung zwischen zwei Plaetzen **derselben** Sage-Lagerkennung
+  (z. B. `GL:1:1:12` → `GL:1:1:13`, beide Lagerkennung „GL") aendert den Sage-Bestand auf
+  Lager-Ebene nicht — sie an Sage zu melden, kann falsch/doppelt sein.
+
+  **Frage an den Menschen:** Soll Umbuchung wirklich in Step 1? Wenn ja, bitte entscheiden:
+  (a) akzeptiert, dass nur *manuelle* Umbuchungen bei Sage ankommen, kommissionierungs-getriebene
+  nie? (b) Umbuchungs-Payload = beide Enden gesetzt, welcher `Lagerbewegungsart`-Wert? (c) welches
+  Ende gated das Enqueue? (d) werden Umlagerungen innerhalb derselben Lagerkennung unterdrueckt?
+  **Empfehlung:** Umbuchung wie im Original-Entwurf **aus Step 1 herauslassen** und als klar
+  definierten Step 2 nachziehen — sonst geht ein halbgares, inkonsistentes Umbuchungs-Verhalten
+  produktiv.
+
+**B2 — Idempotenz/Doppelbuchung ist ungeloest (Antwort 3: „ist mir nicht bekannt") und Antwort 6
+(„requeue sinnvoll") verschaerft genau diesen Fall.** Das Backlog nennt das selbst
+geschaeftskritisch („muss die Spec loesen"). Der Entwurfs-Baustein „Status **vor** dem HTTP-Call auf
+`Gesendet`" verhindert nur, dass der *automatische* Worker im naechsten Tick erneut sendet. Er
+verhindert **nicht** die Doppelbuchung im Timeout-Fall: bucht Sage erfolgreich, kommt aber die
+Antwort nicht zurueck, geht der Eintrag auf `Fehler` — und ein (jetzt gewuenschtes) manuelles
+Requeue sendet dieselbe Buchung ein **zweites** Mal. Zusaetzlich fehlt eine Erholung fuer den
+Crash-Fall: stirbt der Service zwischen „`Gesendet` gesetzt" und Antwort, bleibt der Eintrag fuer
+immer auf `Gesendet` haengen (wird nie erneut geladen, nie bestaetigt). Ob Sage ueber `Memo` oder
+eine Korrelations-Id nachtraeglich abfragbar macht, „ob schon gebucht", ist laut Entwurf selbst
+unbelegt (Antwortformat des `LagerbuchungService` nicht dokumentiert).
+
+  **Frage an den Menschen / Auftrag an den Dev-Lauf:** Die Idempotenz-Garantie laesst sich nicht
+  entwerfen, solange das Sage-Antwort-/Dedup-Verhalten unbekannt ist. Bitte festlegen, dass der
+  Dev-Lauf **zuerst am Sage-Testsystem verifiziert**, ob eine Buchung ueber `Memo`/Korrelation
+  auffindbar ist, **bevor** der Sende-/Requeue-Pfad final gebaut wird; und die Requeue-Prozedur als
+  „im Sage pruefen, dass keine Buchung existiert, erst dann erneut senden" definieren (nie blindes
+  Auto-/Manuell-Resend nach Timeout). Ohne diese Klaerung ist der geschaeftskritischste Teil der
+  Integration nicht spezifiziert.
+
+**B3 — Der Payload hartkodiert das Ebenen-Suffix `;0;0;0`, aber die realen Lager haben Ebenen.**
+Der Screenshot zu Frage 7 zeigt: `PlatzID` (aus `KHKLagerplaetze`, per Lagerplatz eindeutig)
+loest Frage 7, aber er zeigt auch, dass reale Plaetze `Kurzbezeichnung` „GL:1:1:12" mit den Ebenen
+`1:1:12` und Lagerkennung „GL" haben. Der Entwurf sendet
+`HerkunftLagerkennung`/`ZielLagerkennung = "<SageLagerkennung>;0;0;0"`, also fuer GL „GL;0;0;0" —
+waehrend der Platz real die Ebenen `1:1:12` und eine spezifische `PlatzID` hat. Ob Sage die
+`LagerplatzId` als fuehrend nimmt (und das Ebenen-Suffix ignoriert) oder das echte „GL;1;1;12"
+erwartet, ist unbekannt. Falsch gefuellt bucht die Integration auf den **falschen Platz bzw. das
+ganze Lager** — geschaeftskritisch.
+
+  **Frage an den Menschen:** Ist am Sage-Testsystem die `LagerplatzId` allein fuehrend (dann ist
+  `;0;0;0` egal), oder muss die Lagerkennung die echten Ebenen tragen? Cheap jetzt zu klaeren, teuer
+  erst im UAT (TS-X.3) zu entdecken.
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S1 — Monitoring-UI ist durch Antwort 6 nicht mehr „optional", sondern In-Scope.** „ja, requeue
+sinnvoll" macht die in Punkt 7 skizzierte Liste `/SageBookingQueue` (Listen-View-Pattern + Requeue-
+Aktion) verbindlich. Bitte In-Scope-Liste, `affected_code`-Frontmatter (Controller, Index-View,
+ViewModel, Pagination) und ein Akzeptanzkriterium fuer den Requeue-Pfad ergaenzen — inkl. der
+Doppelbuchungs-Absicherung aus B2.
+
+**S2 — Groesse: mit Umbuchung (B1) + Requeue-UI (S1) ist das kein „mittleres Feature" mehr.** Grob
+~30 betroffene Dateien ueber Web + Service + 2 Migrationen + FreshInstall (je 2 Stellen) + Tests +
+Doku. Das ist ein sehr voller einzelner Dev-Lauf. **Vorschlag:** Schnitt in Step 1a
+(Zugang/Entnahme + read-only Monitoring, ohne Requeue) und Step 1b (Umbuchung + Requeue), oder
+zumindest eine bewusste Reihenfolge innerhalb des Laufs mit eigener QA je Teil.
+
+**S3 — Recovery fuer haengende `Gesendet`-Eintraege fehlt** (Service-Restart mitten im Senden, siehe
+B2). Bitte eine Regel + Akzeptanzkriterium + Testszenario ergaenzen: `Gesendet`-Eintraege aelter als
+X werden **nicht** automatisch neu gesendet, sondern zur manuellen Sage-Pruefung in der
+Monitoring-Liste sichtbar gemacht.
+
+**S4 — Flag-Semantik/Benennung aus Antwort 1 bestaetigen.** Die Antwort schwankt zwischen „ein
+zusaetzliches FLAG SageSync" (positiver Opt-in, = Entwurf `SageBuchungErlaubt`, Default false) und
+„ein Flag nur WMS Buchungslager" (inverse Semantik: Platz, der **nicht** an Sage geht). Das sind
+gegensaetzliche Defaults. Bitte bestaetigen, dass es beim positiven Opt-in `SageBuchungErlaubt`
+(Default false, kumulativ zum globalen Toggle) bleibt.
+
+**S5 — Antwort 5 birgt Scope-Creep.** Die Idee „neue Settingsmaske Standorteinstellungen
+(Firmenname, Adresse, Mandant, FA-Logik)" ist ein eigenes, groesseres Vorhaben. Bitte im Spec-Text
+explizit als **out-of-scope** markieren; fuer diese Spec bleibt `SData:Dataset` ein einfacher
+ServiceSetting. Die Standorteinstellungs-Idee als eigene Backlog-Notiz festhalten, damit der
+Dev-Lauf sie nicht mitbaut.
+
+### HINWEIS — Beobachtung ohne Handlungszwang
+
+**H1 — Gute Nachricht zu Frage 7:** Der Match-Schluessel existiert bereits sauber. Der Sync matcht
+Sage↔WMS ueber `Kurzbezeichnung` → `StorageLocation.Code` (`LagerplatzSyncService.cs:108,120,124`),
+und `Kurzbezeichnung` ist im Screenshot pro Platz eindeutig („GL:1:1:12"). `lp.PlatzID` gehoert zur
+selben Zeile — die neuen Felder lassen sich also sauber pro Platz befuellen, sobald
+`SageLagerplatzReader` `lp.PlatzID` zusaetzlich selektiert. Achtung: die `PlatzID`-Eindeutigkeit
+haengt am Mandanten (`lo.Mandant = 1` im Reader) — bei getrennten Systemen je Standort unkritisch.
+
+**H2 — AK9 wird real getroffen:** `LagerplatzSyncService` befuellt die neuen Felder nur fuer
+`Source == Sage`-Plaetze; manuelle Plaetze bleiben `null`. Der defensive `Fehler`-Pfad (AK9) ist
+also kein Papiertiger, sondern der Normalfall fuer faelschlich gesetztes `SageBuchungErlaubt` auf
+manuellen Plaetzen — gut, dass er getestet wird.
+
+**H3 — Frontmatter-Housekeeping:** `open_questions` listet weiterhin alle 8 Fragen als offen und
+`freigabe`-Block ist leer; das ist bis zur Freigabe ok, sollte aber beim Uebergang nach
+`freigegeben/` mit den Antworten/Entscheidungen abgeglichen werden (Traceability).
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: Umbuchungs-Scope (B1) und Idempotenz/Doppelbuchung (B2) sind ungeklaert und
+teils widerspruechlich — beide sind geschaeftskritisch und muessen vor dem Dev-Lauf entschieden
+werden.**
