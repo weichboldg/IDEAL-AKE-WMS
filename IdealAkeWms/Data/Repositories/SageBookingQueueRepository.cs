@@ -66,6 +66,19 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
             .FirstOrDefaultAsync(q => q.Id == id);
     }
 
+    public async Task<List<SageBookingQueueItem>> GetForMonitoringAsync(SageBookingQueueStatus? status)
+    {
+        var query = _context.SageBookingQueueItems
+            .Include(q => q.StockMovement).ThenInclude(m => m.Article)
+            .Include(q => q.StockMovement).ThenInclude(m => m.StorageLocation)
+            .AsQueryable();
+
+        if (status.HasValue)
+            query = query.Where(q => q.Status == status.Value);
+
+        return await query.OrderByDescending(q => q.Id).ToListAsync();
+    }
+
     public async Task MarkSentAsync(int id)
     {
         var item = await _context.SageBookingQueueItems.FindAsync(id);

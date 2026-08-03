@@ -1,0 +1,107 @@
+@using IdealAkeWms.Controllers
+@model IdealAkeWms.Models.ViewModels.SageBookingQueueViewModel
+@inject IdealAkeWms.Services.ICurrentUserService _user
+@{
+    ViewData["Title"] = "Sage-Lagerbuchungen";
+    var canRequeue = await _user.CanTransferStockAsync();
+    var status = Model.FilterStatus;
+    // Spalten: id, status, movement-type, article, storage-location, quantity, created-at, sent-at, confirmed-at, attempts, error, actions
+    var colCount = 12;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Sage-Lagerbuchungen</h2>
+</div>
+
+<p class="text-muted small">
+    Ausgehende Meldungen von WMS-Ein-/Ausbuchungen an Sage. Ein Fehler-Eintrag kann erneut
+    eingereiht werden &mdash; der Dienst prüft vor dem Senden über den Sage-Memo-Lookup, ob die
+    Buchung dort bereits existiert (kein Doppelbuchen).
+</p>
+
+<form method="get" class="d-flex gap-2 align-items-end mb-3 flex-wrap">
+    <div>
+        <label class="form-label mb-0 small">Status</label>
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Alle</option>
+            @foreach (var s in Enum.GetValues<IdealAkeWms.Models.SageBookingQueueStatus>())
+            {
+                <option value="@s" selected="@(status == s)">@SageBookingQueueController.StatusText(s)</option>
+            }
+        </select>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped table-sm mb-0 filterable-table" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="id">#</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-filterable data-col-key="movement-type">Bewegung</th>
+                <th data-filterable data-col-key="article">Artikel</th>
+                <th data-filterable data-col-key="storage-location">Lagerplatz</th>
+                <th data-filterable data-col-key="quantity">Menge</th>
+                <th data-filterable data-col-key="created-at">Erstellt</th>
+                <th data-filterable data-col-key="sent-at">Gesendet</th>
+                <th data-filterable data-col-key="confirmed-at">Bestätigt</th>
+                <th data-filterable data-col-key="attempts">Vers.</th>
+                <th data-filterable data-col-key="error">Fehler</th>
+                <th data-col-key="actions" style="width: 90px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var q in Model.Items)
+            {
+                var badge = q.Status switch
+                {
+                    IdealAkeWms.Models.SageBookingQueueStatus.Bestaetigt => "bg-success",
+                    IdealAkeWms.Models.SageBookingQueueStatus.Fehler => "bg-danger",
+                    IdealAkeWms.Models.SageBookingQueueStatus.Gesendet => "bg-info",
+                    _ => "bg-secondary"
+                };
+                <tr>
+                    <td>@q.Id</td>
+                    <td data-col-key="status"><span class="badge @badge">@SageBookingQueueController.StatusText(q.Status)</span></td>
+                    <td>@SageBookingQueueController.MovementText(q.StockMovement.MovementType)</td>
+                    <td>@q.StockMovement.Article.ArticleNumber</td>
+                    <td>@q.StockMovement.StorageLocation.Code</td>
+                    <td>@q.StockMovement.Quantity.ToString("0.###")</td>
+                    <td class="text-nowrap">@q.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td class="text-nowrap">@(q.SentAt?.ToString("dd.MM.yyyy HH:mm"))</td>
+                    <td class="text-nowrap">@(q.ConfirmedAt?.ToString("dd.MM.yyyy HH:mm"))</td>
+                    <td>@q.AttemptCount</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(q.LastError))
+                        {
+                            <span class="text-danger small" title="@q.LastError">
+                                @(q.LastError.Length > 60 ? q.LastError.Substring(0, 60) + "…" : q.LastError)
+                            </span>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        @if (canRequeue && q.Status == IdealAkeWms.Models.SageBookingQueueStatus.Fehler)
+                        {
+                            <form asp-action="Requeue" asp-route-id="@q.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Erneut senden</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Einträge.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

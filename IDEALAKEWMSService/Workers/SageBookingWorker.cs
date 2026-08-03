@@ -156,6 +156,30 @@ public class SageBookingWorker : BackgroundService
                     continue;
                 }
 
+                // B2: Wurde dieser Eintrag schon einmal gesendet (Requeue nach Timeout/Fehler)?
+                // Dann VOR dem erneuten Senden in Sage pruefen — nie blind doppelt buchen.
+                if (item.SentAt != null)
+                {
+                    try
+                    {
+                        if (await lookup.ExistsAsync(item.StockMovementId, ct))
+                        {
+                            await queue.MarkConfirmedAsync(item.Id,
+                                "Requeue: Buchung in Sage bereits vorhanden (Memo-Lookup).");
+                            bestaetigt++;
+                            continue;
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Lookup unsicher -> NICHT senden (Doppelbuchungs-Schutz geht vor).
+                        await queue.MarkFailedAsync(item.Id,
+                            $"Sage-Lookup vor Requeue fehlgeschlagen, kein erneutes Senden: {ex.Message}", null);
+                        fehler++;
+                        continue;
+                    }
+                }
+
                 // AK10: Status VOR dem HTTP-Call auf Gesendet (Timeout -> kein zweiter Auto-Versuch).
                 await queue.MarkSentAsync(item.Id);
                 gesendet++;
