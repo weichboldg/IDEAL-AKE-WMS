@@ -53,4 +53,16 @@ public class SageLagerbuchungClientUrlTests
         var endpoint = DiscoveredEndpoint() with { BaseUrl = "https://sagetest01.ake.at:5493/", Dataset = "/ake_TEST2026;1/" };
         SageLagerbuchungClient.BuildServiceUrl(endpoint).Should().Be(ExpectedUrl);
     }
+
+    [Theory]
+    [InlineData("https://sagetest01.ake.at:5493")]        // ohne /sdata (Soll)
+    [InlineData("https://sagetest01.ake.at:5493/")]       // Trailing-Slash
+    [InlineData("https://sagetest01.ake.at:5493/sdata")]  // Admin hat /sdata mit reingeschrieben
+    [InlineData("https://sagetest01.ake.at:5493/sdata/")] // dito + Trailing-Slash
+    [InlineData("https://sagetest01.ake.at:5493/SData")]  // Case-insensitiv
+    public void BuildServiceUrl_DoesNotDoubleSdataRoot(string baseUrl)
+    {
+        var endpoint = DiscoveredEndpoint() with { BaseUrl = baseUrl };
+        SageLagerbuchungClient.BuildServiceUrl(endpoint).Should().Be(ExpectedUrl);
+    }
 }

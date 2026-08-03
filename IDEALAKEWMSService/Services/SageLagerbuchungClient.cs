@@ -41,6 +41,10 @@ public class SageLagerbuchungClient : ISageLagerbuchungClient
     public static string BuildServiceUrl(SageBookingEndpoint endpoint)
     {
         var baseUrl = endpoint.BaseUrl.TrimEnd('/');
+        // Toleranz: manche Admins tragen die BaseUrl inkl. der SData-Wurzel "/sdata" ein
+        // (z. B. https://host:5493/sdata). Dann NICHT verdoppeln — sonst entstuende ".../sdata/sdata/...".
+        if (baseUrl.EndsWith("/" + SdataRoot, StringComparison.OrdinalIgnoreCase))
+            baseUrl = baseUrl[..^(SdataRoot.Length + 1)].TrimEnd('/');
         var app = endpoint.Application.Trim('/');
         var contract = endpoint.ServiceContract.Trim('/');
         var dataset = endpoint.Dataset.Trim('/');

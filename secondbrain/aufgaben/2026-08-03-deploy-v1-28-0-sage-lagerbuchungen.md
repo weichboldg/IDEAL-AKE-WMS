@@ -33,6 +33,22 @@ Offen nach dem Dev-Lauf (Reihenfolge; Schranke 2 = Mensch: manueller Test → Me
 - [ ] Lagerplatz-Sync mind. einmal laufen lassen (befuellt `SageLagerkennung`/`SageLagerplatzId`).
 - [ ] Mit **einem** Testartikel + Testlagerplatz beginnen, `/SageBookingQueue` beobachten, dann breiter.
 
+## Troubleshooting (aus UAT 2026-08-03)
+
+Die tatsaechlich gesendete URL steht im Service-Log (`System.Net.Http.HttpClient.ISageLagerbuchungClient`).
+
+- **URL enthaelt `/sdata/sdata/`:** `SData:BaseUrl` wurde inkl. `/sdata` eingetragen. Seit dem Fix
+  wird die Wurzel nicht mehr verdoppelt (BaseUrl mit oder ohne `/sdata` funktioniert). Sauber:
+  `https://sagetest01.ake.at:5493` (ohne `/sdata`).
+- **Dataset-Segment falsch (z.B. nur `1`):** `SData:Dataset` muss den **vollen** Mandant-Wert tragen,
+  z.B. `ake_TEST2026;1` (Semikolon **literal**, nicht kodieren — uebersteht das Speichern in
+  `/ServiceSettings` unveraendert). `1` allein ist falsch.
+- **HTTP 401 Unauthorized:** Basic-Auth-Credentials fehlen/falsch. `SageLagerbuchung:Username` und
+  `:Password` im **Service**-`appsettings.json` am Zielserver setzen (appsettings-only, nicht in der
+  DB) und den Dienst neu starten.
+- **TLS-/Zertifikatsfehler:** `SageLagerbuchungSslZertifikatPruefen=false` fuer das Testsystem
+  (`sagetest01` hat `PartialChain`) — vor Produktivgang wieder `true`.
+
 ## Risiken
 - **Ein-Instanz-Voraussetzung:** genau **ein** laufender `SageBookingWorker` (kein Doppel-Deploy/Failover
   auf derselben Queue) — sonst Doppelbuchung.
