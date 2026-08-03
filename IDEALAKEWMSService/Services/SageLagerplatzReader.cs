@@ -21,7 +21,7 @@ public class SageLagerplatzReader : ISageLagerplatzReader
         // ANNAHME: KHKLagerorte hat eine Mandant-Spalte (analog Artikel-Sync).
         // Falls Sage-Schema das nicht hat, "AND lo.Mandant = 1" entfernen.
         const string sql = """
-            SELECT lo.Lagerkennung, lp.Kurzbezeichnung, lp.Platzbezeichnung
+            SELECT lo.Lagerkennung, lp.Kurzbezeichnung, lp.Platzbezeichnung, lp.PlatzID
             FROM KHKLagerorte lo
             LEFT JOIN KHKLagerplaetze lp ON lo.Lagerkennung = lp.Lagerkennung
             WHERE lo.Mandant = 1
@@ -40,7 +40,8 @@ public class SageLagerplatzReader : ISageLagerplatzReader
             result.Add(new SageLagerplatzDto(
                 Lagerkennung: reader.IsDBNull(0) ? null : reader.GetString(0),
                 Kurzbezeichnung: reader.IsDBNull(1) ? null : reader.GetString(1),
-                Platzbezeichnung: reader.IsDBNull(2) ? null : reader.GetString(2)
+                Platzbezeichnung: reader.IsDBNull(2) ? null : reader.GetString(2),
+                PlatzId: reader.IsDBNull(3) ? null : reader.GetInt32(3)
             ));
         }
 

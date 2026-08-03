@@ -128,6 +128,11 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                         Source = StorageLocationSource.Sage,
                         IsActive = true,
                         IstBuchbar = false,                       // NEU: Sage-Plaetze sind by default nicht buchbar
+                        // Sage-Lagerbuchung: dedizierte, vom frei editierbaren Zone entkoppelte Referenzfelder.
+                        // SageLagerkennung = volle Kurzbezeichnung (= Code, z.B. "LL;1;4;0"), NICHT die bare
+                        // Lagerkennung; SageLagerplatzId = KHKLagerplaetze.PlatzID.
+                        SageLagerkennung = code,
+                        SageLagerplatzId = dto.PlatzId,
                         Capacity = null,
                         IsPickingTransport = false,
                         CreatedAt = DateTime.Now,
@@ -144,6 +149,8 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                         var diff = existingLoc.Zone != zone
                                 || existingLoc.Description != description
                                 || existingLoc.BarcodeValue != code
+                                || existingLoc.SageLagerkennung != code
+                                || existingLoc.SageLagerplatzId != dto.PlatzId
                                 || !existingLoc.IsActive;
 
                         if (diff)
@@ -151,6 +158,8 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                             existingLoc.Zone = zone;
                             existingLoc.Description = description;
                             existingLoc.BarcodeValue = code;
+                            existingLoc.SageLagerkennung = code;
+                            existingLoc.SageLagerplatzId = dto.PlatzId;
                             existingLoc.IsActive = true;
                             existingLoc.ModifiedAt = DateTime.Now;
                             existingLoc.ModifiedBy = SyncUser;

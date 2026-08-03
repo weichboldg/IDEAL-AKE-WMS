@@ -35,4 +35,12 @@ public interface ISageBookingQueueRepository
 
     /// <summary>Setzt einen Fehler-Eintrag zurueck auf Offen (manuelles Requeue aus der UI).</summary>
     Task RequeueAsync(int id, string actor);
+
+    /// <summary>
+    /// Reconciliation-Sweep (B4): reiht Ein-/Ausbuchungen auf Sage-freigegebenen Lagerplaetzen ab
+    /// <paramref name="since"/> nachtraeglich ein, die (z.B. wegen eines Enqueue-Fehlers) KEINEN
+    /// Queue-Eintrag haben. Kurzes Rueckblickfenster, damit keine Buchungen aus einer Toggle-Aus-Phase
+    /// nachtraeglich gesendet werden. Liefert die Anzahl neu eingereihter Eintraege.
+    /// </summary>
+    Task<int> EnqueueMissingAsync(DateTime since, int max);
 }

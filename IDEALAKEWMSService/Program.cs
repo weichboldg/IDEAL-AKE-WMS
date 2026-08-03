@@ -58,6 +58,8 @@ try
     builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();
     builder.Services.AddScoped<ILagerbestandSyncService, LagerbestandSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+    builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
+    builder.Services.AddScoped<ISageBuchungLookupReader, SageBuchungLookupReader>();
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
     builder.Services.AddScoped<IFaWorkStepDetectionService, FaWorkStepDetectionService>();
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
@@ -79,10 +81,17 @@ try
         client.Timeout = TimeSpan.FromSeconds(30);
     });
 
+    // Sage-Lagerbuchung — typed HttpClient (BaseAddress wird pro Request aus ServiceSettings gebaut).
+    builder.Services.AddHttpClient<ISageLagerbuchungClient, SageLagerbuchungClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+
     // Workers
     builder.Services.AddHostedService<SyncWorker>();
     builder.Services.AddHostedService<NotificationWorker>();
     builder.Services.AddHostedService<CleanupWorker>();
+    builder.Services.AddHostedService<SageBookingWorker>();
 
     var host = builder.Build();
     host.Run();

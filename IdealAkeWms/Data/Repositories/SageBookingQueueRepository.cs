@@ -108,10 +108,42 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
         if (item is null) return;
         item.Status = SageBookingQueueStatus.Offen;
         item.LastError = null;
+        item.AttemptCount = 0;   // frische Versuche nach Retry-Cap / Recovery
         item.ModifiedAt = DateTime.Now;
         item.ModifiedBy = actor;
         item.ModifiedByWindows = actor;
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<int> EnqueueMissingAsync(DateTime since, int max)
+    {
+        // Ein-/Ausbuchungen auf Sage-freigegebenen Plaetzen ab 'since' ohne Queue-Eintrag.
+        var candidates = await _context.StockMovements
+            .Where(m => (m.MovementType == MovementType.Einbuchung || m.MovementType == MovementType.Ausbuchung)
+                     && m.Timestamp >= since
+                     && m.StorageLocation.SageBuchungErlaubt
+                     && !_context.SageBookingQueueItems.Any(q => q.StockMovementId == m.Id))
+            .OrderBy(m => m.Id)
+            .Take(max)
+            .ToListAsync();
+
+        foreach (var m in candidates)
+        {
+            await _context.SageBookingQueueItems.AddAsync(new SageBookingQueueItem
+            {
+                StockMovementId = m.Id,
+                Status = SageBookingQueueStatus.Offen,
+                AttemptCount = 0,
+                CreatedAt = DateTime.Now,
+                CreatedBy = ServiceActor,
+                CreatedByWindows = ServiceActor
+            });
+        }
+
+        if (candidates.Count > 0)
+            await _context.SaveChangesAsync();
+
+        return candidates.Count;
     }
 
     private static void Touch(SageBookingQueueItem item)
