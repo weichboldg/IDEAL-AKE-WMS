@@ -696,3 +696,25 @@ raw-SQL-Pfad nicht ab. Gruene Tests sind hier kein Beweis — bei Aenderungen an
 „Ohne DB laufen true-Default-Gates, false-Default-Gates skippen, kein Crash." Die wertabhaengige
 „laeuft-wenn-in-DB-enabled"-Wirkung ist Manual-UAT.
 **Warum:** Damit niemand aus gruenen Worker-Tests schliesst, dass die Toggles wirken.
+
+### Sage-Lagerbuchung-Enqueue ist NICHT transaktional mit der Buchung (v1.28.0)
+`Repository<T>.AddAsync` ruft sofort `SaveChangesAsync` — der `StockMovement` ist also bereits
+committed, wenn der Enqueue-Decorator danach den Queue-Eintrag schreibt (zweite Transaktion). Der
+Decorator faengt Enqueue-Fehler daher **ab und wirft nie** (sonst sieht der Anwender „Buchung
+fehlgeschlagen", obwohl sie gespeichert ist → Doppelbuchung). Ein Crash zwischen beiden SaveChanges
+liesse einen Queue-Eintrag verpassen — dagegen laeuft im `SageBookingWorker` ein
+**Reconciliation-Sweep** (Ein-/Ausbuchungen auf Sage-Plaetzen ohne Queue-Eintrag, kurzes
+15-Min-Rueckblickfenster).
+**Warum kurzes Fenster:** Ein grosses Fenster wuerde Buchungen aus einer Toggle-Aus-Phase
+nachtraeglich senden — der Sweep soll nur echte Enqueue-Fehler heilen, nicht bewusst nicht gemeldete
+Buchungen resurrektieren.
+
+### Sage-Lagerbuchung: Idempotenz nur bei genau EINER Worker-Instanz
+Der Baustein „Status VOR dem HTTP-Call auf `Gesendet`" verhindert einen zweiten **automatischen**
+Send im naechsten Tick — aber nur bei einer einzigen laufenden `SageBookingWorker`-Instanz. Bei
+Doppel-Deploy/Failover auf derselben Queue senden beide → Doppelbuchung. Vor einem **erneuten**
+Senden (Requeue / haengender `Gesendet`) prueft der Worker per Read-Lookup gegen Sage
+`KHKLagerplatzbuchungen` (Korrelation `SM#<id>#` im `Memo`), ob die Buchung dort schon existiert.
+**Warum Delimiter `#`:** `SM#12#` darf nicht Praefix von `SM#123#` sein, sonst trifft der LIKE-Lookup
+fuer Bewegung 12 faelschlich Bewegung 123. **Dev-Lauf/UAT:** exakte Korrelationsspalte (`Memo` vs.
+`Referenz`) am Sage-Testsystem bestaetigen — eine Zeile in `SageBuchungLookupReader`.

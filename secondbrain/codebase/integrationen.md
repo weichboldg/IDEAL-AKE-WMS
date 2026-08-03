@@ -160,3 +160,30 @@ ServiceSettings). Absender fuer Bedarfsmeldungen, Lager-/Glasbestellungen und Sy
 Mails gehen **immer** als `multipart/alternative` mit HtmlBody **und** TextBody, wobei der
 Textteil die **nackte** URL enthaelt — sonst rendern Outlook/Copilot `[URL]Text` als Rohtext.
 Siehe [[fallstricke]].
+
+## Sage-Lagerbuchung (ausgehend, WMS → Sage via SData) — v1.28.0
+
+Erste **ausgehende** Bestandsintegration (Gegenrichtung zu `LagerbestandSyncService`, das Sage→WMS
+korrigiert). Manuelle Ein-/Ausbuchungen (`StockMovementsController.Inbound/Outbound/OutboundAllConfirm`)
+werden asynchron ueber eine Queue an die Sage-SData-REST-API gemeldet. Details:
+[[2026-07-29-sage-lagerbuchungen-spec]].
+
+- **Enqueue:** Decorator `SageBookingEnqueueingStockMovementRepository` (Subclassing von
+  `StockMovementRepository`, nur `override AddAsync`) auf `IStockMovementRepository` im Web. Gating
+  kumulativ (`SageBookingEnqueueDecision`): nur `Einbuchung`/`Ausbuchung` **UND** globaler Toggle
+  `SageLagerbuchungAktiv` **UND** Lagerplatz-Flag `SageBuchungErlaubt`. Enqueue-Fehler werden
+  gefangen + protokolliert, **nie geworfen** (die WMS-Buchung ist bereits committed).
+- **Queue:** Tabelle `SageBookingQueueItems` (Status Offen→Gesendet→Bestaetigt/Fehler),
+  `ISageBookingQueueRepository`/`SageBookingQueueRepository` (geteilt Web+Service).
+- **Senden:** `SageBookingWorker` (eigener BackgroundService, Kurztakt) → `ISageLagerbuchungClient`
+  (typed HttpClient, Basic-Auth, `POST {SData:BaseUrl}/{SData:Dataset}/$service/LagerbuchungService`),
+  Payload aus `SageLagerbuchungPayloadBuilder` (Einbuchung→„Zugang" Ziel gesetzt, Ausbuchung→
+  „Entnahme" Herkunft gesetzt; `Herkunft-/ZielLagerkennung` = `StorageLocation.Code`,
+  `...LagerplatzId` = `SageLagerplatzId` = `KHKLagerplaetze.PlatzID`).
+- **Idempotenz:** Korrelation `SM#<id>#` im Sage-`Memo`; vor jedem erneuten Senden Read-Lookup gegen
+  Sage `KHKLagerplatzbuchungen` (`SageBuchungLookupReader`, Raw-SQL ueber `SageConnection`).
+- **Credentials** appsettings-only (`SageLagerbuchung:Username/Password`, Service); alles andere
+  DB-first (`/ServiceSettings` Kategorie „Sage-Lagerbuchung"). Aktivitaets-Protokoll:
+  `SyncLogServices.SageLagerbuchung`.
+- **Nicht in Scope (Step 1):** Umbuchung, BDE-Rueckmeldung, Serien/Chargen. Manual-UAT
+  (`../../docs/TESTSZENARIEN.md` Kap. 56), da HTTP/SData nicht InMemory-testbar.

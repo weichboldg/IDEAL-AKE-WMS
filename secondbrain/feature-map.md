@@ -139,6 +139,7 @@ Release-Details je Version: `changelog/` (39 Eintraege v1.0.0 – v1.26.0).
 | `[ValidateAntiForgeryToken]` auf `AccountController.Logout` wiederherstellen | offen, wartet auf IIS-Bestaetigung des Antiforgery-Wurzel-Fix | [[2026-07-deploy-v1-25-0]] |
 | Weitere Cleanup-Jobs nach dem 5-Schritte-Rezept | offen | `../docs/superpowers/specs/2026-07-15-cleanup-jobs-service-design.md` |
 | `OverridePrePickingDays` (Werkbank) in die Terminberechnung einbeziehen | **GEMERGED** — v1.27.0, Variante A, in `main` (Merge-Commit `0548449`, 2026-07-28); Deploy steht aus. Regel in `Services/PrePickingDaysResolver.cs`, Fallstrick aufgeloest → [[fallstricke]] | [[2026-07-28-override-prepickingdays]] |
+| **Sage-Lagerbuchungen (ausgehend WMS→Sage, Material Zugang/Entnahme)** | **TESTBEREIT** — v1.28.0, Branch `feature/2026-07-29-sage-lagerbuchungen`; Build+Tests gruen, Schranke 2 (Manual-UAT am Sage-Testsystem + Merge) steht aus. Queue + `SageBookingWorker`, Decorator-Enqueue, Migration 82/83 | [[2026-07-29-sage-lagerbuchungen-spec]], [[2026-08-03-deploy-v1-28-0-sage-lagerbuchungen]] |
 | Server-seitiger Druck (Vollausbau): `PrintService` mit echtem Drucker testen, Kommissionier-Druck an den Arbeitsplatz-Drucker binden | Grundstruktur vorhanden | Alt-Notiz „Offene Aufgaben" |
 
 ### Ideen-Backlog (aus PROJECT_STATUS „Zukuenftige Funktionen", nie begonnen)
@@ -147,6 +148,7 @@ Unbewertet uebernommen — keine Spec, keine Zusage:
 
 - Meldebestand-Mail nach Artikelgruppe oder Lagerhalle aufsplitten
 - Lagerplaetze in Sage anlegen, wenn im WMS neue entstehen (heute nur Sage → WMS)
-- Bestandsbuchung per SQL in die Sage-DB zurueckschreiben
+- ~~Bestandsbuchung per SQL in die Sage-DB zurueckschreiben~~ → als **SData-Lagerbuchung** umgesetzt
+  (v1.28.0, [[2026-07-29-sage-lagerbuchungen-spec]]); Umbuchung/BDE-Kanal/Serien-Chargen bleiben offen
 - XML-Bestandsbuchung nach OSEON
 - Artikel-Zusatzinfos (Einheiten) synchronisieren

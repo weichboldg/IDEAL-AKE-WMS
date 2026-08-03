@@ -520,11 +520,22 @@ C:\Services\IDEALAKEWMSService\
     "SyncIntervalMinutes":              15,
     "NotificationCheckIntervalMinutes": 60,
     "SyncDryRun":                       false
+  },
+  "SageLagerbuchung": {
+    "Username": "",
+    "Password": ""
   }
 }
 ```
 
 > **DryRun-Tipp**: Zuerst `SyncDryRun: true` setzen und parallel mit den SQL Agent Jobs testen. Erst nach erfolgreichem Test auf `false` umstellen und die Agent Jobs deaktivieren.
+
+> **Sage-Lagerbuchungen (v1.28.0)**: Der `SageLagerbuchung`-Block (Basic-Auth-Credentials der
+> SData-API) ist **appsettings-only** und muss am Zielserver manuell befüllt werden (wie
+> `ConnectionStrings`/`MailSettings`). Alle übrigen Werte sind DB-first unter `/ServiceSettings`
+> (Kategorie „Sage-Lagerbuchung"): globaler Schalter `SageLagerbuchungAktiv` (Default aus),
+> `SData:BaseUrl`, `SData:Dataset`, sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz
+> das Feld „Sage-Buchung erlaubt". Ohne diese Aktivierung wird **nichts** an Sage gemeldet.
 
 #### Schritt 3 — Windows Service registrieren
 
