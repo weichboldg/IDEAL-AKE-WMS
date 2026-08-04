@@ -46,6 +46,15 @@ Die tatsaechlich gesendete URL steht im Service-Log (`System.Net.Http.HttpClient
 - **HTTP 401 Unauthorized:** Basic-Auth-Credentials fehlen/falsch. `SageLagerbuchung:Username` und
   `:Password` im **Service**-`appsettings.json` am Zielserver setzen (appsettings-only, nicht in der
   DB) und den Dienst neu starten.
+- **HTTP 500 mit `CommonWawiServices.GetSchema failed` / `MissingMethodException`
+  (`CustomerLicense.IsLicenceValid`):** **Serverseitiger Sage-/SData-Defekt, NICHT unsere Integration.**
+  Der SData-Dienst scheitert schon beim Bauen seiner Contract-/Schema-Definition in der
+  Lizenzvalidierung (Assembly-/Versions-Mismatch auf dem Sage-Server; Body zeigte Dev-Pfad
+  `dpsbs-ol-sdata-commonwawiservice906`). Unsere URL/Auth/Payload sind korrekt — der Fehler tritt
+  auf, BEVOR der Payload gelesen wird. Muss vom Sage-/DPS-Admin behoben werden (SData-CommonWawiService
+  am Testsystem reparieren: versionskonsistente Assemblies + gueltige OL-Lizenz fuer den Mandanten).
+  Schnellprobe: ein beliebiger Aufruf gegen CommonWawiServices (z.B. Postman `$schema`) reproduziert
+  denselben Fehler → bestaetigt server-, nicht payload-seitig.
 - **TLS-/Zertifikatsfehler:** `SageLagerbuchungSslZertifikatPruefen=false` fuer das Testsystem
   (`sagetest01` hat `PartialChain`) — vor Produktivgang wieder `true`.
 
