@@ -28,6 +28,12 @@ date: 2026-08-03
   `;0;0;0`. Neue `StorageLocation`-Felder `SageBuchungErlaubt` (Opt-in, Default false, kumulativ zum
   globalen Toggle), `SageLagerkennung` (= Code), `SageLagerplatzId` (= `KHKLagerplaetze.PlatzID`),
   befuellt vom erweiterten `LagerplatzSyncService`/`SageLagerplatzReader` (`lp.PlatzID`).
+- **Verbindungstest (2026-08-04):** Button „Sage-Verbindung testen" auf `/ServiceSettings`
+  (`ServiceSettingsController.TestSageConnection`, admin-only) — nebenwirkungsfreier **GET** (nie eine
+  Buchung) gegen eine waehlbare SData-Resource (Default `$schema`) mit den aktuellen Formularwerten,
+  Basic-Auth (im Dialog eingegeben, nicht gespeichert) und dem konfigurierten TLS-Verhalten; zeigt
+  Status, **Response-Header** und Body im Modal. Geteilter URL-Builder `IdealAkeWms/Services/SdataUrlBuilder.cs`
+  (Web-Test + Service-Client identisch); `SageLagerbuchungClient.BuildServiceUrl` delegiert dorthin.
 - **Monitoring-UI (S1):** `/SageBookingQueue` (Listen-View-Pattern, `[RequireStockReadAccess]`) mit
   Requeue-Aktion fuer Fehler-Eintraege (`[RequireStockKeyUserAccess]` = `CanTransferStockAsync`).
   Menuepunkt unter Lager → Sage-Lagerbuchungen. **Keine neue Rolle.**

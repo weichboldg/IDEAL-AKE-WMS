@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using IdealAkeWms.Services;
 using Microsoft.Extensions.Logging;
 
 namespace IDEALAKEWMSService.Services;
@@ -9,12 +10,6 @@ public class SageLagerbuchungClient : ISageLagerbuchungClient
 {
     private readonly HttpClient _http;
     private readonly ILogger<SageLagerbuchungClient> _logger;
-
-    /// <summary>Feste SData-Wurzel im Pfad (nach dem Host, vor der Application).</summary>
-    public const string SdataRoot = "sdata";
-
-    /// <summary>Feste Ziel-Resource. Beginnt mit '$' — MUSS literal bleiben (kein %24).</summary>
-    public const string ServiceResource = "$service/LagerbuchungService";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -28,28 +23,12 @@ public class SageLagerbuchungClient : ISageLagerbuchungClient
     }
 
     /// <summary>
-    /// Baut die absolute SData-Ziel-URL aus den Endpunkt-Segmenten. REIN + testbar.
-    /// <para>
-    /// <b>Kodierung (wichtig):</b> KEIN <see cref="Uri.EscapeDataString"/> auf Dataset oder Resource.
-    /// Das Semikolon im Dataset (z. B. <c>ake_TEST2026;1</c>) und das <c>$</c> der Resource sind laut
-    /// RFC 3986 sub-delims und in Pfadsegmenten gueltig — sie muessen <b>literal</b> bleiben
-    /// (<c>;</c> nicht <c>%3B</c>, <c>$</c> nicht <c>%24</c>). Der SData-Feed liefert die href-Werte
-    /// ebenfalls unkodiert; das ist die Referenz. Es wird nur bewusst per String-Interpolation
-    /// zusammengesetzt (die .NET-<see cref="Uri"/>-Pipeline laesst diese sub-delims im Pfad unangetastet).
-    /// </para>
+    /// Baut die absolute SData-Ziel-URL der Lagerbuchung aus den Endpunkt-Segmenten (delegiert an den
+    /// geteilten <see cref="SdataUrlBuilder"/> — identische Zusammensetzung + Kodierung wie der Web-Test).
     /// </summary>
     public static string BuildServiceUrl(SageBookingEndpoint endpoint)
-    {
-        var baseUrl = endpoint.BaseUrl.TrimEnd('/');
-        // Toleranz: manche Admins tragen die BaseUrl inkl. der SData-Wurzel "/sdata" ein
-        // (z. B. https://host:5493/sdata). Dann NICHT verdoppeln — sonst entstuende ".../sdata/sdata/...".
-        if (baseUrl.EndsWith("/" + SdataRoot, StringComparison.OrdinalIgnoreCase))
-            baseUrl = baseUrl[..^(SdataRoot.Length + 1)].TrimEnd('/');
-        var app = endpoint.Application.Trim('/');
-        var contract = endpoint.ServiceContract.Trim('/');
-        var dataset = endpoint.Dataset.Trim('/');
-        return $"{baseUrl}/{SdataRoot}/{app}/{contract}/{dataset}/{ServiceResource}";
-    }
+        => SdataUrlBuilder.BuildLagerbuchungUrl(
+            endpoint.BaseUrl, endpoint.Application, endpoint.ServiceContract, endpoint.Dataset);
 
     public async Task<SageBookingSendResult> SendAsync(
         SageLagerbuchungRequest request, SageBookingEndpoint endpoint, CancellationToken ct = default)

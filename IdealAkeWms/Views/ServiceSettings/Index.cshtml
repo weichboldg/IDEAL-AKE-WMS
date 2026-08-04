@@ -36,6 +36,13 @@
     bleiben in <code>appsettings.json</code> des Dienstes.
 </div>
 
+<div class="mb-3">
+    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#sageTestModal">
+        Sage-Verbindung testen
+    </button>
+    <span class="form-text ms-2">Prüft die SData-Schnittstelle (URL/TLS/Anmeldung) mit den Werten dieser Seite.</span>
+</div>
+
 <form asp-action="SaveSettings" method="post">
     @Html.AntiForgeryToken()
     @foreach (var group in Model.Groups)
@@ -141,6 +148,59 @@
     </div>
 </div>
 
+<div class="modal fade" id="sageTestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sage-Verbindung testen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Nebenwirkungsfreier <strong>GET</strong> gegen die SData-API mit den aktuellen (ggf. noch
+                    ungespeicherten) Werten dieser Seite &mdash; es wird <strong>nie</strong> eine Buchung angelegt.
+                    Anmeldedaten wie im Dienst-<code>appsettings.json</code> (<code>SageLagerbuchung:Username/Password</code>);
+                    sie werden nur für diesen Test verwendet, nicht gespeichert.
+                </p>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small mb-0">Benutzer</label>
+                        <input id="sageTestUser" class="form-control form-control-sm" autocomplete="off" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-0">Passwort</label>
+                        <input id="sageTestPass" type="password" class="form-control form-control-sm" autocomplete="off" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-0">Resource (relativ zum Dataset)</label>
+                        <input id="sageTestResource" class="form-control form-control-sm" list="sageTestResources" value="$schema" />
+                        <datalist id="sageTestResources">
+                            <option value="$schema"></option>
+                            <option value="Adressen?count=1&amp;format=application/json"></option>
+                            <option value="Artikel?count=1&amp;format=application/json"></option>
+                        </datalist>
+                        <div class="form-text">
+                            <code>$schema</code> = Metadaten/Funktionsumfang der Schnittstelle;
+                            <code>Adressen</code>, <code>Artikel</code> = Lese-Resourcen (Beispiele).
+                        </div>
+                    </div>
+                </div>
+                <button type="button" id="sageTestRun" class="btn btn-primary btn-sm mt-3">Testen</button>
+
+                <div id="sageTestResult" class="mt-3 d-none">
+                    <div id="sageTestStatus" class="mb-2"></div>
+                    <div class="small text-muted">Angeforderte URL:</div>
+                    <pre id="sageTestUrl" class="small bg-light border p-2 mb-2" style="white-space:pre-wrap;word-break:break-all;"></pre>
+                    <div class="small text-muted">Response-Header:</div>
+                    <pre id="sageTestHeaders" class="small bg-light border p-2 mb-2" style="white-space:pre-wrap;max-height:12rem;overflow:auto;"></pre>
+                    <div class="small text-muted">Body:</div>
+                    <pre id="sageTestBody" class="small bg-light border p-2 mb-0" style="white-space:pre-wrap;max-height:22rem;overflow:auto;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         // Bool-Toggle: synchronisiert den Hidden-Wert + Label (Fallstrick: Hidden+Checkbox
@@ -153,5 +213,73 @@
                 if (label) label.textContent = this.checked ? 'Aktiviert' : 'Deaktiviert';
             });
         });
+
+        // Sage-Verbindungstest: GET-Probe mit den aktuellen Formularwerten, Ausgabe im Modal.
+        (function () {
+            var runBtn = document.getElementById('sageTestRun');
+            if (!runBtn) return;
+
+            function settingValue(key) {
+                var el = document.querySelector('input[name="settings[' + key + ']"]');
+                return el ? el.value : '';
+            }
+
+            runBtn.addEventListener('click', async function () {
+                var token = document.querySelector('input[name="__RequestVerificationToken"]');
+                var sslRaw = settingValue('SageLagerbuchungSslZertifikatPruefen');
+                var payload = {
+                    baseUrl: settingValue('SData:BaseUrl'),
+                    application: settingValue('SData:Application'),
+                    serviceContract: settingValue('SData:ServiceContract'),
+                    dataset: settingValue('SData:Dataset'),
+                    // fail-safe: alles ausser explizit "false" => pruefen
+                    verifyCertificate: sslRaw.toLowerCase() !== 'false',
+                    username: document.getElementById('sageTestUser').value,
+                    password: document.getElementById('sageTestPass').value,
+                    resource: document.getElementById('sageTestResource').value
+                };
+
+                runBtn.disabled = true;
+                var original = runBtn.textContent;
+                runBtn.textContent = 'Teste…';
+                try {
+                    var resp = await fetch('@Url.Action("TestSageConnection")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token ? token.value : ''
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    var data = await resp.json();
+
+                    document.getElementById('sageTestResult').classList.remove('d-none');
+                    var st = document.getElementById('sageTestStatus');
+                    if (data.error) {
+                        st.innerHTML = '<span class="badge bg-danger">Verbindungsfehler</span> '
+                            + '<span class="small"></span>';
+                        st.querySelector('span.small').textContent = data.error;
+                    } else {
+                        var cls = data.ok ? 'bg-success' : 'bg-danger';
+                        st.innerHTML = '<span class="badge ' + cls + '">HTTP ' + data.status + '</span> '
+                            + '<span class="small reason"></span>'
+                            + (data.sslVerify ? '' : ' <span class="badge bg-warning text-dark">TLS-Prüfung aus</span>');
+                        st.querySelector('span.reason').textContent = data.reason || '';
+                    }
+                    document.getElementById('sageTestUrl').textContent = data.requestUrl || '';
+                    document.getElementById('sageTestHeaders').textContent =
+                        (data.headers || []).map(function (h) { return h.name + ': ' + h.value; }).join('\n');
+                    document.getElementById('sageTestBody').textContent = data.body || '';
+                } catch (e) {
+                    document.getElementById('sageTestResult').classList.remove('d-none');
+                    document.getElementById('sageTestStatus').innerHTML =
+                        '<span class="badge bg-danger">Fehler</span>';
+                    document.getElementById('sageTestBody').textContent = String(e);
+                } finally {
+                    runBtn.disabled = false;
+                    runBtn.textContent = original;
+                }
+            });
+        })();
     </script>
 }

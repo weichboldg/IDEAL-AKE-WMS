@@ -546,6 +546,11 @@ C:\Services\IDEALAKEWMSService\
 > setzen (fail-safe: fehlender/ungültiger Wert = geprüft; wirkt nur auf den Lagerbuchungs-Client, kein
 > globaler Effekt; Änderung greift ohne Dienst-Neustart). Bei `false` erscheint ein Warnhinweis im
 > Worker-Log, unter `/ServiceSettings` und in `/SageBookingQueue`. **Vor Produktivgang auf `true`.**
+>
+> **Verbindungstest:** Auf `/ServiceSettings` prüft der Button „Sage-Verbindung testen" die SData-Schnittstelle
+> (nebenwirkungsfreier GET, Default-Resource `$schema`) mit den aktuellen Werten + eingegebenen Zugangsdaten
+> und zeigt Status, Response-Header und Body — ohne eine echte Buchung. `$schema` listet den Funktionsumfang
+> der Schnittstelle; weitere Lese-Resourcen laut Sample: `Adressen`, `Artikel`.
 
 #### Schritt 3 — Windows Service registrieren
 

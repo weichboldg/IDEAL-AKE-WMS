@@ -477,6 +477,15 @@ String-Interpolation gebaut, und die .NET-`Uri`-Pipeline (die `HttpRequestMessag
 laesst diese sub-delims im Pfad unangetastet. `SageLagerbuchungClientUrlTests` prueft die exakte
 Ziel-URL **inklusive** literalem `;` und `$` und dass `new Uri(url).AbsoluteUri` sie nicht kodiert.
 
+**Verbindungstest (2026-08-04):** `/ServiceSettings` hat einen Button „Sage-Verbindung testen"
+(`ServiceSettingsController.TestSageConnection`, admin-only). Er baut die URL aus den **aktuellen**
+Formularwerten (ueber denselben `SdataUrlBuilder`), sendet einen **GET** (nebenwirkungsfrei — nie eine
+Buchung) auf eine waehlbare Resource (Default `$schema`, Beispiele `Adressen`/`Artikel`), mit im Dialog
+eingegebener Basic-Auth (nicht gespeichert) und dem konfigurierten TLS-Verhalten
+(`SageLagerbuchungSslZertifikatPruefen` → `HttpClientHandler.DangerousAcceptAnyServerCertificateValidator`
+bei `false`). Ergebnis (Status, **Response-Header**, Body) wird im Modal angezeigt — Diagnose ohne
+echten Buchungsversuch. `$schema` listet zugleich den Funktionsumfang der Schnittstelle.
+
 ### 7. Optionale Monitoring-UI
 
 Empfehlung: minimale Read-only-Liste `/SageBookingQueue` (Listen-View-Pattern, ADR 0005) unter
