@@ -2,9 +2,9 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-07-29
-updated: 2026-08-03
+updated: 2026-08-04
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
 task: "[[2026-07-29-sage-lagerbuchungen-umsetzung]]"
 worktree: ".claude/worktrees/2026-07-29-sage-lagerbuchungen"
@@ -1431,3 +1431,99 @@ Drift-Guard gruen, `BuildServiceUrl` exakt gegen die Discovery-URL verifiziert, 
 (literal `;`/`$`) durch 4 Tests inkl. `Uri`-Pipeline-Beweis abgesichert. Drei kosmetische, nicht
 tester-facing Alt-Referenzen gefunden — dokumentiert, nicht blockierend. Status zurueck auf
 Testbereit.
+
+### Re-Verifikation QA (2026-08-04, nach 5 Commits f5dc4e0..7d9168d — /sdata-Dedup, Diagnose, TEST-Button)
+
+`git diff 3348f9d..HEAD` — 15 Dateien. Fuenf Commits seit der letzten Testbereit-Bestaetigung:
+`f5dc4e0` (mein Follow-up aus der Vorrunde erledigt — siehe unten), `ea68dfb` (`/sdata`-Verdopplung
+gefixt, UAT-Fund), `2a247cf` (Sage-Fehlerantwort sichtbar: 500-Body ins Log + `SageResponseRaw`
+aufklappbar in `/SageBookingQueue`), `8680892` (500/`GetSchema`-`MissingMethodException` als
+serverseitiger Sage-Defekt dokumentiert), `7d9168d` (neuer admin-only TEST-Button
+„Sage-Verbindung testen" auf `/ServiceSettings`, geteilter `SdataUrlBuilder`).
+
+**Beweis Build:**
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)  (unveraendert: NU1902 MailKit/MimeKit + 1 CS8602 TrackingController)
+    0 Fehler(en)
+```
+
+**Beweis Tests:**
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1064, übersprungen: 1, gesamt: 1065
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  195, übersprungen: 0, gesamt:  195
+```
+Deckt sich exakt mit der Erwartung (Web 1056→1064 = +8 neue `SdataUrlBuilderTests`; Service
+190→195 = +5 neue `/sdata`-Toleranz-Theorien in `SageLagerbuchungClientUrlTests`). Gezielt:
+`ServiceSettingDefinitions`+`SdataUrlBuilder`-Filter **50/50 gruen** (Drift-Guard inkl.),
+`SageLagerbuchungClientUrlTests`-Filter **9/9 gruen**.
+
+**Follow-up aus der Vorrunde (drei kosmetische Alt-Referenzen) — alle drei erledigt:**
+1. `ISageLagerbuchungClient.cs:21` XML-Doc jetzt auf die 4-Segment-Form angeglichen (in `f5dc4e0`,
+   und im selben Commit `7d9168d` zusaetzlich auf `SdataUrlBuilder`-Delegation umformuliert).
+2. Brain-Changelog Zeile 22 auf „URL siehe SData-URL unten" umformuliert (kein Widerspruch mehr).
+3. Spec-Akzeptanzkriterium 4 auf die 4-Segment-Form + Verweis auf den Nachtrag umgestellt.
+
+**Pruefpunkte (a)-(d) laut Auftrag:**
+- **(a) `/sdata`-Dedup + literale Kodierung:** `SdataUrlBuilder.BuildResourceUrl` erkennt eine
+  BaseUrl, die bereits mit `/sdata` endet (`EndsWith("/" + SdataRoot, OrdinalIgnoreCase)`, inkl.
+  Trailing-Slash-Normalisierung davor) und strippt sie einmalig, statt sie zu verdoppeln.
+  `SdataUrlBuilderTests.BuildResourceUrl_DoesNotDoubleSdataRoot` (4 Varianten: ohne/mit Trailing-
+  Slash, mit/ohne `/sdata`) und `SageLagerbuchungClientUrlTests.BuildServiceUrl_DoesNotDoubleSdataRoot`
+  (5 Varianten, zusaetzlich Gross-/Kleinschreibung `/SData`) beide gruen. Literale `;`/`$`-Kodierung
+  unveraendert durch `BuildResourceUrl_Schema_KeepsDollarAndSemicolonLiteral` +
+  `SageLagerbuchungClientUrlTests` (Uri-Pipeline-Beweis) abgesichert. **Korrekt.**
+- **(b) Client delegiert korrekt:** `SageLagerbuchungClient.BuildServiceUrl` ist jetzt ein reiner
+  Einzeiler `=> SdataUrlBuilder.BuildLagerbuchungUrl(...)` — keine eigene Logik mehr, kein
+  Verhaltensdrift moeglich zwischen Web-Test und Service-Client (beide nutzen exakt denselben
+  Builder). `SageLagerbuchungClientUrlTests` bleiben unveraendert gruen (Regressionsschutz). **Korrekt.**
+- **(c) `TestSageConnection` GET-only/admin-only/Antiforgery/TLS:**
+  `[RequireAdminAccess]` auf Klassenebene (`ServiceSettingsController`), `[HttpPost]` +
+  `[ValidateAntiForgeryToken]` auf der Action (JS sendet den Token aus dem Formular), der eigentliche
+  Sonde-Request ist ein literales `HttpMethod.Get` — es existiert kein Code-Pfad, der daraus eine
+  Buchung machen koennte (kein `POST`, kein `SendAsync`/`SageLagerbuchungClient`-Aufruf, komplett
+  eigener `HttpClient`). TLS: JS liest den aktuellen `SageLagerbuchungSslZertifikatPruefen`-Wert aus
+  dem Formular und wendet dieselbe fail-safe-Regel an (`sslRaw.toLowerCase() !== 'false'`) wie
+  `SageTlsPolicy.ShouldVerifyCertificate`; Server setzt bei `verifyCertificate:false`
+  `HttpClientHandler.DangerousAcceptAnyServerCertificateValidator`, sonst Standard-Validierung.
+  Anmerkung (nicht blockierend): Der Server vertraut dem vom Client gesendeten Bool direkt, statt
+  serverseitig nochmal `SageTlsPolicy.ShouldVerifyCertificate` gegenzupruefen — unkritisch, da
+  admin-only reines Diagnose-Tool ohne Schreibwirkung, kein Effekt auf den produktiven Sende-Pfad
+  (dieser bleibt unveraendert `SageTlsPolicy`-gesteuert). **Korrekt / akzeptabel.**
+- **(d) Drift-Guard — keine neuen Keys:** `git diff` an `ServiceSettingDefinitions.cs` zeigt nur eine
+  Beschreibungstext-Aenderung an `SData:BaseUrl` (dokumentiert die neue `/sdata`-Toleranz), keinen
+  neuen Key. `SData:Application`/`SData:ServiceContract` waren bereits aus der Vorrunde katalogisiert.
+  **Korrekt.**
+
+**Doku/Testszenarien:**
+- TEST-Button dokumentiert in Spec (Nachtrag „Verbindungstest", Abschnitt 6), README (Betriebsdoku)
+  und Brain-Changelog sowie in der Anwender-Hilfeseite (`Views/Help/Changelog.cshtml`). **Vollstaendig.**
+- 500/`GetSchema`-Serverdefekt als Troubleshooting in `secondbrain/aufgaben/2026-08-03-deploy-...md`
+  festgehalten (inkl. Schnellprobe zur Bestaetigung „serverseitig"). **Vollstaendig.**
+- `docs/TESTSZENARIEN.md`/Index in diesem Diff **nicht** angefasst. Bewertung (wie angefragt): fuer
+  den TEST-Button **kein** eigenes TS-Kapitel zwingend, weil (1) er ein reines Admin-Diagnose-Tool
+  ohne fachliche Buchungswirkung ist (kein Business-Datenfluss, keine Persistenz), (2) seine
+  sicherheitsrelevanten Eigenschaften (admin-only, GET-only, nie eine Buchung) hier code-verifiziert
+  sind statt nur behauptet, und (3) er keine bestehende TS-56-Szenario verdeckt oder blockiert
+  (anders als der TLS-Schalter in einer fruaheren Runde, der TS-56.3/56.4 unbrauchbar gemacht haette
+  ohne Dokumentation). **Empfehlung (nicht blockierend):** ein optionales TS-56.14 fuer den
+  TEST-Button waere als Komfort-Absicherung sinnvoll (Vorbedingung: Rolle admin; Schritt: Button auf
+  `/ServiceSettings`, `$schema` testen; Erwartung: Status+Header+Body im Modal, kein Queue-Eintrag in
+  `/SageBookingQueue`) — kann im naechsten trivialen Doku-Commit nachgezogen werden.
+
+**Kontext Sende-UAT:** TS-56.3/56.4 (echte Buchung am Sage-Testsystem) sind aktuell **extern
+blockiert** durch einen serverseitigen Sage-/SData-Defekt (`CommonWawiServices.GetSchema` scheitert
+an einer `MissingMethodException` in der Lizenzvalidierung, reproduzierbar auch mit einem simplen
+`$schema`-Aufruf ausserhalb unseres Payloads — siehe Troubleshooting). Das ist **kein** Befund gegen
+unseren Code: URL, Kodierung, Auth und Payload sind durch Unit-Tests + den neuen Diagnose-Button
+verifizierbar korrekt aufgebaut; der Fehler tritt serverseitig auf, bevor unser Payload gelesen wird.
+Muss vom Sage-/DPS-Admin behoben werden, bevor TS-56.3/56.4/56.7/56.8 end-to-end abschliessbar sind.
+
+**Entscheidung: Testbereit (bestaetigt).** Build 0 Fehler, Tests 1064+195 gruen (1 uebersprungen),
+alle vier Pruefpunkte (a-d) verifiziert korrekt, alle drei Alt-Referenzen aus der Vorrunde erledigt,
+Doku vollstaendig (Spec/README/Brain-Changelog/Hilfeseite/Troubleshooting). Kein eigenes TS-Kapitel
+fuer den Diagnose-Button zwingend erforderlich (Begruendung oben), optional empfohlen. Status
+zurueck auf Testbereit — mit dem Hinweis, dass die eigentliche Sende-UAT (TS-56.3/56.4/56.7/56.8)
+extern durch einen Sage-seitigen Serverdefekt blockiert ist und nicht an unserem Code liegt.
