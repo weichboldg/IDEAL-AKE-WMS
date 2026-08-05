@@ -206,8 +206,84 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
+1. →ich würde eine eigene Seite - einfacher für den user
+2. →sequenziell
+3. →lassen wir bewusst hinten - als idee vormerken
+4. →keine
+5. →hinweismeldung und korrigieren lassen - danach nochmals speichern
+
+## Kritische Pruefung (2026-08-05)
+
+Anwalt-des-Teufels-Durchsicht vor der Freigabe. Geprueft gegen Spec, Backlog, ADR 0001/0003/0006,
+und den echten Code (`StockMovementsController.Inbound`/`OutboundAllConfirm`,
+`StockMovementCreateViewModel`, `Repository.AddAsync`, den **gerade gemergten** Sage-Lagerbuchungs-
+Decorator auf `IStockMovementRepository.AddAsync`). Alle fuenf Freigabe-Antworten sind beantwortet
+und in sich stimmig (eigene Seite, sequenzieller Scan, Fulfillment spaeter, keine Zeilen-Grenze,
+Fehler → Hinweis + korrigieren + erneut speichern). Es gibt aber substanzielle Befunde.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B1 — Antwort 2 („sequenziell") legt das Verhalten beim MEHRFACH-Scan desselben Artikels nicht fest.**
+„Scan fuegt eine neue Zeile hinzu" ist beim Handscanner-Alltag zweideutig: Wenn der Lagermitarbeiter
+zehnmal denselben Artikel scannt (zehn Stueck), soll das **zehn Zeilen a Menge 1** ergeben — oder
+**eine Zeile, deren Menge sich auf 10 hochzaehlt**? Beides ist ueblich; die Wahl aendert View, JS und
+Testszenarien.
+  **Frage an den Menschen:** Beim erneuten Scan eines bereits in der Liste stehenden Artikels —
+  (a) jedes Mal eine neue Zeile (Menge bleibt 1, Nutzer korrigiert Mengen manuell), oder
+  (b) Menge der bestehenden Zeile +1 (Stueck-fuer-Stueck-Zaehlen)?
+  **Empfehlung:** (b) — beim Stueckgut-Wareneingang zaehlt man i. d. R. hoch; ein Toggle „neue
+  Zeile erzwingen" kann Sonderfaelle abdecken. Bitte entscheiden.
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S1 — Cross-Feature-Interaktion mit der GERADE gemergten Sage-Lagerbuchung ist nicht bedacht (wichtigster technischer Punkt).**
+Jede Bulk-Zeile erzeugt eine `Einbuchung`. Seit v1.28.0 haengt am `IStockMovementRepository.AddAsync`
+der Sage-Enqueue-Decorator: eine `Einbuchung` auf einem Sage-freigegebenen Lagerplatz wird an Sage
+gemeldet. Das zitierte Vorbild `OutboundAllConfirm` bucht bewusst **per `AddAsync` je Zeile**
+(`StockMovementsController.cs:399`) — dadurch feuert der Decorator korrekt pro Zeile. **Risiko:** Wer
+fuer „Atomaritaet/Performance" auf einen Direkt-`_context.StockMovements.AddRange(...)` + einmaliges
+`SaveChanges()` umbaut, **umgeht den Decorator** — die Bulk-Einbuchungen erreichen Sage dann **nie**
+(stiller Rueckschritt des frisch gelieferten Features).
+  **Vorschlag:** In-Scope + ein hartes **Regressions-Akzeptanzkriterium**: „Jede Bulk-Zeile wird ueber
+  `IStockMovementRepository.AddAsync` gebucht (identischer Pfad wie Einzel-Einbuchung inkl. Audit UND
+  Sage-Enqueue); kein Direkt-DbContext-Bypass." Zusatz-Testszenario: Bulk-Einbuchung auf einem
+  Lagerplatz mit `SageBuchungErlaubt=true` + globalem Toggle an → pro Zeile entsteht ein
+  `SageBookingQueueItem`.
+
+**S2 — Antwort 5 („Hinweis + korrigieren + erneut speichern") verlangt zwei ungenannte Eigenschaften.**
+Damit „korrigieren und erneut speichern" funktioniert, muss der POST bei einer ungueltigen Zeile
+(a) **die gesamte Buchung ablehnen — KEINE Teilbuchung** (kein `StockMovement` entsteht) und
+(b) das Formular **mit den bereits eingegebenen Zeilen** neu rendern (ein naiver `RedirectToAction`
+verliert die Eingaben). Beides steht aktuell nicht in der Spec.
+  **Vorschlag:** AK6 von „entweder/oder" auf die getroffene Entscheidung festnageln und zwei AKs
+  ergaenzen: „Bei mindestens einer ungueltigen Zeile wird NICHTS gebucht (Bewegungshistorie unveraendert)"
+  und „nach dem Fehler bleiben alle eingegebenen Zeilen + Kopf-Werte im Formular erhalten, mit
+  Markierung der fehlerhaften Zeile(n)". Validierung ALLER Zeilen VOR dem ersten `AddAsync`.
+
+**S3 — Antwort 4 („keine" Obergrenze) trifft eine stillschweigende Framework-Grenze.** ASP.NET Core
+begrenzt Form-Felder per `FormOptions.ValueCountLimit` (Default **1024**) und die Model-Binding-
+Collection-Groesse; jenseits davon schlaegt das Binden fehl (kein sauberer Fachfehler). „Keine
+App-Grenze" ist praktisch ok (am Handscanner zaehlt man Dutzende, nicht Tausende), aber die Spec
+sollte das benennen: bewusst **keine** kuenstliche Grenze, aber ein sprechender Hinweis statt eines
+stillen HTTP-400, falls die Framework-Grenze doch erreicht wird.
+
+### HINWEIS — Beobachtung ohne Handlungszwang
+
+**H1 — Doppelte Artikel-Zeilen** (derselbe Artikel in zwei Zeilen) erzeugen zwei `StockMovement`-
+Zeilen. Das ist konsistent (eine Bewegung je Zeile), sollte aber je nach B1-Entscheidung mitgedacht
+werden (bei Variante (b) wuerde ein Re-Scan zusammengefuehrt statt verdoppelt).
+
+**H2 — Body-Aufraeumung nach den Antworten:** Der Out-of-Scope-Vorbehalt „falls Umschalt-Modus"
+(Zeilen 60-62) ist mit Antwort 1 (eigene Seite) gegenstandslos; die zurueckgestellte Fulfillment-
+Funktion (Antwort 3) bitte als eigene **Ideen-/Backlog-Notiz** vormerken, damit sie nicht verloren geht.
+
+**H3 — Groesse:** ok fuer einen Dev-Lauf (neue Action + ViewModel + View + sequenzielles Scan-JS +
+Tests, ~5-6 Dateien, nur Web). Das sequenzielle Scan-JS (`barcode-scanner.js`-Erweiterung) ist der
+kniffligste Teil und traegt das meiste Regressionsrisiko fuer den bestehenden Einzel-Scan — dort auf
+Nicht-Brechen des bestehenden `initScanner` achten.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: eine offene Entscheidung (B1 Mehrfach-Scan desselben Artikels: neue Zeile vs.
+Menge hochzaehlen) plus zwei sicherheitsrelevante Praezisierungen (S1 Sage-Enqueue-Pfad nicht umgehen,
+S2 keine Teilbuchung + Eingaben beim Fehler erhalten). Danach ist Teil-2 ein sauberer Web-only-Dev-Lauf.**
