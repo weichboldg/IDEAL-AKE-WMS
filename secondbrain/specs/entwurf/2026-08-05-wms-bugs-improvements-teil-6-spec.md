@@ -230,3 +230,35 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 1. →
 2. →
 3. →
+
+klären wir später - bitte im backlog belassen.
+
+## Kritische Pruefung (2026-08-05)
+
+**ZURUECKGESTELLT — keine Freigabe-Pruefung durchgefuehrt.** Der Mensch hat diese Anforderung
+bewusst vertagt („klären wir später - bitte im backlog belassen", Command-Notiz „wir werden diese
+anforderung später angehen"). Die drei Freigabe-Antworten sind **unbeantwortet** (nur Pfeile) — eine
+Anwalt-des-Teufels-Freigabe-Pruefung waere gegenstandslos, weil es noch keine Entscheidungen zu
+pruefen gibt. Die Spec bleibt als Entwurf in `specs/entwurf/` liegen und wird **nicht** finalisiert.
+
+**Damit beim spaeteren Wiederaufgreifen nichts verloren geht** (kein Ersatz fuer eine echte Pruefung,
+nur ein Merkzettel):
+- **Kern-Entscheidung zuerst (open_question 1):** Was heisst „Aktivierung von FA-Ausbuchung"? —
+  Variante **A** (das FA-Textfeld auf `OutboundAllConfirm` wirkt als **echter Filter**: nur die zu
+  dieser FA gehoerenden Artikel werden ausgebucht, statt heute ALLE am Platz) vs. Variante **B**
+  (Checkbox/Auswahl **je Zeile**). Ohne diese Wahl ist der Fix nicht spezifizierbar — das ist der
+  erste Punkt, den der Mensch beim Wiederaufnehmen beantworten muss.
+- **Mehrdeutige FA je Zeile (open_question 2):** wenn eine Artikel/Lagerplatz-Kombination aus
+  mehreren FA-getaggten Bewegungen stammt — Anzeige als Liste oder nur juengste/haeufigste FA?
+- **Konsistenz mit Teil 1:** Die FA-Spalten-Datenquelle beruehrt dieselbe „Bestand vs.
+  Bewegungssaldo"-Frage wie Teil 1 (Bugfix FA-Hinweis). Beim Wiederaufgreifen mit dem dann
+  finalisierten Teil-1-Verhalten (Variante B / nur Ist-Bestand) abgleichen.
+- **Cross-Feature-Merkposten:** `OutboundAll` erzeugt `Ausbuchung`en ueber
+  `IStockMovementRepository.AddAsync` — seit v1.28.0 haengt daran der Sage-Lagerbuchungs-Enqueue.
+  Wenn die FA-Filterung (Variante A) die Menge der ausgebuchten Zeilen aendert, aendert sich damit
+  auch die Menge der Sage-Meldungen; bei der Umsetzung mitdenken (kein Bypass des Repository-Pfads).
+
+### Empfehlung
+
+**ZURUECKGESTELLT (bewusst, durch den Menschen). Nicht freigeben; im Backlog/Entwurf belassen, bis
+die Kern-Entscheidung (Variante A vs. B) getroffen ist. Danach normale /review-Runde nachholen.**
