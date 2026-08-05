@@ -188,6 +188,102 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
+1. →ja
+2. →ja, nur beim scannen
+3. →bitte robuster
+
+## Kritische Pruefung (2026-08-05)
+
+Rolle: Anwalt des Teufels. Geprueft gegen echten Code (`barcode-scanner.js`,
+`Views/StockMovements/Index.cshtml`, `StockMovementRepository.GetMovementHistoryAsync`,
+Referenzen `OseonIndex.cshtml` / `StockOverview/Index.cshtml`) und die drei Freigabe-Antworten.
+
+### BLOCKER
+
+- **B1 — Antwort 3 („bitte robuster") widerspricht der eigenen Loesungsskizze (`substring(0,7)`)
+  und dem Spec-Titel („7-stelliger Truncation").** Das sind ZWEI verschiedene Algorithmen:
+  - *fixe 7 Zeichen* (`value.substring(0,7)`) — bricht jede Basis-WA, die laenger als 7 Zeichen
+    ist und KEIN Trennzeichen hat (z. B. eine kuenftige 8-stellige IDEAL-Nummer `26100631` →
+    faelschlich `2610063`).
+  - *trennzeichen-basiert* (alles ab erstem `-`/`_` abschneiden, sonst Rohwert unveraendert) —
+    liefert bei allen Beispielen dasselbe Ergebnis, ist aber gegen Laengen-Annahmen immun.
+
+  Antwort 1 („verlaesslich 7-stellig") und Antwort 3 („robuster") zeigen damit in
+  entgegengesetzte Richtungen: wer 7-stellig garantiert, braucht kein „robuster"; wer „robuster"
+  will, darf sich nicht auf Position 7 verlassen. Der Umsetzer kann so nicht eindeutig
+  implementieren.
+  **Frage an den Menschen:** Bitte den exakten Algorithmus bestaetigen:
+  „Schneide alles ab dem ersten `-` oder `_` ab (`value.trim().split(/[-_]/)[0]`); ist kein
+  `-`/`_` vorhanden, bleibt der Rohwert unveraendert — KEIN zusaetzlicher harter 7-Zeichen-Cap."
+  Ja/Nein? Falls ein 7-Zeichen-Cap zusaetzlich gewuenscht ist, macht er die Robustheit aus
+  Antwort 3 wieder zunichte — das bitte explizit entscheiden.
+
+### SOLLTE
+
+- **S1 — Spec-Text an Antwort 3 nachziehen (aktuell inkonsistent).** Nach Klaerung von B1 muessen
+  Fachliche Anforderung 2, Loesungsentwurf Schritt 4 (Code-Snippet) und die Akzeptanzkriterien
+  von „ersten 7 Zeichen"/`substring(0,7)` auf die Trennzeichen-Regel umgeschrieben werden.
+  Konkreter Callback-Vorschlag (ersetzt das Snippet in Schritt 4):
+  ```js
+  initTextInputScanner('btnScanProductionOrder', 'filterProductionOrder', 'fa', function () {
+      var input = document.getElementById('filterProductionOrder');
+      if (input && input.value) {
+          input.value = input.value.trim().split(/[-_]/)[0];
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+  });
+  ```
+- **S2 — html5-qrcode-Quelle festlegen: lokal, nicht CDN.** Die Spec sagt nur „plus die
+  html5-qrcode-Bibliothek". Im Code existieren zwei Muster: `OseonIndex.cshtml:233` laedt lokal
+  (`~/lib/html5-qrcode/html5-qrcode.min.js`), `StockOverview/Index.cshtml:159` laedt vom
+  `unpkg.com`-CDN. Im Produktions-Intranet ist das CDN ggf. nicht erreichbar. Vorschlag: die
+  **lokale** Variante wie OseonIndex verwenden und das in Schritt 2 fixieren.
+- **S3 — Akzeptanzkriterien/Testszenarien um die Robust-Randfaelle erweitern.** Aktuell nur drei
+  Happy-Beispiele. Nach B1 ergaenzen: mehrere Trennzeichen (`2610063-1-2` → `2610063`),
+  `_`-Suffix, nicht-numerischer Suffix (`2610063-A` → `2610063`), gar kein Suffix (unveraendert),
+  und — bei trennzeichen-basiert — den Negativfall neu formulieren: „Wert kuerzer als 7 ohne
+  Trennzeichen" wird jetzt NICHT mehr gekuerzt (der bisherige `substring`-Negativfall ist mit der
+  neuen Regel gegenstandslos).
+
+### HINWEIS
+
+- **H1 — Scan-Feedback zeigt den UNgekuerzten Wert.** `showScanFeedback` (barcode-scanner.js:304)
+  laeuft im `_origProcessScannedValue` VOR dem `onScanned`-Callback und zeigt daher
+  „Gescannt: 2610063-1", waehrend das Feld anschliessend auf `2610063` gekuerzt wird. Kosmetisch;
+  optional im Callback das Feedback neu rendern.
+- **H2 — Antwort 2 („nur beim scannen") ist im Code sauber trennbar — bestaetigt.** Die Kuerzung
+  lebt ausschliesslich im `onScanned`-Callback von `initTextInputScanner`, der nur beim Scan
+  feuert. Manuelles Eintippen/Einfuegen in `filterProductionOrder` bleibt voellig unberuehrt.
+  Scan-Handler und Filter-Logik sind getrennt — Antwort 2 ist umsetzbar wie formuliert.
+- **H3 — Inkonsistenz zu StockOverview (Folgearbeit).** `StockOverview/Index.cshtml:165` hat
+  bereits einen Scan-Button auf einem `filterProductionOrder`-Feld
+  (`initScanner('btnScanPO', 'filterProductionOrder', 'productionOrder')`) OHNE 7-/Trennzeichen-
+  Kuerzung. Derselbe WA-Strichcode wird dort also nicht gekuerzt. Laut Backlog nur
+  Bewegungshistorie in Scope — aber der Anwender koennte dieselbe Bequemlichkeit im
+  Lagerbestand-FA-Filter erwarten. Als Aufgabe/Folge notieren.
+- **H4 — Server-Filter ist `Contains` — Kuerzung ist noetig, nicht optional.**
+  `StockMovementRepository.cs:293` filtert `sm.ProductionOrder.Contains(filterProductionOrder)`.
+  Der gespeicherte `ProductionOrder` traegt keinen `-/_`-Suffix; ein `Contains("2610063-1")`
+  liefert daher KEINEN Treffer. Die Kuerzung ist also fachlich zwingend (bestaetigt die
+  „verhindert Treffer"-Begruendung im Ziel).
+- **H5 — Keine Kollision/Interaktion mit teil-1.** teil-1 fasst nur
+  `StockMovementRepository.cs` / `IStockMovementRepository.cs` an (Methode
+  `GetStockByProductionOrderAsync`), nicht `GetMovementHistoryAsync`, nicht die View, nicht
+  `barcode-scanner.js`. Kein Datei-Overlap, kein Merge-Konflikt, kein Verhaltens-Einfluss. Der
+  in Frage 6 vermutete `Contains`-Teilstring-Effekt betrifft eine andere Methode/andere Views —
+  hier irrelevant.
+- **H6 — Sage v1.28.0 (Cross-Cutting) irrelevant — bestaetigt.** Der Sage-Decorator haengt am
+  Schreibpfad `IStockMovementRepository.AddAsync`; teil-3 ist reiner Lese-/Filter-/Scan-Pfad und
+  ruft `AddAsync` nie. Die neuen `MovementType.Sage*`-Eintraege stehen zwar im Bewegungsart-Filter
+  der Index-View (Zeilen 42-43), haben mit dem Scan-Button aber nichts zu tun.
+- **H7 — `'fa'`-Extractor durchlaeuft die `;`/Komma-QR-Logik.** `valueExtractor:'fa'` mappt auf
+  `scanType:'productionOrder'`, das in `processScannedValue` (Zeilen 277-284) `;`-Split +
+  `,`-Suffix-Kuerzung macht. Fuer einen reinen 1D-WA-Strichcode (`2610063-1`, kein `;`/`,`) ist
+  das ein harmloser No-op; erst der Callback kuerzt. Akzeptabel — nur bewusst so lassen.
+- **H8 — Annahme dokumentieren:** Basis-WA-Nummern enthalten selbst nie `-`/`_`. Alle Beispiele
+  sind rein numerisch, daher sicher; sollte je eine legitime FA einen Bindestrich enthalten,
+  wuerde die Trennzeichen-Regel sie zerschneiden.
+- **Deploy/Groesse:** web-only, keine Migration, kein Service — plausibel; Publish-Befehl korrekt.
+
+NACHBESSERUNG NOETIG: B1 (Algorithmus fixe-7 vs. trennzeichen-basiert) klaeren, dann S1/S2/S3
+(Spec-Text, html5-qrcode-Quelle, Randfall-Kriterien) nachziehen.
