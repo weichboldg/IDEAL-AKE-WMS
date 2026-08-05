@@ -18,12 +18,7 @@ affected_code:
   - IdealAkeWms/wwwroot/js/barcode-scanner.js (ggf. Erweiterung fuer Mehrfach-Scan-Modus)
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "UX-Entscheidung noetig: eigene neue Seite/Route (z. B. /StockMovements/InboundBulk) oder ein Umschalt-Modus auf der bestehenden Einbuchungsseite? Wirkt sich auf Navigation, Rollen-Sichtbarkeit und Testszenarien aus."
-  - "Soll das Scannen mehrerer Artikel per Kamera-Scanner sequenziell in einer Zeilen-Liste erfolgen (Scan fuegt automatisch eine neue Zeile hinzu), oder bleibt der Scan-Button je Zeile wie bisher (ein Scan pro Zeile, Zeilen manuell hinzufuegen)?"
-  - "Bedarfsmeldungen-Erfuellung (fulfilledRequisitionIds, aktuell in Inbound() verdrahtet) - soll das im Mehrfach-Modus pro Zeile einzeln waehlbar sein, oder entfaellt diese Funktion dort bewusst (weniger Bildschirmplatz pro Zeile)?"
-  - "Obergrenze der Zeilenzahl pro Mehrfach-Einbuchung (Performance/Bedienbarkeit auf mobilen Handscannern)? Bestehende Muster kennen z. B. PageSize.AllCap 5000 als Vorbild fuer eine bewusste, sichtbare Grenze."
-  - "Negativ-/Fehlerverhalten: wenn eine von mehreren Zeilen ungueltig ist (z. B. Artikel nicht gefunden, Menge <= 0) - soll die gesamte Buchung transaktional abgelehnt werden (alles-oder-nichts) oder sollen gueltige Zeilen gebucht und ungueltige zurueckgemeldet werden (analog quick-add-Skipped-Pattern)?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -47,24 +42,32 @@ darunter beliebig viele Artikel-Zeilen (Artikel + Menge) gescannt/eingetragen we
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
-- Neue Eingabe-Möglichkeit für mehrere Artikel-Zeilen (Artikel-Auswahl/Scan + Menge je Zeile)
-  unter einem gemeinsamen Kopf (Lagerplatz + FA-Nummer, wie bisher einmalig).
+- Neue eigene Seite/Route (`/StockMovements/InboundBulk`, Freigabe-Antwort 1) für mehrere
+  Artikel-Zeilen (Artikel-Auswahl/Scan + Menge je Zeile) unter einem gemeinsamen Kopf
+  (Lagerplatz + FA-Nummer, wie bisher einmalig).
 - Serverseitige Verarbeitung: pro Zeile eine `StockMovement`-Zeile vom Typ `Einbuchung` (identisch
   zum bestehenden Einzel-Pfad in `StockMovementsController.Inbound(POST)`), gleicher Lagerplatz
   und gleiche FA-Nummer für alle Zeilen des Formulars.
+- **Buchung ausschließlich über `IStockMovementRepository.AddAsync` je Zeile** — identischer
+  Repository-Pfad wie die Einzel-Einbuchung, inkl. Audit-Feld-Logik UND des mit v1.28.0 gemergten
+  Sage-Enqueue-Decorators (Freigabe-Antwort S1). Kein Direkt-DbContext-Bypass.
 - Wiederverwendung der bestehenden Audit-Feld-Logik (`ICurrentUserService`), unverändert.
+- Sequenzieller Kamera-Scan (Freigabe-Antwort 2): ein Scan trägt in die Zeilen-Liste ein; beim
+  erneuten Scan eines bereits gelisteten Artikels wird die Menge der bestehenden Zeile +1 gezählt
+  (Freigabe-Antwort B1).
 - Testszenarien-Ergänzung.
 
 **Out-of-Scope**
 - Keine Änderung an Aus- oder Umbuchung (nur Einbuchung, wie im Backlog gefordert).
 - Keine Änderung an der bestehenden Einzel-Einbuchungsseite selbst — sie bleibt als Weg für den
-  Einzelfall bestehen (Ausnahme: falls die offene UX-Rückfrage 1 zugunsten eines kombinierten
-  Umschalt-Modus entschieden wird, verschiebt sich dieser Punkt).
+  Einzelfall bestehen. (Die Mehrfach-Einbuchung ist mit Freigabe-Antwort 1 eine eigene Seite; ein
+  Umschalt-Modus auf der bestehenden Seite ist damit gegenstandslos und entfällt.)
 - Keine Änderung an der FA-Lagerplatz-Hinweis-Logik aus Teil 1 — beide Teile sind unabhängig
   mergbar; der Mehrfach-Pfad kann den (bereits gefixten oder noch ungefixten) Hinweis pro Zeile
   grundsätzlich wiederverwenden, ist aber nicht von Teil 1 blockiert.
-- Keine Änderung an Bedarfsmeldungen-Fulfillment-Logik über das bereits bestehende Verhalten
-  hinaus (siehe offene Rückfrage 3).
+- Bedarfsmeldungen-Fulfillment (`fulfilledRequisitionIds`) im Mehrfach-Modus ist bewusst
+  zurückgestellt (Freigabe-Antwort 3) und als eigene Ideen-/Backlog-Notiz vorzumerken (siehe
+  „## Finalisierung"). Kein Fulfillment-Handling auf der neuen Seite.
 
 ## Fachliche Anforderungen
 
@@ -73,11 +76,22 @@ darunter beliebig viele Artikel-Zeilen (Artikel + Menge) gescannt/eingetragen we
    Select2/`btnScanArticle`) und Menge.
 2. Mindestens eine Zeile ist Pflicht; Zeilen können hinzugefügt/entfernt werden (Client-seitig,
    analog dem bestehenden Artikel-Hinzufügen-Muster in `Views/WarehouseRequisitions/Edit.cshtml`).
-3. Beim Absenden wird für jede gültige Zeile eine eigene `StockMovement`-Zeile
+3. **Standardmenge je neu angelegter Zeile = 1** (Cross-Ref zu Teil-5, dessen Freigabe-Antwort 2
+   diese Vorbelegung für die Mehrfach-Einbuchung fordert; erspart am Handscanner das Tippen der
+   häufigsten Menge).
+4. **Mehrfach-Scan desselben Artikels zählt hoch (Freigabe-Antwort B1):** Wird ein bereits in der
+   Liste stehender Artikel erneut gescannt, erhöht sich die Menge der bestehenden Zeile um 1
+   (Stück-für-Stück-Zählen), statt eine zweite Zeile anzulegen. Ein optionaler Schalter „neue Zeile
+   erzwingen" deckt Sonderfälle ab, in denen bewusst eine zweite Zeile für denselben Artikel
+   gewünscht ist.
+5. Beim Absenden wird für jede gültige Zeile eine eigene `StockMovement`-Zeile
    (`MovementType.Einbuchung`) mit dem gemeinsamen Lagerplatz und der gemeinsamen FA-Nummer
    angelegt.
-4. Erfolgsmeldung nennt die Anzahl gebuchter Artikel (`TempData["SuccessMessage"]`, analog
+6. Erfolgsmeldung nennt die Anzahl gebuchter Artikel (`TempData["SuccessMessage"]`, analog
    `OutboundAllConfirm`: „{count} Artikel erfolgreich ausgebucht.").
+7. **Keine künstliche Zeilen-Obergrenze (Freigabe-Antwort 4).** Die ASP.NET-Core-Framework-Grenze
+   (`FormOptions.ValueCountLimit`, Default ~1024 Form-Felder) bleibt bestehen; wird sie erreicht,
+   erscheint eine sprechende Fehlermeldung statt eines stillen HTTP-400 (siehe Lösungsentwurf S3).
 
 ## Ist-Zustand (Code-Referenzen)
 
@@ -97,7 +111,7 @@ darunter beliebig viele Artikel-Zeilen (Artikel + Menge) gescannt/eingetragen we
 
 ## Technischer Lösungsentwurf
 
-**Empfohlener Ansatz** (vorbehaltlich Klärung offene Rückfrage 1): neue Action
+**Gewählter Ansatz** (Freigabe-Antwort 1 — eigene Seite): neue Action
 `StockMovementsController.InboundBulk` (GET zeigt das Formular, POST verarbeitet alle Zeilen in
 einem Request — kein Zeilen-für-Zeilen-AJAX wie bei WarehouseRequisitions, weil eine Einbuchung
 ein einmaliges Buchungs-Ereignis ist und alle Zeilen denselben `Timestamp` tragen sollen).
@@ -111,19 +125,39 @@ ein einmaliges Buchungs-Ereignis ist und alle Zeilen denselben `Timestamp` trage
   ```
 - View mit Kopf-Feldern (Lagerplatz, FA-Nummer — je einmal) + dynamischer Zeilen-Tabelle
   (Artikel-Select2 + Menge je Zeile + „Zeile hinzufügen"/„Zeile entfernen"-Buttons, client-seitig
-  ohne Server-Rundtrip pro Zeile).
-- POST-Handler iteriert `Lines`, erzeugt je gültiger Zeile eine `StockMovement`
-  (`ArticleId`, `Quantity`, `StorageLocationId` = Kopf-Wert, `ProductionOrder` = Kopf-Wert,
-  `MovementType.Einbuchung`, `Timestamp = DateTime.Now` einmalig vor der Schleife ermittelt,
-  Audit-Felder wie im bestehenden Einzel-Pfad), analog zu `OutboundAllConfirm`
-  (`StockMovementsController.cs:367-405`), das bereits das Muster „mehrere `StockMovement` in
-  einer Schleife anlegen, gemeinsamer `now`" zeigt.
-- Fehlerbehandlung: siehe offene Rückfrage 5 (alles-oder-nichts vs. teilweise buchen +
-  Rückmeldung).
-- Scan-Integration: bestehendes `barcode-scanner.js` (`initScanner`) kann pro Zeile wiederverwendet
-  werden (jede Zeile bekommt ihren eigenen Scan-Button mit eindeutiger Target-Id); ein
-  „Scan fügt automatisch neue Zeile hinzu"-Modus wäre eine Erweiterung von
-  `processScannedValue`/`initScanner` und ist Gegenstand offener Rückfrage 2.
+  ohne Server-Rundtrip pro Zeile). Neue Zeilen werden mit Menge 1 vorbelegt (Fachliche
+  Anforderung 3).
+- **Buchungs-Pfad (S1 — hart):** Der POST-Handler bucht jede Zeile über
+  `IStockMovementRepository.AddAsync` — denselben Repository-Pfad wie die Einzel-Einbuchung. Damit
+  greifen sowohl die Audit-Feld-Logik als auch der mit v1.28.0 gemergte Sage-Enqueue-Decorator, der
+  bei einer `Einbuchung` auf einem Sage-freigegebenen Lagerplatz je Zeile ein `SageBookingQueueItem`
+  erzeugt. Das zitierte Vorbild `OutboundAllConfirm` (`StockMovementsController.cs:367-405`) bucht
+  bereits bewusst per `AddAsync` je Zeile (`:399`) mit gemeinsamem `now` — genau dieses Muster ist
+  zu übernehmen. **Verboten:** ein Direkt-`_context.StockMovements.AddRange(...)` + einmaliges
+  `SaveChanges()` für „Atomarität/Performance" — das umgeht den Decorator, und die Bulk-Einbuchungen
+  erreichten Sage nie (stiller Rückschritt des frisch gelieferten Features).
+- POST-Handler ermittelt `Timestamp = DateTime.Now` einmalig vor der Schleife und erzeugt je Zeile
+  eine `StockMovement` (`ArticleId`, `Quantity`, `StorageLocationId` = Kopf-Wert,
+  `ProductionOrder` = Kopf-Wert, `MovementType.Einbuchung`, gemeinsamer Timestamp, Audit-Felder wie
+  im bestehenden Einzel-Pfad).
+- **Fehlerbehandlung (S2 — alles-oder-nichts + Eingaben erhalten):** Zuerst werden ALLE Zeilen
+  validiert (Artikel gesetzt, Menge > 0, Lagerplatz/FA gültig) — VOR dem ersten `AddAsync`. Ist
+  auch nur eine Zeile ungültig, wird NICHTS gebucht (keine Teilbuchung, Bewegungshistorie
+  unverändert). Das Formular wird mit ALLEN eingegebenen Zeilen + Kopf-Werten neu gerendert (View
+  zurückgeben, KEIN `RedirectToAction`, das die Eingaben verliert), die fehlerhafte(n) Zeile(n)
+  über `ModelState` markiert, damit der Nutzer korrigieren und erneut speichern kann
+  (Freigabe-Antwort 5).
+- **Framework-Grenze (S3):** Bewusst keine App-seitige Zeilen-Obergrenze (Freigabe-Antwort 4).
+  Wird die ASP.NET-Core-`FormOptions.ValueCountLimit` (Default ~1024) durch sehr viele
+  Zeilen-Felder überschritten, ist das mit einer sprechenden Fehlermeldung abzufangen (statt eines
+  stillen HTTP-400 aus dem Model-Binding).
+- **Scan-Integration (Freigabe-Antworten 2 + B1):** Der Kamera-Scan trägt sequenziell in die
+  Zeilen-Liste ein. Bei einem Scan wird geprüft, ob der Artikel bereits gelistet ist: wenn ja,
+  Menge der bestehenden Zeile +1; wenn nein, neue Zeile (Menge 1) anlegen. Der optionale Schalter
+  „neue Zeile erzwingen" überspringt die Zusammenführung. Umsetzung als Erweiterung von
+  `processScannedValue`/`initScanner` in `barcode-scanner.js` — dabei den bestehenden
+  Einzel-Scan-Pfad (`initScanner` für die Einzel-Einbuchung) nicht brechen (höchstes
+  Regressionsrisiko, siehe H3 der Kritischen Prüfung).
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -157,21 +191,50 @@ ADR 0005 (keine Pagination/Spaltenfilter-Pflicht).
 4. Die Erfolgsmeldung nennt die Anzahl gebuchter Zeilen.
 5. Eine leere Zeilenliste (0 Zeilen) wird abgelehnt (ModelState-Fehler, analog dem bestehenden
    `ModelState.IsValid`-Check).
-6. Verhalten bei ungültigen Einzel-Zeilen entspricht der Klärung aus offener Rückfrage 5 und ist
-   entsprechend testbar (z. B. „ungültige Zeile wird übersprungen, gültige werden gebucht" ODER
-   „gesamte Buchung wird abgelehnt, wenn eine Zeile ungültig ist").
+6. Jede neu angelegte Zeile ist mit Menge 1 vorbelegt.
+7. **Mehrfach-Scan (B1):** Wird derselbe Artikel per Scanner zweimal erfasst, entsteht EINE Zeile
+   mit Menge 2 (nicht zwei Zeilen à 1) — außer der Schalter „neue Zeile erzwingen" ist aktiv.
+8. **Sage-Regression (S1 — hart):** Jede Bulk-Zeile wird über `IStockMovementRepository.AddAsync`
+   gebucht (identischer Pfad wie die Einzel-Einbuchung inkl. Audit UND Sage-Enqueue-Decorator,
+   v1.28.0); KEIN Direkt-DbContext-Bypass. Auf einem Sage-freigegebenen Lagerplatz + globalem
+   Toggle entsteht damit pro Zeile ein `SageBookingQueueItem`.
+9. **Keine Teilbuchung (S2):** Ist mindestens eine Zeile ungültig (Artikel fehlt, Menge ≤ 0),
+   wird NICHTS gebucht — die Bewegungshistorie bleibt unverändert (Validierung ALLER Zeilen VOR
+   dem ersten `AddAsync`).
+10. **Eingaben-Erhalt beim Fehler (S2):** Nach einem Validierungsfehler wird das Formular mit ALLEN
+    eingegebenen Zeilen + Kopf-Werten neu gerendert (kein `RedirectToAction`), die fehlerhafte(n)
+    Zeile(n) sind markiert; der Nutzer korrigiert und speichert erneut.
 
 ## Test-Szenarien
 
-Neues Szenario in `docs/TESTSZENARIEN.md` Kapitel 2 (Lager):
+Neue Szenarien in `docs/TESTSZENARIEN.md` Kapitel 2 (Lager):
+
+**Szenario A — Mehrfach-Einbuchung (Happy Path):**
 - **Vorbedingung:** Rolle mit `RequireStockAccess` (z. B. `stock`), mindestens 2 existierende
   Artikel, ein buchbarer Lagerplatz.
 - **Schritte:** Mehrfach-Einbuchung öffnen, Lagerplatz + FA-Nummer einmalig setzen, 3 Artikel-
   Zeilen mit unterschiedlichen Mengen erfassen, absenden.
 - **Erwartetes Verhalten:** 3 neue `StockMovement`-Einträge in der Bewegungshistorie, alle mit
-  demselben Lagerplatz/derselben FA-Nummer, jeweils korrekte Artikel/Menge.
-- **Negativfall:** eine Zeile ohne Artikelauswahl oder mit Menge 0 → Verhalten je Klärung offene
-  Rückfrage 5 gegenprüfen.
+  demselben Lagerplatz/derselben FA-Nummer, jeweils korrekte Artikel/Menge; Erfolgsmeldung nennt
+  die Anzahl (3).
+
+**Szenario B — Mehrfach-Scan desselben Artikels zählt hoch (B1):**
+- **Schritte:** Denselben Artikel dreimal hintereinander scannen (ohne „neue Zeile erzwingen").
+- **Erwartetes Verhalten:** EINE Zeile mit Menge 3; nach Absenden ein `StockMovement` mit Menge 3.
+- **Variante:** Schalter „neue Zeile erzwingen" aktiv → drei Zeilen à Menge 1.
+
+**Szenario C — Sage-Enqueue pro Zeile (S1, Regression):**
+- **Vorbedingung:** Lagerplatz mit `SageBuchungErlaubt = true`, globaler Sage-Toggle aktiv, 2
+  Artikel.
+- **Schritte:** Bulk-Einbuchung mit 2 Zeilen auf diesem Lagerplatz absenden.
+- **Erwartetes Verhalten:** Pro Zeile entsteht ein `SageBookingQueueItem` (2 Einträge) — identisch
+  zur Einzel-Einbuchung; kein DbContext-Bypass, der den Decorator umgeht.
+
+**Szenario D — Negativfall / keine Teilbuchung (S2):**
+- **Schritte:** 3 Zeilen erfassen, eine davon ohne Artikelauswahl oder mit Menge 0, absenden.
+- **Erwartetes Verhalten:** NICHTS wird gebucht (Bewegungshistorie unverändert, kein
+  `StockMovement`); das Formular kommt mit allen 3 eingegebenen Zeilen + Kopf-Werten zurück, die
+  fehlerhafte Zeile markiert. Nach Korrektur + erneutem Absenden werden alle 3 gebucht.
 
 `secondbrain/tests/testszenarien-index.md` Kapitel 2 entsprechend ergänzen.
 
@@ -233,7 +296,7 @@ Testszenarien.
   (b) Menge der bestehenden Zeile +1 (Stueck-fuer-Stueck-Zaehlen)?
   **Empfehlung:** (b) — beim Stueckgut-Wareneingang zaehlt man i. d. R. hoch; ein Toggle „neue
   Zeile erzwingen" kann Sonderfaelle abdecken. Bitte entscheiden.
-
+Antwort B - bei gleichen Artikel Anzahl hochzählen
 ### SOLLTE — macht den Dev-Lauf sicherer
 
 **S1 — Cross-Feature-Interaktion mit der GERADE gemergten Sage-Lagerbuchung ist nicht bedacht (wichtigster technischer Punkt).**
@@ -249,6 +312,7 @@ fuer „Atomaritaet/Performance" auf einen Direkt-`_context.StockMovements.AddRa
   Sage-Enqueue); kein Direkt-DbContext-Bypass." Zusatz-Testszenario: Bulk-Einbuchung auf einem
   Lagerplatz mit `SageBuchungErlaubt=true` + globalem Toggle an → pro Zeile entsteht ein
   `SageBookingQueueItem`.
+  Antwort: Gute Idee, so umsetzen.
 
 **S2 — Antwort 5 („Hinweis + korrigieren + erneut speichern") verlangt zwei ungenannte Eigenschaften.**
 Damit „korrigieren und erneut speichern" funktioniert, muss der POST bei einer ungueltigen Zeile
@@ -259,6 +323,7 @@ verliert die Eingaben). Beides steht aktuell nicht in der Spec.
   ergaenzen: „Bei mindestens einer ungueltigen Zeile wird NICHTS gebucht (Bewegungshistorie unveraendert)"
   und „nach dem Fehler bleiben alle eingegebenen Zeilen + Kopf-Werte im Formular erhalten, mit
   Markierung der fehlerhaften Zeile(n)". Validierung ALLER Zeilen VOR dem ersten `AddAsync`.
+Antwort: passt!
 
 **S3 — Antwort 4 („keine" Obergrenze) trifft eine stillschweigende Framework-Grenze.** ASP.NET Core
 begrenzt Form-Felder per `FormOptions.ValueCountLimit` (Default **1024**) und die Model-Binding-
@@ -287,3 +352,40 @@ Nicht-Brechen des bestehenden `initScanner` achten.
 **NACHBESSERUNG NOETIG: eine offene Entscheidung (B1 Mehrfach-Scan desselben Artikels: neue Zeile vs.
 Menge hochzaehlen) plus zwei sicherheitsrelevante Praezisierungen (S1 Sage-Enqueue-Pfad nicht umgehen,
 S2 keine Teilbuchung + Eingaben beim Fehler erhalten). Danach ist Teil-2 ein sauberer Web-only-Dev-Lauf.**
+
+## Finalisierung (2026-08-05)
+
+Alle Blocker/SOLLTE-Befunde der Kritischen Pruefung sind aufgeloest; die Spec ist ohne weitere
+Rueckfrage umsetzbar. Aufgeloest wie folgt:
+
+- **B1 (Mehrfach-Scan desselben Artikels) — Variante (b), Menge hochzaehlen.** Beim erneuten Scan
+  eines bereits gelisteten Artikels wird die Menge der bestehenden Zeile +1 gezaehlt
+  (Stueck-fuer-Stueck), plus optionaler Schalter „neue Zeile erzwingen" fuer Sonderfaelle.
+  Verankert in Fachliche Anforderung 4, Loesungsentwurf (Scan-Integration), AK 7, Testszenario B.
+- **S1 (Sage-Interaktion) — In-Scope + hartes Regressions-AK.** Buchung ausschliesslich ueber
+  `IStockMovementRepository.AddAsync` je Zeile (identischer Pfad wie Einzel-Einbuchung inkl. Audit
+  UND Sage-Enqueue-Decorator, v1.28.0); Direkt-DbContext-Bypass ausdruecklich verboten. Verankert
+  in In-Scope, Loesungsentwurf (Buchungs-Pfad), AK 8, Testszenario C (`SageBookingQueueItem` pro
+  Zeile).
+- **S2 (Fehlerverhalten) — festgenagelt.** Validierung ALLER Zeilen VOR dem ersten `AddAsync`; bei
+  mind. einer ungueltigen Zeile wird NICHTS gebucht (keine Teilbuchung, Bewegungshistorie
+  unveraendert); das Formular wird mit ALLEN Zeilen + Kopf-Werten neu gerendert (kein
+  `RedirectToAction`), fehlerhafte Zeile(n) markiert. Verankert in Loesungsentwurf
+  (Fehlerbehandlung), AK 9 + AK 10, Testszenario D.
+- **Standardmenge je Zeile = 1** (Cross-Ref Teil-5 Antwort 2). Verankert in Fachliche
+  Anforderung 3, AK 6.
+- **S3 (keine kuenstliche Zeilen-Obergrenze)** — Freigabe-Antwort 4 uebernommen, aber die
+  Framework-Grenze `FormOptions.ValueCountLimit` (~1024) benannt: sprechende Meldung statt stillem
+  HTTP-400. Verankert in Fachliche Anforderung 7, Loesungsentwurf (Framework-Grenze).
+- **H2 (Body-Aufraeumung)** — Der Out-of-Scope-Vorbehalt „falls Umschalt-Modus" ist mit der eigenen
+  Seite gegenstandslos und entfernt/klargestellt. Das zurueckgestellte Bedarfsmeldungen-Fulfillment
+  (Freigabe-Antwort 3) ist als Out-of-Scope-Punkt mit Verweis auf eine eigene Ideen-/Backlog-Notiz
+  gefuehrt. **Folgeaufgabe:** Ideen-Notiz „Bulk-Einbuchung: Bedarfsmeldungen-Fulfillment pro Zeile"
+  im Backlog anlegen (bewusst zurueckgestellt, nicht verloren).
+- **open_questions (Frontmatter)** auf `[]` getrimmt — alle fuenf urspruenglichen Rueckfragen sind
+  durch die Freigabe-Antworten + B1 entschieden.
+
+Unveraendert (bewusst): `status: Entwurf`, der Block „## Freigabe-Antworten", die „## Kritische
+Pruefung". Kein Anwendungscode angefasst.
+
+BEREIT ZUR FREIGABE

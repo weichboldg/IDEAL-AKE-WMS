@@ -1,6 +1,6 @@
 ---
 type: spec
-title: "Bewegungshistorie: Scan-Button fuer WA-Strichcode mit 7-stelliger Truncation"
+title: "Bewegungshistorie: Scan-Button fuer WA-Strichcode mit Trennzeichen-Kuerzung"
 slug: 2026-08-05-wms-bugs-improvements-teil-3-spec
 status: Entwurf
 created: 2026-08-05
@@ -15,10 +15,7 @@ affected_code:
   - IdealAkeWms/wwwroot/js/barcode-scanner.js
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "Ist die FA-/WA-Nummer an BEIDEN Standorten (AKE und IDEAL, vgl. laufende Spec [[2026-07-28-ideal-anpassungen-neu-nachbilden-spec]]) verlaesslich genau 7-stellig? Falls die IDEAL-Linie eine andere Laenge verwendet, waere ein hartes substring(0,7) dort falsch."
-  - "Soll die Kuerzung ausschliesslich beim Scannen greifen (Client-JS, wie hier vorgeschlagen), oder auch beim manuellen Eintippen/Einfuegen in das Fertigungsauftrag-Filterfeld der Bewegungshistorie?"
-  - "Reicht ein einfaches substring(0,7) auf den rohen Scan-Wert, oder soll vorher gezielt an '-' bzw. '_' getrennt werden (robuster falls die Ergaenzung nicht exakt ab Position 8 beginnt)?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -33,7 +30,7 @@ freigabe_am: ""
 ## Ziel / Nutzen (das Warum)
 
 Beim Scannen eines WA-/FA-Strichcodes in der Bewegungshistorie (Filter „Fertigungsauftrag") soll
-nur die eigentliche, 7-stellige WA-Nummer für die Filterung verwendet werden. Der gedruckte
+nur die eigentliche WA-Basisnummer für die Filterung verwendet werden. Der gedruckte
 Strichcode trägt gelegentlich eine zusätzliche Ergänzung nach einem „-" oder „_" (z. B. eine
 fortlaufende Zahl für Teillieferungen/Positionen), die für die Filterung irrelevant ist und den
 Treffer sonst verhindert oder verfälscht.
@@ -43,13 +40,14 @@ Treffer sonst verhindert oder verfälscht.
 **In-Scope**
 - Ein Scan-Button für das Filterfeld „Fertigungsauftrag" auf der Bewegungshistorie-Seite
   (`/StockMovements/Index`) — existiert dort aktuell **nicht** (siehe Ist-Zustand).
-- Client-seitige Kürzung des gescannten Werts auf die ersten 7 Zeichen, bevor er in das
-  Filterfeld übernommen und die Filterung ausgelöst wird.
+- Client-seitige Kürzung des gescannten Werts auf die WA-Basisnummer (alles ab dem ersten
+  Trennzeichen `-` oder `_` wird abgeschnitten), bevor er in das Filterfeld übernommen wird.
 
 **Out-of-Scope**
 - Keine Änderung an der server-seitigen Filterlogik
   (`StockMovementRepository.GetMovementHistoryAsync`, `ApplyMovementColumnFilter`) — die
-  `Contains`-Filterung bleibt unverändert, nur der **Eingabewert** wird vor dem Absenden gekürzt.
+  `Contains`-Filterung bleibt unverändert, nur der **gescannte Eingabewert** wird vor dem
+  Absenden gekürzt (ausschließlich beim Scan; manuelle Eingabe bleibt unangetastet).
 - Keine Änderung an anderen Scan-Stellen im Projekt (Einbuchung/Ausbuchung/Umbuchung,
   Tracking-Teileverfolgung) — dort gilt weiterhin die bestehende Komma-Suffix-Logik
   (`.split(',')[0]`, Fallstrick „QR-Code Komma-Suffix").
@@ -61,9 +59,13 @@ Treffer sonst verhindert oder verfälscht.
 
 1. Ein Scan-Button neben dem Textfeld „Fertigungsauftrag" im Filter-Formular der
    Bewegungshistorie.
-2. Nach dem Scan wird der erkannte Wert auf die ersten 7 Zeichen gekürzt und in das Filterfeld
-   übernommen.
+2. Nach dem Scan wird der erkannte Wert auf die WA-Basisnummer gekürzt und in das Filterfeld
+   übernommen: alles ab dem **ersten** Trennzeichen `-` oder `_` (inklusive) wird abgeschnitten.
+   Enthält der Wert kein Trennzeichen, wird er unverändert durchgereicht (kein fester
+   Längen-Cap, insbesondere **kein** `substring(0,7)`).
 3. Beispiel: Scan liefert `2610063-1` oder `2610063_02` → Filterfeld erhält `2610063`.
+4. Die Kürzung greift **ausschließlich beim Scannen**. Manuelles Eintippen oder Einfügen in das
+   Filterfeld bleibt vollständig unverändert.
 
 ## Ist-Zustand (Code-Referenzen)
 
@@ -97,27 +99,31 @@ Vorhandene, wiederverwendbare Scan-Infrastruktur (`IdealAkeWms/wwwroot/js/barcod
    einen Scan-Button (`btnScanProductionOrder`, gleiches Markup/Icon wie die übrigen
    `scan-btn`-Buttons im Projekt) einfügen.
 2. `barcode-scanner.js` einbinden (`~/js/barcode-scanner.js`, wie bereits auf
-   `Inbound.cshtml`/`OutboundAll.cshtml`) plus die `html5-qrcode`-Bibliothek.
-3. Neuer `valueExtractor`-Wert für `initTextInputScanner`, z. B. `'wa7'`, der nach dem Setzen des
-   rohen Scan-Werts zusätzlich auf 7 Zeichen kürzt — entweder als eigener Zweig in
-   `processScannedValue` (analog dem bestehenden `productionOrder`-Zweig) oder als
-   `onScanned`-Callback von `initTextInputScanner`, der den Feldwert nachträglich auf
-   `value.trim().substring(0, 7)` kürzt und ein `input`/`change`-Event nachfeuert (letzteres ist
-   der invasivere-freie Weg, da er den bestehenden `processScannedValue`-Kern nicht anfassen muss).
-   Empfehlung: **Callback-Variante**, weil sie ohne Änderung an der gemeinsam genutzten
-   `processScannedValue`-Funktion auskommt und damit keine Nebenwirkung auf die anderen
-   `productionOrder`-Scans (Tracking-Filter) hat.
-4. Initialisierung im `Index.cshtml`-Script-Block:
+   `Inbound.cshtml`/`OutboundAll.cshtml`) plus die `html5-qrcode`-Bibliothek. Die Bibliothek ist
+   **lokal** einzubinden (`~/lib/html5-qrcode/html5-qrcode.min.js`, exakt wie
+   `Views/Tracking/OseonIndex.cshtml:233`) — **nicht** per `unpkg.com`-CDN (wie in
+   `StockOverview/Index.cshtml:159`), weil das CDN im Produktions-Intranet nicht verlässlich
+   erreichbar ist.
+3. Die Kürzung lebt ausschließlich im `onScanned`-Callback von `initTextInputScanner`, **nicht**
+   in `processScannedValue` und **nicht** in der Filter-Logik. Der bewährte `valueExtractor:'fa'`
+   (mappt intern auf `scanType:'productionOrder'`) bleibt unangetastet; der Callback kürzt den
+   Feldwert danach trennzeichen-basiert und feuert ein `input`-Event nach. Diese Variante ändert
+   die gemeinsam genutzte `processScannedValue`-Funktion nicht und hat damit keine Nebenwirkung
+   auf die anderen `productionOrder`-Scans (Tracking-Filter). Weil der Callback nur beim Scan
+   feuert, bleibt manuelles Eintippen/Einfügen unberührt (siehe Anforderung 4).
+4. Initialisierung im `Index.cshtml`-Script-Block (trennzeichen-basiert, kein Längen-Cap):
    ```js
-   initTextInputScanner('btnScanProductionOrder', 'filterProductionOrder', 'fa', function (value) {
+   initTextInputScanner('btnScanProductionOrder', 'filterProductionOrder', 'fa', function () {
        var input = document.getElementById('filterProductionOrder');
        if (input && input.value) {
-           input.value = input.value.trim().substring(0, 7);
+           input.value = input.value.trim().split(/[-_]/)[0];
+           input.dispatchEvent(new Event('input', { bubbles: true }));
        }
    });
    ```
-   (Exakte Trennzeichen-Behandlung — reines `substring(0,7)` vs. vorheriges Abtrennen an `-`/`_`
-   — siehe offene Rückfrage 3.)
+   `split(/[-_]/)[0]` schneidet alles ab dem ersten `-` oder `_` ab; ohne Trennzeichen bleibt der
+   Wert unverändert. Damit ist die Kürzung immun gegen Längen-Annahmen (auch eine künftige
+   8-stellige IDEAL-Nummer ohne Trennzeichen wird nicht zerstört).
 5. Der Scan setzt nur den Feldwert; das Absenden des Filters bleibt wie bisher über den
    „Filtern"-Button (kein automatisches Submit beim Scan, konsistent mit dem übrigen
    Server-Mode-Verhalten der Seite).
@@ -144,10 +150,22 @@ Eingabe-Komfort ergänzt.
 ## Akzeptanzkriterien
 
 1. Auf der Bewegungshistorie-Seite existiert neben dem Feld „Fertigungsauftrag" ein Scan-Button.
-2. Ein Scan mit Rohwert `2610063-1` füllt das Filterfeld mit `2610063`.
-3. Ein Scan mit Rohwert `2610063_02` füllt das Filterfeld mit `2610063`.
-4. Ein Scan mit Rohwert ohne Ergänzung (`2610063`) füllt das Filterfeld unverändert mit `2610063`.
-5. Nach dem Scan ist das Filterfeld befüllt, aber die Liste wird erst nach Klick auf „Filtern"
+2. Ein Scan mit Rohwert `2610063-1` füllt das Filterfeld mit `2610063` (Trennzeichen `-`).
+3. Ein Scan mit Rohwert `2610063_02` füllt das Filterfeld mit `2610063` (Trennzeichen `_`).
+4. Ein Scan mit Rohwert ohne Ergänzung (`2610063`) füllt das Filterfeld unverändert mit
+   `2610063` (kein Trennzeichen → unverändert durchgereicht).
+5. **Mehrere Trennzeichen:** Ein Scan mit Rohwert `2610063-1-2` füllt das Filterfeld mit
+   `2610063` (nur bis zum **ersten** Trennzeichen).
+6. **Nicht-numerischer Suffix:** Ein Scan mit Rohwert `2610063-A` füllt das Filterfeld mit
+   `2610063` (die Regel wertet nur das Trennzeichen, nicht die Suffix-Art).
+7. **Längeres/kürzeres Basisteil ohne Trennzeichen:** Ein Scan mit Rohwert `26100631` (8-stellig,
+   ohne Trennzeichen) füllt das Filterfeld unverändert mit `26100631` — es findet **keine**
+   Längenkürzung statt. Ebenso wird ein Wert kürzer als 7 Zeichen ohne Trennzeichen (z. B.
+   `26100`) unverändert übernommen (keine Exception).
+8. **Nur beim Scannen:** Manuelles Eintippen oder Einfügen von `2610063-1` in das Filterfeld
+   lässt den Wert unverändert (`2610063-1`) — die Kürzung greift ausschließlich über den
+   Scan-Callback.
+9. Nach dem Scan ist das Filterfeld befüllt, aber die Liste wird erst nach Klick auf „Filtern"
    (bzw. Enter im Formular) neu geladen — kein automatisches Submit.
 
 ## Test-Szenarien
@@ -158,8 +176,15 @@ Neues Szenario in `docs/TESTSZENARIEN.md` Kapitel 2 (Lager):
   scannen (bzw. Testbild verwenden), „Filtern" klicken.
 - **Erwartetes Verhalten:** Filterfeld zeigt `2610063`, Liste zeigt alle Bewegungen zu FA
   `2610063`.
-- **Negativfall:** Barcode-Wert kürzer als 7 Zeichen → Feld übernimmt den vollen (kürzeren) Wert
-  unverändert (kein Fehler, keine Exception bei `substring`).
+- **Randfälle (jeweils testbar):** `2610063_02` → `2610063`; `2610063-1-2` → `2610063` (nur bis
+  erstem Trennzeichen); `2610063-A` (nicht-numerischer Suffix) → `2610063`; `2610063` (kein
+  Suffix) → unverändert; `26100631` (8-stellig, kein Trennzeichen) → **unverändert** (keine
+  Längenkürzung).
+- **Negativfall 1:** Barcode-Wert ohne Trennzeichen (auch kürzer als 7 Zeichen, z. B. `26100`) →
+  Feld übernimmt den vollen Wert unverändert (kein Fehler, keine Exception). Mit der
+  trennzeichen-basierten Regel entfällt jede Längen-Sonderbehandlung.
+- **Negativfall 2 (nur beim Scannen):** Manuelles Eintippen/Einfügen von `2610063-1` → Feld
+  behält `2610063-1` (Kürzung greift nicht bei manueller Eingabe).
 
 `secondbrain/tests/testszenarien-index.md` Kapitel 2 entsprechend ergänzen.
 
@@ -217,7 +242,7 @@ Referenzen `OseonIndex.cshtml` / `StockOverview/Index.cshtml`) und die drei Frei
   `-`/`_` vorhanden, bleibt der Rohwert unveraendert — KEIN zusaetzlicher harter 7-Zeichen-Cap."
   Ja/Nein? Falls ein 7-Zeichen-Cap zusaetzlich gewuenscht ist, macht er die Robustheit aus
   Antwort 3 wieder zunichte — das bitte explizit entscheiden.
-
+Antwort: korrekt
 ### SOLLTE
 
 - **S1 — Spec-Text an Antwort 3 nachziehen (aktuell inkonsistent).** Nach Klaerung von B1 muessen
@@ -287,3 +312,41 @@ Referenzen `OseonIndex.cshtml` / `StockOverview/Index.cshtml`) und die drei Frei
 
 NACHBESSERUNG NOETIG: B1 (Algorithmus fixe-7 vs. trennzeichen-basiert) klaeren, dann S1/S2/S3
 (Spec-Text, html5-qrcode-Quelle, Randfall-Kriterien) nachziehen.
+
+## Finalisierung (2026-08-05)
+
+Menschliche Freigabe-Antworten: 1. ja; 2. ja, nur beim Scannen; 3. bitte robuster. Auf dieser
+Basis wurden die offenen Punkte aus der Kritischen Pruefung wie folgt aufgeloest — ohne weitere
+Rueckfrage:
+
+- **B1 (Algorithmus) ENTSCHIEDEN = trennzeichen-basiert.** Antwort 3 („robuster") ist gegenueber
+  Antwort 1 („7-stellig") massgeblich: der Umsetzer schneidet den gescannten Wert am **ersten**
+  `-` oder `_` ab (`value.trim().split(/[-_]/)[0]`); ohne Trennzeichen bleibt der Rohwert
+  **unveraendert**. **Kein** `substring(0,7)`, **kein** Laengen-Cap. Damit wird eine >7-stellige
+  Nummer ohne Trennzeichen (z. B. eine kuenftige 8-stellige IDEAL-Nummer) nicht zerstoert. Titel,
+  Fachliche Anforderung 2 und Loesungsentwurf Schritt 3+4 wurden vom „ersten 7 Stellen"-Wortlaut
+  auf „Suffix ab erstem Trennzeichen entfernen" umgeschrieben.
+- **Antwort 2 („nur beim Scannen") festgeschrieben.** Neue Fachliche Anforderung 4 und
+  Loesungsentwurf Schritt 3 halten fest: die Kuerzung lebt ausschliesslich im `onScanned`-Callback
+  von `initTextInputScanner` (Scan-Pfad), **nicht** in `processScannedValue` und **nicht** in der
+  Filter-Logik. Manuelle Eingabe bleibt unangetastet (Akzeptanzkriterium 8, Negativfall 2).
+- **S1 (Spec-Text nachgezogen).** Ziel, Umfang (In-Scope), Fachliche Anforderungen, Loesungsentwurf
+  und Akzeptanzkriterien sind konsistent trennzeichen-basiert; das Code-Snippet in Schritt 4 nutzt
+  jetzt `split(/[-_]/)[0]` + `dispatchEvent('input')`.
+- **S2 (html5-qrcode LOKAL).** Loesungsentwurf Schritt 2 fixiert die lokale Einbindung
+  (`~/lib/html5-qrcode/html5-qrcode.min.js`, wie `OseonIndex.cshtml`), ausdruecklich **nicht** per
+  `unpkg.com`-CDN — Begruendung Produktions-Intranet.
+- **S3 (Randfall-Kriterien ergaenzt).** Akzeptanzkriterien um mehrere Trennzeichen (`2610063-1-2`),
+  nicht-numerischen Suffix (`2610063-A`), kein Suffix (unveraendert), 8-stellig ohne Trennzeichen
+  (unveraendert) und „nur beim Scannen" erweitert. Test-Szenarien mit denselben Randfaellen und
+  neu formulierten Negativfaellen aktualisiert (der alte `substring`-Negativfall ist
+  gegenstandslos).
+- **open_questions (Frontmatter)** auf `[]` getrimmt — alle drei Fragen sind durch die
+  Freigabe-Antworten und B1 aufgeloest.
+
+Nicht veraendert (bewusst): `status: Entwurf`, Dateiname/Ablageort, der Block
+„## Freigabe-Antworten", Anwendungscode. HINWEIS-Punkte H1–H8 aus der Kritischen Pruefung bleiben
+als Umsetzungs-/Folgehinweise stehen (u. a. H3 StockOverview-Konsistenz als Folgearbeit, H1
+Scan-Feedback kosmetisch).
+
+BEREIT ZUR FREIGABE

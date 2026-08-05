@@ -14,9 +14,7 @@ affected_code:
   - IdealAkeWms/Controllers/StockMovementsController.cs
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "Soll die Standardmenge 1 nur beim initialen GET-Aufruf der Einbuchungsseite gelten, oder auch nach jedem erfolgreichen Submit (RedirectToAction(nameof(Inbound)) fuehrt ohnehin zu einem frischen GET mit neuem ViewModel - vermutlich deckungsgleich, zur Sicherheit aber explizit abgefragt)?"
-  - "Betrifft die Standardmenge-Aenderung NUR die Einzel-Einbuchung (dieser Teil) oder auch die geplante Mehrfachartikel-Einbuchung aus Teil 2 (dort waere je Zeile eine Standardmenge 1 sinnvoll, ist aber Gegenstand der separaten, dort noch offenen Spec)?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -48,11 +46,26 @@ dem Anwender einen Tastatur-/Tipp-Schritt bei der häufigsten Eingabe.
 - Keine Änderung am Verhalten bei ungültigen Formular-Rückgaben (`ModelState.IsValid == false`) —
   dort bleibt der vom Anwender zuletzt eingegebene Wert erhalten (Standard-ASP.NET-Model-Binding-
   Verhalten über `asp-for`).
+- Die Mehrfachartikel-Einbuchung ist **nicht** Teil dieser Spec — Teil 5 bleibt Einzel-Einbuchung-only.
+
+> [!note] Cross-Ref zur Mehrfach-Einbuchung (Freigabe-Antwort 2)
+> Freigabe-Antwort 2 („geplante mehrfach auch") bestätigt, dass die Standardmenge `1` **je Zeile**
+> auch für die geplante Mehrfachartikel-Einbuchung aus [[2026-08-05-wms-bugs-improvements-teil-2-spec]]
+> gelten soll. Dort ist die Standardmenge `1` je Zeile bereits als Anforderung verankert — diese
+> Cross-Referenz dient nur der Nachverfolgbarkeit. Kein `depends_on`: Teil 5 ist als Einzel-Einbuchung
+> vollständig und unabhängig umsetzbar.
 
 ## Fachliche Anforderungen
 
 1. Beim erstmaligen Öffnen von `/StockMovements/Inbound` (GET, kein vorheriger Validierungsfehler)
    zeigt das Mengenfeld den Wert `1` statt `0`.
+2. Der Default `1` wird ausschließlich im **Inbound-GET** gesetzt (im Objekt-Initializer der
+   Action), **nicht** als Default am geteilten ViewModel-Property `StockMovementCreateViewModel.Quantity` —
+   sonst würde die Ausbuchung (`Outbound`, dasselbe ViewModel) ungewollt ebenfalls mit `1` vorbelegt
+   (Regression, Out-of-Scope).
+3. Nach einem Validierungsfehler (POST mit `ModelState.IsValid == false`) bleibt der vom Anwender
+   eingegebene Wert erhalten (Standard-Model-Binding über `asp-for`) — er wird **nicht** auf `1`
+   zurückgesetzt.
 
 ## Ist-Zustand (Code-Referenzen)
 
@@ -92,6 +105,13 @@ var vm = new StockMovementCreateViewModel
 Der POST-Handler (`Inbound(StockMovementCreateViewModel vm, ...)`) ist nicht betroffen — dort
 kommt `Quantity` bereits vom Anwender/Model-Binder.
 
+**Wichtig — Fix bleibt im Inbound-GET, nicht am ViewModel-Property.** `StockMovementCreateViewModel`
+wird auch von der Ausbuchung (`Outbound` GET + POST-Rerender) geteilt. Ein Default `= 1` direkt am
+Property `Quantity` würde die Ausbuchung ungewollt mitverändern (Out-of-Scope-Regression). Der Wert
+`1` gehört daher ausschließlich in den Objekt-Initializer der `Inbound()`-GET-Action. Der
+Validierungsfehler-Rerender (POST, `ModelState.IsValid == false`) behält per Model-Binding den vom
+Anwender eingegebenen Wert und darf nicht auf `1` gezwungen werden.
+
 ## Migrations-/SQL-Auswirkungen
 
 Keine.
@@ -110,9 +130,13 @@ Nicht anwendbar (Eingabeformular, keine Liste).
 
 ## Akzeptanzkriterien
 
-1. Beim ersten Öffnen von `/StockMovements/Inbound` zeigt das Mengenfeld den Wert `1`.
+1. Beim ersten Öffnen von `/StockMovements/Inbound` zeigt das Mengenfeld den Wert `1` (nicht `0`).
 2. Ein Absenden ohne Änderung der Menge bucht eine `StockMovement` mit `Quantity == 1`.
 3. Die Validierung (`Menge muss größer als 0 sein` bei `<= 0`) bleibt unverändert funktionsfähig.
+4. Ausbuchung und Umbuchung sind **nicht** betroffen: Beim Öffnen von `/StockMovements/Outbound`
+   (und der Umbuchung) erscheint **kein** `1`-Default im Mengenfeld — das Verhalten bleibt wie bisher.
+5. Nach einem Validierungsfehler beim Absenden der Einbuchung bleibt der vom Anwender eingegebene
+   Wert (z. B. eine getippte `5`) im Mengenfeld stehen und wird **nicht** auf `1` zurückgesetzt.
 
 ## Test-Szenarien
 
@@ -199,3 +223,25 @@ Berührungspunkt.
 
 BEREIT ZUR FREIGABE (Teil 5 als Einzel-Einbuchung vollständig; die SOLLTE-Anmerkung betrifft das
 Nachziehen von Antwort 2 in die Teil-2-Spec, nicht Teil 5 selbst).
+
+## Finalisierung (2026-08-05)
+
+Kleine Ergänzungen aus der kritischen Prüfung eingearbeitet, ohne Scope-Änderung:
+
+- **Lösungsentwurf/Fachliche Anforderung präzisiert:** Der Default `1` wird ausschließlich im
+  **Inbound-GET** (Objekt-Initializer der Action) gesetzt, **nicht** am geteilten
+  `StockMovementCreateViewModel.Quantity`-Property — sonst Regression bei der Ausbuchung, die
+  dasselbe ViewModel nutzt. Nach einem `ModelState`-Fehler bleibt der vom Anwender eingegebene Wert
+  erhalten (kein Zurücksetzen auf `1`). Als Fachliche Anforderungen 2 + 3 und im Technischen
+  Lösungsentwurf verankert.
+- **Akzeptanzkriterien testbar ergänzt:** (a) beim ersten Öffnen der Einbuchung steht `1` im
+  Mengenfeld (Kriterium 1); (b) Ausbuchung/Umbuchung sind NICHT betroffen, kein `1`-Default dort
+  (Kriterium 4); (c) nach Validierungsfehler bleibt der eingegebene Wert stehen (Kriterium 5).
+- **Freigabe-Antwort 2 („geplante mehrfach auch"):** als Cross-Ref-Hinweis vermerkt (Out-of-Scope-
+  Abschnitt). Die Standardmenge `1` je Zeile gilt auch für die Mehrfach-Einbuchung und ist in
+  [[2026-08-05-wms-bugs-improvements-teil-2-spec]] (Fachliche Anforderung 3) bereits als Anforderung
+  verankert. Kein `depends_on` — Teil 5 bleibt Einzel-Einbuchung-only und unabhängig umsetzbar.
+- **`open_questions` (Frontmatter)** auf `[]` getrimmt (beide Rückfragen durch die Freigabe-Antworten
+  gelöst).
+
+BEREIT ZUR FREIGABE

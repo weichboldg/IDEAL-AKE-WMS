@@ -23,10 +23,7 @@ affected_code:
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "Reicht die exakte Wiederverwendung des bestehenden Musters (Bearbeitung NUR ueber /Account/Profile bzw. Admin-Edit, kein Inline-Button auf der Abarbeitungsliste selbst - wie es DefaultFilterArtikelgruppe/DefaultFilterBeschaffung heute fuer die BOM-Ansicht tun), oder wird ein direkter \"Filter merken\"-Button auf der FaWorklist-Seite selbst erwartet (mehr Komfort, aber ein neuer, bisher nicht vorhandener UI-Baustein)?"
-  - "Soll der neue Default-Filter EXAKT wie der bestehende Spaltenfilter 'description1' (Substring-Contains, Mini-Syntax OR/NOT mit , und !) funktionieren, oder als eigene, einfachere Textliste (z. B. nur OR-Vergleich exakter Werte wie \"Verdampfer\")? Bestimmt, ob die Mini-Syntax-Regeln 1:1 uebernommen werden koennen."
-  - "Feldname/Label: Vorschlag DefaultFilterFaWorklistDescription1 (oder kuerzer) - eindeutiger Name zur Abstimmung, da User.cs bereits mehrere aehnlich benannte Default-Filter-Felder hat (DefaultFilterBeschaffung, DefaultFilterArtikelgruppe) und Verwechslungsgefahr besteht."
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -133,33 +130,64 @@ Vorbild für den serverseitigen Weg):
 ## Technischer Lösungsentwurf
 
 1. `User.cs`: neues Feld `DefaultFilterFaWorklistDescription1` (`string?`,
-   `[StringLength(200)]` — Länge großzügiger als die 100 Zeichen der Artikelgruppen-Felder
-   gewählt, da Bezeichnungen länger sein können; im Review zu bestätigen), Display-Name
-   „Standard-Filter Bezeichnung 1 (FA-Abarbeitungsliste)".
+   `[StringLength(200)]` — **entschieden in der Finalisierung**, siehe unten HINWEIS-3),
+   Display-Name „Standard-Filter Bezeichnung 1 (FA-Abarbeitungsliste)".
 2. `ProfileViewModel` + `AccountController.Profile` (GET/POST): Feld analog
    `DefaultFilterArtikelgruppe` laden/speichern.
 3. `UsersController.Edit` (GET/POST) + zugehöriges ViewModel: Feld analog für die
    Admin-Pflege ergänzen.
 4. `Views/Account/Profile.cshtml` + `Views/Users/Edit.cshtml`: neues Eingabefeld im Abschnitt
    der bestehenden Default-Filter.
-5. `FaWorklistController.Index`: Vorbelegung **serverseitig** in den `columnFilters`-Dictionary
-   einspeisen, nach dem Muster von `workbenchesProvided` (Zeilen 92-111):
+5. `FaWorklistController.Index`: Vorbelegung als **Redirect-mit-Parameter** (ENTSCHEIDUNG der
+   Finalisierung, siehe „## Finalisierung (2026-08-05)" → SOLLTE-1). Der gespeicherte Default wird
+   **nicht** nur serverseitig in den `columnFilters`-Dictionary injiziert (das ließe den sichtbaren
+   Filter-Input leer und den Filter in der Session un-löschbar), sondern beim **echten Erstaufruf**
+   per `RedirectToAction` als `colf_description1`-URL-Parameter gesetzt. Danach restauriert
+   `table-filter.js` den sichtbaren Input aus der URL (`restoreFiltersFromUrl`,
+   `wwwroot/js/table-filter.js:41-52`), und Leeren wirkt wie ein normaler Spaltenfilter-Reset.
+
+   Damit „Leeren" auch **über die Navigation hinweg** hält (sonst re-injiziert der nächste Load den
+   Default sofort wieder), setzt der Redirect zusätzlich einen **Sentinel-Marker** `df1=1`. Er
+   überlebt die Client-Navigation (`applyServerFilters` löscht nur `colf_*` und `page`,
+   `table-filter.js:54-66`) und signalisiert „Default bereits angewandt/übersteuert → nicht erneut
+   injizieren".
+
    ```csharp
-   var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+   // appUserId/user HOCHGEZOGEN aus dem workStep/workbenches-Block (HINWEIS-2):
+   // an der Apply-Stelle (Zeile 242) ist die im if-Block deklarierte appUserId nicht sichtbar.
+   var appUserId = _currentUser.GetCurrentAppUserId();
+   var currentUser = appUserId.HasValue ? await _userRepository.GetByIdAsync(appUserId.Value) : null;
+
    bool description1Provided = HttpContext?.Request?.Query.ContainsKey("colf_description1") ?? false;
-   if (!description1Provided && appUserId.HasValue)
+   bool defaultFilterApplied = HttpContext?.Request?.Query.ContainsKey("df1") ?? false;
+
+   // Erstaufruf (kein expliziter Filter, kein Sentinel) + gesetzter Default + Pflicht-Filter
+   // workStepId vorhanden → einmalig auf colf_description1=<Default>&df1=1 umleiten.
+   if (!description1Provided && !defaultFilterApplied && workStepId != null
+       && !string.IsNullOrWhiteSpace(currentUser?.DefaultFilterFaWorklistDescription1))
    {
-       var user = await _userRepository.GetByIdAsync(appUserId.Value);
-       if (!string.IsNullOrWhiteSpace(user?.DefaultFilterFaWorklistDescription1))
-           columnFilters["description1"] = user.DefaultFilterFaWorklistDescription1;
+       var route = new RouteValueDictionary();
+       foreach (var q in HttpContext.Request.Query)   // workStepId, workbenches, page, showDone … erhalten
+           route[q.Key] = q.Value.ToString();
+       route["colf_description1"] = currentUser.DefaultFilterFaWorklistDescription1;
+       route["df1"] = "1";
+       return RedirectToAction(nameof(Index), route);
    }
    ```
-   (Exakter Query-Key-Name `colf_description1` gegen `ColumnFilterHelper.ReadFromQuery` im
-   Review zu verifizieren — muss mit dessen internem Präfix-Schema übereinstimmen.)
-   Diese Ergänzung muss **vor** `ColumnFilterHelper.Apply(rows, columnFilters, columnMap)`
-   (Zeile 244) erfolgen.
+   Die Redirect-Prüfung muss **vor** dem Aufbau/Rendern der Liste erfolgen (spart die unnötige
+   erste Abfrage). `columnFilters`/`Apply` (Zeilen 242-244) bleiben **unverändert** — der Default
+   fließt jetzt über den regulären `?colf_description1=`-Pfad ein, nicht über eine Sonder-Injektion.
+
+   **Gleichwertige Alternative (a) — sichtbaren Input direkt serverseitig vorbelegen:** den
+   effektiven Default an die View durchreichen und als `value` des `colf_description1`-Inputs
+   rendern (kein Redirect, keine zusätzliche Round-Trip-Navigation). Erfordert denselben
+   `df1`-Sentinel, damit Leeren über die Navigation hält, und dass `table-filter.js` einen
+   vorgerenderten Input-Wert nicht beim Init überschreibt (tut es heute nicht: `restoreFiltersFromUrl`
+   setzt Werte nur für in der URL **vorhandene** `colf_`-Keys). Beide Wege liefern das freigegebene
+   „wie Artikelgruppe"-Verhalten (sichtbar + löschbar); der Redirect-Weg ist Empfehlung, weil er
+   Löschen/Übersteuern „gratis" über den normalen Spaltenfilter-Pfad erhält.
 6. Kein Eingriff in `ColumnFilterHelper` selbst nötig — der Mechanismus nutzt ausschließlich die
-   bereits bestehende Apply-Funktion mit einem vorbelegten Dictionary-Eintrag.
+   bereits bestehende Apply-Funktion; der Default kommt über den regulären `colf_description1`-Pfad.
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -212,6 +240,11 @@ Spaltenfilter-Mechanik selbst.
 4. Ein leerer/nicht gesetzter Default-Wert führt zu unverändertem Verhalten (keine Filterung,
    wie heute).
 5. Ein Admin kann denselben Wert für einen anderen Benutzer über `/Users/Edit/{id}` pflegen.
+6. Der gespeicherte Default ist im Bezeichnung-1-Filterfeld **sichtbar** und lässt sich in der
+   Session **einmal löschen** (Feld leeren → Liste bleibt danach ungefiltert, bis der Nutzer die
+   View neu lädt bzw. den Default im Profil neu speichert). Damit entspricht das Verhalten dem
+   freigegebenen „wie Artikelgruppe"-Muster (sichtbarer, löschbarer Filterwert), nicht einem
+   unsichtbaren, festgeklemmten Server-Filter.
 
 ## Test-Szenarien
 
@@ -222,7 +255,13 @@ Bezeichnung):
   Bezeichnung 1 (z. B. „Verdampfer", „Kondensator") im gewählten Arbeitsgang.
 - **Schritte:** Im Profil „Verdampfer" als Standard-Filter Bezeichnung 1 speichern,
   `/FaWorklist?workStepId=<id>` ohne weitere Parameter öffnen.
-- **Erwartetes Verhalten:** Liste zeigt nur FAs mit „Verdampfer" in Bezeichnung 1.
+- **Erwartetes Verhalten:** Liste zeigt nur FAs mit „Verdampfer" in Bezeichnung 1, und der Wert
+  „Verdampfer" steht **sichtbar** im Spaltenfilter-Feld „Bezeichnung 1" (URL enthält
+  `colf_description1=Verdampfer` sowie den Sentinel `df1=1`).
+- **Sichtbar + löschbar (Akzeptanzkriterium 6):** Das Feld „Bezeichnung 1" leeren und bestätigen
+  (ENTER) → Liste zeigt wieder **alle** FAs des Arbeitsgangs; der Default greift **nicht** erneut,
+  solange die View nicht frisch neu geladen wird. Erst ein frischer Aufruf von `/FaWorklist`
+  (ohne `df1`) belegt den Default wieder vor.
 - **Negativfall:** Filter im URL-Parameter explizit auf einen anderen Wert setzen →
   URL-Parameter gewinnt, nicht der gespeicherte Default.
 
@@ -313,6 +352,8 @@ ergaenzen: „gespeicherter Default ist im Filter-Feld sichtbar und in der Liste
 Aenderung) einmalig loeschbar/uebersteuerbar". Akzeptanzkriterium 3 (Uebersteuern durch anderen
 Wert) funktioniert schon; die Luecke ist das *Leeren*.
 
+ja, Das `setColumnFilter` befuellt das sichtbare Feld,
+
 **HINWEIS-2 — `appUserId` ist im Spec-Snippet ausserhalb des Scopes.**
 Im echten Code wird `var appUserId = _currentUser.GetCurrentAppUserId();` lokal **innerhalb** des
 Blocks `if (workStepId == null || !workbenchesProvided)` deklariert
@@ -335,3 +376,57 @@ NACHBESSERUNG NOETIG: SOLLTE-1 (Server-Mode: Default unsichtbar + in-Session un-
 Abweichung vom freigegebenen „wie Artikelgruppe"-Verhalten) vor Freigabe entscheiden — sichtbares
 Input vorbelegen oder Redirect-mit-Param — und Akzeptanzkriterium ergaenzen. HINWEIS 2-4 im Review
 mitnehmen.
+
+## Finalisierung (2026-08-05)
+
+Alle in der „## Kritische Pruefung" offenen Punkte sind entschieden und in den Spec-Körper
+eingearbeitet. Es bleiben keine offenen Rückfragen (`open_questions: []`).
+
+**SOLLTE-1 — ENTSCHEIDUNG (gemäß Empfehlung Variante b):** Der gespeicherte Default wird als
+**Redirect-mit-Parameter** umgesetzt, nicht als reine serverseitige Dictionary-Injektion. Beim
+echten Erstaufruf (kein `colf_description1`, kein Sentinel `df1`, Pflicht-Filter `workStepId`
+gesetzt, Default nicht leer) leitet `FaWorklistController.Index` per `RedirectToAction` auf
+`…&colf_description1=<Default>&df1=1` um. Wirkung:
+- Der Wert steht in der URL → `table-filter.js:restoreFiltersFromUrl` (`:41-52`) befüllt den
+  **sichtbaren** Spaltenfilter-Input → der Nutzer sieht, warum gefiltert wird.
+- Löschen wirkt wie ein normaler Spaltenfilter-Reset. Damit das **über die Navigation hinweg**
+  hält, trägt der Redirect den Sentinel `df1=1`; er überlebt `applyServerFilters` (löscht nur
+  `colf_*`/`page`, `:54-66`) und verhindert die Re-Injektion beim nächsten Load. Ergebnis: der
+  Default ist **einmal** löschbar/übersteuerbar, die Liste bleibt danach ungefiltert bis zum
+  frischen Neuladen — exakt das freigegebene „wie Artikelgruppe"-Verhalten. Details + Code-Skizze
+  im „Technischen Lösungsentwurf", Schritt 5.
+- **Gleichwertige Alternative (a):** den effektiven Default an die View durchreichen und direkt als
+  `value` des `colf_description1`-Inputs rendern (ohne Redirect); braucht denselben `df1`-Sentinel
+  für die Löschbarkeit. Ebenfalls in Schritt 5 dokumentiert. Redirect ist Empfehlung.
+- **Akzeptanzkriterium 6** ergänzt (sichtbar + einmal löschbar) und ein passender Testfall in
+  „Test-Szenarien" (Sichtbar + löschbar / Sentinel `df1`).
+
+**HINWEIS-2 — appUserId-Scope korrigiert.** Der Snippet in Schritt 5 zieht
+`appUserId = _currentUser.GetCurrentAppUserId()` und den `user`-Load auf Methoden-Ebene hoch (die
+im `if (workStepId == null || !workbenchesProvided)`-Block deklarierte `appUserId` aus
+`FaWorklistController.cs:98` ist an der Apply-Stelle nicht sichtbar). Da die Redirect-Prüfung
+ohnehin früh — vor dem Listenaufbau — greift, entfällt der zweite Repo-Load des BOM-Musters; der
+einmal geladene `currentUser` wird wiederverwendet (Effizienz-/Konsistenznote aus dem Review
+adressiert).
+
+**HINWEIS-3 — StringLength ENTSCHIEDEN: `[StringLength(200)]` / `NVARCHAR(200)`.** Bewusst länger
+als die 100 der Artikelgruppen-Felder (`User.cs:29-35`), weil der gespeicherte Wert die volle
+Spaltenfilter-Mini-Syntax nutzen darf (OR-Listen mit `,`, NOT mit `!`, mehrere Bezeichnungen wie
+`Verdampfer,Kondensator`) und damit deutlich länger als ein einzelner Artikelgruppen-Code werden
+kann. Model und SQL sind konsistent auf 200. Kein Blocker, kein Backfill.
+
+**HINWEIS-4 — Migrationsnummer.** Zum Umsetzungszeitpunkt die nächste freie `SQL/NN_*`-Nummer neu
+ermitteln (Stand Spec: main bei `SQL/83_AddSageBookingQueue.sql`; mehrere Teil-Specs desselben
+Backlogs konkurrieren um dieselbe nächste Nummer). Speicherort/Muster: additive Spalte auf `Users`
+analog den bestehenden `DefaultFilter*`-Feldern — Model → `dotnet ef migrations add
+AddUserDefaultFilterFaWorklistDescription1` → idempotentes `SQL/NN_*.sql` mit `OBJECT_ID`/
+`sys.columns`-Guard (DDL-Batch) → `__EFMigrationsHistory`-Insert (separater Batch) →
+`SQL/00_FreshInstall.sql` an beiden Stellen (Schema + `MigrationId`).
+
+**Feldname/Col-Key bestätigt:** Model-Feld `User.DefaultFilterFaWorklistDescription1` (Antwort 3);
+Spaltenfilter-Col-Key `description1`, Query-Key `colf_description1` (verifiziert gegen
+`ColumnFilterHelper.cs:15/30` und `FaWorklistController.BuildColumnMap:334`).
+
+Status bleibt **Entwurf**; „## Freigabe-Antworten" (Schranke 1, Mensch) unverändert.
+
+**BEREIT ZUR FREIGABE**

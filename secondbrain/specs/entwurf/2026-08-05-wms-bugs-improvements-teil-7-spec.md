@@ -20,26 +20,24 @@ affected_code:
   - IdealAkeWms/Controllers/WarehouseRequisitionsController.cs
   - IdealAkeWms/Controllers/WarehousePickingController.cs
   - IdealAkeWms/Controllers/Api/WarehouseRequisitionsApiController.cs
+  - IdealAkeWms/Controllers/ArticlesApiController.cs
+  - IdealAkeWms/Services/GlasArticleGroupFilter.cs
   - IdealAkeWms/Views/WarehouseRequisitions/Edit.cshtml
   - IdealAkeWms/Views/WarehousePicking/Index.cshtml
   - IdealAkeWms/Views/WarehousePicking/Details.cshtml
-  - IdealAkeWms/Models/Article.cs (falls Dummy-Kennzeichnung per Flag entschieden wird)
+  - IDEALAKEWMSService/Services/WarehouseRequisitionEmailService.cs
   - IdealAkeWms/Data/ApplicationDbContext.cs
-  - SQL/84_*.sql (Platzhalter, naechste freie Nummer)
+  - SQL/84_AddWarehouseRequisitionComment.sql (Schema, naechste freie Nummer)
+  - SQL/85_SeedDummyArticle.sql (reiner Daten-Seed, naechste freie Nummer)
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "Kommentarfeld: Soll der Kommentar (a) NUR vom Ersteller im Draft-Status editierbar sein (wie die Positions-Notiz \"Note\"), oder (b) waehrend des gesamten Lebenszyklus (auch nach Submit) editierbar bleiben - z. B. damit der Lagermitarbeiter in den Eingehenden Listen selbst einen Kommentar ergaenzen kann? Bestimmt, ob ein zweites Feld (Kommentar Werkbank vs. Kommentar Lager) noetig ist, analog Note/NoteEinkauf."
-  - "Soll der Kommentar auch in die Submit-Benachrichtigungs-Mail (NotificationWorker) aufgenommen werden, oder ist die Sichtbarkeit ausschliesslich auf UI (Edit-Formular + Lager Eingehende Listen) beschraenkt, wie im Backlog woertlich verlangt?"
-  - "Dummy-Artikel — zentrale Namensfrage: Soll die eingetippte, in Sage nicht gefundene EK-Nummer selbst als ArticleNumber des neu angelegten Artikels verwendet werden (Artikel wird spaeter beim naechsten Sage-Sync automatisch mit echten Sage-Daten anhand derselben ArticleNumber angereichert/upgedatet), ODER soll ArticleNumber buchstaeblich/literal auf \"DUMMY\" (bzw. ein generiertes DUMMY-Praefix-Schema wegen der UNIQUE-Constraint auf ArticleNumber) gesetzt werden? Das Backlog ist hier woertlich mehrdeutig (\"Der Artikel soll ... automatisch angelegt werden. 'DUMMY'.\")."
-  - "Rollen/Zugriff: Artikel-Neuanlage ist heute exklusiv [RequireMasterDataAccess] vorbehalten. Soll die Dummy-Artikel-Anlage aus der Lager-/Glasbestellung heraus GENAU DAS umgehen (jeder mit lagerbestellung/glasbestellung/stock/picking-Rolle darf einen Dummy-Artikel anlegen), oder soll stattdessen ein Freigabe-/Review-Schritt durch masterdata dazwischengeschaltet werden (z. B. Bestellposition haengt in einem Pending-Status, bis masterdata den Artikel bestaetigt)?"
-  - "Soll ein Dummy-Artikel dauerhaft von einem regulaer per Sage synchronisierten Artikel unterscheidbar bleiben (neues Bool-Flag z. B. Article.IsManuallyCreated, sichtbar/filterbar in der Artikelliste fuer eine spaetere Bereinigung durch masterdata), oder ist das bewusst nicht gewuenscht?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: true
 freigabe_entscheidung: ""
 freigabe_von: ""
@@ -50,60 +48,80 @@ freigabe_am: ""
 
 Zwei unabhängige, aber im selben Modul (Lager-/Glasbestellung) liegende Verbesserungen:
 
-1. **Kommentarfunktion:** Die Werkbank soll eine Bestellung mit einem freien Kommentar versehen
-   können, der auch dem Lager in den „Eingehenden Listen" sichtbar ist — heute gibt es nur die
-   Positions-Notizen `Note`/`NoteEinkauf` je Zeile, aber keinen Kommentar auf Ebene der gesamten
-   Bestellung.
-2. **Dummy-Artikel:** Wird beim Hinzufügen eines Artikels zu einer Bestellung die eingegebene
-   EK-Nummer nicht gefunden (Artikel existiert noch nicht in der App/in Sage), soll die Werkbank
-   trotzdem eine Position mit einer frei eingegebenen Bezeichnung anlegen können, statt komplett
-   blockiert zu sein — die App legt dafür selbstständig einen Platzhalter-Artikel an.
+1. **Kommentarfunktion:** Die Werkbank soll eine Bestellung mit einem freien Kommentar (Kopf-Ebene)
+   versehen können, der auch dem Lager in den „Eingehenden Listen" **und** in der Submit-E-Mail
+   sichtbar ist — heute gibt es nur die Positions-Notizen `Note`/`NoteEinkauf` je Zeile, aber keinen
+   Kommentar auf Ebene der gesamten Bestellung.
+2. **Dummy-Artikel:** Wird beim Hinzufügen einer Position die eingegebene EK-Nummer nicht gefunden
+   (Artikel existiert noch nicht in der App/in Sage), soll die Werkbank trotzdem eine Position mit
+   einer frei eingegebenen Bezeichnung anlegen können, statt blockiert zu sein. Dafür existiert
+   **genau ein** vorab (per SQL-Seed bei der Installation) angelegter **DUMMY-Artikel**; die
+   Werkbank wählt diesen und **muss** je Position eine eigene, aussagekräftige Bezeichnung vergeben.
+   Es wird **kein** Artikel automatisch neu angelegt (Freigabe-Antwort 4).
 
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
 - Neues Kommentarfeld auf `WarehouseRequisition` (Kopf-Ebene, nicht Item-Ebene).
-- Anzeige/Editiermöglichkeit im Edit-Formular der Werkbank (`Views/WarehouseRequisitions/Edit.cshtml`).
-- Anzeige in den „Lager Eingehenden Listen" (`Views/WarehousePicking/Index.cshtml`, neue Spalte
-  oder sichtbarer Hinweis) und in der Detailansicht (`Views/WarehousePicking/Details.cshtml`).
-- Neuer Ablauf im Artikel-Hinzufügen-Dialog: bei „nicht gefunden" ein Eingabefeld für die
-  Bezeichnung anbieten, das serverseitig einen neuen `Article`-Datensatz anlegt und diesen der
-  Bestellung hinzufügt.
+- Anzeige/Editiermöglichkeit im Edit-Formular der Werkbank (`Views/WarehouseRequisitions/Edit.cshtml`),
+  **nur vom Besteller/Ersteller im Draft-Status** (Freigabe-Antwort 1).
+- Anzeige (read-only) in den „Lager Eingehenden Listen" (`Views/WarehousePicking/Index.cshtml`, neue
+  Spalte) und in der Detailansicht (`Views/WarehousePicking/Details.cshtml`).
+- Aufnahme des Kommentars in den **Submit-E-Mail-Body** (HTML **und** Text) im Windows-Service
+  (`WarehouseRequisitionEmailService`, Freigabe-Antwort 2).
+- Nutzung des einen, per SQL geseedeten **DUMMY-Artikels** in der Lager- **und** der
+  Glasbestellung: „nicht gefunden"-UX im Edit-Formular, **Pflicht-Bezeichnung je Position**
+  (Positions-Snapshot `WarehouseRequisitionItem.ArticleDescription`), Umgehung des
+  Duplikat-Guards und der Glas-Artikelgruppen-Prüfung für den DUMMY-Schlüssel.
 
 **Out-of-Scope**
 - Keine Änderung an den bestehenden Positions-Notizen `Note`/`NoteEinkauf`.
-- Keine Aufnahme des Kommentars in die Submit-/Storno-E-Mail (`NotificationWorker`) — siehe
-  offene Rückfrage 2; falls gewünscht, ist das eine eigene Folge-Änderung am Mail-Template.
-  Diese Spec beschränkt die Sichtbarkeit auf die im Backlog wörtlich genannten Stellen
-  (Bestellformular + Eingehende Listen).
-  Diese Spec beschränkt die Sichtbarkeit auf die im Backlog wörtlich genannten Stellen
-  (Bestellformular + Eingehende Listen).
-- Keine automatische Zusammenführung/Bereinigung von Dummy-Artikeln mit später echten
-  Sage-Artikeln — die Selbstheilung über den bestehenden Sage-Artikel-Upsert-nach-ArticleNumber
-  greift nur, wenn beide dieselbe `ArticleNumber` teilen (siehe technischer Lösungsentwurf und
-  offene Rückfrage 3); ein aktives Abgleich-/Merge-Tool ist nicht Teil dieser Spec.
+- **Kein** automatisches Anlegen neuer `Article`-Datensätze aus der Bestellung heraus
+  (Freigabe-Antwort 4 hat den ursprünglichen Auto-Create-Entwurf verworfen). Es existiert genau
+  **ein** geseedeter DUMMY-Artikel.
+- **Keine** eigene Markierung/kein Flag am DUMMY-Artikel (`Article.IsManuallyCreated` o. Ä.
+  entfällt) — er ist ein normaler WMS-Artikel (Freigabe-Antwort 5).
+- **Keine** Änderung der geteilten `Article.Description` bei DUMMY-Nutzung — die individuelle
+  Bezeichnung lebt ausschließlich auf der Bestellposition.
+- Der Kommentar wird **nicht** in die Storno-E-Mail aufgenommen (Freigabe-Antwort 2 nennt nur die
+  Submit-Mail).
+- Kein Multi-DUMMY / kein DUMMY-Präfix-Schema — genau ein reservierter Schlüssel `DUMMY`.
 
 ## Fachliche Anforderungen
 
 ### A) Kommentarfunktion
 
-1. `WarehouseRequisition` bekommt ein neues Feld `Comment` (Freitext, begrenzte Länge).
+1. `WarehouseRequisition` bekommt ein neues Feld `Comment` (Freitext, `string?`, begrenzte Länge).
 2. Im Edit-Formular der Werkbank ist der Kommentar unten (nach der Artikelliste) sichtbar und
-   editierbar — Umfang der Editierbarkeit je Status siehe offene Rückfrage 1.
-3. In den „Lager Eingehenden Listen" (`/WarehousePicking`) ist der Kommentar sichtbar (Spalte
-   oder Icon/Tooltip — Umsetzungsdetail im Review, Backlog verlangt nur „soll angezeigt werden").
-4. In der Detailansicht (`/WarehousePicking/Details/{id}`) ist der Kommentar ebenfalls sichtbar.
+   editierbar — **nur vom Besteller/Ersteller und nur im Draft-Status** (Freigabe-Antwort 1;
+   bestehendes `CheckOwnershipAndDraft`-Muster). Ein zweites Feld „Kommentar Lager" entfällt.
+3. In den „Lager Eingehenden Listen" (`/WarehousePicking`, `WarehousePickingController.Index`) ist
+   der Kommentar als eigene Spalte sichtbar (read-only).
+4. In der Detailansicht (`/WarehousePicking/Details/{id}`) ist der Kommentar ebenfalls read-only
+   sichtbar.
+5. Der Kommentar erscheint im **Submit-E-Mail-Body** (Freigabe-Antwort 2), im HTML-Body
+   (`BuildSubmitBody`) **und** im Text-Body (`BuildSubmitText`), im Kopf der Mail (nach „Erfasser"/
+   „Submit", vor der Positionstabelle), nur wenn befüllt. Die **Storno-Mail** bleibt unverändert.
 
 ### B) Dummy-Artikel
 
-1. Findet die Artikelsuche beim Hinzufügen einer Position (`article-search` in
-   `Edit.cshtml`, bzw. `POST /api/warehouserequisitions/{id}/items`) keinen Treffer für die
-   eingegebene EK-Nummer, wird dem Anwender die Möglichkeit angeboten, eine Bezeichnung
-   einzugeben.
-2. Nach Bestätigung legt die App automatisch einen neuen `Article`-Datensatz an (Namens-/
-   Nummernschema siehe offene Rückfrage 3) und fügt ihn als Position der Bestellung hinzu.
-3. Der neu angelegte Artikel ist danach wie jeder andere Artikel im System sichtbar (Bestand,
-   Bestellungen usw.).
+1. Es existiert **genau ein** DUMMY-Artikel mit dem reservierten `ArticleNumber`-Schlüssel `DUMMY`
+   (außerhalb des Sage-Namensraums, damit der Artikel-Sync ihn nicht überschreibt/löscht). Dieser
+   Artikel wird **einmalig per SQL-Seed** bei der Installation angelegt, **nicht** zur Laufzeit aus
+   der Bestellung heraus (Freigabe-Antwort 4). Es gibt **keine** Artikel-Neuanlage im Bestellfluss.
+2. Findet die Artikelsuche beim Hinzufügen einer Position (`article-search` in `Edit.cshtml`) keinen
+   Treffer für die eingegebene EK-Nummer, wird dem Anwender die Möglichkeit angeboten, eine
+   **DUMMY-Position** anzulegen und dabei eine **Bezeichnung als Pflichtfeld** einzugeben.
+3. Die eingegebene Bezeichnung landet ausschließlich auf der **Bestellposition**
+   (`WarehouseRequisitionItem.ArticleDescription`), **nicht** auf der geteilten `Article.Description`
+   (Freigabe-Antwort 3 „Bezeichnung zwingend geändert" → Positions-Snapshot). Damit sehen andere
+   Bestellungen denselben DUMMY-Artikel mit ihrer jeweils eigenen Bezeichnung.
+4. Server-Validierung: Eine DUMMY-Position wird **abgelehnt**, wenn die Bezeichnung leer ist ODER
+   unverändert der Default-Seed-Bezeichnung des DUMMY-Artikels entspricht („zwingend geändert").
+5. Mehrere DUMMY-Positionen mit **unterschiedlichen** Bezeichnungen sind in **einer** Bestellung
+   erlaubt (Duplikat-Guard wird für den DUMMY-Schlüssel umgangen).
+6. Der DUMMY-Artikel ist in der **Lager- UND der Glasbestellung** wählbar (die
+   Glas-Artikelgruppen-Prüfung wird für den DUMMY-Schlüssel als erlaubt behandelt).
 
 ## Ist-Zustand (Code-Referenzen)
 
@@ -126,38 +144,44 @@ Zwei unabhängige, aber im selben Modul (Lager-/Glasbestellung) liegende Verbess
   Muster für „nur ein Feld ohne Status-/RowVersion-Prüfung speichern"
   (`SaveNotesAsync`, dokumentiert als „Autosave, RowVersion bewusst ignoriert, weil nicht
   konfliktrelevant") — geeignetes Vorbild für einen analogen `SaveCommentAsync`.
+- **Submit-Mail (Windows-Service):** `IDEALAKEWMSService/Services/WarehouseRequisitionEmailService.cs`
+  — `BuildSubmitBody:146-167` (HTML) und `BuildSubmitText:189-209` (Text) erzeugen den Mail-Kopf
+  (`Werkbank`/`Erfasser`/`Submit`) und die Positionstabelle. Die geladene `WarehouseRequisition`
+  wird über `GetPendingSubmitEmailsAsync` (`WarehouseRequisitionRepository.cs:90-100`) ohnehin als
+  Entität geladen; ein skalarer `Comment` ist ohne Query-Änderung verfügbar. `CheckOwnershipAndDraft`
+  liegt in `WarehouseRequisitionsApiController.cs:49-60`.
 
 **Dummy-Artikel:**
-- `IdealAkeWms/Controllers/Api/WarehouseRequisitionsApiController.cs:62-99` (`AddItem`):
-  ```csharp
-  var article = await _articles.GetByArticleNumberAsync(body.ArticleNumber);
-  if (article == null)
-      return BadRequest(new { error = "Artikel nicht gefunden." });
-  ```
-  Aktuell harter Abbruch ohne Möglichkeit, dennoch eine Position anzulegen.
-- `IdealAkeWms/Views/WarehouseRequisitions/Edit.cshtml:130-147`: Artikelsuche über
-  `/api/articles/search?q=...&type=...` (`ArticlesApiController.Search`,
-  `IdealAkeWms/Controllers/ArticlesApiController.cs:21-48`) — bei 0 Treffern erscheint aktuell
-  nur eine leere Ergebnisliste, kein „Dummy anlegen"-Pfad.
-- `IdealAkeWms/Models/Article.cs:1-41`: `ArticleNumber` ist `[Required][StringLength(100)]` und
-  in `ApplicationDbContext.cs:220` `HasIndex(e => e.ArticleNumber).IsUnique()` — jede
-  Dummy-Anlage muss diese Eindeutigkeit respektieren.
-- Artikel-Erstellung ist heute ausschließlich über `ArticlesController`
-  unter `[RequireMasterDataAccess]` vorgesehen (`secondbrain/codebase/controller.md`,
-  Zeile 50) — Rollen `admin`, `masterdata`. Die Rollen, die überhaupt Zugriff auf
-  `WarehouseRequisitionsController`/`WarehouseRequisitionsApiController` haben
-  (`[RequirePickingOrStockOrLagerbestellungAccess]`: admin, picking, stock, stock_keyuser,
-  lagerbestellung, glasbestellung), sind eine **andere, breitere** Menge — insbesondere
-  `lagerbestellung`/`glasbestellung` haben laut Glossar explizit **keinen** Stammdaten-Zugriff
-  („eng abgegrenzt, ohne picking/stock"). Ein automatisches Anlegen von Artikeln aus diesem
-  Endpunkt heraus wäre ein faktischer Rollen-Bypass für die Artikel-Neuanlage — siehe offene
-  Rückfrage 4.
-- `IDEALAKEWMSService/Services/SageImportService.cs:369-...` (`SyncArticlesAsync`) upserted
-  Artikel **anhand von `ArticleNumber`** aus Sage — ein später in Sage angelegter Artikel mit
-  derselben `ArticleNumber` würde einen bestehenden App-Artikel automatisch mit den echten
-  Sage-Daten überschreiben (Description/Unit/ArticleGroup/ReorderLevel/PrimaryStorageLocation),
-  **sofern** die Dummy-`ArticleNumber` mit der späteren echten Sage-`ArticleNumber`
-  übereinstimmt (relevant für die Namensschema-Entscheidung, offene Rückfrage 3).
+- `IdealAkeWms/Controllers/Api/WarehouseRequisitionsApiController.cs:62-99` (`AddItem`): bricht bei
+  unbekannter Artikelnummer hart ab (`return BadRequest(new { error = "Artikel nicht gefunden." })`,
+  Zeile 66-67). Der DUMMY-Fall braucht einen eigenen Pfad, der den geseedeten DUMMY-Artikel
+  referenziert (kein Abbruch), mit Pflicht-Bezeichnung.
+- `AddItem` kopiert heute **stur** `article.Description ?? ""` in die Position
+  (`WarehouseRequisitionsApiController.cs:90`). Es gibt **keinen** Weg, eine abweichende Bezeichnung
+  je Position mitzugeben. Die Repo-Methode `AddItemAsync` **akzeptiert** dagegen bereits einen
+  `description`-Parameter (`WarehouseRequisitionRepository.cs:114-115`) und schreibt ihn in
+  `ArticleDescription` (Zeile 135) — der Override-Hebel existiert also im Repo, nur nicht im
+  Controller.
+- **Duplikat-Guard:** `AddItemAsync` lehnt eine zweite Position mit derselben `ArticleNumber` in
+  einer Bestellung ab (`WarehouseRequisitionRepository.cs:117-124`, „Artikel '…' ist bereits in
+  dieser Bestellung enthalten."). Für den einen geteilten DUMMY-Schlüssel muss diese Sperre umgangen
+  werden, sonst ist nur **eine** unbekannte Position je Bestellung erfassbar.
+- **Positions-Bezeichnung:** `WarehouseRequisitionItem.ArticleDescription`
+  (`WarehouseRequisitionItem.cs:14-15`, `[Required][StringLength(500)]`) existiert bereits als
+  Snapshot je Position — der korrekte, nicht-geteilte Ablageort für die DUMMY-Bezeichnung.
+- **Glas-Filter:** `GlasArticleGroupFilter.IsAllowedForType(null, …)`
+  (`IdealAkeWms/Services/GlasArticleGroupFilter.cs:35-43`) liefert für `Lager` → `true`, für
+  `Glas` → **`false`** (`glasGroups.Contains("")` ist false). Ein DUMMY ohne Artikelgruppe ist damit
+  in der Glas-gescopten Suche (`ArticlesApiController.cs:35-37`) unsichtbar **und** wird im Add-Guard
+  (`WarehouseRequisitionsApiController.cs:80`) abgelehnt. Der DUMMY-Schlüssel muss daher explizit als
+  „für beide Typen erlaubt" behandelt werden.
+- `IdealAkeWms/Models/Article.cs:1-41`: `ArticleNumber` ist `[Required][StringLength(100)]` und in
+  `ApplicationDbContext.cs:220` `HasIndex(e => e.ArticleNumber).IsUnique()` — der Seed-Schlüssel
+  `DUMMY` muss diese Eindeutigkeit respektieren (einmaliger Insert, idempotenter `IF NOT EXISTS`-Guard).
+- `IDEALAKEWMSService/Services/SageImportService.cs:481-514` (`SyncArticlesAsync`) upserted Artikel
+  **anhand von `ArticleNumber`** aus Sage und hat **keinen** Delete-/Prune-Lauf — ein geseedeter
+  DUMMY wird nie gelöscht (gut). Solange `DUMMY` nachweislich **nicht** als echte Sage-Nummer
+  existiert, wird der Seed vom Sync auch nie überschrieben.
 
 ## Technischer Lösungsentwurf
 
@@ -170,81 +194,125 @@ Zwei unabhängige, aber im selben Modul (Lager-/Glasbestellung) liegende Verbess
   string user, string winUser)` analog `SaveNotesAsync` (Zeilen 38-44) — RowVersion bewusst
   ignoriert (Kommentar ist nicht konfliktrelevant, gleiches Muster wie Notizen).
 - `WarehouseRequisitionsController`/`Api/WarehouseRequisitionsApiController`: neuer
-  Speicherpfad, z. B. `PUT /api/warehouserequisitions/{id}/comment` (analog dem bestehenden
-  Item-`PUT`-Muster), mit demselben Ownership+Draft-Guard wie `CheckOwnershipAndDraft` **falls**
-  die Klärung aus offener Rückfrage 1 „nur im Draft editierbar" ergibt; andernfalls ein
-  eigener, lockererer Guard.
+  Speicherpfad `PUT /api/warehouserequisitions/{id}/comment` (analog dem bestehenden Item-`PUT`-
+  Muster), mit demselben `CheckOwnershipAndDraft`-Guard wie die Item-Endpunkte
+  (`WarehouseRequisitionsApiController.cs:49-60`) — Ersteller-Ownership **und** Draft-Status
+  (Freigabe-Antwort 1: „nur vom Besteller/Eingeber"; Empfehlung SOLLTE 7: nur im Draft editierbar).
 - `WarehouseRequisitionEditViewModel` + `Edit.cshtml`: `Comment`-Feld als `<textarea>` unterhalb
-  der Artikelliste, mit Autosave-Pattern analog den bestehenden Notiz-Feldern in
-  `WarehousePicking/Details.cshtml` (Fallstrick „Notiz-Autosave vor Drucken" beachten, falls ein
-  ähnlicher Druck-Pfad betroffen ist — hier nicht der Fall, da `Edit.cshtml` keinen Druck hat).
+  der Artikelliste, mit Autosave-Pattern analog den bestehenden Notiz-Feldern. Kein Druck-Pfad in
+  `Edit.cshtml` betroffen.
 - `WarehouseRequisitionListItemViewModel`: `Comment`-Property ergänzen (record — an **beiden**
   Konstruktions-Stellen nachziehen: `WarehouseRequisitionsController.Index:76-83` und
   `WarehousePickingController.Index:73-75`).
 - `WarehousePicking/Index.cshtml`: neue Spalte „Kommentar" (mit `data-col-key="comment"` gemäß
   Listen-View-Pattern, da diese View bereits `data-server-column-filter="true"` nutzt —
-  Server-Spaltenfilter-Pflicht laut ADR 0005 gilt auch für die neue Spalte).
+  Server-Spaltenfilter-Pflicht laut ADR 0005 gilt auch für die neue Spalte; Eintrag im `ColumnMap`
+  von `WarehousePickingController.cs:39-54`, und falls die Spalte auch in
+  `WarehouseRequisitionsController.Index` erscheinen soll, dort im `ColumnMap` Zeilen 35-51).
 - `WarehouseRequisitionDetailViewModel` + `WarehousePicking/Details.cshtml`: `Comment` ebenfalls
   read-only anzeigen.
+- **Submit-Mail (Windows-Service, `deploy.service=true`):** In
+  `WarehouseRequisitionEmailService.BuildSubmitBody` (HTML, Zeile 146-167) und `BuildSubmitText`
+  (Text, Zeile 189-209) den Kommentar im Mail-Kopf ausgeben, jeweils nur wenn
+  `!string.IsNullOrWhiteSpace(r.Comment)`. HTML sauber escapen (`E(...)` wie die übrigen Felder).
+  `BuildCancellationBody`/`BuildCancellationText` bleiben **unverändert** (kein Kommentar in der
+  Storno-Mail).
 
 ### B) Dummy-Artikel
 
+**Grundprinzip:** Kein Code legt Artikel an. Es gibt **genau einen**, per SQL geseedeten
+DUMMY-Artikel mit dem reservierten `ArticleNumber` = `DUMMY`. Die Bezeichnung je Nutzung lebt auf
+der Position, nicht am Artikel.
+
+- **Reservierter Schlüssel:** Eine zentrale Konstante (Single Source of Truth), z. B.
+  `Article.DummyArticleNumber = "DUMMY"`, damit Seed, Add-Guard, Duplikat-Guard und Glas-Filter
+  denselben Wert referenzieren. Die Default-Seed-Bezeichnung (z. B.
+  `"DUMMY – Bezeichnung bitte eintragen"`) ebenfalls als Konstante, damit die „zwingend geändert"-
+  Validierung serverseitig dagegen vergleichen kann.
 - `Edit.cshtml`-Suchskript: liefert `/api/articles/search` 0 Treffer, erscheint statt/zusätzlich
-  zur leeren Ergebnisliste ein Button/Formular „Artikel nicht gefunden — Dummy anlegen" mit
-  einem Bezeichnungsfeld.
-- Neuer API-Endpunkt (z. B. `POST /api/warehouserequisitions/{id}/items/dummy` mit Body
-  `{ ArticleNumber, Description, Quantity }`), der:
-  1. prüft, ob `ArticleNumber` bereits existiert (`GetByArticleNumberAsync`) — falls ja, normalen
-     `AddItem`-Pfad nutzen (kein Duplikat anlegen);
-  2. andernfalls einen neuen `Article` mit `ArticleNumber` (Herkunft: siehe offene Rückfrage 3)
-     und `Description` = eingegebene Bezeichnung anlegt (`Unit`/`ArticleGroup` leer/null, da
-     unbekannt);
-  3. den neuen Artikel anschließend über den bestehenden `AddItemAsync`-Pfad der Bestellung
-     hinzufügt (inkl. der bestehenden Glas/Lager-Artikelgruppen-Prüfung
-     `GlasArticleGroupFilter.IsAllowedForType` — ein Dummy-Artikel ohne `ArticleGroup` muss diese
-     Prüfung bestehen können, sonst blockiert er sich selbst; ggf. muss
-     `IsAllowedForType` für `ArticleGroup == null` einen definierten, erlaubenden Fall haben —
-     im Review gegen die bestehende Implementierung zu prüfen).
-- Falls die Klärung aus offener Rückfrage 5 ein Unterscheidungs-Flag ergibt: `Article` bekommt
-  ein neues Feld `IsManuallyCreated` (`bool`, Default `false`), das bei der Dummy-Anlage `true`
-  gesetzt wird — sichtbar/filterbar in der Artikelliste (`ArticlesController`/`Views/Articles/`)
-  für eine spätere masterdata-Bereinigung. **Nur falls die offene Rückfrage das verlangt** —
-  sonst entfällt dieser Punkt und Migration B reduziert sich auf keine Schema-Änderung.
+  zur leeren Ergebnisliste ein Button/Formular „Artikel nicht gefunden — DUMMY-Position anlegen"
+  mit einem **Pflicht-Bezeichnungsfeld**. Der DUMMY wird **nicht** in die reguläre Suche
+  eingemischt (kein Rauschen), sondern nur über diesen „nicht gefunden"-Zweig angeboten.
+- **Neuer API-Endpunkt** `POST /api/warehouserequisitions/{id}/items/dummy` mit Body
+  `{ Description, Quantity }`, der:
+  1. denselben `CheckOwnershipAndDraft`-Guard durchläuft;
+  2. den geseedeten DUMMY-Artikel per `GetByArticleNumberAsync(Article.DummyArticleNumber)` lädt
+     (existiert er nicht → `BadRequest`, Hinweis „DUMMY-Artikel fehlt, Seed nicht eingespielt");
+  3. **Bezeichnung validiert:** `Description` darf nicht leer sein und **nicht** gleich der
+     Default-Seed-Bezeichnung (Trim/Case-insensitiver Vergleich) — sonst `BadRequest`
+     („Bitte eine eigene Bezeichnung eingeben.");
+  4. **Glas/Lager-Guard übersprungen** für den DUMMY-Schlüssel (der DUMMY ist in beiden Typen
+     erlaubt) — siehe Glas-Filter-Punkt unten;
+  5. die Position über `AddItemAsync(id, "DUMMY", description: <eingegeben>, unit: null, quantity,
+     …)` hinzufügt — der bereits vorhandene `description`-Parameter (Repo Zeile 114/135) trägt die
+     Positions-Bezeichnung.
+- **Duplikat-Guard umgehen:** `AddItemAsync` (`WarehouseRequisitionRepository.cs:117-124`) darf für
+  `articleNumber == Article.DummyArticleNumber` die „bereits enthalten"-Prüfung **überspringen**, so
+  dass mehrere DUMMY-Positionen mit unterschiedlichen Bezeichnungen in einer Bestellung möglich sind.
+  Umsetzung: Guard-Bedingung um `&& articleNumber != Article.DummyArticleNumber` erweitern (die
+  Signatur bleibt, kein neuer Parameter nötig).
+- **Glas/Lager wählbar:** `GlasArticleGroupFilter.IsAllowedForType`
+  (`GlasArticleGroupFilter.cs:35-43`) so ergänzen, dass der DUMMY in **beiden** Typen erlaubt ist.
+  **Empfohlene Umsetzung:** Der neue DUMMY-Endpunkt umgeht den Gruppen-Guard ganz (der DUMMY ist
+  per Definition typ-neutral) — dann ist keine Änderung an `IsAllowedForType` nötig. Alternative
+  (falls der DUMMY auch über die reguläre Suche wählbar sein soll): `IsAllowedForType` für den
+  reservierten Schlüssel bzw. leere Gruppe explizit als „immer erlaubt" sonderregeln und die
+  Glas-Suche (`ArticlesApiController.cs:35-37`) entsprechend durchlassen. Empfehlung: erste Variante
+  (Guard nur im DUMMY-Endpunkt umgehen), da minimalinvasiv und deterministisch.
+- **Keine** `Article.IsManuallyCreated`-Migration, **kein** Flag (Freigabe-Antwort 5) — der DUMMY
+  ist ein normaler WMS-Artikel.
 
 ## Migrations-/SQL-Auswirkungen
 
-Zwei potenziell unabhängige Schema-Änderungen (je nach Klärung der offenen Rückfragen):
+Genau **eine** Schema-Änderung plus **ein** reiner Daten-Seed — beide nach ADR 0004-Disziplin,
+aber unterschiedlicher Natur:
 
-1. `WarehouseRequisition.Comment` (neue Spalte, `NVARCHAR(1000) NULL`) — additiv, kein Backfill
-   nötig. Migration + `SQL/<naechste freie Nummer>_AddWarehouseRequisitionComment.sql` mit
-   `OBJECT_ID`-Guard, DDL in eigenem Batch, `__EFMigrationsHistory`-Insert in separatem Batch,
-   `SQL/00_FreshInstall.sql` an beiden Stellen (Schema + `MigrationId`) — nach ADR 0004.
-2. **Nur falls** offene Rückfrage 5 ein `Article.IsManuallyCreated`-Flag verlangt: weitere,
-   unabhängige additive Migration (`BIT NOT NULL DEFAULT 0`).
+1. **Schema — `WarehouseRequisition.Comment`** (neue Spalte, `NVARCHAR(1000) NULL`): additiv, kein
+   Backfill. Model → `dotnet ef migrations add AddWarehouseRequisitionComment` → idempotentes
+   `SQL/84_AddWarehouseRequisitionComment.sql` mit `OBJECT_ID`/Spalten-Guard (DDL in eigenem Batch),
+   `__EFMigrationsHistory`-Insert in **separatem** Batch → `SQL/00_FreshInstall.sql` an **beiden**
+   Stellen (Schema-Objekt + `MigrationId`).
+2. **Daten-Seed — DUMMY-Artikel** (Freigabe-Antwort 4, „einmalig per SQL-Insert bei Installation"):
+   reiner Insert **einer** `Articles`-Zeile mit `ArticleNumber = 'DUMMY'`, Default-Bezeichnung,
+   `ArticleGroup`/`Unit` leer, Audit-Felder gesetzt (`CreatedBy = 'System-Seed'`). **Kein** Schema,
+   **kein** EF-Migration-/`__EFMigrationsHistory`-Eintrag. Umsetzung:
+   - neues idempotentes `SQL/85_SeedDummyArticle.sql` mit `IF NOT EXISTS (SELECT 1 FROM [Articles]
+     WHERE [ArticleNumber] = 'DUMMY')`-Guard;
+   - Verankerung im **Seed-Teil** von `SQL/00_FreshInstall.sql` (Muster vorhanden, z. B. FA-Vorbau-
+     Seeds, AppSettings, Roles), ebenfalls mit `IF NOT EXISTS`-Guard.
+   - Der Seed-Schlüssel `DUMMY` muss im Review als **in Sage nicht vorhanden** bestätigt werden, damit
+     `SyncArticlesAsync` ihn nie überschreibt (HINWEIS 8).
 
-Zum Zeitpunkt dieser Spec ist main bei `SQL/83_AddSageBookingQueue.sql` — die konkrete
-Skript-Nummer ist zum Umsetzungszeitpunkt neu zu ermitteln (nächste freie Nummer), da mehrere
+Zum Zeitpunkt dieser Spec ist main bei `SQL/83_AddSageBookingQueue.sql`; die konkreten Skript-Nummern
+(84 Schema / 85 Seed) sind zum Umsetzungszeitpunkt als nächste freie Nummern zu bestätigen, da mehrere
 Teil-Specs dieses Backlogs parallel um SQL-Nummern konkurrieren können.
+
+**Reihenfolge Deploy:** DB-Migration `84` **und** Seed `85` vor dem Web-/Service-Publish einspielen
+(der DUMMY-Endpunkt setzt den geseedeten Artikel voraus).
 
 ## Audit-Feld-Auswirkungen
 
 - `WarehouseRequisition` ist bereits `AuditableEntity` — jede Kommentar-Änderung setzt
   `ModifiedAt`/`ModifiedBy`/`ModifiedByWindows` wie bei den bestehenden `SaveNotesAsync`/
   `SaveProgressAsync`-Pfaden.
-- Neu angelegte Dummy-`Article`-Zeilen setzen `CreatedAt`/`CreatedBy`/`CreatedByWindows` aus
-  `ICurrentUserService` wie jede reguläre Artikel-Anlage.
+- Das Hinzufügen einer DUMMY-Position läuft über den bestehenden `AddItemAsync`-Pfad und setzt die
+  Audit-Felder der Position (`CreatedAt`/`CreatedBy`/`CreatedByWindows`) sowie `ModifiedAt/By` auf
+  der Bestellung wie jede reguläre Position — **keine** neue Artikel-Zeile, daher keine
+  Artikel-Audit-Felder zur Laufzeit. Die einzige DUMMY-`Article`-Zeile trägt ihre Audit-Werte aus
+  dem SQL-Seed (`CreatedBy = 'System-Seed'`).
 
 ## Rollen- und Zugriffsfilter-Auswirkungen
 
 - **Kommentarfunktion:** keine neue Rolle — Kommentar-Schreibpfad liegt unter denselben Filtern
   wie die bestehenden Item-Endpunkte (`[RequirePickingOrStockOrLagerbestellungAccess]` +
-  `[RequireLagerbestellungAktiv]`).
-- **Dummy-Artikel:** **wesentliche offene Frage** (siehe offene Rückfrage 4) — die Artikel-Neuanlage
-  ist heute exklusiv `masterdata`/`admin` vorbehalten
-  (`[RequireMasterDataAccess]`, `secondbrain/codebase/controller.md`). Ein neuer Endpunkt, der
-  Artikel-Anlage aus `WarehouseRequisitionsApiController` heraus erlaubt, wäre ein bewusster,
-  eng abgegrenzter Ausnahmefall zu diesem Rollenkonzept (ADR 0006) und muss **explizit** vom
-  Menschen freigegeben werden, bevor er umgesetzt wird — hier **nicht** vorentschieden.
+  `[RequireLagerbestellungAktiv]`), zusätzlich Ownership+Draft via `CheckOwnershipAndDraft`.
+- **Dummy-Artikel:** **kein Rollen-Konflikt mehr.** Es gibt **keine** Artikel-Neuanlage aus der
+  Bestellung (Freigabe-Antwort 4) — der bisher problematische Bypass von `[RequireMasterDataAccess]`
+  entfällt vollständig. Der neue DUMMY-Endpunkt legt nur eine **Bestellposition** an (referenziert
+  den geseedeten Artikel) und liegt unter denselben Filtern wie die übrigen Item-Endpunkte
+  (`[RequirePickingOrStockOrLagerbestellungAccess]` + Ownership+Draft). Die Artikel-Neuanlage
+  bleibt weiterhin ausschließlich `masterdata`/`admin` vorbehalten. **Keine** Änderung an
+  `RoleOverview.cshtml`/`controller.md` nötig.
 
 ## Listen-View-Pattern-Pflichten
 
@@ -257,82 +325,115 @@ Zeilen 35-51).
 
 ## Akzeptanzkriterien
 
-1. Auf dem Bestellformular (`Edit.cshtml`) kann die Werkbank einen Kommentar eingeben und
-   speichern.
-2. Der gespeicherte Kommentar erscheint in der Liste der „Lager Eingehenden Listen"
-   (`/WarehousePicking`) und in der Detailansicht.
+**A) Kommentar**
+
+1. Auf dem Bestellformular (`Edit.cshtml`) kann der **Besteller/Ersteller** im **Draft**-Status
+   einen Kommentar eingeben und speichern; ein anderer Benutzer bzw. eine Bestellung nach Submit
+   kann ihn **nicht** ändern (`CheckOwnershipAndDraft` → Forbid/BadRequest).
+2. Der gespeicherte Kommentar erscheint read-only in der Liste der „Lager Eingehenden Listen"
+   (`/WarehousePicking`, eigene Spalte) und in der Detailansicht.
 3. Eine Bestellung ohne Kommentar zeigt eine leere Zelle/kein Symbol (kein Fehler).
-4. Wird beim Artikel-Hinzufügen eine EK-Nummer eingegeben, die keine Treffer liefert, kann der
-   Anwender eine Bezeichnung eingeben und einen neuen Artikel anlegen lassen.
-5. Der neu angelegte Dummy-Artikel erscheint sofort als Position in der aktuellen Bestellung mit
-   der eingegebenen Bezeichnung.
-6. Der neu angelegte Dummy-Artikel ist danach auch in der regulären Artikelsuche
-   (`/api/articles/search`) auffindbar.
-7. Wird dieselbe (Dummy-)EK-Nummer ein zweites Mal in einer anderen Bestellung verwendet, wird
-   **kein** zweiter Artikel-Datensatz angelegt (Wiederverwendung über `GetByArticleNumberAsync`),
-   sondern der bestehende referenziert.
+4. Nach Submit enthält die **Submit-E-Mail** (HTML **und** Text) den Kommentar im Kopf, sofern
+   befüllt; eine leere/fehlende Angabe erzeugt keine leere Zeile. Die **Storno-Mail** enthält
+   **keinen** Kommentar.
+
+**B) DUMMY-Artikel**
+
+5. Der DUMMY-Artikel (`ArticleNumber = 'DUMMY'`) existiert nach Installation/Seed **genau einmal**;
+   der Seed ist idempotent (zweiter Lauf legt keinen zweiten an).
+6. Wird beim Artikel-Hinzufügen eine EK-Nummer eingegeben, die **keine** Treffer liefert, kann der
+   Anwender eine DUMMY-Position anlegen und **muss** dabei eine Bezeichnung eingeben.
+7. Die DUMMY-Position erscheint sofort in der aktuellen Bestellung mit der **eingegebenen**
+   Bezeichnung (Positions-`ArticleDescription`); die geteilte `Article.Description` des DUMMY bleibt
+   unverändert.
+8. Eine DUMMY-Position mit **leerer** oder **unveränderter** (= Default-Seed-)Bezeichnung wird
+   serverseitig **abgelehnt**.
+9. **Zwei** DUMMY-Positionen mit **unterschiedlichen** Bezeichnungen sind in **einer** Bestellung
+   erlaubt (kein „bereits enthalten"-Fehler).
+10. Der DUMMY ist sowohl in einer **Lager-** als auch in einer **Glas**-Bestellung als DUMMY-Position
+    anlegbar (Glas-Artikelgruppen-Prüfung blockiert ihn nicht).
+11. Es wird zu **keinem** Zeitpunkt ein neuer `Article`-Datensatz angelegt (Artikel-Neuanlage bleibt
+    `masterdata`/`admin` vorbehalten).
 
 ## Test-Szenarien
 
 Ergänzung `docs/TESTSZENARIEN.md` Kapitel 46/52 (Glas-Bestellung / Lagerbestellung aus der
 Stückliste, oder ein neues Kapitel — im Review zu entscheiden):
 
-- **Kommentar — Vorbedingung:** Draft-Bestellung existiert.
-  **Schritte:** Kommentar eintragen, speichern, zur Lager-Ansicht wechseln.
-  **Erwartetes Verhalten:** Kommentar sichtbar in Eingehenden Listen + Details.
-  **Negativfall:** Kommentar leer lassen → keine Anzeige-Fehler, leere Zelle.
-- **Dummy-Artikel — Vorbedingung:** EK-Nummer, die in Sage/App nicht existiert.
-  **Schritte:** Artikelsuche mit dieser Nummer, „nicht gefunden" bestätigen, Bezeichnung
-  eingeben, anlegen.
-  **Erwartetes Verhalten:** Neue Position mit eingegebener Bezeichnung erscheint in der
-  Bestellung; Artikel ist danach über die normale Suche auffindbar.
-  **Negativfall:** dieselbe EK-Nummer erneut in einer zweiten Bestellung verwenden → kein
-  Duplikat, bestehender Artikel wird referenziert.
+- **Kommentar (Anzeige + Ownership) — Vorbedingung:** Draft-Bestellung des eigenen Users existiert.
+  **Schritte:** Kommentar eintragen, speichern, zur Lager-Ansicht (`/WarehousePicking`) wechseln.
+  **Erwartetes Verhalten:** Kommentar read-only sichtbar in Eingehenden Listen (Spalte) + Details.
+  **Negativfälle:** (a) Kommentar leer lassen → keine Anzeige-Fehler, leere Zelle; (b) Bestellung
+  eines **anderen** Users bzw. bereits submittete Bestellung → Kommentar nicht editierbar
+  (Forbid/„nicht mehr im Entwurf").
+- **Kommentar im Submit-Mail — Vorbedingung:** Draft mit Kommentar, Benachrichtigungs-Mail aktiv.
+  **Schritte:** Bestellung submitten, NotificationWorker durchlaufen lassen, Mail prüfen.
+  **Erwartetes Verhalten:** Kommentar erscheint im Kopf des Submit-Mails (HTML **und** Text-Teil).
+  **Negativfall:** Bestellung ohne Kommentar → Mail ohne Kommentarzeile; Storno-Mail nie mit
+  Kommentar.
+- **DUMMY-Position (Lager) — Vorbedingung:** DUMMY-Seed eingespielt; EK-Nummer, die nicht existiert.
+  **Schritte:** Artikelsuche mit dieser Nummer, „nicht gefunden", DUMMY-Position mit eigener
+  Bezeichnung anlegen.
+  **Erwartetes Verhalten:** Position mit der eingegebenen Bezeichnung erscheint; `Article.Description`
+  des DUMMY unverändert.
+  **Negativfälle:** (a) Bezeichnung leer → Ablehnung; (b) Bezeichnung = Default-Seed-Text →
+  Ablehnung.
+- **DUMMY mehrfach je Bestellung — Schritte:** zwei DUMMY-Positionen mit **verschiedenen**
+  Bezeichnungen in **einer** Bestellung anlegen. **Erwartetes Verhalten:** beide erscheinen, kein
+  „bereits enthalten"-Fehler.
+- **DUMMY in Glasbestellung — Schritte:** in einer **Glas**-Bestellung eine DUMMY-Position anlegen.
+  **Erwartetes Verhalten:** anlegbar (kein „gehoert in die Lager-Bestellung"-Fehler).
 
 `secondbrain/tests/testszenarien-index.md` entsprechend ergänzen.
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** nein (Artikel-Sync im Service bleibt unverändert, betrifft aber die Selbstheilung
-  von Dummy-Artikeln bei gleichnamiger `ArticleNumber` — siehe Ist-Zustand).
-- **Migration:** ja (mindestens `WarehouseRequisition.Comment`; ggf. zusätzlich
-  `Article.IsManuallyCreated`, siehe offene Rückfrage 5).
+- **Web-App:** ja (Kommentar-UI/-Endpunkt, DUMMY-UX/-Endpunkt).
+- **Service:** **ja** — der Submit-Mail-Body wird im Windows-Service erzeugt
+  (`WarehouseRequisitionEmailService`, Freigabe-Antwort 2). Ohne Service-Publish würde der Kommentar
+  nicht in der Mail erscheinen.
+- **Migration:** **ja** — eine Schema-Migration (`WarehouseRequisition.Comment`) **und** ein reiner
+  Daten-Seed (DUMMY-Artikel). Beide vor dem Publish einspielen.
 - **Publish-Befehle:**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSService
 ```
 
-**Hinweis:** DB-Migration vor dem Web-Publish einspielen (additive Spalten, kein
-Backup-Zwang über das ohnehin geltende Standard-Vorgehen hinaus, da rein additiv).
+**Reihenfolge:** (1) `SQL/84_AddWarehouseRequisitionComment.sql` (Schema, additiv), (2)
+`SQL/85_SeedDummyArticle.sql` (DUMMY-Seed) einspielen, dann (3) Web **und** Service publishen. Rein
+additive Spalte + idempotenter Seed → kein Backup-Zwang über das Standard-Vorgehen hinaus.
 
 ## Offene Rückfragen
 
-1. Kommentarfeld: Soll der Kommentar (a) NUR vom Ersteller im Draft-Status editierbar sein (wie
-   die Positions-Notiz „Note"), oder (b) während des gesamten Lebenszyklus (auch nach Submit)
-   editierbar bleiben — z. B. damit der Lagermitarbeiter in den Eingehenden Listen selbst einen
-   Kommentar ergänzen kann? Bestimmt, ob ein zweites Feld (Kommentar Werkbank vs. Kommentar
-   Lager) nötig ist, analog `Note`/`NoteEinkauf`.
-2. Soll der Kommentar auch in die Submit-Benachrichtigungs-Mail (`NotificationWorker`)
-   aufgenommen werden, oder ist die Sichtbarkeit ausschließlich auf UI (Edit-Formular + Lager
-   Eingehende Listen) beschränkt, wie im Backlog wörtlich verlangt?
-3. Dummy-Artikel — zentrale Namensfrage: Soll die eingetippte, in Sage nicht gefundene EK-Nummer
-   selbst als `ArticleNumber` des neu angelegten Artikels verwendet werden (Artikel wird später
-   beim nächsten Sage-Sync automatisch mit echten Sage-Daten angereichert/upgedatet), ODER soll
-   `ArticleNumber` buchstäblich/literal auf „DUMMY" (bzw. ein generiertes DUMMY-Präfix-Schema
-   wegen der UNIQUE-Constraint auf `ArticleNumber`) gesetzt werden? Das Backlog ist hier wörtlich
-   mehrdeutig („Der Artikel soll ... automatisch angelegt werden. „DUMMY".").
-4. Rollen/Zugriff: Artikel-Neuanlage ist heute exklusiv `[RequireMasterDataAccess]` vorbehalten.
-   Soll die Dummy-Artikel-Anlage aus der Lager-/Glasbestellung heraus genau das umgehen (jeder
-   mit `lagerbestellung`/`glasbestellung`/`stock`/`picking`-Rolle darf einen Dummy-Artikel
-   anlegen), oder soll stattdessen ein Freigabe-/Review-Schritt durch `masterdata`
-   dazwischengeschaltet werden (z. B. Bestellposition hängt in einem Pending-Status, bis
-   `masterdata` den Artikel bestätigt)?
-5. Soll ein Dummy-Artikel dauerhaft von einem regulär per Sage synchronisierten Artikel
-   unterscheidbar bleiben (neues Bool-Flag z. B. `Article.IsManuallyCreated`, sichtbar/filterbar
-   in der Artikelliste für eine spätere Bereinigung durch `masterdata`), oder ist das bewusst
-   nicht gewünscht?
+Alle fünf ursprünglichen Rückfragen sind durch Schranke 1 beantwortet (siehe
+„## Freigabe-Antworten" und „## Finalisierung"). Keine offenen Punkte mehr:
+
+1. **Editierbarkeit Kommentar** → nur Besteller/Ersteller, nur im Draft (`CheckOwnershipAndDraft`);
+   kein zweites Feld „Kommentar Lager".
+2. **Kommentar im Submit-Mail** → ja (HTML + Text), Storno-Mail bleibt ohne Kommentar.
+3. **DUMMY-Namensfrage / Bezeichnung** → ein geseedeter DUMMY-Artikel (`ArticleNumber = 'DUMMY'`);
+   die individuelle, zwingend zu ändernde Bezeichnung lebt auf der Position
+   (`WarehouseRequisitionItem.ArticleDescription`), nicht auf `Article.Description`.
+4. **Rollen/Zugriff** → keine Artikel-Neuanlage; damit kein `[RequireMasterDataAccess]`-Bypass.
+5. **DUMMY-Markierung** → keine; normaler WMS-Artikel, kein `IsManuallyCreated`-Flag.
+
+## Größe / Schnitt (Umsetzungshinweis)
+
+Diese Spec ist die **umfangreichste** des Backlogs und ein **voller Dev-Lauf**: Strang A (Kommentar)
+und Strang B (DUMMY) sind weitgehend unabhängig, beide mit Web- **und** Service-/SQL-Anteil.
+Empfehlung für die Umsetzung (ohne die Spec zu splitten):
+
+- **Phase A zuerst — Kommentar:** Model-Feld + Migration `84` + `SaveCommentAsync` + Comment-Endpunkt
+  + Edit-UI + Listen-Spalte + Details + Submit-Mail (Web **und** Service). In sich abgeschlossen und
+  isoliert testbar.
+- **Phase B danach — DUMMY:** SQL-Seed `85` + reservierte Konstante + „nicht gefunden"-UX +
+  DUMMY-Endpunkt mit Pflicht-Bezeichnung + Duplikat-Guard-Ausnahme + Glas-Freigabe.
+
+Reihenfolge A→B, weil A das kleinere, geradlinigere Risiko trägt und die Migrationsnummern
+(84 Schema vor 85 Seed) in dieser Reihenfolge sauber vergeben werden. Beide Phasen laufen im selben
+Worktree/derselben Spec.
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
@@ -362,7 +463,7 @@ invalidieren:
 Neuer Ziel-Ablauf: **ein** vorab per SQL geseedeter DUMMY-Artikel; die Werkbank waehlt ihn (statt
 Auto-Anlage) und vergibt eine Pflicht-Bezeichnung je Position. **Frage:** Bitte Teil B komplett auf
 diesen Ablauf umschreiben (Anforderungen, Loesungsentwurf, Akzeptanzkriterien, Migrations-Abschnitt).
-
+Antwort, ja b bitte komplett umschreiben
 ### BLOCKER 2 — „Bezeichnung zwingend aendern" (Antwort 3): Ablage + Zwang unspezifiziert und heute nicht unterstuetzt
 Antwort 3 verlangt, dass die Bezeichnung bei Nutzung zwingend geaendert wird. Wo landet sie?
 - **Korrekt: pro Position** — `WarehouseRequisitionItem.ArticleDescription`
@@ -450,3 +551,42 @@ zwei Sub-Tasks (A Kommentar / B DUMMY) reduziert das Risiko — zur Ueberlegung.
 umschreiben (BLOCKER 1-4); `deploy.service=true` + Submit-Mail in Scope (BLOCKER 5); DUMMY-Seed nach
 ADR 0004 im Migrations-Abschnitt verankern und die entfallende `IsManuallyCreated`-Migration streichen
 (SOLLTE 6).
+
+## Finalisierung (2026-08-05)
+
+Alle Befunde der „## Kritische Pruefung" wurden gemäß den Freigabe-Antworten aufgelöst; der Body ist
+vollständig auf den neuen Ablauf umgeschrieben.
+
+- **BLOCKER 1 (Auto-Artikelanlage verworfen)** → aufgelöst. Teil B komplett neu: **ein** per SQL
+  geseedeter DUMMY-Artikel (`ArticleNumber = 'DUMMY'`), die Werkbank **wählt** ihn statt Auto-Anlage.
+  Fachliche Anforderungen B.1-6, Technischer Lösungsentwurf B, Akzeptanzkriterien 5-11 und der
+  Migrations-Abschnitt neu geschrieben; die gegenstandslosen alten AK zum Auto-Create entfernt.
+- **BLOCKER 2 (Bezeichnung zwingend ändern / Ablage)** → aufgelöst. Bezeichnung landet auf der
+  **Position** (`WarehouseRequisitionItem.ArticleDescription`), **nicht** auf `Article.Description`
+  (explizit Out-of-Scope). Neuer DUMMY-Endpunkt nutzt den bereits vorhandenen `description`-Parameter
+  von `AddItemAsync` (Repo 114/135) und lehnt leere ODER unveränderte (= Default-Seed-)Bezeichnungen
+  serverseitig ab.
+- **BLOCKER 3 (Duplikat-Guard)** → aufgelöst. `AddItemAsync`-Guard (Repo 117-124) wird für den
+  DUMMY-Schlüssel übersprungen; mehrere DUMMY-Positionen mit unterschiedlichen Bezeichnungen erlaubt
+  (Anforderung B.5 + AK 9).
+- **BLOCKER 4 (Glas)** → aufgelöst. DUMMY in Lager **und** Glas wählbar; empfohlene Umsetzung: der
+  DUMMY-Endpunkt umgeht den `GlasArticleGroupFilter`-Guard ganz (typ-neutral), Alternative
+  „leere Gruppe/reservierter Schlüssel immer erlaubt" dokumentiert (Anforderung B.6 + AK 10).
+- **BLOCKER 5 (Submit-Mail vs. Deploy-Matrix)** → aufgelöst. `deploy.service = true`; Submit-Mail
+  (HTML + Text) in Scope, Out-of-Scope korrigiert; Storno-Mail bleibt ohne Kommentar. Publish-Befehl
+  für den Service ergänzt.
+- **SOLLTE 6 (DUMMY-Seed nach ADR 0004)** → aufgelöst. Migrations-Abschnitt trennt jetzt Schema
+  (`84_AddWarehouseRequisitionComment.sql` + EF-Migration + FreshInstall an beiden Stellen) vom reinen
+  Daten-Seed (`85_SeedDummyArticle.sql`, `IF NOT EXISTS`-Guard, FreshInstall-Seed-Verankerung, **kein**
+  `__EFMigrationsHistory`-Eintrag). Die entfallende `Article.IsManuallyCreated`-Migration gestrichen.
+- **SOLLTE 7 (Kommentar-Editierbarkeit WANN)** → aufgelöst. Nur Besteller/Ersteller, nur im Draft
+  (`CheckOwnershipAndDraft`); Zwei-Feld-Option gestrichen.
+- **HINWEIS 8 (Seed-Schlüssel außerhalb Sage-Namensraum)** → als Anforderung übernommen: `DUMMY` im
+  Review als in Sage nicht vorhanden zu bestätigen.
+- **HINWEIS 9 (Schnitt/Größe)** → als „## Größe / Schnitt" übernommen: voller Dev-Lauf, empfohlene
+  Reihenfolge A (Kommentar) → B (DUMMY), ohne die Spec zu splitten.
+
+`open_questions` (Frontmatter) auf `[]` getrimmt, alle fünf Punkte durch Schranke 1 beantwortet.
+Der `## Freigabe-Antworten`-Block und die `## Kritische Pruefung` bleiben als Historie unverändert.
+
+**BEREIT ZUR FREIGABE**

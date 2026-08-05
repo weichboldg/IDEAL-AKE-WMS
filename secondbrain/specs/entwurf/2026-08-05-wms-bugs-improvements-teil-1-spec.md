@@ -17,9 +17,9 @@ affected_code:
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Soll ein Kandidat-Lagerplatz (aus FA-getaggten Bewegungen ermittelt) mit tatsächlichem Bestand 0 komplett aus der Antwort verschwinden (wie bisher bei Netto 0), oder als Info-Zeile mit Menge 0 erhalten bleiben (\"war hier, ist aber weg\")? Wirkt sich auf Inbound-Hint, StockOverview-FA-Filter und Tracking-Modal gleichermassen aus."
-  - "GetStockByProductionOrderAsync wird an 3 Stellen verwendet (Inbound-Hint, StockOverview-FA-Filter, Tracking-Lagerbestand-Modal). Ist die Verhaltensaenderung (nur noch realer Bestand statt Bewegungssumme) fuer ALLE drei Call-Sites fachlich gewuenscht, oder soll z. B. der StockOverview-FA-Filter bewusst weiter \"wo wurde unter dieser FA jemals gebucht\" (auch historisch/0-Bestand) zeigen koennen?"
-  - "Performance: die Kandidaten-Ermittlung + Bestandsberechnung laeuft in-memory ueber ggf. viele StockMovement-Zeilen je FA. Gibt es eine bekannte Obergrenze an Bewegungen pro FA-Nummer, die einen SQL-seitigen statt In-Memory-Ansatz noetig macht?"
+  - "ENTSCHIEDEN (Schranke 1): 0-Bestand-Kandidat verschwindet komplett — fuer den onlyActualStock=true-Pfad (Inbound-Hint + Tracking-Modal) nur Ist-Bestand > 0 zeigen. Keine offene Rueckfrage mehr."
+  - "ENTSCHIEDEN (Schranke 1, Variante B): differenziertes Verhalten je View. onlyActualStock=true fuer Inbound-Hint + Tracking-Modal; StockOverview-FA-Filter ruft explizit mit false und bleibt historisch (heutiges Verhalten). Keine offene Rueckfrage mehr."
+  - "Kein Blocker, nur Dev-Lauf-Messhinweis: Kandidaten-Ermittlung + Bestandsberechnung laeuft in-memory ueber ggf. viele StockMovement-Zeilen je FA. Muster existiert bereits in GetCurrentStockAsync; im Dev-Lauf gegen reale Datenmengen messen und bei Bedarf auf SQL-seitige Summierung umstellen."
 epic: false
 etappen: []
 deploy:
@@ -40,17 +40,32 @@ Hinweis auch dann Bestand an, wenn der Artikel am genannten Lagerplatz längst w
 wurde (siehe Bug-Record [[2026-08-05-einbuchung-fa-hinweis-bewegungen-statt-bestand-bug]]). Das
 führt zu falschen Einlagerungs-Entscheidungen und Vertrauensverlust in die Funktion.
 
+**Bewusst akzeptierte Ungenauigkeit (Mengen-Semantik):** Der Hinweis + das Tracking-Modal zeigen
+nach dem Fix als Menge den **realen Ist-Bestand am Artikel/Lagerplatz-Paar**, nicht den FA-genauen
+Anteil — Bestand ist nach der Buchung nicht mehr FA-attributiert. Liegt am selben Platz Bestand
+eines anderen FA oder ungetaggter Bestand, ist die angezeigte Menge der Platz-Bestand, nicht der
+FA-Anteil. Das ist gewollt und weiterhin deutlich besser als der heutige Phantom-Bestand. Der
+**historische Pfad** (StockOverview-FA-Filter, `onlyActualStock=false`) bleibt bewusst unverändert
+und zeigt weiterhin die FA-getaggte Netto-Summe — **inklusive** der bekannten Phantom-Menge bei
+komplett ausgebuchten FAs; das ist für die Liste „Artikelbestände" akzeptiert.
+
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
-- Korrektur von `StockMovementRepository.GetStockByProductionOrderAsync`, sodass die
-  zurückgegebene Menge dem **tatsächlichen aktuellen Bestand** am jeweiligen
-  Artikel/Lagerplatz-Paar entspricht (nicht dem Netto-Saldo der FA-getaggten Bewegungen allein).
-- Damit korrigiert sich automatisch das Verhalten an allen drei Aufrufstellen: Einbuchungs-Hinweis
-  (`/api/stock/by-order/{fa}` → `Inbound.cshtml`), Bestandsübersicht-FA-Filter
-  (`StockOverviewController.Index`) und Tracking-Lagerbestand-Modal (`OseonIndex.cshtml`).
-- Repository-Tests für den korrigierten Pfad (insbesondere das Reproduktionsszenario aus dem
-  Bug-Record: Einbuchung mit FA-Tag, Ausbuchung ohne FA-Tag → Ergebnis muss leer/0 sein).
+- Korrektur von `StockMovementRepository.GetStockByProductionOrderAsync` um einen Parameter
+  `bool onlyActualStock = true`. Im `true`-Pfad entspricht die zurückgegebene Menge dem
+  **tatsächlichen aktuellen Bestand** am jeweiligen Artikel/Lagerplatz-Paar (nicht dem Netto-Saldo
+  der FA-getaggten Bewegungen allein), und Kandidaten mit Ist-Bestand `<= 0` fallen komplett raus.
+- **Differenziertes Verhalten je Aufrufstelle (Variante B, Schranke-1-Entscheidung):**
+  - Einbuchungs-Hinweis (`/api/stock/by-order/{fa}` → `Inbound.cshtml`) und
+    Tracking-Lagerbestand-Modal (`OseonIndex.cshtml`) laufen über `StockApiController` und rufen mit
+    **Default `onlyActualStock: true`** → nur Kandidaten mit Ist-Bestand `> 0`.
+  - Der Bestandsübersicht-FA-Filter (`StockOverviewController.Index` → Liste „Artikelbestände")
+    ruft **explizit `onlyActualStock: false`** und bleibt damit **bewusst unverändert** (historisch:
+    „wo wurde je unter dieser FA gebucht", FA-getaggte Netto-Summe wie heute).
+- Repository-Tests für **beide** Pfade: den korrigierten `true`-Pfad (Reproduktionsszenario aus dem
+  Bug-Record: Einbuchung mit FA-Tag, Ausbuchung ohne FA-Tag → Ergebnis leer/0) **und** den
+  Regressionsschutz für `false` (bit-identisch zum heutigen Verhalten).
 
 **Out-of-Scope**
 - Keine Änderung an `StockMovementCreateViewModel.ProductionOrder` (bleibt optional — ein
@@ -63,12 +78,16 @@ führt zu falschen Einlagerungs-Entscheidungen und Vertrauensverlust in die Funk
 
 ## Fachliche Anforderungen
 
-1. Der FA-Lagerplatz-Hinweis zeigt ausschließlich Artikel/Lagerplatz-Kombinationen, an denen
-   **aktuell** ein positiver Bestand liegt.
+1. Der FA-Lagerplatz-Hinweis (Einbuchung) und das Tracking-Lagerbestand-Modal (`onlyActualStock=true`)
+   zeigen ausschließlich Artikel/Lagerplatz-Kombinationen, an denen **aktuell** ein positiver Bestand
+   (`> 0`) liegt.
 2. Die Ermittlung „welche Lagerplätze könnten zu diesem FA gehören" bleibt weiterhin über das
-   `ProductionOrder`-Tag der Bewegungen (Kandidatensuche) — nur die **Mengenberechnung** je
-   Kandidat wechselt von „Summe der FA-getaggten Bewegungen" auf „Summe aller Bewegungen an
-   diesem Artikel/Lagerplatz-Paar" (= echter Bestand, analog `GetCurrentStockAsync`).
+   `ProductionOrder`-Tag der Bewegungen (Kandidatensuche) — im `true`-Pfad wechselt nur die
+   **Mengenberechnung** je Kandidat von „Summe der FA-getaggten Bewegungen" auf „Summe aller
+   Bewegungen an diesem Artikel/Lagerplatz-Paar" (= echter Bestand, analog `GetCurrentStockAsync`),
+   und Kandidaten mit Ist-Bestand `<= 0` werden nicht mehr zurückgegeben.
+3. Der `false`-Pfad (StockOverview-FA-Filter, Liste „Artikelbestände") behält das **heutige**
+   Verhalten unverändert bei: FA-getaggte Netto-Summe, auch für historische/0-Bestand-Zeilen.
 
 ## Ist-Zustand (Code-Referenzen)
 
@@ -102,25 +121,35 @@ Drei Aufrufstellen mit identischem Fehlverhalten:
 
 ## Technischer Lösungsentwurf
 
-`GetStockByProductionOrderAsync` zweistufig umbauen:
+`GetStockByProductionOrderAsync` erhält einen Parameter
+`bool onlyActualStock = true` (Signatur-Erweiterung in `IStockMovementRepository` **und**
+`StockMovementRepository`) und wird zweistufig umgebaut:
 
-1. **Kandidaten-Ermittlung** (wie bisher): alle `(ArticleId, StorageLocationId)`-Paare, an denen
-   irgendeine Bewegung mit `ProductionOrder.Contains(productionOrder)` existiert
-   (`_dbSet.Where(sm => sm.ProductionOrder != null && sm.ProductionOrder.Contains(productionOrder))
-   .Select(sm => new { sm.ArticleId, sm.StorageLocationId }).Distinct()`).
-2. **Bestandsberechnung je Kandidat** (neu): für exakt diese Paare den tatsächlichen Bestand über
-   **alle** Bewegungen berechnen — analog der bereits vorhandenen Aggregationslogik in
-   `GetCurrentStockAsync` (Zeilen 13-188, Einbuchung/SageEinbuchung/Umbuchung-Ziel positiv,
-   Ausbuchung/SageAusbuchung negativ, Umbuchung-Quelle subtrahiert) bzw. per Wiederverwendung/
-   Refactoring eines gemeinsamen privaten Hilfsbausteins, um die Aggregationsregel nicht ein
-   drittes Mal zu duplizieren (Fallstrick „`MovementType`-Erweiterung trifft 6 Stellen" beachten —
-   ein neuer, siebter Ort mit eigener Kopie der Switch-Logik ist zu vermeiden).
-3. Nur Paare mit tatsächlichem Bestand `!= 0` (bzw. `> 0`, siehe offene Rückfrage 1) zurückgeben.
-4. Rückgabetyp (`List<StockOverviewItem>`) und die drei Call-Sites bleiben unverändert — der Fix
-   ist rein in der Repository-Methode gekapselt, keine Signaturänderung nötig.
+1. **Kandidaten-Ermittlung** (wie bisher, in beiden Pfaden): alle
+   `(ArticleId, StorageLocationId)`-Paare, an denen irgendeine Bewegung mit
+   `ProductionOrder.Contains(productionOrder)` existiert.
+2. **Mengenberechnung je Kandidat — pfadabhängig:**
+   - `onlyActualStock == true`: für exakt diese Paare den tatsächlichen Bestand über **alle**
+     Bewegungen berechnen — analog der bereits vorhandenen Aggregationslogik in
+     `GetCurrentStockAsync` (Zeilen 13-188, Einbuchung/SageEinbuchung/Umbuchung-Ziel positiv,
+     Ausbuchung/SageAusbuchung negativ, Umbuchung-Quelle subtrahiert) bzw. per Wiederverwendung/
+     Refactoring eines gemeinsamen privaten Hilfsbausteins, um die Aggregationsregel nicht ein
+     drittes Mal zu duplizieren (Fallstrick „`MovementType`-Erweiterung trifft 6 Stellen" beachten —
+     ein neuer, siebter Ort mit eigener Kopie der Switch-Logik ist zu vermeiden). Anschließend nur
+     Paare mit Bestand `> 0` zurückgeben (Schranke-1-Entscheidung „komplett weg").
+   - `onlyActualStock == false`: **exakt das heutige Verhalten** — Summe **nur** der FA-getaggten
+     Bewegungen je Paar; Zeilen mit Netto 0 fallen weiterhin wie bisher heraus. Diese Zweig-Logik
+     bleibt bit-identisch zum Ist-Zustand (Regressionsschutz).
+3. **Call-Sites:**
+   - `StockApiController` (Einbuchungs-Hinweis + Tracking-Modal) ruft mit **Default `true`** —
+     keine Änderung an der Aufrufzeile nötig (Default greift).
+   - `StockOverviewController.Index` (FA-Filter) ruft **explizit `onlyActualStock: false`** und
+     behält damit das historische Verhalten.
+   - Rückgabetyp (`List<StockOverviewItem>`) bleibt unverändert.
 
-Kein neues Repository-Interface-Mitglied nötig (Methode bleibt `GetStockByProductionOrderAsync`
-mit gleicher Signatur).
+Der Parameter-Default `true` stellt sicher, dass jeder künftige/übersehene Aufrufer den korrekten,
+Ist-Bestand-basierten Pfad bekommt; nur der bewusst historische StockOverview-Aufruf opt-t via
+`false` aus.
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -141,20 +170,29 @@ Keine Änderung. Betroffene Endpunkte bleiben unter ihren bestehenden Filtern:
 
 1. Artikel A wird mit FA-Tag `1234567` auf Lagerplatz X eingebucht (Menge 5), anschließend ohne
    FA-Tag vollständig wieder ausgebucht (Menge 5) → `GetStockByProductionOrderAsync("1234567")`
-   liefert für Artikel A/Lagerplatz X **keine** Zeile mehr (bzw. Menge 0, je nach Klärung der
-   offenen Rückfrage 1).
+   (Default `onlyActualStock: true`) liefert für Artikel A/Lagerplatz X **keine Zeile** mehr
+   (Ist-Bestand `> 0` ist die harte Bedingung; bei Ist-Bestand `<= 0` erscheint keine Zeile).
 2. Artikel A wird mit FA-Tag `1234567` auf Lagerplatz X eingebucht (Menge 5) und bleibt dort
-   unverändert liegen → `GetStockByProductionOrderAsync("1234567")` liefert weiterhin Artikel
-   A/Lagerplatz X mit Menge 5 (Regressionsschutz: der Normalfall funktioniert wie bisher).
+   unverändert liegen → `GetStockByProductionOrderAsync("1234567")` (`true`) liefert weiterhin
+   Artikel A/Lagerplatz X mit Menge 5 (Regressionsschutz: der Normalfall funktioniert wie bisher).
 3. Artikel A wird mit FA-Tag `1234567` auf Lagerplatz X eingebucht (Menge 5) und anschließend
-   **teilweise** (Menge 2) ohne FA-Tag ausgebucht → die Methode liefert den realen Restbestand
-   (Menge 3), nicht mehr die FA-Netto-Summe (die weiterhin 5 wäre, da die Ausbuchung ungetaggt
-   ist).
+   **teilweise** (Menge 2) ohne FA-Tag ausgebucht → die Methode (`true`) liefert den realen
+   Restbestand (Menge 3), nicht mehr die FA-Netto-Summe (die weiterhin 5 wäre, da die Ausbuchung
+   ungetaggt ist).
 4. Der Einbuchungs-Hinweis (`Inbound.cshtml`) zeigt nach dem Fix in Reproduktionsszenario 1 des
    Bug-Records **keinen** Hinweis mehr an (`faStorageHint` bleibt `display: none`).
-5. Der FA-Filter in der Bestandsübersicht (`/StockOverview?filterProductionOrder=1234567`) zeigt
-   in Reproduktionsszenario 1 keine Zeile für Artikel A/Lagerplatz X mehr.
-6. Bestehende Repository-Tests zu `GetStockByProductionOrderAsync` (falls vorhanden) bleiben grün
+5. Der FA-Filter in der Bestandsübersicht (`/StockOverview?filterProductionOrder=1234567`, Aufruf
+   mit `onlyActualStock: false`) zeigt in Reproduktionsszenario 1 die Zeile für Artikel A/Lagerplatz
+   X **weiterhin** an — das historische Verhalten dieser Liste bleibt **unverändert** (Variante B).
+6. **Regressions-Kriterium (historischer Pfad):** Für `onlyActualStock: false` ist die Rückgabe von
+   `GetStockByProductionOrderAsync` **bit-identisch** zum heutigen Ist-Zustand (gleiche Zeilen,
+   gleiche Mengen als FA-getaggte Netto-Summe, inkl. bekannter Phantom-Menge bei komplett
+   ausgebuchten FAs). Der StockOverview-FA-Filter ist damit nachweislich unverändert.
+7. **Mengen-Semantik am gemischten Platz (`true`-Pfad):** Liegt am selben Lagerplatz X zusätzlich
+   Bestand eines anderen FA oder ungetaggter Bestand, ist die für Artikel A/Lagerplatz X angezeigte
+   Menge der **reale Platz-Ist-Bestand**, nicht der FA-Anteil (bewusst akzeptierte Ungenauigkeit —
+   Bestand ist nach der Buchung nicht FA-attributiert).
+8. Bestehende Repository-Tests zu `GetStockByProductionOrderAsync` (falls vorhanden) bleiben grün
    oder werden an das neue, korrekte Verhalten angepasst.
 
 ## Test-Szenarien
@@ -168,8 +206,11 @@ TS zum FA-Lagerplatz-Hinweis `einbuchung-fa-autofill`) um ein neues Szenario:
 - **Erwartetes Verhalten:** Kein „liegt bereits"-Hinweis, da tatsächlicher Bestand 0.
 - **Negativfall:** Artikel liegt noch teilweise am Lagerplatz (reale Restmenge > 0) → Hinweis
   erscheint weiterhin, aber mit der **realen** Restmenge, nicht der ursprünglichen Einbuchmenge.
-- Zusätzlich: FA-Filter in der Bestandsübersicht und das Lagerbestand-Modal in der
-  OSEON-Teileverfolgung mit demselben Szenario gegenprüfen (drei Call-Sites, ein Fix).
+- Zusätzlich (Variante B, differenziert): Das **Lagerbestand-Modal** in der OSEON-Teileverfolgung
+  (`true`-Pfad) mit demselben Szenario gegenprüfen → verhält sich wie der Einbuchungs-Hinweis
+  (keine Zeile bei Ist-Bestand 0). Der **FA-Filter in der Bestandsübersicht** („Artikelbestände",
+  `false`-Pfad) hingegen zeigt die Zeile **weiterhin** an (historisch, unverändert) — das ist der
+  erwartete Regressions-Nachweis, kein Fehler.
 
 `secondbrain/tests/testszenarien-index.md` Kapitel 2 entsprechend nachziehen (Hinweis auf den
 korrigierten Bug-Record).
@@ -187,18 +228,19 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 
 ## Offene Rückfragen
 
-1. Soll ein Kandidat-Lagerplatz (aus FA-getaggten Bewegungen ermittelt) mit tatsächlichem Bestand
-   0 komplett aus der Antwort verschwinden (wie bisher bei Netto 0), oder als Info-Zeile mit
-   Menge 0 erhalten bleiben („war hier, ist aber weg")? Wirkt sich auf Inbound-Hint,
-   StockOverview-FA-Filter und Tracking-Modal gleichermaßen aus.
-2. `GetStockByProductionOrderAsync` wird an 3 Stellen verwendet (Inbound-Hint,
-   StockOverview-FA-Filter, Tracking-Lagerbestand-Modal). Ist die Verhaltensänderung (nur noch
-   realer Bestand statt Bewegungssumme) für ALLE drei Call-Sites fachlich gewünscht, oder soll
-   z. B. der StockOverview-FA-Filter bewusst weiter „wo wurde unter dieser FA jemals gebucht"
-   (auch historisch/0-Bestand) zeigen können?
-3. Performance: Die Kandidaten-Ermittlung + Bestandsberechnung läuft in-memory über ggf. viele
-   `StockMovement`-Zeilen je FA. Gibt es eine bekannte Obergrenze an Bewegungen pro FA-Nummer, die
-   einen SQL-seitigen statt In-Memory-Ansatz nötig macht?
+Alle fachlichen Rückfragen sind mit Schranke 1 entschieden — keine offene Blocker-Frage mehr.
+
+1. **ENTSCHIEDEN — „komplett weg":** Ein Kandidat-Lagerplatz mit tatsächlichem Bestand `<= 0`
+   verschwindet im `true`-Pfad (Inbound-Hint + Tracking-Modal) komplett aus der Antwort; es wird
+   nur Ist-Bestand `> 0` gezeigt.
+2. **ENTSCHIEDEN — Variante B (differenziert):** `true`-Pfad (Inbound-Hint + Tracking-Modal) nur
+   realer Bestand; StockOverview-FA-Filter (Liste „Artikelbestände") ruft mit `false` und bleibt
+   bewusst historisch („wo wurde je unter dieser FA gebucht"). Die **Bewegungshistorie**
+   (`GetMovementHistoryAsync`) ist von diesem Fix nicht betroffen.
+3. **Kein Blocker — Dev-Lauf-Messhinweis:** Die Kandidaten-Ermittlung + Bestandsberechnung läuft
+   in-memory über ggf. viele `StockMovement`-Zeilen je FA. Dasselbe Muster existiert bereits in
+   `GetCurrentStockAsync`. Im Dev-Lauf gegen reale Datenmengen messen und bei Bedarf auf eine
+   SQL-seitige Summierung umstellen — keine Rückfrage an den Menschen nötig.
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
@@ -320,7 +362,7 @@ Variante B.** Konkret unveraendert-falsch, jetzt wo Variante B gilt:
   > Terminologie-Bruecke fuer den Dev-Lauf: „bewegungsübersicht" in Antwort 2 = die Liste
   > **„Artikelbestände"** (StockOverview), die einzige View, die historisch bleibt. Die
   > **Bewegungshistorie** (`GetMovementHistoryAsync`) ist NICHT betroffen.
-
+bitte den bestmöglichen ansatz durchführen.
 ### SOLLTE
 
 **S1 (unveraendert gueltig) — Mengen-Ungenauigkeit am gemischten Platz.** Fuer den `true`-Pfad ist die
@@ -341,3 +383,38 @@ aber Body (In-Scope, Loesungsentwurf Punkt 4, AK4/AK5 + Regressions-AK) muss an 
 werden — sonst baut/testet der Dev-Lauf gegen ein AK5, das der getroffenen Entscheidung genau
 widerspricht.** Danach ist Teil-1 ein kleiner, sauberer Web-only-Dev-Lauf (eine Repository-Methode +
 ein Aufruf-Flag + Tests, keine Migration).
+
+## Finalisierung (2026-08-05)
+
+Der Body wurde an die Schranke-1-Entscheidungen (Variante B, „nur Ist-Bestand > 0") angeglichen und
+widerspruchsfrei gemacht. Auflösung je Punkt:
+
+- **B1 / Antwort 2 (Variante B, differenziertes Verhalten):** `GetStockByProductionOrderAsync`
+  bekommt Parameter `bool onlyActualStock = true`. `StockApiController` (Einbuchungs-Hinweis +
+  Tracking-Modal) ruft mit Default `true` (nur Ist-Bestand `> 0`); `StockOverviewController.Index`
+  ruft explizit mit `false` und behält das heutige, historische Verhalten. In-Scope,
+  Fachliche Anforderungen (Punkt 2 + neuer Punkt 3) und Lösungsentwurf (Punkte 1–3 statt des alten
+  „keine Signaturänderung"-Punkts 4) entsprechend umgeschrieben.
+- **B2 / Antwort 1 („komplett weg"):** Für den `true`-Pfad fallen Kandidaten mit Ist-Bestand `<= 0`
+  raus; nur `> 0` wird gezeigt. AK1 auf „keine Zeile bei `<= 0`" festgenagelt (kein „Menge 0"-Rest).
+- **AK5 invertiert:** StockOverview-FA-Filter zeigt die Zeile unter Variante B **weiterhin** an
+  (Verhalten unverändert) — vorher fälschlich „keine Zeile mehr".
+- **Neues Regressions-AK (AK6):** Für `onlyActualStock=false` ist die Rückgabe bit-identisch zum
+  heutigen Ist-Zustand (StockOverview-FA-Filter nachweislich unverändert).
+- **Neues Mengen-Semantik-AK (AK7) + S1:** Gemischter Platz → angezeigte Menge = realer
+  Platz-Ist-Bestand, nicht FA-Anteil (bewusst akzeptierte Ungenauigkeit, in Ziel/Nutzen benannt).
+- **S3 (Semantik historischer Pfad):** In Ziel/Nutzen, In-Scope und AK6 explizit festgehalten, dass
+  der `false`-Pfad die FA-getaggte Netto-Summe inkl. bekannter Phantom-Menge behält — bewusst
+  akzeptiert, kein künftiger Bug-Report.
+- **AK4:** unverändert korrekt gelassen (Inbound-Hint zeigt keinen Hinweis mehr).
+- **Offene Fragen (Frontmatter + Body):** 1 und 2 als entschieden vermerkt; Performance (3) bleibt
+  als Dev-Lauf-Messhinweis ohne Rückfrage an den Menschen.
+- **Terminologie:** „Bewegungsübersicht" (Antwort 2) = Liste „Artikelbestände" (StockOverview);
+  die Bewegungshistorie (`GetMovementHistoryAsync`) ist nicht betroffen — im Body klargestellt.
+
+Nicht geändert (bewusst): `status` bleibt `Entwurf`, Datei-Ablage unverändert, der Block
+„## Freigabe-Antworten" und beide „## Kritische Pruefung"-Abschnitte unangetastet, kein
+Anwendungscode berührt, kein Commit.
+
+BEREIT ZUR FREIGABE
+
