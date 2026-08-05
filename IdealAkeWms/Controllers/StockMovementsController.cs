@@ -197,6 +197,16 @@ public class StockMovementsController : Controller
         if (lines.Count == 0)
             ModelState.AddModelError("", "Mindestens eine Artikel-Zeile ist erforderlich.");
 
+        // [Required] weist bei non-nullable int den Wert 0 NICHT ab — expliziter Guard gegen
+        // einen manipulierten POST (StorageLocationId=0), der sonst eine FK-Exception mitten in
+        // der Buchungsschleife auslösen würde.
+        if (vm.StorageLocationId <= 0)
+        {
+            var slEntry = ModelState[nameof(vm.StorageLocationId)];
+            if (slEntry == null || slEntry.Errors.Count == 0)
+                ModelState.AddModelError(nameof(vm.StorageLocationId), "Lagerplatz ist erforderlich");
+        }
+
         if (!ModelState.IsValid || anyLineError)
         {
             if (anyLineError)

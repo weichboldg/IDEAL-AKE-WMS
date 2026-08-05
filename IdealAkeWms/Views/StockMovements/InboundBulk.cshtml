@@ -179,6 +179,10 @@
                 return Array.prototype.slice.call(linesBody.querySelectorAll('.line-row'));
             }
 
+            // esc(): HTML-escape fuer Werte aus der DB (Artikeltext) bzw. rohen Scan-Wert, bevor sie
+            // per innerHTML in die Rueckmeldung geschrieben werden (nutzt escapeHtml aus barcode-scanner.js).
+            function esc(s) { return (typeof escapeHtml === 'function') ? escapeHtml(String(s)) : String(s); }
+
             function showFeedback(html, ok) {
                 feedback.innerHTML = '<span class="' + (ok ? 'text-success' : 'text-danger') + '">' + html + '</span>';
             }
@@ -244,7 +248,7 @@
                                 incrementRowQty(existing, 1);
                                 existing.classList.add('table-warning');
                                 setTimeout(function () { existing.classList.remove('table-warning'); }, 800);
-                                showFeedback('&#10003; ' + data.text + ' — Menge erhöht', true);
+                                showFeedback('&#10003; ' + esc(data.text) + ' — Menge erhöht', true);
                                 return;
                             }
                             var empty = findEmptyRow();
@@ -252,15 +256,15 @@
                                 var $sel = $(empty.querySelector('.select2-article-bulk'));
                                 var opt = new Option(data.text, data.id, true, true);
                                 $sel.append(opt).trigger('change');
-                                showFeedback('&#10003; ' + data.text + ' — hinzugefügt', true);
+                                showFeedback('&#10003; ' + esc(data.text) + ' — hinzugefügt', true);
                                 return;
                             }
                         }
                         addRow(data.id, data.text, 1);
-                        showFeedback('&#10003; ' + data.text + ' — hinzugefügt', true);
+                        showFeedback('&#10003; ' + esc(data.text) + ' — hinzugefügt', true);
                     },
                     error: function () {
-                        showFeedback('&#10007; Artikel nicht gefunden: ' + articleNumber, false);
+                        showFeedback('&#10007; Artikel nicht gefunden: ' + esc(articleNumber), false);
                     }
                 });
             }
