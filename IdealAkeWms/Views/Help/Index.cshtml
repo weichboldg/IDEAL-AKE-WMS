@@ -52,6 +52,28 @@
                     <dd>Chronologische Uebersicht aller Lagerbewegungen (Einbuchungen, Ausbuchungen, Umbuchungen).
                         Filterbar nach Zeitraum, Artikel, Lagerplatz, Bewegungsart, Benutzer und Fertigungsauftrag.
                         Erreichbar ueber <em>Lager &rarr; Bewegungshistorie</em>.</dd>
+
+                    <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>
+                    <dd>
+                        Manuelle <strong>Ein- und Ausbuchungen</strong> koennen automatisch und zeitnah an
+                        <strong>Sage</strong> gemeldet werden, damit Sage den echten Lagerbestand ohne manuellen
+                        Zwischenschritt kennt (Umbuchungen und Sage-eigene Korrekturbuchungen werden bewusst nicht gemeldet).
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Zwei Schalter, beide noetig:</strong> ein globaler Schalter unter
+                                <em>Service-Einstellungen</em> (<code>SageLagerbuchungAktiv</code>) <em>und</em> je Lagerplatz
+                                das Feld <strong>&bdquo;Sage-Buchung erlaubt&ldquo;</strong> (Stammdaten &rarr; Lagerplaetze).
+                                Erst wenn beide aktiv sind, wird gemeldet &mdash; standardmaessig ist alles aus.</li>
+                            <li><strong>Uebersicht &amp; Status:</strong> Unter <em>Lager &rarr; Sage-Lagerbuchungen</em>
+                                sind alle Meldungen mit Status (<em>offen &rarr; gesendet &rarr; bestaetigt</em> bzw. <em>Fehler</em>)
+                                nachvollziehbar. Fehlgeschlagene Meldungen lassen sich mit <em>&bdquo;Erneut senden&ldquo;</em>
+                                wieder einreihen; der Dienst prueft dabei vorher in Sage, ob die Buchung schon existiert (keine Doppelbuchung).</li>
+                            <li><strong>Verbindungstest (Admin):</strong> Auf <em>Service-Einstellungen</em> prueft der Button
+                                <strong>&bdquo;Sage-Verbindung testen&ldquo;</strong> URL, TLS-Zertifikat und Anmeldung und zeigt
+                                Status, Antwort-Header und Antwort an &mdash; ohne eine echte Buchung anzulegen.</li>
+                        </ul>
+                        <small class="text-muted">Lesen: Lager-Lesezugriff; Requeue: Lager-Keyuser/Administratoren.
+                        Konfiguration: Administratoren.</small>
+                    </dd>
                 </dl>
             </div>
         </div>
