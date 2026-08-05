@@ -1,6 +1,6 @@
 ---
 type: test-index
-updated: 2026-07-27
+updated: 2026-08-05
 ---
 # Testszenarien-Index
 
@@ -19,7 +19,7 @@ gewachsen, bewusst nicht umsortiert (die TS-Ids sind in Abnahmeprotokollen refer
 | Kapitel | Szenarien | Feature / Spec |
 |---|---|---|
 | 1. Authentifizierung & Zugriff | TS-1.1 – 1.7 | Login, Session-Timeout, Rollen-Zugriff, Admin-Wildcard, BDE-Gate → [[0006-rollenkonzept-statische-keys-mit-admin-wildcard]], [[0011-feature-toggles-ueber-appsettings]] |
-| 2. Lager | TS-2.1 – 2.21 | Ein-/Aus-/Umbuchung, Lagerplatz en bloc, Bestand, Historie, Artikelinfo, Meldebestand, QR-Scan, FA-Lagerplatz-Hinweis (`einbuchung-fa-autofill`) |
+| 2. Lager | TS-2.1 – 2.25 | Ein-/Aus-/Umbuchung, Lagerplatz en bloc, Bestand, Historie, Artikelinfo, Meldebestand, QR-Scan, FA-Lagerplatz-Hinweis (`einbuchung-fa-autofill`); TS-2.22 – 2.25 = WMS-Bugs/Improvements Teil 1–3 (v1.29.0): FA-Hinweis nur bei tatsaechlichem Ist-Bestand ([[2026-08-05-wms-bugs-improvements-teil-1-spec]]), Mehrfach-Einbuchung `/StockMovements/InboundBulk` mit Mehrfach-Scan-Hochzaehlen + Sage-Enqueue je Zeile ([[2026-08-05-wms-bugs-improvements-teil-2-spec]]), WA-Scan-Button mit Trennzeichen-Kuerzung in der Bewegungshistorie ([[2026-08-05-wms-bugs-improvements-teil-3-spec]]) |
 | 3. Stammdaten | TS-3.1 – 3.16 | Benutzer, Rollen, Werkbank, Lagerplatz, Artikel/Kategorien/Merkmale, Settings-Toggles, Empfaengergruppen, BDE-Stammdaten, View-Reset |
 | 4. Fertigungsauftraege | TS-4.1 – 4.36 | FA-Liste, KW-Filter, Flags, enaio-Dokumente, Leitstand-Freigabe/Bulk/Prioritaet, Baugruppen-Flags, ProductionOrder-Split (Migration + AgentJob), Slim-Index, Compat-Redirects, FA-Vervollstaendigung |
 | 5. Stueckliste (BOM) | TS-5.1 – 5.9 | BOM aufrufen, Fehlteil-Filter, Druck, Picking-Start, Bedarfsmeldung, Sammelbestellung, Foto, BOM-Cache in der Artikelinfo |
