@@ -47,8 +47,10 @@ public class StockOverviewController : Controller
         List<StockOverviewItem> items;
         if (!string.IsNullOrWhiteSpace(filterProductionOrder))
         {
-            // Dedizierte FA-Abfrage: zeigt Netto-Bestand der FA-Buchungen pro Artikel+Lagerplatz
-            items = await _stockMovementRepository.GetStockByProductionOrderAsync(filterProductionOrder);
+            // Dedizierte FA-Abfrage, historischer Pfad (onlyActualStock: false): FA-getaggte
+            // Netto-Summe pro Artikel+Lagerplatz — bewusst unverändert („wo wurde je unter dieser
+            // FA gebucht"), inkl. bekannter Phantom-Menge bei komplett ausgebuchten FAs.
+            items = await _stockMovementRepository.GetStockByProductionOrderAsync(filterProductionOrder, onlyActualStock: false);
         }
         else
         {

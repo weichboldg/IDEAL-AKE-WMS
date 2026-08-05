@@ -187,9 +187,9 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             .ToList();
     }
 
-    public async Task<List<StockOverviewItem>> GetStockByProductionOrderAsync(string productionOrder)
+    public async Task<List<StockOverviewItem>> GetStockByProductionOrderAsync(string productionOrder, bool onlyActualStock = true)
     {
-        // Alle Bewegungen mit dieser FA-Nummer holen
+        // Kandidaten-Ermittlung (in BEIDEN Pfaden identisch): alle Bewegungen mit dieser FA-Nummer.
         var movements = await _dbSet
             .Include(sm => sm.Article)
             .Include(sm => sm.StorageLocation)
@@ -199,49 +199,91 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         if (movements.Count == 0)
             return new List<StockOverviewItem>();
 
-        // Pro Bewegung den Netto-Effekt auf Ziel-Lagerplatz berechnen
-        var entries = new List<(int ArticleId, string ArticleNumber, string? ArticleDescription,
-            string? Unit, int StorageLocationId, string StorageLocationCode,
-            string? StorageLocationDescription, bool IsPickingTransport, bool IsActive, bool IstBuchbar, decimal Qty)>();
-
-        foreach (var sm in movements)
+        if (!onlyActualStock)
         {
-            var qty = sm.MovementType switch
+            // Historischer Pfad (StockOverview-FA-Filter): Netto-Summe NUR der FA-getaggten
+            // Bewegungen je (ArticleId, StorageLocationId). Bewusst bit-identisch zum bisherigen
+            // Verhalten (inkl. Phantom-Menge bei komplett ungetaggt ausgebuchten FAs).
+            var entries = new List<(int ArticleId, string ArticleNumber, string? ArticleDescription,
+                string? Unit, int StorageLocationId, string StorageLocationCode,
+                string? StorageLocationDescription, bool IsPickingTransport, bool IsActive, bool IstBuchbar, decimal Qty)>();
+
+            foreach (var sm in movements)
             {
-                MovementType.Einbuchung => sm.Quantity,
-                MovementType.SageEinbuchung => sm.Quantity,
-                MovementType.Umbuchung => sm.Quantity,
-                MovementType.Ausbuchung => -sm.Quantity,
-                MovementType.SageAusbuchung => -sm.Quantity,
-                _ => 0m
-            };
-            entries.Add((sm.ArticleId, sm.Article.ArticleNumber, sm.Article.Description,
-                sm.Article.Unit, sm.StorageLocationId, sm.StorageLocation.Code,
-                sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport,
-                sm.StorageLocation.IsActive, sm.StorageLocation.IstBuchbar, qty));
+                var qty = sm.MovementType switch
+                {
+                    MovementType.Einbuchung => sm.Quantity,
+                    MovementType.SageEinbuchung => sm.Quantity,
+                    MovementType.Umbuchung => sm.Quantity,
+                    MovementType.Ausbuchung => -sm.Quantity,
+                    MovementType.SageAusbuchung => -sm.Quantity,
+                    _ => 0m
+                };
+                entries.Add((sm.ArticleId, sm.Article.ArticleNumber, sm.Article.Description,
+                    sm.Article.Unit, sm.StorageLocationId, sm.StorageLocation.Code,
+                    sm.StorageLocation.Description, sm.StorageLocation.IsPickingTransport,
+                    sm.StorageLocation.IsActive, sm.StorageLocation.IstBuchbar, qty));
+            }
+
+            return entries
+                .GroupBy(e => new { e.ArticleId, e.StorageLocationId })
+                .Select(g =>
+                {
+                    var first = g.First();
+                    return new StockOverviewItem
+                    {
+                        ArticleId = first.ArticleId,
+                        ArticleNumber = first.ArticleNumber,
+                        ArticleDescription = first.ArticleDescription,
+                        Unit = first.Unit,
+                        StorageLocationId = first.StorageLocationId,
+                        StorageLocationCode = first.StorageLocationCode,
+                        StorageLocationDescription = first.StorageLocationDescription,
+                        IsPickingTransport = first.IsPickingTransport,
+                        StorageLocationIsActive = first.IsActive,
+                        StorageLocationIstBuchbar = first.IstBuchbar,
+                        CurrentQuantity = g.Sum(e => e.Qty)
+                    };
+                })
+                .Where(x => x.CurrentQuantity != 0)
+                .OrderBy(x => x.ArticleNumber)
+                .ThenBy(x => x.StorageLocationCode)
+                .ToList();
         }
 
-        return entries
-            .GroupBy(e => new { e.ArticleId, e.StorageLocationId })
-            .Select(g =>
+        // Ist-Bestand-Pfad (Einbuchungs-Hinweis + Tracking-Modal): Kandidaten-Paare über das
+        // FA-Tag ermitteln, Menge aber = tatsächlicher Bestand über ALLE Bewegungen an diesem
+        // Artikel/Lagerplatz-Paar (zentrale Aggregationsregel via GetCurrentStockAtLocationAsync,
+        // keine weitere Kopie der MovementType-Switch-Logik). Nur Ist-Bestand > 0 zurückgeben.
+        var candidates = movements
+            .GroupBy(sm => new { sm.ArticleId, sm.StorageLocationId })
+            .Select(g => g.First())
+            .ToList();
+
+        var result = new List<StockOverviewItem>();
+        foreach (var c in candidates)
+        {
+            var actualStock = await GetCurrentStockAtLocationAsync(c.ArticleId, c.StorageLocationId);
+            if (actualStock > 0)
             {
-                var first = g.First();
-                return new StockOverviewItem
+                result.Add(new StockOverviewItem
                 {
-                    ArticleId = first.ArticleId,
-                    ArticleNumber = first.ArticleNumber,
-                    ArticleDescription = first.ArticleDescription,
-                    Unit = first.Unit,
-                    StorageLocationId = first.StorageLocationId,
-                    StorageLocationCode = first.StorageLocationCode,
-                    StorageLocationDescription = first.StorageLocationDescription,
-                    IsPickingTransport = first.IsPickingTransport,
-                    StorageLocationIsActive = first.IsActive,
-                    StorageLocationIstBuchbar = first.IstBuchbar,
-                    CurrentQuantity = g.Sum(e => e.Qty)
-                };
-            })
-            .Where(x => x.CurrentQuantity != 0)
+                    ArticleId = c.ArticleId,
+                    ArticleNumber = c.Article.ArticleNumber,
+                    ArticleDescription = c.Article.Description,
+                    Unit = c.Article.Unit,
+                    StorageLocationId = c.StorageLocationId,
+                    StorageLocationCode = c.StorageLocation.Code,
+                    StorageLocationDescription = c.StorageLocation.Description,
+                    IsPickingTransport = c.StorageLocation.IsPickingTransport,
+                    StorageLocationIsActive = c.StorageLocation.IsActive,
+                    StorageLocationIstBuchbar = c.StorageLocation.IstBuchbar,
+                    CurrentQuantity = actualStock
+                });
+            }
+        }
+
+        return result
             .OrderBy(x => x.ArticleNumber)
             .ThenBy(x => x.StorageLocationCode)
             .ToList();
