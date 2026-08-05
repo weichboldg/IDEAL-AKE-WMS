@@ -68,5 +68,11 @@ date: 2026-08-03
   `SageBookingCorrelationTests`. Build 0 Fehler; Web 1042 + Service 186 gruen (1 uebersprungen).
   Manual-UAT-Kapitel **56** in `../../docs/TESTSZENARIEN.md` (Sende-/SData-Pfad nicht InMemory-testbar).
 - Branch `feature/2026-07-29-sage-lagerbuchungen` (Worktree
-  `.claude/worktrees/2026-07-29-sage-lagerbuchungen`). **Schranke 2 (manueller Test + Merge) steht aus.**
-  Folgearbeit siehe [[2026-08-03-deploy-v1-28-0-sage-lagerbuchungen]].
+  `.claude/worktrees/2026-07-29-sage-lagerbuchungen`). **GEMERGED nach `main`** mit `--no-ff`,
+  Merge-Commit **`d74d3f2`** (2026-08-05); Nachweis auf dem Merge-Commit (= Deploy-Stand): Build
+  0 Fehler, Web **1064** + Service **195** gruen, 1 uebersprungen. Nur Code aus dem Branch — das
+  Feature-Brain lag bereits in `main` (Regel „Das Brain wird NICHT verzweigt").
+- **Offen nach dem Merge:** `git push` (macht der Mensch); Deploy Web+Service+Migration (siehe
+  [[2026-08-03-deploy-v1-28-0-sage-lagerbuchungen]]); **Manual-UAT extern blockiert** durch einen
+  serverseitigen Sage-SData-Defekt (`GetSchema`/`MissingMethodException` / abgelaufene Lizenz — muss
+  Sage/DPS beheben); danach Worktree/Branch aufraeumen.
