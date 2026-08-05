@@ -169,6 +169,82 @@ Bei Bestätigung des Bugs: Nachtrag in `docs/TESTSZENARIEN.md` Kapitel 2 und
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
+1. →keine repro
+2. →der bug liegt nicht in der anzeige, sondern im spaltenfilter.
+![[Pasted image 20260805150518.png]]
+![[Pasted image 20260805150605.png]]
+gebe ich hier ausbuchung ein, wird auch einbuchung gefunden, aber ich glaube immer
+3. →siehe 2
+
+## Kritische Pruefung (2026-08-05)
+
+Anwalt-des-Teufels-Durchsicht. Die Freigabe-Antworten **verlagern das Problem** und **bestaetigen
+einen echten, bisher uebersehenen Bug** — die Spec in ihrer jetzigen Form (Verifikation, „kein Bug")
+ist dadurch ueberholt. Verifiziert an `Views/StockMovements/Index.cshtml` und
+`StockMovementRepository.ApplyMovementColumnFilter`.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B1 — Antwort 2 refutiert die gesamte Spec-Praemisse: es GIBT einen Bug, aber im Spaltenfilter, nicht in der Anzeige. Und er ist groesser als beschrieben.**
+Am Code bestaetigt:
+- Die Bewegungshistorie ist `data-server-column-filter="true"` und markiert **sieben** Spalten als
+  filterbar (`Index.cshtml:73-79`): `datetime`, `article`, `quantity`, `storage-location`,
+  **`movement-type`**, `user`, `production-order`.
+- `ApplyMovementColumnFilter` (`StockMovementRepository.cs:511-536`) behandelt aber nur **vier**
+  Keys: `article`, `storage-location`, `user`, `production-order`. Alles andere faellt in den
+  Default-Zweig `_ => q` — ein **stiller No-Op**.
+- **Folge:** Der Spaltenfilter „Bewegungsart" (`movement-type`) filtert **gar nicht**. Egal was man
+  eintippt („ausbuchung", „xyz"), es kommt **die gesamte, ungefilterte Liste** zurueck (Ein- + Aus-
+  + Um- + Sage-Buchungen) — exakt das beobachtete „gebe ich ausbuchung ein, wird auch einbuchung
+  gefunden … immer". Ein korrekter Filter (Name-Contains) wuerde „Einbuchung" gerade **nicht**
+  liefern; dass er es tut, beweist den No-Op.
+- **Zusatzbefund (vom Menschen noch nicht bemerkt):** Auch die Spaltenfilter **`datetime` (Datum/Zeit)**
+  und **`quantity` (Menge)** haben keinen Handler → ebenfalls stille No-Ops. Drei der sieben als
+  filterbar markierten Spalten filtern nicht.
+- Ein Filter, der **stumm die Vollmenge** liefert, statt zu filtern, ist gefaehrlich: der Anwender
+  glaubt, auf „Ausbuchung" eingegrenzt zu haben, sieht aber alles — genau die Fehl-Entscheidung, die
+  das Backlog vermeiden will.
+
+  **Frage an den Menschen / Auftrag:** Diese Spec muss von „Verifikation, kein Bug, web:false" auf
+  einen **echten Bugfix** umgeschrieben werden (Bug-Record anlegen, `deploy.web: true`). Zu
+  entscheiden ist **pro betroffener Spalte**: (a) den fehlenden Server-Handler ergaenzen, oder
+  (b) die `data-filterable`/`data-col-key`-Markierung entfernen, weil es bereits einen besseren
+  dedizierten Filter gibt.
+  **Empfehlung:**
+  - `movement-type`: **(b) entfernen** — das Dropdown „Bewegungsart" (oben, `filterMovementType`)
+    filtert bereits exakt nach Enum-Wert; ein zusaetzlicher Text-Spaltenfilter waere ohnehin
+    unscharf („ausbuchung" wuerde per Contains auch „Sage-Ausbuchung" treffen). Ein doppelter,
+    kaputter Mechanismus gehoert weg.
+  - `datetime`: **(b) entfernen** — die Filterkarte hat bereits `dateFrom`/`dateTo`.
+  - `quantity`: entweder (a) einen numerischen Handler oder (b) entfernen — Text-Contains auf Menge
+    ist selten sinnvoll.
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S1 — Testbares Fix-Kriterium ergaenzen.** Nach der Entscheidung ein hartes Akzeptanzkriterium:
+„In der Bewegungshistorie liefert der Bewegungsart-Filter **ausschliesslich** Zeilen der gewaehlten
+Bewegungsart (Eingabe/Wahl ‚Ausbuchung' zeigt **keine** Einbuchungen)" — und, falls (a) gewaehlt wird,
+je ein Kriterium fuer `datetime`/`quantity`. Aktuell hat die Spec bewusst **keine** solchen Kriterien
+(sie ging von „kein Bug" aus).
+
+**S2 — Klassen-Audit statt Punkt-Fix.** „Spalte als `data-filterable` markiert, aber kein Handler
+im Server-`switch`" ist ein **Muster**, kein Einzelfall (hier gleich 3×). Als Teil des Fixes bzw. als
+Folge-Aufgabe: die **anderen** Server-Spaltenfilter-Tabellen der App auf denselben stillen No-Op
+pruefen (jede `data-col-key`-Spalte muss einen `switch`-Zweig haben, sonst Filter ohne Wirkung).
+
+### HINWEIS — Beobachtung ohne Handlungszwang
+
+**H1 — Antwort 1 („keine repro") schliesst korrekt den urspruenglichen Verdacht** (Ausbuchungen werden
+nicht *angezeigt*). Der Code-Befund der Spec dazu war richtig — es ist **kein** Anzeige-/Pagination-
+Bug. Der reale Bug liegt eine Ebene daneben (Filter-Handler).
+
+**H2 — Die beiden Screenshots** (`Pasted image …`) konnten hier nicht maschinell gelesen werden; der
+Befund ist aber allein aus Antwort-2-Text **und** dem Code eindeutig belegt, sodass sie fuer die
+Diagnose nicht noetig sind. Beim Umschreiben zum Bug-Record koennen sie als Repro-Beleg beigelegt werden.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: Der Bug ist real und am Code bestaetigt (Bewegungsart-Spaltenfilter — sowie
+`datetime`/`quantity` — sind stille No-Ops, liefern die Vollmenge). Die Spec von „Verifikation/kein
+Bug" auf einen Bugfix umstellen (Bug-Record, `deploy.web: true`), pro Spalte Fix vs. Entfernen
+entscheiden, und ein Filter-Wirksamkeits-Akzeptanzkriterium ergaenzen.**
