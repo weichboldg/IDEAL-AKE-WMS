@@ -259,6 +259,79 @@ Standard-Vorgehen hinaus).
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
+1. →ja, reicht wie gehabt
+2. →exatkt wie spaltenfilter, nur das dieser halt im benutzer settings gesetzt ist und beim laden der view den filter automatisch befüllt, hier haben wir zb. für Artikelgruppe bereits diese logik
+3. →ja, passt.
+
+## Kritische Pruefung (2026-08-05)
+
+Rolle: Anwalt des Teufels. Alle technischen Kern-Behauptungen der Spec wurden gegen den echten
+Code verifiziert — die Spec ist ungewoehnlich sauber recherchiert. Ein Befund betrifft aber eine
+reale Verhaltens-Abweichung vom vom Menschen freigegebenen Referenzmuster.
+
+**Verifiziert (Behauptungen halten):**
+- Referenzlogik „Artikelgruppe"-Auto-Filter EXISTIERT wirklich —
+  `IdealAkeWms/Views/Picking/Bom.cshtml:934-937` (`window.setColumnFilter('article-group', defaultArtikelgruppe)`).
+  Antwort 2 ist damit **nicht** auf einer falschen Annahme gebaut. Die Spec erkennt korrekt, dass
+  dieses Muster **Client-Mode** ist, FaWorklist dagegen **Server-Mode**
+  (`IdealAkeWms/Views/FaWorklist/Index.cshtml:81` `data-server-column-filter="true"`).
+- Col-Key `description1` existiert in Header (`Index.cshtml:87`), column-config (`:186`) und
+  `BuildColumnMap` (`FaWorklistController.cs:334`, `r => r.Description1`).
+- Query-Key-Schema stimmt: `ColumnFilterHelper.cs:15` Prefix `colf_`, `:30` strippt Prefix →
+  Dictionary-Key `description1`. Der Spec-Snippet `columnFilters["description1"] = ...` ist korrekt.
+- Override-Vorbild `workbenchesProvided` (`FaWorklistController.cs:92-111`) und die Apply-Stelle
+  (`:242-244`) existieren wie zitiert. Mini-Syntax (OR `,` / NOT `!`, Substring-Contains) wird durch
+  denselben `Apply`-Pfad automatisch erfuellt → Antwort 2 („exakt wie Spaltenfilter") ist ohne
+  Zusatzaufwand gedeckt.
+- Profil-/Admin-Speichermuster existiert 1:1: `AccountController.cs:155-156/188-189`,
+  `UsersController.cs:108-109/234-235/274-275`. `User` erbt `AuditableEntity` (Audit-Felder ok).
+- Cross-Cutting Sage-Lagerbuchung (v1.28.0): fuer diesen reinen Lese-/Filter-View irrelevant —
+  keine Beruehrung.
+
+**SOLLTE-1 (Kern-Befund) — Server-Mode macht den Default UNSICHTBAR und in der Session
+faktisch UN-loeschbar; das weicht vom freigegebenen „wie Artikelgruppe"-Verhalten ab.**
+Der Loesungsentwurf speist den Default nur serverseitig in den `columnFilters`-Dictionary ein
+(Spec-Schritt 5) — er landet **nicht** in der URL. Der sichtbare Spaltenfilter-Input wird in
+Server-Mode aber ausschliesslich aus der URL restauriert (`wwwroot/js/table-filter.js:46-49`:
+`if (key.indexOf('colf_') !== 0) return; ... input.value = value;`). Folge:
+- Die Liste ist gefiltert, das Filter-Feld „Bezeichnung 1" bleibt aber **leer** — der Benutzer
+  sieht nicht, *warum* nur ein Teil der FAs erscheint.
+- Will der Benutzer den Default fuer *einen* Aufruf abschalten (alle FAs sehen), loescht er das
+  Feld → die URL verliert `colf_description1` → beim naechsten Load greift die Injection erneut
+  → der Filter wirkt „festgeklemmt". Ohne Profil-Aenderung ist er in der Session nicht abschaltbar.
+Das Referenzmuster (BOM/Artikelgruppe, Client-Mode) verhaelt sich **anders**: `setColumnFilter`
+befuellt das sichtbare Feld, der Wert ist sichtbar und clientseitig sofort loeschbar. Der Mensch
+hat mit Antwort 2 genau dieses sichtbare/loeschbare Verhalten als Erwartung gesetzt — die
+Server-Mode-Umsetzung liefert es nicht.
+*Vorschlag:* Default zusaetzlich im **sichtbaren** Input vorbelegen — entweder (a) den effektiven
+Default an die View durchreichen und den `colf_description1`-Input-Wert serverseitig rendern (dann
+muss `table-filter.js` den vorgerenderten Wert respektieren, statt ihn beim Init aus der leeren URL
+zu ueberschreiben), oder (b) beim Erstaufruf ohne `colf_description1` per `RedirectToAction` auf
+`?...&colf_description1=<Default>` umleiten (Wert steht dann in URL → Input + Restore + Teilbarkeit
+„gratis", und Loeschen funktioniert wie bei jedem normalen Spaltenfilter). Akzeptanzkriterium
+ergaenzen: „gespeicherter Default ist im Filter-Feld sichtbar und in der Liste (ohne Profil-
+Aenderung) einmalig loeschbar/uebersteuerbar". Akzeptanzkriterium 3 (Uebersteuern durch anderen
+Wert) funktioniert schon; die Luecke ist das *Leeren*.
+
+**HINWEIS-2 — `appUserId` ist im Spec-Snippet ausserhalb des Scopes.**
+Im echten Code wird `var appUserId = _currentUser.GetCurrentAppUserId();` lokal **innerhalb** des
+Blocks `if (workStepId == null || !workbenchesProvided)` deklariert
+(`FaWorklistController.cs:98`). Der Spec-Snippet (Schritt 5) referenziert `appUserId.HasValue` an
+der Apply-Stelle (Zeile 242) — dort ist die Variable nicht sichtbar. Umsetzer muss
+`GetCurrentAppUserId()` erneut aufrufen oder die Variable hochziehen. Zudem wird `user` dann ein
+**zweites Mal** aus dem Repo geladen (erster Load `:101`); bei gleichem `appUserId` liesse sich der
+bereits geladene `user` wiederverwenden (kleine Effizienz-/Konsistenznote, kein Blocker).
+
+**HINWEIS-3 — StringLength(200) vs. 100 der Referenzfelder.**
+Spec waehlt `[StringLength(200)]` / `NVARCHAR(200)`, die Artikelgruppen-Felder sind `[StringLength(100)]`
+(`User.cs:29-35`). Antwort 2 („exakt wie Spaltenfilter") legt eher 100 nahe. Innerhalb der Spec
+konsistent (Model + SQL beide 200); nur die Begruendung im Review bestaetigen. Trivial.
+
+**HINWEIS-4 — Migrationsnummer.** Spec nennt main bei `SQL/83_*`; zum Umsetzungszeitpunkt neu
+ermitteln, da mehrere Teil-Specs desselben Backlogs um dieselbe naechste freie Nummer
+konkurrieren. Bereits in der Spec vermerkt — nur zur Erinnerung.
+
+NACHBESSERUNG NOETIG: SOLLTE-1 (Server-Mode: Default unsichtbar + in-Session un-loeschbar,
+Abweichung vom freigegebenen „wie Artikelgruppe"-Verhalten) vor Freigabe entscheiden — sichtbares
+Input vorbelegen oder Redirect-mit-Param — und Akzeptanzkriterium ergaenzen. HINWEIS 2-4 im Review
+mitnehmen.
