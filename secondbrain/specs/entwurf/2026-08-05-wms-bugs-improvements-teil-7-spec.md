@@ -336,8 +336,117 @@ Backup-Zwang über das ohnehin geltende Standard-Vorgehen hinaus, da rein additi
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
+1. →nur vom Besteller / eingeber
+2. →ja, auch im SUBMIT Mail
+3. →Dummy Aritkel als eigenen Artikel - wenn dieser verwendet wird, muss die Bezeichnung zwingend geändert werden
+4. →es ist keine artikelneuanlage gefordert, der DUMMY Artikel wird einmalig per SQL insert mit bei installation automatisch angelegt.
+5. →dieser eine DUMMY Artikel braucht keine eigene Markierung - reicht ein normaler WMS Artikel
+
+## Kritische Pruefung (2026-08-05)
+
+Rolle: Anwalt des Teufels. Belege mit `datei:zeile`. Die Freigabe-Antworten 3/4/5 kippen den
+Teil-B-Entwurf substanziell — die Spec beschreibt noch die **verworfene** Loesung
+(„App legt bei unbekannter EK-Nummer selbststaendig einen neuen Artikel an"). Sie ist vor
+Umsetzung neu zu schreiben.
+
+### BLOCKER 1 — Gesamter Teil B basiert auf der abgelehnten Loesung (Auto-Artikelanlage)
+Antwort 4 („**keine** Artikelneuanlage gefordert; **ein** DUMMY-Artikel wird einmalig per
+SQL-Insert bei Installation angelegt") + Antwort 5 („ein normaler WMS-Artikel, keine Markierung")
+invalidieren:
+- Fachliche Anforderung B.1/B.2 (Zeile 99-104, „App legt automatisch einen neuen `Article` an"),
+- den Technischen Loesungsentwurf B (Zeile 191-207, `POST .../items/dummy` das einen `Article`
+  erzeugt, `GetByArticleNumberAsync`-Dedup, ArticleNumber-Herkunft),
+- Akzeptanzkriterien 4-7 (Zeile 266-273: „neuen Artikel anlegen lassen", „in der regulaeren
+  Artikelsuche auffindbar", „kein zweiter Artikel-Datensatz" — alles gegenstandslos),
+- Offene Rueckfragen 3/4/5 (jetzt beantwortet → die daran haengenden Design-Zweige entfallen).
+Neuer Ziel-Ablauf: **ein** vorab per SQL geseedeter DUMMY-Artikel; die Werkbank waehlt ihn (statt
+Auto-Anlage) und vergibt eine Pflicht-Bezeichnung je Position. **Frage:** Bitte Teil B komplett auf
+diesen Ablauf umschreiben (Anforderungen, Loesungsentwurf, Akzeptanzkriterien, Migrations-Abschnitt).
+
+### BLOCKER 2 — „Bezeichnung zwingend aendern" (Antwort 3): Ablage + Zwang unspezifiziert und heute nicht unterstuetzt
+Antwort 3 verlangt, dass die Bezeichnung bei Nutzung zwingend geaendert wird. Wo landet sie?
+- **Korrekt: pro Position** — `WarehouseRequisitionItem.ArticleDescription`
+  (`WarehouseRequisitionItem.cs:14-15`, `[Required][StringLength(500)]`) existiert bereits und
+  wird beim Hinzufuegen als Snapshot gesetzt (`WarehouseRequisitionRepository.cs:135`). Damit sehen
+  andere Bestellungen **nicht** denselben Text, und der Sage-Sync beruehrt sie nicht.
+- **Verboten: die geteilte `Article.Description`** (`Article.cs:12-14`) aendern — das traefe alle
+  DUMMY-Nutzungen zugleich und widerspraeche Antwort 5 („normaler WMS-Artikel"). Spec muss das
+  explizit ausschliessen.
+- **Fehlt technisch:** `AddItem` kopiert heute stur `article.Description`
+  (`WarehouseRequisitionsApiController.cs:90`; `AddItemAsync`-Signatur ohne Bezeichnungs-Parameter,
+  `WarehouseRequisitionRepository.cs:114-115`). Es gibt **keinen** Weg, eine abweichende Bezeichnung
+  je Position mitzugeben, und **keine** serverseitige Pflicht-/Aenderungs-Pruefung.
+**Frage:** Bitte definieren: (a) neuer Parameter `description` auf dem Add-Pfad, der die
+Positions-`ArticleDescription` setzt; (b) Server-Guard, der die Anlage einer DUMMY-Position ablehnt,
+wenn die Bezeichnung leer ist ODER unveraendert dem DUMMY-Default entspricht (woran erkennt der
+Server „geaendert"? Vergleich gegen die Seed-`Article.Description`).
+
+### BLOCKER 3 — Duplikat-Guard verhindert mehrere DUMMY-Positionen in einer Bestellung
+`AddItemAsync` weist ein zweites Item mit derselben `ArticleNumber` in einer Bestellung ab
+(`WarehouseRequisitionRepository.cs:117-124`, „Artikel '…' ist bereits in dieser Bestellung
+enthalten"). Bei **einem** geteilten DUMMY-Artikel (Antwort 4) kann eine Werkbank damit **nur eine**
+unbekannte Position je Bestellung erfassen — zwei verschiedene unbekannte Teile in derselben
+Bestellung sind blockiert. **Frage:** Soll der DUMMY-Artikel vom Duplikat-Guard ausgenommen werden
+(dann bricht die Annahme „ArticleNumber je Bestellung eindeutig"), oder ist eine DUMMY-Position pro
+Bestellung fachlich akzeptabel?
+
+### BLOCKER 4 — Glasbestellung kann den null-Gruppen-DUMMY nicht verwenden
+Der geseedete DUMMY hat keine Artikelgruppe. `GlasArticleGroupFilter.IsAllowedForType(null, …)`
+(`GlasArticleGroupFilter.cs:35-43`) liefert fuer `Lager` → `true`, fuer `Glas` → **`false`**
+(`glasGroups.Contains("")` ist false). Folge: der DUMMY ist in der **Glas**-gescopten Suche
+(`ArticlesApiController.cs:35-37`) unsichtbar **und** wird im Add-Guard
+(`WarehouseRequisitionsApiController.cs:80`) abgelehnt. Das Backlog nennt aber explizit
+„Lager **bzw. Glas**bestellung" (Backlog Zeile 16-18). **Frage:** Wie soll der eine DUMMY in beiden
+Typen nutzbar sein — dem DUMMY eine gemeinsame Artikelgruppe (`GemeinsameArtikelgruppen`/EUZ) geben,
+zwei DUMMY-Artikel (je einen fuer Glas/Lager) seeden, oder `IsAllowedForType` fuer leere Gruppe als
+„immer erlaubt" sonderregeln? (Der Spec-Hinweis Zeile 204-207 hat das vermutet — hier bestaetigt.)
+
+### BLOCKER 5 — Antwort 2 (Kommentar im SUBMIT-Mail) widerspricht Deploy-Matrix und Out-of-Scope
+Antwort 2 = „ja, auch im SUBMIT Mail". Die Spec setzt aber `deploy.service: false` (Frontmatter
+Zeile 42) und listet die Mail-Aufnahme ausdruecklich unter Out-of-Scope (Zeile 75-78). Der
+Submit-Mail-Body wird im **Windows-Service** erzeugt
+(`WarehouseRequisitionEmailService.BuildSubmitBody:146-167` + `BuildSubmitText:189-209`,
+Projekt `IDEALAKEWMSService`). **Folge:** `deploy.service` muss auf `true`, Out-of-Scope ist zu
+korrigieren, und die Mail-Template-Aenderung (Kommentar im Kopf des Submit-Mails, HTML **und** Text)
+gehoert in den Scope. Der Kommentar ist ein Skalar auf `WarehouseRequisition`, `GetPendingSubmit
+EmailsAsync` laedt die Entitaet ohnehin (`WarehouseRequisitionRepository.cs:90-100`) — keine
+Query-Aenderung noetig. Klaerung: Storno-Mail bleibt ohne Kommentar (Antwort nennt nur Submit)?
+
+### SOLLTE 6 — Migrations-/SQL-Abschnitt bildet den DUMMY-Seed nicht ab (ADR 0004)
+Antwort 4 = „per SQL-Insert bei Installation". Das ist ein reiner **Daten**-Seed (kein Schema) und
+braucht nach ADR 0004-Disziplin dennoch: (a) ein idempotentes `SQL/84_*.sql` mit `IF NOT EXISTS`-
+Guard und (b) Verankerung im Seed-Teil von `SQL/00_FreshInstall.sql` (Muster vorhanden, z. B.
+Zeile 658 FA-Vorbau-Seeds, 919 AppSettings, 1390 Roles). **Kein** EF-Migration/`__EFMigrationsHistory`-
+Eintrag (keine Schema-Aenderung). Der aktuelle Abschnitt (Zeile 214-227) nennt den Seed gar nicht und
+fuehrt stattdessen die durch Antwort 5 **entfallende** `Article.IsManuallyCreated`-Migration
+(Zeile 222-223). Einzige verbleibende Schema-Aenderung: `WarehouseRequisition.Comment`.
+
+### SOLLTE 7 — Antwort 1 (nur Besteller/Eingeber): eindeutig festschreiben, WANN
+„Nur vom Besteller" ist umsetzbar — der vorhandene `CheckOwnershipAndDraft`
+(`WarehouseRequisitionsApiController.cs:49-60`) erzwingt bereits Ersteller-Ownership **und**
+Draft-Status. Damit ist die Lager-Seite (Eingehende Listen) read-only, ein zweites Feld
+„Kommentar Lager" (offene Rueckfrage 1) entfaellt — bitte die Zwei-Feld-Option aus der Spec streichen.
+Offen bleibt das **Wann**: Antwort 1 nennt nur das *Wer*. Empfehlung: Kommentar nur im **Draft**
+editierbar (er wird vor Submit erfasst, danach in den Eingehenden Listen nur angezeigt), also
+derselbe Guard wie fuer Items. Bitte bestaetigen.
+
+### HINWEIS 8 — DUMMY-Artikelnummer ausserhalb des Sage-Namensraums waehlen
+Der Artikel-Sync UPSERTet **anhand `ArticleNumber`** (`SageImportService.cs:481-514`) und hat
+**keinen** Delete-/Prune-Lauf — ein geseedeter DUMMY wird also nie geloescht (gut). ABER: existierte
+in Sage je eine Ressourcen-/Artikelnummer gleich dem DUMMY-Schluessel, wuerde der Sync dessen
+`Description`/`ArticleGroup` ueberschreiben. Der Seed-Schluessel muss nachweislich ausserhalb des
+Sage-Namensraums liegen (z. B. reservierter Wert `DUMMY`, im Review als in Sage nicht vorhanden
+bestaetigt).
+
+### HINWEIS 9 — Schnitt/Groesse
+Nach der Korrektur sind es zwei weitgehend unabhaengige Straenge, beide mit Web- **und**
+Service-Anteil (Teil A jetzt inkl. Submit-Mail): A = Kommentar (Spalte + Repo `SaveCommentAsync` +
+Edit-UI + Listen-Spalte + Details + Submit-Mail), B = DUMMY (Seed + „nicht gefunden"-UX +
+Bezeichnungs-Override + Guards fuer Glas/Duplikat). Ein Dev-Lauf ist plausibel, aber ein Schnitt in
+zwei Sub-Tasks (A Kommentar / B DUMMY) reduziert das Risiko — zur Ueberlegung.
+
+---
+**NACHBESSERUNG NOETIG:** Teil B auf „ein geseedeter DUMMY-Artikel + Pflicht-Bezeichnung je Position"
+umschreiben (BLOCKER 1-4); `deploy.service=true` + Submit-Mail in Scope (BLOCKER 5); DUMMY-Seed nach
+ADR 0004 im Migrations-Abschnitt verankern und die entfallende `IsManuallyCreated`-Migration streichen
+(SOLLTE 6).
