@@ -55,7 +55,15 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Fertigungsauftrag</label>
-                    <input type="text" name="filterProductionOrder" value="@Model.FilterProductionOrder" class="form-control" />
+                    <div class="input-group">
+                        <input type="text" id="filterProductionOrder" name="filterProductionOrder" value="@Model.FilterProductionOrder" class="form-control" />
+                        <button type="button" id="btnScanProductionOrder" class="btn btn-secondary scan-btn" title="WA-/FA-Strichcode scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-secondary">Filtern</button>
@@ -144,4 +152,23 @@
 
 @section Scripts {
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    @* html5-qrcode LOKAL einbinden (nicht per unpkg-CDN — im Produktions-Intranet nicht
+       verlaesslich erreichbar), analog Views/Tracking/OseonIndex.cshtml. *@
+    <script src="~/lib/html5-qrcode/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script>
+        // Scan-Button fuer das FA-Filterfeld: kuerzt den gescannten WA-Strichcode auf die
+        // Basisnummer (alles ab dem ersten '-' oder '_' wird entfernt). Die Kuerzung lebt
+        // AUSSCHLIESSLICH in diesem onScanned-Callback (nur beim Scan) — manuelles Eintippen
+        // bleibt unveraendert. Siehe [[2026-08-05-wms-bugs-improvements-teil-3-spec]].
+        $(function () {
+            initTextInputScanner('btnScanProductionOrder', 'filterProductionOrder', 'fa', function () {
+                var input = document.getElementById('filterProductionOrder');
+                if (input && input.value) {
+                    input.value = input.value.trim().split(/[-_]/)[0];
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        });
+    </script>
 }

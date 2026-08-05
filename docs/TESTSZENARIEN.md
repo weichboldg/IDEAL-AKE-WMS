@@ -584,6 +584,114 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
+### TS-2.22 — FA-Hinweis nur bei tatsaechlichem Bestand (v1.29.0, Teil 1)
+
+**Vorbedingungen:**
+- Rolle mit Stock-Zugriff (z. B. `stock`).
+- Artikel A wurde mit FA-Tag `1234567` auf Lagerplatz X eingebucht (Menge 5) und anschliessend
+  **ohne** FA-Tag wieder vollstaendig ausgebucht (Menge 5) → Ist-Bestand am Platz = 0.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `1234567` in das FA-Feld eingeben → Tab (bzw. Feld verlassen).
+
+**Erwartetes Verhalten:**
+- **Kein** „FA liegt bereits …"-Hinweis (`faStorageHint` bleibt ausgeblendet), da der tatsaechliche
+  Bestand 0 ist. Frueher (Bug) erschien hier faelschlich der Platz X mit Menge 5.
+
+**Negativfall (realer Restbestand):**
+- Wurde nur teilweise ausgebucht (z. B. Einbuchung 5, ungetaggte Ausbuchung 2 → Rest 3), erscheint der
+  Hinweis **weiterhin**, aber mit der **realen** Restmenge (3), nicht der urspruenglichen Einbuchmenge (5).
+
+**Gegenprobe Bestandsuebersicht (bewusst unveraendert):**
+- `Lager → Bestaende`, Filter „Fertigungsauftrag" = `1234567`: die Zeile fuer Artikel A/Lagerplatz X
+  wird **weiterhin** angezeigt (historische FA-Zuordnung, `onlyActualStock=false`). Das ist der
+  erwartete Regressions-Nachweis, **kein** Fehler.
+
+**Gegenprobe Tracking-Modal:**
+- OSEON-Teileverfolgung, Lagerbestand-Modal fuer FA `1234567`: verhaelt sich wie der Einbuchungs-Hinweis
+  (keine Zeile bei Ist-Bestand 0).
+
+---
+
+### TS-2.23 — Mehrfach-Einbuchung Happy Path (v1.29.0, Teil 2)
+
+**Vorbedingungen:**
+- Rolle mit `RequireStockAccess` (z. B. `stock`), mind. 2 existierende Artikel, ein buchbarer Lagerplatz.
+
+**Schritte:**
+1. Menue `Lager → Mehrfach-Einbuchung` oeffnen.
+2. Lagerplatz + FA-Nummer einmalig setzen.
+3. 3 Artikel-Zeilen mit unterschiedlichen Mengen erfassen („+ Zeile hinzufuegen" fuer weitere Zeilen).
+4. „Einbuchung speichern".
+
+**Erwartetes Verhalten:**
+- 3 neue Eintraege in der Bewegungshistorie (Typ Einbuchung), alle mit **demselben** Lagerplatz/derselben
+  FA-Nummer, jeweils korrekter Artikel/Menge.
+- Erfolgsmeldung „**3** Artikel erfolgreich eingebucht.".
+- Neue Zeilen sind mit Menge **1** vorbelegt.
+
+---
+
+### TS-2.24 — Mehrfach-Scan zaehlt hoch + keine Teilbuchung (v1.29.0, Teil 2)
+
+**Vorbedingungen:** wie TS-2.23.
+
+**Schritte (Mehrfach-Scan, B1):**
+1. Mehrfach-Einbuchung oeffnen, Lagerplatz + FA setzen.
+2. „Artikel scannen" und denselben Artikel dreimal nacheinander scannen (jeweils Button erneut druecken,
+   Schalter „neue Zeile erzwingen" **aus**).
+
+**Erwartetes Verhalten:**
+- **Eine** Zeile mit Menge **3** (nicht drei Zeilen à 1). Nach Absenden ein `StockMovement` mit Menge 3.
+- **Variante:** Schalter „neue Zeile erzwingen" **an** → drei Zeilen à Menge 1.
+
+**Schritte (keine Teilbuchung, S2):**
+1. 3 Zeilen erfassen, eine davon **ohne Artikelauswahl** oder mit **Menge 0**.
+2. „Einbuchung speichern".
+
+**Erwartetes Verhalten:**
+- **Nichts** wird gebucht (Bewegungshistorie unveraendert). Das Formular kommt mit **allen 3** Zeilen +
+  Kopf-Werten zurueck, die fehlerhafte Zeile ist **rot markiert** mit Fehlermeldung.
+- Nach Korrektur + erneutem Absenden werden alle 3 gebucht.
+
+**Sage-Regression (S1):**
+- Vorbedingung: Lagerplatz mit `SageBuchungErlaubt = true` + globaler Sage-Toggle aktiv.
+- Bulk-Einbuchung mit 2 Zeilen auf diesem Lagerplatz absenden → unter `Lager → Sage-Lagerbuchungen`
+  entstehen **2** Queue-Eintraege (einer je Zeile), identisch zur Einzel-Einbuchung.
+
+---
+
+### TS-2.25 — WA-Scan-Button in der Bewegungshistorie kuerzt Suffix (v1.29.0, Teil 3)
+
+**Vorbedingungen:**
+- Bewegungshistorie mit Buchungen zu FA `2610063`.
+
+**Schritte:**
+1. `Lager → Bewegungshistorie` oeffnen.
+2. Scan-Button **neben dem Filterfeld „Fertigungsauftrag"** klicken, Barcode mit Wert `2610063-1`
+   scannen (bzw. Testbild verwenden).
+3. „Filtern" klicken.
+
+**Erwartetes Verhalten:**
+- Filterfeld zeigt `2610063` (Suffix ab erstem Trennzeichen entfernt). Liste zeigt alle Bewegungen zu FA
+  `2610063`.
+- Kein automatisches Neu-Laden beim Scan — erst „Filtern" (bzw. Enter) laedt die Liste.
+
+**Randfaelle (jeweils gescannt → Filterwert):**
+- `2610063_02` → `2610063` (Unterstrich).
+- `2610063-1-2` → `2610063` (nur bis zum **ersten** Trennzeichen).
+- `2610063-A` → `2610063` (nicht-numerischer Suffix).
+- `2610063` → `2610063` (kein Suffix, unveraendert).
+- `26100631` (8-stellig, kein Trennzeichen) → `26100631` (**keine** Laengenkuerzung).
+- `26100` (kuerzer als 7, kein Trennzeichen) → `26100` (unveraendert, keine Exception).
+
+**Negativfall (nur beim Scannen):**
+- Manuelles Eintippen/Einfuegen von `2610063-1` ins Filterfeld → Feld behaelt `2610063-1` (die Kuerzung
+  greift **nur** ueber den Scan-Callback, nicht bei manueller Eingabe).
+
+---
+
 ## 3. Stammdaten
 
 ### TS-3.1 — Benutzer anlegen

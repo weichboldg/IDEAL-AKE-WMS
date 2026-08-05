@@ -9,6 +9,37 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.29.0</strong> <span class="text-white-50 ms-2">05.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lager: Mehrfach-Einbuchung, WA-Scan in der Historie &amp; genauerer FA-Hinweis</h6>
+                <ul>
+                    <li><strong>Neu &ndash; Mehrfach-Einbuchung:</strong> Unter <em>Lager &rarr;
+                        Mehrfach-Einbuchung</em> lassen sich mehrere Artikel in einem Schritt auf
+                        <strong>denselben Lagerplatz und dieselbe FA</strong> einbuchen. Lagerplatz und
+                        FA werden nur einmal erfasst, darunter beliebig viele Artikel-Zeilen (Menge je
+                        Zeile mit 1 vorbelegt). Beim <strong>Scannen desselben Artikels</strong> zählt die
+                        Menge hoch (Schalter „neue Zeile erzwingen" für Sonderfälle). Ist eine Zeile
+                        unvollständig, wird <strong>nichts</strong> gebucht &mdash; die Eingaben bleiben
+                        erhalten und die fehlerhafte Zeile ist markiert.</li>
+                    <li><strong>Neu &ndash; WA-Strichcode scannen in der Bewegungshistorie:</strong> Das
+                        Filterfeld <em>Fertigungsauftrag</em> hat jetzt einen Scan-Button. Ein gescannter
+                        WA-Strichcode mit Zusatz (z.&nbsp;B. <code>2610063-1</code> oder
+                        <code>2610063_02</code>) wird automatisch auf die <strong>Basisnummer</strong>
+                        (<code>2610063</code>) gekürzt, damit der Filter trifft. Manuelles Eintippen bleibt
+                        unverändert.</li>
+                    <li><strong>Verbessert &ndash; FA-Lagerplatz-Hinweis:</strong> Der Hinweis „FA liegt
+                        bereits …" bei der Einbuchung und im Tracking-Modal zeigt jetzt nur noch Lagerplätze
+                        mit <strong>tatsächlich vorhandenem Bestand</strong> &mdash; nicht mehr solche, an
+                        denen früher einmal unter dieser FA gebucht, der Bestand aber längst wieder
+                        ausgebucht wurde. Die Bestandsliste (Filter „Fertigungsauftrag") bleibt bewusst
+                        unverändert (zeigt weiterhin die historische FA-Zuordnung).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.28.0</strong> <span class="text-white-50 ms-2">03.08.2026</span>
             </div>
             <div class="card-body">
