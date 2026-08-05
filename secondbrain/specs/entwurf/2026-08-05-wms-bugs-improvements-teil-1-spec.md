@@ -242,6 +242,7 @@ Am Code verifiziert:
   **Empfehlung:** Variante (b) mit Parameter; Default `onlyActualStock: true`, StockOverview-Aufruf
   ruft bewusst mit `false` (historisch). So bleibt der eigentliche Bug (Einbuchungs-Hinweis) gefixt,
   ohne die Bestandsliste umzudeuten.
+  ANTWORT: Variante B
 
 **B2 — Antwort 1 ist keine Entscheidung, sondern eine Rueckfrage.** „ich glaube komplett weg -
 sinnvoll?" beantwortet die Entweder-oder-Frage (0-Zeile behalten vs. ganz weg) **nicht** verbindlich,
@@ -250,7 +251,7 @@ sondern gibt sie an mich zurueck.
   „komplett weg" (nur Ist-Bestand `> 0` zeigen) richtig — ein Hinweis „liegt bereits" auf einen Platz
   mit realem Bestand 0 waere genau der Bug, den wir beheben. Also: Kandidaten mit Ist-Bestand `<= 0`
   fallen raus. Bitte diese Formulierung als verbindliche Antwort setzen (dann wird AK1 eindeutig).
-
+ANTWORT: „komplett weg" (nur Ist-Bestand `> 0` zeigen) richtig 
 ### SOLLTE — macht den Dev-Lauf sicherer
 
 **S1 — Die angezeigte Menge ist der Ist-Bestand am Artikel/Lagerplatz-Paar, NICHT FA-spezifisch.**
@@ -287,3 +288,56 @@ Datenmengen und stellt bei Bedarf auf eine SQL-seitige Summierung um. Kein Block
 **NACHBESSERUNG NOETIG: Antwort 2 (differenziertes Verhalten je View) ist mit dem „keine
 Signaturaenderung"-Entwurf unvereinbar und nennt eine nicht existierende View — bitte View praezisieren
 und Parameter/zweite-Methode entscheiden; Antwort 1 ist noch keine verbindliche Entscheidung.**
+
+## Kritische Pruefung — 2. Durchgang (2026-08-05)
+
+Der Mensch hat die beiden Blocker inline beantwortet: **B1 → „Variante B"**, **B2 → „komplett weg
+(nur Ist-Bestand > 0)"**. Beide Entscheidungen sind damit gefallen und eindeutig. Prueferisch bleibt
+**ein** Riss — genau die Art „Antwort sagt X, Spec-Body sagt noch Y", vor der die Pruefung warnt.
+
+### BLOCKER — vor der Freigabe zu schliessen
+
+**B3 — Der Spec-BODY beschreibt weiterhin den verworfenen Ein-Methoden-Fix und widerspricht damit
+Variante B.** Konkret unveraendert-falsch, jetzt wo Variante B gilt:
+- **In-Scope** (Body): „korrigiert sich automatisch das Verhalten an **allen drei** Aufrufstellen" —
+  falsch: die Liste „Artikelbestände" (StockOverview-FA-Filter) soll **bewusst unveraendert**
+  (historisch) bleiben.
+- **Loesungsentwurf Punkt 4:** „der Fix ist rein in der Repository-Methode gekapselt, **keine
+  Signaturaenderung** noetig" — mit Variante B **doch** noetig (Parameter oder zweite Methode).
+- **Akzeptanzkriterium 5:** „FA-Filter in der Bestandsuebersicht zeigt **keine Zeile** mehr" —
+  unter Variante B genau **falsch herum**: die Zeile MUSS dort **weiterhin** erscheinen.
+- **Akzeptanzkriterium 4** (Inbound-Hint zeigt keinen Hinweis mehr) bleibt korrekt.
+
+  **Auftrag an den Dev-Lauf / Bitte um kurze Body-Angleichung vor der Freigabe:**
+  `GetStockByProductionOrderAsync(string productionOrder, bool onlyActualStock = true)` —
+  `StockApiController` (Inbound-Hint + Tracking-Modal) ruft mit **default `true`** (nur Ist-Bestand
+  `> 0`); `StockOverviewController` ruft **explizit mit `false`** und behaelt das heutige Verhalten
+  (historisch, „wo wurde je unter der FA gebucht"). In-Scope, Loesungsentwurf Punkt 4 und **AK5
+  invertieren** (AK5 neu: „…zeigt die Zeile **weiterhin** an, Verhalten unveraendert"). Zusaetzlich
+  ein **Regressions-AK**: „Fuer `onlyActualStock=false` ist die Rueckgabe von
+  `GetStockByProductionOrderAsync` **bit-identisch** zum Ist-Zustand (StockOverview-FA-Filter
+  unveraendert)."
+  > Terminologie-Bruecke fuer den Dev-Lauf: „bewegungsübersicht" in Antwort 2 = die Liste
+  > **„Artikelbestände"** (StockOverview), die einzige View, die historisch bleibt. Die
+  > **Bewegungshistorie** (`GetMovementHistoryAsync`) ist NICHT betroffen.
+
+### SOLLTE
+
+**S1 (unveraendert gueltig) — Mengen-Ungenauigkeit am gemischten Platz.** Fuer den `true`-Pfad ist die
+angezeigte Menge der **Platz-Ist-Bestand**, nicht der FA-Anteil (Bestand ist nach der Buchung nicht
+FA-attributiert). Bitte in Ziel/Nutzen benennen und als Akzeptanzkriterium fixieren („gemischter
+Platz: Menge = realer Platz-Bestand"). Kein Blocker, aber verhindert falsche Erwartungen im UAT.
+
+**S3 — Quantity-Semantik des historischen Pfads (`false`) definieren.** „Historisch/unveraendert"
+heisst konkret: **heutiges** Verhalten beibehalten = FA-getaggte Netto-Summe (inkl. der bekannten
+Phantom-Menge bei komplett ausgebuchten FAs). Das ist fuer die Liste „Artikelbestände" akzeptiert,
+sollte aber **explizit** so im Body stehen, damit niemand spaeter die Phantom-Menge dort erneut als
+Bug meldet.
+
+### Empfehlung (2. Durchgang)
+
+**NACHBESSERUNG NOETIG (nur noch redaktionell/klein): Entscheidungen stehen (Variante B + „nur >0"),
+aber Body (In-Scope, Loesungsentwurf Punkt 4, AK4/AK5 + Regressions-AK) muss an Variante B angeglichen
+werden — sonst baut/testet der Dev-Lauf gegen ein AK5, das der getroffenen Entscheidung genau
+widerspricht.** Danach ist Teil-1 ein kleiner, sauberer Web-only-Dev-Lauf (eine Repository-Methode +
+ein Aufruf-Flag + Tests, keine Migration).
