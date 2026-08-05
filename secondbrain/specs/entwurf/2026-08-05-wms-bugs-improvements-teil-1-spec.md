@@ -202,6 +202,88 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
+1. →ich glaube komplett weg - sinnvoll?
+2. →in der bewegungsübersicht sinnvoll wenn angezeigt wird, aber in anderen views nicht.
+3. →bitte selbst prüfen
+
+## Kritische Pruefung (2026-08-05)
+
+Anwalt-des-Teufels-Durchsicht vor der Freigabe. Geprueft gegen Spec, Backlog
+`[[2026-08-05-WmsBugs&Improvements]]`, Bug-Record, und den echten Code
+(`StockMovementRepository.GetStockByProductionOrderAsync`, `StockApiController`,
+`StockOverviewController`, `StockMovementsController`). Der Bugfix an sich ist gut recherchiert und
+die Root Cause stimmt — **aber die Freigabe-Antworten 1 und 2 reissen den Entwurf auf.**
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B1 — Antwort 2 widerspricht dem Ein-Methoden-Entwurf UND nennt eine View, die es so nicht gibt.**
+Antwort 2: „in der bewegungsübersicht sinnvoll wenn angezeigt wird, aber in anderen views nicht."
+Am Code verifiziert:
+- `GetStockByProductionOrderAsync` hat **zwei** Code-Aufrufer: `StockApiController.cs:25` (bedient
+  **beide** UI-Flaechen — Einbuchungs-Hinweis in `Inbound.cshtml` **und** das Tracking-Lagerbestand-Modal)
+  und `StockOverviewController.cs:51` (FA-Filter der Liste **„Artikelbestände"**, `Views/StockOverview/Index.cshtml:6`).
+- Eine View namens „**Bewegungsübersicht**" existiert nicht. Die **Bewegungshistorie**
+  (`StockMovementsController.Index`) nutzt eine **andere** Methode (`GetMovementHistoryAsync`) und wird
+  von diesem Fix **gar nicht** beruehrt.
+- Der Entwurf sagt ausdruecklich „rein in der Repository-Methode gekapselt, **keine Signaturaenderung**"
+  (Loesungsentwurf Punkt 4) — das aendert das Verhalten **aller** Aufrufer **gleich**. Die Antwort will
+  aber **differenziertes** Verhalten (eine View historisch, die anderen nur Ist-Bestand). Das ist mit
+  einer einzigen, unparametrisierten Methode **nicht** moeglich.
+
+  **Konsequenz + Frage an den Menschen:** Bitte praezisieren, welche View konkret gemeint ist:
+  (a) Meinst du die **Bewegungshistorie**? Dann ist die Antwort gegenstandslos — sie zeigt ohnehin
+  einzelne Bewegungen (nicht Bestand) und wird nicht angefasst; der Fix betrifft sie nicht.
+  (b) Meinst du die Liste **„Artikelbestände"** (StockOverview-FA-Filter)? Dann braucht es
+  **differenziertes** Verhalten: Einbuchungs-Hinweis + Tracking-Modal → nur Ist-Bestand;
+  „Artikelbestände"-FA-Filter → weiter „wo wurde je unter der FA gebucht" (historisch). Der Entwurf
+  muss dann von „keine Signaturaenderung" auf einen **Parameter** (z. B. `bool onlyActualStock`) oder
+  eine **zweite Methode** umgestellt werden, und **Akzeptanzkriterium 5** (StockOverview zeigt keine
+  Zeile mehr) ist dann **falsch** und muss invertiert werden.
+  **Empfehlung:** Variante (b) mit Parameter; Default `onlyActualStock: true`, StockOverview-Aufruf
+  ruft bewusst mit `false` (historisch). So bleibt der eigentliche Bug (Einbuchungs-Hinweis) gefixt,
+  ohne die Bestandsliste umzudeuten.
+
+**B2 — Antwort 1 ist keine Entscheidung, sondern eine Rueckfrage.** „ich glaube komplett weg -
+sinnvoll?" beantwortet die Entweder-oder-Frage (0-Zeile behalten vs. ganz weg) **nicht** verbindlich,
+sondern gibt sie an mich zurueck.
+  **Empfehlung (bitte bestaetigen):** Fuer den **Einbuchungs-Hinweis** und das **Tracking-Modal** ist
+  „komplett weg" (nur Ist-Bestand `> 0` zeigen) richtig — ein Hinweis „liegt bereits" auf einen Platz
+  mit realem Bestand 0 waere genau der Bug, den wir beheben. Also: Kandidaten mit Ist-Bestand `<= 0`
+  fallen raus. Bitte diese Formulierung als verbindliche Antwort setzen (dann wird AK1 eindeutig).
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S1 — Die angezeigte Menge ist der Ist-Bestand am Artikel/Lagerplatz-Paar, NICHT FA-spezifisch.**
+Nach dem Fix werden die Kandidaten-Paare zwar ueber das FA-Tag ermittelt, die Menge aber ueber
+**alle** Bewegungen an diesem Paar berechnet. Liegt am selben Lagerplatz Bestand eines **anderen** FA
+(oder ungetaggter Bestand), zeigt der Hinweis „FA X liegt bereits: Platz — Menge N", obwohl N nicht
+(nur) zu FA X gehoert. Das ist der Natur der Sache geschuldet (Bestand ist nach der Buchung nicht
+FA-attributiert) und immer noch besser als der Phantom-Bestand von heute — aber der Spec-Text sollte
+diese **bewusste Ungenauigkeit** benennen (Ziel/Nutzen + ein Akzeptanzkriterium „gemischter Platz:
+Menge = realer Platz-Bestand, nicht FA-Anteil"), damit niemand spaeter eine FA-genaue Menge erwartet.
+
+**S2 — Regressions-Akzeptanzkriterium fuer die NICHT umgestellte View fehlt.** Sobald B1(b)
+entschieden ist, braucht es ein hartes Kriterium „Artikelbestände-FA-Filter zeigt weiterhin
+historische/0-Bestand-Zeilen (Verhalten unveraendert)" bzw. — bei Entscheidung (a)/gegen
+Differenzierung — „alle drei Flaechen zeigen identisch nur Ist-Bestand". Aktuell behaupten AK4/AK5
+implizit die eine, Antwort 2 die andere Richtung.
+
+### HINWEIS — Beobachtung ohne Handlungszwang
+
+**H1 — Kandidatensuche nutzt `ProductionOrder.Contains(productionOrder)` (Teilstring).** FA „123"
+matcht auch „1234567" oder „…-123…". Vorbestehend und nicht Gegenstand dieses Bugfixes, aber
+verwandt mit Teil-3 (WA-Kuerzung) — dort ggf. mitdenken, ob die FA-Zuordnung praeziser werden soll.
+
+**H2 — „drei Aufrufstellen" sind zwei Code-Call-Sites.** `StockApiController` bedient zwei
+UI-Flaechen; die Formulierung „drei" meint UI-Flaechen, nicht Methoden — fachlich ok, nur zur
+Klarstellung.
+
+**H3 — Performance (Antwort 3 „bitte selbst pruefen"):** vertretbar. Das Muster (In-Memory-Aggregation
+ueber `StockMovement`) existiert bereits in `GetCurrentStockAsync`; der Dev-Lauf misst gegen reale
+Datenmengen und stellt bei Bedarf auf eine SQL-seitige Summierung um. Kein Blocker.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: Antwort 2 (differenziertes Verhalten je View) ist mit dem „keine
+Signaturaenderung"-Entwurf unvereinbar und nennt eine nicht existierende View — bitte View praezisieren
+und Parameter/zweite-Methode entscheiden; Antwort 1 ist noch keine verbindliche Entscheidung.**
