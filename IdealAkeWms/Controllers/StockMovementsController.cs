@@ -152,6 +152,110 @@ public class StockMovementsController : Controller
         return RedirectToAction(nameof(Inbound));
     }
 
+    // ========== Mehrfachartikel-Einbuchung (ein Lagerplatz + eine FA, viele Zeilen) ==========
+
+    [RequireStockAccess]
+    public async Task<IActionResult> InboundBulk()
+    {
+        var vm = new StockMovementBulkInboundViewModel
+        {
+            StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
+            Lines = new List<StockMovementBulkInboundLine> { new() { Quantity = 1m } }
+        };
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        return View(vm);
+    }
+
+    [RequireStockAccess]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    // S3: bewusst keine kuenstliche Zeilen-Obergrenze. Wir heben aber die ASP.NET-Core-
+    // Standardgrenze (ValueCountLimit ~1024 Form-Felder) deutlich an, damit auch grosse
+    // Sammel-Wareneingaenge sauber binden statt still mit HTTP-400 zu scheitern. Eine sprechende
+    // Client-Warnung greift lange vorher (siehe InboundBulk.cshtml, MAX_LINES_SOFT).
+    [RequestFormLimits(ValueCountLimit = 16384)]
+    public async Task<IActionResult> InboundBulk(StockMovementBulkInboundViewModel vm)
+    {
+        var lines = vm.Lines ?? new List<StockMovementBulkInboundLine>();
+
+        // S2: ALLE Zeilen VOR dem ersten AddAsync validieren (keine Teilbuchung).
+        var anyLineError = false;
+        foreach (var line in lines)
+        {
+            if (line.ArticleId <= 0)
+            {
+                line.Error = "Artikel ist erforderlich.";
+                anyLineError = true;
+            }
+            else if (line.Quantity <= 0)
+            {
+                line.Error = "Menge muss größer als 0 sein.";
+                anyLineError = true;
+            }
+        }
+
+        if (lines.Count == 0)
+            ModelState.AddModelError("", "Mindestens eine Artikel-Zeile ist erforderlich.");
+
+        if (!ModelState.IsValid || anyLineError)
+        {
+            if (anyLineError)
+                ModelState.AddModelError("", "Bitte korrigieren Sie die markierten Zeilen — es wurde nichts gebucht.");
+            await PopulateBulkInboundAsync(vm);
+            return View(vm);
+        }
+
+        // Alle Zeilen gueltig → je Zeile eine Einbuchung mit gemeinsamem Timestamp.
+        // S1: Buchung ausschliesslich ueber IStockMovementRepository.AddAsync (identischer Pfad
+        // wie die Einzel-Einbuchung inkl. Audit UND Sage-Enqueue-Decorator, v1.28.0) — KEIN
+        // Direkt-DbContext-Bypass, sonst erreichten die Bulk-Einbuchungen Sage nie.
+        var appUserId = _currentUserService.GetCurrentAppUserId();
+        var windowsUser = _currentUserService.GetWindowsUserName();
+        var displayName = _currentUserService.GetDisplayName();
+        var now = DateTime.Now;
+        var count = 0;
+
+        foreach (var line in lines)
+        {
+            var movement = new StockMovement
+            {
+                ArticleId = line.ArticleId,
+                Quantity = line.Quantity,
+                StorageLocationId = vm.StorageLocationId,
+                ProductionOrder = vm.ProductionOrder,
+                MovementType = MovementType.Einbuchung,
+                Timestamp = now,
+                UserId = appUserId,
+                WindowsUser = windowsUser,
+                CreatedAt = now,
+                CreatedBy = displayName,
+                CreatedByWindows = windowsUser
+            };
+            await _stockMovementRepository.AddAsync(movement);
+            count++;
+        }
+
+        TempData["SuccessMessage"] = $"{count} Artikel erfolgreich eingebucht.";
+        return RedirectToAction(nameof(InboundBulk));
+    }
+
+    private async Task PopulateBulkInboundAsync(StockMovementBulkInboundViewModel vm)
+    {
+        vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        // Anzeigetexte fuer bereits gewaehlte Artikel wiederherstellen (Select2-Re-Render).
+        foreach (var line in vm.Lines)
+        {
+            if (line.ArticleId > 0 && string.IsNullOrEmpty(line.ArticleDisplay))
+            {
+                var article = await _articleRepository.GetByIdAsync(line.ArticleId);
+                if (article != null)
+                    line.ArticleDisplay = article.ArticleNumber + (article.Description != null ? " - " + article.Description : "");
+            }
+        }
+    }
+
     [RequireStockAccess]
     public async Task<IActionResult> Outbound()
     {

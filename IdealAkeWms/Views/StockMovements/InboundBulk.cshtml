@@ -1,0 +1,293 @@
+@model StockMovementBulkInboundViewModel
+@{
+    ViewData["Title"] = "Mehrfach-Einbuchung";
+}
+
+<h2 class="page-header" style="border-bottom-color: var(--ake-green);">Mehrfach-Einbuchung</h2>
+
+<div class="row">
+    <div class="col-md-10 col-lg-9">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--ake-green);">
+                <span>Mehrere Artikel auf einen Lagerplatz / eine FA einbuchen</span>
+                <a asp-action="Inbound" class="btn btn-sm btn-light">Einzel-Einbuchung</a>
+            </div>
+            <div class="card-body">
+                <form asp-action="InboundBulk" method="post" id="bulkForm">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="StorageLocationId" class="form-label"></label>
+                            <div class="input-group">
+                                <select asp-for="StorageLocationId" class="form-select"
+                                        asp-items="@(new SelectList(Model.StorageLocations, "Id", "Code"))">
+                                    <option value="">-- Lagerplatz wählen --</option>
+                                </select>
+                                <button type="button" id="btnScanStorageLocation" class="btn btn-secondary scan-btn" title="Barcode scannen">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                        <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <span asp-validation-for="StorageLocationId" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ProductionOrder" class="form-label"></label>
+                            <input asp-for="ProductionOrder" class="form-control" />
+                            <span asp-validation-for="ProductionOrder" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Artikel-Zeilen</h6>
+                        <div class="form-check">
+                            <input type="checkbox" id="forceNewLine" class="form-check-input" />
+                            <label for="forceNewLine" class="form-check-label small">Bei Scan immer neue Zeile erzwingen</label>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle" id="linesTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60%;">Artikel</th>
+                                    <th style="width: 25%;">Menge</th>
+                                    <th style="width: 15%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="linesBody">
+                                @for (var i = 0; i < Model.Lines.Count; i++)
+                                {
+                                    var line = Model.Lines[i];
+                                    <tr class="line-row @(line.Error != null ? "table-danger" : "")">
+                                        <td>
+                                            <input type="hidden" name="Lines.Index" value="@i" />
+                                            <select name="Lines[@i].ArticleId" class="form-select select2-article-bulk line-article"
+                                                    data-pre-id="@(line.ArticleId > 0 ? line.ArticleId.ToString() : "")"
+                                                    data-pre-text="@(line.ArticleDisplay ?? "")">
+                                                <option value="">-- Artikel suchen --</option>
+                                            </select>
+                                            @if (line.Error != null)
+                                            {
+                                                <div class="text-danger small mt-1">@line.Error</div>
+                                            }
+                                        </td>
+                                        <td>
+                                            <input name="Lines[@i].Quantity" type="number" step="0.001" min="0.001"
+                                                   value="@line.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                   class="form-control line-qty" />
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-outline-danger btn-remove-line" title="Zeile entfernen">&times;</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" id="btnAddLine" class="btn btn-outline-secondary">+ Zeile hinzufügen</button>
+                        <button type="button" id="btnScanArticleBulk" class="btn btn-outline-secondary scan-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
+                                <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                            Artikel scannen
+                        </button>
+                    </div>
+
+                    <div id="bulkScanFeedback" class="small mb-2" aria-live="polite"></div>
+                    <input type="hidden" id="bulkScanBuffer" />
+
+                    <button type="submit" class="btn btn-success btn-lg w-100">Einbuchung speichern</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Pristine Zeilen-Vorlage (nie select2-initialisiert) — wird beim Hinzufuegen/Scannen geklont. *@
+<template id="lineTemplate">
+    <tr class="line-row">
+        <td>
+            <input type="hidden" name="Lines.Index" value="__KEY__" />
+            <select name="Lines[__KEY__].ArticleId" class="form-select select2-article-bulk line-article">
+                <option value="">-- Artikel suchen --</option>
+            </select>
+        </td>
+        <td>
+            <input name="Lines[__KEY__].Quantity" type="number" step="0.001" min="0.001" value="1" class="form-control line-qty" />
+        </td>
+        <td class="text-end">
+            <button type="button" class="btn btn-outline-danger btn-remove-line" title="Zeile entfernen">&times;</button>
+        </td>
+    </tr>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <partial name="_Select2ArticlePartial" />
+    <script src="~/lib/html5-qrcode/html5-qrcode.min.js"></script>
+    <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var linesBody = document.getElementById('linesBody');
+            var template = document.getElementById('lineTemplate');
+            var feedback = document.getElementById('bulkScanFeedback');
+            var lineKeyCounter = @Model.Lines.Count; // server-Zeilen belegen 0..n-1
+            var MAX_LINES_SOFT = 500; // sprechende Warnung lange vor der Framework-Grenze (~1024 Felder)
+
+            function initArticleSelect2($el, preId, preText) {
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    ajax: {
+                        url: '/api/articles/search',
+                        dataType: 'json',
+                        delay: 300,
+                        data: function (params) { return { q: params.term, limit: 50 }; },
+                        processResults: function (data) { return { results: data }; },
+                        cache: true
+                    },
+                    placeholder: '-- Artikel suchen --',
+                    minimumInputLength: 0,
+                    allowClear: true,
+                    language: 'de',
+                    width: '100%'
+                });
+                if (preId && preText) {
+                    var option = new Option(preText, preId, true, true);
+                    $el.append(option).trigger('change');
+                }
+            }
+
+            // Alle (server-gerenderten) Zeilen initialisieren.
+            function initExistingRows() {
+                document.querySelectorAll('.select2-article-bulk').forEach(function (sel) {
+                    var $sel = $(sel);
+                    if ($sel.hasClass('select2-hidden-accessible')) return;
+                    initArticleSelect2($sel, $sel.data('pre-id'), $sel.data('pre-text'));
+                });
+            }
+
+            function currentRows() {
+                return Array.prototype.slice.call(linesBody.querySelectorAll('.line-row'));
+            }
+
+            function showFeedback(html, ok) {
+                feedback.innerHTML = '<span class="' + (ok ? 'text-success' : 'text-danger') + '">' + html + '</span>';
+            }
+
+            function addRow(articleId, articleText, quantity) {
+                if (currentRows().length >= MAX_LINES_SOFT) {
+                    showFeedback('&#10007; Sehr viele Zeilen (' + currentRows().length + '). Bitte in mehreren Buchungen erfassen.', false);
+                    return null;
+                }
+                var key = 'k' + (lineKeyCounter++);
+                var html = template.innerHTML.replace(/__KEY__/g, key);
+                var tmp = document.createElement('tbody');
+                tmp.innerHTML = html.trim();
+                var row = tmp.querySelector('tr');
+                linesBody.appendChild(row);
+
+                var qtyInput = row.querySelector('.line-qty');
+                if (qtyInput && quantity) qtyInput.value = quantity;
+
+                var sel = row.querySelector('.select2-article-bulk');
+                initArticleSelect2($(sel), articleId || null, articleText || null);
+                return row;
+            }
+
+            function findRowByArticle(articleId) {
+                var rows = currentRows();
+                for (var i = 0; i < rows.length; i++) {
+                    var sel = rows[i].querySelector('.line-article');
+                    if (sel && String(sel.value) === String(articleId)) return rows[i];
+                }
+                return null;
+            }
+
+            function findEmptyRow() {
+                var rows = currentRows();
+                for (var i = 0; i < rows.length; i++) {
+                    var sel = rows[i].querySelector('.line-article');
+                    if (sel && !sel.value) return rows[i];
+                }
+                return null;
+            }
+
+            function incrementRowQty(row, by) {
+                var qty = row.querySelector('.line-qty');
+                var cur = parseFloat((qty.value || '0').replace(',', '.'));
+                if (isNaN(cur)) cur = 0;
+                qty.value = (cur + by);
+            }
+
+            // Scan-Ergebnis: Artikelnummer -> Artikel nachschlagen, dann Zeile anlegen/hochzaehlen.
+            function onArticleScanned(scannedArticleNumber) {
+                var articleNumber = (scannedArticleNumber || '').trim();
+                if (!articleNumber) return;
+                $.ajax({
+                    url: '/api/articles/by-number/' + encodeURIComponent(articleNumber),
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        var forceNew = document.getElementById('forceNewLine').checked;
+                        if (!forceNew) {
+                            var existing = findRowByArticle(data.id);
+                            if (existing) {
+                                incrementRowQty(existing, 1);
+                                existing.classList.add('table-warning');
+                                setTimeout(function () { existing.classList.remove('table-warning'); }, 800);
+                                showFeedback('&#10003; ' + data.text + ' — Menge erhöht', true);
+                                return;
+                            }
+                            var empty = findEmptyRow();
+                            if (empty) {
+                                var $sel = $(empty.querySelector('.select2-article-bulk'));
+                                var opt = new Option(data.text, data.id, true, true);
+                                $sel.append(opt).trigger('change');
+                                showFeedback('&#10003; ' + data.text + ' — hinzugefügt', true);
+                                return;
+                            }
+                        }
+                        addRow(data.id, data.text, 1);
+                        showFeedback('&#10003; ' + data.text + ' — hinzugefügt', true);
+                    },
+                    error: function () {
+                        showFeedback('&#10007; Artikel nicht gefunden: ' + articleNumber, false);
+                    }
+                });
+            }
+
+            // Buttons
+            document.getElementById('btnAddLine').addEventListener('click', function () {
+                addRow(null, null, 1);
+            });
+
+            linesBody.addEventListener('click', function (e) {
+                var btn = e.target.closest('.btn-remove-line');
+                if (!btn) return;
+                var row = btn.closest('.line-row');
+                if (!row) return;
+                var sel = row.querySelector('.select2-article-bulk');
+                if (sel && $(sel).hasClass('select2-hidden-accessible')) $(sel).select2('destroy');
+                row.remove();
+                if (currentRows().length === 0) addRow(null, null, 1); // immer mind. eine Zeile
+            });
+
+            $(function () {
+                initExistingRows();
+                // btnScanStorageLocation wird bereits vom globalen DOMContentLoaded in
+                // barcode-scanner.js gebunden — hier NICHT erneut initScanner aufrufen (Doppel-Bind).
+                // Artikel-Scan ueber verstecktes Buffer-Input; Callback legt Zeile an/zaehlt hoch.
+                initTextInputScanner('btnScanArticleBulk', 'bulkScanBuffer', 'article', onArticleScanned);
+            });
+        })();
+    </script>
+}
