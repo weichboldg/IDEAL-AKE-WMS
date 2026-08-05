@@ -18,6 +18,13 @@ Pruefe zuerst:
   die Spec schreiben, beenden. (Ein BLOCKER, der nachweislich geklaert wurde, ist ok.)
 
 Dann:
+0. SCHREIBZIELE (wichtig, siehe CLAUDE.md "Das Brain wird NICHT verzweigt"):
+   - Anwendungscode, SQL/, docs/, Tests, Versions-Bump -> IN DEN WORKTREE.
+   - Alle secondbrain/-Aenderungen (Spec-Status, worktree/branch, QA-Nachweis, Deploy-Abschnitt,
+     Aufgaben-Notiz, codebase-Karte, Testindex, changelog) -> IMMER in den HAUPTCHECKOUT
+     C:\Git\IDEAL-AKE-WMS\secondbrain\, NIE in <worktree>\secondbrain\.
+   Der Worktree hat per sparse-checkout normalerweise gar kein secondbrain/. Ist dort doch eines
+   sichtbar: nicht hineinschreiben, Fund melden.
 1. Worktree anlegen: powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1 -Slug <slug-OHNE-suffix-spec>
    (Spec 2026-07-28-foo-spec -> Slug 2026-07-28-foo). worktree + branch ins Spec-Frontmatter,
    status: InUmsetzung, Aufgaben-Datei in secondbrain/aufgaben/ anlegen.
@@ -29,7 +36,9 @@ Dann:
    dotnet test muessen gruen sein - Ausgaben als Beweis in die Spec. docs/TESTSZENARIEN.md +
    secondbrain/tests/testszenarien-index.md ergaenzen. Nutze den Subagenten qa-agent.
    Der qa-agent finalisiert auch den Deploy-Abschnitt (web/service/migration + Publish-Befehle).
-5. NUR bei Erfolg: status: Testbereit + manuelle Test-Checkliste ans Spec-Ende. Commit im Worktree.
+5. NUR bei Erfolg: status: Testbereit + manuelle Test-Checkliste ans Spec-Ende.
+   Code im Worktree committen; die secondbrain/-Aenderungen SEPARAT im Hauptcheckout committen
+   ("brain: <slug> testbereit") - zwei Commits in zwei Baeumen, das ist beabsichtigt.
 
 Wenn die Aufgabe zu gross fuers Turn-Limit ist: Stand als "wip: <slug>" committen und in die
 Spec schreiben, wo du stehst - NICHT unvollstaendig auf Testbereit setzen. (Zu gross generell?

@@ -17,10 +17,11 @@ deploy:
   web: false            # muss die Web-App neu deployt werden?
   service: false        # muss der Windows-Service neu deployt werden?
   migration: false      # bringt die Aenderung eine EF-Migration mit?
-freigabe:
-  entscheidung: ""      # Schranke 1: A | B bei Varianten-Specs, sonst "freigegeben"
-  von: ""               # Kuerzel des Freigebers
-  am: ""                # yyyy-mm-dd
+freigabe_entscheidung: ""   # Schranke 1: A | B bei Varianten-Specs, sonst leer lassen
+freigabe_von: ""            # Kuerzel/Name des Freigebers
+freigabe_am: ""             # yyyy-mm-dd
+# Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
+# YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -93,7 +94,7 @@ freigabe:
   beantwortet ist UND die Datei nach specs/freigegeben/ verschoben wurde UND
   im Frontmatter status: Freigegeben steht. Der Dev-Lauf liest DIESEN Block
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
-  Bei Varianten-Specs zusaetzlich freigabe.entscheidung im Frontmatter setzen.
+  Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
 1. →

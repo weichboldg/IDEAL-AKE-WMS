@@ -1,6 +1,6 @@
 ---
 typ: feature
-epic: true
+split: true          # Gesamtform: mehrere Teile in fester Reihenfolge; Teil 2 (Sub-FA-Rueckmeldung) wird beim Spezifizieren als eigener epic markiert
 anhaenge:
   - anhaenge/2026-07-29-standort-ideal/sage-views-ideal.md
 ---
@@ -138,15 +138,23 @@ Standort/Toggle IDEAL aktiv).
 
 ## Reif fuer den Backlog?
 
-**Noch nicht ganz.** Vor dem Umzug nach `backlog/`:
+**Fast.** Die Architektur-Fragen sind beantwortet (eigenes Deployment/DB je
+Standort, Sub-FA rueckmeldefaehig, Grundschalter + Toggles, PPS ersetzt Termine).
+Offen bleibt nur Frage 7 (Produktiv-DB-Name/Server) — das ist ein
+Infrastruktur-Detail, das in die Spec-Rueckfragen von Teil 1 wandern kann, kein
+Blocker fuer den Start.
 
-1. Offene Fragen 1-4 beantworten (die entscheiden Architektur + Scope; 5-7
-   koennen teils in die Spec-Rueckfragen wandern).
-2. split vs. epic final entscheiden und Frontmatter bereinigen (aktuell steht
-   `epic: true` — bei Entscheidung fuer split austauschen).
-3. Anhang beim Verschieben mitnehmen: Ordner nach
-   `backlog/anhaenge/2026-07-29-standort-ideal/` kopieren, damit der
-   `anhaenge:`-Verweis stimmt (aktuell liegt er unter `ideen/Anhang/...` — der
-   Pfad im Frontmatter ist schon auf das Backlog-Ziel ausgerichtet).
-4. Weil Anhaenge im Spiel sind: die Spezifizierung **interaktiv** starten
-   (nicht headless), damit der Anhang verlaesslich gelesen wird.
+Vor dem Umzug nach `backlog/`:
+1. Frontmatter auf die Gesamtform bringen: `split: true` (Teil 2 wird beim
+   Spezifizieren als eigener epic markiert). `epic: true` entfernen.
+2. Anhang mitnehmen: Ordner `ideen/Anhang/2026-0-29-Standort-IDEAL/` nach
+   `backlog/anhaenge/2026-07-29-standort-ideal/` kopieren (Pfad im Frontmatter
+   zeigt schon dorthin).
+3. Spezifizierung **interaktiv** starten (`claude`, Anhang mitgeben) — nicht
+   headless, wegen des Anhangs und der Groesse.
+
+Beim Spezifizieren entstehen dann: eine Uebersichts-Notiz + Teil-Specs
+(`-teil-1-spec` ... `-teil-5-spec`), wobei die Teil-2-Spec `epic: true` mit
+Etappen-Tabelle bekommt. Freigabe und Umsetzung dann Teil fuer Teil, mit Teil 1
+zuerst — damit die IDEAL-Produktionsauftraege ins System kommen und du testen
+kannst.

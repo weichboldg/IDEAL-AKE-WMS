@@ -11,6 +11,11 @@ Pruefe zuerst:
   NICHT umsetzen, Status auf Entwurf zuruecksetzen, Grund in die Spec schreiben, beenden.
 
 Dann:
+0. SCHREIBZIELE (siehe CLAUDE.md "Das Brain wird NICHT verzweigt"): Anwendungscode, SQL/, docs/,
+   Tests, Versions-Bump -> IN DEN WORKTREE. Alle secondbrain/-Aenderungen (Spec-Status,
+   worktree/branch, QA-Nachweis, Deploy-Abschnitt, Aufgaben-Notiz, codebase-Karte, Testindex,
+   changelog) -> IMMER in den HAUPTCHECKOUT C:\Git\IDEAL-AKE-WMS\secondbrain\, NIE in
+   <worktree>\secondbrain\. Code und Brain werden getrennt committet.
 1. Worktree anlegen: powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1 -Slug <slug-OHNE-suffix-spec>
    (Spec 2026-07-28-foo-spec -> Slug 2026-07-28-foo). worktree + branch ins Spec-Frontmatter,
    status: InUmsetzung, Aufgaben-Datei in secondbrain/aufgaben/ anlegen.

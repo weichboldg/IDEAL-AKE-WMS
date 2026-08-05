@@ -131,3 +131,16 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 | Benutzer | `admin`, Passwort leer | Seeding in `Program.cs` |
 | Lagerplatz | `NAN` (Fallback fuer negative Buchungen) | Seeding in `Program.cs` |
 | ServiceSettings | alle Katalog-Keys mit Default | Seeding aus `ServiceSettingDefinitions.All` |
+
+## Sage-Lagerbuchungen (v1.28.0)
+
+- **`StorageLocation`** (weiterhin `AuditableEntity`) — drei neue Spalten (Migration 82):
+  `SageBuchungErlaubt` (`BIT NOT NULL DEFAULT 0`, user-controlled Opt-in), `SageLagerkennung`
+  (`NVARCHAR(50) NULL` = volle Kurzbezeichnung = `Code`, vom Lagerplatz-Sync befuellt),
+  `SageLagerplatzId` (`INT NULL` = `KHKLagerplaetze.PlatzID`).
+- **`SageBookingQueueItem`** (neu, `AuditableEntity`, Migration 83, Tabelle `SageBookingQueueItems`):
+  FK `StockMovementId` → `StockMovements` (Restrict), `Status`-Enum
+  (`Offen=0`/`Gesendet=1`/`Bestaetigt=2`/`Fehler=3`, Index auf `Status`), `AttemptCount`,
+  `LastAttemptAt`, `LastError` (nvarchar 2000), `SageResponseRaw` (nvarchar max), `SentAt`,
+  `ConfirmedAt`. Enqueue durch den Web-Decorator, Statuswechsel durch den `SageBookingWorker`
+  (`ModifiedBy` = `system:sage-booking`). Details [[2026-07-29-sage-lagerbuchungen-spec]].

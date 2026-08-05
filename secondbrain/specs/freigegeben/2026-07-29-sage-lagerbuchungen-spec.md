@@ -2,13 +2,13 @@
 type: spec
 title: Sage-100-Lagerbuchungen ueber SData-API (Material Zugang/Entnahme, Queue + Windows-Service)
 slug: 2026-07-29-sage-lagerbuchungen-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-07-29
-updated: 2026-08-03
+updated: 2026-08-04
 source_backlog: "[[2026-07-29-Postman-Lagerbuchungen]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-07-29-sage-lagerbuchungen-umsetzung]]"
+worktree: ".claude/worktrees/2026-07-29-sage-lagerbuchungen"
+branch: "feature/2026-07-29-sage-lagerbuchungen"
 affected_code:
   - IdealAkeWms/Models/StorageLocation.cs (neue Felder SageBuchungErlaubt, SageLagerkennung, SageLagerplatzId)
   - IdealAkeWms/Models/SageBookingQueueItem.cs (neu)
@@ -248,7 +248,8 @@ bloc). `StorageLocationsController` ist `[RequireMasterDataReadAccess]` class-le
    Anwenders** ein Queue-Eintrag mit Status `offen`.
 4. Der Windows-Service verarbeitet offene Queue-Eintraege in kurzer Taktfrequenz (Sekunden- statt
    Minutenbereich, siehe offene Rueckfrage 2) und sendet sie einzeln an
-   `POST {{sdata_base_url}}/{{sdata_servicecontract}}/{{dataset}}/$service/LagerbuchungService`.
+   `POST {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`
+   (konkrete Werte + Kodierung siehe Nachtrag in Abschnitt 6).
 5. `Einbuchung` wird als `Lagerbewegungsart: "Zugang"` mit gesetztem Ziel-Lagerplatz (leerer
    Herkunft) gesendet; `Ausbuchung` als `"Entnahme"` mit gesetztem Herkunfts-Lagerplatz (leeres
    Ziel) — exakt spiegelbildlich zu den beiden Postman-Beispielen.
@@ -425,6 +426,66 @@ in `IDEALAKEWMSService/appsettings.json` (Vorbild `MailSettings`-Block, Z. 8-16)
 appsettings-only nach ADR 0008 (Geheimnis, nicht UI-editierbar) — muss am Server **einmalig** manuell
 ergaenzt werden (wie `ConnectionStrings`/`MailSettings` heute schon).
 
+#### Nachtrag (2026-08-03): TLS-Zertifikatspruefung schaltbar
+
+Der Sage-Testserver (`sagetest01.ake.at`) hat derzeit kein gueltiges Zertifikat (`PartialChain`,
+interne PKI noch nicht fertig). Analog zu Postmans „Enable SSL certificate verification" gibt es
+einen expliziten Schalter:
+
+- **ServiceSetting** `SageLagerbuchungSslZertifikatPruefen` (Bool, **Default `true`**, Kategorie
+  „Sage-Lagerbuchung"). **Positiver** Schluesselname. **Fail-safe:** fehlt der Wert oder ist er
+  nicht parsebar, wird **geprueft** (nicht fail-open). Reine Logik in
+  `IdealAkeWms/Services/SageTlsPolicy.cs` (`ShouldVerifyCertificate` = true, sofern nicht explizit
+  `false` parsebar — bewusst **nicht** `ServiceSettings.GetBoolAsync`, dessen Semantik fail-open waere).
+- **Wirkung ausschliesslich** auf den typisierten `ISageLagerbuchungClient` via
+  `ConfigurePrimaryHttpMessageHandler` (`HttpClientHandler.ServerCertificateCustomValidationCallback`).
+  **Kein** `ServicePointManager`, keine globale Aenderung, **keine** Auswirkung auf
+  OSEON/enaio/HolidaySync oder sonstige Clients.
+- **Laufzeit-Gueltigkeit (wichtig):** Der Primary Handler wird bei der DI-Registrierung erzeugt und
+  gepoolt. Der Wert wird deshalb **nicht** einmalig beim Registrieren gelesen, sondern **innerhalb des
+  Validation-Callbacks** aus der aktuellen Konfiguration (`ServiceSettings.GetValueSafeAsync` ueber den
+  im Closure gehaltenen `IServiceProvider`/`IConfiguration`). Eine Aenderung greift damit **ohne
+  Dienst-Neustart** (spaetestens beim naechsten TLS-Handshake / neuer Verbindung; bestehende gepoolte
+  Verbindungen laufen aus).
+- **Sichtbarkeit bei `false`:** (a) `SageBookingWorker` loggt beim Start eine Warnung
+  („TLS-Zertifikatspruefung fuer Sage-Lagerbuchungen ist DEAKTIVIERT - nur fuer Testsysteme
+  zulaessig"); (b) `/ServiceSettings` zeigt am Eintrag einen Warnhinweis; (c) die Monitoring-Liste
+  `/SageBookingQueue` zeigt ein Warn-Banner oben. Kein stilles Kaestchen.
+- **Test:** `SageTlsPolicyTests` sichert die Invariante (Default `true`; fehlender/ungueltiger Wert →
+  `true`; nur explizit `false` → `false`; Katalog-Default = `true`).
+
+#### Nachtrag (2026-08-03): SData-URL-Zusammensetzung + Kodierung
+
+Per SData-Discovery ermittelte Werte (Testsystem) und die daraus gebaute Ziel-URL:
+
+- `SData:BaseUrl` = `https://sagetest01.ake.at:5493` (Host+Port **ohne** Pfad)
+- `SData:Application` = `ol` (**neu, konfigurierbar** — Default `ol`, i.d.R. konstant)
+- `SData:ServiceContract` = `CommonWawiServices` (Default `CommonWawiServices`)
+- `SData:Dataset` = `ake_TEST2026;1` (Mandant, pro Instanz)
+
+Zusammensetzung (reiner, testbarer Builder `SageLagerbuchungClient.BuildServiceUrl`):
+```
+{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService
+= https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/LagerbuchungService
+```
+
+**Kodierung (nicht verhandelbar):** Der Dataset enthaelt ein `;`, die Resource beginnt mit `$`.
+Beide sind laut RFC 3986 sub-delims und in Pfadsegmenten gueltig — sie **muessen literal bleiben**
+(`;` **nicht** `%3B`, `$` **nicht** `%24`). Der SData-Feed liefert die href-Werte ebenfalls
+unkodiert (Referenz). Deshalb **kein** `Uri.EscapeDataString` auf Dataset/Resource; die URL wird per
+String-Interpolation gebaut, und die .NET-`Uri`-Pipeline (die `HttpRequestMessage` intern nutzt)
+laesst diese sub-delims im Pfad unangetastet. `SageLagerbuchungClientUrlTests` prueft die exakte
+Ziel-URL **inklusive** literalem `;` und `$` und dass `new Uri(url).AbsoluteUri` sie nicht kodiert.
+
+**Verbindungstest (2026-08-04):** `/ServiceSettings` hat einen Button „Sage-Verbindung testen"
+(`ServiceSettingsController.TestSageConnection`, admin-only). Er baut die URL aus den **aktuellen**
+Formularwerten (ueber denselben `SdataUrlBuilder`), sendet einen **GET** (nebenwirkungsfrei — nie eine
+Buchung) auf eine waehlbare Resource (Default `$schema`, Beispiele `Adressen`/`Artikel`), mit im Dialog
+eingegebener Basic-Auth (nicht gespeichert) und dem konfigurierten TLS-Verhalten
+(`SageLagerbuchungSslZertifikatPruefen` → `HttpClientHandler.DangerousAcceptAnyServerCertificateValidator`
+bei `false`). Ergebnis (Status, **Response-Header**, Body) wird im Modal angezeigt — Diagnose ohne
+echten Buchungsversuch. `$schema` listet zugleich den Funktionsumfang der Schnittstelle.
+
 ### 7. Optionale Monitoring-UI
 
 Empfehlung: minimale Read-only-Liste `/SageBookingQueue` (Listen-View-Pattern, ADR 0005) unter
@@ -578,20 +639,34 @@ Verhalten/Negativfall je Testszenarien-Pflicht):
 
 ## Deploy
 
+**QA-Finalisierung (2026-08-03):** Diff `3eca9ea..HEAD` bestaetigt web=true, service=true,
+migration=true — Web (`IdealAkeWms/*`), Service (`IDEALAKEWMSService/*`) und zwei neue Migrationen
+(`IdealAkeWms/Migrations/20260803104055_AddStorageLocationSageLagerbuchung`,
+`20260803112322_AddSageBookingQueue`) sind alle drei betroffen, wie im Frontmatter bereits
+vorgemerkt.
+
 - **Web-App:** ja — neues Stammdatenfeld + Spalte (`StorageLocationsController`/`Views`), neue
-  Queue-Repository-Registrierung, ggf. neue Monitoring-View.
+  Queue-Repository-Registrierung + Decorator, neue Monitoring-View `/SageBookingQueue` inkl. Requeue.
 - **Service:** ja — neuer `SageBookingWorker`, neuer `ISageLagerbuchungClient`, DI-Registrierung in
   `IDEALAKEWMSService/Program.cs`, neuer appsettings-Block `SageLagerbuchung:Username`/`Password`.
-- **Migration:** ja — zwei additive Migrationen (`SQL/82_*`, `SQL/83_*`), kein DB-Backup zwingend
-  (nicht daten-destruktiv), aber wie ueblich vor einem Produktiv-Deploy empfohlen.
-- **Publish-Befehle** (im Worktree, nach Testfreigabe vor dem Merge):
-  ```
-  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
-  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
-  ```
-- **Reihenfolge:** DB-Migration zuerst (additiv, unkritisch fuer den laufenden Betrieb) → Web-App
-  neu deployen → Service stoppen, Binaries + `appsettings.json`-Ergaenzung (`SageLagerbuchung`-Block
-  mit echten Credentials) einspielen, Service starten.
+- **Migration:** ja — zwei additive Migrationen (`SQL/82_*`, `SQL/83_*`, inkl. UNIQUE-Index auf
+  `SageBookingQueueItems.StockMovementId` gegen Doppel-Enqueue), kein DB-Backup zwingend (nicht
+  daten-destruktiv), aber wie ueblich vor einem Produktiv-Deploy empfohlen.
+
+**Publish-Befehle (aus dem Worktree, VOR dem Merge — Fluss: Publish aus dem Worktree → Testsystem →
+Test → dann Merge):**
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Beide Komponenten sind betroffen — beide Befehle ausfuehren. Hinweis: **nach dem Merge** nur dann
+erneut aus `main` publishen, wenn der Merge tatsaechlich getestete Dateien mit parallelen
+main-Aenderungen zusammengefuehrt hat (Konflikt-Merge/Nicht-Fast-Forward); bei einem sauberen
+Fast-Forward-Merge ist der bereits im Worktree gebaute/getestete Stand identisch mit main.
+
+- **Reihenfolge:** DB-Migration zuerst (additiv, unkritisch fuer den laufenden Betrieb, `SQL/82_*`
+  dann `SQL/83_*`) → Web-App neu deployen → Service stoppen, Binaries + `appsettings.json`-Ergaenzung
+  (`SageLagerbuchung`-Block mit echten Credentials) einspielen, Service starten.
 - **appsettings-Secret am Server:** `IDEALAKEWMSService/appsettings.json` (bzw. die
   Produktions-Overlay-Datei) muss am Zielserver **manuell** um den `SageLagerbuchung`-Block ergaenzt
   werden — analog zu `ConnectionStrings`/`MailSettings` heute, das geschieht **nicht** automatisch
@@ -601,9 +676,13 @@ Verhalten/Negativfall je Testszenarien-Pflicht):
   `SData:BaseUrl`/`SData:Dataset`-Werte setzen sowie je gewuenschtem Lagerplatz
   `SageBuchungErlaubt` aktivieren (ADR 0008: DB gewinnt, appsettings-Defaults greifen nicht mehr;
   `docs/TESTSZENARIEN.md` Kap. 51 „Nach jedem Deploy `/ServiceSettings` durchgehen").
+- **Ein-Instanz-Voraussetzung (H5):** genau **ein** laufender `SageBookingWorker` — kein
+  Doppel-Deploy/Failover auf derselben Queue, sonst Doppelbuchung (der Idempotenz-Baustein schuetzt
+  nur bei einer einzigen Instanz).
 - **Empfehlung:** vor der produktiven Aktivierung mit einem einzelnen, unkritischen Testartikel und
-  einem klar identifizierbaren Testlagerplatz am Sage-Testsystem beginnen (siehe TS-X.3/X.4), erst
-  danach breiter ausrollen.
+  einem klar identifizierbaren Testlagerplatz am Sage-Testsystem beginnen (siehe TS-56.3/56.4), erst
+  danach breiter ausrollen. Detaillierte Deploy-Checkliste zusaetzlich in
+  `secondbrain/aufgaben/2026-08-03-deploy-v1-28-0-sage-lagerbuchungen.md`.
 
 ## Offene Rueckfragen
 
@@ -1022,3 +1101,429 @@ weiterer menschlicher Input noetig):
 - **S7** hartes Regressions-Kriterium „bei Toggle aus bit-identisches Verhalten" ergaenzen.
 
 Den Freigabe-Block im Frontmatter fuellt weiterhin der Mensch — ich habe ihn bewusst nicht gesetzt.
+
+---
+
+## QA-Abnahme (2026-08-03) — Status: Testbereit
+
+Durchgefuehrt im Worktree `.claude/worktrees/2026-07-29-sage-lagerbuchungen`,
+Branch `feature/2026-07-29-sage-lagerbuchungen`, Diff `3eca9ea..6386f05`.
+
+### Beweis: Build
+
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)   (bestehende NU1902-Advisories MailKit/MimeKit + 1 CS8602 in TrackingController,
+                     beide nicht Teil dieser Aenderung)
+    0 Fehler(en)
+```
+
+### Beweis: Tests
+
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1043, übersprungen: 1, gesamt: 1044
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  186, übersprungen: 0, gesamt:  186
+```
+Der eine uebersprungene Test (`ProductionOrderEagerCreateAgentJobTests...`) ist ein bestehender,
+umgebungsabhaengiger Integrationstest, unabhaengig von dieser Spec.
+
+### Akzeptanzkriterien-Abdeckung (automatisiert vs. Manual-UAT)
+
+| AK | Abdeckung |
+|---|---|
+| AK1 (Edit/Liste/Filter) | Manual-UAT (View) |
+| AK2/AK3 (Toggle-Gating) | `SageBookingEnqueueDecisionTests`, `SageBookingEnqueueingStockMovementRepositoryTests` (InMemory) |
+| AK4/AK5 (Enqueue bei Inbound/Outbound/OutboundAllConfirm) | Decorator-Test deckt `AddAsync`-Pfad ab; Controller-Actions selbst Manual-UAT |
+| AK6 (Feedback-Loop-Schutz SageEinbuchung/-Ausbuchung) | `SageBookingEnqueueDecisionTests.ShouldEnqueue_NonBookableType_AlwaysFalse...`, Decorator-Test |
+| AK7/AK8 (Payload spiegelbildlich Zugang/Entnahme) | `SageLagerbuchungPayloadBuilderTests` (isoliert, ohne HTTP/DB) |
+| AK9 (fehlende Sage-Referenz → Fehler statt Absturz) | `SageLagerbuchungPayloadBuilderTests.Build_MissingSageLagerkennung/PlatzId_Throws...`; Worker faengt `SageBookingPayloadException` ab (Code-Review, TS-56.6 Manual-UAT) |
+| AK10 (Status vor HTTP-Call auf Gesendet) | Code-verifiziert (`SageBookingWorker.cs:186` `MarkSentAsync` vor `:189` `client.SendAsync`); Timeout-Fall selbst nicht InMemory-testbar → TS-56.7 Manual-UAT |
+| AK11 (Aktivitaets-Protokoll) | TS-56.10 Manual-UAT (kein SyncLog-InMemory-Vorbild) |
+| AK12 (Build/Test gruen) | siehe oben, erfuellt |
+| AK13 (Migrationen idempotent, FreshInstall an beiden Stellen) | siehe unten |
+| B4 (Enqueue-Fehler faellt Buchung nicht) | Code-verifiziert: try/catch in `SageBookingEnqueueingStockMovementRepository.AddAsync`, nie wirft; Reconciliation-Sweep `EnqueueMissingAsync` |
+| S6 (Decorator = Subclassing) | Code-verifiziert: `class SageBookingEnqueueingStockMovementRepository : StockMovementRepository`, nur `override AddAsync` |
+| S7 (Pass-through bei Toggle aus) | `AddAsync_ToggleOff_CreatesNoQueueItem_ButStillSavesMovement` (InMemory) |
+| Idempotenz-Guard (Doppel-Enqueue) | `EnqueueAsync_SameMovementTwice_CreatesOnlyOneItem` + UNIQUE-Index `IX_SageBookingQueueItems_StockMovementId` (SQL/83 + FreshInstall) |
+
+Alle Luecken (HTTP/SData-Sende-Pfad, Sage-Memo-Lookup gegen echtes Sage-Testsystem,
+Aktivitaets-Protokoll-Anzeige) sind explizit als Manual-UAT in `docs/TESTSZENARIEN.md` Kapitel 56
+(TS-56.1–56.11) und `secondbrain/tests/testszenarien-index.md` (Zeile 81/93) gefuehrt — konsistent
+mit `secondbrain/architektur/fallstricke.md` „Raw-SQL-/Fremdsystem-Pfade sind nicht
+InMemory-testbar".
+
+### Migrations-/SQL-Konsistenz (verifiziert)
+
+- `IdealAkeWms/Migrations/20260803112322_AddSageBookingQueue.cs`: `CreateIndex(... "IX_SageBookingQueueItems_StockMovementId", ..., unique: true)`.
+- `SQL/83_AddSageBookingQueue.sql`: `CREATE UNIQUE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId]`, `OBJECT_ID`-Guard, DDL/Index/History je eigener Batch, MigrationId `20260803112322_AddSageBookingQueue`.
+- `SQL/00_FreshInstall.sql`: Zeilen 121-123 (Spalten `StorageLocations`), 198-222 (Tabelle `SageBookingQueueItems`), 1082-1085 (beide Indizes inkl. UNIQUE), 2182-2185 (beide `MigrationId`s im `__EFMigrationsHistory`-Block) — Schema **und** MigrationId an beiden Pflichtstellen nachgezogen.
+- `SQL/82_AddStorageLocationSageLagerbuchung.sql`: `COL_LENGTH`-Guard je Spalte, MigrationId `20260803104055_AddStorageLocationSageLagerbuchung`.
+
+### Code-Review (durchgefuehrt als QA-Agent, kein separater Subagent-Dispatch verfuegbar in dieser Session)
+
+Gezielt gegen die eigenen Blocker/Sollte-Punkte der Kritischen Pruefungen gegengelesen:
+- B4 (nicht-transaktionaler Enqueue): geloest — try/catch faengt, wirft nie, Reconciliation-Sweep
+  als Netz.
+- S6 (Decorator-Bauweise): Subclassing wie festgelegt, kein 15-Methoden-Delegations-Boilerplate.
+- S7 (Pass-through-Regression): durch expliziten Test abgesichert.
+- DI-Registrierung: Web registriert den Decorator auf `IStockMovementRepository`; Service registriert
+  weiterhin die plain `StockMovementRepository` (dort werden nie manuelle Buchungen erzeugt — korrekt,
+  keine Doppel-Registrierung).
+- Migrations-Dreiklang und Audit-Felder wie oben verifiziert.
+- Keine kritischen oder wichtigen Befunde offen; keine Code-Aenderung durch die QA-Abnahme noetig.
+
+### Entscheidung
+
+**Testbereit.** Build und Tests gruen, alle testbaren Akzeptanzkriterien abgedeckt, die
+Nicht-InMemory-testbaren Teile sauber als Manual-UAT in `docs/TESTSZENARIEN.md` Kapitel 56
+dokumentiert, Migrations-/SQL-Konsistenz verifiziert, Deploy-Abschnitt aus dem echten Diff
+finalisiert.
+
+## Manuelle Test-Checkliste (Schranke 2 — vor dem Merge, am Sage-Testsystem)
+
+**Vorbedingung einmalig:** Migration 82+83 eingespielt, `IDEALAKEWMSService/appsettings.json` →
+`SageLagerbuchung:Username/Password` gesetzt, `/ServiceSettings` → `SData:BaseUrl`/`SData:Dataset`
+gesetzt (Toggle `SageLagerbuchungAktiv` zunaechst **aus**), Lagerplatz-Sync mind. einmal gelaufen.
+
+1. **Toggle-Gating (TS-56.1/56.2):** Mit `SageLagerbuchungAktiv=false` und einem Lagerplatz mit
+   `SageBuchungErlaubt=true` eine manuelle Einbuchung durchfuehren → `/SageBookingQueue` bleibt leer.
+   Danach Toggle an, Lagerplatz-Flag aus → wieder kein Eintrag. Erst mit **beiden** an entsteht ein
+   Eintrag mit Status „Offen".
+2. **Echte Zugangs-Buchung (TS-56.3):** Einbuchung auf einem Sage-freigegebenen Testlagerplatz mit
+   Testartikel durchfuehren, einen Worker-Tick abwarten. Erwartung: `/SageBookingQueue`-Eintrag
+   durchlaeuft Offen → Gesendet → Bestaetigt; die Buchung ist im Sage-Testsystem als **Zugang** auf
+   dem korrekten Platz sichtbar (Kurzbezeichnung inkl. Ebenen, z. B. „LL;1;4;0", nicht die
+   Lager-Wurzel „LL;0;0;0").
+3. **Echte Entnahme-Buchung (TS-56.4):** Spiegelbildlich mit einer Ausbuchung — Sage zeigt
+   **Entnahme**, Herkunft/Ziel vertauscht gegenueber Schritt 2.
+4. **Timeout-/Doppelbuchungs-Schutz (TS-56.7):** Sende-Timeout simulieren (z. B. Netzwerk kurz
+   kappen waehrend eines Sende-Versuchs). Erwartung: Eintrag bleibt auf „Gesendet"; beim naechsten
+   Worker-Tick **kein** zweiter automatischer Sende-Versuch — der Recovery-Pfad prueft per
+   Sage-Memo-Lookup, ob die Buchung schon existiert, und setzt ggf. auf „Bestaetigt" statt erneut zu
+   senden.
+5. **Requeue eines Fehler-Eintrags (TS-56.8):** Einen Eintrag mit Status „Fehler" ueber
+   „Erneut senden" in `/SageBookingQueue` (Rolle `stock_keyuser`) requeuen. Erwartung: Status wird
+   „Offen"; der Worker prueft vor dem erneuten Senden per Memo-Lookup — existiert die Buchung in
+   Sage bereits, landet der Eintrag direkt auf „Bestaetigt" statt ein zweites Mal zu senden.
+6. **Fehlerpfad Konfigurationsfehler (TS-56.6):** `SageBuchungErlaubt=true` auf einem **manuellen**
+   Lagerplatz (ohne `SageLagerkennung`/`SageLagerplatzId`) setzen, dort einbuchen. Erwartung:
+   Queue-Eintrag landet auf „Fehler" mit sprechender Meldung, der Worker laeuft weiter (kein
+   Absturz, kein haengenbleiben), Folgeeintraege werden normal weiterverarbeitet.
+7. **Toggle-Aus-Regression (TS-56.11, S7):** Bei `SageLagerbuchungAktiv=false` stichprobenartig
+   Ein-/Ausbuchung, Bestand, Historie und eine Kommissionierung durchspielen — Verhalten muss
+   **exakt** wie vor diesem Update sein (der Decorator ist reiner Pass-through, wenn der Toggle
+   aus ist).
+8. **Aktivitaets-Protokoll (TS-56.10):** Nach den vorigen Schritten `/SyncLog` oeffnen. Erwartung:
+   Lauf „SageLagerbuchung" sichtbar mit Counts `gesendet`/`bestaetigt`/`fehler`/`nacherfasst`/
+   `uebersprungen`.
+
+**Dev-Lauf-Verifikationen am Testsystem (parallel zu den obigen Schritten zu bestaetigen):**
+9. **Memo vs. Referenz:** Pruefen, ob der Sage-Memo-Lookup (`SageBuchungLookupReader`) tatsaechlich
+   gegen die richtige Spalte (`Memo`) matcht, oder ob `Referenz` die verlaesslichere Korrelation
+   waere — ggf. eine Zeile in `IDEALAKEWMSService/Services/SageBuchungLookupReader.cs` anpassen.
+10. **PlatzID-Quelle:** Bestaetigen, dass `KHKLagerplaetze.PlatzID` tatsaechlich der numerische Wert
+    ist, den die SData-API als `Herkunft-/ZielLagerplatzId` erwartet (H1-Annahme).
+11. **Artikelnummer-Abgleich:** Stichprobenartig `Article.ArticleNumber` gegen die Sage-Artikelnummer
+    im `GET Artikel`-Response vergleichen (Frage 4-Annahme, strukturell erwartet identisch).
+12. **TLS-Schalter am Testsystem (2026-08-03):** Da `sagetest01.ake.at` derzeit kein gueltiges
+    Zertifikat hat, fuer den UAT `SageLagerbuchungSslZertifikatPruefen=false` setzen und pruefen, dass
+    (a) die Buchung durchlaeuft, (b) Worker-Start-Log **und** `/ServiceSettings` **und**
+    `/SageBookingQueue` den Warnhinweis zeigen, (c) ein Umschalten auf `true` **ohne Dienst-Neustart**
+    wieder greift (naechster Handshake schlaegt bei ungueltigem Zertifikat fehl).
+13. **Vor Produktivgang:** pruefen, dass `SageLagerbuchungSslZertifikatPruefen` auf **`true`** steht.
+
+Ein-Instanz-Voraussetzung beachten (siehe Deploy-Abschnitt): waehrend des Manual-UAT darf nur
+**eine** `SageBookingWorker`-Instanz laufen.
+
+## Re-Verifikation QA (2026-08-03, nach Commit fd3bec8 "TLS-Zertifikatspruefung schaltbar")
+
+Re-Pruefung des Nachtrags `fd3bec8` (Diff `cf0e799..HEAD`, 14 geaenderte Dateien) gegen die zuvor
+mit `cf0e799` bestaetigte Testbereit-Basis.
+
+### Beweis: Build
+
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)   (bestehende NU1902-Advisories MailKit/MimeKit + 1 CS8602 in TrackingController,
+                     unveraendert gegenueber der cf0e799-Basis, nicht Teil dieser Ergaenzung)
+    0 Fehler(en)
+```
+
+### Beweis: Tests
+
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1056, übersprungen: 1, gesamt: 1057
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  186, übersprungen: 0, gesamt:  186
+```
+Gezielter Re-Lauf `--filter "FullyQualifiedName~ServiceSettingDefinitions|FullyQualifiedName~SageTlsPolicy"`:
+55/55 gruen (Drift-Guard-Katalogtest + alle 4 `SageTlsPolicyTests`-Theorien).
+
+### Inhaltliche Pruefung der Ergaenzung (a-f)
+
+- **(a) Fail-safe-Semantik:** `SageTlsPolicy.ShouldVerifyCertificate` — `!bool.TryParse(...) || verify`.
+  Fehlend/leer/nicht-parsebar (`null`, `""`, `"yes"`, `"1"`, `"tru"`) → `true` (geprueft); nur ein
+  explizit parsebares `false` deaktiviert. Bewusst nicht `ServiceSettings.GetBoolAsync` (waere
+  fail-open). **Korrekt.**
+- **(b) Wirkung nur auf Sage-Client:** `ConfigurePrimaryHttpMessageHandler` haengt ausschliesslich
+  am `AddHttpClient<ISageLagerbuchungClient, SageLagerbuchungClient>(...)`-Builder in
+  `IDEALAKEWMSService/Program.cs`. Kein `ServicePointManager`, keine globale Handler-Aenderung,
+  kein anderer Client betroffen. **Korrekt.**
+- **(c) Laufzeit-Lesen im Callback:** `ServerCertificateCustomValidationCallback` ruft
+  `ServiceSettings.GetValueSafeAsync(...)` **bei jedem Handshake** auf (kein Capture eines
+  einmalig gelesenen Werts beim `ConfigurePrimaryHttpMessageHandler`-Setup); `ServiceSettings.*`
+  liest laut eigenem Klassenkommentar bewusst ungecacht direkt aus der DB. **Korrekt**, Aenderung
+  greift ohne Dienst-Neustart.
+- **(d) Warnungen an allen drei Stellen:** `SageBookingWorker.ExecuteAsync` loggt beim Start
+  (`LogWarning(SageTlsPolicy.DisabledWarning)`, wenn deaktiviert); `Views/ServiceSettings/Index.cshtml`
+  zeigt am Eintrag ein Warn-Alert; `Views/SageBookingQueue/Index.cshtml` zeigt ein Banner oben, wenn
+  `SslCheckDisabled` (Controller liest den Key live via `IServiceSettingRepository`). Alle drei
+  vorhanden. **Korrekt.**
+- **(e) Testabdeckung der Invarianten:** `SageTlsPolicyTests` deckt fehlend/leer/whitespace/nicht-
+  parsebar → `true`, explizites `false` (inkl. Gross-/Kleinschreibung, Leerzeichen) → `false`,
+  explizites `true` → `true`, sowie den Katalog-Default (`ServiceSettingDefinitions.All` enthaelt den
+  Key mit `DefaultValue == "true"` und dieser Default erfuellt selbst die Invariante). **Korrekt.**
+- **(f) "Vor Produktivgang auf true" in der Checkliste:** Vorhanden — Spec-Manual-Checkliste Punkt 13
+  ("Vor Produktivgang: pruefen, dass `SageLagerbuchungSslZertifikatPruefen` auf `true` steht"),
+  zusaetzlich in README.md, `secondbrain/aufgaben/2026-08-03-deploy-v1-28-0-sage-lagerbuchungen.md`
+  und `secondbrain/changelog/2026-08-03-v1-28-0-sage-lagerbuchungen.md`. **Korrekt.**
+
+### Drift-Guard/Katalog
+
+`SageLagerbuchungSslZertifikatPruefen` ist in `ServiceSettingDefinitions.All` eingetragen
+(Kategorie „Sage-Lagerbuchung", Bool, Default `"true"`). `ServiceSettingDefinitionsTests` (Teil des
+Gesamtlaufs, 1056/1056 gruen) zeigt keinen Drift.
+
+### Gefundene Luecke — NICHT bestaetigt
+
+**`docs/TESTSZENARIEN.md` Kapitel 56 und `secondbrain/tests/testszenarien-index.md` (Zeile 81) wurden
+durch Commit `fd3bec8` NICHT aktualisiert** (`git diff cf0e799..HEAD -- docs/TESTSZENARIEN.md
+secondbrain/tests/testszenarien-index.md` ist leer). Die Ergaenzung ist zwar an sechs anderen
+Stellen sauber dokumentiert (Spec-Nachtrag Abschnitt 6, Spec-Manual-Checkliste Punkt 12/13, README,
+Brain-Changelog, `codebase/services.md`, Deploy-Aufgabe) — CLAUDE.md verlangt aber explizit
+„Testszenarien-Pflicht ... **nicht verhandelbar**": jedes Feature braucht ein synchronisiertes
+`docs/TESTSZENARIEN.md` als „Single Source of Truth der Abnahme", danach den Index-Nachzug. Ein
+Tester, der ausschliesslich Kapitel 56 (TS-56.1–56.11) folgt, ohne die Spec zu lesen, erfaehrt dort
+nichts vom TLS-Schalter — relevant, weil `sagetest01.ake.at` aktuell ein ungueltiges Zertifikat hat
+und TS-56.3/56.4 (echte Buchung am Testsystem) sonst an einem TLS-Handshake-Fehler scheitern, ohne
+dass die Ursache dokumentiert ist.
+
+**Konkret fehlend:**
+1. Ein bis zwei neue TS-Eintraege in Kapitel 56 (z. B. TS-56.12/56.13), die den bereits in der
+   Spec-Checkliste (Punkt 12/13) beschriebenen TLS-Schalter-Ablauf im offiziellen TS-Format
+   (Vorbedingung/Schritt/Erwartung) abbilden — oder mindestens ein Vorbedingungs-Hinweis bei
+   TS-56.3/56.4, dass am aktuellen Testsystem vorher `SageLagerbuchungSslZertifikatPruefen=false`
+   zu setzen ist.
+2. `secondbrain/tests/testszenarien-index.md` Zeile 81 entsprechend nachziehen (TS-Nummernbereich
+   und/oder Hinweistext).
+
+**Ursache:** vermutlich Umfangs-Annahme des Umsetzungs-Agenten, dass die Spec-Manual-Checkliste
+(Punkt 12/13) fuer diesen kleinen Nachtrag ausreicht — reicht nach dem harten CLAUDE.md-Wortlaut
+aber nicht, da `docs/TESTSZENARIEN.md` explizit als separates Pflichtdokument benannt ist.
+
+**Kein Code-/Logik-Defekt.** Build, Tests, TLS-Policy-Logik, Warnhinweise und Drift-Guard sind
+vollstaendig verifiziert und korrekt (siehe oben a-f). Status bleibt daher **InUmsetzung** bis die
+beiden obigen Punkte nachgezogen sind; danach ist eine erneute (voraussichtlich sehr kurze)
+QA-Runde ausreichend, um wieder auf Testbereit zu setzen — kein neuer vollstaendiger Review-Zyklus
+noetig.
+
+**ESCALATE:** nein (erster Fund, kein Fixversuch unternommen — Nachbesserung ist eine reine
+Dokumentationsergaenzung durch den Umsetzungs-Agenten, kein QA-Retry-Fall).
+
+### Re-Re-Verifikation QA (2026-08-03, nach Commit 2afb77f "TS-56.12/56.13 nachgezogen")
+
+Luecke geschlossen. `git diff 54c1a38..2afb77f` betrifft ausschliesslich `docs/TESTSZENARIEN.md`
+(+20 Zeilen: Vorbedingungs-Hinweis TLS am Testsystem + TS-56.12 mit a/b/c inkl. Negativfall
+fail-safe + TS-56.13 Vor-Produktivgang-Check) und `secondbrain/tests/testszenarien-index.md`
+(Zeile 56 auf TS-56.1–56.13 erweitert, TLS-Schalter explizit benannt). Keine Code-Datei
+veraendert — die inhaltliche Pruefung (a-f) aus der vorigen Runde bleibt unveraendert gueltig.
+
+**Beweis Build:**
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)  (unveraendert: NU1902 MailKit/MimeKit + 1 CS8602 TrackingController)
+    0 Fehler(en)
+```
+
+**Beweis Tests:**
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1056, übersprungen: 1, gesamt: 1057
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  186, übersprungen: 0, gesamt:  186
+```
+Identisch zur vorigen Runde (nur Doku geaendert, keine Testverschiebung).
+
+**Kapitel-56-Pruefung:** Vorbedingungen-Block nennt jetzt den TLS-Workaround fuer TS-56.3/56.4/
+56.7/56.8 explizit; TS-56.12 deckt Aus/Sichtbarkeit-an-3-Stellen/An-ohne-Neustart + Negativfall
+fail-safe ab; TS-56.13 deckt „vor Produktivgang auf true" ab. Index-Zeile 56 verweist korrekt auf
+TS-56.1–56.13 und nennt den TLS-Schalter. Alle vier Punkte aus dem Gap-Report erfuellt.
+
+**Entscheidung: Testbereit.** Build gruen, Tests gruen (1056+186, 1 uebersprungen wie durchgehend),
+inhaltliche Ergaenzung (a-f) weiterhin korrekt, Testszenarien-Pflicht jetzt vollstaendig erfuellt
+(Spec + docs/TESTSZENARIEN.md + Index synchron). Status zurueck auf Testbereit.
+
+### Re-Verifikation QA (2026-08-03, nach Commit 8bf911a "SData-URL konfigurierbar + literale ;/$-Kodierung")
+
+`git diff c64c5e8..8bf911a` — 10 Dateien, ausschliesslich der SData-URL-Rework (kein TLS-Code
+mehr angefasst): `SData:Application`/`SData:ServiceContract` neu im Katalog, reiner Builder
+`SageLagerbuchungClient.BuildServiceUrl`, `SageBookingEndpoint` um zwei Felder erweitert,
+`SageLagerbuchungClientUrlTests` (neu, 4 Theorien), Doku (Spec/README/TESTSZENARIEN/Brain-
+Changelog/`integrationen.md`) nachgezogen.
+
+**Beweis Build:**
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)  (unveraendert: NU1902 MailKit/MimeKit + 1 CS8602 TrackingController)
+    0 Fehler(en)
+```
+
+**Beweis Tests:**
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1056, übersprungen: 1, gesamt: 1057
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  190, übersprungen: 0, gesamt:  190
+```
+Service-Zahl von 186 → 190 (+4 = die neuen `SageLagerbuchungClientUrlTests`). Web unveraendert.
+Gezielt: `ServiceSettingDefinitions`-Filter 42/42 gruen (Drift-Guard inkl. der zwei neuen Keys),
+`SageLagerbuchungClientUrlTests`-Filter 4/4 gruen.
+
+**Pruefpunkte (a-c) laut Auftrag:**
+- **(a) Katalog/Drift-Guard:** `SData:Application` (Default `"ol"`) und `SData:ServiceContract`
+  (Default `"CommonWawiServices"`) sind in `ServiceSettingDefinitions.All` eingetragen, Kategorie
+  „Sage-Lagerbuchung". `SageBookingWorker.ExecuteAsync` liest beide live per
+  `ServiceSettings.GetValueSafeAsync` mit denselben Katalog-Defaults als Fallback bei DB-Fehler.
+  `ServiceSettingDefinitionsTests` (Teil von 1056/1056) zeigt keinen Drift. **Korrekt.**
+- **(b) `BuildServiceUrl` exakte Discovery-URL:** `SageLagerbuchungClientUrlTests` prueft (1) exakte
+  Ziel-URL `https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/
+  LagerbuchungService`, (2) `;`/`$` bleiben literal (kein `%3B`/`%24`), (3) `new Uri(url).AbsoluteUri`
+  kodiert nicht nach — Beweis, dass auch die von `HttpRequestMessage` intern genutzte `Uri`-Pipeline
+  die sub-delims nicht anfasst, (4) Slash-Trimming zwischen Segmenten. Alle 4 gruen. `SendAsync`
+  validiert jetzt alle vier Segmente (`BaseUrl`/`Application`/`ServiceContract`/`Dataset`) statt nur
+  zwei. **Korrekt.**
+- **(c) Doku-Konsistenz — ueberwiegend erfuellt, 3 kleine Alt-Reste gefunden (nicht blockierend):**
+  Die tester-/betriebsrelevanten Dokumente sind vollstaendig auf die neue 4-Segment-URL umgestellt:
+  README, `docs/TESTSZENARIEN.md` Vorbedingungen, `ServiceSettingDefinitions`-Beschreibungstexte
+  (im UI sichtbar) und der Spec-Nachtrag „SData-URL-Zusammensetzung + Kodierung" (Abschnitt 6,
+  Zeilen 456-477) sind konsistent und korrekt. Drei **rein kosmetische** Alt-Referenzen mit der
+  fruehen 2-Segment-Form `{BaseUrl}/{Dataset}/$service/LagerbuchungService` blieben stehen:
+  1. `IDEALAKEWMSService/Services/ISageLagerbuchungClient.cs:21` — der XML-Doc-Kommentar auf dem
+     `SendAsync`-Interface widerspricht der (korrekten) 4-Segment-Form direkt darueber im selben
+     File (Zeilen 4-6). Empfehlung: Zeile 21 auf die 4-Segment-Form angleichen (Ein-Zeilen-Fix,
+     keine Logik-Aenderung).
+  2. `secondbrain/changelog/2026-08-03-v1-28-0-sage-lagerbuchungen.md:22` — fruehe Formulierung im
+     Bullet „Sende-Pfad (Service)"; wird durch den spaeteren, expliziten Bullet „SData-URL +
+     Kodierung (2026-08-03)" (Zeilen 42-48) bereits korrekt ueberschrieben/ergaenzt.
+  3. Spec Akzeptanzkriterium 4 (Zeile 251, `{{sdata_base_url}}/{{sdata_servicecontract}}/{{dataset}}`
+     — Postman-Variablennamen aus der urspruenglichen Spezifikation) wird durch den spaeteren
+     Nachtrag (Zeilen 456-477) bereits korrekt praezisiert.
+  Keiner der drei Punkte ist tester-facing (kein manueller Testschritt liest diese Zeilen), keiner
+  hat Code-/Logik-Auswirkung — daher **nicht blockierend**, aber als Nachbesserungshinweis fuer den
+  naechsten trivialen Commit festgehalten (insbesondere Punkt 1, da er im selben Code-File der
+  korrekten Version widerspricht).
+
+**Entscheidung: Testbereit (bestaetigt).** Build gruen, Tests gruen (1056+190, 1 uebersprungen),
+Drift-Guard gruen, `BuildServiceUrl` exakt gegen die Discovery-URL verifiziert, Kodierungs-Invariante
+(literal `;`/`$`) durch 4 Tests inkl. `Uri`-Pipeline-Beweis abgesichert. Drei kosmetische, nicht
+tester-facing Alt-Referenzen gefunden — dokumentiert, nicht blockierend. Status zurueck auf
+Testbereit.
+
+### Re-Verifikation QA (2026-08-04, nach 5 Commits f5dc4e0..7d9168d — /sdata-Dedup, Diagnose, TEST-Button)
+
+`git diff 3348f9d..HEAD` — 15 Dateien. Fuenf Commits seit der letzten Testbereit-Bestaetigung:
+`f5dc4e0` (mein Follow-up aus der Vorrunde erledigt — siehe unten), `ea68dfb` (`/sdata`-Verdopplung
+gefixt, UAT-Fund), `2a247cf` (Sage-Fehlerantwort sichtbar: 500-Body ins Log + `SageResponseRaw`
+aufklappbar in `/SageBookingQueue`), `8680892` (500/`GetSchema`-`MissingMethodException` als
+serverseitiger Sage-Defekt dokumentiert), `7d9168d` (neuer admin-only TEST-Button
+„Sage-Verbindung testen" auf `/ServiceSettings`, geteilter `SdataUrlBuilder`).
+
+**Beweis Build:**
+```
+> dotnet build IdealAkeWms.slnx -c Debug
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)  (unveraendert: NU1902 MailKit/MimeKit + 1 CS8602 TrackingController)
+    0 Fehler(en)
+```
+
+**Beweis Tests:**
+```
+> dotnet test IdealAkeWms.slnx -c Debug
+IdealAkeWms.Tests.dll        : Fehler: 0, erfolgreich: 1064, übersprungen: 1, gesamt: 1065
+IDEALAKEWMSService.Tests.dll : Fehler: 0, erfolgreich:  195, übersprungen: 0, gesamt:  195
+```
+Deckt sich exakt mit der Erwartung (Web 1056→1064 = +8 neue `SdataUrlBuilderTests`; Service
+190→195 = +5 neue `/sdata`-Toleranz-Theorien in `SageLagerbuchungClientUrlTests`). Gezielt:
+`ServiceSettingDefinitions`+`SdataUrlBuilder`-Filter **50/50 gruen** (Drift-Guard inkl.),
+`SageLagerbuchungClientUrlTests`-Filter **9/9 gruen**.
+
+**Follow-up aus der Vorrunde (drei kosmetische Alt-Referenzen) — alle drei erledigt:**
+1. `ISageLagerbuchungClient.cs:21` XML-Doc jetzt auf die 4-Segment-Form angeglichen (in `f5dc4e0`,
+   und im selben Commit `7d9168d` zusaetzlich auf `SdataUrlBuilder`-Delegation umformuliert).
+2. Brain-Changelog Zeile 22 auf „URL siehe SData-URL unten" umformuliert (kein Widerspruch mehr).
+3. Spec-Akzeptanzkriterium 4 auf die 4-Segment-Form + Verweis auf den Nachtrag umgestellt.
+
+**Pruefpunkte (a)-(d) laut Auftrag:**
+- **(a) `/sdata`-Dedup + literale Kodierung:** `SdataUrlBuilder.BuildResourceUrl` erkennt eine
+  BaseUrl, die bereits mit `/sdata` endet (`EndsWith("/" + SdataRoot, OrdinalIgnoreCase)`, inkl.
+  Trailing-Slash-Normalisierung davor) und strippt sie einmalig, statt sie zu verdoppeln.
+  `SdataUrlBuilderTests.BuildResourceUrl_DoesNotDoubleSdataRoot` (4 Varianten: ohne/mit Trailing-
+  Slash, mit/ohne `/sdata`) und `SageLagerbuchungClientUrlTests.BuildServiceUrl_DoesNotDoubleSdataRoot`
+  (5 Varianten, zusaetzlich Gross-/Kleinschreibung `/SData`) beide gruen. Literale `;`/`$`-Kodierung
+  unveraendert durch `BuildResourceUrl_Schema_KeepsDollarAndSemicolonLiteral` +
+  `SageLagerbuchungClientUrlTests` (Uri-Pipeline-Beweis) abgesichert. **Korrekt.**
+- **(b) Client delegiert korrekt:** `SageLagerbuchungClient.BuildServiceUrl` ist jetzt ein reiner
+  Einzeiler `=> SdataUrlBuilder.BuildLagerbuchungUrl(...)` — keine eigene Logik mehr, kein
+  Verhaltensdrift moeglich zwischen Web-Test und Service-Client (beide nutzen exakt denselben
+  Builder). `SageLagerbuchungClientUrlTests` bleiben unveraendert gruen (Regressionsschutz). **Korrekt.**
+- **(c) `TestSageConnection` GET-only/admin-only/Antiforgery/TLS:**
+  `[RequireAdminAccess]` auf Klassenebene (`ServiceSettingsController`), `[HttpPost]` +
+  `[ValidateAntiForgeryToken]` auf der Action (JS sendet den Token aus dem Formular), der eigentliche
+  Sonde-Request ist ein literales `HttpMethod.Get` — es existiert kein Code-Pfad, der daraus eine
+  Buchung machen koennte (kein `POST`, kein `SendAsync`/`SageLagerbuchungClient`-Aufruf, komplett
+  eigener `HttpClient`). TLS: JS liest den aktuellen `SageLagerbuchungSslZertifikatPruefen`-Wert aus
+  dem Formular und wendet dieselbe fail-safe-Regel an (`sslRaw.toLowerCase() !== 'false'`) wie
+  `SageTlsPolicy.ShouldVerifyCertificate`; Server setzt bei `verifyCertificate:false`
+  `HttpClientHandler.DangerousAcceptAnyServerCertificateValidator`, sonst Standard-Validierung.
+  Anmerkung (nicht blockierend): Der Server vertraut dem vom Client gesendeten Bool direkt, statt
+  serverseitig nochmal `SageTlsPolicy.ShouldVerifyCertificate` gegenzupruefen — unkritisch, da
+  admin-only reines Diagnose-Tool ohne Schreibwirkung, kein Effekt auf den produktiven Sende-Pfad
+  (dieser bleibt unveraendert `SageTlsPolicy`-gesteuert). **Korrekt / akzeptabel.**
+- **(d) Drift-Guard — keine neuen Keys:** `git diff` an `ServiceSettingDefinitions.cs` zeigt nur eine
+  Beschreibungstext-Aenderung an `SData:BaseUrl` (dokumentiert die neue `/sdata`-Toleranz), keinen
+  neuen Key. `SData:Application`/`SData:ServiceContract` waren bereits aus der Vorrunde katalogisiert.
+  **Korrekt.**
+
+**Doku/Testszenarien:**
+- TEST-Button dokumentiert in Spec (Nachtrag „Verbindungstest", Abschnitt 6), README (Betriebsdoku)
+  und Brain-Changelog sowie in der Anwender-Hilfeseite (`Views/Help/Changelog.cshtml`). **Vollstaendig.**
+- 500/`GetSchema`-Serverdefekt als Troubleshooting in `secondbrain/aufgaben/2026-08-03-deploy-...md`
+  festgehalten (inkl. Schnellprobe zur Bestaetigung „serverseitig"). **Vollstaendig.**
+- `docs/TESTSZENARIEN.md`/Index in diesem Diff **nicht** angefasst. Bewertung (wie angefragt): fuer
+  den TEST-Button **kein** eigenes TS-Kapitel zwingend, weil (1) er ein reines Admin-Diagnose-Tool
+  ohne fachliche Buchungswirkung ist (kein Business-Datenfluss, keine Persistenz), (2) seine
+  sicherheitsrelevanten Eigenschaften (admin-only, GET-only, nie eine Buchung) hier code-verifiziert
+  sind statt nur behauptet, und (3) er keine bestehende TS-56-Szenario verdeckt oder blockiert
+  (anders als der TLS-Schalter in einer fruaheren Runde, der TS-56.3/56.4 unbrauchbar gemacht haette
+  ohne Dokumentation). **Empfehlung (nicht blockierend):** ein optionales TS-56.14 fuer den
+  TEST-Button waere als Komfort-Absicherung sinnvoll (Vorbedingung: Rolle admin; Schritt: Button auf
+  `/ServiceSettings`, `$schema` testen; Erwartung: Status+Header+Body im Modal, kein Queue-Eintrag in
+  `/SageBookingQueue`) — kann im naechsten trivialen Doku-Commit nachgezogen werden.
+
+**Kontext Sende-UAT:** TS-56.3/56.4 (echte Buchung am Sage-Testsystem) sind aktuell **extern
+blockiert** durch einen serverseitigen Sage-/SData-Defekt (`CommonWawiServices.GetSchema` scheitert
+an einer `MissingMethodException` in der Lizenzvalidierung, reproduzierbar auch mit einem simplen
+`$schema`-Aufruf ausserhalb unseres Payloads — siehe Troubleshooting). Das ist **kein** Befund gegen
+unseren Code: URL, Kodierung, Auth und Payload sind durch Unit-Tests + den neuen Diagnose-Button
+verifizierbar korrekt aufgebaut; der Fehler tritt serverseitig auf, bevor unser Payload gelesen wird.
+Muss vom Sage-/DPS-Admin behoben werden, bevor TS-56.3/56.4/56.7/56.8 end-to-end abschliessbar sind.
+
+**Entscheidung: Testbereit (bestaetigt).** Build 0 Fehler, Tests 1064+195 gruen (1 uebersprungen),
+alle vier Pruefpunkte (a-d) verifiziert korrekt, alle drei Alt-Referenzen aus der Vorrunde erledigt,
+Doku vollstaendig (Spec/README/Brain-Changelog/Hilfeseite/Troubleshooting). Kein eigenes TS-Kapitel
+fuer den Diagnose-Button zwingend erforderlich (Begruendung oben), optional empfohlen. Status
+zurueck auf Testbereit — mit dem Hinweis, dass die eigentliche Sende-UAT (TS-56.3/56.4/56.7/56.8)
+extern durch einen Sage-seitigen Serverdefekt blockiert ist und nicht an unserem Code liegt.

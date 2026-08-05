@@ -111,6 +111,36 @@ schreiben ihren Service-Namen). Details: ADR `0003-auditableentity-als-entity-ba
 - *Service-Konfiguration*: neuer Key **immer** in `ServiceSettingDefinitions.All` (Drift-Guard-Test).
   Details: ADR `0008-servicesettings-db-first-mit-typisiertem-katalog`.
 
+**Das Brain wird NICHT verzweigt.** `secondbrain/` liegt zwar im Repo, gehoert aber nicht zum
+Zweig: Es beschreibt die Arbeit, statt Teil von ihr zu sein. Deshalb gilt bei jedem Worktree-Lauf
+eine harte Trennung der Schreibziele:
+- **In den Worktree** (Zweig-Inhalt): Anwendungscode, `SQL/`, `docs/`, Tests, Versions-Bump.
+- **Immer in den HAUPTCHECKOUT `C:\Git\IDEAL-AKE-WMS\secondbrain\`**: Spec-Aenderungen (Status,
+  worktree/branch, QA-Nachweis, Deploy-Abschnitt), Aufgaben-Notizen, codebase-Karte, Testindex,
+  changelog, ADRs.
+
+Grund: Das Obsidian des Menschen und das HOME-Dashboard zeigen auf den Hauptcheckout. Landen
+Statuswechsel im Worktree, ist das Cockpit genau waehrend der Arbeit blind, und ein verworfener
+Zweig nimmt das Wissen mit. Nebeneffekt: Brain-Merge-Konflikte koennen so gar nicht entstehen.
+
+`scripts/new-worktree.ps1` blendet `secondbrain/` per sparse-checkout aus dem Worktree aus. Ist
+dort wider Erwarten doch ein `secondbrain/`-Ordner sichtbar: NICHT hineinschreiben, sondern in den
+Hauptcheckout schreiben und den Fund melden.
+
+**Brain-Notizen sind Obsidian-Markdown.** Alles unter `secondbrain/` wird in Obsidian gelesen —
+daher gilt beim Schreiben von Notizen (Skill `obsidian-markdown` fuer Details):
+- Vault-interne Verweise **immer** als Wikilink `[[Notizname]]` (ohne Pfad, ohne `.md`), nie als
+  Pfad-String. Dataview verknuepft nur ueber echte Wikilinks — ein Pfad-String laesst das
+  HOME-Dashboard den Eintrag faelschlich als offen zeigen.
+- Wikilinks im **Frontmatter** in Anfuehrungszeichen: `source_backlog: "[[2026-07-28-foo]]"`
+  (sonst bricht YAML an den Klammern).
+- **Namenskollision vermeiden:** Specs enden auf `-spec`, Bug-Records auf `-bug`. Heissen Backlog-
+  Notiz und Spec gleich, loest der Wikilink auf die Spec selbst auf statt auf den Backlog-Eintrag.
+- Vault-Dateien **nicht** auf Dateisystem-Ebene umbenennen/verschieben, ohne die Wikilinks
+  nachzuziehen — Obsidians Auto-Update greift nur bei Aenderungen in der App.
+- Frontmatter valides YAML, externe Links als `[text](url)`, Hervorhebungen/Callouts nur wo sie
+  Inhalt tragen.
+
 **Sprachregel.** Code, Variablen, Klassen, Routen auf **Englisch**; UI-Texte auf **Deutsch**.
 Bestehende bewusste Asymmetrien zwischen Code- und UI-Namen nicht „aufraeumen" — sie sind im
 Glossar begruendet.

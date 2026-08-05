@@ -208,3 +208,30 @@ Domaenengeheimnisse gehoeren nicht in eine per UI editierbare Tabelle. Begruendu
 Die fachlichen Feature-Toggles der Web-App (`AppSettings`-Tabelle, `/Settings`) sind eine
 **andere** Gruppe — Liste in `../README.md` → „AppSettings", Konzept in
 [[0011-feature-toggles-ueber-appsettings]].
+
+## `SageBookingWorker` — vierter BackgroundService (v1.28.0)
+
+Neben `SyncWorker`, `NotificationWorker`, `CleanupWorker` ein **vierter**, unabhaengiger
+`BackgroundService` (`IDEALAKEWMSService/Program.cs`) — bewusst getrennt, weil er als einziger
+**sekundengetaktet** laeuft (die drei anderen sind minutenskaliert) und ein Sage-Ausfall bei den
+Buchungen die anderen Sync-Bloecke nicht ausbremsen darf. Verarbeitet die `SageBookingQueueItems`:
+Reconciliation-Sweep → Recovery haengender `Gesendet` (Sage-Memo-Lookup) → offene senden (`Gesendet`
+VOR dem HTTP-Call) → Fehler-Cap-Mail. Details [[integrationen]] / [[2026-07-29-sage-lagerbuchungen-spec]].
+
+**Neue ServiceSettings-Keys** (Kategorie „Sage-Lagerbuchung", DB-first): `SageLagerbuchungAktiv`
+(Bool, Default false), `SData:BaseUrl`, `SData:Dataset`, `Sync:SageLagerbuchungIntervalSeconds` (20),
+`Sync:SageLagerbuchungBatchSize` (50), `Sync:SageLagerbuchungMaxRetries` (5),
+`Sync:SageLagerbuchungMaxErrorsPerRun` (50), `Sync:SageLagerbuchungStuckMinutes` (10),
+`SageLagerbuchungSslZertifikatPruefen` (Bool, Default true — TLS-Zertifikatspruefung des Sage-Clients,
+nur fuer Testsysteme abschaltbar). Credentials appsettings-only (`SageLagerbuchung:Username/Password`).
+Neuer `SyncLogServices.SageLagerbuchung`.
+
+> **TLS-Schalter:** `SageLagerbuchungSslZertifikatPruefen` wirkt **nur** auf den
+> `ISageLagerbuchungClient` (`ConfigurePrimaryHttpMessageHandler`), kein globaler `ServicePointManager`.
+> Der Zertifikats-Callback liest den Wert **zur Laufzeit** (nicht bei DI-Registrierung) → Aenderung
+> ohne Dienst-Neustart. Fail-safe (`SageTlsPolicy.ShouldVerifyCertificate`): fehlend/unparsebar →
+> geprueft. Bei `false` Warnung im Worker-Start-Log + `/ServiceSettings` + `/SageBookingQueue`.
+
+> **Ein-Instanz-Voraussetzung:** Der Idempotenz-Baustein („Status auf `Gesendet` vor dem Call")
+> schuetzt nur bei **genau einer** laufenden Worker-Instanz — kein Doppel-Deploy/Failover auf
+> derselben Queue. Siehe [[fallstricke]].
