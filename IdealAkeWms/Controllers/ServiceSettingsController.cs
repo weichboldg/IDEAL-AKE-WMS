@@ -1,9 +1,13 @@
 using System.Globalization;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
 
@@ -70,6 +74,82 @@ public class ServiceSettingsController : Controller
 
         TempData["SuccessMessage"] = "Einstellungen gespeichert.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Eingabe des Sage-Verbindungstests (aktuelle Formularwerte, ggf. noch ungespeichert).</summary>
+    public class SageConnectionTestRequest
+    {
+        public string? BaseUrl { get; set; }
+        public string? Application { get; set; }
+        public string? ServiceContract { get; set; }
+        public string? Dataset { get; set; }
+        public bool VerifyCertificate { get; set; }
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        /// <summary>Relative SData-Resource, Default <c>$schema</c> (read-only Discovery).</summary>
+        public string? Resource { get; set; }
+    }
+
+    /// <summary>
+    /// Diagnose-Aufruf gegen die Sage-SData-API: baut die URL aus den (aktuellen) Konfig-Segmenten,
+    /// sendet einen <b>GET</b> (nebenwirkungsfrei — nie eine echte Buchung) mit Basic-Auth und dem
+    /// konfigurierten TLS-Verhalten, und liefert Status, Response-Header und Body als JSON zurueck.
+    /// Nur Admin (Controller-Attribut). Antwortet immer mit 200 + JSON, damit die UI Fehler anzeigen kann.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestSageConnection([FromBody] SageConnectionTestRequest req, CancellationToken ct)
+    {
+        req ??= new SageConnectionTestRequest();
+        var resource = string.IsNullOrWhiteSpace(req.Resource) ? "$schema" : req.Resource.Trim();
+        var url = SdataUrlBuilder.BuildResourceUrl(req.BaseUrl, req.Application, req.ServiceContract, req.Dataset, resource);
+
+        using var handler = new HttpClientHandler();
+        if (!req.VerifyCertificate)
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+        using var message = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!string.IsNullOrEmpty(req.Username) || !string.IsNullOrEmpty(req.Password))
+        {
+            var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{req.Username}:{req.Password}"));
+            message.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+        }
+
+        try
+        {
+            using var response = await client.SendAsync(message, HttpCompletionOption.ResponseContentRead, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            var headers = response.Headers.Concat(response.Content.Headers)
+                .Select(h => new { name = h.Key, value = string.Join(", ", h.Value) })
+                .ToList();
+
+            return Json(new
+            {
+                ok = response.IsSuccessStatusCode,
+                requestUrl = url,
+                sslVerify = req.VerifyCertificate,
+                status = (int)response.StatusCode,
+                reason = response.ReasonPhrase,
+                headers,
+                body = body.Length > 50000 ? body.Substring(0, 50000) + "\n… (gekuerzt)" : body,
+                error = (string?)null
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new
+            {
+                ok = false,
+                requestUrl = url,
+                sslVerify = req.VerifyCertificate,
+                status = 0,
+                reason = (string?)null,
+                headers = Array.Empty<object>(),
+                body = (string?)null,
+                error = ex.Message
+            });
+        }
     }
 
     private async Task<ServiceSettingsViewModel> BuildViewModelAsync()

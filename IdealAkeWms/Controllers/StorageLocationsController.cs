@@ -36,6 +36,7 @@ public class StorageLocationsController : Controller
         ["type"] = l => l.IsPickingTransport ? "Wagen" : "",
         ["source"] = l => l.Source == StorageLocationSource.Sage ? "Sage" : "Manuell",
         ["bookable"] = l => l.IstBuchbar ? "Ja" : "Nein",
+        ["sage-buchung"] = l => l.SageBuchungErlaubt ? "Ja" : "Nein",
         ["is-active"] = l => l.IsActive ? "Ja" : "Nein",
         ["created-at"] = l => l.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
     };
@@ -129,6 +130,7 @@ public class StorageLocationsController : Controller
             existing.Capacity = location.Capacity;
             existing.IsPickingTransport = location.IsPickingTransport;
             existing.IstBuchbar = location.IstBuchbar;       // user-controlled, auch fuer Sage
+            existing.SageBuchungErlaubt = location.SageBuchungErlaubt; // user-controlled Opt-in
             // IsActive ist Sync-kontrolliert: NICHT aus dem POST uebernehmen.
         }
         else
@@ -140,6 +142,7 @@ public class StorageLocationsController : Controller
             existing.IsPickingTransport = location.IsPickingTransport;
             existing.IsActive = location.IsActive;
             existing.IstBuchbar = location.IstBuchbar;       // user-controlled
+            existing.SageBuchungErlaubt = location.SageBuchungErlaubt; // user-controlled Opt-in
             existing.BarcodeValue = location.Code; // BarcodeValue aktualisieren
         }
 

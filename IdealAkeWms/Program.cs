@@ -66,7 +66,10 @@ builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
 builder.Services.AddScoped<IProductionWorkplaceRepository, ProductionWorkplaceRepository>();
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
 builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
-builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+// Sage-Lagerbuchungen: Enqueue-Decorator (Subclassing) auf IStockMovementRepository.
+// Bei deaktiviertem Toggle reiner Pass-through (bit-identisches Verhalten, S7).
+builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
+builder.Services.AddScoped<IStockMovementRepository, SageBookingEnqueueingStockMovementRepository>();
 builder.Services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
 builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
 builder.Services.AddScoped<IProductionOrderBdeStatusRepository, ProductionOrderBdeStatusRepository>();

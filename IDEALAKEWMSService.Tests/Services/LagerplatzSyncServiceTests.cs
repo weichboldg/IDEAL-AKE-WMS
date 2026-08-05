@@ -86,6 +86,8 @@ public class LagerplatzSyncServiceTests
         {
             Code = "A-01-01", Zone = "HALLE-1", Description = "Regal A1",
             BarcodeValue = "A-01-01", Source = StorageLocationSource.Sage, IsActive = true,
+            // Sage-Referenzfelder bereits gesetzt (= Code, PlatzId null): echtes No-Diff.
+            SageLagerkennung = "A-01-01", SageLagerplatzId = null,
             CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = SyncUser_For_Tests, CreatedByWindows = "x"
         };
         ctx.StorageLocations.Add(original);

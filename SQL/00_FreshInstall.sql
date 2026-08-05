@@ -118,6 +118,9 @@ BEGIN
         [Source]            NVARCHAR(20)      NOT NULL DEFAULT 'Manual',
         [IsActive]          BIT               NOT NULL DEFAULT 1,
         [IstBuchbar]        BIT               NOT NULL DEFAULT 1,
+        [SageBuchungErlaubt] BIT              NOT NULL DEFAULT 0,
+        [SageLagerkennung]  NVARCHAR(50)      NULL,
+        [SageLagerplatzId]  INT               NULL,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -188,6 +191,35 @@ BEGIN
         CONSTRAINT [FK_StockMovements_User] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id])
     );
     PRINT 'Tabelle StockMovements erstellt.';
+END
+GO
+
+-- =============================================
+-- 6b. SageBookingQueueItems (ausgehende Sage-Lagerbuchungen, Migration 83)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SageBookingQueueItems')
+BEGIN
+    CREATE TABLE [dbo].[SageBookingQueueItems] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [StockMovementId]   INT               NOT NULL,
+        [Status]            INT               NOT NULL,  -- 0=Offen, 1=Gesendet, 2=Bestaetigt, 3=Fehler
+        [AttemptCount]      INT               NOT NULL,
+        [LastAttemptAt]     DATETIME2         NULL,
+        [LastError]         NVARCHAR(2000)    NULL,
+        [SageResponseRaw]   NVARCHAR(MAX)     NULL,
+        [SentAt]            DATETIME2         NULL,
+        [ConfirmedAt]       DATETIME2         NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_SageBookingQueueItems] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_SageBookingQueueItems_StockMovements_StockMovementId]
+            FOREIGN KEY ([StockMovementId]) REFERENCES [dbo].[StockMovements]([Id])
+    );
+    PRINT 'Tabelle SageBookingQueueItems erstellt.';
 END
 GO
 
@@ -1047,6 +1079,10 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_Timesta
     CREATE NONCLUSTERED INDEX [IX_StockMovements_Timestamp] ON [dbo].[StockMovements]([Timestamp]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_SourceStorageLocationId')
     CREATE NONCLUSTERED INDEX [IX_StockMovements_SourceStorageLocationId] ON [dbo].[StockMovements]([SourceStorageLocationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_Status')
+    CREATE NONCLUSTERED INDEX [IX_SageBookingQueueItems_Status] ON [dbo].[SageBookingQueueItems]([Status]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_StockMovementId')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId] ON [dbo].[SageBookingQueueItems]([StockMovementId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsActive')
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
@@ -2143,6 +2179,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707140249_AddProductionOrderCancellation', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260722132805_AddProductionOrderExtraInfo')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260722132805_AddProductionOrderExtraInfo', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803104055_AddStorageLocationSageLagerbuchung')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803104055_AddStorageLocationSageLagerbuchung', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803112322_AddSageBookingQueue')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803112322_AddSageBookingQueue', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

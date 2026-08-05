@@ -37,6 +37,17 @@
                         <span asp-validation-for="Capacity" class="text-danger"></span>
                     </div>
 
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input asp-for="SageBuchungErlaubt" class="form-check-input" type="checkbox" role="switch" />
+                            <label asp-for="SageBuchungErlaubt" class="form-check-label">An Sage melden</label>
+                        </div>
+                        <small class="form-text text-muted">
+                            Greift nur bei Sage-synchronisierten Plätzen (mit Sage-Lagerkennung) und nur, wenn der
+                            globale Schalter unter <em>Service-Einstellungen</em> aktiv ist.
+                        </small>
+                    </div>
+
                     <div class="mb-3 form-check">
                         <input asp-for="IsPickingTransport" class="form-check-input" />
                         <label asp-for="IsPickingTransport" class="form-check-label"></label>

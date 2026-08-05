@@ -5862,5 +5862,93 @@ schliesst der naechste Lauf erneut.)
 
 ---
 
-*Ende des Dokuments. Stand: v1.26.0 (2026-07-22)*
+## Kapitel 56: Sage-Lagerbuchungen (ausgehend, WMS → Sage via SData) (v1.28.0)
+
+**Kontext:** Manuelle Ein-/Ausbuchungen im WMS werden über eine Queue asynchron an die
+Sage-SData-API gemeldet. Gating kumulativ: globaler ServiceSetting `SageLagerbuchungAktiv` **und**
+Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker` (eigener Kurztakt).
+**Der HTTP-/SData-Sende-Pfad ist nicht InMemory-testbar → echte Buchung am Sage-Testsystem
+(Manual-UAT).** Automatisiert abgedeckt sind nur `SageLagerbuchungPayloadBuilder`,
+`SageBookingEnqueueDecision`, der Enqueue-Decorator (InMemory) und `SageBookingCorrelation`.
+
+**Vorbedingungen (einmalig):**
+- Migration 82/83 eingespielt (`StorageLocations.SageBuchungErlaubt/SageLagerkennung/SageLagerplatzId`,
+  Tabelle `SageBookingQueueItems`).
+- `IDEALAKEWMSService/appsettings.json` → Block `SageLagerbuchung:Username/Password` am Server gesetzt.
+- `/ServiceSettings` → `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`),
+  `SData:Application` (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`),
+  `SData:Dataset` (Mandant, z.B. `ake_TEST2026;1`) gesetzt; `SageLagerbuchungAktiv` zunächst aus.
+  Ziel-URL = `{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`
+  (Semikolon im Dataset und `$` der Resource bleiben literal — nicht kodieren).
+- Lagerplatz-Sync (`Sync:LagerplaetzeEnabled`) mindestens einmal gelaufen, damit Sage-Plätze
+  `SageLagerkennung` (= Code) und `SageLagerplatzId` (= `KHKLagerplaetze.PlatzID`) tragen.
+- **TLS am Testsystem:** `sagetest01.ake.at` hat aktuell ein ungültiges Zertifikat (`PartialChain`,
+  interne PKI unfertig). Für die Sende-Szenarien (TS-56.3/56.4/56.7/56.8) am Testsystem daher
+  `/ServiceSettings` → `SageLagerbuchungSslZertifikatPruefen=false` setzen — sonst scheitert der
+  SData-POST an einem TLS-Fehler (`SageResponseRaw`/`LastError` zeigen den Zertifikatsfehler). Siehe
+  TS-56.12. **Vor Produktivgang zwingend wieder `true`** (TS-56.13).
+
+- **TS-56.1 — Globaler Toggle aus, Lagerplatz-Flag an: keine Buchung.** Vorbedingung:
+  `SageLagerbuchungAktiv=false`, Ziel-Lagerplatz `SageBuchungErlaubt=true`. Schritt: manuelle
+  Einbuchung. Erwartung: **kein** Eintrag in `/SageBookingQueue`.
+- **TS-56.2 — Globaler Toggle an, Lagerplatz-Flag aus: keine Buchung.** Spiegelbildlich zu 56.1.
+- **TS-56.3 — Beide an: Einbuchung durchläuft offen → gesendet → bestätigt.** Vorbedingung:
+  Sage-Testsystem erreichbar, gültige Credentials. Schritt: Einbuchung, Worker-Tick abwarten
+  (`Sync:SageLagerbuchungIntervalSeconds`). Erwartung: Eintrag wird `Bestätigt`; Buchung im
+  Sage-Testsystem als **Zugang** sichtbar (echte Buchung, Manual-UAT).
+- **TS-56.4 — Ausbuchung spiegelbildlich.** Wie 56.3, Sage-Buchung als **Entnahme**, Herkunft/Ziel
+  vertauscht.
+- **TS-56.5 — Sage-Korrektur erzeugt keinen Ping-Pong.** Vorbedingung: `LagerbestandSyncService`
+  aktiv, erzeugt `SageEinbuchung`/`SageAusbuchung`. Erwartung: **kein** Queue-Eintrag dafür, auch
+  bei beiden Toggles an (Feedback-Loop-Schutz, AK6 — automatisiert im Enqueue-Decorator-Test).
+- **TS-56.6 — Fehlende Sage-Referenz (Konfigurationsfehler).** Vorbedingung: `SageBuchungErlaubt=true`
+  auf einem **manuellen** Lagerplatz (ohne `SageLagerkennung`/`SageLagerplatzId`). Erwartung:
+  Queue-Eintrag landet auf **Fehler** mit sprechender Meldung; Worker läuft weiter (kein Absturz);
+  Folgeeinträge werden verarbeitet (AK9).
+- **TS-56.7 — Timeout/Doppelbuchungs-Schutz.** Vorbedingung: Sende-Timeout simulieren (Netzwerk kurz
+  kappen). Erwartung: Status bleibt `Gesendet`; beim nächsten Tick **kein** zweiter Blind-Send —
+  der Recovery-Pfad prüft per Sage-Memo-Lookup (`KHKLagerplatzbuchungen`), ob die Buchung existiert
+  (AK10, B2). **Dev-Lauf-Verifikation:** exakte Korrelationsspalte (`Memo` vs. `Referenz`) am
+  Testsystem bestätigen; ggf. eine Zeile in `SageBuchungLookupReader` umstellen.
+- **TS-56.8 — Requeue eines Fehler-Eintrags.** Schritt: einen `Fehler`-Eintrag in `/SageBookingQueue`
+  über „Erneut senden" (Rolle `stock_keyuser`) einreihen. Erwartung: Status wird `Offen`, Worker
+  prüft vor dem Senden per Memo-Lookup; existiert die Buchung in Sage bereits → `Bestätigt` (kein
+  zweites Buchen), sonst wird gesendet.
+- **TS-56.9 — Reconciliation-Sweep.** Vorbedingung: eine Ein-/Ausbuchung auf Sage-freigegebenem
+  Platz ohne Queue-Eintrag (Enqueue-Fehler simulieren, z. B. während eines DB-Aussetzers). Erwartung:
+  Der Worker reiht sie im Rückblickfenster (15 Min) nachträglich ein und sendet sie (B4).
+- **TS-56.10 — Aktivitäts-Protokoll.** Nach einem Lauf `/SyncLog` öffnen. Erwartung: Lauf
+  „SageLagerbuchung" mit Counts `gesendet`/`bestätigt`/`fehler`/`nacherfasst`/`uebersprungen`.
+- **TS-56.11 — Regression bei Toggle aus (S7).** Vorbedingung: `SageLagerbuchungAktiv=false`.
+  Erwartung: Ein-/Aus-/Umbuchung, Bestand, Historie, Kommissionierung verhalten sich **exakt** wie
+  vor dem Update (der Decorator ist reiner Pass-through) — automatisiert im Enqueue-Decorator-Test,
+  manuell stichprobenartig gegengeprüft.
+- **TS-56.12 — TLS-Zertifikatsschalter (Testsystem, v1.28.0).** Der Schalter
+  `SageLagerbuchungSslZertifikatPruefen` (`/ServiceSettings`, Default `true`) wirkt **nur** auf den
+  Sage-Lagerbuchungs-Client. Schritte/Erwartung:
+  - **a) Aus → Buchung läuft:** `SageLagerbuchungSslZertifikatPruefen=false` setzen, dann TS-56.3
+    wiederholen. Erwartung: Der SData-POST an `sagetest01.ake.at` (ungültiges Zertifikat) läuft nun
+    durch (`Bestätigt`), obwohl das Zertifikat ungültig ist.
+  - **b) Sichtbarkeit bei aus:** Der Warnhinweis erscheint an **drei** Stellen — Worker-Start-Log
+    („TLS-Zertifikatsprüfung … ist DEAKTIVIERT"), `/ServiceSettings` (Warn-Box am Eintrag) und
+    `/SageBookingQueue` (Warn-Banner oben). Kein stilles Kästchen.
+  - **c) An → greift ohne Neustart:** Schalter wieder auf `true` setzen (Dienst **nicht** neu starten),
+    erneut buchen. Erwartung: Der nächste Sende-Versuch scheitert wieder am Zertifikatsfehler
+    (`LastError`/`SageResponseRaw`) — die Änderung greift zur Laufzeit (spätestens mit einer neuen
+    Verbindung). Negativfall: fehlt der Wert oder ist er unparsebar, wird **geprüft** (fail-safe).
+- **TS-56.13 — Vor Produktivgang.** Prüfen, dass `SageLagerbuchungSslZertifikatPruefen` auf **`true`**
+  steht (und kein Warnhinweis mehr erscheint), bevor gegen das Produktiv-Sage gebucht wird.
+
+**Negativ/Regression:**
+- Ein Fehler im Sende-Pfad (Sage nicht erreichbar) stoppt die übrigen Worker/Sync-Blöcke NICHT
+  (eigener Worker, isolierte Kapselung) und löst bei Überschreitung von
+  `Sync:SageLagerbuchungMaxErrorsPerRun` eine Fehlermail aus.
+- Nach `Sync:SageLagerbuchungMaxRetries` automatischen Fehlversuchen bleibt der Eintrag auf `Fehler`
+  und wird erst durch manuelles Requeue erneut versucht.
+- **Ein-Instanz-Voraussetzung:** Der Idempotenz-Baustein schützt nur bei **genau einer** laufenden
+  `SageBookingWorker`-Instanz (kein Doppel-Deploy/Failover auf derselben Queue).
+
+---
+
+*Ende des Dokuments. Stand: v1.28.0 (2026-08-03)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

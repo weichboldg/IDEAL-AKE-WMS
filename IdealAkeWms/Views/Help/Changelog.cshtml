@@ -9,6 +9,37 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.28.0</strong> <span class="text-white-50 ms-2">03.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lagerbuchungen an Sage melden (Material Zugang/Entnahme)</h6>
+                <ul>
+                    <li><strong>Neu:</strong> Manuelle <strong>Ein- und Ausbuchungen</strong> im WMS können
+                        automatisch und zeitnah an Sage gemeldet werden, damit Sage den echten
+                        Lagerbestand ohne manuellen Zwischenschritt kennt.</li>
+                    <li><strong>Zwei Schalter, beide nötig (UND):</strong> ein globaler Schalter unter
+                        <em>Service-Einstellungen</em> (<code>Sage-Lagerbuchung</code>) und je Lagerplatz
+                        das neue Feld <strong>„Sage-Buchung erlaubt"</strong> (Stammdaten &rarr;
+                        Lagerplätze). Erst wenn beide aktiv sind, wird gemeldet.</li>
+                    <li><strong>Neue Übersicht:</strong> Unter <em>Lager &rarr; Sage-Lagerbuchungen</em>
+                        sind alle Meldungen mit Status (offen/gesendet/bestätigt/Fehler) nachvollziehbar.
+                        Fehlgeschlagene Meldungen lassen sich <strong>erneut einreihen</strong> &mdash;
+                        der Dienst prüft dabei vorher in Sage, ob die Buchung dort schon existiert
+                        (keine Doppelbuchung).</li>
+                    <li><strong>Sicher gebaut:</strong> Umbuchungen und Sage-eigene Korrekturbuchungen
+                        werden bewusst nicht gemeldet; ein Fehler beim Senden führt nie zu einer
+                        automatischen Doppelbuchung.</li>
+                    <li><strong>Für Admins:</strong> Standardmäßig ist alles aus. Nach dem Update unter
+                        <em>Service-Einstellungen</em> die Sage-Zugangsdaten/URL setzen und den Schalter
+                        sowie die gewünschten Lagerplätze aktivieren. Ein Button
+                        <strong>„Sage-Verbindung testen"</strong> prüft dort URL, TLS und Anmeldung
+                        (zeigt Status, Header und Antwort) &mdash; ohne eine echte Buchung anzulegen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.27.0</strong> <span class="text-white-50 ms-2">28.07.2026</span>
             </div>
             <div class="card-body">
