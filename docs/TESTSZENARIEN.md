@@ -65,7 +65,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.5 (TS-43.5 v1.30.0 Teil 8: personalisierter Default-Filter Bezeichnung 1) |
 | Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0) | [→](#kapitel-44-fa-ag-erkennung--bom-cache--protokoll-aufgliederung-v1230) | TS-44.1 – TS-44.3 |
 | Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0) | [→](#kapitel-45-fa-vorbau-3-wert-status--beschichtungstermin--enter-spaltenfilter-v1240) | TS-45.1 – TS-45.6 |
-| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.13 (TS-46.9 – TS-46.13 v1.30.0 Teil 7: Kommentar + DUMMY-Artikel) |
+| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.14 (TS-46.9 – TS-46.14 v1.30.0 Teil 7: Kommentar + DUMMY-Artikel, TS-46.14 UAT-Fix-Regression) |
 | Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0) | [→](#kapitel-47-service-resilienz--fehlermail--productionorders-515-fix-v1250) | TS-47.1 – TS-47.3 |
 | Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0) | [→](#kapitel-48-rolle-stockread-read-only-lagerbestand--fa-listestückliste-fuer-vorbau-v1250) | TS-48.1 – TS-48.2 |
 | Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0) | [→](#kapitel-49-hauptlagerplatz-am-artikel-v1250) | — |
@@ -5635,6 +5635,28 @@ existiert genau einmal). EK-Nummer, die nicht existiert.
 1. In einer **Glas**-Bestellung eine DUMMY-Position anlegen (eigene Bezeichnung).
    - **Erwartet:** anlegbar, **kein** "gehoert in die Lager-Bestellung"-Fehler (Glas-Artikelgruppen-
      Pruefung wird fuer den DUMMY-Schluessel umgangen).
+
+### TS-46.14 DUMMY ist NICHT ueber die reguläre Artikelsuche waehlbar (Regression, UAT-Fix v1.30.0)
+**Vorbedingung:** wie TS-46.11. **Hintergrund:** Beim UAT liess sich der DUMMY (NULL-Artikelgruppe,
+fuer den Typ `Lager` bislang als erlaubt durchgelassen) ueber die normale Artikelsuche waehlen und
+mit der ungeaenderten Default-Bezeichnung hinzufuegen — die Pflicht-Ueberschreibung wurde damit
+umgangen. Fix in `ArticlesApiController.Search` (DUMMY in beiden Such-Zweigen ausgeschlossen) +
+`WarehouseRequisitionsApiController.AddItem` (lehnt den DUMMY-Schluessel zusaetzlich am normalen
+Add-Pfad ab, defense in depth).
+1. Im Lager-Draft im Artikelsuchfeld gezielt nach `DUMMY` suchen (Artikelnummer oder Teil der
+   Default-Bezeichnung).
+   - **Erwartet:** **0** Treffer — es erscheint der „Kein Artikel gefunden"-Block mit
+     Pflicht-Bezeichnungsfeld und Button „DUMMY-Position anlegen" (**nicht** ein anklickbarer
+     DUMMY-Treffer aus der Ergebnisliste).
+2. Dasselbe in einem **Glas**-Draft wiederholen.
+   - **Erwartet:** ebenfalls 0 Treffer, gleicher „nicht gefunden"-Block.
+3. **Negativfall (API direkt, Absicherung):** `POST /api/warehouserequisitions/{id}/items` direkt
+   mit `articleNumber = "DUMMY"` aufrufen (z. B. per Browser-Devtools/Postman), **ohne** den
+   `.../items/dummy`-Endpunkt zu verwenden.
+   - **Erwartet:** `400 Bad Request` („Der DUMMY-Artikel kann nur über 'Artikel nicht gefunden →
+     DUMMY-Position' mit eigener Bezeichnung angelegt werden."), **keine** Position wird angelegt.
+4. Regulaere Artikel (Nicht-DUMMY) weiterhin ueber Suche + normalen Add-Pfad hinzufuegen.
+   - **Erwartet:** unveraendert moeglich (Fix ist eng auf den DUMMY-Schluessel begrenzt).
 
 ## Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0)
 
