@@ -487,3 +487,21 @@ Spaltenfilter-Col-Key `description1`, Query-Key `colf_description1` (verifiziert
 Status bleibt **Entwurf**; „## Freigabe-Antworten" (Schranke 1, Mensch) unverändert.
 
 **BEREIT ZUR FREIGABE**
+
+## Nachtrag nach Umsetzung (2026-08-06, Nutzer-Feedback)
+
+Der Mensch hat nach der Umsetzung ergänzt (Notiz in [[2026-08-05-deploy-wms-bugs-teil-4-8]]): der
+`DefaultFilterFaWorklistDescription1` (FA-Abarbeitungsliste) bleibt **unverändert**; zusätzlich soll
+für die **Stückliste (BOM)** ein analoger Default-Filter auf „Bezeichnung 1" existieren.
+
+**Umgesetzt** (kombinierter Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`):
+- Neues Feld `User.DefaultFilterBomDescription1` (`nvarchar(200)`), **Migration 87**
+  (`20260806105617_AddUserDefaultFilterBomDescription1`) + `SQL/87_*.sql` + FreshInstall (Spalte +
+  MigrationId).
+- Editierbar in `/Account/Profile` und `UsersController` (Create/Edit); `ProfileViewModel` +
+  `UserEditViewModel` + Views ergänzt.
+- `PickingController` reicht den Wert an `BomViewModel.DefaultFilterBomDescription1` durch;
+  `Views/Picking/Bom.cshtml` belegt beim Öffnen per `window.setColumnFilter('description1', …)` vor.
+  **BOM ist Client-Mode** (dokumentierte Ausnahme von ADR 0005) → kein Redirect/Sentinel nötig,
+  einfacher als der Server-Mode-FaWorklist-Filter. Beide Default-Filter sind getrennte Felder.
+- Testszenario TS-5.10. Build grün (Web 1092/1 skip, Service 197).

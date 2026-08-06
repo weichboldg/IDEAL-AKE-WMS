@@ -318,3 +318,25 @@ Die Nachbesserung aus „Kritische Pruefung" ist eingearbeitet — die Spec ist 
 
 **BEREIT ZUR FREIGABE** (Schranke 1 durch den Menschen — der `status` bleibt bewusst auf `Entwurf`,
 der Freigabe-Antworten-Block ist unverändert).
+
+## Korrektur nach Umsetzung (2026-08-06, Nutzer-Feedback)
+
+Der Mensch hat nach der Umsetzung entschieden, die Spaltenfilter **nicht zu entfernen**, sondern
+**funktionsfähig** zu machen (Notiz in [[2026-08-05-deploy-wms-bugs-teil-4-8]]: „bitte Filter wieder
+einfügen, aber korrekt. die funktionalität muss gegeben sein."; auf Rückfrage: **„Bewegungsart und
+Datum"**). Damit ist die ursprüngliche Lösungsentscheidung („die drei Filter entfernen") überholt.
+
+**Neue, umgesetzte Lösung** (auf dem kombinierten Branch
+`feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`):
+- `ApplyMovementColumnFilter` bekam echte Handler:
+  - `movement-type`: matcht den deutschen Anzeigenamen (Contains) → `MovementType`-`IN`.
+  - `datetime`: Tag/Monat/Jahr als Zeitraum (OR über Tokens via Expression-Combiner), SQL-seitig,
+    negierbar.
+  - `quantity`/„Menge": **kein** Text-Filter (bewusst — Nutzer-Wahl „Bewegungsart und Datum").
+- `Index.cshtml`: `data-filterable data-col-key` für `datetime` + `movement-type` wieder gesetzt;
+  „Menge" bleibt ohne Filter.
+- Tests: `StockMovementRepositoryMovementFilterTests` (7). Testszenario TS-2.26 auf das funktionale
+  Verhalten umgeschrieben. Bug-Record entsprechend aktualisiert.
+
+Die S2-Folge-Aufgabe ([[2026-08-06-audit-server-spaltenfilter-noop]]) bleibt gültig: das Muster
+„`th` als filterbar markiert, aber kein Handler" ist projektweit zu prüfen.

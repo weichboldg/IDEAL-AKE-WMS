@@ -28,15 +28,16 @@ den Test"). **Teil 6 ist ausgeschlossen** — Freigabe-Antworten unbeantwortet, 
 - [ ] `data-filterable`/`data-col-key` an `<th>` fuer `datetime`, `quantity`, `movement-type` in
       `StockMovements/Index.cshtml` entfernen
 - [ ] Folge-Aufgabe „Klassen-Audit andere Server-Spaltenfilter-Tabellen" notieren
-
+=> bitte Filter wieder einfüguen, aber korrekt. die funktionalität muss gegeben sein.
 ## Teil 5 — Standardmenge 1
-- [ ] `Quantity = 1` im Objekt-Initializer der `Inbound()`-GET-Action (NICHT am ViewModel-Property)
+- [x] `Quantity = 1` im Objekt-Initializer der `Inbound()`-GET-Action (NICHT am ViewModel-Property)
 
 ## Teil 8 — Default-Filter Bezeichnung 1
-- [ ] `User.DefaultFilterFaWorklistDescription1` (`string?`, StringLength 200) + Migration 84 + FreshInstall
-- [ ] Profile (GET/POST) + UsersController (GET/POST) + Views laden/speichern
-- [ ] `FaWorklistController.Index`: Redirect-mit-Parameter (`colf_description1` + Sentinel `df1=1`)
-
+- [x] `User.DefaultFilterFaWorklistDescription1` (`string?`, StringLength 200) + Migration 84 + FreshInstall
+- [x] Profile (GET/POST) + UsersController (GET/POST) + Views laden/speichern
+- [x] `FaWorklistController.Index`: Redirect-mit-Parameter (`colf_description1` + Sentinel `df1=1`)
+=> hier gab es ein missverständnis, der DefaultFilterFaWorklistDescription1 kann erhalten bleiben.
+=> bitte für die BOM noch einen DefaultFilterBomDescription1 erstellen, dieser muss in der bom die artikelbeschreibung 1 filtern. 
 ## Teil 7 — Kommentar + DUMMY
 Phase A (Kommentar):
 - [ ] `WarehouseRequisition.Comment` (`string?`, 1000) + Migration 85 + FreshInstall
@@ -48,7 +49,7 @@ Phase B (DUMMY):
 - [ ] `Article.DummyArticleNumber = "DUMMY"` + Default-Seed-Bezeichnung als Konstante
 - [ ] „nicht gefunden"-UX + `POST .../items/dummy` (Pflicht-Bezeichnung, != Default)
 - [ ] Duplikat-Guard fuer DUMMY ueberspringen, Glas-Guard umgehen
-
+=> dummy artikel wurde nicht geseedet?
 ## Abschluss
 - [x] docs/TESTSZENARIEN.md (TS-2.26-2.31, TS-43.5, TS-46.9-46.13) + secondbrain/tests/testszenarien-index.md
 - [x] Version-Bump v1.30.0 (beide AppVersion.cs) + Changelog.cshtml + Brain-Changelog
@@ -64,3 +65,27 @@ Migrationen: 84 (User-Default-Filter), 85 (Bestellung-Kommentar), Seed 86 (DUMMY
 Version **v1.30.0** (bewusst nach v1.29.0 Teil 1-3, Merge-Reihenfolge beachten).
 Offen: **Schranke 2** (Mensch: Manual-UAT je Teil, dann Merge; SQL 84/85/86 vor Publish, Service-Publish
 wegen Teil-7-Mail). Worktree/Branch bleiben stehen.
+
+## Korrekturen aus Nutzer-Feedback (2026-08-06)
+
+Umgesetzt auf dem **kombinierten Test-Branch** `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(nicht mehr im 4-8-Worktree — der 4-8-Branch ist dort bereits eingemergt, dort wird getestet):
+
+- **Teil 4 → „Filter wieder einfügen, aber funktionsfähig":** Statt die No-Op-Filter zu entfernen,
+  echte Server-Handler in `ApplyMovementColumnFilter` ergänzt. **Bewegungsart** (matcht deutschen
+  Anzeigenamen → Enum-`IN`) und **Datum/Zeit** (Tag `dd.MM.yyyy` / Monat `MM.yyyy` / Jahr `yyyy` als
+  Zeitraum, OR über Tokens via Expression-Combiner) funktionieren jetzt. **Menge** bewusst ohne
+  Text-Filter (kein sinnvoller Handler; Nutzer-Wahl „Bewegungsart und Datum"). `th`-Marker wieder
+  gesetzt. 7 Repo-Tests. Spec-/Bug-Record/Changelog/TS-2.26 angepasst.
+- **Teil 8 → „für die BOM einen DefaultFilterBomDescription1":** `DefaultFilterFaWorklistDescription1`
+  bleibt. Neu `User.DefaultFilterBomDescription1` (**Migration 87** + `SQL/87` + FreshInstall) +
+  Profile/Admin + `PickingController`→`BomViewModel`; `Bom.cshtml` belegt per
+  `window.setColumnFilter('description1', …)` beim Öffnen vor (Client-Mode, wie Artikelgruppe). TS-5.10.
+- **Teil 7 → „DUMMY-Artikel wurde nicht geseedet?":** Kein Code-Bug. Die App wendet beim Start nur
+  **EF-Migrationen** an (`db.Database.Migrate()`); `SQL/86_SeedDummyArticle.sql` ist ein **reiner
+  Daten-Seed (keine EF-Migration)** und läuft daher **nicht** automatisch. Auf bestehender DB
+  `SQL/86` **einmal manuell** ausführen (bei Frisch-Install via `00_FreshInstall.sql` enthalten).
+  Seed + FreshInstall-Verankerung sind korrekt (alle NOT-NULL-Spalten bedient).
+
+Build nach Korrekturen: Web **1092 passed / 1 skipped**, Service **197 passed**. Migration **87**
+zusätzlich. Weiterhin **Schranke 2** offen.

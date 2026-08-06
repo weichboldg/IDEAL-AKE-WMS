@@ -5,7 +5,7 @@ status: behoben-testbereit
 severity: mittel
 created: 2026-08-05
 fixed: 2026-08-06
-fixed_in: "v1.30.0 (Teil 4), Branch feature/2026-08-05-wms-bugs-improvements-4-8 — Testbereit, Schranke 2 offen"
+fixed_in: "v1.30.0 (Teil 4), kombinierter Branch feature/2026-08-05-wms-bugs-improvements-teil-1-2-3 — Testbereit, Schranke 2 offen. FIX (nach Nutzer-Feedback): Bewegungsart- + Datum-Spaltenfilter in ApplyMovementColumnFilter funktionsfaehig gemacht (Enum-Name-Match bzw. Tag/Monat/Jahr-Zeitraum) statt entfernt; Menge bleibt ohne Text-Filter."
 affected_code:
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs (ApplyMovementColumnFilter, Zeilen 507-537)
   - IdealAkeWms/Views/StockMovements/Index.cshtml (Tabellen-Header, Zeilen 70-81)
