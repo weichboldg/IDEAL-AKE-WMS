@@ -114,13 +114,18 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     public async Task AddItemAsync(int requisitionId, string articleNumber, string description, string? unit,
         decimal quantity, string user, string winUser)
     {
-        var alreadyExists = await _context.WarehouseRequisitionItems
-            .AnyAsync(i => i.WarehouseRequisitionId == requisitionId
-                && i.ArticleNumber == articleNumber);
-        if (alreadyExists)
+        // DUMMY-Schluessel vom Duplikat-Guard ausnehmen: mehrere DUMMY-Positionen mit
+        // unterschiedlichen Bezeichnungen in einer Bestellung sind erlaubt (Teil-7).
+        if (articleNumber != Article.DummyArticleNumber)
         {
-            throw new InvalidOperationException(
-                $"Artikel '{articleNumber}' ist bereits in dieser Bestellung enthalten.");
+            var alreadyExists = await _context.WarehouseRequisitionItems
+                .AnyAsync(i => i.WarehouseRequisitionId == requisitionId
+                    && i.ArticleNumber == articleNumber);
+            if (alreadyExists)
+            {
+                throw new InvalidOperationException(
+                    $"Artikel '{articleNumber}' ist bereits in dieser Bestellung enthalten.");
+            }
         }
 
         var nextPos = await _context.WarehouseRequisitionItems
@@ -251,6 +256,19 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             changed = true;
         }
         if (changed) await _context.SaveChangesAsync();
+    }
+
+    public async Task SaveCommentAsync(int id, string? comment, string user, string winUser)
+    {
+        var r = await _context.WarehouseRequisitions.FindAsync(id);
+        if (r == null) return;
+        var normalized = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
+        if (r.Comment == normalized) return;
+        r.Comment = normalized;
+        r.ModifiedAt = DateTime.Now;
+        r.ModifiedBy = user;
+        r.ModifiedByWindows = winUser;
+        await _context.SaveChangesAsync();
     }
 
     public async Task SaveProgressAsync(int id,

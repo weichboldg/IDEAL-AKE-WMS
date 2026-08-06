@@ -2,14 +2,14 @@
 type: spec
 title: "Massen-/Mehrfachartikel-Einbuchung (mehrere Artikel + Menge, ein Lagerplatz + eine FA)"
 slug: 2026-08-05-wms-bugs-improvements-teil-2-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
 updated: 2026-08-05
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-1-2-3]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3"
+branch: "feature/2026-08-05-wms-bugs-improvements-teil-1-2-3"
 affected_code:
   - IdealAkeWms/Controllers/StockMovementsController.cs
   - IdealAkeWms/Models/ViewModels/StockMovementCreateViewModel.cs (neues Multi-ViewModel)
@@ -240,14 +240,28 @@ Neue Szenarien in `docs/TESTSZENARIEN.md` Kapitel 2 (Lager):
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:**
+**Finalisiert durch QA (2026-08-05) anhand des echten Diffs im gemeinsamen Worktree
+`.claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3` (Branch
+`feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, geteilt mit Teil 1 + Teil 3).**
+
+- **Web-App:** ja (`StockMovementsController.cs`, `StockMovementBulkInboundViewModel.cs`
+  (neu), `Views/StockMovements/InboundBulk.cshtml` (neu), `Views/Shared/_Layout.cshtml`
+  (Nav-Eintrag) — Teil des gemeinsamen Diffs).
+- **Service:** nein (nur `IDEALAKEWMSService/AppVersion.cs` Versions-Bump auf 1.29.0, keine
+  funktionale Service-Änderung).
+- **Migration:** nein — `git diff main --stat` gegen den Worktree bestätigt: keine Datei unter
+  `*/Migrations/` oder `SQL/` verändert. `StockMovement` bleibt unverändert, es werden nur
+  zusätzliche Instanzen der bestehenden Entität über `AddAsync` angelegt.
+- **Publish-Befehle (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
+
+Fluss: Publish aus dem Worktree → Testsystem → manueller Test (Schranke 2) → danach Merge. Der
+Worktree ist mit Teil 1 und Teil 3 geteilt (ein gemeinsamer Branch) — ein einziger Publish deckt
+alle drei Teile ab. **Hinweis:** Nach dem Merge nur dann erneut aus `main` publishen, wenn der
+Merge tatsächlich getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
 ## Offene Rückfragen
 
@@ -389,3 +403,83 @@ Unveraendert (bewusst): `status: Entwurf`, der Block „## Freigabe-Antworten", 
 Pruefung". Kein Anwendungscode angefasst.
 
 BEREIT ZUR FREIGABE
+
+## QA-Nachweis (2026-08-05)
+
+Verifikation im Worktree `.claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(gemeinsamer Branch mit Teil 1 + Teil 3, HEAD `a1573d4`).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+...
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)
+    0 Fehler
+```
+(Warnungen vorbestehend — NU1902 MailKit/MimeKit-Advisories, CS8602 in `TrackingController.cs`.)
+
+**Tests — Web (`IdealAkeWms.Tests`):**
+```
+Bestanden! : Fehler: 0, erfolgreich: 1074, übersprungen: 1, gesamt: 1075
+```
+Neue Controller-Tests in
+`IdealAkeWms.Tests/Controllers/StockMovementsControllerBulkInboundTests.cs` (4 Fälle):
+`InboundBulk_Post_ValidLines_BooksOnePerLineViaAddAsync` (AK2/AK3/AK4 — je Zeile eine Buchung über
+`AddAsync`, gemeinsamer Timestamp, Erfolgsmeldung „2 Artikel erfolgreich eingebucht."),
+`InboundBulk_Post_MissingArticle_BooksNothingAndMarksLine` (AK9/AK10 — fehlender Artikel → nichts
+gebucht, alle 3 Zeilen bleiben erhalten, fehlerhafte Zeile markiert),
+`InboundBulk_Post_ZeroQuantity_BooksNothing` (AK9 — Menge 0 → nichts gebucht),
+`InboundBulk_Post_NoLines_IsRejected` (AK5 — leere Zeilenliste → ModelState ungültig).
+Bestätigt insbesondere AK8 (Buchung ausschließlich über `IStockMovementRepository.AddAsync`, kein
+Direkt-DbContext-Bypass, damit der Sage-Enqueue-Decorator aus v1.28.0 pro Zeile feuert) und AK9/10
+(keine Teilbuchung, Eingaben bleiben erhalten).
+
+**Tests — Service (`IDEALAKEWMSService.Tests`):**
+```
+Bestanden! : Fehler: 0, erfolgreich: 195, übersprungen: 0, gesamt: 195
+```
+
+**Diff-Nachweis (kein Migrations-/SQL-Impact):**
+```
+git diff main --stat -- '*/Migrations/*' 'SQL/*'   → leer
+```
+
+**CLAUDE.md-Checkliste (dieser Teil):** Migration/SQL — n/a. Audit-Felder — gesetzt über den
+bestehenden `AddAsync`-Pfad wie bei der Einzel-Einbuchung (unverändert übernommen, kein neuer
+Schreibpfad-Sonderfall). Versions-Bump auf 1.29.0 + Anwender-Changelog — geteilt mit Teil 1/3, ein
+gemeinsamer Release. `docs/TESTSZENARIEN.md` um TS-2.23 (Happy Path) und TS-2.24 (Mehrfach-Scan
+zählt hoch + keine Teilbuchung + Sage-Regression) ergänzt,
+`secondbrain/tests/testszenarien-index.md` (Hauptcheckout) Kapitel 2 nachgezogen.
+
+**Manuell zu bestätigen (nicht automatisiert testbar):** Der Sage-Enqueue-Pfad selbst
+(`SageBookingQueueItem`-Entstehung) ist nur über den Repository-Aufrufpfad (`AddAsync`)
+abgesichert — die tatsächliche Enqueue-Wirkung ist Teil des bereits gemergten v1.28.0-Features und
+hier nicht neu automatisiert getestet; siehe Testszenario C / TS-2.24 „Sage-Regression" für die
+manuelle Kontrolle.
+
+Ergebnis: **Build 0 Fehler, alle Tests grün — Mindestbedingung erfüllt.**
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Referenz: `docs/TESTSZENARIEN.md` **TS-2.23 — Mehrfach-Einbuchung Happy Path** und
+**TS-2.24 — Mehrfach-Scan zaehlt hoch + keine Teilbuchung (v1.29.0, Teil 2)**.
+
+1. Menü `Lager → Mehrfach-Einbuchung` öffnen (`/StockMovements/InboundBulk`), prüfen, dass der
+   Nav-Eintrag sichtbar ist für eine Rolle mit `RequireStockAccess`.
+2. Lagerplatz + FA-Nummer einmalig setzen, 3 Artikel-Zeilen mit unterschiedlichen Mengen erfassen,
+   „Einbuchung speichern". **Erwartet:** 3 neue Bewegungshistorie-Einträge (Typ Einbuchung),
+   gleicher Lagerplatz/gleiche FA, Erfolgsmeldung „3 Artikel erfolgreich eingebucht.".
+3. Neue Zeile hinzufügen: prüfen, dass sie mit Menge **1** vorbelegt ist.
+4. Denselben Artikel per Kamera-Scan dreimal hintereinander scannen (Schalter „neue Zeile
+   erzwingen" **aus**). **Erwartet:** eine Zeile mit Menge 3, kein drittes Duplikat.
+5. Variante: Schalter „neue Zeile erzwingen" **an**, denselben Artikel erneut scannen. **Erwartet:**
+   eine zusätzliche Zeile statt Hochzählen.
+6. 3 Zeilen erfassen, eine davon ohne Artikelauswahl oder mit Menge 0, absenden. **Erwartet:**
+   nichts wird gebucht (Bewegungshistorie unverändert), Formular zeigt alle 3 Zeilen + Kopf-Werte
+   weiterhin, fehlerhafte Zeile markiert. Nach Korrektur erneut speichern → alle 3 werden gebucht.
+7. Sage-Regression: Lagerplatz mit `SageBuchungErlaubt = true` + globalem Sage-Toggle aktiv, 2
+   Zeilen buchen. **Erwartet:** unter `Lager → Sage-Lagerbuchungen` entstehen 2
+   `SageBookingQueueItem`-Einträge (einer je Zeile) — wie bei der Einzel-Einbuchung.
+8. Bestehende Einzel-Einbuchungsseite (`/StockMovements/Inbound`) gegenprüfen: unverändert
+   funktionsfähig, insbesondere der bestehende Einzel-Scan-Pfad (`initScanner`) nicht gebrochen.

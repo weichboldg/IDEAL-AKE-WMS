@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
@@ -93,21 +94,39 @@ public class FaWorklistController : Controller
             || (HttpContext?.Request?.Query.ContainsKey("workbenches") ?? false);
         string? effectiveWorkbenches = workbenchesProvided ? (workbenches ?? string.Empty) : null;
 
-        if (workStepId == null || !workbenchesProvided)
+        // User einmal laden (auch fuer den Bezeichnung-1-Default unten wiederverwendet).
+        var appUserId = _currentUser.GetCurrentAppUserId();
+        var currentUser = appUserId.HasValue ? await _userRepository.GetByIdAsync(appUserId.Value) : null;
+
+        if (workStepId == null)
         {
-            var appUserId = _currentUser.GetCurrentAppUserId();
-            if (appUserId.HasValue)
+            workStepId = currentUser?.DefaultWorkStepId;
+        }
+        if (!workbenchesProvided)
+        {
+            effectiveWorkbenches = currentUser?.DefaultWorkbenches;
+        }
+
+        // Teil-8: Standard-Filter „Bezeichnung 1" als Redirect-mit-Parameter vorbelegen (nicht als
+        // unsichtbare Server-Injektion — sonst waere der Wert im Filterfeld unsichtbar und in der
+        // Session nicht loeschbar). Nur beim echten Erstaufruf: kein expliziter colf_description1,
+        // kein Sentinel df1, ein Pflicht-Arbeitsgang gewaehlt, und der User hat einen Default gesetzt.
+        // Der Sentinel df1=1 ueberlebt das Filter-Leeren (applyServerFilters loescht nur colf_*/page),
+        // sodass der Default nach dem Loeschen nicht sofort re-injiziert wird.
+        bool description1Provided = HttpContext?.Request?.Query.ContainsKey("colf_description1") ?? false;
+        bool defaultFilterApplied = HttpContext?.Request?.Query.ContainsKey("df1") ?? false;
+        if (!description1Provided && !defaultFilterApplied && workStepId != null
+            && !string.IsNullOrWhiteSpace(currentUser?.DefaultFilterFaWorklistDescription1))
+        {
+            var route = new RouteValueDictionary();
+            if (HttpContext != null)
             {
-                var user = await _userRepository.GetByIdAsync(appUserId.Value);
-                if (workStepId == null)
-                {
-                    workStepId = user?.DefaultWorkStepId;
-                }
-                if (!workbenchesProvided)
-                {
-                    effectiveWorkbenches = user?.DefaultWorkbenches;
-                }
+                foreach (var q in HttpContext.Request.Query)
+                    route[q.Key] = q.Value.ToString();
             }
+            route["colf_description1"] = currentUser.DefaultFilterFaWorklistDescription1;
+            route["df1"] = "1";
+            return RedirectToAction(nameof(Index), route);
         }
 
         var vm = new FaWorklistViewModel

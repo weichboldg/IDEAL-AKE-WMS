@@ -29,6 +29,9 @@ Release-Details je Version: `changelog/` (39 Eintraege v1.0.0 – v1.26.0).
 | StorageLocation-Code auf 50 Zeichen | Gemerged (v1.14.0) | — | `Models/StorageLocation.cs` (manuell weiter 12) |
 | Hauptlagerplatz am Artikel | Gemerged (v1.25.0) | `2026-07-07-hauptlagerplatz-design.md` | `Models/Article.cs`, `StockMovementRepository` |
 | Rolle `stock_read` (read-only Bestand) | Gemerged (v1.25.0) | `2026-07-07-vorbau-bom-button-stock-read-role-design.md` | `Filters/RequireStockReadAccessAttribute.cs` |
+| FA-Hinweis auf Ist-Bestand (Bugfix, `onlyActualStock`) | Testbereit (v1.29.0) | [[2026-08-05-wms-bugs-improvements-teil-1-spec]] | `StockMovementRepository.GetStockByProductionOrderAsync` |
+| Mehrfach-Einbuchung (`/StockMovements/InboundBulk`) | Testbereit (v1.29.0) | [[2026-08-05-wms-bugs-improvements-teil-2-spec]] | `StockMovementsController.InboundBulk`, `Views/StockMovements/InboundBulk.cshtml` |
+| WA-Scan-Button Bewegungshistorie (Trennzeichen-Kuerzung) | Testbereit (v1.29.0) | [[2026-08-05-wms-bugs-improvements-teil-3-spec]] | `Views/StockMovements/Index.cshtml` |
 
 ## Fertigungsauftraege, Leitstand, Kommissionierung
 

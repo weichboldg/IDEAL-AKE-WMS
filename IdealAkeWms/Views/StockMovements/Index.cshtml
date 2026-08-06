@@ -78,11 +78,14 @@
     <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true">
         <thead>
             <tr>
-                <th data-filterable data-col-key="datetime">Datum/Zeit</th>
+                @* datetime/quantity/movement-type: kein Server-Handler in ApplyMovementColumnFilter
+                   -> waeren stille No-Op-Spaltenfilter (Teil-4-Bugfix). Filterung ueber die
+                   Filterkarte (Dropdown Bewegungsart, dateFrom/dateTo) bzw. bewusst nicht. *@
+                <th>Datum/Zeit</th>
                 <th data-filterable data-col-key="article">Artikel</th>
-                <th data-filterable data-col-key="quantity">Menge</th>
+                <th>Menge</th>
                 <th data-filterable data-col-key="storage-location">Lagerplatz</th>
-                <th data-filterable data-col-key="movement-type">Bewegungsart</th>
+                <th>Bewegungsart</th>
                 <th data-filterable data-col-key="user">Benutzer</th>
                 <th data-filterable data-col-key="production-order">Fertigungsauftrag</th>
                 <th data-col-key="note">Notiz</th>

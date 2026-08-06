@@ -76,6 +76,13 @@ public class User : AuditableEntity
     [Display(Name = "Standard-Werkbaenke (FA-Abarbeitungsliste, kommasepariert)")]
     public string? DefaultWorkbenches { get; set; }
 
+    /// <summary>Standard-Filterwert fuer die Spalte „Bezeichnung 1" der FA-Abarbeitungsliste
+    /// (NULL/leer = kein Default). Darf die volle Spaltenfilter-Mini-Syntax nutzen (OR mit `,`,
+    /// NOT mit `!`), daher 200 statt 100 wie die Artikelgruppen-Felder.</summary>
+    [StringLength(200)]
+    [Display(Name = "Standard-Filter Bezeichnung 1 (FA-Abarbeitungsliste)")]
+    public string? DefaultFilterFaWorklistDescription1 { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();

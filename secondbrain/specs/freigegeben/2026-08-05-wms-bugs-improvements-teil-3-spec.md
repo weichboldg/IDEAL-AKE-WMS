@@ -2,14 +2,14 @@
 type: spec
 title: "Bewegungshistorie: Scan-Button fuer WA-Strichcode mit Trennzeichen-Kuerzung"
 slug: 2026-08-05-wms-bugs-improvements-teil-3-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
 updated: 2026-08-05
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-1-2-3]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3"
+branch: "feature/2026-08-05-wms-bugs-improvements-teil-1-2-3"
 affected_code:
   - IdealAkeWms/Views/StockMovements/Index.cshtml
   - IdealAkeWms/wwwroot/js/barcode-scanner.js
@@ -190,14 +190,28 @@ Neues Szenario in `docs/TESTSZENARIEN.md` Kapitel 2 (Lager):
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:**
+**Finalisiert durch QA (2026-08-05) anhand des echten Diffs im gemeinsamen Worktree
+`.claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3` (Branch
+`feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, geteilt mit Teil 1 + Teil 2).**
+
+- **Web-App:** ja (`Views/StockMovements/Index.cshtml` — Scan-Button, lokale
+  `html5-qrcode.min.js`-Einbindung, `barcode-scanner.js`-Einbindung + Kürzungs-Callback — Teil des
+  gemeinsamen Diffs). `wwwroot/js/barcode-scanner.js` selbst wurde **nicht** verändert, die Kürzung
+  lebt ausschließlich im `onScanned`-Callback in `Index.cshtml`.
+- **Service:** nein (nur `IDEALAKEWMSService/AppVersion.cs` Versions-Bump auf 1.29.0, keine
+  funktionale Service-Änderung).
+- **Migration:** nein — `git diff main --stat` gegen den Worktree bestätigt: keine Datei unter
+  `*/Migrations/` oder `SQL/` verändert.
+- **Publish-Befehle (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
+
+Fluss: Publish aus dem Worktree → Testsystem → manueller Test (Schranke 2) → danach Merge. Der
+Worktree ist mit Teil 1 und Teil 2 geteilt (ein gemeinsamer Branch) — ein einziger Publish deckt
+alle drei Teile ab. **Hinweis:** Nach dem Merge nur dann erneut aus `main` publishen, wenn der
+Merge tatsächlich getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
 ## Offene Rückfragen
 
@@ -350,3 +364,84 @@ als Umsetzungs-/Folgehinweise stehen (u. a. H3 StockOverview-Konsistenz als Folg
 Scan-Feedback kosmetisch).
 
 BEREIT ZUR FREIGABE
+
+## QA-Nachweis (2026-08-05)
+
+Verifikation im Worktree `.claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(gemeinsamer Branch mit Teil 1 + Teil 2, HEAD `a1573d4`).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+...
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)
+    0 Fehler
+```
+(Warnungen vorbestehend — NU1902 MailKit/MimeKit-Advisories, CS8602 in `TrackingController.cs`.)
+
+**Tests — Web (`IdealAkeWms.Tests`):**
+```
+Bestanden! : Fehler: 0, erfolgreich: 1074, übersprungen: 1, gesamt: 1075
+```
+**Kein automatisierter Test für diesen Teil möglich:** Die Änderung ist reines Client-JS
+(`onScanned`-Callback in `Views/StockMovements/Index.cshtml`, trennzeichen-basierte Kürzung
+`split(/[-_]/)[0]`) + Markup. Das Projekt hat keine JS-Test-Infrastruktur (kein Jest/Karma o. ä.,
+verifiziert: keine `*.test.js`/`jest.config*` im Repo) — Manual-UAT ist hier der **einzige**
+Nachweis (vgl. CLAUDE.md „Tests, EF, SQL Server"-Fallstrick zu nicht InMemory-testbaren Teilen).
+
+**Diff-Verifikation (Code-Review-Ersatz, da kein Unit-Test greift):**
+- `git diff main -- IdealAkeWms/Views/StockMovements/Index.cshtml` zeigt exakt den in der Spec
+  vorgegebenen Callback (`value.trim().split(/[-_]/)[0]` + `dispatchEvent('input')`) — deckt sich
+  mit AK2–AK7 (Trennzeichen `-`/`_`, mehrere Trennzeichen, nicht-numerischer Suffix, kein Suffix,
+  keine Längenkürzung).
+- `~/lib/html5-qrcode/html5-qrcode.min.js` lokal vorhanden (`IdealAkeWms/wwwroot/lib/html5-qrcode/`)
+  — bestätigt S2 (lokale Einbindung statt unpkg-CDN).
+- `wwwroot/js/barcode-scanner.js` selbst **unverändert** (`git diff` liefert kein Ergebnis für diese
+  Datei) — bestätigt, dass die Kürzung ausschließlich im Callback lebt und andere
+  `productionOrder`-Scans (Tracking-Filter) nicht beeinflusst (H5/H7 der Kritischen Prüfung).
+
+**Tests — Service (`IDEALAKEWMSService.Tests`):**
+```
+Bestanden! : Fehler: 0, erfolgreich: 195, übersprungen: 0, gesamt: 195
+```
+
+**Diff-Nachweis (kein Migrations-/SQL-Impact):**
+```
+git diff main --stat -- '*/Migrations/*' 'SQL/*'   → leer
+```
+
+**CLAUDE.md-Checkliste (dieser Teil):** Migration/SQL — n/a. Audit-Felder — n/a (reine
+Lese-/Filter-Funktion). Versions-Bump auf 1.29.0 + Anwender-Changelog — geteilt mit Teil 1/2, ein
+gemeinsamer Release. `docs/TESTSZENARIEN.md` um TS-2.25 ergänzt (inkl. aller Randfälle:
+`_`-Trennzeichen, mehrere Trennzeichen, nicht-numerischer Suffix, kein Suffix, 8-stellig ohne
+Trennzeichen, manuelle Eingabe unverändert), `secondbrain/tests/testszenarien-index.md`
+(Hauptcheckout) Kapitel 2 nachgezogen.
+
+Ergebnis: **Build 0 Fehler, alle Tests grün (keine neuen Unit-Tests möglich/nötig für dieses
+reine Client-JS-Feature) — Manual-UAT ist hier zwingend, nicht optional.**
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Referenz: `docs/TESTSZENARIEN.md` **TS-2.25 — WA-Scan-Button in der Bewegungshistorie kuerzt
+Suffix (v1.29.0, Teil 3)**. Dieser Teil hat **keinen** automatisierten Test — die folgenden
+Schritte sind der einzige Nachweis.
+
+1. Bewegungshistorie öffnen (`/StockMovements`). Prüfen: neben dem Filterfeld „Fertigungsauftrag"
+   erscheint ein Scan-Button.
+2. Scan-Button klicken, Testbild/Barcode mit Wert `2610063-1` scannen. **Erwartet:** Filterfeld
+   zeigt `2610063` (nicht `2610063-1`), Liste lädt noch **nicht** automatisch neu.
+3. „Filtern" klicken. **Erwartet:** Liste zeigt alle Bewegungen zu FA `2610063`.
+4. Randfälle jeweils gegenprüfen (gescannt → erwarteter Filterwert):
+   `2610063_02` → `2610063`; `2610063-1-2` → `2610063` (nur erstes Trennzeichen);
+   `2610063-A` → `2610063`; `2610063` (kein Suffix) → `2610063` unverändert;
+   `26100631` (8-stellig, kein Trennzeichen) → `26100631` unverändert (keine Längenkürzung);
+   `26100` (kürzer als 7, kein Trennzeichen) → `26100` unverändert (kein Fehler).
+5. Negativfall: `2610063-1` **manuell eintippen** (nicht scannen). **Erwartet:** Feld behält
+   `2610063-1` — Kürzung greift nur beim Scan.
+6. `html5-qrcode` lädt sichtbar ohne Konsolenfehler (lokale Datei, kein CDN-Ladeversuch) — im
+   Produktions-Intranet ohne Internetzugriff testen, falls möglich (Kernbegründung für die lokale
+   Einbindung).
+7. Regressionscheck: Bestehender Scan-Pfad in der Bestandsübersicht
+   (`StockOverview/Index.cshtml`, `btnScanPO`) weiterhin unverändert nutzbar (dort **ohne**
+   Kürzung, wie bisher — bewusst außerhalb des Scopes, siehe H3 der Kritischen Prüfung).

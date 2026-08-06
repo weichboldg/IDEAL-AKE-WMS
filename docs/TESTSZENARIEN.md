@@ -21,7 +21,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Bereich | Abschnitt | Szenarien |
 |---------|-----------|-----------|
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
-| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis) |
+| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21, TS-2.26 – TS-2.31 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis; TS-2.26 – TS-2.31 v1.30.0 Teil 4/5: Spaltenfilter-No-Op entfernt + Einbuchung-Standardmenge 1) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
@@ -62,10 +62,10 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 40: Windows-Authentifizierung & AD-Benutzer (v1.23.0) | [→](#kapitel-40-windows-authentifizierung--ad-benutzer-v1230) | TS-40.1 – TS-40.12 |
 | Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0) | [→](#kapitel-41-rolle-lagerbestellung--artikelinfo-für-stammdaten-ansehen-v1230) | TS-41.1 – TS-41.5 |
 | Kapitel 42: Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) (v1.23.0) | [→](#kapitel-42-lagerbestellungs-druck-spiegelt-gui-spaltensortfilter-v1230) | TS-42.1 – TS-42.5 |
-| Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.4 |
+| Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.5 (TS-43.5 v1.30.0 Teil 8: personalisierter Default-Filter Bezeichnung 1) |
 | Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0) | [→](#kapitel-44-fa-ag-erkennung--bom-cache--protokoll-aufgliederung-v1230) | TS-44.1 – TS-44.3 |
 | Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0) | [→](#kapitel-45-fa-vorbau-3-wert-status--beschichtungstermin--enter-spaltenfilter-v1240) | TS-45.1 – TS-45.6 |
-| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.8 |
+| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.13 (TS-46.9 – TS-46.13 v1.30.0 Teil 7: Kommentar + DUMMY-Artikel) |
 | Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0) | [→](#kapitel-47-service-resilienz--fehlermail--productionorders-515-fix-v1250) | TS-47.1 – TS-47.3 |
 | Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0) | [→](#kapitel-48-rolle-stockread-read-only-lagerbestand--fa-listestückliste-fuer-vorbau-v1250) | TS-48.1 – TS-48.2 |
 | Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0) | [→](#kapitel-49-hauptlagerplatz-am-artikel-v1250) | — |
@@ -689,6 +689,102 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Negativfall (nur beim Scannen):**
 - Manuelles Eintippen/Einfuegen von `2610063-1` ins Filterfeld → Feld behaelt `2610063-1` (die Kuerzung
   greift **nur** ueber den Scan-Callback, nicht bei manueller Eingabe).
+
+---
+
+### TS-2.26 — Bewegungshistorie: keine wirkungslosen Spaltenfilter mehr (v1.30.0, Teil 4)
+
+**Vorbedingungen:**
+- Benutzer hat Rolle `stock` oder `admin`.
+- Bewegungshistorie mit gemischten Bewegungsarten (mind. je eine Ein- und eine Ausbuchung fuer
+  denselben Artikel).
+
+**Schritte:**
+1. `/StockMovements/Index` oeffnen.
+
+**Erwartetes Verhalten:**
+- In den Spaltenkoepfen "Bewegungsart", "Datum/Zeit" und "Menge" gibt es **kein**
+  Filter-Eingabefeld mehr.
+- Die Spaltenfilter "Artikel", "Lagerplatz", "Benutzer", "Fertigungsauftrag" sind weiterhin
+  vorhanden.
+
+**Negativfall:**
+- Es gibt keine Moeglichkeit mehr, im Spaltenkopf "Bewegungsart" Text einzugeben, der die Liste
+  unveraendert (Vollmenge) zurueckliefert.
+
+---
+
+### TS-2.27 — Bewegungsart-Filter (Filterkarten-Dropdown) filtert exakt
+
+**Vorbedingungen:** wie TS-2.26.
+
+**Schritte:**
+1. In der Filterkarte Dropdown "Bewegungsart" = "Ausbuchung" waehlen, filtern.
+2. Dropdown "Bewegungsart" = "Einbuchung" waehlen, filtern.
+
+**Erwartetes Verhalten:**
+- Schritt 1: es werden **ausschliesslich** Ausbuchungs-Zeilen angezeigt; **keine** Einbuchung
+  erscheint.
+- Schritt 2: es werden ausschliesslich Einbuchungen angezeigt.
+
+---
+
+### TS-2.28 — Regression: verbleibende Spaltenfilter weiterhin wirksam
+
+**Vorbedingungen:** wie TS-2.26.
+
+**Schritte:**
+1. Spaltenfilter "Artikel" mit einer bekannten Artikelnummer setzen.
+2. Analog Spaltenfilter "Lagerplatz"/"Benutzer"/"Fertigungsauftrag" setzen.
+
+**Erwartetes Verhalten:**
+- Jeweils nur Zeilen, die zum gesetzten Filterwert passen.
+
+---
+
+### TS-2.29 — Einbuchung oeffnet mit Standardmenge 1 (v1.30.0, Teil 5)
+
+**Vorbedingungen:**
+- Benutzer hat Rolle `stock` oder `admin`.
+
+**Schritte:**
+1. `/StockMovements/Inbound` oeffnen.
+
+**Erwartetes Verhalten:**
+- Mengenfeld zeigt `1` (nicht `0`).
+
+**Negativfall:**
+- Menge auf `0` setzen und absenden → weiterhin Validierungsfehler "Menge muss groesser als 0
+  sein".
+
+---
+
+### TS-2.30 — Ausbuchung/Umbuchung NICHT betroffen
+
+**Vorbedingungen:** wie TS-2.29.
+
+**Schritte:**
+1. `/StockMovements/Outbound` oeffnen.
+2. Umbuchung oeffnen.
+
+**Erwartetes Verhalten:**
+- In beiden Faellen erscheint **kein** `1`-Default im Mengenfeld — Verhalten bleibt wie bisher
+  (Feld zeigt `0`).
+
+---
+
+### TS-2.31 — Validierungsfehler bei der Einbuchung behaelt getippten Wert
+
+**Vorbedingungen:** wie TS-2.29.
+
+**Schritte:**
+1. Einbuchung oeffnen (Mengenfeld zeigt `1`).
+2. Menge auf `5` aendern.
+3. Ein anderes Pflichtfeld (z. B. Artikel) leer lassen und absenden, sodass ein
+   Validierungsfehler entsteht.
+
+**Erwartetes Verhalten:**
+- Nach dem Rerender steht weiterhin `5` im Mengenfeld — **nicht** zurueckgesetzt auf `1`.
 
 ---
 
@@ -5265,6 +5361,32 @@ Angemeldet als vorbau/admin-User.
 1. Benutzer bearbeiten → „Standard-Werkbänke"-Textfeld pflegen/speichern.
    - **Erwartet:** wie Profil; Wert wird gespeichert.
 
+### TS-43.5 Personalisierter Default-Filter „Bezeichnung 1" (v1.30.0, Teil 8)
+**Vorbedingung:** Benutzer mit Rolle `vorbau`, mindestens zwei FAs mit unterschiedlicher
+Bezeichnung 1 (z. B. „Verdampfer", „Kondensator") im gewählten Arbeitsgang.
+1. Im Profil (`/Account/Profile`) „Verdampfer" als „Standard-Filter Bezeichnung 1
+   (FA-Abarbeitungsliste)" speichern.
+2. `/FaWorklist?workStepId=<id>` **ohne** weitere Parameter öffnen.
+   - **Erwartet:** Liste zeigt nur FAs mit „Verdampfer" in Bezeichnung 1; der Wert „Verdampfer"
+     steht **sichtbar** im Spaltenfilter-Feld „Bezeichnung 1"; die URL enthält
+     `colf_description1=Verdampfer` sowie den Sentinel `df1=1`.
+3. Das Feld „Bezeichnung 1" leeren und bestätigen (ENTER).
+   - **Erwartet:** Liste zeigt wieder **alle** FAs des Arbeitsgangs; der Default greift **nicht**
+     erneut, solange die View nicht frisch neu geladen wird (Sentinel `df1` verhindert
+     Re-Injektion). Erst ein frischer Aufruf von `/FaWorklist` (ohne `df1`) belegt den Default
+     wieder vor.
+4. **Negativfall (Override):** `/FaWorklist?workStepId=<id>&colf_description1=Kondensator`
+   direkt aufrufen.
+   - **Erwartet:** Der explizite URL-Parameter gewinnt („Kondensator"), nicht der gespeicherte
+     Default.
+5. **Admin-Pflege:** Als Admin über `/Users/Edit/{id}` denselben Default für einen anderen
+   Benutzer setzen.
+   - **Erwartet:** Wert wird gespeichert und wirkt beim nächsten Erstaufruf dieses Benutzers wie
+     Schritt 2.
+6. **Negativfall (kein Default):** Feld im Profil leer lassen/leeren, speichern,
+   `/FaWorklist?workStepId=<id>` öffnen.
+   - **Erwartet:** Unveränderte Filterung (kein Default, wie vor dieser Änderung).
+
 ---
 
 ## Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0)
@@ -5434,6 +5556,56 @@ Status (`WillBeRestocked`, `NoRestock`).
 1. Eine Bestellung, die **vor** dem Update angelegt wurde, oeffnen bzw. in der Liste suchen.
    - **Erwartet:** Sie hat Typ **Lager** (Migrations-Default `Type=1`) und erscheint im
      **Lager**-Reiter — nicht im Glas-Reiter.
+
+### TS-46.9 Kommentar: Anzeige + Ownership (v1.30.0, Teil 7)
+**Vorbedingung:** Migration 85 eingespielt. Draft-Bestellung (Lager) des eigenen Users existiert.
+1. Im Edit-Formular (`Views/WarehouseRequisitions/Edit.cshtml`) einen Kommentar eintragen,
+   speichern.
+2. Zur Lager-Ansicht `/WarehousePicking` wechseln.
+   - **Erwartet:** Kommentar ist read-only sichtbar in der Spalte „Kommentar" der Eingehenden
+     Listen **und** in der Detailansicht (`/WarehousePicking/Details/{id}`).
+3. **Negativfall (leer):** Bestellung ohne Kommentar ansehen.
+   - **Erwartet:** leere Zelle, kein Fehler.
+4. **Negativfall (Ownership/Status):** Kommentar eines **anderen** Users bzw. einer bereits
+   submitteten Bestellung zu aendern versuchen.
+   - **Erwartet:** nicht editierbar (Forbid/„nicht mehr im Entwurf").
+
+### TS-46.10 Kommentar im Submit-Mail
+**Vorbedingung:** Draft mit Kommentar, Benachrichtigungs-Mail aktiv (`Sync:WarehouseRequisition
+EmailEnabled=true`), Windows-Service laeuft (`deploy.service` dieses Teils eingespielt).
+1. Bestellung submitten, NotificationWorker durchlaufen lassen, Mail pruefen (HTML- und
+   Text-Teil).
+   - **Erwartet:** Kommentar erscheint im Kopf des Submit-Mails (HTML **und** Text).
+2. **Negativfall:** Bestellung ohne Kommentar submitten.
+   - **Erwartet:** Mail ohne Kommentarzeile.
+3. **Negativfall (Storno):** Bestellung mit Kommentar stornieren.
+   - **Erwartet:** Storno-Mail enthaelt **keinen** Kommentar.
+
+### TS-46.11 DUMMY-Position anlegen (Lager)
+**Vorbedingung:** Migration 86 (DUMMY-Seed) eingespielt (`Articles.ArticleNumber='DUMMY'`
+existiert genau einmal). EK-Nummer, die nicht existiert.
+1. Im Lager-Draft die Artikelsuche mit dieser EK-Nummer ausfuehren → "nicht gefunden".
+2. DUMMY-Position mit einer eigenen, aussagekraeftigen Bezeichnung anlegen.
+   - **Erwartet:** Position mit der eingegebenen Bezeichnung erscheint sofort in der Bestellung;
+     die geteilte `Article.Description` des DUMMY-Artikels bleibt unveraendert.
+3. **Negativfall (leer):** DUMMY-Position ohne Bezeichnung anzulegen versuchen.
+   - **Erwartet:** serverseitige Ablehnung.
+4. **Negativfall (Default-Text):** Bezeichnung unveraendert auf dem Default-Seed-Text
+   ("DUMMY – Bezeichnung bitte eintragen") belassen und absenden.
+   - **Erwartet:** serverseitige Ablehnung ("Bitte eine eigene Bezeichnung eingeben.").
+
+### TS-46.12 DUMMY mehrfach je Bestellung
+**Vorbedingung:** wie TS-46.11.
+1. Zwei DUMMY-Positionen mit **unterschiedlichen** Bezeichnungen in **einer** Bestellung
+   anlegen.
+   - **Erwartet:** beide Positionen erscheinen; **kein** "bereits enthalten"-Fehler (Duplikat-Guard
+     ist fuer den DUMMY-Schluessel bewusst ausgenommen).
+
+### TS-46.13 DUMMY in Glasbestellung
+**Vorbedingung:** wie TS-46.11, zusaetzlich ein Glas-Draft.
+1. In einer **Glas**-Bestellung eine DUMMY-Position anlegen (eigene Bezeichnung).
+   - **Erwartet:** anlegbar, **kein** "gehoert in die Lager-Bestellung"-Fehler (Glas-Artikelgruppen-
+     Pruefung wird fuer den DUMMY-Schluessel umgangen).
 
 ## Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0)
 
@@ -6058,5 +6230,5 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 
 ---
 
-*Ende des Dokuments. Stand: v1.28.0 (2026-08-03)*
+*Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

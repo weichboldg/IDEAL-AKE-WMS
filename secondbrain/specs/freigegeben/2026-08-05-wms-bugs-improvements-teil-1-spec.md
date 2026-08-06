@@ -2,14 +2,14 @@
 type: spec
 title: "Bugfix: FA-Lagerplatz-Hinweis auf tatsächlichen Bestand statt Bewegungssaldo umstellen"
 slug: 2026-08-05-wms-bugs-improvements-teil-1-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
 updated: 2026-08-05
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-1-2-3]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3"
+branch: "feature/2026-08-05-wms-bugs-improvements-teil-1-2-3"
 affected_code:
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs
   - IdealAkeWms/Data/Repositories/IStockMovementRepository.cs
@@ -217,14 +217,26 @@ korrigierten Bug-Record).
 
 ## Deploy
 
-- **Web-App:** ja (Repository-Änderung in `IdealAkeWms`).
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:**
+**Finalisiert durch QA (2026-08-05) anhand des echten Diffs im gemeinsamen Worktree
+`.claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3` (Branch
+`feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, geteilt mit Teil 2 + Teil 3).**
+
+- **Web-App:** ja (`StockMovementRepository.cs`, `IStockMovementRepository.cs`,
+  `StockOverviewController.cs` — Teil des gemeinsamen Diffs).
+- **Service:** nein (nur `IDEALAKEWMSService/AppVersion.cs` Versions-Bump auf 1.29.0, keine
+  funktionale Service-Änderung).
+- **Migration:** nein — `git diff main --stat` gegen den Worktree bestätigt: keine Datei unter
+  `*/Migrations/` oder `SQL/` verändert.
+- **Publish-Befehle (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
+
+Fluss: Publish aus dem Worktree → Testsystem → manueller Test (Schranke 2) → danach Merge. Der
+Worktree ist mit Teil 2 und Teil 3 geteilt (ein gemeinsamer Branch) — ein einziger Publish deckt
+alle drei Teile ab. **Hinweis:** Nach dem Merge nur dann erneut aus `main` publishen, wenn der
+Merge tatsächlich getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
 ## Offene Rückfragen
 
@@ -417,4 +429,75 @@ Nicht geändert (bewusst): `status` bleibt `Entwurf`, Datei-Ablage unverändert,
 Anwendungscode berührt, kein Commit.
 
 BEREIT ZUR FREIGABE
+
+## QA-Nachweis (2026-08-05)
+
+Verifikation im Worktree `.claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(gemeinsamer Branch mit Teil 2 + Teil 3, HEAD `a1573d4`).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+...
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    9 Warnung(en)
+    0 Fehler
+```
+(Warnungen: 8× NU1902 vorbestehende MailKit/MimeKit-Advisories, 1× CS8602 in
+`TrackingController.cs` — beide vorbestehend, nicht durch diese Specs verursacht.)
+
+**Tests — Web (`IdealAkeWms.Tests`):**
+```
+Bestanden! : Fehler: 0, erfolgreich: 1074, übersprungen: 1, gesamt: 1075
+```
+Neue Repository-Tests zum true-/false-Pfad in
+`IdealAkeWms.Tests/Repositories/StockMovementRepositoryProductionOrderTests.cs` (6 Fälle, nicht 7
+wie ursprünglich grob geschätzt — deckt AK1/2/3/6/7 sowie den false-Pfad-Gegenfall mit rein
+FA-Anteil ab):
+`GetStockByProductionOrder_TruePath_TaggedInThenUntaggedOut_ReturnsEmpty` (AK1),
+`_TruePath_TaggedInOnly_ReturnsFullQuantity` (AK2),
+`_TruePath_PartialUntaggedOut_ReturnsRealRemainder` (AK3),
+`_TruePath_MixedLocation_ShowsPlaceStockNotFaShare` (AK7),
+`_FalsePath_TaggedInThenUntaggedOut_StillShowsRow` (AK6, Regression),
+`_FalsePath_MixedLocation_ShowsOnlyFaShare` (Regressions-Gegenprobe).
+
+**Tests — Service (`IDEALAKEWMSService.Tests`):**
+```
+Bestanden! : Fehler: 0, erfolgreich: 195, übersprungen: 0, gesamt: 195
+```
+
+**Diff-Nachweis (kein Migrations-/SQL-Impact):**
+```
+git diff main --stat -- '*/Migrations/*' 'SQL/*'   → leer
+```
+
+**CLAUDE.md-Checkliste (dieser Teil):** Migration/SQL — n/a (keine Schema-Änderung). Audit-Felder —
+n/a (reiner Lesepfad, keine neue Schreiblogik). Versions-Bump auf 1.29.0 in beiden `AppVersion.cs`
++ Anwender-Changelog (`Views/Help/Changelog.cshtml`) ergänzt — geteilt mit Teil 2/3, ein
+gemeinsamer Release. `docs/TESTSZENARIEN.md` um TS-2.22 ergänzt (inkl. Gegenproben
+Bestandsübersicht + Tracking-Modal), `secondbrain/tests/testszenarien-index.md` (Hauptcheckout)
+Kapitel 2 nachgezogen.
+
+Ergebnis: **Build 0 Fehler, alle Tests grün — Mindestbedingung erfüllt.**
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Referenz: `docs/TESTSZENARIEN.md` **TS-2.22 — FA-Hinweis nur bei tatsaechlichem Bestand (v1.29.0,
+Teil 1)**.
+
+1. Artikel A mit FA-Tag `1234567` auf Lagerplatz X einbuchen (Menge 5), anschließend **ohne**
+   FA-Tag vollständig wieder ausbuchen (Menge 5).
+2. Einbuchungsformular (`/StockMovements/Inbound`) öffnen, FA `1234567` eingeben, Feld verlassen.
+   **Erwartet:** Kein „FA liegt bereits …"-Hinweis mehr (vorher fälschlich Platz X mit Menge 5).
+3. Negativfall: dieselbe FA, aber nur teilweise ungetaggt ausgebucht (z. B. Einbuchung 5,
+   Ausbuchung 2 → Rest 3). **Erwartet:** Hinweis erscheint weiterhin, zeigt aber die **reale**
+   Restmenge (3), nicht die ursprüngliche Einbuchmenge (5).
+4. Gegenprobe Bestandsübersicht (`/StockOverview`, Filter „Fertigungsauftrag" = `1234567` aus
+   Schritt 1): Zeile für Artikel A/Lagerplatz X wird **weiterhin** angezeigt — historisches
+   Verhalten bewusst unverändert (kein Fehler).
+5. Gegenprobe Tracking-Lagerbestand-Modal (OSEON-Teileverfolgung) mit derselben FA aus Schritt 1:
+   verhält sich wie der Einbuchungs-Hinweis (keine Zeile bei Ist-Bestand 0).
+6. Gemischter Platz (AK7, optional falls Testdaten verfügbar): liegt am selben Lagerplatz
+   zusätzlich Bestand eines anderen FA, zeigt der Hinweis den **realen Platz-Ist-Bestand**, nicht
+   nur den FA-Anteil — bewusst akzeptierte Ungenauigkeit, kein Fehler.
 

@@ -53,4 +53,10 @@ public class ProfileViewModel
 
     /// <summary>Werkbaenke fuer das Dropdown.</summary>
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
+
+    /// <summary>Standard-Filterwert fuer die Spalte „Bezeichnung 1" der FA-Abarbeitungsliste.
+    /// Leer = kein Default.</summary>
+    [StringLength(200)]
+    [Display(Name = "Standard-Filter Bezeichnung 1 (FA-Abarbeitungsliste)")]
+    public string? DefaultFilterFaWorklistDescription1 { get; set; }
 }

@@ -79,6 +79,26 @@
             <div id="article-search-results" class="list-group mt-1" style="max-height: 300px; overflow-y: auto;"></div>
         </div>
     </div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <label for="req-comment" class="form-label">Kommentar</label>
+        @if (isDraft)
+        {
+            <textarea id="req-comment" class="form-control" rows="3" maxlength="1000"
+                      placeholder="Kommentar zur Bestellung (optional)">@Model.Comment</textarea>
+            <div class="form-text">Wird automatisch gespeichert.</div>
+        }
+        else
+        {
+            <div>@(string.IsNullOrWhiteSpace(Model.Comment) ? "—" : Model.Comment)</div>
+        }
+    </div>
+</div>
+
+@if (isDraft)
+{
 
     <form method="post" asp-action="Submit" asp-route-id="@Model.Id" class="d-inline">
         @Html.AntiForgeryToken()
@@ -141,16 +161,25 @@
                 fetch(`/api/articles/search?q=${encodeURIComponent(q)}&limit=20&type=@Model.Type`)
                     .then(r => r.json())
                     .then(arr => {
+                        if (arr.length === 0) {
+                            results.innerHTML = `
+                                <div class="list-group-item">
+                                    <div class="text-muted mb-2">Kein Artikel gefunden.</div>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="dummy-desc" class="form-control" maxlength="500" placeholder="Bezeichnung (Pflicht)" />
+                                        <input type="number" id="dummy-qty" class="form-control" style="max-width:80px;" value="1" min="1" step="1" />
+                                        <button type="button" id="dummy-add-btn" class="btn btn-outline-primary">DUMMY-Position anlegen</button>
+                                    </div>
+                                </div>`;
+                            return;
+                        }
                         results.innerHTML = arr.map(a => `<button type="button" class="list-group-item list-group-item-action" data-art="${a.text.split(' - ')[0]}">${a.text}</button>`).join('');
                     });
             }, 250);
         });
-        results.addEventListener('click', async e => {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            const articleNumber = btn.dataset.art;
 
-            // Flush pending qty edits before adding new item + reload
+        // Flush pending qty edits before adding a new item + reload.
+        async function flushPendingQty() {
             const pending = Array.from(document.querySelectorAll('.qty-edit'))
                 .filter(inp => inp.value !== inp.defaultValue)
                 .map(inp => fetch(`/api/warehouserequisitions/items/${inp.dataset.itemId}`, {
@@ -159,6 +188,38 @@
                     body: JSON.stringify({ quantity: parseInt(inp.value, 10) || 0 })
                 }));
             await Promise.all(pending);
+        }
+
+        results.addEventListener('click', async e => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+
+            // DUMMY-Position (unbekannte EK-Nummer): Pflicht-Bezeichnung.
+            if (btn.id === 'dummy-add-btn') {
+                const descEl = document.getElementById('dummy-desc');
+                const qtyEl = document.getElementById('dummy-qty');
+                const description = (descEl?.value || '').trim();
+                if (!description) { alert('Bitte eine Bezeichnung eingeben.'); descEl?.focus(); return; }
+                const quantity = parseInt(qtyEl?.value, 10) || 1;
+                await flushPendingQty();
+                const rd = await fetch(`/api/warehouserequisitions/${reqId}/items/dummy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description, quantity })
+                });
+                if (rd.ok) {
+                    location.reload();
+                } else {
+                    const j = await rd.json().catch(() => ({}));
+                    alert(j.error || 'Fehler');
+                }
+                return;
+            }
+
+            const articleNumber = btn.dataset.art;
+            if (!articleNumber) return;
+
+            await flushPendingQty();
 
             const r = await fetch(`/api/warehouserequisitions/${reqId}/items`, {
                 method: 'POST',
@@ -189,6 +250,21 @@
                     .then(() => location.reload());
             });
         });
+
+        // Kommentar-Autosave (Kopf-Ebene), analog den Positions-Notizen.
+        const commentEl = document.getElementById('req-comment');
+        if (commentEl) {
+            let lastComment = commentEl.value;
+            commentEl.addEventListener('blur', () => {
+                if (commentEl.value === lastComment) return;
+                lastComment = commentEl.value;
+                fetch(`/api/warehouserequisitions/${reqId}/comment`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: commentEl.value })
+                });
+            });
+        }
         </text>
     }
 })();

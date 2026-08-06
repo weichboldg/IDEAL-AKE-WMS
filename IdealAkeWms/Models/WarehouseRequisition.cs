@@ -30,6 +30,13 @@ public class WarehouseRequisition : AuditableEntity
     [StringLength(500)]
     public string? CancellationReason { get; set; }
 
+    /// <summary>
+    /// Freitext-Kommentar auf Kopf-Ebene der Bestellung (v1.29). Nur vom Besteller/Ersteller
+    /// im Draft editierbar; read-only fuer das Lager (Eingehende Listen + Details) und im Submit-Mail.
+    /// </summary>
+    [StringLength(1000)]
+    public string? Comment { get; set; }
+
     public DateTime? EmailSentAt { get; set; }
     public DateTime? CancellationEmailSentAt { get; set; }
 

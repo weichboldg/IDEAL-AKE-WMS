@@ -112,6 +112,7 @@ public class UsersController : Controller
             DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize),
             DefaultWorkStepId = vm.DefaultWorkStepId,
             DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim(),
+            DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim(),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -238,6 +239,7 @@ public class UsersController : Controller
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
             DefaultWorkbenches = user.DefaultWorkbenches,
+            DefaultFilterFaWorklistDescription1 = user.DefaultFilterFaWorklistDescription1,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -278,6 +280,7 @@ public class UsersController : Controller
         existing.DefaultPageSize = ValidatedPageSize(vm.DefaultPageSize);
         existing.DefaultWorkStepId = vm.DefaultWorkStepId;
         existing.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
+        existing.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
