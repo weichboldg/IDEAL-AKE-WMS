@@ -351,3 +351,125 @@ Code-Bezeichnern**, stattdessen konzeptbasiert `FaHierarchy*` / `HierarchicalFa`
 auf den Standort **IDEAL** (Dokumentation), die Sage-View-Namen `vw_IDEAL-AKE_Kommissionierung_*`
 (Fremd-DB-Objekte) sowie die Spec-Slugs/-Titel — der Hinweis betrifft ausschliesslich **neue
 fachliche Code-Bezeichner**. Exakte Schreibweise im Dev-Lauf bestaetigbar.
+
+## Kritische Pruefung (2026-08-06)
+
+Anwalt-des-Teufels-Durchsicht **nach** ausgefuellten Freigabe-Antworten (1-5), gegengelesen: die
+Spec, die Ideen-Notiz inkl. ihrer eigenen Kritischen Pruefung, der Anhang [[sage-views-ideal]]
+(korrekter Ist-Pfad), die Uebersicht, ADR 0001/0004/0008/0010, `fallstricke.md`, sowie der echte
+main-Code (`SyncWorker`, `LagerbestandSyncService`, `CachedBomRepository`/`CachedBomHeader`,
+`ServiceSettingDefinitions` + Drift-Guard-Test, `SyncLogServices`, aktuelle SQL-Migrationsnummern
+inkl. der noch nicht gemergten WmsBugs-Worktrees).
+
+### BLOCKER — Mensch muss entscheiden, bevor Teil 1 in Umsetzung geht
+
+**B-1 — Der INNER JOIN im Import-SQL vervielfacht die Struktur-Zeilen bei Kombinationsgeraeten
+(und jedem HauptFA mit >1 FAInfos-Zeile) — das widerspricht Freigabe-Antwort 1 direkt.**
+Anforderung 2 + In-Scope schreiben das Import-SQL als `FAListe f INNER JOIN FAInfos i ON
+i.HauptFA = f.HauptFA` fest. `FAInfos` hat laut Anhang die Granularitaet **eine Zeile = ein
+Auftrag (ABNr + Pos)**, und Kombinationsgeraete tragen **denselben `HauptFA` mit mehreren
+`[Montage-Abteilung]`-Zeilen**. Ein echter INNER JOIN auf diese 1:n-Beziehung **dupliziert damit
+jede FAListe-Positionszeile pro FAInfos-Zeile** desselben `HauptFA`: ein Kombigeraet mit zwei
+Montage-Abteilungen bekommt jede Struktur-/Stuecklisten-Position **doppelt** in `FaHierarchyNode`.
+Genau die Faelle, die Antwort 1 „wie normale Auftraege, keine Sonderbehandlung" behandeln will,
+werden so **still verfaelscht** — und die Verdopplung propagiert spaeter in jede Kommissionier-,
+Beschichtungs- und Vormontage-Liste (Doppelzaehlung von Material). Der Anhang selbst zeigt dasselbe
+fan-out-anfaellige Muster (`SELECT f.* FROM FAListe f INNER JOIN FAInfos i …`) — die Spec hat den
+Defekt geerbt. Das Test-Szenario „Schritt 4 — Kombinationsgeraet" wuerde die Verdopplung sogar
+sichtbar machen, **behauptet** aber „wie bei einem normalen Auftrag importiert", ohne sie als
+Fehler zu erkennen.
+  **Frage an den Menschen:** Bestaetige, dass die Datenverfuegbarkeits-Regel eine reine
+  **Existenzpruefung** ist (Struktur-Position importieren, *wenn* zum `HauptFA` mindestens ein
+  FAInfos-Eintrag existiert) und **keine** Zeilen-Multiplikation erzeugen darf. Dann muss das
+  Import-SQL statt des fan-out-INNER-JOIN ein `WHERE EXISTS (SELECT 1 FROM FAInfos i WHERE
+  i.HauptFA = f.HauptFA)` **oder** `INNER JOIN (SELECT DISTINCT HauptFA FROM FAInfos)` verwenden,
+  sodass **jede FAListe-Position genau einmal** in `FaHierarchyNode` landet — unabhaengig davon,
+  wie viele FAInfos-/Montage-Abteilungs-Zeilen der `HauptFA` hat. `FaHierarchyOrderInfo` behaelt
+  dagegen bewusst **alle** FAInfos-Zeilen (eine je Montage-Abteilung). Anforderung 2, In-Scope,
+  AK 2 und Test-Szenario Schritt 4 sind entsprechend zu schaerfen; ein AK „Kombigeraet-Positionen
+  erscheinen in `FaHierarchyNode` **genau einmal**" fehlt und ist zu ergaenzen.
+
+### SOLLTE — vor dem Dev-Lauf schaerfen (konkreter Vorschlag)
+
+**S-1 — Full-Refresh „Delete-All + Bulk-Insert in einer Transaktion" hat KEINEN Praezedenzfall im
+Code und ist so, wie beschrieben, riskant.** Kein bestehender Service macht Delete-All+Insert:
+`CachedBomHeader`/BomCache ist **Hash-inkrementell** (Upsert je Artikel, kein Truncate), enaio ist
+**MERGE-Full-Sync** — der Spec-Satz „analog `CachedBomHeader`" stimmt nur fuer das *Caching*, nicht
+fuer die *Schreibstrategie*. `FaHierarchyNode` ist die **Stueckliste** (laut Anhang potenziell
+hunderte Positionen je Struktur, ueber viele Strukturen → schnell zehntausende Zeilen). Ein
+`DELETE`-all + Bulk-`INSERT` in einer Transaktion haelt fuer die gesamte Ladezeit Sperren, eskaliert
+zum Table-Lock und **blockiert jeden gleichzeitigen Web-Read** (Repository/Cache-Miss) bis zum
+Commit — bei Teil-Ausfall/Timeout Rollback auf den alten Stand (gut), aber Deadlock- und
+Blocking-Risiko real. Vorschlag konkret:
+  1. **Beide Tabellen in EINER Transaktion** ersetzen (nicht „je Tabelle" separat) — sonst kann
+     `FaHierarchyNode` (neu) neben altem `FaHierarchyOrderInfo` stehen und umgekehrt.
+  2. **Empty-Guard auf den ROH-Zeilenzahlen BEIDER Views auswerten, BEVOR** irgendeine Tabelle
+     angefasst wird (analog `LagerbestandZeroingPlanner`: `sagePresentKeys` aus `rawSageRows` **vor**
+     jeder Mutation). AK 4 sagt „eine oder beide Views 0 → kein Replace" — das muss explizit als
+     Vorab-Check auf den unveraenderten Read stehen, nicht als Post-Join-Zaehlung (sonst maskiert
+     der INNER JOIN aus B-1 einen leeren FAInfos-Read als „0 Struktur-Zeilen" und der Guard
+     verwechselt Ausfall mit Leerstand).
+  3. Lock-Zeit begrenzen: entweder Staging-Tabelle + `sp_rename`/Partition-Switch, oder Batch-Delete,
+     oder mindestens Snapshot-Isolation, damit Web-Reads den **alten** Stand sehen statt zu blocken.
+
+**S-2 — View-Namen-Absicherung: Whitelist-Regex allein ist zu duenn; QUOTENAME fehlt voellig.**
+Die Spec nennt nur eine Regex und sagt selbst „Objektnamen lassen sich nicht parametrisieren" —
+richtig, aber die eigentliche Abwehr ist **strukturell**: Namen in `[Schema].[Name]` zerlegen,
+jeden Teil validieren, dann per **`QUOTENAME(part)`** wieder zusammensetzen, damit Injection auch
+dann unmoeglich ist, wenn die Regex spaeter gelockert wird. QUOTENAME kommt in der ganzen Spec
+nicht vor. Fuer das (bewusst offene) exakte Pattern in `open_questions`/Rueckfrage 4 mitnehmen:
+  - **ASCII-explizit** `^[A-Za-z0-9_]+$` je Namensteil, **nicht** `\w` (unter Unicode-Regex matcht
+    `\w` Homoglyphen — genau der im Auftrag genannte Angriff); `-`/`.` nur innerhalb der erkannten
+    Klammer-/Punkt-Struktur, `]` im Namen als `]]` behandeln.
+  - Explizit ablehnen: Whitespace, `;`, `--`, `/*`, `[`/`]`-Ungleichgewicht, alles jenseits ASCII.
+  - Danach **QUOTENAME** auf die geparsten Teile — Whitelist UND QUOTENAME, nicht entweder/oder.
+
+**S-3 — Drift-Guard greift fuer die 3 neuen Keys NICHT automatisch.** Der reale Test
+`ServiceSettingDefinitionsTests.All_ContainsDocumentedServiceReadKey` ist eine **hartcodierte
+`[InlineData]`-Liste** — er schlaegt nur fehl, wenn ein *dort gelisteter* Key im Katalog fehlt.
+Fuegt man `Sync:HierarchicalFaEnabled` / `Sync:FaHierarchyListeViewName` /
+`Sync:FaHierarchyInfosViewName` nur in `ServiceSettingDefinitions.All` ein (fuer den Seed), bleibt
+der Test **gruen ohne jede Guard-Wirkung**. Vorschlag: die 3 neuen Keys **zusaetzlich als
+`[InlineData]`** in den Drift-Guard-Test eintragen (sonst null Testabdeckung, dass sie katalogisiert
+sind). In die Checkliste/AK aufnehmen.
+
+**S-4 — „Zusaetzliche Fehlermail" (Freigabe-Antwort 4) ist im Loesungsentwurf nicht verdrahtet.**
+Der Design-Abschnitt nennt als Ctor-Abhaengigkeit nur `ISyncLogger`. Aber: `RunResilientAsync`
+schickt eine Fehlermail **nur bei einer geworfenen Exception**. Der Empty-Guard ist ein **Warn**
+(kein throw) → RunResilientAsync mailt dort **nicht**. Damit Antwort 4 (Fehlermail bei ungueltigem
+View-Namen **und** bei leerem View-Read) haelt, muss `FaHierarchySyncService` — wie
+`LagerbestandSyncService` fuer seinen Cap — **`ISyncErrorNotifier` injizieren** und in beiden
+Pfaden (Invalid-Name nach `FinishFailedAsync`, Empty-Guard nach Warn) explizit `NotifyAsync`
+aufrufen. Abhaengigkeit im Loesungsentwurf benennen.
+
+### HINWEIS — kleinere Beobachtungen und Staerken
+
+**H-1 — Migrationsnummer „ab 87" ist bereits ueberholt.** main ist bei `SQL/83`. Der noch nicht
+gemergte Worktree `2026-08-05-wms-bugs-improvements-teil-1-2-3` belegt bereits `84/85/86/**87**`
+(`87_AddUserDefaultFilterBomDescription1.sql`), der 4-8-Worktree `84/85/86`. Nach Merge beider
+Batches ist die naechste freie Nummer **voraussichtlich `88`**, nicht 87. Die Spec sagt korrekt
+„Platzhalter, vor Dev-Lauf gegen den gemergten Stand pruefen" — nur die konkrete Zahl „87" (auch in
+`affected_code` als `86_…`) anpassen.
+
+**H-2 — Rekursions-Indizes fehlen fuer spaeteren Konsum.** Das Modell indiziert `HauptFA` und
+`VaterFA`, aber **nicht** `SubFA`. Die Mehrstufigkeit wird beim Konsum ueber `VaterFA → SubFA`
+traversiert (Teil 2/7); ein Index auf `SubFA` ist dafuer sinnvoll. Fuer Teil 1 (reiner
+`HauptFA`-Lookup) unkritisch — nur als Notiz fuer Teil 2 festhalten.
+
+**H-3 — Groesse am oberen Rand eines Dev-Laufs.** 2 Modelle + Migration + FreshInstall (2 Stellen)
++ Sync-Service + SQL-Helper + 2 Repos + 1 Decorator + DI + `SyncLogServices` + Worker-Block + 2
+View-DDL-Dokus + Unit-Tests (Whitelist) + Testszenarien. Machbar, weil ueberwiegend
+Muster-Nachbau — aber die einzige echte Design-Nuance (B-1, Join-Semantik) vorher klaeren, sonst
+wird im Dev-Lauf improvisiert.
+
+**H-4 — Gut geloest (beibehalten):** „kein `AuditableEntity`, Nachvollziehbarkeit via `SyncLog` +
+`SyncedAt`" ist sauber am Praezedenzfall `CachedBomHeader`/`AppSettings` begruendet; das
+Zwei-Tabellen-Modell (auftrags- vs. positionsbezogen) ist korrekt gegen Denormalisierung
+abgewogen; Out-of-Scope (ProductionOrders unberuehrt, keine UI/Rollen, AKE-Linie unveraendert) ist
+scharf. Regressionsrisiko fuer `ProductionOrders` real gering (rein additive Tabellen).
+
+**H-5 — Randnotiz ausserhalb dieser Datei:** Die Freigabe-Antworten der Uebersichts-Spec
+(`…-uebersicht.md`, Fragen 1-3) stehen noch leer — Schranke 1 des Gesamtpakets ist dort nicht
+abgeschlossen (nicht Gegenstand dieser Teil-1-Pruefung, aber fuer den Orchestrator relevant).
+
+NACHBESSERUNG NOETIG: B-1 — der INNER-JOIN-Import verdoppelt Kombigeraet-/Mehrfach-FAInfos-Positionen und widerspricht Freigabe-Antwort 1; Existenz-/DISTINCT-Semantik muss vom Menschen bestaetigt werden (S-1..S-4 begleitend).
