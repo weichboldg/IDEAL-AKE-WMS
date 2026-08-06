@@ -107,3 +107,10 @@ kombinierten Branch (HEAD `1535f41`): Build 0 Fehler, Web **1093 passed/1 skippe
 [[2026-08-05-wms-bugs-improvements-teil-7-spec]] „## QA-Re-Verify (2026-08-06, kombinierter Branch,
 UAT-Fix #2 — Migration 88)". Deploy-Reihenfolge jetzt: SQL 85 → 86 → 88 vor Publish. Weiterhin
 **Schranke 2** offen — Multi-DUMMY nur am echten SQL Server final abnehmbar (TS-46.12).
+
+## Ad-hoc Layout-Tweak (2026-08-06, Nutzer-Wunsch, kein Spec-Bezug)
+Erste Spalte der **FA-Abarbeitungsliste** (`FaWorklist/Index`) und **FA-Vervollständigen**
+(`FaCompletion/Index`) an die **FA-Liste** (`ProductionOrders/Index`) angeglichen: BOM als **Button
+links** (`btn-sm btn-outline-primary`, Stückliste-Icon), FA-Nr **fett** statt Link, enaio via
+`_EnaioDmsBadges` + Vault-Icon — statt der `_FaDocumentLinks`-Icon-Leiste. `_FaDocumentLinks` selbst
+unberührt (weiter im FaCompletion/Edit-Kopf). Reine View-Änderung, Build grün, Manual-UAT (Optik).
