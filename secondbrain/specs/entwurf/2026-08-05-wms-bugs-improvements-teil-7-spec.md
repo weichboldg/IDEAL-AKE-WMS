@@ -663,3 +663,27 @@ vollständig auf den neuen Ablauf umgeschrieben.
 Der `## Freigabe-Antworten`-Block und die `## Kritische Pruefung` bleiben als Historie unverändert.
 
 **BEREIT ZUR FREIGABE**
+
+## QA-Re-Verify (2026-08-06, kombinierter Branch)
+
+Erneut verifiziert im **kombinierten** Worktree
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, HEAD `2403038`) zusammen mit
+Teil 1–3/4/5/8. Dieser Teil ist von den beiden Nutzer-Korrekturen (Teil-4-Rework, Teil-8-Nachtrag)
+inhaltlich nicht betroffen.
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 vorbestehende Warnungen).
+- **Tests:** `dotnet test` → `IdealAkeWms.Tests`: **1092 bestanden, 1 übersprungen, 0
+  fehlgeschlagen** (1093 gesamt); `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+  (Zahlen höher als im ursprünglichen QA-Nachweis, weil der kombinierte Branch zusätzlich Teil 1–3
+  sowie die neuen Teil-4/8-Tests enthält.)
+- **Migrationen/SQL erneut geprüft:** `SQL/85_AddWarehouseRequisitionComment.sql` (`COL_LENGTH`-
+  Guard) und `SQL/86_SeedDummyArticle.sql` (`IF NOT EXISTS`-Guard, alle NOT-NULL-Spalten der
+  `Articles`-Tabelle bedient: `ArticleNumber`, `CreatedAt`, `CreatedBy`, `CreatedByWindows`) weiterhin
+  korrekt; `SQL/00_FreshInstall.sql` enthält `[Comment]` + `MigrationId` +
+  DUMMY-Seed unverändert. `dotnet ef migrations has-pending-model-changes` → keine offenen
+  Modelländerungen.
+- **`docs/TESTSZENARIEN.md`** (Worktree): TS-46.9 – TS-46.13 unverändert vorhanden.
+
+**Status bestätigt: Testbereit.** Deploy-Abschnitt (oben, Web **und** Service, Migration 85/86)
+bleibt unverändert gültig.

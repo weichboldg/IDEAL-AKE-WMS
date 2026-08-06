@@ -157,23 +157,29 @@ einzugeben, der die Liste unverändert (Vollmenge) zurückliefert.
 
 ## Deploy
 
-**Finalisiert durch QA (2026-08-06) — aus dem echten Diff des gemeinsamen Worktrees
-`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung.**
+**Ursprünglich finalisiert durch QA (2026-08-06) aus dem Diff des Worktrees
+`feature/2026-08-05-wms-bugs-improvements-4-8` — durch den Nutzer-Korrektur-Rework (siehe
+„Korrektur nach Umsetzung" oben) überholt. Von QA am 2026-08-06 auf dem kombinierten Branch
+`feature/2026-08-05-wms-bugs-improvements-teil-1-2-3` (HEAD `2403038`) neu finalisiert.**
 
-- **Web-App:** ja — einzige geänderte Anwendungsdatei ist `IdealAkeWms/Views/StockMovements/Index.cshtml`
-  (drei `<th>` verlieren `data-filterable`/`data-col-key`).
-- **Service:** nein — kein Diff unter `IDEALAKEWMSService/`.
-- **Migration:** nein — kein neues Schema, keine neue Migration.
+- **Web-App:** ja — geänderte Anwendungsdateien sind `IdealAkeWms/Views/StockMovements/Index.cshtml`
+  (`datetime`/`movement-type` bekommen `data-filterable`/`data-col-key` wieder, „Menge" bleibt ohne)
+  **und** `IdealAkeWms/Data/Repositories/StockMovementRepository.cs`
+  (`ApplyMovementTypeFilter`/`ApplyMovementDateFilter` + Expression-Combiner-Helfer).
+- **Service:** nein — kein Diff unter `IDEALAKEWMSService/` für diesen Teil.
+- **Migration:** nein — dieser Teil selbst bringt kein neues Schema (die drei Migrationen 84/85/87
+  im kombinierten Branch gehören zu Teil 7/8, nicht zu Teil 4).
 - **Publish-Befehl (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
 
-Fluss: Publish **aus dem Worktree** → Testsystem → manueller Test (unten) → dann Merge. Nach dem
-Merge nur dann erneut aus `main` publishen, wenn der Merge tatsächlich getestete Dateien mit
-parallelen `main`-Änderungen kombiniert hat (bei diesem reinen View-Fix unwahrscheinlich, aber vor
-dem Merge-Schritt gegenprüfen — vier Teil-Specs teilen sich denselben Worktree/Branch).
+Fluss: Publish **aus dem Worktree** → Testsystem → manueller Test (unten) → dann Merge. Der
+kombinierte Branch bündelt Teil 1–3 (v1.29.0) + Teil 4/5/7/8 (v1.30.0) für gemeinsames UAT; ein
+Migrations-Deploy (SQL 84/85/87) ist Teil des Gesamt-Deploys, siehe Teil-7/8-Spec. Nach dem Merge
+nur dann erneut aus `main` publishen, wenn der Merge tatsächlich getestete Dateien mit parallelen
+`main`-Änderungen kombiniert hat.
 
 ## QA-Nachweis (2026-08-06)
 
@@ -340,3 +346,35 @@ Datum"**). Damit ist die ursprüngliche Lösungsentscheidung („die drei Filter
 
 Die S2-Folge-Aufgabe ([[2026-08-06-audit-server-spaltenfilter-noop]]) bleibt gültig: das Muster
 „`th` als filterbar markiert, aber kein Handler" ist projektweit zu prüfen.
+
+## QA-Re-Verify (2026-08-06, kombinierter Branch)
+
+Erneut verifiziert im **kombinierten** Worktree
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, HEAD `2403038`), der Teil 1–3
+(v1.29.0) und Teil 4/5/7/8 (v1.30.0) inkl. der beiden Nutzer-Korrekturen (Teil-4-Rework, Teil-8-
+Nachtrag) für das gemeinsame UAT bündelt:
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 vorbestehende Warnungen).
+- **Tests:** `dotnet test` → `IdealAkeWms.Tests`: **1092 bestanden, 1 übersprungen, 0
+  fehlgeschlagen** (1093 gesamt); `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **Gezielt:** `StockMovementRepositoryMovementFilterTests` (7 Tests) — `movement-type`
+  (Ausbuchung→Aus+Sage-Aus, Einbuchung→Ein+Sage-Ein, Negation, kein Treffer→leer) und `datetime`
+  (Tag/Monat/Jahr) alle grün.
+- **Inline-Review:** `ApplyMovementColumnFilter`/`ApplyMovementTypeFilter`/`ApplyMovementDateFilter`
+  sind vollständig SQL-übersetzbar (kein Client-Eval-Fallback) — `matching.Contains(sm.MovementType)`
+  übersetzt zu `IN`, die Datums-Klauseln sind Expression-Trees kombiniert über `OrElse`/
+  `ReplaceParameterVisitor`. „Kein Treffer → leer, negiert → alle" korrekt implementiert. In
+  `Views/StockMovements/Index.cshtml` hat jede `data-filterable`-Spalte (`datetime`, `article`,
+  `storage-location`, `movement-type`, `user`, `production-order`) einen Handler; „Menge" ist
+  bewusst ohne `data-filterable`/`data-col-key` (kein reintroducierter No-Op).
+- **`docs/TESTSZENARIEN.md`** (Worktree): TS-2.26 beschreibt das **funktionale** Verhalten (nicht
+  „entfernt") — bestätigt aktuell.
+- **Migrationen/FreshInstall:** Der kombinierte Branch bringt zusätzlich Migration 84/85/87 (Teil 7/8,
+  nicht dieser Teil) — `SQL/00_FreshInstall.sql` an beiden Stellen (Schema + `MigrationId`)
+  konsistent, `dotnet ef migrations has-pending-model-changes` → „No changes have been made to the
+  model since the last migration."
+
+**Status bestätigt: Testbereit.** Deploy-Abschnitt (oben) wurde bei diesem Re-Verify korrigiert
+(die alte Fassung nannte fälschlich nur die View als geänderte Datei — der Rework ändert auch
+`StockMovementRepository.cs`); inhaltlich bleibt es web-only, kein Migrations-Bezug dieses Teils.

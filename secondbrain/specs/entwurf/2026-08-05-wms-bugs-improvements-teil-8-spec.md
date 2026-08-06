@@ -270,26 +270,31 @@ Bezeichnung):
 ## Deploy
 
 **Finalisiert durch QA (2026-08-06) — aus dem echten Diff des gemeinsamen Worktrees
-`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung.**
+`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung. Am
+2026-08-06 auf dem kombinierten Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3` um den
+Teil-8-Nachtrag (BOM-Bezeichnung-1-Filter) erweitert.**
 
 - **Web-App:** ja — `User.cs`, `ProfileViewModel`/`AccountController`, `UserEditViewModel`/
   `UsersController`, `FaWorklistController`, `Views/Account/Profile.cshtml`,
-  `Views/Users/Edit.cshtml`.
+  `Views/Users/Edit.cshtml`; **Nachtrag:** zusätzlich `BomViewModels.cs`, `PickingController.cs`,
+  `Views/Picking/Bom.cshtml` (BOM-Bezeichnung-1-Autofilter).
 - **Service:** nein — kein Diff unter `IDEALAKEWMSService/`.
-- **Migration:** **ja** — additive Spalte `Users.DefaultFilterFaWorklistDescription1`
-  (`NVARCHAR(200) NULL`). EF-Migration `20260806081121_AddUserDefaultFilterFaWorklistDescription1`,
-  Skript `SQL/84_AddUserDefaultFilterFaWorklistDescription1.sql` (idempotenter `COL_LENGTH`-Guard,
-  DDL + `__EFMigrationsHistory`-Insert in getrennten Batches), `SQL/00_FreshInstall.sql` an beiden
-  Stellen (Spalte in der `Users`-Tabellendefinition **und** `MigrationId`) nachgezogen — verifiziert.
-- **Reihenfolge:** SQL **vor** dem Web-Publish einspielen (additiv, kein Backup-Zwang über das
-  Standard-Vorgehen hinaus).
+- **Migration:** **ja, zwei** — additive Spalten `Users.DefaultFilterFaWorklistDescription1`
+  (`NVARCHAR(200) NULL`, Migration `20260806081121_...`, `SQL/84_*.sql`) **und** (Nachtrag)
+  `Users.DefaultFilterBomDescription1` (`NVARCHAR(200) NULL`, Migration
+  `20260806105617_AddUserDefaultFilterBomDescription1`, `SQL/87_*.sql`). Beide idempotenter
+  `COL_LENGTH`-Guard, DDL + `__EFMigrationsHistory`-Insert in getrennten Batches,
+  `SQL/00_FreshInstall.sql` an beiden Stellen (Spalten in der `Users`-Tabellendefinition **und**
+  beide `MigrationId`) nachgezogen — verifiziert.
+- **Reihenfolge:** SQL 84 **und** 87 (sowie 85/86 aus Teil 7, falls nicht bereits eingespielt) vor
+  dem Web-Publish einspielen (additiv, kein Backup-Zwang über das Standard-Vorgehen hinaus).
 - **Publish-Befehl (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
 
-Fluss: SQL 84 einspielen → Publish **aus dem Worktree** → Testsystem → manueller Test (unten) →
+Fluss: SQL 84+87 einspielen → Publish **aus dem Worktree** → Testsystem → manueller Test (unten) →
 dann Merge. Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge tatsächlich
 getestete Dateien mit parallelen `main`-Änderungen kombiniert hat.
 
@@ -321,8 +326,9 @@ Verifiziert im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-b
 
 ## Manuelle Test-Checkliste (Schranke 2)
 
-Am Testsystem **nach** Einspielen von `SQL/84_AddUserDefaultFilterFaWorklistDescription1.sql` und
-Web-Publish durchzuführen — Referenz: `docs/TESTSZENARIEN.md` TS-43.5.
+Am Testsystem **nach** Einspielen von `SQL/84_AddUserDefaultFilterFaWorklistDescription1.sql`,
+`SQL/87_AddUserDefaultFilterBomDescription1.sql` und Web-Publish durchzuführen — Referenz:
+`docs/TESTSZENARIEN.md` TS-43.5, TS-5.10.
 
 1. Im Profil (`/Account/Profile`) „Verdampfer" als „Standard-Filter Bezeichnung 1
    (FA-Abarbeitungsliste)" speichern.
@@ -337,6 +343,12 @@ Web-Publish durchzuführen — Referenz: `docs/TESTSZENARIEN.md` TS-43.5.
    speichern → wirkt bei dessen nächstem Erstaufruf wie Schritt 2.
 6. Default im Profil leeren/speichern, `/FaWorklist?workStepId=<id>` öffnen → unveränderte
    Filterung (kein Default, wie vor dieser Änderung).
+7. **(Nachtrag, TS-5.10)** Im Profil unter „Standard-Filter Bezeichnung 1 (Stückliste)" `Verdampfer`
+   eintragen, speichern. Eine BOM (Stückliste) öffnen → Spalte „Bezeichnung 1" ist automatisch auf
+   `Verdampfer` vorgefiltert, Wert steht sichtbar im Spaltenfilter-Feld.
+8. **(Nachtrag)** Filter „Bezeichnung 1" in der BOM leeren → wieder alle Positionen sichtbar. Leeres
+   Profilfeld → BOM öffnet ohne Vorbelegung. FA-Abarbeitungslisten-Filter (Schritt 1–6) bleibt davon
+   unberührt (getrenntes Feld).
 
 ## Offene Rückfragen
 
@@ -505,3 +517,30 @@ für die **Stückliste (BOM)** ein analoger Default-Filter auf „Bezeichnung 1"
   **BOM ist Client-Mode** (dokumentierte Ausnahme von ADR 0005) → kein Redirect/Sentinel nötig,
   einfacher als der Server-Mode-FaWorklist-Filter. Beide Default-Filter sind getrennte Felder.
 - Testszenario TS-5.10. Build grün (Web 1092/1 skip, Service 197).
+
+## QA-Re-Verify (2026-08-06, kombinierter Branch)
+
+Erneut verifiziert im **kombinierten** Worktree
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, HEAD `2403038`) zusammen mit
+Teil 1–3/4/5/7 — inkl. Nachtrag `DefaultFilterBomDescription1` (Migration 87):
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 vorbestehende Warnungen).
+- **Tests:** `dotnet test` → `IdealAkeWms.Tests`: **1092 bestanden, 1 übersprungen, 0
+  fehlgeschlagen** (1093 gesamt); `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **Migrationen/FreshInstall:** genau **drei** neue Migrationen bestätigt (84/85/87 — 86 ist reiner
+  Daten-Seed ohne `__EFMigrationsHistory`). `SQL/00_FreshInstall.sql` enthält beide `Users`-Spalten
+  (`DefaultFilterFaWorklistDescription1`, `DefaultFilterBomDescription1`) und alle drei
+  `MigrationId`-Inserts. `ApplicationDbContextModelSnapshot.cs` enthält beide Spalten.
+  `dotnet ef migrations has-pending-model-changes` → keine offenen Modelländerungen.
+- **Inline-Review Nachtrag:** `DefaultFilterBomDescription1` konsistent verdrahtet in `User.cs`,
+  `ProfileViewModel`, `UserEditViewModel`, `AccountController` (Profile GET+POST),
+  `UsersController` (Create POST, Edit GET+POST), `BomViewModel`, `PickingController`,
+  `Bom.cshtml`. Der bestehende `DefaultFilterFaWorklistDescription1`/FA-Worklist-Filter ist
+  unberührt (separates Feld, separater Redirect/Sentinel-Mechanismus). `Bom.cshtml` nutzt für die
+  Default-Vorbelegung `@Html.Raw(...)` innerhalb eines JS-String-Literals — identisches Muster wie
+  die beiden bestehenden Default-Filter (`DefaultFilterBeschaffung`/`DefaultFilterArtikelgruppe`),
+  kein neu eingeführtes Risiko dieser Änderung.
+- **`docs/TESTSZENARIEN.md`** (Worktree): TS-5.10 unverändert vorhanden, TS-43.5 unverändert.
+
+**Status bestätigt: Testbereit.**

@@ -285,3 +285,23 @@ Kleine Ergänzungen aus der kritischen Prüfung eingearbeitet, ohne Scope-Änder
   gelöst).
 
 BEREIT ZUR FREIGABE
+
+## QA-Re-Verify (2026-08-06, kombinierter Branch)
+
+Erneut verifiziert im **kombinierten** Worktree
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, HEAD `2403038`) zusammen mit
+Teil 1–3/4/7/8. Dieser Teil ist von den beiden Nutzer-Korrekturen (Teil-4-Rework, Teil-8-Nachtrag)
+inhaltlich nicht betroffen (`StockMovementsController.Inbound()` unverändert seit dem ursprünglichen
+QA-Nachweis).
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 vorbestehende Warnungen).
+- **Tests:** `dotnet test` → `IdealAkeWms.Tests`: **1092 bestanden, 1 übersprungen, 0
+  fehlgeschlagen** (1093 gesamt); `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+  (Zahlen höher als im ursprünglichen QA-Nachweis, weil der kombinierte Branch zusätzlich Teil 1–3
+  sowie die neuen Teil-4/8-Tests enthält — für diesen Teil selbst keine neuen Tests.)
+- **`docs/TESTSZENARIEN.md`** (Worktree): TS-2.29 – TS-2.31 unverändert vorhanden und weiterhin
+  zutreffend.
+
+**Status bestätigt: Testbereit.** Deploy-Abschnitt (oben) bleibt unverändert gültig — dieser Teil
+ändert weiterhin ausschließlich `IdealAkeWms/Controllers/StockMovementsController.cs`.
