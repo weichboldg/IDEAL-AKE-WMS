@@ -32,6 +32,9 @@ Release-Details je Version: `changelog/` (39 Eintraege v1.0.0 – v1.26.0).
 | FA-Hinweis auf Ist-Bestand (Bugfix, `onlyActualStock`) | Testbereit (v1.29.0) | [[2026-08-05-wms-bugs-improvements-teil-1-spec]] | `StockMovementRepository.GetStockByProductionOrderAsync` |
 | Mehrfach-Einbuchung (`/StockMovements/InboundBulk`) | Testbereit (v1.29.0) | [[2026-08-05-wms-bugs-improvements-teil-2-spec]] | `StockMovementsController.InboundBulk`, `Views/StockMovements/InboundBulk.cshtml` |
 | WA-Scan-Button Bewegungshistorie (Trennzeichen-Kuerzung) | Testbereit (v1.29.0) | [[2026-08-05-wms-bugs-improvements-teil-3-spec]] | `Views/StockMovements/Index.cshtml` |
+| Bewegungshistorie: No-Op-Spaltenfilter entfernt (Bugfix) | Testbereit (v1.30.0) | [[2026-08-05-wms-bugs-improvements-teil-4-spec]] | `Views/StockMovements/Index.cshtml` |
+| Einbuchung Standardmenge 1 | Testbereit (v1.30.0) | [[2026-08-05-wms-bugs-improvements-teil-5-spec]] | `StockMovementsController.Inbound` (GET) |
+| Lager-/Glasbestellung: Kommentar (Kopf) + DUMMY-Artikel | Testbereit (v1.30.0) | [[2026-08-05-wms-bugs-improvements-teil-7-spec]] | `WarehouseRequisition.Comment`, `WarehouseRequisitionsApiController` (`/comment`, `/items/dummy`) |
 
 ## Fertigungsauftraege, Leitstand, Kommissionierung
 
@@ -59,6 +62,7 @@ Release-Details je Version: `changelog/` (39 Eintraege v1.0.0 – v1.26.0).
 | FA-Vorbau: AG-Katalog + Abarbeitungsliste | Gemerged (v1.22.0) | `2026-06-12-fa-vervollstaendigung-erweiterung-design.md` | `Controllers/FaWorklistController.cs`, `Models/FaWorkStep.cs` |
 | FA-AG-Auto-Erkennung aus BOM-Cache | Gemerged (v1.22.0) | s. o. | `IDEALAKEWMSService/Services/FaWorkStepDetectionService.cs` |
 | Werkbank-Filter (Komma) + Bezeichnung 1/2 | Gemerged (v1.23.0) | `2026-06-19-faworklist-werkbankfilter-bezeichnung-design.md` | `Services/WorkbenchFilter.cs`, `User.DefaultWorkbenches` |
+| FA-Abarbeitungsliste: personalisierter Bezeichnung-1-Default-Filter | Testbereit (v1.30.0) | [[2026-08-05-wms-bugs-improvements-teil-8-spec]] | `User.DefaultFilterFaWorklistDescription1`, `FaWorklistController.Index` (Redirect+`df1`) |
 | Erkennungs-/BOM-Cache-Protokoll aufgegliedert | Gemerged (v1.23.0) | `2026-06-25-fa-detection-protokoll-aufgliederung-design.md` | `BomCacheCoverage.cs` |
 | FaWorkStep 3-Wert-Status + Beschichtungstermin-Spalte | Gemerged (v1.24.0) | `2026-06-25-faworkstep-3state-coating-filter-design.md` | `Models/FaWorkStepStatus.cs`, `Services/CoatingDateCalculator.cs` |
 | Vorbau-BOM-Button + read-only Stueckliste | Gemerged (v1.25.0) | `2026-07-07-vorbau-bom-button-stock-read-role-design.md` | `Views/Picking/Bom.cshtml`, `ReadOnlyBomBuilder.cs` |

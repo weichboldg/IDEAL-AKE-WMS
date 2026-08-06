@@ -2,14 +2,14 @@
 type: spec
 title: "FA-Abarbeitungsliste: personalisiert abspeicherbarer Bezeichnung-1-Filter (analog Artikelgruppen-Filter)"
 slug: 2026-08-05-wms-bugs-improvements-teil-8-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-4-8]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-4-8"
+branch: "feature/2026-08-05-wms-bugs-improvements-4-8"
 affected_code:
   - IdealAkeWms/Models/User.cs
   - IdealAkeWms/Models/ViewModels/ProfileViewModel.cs
@@ -269,17 +269,74 @@ Bezeichnung):
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** nein.
-- **Migration:** ja (additive Spalte auf `Users`).
-- **Publish-Befehle:**
+**Finalisiert durch QA (2026-08-06) — aus dem echten Diff des gemeinsamen Worktrees
+`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung.**
+
+- **Web-App:** ja — `User.cs`, `ProfileViewModel`/`AccountController`, `UserEditViewModel`/
+  `UsersController`, `FaWorklistController`, `Views/Account/Profile.cshtml`,
+  `Views/Users/Edit.cshtml`.
+- **Service:** nein — kein Diff unter `IDEALAKEWMSService/`.
+- **Migration:** **ja** — additive Spalte `Users.DefaultFilterFaWorklistDescription1`
+  (`NVARCHAR(200) NULL`). EF-Migration `20260806081121_AddUserDefaultFilterFaWorklistDescription1`,
+  Skript `SQL/84_AddUserDefaultFilterFaWorklistDescription1.sql` (idempotenter `COL_LENGTH`-Guard,
+  DDL + `__EFMigrationsHistory`-Insert in getrennten Batches), `SQL/00_FreshInstall.sql` an beiden
+  Stellen (Spalte in der `Users`-Tabellendefinition **und** `MigrationId`) nachgezogen — verifiziert.
+- **Reihenfolge:** SQL **vor** dem Web-Publish einspielen (additiv, kein Backup-Zwang über das
+  Standard-Vorgehen hinaus).
+- **Publish-Befehl (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
 
-**Hinweis:** DB-Migration vor dem Web-Publish einspielen (additiv, kein Backup-Zwang über das
-Standard-Vorgehen hinaus).
+Fluss: SQL 84 einspielen → Publish **aus dem Worktree** → Testsystem → manueller Test (unten) →
+dann Merge. Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge tatsächlich
+getestete Dateien mit parallelen `main`-Änderungen kombiniert hat.
+
+## QA-Nachweis (2026-08-06)
+
+Verifiziert im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-4-8`
+(Branch `feature/2026-08-05-wms-bugs-improvements-4-8`, HEAD `a1d4d76`), gemeinsam mit Teil 4/5/7:
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 Vorbestehende Warnungen, keine neuen).
+- **Tests:** `dotnet test` →
+  - `IdealAkeWms.Tests`: **1075 bestanden, 1 übersprungen, 0 fehlgeschlagen** (1076 gesamt).
+  - `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **Migrationen:** genau **zwei** neue EF-Migrationen im Worktree bestätigt —
+  `20260806081121_AddUserDefaultFilterFaWorklistDescription1` (dieser Teil) und
+  `20260806081737_AddWarehouseRequisitionComment` (Teil 7). `SQL/84_*.sql` mit `COL_LENGTH`-Guard
+  vorhanden; `SQL/00_FreshInstall.sql` enthält sowohl die Spalte
+  `[DefaultFilterFaWorklistDescription1] NVARCHAR(200) NULL` in der `Users`-Definition als auch den
+  `__EFMigrationsHistory`-Insert für `20260806081121_...`.
+- **Code-Review (inline, kein Task-Subagent im QA-Environment verfügbar):** Diff gegen die
+  „Finalisierung" (Redirect-mit-Parameter + Sentinel `df1`) geprüft —
+  `FaWorklistController.Index` lädt `currentUser` jetzt einmalig (HINWEIS-2 adressiert, kein
+  doppelter Repo-Load), leitet beim echten Erstaufruf (kein `colf_description1`, kein `df1`,
+  `workStepId` gesetzt, Default nicht leer) per `RedirectToAction` auf
+  `?...&colf_description1=<Default>&df1=1` um; `columnFilters`/`Apply` unverändert. `StringLength(200)`
+  wie in HINWEIS-3 entschieden. Profil- und Admin-Speicherpfad (`AccountController`,
+  `UsersController`) analog `DefaultFilterArtikelgruppe` umgesetzt.
+- **`docs/TESTSZENARIEN.md`** (Worktree) ergänzt: TS-43.5 (Kapitel 43).
+- **`secondbrain/tests/testszenarien-index.md`** (Hauptcheckout) nachgezogen (Kapitel 43).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Am Testsystem **nach** Einspielen von `SQL/84_AddUserDefaultFilterFaWorklistDescription1.sql` und
+Web-Publish durchzuführen — Referenz: `docs/TESTSZENARIEN.md` TS-43.5.
+
+1. Im Profil (`/Account/Profile`) „Verdampfer" als „Standard-Filter Bezeichnung 1
+   (FA-Abarbeitungsliste)" speichern.
+2. `/FaWorklist?workStepId=<id>` **ohne** weitere Parameter öffnen → Liste zeigt nur FAs mit
+   „Verdampfer"; der Wert steht **sichtbar** im Spaltenfilter-Feld „Bezeichnung 1"; URL enthält
+   `colf_description1=Verdampfer` und `df1=1`.
+3. Feld „Bezeichnung 1" leeren, ENTER → Liste zeigt wieder **alle** FAs; Default greift **nicht**
+   erneut ohne frischen Aufruf.
+4. Negativfall (Override): `/FaWorklist?workStepId=<id>&colf_description1=Kondensator` direkt
+   aufrufen → expliziter Parameter gewinnt, nicht der gespeicherte Default.
+5. Als Admin über `/Users/Edit/{id}` denselben Default für einen anderen Benutzer setzen und
+   speichern → wirkt bei dessen nächstem Erstaufruf wie Schritt 2.
+6. Default im Profil leeren/speichern, `/FaWorklist?workStepId=<id>` öffnen → unveränderte
+   Filterung (kein Default, wie vor dieser Änderung).
 
 ## Offene Rückfragen
 

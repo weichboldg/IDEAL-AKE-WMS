@@ -1,6 +1,6 @@
 ---
 type: test-index
-updated: 2026-08-05
+updated: 2026-08-06
 ---
 # Testszenarien-Index
 
@@ -19,7 +19,7 @@ gewachsen, bewusst nicht umsortiert (die TS-Ids sind in Abnahmeprotokollen refer
 | Kapitel | Szenarien | Feature / Spec |
 |---|---|---|
 | 1. Authentifizierung & Zugriff | TS-1.1 – 1.7 | Login, Session-Timeout, Rollen-Zugriff, Admin-Wildcard, BDE-Gate → [[0006-rollenkonzept-statische-keys-mit-admin-wildcard]], [[0011-feature-toggles-ueber-appsettings]] |
-| 2. Lager | TS-2.1 – 2.25 | Ein-/Aus-/Umbuchung, Lagerplatz en bloc, Bestand, Historie, Artikelinfo, Meldebestand, QR-Scan, FA-Lagerplatz-Hinweis (`einbuchung-fa-autofill`); TS-2.22 – 2.25 = WMS-Bugs/Improvements Teil 1–3 (v1.29.0): FA-Hinweis nur bei tatsaechlichem Ist-Bestand ([[2026-08-05-wms-bugs-improvements-teil-1-spec]]), Mehrfach-Einbuchung `/StockMovements/InboundBulk` mit Mehrfach-Scan-Hochzaehlen + Sage-Enqueue je Zeile ([[2026-08-05-wms-bugs-improvements-teil-2-spec]]), WA-Scan-Button mit Trennzeichen-Kuerzung in der Bewegungshistorie ([[2026-08-05-wms-bugs-improvements-teil-3-spec]]) |
+| 2. Lager | TS-2.1 – 2.25, 2.26 – 2.31 | Ein-/Aus-/Umbuchung, Lagerplatz en bloc, Bestand, Historie, Artikelinfo, Meldebestand, QR-Scan, FA-Lagerplatz-Hinweis (`einbuchung-fa-autofill`); TS-2.22 – 2.25 = WMS-Bugs/Improvements Teil 1–3 (v1.29.0): FA-Hinweis nur bei tatsaechlichem Ist-Bestand ([[2026-08-05-wms-bugs-improvements-teil-1-spec]]), Mehrfach-Einbuchung `/StockMovements/InboundBulk` mit Mehrfach-Scan-Hochzaehlen + Sage-Enqueue je Zeile ([[2026-08-05-wms-bugs-improvements-teil-2-spec]]), WA-Scan-Button mit Trennzeichen-Kuerzung in der Bewegungshistorie ([[2026-08-05-wms-bugs-improvements-teil-3-spec]]); TS-2.26 – 2.28 = WMS-Bugs/Improvements Teil 4 (v1.30.0): stille No-Op-Spaltenfilter Bewegungsart/Datum/Menge entfernt ([[2026-08-05-wms-bugs-improvements-teil-4-spec]]); TS-2.29 – 2.31 = Teil 5 (v1.30.0): Einbuchung oeffnet mit Standardmenge 1, Ausbuchung/Umbuchung unveraendert ([[2026-08-05-wms-bugs-improvements-teil-5-spec]]). Bewusste Nummern-Luecke 2.22–2.25 (Teil-1-3-Branch noch nicht gemergt) — dieser Lauf beginnt daher erst bei 2.26. |
 | 3. Stammdaten | TS-3.1 – 3.16 | Benutzer, Rollen, Werkbank, Lagerplatz, Artikel/Kategorien/Merkmale, Settings-Toggles, Empfaengergruppen, BDE-Stammdaten, View-Reset |
 | 4. Fertigungsauftraege | TS-4.1 – 4.36 | FA-Liste, KW-Filter, Flags, enaio-Dokumente, Leitstand-Freigabe/Bulk/Prioritaet, Baugruppen-Flags, ProductionOrder-Split (Migration + AgentJob), Slim-Index, Compat-Redirects, FA-Vervollstaendigung |
 | 5. Stueckliste (BOM) | TS-5.1 – 5.9 | BOM aufrufen, Fehlteil-Filter, Druck, Picking-Start, Bedarfsmeldung, Sammelbestellung, Foto, BOM-Cache in der Artikelinfo |
@@ -65,10 +65,10 @@ gewachsen, bewusst nicht umsortiert (die TS-Ids sind in Abnahmeprotokollen refer
 | 40. Windows-Authentifizierung & AD-Benutzer | v1.23.0 | `2026-06-18-windows-auth-ad-users-design.md` + `2026-07-09-windows-auth-ua-gate-design.md`. **Der zentrale Manual-UAT-Block** — SSO, LDAP, Negotiate, POSTs/Antiforgery, Logout Desktop+Mobile → [[0002-dual-auth-session-login-plus-windows-sso]] |
 | 41. Rolle „Lagerbestellung" + Artikelinfo fuer Stammdaten-ansehen | v1.23.0 | `2026-06-19-lagerbestellung-rolle-artikelinfo-design.md` |
 | 42. Lagerbestellungs-Druck spiegelt GUI | v1.23.0 | `2026-06-19-warehousepicking-print-spalten-sort-design.md` |
-| 43. FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung | v1.23.0 | `2026-06-19-faworklist-werkbankfilter-bezeichnung-design.md` |
+| 43. FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung | v1.23.0 / v1.30.0 | `2026-06-19-faworklist-werkbankfilter-bezeichnung-design.md`; TS-43.5 = WMS-Bugs/Improvements Teil 8 (v1.30.0): personalisierter, abspeicherbarer Default-Filter „Bezeichnung 1" (Redirect-mit-Parameter + Sentinel `df1`, analog Artikelgruppen-Filter) ([[2026-08-05-wms-bugs-improvements-teil-8-spec]]) |
 | 44. FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung | v1.23.0 | `2026-06-25-fa-detection-protokoll-aufgliederung-design.md` |
 | 45. FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter | v1.24.0 | `2026-06-25-faworkstep-3state-coating-filter-design.md`; Migration 76 **daten-konvertierend** |
-| 46. Glas-Bestellung (Bestelltyp Lager/Glas) | v1.25.0 | `2026-07-03-glas-bestellung-design.md` |
+| 46. Glas-Bestellung (Bestelltyp Lager/Glas) | v1.25.0 / v1.30.0 | `2026-07-03-glas-bestellung-design.md`; TS-46.9 – 46.13 = WMS-Bugs/Improvements Teil 7 (v1.30.0): Kopf-Kommentar (nur Ersteller/Draft, in Eingehenden Listen + Details + Submit-Mail HTML/Text, nicht in Storno-Mail) + DUMMY-Artikel bei unbekannter EK-Nummer (Pflicht-Bezeichnung als Positions-Snapshot, Duplikat-Guard + Glas-Gruppen-Guard fuer den DUMMY-Schluessel umgangen) ([[2026-08-05-wms-bugs-improvements-teil-7-spec]]) |
 | 47. Service-Resilienz + Fehlermail + ProductionOrders-515-Fix | v1.25.0 | `RunResilientAsync`, `SyncErrorNotifier`, `SubOrderNumber`-`COL_LENGTH`-Check |
 | 48. Rolle `stock_read` + FA-Liste/Stueckliste fuer Vorbau | v1.25.0 | `2026-07-07-vorbau-bom-button-stock-read-role-design.md` |
 | 49. Hauptlagerplatz am Artikel | v1.25.0 | `2026-07-07-hauptlagerplatz-design.md`; Sync-Regeln sind Manual-UAT (raw SQL) |

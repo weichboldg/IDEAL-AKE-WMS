@@ -1,9 +1,11 @@
 ---
 type: bug
 title: "Bewegungshistorie: Spaltenfilter \"Bewegungsart\" (sowie Datum/Zeit und Menge) filtert nicht — stiller No-Op liefert Vollmenge"
-status: offen
+status: behoben-testbereit
 severity: mittel
 created: 2026-08-05
+fixed: 2026-08-06
+fixed_in: "v1.30.0 (Teil 4), Branch feature/2026-08-05-wms-bugs-improvements-4-8 — Testbereit, Schranke 2 offen"
 affected_code:
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs (ApplyMovementColumnFilter, Zeilen 507-537)
   - IdealAkeWms/Views/StockMovements/Index.cshtml (Tabellen-Header, Zeilen 70-81)

@@ -2,14 +2,14 @@
 type: spec
 title: "Einbuchung: Standardmenge 1 statt 0"
 slug: 2026-08-05-wms-bugs-improvements-teil-5-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-4-8]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-4-8"
+branch: "feature/2026-08-05-wms-bugs-improvements-4-8"
 affected_code:
   - IdealAkeWms/Controllers/StockMovementsController.cs
   - docs/TESTSZENARIEN.md
@@ -150,14 +150,54 @@ Ergänzung `docs/TESTSZENARIEN.md` Kapitel 2 (Lager):
 
 ## Deploy
 
-- **Web-App:** ja (Ein-Zeilen-Controller-Änderung).
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:**
+**Finalisiert durch QA (2026-08-06) — aus dem echten Diff des gemeinsamen Worktrees
+`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung.**
+
+- **Web-App:** ja — einzige geänderte Anwendungsdatei ist
+  `IdealAkeWms/Controllers/StockMovementsController.cs` (`Quantity = 1` im Objekt-Initializer der
+  `Inbound()`-GET-Action).
+- **Service:** nein — kein Diff unter `IDEALAKEWMSService/`.
+- **Migration:** nein — kein neues Schema.
+- **Publish-Befehl (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
+
+Fluss: Publish **aus dem Worktree** → Testsystem → manueller Test (unten) → dann Merge. Nach dem
+Merge nur dann erneut aus `main` publishen, wenn der Merge tatsächlich getestete Dateien mit
+parallelen `main`-Änderungen kombiniert hat.
+
+## QA-Nachweis (2026-08-06)
+
+Verifiziert im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-4-8`
+(Branch `feature/2026-08-05-wms-bugs-improvements-4-8`, HEAD `a1d4d76`), gemeinsam mit Teil 4/7/8:
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 Vorbestehende Warnungen, keine neuen).
+- **Tests:** `dotnet test` →
+  - `IdealAkeWms.Tests`: **1075 bestanden, 1 übersprungen, 0 fehlgeschlagen** (1076 gesamt).
+  - `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **Code-Review (inline, kein Task-Subagent im QA-Environment verfügbar):** Diff geprüft — der
+  Default `Quantity = 1` sitzt ausschließlich im Objekt-Initializer der `Inbound()`-GET-Action, wie
+  in „Kritische Prüfung"/„Finalisierung" gefordert; `StockMovementCreateViewModel.Quantity` selbst
+  bleibt unverändert (kein Default am Property) — `Outbound()` daher **nicht** betroffen. Der
+  Validierungsfehler-Rerender läuft weiterhin über normales Model-Binding (kein Code-Pfad
+  überschreibt den vom Anwender getippten Wert).
+- **Migrationen:** keine.
+- **`docs/TESTSZENARIEN.md`** (Worktree) ergänzt: TS-2.29 – TS-2.31 (Kapitel 2 „Lager").
+- **`secondbrain/tests/testszenarien-index.md`** (Hauptcheckout) nachgezogen (Kapitel 2).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Am Testsystem nach Publish durchzuführen — Referenz: `docs/TESTSZENARIEN.md` TS-2.29 – TS-2.31.
+
+1. **TS-2.29:** `/StockMovements/Inbound` öffnen → Mengenfeld zeigt `1`. Negativfall: Menge auf `0`
+   setzen und absenden → weiterhin Validierungsfehler „Menge muss größer als 0 sein".
+2. **TS-2.30:** `/StockMovements/Outbound` und die Umbuchung öffnen → **kein** `1`-Default, Feld
+   zeigt weiterhin `0` (unverändertes Verhalten).
+3. **TS-2.31:** Einbuchung öffnen (Menge zeigt `1`), Menge auf `5` ändern, ein anderes Pflichtfeld
+   leer lassen und absenden (Validierungsfehler) → nach dem Rerender steht weiterhin `5` im
+   Mengenfeld, **nicht** auf `1` zurückgesetzt.
 
 ## Offene Rückfragen
 

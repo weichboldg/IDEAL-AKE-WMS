@@ -2,14 +2,14 @@
 type: spec
 title: "Lager-/Glasbestellung: Kommentarfunktion (Kopf-Ebene) + Dummy-Artikel bei unbekannter EK-Nummer"
 slug: 2026-08-05-wms-bugs-improvements-teil-7-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-4-8]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-4-8"
+branch: "feature/2026-08-05-wms-bugs-improvements-4-8"
 affected_code:
   - IdealAkeWms/Models/WarehouseRequisition.cs
   - IdealAkeWms/Models/ViewModels/WarehouseRequisitionEditViewModel.cs
@@ -27,8 +27,9 @@ affected_code:
   - IdealAkeWms/Views/WarehousePicking/Details.cshtml
   - IDEALAKEWMSService/Services/WarehouseRequisitionEmailService.cs
   - IdealAkeWms/Data/ApplicationDbContext.cs
-  - SQL/84_AddWarehouseRequisitionComment.sql (Schema, naechste freie Nummer)
-  - SQL/85_SeedDummyArticle.sql (reiner Daten-Seed, naechste freie Nummer)
+  - SQL/85_AddWarehouseRequisitionComment.sql (Schema; QA-Nachweis: reale Nummer 85, da Teil 8
+    Nummer 84 belegt hat)
+  - SQL/86_SeedDummyArticle.sql (reiner Daten-Seed; reale Nummer 86)
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
@@ -290,6 +291,10 @@ Teil-Specs dieses Backlogs parallel um SQL-Nummern konkurrieren können.
 **Reihenfolge Deploy:** DB-Migration `84` **und** Seed `85` vor dem Web-/Service-Publish einspielen
 (der DUMMY-Endpunkt setzt den geseedeten Artikel voraus).
 
+**QA-Bestätigung der realen Nummern (2026-08-06):** Teil 8 hat bei der Umsetzung `84` belegt
+(`AddUserDefaultFilterFaWorklistDescription1`); dieser Teil bekam daher `85` (Schema) und `86`
+(Seed) — siehe „## Deploy" und „## QA-Nachweis" unten für die verifizierten Dateinamen.
+
 ## Audit-Feld-Auswirkungen
 
 - `WarehouseRequisition` ist bereits `AuditableEntity` — jede Kommentar-Änderung setzt
@@ -388,22 +393,90 @@ Stückliste, oder ein neues Kapitel — im Review zu entscheiden):
 
 ## Deploy
 
+**Finalisiert durch QA (2026-08-06) — aus dem echten Diff des gemeinsamen Worktrees
+`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung.**
+
+**Reale SQL-Nummern (bei Umsetzung vergeben):** Teil 8 hat `84` (`AddUserDefaultFilterFaWorklist
+Description1`) belegt; dieser Teil bekam daher **`85`** (Schema, `WarehouseRequisition.Comment`)
+und **`86`** (Daten-Seed, DUMMY-Artikel) — nicht die in der ursprünglichen Spec platzhalterhaft
+genannten `84`/`85`. Beides in `SQL/00_FreshInstall.sql` verifiziert (Spalte `[Comment] NVARCHAR
+(1000) NULL` in der `WarehouseRequisitions`-Definition, `__EFMigrationsHistory`-Insert für
+`20260806081737_AddWarehouseRequisitionComment`, DUMMY-Seed-Block mit `IF NOT EXISTS`-Guard).
+
 - **Web-App:** ja (Kommentar-UI/-Endpunkt, DUMMY-UX/-Endpunkt).
 - **Service:** **ja** — der Submit-Mail-Body wird im Windows-Service erzeugt
   (`WarehouseRequisitionEmailService`, Freigabe-Antwort 2). Ohne Service-Publish würde der Kommentar
   nicht in der Mail erscheinen.
-- **Migration:** **ja** — eine Schema-Migration (`WarehouseRequisition.Comment`) **und** ein reiner
-  Daten-Seed (DUMMY-Artikel). Beide vor dem Publish einspielen.
-- **Publish-Befehle:**
+- **Migration:** **ja** — eine Schema-Migration (`WarehouseRequisition.Comment`,
+  `SQL/85_AddWarehouseRequisitionComment.sql`) **und** ein reiner Daten-Seed (DUMMY-Artikel,
+  `SQL/86_SeedDummyArticle.sql`). Beide vor dem Publish einspielen.
+- **Publish-Befehle (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSService
 ```
 
-**Reihenfolge:** (1) `SQL/84_AddWarehouseRequisitionComment.sql` (Schema, additiv), (2)
-`SQL/85_SeedDummyArticle.sql` (DUMMY-Seed) einspielen, dann (3) Web **und** Service publishen. Rein
+**Reihenfolge:** (1) `SQL/85_AddWarehouseRequisitionComment.sql` (Schema, additiv), (2)
+`SQL/86_SeedDummyArticle.sql` (DUMMY-Seed) einspielen, dann (3) Web **und** Service publishen. Rein
 additive Spalte + idempotenter Seed → kein Backup-Zwang über das Standard-Vorgehen hinaus.
+
+Fluss: SQL 85+86 einspielen → Publish Web **und** Service **aus dem Worktree** → Testsystem →
+manueller Test (unten) → dann Merge. Nach dem Merge nur dann erneut aus `main` publishen, wenn der
+Merge tatsächlich getestete Dateien mit parallelen `main`-Änderungen kombiniert hat.
+
+## QA-Nachweis (2026-08-06)
+
+Verifiziert im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-4-8`
+(Branch `feature/2026-08-05-wms-bugs-improvements-4-8`, HEAD `a1d4d76`), gemeinsam mit Teil 4/5/8:
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 Vorbestehende Warnungen, keine neuen).
+- **Tests:** `dotnet test` →
+  - `IdealAkeWms.Tests`: **1075 bestanden, 1 übersprungen, 0 fehlgeschlagen** (1076 gesamt).
+  - `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **Migrationen:** genau **zwei** neue EF-Migrationen im Worktree bestätigt —
+  `20260806081737_AddWarehouseRequisitionComment` (dieser Teil) und
+  `20260806081121_AddUserDefaultFilterFaWorklistDescription1` (Teil 8). Der DUMMY-Seed
+  (`SQL/86_SeedDummyArticle.sql`) ist bewusst **kein** EF-Migration/`__EFMigrationsHistory`-Eintrag
+  (reiner Daten-Seed, wie in ADR 0004 gefordert).
+- **`SQL/00_FreshInstall.sql`** verifiziert: `[Comment] NVARCHAR(1000) NULL` in der
+  `WarehouseRequisitions`-Tabellendefinition, `__EFMigrationsHistory`-Insert für die Comment-
+  Migration, DUMMY-Seed-Block („17i. DUMMY-Artikel") mit `IF NOT EXISTS`-Guard vorhanden.
+- **Code-Review (inline, kein Task-Subagent im QA-Environment verfügbar):** Diff gegen die
+  „Finalisierung" geprüft — `AddItemAsync`-Duplikat-Guard überspringt korrekt nur
+  `Article.DummyArticleNumber`; der neue `POST .../items/dummy`-Endpunkt läuft durch
+  `CheckOwnershipAndDraft`, lehnt leere **und** unveränderte Default-Bezeichnung ab (case-insensitiver
+  Vergleich gegen `Article.DummyDefaultDescription`), umgeht den Glas/Lager-Gruppen-Guard bewusst
+  (typ-neutral) und schreibt die Bezeichnung ausschließlich als Positions-Snapshot
+  (`ArticleDescription`), nicht auf `Article.Description`. `SaveCommentAsync` folgt exakt dem
+  `SaveNotesAsync`-Muster (RowVersion bewusst ignoriert, Audit-Felder gesetzt). Submit-Mail-Body
+  (HTML **und** Text) zeigt den Kommentar nur wenn befüllt, HTML escaped (`E(...)`); Storno-Mail
+  unverändert (kein Kommentar). `WarehousePicking`/`WarehouseRequisitions`-`ColumnMap` um
+  `comment` ergänzt (ADR 0005-konform, Server-Mode-Spaltenfilter).
+- **`docs/TESTSZENARIEN.md`** (Worktree) ergänzt: TS-46.9 – TS-46.13 (Kapitel 46).
+- **`secondbrain/tests/testszenarien-index.md`** (Hauptcheckout) nachgezogen (Kapitel 46).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Am Testsystem **nach** Einspielen von `SQL/85_AddWarehouseRequisitionComment.sql` +
+`SQL/86_SeedDummyArticle.sql` und Web- **und** Service-Publish durchzuführen — Referenz:
+`docs/TESTSZENARIEN.md` TS-46.9 – TS-46.13.
+
+1. **TS-46.9 (Kommentar Anzeige + Ownership):** Draft-Bestellung (Lager) anlegen, Kommentar
+   eintragen + speichern, zu `/WarehousePicking` wechseln → Kommentar read-only sichtbar in der
+   Spalte „Kommentar" **und** in der Detailansicht. Leere Bestellung → leere Zelle, kein Fehler.
+   Als anderer User bzw. nach Submit versuchen zu ändern → nicht editierbar.
+2. **TS-46.10 (Submit-Mail):** Draft mit Kommentar submitten, NotificationWorker abwarten, Mail
+   prüfen (HTML **und** Text) → Kommentar im Kopf sichtbar. Bestellung ohne Kommentar → keine
+   Kommentarzeile. Storno-Mail → nie mit Kommentar.
+3. **TS-46.11 (DUMMY Lager):** EK-Nummer ohne Treffer suchen → „nicht gefunden" →
+   DUMMY-Position mit eigener Bezeichnung anlegen → Position erscheint mit dieser Bezeichnung,
+   `Article.Description` des DUMMY bleibt unverändert. Negativfälle: leere Bezeichnung → Ablehnung;
+   unveränderte Default-Bezeichnung → Ablehnung.
+4. **TS-46.12 (DUMMY mehrfach):** Zwei DUMMY-Positionen mit unterschiedlichen Bezeichnungen in
+   einer Bestellung anlegen → beide erscheinen, kein „bereits enthalten"-Fehler.
+5. **TS-46.13 (DUMMY in Glas):** In einer Glas-Bestellung eine DUMMY-Position anlegen → anlegbar,
+   kein Glas-Gruppen-Fehler.
 
 ## Offene Rückfragen
 

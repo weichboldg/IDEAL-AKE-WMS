@@ -2,14 +2,14 @@
 type: spec
 title: "Bewegungshistorie: Spaltenfilter Bewegungsart/Datum/Menge filtert nicht (stiller No-Op) — Bugfix"
 slug: 2026-08-05-wms-bugs-improvements-teil-4-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-08-05-deploy-wms-bugs-teil-4-8]]"
+worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-4-8"
+branch: "feature/2026-08-05-wms-bugs-improvements-4-8"
 affected_code:
   - IdealAkeWms/Views/StockMovements/Index.cshtml
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs
@@ -157,14 +157,52 @@ einzugeben, der die Liste unverändert (Vollmenge) zurückliefert.
 
 ## Deploy
 
-- **Web-App:** ja (View-Änderung in `IdealAkeWms/Views/StockMovements/Index.cshtml`).
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:**
+**Finalisiert durch QA (2026-08-06) — aus dem echten Diff des gemeinsamen Worktrees
+`feature/2026-08-05-wms-bugs-improvements-4-8`, nicht der provisorischen Spec-Agent-Schätzung.**
+
+- **Web-App:** ja — einzige geänderte Anwendungsdatei ist `IdealAkeWms/Views/StockMovements/Index.cshtml`
+  (drei `<th>` verlieren `data-filterable`/`data-col-key`).
+- **Service:** nein — kein Diff unter `IDEALAKEWMSService/`.
+- **Migration:** nein — kein neues Schema, keine neue Migration.
+- **Publish-Befehl (aus dem Worktree, VOR dem Merge):**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 ```
+
+Fluss: Publish **aus dem Worktree** → Testsystem → manueller Test (unten) → dann Merge. Nach dem
+Merge nur dann erneut aus `main` publishen, wenn der Merge tatsächlich getestete Dateien mit
+parallelen `main`-Änderungen kombiniert hat (bei diesem reinen View-Fix unwahrscheinlich, aber vor
+dem Merge-Schritt gegenprüfen — vier Teil-Specs teilen sich denselben Worktree/Branch).
+
+## QA-Nachweis (2026-08-06)
+
+Verifiziert im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-4-8`
+(Branch `feature/2026-08-05-wms-bugs-improvements-4-8`, HEAD `a1d4d76`), gemeinsam mit Teil 5/7/8:
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 Vorbestehende Warnungen, keine neuen).
+- **Tests:** `dotnet test` →
+  - `IdealAkeWms.Tests`: **1075 bestanden, 1 übersprungen, 0 fehlgeschlagen** (1076 gesamt).
+  - `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **Code-Review (inline, kein Task-Subagent im QA-Environment verfügbar):** Diff exakt gegen den
+  Lösungsentwurf geprüft — `datetime`/`quantity`/`movement-type` verlieren `data-filterable`/
+  `data-col-key`, die vier weiterhin funktionierenden Spaltenfilter (`article`, `storage-location`,
+  `user`, `production-order`) bleiben unverändert. Kein `.cs`-Eingriff, wie geplant.
+- **Migrationen:** keine (bestätigt — 0 neue `.cs`-Migrationsdateien für diesen Teil).
+- **`docs/TESTSZENARIEN.md`** (Worktree) ergänzt: TS-2.26 – TS-2.28 (Kapitel 2 „Lager").
+- **`secondbrain/tests/testszenarien-index.md`** (Hauptcheckout) nachgezogen (Kapitel 2).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Am Testsystem nach Publish durchzuführen — Referenz: `docs/TESTSZENARIEN.md` TS-2.26 – TS-2.28.
+
+1. **TS-2.26:** `/StockMovements/Index` öffnen — in den Spaltenköpfen „Bewegungsart", „Datum/Zeit",
+   „Menge" darf **kein** Filter-Eingabefeld mehr erscheinen; „Artikel", „Lagerplatz", „Benutzer",
+   „Fertigungsauftrag" bleiben vorhanden.
+2. **TS-2.27:** Filterkarte → Dropdown „Bewegungsart" = „Ausbuchung" wählen, filtern → **nur**
+   Ausbuchungen, keine Einbuchung. Danach „Einbuchung" wählen → nur Einbuchungen.
+3. **TS-2.28 (Regression):** Spaltenfilter „Artikel" mit bekannter Artikelnummer setzen → nur
+   passende Zeilen. Analog „Lagerplatz"/„Benutzer"/„Fertigungsauftrag".
 
 ## Offene Rückfragen
 
