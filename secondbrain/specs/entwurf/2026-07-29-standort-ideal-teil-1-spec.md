@@ -21,18 +21,20 @@ affected_code:
   - IdealAkeWms/Data/Repositories/FaHierarchyOrderInfoRepository.cs (neu)
   - IdealAkeWms/Program.cs (DI-Registrierung Decorator)
   - IdealAkeWms/Models/ServiceSettingDefinitions.cs
-  - IDEALAKEWMSService/Services/FaHierarchySyncService.cs (neu)
-  - IDEALAKEWMSService/Services/FaHierarchySql.cs (neu, Whitelist-Regex + SQL-Aufbau)
+  - IdealAkeWms.Tests/Models/ServiceSettingDefinitionsTests.cs (3 neue InlineData-Eintraege, Drift-Guard)
+  - IDEALAKEWMSService/Services/FaHierarchySyncService.cs (neu, injiziert ISyncErrorNotifier)
+  - IDEALAKEWMSService/Services/FaHierarchySql.cs (neu, Whitelist-Regex + QUOTENAME + SQL-Aufbau)
   - IDEALAKEWMSService/Services/SyncLogServices.cs
   - IDEALAKEWMSService/Workers/SyncWorker.cs (neuer Sync-Block, RunResilientAsync)
-  - SQL/86_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen)
+  - SQL/87_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen; Platzhalter, siehe H-1)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql (neu, DDL-Dokumentation)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAInfos.sql (neu, DDL-Dokumentation)
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Exaktes Whitelist-Regex-Pattern fuer View-Namen im Dev-Lauf mit Sicherheitsfokus festlegen (Fehlerverhalten bereits geklaert: Reject + Log + Fehlermail, Freigabe-Antwort 4) — kein Blocker"
+  - "Exaktes ASCII-Whitelist-Regex-Pattern je Namensteil (ergaenzend zur jetzt verbindlichen QUOTENAME-Absicherung) im Dev-Lauf final festlegen — Grundstruktur ([Schema].[Name], ASCII-only, kein \\w) ist bereits in dieser Spec vorgegeben, nur Feinschliff offen — kein Blocker"
+  - "Full-Refresh-Mechanik (Staging-Tabelle + sp_rename-Swap, empfohlen) setzt ALTER-Recht der Sync-Service-SQL-Login voraus — vor dem Dev-Lauf am Zielsystem pruefen; Fallback (kurze Einzel-Transaktion je Tabelle) ist in dieser Spec bereits als Alternative vorgegeben — kein Blocker, aber vor Implementierung zu bestaetigen"
 epic: false
 etappen: []
 deploy:
@@ -62,17 +64,24 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
 **In-Scope**
 - Zwei neue Tabellen: `FaHierarchyNode` (Projektion von `FAListe`, Struktur **und** Stueckliste —
   ein Lesepfad, zwei spaetere Projektionen laut B4) und `FaHierarchyOrderInfo` (Projektion von `FAInfos`,
-  PPS-/Auftragsdaten).
+  PPS-/Auftragsdaten) — **strikt getrennt, kein Fan-out-Join zwischen ihnen** (siehe Anforderung 2 und
+  Kritische Pruefung B-1).
 - Sync-Service im Windows-Service, der beide Views periodisch liest (raw SQL gegen konfigurierbare
-  View-Namen, Whitelist-Regex gegen Injection) und die lokalen Tabellen per Full-Refresh
-  aktualisiert.
-- Datenverfuegbarkeits-Regel: Structure-Zeilen werden nur importiert, wenn zum `HauptFA` ein
-  `FAInfos`-Eintrag existiert (INNER JOIN, kein LEFT JOIN — sonst Anzeige unvollstaendiger
-  PPS-Daten).
+  View-Namen, Whitelist-Regex **und** `QUOTENAME` gegen Injection, siehe Anforderung 8) und die
+  lokalen Tabellen per Full-Refresh aktualisiert (Staging-Tabellen + kurzer Swap, siehe Technischer
+  Loesungsentwurf — **kein** langlaufendes Delete-All+Insert auf den Zieltabellen).
+- Datenverfuegbarkeits-Regel: Eine `FAListe`-Zeile wird nur importiert, wenn zum `HauptFA`
+  mindestens ein `FAInfos`-Eintrag existiert — als reine **Existenzpruefung** (`WHERE EXISTS`/
+  `INNER JOIN (SELECT DISTINCT HauptFA FROM FAInfos)`), **nicht** als Zeilen-Join. Ein echter
+  Zeilen-Join auf `FAInfos` wuerde jede Position pro `FAInfos`-Zeile desselben `HauptFA`
+  vervielfachen (Kombinationsgeraete, mehrere `[Montage-Abteilung]`-Zeilen) — siehe Anforderung 2.
 - Repository + Cache-Decorator (ADR 0001) fuer den Web-Lesezugriff auf die importierten Tabellen.
 - View-DDL-Dokumentation unter `SQL/sage-views/` (keine WMS-Migration, reine Doku der Fremd-DB).
-- Aktivitaets-Protokoll-Pflicht (ADR 0010) fuer den neuen Sync.
-- Feature-/Sync-Toggle ueber `ServiceSettingDefinitions` (ADR 0008).
+- Aktivitaets-Protokoll-Pflicht (ADR 0010) fuer den neuen Sync, inklusive expliziter Fehlermail
+  ueber `ISyncErrorNotifier` bei ungueltigem View-Namen und bei leerem View-Read (siehe Technischer
+  Loesungsentwurf, S-4).
+- Feature-/Sync-Toggle ueber `ServiceSettingDefinitions` (ADR 0008) — **inklusive** Eintragung der
+  drei neuen Keys als `[InlineData]` im Drift-Guard-Test (siehe Technischer Loesungsentwurf, S-3).
 
 **Out-of-Scope**
 - `ProductionOrders` bleibt **vollstaendig unangetastet** (Schema, Daten, Verhalten). Keine
@@ -83,6 +92,9 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
   AKE-Linie, unveraendert.
 - Keine Rollen-/Zugriffsaenderungen (Teil 1 hat keine erreichbare Route, reiner Hintergrund-Import
   + Repository-Schicht).
+- Keine fachliche Sonderbehandlung von Kombinationsgeraeten (Gruppierung/Anzeige nach
+  `[Montage-Abteilung]`) — das ist ein spaeterer, separater Backlog-Punkt (siehe Kritische Pruefung
+  B-1). Teil 1 stellt nur sicher, dass der Import sie **nicht verdoppelt**.
 
 ## Fachliche Anforderungen
 
@@ -91,20 +103,52 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
    Nachfolgers, `0` = Blatt). `FaHierarchyNode` bildet das 1:1 ab — **kein** zweistufiges Modell.
    Die alten Alt-Entscheidungen „zwei Ebenen" (D1/D3 aus der historischen Referenz-Spec) sind
    ueberholt und duerfen nicht als Vorlage dienen.
-2. **Datenverfuegbarkeits-Regel.** Eine `FAListe`-Zeile wird nur dann importiert, wenn zum
-   `HauptFA` mindestens ein `FAInfos`-Datensatz existiert (`FA_Nr` gefuellt **und** `Status`
-   gefuellt). Import-SQL joint deshalb `FAListe INNER JOIN FAInfos ON i.HauptFA = f.HauptFA` —
-   **kein** LEFT JOIN.
-3. **Kombinationsgeraete (Freigabe-Antwort 1: in Teil 1 wie normale Auftraege behandeln).**
-   Kombinationsgeraete teilen sich denselben `HauptFA` und werden erst ueber `[Montage-Abteilung]`
-   aus `FAInfos` unterscheidbar; `FAListe`-Zeilen selbst tragen **keine** Montage-Abteilung (die ist
-   auftragsbezogen, nicht positionsbezogen — nicht mit dem positionsbezogenen `Arbeitsbereich`
-   verwechseln). Fuer den reinen Struktur-Import (Teil 1) ist **keine Sonderbehandlung** noetig: die
-   Zeilen werden wie bei jedem anderen Auftrag getreu importiert. `MontageAbteilung` wird als
-   **informatives** Feld auf `FaHierarchyOrderInfo` mitgefuehrt — **nicht** als kuenstlicher
+2. **Datenverfuegbarkeits-Regel — Existenzpruefung, kein Fan-out-Join (ueberarbeitet, siehe
+   Kritische Pruefung B-1).** Eine `FAListe`-Zeile wird nur dann importiert, wenn zum `HauptFA`
+   mindestens ein `FAInfos`-Datensatz existiert (`FA_Nr` gefuellt **und** `Status` gefuellt — die
+   View filtert das laut Anhang bereits selbst). `FAInfos` hat die Granularitaet **ein Datensatz =
+   ein Auftrag (`ABNr` + `Pos`)**; Kombinationsgeraete tragen **denselben `HauptFA` mit mehreren
+   `[Montage-Abteilung]`-Zeilen**. Ein `INNER JOIN FAListe f ON i.HauptFA = f.HauptFA` (wie im
+   Anhang beispielhaft skizziert) ist deshalb **falsch**: er vervielfacht jede `FAListe`-Position
+   pro `FAInfos`-Zeile desselben `HauptFA` — stille Mengen-Doppelzaehlung, die in jede spaetere
+   Kommissionier-/Beschichtungs-/Vormontage-Liste propagiert. Das Import-SQL verwendet daher eine
+   reine **Existenzpruefung**, keinen Zeilen-Join:
+
+   ```sql
+   -- FaHierarchyNode-Import: Existenzpruefung statt Zeilen-Join.
+   -- Jede FAListe-Position landet GENAU EINMAL, unabhaengig von der Zahl
+   -- der FAInfos-Zeilen (Montage-Abteilungen) zum selben HauptFA.
+   SELECT f.*
+   FROM dbo.[<FaHierarchyListeViewName>] f
+   WHERE EXISTS (
+       SELECT 1
+       FROM dbo.[<FaHierarchyInfosViewName>] i
+       WHERE i.HauptFA = f.HauptFA
+   );
+   -- Aequivalent: INNER JOIN (SELECT DISTINCT HauptFA FROM dbo.[<...FAInfos>]) d
+   --              ON d.HauptFA = f.HauptFA
+   ```
+
+   `FaHierarchyOrderInfo` wird **separat** und **vollstaendig** (alle Zeilen, eine je
+   Montage-Abteilung) aus `FAInfos` importiert — **kein** Join in die Node-Tabelle hinein (siehe
+   Datenmodell unten). Beziehung Node-Gruppe (`HauptFA`) → OrderInfo ist fachlich 1:n.
+3. **Kombinationsgeraete (Freigabe-Antwort 1: in Teil 1 wie normale Auftraege behandeln — technisch
+   praezisiert, siehe Kritische Pruefung B-1).** Kombinationsgeraete teilen sich denselben
+   `HauptFA` und werden erst ueber `[Montage-Abteilung]` aus `FAInfos` unterscheidbar;
+   `FAListe`-Zeilen selbst tragen **keine** Montage-Abteilung (die ist auftragsbezogen, nicht
+   positionsbezogen — nicht mit dem positionsbezogenen `Arbeitsbereich` verwechseln). „Wie normale
+   Auftraege behandeln" heisst **fachlich**: keine Sonderlogik, keine Unterscheidung ueber
+   `[Montage-Abteilung]`, keine eigene Gruppierung/Anzeige in Teil 1 — die Zeilen werden wie bei
+   jedem anderen Auftrag getreu importiert. **Technisch** heisst es **nicht** „Zeilen-Join
+   zulassen" — die Existenzpruefung aus Anforderung 2 sorgt dafuer, dass Kombinationsgeraete weder
+   verdoppelt noch aus dem Import herausgefiltert werden (beides waere falsch: Verdopplung
+   verfaelscht Mengen, Herausfiltern liesse die Auftraege komplett fehlen). `MontageAbteilung` wird
+   als **informatives** Feld auf `FaHierarchyOrderInfo` mitgefuehrt — **nicht** als kuenstlicher
    Struktur-Schluessel auf `FaHierarchyNode`. Die Frage, wie sich Kombinationsgeraete bei der
    spaeteren Materialisierung nach `ProductionOrders` auf die dann nicht mehr eindeutige
-   `OrderNumber` auswirken, gehoert zu **Teil 7** und wird dort entschieden — nicht hier.
+   `OrderNumber` auswirken, gehoert zu **Teil 7** und wird dort entschieden — nicht hier. Die
+   fachliche Unterscheidung/Anzeige nach Montage-Abteilung ist als eigener, spaeterer
+   Backlog-Punkt festzuhalten (nicht Teil 1).
 4. **`FAListe` ist die Stueckliste, nicht nur eine FA-Liste (B4).** Eine Zeile ist entweder die
    Wurzel (`VaterFA IS NULL`, `Position IS NULL`, `SubFA = HauptFA`) oder eine Position in der
    Stueckliste eines Vater-Sub-FA. `SubFA <> 0` markiert eine hausintern gefertigte Baugruppe mit
@@ -127,11 +171,20 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
    Import in echte `bit`-Spalten uebersetzt (`Beschichtet = -1` ⇒ `true` — Sage-VB6-Konvention,
    siehe Fallstrick „Sage VB6-Booleans"). `EKBedarf` kommt laut Anhang bereits als Bit/Ja-Nein —
    Mapping analog absichern.
-8. **View-Namen konfigurierbar.** `FAListe`- und `FAInfos`-View-Name sind je Standort
-   unterschiedlich benennbar (Testsystem heisst `IDEAL_TEST_2026_05_03`, Produktivname noch offen
-   — siehe offene Rueckfrage 2) und werden **nicht** hartkodiert, sondern aus `ServiceSettings`
-   gelesen und gegen eine Whitelist-Regex geprueft, bevor sie in den SQL-Text eingesetzt werden
-   (Objektnamen lassen sich in T-SQL nicht parametrisieren).
+8. **View-Namen konfigurierbar — Whitelist UND `QUOTENAME` (ueberarbeitet, siehe Kritische Pruefung
+   S-2).** `FAListe`- und `FAInfos`-View-Name sind je Standort unterschiedlich benennbar
+   (Testsystem heisst `IDEAL_TEST_2026_05_03`, Produktivname noch offen — siehe offene Rueckfrage)
+   und werden **nicht** hartkodiert, sondern aus `ServiceSettings` gelesen. Die Absicherung ist
+   **zweistufig**, nicht nur eine Regex:
+   1. Whitelist-Regex zerlegt den konfigurierten Namen in `[Schema].[Name]`-Teile und prueft jeden
+      Teil **ASCII-explizit** gegen `^[A-Za-z0-9_]+$` — bewusst **nicht** `\w` (unter
+      Unicode-Regex matcht `\w` Homoglyphen, genau der relevante Angriff bei einem extern
+      konfigurierbaren Objektnamen). Verworfen werden zusaetzlich: Whitespace, `;`, `--`, `/*`,
+      unausgeglichene `[`/`]`.
+   2. Die geprueften Teile werden danach per **`QUOTENAME()`** wieder zu `[Schema].[Name]`
+      zusammengesetzt, bevor sie in den SQL-Text eingesetzt werden — Objektnamen lassen sich in
+      T-SQL nicht parametrisieren, `QUOTENAME` ist die strukturelle Abwehr, falls die Regex
+      spaeter versehentlich gelockert wird. Whitelist **und** `QUOTENAME`, nicht entweder/oder.
 
 ## Technischer Loesungsentwurf
 
@@ -165,6 +218,11 @@ siehe Fallstrick-Praezedenzfall):
 | `Prio` | `int NULL` | 1:1 |
 | `SyncedAt` | `datetime2 NOT NULL` | — |
 
+**Staging-Pendants (S-1, technisch, kein eigenes Domaenen-Modell):** `FaHierarchyNode_Staging` /
+`FaHierarchyOrderInfo_Staging` — schema-identisch zu den Zieltabellen (inkl. `SyncedAt`), aber ohne
+eigene Repository-Anbindung. Sie sind reine sync-interne Zwischenablagen fuer die
+Full-Refresh-Strategie (siehe Sync-Service unten) und werden in derselben Migration mit angelegt.
+
 **Warum zwei Tabellen statt einer denormalisierten:** `FAInfos`-Felder sind **auftragsbezogen**
 (ein `KO_Termin` gilt fuer die ganze Struktur), `FAListe`-Felder sind **positionsbezogen** (eine
 Struktur hat potenziell hunderte Positionszeilen). Wuerde man die Auftragsfelder in jede
@@ -173,7 +231,10 @@ in hunderten Zeilen synchron gehalten werden. Der Anhang schlaegt selbst zwei Do
 (`FaListEntry`/`FaInfoEntry`) — diese Spec bildet das 1:1 auf zwei Tabellen ab. Die
 „ein Lesepfad, zwei Projektionen"-Aussage aus B4 bezieht sich auf **Struktur-Ansicht** und
 **Stueckliste-Ansicht**, die beide **aus `FaHierarchyNode` allein** ableitbar sind — nicht auf eine
-Verschmelzung mit `FaHierarchyOrderInfo`.
+Verschmelzung mit `FaHierarchyOrderInfo`. **Wichtig:** Der Anhang skizziert unter „Empfohlene
+Umsetzung" selbst einen `INNER JOIN FAListe f ... FAInfos i ON i.HauptFA = f.HauptFA` — dieses
+Muster ist fan-out-anfaellig (siehe Anforderung 2) und wird in dieser Spec **bewusst nicht**
+uebernommen; die Existenzpruefung ersetzt es.
 
 ### Repository-Schicht (ADR 0001)
 
@@ -186,81 +247,161 @@ Verschmelzung mit `FaHierarchyOrderInfo`.
   Tabelle, ein Datensatz je Struktur/Montage-Abteilung).
 - Beide Repositories liefern die EF-Entitaeten direkt als Lesemodell (keine zusaetzliche
   DTO-Schicht noetig — die Tabellen sind bereits eine getreue, flache Projektion).
+- Die `_Staging`-Tabellen haben **keine** Repository-Anbindung — sie sind reines Sync-internes
+  Detail, nicht Teil des Lesemodells.
 
 ### Sync-Service (Windows-Service, `IDEALAKEWMSService`)
 
 - `FaHierarchySyncService` (neuer Service-Name in `SyncLogServices.All`), gated ueber
-  `Sync:HierarchicalFaEnabled` (Bool, Default `false`).
+  `Sync:HierarchicalFaEnabled` (Bool, Default `false`). Injiziert **zusaetzlich**
+  `ISyncErrorNotifier` (analog `LagerbestandSyncService`) als expliziten Ctor-Parameter — siehe
+  Fehlermail-Punkt unten.
 - View-Namen aus `ServiceSettings`: `Sync:FaHierarchyListeViewName` (String, Default
   `[vw_IDEAL-AKE_Kommissionierung_FAListe]`), `Sync:FaHierarchyInfosViewName` (String, Default
   `[vw_IDEAL-AKE_Kommissionierung_FAInfos]`) — beide neue Eintraege in
-  `ServiceSettingDefinitions.All` (Drift-Guard-Pflicht, ADR 0008).
-- **Whitelist-Regex** vor jedem SQL-Aufbau (`FaHierarchySql.ValidateViewName`): erlaubt nur
-  `[Schema].[Name]`- bzw. `Name`-Muster aus Buchstaben, Ziffern, `_`, `-`, `.`, eckigen Klammern —
-  **kein** Leerzeichen, Semikolon, Kommentarzeichen (`--`, `/*`). Bei Verstoss: Lauf bricht mit
-  `FinishFailedAsync` ab, **kein** SQL wird ausgefuehrt (exaktes Pattern und Fehlerverhalten sind
-  offene Rueckfrage 4 — sicherheitskritisch genug, um nicht erraten zu werden).
-- **Full-Refresh-Strategie:** Die Struktur-Tabelle ist laut Notiz „ein Cache, der jederzeit
-  komplett neu aufgebaut werden darf". Der Sync-Lauf liest beide Views komplett, baut die
-  Zielzeilen im Speicher auf und ersetzt den Tabelleninhalt **in einer Transaktion**
-  (Delete-All + Bulk-Insert je Tabelle) — kein inkrementelles Delta, kein MERGE-Aufwand. Guard:
-  leerer View-Read (0 Zeilen) → **kein** Replace, Warn + Fehlermail (schuetzt vor
-  Blindloeschung bei einem View-/Connection-Ausfall — analog zum Reconciler-Guard).
+  `ServiceSettingDefinitions.All` (Drift-Guard-Pflicht, ADR 0008). **Zusaetzlich** muessen alle
+  drei neuen Keys (`Sync:HierarchicalFaEnabled` inklusive) als `[InlineData]` in
+  `ServiceSettingDefinitionsTests.All_ContainsDocumentedServiceReadKey` eingetragen werden (siehe
+  Kritische Pruefung S-3): Der Drift-Guard-Test ist eine hartcodierte `[InlineData]`-Liste — ein
+  Key, der nur im Katalog steht, aber dort nicht gelistet ist, laesst den Test **gruen ohne jede
+  Guard-Wirkung**.
+- **Whitelist-Regex + `QUOTENAME`** vor jedem SQL-Aufbau (`FaHierarchySql.ValidateViewName`,
+  ueberarbeitet, siehe Anforderung 8 und Kritische Pruefung S-2): zerlegt `[Schema].[Name]` in
+  Teile, prueft jeden Teil ASCII-explizit (`^[A-Za-z0-9_]+$`, **nicht** `\w`), lehnt Whitespace,
+  `;`, `--`, `/*`, unausgeglichene `[`/`]` und alles jenseits ASCII ab, setzt die geprueften Teile
+  danach per `QUOTENAME()` zusammen. Bei Verstoss: Lauf bricht mit `FinishFailedAsync` ab, **kein**
+  SQL wird ausgefuehrt, **zusaetzlich** `ISyncErrorNotifier.NotifyAsync(...)` (siehe Fehlermail
+  unten). Exaktes Regex-Pattern im Detail (Feinschliff) ist offene Rueckfrage — die Grundstruktur
+  ist hier bereits verbindlich vorgegeben.
+- **Full-Refresh-Strategie (ueberarbeitet, siehe Kritische Pruefung S-1).** Kein Praezedenzfall im
+  Code deckt „Delete-All + Bulk-Insert in einer langen Transaktion": `CachedBomHeader` ist
+  Hash-inkrementell (Upsert), enaio ist MERGE-Full-Sync. Fuer eine potenziell zehntausende Zeilen
+  grosse Stuecklisten-Tabelle wuerde ein klassisches Delete-All+Insert waehrend der gesamten
+  Ladezeit sperren und gleichzeitige Web-Reads blockieren/eskalieren lassen. Stattdessen:
+  1. **Vor jeder Mutation:** Roh-Zeilenzahl **beider** Views ungefiltert lesen (`SELECT COUNT(*)`
+     auf `FaHierarchyListeViewName` bzw. `FaHierarchyInfosViewName`, **ohne** Existenzpruefung/Join).
+     Guard: Ist eine der beiden Rohzahlen `0`, **kein** Replace — Warn-Log + `NotifyAsync` (siehe
+     unten), bestehende Zieltabellen bleiben unangetastet. Dieser Check laeuft **vor** dem Aufbau
+     der Zielzeilen, damit die Existenzpruefung aus Anforderung 2 einen leeren `FAInfos`-Read nicht
+     als „0 Struktur-Zeilen" maskiert (sonst verwechselt der Guard Ausfall mit echtem Leerstand).
+  2. Erst danach: beide Views vollstaendig lesen, Zielzeilen im Speicher aufbauen (Existenzpruefung
+     gemaess Anforderung 2).
+  3. **Schreiben ueber Staging-Tabellen** (`FaHierarchyNode_Staging` / `FaHierarchyOrderInfo_Staging`,
+     siehe Datenmodell): beide werden bei jedem Lauf per `TRUNCATE` + Bulk-Insert frisch befuellt
+     (unkritisch, da nicht die Leseziele des Web). Danach werden **beide** Zieltabellen in **einer**
+     kurzen Transaktion per `sp_rename`-Swap gegen ihre Staging-Pendants getauscht — eine reine
+     Metadaten-Operation ohne Sperre auf Zeilenebene fuer die Ladezeit. Web-Reads sehen bis zum Swap
+     den alten Inhalt, danach sofort den neuen; kein Blocking waehrend des Ladens.
+     **Voraussetzung:** die Sync-Service-SQL-Login braucht `ALTER`-Recht fuer `sp_rename` — am
+     Zielsystem vor dem Dev-Lauf zu pruefen (siehe offene Rueckfrage).
+  4. **Fallback**, falls dieses Recht nicht vergeben werden kann: `TRUNCATE` + Bulk-Insert **je
+     Zieltabelle einzeln in einer eigenen kurzen Transaktion** (kein zeilenweises Delete), auf einer
+     DB mit RCSI/Snapshot-Isolation bevorzugt, damit gleichzeitige Web-Reads den alten Stand sehen
+     statt zu blockieren.
+  5. Beide Tabellen werden in **jedem Fall als ein logischer Schritt** ersetzt (nicht zeitlich
+     versetzt) — nie steht `FaHierarchyNode` (neu) neben einem alten `FaHierarchyOrderInfo` oder
+     umgekehrt.
+  6. Kein inkrementelles Delta, kein MERGE-Aufwand — die Views selbst liefern bereits den
+     vollstaendigen Soll-Stand.
+- **Fehlermail — `ISyncErrorNotifier` explizit verdrahtet (ueberarbeitet, siehe Kritische Pruefung
+  S-4).** `RunResilientAsync` in `SyncWorker` mailt **nur** bei einer geworfenen Exception; der
+  Empty-Guard und der Invalid-Name-Fall sind beide **kein throw** (Warn bzw. `FinishFailedAsync`),
+  also mailt `RunResilientAsync` dort **nicht**. `FaHierarchySyncService` injiziert deshalb
+  `ISyncErrorNotifier` als Ctor-Parameter (analog `LagerbestandSyncService`) und ruft
+  `NotifyAsync(stepName, ex, ct)` explizit an **beiden** Stellen auf:
+  - nach `FinishFailedAsync` bei ungueltigem View-Namen,
+  - nach dem Warn-Log des Empty-Guards.
+
+  `NotifyAsync` erwartet eine `Exception`-Instanz (keinen reinen Text) — an beiden Stellen wird
+  analog zum bestehenden Cap-Skip-Fall in `LagerbestandSyncService` eine synthetische
+  `InvalidOperationException` mit sprechender Meldung konstruiert und uebergeben (kein echter
+  Prozessabbruch, nur Transportvehikel fuer die Mail-Details).
 - Protokoll (ADR 0010): `ISyncLogger` als letzter Ctor-Parameter, Counts `neu`/`geloescht`
   (deutschsprachig, hier praktisch „komplette Ersetzung" abgebildet als zwei Zahlen), eigener Lauf
   getrennt vom `ProductionOrder`-Import.
 - Sync-Block in `SyncWorker` ueber `RunResilientAsync` gekapselt (ein Fehler killt die anderen
-  Sync-Bloecke nicht).
+  Sync-Bloecke nicht; deckt zusaetzlich unerwartete Exceptions ab, die die beiden expliziten
+  `NotifyAsync`-Pfade oben nicht abdecken).
 
 ### Migrations-/SQL-Auswirkungen
 
 1. Model → `dotnet ef migrations add AddFaHierarchy` (aktueller Timestamp!) → idempotentes
-   `SQL/86_AddFaHierarchy.sql` mit `OBJECT_ID`-Guard, Tabellen-DDL in eigenem Batch (`GO`),
-   `__EFMigrationsHistory`-Insert in separatem Batch.
-2. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (beide neuen
+   `SQL/87_AddFaHierarchy.sql` (Platzhalter-Nummer, siehe H-1) mit `OBJECT_ID`-Guard, Tabellen-DDL
+   in eigenem Batch (`GO`) fuer **alle vier** Tabellen (`FaHierarchyNode`, `FaHierarchyOrderInfo`
+   und ihre `_Staging`-Pendants, siehe S-1), `__EFMigrationsHistory`-Insert in separatem Batch.
+2. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (**alle vier** neuen
    Tabellen) **und** `MigrationId` im History-Insert-Block.
 3. **Additive Migration** — kein Datenverlust, kein Backup-Hinweis noetig (neue, leere Tabellen).
 4. `SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql` +
    `..._FAInfos.sql`: View-DDL-Dokumentation der Fremd-DB — **keine** WMS-Migration, nur
    Versionskontrolle der Sage-Objekte (wie in der Notiz vereinbart).
 5. **Migrationsnummer beim Dev-Start final festlegen.** `SQL/82`/`83` sind durch v1.28.0
-   (Sage-Lagerbuchungen) belegt; die WmsBugs-Batches (v1.29.0/v1.30.0) belegen `84`/`85` + Seed `86`.
-   IDEAL-Migrationen liegen damit voraussichtlich **ab `SQL/87`** — die konkrete naechste freie
-   Nummer unmittelbar vor dem Dev-Lauf gegen den dann gemergten Stand pruefen (die `86`-Referenzen
-   in dieser Spec sind Platzhalter).
+   (Sage-Lagerbuchungen) belegt; die WmsBugs-Batches belegen mindestens `84`-`87`
+   (`87_AddUserDefaultFilterBomDescription1.sql` im noch nicht gemergten Worktree
+   `2026-08-05-wms-bugs-improvements-teil-1-2-3`). Nach Merge beider Batches ist die naechste freie
+   Nummer **voraussichtlich `88`** — die `87`-Referenz in dieser Spec (auch in `affected_code`) ist
+   ein Platzhalter und unmittelbar vor dem Dev-Lauf gegen den dann gemergten Stand zu pruefen.
 
 ### Audit-Feld-Auswirkungen
 
-`FaHierarchyNode` und `FaHierarchyOrderInfo` sind **keine** `AuditableEntity` — analog zu `CachedBomHeader`/
-`CachedBomItem` (dokumentierte Ausnahme: reine, vom Sync-Service befuellte Cache-Tabellen ohne
-manuelle Bearbeitung durch Anwender). Nachvollziehbarkeit kommt stattdessen aus dem
-Aktivitaets-Protokoll (`SyncLog`, ADR 0010) des `FaHierarchySyncService`-Laufs, nicht aus
-`ModifiedBy`/`ModifiedAt`-Feldern auf den Zeilen selbst. Kein bestehendes Audit-Feld ist betroffen,
-da `ProductionOrders` unangetastet bleibt.
+`FaHierarchyNode` und `FaHierarchyOrderInfo` (und ihre `_Staging`-Pendants) sind **keine**
+`AuditableEntity` — analog zu `CachedBomHeader`/`CachedBomItem` (dokumentierte Ausnahme: reine, vom
+Sync-Service befuellte Cache-Tabellen ohne manuelle Bearbeitung durch Anwender). Nachvollziehbarkeit
+kommt stattdessen aus dem Aktivitaets-Protokoll (`SyncLog`, ADR 0010) des
+`FaHierarchySyncService`-Laufs, nicht aus `ModifiedBy`/`ModifiedAt`-Feldern auf den Zeilen selbst.
+Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bleibt.
 
 ## Akzeptanzkriterien
 
 1. Bei deaktiviertem `Sync:HierarchicalFaEnabled` (Default) laeuft der Service unveraendert wie
    heute — kein neuer Sync-Block wird ausgefuehrt, keine Fehlermeldung.
 2. Ist der Toggle aktiv und beide View-Namen gueltig, fuellt ein Lauf `FaHierarchyNode` und
-   `FaHierarchyOrderInfo` vollstaendig aus den konfigurierten Views; eine `FAListe`-Zeile erscheint **nur**,
-   wenn zum `HauptFA` ein `FAInfos`-Eintrag existiert (Datenverfuegbarkeits-Regel, testbar durch
+   `FaHierarchyOrderInfo` vollstaendig aus den konfigurierten Views; eine `FAListe`-Zeile erscheint
+   **nur**, wenn zum `HauptFA` ein `FAInfos`-Eintrag existiert (Existenzpruefung, testbar durch
    gezieltes Fehlen eines `FAInfos`-Datensatzes am Testsystem).
-3. Ein ungueltiger View-Name (z. B. mit Leerzeichen oder `;`) fuehrt zu einem fehlgeschlagenen,
-   protokollierten Lauf (`FinishFailedAsync`) **ohne** SQL-Ausfuehrung gegen die Sage-DB.
-4. Ein leerer View-Read (0 Zeilen von einer oder beiden Views) loest **keinen** Replace der
-   Zieltabellen aus, sondern einen Warn-Eintrag + Fehlermail — bestehende Daten bleiben erhalten.
-5. `Beschaffungsartikel`/`Beschichtet` werden korrekt nach Sage-VB6-Konvention (`-1` = wahr)
+3. **(neu, B-1)** Positionen eines `HauptFA` mit **mehreren** `FAInfos`-Zeilen (z. B.
+   Kombinationsgeraete mit zwei Montage-Abteilungen) erscheinen in `FaHierarchyNode` **genau
+   einmal** je `FAListe`-Position — keine Verdopplung durch die Existenzpruefung. Regressionstest:
+   Die Positionszahl in `FaHierarchyNode` je `HauptFA` entspricht exakt der Zeilenzahl der Roh-View
+   `FAListe` fuer diesen `HauptFA`, unabhaengig von der Zahl der `FAInfos`-Zeilen dazu.
+   `FaHierarchyOrderInfo` enthaelt dagegen weiterhin **alle** `FAInfos`-Zeilen (eine je
+   Montage-Abteilung).
+4. Ein ungueltiger View-Name (z. B. mit Leerzeichen, Semikolon, Kommentarzeichen oder einem
+   Homoglyphen ausserhalb ASCII) fuehrt zu einem fehlgeschlagenen, protokollierten Lauf
+   (`FinishFailedAsync`) **ohne** SQL-Ausfuehrung gegen die Sage-DB **und** zu einer Fehlermail
+   (`ISyncErrorNotifier.NotifyAsync`); ein gueltiger Name wird vor dem SQL-Aufbau zusaetzlich per
+   `QUOTENAME()` abgesichert (verifiziert am Whitelist-Unit-Test).
+5. **(ueberarbeitet, S-1)** Ein leerer Roh-View-Read (0 Zeilen in `FAListe` **oder** `FAInfos`,
+   geprueft **vor** jeder Existenzpruefung/jedem Join) loest **keinen** Replace der Zieltabellen
+   aus, sondern einen Warn-Eintrag **und** eine Fehlermail (`ISyncErrorNotifier.NotifyAsync`) —
+   bestehende Daten bleiben erhalten. Der Guard wertet die **ungefilterten** Rohzahlen aus, nicht
+   die nach der Existenzpruefung gefilterte Zeilenzahl.
+6. `Beschaffungsartikel`/`Beschichtet` werden korrekt nach Sage-VB6-Konvention (`-1` = wahr)
    gemappt — verifiziert an mindestens einer bekannten Test-Struktur mit beschichteten und
    nicht-beschichteten Positionen.
-6. `ProductionOrders` (Schema, Zeilenzahl, Verhalten aller bestehenden Controller) ist nach diesem
+7. `ProductionOrders` (Schema, Zeilenzahl, Verhalten aller bestehenden Controller) ist nach diesem
    Teil **byte-identisch unveraendert** zum Vor-Zustand (Regressionsnachweis: bestehende
    AKE-Testszenarien laufen unveraendert durch).
-7. `dotnet build` + `dotnet test` sind gruen; der neue Sync-Pfad (raw SQL) ist gemaess
+8. `dotnet build` + `dotnet test` sind gruen; der neue Sync-Pfad (raw SQL) ist gemaess
    Projekt-Konvention **nicht** vollstaendig InMemory-testbar — der Whitelist-Regex-Helfer
    (`FaHierarchySql.ValidateViewName`) ist als eigenstaendiger, unit-testbarer Baustein
    auszulegen (analog `ProductionOrderReconciler`/`LagerbestandZeroingPlanner`), damit wenigstens
-   die Injection-Abwehr automatisiert geprueft ist.
+   die Injection-Abwehr (Regex **und** `QUOTENAME`-Zusammenbau) automatisiert geprueft ist.
+9. **(neu, S-1)** Nach einem erfolgreichen Lauf sind entweder **beide** Zieltabellen aktualisiert
+   oder **beide** unveraendert — kein Zwischenzustand, in dem `FaHierarchyNode` neu und
+   `FaHierarchyOrderInfo` alt ist (oder umgekehrt); verifiziert per `SyncedAt`-Zeitstempel-Vergleich
+   beider Tabellen nach dem Lauf.
+10. **(neu, S-3)** `Sync:HierarchicalFaEnabled`, `Sync:FaHierarchyListeViewName` und
+    `Sync:FaHierarchyInfosViewName` sind sowohl in `ServiceSettingDefinitions.All` **als auch** als
+    zusaetzliche `[InlineData]`-Eintraege in
+    `ServiceSettingDefinitionsTests.All_ContainsDocumentedServiceReadKey` vorhanden — reine
+    Katalog-Eintragung ohne `InlineData` gilt **nicht** als erfuellt (Test bliebe sonst gruen ohne
+    jede Guard-Wirkung).
+11. **(neu, S-1)** Waehrend ein Full-Refresh laeuft (Staging-Phase, vor dem Swap bzw. der kurzen
+    Ersetzungs-Transaktion), liefert ein gleichzeitiger Web-Read ueber
+    `FaHierarchyNodeRepository`/`CachedFaHierarchyNodeRepository` weiterhin den **alten**
+    Tabelleninhalt, ohne Blocking/Timeout (manuell am Testsystem waehrend eines laufenden
+    Sync-Laufs verifiziert).
 
 ## Test-Szenarien
 
@@ -274,14 +415,22 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` („IDEAL Teil 1 — Struktur-Import"):
   darf **nicht** in `FaHierarchyNode` erscheinen.
 - **Schritt 3 — Mehrstufigkeit:** Eine bekannte Struktur mit Sub-Sub-FA (Baugruppe unter
   Baugruppe) pruefen — `VaterFA`-Kette laesst sich bis zur Wurzel zurueckverfolgen.
-- **Schritt 4 — Kombinationsgeraet:** Falls am Testsystem vorhanden, eine `HauptFA` mit zwei
-  `MontageAbteilung`-Werten in `FaHierarchyOrderInfo` identifizieren und pruefen, dass die
-  zugehoerigen `FaHierarchyNode`-Zeilen **wie bei einem normalen Auftrag** importiert werden
-  (Freigabe-Antwort 1 — keine Sonderbehandlung in Teil 1). Die materialisierungsseitige Behandlung
-  gehoert zu Teil 7.
+- **Schritt 4 — Kombinationsgeraet, keine Verdopplung (ueberarbeitet, B-1).** Falls am Testsystem
+  vorhanden, eine `HauptFA` mit **zwei** `MontageAbteilung`-Werten in `FaHierarchyOrderInfo`
+  identifizieren. Erwartung: **Positionszahl in `FaHierarchyNode` fuer diesen `HauptFA` ist
+  identisch zur Zeilenzahl der Roh-View `FAListe`** fuer denselben `HauptFA` — **keine**
+  Verdopplung, obwohl zwei `FAInfos`-Zeilen existieren. `FaHierarchyOrderInfo` enthaelt dagegen
+  beide Montage-Abteilungs-Zeilen. Die materialisierungsseitige Behandlung gehoert zu Teil 7.
+- **Schritt 5 — Full-Refresh ohne Blocking (neu, S-1):** Waehrend ein Sync-Lauf laeuft
+  (Staging-Aufbau vor dem Swap), einen Web-Read gegen `FaHierarchyNodeRepository` ausloesen —
+  erwartet: sofortige Antwort mit dem **alten** Datenstand, kein Timeout/Blocking.
 - **Negativfall — ungueltiger View-Name:** `Sync:FaHierarchyListeViewName` auf einen Wert mit
   Semikolon setzen, Lauf ausloesen, erwarten: fehlgeschlagener, protokollierter Lauf, keine
-  SQL-Ausfuehrung (per Server-seitigem Audit/Profiler oder Code-Review bestaetigt).
+  SQL-Ausfuehrung (per Server-seitigem Audit/Profiler oder Code-Review bestaetigt) **und**
+  eingegangene Fehlermail.
+- **Negativfall — leerer View-Read (neu, S-1/S-4):** Eine der beiden Views testweise leer liefern
+  (Testsystem-Praeparation), Lauf ausloesen, erwarten: Warn-Eintrag im Aktivitaets-Protokoll,
+  eingegangene Fehlermail, `FaHierarchyNode`/`FaHierarchyOrderInfo` **unveraendert**.
 - **Regressionsfall:** Alle bestehenden AKE-Testszenarien (FA-Liste, Kommissionierung, BDE)
   unveraendert durchspielen — kein Unterschied zum Vor-Zustand.
 
@@ -292,11 +441,14 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 - **Web-App:** ja (neue Repository-/Model-Klassen, DI-Registrierung — auch wenn noch keine
   Controller/Views darauf zugreifen).
 - **Service:** ja (neuer Sync-Block).
-- **Migration:** ja (`SQL/86_AddFaHierarchy.sql` additiv, kein Backup-Zwang).
+- **Migration:** ja (`SQL/87_AddFaHierarchy.sql`, Platzhalter-Nummer, additiv, kein Backup-Zwang;
+  legt vier Tabellen an: zwei Ziel- + zwei Staging-Tabellen, siehe S-1).
 - **Reihenfolge:** DB-Migration vor Service-Neustart; Web kann parallel deployt werden, da Teil 1
   keine erreichbare Route hinzufuegt. Sync-Toggle bleibt nach dem Deploy **default aus** — muss am
   Zielsystem bewusst aktiviert werden (analog zur ADR-0008-Regel „jeder gewuenschte Sync muss
-  einmalig aktiviert werden").
+  einmalig aktiviert werden"). Vor Aktivierung: `ALTER`-Recht der Sync-Service-SQL-Login fuer
+  `sp_rename` am Zielsystem pruefen (siehe offene Rueckfrage) — sonst greift der in dieser Spec
+  vorgegebene Fallback (kurze Einzel-Transaktionen je Tabelle).
 - **Publish-Befehle:**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
@@ -306,22 +458,33 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Offene Rueckfragen
 
-Die Schranke-1-Antworten (unten) loesen die urspruenglichen Rueckfragen — hier der Stand:
+Die Schranke-1-Antworten (unten) loesen die urspruenglichen Rueckfragen 1-5; die Kritische Pruefung
+vom 2026-08-06 hat die Vorgaben in den Spec-Text eingearbeitet (siehe Nachbesserung am Ende der
+Datei). Zwei technische Detailfragen bleiben — beide nicht blockierend, beide mit Empfehlung:
 
-1. **Kombinationsgeraete — GEKLAERT (Antwort 1).** In Teil 1 wie normale Auftraege behandeln,
-   `MontageAbteilung` nur informativ auf `FaHierarchyOrderInfo`. Materialisierungsseitige
-   Konsequenz (nicht mehr eindeutige `OrderNumber`) → Teil 7.
-2. **Produktiv-DB/Server — GEKLAERT (Antwort 2).** Vom Menschen notiert; Servername/DB werden direkt
-   in den `appsettings` des IDEAL-Deployments gesetzt (kein Spec-Handlungsbedarf, kein Blocker).
-3. **Toggle-Heimat — GEKLAERT (Antwort 3).** `ServiceSettings` bestaetigt; Namensschema
-   `Sync:HierarchicalFaEnabled` (Master der hierarchischen FA-Logik) +
-   `Sync:FaHierarchyListeViewName`/`Sync:FaHierarchyInfosViewName`, ohne Standort im Bezeichner
-   (siehe Namens-Hinweis und Umsetzungsnotiz unten).
-4. **Whitelist-Regex — Fehlerverhalten GEKLAERT (Antwort 4):** bei Verstoss Ablehnen + Protokoll +
-   **zusaetzliche Fehlermail**. OFFEN bleibt nur das **exakte Regex-Pattern**, im Dev-Lauf mit
-   Sicherheitsfokus festzulegen (kein Blocker, siehe `open_questions`).
-5. **Alter Worktree `ideal-anpassungen-v1` — GEKLAERT (Antwort 5):** existiert nicht mehr; keine
+1. **GEKLAERT (Antwort 1).** Kombinationsgeraete: In Teil 1 wie normale Auftraege behandeln
+   (fachlich keine Sonderlogik), Import technisch dedupliziert (Existenzpruefung, siehe
+   Anforderung 2/3). `MontageAbteilung` nur informativ auf `FaHierarchyOrderInfo`.
+   Materialisierungsseitige Konsequenz (nicht mehr eindeutige `OrderNumber`) → Teil 7.
+2. **GEKLAERT (Antwort 2).** Produktiv-DB/Server vom Menschen notiert; direkt in den `appsettings`
+   des IDEAL-Deployments gesetzt (kein Spec-Handlungsbedarf, kein Blocker).
+3. **GEKLAERT (Antwort 3).** Toggle-Heimat `ServiceSettings` bestaetigt; Namensschema
+   `Sync:HierarchicalFaEnabled` + `Sync:FaHierarchyListeViewName`/`Sync:FaHierarchyInfosViewName`,
+   ohne Standort im Bezeichner (siehe Umsetzungsnotiz unten).
+4. **GEKLAERT — Fehlerverhalten (Antwort 4), technische Verdrahtung ergaenzt.** Bei
+   Whitelist-/QUOTENAME-Verstoss **und** bei leerem View-Read: Ablehnen/Skip + Protokoll +
+   zusaetzliche Fehlermail ueber `ISyncErrorNotifier.NotifyAsync` (explizit in
+   `FaHierarchySyncService` aufgerufen, da `RunResilientAsync` nur bei Exceptions mailt — siehe
+   Technischer Loesungsentwurf S-4).
+5. **GEKLAERT (Antwort 5).** Alter Worktree `ideal-anpassungen-v1` existiert nicht mehr; keine
    Test-Altlast wiederzuverwenden.
+6. **OFFEN (Empfehlung: kein Blocker).** Exaktes ASCII-Whitelist-Regex-Pattern je Namensteil im
+   Dev-Lauf final festlegen (Grundstruktur — `[Schema].[Name]`, ASCII-only, kein `\w` — ist bereits
+   in dieser Spec vorgegeben, siehe Anforderung 8/S-2).
+7. **OFFEN (Empfehlung: Staging + `sp_rename`, siehe Full-Refresh-Strategie).** Setzt `ALTER`-Recht
+   der Sync-Service-SQL-Login voraus — vor dem Dev-Lauf am Zielsystem pruefen; der Fallback (kurze
+   Einzel-Transaktion je Tabelle) ist bereits als Alternative in dieser Spec vorgegeben, falls das
+   Recht nicht vergeben werden kann.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 HINWEIS: ICH würde das nicht IDEALFASTRUKTUR etc. Nennen sondern in die Richtung FAHierarchyStruktur, dh. nicht den Standort in die Namensgebung 
@@ -330,6 +493,8 @@ HINWEIS: ICH würde das nicht IDEALFASTRUKTUR etc. Nennen sondern in die Richtun
 3. →toggle für HierarchischeFA Logik und die anderen toggle auch. 
 4. →zusätzliches Fehlermail
 5. →nein, existiert nicht mehr
+6. →
+7. →
 
 ## Umsetzungsnotiz — Namens-Konvention (2026-08-06)
 
@@ -388,7 +553,27 @@ Fehler zu erkennen.
   dagegen bewusst **alle** FAInfos-Zeilen (eine je Montage-Abteilung). Anforderung 2, In-Scope,
   AK 2 und Test-Szenario Schritt 4 sind entsprechend zu schaerfen; ein AK „Kombigeraet-Positionen
   erscheinen in `FaHierarchyNode` **genau einmal**" fehlt und ist zu ergaenzen.
-
+=> **ANTWORT (2026-08-06): Kombinationsgeraete werden fachlich NICHT gesondert behandelt — der
+   Import muss trotzdem dedupliziert werden.** Praezisierung, weil "ausser Acht lassen" hier
+   zweideutig waere:
+   - **Import (technisch, VERBINDLICH):** Die Datenverfuegbarkeits-Regel ist eine reine
+     **Existenzpruefung**. Import-SQL daher mit
+     `WHERE EXISTS (SELECT 1 FROM FAInfos i WHERE i.HauptFA = f.HauptFA)` bzw.
+     `INNER JOIN (SELECT DISTINCT HauptFA FROM FAInfos)`. Jede FAListe-Position landet **genau
+     einmal** in `FaHierarchyNode`, unabhaengig von der Zahl der FAInfos-Zeilen. Das ist keine
+     Sonderbehandlung fuer Kombigeraete, sondern die korrekte Semantik fuer ALLE Auftraege.
+   - **NICHT gemeint:** Kombigeraete aus dem Import herausfiltern. Sie wuerden dann still fehlen
+     — das waere schlimmer als die Verdopplung.
+   - **Fachlich (Scope Teil 1):** keine Sonderlogik, keine Unterscheidung ueber
+     `[Montage-Abteilung]`, keine eigene Gruppierung oder Anzeige. Kombigeraete laufen wie normale
+     Auftraege durch.
+   - `FaHierarchyOrderInfo` behaelt weiterhin **alle** FAInfos-Zeilen (eine je Montage-Abteilung).
+   - **AK ergaenzen:** "Positionen eines HauptFA mit mehreren FAInfos-Zeilen erscheinen in
+     `FaHierarchyNode` genau einmal."
+   - **Test-Szenario Schritt 4 schaerfen:** nicht "wird wie ein normaler Auftrag importiert",
+     sondern "Positionszahl identisch zur FAListe-Zeilenzahl, keine Verdopplung".
+   - **Backlog-Nachtrag anlegen:** fachliche Behandlung von Kombinationsgeraeten (Unterscheidung
+     ueber Montage-Abteilung, Anzeige/Gruppierung) als eigener spaeterer Punkt.
 ### SOLLTE — vor dem Dev-Lauf schaerfen (konkreter Vorschlag)
 
 **S-1 — Full-Refresh „Delete-All + Bulk-Insert in einer Transaktion" hat KEINEN Praezedenzfall im
@@ -473,3 +658,73 @@ scharf. Regressionsrisiko fuer `ProductionOrders` real gering (rein additive Tab
 abgeschlossen (nicht Gegenstand dieser Teil-1-Pruefung, aber fuer den Orchestrator relevant).
 
 NACHBESSERUNG NOETIG: B-1 — der INNER-JOIN-Import verdoppelt Kombigeraet-/Mehrfach-FAInfos-Positionen und widerspricht Freigabe-Antwort 1; Existenz-/DISTINCT-Semantik muss vom Menschen bestaetigt werden (S-1..S-4 begleitend).
+
+## Antworten auf S-1 bis S-4 und H-1 (2026-08-06)
+
+**S-1 bis S-4 werden wie vorgeschlagen umgesetzt** — verbindliche Vorgaben an den Dev-Lauf, keine
+weitere Rueckfrage noetig. Im Einzelnen:
+
+- **S-1 (Full-Refresh):** Beide Tabellen in **einer** Transaktion ersetzen. Der Empty-Guard wird auf
+  den **Roh-Zeilenzahlen beider Views** ausgewertet, **bevor** irgendeine Tabelle angefasst wird
+  (analog `LagerbestandZeroingPlanner`) — sonst maskiert der Join einen leeren FAInfos-Read als
+  "0 Struktur-Zeilen" und der Guard verwechselt Ausfall mit Leerstand. Lock-Zeit begrenzen
+  (Staging + `sp_rename`, Batch-Delete oder mindestens Snapshot-Isolation), damit gleichzeitige
+  Web-Reads den alten Stand sehen statt zu blockieren.
+- **S-2 (View-Namen):** Whitelist **UND** `QUOTENAME` — nicht entweder/oder. Namen in
+  `[Schema].[Name]` zerlegen, jeden Teil gegen **ASCII-explizites** `^[A-Za-z0-9_]+$` pruefen
+  (nicht `\w`, das matcht unter Unicode Homoglyphen), `]` als `]]` behandeln, dann per `QUOTENAME`
+  zusammensetzen. Whitespace, `;`, `--`, `/*` und alles jenseits ASCII explizit ablehnen.
+- **S-3 (Drift-Guard):** Die drei neuen Keys **zusaetzlich als `[InlineData]`** in
+  `ServiceSettingDefinitionsTests` eintragen. Nur im Katalog stehen genuegt nicht — der Test
+  bliebe gruen ohne jede Guard-Wirkung. In die Checkliste aufnehmen.
+- **S-4 (Fehlermail):** `FaHierarchySyncService` injiziert `ISyncErrorNotifier` (wie
+  `LagerbestandSyncService`) und ruft `NotifyAsync` in **beiden** Pfaden explizit auf — nach
+  `FinishFailedAsync` bei ungueltigem View-Namen **und** nach dem Warn des Empty-Guards.
+  `RunResilientAsync` mailt nur bei geworfener Exception; der Empty-Guard wirft nicht.
+  Abhaengigkeit im Loesungsentwurf benennen.
+
+**H-1 (Migrationsnummer):** Keine Zahl festschreiben. Die Spec fuehrt sie als **Platzhalter**; die
+tatsaechlich freie Nummer wird **unmittelbar vor dem Dev-Lauf** gegen den dann gemergten
+main-Stand bestimmt (aktuell voraussichtlich `87`, nach Merge der beiden WmsBugs-Batches ggf.
+hoeher). Auch die `86_…`-Referenz in `affected_code` entsprechend als Platzhalter kennzeichnen.
+
+**H-2 (Index auf `SubFA`):** Fuer Teil 1 nicht noetig (reiner `HauptFA`-Lookup). Als Notiz fuer
+Teil 2 vormerken, wo ueber `VaterFA -> SubFA` traversiert wird.
+
+**H-5 (Uebersichts-Spec):** erledigt — die Freigabe-Antworten 1-3 der Uebersicht sind am
+2026-08-06 beantwortet worden.
+
+### Nachbesserung (2026-08-06)
+
+Status je Befund aus der Kritischen Pruefung, nach Einarbeitung in den Spec-Text:
+
+- **B-1 (INNER-JOIN-Verdopplung):** behoben im Text (Anforderung 2, In-Scope, Datenmodell/"Warum
+  zwei Tabellen", AK 3, Test-Szenario Schritt 4). Import-SQL auf `WHERE EXISTS`/`DISTINCT`-Semantik
+  umgestellt, `FaHierarchyOrderInfo` bleibt separat und vollstaendig.
+- **S-1 (Full-Refresh-Strategie):** behoben im Text (Technischer Loesungsentwurf > Sync-Service >
+  Full-Refresh-Strategie, Datenmodell > Staging-Pendants, AK 9/11, Test-Szenario Schritt 5,
+  Deploy-Abschnitt). Staging-Tabelle + `sp_rename`-Swap als Hauptstrategie, kurze
+  Einzel-Transaktion je Tabelle als Fallback; Empty-Guard explizit auf Roh-Zeilenzahlen **vor**
+  jeder Mutation gelegt. Die konkrete Berechtigungsfrage (`ALTER`/`sp_rename`-Recht der
+  Sync-Service-SQL-Login am Zielsystem) ist eine echte Infrastruktur-/Menschen-Entscheidung und
+  **bleibt Rueckfrage** (offene Rueckfrage 7).
+- **S-2 (Whitelist + QUOTENAME):** behoben im Text (Anforderung 8, Technischer Loesungsentwurf >
+  Sync-Service, AK 4/8). Zweistufige Absicherung (ASCII-Regex + `QUOTENAME`) jetzt verbindlich
+  vorgegeben; das exakte Regex-Pattern im Detail **bleibt Rueckfrage** (offene Rueckfrage 6, wie
+  bereits vor der Kritischen Pruefung als kein Blocker vorgesehen).
+- **S-3 (Drift-Guard-Test):** behoben im Text (Technischer Loesungsentwurf > Sync-Service, AK 10,
+  affected_code-Eintrag `ServiceSettingDefinitionsTests.cs`). Explizite Pflicht, die drei Keys
+  zusaetzlich als `[InlineData]` einzutragen, ist jetzt eigener, objektiv pruefbarer
+  Akzeptanzkriterium-Punkt.
+- **S-4 (Fehlermail-Verdrahtung):** behoben im Text (Technischer Loesungsentwurf > Sync-Service >
+  Fehlermail, AK 4/5, Test-Szenarien Negativfaelle). `ISyncErrorNotifier` als expliziter
+  Ctor-Parameter benannt, `NotifyAsync` an beiden Warn-/Fail-Pfaden mit synthetischer Exception
+  (Praezedenzfall `LagerbestandSyncService`-Cap-Skip) vorgeschrieben.
+- **H-1 (Migrationsnummer):** bereits in der vorherigen Antwortrunde als Platzhalter behandelt;
+  in diesem Durchgang zusaetzlich `affected_code` und Migrations-Abschnitt auf `87` (statt `86`)
+  aktualisiert und als Platzhalter markiert — bleibt vor dem Dev-Lauf zu pruefen, kein
+  Rueckfrage-Blocker.
+- **H-2 (Index auf `SubFA`):** unveraendert als Notiz fuer Teil 2 gehalten, kein Handlungsbedarf
+  in Teil 1 — bleibt keine offene Rueckfrage.
+- **H-3/H-4 (Groesse, Staerken):** keine Textaenderung noetig, reine Beobachtungen.
+- **H-5 (Uebersichts-Spec):** ausserhalb dieser Datei, bereits als erledigt vermerkt.
