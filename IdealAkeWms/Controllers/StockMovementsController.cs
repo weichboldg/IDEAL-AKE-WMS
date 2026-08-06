@@ -88,6 +88,9 @@ public class StockMovementsController : Controller
     {
         var vm = new StockMovementCreateViewModel
         {
+            // Standardmenge 1 (Teil-5): bewusst NUR hier im Inbound-GET, nicht am geteilten
+            // StockMovementCreateViewModel.Quantity-Property (das nutzt auch die Ausbuchung).
+            Quantity = 1,
             StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
             Users = await _userRepository.GetActiveUsersAsync()
         };
