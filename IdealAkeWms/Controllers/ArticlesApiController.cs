@@ -33,12 +33,19 @@ public class ArticlesApiController : ControllerBase
                 await _settings.GetValueAsync(AppSettingKeys.GemeinsameArtikelgruppen));
             var raw = await _articleRepository.SearchAsync(q, Math.Max(limit * 5, 100));
             results = raw
+                // DUMMY nie in die regulaere Suche einmischen — er darf ausschliesslich ueber den
+                // „Artikel nicht gefunden -> DUMMY-Position"-Zweig (mit Pflicht-Bezeichnung) angelegt
+                // werden, sonst wuerde die Default-Bezeichnung ungeaendert uebernommen (Teil-7).
+                .Where(a => a.ArticleNumber != Article.DummyArticleNumber)
                 .Where(a => GlasArticleGroupFilter.IsAllowedForType(a.ArticleGroup, reqType, glasGroups, sharedGroups))
                 .Take(limit);
         }
         else
         {
-            results = await _articleRepository.SearchAsync(q, limit);
+            var raw = await _articleRepository.SearchAsync(q, limit + 1);
+            results = raw
+                .Where(a => a.ArticleNumber != Article.DummyArticleNumber)
+                .Take(limit);
         }
         return Ok(results.Select(a => new
         {

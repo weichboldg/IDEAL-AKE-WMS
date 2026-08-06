@@ -205,6 +205,29 @@ public class WarehouseRequisitionsApiControllerTests
     }
 
     [Fact]
+    public async Task AddItem_DummyArtikel_WirdAbgelehnt()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        // Der DUMMY existiert (geseedet), darf aber NICHT ueber den normalen Add-Pfad rein —
+        // sonst uebernaehme er die geteilte Default-Bezeichnung ohne Pflicht-Ueberschreibung.
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = Article.DummyArticleNumber,
+            Description = Article.DummyDefaultDescription,
+            CreatedAt = DateTime.Now, CreatedBy = "seed", CreatedByWindows = "seed"
+        });
+        ctx.SaveChanges();
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.AddItem(reqId,
+            new WarehouseRequisitionsApiController.AddItemRequest(Article.DummyArticleNumber, 1));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty("DUMMY nur ueber den DUMMY-Endpunkt mit Pflicht-Bezeichnung");
+    }
+
+    [Fact]
     public async Task UpdateItem_FremdeBestellung_Forbid()
     {
         var (ctrl, ctx, _) = Setup();

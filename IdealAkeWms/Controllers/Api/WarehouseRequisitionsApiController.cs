@@ -75,6 +75,12 @@ public class WarehouseRequisitionsApiController : ControllerBase
         var guard = CheckOwnershipAndDraft(requisition);
         if (guard != null) return guard;
 
+        // Der DUMMY-Artikel darf NIE ueber den regulaeren Add-Pfad rein (der die geteilte
+        // Default-Bezeichnung uebernaehme). Er ist ausschliesslich ueber den DUMMY-Endpunkt
+        // mit Pflicht-Bezeichnung anlegbar (Teil-7: „Bezeichnung zwingend geaendert").
+        if (string.Equals(body.ArticleNumber, Article.DummyArticleNumber, StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Der DUMMY-Artikel kann nur über „Artikel nicht gefunden → DUMMY-Position\" mit eigener Bezeichnung angelegt werden." });
+
         var glasGroups = GlasArticleGroupFilter.ParseGroups(
             await _settings.GetValueAsync(AppSettingKeys.GlasArtikelgruppen));
         var sharedGroups = GlasArticleGroupFilter.ParseGroups(
