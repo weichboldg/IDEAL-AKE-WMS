@@ -42,6 +42,7 @@ BEGIN
         [DefaultPageSize]           INT               NULL,
         [DefaultWorkStepId]         INT               NULL,
         [DefaultWorkbenches]        NVARCHAR(400)     NULL,
+        [DefaultFilterFaWorklistDescription1] NVARCHAR(200) NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -2183,6 +2184,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803104055_AddStorageLocationSageLagerbuchung', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803112322_AddSageBookingQueue')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803112322_AddSageBookingQueue', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806081121_AddUserDefaultFilterFaWorklistDescription1')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806081121_AddUserDefaultFilterFaWorklistDescription1', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
