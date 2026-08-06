@@ -286,7 +286,176 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
+1. → **Keine Montage-Abteilung in `ProductionOrders`. Gruppen-Schluessel bleibt `OrderNumber`.**
+   Konsistent zur paketweiten Entscheidung, dass Kombinationsgeraete in allen Teilen **out of
+   scope** sind: Es gibt keinen Trennschluessel auf Positionsebene, also laesst sich auch kein
+   zusammengesetzter Schluessel `OrderNumber + MontageAbteilung` sinnvoll bilden — er waere in den
+   Positionsdaten nicht befuellbar. Die Montage-Abteilung bleibt dort, wo sie hergehoert: auf der
+   auftragsbezogenen Struktur-Seite (`FaHierarchyOrderInfo`), als Information.
+   Ein zusaetzliches Feld in `ProductionOrders` waere zudem eine Kern-Tabellen-Aenderung fuer einen
+   Fall, den wir bewusst nicht behandeln. Nachzuholen ist das gemeinsam mit dem Backlog-Eintrag
+   [[2026-08-06-kombinationsgeraete-montageabteilung]] — dort ist der fehlende Positionsschluessel
+   als Wurzel benannt.
+
+2. → **Der adversariale `/review`-Lauf ist harte Freigabe-Vorbedingung, kein Nice-to-have.**
+   Diese Spec listet die 14 `OrderNumber`-Fundstellen bewusst nur auf; die Einzelbewertung ist
+   Aufgabe des Reviews. Verbindlich:
+   - `/review` auf diese Spec **vor** der Freigabe; ohne abgeschlossenen Lauf wird Teil 7 nicht
+     nach `freigegeben/` verschoben.
+   - Jede der 14 Fundstellen bekommt ein **eigenes schriftliches Urteil** —
+     `SubOrderNumber` (eindeutig) / `OrderNumber` (Gruppe) / unveraendert korrekt, jeweils mit
+     Begruendung. **Kein Fundort bleibt unbewertet** (das ist bereits AK 8).
+   - Findet das Review weitere Fundstellen, werden sie aufgenommen — die Liste ist eine Untergrenze,
+     keine abgeschlossene Menge.
+
+3. → **Sperrbedingung: live nur auf dem Schreibpfad, gecacht fuer die Anzeige.**
+   Das `EXISTS(SELECT 1 FROM ProductionOrders WHERE OrderNumber <> SubOrderNumber)` darf **nicht**
+   bei jedem Lesen des Master-Werts laufen — der Wert wird potenziell in jedem Request gelesen, das
+   waere eine Abfrage pro Zugriffspfad.
+   - **Schreibpfad (Aenderungsversuch am Master):** Pruefung **live** in derselben Transaktion wie
+     die Aenderung. Nur hier zaehlt Aktualitaet, und hier ist eine Abfrage voellig unkritisch
+     (passiert einmal im Leben des Systems).
+   - **Anzeige (Schalter gesperrt darstellen, Hinweistext):** **gecachter** Zustand, aufgefrischt
+     nach jedem Materialisierungs-Lauf und beim Start. Eine kurzzeitig veraltete Anzeige ist
+     harmlos — der Schreibpfad laesst nichts durch.
+   - Der Cache-Refresh gehoert an das Ende des Materialisierungs-Syncs, nicht an einen Timer.
+
+4. → **Eigenes Runbook unter `docs/`, verlinkt aus README und dieser Spec.**
+   Der "Rueckweg ausserhalb der Anwendung" (Datenbereinigung nach dem Umlegen des Einwegtors) darf
+   nicht nur als Satz in einer Spec stehen — gesucht wird er im Ernstfall Monate spaeter, von
+   jemandem unter Druck.
+   Verbindlich: `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` mit Vorbedingungen (Backup!),
+   den betroffenen Tabellen, dem Bereinigungsschritt und einer ehrlichen Warnung, was dabei
+   verloren geht. Aus `README.md` verlinken und in der Fehlermeldung des Waechters referenzieren
+   ("Rueckbau nur ueber das Runbook, siehe docs/..."). Formulierung durchgaengig **"nicht ueber die
+   Anwendung umkehrbar"**, nicht "unmoeglich".
+
+## Kritische Pruefung (2026-08-06)
+
+Anwalt-des-Teufels-Durchsicht **nach** ausgefuellten Freigabe-Antworten (1-4), gegengelesen: diese
+Spec, Teil 1 + Teil 8 (Abhaengigkeiten), die Ideen-Notiz inkl. ihrer eigenen Kritischen Pruefung,
+ADR 0003/0004/0006/0010, `fallstricke.md` — und der **echte main-Code**:
+`ApplicationDbContext.cs` (Zeile 415 verifiziert), `ProductionOrderReconciler.cs`,
+`SageImportService.cs`, `SageProductionOrderSql.cs`, `FaZusatzinfoSyncService.cs`,
+`SQL/AgentJobs/01_Import_Produktionsauftraege.sql`, `barcode-scanner.js`. Das Migrationstor ist
+konzeptionell exzellent — aber es gibt einen produktionsgefaehrdenden Code-Befund, ein
+Groessen-Problem und mehrere Konsistenzluecken, die eine Freigabe **jetzt** verhindern.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B7-1 — Der AKE-Import-AgentJob bricht nach der Migration (NOT-NULL-Verletzung), nicht nur der
+MERGE-Key.** `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` fuegt neue FAs per
+`INSERT (OrderNumber, Quantity, …)` ein (Zeilen 92-97) — **ohne `SubOrderNumber`**. Die
+Schema-Inversion macht `SubOrderNumber` **unbedingt** (auch bei AKE, „nicht schaltbar") `NOT NULL
+UNIQUE`. Ab dem ersten neuen AKE-FA nach der Migration schlaegt der AgentJob-INSERT fehl — der
+Sage-Import auf der **Produktivlinie AKE** steht still. Die Spec (Migrations-Punkt 4) framed das als
+„MERGE mit dem neuen `SubOrderNumber`-Upsert-Key kollidiert" und verweist auf einen bereits
+vorbereiteten Fallstrick — dieser ist aber in `SageProductionOrderSql.BuildUpsert` (C#) vorbereitet,
+**nicht** im AgentJob-SQL. Zu entscheiden/zu fixen, bevor Teil 7 laeuft:
+- **Welcher Import-Pfad ist an AKE live?** Der SQL-Agent-Job (raw SQL) oder `SageImportService` (C#,
+  der `SubOrderNumber=OrderNumber` bereits schreibt)? Die Auto-Memory sagt fuer BomCache „raw-SQL
+  ist Produktion" — trifft das auch auf den ProductionOrder-Import zu, ist B7-1 ein harter
+  Deploy-Blocker.
+- Ist der AgentJob live: seinen INSERT auf `SubOrderNumber = OrderNumber` spiegeln (analog
+  `SageProductionOrderSql`) **und** ihn im selben Wartungsfenster deployen — die Deploy-Reihenfolge
+  in dieser Spec nennt das nicht.
+- Deploy-Reihenfolge ergaenzen: den geplanten **SQL-Agent-Job waehrend des Migrations-Fensters
+  deaktivieren**, sonst feuert er mitten in die Migration und schlaegt fehl.
+- Folge fuer AK 1/AK 9: „`ProductionOrders` byte-identisch / AKE-Verhalten unveraendert" ist
+  **erst dann** erfuellt, wenn der AgentJob mitgezogen ist. Solange nicht: die harte
+  Regressionsgarantie ist **verletzt**, nicht nur theoretisch.
+
+**B7-2 — Groesse: das ist ein Epic, kein Ein-Dev-Lauf (`epic: false` ist falsch gesetzt).**
+In-Scope buendelt: (1) daten-konvertierende Migration der zentralsten Tabelle, (2)
+`HierarchischeStrukturGuard` + Einwegtor mit Dialogen ueber mehrere Schreibwege, (3) neuer
+Materialisierungs-Sync mit drei Sync-Regeln, (4) Haertung von 14+ `OrderNumber`-Lookups, (5)
+adversariales FA-Zusatzinfos-Review mit ggf. Code-Aenderung, (6) AgentJob-Umbau (B7-1), (7)
+Runbook, (8) gecachter Anzeige-Zustand + Refresh, (9) Audit-SyncLog-Service, (10) FreshInstall.
+Das ist **umfangreicher als Teil 8**, der bewusst `epic: true` mit sechs Etappen ist. Ein einziger
+Dev-Lauf produziert einen riesigen, schwer reviewbaren PR auf der Kern-Tabelle mit hohem
+Rollback-Risiko. **Entweder** `epic: true` mit Etappen (z. B. A Schema+Migration+AgentJob / B
+Guard+Einwegtor / C Materialisierungs-Sync+3 Regeln / D Lookup-Haertung+FA-Zusatzinfos-Review / E
+Runbook+Doku) **oder** eine harte, begruendete Rechtfertigung, warum das in einem Lauf sicher
+schaffbar ist. So wie jetzt spezifiziert: nicht schaffbar/nicht sicher.
+
+**B7-3 — Der Spec-Text widerspricht seiner eigenen maßgeblichen Freigabe-Antwort 1 (B3).**
+Freigabe-Antwort 1 **entscheidet** B3 klar: keine `MontageAbteilung` in `ProductionOrders`,
+Gruppen-Schluessel bleibt `OrderNumber`, Kombinationsgeraete paketweit out of scope (Backlog
+[[2026-08-06-kombinationsgeraete-montageabteilung]] — **existiert**, Link ok). Aber der **Body**
+(§„B3-Folge (NICHT abschliessend entschieden)") **und** das Frontmatter-Feld `open_questions[0]`
+fuehren B3 weiterhin als **offen/unentschieden**. Ein Dev, der den Body liest, sieht „nicht
+entschieden" und raet erneut. Vor Freigabe: Body-Abschnitt auf die getroffene Entscheidung
+umschreiben und **alle vier** `open_questions` streichen — sie sind durch Antworten 1-4
+vollstaendig beantwortet (das Feld steuert das HOME-Dashboard; stehen sie drin, gilt die Spec
+faelschlich als offen).
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S7-1 — Die Entlastung der FA-Zusatzinfos-Schreibseite ist sachlich falsch.** Die Spec sagt, das
+„Restrisiko liegt im UPDATE-Pfad der FA-Reconciliation, **nicht** in dieser Klasse". Verifiziert am
+Code: `FaZusatzinfoSyncService` matcht `WaNummer` auf `OrderNumber` und wendet **je gematchter
+Zeile** nicht nur den Upsert, sondern **Fold 2 (Auto-Erledigt)** an (Zeilen 165-172, 192-231). Im
+hierarchischen Modus teilen HauptFA **und alle Sub-FAs** dieselbe `OrderNumber` → ein einziges
+„verpackt/abgeholt" am HauptFA setzt den Komm-Erledigt-Status der **gesamten Gruppe** (jeder Sub-FA)
+still auf erledigt. „Mehrfachtreffer-faehig" heisst hier nur „stuerzt nicht ab", **nicht**
+„fachlich korrekt". Diese Klasse gehoert ausdruecklich ins adversariale Review (mit
+hierarchischem Testfall), nicht in die Entlastung.
+
+**S7-2 — Sync-Regel 2 ist zweifach unterspezifiziert.** (a) „Status setzen (nicht mehr in Sage)":
+**welches Feld?** `ProductionOrder` kennt heute nur `IsDone`/`IsCancelled`. Wird `IsCancelled`
+wiederverwendet oder ein neues Feld angelegt? Ein neues Feld = **weitere Migrations-Spalte**, die im
+Migrations-Plan fehlt. (b) Der **komplementaere Fall** fehlt ganz: Sub-FA verschwindet aus der
+Struktur **ohne** Rueckmeldungen — loeschen, behalten, markieren? Beide Punkte vor der Umsetzung
+festlegen, sonst ratet der Dev.
+
+**S7-3 — Keine einzige automatisierte-Test-Anforderung.** Alle Test-Szenarien sind Manual-UAT.
+`HierarchischeStrukturGuard` (EXISTS-Bedingung) und die drei Sync-Regeln sind reine Entscheidungs-
+logik — genau das Muster, das `ProductionOrderReconciler` als unit-testbaren Baustein umsetzt. AK
+ergaenzen: Guard-Bedingung + die drei Sync-Regeln als reine, unit-getestete Planer; **plus**
+gezielte hierarchische Tests fuer die zwei riskantesten UPDATE-Pfade (Reconcile-`WHERE OrderNumber`
+und FA-Zusatzinfo-Fold-2). Sonst ist die „Build+Tests gruen"-Mindestbedingung ohne Aussage fuer den
+neuralgischen Teil.
+
+**S7-4 — `affected_code` ist gegen die verbindlichen Antworten unvollstaendig.** Antwort 4 macht
+`docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` **und** die README-Verlinkung verbindlich — beide fehlen in
+`affected_code` (nur `docs/TESTSZENARIEN.md` steht drin). Ergaenzen. Zusaetzlich: die
+serverseitige Scan-Aufloesung (mehrdeutige `OrderNumber` → Auswahl) gehoert laut Teil-8-Freigabe-
+Antwort 1 **zu Teil 8**; `barcode-scanner.js` steht aber in Teil-7-`affected_code`. Klarstellen,
+dass Teil 7 nur Schema/Lookup-Semantik anfasst und die Aufloesungs-UI Teil 8 gehoert — sonst
+Doppel-Ownership.
+
+**S7-5 — „14 Fundstellen" ist eine Unterschaetzung; AK 8 liest sich als abgeschlossene Menge.**
+Breite Grep-Suche zeigt `OrderNumber` in deutlich mehr als 14 Quelldateien — u. a.
+`BdeBookingService`, `BdeApiController`, `PickingController`, `PartRequisitionsController`,
+`BdeBookingsController`, `ArticlesController`, `ReadOnlyBomBuilder` —, die nicht in `affected_code`
+stehen (einige sind Teil 8/BDE). Antwort 2 haelt korrekt fest „Untergrenze, keine abgeschlossene
+Menge" — aber AK 8 formuliert „**jeder der 14** … dokumentiert" und liest sich als fixe Zahl. AK 8
+umformulieren: „alle identifizierten Fundstellen; die Zahl 14 ist eine Untergrenze, das Review
+**sweept**, tickt keine feste Liste ab."
+
+**S7-6 — Guard-Choke-Point unverifiziert.** Der Waechter soll „ueber jeden Schreibweg" greifen.
+Der einzige heutige Schreibweg ist `ServiceSettingsController` (verifiziert vorhanden); die
+Teil-6-Maske existiert noch nicht. Vor der Umsetzung sicherstellen, dass es einen **einzigen
+Service-Layer-Choke-Point** fuer ServiceSettings-Writes gibt, an dem der Guard sitzt — kann der
+Key an mehreren Stellen ohne gemeinsame Naht geschrieben werden, leckt die Einweg-Garantie.
+
+### HINWEIS
+
+**H7-1 — Idempotenz-Guard des Index-Umbaus.** Der Tausch „`OrderNumber` unique entfernen /
+`SubOrderNumber` unique anlegen" braucht einen **`sys.indexes`-Guard**, nicht nur
+`OBJECT_ID`/`COL_LENGTH` (die Spalten-Guards greifen fuer die Spalten, nicht fuer die Indizes).
+
+**H7-2 — Frontmatter/Anzeige.** Nach Aufloesung von B7-3 sind `open_questions` zu leeren; solange
+sie stehen, zeigt das HOME-Dashboard Teil 7 als offen.
+
+**H7-3 — Staerken (beibehalten).** Datengetriebenes Einwegtor
+(`EXISTS(OrderNumber<>SubOrderNumber)`), Waechter in der Domaenenschicht, Antwort-3-Trennung
+live-Schreibpfad vs. gecachte Anzeige (Performance sauber geloest), Backup-Pflicht, verbindliches
+Runbook, korrekte Identifikation des Reconcile-UPDATE-Pfads als groesstes Risiko — alles
+vorbildlich. Der referenzierte Backlog-Eintrag existiert (verifiziert). Die Loecher sind ein
+Code-Blocker (B7-1), ein Zuschnitt-Problem (B7-2) und Konsistenz-/Vollstaendigkeits-Nachbesserungen
+— keine Neukonzeption.
+
+NACHBESSERUNG NOETIG: AgentJob-INSERT bricht die AKE-Produktivlinie nach der Migration (B7-1);
+Zuschnitt ist Epic-gross, aber `epic: false` (B7-2); Spec-Body + `open_questions` widersprechen der
+maßgeblichen Freigabe-Antwort 1 zu B3 (B7-3).
