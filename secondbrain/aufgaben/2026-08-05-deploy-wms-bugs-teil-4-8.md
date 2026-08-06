@@ -89,3 +89,21 @@ Umgesetzt auf dem **kombinierten Test-Branch** `feature/2026-08-05-wms-bugs-impr
 
 Build nach Korrekturen: Web **1092 passed / 1 skipped**, Service **197 passed**. Migration **87**
 zusätzlich. Weiterhin **Schranke 2** offen.
+
+## UAT-Fix #2 (2026-08-06, QA-Re-Verify) — Migration 88 gefilterter Unique-Index
+
+Zweiter realer UAT-Fund (nach der Pflicht-Bezeichnungs-Korrektur/TS-46.14 oben): am echten SQL
+Server warf die **zweite** DUMMY-Position je Bestellung `SqlException 2601` am Unique-Index
+`IX_WarehouseRequisitionItems_(WarehouseRequisitionId, ArticleNumber)` — der App-Layer-Duplikat-
+Guard-Skip reichte nicht, weil der DB-Index alle DUMMY-Positionen (gleiche `ArticleNumber='DUMMY'`)
+weiterhin blockte. InMemory erzwingt Unique-Indizes nicht, daher unsichtbar in Unit-Tests
+(bekannter Fallstrick).
+
+Fix: Unique-Index gefiltert (`WHERE [ArticleNumber] <> 'DUMMY'`), Migration `20260806120650_
+AllowMultipleDummyRequisitionItems` (Nr. **88**), `SQL/88_AllowMultipleDummyRequisitionItems.sql`
+(idempotent) + `SQL/00_FreshInstall.sql` (Schema + `MigrationId`) nachgezogen. QA-Re-Verify auf dem
+kombinierten Branch (HEAD `1535f41`): Build 0 Fehler, Web **1093 passed/1 skipped**, Service
+**197 passed**, `dotnet ef migrations has-pending-model-changes` → „No changes". Details siehe
+[[2026-08-05-wms-bugs-improvements-teil-7-spec]] „## QA-Re-Verify (2026-08-06, kombinierter Branch,
+UAT-Fix #2 — Migration 88)". Deploy-Reihenfolge jetzt: SQL 85 → 86 → 88 vor Publish. Weiterhin
+**Schranke 2** offen — Multi-DUMMY nur am echten SQL Server final abnehmbar (TS-46.12).

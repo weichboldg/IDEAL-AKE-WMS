@@ -408,8 +408,10 @@ genannten `84`/`85`. Beides in `SQL/00_FreshInstall.sql` verifiziert (Spalte `[C
   (`WarehouseRequisitionEmailService`, Freigabe-Antwort 2). Ohne Service-Publish würde der Kommentar
   nicht in der Mail erscheinen.
 - **Migration:** **ja** — eine Schema-Migration (`WarehouseRequisition.Comment`,
-  `SQL/85_AddWarehouseRequisitionComment.sql`) **und** ein reiner Daten-Seed (DUMMY-Artikel,
-  `SQL/86_SeedDummyArticle.sql`). Beide vor dem Publish einspielen.
+  `SQL/85_AddWarehouseRequisitionComment.sql`), ein reiner Daten-Seed (DUMMY-Artikel,
+  `SQL/86_SeedDummyArticle.sql`) **und** — nachtraeglich, UAT-Fix #2 (2026-08-06) — eine
+  Index-Migration (`SQL/88_AllowMultipleDummyRequisitionItems.sql`, gefilterter Unique-Index).
+  Alle drei vor dem Publish einspielen.
 - **Publish-Befehle (aus dem Worktree, VOR dem Merge):**
 
 ```
@@ -418,8 +420,13 @@ dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publ
 ```
 
 **Reihenfolge:** (1) `SQL/85_AddWarehouseRequisitionComment.sql` (Schema, additiv), (2)
-`SQL/86_SeedDummyArticle.sql` (DUMMY-Seed) einspielen, dann (3) Web **und** Service publishen. Rein
-additive Spalte + idempotenter Seed → kein Backup-Zwang über das Standard-Vorgehen hinaus.
+`SQL/86_SeedDummyArticle.sql` (DUMMY-Seed), (3) `SQL/88_AllowMultipleDummyRequisitionItems.sql`
+(gefilterter Unique-Index, ersetzt den ungefilterten Index aus der urspruenglichen
+`WarehouseRequisitionItems`-Migration) einspielen, dann (4) Web **und** Service publishen. Rein
+additive Spalte + idempotenter Seed + idempotenter Index-Rebuild → kein Backup-Zwang ueber das
+Standard-Vorgehen hinaus. **Hinweis:** `SQL/87_AddUserDefaultFilterBomDescription1.sql` gehoert zu
+Teil 8, nicht zu diesem Teil, muss aber im kombinierten Worktree ohnehin mit ausgerollt werden, da
+beide Teile denselben `dotnet publish`-Build teilen.
 
 Fluss: SQL 85+86 einspielen → Publish Web **und** Service **aus dem Worktree** → Testsystem →
 manueller Test (unten) → dann Merge. Nach dem Merge nur dann erneut aus `main` publishen, wenn der
@@ -459,8 +466,11 @@ Verifiziert im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-b
 ## Manuelle Test-Checkliste (Schranke 2)
 
 Am Testsystem **nach** Einspielen von `SQL/85_AddWarehouseRequisitionComment.sql` +
-`SQL/86_SeedDummyArticle.sql` und Web- **und** Service-Publish durchzuführen — Referenz:
-`docs/TESTSZENARIEN.md` TS-46.9 – TS-46.13.
+`SQL/86_SeedDummyArticle.sql` **und** `SQL/88_AllowMultipleDummyRequisitionItems.sql` sowie Web-
+**und** Service-Publish durchzuführen — Referenz: `docs/TESTSZENARIEN.md` TS-46.9 – TS-46.14.
+**TS-46.12 ist der kritische Test für UAT-Fix #2** (gefilterter Unique-Index) — dieser Schritt
+war es, der am echten SQL Server mit `SqlException 2601` fehlschlug, solange Migration 88 fehlte;
+InMemory (Unit-Tests) kann das nicht abdecken, da InMemory Unique-Indizes nicht erzwingt.
 
 1. **TS-46.9 (Kommentar Anzeige + Ownership):** Draft-Bestellung (Lager) anlegen, Kommentar
    eintragen + speichern, zu `/WarehousePicking` wechseln → Kommentar read-only sichtbar in der
@@ -480,6 +490,74 @@ Am Testsystem **nach** Einspielen von `SQL/85_AddWarehouseRequisitionComment.sql
 6. **TS-46.14 (DUMMY nicht ueber reguläre Suche, UAT-Fix-Regression):** Im Lager- **und** im
    Glas-Draft gezielt nach „DUMMY" suchen → **0** Treffer, nur der „nicht gefunden"-Block mit
    Pflicht-Bezeichnung erscheint. Normale Artikel weiterhin ueber Suche + Add-Pfad hinzufuegbar.
+
+## QA-Re-Verify (2026-08-06, kombinierter Branch, UAT-Fix #2 — Migration 88)
+
+Formaler QA-Lauf **nach dem zweiten realen UAT-Fund** im **kombinierten** Worktree
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, HEAD `1535f41`), der Teil 1–3
+(v1.29.0) und Teil 4/5/7/8 (v1.30.0) inkl. aller bisherigen Nutzer-Korrekturen bündelt. Auslöser:
+am realen SQL Server warf die **zweite** DUMMY-Position je Bestellung `SqlException 2601` am
+Unique-Index `IX_WarehouseRequisitionItems_(WarehouseRequisitionId, ArticleNumber)` — der
+App-Layer-Duplikat-Guard-Skip (`AddItemAsync`, UAT-Fix #1) reicht allein nicht, weil der
+DB-Index alle DUMMY-Positionen (gleiche `ArticleNumber='DUMMY'`) weiterhin als Duplikat blockte.
+InMemory (Unit-Tests) erzwingt Unique-Indizes **nicht** — bekannter Fallstrick, die Lücke war also
+mit Build+Test allein nicht sichtbar.
+
+**Fix:** Unique-Index gefiltert (`WHERE [ArticleNumber] <> 'DUMMY'`), Migration
+`20260806120650_AllowMultipleDummyRequisitionItems` (Nr. 88).
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 vorbestehende Warnungen, keine neuen).
+- **Tests:** `dotnet test` → `IdealAkeWms.Tests`: **1093 bestanden, 1 übersprungen, 0
+  fehlgeschlagen** (1094 gesamt); `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+- **`dotnet ef migrations has-pending-model-changes --project IdealAkeWms`** → „No changes have
+  been made to the model since the last migration." — Snapshot konsistent mit dem gefilterten Index.
+- **Migration 88** (`IdealAkeWms/Migrations/20260806120650_AllowMultipleDummyRequisitionItems.cs`):
+  `Up` droppt `IX_WarehouseRequisitionItems_WarehouseRequisitionId_ArticleNumber` und legt ihn mit
+  `filter: "[ArticleNumber] <> 'DUMMY'"` neu an; `Down` macht es rückgängig (ungefilterter Index).
+  `ApplicationDbContext.cs` (Zeile ~1151) hat `.HasIndex(e => new { e.WarehouseRequisitionId,
+  e.ArticleNumber }).IsUnique().HasFilter("[ArticleNumber] <> 'DUMMY'")` — Model und Migration
+  konsistent.
+- **`SQL/88_AllowMultipleDummyRequisitionItems.sql`:** idempotent — Index droppen falls vorhanden
+  (`IF EXISTS ... sys.indexes`), dann gefiltert neu anlegen (`IF NOT EXISTS`-Guard), DDL je in
+  eigenem `GO`-Batch, `__EFMigrationsHistory`-Insert in separatem, ebenfalls guarded Batch.
+- **`SQL/00_FreshInstall.sql`:** an beiden Pflichtstellen aktualisiert — Schema-Objekt (Zeile
+  ~1688-1691, `CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber] ...
+  WHERE [ArticleNumber] <> 'DUMMY'`) **und** `MigrationId`-History (`20260806120650_
+  AllowMultipleDummyRequisitionItems` vorhanden). Gesamte Migrationskette 84/85/87/88 + Seed 86
+  in FreshInstall verifiziert: alle vier `__EFMigrationsHistory`-Inserts vorhanden, DUMMY-Seed-Block
+  („17i. DUMMY-Artikel") mit `IF NOT EXISTS`-Guard vorhanden.
+- **Regressions-Check:** der gefilterte Index hält normale Artikel weiterhin je Bestellung
+  eindeutig (nur `ArticleNumber = 'DUMMY'` ist von der Eindeutigkeit ausgenommen) — kein
+  Funktionsverlust für reguläre Positionen. App-Layer-Guard-Skip in `AddItemAsync`
+  (`WarehouseRequisitionRepository.cs:119`, `articleNumber != Article.DummyArticleNumber`) und
+  der `AddItem`-DUMMY-Ablehnungs-Guard (UAT-Fix #1, `WarehouseRequisitionsApiController.cs:81`)
+  unverändert vorhanden — beide Fixes ergänzen sich (App-Layer lehnt den falschen Zugriffspfad ab,
+  DB-Index erzwingt die Eindeutigkeit für alle Nicht-DUMMY-Artikel auch bei Bypass der App-Schicht).
+- **Naming-Inkonsistenz (bewertet, nicht gefixt):** In `SQL/00_FreshInstall.sql` heißt der Index
+  `IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber`, in den EF-Migrationen (und in
+  `SQL/88`) `IX_WarehouseRequisitionItems_WarehouseRequisitionId_ArticleNumber` — vorbestehende
+  Diskrepanz, nachweislich schon vor Teil 7 im Repo (`git log -S` zeigt den FreshInstall-Namen im
+  ursprünglichen Commit, der die Tabelle anlegte), **nicht** durch diesen Fix eingeführt.
+  **Bewertung: kein reales Problem.** Beide Install-Pfade (FreshInstall vs. inkrementelle
+  `SQL/XX_*.sql`-Kette) erzeugen denselben gefilterten Unique-Index auf denselben Spalten mit
+  derselben Wirkung — nur der physische Indexname unterscheidet sich zwischen einer
+  Frisch-Installation und einer über SQL 01…88 migrierten Bestands-DB. `SQL/88` referenziert
+  korrekt den Namen, den die Migrationskette tatsächlich vergeben hat (relevant für Bestands-DBs);
+  auf einer frischen Installation läuft `SQL/88` nie (der Index existiert dort von Anfang an
+  gefiltert). Kosmetisch, kein Deploy- oder Funktionsrisiko — optionale Aufräumarbeit für später
+  (Index-Rename in FreshInstall zur Uniformität), keine Blocker-Priorität.
+- **`docs/TESTSZENARIEN.md`:** TS-46.12 („DUMMY mehrfach je Bestellung") deckt das Szenario „zwei
+  DUMMY-Positionen mit unterschiedlicher Bezeichnung in einer Bestellung" bereits vollständig ab —
+  **kein neues Szenario nötig**, TS-46.12 ist ab sofort der maßgebliche manuelle Test für UAT-Fix #2
+  (siehe Ergänzung in der Test-Checkliste oben). Kein Änderungsbedarf an
+  `secondbrain/tests/testszenarien-index.md` (Kapitel-46-Eintrag deckt TS-46.9–46.14 bereits ab).
+
+**Status bestätigt: Testbereit.** Build/Test grün, Migrations-/Index-/FreshInstall-Kette
+konsistent. **Wichtige Einschränkung:** Die eigentliche Multi-DUMMY-Fähigkeit (zwei DUMMY-
+Positionen ohne `SqlException 2601`) ist mit InMemory **nicht** nachweisbar — abschließend
+abnehmbar **nur** am echten SQL Server (Schranke 2, TS-46.12). Der Branch bleibt aus QA-Sicht
+bereit für dieses UAT.
 
 ## Offene Rückfragen
 
