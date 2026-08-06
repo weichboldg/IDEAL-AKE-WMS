@@ -83,6 +83,13 @@ public class User : AuditableEntity
     [Display(Name = "Standard-Filter Bezeichnung 1 (FA-Abarbeitungsliste)")]
     public string? DefaultFilterFaWorklistDescription1 { get; set; }
 
+    /// <summary>Standard-Filterwert fuer die Spalte „Bezeichnung 1" in der Stueckliste (BOM,
+    /// Client-Mode-Spaltenfilter). NULL/leer = kein Default. Darf die Spaltenfilter-Mini-Syntax
+    /// nutzen (OR mit `,`).</summary>
+    [StringLength(200)]
+    [Display(Name = "Standard-Filter Bezeichnung 1 (Stückliste)")]
+    public string? DefaultFilterBomDescription1 { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();

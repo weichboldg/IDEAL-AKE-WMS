@@ -113,6 +113,7 @@ public class UsersController : Controller
             DefaultWorkStepId = vm.DefaultWorkStepId,
             DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim(),
             DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim(),
+            DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim(),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -240,6 +241,7 @@ public class UsersController : Controller
             DefaultWorkStepId = user.DefaultWorkStepId,
             DefaultWorkbenches = user.DefaultWorkbenches,
             DefaultFilterFaWorklistDescription1 = user.DefaultFilterFaWorklistDescription1,
+            DefaultFilterBomDescription1 = user.DefaultFilterBomDescription1,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -281,6 +283,7 @@ public class UsersController : Controller
         existing.DefaultWorkStepId = vm.DefaultWorkStepId;
         existing.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
         existing.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
+        existing.DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);

@@ -72,6 +72,12 @@ public class UserEditViewModel
     [Display(Name = "Standard-Filter Bezeichnung 1 (FA-Abarbeitungsliste)")]
     public string? DefaultFilterFaWorklistDescription1 { get; set; }
 
+    /// <summary>Standard-Filterwert fuer die Spalte „Bezeichnung 1" in der Stueckliste (BOM).
+    /// Leer = kein Default.</summary>
+    [StringLength(200)]
+    [Display(Name = "Standard-Filter Bezeichnung 1 (Stückliste)")]
+    public string? DefaultFilterBomDescription1 { get; set; }
+
     public List<RoleCheckboxItem> AvailableRoles { get; set; } = new();
     public List<int> SelectedRoleIds { get; set; } = new();
 

@@ -162,7 +162,8 @@ public class AccountController : Controller
             AvailableWorkSteps = await _workStepRepository.GetActiveAsync(),
             DefaultWorkbenches = user.DefaultWorkbenches,
             AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync(),
-            DefaultFilterFaWorklistDescription1 = user.DefaultFilterFaWorklistDescription1
+            DefaultFilterFaWorklistDescription1 = user.DefaultFilterFaWorklistDescription1,
+            DefaultFilterBomDescription1 = user.DefaultFilterBomDescription1
         };
         return View(vm);
     }
@@ -199,6 +200,7 @@ public class AccountController : Controller
         user.DefaultWorkStepId = vm.DefaultWorkStepId;
         user.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
         user.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
+        user.DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);

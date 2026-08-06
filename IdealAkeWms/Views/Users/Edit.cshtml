@@ -104,6 +104,12 @@
                         <div class="form-text">Standard-Filter in der Stücklisten-Ansicht.</div>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="DefaultFilterBomDescription1" class="form-label"></label>
+                        <input asp-for="DefaultFilterBomDescription1" class="form-control" placeholder="z. B. Verdampfer" />
+                        <div class="form-text">Standard-Filter „Bezeichnung 1" in der Stücklisten-Ansicht. Leer = kein Default.</div>
+                    </div>
+
                     <div class="mb-3 form-check">
                         <input asp-for="RecursiveFilterSearch" class="form-check-input" />
                         <label asp-for="RecursiveFilterSearch" class="form-check-label"></label>
