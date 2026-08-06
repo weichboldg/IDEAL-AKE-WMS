@@ -1685,8 +1685,10 @@ CREATE TABLE [dbo].[WarehouseRequisitionItems] (
 );
 CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
     ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
+-- Gefiltert: DUMMY-Schluessel ausgenommen (mehrere DUMMY-Positionen je Bestellung erlaubt, Teil-7).
 CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
-    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber]);
+    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber])
+    WHERE [ArticleNumber] <> 'DUMMY';
 CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_WillBeRestocked]
     ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
     WHERE [ShortageStatus] = 1;
@@ -2211,6 +2213,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806081737_AddWarehouseRequisitionComment', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806105617_AddUserDefaultFilterBomDescription1')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806105617_AddUserDefaultFilterBomDescription1', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806120650_AllowMultipleDummyRequisitionItems')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806120650_AllowMultipleDummyRequisitionItems', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
