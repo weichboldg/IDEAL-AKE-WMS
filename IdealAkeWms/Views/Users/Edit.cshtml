@@ -104,6 +104,12 @@
                         <div class="form-text">Standard-Filter in der Stücklisten-Ansicht.</div>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="DefaultFilterBomDescription1" class="form-label"></label>
+                        <input asp-for="DefaultFilterBomDescription1" class="form-control" placeholder="z. B. Verdampfer" />
+                        <div class="form-text">Standard-Filter „Bezeichnung 1" in der Stücklisten-Ansicht. Leer = kein Default.</div>
+                    </div>
+
                     <div class="mb-3 form-check">
                         <input asp-for="RecursiveFilterSearch" class="form-check-input" />
                         <label asp-for="RecursiveFilterSearch" class="form-check-label"></label>
@@ -144,6 +150,13 @@
                             }
                         </datalist>
                         <div class="form-text">Standard-Werkbänke für die FA-Abarbeitungsliste, kommasepariert. Leer = alle.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DefaultFilterFaWorklistDescription1" class="form-label"></label>
+                        <input asp-for="DefaultFilterFaWorklistDescription1" class="form-control" placeholder="z. B. Verdampfer" />
+                        <span asp-validation-for="DefaultFilterFaWorklistDescription1" class="text-danger"></span>
+                        <div class="form-text">Standard-Filter „Bezeichnung 1" der FA-Abarbeitungsliste; beim Öffnen automatisch vorbelegt. Leer = kein Default. Mehrere Werte mit Komma (ODER), Ausschluss mit „!".</div>
                     </div>
 
                     <hr />

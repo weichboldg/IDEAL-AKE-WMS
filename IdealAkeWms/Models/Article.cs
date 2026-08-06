@@ -4,6 +4,20 @@ namespace IdealAkeWms.Models;
 
 public class Article : AuditableEntity
 {
+    /// <summary>
+    /// Reservierter Artikelnummer-Schluessel des einen, per SQL geseedeten DUMMY-Artikels
+    /// (Teil-7, v1.29). Ausserhalb des Sage-Namensraums, damit der Artikel-Sync ihn nie
+    /// ueberschreibt. Muss exakt mit dem Seed (SQL/86 + FreshInstall) uebereinstimmen.
+    /// </summary>
+    public const string DummyArticleNumber = "DUMMY";
+
+    /// <summary>
+    /// Default-Bezeichnung des DUMMY-Artikels aus dem Seed. Dient serverseitig als Vergleichswert
+    /// fuer die "Bezeichnung zwingend geaendert"-Pflicht: eine DUMMY-Position mit unveraenderter
+    /// (= dieser) Bezeichnung wird abgelehnt. Muss exakt mit dem Seed uebereinstimmen.
+    /// </summary>
+    public const string DummyDefaultDescription = "DUMMY – Bezeichnung bitte eintragen";
+
     [Required(ErrorMessage = "Artikelnummer ist erforderlich")]
     [StringLength(100)]
     [Display(Name = "Artikelnummer")]

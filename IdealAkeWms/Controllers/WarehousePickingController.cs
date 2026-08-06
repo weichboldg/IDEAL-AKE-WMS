@@ -42,6 +42,7 @@ public class WarehousePickingController : Controller
         ["workplace"] = r => r.WorkplaceName,
         ["creator"] = r => r.CreatedBy,
         ["submitted"] = r => r.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—",
+        ["comment"] = r => string.IsNullOrWhiteSpace(r.Comment) ? "—" : r.Comment,
         ["items"] = r => r.ItemCount.ToString(),
         ["status"] = r => r.Status switch
         {
@@ -72,7 +73,7 @@ public class WarehousePickingController : Controller
         var (allRows, _) = await _repo.GetForWarehouseAsync(statusList, workplaceId, type, 1, int.MaxValue);
         var allItems = allRows.Select(r => new WarehouseRequisitionListItemViewModel(
             r.Id, r.ProductionWorkplace?.Name ?? "", r.CreatedBy, r.CreatedAt,
-            r.SubmittedAt, r.Items.Count, r.Status)).ToList();
+            r.SubmittedAt, r.Items.Count, r.Status, r.Comment)).ToList();
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
@@ -133,6 +134,7 @@ public class WarehousePickingController : Controller
             ClosedAt = r.ClosedAt,
             CancelledAt = r.CancelledAt,
             CancellationReason = r.CancellationReason,
+            Comment = r.Comment,
             Status = r.Status,
             Type = r.Type,
             RowVersion = r.RowVersion,

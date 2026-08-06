@@ -217,6 +217,7 @@ public class PickingController : Controller
         // User-Defaults für client-seitige Spaltenfilter laden
         string? defaultFilterBeschaffung = null;
         string? defaultFilterArtikelgruppe = null;
+        string? defaultFilterBomDescription1 = null;
         var recursiveFilterSearch = false;
         var appUserId = _currentUserService.GetCurrentAppUserId();
         if (appUserId.HasValue)
@@ -226,6 +227,7 @@ public class PickingController : Controller
             {
                 defaultFilterBeschaffung = currentUser.DefaultFilterBeschaffung;
                 defaultFilterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
+                defaultFilterBomDescription1 = currentUser.DefaultFilterBomDescription1;
                 recursiveFilterSearch = currentUser.RecursiveFilterSearch;
             }
         }
@@ -364,6 +366,7 @@ public class PickingController : Controller
             FilterText = filterText,
             DefaultFilterBeschaffung = defaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
+            DefaultFilterBomDescription1 = defaultFilterBomDescription1,
             AllStorageLocations = allStorageLocations,
             TargetStorageLocations = targetStorageLocations,
             DataSource = bomResult.DataSource,

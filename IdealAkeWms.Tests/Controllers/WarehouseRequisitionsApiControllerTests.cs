@@ -205,6 +205,29 @@ public class WarehouseRequisitionsApiControllerTests
     }
 
     [Fact]
+    public async Task AddItem_DummyArtikel_WirdAbgelehnt()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedArticles(ctx);
+        // Der DUMMY existiert (geseedet), darf aber NICHT ueber den normalen Add-Pfad rein —
+        // sonst uebernaehme er die geteilte Default-Bezeichnung ohne Pflicht-Ueberschreibung.
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = Article.DummyArticleNumber,
+            Description = Article.DummyDefaultDescription,
+            CreatedAt = DateTime.Now, CreatedBy = "seed", CreatedByWindows = "seed"
+        });
+        ctx.SaveChanges();
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.AddItem(reqId,
+            new WarehouseRequisitionsApiController.AddItemRequest(Article.DummyArticleNumber, 1));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty("DUMMY nur ueber den DUMMY-Endpunkt mit Pflicht-Bezeichnung");
+    }
+
+    [Fact]
     public async Task UpdateItem_FremdeBestellung_Forbid()
     {
         var (ctrl, ctx, _) = Setup();
@@ -402,5 +425,187 @@ public class WarehouseRequisitionsApiControllerTests
 
         result.Should().BeOfType<BadRequestObjectResult>();
         ctx.WarehouseRequisitions.Should().BeEmpty();
+    }
+
+    // ---- DUMMY-Position (Teil-7) ----
+
+    private static void SeedDummyArticle(ApplicationDbContext ctx)
+    {
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = Article.DummyArticleNumber,
+            Description = Article.DummyDefaultDescription,
+            CreatedAt = DateTime.Now, CreatedBy = "System-Seed", CreatedByWindows = "System-Seed"
+        });
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task AddDummyItem_ValidDescription_Ok_PositionHasDescription_ArticleUnchanged()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Spezialdichtung 12mm", 4));
+
+        result.Should().BeOfType<OkResult>();
+        var item = ctx.WarehouseRequisitionItems.Single(i => i.WarehouseRequisitionId == reqId);
+        item.ArticleNumber.Should().Be(Article.DummyArticleNumber);
+        item.ArticleDescription.Should().Be("Spezialdichtung 12mm");
+        item.QuantityRequested.Should().Be(4);
+        ctx.Articles.Single(a => a.ArticleNumber == Article.DummyArticleNumber)
+            .Description.Should().Be(Article.DummyDefaultDescription, "geteilte Article.Description bleibt unveraendert");
+    }
+
+    [Fact]
+    public async Task AddDummyItem_EmptyDescription_BadRequest()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("   ", 1));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AddDummyItem_UnchangedDefaultDescription_BadRequest()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        // Case-insensitiv + Trim: die Default-Seed-Bezeichnung wird abgelehnt.
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest(
+                "  " + Article.DummyDefaultDescription.ToUpperInvariant() + "  ", 1));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty("unveraenderte Bezeichnung ist Pflicht-Verstoss");
+    }
+
+    [Fact]
+    public async Task AddDummyItem_SeedMissing_BadRequest()
+    {
+        var (ctrl, ctx, _) = Setup();
+        // KEIN SeedDummyArticle -> DUMMY-Artikel fehlt.
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Irgendeine Bezeichnung", 1));
+
+        var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        bad.Value!.ToString().Should().Contain("Seed");
+        ctx.WarehouseRequisitionItems.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AddDummyItem_ZweiVerschiedeneBezeichnungen_BeideErlaubt()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var r1 = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Teil A", 1));
+        var r2 = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Teil B", 2));
+
+        r1.Should().BeOfType<OkResult>();
+        r2.Should().BeOfType<OkResult>("Duplikat-Guard wird fuer DUMMY uebersprungen");
+        ctx.WarehouseRequisitionItems.Count(i => i.WarehouseRequisitionId == reqId).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task AddDummyItem_InGlasBestellung_Ok()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Glas);
+
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Glas-Sonderteil", 1));
+
+        result.Should().BeOfType<OkResult>("DUMMY umgeht den Glas-Artikelgruppen-Guard");
+        ctx.WarehouseRequisitionItems.Should().ContainSingle(i => i.WarehouseRequisitionId == reqId);
+    }
+
+    [Fact]
+    public async Task AddDummyItem_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Draft, SetupUserId + 1000);
+
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Teil A", 1));
+
+        result.Should().BeOfType<ForbidResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AddDummyItem_NichtDraft_BadRequest()
+    {
+        var (ctrl, ctx, _) = Setup();
+        SeedDummyArticle(ctx);
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Submitted, SetupUserId);
+
+        var result = await ctrl.AddDummyItem(reqId,
+            new WarehouseRequisitionsApiController.AddDummyItemRequest("Teil A", 1));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.Should().BeEmpty();
+    }
+
+    // ---- Kommentar (Teil-7) ----
+
+    [Fact]
+    public async Task UpdateComment_EigenerDraft_Ok_Persisted()
+    {
+        var (ctrl, ctx, _) = Setup();
+        var reqId = SeedDraft(ctx, WarehouseRequisitionType.Lager);
+
+        var result = await ctrl.UpdateComment(reqId,
+            new WarehouseRequisitionsApiController.UpdateCommentRequest("  Bitte dringend  "));
+
+        result.Should().BeOfType<OkResult>();
+        ctx.WarehouseRequisitions.Single(r => r.Id == reqId).Comment
+            .Should().Be("Bitte dringend", "Kommentar wird getrimmt gespeichert");
+    }
+
+    [Fact]
+    public async Task UpdateComment_FremdeBestellung_Forbid()
+    {
+        var (ctrl, ctx, _) = Setup();
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Draft, SetupUserId + 1000);
+
+        var result = await ctrl.UpdateComment(reqId,
+            new WarehouseRequisitionsApiController.UpdateCommentRequest("Fremd"));
+
+        result.Should().BeOfType<ForbidResult>();
+        ctx.WarehouseRequisitions.Single(r => r.Id == reqId).Comment.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateComment_NichtDraft_BadRequest()
+    {
+        var (ctrl, ctx, _) = Setup();
+        var reqId = SeedRequisition(ctx, WarehouseRequisitionType.Lager,
+            WarehouseRequisitionStatus.Submitted, SetupUserId);
+
+        var result = await ctrl.UpdateComment(reqId,
+            new WarehouseRequisitionsApiController.UpdateCommentRequest("Zu spaet"));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitions.Single(r => r.Id == reqId).Comment.Should().BeNull();
     }
 }

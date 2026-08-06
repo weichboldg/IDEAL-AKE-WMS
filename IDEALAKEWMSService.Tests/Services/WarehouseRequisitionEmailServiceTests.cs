@@ -242,6 +242,42 @@ public class WarehouseRequisitionEmailServiceTests
     }
 
     [Fact]
+    public void BuildSubmitText_WithComment_ContainsCommentLine()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 5,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-A" },
+            CreatedBy = "tester",
+            SubmittedAt = new DateTime(2026, 6, 16, 8, 0, 0),
+            Comment = "Bitte dringend liefern",
+            Items = { new WarehouseRequisitionItem { Position = 1, ArticleNumber = "ART-1", ArticleDescription = "Schraube", Unit = "Stk", QuantityRequested = 1m } }
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildSubmitText(r, "https://wms.ake.at");
+
+        text.Should().Contain("Kommentar: Bitte dringend liefern");
+    }
+
+    [Fact]
+    public void BuildSubmitText_WithoutComment_NoCommentLine()
+    {
+        var r = new WarehouseRequisition
+        {
+            Id = 6,
+            ProductionWorkplace = new ProductionWorkplace { Name = "WB-A" },
+            CreatedBy = "tester",
+            SubmittedAt = new DateTime(2026, 6, 16, 8, 0, 0),
+            Comment = null,
+            Items = { new WarehouseRequisitionItem { Position = 1, ArticleNumber = "ART-1", ArticleDescription = "Schraube", Unit = "Stk", QuantityRequested = 1m } }
+        };
+
+        var text = WarehouseRequisitionEmailService.BuildSubmitText(r, "https://wms.ake.at");
+
+        text.Should().NotContain("Kommentar:");
+    }
+
+    [Fact]
     public void BuildCancellationText_GlasBestellung_LabelGlasbestellung()
     {
         var r = new WarehouseRequisition

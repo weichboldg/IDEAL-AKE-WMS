@@ -1107,6 +1107,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Type).HasDefaultValue(WarehouseRequisitionType.Lager);
             entity.Property(e => e.CancellationReason).HasMaxLength(500);
+            entity.Property(e => e.Comment).HasMaxLength(1000);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -1144,7 +1145,12 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
 
             entity.HasIndex(e => new { e.WarehouseRequisitionId, e.Position });
-            entity.HasIndex(e => new { e.WarehouseRequisitionId, e.ArticleNumber }).IsUnique();
+            // Ein Artikel nur einmal je Bestellung — ABER der reservierte DUMMY-Schluessel ist
+            // ausgenommen (mehrere DUMMY-Positionen mit je eigener Bezeichnung sind erlaubt,
+            // Teil-7 Anforderung B.5). Gefilterter Unique-Index (Muster wie IX auf User.UserId).
+            entity.HasIndex(e => new { e.WarehouseRequisitionId, e.ArticleNumber })
+                .IsUnique()
+                .HasFilter("[ArticleNumber] <> 'DUMMY'");
 
             entity.HasOne(e => e.WarehouseRequisition)
                 .WithMany(r => r.Items)

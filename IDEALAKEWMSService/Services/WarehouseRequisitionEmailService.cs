@@ -151,6 +151,10 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         sb.AppendLine($"<p><strong>Werkbank:</strong> {E(r.ProductionWorkplace.Name)}<br />");
         sb.AppendLine($"<strong>Erfasser:</strong> {E(r.CreatedBy)}<br />");
         sb.AppendLine($"<strong>Submit:</strong> {r.SubmittedAt:dd.MM.yyyy HH:mm}</p>");
+        if (!string.IsNullOrWhiteSpace(r.Comment))
+        {
+            sb.AppendLine($"<p><strong>Kommentar:</strong> {E(r.Comment)}</p>");
+        }
         sb.AppendLine("<table style='border-collapse:collapse; border:1px solid #888;'>");
         sb.AppendLine("<thead><tr style='background:#f0f0f0;'><th style='border:1px solid #888; padding:4px;'>Pos</th><th style='border:1px solid #888; padding:4px;'>Artikel-Nr</th><th style='border:1px solid #888; padding:4px;'>Bezeichnung</th><th style='border:1px solid #888; padding:4px;'>Menge</th><th style='border:1px solid #888; padding:4px;'>ME</th></tr></thead><tbody>");
         foreach (var i in r.Items.OrderBy(i => i.Position))
@@ -194,6 +198,10 @@ public class WarehouseRequisitionEmailService : IWarehouseRequisitionEmailServic
         sb.AppendLine($"Werkbank: {r.ProductionWorkplace.Name}");
         sb.AppendLine($"Erfasser: {r.CreatedBy}");
         sb.AppendLine($"Submit: {r.SubmittedAt:dd.MM.yyyy HH:mm}");
+        if (!string.IsNullOrWhiteSpace(r.Comment))
+        {
+            sb.AppendLine($"Kommentar: {r.Comment}");
+        }
         sb.AppendLine();
         sb.AppendLine("Positionen:");
         foreach (var i in r.Items.OrderBy(i => i.Position))

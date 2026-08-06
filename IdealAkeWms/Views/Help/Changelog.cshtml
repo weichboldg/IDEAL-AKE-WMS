@@ -9,6 +9,78 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.30.0</strong> <span class="text-white-50 ms-2">06.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lager &amp; Bestellwesen: kleinere Verbesserungen und Korrekturen</h6>
+                <ul>
+                    <li><strong>Korrigiert &ndash; Bewegungshistorie:</strong> Die Spaltenfilter für
+                        „Bewegungsart" und „Datum/Zeit" haben bisher <strong>nicht</strong> gefiltert
+                        (Eingabe blieb wirkungslos, es kam die ganze Liste). Sie <strong>funktionieren
+                        jetzt</strong>: „Bewegungsart" filtert nach dem angezeigten Namen (z.&nbsp;B.
+                        „Ausbuchung"), „Datum/Zeit" nach einem Tag (<code>06.08.2026</code>), Monat
+                        (<code>08.2026</code>) oder Jahr (<code>2026</code>). Für „Menge" gibt es keinen
+                        Text-Spaltenfilter (dafür ist keiner sinnvoll).</li>
+                    <li><strong>Verbessert &ndash; Einbuchung:</strong> Das Mengenfeld ist beim Öffnen
+                        jetzt mit <strong>1</strong> statt 0 vorbelegt (ein Tipp-Schritt weniger beim
+                        häufigsten Fall). Ausbuchung und Umbuchung bleiben unverändert.</li>
+                    <li><strong>Neu &ndash; FA-Abarbeitungsliste, gespeicherter Bezeichnungs-Filter:</strong>
+                        Im Profil (bzw. vom Admin in der Benutzerverwaltung) lässt sich ein
+                        <strong>Standard-Filter für „Bezeichnung 1"</strong> hinterlegen (z.&nbsp;B.
+                        „Verdampfer"). Beim Öffnen der Liste ist er automatisch gesetzt &mdash; sichtbar
+                        im Filterfeld und dort jederzeit löschbar (analog dem Artikelgruppen-Filter der
+                        Stückliste).</li>
+                    <li><strong>Neu &ndash; Stückliste, gespeicherter Bezeichnungs-Filter:</strong> Analog
+                        lässt sich im Profil ein <strong>Standard-Filter für „Bezeichnung 1"</strong> der
+                        Stückliste (BOM) hinterlegen; er wird beim Öffnen einer Stückliste automatisch
+                        gesetzt (wie der bestehende Artikelgruppen-Filter).</li>
+                    <li><strong>Neu &ndash; Lager-/Glasbestellung, Kommentar:</strong> Eine Bestellung
+                        kann jetzt einen <strong>Kommentar</strong> (Kopf-Ebene) tragen. Er ist für das
+                        Lager in den Eingehenden Listen und der Detailansicht sichtbar und steht auch in
+                        der Bestell-E-Mail. Bearbeitbar nur vom Ersteller, solange die Bestellung im
+                        Entwurf ist.</li>
+                    <li><strong>Neu &ndash; Lager-/Glasbestellung, unbekannte Teile:</strong> Wird eine
+                        EK-Nummer nicht gefunden, lässt sich jetzt eine <strong>Position auf einem
+                        DUMMY-Artikel</strong> mit frei eingegebener (Pflicht-)Bezeichnung anlegen, statt
+                        blockiert zu sein &mdash; auch mehrfach je Bestellung, in Lager- und
+                        Glasbestellung.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.29.0</strong> <span class="text-white-50 ms-2">05.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lager: Mehrfach-Einbuchung, WA-Scan in der Historie &amp; genauerer FA-Hinweis</h6>
+                <ul>
+                    <li><strong>Neu &ndash; Mehrfach-Einbuchung:</strong> Unter <em>Lager &rarr;
+                        Mehrfach-Einbuchung</em> lassen sich mehrere Artikel in einem Schritt auf
+                        <strong>denselben Lagerplatz und dieselbe FA</strong> einbuchen. Lagerplatz und
+                        FA werden nur einmal erfasst, darunter beliebig viele Artikel-Zeilen (Menge je
+                        Zeile mit 1 vorbelegt). Beim <strong>Scannen desselben Artikels</strong> zählt die
+                        Menge hoch (Schalter „neue Zeile erzwingen" für Sonderfälle). Ist eine Zeile
+                        unvollständig, wird <strong>nichts</strong> gebucht &mdash; die Eingaben bleiben
+                        erhalten und die fehlerhafte Zeile ist markiert.</li>
+                    <li><strong>Neu &ndash; WA-Strichcode scannen in der Bewegungshistorie:</strong> Das
+                        Filterfeld <em>Fertigungsauftrag</em> hat jetzt einen Scan-Button. Ein gescannter
+                        WA-Strichcode mit Zusatz (z.&nbsp;B. <code>2610063-1</code> oder
+                        <code>2610063_02</code>) wird automatisch auf die <strong>Basisnummer</strong>
+                        (<code>2610063</code>) gekürzt, damit der Filter trifft. Manuelles Eintippen bleibt
+                        unverändert.</li>
+                    <li><strong>Verbessert &ndash; FA-Lagerplatz-Hinweis:</strong> Der Hinweis „FA liegt
+                        bereits …" bei der Einbuchung und im Tracking-Modal zeigt jetzt nur noch Lagerplätze
+                        mit <strong>tatsächlich vorhandenem Bestand</strong> &mdash; nicht mehr solche, an
+                        denen früher einmal unter dieser FA gebucht, der Bestand aber längst wieder
+                        ausgebucht wurde. Die Bestandsliste (Filter „Fertigungsauftrag") bleibt bewusst
+                        unverändert (zeigt weiterhin die historische FA-Zuordnung).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.28.0</strong> <span class="text-white-50 ms-2">03.08.2026</span>
             </div>
             <div class="card-body">

@@ -933,8 +933,10 @@
                     // Default-Filter in Spaltenfilter vorbelegen
                     var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
                     var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
+                    var defaultBomDescription1 = '@Html.Raw(Model.DefaultFilterBomDescription1)';
                     if (defaultBeschaffung) window.setColumnFilter('procurement', defaultBeschaffung);
                     if (defaultArtikelgruppe) window.setColumnFilter('article-group', defaultArtikelgruppe);
+                    if (defaultBomDescription1) window.setColumnFilter('description1', defaultBomDescription1);
                 }, 0);
             });
 
