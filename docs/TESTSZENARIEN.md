@@ -21,7 +21,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Bereich | Abschnitt | Szenarien |
 |---------|-----------|-----------|
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
-| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21, TS-2.26 – TS-2.31 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis; TS-2.26 – TS-2.31 v1.30.0 Teil 4/5: Spaltenfilter-No-Op entfernt + Einbuchung-Standardmenge 1) |
+| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21, TS-2.26 – TS-2.31 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis; TS-2.26 – TS-2.31 v1.30.0 Teil 4/5: Bewegungsart-/Datum-Spaltenfilter funktionsfaehig + Einbuchung-Standardmenge 1) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
@@ -692,25 +692,32 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-### TS-2.26 — Bewegungshistorie: keine wirkungslosen Spaltenfilter mehr (v1.30.0, Teil 4)
+### TS-2.26 — Bewegungshistorie: Spaltenfilter Bewegungsart + Datum funktionieren (v1.30.0, Teil 4)
 
 **Vorbedingungen:**
 - Benutzer hat Rolle `stock` oder `admin`.
-- Bewegungshistorie mit gemischten Bewegungsarten (mind. je eine Ein- und eine Ausbuchung fuer
-  denselben Artikel).
+- Bewegungshistorie mit gemischten Bewegungsarten (mind. je eine Ein- und eine Ausbuchung) und
+  Buchungen an verschiedenen Tagen/Jahren.
 
-**Schritte:**
-1. `/StockMovements/Index` oeffnen.
+**Schritte + erwartetes Verhalten:**
+1. `/StockMovements/Index` oeffnen. **Erwartet:** Die Spaltenkoepfe „Datum/Zeit" und „Bewegungsart"
+   haben ein Filter-Eingabefeld; „Menge" hat **keines** (dafuer ist kein sinnvoller Text-Filter
+   moeglich). „Artikel"/„Lagerplatz"/„Benutzer"/„Fertigungsauftrag" wie bisher.
+2. Im Spaltenfilter **„Bewegungsart"** `ausbuchung` eingeben. **Erwartet:** Es erscheinen **nur**
+   Ausbuchungen **und** Sage-Ausbuchungen (Contains-Semantik) — **keine** Einbuchungen. (Frueher
+   kam die ganze Liste — das war der gemeldete Bug.)
+3. Im Spaltenfilter **„Bewegungsart"** `einbuchung` eingeben. **Erwartet:** nur Einbuchungen +
+   Sage-Einbuchungen.
+4. Im Spaltenfilter **„Datum/Zeit"** ein volles Datum (z. B. `06.08.2026`) eingeben. **Erwartet:**
+   nur Bewegungen dieses Tages — **ueber alle Seiten** (Server-Filter, nicht nur die aktuelle Seite).
+5. „Datum/Zeit" mit einem Monat (`08.2026`) bzw. Jahr (`2026`) filtern. **Erwartet:** nur
+   Bewegungen des Monats bzw. Jahres.
 
-**Erwartetes Verhalten:**
-- In den Spaltenkoepfen "Bewegungsart", "Datum/Zeit" und "Menge" gibt es **kein**
-  Filter-Eingabefeld mehr.
-- Die Spaltenfilter "Artikel", "Lagerplatz", "Benutzer", "Fertigungsauftrag" sind weiterhin
-  vorhanden.
-
-**Negativfall:**
-- Es gibt keine Moeglichkeit mehr, im Spaltenkopf "Bewegungsart" Text einzugeben, der die Liste
-  unveraendert (Vollmenge) zurueckliefert.
+**Negativfaelle:**
+- Bewegungsart-Filter mit einem nicht existierenden Wert (`xyz`) → **leere** Liste (nicht die
+  Vollmenge).
+- Datum-Filter mit unsinnigem Wert (`abc`) → leere Liste.
+- Der `!`-Praefix negiert weiterhin (z. B. `!einbuchung` blendet Ein-/Sage-Einbuchungen aus).
 
 ---
 
@@ -2043,6 +2050,28 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Druckansicht enthaelt keine Spalte "Kategorie".
 - Alle anderen sichtbaren Spalten sind im Druck enthalten.
+
+---
+
+### TS-5.10 — Gespeicherter BOM-Filter „Bezeichnung 1" (v1.30.0, Teil 8)
+
+**Vorbedingungen:**
+- Benutzer mit Zugriff auf die Stueckliste; mind. ein FA mit BOM-Positionen, deren „Bezeichnung 1"
+  unterschiedliche Werte hat (z. B. „Verdampfer", „Kondensator").
+
+**Schritte + erwartetes Verhalten:**
+1. Im Profil (`/Account/Profile`) unter „Standard-Filter Bezeichnung 1 (Stückliste)" `Verdampfer`
+   eintragen, speichern.
+2. Eine Stueckliste (BOM) oeffnen. **Erwartet:** Die Spalte „Bezeichnung 1" ist automatisch auf
+   `Verdampfer` vorgefiltert (nur passende Positionen sichtbar), der Wert steht **sichtbar** im
+   Spaltenfilter-Feld — genau wie der bestehende Artikelgruppen-Filter.
+3. Den Filter „Bezeichnung 1" leeren. **Erwartet:** wieder alle Positionen sichtbar.
+4. Ein Admin kann denselben Wert fuer einen anderen Benutzer unter `/Users/Edit/{id}` pflegen.
+
+**Negativfall:**
+- Leeres Profilfeld → beim Oeffnen der Stueckliste ist „Bezeichnung 1" **nicht** vorbelegt
+  (unveraendertes Verhalten). Der FA-Abarbeitungslisten-Filter (Teil 8, TS-43.5) bleibt davon
+  unberuehrt — die beiden Default-Filter sind getrennt.
 
 ---
 

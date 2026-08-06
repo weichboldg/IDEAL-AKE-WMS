@@ -15,10 +15,12 @@
                 <h6>Lager &amp; Bestellwesen: kleinere Verbesserungen und Korrekturen</h6>
                 <ul>
                     <li><strong>Korrigiert &ndash; Bewegungshistorie:</strong> Die Spaltenfilter für
-                        „Bewegungsart", „Datum/Zeit" und „Menge" haben bisher <strong>nicht</strong>
-                        gefiltert (Eingabe blieb wirkungslos, es kam die ganze Liste). Diese
-                        irreführenden Filterfelder wurden entfernt &mdash; nach Bewegungsart filtert man
-                        weiterhin über das Dropdown „Bewegungsart", nach Datum über „von/bis".</li>
+                        „Bewegungsart" und „Datum/Zeit" haben bisher <strong>nicht</strong> gefiltert
+                        (Eingabe blieb wirkungslos, es kam die ganze Liste). Sie <strong>funktionieren
+                        jetzt</strong>: „Bewegungsart" filtert nach dem angezeigten Namen (z.&nbsp;B.
+                        „Ausbuchung"), „Datum/Zeit" nach einem Tag (<code>06.08.2026</code>), Monat
+                        (<code>08.2026</code>) oder Jahr (<code>2026</code>). Für „Menge" gibt es keinen
+                        Text-Spaltenfilter (dafür ist keiner sinnvoll).</li>
                     <li><strong>Verbessert &ndash; Einbuchung:</strong> Das Mengenfeld ist beim Öffnen
                         jetzt mit <strong>1</strong> statt 0 vorbelegt (ein Tipp-Schritt weniger beim
                         häufigsten Fall). Ausbuchung und Umbuchung bleiben unverändert.</li>
@@ -28,6 +30,10 @@
                         „Verdampfer"). Beim Öffnen der Liste ist er automatisch gesetzt &mdash; sichtbar
                         im Filterfeld und dort jederzeit löschbar (analog dem Artikelgruppen-Filter der
                         Stückliste).</li>
+                    <li><strong>Neu &ndash; Stückliste, gespeicherter Bezeichnungs-Filter:</strong> Analog
+                        lässt sich im Profil ein <strong>Standard-Filter für „Bezeichnung 1"</strong> der
+                        Stückliste (BOM) hinterlegen; er wird beim Öffnen einer Stückliste automatisch
+                        gesetzt (wie der bestehende Artikelgruppen-Filter).</li>
                     <li><strong>Neu &ndash; Lager-/Glasbestellung, Kommentar:</strong> Eine Bestellung
                         kann jetzt einen <strong>Kommentar</strong> (Kopf-Ebene) tragen. Er ist für das
                         Lager in den Eingehenden Listen und der Detailansicht sichtbar und steht auch in
