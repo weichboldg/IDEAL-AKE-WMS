@@ -763,3 +763,28 @@ Web-Code (kein neues SQL/keine neue Migration). Der kombinierte Branch
 Schranke 2 (manueller UAT durch den Menschen, danach Merge). Die manuelle Test-Checkliste oben ist
 um Punkt 6 zu ergänzen: **TS-46.14 nachtesten** (Suche nach „DUMMY" liefert keine Treffer, nur der
 „nicht gefunden"-Weg funktioniert).
+
+## UAT-Fund + Fix #2 (2026-08-06): mehrere DUMMY-Positionen scheiterten am DB-Unique-Index
+
+**Befund (Mensch, HTTP 500 auf `POST /api/warehouserequisitions/48/items/dummy`):** Die **zweite**
+DUMMY-Position in derselben Bestellung warf einen `SqlException 2601` — Verletzung des Unique-Index
+`IX_WarehouseRequisitionItems_WarehouseRequisitionId_ArticleNumber`, Schluessel `(48, DUMMY)`.
+
+**Root Cause:** Anforderung B.5 („mehrere DUMMY-Positionen je Bestellung") war nur auf **App-Ebene**
+umgesetzt (Duplikat-Guard in `AddItemAsync` fuer den DUMMY uebersprungen). Der **DB-seitige**
+Unique-Index auf `(WarehouseRequisitionId, ArticleNumber)` blockierte aber weiterhin, weil alle
+DUMMY-Positionen dieselbe `ArticleNumber = 'DUMMY'` tragen. **InMemory erzwingt Unique-Indizes nicht**
+→ die Unit-Tests waren gruen, der reale SQL Server schlug fehl (bekannter Fallstrick
+[[feedback_inmemory_unique_indexes]]).
+
+**Fix:** Der Unique-Index wurde zu einem **gefilterten** Unique-Index umgebaut
+(`WHERE [ArticleNumber] <> 'DUMMY'`, Muster wie der bestehende `IX` auf `User.UserId`). Normale
+Artikel bleiben je Bestellung eindeutig; der DUMMY ist ausgenommen.
+- `ApplicationDbContext`: `.HasFilter("[ArticleNumber] <> 'DUMMY'")` am Index.
+- **Migration 88** `20260806120650_AllowMultipleDummyRequisitionItems` (drop + recreate gefiltert),
+  `SQL/88_*.sql` (idempotent), `SQL/00_FreshInstall.sql` (Index-Filter + MigrationId).
+- Auto-Apply via `db.Database.Migrate()` beim App-Start (EF-Migration).
+
+**Deploy-Nachtrag:** zusaetzlich **Migration 88** (laeuft automatisch beim App-Start; manuell:
+`SQL/88`). **UAT:** in einer Bestellung **zwei** DUMMY-Positionen mit **unterschiedlichen**
+Bezeichnungen anlegen → beide werden gespeichert (kein 500).
