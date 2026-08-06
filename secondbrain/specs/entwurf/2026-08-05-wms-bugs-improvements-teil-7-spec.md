@@ -687,3 +687,24 @@ inhaltlich nicht betroffen.
 
 **Status bestätigt: Testbereit.** Deploy-Abschnitt (oben, Web **und** Service, Migration 85/86)
 bleibt unverändert gültig.
+
+## UAT-Fund + Fix (2026-08-06)
+
+**Befund (Mensch beim Testen):** In einer Lager-Bestellung ließ sich der DUMMY über die **reguläre
+Artikelsuche** auswählen und normal hinzufügen — dabei wurde die Default-Bezeichnung **ungeändert**
+übernommen; die geforderte Pflicht-Überschreibung (Anforderung B.4, Freigabe-Antwort 3) wurde
+umgangen.
+
+**Root Cause:** Der DUMMY hat eine `NULL`-Artikelgruppe; `GlasArticleGroupFilter.IsAllowedForType`
+liefert für **Lager** → `true`, also erschien der DUMMY in `/api/articles/search` (Lager-Scope) und
+konnte über den normalen `AddItem`-Pfad rein (der `article.Description` = Default-Seed kopiert). Die
+Spec-Intention „DUMMY **nicht** in die reguläre Suche einmischen" war in der Umsetzung nicht erfüllt.
+
+**Fix (kombinierter Branch):**
+- `ArticlesApiController.Search`: DUMMY wird in **beiden** Zweigen aus den Ergebnissen entfernt →
+  bei unbekannter EK-Nummer liefert die Suche 0 Treffer → der „Artikel nicht gefunden →
+  DUMMY-Position"-Zweig in `Edit.cshtml` greift (Pflicht-Bezeichnung).
+- `WarehouseRequisitionsApiController.AddItem`: lehnt den DUMMY-Schlüssel am normalen Add-Pfad ab
+  (defense in depth). Der DUMMY ist damit **ausschließlich** über `POST .../items/dummy` (mit
+  Pflicht-Bezeichnung ≠ Default) anlegbar. Der Duplikat-Guard-Skip im Repo bleibt unberührt.
+- +1 Regressions-Test `AddItem_DummyArtikel_WirdAbgelehnt`. Build grün (Web 1093/1 skip, Service 197).
