@@ -64,6 +64,7 @@ else
                 <th data-filterable data-col-key="workplace">Werkbank</th>
                 <th data-filterable data-col-key="creator">Erfasser</th>
                 <th data-filterable data-col-key="submitted">Submit</th>
+                <th data-filterable data-col-key="comment">Kommentar</th>
                 <th data-filterable data-col-key="items">Pos</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th data-col-key="actions"></th>
@@ -77,6 +78,7 @@ else
                     <td>@i.WorkplaceName</td>
                     <td>@i.CreatedBy</td>
                     <td>@(i.SubmittedAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                    <td>@(string.IsNullOrWhiteSpace(i.Comment) ? "—" : i.Comment)</td>
                     <td>@i.ItemCount</td>
                     <td>
                         @switch (i.Status)

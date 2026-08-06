@@ -34,6 +34,8 @@ public class WarehouseRequisitionsApiController : ControllerBase
 
     public record AddItemRequest(string ArticleNumber, decimal Quantity);
     public record UpdateItemRequest(decimal Quantity);
+    public record UpdateCommentRequest(string? Comment);
+    public record AddDummyItemRequest(string? Description, decimal Quantity);
 
     public record QuickAddItem(string ArticleNumber, decimal Quantity);
     public record QuickAddRequest(List<QuickAddItem> Items);
@@ -88,6 +90,60 @@ public class WarehouseRequisitionsApiController : ControllerBase
         try
         {
             await _repo.AddItemAsync(id, body.ArticleNumber, article.Description ?? "", article.Unit,
+                body.Quantity, _user.GetDisplayName(), _user.GetWindowsUserName());
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+
+        return Ok();
+    }
+
+    [HttpPut("{id:int}/comment")]
+    public async Task<IActionResult> UpdateComment(int id, [FromBody] UpdateCommentRequest body)
+    {
+        var requisition = await _repo.GetByIdAsync(id, includeItems: false);
+        if (requisition == null) return NotFound();
+
+        var guard = CheckOwnershipAndDraft(requisition);
+        if (guard != null) return guard;
+
+        await _repo.SaveCommentAsync(id, body.Comment, _user.GetDisplayName(), _user.GetWindowsUserName());
+        return Ok();
+    }
+
+    /// <summary>
+    /// DUMMY-Position (Teil-7): legt bei unbekannter EK-Nummer eine Position auf dem einen
+    /// geseedeten DUMMY-Artikel an. Die Bezeichnung ist Pflicht und muss vom Default-Seed
+    /// abweichen; sie landet als Positions-Snapshot auf ArticleDescription (Article.Description
+    /// bleibt unveraendert). Umgeht den Glas/Lager-Gruppen-Guard (DUMMY ist typ-neutral) und
+    /// den Duplikat-Guard (mehrere DUMMY-Positionen je Bestellung erlaubt).
+    /// </summary>
+    [HttpPost("{id:int}/items/dummy")]
+    public async Task<IActionResult> AddDummyItem(int id, [FromBody] AddDummyItemRequest body)
+    {
+        var requisition = await _repo.GetByIdAsync(id, includeItems: false);
+        if (requisition == null) return NotFound();
+
+        var guard = CheckOwnershipAndDraft(requisition);
+        if (guard != null) return guard;
+
+        var dummy = await _articles.GetByArticleNumberAsync(Article.DummyArticleNumber);
+        if (dummy == null)
+            return BadRequest(new { error = "DUMMY-Artikel fehlt, Seed nicht eingespielt." });
+
+        var description = body.Description?.Trim() ?? string.Empty;
+        if (description.Length == 0
+            || string.Equals(description, Article.DummyDefaultDescription.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { error = "Bitte eine eigene Bezeichnung eingeben." });
+        }
+
+        try
+        {
+            await _repo.AddItemAsync(id, Article.DummyArticleNumber, description, null,
                 body.Quantity, _user.GetDisplayName(), _user.GetWindowsUserName());
         }
         catch (InvalidOperationException ex)

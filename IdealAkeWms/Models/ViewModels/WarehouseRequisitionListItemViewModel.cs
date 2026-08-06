@@ -9,4 +9,5 @@ public record WarehouseRequisitionListItemViewModel(
     DateTime CreatedAt,
     DateTime? SubmittedAt,
     int ItemCount,
-    WarehouseRequisitionStatus Status);
+    WarehouseRequisitionStatus Status,
+    string? Comment = null);

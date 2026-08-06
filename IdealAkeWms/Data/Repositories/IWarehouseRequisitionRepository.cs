@@ -43,6 +43,13 @@ public interface IWarehouseRequisitionRepository
     Task SaveNotesAsync(int id, IReadOnlyDictionary<int, string?> itemNotes,
         string user, string winUser);
 
+    /// <summary>
+    /// Setzt nur den Kopf-Kommentar der Bestellung (AJAX-Autosave). Aendert weder Status noch
+    /// Mengen. Ignoriert RowVersion bewusst, weil der Kommentar nicht konfliktrelevant ist
+    /// (gleiches Muster wie <see cref="SaveNotesAsync"/>).
+    /// </summary>
+    Task SaveCommentAsync(int id, string? comment, string user, string winUser);
+
     Task SaveProgressAsync(int id,
         IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,

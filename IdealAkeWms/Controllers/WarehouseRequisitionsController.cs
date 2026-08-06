@@ -80,7 +80,8 @@ public class WarehouseRequisitionsController : Controller
             r.CreatedAt,
             r.SubmittedAt,
             r.Items.Count,
-            r.Status)).ToList();
+            r.Status,
+            r.Comment)).ToList();
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
@@ -178,6 +179,7 @@ public class WarehouseRequisitionsController : Controller
             Status = r.Status,
             Type = r.Type,
             CreatedAt = r.CreatedAt,
+            Comment = r.Comment,
             RowVersion = r.RowVersion,
             Items = r.Items.OrderBy(i => i.Position).Select(i =>
                 new WarehouseRequisitionEditItemViewModel(i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit, i.QuantityRequested)).ToList()

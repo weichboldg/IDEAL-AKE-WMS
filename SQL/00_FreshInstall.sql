@@ -1640,6 +1640,7 @@ CREATE TABLE [dbo].[WarehouseRequisitions] (
     [CancelledAt] DATETIME2 NULL,
     [CancelledByUserId] INT NULL,
     [CancellationReason] NVARCHAR(500) NULL,
+    [Comment] NVARCHAR(1000) NULL,
     [EmailSentAt] DATETIME2 NULL,
     [CancellationEmailSentAt] DATETIME2 NULL,
     [RowVersion] ROWVERSION NOT NULL,
@@ -2036,6 +2037,25 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EnaioDmsDocuments_Orde
 GO
 
 -- =============================================
+-- 17i. DUMMY-Artikel (Teil-7, reiner Daten-Seed, kein Schema)
+-- Ein reservierter Artikel 'DUMMY' fuer unbekannte EK-Nummern; individuelle
+-- Bezeichnung lebt je Position auf WarehouseRequisitionItem.ArticleDescription.
+-- Werte muessen mit Article.DummyArticleNumber / Article.DummyDefaultDescription
+-- uebereinstimmen. Idempotent.
+-- =============================================
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Articles] WHERE [ArticleNumber] = 'DUMMY')
+BEGIN
+    INSERT INTO [dbo].[Articles]
+        ([ArticleNumber], [Description], [Unit], [ReorderLevel], [ArticleGroup],
+         [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES
+        ('DUMMY', N'DUMMY – Bezeichnung bitte eintragen', NULL, NULL, NULL,
+         GETDATE(), 'System-Seed', 'System-Seed');
+    PRINT 'DUMMY-Artikel geseedet.';
+END
+GO
+
+-- =============================================
 -- 18. EF Migrations History
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__EFMigrationsHistory')
@@ -2186,6 +2206,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803112322_AddSageBookingQueue', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806081121_AddUserDefaultFilterFaWorklistDescription1')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806081121_AddUserDefaultFilterFaWorklistDescription1', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806081737_AddWarehouseRequisitionComment')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806081737_AddWarehouseRequisitionComment', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

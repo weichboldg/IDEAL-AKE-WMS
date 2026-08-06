@@ -30,6 +30,10 @@
         {
             <div><strong>Storno-Grund:</strong> @Model.CancellationReason</div>
         }
+        @if (!string.IsNullOrWhiteSpace(Model.Comment))
+        {
+            <div><strong>Kommentar:</strong> @Model.Comment</div>
+        }
     </div>
 </div>
 
