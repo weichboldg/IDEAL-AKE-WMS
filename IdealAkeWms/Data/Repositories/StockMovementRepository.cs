@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Linq.Expressions;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
@@ -574,7 +576,113 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                 ? q.Where(sm => sm.ProductionOrder == null || !patterns.Any(p => EF.Functions.Like(sm.ProductionOrder, p)))
                 : q.Where(sm => sm.ProductionOrder != null && patterns.Any(p => EF.Functions.Like(sm.ProductionOrder, p))),
 
+            // Bewegungsart (Teil-4): matcht den deutschen Anzeigenamen der Bewegungsart (Contains),
+            // uebersetzt in ein IN ueber die passenden Enum-Werte. „ausbuchung" trifft damit auch
+            // „Sage-Ausbuchung" (bewusst, Contains-Semantik wie die uebrigen Spaltenfilter).
+            "movement-type" => ApplyMovementTypeFilter(q, tokens, negate),
+
+            // Datum/Zeit (Teil-4): matcht ein volles Datum (dd.MM.yyyy), einen Monat (MM.yyyy)
+            // oder ein Jahr (yyyy) als Zeitraum. Ergaenzt die von/bis-Filterkarte um einen
+            // Spaltenfilter, der ueber alle Seiten wirkt (server-seitig).
+            "datetime" => ApplyMovementDateFilter(q, tokens, negate),
+
             _ => q
         };
+    }
+
+    private static readonly Dictionary<MovementType, string> _movementTypeNames = new()
+    {
+        [MovementType.Einbuchung] = "einbuchung",
+        [MovementType.Ausbuchung] = "ausbuchung",
+        [MovementType.Umbuchung] = "umbuchung",
+        [MovementType.SageEinbuchung] = "sage-einbuchung",
+        [MovementType.SageAusbuchung] = "sage-ausbuchung",
+    };
+
+    private static IQueryable<StockMovement> ApplyMovementTypeFilter(
+        IQueryable<StockMovement> q, List<string> tokens, bool negate)
+    {
+        var needles = tokens.Select(t => t.Trim().ToLowerInvariant())
+                            .Where(t => t.Length > 0).ToList();
+        var matching = _movementTypeNames
+            .Where(kv => needles.Any(n => kv.Value.Contains(n)))
+            .Select(kv => kv.Key)
+            .ToList();
+
+        if (matching.Count == 0)
+            return negate ? q : q.Where(sm => false); // kein Treffer: positiv -> leer, negiert -> alle
+
+        return negate
+            ? q.Where(sm => !matching.Contains(sm.MovementType))
+            : q.Where(sm => matching.Contains(sm.MovementType));
+    }
+
+    private static IQueryable<StockMovement> ApplyMovementDateFilter(
+        IQueryable<StockMovement> q, List<string> tokens, bool negate)
+    {
+        var de = CultureInfo.GetCultureInfo("de-AT");
+        Expression<Func<StockMovement, bool>>? pred = null;
+
+        foreach (var raw in tokens)
+        {
+            var t = raw.Trim();
+            if (t.Length == 0) continue;
+            Expression<Func<StockMovement, bool>>? clause = null;
+
+            if (DateTime.TryParseExact(t, new[] { "dd.MM.yyyy", "d.M.yyyy", "dd.MM.yy", "d.M.yy" },
+                    de, DateTimeStyles.None, out var day))
+            {
+                var start = day.Date;
+                var end = start.AddDays(1);
+                clause = sm => sm.Timestamp >= start && sm.Timestamp < end;
+            }
+            else if (DateTime.TryParseExact(t, new[] { "MM.yyyy", "M.yyyy" },
+                    de, DateTimeStyles.None, out var month))
+            {
+                var start = new DateTime(month.Year, month.Month, 1);
+                var end = start.AddMonths(1);
+                clause = sm => sm.Timestamp >= start && sm.Timestamp < end;
+            }
+            else if (t.Length == 4 && int.TryParse(t, out var year) && year >= 2000 && year <= 2100)
+            {
+                var start = new DateTime(year, 1, 1);
+                var end = start.AddYears(1);
+                clause = sm => sm.Timestamp >= start && sm.Timestamp < end;
+            }
+            // sonst: nicht als Datum interpretierbar -> Token traegt nichts bei
+
+            if (clause != null)
+                pred = pred == null ? clause : OrElse(pred, clause);
+        }
+
+        if (pred == null)
+            return negate ? q : q.Where(sm => false); // kein gueltiges Datum-Token
+
+        if (negate)
+            pred = Expression.Lambda<Func<StockMovement, bool>>(Expression.Not(pred.Body), pred.Parameters);
+
+        return q.Where(pred);
+    }
+
+    private static Expression<Func<T, bool>> OrElse<T>(
+        Expression<Func<T, bool>> a, Expression<Func<T, bool>> b)
+    {
+        var param = Expression.Parameter(typeof(T), "sm");
+        var left = new ReplaceParameterVisitor(a.Parameters[0], param).Visit(a.Body)!;
+        var right = new ReplaceParameterVisitor(b.Parameters[0], param).Visit(b.Body)!;
+        return Expression.Lambda<Func<T, bool>>(Expression.OrElse(left, right), param);
+    }
+
+    private sealed class ReplaceParameterVisitor : ExpressionVisitor
+    {
+        private readonly ParameterExpression _from;
+        private readonly ParameterExpression _to;
+        public ReplaceParameterVisitor(ParameterExpression from, ParameterExpression to)
+        {
+            _from = from;
+            _to = to;
+        }
+        protected override Expression VisitParameter(ParameterExpression node)
+            => node == _from ? _to : base.VisitParameter(node);
     }
 }
