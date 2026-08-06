@@ -1,6 +1,6 @@
 ---
 type: spec
-title: "IDEAL-Standort Teil 1 — Struktur-Fundament IdealFaStruktur (Import FAListe/FAInfos)"
+title: "IDEAL-Standort Teil 1 — Struktur-Fundament FaHierarchyNode (Import FAListe/FAInfos)"
 slug: 2026-07-29-standort-ideal-teil-1-spec
 status: Entwurf
 created: 2026-08-06
@@ -11,32 +11,28 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Models/IdealFaStruktur.cs (neu)
-  - IdealAkeWms/Models/IdealFaInfo.cs (neu)
+  - IdealAkeWms/Models/FaHierarchyNode.cs (neu)
+  - IdealAkeWms/Models/FaHierarchyOrderInfo.cs (neu)
   - IdealAkeWms/Data/ApplicationDbContext.cs
-  - IdealAkeWms/Data/Repositories/IIdealFaStrukturRepository.cs (neu)
-  - IdealAkeWms/Data/Repositories/IdealFaStrukturRepository.cs (neu)
-  - IdealAkeWms/Data/Repositories/CachedIdealFaStrukturRepository.cs (neu)
-  - IdealAkeWms/Data/Repositories/IIdealFaInfoRepository.cs (neu)
-  - IdealAkeWms/Data/Repositories/IdealFaInfoRepository.cs (neu)
+  - IdealAkeWms/Data/Repositories/IFaHierarchyNodeRepository.cs (neu)
+  - IdealAkeWms/Data/Repositories/FaHierarchyNodeRepository.cs (neu)
+  - IdealAkeWms/Data/Repositories/CachedFaHierarchyNodeRepository.cs (neu)
+  - IdealAkeWms/Data/Repositories/IFaHierarchyOrderInfoRepository.cs (neu)
+  - IdealAkeWms/Data/Repositories/FaHierarchyOrderInfoRepository.cs (neu)
   - IdealAkeWms/Program.cs (DI-Registrierung Decorator)
   - IdealAkeWms/Models/ServiceSettingDefinitions.cs
-  - IDEALAKEWMSService/Services/IdealFaStrukturSyncService.cs (neu)
-  - IDEALAKEWMSService/Services/IdealFaStrukturSql.cs (neu, Whitelist-Regex + SQL-Aufbau)
+  - IDEALAKEWMSService/Services/FaHierarchySyncService.cs (neu)
+  - IDEALAKEWMSService/Services/FaHierarchySql.cs (neu, Whitelist-Regex + SQL-Aufbau)
   - IDEALAKEWMSService/Services/SyncLogServices.cs
   - IDEALAKEWMSService/Workers/SyncWorker.cs (neuer Sync-Block, RunResilientAsync)
-  - SQL/86_AddIdealFaStruktur.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen)
+  - SQL/86_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql (neu, DDL-Dokumentation)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAInfos.sql (neu, DDL-Dokumentation)
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "B3/B-4: FAListe traegt keine Montage-Abteilung (die ist auftragsbezogen, nur in FAInfos) — wie werden Kombinationsgeraete mit zwei Montage-Abteilungen auf Struktur-Ebene getrennt, wenn ueberhaupt?"
-  - "Produktiv-DB/Server der IDEAL-Instanz (Name, Connection-String) noch unbekannt"
-  - "Toggle-Heimat: ServiceSettings (Sync-Verhalten, ADR 0008) fuer View-Namen/Import-Enable bestaetigen — konsistent mit Uebersichts-Rueckfrage 2"
-  - "Whitelist-Regex-Pattern fuer View-Namen und Fehlerverhalten bei Verstoss (Reject+Log vs. Exception) offen"
-  - "Alter Worktree ideal-anpassungen-v1: existiert er noch (Testszenarien-Wiederverwendung V1.12.0-VERIFICATION.md)?"
+  - "Exaktes Whitelist-Regex-Pattern fuer View-Namen im Dev-Lauf mit Sicherheitsfokus festlegen (Fehlerverhalten bereits geklaert: Reject + Log + Fehlermail, Freigabe-Antwort 4) — kein Blocker"
 epic: false
 etappen: []
 deploy:
@@ -64,8 +60,8 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
-- Zwei neue Tabellen: `IdealFaStruktur` (Projektion von `FAListe`, Struktur **und** Stueckliste —
-  ein Lesepfad, zwei spaetere Projektionen laut B4) und `IdealFaInfo` (Projektion von `FAInfos`,
+- Zwei neue Tabellen: `FaHierarchyNode` (Projektion von `FAListe`, Struktur **und** Stueckliste —
+  ein Lesepfad, zwei spaetere Projektionen laut B4) und `FaHierarchyOrderInfo` (Projektion von `FAInfos`,
   PPS-/Auftragsdaten).
 - Sync-Service im Windows-Service, der beide Views periodisch liest (raw SQL gegen konfigurierbare
   View-Namen, Whitelist-Regex gegen Injection) und die lokalen Tabellen per Full-Refresh
@@ -92,25 +88,27 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
 
 1. **Mehrstufigkeit (B1, entschieden).** Die View liefert einen echten Elternzeiger `VaterFA`
    (BelID des uebergeordneten Sub-FA, `NULL` nur bei der Wurzel) und `SubFA` (eigene BelID des
-   Nachfolgers, `0` = Blatt). `IdealFaStruktur` bildet das 1:1 ab — **kein** zweistufiges Modell.
+   Nachfolgers, `0` = Blatt). `FaHierarchyNode` bildet das 1:1 ab — **kein** zweistufiges Modell.
    Die alten Alt-Entscheidungen „zwei Ebenen" (D1/D3 aus der historischen Referenz-Spec) sind
    ueberholt und duerfen nicht als Vorlage dienen.
 2. **Datenverfuegbarkeits-Regel.** Eine `FAListe`-Zeile wird nur dann importiert, wenn zum
    `HauptFA` mindestens ein `FAInfos`-Datensatz existiert (`FA_Nr` gefuellt **und** `Status`
    gefuellt). Import-SQL joint deshalb `FAListe INNER JOIN FAInfos ON i.HauptFA = f.HauptFA` —
    **kein** LEFT JOIN.
-3. **Kombinationsgeraete (B3/B-4, NICHT abschliessend entschieden — siehe offene Rueckfrage 1).**
-   `HauptFA` allein ist bei Kombinationsgeraeten kein eindeutiger Struktur-Schluessel; erst
-   `[Montage-Abteilung]` aus `FAInfos` trennt sie. `FAListe`-Zeilen selbst tragen **keine**
-   Montage-Abteilung (die ist laut Anhang auftragsbezogen, nicht positionsbezogen — nicht mit dem
-   positionsbezogenen `Arbeitsbereich` verwechseln). Diese Spec fuehrt `MontageAbteilung` daher
-   **nur** auf `IdealFaInfo` (dort ist es Teil des fachlichen Schluessels `HauptFA` +
-   `MontageAbteilung`), **nicht** auf `IdealFaStruktur` — das ist eine bewusste Annahme, die am
-   IDEAL-Testsystem zu verifizieren ist (siehe offene Rueckfrage 1).
+3. **Kombinationsgeraete (Freigabe-Antwort 1: in Teil 1 wie normale Auftraege behandeln).**
+   Kombinationsgeraete teilen sich denselben `HauptFA` und werden erst ueber `[Montage-Abteilung]`
+   aus `FAInfos` unterscheidbar; `FAListe`-Zeilen selbst tragen **keine** Montage-Abteilung (die ist
+   auftragsbezogen, nicht positionsbezogen — nicht mit dem positionsbezogenen `Arbeitsbereich`
+   verwechseln). Fuer den reinen Struktur-Import (Teil 1) ist **keine Sonderbehandlung** noetig: die
+   Zeilen werden wie bei jedem anderen Auftrag getreu importiert. `MontageAbteilung` wird als
+   **informatives** Feld auf `FaHierarchyOrderInfo` mitgefuehrt — **nicht** als kuenstlicher
+   Struktur-Schluessel auf `FaHierarchyNode`. Die Frage, wie sich Kombinationsgeraete bei der
+   spaeteren Materialisierung nach `ProductionOrders` auf die dann nicht mehr eindeutige
+   `OrderNumber` auswirken, gehoert zu **Teil 7** und wird dort entschieden — nicht hier.
 4. **`FAListe` ist die Stueckliste, nicht nur eine FA-Liste (B4).** Eine Zeile ist entweder die
    Wurzel (`VaterFA IS NULL`, `Position IS NULL`, `SubFA = HauptFA`) oder eine Position in der
    Stueckliste eines Vater-Sub-FA. `SubFA <> 0` markiert eine hausintern gefertigte Baugruppe mit
-   eigenem FA, `SubFA = 0` ein Blatt (Kaufteil/Endmaterial). `IdealFaStruktur` ist damit **die
+   eigenem FA, `SubFA = 0` ein Blatt (Kaufteil/Endmaterial). `FaHierarchyNode` ist damit **die
    einzige** Quelle sowohl fuer die Struktur- als auch fuer die Stueckliste-Projektion — kein
    zweiter, separat driftender Import.
 5. **Fachliche Attribute** je Position (siehe Anhang-Spaltenliste): `HauptArtnr`, `Artnr`,
@@ -121,7 +119,7 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
    Normalisierung beim Import; `Artikelgruppe`-Split „CODE - Bezeichnung" und
    `Arbeitsschritte`-Split (Leerzeichen, nicht Komma!) passieren **beim Konsum**, nicht beim
    Import, analog zum bestehenden BOM-Matching-Fallstrick).
-6. **`IdealFaInfo`-Attribute:** `ABNr`, `Pos`, `Kunde`, `KO_Termin`, `FE_Termin`,
+6. **`FaHierarchyOrderInfo`-Attribute:** `ABNr`, `Pos`, `Kunde`, `KO_Termin`, `FE_Termin`,
    `MontageAbteilung`, `HauptFA`, `Status`, `Start_Beschichtung`, `Dienstleister`,
    `Montagestunden`, `Prio`, `RAL`, `Beschichten_Retour`, `Neuer_PT_PPS`, `Verladetermin_Vsl`,
    `Bemerkung_Uhrzeit`.
@@ -139,7 +137,7 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
 
 ### Datenmodell
 
-**`IdealFaStruktur`** (NICHT `AuditableEntity` — reine Cache-Tabelle, analog `CachedBomHeader`,
+**`FaHierarchyNode`** (NICHT `AuditableEntity` — reine Cache-Tabelle, analog `CachedBomHeader`,
 siehe Fallstrick-Praezedenzfall):
 
 | Spalte | Typ | Herkunft | Bemerkung |
@@ -154,7 +152,7 @@ siehe Fallstrick-Praezedenzfall):
 | `Beschaffungsartikel`, `Beschichtet`, `EKBedarf` | `bit NOT NULL` | gemappt | siehe Anforderung 7 |
 | `SyncedAt` | `datetime2 NOT NULL` | — | Zeitpunkt des letzten Full-Refresh (Lokalzeit, analog `CachedBomHeader.CachedAt`) |
 
-**`IdealFaInfo`** (ebenfalls kein `AuditableEntity`):
+**`FaHierarchyOrderInfo`** (ebenfalls kein `AuditableEntity`):
 
 | Spalte | Typ | Herkunft |
 |---|---|---|
@@ -174,30 +172,30 @@ Positionszeile denormalisieren, vervielfachte sich die Speichermenge und ein Ter
 in hunderten Zeilen synchron gehalten werden. Der Anhang schlaegt selbst zwei Domain-Objekte vor
 (`FaListEntry`/`FaInfoEntry`) — diese Spec bildet das 1:1 auf zwei Tabellen ab. Die
 „ein Lesepfad, zwei Projektionen"-Aussage aus B4 bezieht sich auf **Struktur-Ansicht** und
-**Stueckliste-Ansicht**, die beide **aus `IdealFaStruktur` allein** ableitbar sind — nicht auf eine
-Verschmelzung mit `IdealFaInfo`.
+**Stueckliste-Ansicht**, die beide **aus `FaHierarchyNode` allein** ableitbar sind — nicht auf eine
+Verschmelzung mit `FaHierarchyOrderInfo`.
 
 ### Repository-Schicht (ADR 0001)
 
-- `IIdealFaStrukturRepository` / `IdealFaStrukturRepository` (EF-Zugriff auf die lokale Tabelle:
-  `GetByHauptFaAsync`, `GetAllAsync` mit Filtern) + `CachedIdealFaStrukturRepository`-Decorator
+- `IFaHierarchyNodeRepository` / `FaHierarchyNodeRepository` (EF-Zugriff auf die lokale Tabelle:
+  `GetByHauptFaAsync`, `GetAllAsync` mit Filtern) + `CachedFaHierarchyNodeRepository`-Decorator
   (`IMemoryCache`, 5 min analog zum BOM-Cache — Tabelle wird ohnehin nur alle paar Minuten vom
   Sync-Service neu befuellt, ein Web-seitiger Cache reduziert wiederholte Reads bei
   Baum-/Listen-Aufrufen).
-- `IIdealFaInfoRepository` / `IdealFaInfoRepository` analog, ohne Cache-Decorator vorerst (kleine
+- `IFaHierarchyOrderInfoRepository` / `FaHierarchyOrderInfoRepository` analog, ohne Cache-Decorator vorerst (kleine
   Tabelle, ein Datensatz je Struktur/Montage-Abteilung).
 - Beide Repositories liefern die EF-Entitaeten direkt als Lesemodell (keine zusaetzliche
   DTO-Schicht noetig — die Tabellen sind bereits eine getreue, flache Projektion).
 
 ### Sync-Service (Windows-Service, `IDEALAKEWMSService`)
 
-- `IdealFaStrukturSyncService` (neuer Service-Name in `SyncLogServices.All`), gated ueber
-  `Sync:IdealFaStrukturEnabled` (Bool, Default `false`).
-- View-Namen aus `ServiceSettings`: `Sync:IdealFaListeViewName` (String, Default
-  `[vw_IDEAL-AKE_Kommissionierung_FAListe]`), `Sync:IdealFaInfosViewName` (String, Default
+- `FaHierarchySyncService` (neuer Service-Name in `SyncLogServices.All`), gated ueber
+  `Sync:HierarchicalFaEnabled` (Bool, Default `false`).
+- View-Namen aus `ServiceSettings`: `Sync:FaHierarchyListeViewName` (String, Default
+  `[vw_IDEAL-AKE_Kommissionierung_FAListe]`), `Sync:FaHierarchyInfosViewName` (String, Default
   `[vw_IDEAL-AKE_Kommissionierung_FAInfos]`) — beide neue Eintraege in
   `ServiceSettingDefinitions.All` (Drift-Guard-Pflicht, ADR 0008).
-- **Whitelist-Regex** vor jedem SQL-Aufbau (`IdealFaStrukturSql.ValidateViewName`): erlaubt nur
+- **Whitelist-Regex** vor jedem SQL-Aufbau (`FaHierarchySql.ValidateViewName`): erlaubt nur
   `[Schema].[Name]`- bzw. `Name`-Muster aus Buchstaben, Ziffern, `_`, `-`, `.`, eckigen Klammern —
   **kein** Leerzeichen, Semikolon, Kommentarzeichen (`--`, `/*`). Bei Verstoss: Lauf bricht mit
   `FinishFailedAsync` ab, **kein** SQL wird ausgefuehrt (exaktes Pattern und Fehlerverhalten sind
@@ -216,8 +214,8 @@ Verschmelzung mit `IdealFaInfo`.
 
 ### Migrations-/SQL-Auswirkungen
 
-1. Model → `dotnet ef migrations add AddIdealFaStruktur` (aktueller Timestamp!) → idempotentes
-   `SQL/86_AddIdealFaStruktur.sql` mit `OBJECT_ID`-Guard, Tabellen-DDL in eigenem Batch (`GO`),
+1. Model → `dotnet ef migrations add AddFaHierarchy` (aktueller Timestamp!) → idempotentes
+   `SQL/86_AddFaHierarchy.sql` mit `OBJECT_ID`-Guard, Tabellen-DDL in eigenem Batch (`GO`),
    `__EFMigrationsHistory`-Insert in separatem Batch.
 2. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (beide neuen
    Tabellen) **und** `MigrationId` im History-Insert-Block.
@@ -225,24 +223,27 @@ Verschmelzung mit `IdealFaInfo`.
 4. `SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql` +
    `..._FAInfos.sql`: View-DDL-Dokumentation der Fremd-DB — **keine** WMS-Migration, nur
    Versionskontrolle der Sage-Objekte (wie in der Notiz vereinbart).
-5. **Vor dem Dev-Lauf erneut pruefen, ob `SQL/86` noch frei ist** — konkurrierende Arbeit (u. a.
-   die WmsBugs-Teil-7-Spec auf `84`/`85`) kann bis dahin gemergt sein.
+5. **Migrationsnummer beim Dev-Start final festlegen.** `SQL/82`/`83` sind durch v1.28.0
+   (Sage-Lagerbuchungen) belegt; die WmsBugs-Batches (v1.29.0/v1.30.0) belegen `84`/`85` + Seed `86`.
+   IDEAL-Migrationen liegen damit voraussichtlich **ab `SQL/87`** — die konkrete naechste freie
+   Nummer unmittelbar vor dem Dev-Lauf gegen den dann gemergten Stand pruefen (die `86`-Referenzen
+   in dieser Spec sind Platzhalter).
 
 ### Audit-Feld-Auswirkungen
 
-`IdealFaStruktur` und `IdealFaInfo` sind **keine** `AuditableEntity` — analog zu `CachedBomHeader`/
+`FaHierarchyNode` und `FaHierarchyOrderInfo` sind **keine** `AuditableEntity` — analog zu `CachedBomHeader`/
 `CachedBomItem` (dokumentierte Ausnahme: reine, vom Sync-Service befuellte Cache-Tabellen ohne
 manuelle Bearbeitung durch Anwender). Nachvollziehbarkeit kommt stattdessen aus dem
-Aktivitaets-Protokoll (`SyncLog`, ADR 0010) des `IdealFaStrukturSyncService`-Laufs, nicht aus
+Aktivitaets-Protokoll (`SyncLog`, ADR 0010) des `FaHierarchySyncService`-Laufs, nicht aus
 `ModifiedBy`/`ModifiedAt`-Feldern auf den Zeilen selbst. Kein bestehendes Audit-Feld ist betroffen,
 da `ProductionOrders` unangetastet bleibt.
 
 ## Akzeptanzkriterien
 
-1. Bei deaktiviertem `Sync:IdealFaStrukturEnabled` (Default) laeuft der Service unveraendert wie
+1. Bei deaktiviertem `Sync:HierarchicalFaEnabled` (Default) laeuft der Service unveraendert wie
    heute — kein neuer Sync-Block wird ausgefuehrt, keine Fehlermeldung.
-2. Ist der Toggle aktiv und beide View-Namen gueltig, fuellt ein Lauf `IdealFaStruktur` und
-   `IdealFaInfo` vollstaendig aus den konfigurierten Views; eine `FAListe`-Zeile erscheint **nur**,
+2. Ist der Toggle aktiv und beide View-Namen gueltig, fuellt ein Lauf `FaHierarchyNode` und
+   `FaHierarchyOrderInfo` vollstaendig aus den konfigurierten Views; eine `FAListe`-Zeile erscheint **nur**,
    wenn zum `HauptFA` ein `FAInfos`-Eintrag existiert (Datenverfuegbarkeits-Regel, testbar durch
    gezieltes Fehlen eines `FAInfos`-Datensatzes am Testsystem).
 3. Ein ungueltiger View-Name (z. B. mit Leerzeichen oder `;`) fuehrt zu einem fehlgeschlagenen,
@@ -257,7 +258,7 @@ da `ProductionOrders` unangetastet bleibt.
    AKE-Testszenarien laufen unveraendert durch).
 7. `dotnet build` + `dotnet test` sind gruen; der neue Sync-Pfad (raw SQL) ist gemaess
    Projekt-Konvention **nicht** vollstaendig InMemory-testbar — der Whitelist-Regex-Helfer
-   (`IdealFaStrukturSql.ValidateViewName`) ist als eigenstaendiger, unit-testbarer Baustein
+   (`FaHierarchySql.ValidateViewName`) ist als eigenstaendiger, unit-testbarer Baustein
    auszulegen (analog `ProductionOrderReconciler`/`LagerbestandZeroingPlanner`), damit wenigstens
    die Injection-Abwehr automatisiert geprueft ist.
 
@@ -266,26 +267,23 @@ da `ProductionOrders` unangetastet bleibt.
 Neues Kapitel in `docs/TESTSZENARIEN.md` („IDEAL Teil 1 — Struktur-Import"):
 
 - **Vorbedingung:** Zugriff auf das IDEAL-Testsystem (`AKESQL20.ake.at` / `IDEAL_TEST_2026_05_03`
-  laut Anhang), `Sync:IdealFaStrukturEnabled = true`, View-Namen korrekt konfiguriert.
+  laut Anhang), `Sync:HierarchicalFaEnabled = true`, View-Namen korrekt konfiguriert.
 - **Schritt 1 — Erstimport:** Service-Lauf ausloesen, Aktivitaets-Protokoll pruefen (Lauf
   erfolgreich, Counts plausibel).
 - **Schritt 2 — Datenverfuegbarkeits-Regel:** Eine bekannte Struktur ohne `FAInfos`-Eintrag
-  darf **nicht** in `IdealFaStruktur` erscheinen.
+  darf **nicht** in `FaHierarchyNode` erscheinen.
 - **Schritt 3 — Mehrstufigkeit:** Eine bekannte Struktur mit Sub-Sub-FA (Baugruppe unter
   Baugruppe) pruefen — `VaterFA`-Kette laesst sich bis zur Wurzel zurueckverfolgen.
 - **Schritt 4 — Kombinationsgeraet:** Falls am Testsystem vorhanden, eine `HauptFA` mit zwei
-  `MontageAbteilung`-Werten in `IdealFaInfo` identifizieren und dokumentieren, wie sich die
-  zugehoerigen `IdealFaStruktur`-Zeilen (nicht) trennen lassen — Grundlage fuer die Aufloesung von
-  offener Rueckfrage 1.
-- **Negativfall — ungueltiger View-Name:** `Sync:IdealFaListeViewName` auf einen Wert mit
+  `MontageAbteilung`-Werten in `FaHierarchyOrderInfo` identifizieren und pruefen, dass die
+  zugehoerigen `FaHierarchyNode`-Zeilen **wie bei einem normalen Auftrag** importiert werden
+  (Freigabe-Antwort 1 — keine Sonderbehandlung in Teil 1). Die materialisierungsseitige Behandlung
+  gehoert zu Teil 7.
+- **Negativfall — ungueltiger View-Name:** `Sync:FaHierarchyListeViewName` auf einen Wert mit
   Semikolon setzen, Lauf ausloesen, erwarten: fehlgeschlagener, protokollierter Lauf, keine
   SQL-Ausfuehrung (per Server-seitigem Audit/Profiler oder Code-Review bestaetigt).
 - **Regressionsfall:** Alle bestehenden AKE-Testszenarien (FA-Liste, Kommissionierung, BDE)
   unveraendert durchspielen — kein Unterschied zum Vor-Zustand.
-- **Wiederverwendbare Altlast:** Falls der Worktree `ideal-anpassungen-v1` noch existiert, enthaelt
-  `docs/V1.12.0-VERIFICATION.md` manuelle Testszenarien (BOM-Mengen-Check, Scan/QR-Lookup,
-  Tree-Expand/Filter) — vor dem Schreiben neuer Szenarien pruefen und wiederverwenden (offene
-  Rueckfrage 5).
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
@@ -294,7 +292,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 - **Web-App:** ja (neue Repository-/Model-Klassen, DI-Registrierung — auch wenn noch keine
   Controller/Views darauf zugreifen).
 - **Service:** ja (neuer Sync-Block).
-- **Migration:** ja (`SQL/86_AddIdealFaStruktur.sql` additiv, kein Backup-Zwang).
+- **Migration:** ja (`SQL/86_AddFaHierarchy.sql` additiv, kein Backup-Zwang).
 - **Reihenfolge:** DB-Migration vor Service-Neustart; Web kann parallel deployt werden, da Teil 1
   keine erreichbare Route hinzufuegt. Sync-Toggle bleibt nach dem Deploy **default aus** — muss am
   Zielsystem bewusst aktiviert werden (analog zur ADR-0008-Regel „jeder gewuenschte Sync muss
@@ -308,30 +306,48 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Offene Rueckfragen
 
-1. **B3/B-4 — Montage-Abteilung auf Struktur-Ebene.** `FAListe` traegt keine Montage-Abteilung
-   (nur `FAInfos`, auftragsbezogen). Bei Kombinationsgeraeten mit zwei Montage-Abteilungen und
-   gleichem `HauptFA`: Teilen sich beide Auftraege dieselbe Stueckliste (dann ist die Trennung
-   ausschliesslich Sache von `IdealFaInfo`, `IdealFaStruktur` braucht **keine**
-   `MontageAbteilung`-Spalte), oder muss die Struktur selbst irgendwie getrennt werden (dann fehlt
-   dafuer aktuell ein Datenfeld)? Am IDEAL-Testsystem zu verifizieren, bevor die Repository-Schicht
-   final steht.
-2. **Produktiv-DB/Server der IDEAL-Instanz.** Der Anhang nennt nur die Test-DB
-   (`AKESQL20.ake.at` / `IDEAL_TEST_2026_05_03`). Produktivname/-server offen — reines
-   Infrastrukturdetail, aber vor dem ersten produktiven Sync zu klaeren.
-3. **Toggle-Heimat.** Sollen `Sync:IdealFaListeViewName`/`Sync:IdealFaInfosViewName`/
-   `Sync:IdealFaStrukturEnabled` als `ServiceSettings` gefuehrt werden (wie hier entworfen, weil
-   der Windows-Service selbst synchronisiert) — Bestaetigung erbeten, siehe auch die
-   uebergreifende Toggle-Rueckfrage in der Uebersicht.
-4. **Whitelist-Regex-Pattern.** Genaues Pattern und Fehlerverhalten bei Verstoss (nur Ablehnen +
-   Protokoll-Eintrag vs. zusaetzlich eine Fehlermail) ist sicherheitsrelevant genug, um nicht
-   erraten zu werden — bitte vorgeben oder im Dev-Lauf mit Sicherheitsfokus festlegen.
-5. **Alter Worktree `ideal-anpassungen-v1`.** Existiert er noch? Falls ja, `V1.12.0-VERIFICATION.md`
-   fuer die Test-Checkliste wiederverwenden (siehe Test-Szenarien).
+Die Schranke-1-Antworten (unten) loesen die urspruenglichen Rueckfragen — hier der Stand:
+
+1. **Kombinationsgeraete — GEKLAERT (Antwort 1).** In Teil 1 wie normale Auftraege behandeln,
+   `MontageAbteilung` nur informativ auf `FaHierarchyOrderInfo`. Materialisierungsseitige
+   Konsequenz (nicht mehr eindeutige `OrderNumber`) → Teil 7.
+2. **Produktiv-DB/Server — GEKLAERT (Antwort 2).** Vom Menschen notiert; Servername/DB werden direkt
+   in den `appsettings` des IDEAL-Deployments gesetzt (kein Spec-Handlungsbedarf, kein Blocker).
+3. **Toggle-Heimat — GEKLAERT (Antwort 3).** `ServiceSettings` bestaetigt; Namensschema
+   `Sync:HierarchicalFaEnabled` (Master der hierarchischen FA-Logik) +
+   `Sync:FaHierarchyListeViewName`/`Sync:FaHierarchyInfosViewName`, ohne Standort im Bezeichner
+   (siehe Namens-Hinweis und Umsetzungsnotiz unten).
+4. **Whitelist-Regex — Fehlerverhalten GEKLAERT (Antwort 4):** bei Verstoss Ablehnen + Protokoll +
+   **zusaetzliche Fehlermail**. OFFEN bleibt nur das **exakte Regex-Pattern**, im Dev-Lauf mit
+   Sicherheitsfokus festzulegen (kein Blocker, siehe `open_questions`).
+5. **Alter Worktree `ideal-anpassungen-v1` — GEKLAERT (Antwort 5):** existiert nicht mehr; keine
+   Test-Altlast wiederzuverwenden.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
+HINWEIS: ICH würde das nicht IDEALFASTRUKTUR etc. Nennen sondern in die Richtung FAHierarchyStruktur, dh. nicht den Standort in die Namensgebung 
+1. →kombigeräte können im step 1 wie normale aufträge behandelt werden.
+2. →servernamen und db habe ich bei mir notiert. ändere ich dann selber in den appsettings
+3. →toggle für HierarchischeFA Logik und die anderen toggle auch. 
+4. →zusätzliches Fehlermail
+5. →nein, existiert nicht mehr
 
-1. →
-2. →
-3. →
-4. →
-5. →
+## Umsetzungsnotiz — Namens-Konvention (2026-08-06)
+
+Der Namens-Hinweis aus den Freigabe-Antworten ist eingearbeitet: **kein Standort ("Ideal") in
+Code-Bezeichnern**, stattdessen konzeptbasiert `FaHierarchy*` / `HierarchicalFa`. Umgesetzt in
+**allen** Teil-Specs (1–8 + Uebersicht). Zuordnung:
+
+| alt | neu |
+|---|---|
+| `IdealFaStruktur` (Tabelle/Model) | `FaHierarchyNode` |
+| `IdealFaInfo` | `FaHierarchyOrderInfo` |
+| Repos / Sync-Service / SQL-Helper | `FaHierarchyNodeRepository`, `FaHierarchyOrderInfoRepository`, `FaHierarchySyncService`, `FaHierarchySql` |
+| `Sync:IdealFaStrukturEnabled` | `Sync:HierarchicalFaEnabled` |
+| `Sync:IdealFaListeViewName` / `…InfosViewName` | `Sync:FaHierarchyListeViewName` / `…InfosViewName` |
+| Migration/SQL `AddIdealFaStruktur` | `AddFaHierarchy` |
+| Teil 3/4/5 `IdealKommissionierListen*` / `IdealBeschichtung*` / `IdealVormontage*` | `FaHierarchyKommissionierListen*` / `FaHierarchyBeschichtung*` / `FaHierarchyVormontage*` |
+
+**Bewusst unveraendert:** der Projektname `IdealAkeWms` (Solution/Namespace/Pfade), die Prosa-Verweise
+auf den Standort **IDEAL** (Dokumentation), die Sage-View-Namen `vw_IDEAL-AKE_Kommissionierung_*`
+(Fremd-DB-Objekte) sowie die Spec-Slugs/-Titel — der Hinweis betrifft ausschliesslich **neue
+fachliche Code-Bezeichner**. Exakte Schreibweise im Dev-Lauf bestaetigbar.

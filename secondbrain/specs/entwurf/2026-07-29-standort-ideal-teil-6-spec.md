@@ -61,8 +61,8 @@ verweist auf den zentralen Waechter, implementiert ihn aber nicht selbst.
 ## Fachliche Anforderungen
 
 - Gruppierte Darstellung mindestens der Kategorien: Firmenname/Adresse/Mandant (falls als
-  Settings-Keys existent), View-Namen (Teil 1: `Sync:IdealFaListeViewName`/
-  `Sync:IdealFaInfosViewName`), Feature-Toggles (Teil 2–5), Master + abhaengige Schalter
+  Settings-Keys existent), View-Namen (Teil 1: `Sync:FaHierarchyListeViewName`/
+  `Sync:FaHierarchyInfosViewName`), Feature-Toggles (Teil 2–5), Master + abhaengige Schalter
   (Teil 7 — nur Anzeige/Verlinkung, Schreibzugriff geht durch den zentralen Waechter).
 - Wiederverwendung der bestehenden typisierten Katalog-Infrastruktur (Bool-Toggle/Int/String,
   ADR 0008) statt einer Parallel-Implementierung.

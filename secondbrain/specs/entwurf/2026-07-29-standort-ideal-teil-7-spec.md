@@ -50,7 +50,7 @@ freigabe_am: ""
 
 ## Ziel / Nutzen (das Warum)
 
-Ab Teil 7 wird der Kern angefasst: Aus `IdealFaStruktur` (Teil 1) werden die Zeilen mit
+Ab Teil 7 wird der Kern angefasst: Aus `FaHierarchyNode` (Teil 1) werden die Zeilen mit
 `SubFA != 0` (plus Wurzel) als echte `ProductionOrders` materialisiert. Erst dadurch werden
 Sub-FAs rueckmeldefaehig (Arbeitsgaenge, Teileverfolgung, BDE — Teil 8), weil diese Module
 ausschliesslich gegen `ProductionOrders` arbeiten. Die Struktur bleibt die Quelle, `ProductionOrders`
@@ -67,7 +67,7 @@ still uebernehmen; neuer Sub-FA anlegen), Durchzug von `SubOrderNumber` durch
 Repositories/Controller/Scan-Lookups, adversariales Review der FA-Zusatzinfos-Kollision.
 
 **Out-of-Scope:** die eigentliche BDE-/Rueckmelde-Logik (Teil 8); Teil 2–6 (Listen/Anzeige) bleiben
-unveraendert auf `IdealFaStruktur` aufgesetzt und sind von dieser Materialisierung **nicht**
+unveraendert auf `FaHierarchyNode` aufgesetzt und sind von dieser Materialisierung **nicht**
 abhaengig (B5).
 
 ## Fachliche Anforderungen
@@ -116,7 +116,7 @@ drei — hier nur der Master selbst behandelt):
 
 ### Synchronisation Struktur → ProductionOrders (drei Sync-Regeln, als Akzeptanzkriterien, nicht Randnotiz)
 
-Die Struktur-Tabelle (`IdealFaStruktur`) ist ein Cache und darf jederzeit komplett neu aufgebaut
+Die Struktur-Tabelle (`FaHierarchyNode`) ist ein Cache und darf jederzeit komplett neu aufgebaut
 werden (Teil 1). Bei den materialisierten `ProductionOrders` gilt das **nicht** — dort haengen
 Rueckmeldungen dran:
 
@@ -134,9 +134,13 @@ Rueckmeldungen dran:
 `OrderNumber = HauptFA` ist bei Kombinationsgeraeten selbst als **Gruppen**-Schluessel mehrdeutig
 (zwei logische Auftraege teilen sich dieselbe `OrderNumber`). Diese Spec **listet** das Problem
 und die moeglichen Loesungsrichtungen (eigene `MontageAbteilung`-Spalte auf `ProductionOrder` +
-zusammengesetzter Gruppen-Schluessel), entscheidet es aber **nicht** — abhaengig vom Ergebnis der
-Teil-1-Rueckfrage 1 (traegt `IdealFaStruktur` ueberhaupt eine Montage-Abteilung-Information, aus
-der materialisiert werden koennte?).
+zusammengesetzter Gruppen-Schluessel), entscheidet es aber **nicht** — es ist bewusst hierher
+verlagert: **Teil 1 behandelt Kombinationsgeraete beim Struktur-Import wie normale Auftraege**
+(Schranke-1-Antwort 1) und fuehrt `MontageAbteilung` **nur informativ** auf `FaHierarchyOrderInfo`
+(nicht auf `FaHierarchyNode`). Damit steht als Eingangslage fest: Die Montage-Abteilung ist
+**auftrags-, nicht positionsbezogen** verfuegbar — die Materialisierung muss daher entscheiden, ob
+`ProductionOrders` eine eigene `MontageAbteilung`-Spalte und einen zusammengesetzten Gruppen-
+Schluessel `OrderNumber + MontageAbteilung` erhaelt.
 
 ### FA-Zusatzinfos-Kollision (groesstes technisches Risiko, PFLICHT-Review)
 
@@ -176,7 +180,7 @@ Kollision, wie in der Backlog-Notiz gefordert.
 - `ProductionOrder.cs`: neue Properties `SubOrderNumber` (`string`, `[Required]`,
   `[StringLength(100)]`) und `ParentSubOrderNumber` (`string?`, `[StringLength(100)]`).
 - Materialisierungs-Sync (neuer Service oder Erweiterung von `SageImportService`, TBD im Dev-Lauf):
-  liest `IdealFaStruktur` (Teil 1) als Quelle, wendet die drei Sync-Regeln an, schreibt/aktualisiert
+  liest `FaHierarchyNode` (Teil 1) als Quelle, wendet die drei Sync-Regeln an, schreibt/aktualisiert
   `ProductionOrders`. Laeuft **nur** bei `ProduktionsauftragHierarchisch = true` — bei `false`
   bleibt der bestehende `SageImportService`-Pfad (AKE) unveraendert die einzige Quelle.
 - `HierarchischeStrukturGuard` (neuer Domaenen-Service): kapselt die

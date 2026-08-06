@@ -11,10 +11,10 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Controllers/IdealKommissionierListenController.cs (neu, Name provisorisch)
+  - IdealAkeWms/Controllers/FaHierarchyKommissionierListenController.cs (neu, Name provisorisch)
   - IdealAkeWms/Services/KommissionierListenService.cs (neu)
-  - IdealAkeWms/Views/IdealKommissionierListen/Index.cshtml (neu)
-  - IdealAkeWms/Views/IdealKommissionierListen/Print.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Print.cshtml (neu)
   - IdealAkeWms/Models/AppSettingKeys.cs
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
@@ -43,8 +43,8 @@ Basis der IDEAL-Struktur (Teil 1) statt der AKE-BOM-Kette.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-**In-Scope:** Liste/Druck aller `IdealFaStruktur`-Positionen mit gesetztem `Kommissionieren`,
-gruppiert nach `HauptFA` (+ Montage-Abteilung), Kopf aus `IdealFaInfo`, Barcode `HauptFA`.
+**In-Scope:** Liste/Druck aller `FaHierarchyNode`-Positionen mit gesetztem `Kommissionieren`,
+gruppiert nach `HauptFA` (+ Montage-Abteilung), Kopf aus `FaHierarchyOrderInfo`, Barcode `HauptFA`.
 
 **Out-of-Scope:** tatsaechliche Buchung/Transfer (dieser Teil druckt/listet, bucht aber nicht —
 eine Buchungsfunktion setzt echte `ProductionOrders` voraus, also fruehestens nach Teil 7/8, falls
@@ -54,8 +54,8 @@ ueberhaupt gewuenscht — nicht Teil dieser Spec); `ProductionOrders`/AKE unvera
 
 - Filter: `Kommissionieren IS NOT NULL AND Kommissionieren <> ''`, zusaetzlich Filter nach
   konkretem Ziel-Wert.
-- Gruppierung nach `HauptFA` (+ `MontageAbteilung` aus `IdealFaInfo` bei Kombinationsgeraeten).
-- Kopf aus `IdealFaInfo` (`ABNr`, `HauptFA`, Kunde/Termine je nach Layout-Bedarf).
+- Gruppierung nach `HauptFA` (+ `MontageAbteilung` aus `FaHierarchyOrderInfo` bei Kombinationsgeraeten).
+- Kopf aus `FaHierarchyOrderInfo` (`ABNr`, `HauptFA`, Kunde/Termine je nach Layout-Bedarf).
 - Barcode = `HauptFA` (einziger Produktions-Identifier laut Anhang).
 - **Vor der Feinspezifizierung zwingend zu pruefen** (Notiz-Vorgabe): existieren Zeilen mit
   `SubFA != 0` UND gesetztem `Kommissionieren`? Wenn nein, trennt `Kommissionieren` selbst
@@ -64,7 +64,7 @@ ueberhaupt gewuenscht — nicht Teil dieser Spec); `ProductionOrders`/AKE unvera
 
 ## Technischer Loesungsentwurf
 
-`KommissionierListenService` liest ueber `IIdealFaStrukturRepository`/`IIdealFaInfoRepository`
+`KommissionierListenService` liest ueber `IFaHierarchyNodeRepository`/`IFaHierarchyOrderInfoRepository`
 (Teil 1), wendet Filter/Gruppierung an, liefert ein Druck-ViewModel analog zum bestehenden
 `WarehousePickingPrintLayout`-Muster (GUI-Spiegelung: gleiche Filter/Sortierung im Druck wie in
 der Liste).

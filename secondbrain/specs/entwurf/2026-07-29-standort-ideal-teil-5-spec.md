@@ -11,10 +11,10 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Controllers/IdealVormontageController.cs (neu, Name provisorisch)
+  - IdealAkeWms/Controllers/FaHierarchyVormontageController.cs (neu, Name provisorisch)
   - IdealAkeWms/Services/VormontageService.cs (neu)
-  - IdealAkeWms/Views/IdealVormontage/Index.cshtml (neu)
-  - IdealAkeWms/Views/IdealVormontage/Summiert.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml (neu)
   - IdealAkeWms/wwwroot/js/ideal-vormontage-export.js (neu, Isolierfraesen-Export)
   - IdealAkeWms/Models/AppSettingKeys.cs
   - docs/TESTSZENARIEN.md

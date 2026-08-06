@@ -29,8 +29,8 @@ Teil 1 (ein Lesepfad, zwei Projektionen); „Teil 1c" (Standorteinstellungen) is
 
 | # | Teil-Spec | Kern (`ProductionOrders`) beruehrt | Zweck |
 |---|---|---|---|
-| 1 | [[2026-07-29-standort-ideal-teil-1-spec]] | nein | Struktur-Fundament `IdealFaStruktur` (+ `IdealFaInfo`): Import aus den IDEAL-Sage-Views `FAListe`/`FAInfos`, mehrstufige Projektion (`HauptFA`/`VaterFA`/`SubFA`/`Position`), eigene Domain, Repository + Cache-Decorator, konfigurierbare View-Namen. Fundament fuer Teil 2–5. |
-| 2 | [[2026-07-29-standort-ideal-teil-2-spec]] | nein | Struktur-/Baumanzeige: rekursive Darstellung von `IdealFaStruktur` (nicht zweistufig — B1 hat den alten 2-Ebenen-Entwurf ueberholt). Riskantester Anzeigeteil (Paging ueber Gruppen, Phantom-Header, Auto-Expand). |
+| 1 | [[2026-07-29-standort-ideal-teil-1-spec]] | nein | Struktur-Fundament `FaHierarchyNode` (+ `FaHierarchyOrderInfo`): Import aus den IDEAL-Sage-Views `FAListe`/`FAInfos`, mehrstufige Projektion (`HauptFA`/`VaterFA`/`SubFA`/`Position`), eigene Domain, Repository + Cache-Decorator, konfigurierbare View-Namen. Fundament fuer Teil 2–5. |
+| 2 | [[2026-07-29-standort-ideal-teil-2-spec]] | nein | Struktur-/Baumanzeige: rekursive Darstellung von `FaHierarchyNode` (nicht zweistufig — B1 hat den alten 2-Ebenen-Entwurf ueberholt). Riskantester Anzeigeteil (Paging ueber Gruppen, Phantom-Header, Auto-Expand). |
 | 3 | [[2026-07-29-standort-ideal-teil-3-spec]] | nein | Kommissionierlisten: Filter `Kommissionieren`, gruppiert nach `HauptFA` (+ Montage-Abteilung), Barcode `HauptFA`, Druck. |
 | 4 | [[2026-07-29-standort-ideal-teil-4-spec]] | nein | Beschichtungsauftrag: Filter `Beschichtet = -1`, Druckdokument mit Dienstleister-Kopf. |
 | 5 | [[2026-07-29-standort-ideal-teil-5-spec]] | nein | Vormontage-Listen: Filter `VMBedarf`, drei Sichten, Isolierfraesen-Export. |
@@ -38,8 +38,8 @@ Teil 1 (ein Lesepfad, zwei Projektionen); „Teil 1c" (Standorteinstellungen) is
 | 7 | [[2026-07-29-standort-ideal-teil-7-spec]] | **ja** | Materialisierung nach `ProductionOrders`: Schema-Inversion (`OrderNumber` nicht mehr unique, `SubOrderNumber` unique, `ParentSubOrderNumber`), Einweg-Migrationstor, Sync-Regeln (nicht loeschen / Umhaengung nicht still uebernehmen), FA-Zusatzinfos-Kollision. |
 | 8 | [[2026-07-29-standort-ideal-teil-8-spec]] | **ja** | Sub-FA-Rueckmeldung / BDE (`epic: true`). Nach Teil 7 sind Sub-FAs echte `ProductionOrders` — Arbeitsgaenge/Teileverfolgung/Rueckmeldung greifen grundsaetzlich unveraendert, muessen aber gegen die Nicht-Eindeutigkeit von `OrderNumber` gehaertet werden. |
 
-**Abhaengigkeiten (`depends_on`):** Teil 2–6 haengen nur an Teil 1 (lesen `IdealFaStruktur`/
-`IdealFaInfo`, kein Schema-Umbau am Kern — Entscheidung B5). Teil 7 haengt an Teil 1 (liest die
+**Abhaengigkeiten (`depends_on`):** Teil 2–6 haengen nur an Teil 1 (lesen `FaHierarchyNode`/
+`FaHierarchyOrderInfo`, kein Schema-Umbau am Kern — Entscheidung B5). Teil 7 haengt an Teil 1 (liest die
 Struktur-Tabelle als Quelle der Transformation, siehe dortiger Abschnitt „Synchronisation"). Teil 8
 haengt an Teil 7 (braucht echte `SubOrderNumber`-`ProductionOrders`). Teil 2–6 sind **untereinander**
 unabhaengig und in beliebiger Reihenfolge lieferbar.
@@ -50,11 +50,12 @@ Lieferreihenfolge).
 
 ## Querschnitts-Hinweise fuer die Freigabe (Schranke 1)
 
-- **Migrationsnummern:** main ist nach v1.28.0 (Sage-Lagerbuchungen) bei `SQL/83`; die noch in
-  `entwurf/` liegenden WmsBugs-Teil-7-Specs belegen bereits **`SQL/84`** und **`SQL/85`**
-  (Entwuerfe, noch nicht gemergt). Die IDEAL-Migrationen (Teil 1: `IdealFaStruktur`/`IdealFaInfo`;
-  Teil 7: Schema-Inversion) sind daher **ab `SQL/86`** zu planen — **vor dem jeweiligen Dev-Lauf
-  erneut pruefen**, ob die Nummer noch frei ist (mehrere Teams koennten parallel umsetzen).
+- **Migrationsnummern:** main ist nach v1.28.0 (Sage-Lagerbuchungen) bei `SQL/83`; die WmsBugs-Batches
+  (v1.29.0/v1.30.0, Testbereit in eigenen Worktrees, noch nicht gemergt) belegen **`SQL/84`**,
+  **`SQL/85`** und Seed **`SQL/86`**. Die IDEAL-Migrationen (Teil 1: `FaHierarchyNode`/
+  `FaHierarchyOrderInfo`; Teil 7: Schema-Inversion) sind daher voraussichtlich **ab `SQL/87`** zu
+  planen — die `86`-Referenzen in den Teil-Specs sind Platzhalter; **vor dem jeweiligen Dev-Lauf
+  erneut gegen den dann gemergten Stand pruefen**, welche Nummer wirklich frei ist.
 - **Das Einweg-Migrationstor** (Master-Schalter `ProduktionsauftragHierarchisch`, datengetrieben
   gesperrt sobald `EXISTS(ProductionOrders WHERE OrderNumber <> SubOrderNumber)`, Waechter in der
   Domaenenschicht, Pflicht-Audit) ist in Teil 7 exakt aus der Notiz uebernommen — siehe dortiger
@@ -68,6 +69,13 @@ Lieferreihenfolge).
   Sub-FAs einer Haupt-FA) → `OrderNumber`.
 - **Harte Akzeptanzbedingung fuer JEDEN Teil:** Bei `ProduktionsauftragHierarchisch = false`
   verhaelt sich das System exakt wie heute (AKE unveraendert) — nach jedem Teil-Merge nachweisbar.
+- **Namens-Konvention (Schranke-1-Hinweis, in allen Teilen umgesetzt):** **kein Standort ("Ideal")
+  in neuen Code-Bezeichnern** — konzeptbasiert `FaHierarchy*` / `HierarchicalFa` (z. B.
+  `FaHierarchyNode`, `FaHierarchyOrderInfo`, `Sync:HierarchicalFaEnabled`,
+  `FaHierarchyKommissionierListenController`). Unveraendert bleiben: Projektname `IdealAkeWms`,
+  Prosa-Verweise auf den Standort IDEAL, die Sage-View-Namen `vw_IDEAL-AKE_*` und die Spec-Slugs.
+  Vollstaendige Zuordnungstabelle in [[2026-07-29-standort-ideal-teil-1-spec]] („Umsetzungsnotiz —
+  Namens-Konvention").
 
 ## Uebergreifende offene Rueckfragen
 

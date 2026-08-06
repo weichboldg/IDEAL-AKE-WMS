@@ -11,9 +11,9 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Controllers/IdealFaStrukturController.cs (neu, Name provisorisch)
-  - IdealAkeWms/Views/IdealFaStruktur/Index.cshtml (neu)
-  - IdealAkeWms/Models/ViewModels/IdealFaStrukturTreeViewModel.cs (neu)
+  - IdealAkeWms/Controllers/FaHierarchyController.cs (neu, Name provisorisch)
+  - IdealAkeWms/Views/FaHierarchyNode/Index.cshtml (neu)
+  - IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs (neu)
   - IdealAkeWms/Models/AppSettingKeys.cs
   - IdealAkeWms/wwwroot/js/ideal-fa-struktur-tree.js (neu)
   - docs/TESTSZENARIEN.md
@@ -36,7 +36,7 @@ freigabe_am: ""
 
 ## Ziel / Nutzen (das Warum)
 
-Teil 1 legt die mehrstufige Struktur (`IdealFaStruktur`) in der DB ab; Teil 2 macht sie fuer
+Teil 1 legt die mehrstufige Struktur (`FaHierarchyNode`) in der DB ab; Teil 2 macht sie fuer
 Anwender sichtbar — als rekursiver Baum (Haupt-FA → Sub-FA → Sub-Sub-FA …), nicht als
 zweistufige Gruppierung (B1 hat den alten 2-Ebenen-Entwurf ueberholt). Ohne diesen Teil bleiben
 die importierten Daten unsichtbar; laut Notiz ist dies zugleich der **riskanteste** Anzeigeteil
@@ -45,7 +45,7 @@ ohne den Import (Teil 1) zu verlieren.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-**In-Scope:** rekursive Baum-Darstellung von `IdealFaStruktur` je Haupt-FA; Server-seitiges
+**In-Scope:** rekursive Baum-Darstellung von `FaHierarchyNode` je Haupt-FA; Server-seitiges
 Paging **ueber Strukturen** (nicht ueber Einzelzeilen, da eine Struktur beliebig viele Positionen
 haben kann); Expand/Collapse; Auto-Expand bis zum ersten Filtertreffer; „Baum aus"-Modus als
 **dritter Zustand** (flache Liste ALLER Sub-FA-Zeilen, **nicht** die heutige AKE-Ansicht — Notiz
@@ -61,14 +61,14 @@ Kommissionier-/Beschichtungs-/Vormontage-spezifischen Filter (Teil 3–5, eigene
 - Blaetter (`SubFA = 0`) werden im Baum als Endknoten dargestellt (Kaufteil/Material), nicht
   weiter aufklappbar.
 - Toggle `ProduktionsauftragBaumAnzeige` (Default `false`): aus ⇒ flache Liste **aller**
-  `IdealFaStruktur`-Zeilen (Warnung: mehr Zeilen als die heutige AKE-Liste, kein Rueckfall-Modus);
+  `FaHierarchyNode`-Zeilen (Warnung: mehr Zeilen als die heutige AKE-Liste, kein Rueckfall-Modus);
   an ⇒ rekursiver Baum.
 - Filterung: ein Treffer in einer tiefen Ebene klappt den Pfad bis zur Wurzel automatisch auf
   (Auto-Expand), ohne Geschwisterknoten zu verbergen, die selbst nicht matchen.
 
 ## Technischer Loesungsentwurf
 
-- Liest ausschliesslich ueber `IIdealFaStrukturRepository` (Teil 1, Cache-Decorator) — kein
+- Liest ausschliesslich ueber `IFaHierarchyNodeRepository` (Teil 1, Cache-Decorator) — kein
   direkter DB-Zugriff im Controller.
 - Server-seitiges Paging ueber Struktur-Gruppen (eine „Seite" = N Haupt-FA-Strukturen samt aller
   Unterzeilen), nicht ueber Roh-Zeilen — Abweichung vom Standard-Listen-View-Pattern (ADR 0005
@@ -93,7 +93,7 @@ Keine neuen Entitaeten mit Audit-Pflicht. Reine Anzeige.
 ## Akzeptanzkriterien
 
 1. Bei `ProduktionsauftragBaumAnzeige = false` erscheint die flache Liste aller
-   `IdealFaStruktur`-Zeilen (mit sichtbarem Hinweis, dass dies NICHT die heutige AKE-Ansicht ist).
+   `FaHierarchyNode`-Zeilen (mit sichtbarem Hinweis, dass dies NICHT die heutige AKE-Ansicht ist).
 2. Bei `true` wird jede Struktur als rekursiver Baum dargestellt; ein Sub-Sub-FA (dritte Ebene)
    ist sichtbar und korrekt unter seinem Sub-FA-Elternteil eingeordnet.
 3. Ein Spaltenfilter-Treffer auf einer tiefen Ebene klappt den Pfad zur Wurzel automatisch auf.

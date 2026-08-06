@@ -11,10 +11,10 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Controllers/IdealBeschichtungController.cs (neu, Name provisorisch)
+  - IdealAkeWms/Controllers/FaHierarchyBeschichtungController.cs (neu, Name provisorisch)
   - IdealAkeWms/Services/BeschichtungsauftragService.cs (neu)
-  - IdealAkeWms/Views/IdealBeschichtung/Index.cshtml (neu)
-  - IdealAkeWms/Views/IdealBeschichtung/Print.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyBeschichtung/Index.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyBeschichtung/Print.cshtml (neu)
   - IdealAkeWms/Models/AppSettingKeys.cs
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
@@ -37,7 +37,7 @@ freigabe_am: ""
 
 Druckbares Dokument, das die zu beschichtenden Teile beim Transport zum externen
 Beschichtungs-Dienstleister begleitet — analog zur bestehenden AKE-Lackierteil-Logik, aber auf
-IDEAL-Datenbasis (`IdealFaStruktur`/`IdealFaInfo`, Teil 1).
+IDEAL-Datenbasis (`FaHierarchyNode`/`FaHierarchyOrderInfo`, Teil 1).
 
 ## Umfang (In-Scope / Out-of-Scope)
 
@@ -55,9 +55,9 @@ Sage; `ProductionOrders`/AKE unveraendert.
 - Filter exakt `Beschichtet = -1` (nicht `= 1` — Sage-VB6-Konvention, bereits in Teil 1 korrekt
   gemappt auf `bit`, hier nur konsumiert).
 - Kopf: `ABNr`, `Pos`, `MontageAbteilung`, `HauptFA`, `Start_Beschichtung`, `Dienstleister`,
-  `RAL`, `Beschichten_Retour` (alle aus `IdealFaInfo`).
+  `RAL`, `Beschichten_Retour` (alle aus `FaHierarchyOrderInfo`).
 - Positionstabelle: `HauptFA`, `HauptArtnr`, `Artnr`, `Matchcode`, `Sollmenge`, `Beschichtet`,
-  `Breite`, `Hoehe`, `Tiefe` (aus `IdealFaStruktur`).
+  `Breite`, `Hoehe`, `Tiefe` (aus `FaHierarchyNode`).
 
 ## Technischer Loesungsentwurf
 
@@ -75,7 +75,7 @@ Keine neuen Entitaeten.
 ## Akzeptanzkriterien
 
 1. Liste/Druck zeigt ausschliesslich Positionen mit `Beschichtet = -1`.
-2. Kopfdaten (Dienstleister, RAL, Termine) stimmen mit `IdealFaInfo` ueberein.
+2. Kopfdaten (Dienstleister, RAL, Termine) stimmen mit `FaHierarchyOrderInfo` ueberein.
 3. Kombinationsgeraete werden korrekt nach Montage-Abteilung getrennt dargestellt.
 4. AKE-Verhalten (bestehende Lackierteil-/Beschichtungslogik) unveraendert.
 
