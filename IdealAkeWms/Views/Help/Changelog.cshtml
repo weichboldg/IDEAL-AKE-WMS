@@ -9,6 +9,41 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.30.0</strong> <span class="text-white-50 ms-2">06.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lager &amp; Bestellwesen: kleinere Verbesserungen und Korrekturen</h6>
+                <ul>
+                    <li><strong>Korrigiert &ndash; Bewegungshistorie:</strong> Die Spaltenfilter für
+                        „Bewegungsart", „Datum/Zeit" und „Menge" haben bisher <strong>nicht</strong>
+                        gefiltert (Eingabe blieb wirkungslos, es kam die ganze Liste). Diese
+                        irreführenden Filterfelder wurden entfernt &mdash; nach Bewegungsart filtert man
+                        weiterhin über das Dropdown „Bewegungsart", nach Datum über „von/bis".</li>
+                    <li><strong>Verbessert &ndash; Einbuchung:</strong> Das Mengenfeld ist beim Öffnen
+                        jetzt mit <strong>1</strong> statt 0 vorbelegt (ein Tipp-Schritt weniger beim
+                        häufigsten Fall). Ausbuchung und Umbuchung bleiben unverändert.</li>
+                    <li><strong>Neu &ndash; FA-Abarbeitungsliste, gespeicherter Bezeichnungs-Filter:</strong>
+                        Im Profil (bzw. vom Admin in der Benutzerverwaltung) lässt sich ein
+                        <strong>Standard-Filter für „Bezeichnung 1"</strong> hinterlegen (z.&nbsp;B.
+                        „Verdampfer"). Beim Öffnen der Liste ist er automatisch gesetzt &mdash; sichtbar
+                        im Filterfeld und dort jederzeit löschbar (analog dem Artikelgruppen-Filter der
+                        Stückliste).</li>
+                    <li><strong>Neu &ndash; Lager-/Glasbestellung, Kommentar:</strong> Eine Bestellung
+                        kann jetzt einen <strong>Kommentar</strong> (Kopf-Ebene) tragen. Er ist für das
+                        Lager in den Eingehenden Listen und der Detailansicht sichtbar und steht auch in
+                        der Bestell-E-Mail. Bearbeitbar nur vom Ersteller, solange die Bestellung im
+                        Entwurf ist.</li>
+                    <li><strong>Neu &ndash; Lager-/Glasbestellung, unbekannte Teile:</strong> Wird eine
+                        EK-Nummer nicht gefunden, lässt sich jetzt eine <strong>Position auf einem
+                        DUMMY-Artikel</strong> mit frei eingegebener (Pflicht-)Bezeichnung anlegen, statt
+                        blockiert zu sein &mdash; auch mehrfach je Bestellung, in Lager- und
+                        Glasbestellung.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.28.0</strong> <span class="text-white-50 ms-2">03.08.2026</span>
             </div>
             <div class="card-body">
