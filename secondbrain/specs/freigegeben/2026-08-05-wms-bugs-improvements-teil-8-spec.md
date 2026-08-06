@@ -2,7 +2,7 @@
 type: spec
 title: "FA-Abarbeitungsliste: personalisiert abspeicherbarer Bezeichnung-1-Filter (analog Artikelgruppen-Filter)"
 slug: 2026-08-05-wms-bugs-improvements-teil-8-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-05
 updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"

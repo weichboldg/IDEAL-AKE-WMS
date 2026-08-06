@@ -2,9 +2,9 @@
 type: spec
 title: "Bewegungshistorie: Scan-Button fuer WA-Strichcode mit Trennzeichen-Kuerzung"
 slug: 2026-08-05-wms-bugs-improvements-teil-3-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: ""
 task: "[[2026-08-05-deploy-wms-bugs-teil-1-2-3]]"

@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: Umsetzung WMS Bugs & Improvements Teil 4,5,7,8 (ein Worktree; Teil 6 ausgeschlossen)
-status: Testbereit
+status: Gemerged
 created: 2026-08-06
 spec: "[[2026-08-05-wms-bugs-improvements-teil-4-spec]]"
 worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-4-8"
@@ -25,9 +25,9 @@ den Test"). **Teil 6 ist ausgeschlossen** — Freigabe-Antworten unbeantwortet, 
 - Teil 7 → `SQL/86_SeedDummyArticle.sql` (reiner Daten-Seed, KEIN EF/History-Eintrag)
 
 ## Teil 4 — No-Op-Spaltenfilter entfernen
-- [ ] `data-filterable`/`data-col-key` an `<th>` fuer `datetime`, `quantity`, `movement-type` in
+- [x] `data-filterable`/`data-col-key` an `<th>` fuer `datetime`, `quantity`, `movement-type` in
       `StockMovements/Index.cshtml` entfernen
-- [ ] Folge-Aufgabe „Klassen-Audit andere Server-Spaltenfilter-Tabellen" notieren
+- [x] Folge-Aufgabe „Klassen-Audit andere Server-Spaltenfilter-Tabellen" notieren
 => bitte Filter wieder einfüguen, aber korrekt. die funktionalität muss gegeben sein.
 ## Teil 5 — Standardmenge 1
 - [x] `Quantity = 1` im Objekt-Initializer der `Inbound()`-GET-Action (NICHT am ViewModel-Property)
@@ -40,15 +40,15 @@ den Test"). **Teil 6 ist ausgeschlossen** — Freigabe-Antworten unbeantwortet, 
 => bitte für die BOM noch einen DefaultFilterBomDescription1 erstellen, dieser muss in der bom die artikelbeschreibung 1 filtern. 
 ## Teil 7 — Kommentar + DUMMY
 Phase A (Kommentar):
-- [ ] `WarehouseRequisition.Comment` (`string?`, 1000) + Migration 85 + FreshInstall
-- [ ] `SaveCommentAsync` + Comment-Endpunkt (CheckOwnershipAndDraft) + Edit-UI (textarea)
-- [ ] `WarehouseRequisitionListItemViewModel.Comment` (beide Call-Sites) + Picking-Liste-Spalte (data-col-key) + Details
-- [ ] Submit-Mail HTML+Text (Service) — Storno-Mail unveraendert
+- [x] `WarehouseRequisition.Comment` (`string?`, 1000) + Migration 85 + FreshInstall
+- [x] `SaveCommentAsync` + Comment-Endpunkt (CheckOwnershipAndDraft) + Edit-UI (textarea)
+- [x] `WarehouseRequisitionListItemViewModel.Comment` (beide Call-Sites) + Picking-Liste-Spalte (data-col-key) + Details
+- [x] Submit-Mail HTML+Text (Service) — Storno-Mail unveraendert
 Phase B (DUMMY):
-- [ ] `SQL/86_SeedDummyArticle.sql` + FreshInstall-Seed-Verankerung (idempotent)
-- [ ] `Article.DummyArticleNumber = "DUMMY"` + Default-Seed-Bezeichnung als Konstante
-- [ ] „nicht gefunden"-UX + `POST .../items/dummy` (Pflicht-Bezeichnung, != Default)
-- [ ] Duplikat-Guard fuer DUMMY ueberspringen, Glas-Guard umgehen
+- [x] `SQL/86_SeedDummyArticle.sql` + FreshInstall-Seed-Verankerung (idempotent)
+- [x] `Article.DummyArticleNumber = "DUMMY"` + Default-Seed-Bezeichnung als Konstante
+- [x] „nicht gefunden"-UX + `POST .../items/dummy` (Pflicht-Bezeichnung, != Default)
+- [x] Duplikat-Guard fuer DUMMY ueberspringen, Glas-Guard umgehen
 => dummy artikel wurde nicht geseedet?
 ## Abschluss
 - [x] docs/TESTSZENARIEN.md (TS-2.26-2.31, TS-43.5, TS-46.9-46.13) + secondbrain/tests/testszenarien-index.md

@@ -2,7 +2,7 @@
 type: spec
 title: "Einbuchung: Standardmenge 1 statt 0"
 slug: 2026-08-05-wms-bugs-improvements-teil-5-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-05
 updated: 2026-08-06
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"

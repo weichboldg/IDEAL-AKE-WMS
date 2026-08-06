@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: Umsetzung WMS Bugs & Improvements Teil 1-3 (ein Worktree, sequentiell)
-status: Testbereit
+status: Gemerged
 created: 2026-08-05
 spec: "[[2026-08-05-wms-bugs-improvements-teil-1-spec]]"
 worktree: ".claude/worktrees/2026-08-05-wms-bugs-improvements-teil-1-2-3"
@@ -38,7 +38,7 @@ Worktree ist zwingend. Reihenfolge: 1 → 2 → 3.
 - [ ] Validierung ALLER Zeilen vor erstem AddAsync (keine Teilbuchung), Eingaben-Erhalt bei Fehler
 - [ ] View mit Kopf (Lagerplatz+FA) + dynamischer Zeilenliste, Menge 1 default
 - [ ] Scan sequenziell, gleicher Artikel → Menge+1, Toggle „neue Zeile erzwingen"
-- [ ] Navigation/Link zur neuen Seite
+- [x] Navigation/Link zur neuen Seite
 
 ## Teil 3 — WA-Scan-Button
 - [ ] `id=filterProductionOrder` + Scan-Button in `StockMovements/Index.cshtml`
