@@ -477,6 +477,9 @@ Am Testsystem **nach** Einspielen von `SQL/85_AddWarehouseRequisitionComment.sql
    einer Bestellung anlegen → beide erscheinen, kein „bereits enthalten"-Fehler.
 5. **TS-46.13 (DUMMY in Glas):** In einer Glas-Bestellung eine DUMMY-Position anlegen → anlegbar,
    kein Glas-Gruppen-Fehler.
+6. **TS-46.14 (DUMMY nicht ueber reguläre Suche, UAT-Fix-Regression):** Im Lager- **und** im
+   Glas-Draft gezielt nach „DUMMY" suchen → **0** Treffer, nur der „nicht gefunden"-Block mit
+   Pflicht-Bezeichnung erscheint. Normale Artikel weiterhin ueber Suche + Add-Pfad hinzufuegbar.
 
 ## Offene Rückfragen
 
@@ -708,3 +711,55 @@ Spec-Intention „DUMMY **nicht** in die reguläre Suche einmischen" war in der 
   (defense in depth). Der DUMMY ist damit **ausschließlich** über `POST .../items/dummy` (mit
   Pflicht-Bezeichnung ≠ Default) anlegbar. Der Duplikat-Guard-Skip im Repo bleibt unberührt.
 - +1 Regressions-Test `AddItem_DummyArtikel_WirdAbgelehnt`. Build grün (Web 1093/1 skip, Service 197).
+
+## QA-Verifikation des UAT-Fixes (2026-08-06, formaler Lauf)
+
+Verifiziert im **kombinierten** Worktree
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-05-wms-bugs-improvements-teil-1-2-3`
+(Branch `feature/2026-08-05-wms-bugs-improvements-teil-1-2-3`, HEAD `f2410fc` — Commit
+„fix: teil-7 DUMMY — Pflicht-Bezeichnung erzwingen (UAT-Fund)").
+
+- **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler** (9 vorbestehende Warnungen, keine neuen).
+- **Tests:** `dotnet test` → `IdealAkeWms.Tests`: **1093 bestanden, 1 übersprungen, 0
+  fehlgeschlagen** (1094 gesamt); `IDEALAKEWMSService.Tests`: **197 bestanden, 0 fehlgeschlagen**.
+  Der neue Regressionstest `AddItem_DummyArtikel_WirdAbgelehnt` isoliert per `--filter` grün
+  bestätigt.
+- **Code-Review (inline, kein Task-Subagent im QA-Environment verfügbar):**
+  - `ArticlesApiController.Search`: DUMMY wird jetzt in **beiden** Zweigen ausgeschlossen —
+    typ-gescoped (`.Where(a => a.ArticleNumber != Article.DummyArticleNumber)` vor dem
+    Gruppen-Filter, Zeile 39) **und** ungetypt (`limit + 1` geladen, DUMMY gefiltert, dann auf
+    `limit` gekappt, Zeile 45-48). Der `limit+1`-Kniff ist unschädlich: `Where` gefolgt von `Take`
+    liefert einfach weniger Treffer, wenn `SearchAsync` weniger als `limit+1` zurückgibt — kein
+    Off-by-one-Risiko. `Edit.cshtml` (Zeile 161) ruft die Suche **immer** mit `type=@Model.Type`
+    auf, der typ-gescopte Zweig ist also der produktiv relevante Pfad; der ungetypte Zweig
+    (Select2-Partial, InboundBulk, FaCompletion) ist zusätzliche Absicherung.
+  - `WarehouseRequisitionsApiController.AddItem`: der DUMMY-Guard (Zeile 81-82) sitzt **nach**
+    `CheckOwnershipAndDraft` (Zeile 75-76) und **vor** dem `_repo.AddItemAsync`-Aufruf (Zeile 98) —
+    es wird keine Position angelegt. Vergleich per `string.Equals(…, StringComparison.
+    OrdinalIgnoreCase)` — Groß-/Kleinschreibung der Artikelnummer spielt keine Rolle.
+  - Der legitime DUMMY-Pfad (`POST .../items/dummy`, `AddDummyItem`) bleibt unverändert und voll
+    funktionsfähig: Pflicht-Bezeichnung (leer **oder** unverändert = Default → `BadRequest`,
+    Zeile 142-148), mehrere DUMMY-Positionen je Bestellung weiterhin erlaubt (Duplikat-Guard-Skip
+    in `WarehouseRequisitionRepository.AddItemAsync:119` unverändert, `articleNumber !=
+    Article.DummyArticleNumber`).
+  - Regression normale Artikel: Der neue DUMMY-Guard in `AddItem` ist strikt auf
+    `Article.DummyArticleNumber` begrenzt: Nicht-DUMMY-Artikel durchlaufen unverändert Ownership-
+    /Draft-Guard → Glas/Lager-Gruppen-Guard → `AddItemAsync`. Keine Verhaltensänderung.
+  - Keine Nebenwirkung auf Teil 1-5/8 festgestellt: Der Diff (3 Dateien: Test, `AddItem`,
+    `ArticlesApiController.Search`) berührt ausschließlich DUMMY-spezifischen Code; die übrigen
+    1092 Tests (inkl. aller Teil-1-5/8-Suiten) bleiben unverändert grün.
+- **`docs/TESTSZENARIEN.md`** (Worktree) ergänzt: **TS-46.14** „DUMMY ist NICHT ueber die reguläre
+  Artikelsuche waehlbar (Regression, UAT-Fix v1.30.0)" — deckt genau diesen UAT-Fund ab (Suche nach
+  `DUMMY` liefert 0 Treffer in Lager **und** Glas, direkter API-Call auf den normalen Add-Pfad wird
+  mit 400 abgelehnt, normale Artikel bleiben unbeeinträchtigt). Kapitel-46-Übersichtszeile auf
+  „TS-46.1 – TS-46.14" aktualisiert.
+- **`secondbrain/tests/testszenarien-index.md`** (Hauptcheckout) nachgezogen (Kapitel 46, TS-46.14
+  ergänzt).
+
+**Befund:** DUMMY-Fix korrekt und ohne Regression. **Status bleibt: Testbereit.** Deploy-Abschnitt
+(oben, Web **und** Service, Migration 85/86) bleibt unverändert gültig — der Fix ändert nur
+Web-Code (kein neues SQL/keine neue Migration). Der kombinierte Branch
+`feature/2026-08-05-wms-bugs-improvements-teil-1-2-3` ist aus QA-Sicht weiterhin bereit für
+Schranke 2 (manueller UAT durch den Menschen, danach Merge). Die manuelle Test-Checkliste oben ist
+um Punkt 6 zu ergänzen: **TS-46.14 nachtesten** (Suche nach „DUMMY" liefert keine Treffer, nur der
+„nicht gefunden"-Weg funktioniert).
