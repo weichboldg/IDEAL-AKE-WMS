@@ -728,3 +728,104 @@ Status je Befund aus der Kritischen Pruefung, nach Einarbeitung in den Spec-Text
   in Teil 1 — bleibt keine offene Rueckfrage.
 - **H-3/H-4 (Groesse, Staerken):** keine Textaenderung noetig, reine Beobachtungen.
 - **H-5 (Uebersichts-Spec):** ausserhalb dieser Datei, bereits als erledigt vermerkt.
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang **nach** der Ueberarbeitung/Nachbesserung vom 2026-08-06.
+Gegengelesen: der ueberarbeitete Rumpf, alle Antwort-/„=>"-Bloecke, die „Antworten auf S-1..S-4"
+und die „Nachbesserung", der Anhang [[sage-views-ideal]], ADR 0004/0008/0010, `fallstricke.md`,
+sowie **verifiziert am echten main-Code**: `ServiceSettingDefinitions.cs` (inkl.
+`ServiceSettingType.String`), `ServiceSettingDefinitionsTests.All_ContainsDocumentedServiceReadKey`
+(hartcodierte `[Theory]/[InlineData]`-Liste — Methodenname exakt wie in der Spec behauptet),
+`ISyncErrorNotifier.NotifyAsync(string, Exception, CancellationToken)` + `SyncErrorNotifier`,
+`LagerbestandSyncService` (injiziert `ISyncErrorNotifier`, konstruiert synthetische
+`InvalidOperationException` fuer den Cap-Skip — S-4-Praezedenzfall stimmt exakt),
+`SyncWorker.RunResilientAsync` (mailt nur bei geworfener Exception — S-4-Begruendung korrekt), und
+eine Suche nach `sp_rename`/`_Staging`/`TRUNCATE`-Praezedenz (es gibt **keine** — Staging-Swap ist
+tatsaechlich neu, wie die Spec offen sagt).
+
+**Zuerst das Positive (nicht mehr zu diskutieren):** B-1 ist im Text sauber ausgeraeumt — das
+Import-SQL nutzt jetzt eine echte `WHERE EXISTS`-Existenzpruefung, „genau einmal je FAListe-Position"
+ist als AK 3 pruefbar verankert, `FaHierarchyOrderInfo` bleibt separat/vollstaendig. S-3 und S-4
+sind korrekt und **codeverifiziert** verdrahtet. Die folgenden Befunde sind **neu** bzw. betreffen
+Punkte, die die Nachbesserung nur scheinbar geschlossen hat.
+
+### BLOCKER — vor Umsetzung zu entscheiden/korrigieren
+
+**N-1 — Die als „verbindlich" festgeschriebene Whitelist-Regex `^[A-Za-z0-9_]+$` verwirft die
+einzigen real existierenden View-Namen; der von der Spec selbst gesetzte Default verstoesst gegen
+seine eigene Validierung.** Anforderung 8, der S-2-Antwortblock und der Sync-Service-Abschnitt
+schreiben **verbindlich** vor: den Namen in `[Schema].[Name]` zerlegen und jeden Teil ASCII-explizit
+gegen `^[A-Za-z0-9_]+$` pruefen. Der reale View-Name lautet aber laut Anhang **und laut dem in
+dieser Spec gesetzten Default** `vw_IDEAL-AKE_Kommissionierung_FAListe` bzw. `…_FAInfos` — er
+enthaelt einen **Bindestrich** (`IDEAL-AKE`). `[A-Za-z0-9_]` schliesst `-` aus, also faellt der
+Name-Teil durch die eigene Whitelist. Konsequenz: ein Dev, der die Spec woertlich umsetzt, baut
+einen Validator, der den ausgelieferten Default (`Sync:FaHierarchyListeViewName` =
+`[vw_IDEAL-AKE_Kommissionierung_FAListe]`) sofort ablehnt — der Sync kann gegen die realen Views
+**nie** laufen; AK 4 („gueltiger Name wird per `QUOTENAME` abgesichert") ist fuer den kanonischen
+Namen unerfuellbar, weil er QUOTENAME nie erreicht. `open_questions`/Rueckfrage 6 stuft genau dieses
+Detail als blossen „Feinschliff, kein Blocker" ein — das ist die eigentliche Falle: das
+Zeichen-Set ist nicht Feinschliff, sondern fuer die vorhandenen Daten schlicht falsch. Zu
+korrigieren: `-` (und ggf. `.` innerhalb der erkannten Struktur) im erlaubten Zeichensatz je
+Name-Teil explizit zulassen, **ohne** auf `\w` auszuweichen (Homoglyphen-Argument bleibt gueltig),
+und den Widerspruch zwischen „verbindlich `^[A-Za-z0-9_]+$`" und dem Default aufloesen.
+
+**N-2 — Der Fallback-Pfad (Rueckfrage 7) widerspricht der Atomaritaets-Garantie und traegt die
+Berechtigungsfrage nicht, fuer die er gedacht ist.** Der ueberarbeitete Full-Refresh nennt als
+Fallback (falls das `ALTER`/`sp_rename`-Recht fehlt): „`TRUNCATE` + Bulk-Insert **je Zieltabelle
+einzeln in einer eigenen kurzen Transaktion**". Das kollidiert doppelt:
+  - **Atomaritaet:** Punkt 5 derselben Strategie, AK 9 („entweder **beide** Tabellen aktualisiert
+    oder **beide** unveraendert — kein Zwischenzustand") und der eigene S-1-Antwortblock („Beide
+    Tabellen in **einer** Transaktion ersetzen") verlangen einen tabellenuebergreifend atomaren
+    Ersatz. Zwei getrennte Transaktionen (je Tabelle eine) erzeugen genau den verbotenen
+    Zwischenzustand: `FaHierarchyNode` neu neben `FaHierarchyOrderInfo` alt. Der Fallback kann
+    „kurze Lock-Zeit je Tabelle" und „beide als ein logischer Schritt" nicht gleichzeitig erfuellen
+    — die Nachbesserung hat hier einen unaufloesbaren Selbstwiderspruch eingebaut.
+  - **Berechtigung:** `TRUNCATE TABLE` verlangt in SQL Server mindestens **`ALTER`-Recht** auf der
+    Tabelle — dasselbe Recht, dessen moegliches Fehlen den Fallback ueberhaupt ausloest
+    (`sp_rename` braucht ebenfalls `ALTER`). Der als „rechtearmer" Ausweg praesentierte Fallback
+    braucht also praktisch dieselbe Berechtigung wie die Hauptstrategie. Der einzige echte
+    Ohne-`ALTER`-Pfad waere `DELETE FROM` — und den hat S-1 bewusst als langsperrend verworfen.
+    Damit ist Rueckfrage 7 nicht wirklich „mit Fallback abgesichert", sondern offen: ohne `ALTER`
+    gibt es **keinen** in der Spec tragfaehigen Full-Refresh.
+
+### SOLLTE — vor dem Dev-Lauf schaerfen
+
+**N-3 — Die `sp_rename`-Swap-Mechanik ist unterspezifiziert und in AK 11 zu absolut formuliert.**
+Ein Zwei-Tabellen-Tausch Ziel↔Staging ist kein Ein-Schritt-Rename: man braucht **drei** Renames je
+Tabelle (Ziel→Temp, Staging→Ziel, Temp→Staging) mit einem Zwischennamen; das fehlt in der Spec.
+Zudem verschiebt `sp_rename` **keine** Constraint-/PK-/Index-Namen mit — nach dem ersten Swap traegt
+die produktive `FaHierarchyNode` die PK/Index-Namen ihres Staging-Ursprungs (`…_Staging`); rein
+kosmetisch, aber ueber Migrationen hinweg driftend und beim naechsten Schema-`ALTER` verwirrend.
+`sp_rename` nimmt waehrend des Tauschs eine **Sch-M-Sperre**, ein gleichzeitiger Web-Read eine
+Sch-S-Sperre — fuer die (sehr kurze) Swap-Dauer blockieren die sich also doch gegenseitig. AK 11
+(„ohne Blocking/Timeout") ist damit fuer den Swap-Moment leicht zu absolut; korrekt waere „kein
+Blocking waehrend der Ladezeit, nur eine vernachlaessigbare Metadaten-Sperre im Swap-Moment".
+
+**N-4 — Folge-Migrationen muessen die Staging-Tabellen zwingend mitziehen — als harte Regel
+festhalten.** Weil die Zieltabelle und ihr Staging-Pendant schema-identisch bleiben **muessen**
+(sonst bricht der Bulk-Insert/Swap), muss **jede** spaetere Spalten-/Typaenderung an
+`FaHierarchyNode`/`FaHierarchyOrderInfo` das jeweilige `_Staging` im selben Migrationsschritt
+mitaendern. Das ist die gleiche Klasse von Kopplung wie ADR 0004 fuer `SQL/AgentJobs/*` fordert,
+steht hier aber nirgends als Pflicht. Ohne diese Notiz reisst die erste Folge-Migration den Swap
+still auf.
+
+### HINWEIS
+
+**H-6 — Empty-Guard liest jede View doppelt.** Erst `SELECT COUNT(*)` je View, dann Voll-Read —
+bei zehntausenden Zeilen zwei Roundtrips/Scans. Vertretbar (Sekundenbereich, laeuft nur alle paar
+Minuten), aber erwaehnenswert; alternativ Count aus dem bereits geladenen Voll-Read ableiten, sobald
+gelesen — dann faellt aber die „vor jeder Mutation"-Reihenfolge, die S-1 bewusst will. Bewusst so
+lassen ist ok, nur nicht „umsonst".
+
+**H-7 — Drift-Guard-Konvention ist im Bestand bereits uneinheitlich.** Mehrere existierende
+Katalog-Keys (`SageLagerbuchungAktiv`, `SData:*`, `Sync:SageLagerbuchung*`) stehen **nicht** als
+`[InlineData]` im Guard-Test. Die S-3-Forderung, die drei neuen Keys einzutragen, ist also strenger
+als die gelebte Praxis — das ist gut und richtig (mehr Abdeckung), nur kein „so machen es alle".
+Kein Handlungsbedarf, nur zur Einordnung.
+
+BEREIT ZUR FREIGABE: nein. NACHBESSERUNG NOETIG: N-1 (Whitelist `^[A-Za-z0-9_]+$` verwirft die realen
+View-Namen mit Bindestrich — der eigene Default verstoesst gegen die eigene Validierung; „Feinschliff"
+ist es nicht) und N-2 (der Fallback erzeugt den von AK 9 verbotenen Zwischenzustand **und** braucht
+via `TRUNCATE` dasselbe `ALTER`-Recht wie die Hauptstrategie — Rueckfrage 7 bleibt real offen).
+N-3/N-4 begleitend.
