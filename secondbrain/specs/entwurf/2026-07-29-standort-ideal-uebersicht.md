@@ -178,3 +178,68 @@ Lieferreihenfolge).
   naechste Pflege-Runde).
 - **[[2026-07-27-ideal-anpassungen-neu-nachbilden]]** — Backlog-Alteintrag, durch diese Notiz
   abgeloest.
+
+## Vollstaendigkeits-/Reifegrad-Pruefung (2026-08-07) — Gate vor Entwicklungsstart
+
+Methode: Ist-Zustands-Pruefung aller acht Teil-Specs plus die beiden bereits eingearbeiteten
+Kritische-Pruefung-Durchgaenge (06-Erstreview + 07-Zweitreview, je Teil committet). Ein dritter
+Achtfach-Agenten-Review wurde **bewusst nicht** gefahren: Alle acht Dateien sind seit den
+07-Review-Commits **unveraendert** — ein erneuter Lauf wuerde die bereits dokumentierten Befunde
+identisch reproduzieren. Das Gate fasst deshalb den Stand zusammen, statt Aufwand zu duplizieren.
+
+**Gesamturteil: KEINE der acht Specs ist derzeit freigabereif.** Zwei Klassen von Luecken.
+
+### Klasse 1 — querschnittlich (betrifft ALLE): Antworten entschieden, aber NICHT in Rumpf/Frontmatter eingearbeitet
+
+Der Mensch hat starke, ueberwiegend am Code verifizierte Entscheidungen getroffen — sie leben aber
+nur in den „## Antworten"-/„=>"-Bloecken; Rumpf, Akzeptanzkriterien, `open_questions` und Frontmatter
+stehen noch auf dem alten Stand. Ein `dev`-Lauf wuerde den veralteten Body bauen. Konkret offen je Teil:
+
+| Teil | Antworten da? | Wichtigste Rumpf-/Frontmatter-Diskrepanz |
+|---|---|---|
+| 1 | ja | Bindestrich-Whitelist-Fix + EXISTS/Staging in AK ziehen; `open_questions` (2) trimmen |
+| 2 | **nur teils** | „Baum in scope" im Rumpf ok, aber **5 neue Freigabe-Antworten LEER** (s. Klasse 2) |
+| 3 | **nein** | Kern-Frage Doppelzaehlung unbeantwortet (s. Klasse 2); Rumpf-`open_questions`=1 offen |
+| 4 | ja | `depends_on` zeigt auf Backlog-Notiz statt Spec; SyncLog→ILogger; Render-Weg |
+| 5 | ja | Rumpf 100 % stale (drei Sichten+Export statt zwei; AK2 „Artikel" vs. Antwort „Matchcode") |
+| 6 | ja | `depends_on` nur Teil 1 (Antwort: +7 +3); Master read-only vs. Body-„schreibbar" |
+| 7 | ja | **`epic: false` → muss `true`** (sonst falsches Tooling-Routing) + Etappen A–E; 4 `open_questions` leeren; `barcode-scanner.js`/„Index 2 = BelID" streichen; `SageMissingSince` in Migration |
+| 8 | ja (`epic:true`) | **zwei widerspruechliche Etappen-Tabellen**; `affected_code` falsch (barcode-scanner.js statt WorkOperationRepository/bde-terminal.js); `open_questions` (3) offen |
+
+→ Behebbar durch eine Nachbesserungs-Runde „Antworten → Rumpf" (analog Teil 1–4 nach Runde 1).
+
+### Klasse 2 — echte offene Entscheidungen (brauchen den Menschen, nicht nur Nachziehen)
+
+1. **teil-3 (BLOCKER):** Kommissioniert IDEAL **nur auf Blattebene `SubFA = 0`**, oder auch
+   fremdbezogene Baugruppen (`SubFA <> 0`)? Der Anhang stuetzt die Blatt-nur-Regel **nicht** (filtert
+   allein nach `Kommissionieren`). Ohne Antwort ist die Doppelzaehlungs-Regel geraten.
+2. **teil-2 (BLOCKER):** Die 5 neuen Freigabe-Antworten sind **leer** — v. a. die **Web-Mail-Frage**:
+   das Web-Projekt hat **keinen** Mail-Versand (`ISyncErrorNotifier` lebt nur im Service). Wie wird die
+   Fehlermail bei Tiefen-Cap-/Zyklen-Abbruch zur Web-Request-Zeit verdrahtet?
+3. **teil-6 ↔ teil-7 (BLOCKER):** Master-Schalter **read-only** in der Teil-6-Maske (teil-6-Antwort)
+   vs. teil-7 fuehrt die Teil-6-Maske als **gesicherten Schreibweg** (AK + Test). Eins muss weichen.
+4. **teil-7 ↔ teil-8 (BLOCKER):** teil-8 baut auf `GetAllByFaAndOperationAsync` (mengenwertig) aus
+   teil-7 — teil-7-AK ist aber **binaer** und sagt die Variante nicht zu. Zuordnung festlegen.
+5. **teil-1 (BLOCKER, Foundation):** Whitelist-Regex `^[A-Za-z0-9_]+$` verwirft den **eigenen
+   Default-View-Namen** `vw_IDEAL-AKE_Kommissionierung_FAListe` (Bindestrich) → Sync liefe nie. Fixen.
+6. **teil-7 (SOLLTE→BLOCKER Deploy):** `SageMissingSince` (entschieden) in **keiner** Migrationsstufe;
+   AgentJob-Serverabschaltung als **harte Deploy-Vorbedingung** wieder aufnehmen (Datei-Loeschen
+   entfernt keinen auf `AKESQL20` deployten Job).
+7. **teil-5 (SOLLTE):** Wochenbezug-Semantik `Neuer_PT_PPS` (Filter vs. Spalte, Wochengrenze, welcher
+   Termin bei Kombigeraet) offen.
+
+### Kritischer Pfad zum Entwicklungsstart
+
+1. **Teil 1 zuerst reif machen** — es ist das Fundament, Teil 2–8 haengen daran. Nachbesserung
+   (Bindestrich-Whitelist-Fix + Antworten→Rumpf) → Freigabe → Entwicklung Teil 1. Erst danach faechert
+   der Rest auf.
+2. **Teil 7 als Epic** (`epic: true`, Etappen A–E) — der Kern, erst nach Teil 1; daten-invasive
+   Migration, Backup/Runbook.
+3. **Parallel vom Menschen beantworten lassen:** die 4 offenen Entscheidungen (teil-3 Doppelzaehlung,
+   teil-2 Web-Mail + 4 weitere, teil-6↔7 Master, teil-7↔8 GetAll).
+4. Teil 2–6 (Anzeige/Listen) sind nach Teil 1 untereinander unabhaengig lieferbar (B5).
+
+**Empfehlung: NACHBESSERUNG NOETIG (alle 8) — Entscheidungen sind ueberwiegend da und code-verifiziert,
+aber (a) in keinem Rumpf eingearbeitet und (b) 4 echte Entscheidungen offen (teil-2/3 unbeantwortet,
+teil-6↔7 + teil-7↔8 Widersprueche). Fruehester echter Dev-Start: Teil 1 nach seiner Nachbesserung +
+Freigabe.**
