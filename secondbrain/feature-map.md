@@ -1,6 +1,6 @@
 ---
 type: feature-map
-updated: 2026-07-27
+updated: 2026-08-06
 ---
 # Feature-Landkarte
 
@@ -8,11 +8,12 @@ Erst-Befuellung 2026-07-27 aus `PROJECT_STATUS.md` (inzwischen ins Brain aufgelo
 Spec-Titeln in `../docs/superpowers/specs/`. Nach jedem GEMERGED ergaenzt der Merge-Nachlauf hier
 eine Zeile.
 
-**Status-Lesart:** `Gemerged` = in `main`. Alles bis **v1.25.0** ist gemerged (Merge-Commit
-`3b127f2`) und nach `origin/main` gepusht; **v1.26.0** (FA-Zusatzinfos) ist gemerged (`47bd69f`).
-**Produktiv-Deploy und Manual-UAT stehen aus** → [[2026-07-deploy-v1-25-0]].
-Specs ohne Pfadangabe existieren nicht — das Feature entstand vor der Spec-Disziplin.
-Release-Details je Version: `changelog/` (39 Eintraege v1.0.0 – v1.26.0).
+**Status-Lesart:** `Gemerged` = in `main`. Alles bis **v1.26.0** ist gemerged und nach
+`origin/main` gepusht (bis v1.25.0 Merge-Commit `3b127f2`, v1.26.0 FA-Zusatzinfos `47bd69f`).
+v1.27.0–v1.28.0 gemerged; **v1.29.0 + v1.30.0** (WMS Bugs & Improvements Teil 1–5,7,8) gemerged
+(Merge-Commit `65e3901`, 2026-08-06). **Produktiv-Deploy und Manual-UAT stehen weiterhin aus**
+→ [[2026-07-deploy-v1-25-0]]. Specs ohne Pfadangabe existieren nicht — das Feature entstand vor der
+Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
 
 ## Lager und Bestand
 

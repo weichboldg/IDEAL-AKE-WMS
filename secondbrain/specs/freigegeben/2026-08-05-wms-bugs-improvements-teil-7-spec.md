@@ -852,8 +852,8 @@ DUMMY-Position in derselben Bestellung warf einen `SqlException 2601` — Verlet
 umgesetzt (Duplikat-Guard in `AddItemAsync` fuer den DUMMY uebersprungen). Der **DB-seitige**
 Unique-Index auf `(WarehouseRequisitionId, ArticleNumber)` blockierte aber weiterhin, weil alle
 DUMMY-Positionen dieselbe `ArticleNumber = 'DUMMY'` tragen. **InMemory erzwingt Unique-Indizes nicht**
-→ die Unit-Tests waren gruen, der reale SQL Server schlug fehl (bekannter Fallstrick
-[[feedback_inmemory_unique_indexes]]).
+→ die Unit-Tests waren gruen, der reale SQL Server schlug fehl (bekannter Fallstrick; Claude-Memory:
+`InMemory erzwingt keine Unique-Indizes`).
 
 **Fix:** Der Unique-Index wurde zu einem **gefilterten** Unique-Index umgebaut
 (`WHERE [ArticleNumber] <> 'DUMMY'`, Muster wie der bestehende `IX` auf `User.UserId`). Normale

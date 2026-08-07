@@ -2,7 +2,7 @@
 type: uebersicht
 title: "Uebersicht: WMS Bugs & Improvements (2026-08-05) — 8 unabhaengige Teil-Specs"
 slug: 2026-08-05-wms-bugs-improvements-uebersicht
-status: Entwurf
+status: Gemerged
 created: 2026-08-05
 updated: 2026-08-05
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"

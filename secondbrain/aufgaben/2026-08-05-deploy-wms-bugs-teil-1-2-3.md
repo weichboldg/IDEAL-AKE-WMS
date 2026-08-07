@@ -53,7 +53,12 @@ Worktree ist zwingend. Reihenfolge: 1 → 2 → 3.
 - [x] Code-Review (kein BLOCKER; 2 Nachbesserungen umgesetzt), QA gruen, alle 3 Specs Testbereit
 - [x] feature-map.md, Folge-Backlog [[2026-08-05-bulk-einbuchung-bedarfsmeldungen-fulfillment]]
 
-## Ergebnis (Testbereit, 2026-08-05)
+## Abschluss (GEMERGED, 2026-08-06)
+GEMERGED nach `main` (Merge-Commit `65e3901`, 2026-08-06); Worktrees `…teil-1-2-3` + `…4-8`
+entfernt, Branches bleiben bis zur Deploy-Verifikation. Der folgende Abschnitt „Ergebnis
+(Testbereit)" ist damit **überholt** (nur noch als Historie).
+
+## Ergebnis (Testbereit, 2026-08-05) — überholt, siehe Abschluss oben
 Alle drei Teile umgesetzt, `dotnet build` 0 Fehler, `dotnet test` Web 1074 passed/1 skipped +
 Service 195 passed. Offen: **Schranke 2** (Mensch: Manual-UAT je Teil, dann Merge). Worktree/Branch
 bleiben bis zur expliziten Freigabe stehen. **Nebenfund:** veraltete Duplikate der drei Specs in

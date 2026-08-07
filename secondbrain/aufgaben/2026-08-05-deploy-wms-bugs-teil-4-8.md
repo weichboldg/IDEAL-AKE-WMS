@@ -58,7 +58,12 @@ Phase B (DUMMY):
 - [x] feature-map, Bug-Record [[2026-08-05-bewegungshistorie-spaltenfilter-noop-bug]] behoben-testbereit,
       Folge-Aufgabe [[2026-08-06-audit-server-spaltenfilter-noop]]
 
-## Ergebnis (Testbereit, 2026-08-06)
+## Abschluss (GEMERGED, 2026-08-06)
+GEMERGED nach `main` (Merge-Commit `65e3901`, 2026-08-06); Worktrees `…teil-1-2-3` + `…4-8`
+entfernt, Branches bleiben bis zur Deploy-Verifikation. Die folgenden Abschnitte „Ergebnis
+(Testbereit)" / „Schranke 2 offen" sind damit **überholt** (nur noch als Historie).
+
+## Ergebnis (Testbereit, 2026-08-06) — überholt, siehe Abschluss oben
 Teil 4,5,7,8 umgesetzt; **Teil 6 ausgeschlossen** (Freigabe-Antworten unbeantwortet). `dotnet build`
 0 Fehler, `dotnet test` Web 1075 passed/1 skipped + Service 197 passed (+13 Tests Teil 7).
 Migrationen: 84 (User-Default-Filter), 85 (Bestellung-Kommentar), Seed 86 (DUMMY, kein History-Eintrag).

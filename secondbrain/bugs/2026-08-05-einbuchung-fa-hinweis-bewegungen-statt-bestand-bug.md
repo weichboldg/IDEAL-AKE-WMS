@@ -1,9 +1,11 @@
 ---
 type: bug
 title: "FA-Lagerplatz-Hinweis (\"FA … liegt bereits\") wertet Lagerbewegungen statt tatsächlichen Bestand aus"
-status: offen
+status: behoben
 severity: mittel
 created: 2026-08-05
+fixed: 2026-08-06
+fixed_in: "v1.29.0 (Teil 1), Merge nach main (65e3901). Fix: GetStockByProductionOrderAsync mit onlyActualStock; FA-Hinweis zeigt nur tatsaechlichen Ist-Bestand > 0."
 affected_code:
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs (GetStockByProductionOrderAsync)
   - IdealAkeWms/Controllers/StockApiController.cs (GetStockByOrder)

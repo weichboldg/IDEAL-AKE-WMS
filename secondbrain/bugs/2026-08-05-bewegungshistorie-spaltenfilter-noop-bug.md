@@ -1,11 +1,11 @@
 ---
 type: bug
 title: "Bewegungshistorie: Spaltenfilter \"Bewegungsart\" (sowie Datum/Zeit und Menge) filtert nicht — stiller No-Op liefert Vollmenge"
-status: behoben-testbereit
+status: behoben
 severity: mittel
 created: 2026-08-05
 fixed: 2026-08-06
-fixed_in: "v1.30.0 (Teil 4), kombinierter Branch feature/2026-08-05-wms-bugs-improvements-teil-1-2-3 — Testbereit, Schranke 2 offen. FIX (nach Nutzer-Feedback): Bewegungsart- + Datum-Spaltenfilter in ApplyMovementColumnFilter funktionsfaehig gemacht (Enum-Name-Match bzw. Tag/Monat/Jahr-Zeitraum) statt entfernt; Menge bleibt ohne Text-Filter."
+fixed_in: "v1.30.0 (Teil 4), Branch feature/2026-08-05-wms-bugs-improvements-4-8, Merge nach main (65e3901). FIX (nach Nutzer-Feedback): Bewegungsart- + Datum-Spaltenfilter in ApplyMovementColumnFilter funktionsfaehig gemacht (Enum-Name-Match bzw. Tag/Monat/Jahr-Zeitraum) statt entfernt; Menge bleibt ohne Text-Filter."
 affected_code:
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs (ApplyMovementColumnFilter, Zeilen 507-537)
   - IdealAkeWms/Views/StockMovements/Index.cshtml (Tabellen-Header, Zeilen 70-81)
@@ -68,10 +68,17 @@ Text-Spaltenfilter ist dadurch redundant.
 
 ## Fix / Verweis
 
-Siehe [[2026-08-05-wms-bugs-improvements-teil-4-spec]]. Gewählte, minimal-riskante Lösung:
-`data-filterable`/`data-col-key` an den `<th>` für `movement-type`, `datetime`, `quantity` in
-`Index.cshtml` **entfernen** (kein serverseitiger Handler-Ausbau), da für Bewegungsart und Datum
-bereits bessere dedizierte Filter existieren und ein Text-Contains auf Menge kaum sinnvoll ist.
+Siehe [[2026-08-05-wms-bugs-improvements-teil-4-spec]]. Umgesetzt (v1.30.0, nach Nutzer-Feedback):
+Die Spaltenfilter **funktionsfähig** gemacht statt entfernt — echte Server-Handler in
+`ApplyMovementColumnFilter`:
+- `movement-type`: matcht den deutschen Anzeigenamen (Contains) → Enum-`IN` über die passenden
+  `MovementType`-Werte („ausbuchung" trifft bewusst auch „Sage-Ausbuchung").
+- `datetime`: Tag (`dd.MM.yyyy`), Monat (`MM.yyyy`) oder Jahr (`yyyy`) als Zeitraum; OR über mehrere
+  Tokens, SQL-übersetzbar (wirkt server-seitig über alle Seiten), Negation (`!`) unterstützt.
+- `quantity`/**Menge**: bewusst **kein** Text-Spaltenfilter (kein sinnvoller Handler).
+
+`data-filterable data-col-key` an den `<th>` für `datetime` + `movement-type` wieder gesetzt.
+Abgedeckt durch 7 Repo-Tests (`StockMovementRepositoryMovementFilterTests`).
 
 Folge-Aufgabe (Klassen-Audit): Alle weiteren Server-Spaltenfilter-Tabellen der App auf denselben
 No-Op prüfen — jede als `data-col-key` markierte Spalte muss einen passenden `switch`-Zweig im
