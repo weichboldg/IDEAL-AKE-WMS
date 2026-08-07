@@ -569,3 +569,116 @@ Druck-Scaffold). Teil 4 und Teil 5 **erweitern** diesen Baustein, statt ihn zu d
   IDEAL-Daten mit beschichteten Positionen im Testsystem liegen.** Zusaetzlich haengt die Abnahme
   an der noch nicht gelieferten Dienstleister-Vorlage. Beides als Vorbedingung in den Deploy-/
   Test-Abschnitt, damit der qa-agent nicht spaeter unbemerkt daran haengenbleibt.
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang, **nach** der Erweiterung der Antworten. Gegengelesen: diese
+Spec komplett, Teil-1-Spec (Beschichtet-`bit`-Mapping `-1 ⇒ true`), ueberarbeitete Teil-3-Spec
+(gemeinsamer Baustein, ILogger-vs-SyncLog-Begruendung, invertierte Toggle-Default-Semantik), die
+Backlog-Notizen [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] und
+[[2026-08-06-kombinationsgeraete-montageabteilung]], der Anhang [[sage-views-ideal]] (FAInfos 1:n),
+ADR 0005/0006/0010 sowie **echter main-Code**: `Services/PrintService.cs`,
+`Services/WarehousePickingPrintLayout.cs`, `Controllers/WarehousePickingController.cs` (Print-Action),
+`Filters/RequireLagerbestellungAktivAttribute.cs`, `Program.cs` (DI). Die drei alten Blocker (B-1
+Filter, B-2 Kombigeraet, B-3 Render-Weg) sind im Rumpf **inhaltlich sauber** eingearbeitet und
+widerspruchsfrei — aber die Erweiterung hat drei neue, code-belegte Bloecke hinterlassen, und die
+tragende Sequenzierungs-Entscheidung ist vom Menschen gar nicht beantwortet.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B7-1 — Die tragende Freigabe-Frage (PDF-Sequenzierung) ist vom Menschen NICHT beantwortet; damit
+ist In-Scope-PDF/AK 7 dieselbe leere Zusage, die die erste Pruefung an AK 3 geruegt hat.**
+Die `## Freigabe-Antworten`-Zeilen 4–7 sind alle leer (`→`). Genau dort haengen die vier
+Entscheidungen, die die Erweiterung neu geschaffen hat: Layout-Vorlage (4), **PDF-Sequenzierung
+(5)**, Headless-Edge-Verfuegbarkeit (6), Testdaten (7). Offene Rueckfrage 5 — „kann Teil 4 mit
+Bildschirmdruck allein ausgeliefert werden und der PDF-Knopf folgt als eigener Merge, oder
+blockiert das die Freigabe komplett?" — ist die **Weiche fuer den Umfang von Teil 4 selbst** und
+unbeantwortet. Solange sie offen ist, ist der PDF-Download In-Scope (Umfang Z. 67–71, AK 7), aber
+nicht lieferbar (die Erzeugung ist ausgelagert und existiert nicht). Das ist strukturell exakt der
+Fehler, den die 06er-Pruefung an AK 3 „leere Zusage" nannte — nur diesmal fuer AK 7. **Fix:** Der
+Mensch muss Rueckfrage 5 verbindlich beantworten (Empfehlung: Teil 4 als reiner Bildschirmdruck
+freigeben, PDF vollstaendig herausloesen — siehe B7-2), bevor Schranke 1 genommen werden kann.
+
+**B7-2 — `depends_on` zeigt auf eine Backlog-Notiz, nicht auf eine Spec — der Status-Automat kann
+diese Abhaengigkeit nie aufloesen.**
+Frontmatter `depends_on` fuehrt `[[2026-08-06-pdf-erzeugung-fahierarchy-druck]]`. Diese Datei ist
+`typ: feature` (Backlog-Notiz), **keine Spec** (kein `type: spec`, kein `status`). Eine
+Abhaengigkeit, die selbst nie den Pfad NEU → SPEZIFIZIERT → FREIGEGEBEN durchlaeuft, kann nie
+„erfuellt" werden; Teil 4 waere damit dauerhaft nicht sauber freigebbar, solange AK 7 im Umfang
+haengt. Zusaetzlich haengt an derselben (noch nicht existierenden) PDF-Spec die in AK 7
+zugesicherte Erzeugung **und** die ungepruefte Headless-Edge-Voraussetzung (Rueckfrage 6). **Fix:**
+Entweder die PDF-Notiz zuerst zu einer eigenen Spec ausbauen, freigeben und *dann* deren Slug in
+`depends_on` referenzieren (Sequenz: Teil 3 → PDF-Spec → Teil 4-PDF), **oder** — konsequenter — PDF
+komplett aus Teil 4 herausloesen: AK 7 **streichen** (nicht nur „sobald vorliegt"-konditional
+lassen), die PDF-Zeilen aus Umfang/Fachl. Anforderung entfernen und den PDF-Notiz-Verweis aus
+`depends_on` nehmen. Ein konditionales AK, dessen Vorbedingung ausserhalb jeder freigebbaren Spec
+liegt, ist kein Akzeptanzkriterium.
+
+**B7-3 — Der Mehrdeutigkeits-Log laeuft laut Spec ueber SyncLog/Aktivitaets-Protokoll (ADR 0010) —
+das widerspricht ADR 0010 selbst UND der Schwester-Spec Teil 3.**
+AK 3 (Z. 165–168), Fachl. Anforderung (Z. 100–101), Umfang (Z. 62–63) und „Audit-Feld-Auswirkungen"
+(Z. 155–157) schreiben bei mehreren FAInfos-Zeilen einen „Aktivitaets-/SyncLog-Eintrag" vor.
+Teil 4 ist aber eine **Web-Lesefunktion** (`deploy.service: false`, kein Hintergrund-Sync). Teil 3
+hat genau denselben Anomalie-Fall bewusst ueber `ILogger`/Serilog geloest und das explizit
+begruendet: „Dies ist eine Web-seitige Lesefunktion (kein Hintergrund-Sync), daher `ILogger`-Warnung
+statt `SyncLog`-Eintrag (ADR 0010 gilt fuer Hintergrund-Services)" (Teil 3, Fachl. Anforderung 3).
+`ISyncLogger`/`SyncLogServices.All` ist die Protokoll-Infrastruktur der Windows-Service-Syncs; ein
+Web-Request hat keinen Service-Lauf, in den er schreiben koennte. **Fix:** Auf `ILogger`-Warnung
+umstellen (analog Teil 3, `HauptFA` + Zahl der Kopfzeilen), „SyncLog"/„Aktivitaets-Protokoll (ADR
+0010)" in AK 3, Fachl. Anforderung, Umfang und Audit-Abschnitt durch `ILogger` ersetzen. Sonst baut
+der Dev entweder einen nicht existierenden SyncLog-Pfad oder divergiert von Teil 3.
+
+### SOLLTE — macht den Dev-Lauf sicher
+
+**S7-1 — „ausgeliefert ueber den bestehenden `PrintService`" ist technisch falsch und mischt zwei
+unvereinbare Mechanismen.**
+Die Spec sagt an mehreren Stellen, der Bildschirmdruck werde „analog `Views/WarehousePicking/Print.cshtml`
++ `WarehousePickingPrintLayout.cs`" **und** „ausgeliefert ueber den bestehenden `PrintService`
+(`rundll32 mshtml.dll,PrintHTML`)" (affected_code Z. 17, Umfang Z. 64–66, Fachl. Anforderung
+Z. 112–115). Am echten Code stimmt das nicht: `WarehousePickingController.Print` liefert per
+`return View(vm)` eine Razor-Seite an den **Browser** (dortiger Druck via CSS/Browser-Dialog) — es
+ruft `PrintService` **nicht** auf. `IPrintService`/`PrintService` ist im gesamten App-Code
+**nirgends konsumiert** (nur `Program.cs:118` registriert), nimmt `printerPath` + `filePath` und
+druckt via `rundll32` auf einen **physischen Drucker** — das ist kein „Bildschirmdruck" und nicht
+das zitierte Referenzmuster. Die 06er-Pruefung hatte `PrintService` = rundll32-PrintHTML korrekt
+benannt; die Nachbesserung hat daraus faelschlich den Auslieferungsweg des Bildschirmdrucks gemacht.
+**Fix:** Formulierung korrigieren — Bildschirmdruck ist eine Razor-View (`return View`) analog
+`WarehousePicking/Print.cshtml`, **ohne** `PrintService`; den `PrintService`-Verweis in
+affected_code/Umfang/Fachl. Anforderung streichen.
+
+**S7-2 — Toggle-Default-Semantik: `RequireLagerbestellungAktivAttribute` defaultet auf AKTIV — eine
+1:1-Kopie fuer ein Default-`false`-Feature schaltet Beschichtung faelschlich frei.**
+Die Spec fordert `RequireFaHierarchyBeschichtungAktivAttribute` „Muster analog
+`RequireLagerbestellungAktivAttribute`" mit „Default `false`" (Fachl. Anforderung Z. 108–111,
+S-2-Nachbesserung). Der echte Referenzfilter behandelt aber **fehlend/`"true"` ⇒ aktiv, nur `"false"`
+⇒ gesperrt** (Bestandsschutz, Default-EIN). Wird er „analog"/1:1 uebernommen, ist das neue Feature
+per Default **aktiv** — das Gegenteil des geforderten Default-`false`. Teil 3 hat exakt diese Falle
+erkannt und explizit die **invertierte** Semantik gefordert („fehlend/nicht `'true'` ⇒ inaktiv");
+Teil 4 hat diesen Hinweis verloren. **Fix:** Wie Teil 3 die invertierte Default-Semantik explizit
+fordern (fehlend/≠`"true"` ⇒ inaktiv), nicht nur „analog … Default false".
+
+### HINWEIS
+
+**H7-1 — `affected_code` fuehrt keinen PDF-Download-Pfad, obwohl der Knopf/Download Teil-4-Verantwortung
+ist.** Ausgelagert ist nur die *Erzeugung* (der Baustein); die Download-Action, der Knopf an der
+Gruppe und die Dateinamens-Konvention (AK 7) baut Teil 4 selbst. Falls PDF nach B7-1/B7-2 in Teil 4
+verbleibt, gehoert die Controller-Download-Action in `affected_code`. (Entfaellt, wenn PDF gemaess
+B7-2 herausgeloest wird.)
+
+**H7-2 — Sauber und code-bestaetigt:** Filter `Beschichtet == true` ist im ganzen Rumpf konsistent
+(Umfang/Fachl. Anforderung/AK 1); der Anhang fuehrt weiter `= -1`/„nicht `1`" — korrekt, weil das die
+Roh-View-Ebene (Teil 1) ist, kein Bruch. Dienstleister-Kopf 1:n ist widerspruchsfrei behandelt
+(kein Fan-out-Join, eigene Abfrage je `HauptFA`, alle Varianten + Mehrdeutigkeits-Kennzeichnung),
+konsistent mit Anhang und Backlog-Notiz. Die drei Rollen-Pflichtstellen (Attribut, `controller.md`,
+`RoleOverview.cshtml`) sind in `affected_code` vorhanden (ADR 0006). ADR 0005 ist fuer die Liste
+vollstaendig verankert (AK 4). Der gemeinsame Baustein mit Teil 3 (S-3) ist konsistent referenziert.
+
+**H7-3 — 06er-Restpunkte:** B-1/B-2/B-3 der 06er-Pruefung sind im Rumpf geloest. Offen bleiben aus
+06er nur die dort schon als Rueckfrage markierten Punkte (Layout-Vorlage 4, Testdaten 7) — hier als
+Teil von B7-1 (unbeantwortete Freigabe-Antworten) mitgefuehrt.
+
+NACHBESSERUNG NOETIG: (1) Freigabe-Antworten 4–7 vom Menschen einholen, insb. die PDF-Sequenzierung
+(B7-1); (2) `depends_on`/AK 7 bereinigen — PDF-Notiz zur Spec promoten oder PDF ganz herausloesen
+(B7-2); (3) Mehrdeutigkeits-Log von SyncLog auf `ILogger` umstellen (B7-3, ADR 0010 + Teil-3-Konsistenz).
+Zusaetzlich `PrintService`-Auslieferungsweg korrigieren (S7-1) und die invertierte Toggle-Default-Semantik
+explizit fordern (S7-2).
