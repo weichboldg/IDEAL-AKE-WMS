@@ -302,3 +302,205 @@ Doppelzaehlungs-Achsen ausweiten (T5-B3); (4) ADR-0005-Pattern fordern und das G
 (`VMBedarf` vs. `HauptFA`, Summierte Sicht) widerspruchsfrei festlegen (T5-B4). Zusaetzlich Toggle
 und Access-Filter konkret benennen (T5-S1/S2) sowie Fan-out-Disziplin und Aggregationssemantik
 schaerfen (T5-S3/S4). Erst danach freigeben.
+
+## Antworten auf die Kritische Pruefung (2026-08-06)
+
+**Zu T5-B4 — Gruppierungsachsen: Der Widerspruch geht auf eine zu pauschale Vorgabe von mir
+zurueck. Aufloesung:**
+Die Uebersichts-Festlegung „Seiteneinheit durchgaengig `HauptFA`" war fuer Listen von
+**Positionszeilen** gedacht und traegt fuer eine **Aggregatsicht** nicht — die summiert ja gerade
+**ueber** Auftraege hinweg. Verbindlich fuer Teil 5:
+
+| | Reiter/Filter | Gruppierung | Seiteneinheit |
+|---|---|---|---|
+| Sicht 1 — Einzelne Teile | `VMBedarf` (Arbeitsbereich) | `HauptFA` | **`HauptFA`-Gruppe** |
+| Sicht 2 — Summiert | `VMBedarf` (Arbeitsbereich) | Artikel (s. u.) | **aggregierte Zeile** |
+
+- **`VMBedarf` ist eine Filter-/Reiter-Dimension, keine Seiteneinheit.** Der Reiter waehlt den
+  Arbeitsbereich; erst *innerhalb* des Reiters greift die Gruppierung.
+- **Sicht 1** verhaelt sich damit exakt wie Teil 3/4 — gleicher Baustein, keine Sonderlogik.
+- **Sicht 2 ist eine begruendete Ausnahme** von der `HauptFA`-Seiteneinheit: Eine Aggregatzeile
+  gehoert per Definition zu mehreren Auftraegen. Paginiert wird ueber die aggregierten Zeilen,
+  `TotalCount` zaehlt sie. ADR-0005-Spaltenfilter wirken auf den **aggregierten** Zeilen
+  (Matchcode, Summen), nicht auf den Rohpositionen.
+- Die Uebersichts-Aussage ist entsprechend zu qualifizieren („gilt fuer Positionslisten;
+  Aggregatsichten paginieren ueber ihre Aggregatzeilen"), sonst erbt jede kuenftige Liste den
+  Widerspruch.
+
+**Zu T5-S4 — Aggregation: Schluessel `Matchcode`, Summen ueber `Sollmenge` UND `Fertigungmenge`.**
+- **Aggregationsschluessel: `Matchcode`** (nicht `Artnr`) — der Matchcode identifiziert eindeutig,
+  was der Werker holt.
+- **Summiert werden zwei Mengen getrennt:** `Sollmenge` und `Fertigungmenge`. Beide erscheinen als
+  eigene Spalte, keine der beiden ersetzt die andere.
+- **Aggregation je Reiter**, also je `VMBedarf`-Wert — nicht ueber alle Arbeitsbereiche hinweg.
+  Sonst zeigte die Sicht Mengen an, die ein Bereich gar nicht bearbeitet.
+- **Bekannte Folge, bewusst akzeptiert:** Fuehrt derselbe `Artnr` positionsabhaengig verschiedene
+  Matchcodes (Anhang-Fallstrick), erscheinen daraus **mehrere** Zeilen. Das ist gewollt — der
+  Matchcode ist die Identitaet, nicht die Artikelnummer. In der Spec als Verhalten benennen, damit
+  es beim Test nicht als Fehler gemeldet wird.
+
+**Zu T5-B1/B2/B3 und T5-S1/S2/S3 — uebernommen:**
+- **B1:** Spec-Rumpf auf **zwei** Sichten ziehen; AK 3, Export-Punkt im Test-Szenario und
+  `ideal-vormontage-export.js` aus `affected_code` entfernen. Backlog-Nachtrag existiert
+  ([[2026-08-06-vormontage-isolierfraesen-export]]).
+- **B2:** Wochenbezug auf `Neuer_PT_PPS` als **Fachliche Anforderung + AK** verankern (bisher nur
+  im Antwortblock). Der Termin kommt aus der 1:n-`FaHierarchyOrderInfo` → **eigene Abfrage je
+  `HauptFA`**, kein Join gegen die Positionen.
+- **B3:** Ebenenregel **`SubFA = 0`** wie in Teil 3 aufnehmen; Anomalie-Diagnose (Zeile mit
+  `SubFA != 0` UND gesetztem `VMBedarf` → nicht anzeigen, aber protokollieren). AK 2 auf **beide**
+  Doppelzaehlungs-Achsen ausweiten: keine Baugruppen-Verweiszeilen, und keine Mehrfachzaehlung
+  durch den Kopf-Join.
+- **S1:** Toggle **`FaHierarchyVormontageAktiv`** (Default `false`) +
+  `RequireFaHierarchyVormontageAktivAttribute`, kumulativ zum Rollenfilter, Key in
+  `AppSettingKeys.cs` + Doku, in `affected_code` und AK verankern.
+- **S2:** Access-Filter ist **`RequireVorbauAccessAttribute`** (Class-Level, Read) — die Pruefung
+  hat ihn an `FaWorklistController` am Code bestaetigt. Damit entfaellt die Formulierung „der
+  Dev-Lauf liest ihn dort aus": Der konkrete Filter steht jetzt in der Spec, wie ADR 0006 es
+  verlangt. Keine neue Rolle.
+- **S3:** Fan-out-Disziplin wie Teil 3/4 — alle fuenf Kopfspalten (`FE_Termin`,
+  `MontageAbteilung`, `Prio`, `Neuer_PT_PPS`, `Verladetermin_Vsl`) kommen aus einer eigenen
+  Abfrage je `HauptFA`; `MontageAbteilung` rein informativ, kein Positions-Split; bei mehreren
+  OrderInfo-Zeilen alle im Klartext + Mehrdeutigkeits-Kennzeichnung.
+- **H1:** Filter praezisieren als `VMBedarf IS NOT NULL AND VMBedarf <> ''` (nvarchar, **kein**
+  Sage-Bit — kein `-1`-Vergleich).
+- **H3:** Testbarkeits-Vorbedingung und die Reihenfolge-Voraussetzung (Teil 1 produktiv +
+  `Sync:HierarchicalFaEnabled`, Teil 3 als Baustein) in den **Deploy-Abschnitt** ziehen, nicht nur
+  in den Antwortblock.
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang, Auftrag: die menschlichen „Antworten auf die Kritische
+Pruefung (2026-08-06)" pruefen — (a) vollstaendig/in sich/mit dem Rumpf widerspruchsfrei, (b)
+Faktenbehauptungen korrekt, (c) **ist der Rumpf/Frontmatter schon nachgezogen oder noch stale?**
+Gegengelesen: diese Teil-5-Spec **komplett**, die Teil-1-Spec (`Neuer_PT_PPS`/`MontageAbteilung`
+**nur** auf `FaHierarchyOrderInfo`, 1:n je `HauptFA`; `SubFA = 0` = Blatt; Existenzpruefung statt
+Fan-out), die ueberarbeitete Teil-3-Spec inkl. ihres eigenen 2P-Durchgangs (gemeinsamer Baustein,
+`SubFA = 0`-Regel, Anomalie-Log, Seiteneinheit `HauptFA`), der Anhang [[sage-views-ideal]]
+(`VMBedarf` = nvarchar; `Matchcode` = primaeres Produktions-ID; `Neuer_PT_PPS` auf FAInfos), die
+Uebersicht (Querschnitts-Entscheidungen), ADR 0005/0006 sowie **echter main-Code**:
+`RequireVorbauAccessAttribute` (existiert, prueft `HasVorbauAccessAsync`) und `FaWorklistController`
+(traegt `[RequireVorbauAccess]` **Class-Level**, Zeile 20).
+
+**Was haelt (bewusst bestaetigt, damit klar ist, was NICHT neu aufgerollt wird):**
+- **Faktenlage der Antworten stimmt.** `RequireVorbauAccessAttribute` existiert und sitzt
+  Class-Level auf `FaWorklistController` — die S2-Behauptung ist am Code bestaetigt (der Filter ist
+  ein einzelnes Zugriffs-Gate `HasVorbauAccessAsync`, kein Read/Edit-Split; das Label „Read" ist
+  harmlos, weil die Liste ohnehin nur liest). `VMBedarf` = nvarchar (Anhang) → H1 korrekt, kein
+  `-1`-Vergleich. `Neuer_PT_PPS` liegt auf der 1:n-`FaHierarchyOrderInfo` (Anhang/Teil 1) → die
+  Fan-out-Disziplin aus S3/B2 ist die richtige Konsequenz.
+- **Gruppierungs-Aufloesung (B4) ist im Kern tragfaehig:** `VMBedarf` als Reiter-/Filter-Dimension,
+  Sicht 1 nach `HauptFA` wie Teil 3/4, Sicht 2 als begruendete Aggregat-Ausnahme. Die Richtung wird
+  **nicht** neu aufgerollt — nur ihre Verankerung im Rumpf und zwei Rest-Luecken (siehe unten).
+
+### BLOCKER
+
+**T5-2P-B1 — Die Antworten sind „uebernommen", aber der Rumpf/Frontmatter ist zu 100 % stale:
+entschieden, nicht umgesetzt.** Genau der Befund, den der erste Durchgang als T5-B1 markiert hat, ist
+**nicht** abgearbeitet — der Antwortblock sagt bei B1/B2/B3/S1/S2/S3/H1/H3 „uebernommen"/„verankern",
+aber **kein einziger Absatz oberhalb des Antwortblocks wurde geaendert**. Konkret weiter auf dem
+alten Stand (drei Sichten + Export, keine der neuen Regeln):
+- **Frontmatter:** `affected_code` fuehrt weiter `wwwroot/js/ideal-vormontage-export.js` (Z. 18) und
+  listet **weder** den Toggle-Filter `RequireFaHierarchyVormontageAktivAttribute` **noch** README;
+  `open_questions` (Z. 23–26) enthaelt **alle vier** alten Fragen, darunter die bereits
+  beantworteten (Datumsfeld = `Neuer_PT_PPS`, Rollen = `RequireVorbauAccess`).
+- **Ziel** (Z. 42) „eigener Aggregations-/**Export**-Logik"; **In-Scope** (Z. 46–47) „drei Sichten …
+  (3) Export in Zwischenablage"; **Technischer Loesungsentwurf** (Z. 62–64) „Export-Sicht … generiert
+  Zwischenablage-Text … `navigator.clipboard`".
+- **Fachliche Anforderungen** (Z. 54–58) nennen **nur** „Filter: `VMBedarf` gefuellt" — es fehlen
+  `SubFA = 0`-Ebenenregel, Anomalie-Diagnose, Wochenbezug `Neuer_PT_PPS`, Toggle, Access-Filter,
+  Fan-out-Disziplin und die Aggregationssemantik komplett.
+- **Akzeptanzkriterien** (Z. 76–82): **AK 1** „Alle **drei** Sichten", **AK 3** = Export; es gibt
+  **kein** AK fuer Wochenbezug, `SubFA = 0`, Toggle/Access oder Aggregation.
+- **Test-Szenarien** (Z. 86–89) und **Offene Rueckfragen** (Z. 99–105) noch Export-/Screenshot-/
+  Rollen-/Datumsfeld-orientiert; **Deploy** ohne Testbarkeits-/Reihenfolge-Vorbedingung (H3).
+**Verdikt:** „Antworten entschieden, Umsetzung im Rumpf fehlt." Ein Top-down-Dev-Lauf baut weiterhin
+das falsche Feature (drei Sichten + Export, ohne Wochenfilter/Ebenenregel). Der gesamte Rumpf +
+Frontmatter ist auf **zwei Sichten, kein Export** und auf die neun beschlossenen Punkte zu ziehen,
+**bevor** freigegeben wird.
+
+**T5-2P-B2 — Der Wochenbezug bleibt auch im Antwortblock unterspezifiziert — die Kernsemantik des
+Features ist nicht entscheidbar.** Ziel/Nutzen ist „in der **kommenden Woche** vorzubereitenden
+Teile"; Antwort 4 legt `Neuer_PT_PPS` fest. Antwort B2 sagt aber nur „als Fachliche Anforderung + AK
+verankern" und „eigene Abfrage je `HauptFA`, kein Join" — das ist der **Datenpfad**, nicht die
+**Semantik**. Drei vom ersten Durchgang gestellte Fragen sind weiterhin **offen**: (a) ist „kommende
+Woche" ein **harter Filter** auf die Positionsmenge oder nur eine Anzeige-/Sortierspalte? (b) welche
+**Wochengrenze** (ISO-KW Mo–So, rollierende 7 Tage, aktuelle vs. naechste KW)? (c) **Kombigeraet mit
+zwei `Neuer_PT_PPS`-Werten** zu einem `HauptFA`: welcher Termin entscheidet die Wochen-Zugehoerigkeit
+der Positionen — fruehester, beliebiger Treffer, oder erscheint die Position je passender OrderInfo
+(→ neuer Fan-out)? Ohne (a)–(c) ist weder die Fachliche Anforderung noch ein AK formulierbar.
+Zusatz: In **Sicht 2** muss der Wochenfilter **vor** der Matchcode-Aggregation auf die Positionen
+(ueber ihren `HauptFA`) wirken, sonst summiert die Aggregatzeile Positionen mit unterschiedlicher
+Wochen-Eignung zusammen — auch diese Reihenfolge fehlt.
+
+**T5-2P-B3 — Das bestehende AK 2 widerspricht der eigenen Aggregations-Entscheidung (Artikel vs.
+Matchcode), und die beschlossene Aggregationssemantik ist als AK nirgends niedergeschrieben.** AK 2
+(Z. 78–79) fordert „aggregiert korrekt **nach Artikel**". Antwort S4 beschliesst dagegen
+ausdruecklich „Aggregationsschluessel **`Matchcode`** (nicht `Artnr`)". Das ist ein direkter,
+sichtbarer Widerspruch im selben Dokument. Zusaetzlich existiert **kein** pruefbares AK fuer die vier
+S4-Festlegungen (Schluessel `Matchcode`; zwei getrennte Summen `Sollmenge` **und** `Fertigungmenge`;
+Aggregation **je `VMBedarf`-Reiter**; bewusst mehrere Zeilen bei positionsabhaengig abweichendem
+Matchcode). Solange das nur im Antwortblock steht, ist die Summierte Sicht **nicht abnahmefaehig**
+(Task-Vorgabe „beide Sichten je pruefbar"). AK 2 aufloesen und die S4-Semantik als eigenes AK
+niederschreiben.
+
+### SOLLTE
+
+**T5-2P-S1 — Die Anomalie-Behandlung (`SubFA != 0` UND `VMBedarf`) ist erneut nur ein Log —
+operator-unsichtbar, und das ist bei einer mengensteuernden Liste ein Betriebsrisiko.** Antwort B3
+uebernimmt Teil 3 1:1 („nicht anzeigen, aber protokollieren"). Genau diese Log-only-Loesung hat der
+**zweite Durchgang von Teil 3 selbst** als unzureichend markiert (T3-2P-S2: „gar-nicht-ausweisen"
+verschwindet still im Serverlog). Fuer die Vormontage — und erst recht fuer die **Summierte Sicht**,
+wo eine still verworfene Zeile die angezeigte Menge verfaelscht — gilt dasselbe. **Fix:** Anomalien
+zusaetzlich operator-sichtbar machen (Banner/`TempData["WarningMessage"]`: „N Position(en) mit
+`VMBedarf` auf Baugruppen-Ebene ausgeschlossen — Datenpflege pruefen"), konsistent zum noch offenen
+Teil-3-Fix, nicht nur ins `ILogger`-Log.
+
+**T5-2P-S2 — ADR-0005-Spaltenfilter auf Aggregatzeilen (Sicht 2) ist als Mechanik unterspezifiziert.**
+Antwort B4 sagt „Spaltenfilter wirken auf den **aggregierten** Zeilen (Matchcode, Summen), nicht auf
+den Rohpositionen" — das ist bewusst **anders** als das Standard-Server-Mode-Muster (das die
+Rohspalten filtert). Offen bleibt: eigene `ColumnMap` ueber die Aggregat-Projektion
+(Matchcode + zwei Summen); die Reihenfolge Wochenfilter → `SubFA = 0` → `VMBedarf` → aggregieren →
+Spaltenfilter → paginieren; und ob `TotalCount` die **nach** Spaltenfilter verbliebenen
+Aggregatzeilen zaehlt. Das muss die Spec entweder praezise als Server-Mode-auf-Aggregat spezifizieren
+**oder** die Summierte Sicht als begruendete Client-Mode-Ausnahme nach ADR 0005 deklarieren — sonst
+baut der Dev-Lauf einen Filter, der ins Leere greift.
+
+**T5-2P-S3 — Teil 5 setzt auf einen „in Teil 3 geschnittenen gemeinsamen Baustein" auf, den es in
+der Teil-3-Spec noch nicht gibt.** Der Quer-Absatz und Antwort B4 bauen darauf, Sicht 1 verhalte sich
+„exakt wie Teil 3/4 — gleicher Baustein, keine Sonderlogik". Der **zweite Durchgang von Teil 3**
+(T3-2P-S3) hat aber festgestellt, dass Teil 3 diese Wiederverwendbarkeit **nirgends** deklariert
+(`affected_code` listet einen Teil-3-spezifischen `KommissionierListenService`, keinen gemeinsamen
+Baustein) — der Auftrag ist dort **unbehoben**. Damit haengt Teil 5 an einer Zusage, die real noch
+nicht existiert. Entweder in Teil 3 den wiederverwendbaren Schnitt tatsaechlich verankern (Reihenfolge
+Teil 3 vor Teil 5), oder Teil 5 muss den Baustein selbst schneiden — die Abhaengigkeit darf nicht
+stillschweigend vorausgesetzt werden.
+
+### HINWEIS
+
+**T5-2P-H1 — Die Uebersicht widerspricht Sicht 2 und nennt Teil 5 explizit.** Uebersicht Z. 159:
+„Seiteneinheit ist **durchgaengig** die Gruppe (`HauptFA`), nicht die Zeile (Teil 2/3/4/5)". Sicht 2
+paginiert per Beschluss ueber Aggregatzeilen — direkter Widerspruch. Antwort B4 sieht die
+Qualifizierung der Uebersicht vor, aber dieser Edit liegt **ausserhalb dieser Datei** und ist
+**nicht** ausgefuehrt (Zeile unveraendert). Beim Nachziehen des Rumpfs die Uebersicht im selben Zug
+qualifizieren, sonst erbt jede kuenftige Aggregatliste den Widerspruch.
+
+**T5-2P-H2 — „Sicht 1 verhaelt sich exakt wie Teil 3/4" ist leicht ueberzeichnet.** Die
+Gruppierungs-/Paging-Mechanik ist identisch, korrekt — aber Teil 5 setzt **zusaetzlich** eine
+Reiter-/Tab-UI je `VMBedarf`-Wert und einen `VMBedarf`-Vorfilter obendrauf, die es in Teil 3/4 nicht
+gibt. „Gleicher Baustein plus Reiter-Dimension" ist praezise; „exakt wie Teil 3/4" verdeckt die
+Reiter-Ergaenzung.
+
+**T5-2P-H3 — H1-Filter sauber, aber Reiter-Enumeration mitdenken.** `VMBedarf IS NOT NULL AND <> ''`
+ist korrekt. Fuer die Reiter-Liste (distinct `VMBedarf`) muss derselbe Ausschluss von NULL/Leerwert
+gelten, damit kein leerer „(kein Bereich)"-Reiter entsteht — beim Niederschreiben erwaehnen.
+
+BEREIT ZUR FREIGABE? **NEIN.**
+
+NACHBESSERUNG NOETIG: (1) Rumpf + Frontmatter auf zwei Sichten / kein Export / die neun beschlossenen
+Punkte nachziehen — die Antworten sind entschieden, aber im Rumpf **nicht** umgesetzt (T5-2P-B1). (2)
+Wochenbezug `Neuer_PT_PPS` semantisch aufloesen: harter Filter vs. Anzeige, Wochengrenze, Kombigeraet-
+Mehrdeutigkeit, Reihenfolge vor der Aggregation — dann als Anforderung + AK (T5-2P-B2). (3) AK 2
+(Artikel↔Matchcode) aufloesen und die Aggregationssemantik (Matchcode, zwei Summen, je Reiter,
+Mehrfachzeilen) als pruefbares AK niederschreiben (T5-2P-B3). Zusaetzlich Anomalie operator-sichtbar
+(T5-2P-S1), Aggregat-Spaltenfilter-Mechanik spezifizieren oder Client-Mode-Ausnahme deklarieren
+(T5-2P-S2) und die Baustein-Abhaengigkeit zu Teil 3 real absichern (T5-2P-S3). Erst danach freigeben.
