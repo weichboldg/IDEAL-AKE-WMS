@@ -310,3 +310,250 @@ die Etappen-1–3-Grenze zu Teil 7 plus die Kombinationsgeraete-/NurFA-Luecken (
 Dev fehlleiten. Konzept (Variante b, code-getriebene Aufloesung) und Id-Kern sind solide — die
 Nachbesserung ist Praezisierung des Dateiscopes, der Aufloesungs-Eingabe und der Teil-7-Abgrenzung,
 keine Neukonzeption.
+
+## Antworten auf die Kritische Pruefung (2026-08-06)
+
+**Zu KP-2 — Befund akzeptiert, und die Aufloesungsreihenfolge aus Freigabe-Antwort 1 war
+SCHLIMMER als „nur unerreichbar": sie haette falsch gebucht. [KORREKTUR]**
+
+Die Pruefung zeigt am Code, dass der Scan nur die **HauptFA** liefert (Index 2 = FA-Nummer, keine
+BelID) — die gegenteilige Behauptung in Teil 7 ist damit widerlegt. Aber der eigentliche Fehler
+liegt tiefer: **Beim Hauptauftrag gilt `OrderNumber == SubOrderNumber`.** Ein `SubOrderNumber`-
+Lookup mit einer gescannten HauptFA trifft daher **die Zeile des Hauptauftrags** — Schritt 1 haette
+nicht „nie gefeuert", sondern **immer sofort auf den Hauptauftrag gebucht** und die Sub-FA-Auswahl
+komplett uebersprungen. Genau das Gegenteil der Absicht.
+
+**Korrigierte, verbindliche Aufloesungsreihenfolge:**
+1. Lookup gegen **`OrderNumber`** (die Gruppe).
+   - **genau ein** Auftrag → direkt buchen, keine Auswahl (flacher/AKE-Fall unveraendert)
+   - **mehrere** → **Auswahlliste** der Auftraege dieser `OrderNumber` (Hauptauftrag **und**
+     Sub-FAs — der Hauptauftrag ist selbst ein buchbarer FA)
+2. **Kein Treffer** → Fallback-Lookup gegen **`SubOrderNumber`** → direkt buchen. Dieser Zweig ist
+   heute unerreichbar und **bewusst als Vorruestung** enthalten: Er greift automatisch, falls
+   spaeter Sub-FA-Barcodes eingefuehrt werden (Annahme B2, unbestaetigt). Er kann nicht falsch
+   treffen, weil eine echte Sub-FA-Nummer nie eine `OrderNumber` ist.
+3. Kein Treffer → bestehende Fehlerbehandlung, unveraendert.
+
+**Konsumierter String — festgelegt:** das `fa`-Segment aus `bde-terminal.js:scanFaAgInput`
+(Split auf `,`/`/` → `[fa, op]`). Der QR-Pfad in `barcode-scanner.js` (Index 2) liefert denselben
+Wert. **Kein** BelID-Begriff im Client, keine Formataenderung noetig.
+
+**Folge fuer Teil 7:** Die dortige Behauptung „QR traegt an Index 2 die BelID = SubOrderNumber" ist
+falsch und muss in der Teil-7-Spec **gestrichen** werden — sie ist am Code widerlegt.
+
+**Zu KP-1 — `affected_code` wird auf die echten Nahtstellen korrigiert.** Aufnehmen:
+`Data/Repositories/WorkOperationRepository.cs` (`GetByFaAndOperationAsync`),
+`Controllers/BdeApiController.cs` (`GetWorkOperation`, `GetAvailableOperations`),
+`wwwroot/js/bde-terminal.js`. **Entfernen:** `wwwroot/js/barcode-scanner.js` — das ist der
+Artikel-/Lagerplatz-Scanner, nicht der BDE-Terminal-Pfad. (Auch in Teil 7 entfernen, dort steht er
+ebenfalls faelschlich.)
+
+**Zu KP-3 — Grenze zu Teil 7, verbindlich formuliert:**
+> **Teil 7 macht die Datenschicht mehrdeutigkeitsfaehig, ohne das Terminal-Verhalten zu aendern.
+> Teil 8 baut die Disambiguierungs-UI und schaltet das Terminal darauf um.**
+
+Konkret an `GetByFaAndOperationAsync`: **Teil 7** ergaenzt eine mengenwertige Variante
+(`GetAllByFaAndOperationAsync`) und protokolliert im bestehenden Einzel-Lookup, wenn er mehr als
+eine Zeile faende — aendert aber **nicht**, was das Terminal tut. Damit bleibt Teil 7 fuer sich
+mergebar, ohne das Terminal zu brechen. **Teil 8** stellt den Aufruf auf die mengenwertige Variante
+um und haengt die Auswahl daran.
+
+**Etappen-Schnitt entsprechend neu** (KP-3-Empfehlung uebernommen — vorn war zu dick, hinten zu
+duenn):
+| # | Etappe |
+|---|---|
+| 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen (fasst die bisherigen 1–3 zusammen) |
+| 2 | Aufloesungslogik serverseitig (Gruppen-Lookup, Fallback, Mehrdeutigkeits-Ergebnis) inkl. Unit-Tests |
+| 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste (KP-7) |
+| 4 | NurFA-Button-Matching fixen (KP-5) + Durchzug ueber Teileverfolgung |
+| 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) |
+| 6 | Tests + Brain-Update |
+
+**Zu KP-4 — Kombinationsgeraete: Paket-Entscheidung wird ausdruecklich uebernommen.**
+Keine `MontageAbteilung` in `ProductionOrders`, also **kann die Auswahlliste zwei Kombi-Auftraege
+nicht auftragsweise trennen** — der Werker sieht die Sub-FAs beider vermischt. Das ist die bewusst
+akzeptierte Grenze, kein Umsetzungsfehler. In der Spec als **bekannte Einschraenkung** benennen
+(damit der Dev keine Trennung erfindet und der Test sie nicht als Fehler meldet) und mit
+[[2026-08-06-kombinationsgeraete-montageabteilung]] verlinken. Die Auswahl erfolgt bewusst
+**positionsweise** (Matchcode/Arbeitsbereich unterscheiden), nicht auftragsweise.
+
+**Zu KP-5 — NurFA-„last wins, no break" ist ein Fehlbucher und wird gefixt.**
+Heute harmlos (Unique Index), nach der Inversion ein stiller Griff auf den falschen Sub-FA. Als
+**eigenes AK** aufnehmen: Kein Substring-„last wins" mehr — bei mehreren Treffern greift dieselbe
+Auswahl wie nach dem Scan. Gehoert in Etappe 4.
+
+**Zu KP-6 — uebernommen.** Testdaten-Abhaengigkeit als Schranke-2-Vorbedingung in den Deploy-/
+Test-Abschnitt (analog Teil 1–5): AK 1 und die Verifikation des Fallback-Zweigs sind ohne
+produktivnahe hierarchische Rueckmeldedaten nicht gruen zu bekommen.
+
+**Zu KP-7 — uebernommen, macht Etappe 3 kleiner.** Die Auswahl setzt auf die bestehende
+`GetAvailableOperations`-Liste auf (Id-basiert, werkbank-gescopt) und **filtert** sie auf die
+gescannte `OrderNumber` — keine zweite Auswahl-Mechanik. Der Klick bucht weiterhin per `Id`
+(`StartProductionForOrder`), also ueber den bereits eindeutigen Schluessel.
+
+**Zu KP-8 — vermerkt.** Solange Etappe 1/2 kein neues persistiertes Modell einfuehren, bleibt ADR
+0003 unberuehrt. Entsteht doch eine neue Entitaet (z. B. UI-Status der Auswahl), erbt sie
+`AuditableEntity` — im Datenmodell-Abschnitt festhalten.
+
+**Zu KP-9 — bestaetigt als harte Reihenfolge.** Teil 8 wird **nicht gestartet**, bevor Teil 7
+gemergt ist. `depends_on` bleibt.
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang, **nach** dem Antwortblock (2026-08-06). Gegengelesen: diese
+Spec komplett (Frontmatter, Rumpf, erster Kritik-Block, Antwortblock), die Teil-7-Spec inkl. ihrer
+Antworten, die Ideen-Notiz (B2/B5), der Anhang [[sage-views-ideal]], die Kombinationsgeraete-Notiz
+[[2026-08-06-kombinationsgeraete-montageabteilung]] — **plus verifiziert am realen main-Code**:
+`WorkOperationRepository.GetByFaAndOperationAsync`, `BdeApiController.GetWorkOperation`/
+`GetAvailableOperations`, `bde-terminal.js` (`scanFaAgInput` + NurFA-Matching + Button-Rendering),
+`barcode-scanner.js`, `BdeBookingService` (Audit), `TrackingController`.
+
+**Vorab bestaetigt (Staerken):** Die KP-2-**Korrektur** ist am Code belegt und scharf: Weil beim
+Hauptauftrag `OrderNumber == SubOrderNumber` gilt (Teil-7-Spec Zeile 82, Ideen-Notiz Zeile 125),
+haette die urspruengliche „SubOrderNumber zuerst"-Reihenfolge tatsaechlich **immer sofort auf den
+Hauptauftrag gebucht** und die Auswahl uebersprungen — die Umkehrung (OrderNumber-Gruppe zuerst,
+SubOrderNumber als Vorruest-Fallback) ist richtig. Der Fallback-Zweig kann nicht fehltreffen: er
+wird nur erreicht, wenn **kein** OrderNumber-Match vorliegt, und `SubOrderNumber` ist unique — die
+Begruendung im Antwortblock haelt. Der AKE-Fall bleibt unveraendert (flach → genau ein Treffer →
+Direktbuchung). Audit ist sauber (`BdeBookingService.SetAudit`/`SetAuditModified` ziehen
+`ModifiedBy`/`ModifiedByWindows` aus `_userSvc`, KP-8 korrekt). NurFA-„last wins" (KP-5) am Code
+verifiziert (`bde-terminal.js` Zeilen 168-170: `forEach` mit `indexOf`, **kein** `break`).
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**KP2-1 — Der RUMPF und das FRONTMATTER wurden NICHT auf die Antworten nachgezogen; die
+Korrekturen leben ausschliesslich im Antwortblock. Die Spec widerspricht sich selbst.**
+Genau der Defekt, den der Teil-7-Durchgang als B7-3/H7-2 blockiert hat — hier ist er unbehoben, und
+der Antwortblock verspricht nicht einmal, ihn zu beheben. Konkret liest ein Dev heute
+widerspruechliche Anweisungen, je nachdem, welchen Teil der Datei er oeffnet:
+- **`affected_code` (Frontmatter Zeilen 13-21)** listet weiterhin `wwwroot/js/barcode-scanner.js`
+  (Zeile 17) und enthaelt **weder** `Data/Repositories/WorkOperationRepository.cs` **noch**
+  `wwwroot/js/bde-terminal.js` — also exakt die Falsch-Zuordnung, die KP-1 korrigiert. Der
+  Antwortblock (Zu KP-1) beschreibt die Korrektur nur, **fuehrt sie im Frontmatter nicht aus**.
+- **`open_questions` (Zeilen 23-26)** sind vollstaendig durch die Freigabe-Antworten beantwortet,
+  stehen aber noch — das HOME-Dashboard zeigt Teil 8 damit faelschlich als offen (dieselbe Wirkung,
+  die Teil 7 als H7-2 ausdruecklich vermeidet und leert).
+- **`etappen` (Frontmatter Zeilen 28-34) UND die Etappen-Tabelle im Rumpf (Zeilen 117-126)** tragen
+  noch den **alten** 6-Etappen-Schnitt (1 Rueckmelde-Datenmodell, 2 Repositories haerten …). Der
+  Antwortblock hat einen **neuen** Schnitt (Zeilen 363-370: 1 Verifikation, 2 Aufloesungslogik, 3
+  Auswahl-UI, 4 NurFA-Fix+Teileverfolgung …). Zwei Etappen-Tabellen in einer Datei, die einander
+  widersprechen.
+- **„Fachliche Anforderungen" B2/B-5 (Zeilen 65-73)** stellt die Entscheidung weiterhin als **offen**
+  dar („Es muss entschieden werden, ob (a) … oder (b) …") — obwohl Variante (b) entschieden **und**
+  die Aufloesungsreihenfolge zweimal korrigiert wurde.
+- **„Technischer Loesungsentwurf" (Zeilen 78-83)** nennt `barcode-scanner.js` als Scan-Handler
+  („bekommt … entweder eine Gruppen-Zwischenansicht oder eine direkte Sub-FA-Aufloesung") — falsche
+  Datei (KP-1) **und** als „entweder/oder" unentschieden formuliert.
+- **Akzeptanzkriterien (Zeilen 98-108)** enthalten **kein** AK fuer die korrigierte
+  Aufloesungsreihenfolge, **kein** AK fuer den NurFA-Fix (der Antwortblock sagt zu KP-5 ausdruecklich
+  „als eigenes AK aufnehmen"), **kein** AK fuer die Kombi-Einschraenkung und **keine** Nennung des
+  Fallback-Zweigs. Die Deploy-Sektion (Zeilen 132-139) fuehrt die KP-6-Testdaten-Vorbedingung nicht,
+  obwohl der Antwortblock sie „uebernommen" nennt.
+
+  Solange der Rumpf nicht nachgezogen ist, ist die Spec **nicht umsetzungsreif**: Der Dev muesste den
+  Antwortblock als heimliche Wahrheit gegen den widersprechenden Rumpf durchsetzen. Vor Freigabe:
+  Frontmatter (`affected_code`, `open_questions` leeren, `etappen` auf den neuen Schnitt), die
+  Etappen-Tabelle im Rumpf, den B2/B-5-Abschnitt, den Loesungsentwurf und die AK **auf den
+  Antwortblock ziehen** — genauso, wie Teil 7 es in „Zu B7-3" fuer sich zugesagt hat.
+
+**KP2-2 — Die Etappen-1/2-Grenze stuetzt sich auf einen Teil-7-Liefergegenstand, den Teil 7 gar
+nicht zusagt.** Der Antwortblock (Zu KP-3) formuliert die Grenze verbindlich: „**Teil 7** ergaenzt
+eine mengenwertige Variante (`GetAllByFaAndOperationAsync`) und protokolliert im bestehenden
+Einzel-Lookup, wenn er mehr als eine Zeile faende … **Teil 8** stellt den Aufruf auf die
+mengenwertige Variante um." Gegengelesen mit der **Teil-7-Spec**: deren In-Scope nennt nur „Durchzug
+von `SubOrderNumber` durch Repositories/Controller/Scan-Lookups", und **AK 8** verlangt je Fundstelle
+eine **binaere** Einordnung — „unkritisch (Gruppen-Lookup, bleibt `OrderNumber`)" **oder** „kritisch,
+auf `SubOrderNumber` umgestellt". Eine **dritte** Zusage — „mengenwertige Zusatzvariante anlegen +
+Einzel-Lookup nur protokollieren, Terminal unveraendert lassen" — steht in Teil 7 **nirgends**.
+`WorkOperationRepository` ist dort zwar unter den 14 Fundstellen gelistet, aber unter der
+Binaer-Regel faellt der BDE-Scan-Lookup entweder in „bleibt OrderNumber" (dann fehlt die
+Disambiguierung ganz) oder „auf SubOrderNumber umgestellt" (dann bricht — wie KP-2 zeigt — die
+Gruppenaufloesung). Die von Teil 8 gebrauchte „mengenwertige Variante + Logging, Terminal
+unangetastet" ist ein **eigener** Liefergegenstand. Folge: Entweder die **Teil-7-Spec** wird vor
+deren Freigabe explizit um diesen Punkt ergaenzt (AK + `affected_code`), **oder** Teil 8 uebernimmt
+die Erstellung von `GetAllByFaAndOperationAsync` + Logging selbst in Etappe 1/2 — dann ist die
+Grenzformulierung „Teil 7 liefert, Teil 8 stellt um" falsch und muss umgeschrieben werden. So wie es
+steht, arbeiten beide Specs an einer Naht, die keine von beiden verbindlich baut.
+
+### SOLLTE — sichert die Dev-/Etappen-Laeufe
+
+**KP2-3 — Die korrigierte Aufloesungsreihenfolge ist nur auf Auftrags-Granularitaet formuliert und
+ignoriert, dass der reale Normal-Modus-Lookup auf (`OrderNumber` + `OperationNumber`) keyed ist.**
+Der einzige eindeutigkeitsannehmende Normal-Modus-Seam ist `GetByFaAndOperationAsync(faNumber,
+operationNumber)` = `FirstOrDefaultAsync(w => w.ProductionOrder.OrderNumber == faNumber &&
+w.OperationNumber == operationNumber)` — er filtert **zusaetzlich** auf die AG-Nummer und liefert
+**eine WorkOperation**, keinen „Auftrag". Der Antwortblock beschreibt Schritt 1 aber als
+„Lookup gegen `OrderNumber` (die Gruppe) → genau ein **Auftrag** → direkt buchen". Bei zwei Sub-FAs
+derselben `OrderNumber`, die **beide** einen AG „01" haben, liefert (`OrderNumber`, „01") **zwei**
+WorkOperations — die Mehrdeutigkeit sitzt also auf (`OrderNumber`+`OperationNumber`)-Ebene, nicht auf
+reiner `OrderNumber`-Ebene. Verschaerfend: der **NurFA-Modus** hat gar keine AG im Scan (das Terminal
+setzt im Fallback hart `opNumber=01`, `bde-terminal.js` Zeile 176) und bucht per `ProductionOrder.Id`
+ueber `StartProductionForOrder` — **andere** Granularitaet und **anderer** Buchungspfad als der
+Normal-Modus (per `workOperationId`). Etappe 2 („Aufloesungslogik serverseitig") muss die
+Reihenfolge fuer **beide** Modi getrennt festlegen (Normal: Menge der WorkOperations je
+`OrderNumber`+`OperationNumber`; NurFA: Menge der ProductionOrders je `OrderNumber`), sonst rät der
+Dev, welche Ebene „genau ein / mehrere" meint.
+
+**KP2-4 — `affected_code`-Korrektur (Antwortblock) ist gegen den neuen Etappen-4-Umfang
+unvollstaendig.** Etappe 4 (neuer Schnitt) enthaelt ausdruecklich „Durchzug ueber Teileverfolgung".
+Der reale Teileverfolgungs-Scan laeuft ueber `barcode-scanner.js` (`scanType 'productionOrder'`,
+Index 2 = FA-Nummer) und fuellt einen Filter, den `TrackingController` per
+`OrderNumber.Contains(filterOrderNumber)` auswertet — ein **Filter**, kein eindeutigkeitsannehmender
+Lookup, also unkritisch, aber **betroffen**. Der Antwortblock streicht `barcode-scanner.js` pauschal
+und benennt fuer Etappe 4 **keinen** Teileverfolgungs-Code (`TrackingController` steht zwar noch im
+Rumpf-`affected_code`, wird in der KP-1-Antwort aber nicht bestaetigt). Beim Nachziehen von
+`affected_code` (KP2-1) den Teileverfolgungs-Pfad bewusst behandeln: entweder als „nur Filter,
+unkritisch" dokumentieren oder aufnehmen — nicht stillschweigend fallen lassen.
+
+**KP2-5 — Der Satz „Der QR-Pfad in `barcode-scanner.js` (Index 2) liefert denselben Wert" ist
+irrefuehrend.** Das BDE-Terminal ruft `barcode-scanner.js` **nicht** auf — `scanFaAgInput`
+verarbeitet ein eigenes Text-Input (`scanFaAg`, Split auf `,`/`/`). `barcode-scanner.js` ist ein
+**separater** Kamera-/Bild-Scanner fuer andere Masken (Artikel/Lagerplatz/Teileverfolgung). Fuer die
+Festlegung des konsumierten Strings ist das harmlos (das `fa`-Segment aus `bde-terminal.js` ist die
+alleinige Quelle), aber die Behauptung suggeriert eine Kopplung der beiden Scanner, die es nicht
+gibt. Beim Rumpf-Nachzug (KP2-1) den Satz auf „das BDE-Terminal nutzt einen eigenen
+Text-Input-Handler, nicht `barcode-scanner.js`" schaerfen.
+
+**KP2-6 — Server-seitige Gruppenaufloesung (Etappe 2) und werkbank-gescopte Auswahl-UI (Etappe 3)
+koennen divergieren.** `GetAvailableOperations` liefert nur FAs/AGs **dieser Werkbank** (KP-7,
+verifiziert: `ProductionWorkplaceId == workplaceId`). Ein server-seitiger Gruppen-Lookup auf
+`OrderNumber` liefert dagegen **alle** Sub-FAs der Gruppe, auch die an anderen Werkbaenken. Wird die
+UI-Auswahl (Etappe 3) auf die Werkbank-Liste gefiltert, aber die Mehrdeutigkeitspruefung (Etappe 2)
+auf die volle Gruppe gestellt, kann Etappe 2 „mehrere" melden, waehrend die Werkbank-Liste nur einen
+zeigt (oder umgekehrt). Festlegen, auf welcher Menge „genau ein / mehrere" entschieden wird — sinnvoll
+die werkbank-gescopte, damit UI und Entscheidung deckungsgleich sind.
+
+### HINWEIS
+
+**KP2-7 — `epic: true` korrekt gesetzt** (Frontmatter Zeile 27); der neue Etappen-Schnitt aus dem
+Antwortblock ist in der Reihenfolge schluessig (Verifikation → Server-Logik → UI → Fix+Durchzug →
+OSEON bedingt → Tests) und mit „ein langlebiger Worktree, kein Zwischen-Merge" (Rumpf Zeile 128)
+vertraeglich — die Etappen brauchen nur **buildbare** Commits (AK 5), keine je-Etappe-Mergebarkeit.
+Einzig die Doppelung „Unit-Tests in Etappe 2" vs. „Tests in Etappe 6" klarstellen (Etappe 6 =
+Integrations-/Testszenarien + Brain).
+
+**KP2-8 — Regressionsgarantie AKE haelt, aber unverankert.** Der „mehrere → Auswahl"-Zweig bricht
+den AKE-Fall nicht (dort `OrderNumber == SubOrderNumber`, immer genau ein Treffer → Direktbuchung).
+Das ist korrekt — gehoert aber als expliziter AK-Satz in den nachgezogenen Rumpf (heute nur AK 4
+„AKE-Verhalten unveraendert", ohne Bezug auf den neuen Auswahl-Zweig).
+
+**KP2-9 — Teil-7-Rumpf traegt noch die widerlegte „Index 2 = BelID"-Behauptung.** Der Antwortblock
+(Zu KP-2) sagt korrekt, diese Aussage sei am Code widerlegt und muesse in der **Teil-7-Spec**
+gestrichen werden — dort steht sie aber weiterhin (`affected_code` Zeile 27 „Index 2 = BelID" und
+Rumpf Zeile 165 „QR traegt an Index 2 die BelID = kuenftig `SubOrderNumber`"). Das ist Teil-7-Pflege
+(nicht in dieser Datei zu aendern), aber die Grenzformulierung von Teil 8 haengt daran: Solange Teil
+7 die falsche Behauptung traegt, ist die Abstimmung „mit Teil 7 abgestimmt" (Antwortblock zu KP-2)
+faktisch offen. Bei der Teil-7-Nachbesserung mitziehen.
+
+**Verdikt:** Der fachliche Kern ist jetzt **richtig** — die KP-2-Korrektur ist am Code belegt, die
+Aufloesungsreihenfolge (OrderNumber-Gruppe → Fallback SubOrderNumber) ist konsistent und
+AKE-regressionssicher, Audit und Id-Kern halten. **Aber** der Rumpf/das Frontmatter wurden nicht auf
+den Antwortblock nachgezogen: `affected_code`, `open_questions`, beide Etappen-Tabellen, der
+B2/B-5-Abschnitt, der Loesungsentwurf und die AK widersprechen den Antworten (KP2-1) — dieselbe
+Luecke, die Teil 7 als B7-3 blockiert hat. Zusaetzlich stuetzt sich die Etappen-Grenze auf einen
+Teil-7-Liefergegenstand, den Teil 7 nicht zusagt (KP2-2), und die Aufloesungslogik ist fuer die zwei
+BDE-Modi unterspezifiziert (KP2-3). Das sind Praezisierungen und ein Nachzug, keine Neukonzeption.
+
+NACHBESSERUNG NOETIG: Rumpf + Frontmatter auf den Antwortblock nachziehen (KP2-1), die
+Teil-7-Grenze verbindlich absichern (KP2-2), die Aufloesungslogik je BDE-Modus auf die reale
+(`OrderNumber`+`OperationNumber`)-/PO-Id-Granularitaet festlegen (KP2-3).
