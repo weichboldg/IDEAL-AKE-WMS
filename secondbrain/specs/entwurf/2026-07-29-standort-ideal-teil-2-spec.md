@@ -19,8 +19,6 @@ affected_code:
   - secondbrain/tests/testszenarien-index.md
 open_questions:
   - "Kombigeraet-Kopfdaten in der Strukturkopfzeile: ein HauptFA mit mehreren FaHierarchyOrderInfo-Zeilen (mehrere MontageAbteilung-Werte) — alle Kopfzeilen im Klartext auffuehren + als mehrdeutig kennzeichnen (analog Uebersicht-Regel und [[2026-08-06-kombinationsgeraete-montageabteilung]]) oder eigene Darstellungsregel fuer diese Baumansicht?"
-  - "Integrationsluecke Fehlermail: ISyncErrorNotifier lebt ausschliesslich im Namespace IDEALAKEWMSService.Services (Windows-Service-Projekt) und ist von einem Web-Controller/-Service (IdealAkeWms) nicht direkt injizierbar. Der Tiefen-Cap-/Zyklen-Abbruch passiert aber beim Rendern einer Web-Seite (Request-Zeit), nicht in einem periodischen Sync-Lauf. Wie wird die geforderte Fehlermail technisch verdrahtet — eigener Web-seitiger Mail-Mechanismus, gemeinsame Abstraktion fuer beide Projekte, oder wird die Zyklen-/Tiefenpruefung stattdessen in FaHierarchySyncService (Teil 1, hat ISyncErrorNotifier bereits verdrahtet) vorgelagert und nur das Ergebnis (Fehler-Flag je Struktur) an die Web-Anzeige durchgereicht?"
-  - "Aktivitaets-/SyncLog-Eintrag bei Tiefen-Cap-/Zyklen-Abbruch: ISyncLogger/SyncLog (ADR 0010) ist auf periodische Sync-Laeufe mit eigenem, isoliertem DbContext zugeschnitten. Ein Verstoss tritt hier aber pro Web-Request auf. Reicht ein Serilog-Log-Eintrag (kein SyncLog-Lauf), oder wird ein eigener, minimaler SyncLog-Eintrag je Verstoss erzeugt?"
   - "Default-Aufklapp-Zustand und Kopplung des Auto-Expand: Ist die Baumanzeige beim ersten Laden vollstaendig aufgeklappt oder collapsed mit Expand/Collapse wie beim BOM-Tree (ReadOnlyBomBuilder/Views/Picking/Bom.cshtml)? Ist Auto-Expand bei Filtertreffer an das bestehende User-Setting RecursiveFilterSearch gekoppelt (dann muesste es fuer FaHierarchy-Anwender ebenfalls gelten) oder ein eigener, immer aktiver Mechanismus fuer diese Ansicht?"
   - "Konfigurations-Heimat des Tiefen-Caps: AppSettings (ADR 0011, mit oder ohne Seed-Zeile) analog zu den uebrigen reinen Web-Anzeige-Schaltern der Uebersicht, oder eine hartkodierte Konstante im Code (kein DB-Zugriff noetig, aber dann nicht ohne Deploy aenderbar — widerspraeche 'konfigurierbar' aus der B-3-Antwort)?"
 epic: false
@@ -33,7 +31,7 @@ freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -88,9 +86,12 @@ Uebersichts-Ebene aufgeloest (B5-Linie, siehe [[2026-07-29-standort-ideal-uebers
   Feinheiten siehe Technischer Loesungsentwurf und offene Rueckfrage 4.
 - **Tiefen-Cap (konfigurierbar, Default 500) UND Visited-Set-Zyklenschutz je Struktur (B-3).**
   Verletzung: Aufbau **dieser einen** Struktur bricht ab, uebrige Strukturen bleiben normal
-  sichtbar; Protokoll- **und** Fehlermail-Pflicht (technische Verdrahtung ist offene Rueckfrage 2/3,
-  siehe unten — die fachliche Anforderung selbst ist nicht offen). Die betroffene Struktur wird als
-  **fehlerhaft markiert**, nicht leer dargestellt und nicht still verworfen.
+  sichtbar; Meldung als **`ILogger`-Warnung plus sichtbares UI-Signal** (Querschnittsregel der
+  Uebersicht „Das Web verschickt keine Mails", 2026-08-07 — entschieden, loest die ehemals offenen
+  Rueckfragen 2/3 auf, siehe unten). **Keine** Fehlermail und **kein** `SyncLog`-Eintrag aus dem
+  Web-Controller; was tatsaechlich gemailt werden muss, erkennt der Service
+  (`FaHierarchySyncService`, Teil 1, hat `ISyncErrorNotifier` bereits verdrahtet). Die betroffene
+  Struktur wird als **fehlerhaft markiert**, nicht leer dargestellt und nicht still verworfen.
 - **Waisen-Behandlung.** Ein Knoten, dessen `VaterFA` auf keinen in `FaHierarchyNode` importierten
   Parent zeigt, verschwindet **nicht** still aus der Anzeige — er wird als eigene, deutlich als
   „verwaist" markierte Pseudo-Wurzel-Struktur gerendert und zaehlt als eigene Struktur fuer
@@ -129,9 +130,15 @@ Uebersichts-Ebene aufgeloest (B5-Linie, siehe [[2026-07-29-standort-ideal-uebers
   - Verhalten bei Verletzung (beide Faelle): Aufbau **dieser einen** Struktur bricht ab, die
     uebrigen Strukturen der Seite werden normal und vollstaendig angezeigt. Kein Abbruch der ganzen
     Seite.
-  - Meldung: Eintrag im Aktivitaets-/SyncLog **und** Fehlermail, mit `HauptFA` und Abbruchstelle
-    (technische Verdrahtung — welcher Mechanismus vom Web-Request aus erreichbar ist — siehe offene
-    Rueckfragen 2/3; die fachliche Anforderung selbst steht fest).
+  - **Meldung (ENTSCHIEDEN, Querschnittsregel der Uebersicht „Das Web verschickt keine Mails",
+    2026-08-07 — loest die ehemals offenen Rueckfragen 2/3 auf):** `ILogger`-Warnung (Serilog) mit
+    `HauptFA` und Abbruchstelle **plus** ein sichtbares Signal in der Oberflaeche (die betroffene
+    Struktur wird als fehlerhaft markiert, zusaetzlich `TempData["WarningMessage"]`/Banner auf der
+    Seite). **Kein** Aufruf von `ISyncErrorNotifier` aus dem Web-Controller, **kein**
+    `SyncLog`/ADR-0010-Eintrag aus dem Web (ADR 0010 gilt nur fuer Hintergrund-Services). Was
+    tatsaechlich gemailt werden muss, erkennt stattdessen der Service — `FaHierarchySyncService`
+    (Teil 1) hat `ISyncErrorNotifier` bereits verdrahtet, ein Tiefen-/Zyklenverstoss ist dort ein
+    Datenproblem wie jedes andere.
   - Anzeige: Die betroffene Struktur wird als fehlerhaft gekennzeichnet, nicht leer dargestellt.
 - **Waisen-Behandlung (verwandt mit AK aus Teil 1, hier fuer die Baumdarstellung konkretisiert).**
   Ein Knoten, dessen `VaterFA` auf keinen anderen Knoten (`SubFA`-Wert) in `FaHierarchyNode`
@@ -166,7 +173,9 @@ Uebersichts-Ebene aufgeloest (B5-Linie, siehe [[2026-07-29-standort-ideal-uebers
   3. Je Wurzel/Pseudowurzel rekursiv Kinder anhaengen (`child.VaterFA == parent.SubFA`), dabei ein
      Visited-Set (besuchte `SubFA`-Werte im aktuellen Pfad) und einen Tiefenzaehler mitfuehren;
      Ueberschreitung des Caps oder ein bereits besuchter `SubFA` im Pfad bricht **nur** diese
-     Struktur ab und markiert sie als fehlerhaft (siehe Fachliche Anforderungen).
+     Struktur ab, markiert sie als fehlerhaft und schreibt eine `ILogger`-Warnung mit `HauptFA`/
+     Abbruchstelle (kein `ISyncErrorNotifier`-Aufruf, kein `SyncLog`-Eintrag aus dem Web —
+     Querschnittsregel der Uebersicht, siehe Fachliche Anforderungen).
   4. `IFaHierarchyOrderInfoRepository` liefert die Kopfdaten je `HauptFA` fuer die auf der Seite
      gebauten Strukturen (kein Fan-out auf Node-Ebene).
 - **Struktur-Filter (server-seitig):** Vor dem Bau des Baums wird pro `HauptFA`-Gruppe geprueft, ob
@@ -229,6 +238,10 @@ Keine neuen Entitaeten mit Audit-Pflicht. Reine Anzeige.
    voneinander.** Bei Ueberschreitung/Zyklus bricht **nur** der Aufbau der betroffenen Struktur ab;
    alle uebrigen Strukturen der Seite bleiben normal und vollstaendig sichtbar; die betroffene
    Struktur wird als **fehlerhaft markiert**, nicht leer dargestellt, nicht still entfernt (B-3).
+   Zusaetzlich (ENTSCHIEDEN durch die Querschnittsregel der Uebersicht, 2026-08-07): Der Verstoss
+   erzeugt eine `ILogger`-Warnung (mit `HauptFA` und Abbruchstelle) **und** ein sichtbares UI-Signal
+   (`TempData["WarningMessage"]`/Banner) — **keinen** `ISyncErrorNotifier`-Aufruf und **keinen**
+   `SyncLog`-Eintrag aus dem Web.
 5. Ein `FaHierarchyNode`-Datensatz, dessen `VaterFA` auf keinen importierten Parent zeigt, erscheint
    als eigene, deutlich als „verwaist" markierte Pseudo-Wurzel-Struktur — kein stilles Verschwinden.
 6. Jede Struktur zeigt im Kopf die zugehoerigen `FaHierarchyOrderInfo`-Daten (mindestens `Kunde`,
@@ -250,8 +263,9 @@ Neues Kapitel „IDEAL Teil 2 — FA-Baumanzeige" in `docs/TESTSZENARIEN.md`:
   Struktur wird ueber zwei Seiten getrennt; `TotalCount` entspricht der Anzahl Strukturen.
 - **Zyklen-/Tiefen-Test:** Testdatensatz mit kuenstlichem Zyklus bzw. einer Tiefe > Cap praeparieren
   (Testsystem) — erwartet: nur diese eine Struktur wird als fehlerhaft markiert, alle uebrigen
-  Strukturen bleiben normal sichtbar, Protokoll-/Mail-Mechanismus greift (Details je nach Antwort
-  auf offene Rueckfrage 2/3).
+  Strukturen bleiben normal sichtbar, eine `ILogger`-Warnung wird geschrieben und ein sichtbares
+  UI-Signal erscheint (Banner/Hinweis an der betroffenen Struktur) — keine Mail aus dem Web, kein
+  `SyncLog`-Eintrag (Querschnittsregel der Uebersicht, entschieden 2026-08-07).
 - **Waisen-Test:** Testdatensatz mit `VaterFA` auf einen nicht existierenden Parent erscheint als
   eigene, markierte Pseudo-Wurzel-Struktur.
 - **Struktur-Filter:** Filtertext, der nur auf einen Knoten tief in einer Struktur passt, laesst die
@@ -261,8 +275,9 @@ Neues Kapitel „IDEAL Teil 2 — FA-Baumanzeige" in `docs/TESTSZENARIEN.md`:
   Benutzer mit einer der genannten Rollen sieht die Baumanzeige.
 - **Regressionsfall:** bestehende AKE-FA-Liste (`ProductionOrdersController`) bleibt unveraendert.
 
-Nach Klaerung der offenen Rueckfragen (insbesondere 1 Kombigeraet-Kopfdaten, 2/3 Fehlermail-/Log-
-Verdrahtung, 4 Auto-Expand-Default) zu praezisieren.
+Nach Klaerung der verbleibenden offenen Rueckfragen (1 Kombigeraet-Kopfdaten, 4 Auto-Expand-Default,
+5 Tiefen-Cap-Konfigheimat) zu praezisieren — 2/3 (Fehlermail-/Log-Verdrahtung) sind durch die
+Querschnittsregel der Uebersicht bereits entschieden (siehe „Offene Rueckfragen" unten).
 
 ## Deploy
 
@@ -280,18 +295,27 @@ Verdrahtung, 4 Auto-Expand-Default) zu praezisieren.
    auffuehren + als mehrdeutig kennzeichnen (analog Uebersicht-Regel und
    [[2026-08-06-kombinationsgeraete-montageabteilung]]) oder eigene Darstellungsregel fuer diese
    Baumansicht?
-2. Integrationsluecke Fehlermail: `ISyncErrorNotifier` lebt ausschliesslich im Namespace
-   `IDEALAKEWMSService.Services` (Windows-Service-Projekt) und ist von einem Web-Controller/-Service
-   (`IdealAkeWms`) nicht direkt injizierbar. Der Tiefen-Cap-/Zyklen-Abbruch passiert aber beim
-   Rendern einer Web-Seite (Request-Zeit), nicht in einem periodischen Sync-Lauf. Wie wird die
-   geforderte Fehlermail technisch verdrahtet — eigener Web-seitiger Mail-Mechanismus, gemeinsame
-   Abstraktion fuer beide Projekte, oder wird die Zyklen-/Tiefenpruefung stattdessen in
-   `FaHierarchySyncService` (Teil 1, hat `ISyncErrorNotifier` bereits verdrahtet) vorgelagert und nur
-   das Ergebnis (Fehler-Flag je Struktur) an die Web-Anzeige durchgereicht?
-3. Aktivitaets-/SyncLog-Eintrag bei Tiefen-Cap-/Zyklen-Abbruch: `ISyncLogger`/`SyncLog` (ADR 0010)
-   ist auf periodische Sync-Laeufe mit eigenem, isoliertem DbContext zugeschnitten. Ein Verstoss
-   tritt hier aber pro Web-Request auf. Reicht ein Serilog-Log-Eintrag (kein SyncLog-Lauf), oder wird
-   ein eigener, minimaler SyncLog-Eintrag je Verstoss erzeugt?
+2. **GEKLAERT (Querschnittsregel der Uebersicht „Das Web verschickt keine Mails", 2026-08-07).**
+   Ehemals: Integrationsluecke Fehlermail — `ISyncErrorNotifier` lebt ausschliesslich im Namespace
+   `IDEALAKEWMSService.Services` (Windows-Service-Projekt) und ist von einem
+   Web-Controller/-Service (`IdealAkeWms`) nicht direkt injizierbar; der Tiefen-Cap-/Zyklen-Abbruch
+   passiert aber beim Rendern einer Web-Seite (Request-Zeit), nicht in einem periodischen Sync-Lauf.
+   **Aufgeloest:** Das Web verschickt grundsaetzlich keine Mails — nicht aus technischer Not, sondern
+   als bewusste Architekturentscheidung (SMTP im Request-Pfad, Zugangsdaten in der Web-Schicht, ADR
+   0010 zieht die Grenze ohnehin bei Hintergrund-Diensten). Web-seitige Funde gehen an `ILogger`
+   **plus** ein sichtbares UI-Signal (betroffene Struktur als fehlerhaft markiert +
+   Banner/`TempData["WarningMessage"]`). **Kein** Aufruf von `ISyncErrorNotifier` aus dem
+   Web-Controller. Was tatsaechlich gemailt werden muss, erkennt der Service
+   (`FaHierarchySyncService`, Teil 1, hat `ISyncErrorNotifier` bereits). Siehe
+   [[2026-07-29-standort-ideal-uebersicht]], Abschnitt „Querschnitts-Regel: Das Web verschickt keine
+   Mails (2026-08-07)".
+3. **GEKLAERT (Querschnittsregel der Uebersicht „Das Web verschickt keine Mails", 2026-08-07).**
+   Ehemals: Aktivitaets-/SyncLog-Eintrag bei Tiefen-Cap-/Zyklen-Abbruch — `ISyncLogger`/`SyncLog`
+   (ADR 0010) ist auf periodische Sync-Laeufe mit eigenem, isoliertem DbContext zugeschnitten, der
+   Verstoss tritt hier aber pro Web-Request auf. **Aufgeloest:** **Kein** `SyncLog`-Eintrag aus dem
+   Web — `SyncLog`/ADR 0010 ist fuer Hintergrund-Dienste; Web-Lesefunktionen (Teil 2–6) protokollieren
+   ausschliesslich ueber `ILogger`. Siehe [[2026-07-29-standort-ideal-uebersicht]], derselbe
+   Abschnitt wie oben.
 4. Default-Aufklapp-Zustand und Kopplung des Auto-Expand: Ist die Baumanzeige beim ersten Laden
    vollstaendig aufgeklappt oder collapsed mit Expand/Collapse wie beim BOM-Tree
    (`ReadOnlyBomBuilder`/`Views/Picking/Bom.cshtml`)? Ist Auto-Expand bei Filtertreffer an das
@@ -306,8 +330,10 @@ Verdrahtung, 4 Auto-Expand-Default) zu praezisieren.
 ## Freigabe-Antworten zu den neuen Rueckfragen (Mensch fuellt aus — Schranke 1)
 
 1. →
-2. →
-3. →
+2. → ENTSCHIEDEN durch die Querschnittsregel der Uebersicht „Das Web verschickt keine Mails"
+   (2026-08-07) — kein Freigabe-Text vom Menschen noetig, siehe Offene Rueckfrage 2 oben.
+3. → ENTSCHIEDEN durch dieselbe Querschnittsregel (kein `SyncLog` aus dem Web) — siehe Offene
+   Rueckfrage 3 oben.
 4. →
 5. →
 
@@ -710,3 +736,69 @@ Fehlermail-/SyncLog-Integrationsluecke ist nur verschoben, nicht geloest, und im
 jede Mail-Primitive (B-2, inkl. Wechselwirkung mit Teil-1-Spec und den eigenen Deploy-Metadaten);
 „konfigurierbarer" Tiefen-Cap widerspricht der noch offenen Konstanten-Option (S-1); Auto-Expand ist
 zugesagt, aber an eine offene Frage gekoppelt und ohne AK (S-2).
+
+### Nachbesserung (2026-08-07) — Web-Mail-Regel
+
+**Grundlage:** Die Uebersicht [[2026-07-29-standort-ideal-uebersicht]] haelt seit 2026-08-07 unter
+„Querschnitts-Regel: Das Web verschickt keine Mails" eine fuer alle acht Teile verbindliche
+Entscheidung fest, code-verifiziert (Grep ueber das gesamte Web-Projekt `IdealAkeWms/` nach jeder
+Mail-Primitive liefert null Treffer): **Das Web verschickt keine Mails.** Web-seitige Funde gehen an
+`ILogger` **plus** ein sichtbares UI-Signal; was tatsaechlich gemailt werden muss, erkennt der
+Service (der `ISyncErrorNotifier` bereits hat); **kein** `SyncLog`-Eintrag aus dem Web (ADR 0010
+gilt nur fuer Hintergrund-Dienste). Diese Nachbesserung setzt die Regel fuer Teil 2 um und loest
+damit **B-2 (07)** sowie einen Teil von **B-1 (07)** auf.
+
+**B-2 (07) — Fehlermail-/SyncLog-Integrationsluecke jetzt ECHT geloest, nicht mehr nur verschoben.**
+Die vormals offenen Rueckfragen 2 und 3 sind mit Verweis auf die Querschnittsregel der Uebersicht
+als **GEKLAERT** markiert (Abschnitt „Offene Rueckfragen" oben). Konkret in den Rumpf eingearbeitet:
+- **Umfang/Fachliche Anforderungen/Technischer Loesungsentwurf:** Die Tiefen-Cap-/Zyklen-Meldung ist
+  jetzt durchgehend als „`ILogger`-Warnung mit `HauptFA`/Abbruchstelle **plus** sichtbares UI-Signal
+  (Struktur als fehlerhaft markiert + `TempData["WarningMessage"]`/Banner)" beschrieben — explizit
+  **ohne** `ISyncErrorNotifier`-Aufruf und **ohne** `SyncLog`-Eintrag aus dem Web-Controller.
+- **Akzeptanzkriterien:** AK 4 traegt jetzt einen zusaetzlichen, pruefbaren Satz zur Meldung (die von
+  S-2/07 zurecht bemaengelte Luecke „kein AK fuer die Meldung" ist damit geschlossen).
+- **Test-Szenarien:** Der „Zyklen-/Tiefen-Test" beschreibt jetzt konkret, was zu pruefen ist
+  (`ILogger`-Warnung + UI-Signal, keine Mail, kein `SyncLog`), statt „Details je nach Antwort auf
+  offene Rueckfrage 2/3" offenzulassen.
+- **Wechselwirkung mit Teil 1 entfaellt.** Die von B-2/07 zurecht benannte Gefahr — Vorverlagerung
+  der Traversierung in `FaHierarchySyncService` samt neuer Migration — stellt sich nicht mehr: Der
+  Service wird bei einem Tiefen-/Zyklenverstoss zwar perspektivisch selbst als Datenanomalie-Melder
+  gebraucht (das ist grundsaetzlich sein bestehendes Muster, kein neuer Baustein), aber diese Spec
+  fordert dafuer **keine** Aenderung an der bereits freigegebenen Teil-1-Spec. Die Deploy-Deklaration
+  dieser Spec (`service: false`, `migration: false`) bleibt damit korrekt und unveraendert.
+
+**B-1 (07) — die 5 „neuen" Freigabe-Antworten waren tatsaechlich leer; mit dieser Korrektur sind 2
+und 3 durch die Querschnittsregel beantwortet, 1/4/5 bleiben bewusst leer.** Der Befund war korrekt:
+Es gab keine Antworten auf der Platte. Diese Nachbesserung erfindet sie **nicht** nachtraeglich fuer
+die drei Fragen, die tatsaechlich eine Entscheidung des Menschen brauchen (Kombigeraet-Kopfdaten,
+Auto-Expand-Kopplung, Tiefen-Cap-Konfigheimat) — deren Pfeile bleiben in „Freigabe-Antworten zu den
+neuen Rueckfragen" leer. Fuer die Fragen 2 und 3 gibt es dagegen keine offene Entscheidung mehr: Sie
+sind durch eine bereits getroffene, dokumentierte Architekturentscheidung auf Uebersichts-Ebene
+beantwortet — der Abschnitt zeigt dort statt eines leeren Pfeils einen Verweis auf die
+Querschnittsregel.
+
+**S-1 (07, Tiefen-Cap „konfigurierbar" vs. Konstante) — unveraendert offen, bewusst nicht mit
+angefasst.** Diese Nachbesserung betrifft ausschliesslich die Web-Mail-Regel (Rueckfragen 2/3).
+Rueckfrage 5 (Konfigurations-Heimat des Caps) bleibt unangetastet offen — siehe „Offene
+Rueckfragen" oben, Punkt 5.
+
+**S-2 (07, Auto-Expand-Kopplung ohne AK) — unveraendert offen, bewusst nicht mit angefasst.**
+Betrifft Rueckfrage 4, nicht die Web-Mail-Regel. Der Hinweis aus der 07er-Pruefung (Auto-Expand hat
+kein eigenes AK) bleibt bestehen und ist nicht Gegenstand dieser Korrektur.
+
+**H-1/H-2 (07) — teilweise beruehrt.** H-1 (AK 6 fuer Kombigeraete unterbestimmt) bleibt unveraendert
+offen (Rueckfrage 1). H-2 (Deploy-Metadaten an Rueckfrage 2/5 gekoppelt) ist fuer den
+Rueckfrage-2-Anteil jetzt gegenstandslos, weil `deploy.service: false`/`migration: false` — wie oben
+begruendet — mit der Web-Mail-Regel korrekt bleibt; der Rueckfrage-5-Anteil (Seed-Zeile ja/nein)
+bleibt unveraendert offen.
+
+**Verbleibend offen (Schranke 1) — reduziert von fuenf auf drei:**
+1. Kombigeraet-Kopfdaten-Darstellung in der Strukturkopfzeile (offene Rueckfrage 1).
+2. Default-Aufklapp-Zustand und Kopplung des Auto-Expand an `RecursiveFilterSearch` (offene
+   Rueckfrage 4).
+3. Konfigurations-Heimat des Tiefen-Caps — `AppSettings` mit/ohne Seed-Zeile vs. hartkodierte
+   Konstante (offene Rueckfrage 5).
+
+Rueckfragen 2 und 3 (Fehlermail-/SyncLog-Verdrahtung) sind **entschieden** und nicht mehr Teil der
+verbleibenden Freigabe-Bloecker; `open_questions` im Frontmatter wurde entsprechend auf drei
+Eintraege getrimmt.
