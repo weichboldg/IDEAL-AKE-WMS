@@ -4,25 +4,25 @@ title: "IDEAL-Standort Teil 3 — Kommissionierlisten"
 slug: 2026-07-29-standort-ideal-teil-3-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Controllers/FaHierarchyKommissionierListenController.cs (neu, Name provisorisch)
-  - IdealAkeWms/Services/KommissionierListenService.cs (neu)
-  - IdealAkeWms/Models/ViewModels/FaHierarchyKommissionierGruppeViewModel.cs (neu)
+  - IdealAkeWms/Controllers/FaHierarchyKommissionierListenController.cs (neu, Name provisorisch — zugleich Referenzimplementierung des gemeinsamen FaHierarchy-Listen-/Druck-Bausteins, den Teil 4/5 erweitern statt duplizieren)
+  - IdealAkeWms/Services/KommissionierListenService.cs (neu — Filter-Flag, Header-Join ohne Fan-out, Gruppierung/Paging nach HauptFA und Druck-Scaffold bewusst als wiederverwendbarer Baustein geschnitten)
+  - IdealAkeWms/Models/ViewModels/FaHierarchyKommissionierGruppeViewModel.cs (neu, inkl. Anomalie-Anzahl/-HauptFA-Liste fuer das Warnbanner)
   - IdealAkeWms/Filters/RequireFaHierarchyKommissionierlistenAktivAttribute.cs (neu)
-  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml (neu)
-  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Print.cshtml (neu)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml (neu, inkl. Anomalie-Warnbanner)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Print.cshtml (neu, inkl. Anomalie-Warnbanner im Ausdruck)
   - IdealAkeWms/Models/AppSettingKeys.cs
   - README.md (AppSettings-Dokumentation, neuer Toggle FaHierarchyKommissionierlistenAktiv)
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Doppelzaehlungs-Regel (SubFA = 0 als alleiniger Blatt-/Kommissionierfilter, Kommissionieren nur als Zusatzfilter) ist ab dieser Fassung der bindende Loesungsentwurf und die AK-Grundlage — Empfehlung, kein Dev-Blocker mehr (strukturell aus dem Anhang hergeleitet, nicht aus Testdaten). Offen bleibt die empirische Bestaetigung an echten IDEAL-Daten: das Testsystem ist leer, das beweist NICHT die Abwesenheit von Zeilen mit SubFA != 0 UND gesetztem Kommissionieren. Vorbedingung fuer Schranke 2 (Manual-UAT). Frage an den Menschen: teilt IDEAL diese Interpretation (kommissioniert wird ausschliesslich auf Blattebene), oder gibt es reale Faelle, in denen auf HauptFA-/Baugruppen-Ebene kommissioniert werden muss (z. B. fremdbezogene statt gefertigte Baugruppen)?"
+  - "Arbeitsannahme (strukturell aus dem Datenmodell hergeleitet, kein dokumentierter Fakt): kommissioniert wird ausschliesslich auf Blattebene (SubFA = 0) — eine Zeile mit SubFA != 0 verweist auf eine Baugruppe, die in einem eigenen Sub-FA gefertigt wird und daher nicht aus dem Lager geholt wird. Verbleibende, einzige Rueckfrage: empirische Bestaetigung am IDEAL-Testsystem, ob wirklich ausschliesslich auf Blattebene kommissioniert wird (das aktuell leere Testsystem beweist das nicht) — Vorbedingung fuer Schranke 2. Absicherung bereits eingebaut: solange die Annahme nicht bestaetigt ist, wird eine SubFA != 0-Zeile mit gesetztem Kommissionieren nicht nur geloggt, sondern als operator-sichtbares Banner in Bildschirmliste UND Druck ausgewiesen (Fachliche Anforderungen Punkt 3, AK3)."
 epic: false
 etappen: []
 deploy:
@@ -43,13 +43,26 @@ Anzeige selbst, sondern eine korrekte, nicht-verfaelschende Aggregation ueber ei
 Struktur (Haupt-FA → Sub-FA → Blatt) hinweg — eine falsche Ebenen-Wahl wuerde Mengen doppelt oder
 gar nicht ausweisen und damit die Lagerentnahme direkt sachlich falsch steuern.
 
+Teil 3 wird zusaetzlich als **Referenzimplementierung eines wiederverwendbaren FaHierarchy-Listen-/
+Druck-Bausteins** geschnitten: Teil 4 (Beschichtungsauftrag) und Teil 5 (Vormontage-Listen) machen
+strukturell dasselbe (Flag-Filter auf `FaHierarchyNode`, Header-Join gegen `FaHierarchyOrderInfo`
+ohne Fan-out, Gruppierung/Paging nach `HauptFA`, Druck-Scaffold) und erweitern laut Uebersicht
+(„Ergaenzende Querschnitts-Entscheidungen") diesen Baustein, statt ihn zu duplizieren — `depends_on`
+beider Teile zeigt bereits auf diese Spec. Diese Spec liefert damit nicht nur die Kommissionierliste
+selbst, sondern den gemeinsamen Bauplan fuer alle drei Teile.
+
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope:** Liste/Druck aller `FaHierarchyNode`-**Blattpositionen** (`SubFA = 0`) mit gesetztem
 `Kommissionieren`, gruppiert nach `HauptFA` (Node-Identitaet, **kein** Fan-out-Join gegen
 `FaHierarchyOrderInfo`). Der Kopf einer Gruppe zeigt alle zugehoerigen `FaHierarchyOrderInfo`-Zeilen
 (Montage-Abteilungen) als Information — Positionen werden dadurch **nicht** aufgesplittet. Barcode =
-`HauptFA`, ein Ausdruck pro `HauptFA`-Gruppe.
+`HauptFA`, ein Ausdruck pro `HauptFA`-Gruppe. Der Service ist bewusst so geschnitten, dass
+Filter-Flag (`Kommissionieren`), Header-Join (`HauptFA` → `FaHierarchyOrderInfo`, kein Fan-out),
+Gruppierung/Paging (Seiteneinheit = Gruppe `HauptFA`) und Druck-Scaffold (ein Ausdruck je
+`HauptFA`-Gruppe, Seitenumbruch, Leerfall-Hinweis) als wiederverwendbarer Baustein fungieren, den
+Teil 4 (`Beschichtet`) und Teil 5 (`VMBedarf`) mit ihrem jeweiligen Flag erweitern, statt die
+Mechanik erneut zu bauen.
 
 **Out-of-Scope:** tatsaechliche Buchung/Transfer (dieser Teil druckt/listet, bucht aber nicht —
 eine Buchungsfunktion setzt echte `ProductionOrders` voraus, also fruehestens nach Teil 7/8, falls
@@ -62,23 +75,34 @@ Teil 8 (BDE) und bleibt dort offen, siehe Fachliche Anforderungen Punkt 9.
 1. **Filter:** `Kommissionieren IS NOT NULL AND Kommissionieren <> ''`, zusaetzlich optionaler
    Filter auf einen konkreten Ziel-Wert (Dropdown der am Datenbestand vorkommenden Werte).
 
-2. **Ebenen-/Doppelzaehlungsregel (verbindliche Design-Entscheidung — Verifikation an
-   Echtdaten siehe Offene Rueckfrage 1).** Kommissioniert werden ausschliesslich Blattpositionen
-   `SubFA = 0`. Eine Zeile mit `SubFA != 0` ist ein **Verweis** auf eine Baugruppe, die als eigener
-   Sub-FA gefertigt wird — sie liegt nicht im Lager, sondern wird produziert; ihre Bestandteile
-   fuehrt der zugehoerige Sub-FA in seinen **eigenen** Zeilen (dort mit `VaterFA` = dieser `SubFA`).
-   Ein Blatt steht strukturell in genau einer Stueckliste, daher zaehlt diese Regel strukturell nie
-   doppelt und nie null. `Kommissionieren` bleibt der **zusaetzliche** Filter (welches Ziel/welche
-   Liste), **NICHT** die Ebenen-Trennung — Reihenfolge: erst `SubFA = 0`, dann `Kommissionieren`.
-   `Beschaffungsartikel` wird **nicht** als weiterer Filter verwendet (auch Lagerartikel ohne
-   Bestellbezug muessen kommissioniert werden).
+2. **Ebenen-/Doppelzaehlungsregel — Arbeitsannahme, strukturell aus dem Datenmodell hergeleitet,
+   kein dokumentierter Fakt (verbleibende Verifikation siehe Offene Rueckfrage 1).** Kommissioniert
+   werden ausschliesslich Blattpositionen `SubFA = 0`. Eine Zeile mit `SubFA != 0` ist ein
+   **Verweis** auf eine Baugruppe, die in einem **eigenen** Sub-FA gefertigt wird — sie liegt nicht
+   im Lager, sondern wird produziert, und wird deshalb nicht kommissioniert; ihre Bestandteile fuehrt
+   der zugehoerige Sub-FA in seinen **eigenen** Zeilen (dort mit `VaterFA` = dieser `SubFA`). Ein
+   Blatt steht strukturell in genau einer Stueckliste, daher zaehlt diese Regel strukturell nie
+   doppelt und nie null — **unter der Voraussetzung, dass die Annahme zutrifft**. `Kommissionieren`
+   bleibt der **zusaetzliche** Filter (welches Ziel/welche Liste), **NICHT** die Ebenen-Trennung —
+   Reihenfolge: erst `SubFA = 0`, dann `Kommissionieren`. `Beschaffungsartikel` wird **nicht** als
+   weiterer Filter verwendet (auch Lagerartikel ohne Bestellbezug muessen kommissioniert werden).
 
-3. **Anomalie-Diagnose statt stillem Verwerfen.** Trifft die Liste eine Zeile mit `SubFA != 0` UND
-   gesetztem `Kommissionieren`, wird sie **nicht** kommissioniert, aber als Warnung protokolliert
-   (`ILogger`/Serilog, `HauptFA` + `Position` + `Artnr`) — das macht eine Datenpflege-Abweichung
-   sichtbar statt sie verschwinden zu lassen. Dies ist eine Web-seitige Lesefunktion (kein
-   Hintergrund-Sync), daher `ILogger`-Warnung statt `SyncLog`-Eintrag (ADR 0010 gilt fuer
-   Hintergrund-Services).
+3. **Anomalie-Diagnose — geloggt UND operator-sichtbar (PFLICHT, solange Punkt 2 Arbeitsannahme
+   bleibt).** Trifft die Liste eine Zeile mit `SubFA != 0` UND gesetztem `Kommissionieren`, wird sie
+   **nicht** kommissioniert — die Abweichung darf aber nicht nur im Serverlog verschwinden:
+   1. **Server-Log:** `ILogger`/Serilog-Warnung mit `HauptFA` + `Position` + `Artnr` (Web-seitige
+      Lesefunktion, kein Hintergrund-Sync, daher `ILogger` statt `SyncLog` — ADR 0010 gilt fuer
+      Hintergrund-Services), je Lauf dedupliziert/gedrosselt (eine Warnung je `HauptFA` und
+      Request statt einer Zeile je betroffener Position — sonst Log-Rauschen bei wiederholtem
+      Blaettern/Filtern derselben Anomalien).
+   2. **Operator-sichtbares Banner in Bildschirmliste UND Druck** (zwingend, nicht optional): Anzahl
+      und `HauptFA`-Liste der ausgeschlossenen Positionen, z. B. „Warnung: N Position(en) mit
+      gesetztem `Kommissionieren` auf Baugruppen-Ebene (`SubFA != 0`) ausgeschlossen — Datenpflege
+      pruefen". Solange die Blattebene-Annahme aus Punkt 2 nicht empirisch bestaetigt ist, darf eine
+      betroffene, eigentlich kommissionierbare Position nicht spurlos aus der operativen Sicht des
+      Kommissionierers verschwinden — genau das waere der in „Ziel/Nutzen" benannte teuerste Fehler
+      („Mengen ... gar nicht ausweisen"). Kein Banner ohne Anomalien; bei 0 Anomalien bleibt es
+      unsichtbar.
 
 4. **Gruppierung ausschliesslich nach `HauptFA`** (Node-Identitaet). `MontageAbteilung` liegt
    gemaess der gemeinsamen Kern-Entscheidung (Teil 1) **nur** auf `FaHierarchyOrderInfo` und wird
@@ -94,8 +118,12 @@ Teil 8 (BDE) und bleibt dort offen, siehe Fachliche Anforderungen Punkt 9.
    `HauptFA` teilen sich denselben Barcode. Da pro `HauptFA`-Gruppe genau **ein** Ausdruck erzeugt
    wird (nicht einer je Montage-Abteilung, siehe Technischer Loesungsentwurf), gibt es **keine**
    Kollision zwischen zwei physischen Ausdrucken mit identischem Barcode — die Montage-Abteilung im
-   Klartext-Kopf ist das einzige Unterscheidungsmerkmal fuer den Menschen. Fachliche Behandlung von
-   Kombinationsgeraeten (echte Trennung) bleibt Backlog-Nachtrag, siehe Teil 1 (Fund B-1).
+   Klartext-Kopf ist das einzige Unterscheidungsmerkmal fuer den Menschen. Der Anhang verlangt
+   woertlich „je ein Ausdruck **pro Auftrag** mit Barcode `HauptFA`"; diese Spec weicht davon bewusst
+   ab („ein Ausdruck je `HauptFA`-**Gruppe**", also ggf. mehrere Auftraege/Montage-Abteilungen auf
+   einem Blatt) — konsistent zur Entscheidung „Kombinationsgeraete sind out of scope, keine Trennung
+   nach `MontageAbteilung`" (Teil 1, Uebersicht). Fachliche Behandlung von Kombinationsgeraeten
+   (echte Trennung) bleibt Backlog-Nachtrag [[2026-08-06-kombinationsgeraete-montageabteilung]].
 
 6. **Kopf aus `FaHierarchyOrderInfo`:** `ABNr`, `HauptFA`, `Kunde`, `MontageAbteilung`, Termine je
    nach Layout-Bedarf.
@@ -124,21 +152,36 @@ Teil 8 (BDE) und bleibt dort offen, siehe Fachliche Anforderungen Punkt 9.
     („`HauptFA` ist der einzige Produktions-Identifier, `SubFA` wird in Barcodes nicht verwendet")
     zu pruefen, bevor sie umgesetzt wird.
 
+11. **Referenz-/Baustein-Rolle fuer Teil 4/5 (Uebersicht, „Ergaenzende Querschnitts-
+    Entscheidungen").** `KommissionierListenService`/-Controller sind bewusst als wiederverwendbarer
+    Schnitt zu bauen: Flag-Filter (`Kommissionieren`) als Parameter statt hart codiert, gemeinsamer
+    Header-Join ohne Fan-out, gemeinsame Gruppierung/Paging-Logik nach `HauptFA`, gemeinsames
+    Druck-Scaffold (ein Ausdruck je `HauptFA`-Gruppe, Seitenumbruch, Leerfall-Hinweis, Anomalie-
+    Banner-Slot). Teil 4 (`Beschichtet`) und Teil 5 (`VMBedarf`) erweitern diesen Baustein, statt ihn
+    zu duplizieren (`depends_on` beider Teile zeigt bereits auf diese Spec). Diese Spec liefert damit
+    den Bauplan, nicht nur die Kommissionierliste selbst.
+
 ## Technischer Loesungsentwurf
 
 `KommissionierListenService` liest ueber `IFaHierarchyNodeRepository`/`IFaHierarchyOrderInfoRepository`
 (Teil 1) und baut die Liste in folgenden Schritten auf (GUI und Druck teilen sich dieselbe Pipeline
-bis auf den letzten Schritt):
+bis auf den letzten Schritt). Der Service ist bewusst generisch geschnitten (Flag-Spalte, ColumnMap,
+Druck-Scaffold als Parameter/Vorlage statt hart codiert), damit Teil 4 und Teil 5 ihn mit ihrem
+jeweiligen Flag erweitern koennen, ohne die Mechanik zu duplizieren (Fachliche Anforderungen
+Punkt 11):
 
 1. **Positionen laden und dedupliziert filtern:** alle `FaHierarchyNode`-Zeilen mit `SubFA = 0` UND
    `Kommissionieren <> ''` (optional zusaetzlich auf den gewaehlten Ziel-Wert eingeschraenkt). Zeilen
-   mit `SubFA != 0` UND gesetztem `Kommissionieren` werden gesondert gesammelt und **nur** geloggt
-   (Anforderung 3), nie in die Liste aufgenommen.
+   mit `SubFA != 0` UND gesetztem `Kommissionieren` werden gesondert gesammelt: **ILogger-Warnung**
+   (Anforderung 3.1, je `HauptFA`/Request dedupliziert) **und** eine kleine Anomalie-Liste
+   (`HauptFA` + Anzahl), die GUI und Druck fuer das Banner (Anforderung 3.2) verwenden — nie in die
+   Kommissionierliste selbst aufgenommen.
 2. **Server-Side-Spaltenfilter** (ADR 0005) via `ColumnFilterHelper.ReadFromQuery` +
    `ColumnFilterHelper.Apply` auf den Positionszeilen; `ColumnMap` (Col-Key → gerenderter Zelltext)
-   analog `WarehousePickingController.ColumnMap` fuer die Spalten `HauptFA`, `Artnr`, `Matchcode`,
-   `Sollmenge`, `Hauptlagerplatz`, `Kommissionieren`, `Arbeitsbereich`, `Artikeltyp`, `Beschichtet`,
-   `Material`. Filter wirken auf die Positionszeile, **vor** der Gruppierung.
+   analog `WarehousePickingController.ColumnMap` fuer die Spalten `HauptFA`, `HauptArtnr`, `Artnr`,
+   `Matchcode`, `Sollmenge`, `Hauptlagerplatz`, `Kommissionieren`, `Arbeitsbereich`, `Artikeltyp`,
+   `Beschichtet`, `Material` (`HauptArtnr` gemaess Anhang-Spaltenliste ergaenzt, konsistent zur
+   Positionstabelle in Teil 4). Filter wirken auf die Positionszeile, **vor** der Gruppierung.
 3. **Gruppieren nach `HauptFA`.** Faellt eine Gruppe durch den Spaltenfilter auf 0 Positionen,
    erscheint sie **nicht** — kein Kopf ohne Zeilen.
 4. **Pagination auf Gruppen-Ebene (ADR 0005, geschaerft fuer den Gruppen-Fall):** `PageSize.Resolve`
@@ -151,20 +194,25 @@ bis auf den letzten Schritt):
    ViewModel den passenden Gruppen zuordnen — **kein** Join gegen die Positionszeilen. Bei mehreren
    OrderInfo-Zeilen je `HauptFA` landen alle im Kopf-ViewModel dieser Gruppe.
 6. **Filterkarte** (`<div class="card filter-card mb-3">`) mit dem Kommissionier-Ziel-Dropdown ueber
-   dem Tabellenblock.
+   dem Tabellenblock. **Direkt darunter** erscheint bei vorhandenen Anomalien das Warnbanner aus
+   Anforderung 3.2 (kein Banner bei 0 Anomalien).
 7. **Druck (`Print`-Action, ohne `id`-Parameter — bewusst anders als
    `WarehousePickingController.Print(int id)`, dessen Einzel-`id`-Muster hier nicht passt):**
    uebernimmt dieselben Query-Parameter wie die Bildschirmliste (inkl. `colf_*` und
    Ziel-Wert-Filter), fuehrt Schritte 1–3 **ohne** Pagination auf der **gesamten** gefilterten Menge
    aus und rendert **einen Ausdruck je `HauptFA`-Gruppe** mit CSS-Seitenumbruch
    (`page-break-after: always`) zwischen den Gruppen. Barcode = `HauptFA` je Gruppe, Kopf listet
-   alle zugehoerigen `FaHierarchyOrderInfo`-Zeilen. Ist die gefilterte Menge leer, zeigt der Druck
-   einen Hinweistext statt eines leeren Blatts (ebenso die Bildschirmliste bei 0 Treffern).
+   alle zugehoerigen `FaHierarchyOrderInfo`-Zeilen. Enthaelt die gedruckte Menge Anomalie-Zeilen
+   (Anforderung 3.2), erscheint das Warnbanner auch **auf dem Ausdruck** (z. B. als Kopfzeile vor der
+   ersten Gruppe), nicht nur am Bildschirm. Ist die gefilterte Menge leer, zeigt der Druck einen
+   Hinweistext statt eines leeren Blatts (ebenso die Bildschirmliste bei 0 Treffern).
 
 Kein zusaetzliches DTO-/Domain-Objekt jenseits eines schlanken Gruppen-ViewModels
 (`FaHierarchyKommissionierGruppeViewModel`: `HauptFA`, `List<FaHierarchyOrderInfo>` Kopf,
 `List<FaHierarchyNode>` gefilterte Positionen) noetig — die Repositories liefern bereits flache
-EF-Entitaeten (Teil-1-Entscheidung).
+EF-Entitaeten (Teil-1-Entscheidung). Zusaetzlich ein schlankes View-seitiges Aggregat fuer die
+Anomalie-Anzahl/-`HauptFA`-Liste (kein neues Domain-Objekt) — GUI und Druck lesen daraus dieselbe
+Information fuer das Banner.
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -184,11 +232,20 @@ Struktur-Cache-Tabellen.
    Zeilen mit `SubFA != 0` erscheinen **nie** — code-pruefbar unabhaengig vom Testdatenbestand
    (synthetische Fixture: `HauptFA` mit einer Verweiszeile `SubFA != 0` **und** einem Sub-FA, der
    eigene Blattzeilen fuehrt).
-2. **Keine Doppel- oder Nullzaehlung von Mengen** (unbedingtes Akzeptanzkriterium, nicht mehr
-   konditional formuliert): jede kommissionierbare Position erscheint in **genau einer**
-   Kommissionierliste.
-3. **Anomalie-Diagnose:** Positionen mit `SubFA != 0` UND gesetztem `Kommissionieren` werden als
-   Warnung protokolliert (`HauptFA` + `Position`), aber nicht kommissioniert.
+2. **Keine Doppel- oder Nullzaehlung von Mengen — gekoppelt an die Arbeitsannahme aus Fachlicher
+   Anforderung 2, mit eingebauter Absicherung.** Unter der Annahme, dass `Kommissionieren`
+   ausschliesslich auf Blattpositionen (`SubFA = 0`) gesetzt wird, erscheint jede kommissionierbare
+   Position in **genau einer** Kommissionierliste (code-pruefbar per synthetischer Fixture, siehe
+   AK1). Trifft die Annahme in der Praxis nicht zu (`SubFA != 0` UND `Kommissionieren` gesetzt), wird
+   diese Position in **keiner** Liste gefuehrt — dieser Fall ist dann aber NICHT still: er wird
+   zwingend geloggt und als Banner ausgewiesen (AK3). Das Risiko „still nicht gezaehlt" ist damit
+   durch Sichtbarkeit abgesichert, nicht durch die (noch unbestaetigte) Annahme selbst.
+3. **Anomalie-Diagnose ist ein unbedingtes, zweikanaliges Akzeptanzkriterium.** Positionen mit
+   `SubFA != 0` UND gesetztem `Kommissionieren` werden (a) als `ILogger`-Warnung protokolliert
+   (`HauptFA` + `Position` + `Artnr`) **und** (b) als sichtbares Banner sowohl in der Bildschirmliste
+   als auch im Druck angezeigt (Anzahl + betroffene `HauptFA`), sobald mindestens eine Anomalie in
+   der aktuell gefilterten Menge vorkommt — code-pruefbar ueber dieselbe synthetische Fixture wie
+   AK1 (Banner erscheint bei vorhandener Anomalie-Zeile, bleibt bei 0 Anomalien unsichtbar).
 4. Gruppierung erfolgt ausschliesslich nach `HauptFA`. Der Kopf einer Gruppe zeigt alle zugehoerigen
    `FaHierarchyOrderInfo`-Zeilen (Montage-Abteilungen); Positionen werden dadurch **nicht**
    gesplittet, kein Fan-out-Join, keine Mengenvervielfachung bei mehreren OrderInfo-Zeilen je
@@ -203,12 +260,17 @@ Struktur-Cache-Tabellen.
 7. Druck spiegelt exakt die aktiv gefilterte Bildschirmliste (inkl. `colf_*`), mit Seitenumbruch je
    `HauptFA`-Gruppe — ein physischer Ausdruck pro `HauptFA`, Barcode = `HauptFA`, Kopf listet alle
    Montage-Abteilungs-Zeilen dieses `HauptFA` (verhindert die Barcode-Kollision zweier Kombigeraete
-   mit gleichem `HauptFA`, siehe Fachliche Anforderungen Punkt 5).
+   mit gleichem `HauptFA`, siehe Fachliche Anforderungen Punkt 5). Enthaelt die gedruckte Menge
+   Anomalie-Zeilen (AK3), erscheint das Warnbanner auch auf dem Ausdruck, nicht nur am Bildschirm.
 8. Leere gefilterte Liste zeigt einen Hinweis (Bildschirm **und** Druck), kein leeres Blatt.
 9. Zugriff nur mit `RequireLagerProcessingAccessAttribute` **und** aktivem Toggle
    `FaHierarchyKommissionierlistenAktiv` (Default `false`); ohne Toggle Redirect + `WarningMessage`,
    ohne Rolle Redirect auf `AccessDenied`.
 10. AKE-Verhalten unveraendert (bestehende Controller/Views unberuehrt).
+11. Filter-Flag, Header-Join, Gruppierung/Paging und Druck-Scaffold sind als Parameter/
+    wiederverwendbare Methoden geschnitten (nicht hart auf `Kommissionieren` verdrahtet) —
+    nachweisbar durch die Service-/Controller-Signatur (Flag als Parameter statt Konstante) und
+    durch tatsaechliche Wiederverwendung, sobald Teil 4/5 umgesetzt werden.
 
 ## Test-Szenarien
 
@@ -218,7 +280,10 @@ Neues Kapitel „IDEAL Teil 3 — Kommissionierlisten" in `docs/TESTSZENARIEN.md
 - `SubFA = 0`-Filter dedupliziert korrekt: synthetisches `HauptFA` mit einer `SubFA != 0`-Verweiszeile
   und einem Sub-FA mit eigenen Blattzeilen → Verweiszeile erscheint nicht, Sub-FA-Blaetter erscheinen
   je einmal (AK1/AK2).
-- Anomalie-Zeile (`SubFA != 0` **und** `Kommissionieren` gesetzt) wird geloggt und ausgeschlossen (AK3).
+- Anomalie-Zeile (`SubFA != 0` **und** `Kommissionieren` gesetzt) wird geloggt, aus der Liste
+  ausgeschlossen und per Banner (Bildschirm **und** Druck) sichtbar gemacht (AK3).
+- Anomalie-Banner erscheint in Bildschirmliste UND Druck, sobald die Fixture mindestens eine
+  Anomalie-Zeile enthaelt; bleibt bei 0 Anomalien unsichtbar (AK3).
 - Gruppierung ohne Fan-out bei zwei `FaHierarchyOrderInfo`-Zeilen je `HauptFA`: Kopf zeigt beide,
   Positionsanzahl bleibt 1:1 zur Quellzeilenzahl (AK4).
 - Pagination zaehlt Gruppen, keine Gruppe wird ueber zwei Seiten getrennt (AK5).
@@ -232,8 +297,8 @@ mit dem aktuell leeren Testsystem nicht durchfuehrbar):**
 - Ein bekanntes Kombinationsgeraet (zwei `MontageAbteilung`-Zeilen, gleicher `HauptFA`) erzeugt
   **einen** Ausdruck mit beiden Montage-Abteilungen im Kopf, keinen doppelten Barcode.
 - **Mengenabgleich Struktur vs. Liste:** manuelle Gegenrechnung an einer bekannten mehrstufigen
-  Struktur bestaetigt (oder widerlegt) die `SubFA = 0`-Regel empirisch — das ist die Verifikation
-  aus Offene Rueckfrage 1, kein reiner Regressionstest.
+  Struktur bestaetigt (oder widerlegt) die `SubFA = 0`-Arbeitsannahme empirisch — das ist die
+  Verifikation aus Offener Rueckfrage 1, kein reiner Regressionstest.
 - Druckvergleich Bildschirm vs. Papier bei aktiven Spaltenfiltern.
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
@@ -257,16 +322,21 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Offene Rueckfragen
 
-1. Doppelzaehlungs-Regel (`SubFA = 0` als alleiniger Blatt-/Kommissionierfilter, `Kommissionieren`
-   nur als Zusatzfilter) ist ab dieser Fassung der bindende Loesungsentwurf und die AK-Grundlage
-   (Fachliche Anforderungen Punkt 2/3, AK 1–3) — **Empfehlung**, kein Dev-Blocker mehr, weil
-   strukturell aus dem Anhang hergeleitet und nicht von Testdaten abhaengig. Offen bleibt die
-   **empirische Bestaetigung an echten IDEAL-Daten**: das Testsystem ist leer, das beweist **nicht**
-   die Abwesenheit von Zeilen mit `SubFA != 0` UND gesetztem `Kommissionieren`. Vorbedingung fuer
-   Schranke 2 (Manual-UAT, siehe Deploy-Abschnitt). Frage an den Menschen: Teilt IDEAL diese
-   Interpretation (kommissioniert wird ausschliesslich auf Blattebene), oder gibt es reale Faelle,
-   in denen auf HauptFA-/Baugruppen-Ebene kommissioniert werden muss (z. B. fremdbezogene statt
-   gefertigte Baugruppen)?
+1. **Arbeitsannahme (nicht dokumentierter Fakt, strukturell aus dem Datenmodell hergeleitet):**
+   Kommissioniert wird ausschliesslich auf Blattebene (`SubFA = 0`). Begruendung: eine Zeile mit
+   `SubFA != 0` verweist auf eine Baugruppe, die in einem eigenen Sub-FA gefertigt wird — die holt
+   man nicht aus dem Lager, sondern produziert sie. Der Anhang (Abschnitt C) stuetzt diese Annahme
+   nicht explizit (er filtert dort nur nach `Kommissionieren`, ohne `SubFA` zu erwaehnen) — sie ist
+   eine Herleitung dieser Spec-Runde, kein dokumentierter Fakt. **Verbleibende Rueckfrage:**
+   empirische Bestaetigung am IDEAL-Testsystem, ob wirklich ausschliesslich auf Blattebene
+   kommissioniert wird, oder ob reale Faelle existieren, in denen auf Baugruppen-/HauptFA-Ebene
+   kommissioniert werden muss (z. B. fremdbezogene statt gefertigte Baugruppen). Das aktuell leere
+   Testsystem beweist die Abwesenheit solcher Faelle **nicht** — Vorbedingung fuer Schranke 2
+   (Manual-UAT, siehe Deploy-Abschnitt). **Absicherung bereits in dieser Fassung eingebaut:** Solange
+   diese Annahme nicht bestaetigt ist, wird eine `SubFA != 0`-Zeile mit gesetztem `Kommissionieren`
+   nicht nur geloggt, sondern als operator-sichtbares Banner in Bildschirmliste UND Druck ausgewiesen
+   (Fachliche Anforderungen Punkt 3, AK3) — falls die Annahme falsch ist, faellt das auf, statt still
+   Mengen verschwinden zu lassen.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -589,3 +659,45 @@ Anomalie operator-sichtbar machen (T3-2P-S1/S2), damit der von der Spec selbst b
 „gar-nicht-ausweisen"-Fall nicht still im Serverlog verschwindet. (3) Den Referenz-/Baustein-Auftrag
 fuer Teil 4/5 in Teil 3 verankern (T3-2P-S3). Die Doppelzaehlungs-Regel selbst ist geloest und wird
 nicht neu aufgerollt.
+
+### Nachbesserung 2 (2026-08-07)
+
+Status je Befund aus der Kritischen Pruefung (2026-08-07) — Details in Fachlichen Anforderungen
+2/3/11, Loesungsentwurf, Akzeptanzkriterien und Offene Rueckfragen oben, hier nur die Kurzfassung mit
+Verweis:
+
+- **T3-2P-B1 (Offene Rueckfrage 1 unbeantwortet) — TEILWEISE BEHOBEN: bewusste Arbeitsannahme statt
+  Blockade, nicht geraten.** Der Mensch hat entschieden, mit einer **Arbeitsannahme** in den Dev-Lauf
+  zu gehen statt auf eine vollstaendige Klaerung zu warten: Kommissioniert wird ausschliesslich auf
+  Blattebene (`SubFA = 0`), strukturell hergeleitet (eine `SubFA != 0`-Zeile verweist auf eine im
+  eigenen Sub-FA gefertigte Baugruppe, die nicht aus dem Lager geholt wird) — explizit als
+  **Herleitung, kein dokumentierter Fakt** gekennzeichnet (Fachliche Anforderungen Punkt 2, Offene
+  Rueckfrage 1). Die einzige verbleibende Rueckfrage ist auf genau diesen einen Punkt gekuerzt: die
+  empirische Bestaetigung am IDEAL-Testsystem. Das ist **kein** vollstaendiger Abschluss von B1 (die
+  fachliche Richtigkeit ist weiterhin unbestaetigt und kann nur der Mensch/IDEAL bestaetigen), aber
+  ein bewusster, dokumentierter Uebergang von „unbeantwortet" zu „Arbeitsannahme mit
+  Pflicht-Absicherung" (naechster Punkt) — die Freigabe (Schranke 1) haengt weiterhin an genau dieser
+  einen Rueckfrage.
+- **T3-2P-S1/S2 (AK2 ueberformuliert / Anomalie nur im Serverlog) — BEHOBEN durch Pflicht-Banner.**
+  Auf ausdrueckliche menschliche Vorgabe ist die Anomalie-Diagnose jetzt **zweikanalig**: `ILogger`-
+  Warnung **und** ein operator-sichtbares Banner in der Bildschirmliste **und** im Druck (Fachliche
+  Anforderungen Punkt 3, jetzt unbedingtes AK3). AK2 ist ehrlich an die Arbeitsannahme gekoppelt und
+  benennt den Fall „Annahme trifft nicht zu" explizit, verweist aber auf die Banner-Absicherung: eine
+  betroffene Position verschwindet dann zwar aus der Liste, aber nicht mehr unbemerkt aus der
+  operativen Sicht — genau der von T3-2P-S2 verlangte Fix. Zusaetzlich (H3) wird die Server-Log-Warnung
+  je `HauptFA`/Request dedupliziert, um Log-Rauschen bei wiederholtem Filtern/Blaettern zu vermeiden.
+- **T3-2P-S3 (Referenz-/Baustein-Rolle nicht verankert) — BEHOBEN.** Teil 3 benennt jetzt explizit
+  seine Rolle als Referenzimplementierung des gemeinsamen FaHierarchy-Listen-/Druck-Bausteins, den
+  Teil 4 und Teil 5 erweitern (Ziel/Nutzen, Umfang, Fachliche Anforderungen Punkt 11, neue AK 11,
+  Loesungsentwurf-Einleitung, `affected_code`-Kommentare). Konsistent zur Uebersicht („Ergaenzende
+  Querschnitts-Entscheidungen") und zu den bereits entsprechend formulierten Teil-4/5-Specs.
+- **T3-2P-H1 (ColumnMap ohne `HauptArtnr`) — BEHOBEN.** `HauptArtnr` ist in der ColumnMap
+  (Loesungsentwurf Schritt 2) als Positionsspalte ergaenzt, konsistent zur Anhang-Spaltenliste und
+  zur Positionstabelle in Teil 4.
+- **T3-2P-H2 (unzitierte Abweichung vom Anhang-Druckformat) — BEHOBEN.** Fachliche Anforderungen
+  Punkt 5 zitiert jetzt woertlich die Anhang-Vorgabe „je ein Ausdruck pro Auftrag mit Barcode
+  `HauptFA`" und kennzeichnet die Abweichung („ein Ausdruck je `HauptFA`-**Gruppe**") explizit als
+  bewusst, konsistent zur Kombigeraete-out-of-scope-Entscheidung.
+- **T3-2P-H3 (Anomalie-Logging-Rauschen) — BEHOBEN.** Fachliche Anforderungen Punkt 3.1 und
+  Loesungsentwurf Schritt 1 legen fest, dass die `ILogger`-Warnung je `HauptFA` und Request
+  dedupliziert wird statt je betroffener Position erneut zu feuern.
