@@ -4,41 +4,48 @@ title: "IDEAL-Standort Teil 7 — Materialisierung nach ProductionOrders (Schema
 slug: 2026-07-29-standort-ideal-teil-7-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Models/ProductionOrder.cs
-  - IdealAkeWms/Data/ApplicationDbContext.cs (Index-Umbau OrderNumber -> SubOrderNumber)
-  - IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs
+  - IdealAkeWms/Models/ProductionOrder.cs (SubOrderNumber, ParentSubOrderNumber, SageMissingSince)
+  - IdealAkeWms/Data/ApplicationDbContext.cs (Index-Umbau OrderNumber -> SubOrderNumber, sys.indexes-Guard)
+  - IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs (inkl. neue mengenwertige GetAllByFaAndOperationAsync + Logging im bestehenden Einzel-Lookup bei Mehrfachtreffer)
   - IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs
   - IdealAkeWms/Controllers/ProductionOrdersController.cs
   - IdealAkeWms/Controllers/PickingLeitstandController.cs
   - IdealAkeWms/Controllers/FaWorklistController.cs
   - IdealAkeWms/Controllers/FaCompletionController.cs
   - IdealAkeWms/Controllers/TrackingController.cs
-  - IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs (adversariales Review + ggf. Anpassung, PFLICHT)
+  - IdealAkeWms/Controllers/ServiceSettingsController.cs (Master nur read-only anzeigen, Link auf Umschalt-Seite)
+  - IdealAkeWms/Controllers/StandortEinstellungenController.cs (Teil 6, Master nur read-only anzeigen — kein Schreib-Bedienelement)
+  - IdealAkeWms/Controllers/HierarchieUmstellungController.cs (neu, dedizierte Umschalt-Seite mit Bestaetigungsdialog)
+  - IdealAkeWms/Views/HierarchieUmstellung/Index.cshtml (neu)
+  - IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs (adversariales Review + Fold-2-Skip bei WaNummer-Mehrfachtreffer, PFLICHT)
   - IDEALAKEWMSService/Services/ProductionOrderReconciler.cs (adversariales Review + ggf. Anpassung, PFLICHT)
   - IDEALAKEWMSService/Services/SageImportService.cs
   - IDEALAKEWMSService/Services/SageProductionOrderSql.cs
-  - IdealAkeWms/wwwroot/js/barcode-scanner.js (QR-/Scan-Lookup, Index 2 = BelID)
-  - IdealAkeWms/Services/HierarchischeStrukturGuard.cs (neu, Domaenen-Waechter des Einweg-Tors)
-  - IdealAkeWms/Models/ServiceSettingDefinitions.cs (Master + 3 abhaengige Schalter)
-  - SQL/87_InvertProductionOrderHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen)
+  - IdealAkeWms/Services/HierarchischeStrukturGuard.cs (neu, Domaenen-Waechter/einziger Choke-Point fuer ServiceSettings-Schreibpfade auf den Master-Key)
+  - IdealAkeWms/Models/ServiceSettingDefinitions.cs (Master ProduktionsauftragHierarchisch + Auto-Erledigt-Schalter (neu) + weitere abhaengige Schalter — Liste vor Etappe B/D verbindlich benennen)
+  - IdealAkeWms/Models/SyncLogServices.cs (neuer Service-Name HierarchieUmstellung fuers Aktivitaets-Protokoll)
+  - SQL/87_InvertProductionOrderHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen; SubOrderNumber/ParentSubOrderNumber/SageMissingSince + sys.indexes-Guard fuer Index-Tausch)
   - SQL/00_FreshInstall.sql
-  - SQL/AgentJobs/01_Import_Produktionsauftraege.sql (Review, ob Folge-MERGEs betroffen)
+  - SQL/AgentJobs/01_Import_Produktionsauftraege.sql (tot — loeschen bzw. nach SQL/AgentJobs/_archiv/ verschieben mit Kopfkommentar AUSSER BETRIEB seit Migrationsdatum; Ordner auf weitere tote Artefakte pruefen)
+  - docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md (neu)
+  - README.md (Runbook-Verlinkung)
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "B3/B-4: Wo lebt Montage-Abteilung im ProductionOrders-Modell? OrderNumber = HauptFA ist bei Kombinationsgeraeten selbst als GRUPPEN-Schluessel mehrdeutig (zwei logische Auftraege, gleiche OrderNumber) — braucht ProductionOrders eine eigene MontageAbteilung-Spalte und einen zusammengesetzten Gruppen-Schluessel OrderNumber+MontageAbteilung?"
-  - "Vollstaendigkeit der adversarialen FA-Zusatzinfos-Kollisionspruefung: alle Single-/First-Lookups auf OrderNumber in den 14 identifizierten Fundstellen (siehe technischer Loesungsentwurf) sind vor der Freigabe einzeln durchzugehen — diese Spec listet sie, bewertet sie aber nicht abschliessend"
-  - "Exakte Sperrbedingung-Formel: EXISTS(...) laut Notiz eindeutig, aber WANN wird sie geprueft (bei jedem Request? gecacht? bei jedem Schreibversuch auf den Setting-Key)? Performance-Impact auf jeden Zugriffspfad, der den Master liest"
-  - "Rueckweg-Doku: wo genau wird die 'bewusste Datenbereinigung ausserhalb der Anwendung' dokumentiert (README? eigenes Runbook?) — noch offen"
-epic: false
-etappen: []
+open_questions: []
+epic: true
+etappen:
+  - "A: Schema-Inversion + Migration (SubOrderNumber, ParentSubOrderNumber, SageMissingSince, sys.indexes-Guard fuer den Index-Tausch) + Backfill + FreshInstall an beiden Stellen (Schema + MigrationId) + tote AgentJob-Artefakte entfernen/archivieren + serverseitige Pruefung auf aktive SQL-Agent-Jobs als harte Deploy-Vorbedingung"
+  - "B: HierarchischeStrukturGuard als einziger Choke-Point + Einwegtor ueber eine dedizierte Umschalt-Seite mit Bestaetigungsdialog (generische ServiceSettings- und Teil-6-Maske zeigen den Master nur noch read-only) + Audit-SyncLog + Runbook docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md + README-Verlinkung + explizite Benennung der abhaengigen Schalter inkl. neuem Auto-Erledigt-Schalter"
+  - "C: Materialisierungs-Sync + die drei Sync-Regeln als reine, unit-getestete Planer (inkl. SageMissingSince setzen/zuruecksetzen, Sammelmeldung pro Sync-Lauf statt Einzel-Mail je FA)"
+  - "D: Lookup-Haertung (OrderNumber-Sweep ueber alle identifizierten Fundstellen, 14 als Untergrenze) + mengenwertige GetAllByFaAndOperationAsync mit Logging im bestehenden Einzel-Lookup + adversariales FA-Zusatzinfos-Review inkl. dreistufiger Auto-Erledigt-Sperre + gezielte hierarchische Unit-Tests fuer den Reconcile-UPDATE-Pfad und Fold 2"
+  - "E: Doku (README, Runbook falls nicht bereits in B abgeschlossen), Testszenarien, Brain-Update"
 deploy:
   web: true
   service: true
@@ -57,18 +64,31 @@ ausschliesslich gegen `ProductionOrders` arbeiten. Die Struktur bleibt die Quell
 ist abgeleitet (Transformation, kein zweiter Import) — die beiden laufen so nicht auseinander, und
 die Transformation ist ohne DB testbar.
 
+Dieser Teil ist als **Epic** zugeschnitten (siehe Etappen A–E im Frontmatter): eine
+daten-konvertierende Migration der zentralsten Tabelle, ein Einweg-Migrationstor ueber mehrere
+Schreibwege, ein neuer Materialisierungs-Sync mit drei Sync-Regeln und die Haertung von 14+
+`OrderNumber`-Lookups sind zusammen groesser als in einem Dev-Lauf sicher schaffbar. Ein einziger
+langlebiger Worktree, kein Zwischen-Merge — der Branch wird waehrend der Arbeit ueber
+`scripts/sync-worktree.ps1` auf main-Stand gehalten, jede Etappe endet in einem eigenen Commit.
+
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope:** Schema-Inversion (`OrderNumber` nicht mehr unique, `SubOrderNumber` unique,
-`ParentSubOrderNumber` nullable), Backfill fuer AKE-Bestandsdaten, Einweg-Migrationstor
-(Master-Schalter `ProduktionsauftragHierarchisch`), Materialisierungs-Sync (Struktur →
-`ProductionOrders`), die drei Sync-Regeln (nicht loeschen bei Rueckmeldungen; Umhaengung nicht
-still uebernehmen; neuer Sub-FA anlegen), Durchzug von `SubOrderNumber` durch
-Repositories/Controller/Scan-Lookups, adversariales Review der FA-Zusatzinfos-Kollision.
+`ParentSubOrderNumber` nullable, `SageMissingSince` als neuer Zeitstempel), Backfill fuer
+AKE-Bestandsdaten, Einweg-Migrationstor (Master-Schalter `ProduktionsauftragHierarchisch`) inkl.
+eigener Umschalt-Seite, Materialisierungs-Sync (Struktur → `ProductionOrders`), die drei
+Sync-Regeln (nicht loeschen bei Rueckmeldungen; Umhaengung nicht still uebernehmen; neuer Sub-FA
+anlegen), Durchzug von `SubOrderNumber` durch Repositories/Controller, eine mengenwertige
+Lookup-Variante (`GetAllByFaAndOperationAsync`) fuer mehrdeutig gewordene Einzel-Lookups,
+adversariales Review der FA-Zusatzinfos-Kollision inkl. dreistufiger Auto-Erledigt-Sperre.
 
 **Out-of-Scope:** die eigentliche BDE-/Rueckmelde-Logik (Teil 8); Teil 2–6 (Listen/Anzeige) bleiben
 unveraendert auf `FaHierarchyNode` aufgesetzt und sind von dieser Materialisierung **nicht**
-abhaengig (B5).
+abhaengig (B5). Auch die Scan-Aufloesungs-UI bei mehrdeutiger `OrderNumber`
+(`wwwroot/js/barcode-scanner.js`, Auswahl eines konkreten Sub-FA am Terminal) gehoert zu Teil 8
+(Teil-8-Freigabe-Antwort 1) — Teil 7 haertet nur Schema und Lookup-Semantik im Server-Code, nicht
+den Scan-Client. Die Umstellung der Aufrufer von Einzel- auf mengenwertigen Lookup ist ebenfalls
+Teil 8; Teil 7 liefert nur den Baustein (siehe AK 10).
 
 ## Fachliche Anforderungen
 
@@ -79,6 +99,12 @@ abhaengig (B5).
 - `ParentSubOrderNumber` (neu, nullable) = `VaterFA` — echter Elternzeiger, weil `OrderNumber`/
   `SubOrderNumber` allein nur zwei Ebenen ausdruecken koennen (Wurzel + Kinder), aber laut B1 ist
   die Struktur mehrstufig (Sub-FA kann unter einem anderen Sub-FA haengen).
+- `SageMissingSince` (neu, `datetime2 NULL`) — Zeitstempel, **nicht** Bool: wird gesetzt, sobald ein
+  bereits materialisierter Sub-FA nicht mehr in der Struktur-Quelle auftaucht (Sync-Regel 2), und
+  automatisch wieder auf `NULL` gesetzt, sobald der FA in einem spaeteren Sync-Lauf erneut auftaucht
+  (selbstheilend). Verwendet **nicht** das bestehende `IsCancelled` — „storniert" und „verschwindet
+  aus der Quelle" sind fachlich unterschiedliche Zustaende, deren Vermischung spaeter nicht mehr
+  aufloesbar waere. Bei AKE (Master aus) bleibt das Feld durchgehend `NULL`.
 - Hauptauftrag genau dann, wenn `OrderNumber == SubOrderNumber`.
 - **Backfill:** `SubOrderNumber = OrderNumber` fuer alle Bestandszeilen (AKE bleibt damit faktisch
   eindeutig — `OrderNumber == SubOrderNumber` ist im flachen Modus eine Invariante, Verhalten
@@ -87,32 +113,48 @@ abhaengig (B5).
   nicht. Die Inversion passiert einmalig und unbedingt fuer die gesamte Tabelle, unabhaengig vom
   Master-Schalter-Zustand.
 
-### Der Master ist ein Migrationstor, kein Betriebsschalter (EINWEG) — exakt aus der Notiz uebernommen
+### Der Master ist ein Migrationstor, kein Betriebsschalter (EINWEG)
 
-Master-Schalter `ProduktionsauftragHierarchisch` (bool, Default `false`) plus drei davon
-abhaengige Betriebsschalter (siehe Uebersichts-Rueckfrage 2 zur Abhaengigkeits-/Heimatfrage dieser
-drei — hier nur der Master selbst behandelt):
+Master-Schalter `ProduktionsauftragHierarchisch` (bool, Default `false`) plus davon abhaengige
+Betriebsschalter (Master + neuer Auto-Erledigt-Schalter + ggf. weitere — explizite Liste vor
+Etappe B/D zu benennen, siehe `affected_code`):
 
 - **Sperrbedingung datengetrieben, nicht schaltergetrieben:** gesperrt genau dann, wenn
   `EXISTS(SELECT 1 FROM ProductionOrders WHERE OrderNumber <> SubOrderNumber)`. Wer versehentlich
   umstellt und es vor dem ersten hierarchischen Import merkt, kann gefahrlos zurueck.
-- **Der Waechter gehoert in die Service-/Domaenenschicht, nicht in die Maske.** Eine zentrale
-  Uebergangspruefung (`HierarchischeStrukturGuard`) greift ueber jeden Schreibweg (generische
-  `ServiceSettings`-Maske, Teil-6-Standorteinstellungen-Maske, kuenftige API) — die Dialoge sind
-  nur die Umgangsform darueber.
-- **Beim Einschalten** Bestaetigung erzwingen: *„Umstellung auf hierarchische
-  Produktionsauftraege. Nach dem ersten hierarchischen Import ist eine Rueckkehr zur flachen
-  Struktur nicht mehr moeglich. Vorher auf einer Datenbank-Kopie testen. Wirklich umstellen?"*
-- **Solange noch keine hierarchischen Daten existieren:** Schalter bleibt aenderbar, mit Hinweis,
-  dass die Sperre mit dem ersten Import greift.
-- **Sobald hierarchische Daten existieren:** Schalter wird schreibgeschuetzt angezeigt mit
-  Begruendung — *„Kann nicht mehr deaktiviert werden: es liegen Auftraege mit Sub-FA-Struktur
-  vor."* Ein Aenderungsversuch ueber einen anderen Weg wird abgelehnt und protokolliert.
+- **Genau ein Schreibweg in der Oberflaeche: eine dedizierte Umschalt-Seite.** Teil 7 baut eine
+  eigene, kleine Seite („Umstellung auf hierarchische Produktionsauftraege",
+  `HierarchieUmstellungController`/`Views/HierarchieUmstellung/Index.cshtml`) mit Erklaerung,
+  Bestaetigungsdialog und dem Domaenen-Waechter dahinter. Ein Einwegtor gehoert nicht als
+  Kontrollkaestchen zwischen zwanzig andere Einstellungen — weder in die generische Maske noch in
+  die Standorteinstellungen. Die generische ServiceSettings-Maske **und** die Teil-6-Maske
+  (`StandortEinstellungenController`) zeigen den Master ausschliesslich **read-only** (Zustand,
+  Sperrstatus, seit wann) mit Link auf die Umschalt-Seite — sie bieten kein Schreib-Bedienelement
+  fuer diesen Key.
+- **Der Waechter (`HierarchischeStrukturGuard`) gehoert in die Service-/Domaenenschicht und ist der
+  einzige Choke-Point** fuer jeden Schreibversuch auf den Master-Key — auch technische Versuche
+  ueber die generische ServiceSettings-Maske oder eine kuenftige API werden abgelehnt, nicht nur
+  ueber fehlende UI-Bedienelemente verhindert.
+- **Beim Einschalten** (auf der Umschalt-Seite) Bestaetigung erzwingen: *„Umstellung auf
+  hierarchische Produktionsauftraege. Nach dem ersten hierarchischen Import ist eine Rueckkehr zur
+  flachen Struktur nicht mehr moeglich. Vorher auf einer Datenbank-Kopie testen. Wirklich
+  umstellen?"*
+- **Solange noch keine hierarchischen Daten existieren:** Schalter bleibt auf der Umschalt-Seite in
+  beide Richtungen aenderbar, mit Hinweis, dass die Sperre mit dem ersten Import greift.
+- **Sobald hierarchische Daten existieren:** Die Umschalt-Seite zeigt den Schalter schreibgeschuetzt
+  mit Begruendung — *„Kann nicht mehr deaktiviert werden: es liegen Auftraege mit Sub-FA-Struktur
+  vor."* Ein Aenderungsversuch ueber einen anderen Weg (generische Maske, Teil-6-Maske, kuenftige
+  API) wird vom Guard abgelehnt und protokolliert.
 - **Audit:** Wer den Master wann umgelegt hat, wird protokolliert (Aktivitaets-Protokoll /
-  `SyncLogServices`, ADR 0010) — bei einer Einwegtuer gehoert das nachvollziehbar.
-- **Rueckweg** existiert nur als bewusste Datenbereinigung ausserhalb der Anwendung (dokumentiert,
-  nicht per Klick). Ehrlich benannt: „nicht ueber die Anwendung umkehrbar", nicht „physikalisch
-  unmoeglich".
+  `SyncLogServices`, ADR 0010, Service-Name `HierarchieUmstellung`) — bei einer Einwegtuer gehoert
+  das nachvollziehbar. Ebenso protokolliert: automatisches Abschalten eines bereits aktiven
+  Auto-Erledigt-Schalters, wenn der Master umgelegt wird.
+- **Rueckweg** existiert nur als bewusste Datenbereinigung ausserhalb der Anwendung — dokumentiert
+  in `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` (Vorbedingungen inkl. Backup, betroffene Tabellen,
+  Bereinigungsschritt, ehrliche Warnung zum Datenverlust), verlinkt aus `README.md` und referenziert
+  in der Ablehnungs-Fehlermeldung des Guards („Rueckbau nur ueber das Runbook, siehe
+  docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md"). Formulierung durchgaengig **„nicht ueber die Anwendung
+  umkehrbar"**, nicht „unmoeglich".
 
 ### Synchronisation Struktur → ProductionOrders (drei Sync-Regeln, als Akzeptanzkriterien, nicht Randnotiz)
 
@@ -121,26 +163,38 @@ werden (Teil 1). Bei den materialisierten `ProductionOrders` gilt das **nicht** 
 Rueckmeldungen dran:
 
 1. **Neuer Sub-FA taucht auf** → anlegen.
-2. **FA verschwindet aus der Struktur, hat aber schon Rueckmeldungen** → **NICHT loeschen.**
-   Status setzen („nicht mehr in Sage") und in der Oberflaeche kenntlich machen. Ein Sync, der
-   loeschen darf, vernichtet Buchungsdaten.
+2. **FA verschwindet aus der Struktur** → **NICHT loeschen**, unabhaengig davon, ob bereits
+   Rueckmeldungen existieren — beide Faelle (mit und ohne Rueckmeldungen) werden gleich behandelt,
+   damit es keine Fallunterscheidung braucht, die spaeter vergessen wird. `SageMissingSince` wird
+   gesetzt (Zeitstempel „nicht mehr in Sage"); taucht der FA in einem spaeteren Sync-Lauf wieder
+   auf, wird das Feld auf `NULL` zurueckgesetzt (selbstheilend). Zusaetzlich: Eintrag im
+   Aktivitaets-Log **und** — nur fuer neu als fehlend erkannte FAs, die **nicht** bereits als
+   erledigt bekannt waren — eine **Sammelmeldung pro Sync-Lauf** per Mail (Liste der neu markierten
+   FAs), **keine** Einzel-Mail je FA (sonst erzeugt jeder planmaessig aus der Sicht verschwindende
+   fertige Auftrag eine taegliche Flut, die niemand mehr liest). Vor dem ersten echten Datenlauf in
+   Etappe C zu pruefen: behaelt die IDEAL-Quelle fertige Auftraege oder blendet sie sie aus — danach
+   die Melde-Regel schaerfen.
 3. **Sub-FA haengt unter einem anderen Vater (Umhaengung)** → darf fachlich **nicht** vorkommen —
    als Invariante behandeln, nicht als Annahme: Der Sync erkennt eine geaenderte `VaterFA` bei
    bereits materialisiertem Sub-FA, **aendert sie nicht stillschweigend**, sondern protokolliert
    und meldet den Fall zur Klaerung.
 
-### B3-Folge (NICHT abschliessend entschieden — siehe offene Rueckfrage 1)
+### B3-Folge: Montage-Abteilung bleibt ausserhalb von ProductionOrders (ENTSCHIEDEN)
 
 `OrderNumber = HauptFA` ist bei Kombinationsgeraeten selbst als **Gruppen**-Schluessel mehrdeutig
-(zwei logische Auftraege teilen sich dieselbe `OrderNumber`). Diese Spec **listet** das Problem
-und die moeglichen Loesungsrichtungen (eigene `MontageAbteilung`-Spalte auf `ProductionOrder` +
-zusammengesetzter Gruppen-Schluessel), entscheidet es aber **nicht** — es ist bewusst hierher
-verlagert: **Teil 1 behandelt Kombinationsgeraete beim Struktur-Import wie normale Auftraege**
-(Schranke-1-Antwort 1) und fuehrt `MontageAbteilung` **nur informativ** auf `FaHierarchyOrderInfo`
-(nicht auf `FaHierarchyNode`). Damit steht als Eingangslage fest: Die Montage-Abteilung ist
-**auftrags-, nicht positionsbezogen** verfuegbar — die Materialisierung muss daher entscheiden, ob
-`ProductionOrders` eine eigene `MontageAbteilung`-Spalte und einen zusammengesetzten Gruppen-
-Schluessel `OrderNumber + MontageAbteilung` erhaelt.
+(zwei logische Auftraege teilen sich dieselbe `OrderNumber`). **Entschieden (Freigabe-Antwort 1):**
+`ProductionOrders` erhaelt **keine** eigene `MontageAbteilung`-Spalte und **keinen**
+zusammengesetzten Gruppen-Schluessel — der Gruppen-Schluessel bleibt `OrderNumber`.
+
+Grund: Kombinationsgeraete sind paketweit (ueber alle Teile) bewusst **out of scope**. Teil 1
+behandelt sie beim Struktur-Import wie normale Auftraege (Schranke-1-Antwort 1) und fuehrt
+`MontageAbteilung` nur **informativ** auf `FaHierarchyOrderInfo` (auftrags-, nicht
+positionsbezogen). Ein zusammengesetzter Schluessel `OrderNumber + MontageAbteilung` waere in den
+Positionsdaten nicht befuellbar und damit nicht sinnvoll bildbar — ein zusaetzliches Feld auf der
+Kern-Tabelle `ProductionOrders` waere zudem eine Kern-Tabellen-Aenderung fuer einen Fall, den wir
+bewusst nicht behandeln. Nachzuholen ist das gemeinsam mit
+[[2026-08-06-kombinationsgeraete-montageabteilung]], wo der fehlende Positionsschluessel als Wurzel
+benannt ist.
 
 ### FA-Zusatzinfos-Kollision (groesstes technisches Risiko, PFLICHT-Review)
 
@@ -149,24 +203,42 @@ verlaesst sich auf Eindeutigkeit. Nach der Inversion ist die Spalte **nicht mehr
 `OrderNumber`-Lookup liefert im hierarchischen Modus mehrere Zeilen. Zu pruefen und je Fundstelle
 explizit zu entscheiden:
 
-- `FaZusatzinfoSyncService` (Schreibseite bereits mehrfachtreffer-faehig seit v1.26.0 — `GroupBy
-  OrderNumber`, Upsert je Id; **Restrisiko liegt im UPDATE-Pfad der FA-Reconciliation**, nicht in
-  dieser Klasse).
-- `ProductionOrderReconciler` (FA-Reconciliation, `OrderNumber`-basiertes UPDATE/Stornieren).
+- `FaZusatzinfoSyncService`: Die Schreibseite ist mehrfachtreffer-**faehig** (kein Absturz,
+  `GroupBy OrderNumber`, Upsert je Id) seit v1.26.0 — **aber** `Fold 2` (Auto-Erledigt) wendet den
+  Komm-Erledigt-Status **je gematchter Zeile** an (`WaNummer`→`OrderNumber`-Match,
+  `foreach (var order in matches)`). Im hierarchischen Modus teilen HauptFA und alle Sub-FAs
+  dieselbe `OrderNumber` — ohne Sperre wuerde ein „verpackt/abgeholt" am HauptFA den Status der
+  **ganzen Gruppe** still auf erledigt setzen. Deshalb **dreistufige Auto-Erledigt-Sperre** (AK 11):
+  1. **Datengetrieben (Pflicht):** `Fold 2` wird uebersprungen, sobald der `WaNummer`-Match **mehr
+     als eine Zeile** liefert — mit Eintrag im Aktivitaets-/SyncLog (`WaNummer` + Trefferzahl).
+     Greift unabhaengig von jedem Schalter und ist die eigentliche Sicherung.
+  2. **Schalter:** Der Auto-Erledigt-Schalter laesst sich nicht einschalten, solange hierarchische
+     Daten existieren (dieselbe `EXISTS`-Bedingung wie das Einwegtor); ist er bereits an, wird er
+     beim Umlegen des Masters automatisch abgeschaltet und das protokolliert.
+  3. **Test:** Struktur mit zwei Sub-FAs derselben `OrderNumber` — ein „verpackt" am HauptFA darf
+     den Komm-Erledigt-Status der Geschwister **nicht** veraendern.
+  AKE bleibt unberuehrt (Match dort immer = 1, `Fold 2` laeuft unveraendert).
+- `ProductionOrderReconciler` (FA-Reconciliation, `OrderNumber`-basiertes UPDATE/Stornieren) — neben
+  `Fold 2` der zweite der beiden riskantesten UPDATE-Pfade; beide bekommen gezielte hierarchische
+  Unit-Tests (AK 12).
 - Alle weiteren `OrderNumber`-basierten Single-/First-Lookups im heutigen `main` — bei der
-  Code-Recherche fuer diese Spec wurden **14 Dateien** mit `OrderNumber`-Vergleich/-Lookup
-  identifiziert (`ApplicationDbContext`, `ProductionOrderRepository`,
+  Code-Recherche fuer diese Spec wurden **mindestens 14 Dateien** mit `OrderNumber`-Vergleich/
+  -Lookup identifiziert (`ApplicationDbContext`, `ProductionOrderRepository`,
   `ProductionOrdersController`, `PickingLeitstandController`, `FaWorklistController`,
   `FaCompletionController`, `TrackingController`, `WorkOperationRepository`,
   `ProductionOrderPickingStatusRepository`, `EnaioDmsDocumentRepository`,
-  `OseonProductionOrderRepository` u. a.) — **jede einzelne** ist vor der Freigabe dieses Teils
-  daraufhin zu pruefen, ob sie eine Eindeutigkeitsannahme trifft, die im hierarchischen Modus
-  bricht (siehe offene Rueckfrage 2).
-- Scan-/QR-Lookups (`barcode-scanner.js`): QR traegt an Index 2 die BelID = kuenftig
-  `SubOrderNumber` — muss auf den neuen eindeutigen Schluessel umgestellt werden, wo Eindeutigkeit
-  gebraucht wird (siehe B2/B-5-Regel unten).
+  `OseonProductionOrderRepository` u. a.) — **14 ist eine Untergrenze, keine abgeschlossene
+  Menge**: das adversariale Review **sweept** den Code, statt eine feste Liste abzuticken, und
+  nimmt weitere gefundene Stellen auf. Jede identifizierte Fundstelle bekommt ein eigenes,
+  schriftliches Urteil — „unkritisch (Gruppen-Lookup, bleibt `OrderNumber`)" oder „kritisch, auf
+  `SubOrderNumber`/`GetAllByFaAndOperationAsync` umgestellt" — mit Begruendung (AK 8).
 - **Regel:** eindeutige Lookups → `SubOrderNumber`; Gruppen-Lookups (alle Sub-FAs einer Haupt-FA)
-  → `OrderNumber`.
+  → `OrderNumber`. Wo ein Eindeutigkeits-Lookup im hierarchischen Modus mehrdeutig werden kann,
+  stellt Teil 7 zusaetzlich eine **mengenwertige Variante** bereit (z. B.
+  `GetAllByFaAndOperationAsync`) und protokolliert im bestehenden Einzel-Lookup, wenn dieser mehr
+  als eine Zeile faende — **ohne das aufrufende Verhalten zu aendern** (AK 10). Die Umstellung der
+  Aufrufer auf die mengenwertige Variante ist Aufgabe von Teil 8; Teil 7 bleibt damit fuer sich
+  mergebar.
 
 **Vor der Freigabe dieses Teils ist zwingend ein adversariales `/review` auf diese Spec
 durchzufuehren** (nicht nur die Spec-Erstellung selbst) — explizit mit Fokus FA-Zusatzinfos-
@@ -178,92 +250,183 @@ Kollision, wie in der Backlog-Notiz gefordert.
   entfernt/durch einen nicht-eindeutigen Index ersetzt; neuer `HasIndex(e =>
   e.SubOrderNumber).IsUnique()`.
 - `ProductionOrder.cs`: neue Properties `SubOrderNumber` (`string`, `[Required]`,
-  `[StringLength(100)]`) und `ParentSubOrderNumber` (`string?`, `[StringLength(100)]`).
+  `[StringLength(100)]`), `ParentSubOrderNumber` (`string?`, `[StringLength(100)]`) und
+  `SageMissingSince` (`DateTime?`).
 - Materialisierungs-Sync (neuer Service oder Erweiterung von `SageImportService`, TBD im Dev-Lauf):
   liest `FaHierarchyNode` (Teil 1) als Quelle, wendet die drei Sync-Regeln an, schreibt/aktualisiert
   `ProductionOrders`. Laeuft **nur** bei `ProduktionsauftragHierarchisch = true` — bei `false`
   bleibt der bestehende `SageImportService`-Pfad (AKE) unveraendert die einzige Quelle.
 - `HierarchischeStrukturGuard` (neuer Domaenen-Service): kapselt die
-  `EXISTS(...)`-Sperrbedingung, wird von **jedem** Schreibpfad auf den Master-Key aufgerufen
-  (generische ServiceSettings-Maske, Teil-6-Maske, kuenftige API).
+  `EXISTS(...)`-Sperrbedingung, wird von **jedem** Schreibpfad auf den Master-Key aufgerufen — der
+  einzige sanktionierte UI-Schreibpfad ist die neue Umschalt-Seite, der Guard sitzt zusaetzlich als
+  Choke-Point am generischen ServiceSettings-Schreibpfad (S7-6/S7-7).
+- `HierarchieUmstellungController` + `Views/HierarchieUmstellung/Index.cshtml` (neu): dedizierte
+  Seite mit Erklaerung, Zustand, Bestaetigungsdialog beim Einschalten, Sperr-Anzeige mit Begruendung.
+  `ServiceSettingsController` und `StandortEinstellungenController` (Teil 6) zeigen den Master nur
+  noch lesend mit Link hierher.
+- `ProductionOrderRepository`: neue mengenwertige `GetAllByFaAndOperationAsync` (oder passender
+  Name je nach bestehender Methode); der bestehende Einzel-Lookup protokolliert (nicht bricht ab),
+  wenn er mehr als eine Zeile faende.
+- `FaZusatzinfoSyncService`: `Fold 2` uebersprungen bei `WaNummer`-Mehrfachtreffer + SyncLog-Eintrag;
+  Auto-Erledigt-Schalter als neuer `ServiceSetting`, geschuetzt durch dieselbe `EXISTS`-Bedingung.
 
 ## Migrations-/SQL-Auswirkungen
 
-1. Model → `dotnet ef migrations add InvertProductionOrderHierarchy` (aktueller Timestamp) →
-   idempotentes `SQL/87_InvertProductionOrderHierarchy.sql` mit `OBJECT_ID`/`COL_LENGTH`-Guards,
-   DDL in eigenem Batch, Backfill-UPDATE (`SubOrderNumber = OrderNumber` wo NULL) **vor** dem
-   Setzen von `NOT NULL`/`UNIQUE`, `__EFMigrationsHistory`-Insert in separatem Batch.
-2. `SQL/00_FreshInstall.sql` an beiden Stellen nachziehen (Schema + `MigrationId`).
-3. **Daten-konvertierend, nicht destruktiv** (Backfill fuellt eine neue Spalte, loescht nichts) —
-   trotzdem als „Kern-Tabelle betroffen, DB-Backup vor Deploy" markieren, weil `ProductionOrders`
-   die zentralste Tabelle des Systems ist.
-4. `SQL/AgentJobs/01_Import_Produktionsauftraege.sql`: Review, ob der bestehende MERGE-Job mit
-   dem neuen `SubOrderNumber`-Upsert-Key kollidiert (Fallstrick „`SubOrderNumber` nur schreiben,
-   wenn die Spalte existiert" ist bereits vorbereitet, aber die Merge-Logik selbst muss auf den
-   neuen Key umgestellt werden) — im **selben Wartungsfenster**.
-5. **Vor dem Dev-Lauf erneut pruefen, ob `SQL/87` noch frei ist.**
+1. Model → `dotnet ef migrations add InvertProductionOrderHierarchy` (aktueller Timestamp,
+   `SubOrderNumber`, `ParentSubOrderNumber`, `SageMissingSince`) → idempotentes
+   `SQL/87_InvertProductionOrderHierarchy.sql` mit `OBJECT_ID`/`COL_LENGTH`-Guards fuer die neuen
+   Spalten **und** einem `sys.indexes`-Guard fuer den Index-Tausch (die Spalten-Guards greifen nicht
+   fuer Indizes, H7-1/H7-3). DDL/Daten-Schritte in **eigenen Batches**, in dieser Reihenfolge:
+   1. Spalten additiv, nullable hinzufuegen (`SubOrderNumber`, `ParentSubOrderNumber`,
+      `SageMissingSince`).
+   2. Backfill-UPDATE `SubOrderNumber = OrderNumber` wo `NULL`.
+   3. `SubOrderNumber` auf `NOT NULL` setzen.
+   4. Alten Unique-Index auf `OrderNumber` droppen (`sys.indexes`-Guard) und neuen Unique-Index auf
+      `SubOrderNumber` anlegen (`sys.indexes`-Guard).
+   5. `__EFMigrationsHistory`-Insert in separatem Batch.
+2. `SQL/00_FreshInstall.sql` an beiden Stellen nachziehen (Schema-Objekte inkl. neuer Spalten und
+   Index + `MigrationId`).
+3. **Daten-konvertierend, nicht destruktiv** (Backfill fuellt neue Spalten, loescht nichts) —
+   trotzdem als „Kern-Tabelle betroffen, DB-Backup vor Deploy **zwingend**" markieren, weil
+   `ProductionOrders` die zentralste Tabelle des Systems ist.
+4. `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` ist **tot**: produktiv laeuft ausschliesslich
+   `SageImportService` (C#, verifiziert — schreibt `SubOrderNumber = OrderNumber`, sobald die Spalte
+   existiert, ueber `SyncWorker`/DI live). Die Datei wird geloescht oder nach
+   `SQL/AgentJobs/_archiv/` verschoben, mit Kopfkommentar „AUSSER BETRIEB seit
+   <Migrationsdatum>, ersetzt durch `SageImportService` — nicht mehr ausgefuehrt". Der gesamte
+   Ordner `SQL/AgentJobs/` wird auf weitere tote Artefakte durchsucht und gleich mitbehandelt. In
+   `secondbrain/codebase/` wird vermerkt, dass der Produktionsauftrags-Import ausschliesslich ueber
+   `SageImportService` laeuft.
+5. **Das Loeschen der Repo-Datei entfernt keinen auf `AKESQL20` eingerichteten SQL-Agent-Job** —
+   „die Datei ist tot" und „es ist nichts geplant" sind zwei verschiedene Aussagen. Deshalb
+   **verbindlich vor der Migration** (siehe Deploy-Abschnitt) die serverseitige Pruefung, ob ein
+   aktiver Job `ProductionOrders` schreibt; falls ja, im selben Wartungsfenster deaktivieren.
+6. **Vor dem Dev-Lauf erneut pruefen, ob `SQL/87` noch frei ist.**
 
 ## Audit-Feld-Auswirkungen
 
-`ProductionOrder` bleibt `AuditableEntity` — bestehende Audit-Felder unveraendert. Neu:
-das Umlegen des Master-Schalters wird als eigener Audit-Eintrag im Aktivitaets-Protokoll erfasst
-(wer, wann) — kein Feld auf `ProductionOrder` selbst, sondern ein `SyncLog`-Eintrag eines eigenen
-„Service"-Namens (z. B. `HierarchieUmstellung`, in `SyncLogServices.All` zu ergaenzen).
+`ProductionOrder` bleibt `AuditableEntity` — bestehende Audit-Felder unveraendert; `SageMissingSince`
+ist ein reines Fachfeld, kein Audit-Feld. Neu: das Umlegen des Master-Schalters (und ein
+automatisches Abschalten des Auto-Erledigt-Schalters dabei) wird als eigener Audit-Eintrag im
+Aktivitaets-Protokoll erfasst (wer, wann) — kein Feld auf `ProductionOrder` selbst, sondern ein
+`SyncLog`-Eintrag des Service-Namens `HierarchieUmstellung` (in `SyncLogServices.All` zu ergaenzen).
+Ebenso protokolliert: jeder `Fold 2`-Skip in `FaZusatzinfoSyncService` bei `WaNummer`-Mehrfachtreffer
+(eigener Counts-Key im bestehenden Sync-Log dieses Service).
 
 ## Akzeptanzkriterien
 
 1. Bei `ProduktionsauftragHierarchisch = false` ist `ProductionOrders` byte-identisch zum
-   Vor-Zustand (Backfill hat `SubOrderNumber = OrderNumber` gesetzt, kein Verhaltensunterschied in
-   keinem bestehenden Controller/Repository).
-2. Ist der Master `true` und existieren bereits Zeilen mit `OrderNumber <> SubOrderNumber`, ist ein
-   Deaktivierungsversuch über **jeden** Schreibweg (generische Maske, Teil-6-Maske) abgelehnt und
-   protokolliert.
+   Vor-Zustand (Backfill hat `SubOrderNumber = OrderNumber` gesetzt, `SageMissingSince` bleibt
+   `NULL`, kein Verhaltensunterschied in keinem bestehenden Controller/Repository).
+2. Ist der Master `true` und existieren bereits Zeilen mit `OrderNumber <> SubOrderNumber`: ein
+   Deaktivierungsversuch auf der Umschalt-Seite ist abgelehnt und protokolliert; die generische
+   ServiceSettings-Maske und die Teil-6-Maske bieten fuer den Master **kein** Schreib-Bedienelement
+   an (nur Anzeige, Link auf die Umschalt-Seite); ein technischer Schreibversuch ueber den
+   generischen ServiceSettings-Weg wird vom Guard ebenfalls abgelehnt und protokolliert.
 3. Ist der Master noch nie `true` gewesen ODER `true` ohne hierarchische Daten, bleibt der Schalter
-   in beide Richtungen aenderbar.
-4. Einschalten des Masters erzwingt die Bestaetigungs-Dialogformulierung aus der Notiz (wortgleich
-   oder sinngemaess, Kernaussage „nicht mehr moeglich, vorher auf Kopie testen" muss enthalten
-   sein).
+   auf der Umschalt-Seite in beide Richtungen aenderbar.
+4. Einschalten des Masters auf der Umschalt-Seite erzwingt die Bestaetigungs-Dialogformulierung aus
+   der Notiz (wortgleich oder sinngemaess, Kernaussage „nicht mehr moeglich, vorher auf Kopie
+   testen" muss enthalten sein).
 5. **Regel 1 (Sync):** ein neuer Sub-FA in der Struktur wird als neuer `ProductionOrder` angelegt.
-6. **Regel 2 (Sync):** ein aus der Struktur verschwundener, aber bereits ruckgemeldeter Sub-FA wird
-   **nicht** geloescht, sondern erhaelt einen sichtbaren „nicht mehr in Sage"-Status.
+6. **Regel 2 (Sync):** ein aus der Struktur verschwundener Sub-FA — mit oder ohne vorhandene
+   Rueckmeldung — wird **nicht** geloescht, erhaelt `SageMissingSince` (Zeitstempel), ist damit in
+   der Oberflaeche als „nicht mehr in Sage" erkennbar, und `SageMissingSince` wird auf `NULL`
+   zurueckgesetzt, sobald der FA in einem spaeteren Sync-Lauf wieder auftaucht. Meldung erfolgt als
+   **eine** Sammelmail pro Sync-Lauf (nicht je FA) und nur fuer unerwartet verschwundene FAs.
 7. **Regel 3 (Sync):** eine erkannte Umhaengung (`ParentSubOrderNumber` weicht vom zuvor
    gespeicherten Wert ab) wird **nicht** automatisch uebernommen, sondern protokolliert und als zu
    klaerender Fall markiert.
-8. Jeder der 14 identifizierten `OrderNumber`-Fundstellen ist im Zuge des adversarialen Reviews
-   einzeln als „unkritisch (Gruppen-Lookup, bleibt OrderNumber)" oder „kritisch, auf
-   SubOrderNumber umgestellt" dokumentiert — kein Fundort bleibt unbewertet.
-9. AKE-Verhalten (Master aus) unveraendert — harte Akzeptanzbedingung fuer jeden Teil.
+8. Jede identifizierte `OrderNumber`-Fundstelle (14 als Untergrenze, kein abgeschlossener Katalog)
+   ist im Zuge des adversarialen Reviews einzeln als „unkritisch (Gruppen-Lookup, bleibt
+   `OrderNumber`)" oder „kritisch, auf `SubOrderNumber`/`GetAllByFaAndOperationAsync` umgestellt"
+   dokumentiert — kein Fundort bleibt unbewertet, weitere im Review gefundene Stellen werden
+   ergaenzt.
+9. **AKE-Verhalten (Master aus) unveraendert — harte Akzeptanzbedingung fuer jeden Teil.**
+10. Wo ein Eindeutigkeits-Lookup im hierarchischen Modus mehrdeutig werden kann, stellt Teil 7 eine
+    mengenwertige Variante (`GetAllByFaAndOperationAsync`) bereit und protokolliert im bestehenden
+    Einzel-Lookup einen Mehrfachtreffer, **ohne** das aufrufende Verhalten zu aendern (die
+    Umstellung der Aufrufer ist Teil 8).
+11. Dreistufige Auto-Erledigt-Sperre nachgewiesen: (a) `Fold 2`-Skip + SyncLog-Eintrag bei
+    `WaNummer`-Match > 1 Zeile; (b) Auto-Erledigt-Schalter nicht einschaltbar, solange hierarchische
+    Daten existieren (dieselbe `EXISTS`-Bedingung), automatisches Abschalten + Protokollierung beim
+    Umlegen des Masters; (c) Testfall zwei Sub-FAs derselben `OrderNumber` — ein „verpackt" am
+    HauptFA veraendert den Komm-Erledigt-Status der Geschwister nicht.
+12. `HierarchischeStrukturGuard` (`EXISTS`-Bedingung) und die drei Sync-Regeln sind als reine,
+    unit-getestete Planer umgesetzt (Muster `ProductionOrderReconciler`), plus gezielte
+    hierarchische Unit-Tests fuer die zwei riskantesten UPDATE-Pfade (Reconcile-`WHERE OrderNumber`
+    und FA-Zusatzinfo-`Fold 2`).
+13. Vor der Migration ist die serverseitige Pruefung „kein aktiver SQL-Agent-Job schreibt
+    `ProductionOrders` auf `AKESQL20`" durchgefuehrt und das Ergebnis dokumentiert (Deploy-
+    Vorbedingung, siehe Deploy-Abschnitt).
+14. Der Index-Tausch (`OrderNumber` unique entfernen / `SubOrderNumber` unique anlegen) erfolgt mit
+    einem `sys.indexes`-Guard, nicht nur `OBJECT_ID`/`COL_LENGTH` — das Migrationsskript ist bei
+    wiederholtem Lauf idempotent.
+15. `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` existiert, ist aus `README.md` verlinkt und wird in der
+    Ablehnungs-Fehlermeldung des Guards referenziert.
 
 ## Test-Szenarien
 
 Neues Kapitel „IDEAL Teil 7 — Materialisierung / Einweg-Migrationstor":
 
 - **Backfill-Regression:** vor/nach der Migration auf einer AKE-Testkopie —
-  `ProductionOrders`-Zeilenzahl, alle bestehenden Listen/Filter identisch.
-- **Master einschalten ohne Daten:** Bestaetigungsdialog erscheint, Umschalten gelingt, Schalter
-  bleibt danach (ohne hierarchische Daten) noch rueckgaengig machbar.
+  `ProductionOrders`-Zeilenzahl, alle bestehenden Listen/Filter identisch, `SageMissingSince`
+  durchgehend `NULL`.
+- **Vor-Migration-Check (Deploy-Vorbedingung):** die `sysjobs`-Abfrage aus dem Deploy-Abschnitt auf
+  einer produktionsnahen Kopie ausfuehren, Ergebnis dokumentieren.
+- **Master einschalten ohne Daten:** auf der Umschalt-Seite erscheint der Bestaetigungsdialog,
+  Umschalten gelingt, Schalter bleibt danach (ohne hierarchische Daten) noch rueckgaengig machbar.
 - **Master sperren:** nach einem hierarchischen Materialisierungs-Lauf (Testdaten mit
-  `OrderNumber <> SubOrderNumber`) ist der Schalter schreibgeschuetzt — Versuch ueber die
-  generische Maske UND (sobald vorhanden) die Teil-6-Maske beide abgelehnt und protokolliert.
-- **Sync-Regel 2:** ein Sub-FA mit vorhandener Rueckmeldung verschwindet aus der Quelle → Status
-  „nicht mehr in Sage" statt Loeschung, Rueckmeldedaten bleiben abrufbar.
+  `OrderNumber <> SubOrderNumber`) ist der Schalter auf der Umschalt-Seite schreibgeschuetzt; ein
+  Schreibversuch ueber die generische ServiceSettings-Maske wird vom Guard abgelehnt und
+  protokolliert; zusaetzlicher Test, dass **weder** die generische **noch** die Teil-6-Maske ein
+  Schreib-Bedienelement fuer den Master anbieten (ersetzt den bisherigen Test „Deaktivierung ueber
+  Teil-6-Maske abgelehnt" — Teil 6 kann den Master gar nicht schreiben).
+- **Sync-Regel 2:** ein Sub-FA (mit und getrennt ohne vorhandene Rueckmeldung) verschwindet aus der
+  Quelle → `SageMissingSince` gesetzt statt Loeschung, Rueckmeldedaten bleiben abrufbar; taucht der
+  FA wieder auf → `SageMissingSince` wird `NULL`; Sammelmail enthaelt genau die neu markierten,
+  unerwarteten FAs, keine Einzel-Mail je FA.
 - **Sync-Regel 3:** simulierte Umhaengung (`VaterFA` geaendert) → Protokoll-Eintrag, keine
   stille Uebernahme.
-- **FA-Zusatzinfos-Kollision:** Struktur mit zwei Sub-FAs derselben `OrderNumber` — FA-Reconciliation
-  und `FaZusatzinfoSyncService` behandeln beide korrekt (kein falscher Treffer, kein Datenverlust).
+- **FA-Zusatzinfos-Kollision / Auto-Erledigt-Sperre:** Struktur mit zwei Sub-FAs derselben
+  `OrderNumber` — `FaZusatzinfoSyncService` ueberspringt `Fold 2` mit SyncLog-Eintrag, der
+  Auto-Erledigt-Schalter laesst sich nicht einschalten (bzw. schaltet sich beim Umlegen des Masters
+  automatisch ab), `ProductionOrderReconciler` behandelt beide Sub-FAs korrekt (kein falscher
+  Treffer, kein Datenverlust).
+- **GetAllByFaAndOperationAsync:** Mehrfachtreffer im bestehenden Einzel-Lookup fuehrt zu einem
+  Log-Eintrag, das Terminal-/Aufrufer-Verhalten bleibt unveraendert (Teil 7 aendert es nicht).
+- **Idempotenz Migrationsskript:** `SQL/87_InvertProductionOrderHierarchy.sql` zweimal gegen dieselbe
+  Datenbank ausgefuehrt bricht nicht (Spalten- **und** Index-Guards greifen).
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** ja (Materialisierungs-Sync, ggf. angepasster `ProductionOrderReconciler`/
+- **Web-App:** ja (neue Umschalt-Seite, read-only Master-Anzeige in generischer und Teil-6-Maske).
+- **Service:** ja (Materialisierungs-Sync, angepasster `ProductionOrderReconciler`/
   `FaZusatzinfoSyncService`).
 - **Migration:** ja, **daten-konvertierend** — **DB-Backup vor Deploy zwingend** (Kern-Tabelle
   `ProductionOrders`).
-- **Reihenfolge:** DB-Backup → Migration (Service gestoppt) → Service-Neustart → Web-Deploy. Der
-  Master bleibt nach dem Deploy **default aus** (`false`) — die eigentliche Umstellung ist ein
-  bewusster, spaeterer manueller Schritt am Zielsystem, nicht Teil des Deploys selbst.
+- **Harte Vorbedingung vor der Migration:** serverseitig pruefen, ob ein aktiver SQL-Agent-Job
+  `ProductionOrders` beschreibt:
+  ```sql
+  SELECT j.name, j.enabled, s.command
+  FROM msdb.dbo.sysjobs j
+  JOIN msdb.dbo.sysjobsteps s ON s.job_id = j.job_id
+  WHERE s.command LIKE '%ProductionOrders%';
+  ```
+  Gefundene aktive Jobs werden **deaktiviert oder entfernt**, bevor die Migration laeuft — sonst
+  feuert ein vergessener Job nach der Inversion in die `NOT NULL`-Spalte. Das Loeschen/Archivieren
+  der Repo-Datei `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` beseitigt nur die Irrefuehrung im
+  Code, nicht ein moegliches Betriebsrisiko auf dem SQL-Server.
+- **Reihenfolge:** DB-Backup → serverseitige Agent-Job-Pruefung (s. o.) → **Windows-Service
+  stoppen** → Migration → Service-Neustart → Web-Deploy. Der Master bleibt nach dem Deploy
+  **default aus** (`false`) — die eigentliche Umstellung ist ein bewusster, spaeterer manueller
+  Schritt am Zielsystem, nicht Teil des Deploys selbst.
+- **Irreversibilitaet beachten (Etappe A):** Etappe A vollzieht bereits die Schema-Inversion selbst
+  (Spalten, Backfill, Index-Tausch) unabhaengig vom Master-Zustand. Wird das Epic nach Etappe A
+  abgebrochen, ist die DB-Struktur bereits invertiert — das ist inhaerent (kein Fehler), aber im
+  Runbook und in der Deploy-Planung zu benennen.
 - **Publish-Befehle:**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
@@ -724,3 +887,42 @@ NACHBESSERUNG NOETIG: Antworten sind sachlich gut, aber nicht in die Spec eingea
 „Index 2 = BelID", B3-Folge weiter „unentschieden") (B7-4); `SageMissingSince` fehlt in jeder
 ADR-0004-Stufe (B7-5); die serverseitige Agent-Job-Pruefung wurde als Deploy-Schutz entfernt,
 obwohl die „ausschliesslich C#"-Annahme aus dem Repo nicht verifizierbar ist (S7-7).
+
+### Nachbesserung 2 (2026-08-07)
+
+Beide Antwortbloecke (2026-08-06 und 2026-08-07) sind jetzt vollstaendig in Frontmatter, Rumpf und
+Akzeptanzkriterien eingearbeitet, nicht nur als Anhang dokumentiert:
+
+- **B7-4:** `epic: true` + Etappen A–E stehen im Frontmatter (`etappen:`-Feld, nicht nur Fliesstext);
+  alle vier `open_questions` sind geleert; „B3-Folge" ist auf die getroffene Entscheidung (keine
+  `MontageAbteilung`, Gruppen-Schluessel bleibt `OrderNumber`, ENTSCHIEDEN) umgeschrieben;
+  `barcode-scanner.js` ist aus `affected_code` und aus dem Rumpf entfernt, die am Code widerlegte
+  Behauptung „Index 2 = BelID" gestrichen (Out-of-Scope-Absatz verweist stattdessen auf Teil 8);
+  `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` und `README.md` stehen in `affected_code`.
+- **B7-5:** `SageMissingSince` (`datetime2 NULL`) ist durchgaengig verankert — als Property in
+  `affected_code`/Technischer Loesungsentwurf, als eigene Spalte in der Migrations-Reihenfolge von
+  Etappe A (`COL_LENGTH`-Guard, `00_FreshInstall.sql` an beiden Stellen), in Sync-Regel 2 (Setzen
+  bei Verschwinden, `NULL` bei Wiederauftauchen) und in AK 6/AK 14.
+- **S7-7 (AgentJob):** die serverseitige `sysjobs`-Pruefung ist als harte Deploy-Vorbedingung im
+  Deploy-Abschnitt **und** als AK 13 wieder aufgenommen — zusaetzlich, nicht anstelle der
+  Datei-Archivierung (Migrationsabschnitt Punkt 4/5).
+- **H7-3 (sys.indexes-Guard):** im Migrationsabschnitt (Reihenfolge-Schritt 4) und in AK 14 verankert.
+- **H7-4 (Irreversibilitaet Etappe A):** als eigener Absatz im Deploy-Abschnitt benannt.
+- **Master-Schreibwege (Entscheidung 2026-08-07):** die dedizierte Umschalt-Seite
+  (`HierarchieUmstellungController`) ist der einzige UI-Schreibweg; generische ServiceSettings- und
+  Teil-6-Maske sind im Rumpf, in `affected_code` und in AK 2 als ausschliesslich read-only
+  spezifiziert. Das Testszenario „Deaktivierung ueber Teil-6-Maske abgelehnt" ist entsprechend durch
+  „weder generische noch Teil-6-Maske bieten ein Schreib-Bedienelement" ersetzt.
+- **Liefergrenze zu Teil 8 (`GetAllByFaAndOperationAsync`):** als eigenes AK 10 mit Logging-Pflicht
+  im bestehenden Einzel-Lookup aufgenommen, Umstellung der Aufrufer bleibt ausdruecklich Teil 8.
+- **S7-1/Auto-Erledigt-Sperre:** die dreistufige Sperre ist als AK 11 sowie im Abschnitt
+  „FA-Zusatzinfos-Kollision" ausformuliert.
+
+**Verbleibender, nicht blockierender Klaerungspunkt (S7-8):** Welche Schalter genau die „weiteren
+abhaengigen Schalter" neben Master und dem neuen Auto-Erledigt-Schalter sind, ist in dieser Spec
+weiterhin nicht abschliessend aufgezaehlt — das war nicht Gegenstand der bisherigen Freigabe-
+Antworten. `affected_code` markiert das ausdruecklich als vor Etappe B/D zu klaerende Inventur-
+Aufgabe, kein Freigabe-Blocker. Ebenso als Hinweis, nicht als Blocker uebernommen: ob die
+IDEAL-Sage-Quelle fertige Auftraege behaelt oder ausblendet, wird erst am ersten echten Datenlauf in
+Etappe C geprueft (siehe Sync-Regel 2); die Melde-Regel ist bis dahin bewusst konservativ
+(Sammelmeldung, nur Unerwartetes) angelegt.
