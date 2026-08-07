@@ -463,3 +463,129 @@ Akzeptanzkriterien oben, hier nur die Kurzfassung mit Verweis:
   Loesungsentwurf und Akzeptanzkriterien eingearbeitet (mit Verweis auf die jeweilige Antwort);
   „Offene Rueckfragen" ist auf den tatsaechlichen Reststand (1 Punkt) gekuerzt; die Runde-1-Antworten
   bleiben als historischer Beleg in einem eigenen Abschnitt erhalten, statt geloescht zu werden.
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang, ausdruecklich mit dem Auftrag, die **seit der Nachbesserung
+erweiterten menschlichen Antworten** zu pruefen. Gegengelesen: diese Teil-3-Spec **komplett**, die
+Teil-1-Spec (`FaHierarchyNode` 1:1 Positionen, `SubFA = 0` = Blatt / `SubFA <> 0` = eigener FA,
+Wurzel `SubFA = HauptFA`, `MontageAbteilung` **nur** auf `FaHierarchyOrderInfo`, Existenzpruefung
+statt Fan-out-Join), die ueberarbeiteten Teil-4- und Teil-5-Specs (gemeinsamer Listen-/Druck-Baustein,
+`SubFA = 0`-Regel, Kombigeraete out of scope), die Uebersicht (Querschnitts-Entscheidungen:
+„Teil 3 = Referenzimplementierung", „Seiteneinheit durchgaengig `HauptFA`", Listen-Toggles in
+AppSettings), der Anhang [[sage-views-ideal]] (Barcode = `HauptFA`, `SubFA = 0` = Blatt,
+Kommissionierlisten-Spaltenliste, „ein Ausdruck **pro Auftrag**"), ADR 0005/0006 sowie **echter
+main-Code**: `RequireLagerProcessingAccessAttribute` (existiert, prueft `CanProcessLagerAsync`),
+`WarehousePickingController` (traegt `[RequireLagerProcessingAccess]` Class-Level — die Spec-Angabe
+„identisch zum bestehenden Kommissionier-Bereich" stimmt), `RequireLagerbestellungAktivAttribute`
+(existiert, Default-**ein**-Semantik `!= "false"` — die Teil-3-Vorgabe „invertierte Default-aus"
+ist korrekt beschrieben).
+
+**Was haelt (bewusst bestaetigt, damit klar ist, was NICHT neu aufgerollt wird):**
+- **Doppelzaehlung (ehem. Offene Frage 4) ist als ENTSCHIEDENE, code-pruefbare Regel geloest.**
+  `SubFA = 0` ist der alleinige Blatt-/Kommissionierfilter, `Kommissionieren` nur Zusatzfilter
+  (Fachliche Anforderung 2, verbindliche Design-Entscheidung). AK1/AK2 sind unbedingt formuliert und
+  ueber eine **synthetische Fixture unabhaengig vom Testdatenbestand** pruefbar (Test-Szenarien,
+  Abschnitt „Automatisiert/InMemory"). Da die Node-/OrderInfo-Tabellen lokale EF-Tabellen sind
+  (Teil 1), ist der `SubFA = 0`-Filter als LINQ EF-InMemory-testbar — die Fixture ist realisierbar.
+  Der frueherer BLOCKER wird daher **nicht** neu aufgerollt.
+- **Gruppierung nur nach `HauptFA`, kein Fan-out-Join, `MontageAbteilung` nur Kopf** — konsistent zu
+  Teil 1 und zur Uebersicht. Barcode-Kollision durch „ein Ausdruck je `HauptFA`-Gruppe" strukturell
+  entschaerft. ADR 0005 vollstaendig (Pagination/Filterkarte/Server-Spaltenfilter + Gruppen-Paging,
+  Seiteneinheit `HauptFA`, `TotalCount` zaehlt Gruppen).
+
+### BLOCKER
+
+**T3-2P-B1 — Die im Auftrag angenommenen „erweiterten Antworten" existieren NICHT; die einzige
+fachliche Kernfrage (Offene Rueckfrage 1) ist unbeantwortet.**
+Die Sektion „## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)" enthaelt weiterhin nur
+`1. →` (leer); `freigabe_entscheidung`/`freigabe_von`/`freigabe_am` im Frontmatter sind leer.
+`git log`/`git diff` belegen: die Datei ist seit dem Nachbesserungs-Commit (`ddcae5f`)
+**unveraendert** — der Mensch hat seit Runde 1 **keine** neuen Antworten ergaenzt. Damit ist die
+Praemisse dieses Durchgangs („pruefe die neuen Antworten") nicht erfuellbar: es gibt keine.
+Inhaltlich offen bleibt genau die Frage, die die Nachbesserung selbst als Rest markiert hat:
+**Kommissioniert IDEAL wirklich ausschliesslich auf Blattebene (`SubFA = 0`), oder gibt es reale
+Faelle, in denen auf Baugruppen-/HauptFA-Ebene kommissioniert werden muss (z. B. fremdbezogene
+statt gefertigte Baugruppen)?** Die `SubFA = 0`-Regel ist strukturell entschieden und fuer den
+Dev-Lauf tragfaehig — aber ihre **fachliche Richtigkeit** kann nur der Mensch bestaetigen, und
+diese Bestaetigung fehlt. Der Anhang (Abschnitt C, „Kommissionierlisten") stuetzt die Blatt-nur-Regel
+NICHT: er listet `SubFA` als Anzeigespalte und nennt als Filter allein `Kommissionieren` — die
+`SubFA = 0`-Einschraenkung ist eine reine Spec-Interpretation, nicht aus der Quelle abgeleitet. Vor
+der Freigabe (Schranke 1) muss der Mensch Rueckfrage 1 explizit beantworten; solange ist die
+Freigabe unvollstaendig.
+
+### SOLLTE
+
+**T3-2P-S1 — AK2 ist als „unbedingtes Akzeptanzkriterium" ueberformuliert; es ist in Wahrheit
+bedingt.**
+AK2 („jede kommissionierbare Position erscheint in **genau einer** Kommissionierliste",
+ausdruecklich „nicht mehr konditional formuliert") gilt nur UNTER der noch unbestaetigten Annahme
+aus Rueckfrage 1 (`Kommissionieren` wird nur auf Blaettern gesetzt). Trifft die Annahme nicht zu —
+also im von Rueckfrage 1 selbst benannten Fall „auf Baugruppen-Ebene kommissionieren" — erscheint
+eine kommissionierbare `SubFA <> 0`-Position in **KEINER** Liste (sie wird nur geloggt, Anforderung
+3). Dann ist AK2 verletzt („in keiner Liste" statt „in genau einer"). Die Unbedingtheit von AK2 ist
+also an dieselbe unbewiesene Praemisse gekoppelt wie B1. **Fix:** AK2 ehrlich an die Annahme koppeln
+(„unter der Voraussetzung, dass `Kommissionieren` nur auf Blaettern gesetzt ist — Anomalien siehe
+AK3") **oder** — besser — die Anomalie operator-sichtbar machen (S2), damit „null gezaehlt" nie
+still passiert.
+
+**T3-2P-S2 — Die Anomalie-Diagnose ist NUR ein Server-Log (`ILogger`) — fuer den Kommissionierer
+unsichtbar, und das realisiert genau das erklaerte Kernrisiko.**
+Ziel/Nutzen benennt das Kernrisiko selbst: „Mengen doppelt **oder gar nicht** ausweisen und damit
+die Lagerentnahme direkt sachlich falsch steuern". Anforderung 3/AK3 fangen den Fall
+`SubFA <> 0` UND `Kommissionieren` gesetzt zwar ab — aber nur als `ILogger`/Serilog-Warnung. Der
+Kommissionierer, der die Liste/den Druck abarbeitet, sieht **nichts**: eine kommissionierbare
+Position, die auf einer Baugruppen-Zeile haengt, verschwindet still aus seiner Liste, und der Hinweis
+liegt nur im Serverlog. Damit tritt genau der „gar nicht ausweisen"-Fall ein, den die Spec als
+teuersten Fehler bezeichnet. Der Kanal `ILogger` (statt `SyncLog`) ist fuer eine Web-Lesefunktion
+korrekt begruendet — es fehlt die **Sichtbarkeit**. **Fix:** Anomalien zusaetzlich im UI und im Druck
+sichtbar machen (z. B. `TempData["WarningMessage"]`/Banner „N Position(en) mit gesetztem
+`Kommissionieren` auf Baugruppen-Ebene ausgeschlossen — Datenpflege pruefen"), nicht nur ins
+Serverlog schreiben. Bei einer mengensteuernden Liste ist eine still fehlende Position ein
+Betriebsrisiko, kein reines Diagnose-Detail.
+
+**T3-2P-S3 — Teil 3 ist laut Uebersicht und Teil-4/5-`depends_on` die REFERENZIMPLEMENTIERUNG des
+gemeinsamen Bausteins — die Teil-3-Spec selbst sagt das nirgends.**
+Die Uebersicht („Ergaenzende Querschnitts-Entscheidungen") und die Nachbesserungen von Teil 4/Teil 5
+legen fest: Teil 3 „schneidet den Baustein bewusst wiederverwendbar" (Filter als Parameter,
+gemeinsamer Header-Join ohne Fan-out, Gruppierung/Paging nach `HauptFA`, gemeinsames Druck-Scaffold),
+Teil 4/5 „erweitern ihn, statt ihn zu duplizieren". Die Teil-3-Spec erwaehnt diese Verpflichtung an
+KEINER Stelle — weder in Umfang, Loesungsentwurf noch `affected_code` (dort steht ein konkreter,
+Teil-3-spezifischer `KommissionierListenService`, kein wiederverwendbarer Baustein). Ein Dev-Lauf,
+der nur Teil 3 liest, baut die Mechanik Teil-3-eng; Teil 4/5 muessten dann refaktorieren — genau die
+Divergenz, die die S-3-Entscheidung der Runde 1 vermeiden wollte. **Fix:** Den Baustein-Auftrag
+explizit in Teil 3 aufnehmen (wiederverwendbarer Schnitt, Filter parametriert, gemeinsames
+Header-/Gruppierungs-/Druck-Geruest) und in `affected_code` sichtbar machen.
+
+### HINWEIS
+
+**T3-2P-H1 — ColumnMap laesst `HauptArtnr` gegenueber der Anhang-Spaltenliste aus.** Der Anhang
+(Abschnitt C) fuehrt fuer Kommissionierlisten `HauptArtnr` unter den FAListe-Spalten; die ColumnMap
+im Loesungsentwurf (Schritt 2) listet sie nicht (`HauptFA, Artnr, Matchcode, Sollmenge,
+Hauptlagerplatz, Kommissionieren, Arbeitsbereich, Artikeltyp, Beschichtet, Material`). `SubFA` fehlt
+korrekt (durch `SubFA = 0` konstant, als Filter sinnlos). Fuer `HauptArtnr` klaeren, ob sie
+Positions-Spalte oder Kopf-Metadatum ist — nicht wortlos weglassen.
+
+**T3-2P-H2 — Bewusste, aber unzitierte Abweichung vom Anhang-Druckformat.** Der Anhang (Abschnitt C,
+„Format") verlangt „je ein Ausdruck **pro Auftrag** mit Barcode `HauptFA`"; Teil 3 druckt „ein
+Ausdruck je **`HauptFA`**-Gruppe" (bei Kombigeraeten mehrere Auftraege/Montage-Abteilungen auf einem
+Blatt). Das ist konsistent mit „Kombigeraete out of scope" + „Barcode = `HauptFA`" und daher
+richtig — aber die Spec zitiert vom Anhang nur den Identifier-Fallstrick, nicht die
+„pro Auftrag"-Vorgabe. Ein Satz, der die Abweichung als bewusst kennzeichnet, macht die Spec
+gegen den Anhang wasserdicht.
+
+**T3-2P-H3 — Anomalie-Logging-Rauschen.** Die Anomalie-Warnung (Anforderung 3) feuert bei JEDEM
+Listen-/Filter-/Paging-Aufruf erneut und im Druck ueber die GESAMTE gefilterte Menge (Web-Lesefunktion,
+kein einmaliger Sync-Lauf). Bei vorhandenen Anomalien entsteht Log-Rauschen; ggf. je Lauf
+deduplizieren oder drosseln.
+
+BEREIT ZUR FREIGABE? **NEIN.**
+
+NACHBESSERUNG NOETIG: (1) Offene Rueckfrage 1 (kommissioniert IDEAL nur auf Blattebene?) ist die
+einzige fachliche Kernfrage und **unbeantwortet** — die im Auftrag angenommenen „erweiterten
+Antworten" existieren nicht (Datei seit `ddcae5f` unveraendert); ohne die menschliche Bestaetigung
+ist die Freigabe unvollstaendig (T3-2P-B1). (2) AK2 als bedingt kennzeichnen bzw. — besser — die
+Anomalie operator-sichtbar machen (T3-2P-S1/S2), damit der von der Spec selbst benannte
+„gar-nicht-ausweisen"-Fall nicht still im Serverlog verschwindet. (3) Den Referenz-/Baustein-Auftrag
+fuer Teil 4/5 in Teil 3 verankern (T3-2P-S3). Die Doppelzaehlungs-Regel selbst ist geloest und wird
+nicht neu aufgerollt.
