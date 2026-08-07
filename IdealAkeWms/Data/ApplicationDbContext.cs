@@ -50,6 +50,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
     public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
+    public DbSet<FaHierarchyNode> FaHierarchyNodes => Set<FaHierarchyNode>();
+    public DbSet<FaHierarchyOrderInfo> FaHierarchyOrderInfos => Set<FaHierarchyOrderInfo>();
     public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
     public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
     public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
@@ -986,6 +988,51 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(e => e.CachedBomHeaderId).HasDatabaseName("IX_CachedBomItems_CachedBomHeaderId");
             entity.HasIndex(e => e.Ressourcenummer).HasDatabaseName("IX_CachedBomItems_Ressourcenummer");
+        });
+
+        // FaHierarchyNode (IDEAL: Struktur + Stueckliste je FA) — reine Cache-Tabelle, KEIN AuditableEntity.
+        modelBuilder.Entity<FaHierarchyNode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HauptArtnr).HasMaxLength(200);
+            entity.Property(e => e.Artnr).HasMaxLength(200);
+            entity.Property(e => e.Matchcode).HasMaxLength(200);
+            entity.Property(e => e.Artikelgruppe).HasMaxLength(200);
+            entity.Property(e => e.Hauptlagerplatz).HasMaxLength(200);
+            entity.Property(e => e.Kommissionieren).HasMaxLength(200);
+            entity.Property(e => e.Arbeitsbereich).HasMaxLength(200);
+            entity.Property(e => e.Artikeltyp).HasMaxLength(200);
+            entity.Property(e => e.Material).HasMaxLength(200);
+            entity.Property(e => e.VMBedarf).HasMaxLength(200);
+            // Freitext-Felder grosszuegig (roh, unnormalisiert): nvarchar(max).
+            entity.Property(e => e.Bezeichnung1);
+            entity.Property(e => e.Bezeichnung2);
+            entity.Property(e => e.BemerkungPN);
+            entity.Property(e => e.FertigungsInfoPN);
+            entity.Property(e => e.Arbeitsschritte);
+            entity.Property(e => e.Sollmenge).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Fertigungmenge).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Breite).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Hoehe).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Tiefe).HasColumnType("decimal(18,4)");
+
+            entity.HasIndex(e => e.HauptFA).HasDatabaseName("IX_FaHierarchyNodes_HauptFA");
+            entity.HasIndex(e => e.VaterFA).HasDatabaseName("IX_FaHierarchyNodes_VaterFA");
+        });
+
+        // FaHierarchyOrderInfo (IDEAL: PPS-/Auftragsdaten je HauptFA) — reine Cache-Tabelle.
+        modelBuilder.Entity<FaHierarchyOrderInfo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MontageAbteilung).HasMaxLength(200);
+            entity.Property(e => e.ABNr).HasMaxLength(200);
+            entity.Property(e => e.Pos).HasMaxLength(200);
+            entity.Property(e => e.Status).HasMaxLength(200);
+            entity.Property(e => e.Dienstleister).HasMaxLength(200);
+            entity.Property(e => e.RAL).HasMaxLength(200);
+            entity.Property(e => e.Montagestunden).HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(e => e.HauptFA).HasDatabaseName("IX_FaHierarchyOrderInfos_HauptFA");
         });
 
         // UserViewPreference

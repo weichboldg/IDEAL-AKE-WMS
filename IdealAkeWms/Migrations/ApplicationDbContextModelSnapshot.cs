@@ -1104,6 +1104,195 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("FaAttributeWorkSteps", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.FaHierarchyNode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Arbeitsbereich")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Arbeitsschritte")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Artikelgruppe")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Artikeltyp")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Artnr")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("BemerkungPN")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Beschaffungsartikel")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Beschichtet")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Bezeichnung1")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Bezeichnung2")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Breite")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("EKBedarf")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Fertigungmenge")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("FertigungsInfoPN")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HauptArtnr")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("HauptFA")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Hauptlagerplatz")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Hoehe")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Kommissionieren")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Matchcode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Material")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Sollmenge")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("SubFA")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Tiefe")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("VMBedarf")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("VaterFA")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HauptFA")
+                        .HasDatabaseName("IX_FaHierarchyNodes_HauptFA");
+
+                    b.HasIndex("VaterFA")
+                        .HasDatabaseName("IX_FaHierarchyNodes_VaterFA");
+
+                    b.ToTable("FaHierarchyNodes", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.FaHierarchyOrderInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ABNr")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Bemerkung_Uhrzeit")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("Beschichten_Retour")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Dienstleister")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("FE_Termin")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("HauptFA")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("KO_Termin")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Kunde")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MontageAbteilung")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("Montagestunden")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("Neuer_PT_PPS")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Pos")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Prio")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RAL")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("Start_Beschichtung")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("Verladetermin_Vsl")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HauptFA")
+                        .HasDatabaseName("IX_FaHierarchyOrderInfos_HauptFA");
+
+                    b.ToTable("FaHierarchyOrderInfos", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.FaWorkStep", b =>
                 {
                     b.Property<int>("Id")

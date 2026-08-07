@@ -32,6 +32,11 @@ public static class ServiceSettingDefinitions
         new("Sync:FaZusatzinfoEnabled",              ServiceSettingType.Bool, "false", "Sync", "FA-Zusatzinfos (Sage): Kaeltemittel/Ventil/Ausfuehrung/Maschine/Status je FA synchronisieren. ACHTUNG: setzt FAs mit Sage-Status verpackt/abgeholt automatisch auf Komm-Erledigt (vorher DryRun pruefen)"),
         new("Sync:FaZusatzinfoAutoDoneMaxPerRun",    ServiceSettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Auto-Erledigt-Kandidaten (Sage-Status verpackt/abgeholt) je Lauf -> kein Erledigt-Setzen + Warnung + Fehlermail (Schutz vor View-Defekten)"),
 
+        // ----- FA-Hierarchie (IDEAL: mehrstufiger Struktur-/Stuecklisten-Import aus Sage-Views) -----
+        new("Sync:HierarchicalFaEnabled",            ServiceSettingType.Bool,   "false", "FA-Hierarchie", "Mehrstufiger FA-Struktur-/Stuecklisten-Import (IDEAL) aus den Sage-Views FAListe/FAInfos aktiv (Full-Refresh in FaHierarchyNode/FaHierarchyOrderInfo)"),
+        new("Sync:FaHierarchyListeViewName",         ServiceSettingType.String, "[vw_IDEAL-AKE_Kommissionierung_FAListe]", "FA-Hierarchie", "Name der Sage-View mit der Stueckliste je Struktur (Whitelist + QUOTENAME abgesichert). Format [Schema].[Name] oder [Name]."),
+        new("Sync:FaHierarchyInfosViewName",         ServiceSettingType.String, "[vw_IDEAL-AKE_Kommissionierung_FAInfos]", "FA-Hierarchie", "Name der Sage-View mit den PPS-/Auftragsdaten je HauptFA (Whitelist + QUOTENAME abgesichert). Format [Schema].[Name] oder [Name]."),
+
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 ServiceSettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
         new("SData:BaseUrl",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Host+Port der Sage-SData-API (z.B. https://sagetest01.ake.at:5493). Ein angehaengtes /sdata ist erlaubt (wird nicht verdoppelt). Ziel-URL = {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService"),

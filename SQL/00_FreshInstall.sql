@@ -1738,6 +1738,75 @@ BEGIN
 END
 GO
 
+-- 17g. FaHierarchyNodes + FaHierarchyOrderInfos (IDEAL: mehrstufiger FA-Struktur-/Stuecklisten-Import)
+--      Reine Cache-Tabellen (kein AuditableEntity), befuellt vom FaHierarchySyncService (Full-Refresh).
+IF OBJECT_ID(N'dbo.FaHierarchyNodes', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[FaHierarchyNodes] (
+        [Id]                  INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FaHierarchyNodes PRIMARY KEY,
+        [HauptFA]             INT               NOT NULL,
+        [VaterFA]             INT               NULL,
+        [SubFA]               INT               NOT NULL,
+        [Position]            INT               NULL,
+        [HauptArtnr]          NVARCHAR(200)     NULL,
+        [Artnr]               NVARCHAR(200)     NULL,
+        [Matchcode]           NVARCHAR(200)     NULL,
+        [Bezeichnung1]        NVARCHAR(MAX)     NULL,
+        [Bezeichnung2]        NVARCHAR(MAX)     NULL,
+        [Artikelgruppe]       NVARCHAR(200)     NULL,
+        [Hauptlagerplatz]     NVARCHAR(200)     NULL,
+        [BemerkungPN]         NVARCHAR(MAX)     NULL,
+        [FertigungsInfoPN]    NVARCHAR(MAX)     NULL,
+        [Kommissionieren]     NVARCHAR(200)     NULL,
+        [Arbeitsbereich]      NVARCHAR(200)     NULL,
+        [Arbeitsschritte]     NVARCHAR(MAX)     NULL,
+        [Artikeltyp]          NVARCHAR(200)     NULL,
+        [Material]            NVARCHAR(200)     NULL,
+        [VMBedarf]            NVARCHAR(200)     NULL,
+        [Sollmenge]           DECIMAL(18,4)     NOT NULL,
+        [Fertigungmenge]      DECIMAL(18,4)     NOT NULL,
+        [Breite]              DECIMAL(18,4)     NOT NULL,
+        [Hoehe]               DECIMAL(18,4)     NOT NULL,
+        [Tiefe]               DECIMAL(18,4)     NOT NULL,
+        [Beschaffungsartikel] BIT               NOT NULL,
+        [Beschichtet]         BIT               NOT NULL,
+        [EKBedarf]            BIT               NOT NULL,
+        [SyncedAt]            DATETIME2         NOT NULL
+    );
+    CREATE INDEX [IX_FaHierarchyNodes_HauptFA] ON [dbo].[FaHierarchyNodes]([HauptFA]);
+    CREATE INDEX [IX_FaHierarchyNodes_VaterFA] ON [dbo].[FaHierarchyNodes]([VaterFA]);
+    PRINT 'Tabelle FaHierarchyNodes erstellt.';
+END
+GO
+
+IF OBJECT_ID(N'dbo.FaHierarchyOrderInfos', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[FaHierarchyOrderInfos] (
+        [Id]                 INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FaHierarchyOrderInfos PRIMARY KEY,
+        [HauptFA]            INT               NOT NULL,
+        [MontageAbteilung]   NVARCHAR(200)     NULL,
+        [ABNr]               NVARCHAR(200)     NULL,
+        [Pos]                NVARCHAR(200)     NULL,
+        [Kunde]              NVARCHAR(MAX)     NULL,
+        [Status]             NVARCHAR(200)     NULL,
+        [Dienstleister]      NVARCHAR(200)     NULL,
+        [RAL]                NVARCHAR(200)     NULL,
+        [Bemerkung_Uhrzeit]  NVARCHAR(MAX)     NULL,
+        [KO_Termin]          DATETIME2         NULL,
+        [FE_Termin]          DATETIME2         NULL,
+        [Start_Beschichtung] DATETIME2         NULL,
+        [Beschichten_Retour] DATETIME2         NULL,
+        [Neuer_PT_PPS]       DATETIME2         NULL,
+        [Verladetermin_Vsl]  DATETIME2         NULL,
+        [Montagestunden]     DECIMAL(18,2)     NULL,
+        [Prio]               INT               NULL,
+        [SyncedAt]           DATETIME2         NOT NULL
+    );
+    CREATE INDEX [IX_FaHierarchyOrderInfos_HauptFA] ON [dbo].[FaHierarchyOrderInfos]([HauptFA]);
+    PRINT 'Tabelle FaHierarchyOrderInfos erstellt.';
+END
+GO
+
 IF OBJECT_ID(N'dbo.UserViewPreferences', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[UserViewPreferences] (
@@ -2215,6 +2284,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806105617_AddUserDefaultFilterBomDescription1', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806120650_AllowMultipleDummyRequisitionItems')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806120650_AllowMultipleDummyRequisitionItems', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260807105825_AddFaHierarchy')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260807105825_AddFaHierarchy', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -6281,5 +6281,63 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 
 ---
 
+## Kapitel 57: IDEAL Teil 1 — Struktur-Import FaHierarchy (mehrstufiger FA-Import)
+
+**Kontext:** Reiner Backend-/Sync-Grundstein — keine erreichbare UI-Route. Der
+`FaHierarchySyncService` (Windows-Service) liest die zwei IDEAL-Sage-Views
+`vw_IDEAL-AKE_Kommissionierung_FAListe`/`..._FAInfos` und befuellt per Full-Refresh die lokalen
+Cache-Tabellen `FaHierarchyNodes`/`FaHierarchyOrderInfos`. Gated ueber
+`Sync:HierarchicalFaEnabled` (Default aus). Primaerweg: RCSI AN → `DELETE FROM` beide Tabellen +
+Neubefuellung in einer Transaktion.
+
+**Vorbedingung:** Zugriff auf das IDEAL-Testsystem (`AKESQL20.ake.at` / `IDEAL_TEST_2026_05_03`),
+`Sync:HierarchicalFaEnabled = true`, View-Namen korrekt konfiguriert, `SageConnection` gesetzt.
+
+- **TS-57.0 — RCSI-Check (entscheidet den Full-Refresh-Weg):** Vor dem Migrations-Lauf
+  `SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME();` ausfuehren.
+  Ergebnis `1` (erwarteter Regelfall) → Primaerweg, Migration legt nur die zwei Zieltabellen an,
+  kein `GRANT ALTER`. Ergebnis `0` → Fallback-Entscheidung (RCSI aktivieren oder Staging/Swap;
+  ausserhalb des Standard-Scopes von Teil 1).
+- **TS-57.1 — Erstimport:** Toggle aktiv, Service-Lauf ausloesen. Erwartet: erfolgreicher,
+  protokollierter Lauf (Aktivitaets-Protokoll, Counts `neu`/`geloescht` plausibel),
+  `FaHierarchyNodes`/`FaHierarchyOrderInfos` gefuellt.
+- **TS-57.2 — Datenverfuegbarkeits-Regel (Existenzpruefung):** Eine bekannte Struktur ohne
+  `FAInfos`-Eintrag darf **nicht** in `FaHierarchyNodes` erscheinen.
+- **TS-57.3 — Mehrstufigkeit:** Struktur mit Sub-Sub-FA pruefen — `VaterFA`-Kette laesst sich bis
+  zur Wurzel (`VaterFA IS NULL`, `SubFA = HauptFA`) zurueckverfolgen.
+- **TS-57.4 — Kombinationsgeraet, keine Verdopplung:** `HauptFA` mit **zwei** `MontageAbteilung`-
+  Werten in `FaHierarchyOrderInfos` identifizieren. Erwartet: Positionszahl in `FaHierarchyNodes`
+  fuer diesen `HauptFA` **identisch** zur Roh-View-`FAListe`-Zeilenzahl (keine Verdopplung durch die
+  EXISTS-Semantik); `FaHierarchyOrderInfos` enthaelt dagegen **beide** Montage-Abteilungs-Zeilen.
+- **TS-57.5 — Full-Refresh ohne Blocking (Primaerweg, RCSI AN):** Waehrend eines Laufs
+  (`DELETE`+Neubefuellung in einer Transaktion) einen Read gegen `FaHierarchyNodeRepository`
+  ausloesen — erwartet: sofortige Antwort mit dem **alten** Datenstand fuer die gesamte Laufzeit,
+  kein Blocking/Timeout (RCSI-Snapshot).
+- **TS-57.6 — Sage-Boolean-Mapping:** An einer Test-Struktur mit beschichteten und nicht-
+  beschichteten Positionen pruefen: `Beschichtet = -1` → `Beschichtet = 1` (bit true) im WMS;
+  `Beschaffungsartikel = 'Ja'` → true; `EKBedarf` analog.
+
+**Positiv (Whitelist):**
+- **TS-57.7 — Realer View-Name mit Bindestrich:** `Sync:FaHierarchyListeViewName` auf dem Default
+  `[vw_IDEAL-AKE_Kommissionierung_FAListe]` belassen, Lauf ausloesen. Erwartet: Whitelist
+  akzeptiert (kein `FinishFailedAsync`), SQL laeuft gegen die echte View. (Automatisiert abgedeckt:
+  `FaHierarchySqlTests` mit den realen View-Namen als Positivfall.)
+
+**Negativ:**
+- **TS-57.8 — Ungueltiger View-Name:** `Sync:FaHierarchyListeViewName` auf einen Wert mit
+  Semikolon/`--`/Leerzeichen/kyrillischem Homoglyph setzen, Lauf ausloesen. Erwartet:
+  fehlgeschlagener, protokollierter Lauf (`FinishFailedAsync`) **ohne** SQL-Ausfuehrung gegen die
+  Sage-DB **und** eine Fehlermail. (Automatisiert abgedeckt: `FaHierarchySqlTests`-Negativfaelle.)
+- **TS-57.9 — Leerer View-Read:** Eine der beiden Views testweise leer liefern, Lauf ausloesen.
+  Erwartet: Warn-Eintrag im Aktivitaets-Protokoll, Fehlermail, `FaHierarchyNodes`/
+  `FaHierarchyOrderInfos` **unveraendert** (kein Replace; Guard prueft ungefilterte Rohzahlen vor
+  jeder Mutation).
+- **TS-57.10 — Toggle aus (Default):** `Sync:HierarchicalFaEnabled = false` → kein neuer Sync-Block
+  wird ausgefuehrt, keine Fehlermeldung, Service laeuft unveraendert.
+- **TS-57.11 — Regression:** Alle bestehenden AKE-Testszenarien (FA-Liste, Kommissionierung, BDE)
+  unveraendert; `ProductionOrders` byte-identisch unveraendert.
+
+---
+
 *Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

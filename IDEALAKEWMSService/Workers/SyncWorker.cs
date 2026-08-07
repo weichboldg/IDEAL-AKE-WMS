@@ -328,6 +328,26 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // FA-Hierarchie-Sync (IDEAL: mehrstufiger Struktur-/Stuecklisten-Import
+                // aus den Sage-Views FAListe/FAInfos, Full-Refresh) — gated, Default aus.
+                // ---------------------------------------------------------------
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:HierarchicalFaEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("FA-Hierarchie-Sync", async () =>
+                    {
+                        using var faHierScope = _scopeFactory.CreateScope();
+                        var faHierSync = faHierScope.ServiceProvider.GetRequiredService<IFaHierarchySyncService>();
+
+                        _logger.LogInformation("FA-Hierarchie-Sync startet (DryRun={DryRun})...", dryRun);
+                        var faHierResult = await faHierSync.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "FA-Hierarchie-Sync: {Nodes} Knoten, {Infos} OrderInfos, {DelN}/{DelI} geloescht, uebersprungen={Skipped}.",
+                            faHierResult.Nodes, faHierResult.OrderInfos,
+                            faHierResult.DeletedNodes, faHierResult.DeletedOrderInfos, faHierResult.Skipped);
+                    }, stoppingToken);
+                }
+
+                // ---------------------------------------------------------------
                 // Lagerbestand-Sync (Sage Bestand-Korrektur)
                 // ---------------------------------------------------------------
                 if (await ShouldRunLagerbestandAsync(stoppingToken))

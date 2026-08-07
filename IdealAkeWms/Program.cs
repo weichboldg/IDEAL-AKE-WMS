@@ -84,6 +84,11 @@ builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
 builder.Services.AddScoped<IBomCacheRepository, BomCacheRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
+
+// FA-Hierarchie (IDEAL): Repo + Cache-Decorator (ADR 0001, 5-min IMemoryCache analog BOM-Cache)
+builder.Services.AddScoped<FaHierarchyNodeRepository>();
+builder.Services.AddScoped<IFaHierarchyNodeRepository, CachedFaHierarchyNodeRepository>();
+builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfoRepository>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
