@@ -26,14 +26,14 @@ affected_code:
   - IDEALAKEWMSService/Services/FaHierarchySql.cs (neu, Whitelist-Regex korrigiert nach N-1 + QUOTENAME + SQL-Aufbau; Unit-Test mit den realen View-Namen als Positivfall)
   - IDEALAKEWMSService/Services/SyncLogServices.cs
   - IDEALAKEWMSService/Workers/SyncWorker.cs (neuer Sync-Block, RunResilientAsync)
-  - SQL/87_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen; Platzhalter, siehe H-1; enthaelt zusaetzlich GRANT ALTER auf die zwei Zieltabellen fuer das Sync-Service-Login, siehe N-2)
+  - SQL/87_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen; Platzhalter, siehe H-1; Inhalt haengt vom RCSI-Check am Zielsystem ab, siehe Nachbesserung 3 (2026-08-07): Primaerweg (RCSI AN, Standard-Scope) legt NUR die zwei Zieltabellen `FaHierarchyNode`/`FaHierarchyOrderInfo` an, KEIN `GRANT ALTER`, KEINE Staging-Tabellen; Fallback (RCSI AUS + Staging/Swap gewaehlt, ausserhalb des Standard-Scopes) legt zusaetzlich zwei Staging-Tabellen an und erteilt `GRANT ALTER` auf die zwei Zieltabellen)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql (neu, DDL-Dokumentation)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAInfos.sql (neu, DDL-Dokumentation)
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Infra-Check vor dem Dev-Lauf (kein Blocker, siehe Antwort zu N-2, Kritische Pruefung 2026-08-07): Laeuft der FaHierarchySyncService unter einem SQL-Login, dem das Team im Rahmen der neuen Migration `GRANT ALTER` auf `FaHierarchyNode`/`FaHierarchyOrderInfo` erteilen darf? Falls nein: bewusst auf die dokumentierte `DELETE FROM`-Notloesung umstellen statt den sp_rename-Swap zu verwenden (siehe Full-Refresh-Strategie)."
+  - "RCSI-Status am Zielsystem pruefen (`SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()`, Abfrage steht im Abschnitt „Full-Refresh-Strategie: vor dem GRANT ALTER die einfachere Frage stellen", 2026-08-07): Ergebnis entscheidet Primaerweg (RCSI AN — DELETE+Neubefuellung in einer Transaktion, kein GRANT ALTER, keine Staging-Tabellen) vs. Fallback-Weg (RCSI AUS — RCSI aktivieren ODER Staging+sp_rename-Swap mit GRANT ALTER). Ein DBA-Check am Zielsystem, kein Design-Blocker — siehe Nachbesserung 3 (2026-08-07)."
 epic: false
 etappen: []
 deploy:
@@ -67,10 +67,16 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
   Kritische Pruefung B-1).
 - Sync-Service im Windows-Service, der beide Views periodisch liest (raw SQL gegen konfigurierbare
   View-Namen, Whitelist-Regex **und** `QUOTENAME` gegen Injection, siehe Anforderung 8) und die
-  lokalen Tabellen per Full-Refresh aktualisiert (Staging-Tabellen + `sp_rename`-Swap, siehe
-  Technischer Loesungsentwurf — **kein** langlaufendes Delete-All+Insert auf den Zieltabellen; die
-  Swap-Strategie ist nach N-2 (2026-08-07) der **einzige** Full-Refresh-Pfad, kein Fallback mehr,
-  weil das dafuer noetige `ALTER`-Recht von der Migration selbst erteilt wird).
+  lokalen Tabellen per Full-Refresh aktualisiert. **Der Full-Refresh-Weg wird durch einen
+  RCSI-Check am Zielsystem bestimmt (umgestellt in Nachbesserung 3, 2026-08-07 — siehe
+  Full-Refresh-Strategie unten und den RCSI-Entscheidungsweg-Abschnitt des Menschen):**
+  - **Primaerweg (RCSI AN, Standard-Scope dieser Spec):** `DELETE FROM` beide Zieltabellen und
+    Neubefuellung in **einer** Transaktion — kein Staging, kein `sp_rename`-Swap, kein
+    `GRANT ALTER`. Mit RCSI blockieren Leser nicht auf Schreibern, daher kein Blocking waehrend der
+    Ladezeit.
+  - **Fallback (RCSI AUS, ausserhalb des Standard-Scopes):** entweder RCSI aktivieren oder
+    Staging-Tabellen + `sp_rename`-Swap mit eng begrenztem `GRANT ALTER` auf die zwei Zieltabellen
+    (Details siehe Technischer Loesungsentwurf).
 - Datenverfuegbarkeits-Regel: Eine `FAListe`-Zeile wird nur importiert, wenn zum `HauptFA`
   mindestens ein `FAInfos`-Eintrag existiert — als reine **Existenzpruefung** (`WHERE EXISTS`/
   `INNER JOIN (SELECT DISTINCT HauptFA FROM FAInfos)`), **nicht** als Zeilen-Join. Ein echter
@@ -86,10 +92,12 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
   **Web**-Kontexte (Teil 2/4/5) und steht dieser Verdrahtung nicht entgegen.
 - Feature-/Sync-Toggle ueber `ServiceSettingDefinitions` (ADR 0008) — **inklusive** Eintragung der
   drei neuen Keys als `[InlineData]` im Drift-Guard-Test (siehe Technischer Loesungsentwurf, S-3).
-- Die Migration, die `FaHierarchyNode`/`FaHierarchyOrderInfo` (und ihre `_Staging`-Pendants) anlegt,
-  erteilt dem Sync-Service-SQL-Login im selben Schritt eng begrenztes `ALTER`-Recht auf genau diese
-  zwei Zieltabellen — Voraussetzung fuer den `sp_rename`-Swap, kein DDL-Recht auf der Datenbank
-  (siehe Kritische Pruefung 2026-08-07, N-2).
+- **Nur im Fallback-Weg (RCSI AUS, Staging/Swap gewaehlt):** Die Migration, die
+  `FaHierarchyNode`/`FaHierarchyOrderInfo` anlegt, erteilt dem Sync-Service-SQL-Login im selben
+  Schritt eng begrenztes `ALTER`-Recht auf genau diese zwei Zieltabellen und legt zusaetzlich zwei
+  Staging-Tabellen an — Voraussetzung fuer den `sp_rename`-Swap, kein DDL-Recht auf der Datenbank
+  (siehe Kritische Pruefung 2026-08-07, N-2, entschaerft durch den RCSI-Check in Nachbesserung 3).
+  Im Primaerweg (RCSI AN) entfaellt dieser Migrationsschritt vollstaendig.
 
 **Out-of-Scope**
 - `ProductionOrders` bleibt **vollstaendig unangetastet** (Schema, Daten, Verhalten). Keine
@@ -239,16 +247,22 @@ siehe Fallstrick-Praezedenzfall):
 | `Prio` | `int NULL` | 1:1 |
 | `SyncedAt` | `datetime2 NOT NULL` | — |
 
-**Staging-Pendants (S-1, technisch, kein eigenes Domaenen-Modell):** `FaHierarchyNode_Staging` /
-`FaHierarchyOrderInfo_Staging` — schema-identisch zu den Zieltabellen (inkl. `SyncedAt`), aber ohne
-eigene Repository-Anbindung. Sie sind reine sync-interne Zwischenablagen fuer die
-Full-Refresh-Strategie (siehe Sync-Service unten) und werden in derselben Migration mit angelegt.
+**Staging-Pendants — NUR im Fallback-Weg, RCSI AUS (umgestellt in Nachbesserung 3, 2026-08-07;
+technisch, kein eigenes Domaenen-Modell):** `FaHierarchyNode_Staging` / `FaHierarchyOrderInfo_Staging`
+— schema-identisch zu den Zieltabellen (inkl. `SyncedAt`), ohne eigene Repository-Anbindung. Sie
+werden **nur** angelegt, wenn der RCSI-Check am Zielsystem `is_read_committed_snapshot_on = 0`
+ergibt und RCSI nicht aktiviert werden soll (siehe Full-Refresh-Strategie unten und den
+RCSI-Entscheidungsweg-Abschnitt des Menschen). **Im Primaerweg (RCSI AN, Standard-Scope dieser
+Spec) existieren diese Tabellen nicht** — der Full-Refresh laeuft direkt auf den zwei Zieltabellen
+(`DELETE FROM` + Neubefuellung in einer Transaktion), ohne Zwischenablage.
 
-**Harte Regel (N-4, Kritische Pruefung 2026-08-07):** Ziel- und Staging-Tabelle **muessen**
-schema-identisch bleiben, sonst brechen Bulk-Insert und `sp_rename`-Swap. Jede spaetere
-Spalten-/Typaenderung an `FaHierarchyNode`/`FaHierarchyOrderInfo` muss deshalb das jeweilige
-`_Staging`-Pendant **im selben Migrationsschritt** mitaendern — analog zur ADR-0004-Kopplungsregel
-fuer `SQL/AgentJobs/*`. Siehe auch Migrations-/SQL-Auswirkungen unten.
+**Harte Regel (N-4, Kritische Pruefung 2026-08-07) — gilt nur, falls der Fallback-Weg tatsaechlich
+gewaehlt wird:** Existieren Staging-Tabellen, **muessen** Ziel- und Staging-Tabelle schema-identisch
+bleiben, sonst brechen Bulk-Insert und `sp_rename`-Swap. Jede spaetere Spalten-/Typaenderung an
+`FaHierarchyNode`/`FaHierarchyOrderInfo` muss dann das jeweilige `_Staging`-Pendant **im selben
+Migrationsschritt** mitaendern — analog zur ADR-0004-Kopplungsregel fuer `SQL/AgentJobs/*`. **Im
+Primaerweg entfaellt diese Kopplungspflicht vollstaendig**, weil keine Staging-Tabellen existieren.
+Siehe auch Migrations-/SQL-Auswirkungen unten.
 
 **Warum zwei Tabellen statt einer denormalisierten:** `FAInfos`-Felder sind **auftragsbezogen**
 (ein `KO_Termin` gilt fuer die ganze Struktur), `FAListe`-Felder sind **positionsbezogen** (eine
@@ -274,8 +288,9 @@ uebernommen; die Existenzpruefung ersetzt es.
   Tabelle, ein Datensatz je Struktur/Montage-Abteilung).
 - Beide Repositories liefern die EF-Entitaeten direkt als Lesemodell (keine zusaetzliche
   DTO-Schicht noetig — die Tabellen sind bereits eine getreue, flache Projektion).
-- Die `_Staging`-Tabellen haben **keine** Repository-Anbindung — sie sind reines Sync-internes
-  Detail, nicht Teil des Lesemodells.
+- Die `_Staging`-Tabellen — **falls sie im Fallback-Weg (RCSI AUS) ueberhaupt angelegt werden** —
+  haben **keine** Repository-Anbindung; sie sind reines Sync-internes Detail, nicht Teil des
+  Lesemodells. Im Primaerweg entfaellt der Punkt ganz.
 
 ### Sync-Service (Windows-Service, `IDEALAKEWMSService`)
 
@@ -302,12 +317,23 @@ uebernommen; die Existenzpruefung ersetzt es.
   `ISyncErrorNotifier.NotifyAsync(...)` (siehe Fehlermail unten). Das Regex-Pattern ist mit dieser
   Korrektur **final** — keine offene Rueckfrage mehr (siehe „Antworten auf die Kritische Pruefung",
   N-1).
-- **Full-Refresh-Strategie (ueberarbeitet, siehe Kritische Pruefung S-1; Swap-Mechanik und
-  Berechtigung praezisiert nach N-2/N-3, 2026-08-07).** Kein Praezedenzfall im Code deckt
-  „Delete-All + Bulk-Insert in einer langen Transaktion": `CachedBomHeader` ist Hash-inkrementell
-  (Upsert), enaio ist MERGE-Full-Sync. Fuer eine potenziell zehntausende Zeilen grosse
-  Stuecklisten-Tabelle wuerde ein klassisches Delete-All+Insert waehrend der gesamten Ladezeit
-  sperren und gleichzeitige Web-Reads blockieren/eskalieren lassen. Stattdessen:
+- **Full-Refresh-Strategie — RCSI-first (umgestellt in Nachbesserung 3, 2026-08-07, nach dem
+  RCSI-Entscheidungsweg-Abschnitt des Menschen; ersetzt die vorherige Entscheidung aus N-2, dass der
+  Staging/`sp_rename`-Swap der einzige Pfad sei).** Vor jeder Full-Refresh-Implementierung steht ein
+  einmaliger Infra-Check am Zielsystem:
+
+  ```sql
+  SELECT name, is_read_committed_snapshot_on
+  FROM sys.databases WHERE name = DB_NAME();
+  ```
+
+  Kein Praezedenzfall im Code deckt „Delete-All + Bulk-Insert" direkt ab: `CachedBomHeader` ist
+  Hash-inkrementell (Upsert), enaio ist MERGE-Full-Sync — das bleibt als Hintergrund richtig, aendert
+  aber nichts an der RCSI-first-Entscheidung: Mit RCSI AN traegt ein einfaches `DELETE`+Neubefuellung
+  kein Blocking-Risiko, weil lesende Transaktionen einen konsistenten Snapshot statt eines Locks
+  bekommen.
+
+  **Primaerweg (RCSI = AN, bevorzugt, Standard-Scope dieser Spec):**
   1. **Vor jeder Mutation:** Roh-Zeilenzahl **beider** Views ungefiltert lesen (`SELECT COUNT(*)`
      auf `FaHierarchyListeViewName` bzw. `FaHierarchyInfosViewName`, **ohne** Existenzpruefung/Join).
      Guard: Ist eine der beiden Rohzahlen `0`, **kein** Replace — Warn-Log + `NotifyAsync` (siehe
@@ -316,50 +342,63 @@ uebernommen; die Existenzpruefung ersetzt es.
      als „0 Struktur-Zeilen" maskiert (sonst verwechselt der Guard Ausfall mit echtem Leerstand).
   2. Erst danach: beide Views vollstaendig lesen, Zielzeilen im Speicher aufbauen (Existenzpruefung
      gemaess Anforderung 2).
-  3. **Schreiben ueber Staging-Tabellen** (`FaHierarchyNode_Staging` / `FaHierarchyOrderInfo_Staging`,
-     siehe Datenmodell): beide werden bei jedem Lauf per `TRUNCATE` + Bulk-Insert frisch befuellt
-     (unkritisch, da nicht die Leseziele des Web). Danach werden **beide** Zieltabellen in **einer**
-     kurzen Metadaten-Operation gegen ihre Staging-Pendants getauscht.
-  4. **Swap-Mechanik, praezisiert nach N-3 (2026-08-07):** `sp_rename` tauscht keine zwei Tabellen
-     in einem Schritt — je Tabelle sind **drei** Renames mit einem definierten Zwischennamen
-     noetig:
-     1. `FaHierarchyNode` → `FaHierarchyNode_Swap` (alter Inhalt, temporaer beiseitegelegt)
-     2. `FaHierarchyNode_Staging` → `FaHierarchyNode` (neuer Inhalt wird produktiv)
-     3. `FaHierarchyNode_Swap` → `FaHierarchyNode_Staging` (alter Inhalt wird die neue
-        Staging-Basis fuer den naechsten Lauf)
-
-     Analog fuer `FaHierarchyOrderInfo` → `FaHierarchyOrderInfo_Swap` → `FaHierarchyOrderInfo` →
-     `FaHierarchyOrderInfo_Staging`. Alle sechs Renames laufen in **einer** kurzen Transaktion
-     (reine Metadaten-Operation, ohne Sperre auf Zeilenebene fuer die Ladezeit). Web-Reads sehen
-     bis zum Swap den alten Inhalt, danach sofort den neuen — **waehrend der Ladezeit** kein
-     Blocking; **im Swap-Moment selbst** nimmt `sp_rename` kurzzeitig eine
-     Schema-Modifikations-Sperre (Sch-M), ein gleichzeitiger Web-Read eine
-     Schema-Stabilitaets-Sperre (Sch-S) — die beiden blockieren sich fuer die (vernachlaessigbar
-     kurze) Dauer des Renames tatsaechlich gegenseitig (siehe AK 11, entschaerft). **Bekannter
-     kosmetischer Nebeneffekt:** `sp_rename` verschiebt keine Constraint-/PK-/Index-Namen mit —
-     nach dem ersten Swap traegt die produktive Tabelle die Index-/PK-Namen ihres
-     Staging-Ursprungs. Rein kosmetisch, aber bei einem spaeteren Schema-`ALTER` zu beachten.
-  5. **Berechtigung — geloest, nicht umgangen (N-2, 2026-08-07):** `sp_rename` braucht
-     `ALTER`-Recht auf den betroffenen Tabellen. `FaHierarchyNode`/`FaHierarchyOrderInfo` sind
-     **eigene** WMS-Tabellen, kein Sage-Fremdobjekt — die Migration, die sie anlegt, erteilt dem
-     Service-Konto im selben Schritt `GRANT ALTER ON dbo.FaHierarchyNode TO <Sync-Service-Login>`
-     und `GRANT ALTER ON dbo.FaHierarchyOrderInfo TO <Sync-Service-Login>` (eng auf diese zwei
-     Tabellen begrenzt, **kein** DDL-Recht auf der Datenbank). Damit ist der Staging+`sp_rename`-Weg
-     **die einzige** Full-Refresh-Strategie — **kein** Fallback, **kein** zweiter Pfad (der zuvor
-     vorgeschlagene `TRUNCATE`-je-Tabelle-Fallback ist ersatzlos gestrichen: `TRUNCATE` braucht
-     dasselbe `ALTER`-Recht wie `sp_rename` und haette ausserdem den von AK 9 verbotenen
-     Zwischenzustand erzeugt, siehe Kritische Pruefung 2026-08-07, N-2). **Vor dem Dev-Lauf zu
-     pruefen** (Infra-Check, kein Blocker, siehe `open_questions`): Laeuft der Sync-Service unter
-     einem SQL-Login, dem das Team dieses Recht per Migration erteilen darf?
-  6. **Nur falls das Erteilen organisatorisch untersagt ist**, als dokumentierte Notloesung (nicht
-     gleichwertige Alternative): `DELETE FROM` beide Tabellen und Neubefuellung in **einer**
-     Transaktion (braucht nur `DELETE`-Recht, ist voll transaktional, haelt aber laenger Sperren
-     als der Swap) — der **einzige** echte Ohne-`ALTER`-Pfad; `TRUNCATE` ist es nicht.
-  7. Beide Tabellen werden in **jedem Fall als ein logischer Schritt** ersetzt (nicht zeitlich
-     versetzt) — nie steht `FaHierarchyNode` (neu) neben einem alten `FaHierarchyOrderInfo` oder
-     umgekehrt.
-  8. Kein inkrementelles Delta, kein MERGE-Aufwand — die Views selbst liefern bereits den
+  3. **In EINER Transaktion:** `DELETE FROM dbo.FaHierarchyNode`, `DELETE FROM
+     dbo.FaHierarchyOrderInfo`, danach Bulk-Insert der neu aufgebauten Zeilen in beide Tabellen,
+     Commit. Kein Staging, kein `sp_rename`, keine zusaetzlichen Objekte, keine Migrations-Kopplung
+     (N-4 entfaellt vollstaendig). Mit RCSI AN sehen gleichzeitige Web-Reads
+     (`FaHierarchyNodeRepository`/`CachedFaHierarchyNodeRepository`) waehrend der gesamten Ladezeit
+     den **alten** Stand aus einem konsistenten Snapshot, **ohne** auf den Schreiber zu warten —
+     kein Blocking, kein Timeout-Risiko, keine Sch-M/Sch-S-Kollision wie im Fallback (siehe unten).
+  4. Beide Tabellen werden in **jedem Fall als ein logischer Schritt** ersetzt (eine Transaktion) —
+     nie steht `FaHierarchyNode` (neu) neben einem alten `FaHierarchyOrderInfo` oder umgekehrt.
+  5. Kein inkrementelles Delta, kein MERGE-Aufwand — die Views selbst liefern bereits den
      vollstaendigen Soll-Stand.
+  6. **Berechtigung:** nur `DELETE`-/`INSERT`-Recht auf den zwei Zieltabellen — **kein** `ALTER`,
+     **kein** `GRANT ALTER` durch die Migration noetig.
+
+  **Fallback (RCSI = AUS) — zwei Optionen, beide ausserhalb des Standard-Scopes dieser Spec:**
+  - **(a) RCSI auf der Ziel-DB aktivieren** (`ALTER DATABASE ... SET READ_COMMITTED_SNAPSHOT ON`) —
+    eine DB-weite Aenderung mit eigener Abwaegung (Betriebs-/DBA-Entscheidung, nicht Teil dieser
+    Spec-Runde); danach gilt der Primaerweg oben unveraendert.
+  - **(b) Staging-Tabellen + `sp_rename`-Swap** mit eng begrenztem `GRANT ALTER` — nur falls (a)
+    nicht gewuenscht wird. Empfehlung des Menschen als Default, falls nicht weiter abgewogen:
+    `GRANT ALTER` erteilen ist vertretbar (enger Grant auf zwei Objekte, kein Schema-/DB-Recht, fuer
+    ein Konto, das den Tabelleninhalt ohnehin alle paar Minuten komplett ersetzt). Details:
+    1. Gleicher Empty-Guard wie im Primaerweg (Schritt 1 oben).
+    2. Gleicher Zielzeilen-Aufbau wie im Primaerweg (Schritt 2 oben).
+    3. **Schreiben ueber Staging-Tabellen** (`FaHierarchyNode_Staging` / `FaHierarchyOrderInfo_Staging`,
+       siehe Datenmodell): beide werden bei jedem Lauf per `TRUNCATE` + Bulk-Insert frisch befuellt.
+       Danach werden **beide** Zieltabellen in **einer** kurzen Metadaten-Operation gegen ihre
+       Staging-Pendants getauscht.
+    4. **Swap-Mechanik (N-3, 2026-08-07):** `sp_rename` tauscht keine zwei Tabellen in einem
+       Schritt — je Tabelle sind **drei** Renames mit einem definierten Zwischennamen noetig:
+       1. `FaHierarchyNode` → `FaHierarchyNode_Swap` (alter Inhalt, temporaer beiseitegelegt)
+       2. `FaHierarchyNode_Staging` → `FaHierarchyNode` (neuer Inhalt wird produktiv)
+       3. `FaHierarchyNode_Swap` → `FaHierarchyNode_Staging` (alter Inhalt wird die neue
+          Staging-Basis fuer den naechsten Lauf)
+
+       Analog fuer `FaHierarchyOrderInfo` → `FaHierarchyOrderInfo_Swap` → `FaHierarchyOrderInfo` →
+       `FaHierarchyOrderInfo_Staging`. Alle sechs Renames laufen in **einer** kurzen Transaktion.
+       Web-Reads sehen bis zum Swap den alten Inhalt, danach sofort den neuen — **waehrend der
+       Ladezeit** kein Blocking; **im Swap-Moment selbst** nimmt `sp_rename` kurzzeitig eine
+       Schema-Modifikations-Sperre (Sch-M), ein gleichzeitiger Web-Read eine
+       Schema-Stabilitaets-Sperre (Sch-S) — die beiden blockieren sich fuer die (vernachlaessigbar
+       kurze) Dauer des Renames tatsaechlich gegenseitig. **Bekannter kosmetischer Nebeneffekt:**
+       `sp_rename` verschiebt keine Constraint-/PK-/Index-Namen mit — nach dem ersten Swap traegt
+       die produktive Tabelle die Index-/PK-Namen ihres Staging-Ursprungs. Rein kosmetisch, aber bei
+       einem spaeteren Schema-`ALTER` zu beachten.
+    5. **Berechtigung:** Die Migration, die die zwei Zieltabellen **und** ihre Staging-Pendants
+       anlegt, erteilt dem Sync-Service-SQL-Login im selben Schritt `GRANT ALTER ON
+       dbo.FaHierarchyNode` und `GRANT ALTER ON dbo.FaHierarchyOrderInfo` (eng auf diese zwei
+       Tabellen begrenzt, **kein** DDL-Recht auf der Datenbank).
+    6. Auch hier: beide Tabellen werden **als ein logischer Schritt** ersetzt (nicht zeitlich
+       versetzt) — nie steht `FaHierarchyNode` (neu) neben einem alten `FaHierarchyOrderInfo` oder
+       umgekehrt.
+
+  **Entscheidungsstand dieser Spec-Runde:** Der Primaerweg (RCSI AN) ist der Standard-Scope von
+  Teil 1. Migrations-/SQL-Auswirkungen, `affected_code` und die Akzeptanzkriterien unten sind darauf
+  zugeschnitten; der Fallback bleibt vollstaendig dokumentiert, ist aber nur zu bauen, wenn der
+  RCSI-Check am Zielsystem tatsaechlich RCSI AUS ergibt und (a) nicht gewaehlt wird.
 - **Fehlermail — `ISyncErrorNotifier` explizit verdrahtet (ueberarbeitet, siehe Kritische Pruefung
   S-4).** `RunResilientAsync` in `SyncWorker` mailt **nur** bei einer geworfenen Exception; der
   Empty-Guard und der Invalid-Name-Fall sind beide **kein throw** (Warn bzw. `FinishFailedAsync`),
@@ -388,29 +427,35 @@ uebernommen; die Existenzpruefung ersetzt es.
 
 ### Migrations-/SQL-Auswirkungen
 
-1. Model → `dotnet ef migrations add AddFaHierarchy` (aktueller Timestamp!) → idempotentes
-   `SQL/87_AddFaHierarchy.sql` (Platzhalter-Nummer, siehe H-1) mit `OBJECT_ID`-Guard, Tabellen-DDL
-   in eigenem Batch (`GO`) fuer **alle vier** Tabellen (`FaHierarchyNode`, `FaHierarchyOrderInfo`
-   und ihre `_Staging`-Pendants, siehe S-1), **zusaetzlich** `GRANT ALTER ON dbo.FaHierarchyNode`
-   und `GRANT ALTER ON dbo.FaHierarchyOrderInfo` an das Sync-Service-SQL-Login in einem eigenen
-   Batch (siehe N-2/Full-Refresh-Strategie — Voraussetzung fuer den `sp_rename`-Swap, kein
-   DDL-Recht auf der Datenbank), `__EFMigrationsHistory`-Insert in separatem Batch.
-2. **Harte Regel (N-4, 2026-08-07):** Weil Ziel- und Staging-Tabelle schema-identisch bleiben
-   **muessen** (sonst bricht Bulk-Insert/Swap), muss **jede** spaetere Spalten-/Typaenderung an
+1. **Primaerweg (RCSI AN, Standard-Scope dieser Spec):** Model → `dotnet ef migrations add
+   AddFaHierarchy` (aktueller Timestamp!) → idempotentes `SQL/87_AddFaHierarchy.sql`
+   (Platzhalter-Nummer, siehe H-1) mit `OBJECT_ID`-Guard, Tabellen-DDL in eigenem Batch (`GO`) fuer
+   die **zwei** Zieltabellen (`FaHierarchyNode`, `FaHierarchyOrderInfo`),
+   `__EFMigrationsHistory`-Insert in separatem Batch. **Keine** Staging-Tabellen, **kein**
+   `GRANT ALTER`, keine zusaetzlichen Berechtigungs-Batches.
+2. **Fallback (RCSI AUS, Option (b) gewaehlt — ausserhalb des Standard-Scopes dieser Spec):**
+   dieselbe Migration legt **zusaetzlich** die zwei `_Staging`-Pendants an und erteilt
+   `GRANT ALTER ON dbo.FaHierarchyNode` / `...FaHierarchyOrderInfo` an das Sync-Service-SQL-Login
+   in einem eigenen Batch (siehe Full-Refresh-Strategie oben) — nur falls der RCSI-Check am
+   Zielsystem RCSI AUS ergibt und RCSI nicht aktiviert werden soll.
+3. **Harte Regel (N-4, 2026-08-07) — gilt nur, falls der Fallback (Punkt 2) tatsaechlich gebaut
+   wird:** Weil Ziel- und Staging-Tabelle dann schema-identisch bleiben **muessen** (sonst bricht
+   Bulk-Insert/Swap), muss **jede** spaetere Spalten-/Typaenderung an
    `FaHierarchyNode`/`FaHierarchyOrderInfo` das jeweilige `_Staging`-Pendant **im selben
-   Migrationsschritt** mitaendern — analog zur ADR-0004-Kopplungsregel fuer `SQL/AgentJobs/*`.
-   Fehlt dieser Schritt, reisst die naechste Folge-Migration den Full-Refresh-Swap still auf. (Ein
-   entsprechender Fallstrick-Eintrag in `secondbrain/architektur/fallstricke.md` ist Folgearbeit
-   ausserhalb dieser Spec-Runde, nicht Teil dieser Datei.)
-3. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (**alle vier** neuen
-   Tabellen **plus** die beiden `GRANT ALTER`-Anweisungen) **und** `MigrationId` im
-   History-Insert-Block.
-4. **Additive Migration** — kein Datenverlust, kein Backup-Hinweis noetig (neue, leere Tabellen).
-   Die `GRANT ALTER`-Anweisungen sind ebenfalls additiv (kein Rechte-Entzug an bestehenden Logins).
-5. `SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql` +
+   Migrationsschritt** mitaendern — analog zur ADR-0004-Kopplungsregel fuer `SQL/AgentJobs/*`. **Im
+   Primaerweg entfaellt diese Kopplung vollstaendig**, weil keine Staging-Tabellen existieren. (Ein
+   entsprechender Fallstrick-Eintrag in `secondbrain/architektur/fallstricke.md` bleibt Folgearbeit
+   ausserhalb dieser Spec-Runde, nur relevant, falls der Fallback tatsaechlich gebaut wird.)
+4. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (im Primaerweg
+   **zwei** neue Tabellen; im Fallback zusaetzlich die zwei Staging-Tabellen **plus** die zwei
+   `GRANT ALTER`-Anweisungen) **und** `MigrationId` im History-Insert-Block.
+5. **Additive Migration** — kein Datenverlust, kein Backup-Hinweis noetig (neue, leere Tabellen).
+   Im Fallback sind auch die `GRANT ALTER`-Anweisungen additiv (kein Rechte-Entzug an bestehenden
+   Logins).
+6. `SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql` +
    `..._FAInfos.sql`: View-DDL-Dokumentation der Fremd-DB — **keine** WMS-Migration, nur
    Versionskontrolle der Sage-Objekte (wie in der Notiz vereinbart).
-6. **Migrationsnummer beim Dev-Start final festlegen.** `SQL/82`/`83` sind durch v1.28.0
+7. **Migrationsnummer beim Dev-Start final festlegen.** `SQL/82`/`83` sind durch v1.28.0
    (Sage-Lagerbuchungen) belegt; die WmsBugs-Batches belegen mindestens `84`-`87`
    (`87_AddUserDefaultFilterBomDescription1.sql` im noch nicht gemergten Worktree
    `2026-08-05-wms-bugs-improvements-teil-1-2-3`). Nach Merge beider Batches ist die naechste freie
@@ -419,12 +464,12 @@ uebernommen; die Existenzpruefung ersetzt es.
 
 ### Audit-Feld-Auswirkungen
 
-`FaHierarchyNode` und `FaHierarchyOrderInfo` (und ihre `_Staging`-Pendants) sind **keine**
-`AuditableEntity` — analog zu `CachedBomHeader`/`CachedBomItem` (dokumentierte Ausnahme: reine, vom
-Sync-Service befuellte Cache-Tabellen ohne manuelle Bearbeitung durch Anwender). Nachvollziehbarkeit
-kommt stattdessen aus dem Aktivitaets-Protokoll (`SyncLog`, ADR 0010) des
-`FaHierarchySyncService`-Laufs, nicht aus `ModifiedBy`/`ModifiedAt`-Feldern auf den Zeilen selbst.
-Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bleibt.
+`FaHierarchyNode` und `FaHierarchyOrderInfo` (und — nur im Fallback-Weg, RCSI AUS — ihre
+`_Staging`-Pendants) sind **keine** `AuditableEntity` — analog zu `CachedBomHeader`/`CachedBomItem`
+(dokumentierte Ausnahme: reine, vom Sync-Service befuellte Cache-Tabellen ohne manuelle Bearbeitung
+durch Anwender). Nachvollziehbarkeit kommt stattdessen aus dem Aktivitaets-Protokoll (`SyncLog`,
+ADR 0010) des `FaHierarchySyncService`-Laufs, nicht aus `ModifiedBy`/`ModifiedAt`-Feldern auf den
+Zeilen selbst. Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bleibt.
 
 ## Akzeptanzkriterien
 
@@ -467,29 +512,41 @@ Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bl
    N-1)** Der Unit-Test deckt zwingend die realen Produktions-View-Namen als Positivfaelle ab
    (`vw_IDEAL-AKE_Kommissionierung_FAListe`, `vw_IDEAL-AKE_Kommissionierung_FAInfos`, jeweils mit
    Bindestrich) sowie Negativfaelle (Semikolon, Leerzeichen, `--`, kyrillisches `а` als Homoglyph).
-9. **(neu, S-1)** Nach einem erfolgreichen Lauf sind entweder **beide** Zieltabellen aktualisiert
-   oder **beide** unveraendert — kein Zwischenzustand, in dem `FaHierarchyNode` neu und
-   `FaHierarchyOrderInfo` alt ist (oder umgekehrt); verifiziert per `SyncedAt`-Zeitstempel-Vergleich
-   beider Tabellen nach dem Lauf.
+9. **(neu, S-1; gilt fuer BEIDE Full-Refresh-Wege)** Nach einem erfolgreichen Lauf sind entweder
+   **beide** Zieltabellen aktualisiert oder **beide** unveraendert — kein Zwischenzustand, in dem
+   `FaHierarchyNode` neu und `FaHierarchyOrderInfo` alt ist (oder umgekehrt); verifiziert per
+   `SyncedAt`-Zeitstempel-Vergleich beider Tabellen nach dem Lauf. Im Primaerweg garantiert die
+   gemeinsame `DELETE`+Insert-Transaktion diese Eigenschaft, im Fallback die gemeinsame
+   Sechs-Rename-Transaktion (siehe AK 11).
 10. **(neu, S-3)** `Sync:HierarchicalFaEnabled`, `Sync:FaHierarchyListeViewName` und
     `Sync:FaHierarchyInfosViewName` sind sowohl in `ServiceSettingDefinitions.All` **als auch** als
     zusaetzliche `[InlineData]`-Eintraege in
     `ServiceSettingDefinitionsTests.All_ContainsDocumentedServiceReadKey` vorhanden — reine
     Katalog-Eintragung ohne `InlineData` gilt **nicht** als erfuellt (Test bliebe sonst gruen ohne
     jede Guard-Wirkung).
-11. **(neu, S-1; entschaerft nach N-3, 2026-08-07)** Waehrend ein Full-Refresh laeuft
+11. **(neu, S-1; entschaerft nach N-3, 2026-08-07; NUR Fallback-Weg, RCSI AUS mit Staging/Swap —
+    siehe AK 13 fuer den Primaerweg)** Waehrend ein Full-Refresh im Fallback-Weg laeuft
     (Staging-Aufbau vor dem Swap), liefert ein gleichzeitiger Web-Read ueber
     `FaHierarchyNodeRepository`/`CachedFaHierarchyNodeRepository` weiterhin den **alten**
     Tabelleninhalt, **ohne Blocking waehrend der Ladezeit**; im eigentlichen Swap-Moment (sechs
     `sp_rename`-Aufrufe in einer Transaktion) ist eine **vernachlaessigbare Metadaten-Sperre**
     (Sch-M gegen Sch-S) zulaessig, kein Timeout — manuell am Testsystem waehrend eines laufenden
-    Sync-Laufs verifiziert.
-12. **(neu, N-2, 2026-08-07)** Die Migration erteilt dem Sync-Service-SQL-Login `ALTER`-Recht
-    ausschliesslich auf `FaHierarchyNode` und `FaHierarchyOrderInfo` (kein DDL-Recht auf der
-    Datenbank) — verifiziert per Rechte-Abfrage (`fn_my_permissions`) nach dem Migrations-Lauf am
-    Zielsystem. Ohne dieses Recht schlaegt der `sp_rename`-Swap fehl; die dokumentierte
-    `DELETE FROM`-Notloesung ist dann bewusst zu aktivieren (Konfigurationsentscheidung, kein
-    automatischer Fallback im Code).
+    Sync-Laufs verifiziert. Nur zu pruefen, falls der Fallback tatsaechlich gebaut wird.
+12. **(neu, N-2, 2026-08-07; NUR Fallback-Weg, RCSI AUS mit Staging/Swap gewaehlt)** Die Migration
+    erteilt dem Sync-Service-SQL-Login `ALTER`-Recht ausschliesslich auf `FaHierarchyNode` und
+    `FaHierarchyOrderInfo` (kein DDL-Recht auf der Datenbank) — verifiziert per Rechte-Abfrage
+    (`fn_my_permissions`) nach dem Migrations-Lauf am Zielsystem. Nur zu pruefen, falls der
+    Fallback tatsaechlich gebaut wird; im Primaerweg (RCSI AN) entfaellt dieses AK vollstaendig, da
+    kein `GRANT ALTER` erteilt wird.
+13. **(neu, Nachbesserung 3, 2026-08-07; Primaerweg, RCSI AN — Standardfall)** Bei RCSI AN ersetzt
+    ein Full-Refresh-Lauf den Inhalt beider Zieltabellen durch `DELETE FROM` + Neubefuellung in
+    **einer** Transaktion; ein gleichzeitiger Web-Read ueber
+    `FaHierarchyNodeRepository`/`CachedFaHierarchyNodeRepository` liefert waehrend der **gesamten**
+    Ladezeit den **alten** Datenstand — **ohne** Blocking, **ohne** Timeout (RCSI-Snapshot statt
+    Sch-M/Sch-S-Sperre wie im Fallback). Verifiziert: (a) `SELECT is_read_committed_snapshot_on
+    FROM sys.databases WHERE name = DB_NAME()` liefert `1` am Zielsystem vor dem Lauf, (b) manuell
+    am Testsystem waehrend eines laufenden Sync-Laufs ein Web-Read ausgeloest und dessen sofortige
+    Antwort mit dem Vor-Lauf-Datenstand bestaetigt.
 
 ## Test-Szenarien
 
@@ -497,9 +554,16 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` („IDEAL Teil 1 — Struktur-Import"):
 
 - **Vorbedingung:** Zugriff auf das IDEAL-Testsystem (`AKESQL20.ake.at` / `IDEAL_TEST_2026_05_03`
   laut Anhang), `Sync:HierarchicalFaEnabled = true`, View-Namen korrekt konfiguriert.
-- **Schritt 0 — Voraussetzung Berechtigung (neu, N-2):** Nach dem Migrations-Lauf pruefen, dass das
-  Sync-Service-SQL-Login `ALTER`-Recht auf `FaHierarchyNode` und `FaHierarchyOrderInfo` hat
-  (Rechte-Abfrage am Zielsystem, z. B. `fn_my_permissions`).
+- **Schritt 0 — RCSI-Check, entscheidet den Full-Refresh-Weg (neu, Nachbesserung 3, 2026-08-07):**
+  Vor dem Migrations-Lauf am Zielsystem pruefen:
+  `SELECT name, is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME();`
+  - **Ergebnis `1` (RCSI AN, erwarteter Regelfall):** Primaerweg gilt — die Migration legt nur die
+    zwei Zieltabellen an, kein `GRANT ALTER` noetig, der Schritt „Berechtigung" unten entfaellt.
+  - **Ergebnis `0` (RCSI AUS):** Fallback-Entscheidung treffen (RCSI aktivieren ODER Staging+Swap
+    mit `GRANT ALTER`). Falls Staging+Swap gewaehlt wird: nach dem Migrations-Lauf zusaetzlich
+    pruefen, dass das Sync-Service-SQL-Login `ALTER`-Recht auf `FaHierarchyNode` und
+    `FaHierarchyOrderInfo` hat (Rechte-Abfrage am Zielsystem, z. B. `fn_my_permissions` oder die
+    beiden Abfragen im RCSI-Entscheidungsweg-Abschnitt).
 - **Schritt 1 — Erstimport:** Service-Lauf ausloesen, Aktivitaets-Protokoll pruefen (Lauf
   erfolgreich, Counts plausibel).
 - **Schritt 2 — Datenverfuegbarkeits-Regel:** Eine bekannte Struktur ohne `FAInfos`-Eintrag
@@ -512,11 +576,16 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` („IDEAL Teil 1 — Struktur-Import"):
   identisch zur Zeilenzahl der Roh-View `FAListe`** fuer denselben `HauptFA` — **keine**
   Verdopplung, obwohl zwei `FAInfos`-Zeilen existieren. `FaHierarchyOrderInfo` enthaelt dagegen
   beide Montage-Abteilungs-Zeilen. Die materialisierungsseitige Behandlung gehoert zu Teil 7.
-- **Schritt 5 — Full-Refresh ohne Blocking (neu, S-1; Swap-Formulierung geschaerft nach N-3):**
-  Waehrend ein Sync-Lauf laeuft (Staging-Aufbau vor dem Swap), einen Web-Read gegen
-  `FaHierarchyNodeRepository` ausloesen — erwartet: sofortige Antwort mit dem **alten**
-  Datenstand, kein Blocking waehrend der Ladezeit; waehrend des kurzen Swap-Moments selbst ist
-  eine vernachlaessigbare Metadaten-Sperre zulaessig, kein Timeout.
+- **Schritt 5 — Full-Refresh ohne Blocking, Primaerweg (neu, Nachbesserung 3, 2026-08-07; RCSI AN,
+  Standardfall):** Waehrend ein Sync-Lauf laeuft (`DELETE`+Neubefuellung beider Tabellen in einer
+  Transaktion), einen Web-Read gegen `FaHierarchyNodeRepository` ausloesen — erwartet: sofortige
+  Antwort mit dem **alten** Datenstand fuer die gesamte Dauer des Laufs, **kein** Blocking, kein
+  Timeout (RCSI-Snapshot-Isolation).
+- **Schritt 5b — Full-Refresh ohne Blocking, Fallback (nur falls RCSI AUS und Staging/Swap
+  gewaehlt; S-1, Swap-Formulierung nach N-3):** Waehrend ein Sync-Lauf laeuft (Staging-Aufbau vor
+  dem Swap), einen Web-Read gegen `FaHierarchyNodeRepository` ausloesen — erwartet: sofortige
+  Antwort mit dem **alten** Datenstand, kein Blocking waehrend der Ladezeit; waehrend des kurzen
+  Swap-Moments selbst ist eine vernachlaessigbare Metadaten-Sperre zulaessig, kein Timeout.
 - **Positivfall — realer View-Name mit Bindestrich (neu, N-1):** `Sync:FaHierarchyListeViewName`
   auf dem Default `[vw_IDEAL-AKE_Kommissionierung_FAListe]` belassen, Lauf ausloesen — erwartet:
   Whitelist akzeptiert den Namen (kein `FinishFailedAsync`), SQL wird gegen die echte View
@@ -539,19 +608,22 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   Controller/Views darauf zugreifen).
 - **Service:** ja (neuer Sync-Block).
 - **Migration:** ja (`SQL/87_AddFaHierarchy.sql`, Platzhalter-Nummer, additiv, kein Backup-Zwang;
-  legt vier Tabellen an: zwei Ziel- + zwei Staging-Tabellen, siehe S-1, **und** erteilt dem
-  Sync-Service-SQL-Login `GRANT ALTER` auf die beiden Zieltabellen, siehe N-2).
-- **Reihenfolge:** DB-Migration vor Service-Neustart; Web kann parallel deployt werden, da Teil 1
-  keine erreichbare Route hinzufuegt. Die Migration erteilt dem Sync-Service-SQL-Login im selben
-  Schritt `ALTER` auf `FaHierarchyNode`/`FaHierarchyOrderInfo` (siehe Migrations-/SQL-Auswirkungen,
-  N-2) — damit ist der `sp_rename`-Swap nach der Migration sofort einsatzbereit, **kein**
-  separater Rechte-Vergabe-Schritt noetig. Sync-Toggle bleibt nach dem Deploy **default aus** —
-  muss am Zielsystem bewusst aktiviert werden (analog zur ADR-0008-Regel „jeder gewuenschte Sync
-  muss einmalig aktiviert werden"). **Infra-Check vor Aktivierung** (kein Blocker, siehe
-  `open_questions`): bestaetigen, dass das Sync-Service-Konto tatsaechlich das per Migration
-  vergebene `ALTER`-Recht traegt (z. B. falls der Service unter einem anderen Konto laeuft als vom
-  Migrations-Deployer erwartet) — falls nicht, bewusst auf die dokumentierte
-  `DELETE FROM`-Notloesung umstellen, statt den Sync stillschweigend fehlschlagen zu lassen.
+  Inhalt haengt vom RCSI-Check am Zielsystem ab, siehe Nachbesserung 3 (2026-08-07): **Primaerweg**
+  (RCSI AN, Standardfall) legt **nur** die zwei Zieltabellen `FaHierarchyNode`/`FaHierarchyOrderInfo`
+  an, kein `GRANT ALTER`; **Fallback** (RCSI AUS + Staging/Swap gewaehlt) legt zusaetzlich zwei
+  Staging-Tabellen an und erteilt `GRANT ALTER` auf die zwei Zieltabellen an das
+  Sync-Service-SQL-Login).
+- **Reihenfolge:** **RCSI-Check zuerst** (siehe Test-Szenarien, Schritt 0) — das Ergebnis bestimmt,
+  welche Migrationsvariante deployt wird. Danach DB-Migration vor Service-Neustart; Web kann
+  parallel deployt werden, da Teil 1 keine erreichbare Route hinzufuegt. **Primaerweg (RCSI AN,
+  erwarteter Regelfall):** kein weiterer Rechte-Schritt noetig, der Sync ist nach der Migration
+  sofort einsatzbereit. **Fallback (RCSI AUS):** die Migration erteilt `ALTER` auf
+  `FaHierarchyNode`/`FaHierarchyOrderInfo` im selben Schritt (siehe Migrations-/SQL-Auswirkungen) —
+  vor Aktivierung bestaetigen, dass das Sync-Service-Konto dieses Recht tatsaechlich traegt (z. B.
+  falls der Service unter einem anderen Konto laeuft als vom Migrations-Deployer erwartet). Der
+  Sync-Toggle bleibt nach dem Deploy in **beiden** Wegen **default aus** — muss am Zielsystem
+  bewusst aktiviert werden (analog zur ADR-0008-Regel „jeder gewuenschte Sync muss einmalig
+  aktiviert werden").
 - **Publish-Befehle:**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
@@ -593,6 +665,12 @@ fachliche Entscheidung mehr:
    Der `sp_rename`-Staging-Swap ist damit der **einzige** Full-Refresh-Pfad, kein Fallback mehr.
    Ein einziger Infra-Check bleibt vor dem Dev-Lauf: Laeuft der Service unter dem Konto, dem dieses
    Recht erteilt werden darf (siehe `open_questions` im Frontmatter und Deploy-Abschnitt)?
+   **Ergaenzung (Nachbesserung 3, 2026-08-07):** Diese Antwort gilt seit dem RCSI-Entscheidungsweg-
+   Abschnitt des Menschen nur noch fuer den **Fallback-Zweig** (RCSI AUS). Der neue **Primaerweg**
+   (RCSI AN, erwarteter Regelfall) braucht **kein** `GRANT ALTER` — `DELETE FROM` +
+   Neubefuellung in einer Transaktion genuegt, weil RCSI Leser nicht auf Schreibern blockieren
+   laesst. Siehe „Full-Refresh-Strategie: vor dem `GRANT ALTER` die einfachere Frage stellen"
+   weiter unten sowie die Nachbesserung 3 am Dateiende.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 HINWEIS: ICH würde das nicht IDEALFASTRUKTUR etc. Nennen sondern in die Richtung FAHierarchyStruktur, dh. nicht den Standort in die Namensgebung 
@@ -1006,6 +1084,56 @@ bewusste Entscheidung benennen, nicht als Versehen.
 **Zu H-7 — zur Kenntnis, Vorgabe bleibt.** Dass mehrere Bestands-Keys nicht im Drift-Guard stehen,
 ist ein Argument fuer mehr Abdeckung, nicht fuer weniger. Die drei neuen Keys werden eingetragen.
 
+## Full-Refresh-Strategie: vor dem `GRANT ALTER` die einfachere Frage stellen (2026-08-07)
+
+Die offene Infra-Frage lautet „Darf das Sync-Login `ALTER` bekommen?". Davor gehoert aber eine
+andere Frage, die sie moeglicherweise erledigt: **Brauchen wir den Staging-/Swap-Mechanismus
+ueberhaupt?**
+
+**Warum das zu pruefen ist:** Der Swap wurde gewaehlt, um Sperrzeit zu minimieren. Die Pruefungen
+N-3 und N-4 haben aber gezeigt, dass er **dauerhafte Kosten** traegt:
+- drei Renames je Tabelle mit Zwischennamen (nicht ein Schritt),
+- Constraint-/PK-/Index-Namen wandern nicht mit → Namensdrift nach dem ersten Swap,
+- **jede kuenftige Migration muss die `_Staging`-Tabelle im Gleichschritt mitziehen**, sonst bricht
+  der Swap still auf. Eine permanente Kopplung, die man in einem Jahr garantiert vergisst.
+Das ist viel Dauerkomplexitaet, um wenige Sekunden Sperrzeit zu vermeiden — bei einem Sync, der
+alle paar Minuten laeuft, nicht im Sekundentakt.
+
+**Entscheidender Vorabtest — Read Committed Snapshot Isolation:**
+```sql
+SELECT name, is_read_committed_snapshot_on
+FROM sys.databases WHERE name = DB_NAME();
+```
+- **RCSI ist AN** → Leser blockieren nicht auf Schreibern. Dann ist der Swap ueberfluessig:
+  **`DELETE FROM` beide Tabellen + Neubefuellung in EINER Transaktion.** Kein `GRANT ALTER`, keine
+  Staging-Tabellen, kein Drei-Rename-Tanz, keine Migrations-Kopplung, AK 9 trivial erfuellt — und
+  die Web-Reads sehen waehrend des Laufs den alten Stand statt zu warten. **Das ist die
+  bevorzugte Variante.**
+- **RCSI ist AUS** → zwei Wege: RCSI aktivieren (breitere Aenderung, eigene Abwaegung, wirkt auf
+  die ganze Datenbank) **oder** `ALTER` erteilen und beim Swap bleiben.
+
+**Falls es beim `GRANT ALTER` bleibt — die Risikoeinordnung:** Das Sync-Konto **ersetzt ohnehin
+alle paar Minuten den kompletten Inhalt beider Tabellen**. `ALTER` auf genau diese zwei Objekte
+fuegt einem Konto, das ihren Inhalt schon vollstaendig kontrolliert, praktisch keine neue
+Angriffsflaeche hinzu. Der Grant ist eng (zwei Objekte, kein Schema-, kein DB-Recht) und gehoert in
+die anlegende Migration, damit er reproduzierbar ist und nicht von Hand nachgezogen werden muss.
+
+**Aktuelle Rechte pruefen:**
+```sql
+SELECT dp.permission_name, dp.state_desc, ISNULL(o.name, '(Datenbank)') AS objekt
+FROM sys.database_permissions dp
+LEFT JOIN sys.objects o ON o.object_id = dp.major_id
+WHERE dp.grantee_principal_id = DATABASE_PRINCIPAL_ID('<sync-login>');
+
+SELECT r.name AS rolle
+FROM sys.database_role_members m
+JOIN sys.database_principals r ON r.principal_id = m.role_principal_id
+WHERE m.member_principal_id = DATABASE_PRINCIPAL_ID('<sync-login>');
+```
+
+**Reihenfolge der Klaerung:** erst RCSI pruefen. Ist es an, entfaellt die `ALTER`-Frage samt
+Staging-Abschnitt, N-3 und N-4 — und die Spec wird an dieser Stelle deutlich schlanker.
+
 ### Nachbesserung 2 (2026-08-07)
 
 Status je Befund aus der Kritischen Pruefung 2026-08-07, nach Einarbeitung in den Spec-Text (Rumpf,
@@ -1061,3 +1189,58 @@ einzelne Infra-Check, ob das Sync-Service-SQL-Login das per Migration erteilte `
 kann. Alle anderen Befunde aus der Kritischen Pruefung 2026-08-07 (N-1 bis N-4) sind vollstaendig im
 Rumpf umgesetzt. **Diese Spec ist damit aus fachlicher/technischer Sicht dev-bereit** — die
 verbleibende Freigabe (Schranke 1, `freigabe_entscheidung`) ist weiterhin Sache des Menschen.
+
+### Nachbesserung 3 (2026-08-07)
+
+Umsetzung des RCSI-Entscheidungswegs des Menschen (Abschnitt „Full-Refresh-Strategie: vor dem
+`GRANT ALTER` die einfachere Frage stellen", 2026-08-07, oben VERBATIM erhalten) in den Rumpf der
+Spec. Der Staging-/`sp_rename`-Swap aus N-2/N-3 (Kritische Pruefung 2026-08-07) und dessen
+„einziger Full-Refresh-Pfad"-Festlegung aus der Nachbesserung 2 sind damit **nicht mehr der
+Standard-Scope** dieser Spec, sondern der dokumentierte Fallback-Zweig — die Beschluesse selbst
+bleiben als historische Aufzeichnung oben unveraendert stehen, ihre praktische Geltung wird hier
+neu eingeordnet.
+
+**Umgestellt:**
+- **Full-Refresh-Strategie (Technischer Loesungsentwurf > Sync-Service):** neu strukturiert als
+  RCSI-Check zuerst, dann **Primaerweg** (RCSI AN — `DELETE FROM` beide Zieltabellen +
+  Neubefuellung in **einer** Transaktion, kein Staging, kein `sp_rename`, kein `GRANT ALTER`) und
+  **Fallback** (RCSI AUS — RCSI aktivieren ODER Staging + `sp_rename`-Swap mit `GRANT ALTER`, mit
+  der bisherigen Drei-Rename-Mechanik aus N-3 unveraendert als Fallback-Detail). Der Empty-Guard
+  (Roh-Zeilenzahl beider Views vor jeder Mutation) bleibt in **beiden** Wegen unveraendert Pflicht.
+- **Datenmodell:** Staging-Pendants und die zugehoerige N-4-Kopplungsregel als „nur Fallback-Weg"
+  gekennzeichnet — im Primaerweg existieren diese Tabellen nicht, die Kopplungspflicht entfaellt.
+- **Repository-Schicht:** Hinweis auf die `_Staging`-Tabellen als „nur falls Fallback-Weg" ergaenzt.
+- **Migrations-/SQL-Auswirkungen:** in Primaerweg (nur zwei Zieltabellen, kein Grant, keine
+  Migrations-Kopplung) und Fallback (zusaetzlich zwei Staging-Tabellen + `GRANT ALTER`) aufgeteilt;
+  `SQL/00_FreshInstall.sql`-Punkt entsprechend konditioniert.
+- **`affected_code`/Frontmatter:** `SQL/87_AddFaHierarchy.sql`-Eintrag beschreibt jetzt beide
+  moeglichen Inhalte (Primaerweg vs. Fallback) statt unbedingtem Staging+Grant.
+- **Akzeptanzkriterien:** AK 9 als „gilt fuer beide Wege" praezisiert; AK 11 und AK 12 explizit als
+  „nur Fallback-Weg" gekennzeichnet; **neues AK 13** ergaenzt fuer den Primaerweg (`DELETE`+
+  Neubefuellung beider Tabellen atomar in einer Transaktion; bei RCSI AN keine Leser-Blockade,
+  verifiziert per RCSI-Abfrage und manuellem Test).
+- **Test-Szenarien:** Schritt 0 von reinem Berechtigungs-Check auf RCSI-Check umgestellt (Ergebnis
+  verzweigt in Primaer-/Fallback-Pruefungen); Schritt 5 in „5 — Primaerweg" (RCSI AN, kein Blocking
+  ueber die gesamte Ladezeit) und „5b — Fallback" (Swap-Moment mit vernachlaessigbarer
+  Metadaten-Sperre, unveraendert aus N-3) aufgeteilt.
+- **Deploy-Abschnitt:** Migrations-Beschreibung und Reihenfolge auf „RCSI-Check zuerst, dann
+  Primaer- oder Fallback-Migrationsvariante" umgestellt; der Rechte-Check ist jetzt explizit nur im
+  Fallback-Zweig verortet.
+- **Offene Rueckfragen, Punkt 7:** Ergaenzungshinweis angefuegt, dass die dortige N-2-Antwort
+  („Recht erteilen, nicht umgehen") nur noch fuer den Fallback-Zweig gilt.
+- **`open_questions` (Frontmatter):** die bisherige Infra-Check-Zeile („traegt das Service-Konto das
+  per Migration erteilte `ALTER`-Recht?") durch den vorgelagerten RCSI-Check ersetzt — dessen
+  Ergebnis entscheidet ueberhaupt erst, ob eine `ALTER`-Frage noch relevant wird. Weiterhin als
+  DBA-Check, nicht als Design-Blocker gefuehrt: alle fachlichen/technischen Fragen dieser
+  Spec-Runde sind entschieden.
+
+**Bewusst NICHT veraendert:** alle „## Kritische Pruefung"-, „## Antworten"- und „### Nachbesserung"-
+Bloecke sowie der RCSI-Entscheidungsweg-Abschnitt des Menschen selbst stehen unveraendert (VERBATIM)
+im Dokument — sie sind das Protokoll, wie diese Entscheidung entstanden ist, nicht der aktuell
+gueltige Bauplan. Der aktuell gueltige Bauplan ist der oben ueberarbeitete Rumpf (Ziel/Nutzen bis
+Deploy) in Kombination mit dieser Nachbesserung 3.
+
+**Status:** `status` bleibt `Entwurf`. Diese Spec ist weiterhin fachlich/technisch dev-bereit — die
+Freigabe (Schranke 1, `freigabe_entscheidung`) bleibt Sache des Menschen. Keine neue offene
+fachliche Frage durch diese Runde; der verbleibende RCSI-Check ist ein einmaliger, risikoarmer
+Infra-Schritt vor dem Dev-Lauf/Deploy, kein Design-Blocker.
