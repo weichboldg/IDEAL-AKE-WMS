@@ -607,3 +607,106 @@ inzwischen ueberholten urspruenglichen Freigabe-Antwort 4.
    Rueckfrage 4).
 5. Konfigurations-Heimat des Tiefen-Caps — `AppSettings` mit/ohne Seed-Zeile vs. hartkodierte
    Konstante (offene Rueckfrage 5).
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang. Gegengelesen: diese Spec **vollstaendig**, die Teil-1-Spec
+(Datenquelle + `ISyncErrorNotifier`-Verdrahtung), ADR 0005 (Baum-Ausnahme), 0006 (Rollen), 0010
+(Aktivitaets-Protokoll), 0011 (AppSettings). Am **echten Code** verifiziert:
+`ProductionOrdersController.cs`, `ISyncErrorNotifier.cs`, `ReadOnlyBomBuilder`/`Bom.cshtml`,
+`RecursiveFilterSearch` (User-Setting) sowie ein Grep ueber das **gesamte** Web-Projekt
+`IdealAkeWms/` nach jeglicher Mail-Primitive.
+
+**Zuerst das Bestaetigte (kein Nachbesserungsgrund):**
+- **B-2/06 (Access-Filter) stimmt am echten Code.** `ProductionOrdersController.cs` traegt auf
+  Class-Level tatsaechlich `[RequirePickingOrTrackingOrLeitstandAccess]` (Zeile 12/13). Die
+  Uebernahme desselben Filters auf `FaHierarchyController` ist korrekt; Read-only ⇒ kein Edit-Split.
+- **Rumpf ist durchgehend „Baum in scope".** Keine flache-Liste-Reste ausserhalb des verbatim
+  06er-Abschnitts. Out-of-Scope (Zeile 110-112) schliesst einen flachen Modus explizit aus.
+- **AK 2 (Seiteneinheit = Struktur), AK 4 (Cap + Visited-Set, Abbruch nur dieser Struktur,
+  „fehlerhaft markiert" statt leer), AK 5 (Waisen-Pseudowurzel)** sind sauber und pruefbar
+  formuliert. Der Phantom-Header entfaellt strukturell — korrekt.
+- **ADR 0005** listet den BOM-Tree ausdruecklich als Ausnahme; die client-seitige Node-Filterung ist
+  damit regelkonform, nicht ein Verstoss. Der `RecursiveFilterSearch`-Praezedenzfall existiert real
+  (User-Setting, in `User.cs`/`Bom.cshtml`).
+
+### BLOCKER
+
+**B-1 (07) — Die 5 „neuen" Freigabe-Antworten sind auf der Platte LEER; die Kern-Praemisse dieses
+Durchgangs trifft auf den Datei-Ist-Zustand nicht zu.** Der Abschnitt „## Freigabe-Antworten zu den
+neuen Rueckfragen (Mensch fuellt aus — Schranke 1)" (Zeilen 306-312) enthaelt fuenf **blanke** `→`
+ohne jeden Text. Es gibt in dieser Datei **keine** erweiterten Antworten auf die Rueckfragen 1-5.
+Damit sind — entgegen der Annahme, der Mensch habe nachgeliefert — **alle fuenf neuen offenen
+Punkte unbeantwortet**: Kombigeraet-Kopfdaten (1), Fehlermail-Verdrahtung (2), SyncLog-at-request
+(3), Auto-Expand-Kopplung (4), Tiefen-Cap-Heimat (5). Ein `/dev`-Lauf haette fuer jeden dieser
+Punkte keine Entscheidungsgrundlage. Solange dieser Block leer ist, ist die Spec **nicht
+freigabereif** — unabhaengig von der Qualitaet des Rumpfes. (Falls der Mensch die Antworten an
+anderer Stelle/uncommitted gegeben hat: sie sind in der zu pruefenden Datei nicht vorhanden — das
+allein ist der Nachbesserungsgrund.)
+
+**B-2 (07) — Die Fehlermail-Integrationsluecke ist NICHT geloest, sondern nur in eine unbeantwortete
+Rueckfrage verschoben — und im Web-Projekt fehlt jede Mail-Primitive.** Verifiziert:
+`ISyncErrorNotifier` existiert ausschliesslich im Namespace `IDEALAKEWMSService.Services`
+(`ISyncErrorNotifier.cs`, `NotifyAsync(string, Exception, ct)`, „Wirft NIE") und wird nur von
+Service-Klassen injiziert. Ein Grep ueber das **gesamte** Web-Projekt `IdealAkeWms/` nach
+`IEmailService`/`IEmailSender`/`SmtpClient`/`MailMessage`/`SendMailAsync` liefert **null Treffer** —
+das Web-Projekt hat heute gar keinen Mail-Versand. Konsequenzen, die die Spec nicht zieht:
+- Die als In-Scope-Anforderung deklarierte „Fehlermail-Pflicht" (Zeile 92/132) ist mit
+  vorhandenen Web-Bausteinen **nicht** erfuellbar; jede der drei in Rueckfrage 2 skizzierten
+  Optionen ist ein echter Architektur-Eingriff, keine Verdrahtung.
+- **Keine der Optionen ist folgenlos fuer bereits geschriebene Nachbar-Specs bzw. die eigene
+  Deploy-Deklaration.** Die architektonisch sauberste Option („Zyklen-/Tiefenpruefung in
+  `FaHierarchySyncService` vorverlagern") kollidiert damit, dass Teil 1 den Sync **bewusst als
+  reinen Zeilen-Import ohne jede Baum-Traversierung** spezifiziert — Vorverlagerung erzwingt dort
+  Traversierung **plus** ein persistiertes Fehler-Flag je Struktur (neue Spalte = Migration). Das
+  widerspricht direkt der Deploy-Deklaration dieser Spec (`service: false`, `migration: false`,
+  Zeilen 28-31/269-272) und wuerde die freigegebene Teil-1-Spec nachtraeglich aendern. Diese
+  Wechselwirkung ist in der Spec nirgends benannt.
+- **Es gibt fuer die Meldung (SyncLog + Fehlermail) kein einziges Akzeptanzkriterium.** AK 4 endet
+  bei „fehlerhaft markiert" (UI). Die Melde-Pflicht steht nur in „Fachliche Anforderungen" mit dem
+  Zusatz „technische Verdrahtung … siehe offene Rueckfragen 2/3". Das Test-Szenario „Zyklen-/Tiefen-
+  Test" macht den Mechanismus selbst von der Antwort abhaengig („Details je nach Antwort auf offene
+  Rueckfrage 2/3"). Damit ist die geforderte Meldung derzeit **weder spezifiziert noch abnehmbar** —
+  auch die SyncLog-Frage (ADR 0010 ist auf isolierte periodische Laeufe zugeschnitten, hier tritt
+  der Verstoss pro Web-Request auf) ist ungeloest.
+
+Fazit B-2: nur verschoben, nicht geloest. Die 06er-Erkenntnis (Integrationsluecke) besteht
+unveraendert fort und ist zusaetzlich durch das komplette Fehlen einer Web-Mail-Primitive
+verschaerft.
+
+### SOLLTE
+
+**S-1 (07) — „Tiefen-Cap konfigurierbar" (fest zugesagt) vs. Rueckfrage 5 (koennte hartkodierte
+Konstante werden) ist ein offener Selbstwiderspruch.** In-Scope (Zeile 89) und AK 4 (Zeile 228)
+nennen den Cap „konfigurierbar (Default 500)"; `affected_code` (Zeile 17) setzt bereits einen
+`AppSettingKeys`-Eintrag voraus. Rueckfrage 5 laesst aber ausdruecklich die hartkodierte Konstante
+offen — die „nicht ohne Deploy aenderbar" waere und „konfigurierbar" damit **verletzt**. Solange
+Rueckfrage 5 offen ist, ist AK 4 nicht deterministisch umsetzbar (und `affected_code` ggf. falsch).
+
+**S-2 (07) — Auto-Expand ist als festes In-Scope-Feature zugesagt, haengt aber an der unbeantworteten
+Rueckfrage 4 und hat kein Akzeptanzkriterium.** In-Scope (Zeile 84-88) fuehrt „Auto-Expand des Pfads
+zu einem client-seitigen Filtertreffer" als geliefertes Feature. Rueckfrage 4 laesst offen, ob es an
+das User-Setting `RecursiveFilterSearch` gekoppelt wird — ist es gekoppelt und der Anwender hat das
+Setting **aus**, greift das zugesagte In-Scope-Feature **still nicht**. Zusaetzlich existiert fuer
+Expand/Collapse und Auto-Expand **kein** Akzeptanzkriterium (AK 1-8 erwaehnen sie nicht). Entweder
+Kopplung entscheiden und ein AK ergaenzen, oder Auto-Expand aus dem festen In-Scope in die von
+Rueckfrage 4 abhaengige Menge verschieben.
+
+### HINWEIS
+
+**H-1 (07) — AK 6 ist fuer den Kombigeraet-Fall unterbestimmt (Rueckfrage 1 offen).** AK 6 verlangt
+„die zugehoerigen `FaHierarchyOrderInfo`-Daten … fuer ihren `HauptFA`" im Singular, waehrend ein
+Kombigeraet laut Teil 1 **mehrere** `FaHierarchyOrderInfo`-Zeilen (mehrere `MontageAbteilung`) je
+`HauptFA` traegt. Wie mehrere Kopfzeilen dargestellt werden, ist Rueckfrage 1 — bis zur Antwort ist
+AK 6 fuer diesen (real existierenden) Fall nicht abnehmbar.
+
+**H-2 (07) — Deploy-Metadaten sind an Rueckfrage 2/5 gekoppelt und derzeit nur unter der optimistischsten
+Annahme korrekt.** `deploy.service: false`/`migration: false` gilt nur, wenn Rueckfrage 2 **nicht**
+zur Vorverlagerung in den Sync fuehrt (siehe B-2) und Rueckfrage 5 keine Seed-Zeile verlangt. Beide
+Aufloesungen koennen die Deklaration kippen — beim Beantworten mitpruefen.
+
+NACHBESSERUNG NOETIG: Die 5 neuen Freigabe-Antworten fehlen komplett auf der Platte (B-1); die
+Fehlermail-/SyncLog-Integrationsluecke ist nur verschoben, nicht geloest, und im Web-Projekt fehlt
+jede Mail-Primitive (B-2, inkl. Wechselwirkung mit Teil-1-Spec und den eigenen Deploy-Metadaten);
+„konfigurierbarer" Tiefen-Cap widerspricht der noch offenen Konstanten-Option (S-1); Auto-Expand ist
+zugesagt, aber an eine offene Frage gekoppelt und ohne AK (S-2).
