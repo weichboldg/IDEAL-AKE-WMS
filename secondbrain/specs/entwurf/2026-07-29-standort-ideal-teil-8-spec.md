@@ -4,7 +4,7 @@ title: "IDEAL-Standort Teil 8 — Sub-FA-Rueckmeldung / BDE (Epic)"
 slug: 2026-07-29-standort-ideal-teil-8-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
@@ -12,25 +12,25 @@ worktree: ""
 branch: ""
 affected_code:
   - IdealAkeWms/Controllers/BdeTerminalController.cs
-  - IdealAkeWms/Controllers/BdeApiController.cs
+  - "IdealAkeWms/Controllers/BdeApiController.cs (GetWorkOperation, GetAvailableOperations)"
   - IdealAkeWms/Services/BdeBookingService.cs
-  - IdealAkeWms/wwwroot/js/barcode-scanner.js
+  - "IdealAkeWms/Data/Repositories/WorkOperationRepository.cs (GetByFaAndOperationAsync, GetAllByFaAndOperationAsync aus Teil 7)"
+  - "IdealAkeWms/wwwroot/js/bde-terminal.js (scanFaAgInput, NurFA-Button-Matching)"
   - IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs
-  - IdealAkeWms/Controllers/TrackingController.cs
-  - IDEALAKEWMSService/Services/OseonSyncService.cs (Review OrderNumber-Bezug)
+  - "IdealAkeWms/Controllers/TrackingController.cs (Filter auf OrderNumber, unkritisch — siehe Umfang)"
+  - "IDEALAKEWMSService/Services/OseonSyncService.cs (Review OrderNumber-Bezug)"
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "B2/B-5 (fundamental, muss VOR Etappe 1 entschieden sein): Scan liefert HauptFA=OrderNumber, nach Inversion nicht eindeutig -> identifiziert eine Gruppe, keinen Einzelauftrag. Wird auf Haupt-FA-Ebene rueckgemeldet, oder waehlt der Werker aus den angezeigten Sub-FAs den konkreten SubOrderNumber?"
-  - "Setzt diese Etappenfolge tatsaechlich Teil 7 vollstaendig abgeschlossen voraus, oder kann (laut Notiz 'Alternative Reihenfolge') 7/8 vorgezogen werden, wenn Rueckmeldefaehigkeit von Tag eins gebraucht wird? Wirkt sich auf die Startbedingung dieses Epics aus."
-  - "Teileverfolgung/OSEON: ist OseonSyncService bereits SubOrderNumber-fest, oder braucht dieser Teil eine eigene Etappe fuer die OSEON-Seite?"
+  - "Aufloesungslogik je BDE-Modus: Normal-Modus-Lookup (GetByFaAndOperationAsync/GetAllByFaAndOperationAsync) ist auf (OrderNumber + OperationNumber) geschluesselt und liefert WorkOperations; NurFA-Modus hat keine AG-Nummer im Scan (Fallback hart opNumber=01) und bucht per ProductionOrder.Id via StartProductionForOrder. Auf welcher Granularitaet gilt 'genau ein / mehrere' je Modus? Muss in Etappe 2 verbindlich festgelegt werden, bevor Etappe 3 die UI baut."
+  - "Scope der Gruppenaufloesung: entscheidet der Server-Lookup (Etappe 2) ueber die volle OrderNumber-Gruppe (auch Sub-FAs an anderen Werkbaenken) oder werkbank-gescopt wie die bestehende GetAvailableOperations-Liste (Etappe 3)? Muss deckungsgleich sein, sonst kann der Server 'mehrere' melden, waehrend die Werkbank-Liste nur einen zeigt (oder umgekehrt)."
 epic: true
 etappen:
-  - "1: Rueckmelde-Datenmodell (Review/Erweiterung bestehender Satelliten ProductionOrderBdeStatus etc. auf SubOrderNumber-Bezug, keine neue Migration erwartet ausser Bedarf)"
-  - "2: Repositories/Services auf SubOrderNumber-Lookups haerten (Fortsetzung des Teil-7-Reviews im BDE-Kontext)"
-  - "3: Rueckmelde-Logik (BdeBookingService, ProductionOrdersController) fuer materialisierte Sub-FAs verifizieren/anpassen"
-  - "4: BDE-Anbindung inkl. Scan-Aufloesung gemaess Klaerung von B2/B-5 (Gruppen- vs. Einzelauswahl)"
-  - "5: Teileverfolgung/OSEON-Seite (falls Etappe-3-Review Anpassungsbedarf zeigt)"
+  - "1: Verifikation — Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen"
+  - "2: Aufloesungslogik serverseitig (Gruppen-Lookup auf OrderNumber, Fallback auf SubOrderNumber, Mehrdeutigkeits-Ergebnis; Granularitaet je Modus + Scope klaeren) inkl. Unit-Tests"
+  - "3: Auswahl-UI am Terminal, aufgesetzt auf die bestehende GetAvailableOperations-Liste"
+  - "4: NurFA-Button-Matching fixen (kein last-wins ohne break mehr) + Durchzug ueber Teileverfolgung"
+  - "5: OSEON-Seite (nur falls Etappe 1 Bedarf zeigt)"
   - "6: Tests (Unit + Test-Szenarien) + Brain-Update"
 deploy:
   web: true
@@ -52,35 +52,84 @@ tatsaechlich bedienbar — vorher wurde nur strukturiert und materialisiert.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-**In-Scope:** BDE-Terminal-Buchung gegen materialisierte Sub-FAs, Scan-Aufloesung (Werker scannt
-`HauptFA`, muss aber ggf. einen konkreten `SubOrderNumber` waehlen — siehe B2/B-5), Haertung aller
-BDE-/Teileverfolgungs-Lookups auf `SubOrderNumber`, wo Eindeutigkeit gebraucht wird.
+**In-Scope:** BDE-Terminal-Buchung gegen materialisierte Sub-FAs; Aufloesung des gescannten
+`fa`-Segments (aus `bde-terminal.js:scanFaAgInput`) ueber die verbindliche Reihenfolge
+`OrderNumber`-Gruppe → Fallback `SubOrderNumber` → bestehende Fehlerbehandlung (siehe „Fachliche
+Anforderungen"); Auswahl-UI bei mehrdeutiger `OrderNumber`-Gruppe, aufgesetzt auf die bestehende
+werkbank-gescopte `GetAvailableOperations`-Liste; Fix des NurFA-Substring-Matchings
+(last-wins-ohne-`break`, siehe unten); Durchzug der Aufloesung ueber die Teileverfolgung (dort nur
+Filter auf `OrderNumber`, unkritisch, siehe `TrackingController`).
 
-**Out-of-Scope:** die Materialisierung selbst (Teil 7, Voraussetzung); keine neue
-BDE-Fachlogik jenseits dessen, was die Hierarchie erzwingt (bestehende Buchungsregeln,
-Mehrfachbuchungs-Konfiguration etc. bleiben unveraendert).
+**Out-of-Scope:** die Materialisierung selbst (Teil 7, Voraussetzung — liefert
+`GetAllByFaAndOperationAsync` + Logging, siehe „Technischer Loesungsentwurf"); Kombinationsgeraete/
+`MontageAbteilung` (Paket-Entscheidung, siehe
+[[2026-08-06-kombinationsgeraete-montageabteilung]] — die Auswahlliste kann Kombi-Auftraege nicht
+auftragsweise trennen, das ist bewusst akzeptiert); keine neue BDE-Fachlogik jenseits dessen, was
+die Hierarchie erzwingt (bestehende Buchungsregeln, Mehrfachbuchungs-Konfiguration etc. bleiben
+unveraendert).
 
 ## Fachliche Anforderungen
 
-- **B2/B-5-Konsequenz (siehe offene Rueckfrage 1, entscheidend fuer die gesamte Etappenfolge):**
-  `HauptFA` ist laut Anhang der einzige Produktions-Identifier — auch wenn ein Werker einen
-  Sub-FA scannt, muss intern auf `HauptFA` aufgeloest werden. Nach der Inversion identifiziert ein
-  Scan damit eine **Gruppe** (alle Sub-FAs einer `OrderNumber`), keinen Einzelauftrag. Die BDE-
-  Buchung braucht aber einen eindeutigen `SubOrderNumber`. Es muss entschieden werden, ob (a) auf
-  Haupt-FA-Ebene ruckgemeldet wird (dann muesste `BdeBooking` ggf. auf `OrderNumber`-Gruppen statt
-  Einzelauftraegen buchen — Modelbruch) oder (b) der Werker nach dem Scan aus den angezeigten
-  Sub-FAs den konkreten `SubOrderNumber` waehlt (naeher am bestehenden Modell, aber ein
-  zusaetzlicher Bedienschritt am Terminal).
+- **Scan-Aufloesungsreihenfolge (entschieden — Variante b, Werker waehlt nach dem Scan; siehe
+  „Bereits entschieden" unten):** Konsumierter String ist das `fa`-Segment aus
+  `bde-terminal.js:scanFaAgInput` (Split auf `,`/`/` → `[fa, op]`; derselbe String kommt auch aus
+  dem QR-Pfad an Index 2 — das BDE-Terminal nutzt dafuer einen eigenen Text-Input-Handler, nicht
+  `barcode-scanner.js`). Verbindliche Reihenfolge:
+  1. Lookup gegen **`OrderNumber`** (die Gruppe).
+     - **genau ein** zugehoeriger Auftrag → direkt buchen, keine Auswahl (flacher/AKE-Fall
+       unveraendert, dort gilt `OrderNumber == SubOrderNumber`)
+     - **mehrere** → Auswahlliste der Auftraege dieser `OrderNumber` (Hauptauftrag **und**
+       Sub-FAs — der Hauptauftrag ist selbst ein buchbarer FA); die Liste zeigt mindestens
+       Sub-FA-Nummer, Matchcode/Bezeichnung und Arbeitsbereich, vorsortiert/hervorgehoben nach
+       offenem Arbeitsgang im Bereich des Werkers.
+  2. **Kein Treffer** → Fallback-Lookup gegen **`SubOrderNumber`** → direkt buchen. Dieser Zweig
+     ist heute unerreichbar (Anhang B2: Sub-FA wird in Barcodes bislang nicht verwendet) und
+     bewusst als Vorruestung fuer kuenftige Sub-FA-Barcodes enthalten; er kann nicht fehltreffen,
+     weil eine echte `SubOrderNumber` nie eine `OrderNumber` ist.
+  3. **Kein Treffer** → bestehende Fehlerbehandlung, unveraendert.
+- **NurFA-Modus-Fix:** Der bestehende Substring-Vergleich in `bde-terminal.js` (Button-Matching
+  ohne `break`, „last wins" bei mehreren Treffern) wird durch dieselbe Auswahl wie nach dem Scan
+  ersetzt — kein stiller Fehlgriff auf den falschen Sub-FA mehr.
+- **Kombinationsgeraete (bekannte Grenze, kein Umsetzungsfehler):** Da `ProductionOrders` kein
+  `MontageAbteilung`-Feld traegt (Paket-Entscheidung, siehe
+  [[2026-08-06-kombinationsgeraete-montageabteilung]]), kann die Auswahlliste zwei
+  Kombinationsgeraete-Auftraege derselben `OrderNumber` nicht auftragsweise trennen — der Werker
+  unterscheidet positionsweise (Matchcode/Arbeitsbereich). Dev und Test duerfen das nicht als
+  Fehler werten.
+- **Randfall gleichzeitige Rueckmeldung:** Zwei Werker melden zeitgleich unterschiedliche Sub-FAs
+  derselben `OrderNumber` zurueck — unproblematisch, weil jede Buchung nach der Aufloesung ueber
+  die eindeutige `WorkOperation`- bzw. `ProductionOrder.Id` laeuft (Normal-Modus:
+  `workOperationId`; NurFA-Modus: `StartProductionForOrder` per `ProductionOrder.Id`). Kein
+  gemeinsamer Lock noetig.
 - Alle bestehenden BDE-Fallstricke (Mehrfachbuchungs-Regel, `Paused`/`EndedAt`, BDE-Sperre bei
   verpackt/abgeholt, Auto-Pause-Schichtende) gelten unveraendert je `SubOrderNumber`-Auftrag.
 
 ## Technischer Loesungsentwurf
 
 Da `ProductionOrders` nach Teil 7 bereits das materialisierte Sub-FA-Modell traegt, ist dieser
-Teil primaer ein **Haertungs- und Anbindungs-Epic**, kein Neubau: bestehende BDE-Services
-(`BdeBookingService`, `BdeTerminalController`) werden gegen die konkrete Sub-FA-Auswahl aus der
-UI verdrahtet; der Scan-Handler (`barcode-scanner.js`) bekommt — abhaengig vom Ergebnis der
-B2/B-5-Klaerung — entweder eine Gruppen-Zwischenansicht oder eine direkte Sub-FA-Aufloesung.
+Teil primaer ein **Haertungs- und Anbindungs-Epic**, kein Neubau.
+
+**Verbindliche Teil-7/Teil-8-Grenze:** Teil 7 macht die Datenschicht mehrdeutigkeitsfaehig, ohne
+das Terminal-Verhalten zu aendern — konkret ergaenzt Teil 7 an `WorkOperationRepository` eine
+mengenwertige Variante `GetAllByFaAndOperationAsync` neben dem bestehenden
+`GetByFaAndOperationAsync` und protokolliert dort, wenn der Einzel-Lookup mehr als eine Zeile
+faende. Teil 8 stellt den Aufruf im BDE-Pfad auf die mengenwertige Variante um und baut die
+Disambiguierungs-UI. Damit bleibt Teil 7 fuer sich mergebar, ohne das Terminal zu brechen. (Diese
+Grenze ist als vorgegeben zu behandeln; die entsprechende Ergaenzung von AK/`affected_code` in der
+Teil-7-Spec ist dort zu pflegen, nicht in dieser Datei.)
+
+`BdeApiController.GetWorkOperation` (Normal-Modus) und `GetAvailableOperations`/das
+NurFA-Button-Matching in `bde-terminal.js` werden auf die neue Aufloesungsreihenfolge (siehe
+„Fachliche Anforderungen") umgestellt. Die Auswahl-UI setzt auf die bestehende, werkbank-gescopte
+`GetAvailableOperations`-Liste auf (Id-basiert, Klick bucht per `Id` via `StartProductionForOrder`)
+und filtert sie auf die gescannte `OrderNumber` — keine zweite Auswahl-Mechanik.
+`barcode-scanner.js` ist **nicht** Teil des BDE-Terminal-Pfads (das ist der
+Artikel-/Lagerplatz-/Teileverfolgungs-Kamera-Scanner) und daher nicht betroffen; die
+Teileverfolgung (`TrackingController`) wertet `OrderNumber` nur als **Filter** aus (`Contains`),
+kein eindeutigkeitsannehmender Lookup — unkritisch, aber im `affected_code` mitgefuehrt.
+
+Offen bleibt die genaue Granularitaet je BDE-Modus und der Scope der Gruppenaufloesung (siehe
+„Offene Rueckfragen") — Etappe 2 legt beides verbindlich fest, bevor Etappe 3 die UI baut.
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -93,36 +142,63 @@ strukturell unveraendert. Falls im Zuge einer Etappe doch ein Datenmodell-Zusatz
 
 ## Audit-Feld-Auswirkungen
 
-Keine Aenderung an bestehenden Audit-Feldern; `BdeBooking` bleibt wie heute protokolliert.
+`BdeBooking` setzt heute korrekt `ModifiedAt`/`ModifiedBy`/`ModifiedByWindows` ueber
+`BdeBookingService.SetAudit`/`SetAuditModified` aus `ICurrentUserService` — daran aendert sich
+nichts, solange keine neue persistierte Entitaet entsteht. Fuehrt eine Etappe (z. B. ein
+UI-Statusfeld fuer die Auswahl) doch eine neue Entitaet ein, muss sie `AuditableEntity` erben
+(ADR 0003) und bei jedem Update die drei Felder setzen — siehe Akzeptanzkriterium dazu.
 
 ## Akzeptanzkriterien
 
-1. Ein Werker kann am Terminal einen materialisierten Sub-FA eindeutig buchen (kein
-   Ambiguitaets-Fehler, keine falsche Zuordnung bei gleicher `OrderNumber`).
-2. Scan-Aufloesung verhaelt sich gemaess der getroffenen B2/B-5-Entscheidung konsistent ueber alle
-   Scan-Einstiegspunkte (Terminal, Teileverfolgung, Kommissionierung — soweit betroffen).
-3. Bestehende BDE-Regeln (Mehrfachbuchung, Pause, Sperre bei verpackt/abgeholt) funktionieren
+1. Scan/Eingabe des `fa`-Segments trifft genau einen Auftrag ueber `OrderNumber` → direkte
+   Buchung ohne Auswahl (deckt den AKE-/flachen Fall sowie eindeutige IDEAL-FAs ab).
+2. Scan/Eingabe trifft mehrere Auftraege derselben `OrderNumber` → Auswahlliste mit
+   Sub-FA-Nummer, Matchcode/Bezeichnung und Arbeitsbereich (inkl. Hauptauftrag als Option);
+   Werker waehlt, danach Buchung per eindeutiger `Id`.
+3. Kein Treffer auf `OrderNumber`, aber Treffer auf `SubOrderNumber` → direkte Buchung
+   (Fallback-Zweig; ohne Sub-FA-Barcode-Testdaten heute nicht pruefbar, siehe
+   Testdaten-Vorbedingung unter „Deploy").
+4. Kein Treffer auf beiden → bestehende Fehlerbehandlung, unveraendert.
+5. NurFA-Modus: bei mehreren Substring-Treffern erscheint dieselbe Auswahl wie im Normal-Modus —
+   kein stilles „last wins" mehr.
+6. Zwei Sub-FAs derselben `OrderNumber` werden am Terminal nacheinander korrekt getrennt gebucht
+   (keine Vermischung von Buchungen).
+7. Kombinationsgeraete: Auswahlliste zeigt Sub-FAs mehrerer Kombi-Auftraege positionsweise
+   unterscheidbar, keine automatische Auftragstrennung — als bekannte Grenze dokumentiert, kein
+   Testfehler.
+8. Bestehende BDE-Regeln (Mehrfachbuchung, Pause, Sperre bei verpackt/abgeholt) funktionieren
    unveraendert je Sub-FA.
-4. AKE-Verhalten (Master aus) unveraendert.
-5. Jede Etappe endet in einem eigenstaendigen, buildbaren Commit (kein Zwischenzustand, der
-   `dotnet build`/`dotnet test` bricht).
+9. AKE-Verhalten (Master aus, `OrderNumber == SubOrderNumber`) unveraendert: immer genau ein
+   Treffer, immer Direktbuchung ohne Auswahl.
+10. Fuehrt eine Etappe eine neue persistierte Entitaet ein (z. B. UI-Status der Auswahl), erbt sie
+    `AuditableEntity` und setzt `ModifiedAt`/`ModifiedBy`/`ModifiedByWindows` bei jedem Update
+    (ADR 0003).
+11. Jede Etappe endet in einem eigenstaendigen, buildbaren Commit (kein Zwischenzustand, der
+    `dotnet build`/`dotnet test` bricht).
 
 ## Test-Szenarien
 
-Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE": Terminal-Buchung auf zwei Sub-FAs derselben
-`OrderNumber` nacheinander — beide korrekt getrennt erfasst; Scan-Aufloesung je nach
-B2/B-5-Entscheidung; Regressionslauf der bestehenden BDE-Testszenarien (Mehrfachbuchung, Pause,
-Sperre) gegen materialisierte Sub-FAs.
+Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE":
+- Terminal-Buchung auf zwei Sub-FAs derselben `OrderNumber` nacheinander (Normal- und
+  NurFA-Modus) — beide korrekt getrennt erfasst, Auswahlliste zeigt beide unterscheidbar.
+- Scan/Eingabe einer eindeutigen `OrderNumber` (flacher/AKE-Fall) — Direktbuchung ohne Auswahl.
+- NurFA-Modus mit mehreren Substring-Treffern — Auswahl statt „last wins".
+- Fallback-Zweig `SubOrderNumber` (sobald Testdaten mit Sub-FA-Barcodes verfuegbar sind, siehe
+  Testdaten-Vorbedingung unter „Deploy").
+- Kombinationsgeraete-Auswahlliste (positionsweise, keine Auftragstrennung) — als erwartetes
+  Verhalten protokolliert, nicht als Fehler.
+- Regressionslauf der bestehenden BDE-Testszenarien (Mehrfachbuchung, Pause, Sperre) gegen
+  materialisierte Sub-FAs.
 
 ## Etappen (epic: true)
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | Rueckmelde-Datenmodell: Review/ggf. Erweiterung bestehender Satelliten auf Sub-FA-Bezug | offen | |
-| 2 | Repositories/Services auf `SubOrderNumber`-Lookups haerten | offen | |
-| 3 | Rueckmelde-Logik (`BdeBookingService`, `ProductionOrdersController`) fuer materialisierte Sub-FAs verifizieren/anpassen | offen | |
-| 4 | BDE-Anbindung inkl. Scan-Aufloesung gemaess B2/B-5-Entscheidung | offen | |
-| 5 | Teileverfolgung/OSEON-Seite (nur falls Etappe 2/3 Anpassungsbedarf zeigen) | offen | |
+| 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen | offen | |
+| 2 | Aufloesungslogik serverseitig (Gruppen-Lookup auf `OrderNumber`, Fallback auf `SubOrderNumber`, Mehrdeutigkeits-Ergebnis; Granularitaet je Modus + Scope klaeren, siehe „Offene Rueckfragen") inkl. Unit-Tests | offen | |
+| 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | offen | |
+| 4 | NurFA-Button-Matching fixen (kein last-wins ohne `break` mehr) + Durchzug ueber Teileverfolgung | offen | |
+| 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | offen | |
 | 6 | Tests (Unit + Test-Szenarien) + Brain-Update | offen | |
 
 Ein langlebiger Worktree traegt alle Etappen; **kein** Zwischen-Merge. Waehrend der Arbeit den
@@ -133,66 +209,81 @@ Merge (Schranke 2) erst, wenn **alle** Etappen abgeschlossen sind.
 
 - **Web-App:** ja.
 - **Service:** ja (falls Etappe 5 OSEON-Anpassungen bringt).
-- **Migration:** wahrscheinlich, Umfang haengt von den Etappen ab (siehe „Migrations-/SQL-
-  Auswirkungen").
+- **Migration:** wahrscheinlich keine, Umfang haengt vom Ergebnis von Etappe 1 ab (siehe
+  „Migrations-/SQL-Auswirkungen").
+- **Testdaten-Vorbedingung (Schranke-2-Vorbedingung, analog Teil 1–5):** AK 2/6 (mehrere Sub-FAs
+  derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback-Zweig `SubOrderNumber`) sind ohne
+  produktivnahe hierarchische Rueckmeldedaten im IDEAL-Testsystem nicht gruen zu bekommen — das
+  Testsystem ist heute leer (siehe Uebersichts-Spec). Vor Schranke 2 sicherstellen, dass
+  entsprechende Testdaten existieren.
 - **Publish-Befehle:** wie Teil 7, vom Dev-Lauf am Ende aller Etappen gegen den tatsaechlichen
   Gesamt-Diff zu bestaetigen.
 
 ## Offene Rueckfragen
 
-1. B2/B-5 — Scan-Aufloesung: Haupt-FA-Ebene oder Werker-Auswahl aus den Sub-FAs? Muss **vor**
-   Etappe 4 (idealerweise vor Etappe 1) entschieden sein, weil es das Datenmodell fuer die
-   BDE-Anbindung praegt.
-2. Bleibt die Voraussetzung „Teil 7 vollstaendig abgeschlossen" bestehen, oder wird laut der in
-   der Notiz genannten „Alternativen Reihenfolge" vorgezogen?
-3. Ist die OSEON-Seite (`OseonSyncService`) bereits `SubOrderNumber`-fest, oder braucht es dafuer
-   eine eigene Etappe?
+1. Aufloesungslogik je BDE-Modus: Normal-Modus-Lookup (`GetByFaAndOperationAsync`/
+   `GetAllByFaAndOperationAsync`) ist auf (`OrderNumber` + `OperationNumber`) geschluesselt und
+   liefert `WorkOperation`s; NurFA-Modus hat keine AG-Nummer im Scan (Fallback hart
+   `opNumber=01`) und bucht per `ProductionOrder.Id` via `StartProductionForOrder`. Auf welcher
+   Granularitaet gilt „genau ein / mehrere" je Modus? Muss in Etappe 2 verbindlich festgelegt
+   werden, bevor Etappe 3 die UI baut.
+2. Scope der Gruppenaufloesung: entscheidet der Server-Lookup (Etappe 2) ueber die volle
+   `OrderNumber`-Gruppe (auch Sub-FAs an anderen Werkbaenken) oder werkbank-gescopt wie die
+   bestehende `GetAvailableOperations`-Liste (Etappe 3)? Muss deckungsgleich sein, sonst kann der
+   Server „mehrere" melden, waehrend die Werkbank-Liste nur einen zeigt (oder umgekehrt).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. → **Variante (b): Der Werker waehlt nach dem Scan den konkreten Sub-FA. Aber
-   code-getrieben, nicht annahmegetrieben.**
+1. →
+2. →
 
-   **Variante (a) — Rueckmeldung auf Haupt-FA-Ebene — wird abgelehnt**, aus zwei Gruenden:
-   `BdeBooking` haengt per FK an `ProductionOrder.Id`; eine Buchung "auf eine Gruppe" hat schlicht
-   kein Ziel — das waere ein Modellbruch mitten im Kern. Und fachlich: Wenn nur auf Haupt-FA-Ebene
-   rueckgemeldet wird, ist die ganze Materialisierung der Sub-FAs (Teil 7) zwecklos. Man wuerde das
-   Datenmodell umbauen und die Information dann wegwerfen.
+## Bereits entschieden (Schranke 1, erster Durchgang — 2026-08-06)
 
-   **Verbindliche Aufloesungs-Reihenfolge nach einem Scan:**
-   1. Der gescannte Code wird zuerst gegen **`SubOrderNumber`** aufgeloest. Trifft er → direkt
-      buchen, **keine Auswahl**. (Deckt den Fall ab, dass es tatsaechlich Sub-FA-Barcodes gibt —
-      siehe Annahme B2, beim ersten Test zu pruefen.)
-   2. Trifft er nicht, wird gegen **`OrderNumber`** aufgeloest:
-      - **genau ein** zugehoeriger Auftrag → direkt buchen, keine Auswahl (haelt den flachen bzw.
-        einstufigen Fall reibungslos)
-      - **mehrere** → Auswahlliste der Sub-FAs dieses `HauptFA`
-   3. Kein Treffer → bestehende Fehlerbehandlung, unveraendert.
+Die folgenden drei Rueckfragen aus dem ersten Entwurf sind beantwortet und werden hier archiviert
+statt weiter als offene Rueckfrage gefuehrt (`open_questions` oben ist auf das tatsaechlich noch
+Offene getrimmt).
 
-   **Die Auswahlliste muss unterscheidbar sein**, sonst ist sie am Terminal wertlos: mindestens
-   Sub-FA-Nummer, Matchcode/Bezeichnung und der Arbeitsbereich; sinnvoll ist, die Sub-FAs mit einem
-   offenen Arbeitsgang im Bereich des Werkers **vorzusortieren oder hervorzuheben**. Reine Nummern
-   nebeneinander sind am Terminal nicht bedienbar.
+**1. B2/B-5 — Scan-Aufloesung: Haupt-FA-Ebene oder Werker-Auswahl aus den Sub-FAs?**
 
-   **Warum diese Reihenfolge und nicht eine feste Annahme:** Ob IDEAL Sub-FA-Barcodes hat, ist bis
-   heute unbestaetigt (Testsystem leer). Die code-getriebene Aufloesung funktioniert in **beiden**
-   Welten — mit Sub-FA-Barcodes ohne Zusatzschritt, ohne sie mit Auswahl. Damit haengt die
-   Umsetzung nicht mehr an einer offenen Annahme, und Etappe 1 kann starten.
+→ **Variante (b): Der Werker waehlt nach dem Scan den konkreten Sub-FA. Aber
+code-getrieben, nicht annahmegetrieben.**
 
-2. → **Ja, Teil 7 bleibt vollstaendige Voraussetzung.** `depends_on` unveraendert. Die "alternative
-   Reihenfolge" der Ideen-Notiz galt fuer den Fall, dass Rueckmeldefaehigkeit von Tag eins gebraucht
-   wird — die risiko-aufsteigende Reihenfolge ist inzwischen entschieden (Uebersichts-Spec), also
-   greift sie nicht. Vor Teil 7 gibt es keine materialisierten Sub-FAs, an denen dieses Epic
-   arbeiten koennte.
+**Variante (a) — Rueckmeldung auf Haupt-FA-Ebene — wird abgelehnt**, aus zwei Gruenden:
+`BdeBooking` haengt per FK an `ProductionOrder.Id`; eine Buchung "auf eine Gruppe" hat schlicht
+kein Ziel — das waere ein Modellbruch mitten im Kern. Und fachlich: Wenn nur auf Haupt-FA-Ebene
+rueckgemeldet wird, ist die ganze Materialisierung der Sub-FAs (Teil 7) zwecklos. Man wuerde das
+Datenmodell umbauen und die Information dann wegwerfen.
 
-3. → **Offen lassen — aber als Ergebnis von Etappe 2, nicht als Vorbedingung.**
-   Ob `OseonSyncService` bereits `SubOrderNumber`-fest ist, laesst sich ohne den Code-Review nicht
-   beantworten und soll die Freigabe nicht blockieren. Verbindlich:
-   - Die `OrderNumber`-Bezuege in `OseonSyncService` sind Teil des Haertungs-Reviews in **Etappe 2**.
-   - **Etappe 2 liefert ein ausdrueckliches Urteil**: OSEON ist bereits fest (dann entfaellt Etappe 5)
-     oder nicht (dann wird Etappe 5 mit konkretem Umfang gefuellt).
-   - Etappe 5 bleibt bis dahin als **bedingte** Etappe in der Tabelle stehen — nicht streichen,
-     nicht blind einplanen.
+**Hinweis (Nachbesserung):** Die in dieser Antwort urspruenglich beschriebene konkrete
+Aufloesungsreihenfolge (`SubOrderNumber` zuerst) wurde durch die KP-2-Korrektur ersetzt (siehe
+„Antworten auf die Kritische Pruefung (2026-08-06)", Zu KP-2, weiter unten): Weil beim
+Hauptauftrag `OrderNumber == SubOrderNumber` gilt, haette ein `SubOrderNumber`-Lookup zuerst
+**immer sofort auf den Hauptauftrag gebucht** und die Auswahl uebersprungen. Verbindlich ist die
+Reihenfolge in „Fachliche Anforderungen" oben: **`OrderNumber`-Gruppe zuerst, `SubOrderNumber` als
+unerreichbarer Vorruest-Fallback danach.** Die grundsaetzliche Entscheidung — Variante (b),
+code-getrieben statt annahmegetrieben, Ablehnung von Variante (a) — bleibt unveraendert gueltig.
+
+**2. Bleibt die Voraussetzung „Teil 7 vollstaendig abgeschlossen" bestehen, oder wird laut der in
+der Notiz genannten „Alternativen Reihenfolge" vorgezogen?**
+
+→ **Ja, Teil 7 bleibt vollstaendige Voraussetzung.** `depends_on` unveraendert. Die "alternative
+Reihenfolge" der Ideen-Notiz galt fuer den Fall, dass Rueckmeldefaehigkeit von Tag eins gebraucht
+wird — die risiko-aufsteigende Reihenfolge ist inzwischen entschieden (Uebersichts-Spec), also
+greift sie nicht. Vor Teil 7 gibt es keine materialisierten Sub-FAs, an denen dieses Epic
+arbeiten koennte.
+
+**3. Ist die OSEON-Seite (`OseonSyncService`) bereits `SubOrderNumber`-fest, oder braucht es
+dafuer eine eigene Etappe?**
+
+→ **Offen lassen — aber als Ergebnis von Etappe 1 (vormals Etappe 2), nicht als Vorbedingung.**
+Ob `OseonSyncService` bereits `SubOrderNumber`-fest ist, laesst sich ohne den Code-Review nicht
+beantworten und soll die Freigabe nicht blockieren. Verbindlich:
+- Die `OrderNumber`-Bezuege in `OseonSyncService` sind Teil des Haertungs-Reviews in **Etappe 1**
+  (Verifikation, neuer Schnitt).
+- **Etappe 1 liefert ein ausdrueckliches Urteil**: OSEON ist bereits fest (dann entfaellt
+  Etappe 5) oder nicht (dann wird Etappe 5 mit konkretem Umfang gefuellt).
+- Etappe 5 bleibt bis dahin als **bedingte** Etappe in der Tabelle stehen — nicht streichen,
+  nicht blind einplanen.
 
 ## Kritische Pruefung (2026-08-06)
 
@@ -557,3 +648,43 @@ BDE-Modi unterspezifiziert (KP2-3). Das sind Praezisierungen und ein Nachzug, ke
 NACHBESSERUNG NOETIG: Rumpf + Frontmatter auf den Antwortblock nachziehen (KP2-1), die
 Teil-7-Grenze verbindlich absichern (KP2-2), die Aufloesungslogik je BDE-Modus auf die reale
 (`OrderNumber`+`OperationNumber`)-/PO-Id-Granularitaet festlegen (KP2-3).
+
+### Nachbesserung 2 (2026-08-07)
+
+Rumpf und Frontmatter wurden auf den Antwortblock (2026-08-06) nachgezogen — behebt KP2-1:
+
+- `affected_code` (Frontmatter) korrigiert: `barcode-scanner.js` entfernt, `WorkOperationRepository.cs`
+  (`GetByFaAndOperationAsync`/`GetAllByFaAndOperationAsync`), `bde-terminal.js` und die konkreten
+  `BdeApiController`-Methoden ergaenzt; `TrackingController.cs` bleibt mit dem Hinweis „Filter,
+  unkritisch" (KP2-4).
+- `open_questions`/„Offene Rueckfragen" getrimmt: die drei urspruenglichen Fragen sind beantwortet
+  und nach „Bereits entschieden (Schranke 1, erster Durchgang — 2026-08-06)" archiviert; neu
+  aufgenommen sind die beiden von der zweiten Pruefung offen gelassenen Fragen KP2-3 (Granularitaet
+  je BDE-Modus) und KP2-6 (Scope der Gruppenaufloesung, werkbank- vs. gruppenweit) — dafuer die
+  „Freigabe-Antworten" neu und leer prefillt.
+- Beide Etappen-Tabellen (Frontmatter `etappen` und Rumpf) auf den einen, im Antwortblock (Zu KP-3)
+  festgelegten 6er-Schnitt reduziert (Verifikation → Aufloesungslogik → Auswahl-UI → NurFA-Fix +
+  Teileverfolgung → OSEON bedingt → Tests).
+- „Fachliche Anforderungen" stellt B2/B-5 nicht mehr als offen dar, sondern traegt die korrigierte,
+  code-getriebene Aufloesungsreihenfolge (`OrderNumber`-Gruppe zuerst, `SubOrderNumber`-Fallback
+  danach) direkt als Anforderung, inkl. NurFA-Fix, Kombigeraete-Grenze
+  ([[2026-08-06-kombinationsgeraete-montageabteilung]]) und dem Randfall gleichzeitiger
+  Rueckmeldung zweier Sub-FAs derselben `OrderNumber`.
+- „Technischer Loesungsentwurf" benennt jetzt `bde-terminal.js` statt `barcode-scanner.js` als
+  Scan-Handler, stellt die Teil-7/Teil-8-Grenze (`GetAllByFaAndOperationAsync` + Logging in Teil 7,
+  Umstellung + UI in Teil 8) verbindlich dar (Aufloesung KP2-2 laut Vorgabe) und verweist auf die
+  zwei verbleibenden offenen Fragen.
+- Akzeptanzkriterien um die korrigierte Aufloesungsreihenfolge, den NurFA-Fix, die Kombigeraete-
+  Grenze und einen Audit-AK (ADR 0003, fuer den Fall einer neuen persistierten Entitaet) erweitert.
+- Deploy-Abschnitt um die KP-6-Testdaten-Vorbedingung (Schranke-2-Vorbedingung, leeres
+  IDEAL-Testsystem) ergaenzt.
+
+**Offen fuer die naechste Runde:** KP2-2 (Teil-7/8-Grenze) ist laut Vorgabe verbindlich aufgeloest
+und daher **nicht** mehr als offene Rueckfrage gefuehrt — die Teil-7-Spec muss den Liefergegenstand
+`GetAllByFaAndOperationAsync` + Logging aber noch selbst tragen (dortige Pflege, nicht Teil dieser
+Datei). KP2-3 (Granularitaet je BDE-Modus) und KP2-6 (Scope der Gruppenaufloesung) sind **echte,
+ungeloeste** Fragen und stehen jetzt in `open_questions`/„Offene Rueckfragen" — sie muessen vor
+Schranke 1 beantwortet werden, bevor Etappe 2 startet. KP2-5 (irrefuehrender Satz zu
+`barcode-scanner.js`) ist mit der Neuformulierung im Loesungsentwurf erledigt. KP2-9 (Teil-7-Rumpf
+traegt noch die widerlegte „Index 2 = BelID"-Behauptung) bleibt Teil-7-Pflege und ist hier nicht
+behoben.
