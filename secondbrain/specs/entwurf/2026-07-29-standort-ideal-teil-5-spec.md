@@ -4,7 +4,7 @@ title: "IDEAL-Standort Teil 5 — Vormontage-Listen"
 slug: 2026-07-29-standort-ideal-teil-5-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]]"
 task: ""
@@ -13,17 +13,18 @@ branch: ""
 affected_code:
   - IdealAkeWms/Controllers/FaHierarchyVormontageController.cs (neu, Name provisorisch)
   - IdealAkeWms/Services/VormontageService.cs (neu)
-  - IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml (neu)
-  - IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml (neu)
-  - IdealAkeWms/wwwroot/js/ideal-vormontage-export.js (neu, Isolierfraesen-Export)
-  - IdealAkeWms/Models/AppSettingKeys.cs
+  - IdealAkeWms/Models/ViewModels/FaHierarchyVormontageGruppeViewModel.cs (neu, Sicht 1)
+  - IdealAkeWms/Models/ViewModels/FaHierarchyVormontageAggregatViewModel.cs (neu, Sicht 2)
+  - IdealAkeWms/Filters/RequireFaHierarchyVormontageAktivAttribute.cs (neu)
+  - IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml (neu, Sicht 1 — Einzelne Teile)
+  - IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml (neu, Sicht 2 — Summiert)
+  - IdealAkeWms/Models/AppSettingKeys.cs (neuer Key FaHierarchyVormontageAktiv)
+  - README.md (AppSettings-Dokumentation, neuer Toggle FaHierarchyVormontageAktiv)
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Isolierfraesen-Software-Import-Format: genaue Spalten-/Trennzeichen-Spezifikation fehlt noch (Anhang referenziert nur 'kompatibel zum Import', kein Format-Dokument)"
-  - "Referenz-Screenshot Konzept_Uebertrag_MDE_System.docx (Vormontage-Ansicht mit Reitern pro Arbeitsbereich) — Datei nicht Teil dieser Spec-Runde, vor Feinspezifikation zu beschaffen"
-  - "Rollen/Zugriff: bestehende Rolle vorbau wiederverwenden oder neue IDEAL-Rolle?"
-  - "Wochenbezug ('kommende Woche') von VMBedarf-Terminen: welches Datumsfeld ist massgeblich (FE_Termin, Neuer_PT_PPS, Verladetermin_Vsl)?"
+  - "Wochenbezug `Neuer_PT_PPS` ('kommende Woche'): Datenpfad ist entschieden (eigene Abfrage je HauptFA gegen FaHierarchyOrderInfo, kein Fan-out-Join). Offen bleibt die Filter-Semantik: harter Filter auf die Positionsmenge oder nur Anzeige-/Sortierspalte; Wochengrenze (ISO-KW Montag-Sonntag, rollierendes 7-Tage-Fenster, oder aktuelle vs. naechste Kalenderwoche); welcher Termin bei einem Kombigeraet mit mehreren FaHierarchyOrderInfo-Zeilen zaehlt. Strukturell unabhaengig von der Antwort: in Sicht 2 muss ein etwaiger Wochenfilter VOR der Matchcode-Aggregation auf die Positionen wirken. Ein Loesungsvorschlag des Menschen liegt im Abschnitt 'Entscheidungen zu den Rest-Blockern (2026-08-07)' vor (Filter statt Spalte, ISO-Woche Mo-So, Default naechste KW waehlbar, fruehester Termin bei Kombigeraet + Mehrdeutigkeits-Kennzeichnung, eigener Filterwert 'ohne Termin' fuer Positionen ohne Neuer_PT_PPS) — der zweite Kritische-Pruefungs-Durchgang (T5-2P-B2) bewertet das weiterhin als nicht vollstaendig in eine pruefbare Anforderung/AK uebersetzt, daher hier erneut als offene Rueckfrage gefuehrt, bis der Mensch das ausdruecklich bestaetigt."
+  - "Abhaengigkeit vom in Teil 3 angekuendigten 'gemeinsamen Baustein' fuer Sicht 1 (Flag-Filter als Parameter, Kopf-Join ohne Fan-out, Gruppierung/Paging nach HauptFA): Ist dieser Baustein in der Teil-3-Spec tatsaechlich wiederverwendbar geschnitten, oder muss Teil 5 die Mechanik fuer Sicht 1 selbst duplizieren? Laut T5-2P-S3 ist der Baustein in Teil 3 selbst noch nicht verankert (affected_code dort listet nur einen Teil-3-spezifischen KommissionierListenService)."
 epic: false
 etappen: []
 deploy:
@@ -37,35 +38,133 @@ freigabe_am: ""
 
 ## Ziel / Nutzen (das Warum)
 
-Jeder Vormontage-Arbeitsbereich (Feld `VMBedarf`) bekommt eine Liste seiner in der kommenden
-Woche vorzubereitenden Teile — analog zur bestehenden AKE-Vorbau-Abarbeitungsliste, aber auf
-IDEAL-Struktur-Basis (Teil 1) und mit eigener Aggregations-/Export-Logik.
+Jeder Vormontage-Arbeitsbereich (Feld `VMBedarf`) bekommt zwei Sichten auf seine vorzubereitenden
+Teile: eine Einzelteile-Liste (analog zur Kommissionierliste aus Teil 3) und eine nach `Matchcode`
+summierte Mengensicht — auf Basis der IDEAL-Struktur (Teil 1) und mit derselben Ebenen-/
+Doppelzaehlungsdisziplin wie Teil 3/4 (`SubFA = 0`). Der urspruenglich vorgesehene Export in die
+Isolierfraesen-Software ist **nicht** Teil dieses Spec-Standes (siehe Umfang) — Format-Spezifikation
+und Referenz-Screenshot lagen bei der Schranke-1-Runde nicht vor.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-**In-Scope:** drei Sichten — (1) Einzelne Teile (flache Liste), (2) Summierte Liste (aggregiert
-nach Artikel), (3) Export in Zwischenablage im Isolierfraesen-Import-Format.
+**In-Scope:** zwei Sichten — (1) **Einzelne Teile**: flache, nach `HauptFA` gruppierte
+Positionsliste, mechanisch wie Teil 3 (Blattfilter `SubFA = 0`, Kopf aus `FaHierarchyOrderInfo` je
+`HauptFA`, kein Fan-out-Join); (2) **Summiert**: nach `Matchcode` aggregierte Mengensicht je
+`VMBedarf`-Reiter. Beide Sichten filtern auf `VMBedarf IS NOT NULL AND VMBedarf <> ''` und bieten
+Reiter je vorkommendem `VMBedarf`-Wert.
 
-**Out-of-Scope:** keine Rueckmeldefunktion (Teil 8); `ProductionOrders`/AKE unveraendert; keine
-Integration in die bestehende `FaWorklist` (separate Domain laut B5).
+**Out-of-Scope:** Export in die Zwischenablage/Isolierfraesen-Software — herausgenommen laut
+Freigabe-Antwort Runde 1 (Format-Spezifikation und Referenz-Screenshot
+`Konzept_Uebertrag_MDE_System.docx` fehlten), Folgearbeit erfasst in
+[[2026-08-06-vormontage-isolierfraesen-export]]; keine Rueckmeldefunktion (Teil 8);
+`ProductionOrders`/AKE unveraendert; keine Integration in die bestehende `FaWorklist` (separate
+Domain laut Uebersicht-Entscheidung B5).
 
 ## Fachliche Anforderungen
 
-- Filter: `VMBedarf` gefuellt.
-- FAListe-Spalten: `HauptFA`, `HauptArtnr`, `Artnr`, `Matchcode`, `Sollmenge`, `Fertigungmenge`,
-  `BemerkungPN`, `VMBedarf`.
-- FAInfos-Spalten: `FE_Termin`, `MontageAbteilung`, `Prio`, `Neuer_PT_PPS`, `Verladetermin_Vsl`.
-- Gruppierung/Reiter je Arbeitsbereich (`VMBedarf`-Wert), analog zur Referenz-Excel-Ansicht.
+1. **Filter:** `VMBedarf IS NOT NULL AND VMBedarf <> ''` (nvarchar-Bereichsbezeichnung, kein
+   Sage-Bit — kein `-1`-Vergleich). Die Reiter-Liste (distinct `VMBedarf`-Werte) unterliegt demselben
+   Ausschluss, damit kein leerer „(kein Bereich)"-Reiter entsteht.
+
+2. **Ebenen-/Doppelzaehlungsregel (verbindlich, analog Teil 3 Fachliche Anforderung 2):**
+   Positionen werden ausschliesslich auf Blattebene (`SubFA = 0`) gefuehrt. Eine Zeile mit
+   `SubFA != 0` ist ein Verweis auf eine als eigener Sub-FA gefertigte Baugruppe — ihre Bestandteile
+   fuehrt der Sub-FA in seinen eigenen Zeilen. Reihenfolge: erst `SubFA = 0`, dann `VMBedarf`.
+
+3. **Anomalie-Diagnose, operator-sichtbar (geschaerft gegenueber Teil 3 — siehe Uebersicht,
+   Querschnitts-Regel „Das Web verschickt keine Mails", und T5-2P-S1):** Eine Zeile mit
+   `SubFA != 0` UND gesetztem `VMBedarf` wird **nicht** angezeigt, aber (a) als `ILogger`-Warnung
+   protokolliert (`HauptFA` + `Position` + `Artnr`) **und** (b) als Banner/
+   `TempData["WarningMessage"]` auf der Liste ausgewiesen („N Position(en) mit `VMBedarf` auf
+   Baugruppen-Ebene ausgeschlossen — Datenpflege pruefen"). Anders als in der urspruenglichen
+   Teil-3-Fassung reicht ein reines Server-Log hier nicht: Eine Vormontage-Liste steuert
+   Materialbereitstellung, eine still im Log verschwindende Zeile ist ein Betriebsrisiko.
+
+4. **Gruppierung Sicht 1 ausschliesslich nach `HauptFA`** (Node-Identitaet), kein Fan-out-Join gegen
+   `FaHierarchyOrderInfo`.
+
+5. **Fan-out-Disziplin fuer die Kopfspalten:** `FE_Termin`, `MontageAbteilung`, `Prio`,
+   `Neuer_PT_PPS`, `Verladetermin_Vsl` liegen alle auf der 1:n-Tabelle `FaHierarchyOrderInfo` und
+   werden in einer **eigenen** Abfrage je Seiten-`HauptFA`-Menge geholt (kein
+   `INNER JOIN ... ON HauptFA` gegen die Positionen). `MontageAbteilung` ist rein informativ, kein
+   Positions-Split. Bei mehreren `FaHierarchyOrderInfo`-Zeilen je `HauptFA` (Kombigeraet) werden alle
+   im Klartext aufgefuehrt und die Gruppe als mehrdeutig gekennzeichnet.
+
+6. **Wochenbezug `Neuer_PT_PPS` — Datenpfad entschieden, Filter-Semantik offen (siehe Offene
+   Rueckfrage 1).** Der Termin wird — sobald die Semantik feststeht — ueber dieselbe Kopf-Abfrage wie
+   Punkt 5 gebunden, niemals ueber einen Join gegen die Positionen. Diese Spec-Fassung setzt den
+   Wochenfilter **nicht** um; Fachliche Anforderung und AK folgen, sobald die Rueckfrage beantwortet
+   ist.
+
+7. **Aggregation Sicht 2 (Summiert):**
+   - Schluessel ist **`Matchcode`**, nicht `Artnr` — der Matchcode identifiziert eindeutig, was der
+     Werker holt.
+   - Summiert werden **zwei getrennte Mengen**: `Sollmenge` und `Fertigungmenge`, je eigene Spalte.
+   - Aggregiert wird **je `VMBedarf`-Reiter**, nicht ueber alle Arbeitsbereiche hinweg.
+   - **Bewusst akzeptierte Folge:** Fuehrt derselbe `Artnr` positionsabhaengig unterschiedliche
+     `Matchcode`-Werte, entstehen daraus mehrere Aggregatzeilen — das ist gewollt, kein Fehler, und
+     im Test nicht als solcher zu melden.
+
+8. **Paging/ADR 0005 fuer beide Sichten:**
+   - **Sicht 1** verhaelt sich wie Teil 3: Seiteneinheit ist die `HauptFA`-Gruppe, `TotalCount` zaehlt
+     Gruppen, Server-Side-Spaltenfilter (`data-server-column-filter`, `data-col-key` je `<th>`,
+     `ColumnFilterHelper.ReadFromQuery`) wirken auf den Positionszeilen vor der Gruppierung.
+   - **Sicht 2 ist eine begruendete Ausnahme:** Eine Aggregatzeile gehoert per Definition zu mehreren
+     Auftraegen und laesst sich nicht sinnvoll nach `HauptFA` paginieren. Seiteneinheit ist die
+     **Aggregatzeile**, `TotalCount` zaehlt Aggregatzeilen, Server-Side-Spaltenfilter wirken auf der
+     Aggregat-Projektion (`Matchcode`, `Sollmenge`-Summe, `Fertigungmenge`-Summe) statt auf den
+     Rohpositionen.
+   - **Bekannte Doku-Nacharbeit (nicht Teil dieser Datei):** Die Uebersicht formuliert „Seiteneinheit
+     durchgaengig `HauptFA` (Teil 2/3/4/5)" ohne Einschraenkung — das gilt fuer Positionslisten, nicht
+     fuer Sicht 2. Beim naechsten Uebersicht-Update entsprechend qualifizieren (T5-2P-H1).
+
+9. **Zugriff:** `RequireVorbauAccessAttribute` (Class-Level, Read — identisch zur bestehenden
+   Vorbau-/Abarbeitungsliste `FaWorklistController`, am Code bestaetigt) **plus** neues Feature-Toggle
+   `FaHierarchyVormontageAktiv` (`AppSettingKeys`, Default `false`) via neuen
+   `RequireFaHierarchyVormontageAktivAttribute` (Muster 1:1 wie
+   `RequireFaHierarchyKommissionierlistenAktivAttribute` aus Teil 3, invertierte Default-aus-
+   Semantik). Keine neue Rolle.
 
 ## Technischer Loesungsentwurf
 
-`VormontageService` liest ueber die Teil-1-Repositories, baut die drei Sichten. Export-Sicht
-generiert Zwischenablage-Text im (noch zu klaerenden) Isolierfraesen-Format ueber JS
-(`navigator.clipboard`), analog zu bestehenden Clipboard-Mustern im Projekt.
+`VormontageService` liest ueber `IFaHierarchyNodeRepository`/`IFaHierarchyOrderInfoRepository`
+(Teil 1) — nach Moeglichkeit ueber denselben wiederverwendbaren Listen-/Druck-Baustein, den Teil 3
+fuer seine Mechanik schneidet (siehe Offene Rueckfrage 2 — dieser Baustein ist in der aktuellen
+Teil-3-Fassung noch nicht real verankert; bis dahin ist die folgende Beschreibung eigenstaendig
+lauffaehig).
+
+**Sicht 1 — Einzelne Teile** (Schritte wie Teil 3, Fachliche Anforderungen 2–5):
+1. Positionen laden: `FaHierarchyNode` mit `SubFA = 0` UND `VMBedarf IS NOT NULL AND VMBedarf <> ''`,
+   optional zusaetzlich auf den gewaehlten Reiter-Wert eingeschraenkt. Zeilen mit `SubFA != 0` UND
+   gesetztem `VMBedarf` werden gesondert gesammelt, geloggt und in die Banner-Zaehlung aufgenommen
+   (Fachliche Anforderung 3), nie in die Liste aufgenommen.
+2. Server-Side-Spaltenfilter (ADR 0005) auf den Positionszeilen, vor der Gruppierung.
+3. Gruppieren nach `HauptFA`; eine Gruppe, die durch den Spaltenfilter auf 0 Positionen faellt,
+   erscheint nicht.
+4. Pagination auf Gruppen-Ebene (`PageSize.Resolve` + `PaginationState` + `_Pagination`-Partial),
+   `TotalCount` zaehlt Gruppen.
+5. Kopfdaten (Fachliche Anforderung 5) nachtraeglich je Seiten-`HauptFA`-Menge holen und im
+   ViewModel zuordnen — kein Join gegen die Positionen.
+6. Filterkarte mit `VMBedarf`-Reiterwahl und Spaltenfiltern ueber dem Tabellenblock.
+
+**Sicht 2 — Summiert:**
+1. Dieselbe Blattfilter-Basis wie Sicht 1 (`SubFA = 0`, `VMBedarf` gesetzt, aktueller Reiter).
+2. Sobald der Wochenbezug entschieden ist (Offene Rueckfrage 1): Wochenfilter auf dieser
+   Positionsmenge anwenden, **bevor** aggregiert wird.
+3. Gruppieren nach `Matchcode`, `Sollmenge` und `Fertigungmenge` je Gruppe summieren.
+4. Server-Side-Spaltenfilter auf der Aggregat-Projektion (`Matchcode` + zwei Summenspalten).
+5. Pagination auf Aggregatzeilen-Ebene, `TotalCount` zaehlt Aggregatzeilen.
+
+Kein zusaetzliches DTO jenseits zweier schlanker ViewModels
+(`FaHierarchyVormontageGruppeViewModel` fuer Sicht 1, analog Teil-3-Gruppen-ViewModel;
+`FaHierarchyVormontageAggregatViewModel` fuer Sicht 2: `Matchcode`, `SummeSollmenge`,
+`SummeFertigungmenge`, `VMBedarf`).
 
 ## Migrations-/SQL-Auswirkungen
 
-Keine — reine Lesefunktion.
+Keine — reine Lesefunktion. Der neue AppSetting-Key `FaHierarchyVormontageAktiv` braucht keine
+Migration (generische Key-Value-Tabelle `AppSettings`, fehlender Key wird per Code-Default `false`
+behandelt).
 
 ## Audit-Feld-Auswirkungen
 
@@ -73,38 +172,101 @@ Keine neuen Entitaeten.
 
 ## Akzeptanzkriterien
 
-1. Alle drei Sichten (Einzelteile, Summiert, Export) zeigen ausschliesslich Positionen mit
-   gesetztem `VMBedarf`.
-2. Summierte Sicht aggregiert korrekt nach Artikel (keine Doppelzaehlung ueber mehrere Strukturen
-   hinweg).
-3. Export liefert eine Zwischenablage-Ausgabe, die sich unveraendert in die
-   Isolierfraesen-Software importieren laesst (sobald Format-Spezifikation vorliegt).
-4. AKE-Verhalten unveraendert.
+1. Beide Sichten zeigen ausschliesslich Blattpositionen (`SubFA = 0`) mit gesetztem `VMBedarf`
+   (`IS NOT NULL AND <> ''`); die Reiter-Liste enthaelt keinen leeren „(kein Bereich)"-Eintrag.
+2. **Keine Doppelzaehlung auf beiden Achsen** (Ebenen und Struktur): (a) Zeilen mit `SubFA != 0`
+   erscheinen nie — code-pruefbar per synthetischer Fixture (`HauptFA` mit Verweiszeile `SubFA != 0`
+   und einem Sub-FA mit eigenen Blattzeilen), analog Teil 3 AK1; (b) bei mehreren
+   `FaHierarchyOrderInfo`-Zeilen je `HauptFA` bleibt die Positionsanzahl 1:1 zur Quellzeilenzahl
+   (kein Fan-out-Join, keine Mengenvervielfachung).
+3. Eine Anomalie-Zeile (`SubFA != 0` UND `VMBedarf` gesetzt) wird nicht angezeigt, aber (a) als
+   `ILogger`-Warnung protokolliert **und** (b) als Banner/`WarningMessage` mit Anzahl auf der Liste
+   ausgewiesen.
+4. Sicht 2 aggregiert nach **`Matchcode`** (nicht `Artnr`) je `VMBedarf`-Reiter, mit zwei getrennten
+   Summenspalten `Sollmenge` und `Fertigungmenge`. Fuehrt derselbe `Artnr` positionsabhaengig
+   unterschiedliche Matchcodes, entstehen bewusst mehrere Zeilen — im Test nicht als Fehler zu werten.
+5. Sicht 1 erfuellt ADR 0005 wie Teil 3 (Seiteneinheit `HauptFA`-Gruppe, `TotalCount` zaehlt Gruppen,
+   Server-Spaltenfilter auf Positionszeilen). Sicht 2 erfuellt ADR 0005 als begruendete Ausnahme:
+   Seiteneinheit Aggregatzeile, `TotalCount` zaehlt Aggregatzeilen, Spaltenfilter wirken auf
+   `Matchcode` + Summenspalten.
+6. Zugriff nur mit `RequireVorbauAccessAttribute` **und** aktivem Toggle `FaHierarchyVormontageAktiv`
+   (Default `false`); ohne Toggle Redirect + `WarningMessage`, ohne Zugriff Redirect auf
+   `AccessDenied`.
+7. AKE-Verhalten unveraendert (bestehende Controller/Views unberuehrt).
+8. **Nicht Teil dieser Freigabe-Runde:** ein AK zum Wochenbezug-Filter (`Neuer_PT_PPS`) folgt, sobald
+   Offene Rueckfrage 1 beantwortet ist.
 
 ## Test-Szenarien
 
-Neues Kapitel „IDEAL Teil 5 — Vormontage-Listen": Testfall mit mehreren Strukturen und
-uebereinstimmenden Artikeln in der Summierten Sicht; Export-Zwischenablage gegen die
-Isolierfraesen-Software abnehmen (sobald Format vorliegt); Reiter-Wechsel zwischen
-Arbeitsbereichen.
+Neues Kapitel „IDEAL Teil 5 — Vormontage-Listen" in `docs/TESTSZENARIEN.md`, zweigeteilt analog
+Teil 3:
+
+**Automatisiert/InMemory-Fixture:**
+- `SubFA = 0`-Filter dedupliziert korrekt (synthetische Fixture wie Teil 3) — AK1/AK2a.
+- Kopf-Join ohne Fan-out bei zwei `FaHierarchyOrderInfo`-Zeilen je `HauptFA` — AK2b.
+- Anomalie-Zeile wird geloggt, ausgeschlossen **und** im Banner ausgewiesen — AK3.
+- Sicht-2-Aggregation nach `Matchcode`: zwei Positionen mit gleichem `Artnr`, aber
+  unterschiedlichem `Matchcode`, ergeben zwei Aggregatzeilen; zwei Positionen mit gleichem
+  `Matchcode` werden zu einer Zeile mit summierten `Sollmenge`/`Fertigungmenge` — AK4.
+- Pagination Sicht 1 zaehlt Gruppen, Pagination Sicht 2 zaehlt Aggregatzeilen — AK5.
+- Zugriff ohne Rolle bzw. bei deaktiviertem Toggle → Redirect — AK6.
+
+**Manuell am IDEAL-Testsystem (Vorbedingung: produktivnahe Daten, siehe Deploy-Abschnitt — mit dem
+aktuell leeren Testsystem nicht durchfuehrbar):**
+- Reiter-Wechsel zwischen `VMBedarf`-Arbeitsbereichen liefert die erwartete Teilmenge in beiden
+  Sichten.
+- Mengenabgleich Struktur vs. Sicht 2 an einer bekannten mehrstufigen Struktur.
+- (Nach Beantwortung von Offene Rueckfrage 1:) Wochenfilter-Verhalten inkl. Kombigeraet-Fall.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
 - **Web-App:** ja.
 - **Service:** nein.
 - **Migration:** nein.
-- **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-  (provisorisch).
+- **Voraussetzung/Reihenfolge:** Teil 1 (`FaHierarchyNode`/`FaHierarchyOrderInfo` + Sync) muss
+  bereits gemergt sein und mit `Sync:HierarchicalFaEnabled = true` produktiv laufen, sonst bleiben
+  beide Sichten dauerhaft leer. Sicht 1 setzt zusaetzlich auf den in Teil 3 vorgesehenen
+  wiederverwendbaren Listen-/Druck-Baustein auf — dieser ist laut Offener Rueckfrage 2 in der
+  aktuellen Teil-3-Fassung noch nicht real geschnitten; Reihenfolge Teil 3 vor Teil 5 empfohlen. Der
+  neue Toggle `FaHierarchyVormontageAktiv` bleibt nach dem Deploy default **aus**.
+- **Schranke-2-Vorbedingung:** Manual-UAT der IDEAL-spezifischen Szenarien (Reiter-Wechsel,
+  Mengenabgleich) kann erst gruen werden, wenn produktivnahe IDEAL-Daten mit gesetztem `VMBedarf`
+  im Testsystem liegen — das aktuell leere Testsystem reicht nicht. Dem qa-agent explizit als
+  Vorbedingung zu melden.
+- **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o
+  .\publish\IDEALAKEWMSWeb` (provisorisch).
 
 ## Offene Rueckfragen
 
-1. Isolierfraesen-Import-Format (Spalten/Trennzeichen) fehlt.
-2. Referenz-Screenshot `Konzept_Uebertrag_MDE_System.docx` nicht Teil dieser Spec-Runde — vor
-   Feinspezifikation zu beschaffen.
-3. Rollen/Zugriff fuer diese Listen.
-4. Massgebliches Datumsfeld fuer „kommende Woche".
+1. Wochenbezug `Neuer_PT_PPS` ("kommende Woche"): Datenpfad ist entschieden (eigene Abfrage je
+   `HauptFA` gegen `FaHierarchyOrderInfo`, kein Fan-out-Join). Offen bleibt die Filter-Semantik:
+   harter Filter auf die Positionsmenge oder nur Anzeige-/Sortierspalte; Wochengrenze (ISO-KW
+   Montag–Sonntag, rollierendes 7-Tage-Fenster, oder aktuelle vs. naechste Kalenderwoche); welcher
+   Termin bei einem Kombigeraet mit mehreren `FaHierarchyOrderInfo`-Zeilen zaehlt. Strukturell
+   unabhaengig von der Antwort: In Sicht 2 muss ein etwaiger Wochenfilter **vor** der
+   Matchcode-Aggregation auf die Positionen wirken. Ein Loesungsvorschlag liegt bereits im Abschnitt
+   „Entscheidungen zu den Rest-Blockern (2026-08-07)" vor (Filter statt Spalte, ISO-Woche Mo–So,
+   Default naechste KW waehlbar, fruehester Termin bei Kombigeraet + Mehrdeutigkeits-Kennzeichnung,
+   eigener Filterwert „ohne Termin") — der zweite Kritische-Pruefungs-Durchgang (T5-2P-B2) haelt das
+   weiterhin fuer nicht vollstaendig in eine pruefbare Anforderung/AK uebersetzt, daher hier erneut
+   als offene Rueckfrage gefuehrt, bis der Mensch das ausdruecklich bestaetigt.
+2. Abhaengigkeit vom in Teil 3 angekuendigten „gemeinsamen Baustein" fuer Sicht 1 (Flag-Filter als
+   Parameter, Kopf-Join ohne Fan-out, Gruppierung/Paging nach `HauptFA`): Ist dieser Baustein in der
+   Teil-3-Spec tatsaechlich wiederverwendbar geschnitten, oder muss Teil 5 die Mechanik fuer Sicht 1
+   selbst duplizieren? Laut T5-2P-S3 ist der Baustein in Teil 3 selbst noch nicht verankert
+   (`affected_code` dort listet nur einen Teil-3-spezifischen `KommissionierListenService`).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
+
+1. →
+2. →
+
+## Freigabe-Antworten — Runde 1 (2026-08-06, beantwortet)
+
+> Historischer Erst-Durchlauf vor der Kritischen Pruefung. Die Antworten sind in Umfang, Fachliche
+> Anforderungen, Loesungsentwurf und Akzeptanzkriterien oben eingearbeitet.
 
 1. →bitte für später vormerken, habe ich jetzt nicht
 2. →bitte für später vormerken, habe ich jetzt nicht
@@ -529,3 +691,57 @@ Mehrdeutigkeit, Reihenfolge vor der Aggregation — dann als Anforderung + AK (T
 Mehrfachzeilen) als pruefbares AK niederschreiben (T5-2P-B3). Zusaetzlich Anomalie operator-sichtbar
 (T5-2P-S1), Aggregat-Spaltenfilter-Mechanik spezifizieren oder Client-Mode-Ausnahme deklarieren
 (T5-2P-S2) und die Baustein-Abhaengigkeit zu Teil 3 real absichern (T5-2P-S3). Erst danach freigeben.
+
+### Nachbesserung 2 (2026-08-07)
+
+Status je Befund aus dem zweiten Kritische-Pruefung-Durchgang — Details in Umfang, Fachlichen
+Anforderungen, Loesungsentwurf, Akzeptanzkriterien und Test-Szenarien oben, hier nur die Kurzfassung:
+
+- **T5-2P-B1 (Rumpf/Frontmatter 100 % stale) — BEHOBEN.** Rumpf auf zwei Sichten gezogen: Ziel,
+  Umfang, Fachliche Anforderungen, Loesungsentwurf, Akzeptanzkriterien, Test-Szenarien und
+  `affected_code` sind auf „zwei Sichten, kein Export" umgestellt; `ideal-vormontage-export.js` ist
+  aus `affected_code` entfernt; alle neun in der Antwort/Entscheidung beschlossenen Punkte
+  (`SubFA = 0`-Regel + operator-sichtbares Banner, Toggle, Access-Filter, Fan-out-Disziplin,
+  Matchcode-Aggregation, Gruppen-/Aggregat-Paging) sind niedergeschrieben. `open_questions` ist auf
+  die zwei tatsaechlich verbleibenden Punkte gekuerzt — die Fragen zu Rollen und massgeblichem
+  Datumsfeld waren beantwortet und entfallen.
+- **T5-2P-B2 (Wochenbezug bleibt unterspezifiziert) — BEWUSST NICHT AUFGELOEST, als Offene
+  Rueckfrage 1 gefuehrt.** Der Datenpfad ist in Fachliche Anforderung 6 fixiert (eigene Abfrage je
+  `HauptFA`, kein Join); die Filter-Semantik selbst (hart/Anzeige, Wochengrenze, Kombigeraet,
+  Reihenfolge vor der Aggregation in Sicht 2) bleibt ausdruecklich offen, obwohl im Abschnitt
+  „Entscheidungen zu den Rest-Blockern (2026-08-07)" bereits ein Loesungsvorschlag vorliegt — der
+  zweite Review haelt diesen Vorschlag fuer nicht vollstaendig in eine pruefbare Anforderung/AK
+  uebersetzt. Kein AK behauptet daher ein Wochenfilter-Verhalten (AK 8 markiert das explizit als
+  nachgereicht, sobald die Rueckfrage beantwortet ist).
+- **T5-2P-B3 (AK 2 widerspricht Aggregations-Entscheidung) — BEHOBEN.** Das Aggregations-AK (jetzt
+  Nummer 4) fordert „aggregiert nach `Matchcode`" statt „nach Artikel", inklusive der vier
+  S4-Festlegungen (Schluessel, zwei getrennte Summenspalten, Aggregation je Reiter, bewusste
+  Mehrfachzeilen bei abweichendem Matchcode) als pruefbarer Text.
+- **T5-2P-S1 (Anomalie nur Log) — BEHOBEN.** Die Anomalie-Behandlung (Fachliche Anforderung 3,
+  AK 3) ist jetzt zweigleisig: `ILogger`-Warnung **und** Banner/`TempData["WarningMessage"]` —
+  konsistent zur Uebersichts-Querschnittsregel „Das Web verschickt keine Mails, aber ein sichtbares
+  Signal".
+- **T5-2P-S2 (Aggregat-Spaltenfilter unterspezifiziert) — BEHOBEN.** Sicht 2 ist explizit als
+  Server-Mode-auf-Aggregat spezifiziert (Fachliche Anforderung 8, Loesungsentwurf Sicht 2): eigene
+  Projektion `Matchcode` + zwei Summenspalten, `TotalCount` zaehlt Aggregatzeilen, Reihenfolge
+  Blattfilter → `VMBedarf` → (Wochenfilter, sobald entschieden) → aggregieren → Spaltenfilter →
+  paginieren.
+- **T5-2P-S3 (Baustein-Abhaengigkeit zu Teil 3 nicht real) — NICHT AUFLOESBAR durch diese Spec, als
+  Offene Rueckfrage 2 dokumentiert.** Teil 5 kann den Baustein nicht selbst in Teil 3 verankern; die
+  Abhaengigkeit ist im Deploy-Abschnitt als Reihenfolge-Empfehlung (Teil 3 vor Teil 5) und als offene
+  Rueckfrage vermerkt, statt stillschweigend vorausgesetzt zu werden.
+- **T5-2P-H1 (Uebersicht widerspricht Sicht 2) — als Doku-Nacharbeit vermerkt, nicht in dieser Datei
+  behoben.** Die Uebersicht liegt ausserhalb des Schreibauftrags dieser Runde (separate Datei);
+  Fachliche Anforderung 8 haelt fest, dass die Uebersichts-Aussage „Seiteneinheit durchgaengig
+  `HauptFA`" beim naechsten Uebersicht-Update fuer Aggregatsichten zu qualifizieren ist.
+- **T5-2P-H2 (Sicht 1 „exakt wie Teil 3/4" ueberzeichnet) — praezisiert.** Fachliche Anforderungen
+  benennen jetzt zusaetzlich zur `HauptFA`-Mechanik die `VMBedarf`-Reiter-/Vorfilter-Dimension, die
+  Teil 3/4 nicht kennen.
+- **T5-2P-H3 (Reiter-Enumeration NULL/Leer) — BEHOBEN.** Fachliche Anforderung 1 verlangt denselben
+  Ausschluss fuer die Reiter-Liste, AK 1 prueft das explizit.
+
+BEREIT ZUR FREIGABE? **NEIN.** Offene Rueckfrage 1 (Wochenbezug-Semantik) und Offene Rueckfrage 2
+(Baustein-Abhaengigkeit zu Teil 3) sind vom Menschen zu beantworten, bevor Schranke 1 passiert werden
+kann. Rumpf und Frontmatter sind ab diesem Stand nicht mehr stale — ein Dev-Lauf, der von oben nach
+unten liest, baut jetzt die zwei tatsaechlich beschlossenen Sichten korrekt (bis auf den bewusst
+zurueckgestellten Wochenfilter).
