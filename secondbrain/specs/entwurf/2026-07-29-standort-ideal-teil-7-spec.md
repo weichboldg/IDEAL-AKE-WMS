@@ -459,3 +459,215 @@ Code-Blocker (B7-1), ein Zuschnitt-Problem (B7-2) und Konsistenz-/Vollstaendigke
 NACHBESSERUNG NOETIG: AgentJob-INSERT bricht die AKE-Produktivlinie nach der Migration (B7-1);
 Zuschnitt ist Epic-gross, aber `epic: false` (B7-2); Spec-Body + `open_questions` widersprechen der
 maßgeblichen Freigabe-Antwort 1 zu B3 (B7-3).
+
+## Antworten auf die Kritische Pruefung (2026-08-06)
+
+**Zu B7-1 — ENTWARNUNG: Den SQL-Agent-Job gibt es nicht mehr. Produktiv laeuft ausschliesslich
+`SageImportService` (C#).** Damit ist B7-1 **kein Deploy-Blocker**: Der C#-Pfad schreibt
+`SubOrderNumber = OrderNumber` bereits, die AKE-Produktivlinie bricht nach der Migration nicht.
+
+**Aber die Datei ist eine Landmine und muss weg.** `SQL/AgentJobs/01_Import_Produktionsauftraege.sql`
+liegt weiterhin im Repo und beschreibt einen Import, den es nicht mehr gibt. Sie hat eine sorgfaeltige
+Pruefung in die Irre gefuehrt — ein Dev-Lauf oder ein kuenftiger Agent wird denselben Fehlschluss
+ziehen, und beim naechsten Mal faellt er vielleicht nicht auf. Verbindlich fuer Etappe A:
+- Datei **loeschen** oder nach `SQL/AgentJobs/_archiv/` verschieben **mit Kopfkommentar**
+  ("AUSSER BETRIEB seit <Datum>, ersetzt durch SageImportService — nicht mehr ausgefuehrt").
+- Den gesamten Ordner `SQL/AgentJobs/` auf weitere tote Artefakte durchsehen und gleich mit
+  behandeln.
+- In `secondbrain/codebase/` vermerken, dass der Produktionsauftrags-Import ausschliesslich ueber
+  `SageImportService` laeuft — damit kuenftige Laeufe nicht wieder raten muessen.
+Die Deploy-Reihenfolge braucht entsprechend **keine** Agent-Job-Deaktivierung; stattdessen den
+**Windows-Service** waehrend des Migrationsfensters stoppen (steht bereits so drin).
+
+**Zu B7-2 — `epic: true` mit fuenf Etappen. [ENTSCHIEDEN]**
+Frontmatter auf `epic: true` und Etappen-Tabelle ergaenzen:
+| # | Etappe |
+|---|---|
+| A | Schema-Inversion + Migration + Backfill + FreshInstall + tote AgentJob-Artefakte |
+| B | `HierarchischeStrukturGuard` + Einwegtor (Schreibpfad live, Anzeige gecacht) + Runbook |
+| C | Materialisierungs-Sync + die drei Sync-Regeln (als unit-testbare Planer) |
+| D | Lookup-Haertung (`OrderNumber`-Sweep) + adversariales FA-Zusatzinfos-Review |
+| E | Doku, README-Verlinkung, Testszenarien, Brain-Update |
+Ein langlebiger Worktree, kein Zwischen-Merge, `sync-worktree.ps1` haelt den Branch auf main-Stand.
+
+**Zu B7-3 — Body und `open_questions` werden auf die Antworten gezogen. [Nachbesserung]**
+Der Abschnitt „B3-Folge (NICHT abschliessend entschieden)" wird auf die getroffene Entscheidung
+umgeschrieben (keine `MontageAbteilung` in `ProductionOrders`, Gruppen-Schluessel bleibt
+`OrderNumber`). **Alle vier `open_questions` werden geleert** — sie sind durch die Antworten 1-4
+vollstaendig beantwortet und steuern sonst das HOME-Dashboard falsch.
+
+**Zu S7-1 — Befund akzeptiert. Auto-Erledigt wird fuer hierarchische Auftraege GESPERRT.**
+Die Entlastung dieser Klasse war falsch — danke fuer den Code-Nachweis. Auflösung: Auto-Erledigt ist
+ein **eigener Schalter** und soll bei hierarchischen Auftraegen **derzeit gar nicht aktivierbar**
+sein. Drei Ebenen, absichtlich redundant:
+1. **Datengetrieben (Pflicht):** `FaZusatzinfoSyncService` Fold 2 wird uebersprungen, sobald der
+   `WaNummer`-Match **mehr als eine Zeile** liefert — mit Eintrag im Aktivitaets-/SyncLog
+   (`WaNummer` + Trefferzahl). Das greift unabhaengig von jedem Schalter und ist die eigentliche
+   Sicherung.
+2. **Schalter:** Der Auto-Erledigt-Schalter laesst sich nicht einschalten, solange hierarchische
+   Daten existieren (dieselbe `EXISTS`-Bedingung wie das Einwegtor); ist er bereits an, wird er
+   beim Umlegen des Masters abgeschaltet und das protokolliert.
+3. **Test:** Ein gezielter Testfall — Struktur mit zwei Sub-FAs derselben `OrderNumber`, ein
+   „verpackt" am HauptFA darf den Komm-Erledigt-Status der Geschwister **nicht** veraendern.
+Die Klasse wandert damit aus der Entlastung in Etappe D (adversariales Review).
+
+**Zu S7-2a — Neues Feld, aber als Zeitstempel: `SageMissingSince` (datetime2 NULL).**
+`IsCancelled` wird **nicht** wiederverwendet — „storniert" und „verschwindet aus der Quelle" sind
+fachlich verschieden, und die Vermischung waere spaeter nicht mehr aufloesbar.
+Warum ein Zeitstempel statt eines Bool (`SageCancelled`): Er beantwortet zusaetzlich **seit wann**,
+traegt damit Auswertungen („seit X Tagen verschwunden") und ist **selbstheilend** — taucht der FA
+wieder auf, wird das Feld auf `NULL` gesetzt, statt dass ein Bool haengenbleibt. Der Name sagt,
+was es ist (fehlt in der Quelle), nicht, was man vermutet (storniert).
+Die Spalte ist eine **zusaetzliche Migrationsspalte** und gehoert in den Migrations-Plan von
+Etappe A — dort fehlt sie bisher.
+
+**Zu S7-2b — Verschwundene Sub-FAs OHNE Rueckmeldungen: ebenfalls markieren, nie loeschen.**
+Gleiche Behandlung wie mit Rueckmeldungen (`SageMissingSince` setzen), zusaetzlich Eintrag im
+Aktivitaetslog und Benachrichtigung per Mail. **Nie loeschen** — die Regel ist damit einheitlich
+und braucht keine Fallunterscheidung.
+
+> **Warnung zur Mail — vor der Umsetzung zu klaeren:** Enthaelt die IDEAL-View nur **aktive**
+> Auftraege, verschwindet **jeder fertige Auftrag** planmaessig aus der Quelle. Eine Mail je
+> verschwundenem FA erzeugte dann taeglich eine Flut, und nach zwei Wochen liest sie niemand mehr —
+> genau dann, wenn die eine wichtige Meldung darin steht.
+> Vorgabe: **eine Sammelmeldung pro Sync-Lauf** (Liste der neu als fehlend markierten FAs), nicht
+> eine Mail je FA. Und **nur melden, was unerwartet ist** — ein FA, der als erledigt bekannt ist
+> und verschwindet, wird protokolliert, aber nicht gemailt. Beim ersten echten Datenlauf pruefen,
+> ob die View fertige Auftraege behaelt oder ausblendet; die Filterregel danach schaerfen.
+
+**Zu S7-3 bis S7-6 und H7-1/H7-2 — alle uebernommen, ohne Einschraenkung:**
+- **S7-3:** Guard-Bedingung und die drei Sync-Regeln als **reine, unit-getestete Planer** (Muster
+  `ProductionOrderReconciler`), plus gezielte hierarchische Tests fuer die zwei riskantesten
+  UPDATE-Pfade (Reconcile-`WHERE OrderNumber`, FA-Zusatzinfo-Fold-2). Als AK aufnehmen.
+- **S7-4:** `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` und `README.md` in `affected_code`;
+  `barcode-scanner.js` **entfernen** — die Scan-Aufloesungs-UI gehoert laut Teil-8-Antwort 1 zu
+  Teil 8. Teil 7 fasst nur Schema und Lookup-Semantik an.
+- **S7-5:** AK 8 umformulieren — „**alle identifizierten** Fundstellen; 14 ist eine Untergrenze,
+  das Review **sweept**, es tickt keine feste Liste ab".
+- **S7-6:** Vor Etappe B pruefen, dass es **einen einzigen Service-Layer-Choke-Point** fuer
+  ServiceSettings-Writes gibt. Existiert er nicht, wird er in Etappe B **geschaffen** — ohne
+  gemeinsame Naht leckt die Einweg-Garantie, und Teil 6 wuerde spaeter einen zweiten Weg aufmachen.
+- **H7-1:** Index-Tausch mit `sys.indexes`-Guard, nicht nur `OBJECT_ID`/`COL_LENGTH`.
+- **H7-2:** erledigt mit B7-3 (`open_questions` leeren).
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang, Kern-Teil, **nach** dem Antwortblock „Antworten auf die
+Kritische Pruefung (2026-08-06)". Gegengelesen: dieser Antwortblock gegen den Spec-Rumpf und das
+Frontmatter, Teil-1- und Teil-8-Spec (inkl. deren Antwortbloecke), Ideen-Notiz, ADR 0003/0004/0010,
+`fallstricke.md`, sowie der **echte main-Code**: `SageImportService.cs`, `SageProductionOrderSql.cs`,
+`SQL/AgentJobs/01_Import_Produktionsauftraege.sql`, `FaZusatzinfoSyncService.cs`,
+`ProductionOrderReconciler.cs`, `ApplicationDbContext.cs` (Zeile 415 verifiziert),
+`barcode-scanner.js`, `SyncWorker.cs`. Die **Sachentscheidungen** im Antwortblock sind ganz
+ueberwiegend richtig und am Code belegbar — aber **keine einzige davon ist in den Spec-Rumpf oder
+das Frontmatter eingearbeitet**. Eine Freigabe jetzt gaebe dem Dev ein Dokument in die Hand, dessen
+Koerper der eigenen Entscheidungslage widerspricht.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**B7-4 — Rumpf und Frontmatter sind durchgaengig stale; die Antworten leben nur im Anhang.**
+Der Antwortblock trifft die Entscheidungen, aber der maßgebliche Teil der Spec (Frontmatter +
+Body) ist unveraendert der Vor-Antwort-Stand. Konkret nicht nachgezogen:
+- **`epic: false` (Zeile 40) + `etappen: []` (Zeile 41)** — obwohl B7-2 „`epic: true` mit fuenf
+  Etappen [ENTSCHIEDEN]" sagt. Das Frontmatter steuert das Tooling: `epic: false` routet den Lauf
+  auf den `dev`-Skill („Nicht fuer Epics"), nicht auf `epic-stage`. Die Etappen-Tabelle A–E steht
+  nur im Fliesstext des Antwortblocks, nicht im `etappen:`-Feld.
+- **`open_questions` (Zeilen 35–39) noch alle vier vorhanden** — B7-3 sagt „Alle vier werden
+  geleert". Solange sie stehen, zeigt das HOME-Dashboard Teil 7 als offen (das war H7-2).
+- **§„B3-Folge (NICHT abschliessend entschieden)" (Zeilen 132–143) unveraendert** — B7-3 sagt, der
+  Abschnitt werde auf die getroffene Entscheidung (keine `MontageAbteilung`, Gruppen-Schluessel
+  bleibt `OrderNumber`) umgeschrieben. Ein Dev, der den Body liest, sieht „nicht entschieden" und
+  raet erneut — exakt der Fehler, den B7-3 verhindern wollte.
+- **`barcode-scanner.js` steht noch in `affected_code` (Zeile 27)** mit dem Zusatz
+  „Index 2 = BelID" — obwohl S7-4 (dieser Spec) **und** die Teil-8-Antwort dessen Entfernung
+  verlangen. Zusaetzlich steht die **am Code widerlegte Behauptung** noch im Body (Zeilen 165–166:
+  „QR traegt an Index 2 die BelID = kuenftig `SubOrderNumber`"). Verifiziert in
+  `barcode-scanner.js` Zeile 289: der Kommentar lautet woertlich „FA-Nummer aus QR extrahieren
+  (Index 2)", der Client behandelt Index 2 als HauptFA/OrderNumber, **nie** als BelID. Die falsche
+  Aussage muss gestrichen werden (so verlangt es die Teil-8-Antwort ausdruecklich fuer Teil 7).
+- **`docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` und `README.md` fehlen in `affected_code`** — obwohl
+  Antwort 4 + S7-4 sie verbindlich machen.
+Fazit: Der Antwortblock ist gut, aber er ist noch nicht die Spec. Vor Freigabe muessen alle
+Antworten in Frontmatter + Body **eingearbeitet** sein — sonst ist die Freigabe eine Freigabe des
+alten, widerspruechlichen Standes.
+
+**B7-5 — `SageMissingSince` ist entschieden (S7-2a), aber in keiner ADR-0004-Stufe abgebildet.**
+Der Antwortblock legt eine neue Spalte `SageMissingSince` (`datetime2 NULL`) fest und schreibt
+selbst: „gehoert in den Migrations-Plan von Etappe A — dort fehlt sie bisher." Verifiziert: Sie
+fehlt in **jeder** Stufe der Pflicht-Kette:
+- nicht in `affected_code` (kein `ProductionOrder.cs`-Property genannt),
+- nicht im Abschnitt „Migrations-/SQL-Auswirkungen" (Zeilen 190–204 kennen nur die Inversion),
+- nicht in `SQL/00_FreshInstall.sql`-Nachzug,
+- nicht in Sync-Regel 2 / AK 6 („nicht mehr in Sage"-Status — das Feld wird nirgends benannt),
+- kein AK, das das Setzen/Zuruecksetzen (`NULL` bei Wiederauftauchen, „selbstheilend" laut S7-2a)
+  prueft.
+Nach ADR 0004 ist das Model → Migration → idempotentes SQL (`sys.columns`/`COL_LENGTH`-Guard) →
+FreshInstall an **zwei** Stellen, plus Verankerung in Sync-Regel 2 und AK. Bis das im Body steht,
+ist Etappe A unvollstaendig spezifiziert und der Dev muss die zweite Migrationsspalte erraten.
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S7-7 — B7-1-Entwarnung ist im Kern verifiziert, aber die entfernte Schutzmaßnahme ist
+gefaehrlich.** Verifiziert und **korrekt**: `SageProductionOrderSql.BuildUpsert(true)` schreibt
+`SubOrderNumber` im INSERT-Zweig (Spalten- + Werte-Liste), `SageImportService` setzt
+`SubOrderNumber = OrderNumber`, sobald `COL_LENGTH('dbo.ProductionOrders','SubOrderNumber')`
+vorhanden ist (Zeilen 106–117), und dieser C#-Pfad ist ueber `SyncWorker` (Zeile 40) + DI
+(`Program.cs` Zeile 51) nachweislich **live**. Der reine NOT-NULL-Bruch aus B7-1 ist damit
+entschaerft — die Entwarnung trifft insoweit zu. **Aber:** Die Behauptung „produktiv laeuft
+**ausschliesslich** SageImportService, den Agent-Job gibt es nicht mehr" ist aus dem Repo **nicht**
+verifizierbar — die Datei `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` existiert weiter, ihr
+INSERT (Zeilen 92–97) fuehrt `SubOrderNumber` **nicht**, und die Auto-Memory dokumentiert fuer
+BomCache den **umgekehrten** Praezedenzfall („raw-SQL ist Produktion, EF-Methode tot"). Der
+Antwortblock hat daraufhin die „Agent-Job-Deaktivierung" aus der Deploy-Reihenfolge **gestrichen**.
+Das Loeschen der Repo-Datei (die vorgesehene Maßnahme) unscheduled keinen auf `AKESQL20`
+deployten SQL-Agent-Job. Vorgabe vor Freigabe: die **serverseitige Pruefung** „kein SQL-Agent-Job
+fuer den ProductionOrder-Import ist auf `AKESQL20` aktiviert" als **harte Deploy-Vorbedingung**
+wieder aufnehmen (nicht ersetzen durch das bloße Loeschen der Datei) — und falls doch einer laeuft,
+im Migrationsfenster deaktivieren.
+
+**S7-8 — S7-1-Befund am Code bestaetigt; die dreistufige Sperre ist schluessig, aber die
+Schalter-Landschaft ist nicht abzaehlbar.** Verifiziert: `FaZusatzinfoSyncService` liest
+`orders` per `waNumbers.Contains(o.OrderNumber)` (Zeile 92), gruppiert nach `OrderNumber` (Zeilen
+95–97) und wendet Fold 2 in `foreach (var order in matches)` (Zeile 116) **je gematchter Zeile** an
+(Done-Check Zeilen 165–172). Im hierarchischen Modus teilen HauptFA + alle Sub-FAs dieselbe
+`OrderNumber` → ein „verpackt/abgeholt" am HauptFA setzt `IsDonePicking` der **ganzen Gruppe**. Der
+Befund S7-1 ist also real, die Entlastung war falsch, der Antwortblock akzeptiert das korrekt. Die
+dreistufige Sperre (datengetriebener Fold-2-Skip bei Match > 1 + Schalter + Test) ist in sich
+widerspruchsfrei und AKE-sicher (bei AKE ist Match immer = 1, Fold 2 laeuft unveraendert). **Offen:**
+Der neue „Auto-Erledigt-Schalter" (Stufe 2) ist ein zusaetzlicher `ServiceSetting` — `affected_code`
+Zeile 29 nennt aber nur „Master + 3 abhaengige Schalter", und **welche** drei das sind, wird in
+dieser Spec nirgends aufgezaehlt (verwiesen auf „Uebersichts-Rueckfrage 2"). Ist der Auto-Erledigt-
+Schalter einer der drei oder ein vierter? Vor Etappe B/D die Schalter-Liste **explizit** benennen,
+sonst rät der Dev die Schalter-Inventur.
+
+**S7-9 — Regressionsgarantie AKE haengt an B7-5 und der noch fehlenden Test-Verankerung.** AK 1/AK 9
+(„byte-identisch / AKE-Verhalten unveraendert") sind erst pruefbar, wenn (a) `SageMissingSince` als
+`NULL`-Spalte ohne Verhaltensaenderung nachgewiesen ist (B7-5) und (b) die von S7-3 zugesagten
+Unit-Tests fuer den Reconcile-`WHERE OrderNumber`-Pfad und Fold-2 tatsaechlich als AK stehen —
+derzeit steht S7-3 nur im Antwortblock, nicht als AK im Body. `ProductionOrderReconciler` ist
+verifiziert ein reiner Planer auf `OrderNumber`-Listen (Zeilen 51/57) — genau der unit-testbare
+Baustein, den S7-3 meint; die Testpflicht muss aber in die AK-Liste, nicht in den Anhang.
+
+### HINWEIS
+
+**H7-3 — H7-1 (`sys.indexes`-Guard) noch nicht im Body.** Der Migrationsabschnitt (Zeilen 193–195)
+nennt weiterhin nur `OBJECT_ID`/`COL_LENGTH`-Guards; der im Antwortblock zugesagte
+`sys.indexes`-Guard fuer den Index-Tausch fehlt im eigentlichen Plan.
+
+**H7-4 — Etappen-Zuschnitt A–E plausibel, Einweg-Charakter beachten.** Fuenf Etappen in einem
+langlebigen Worktree ohne Zwischen-Merge (wie Teil 8) sind fuer diesen Umfang angemessen. Bewusst
+sein: Etappe A vollzieht die **irreversible** Schema-Inversion; wird das Epic nach A abgebrochen,
+ist die DB bereits invertiert (inhaerent, kein Fehler — aber im Runbook/Deploy zu benennen).
+
+**H7-5 — Staerken (beibehalten).** Der referenzierte Backlog
+[[2026-08-06-kombinationsgeraete-montageabteilung]] existiert (verifiziert). Die Sachentscheidungen
+des Antwortblocks (Auto-Erledigt-Sperre, `SageMissingSince` als selbstheilender Zeitstempel statt
+Bool, Sammelmail statt Flut, Guard-Choke-Point, `barcode-scanner.js`-Entfernung) sind fachlich
+richtig und teils vorbildlich begruendet. Die Nachbesserung ist reine **Einarbeitung** der bereits
+getroffenen Entscheidungen in Frontmatter + Body, kein neues Konzept.
+
+NACHBESSERUNG NOETIG: Antworten sind sachlich gut, aber nicht in die Spec eingearbeitet — Frontmatter
++ Body sind stale (`epic: false`, 4 `open_questions`, `barcode-scanner.js` mit widerlegter
+„Index 2 = BelID", B3-Folge weiter „unentschieden") (B7-4); `SageMissingSince` fehlt in jeder
+ADR-0004-Stufe (B7-5); die serverseitige Agent-Job-Pruefung wurde als Deploy-Schutz entfernt,
+obwohl die „ausschliesslich C#"-Annahme aus dem Repo nicht verifizierbar ist (S7-7).
