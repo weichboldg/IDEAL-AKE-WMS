@@ -295,3 +295,206 @@ Das sind keine Feinheiten, sondern der Kern bzw. Freigabe-Voraussetzungen.
 NACHBESSERUNG NOETIG: Zwei-Backend-Schreibsemantik/Transaktion (B-1), Master read-only-vs-Guard-
 Widerspruch (B-2), Teil-7-Abhaengigkeit im `depends_on`/Scope (B-3) und der Anlege-/Seed-/Deploy-Weg
 der neuen Firmendaten-Keys (B-4) sind vor der Freigabe zu entscheiden.
+
+## Antworten auf die Kritische Pruefung (2026-08-06)
+
+**Zu B-4 — Firmendaten existieren heute NICHT. Sie entstehen hier — aber ohne Seed und ohne
+Migration.**
+Bestaetigt: Firmenname/Anschrift gibt es bisher nirgends als Wert. Der Weg ist trotzdem
+leichtgewichtiger, als die Pruefung annimmt:
+- **Backend: AppSettings** (ADR 0011) — es sind reine Anzeige-/Druckkopf-Daten, kein
+  Service-Verhalten.
+- **Kein Seed-SQL, kein `deploy.migration: true`.** Die Maske ist ohnehin **kuratiert** — sie
+  bringt ihre **eigene, explizite Feldliste** mit (das ist ihr Wesen, nicht ein Workaround). Sie
+  rendert die Felder unabhaengig davon, ob eine DB-Zeile existiert, und legt sie beim ersten
+  Speichern an. Ein Katalog wie bei `ServiceSettings` wird dafuer nicht gebraucht.
+- **Keys in `AppSettingKeys.cs`** aufnehmen (Konstanten), Feldliste + Beschriftung im
+  ViewModel/der View der neuen Maske.
+- **Bewusst akzeptierte Folge:** Solange ein Firmendaten-Feld nie gespeichert wurde, taucht es in
+  der **generischen** Settings-Oberflaeche nicht auf (die zeigt nur, was in der DB liegt). Das ist
+  ein kosmetischer Nachteil gegenueber einem Seed — und deutlich billiger als eine
+  daten-schreibende Migration plus `00_FreshInstall.sql`-Pflege fuer drei Textfelder.
+- `deploy.migration` bleibt damit **`false`**; `affected_code` braucht **kein** `SQL/XX_*.sql`.
+
+**Zu S-1 — Reihenfolge Firmendaten vs. Druckkopf: Teil 3 legt sie an, Teil 6 buendelt sie.**
+Als Entscheidung, nicht als Prosa: **Teil 3** (Referenzimplementierung des Druckgeruests) braucht
+den Firmennamen zuerst im Druckkopf und **definiert daher die Keys** in `AppSettingKeys.cs` samt
+Lesepfad. **Teil 6** fuegt sie nur der kuratierten Maske hinzu. Damit gibt es genau einen
+Definitionsort, unabhaengig davon, welcher Teil zuerst gemerged wird. `depends_on` von Teil 6 um
+Teil 3 ergaenzen.
+
+**Zu B-1 — Zwei Konfig-Backends in einem POST: kein verteiltes Transaktions-Kunststueck.**
+`AppSettings` und `ServiceSettings` liegen in **derselben Datenbank** — eine gemeinsame
+EF-Transaktion ueber beide Repositories genuegt, kein Zwei-Phasen-Commit, keine Kompensationslogik.
+Verbindlich:
+- Ein Speichervorgang schreibt **beide** Backends in **einer** Transaktion; schlaegt ein Teil fehl,
+  wird alles zurueckgerollt und die Maske zeigt den Fehler mit den **eingegebenen Werten** an
+  (kein halb gespeicherter Zustand, keine verlorene Eingabe).
+- **Der Master-Schalter ist davon ausgenommen** — er laeuft immer durch den Waechter (siehe B-2)
+  und wird nie als Teil des Sammel-POST geschrieben.
+
+**Zu B-2 — Master-Widerspruch aufgeloest: In dieser Maske nur ANZEIGEN, nicht schreiben.**
+Die Spec sagte an einer Stelle „nur Anzeige/Verlinkung", an anderer „Schreibversuch durchlaeuft den
+Waechter". Verbindlich ist die **engere** Lesart: Teil 6 zeigt den Master-Zustand (an/aus, gesperrt
+ja/nein, seit wann) **read-only** an und verlinkt zum Umschaltweg. Umgelegt wird er ausschliesslich
+ueber den Weg, den Teil 7 baut — mit Bestaetigungsdialog und Waechter.
+Begruendung: Ein Einwegtor gehoert nicht in eine Sammelmaske, in der man nebenbei die Anschrift
+korrigiert. Ein versehentlicher Klick soll dort gar nicht moeglich sein.
+
+**Zu B-3 — `depends_on` um Teil 7 und Teil 3 ergaenzen.** Die Master-Anzeige (Sperrzustand,
+„seit wann") setzt den Waechter und den gecachten Zustand aus Teil 7 voraus; die Firmendaten-Keys
+kommen aus Teil 3 (siehe S-1). Ohne Teil 7 kann Teil 6 den Sperrzustand nicht darstellen.
+
+**Zu S-2 — uebernommen.** Kein neuer Filter, keine neue Rolle (`[RequireAdminAccess]`,
+Class-Level, wie `ServiceSettingsController`/`SettingsController`) ⇒ **keine** RoleOverview-Pflicht.
+Der neue Controller gehoert aber in `secondbrain/codebase/controller.md` — in die Checkliste.
+
+**Zu S-3 — uebernommen.** Der Loesungsentwurf benennt ausdruecklich, dass die Maske
+`ServiceSettings` (ueber `ServiceSettingDefinitions` + `IServiceSettingRepository`) und
+`AppSettings` (ueber `IAppSettingRepository`) **gemeinsam** in ein ViewModel zieht und die
+Typ-Behandlung des generischen `ServiceSettingsController.SaveSettings` je Backend **spiegelt**
+(Checkbox → "true"/"false", Int-Parse). Sonst driftet die kuratierte Sicht vom generischen
+Verhalten ab.
+
+**Zu H-1 — uebernommen, als UX-Hinweis in der Maske.** Die View-Namen werden hier **roh**
+gespeichert; die Whitelist-/`QUOTENAME`-Absicherung sitzt im Sync (`FaHierarchySql.ValidateViewName`)
+und greift erst zur Lesezeit. Die Maske darf **keine Validierung vortaeuschen** — stattdessen ein
+Hinweis, dass ein ungueltiger Name erst beim naechsten Sync-Lauf als Fehlermail auffaellt.
+
+**Zu H-3 — AK nachziehen**, sobald B-1/B-2/B-4 eingearbeitet sind: je ein AK zur
+Transaktions-Semantik (Teil-Scheitern rollt alles zurueck) und zur Firmendaten-Anlage (Feld ohne
+DB-Zeile wird leer gerendert und beim ersten Speichern angelegt).
+
+## Kritische Pruefung (2026-08-07)
+
+Zweiter Anwalt-des-Teufels-Durchgang **nach** dem Antwortblock „Antworten auf die Kritische
+Pruefung (2026-08-06)". Gegengelesen: diese Spec komplett, Teil-1-Spec (ServiceSettings-Keys),
+Teil-3-Spec (angeblicher Firmendaten-Definitionsort), Teil-7-Spec (Master + Guard), die Uebersicht,
+ADR 0006/0008/0011 sowie der **echte main-Code**: `AppSettingRepository`, `CachedSettingRepository`,
+`ServiceSettingRepository`, `SettingsController`, `ServiceSettingsController`,
+`RequireAdminAccessAttribute`, `AppSettingKeys`, `Program.cs` (DI-Registrierung). Die
+Freigabe-Entscheidungen sind inhaltlich groesstenteils richtig — aber sie leben **ausschliesslich**
+im Antwortblock; Rumpf und Frontmatter sind nicht nachgezogen und widersprechen den Antworten an
+mehreren Stellen weiterhin. Zusaetzlich bricht die read-only-Entscheidung eine Annahme in Teil 7.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**Z2-B1 — Rumpf und Frontmatter sind NICHT nachgezogen; der Body widerspricht den eigenen Antworten
+weiter (ein Dev setzt die falsche Variante um).** Die Antworten sind Entscheidungen auf dem Papier,
+aber die massgeblichen Spec-Teile stehen unveraendert im alten Stand:
+- **Frontmatter `depends_on` (Zeile 9)** nennt nur Teil 1. Antwort B-3 verlangt verbindlich
+  **+ Teil 7 + Teil 3**. Nicht eingetragen — Dataview/HOME-Dashboard zeigen die Abhaengigkeiten
+  falsch.
+- **Frontmatter `open_questions` (Zeilen 20-24)** listen weiterhin alle vier Fragen als offen,
+  obwohl beantwortet. Wie bei Teil 7 (H7-2): solange sie stehen, gilt die Spec dem Dashboard als
+  offen. Leeren.
+- **Master-Selbstwiderspruch (der Erstreview-Blocker B-2) ist physisch immer noch im Body:**
+  Akzeptanzkriterium 2 (Zeilen 90-93), Fachliche Anforderung (Zeile 66) und Technischer
+  Loesungsentwurf (Zeilen 74-76) beschreiben den Master weiterhin als **in dieser Maske schreibbar,
+  der den Waechter aufruft** — das genaue Gegenteil der Antwort B-2 („nur ANZEIGEN, nie schreiben").
+  Ein Dev liest den Body, nicht den Antwortblock, und baut den schreibbaren Master samt
+  Guard-Aufruf.
+- **Out-of-Scope (Zeilen 56-59)** sagt weiter „keine neuen fachlichen Werte" — steht gegen die
+  Firmendaten-Diskussion; `affected_code` listet `AppSettingKeys.cs`, obwohl S-1 die Definition zu
+  Teil 3 verschiebt (siehe Z2-S1).
+- **Akzeptanzkriterien** sind weiter nur 3; Antwort H-3 versprach je ein AK zu Transaktion und
+  Firmendaten-Anlage. Fehlen. `affected_code` fehlt der laut S-2 verbindliche
+  `secondbrain/codebase/controller.md`-Eintrag sowie ViewModel/Transaktionslogik.
+
+Solange Body + Frontmatter nicht auf die Antworten gezogen sind, ist die Spec nicht umsetzbar —
+sie beschreibt zwei gegensaetzliche Features gleichzeitig.
+
+**Z2-B2 — Master „read-only" (Antwort B-2) kollidiert mit Teil 7, das die Teil-6-Maske als
+GESICHERTEN SCHREIBWEG annimmt und testet.** Teil 7 fuehrt die Teil-6-Maske ausdruecklich als
+Schreibpfad, den der Waechter abfaengt: Loesungsentwurf „`HierarchischeStrukturGuard` … wird von
+**jedem** Schreibpfad auf den Master-Key aufgerufen (generische ServiceSettings-Maske,
+**Teil-6-Maske**, kuenftige API)", Teil-7-**AK 2** („Deaktivierungsversuch ueber **jeden**
+Schreibweg (generische Maske, **Teil-6-Maske**) abgelehnt und protokolliert") und das
+Teil-7-Test-Szenario („Versuch ueber die generische Maske UND … die Teil-6-Maske beide abgelehnt").
+Macht Teil 6 den Master jetzt **read-only** (kein Schreibweg), ist die Teil-6-Klausel in Teil-7-AK 2
+und im Teil-7-Test **gegenstandslos und nicht testbar** — die beiden Specs widersprechen sich, ob
+Teil 6 den Master ueberhaupt schreiben kann. Muss teiluebergreifend aufgeloest werden: entweder
+Teil 7 (AK 2, Loesungsentwurf, Test) auf „Teil 6 ist read-only, kein Schreibweg" nachziehen, oder
+die read-only-Entscheidung revidieren. Ich darf nur diese Datei editieren — daher hier als
+Cross-Spec-Blocker vermerkt (Teil 7 nachzuziehen). Nebeneffekt, positiv: die Teil-7-Sorge S7-6
+(„Teil 6 macht spaeter einen zweiten Schreibweg auf") entfaellt durch read-only — aber der
+Teil-7-Text bleibt bis zur Korrektur stale.
+
+### SOLLTE
+
+**Z2-S1 — Die S-1-Entscheidung „Teil 3 legt die Firmendaten-Keys an" ist in Teil 3 NICHT abgebildet
+— unbesitzte Abhaengigkeit; zudem widerspricht sich der Antwortblock selbst.** Verifiziert:
+Die Teil-3-Spec erwaehnt Firmenname/Anschrift/Druckkopf-Firmendaten **nirgends** (Volltext-Suche
+leer); ihr `AppSettingKeys.cs`-Bezug betrifft ausschliesslich den Kommissionierlisten-Toggle
+`FaHierarchyKommissionierlistenAktiv`. Teil 3 ownt die Keys also aktuell **nicht**. Gleichzeitig
+widerspricht sich der Teil-6-Antwortblock: **B-4** sagt „Keys in `AppSettingKeys.cs` aufnehmen"
+(Teil 6 als Eigentuemer), **S-1** sagt „**Teil 3** definiert die Keys … Teil 6 fuegt sie nur der
+Maske hinzu" — und `affected_code` (Teil 6) listet `AppSettingKeys.cs`. Wer die Konstanten anlegt,
+ist damit offen. Aufloesen: entweder Teil 3 verbindlich zum Eigentuemer machen (dann Teil-3-Spec
+nachziehen — sie plant die Firmendaten heute nicht) **oder** Teil 6 als Eigentuemer festschreiben
+(dann `depends_on` Teil 3 fuer die Keys wieder streichen). So wie jetzt zeigt `depends_on` Teil 3
+auf einen Definitionsort, den es dort nicht gibt.
+
+**Z2-S2 — B-1 „eine gemeinsame EF-Transaktion" ist technisch moeglich (verifiziert), aber der Weg
+dahin ist im Antwortblock verharmlost.** Am echten Code bestaetigt: `IAppSettingRepository` →
+`CachedSettingRepository` → `AppSettingRepository` → `ApplicationDbContext` (scoped);
+`IServiceSettingRepository` → `ServiceSettingRepository` → `ApplicationDbContext` (scoped). Beide
+teilen pro Request **dieselbe** scoped-Instanz — eine gemeinsame Transaktion ist also moeglich, die
+Kernaussage stimmt, kein Zwei-Phasen-Commit noetig. **Aber** die Antwort uebergeht das Wesentliche:
+- Beide Repo-Methoden rufen **intern `SaveChangesAsync()`** (`AppSettingRepository.SetValueAsync`
+  Z. 46, `ServiceSettingRepository.UpsertAsync` Z. 56). Es gibt heute **keine Transaktions-Naht**.
+  Atomares Alles-oder-Nichts erfordert ein explizit geoeffnetes `BeginTransactionAsync` mit Zugriff
+  auf den `ApplicationDbContext` — den **kein Repository-Interface freigibt**. Der neue
+  Controller/Service muesste den DbContext also **direkt** anfassen, in Spannung zu ADR 0001
+  („Datenzugriff nur ueber Repository-Interfaces"). Wo die Transaktion lebt und wie auf den Context
+  zugegriffen wird, muss der Loesungsentwurf benennen.
+- `CachedSettingRepository.SetValueAsync` entfernt den Cache-Key **nach** dem inneren SaveChanges;
+  bei einem Rollback bleibt die geaenderte Entitaet im Change-Tracker der geteilten Context-Instanz
+  (EF revertet sie nicht) → in-memory-Drift innerhalb desselben Requests. „Kein Kunststueck /
+  genuegt" untertreibt diese Interaktion.
+
+Kein Neukonzept — aber ohne diese Praezisierung baut der Dev entweder den vom Erstreview gewarnten
+Partial-Save oder erfindet eine Ad-hoc-Transaktionslogik.
+
+**Z2-S3 — Reihenfolge-Widerspruch zur Uebersicht: Teil 6 ist jetzt NACH Teil 7 lieferbar.**
+Die Uebersicht haelt fest, die Schalter der Teile 1-6 seien „**unabhaengig** vom Master" und „in
+beliebiger Reihenfolge lieferbar", Teil 7 komme danach. Antwort B-3 macht Teil 6 aber
+`depends_on` Teil 7 (die Master-Anzeige — Sperrzustand, „seit wann" — braucht Guard + gecachten
+Zustand aus Teil 7). Damit ist Teil 6 **nicht mehr** frei vor Teil 7 lieferbar (Nummer 6 vor 7,
+Lieferung 7 vor 6). Entweder in Uebersicht/Reihenfolge festschreiben, **oder** Teil 6 splitten:
+Firmendaten + View-Namen (ohne Teil-7-Dep) zuerst, die Master-Anzeige als spaeterer Nachtrag nach
+Teil 7. So wie jetzt ist die Uebersicht-Aussage „Teil 2-6 in beliebiger Reihenfolge" fuer Teil 6
+faktisch falsch.
+
+### HINWEIS
+
+**Z2-H1 — B-4-Render-/Seed-Weg am Code verifiziert korrekt (Lob mit Beleg).** Bestaetigt:
+`AppSettingRepository.GetValueAsync` liefert bei nie geschriebenem Key `null` (keine Exception,
+kein Default-Wurf), `SetValueAsync` legt die Zeile beim ersten Speichern per `Add` an. Die
+kuratierte Maske kann Felder ohne DB-Zeile also leer rendern und beim ersten Speichern anlegen —
+**kein Seed, keine Migration noetig**, `deploy.migration: false` bleibt korrekt. Auch die
+„kosmetische Folge" stimmt: `SettingsController.Index` rendert nur DB-Zeilen (`GetAllAsync`),
+`ServiceSettingsController` rendert dagegen den Katalog inkl. Defaults — ein nie gespeicherter
+Firmendaten-Key erscheint in der generischen `/Settings`-Maske folglich nicht. B-4 ist sachlich
+richtig; nur das zugehoerige AK fehlt noch (Z2-B1).
+
+**Z2-H2 — ADR 0006 / admin-only bestaetigt.** `[RequireAdminAccess]` ist class-level auf
+`SettingsController` (Z. 10) und `ServiceSettingsController` (Z. 14); kein neuer Filter, keine neue
+Rolle → keine RoleOverview-Pflicht (S-2 korrekt). Der `controller.md`-Eintrag bleibt Pflicht — er
+fehlt bislang im `affected_code` (siehe Z2-B1).
+
+### Verdikt
+
+Die fachlichen Entscheidungen (kuratierte Sicht, kein zweiter Speicherort, admin-only, Master
+read-only, AppSettings ohne Seed, gemeinsame Transaktion in einer DB) sind richtig und am Code
+gedeckt — B-4 und die Transaktions-Kernaussage habe ich am echten Code verifiziert. Aber die
+Freigabe scheitert daran, dass diese Entscheidungen **nur im Antwortblock** stehen: Rumpf und
+Frontmatter sind nicht nachgezogen und tragen den Master-Selbstwiderspruch, die falschen
+`depends_on` und die offenen `open_questions` unveraendert weiter (Z2-B1). Dazu bricht die
+read-only-Entscheidung eine explizite Annahme in Teil 7 (Z2-B2), und die Firmendaten-Eigentuemer-
+frage ist zwischen Teil 3, Teil 6, B-4 und S-1 widerspruechlich (Z2-S1).
+
+NACHBESSERUNG NOETIG: Body + Frontmatter auf die Antworten ziehen (Master read-only ueberall,
+`depends_on` +Teil 7/+Teil 3, `open_questions` leeren, AK ergaenzen, `controller.md` in
+`affected_code`) — Z2-B1; Teil-7-Widerspruch zur read-only-Maske aufloesen — Z2-B2;
+Firmendaten-Key-Eigentuemer zwischen Teil 3/Teil 6 eindeutig festlegen — Z2-S1.
