@@ -4,7 +4,7 @@ title: "IDEAL-Standort Teil 1 — Struktur-Fundament FaHierarchyNode (Import FAL
 slug: 2026-07-29-standort-ideal-teil-1-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: ""
 task: ""
@@ -23,18 +23,17 @@ affected_code:
   - IdealAkeWms/Models/ServiceSettingDefinitions.cs
   - IdealAkeWms.Tests/Models/ServiceSettingDefinitionsTests.cs (3 neue InlineData-Eintraege, Drift-Guard)
   - IDEALAKEWMSService/Services/FaHierarchySyncService.cs (neu, injiziert ISyncErrorNotifier)
-  - IDEALAKEWMSService/Services/FaHierarchySql.cs (neu, Whitelist-Regex + QUOTENAME + SQL-Aufbau)
+  - IDEALAKEWMSService/Services/FaHierarchySql.cs (neu, Whitelist-Regex korrigiert nach N-1 + QUOTENAME + SQL-Aufbau; Unit-Test mit den realen View-Namen als Positivfall)
   - IDEALAKEWMSService/Services/SyncLogServices.cs
   - IDEALAKEWMSService/Workers/SyncWorker.cs (neuer Sync-Block, RunResilientAsync)
-  - SQL/87_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen; Platzhalter, siehe H-1)
+  - SQL/87_AddFaHierarchy.sql (neu, naechste freie Nummer — vor Dev-Lauf pruefen; Platzhalter, siehe H-1; enthaelt zusaetzlich GRANT ALTER auf die zwei Zieltabellen fuer das Sync-Service-Login, siehe N-2)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql (neu, DDL-Dokumentation)
   - SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAInfos.sql (neu, DDL-Dokumentation)
   - SQL/00_FreshInstall.sql
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Exaktes ASCII-Whitelist-Regex-Pattern je Namensteil (ergaenzend zur jetzt verbindlichen QUOTENAME-Absicherung) im Dev-Lauf final festlegen — Grundstruktur ([Schema].[Name], ASCII-only, kein \\w) ist bereits in dieser Spec vorgegeben, nur Feinschliff offen — kein Blocker"
-  - "Full-Refresh-Mechanik (Staging-Tabelle + sp_rename-Swap, empfohlen) setzt ALTER-Recht der Sync-Service-SQL-Login voraus — vor dem Dev-Lauf am Zielsystem pruefen; Fallback (kurze Einzel-Transaktion je Tabelle) ist in dieser Spec bereits als Alternative vorgegeben — kein Blocker, aber vor Implementierung zu bestaetigen"
+  - "Infra-Check vor dem Dev-Lauf (kein Blocker, siehe Antwort zu N-2, Kritische Pruefung 2026-08-07): Laeuft der FaHierarchySyncService unter einem SQL-Login, dem das Team im Rahmen der neuen Migration `GRANT ALTER` auf `FaHierarchyNode`/`FaHierarchyOrderInfo` erteilen darf? Falls nein: bewusst auf die dokumentierte `DELETE FROM`-Notloesung umstellen statt den sp_rename-Swap zu verwenden (siehe Full-Refresh-Strategie)."
 epic: false
 etappen: []
 deploy:
@@ -68,8 +67,10 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
   Kritische Pruefung B-1).
 - Sync-Service im Windows-Service, der beide Views periodisch liest (raw SQL gegen konfigurierbare
   View-Namen, Whitelist-Regex **und** `QUOTENAME` gegen Injection, siehe Anforderung 8) und die
-  lokalen Tabellen per Full-Refresh aktualisiert (Staging-Tabellen + kurzer Swap, siehe Technischer
-  Loesungsentwurf — **kein** langlaufendes Delete-All+Insert auf den Zieltabellen).
+  lokalen Tabellen per Full-Refresh aktualisiert (Staging-Tabellen + `sp_rename`-Swap, siehe
+  Technischer Loesungsentwurf — **kein** langlaufendes Delete-All+Insert auf den Zieltabellen; die
+  Swap-Strategie ist nach N-2 (2026-08-07) der **einzige** Full-Refresh-Pfad, kein Fallback mehr,
+  weil das dafuer noetige `ALTER`-Recht von der Migration selbst erteilt wird).
 - Datenverfuegbarkeits-Regel: Eine `FAListe`-Zeile wird nur importiert, wenn zum `HauptFA`
   mindestens ein `FAInfos`-Eintrag existiert — als reine **Existenzpruefung** (`WHERE EXISTS`/
   `INNER JOIN (SELECT DISTINCT HauptFA FROM FAInfos)`), **nicht** als Zeilen-Join. Ein echter
@@ -79,9 +80,16 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
 - View-DDL-Dokumentation unter `SQL/sage-views/` (keine WMS-Migration, reine Doku der Fremd-DB).
 - Aktivitaets-Protokoll-Pflicht (ADR 0010) fuer den neuen Sync, inklusive expliziter Fehlermail
   ueber `ISyncErrorNotifier` bei ungueltigem View-Namen und bei leerem View-Read (siehe Technischer
-  Loesungsentwurf, S-4).
+  Loesungsentwurf, S-4). Teil 1 laeuft vollstaendig im Windows-Service — `ISyncErrorNotifier` ist
+  dort ein etabliertes, bereits existierendes Muster (siehe `LagerbestandSyncService`); die
+  Querschnitts-Regel „Das Web verschickt keine Mails" (Uebersicht, 2026-08-07) betrifft nur
+  **Web**-Kontexte (Teil 2/4/5) und steht dieser Verdrahtung nicht entgegen.
 - Feature-/Sync-Toggle ueber `ServiceSettingDefinitions` (ADR 0008) — **inklusive** Eintragung der
   drei neuen Keys als `[InlineData]` im Drift-Guard-Test (siehe Technischer Loesungsentwurf, S-3).
+- Die Migration, die `FaHierarchyNode`/`FaHierarchyOrderInfo` (und ihre `_Staging`-Pendants) anlegt,
+  erteilt dem Sync-Service-SQL-Login im selben Schritt eng begrenztes `ALTER`-Recht auf genau diese
+  zwei Zieltabellen — Voraussetzung fuer den `sp_rename`-Swap, kein DDL-Recht auf der Datenbank
+  (siehe Kritische Pruefung 2026-08-07, N-2).
 
 **Out-of-Scope**
 - `ProductionOrders` bleibt **vollstaendig unangetastet** (Schema, Daten, Verhalten). Keine
@@ -171,20 +179,33 @@ Schema-Umbau oder eine Einwegtuer noetig waere (Entscheidung B5).
    Import in echte `bit`-Spalten uebersetzt (`Beschichtet = -1` ⇒ `true` — Sage-VB6-Konvention,
    siehe Fallstrick „Sage VB6-Booleans"). `EKBedarf` kommt laut Anhang bereits als Bit/Ja-Nein —
    Mapping analog absichern.
-8. **View-Namen konfigurierbar — Whitelist UND `QUOTENAME` (ueberarbeitet, siehe Kritische Pruefung
-   S-2).** `FAListe`- und `FAInfos`-View-Name sind je Standort unterschiedlich benennbar
-   (Testsystem heisst `IDEAL_TEST_2026_05_03`, Produktivname noch offen — siehe offene Rueckfrage)
-   und werden **nicht** hartkodiert, sondern aus `ServiceSettings` gelesen. Die Absicherung ist
-   **zweistufig**, nicht nur eine Regex:
-   1. Whitelist-Regex zerlegt den konfigurierten Namen in `[Schema].[Name]`-Teile und prueft jeden
-      Teil **ASCII-explizit** gegen `^[A-Za-z0-9_]+$` — bewusst **nicht** `\w` (unter
+8. **View-Namen konfigurierbar — Whitelist UND `QUOTENAME`, Zeichensatz korrigiert nach N-1
+   (Kritische Pruefung 2026-08-07).** `FAListe`- und `FAInfos`-View-Name sind je Standort
+   unterschiedlich benennbar (Testsystem heisst `IDEAL_TEST_2026_05_03`, Produktivname noch offen
+   — siehe `open_questions`) und werden **nicht** hartkodiert, sondern aus `ServiceSettings`
+   gelesen. Die Absicherung ist **zweistufig**, nicht nur eine Regex:
+   1. Der konfigurierte Name wird an `.` in `[Schema].[Name]`-Segmente zerlegt; jedes Segment wird
+      **ASCII-explizit** gegen `^[A-Za-z0-9_\-]+$` geprueft — bewusst **nicht** `\w` (unter
       Unicode-Regex matcht `\w` Homoglyphen, genau der relevante Angriff bei einem extern
-      konfigurierbaren Objektnamen). Verworfen werden zusaetzlich: Whitespace, `;`, `--`, `/*`,
-      unausgeglichene `[`/`]`.
-   2. Die geprueften Teile werden danach per **`QUOTENAME()`** wieder zu `[Schema].[Name]`
+      konfigurierbaren Objektnamen). Der **Bindestrich ist bewusst erlaubt**: Der reale
+      Default-Viewname `vw_IDEAL-AKE_Kommissionierung_FAListe` (und `..._FAInfos`) enthaelt selbst
+      einen Bindestrich — eine fruehere Fassung dieser Regel (`^[A-Za-z0-9_]+$`, ohne `-`) haette
+      den eigenen Default abgelehnt und den IDEAL-Sync nie zum Laufen gebracht (siehe Kritische
+      Pruefung 2026-08-07, N-1 — Fehler eingestanden und korrigiert). Zusaetzlich verworfen:
+      Whitespace, `;`, `/*`, `[`/`]` innerhalb eines Segments, `.` innerhalb eines Segments (nur
+      als Trenner zwischen Segmenten zulaessig), sowie explizit die Zweizeichenfolge `--`
+      (SQL-Kommentar-Einleiter — kann in keinem echten Objektnamen vorkommen, Defense-in-Depth
+      zusaetzlich zu `QUOTENAME`).
+   2. Die geprueften Segmente werden danach per **`QUOTENAME()`** wieder zu `[Schema].[Name]`
       zusammengesetzt, bevor sie in den SQL-Text eingesetzt werden — Objektnamen lassen sich in
       T-SQL nicht parametrisieren, `QUOTENAME` ist die strukturelle Abwehr, falls die Regex
       spaeter versehentlich gelockert wird. Whitelist **und** `QUOTENAME`, nicht entweder/oder.
+
+   **Testpflicht (neu, N-1):** Der Unit-Test der Validierung muss die **realen
+   Produktions-View-Namen als Positivfaelle** enthalten (`vw_IDEAL-AKE_Kommissionierung_FAListe`,
+   `vw_IDEAL-AKE_Kommissionierung_FAInfos`), nicht nur erfundene Beispiele — genau dieser Testfall
+   haette den urspruenglichen Fehler in Sekunden gefunden. Negativfaelle (Semikolon, Leerzeichen,
+   `--`, kyrillisches `а` als Homoglyph) daneben — siehe AK 4/8.
 
 ## Technischer Loesungsentwurf
 
@@ -222,6 +243,12 @@ siehe Fallstrick-Praezedenzfall):
 `FaHierarchyOrderInfo_Staging` — schema-identisch zu den Zieltabellen (inkl. `SyncedAt`), aber ohne
 eigene Repository-Anbindung. Sie sind reine sync-interne Zwischenablagen fuer die
 Full-Refresh-Strategie (siehe Sync-Service unten) und werden in derselben Migration mit angelegt.
+
+**Harte Regel (N-4, Kritische Pruefung 2026-08-07):** Ziel- und Staging-Tabelle **muessen**
+schema-identisch bleiben, sonst brechen Bulk-Insert und `sp_rename`-Swap. Jede spaetere
+Spalten-/Typaenderung an `FaHierarchyNode`/`FaHierarchyOrderInfo` muss deshalb das jeweilige
+`_Staging`-Pendant **im selben Migrationsschritt** mitaendern — analog zur ADR-0004-Kopplungsregel
+fuer `SQL/AgentJobs/*`. Siehe auch Migrations-/SQL-Auswirkungen unten.
 
 **Warum zwei Tabellen statt einer denormalisierten:** `FAInfos`-Felder sind **auftragsbezogen**
 (ein `KO_Termin` gilt fuer die ganze Struktur), `FAListe`-Felder sind **positionsbezogen** (eine
@@ -266,18 +293,21 @@ uebernommen; die Existenzpruefung ersetzt es.
   Key, der nur im Katalog steht, aber dort nicht gelistet ist, laesst den Test **gruen ohne jede
   Guard-Wirkung**.
 - **Whitelist-Regex + `QUOTENAME`** vor jedem SQL-Aufbau (`FaHierarchySql.ValidateViewName`,
-  ueberarbeitet, siehe Anforderung 8 und Kritische Pruefung S-2): zerlegt `[Schema].[Name]` in
-  Teile, prueft jeden Teil ASCII-explizit (`^[A-Za-z0-9_]+$`, **nicht** `\w`), lehnt Whitespace,
-  `;`, `--`, `/*`, unausgeglichene `[`/`]` und alles jenseits ASCII ab, setzt die geprueften Teile
-  danach per `QUOTENAME()` zusammen. Bei Verstoss: Lauf bricht mit `FinishFailedAsync` ab, **kein**
-  SQL wird ausgefuehrt, **zusaetzlich** `ISyncErrorNotifier.NotifyAsync(...)` (siehe Fehlermail
-  unten). Exaktes Regex-Pattern im Detail (Feinschliff) ist offene Rueckfrage — die Grundstruktur
-  ist hier bereits verbindlich vorgegeben.
-- **Full-Refresh-Strategie (ueberarbeitet, siehe Kritische Pruefung S-1).** Kein Praezedenzfall im
-  Code deckt „Delete-All + Bulk-Insert in einer langen Transaktion": `CachedBomHeader` ist
-  Hash-inkrementell (Upsert), enaio ist MERGE-Full-Sync. Fuer eine potenziell zehntausende Zeilen
-  grosse Stuecklisten-Tabelle wuerde ein klassisches Delete-All+Insert waehrend der gesamten
-  Ladezeit sperren und gleichzeitige Web-Reads blockieren/eskalieren lassen. Stattdessen:
+  korrigiert nach Kritischer Pruefung 2026-08-07/N-1, siehe Anforderung 8): zerlegt
+  `[Schema].[Name]` an `.` in Segmente, prueft jedes Segment ASCII-explizit gegen
+  `^[A-Za-z0-9_\-]+$` (**nicht** `\w`, Bindestrich bewusst erlaubt — der reale View-Name traegt
+  einen), lehnt Whitespace, `;`, `--`, `/*`, `.` innerhalb eines Segments, unausgeglichene `[`/`]`
+  und alles jenseits ASCII ab, setzt die geprueften Segmente danach per `QUOTENAME()` zusammen. Bei
+  Verstoss: Lauf bricht mit `FinishFailedAsync` ab, **kein** SQL wird ausgefuehrt, **zusaetzlich**
+  `ISyncErrorNotifier.NotifyAsync(...)` (siehe Fehlermail unten). Das Regex-Pattern ist mit dieser
+  Korrektur **final** — keine offene Rueckfrage mehr (siehe „Antworten auf die Kritische Pruefung",
+  N-1).
+- **Full-Refresh-Strategie (ueberarbeitet, siehe Kritische Pruefung S-1; Swap-Mechanik und
+  Berechtigung praezisiert nach N-2/N-3, 2026-08-07).** Kein Praezedenzfall im Code deckt
+  „Delete-All + Bulk-Insert in einer langen Transaktion": `CachedBomHeader` ist Hash-inkrementell
+  (Upsert), enaio ist MERGE-Full-Sync. Fuer eine potenziell zehntausende Zeilen grosse
+  Stuecklisten-Tabelle wuerde ein klassisches Delete-All+Insert waehrend der gesamten Ladezeit
+  sperren und gleichzeitige Web-Reads blockieren/eskalieren lassen. Stattdessen:
   1. **Vor jeder Mutation:** Roh-Zeilenzahl **beider** Views ungefiltert lesen (`SELECT COUNT(*)`
      auf `FaHierarchyListeViewName` bzw. `FaHierarchyInfosViewName`, **ohne** Existenzpruefung/Join).
      Guard: Ist eine der beiden Rohzahlen `0`, **kein** Replace — Warn-Log + `NotifyAsync` (siehe
@@ -289,19 +319,46 @@ uebernommen; die Existenzpruefung ersetzt es.
   3. **Schreiben ueber Staging-Tabellen** (`FaHierarchyNode_Staging` / `FaHierarchyOrderInfo_Staging`,
      siehe Datenmodell): beide werden bei jedem Lauf per `TRUNCATE` + Bulk-Insert frisch befuellt
      (unkritisch, da nicht die Leseziele des Web). Danach werden **beide** Zieltabellen in **einer**
-     kurzen Transaktion per `sp_rename`-Swap gegen ihre Staging-Pendants getauscht — eine reine
-     Metadaten-Operation ohne Sperre auf Zeilenebene fuer die Ladezeit. Web-Reads sehen bis zum Swap
-     den alten Inhalt, danach sofort den neuen; kein Blocking waehrend des Ladens.
-     **Voraussetzung:** die Sync-Service-SQL-Login braucht `ALTER`-Recht fuer `sp_rename` — am
-     Zielsystem vor dem Dev-Lauf zu pruefen (siehe offene Rueckfrage).
-  4. **Fallback**, falls dieses Recht nicht vergeben werden kann: `TRUNCATE` + Bulk-Insert **je
-     Zieltabelle einzeln in einer eigenen kurzen Transaktion** (kein zeilenweises Delete), auf einer
-     DB mit RCSI/Snapshot-Isolation bevorzugt, damit gleichzeitige Web-Reads den alten Stand sehen
-     statt zu blockieren.
-  5. Beide Tabellen werden in **jedem Fall als ein logischer Schritt** ersetzt (nicht zeitlich
+     kurzen Metadaten-Operation gegen ihre Staging-Pendants getauscht.
+  4. **Swap-Mechanik, praezisiert nach N-3 (2026-08-07):** `sp_rename` tauscht keine zwei Tabellen
+     in einem Schritt — je Tabelle sind **drei** Renames mit einem definierten Zwischennamen
+     noetig:
+     1. `FaHierarchyNode` → `FaHierarchyNode_Swap` (alter Inhalt, temporaer beiseitegelegt)
+     2. `FaHierarchyNode_Staging` → `FaHierarchyNode` (neuer Inhalt wird produktiv)
+     3. `FaHierarchyNode_Swap` → `FaHierarchyNode_Staging` (alter Inhalt wird die neue
+        Staging-Basis fuer den naechsten Lauf)
+
+     Analog fuer `FaHierarchyOrderInfo` → `FaHierarchyOrderInfo_Swap` → `FaHierarchyOrderInfo` →
+     `FaHierarchyOrderInfo_Staging`. Alle sechs Renames laufen in **einer** kurzen Transaktion
+     (reine Metadaten-Operation, ohne Sperre auf Zeilenebene fuer die Ladezeit). Web-Reads sehen
+     bis zum Swap den alten Inhalt, danach sofort den neuen — **waehrend der Ladezeit** kein
+     Blocking; **im Swap-Moment selbst** nimmt `sp_rename` kurzzeitig eine
+     Schema-Modifikations-Sperre (Sch-M), ein gleichzeitiger Web-Read eine
+     Schema-Stabilitaets-Sperre (Sch-S) — die beiden blockieren sich fuer die (vernachlaessigbar
+     kurze) Dauer des Renames tatsaechlich gegenseitig (siehe AK 11, entschaerft). **Bekannter
+     kosmetischer Nebeneffekt:** `sp_rename` verschiebt keine Constraint-/PK-/Index-Namen mit —
+     nach dem ersten Swap traegt die produktive Tabelle die Index-/PK-Namen ihres
+     Staging-Ursprungs. Rein kosmetisch, aber bei einem spaeteren Schema-`ALTER` zu beachten.
+  5. **Berechtigung — geloest, nicht umgangen (N-2, 2026-08-07):** `sp_rename` braucht
+     `ALTER`-Recht auf den betroffenen Tabellen. `FaHierarchyNode`/`FaHierarchyOrderInfo` sind
+     **eigene** WMS-Tabellen, kein Sage-Fremdobjekt — die Migration, die sie anlegt, erteilt dem
+     Service-Konto im selben Schritt `GRANT ALTER ON dbo.FaHierarchyNode TO <Sync-Service-Login>`
+     und `GRANT ALTER ON dbo.FaHierarchyOrderInfo TO <Sync-Service-Login>` (eng auf diese zwei
+     Tabellen begrenzt, **kein** DDL-Recht auf der Datenbank). Damit ist der Staging+`sp_rename`-Weg
+     **die einzige** Full-Refresh-Strategie — **kein** Fallback, **kein** zweiter Pfad (der zuvor
+     vorgeschlagene `TRUNCATE`-je-Tabelle-Fallback ist ersatzlos gestrichen: `TRUNCATE` braucht
+     dasselbe `ALTER`-Recht wie `sp_rename` und haette ausserdem den von AK 9 verbotenen
+     Zwischenzustand erzeugt, siehe Kritische Pruefung 2026-08-07, N-2). **Vor dem Dev-Lauf zu
+     pruefen** (Infra-Check, kein Blocker, siehe `open_questions`): Laeuft der Sync-Service unter
+     einem SQL-Login, dem das Team dieses Recht per Migration erteilen darf?
+  6. **Nur falls das Erteilen organisatorisch untersagt ist**, als dokumentierte Notloesung (nicht
+     gleichwertige Alternative): `DELETE FROM` beide Tabellen und Neubefuellung in **einer**
+     Transaktion (braucht nur `DELETE`-Recht, ist voll transaktional, haelt aber laenger Sperren
+     als der Swap) — der **einzige** echte Ohne-`ALTER`-Pfad; `TRUNCATE` ist es nicht.
+  7. Beide Tabellen werden in **jedem Fall als ein logischer Schritt** ersetzt (nicht zeitlich
      versetzt) — nie steht `FaHierarchyNode` (neu) neben einem alten `FaHierarchyOrderInfo` oder
      umgekehrt.
-  6. Kein inkrementelles Delta, kein MERGE-Aufwand — die Views selbst liefern bereits den
+  8. Kein inkrementelles Delta, kein MERGE-Aufwand — die Views selbst liefern bereits den
      vollstaendigen Soll-Stand.
 - **Fehlermail — `ISyncErrorNotifier` explizit verdrahtet (ueberarbeitet, siehe Kritische Pruefung
   S-4).** `RunResilientAsync` in `SyncWorker` mailt **nur** bei einer geworfenen Exception; der
@@ -316,6 +373,12 @@ uebernommen; die Existenzpruefung ersetzt es.
   analog zum bestehenden Cap-Skip-Fall in `LagerbestandSyncService` eine synthetische
   `InvalidOperationException` mit sprechender Meldung konstruiert und uebergeben (kein echter
   Prozessabbruch, nur Transportvehikel fuer die Mail-Details).
+
+  **Abgrenzung zur Querschnitts-Regel „Das Web verschickt keine Mails" (Uebersicht, 2026-08-07):**
+  Diese Regel betrifft **Web**-Kontexte (Teil 2/4/5), in denen kein Mailversand existiert. Teil 1
+  laeuft vollstaendig im Windows-Service, wo `ISyncErrorNotifier` bereits ein etabliertes Muster
+  ist — die hier vorgeschriebene Fehlermail-Verdrahtung steht damit **nicht** im Widerspruch zu
+  dieser Regel.
 - Protokoll (ADR 0010): `ISyncLogger` als letzter Ctor-Parameter, Counts `neu`/`geloescht`
   (deutschsprachig, hier praktisch „komplette Ersetzung" abgebildet als zwei Zahlen), eigener Lauf
   getrennt vom `ProductionOrder`-Import.
@@ -328,14 +391,26 @@ uebernommen; die Existenzpruefung ersetzt es.
 1. Model → `dotnet ef migrations add AddFaHierarchy` (aktueller Timestamp!) → idempotentes
    `SQL/87_AddFaHierarchy.sql` (Platzhalter-Nummer, siehe H-1) mit `OBJECT_ID`-Guard, Tabellen-DDL
    in eigenem Batch (`GO`) fuer **alle vier** Tabellen (`FaHierarchyNode`, `FaHierarchyOrderInfo`
-   und ihre `_Staging`-Pendants, siehe S-1), `__EFMigrationsHistory`-Insert in separatem Batch.
-2. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (**alle vier** neuen
-   Tabellen) **und** `MigrationId` im History-Insert-Block.
-3. **Additive Migration** — kein Datenverlust, kein Backup-Hinweis noetig (neue, leere Tabellen).
-4. `SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql` +
+   und ihre `_Staging`-Pendants, siehe S-1), **zusaetzlich** `GRANT ALTER ON dbo.FaHierarchyNode`
+   und `GRANT ALTER ON dbo.FaHierarchyOrderInfo` an das Sync-Service-SQL-Login in einem eigenen
+   Batch (siehe N-2/Full-Refresh-Strategie — Voraussetzung fuer den `sp_rename`-Swap, kein
+   DDL-Recht auf der Datenbank), `__EFMigrationsHistory`-Insert in separatem Batch.
+2. **Harte Regel (N-4, 2026-08-07):** Weil Ziel- und Staging-Tabelle schema-identisch bleiben
+   **muessen** (sonst bricht Bulk-Insert/Swap), muss **jede** spaetere Spalten-/Typaenderung an
+   `FaHierarchyNode`/`FaHierarchyOrderInfo` das jeweilige `_Staging`-Pendant **im selben
+   Migrationsschritt** mitaendern — analog zur ADR-0004-Kopplungsregel fuer `SQL/AgentJobs/*`.
+   Fehlt dieser Schritt, reisst die naechste Folge-Migration den Full-Refresh-Swap still auf. (Ein
+   entsprechender Fallstrick-Eintrag in `secondbrain/architektur/fallstricke.md` ist Folgearbeit
+   ausserhalb dieser Spec-Runde, nicht Teil dieser Datei.)
+3. `SQL/00_FreshInstall.sql` an **beiden** Stellen nachziehen: Schema-Objekte (**alle vier** neuen
+   Tabellen **plus** die beiden `GRANT ALTER`-Anweisungen) **und** `MigrationId` im
+   History-Insert-Block.
+4. **Additive Migration** — kein Datenverlust, kein Backup-Hinweis noetig (neue, leere Tabellen).
+   Die `GRANT ALTER`-Anweisungen sind ebenfalls additiv (kein Rechte-Entzug an bestehenden Logins).
+5. `SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql` +
    `..._FAInfos.sql`: View-DDL-Dokumentation der Fremd-DB — **keine** WMS-Migration, nur
    Versionskontrolle der Sage-Objekte (wie in der Notiz vereinbart).
-5. **Migrationsnummer beim Dev-Start final festlegen.** `SQL/82`/`83` sind durch v1.28.0
+6. **Migrationsnummer beim Dev-Start final festlegen.** `SQL/82`/`83` sind durch v1.28.0
    (Sage-Lagerbuchungen) belegt; die WmsBugs-Batches belegen mindestens `84`-`87`
    (`87_AddUserDefaultFilterBomDescription1.sql` im noch nicht gemergten Worktree
    `2026-08-05-wms-bugs-improvements-teil-1-2-3`). Nach Merge beider Batches ist die naechste freie
@@ -366,11 +441,13 @@ Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bl
    `FAListe` fuer diesen `HauptFA`, unabhaengig von der Zahl der `FAInfos`-Zeilen dazu.
    `FaHierarchyOrderInfo` enthaelt dagegen weiterhin **alle** `FAInfos`-Zeilen (eine je
    Montage-Abteilung).
-4. Ein ungueltiger View-Name (z. B. mit Leerzeichen, Semikolon, Kommentarzeichen oder einem
+4. Ein ungueltiger View-Name (z. B. mit Leerzeichen, Semikolon, `--`, Kommentarzeichen oder einem
    Homoglyphen ausserhalb ASCII) fuehrt zu einem fehlgeschlagenen, protokollierten Lauf
    (`FinishFailedAsync`) **ohne** SQL-Ausfuehrung gegen die Sage-DB **und** zu einer Fehlermail
-   (`ISyncErrorNotifier.NotifyAsync`); ein gueltiger Name wird vor dem SQL-Aufbau zusaetzlich per
-   `QUOTENAME()` abgesichert (verifiziert am Whitelist-Unit-Test).
+   (`ISyncErrorNotifier.NotifyAsync`); ein gueltiger Name — **einschliesslich** der realen
+   Default-Namen mit Bindestrich (`vw_IDEAL-AKE_Kommissionierung_FAListe`,
+   `vw_IDEAL-AKE_Kommissionierung_FAInfos`) — wird vor dem SQL-Aufbau zusaetzlich per `QUOTENAME()`
+   abgesichert (verifiziert am Whitelist-Unit-Test).
 5. **(ueberarbeitet, S-1)** Ein leerer Roh-View-Read (0 Zeilen in `FAListe` **oder** `FAInfos`,
    geprueft **vor** jeder Existenzpruefung/jedem Join) loest **keinen** Replace der Zieltabellen
    aus, sondern einen Warn-Eintrag **und** eine Fehlermail (`ISyncErrorNotifier.NotifyAsync`) —
@@ -386,7 +463,10 @@ Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bl
    Projekt-Konvention **nicht** vollstaendig InMemory-testbar — der Whitelist-Regex-Helfer
    (`FaHierarchySql.ValidateViewName`) ist als eigenstaendiger, unit-testbarer Baustein
    auszulegen (analog `ProductionOrderReconciler`/`LagerbestandZeroingPlanner`), damit wenigstens
-   die Injection-Abwehr (Regex **und** `QUOTENAME`-Zusammenbau) automatisiert geprueft ist.
+   die Injection-Abwehr (Regex **und** `QUOTENAME`-Zusammenbau) automatisiert geprueft ist. **(neu,
+   N-1)** Der Unit-Test deckt zwingend die realen Produktions-View-Namen als Positivfaelle ab
+   (`vw_IDEAL-AKE_Kommissionierung_FAListe`, `vw_IDEAL-AKE_Kommissionierung_FAInfos`, jeweils mit
+   Bindestrich) sowie Negativfaelle (Semikolon, Leerzeichen, `--`, kyrillisches `а` als Homoglyph).
 9. **(neu, S-1)** Nach einem erfolgreichen Lauf sind entweder **beide** Zieltabellen aktualisiert
    oder **beide** unveraendert — kein Zwischenzustand, in dem `FaHierarchyNode` neu und
    `FaHierarchyOrderInfo` alt ist (oder umgekehrt); verifiziert per `SyncedAt`-Zeitstempel-Vergleich
@@ -397,11 +477,19 @@ Kein bestehendes Audit-Feld ist betroffen, da `ProductionOrders` unangetastet bl
     `ServiceSettingDefinitionsTests.All_ContainsDocumentedServiceReadKey` vorhanden — reine
     Katalog-Eintragung ohne `InlineData` gilt **nicht** als erfuellt (Test bliebe sonst gruen ohne
     jede Guard-Wirkung).
-11. **(neu, S-1)** Waehrend ein Full-Refresh laeuft (Staging-Phase, vor dem Swap bzw. der kurzen
-    Ersetzungs-Transaktion), liefert ein gleichzeitiger Web-Read ueber
+11. **(neu, S-1; entschaerft nach N-3, 2026-08-07)** Waehrend ein Full-Refresh laeuft
+    (Staging-Aufbau vor dem Swap), liefert ein gleichzeitiger Web-Read ueber
     `FaHierarchyNodeRepository`/`CachedFaHierarchyNodeRepository` weiterhin den **alten**
-    Tabelleninhalt, ohne Blocking/Timeout (manuell am Testsystem waehrend eines laufenden
-    Sync-Laufs verifiziert).
+    Tabelleninhalt, **ohne Blocking waehrend der Ladezeit**; im eigentlichen Swap-Moment (sechs
+    `sp_rename`-Aufrufe in einer Transaktion) ist eine **vernachlaessigbare Metadaten-Sperre**
+    (Sch-M gegen Sch-S) zulaessig, kein Timeout — manuell am Testsystem waehrend eines laufenden
+    Sync-Laufs verifiziert.
+12. **(neu, N-2, 2026-08-07)** Die Migration erteilt dem Sync-Service-SQL-Login `ALTER`-Recht
+    ausschliesslich auf `FaHierarchyNode` und `FaHierarchyOrderInfo` (kein DDL-Recht auf der
+    Datenbank) — verifiziert per Rechte-Abfrage (`fn_my_permissions`) nach dem Migrations-Lauf am
+    Zielsystem. Ohne dieses Recht schlaegt der `sp_rename`-Swap fehl; die dokumentierte
+    `DELETE FROM`-Notloesung ist dann bewusst zu aktivieren (Konfigurationsentscheidung, kein
+    automatischer Fallback im Code).
 
 ## Test-Szenarien
 
@@ -409,6 +497,9 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` („IDEAL Teil 1 — Struktur-Import"):
 
 - **Vorbedingung:** Zugriff auf das IDEAL-Testsystem (`AKESQL20.ake.at` / `IDEAL_TEST_2026_05_03`
   laut Anhang), `Sync:HierarchicalFaEnabled = true`, View-Namen korrekt konfiguriert.
+- **Schritt 0 — Voraussetzung Berechtigung (neu, N-2):** Nach dem Migrations-Lauf pruefen, dass das
+  Sync-Service-SQL-Login `ALTER`-Recht auf `FaHierarchyNode` und `FaHierarchyOrderInfo` hat
+  (Rechte-Abfrage am Zielsystem, z. B. `fn_my_permissions`).
 - **Schritt 1 — Erstimport:** Service-Lauf ausloesen, Aktivitaets-Protokoll pruefen (Lauf
   erfolgreich, Counts plausibel).
 - **Schritt 2 — Datenverfuegbarkeits-Regel:** Eine bekannte Struktur ohne `FAInfos`-Eintrag
@@ -421,9 +512,15 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` („IDEAL Teil 1 — Struktur-Import"):
   identisch zur Zeilenzahl der Roh-View `FAListe`** fuer denselben `HauptFA` — **keine**
   Verdopplung, obwohl zwei `FAInfos`-Zeilen existieren. `FaHierarchyOrderInfo` enthaelt dagegen
   beide Montage-Abteilungs-Zeilen. Die materialisierungsseitige Behandlung gehoert zu Teil 7.
-- **Schritt 5 — Full-Refresh ohne Blocking (neu, S-1):** Waehrend ein Sync-Lauf laeuft
-  (Staging-Aufbau vor dem Swap), einen Web-Read gegen `FaHierarchyNodeRepository` ausloesen —
-  erwartet: sofortige Antwort mit dem **alten** Datenstand, kein Timeout/Blocking.
+- **Schritt 5 — Full-Refresh ohne Blocking (neu, S-1; Swap-Formulierung geschaerft nach N-3):**
+  Waehrend ein Sync-Lauf laeuft (Staging-Aufbau vor dem Swap), einen Web-Read gegen
+  `FaHierarchyNodeRepository` ausloesen — erwartet: sofortige Antwort mit dem **alten**
+  Datenstand, kein Blocking waehrend der Ladezeit; waehrend des kurzen Swap-Moments selbst ist
+  eine vernachlaessigbare Metadaten-Sperre zulaessig, kein Timeout.
+- **Positivfall — realer View-Name mit Bindestrich (neu, N-1):** `Sync:FaHierarchyListeViewName`
+  auf dem Default `[vw_IDEAL-AKE_Kommissionierung_FAListe]` belassen, Lauf ausloesen — erwartet:
+  Whitelist akzeptiert den Namen (kein `FinishFailedAsync`), SQL wird gegen die echte View
+  ausgefuehrt.
 - **Negativfall — ungueltiger View-Name:** `Sync:FaHierarchyListeViewName` auf einen Wert mit
   Semikolon setzen, Lauf ausloesen, erwarten: fehlgeschlagener, protokollierter Lauf, keine
   SQL-Ausfuehrung (per Server-seitigem Audit/Profiler oder Code-Review bestaetigt) **und**
@@ -442,13 +539,19 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   Controller/Views darauf zugreifen).
 - **Service:** ja (neuer Sync-Block).
 - **Migration:** ja (`SQL/87_AddFaHierarchy.sql`, Platzhalter-Nummer, additiv, kein Backup-Zwang;
-  legt vier Tabellen an: zwei Ziel- + zwei Staging-Tabellen, siehe S-1).
+  legt vier Tabellen an: zwei Ziel- + zwei Staging-Tabellen, siehe S-1, **und** erteilt dem
+  Sync-Service-SQL-Login `GRANT ALTER` auf die beiden Zieltabellen, siehe N-2).
 - **Reihenfolge:** DB-Migration vor Service-Neustart; Web kann parallel deployt werden, da Teil 1
-  keine erreichbare Route hinzufuegt. Sync-Toggle bleibt nach dem Deploy **default aus** — muss am
-  Zielsystem bewusst aktiviert werden (analog zur ADR-0008-Regel „jeder gewuenschte Sync muss
-  einmalig aktiviert werden"). Vor Aktivierung: `ALTER`-Recht der Sync-Service-SQL-Login fuer
-  `sp_rename` am Zielsystem pruefen (siehe offene Rueckfrage) — sonst greift der in dieser Spec
-  vorgegebene Fallback (kurze Einzel-Transaktionen je Tabelle).
+  keine erreichbare Route hinzufuegt. Die Migration erteilt dem Sync-Service-SQL-Login im selben
+  Schritt `ALTER` auf `FaHierarchyNode`/`FaHierarchyOrderInfo` (siehe Migrations-/SQL-Auswirkungen,
+  N-2) — damit ist der `sp_rename`-Swap nach der Migration sofort einsatzbereit, **kein**
+  separater Rechte-Vergabe-Schritt noetig. Sync-Toggle bleibt nach dem Deploy **default aus** —
+  muss am Zielsystem bewusst aktiviert werden (analog zur ADR-0008-Regel „jeder gewuenschte Sync
+  muss einmalig aktiviert werden"). **Infra-Check vor Aktivierung** (kein Blocker, siehe
+  `open_questions`): bestaetigen, dass das Sync-Service-Konto tatsaechlich das per Migration
+  vergebene `ALTER`-Recht traegt (z. B. falls der Service unter einem anderen Konto laeuft als vom
+  Migrations-Deployer erwartet) — falls nicht, bewusst auf die dokumentierte
+  `DELETE FROM`-Notloesung umstellen, statt den Sync stillschweigend fehlschlagen zu lassen.
 - **Publish-Befehle:**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
@@ -458,9 +561,11 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Offene Rueckfragen
 
-Die Schranke-1-Antworten (unten) loesen die urspruenglichen Rueckfragen 1-5; die Kritische Pruefung
-vom 2026-08-06 hat die Vorgaben in den Spec-Text eingearbeitet (siehe Nachbesserung am Ende der
-Datei). Zwei technische Detailfragen bleiben — beide nicht blockierend, beide mit Empfehlung:
+Die Schranke-1-Antworten (unten) loesen die urspruenglichen Rueckfragen 1-5; die Kritischen
+Pruefungen vom 2026-08-06 und 2026-08-07 haben die verbleibenden Detailfragen (6, 7) geklaert und
+in den Spec-Text eingearbeitet (siehe „Nachbesserung" und „Nachbesserung 2" am Ende der Datei). Es
+bleibt **ein** Infra-Check vor dem Dev-Lauf (siehe `open_questions` im Frontmatter), keine offene
+fachliche Entscheidung mehr:
 
 1. **GEKLAERT (Antwort 1).** Kombinationsgeraete: In Teil 1 wie normale Auftraege behandeln
    (fachlich keine Sonderlogik), Import technisch dedupliziert (Existenzpruefung, siehe
@@ -478,13 +583,16 @@ Datei). Zwei technische Detailfragen bleiben — beide nicht blockierend, beide 
    Technischer Loesungsentwurf S-4).
 5. **GEKLAERT (Antwort 5).** Alter Worktree `ideal-anpassungen-v1` existiert nicht mehr; keine
    Test-Altlast wiederzuverwenden.
-6. **OFFEN (Empfehlung: kein Blocker).** Exaktes ASCII-Whitelist-Regex-Pattern je Namensteil im
-   Dev-Lauf final festlegen (Grundstruktur — `[Schema].[Name]`, ASCII-only, kein `\w` — ist bereits
-   in dieser Spec vorgegeben, siehe Anforderung 8/S-2).
-7. **OFFEN (Empfehlung: Staging + `sp_rename`, siehe Full-Refresh-Strategie).** Setzt `ALTER`-Recht
-   der Sync-Service-SQL-Login voraus — vor dem Dev-Lauf am Zielsystem pruefen; der Fallback (kurze
-   Einzel-Transaktion je Tabelle) ist bereits als Alternative in dieser Spec vorgegeben, falls das
-   Recht nicht vergeben werden kann.
+6. **GEKLAERT (Antwort N-1, Kritische Pruefung 2026-08-07).** Das Whitelist-Regex-Pattern ist
+   final: `^[A-Za-z0-9_\-]+$` je Namenssegment (Bindestrich bewusst erlaubt — der reale
+   Default-View-Name traegt einen), `--` zusaetzlich explizit abgelehnt. Der Unit-Test deckt die
+   realen View-Namen als Positivfall ab (siehe Anforderung 8, AK 4/8).
+7. **GEKLAERT (Antwort N-2, Kritische Pruefung 2026-08-07).** Das `ALTER`-Recht wird nicht als
+   Umgebungsvoraussetzung abgewartet, sondern **von der Migration selbst erteilt**
+   (`GRANT ALTER ON dbo.FaHierarchyNode` / `...FaHierarchyOrderInfo` an das Sync-Service-Login).
+   Der `sp_rename`-Staging-Swap ist damit der **einzige** Full-Refresh-Pfad, kein Fallback mehr.
+   Ein einziger Infra-Check bleibt vor dem Dev-Lauf: Laeuft der Service unter dem Konto, dem dieses
+   Recht erteilt werden darf (siehe `open_questions` im Frontmatter und Deploy-Abschnitt)?
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 HINWEIS: ICH würde das nicht IDEALFASTRUKTUR etc. Nennen sondern in die Richtung FAHierarchyStruktur, dh. nicht den Standort in die Namensgebung 
@@ -897,3 +1005,59 @@ bewusste Entscheidung benennen, nicht als Versehen.
 
 **Zu H-7 — zur Kenntnis, Vorgabe bleibt.** Dass mehrere Bestands-Keys nicht im Drift-Guard stehen,
 ist ein Argument fuer mehr Abdeckung, nicht fuer weniger. Die drei neuen Keys werden eingetragen.
+
+### Nachbesserung 2 (2026-08-07)
+
+Status je Befund aus der Kritischen Pruefung 2026-08-07, nach Einarbeitung in den Spec-Text (Rumpf,
+Fachliche Anforderungen, Technischer Loesungsentwurf, Akzeptanzkriterien, Test-Szenarien, Deploy,
+Frontmatter):
+
+- **N-1 (Bindestrich-Whitelist-Fix, BLOCKER):** eingearbeitet in Anforderung 8, im Sync-Service-
+  Abschnitt (Whitelist-Regex + `QUOTENAME`) und in AK 4/8. Zeichenset korrigiert auf
+  `^[A-Za-z0-9_\-]+$` je Segment (ASCII-explizit, Bindestrich bewusst erlaubt, weiterhin **kein**
+  `\w`), `--` zusaetzlich explizit abgelehnt. `QUOTENAME` bleibt als strukturelle
+  Zweitsicherung bestehen. AK 8 fordert jetzt explizit die realen View-Namen als
+  Unit-Test-Positivfaelle. `affected_code`-Eintrag zu `FaHierarchySql.cs` entsprechend ergaenzt.
+- **N-2 (Fallback-Widerspruch, BLOCKER):** eingearbeitet in die Full-Refresh-Strategie (Technischer
+  Loesungsentwurf > Sync-Service), im Migrations-/SQL-Auswirkungen-Abschnitt, im Deploy-Abschnitt
+  und in AK 12 (neu). Der bisherige `TRUNCATE`-je-Tabelle-Fallback ist ersatzlos gestrichen. Statt
+  eine Umgebungsvoraussetzung abzuwarten, erteilt die Migration selbst `GRANT ALTER` auf die zwei
+  Zieltabellen an das Sync-Service-Login — der `sp_rename`-Staging-Swap ist damit die **einzige**
+  Full-Refresh-Strategie, kein zweiter Pfad. Die dokumentierte `DELETE FROM`-Notloesung bleibt nur
+  fuer den Fall, dass das Erteilen organisatorisch untersagt wird (kein gleichwertiger Fallback,
+  bewusste Konfigurationsentscheidung). Der verbleibende Infra-Check (traegt das Service-Konto das
+  erteilte Recht tatsaechlich?) ist als einzige verbleibende `open_questions`-Zeile im Frontmatter
+  sowie im Deploy-Abschnitt verankert.
+- **N-3 (sp_rename-Swap praezisiert):** eingearbeitet in die Full-Refresh-Strategie (drei Renames
+  je Tabelle mit Zwischenname `_Swap`, sechs Renames in einer Transaktion, Hinweis auf nicht
+  mitwandernde Constraint-/PK-/Index-Namen als bekannten kosmetischen Drift) und in AK 11
+  (entschaerft: „kein Blocking waehrend der Ladezeit, vernachlaessigbare Metadaten-Sperre im
+  Swap-Moment" statt „ohne Blocking/Timeout"). Test-Szenario Schritt 5 entsprechend nachgezogen.
+- **N-4 (Staging-Migrationspflicht als harte Regel):** eingearbeitet als explizite harte Regel im
+  Datenmodell-Abschnitt (Staging-Pendants) und im Migrations-/SQL-Auswirkungen-Abschnitt (Punkt 2,
+  analog zur ADR-0004-Kopplungsregel fuer `SQL/AgentJobs/*`). Die zusaetzlich vorgeschlagene
+  Fallstrick-Dokumentation in `secondbrain/architektur/fallstricke.md` ist bewusst **nicht** Teil
+  dieser Datei (Schreibziel dieser Spec-Runde ist ausschliesslich diese Spec) — **bleibt
+  Folgearbeit** fuer die naechste Brain-Pflege-Runde, kein Blocker fuer den Dev-Lauf von Teil 1.
+- **EXISTS-Dedup / AK „genau einmal":** bereits vor dieser Runde vollstaendig eingearbeitet (siehe
+  Nachbesserung 2026-08-06, B-1) — AK 3 verankert „jede FAListe-Position genau einmal" bereits
+  pruefbar; keine weitere Aenderung noetig, hier nur bestaetigt.
+- **`open_questions` getrimmt:** Frontmatter enthaelt jetzt nur noch **eine** Zeile — den
+  verbleibenden Infra-Check, ob das Sync-Service-Konto das per Migration erteilte `ALTER`-Recht
+  tragen kann (siehe N-2). Das fruehere Regex-Feinschliff-Item (Rueckfrage 6) ist mit N-1 final
+  entschieden und daher aus `open_questions` entfernt; im Fliesstext (Offene Rueckfragen 6/7) als
+  GEKLAERT dokumentiert.
+- **Fehlermail-Verdrahtung (Kontrollfrage aus dem Auftrag dieser Runde):** bestaetigt korrekt und
+  unveraendert lassbar. Teil 1 laeuft vollstaendig im Windows-Service; `ISyncErrorNotifier` ist dort
+  bereits ein etabliertes, injizierbares Muster (`LagerbestandSyncService`) — anders als in Teil 2,
+  das im Web laeuft und laut Querschnitts-Regel „Das Web verschickt keine Mails" (Uebersicht,
+  2026-08-07) auf `ILogger` + UI-Hinweis umgestellt werden musste. AK 4 und AK 5 fordern die
+  Fehlermail bereits explizit fuer den ungueltigen View-Namen **und** den Empty-Guard-Warn; ein
+  klarstellender Abgrenzungssatz wurde zusaetzlich im Sync-Service-Abschnitt und im
+  In-Scope-Abschnitt ergaenzt, um kuenftige Verwechslung mit der Web-Regel auszuschliessen.
+
+**Verbleibt als Rueckfrage (bewusst, kein Blocker):** siehe `open_questions` im Frontmatter — der
+einzelne Infra-Check, ob das Sync-Service-SQL-Login das per Migration erteilte `ALTER`-Recht tragen
+kann. Alle anderen Befunde aus der Kritischen Pruefung 2026-08-07 (N-1 bis N-4) sind vollstaendig im
+Rumpf umgesetzt. **Diese Spec ist damit aus fachlicher/technischer Sicht dev-bereit** — die
+verbleibende Freigabe (Schranke 1, `freigabe_entscheidung`) ist weiterhin Sache des Menschen.
