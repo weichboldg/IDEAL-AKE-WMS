@@ -4,9 +4,9 @@ title: "IDEAL-Standort Teil 4 — Beschichtungsauftrag"
 slug: 2026-07-29-standort-ideal-teil-4-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
-depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]], [[2026-08-06-pdf-erzeugung-fahierarchy-druck]]"
+depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]]"
 task: ""
 worktree: ""
 branch: ""
@@ -14,9 +14,9 @@ affected_code:
   - IdealAkeWms/Controllers/FaHierarchyBeschichtungController.cs (neu — erweitert den in Teil 3 geschnittenen gemeinsamen FaHierarchy-Listen-/Druck-Baustein, keine Neuentwicklung von Grund auf)
   - IdealAkeWms/Services/BeschichtungsauftragService.cs (neu — Filter `Beschichtet == true`, Kopf je `HauptFA` in eigener Abfrage ohne Fan-out-Join)
   - IdealAkeWms/Views/FaHierarchyBeschichtung/Index.cshtml (neu — vollwertige ADR-0005-Liste, Seiteneinheit Gruppe `HauptFA`)
-  - IdealAkeWms/Views/FaHierarchyBeschichtung/Print.cshtml (neu — HTML-Layout analog Views/WarehousePicking/Print.cshtml, ausgeliefert ueber bestehenden PrintService)
+  - IdealAkeWms/Views/FaHierarchyBeschichtung/Print.cshtml (neu — HTML-Layout analog Views/WarehousePicking/Print.cshtml, Razor-View direkt an den Browser (`return View`), kein `PrintService` — das waere ein physischer `rundll32 mshtml.dll,PrintHTML`-Druck und im App-Code nirgends konsumiert; Druck via Browser-Druckdialog/CSS `@media print`)
   - IdealAkeWms/Filters/RequireBeschichtungsauftragAccessAttribute.cs (neu — Rolle `beschichtungsauftrag`, Read-Ebene, Class-Level)
-  - IdealAkeWms/Filters/RequireFaHierarchyBeschichtungAktivAttribute.cs (neu — AppSetting-Gate, Muster analog RequireLagerbestellungAktivAttribute, kumulativ zum Rollen-Filter)
+  - IdealAkeWms/Filters/RequireFaHierarchyBeschichtungAktivAttribute.cs (neu — AppSetting-Gate, **invertierte Default-Aus-Semantik** — fehlend/nicht `"true"` ⇒ inaktiv — NICHT 1:1 `RequireLagerbestellungAktivAttribute` uebernehmen, dessen Default-Ein aus Bestandsschutz kommt)
   - IdealAkeWms/Models/AppSettingKeys.cs (neuer Key `FaHierarchyBeschichtungAktiv`, Default `false`)
   - secondbrain/codebase/controller.md (Zeile fuer `[RequireBeschichtungsauftragAccess]` + Toggle-Gate ergaenzen — Pflicht laut ADR 0006)
   - IdealAkeWms/Views/Users/RoleOverview.cshtml (Zeile fuer Rolle `beschichtungsauftrag` ergaenzen — dritte der drei Pflichtstellen)
@@ -24,11 +24,8 @@ affected_code:
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Layout-/Kopfdaten-Vorlage (Corporate Design, Pflichtfelder) fuer den Dienstleister-Ausdruck liegt weiterhin nicht vor — unabhaengig vom jetzt geklaerten Render-Weg (HTML statt Word)"
-  - "Baustein-Abhaengigkeit [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] existiert noch nicht als Spec — Sequenzierung klaeren: kann Teil 4 mit Bildschirmdruck allein ausgeliefert werden und der PDF-Knopf folgt als eigener Merge, oder blockiert das die Freigabe von Teil 4 komplett?"
-  - "Headless-Edge-Verfuegbarkeit (msedge.exe --headless --print-to-pdf) auf dem IDEAL-Webserver ist ungeprueft (Server Core?) — gehoert fachlich zur PDF-Spec, ist aber Voraussetzung fuer AK 7 dieser Spec"
-  - "Testbarkeit: IDEAL-Testsystem ist laut Teil-3-Freigabe-Antwort 4 leer — Weg zu produktivnahen Testdaten mit beschichteten Positionen fuer Schranke 2 noch offen"
-  - "Verhaeltnis zur bestehenden AKE-Coating-Logik (CoatingDetectionService/CoatingDateCalculator): bewusst getrennt, aber der angedachte Toggle 'Beschichtungslogik OSEON oder Stueckliste' ist eine eigene, noch nicht getroffene Entscheidung und nicht Teil dieser Spec"
+  - "Layout-/Kopfdaten-Vorlage (Corporate Design, Pflichtfelder) fuer den Dienstleister-Ausdruck liegt weiterhin nicht vor."
+  - "PDF-Erzeugung ist als eigener Querschnitts-Baustein vorgesehen, existiert aber noch nicht als Spec (aktuell nur Backlog-Notiz [[2026-08-06-pdf-erzeugung-fahierarchy-druck]], typ: feature, kein Status-Automat) — Teil 4 liefert deshalb vorerst ausschliesslich Bildschirmdruck; Zeitpunkt/Freigabe der PDF-Folge-Spec ist offen, blockiert aber nicht die Freigabe von Teil 4 selbst."
 epic: false
 etappen: []
 deploy:
@@ -59,20 +56,29 @@ Beschichtet-Filter und den Dienstleister-Kopf, statt die Mechanik ein zweites Ma
   `MontageAbteilung`) aus `FaHierarchyOrderInfo`, in **eigener Abfrage je `HauptFA`** ermittelt
   (kein Fan-out-Join gegen die Positionen). Existieren zu einem `HauptFA` mehrere FAInfos-Zeilen
   (Kombinationsgeraet), werden **alle** Kopfvarianten im Klartext aufgefuehrt, das Dokument wird
-  sichtbar als mehrdeutig gekennzeichnet, und ein Aktivitaets-/SyncLog-Eintrag (`HauptFA` + Zahl
-  der Kopfzeilen) wird geschrieben.
-- Bildschirmdruck als HTML (Razor-Print-Partial analog `Views/WarehousePicking/Print.cshtml` +
-  `WarehousePickingPrintLayout.cs`), ausgeliefert ueber den bestehenden `PrintService`. Druckt die
-  aktuell gefilterte Liste mit Seitenumbruch je `HauptFA`.
-- PDF-Download **je `HauptFA`-Gruppe**, auf Knopfdruck, als reiner Download ohne serverseitige
-  Ablage (Dateiname `Beschichtungsauftrag_<HauptFA>_<yyyyMMdd-HHmm>.pdf`). Ruft dafuer den
-  separaten Querschnitts-Baustein [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] auf (HTML-zu-PDF,
-  Trennung Erzeugung/Auslieferung) — dieser Baustein selbst ist **nicht** Teil dieser Spec (siehe
-  offene Rueckfrage 5 zur Sequenzierung).
+  sichtbar als mehrdeutig gekennzeichnet, und eine `ILogger`-Warnung (`HauptFA` + Zahl der
+  Kopfzeilen) wird geschrieben — Web-seitige Lesefunktion, kein Hintergrund-Sync, daher `ILogger`
+  statt SyncLog/Aktivitaets-Protokoll (ADR 0010 gilt nur fuer Hintergrund-Services).
+- Bildschirmdruck als HTML: Razor-View (`return View`) analog `Views/WarehousePicking/Print.cshtml`,
+  direkt an den Browser ausgeliefert, gedruckt ueber den Browser-Druckdialog (CSS `@media print`,
+  Seitenumbruch je `HauptFA`). **Kein** `PrintService` — der ruft real `rundll32
+  mshtml.dll,PrintHTML` auf einen physischen Drucker auf und ist im App-Code nirgends konsumiert;
+  das ist nicht das gemeinte Referenzmuster. Druckt die aktuell gefilterte Liste.
 - Neue Rolle `beschichtungsauftrag` (Read-Ebene) + Feature-Toggle `FaHierarchyBeschichtungAktiv`
-  (Default `false`, AppSettings).
+  (Default `false`, **invertierte Default-Aus-Semantik**: fehlend/nicht `"true"` ⇒ inaktiv — nicht
+  1:1 von `RequireLagerbestellungAktivAttribute` uebernehmen, dessen Default-Ein aus Bestandsschutz
+  kommt).
 
 **Out-of-Scope:**
+- **PDF-Download.** Vorerst vollstaendig aus Teil 4 herausgeloest (siehe Kritische Pruefung
+  2026-08-07, B7-1/B7-2): Die PDF-Erzeugung gehoert in einen eigenen Querschnitts-Baustein, den
+  sich Teil 3/4/5 teilen sollen, und der aktuell nur als Backlog-Notiz
+  [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] existiert (`typ: feature`, keine Spec — der
+  Status-Automat kann eine Abhaengigkeit dorthin nie aufloesen). Teil 4 liefert deshalb zunaechst
+  ausschliesslich den Bildschirmdruck; der PDF-Download (ein PDF je `HauptFA`, auf Knopfdruck,
+  Dateiname `Beschichtungsauftrag_<HauptFA>_<yyyyMMdd-HHmm>.pdf`) wird als eigener Folge-Merge
+  nachgezogen, **sobald** diese PDF-Erzeugungs-Spec existiert, freigegeben und umgesetzt ist. Das
+  ist eine weiche Sequenzierungs-Abhaengigkeit im Text, keine harte `depends_on`-Referenz.
 - Trennung der Positionen nach `MontageAbteilung` bei Kombinationsgeraeten — das Datenmodell liefert
   dafuer keinen Struktur-Schluessel auf Positionsebene (`MontageAbteilung` liegt bewusst nur auf
   `FaHierarchyOrderInfo`, Teil 1). Fachliche Behandlung ist als Backlog-Nachtrag
@@ -81,7 +87,8 @@ Beschichtet-Filter und den Dienstleister-Kopf, statt die Mechanik ein zweites Ma
   (`LackierteilKategorieName`) — IDEAL liefert das Flag bereits fertig aus Sage.
 - Kein Word-/`.docx`-Template (Render-Weg ist HTML, siehe Fachliche Anforderungen).
 - Serverseitige Ablage, Archivierung in enaio oder automatischer Mailversand des PDFs an den
-  Dienstleister — bewusst ausgeklammert, spaeter moeglich.
+  Dienstleister — bewusst ausgeklammert, spaeter moeglich (gilt erst recht, solange das PDF selbst
+  noch nicht existiert).
 - `ProductionOrders`/AKE unveraendert.
 
 ## Fachliche Anforderungen
@@ -98,7 +105,9 @@ Beschichtet-Filter und den Dienstleister-Kopf, statt die Mechanik ein zweites Ma
   `RAL`, `Beschichten_Retour` (alle aus `FaHierarchyOrderInfo`, separate Abfrage je `HauptFA`,
   **kein** `INNER JOIN ... ON HauptFA` gegen die Positionen — das wuerde bei Kombinationsgeraeten
   jede Positionszeile pro FAInfos-Zeile duplizieren). Bei mehreren FAInfos-Zeilen je `HauptFA`:
-  alle Varianten auflisten, Dokument als mehrdeutig kennzeichnen, SyncLog-Eintrag.
+  alle Varianten auflisten, Dokument als mehrdeutig kennzeichnen, `ILogger`-Warnung (`HauptFA` +
+  Anzahl Kopfzeilen) — kein SyncLog/Aktivitaets-Protokoll-Eintrag (Web-Lesefunktion, ADR 0010 gilt
+  nur fuer Hintergrund-Services).
 - **Positionstabelle:** `HauptFA`, `HauptArtnr`, `Artnr`, `Matchcode`, `Sollmenge`, `Beschichtet`,
   `Breite`, `Hoehe`, `Tiefe` (aus `FaHierarchyNode`).
 - **Listen-View-Pattern (ADR 0005) — Pflicht:** Pagination (`PageSize.Resolve` + `PaginationState`
@@ -107,15 +116,22 @@ Beschichtet-Filter und den Dienstleister-Kopf, statt die Mechanik ein zweites Ma
 - **Zugriffsschutz (ADR 0006):** neue Rolle `beschichtungsauftrag`, Read-Ebene genuegt (Liste +
   Druck, keine Bearbeitung), Class-Level-Filter `[RequireBeschichtungsauftragAccess]`. Zusaetzlich
   kumulativ das Feature-Toggle-Gate `[RequireFaHierarchyBeschichtungAktiv]`
-  (`AppSettingKeys.FaHierarchyBeschichtungAktiv`, Default `false`), Muster analog
-  `RequireLagerbestellungAktivAttribute`.
-- **Render-Weg:** HTML, kein Word/`.docx` — Bildschirmdruck ueber den bestehenden `PrintService`
-  (`rundll32 mshtml.dll,PrintHTML`) analog `WarehousePickingPrintLayout`. Das gerenderte HTML muss
-  fuer die spaetere PDF-Erzeugung bereits **eingebettet** sein (CSS inline, keine externen
-  Referenzen), damit derselbe Markup fuer Bildschirmdruck und PDF verwendet werden kann.
-- **PDF:** ein PDF je `HauptFA`-Gruppe, auf Knopfdruck (kein Automatismus beim Aufbau der Liste),
-  reiner Download ohne Ablage, Dateiname `Beschichtungsauftrag_<HauptFA>_<yyyyMMdd-HHmm>.pdf`. Die
-  Erzeugung selbst ist Aufgabe des Bausteins [[2026-08-06-pdf-erzeugung-fahierarchy-druck]].
+  (`AppSettingKeys.FaHierarchyBeschichtungAktiv`, Default `false`). **Invertierte Default-Semantik:**
+  fehlend/nicht `"true"` ⇒ inaktiv — das Muster `RequireLagerbestellungAktivAttribute` behandelt
+  fehlend/`"true"` als **aktiv** (Bestandsschutz, Default-EIN); eine 1:1-Uebernahme wuerde
+  Beschichtung faelschlich per Default freischalten. Der Filter ist daher strukturell analog, aber
+  mit **umgekehrter** Default-Auswertung zu implementieren.
+- **Render-Weg:** HTML, kein Word/`.docx`. Der Bildschirmdruck ist eine Razor-View (`return View`)
+  analog `Views/WarehousePicking/Print.cshtml`, die direkt an den Browser ausgeliefert und dort
+  ueber den Browser-Druckdialog gedruckt wird — **nicht** ueber `PrintService`
+  (`rundll32 mshtml.dll,PrintHTML`), der real auf einen physischen Drucker zielt und im App-Code
+  nirgends konsumiert wird. Das gerenderte HTML muss trotzdem bereits **eingebettet** sein (CSS
+  inline, keine externen Referenzen), damit derselbe Markup spaeter unveraendert von der separaten
+  PDF-Erzeugungs-Spec wiederverwendet werden kann.
+- **PDF:** **Out-of-Scope dieser Spec** (siehe Umfang). Die dort dokumentierte Ziel-Konvention (ein
+  PDF je `HauptFA`-Gruppe, auf Knopfdruck, reiner Download ohne Ablage, Dateiname
+  `Beschichtungsauftrag_<HauptFA>_<yyyyMMdd-HHmm>.pdf`) bleibt als Vorgabe fuer die kuenftige
+  PDF-Erzeugungs-Spec/den Folge-Merge stehen, ist aber kein Bestandteil des Umfangs von Teil 4.
 - **Leerfall:** Ein `HauptFA`, dessen Positionen nach dem Filter alle wegfallen, erscheint gar
   nicht (weder Gruppe noch leeres Dokument). Ist die gesamte gefilterte Menge leer, zeigt der Druck
   einen Hinweis statt eines leeren Blatts.
@@ -132,29 +148,31 @@ Gruppierung/Pagination nach `HauptFA`, gemeinsames Druck-Scaffold) um:
   in einer eigenen Abfrage (liefert potenziell mehrere Zeilen bei Kombinationsgeraeten) — nicht
   ueber einen SQL-/LINQ-Join gegen die Positionsmenge.
 - Zusammenfuehrung im Druck-ViewModel: Positionsliste + Liste der Kopfvarianten je Gruppe;
-  `Kopfvarianten.Count > 1` steuert die Mehrdeutigkeits-Kennzeichnung im UI/Druck und loest den
-  SyncLog-Eintrag aus.
-- Bildschirmdruck: Razor-Partial `Views/FaHierarchyBeschichtung/Print.cshtml`, ausgeliefert ueber
-  den bestehenden `PrintService`, druckt die aktuell gefilterte Liste mit denselben Query-Parametern
-  wie die Bildschirmliste (inkl. `colf_*`), Seitenumbruch je `HauptFA`.
-- PDF-Download: ruft den Dienst aus [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] auf (HTML-Snippet
-  der Gruppe → PDF-Bytestrom), liefert das Ergebnis als Download-Response aus, keine Ablage. Solange
-  dieser Baustein nicht existiert, ist die PDF-Aktion aus dem Dev-Lauf auszuklammern bzw. sequenziell
-  danach nachzuziehen (siehe offene Rueckfrage 5).
+  `Kopfvarianten.Count > 1` steuert die Mehrdeutigkeits-Kennzeichnung im UI/Druck und loest die
+  `ILogger`-Warnung aus.
+- Bildschirmdruck: Razor-View `Views/FaHierarchyBeschichtung/Print.cshtml`, direkt per
+  `return View(vm)` an den Browser ausgeliefert (kein `PrintService`), druckt die aktuell gefilterte
+  Liste mit denselben Query-Parametern wie die Bildschirmliste (inkl. `colf_*`), Seitenumbruch je
+  `HauptFA` per CSS `@media print`/`page-break-after`.
+- PDF-Download: **nicht Teil dieser Spec** (siehe Umfang, Out-of-Scope). Sobald die separate
+  PDF-Erzeugungs-Spec existiert und freigegeben ist, ruft eine Folge-Aenderung deren Dienst mit dem
+  HTML-Snippet der Gruppe auf (HTML-zu-PDF, Trennung Erzeugung/Auslieferung) und liefert das
+  Ergebnis als Download-Response aus, ohne serverseitige Ablage.
 
 ## Migrations-/SQL-Auswirkungen
 
 Keine eigene Migration in Teil 4 — reine Lesefunktion auf den in Teil 1 angelegten Tabellen. Die
-serverseitige PDF-Erzeugung ist Infrastruktur des separaten Bausteins
-[[2026-08-06-pdf-erzeugung-fahierarchy-druck]] und dort zu bewerten (dieser Teil war urspruenglich
-als "reine Lesefunktion" veranschlagt; mit dem PDF-Anteil ausgelagert bleibt das fuer Teil 4 selbst
-zutreffend).
+serverseitige PDF-Erzeugung ist nicht Teil dieser Spec (siehe Umfang) und wird, sobald der separate
+Baustein [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] als eigene Spec existiert, dort bewertet.
 
 ## Audit-Feld-Auswirkungen
 
-Keine neuen Entitaeten. Der SyncLog-Eintrag bei mehrdeutigem Kopf (mehrere FAInfos-Zeilen je
-`HauptFA`) laeuft ueber das bestehende Aktivitaets-Protokoll (ADR 0010), nicht ueber
-`AuditableEntity`-Felder.
+Keine neuen Entitaeten. Der Hinweis bei mehrdeutigem Kopf (mehrere FAInfos-Zeilen je `HauptFA`)
+laeuft ueber eine `ILogger`-Warnung, **nicht** ueber das Aktivitaets-Protokoll (ADR 0010) — Teil 4
+ist eine Web-Lesefunktion (`deploy.service: false`, kein Hintergrund-Sync); `ISyncLogger`/
+`SyncLogServices.All` ist Infrastruktur der Windows-Service-Syncs und hat fuer einen Web-Request
+keinen Lauf, in den geschrieben werden koennte (konsistent zu Teil 3 und zur
+Uebersichts-Querschnittsregel „Das Web verschickt keine Mails / kein SyncLog aus dem Web").
 
 ## Akzeptanzkriterien
 
@@ -164,20 +182,24 @@ Keine neuen Entitaeten. Der SyncLog-Eintrag bei mehrdeutigem Kopf (mehrere FAInf
    `FaHierarchyOrderInfo` — nachweisbar kein `INNER JOIN` gegen die Positionsmenge im erzeugten SQL.
 3. Existieren zu einem `HauptFA` mehrere FAInfos-Zeilen (Kombinationsgeraet), werden alle
    Kopfvarianten im Klartext aufgefuehrt, das Dokument ist sichtbar als mehrdeutig gekennzeichnet,
-   und ein Aktivitaets-/SyncLog-Eintrag (`HauptFA` + Anzahl Kopfzeilen) wird geschrieben. (Ersetzt
-   die urspruengliche, nicht implementierbare Fassung "korrekt nach Montage-Abteilung getrennt".)
+   und eine `ILogger`-Warnung (`HauptFA` + Anzahl Kopfzeilen) wird geschrieben — kein SyncLog/
+   Aktivitaets-Protokoll-Eintrag (ADR 0010 gilt nur fuer Hintergrund-Services). (Ersetzt die
+   urspruengliche, nicht implementierbare Fassung "korrekt nach Montage-Abteilung getrennt".)
 4. Die Liste erfuellt ADR 0005 vollstaendig: Pagination, Filterkarte, Server-Side-Spaltenfilter je
    `<th>`; Seiteneinheit ist die Gruppe (`HauptFA`), `TotalCount` zaehlt Gruppen.
 5. Zugriff nur mit Rolle `beschichtungsauftrag` (oder `admin`) **und** aktivem Toggle
    `FaHierarchyBeschichtungAktiv`; bei inaktivem Toggle Redirect/404 analog dem bestehenden
-   AppSetting-Gate-Muster (`RequireLagerbestellungAktivAttribute`).
+   AppSetting-Gate-Muster (`RequireLagerbestellungAktivAttribute`). **Invertierte Default-Semantik:**
+   fehlend/nicht `"true"` ⇒ inaktiv (nicht 1:1 uebernommen von `RequireLagerbestellungAktivAttribute`,
+   dessen Default-Ein aus Bestandsschutz kommt).
 6. Ein `HauptFA` ohne beschichtete Positionen erscheint nicht (weder Gruppe noch leeres Dokument);
    ist die gesamte gefilterte Menge leer, zeigt der Druck einen Hinweis statt eines leeren Blatts.
-7. PDF-Download (sobald der Baustein [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] vorliegt): ein
-   PDF je `HauptFA`-Gruppe auf Knopfdruck, Dateiname `Beschichtungsauftrag_<HauptFA>_<yyyyMMdd-HHmm>.pdf`,
-   reiner Download ohne serverseitige Ablage.
-8. AKE-Verhalten (bestehende Lackierteil-/Beschichtungslogik, `CoatingDetectionService`,
+7. AKE-Verhalten (bestehende Lackierteil-/Beschichtungslogik, `CoatingDetectionService`,
    `CoatingDateCalculator`) bleibt unveraendert.
+
+PDF-Download ist **kein** Akzeptanzkriterium dieser Spec (Out-of-Scope, siehe Umfang) — wird
+Bestandteil eines Folge-Merges, sobald die separate PDF-Erzeugungs-Spec existiert, freigegeben und
+umgesetzt ist.
 
 ## Test-Szenarien
 
@@ -185,14 +207,16 @@ Neues Kapitel „IDEAL Teil 4 — Beschichtungsauftrag":
 - Testfall mit mehreren beschichteten Positionen unter einer Struktur (Filter `Beschichtet == true`).
 - Negativfall (`Beschichtet == false`) erscheint nicht in der Liste.
 - Kombinationsgeraet mit mehreren FAInfos-Zeilen je `HauptFA` (falls am Testsystem vorhanden):
-  alle Kopfvarianten erscheinen, Dokument ist als mehrdeutig gekennzeichnet, SyncLog-Eintrag vorhanden.
+  alle Kopfvarianten erscheinen, Dokument ist als mehrdeutig gekennzeichnet, `ILogger`-Warnung
+  vorhanden (Server-Log, nicht SyncLog).
 - Leerfall: `HauptFA` ohne beschichtete Positionen erscheint nicht; komplett leere gefilterte Liste
   zeigt Hinweis statt leerem Druck.
 - Zugriffsschutz: Benutzer ohne Rolle `beschichtungsauftrag`/`admin` wird abgewiesen; Toggle aus →
-  Redirect/404.
+  Redirect/404; Toggle-Key fehlt komplett (kein Eintrag in `AppSettings`) → ebenfalls inaktiv
+  (invertierte Default-Semantik, AK 5).
 - Druck-Layout-Abnahme gegen die Vorlage (sobald geliefert, siehe offene Rueckfrage 4).
-- PDF-Download-Abnahme (sobald [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] umgesetzt ist):
-  Dateiname-Konvention, ein PDF je Gruppe, kein Sammel-PDF.
+- PDF-Download-Abnahme: **entfaellt fuer diese Spec** (Out-of-Scope, siehe Umfang) — wird
+  Bestandteil des Testkapitels, sobald der PDF-Download per Folge-Merge nachgezogen wird.
 - **Vorbedingung fuer alle vorstehenden Faelle:** produktivnahe IDEAL-Daten mit beschichteten
   Positionen im Testsystem (aktuell laut Teil-3-Freigabe-Antwort 4 leer) — Schranke 2 kann ohne
   diese Daten nicht gruen werden.
@@ -204,49 +228,70 @@ Neues Kapitel „IDEAL Teil 4 — Beschichtungsauftrag":
 - **Migration:** nein.
 - **Reihenfolge/Voraussetzung:** setzt Teil 1 (Datenbasis `FaHierarchyNode`/`FaHierarchyOrderInfo`)
   und Teil 3 (gemeinsamer FaHierarchy-Listen-/Druck-Baustein als Referenzimplementierung) voraus.
-  Der PDF-Download-Anteil setzt zusaetzlich [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] voraus —
-  Bildschirmdruck kann unabhaengig davon ausgeliefert werden (siehe offene Rueckfrage 5).
+  Teil 4 selbst liefert ausschliesslich Bildschirmdruck und ist davon unabhaengig deploybar; der
+  PDF-Download ist Out-of-Scope dieser Spec und folgt als eigener Merge, sobald die separate
+  PDF-Erzeugungs-Spec (aktuell nur Backlog-Notiz
+  [[2026-08-06-pdf-erzeugung-fahierarchy-druck]]) existiert, freigegeben und umgesetzt ist.
+- **Schranke-2-Vorbedingung:** Manual-UAT (Filter, Kombigeraet-Kopf, Leerfall, Druckvergleich) kann
+  erst gruen werden, wenn produktivnahe IDEAL-Daten mit beschichteten Positionen im Testsystem
+  liegen — das Testsystem ist laut Teil-3-Freigabe-Antwort 4 aktuell leer. Zusaetzlich haengt die
+  Layout-Abnahme an der weiterhin fehlenden Dienstleister-Vorlage (offene Rueckfrage 4). Beides dem
+  qa-agent explizit als Vorbedingung melden, nicht erst beim Testversuch entdecken lassen.
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
   (provisorisch).
 
 ## Offene Rueckfragen
 
-1. **GEKLAERT (urspruenglich: Layout-/Vorlagen-Mechanismus; Kritische Pruefung B-3):** Render-Weg
-   ist HTML (kein Word/`.docx`), PDF-Erzeugung serverseitig ueber den separaten Baustein
-   [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] (empfohlen: Headless Edge/Chrome per Prozessaufruf).
-   **Weiterhin offen:** das konkrete Corporate-Design-Layout/die Pflichtfelder des
-   Dienstleister-Ausdrucks selbst liegen noch nicht vor — unabhaengig vom jetzt geklaerten
-   Render-Weg (siehe Rueckfrage 4 unten).
-2. **GEKLAERT (Rolle/Zugriff):** neue Rolle `beschichtungsauftrag`, Read-Ebene, Toggle
-   `FaHierarchyBeschichtungAktiv` (Default `false`). Drei Pflichtstellen (Attribut, `controller.md`,
-   `RoleOverview.cshtml`) in `affected_code` verankert.
-3. **Bleibt offen (Verhaeltnis zur AKE-Logik):** bewusst getrennt von `CoatingDetectionService`/
-   `CoatingDateCalculator` (IDEAL liefert das Flag fertig aus Sage). Der angedachte Toggle
-   „Beschichtungslogik OSEON oder Stueckliste" ist eine eigene, noch nicht getroffene Entscheidung
-   und **nicht** Teil dieser Spec (siehe auch Rueckfrage 7).
+1. **GEKLAERT (Render-Weg, Kritische Pruefung 2026-08-06 B-3 + 2026-08-07 S7-1):** Render-Weg ist
+   HTML, kein Word/`.docx`. Bildschirmdruck ist eine Razor-View (`return View`) analog
+   `Views/WarehousePicking/Print.cshtml`, **ohne** `PrintService` — der ist real ein physischer
+   `rundll32 mshtml.dll,PrintHTML`-Druck und im App-Code nirgends konsumiert, also nicht das
+   gemeinte Referenzmuster.
+   *(Die urspruengliche Antwort 1 unten verlangte einen Word-Vorlage-Mechanismus; das ist durch die
+   Kritische Pruefung ueberholt, siehe Abschnitt „Antworten auf die Kritische Pruefung" weiter
+   unten.)*
+2. **GEKLAERT (Rolle/Zugriff, Kritische Pruefung 2026-08-06 + 2026-08-07 S7-2):** neue Rolle
+   `beschichtungsauftrag`, Read-Ebene, Toggle `FaHierarchyBeschichtungAktiv` (Default `false`,
+   **invertierte Default-Aus-Semantik**: fehlend/nicht `"true"` ⇒ inaktiv — nicht 1:1
+   `RequireLagerbestellungAktivAttribute` uebernehmen, dessen Default-Ein aus Bestandsschutz kommt).
+   Drei Pflichtstellen (Attribut, `controller.md`, `RoleOverview.cshtml`) in `affected_code`
+   verankert.
+3. **Bewusst aus dem Umfang genommen (Verhaeltnis zur AKE-Logik):** bewusst getrennt von
+   `CoatingDetectionService`/`CoatingDateCalculator` (IDEAL liefert das Flag fertig aus Sage). Der
+   angedachte Toggle „Beschichtungslogik OSEON oder Stueckliste" ist eine eigene, noch nicht
+   getroffene Entscheidung und **nicht** Teil dieser Spec.
 4. Layout-/Kopfdaten-Vorlage (Corporate Design, Pflichtfelder) fuer den Dienstleister-Ausdruck liegt
    weiterhin nicht vor.
-5. Baustein-Abhaengigkeit [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] existiert noch nicht als
-   Spec — Sequenzierung klaeren: kann Teil 4 mit Bildschirmdruck allein ausgeliefert werden und der
-   PDF-Knopf folgt als eigener Merge, oder blockiert das die Freigabe von Teil 4 komplett?
-6. Headless-Edge-Verfuegbarkeit (`msedge.exe --headless --print-to-pdf`) auf dem IDEAL-Webserver ist
-   ungeprueft (Server Core?) — gehoert fachlich zur PDF-Spec, ist aber Voraussetzung fuer AK 7 dieser
-   Spec.
-7. Testbarkeit: IDEAL-Testsystem ist laut Teil-3-Freigabe-Antwort 4 leer — Weg zu produktivnahen
-   Testdaten mit beschichteten Positionen fuer Schranke 2 noch offen.
+5. **GEKLAERT (PDF-Umfang, Kritische Pruefung 2026-08-07 B7-1/B7-2):** PDF-Download ist aus Teil 4
+   herausgeloest (Out-of-Scope). `depends_on` verweist nur noch auf echte Specs (Teil 1, Teil 3);
+   der PDF-Baustein ist aktuell nur eine Backlog-Notiz
+   ([[2026-08-06-pdf-erzeugung-fahierarchy-druck]], `typ: feature`), auf die der Status-Automat
+   keine Abhaengigkeit aufloesen kann. Damit ist auch die ehemalige Rueckfrage zur
+   Headless-Edge-Verfuegbarkeit fuer diese Spec gegenstandslos — sie gehoert zur kuenftigen
+   PDF-Erzeugungs-Spec.
+6. **Bleibt offen, kein Blocker fuer Teil 4:** Zeitpunkt/Freigabe der separaten
+   PDF-Erzeugungs-Spec. Das bestimmt nur, wann der PDF-Download als eigener Folge-Merge nachgezogen
+   werden kann — nicht die Freigabe von Teil 4 selbst, der ausschliesslich Bildschirmdruck umfasst.
+
+*(Die Testbarkeit am leeren IDEAL-Testsystem ist als Vorbedingung im Deploy-Abschnitt dokumentiert,
+nicht mehr als eigene Rueckfrage gefuehrt — analog Teil 3.)*
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 1. →layout eventuell über ein Word-Vorlagefile generisch abholen. Word file liegt in dem WEb-APP Verzeichnis in einem Unternordner "Templates", dieses word wird dann befüllt?
-   *(Praezisiert durch die Kritische Pruefung/Nachbesserung: Render-Weg ist HTML statt Word, siehe
-   Abschnitt „Zu B-3" unten — das eigentliche Vorlagen-Layout selbst ist trotzdem noch offen, siehe
+   *(Praezisiert durch die Kritische Pruefung/Nachbesserung: Render-Weg ist HTML statt Word, ohne
+   `PrintService` fuer den Bildschirmdruck (Razor-View), siehe Abschnitt „Antworten auf die
+   Kritische Pruefung" unten — das eigentliche Vorlagen-Layout selbst ist trotzdem noch offen, siehe
    Rueckfrage 4.)*
 2. →neue rolle beschichtungsauftrag?
+   *(Ergaenzt durch Kritische Pruefung 2026-08-07 (S7-2): Toggle-Default muss invertiert sein
+   (fehlend/nicht `"true"` ⇒ inaktiv), nicht 1:1 von `RequireLagerbestellungAktivAttribute`
+   uebernommen werden.)*
 3. →der beschichtungsauftrag könnte in der ake auch zustande kommen, die erkennung soll getrennt bleiben. eventuell auch hier wieder ein Toggle, "Beschichtungslogik OSEON oder Stückliste"
 4. →
-5. →
+5. → *(kein weiterer Freigabe-Bedarf — per Kritische Pruefung 2026-08-07 (B7-1/B7-2) redaktionell
+   geloest: PDF-Download aus Teil 4 herausgeloest, siehe Rueckfrage 5 und Nachbesserung 2.)*
 6. →
-7. →
 
 ## Kritische Pruefung (2026-08-06)
 
@@ -682,3 +727,56 @@ NACHBESSERUNG NOETIG: (1) Freigabe-Antworten 4–7 vom Menschen einholen, insb. 
 (B7-2); (3) Mehrdeutigkeits-Log von SyncLog auf `ILogger` umstellen (B7-3, ADR 0010 + Teil-3-Konsistenz).
 Zusaetzlich `PrintService`-Auslieferungsweg korrigieren (S7-1) und die invertierte Toggle-Default-Semantik
 explizit fordern (S7-2).
+
+### Nachbesserung 2 (2026-08-07)
+
+Status je Befund der zweiten Kritischen Pruefung — Details siehe Rumpf oben (Umfang, Fachliche
+Anforderungen, Loesungsentwurf, Migrations-/Audit-Abschnitt, Akzeptanzkriterien, Offene
+Rueckfragen), hier nur die Kurzfassung mit Verweis:
+
+- **B7-1 (PDF-Sequenzierung unbeantwortet) — behoben, durch Herausloesen statt durch die
+  urspruenglich angeforderte Freigabe-Antwort.** Statt AK 7 als konditionale, nicht lieferbare
+  Zusage stehen zu lassen, ist der PDF-Download vollstaendig aus dem Umfang von Teil 4 entfernt
+  (Umfang, Out-of-Scope-Abschnitt; AK-Liste ohne PDF-Kriterium). Teil 4 liefert ausschliesslich
+  Liste + Bildschirmdruck und ist damit eigenstaendig freigebbar. Der PDF-Download folgt als
+  eigener Folge-Merge, sobald die separate PDF-Erzeugungs-Spec existiert, freigegeben und
+  umgesetzt ist — das ist eine **weiche**, textuelle Sequenzierungs-Abhaengigkeit (Umfang,
+  Deploy-Abschnitt), keine harte Frontmatter-Abhaengigkeit. Die konkrete Sequenzierungsfrage
+  („Bildschirmdruck zuerst, PDF-Knopf als Folge-Merge") ist damit im Sinne der Empfehlung aus
+  B7-1 entschieden; **offen bleibt nur noch**, wann die PDF-Spec selbst entsteht (Offene
+  Rueckfrage 6) — das ist kein Blocker fuer die Freigabe von Teil 4.
+- **B7-2 (`depends_on` zeigt auf Backlog-Notiz) — behoben.** `depends_on` im Frontmatter verweist
+  nur noch auf echte Specs (Teil 1, Teil 3). Der Verweis auf
+  [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] bleibt als **Prosa-Referenz** in Umfang/Deploy/
+  Offene Rueckfragen erhalten (Sequenzierungshinweis), ist aber keine Frontmatter-Abhaengigkeit
+  mehr, die der Status-Automat aufloesen muesste. AK 7 (PDF) ist gestrichen; das ehemalige AK 8
+  (AKE-Verhalten unveraendert) ist zu AK 7 nachgerueckt.
+- **B7-3 (SyncLog widerspricht ADR 0010/Teil 3) — behoben.** Alle Vorkommen von „Aktivitaets-/
+  SyncLog-Eintrag" bei der Mehrdeutigkeits-Kennzeichnung sind durch „`ILogger`-Warnung (`HauptFA` +
+  Anzahl Kopfzeilen)" ersetzt — Umfang, Fachliche Anforderungen, Loesungsentwurf,
+  Audit-Feld-Auswirkungen, AK 3, Test-Szenarien. Konsistent zu Teil 3 und zur
+  Uebersichts-Querschnittsregel „Das Web verschickt keine Mails / kein SyncLog aus dem Web"
+  (2026-08-07).
+- **S7-1 (`PrintService`-Verweis falsch) — behoben.** Alle Stellen, die den Bildschirmdruck faelschlich
+  „ausgeliefert ueber `PrintService`" nannten (affected_code, Umfang, Fachliche Anforderungen,
+  Loesungsentwurf), sind korrigiert: Bildschirmdruck ist eine Razor-View (`return View(vm)`) analog
+  `Views/WarehousePicking/Print.cshtml`, direkt an den Browser, gedruckt ueber den
+  Browser-Druckdialog — **ohne** `PrintService` (der ist ein physischer `rundll32
+  mshtml.dll,PrintHTML`-Druck und im App-Code nirgends konsumiert).
+- **S7-2 (Toggle-Default-Semantik nicht invertiert) — behoben.** `affected_code`, Fachliche
+  Anforderungen und AK 5 fordern jetzt explizit die **invertierte** Default-Semantik
+  (fehlend/nicht `"true"` ⇒ inaktiv) fuer `RequireFaHierarchyBeschichtungAktivAttribute` — nicht
+  mehr nur „analog `RequireLagerbestellungAktivAttribute`", dessen Default-Ein aus Bestandsschutz
+  kommt und bei 1:1-Uebernahme das neue Feature faelschlich freischalten wuerde.
+- **H7-1 (PDF-Download-Pfad fehlt in `affected_code`) — gegenstandslos.** Da PDF gemaess B7-2
+  vollstaendig aus Teil 4 herausgeloest ist, entfaellt die Notwendigkeit einer
+  Controller-Download-Action in dieser Spec; sie gehoert zur kuenftigen PDF-Erzeugungs-Spec bzw.
+  zum Folge-Merge.
+- **`open_questions` (Frontmatter) getrimmt.** Von 5 auf 2 Eintraege reduziert: Dienstleister-
+  Layout/Vorlage (weiterhin offen) und Zeitpunkt/Freigabe der separaten PDF-Erzeugungs-Spec
+  (weiterhin offen, kein Blocker). Die vormaligen Eintraege „Headless-Edge-Verfuegbarkeit" und
+  „Testbarkeit/leeres IDEAL-Testsystem" sind keine eigenen offenen Fragen mehr: Ersteres gehoert
+  zur kuenftigen PDF-Spec (nicht mehr Teil-4-relevant), Letzteres ist als Vorbedingung in den
+  Deploy-Abschnitt gewandert (analog Teil 3). Der bewusst aus dem Umfang genommene
+  AKE-Toggle-Punkt ist als „GEKLAERT/bewusst nicht Teil dieser Spec" markiert statt als offene
+  Rueckfrage gefuehrt.
