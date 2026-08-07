@@ -139,12 +139,12 @@ Genau EIN Task traegt die ganze Autonomie. Die zwei Schranken bleiben manuell.
 
 1. Rueckfragen im Abschnitt **„Freigabe-Antworten"** der Spec beantworten
    (Obsidian, je Frage in **fett** hinter dem Pfeil).
-2. Bei Varianten-Specs `freigabe.entscheidung: A` (oder B) im Frontmatter.
+2. Bei Varianten-Specs `freigabe_entscheidung: A` (oder B) im Frontmatter.
 3. `status: Freigegeben` setzen.
 4. Datei von `specs\entwurf\` nach `specs\freigegeben\` verschieben.
 5. Committen. Watcher/Dev-Lauf uebernimmt (bzw. meldet in die Inbox).
 
-Ohne beantwortete Fragen bzw. ohne `freigabe.entscheidung` setzt der Dev-Lauf
+Ohne beantwortete Fragen bzw. ohne `freigabe_entscheidung` setzt der Dev-Lauf
 die Spec zurueck auf `Entwurf` — die Sicherung.
 
 ---

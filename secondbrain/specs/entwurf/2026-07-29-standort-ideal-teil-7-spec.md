@@ -550,6 +550,59 @@ und braucht keine Fallunterscheidung.
 - **H7-1:** Index-Tausch mit `sys.indexes`-Guard, nicht nur `OBJECT_ID`/`COL_LENGTH`.
 - **H7-2:** erledigt mit B7-3 (`open_questions` leeren).
 
+## Entscheidungen zu den Rest-Blockern (2026-08-07)
+
+**Master-Umschaltung: eigene Seite in Teil 7. Ueberall sonst nur lesend. [ENTSCHEIDUNG]**
+Aufloesung des Widerspruchs zwischen der Teil-6-Antwort („Maske read-only") und dem Teil-7-Rumpf
+(„Teil-6-Maske als gesicherter Schreibweg"): **Keins von beiden gewinnt — beide werden ersetzt.**
+- **Teil 7 baut eine eigene, kleine Umschalt-Seite** („Umstellung auf hierarchische
+  Produktionsauftraege") mit Erklaerung, Bestaetigungsdialog und dem Domaenen-Waechter dahinter.
+  Ein Einwegtor gehoert nicht als Kontrollkaestchen zwischen zwanzig andere Einstellungen — weder
+  in die generische Maske noch in die Standorteinstellungen.
+- **Generische ServiceSettings-Maske UND Teil-6-Maske zeigen den Master ausschliesslich
+  read-only** (Zustand, Sperrstatus, seit wann) mit Link auf diese Seite. Der Waechter in der
+  Domaenenschicht bleibt die eigentliche Sicherung und lehnt jeden anderen Schreibweg ab.
+- **Testszenario anpassen:** Der Guard-Test laeuft gegen die generische Maske (Schreibversuch wird
+  abgelehnt und protokolliert) **plus** ein Test, dass weder generische noch Teil-6-Maske ein
+  Schreib-Bedienelement fuer den Master anbieten. Der bisherige Test „Deaktivierung ueber
+  Teil-6-Maske abgelehnt" entfaellt in dieser Form.
+
+**Liefergrenze zu Teil 8: Teil 7 sagt die mengenwertige Variante ausdruecklich zu. [ENTSCHEIDUNG]**
+AK 8 ist heute binaer formuliert (Urteil je Fundstelle) und verspricht `GetAllByFaAndOperationAsync`
+nicht — Teil 8 baut aber darauf auf. **Zusaetzliches AK in Teil 7:**
+> Wo ein Eindeutigkeits-Lookup im hierarchischen Modus mehrdeutig werden kann, stellt Teil 7 eine
+> **mengenwertige Variante** bereit (z. B. `GetAllByFaAndOperationAsync`) und protokolliert im
+> bestehenden Einzel-Lookup, wenn er mehr als eine Zeile faende — **ohne das aufrufende Verhalten
+> zu aendern**. Die Umstellung der Aufrufer auf die mengenwertige Variante gehoert zu Teil 8.
+
+Damit bleibt Teil 7 fuer sich mergebar (das Terminal laeuft unveraendert weiter) und Teil 8 findet
+die Naht vor, statt sie in fremdem Gebiet zu schlagen.
+
+**AgentJob: serverseitige Pruefung kommt als harte Deploy-Vorbedingung ZURUECK. [KORREKTUR]**
+Der Einwand ist berechtigt, mein Streichen war voreilig: **Eine `.sql`-Datei zu loeschen entfernt
+keinen auf AKESQL20 eingerichteten Job.** „Die Datei ist tot" und „es ist nichts geplant" sind zwei
+verschiedene Aussagen — belegt ist nur die erste.
+Verbindlich **vor** der Migration pruefen:
+```sql
+SELECT j.name, j.enabled, s.command
+FROM msdb.dbo.sysjobs j
+JOIN msdb.dbo.sysjobsteps s ON s.job_id = j.job_id
+WHERE s.command LIKE '%ProductionOrders%';
+```
+Gefundene aktive Jobs, die `ProductionOrders` schreiben, werden **deaktiviert oder entfernt**, bevor
+die Migration laeuft — sonst feuert ein vergessener Job nach der Inversion in die `NOT NULL`-Spalte.
+Die Datei-Bereinigung im Repo bleibt zusaetzlich bestehen: Sie beseitigt die Irrefuehrung, nicht das
+Betriebsrisiko.
+
+**`SageMissingSince` in den Migrationsplan aufnehmen. [NACHTRAG]**
+Die in S7-2a entschiedene Spalte (`datetime2 NULL`) fehlt bisher in **jeder** Migrationsstufe. Sie
+gehoert in Etappe A, zusammen mit der Schema-Inversion — idempotent per `COL_LENGTH`-Guard, plus
+`00_FreshInstall.sql`.
+
+**Frontmatter-Korrekturen (mechanisch, mit der Nachbesserung):** `epic: true`, Etappen A–E
+eintragen, alle vier `open_questions` leeren, `barcode-scanner.js` aus `affected_code` entfernen und
+die am Code widerlegte Behauptung „QR traegt an Index 2 die BelID" streichen.
+
 ## Kritische Pruefung (2026-08-07)
 
 Zweiter Anwalt-des-Teufels-Durchgang, Kern-Teil, **nach** dem Antwortblock „Antworten auf die

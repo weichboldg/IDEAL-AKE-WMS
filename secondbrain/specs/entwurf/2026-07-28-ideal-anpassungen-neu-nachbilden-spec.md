@@ -101,6 +101,7 @@ Konfiguration.
   Multi-Tenancy-Filter im Code oder in `appsettings.json`.
 - **Kein d3.js** oder sonstige neue Frontend-Abhängigkeit für den Tree — Vanilla-JS-Toggle wie
   bei OSEON.
+	
 - **Keine Änderung an `BomItem.Position`** (bleibt `string?`, D4).
 - **Kein Hauptlagerplatz-Import aus der Stückliste** (`Hauptlagerplatz`-Spalte der BOM-View wird
   **nicht** übernommen, D8 — das existierende `Article.PrimaryStorageLocationId`-Feature aus
@@ -216,11 +217,11 @@ zu `OrderNumber`/`SubOrderNumber`.
    (Sage StrukturID) und ist **nicht mehr eindeutig**. Eine neue Spalte `SubOrderNumber`
    (Sage BelID) ist die **eindeutige** Sub-FA-Nummer. Hauptauftrag ⇔ `OrderNumber == SubOrderNumber`.
 2. **D2 — Belegnummer:** neue, optionale Spalte `DocumentNumber` (`NVARCHAR(100) NULL`),
-   in der FA-Liste default-hidden.
+   in der FA-Liste default-hidden. 
 3. **D3 — Tree-View:** zweistufige, server-gruppierte Baumdarstellung in der FA-Liste, analog zu
    OSEON-Teileverfolgung (`IdealAkeWms/Views/Tracking/Index.cshtml`, Chevron-Toggle,
    `data-bs-toggle` **nicht** verwendet — reines Vanilla-JS wie im Backlog gefordert, kein
-   Bootstrap-Collapse).
+   Bootstrap-Collapse).  
 4. **D4 — BOM-Position bleibt unverändert** (`string?`, keine Schema-Änderung an `Position`).
 5. **D5 — Sage-Views konfigurierbar, einheitlich `vw_IDEAL-AKE_*`:** WA-Liste und Stückliste
    werden über Konfigurationswerte referenziert, nicht mehr hartcodiert.
@@ -713,36 +714,39 @@ Klärung)* — DryRun-Pflicht vor Erstlauf, Recovery-SQL analog Kapitel 55 dokum
    oder auf Sub-FA-Ebene? Analog: soll die FA-Reconciliation nach der Inversion auf `OrderNumber`
    (Gruppen-Storno) oder auf `SubOrderNumber` (Einzel-Storno) matchen? Ohne diese Klärung ist ein
    produktiver Automatismus (Auto-Erledigt, Reconciliation) an einem IDEAL-Standort ein
-   Massen-Fehlbuchungs-Risiko. **Muss vor Umsetzungsbeginn der betroffenen Teile geklärt werden.**
+   Massen-Fehlbuchungs-Risiko. **Muss vor Umsetzungsbeginn der betroffenen Teile geklärt werden.**  => Auto erledigt können wir hier vorerst ausnehmen. 
 2. **Physischer Ist-Zustand der/den Ziel-DB(s):** Existiert bereits eine `SubOrderNumber`-Spalte
    (Notbehelf laut `docs/TESTSZENARIEN.md` Kapitel 47 legt das nahe)? Falls ja: exakte
    Definition (Typ, Nullability, Constraint-Namen, ob bereits befüllt) — die Migration muss
    dagegen idempotent und verlustfrei sein. Wer prüft das vor Umsetzungsbeginn (DBA-Zugriff
-   nötig)?
+   nötig)? => auf diesem Standort ist derzeit noch kein System eingeführt. somit starten wir mit einer leeren Datenbank
 3. **`Sync:SageWaListeViewName`/`Sync:SageStuecklisteViewName`: appsettings-only (wie im
    Backlog gefordert) oder `ServiceSettingDefinitions`-Katalog (wie alle bisherigen `Sync:*`-Werte,
    inkl. der Drift-Guard-Testliste)?** Die beiden Muster widersprechen sich; das Backlog
    entscheidet sich explizit gegen ServiceSettings, ohne das gegen den bestehenden Präzedenzfall
-   (`Sync:FeiertagCountryCode` u. a.) zu begründen.
+   (`Sync:FeiertagCountryCode` u. a.) zu begründen. => damals war es in den Appsettings - besser ist Datenbank.
 4. **Ist `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` an einem der beiden Standorte
    tatsächlich produktiv scharf geschaltet**, oder läuft ausschließlich der C#-Service-Pfad
    (`SageImportService.SyncProductionOrdersAsync`)? Falls der AgentJob aktiv ist, muss er im
    selben Wartungsfenster aktualisiert werden — falls nicht, kann er ggf. als veraltete
    Dokumentation gekennzeichnet statt gepflegt werden.
+   => die SQL Agents gibt es nicht mehr. nur unser Service.
 5. **Zielinstallation dieser Spec:** Betrifft die Umsetzung ausschließlich eine neue,
    IDEAL-spezifische Deployment-Konfiguration (mit den AKE-Defaults als Fallback im selben
    Codebestand, wie hier angenommen), oder ist ein separater Codezweig/Fork für den zweiten
    Standort vorgesehen? Diese Spec geht von „ein Codebestand, zwei Konfigurationen" aus (wie im
    Backlog formuliert), das sollte vor Plan-Erstellung noch einmal bestätigt werden.
+   => mir wäre ein Codebestand lieber. Dadurch die Standorte doch etwas anders arbeiten, müssen wir einen mechanismus der konfigurationsmöglichkeit offen halten. wie zb. der Toggle für FA Hierarchisch oder Flach
 6. **Reihenfolge/Timing:** Soll diese Umsetzung vor oder nach dem noch ausstehenden
    Produktiv-Deploy von v1.25.0/v1.26.0 (siehe `secondbrain/feature-map.md`, Abschnitt „Offen /
    nicht gemerged") erfolgen? Eine gleichzeitige Migration mehrerer ausstehender,
   daten-relevanter Deploys erhöht das Risiko.
+  => nachbei, 
 7. **Benennung der beiden neuen EF-Migrationen und SQL-Skript-Namen** sind in dieser Spec als
    Platzhalter (`AddProductionOrderSubOrderNumber`, `AddCachedBomItemArtikelmatchcode`) benannt —
    endgültige Namen erst bei tatsächlicher `dotnet ef migrations add`-Ausführung, da EF den Namen
-   nicht vorab reserviert und Zwischenzeit-Merges die nächste freie Nummer verschieben können.
+   nicht vorab reserviert und Zwischenzeit-Merges die nächste freie Nummer verschieben können. => ist in Ordnung
 8. **`GetByOrderNumberAsync` auf `IProductionOrderRepository`:** beibehalten (mit dokumentierter
    „liefert eine beliebige Zeile der Gruppe"-Semantik) und zusätzlich `GetBySubOrderNumberAsync`
    einführen, oder `GetByOrderNumberAsync` ersatzlos durch `GetBySubOrderNumberAsync` ersetzen
-   (Breaking Change am Interface, aber aktuell ohnehin ohne Produktions-Aufrufer)?
+   (Breaking Change am Interface, aber aktuell ohnehin ohne Produktions-Aufrufer)? zusätzlich einführen ist besser oder?

@@ -21,7 +21,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Bereich | Abschnitt | Szenarien |
 |---------|-----------|-----------|
 | 1. Authentifizierung & Zugriff | [→](#1-authentifizierung--zugriff) | TS-1.1 – TS-1.7 |
-| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis) |
+| 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21, TS-2.26 – TS-2.31 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis; TS-2.26 – TS-2.31 v1.30.0 Teil 4/5: Bewegungsart-/Datum-Spaltenfilter funktionsfaehig + Einbuchung-Standardmenge 1) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
@@ -62,10 +62,10 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 40: Windows-Authentifizierung & AD-Benutzer (v1.23.0) | [→](#kapitel-40-windows-authentifizierung--ad-benutzer-v1230) | TS-40.1 – TS-40.12 |
 | Kapitel 41: Rolle „Lagerbestellung" + Artikelinfo für Stammdaten-ansehen (v1.23.0) | [→](#kapitel-41-rolle-lagerbestellung--artikelinfo-für-stammdaten-ansehen-v1230) | TS-41.1 – TS-41.5 |
 | Kapitel 42: Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) (v1.23.0) | [→](#kapitel-42-lagerbestellungs-druck-spiegelt-gui-spaltensortfilter-v1230) | TS-42.1 – TS-42.5 |
-| Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.4 |
+| Kapitel 43: FA-Abarbeitungsliste — Komma-Werkbank-Filter + Bezeichnung (v1.23.0) | [→](#kapitel-43-fa-abarbeitungsliste--komma-werkbank-filter--bezeichnung-v1230) | TS-43.1 – TS-43.5 (TS-43.5 v1.30.0 Teil 8: personalisierter Default-Filter Bezeichnung 1) |
 | Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0) | [→](#kapitel-44-fa-ag-erkennung--bom-cache--protokoll-aufgliederung-v1230) | TS-44.1 – TS-44.3 |
 | Kapitel 45: FA-Vorbau 3-Wert-Status + Beschichtungstermin + ENTER-Spaltenfilter (v1.24.0) | [→](#kapitel-45-fa-vorbau-3-wert-status--beschichtungstermin--enter-spaltenfilter-v1240) | TS-45.1 – TS-45.6 |
-| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.8 |
+| Kapitel 46: Glas-Bestellung (Bestelltyp Lager/Glas) (v1.25.0) | [→](#kapitel-46-glas-bestellung-bestelltyp-lagerglas-v1250) | TS-46.1 – TS-46.14 (TS-46.9 – TS-46.14 v1.30.0 Teil 7: Kommentar + DUMMY-Artikel, TS-46.14 UAT-Fix-Regression) |
 | Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0) | [→](#kapitel-47-service-resilienz--fehlermail--productionorders-515-fix-v1250) | TS-47.1 – TS-47.3 |
 | Kapitel 48: Rolle `stock_read` (read-only Lagerbestand) + FA-Liste/Stückliste fuer Vorbau (v1.25.0) | [→](#kapitel-48-rolle-stockread-read-only-lagerbestand--fa-listestückliste-fuer-vorbau-v1250) | TS-48.1 – TS-48.2 |
 | Kapitel 49: Hauptlagerplatz am Artikel (v1.25.0) | [→](#kapitel-49-hauptlagerplatz-am-artikel-v1250) | — |
@@ -581,6 +581,217 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Hint zeigt "Lagerplatz **X-Y-Z** — 12,500 **m** Artikel ..." (Einheit aus API-Field `unit`, nicht hardcoded "Stk").
 - Falls Artikel-Unit leer ist: Fallback "Stk".
+
+---
+
+### TS-2.22 — FA-Hinweis nur bei tatsaechlichem Bestand (v1.29.0, Teil 1)
+
+**Vorbedingungen:**
+- Rolle mit Stock-Zugriff (z. B. `stock`).
+- Artikel A wurde mit FA-Tag `1234567` auf Lagerplatz X eingebucht (Menge 5) und anschliessend
+  **ohne** FA-Tag wieder vollstaendig ausgebucht (Menge 5) → Ist-Bestand am Platz = 0.
+
+**Schritte:**
+1. Einbuchung oeffnen.
+2. FA `1234567` in das FA-Feld eingeben → Tab (bzw. Feld verlassen).
+
+**Erwartetes Verhalten:**
+- **Kein** „FA liegt bereits …"-Hinweis (`faStorageHint` bleibt ausgeblendet), da der tatsaechliche
+  Bestand 0 ist. Frueher (Bug) erschien hier faelschlich der Platz X mit Menge 5.
+
+**Negativfall (realer Restbestand):**
+- Wurde nur teilweise ausgebucht (z. B. Einbuchung 5, ungetaggte Ausbuchung 2 → Rest 3), erscheint der
+  Hinweis **weiterhin**, aber mit der **realen** Restmenge (3), nicht der urspruenglichen Einbuchmenge (5).
+
+**Gegenprobe Bestandsuebersicht (bewusst unveraendert):**
+- `Lager → Bestaende`, Filter „Fertigungsauftrag" = `1234567`: die Zeile fuer Artikel A/Lagerplatz X
+  wird **weiterhin** angezeigt (historische FA-Zuordnung, `onlyActualStock=false`). Das ist der
+  erwartete Regressions-Nachweis, **kein** Fehler.
+
+**Gegenprobe Tracking-Modal:**
+- OSEON-Teileverfolgung, Lagerbestand-Modal fuer FA `1234567`: verhaelt sich wie der Einbuchungs-Hinweis
+  (keine Zeile bei Ist-Bestand 0).
+
+---
+
+### TS-2.23 — Mehrfach-Einbuchung Happy Path (v1.29.0, Teil 2)
+
+**Vorbedingungen:**
+- Rolle mit `RequireStockAccess` (z. B. `stock`), mind. 2 existierende Artikel, ein buchbarer Lagerplatz.
+
+**Schritte:**
+1. Menue `Lager → Mehrfach-Einbuchung` oeffnen.
+2. Lagerplatz + FA-Nummer einmalig setzen.
+3. 3 Artikel-Zeilen mit unterschiedlichen Mengen erfassen („+ Zeile hinzufuegen" fuer weitere Zeilen).
+4. „Einbuchung speichern".
+
+**Erwartetes Verhalten:**
+- 3 neue Eintraege in der Bewegungshistorie (Typ Einbuchung), alle mit **demselben** Lagerplatz/derselben
+  FA-Nummer, jeweils korrekter Artikel/Menge.
+- Erfolgsmeldung „**3** Artikel erfolgreich eingebucht.".
+- Neue Zeilen sind mit Menge **1** vorbelegt.
+
+---
+
+### TS-2.24 — Mehrfach-Scan zaehlt hoch + keine Teilbuchung (v1.29.0, Teil 2)
+
+**Vorbedingungen:** wie TS-2.23.
+
+**Schritte (Mehrfach-Scan, B1):**
+1. Mehrfach-Einbuchung oeffnen, Lagerplatz + FA setzen.
+2. „Artikel scannen" und denselben Artikel dreimal nacheinander scannen (jeweils Button erneut druecken,
+   Schalter „neue Zeile erzwingen" **aus**).
+
+**Erwartetes Verhalten:**
+- **Eine** Zeile mit Menge **3** (nicht drei Zeilen à 1). Nach Absenden ein `StockMovement` mit Menge 3.
+- **Variante:** Schalter „neue Zeile erzwingen" **an** → drei Zeilen à Menge 1.
+
+**Schritte (keine Teilbuchung, S2):**
+1. 3 Zeilen erfassen, eine davon **ohne Artikelauswahl** oder mit **Menge 0**.
+2. „Einbuchung speichern".
+
+**Erwartetes Verhalten:**
+- **Nichts** wird gebucht (Bewegungshistorie unveraendert). Das Formular kommt mit **allen 3** Zeilen +
+  Kopf-Werten zurueck, die fehlerhafte Zeile ist **rot markiert** mit Fehlermeldung.
+- Nach Korrektur + erneutem Absenden werden alle 3 gebucht.
+
+**Sage-Regression (S1):**
+- Vorbedingung: Lagerplatz mit `SageBuchungErlaubt = true` + globaler Sage-Toggle aktiv.
+- Bulk-Einbuchung mit 2 Zeilen auf diesem Lagerplatz absenden → unter `Lager → Sage-Lagerbuchungen`
+  entstehen **2** Queue-Eintraege (einer je Zeile), identisch zur Einzel-Einbuchung.
+
+---
+
+### TS-2.25 — WA-Scan-Button in der Bewegungshistorie kuerzt Suffix (v1.29.0, Teil 3)
+
+**Vorbedingungen:**
+- Bewegungshistorie mit Buchungen zu FA `2610063`.
+
+**Schritte:**
+1. `Lager → Bewegungshistorie` oeffnen.
+2. Scan-Button **neben dem Filterfeld „Fertigungsauftrag"** klicken, Barcode mit Wert `2610063-1`
+   scannen (bzw. Testbild verwenden).
+3. „Filtern" klicken.
+
+**Erwartetes Verhalten:**
+- Filterfeld zeigt `2610063` (Suffix ab erstem Trennzeichen entfernt). Liste zeigt alle Bewegungen zu FA
+  `2610063`.
+- Kein automatisches Neu-Laden beim Scan — erst „Filtern" (bzw. Enter) laedt die Liste.
+
+**Randfaelle (jeweils gescannt → Filterwert):**
+- `2610063_02` → `2610063` (Unterstrich).
+- `2610063-1-2` → `2610063` (nur bis zum **ersten** Trennzeichen).
+- `2610063-A` → `2610063` (nicht-numerischer Suffix).
+- `2610063` → `2610063` (kein Suffix, unveraendert).
+- `26100631` (8-stellig, kein Trennzeichen) → `26100631` (**keine** Laengenkuerzung).
+- `26100` (kuerzer als 7, kein Trennzeichen) → `26100` (unveraendert, keine Exception).
+
+**Negativfall (nur beim Scannen):**
+- Manuelles Eintippen/Einfuegen von `2610063-1` ins Filterfeld → Feld behaelt `2610063-1` (die Kuerzung
+  greift **nur** ueber den Scan-Callback, nicht bei manueller Eingabe).
+
+---
+
+### TS-2.26 — Bewegungshistorie: Spaltenfilter Bewegungsart + Datum funktionieren (v1.30.0, Teil 4)
+
+**Vorbedingungen:**
+- Benutzer hat Rolle `stock` oder `admin`.
+- Bewegungshistorie mit gemischten Bewegungsarten (mind. je eine Ein- und eine Ausbuchung) und
+  Buchungen an verschiedenen Tagen/Jahren.
+
+**Schritte + erwartetes Verhalten:**
+1. `/StockMovements/Index` oeffnen. **Erwartet:** Die Spaltenkoepfe „Datum/Zeit" und „Bewegungsart"
+   haben ein Filter-Eingabefeld; „Menge" hat **keines** (dafuer ist kein sinnvoller Text-Filter
+   moeglich). „Artikel"/„Lagerplatz"/„Benutzer"/„Fertigungsauftrag" wie bisher.
+2. Im Spaltenfilter **„Bewegungsart"** `ausbuchung` eingeben. **Erwartet:** Es erscheinen **nur**
+   Ausbuchungen **und** Sage-Ausbuchungen (Contains-Semantik) — **keine** Einbuchungen. (Frueher
+   kam die ganze Liste — das war der gemeldete Bug.)
+3. Im Spaltenfilter **„Bewegungsart"** `einbuchung` eingeben. **Erwartet:** nur Einbuchungen +
+   Sage-Einbuchungen.
+4. Im Spaltenfilter **„Datum/Zeit"** ein volles Datum (z. B. `06.08.2026`) eingeben. **Erwartet:**
+   nur Bewegungen dieses Tages — **ueber alle Seiten** (Server-Filter, nicht nur die aktuelle Seite).
+5. „Datum/Zeit" mit einem Monat (`08.2026`) bzw. Jahr (`2026`) filtern. **Erwartet:** nur
+   Bewegungen des Monats bzw. Jahres.
+
+**Negativfaelle:**
+- Bewegungsart-Filter mit einem nicht existierenden Wert (`xyz`) → **leere** Liste (nicht die
+  Vollmenge).
+- Datum-Filter mit unsinnigem Wert (`abc`) → leere Liste.
+- Der `!`-Praefix negiert weiterhin (z. B. `!einbuchung` blendet Ein-/Sage-Einbuchungen aus).
+
+---
+
+### TS-2.27 — Bewegungsart-Filter (Filterkarten-Dropdown) filtert exakt
+
+**Vorbedingungen:** wie TS-2.26.
+
+**Schritte:**
+1. In der Filterkarte Dropdown "Bewegungsart" = "Ausbuchung" waehlen, filtern.
+2. Dropdown "Bewegungsart" = "Einbuchung" waehlen, filtern.
+
+**Erwartetes Verhalten:**
+- Schritt 1: es werden **ausschliesslich** Ausbuchungs-Zeilen angezeigt; **keine** Einbuchung
+  erscheint.
+- Schritt 2: es werden ausschliesslich Einbuchungen angezeigt.
+
+---
+
+### TS-2.28 — Regression: verbleibende Spaltenfilter weiterhin wirksam
+
+**Vorbedingungen:** wie TS-2.26.
+
+**Schritte:**
+1. Spaltenfilter "Artikel" mit einer bekannten Artikelnummer setzen.
+2. Analog Spaltenfilter "Lagerplatz"/"Benutzer"/"Fertigungsauftrag" setzen.
+
+**Erwartetes Verhalten:**
+- Jeweils nur Zeilen, die zum gesetzten Filterwert passen.
+
+---
+
+### TS-2.29 — Einbuchung oeffnet mit Standardmenge 1 (v1.30.0, Teil 5)
+
+**Vorbedingungen:**
+- Benutzer hat Rolle `stock` oder `admin`.
+
+**Schritte:**
+1. `/StockMovements/Inbound` oeffnen.
+
+**Erwartetes Verhalten:**
+- Mengenfeld zeigt `1` (nicht `0`).
+
+**Negativfall:**
+- Menge auf `0` setzen und absenden → weiterhin Validierungsfehler "Menge muss groesser als 0
+  sein".
+
+---
+
+### TS-2.30 — Ausbuchung/Umbuchung NICHT betroffen
+
+**Vorbedingungen:** wie TS-2.29.
+
+**Schritte:**
+1. `/StockMovements/Outbound` oeffnen.
+2. Umbuchung oeffnen.
+
+**Erwartetes Verhalten:**
+- In beiden Faellen erscheint **kein** `1`-Default im Mengenfeld — Verhalten bleibt wie bisher
+  (Feld zeigt `0`).
+
+---
+
+### TS-2.31 — Validierungsfehler bei der Einbuchung behaelt getippten Wert
+
+**Vorbedingungen:** wie TS-2.29.
+
+**Schritte:**
+1. Einbuchung oeffnen (Mengenfeld zeigt `1`).
+2. Menge auf `5` aendern.
+3. Ein anderes Pflichtfeld (z. B. Artikel) leer lassen und absenden, sodass ein
+   Validierungsfehler entsteht.
+
+**Erwartetes Verhalten:**
+- Nach dem Rerender steht weiterhin `5` im Mengenfeld — **nicht** zurueckgesetzt auf `1`.
 
 ---
 
@@ -1839,6 +2050,28 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Druckansicht enthaelt keine Spalte "Kategorie".
 - Alle anderen sichtbaren Spalten sind im Druck enthalten.
+
+---
+
+### TS-5.10 — Gespeicherter BOM-Filter „Bezeichnung 1" (v1.30.0, Teil 8)
+
+**Vorbedingungen:**
+- Benutzer mit Zugriff auf die Stueckliste; mind. ein FA mit BOM-Positionen, deren „Bezeichnung 1"
+  unterschiedliche Werte hat (z. B. „Verdampfer", „Kondensator").
+
+**Schritte + erwartetes Verhalten:**
+1. Im Profil (`/Account/Profile`) unter „Standard-Filter Bezeichnung 1 (Stückliste)" `Verdampfer`
+   eintragen, speichern.
+2. Eine Stueckliste (BOM) oeffnen. **Erwartet:** Die Spalte „Bezeichnung 1" ist automatisch auf
+   `Verdampfer` vorgefiltert (nur passende Positionen sichtbar), der Wert steht **sichtbar** im
+   Spaltenfilter-Feld — genau wie der bestehende Artikelgruppen-Filter.
+3. Den Filter „Bezeichnung 1" leeren. **Erwartet:** wieder alle Positionen sichtbar.
+4. Ein Admin kann denselben Wert fuer einen anderen Benutzer unter `/Users/Edit/{id}` pflegen.
+
+**Negativfall:**
+- Leeres Profilfeld → beim Oeffnen der Stueckliste ist „Bezeichnung 1" **nicht** vorbelegt
+  (unveraendertes Verhalten). Der FA-Abarbeitungslisten-Filter (Teil 8, TS-43.5) bleibt davon
+  unberuehrt — die beiden Default-Filter sind getrennt.
 
 ---
 
@@ -5157,6 +5390,32 @@ Angemeldet als vorbau/admin-User.
 1. Benutzer bearbeiten → „Standard-Werkbänke"-Textfeld pflegen/speichern.
    - **Erwartet:** wie Profil; Wert wird gespeichert.
 
+### TS-43.5 Personalisierter Default-Filter „Bezeichnung 1" (v1.30.0, Teil 8)
+**Vorbedingung:** Benutzer mit Rolle `vorbau`, mindestens zwei FAs mit unterschiedlicher
+Bezeichnung 1 (z. B. „Verdampfer", „Kondensator") im gewählten Arbeitsgang.
+1. Im Profil (`/Account/Profile`) „Verdampfer" als „Standard-Filter Bezeichnung 1
+   (FA-Abarbeitungsliste)" speichern.
+2. `/FaWorklist?workStepId=<id>` **ohne** weitere Parameter öffnen.
+   - **Erwartet:** Liste zeigt nur FAs mit „Verdampfer" in Bezeichnung 1; der Wert „Verdampfer"
+     steht **sichtbar** im Spaltenfilter-Feld „Bezeichnung 1"; die URL enthält
+     `colf_description1=Verdampfer` sowie den Sentinel `df1=1`.
+3. Das Feld „Bezeichnung 1" leeren und bestätigen (ENTER).
+   - **Erwartet:** Liste zeigt wieder **alle** FAs des Arbeitsgangs; der Default greift **nicht**
+     erneut, solange die View nicht frisch neu geladen wird (Sentinel `df1` verhindert
+     Re-Injektion). Erst ein frischer Aufruf von `/FaWorklist` (ohne `df1`) belegt den Default
+     wieder vor.
+4. **Negativfall (Override):** `/FaWorklist?workStepId=<id>&colf_description1=Kondensator`
+   direkt aufrufen.
+   - **Erwartet:** Der explizite URL-Parameter gewinnt („Kondensator"), nicht der gespeicherte
+     Default.
+5. **Admin-Pflege:** Als Admin über `/Users/Edit/{id}` denselben Default für einen anderen
+   Benutzer setzen.
+   - **Erwartet:** Wert wird gespeichert und wirkt beim nächsten Erstaufruf dieses Benutzers wie
+     Schritt 2.
+6. **Negativfall (kein Default):** Feld im Profil leer lassen/leeren, speichern,
+   `/FaWorklist?workStepId=<id>` öffnen.
+   - **Erwartet:** Unveränderte Filterung (kein Default, wie vor dieser Änderung).
+
 ---
 
 ## Kapitel 44: FA-AG-Erkennung + BOM-Cache — Protokoll-Aufgliederung (v1.23.0)
@@ -5326,6 +5585,78 @@ Status (`WillBeRestocked`, `NoRestock`).
 1. Eine Bestellung, die **vor** dem Update angelegt wurde, oeffnen bzw. in der Liste suchen.
    - **Erwartet:** Sie hat Typ **Lager** (Migrations-Default `Type=1`) und erscheint im
      **Lager**-Reiter — nicht im Glas-Reiter.
+
+### TS-46.9 Kommentar: Anzeige + Ownership (v1.30.0, Teil 7)
+**Vorbedingung:** Migration 85 eingespielt. Draft-Bestellung (Lager) des eigenen Users existiert.
+1. Im Edit-Formular (`Views/WarehouseRequisitions/Edit.cshtml`) einen Kommentar eintragen,
+   speichern.
+2. Zur Lager-Ansicht `/WarehousePicking` wechseln.
+   - **Erwartet:** Kommentar ist read-only sichtbar in der Spalte „Kommentar" der Eingehenden
+     Listen **und** in der Detailansicht (`/WarehousePicking/Details/{id}`).
+3. **Negativfall (leer):** Bestellung ohne Kommentar ansehen.
+   - **Erwartet:** leere Zelle, kein Fehler.
+4. **Negativfall (Ownership/Status):** Kommentar eines **anderen** Users bzw. einer bereits
+   submitteten Bestellung zu aendern versuchen.
+   - **Erwartet:** nicht editierbar (Forbid/„nicht mehr im Entwurf").
+
+### TS-46.10 Kommentar im Submit-Mail
+**Vorbedingung:** Draft mit Kommentar, Benachrichtigungs-Mail aktiv (`Sync:WarehouseRequisition
+EmailEnabled=true`), Windows-Service laeuft (`deploy.service` dieses Teils eingespielt).
+1. Bestellung submitten, NotificationWorker durchlaufen lassen, Mail pruefen (HTML- und
+   Text-Teil).
+   - **Erwartet:** Kommentar erscheint im Kopf des Submit-Mails (HTML **und** Text).
+2. **Negativfall:** Bestellung ohne Kommentar submitten.
+   - **Erwartet:** Mail ohne Kommentarzeile.
+3. **Negativfall (Storno):** Bestellung mit Kommentar stornieren.
+   - **Erwartet:** Storno-Mail enthaelt **keinen** Kommentar.
+
+### TS-46.11 DUMMY-Position anlegen (Lager)
+**Vorbedingung:** Migration 86 (DUMMY-Seed) eingespielt (`Articles.ArticleNumber='DUMMY'`
+existiert genau einmal). EK-Nummer, die nicht existiert.
+1. Im Lager-Draft die Artikelsuche mit dieser EK-Nummer ausfuehren → "nicht gefunden".
+2. DUMMY-Position mit einer eigenen, aussagekraeftigen Bezeichnung anlegen.
+   - **Erwartet:** Position mit der eingegebenen Bezeichnung erscheint sofort in der Bestellung;
+     die geteilte `Article.Description` des DUMMY-Artikels bleibt unveraendert.
+3. **Negativfall (leer):** DUMMY-Position ohne Bezeichnung anzulegen versuchen.
+   - **Erwartet:** serverseitige Ablehnung.
+4. **Negativfall (Default-Text):** Bezeichnung unveraendert auf dem Default-Seed-Text
+   ("DUMMY – Bezeichnung bitte eintragen") belassen und absenden.
+   - **Erwartet:** serverseitige Ablehnung ("Bitte eine eigene Bezeichnung eingeben.").
+
+### TS-46.12 DUMMY mehrfach je Bestellung
+**Vorbedingung:** wie TS-46.11.
+1. Zwei DUMMY-Positionen mit **unterschiedlichen** Bezeichnungen in **einer** Bestellung
+   anlegen.
+   - **Erwartet:** beide Positionen erscheinen; **kein** "bereits enthalten"-Fehler (Duplikat-Guard
+     ist fuer den DUMMY-Schluessel bewusst ausgenommen).
+
+### TS-46.13 DUMMY in Glasbestellung
+**Vorbedingung:** wie TS-46.11, zusaetzlich ein Glas-Draft.
+1. In einer **Glas**-Bestellung eine DUMMY-Position anlegen (eigene Bezeichnung).
+   - **Erwartet:** anlegbar, **kein** "gehoert in die Lager-Bestellung"-Fehler (Glas-Artikelgruppen-
+     Pruefung wird fuer den DUMMY-Schluessel umgangen).
+
+### TS-46.14 DUMMY ist NICHT ueber die reguläre Artikelsuche waehlbar (Regression, UAT-Fix v1.30.0)
+**Vorbedingung:** wie TS-46.11. **Hintergrund:** Beim UAT liess sich der DUMMY (NULL-Artikelgruppe,
+fuer den Typ `Lager` bislang als erlaubt durchgelassen) ueber die normale Artikelsuche waehlen und
+mit der ungeaenderten Default-Bezeichnung hinzufuegen — die Pflicht-Ueberschreibung wurde damit
+umgangen. Fix in `ArticlesApiController.Search` (DUMMY in beiden Such-Zweigen ausgeschlossen) +
+`WarehouseRequisitionsApiController.AddItem` (lehnt den DUMMY-Schluessel zusaetzlich am normalen
+Add-Pfad ab, defense in depth).
+1. Im Lager-Draft im Artikelsuchfeld gezielt nach `DUMMY` suchen (Artikelnummer oder Teil der
+   Default-Bezeichnung).
+   - **Erwartet:** **0** Treffer — es erscheint der „Kein Artikel gefunden"-Block mit
+     Pflicht-Bezeichnungsfeld und Button „DUMMY-Position anlegen" (**nicht** ein anklickbarer
+     DUMMY-Treffer aus der Ergebnisliste).
+2. Dasselbe in einem **Glas**-Draft wiederholen.
+   - **Erwartet:** ebenfalls 0 Treffer, gleicher „nicht gefunden"-Block.
+3. **Negativfall (API direkt, Absicherung):** `POST /api/warehouserequisitions/{id}/items` direkt
+   mit `articleNumber = "DUMMY"` aufrufen (z. B. per Browser-Devtools/Postman), **ohne** den
+   `.../items/dummy`-Endpunkt zu verwenden.
+   - **Erwartet:** `400 Bad Request` („Der DUMMY-Artikel kann nur über 'Artikel nicht gefunden →
+     DUMMY-Position' mit eigener Bezeichnung angelegt werden."), **keine** Position wird angelegt.
+4. Regulaere Artikel (Nicht-DUMMY) weiterhin ueber Suche + normalen Add-Pfad hinzufuegen.
+   - **Erwartet:** unveraendert moeglich (Fix ist eng auf den DUMMY-Schluessel begrenzt).
 
 ## Kapitel 47: Service-Resilienz + Fehlermail + ProductionOrders-515-Fix (v1.25.0)
 
@@ -5862,5 +6193,93 @@ schliesst der naechste Lauf erneut.)
 
 ---
 
-*Ende des Dokuments. Stand: v1.26.0 (2026-07-22)*
+## Kapitel 56: Sage-Lagerbuchungen (ausgehend, WMS → Sage via SData) (v1.28.0)
+
+**Kontext:** Manuelle Ein-/Ausbuchungen im WMS werden über eine Queue asynchron an die
+Sage-SData-API gemeldet. Gating kumulativ: globaler ServiceSetting `SageLagerbuchungAktiv` **und**
+Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker` (eigener Kurztakt).
+**Der HTTP-/SData-Sende-Pfad ist nicht InMemory-testbar → echte Buchung am Sage-Testsystem
+(Manual-UAT).** Automatisiert abgedeckt sind nur `SageLagerbuchungPayloadBuilder`,
+`SageBookingEnqueueDecision`, der Enqueue-Decorator (InMemory) und `SageBookingCorrelation`.
+
+**Vorbedingungen (einmalig):**
+- Migration 82/83 eingespielt (`StorageLocations.SageBuchungErlaubt/SageLagerkennung/SageLagerplatzId`,
+  Tabelle `SageBookingQueueItems`).
+- `IDEALAKEWMSService/appsettings.json` → Block `SageLagerbuchung:Username/Password` am Server gesetzt.
+- `/ServiceSettings` → `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`),
+  `SData:Application` (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`),
+  `SData:Dataset` (Mandant, z.B. `ake_TEST2026;1`) gesetzt; `SageLagerbuchungAktiv` zunächst aus.
+  Ziel-URL = `{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`
+  (Semikolon im Dataset und `$` der Resource bleiben literal — nicht kodieren).
+- Lagerplatz-Sync (`Sync:LagerplaetzeEnabled`) mindestens einmal gelaufen, damit Sage-Plätze
+  `SageLagerkennung` (= Code) und `SageLagerplatzId` (= `KHKLagerplaetze.PlatzID`) tragen.
+- **TLS am Testsystem:** `sagetest01.ake.at` hat aktuell ein ungültiges Zertifikat (`PartialChain`,
+  interne PKI unfertig). Für die Sende-Szenarien (TS-56.3/56.4/56.7/56.8) am Testsystem daher
+  `/ServiceSettings` → `SageLagerbuchungSslZertifikatPruefen=false` setzen — sonst scheitert der
+  SData-POST an einem TLS-Fehler (`SageResponseRaw`/`LastError` zeigen den Zertifikatsfehler). Siehe
+  TS-56.12. **Vor Produktivgang zwingend wieder `true`** (TS-56.13).
+
+- **TS-56.1 — Globaler Toggle aus, Lagerplatz-Flag an: keine Buchung.** Vorbedingung:
+  `SageLagerbuchungAktiv=false`, Ziel-Lagerplatz `SageBuchungErlaubt=true`. Schritt: manuelle
+  Einbuchung. Erwartung: **kein** Eintrag in `/SageBookingQueue`.
+- **TS-56.2 — Globaler Toggle an, Lagerplatz-Flag aus: keine Buchung.** Spiegelbildlich zu 56.1.
+- **TS-56.3 — Beide an: Einbuchung durchläuft offen → gesendet → bestätigt.** Vorbedingung:
+  Sage-Testsystem erreichbar, gültige Credentials. Schritt: Einbuchung, Worker-Tick abwarten
+  (`Sync:SageLagerbuchungIntervalSeconds`). Erwartung: Eintrag wird `Bestätigt`; Buchung im
+  Sage-Testsystem als **Zugang** sichtbar (echte Buchung, Manual-UAT).
+- **TS-56.4 — Ausbuchung spiegelbildlich.** Wie 56.3, Sage-Buchung als **Entnahme**, Herkunft/Ziel
+  vertauscht.
+- **TS-56.5 — Sage-Korrektur erzeugt keinen Ping-Pong.** Vorbedingung: `LagerbestandSyncService`
+  aktiv, erzeugt `SageEinbuchung`/`SageAusbuchung`. Erwartung: **kein** Queue-Eintrag dafür, auch
+  bei beiden Toggles an (Feedback-Loop-Schutz, AK6 — automatisiert im Enqueue-Decorator-Test).
+- **TS-56.6 — Fehlende Sage-Referenz (Konfigurationsfehler).** Vorbedingung: `SageBuchungErlaubt=true`
+  auf einem **manuellen** Lagerplatz (ohne `SageLagerkennung`/`SageLagerplatzId`). Erwartung:
+  Queue-Eintrag landet auf **Fehler** mit sprechender Meldung; Worker läuft weiter (kein Absturz);
+  Folgeeinträge werden verarbeitet (AK9).
+- **TS-56.7 — Timeout/Doppelbuchungs-Schutz.** Vorbedingung: Sende-Timeout simulieren (Netzwerk kurz
+  kappen). Erwartung: Status bleibt `Gesendet`; beim nächsten Tick **kein** zweiter Blind-Send —
+  der Recovery-Pfad prüft per Sage-Memo-Lookup (`KHKLagerplatzbuchungen`), ob die Buchung existiert
+  (AK10, B2). **Dev-Lauf-Verifikation:** exakte Korrelationsspalte (`Memo` vs. `Referenz`) am
+  Testsystem bestätigen; ggf. eine Zeile in `SageBuchungLookupReader` umstellen.
+- **TS-56.8 — Requeue eines Fehler-Eintrags.** Schritt: einen `Fehler`-Eintrag in `/SageBookingQueue`
+  über „Erneut senden" (Rolle `stock_keyuser`) einreihen. Erwartung: Status wird `Offen`, Worker
+  prüft vor dem Senden per Memo-Lookup; existiert die Buchung in Sage bereits → `Bestätigt` (kein
+  zweites Buchen), sonst wird gesendet.
+- **TS-56.9 — Reconciliation-Sweep.** Vorbedingung: eine Ein-/Ausbuchung auf Sage-freigegebenem
+  Platz ohne Queue-Eintrag (Enqueue-Fehler simulieren, z. B. während eines DB-Aussetzers). Erwartung:
+  Der Worker reiht sie im Rückblickfenster (15 Min) nachträglich ein und sendet sie (B4).
+- **TS-56.10 — Aktivitäts-Protokoll.** Nach einem Lauf `/SyncLog` öffnen. Erwartung: Lauf
+  „SageLagerbuchung" mit Counts `gesendet`/`bestätigt`/`fehler`/`nacherfasst`/`uebersprungen`.
+- **TS-56.11 — Regression bei Toggle aus (S7).** Vorbedingung: `SageLagerbuchungAktiv=false`.
+  Erwartung: Ein-/Aus-/Umbuchung, Bestand, Historie, Kommissionierung verhalten sich **exakt** wie
+  vor dem Update (der Decorator ist reiner Pass-through) — automatisiert im Enqueue-Decorator-Test,
+  manuell stichprobenartig gegengeprüft.
+- **TS-56.12 — TLS-Zertifikatsschalter (Testsystem, v1.28.0).** Der Schalter
+  `SageLagerbuchungSslZertifikatPruefen` (`/ServiceSettings`, Default `true`) wirkt **nur** auf den
+  Sage-Lagerbuchungs-Client. Schritte/Erwartung:
+  - **a) Aus → Buchung läuft:** `SageLagerbuchungSslZertifikatPruefen=false` setzen, dann TS-56.3
+    wiederholen. Erwartung: Der SData-POST an `sagetest01.ake.at` (ungültiges Zertifikat) läuft nun
+    durch (`Bestätigt`), obwohl das Zertifikat ungültig ist.
+  - **b) Sichtbarkeit bei aus:** Der Warnhinweis erscheint an **drei** Stellen — Worker-Start-Log
+    („TLS-Zertifikatsprüfung … ist DEAKTIVIERT"), `/ServiceSettings` (Warn-Box am Eintrag) und
+    `/SageBookingQueue` (Warn-Banner oben). Kein stilles Kästchen.
+  - **c) An → greift ohne Neustart:** Schalter wieder auf `true` setzen (Dienst **nicht** neu starten),
+    erneut buchen. Erwartung: Der nächste Sende-Versuch scheitert wieder am Zertifikatsfehler
+    (`LastError`/`SageResponseRaw`) — die Änderung greift zur Laufzeit (spätestens mit einer neuen
+    Verbindung). Negativfall: fehlt der Wert oder ist er unparsebar, wird **geprüft** (fail-safe).
+- **TS-56.13 — Vor Produktivgang.** Prüfen, dass `SageLagerbuchungSslZertifikatPruefen` auf **`true`**
+  steht (und kein Warnhinweis mehr erscheint), bevor gegen das Produktiv-Sage gebucht wird.
+
+**Negativ/Regression:**
+- Ein Fehler im Sende-Pfad (Sage nicht erreichbar) stoppt die übrigen Worker/Sync-Blöcke NICHT
+  (eigener Worker, isolierte Kapselung) und löst bei Überschreitung von
+  `Sync:SageLagerbuchungMaxErrorsPerRun` eine Fehlermail aus.
+- Nach `Sync:SageLagerbuchungMaxRetries` automatischen Fehlversuchen bleibt der Eintrag auf `Fehler`
+  und wird erst durch manuelles Requeue erneut versucht.
+- **Ein-Instanz-Voraussetzung:** Der Idempotenz-Baustein schützt nur bei **genau einer** laufenden
+  `SageBookingWorker`-Instanz (kein Doppel-Deploy/Failover auf derselben Queue).
+
+---
+
+*Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -829,3 +829,71 @@ View-Namen mit Bindestrich — der eigene Default verstoesst gegen die eigene Va
 ist es nicht) und N-2 (der Fallback erzeugt den von AK 9 verbotenen Zwischenzustand **und** braucht
 via `TRUNCATE` dasselbe `ALTER`-Recht wie die Hauptstrategie — Rueckfrage 7 bleibt real offen).
 N-3/N-4 begleitend.
+
+## Antworten auf die Kritische Pruefung (2026-08-07)
+
+**Zu N-1 — Fehler eingestanden. Die Regex war falsch, und zwar meine Schuld. [KORREKTUR]**
+Die S-2-Vorgabe `^[A-Za-z0-9_]+$` entstand aus der Sorge vor Unicode-Homoglyphen — dabei ist
+uebersehen worden, dass der reale Default-View-Name selbst einen **Bindestrich** traegt
+(`vw_IDEAL-AKE_Kommissionierung_FAListe`). Woertlich umgesetzt haette die Sicherung ihre eigene
+Datenquelle abgewiesen und den IDEAL-Sync komplett lahmgelegt.
+
+**Korrigierte Vorgabe:**
+- Erlaubtes Zeichenset je Segment: **`^[A-Za-z0-9_\-]+$`** (ASCII-explizit, Bindestrich erlaubt).
+- Weiterhin **abgelehnt**: Whitespace, `;`, `/*`, `[`, `]`, Punkt innerhalb eines Segments und
+  alles jenseits ASCII. Zusaetzlich die Zweizeichenfolge **`--`** explizit ablehnen — sie kann in
+  keinem echten Objektnamen vorkommen und ist der SQL-Kommentar-Einleiter (Defense-in-Depth ueber
+  `QUOTENAME` hinaus, das den Namen ohnehin klammert).
+- Schema/Name weiterhin an `.` **splitten** und je Segment einzeln pruefen, dann per `QUOTENAME`
+  zusammensetzen.
+
+**Die eigentliche Lehre — als AK aufnehmen:** Der Unit-Test der Validierung muss die **realen
+Produktions-View-Namen als Positivfaelle** enthalten (`vw_IDEAL-AKE_Kommissionierung_FAListe`,
+`vw_IDEAL-AKE_Kommissionierung_FAInfos`) und nicht nur erfundene Beispiele. Genau dieser eine
+Testfall haette den Fehler in Sekunden gefunden. Negativfaelle (Semikolon, Leerzeichen, `--`,
+kyrillisches `а`) daneben.
+
+**Zu N-2 — Befund akzeptiert. Der Fallback wird ersatzlos GESTRICHEN; stattdessen wird das
+Berechtigungsproblem geloest, statt es zu umgehen. [ENTSCHEIDUNG]**
+Die Pruefung hat recht in beiden Punkten: `TRUNCATE` verlangt dasselbe `ALTER`-Recht wie
+`sp_rename`, und ein Fallback „je Tabelle einzeln" erzeugt genau den von AK 9 verbotenen
+Zwischenzustand. Ein Ausweg, der dieselbe Berechtigung braucht wie der Hauptweg, ist kein Ausweg.
+
+Entscheidend ist aber etwas anderes: **`FaHierarchyNode` und `FaHierarchyOrderInfo` sind UNSERE
+Tabellen in UNSERER Datenbank** — nicht Sage. Die Berechtigung ist keine Naturkonstante, sondern
+etwas, das wir setzen. Daher:
+- **Die Migration, die die beiden Tabellen anlegt, erteilt dem Service-Konto im selben Schritt
+  `ALTER` auf genau diese zwei Tabellen** (`GRANT ALTER ON dbo.FaHierarchyNode TO <konto>` etc.).
+  Eng begrenzt, kein DDL-Recht auf der Datenbank.
+- Damit ist die `sp_rename`-Strategie **die einzige** — kein zweiter Pfad, kein Selbstwiderspruch,
+  keine offene Rueckfrage 7.
+- **Vor dem Dev-Lauf pruefen** (eine Abfrage): Laeuft der Service unter einem Konto, dem wir das
+  Recht erteilen duerfen? Bei den Migrationen hat ohnehin jemand DDL-Rechte — die Frage ist nur,
+  ob es dasselbe Konto ist.
+- **Nur falls** die Organisation das Erteilen verbietet: dann `DELETE FROM` beide Tabellen +
+  Neubefuellung in **einer** Transaktion (braucht nur `DELETE`, ist voll transaktional, haelt aber
+  laenger Sperren). Das ist der **einzige** echte Ohne-`ALTER`-Pfad — `TRUNCATE` ist es nicht. Als
+  dokumentierte Notloesung fuehren, nicht als gleichwertige Alternative.
+Rueckfrage 7 gilt damit als beantwortet: **Recht erteilen, nicht umgehen.**
+
+**Zu N-3 — uebernommen.** Die Swap-Mechanik wird ausgeschrieben: **drei** Renames je Tabelle
+(Ziel→Temp, Staging→Ziel, Temp→Staging) mit definiertem Zwischennamen. Und der Hinweis auf die
+nicht mitwandernden Constraint-/PK-/Index-Namen wird als **bekannter kosmetischer Drift** vermerkt
+(mit der Konsequenz, dass Namensschemata nach dem ersten Swap nicht mehr zum Tabellennamen passen —
+beim naechsten Schema-`ALTER` beruecksichtigen).
+**AK 11 entschaerfen:** statt „ohne Blocking/Timeout" → „**kein Blocking waehrend der Ladezeit; im
+Swap-Moment nur eine vernachlaessigbare Metadaten-Sperre (Sch-M)**". Die bisherige Formulierung war
+nachweislich zu absolut.
+
+**Zu N-4 — uebernommen, als harte Regel.** Jede spaetere Spalten-/Typaenderung an
+`FaHierarchyNode`/`FaHierarchyOrderInfo` **muss die zugehoerige `_Staging`-Tabelle im selben
+Migrationsschritt mitziehen** — sonst bricht Bulk-Insert oder Swap still auf. Gehoert in die Spec
+UND als Fallstrick in `secondbrain/architektur/` bzw. neben die ADR-0004-Kopplungsregel, damit es
+auch findet, wer die Spec nicht liest.
+
+**Zu H-6 — bewusst so belassen.** Der Doppel-Read ist der Preis dafuer, dass der Empty-Guard
+**vor** jeder Mutation greift. Das ist gewollt (S-1) und im Sekundenbereich. In der Spec als
+bewusste Entscheidung benennen, nicht als Versehen.
+
+**Zu H-7 — zur Kenntnis, Vorgabe bleibt.** Dass mehrere Bestands-Keys nicht im Drift-Guard stehen,
+ist ein Argument fuer mehr Abdeckung, nicht fuer weniger. Die drei neuen Keys werden eingetragen.

@@ -367,6 +367,31 @@ Die Uebersichts-Festlegung „Seiteneinheit durchgaengig `HauptFA`" war fuer Lis
   `Sync:HierarchicalFaEnabled`, Teil 3 als Baustein) in den **Deploy-Abschnitt** ziehen, nicht nur
   in den Antwortblock.
 
+## Entscheidungen zu den Rest-Blockern (2026-08-07)
+
+**AK 2 wird korrigiert: Aggregationsschluessel ist `Matchcode`, nicht „Artikel". [KORREKTUR]**
+AK 2 sagt heute „aggregiert nach Artikel" und widerspricht damit der S4-Antwort. Massgeblich ist
+der **Matchcode** — AK 2 entsprechend umschreiben. Konsequenz explizit mitschreiben: Fuehrt derselbe
+`Artnr` positionsabhaengig verschiedene Matchcodes, entstehen daraus **mehrere** Zeilen. Das ist
+gewollt und darf im Test nicht als Fehler gemeldet werden.
+
+**Wochenbezug `Neuer_PT_PPS`: Filter, nicht Spalte — und waehlbar. [ENTSCHEIDUNG]**
+- **Filter, nicht Anzeige-Spalte.** „Kommende Woche" schraenkt die Menge ein. Das Datum darf
+  zusaetzlich als Spalte erscheinen, aber der Wochenbezug ist ein Filter.
+- **Wochengrenze: ISO-Woche, Montag bis Sonntag** (`ISO 8601`, wie sonst im Haus). Keine
+  rollierenden „naechste 7 Tage" — die Vormontage plant in Kalenderwochen, nicht in Zeitfenstern.
+- **Waehlbar statt fest.** Vorbelegt ist die **naechste** ISO-Woche relativ zu heute; die Woche ist
+  aber ueber die Filterkarte verstellbar (Wochenauswahl bzw. vor/zurueck). Begruendung: Eine
+  Vormontage-Liste wird vorausgeplant — spaetestens in der zweiten Woche will jemand „KW+2" sehen,
+  und ein hartkodierter Filter zwingt ihn dann zu einer Nachforderung.
+- **Positionen ohne `Neuer_PT_PPS`** (NULL/leer) erscheinen **nicht** in einer Wochensicht — sie
+  haben keinen Termin, also keine Woche. Sie gehen nicht verloren: Ein eigener Filterwert „ohne
+  Termin" macht sie sichtbar, damit ungeplante Positionen auffallen statt zu verschwinden.
+- **Kombigeraet / mehrere OrderInfo-Zeilen zu einem `HauptFA`:** Es gilt der **frueheste**
+  `Neuer_PT_PPS` (die Arbeit muss zum fruehesten Termin fertig sein). Weichen die Termine der
+  Kopfzeilen voneinander ab, wird die Gruppe wie ueberall im Paket als **mehrdeutig gekennzeichnet**
+  und protokolliert — nicht stillschweigend auf einen Wert reduziert.
+
 ## Kritische Pruefung (2026-08-07)
 
 Zweiter Anwalt-des-Teufels-Durchgang, Auftrag: die menschlichen „Antworten auf die Kritische

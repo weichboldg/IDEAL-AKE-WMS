@@ -16,6 +16,17 @@ Fertigungsauftragslogik u. a. — als zentrale Stelle fuer standortspezifische K
 **Bewusst NICHT Teil von v1.28.0** (Sage-Lagerbuchungen). Dort bleibt `SData:Dataset` ein einfacher
 ServiceSetting; ein groesseres Standorteinstellungs-Vorhaben waere eigenes Scope-Creep gewesen (S5).
 
+## Status: eingeplant als Teil 1c von IDEAL
+
+**Nicht separat spezifizieren.** Diese Maske ist als **Teil 1c** in die Idee
+[[2026-07-29-Standort-IDEAL]] aufgenommen worden — sie ist der natuerliche Ort
+fuer den Schalter `ProduktionsauftragHierarchisch` und die standortspezifischen
+Werte (Mandant, View-Namen, Firmenname, Adresse).
+
+Teil 1 von IDEAL nutzt den Schalter zunaechst als normalen
+`ServiceSettingDefinitions`-Key (bestehende DB-first-Infrastruktur, Null
+Zusatzaufwand); diese Maske gruppiert die Keys danach benutzerfreundlich.
+
 ## Zu klaeren, falls aufgegriffen
 - Verhaeltnis zu bestehenden `ServiceSettings` (DB-first, [[0008-servicesettings-db-first-mit-typisiertem-katalog]])
   und `AppSettings` — neue Kategorie/Maske oder eigene Tabelle?

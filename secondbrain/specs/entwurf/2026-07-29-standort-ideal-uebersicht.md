@@ -111,9 +111,60 @@ Lieferreihenfolge).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
+1. → **Anhang-Pfad: kanonisch ist der Slug-Stil, der Ordner wird umbenannt.**
+   Verbindlich: `secondbrain/ideen/anhaenge/2026-07-29-standort-ideal/sage-views-ideal.md`
+   (Kleinschreibung, korrigiertes Datum). Der `anhaenge:`-Eintrag im Frontmatter der Ideen-Notiz
+   zeigt bereits dorthin und bleibt unveraendert; der **Ordner** wird auf diese Schreibweise
+   gebracht — nicht umgekehrt, damit alle Anhang-Pfade dieselbe Konvention haben wie die
+   Spec-Slugs. Beim Verschieben der Notiz nach `backlog/` wandert er nach
+   `backlog/anhaenge/2026-07-29-standort-ideal/`.
+
+2. → **B5-Linie gilt; der Schalterbaum der Ideen-Notiz ist ueberholt. Und: UI-Schalter in
+   AppSettings, Service-Schalter in ServiceSettings.**
+   - **Abhaengigkeit:** Die Schalter der Teile 1–6 sind **unabhaengig** vom Master
+     `ProduktionsauftragHierarchisch`. Der Schalterbaum in der Ideen-Notiz
+     ("nur wirksam wenn Master an") stammt aus der Zeit **vor** Befund B5 und ist damit ein
+     ueberholter Stand — die Empfehlung dieser Spec-Runde ist bestaetigt. Der Master ist
+     ausschliesslich das Sync-Gate der Materialisierung in Teil 7.
+     *Folgearbeit:* Der Schalterbaum in der Ideen-Notiz ist entsprechend zu korrigieren, damit
+     kein kuenftiger Lauf den alten Stand liest.
+   - **Heimat:** Der Vorschlag dieser Spec-Runde wird uebernommen, weil er der bestehenden
+     Architektur-Trennung folgt statt sie aufzuweichen:
+     - **AppSettings (ADR 0011)** — reine Web-/Anzeige-Schalter: `ProduktionsauftragBaumAnzeige`,
+       Stueckliste-Quelle, die Feature-Toggles der Listen (Teil 3/4/5).
+     - **ServiceSettings (ADR 0008)** — alles, was der Windows-Service selbst tut:
+       `Sync:HierarchicalFaEnabled`, die beiden View-Namen, sowie der Master als Sync-Gate in
+       Teil 7.
+     Die Formulierung "pauschal ServiceSettings, Null Zusatzaufwand" in der Ideen-Notiz ist damit
+     ueberholt.
+
+3. → **Die Notiz existiert — sie liegt in `backlog/`, nicht in `ideen/`.**
+   Pfad: `secondbrain/backlog/2026-08-03-standorteinstellungen-maske.md`. Sie enthaelt bereits den
+   Vermerk, dass sie **nicht separat zu spezifizieren** ist, sondern als Teil 6 dieses Pakets
+   gefuehrt wird. Teil 6 ist daher nachzuziehen, sobald der Inhalt eingearbeitet ist — kein
+   Blocker fuer die Teile 1–5.
+
+### Ergaenzende Querschnitts-Entscheidungen (2026-08-06)
+
+- **Teil 3 ist Referenzimplementierung fuer die Listen-/Druck-Mechanik.** Teil 3/4/5 machen
+  strukturell dasselbe (Flag-Filter auf `FaHierarchyNode`, Kopf aus `FaHierarchyOrderInfo` je
+  `HauptFA`, Gruppierung, Druck-ViewModel). Teil 3 schneidet den Baustein bewusst wiederverwendbar;
+  **Teil 4 und Teil 5 erweitern ihn, statt ihn zu duplizieren**. `depends_on` von Teil 4 und 5
+  entsprechend um die Teil-3-Spec ergaenzt.
+- **Kombinationsgeraete sind in allen Teilen out of scope** — keine Trennung nach
+  `MontageAbteilung`, keine Sonderlogik. **Aber:** Der 1:n-Fall `HauptFA` -> FAInfos muss trotzdem
+  behandelt werden (kein Fan-out-Join; Kopfdaten in eigener Abfrage; bei mehreren Kopfzeilen alle
+  im Klartext auffuehren, Dokument als mehrdeutig kennzeichnen, Log-Eintrag). Fachliche Behandlung
+  als Backlog-Nachtrag: [[2026-08-06-kombinationsgeraete-montageabteilung]].
+- **Seiteneinheit ist durchgaengig die Gruppe (`HauptFA`), nicht die Zeile** (Teil 2/3/4/5). Eine
+  Gruppe wird nie ueber Seiten getrennt, `TotalCount` zaehlt Gruppen. Damit entfallen
+  Phantom-Header und Zeilenzahl-Schaetzung im gesamten Paket.
+- **PDF-Erzeugung ist ein eigener Querschnitts-Baustein**, nicht Teil 4:
+  [[2026-08-06-pdf-erzeugung-fahierarchy-druck]]. Teil 3/4/5 setzen darauf auf.
+- **Testbarkeit — kritischer Pfad des Pakets:** Das IDEAL-Testsystem ist derzeit **leer**. Ohne
+  produktivnahe IDEAL-Daten kann Schranke 2 fuer die Teile 1–5 faktisch nicht gruen werden. Das
+  Befuellen des Testsystems ist damit die wichtigste Vorbedingung des gesamten Vorhabens —
+  wichtiger als jede offene Spec-Frage. In den Deploy-/Test-Abschnitten der Teile vermerkt.
 
 ## Referenzen
 
