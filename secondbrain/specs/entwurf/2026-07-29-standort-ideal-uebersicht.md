@@ -14,7 +14,7 @@ Die Backlog-Notiz `[[2026-07-29-Standort-IDEAL]]` beschreibt die Live-Schaltung 
 Standorts (**IDEAL**, eigenes Deployment, gemeinsamer Codestamm mit **AKE**) samt Umstellung auf
 **hierarchische Produktionsauftraege** (Haupt-FA → Sub-FA → Sub-Sub-FA, echter Elternzeiger). Das
 Paket ist sehr gross und teils noch nicht entscheidungsreif — deshalb `split: true` mit acht
-Teil-Specs, davon Teil 8 als `epic: true`.
+Teil-Specs, davon **Teil 7 und Teil 8 als `epic: true`** (Teil 7 seit der Nachbesserung 2026-08-07).
 
 **Zur Nummerierung:** Die Ideen-Notiz enthaelt (Stand vor der „Kritischen Pruefung / Aufbereitung
 2026-08-06") **drei widerspruechliche Alt-Nummernschemata** — die Zerlegungstabelle
@@ -38,11 +38,14 @@ Teil 1 (ein Lesepfad, zwei Projektionen); „Teil 1c" (Standorteinstellungen) is
 | 7 | [[2026-07-29-standort-ideal-teil-7-spec]] | **ja** | Materialisierung nach `ProductionOrders`: Schema-Inversion (`OrderNumber` nicht mehr unique, `SubOrderNumber` unique, `ParentSubOrderNumber`), Einweg-Migrationstor, Sync-Regeln (nicht loeschen / Umhaengung nicht still uebernehmen), FA-Zusatzinfos-Kollision. |
 | 8 | [[2026-07-29-standort-ideal-teil-8-spec]] | **ja** | Sub-FA-Rueckmeldung / BDE (`epic: true`). Nach Teil 7 sind Sub-FAs echte `ProductionOrders` — Arbeitsgaenge/Teileverfolgung/Rueckmeldung greifen grundsaetzlich unveraendert, muessen aber gegen die Nicht-Eindeutigkeit von `OrderNumber` gehaertet werden. |
 
-**Abhaengigkeiten (`depends_on`):** Teil 2–6 haengen nur an Teil 1 (lesen `FaHierarchyNode`/
-`FaHierarchyOrderInfo`, kein Schema-Umbau am Kern — Entscheidung B5). Teil 7 haengt an Teil 1 (liest die
-Struktur-Tabelle als Quelle der Transformation, siehe dortiger Abschnitt „Synchronisation"). Teil 8
-haengt an Teil 7 (braucht echte `SubOrderNumber`-`ProductionOrders`). Teil 2–6 sind **untereinander**
-unabhaengig und in beliebiger Reihenfolge lieferbar.
+**Abhaengigkeiten (`depends_on`):** Teil 2–5 haengen nur an Teil 1 (lesen `FaHierarchyNode`/
+`FaHierarchyOrderInfo`, kein Schema-Umbau am Kern — Entscheidung B5) und sind **untereinander**
+unabhaengig, in beliebiger Reihenfolge lieferbar. **Ausnahme Teil 6** (seit Nachbesserung
+2026-08-07): haengt zusaetzlich an Teil 3 (gemeinsamer Firmendaten-Key-Definitionsort in
+`AppSettingKeys.cs`) und Teil 7 (die Master-Anzeige braucht Guard + gecachten Sperrzustand). Teil 7
+haengt an Teil 1 (liest die Struktur-Tabelle als Quelle der Transformation). Teil 8 haengt an Teil 7
+(braucht echte `SubOrderNumber`-`ProductionOrders` + die mengenwertige
+`GetAllByFaAndOperationAsync`-Variante).
 
 **Alternative Reihenfolge laut Notiz:** Muss Rueckmeldefaehigkeit von Tag eins stehen, koennen 7/8
 vorgezogen werden — Teil 1 bleibt trotzdem das Fundament (Architektur aendert sich nicht, nur die
@@ -161,6 +164,30 @@ Lieferreihenfolge).
   Phantom-Header und Zeilenzahl-Schaetzung im gesamten Paket.
 - **PDF-Erzeugung ist ein eigener Querschnitts-Baustein**, nicht Teil 4:
   [[2026-08-06-pdf-erzeugung-fahierarchy-druck]]. Teil 3/4/5 setzen darauf auf.
+### Querschnitts-Regel: Das Web verschickt keine Mails (2026-08-07)
+
+Befund aus der Teil-2-Pruefung, am Code verifiziert: **Im Web-Projekt existiert kein Mailversand.**
+Ein Grep ueber alle Mail-Primitiven liefert null Treffer; `ISyncErrorNotifier` ist Service-only.
+Die Fehlermail-Zusagen in Teil 1 und 2 haengen damit an Infrastruktur, die es nicht gibt.
+
+**Entscheidung — gilt fuer alle Teile:**
+- **Das Web verschickt keine Mails.** Nicht, weil es aufwendig waere, sondern weil es falsch waere:
+  SMTP im Request-Pfad koppelt die Antwortzeit an die Verfuegbarkeit des Mailservers, verteilt
+  Zugangsdaten in die Web-Schicht, und ADR 0010 zieht die Grenze ohnehin bei Hintergrund-Diensten.
+- **Web-seitige Funde** gehen an `ILogger` **plus ein sichtbares Signal in der Oberflaeche**
+  (Banner/Hinweis an der betroffenen Liste). Bei einem Anzeige- oder Datenproblem ist das wirksamer
+  als eine Mail, die niemand mit der Ansicht verbindet.
+- **Was gemailt werden muss, wird im Service erkannt.** Der hat `ISyncErrorNotifier` bereits. Ein
+  Tiefen-/Zyklenverstoss oder eine Datenanomalie ist ein **Datenproblem** — der Sync kann es
+  genauso feststellen wie die Anzeige, und dort gehoert die Meldung hin.
+- **Kein SyncLog aus dem Web.** `SyncLog`/ADR 0010 ist fuer Hintergrund-Dienste; Web-Lesefunktionen
+  (Teil 2–6) protokollieren ueber `ILogger`. Das loest zugleich den SyncLog-Widerspruch in Teil 4.
+
+**Folge fuer die Specs:** Alle Formulierungen „Fehlermail" in Web-Kontexten (Teil 1 Web-Anteil,
+Teil 2 Tiefen-/Zyklen-Cap, Teil 4 Mehrdeutigkeit, Teil 5 Anomalie-Diagnose) sind auf
+„`ILogger` + Oberflaechen-Hinweis" umzuschreiben; wo eine Mail fachlich gebraucht wird, wandert die
+Erkennung in den Service (Teil 1 Sync, Teil 7 Materialisierung).
+
 - **Testbarkeit — kritischer Pfad des Pakets:** Das IDEAL-Testsystem ist derzeit **leer**. Ohne
   produktivnahe IDEAL-Daten kann Schranke 2 fuer die Teile 1–5 faktisch nicht gruen werden. Das
   Befuellen des Testsystems ist damit die wichtigste Vorbedingung des gesamten Vorhabens —
