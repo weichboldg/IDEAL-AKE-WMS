@@ -4,9 +4,9 @@ title: "IDEAL-Standort Teil 6 — Standorteinstellungen-Maske"
 slug: 2026-07-29-standort-ideal-teil-6-spec
 status: Entwurf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
-depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
+depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]], [[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
 worktree: ""
 branch: ""
@@ -14,14 +14,13 @@ affected_code:
   - IdealAkeWms/Controllers/StandortEinstellungenController.cs (neu, Name provisorisch)
   - IdealAkeWms/Views/StandortEinstellungen/Index.cshtml (neu)
   - IdealAkeWms/Models/ServiceSettingDefinitions.cs
-  - IdealAkeWms/Models/AppSettingKeys.cs
+  - IdealAkeWms/Models/AppSettingKeys.cs (Firmendaten-Keys — gemeinsamer Definitionsort mit Teil 3, siehe Fachliche Anforderungen)
+  - IdealAkeWms/Data/Repositories/IAppSettingRepository.cs + AppSettingRepository.cs (transaktionsfaehige Variante, siehe Technischer Loesungsentwurf)
+  - IdealAkeWms/Data/Repositories/IServiceSettingRepository.cs + ServiceSettingRepository.cs (transaktionsfaehige Variante)
+  - secondbrain/codebase/controller.md (neuer Controller-Eintrag, kein neuer Filter/keine neue Rolle)
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "Referenz-Notiz [[2026-08-03-standorteinstellungen-maske]] existiert nicht in secondbrain/ideen/ — Inhalt/Umfang dieser Maske ist ausschliesslich aus der Standort-IDEAL-Notiz abgeleitet, nicht aus einer eigenen Spezifikation"
-  - "Vollstaendige Liste der zu buendelnden Werte (Firmenname, Adresse, Mandant, View-Namen, Schalter) noch nicht final — welche AppSettings/ServiceSettings-Keys genau darunter fallen"
-  - "Verhaeltnis zur generischen /Settings- bzw. /ServiceSettings-Oberflaeche: bleiben die Keys dort zusaetzlich editierbar, oder wird diese Maske der EINZIGE Weg fuer Standort-Keys (Waechter-Konsistenz beachten, siehe Teil 7 Einweg-Tor)?"
-  - "Rollen/Zugriff: admin-only (analog Settings) oder eigene Rolle?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -39,67 +38,144 @@ Bis zu diesem Teil laufen alle IDEAL-Schalter (View-Namen, Feature-Toggles, der 
 `ProduktionsauftragHierarchisch` und seine Abhaengigen) als normale Eintraege in der generischen
 `ServiceSettings`/`AppSettings`-Oberflaeche — das kostet laut Notiz „Null Zusatzaufwand", ist aber
 unuebersichtlich, sobald mehrere standortspezifische Werte (Firmenname, Adresse, Mandant,
-View-Namen, Schalter) zusammengehoeren. Teil 6 buendelt diese Werte in einer eigenen,
-gruppierten Maske — ein reines UX-/Organisations-Feature ohne neue fachliche Logik.
+View-Namen, Schalter) zusammengehoeren. Teil 6 buendelt diese Werte in einer eigenen, gruppierten
+Maske — inklusive der bisher nirgends vorhandenen Firmendaten (Firmenname, Anschrift), die hier
+erstmals als `AppSettings`-Werte entstehen. Der Master-Schalter `ProduktionsauftragHierarchisch`
+(Teil 7) wird in dieser Maske **nur read-only** angezeigt — sein Schreibweg ist die eigene,
+dedizierte Teil-7-Umschaltseite, kein Kontrollkaestchen zwischen zwanzig anderen Einstellungen.
 
-**Hinweis:** Die in der Backlog-Notiz referenzierte Detail-Notiz
-`[[2026-08-03-standorteinstellungen-maske]]` existiert derzeit **nicht** in `secondbrain/ideen/`
-(siehe offene Rueckfrage 1) — diese Spec ist deshalb bewusst grob gehalten und nur ein Geruest.
+Grundlage ist die Backlog-Notiz `secondbrain/backlog/2026-08-03-standorteinstellungen-maske.md`
+(dort vermerkt: „nicht separat spezifizieren, wird als Teil 6 gefuehrt").
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-**In-Scope:** eine neue, gruppierte Admin-Maske, die bestehende `ServiceSettings`-/
-`AppSettings`-Keys mit Standortbezug (View-Namen aus Teil 1, Toggles aus Teil 2–5, ggf. Firmen-
-/Adressdaten) **liest und schreibt** — keine neue Datenhaltung, nur eine kuratierte Oberflaeche
-ueber bestehende Katalog-Infrastruktur (ADR 0008/0011).
+**In-Scope:** eine neue, gruppierte Admin-Maske, die (a) bestehende `ServiceSettings`-/
+`AppSettings`-Keys mit Standortbezug (View-Namen aus Teil 1, Toggles aus Teil 2–5) liest und
+schreibt, und (b) neue Firmendaten-Keys (Firmenname, Anschrift) als `AppSettings`-Werte anzeigt und
+schreibt — deren Definition in `AppSettingKeys.cs` gemeinsam mit Teil 3 abgestimmt ist (siehe
+Fachliche Anforderungen). Kein neuer Speicherort fuer bestehende Keys, nur eine kuratierte
+Oberflaeche ueber die bestehende Katalog-Infrastruktur (ADR 0008/0011) plus die neuen
+Firmendaten-Werte.
 
-**Out-of-Scope:** keine neuen fachlichen Werte, die nicht bereits in Teil 1–5 als Setting-Key
-entstanden sind; der Master-Schalter `ProduktionsauftragHierarchisch` (Teil 7) darf **nicht** ueber
-diese Maske am Waechter vorbei umgelegt werden koennen (siehe Teil 7 „Migrationstor") — diese Spec
-verweist auf den zentralen Waechter, implementiert ihn aber nicht selbst.
+**Out-of-Scope:** Der Master-Schalter `ProduktionsauftragHierarchisch` (Teil 7) ist in dieser Maske
+**strikt read-only** (Zustand, Sperrstatus, seit wann) mit Link zur dedizierten
+Teil-7-Umschaltseite — er ist **niemals** Teil des Sammel-POSTs dieser Maske, und diese Maske ruft
+den `HierarchischeStrukturGuard` nicht auf. Keine neue Rolle.
 
 ## Fachliche Anforderungen
 
-- Gruppierte Darstellung mindestens der Kategorien: Firmenname/Adresse/Mandant (falls als
-  Settings-Keys existent), View-Namen (Teil 1: `Sync:FaHierarchyListeViewName`/
+- Gruppierte Darstellung mindestens der Kategorien: Firmendaten (Firmenname, Anschrift — neu,
+  `AppSettings`), Mandant/Dataset + View-Namen (Teil 1: `Sync:FaHierarchyListeViewName`/
   `Sync:FaHierarchyInfosViewName`), Feature-Toggles (Teil 2–5), Master + abhaengige Schalter
-  (Teil 7 — nur Anzeige/Verlinkung, Schreibzugriff geht durch den zentralen Waechter).
+  (Teil 7 — **nur read-only Statusanzeige**: an/aus, gesperrt ja/nein, seit wann, mit Link zur
+  Teil-7-Umschaltseite; **kein** Schreib-Bedienelement dafuer in dieser Maske).
 - Wiederverwendung der bestehenden typisierten Katalog-Infrastruktur (Bool-Toggle/Int/String,
   ADR 0008) statt einer Parallel-Implementierung.
+- **Firmendaten-Definitionsort:** `AppSettingKeys.cs` ist der EINE gemeinsame Definitionsort. Nach
+  Antwort S-1 ist Teil 3 (Druckkopf) der voraussichtliche Erstbraucher und legt die Konstanten dort
+  an; Teil 6 fuegt sie danach nur der kuratierten Maske hinzu. **Fallback**, falls Teil 3 die Keys
+  bis zum Teil-6-Dev-Lauf nicht angelegt hat: Teil 6 legt sie dann selbst in `AppSettingKeys.cs` an
+  — so entsteht in jedem Fall genau ein Definitionsort, unabhaengig von der Merge-Reihenfolge, und
+  Teil 6 bleibt eigenstaendig lieferbar.
+- **Zwei-Backend-Schreiben in einem Speichervorgang:** ein POST kann sowohl `AppSettings`- als auch
+  `ServiceSettings`-Werte enthalten und muss beide **atomar** schreiben (Details siehe Technischer
+  Loesungsentwurf).
 
 ## Technischer Loesungsentwurf
 
 Neuer Controller/View, der eine kuratierte Teilmenge der `ServiceSettings`-/`AppSettings`-Keys
-gruppiert rendert und ueber die bestehenden Set-Mechanismen schreibt (kein neuer Speicherort).
-Fuer den Master-Key ruft der Schreibpfad **denselben** Domaenen-Waechter auf, den Teil 7 einfuehrt
-(nicht dupliziert implementieren — siehe dortiger Abschnitt „Der Waechter gehoert in die
-Service-/Domaenenschicht, nicht in die Maske").
+gruppiert rendert und ueber die bestehenden Set-Mechanismen schreibt (kein neuer Speicherort). Fuer
+den Master-Key liest die Maske ausschliesslich den in Teil 7 gecachten Sperrzustand (siehe
+dortiger Abschnitt „Anzeige gecacht") und zeigt ihn read-only mit Link zur Teil-7-Umschaltseite —
+diese Maske ruft den `HierarchischeStrukturGuard` **nicht** auf und bietet kein
+Schreib-Bedienelement fuer den Master.
+
+**Zwei-Backend-POST (AppSettings + ServiceSettings) — atomare Schreibsemantik.**
+Beide Backends leben in derselben Datenbank und teilen sich pro Request dieselbe scoped
+`ApplicationDbContext`-Instanz (verifiziert: `IAppSettingRepository` → `CachedSettingRepository` →
+`AppSettingRepository` → `ApplicationDbContext`; `IServiceSettingRepository` →
+`ServiceSettingRepository` → `ApplicationDbContext`) — eine gemeinsame Transaktion ist moeglich,
+kein Zwei-Phasen-Commit noetig. Beide Repository-Methoden rufen aber **intern**
+`SaveChangesAsync` (`AppSettingRepository.SetValueAsync`, `ServiceSettingRepository.UpsertAsync`) —
+es gibt heute **keine** Transaktions-Naht.
+
+Anforderung (verbindlich, nicht optional): Ein Speichervorgang schreibt beide Backends in **einer**
+Transaktion. Schlaegt ein Teil fehl (z. B. ein ungueltiger Int-Wert bei einem ServiceSettings-Key),
+wird **alles** zurueckgerollt und die Maske zeigt den Fehler mit den **eingegebenen Werten** — kein
+Partial-Save, keine verlorene Eingabe.
+
+Umsetzungsweg (vom Dev-Lauf zu entscheiden — zwei tragfaehige Optionen mit ihrer jeweiligen
+Spannung):
+- (a) eine gemeinsame `BeginTransactionAsync`-Klammer um beide Repository-Aufrufe — die
+  bestehenden Repository-Interfaces geben dafuer aktuell **keinen** `DbContext`-Zugriff frei, das
+  ist eine Spannung zu ADR 0001 („Datenzugriff nur ueber Repository-Interfaces") und muss sauber
+  geloest werden (z. B. ein duenner Unit-of-Work-Baustein statt direktem Context-Zugriff im
+  Controller);
+- (b) SaveChanges-freie Repository-Varianten, die der aufrufende Service explizit committet.
+
+Zusaetzlich zu beachten: `CachedSettingRepository.SetValueAsync` entfernt den Cache-Key **nach**
+dem inneren `SaveChanges` — bei einem Rollback bleibt die geaenderte Entitaet im Change-Tracker der
+geteilten Context-Instanz haengen (EF revertet Tracking nicht automatisch). Der
+Transaktionsentwurf muss das beruecksichtigen (z. B. Cache-Invalidierung erst nach erfolgreichem
+Commit, Tracking bei Rollback sauber zuruecksetzen/Context neu beziehen).
 
 ## Migrations-/SQL-Auswirkungen
 
-Keine — keine neuen Tabellen/Spalten, nur eine kuratierte UI ueber bestehende Settings-Tabellen.
+Keine Migration, kein `SQL/XX_*.sql`. Die neuen Firmendaten-Keys (Firmenname, Anschrift) sind reine
+`AppSettings`-Werte ohne Katalog und ohne Seed: `AppSettingRepository.GetValueAsync` liefert bei
+einem nie geschriebenen Key `null` (keine Exception), `SetValueAsync` legt die Zeile beim ersten
+Speichern per `Add` an (am Code verifiziert). Die kuratierte Maske bringt dafuer eine **eigene,
+explizite Feldliste** mit und rendert sie unabhaengig davon, ob bereits eine DB-Zeile existiert.
+Bewusst akzeptierte Folge: Ein Firmendaten-Feld, das nie gespeichert wurde, erscheint **nicht** in
+der generischen `/Settings`-Oberflaeche (die zeigt nur vorhandene DB-Zeilen) — ein kosmetischer
+Nachteil gegenueber einem Seed, bewusst in Kauf genommen.
 
 ## Audit-Feld-Auswirkungen
 
-Keine neuen Entitaeten. Aenderungen an `ServiceSettings`/`AppSettings` ueber diese Maske
-protokollieren sich wie bisher (Settings-Tabellen sind laut Fallstrick explizit **keine**
-`AuditableEntity`).
+Keine neuen Entitaeten mit `AuditableEntity`. Aenderungen an `ServiceSettings`/`AppSettings` ueber
+diese Maske protokollieren sich wie bisher (Settings-Tabellen sind laut Fallstrick explizit
+**keine** `AuditableEntity`). Das Audit-Protokoll des Master-Schalters (wer/wann umgelegt) gehoert
+vollstaendig zu Teil 7 (eigener `SyncLog`-Eintrag) — diese Maske schreibt den Master nicht und
+erzeugt daher keinen eigenen Audit-Eintrag dafuer.
 
 ## Akzeptanzkriterien
 
 1. Alle in dieser Maske editierbaren Keys bleiben **weiterhin** korrekt in den bestehenden
    Katalog-Tabellen (`ServiceSettings`/`AppSettings`) — kein Parallel-Speicherort.
-2. Ein Aenderungsversuch am Master-Schalter ueber diese Maske durchlaeuft denselben Waechter wie
-   die generische Oberflaeche (kein Umgehen der Sperre — siehe Teil 7).
+2. Der Master-Schalter `ProduktionsauftragHierarchisch` ist in dieser Maske **ausschliesslich
+   read-only** sichtbar (Zustand an/aus, gesperrt ja/nein, seit wann) mit funktionierendem Link zur
+   Teil-7-Umschaltseite; die Maske bietet **kein** Schreib-Bedienelement dafuer und ruft den
+   `HierarchischeStrukturGuard` nicht auf.
 3. AKE-Standort (ohne IDEAL-Keys gesetzt) zeigt eine leere oder deaktivierte Sektion, keinen
    Fehler.
+4. Ein Speichervorgang, der sowohl AppSettings- als auch ServiceSettings-Werte in einem POST
+   aendert, schreibt beide atomar; schlaegt ein Teil fehl, werden beide zurueckgerollt und die
+   Maske zeigt den Fehler mit den eingegebenen Werten (kein Partial-Save).
+5. Ein Firmendaten-Feld ohne vorhandene DB-Zeile wird leer gerendert (kein Fehler) und beim ersten
+   Speichern als neue `AppSettings`-Zeile angelegt.
+6. Zugriff auf die Maske ist auf `[RequireAdminAccess]` beschraenkt (Class-Level, wie
+   `ServiceSettingsController`/`SettingsController`) — ohne Admin-Rolle ist die Maske nicht
+   erreichbar.
 
 ## Test-Szenarien
 
-Neues Kapitel „IDEAL Teil 6 — Standorteinstellungen": Aenderung eines View-Namens ueber die neue
-Maske spiegelt sich in `/ServiceSettings` wider und umgekehrt; Versuch, den gesperrten Master
-umzulegen, wird abgelehnt und protokolliert (sobald Teil 7 den Waechter liefert — Abhaengigkeit
-vermerken).
+Neues Kapitel „IDEAL Teil 6 — Standorteinstellungen":
+
+- Aenderung eines View-Namens ueber die neue Maske spiegelt sich in `/ServiceSettings` wider und
+  umgekehrt.
+- Der Master-Schalter erscheint in der neuen Maske ausschliesslich als read-only Status (inkl.
+  Link zur Teil-7-Umschaltseite) — kein Bedienelement zum Umschalten vorhanden; ein direkter
+  Schreibversuch auf den Master-Key ueber diese Maske (z. B. manipulierter Request) wird
+  serverseitig abgelehnt.
+- Gemischte Aenderung in einem Speichervorgang (ein gueltiges AppSettings-Feld + ein ungueltiger
+  ServiceSettings-Int-Wert): keiner der beiden Werte wird gespeichert, Fehleranzeige behaelt beide
+  eingegebenen Werte.
+- Firmendaten-Feld (Firmenname) erstmalig befuellen: Wert wird gespeichert, erscheint danach
+  **nicht** automatisch in der generischen `/Settings`-Liste — als bekannte, akzeptierte
+  Abweichung dokumentieren, nicht als Fehler werten.
+- AKE-Standort: Maske zeigt leere/deaktivierte Sektionen ohne Fehler.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
@@ -107,7 +183,7 @@ vermerken).
 - **Service:** nein.
 - **Migration:** nein.
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-  (provisorisch).
+  (provisorisch, vom Dev-Lauf gegen den tatsaechlichen Diff zu bestaetigen).
 
 ## Offene Rueckfragen
 
@@ -498,3 +574,49 @@ NACHBESSERUNG NOETIG: Body + Frontmatter auf die Antworten ziehen (Master read-o
 `depends_on` +Teil 7/+Teil 3, `open_questions` leeren, AK ergaenzen, `controller.md` in
 `affected_code`) — Z2-B1; Teil-7-Widerspruch zur read-only-Maske aufloesen — Z2-B2;
 Firmendaten-Key-Eigentuemer zwischen Teil 3/Teil 6 eindeutig festlegen — Z2-S1.
+
+### Nachbesserung 2 (2026-08-07)
+
+Rumpf und Frontmatter wurden auf den Antwortblock vom 2026-08-06 sowie auf die zweite Kritische
+Pruefung (Z2-B1/Z2-B2/Z2-S1/Z2-S2) gezogen — massgeblich ist zusaetzlich die teiluebergreifende
+Aufloesung in Teil 7 („Entscheidungen zu den Rest-Blockern (2026-08-07)"): Teil 7 baut eine eigene,
+dedizierte Umschaltseite fuer den Master; sowohl die generische `ServiceSettings`-Maske als auch
+diese Teil-6-Maske zeigen ihn ausschliesslich read-only, keine von beiden ist ein Schreibweg.
+
+- **Z2-B1 behoben.** `depends_on` (Frontmatter) um Teil 3 (Firmendaten-Keys) und Teil 7
+  (Master-Anzeige/Guard-Cache) ergaenzt; `open_questions` geleert — alle vier Fragen sind seit dem
+  Freigabe-Antworten-Block vom 2026-08-06 beantwortet. Der Master-Selbstwiderspruch ist im Rumpf
+  aufgeloest: AK 2, Fachliche Anforderungen und Technischer Loesungsentwurf beschreiben den Master
+  jetzt durchgaengig als read-only mit Link, nirgends mehr als in dieser Maske schreibbar oder
+  Guard-aufrufend. Out-of-Scope praezisiert (Firmendaten sind bewusster, benannter Zusatzumfang,
+  kein Widerspruch mehr zum ehemaligen „keine neuen fachlichen Werte"-Satz). Akzeptanzkriterien von
+  3 auf 6 erweitert (Master read-only, Transaktions-Atomaritaet, Firmendaten-Erstanlage,
+  Admin-only-Zugriff). `affected_code` um `secondbrain/codebase/controller.md`, die
+  Repository-Dateien (Transaktionsmechanik) und den praezisierten `AppSettingKeys.cs`-Eintrag
+  ergaenzt.
+- **Z2-B2 — teiluebergreifend geloest, hier nur die Teil-6-Seite nachgezogen.** Die Kollision mit
+  Teil 7 („Teil-6-Maske als gesicherter Schreibweg") ist durch Teil 7s Entscheidung vom 2026-08-07
+  aufgeloest: Teil 7 fuehrt eine eigene Umschaltseite, generische Maske UND Teil-6-Maske sind beide
+  ausschliesslich read-only. Diese Spec ist damit konsistent zu Teil 7. Eine ggf. noch stale
+  Teil-7-Textstelle (Loesungsentwurf „wird von jedem Schreibpfad … Teil-6-Maske … aufgerufen") ist
+  ein Nachziehpunkt in der Teil-7-Datei, nicht in dieser.
+- **Z2-S1 — entschaerft durch Fallback-Regel, nicht einseitig entschieden.** Die Fachlichen
+  Anforderungen legen jetzt fest: Definitionsort der Firmendaten-Keys ist `AppSettingKeys.cs`;
+  voraussichtlich legt Teil 3 sie an (Druckkopf-Erstbedarf), **falls** sie dort beim
+  Teil-6-Dev-Lauf noch fehlen, legt Teil 6 sie selbst an. Damit ist Teil 6 in jedem Fall lieferbar,
+  unabhaengig davon, ob Teil 3 nachzieht. Bleibt als Cross-Spec-Notiz (ausserhalb des Mandats
+  dieses Laufs, da nur die Teil-6-Datei editierbar ist): Teil 3 plant die Firmendaten-Keys aktuell
+  nicht — ein Nachziehen dort waere sauberer.
+- **Z2-S2 uebernommen.** Der Technische Loesungsentwurf benennt jetzt konkret die fehlende
+  Transaktions-Naht (beide Repositories rufen intern `SaveChangesAsync`), die Spannung zu ADR 0001
+  bei direktem `DbContext`-Zugriff und den Cache-Rollback-Fallstrick von `CachedSettingRepository`.
+  Die konkrete Umsetzungsvariante — (a) gemeinsame Transaktion via duennem Unit-of-Work-Baustein
+  oder (b) SaveChanges-freie Repository-Varianten — bleibt bewusst dem Dev-Lauf ueberlassen, beide
+  sind tragfaehig; keine weitere Rueckfrage an den Menschen noetig.
+- **Z2-S3 — bleibt als Cross-Spec-Notiz offen, kein Blocker dieser Datei.** Teil 6 haengt jetzt
+  (Antwort B-3) an Teil 7, obwohl die Uebersicht „Teil 2–6 in beliebiger Reihenfolge lieferbar"
+  festhaelt. Diese Spec kann das nicht selbst aufloesen — die Uebersicht ist eine andere Datei und
+  ausserhalb des Mandats dieses Laufs. Beim naechsten Uebersichts-Update nachzuziehen.
+
+Status bleibt `Entwurf`; die Freigabe-Antworten oben sind unveraendert aus dem Block vom
+2026-08-06 uebernommen, nicht neu erfunden. `updated` im Frontmatter auf 2026-08-07 gesetzt.
