@@ -2,7 +2,7 @@
 type: spec
 title: IDEAL-Standort-Anpassungen neu nachbilden — FA-Hierarchie-Inversion (Sub-FA), Belegnummer, konfigurierbare Sage-Views, BOM-Artikelmatchcode
 slug: 2026-07-28-ideal-anpassungen-neu-nachbilden-spec
-status: Entwurf
+status: Ueberholt
 created: 2026-07-28
 updated: 2026-07-28
 source_backlog: "[[2026-07-27-ideal-anpassungen-neu-nachbilden]]"
@@ -50,6 +50,15 @@ freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
 ---
+
+> [!warning] UEBERHOLT / ARCHIVIERT (2026-08-07) — KEIN Auftrag
+> Diese Spec ist durch die Ideen-Notiz [[2026-07-29-Standort-IDEAL]] und das daraus abgeleitete
+> aktuelle Spec-Paket **[[2026-07-29-standort-ideal-uebersicht]]** (Teil 1–8) **abgeloest**. Ihre
+> Alt-Entscheidungen (u. a. „zweistufig", `WA-Nummer`/Belegnummer-Ansatz) sind ueberholt:
+> verbindlich ist jetzt **mehrstufig** (B1) mit `FaHierarchyNode`/`FaHierarchyOrderInfo` und der
+> Schema-Inversion in Teil 7. Nur noch **historische Referenz** — nicht als Spezifikationsgrundlage
+> verwenden, nicht `/dev`-en. Liegt bewusst in `specs/archiv/` (nicht `entwurf/`), damit sie nicht
+> versehentlich als offener Auftrag aufgegriffen wird.
 
 ## Ziel / Nutzen (das Warum)
 
