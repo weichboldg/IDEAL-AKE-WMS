@@ -1,0 +1,133 @@
+@model IdealAkeWms.Models.ViewModels.FaHierarchyVormontageListViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Vormontage — Einzelne Teile (IDEAL)";
+    var deCulture = CultureInfo.GetCultureInfo("de-DE");
+    const int colCount = 8; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">Vormontage-Listen (IDEAL)</h2>
+</div>
+
+@* Sicht-Umschaltung (Sicht 1 = Einzelne Teile / Sicht 2 = Summiert), Reiter bleibt erhalten. *@
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link active" asp-action="Index" asp-route-bereich="@Model.SelectedBereich">Einzelne Teile</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" asp-action="Summiert" asp-route-bereich="@Model.SelectedBereich">Summiert</a>
+    </li>
+</ul>
+
+@* Reiter je Arbeitsbereich (VMBedarf-Wert) — kein leerer Reiter (NULL/Leer ausgeschlossen). *@
+@if (Model.AvailableBereiche.Any())
+{
+    <ul class="nav nav-tabs mb-3">
+        @foreach (var b in Model.AvailableBereiche)
+        {
+            var isActive = string.Equals(b, Model.SelectedBereich, StringComparison.OrdinalIgnoreCase);
+            <li class="nav-item">
+                <a class="nav-link @(isActive ? "active" : "")" asp-action="Index" asp-route-bereich="@b">@b</a>
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <div class="alert alert-info py-2 px-3">Keine Vormontage-Bereiche (<code>VMBedarf</code>) im Datenbestand.</div>
+}
+
+@* Anomalie-Warnbanner (PFLICHT, nur bei vorhandenen Anomalien): SubFA != 0 mit gesetztem
+   VMBedarf wird nicht gelistet, aber operator-sichtbar gemeldet. *@
+@if (Model.Anomalies.HasAnomalies)
+{
+    <div class="alert alert-warning py-2 px-3 mb-3">
+        <strong>Warnung:</strong> @Model.Anomalies.PositionCount Position(en) mit gesetztem
+        <code>VMBedarf</code> auf Baugruppen-Ebene (<code>SubFA != 0</code>) ausgeschlossen —
+        Datenpflege prüfen. Betroffene HauptFA: @Model.Anomalies.HauptFaList.
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="FaHierarchyVormontageEinzeln" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="hauptfa">HauptFA</th>
+                <th data-filterable data-col-key="hauptartnr">Haupt-Artnr.</th>
+                <th data-filterable data-col-key="artnr">Artnr.</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th class="text-end" data-filterable data-col-key="sollmenge">Sollmenge</th>
+                <th class="text-end" data-filterable data-col-key="fertigungmenge">Fertigungmenge</th>
+                <th data-filterable data-col-key="vmbedarf">VMBedarf</th>
+                <th data-filterable data-col-key="material">Material</th>
+            </tr>
+        </thead>
+        @if (!Model.Groups.Any())
+        {
+            <tbody>
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Vormontage-Positionen gefunden.</td>
+                </tr>
+            </tbody>
+        }
+        else
+        {
+            @* Je HauptFA-Gruppe ein eigenes <tbody>: Gruppen bleiben visuell zusammen. *@
+            @foreach (var group in Model.Groups)
+            {
+                <tbody class="fa-vm-group">
+                    <tr class="table-active">
+                        <td colspan="@colCount">
+                            <strong>HauptFA @group.HauptFA</strong>
+                            @if (group.IsAmbiguous)
+                            {
+                                <span class="badge bg-info text-dark ms-2" title="Mehrere Kopfzeilen (Kombigerät) — Positionen werden NICHT gesplittet">
+                                    mehrdeutig (Kombigerät)
+                                </span>
+                            }
+                            @if (group.OrderInfos.Any())
+                            {
+                                <span class="text-muted small ms-2">
+                                    @foreach (var info in group.OrderInfos)
+                                    {
+                                        <span class="me-3">
+                                            @(!string.IsNullOrWhiteSpace(info.MontageAbteilung) ? info.MontageAbteilung : "—")
+                                            @if (!string.IsNullOrWhiteSpace(info.Kunde)) { <text> · @info.Kunde</text> }
+                                            @if (!string.IsNullOrWhiteSpace(info.ABNr)) { <text> · AB @info.ABNr</text> }
+                                            @* Neuer_PT_PPS: reine Anzeige (kein Filter — Wochenbezug offen, Spec F.A. 6). *@
+                                            @if (info.Neuer_PT_PPS.HasValue) { <text> · PT @info.Neuer_PT_PPS.Value.ToString("dd.MM.yyyy")</text> }
+                                        </span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small ms-2">Keine Auftrags-Kopfdaten zu diesem HauptFA.</span>
+                            }
+                        </td>
+                    </tr>
+                    @foreach (var pos in group.Positions)
+                    {
+                        <tr>
+                            <td>@pos.HauptFA</td>
+                            <td>@pos.HauptArtnr</td>
+                            <td>@pos.Artnr</td>
+                            <td>@pos.Matchcode</td>
+                            <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td>
+                            <td class="text-end">@pos.Fertigungmenge.ToString("N3", deCulture)</td>
+                            <td>@pos.VMBedarf</td>
+                            <td>@pos.Material</td>
+                        </tr>
+                    }
+                </tbody>
+            }
+        }
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

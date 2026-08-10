@@ -6521,5 +6521,90 @@ Toggle `FaHierarchyBeschichtungAktiv = true`. Benutzer mit Rolle `beschichtungsa
 
 ---
 
-*Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
+## TS-61 — IDEAL Teil 5: Vormontage-Listen (`FaHierarchyVormontageController`)
+
+Zwei read-only Sichten auf die Vormontage-Bedarfe (`VMBedarf IS NOT NULL AND VMBedarf <> ''`,
+nvarchar-Arbeitsbereich, **kein** Sage-Bit/`-1`-Vergleich) auf den in Teil 1 importierten Tabellen
+`FaHierarchyNodes`/`FaHierarchyOrderInfos`. Web-only (keine Migration, kein Service). Routen:
+`/FaHierarchyVormontage/Index` (**Sicht 1 — Einzelne Teile**), `/FaHierarchyVormontage/Summiert`
+(**Sicht 2 — Summiert**), mit Umschaltung und je Arbeitsbereich einem Reiter (`VMBedarf`-Wert, kein
+leerer Reiter). Beide Sichten basieren auf denselben Blattpositionen (`SubFA = 0` + `VMBedarf`).
+
+**Sicht 1** nutzt den gemeinsamen Baustein (`FaHierarchyListBuilder`) **unveraendert wie Teil 3**
+(`leafOnly: true` + `anomalyOnNonLeaf: true`): Blattfilter, Anomalie-Banner + `ILogger`-Warnung,
+Fan-out-freier Kopf-Join, Gruppierung + Gruppen-Paging nach `HauptFA`. **Sicht 2** ist eine
+**eigene Aggregat-Logik** (nicht ueber den Baustein): Aggregation je `VMBedarf`-Reiter nach
+**`Matchcode`** (nicht Artnr) mit **zwei getrennten Summenspalten** (`Sollmenge` UND
+`Fertigungmenge`); Seiteneinheit = **Aggregatzeile** (begruendete ADR-0005-Ausnahme),
+Server-Spaltenfilter wirken auf der Aggregat-Projektion. Zugriff (Class-Level):
+`[RequireVorbauAccess]` (`vorbau`, identisch zur FA-Abarbeitungsliste `FaWorklistController`, Read)
+**plus** Feature-Toggle `[RequireFaHierarchyVormontageAktiv]` (`FaHierarchyVormontageAktiv`, Default
+**aus**, invertierte Semantik: nur exakt `"true"` aktiviert). Keine neue Rolle.
+
+**Bewusst NICHT umgesetzt:** der Wochenbezug-Filter (`Neuer_PT_PPS`) — die Filter-Semantik ist noch
+offene Rueckfrage (Spec Teil 5, Fachliche Anforderung 6 / Offene Rueckfrage 1). `Neuer_PT_PPS`
+erscheint in Sicht 1 hoechstens als reine Kopf-Anzeige, nie als Mengen-Einschraenkung. **Ebenfalls
+out-of-scope:** Export in die Isolierfraesen-Software (Backlog).
+
+**Vorbedingungen:** Teil-1-Sync gelaufen, Tabellen gefuellt, Positionen mit gesetztem `VMBedarf`
+vorhanden. Toggle `FaHierarchyVormontageAktiv = true`. Benutzer mit Vorbau-Zugriff (`vorbau`/`admin`).
+
+### Automatisiert/InMemory (unabhaengig vom IDEAL-Testsystem — `VormontageServiceTests`)
+
+- **TS-61.1 — Filter `VMBedarf` gesetzt (nvarchar, kein Bit):** gesetzt = `IS NOT NULL AND <> ''`;
+  leer/Whitespace/null fallen raus; Reiter-Einschraenkung auf einen konkreten Bereich wirkt (AK1).
+  (`Sicht1_FlagPredicate_FiltersVmBedarfSet_NvarcharNotBit`.)
+- **TS-61.2 — Sicht 1 Blattfilter + Anomalie (via Baustein):** Verweiszeile `SubFA != 0` mit
+  `VMBedarf` wird **nicht** gelistet, aber im Banner ausgewiesen (`PositionCount`, `AffectedHauptFas`);
+  Blatt ohne `VMBedarf` faellt raus (AK2a/AK3).
+  (`Sicht1_LeafFilter_ExcludesSubFaNonZero_AndReportsAnomalyBanner`.)
+- **TS-61.3 — Sicht 1 Fan-out-Freiheit:** zwei `FaHierarchyOrderInfo`-Zeilen je `HauptFA`
+  (Kombigeraet) → Kopf zeigt beide, Positionsanzahl bleibt 1:1, Gruppe als mehrdeutig markiert
+  (AK2b). (`Sicht1_HeaderJoin_MultipleOrderInfos_DoesNotMultiplyPositions`.)
+- **TS-61.4 — Sicht 1 Reiter-Einschraenkung:** nur Positionen des gewaehlten `VMBedarf`-Reiters
+  erscheinen (AK1). (`Sicht1_ReiterRestriction_ScopesToSelectedBereich`.)
+- **TS-61.5 — Sicht 1 Gruppen-Paging:** `TotalCount` zaehlt **Gruppen** (AK5).
+  (`Sicht1_GroupPaging_TotalCountCountsGroups`.)
+- **TS-61.6 — Reiter-Enumeration:** Distinct `VMBedarf`-Werte, sortiert, ohne null/leer, nur
+  Blattpositionen — kein leerer Reiter (AK1). (`GetBereiche_DistinctNonEmpty_SortedAndLeafOnly`.)
+- **TS-61.7 — Sicht 2 Aggregation nach Matchcode, zwei Summen:** zwei Positionen mit gleichem
+  `Matchcode` → eine Zeile, `Sollmenge` und `Fertigungmenge` je getrennt summiert (AK4).
+  (`Sicht2_AggregatesByMatchcode_SumsBothQuantities`.)
+- **TS-61.8 — Sicht 2 gleicher Artnr, verschiedene Matchcodes → mehrere Zeilen (bewusst):** kein
+  Fehler (AK4). (`Sicht2_SameArtnrDifferentMatchcode_ProducesMultipleRows`.)
+- **TS-61.9 — Sicht 2 Aggregation je Reiter:** Positionen anderer `VMBedarf`-Bereiche fliessen
+  **nicht** in die Summe (AK4). (`Sicht2_AggregatesPerReiter_ExcludesOtherBereich`.)
+- **TS-61.10 — Sicht 2 Blattbasis:** `SubFA != 0`-Zeilen zaehlen **nicht** in die Aggregation
+  (AK2a). (`Sicht2_ExcludesSubFaNonZero_FromAggregationBase`.)
+- **TS-61.11 — Sicht 2 Aggregat-Paging:** `TotalCount` zaehlt **Aggregatzeilen**, nicht Positionen;
+  Seiten liefern die erwarteten Matchcodes (AK5). (`Sicht2_AggregatePaging_TotalCountCountsAggregateRows`.)
+- **TS-61.12 — Sicht 2 Spaltenfilter auf Aggregat-Projektion:** `colf_matchcode` filtert die
+  Aggregatzeilen, `TotalCount` zaehlt NACH Filter (AK5).
+  (`Sicht2_ColumnFilter_AppliesToAggregateProjection`.)
+
+### Manuell am IDEAL-Testsystem (Vorbedingung: produktivnahe Daten mit gesetztem `VMBedarf` — leeres Testsystem reicht nicht)
+
+- **TS-61.13 — Grunddarstellung Sicht 1:** `/FaHierarchyVormontage` aufrufen. Erwartet:
+  Blattpositionen mit `VMBedarf` gruppiert nach `HauptFA`, Reiter je Arbeitsbereich, Positionstabelle
+  mit `HauptFA`, `HauptArtnr`, `Artnr`, `Matchcode`, `Sollmenge`, `Fertigungmenge`, `VMBedarf`,
+  `Material` (AK1).
+- **TS-61.14 — Reiter-Wechsel:** zwischen `VMBedarf`-Reitern wechseln — beide Sichten liefern jeweils
+  die erwartete Teilmenge des gewaehlten Arbeitsbereichs.
+- **TS-61.15 — Grunddarstellung Sicht 2 + Umschaltung:** auf „Summiert" wechseln (Reiter bleibt) —
+  je `Matchcode` eine Zeile mit `Summe Sollmenge` und `Summe Fertigungmenge` (AK4).
+- **TS-61.16 — Mengenabgleich Struktur vs. Sicht 2:** an einer bekannten mehrstufigen Struktur die
+  Summen aus Sicht 2 gegen die Blattpositionen aus Sicht 1 pruefen (keine Doppelzaehlung ueber Ebenen).
+- **TS-61.17 — Anomalie-Banner:** bekannter Datenpflege-Fall (`SubFA != 0` mit `VMBedarf`) → Banner
+  mit Anzahl + betroffenen `HauptFA` sichtbar, Zeile nicht gelistet; `ILogger`-Warnung im Server-Log
+  (AK3).
+- **TS-61.18 — Server-Spaltenfilter + Paging beide Sichten:** Sicht 1 zaehlt Gruppen, Sicht 2 zaehlt
+  Aggregatzeilen; Seitengroesse 25/50/100/Alle wechseln (AK5).
+- **TS-61.19 — Zugriff/Toggle:** Benutzer **ohne** `vorbau`/`admin` → Redirect `AccessDenied`; Toggle
+  `FaHierarchyVormontageAktiv` aus (oder Key fehlt) → Redirect Home + `WarningMessage` (AK6).
+- **TS-61.20 — Regression:** `FaWorklist`/AKE unveraendert, Teil 3/4 unveraendert; keine Schema-/
+  Service-Aenderung (AK7).
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 (2026-08-10; Versions-Bump beim Epic-Abschluss/QA)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

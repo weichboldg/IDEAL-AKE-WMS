@@ -93,6 +93,7 @@ builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfo
 builder.Services.AddScoped<FaHierarchyListBuilder>();
 builder.Services.AddScoped<KommissionierListenService>();
 builder.Services.AddScoped<BeschichtungsauftragService>();
+builder.Services.AddScoped<VormontageService>();
 builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();

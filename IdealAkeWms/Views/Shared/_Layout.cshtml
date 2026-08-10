@@ -59,6 +59,11 @@
                                 await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyBeschichtungAktiv),
                                 "true", StringComparison.OrdinalIgnoreCase);
                             var hasBeschichtungsauftragAccess = await CurrentUserService.HasBeschichtungsauftragAccessAsync();
+                            // IDEAL Teil 5: Vormontage-Listen — Feature-Toggle mit invertierter
+                            // Default-aus-Semantik (nur exakt "true" aktiviert).
+                            var faVormontageAktiv = string.Equals(
+                                await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyVormontageAktiv),
+                                "true", StringComparison.OrdinalIgnoreCase);
                             var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             var showFaCompletion = faCompletionAktiv && canFaCompletion;
                             var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
@@ -106,6 +111,15 @@
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyBeschichtung" ? "active" : "")"
                                    asp-controller="FaHierarchyBeschichtung" asp-action="Index">Beschichtungsauftrag</a>
+                            </li>
+                        }
+                        @* IDEAL Teil 5: Vormontage-Listen — nur mit Vorbau-Zugriff
+                           (RequireVorbauAccess, wie FA-Abarbeitungsliste) UND aktivem Feature-Toggle. *@
+                        @if (hasVorbauAccess && faVormontageAktiv)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyVormontage" ? "active" : "")"
+                                   asp-controller="FaHierarchyVormontage" asp-action="Index">Vormontage</a>
                             </li>
                         }
                         @* Fertigungsauftraege — Dropdown (v1.22.0): FA-Liste (Picker/Tracker/Leitstand),

@@ -59,4 +59,11 @@ public static class AppSettingKeys
     // (wie FaHierarchyKommissionierlistenAktiv, im Unterschied zu LagerbestellungAktiv):
     // fehlend/nicht "true" => inaktiv. Kein Seed; RequireFaHierarchyBeschichtungAktivAttribute.
     public const string FaHierarchyBeschichtungAktiv = "FaHierarchyBeschichtungAktiv";
+
+    // IDEAL FA-Hierarchie (Teil 5 — Vormontage-Listen)
+    // Feature-Toggle fuer das Vormontage-Modul (zwei Sichten: Einzelne Teile + Summiert).
+    // INVERTIERTE Default-aus-Semantik (wie FaHierarchyKommissionierlistenAktiv/Beschichtung,
+    // im Unterschied zu LagerbestellungAktiv): fehlend/nicht "true" => inaktiv. Kein Seed;
+    // RequireFaHierarchyVormontageAktivAttribute.
+    public const string FaHierarchyVormontageAktiv = "FaHierarchyVormontageAktiv";
 }

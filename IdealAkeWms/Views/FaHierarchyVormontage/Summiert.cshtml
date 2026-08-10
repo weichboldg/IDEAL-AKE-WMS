@@ -1,0 +1,88 @@
+@model IdealAkeWms.Models.ViewModels.FaHierarchyVormontageSummiertViewModel
+@using System.Globalization
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "Vormontage — Summiert (IDEAL)";
+    var deCulture = CultureInfo.GetCultureInfo("de-DE");
+    const int colCount = 3; // Matchcode + zwei Summenspalten
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">Vormontage-Listen (IDEAL)</h2>
+</div>
+
+@* Sicht-Umschaltung (Sicht 1 = Einzelne Teile / Sicht 2 = Summiert), Reiter bleibt erhalten. *@
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link" asp-action="Index" asp-route-bereich="@Model.SelectedBereich">Einzelne Teile</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" asp-action="Summiert" asp-route-bereich="@Model.SelectedBereich">Summiert</a>
+    </li>
+</ul>
+
+@* Reiter je Arbeitsbereich (VMBedarf-Wert) — kein leerer Reiter (NULL/Leer ausgeschlossen).
+   Aggregation erfolgt JE Reiter, nie ueber alle Bereiche hinweg (Spec Teil 5, F.A. 7). *@
+@if (Model.AvailableBereiche.Any())
+{
+    <ul class="nav nav-tabs mb-3">
+        @foreach (var b in Model.AvailableBereiche)
+        {
+            var isActive = string.Equals(b, Model.SelectedBereich, StringComparison.OrdinalIgnoreCase);
+            <li class="nav-item">
+                <a class="nav-link @(isActive ? "active" : "")" asp-action="Summiert" asp-route-bereich="@b">@b</a>
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <div class="alert alert-info py-2 px-3">Keine Vormontage-Bereiche (<code>VMBedarf</code>) im Datenbestand.</div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <p class="mb-0 small text-muted">
+            Nach <strong>Matchcode</strong> summierte Mengensicht des gewählten Arbeitsbereichs
+            (<code>@(Model.SelectedBereich ?? "—")</code>). Zwei getrennte Summen: <em>Sollmenge</em>
+            und <em>Fertigungmenge</em>. Verfeinerung über die Spaltenfilter je Spalte.
+        </p>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="FaHierarchyVormontageSummiert" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th class="text-end" data-filterable data-col-key="sollmenge">Summe Sollmenge</th>
+                <th class="text-end" data-filterable data-col-key="fertigungmenge">Summe Fertigungmenge</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Rows.Any())
+            {
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Vormontage-Positionen gefunden.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td>@row.Matchcode</td>
+                        <td class="text-end">@VormontageService.FormatMenge(row.SummeSollmenge)</td>
+                        <td class="text-end">@VormontageService.FormatMenge(row.SummeFertigungmenge)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}
