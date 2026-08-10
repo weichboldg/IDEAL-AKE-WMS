@@ -42,4 +42,9 @@ public static class AppSettingKeys
     // Windows Auth / AD
     public const string WindowsAuthAktiv = "WindowsAuthAktiv";
     public const string WindowsAuthBerechtigungsgruppe = "WindowsAuthBerechtigungsgruppe";
+
+    // IDEAL FA-Hierarchie (Teil 2 — Baumanzeige)
+    // Tiefen-Cap (Reissleine) fuer den rekursiven Aufbau je Struktur im FaHierarchyTreeBuilder.
+    // Reine Web-Anzeige-Einstellung (ADR 0011). Ohne DB-Zeile defaultet der Code auf 500 (kein Seed).
+    public const string FaHierarchyMaxDepth = "FaHierarchyMaxTiefe";
 }

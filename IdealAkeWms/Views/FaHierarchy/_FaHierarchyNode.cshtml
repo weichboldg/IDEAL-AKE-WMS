@@ -1,0 +1,57 @@
+@model IdealAkeWms.Models.ViewModels.FaHierarchyTreeNode
+@{
+    var n = Model.Node;
+    var indent = Model.Level * 20 + 8;
+    var searchText = string.Join(" ", new[]
+    {
+        n.HauptArtnr, n.Artnr, n.Matchcode, n.Bezeichnung1, n.Bezeichnung2,
+        n.Artikelgruppe, n.Arbeitsbereich, n.Kommissionieren
+    }.Where(s => !string.IsNullOrEmpty(s))).ToLowerInvariant();
+}
+@* Rekursives Partial je Knoten (IDEAL Teil 2). Knotenidentitaet ueber SubFA (data-node-id),
+   Eltern-Bezug ueber VaterFA (data-parent-id). Kinder default eingeklappt (Q4: collapsed). *@
+<div class="fa-node" data-node-id="@n.SubFA" data-parent-id="@(n.VaterFA?.ToString() ?? "")">
+    <div class="fa-node-row" data-search="@searchText" style="padding-left:@(indent)px;">
+        @if (Model.HasChildren)
+        {
+            <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen">
+                <svg class="fa-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s;">
+                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
+                </svg>
+            </span>
+        }
+        else
+        {
+            <span class="fa-toggle-placeholder"></span>
+        }
+        <span class="fa-node-artnr"><strong>@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</strong></span>
+        @if (!string.IsNullOrEmpty(n.Matchcode))
+        {
+            <span class="text-muted ms-1">[@n.Matchcode]</span>
+        }
+        <span class="fa-node-desc ms-2">@n.Bezeichnung1 @(!string.IsNullOrEmpty(n.Bezeichnung2) ? " / " + n.Bezeichnung2 : "")</span>
+        @if (!string.IsNullOrEmpty(n.Arbeitsbereich))
+        {
+            <span class="badge bg-light text-dark border ms-2">@n.Arbeitsbereich</span>
+        }
+        @if (!string.IsNullOrEmpty(n.Kommissionieren))
+        {
+            <span class="badge bg-light text-dark border ms-1">Komm.: @n.Kommissionieren</span>
+        }
+        <span class="text-muted small ms-2">Soll @n.Sollmenge.ToString("0.###") / Fert. @n.Fertigungmenge.ToString("0.###")</span>
+        @if (n.Beschichtet)
+        {
+            <span class="badge bg-secondary ms-1">beschichtet</span>
+        }
+        <span class="text-muted small ms-2" title="SubFA (Knoten-ID)">SubFA @n.SubFA</span>
+    </div>
+    @if (Model.HasChildren)
+    {
+        <div class="fa-node-children" style="display:none;">
+            @foreach (var child in Model.Children)
+            {
+                <partial name="_FaHierarchyNode" model="child" />
+            }
+        </div>
+    }
+</div>

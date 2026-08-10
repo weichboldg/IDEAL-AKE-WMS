@@ -6339,5 +6339,56 @@ Neubefuellung in einer Transaktion.
 
 ---
 
+## TS-58 — IDEAL Teil 2: FA-Baumanzeige (`FaHierarchyController.Index`)
+
+Rekursive, mehrstufige Struktur-/Baumanzeige auf den in Teil 1 importierten Tabellen
+`FaHierarchyNodes`/`FaHierarchyOrderInfos`. Read-only, Web-only (keine Migration, kein Service).
+Route: `/FaHierarchy`. Zugriffsfilter (Class-Level): `[RequirePickingOrTrackingOrLeitstandAccess]`
+— identisch zu `ProductionOrdersController`.
+
+**Vorbedingungen:** Teil-1-Sync gelaufen, `FaHierarchyNodes`/`FaHierarchyOrderInfos` gefuellt
+(mindestens eine Struktur mit Sub-Sub-FA-Ebene). Benutzer mit `picking`- ODER `tracking`- ODER
+`leitstand`- (oder `admin`-) Rolle.
+
+- **TS-58.1 — Grunddarstellung mehrstufig:** `/FaHierarchy` aufrufen. Erwartet: Strukturen als
+  Karten (Kopfdaten + Baum). Eine bekannte Struktur mit Sub-Sub-FA laesst sich vollstaendig
+  aufklappen (Haupt-FA → Sub-FA → Sub-Sub-FA, mehr als zwei Ebenen). Default: Knoten **eingeklappt**;
+  „Alle aufklappen"/„Alle zuklappen" und die Chevrons je Knoten funktionieren.
+- **TS-58.2 — Struktur-Pagination:** Seitengroesse 25/50/100/Alle wechseln. Erwartet: `TotalCount`
+  zaehlt **Strukturen** (Wurzeln + Waisen-Pseudowurzeln), nicht Knoten-Zeilen; keine Struktur wird
+  ueber zwei Seiten getrennt; jede Struktur erscheint vollstaendig auf genau einer Seite.
+- **TS-58.3 — Struktur-Filter (server-seitig):** Filtertext, der nur auf einen tief liegenden Knoten
+  passt, eingeben und „Filtern". Erwartet: die **ganze** Struktur erscheint (nicht nur der
+  Treffer-Knoten); eine Struktur ohne jeden Treffer (weder Kopf noch Knoten) verschwindet komplett
+  von der Seite. `HauptFA`- und `Kunde`-Feld filtern zusaetzlich (UND-Verknuepfung).
+- **TS-58.4 — Client-Hervorhebung + Auto-Expand:** Im Feld „Knoten hervorheben" einen Wert eingeben,
+  der auf einen eingeklappten Knoten passt. Erwartet: Treffer werden hervorgehoben, **kein** Knoten
+  verschwindet aus dem DOM. Bei User-Setting **`RecursiveFilterSearch` = an** wird der Pfad zum
+  Treffer automatisch aufgeklappt; bei **aus** bleibt er eingeklappt (nur Hervorhebung).
+- **TS-58.5 — Zyklen-/Tiefen-Test:** Testdatensatz mit kuenstlichem Zyklus (`VaterFA` zeigt im Kreis)
+  bzw. Tiefe > Cap praeparieren. Erwartet: **nur** diese eine Struktur wird als „Fehlerhaft"
+  markiert (Badge + Hinweis, nicht leer), alle uebrigen Strukturen bleiben normal sichtbar; eine
+  `ILogger`-Warnung (mit `HauptFA` + Abbruchstelle `SubFA`) wird geschrieben; ein sichtbares
+  UI-Signal (`TempData["WarningMessage"]`-Banner) erscheint. **Keine** Mail, **kein** `SyncLog` aus
+  dem Web. (Automatisiert abgedeckt: `FaHierarchyTreeBuilderTests` — Zyklus + Tiefen-Cap.)
+- **TS-58.6 — Tiefen-Cap konfigurierbar:** `AppSettings`-Key `FaHierarchyMaxTiefe` setzen (z. B. 3).
+  Erwartet: Strukturen tiefer als der Wert werden als fehlerhaft markiert; ohne DB-Zeile gilt der
+  Default 500.
+- **TS-58.7 — Waisen-Test:** Testdatensatz, dessen `VaterFA` auf keinen importierten Parent zeigt.
+  Erwartet: erscheint als eigene, als „Verwaist — VaterFA <Wert> nicht gefunden" markierte
+  Pseudo-Wurzel-Struktur; zaehlt als eigene Struktur fuer die Pagination — kein stilles Verschwinden.
+  (Automatisiert abgedeckt: `FaHierarchyTreeBuilderTests` — Waise.)
+- **TS-58.8 — Kombigeraet-Kopfdaten (mehrdeutig):** HauptFA mit mehreren `FaHierarchyOrderInfo`-
+  Zeilen (mehrere `MontageAbteilung`). Erwartet: **alle** Kopfzeilen im Klartext (Tabelle im
+  Strukturkopf) + Badge „mehrdeutig (Kombigeraet)". Kein Positions-Split, kein Fan-out.
+  (Automatisiert abgedeckt: `FaHierarchyTreeBuilderTests` — ambiguous.)
+- **TS-58.9 — Zugriffstest:** Benutzer **ohne** `picking`/`tracking`/`leitstand`/`admin` ruft
+  `/FaHierarchy` auf → abgewiesen (403/Redirect wie bei `ProductionOrders`). Benutzer **mit** einer
+  der Rollen sieht die Baumanzeige.
+- **TS-58.10 — Regression:** `ProductionOrders`/AKE-FA-Liste unveraendert; keine Schema-/Service-
+  Aenderung.
+
+---
+
 *Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
