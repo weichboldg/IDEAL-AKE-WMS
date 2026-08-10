@@ -1,6 +1,6 @@
 ---
 type: test-index
-updated: 2026-08-06
+updated: 2026-08-10
 ---
 # Testszenarien-Index
 
@@ -79,6 +79,11 @@ gewachsen, bewusst nicht umsortiert (die TS-Ids sind in Abnahmeprotokollen refer
 | 54. Aktivitaets-Protokoll-Bereinigung | v1.25.0 | `2026-07-15-cleanup-jobs-service-design.md` (TS-54.1 – 54.4) |
 | 55. FA-Zusatzinfos (Sage) | v1.26.0 | `2026-07-22-pa-zusatzinfos-design.md` (TS-55.1 – 55.13). **Erstlauf-Pflicht:** DryRun fahren und `erledigt-gesetzt` kontrollieren (TS-55.1, 55.10–55.13); Recovery-SQL steht im Kapitel |
 | 56. Sage-Lagerbuchungen (ausgehend) | v1.28.0 | [[2026-07-29-sage-lagerbuchungen-spec]] (TS-56.1 – 56.13). **Manual-UAT:** echte Buchung am Sage-Testsystem (Zugang/Entnahme), Timeout-/Requeue-Doppelbuchungsschutz per Memo-Lookup, **TLS-Zertifikatsschalter TS-56.12/56.13** (Testsystem `sagetest01` hat ungültiges Zertifikat → `SageLagerbuchungSslZertifikatPruefen=false`, vor Produktivgang wieder `true`); automatisiert nur PayloadBuilder/EnqueueDecision/Decorator/Correlation/TlsPolicy |
+| 57. IDEAL Teil 1 — Struktur-Import FaHierarchy | v1.31.0 | [[2026-07-29-standort-ideal-teil-1-spec]] (TS-57.0 – 57.11, Kapitel „Kapitel 57" in `docs/TESTSZENARIEN.md`). Windows-Service `FaHierarchySyncService` (Full-Refresh, RCSI-AN-DELETE-Primaerweg), Migration `SQL/89_AddFaHierarchy.sql` + EF `20260807105825_AddFaHierarchy`, Whitelist+QUOTENAME-View-Namen (`FaHierarchySql`). **Manual-UAT (leeres IDEAL-Testsystem ist die Kernvorbedingung):** Erstimport, Mehrstufigkeit, Kombigeraet-Verdopplungsfreiheit, RCSI-Snapshot-Lesbarkeit waehrend Full-Refresh; automatisiert nur `FaHierarchySqlTests` (Whitelist-Positiv-/Negativfaelle) |
+| 58. IDEAL Teil 2 — FA-Baumanzeige | v1.31.0 | [[2026-07-29-standort-ideal-teil-2-spec]] (TS-58.1 – 58.10). `FaHierarchyController` (`/FaHierarchy`), `[RequirePickingOrTrackingOrLeitstandAccess]`, rekursiver `FaHierarchyTreeBuilder` mit Tiefen-Cap `FaHierarchyMaxTiefe` (Default 500) + Zyklenschutz, Waisen als markierte Pseudowurzel, Seiteneinheit Struktur. Kein Nav-Link (nur per URL erreichbar — bewusste Deferred-Entscheidung). Automatisiert: `FaHierarchyTreeBuilderTests` (Rekursion/Zyklus/Waise/Cap/Kombigeraet-Mehrdeutigkeit) |
+| 59. IDEAL Teil 3 — Kommissionierlisten + gemeinsamer Baustein | v1.31.0 | [[2026-07-29-standort-ideal-teil-3-spec]] (TS-59.1 – 59.14). `FaHierarchyKommissionierListenController` (`/FaHierarchyKommissionierListen`), `[RequireLagerProcessingAccess]` + Toggle `FaHierarchyKommissionierlistenAktiv` (invertiert, Default aus). **Referenzimplementierung** des Bausteins `FaHierarchyListBuilder` (Blattfilter `SubFA=0`, Anomalie-Banner, Fan-out-freier Kopf-Join, Gruppen-Paging, Druck-Scaffold) + `IBarcodeService`, den Teil 4/5 erweitern. Automatisiert: `FaHierarchyListBuilderTests`. **Manual-UAT-Blocker fuer Schranke 2:** TS-59.12 Mengenabgleich (SubFA=0-Blattannahme gegen echte Daten) |
+| 60. IDEAL Teil 4 — Beschichtungsauftrag | v1.31.0 | [[2026-07-29-standort-ideal-teil-4-spec]] (TS-60.1 – 60.13). `FaHierarchyBeschichtungController` (`/FaHierarchyBeschichtung`), **neue Rolle `beschichtungsauftrag`** (`RequireBeschichtungsauftragAccessAttribute`) + Toggle `FaHierarchyBeschichtungAktiv` (invertiert, Default aus). Erweitert den Teil-3-Baustein via `leafOnly:false, anomalyOnNonLeaf:false` (alle Ebenen, kein Banner). HTML-Bildschirmdruck, kein PDF/PrintService. Automatisiert: `BeschichtungsauftragServiceTests` inkl. Baustein-Naht-Regression |
+| 61. IDEAL Teil 5 — Vormontage-Listen | v1.31.0 | [[2026-07-29-standort-ideal-teil-5-spec]] (TS-61.1 – 61.20). `FaHierarchyVormontageController` (`/FaHierarchyVormontage/Index` + `/Summiert`), `[RequireVorbauAccess]` + Toggle `FaHierarchyVormontageAktiv` (invertiert, Default aus). Sicht 1 nutzt den Teil-3-Baustein unveraendert; Sicht 2 eigene Matchcode-Aggregation (Seiteneinheit Aggregatzeile, ADR-0005-Ausnahme). Wochenbezug `Neuer_PT_PPS` bewusst nicht gebaut (offene Rueckfrage). Automatisiert: `VormontageServiceTests` |
 
 ## Kapitel mit besonderem Gewicht
 
@@ -91,5 +96,6 @@ Diese Kapitel deckt **kein** automatisierter Test ab — sie sind der einzige Na
 | 51 (Service-Einstellungen) | Die wertabhaengige „laeuft-wenn-in-DB-enabled"-Wirkung; Tests sichern nur die Invariante |
 | 55 (FA-Zusatzinfos) | Sage-View-Read + automatisches Erledigt-Setzen mit Cap |
 | 56 (Sage-Lagerbuchungen) | SData-POST + Basic-Auth + Memo-Lookup gegen Sage — HTTP/Fremdsystem, nur PayloadBuilder/Decision/Decorator unit-getestet |
+| 57–61 (IDEAL Teile 1–5) | Fachliche Kernannahmen (SubFA=0-Blattregel Teil 3/5, RCSI-Snapshot-Full-Refresh, reale Sage-View-Inhalte) sind ohne produktivnahe Daten am IDEAL-Testsystem nicht verifizierbar — das Testsystem war zum Zeitpunkt v1.31.0 leer |
 
 Begruendungen im Detail: [[fallstricke]] Abschnitt 8.

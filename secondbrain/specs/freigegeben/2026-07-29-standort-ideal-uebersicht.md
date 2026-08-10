@@ -2,9 +2,9 @@
 type: uebersicht
 title: "Uebersicht: IDEAL-Standort live schalten — hierarchische Produktionsauftraege (8 Teile)"
 slug: 2026-07-29-standort-ideal-uebersicht
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-10
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 epic: true
 task: "[[2026-08-07-ideal-teile-1-5]]"
@@ -15,7 +15,7 @@ etappen:
   - "2: Teil 2 — Struktur-/Baumanzeige (rekursiv, Tiefen-Cap + Zyklenschutz) — ERLEDIGT d526a4e (Build+Test gruen)"
   - "3: Teil 3 — Kommissionierlisten INKL. gemeinsamem Listen-/Druck-Baustein (Referenzimplementierung) — ERLEDIGT 9ca8141 (Build+Test gruen; Baustein FaHierarchyListBuilder)"
   - "4: Teil 4 — Beschichtungsauftrag (erweitert den Baustein aus Etappe 3, ohne PDF) — ERLEDIGT 08aa610 (Build+Test gruen; Baustein generalisiert leafOnly/anomaly opt-in)"
-  - "5: Teil 5 — Vormontage-Listen, zwei Sichten (erweitert den Baustein aus Etappe 3)"
+  - "5: Teil 5 — Vormontage-Listen, zwei Sichten (erweitert den Baustein aus Etappe 3) — ERLEDIGT df5931e (Build+Test gruen; Sicht 2 Matchcode-Aggregat; Wochenbezug bewusst offen)"
 deploy:
   web: true
   service: true
@@ -57,11 +57,20 @@ Tabelle gehoert nie in denselben Merge wie Kommissionierlisten.
 
 | # | Etappe | Detail-Spec | Status | Commit |
 |---|--------|-------------|--------|--------|
-| 1 | Struktur-Fundament `IdealFaStruktur` | [[2026-07-29-standort-ideal-teil-1-spec]] | offen | |
-| 2 | Struktur-/Baumanzeige | [[2026-07-29-standort-ideal-teil-2-spec]] | offen | |
-| 3 | Kommissionierlisten + gemeinsamer Baustein | [[2026-07-29-standort-ideal-teil-3-spec]] | offen | |
-| 4 | Beschichtungsauftrag | [[2026-07-29-standort-ideal-teil-4-spec]] | offen | |
-| 5 | Vormontage-Listen | [[2026-07-29-standort-ideal-teil-5-spec]] | offen | |
+| 1 | Struktur-Fundament `IdealFaStruktur` | [[2026-07-29-standort-ideal-teil-1-spec]] | erledigt | de4dcd8 |
+| 2 | Struktur-/Baumanzeige | [[2026-07-29-standort-ideal-teil-2-spec]] | erledigt | d526a4e |
+| 3 | Kommissionierlisten + gemeinsamer Baustein | [[2026-07-29-standort-ideal-teil-3-spec]] | erledigt | 9ca8141 |
+| 4 | Beschichtungsauftrag | [[2026-07-29-standort-ideal-teil-4-spec]] | erledigt | 08aa610 |
+| 5 | Vormontage-Listen | [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | df5931e |
+
+**QA-Nachweis (2026-08-10, Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
+Branch `feature/2026-08-07-ideal-teile-1-5`, gepruefter Commit `93e54c4`):** `dotnet build
+IdealAkeWms.slnx` gruen (0 Fehler, 9 vorbestehende NuGet-/Nullable-Warnungen). `dotnet test`
+gruen: **IdealAkeWms.Tests 1131 bestanden, 1 vorbestehend uebersprungen, 0 Fehler** (Gesamt 1132);
+**IDEALAKEWMSService.Tests 219 bestanden, 0 Fehler**. `docs/TESTSZENARIEN.md` (Worktree) traegt die
+neuen Kapitel 57–61 (TS-57.0–57.11, TS-58.1–58.10, TS-59.1–59.14, TS-60.1–60.13, TS-61.1–61.20);
+`secondbrain/tests/testszenarien-index.md` (Hauptcheckout) um Zeilen 57–61 ergaenzt. Status auf
+**Testbereit** gesetzt — Schranke 2 (Manual-UAT + Merge) ist Sache des Menschen.
 
 **Regeln fuer den Etappenlauf:**
 - Jede Etappe endet in einem **eigenstaendigen, buildbaren Commit** — `dotnet build` und
@@ -321,3 +330,201 @@ stehen noch auf dem alten Stand. Ein `dev`-Lauf wuerde den veralteten Body bauen
 aber (a) in keinem Rumpf eingearbeitet und (b) 4 echte Entscheidungen offen (teil-2/3 unbeantwortet,
 teil-6↔7 + teil-7↔8 Widersprueche). Fruehester echter Dev-Start: Teil 1 nach seiner Nachbesserung +
 Freigabe.**
+
+## QA-Abnahme Teile 1–5 (2026-08-10) — status: Testbereit
+
+Diese QA-Runde prueft den **Gesamtstand** aller fuenf Etappen im Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch `feature/2026-08-07-ideal-teile-1-5`,
+gepruefter Commit `93e54c4`, Version-Bump bereits enthalten: v1.30.0 → **v1.31.0**). Teil 6, 7, 8
+sind **nicht** Teil dieses Buendels und bleiben `status: Freigegeben`/eigene Epics.
+
+### Build- und Test-Beweis
+
+```
+dotnet build IdealAkeWms.slnx
+  Der Buildvorgang wurde erfolgreich ausgeführt. 0 Fehler, 9 vorbestehende Warnungen
+  (NU1902 MailKit/MimeKit, 1x CS8602 TrackingController — beide nicht epic-bezogen).
+
+dotnet test
+  IdealAkeWms.Tests:        Fehler: 0, erfolgreich: 1131, uebersprungen: 1, gesamt: 1132
+  IDEALAKEWMSService.Tests: Fehler: 0, erfolgreich:  219, uebersprungen: 0, gesamt:  219
+```
+
+Beide Suiten gruen. Der eine uebersprungene Test (`ProductionOrderEagerCreateAgentJobTests.
+EagerCreate_...`) ist vorbestehend und epic-unabhaengig.
+
+### CLAUDE.md-Checkliste (verifiziert)
+
+- **Migration + SQL/XX mit OBJECT_ID-Guard:** `SQL/89_AddFaHierarchy.sql` — beide neuen Tabellen
+  (`FaHierarchyNodes`, `FaHierarchyOrderInfos`) unter `OBJECT_ID(...) IS NULL`-Guard, DDL in
+  eigenem Batch, `__EFMigrationsHistory`-Insert (`20260807105825_AddFaHierarchy`) in separatem
+  Batch, idempotent (mehrfach ausfuehrbar). Migrationsnummer korrekt: main stand nach dem
+  wms-bugs-Merge bei `SQL/88`, der Epic-Branch zweigt **nach** diesem Merge ab (Merge-Base
+  `2a34ff4` ist Nachfahre von `7b111f1` = wms-bugs-Merge) — `89` ist tatsaechlich frei, keine
+  Kollision.
+- **`SQL/00_FreshInstall.sql` an beiden Stellen:** Schema-Block „17g. FaHierarchyNodes +
+  FaHierarchyOrderInfos" vorhanden, `__EFMigrationsHistory`-Zeile fuer die Migration ebenfalls
+  ergaenzt (Zeile 2287/2288).
+- **Audit-Felder:** bewusst **nicht** angewandt — `FaHierarchyNodes`/`FaHierarchyOrderInfos` sind
+  reine, vom `FaHierarchySyncService` per Full-Refresh befuellte Cache-Tabellen (Praezedenzfall
+  `CachedBomHeaders`), kein `AuditableEntity`. Nachvollziehbarkeit ueber `SyncedAt` + SyncLog. Fuer
+  die neuen Web-Controller (reine Lesepfade) entfaellt Audit ohnehin.
+- **Version-Bump + Changelog:** `IdealAkeWms/AppVersion.cs` + `IDEALAKEWMSService/AppVersion.cs`
+  beide auf `1.31.0`/`2026-08-10`. `Views/Help/Changelog.cshtml` traegt den v1.31.0-Block mit
+  explizitem Hinweis „betrifft ausschliesslich IDEAL, standardmaessig ausgeschaltet".
+- **`docs/TESTSZENARIEN.md` aktualisiert:** Kapitel 57 (Teil 1, TS-57.0–57.11), TS-58 (Teil 2,
+  58.1–58.10), TS-59 (Teil 3, 59.1–59.14), TS-60 (Teil 4, 60.1–60.13), TS-61 (Teil 5, 61.1–61.20)
+  — alle im Worktree vorhanden.
+- **`secondbrain/tests/testszenarien-index.md` nachgezogen** (Hauptcheckout, diese QA-Runde):
+  Zeilen 57–61 im Abschnitt „Nach Release" ergaenzt + Eintrag in „Kapitel mit besonderem Gewicht"
+  (Teile 1–5 sind ohne produktivnahe IDEAL-Daten nicht vollstaendig verifizierbar).
+- **Neue Rolle `beschichtungsauftrag` (Teil 4) an allen drei Pflichtstellen:** `RoleKeys.
+  Beschichtungsauftrag`, `RequireBeschichtungsauftragAccessAttribute` +
+  `ICurrentUserService.HasBeschichtungsauftragAccessAsync`, `Views/Users/RoleOverview.cshtml`
+  (verifiziert).
+- **Service-Settings-Drift-Guard:** 3 neue Keys (`Sync:HierarchicalFaEnabled`,
+  `Sync:FaHierarchyListeViewName`, `Sync:FaHierarchyInfosViewName`) in
+  `ServiceSettingDefinitions.All` + zugehoerige InlineData im Drift-Guard-Test.
+- **`ISyncLogger` als letzter Ctor-Parameter + `SyncLogServices.All`:** `FaHierarchySyncService`
+  erhaelt `ISyncLogger` als letzten Parameter; `SyncLogServices.FaHierarchy` registriert.
+- **Nicht in dieser QA-Runde nachgezogen (offen fuer die naechste Brain-Pflege-Runde, ausserhalb des
+  hier beauftragten Umfangs):** `secondbrain/codebase/controller.md` (neue Controller/Filter/
+  Toggles), `secondbrain/feature-map.md`, `secondbrain/changelog/` (Brain-Changelog-Eintrag). Die
+  Epic-Abschluss-Checkliste in `secondbrain/aufgaben/2026-08-07-ideal-teile-1-5.md` fuehrt diese
+  Punkte weiter.
+
+### Code-Review-Befund (Selbst-Review des Gesamtdiffs main...HEAD, 69 Dateien)
+
+**Wichtiger, nicht blockierender Fund:** `FaHierarchySql.BuildCountSql`/`BuildNodeSelectSql`/
+`BuildInfosSelectSql` (IDEALAKEWMSService/Services/FaHierarchySql.cs) hardcoden das Praefix
+`FROM dbo.{quotedView}`. `ValidateAndQuote` akzeptiert aber laut eigenem XML-Doc und
+`ServiceSettingDefinitions`-Beschreibung auch ein **schema-qualifiziertes** Format
+(`[Schema].[Name]`, z. B. `dbo.vw_Foo` → `[dbo].[vw_Foo]`). Wird der View-Name **mit** Schema
+konfiguriert, entsteht `FROM dbo.[dbo].[vw_Foo]` — ein fehlerhafter Drei-Teile-Bezeichner, der zur
+Laufzeit fehlschlaegt (kein Sicherheitsproblem — Whitelist/QUOTENAME halten, aber ein
+Funktionsfehler). Der Default-Wert (`[vw_IDEAL-AKE_Kommissionierung_FAListe]`, ein Segment, kein
+Schema) ist davon **nicht** betroffen und funktioniert. **Betriebsempfehlung:** Beim Setzen von
+`Sync:FaHierarchyListeViewName`/`Sync:FaHierarchyInfosViewName` am IDEAL-Zielsystem **immer nur den
+reinen Objektnamen ohne Schema-Praefix** eintragen (`[ViewName]` oder `ViewName`, **kein**
+`dbo.ViewName`/`[dbo].[ViewName]`) — dokumentiert hier, weil es sonst niemand vor dem ersten
+Fehlschlag am Zielsystem merkt. Kein Blocker fuer Testbereit (Toggle Default aus, betrifft nur eine
+Konfigurationsvariante); vor Produktivgang entweder als bekannte Einschraenkung akzeptieren oder in
+einem kleinen Folge-Fix das hartcodierte `dbo.`-Praefix nur anwenden, wenn `ValidateAndQuote` kein
+Schema-Segment geliefert hat.
+
+Uebrige Stichproben ohne Befund: DI-Registrierungen (Web `Program.cs`: Repository+Decorator+
+Builder+Services+`IBarcodeService`; Service `Program.cs`+`SyncWorker.cs`: `IFaHierarchySyncService`
+im eigenen `RunResilientAsync`-Block), alle vier neuen Controller tragen Class-Level-Access-Filter
++ (wo vorgesehen) Toggle-Attribut, Baustein-Naht (`FaHierarchyListBuilder.Build` mit
+`leafOnly`/`anomalyOnNonLeaf`-Trailing-Defaults) hat einen expliziten Regressionstest fuer den
+Teil-3-Default.
+
+### Deploy
+
+**Betroffene Komponenten (aus dem realen Diff, nicht der urspruenglichen Spec-Schaetzung):**
+`deploy.web = true`, `deploy.service = true`, `deploy.migration = true` — alle drei zutreffend
+(Web: 4 neue Controller + Views + Repositories; Service: neuer `FaHierarchySyncService`-Sync-Block
+in `SyncWorker`; Migration: `SQL/89_AddFaHierarchy.sql` + EF `20260807105825_AddFaHierarchy`, rein
+additiv, kein Backup-Zwang — zwei neue, leere Tabellen).
+
+**Publish FROM THE WORKTREE** (Mensch-Fluss: publish → Testsystem → Test → dann Merge):
+
+```powershell
+cd C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+
+Nach dem Merge (Schranke 2) nur dann erneut aus `main` publizieren, wenn der Merge tatsaechlich
+getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (sonst reicht der bereits
+getestete Worktree-Stand).
+
+**Migrations-Reihenfolge:** additive Migration, keine Datenkonvertierung — `dotnet ef database
+update` (oder `SQL/89_AddFaHierarchy.sql` manuell) **vor** dem ersten Service-Neustart, damit
+`FaHierarchySyncService` beim ersten Lauf nicht gegen fehlende Tabellen laeuft. Kein Service-Stop
+zwingend noetig ausserhalb des normalen Deploy-Fensters (additiv, keine Downtime-Anforderung); ein
+DB-Backup ist **nicht** zwingend vorgeschrieben (rein additiv, zwei neue leere Tabellen, kein
+Datenverlustrisiko) — trotzdem ueblicher Vorsicht halber vor jedem Produktions-Deploy empfohlen.
+
+**Betriebshinweise (vor dem ersten produktiven Sync-Lauf am IDEAL-System zwingend zu setzen):**
+- Alle fuenf Feature-Toggles stehen **default aus** und muessen am IDEAL-Zielsystem bewusst aktiviert
+  werden: `Sync:HierarchicalFaEnabled` (ServiceSettings), `FaHierarchyKommissionierlistenAktiv`,
+  `FaHierarchyBeschichtungAktiv`, `FaHierarchyVormontageAktiv` (alle drei AppSettings) — plus die
+  reine Anzeige-Route `/FaHierarchy` (Teil 2, kein eigener Toggle, nur Access-Filter).
+- `SageConnection` (Connection-String fuer den Lesezugriff auf die IDEAL-Sage-DB) muss in
+  `appsettings` gesetzt sein.
+- Die konfigurierbaren View-Namen `Sync:FaHierarchyListeViewName`/`Sync:FaHierarchyInfosViewName`
+  muessen gesetzt werden — **ohne Schema-Praefix** (siehe Code-Review-Befund oben), Default
+  `[vw_IDEAL-AKE_Kommissionierung_FAListe]`/`[vw_IDEAL-AKE_Kommissionierung_FAInfos]`.
+- **RCSI ist AN** am Zielsystem (vorausgesetzt, laut Teil-1-Entscheidung) → der gebaute Primaerweg
+  (DELETE beider Tabellen + Neubefuellung in **einer** Transaktion) ist der einzige gebaute Weg;
+  **kein** `GRANT ALTER` noetig, kein Staging/Swap. Vor dem ersten Produktivlauf trotzdem einmalig
+  `SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()` gegen die
+  IDEAL-DB gegenpruefen (TS-57.0) — bei `0` ist der gebaute Weg **nicht** einsetzbar (Fallback wurde
+  bewusst nicht gebaut).
+- Die zwei Sage-View-DDL-Dateien (`SQL/sage-views/vw_IDEAL-AKE_Kommissionierung_FAListe.sql`,
+  `..._FAInfos.sql`) sind nur „Struktur laut Anhang"/TODO-Platzhalter — sie legen am Zielsystem
+  **nichts** an. Die realen Views muessen am IDEAL-Sage-System bereits existieren bzw. vor
+  Produktivgang final abgestimmt werden.
+
+### Manuelle Test-Checkliste fuer Schranke 2 (Mensch, am IDEAL-Testsystem)
+
+Vorbedingung fuer alle Punkte: das IDEAL-Testsystem war zum Zeitpunkt dieser QA-Runde **leer** —
+produktivnahe Daten sind die wichtigste Vorbedingung des gesamten Pakets (siehe Abschnitt
+„Querschnitts-Hinweise" oben). Reihenfolge folgt der Abhaengigkeit (Teil 1 zuerst, Sync muss
+gelaufen sein, bevor Teil 2–5 sinnvoll pruefbar sind).
+
+1. **RCSI-Check + Migration:** `SELECT is_read_committed_snapshot_on FROM sys.databases WHERE
+   name = DB_NAME()` gegen die IDEAL-DB → muss `1` liefern (sonst Fallback-Entscheidung noetig,
+   siehe Deploy-Abschnitt). `SQL/89_AddFaHierarchy.sql` (oder `dotnet ef database update`)
+   ausfuehren, `FaHierarchyNodes`/`FaHierarchyOrderInfos` existieren leer.
+2. **Konfiguration setzen:** `SageConnection`, `Sync:FaHierarchyListeViewName`/
+   `Sync:FaHierarchyInfosViewName` (ohne Schema-Praefix), `Sync:HierarchicalFaEnabled = true`.
+3. **Teil 1 — Erstimport (TS-57.1–57.6):** Service-Lauf ausloesen, Aktivitaets-Protokoll
+   kontrollieren (Counts plausibel, kein Fehlschlag). Eine bekannte Mehrstufigkeits-Struktur
+   (Haupt-FA → Sub-FA → Sub-Sub-FA) am Datenbestand identifizieren und die `VaterFA`-Kette
+   nachvollziehen. Eine Kombigeraet-Struktur (mehrere `MontageAbteilung`) auf
+   Verdopplungsfreiheit pruefen (TS-57.4).
+4. **Teil 1 — Full-Refresh ohne Blocking (TS-57.5):** waehrend eines zweiten Laufs parallel
+   `/FaHierarchy` oder eine Kommissionierliste aufrufen — erwartet: sofortige Antwort mit dem
+   alten Stand, kein Timeout.
+5. **Teil 1 — Negativfaelle (TS-57.8/57.9):** ungueltigen View-Namen (Semikolon/Homoglyph) setzen
+   → Lauf schlaegt kontrolliert fehl, keine SQL-Ausfuehrung gegen Sage, Fehlermail kommt an; danach
+   korrigieren.
+6. **Teil 2 — Baumanzeige (TS-58.1–58.9):** `/FaHierarchy` aufrufen (nur per URL, kein Nav-Link),
+   mehrstufige Struktur vollstaendig aufklappen, Struktur-Pagination + Struktur-Filter pruefen,
+   Kombigeraet-Kopf als „mehrdeutig" pruefen, Zugriff ohne passende Rolle verweigert.
+7. **Teil 3 — Kommissionierlisten (TS-59.8–59.13), Toggle `FaHierarchyKommissionierlistenAktiv =
+   true`:** Grunddarstellung + Ziel-Dropdown, Spaltenfilter + Gruppen-Paging, Druck spiegelt
+   Bildschirm (ein Ausdruck je HauptFA, Barcode = HauptFA).
+   **BLOCKER-Punkt (a): TS-59.12 Mengenabgleich —** an einer bekannten mehrstufigen Struktur
+   manuell gegenrechnen, ob „nur Blattebene `SubFA = 0`" tatsaechlich die richtige
+   Kommissionier-Menge liefert (die Blatt-nur-Regel ist eine Arbeitsannahme, der Anhang stuetzt sie
+   nicht explizit) — Anomalie-Banner dabei beobachten (sollte bei sauberen Daten leer bleiben).
+8. **Teil 4 — Beschichtungsauftrag (TS-60.8–60.12), Toggle `FaHierarchyBeschichtungAktiv = true`,
+   Rolle `beschichtungsauftrag`:** Grunddarstellung (beschichtete Positionen **aller** Ebenen, kein
+   Blattfilter), Druck mit Dienstleister-Kopf, Kombigeraet-Kopf mehrdeutig markiert.
+   **Offener Punkt (c):** Dienstleister-Layout/Corporate-Design ist noch nicht mit dem
+   Fachbereich abgestimmt — vor Produktivgang UI/Layout gegenpruefen.
+9. **Teil 5 — Vormontage-Listen (TS-61.13–61.19), Toggle `FaHierarchyVormontageAktiv = true`,
+   Rolle `vorbau`:** Sicht 1 (Einzelteile, gruppiert) + Sicht 2 (Matchcode-Aggregat, zwei Summen)
+   gegen dieselbe Struktur pruefen (keine Doppelzaehlung ueber Ebenen), Reiter-Wechsel je
+   `VMBedarf`-Bereich.
+   **Offener Punkt (d):** der Wochenbezug-Filter (`Neuer_PT_PPS`) ist **bewusst nicht** gebaut
+   (offene Rueckfrage) — `Neuer_PT_PPS` erscheint hoechstens als Kopf-Anzeige, nie als
+   Mengen-Einschraenkung; mit dem Fachbereich klaeren, ob das fuer den Produktivstart ausreicht.
+10. **Alle Teile — Anomalie-/Datenqualitaets-Pruefung (b, e):** SubFA=0-Blattannahme (Punkt 7)
+    UND Node-Dezimalspalten (`Sollmenge`/`Fertigungmenge`/`Breite`/`Hoehe`/`Tiefe`, laut Sage NOT
+    NULL, WMS mappt `NULL → 0`) gegen die echten IDEAL-Daten gegenpruefen — Blaetter ohne Masse
+    duerfen nicht faelschlich als „0" interpretiert werden, wenn die Sage-Seite tatsaechlich anders
+    befuellt.
+11. **Regression AKE (alle Teile):** bestehende AKE-Testszenarien (FA-Liste, Kommissionierung, BDE,
+    Beschichtungslogik `CoatingDetectionService`) unveraendert; `ProductionOrders` byte-identisch
+    unveraendert; alle Toggles auf `false` zurueckgesetzt → System verhaelt sich exakt wie vor
+    diesem Epic.
+12. **Konfigurations-Regressionstest View-Name:** wie im Code-Review-Befund beschrieben —
+    **nicht** `dbo.ViewName` als View-Namen konfigurieren (fuehrt zu einem fehlerhaften
+    Drei-Teile-Bezeichner); nur den reinen Objektnamen eintragen.
+
+Nach erfolgreichem Durchlauf: Merge (Schranke 2, ausschliesslich durch den Menschen; dieser QA-Lauf
+merged nicht, pusht nicht, loescht den Worktree nicht).
