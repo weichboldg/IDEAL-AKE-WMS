@@ -6390,5 +6390,67 @@ Route: `/FaHierarchy`. Zugriffsfilter (Class-Level): `[RequirePickingOrTrackingO
 
 ---
 
+## TS-59 — IDEAL Teil 3: Kommissionierlisten (`FaHierarchyKommissionierListenController`)
+
+Filterbare, druckbare Kommissionierlisten je Kommissionier-Ziel (`Kommissionieren`) auf den in
+Teil 1 importierten Tabellen `FaHierarchyNodes`/`FaHierarchyOrderInfos`. Read-only, Web-only (keine
+Migration, kein Service). Route: `/FaHierarchyKommissionierListen`. Zugleich
+**Referenzimplementierung des gemeinsamen FaHierarchy-Listen-/Druck-Bausteins**
+(`FaHierarchyListBuilder` + `KommissionierListenService` + `BarcodeService`), den Teil 4/5 erweitern.
+Zugriff (Class-Level): `[RequireLagerProcessingAccess]` — identisch zu `WarehousePickingController` —
+**plus** Feature-Toggle `[RequireFaHierarchyKommissionierlistenAktiv]`
+(`FaHierarchyKommissionierlistenAktiv`, Default **aus**, nur exakt `"true"` aktiviert).
+
+**Vorbedingungen:** Teil-1-Sync gelaufen, Tabellen gefuellt. Toggle
+`FaHierarchyKommissionierlistenAktiv = true`. Benutzer mit Lager-Verarbeitungs-Zugriff
+(`CanProcessLagerAsync`).
+
+### Automatisiert/InMemory (unabhaengig vom IDEAL-Testsystem — `FaHierarchyListBuilderTests`)
+
+- **TS-59.1 — Blatt-nur (`SubFA = 0`):** Fixture mit einem `HauptFA`, das eine `SubFA != 0`-
+  Verweiszeile (mit `Kommissionieren`) **und** eigene Blattzeilen (`SubFA = 0`) fuehrt. Erwartet:
+  Verweiszeile erscheint **nie**, Blattzeilen je einmal; Blattzeilen ohne gesetztes `Kommissionieren`
+  fehlen (AK1/AK2). (`OnlyLeafPositions_SubFaZero_AreListed_ReferenceRowExcluded`.)
+- **TS-59.2 — Anomalie-Erkennung + Banner-Daten:** Zeile mit `SubFA != 0` UND gesetztem
+  `Kommissionieren` wird ausgeschlossen und im Banner-Aggregat (Anzahl + betroffene `HauptFA`)
+  gemeldet; `ILogger`-Warnung je `HauptFA`/Request dedupliziert (AK3).
+  (`Anomaly_SubFaNonZero_WithFlag_IsExcluded_AndReportedInBanner`.)
+- **TS-59.3 — Kein Banner bei 0 Anomalien** (`NoAnomalies_BannerStaysInvisible`).
+- **TS-59.4 — Fan-out-Freiheit:** zwei `FaHierarchyOrderInfo`-Zeilen je `HauptFA` (Kombigeraet) →
+  Kopf zeigt beide, Positionsanzahl bleibt 1:1 (kein kartesisches Produkt), Gruppe als mehrdeutig
+  markiert (AK4). (`HeaderJoin_MultipleOrderInfosPerHauptFa_DoesNotMultiplyPositions`.)
+- **TS-59.5 — Gruppen-Paging:** `TotalCount` zaehlt **Gruppen**, nicht Positionszeilen; Seiten
+  liefern die erwarteten `HauptFA`; eine Gruppe wird nie ueber Seiten getrennt (AK5).
+  (`GroupPaging_TotalCountCountsGroups_NotPositionRows`,
+  `GroupPaging_GroupIsNeverSplitAcrossPages`.)
+- **TS-59.6 — Druck ohne Paging** liefert alle Gruppen (`Print_NoPagination_ReturnsAllGroups`).
+- **TS-59.7 — Ziel-Filter + Anomalie-Scope:** Ziel-Wert schraenkt Blaetter UND Anomalien konsistent
+  ein (`TargetPredicate_RestrictsToSelectedTarget_AndScopesAnomalies`).
+
+### Manuell am IDEAL-Testsystem (Vorbedingung: produktivnahe Daten — leeres Testsystem reicht nicht)
+
+- **TS-59.8 — Grunddarstellung + Ziel-Dropdown:** `/FaHierarchyKommissionierListen` aufrufen.
+  Erwartet: Positionen gruppiert nach `HauptFA` (Gruppenkopf zeigt alle Montage-Abteilungen/
+  Kopfdaten), Ziel-Dropdown zeigt die vorkommenden `Kommissionieren`-Werte; Auswahl eines Ziels
+  liefert die erwartete Teilmenge.
+- **TS-59.9 — Server-Spaltenfilter + Gruppen-Paging:** Spaltenfilter (`colf_*`) auf einer
+  Positionsspalte; faellt eine Gruppe dadurch auf 0 Positionen, verschwindet ihr Kopf komplett
+  (AK6). Seitengroesse 25/50/100/Alle wechseln: `TotalCount` zaehlt Gruppen (AK5).
+- **TS-59.10 — Druck spiegelt Bildschirm:** „Drucken" bei aktiven Filtern; Erwartet: ein Ausdruck je
+  `HauptFA`-Gruppe (Seitenumbruch), Barcode = `HauptFA`, Kopf listet alle Montage-Abteilungen; exakt
+  die gefilterte Menge (inkl. `colf_*` + Ziel) (AK7). Leere gefilterte Menge → Hinweistext, kein
+  leeres Blatt (AK8).
+- **TS-59.11 — Kombigeraet:** bekannter `HauptFA` mit zwei Montage-Abteilungen erzeugt **einen**
+  Ausdruck mit beiden im Kopf, ein Barcode; bekannte Einschraenkung im Druck-Kopf dokumentiert.
+- **TS-59.12 — Mengenabgleich Struktur vs. Liste:** manuelle Gegenrechnung an einer bekannten
+  mehrstufigen Struktur bestaetigt/widerlegt die `SubFA = 0`-Arbeitsannahme empirisch (Offene
+  Rueckfrage 1 der Spec — Vorbedingung fuer Schranke 2).
+- **TS-59.13 — Zugriff/Toggle:** ohne Lager-Verarbeitungs-Rolle → Redirect `AccessDenied`; bei
+  Toggle `FaHierarchyKommissionierlistenAktiv` aus → Redirect Home + `WarningMessage` (AK9).
+- **TS-59.14 — Regression:** `WarehousePicking`/AKE-Kommissionierung unveraendert; keine Schema-/
+  Service-Aenderung (AK10).
+
+---
+
 *Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

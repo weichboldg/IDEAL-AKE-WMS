@@ -89,6 +89,10 @@ builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
 builder.Services.AddScoped<FaHierarchyNodeRepository>();
 builder.Services.AddScoped<IFaHierarchyNodeRepository, CachedFaHierarchyNodeRepository>();
 builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfoRepository>();
+// IDEAL Teil 3: gemeinsamer Listen-/Druck-Baustein (Teil 4/5 erweitern ihn) + Teil-3-Service.
+builder.Services.AddScoped<FaHierarchyListBuilder>();
+builder.Services.AddScoped<KommissionierListenService>();
+builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();

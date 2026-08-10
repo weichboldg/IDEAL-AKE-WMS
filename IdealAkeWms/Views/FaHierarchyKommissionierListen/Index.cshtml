@@ -1,0 +1,145 @@
+@model IdealAkeWms.Models.ViewModels.FaHierarchyKommissionierListViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Kommissionierlisten (IDEAL)";
+    var deCulture = CultureInfo.GetCultureInfo("de-DE");
+    // Print-URL: exakt dieselben Query-Parameter (target + colf_*) wie die Bildschirmliste.
+    var printUrl = Url.Action("Print") + Context.Request.QueryString.ToString();
+    const int colCount = 11; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">Kommissionierlisten (IDEAL)</h2>
+    <div class="d-flex gap-2 mt-1">
+        <a href="@printUrl" target="_blank" class="btn btn-sm btn-outline-secondary" title="Aktuell gefilterte Liste drucken (ein Ausdruck je HauptFA)">
+            Drucken
+        </a>
+    </div>
+</div>
+
+@* Filterkarte (ADR 0005): Kommissionier-Ziel-Dropdown ueber dem Tabellenblock. *@
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label mb-0 small">Kommissionier-Ziel</label>
+                <select name="target" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— alle Ziele —</option>
+                    @foreach (var t in Model.AvailableTargets)
+                    {
+                        <option value="@t" selected="@(string.Equals(t, Model.SelectedTarget, StringComparison.OrdinalIgnoreCase))">@t</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.SelectedTarget))
+            {
+                <div class="col-auto">
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary" data-clear-table-filters="FaHierarchyKommissionierListen">Zurücksetzen</a>
+                </div>
+            }
+        </form>
+    </div>
+</div>
+
+@* Anomalie-Warnbanner (PFLICHT, nur bei vorhandenen Anomalien): SubFA != 0 mit gesetztem
+   Kommissionieren wird nicht kommissioniert, aber operator-sichtbar gemeldet. *@
+@if (Model.Anomalies.HasAnomalies)
+{
+    <div class="alert alert-warning py-2 px-3 mb-3">
+        <strong>Warnung:</strong> @Model.Anomalies.PositionCount Position(en) mit gesetztem
+        <code>Kommissionieren</code> auf Baugruppen-Ebene (<code>SubFA != 0</code>) ausgeschlossen —
+        Datenpflege prüfen. Betroffene HauptFA: @Model.Anomalies.HauptFaList.
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="FaHierarchyKommissionierListen" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="hauptfa">HauptFA</th>
+                <th data-filterable data-col-key="hauptartnr">Haupt-Artnr.</th>
+                <th data-filterable data-col-key="artnr">Artnr.</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th class="text-end" data-filterable data-col-key="sollmenge">Sollmenge</th>
+                <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
+                <th data-filterable data-col-key="kommissionieren">Kommissionieren</th>
+                <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                <th data-filterable data-col-key="artikeltyp">Artikeltyp</th>
+                <th data-filterable data-col-key="beschichtet">Beschichtet</th>
+                <th data-filterable data-col-key="material">Material</th>
+            </tr>
+        </thead>
+        @if (!Model.Groups.Any())
+        {
+            <tbody>
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Kommissionier-Positionen gefunden.</td>
+                </tr>
+            </tbody>
+        }
+        else
+        {
+            @* Je HauptFA-Gruppe ein eigenes <tbody>: Gruppen bleiben visuell zusammen, und der
+               client-seitige Sort aus table-filter.js kann Zeilen nie ueber Gruppengrenzen mischen. *@
+            @foreach (var group in Model.Groups)
+            {
+                <tbody class="fa-komm-group">
+                    <tr class="table-active">
+                        <td colspan="@colCount">
+                            <strong>HauptFA @group.HauptFA</strong>
+                            @if (group.IsAmbiguous)
+                            {
+                                <span class="badge bg-info text-dark ms-2" title="Mehrere Montage-Abteilungen (Kombigerät) — Positionen werden NICHT gesplittet">
+                                    mehrdeutig (Kombigerät)
+                                </span>
+                            }
+                            @if (group.OrderInfos.Any())
+                            {
+                                <span class="text-muted small ms-2">
+                                    @foreach (var info in group.OrderInfos)
+                                    {
+                                        <span class="me-3">
+                                            @(!string.IsNullOrWhiteSpace(info.MontageAbteilung) ? info.MontageAbteilung : "—")
+                                            @if (!string.IsNullOrWhiteSpace(info.Kunde)) { <text> · @info.Kunde</text> }
+                                            @if (!string.IsNullOrWhiteSpace(info.ABNr)) { <text> · AB @info.ABNr</text> }
+                                            @if (info.KO_Termin.HasValue) { <text> · KO @info.KO_Termin.Value.ToString("dd.MM.yyyy")</text> }
+                                        </span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small ms-2">Keine Auftrags-Kopfdaten zu diesem HauptFA.</span>
+                            }
+                        </td>
+                    </tr>
+                    @foreach (var pos in group.Positions)
+                    {
+                        <tr>
+                            <td>@pos.HauptFA</td>
+                            <td>@pos.HauptArtnr</td>
+                            <td>@pos.Artnr</td>
+                            <td>@pos.Matchcode</td>
+                            <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td>
+                            <td>@pos.Hauptlagerplatz</td>
+                            <td>@pos.Kommissionieren</td>
+                            <td>@pos.Arbeitsbereich</td>
+                            <td>@pos.Artikeltyp</td>
+                            <td>@(pos.Beschichtet ? "Ja" : "Nein")</td>
+                            <td>@pos.Material</td>
+                        </tr>
+                    }
+                </tbody>
+            }
+        }
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

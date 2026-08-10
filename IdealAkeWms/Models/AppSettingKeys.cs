@@ -47,4 +47,10 @@ public static class AppSettingKeys
     // Tiefen-Cap (Reissleine) fuer den rekursiven Aufbau je Struktur im FaHierarchyTreeBuilder.
     // Reine Web-Anzeige-Einstellung (ADR 0011). Ohne DB-Zeile defaultet der Code auf 500 (kein Seed).
     public const string FaHierarchyMaxDepth = "FaHierarchyMaxTiefe";
+
+    // IDEAL FA-Hierarchie (Teil 3 — Kommissionierlisten)
+    // Feature-Toggle fuer das Kommissionierlisten-Modul. INVERTIERTE Default-aus-Semantik
+    // (im Unterschied zu LagerbestellungAktiv, dessen Default-ein aus Bestandsschutz kommt):
+    // fehlend/nicht "true" => inaktiv. Kein Seed; RequireFaHierarchyKommissionierlistenAktivAttribute.
+    public const string FaHierarchyKommissionierlistenAktiv = "FaHierarchyKommissionierlistenAktiv";
 }
