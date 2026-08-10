@@ -31,6 +31,7 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 | Leitstand | `PickingLeitstandController`, `PickingStatusApiController` | `Views/PickingLeitstand/` |
 | Kommissionierung | `PickingController` (inkl. `Bom`, `PrintBom`), `Api/PickingApiController`, `Api/PhotoController` | `Views/Picking/` |
 | FA-Vorbau | `FaCompletionController`, `FaWorklistController`, `FaWorkStepsApiController`, `WorkStepsController`, `FaAttributesController` | `Views/FaCompletion/`, `Views/FaWorklist/`, `Views/WorkSteps/`, `Views/FaAttributes/` |
+| IDEAL FA-Hierarchie (Teile 1–5, v1.31.0 — hinter Feature-Toggles, Default aus) | `FaHierarchyController` (Baumanzeige, Teil 2), `FaHierarchyKommissionierListenController` (Teil 3), `FaHierarchyBeschichtungController` (Teil 4), `FaHierarchyVormontageController` (Teil 5) | `Views/FaHierarchy/`, `Views/FaHierarchyKommissionierListen/`, `Views/FaHierarchyBeschichtung/`, `Views/FaHierarchyVormontage/` |
 | Bedarfsmeldungen | `PartRequisitionsController`, `Api/PartRequisitionsApiController` | `Views/PartRequisitions/` |
 | Lager-/Glasbestellung | `WarehouseRequisitionsController`, `Api/WarehouseRequisitionsApiController`, `WarehousePickingController` (Lager-Worklist + `Print`), `MissingPartsController` (Werkbank-Sicht), `MissingPartsLagerController` (Lager-Sicht) | `Views/WarehouseRequisitions/`, `Views/WarehousePicking/`, `Views/MissingParts/`, `Views/MissingPartsLager/` |
 | OSEON | `TrackingController` (Teileverfolgung), `OseonReportingController` | `Views/Tracking/`, `Views/OseonReporting/` |
@@ -72,6 +73,10 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
 | `[RequireBdeAdminAccess]` | admin, bde_admin | BdeBookingsController (Edit/Cancel), BdeMasterDataController (Terminals) |
+| `[RequireBeschichtungsauftragAccess]` | admin, **`beschichtungsauftrag`** *(neue Rolle, v1.31.0)* | FaHierarchyBeschichtungController (class-level, Teil 4). Kumulativ dazu das AppSetting-Gate `[RequireFaHierarchyBeschichtungAktiv]`. |
+| `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
+| `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
+| `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
 **Sonderfaelle**
@@ -86,6 +91,26 @@ Rollen-Bedeutungen: [[glossar]].
 > **Pflege-Hinweis:** Bei jeder Filter-Aenderung ziehen **drei** Stellen nach: das Attribut, diese
 > Tabelle und die hand-gepflegte Anwender-Uebersicht
 > `../../IdealAkeWms/Views/Users/RoleOverview.cshtml`. Siehe [[fallstricke]].
+
+## IDEAL FA-Hierarchie — Zugriff je Controller (Teile 1–5, v1.31.0)
+
+Vier neue Web-Controller (reine Lesepfade) fuer den Standort IDEAL, alle **hinter Feature-Toggles
+mit Default aus** — bei ausgeschalteten Toggles verhaelt sich das System wie bisher (AKE
+unveraendert). Access-Filter Class-Level (Read); Edit gibt es nicht (Lesepfade). Feature-Gate
+**kumulativ** zum Rollen-Filter. Spec [[2026-07-29-standort-ideal-uebersicht]].
+
+| Controller | Access-Filter (Read) | Kumulatives Feature-Toggle-Gate |
+|---|---|---|
+| `FaHierarchyController` (Teil 2, Baumanzeige `/FaHierarchy`) | `[RequirePickingOrTrackingOrLeitstandAccess]` *(bestehend, wiederverwendet)* | **keiner** — nur AppSetting `FaHierarchyMaxTiefe` als Tiefen-Cap (kein Ein/Aus-Toggle). Route nur per URL erreichbar (kein Nav-Link, Stand v1.31.0). |
+| `FaHierarchyKommissionierListenController` (Teil 3) | `[RequireLagerProcessingAccess]` *(bestehend)* | `[RequireFaHierarchyKommissionierlistenAktiv]` → `FaHierarchyKommissionierlistenAktiv` (Default false) |
+| `FaHierarchyBeschichtungController` (Teil 4) | `[RequireBeschichtungsauftragAccess]` → **neue Rolle `beschichtungsauftrag`** | `[RequireFaHierarchyBeschichtungAktiv]` → `FaHierarchyBeschichtungAktiv` (Default false) |
+| `FaHierarchyVormontageController` (Teil 5) | `[RequireVorbauAccess]` *(bestehend)* | `[RequireFaHierarchyVormontageAktiv]` → `FaHierarchyVormontageAktiv` (Default false) |
+
+**Neue Rolle `beschichtungsauftrag`** (v1.31.0, Teil 4) an den drei Pflichtstellen gefuehrt:
+`RoleKeys.Beschichtungsauftrag`, `RequireBeschichtungsauftragAccessAttribute` +
+`ICurrentUserService.HasBeschichtungsauftragAccessAsync`, `Views/Users/RoleOverview.cshtml`. **Nicht**
+im `Program.cs`-Seed (analog `vorbau`/`lagerbestellung`). Die drei Aktiv-Toggles sind AppSettings
+(ADR 0011), nicht ServiceSettings — reine Web-/Anzeige-Schalter.
 
 ## Abgeloeste Routen (Stub-Redirects)
 

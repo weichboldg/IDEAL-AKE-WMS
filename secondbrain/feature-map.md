@@ -1,6 +1,6 @@
 ---
 type: feature-map
-updated: 2026-08-06
+updated: 2026-08-10
 ---
 # Feature-Landkarte
 
@@ -138,6 +138,27 @@ Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
 | Typisierte, vollstaendige Service-Einstellungen | Gemerged (v1.25.0) | `2026-07-08-service-settings-typed-catalog-design.md` | `Models/ServiceSettingDefinitions.cs` → [[0008-servicesettings-db-first-mit-typisiertem-katalog]] |
 | Lagerbestand-Nullsetzen verwaister Paare | Gemerged (v1.25.0) | `2026-07-09-lagerbestand-nullsetzen-verwaist-design.md` | `LagerbestandZeroingPlanner.cs` |
 | Cleanup-Jobs im Service (Protokoll-Bereinigung) | Gemerged (v1.25.0) | `2026-07-15-cleanup-jobs-service-design.md` | `Workers/CleanupWorker.cs`, `ActivityLogCleanupService.cs` |
+
+## IDEAL-Standort (hierarchische Produktionsauftraege)
+
+Zweiter Standort **IDEAL** (eigenes Deployment, gemeinsamer Codestamm mit AKE) auf Basis
+hierarchischer FAs (Haupt-FA → Sub-FA → Sub-Sub-FA). Teile 1–5 als **ein** Buendel in einem Worktree
+gebaut, **ein** Merge am Ende (Schranke 2). Alles additiv, `ProductionOrders` unangetastet, AKE
+unveraendert — **hinter Feature-Toggles, Default aus**. Migration additiv `SQL/89` (zwei neue
+Tabellen). Teil 6/7/8 sind **nicht** in diesem Buendel (eigene Epics). Uebergreifende Spec:
+[[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-/UAT-Notiz [[2026-08-07-ideal-teile-1-5]].
+
+| Feature | Status | Spec | Code-Einstieg |
+|---|---|---|---|
+| Teil 1 — Struktur-Fundament (Import Sage-Views → `FaHierarchyNode`/`FaHierarchyOrderInfo`, Repos + Cache-Decorator, Sync-Service) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-1-spec]] | `Models/FaHierarchyNode.cs`, `Models/FaHierarchyOrderInfo.cs`, `IDEALAKEWMSService/Services/FaHierarchySyncService.cs`, `Services/FaHierarchySql.cs`; ServiceSettings `Sync:HierarchicalFaEnabled`/`Sync:FaHierarchyListeViewName`/`Sync:FaHierarchyInfosViewName` |
+| Teil 2 — Struktur-/Baumanzeige (rekursiv, Tiefen-Cap + Zyklenschutz) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-2-spec]] | `Controllers/FaHierarchyController.cs`, `Services/FaHierarchyTreeBuilder.cs`; `[RequirePickingOrTrackingOrLeitstandAccess]`, AppSetting `FaHierarchyMaxTiefe` (kein Nav-Link, nur URL) |
+| Teil 3 — Kommissionierlisten + gemeinsamer Listen-/Druck-Baustein | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-3-spec]] | `Controllers/FaHierarchyKommissionierListenController.cs`, `Services/FaHierarchyListBuilder.cs`, `IBarcodeService`; `[RequireLagerProcessingAccess]` + Toggle `FaHierarchyKommissionierlistenAktiv` (Default aus) |
+| Teil 4 — Beschichtungsauftrag (erweitert Baustein, ohne PDF) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-4-spec]] | `Controllers/FaHierarchyBeschichtungController.cs`, `Services/BeschichtungsauftragService.cs`; **neue Rolle `beschichtungsauftrag`** (`[RequireBeschichtungsauftragAccess]`) + Toggle `FaHierarchyBeschichtungAktiv` (Default aus) |
+| Teil 5 — Vormontage-Listen (zwei Sichten, Sicht 2 = Matchcode-Aggregat) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-5-spec]] | `Controllers/FaHierarchyVormontageController.cs`; `[RequireVorbauAccess]` + Toggle `FaHierarchyVormontageAktiv` (Default aus) |
+
+> **Status:** UMGESETZT + QA-gruen im Worktree `feature/2026-08-07-ideal-teile-1-5` (Commit
+> `93e54c4`), wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).
+> Merge-Commit noch offen. Offene UAT-Punkte + Deploy-Handgriffe: [[2026-08-07-ideal-teile-1-5]].
 
 ## Offen / nicht gemerged
 
