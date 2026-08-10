@@ -13,7 +13,7 @@ branch: "feature/2026-08-07-ideal-teile-1-5"
 etappen:
   - "1: Teil 1 — Struktur-Fundament FaHierarchyNode/OrderInfo (Import FAListe+FAInfos, Domain, Repository, Cache, View-DDL) — ERLEDIGT de4dcd8 (Build+Test gruen)"
   - "2: Teil 2 — Struktur-/Baumanzeige (rekursiv, Tiefen-Cap + Zyklenschutz) — ERLEDIGT d526a4e (Build+Test gruen)"
-  - "3: Teil 3 — Kommissionierlisten INKL. gemeinsamem Listen-/Druck-Baustein (Referenzimplementierung)"
+  - "3: Teil 3 — Kommissionierlisten INKL. gemeinsamem Listen-/Druck-Baustein (Referenzimplementierung) — ERLEDIGT 9ca8141 (Build+Test gruen; Baustein FaHierarchyListBuilder)"
   - "4: Teil 4 — Beschichtungsauftrag (erweitert den Baustein aus Etappe 3, ohne PDF)"
   - "5: Teil 5 — Vormontage-Listen, zwei Sichten (erweitert den Baustein aus Etappe 3)"
 deploy:
