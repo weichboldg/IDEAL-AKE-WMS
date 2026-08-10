@@ -30,9 +30,13 @@ public static class FaHierarchySql
 
     /// <summary>
     /// Validiert einen konfigurierten View-Namen (Format <c>[Schema].[Name]</c>, <c>Schema.Name</c>,
-    /// <c>[Name]</c> oder <c>Name</c>) und liefert die per QUOTENAME-Aequivalent geklammerte,
-    /// sicher in SQL einsetzbare Form <c>[Schema].[Name]</c> zurueck. Wirft
-    /// <see cref="FaHierarchyViewNameException"/> bei jedem Verstoss.
+    /// <c>[Name]</c> oder <c>Name</c>) und liefert den vollstaendig geklammerten, direkt im FROM
+    /// einsetzbaren Bezeichner zurueck: ein Bare-Name wird zu <c>[Name]</c> (Default-Schema der
+    /// Connection = dbo), ein schema-qualifizierter Name zu <c>[Schema].[Name]</c>. Wirft
+    /// <see cref="FaHierarchyViewNameException"/> bei jedem Verstoss. Weil die Build-Methoden diesen
+    /// Bezeichner unveraendert (ohne eigenes <c>dbo.</c>-Praefix) einsetzen, ist ein
+    /// schema-qualifiziert konfigurierter View-Name jetzt gleichwertig moeglich — der frueher
+    /// noetige Betriebshinweis „ohne Schema-Praefix konfigurieren" entfaellt.
     /// </summary>
     public static string ValidateAndQuote(string? viewName)
     {
@@ -102,10 +106,11 @@ public static class FaHierarchySql
         return "[" + inner.Replace("]", "]]") + "]";
     }
 
-    /// <summary>COUNT(*) auf einen (bereits geklammerten) View-Namen — Empty-Guard auf der
-    /// ungefilterten Roh-Zeilenzahl.</summary>
+    /// <summary>COUNT(*) auf einen bereits validiert+geklammerten View-Bezeichner — Empty-Guard auf
+    /// der ungefilterten Roh-Zeilenzahl. Der Bezeichner ist vollstaendig (ggf. schema-qualifiziert),
+    /// daher KEIN zusaetzliches <c>dbo.</c>-Praefix (sonst entstuende <c>dbo.[dbo].[…]</c>).</summary>
     public static string BuildCountSql(string quotedView) =>
-        $"SELECT COUNT_BIG(*) FROM dbo.{quotedView}";
+        $"SELECT COUNT_BIG(*) FROM {quotedView}";
 
     /// <summary>
     /// Node-Import: Existenzpruefung statt Zeilen-Join. Jede FAListe-Position landet GENAU EINMAL,
@@ -120,9 +125,9 @@ public static class FaHierarchySql
             f.[Hauptlagerplatz], f.[BemerkungPN], f.[FertigungsInfoPN], f.[Kommissionieren],
             f.[Arbeitsbereich], f.[Arbeitsschritte], f.[Artikeltyp], f.[Beschichtet], f.[Material],
             f.[Breite], f.[Hoehe], f.[Tiefe], f.[EKBedarf], f.[VMBedarf]
-        FROM dbo.{quotedListeView} f
+        FROM {quotedListeView} f
         WHERE EXISTS (
-            SELECT 1 FROM dbo.{quotedInfosView} i WHERE i.[HauptFA] = f.[HauptFA]
+            SELECT 1 FROM {quotedInfosView} i WHERE i.[HauptFA] = f.[HauptFA]
         )
         """;
 
@@ -134,6 +139,6 @@ public static class FaHierarchySql
             i.[Status], i.[Dienstleister], i.[RAL], i.[Bemerkung_Uhrzeit],
             i.[KO_Termin], i.[FE_Termin], i.[Start_Beschichtung], i.[Beschichten_Retour],
             i.[Neuer_PT_PPS], i.[Verladetermin_Vsl], i.[Montagestunden], i.[Prio]
-        FROM dbo.{quotedInfosView} i
+        FROM {quotedInfosView} i
         """;
 }

@@ -65,6 +65,11 @@
                                 await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyVormontageAktiv),
                                 "true", StringComparison.OrdinalIgnoreCase);
                             var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
+                            // IDEAL Teil 2: FA-Struktur (read-only Baumanzeige). KEIN eigenes
+                            // Feature-Toggle — gegatet exakt ueber den Class-Level-Zugriff des
+                            // FaHierarchyControllers (RequirePickingOrTrackingOrLeitstandAccess),
+                            // der identisch zu showFaList ist.
+                            var showFaHierarchy = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             var showFaCompletion = faCompletionAktiv && canFaCompletion;
                             var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
                         }
@@ -93,6 +98,15 @@
                                         <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
                                     }
                                 </ul>
+                            </li>
+                        }
+                        @* IDEAL Teil 2: FA-Struktur (read-only Baumanzeige) — kein Feature-Toggle,
+                           nur der Zugriffs-Check des Controllers (identisch zu FA-Liste). *@
+                        @if (showFaHierarchy)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchy" ? "active" : "")"
+                                   asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a>
                             </li>
                         }
                         @* IDEAL Teil 3: Kommissionierlisten — nur bei Lager-Verarbeitungs-Zugriff

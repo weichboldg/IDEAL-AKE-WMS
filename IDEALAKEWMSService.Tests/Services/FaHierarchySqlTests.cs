@@ -65,6 +65,44 @@ public class FaHierarchySqlTests
     [Fact]
     public void BuildCountSql_targets_the_quoted_view()
     {
-        FaHierarchySql.BuildCountSql("[vw_X]").Should().Be("SELECT COUNT_BIG(*) FROM dbo.[vw_X]");
+        // Bare-Name-Bezeichner (Default-Schema der Connection = dbo): KEIN eigenes dbo.-Praefix.
+        FaHierarchySql.BuildCountSql("[vw_X]").Should().Be("SELECT COUNT_BIG(*) FROM [vw_X]");
+    }
+
+    // ---- Schema-Praefix-Regression (Code-Review-Fund): ein schema-qualifiziert konfigurierter
+    //      View-Name muss im FROM als [dbo].[…] landen — NIEMALS als dbo.[dbo].[…] (kaputter
+    //      Bezeichner durch doppeltes dbo.-Praefix).
+    [Fact]
+    public void Build_sql_uses_schema_qualified_identifier_without_double_dbo_prefix()
+    {
+        var quoted = FaHierarchySql.ValidateAndQuote("dbo.vw_IDEAL-AKE_Kommissionierung_FAListe");
+        quoted.Should().Be("[dbo].[vw_IDEAL-AKE_Kommissionierung_FAListe]");
+
+        var quotedInfos = FaHierarchySql.ValidateAndQuote("dbo.vw_IDEAL-AKE_Kommissionierung_FAInfos");
+
+        var countSql = FaHierarchySql.BuildCountSql(quoted);
+        countSql.Should().Contain("FROM [dbo].[vw_IDEAL-AKE_Kommissionierung_FAListe]");
+        countSql.Should().NotContain("dbo.[dbo]");
+
+        var nodeSql = FaHierarchySql.BuildNodeSelectSql(quoted, quotedInfos);
+        nodeSql.Should().Contain("FROM [dbo].[vw_IDEAL-AKE_Kommissionierung_FAListe] f");
+        nodeSql.Should().Contain("FROM [dbo].[vw_IDEAL-AKE_Kommissionierung_FAInfos] i");
+        nodeSql.Should().NotContain("dbo.[dbo]");
+
+        var infosSql = FaHierarchySql.BuildInfosSelectSql(quotedInfos);
+        infosSql.Should().Contain("FROM [dbo].[vw_IDEAL-AKE_Kommissionierung_FAInfos] i");
+        infosSql.Should().NotContain("dbo.[dbo]");
+    }
+
+    // ---- Bare-Name-Positivfall bleibt gruen: [vw_…] ohne fuehrendes dbo. im FROM.
+    [Fact]
+    public void Build_sql_with_bare_name_has_no_dbo_prefix()
+    {
+        var quoted = FaHierarchySql.ValidateAndQuote("vw_IDEAL-AKE_Kommissionierung_FAListe");
+        quoted.Should().Be("[vw_IDEAL-AKE_Kommissionierung_FAListe]");
+
+        var countSql = FaHierarchySql.BuildCountSql(quoted);
+        countSql.Should().Be("SELECT COUNT_BIG(*) FROM [vw_IDEAL-AKE_Kommissionierung_FAListe]");
+        countSql.Should().NotContain("dbo.");
     }
 }
