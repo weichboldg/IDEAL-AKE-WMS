@@ -92,6 +92,7 @@ builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfo
 // IDEAL Teil 3: gemeinsamer Listen-/Druck-Baustein (Teil 4/5 erweitern ihn) + Teil-3-Service.
 builder.Services.AddScoped<FaHierarchyListBuilder>();
 builder.Services.AddScoped<KommissionierListenService>();
+builder.Services.AddScoped<BeschichtungsauftragService>();
 builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();

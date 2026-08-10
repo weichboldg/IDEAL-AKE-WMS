@@ -405,6 +405,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `WindowsAuthBerechtigungsgruppe` | (leer) | AD-Gruppe (SAM) für den AD-Benutzer-Picker (v1.23.0) |
 | `FaHierarchyMaxTiefe` | `500` | IDEAL FA-Baumanzeige: Tiefen-Cap (Reissleine) je Struktur (Teil 2) |
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
+| `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` |
 
 ## Corporate Design
 

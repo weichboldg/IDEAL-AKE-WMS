@@ -30,6 +30,8 @@ public interface ICurrentUserService
     Task<bool> CanManagePickingReleaseAsync();
     Task<bool> CanFaCompletionAsync();
     Task<bool> HasVorbauAccessAsync();
+    /// <summary>Darf der User den IDEAL-Beschichtungsauftrag sehen (Rolle beschichtungsauftrag, Read-Ebene)?</summary>
+    Task<bool> HasBeschichtungsauftragAccessAsync();
     Task<bool> CanUseBdeAsync();
     Task<bool> CanManageBdeShiftleadAsync();
     Task<bool> CanManageBdeAdminAsync();

@@ -190,6 +190,18 @@
                 </td>
             </tr>
             <tr>
+                <td><code>beschichtungsauftrag</code></td>
+                <td>Beschichtungsauftrag (IDEAL)</td>
+                <td>IDEAL Teil 4: Beschichtungsauftrag-Liste + Bildschirmdruck der zu beschichtenden Teile (Read-Ebene, keine Bearbeitung).</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Beschichtungsauftrag (<code>/FaHierarchyBeschichtung</code>): Liste aller beschichteten Positionen (<code>Beschichtet == true</code>, alle Ebenen), gruppiert nach HauptFA</li>
+                        <li>Bildschirmdruck je HauptFA (Dienstleister/RAL/Termine im Kopf)</li>
+                        <li>Sichtbar nur wenn AppSetting <code>FaHierarchyBeschichtungAktiv</code> aktiv ist (Filter <code>RequireFaHierarchyBeschichtungAktiv</code>, invertierte Default-aus-Semantik)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
                 <td><code>bde_user</code></td>
                 <td>BDE-Benutzer</td>
                 <td>Terminal-Buchung.</td>

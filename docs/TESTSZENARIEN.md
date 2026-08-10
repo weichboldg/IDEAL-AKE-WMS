@@ -6452,5 +6452,74 @@ Zugriff (Class-Level): `[RequireLagerProcessingAccess]` — identisch zu `Wareho
 
 ---
 
+## TS-60 — IDEAL Teil 4: Beschichtungsauftrag (`FaHierarchyBeschichtungController`)
+
+Filterbare, druckbare Liste der zu beschichtenden Teile (`Beschichtet == true`) auf den in Teil 1
+importierten Tabellen `FaHierarchyNodes`/`FaHierarchyOrderInfos`. Read-only, Web-only (keine
+Migration, kein Service). Route: `/FaHierarchyBeschichtung`. **Erweitert** den in Teil 3
+geschnittenen gemeinsamen Baustein (`FaHierarchyListBuilder`) ueber die duenne
+`BeschichtungsauftragService`-Schicht — **Kern-Feinheit:** anders als Teil 3 gilt hier `Beschichtet`
+ueber **alle** Ebenen (Baustein-Naht `leafOnly: false`), es gibt **keinen** `SubFA = 0`-Blattfilter
+und **kein** Anomalie-Banner (`anomalyOnNonLeaf: false`) — eine beschichtete Baugruppe
+(`SubFA != 0`) ist legitim. Kopf (`Dienstleister`, `RAL`, `Start_Beschichtung`,
+`Beschichten_Retour`, `ABNr`, `Pos`, `MontageAbteilung`) je `HauptFA` in eigener Abfrage (kein
+Fan-out). Zugriff (Class-Level): neue Rolle `[RequireBeschichtungsauftragAccess]`
+(`beschichtungsauftrag`, Read-Ebene) **plus** Feature-Toggle
+`[RequireFaHierarchyBeschichtungAktiv]` (`FaHierarchyBeschichtungAktiv`, Default **aus**,
+invertierte Semantik: nur exakt `"true"` aktiviert).
+
+**Vorbedingungen:** Teil-1-Sync gelaufen, Tabellen gefuellt, beschichtete Positionen vorhanden.
+Toggle `FaHierarchyBeschichtungAktiv = true`. Benutzer mit Rolle `beschichtungsauftrag` oder
+`admin`.
+
+### Automatisiert/InMemory (unabhaengig vom IDEAL-Testsystem — `BeschichtungsauftragServiceTests`)
+
+- **TS-60.1 — Filter `Beschichtet == true`:** nur beschichtete Positionen erscheinen, `Beschichtet
+  == false` faellt raus (AK1). (`Filter_OnlyBeschichtetTrue_IsListed`.)
+- **TS-60.2 — Alle Ebenen, keine Anomalie (Kern-Feinheit):** eine beschichtete Baugruppe
+  (`SubFA != 0`) wird **mitgelistet** und ist **keine** Anomalie; kein Banner (Abgrenzung zu Teil 3).
+  (`AllLevels_SubFaNonZero_WithBeschichtet_IsListed_AndNoAnomaly`.)
+- **TS-60.3 — Fan-out-Freiheit des Dienstleister-Kopfs:** zwei `FaHierarchyOrderInfo`-Zeilen je
+  `HauptFA` (Kombigeraet) → Kopf zeigt beide, Positionsanzahl bleibt 1:1 (kein kartesisches
+  Produkt), Gruppe als mehrdeutig markiert (AK2).
+  (`HeaderJoin_MultipleOrderInfosPerHauptFa_DoesNotMultiplyPositions`.)
+- **TS-60.4 — Gruppen-Paging:** `TotalCount` zaehlt **Gruppen**, nicht Positionszeilen; Seiten
+  liefern die erwarteten `HauptFA` (AK4). (`GroupPaging_TotalCountCountsGroups_NotPositionRows`.)
+- **TS-60.5 — Leerfall Gruppe:** ein `HauptFA`, dessen Positionen alle wegfiltern, verschwindet ganz
+  (AK6). (`EmptyGroup_AfterFilter_Disappears`.)
+- **TS-60.6 — Mehrdeutigkeits-`ILogger`-Warnung:** Kombigeraet (mehrere Kopfzeilen) erzeugt genau
+  eine `ILogger`-Warnung mit `HauptFA` + Anzahl Kopfzeilen — kein SyncLog (AK3).
+  (`BuildAsync_LogsWarning_ForAmbiguousCombigeraet`; Gegenprobe:
+  `BuildAsync_NoWarning_WhenHeadUnambiguous`.)
+- **TS-60.7 — Regression Baustein-Naht:** ohne die neuen Opt-in-Parameter bleibt das
+  Teil-3-Verhalten (Blattfilter + Anomalie) unveraendert.
+  (`Teil3Default_StaysLeafOnly_AndAnomalyOn_WhenNewParamsOmitted`; zusaetzlich alle
+  `FaHierarchyListBuilderTests` aus Teil 3 weiterhin gruen.)
+
+### Manuell am IDEAL-Testsystem (Vorbedingung: produktivnahe Daten mit beschichteten Positionen — leeres Testsystem reicht nicht)
+
+- **TS-60.8 — Grunddarstellung:** `/FaHierarchyBeschichtung` aufrufen. Erwartet: beschichtete
+  Positionen gruppiert nach `HauptFA`, Gruppenkopf zeigt Dienstleister/RAL/Termine; Positionstabelle
+  mit `HauptFA`, `HauptArtnr`, `Artnr`, `Matchcode`, `Sollmenge`, `Beschichtet`, `Breite`, `Hoehe`,
+  `Tiefe` (AK1).
+- **TS-60.9 — Server-Spaltenfilter + Gruppen-Paging:** Spaltenfilter (`colf_*`) auf einer
+  Positionsspalte; faellt eine Gruppe dadurch auf 0 Positionen, verschwindet ihr Kopf komplett (AK6).
+  Seitengroesse 25/50/100/Alle wechseln: `TotalCount` zaehlt Gruppen (AK4).
+- **TS-60.10 — Druck spiegelt Bildschirm:** „Drucken" bei aktiven Filtern; Erwartet: ein Ausdruck je
+  `HauptFA`-Gruppe (Seitenumbruch), Barcode = `HauptFA`, Kopf mit Dienstleister/RAL/Termine; exakt
+  die gefilterte Menge (inkl. `colf_*`). Leere gefilterte Menge → Hinweistext statt leerem Blatt
+  (AK6). Reine Razor-View im Browser (kein PrintService), CSS eingebettet.
+- **TS-60.11 — Kombigeraet (mehrdeutig):** bekannter `HauptFA` mit mehreren Kopfzeilen → Dokument
+  sichtbar als mehrdeutig gekennzeichnet, alle Kopfvarianten im Klartext; `ILogger`-Warnung im
+  Server-Log (nicht SyncLog) (AK3).
+- **TS-60.12 — Zugriff/Toggle:** Benutzer **ohne** Rolle `beschichtungsauftrag`/`admin` → Redirect
+  `AccessDenied`; Toggle `FaHierarchyBeschichtungAktiv` aus → Redirect Home + `WarningMessage`;
+  Toggle-Key fehlt komplett → ebenfalls inaktiv (invertierte Default-Semantik) (AK5).
+- **TS-60.13 — Regression:** `WarehousePicking`/AKE-Beschichtungslogik (`CoatingDetectionService`,
+  `CoatingDateCalculator`) und Teil 3 (Kommissionierlisten) unveraendert; keine Schema-/
+  Service-Aenderung (AK7).
+
+---
+
 *Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

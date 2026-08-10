@@ -13,9 +13,13 @@ namespace IdealAkeWms.Services;
 /// Beschichtung, Teil 5 Vormontage). Kapselt die vier Dinge, die alle drei Teile teilen, sodass
 /// Teil 4/5 den Baustein <b>erweitern statt duplizieren</b> (Spec Teil 3, Fachliche Anforderung 11):
 /// <list type="number">
-///   <item><b>Blatt-Filter</b> <c>SubFA = 0</c> zuerst, danach das uebergebene <b>Flag-Praedikat</b>
+///   <item><b>Blatt-Filter</b> <c>SubFA = 0</c> zuerst (nur wenn <paramref name="leafOnly"/> — Default
+///     an, Teil-3-Verhalten; Teil 4 schaltet ihn <b>aus</b>, weil Beschichtung physische Teile auf
+///     JEDER Ebene betrifft), danach das uebergebene <b>Flag-Praedikat</b>
 ///     (der einzige teilspezifische Parameter: Kommissionieren / Beschichtet / VMBedarf).</item>
-///   <item><b>Anomalie-Erkennung</b>: Zeilen mit <c>SubFA != 0</c> UND gesetztem Flag werden NICHT
+///   <item><b>Anomalie-Erkennung</b> (nur wenn <paramref name="anomalyOnNonLeaf"/> — Default an;
+///     fuer Teil 4 <b>aus</b>, da <c>SubFA != 0</c> mit gesetztem Beschichtet dort legitim und keine
+///     Anomalie ist): Zeilen mit <c>SubFA != 0</c> UND gesetztem Flag werden NICHT
 ///     gelistet, sondern gesammelt (Banner-Daten) und je <c>HauptFA</c>/Request dedupliziert per
 ///     <see cref="ILogger"/> gewarnt (kein SyncLog — Web-Lesefunktion, ADR 0010 gilt nur fuer
 ///     Hintergrund-Services).</item>
@@ -64,6 +68,16 @@ public class FaHierarchyListBuilder
     /// <param name="page">1-basierte Seitennummer (nur wenn <paramref name="paginate"/>).</param>
     /// <param name="pageSize">Effektive Seitengroesse (nur wenn <paramref name="paginate"/>).</param>
     /// <param name="paginate">false = ganze gefilterte Menge (Druck), true = eine Seite (Bildschirm).</param>
+    /// <param name="leafOnly"><b>Opt-in-Naht (Kern-Feinheit Teil 4).</b> Default <c>true</c> =
+    ///   Teil-3-Verhalten: nur Blattpositionen <c>SubFA = 0</c> werden gelistet. <c>false</c> =
+    ///   <b>alle</b> Ebenen (Teil 4 Beschichtung: eine Baugruppe <c>SubFA != 0</c> kann selbst
+    ///   beschichtet sein und gehoert dann mit auf die Liste).</param>
+    /// <param name="anomalyOnNonLeaf"><b>Opt-in-Naht (Kern-Feinheit Teil 4).</b> Default <c>true</c> =
+    ///   Teil-3-Verhalten: <c>SubFA != 0</c>-Zeilen mit gesetztem Flag gelten als Anomalie (Banner +
+    ///   Log). <c>false</c> = keine Anomalie-Erkennung/kein Banner (Teil 4: <c>SubFA != 0</c> mit
+    ///   Beschichtet ist legitim). Wird <paramref name="leafOnly"/> abgeschaltet, ist
+    ///   <paramref name="anomalyOnNonLeaf"/> in aller Regel ebenfalls aus (die vermeintliche
+    ///   Anomalie ist dann eine regulaere Listenzeile).</param>
     public FaHierarchyListResult Build(
         IEnumerable<FaHierarchyNode> allNodes,
         IEnumerable<FaHierarchyOrderInfo> allOrderInfos,
@@ -73,7 +87,9 @@ public class FaHierarchyListBuilder
         IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>>? columnMap,
         int page,
         int pageSize,
-        bool paginate)
+        bool paginate,
+        bool leafOnly = true,
+        bool anomalyOnNonLeaf = true)
     {
         ArgumentNullException.ThrowIfNull(allNodes);
         ArgumentNullException.ThrowIfNull(flagPredicate);
@@ -81,8 +97,11 @@ public class FaHierarchyListBuilder
         var nodes = allNodes as IList<FaHierarchyNode> ?? allNodes.ToList();
 
         // (2) Anomalie-Erkennung: SubFA != 0 UND Flag gesetzt. Reihenfolge bewusst: Ebene zuerst,
-        // dann Flag — identisch zur Blatt-Logik unten, nur invertierte Ebene.
-        var anomalyNodes = nodes.Where(n => n.SubFA != 0 && flagPredicate(n)).ToList();
+        // dann Flag — identisch zur Blatt-Logik unten, nur invertierte Ebene. NUR wenn opt-in aktiv
+        // (Teil 3); Teil 4 schaltet sie ab, weil beschichtete Baugruppen legitim sind.
+        var anomalyNodes = anomalyOnNonLeaf
+            ? nodes.Where(n => n.SubFA != 0 && flagPredicate(n)).ToList()
+            : new List<FaHierarchyNode>();
         var anomalyGroups = anomalyNodes
             .GroupBy(n => n.HauptFA)
             .OrderBy(g => g.Key)
@@ -107,8 +126,11 @@ public class FaHierarchyListBuilder
             AffectedHauptFas = anomalyGroups.Select(g => g.Key).ToList()
         };
 
-        // (1) Blatt-Filter: erst SubFA = 0, dann Flag.
-        IEnumerable<FaHierarchyNode> leaves = nodes.Where(n => n.SubFA == 0 && flagPredicate(n));
+        // (1) Filter: das Flag-Praedikat; bei leafOnly zusaetzlich SubFA = 0 (Teil-3-Blattfilter).
+        //     Teil 4 (leafOnly = false) listet Positionen JEDER Ebene mit gesetztem Flag.
+        IEnumerable<FaHierarchyNode> leaves = leafOnly
+            ? nodes.Where(n => n.SubFA == 0 && flagPredicate(n))
+            : nodes.Where(n => flagPredicate(n));
 
         // (3) Server-Side-Spaltenfilter auf den Positionszeilen — VOR der Gruppierung (ADR 0005).
         if (columnMap != null)

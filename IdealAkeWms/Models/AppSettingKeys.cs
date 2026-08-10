@@ -53,4 +53,10 @@ public static class AppSettingKeys
     // (im Unterschied zu LagerbestellungAktiv, dessen Default-ein aus Bestandsschutz kommt):
     // fehlend/nicht "true" => inaktiv. Kein Seed; RequireFaHierarchyKommissionierlistenAktivAttribute.
     public const string FaHierarchyKommissionierlistenAktiv = "FaHierarchyKommissionierlistenAktiv";
+
+    // IDEAL FA-Hierarchie (Teil 4 — Beschichtungsauftrag)
+    // Feature-Toggle fuer das Beschichtungsauftrag-Modul. INVERTIERTE Default-aus-Semantik
+    // (wie FaHierarchyKommissionierlistenAktiv, im Unterschied zu LagerbestellungAktiv):
+    // fehlend/nicht "true" => inaktiv. Kein Seed; RequireFaHierarchyBeschichtungAktivAttribute.
+    public const string FaHierarchyBeschichtungAktiv = "FaHierarchyBeschichtungAktiv";
 }

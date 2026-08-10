@@ -53,6 +53,12 @@
                             var faKommListenAktiv = string.Equals(
                                 await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyKommissionierlistenAktiv),
                                 "true", StringComparison.OrdinalIgnoreCase);
+                            // IDEAL Teil 4: Beschichtungsauftrag — Feature-Toggle mit invertierter
+                            // Default-aus-Semantik (nur exakt "true" aktiviert).
+                            var faBeschichtungAktiv = string.Equals(
+                                await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyBeschichtungAktiv),
+                                "true", StringComparison.OrdinalIgnoreCase);
+                            var hasBeschichtungsauftragAccess = await CurrentUserService.HasBeschichtungsauftragAccessAsync();
                             var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             var showFaCompletion = faCompletionAktiv && canFaCompletion;
                             var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
@@ -91,6 +97,15 @@
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyKommissionierListen" ? "active" : "")"
                                    asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a>
+                            </li>
+                        }
+                        @* IDEAL Teil 4: Beschichtungsauftrag — nur mit Rolle beschichtungsauftrag
+                           (RequireBeschichtungsauftragAccess) UND aktivem Feature-Toggle. *@
+                        @if (hasBeschichtungsauftragAccess && faBeschichtungAktiv)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyBeschichtung" ? "active" : "")"
+                                   asp-controller="FaHierarchyBeschichtung" asp-action="Index">Beschichtungsauftrag</a>
                             </li>
                         }
                         @* Fertigungsauftraege — Dropdown (v1.22.0): FA-Liste (Picker/Tracker/Leitstand),

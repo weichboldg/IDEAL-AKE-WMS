@@ -19,4 +19,7 @@ public static class RoleKeys
     public const string Lagerbestellung = "lagerbestellung";
     public const string Glasbestellung = "glasbestellung";
     public const string StockRead = "stock_read";
+
+    /// <summary>IDEAL Teil 4 — Beschichtungsauftrag (Read-Ebene: Liste + Bildschirmdruck).</summary>
+    public const string Beschichtungsauftrag = "beschichtungsauftrag";
 }
