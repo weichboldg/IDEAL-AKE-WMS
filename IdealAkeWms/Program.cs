@@ -371,6 +371,30 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
+    // IDEAL FA-Hierarchie AppSettings (Teile 2–5). Ohne DB-Zeile sind die Feature-Toggles
+    // per RequireFaHierarchy…Aktiv-Filter inaktiv und die Listen komplett gesperrt; deshalb
+    // hier mit Default seeden, damit die Keys in /Settings (Gruppe „IDEAL") einschaltbar sind.
+    var idealFaHierarchySettings = new (string Key, string Value, string Description)[]
+    {
+        (IdealAkeWms.Models.AppSettingKeys.FaHierarchyKommissionierlistenAktiv, "false", "IDEAL Kommissionierlisten-Modul aktivieren (Teil 3). Default false."),
+        (IdealAkeWms.Models.AppSettingKeys.FaHierarchyBeschichtungAktiv, "false", "IDEAL Beschichtungsauftrag-Modul aktivieren (Teil 4). Default false."),
+        (IdealAkeWms.Models.AppSettingKeys.FaHierarchyVormontageAktiv, "false", "IDEAL Vormontage-Listen aktivieren (Teil 5, zwei Sichten). Default false."),
+        (IdealAkeWms.Models.AppSettingKeys.FaHierarchyMaxDepth, "500", "IDEAL FA-Hierarchie: max. Rekursionstiefe (Reissleine) beim Baumaufbau. Default 500."),
+    };
+    foreach (var (key, value, description) in idealFaHierarchySettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
     // Fehlende Settings nachseeden (wurden in SQL-Migrationen aber nicht im Seeding angelegt)
     var missingSettings = new (string Key, string Value, string Description)[]
     {
