@@ -56,10 +56,12 @@ public class FaHierarchySqlTests
     }
 
     [Fact]
-    public void BuildInfosSelectSql_maps_montage_abteilung_column()
+    public void BuildInfosSelectSql_maps_abteilung_column()
     {
+        // Reale FAInfos-View-Spalte heisst 'Abteilung' (Anhang nannte sie 'Montage-Abteilung');
+        // gegen die echten Views am IDEAL-System verifiziert 2026-08-11.
         var sql = FaHierarchySql.BuildInfosSelectSql("[vw_IDEAL-AKE_Kommissionierung_FAInfos]");
-        sql.Should().Contain("[Montage-Abteilung] AS [MontageAbteilung]");
+        sql.Should().Contain("[Abteilung] AS [MontageAbteilung]");
     }
 
     [Fact]

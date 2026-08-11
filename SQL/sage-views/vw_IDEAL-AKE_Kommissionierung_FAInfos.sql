@@ -4,16 +4,17 @@
  Standort:  IDEAL
  Zweck:     PPS-Auftragsdaten (Kunde, Termine, Beschichtung, Priorisierung).
             Eine Zeile = ein Auftrag (Kombination aus ABNr + Pos). Kombinationsgeraete
-            koennen denselben HauptFA mit unterschiedlichem [Montage-Abteilung] haben
+            koennen denselben HauptFA mit unterschiedlicher [Abteilung] haben
             (dann ist die Abteilung der zusaetzliche Identifier).
  Quelle:    Cross-DB-Sicht [PPSImport].[dbo].[vw_PPSData] (PPS-Anwendung der IDEAL).
  Datenbank: Sage-Instanz des IDEAL-Standorts (selber Server wie WMS). NICHT Teil der
             WMS-DB — reine Versionskontroll-Dokumentation, KEINE WMS-Migration.
 
- WICHTIG: STRUKTUR LAUT ANHANG (secondbrain/ideen/anhaenge/2026-07-29-standort-ideal/
-          sage-views-ideal.md). Der vollstaendige View-Text liegt in der Sage-DB und ist
-          hier bewusst NICHT nachgebaut — nur Spalten und Herkunft sind dokumentiert.
-          Beim naechsten Zugriff auf die reale View den echten CREATE-VIEW-Text eintragen.
+ SPALTEN gegen die REALE View verifiziert 2026-08-11 (INFORMATION_SCHEMA am IDEAL-System).
+          Typen: ABNr/Pos/HauptFA/Prio = int; KO_Termin/FE_Termin/Start_Beschichtung/
+          Beschichten_Retour/Neuer_PT_PPS/Verladetermin_Vsl = date; Montagestunden = decimal;
+          Rest = nvarchar. Der vollstaendige CREATE-VIEW-Text liegt in der Sage-DB und ist hier
+          bewusst NICHT nachgebaut (Sage-verwaltet) — beim Zugriff darauf ggf. eintragen.
 
  Verknuepfungsschluessel: HauptFA (= PPSData.FA_Nr) -> FAListe.HauptFA (= StrukturID).
 ----------------------------------------------------------------------------------------
@@ -24,7 +25,7 @@
  Kunde               | Endkunde
  KO_Termin           | Konstruktions-Termin
  FE_Termin           | Wann muss die Blechfertigung fertig sein
- [Montage-Abteilung] | Montage-Abteilung (zweiter Identifier bei Kombinationsgeraeten)
+ Abteilung           | Montage-Abteilung (reale Spalte heisst 'Abteilung', Anhang nannte sie 'Montage-Abteilung'; im Import AS MontageAbteilung) — zweiter Identifier bei Kombigeraeten
  HauptFA             | Verknuepfungs-Schluessel zur FAListe-View
  Status              | PPS-Status (leer/- vor Konstruktionsbeginn)
  Start_Beschichtung  | Wann Beschichtung starten

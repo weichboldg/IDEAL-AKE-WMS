@@ -135,7 +135,7 @@ public static class FaHierarchySql
     public static string BuildInfosSelectSql(string quotedInfosView) =>
         $"""
         SELECT
-            i.[HauptFA], i.[Montage-Abteilung] AS [MontageAbteilung], i.[ABNr], i.[Pos], i.[Kunde],
+            i.[HauptFA], i.[Abteilung] AS [MontageAbteilung], i.[ABNr], i.[Pos], i.[Kunde],
             i.[Status], i.[Dienstleister], i.[RAL], i.[Bemerkung_Uhrzeit],
             i.[KO_Termin], i.[FE_Termin], i.[Start_Beschichtung], i.[Beschichten_Retour],
             i.[Neuer_PT_PPS], i.[Verladetermin_Vsl], i.[Montagestunden], i.[Prio]
