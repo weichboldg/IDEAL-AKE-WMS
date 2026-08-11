@@ -60,30 +60,59 @@
 
 @foreach (var structure in Model.Structures)
 {
+    var head = structure.OrderInfos.FirstOrDefault();
     <div class="card mb-3 fa-structure">
-        <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-                <strong>HauptFA @structure.HauptFA</strong>
+        <div class="card-header fa-structure-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" class="text-primary flex-shrink-0">
+                    <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z" />
+                </svg>
+                <span class="fs-6 fw-bold">HauptFA @structure.HauptFA</span>
+                @if (head != null && !string.IsNullOrEmpty(head.Kunde))
+                {
+                    <span class="badge bg-primary" title="Kunde">@head.Kunde</span>
+                }
+                @* Status/Termine/Abteilung nur bei eindeutigem Kopf — bei Kombigeraeten (mehrdeutig)
+                   zeigt die Kopfdaten-Tabelle unten alle Zeilen (kein irrefuehrender Einzelwert). *@
+                @if (head != null && !structure.IsAmbiguous)
+                {
+                    if (!string.IsNullOrEmpty(head.Status))
+                    {
+                        <span class="badge bg-secondary" title="Status">@head.Status</span>
+                    }
+                    if (head.KO_Termin.HasValue)
+                    {
+                        <span class="badge bg-light text-dark border" title="Kommissionier-Termin">KO @head.KO_Termin.Value.ToString("dd.MM.yyyy")</span>
+                    }
+                    if (head.FE_Termin.HasValue)
+                    {
+                        <span class="badge bg-light text-dark border" title="Fertig-Termin">FE @head.FE_Termin.Value.ToString("dd.MM.yyyy")</span>
+                    }
+                    if (!string.IsNullOrEmpty(head.MontageAbteilung))
+                    {
+                        <span class="badge bg-light text-dark border" title="Montage-Abteilung">@head.MontageAbteilung</span>
+                    }
+                }
                 @if (structure.IsOrphan)
                 {
-                    <span class="badge bg-warning text-dark ms-2" title="VaterFA verweist auf keinen importierten Parent">
+                    <span class="badge bg-warning text-dark" title="VaterFA verweist auf keinen importierten Parent">
                         Verwaist — VaterFA @(structure.OrphanVaterFa?.ToString() ?? "?") nicht gefunden
                     </span>
                 }
                 @if (structure.IsAmbiguous)
                 {
-                    <span class="badge bg-info text-dark ms-2" title="HauptFA mit mehreren Montage-Abteilungen (Kombigerät)">
+                    <span class="badge bg-info text-dark" title="HauptFA mit mehreren Montage-Abteilungen (Kombigerät)">
                         mehrdeutig (Kombigerät)
                     </span>
                 }
                 @if (structure.HasError)
                 {
-                    <span class="badge bg-danger ms-2" title="@structure.ErrorMessage">
+                    <span class="badge bg-danger" title="@structure.ErrorMessage">
                         Fehlerhaft — @structure.ErrorMessage
                     </span>
                 }
-                <span class="text-muted small ms-2">@structure.NodeCount Knoten</span>
             </div>
+            <span class="badge rounded-pill bg-light text-muted border" title="Anzahl Knoten in dieser Struktur">@structure.NodeCount Knoten</span>
         </div>
         <div class="card-body">
             @* Kopfdaten aus FaHierarchyOrderInfo (Q1: bei Kombigeräten alle Zeilen im Klartext). *@
@@ -144,10 +173,30 @@
 
 @section Scripts {
     <style>
-        .fa-node-row { padding-top: 2px; padding-bottom: 2px; border-bottom: 1px solid #f0f0f0; }
-        .fa-toggle { cursor: pointer; user-select: none; display: inline-block; width: 16px; }
-        .fa-toggle-placeholder { display: inline-block; width: 16px; }
+        .fa-structure-header { background-color: #f8f9fa; }
+        .fa-tree { font-size: 0.9rem; }
+        .fa-node-row {
+            padding: 3px 8px;
+            border-bottom: 1px solid #f0f0f0;
+            border-radius: 4px;
+            column-gap: 0.15rem;
+        }
+        .fa-node-row:hover { background-color: #f8f9fa; }
+        .fa-toggle {
+            cursor: pointer; user-select: none;
+            display: inline-flex; justify-content: center; align-items: center;
+            width: 16px; flex-shrink: 0; color: #6c757d;
+        }
+        .fa-toggle-placeholder { display: inline-block; width: 16px; flex-shrink: 0; }
+        .fa-node-icon { flex-shrink: 0; }
+        .fa-node-artnr { flex-shrink: 0; }
         .fa-node-row.fa-hl { background-color: #fff3cd; }
+        /* Einrueck-/Verbindungslinien: je Verschachtelungsebene ein dezenter linker Rand. */
+        .fa-node-children {
+            margin-left: 12px;
+            padding-left: 10px;
+            border-left: 1px dashed #d5dbe0;
+        }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function () {

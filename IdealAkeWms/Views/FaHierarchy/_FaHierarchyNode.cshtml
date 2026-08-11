@@ -1,7 +1,8 @@
 @model IdealAkeWms.Models.ViewModels.FaHierarchyTreeNode
 @{
     var n = Model.Node;
-    var indent = Model.Level * 20 + 8;
+    // SubFA == 0 => Blatt (Kaufteil/Endmaterial ohne eigenen FA), sonst Baugruppe (eigener Sub-FA).
+    var isLeaf = n.SubFA == 0;
     var searchText = string.Join(" ", new[]
     {
         n.HauptArtnr, n.Artnr, n.Matchcode, n.Bezeichnung1, n.Bezeichnung2,
@@ -9,9 +10,12 @@
     }.Where(s => !string.IsNullOrEmpty(s))).ToLowerInvariant();
 }
 @* Rekursives Partial je Knoten (IDEAL Teil 2). Knotenidentitaet ueber SubFA (data-node-id),
-   Eltern-Bezug ueber VaterFA (data-parent-id). Kinder default eingeklappt (Q4: collapsed). *@
+   Eltern-Bezug ueber VaterFA (data-parent-id). Kinder default eingeklappt (Q4: collapsed).
+   Optik am OSEON-Tracking angelehnt (Icon Blatt/Baugruppe, Badges, monospace-Mengen, Baumlinien
+   ueber .fa-node-children im Index-Style). JS-Haken (.fa-node/.fa-node-row/.fa-node-children/
+   .fa-toggle/.fa-chevron/data-search) unveraendert. *@
 <div class="fa-node" data-node-id="@n.SubFA" data-parent-id="@(n.VaterFA?.ToString() ?? "")">
-    <div class="fa-node-row" data-search="@searchText" style="padding-left:@(indent)px;">
+    <div class="fa-node-row d-flex align-items-center @(isLeaf ? "fa-node--leaf" : "fa-node--group")" data-search="@searchText">
         @if (Model.HasChildren)
         {
             <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen">
@@ -24,26 +28,44 @@
         {
             <span class="fa-toggle-placeholder"></span>
         }
-        <span class="fa-node-artnr"><strong>@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</strong></span>
+        @if (isLeaf)
+        {
+            @* Blatt: dezenter Punkt *@
+            <svg class="fa-node-icon text-secondary" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" title="Blatt (Kaufteil/Endmaterial)">
+                <path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8" />
+            </svg>
+        }
+        else
+        {
+            @* Baugruppe: Paket/Box *@
+            <svg class="fa-node-icon text-primary" xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" title="Baugruppe (eigener Sub-FA)">
+                <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z" />
+            </svg>
+        }
+        <span class="fa-node-artnr fw-semibold ms-1">@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</span>
         @if (!string.IsNullOrEmpty(n.Matchcode))
         {
-            <span class="text-muted ms-1">[@n.Matchcode]</span>
+            <span class="text-muted small ms-1">[@n.Matchcode]</span>
         }
-        <span class="fa-node-desc ms-2">@n.Bezeichnung1 @(!string.IsNullOrEmpty(n.Bezeichnung2) ? " / " + n.Bezeichnung2 : "")</span>
+        <span class="fa-node-desc text-muted ms-2">@n.Bezeichnung1 @(!string.IsNullOrEmpty(n.Bezeichnung2) ? " / " + n.Bezeichnung2 : "")</span>
         @if (!string.IsNullOrEmpty(n.Arbeitsbereich))
         {
             <span class="badge bg-light text-dark border ms-2">@n.Arbeitsbereich</span>
         }
         @if (!string.IsNullOrEmpty(n.Kommissionieren))
         {
-            <span class="badge bg-light text-dark border ms-1">Komm.: @n.Kommissionieren</span>
+            <span class="badge bg-info text-dark ms-1" title="Kommissionier-Ziel">Komm.: @n.Kommissionieren</span>
         }
-        <span class="text-muted small ms-2">Soll @n.Sollmenge.ToString("0.###") / Fert. @n.Fertigungmenge.ToString("0.###")</span>
         @if (n.Beschichtet)
         {
             <span class="badge bg-secondary ms-1">beschichtet</span>
         }
-        <span class="text-muted small ms-2" title="SubFA (Knoten-ID)">SubFA @n.SubFA</span>
+        <span class="ms-auto d-flex align-items-center gap-2 ps-2 flex-shrink-0">
+            <span class="fa-node-qty font-monospace small text-muted" title="Soll- / Fertigungsmenge">
+                @n.Sollmenge.ToString("0.###") / @n.Fertigungmenge.ToString("0.###")
+            </span>
+            <span class="badge bg-light text-muted border small" title="SubFA (Knoten-ID)">SubFA @n.SubFA</span>
+        </span>
     </div>
     @if (Model.HasChildren)
     {
