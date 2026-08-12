@@ -380,10 +380,207 @@ Nach Klärung der Offenen Rückfragen (insbesondere 4 und 6) zu präzisieren.
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
-6. →
-7. →
+1. → **Als zusaetzliche Etappen im BESTEHENDEN Epic-Worktree, nicht als eigener Worktree.**
+   Drei Gruende, der erste ist zwingend:
+   - Die betroffenen Views existieren **nur** in
+     `.claude/worktrees/2026-08-07-ideal-teile-1-5` — nicht auf `main`. Ein neuer Worktree von
+     `main` faende nichts zum Anfassen.
+   - Beide neuen Specs sind an **dieselbe Vorbedingung** gebunden wie der Epic selbst: ein
+     befuelltes IDEAL-Testsystem. Getrennte Merges hiessen mehrere Testrunden auf dieselben
+     fehlenden Daten — exakt das Argument, mit dem die Teile 1-5 gebuendelt wurden.
+   - Ein Merge, eine Abnahme, ein Deploy statt dreier.
+   **Preis, bewusst akzeptiert:** Der Epic geht von `Testbereit` auf `InUmsetzung` zurueck, und die
+   QA (Build/Tests, Evidenz in der Spec) ist am Ende **erneut** zu fahren. Das ist billig, solange
+   die Abnahme ohnehin auf Daten wartet — und waere teuer, sobald der Epic gemergt ist. Falls das
+   Testsystem absehbar **doch nicht** befuellt wird und der Epic ohne diese Darstellung produktiv
+   gehen soll: dann zuerst mergen und beide Specs danach von `main` aus bauen.
+2. → **Reihenfolge und Scope-Grenze:**
+   - **Zuerst [[2026-08-12-listen-spaltenauswahl]]** (vier echte Tabellen, keine Vorbedingung,
+     kleiner Umfang, bringt sofort Nutzen).
+   - **Dann diese Spec** — Tree-Table-Umbau, Kontrast, Icons, Baum-Spaltenfilter.
+   - **Der Anschluss der Baumanzeige an `column-preferences.js` gehoert in DIESE Spec**, als
+     letzter Schritt: Wer die Tabelle baut, verdrahtet sie auch. Kein dritter Spec-Vorgang fuer
+     zwanzig Zeilen — die drei Bloecke (`view-config`, `column-config`, Skript-Include) sind dann
+     bereits durch die Schwester-Spec erprobt, samt der `ColumnDefinitions`-Registrierung.
+   **Scope-Grenze klar:** Die Schwester-Spec fasst die **Baumansicht nicht an**; diese Spec fasst
+   die **vier Listen nicht an**. Beruehrungspunkt ist ausschliesslich das Muster.
+3. → **Bestaetigt: `Views/Tracking/OseonIndex.cshtml` + `_OseonGroupDetails.cshtml` ist das richtige
+   Vorbild.** Meine Backlog-Referenz auf `OseonReporting/_OseonReportingTable.cshtml` war ein
+   Fehlgriff — sie stammte aus einer Dateinamen-Suche, nicht aus dem Lesen des Inhalts. Der
+   Spec-Lauf hat den Code gelesen; der Code gewinnt. Die Backlog-Notiz
+   [[2026-08-12-fa-struktur-darstellung]] ist entsprechend zu korrigieren, damit der falsche
+   Verweis nicht weiterwandert.
+4. → **Zwei Bedienelemente mit bewusst VERSCHIEDENER Semantik — und beide behalten ihre.**
+   - Das bestehende Feld „Knoten hervorheben": **hebt hervor, entfernt nie** (Baum-Integritaet).
+     Unveraendert.
+   - Die **neuen Spaltenfilter: schraenken ein** — sonst waeren es keine Filter, und der Anwender
+     erwartet von einem Spaltenfilter ueberall im WMS dasselbe Verhalten.
+   Semantik der Einschraenkung: Treffer sichtbar, **Vorfahrenpfad als Kontext** sichtbar (gedimmt,
+   als Nicht-Treffer erkennbar), nicht passende Geschwister **samt Unterbaum** ausgeblendet. Faellt
+   eine Struktur dadurch auf null Treffer, verschwindet sie ganz. Ein Zaehler („X von Y Knoten")
+   macht die Einschraenkung sichtbar.
+   **Arbeitsteilung, die sich daraus ergibt:** Der server-seitige Filter aus Teil 2 entscheidet,
+   **welche Strukturen** erscheinen; die Spaltenfilter wirken **innerhalb** der angezeigten
+   Strukturen, client-seitig. Das passt zur bestehenden Architektur und vermeidet einen zweiten
+   Server-Roundtrip.
+   **Pflicht:** Beide Bedienelemente muessen unterscheidbar beschriftet sein (z. B. „hervorheben
+   (Struktur bleibt vollstaendig)" vs. „filtern (blendet aus)"), sonst erwartet der Anwender vom
+   einen, was das andere tut.
+5. → **Nicht am Terminal gegenpruefen, sondern RECHNEN.** Der Kontrast ergibt sich deterministisch
+   aus den CSS-Werten — Vorder- und Hintergrundfarbe der betroffenen Klassen ermitteln, Verhaeltnis
+   berechnen, gegen WCAG AA pruefen (4,5:1 Fliesstext, 3:1 grosse Schrift/Bedienelemente). Dafuer
+   braucht es weder Screenshot noch Terminal, und das Ergebnis ist nachpruefbar statt Geschmack.
+   Ein Sichtpruefung am realen Terminal gehoert **zusaetzlich** in die manuelle Test-Checkliste —
+   als Bestaetigung, nicht als Messverfahren.
+6. → **Lokal fuer FaHierarchy bauen, nicht generalisieren.** Die Baum-Filtersemantik (Vorfahren als
+   Kontext, Unterbaum-Ausblendung) unterscheidet sich grundlegend von den Flach-Tabellen-Filtern.
+   Eine Abstraktion vor dem zweiten echten Verbraucher hiesse, die Naht zu raten — genau der Fehler,
+   den wir bei Teil 3 vermieden haben, indem der gemeinsame Baustein erst mit **drei** realen
+   Verbrauchern geschnitten wurde. Taucht ein zweiter Baum auf, wird dann extrahiert.
+7. → **Erst pruefen, dann entscheiden — Konsistenz geht vor.** Ist das `bootstrap-icons`-Paket im
+   Projekt bereits eingebunden (Layout, `libman.json`, `wwwroot/lib`), wird **es** verwendet.
+   Nur wenn nicht, kommen die vier Symbole als **Inline-SVG** (kein neues Paket, kein Font-Ladevorgang,
+   `currentColor` erbt die Textfarbe — wichtig fuer den Kontrastpunkt). Vier Icons rechtfertigen
+   keine neue Abhaengigkeit; ein bereits vorhandenes Set aber sehr wohl die Wiederverwendung.
+   **Unabhaengig von der Technik gilt:** Icon nie alleiniger Bedeutungstraeger (`title`/`aria-label`),
+   Farbe nie alleiniger Unterscheider (die Form muss ebenfalls unterscheiden).
+
+## Kritische Pruefung (2026-08-12)
+
+Anwalt-des-Teufels-Durchsicht VOR der Freigabe. Gegengelesen gegen den **echten, aktuellen**
+Worktree-Code (`.claude/worktrees/2026-08-07-ideal-teile-1-5`, inkl. Polish-Commit `b6b6d83`):
+`Views/FaHierarchy/Index.cshtml`, `_FaHierarchyNode.cshtml`, `Views/Tracking/OseonIndex.cshtml`,
+`wwwroot/js/column-preferences.js`, `wwwroot/js/table-filter.js`, `wwwroot/css/site.css`,
+`Models/FaHierarchyNode.cs`; sowie die Schwester-Spec [[2026-08-12-listen-spaltenauswahl-spec]],
+die Teil-2-Spec [[2026-07-29-standort-ideal-teil-2-spec]] und ADR 0005.
+
+### BLOCKER — vor Freigabe/Dev-Lauf zu klaeren
+
+**B-1 — Freigabe-Antwort 2 und der Spec-Rumpf widersprechen sich beim column-preferences-Anschluss
+(gleiche Fehlerklasse wie „stale Rumpf" in der Teil-2-Pruefung, H-4 dort).**
+Freigabe-Antwort 2 sagt woertlich: „**Der Anschluss der Baumanzeige an `column-preferences.js`
+gehoert in DIESE Spec**, als letzter Schritt". Der Spec-Rumpf sagt an **drei** Stellen das Gegenteil:
+Out-of-Scope (Zeilen 102–105: „ist Gegenstand der separaten Spec … diese Spec liefert nur die … 
+Tabellenstruktur als Vorbedingung"), Technischer Loesungsentwurf (Zeilen 235–236: „**Kein** Anschluss
+an `column-preferences.js` in dieser Spec"), ADR-0005-Abschnitt (Zeilen 262–263: „Spaltenpraeferenzen
+… bewusst **out of scope**"). Die Antwort ist die spaetere, spezifischere Entscheidung und hat
+Vorrang — aber der Rumpf ist damit stale. Folge: **kein** Akzeptanzkriterium, **kein** Testszenario,
+**kein** `affected_code`-Eintrag deckt den Anschluss ab. Insbesondere fehlt
+`Models/ViewModels/ColumnDefinitions.cs` in `affected_code`: Die Schwester-Spec belegt (deren
+Fachliche Anforderung 2), dass ein neuer `viewKey` **zwingend** dort registriert werden muss, sonst
+antwortet die Prefs-API `400` und speichert stillschweigend nichts. Ebenso unerwaehnt bleiben das
+`data-view-key`-Attribut an der Tabelle sowie die `#view-config`/`#column-config`-Bloecke. Ein
+`/dev`-Lauf auf dem heutigen Rumpf baut den Anschluss **nicht**. In-Scope, Out-of-Scope, Technischer
+Entwurf, AKs, Testszenarien und `affected_code` sind vor dem Dev-Lauf an Antwort 2 anzugleichen.
+
+**B-2 — Die Tree-Table-Topologie ist ungeklaert und kollidiert mit den einzeltabellen-basierten
+JS-Bausteinen — genau den, die Antwort 2 anschliessen will.**
+Spec-Abschnitt 2 (Zeile 133) fordert: „**Jede Struktur-Karte** (`.fa-structure`) rendert ihre Knoten
+als **eine** `<table>`". Bei Struktur-Pagination (Default 25 Strukturen/Seite, aus Teil 2) sind das
+**bis zu 25 `<table>`-Elemente pro Seite**. Der Code, an den angeschlossen werden soll, ist aber
+**strikt einzeltabellen-gebunden**:
+- `column-preferences.js` (Zeile 847): `_table = document.querySelector('table[data-view-key]')` —
+  **genau eine** Tabelle (die erste). Sichtbarkeit/Breite/Reihenfolge/Zahnrad wuerden nur auf die
+  **erste** Struktur der Seite wirken, alle uebrigen blieben unberuehrt.
+- `table-filter.js` (Zeilen 126/130): `_table = document.querySelector('.filterable-table')` und
+  `_tbody = _table.querySelector('tbody')` — ebenfalls nur die erste Tabelle / das erste `<tbody>`.
+- ADR-0005-Fallstrick: „**eine** filterbare Tabelle pro gerenderter Seite".
+Zusaetzlich **widerspricht die Ein-Tabelle-pro-Karte-Idee dem eigenen zitierten Vorbild**:
+`OseonIndex.cshtml` ist **eine einzige** seitenweite Tabelle (`<table id="oseonTree"
+data-view-key="OseonTracking">`, Zeile 100), in der die Gruppen als mehrere `<tbody>`-Bloecke
+**innerhalb** derselben Tabelle stehen (Zeilen 134/170) — **nicht** eine Tabelle je Gruppe/Karte.
+Entweder (a) eine seitenweite Tabelle wie OSEON — dann kollidiert das mit dem gepolishten
+Pro-Struktur-Karten-Layout (jede Struktur ist heute eine Bootstrap-Card mit eigenem
+`card-header`, Badges und einer eigenen `fa-head-table`-Kopfdatentabelle) — oder (b) je Struktur
+eine Tabelle — dann sind column-preferences **und** der neue Client-Spaltenfilter nur auf der
+ersten Struktur funktionsfaehig, ausser man aendert die gemeinsamen JS-Bausteine (was Abschnitt
+„keine neue Bibliothek/minimal" und die Schwester-Spec-Grenze „keine Aenderung an
+`column-preferences.js`" ausschliessen). Diese Topologie-Entscheidung ist tragend fuer den gesamten
+Umbau und muss VOR dem Dev-Lauf fallen; die Spec trifft sie nicht.
+
+**B-3 — „`expandAncestors()` … wird wiederverwendet" ist im Tree-Table-Modell technisch falsch und
+widerspricht dem eigenen Abschnitt 2.**
+Technischer Loesungsentwurf (Zeilen 228–230): „Bestehender `expandAncestors()`-Mechanismus (Zeilen
+239–253 …) wird wiederverwendet". Der reale `expandAncestors`/`setExpanded`-Code (Index.cshtml,
+Zeilen 207–253) haengt **fundamental an DOM-Verschachtelung**: `setExpanded` liest
+`querySelector(':scope > .fa-node-children')`, `expandAncestors` laeuft `parentElement` hoch und
+sucht `.fa-node-children`-Container. Ein Tree-**Table** nach OSEON-Vorbild rendert alle Ebenen als
+**flache Geschwister-`<tr>`** in **einem** `<tbody>` (Sichtbarkeit ueber `display:none` je Zeile,
+Eltern-Bezug ueber `data-parent-id`) — es gibt dann **keine** `.fa-node-children`-Container mehr,
+`expandAncestors`/`setExpanded` sind nicht wiederverwendbar, sondern **komplett neu zu schreiben**.
+Abschnitt 2 (Zeilen 141–142) sagt das sogar selbst („Expand/Collapse ueber Zeilen-Sichtbarkeit …
+**statt** ueber `.fa-node-children`-Container-Sichtbarkeit") — und widerspricht damit dem
+„wiederverwendet" des Technischen Entwurfs. Konsequenz fuer den Umfang: **der gesamte
+Skriptblock** von `Index.cshtml` (Zeilen 201–274: Toggle, „Alle auf/zu", Highlight, Auto-Expand)
+muss mitumgeschrieben werden, nicht nur „ein neues, kleines Skript fuer den Spalten-Baumfilter"
+(so aber `affected_code`, Zeile 17). Umfang und `affected_code` unterzeichnen den JS-Aufwand.
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S-1 — Die Ziel-Formulierung erzeugt einen Reihenfolge-Scheinzirkel.**
+Ziel (Zeilen 51–54): „Das Tree-Table ist ausserdem **Vorbedingung** fuer … die per-Benutzer-
+Spaltenauswahl aus [[2026-08-12-listen-spaltenauswahl]]". Das liest sich, als haenge die **ganze**
+Schwester-Spec am Tree-Table. Tatsaechlich fasst die Schwester-Spec die Baumanzeige **gar nicht** an
+(deren Out-of-Scope) und behandelt vier **flache** Listen, die bereits echte `<table>`s sind und das
+Tree-Table **nicht** brauchen. Aufgeloest ist der Zirkel durch Antwort 2 („Schwester zuerst"), aber
+die Ziel-Formulierung bleibt irrefuehrend — praezisieren: Vorbedingung ist das Tree-Table nur fuer
+den **eigenen** column-prefs-Anschluss der Baumanzeige, nicht fuer die Schwester-Spec.
+
+**S-2 — Icon-Klassifikation ohne Praezedenz fuer die Wurzel.**
+Tabelle Zeilen 169–174: Eine Wurzel ist „oberste Zeile (`VaterFA IS NULL`)", eine Baugruppe ist
+„`SubFA != 0`". Eine reale Wurzel ist typischerweise die oberste Baugruppe und erfuellt **beide**
+Zeilen gleichzeitig. Welches Icon gewinnt, ist nicht ausgeschrieben (die Tabellen-Reihenfolge legt
+„Wurzel zuerst" nahe, sagt es aber nicht). Praezedenz explizit festlegen (Wurzel-Check vor
+SubFA-Check), sonst raet der Dev-Lauf.
+
+**S-3 — Sortier-Fallstrick der Schwester-Spec trifft auch die Baumanzeige, falls seitenweite
+Tabelle mit mehreren `<tbody>`.**
+Wird B-2 zugunsten einer OSEON-artigen seitenweiten Tabelle entschieden (ein `<table>`, ein `<tbody>`
+je Struktur), gilt der in der Schwester-Spec (deren Fachliche Anforderung 5) belegte Defekt auch
+hier: `table-filter.js` sortiert nur das **erste** `<tbody>`. Sobald ein `<th>` `data-sortable`/
+`data-filterable` traegt, sortiert ein Klick auf die Spaltenueberschrift nur die erste Struktur —
+sichtbar kaputtes Verhalten. Die Spec sagt zur Sortierbarkeit der Baumspalten nichts; entweder
+Spalten explizit **nicht** sortierbar auslegen oder dieselbe defensive Linie
+(`supportsSortDefault: false`) uebernehmen.
+
+**S-4 — Umfang fuer einen sauberen Dev-Lauf zu gross; Split erwaegen.**
+Kontrast-Fix + kompletter Markup-Umbau `_FaHierarchyNode.cshtml` + kompletter JS-Umbau `Index.cshtml`
++ zwei Filtertypen (Freitext **und** neuartiges `<select>`-Widget ohne Repo-Praezedenz) + vier Icons
++ Legende + (per Antwort 2) column-prefs-Anschluss inkl. `ColumnDefinitions`-Registrierung in **einem**
+Lauf ist viel — und der riskanteste Teil (Topologie, B-2) ist ungeklaert. Der **Kontrast-Fix** ist
+davon sauber abtrennbar (ein bis drei CSS-Zeilen, sofort und risikoarm lieferbar) und sollte nicht
+Geisel des grossen Tree-Table-Umbaus sein. Split erwaegen: (a) Kontrast jetzt, (b) Tree-Table +
+Filter + Icons + Prefs als eigener, nach der Topologie-Entscheidung geschnittener Lauf.
+
+### HINWEIS
+
+**H-1 — Positiv bestaetigt: Der Kontrast-Root-Cause stimmt und die Zeilenangaben sind NICHT stale.**
+`site.css` `.card-header` (Zeilen 110–116) setzt `background-color: var(--ake-primary)` **und**
+`color: var(--ake-white)`; `.fa-structure-header` (Index.cshtml Zeile 176) ueberschreibt nur den
+Hintergrund auf `#f8f9fa` → weisser Text auf sehr hellem Grau. Die Spec-Referenzen „Zeilen 174–176"
+und „`expandAncestors` Zeilen 239–253" decken sich **exakt** mit dem aktuellen Worktree-Stand — der
+Verdacht veralteter Zeilennummern bestaetigt sich hier nicht.
+
+**H-2 — Positiv bestaetigt: `Beschaffungsartikel` existiert** als `bool` auf
+`Models/FaHierarchyNode.cs` (Zeile 53). Die Vier-Typen-Icon-Klassifikation ist datenseitig baubar,
+kein neues Feld noetig — wie die Spec behauptet.
+
+**H-3 — Polish-Ueberlappung korrekt erfasst, aber Rework-Kosten unterzeichnet.** Die Spec erkennt
+richtig, dass der Polish (`b6b6d83`) Kopf-Karte, Blatt-/Baugruppe-Icons, `beschichtet`/`Komm.`-Badges,
+Baumlinien und rechtsbuendige Mengen bereits gebaut hat, und erweitert nur (2 → 4 Icon-Typen). Nicht
+ausgesprochen: Der Tree-Table-Umbau **verwirft** den Grossteil des gerade gebauten flex-basierten
+`_FaHierarchyNode.cshtml`-Layouts (ms-auto, inline-Badges, `.fa-node-desc`). Das ist vertretbar, aber
+als bewusste Wegwerf-Rework-Entscheidung zu benennen, nicht stillschweigend.
+
+**H-4 — „schmaler Bildschirm" (AK 3, Zeilen 274/303) ist nicht in px definiert.** Fuer einen
+objektiv pruefbaren Test fehlt eine Breiten-Schwelle (Fertigungsterminal-Aufloesung benennen). Die
+Kontrast-AKs sind dagegen objektiv rechnerisch pruefbar (Antwort 5) — gut.
+
+**H-5 — Protokoll: Die Spec liegt identisch in `entwurf/` UND `freigegeben/`.** Bearbeitet wurde die
+`entwurf/`-Version; die Doublette ist vor/bei der Freigabe zu bereinigen (eine Quelle).
+
+NACHBESSERUNG NOETIG: column-preferences-Anschluss aus Antwort 2 in Rumpf/AK/Test/`affected_code`
+(inkl. `ColumnDefinitions.cs`) einarbeiten (B-1), Tree-Table-Topologie entscheiden — seitenweite
+Einzeltabelle vs. Tabelle-je-Karte — und mit den einzeltabellen-gebundenen JS-Bausteinen in Einklang
+bringen (B-2), sowie den JS-Umbau (`expandAncestors`/Toggle neu statt „wiederverwendet") in Umfang
+und `affected_code` ehrlich abbilden (B-3).
