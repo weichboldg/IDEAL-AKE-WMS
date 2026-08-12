@@ -332,8 +332,121 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
+1. → **Bestaetigt: Tree-Table ist Vorbedingung und NICHT Teil dieser Spec.** Der Anschluss der
+   Baumanzeige an `column-preferences.js` wandert aber **nicht** in eine dritte Spec, sondern in
+   [[2026-08-12-fa-struktur-darstellung]] als letzten Schritt — wer die Tabelle baut, verdrahtet
+   sie auch. Reihenfolge: **diese Spec zuerst** (vier echte Tabellen, keine Vorbedingung), dann die
+   Baum-Spec; die drei Bloecke sind bis dahin erprobt.
+2. → **Im bestehenden Epic-Worktree fortsetzen** — Empfehlung des Spec-Laufs bestaetigt. Zwingend,
+   weil die vier Views nur dort existieren und nicht auf `main`. Beide neuen Specs laufen als
+   zusaetzliche Etappen; **ein** Merge, **eine** Abnahme. Preis bewusst akzeptiert: Der Epic geht
+   von `Testbereit` auf `InUmsetzung` zurueck und die QA ist am Ende erneut zu fahren — billig,
+   solange die Abnahme ohnehin auf ein befuelltes Testsystem wartet.
+3. → **Additiver Nachtrag direkt in ADR 0005**, nicht als neuer ADR. Es wird keine Entscheidung
+   revidiert, sondern ein bisher unbenannter vierter Pflichtbestandteil ergaenzt — und ein
+   praezisierender Zweit-ADR wuerde das Listenmuster auf zwei Dokumente verteilen. Genau diese
+   Zersplitterung ist die Ursache des Problems: Wer „nach ADR 0005" liest, muss **alles** finden,
+   was eine vollstaendige Liste ausmacht. Nachtrag mit Datum und Begruendung kennzeichnen
+   (Praezedenzfall „Nachtraeglich erfasst" existiert dort bereits).
+4. → **Vertagen — dokumentieren statt bauen, mit einem Zusatz.** Empfehlung des Spec-Laufs
+   bestaetigt: Ein Chip-Hinweis waere eine echte Aenderung an gemeinsam genutztem JS und damit mehr
+   als „anschliessen". Zusatz, der es vertretbar macht: Der bestehende
+   `data-clear-table-filters`-Link raeumt auch Filter unsichtbarer Spalten weg — es gibt also einen
+   Notausgang. **In die Spec und in `fallstricke.md` aufnehmen**, damit der Fall bekannt ist, wenn
+   ihn jemand meldet, und als eigener Backlog-Punkt fuehren.
+5. → **(a) dokumentieren und trennen — aber der Fix muss VOR den produktiven Einsatz der Listen.**
+   Die Analyse ist ueberzeugend: `table-filter.js` greift auf `table.querySelector('tbody')` und
+   sortiert damit nur die erste `HauptFA`-Gruppe. Das ist ein vorbestehender Defekt, kein
+   Nebenprodukt dieser Spec — also **nicht hier mitfixen** (Root-Cause-Aenderung an gemeinsam
+   genutztem JS ist ein eigener, abgrenzbarer Task) und `supportsSortDefault: false` defensiv
+   setzen. Korrekt.
+   **Aber nicht nur ein Fallstricke-Eintrag:** Es gehoert ein **Bug-Record in `bugs/`**, denn der
+   Effekt ist fuer den Anwender sichtbar und wirkt wie ein kaputtes Programm — er klickt auf eine
+   Spaltenueberschrift, und nur die oberste Gruppe sortiert sich. Bei drei brandneuen Listen trifft
+   ihn das sofort. **Empfehlung zur Reihenfolge:** den Fix als eigenen kleinen Task noch
+   **vor** dem Epic-Merge einplanen. Die Richtung ist absehbar klein — ueber alle `tbody`-Elemente
+   iterieren und **innerhalb** jedes Elements sortieren — was zugleich die gewollte Eigenschaft
+   erhaelt, dass Zeilen nie ueber Gruppengrenzen wandern.
+
+## Kritische Pruefung (2026-08-12)
+
+Anwalt-des-Teufels-Durchgang gegen den TATSAECHLICHEN Worktree-Stand
+(`.claude/worktrees/2026-08-07-ideal-teile-1-5`, incl. `column-preferences.js`, `table-filter.js`,
+`ColumnDefinitions.cs`, `UserViewPreferencesApiController.cs`, die vier IDEAL-Views, ADR 0005). Die
+technische Substanz der Spec ist ueberdurchschnittlich belastbar — die vier `data-view-key`-Werte,
+alle `data-col-key`-Listen, `migration: false` und der Sortier-Fallstrick wurden **im Code
+verifiziert und stimmen** (Details unten). Trotzdem drei Punkte, die vor der Freigabe zu klaeren
+sind.
+
+**Verifiziert (kein Handlungsbedarf, zur Beweissicherung):**
+- viewKeys der Views == Spec == neue `ColumnDefinitions`-Keys: `FaHierarchyKommissionierListen`,
+  `FaHierarchyBeschichtung`, `FaHierarchyVormontageEinzeln`, `FaHierarchyVormontageSummiert`
+  (Views haben `data-view-key` **bereits** aus Teil 3/4/5; Spec fuegt korrekt nur die zwei
+  JSON-Bloecke + Skript-Include hinzu, kein Markup-Umbau noetig).
+- Spaltenlisten (11/9/8/3) und `data-col-key` je `<th>` deckungsgleich mit Fachlicher Anforderung 3.
+- `UserViewPreferencesApiController` prueft tatsaechlich `GetByViewKey(...) == null → BadRequest`
+  (Zeilen 29/45/67) → die C#-Registrierung ist zwingend, Backlog-„kein C#" korrekt widerlegt.
+  Der `FaWorklist`-Regressionstest existiert (`UserViewPreferencesApiControllerTests.cs`,
+  `Get_FaWorklistViewKey_IsAccepted`) — die vier neuen Analog-Tests sind sauber ableitbar.
+- Sortier-Fallstrick exakt bestaetigt: `table-filter.js` Zeile 130 `_tbody =
+  _table.querySelector('tbody')` (erstes tbody), Klick-Sort Zeilen 222–246 **unbedingt** an jedes
+  `th[data-filterable]` gebunden — server- wie client-Mode. `migration: false` korrekt
+  (`UserViewPreference` ist viewKey-agnostisch, `FaWorklist`-Praezedenz ohne Migration).
+- Scope-Grenze zur Schwester-Spec [[2026-08-12-fa-struktur-darstellung]] **widerspruchsfrei**:
+  beide Specs sagen „diese Spec zuerst", die Baumanzeige wird hier NICHT angefasst, und das
+  spaetere `column-preferences`-Anschliessen der Baumanzeige liegt in der fa-struktur-Spec.
+
+**BLOCKER** — keiner (Inhalt ist umsetzbar).
+
+**SOLLTE**
+
+1. **Sichtbarer Sort-Defekt geht ungefixt mit drei brandneuen Listen live — die Gegenmassnahme
+   haengt an einem noch nicht existierenden Task.** `supportsSortDefault: false` verhindert nur die
+   **automatische** Sortierung beim Laden (`triggerSort`), **nicht** den Klick auf eine
+   Spaltenueberschrift: der Handler in `table-filter.js` (Z. 230) ist unabhaengig davon gebunden und
+   sortiert nur die erste HauptFA-Gruppe. Die Spec ist darueber ehrlich, aber ihre Absicherung ist
+   Prosa (Freigabe-Antwort 5: „Fix vor produktivem Einsatz", „Bug-Record in `bugs/`", „vor Epic-Merge
+   einplanen") — ohne angelegten Record und ohne harte Merge-Gate. Da diese Spec die drei Listen erst
+   auffaellig macht, gehoert die Absicherung in die Spec selbst: **entweder** den kleinen
+   `table-filter.js`-Fix (ueber ALLE `<tbody>` iterieren, **innerhalb** jedes sortieren) in DIESEN
+   Dev-Lauf ziehen, **oder** den Bug-Record jetzt anlegen, hier verlinken und im Deploy-Abschnitt als
+   verbindliche Vorbedingung des Epic-Merge fuehren. „Erledigt" darf nicht von Goodwill abhaengen.
+
+2. **Test-Luecke: Spalte-ausblenden/-umordnen ueber MEHRERE Gruppen nicht abgesichert.** Genau die
+   Fehlerklasse „nur das erste tbody" ist in diesem Codebestand nachweislich lebendig (Sort-Bug).
+   `column-preferences.js` blendet/ordnet zwar korrekt table-weit (`_table.querySelectorAll('tbody
+   tr')`, verifiziert — funktioniert ueber alle Gruppen), aber die Test-Szenarien fordern das nicht
+   ab. AK 5 / TS-59-61 um einen Fall ergaenzen: Liste mit **mindestens zwei HauptFA-Gruppen**, Spalte
+   ausblenden → Spalte in **jeder** Gruppe verschwindet (nicht nur in der ersten); analog fuer
+   Umordnen. Beweist die Multi-tbody-Tauglichkeit statt sie anzunehmen.
+
+3. **Doppelablage inkonsistent: die Spec liegt bereits in `freigegeben/`, dort aber mit
+   `status: Entwurf` und leerem `freigabe_entscheidung`/`freigabe_von`/`freigabe_am`.** Eine Datei in
+   `freigegeben/` mit Status „Entwurf" und ohne erfasste Schranke-1-Entscheidung ist ein Widerspruch,
+   der Cockpit/Pipeline verwirrt. Vor der Freigabe aufloesen: entweder die verfruehte Kopie in
+   `freigegeben/` entfernen (bis Schranke 1 formal erfasst ist), oder — wenn die Freigabe erfolgt —
+   Status/`freigabe_*` in **beiden** Kopien konsistent setzen. (Die Prosa-Antworten sind vollstaendig;
+   die Frontmatter-Freigabefelder sind es nicht.)
+
+**HINWEIS**
+
+- **AK 1 „Zahnrad identisch zu ProductionOrders" ist zu stark.** `insertGearButton` haengt den
+  Button an das `previousElementSibling` der `.table-responsive`, sofern das ein `<div>` ist. Ueber
+  den vier Views steht Heterogenes: Kommissionier/Vormontage haben ein Anomalie-Warnbanner (`<div
+  class="alert">`) → der Button landet **im gelben Banner**; Vormontage hat davor `<ul class="nav">`
+  (kein div) → Fallback-Wrapper; Beschichtung hat die `filter-card`. Die Platzierung wird also je View
+  unterschiedlich und teils unschoen (im Alert). Kein Blocker — bestehendes Shared-Verhalten —, aber
+  der Dev-Lauf soll die Zahnrad-Position je View sichten und AK 1 auf „Zahnrad vorhanden und bedienbar"
+  statt „identisch platziert" abschwaechen.
+- **Brain-Schreibziele im Worktree-Lauf.** `affected_code` listet ADR 0005, `fallstricke.md`,
+  `testszenarien-index.md` — diese sind Brain und muessen in den HAUPTCHECKOUT
+  `C:\Git\IDEAL-AKE-WMS\secondbrain\` geschrieben werden, nicht in den Worktree (sparse-checkout
+  blendet `secondbrain/` dort aus). Nur `docs/TESTSZENARIEN.md` ist Zweig-Inhalt (Worktree).
+- ADR 0005 nennt „column-preferences.js vor table-filter.js" schon heute in den Risiken (Z. 81–82),
+  fuehrt Spaltenpraeferenzen aber nicht als Pflicht-Pattern-Teil — die additive Ergaenzung ist also
+  berechtigt und kollidiert nicht mit Bestehendem.
+
+**NACHBESSERUNG NOETIG:** Die Absicherung des sichtbaren Sort-Defekts (SOLLTE 1) darf nicht an einem
+uneingeplanten Task und Prosa haengen — Fix einziehen ODER Bug-Record anlegen + als Merge-Gate
+verankern; zusaetzlich Multi-Gruppen-Test (SOLLTE 2) und die `freigegeben/`-Doppelablage (SOLLTE 3)
+bereinigen. Der Rest der Spec ist inhaltlich freigabereif.
