@@ -65,7 +65,7 @@ Tabelle gehoert nie in denselben Merge wie Kommissionierlisten.
 | 4 | Beschichtungsauftrag | [[2026-07-29-standort-ideal-teil-4-spec]] | erledigt | 08aa610 |
 | 5 | Vormontage-Listen | [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | df5931e |
 | 6 | UI-Nachtrag: Listen-Spaltenauswahl (+ ADR 0005 + Sort-Fix) | [[2026-08-12-listen-spaltenauswahl-spec]] | erledigt | 37e8752 |
-| 7 | UI-Nachtrag: FA-Struktur Tree-Table/Kontrast/Icons/Spaltenfilter | [[2026-08-12-fa-struktur-darstellung-spec]] | offen | |
+| 7 | UI-Nachtrag: FA-Struktur Tree-Table/Kontrast/Icons/Spaltenfilter | [[2026-08-12-fa-struktur-darstellung-spec]] | erledigt | 767f06f |
 
 **Epic am 2026-08-12 von `Testbereit` zurueck auf `InUmsetzung`** — zwei freigegebene UI-Nachtraege
 (Etappe 6/7) zu Teil 2–5 werden im SELBEN Worktree mitgebaut und **mitgemergt** (ein Merge). Reihenfolge:
