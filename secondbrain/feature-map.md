@@ -1,6 +1,6 @@
 ---
 type: feature-map
-updated: 2026-08-10
+updated: 2026-08-12
 ---
 # Feature-Landkarte
 
@@ -145,8 +145,11 @@ Zweiter Standort **IDEAL** (eigenes Deployment, gemeinsamer Codestamm mit AKE) a
 hierarchischer FAs (Haupt-FA → Sub-FA → Sub-Sub-FA). Teile 1–5 als **ein** Buendel in einem Worktree
 gebaut, **ein** Merge am Ende (Schranke 2). Alles additiv, `ProductionOrders` unangetastet, AKE
 unveraendert — **hinter Feature-Toggles, Default aus**. Migration additiv `SQL/89` (zwei neue
-Tabellen). Teil 6/7/8 sind **nicht** in diesem Buendel (eigene Epics). Uebergreifende Spec:
-[[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-/UAT-Notiz [[2026-08-07-ideal-teile-1-5]].
+Tabellen). Zum selben v1.31.0-Buendel gehoeren zwei reine UI-Nachtraege (Etappe 6 = Spaltenauswahl
+an den 4 Listen + Sort-Fix; Etappe 7 = FA-Struktur-Tree-Table) — **keine** neue Migration. Die
+BDE-/Materialisierungs-Erweiterung (fruehere „Teil 6/7/8") ist **nicht** in diesem Buendel (eigene
+Epics). Uebergreifende Spec: [[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-/UAT-Notiz
+[[2026-08-07-ideal-teile-1-5]].
 
 | Feature | Status | Spec | Code-Einstieg |
 |---|---|---|---|
@@ -155,6 +158,8 @@ Tabellen). Teil 6/7/8 sind **nicht** in diesem Buendel (eigene Epics). Uebergrei
 | Teil 3 — Kommissionierlisten + gemeinsamer Listen-/Druck-Baustein | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-3-spec]] | `Controllers/FaHierarchyKommissionierListenController.cs`, `Services/FaHierarchyListBuilder.cs`, `IBarcodeService`; `[RequireLagerProcessingAccess]` + Toggle `FaHierarchyKommissionierlistenAktiv` (Default aus) |
 | Teil 4 — Beschichtungsauftrag (erweitert Baustein, ohne PDF) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-4-spec]] | `Controllers/FaHierarchyBeschichtungController.cs`, `Services/BeschichtungsauftragService.cs`; **neue Rolle `beschichtungsauftrag`** (`[RequireBeschichtungsauftragAccess]`) + Toggle `FaHierarchyBeschichtungAktiv` (Default aus) |
 | Teil 5 — Vormontage-Listen (zwei Sichten, Sicht 2 = Matchcode-Aggregat) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-5-spec]] | `Controllers/FaHierarchyVormontageController.cs`; `[RequireVorbauAccess]` + Toggle `FaHierarchyVormontageAktiv` (Default aus) |
+| UI-Nachtrag (Etappe 6) — per-Benutzer-Spaltenauswahl an den 4 IDEAL-Listen + `table-filter.js`-Sort-Fix (je `<tbody>` separat) | **Testbereit** (v1.31.0, Commit `37e8752`) | [[2026-08-12-listen-spaltenauswahl-spec]] | `wwwroot/js/column-preferences.js` + `#view-config`/`#column-config` je View, `viewKey` in `Models/ViewModels/ColumnDefinitions.cs` `GetByViewKey`, `wwwroot/js/table-filter.js` (`sortTable`) |
+| UI-Nachtrag (Etappe 7) — FA-Struktur seitenweite Tree-Table (OSEON-Stil) + Kontrast-Fix (WCAG AA) + 4 Knoten-Icons + Baum-Spaltenfilter + column-prefs | **Testbereit** (v1.31.0, Commits `961749f`+`767f06f`) | [[2026-08-12-fa-struktur-darstellung-spec]] | `Views/FaHierarchy/*`, `wwwroot/js/fa-hierarchy-tree.js`, `Services/FaNodeClassifier.cs`, `viewKey` `FaHierarchyStructure` in `ColumnDefinitions` |
 
 > **Status:** UMGESETZT + QA-gruen im Worktree `feature/2026-08-07-ideal-teile-1-5` (Commit
 > `93e54c4`), wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).

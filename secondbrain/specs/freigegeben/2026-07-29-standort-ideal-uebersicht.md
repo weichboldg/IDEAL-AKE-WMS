@@ -2,7 +2,7 @@
 type: uebersicht
 title: "Uebersicht: IDEAL-Standort live schalten — hierarchische Produktionsauftraege (8 Teile)"
 slug: 2026-07-29-standort-ideal-uebersicht
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-06
 updated: 2026-08-12
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
@@ -538,3 +538,160 @@ gelaufen sein, bevor Teil 2–5 sinnvoll pruefbar sind).
 
 Nach erfolgreichem Durchlauf: Merge (Schranke 2, ausschliesslich durch den Menschen; dieser QA-Lauf
 merged nicht, pusht nicht, loescht den Worktree nicht).
+
+## QA-Abnahme Gesamtstand inkl. Etappe 6/7 (2026-08-12) — status: Testbereit
+
+Diese QA-Runde prueft den **gesamten** Worktree-Stand nach den zwei nachtraeglich angehaengten
+UI-Etappen (Epic am 2026-08-12 von `Testbereit` zurueck auf `InUmsetzung` gesetzt, s. o.). Gepruefter
+Commit: **`767f06f`** (Etappe 7, letzter Commit des Worktrees), Etappe 6 = `37e8752`. Version bleibt
+**v1.31.0** — kein neuer Bump fuer das Buendel Etappe 6/7 (verifiziert: beide `AppVersion.cs`
+weiterhin `1.31.0`). Der QA-Nachweis vom 2026-08-10 (Commit `93e54c4`) oben ist damit **ueberholt**
+fuer Build-/Testzahlen und Status, bleibt aber inhaltlich gueltig fuer Teile 1–5 (Code, Migration,
+Deploy-Grundlagen, offene UAT-Punkte) — nichts davon wurde durch Etappe 6/7 veraendert.
+
+### Build- und Test-Beweis (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit `767f06f`)
+
+```
+dotnet build IdealAkeWms.slnx
+  Der Buildvorgang wurde erfolgreich ausgeführt. 0 Fehler, 9 vorbestehende Warnungen
+  (identisch zum 93e54c4-Nachweis: NU1902 MailKit/MimeKit, 1x CS8602 TrackingController).
+
+dotnet test
+  IdealAkeWms.Tests:        Fehler: 0, erfolgreich: 1147, uebersprungen: 1, gesamt: 1148
+  IDEALAKEWMSService.Tests: Fehler: 0, erfolgreich:  221, uebersprungen: 0, gesamt:  221
+```
+
+Beide Suiten gruen, exakt die in der Aufgabe erwartete Groessenordnung (~1147 Web + 221 Service).
+Zuwachs gegenueber dem 93e54c4-Stand (1131+219): +16 Web-Tests (Etappe 6: Sort-Fix +
+`UserViewPreferencesApiControllerTests`-Ergaenzungen; Etappe 7: `FaNodeClassifierTests` (2) +
+`UserViewPreferencesApiControllerTests`-Prefs-Regression), +2 Service-Tests (`FaHierarchySqlTests`,
+aus dem bereits im 93e54c4-Nachweis dokumentierten Pre-Merge-Fix 28cd3f6, nicht aus Etappe 6/7). Der
+eine uebersprungene Test ist weiterhin der vorbestehende, epic-unabhaengige
+`ProductionOrderEagerCreateAgentJobTests`-Fall.
+
+### Umfang Etappe 6/7 — real-diff-verifiziert (reine Web-Aenderung)
+
+`git diff --stat b6b6d83..767f06f` (letzter UAT-Commit vor Etappe 6 bis Etappe-7-Tip) zeigt
+ausschliesslich: `IdealAkeWms/` (Views `FaHierarchy/Index.cshtml` + `_FaHierarchyNode.cshtml` +
+4 neue Listen-Views mit Spaltenauswahl-Snippet, `ColumnDefinitions.cs`,
+`FaHierarchyTreeViewModel.cs`, `wwwroot/css/site.css`, neues `wwwroot/js/fa-hierarchy-tree.js`,
+`wwwroot/js/table-filter.js` Sort-Fix), `IdealAkeWms.Tests/` (`FaNodeClassifierTests.cs`,
+`UserViewPreferencesApiControllerTests.cs`-Ergaenzung) und `docs/TESTSZENARIEN.md`. **Keine**
+Aenderung unter `IDEALAKEWMSService/`, **keine** neue Migration, **kein** `Program.cs`-Diff in
+diesem Fenster (der `Program.cs`-Change im Gesamtdiff `93e54c4..767f06f` stammt aus dem fruehreren
+UAT-Fix `2470578`, nicht aus Etappe 6/7). Bestaetigt exakt die Erwartung der Aufgabe.
+
+### Testszenarien
+
+`<worktree>\docs\TESTSZENARIEN.md` enthaelt TS-59.15–59.24 (Etappe 6, Spaltenauswahl
+Kommissionierlisten), TS-60.14–60.22 (Etappe 6, Beschichtungsauftrag), TS-61.21–61.30 (Etappe 6,
+beide Vormontage-Sichten + Sortier-Regression flache Listen), sowie das komplett neue Kapitel
+**TS-62** „IDEAL Teil 2: FA-Struktur Darstellung (Nachtrag)" (TS-62.1–62.16, Etappe 7:
+Icon-Klassifikation, Prefs-API-Regression, Kontrast rechnerisch, Tree-Table-Ausrichtung/schmaler
+Bildschirm/Auf-Zuklappen, Icons+Legende, Baum-Spaltenfilter + Auswahlfilter + Abgrenzung zum
+Hervorheben, Spaltenauswahl, Regression). `secondbrain/tests/testszenarien-index.md`
+(Hauptcheckout) nachgezogen: Zeilen 59–61 um die Etappe-6-Ergaenzung erweitert, neue Zeile 62 fuer
+Etappe 7 ergaenzt, „Kapitel mit besonderem Gewicht" um Zeile 62 (Kontrast-Sichtbestaetigung +
+Tree-Table-Ausrichtung sind nur manuell pruefbar) erweitert, `updated: 2026-08-12`.
+
+### CLAUDE.md-Checkliste — Etappe 6/7 (Delta zum 93e54c4-Nachweis)
+
+- **Migration:** keine — Etappe 6/7 sind reine Web-Aenderungen, `SQL/89_AddFaHierarchy.sql` bleibt
+  der einzige Migrationsstand des Epics (unveraendert seit Etappe 1).
+- **Audit-Felder:** entfaellt — keine neuen/geaenderten Entitaeten.
+- **Version-Bump:** bewusst **kein** neuer Bump (Vorgabe der Aufgabe: Buendel bleibt v1.31.0);
+  verifiziert an beiden `AppVersion.cs`.
+- **`docs/TESTSZENARIEN.md`:** aktualisiert, s. o.
+- **`secondbrain/tests/testszenarien-index.md`:** nachgezogen, s. o.
+- **ColumnDefinitions-Registrierungspflicht (ADR 0005, viertes Muster-Element
+  „Spaltenpraeferenzen"):** vier neue `viewKey`s in Etappe 6
+  (`FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`, `FaHierarchyVormontageEinzeln`,
+  `FaHierarchyVormontageSummiert`) + ein fuenfter in Etappe 7 (`FaHierarchyStructure`) — alle fuenf
+  in `ColumnDefinitions.cs` registriert und durch `UserViewPreferencesApiControllerTests`
+  regressionsgesichert (200/204 statt 400). **Offen (nicht QA-Scope, s. u.):** der ADR-0005-Text
+  selbst und `fallstricke.md` sind laut Epic-Abschluss-Checkliste noch nicht nachgezogen.
+
+### Nicht in dieser QA-Runde nachgezogen (Orchestrator-Scope laut Auftrag)
+
+Wie im Auftrag explizit ausgenommen: **ADR 0005** (additiver Nachtrag „Spaltenpraeferenzen"),
+**`secondbrain/architektur/fallstricke.md`** (ColumnDefinitions-Registrierungspflicht +
+Mehr-`<tbody>`-Sortier-Fallstrick), **`secondbrain/feature-map.md`**. Diese drei Punkte stehen
+weiterhin offen auf der Epic-Abschluss-Checkliste in
+`secondbrain/aufgaben/2026-08-07-ideal-teile-1-5.md` und sind vom Orchestrator separat nachzuziehen.
+
+### Deploy — finalisiert (Etappe 6/7 sind reine Web-Aenderungen, kein neuer Service-/Migrations-Anteil)
+
+Die Deploy-Angaben aus der QA-Runde 2026-08-10 (`deploy.web/service/migration = true`, Publish-
+Befehle, Betriebshinweise) bleiben **unveraendert gueltig** fuer den Gesamtstand — sie stammen aus
+Teil 1 (Service-Sync + Migration `SQL/89`) und Teil 2–5 (Web). Etappe 6/7 fuegen dem **keine**
+zusaetzliche Service- oder Migrations-Pflicht hinzu (siehe Diff-Nachweis oben) — sie sind rein additive
+Web-Aenderungen (Views/CSS/JS/`ColumnDefinitions`), die mit demselben Web-Publish-Befehl mitgehen:
+
+```powershell
+cd C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+
+Nach dem Merge (Schranke 2) nur dann erneut aus `main` publizieren, wenn der Merge tatsaechlich
+getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (sonst reicht der bereits
+getestete Worktree-Stand `767f06f`). Migrations-Reihenfolge, RCSI-Vorbedingung, View-Namen- und
+Toggle-Konfiguration: unveraendert wie im Deploy-Abschnitt der 2026-08-10-Runde oben beschrieben.
+
+### Manuelle Test-Checkliste — Ergaenzung Etappe 6/7 (die 12-Punkte-Liste von 2026-08-10 oben bleibt vollstaendig gueltig und ist ZUERST abzuarbeiten, da Teil 2–5 die Datengrundlage fuer die UI-Nachtraege sind)
+
+**Etappe 6 — Listen-Spaltenauswahl (4 IDEAL-Listen: Kommissionierlisten, Beschichtungsauftrag,
+Vormontage Sicht 1 + Sicht 2):**
+
+13. **Zahnrad + Grundfunktion je Liste:** auf allen vier Listen (`/FaHierarchyKommissionierListen`,
+    `/FaHierarchyBeschichtung`, `/FaHierarchyVormontage/Index`, `/FaHierarchyVormontage/Summiert`)
+    das Zahnrad oeffnen, eine nicht-gesperrte Spalte ausblenden, Breite per Ziehgriff aendern, per
+    Drag umordnen — jeweils speichern und Seite neu laden: alle drei Aenderungen bleiben erhalten
+    (`PUT /api/user-view-preferences/<viewKey>` liefert 200, nicht 400).
+14. **Persistenz je Benutzer:** zwei verschiedene Benutzer/Browserprofile auf derselben Liste
+    konfigurieren — unabhaengige Konfigurationen, keine gegenseitige Ueberschreibung.
+15. **Locked-Spalten:** `HauptFA`/`Matchcode` (bzw. bei Vormontage-Sicht-2 nur `Matchcode`) lassen
+    sich in keiner der vier Listen ausblenden.
+16. **Sort ueber mehrere HauptFA-Gruppen:** an einer Liste mit **mindestens zwei** `HauptFA`-Gruppen
+    auf eine sortierbare Spaltenkopfzeile klicken — Positionszeilen sortieren sich **innerhalb jeder**
+    Gruppe fuer sich, Gruppenkopfzeilen bleiben stehen, keine Position wandert in eine andere Gruppe.
+    Ebenso: eine Spalte ausblenden/umordnen wirkt in jeder Gruppe gleich.
+17. **AKE-Listen-Sort-Regression:** nach dem `table-filter.js`-Sortier-Fix (sortiert jetzt je
+    `<tbody>` separat) auf `ProductionOrders/Index` (ein `<tbody>`) mehrfach sortieren/filtern —
+    **exakt** dasselbe Verhalten wie vor dem Epic, keine sichtbare Abweichung. Stichprobenartig
+    ebenso `PickingLeitstand`/`FaWorklist` pruefen.
+18. **Standard-Sortierung nur wo vorgesehen:** Kommissionierlisten/Beschichtung/Vormontage-Sicht-1
+    bieten **keine** Option „Standard-Sortierung speichern"; Vormontage-Sicht-2 **bietet** sie und
+    eine gespeicherte Standard-Sortierung wirkt nach Reload.
+
+**Etappe 7 — FA-Struktur seitenweite Tree-Table (`/FaHierarchy`):**
+
+19. **Kontrast am realen Terminal (Sichtbestaetigung):** die rechnerisch WCAG-AA-bestandenen Werte
+    (Kopfzeile, Badges, Matchcode, Icons — Details TS-62.3) am tatsaechlichen Fertigungsterminal
+    (Bildschirm, Lichtverhaeltnisse, Blickwinkel) gegenpruefen — das ist der einzige noch offene
+    Nachweis fuer den Kontrast-Fix.
+20. **Seitenweite Tree-Table-Ausrichtung:** mit mindestens einer Struktur mit ≥4 Ebenen/50+
+    Positionen pruefen, dass **nur** die Struktur-Spalte einrueckt und alle anderen Spalten ueber
+    Ebenen **und** Strukturen hinweg fluchten (kein Drift bei tiefen/breiten Strukturen).
+21. **Schmaler Bildschirm:** reale Terminal-Aufloesung pruefen — liegt sie < 992px, greift die
+    Ausblendung hinterer Spalten (SubFA, Soll/Fert.) + horizontales Scrollen, die Struktur-Spalte
+    bleibt immer voll lesbar.
+22. **Baum-Spaltenfilter-Semantik + Auswahlfilter:** Freitextfilter in der Spaltenfilter-Zeile blendet
+    nicht-treffende Zweige **samt Unterbaum** aus, Treffer bleiben mit gedimmtem Pfad zur Wurzel
+    sichtbar, Zaehler „X von Y Knoten" stimmt; Dropdown-Auswahlfilter (Arbeitsbereich/Komm.-Ziel/
+    Status) mit denselben Werten wie auf der Seite vorhanden, gleiche Baum-Semantik.
+23. **Unterscheidbarkeit der zwei Filter-Mechanismen:** ohne Vorwissen allein an der Beschriftung
+    erkennbar, dass „Knoten hervorheben" nur markiert (blendet nichts aus) und der Spaltenfilter in
+    der Kopfzeile tatsaechlich ausblendet; beide gleichzeitig aktiv verhalten sich wie in TS-62.10
+    beschrieben.
+24. **Icons + Legende:** je Knotentyp (Wurzel/Baugruppe/Zukauf/Material) ein in Form **und** Farbe
+    unterscheidbares Icon mit Tooltip/ARIA-Label; Legende oberhalb der Liste vorhanden und
+    ausklappbar; „beschichtet" bleibt ein separates Status-Badge, nicht ins Typ-Icon gemischt.
+25. **column-prefs im Baum:** Zahnrad auf `/FaHierarchy` oeffnen, Spalte ausblenden/Breite aendern/
+    umordnen, Reload → bleibt erhalten (`viewKey` `FaHierarchyStructure`), wirkt in **jeder**
+    Struktur (`<tbody>`) gleich, Struktur- und Matchcode-Spalte nicht ausblendbar, keine
+    Standard-Sortierung-Option.
+
+Nach erfolgreichem Durchlauf (Punkte 1–12 der 2026-08-10-Runde **und** 13–25 hier): Merge (Schranke
+2, ausschliesslich durch den Menschen; dieser QA-Lauf merged nicht, pusht nicht, loescht den
+Worktree nicht).
