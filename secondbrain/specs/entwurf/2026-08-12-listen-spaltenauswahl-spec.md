@@ -1,0 +1,339 @@
+---
+type: spec
+title: "Listen: Spaltenauswahl an die IDEAL-Listen anschliessen + ADR 0005 ergaenzen"
+slug: 2026-08-12-listen-spaltenauswahl-spec
+status: Entwurf
+created: 2026-08-12
+updated: 2026-08-12
+source_backlog: "[[2026-08-12-listen-spaltenauswahl]]"
+task: ""
+worktree: ""
+branch: ""
+affected_code:
+  - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (vier neue ViewConfig-Eintraege + GetByViewKey-Switch — vom Backlog NICHT erwaehnt, aber ohne diese Eintraege antwortet die Prefs-API mit 400 und speichert nichts, siehe Fachliche Anforderungen Punkt 2)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml (view-config + column-config + Skript-Include)
+  - IdealAkeWms/Views/FaHierarchyBeschichtung/Index.cshtml (view-config + column-config + Skript-Include)
+  - IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml (view-config + column-config + Skript-Include)
+  - IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml (view-config + column-config + Skript-Include)
+  - docs/TESTSZENARIEN.md (Kapitel TS-59/TS-60/TS-61 um Zahnrad-Dialog-Schritte ergaenzen)
+  - secondbrain/tests/testszenarien-index.md (nachziehen)
+  - secondbrain/architektur/adr/0005-listen-view-pattern-mit-server-side-spaltenfilter.md (additiv ergaenzen ODER neuer praezisierender ADR — Form siehe Offene Rueckfrage 3)
+  - secondbrain/architektur/fallstricke.md (additiv: ColumnDefinitions-Registrierungspflicht bei neuem viewKey; empfohlen auch der in dieser Spec entdeckte Sortier-Fallstrick bei mehr-tbody/gruppierten Tabellen, siehe Fachliche Anforderungen Punkt 5)
+open_questions:
+  - "Vorbedingung Tree-Table (FaHierarchy/Index.cshtml, Teil 2 der IDEAL-Struktur-Baumanzeige): column-preferences.js braucht eine echte Tabelle mit stabilen Spaltenindizes (thead tr:first-child th); der heutige freifliessende Baum hat das nicht. Die Umstellung ist Gegenstand von [[2026-08-12-fa-struktur-darstellung]] und explizit NICHT Teil dieser Spec. Reihenfolge: sobald jene Spec umgesetzt ist, braucht die Baumanzeige einen eigenen (kleinen) Nachtrag nach demselben Muster wie hier."
+  - "Ausfuehrungsort: im bereits offenen, noch nicht gemergten Epic-Worktree .claude/worktrees/2026-08-07-ideal-teile-1-5 (Branch feature/2026-08-07-ideal-teile-1-5, Status Testbereit, wartet auf Schranke 2) als zusaetzliche Etappe fortsetzen, oder eigener neuer Worktree? Empfehlung: im bestehenden Worktree fortsetzen (die betroffenen Views existieren nur dort, noch nicht auf main; ein zweiter Worktree wuerde auf main nichts zum Anfassen finden und beim spaeteren Merge kollidieren)."
+  - "ADR-0005-Form: additiver Nachtrag direkt in der bestehenden ADR-0005-Datei (Praezedenzfall: der Kasten „Nachtraeglich erfasst" steht dort bereits) oder neuer ADR (z. B. 0012), der 0005 praezisiert? Empfehlung: additiver Nachtrag in 0005 selbst, da keine bestehende Entscheidung revidiert, sondern nur ein vierter, bisher unbenannter Pflichtbestandteil ergaenzt wird — aber Form ist bewusst Schranke-1-Entscheidung, nicht Spec-Agent-Entscheidung."
+  - "Ausgeblendete Spalte mit aktivem Server-Spaltenfilter: die Server-Filter wirken ueber die URL (?colf_<col-key>=...) voellig unabhaengig von der (DB-gespeicherten) Spalten-Sichtbarkeit — ein Anwender kann also eine gefilterte, aber unsichtbare Spalte haben, ohne dass der Grund fuer die kuerzere Liste sichtbar ist (technisch verifiziert, siehe Fachliche Anforderungen Punkt 4). Soll das in dieser Spec bereits mit einem Chip-Hinweis geloest werden (echte Code-Aenderung an table-filter.js/column-preferences.js, damit Mehr-Umfang als „nur anschliessen") oder nur dokumentiert und als eigener Backlog-Punkt vertagt werden? Empfehlung: fuer diese Spec nur dokumentieren/vertagen (Scope-Disziplin, Backlog-Vorgabe „keine Aenderung an column-preferences.js ausser begruendet")."
+  - "Der in dieser Spec entdeckte Sortier-Fallstrick (Fachliche Anforderungen Punkt 5: Klick auf eine sortierbare Spaltenkopfzeile sortiert bei den drei gruppierten FaHierarchy-Listen nur die ERSTE HauptFA-Gruppe, weil table-filter.js sich global auf table.querySelector('tbody') — also nur das erste tbody-Element — stuetzt) ist ein vorbestehender, von dieser Spec unabhaengiger Defekt im noch nicht gemergten Epic-Worktree, keine Colone-Preferences-Neuerung. Soll er (a) nur als Fallstricke-Eintrag + separate Bug-Meldung an die Epic-Naht dokumentiert werden (diese Spec setzt defensiv nur supportsSortDefault:false), oder (b) im selben Aufwasch in table-filter.js root-cause-behoben werden? Empfehlung: (a) — Root-Cause-Fix an gemeinsam genutztem JS ist ein eigener, sauber abgrenzbarer Task, keine Nebensache dieser Spec."
+epic: false
+etappen: []
+deploy:
+  web: true
+  service: false
+  migration: false
+freigabe_entscheidung: ""
+freigabe_von: ""
+freigabe_am: ""
+---
+
+## Ziel / Nutzen (das Warum)
+
+Anwender sollen in den vier neuen IDEAL-Listen (Kommissionierlisten, Beschichtungsauftrag,
+Vormontage-Einzeln, Vormontage-Summiert) dieselbe Spaltenauswahl (Sichtbarkeit, Breite, Reihenfolge,
+Standard-Sortierung je Benutzer, DB-persistiert) nutzen koennen, die im uebrigen WMS bereits Standard
+ist (`ProductionOrders`, `PickingLeitstand`, `FaWorklist` u. a.). Die Mechanik existiert vollstaendig
+und wird **ausschliesslich angeschlossen**, nicht neu gebaut. Der eigentliche Nutzen dieser Spec ist
+zweigeteilt:
+
+1. **Vier konkrete Listen** bekommen den fehlenden Anschluss (Views + eine bislang uebersehene
+   Server-Registrierung).
+2. **ADR 0005** (Listen-View-Pattern) wird um einen bisher unbenannten vierten Pflichtbestandteil
+   ergaenzt — Spaltenpraeferenzen —, damit dieselbe Luecke nicht bei jeder kuenftigen Liste erneut
+   entsteht. Die Teil-3-Spec der IDEAL-Epic hatte den ADR-0005-Listenteil explizit eingefordert
+   (Pagination, Filterkarte, Server-Spaltenfilter), die Spaltenpraeferenzen aber nie erwaehnt — der
+   Dev-Lauf hat exakt das gebaut, was verlangt war, nicht mehr. Das ist kein Einzelversehen, sondern
+   eine Luecke im Muster selbst.
+
+## Umfang (In-Scope / Out-of-Scope)
+
+**In-Scope:**
+- `IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml`
+- `IdealAkeWms/Views/FaHierarchyBeschichtung/Index.cshtml`
+- `IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml` (Sicht 1, "Einzelne Teile")
+- `IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml` (Sicht 2, "Summiert")
+- Je View: `#view-config`-JSON, `#column-config`-JSON, Einbindung von `column-preferences.js` **vor**
+  `table-filter.js` (Reihenfolge-Pflicht, siehe `fallstricke.md`).
+- **Server-seitige Registrierung** der vier neuen `viewKey`-Werte in
+  `IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs` (neue `ViewConfig`-Konstanten + Eintrag im
+  `GetByViewKey`-Switch). Ohne diese Registrierung liefert
+  `UserViewPreferencesApiController.Get/Put/Delete` `BadRequest` fuer jeden dieser `viewKey` — die
+  Kachel-Verdrahtung in der View allein reicht **nicht** (siehe Fachliche Anforderungen Punkt 2; das
+  ist bereits einmal genau so bei `FaWorklist` passiert, siehe Code-Kommentar dort).
+- ADR-0005-Ergaenzung um den vierten Pflichtbestandteil "Spaltenpraeferenzen" (Form: Offene
+  Rueckfrage 3).
+- Testszenarien-Ergaenzung in den bestehenden Kapiteln TS-59/TS-60/TS-61.
+
+**Out-of-Scope:**
+- `IdealAkeWms/Views/FaHierarchy/Index.cshtml` (Teil-2-Baumanzeige, freifliessender Baum ohne
+  ausgerichtete Spalten) — Vorbedingung Tree-Table ist [[2026-08-12-fa-struktur-darstellung]], siehe
+  Offene Rueckfrage 1.
+- `Print.cshtml`-Views (`FaHierarchyKommissionierListen/Print.cshtml`,
+  `FaHierarchyBeschichtung/Print.cshtml`): geprueft — beide sind bereits eigenstaendige,
+  `Layout = null`-HTML-Dokumente mit fest verdrahtetem Inline-CSS, komplett unabhaengig von
+  `filterable-table`/`column-preferences.js`. Die Bildschirm-Spaltenauswahl hat auf den Ausdruck
+  **strukturell keinen Einfluss** — das entspricht bereits dem in der Backlog-Notiz vorgeschlagenen
+  "festes Druck-Layout". Keine Aenderung noetig, kein Abgleich mehr offen.
+- Keine Aenderung an `column-preferences.js`, `table-filter.js` oder der
+  `UserViewPreferencesApiController`-API-Vertrag (Endpunkte/Contract bleiben unveraendert — die neuen
+  `ViewConfig`-Eintraege sind reine Daten, keine Logikaenderung).
+- Keine neue Migration, keine neue Rolle, kein neues AppSetting/Toggle (Access-Filter und
+  Feature-Toggles dieser vier Views bleiben aus Teil 3/4/5 unveraendert).
+- Kein Fix des in Fachlicher Anforderung 5 entdeckten Sortier-Fallstricks in `table-filter.js` (siehe
+  Offene Rueckfrage 5).
+- Kein Chip-Hinweis fuer "ausgeblendete Spalte mit aktivem Filter" (siehe Offene Rueckfrage 4).
+
+## Fachliche Anforderungen
+
+1. **Drei Bloecke je View, identisch zum Muster in `Views/ProductionOrders/Index.cshtml`:**
+   - `<script type="application/json" id="view-config">{ "viewKey": "<Key>", "supportsReorder": true, "supportsSortDefault": <true|false, siehe Punkt 5> }</script>` unmittelbar vor der
+     `Scripts`-Section (bzw. direkt vor der bestehenden `<partial name="_Pagination" .../>`-Nachbarschaft,
+     wie im Referenzcode).
+   - `<script type="application/json" id="column-config">[...]</script>` mit **exakt** denselben
+     `key`-Werten wie die vorhandenen `data-col-key`-Attribute der `<th>` in derselben View (siehe
+     Konkrete Spaltenlisten unten). Kein neuer, kein fehlender, kein umbenannter Key — sonst
+     entkoppeln sich Spaltenfilter und Spaltenpraeferenzen (Fallstricke: "`data-col-key` ist Pflicht
+     ... Filter- und Spalten-Preferences-Logik adressiert Spalten ueber diesen Key").
+   - `<script src="~/js/column-preferences.js" asp-append-version="true"></script>` **vor**
+     `<script src="~/js/table-filter.js" ...>` (Reihenfolge-Pflicht, siehe Umfang).
+
+2. **Server-seitige `ColumnDefinitions`-Registrierung ist Pflicht, nicht optional — Korrektur der
+   Backlog-Einschaetzung "kein C#".** `UserViewPreferencesApiController.Get/Put/Delete` prueft vor
+   jedem Zugriff `ColumnDefinitions.GetByViewKey(viewKey) == null → BadRequest`. Ohne einen Eintrag
+   fuer `FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`,
+   `FaHierarchyVormontageEinzeln` und `FaHierarchyVormontageSummiert` in
+   `ColumnDefinitions.GetByViewKey` scheitert jedes Laden/Speichern der Einstellungen mit 400 — das
+   Zahnrad wuerde zwar erscheinen (rein clientseitig aus dem inline `#column-config`), aber
+   Aenderungen gingen bei jedem Reload verloren (der `PUT` schlaegt fehl, still, ohne
+   Benutzer-Fehlermeldung). Exakt dieser Fehler ist am Code bereits einmal passiert und dokumentiert
+   (`ColumnDefinitions.cs`, Kommentar bei `FaWorklist`: "vorher kannte GetByViewKey den Key nicht,
+   die Prefs-API antwortete 400 und Zahnrad-Einstellungen gingen bei jedem Reload verloren"). Diese
+   Spec baut daher fuer jede der vier Views eine `ViewConfig`-Konstante (Spalten identisch zum
+   `#column-config`-JSON der jeweiligen View) und erweitert den `GetByViewKey`-Switch um die vier
+   neuen `case`-Zweige. Das ist **keine** Aenderung an der API-Signatur/dem HTTP-Vertrag, sondern
+   reine Daten-Registrierung — insofern bleibt die Backlog-Aussage "keine API-Aenderung" im engeren
+   Sinn richtig, "kein C#" ist es nicht.
+
+3. **Konkrete Spaltenlisten (Key/Label/Locked/DefaultHidden), aus den vorhandenen `<th
+   data-col-key="...">` der jeweiligen View abgeleitet:**
+
+   **`FaHierarchyKommissionierListen`** (11 Spalten): `hauptfa` (locked), `hauptartnr`, `artnr`,
+   `matchcode` (locked — zweiter identifizierender Schluessel neben `hauptfa`), `sollmenge`,
+   `hauptlagerplatz`, `kommissionieren`, `arbeitsbereich`, `artikeltyp` (defaultHidden),
+   `beschichtet` (defaultHidden), `material` (defaultHidden).
+
+   **`FaHierarchyBeschichtung`** (9 Spalten): `hauptfa` (locked), `hauptartnr`, `artnr`, `matchcode`
+   (locked), `sollmenge`, `beschichtet`, `breite`, `hoehe`, `tiefe`.
+
+   **`FaHierarchyVormontageEinzeln`** (8 Spalten): `hauptfa` (locked), `hauptartnr`, `artnr`,
+   `matchcode` (locked), `sollmenge`, `fertigungmenge`, `vmbedarf`, `material`.
+
+   **`FaHierarchyVormontageSummiert`** (3 Spalten, flache, nicht gruppierte Tabelle): `matchcode`
+   (locked — einziger Identifikator dieser aggregierten Sicht), `sollmenge` (Label "Summe
+   Sollmenge"), `fertigungmenge` (Label "Summe Fertigungmenge").
+
+   `defaultWidth` durchgehend `null` ausser bei den bereits schmal ausgelegten Zahlenspalten
+   (`sollmenge`, `fertigungmenge`, `breite`, `hoehe`, `tiefe` — analog zu `quantity`/`coating-part`
+   in `ProductionOrders`, dort 55px); die exakte Zahl ist ein UI-Feinschliff des Dev-Laufs, keine
+   fachliche Entscheidung.
+
+4. **Wechselwirkung Spaltenpraeferenzen ↔ Server-Spaltenfilter — technisch verifiziert, nicht
+   spekuliert.** Die vier Views laufen im Server-Filter-Mode (`data-server-column-filter="true"`):
+   Filter werden ausschliesslich ueber die URL-Query (`?colf_<col-key>=...`) transportiert und vom
+   Controller serverseitig via `ColumnFilterHelper.ReadFromQuery` gelesen — voellig unabhaengig von
+   der (DB-persistierten) Spaltensichtbarkeit aus den Benutzereinstellungen. Blendet ein Anwender
+   eine Spalte aus, bleibt ein zuvor gesetzter `colf_`-Parameter dieser Spalte in der URL weiterhin
+   wirksam: Die Liste ist kuerzer, ohne dass eine sichtbare Spalte den Grund zeigt. Diese Spec baut
+   dafuer **keine** Loesung (kein Chip-Hinweis, siehe Out-of-Scope/Offene Rueckfrage 4) — die
+   Wechselwirkung ist hiermit aber belegt, nicht mehr nur vermutet, und damit entscheidungsreif fuer
+   Schranke 1.
+
+5. **Sortier-Fallstrick bei den drei gruppierten Listen — technisch verifiziert, vorbestehend,
+   unabhaengig von dieser Spec.** `Kommissionierlisten`, `Beschichtung` und `Vormontage-Einzeln`
+   rendern je `HauptFA`-Gruppe ein **eigenes** `<tbody>` (Kommentar in den Views: "Je HauptFA-Gruppe
+   ein eigenes tbody ... table-filter.js kann Zeilen nie ueber Gruppengrenzen mischen"). Das stimmt
+   fuer den **Filter**, aber **nicht** fuer die **Sortierung**: `table-filter.js` bindet beim Init
+   `_tbody = _table.querySelector('tbody')` — das liefert nur das **erste** `<tbody>`-Element im DOM
+   — und `sortTable()`/`th`-Klick-Handler (bereits heute unbedingt an jedes `<th data-filterable>`
+   gebunden, unabhaengig vom Server-/Client-Filter-Modus) sortieren ausschliesslich Zeilen **dieses
+   ersten** `tbody`. Ein Klick auf eine sortierbare Spaltenkopfzeile sortiert bei diesen drei Listen
+   also nur die **erste** `HauptFA`-Gruppe um, alle anderen Gruppen bleiben unveraendert — ein
+   irrefuehrendes, vorbestehendes Verhalten im noch nicht gemergten Epic-Worktree, ausgeloest allein
+   durch das bereits vorhandene `data-filterable`, unabhaengig von dieser Spec.
+   `column-preferences.js` wuerde diesen Defekt **zusaetzlich sichtbar** machen, weil
+   `supportsSortDefault: true` dem Anwender im Zahnrad-Dialog anbietet, eine Standard-Sortierung zu
+   **speichern**, die dann bei **jedem** Laden automatisch (`window.triggerSort`) genau denselben
+   Fehler ausloest. **Fuer diese Spec gilt daher defensiv:** `supportsSortDefault: false` fuer
+   `FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung` und `FaHierarchyVormontageEinzeln`
+   (Muster wie `OseonTracking`/`Bom` in `ColumnDefinitions.cs`, die aus demselben Grund — strukturierte
+   statt flache Darstellung — `SupportsSortDefault: false` tragen). `FaHierarchyVormontageSummiert`
+   ist eine flache, nicht gruppierte Tabelle (ein `<tbody>`, keine Gruppen) und bekommt
+   `supportsSortDefault: true` wie `ProductionOrders`. Der Root-Cause-Fix des Sortier-Fallstricks
+   selbst ist **nicht** Teil dieser Spec (siehe Offene Rueckfrage 5).
+
+6. **Keine Aenderung der bestehenden Zugriffs-/Toggle-Logik.** Die Access-Filter
+   (`RequireLagerProcessingAccessAttribute` bzw. `RequireBeschichtungsauftragAccessAttribute`) und
+   Feature-Toggles (`FaHierarchyKommissionierlistenAktiv`, `FaHierarchyBeschichtungAktiv`,
+   `FaHierarchyVormontageAktiv` o. ae.) der vier Views bleiben unveraendert; diese Spec fuegt nur
+   Anzeige-/Praeferenz-Bloecke hinzu.
+
+## Technischer Loesungsentwurf
+
+**Views (identisches Muster viermal, Referenz `Views/ProductionOrders/Index.cshtml`):** In jeder der
+vier Views werden — unmittelbar vor bzw. innerhalb der bestehenden Struktur, ohne sonstige
+Aenderung an Markup/Controller/Service — die drei Bloecke aus Fachlicher Anforderung 1 ergaenzt.
+Reihenfolge im `Scripts`-Abschnitt: `column-preferences.js` **vor** `table-filter.js` (aktuell steht
+in allen vier Views nur `table-filter.js`).
+
+**`ColumnDefinitions.cs`:** vier neue `public static readonly ViewConfig`-Konstanten
+(`FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`, `FaHierarchyVormontageEinzeln`,
+`FaHierarchyVormontageSummiert`), Spalten wie in Fachlicher Anforderung 3, sowie vier neue
+`case`-Zweige im `GetByViewKey`-Switch. Reine additive Erweiterung der bestehenden statischen Klasse,
+kein Eingriff in bestehende Eintraege.
+
+**Kein Eingriff in `Services/FaHierarchyListBuilder.cs` oder die Controller** — die Spaltenwerte
+selbst (welche Zellen gerendert werden) aendern sich nicht, nur ihre Sichtbarkeit/Reihenfolge/Breite
+im Browser sowie deren Persistenz je Benutzer.
+
+**ADR-0005-Ergaenzung** (Form laut Offener Rueckfrage 3, hier die inhaltliche Substanz unabhaengig
+von der Form): ADR 0005 bekommt einen vierten, verbindlichen Pattern-Bestandteil neben Pagination,
+Filterkarte und Server-Spaltenfilter:
+
+> **Spaltenpraeferenzen — Pflicht fuer alle Tabellen-Views mit Server- oder Client-Spaltenfilter.**
+> Jede neue Listen-View liefert zusaetzlich: `#view-config`- und `#column-config`-JSON-Bloecke mit
+> denselben `key`-Werten wie die `data-col-key`-Attribute, sowie die Einbindung von
+> `wwwroot/js/column-preferences.js` **vor** `table-filter.js`. Identifizierende Spalten
+> (`locked: true`), selten gebrauchte Spalten (`defaultHidden: true`). Referenzimplementierung:
+> `Views/ProductionOrders/Index.cshtml`. Gruppierte/strukturierte Tabellen (mehrere `<tbody>` je
+> Gruppe) setzen `supportsSortDefault: false`, solange `table-filter.js` Sortierung nur innerhalb des
+> ersten `<tbody>`-Elements ausfuehrt (siehe `fallstricke.md`).
+
+Zusaetzlich Verweis auf `Controllers/Api/UserViewPreferencesApiController.cs` +
+`Models/ViewModels/ColumnDefinitions.cs` in der ADR-Dateiliste, da eine neue Liste ohne die
+`ColumnDefinitions`-Registrierung die Praeferenzen zwar anzeigt, aber nicht persistiert (Fachliche
+Anforderung 2).
+
+**Einmaliger Abgleich (Nebenbefund der Backlog-Notiz, hier bestaetigt als sinnvoll, aber nicht
+Teil dieser Spec):** Ein separater Durchgang ueber alle bestehenden `filterable-table`-Views auf
+Vollstaendigkeit von (3) Server-Spaltenfilter und (4) Spaltenpraeferenzen lohnt sich, sobald ADR 0005
+ergaenzt ist — als eigene, kleine Aufgabe in `secondbrain/aufgaben/`, nicht als Teil dieser Spec (die
+vier IDEAL-Listen sind bereits identifiziert und abschliessend behandelt).
+
+## Migrations-/SQL-Auswirkungen
+
+Keine. `UserViewPreference`/`UserViewPreferenceRepository`/die zugehoerige Tabelle existieren
+bereits und sind `viewKey`-agnostisch (Freitextspalte, keine Fremdschluessel-/Check-Constraint auf
+bekannte Keys). Kein neuer Migrationsschritt, kein `SQL/XX_*.sql`, kein `00_FreshInstall.sql`-Eintrag.
+
+## Audit-Feld-Auswirkungen
+
+Keine neuen Entitaeten. `UserViewPreference` schreibt beim Speichern bereits
+`_currentUserService.GetDisplayName()`/`GetWindowsUserName()` (bestehender Code, unveraendert durch
+diese Spec).
+
+## Akzeptanzkriterien
+
+1. Auf allen vier Views (`FaHierarchyKommissionierListen/Index`, `FaHierarchyBeschichtung/Index`,
+   `FaHierarchyVormontage/Index`, `FaHierarchyVormontage/Summiert`) erscheint ein Zahnrad-Symbol zur
+   Spaltenkonfiguration (Offcanvas), identisch zum Verhalten in `ProductionOrders/Index`.
+2. Sichtbarkeit, Breite und Reihenfolge einer Spalte lassen sich je Liste aendern, bleiben nach
+   Reload erhalten (Server-Persistenz via `PUT /api/user-view-preferences/{viewKey}` liefert `200`,
+   nicht `400`) und sind je Benutzer getrennt (zweiter Benutzer sieht seine eigene, unabhaengige
+   Konfiguration).
+3. `GET /api/user-view-preferences/FaHierarchyKommissionierListen` (und die drei weiteren `viewKey`)
+   liefert `204 NoContent` ohne gespeicherte Praeferenz bzw. `200` mit den gespeicherten Settings —
+   in keinem Fall `400 BadRequest` (Regressionstest fuer Fachliche Anforderung 2, analog zum
+   bestehenden `FaWorklist`-Testfall in `UserViewPreferencesApiControllerTests.cs`).
+4. Identifizierende Spalten (`hauptfa`+`matchcode` bzw. nur `matchcode` bei
+   `FaHierarchyVormontageSummiert`) lassen sich im Zahnrad-Dialog **nicht** ausblenden (`locked:
+   true`).
+5. Bei `FaHierarchyKommissionierListen` sind `artikeltyp`, `beschichtet`, `material` im
+   Erstzustand (kein gespeichertes Profil) ausgeblendet; alle anderen Spalten sichtbar.
+6. `FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`, `FaHierarchyVormontageEinzeln` bieten
+   im Zahnrad-Dialog **keine** Option "Standard-Sortierung speichern" (`supportsSortDefault: false`);
+   `FaHierarchyVormontageSummiert` bietet sie (`supportsSortDefault: true`), analog `ProductionOrders`.
+7. `column-preferences.js` ist in allen vier Views **vor** `table-filter.js` eingebunden (Code-Review-
+   pruefbar, siehe `fallstricke.md`-Regel).
+8. `Print.cshtml`-Ausdrucke (`FaHierarchyKommissionierListen/Print`, `FaHierarchyBeschichtung/Print`)
+   bleiben von dieser Aenderung unberuehrt — identischer Spaltenumfang/-reihenfolge unabhaengig von
+   der Bildschirm-Konfiguration eines Benutzers.
+9. Bestehende Funktionalitaet der vier Views (Server-Spaltenfilter, Gruppen-Pagination,
+   Anomalie-Banner, Zugriffskontrolle) bleibt vollstaendig unveraendert — keine Regression in den
+   bestehenden `FaHierarchyListBuilderTests` u. ae.
+
+## Test-Szenarien
+
+Ergaenzung der bestehenden Kapitel in `docs/TESTSZENARIEN.md`:
+
+**TS-59 (Teil 3 — Kommissionierlisten), TS-60 (Teil 4 — Beschichtungsauftrag), TS-61 (Teil 5 —
+Vormontage-Listen):** je Kapitel neuer Abschnitt "Spaltenauswahl":
+- Zahnrad oeffnen, eine nicht-gesperrte Spalte ausblenden, Seite neu laden → Spalte bleibt
+  ausgeblendet.
+- Spaltenbreite per Ziehgriff aendern, Seite neu laden → Breite bleibt erhalten.
+- Zwei verschiedene Benutzer (oder zwei Browserprofile) auf derselben Liste → unabhaengige
+  Konfigurationen, keine gegenseitige Ueberschreibung.
+- `hauptfa`/`matchcode` (bzw. nur `matchcode` bei Summiert) lassen sich nicht ausblenden.
+- Standard-Sortierung: bei `FaHierarchyVormontageSummiert` speicherbar und wirksam nach Reload; bei
+  den drei gruppierten Listen ist die Option im Dialog **nicht vorhanden**.
+- Server-Spaltenfilter (`?colf_...`) funktionieren nach Ausblenden der gefilterten Spalte weiter
+  unveraendert (Filterung bleibt aktiv, auch ohne sichtbare Spalte — bewusst dokumentiertes,
+  unveraendertes Verhalten dieser Spec, siehe Fachliche Anforderungen Punkt 4).
+- Druck (`Print`) zeigt weiterhin alle Spalten unabhaengig von der Bildschirm-Konfiguration.
+
+**Automatisiert (`UserViewPreferencesApiControllerTests.cs`):** vier neue Testfaelle analog zum
+bestehenden `FaWorklist`-Regressionstest — `Get`/`Put`/`Delete` fuer jeden der vier neuen `viewKey`
+liefern **keinen** `400 BadRequest`.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
+
+## Deploy
+
+- **Web-App:** ja.
+- **Service:** nein.
+- **Migration:** nein.
+- **Kontext/Reihenfolge (siehe Offene Rueckfrage 2):** Die betroffenen vier Views existieren aktuell
+  ausschliesslich im noch nicht gemergten Epic-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`
+  (Branch `feature/2026-08-07-ideal-teile-1-5`, Status laut Aufgaben-Notiz `Testbereit`, wartet auf
+  Schranke 2/manuelles UAT). Wird diese Spec dort als zusaetzliche Etappe VOR dem Merge umgesetzt,
+  entsteht **kein** zusaetzlicher Deploy-Schritt — sie geht im selben Publish/Merge des Epic-Buendels
+  mit. Wird stattdessen ein eigener Worktree gewaehlt, kann er erst NACH dem Merge des Epic-Buendels
+  sinnvoll arbeiten (die Views muessen auf `main` existieren) und braucht einen eigenen,
+  nachgelagerten Publish-Schritt.
+- **Publish-Befehle (nachgelagerter Fall):**
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+
+## Offene Rueckfragen
+
+1. → **Vorbedingung Tree-Table:** Die FA-Struktur-Baumanzeige (`FaHierarchy/Index.cshtml`, Teil 2)
+   ist bewusst NICHT Teil dieser Spec — `column-preferences.js` braucht eine echte Tabelle, die es
+   dort erst nach Umsetzung von [[2026-08-12-fa-struktur-darstellung]] gibt. Bestaetigung erbeten,
+   dass die Baumanzeige-Spaltenauswahl als separater Nachtrag NACH jener Spec folgt (nicht Teil
+   dieser oder einer gemeinsamen Spec).
+2. → **Ausfuehrungsort:** Im bestehenden, noch offenen Epic-Worktree
+   `.claude/worktrees/2026-08-07-ideal-teile-1-5` fortsetzen (Empfehlung) oder eigener neuer
+   Worktree nach dem Epic-Merge?
+3. → **ADR-0005-Form:** Additiver Nachtrag direkt in der bestehenden ADR-0005-Datei (Empfehlung)
+   oder neuer, praezisierender ADR?
+4. → **Chip-Hinweis fuer ausgeblendete Spalte mit aktivem Server-Filter:** Fuer diese Spec vertagen/
+   nur dokumentieren (Empfehlung, Scope-Disziplin) oder jetzt als echte Erweiterung von
+   `table-filter.js`/`column-preferences.js` mitbauen?
+5. → **Sortier-Fallstrick bei gruppierten Tabellen (nur erstes `<tbody>` wird sortiert):** Nur
+   dokumentieren + separate Bug-Meldung fuer die Epic-Naht (Empfehlung) oder im selben Aufwasch
+   root-cause-beheben?
+
+## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
+
+1. →
+2. →
+3. →
+4. →
+5. →
