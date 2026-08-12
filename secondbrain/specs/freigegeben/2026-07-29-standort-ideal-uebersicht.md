@@ -2,9 +2,9 @@
 type: uebersicht
 title: "Uebersicht: IDEAL-Standort live schalten — hierarchische Produktionsauftraege (8 Teile)"
 slug: 2026-07-29-standort-ideal-uebersicht
-status: Testbereit
+status: InUmsetzung
 created: 2026-08-06
-updated: 2026-08-10
+updated: 2026-08-12
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 epic: true
 task: "[[2026-08-07-ideal-teile-1-5]]"
@@ -16,6 +16,8 @@ etappen:
   - "3: Teil 3 — Kommissionierlisten INKL. gemeinsamem Listen-/Druck-Baustein (Referenzimplementierung) — ERLEDIGT 9ca8141 (Build+Test gruen; Baustein FaHierarchyListBuilder)"
   - "4: Teil 4 — Beschichtungsauftrag (erweitert den Baustein aus Etappe 3, ohne PDF) — ERLEDIGT 08aa610 (Build+Test gruen; Baustein generalisiert leafOnly/anomaly opt-in)"
   - "5: Teil 5 — Vormontage-Listen, zwei Sichten (erweitert den Baustein aus Etappe 3) — ERLEDIGT df5931e (Build+Test gruen; Sicht 2 Matchcode-Aggregat; Wochenbezug bewusst offen)"
+  - "6: UI-Nachtrag — Listen-Spaltenauswahl an die vier IDEAL-Listen anschliessen + ADR-0005-Ergaenzung + table-filter Sort-Fix ([[2026-08-12-listen-spaltenauswahl-spec]]) — offen"
+  - "7: UI-Nachtrag — FA-Struktur Darstellung: seitenweite Tree-Table (OSEON-Stil), Kontrast-Fix, Knoten-Icons, Baum-Spaltenfilter + column-preferences ([[2026-08-12-fa-struktur-darstellung-spec]]) — offen"
 deploy:
   web: true
   service: true
@@ -62,6 +64,14 @@ Tabelle gehoert nie in denselben Merge wie Kommissionierlisten.
 | 3 | Kommissionierlisten + gemeinsamer Baustein | [[2026-07-29-standort-ideal-teil-3-spec]] | erledigt | 9ca8141 |
 | 4 | Beschichtungsauftrag | [[2026-07-29-standort-ideal-teil-4-spec]] | erledigt | 08aa610 |
 | 5 | Vormontage-Listen | [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | df5931e |
+| 6 | UI-Nachtrag: Listen-Spaltenauswahl (+ ADR 0005 + Sort-Fix) | [[2026-08-12-listen-spaltenauswahl-spec]] | erledigt | 37e8752 |
+| 7 | UI-Nachtrag: FA-Struktur Tree-Table/Kontrast/Icons/Spaltenfilter | [[2026-08-12-fa-struktur-darstellung-spec]] | offen | |
+
+**Epic am 2026-08-12 von `Testbereit` zurueck auf `InUmsetzung`** — zwei freigegebene UI-Nachtraege
+(Etappe 6/7) zu Teil 2–5 werden im SELBEN Worktree mitgebaut und **mitgemergt** (ein Merge). Reihenfolge:
+**Etappe 6 (listen-spaltenauswahl) zuerst**, dann Etappe 7 (fa-struktur, seitenweite Tree-Table). Danach
+QA erneut (Build/Tests) → wieder Testbereit. Der QA-Nachweis unten (93e54c4) ist damit ueberholt und
+am Etappen-Ende neu zu fuehren.
 
 **QA-Nachweis (2026-08-10, Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
 Branch `feature/2026-08-07-ideal-teile-1-5`, gepruefter Commit `93e54c4`):** `dotnet build
