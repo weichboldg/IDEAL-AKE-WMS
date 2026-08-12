@@ -99,4 +99,40 @@ public class UserViewPreferencesApiControllerTests
 
         result.Should().BeOfType<NoContentResult>();
     }
+
+    // Listen-Spaltenauswahl an den vier IDEAL-Listen (Etappe 6): ohne Registrierung in
+    // ColumnDefinitions.GetByViewKey antwortet die Prefs-API 400 und speichert nichts
+    // (Zahnrad-Einstellungen gingen bei jedem Reload verloren). Regressionstest analog
+    // zum FaWorklist-Fall: jeder der vier neuen ViewKeys ist gueltig -> 204, nicht 400.
+    [Theory]
+    [InlineData("FaHierarchyKommissionierListen")]
+    [InlineData("FaHierarchyBeschichtung")]
+    [InlineData("FaHierarchyVormontageEinzeln")]
+    [InlineData("FaHierarchyVormontageSummiert")]
+    public async Task Get_IdealListViewKey_IsAccepted(string viewKey)
+    {
+        var controller = CreateController();
+        _repoMock.Setup(r => r.GetByUserAndViewAsync(42, viewKey))
+            .ReturnsAsync((UserViewPreference?)null);
+
+        var result = await controller.Get(viewKey);
+
+        result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Theory]
+    [InlineData("FaHierarchyKommissionierListen")]
+    [InlineData("FaHierarchyBeschichtung")]
+    [InlineData("FaHierarchyVormontageEinzeln")]
+    [InlineData("FaHierarchyVormontageSummiert")]
+    public async Task Put_IdealListViewKey_IsAccepted(string viewKey)
+    {
+        var controller = CreateController();
+        var json = """{"columns":[{"key":"matchcode","visible":true}]}""";
+
+        var result = await controller.Put(viewKey, json);
+
+        result.Should().BeOfType<OkResult>();
+        _repoMock.Verify(r => r.SaveAsync(42, viewKey, json, "TestUser", "DOMAIN\\testuser"), Times.Once);
+    }
 }

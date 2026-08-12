@@ -83,6 +83,18 @@ else
 
 <partial name="_Pagination" model="Model.Pagination" />
 
+<script type="application/json" id="view-config">
+{ "viewKey": "FaHierarchyVormontageSummiert", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Summe Sollmenge", "locked": false, "defaultWidth": 55 },
+    { "key": "fertigungmenge", "label": "Summe Fertigungmenge", "locked": false, "defaultWidth": 55 }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

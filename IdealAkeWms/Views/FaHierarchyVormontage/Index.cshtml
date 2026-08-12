@@ -128,6 +128,23 @@ else
 
 <partial name="_Pagination" model="Model.Pagination" />
 
+<script type="application/json" id="view-config">
+{ "viewKey": "FaHierarchyVormontageEinzeln", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "hauptfa", "label": "HauptFA", "locked": true, "defaultWidth": null },
+    { "key": "hauptartnr", "label": "Haupt-Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "artnr", "label": "Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Sollmenge", "locked": false, "defaultWidth": 55 },
+    { "key": "fertigungmenge", "label": "Fertigungmenge", "locked": false, "defaultWidth": 55 },
+    { "key": "vmbedarf", "label": "VMBedarf", "locked": false, "defaultWidth": null },
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

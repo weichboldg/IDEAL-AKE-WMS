@@ -274,6 +274,99 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// FaHierarchyKommissionierListen/Index.cshtml columns (IDEAL Teil 3).
+    /// Gruppierte Liste (je HauptFA ein eigenes &lt;tbody&gt;), Server-Spaltenfilter.
+    /// SupportsSortDefault: false (gruppierte Liste, Muster wie OseonTracking/Bom).
+    /// hauptfa + matchcode Locked (zwei identifizierende Schluessel).
+    /// artikeltyp/beschichtet/material Default AUSGEBLENDET (Zahnrad blendet ein).
+    /// Spalten identisch zum inline #column-config JSON der View.
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyKommissionierListen = new(
+        "FaHierarchyKommissionierListen", "Kommissionierlisten (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("hauptfa",        "HauptFA",         Locked: true),
+            new ColumnDef("hauptartnr",     "Haupt-Artnr.",    Locked: false),
+            new ColumnDef("artnr",          "Artnr.",          Locked: false),
+            new ColumnDef("matchcode",      "Matchcode",       Locked: true),
+            new ColumnDef("sollmenge",      "Sollmenge",       Locked: false, DefaultWidth: 55),
+            new ColumnDef("hauptlagerplatz","Hauptlagerplatz", Locked: false),
+            new ColumnDef("kommissionieren","Kommissionieren", Locked: false),
+            new ColumnDef("arbeitsbereich", "Arbeitsbereich",  Locked: false),
+            new ColumnDef("artikeltyp",     "Artikeltyp",      Locked: false, DefaultHidden: true),
+            new ColumnDef("beschichtet",    "Beschichtet",     Locked: false, DefaultHidden: true),
+            new ColumnDef("material",       "Material",        Locked: false, DefaultHidden: true),
+        ]
+    };
+
+    /// <summary>
+    /// FaHierarchyBeschichtung/Index.cshtml columns (IDEAL Teil 4).
+    /// Gruppierte Liste (je HauptFA ein eigenes &lt;tbody&gt;), Server-Spaltenfilter.
+    /// SupportsSortDefault: false. hauptfa + matchcode Locked.
+    /// Spalten identisch zum inline #column-config JSON der View.
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyBeschichtung = new(
+        "FaHierarchyBeschichtung", "Beschichtungsauftrag (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("hauptfa",    "HauptFA",      Locked: true),
+            new ColumnDef("hauptartnr", "Haupt-Artnr.", Locked: false),
+            new ColumnDef("artnr",      "Artnr.",       Locked: false),
+            new ColumnDef("matchcode",  "Matchcode",    Locked: true),
+            new ColumnDef("sollmenge",  "Sollmenge",    Locked: false, DefaultWidth: 55),
+            new ColumnDef("beschichtet","Beschichtet",  Locked: false),
+            new ColumnDef("breite",     "Breite",       Locked: false, DefaultWidth: 55),
+            new ColumnDef("hoehe",      "Höhe",         Locked: false, DefaultWidth: 55),
+            new ColumnDef("tiefe",      "Tiefe",        Locked: false, DefaultWidth: 55),
+        ]
+    };
+
+    /// <summary>
+    /// FaHierarchyVormontage/Index.cshtml columns (IDEAL Teil 5, Sicht 1 "Einzelne Teile").
+    /// Gruppierte Liste (je HauptFA ein eigenes &lt;tbody&gt;), Server-Spaltenfilter.
+    /// SupportsSortDefault: false. hauptfa + matchcode Locked.
+    /// Spalten identisch zum inline #column-config JSON der View.
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyVormontageEinzeln = new(
+        "FaHierarchyVormontageEinzeln", "Vormontage — Einzelne Teile (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("hauptfa",       "HauptFA",       Locked: true),
+            new ColumnDef("hauptartnr",    "Haupt-Artnr.",  Locked: false),
+            new ColumnDef("artnr",         "Artnr.",        Locked: false),
+            new ColumnDef("matchcode",     "Matchcode",     Locked: true),
+            new ColumnDef("sollmenge",     "Sollmenge",     Locked: false, DefaultWidth: 55),
+            new ColumnDef("fertigungmenge","Fertigungmenge",Locked: false, DefaultWidth: 55),
+            new ColumnDef("vmbedarf",      "VMBedarf",      Locked: false),
+            new ColumnDef("material",      "Material",      Locked: false),
+        ]
+    };
+
+    /// <summary>
+    /// FaHierarchyVormontage/Summiert.cshtml columns (IDEAL Teil 5, Sicht 2 "Summiert").
+    /// Flache, nicht gruppierte Tabelle (ein &lt;tbody&gt;) -> SupportsSortDefault: true
+    /// wie ProductionOrders. matchcode einziger Identifikator (Locked).
+    /// Spalten identisch zum inline #column-config JSON der View.
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyVormontageSummiert = new(
+        "FaHierarchyVormontageSummiert", "Vormontage — Summiert (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: true)
+    {
+        Columns =
+        [
+            new ColumnDef("matchcode",     "Matchcode",             Locked: true),
+            new ColumnDef("sollmenge",     "Summe Sollmenge",       Locked: false, DefaultWidth: 55),
+            new ColumnDef("fertigungmenge","Summe Fertigungmenge",  Locked: false, DefaultWidth: 55),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -285,6 +378,10 @@ public static class ColumnDefinitions
         "Bom"              => Bom,
         "BdeBookings"      => BdeBookings,
         "WarehousePickingDetails" => WarehousePickingDetails,
+        "FaHierarchyKommissionierListen" => FaHierarchyKommissionierListen,
+        "FaHierarchyBeschichtung"        => FaHierarchyBeschichtung,
+        "FaHierarchyVormontageEinzeln"   => FaHierarchyVormontageEinzeln,
+        "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
         _                  => null
     };
 }

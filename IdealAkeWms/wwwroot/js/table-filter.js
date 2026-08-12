@@ -312,14 +312,11 @@
     }
 
     function sortTable(colKey, dir) {
-        if (!_tbody) return;
+        if (!_table) return;
         var colIndex = getPhysicalIndex(colKey);
         if (colIndex < 0) return;
 
-        var rows = Array.from(_tbody.querySelectorAll('tr'));
-        var dataRows = rows.filter(function (r) { return !r.querySelector('td[colspan]'); });
-
-        dataRows.sort(function (a, b) {
+        function compareRows(a, b) {
             var cellA = a.querySelectorAll('td')[colIndex];
             var cellB = b.querySelectorAll('td')[colIndex];
             if (!cellA || !cellB) return 0;
@@ -350,10 +347,20 @@
             // String comparison
             var cmp = valA.localeCompare(valB, 'de');
             return dir === 'asc' ? cmp : -cmp;
-        });
+        }
 
-        dataRows.forEach(function (row) {
-            _tbody.appendChild(row);
+        // Innerhalb JEDES <tbody> der Tabelle separat sortieren: gruppierte Listen
+        // (FaHierarchy*) rendern je HauptFA-Gruppe ein eigenes <tbody>; Zeilen duerfen
+        // nie ueber diese Gruppengrenzen wandern. Fuer flache Listen mit genau einem
+        // <tbody> liefert querySelectorAll('tbody') exakt dieses eine Element -> das
+        // Sortierergebnis bleibt unveraendert zum bisherigen Verhalten (Regressions-AK).
+        _table.querySelectorAll('tbody').forEach(function (tbody) {
+            var dataRows = Array.from(tbody.querySelectorAll('tr'))
+                .filter(function (r) { return !r.querySelector('td[colspan]'); });
+            dataRows.sort(compareRows);
+            dataRows.forEach(function (row) {
+                tbody.appendChild(row);
+            });
         });
     }
 

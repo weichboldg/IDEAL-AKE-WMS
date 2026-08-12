@@ -140,6 +140,26 @@
 
 <partial name="_Pagination" model="Model.Pagination" />
 
+<script type="application/json" id="view-config">
+{ "viewKey": "FaHierarchyKommissionierListen", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "hauptfa", "label": "HauptFA", "locked": true, "defaultWidth": null },
+    { "key": "hauptartnr", "label": "Haupt-Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "artnr", "label": "Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Sollmenge", "locked": false, "defaultWidth": 55 },
+    { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "kommissionieren", "label": "Kommissionieren", "locked": false, "defaultWidth": null },
+    { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
+    { "key": "artikeltyp", "label": "Artikeltyp", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "beschichtet", "label": "Beschichtet", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null, "defaultHidden": true }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }

@@ -6450,6 +6450,37 @@ Zugriff (Class-Level): `[RequireLagerProcessingAccess]` — identisch zu `Wareho
 - **TS-59.14 — Regression:** `WarehousePicking`/AKE-Kommissionierung unveraendert; keine Schema-/
   Service-Aenderung (AK10).
 
+### Spaltenauswahl (Etappe 6 — Zahnrad/`column-preferences.js`, `viewKey` `FaHierarchyKommissionierListen`)
+
+- **TS-59.15 — Zahnrad vorhanden und bedienbar:** `/FaHierarchyKommissionierListen` aufrufen.
+  Erwartet: Zahnrad-Symbol zur Spaltenkonfiguration ist vorhanden und oeffnet das Offcanvas.
+  Platzierung robust — der Knopf bleibt auffindbar/bedienbar, auch wenn ein Anomalie-Warnbanner
+  ueber der Tabelle steht (nicht pixelgleich zu `ProductionOrders` gefordert).
+- **TS-59.16 — Sichtbarkeit/Breite/Reihenfolge persistieren:** eine nicht-gesperrte Spalte (z. B.
+  `Arbeitsbereich`) ausblenden, eine Spaltenbreite per Ziehgriff aendern, eine Spalte per Drag
+  umordnen → Seite neu laden → alle drei Aenderungen bleiben erhalten (Server-Persistenz,
+  `PUT /api/user-view-preferences/FaHierarchyKommissionierListen` liefert `200`, **nicht** `400`).
+- **TS-59.17 — Erstzustand Default-Hidden:** ohne gespeichertes Profil sind `Artikeltyp`,
+  `Beschichtet`, `Material` ausgeblendet; alle anderen Spalten sichtbar.
+- **TS-59.18 — Locked-Spalten:** `HauptFA` und `Matchcode` lassen sich im Dialog **nicht**
+  ausblenden.
+- **TS-59.19 — Keine Standard-Sortierung:** der Dialog bietet **keine** Option „Standard-Sortierung
+  speichern" (`supportsSortDefault: false`).
+- **TS-59.20 — Benutzer-Trennung:** zwei verschiedene Benutzer (oder Browserprofile) auf derselben
+  Liste → unabhaengige Konfigurationen, keine gegenseitige Ueberschreibung.
+- **TS-59.21 — Multi-Gruppen Spaltenauswahl (≥2 HauptFA-Gruppen):** Liste mit **mindestens zwei**
+  `HauptFA`-Gruppen; eine Spalte ausblenden bzw. per Drag umordnen → die Aenderung wirkt in **jeder**
+  Gruppe gleich, nicht nur in der ersten.
+- **TS-59.22 — Multi-Gruppen Sortierung (Sortier-Fix, ≥2 HauptFA-Gruppen):** Klick auf eine
+  sortierbare Spaltenkopfzeile → Positionszeilen sortieren sich **innerhalb jeder** Gruppe fuer sich;
+  Gruppenkopfzeilen bleiben an ihrer Position, keine Position wandert in eine andere Gruppe.
+- **TS-59.23 — Server-Spaltenfilter nach Ausblenden:** eine gefilterte Spalte (`colf_...` aktiv)
+  ausblenden → Filter bleibt wirksam, die Liste bleibt gekuerzt (bewusst dokumentiertes,
+  unveraendertes Verhalten). Der `Zuruecksetzen`-Link (`data-clear-table-filters`) raeumt auch
+  Filter unsichtbarer Spalten weg.
+- **TS-59.24 — Druck unberuehrt:** `Print` zeigt weiterhin alle Spalten unabhaengig von der
+  Bildschirm-Konfiguration.
+
 ---
 
 ## TS-60 — IDEAL Teil 4: Beschichtungsauftrag (`FaHierarchyBeschichtungController`)
@@ -6518,6 +6549,28 @@ Toggle `FaHierarchyBeschichtungAktiv = true`. Benutzer mit Rolle `beschichtungsa
 - **TS-60.13 — Regression:** `WarehousePicking`/AKE-Beschichtungslogik (`CoatingDetectionService`,
   `CoatingDateCalculator`) und Teil 3 (Kommissionierlisten) unveraendert; keine Schema-/
   Service-Aenderung (AK7).
+
+### Spaltenauswahl (Etappe 6 — Zahnrad/`column-preferences.js`, `viewKey` `FaHierarchyBeschichtung`)
+
+- **TS-60.14 — Zahnrad vorhanden und bedienbar:** `/FaHierarchyBeschichtung` aufrufen. Erwartet:
+  Zahnrad-Symbol vorhanden und oeffnet das Offcanvas; Platzierung robust (Beschichtung hat die
+  Filterkarte davor, kein Anomalie-Banner).
+- **TS-60.15 — Sichtbarkeit/Breite/Reihenfolge persistieren:** eine nicht-gesperrte Spalte (z. B.
+  `Breite`) ausblenden, Breite aendern, umordnen → Reload → bleibt erhalten
+  (`PUT /api/user-view-preferences/FaHierarchyBeschichtung` liefert `200`, **nicht** `400`).
+- **TS-60.16 — Locked-Spalten:** `HauptFA` und `Matchcode` lassen sich **nicht** ausblenden.
+- **TS-60.17 — Keine Standard-Sortierung:** der Dialog bietet **keine** Option „Standard-Sortierung
+  speichern" (`supportsSortDefault: false`).
+- **TS-60.18 — Benutzer-Trennung:** zwei Benutzer/Profile → unabhaengige Konfigurationen.
+- **TS-60.19 — Multi-Gruppen Spaltenauswahl (≥2 HauptFA-Gruppen):** eine Spalte ausblenden/umordnen →
+  Aenderung wirkt in **jeder** Gruppe gleich, nicht nur in der ersten.
+- **TS-60.20 — Multi-Gruppen Sortierung (Sortier-Fix, ≥2 HauptFA-Gruppen):** Klick auf eine
+  Spaltenkopfzeile → Positionszeilen sortieren sich **innerhalb jeder** Gruppe fuer sich;
+  Gruppenkopfzeilen bleiben, keine Position wandert in eine andere Gruppe.
+- **TS-60.21 — Server-Spaltenfilter nach Ausblenden:** gefilterte Spalte ausblenden → Filter bleibt
+  wirksam (dokumentiertes, unveraendertes Verhalten).
+- **TS-60.22 — Druck unberuehrt:** `Print` zeigt weiterhin alle Spalten unabhaengig von der
+  Bildschirm-Konfiguration.
 
 ---
 
@@ -6603,6 +6656,44 @@ vorhanden. Toggle `FaHierarchyVormontageAktiv = true`. Benutzer mit Vorbau-Zugri
   `FaHierarchyVormontageAktiv` aus (oder Key fehlt) → Redirect Home + `WarningMessage` (AK6).
 - **TS-61.20 — Regression:** `FaWorklist`/AKE unveraendert, Teil 3/4 unveraendert; keine Schema-/
   Service-Aenderung (AK7).
+
+### Spaltenauswahl (Etappe 6 — Zahnrad/`column-preferences.js`)
+
+Sicht 1 „Einzelne Teile" nutzt `viewKey` `FaHierarchyVormontageEinzeln` (gruppiert, je HauptFA ein
+`<tbody>`), Sicht 2 „Summiert" nutzt `viewKey` `FaHierarchyVormontageSummiert` (flache Tabelle, ein
+`<tbody>`).
+
+- **TS-61.21 — Zahnrad beide Sichten:** `/FaHierarchyVormontage` (Sicht 1) und `/…/Summiert`
+  (Sicht 2) aufrufen. Erwartet: Zahnrad je Sicht vorhanden und bedienbar; Platzierung robust (Sicht 1
+  hat davor die Reiter `<ul class="nav">` bzw. ein Anomalie-Banner).
+- **TS-61.22 — Persistenz Sicht 1:** in Sicht 1 eine nicht-gesperrte Spalte (z. B. `Material`)
+  ausblenden, Breite aendern, umordnen → Reload → bleibt erhalten
+  (`PUT /api/user-view-preferences/FaHierarchyVormontageEinzeln` liefert `200`, **nicht** `400`).
+- **TS-61.23 — Persistenz Sicht 2:** in Sicht 2 eine nicht-gesperrte Spalte ausblenden/umordnen →
+  Reload → bleibt erhalten (`…/FaHierarchyVormontageSummiert` liefert `200`, **nicht** `400`).
+- **TS-61.24 — Locked-Spalten:** Sicht 1 → `HauptFA` und `Matchcode` nicht ausblendbar; Sicht 2 →
+  `Matchcode` (einziger Identifikator) nicht ausblendbar.
+- **TS-61.25 — Standard-Sortierung nur Sicht 2:** Sicht 1 bietet **keine** Option
+  „Standard-Sortierung speichern" (`supportsSortDefault: false`); Sicht 2 **bietet** sie
+  (`supportsSortDefault: true`, analog `ProductionOrders`) — gespeicherte Standard-Sortierung ist nach
+  Reload wirksam.
+- **TS-61.26 — Benutzer-Trennung:** zwei Benutzer/Profile → unabhaengige Konfigurationen je Sicht.
+- **TS-61.27 — Multi-Gruppen Spaltenauswahl Sicht 1 (≥2 HauptFA-Gruppen):** Spalte ausblenden/umordnen
+  → Aenderung wirkt in **jeder** Gruppe gleich, nicht nur in der ersten.
+- **TS-61.28 — Multi-Gruppen Sortierung Sicht 1 (Sortier-Fix, ≥2 HauptFA-Gruppen):** Klick auf eine
+  Spaltenkopfzeile → Positionszeilen sortieren sich **innerhalb jeder** Gruppe fuer sich;
+  Gruppenkopfzeilen bleiben, keine Position wandert in eine andere Gruppe. In Sicht 2 (ein `<tbody>`)
+  sortiert der Klick die flache Liste wie gewohnt.
+- **TS-61.29 — Server-Spaltenfilter nach Ausblenden:** gefilterte Spalte ausblenden → Filter bleibt
+  wirksam (dokumentiertes, unveraendertes Verhalten).
+
+### Sortier-Regression flache Listen (Pflicht vor Merge — gemeinsam genutztes `table-filter.js`)
+
+- **TS-61.30 — Regressions-Sichtpruefung Ein-`tbody`-Listen:** Der Sortier-Fix in `table-filter.js`
+  (sortiert kuenftig **je `<tbody>` separat**) darf bestehende, nicht-gruppierte Listen nicht
+  veraendern. Auf `ProductionOrders/Index` (ein `<tbody>`) nach dem Fix sortieren (Klick auf mehrere
+  Spaltenkopfzeilen, auf- und absteigend) und filtern → **exakt** dasselbe Verhalten wie zuvor, keine
+  sichtbare Abweichung. Stichprobenartig ebenso an `PickingLeitstand`/`FaWorklist`.
 
 ---
 
