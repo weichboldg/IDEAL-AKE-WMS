@@ -2,13 +2,13 @@
 type: spec
 title: "Listen: Spaltenauswahl an die IDEAL-Listen anschliessen + ADR 0005 ergaenzen"
 slug: 2026-08-12-listen-spaltenauswahl-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-08-12
 updated: 2026-08-12
 source_backlog: "[[2026-08-12-listen-spaltenauswahl]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (vier neue ViewConfig-Eintraege + GetByViewKey-Switch — vom Backlog NICHT erwaehnt, aber ohne diese Eintraege antwortet die Prefs-API mit 400 und speichert nichts, siehe Fachliche Anforderungen Punkt 2)
   - IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml (view-config + column-config + Skript-Include)
@@ -32,8 +32,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-12
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -330,6 +330,19 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
    dokumentieren + separate Bug-Meldung fuer die Epic-Naht (Empfehlung) oder im selben Aufwasch
    root-cause-beheben?
 
+## Dev-Lauf angehalten (2026-08-12)
+
+`/dev` wurde ausgeloest, aber NICHT umgesetzt — der Gate ist nicht erfuellt:
+1. **`status: Entwurf`** (nicht Freigegeben), `freigabe_*` leer — Schranke 1 formal nicht genommen
+   (die Kopie in `specs/freigegeben/` ist ein untracktes Duplikat, ebenfalls Entwurf).
+2. **Offener, verdikt-tragender Punkt aus „Kritische Pruefung (2026-08-12)":** der sichtbare
+   **Sortier-Defekt** (`table-filter.js` sortiert nur das erste `<tbody>`, Klick-Sort unbedingt an
+   jeden Header gebunden → die drei neuen gruppierten Listen mis-sortieren) ist nur durch einen
+   **noch nicht angelegten** Bug-Task abgesichert, ohne Merge-Gate. Zu entscheiden: Fix in diese Spec
+   ziehen ODER Bug-Record anlegen + als Epic-Merge-Vorbedingung verankern.
+Inhalt sonst freigabereif. Umsetzung gehoert laut Schwester-Spec (Antwort 2) als Etappe in den
+ideal-teile-1-5-Epic (via `/epic-stage`), Reihenfolge: DIESE Spec zuerst, dann fa-struktur.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 1. → **Bestaetigt: Tree-Table ist Vorbedingung und NICHT Teil dieser Spec.** Der Anschluss der
@@ -450,3 +463,51 @@ sind.
 uneingeplanten Task und Prosa haengen — Fix einziehen ODER Bug-Record anlegen + als Merge-Gate
 verankern; zusaetzlich Multi-Gruppen-Test (SOLLTE 2) und die `freigegeben/`-Doppelablage (SOLLTE 3)
 bereinigen. Der Rest der Spec ist inhaltlich freigabereif.
+
+## ANTWORTEN auf die Kritische Pruefung (2026-08-12, zweiter Durchgang)
+
+**Zu SOLLTE 1 — Einwand berechtigt. Bug-Record + HARTES Merge-Gate, nicht Fix in diesem Lauf.**
+„Erledigt darf nicht von Goodwill abhaengen" trifft zu; meine vorige Antwort war an dieser Stelle zu
+weich. Gewaehlt wird trotzdem die Trennung, aber mit Zaehnen:
+- **Nicht in diesen Lauf ziehen.** `table-filter.js` ist gemeinsam genutztes JS — jede Liste der
+  Anwendung haengt daran. Eine Aenderung dort verdient einen eigenen Testumfang und nicht die
+  Mitnahme in einem View-Verdrahtungs-Task. Die Scope-Disziplin bleibt.
+- **Bug-Record JETZT anlegen** (`bugs/`), hier verlinken, und im **Deploy-Abschnitt als verbindliche
+  Vorbedingung des Epic-Merge** fuehren: Der Epic wird nicht gemergt, solange der Defekt offen ist.
+  Das ist das Gate, das der Reviewer zu Recht verlangt.
+- **`supportsSortDefault: false`** bleibt defensiv gesetzt.
+- **Umsetzungsweg:** eigener kleiner Worktree von `main`, Fix (ueber alle `<tbody>` iterieren,
+  **innerhalb** jedes sortieren — fuer Ein-`tbody`-Tabellen verhaltensgleich), Merge nach `main`,
+  danach `sync-worktree.ps1` zieht ihn in den Epic-Zweig. Reihenfolge ist damit sauber.
+
+**Zu SOLLTE 2 — uebernommen, ohne Vorbehalt.** AK 5 und TS-59/60/61 bekommen den Fall: Liste mit
+**mindestens zwei `HauptFA`-Gruppen**, Spalte ausblenden → verschwindet in **jeder** Gruppe; analog
+fuer Umordnen. Der Punkt ist stark, weil genau diese Fehlerklasse in diesem Codebestand nachweislich
+lebt — dass `column-preferences.js` es richtig macht, wird damit **bewiesen** statt angenommen.
+
+**Zu SOLLTE 3 — Doppelablage aufloesen, vor der Freigabe.** Massgeblich ist die `entwurf/`-Fassung
+(dort wurde gearbeitet). Die Kopie in `freigegeben/` traegt zudem `status: Entwurf` und leere
+`freigabe_*`-Felder — eine Datei im Freigabe-Ordner ohne erfasste Schranke-1-Entscheidung ist ein
+Widerspruch, den Cockpit und Pipeline nicht aufloesen koennen. **Die verfruehte `freigegeben/`-Kopie
+entfernen** (Ordner-Geste des Menschen); die Freigabe erfolgt danach regulaer mit gesetztem
+Frontmatter. Gleiches gilt fuer die Schwester-Spec.
+
+**Zu HINWEIS „Zahnrad-Platzierung" — AK abschwaechen UND die Ursache beheben.**
+AK 1 wird auf **„Zahnrad vorhanden und bedienbar"** abgeschwaecht — richtig, `insertGearButton`
+haengt am `previousElementSibling`, und das ist je View etwas anderes. Aber die Konsequenz ist nicht
+nur kosmetisch: In Kommissionier- und Vormontage-Liste landete der Knopf **im gelben Warnbanner**.
+Ein Bedienelement in einer Warnmeldung sieht nach Fehler aus.
+**Deshalb zusaetzlich, ohne JS-Aenderung:** In den betroffenen Views einen konsistenten
+`<div>`-Container unmittelbar vor `.table-responsive` vorsehen, damit der Knopf ueberall an
+derselben, ruhigen Stelle landet. Das ist eine View-Aenderung im Umfang dieser Spec — kein Eingriff
+in gemeinsam genutztes JS.
+
+**Zu HINWEIS „Brain-Schreibziele" — bestaetigt, gilt unveraendert.** ADR 0005, `fallstricke.md` und
+`testszenarien-index.md` sind Brain und gehen in den **Hauptcheckout**; nur `docs/TESTSZENARIEN.md`
+ist Zweig-Inhalt. Der Worktree hat per sparse-checkout ohnehin kein `secondbrain/`.
+
+**Zu HINWEIS „ADR 0005 nennt die Reihenfolge bereits in den Risiken" — zur Kenntnis, und es
+stuetzt die Ergaenzung.** Dass dort `column-preferences.js` vor `table-filter.js` bereits als Risiko
+auftaucht, das Pattern selbst die Spaltenpraeferenzen aber **nicht** als Pflichtbestandteil fuehrt,
+ist genau die Luecke: Die Reihenfolge einer Sache zu regeln, die man nicht verlangt, hilft niemandem.
+Der additive Nachtrag schliesst das.

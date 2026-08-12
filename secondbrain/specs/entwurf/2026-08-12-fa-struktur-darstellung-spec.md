@@ -2,14 +2,14 @@
 type: spec
 title: "FA-Struktur: Darstellung, Spaltenfilter und Knoten-Icons (Nachtrag zu Teil 2)"
 slug: 2026-08-12-fa-struktur-darstellung-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-08-12
 updated: 2026-08-12
 source_backlog: "[[2026-08-12-fa-struktur-darstellung]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-2-spec]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - "IdealAkeWms/Views/FaHierarchy/Index.cshtml (bestehend aus Teil 2 — aktuell NUR im noch nicht gemergten Worktree .claude/worktrees/2026-08-07-ideal-teile-1-5, Branch feature/2026-08-07-ideal-teile-1-5, Status Testbereit; nicht in main)"
   - "IdealAkeWms/Views/FaHierarchy/_FaHierarchyNode.cshtml (bestehend, wird von der freifliessenden Div-Struktur auf eine Tree-Table-Zeile umgebaut)"
@@ -34,8 +34,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-12
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -378,6 +378,21 @@ Nach Klärung der Offenen Rückfragen (insbesondere 4 und 6) zu präzisieren.
    Diese Spec geht davon aus, dass „Bootstrap Icons verwenden, keine neue Bibliothek" exakt diese
    bestehende Konvention meint, nicht das Hinzufügen des `bootstrap-icons`-Pakets. Bitte bestätigen.
 
+## Dev-Lauf angehalten (2026-08-12)
+
+`/dev` wurde ausgeloest, aber NICHT umgesetzt — der Gate ist nicht erfuellt:
+1. **`status: Entwurf`** (nicht Freigegeben), `freigabe_*` leer — Schranke 1 ist formal nicht genommen
+   (das Kopieren nach `specs/freigegeben/` setzt den Status nicht; die Kopie dort ist zudem ein
+   untracktes Duplikat).
+2. **Offene BLOCKER aus „Kritische Pruefung (2026-08-12)" ungeklaert** — insbesondere die
+   **Tabellen-Topologie** (seitenweite `<table>` wie OSEON mit `<tbody>`-Gruppen vs. Tabelle-je-Karte:
+   `column-preferences.js`/`table-filter.js` binden strikt an EINE Tabelle/erstes tbody), der
+   **column-prefs-Scope-Widerspruch** (Antwort 2 „in diese Spec" vs. Rumpf 3x out-of-scope) und der
+   **unterzeichnete JS-Umbau** (`expandAncestors` im Table-Modell neu, ganzer Skriptblock 201-274).
+Naechster Schritt: Topologie entscheiden, Rumpf/AK/`affected_code`/column-prefs-Anschluss angleichen,
+dann Freigabe. Die Umsetzung gehoert laut Freigabe-Antwort 1 ohnehin als Etappe in den
+ideal-teile-1-5-Epic (via `/epic-stage`), nicht als eigenstaendiger `/dev`-Lauf.
+
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
 1. → **Als zusaetzliche Etappen im BESTEHENDEN Epic-Worktree, nicht als eigener Worktree.**
@@ -584,3 +599,64 @@ NACHBESSERUNG NOETIG: column-preferences-Anschluss aus Antwort 2 in Rumpf/AK/Tes
 Einzeltabelle vs. Tabelle-je-Karte — und mit den einzeltabellen-gebundenen JS-Bausteinen in Einklang
 bringen (B-2), sowie den JS-Umbau (`expandAncestors`/Toggle neu statt „wiederverwendet") in Umfang
 und `affected_code` ehrlich abbilden (B-3).
+
+## ANTWORTEN auf die Kritische Pruefung (2026-08-12, zweiter Durchgang)
+
+**Zu B-2 — Topologie: EINE seitenweite Tabelle, ein `<tbody>` je Struktur. [ENTSCHEIDUNG]**
+Nicht eine Tabelle je Karte. Vier Gruende:
+- `column-preferences.js` bindet **eine** Instanz je `data-view-key`. N Tabellen waeren N Instanzen,
+  die denselben `viewKey` beschreiben — sie ueberschrieben sich gegenseitig.
+- Spalten muessen **ueber Strukturen hinweg fluchten**. Sonst sind gespeicherte Breiten und
+  Spaltenfilter bedeutungslos, weil jede Karte ihre eigene Spaltenaufteilung haette.
+- **Praezedenz im eigenen Haus:** Die Kommissionierlisten sind bereits genau so gebaut — eine
+  Tabelle, ein `<tbody>` je `HauptFA`-Gruppe, Gruppen-Kopfzeile. Gleiches Muster, gleiche
+  JS-Bausteine, kein Sonderweg fuer diese eine Ansicht.
+- Die Karten-Kopfdaten (Montage-Abt./Kunde/Status; bei Kombigeraet mehrere Zeilen +
+  Mehrdeutigkeits-Badge, siehe Antwort zu Teil-2-Rueckfrage 1) werden zur **Gruppen-Kopfzeile mit
+  `colspan`** — ebenfalls wie in den Listen.
+**Ehrlicher Preis:** Die Karten-Optik entfaellt. Bewusste Abwaegung — Ausrichtung und
+Wiederverwendung schlagen das Karten-Bild.
+
+**Zu S-3 — Baumspalten sind NICHT sortierbar. Und zwar nicht bloss defensiv.**
+Bei einem Baum **ist die Zeilenreihenfolge die Hierarchie**. Eine Spaltensortierung risse Eltern und
+Kinder auseinander — sie ist hier semantisch sinnlos, voellig unabhaengig vom Multi-`tbody`-Defekt.
+Also: **kein `data-sortable` an den Baumspalten**, `supportsSortDefault: false`. Der Defekt aus der
+Schwester-Spec kann die Baumanzeige damit gar nicht treffen. In AK und Umfang festschreiben, damit
+es niemand „nachruestet".
+
+**Zu B-1 und B-3 — uebernommen, ohne Einschraenkung.** Der column-prefs-Anschluss aus Antwort 2
+gehoert vollstaendig in Rumpf, AK, Testszenarien und `affected_code` (inkl.
+`Models/ViewModels/ColumnDefinitions.cs` — ohne den Eintrag antwortet die Prefs-API mit 400). Und
+der JS-Teil ist ein **Umbau**, keine Wiederverwendung: `expandAncestors` und die Toggle-Logik
+arbeiten heute auf `.fa-node`/`.fa-node-children`-Verschachtelung; in einer flachen Tabellenzeilen-
+Struktur gibt es diese DOM-Verschachtelung nicht mehr, die Eltern-Kind-Beziehung muss ueber
+Daten-Attribute laufen. Das ehrlich als Neuentwicklung ausweisen.
+
+**Zu S-1 — praezisiert.** Das Tree-Table ist Vorbedingung **nur fuer den column-prefs-Anschluss der
+Baumanzeige selbst**, nicht fuer die Schwester-Spec (die vier flache, bereits echte Tabellen
+behandelt und die Baumansicht nicht anfasst). Ziel-Formulierung entsprechend umschreiben.
+
+**Zu S-2 — Praezedenz explizit: Wurzel-Pruefung VOR SubFA-Pruefung.** Eine Wurzel ist typischerweise
+zugleich Baugruppe und erfuellt beide Regeln; das Wurzel-Icon gewinnt. Als geordnete Kette
+ausschreiben (Wurzel → Baugruppe → Zukaufteil → Material), nicht als Tabelle, deren Reihenfolge man
+erraten muss.
+
+**Zu S-4 — Split angenommen.** Zwei Etappen: **(a) Kontrast-Fix sofort** (ein bis drei CSS-Zeilen,
+risikoarm, behebt einen Funktionsausfall) und **(b) Tree-Table + Filter + Icons + Prefs** als
+eigener Lauf, geschnitten nach der Topologie-Entscheidung oben. Der Kontrast-Fix darf nicht Geisel
+des grossen Umbaus sein — gute Beobachtung.
+
+**Zu H-3 — aufgenommen als bewusste Wegwerf-Entscheidung.** Der Tree-Table-Umbau verwirft den
+Grossteil des gerade in `b6b6d83` gebauten flex-basierten Layouts (`ms-auto`, Inline-Badges,
+`.fa-node-desc`). Das ist vertretbar — aber es gehoert benannt, nicht stillschweigend gemacht.
+
+**Zu H-4 — Schwelle:** unterhalb des Bootstrap-Breakpoints **`lg` (992 px)** werden die hinteren
+Spalten ausgeblendet; die Struktur-Spalte bleibt immer. **Zu bestaetigen:** die tatsaechliche
+Aufloesung der Fertigungsterminals — liegt sie darunter, ist der Schmalfall der Normalfall und die
+Spaltenauswahl entsprechend zu bedefaulten.
+
+**Zu H-5 — Doppelablage aufloesen, bevor irgendetwas gebaut wird.** Massgeblich ist die
+`entwurf/`-Fassung (hier wurde gearbeitet); die Kopie in `freigegeben/` ist verfrueht und inhaltlich
+veraltet. Zwei Dateien mit demselben Slug und verschiedenem Inhalt sind genau die Falle, die uns bei
+der Postman-Spec fast erwischt haette — nur diesmal ueber zwei Dateien statt innerhalb einer.
+**Die `freigegeben/`-Kopie entfernen** (Ordner-Geste des Menschen).
