@@ -1,79 +1,109 @@
 @model IdealAkeWms.Models.ViewModels.FaHierarchyTreeNode
 @{
     var n = Model.Node;
-    // SubFA == 0 => Blatt (Kaufteil/Endmaterial ohne eigenen FA), sonst Baugruppe (eigener Sub-FA).
-    var isLeaf = n.SubFA == 0;
+    // Flache Geschwister-<tr>-Zeilen innerhalb des Struktur-<tbody> (Tree-Table, OSEON-Stil).
+    // Elternbezug NUR ueber data-parent-id (VaterFA -> SubFA des Vaters), NICHT ueber DOM-
+    // Verschachtelung. Nur die Struktur-Spalte traegt Einrueckung (padding-left je Tiefe).
+    // JS-Haken: data-node-id / data-parent-id / data-depth (fa-hierarchy-tree.js).
+    var indentPx = 6 + Model.Level * 18;
+
+    // Werte je Spalte — auch als data-f-<key> am <tr> fuer den (reorder-sicheren) Baum-Spaltenfilter.
+    var vStructure = n.Artnr ?? "";
+    var vMatchcode = n.Matchcode ?? "";
+    var vDescription = string.Join(" ", new[] { n.Bezeichnung1, n.Bezeichnung2 }.Where(s => !string.IsNullOrEmpty(s)));
+    var vWorkarea = n.Arbeitsbereich ?? "";
+    var vPickingTarget = n.Kommissionieren ?? "";
+    var vQuantity = $"{n.Sollmenge:0.###} / {n.Fertigungmenge:0.###}";
+    var vSubFa = n.SubFA.ToString();
+    var vStatus = n.Beschichtet ? "beschichtet" : "";
+
+    // Kombinierter Suchtext fuer das bestehende Hervorheben-Feld (#faClientFilter).
     var searchText = string.Join(" ", new[]
     {
         n.HauptArtnr, n.Artnr, n.Matchcode, n.Bezeichnung1, n.Bezeichnung2,
-        n.Artikelgruppe, n.Arbeitsbereich, n.Kommissionieren
+        n.Artikelgruppe, n.Arbeitsbereich, n.Kommissionieren, vStatus
     }.Where(s => !string.IsNullOrEmpty(s))).ToLowerInvariant();
+
+    // Typ-Icon (geordnete Praezedenzkette Wurzel -> Baugruppe -> Zukauf -> Material).
+    // Form UND Farbe unterscheiden; title/aria-label immer; fill=currentColor (WCAG:
+    // Bootstrap-text-*-Farben erreichen auf weiss >= 4,5:1).
+    string iconClass, iconTitle, iconSvg;
+    switch (Model.IconType)
+    {
+        case IdealAkeWms.Models.ViewModels.FaNodeIconType.Root:
+            iconClass = "text-success";
+            iconTitle = "Wurzel / Endprodukt (oberste Struktur-Zeile)";
+            iconSvg = "<path d=\"M6.5 14.5v-3.505c0-.245.20-.495.5-.495h2c.294 0 .5.25.5.495v3.505a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5\"/>";
+            break;
+        case IdealAkeWms.Models.ViewModels.FaNodeIconType.Assembly:
+            iconClass = "text-primary";
+            iconTitle = "Baugruppe — eigener Sub-FA (Eigenfertigung)";
+            iconSvg = "<path d=\"M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z\"/>";
+            break;
+        case IdealAkeWms.Models.ViewModels.FaNodeIconType.Purchased:
+            iconClass = "text-dark";
+            iconTitle = "Zukaufteil (Beschaffungsartikel)";
+            iconSvg = "<path d=\"M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2\"/>";
+            break;
+        default: // Material
+            iconClass = "text-secondary";
+            iconTitle = "Lager-/Fertigungsmaterial (kein Zukauf)";
+            iconSvg = "<path d=\"M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8\"/>";
+            break;
+    }
 }
-@* Rekursives Partial je Knoten (IDEAL Teil 2). Knotenidentitaet ueber SubFA (data-node-id),
-   Eltern-Bezug ueber VaterFA (data-parent-id). Kinder default eingeklappt (Q4: collapsed).
-   Optik am OSEON-Tracking angelehnt (Icon Blatt/Baugruppe, Badges, monospace-Mengen, Baumlinien
-   ueber .fa-node-children im Index-Style). JS-Haken (.fa-node/.fa-node-row/.fa-node-children/
-   .fa-toggle/.fa-chevron/data-search) unveraendert. *@
-<div class="fa-node" data-node-id="@n.SubFA" data-parent-id="@(n.VaterFA?.ToString() ?? "")">
-    <div class="fa-node-row d-flex align-items-center @(isLeaf ? "fa-node--leaf" : "fa-node--group")" data-search="@searchText">
+<tr class="fa-node-row"
+    data-node-id="@n.SubFA"
+    data-parent-id="@(n.VaterFA?.ToString() ?? "")"
+    data-depth="@Model.Level"
+    data-search="@searchText"
+    data-f-structure="@vStructure.ToLowerInvariant()"
+    data-f-matchcode="@vMatchcode.ToLowerInvariant()"
+    data-f-description="@vDescription.ToLowerInvariant()"
+    data-f-workarea="@vWorkarea.ToLowerInvariant()"
+    data-f-picking-target="@vPickingTarget.ToLowerInvariant()"
+    data-f-quantity="@vQuantity.ToLowerInvariant()"
+    data-f-subfa="@vSubFa.ToLowerInvariant()"
+    data-f-status="@vStatus.ToLowerInvariant()"
+    style="@(Model.Level > 0 ? "display:none" : null)">
+    <td data-col-key="structure" class="fa-struct-cell" style="padding-left:@(indentPx)px">
         @if (Model.HasChildren)
         {
-            <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen">
-                <svg class="fa-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s;">
+            <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen" aria-label="Auf-/Zuklappen">
+                <svg class="fa-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
                     <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
                 </svg>
             </span>
         }
         else
         {
-            <span class="fa-toggle-placeholder"></span>
+            <span class="fa-toggle-placeholder" aria-hidden="true"></span>
         }
-        @if (isLeaf)
-        {
-            @* Blatt: dezenter Punkt *@
-            <svg class="fa-node-icon text-secondary" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" title="Blatt (Kaufteil/Endmaterial)">
-                <path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8" />
-            </svg>
-        }
-        else
-        {
-            @* Baugruppe: Paket/Box *@
-            <svg class="fa-node-icon text-primary" xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" title="Baugruppe (eigener Sub-FA)">
-                <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z" />
-            </svg>
-        }
-        <span class="fa-node-artnr fw-semibold ms-1">@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</span>
-        @if (!string.IsNullOrEmpty(n.Matchcode))
-        {
-            <span class="text-muted small ms-1">[@n.Matchcode]</span>
-        }
-        <span class="fa-node-desc text-muted ms-2">@n.Bezeichnung1 @(!string.IsNullOrEmpty(n.Bezeichnung2) ? " / " + n.Bezeichnung2 : "")</span>
-        @if (!string.IsNullOrEmpty(n.Arbeitsbereich))
-        {
-            <span class="badge bg-light text-dark border ms-2">@n.Arbeitsbereich</span>
-        }
+        <svg class="fa-node-icon @iconClass" xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" role="img" aria-label="@iconTitle">
+            <title>@iconTitle</title>
+            @Html.Raw(iconSvg)
+        </svg>
+        <span class="fa-node-artnr fw-semibold">@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</span>
+    </td>
+    <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
+    <td data-col-key="description">@vDescription</td>
+    <td data-col-key="workarea">@n.Arbeitsbereich</td>
+    <td data-col-key="picking-target">
         @if (!string.IsNullOrEmpty(n.Kommissionieren))
         {
-            <span class="badge bg-info text-dark ms-1" title="Kommissionier-Ziel">Komm.: @n.Kommissionieren</span>
+            <span class="badge bg-info text-dark" title="Kommissionier-Ziel">@n.Kommissionieren</span>
         }
+    </td>
+    <td data-col-key="quantity" class="fa-cell-qty font-monospace small text-muted" title="Soll- / Fertigungsmenge">@vQuantity</td>
+    <td data-col-key="subfa" class="small text-muted">@n.SubFA</td>
+    <td data-col-key="status">
         @if (n.Beschichtet)
         {
-            <span class="badge bg-secondary ms-1">beschichtet</span>
+            <span class="badge bg-secondary">beschichtet</span>
         }
-        <span class="ms-auto d-flex align-items-center gap-2 ps-2 flex-shrink-0">
-            <span class="fa-node-qty font-monospace small text-muted" title="Soll- / Fertigungsmenge">
-                @n.Sollmenge.ToString("0.###") / @n.Fertigungmenge.ToString("0.###")
-            </span>
-            <span class="badge bg-light text-muted border small" title="SubFA (Knoten-ID)">SubFA @n.SubFA</span>
-        </span>
-    </div>
-    @if (Model.HasChildren)
-    {
-        <div class="fa-node-children" style="display:none;">
-            @foreach (var child in Model.Children)
-            {
-                <partial name="_FaHierarchyNode" model="child" />
-            }
-        </div>
-    }
-</div>
+    </td>
+</tr>
+@foreach (var child in Model.Children)
+{
+    <partial name="_FaHierarchyNode" model="child" />
+}

@@ -86,4 +86,53 @@ public class FaHierarchyTreeNode
     public int Level { get; set; }
 
     public bool HasChildren => Children.Count > 0;
+
+    /// <summary>Rein praesentativer Knotentyp fuer das Typ-Icon (kein DB-Feld).</summary>
+    public FaNodeIconType IconType => FaNodeClassifier.Classify(Node);
+}
+
+/// <summary>
+/// Praesentativer Knotentyp fuer das Typ-Icon der FA-Struktur-Baumtabelle.
+/// Kein Datenfeld — ausschliesslich aus vorhandenen Feldern abgeleitet.
+/// </summary>
+public enum FaNodeIconType
+{
+    /// <summary>Wurzel/Endprodukt der Struktur (VaterFA IS NULL).</summary>
+    Root,
+    /// <summary>Baugruppe mit eigenem Sub-FA (Eigenfertigung, SubFA != 0).</summary>
+    Assembly,
+    /// <summary>Zukaufteil (Blatt, Beschaffungsartikel).</summary>
+    Purchased,
+    /// <summary>Lager-/Fertigungsmaterial (Blatt, kein Beschaffungsartikel).</summary>
+    Material
+}
+
+/// <summary>
+/// Ordnet einem <see cref="FaHierarchyNode"/> seinen Typ-Icon-Typ zu (IDEAL Teil 2,
+/// Darstellungs-Nachtrag Etappe 7). Geordnete Praezedenzkette — die Reihenfolge legt
+/// fest, welcher Typ gewinnt, wenn ein Knoten mehrere Kriterien erfuellt (eine Wurzel
+/// ist typischerweise zugleich Baugruppe; das Wurzel-Icon gewinnt):
+/// Wurzel -> Baugruppe -> Zukaufteil -> Material.
+/// Rein praesentativ, unit-testbar (kein DB-Zugriff, keine Seiteneffekte).
+/// </summary>
+public static class FaNodeClassifier
+{
+    public static FaNodeIconType Classify(FaHierarchyNode node)
+    {
+        // 1. Wurzel/Endprodukt: oberste Zeile der Struktur (VaterFA IS NULL) —
+        //    unabhaengig von SubFA (eine Wurzel ist meist zugleich Baugruppe).
+        if (node.VaterFA == null)
+            return FaNodeIconType.Root;
+
+        // 2. Baugruppe (Eigenfertigung): eigener Sub-FA.
+        if (node.SubFA != 0)
+            return FaNodeIconType.Assembly;
+
+        // 3. Zukaufteil: Blatt (SubFA == 0) UND Beschaffungsartikel.
+        if (node.Beschaffungsartikel)
+            return FaNodeIconType.Purchased;
+
+        // 4. Lager-/Fertigungsmaterial: Blatt, kein Beschaffungsartikel.
+        return FaNodeIconType.Material;
+    }
 }

@@ -1229,3 +1229,77 @@ th:hover .col-resize-handle {
     color: var(--ake-white);
     min-width: 0.7em;
 }
+
+/* ===== IDEAL FA-Struktur Tree-Table (Etappe 7, OSEON-Stil) ===== */
+.fa-tree-table {
+    font-size: 0.9rem;
+}
+.fa-tree-table > tbody > tr > td {
+    padding: 0.28rem 0.5rem;
+    vertical-align: middle;
+}
+/* Struktur-Kopfzeile: heller Kontrast-fixer Band (siehe .fa-structure-header oben),
+   spannt per colspan die ganze Breite. */
+.fa-structure-group-head { cursor: pointer; }
+.fa-structure-group-head > td.fa-structure-header {
+    font-weight: 600;
+    padding: 0.4rem 0.6rem;
+}
+.fa-structure-subhead > td {
+    background-color: var(--ake-white);
+    padding: 0.3rem 0.6rem;
+}
+.fa-structure-subhead .fa-head-table {
+    font-size: 0.82rem;
+}
+/* Struktur-Spalte traegt ALLEIN die Einrueckung/Orientierung und wird nie komprimiert. */
+.fa-tree-table th[data-col-key="structure"],
+.fa-tree-table td[data-col-key="structure"].fa-struct-cell {
+    white-space: nowrap;
+    min-width: 240px;
+}
+.fa-node-icon { flex-shrink: 0; vertical-align: -1px; margin: 0 0.25rem; }
+.fa-node-artnr { }
+.fa-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 16px;
+    color: #6c757d; /* Bootstrap-secondary, >= 4,5:1 auf hellem Grund */
+}
+.fa-toggle-placeholder { display: inline-block; width: 16px; }
+.fa-struct-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    color: var(--ake-text);
+}
+.fa-chevron, .fa-struct-chevron { transition: transform 0.15s; }
+/* Sichtbarer Tastatur-Fokus fuer die Toggles. */
+.fa-toggle:focus-visible, .fa-struct-toggle:focus-visible {
+    outline: 2px solid var(--ake-secondary);
+    outline-offset: 1px;
+    border-radius: 2px;
+}
+.fa-node-row:hover > td { background-color: var(--ake-light-gray); }
+/* Hervorheben (#faClientFilter): hellblau; blendet nichts aus. */
+.fa-node-row.fa-hl > td { background-color: var(--ake-very-light-blue); }
+/* Spaltenfilter-Treffer: hell-amber, klar unterscheidbar vom Hervorheben. */
+.fa-node-row.fa-filter-hit > td { background-color: #fff3cd; }
+/* Vorfahrenpfad als Kontext: gedimmt, als Nicht-Treffer erkennbar. */
+.fa-node-row.fa-node-context { opacity: 0.6; }
+
+@media (prefers-reduced-motion: reduce) {
+    .fa-chevron, .fa-struct-chevron { transition: none !important; }
+}
+/* Schmaler Bildschirm (< Bootstrap lg/992px): hintere Spalten ausblenden; die
+   .table-responsive-Umhuellung erlaubt zusaetzlich horizontales Scrollen. Die
+   Struktur-Spalte wird NIE ausgeblendet/komprimiert (traegt die Orientierung).
+   Attribut-Selektor -> reorder-sicher (column-preferences verschiebt nur Zellen). */
+@media (max-width: 991.98px) {
+    #faTree [data-col-key="subfa"],
+    #faTree [data-col-key="quantity"] { display: none; }
+}

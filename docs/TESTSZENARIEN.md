@@ -6697,5 +6697,110 @@ Sicht 1 „Einzelne Teile" nutzt `viewKey` `FaHierarchyVormontageEinzeln` (grupp
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 (2026-08-10; Versions-Bump beim Epic-Abschluss/QA)*
+## TS-62 — IDEAL Teil 2: FA-Struktur Darstellung (Nachtrag) — Tree-Table / Kontrast / Icons / Baum-Spaltenfilter / Spaltenauswahl
+
+Reiner Praesentations-Nachtrag zu TS-58 (Etappe 7). Kein Server-/Import-/Modell-Eingriff:
+`FaHierarchyController`, `FaHierarchyTreeBuilder`, die server-seitige Struktur-Filterkarte, der
+Tiefen-Cap/Zyklenschutz, die Struktur-Pagination und der Zugriffsschutz
+`[RequirePickingOrTrackingOrLeitstandAccess]` bleiben **unveraendert**. Betroffen sind nur
+`Views/FaHierarchy/Index.cshtml` + `_FaHierarchyNode.cshtml`, `wwwroot/js/fa-hierarchy-tree.js`,
+`wwwroot/css/site.css` und additiv `ColumnDefinitions.cs` (neuer `viewKey` `FaHierarchyStructure`).
+
+**Vorbedingungen:** wie TS-58 (Teil-1-Sync gelaufen, mind. eine Struktur mit Sub-Sub-FA-Ebene;
+Benutzer mit `picking`/`tracking`/`leitstand`/`admin`-Rolle). Fuer die Ausrichtungs- und
+Filter-Szenarien produktivnahe Daten: mind. eine Struktur mit **≥4 Ebenen und 50+ Positionen**.
+
+### Automatisiert/InMemory (unabhaengig vom IDEAL-Testsystem)
+
+- **TS-62.1 — Icon-Klassifikation (`FaNodeClassifierTests`):** Praezedenzkette
+  Wurzel → Baugruppe → Zukaufteil → Material. Wurzel (`VaterFA IS NULL`) gewinnt auch bei
+  `SubFA != 0`; Baugruppe gewinnt gegen Zukauf bei gesetztem `SubFA` **und** `Beschaffungsartikel`;
+  Blatt+`Beschaffungsartikel` → Zukauf; Blatt ohne → Material. **Soll:** alle gruen.
+- **TS-62.2 — Prefs-API `FaHierarchyStructure` (`UserViewPreferencesApiControllerTests`):**
+  `Get`/`Put` mit `viewKey` `FaHierarchyStructure` liefern **204/OK**, **nicht** `400 BadRequest`
+  (Regression analog zum `FaWorklist`-Fall). **Soll:** gruen.
+
+### Kontrast (rechnerisch, Defekt-Fix)
+
+- **TS-62.3 — Kontrast Kopfband + Badges + Matchcode (rechnerisch, WCAG AA):** Vorder-/Hintergrund
+  je Element aus den CSS-Werten ermitteln und Verhaeltnis gegen 4,5:1 (Fliesstext) / 3:1 (grosse
+  Schrift/Bedienelemente) rechnen. Referenzwerte (bestanden):
+  - Struktur-Kopfzeile (`.fa-structure-header`): `--ake-text` #4A494A auf `--ake-light-gray` #F5F5F5 = **8,2:1** ✓
+  - `bg-primary` (Kunde), weiss auf #0d6efd = **4,5:1** ✓; `bg-secondary` (Status/„beschichtet"), weiss auf #6c757d = **4,7:1** ✓
+  - `bg-light text-dark border` (KO/FE/Montage/Knotenzahl), #212529 auf #f8f9fa = **14,6:1** ✓
+  - `bg-info text-dark` (Komm.-Ziel/mehrdeutig), #212529 auf #0dcaf0 = **7,9:1** ✓
+  - `bg-warning text-dark` (Verwaist), #212529 auf #ffc107 = **9,5:1** ✓; `bg-danger` (Fehler), weiss auf #dc3545 = **4,5:1** ✓
+  - Matchcode `text-muted` #6c757d(75%) auf weiss = **6,8:1** ✓
+  - Typ-Icons auf weiss: `text-success` #198754 = 4,5:1, `text-primary` #0d6efd = 4,5:1, `text-dark` #212529 = 14,6:1, `text-secondary` #6c757d = 4,7:1 — alle ≥ 3:1 ✓
+  **Ergaenzend (nicht Messverfahren):** Sichtpruefung am realen Fertigungsterminal als Bestaetigung.
+
+### Tree-Table-Darstellung
+
+- **TS-62.4 — Grunddarstellung/Ausrichtung:** `/FaHierarchy` mit ≥2 Strukturen unterschiedlicher
+  Tiefe auf einer Seite laden, dazu eine Struktur mit ≥4 Ebenen/50+ Positionen. Erwartet: **eine**
+  `<table data-view-key="FaHierarchyStructure">`, je Struktur **ein** `<tbody>` mit einer
+  Kopfzeile (`colspan`); **nur** die Struktur-Spalte rueckt ein (Chevron+Icon+Artnr), alle anderen
+  Spalten (Matchcode, Bezeichnung, Arbeitsbereich, Komm.-Ziel, Soll/Fert., SubFA, Status) fluchten
+  ueber alle Ebenen **und** Strukturen hinweg.
+- **TS-62.5 — Schmaler Bildschirm (< lg/992px):** Fensterbreite < 992px. Erwartet: hintere Spalten
+  (SubFA, Soll/Fert.) werden ausgeblendet, verbleibender Ueberlauf ist horizontal scrollbar
+  (`.table-responsive`); die Struktur-Spalte bleibt in voller Breite lesbar, wird **nie**
+  komprimiert. (Reale Terminal-Aufloesung bestaetigen — liegt sie < 992px, ist dies der Normalfall.)
+- **TS-62.6 — Auf-/Zuklappen Knoten- und Struktur-Ebene (OSEON-Paritaet):** Chevron eines Knotens
+  klappt genau dessen Unterbaum auf/zu (Chevron rotiert). Klick auf die **Struktur-Kopfzeile**
+  klappt den ganzen `<tbody>`-Block auf/zu (Kopfdaten + Knotenzeilen), andere Strukturen unberuehrt.
+  „Alle auf"/„Alle zu" wirken ueber alle Strukturen. Tastatur: Fokus auf einen Chevron, Enter/Space
+  toggelt; Fokus ist sichtbar. Verhalten funktional wie `Views/Tracking/OseonIndex.cshtml`.
+
+### Icons + Legende
+
+- **TS-62.7 — Typ-Icons inkl. Praezedenz + Legende:** je ein Beispielknoten pro Typ zeigt ein in
+  **Form und Farbe** unterscheidbares Icon (Wurzel=Haus/gruen, Baugruppe=Box/blau, Zukauf=Wagen/dunkel,
+  Material=Punkt/grau) mit `title`/`aria-label`. Ein Knoten, der Wurzel **und** Baugruppe waere
+  (`VaterFA IS NULL` und `SubFA != 0`), zeigt das **Wurzel**-Icon. Die Legende oberhalb der Liste
+  ist vorhanden und ausklappbar (`<details>`). Zustandsmarker „beschichtet" bleibt ein Badge
+  (Status-Spalte), nicht ins Typ-Icon gemischt.
+
+### Baum-Spaltenfilter (blendet aus) + Abgrenzung zum Hervorheben
+
+- **TS-62.8 — Baum-Semantik Freitextfilter:** In der Spaltenfilter-Zeile (Kopfzeile) auf einer Spalte
+  (z. B. Bezeichnung) einen Wert tief in einer Struktur eingeben. Erwartet: Treffer **hervorgehoben**
+  (amber), sein Pfad zur Wurzel **gedimmt** sichtbar (`.fa-node-context`), nicht treffende
+  Geschwisterzweige **samt Unterbaum** ausgeblendet; Zaehler „X von Y Knoten" korrekt; faellt eine
+  Struktur auf **null Treffer**, verschwindet ihr ganzer `<tbody>`-Block. Kein Knoten verschwindet
+  ohne sichtbaren Elternpfad.
+- **TS-62.9 — Auswahlfilter (`<select>`):** Spalten Arbeitsbereich, Komm.-Ziel, Status bieten ein
+  Dropdown mit genau den **auf der Seite vorkommenden** Werten. Auswahl filtert mit derselben
+  Baum-Semantik wie der Freitextfilter.
+- **TS-62.10 — Zwei Mechanismen unterscheidbar:** Testperson kann allein anhand der Beschriftung
+  benennen, dass „Knoten hervorheben (Struktur bleibt vollstaendig)" nur markiert (blendet nichts
+  aus) und der Spaltenfilter in der Kopfzeile ausblendet. Beide gleichzeitig aktiv: Hervorheben
+  markiert innerhalb der (durch den Spaltenfilter reduzierten) sichtbaren Zeilen.
+- **TS-62.11 — Keine Sortierbarkeit:** Kein Spaltenkopf der Baum-Tabelle traegt `data-sortable`/
+  reagiert auf Klick als Sortier-Trigger; der Zahnrad-Dialog bietet **keine** Option
+  „Standard-Sortierung speichern" (`SupportsSortDefault: false`).
+
+### Spaltenauswahl (`column-preferences.js`, `viewKey` `FaHierarchyStructure`)
+
+- **TS-62.12 — Zahnrad vorhanden/bedienbar:** Auf `/FaHierarchy` erscheint das Zahnrad (Offcanvas),
+  analog `ProductionOrders`/`OseonIndex`.
+- **TS-62.13 — Persistenz je Benutzer:** eine nicht-gesperrte Spalte (z. B. SubFA) ausblenden,
+  Breite aendern, umordnen → Reload → bleibt erhalten
+  (`PUT /api/user-view-preferences/FaHierarchyStructure` liefert **200**, nicht 400;
+  `GET` ohne Praeferenz **204**, mit **200**). Zweiter Benutzer sieht seine eigene, unabhaengige
+  Konfiguration.
+- **TS-62.14 — Locked-Spalten:** Struktur- und Matchcode-Spalte lassen sich **nicht** ausblenden.
+- **TS-62.15 — Multi-`tbody`-Tauglichkeit (≥2 Strukturen):** eine Spalte ausblenden bzw. umordnen →
+  Aenderung wirkt in **jeder** Struktur (`<tbody>`), nicht nur in der ersten.
+
+### Regression
+
+- **TS-62.16 — Regression Teil 2 unveraendert:** server-seitige Struktur-Filterkarte,
+  Struktur-Pagination, Tiefen-Cap-/Zyklen-/Waisen-/Kombigeraet-Verhalten und Zugriffsschutz aus
+  TS-58 weiterhin gruen; `FaHierarchyController`/`FaHierarchyTreeBuilder`/Import/Modelle
+  byte-identisch. Kein neues NuGet-/npm-/CDN-Paket (Icons als Inline-SVG).
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 (2026-08-12; Versions-Bump beim Epic-Abschluss/QA)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

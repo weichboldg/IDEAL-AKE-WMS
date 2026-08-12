@@ -135,4 +135,31 @@ public class UserViewPreferencesApiControllerTests
         result.Should().BeOfType<OkResult>();
         _repoMock.Verify(r => r.SaveAsync(42, viewKey, json, "TestUser", "DOMAIN\\testuser"), Times.Once);
     }
+
+    // FA-Struktur-Baumtabelle (Etappe 7): der viewKey "FaHierarchyStructure" muss in
+    // ColumnDefinitions.GetByViewKey registriert sein, sonst antwortet die Prefs-API 400 und
+    // Zahnrad-Einstellungen gehen bei jedem Reload verloren (derselbe Fehler wie einst FaWorklist).
+    [Fact]
+    public async Task Get_FaHierarchyStructureViewKey_IsAccepted()
+    {
+        var controller = CreateController();
+        _repoMock.Setup(r => r.GetByUserAndViewAsync(42, "FaHierarchyStructure"))
+            .ReturnsAsync((UserViewPreference?)null);
+
+        var result = await controller.Get("FaHierarchyStructure");
+
+        result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Fact]
+    public async Task Put_FaHierarchyStructureViewKey_IsAccepted()
+    {
+        var controller = CreateController();
+        var json = """{"columns":[{"key":"structure","visible":true}]}""";
+
+        var result = await controller.Put("FaHierarchyStructure", json);
+
+        result.Should().BeOfType<OkResult>();
+        _repoMock.Verify(r => r.SaveAsync(42, "FaHierarchyStructure", json, "TestUser", "DOMAIN\\testuser"), Times.Once);
+    }
 }

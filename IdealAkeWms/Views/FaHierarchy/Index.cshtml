@@ -3,13 +3,30 @@
     ViewData["Title"] = "FA-Struktur (IDEAL)";
 }
 
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <h2 class="page-header">FA-Struktur (IDEAL)</h2>
-    <div class="d-flex gap-2 mt-1">
-        <button type="button" id="btnFaExpandAll" class="btn btn-sm btn-outline-secondary" title="Alle aufklappen">Alle aufklappen</button>
-        <button type="button" id="btnFaCollapseAll" class="btn btn-sm btn-outline-secondary" title="Alle zuklappen">Alle zuklappen</button>
+<h2 class="page-header">FA-Struktur (IDEAL)</h2>
+
+@* Icon-Legende (ausklappbar) — Typ-Icons unterscheiden sich in Form UND Farbe. *@
+<details class="fa-legend mb-2">
+    <summary>Legende: Knotentypen</summary>
+    <div class="d-flex flex-wrap gap-3 mt-2 small">
+        <span class="d-inline-flex align-items-center gap-1">
+            <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 14.5v-3.505c0-.245.20-.495.5-.495h2c.294 0 .5.25.5.495v3.505a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5"/></svg>
+            Wurzel / Endprodukt
+        </span>
+        <span class="d-inline-flex align-items-center gap-1">
+            <svg class="text-primary" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/></svg>
+            Baugruppe (Sub-FA)
+        </span>
+        <span class="d-inline-flex align-items-center gap-1">
+            <svg class="text-dark" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>
+            Zukaufteil
+        </span>
+        <span class="d-inline-flex align-items-center gap-1">
+            <svg class="text-secondary" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg>
+            Lager-/Fertigungsmaterial
+        </span>
     </div>
-</div>
+</details>
 
 @* Filterkarte — server-seitig auf STRUKTUR-Ebene: entscheidet, welche Strukturen erscheinen
    (Kopf ODER irgendein Knoten passt). Innerhalb einer Struktur werden nie Knoten entfernt. *@
@@ -39,11 +56,13 @@
             }
         </form>
         <div class="mt-2">
+            <label class="form-label mb-0 small" for="faClientFilter">Knoten hervorheben (Struktur bleibt vollständig)</label>
             <input type="text" id="faClientFilter" class="form-control form-control-sm" style="max-width: 420px;"
-                   placeholder="Knoten in angezeigten Strukturen hervorheben ..." />
+                   placeholder="hervorheben ..." />
             <div class="form-text">
-                Hebt passende Knoten <em>innerhalb</em> der angezeigten Strukturen hervor (ohne die
-                Baumstruktur zu verändern).
+                <strong>Hervorheben</strong> markiert passende Knoten <em>innerhalb</em> der angezeigten
+                Strukturen und blendet <em>nichts</em> aus — die Baumstruktur bleibt vollständig. Zum
+                <strong>Ausblenden</strong> nicht passender Zweige den Spaltenfilter in der Tabellen-Kopfzeile nutzen.
                 @if (Model.RecursiveFilterSearch)
                 {
                     <span>Trefferpfade werden automatisch aufgeklappt (Einstellung „Rekursive Filtersuche" aktiv).</span>
@@ -57,222 +76,200 @@
 {
     <div class="alert alert-info">Keine Strukturen gefunden.</div>
 }
-
-@foreach (var structure in Model.Structures)
+else
 {
-    var head = structure.OrderInfos.FirstOrDefault();
-    <div class="card mb-3 fa-structure">
-        <div class="card-header fa-structure-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="d-flex align-items-center flex-wrap gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" class="text-primary flex-shrink-0">
-                    <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z" />
-                </svg>
-                <span class="fs-6 fw-bold">HauptFA @structure.HauptFA</span>
-                @if (head != null && !string.IsNullOrEmpty(head.Kunde))
-                {
-                    <span class="badge bg-primary" title="Kunde">@head.Kunde</span>
-                }
-                @* Status/Termine/Abteilung nur bei eindeutigem Kopf — bei Kombigeraeten (mehrdeutig)
-                   zeigt die Kopfdaten-Tabelle unten alle Zeilen (kein irrefuehrender Einzelwert). *@
-                @if (head != null && !structure.IsAmbiguous)
-                {
-                    if (!string.IsNullOrEmpty(head.Status))
-                    {
-                        <span class="badge bg-secondary" title="Status">@head.Status</span>
-                    }
-                    if (head.KO_Termin.HasValue)
-                    {
-                        <span class="badge bg-light text-dark border" title="Kommissionier-Termin">KO @head.KO_Termin.Value.ToString("dd.MM.yyyy")</span>
-                    }
-                    if (head.FE_Termin.HasValue)
-                    {
-                        <span class="badge bg-light text-dark border" title="Fertig-Termin">FE @head.FE_Termin.Value.ToString("dd.MM.yyyy")</span>
-                    }
-                    if (!string.IsNullOrEmpty(head.MontageAbteilung))
-                    {
-                        <span class="badge bg-light text-dark border" title="Montage-Abteilung">@head.MontageAbteilung</span>
-                    }
-                }
-                @if (structure.IsOrphan)
-                {
-                    <span class="badge bg-warning text-dark" title="VaterFA verweist auf keinen importierten Parent">
-                        Verwaist — VaterFA @(structure.OrphanVaterFa?.ToString() ?? "?") nicht gefunden
-                    </span>
-                }
-                @if (structure.IsAmbiguous)
-                {
-                    <span class="badge bg-info text-dark" title="HauptFA mit mehreren Montage-Abteilungen (Kombigerät)">
-                        mehrdeutig (Kombigerät)
-                    </span>
-                }
-                @if (structure.HasError)
-                {
-                    <span class="badge bg-danger" title="@structure.ErrorMessage">
-                        Fehlerhaft — @structure.ErrorMessage
-                    </span>
-                }
-            </div>
-            <span class="badge rounded-pill bg-light text-muted border" title="Anzahl Knoten in dieser Struktur">@structure.NodeCount Knoten</span>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <div class="small text-muted">
+            <span id="faNodeCounter"></span>
+            <span class="ms-2">Spaltenfilter (Kopfzeile) <strong>blendet</strong> nicht passende Zweige aus; der Trefferpfad bleibt gedimmt sichtbar.</span>
         </div>
-        <div class="card-body">
-            @* Kopfdaten aus FaHierarchyOrderInfo (Q1: bei Kombigeräten alle Zeilen im Klartext). *@
-            @if (structure.OrderInfos.Any())
-            {
-                <div class="table-responsive mb-3">
-                    <table class="table table-sm table-bordered mb-0 fa-head-table">
-                        <thead>
-                            <tr>
-                                <th>Montage-Abt.</th>
-                                <th>Kunde</th>
-                                <th>Status</th>
-                                <th>KO-Termin</th>
-                                <th>FE-Termin</th>
-                                <th>AB-Nr.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var info in structure.OrderInfos)
-                            {
-                                <tr>
-                                    <td>@info.MontageAbteilung</td>
-                                    <td>@info.Kunde</td>
-                                    <td>@info.Status</td>
-                                    <td>@(info.KO_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                    <td>@(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                    <td>@info.ABNr</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-            else
-            {
-                <div class="text-muted small mb-3">Keine Auftrags-Kopfdaten (FaHierarchyOrderInfo) zu diesem HauptFA.</div>
-            }
-
-            @if (structure.HasError)
-            {
-                <div class="alert alert-danger py-2 px-3 small mb-2">
-                    Diese Struktur wurde wegen eines Tiefen-Cap-/Zyklenfehlers nur teilweise aufgebaut
-                    (@structure.ErrorMessage). Die übrigen Strukturen sind vollständig.
-                </div>
-            }
-
-            <div class="fa-tree">
-                @foreach (var root in structure.Roots)
-                {
-                    <partial name="_FaHierarchyNode" model="root" />
-                }
-            </div>
+        <div>
+            <button type="button" id="btnFaExpandAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle aufklappen" aria-label="Alle aufklappen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708" />
+                </svg>
+                Alle auf
+            </button>
+            <button type="button" id="btnFaCollapseAll" class="btn btn-sm btn-outline-secondary" title="Alle zuklappen" aria-label="Alle zuklappen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z" />
+                </svg>
+                Alle zu
+            </button>
         </div>
     </div>
+
+    <div class="table-responsive">
+        <table id="faTree" data-view-key="FaHierarchyStructure" class="table table-sm fa-tree-table mb-0">
+            <thead>
+                <tr>
+                    <th data-col-key="structure">Struktur</th>
+                    <th data-col-key="matchcode">Matchcode</th>
+                    <th data-col-key="description">Bezeichnung</th>
+                    <th data-col-key="workarea">Arbeitsbereich</th>
+                    <th data-col-key="picking-target">Komm.-Ziel</th>
+                    <th data-col-key="quantity">Soll / Fert.</th>
+                    <th data-col-key="subfa">SubFA</th>
+                    <th data-col-key="status">Status</th>
+                </tr>
+                @* Spaltenfilter-Zeile (lokaler Baum-Filter, fa-hierarchy-tree.js) — NICHT table-filter.js.
+                   Auswahlfilter (<select>) fuer Spalten mit kleinem Wertebereich, sonst Freitext. *@
+                <tr class="filter-row">
+                    <th data-col-key="structure"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="structure" placeholder="Artnr. filtern..." aria-label="Struktur/Artnr. filtern" /></th>
+                    <th data-col-key="matchcode"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="matchcode" placeholder="filtern..." aria-label="Matchcode filtern" /></th>
+                    <th data-col-key="description"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="description" placeholder="filtern..." aria-label="Bezeichnung filtern" /></th>
+                    <th data-col-key="workarea"><select class="form-select form-select-sm fa-col-filter" data-filter-key="workarea" aria-label="Arbeitsbereich filtern"><option value="">(alle)</option></select></th>
+                    <th data-col-key="picking-target"><select class="form-select form-select-sm fa-col-filter" data-filter-key="picking-target" aria-label="Komm.-Ziel filtern"><option value="">(alle)</option></select></th>
+                    <th data-col-key="quantity"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="quantity" placeholder="filtern..." aria-label="Soll/Fert. filtern" /></th>
+                    <th data-col-key="subfa"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="subfa" placeholder="filtern..." aria-label="SubFA filtern" /></th>
+                    <th data-col-key="status"><select class="form-select form-select-sm fa-col-filter" data-filter-key="status" aria-label="Status filtern"><option value="">(alle)</option></select></th>
+                </tr>
+            </thead>
+            @foreach (var structure in Model.Structures)
+            {
+                var head = structure.OrderInfos.FirstOrDefault();
+                <tbody class="fa-structure-group" data-struct="@structure.HauptFA">
+                    <tr class="fa-structure-group-head" data-struct="@structure.HauptFA">
+                        <td colspan="8" class="fa-structure-header">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="fa-struct-toggle" role="button" tabindex="0" title="Struktur auf-/zuklappen" aria-label="Struktur auf-/zuklappen" data-struct="@structure.HauptFA">
+                                        <svg class="fa-struct-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transform: rotate(90deg);">
+                                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
+                                        </svg>
+                                    </span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="flex-shrink-0" aria-hidden="true">
+                                        <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z" />
+                                    </svg>
+                                    <span class="fw-bold">HauptFA @structure.HauptFA</span>
+                                    @if (head != null && !string.IsNullOrEmpty(head.Kunde))
+                                    {
+                                        <span class="badge bg-primary" title="Kunde">@head.Kunde</span>
+                                    }
+                                    @* Status/Termine/Abteilung nur bei eindeutigem Kopf — bei Kombigeraeten
+                                       (mehrdeutig) zeigt die Kopfdaten-Tabelle unten alle Zeilen. *@
+                                    @if (head != null && !structure.IsAmbiguous)
+                                    {
+                                        if (!string.IsNullOrEmpty(head.Status))
+                                        {
+                                            <span class="badge bg-secondary" title="Status">@head.Status</span>
+                                        }
+                                        if (head.KO_Termin.HasValue)
+                                        {
+                                            <span class="badge bg-light text-dark border" title="Kommissionier-Termin">KO @head.KO_Termin.Value.ToString("dd.MM.yyyy")</span>
+                                        }
+                                        if (head.FE_Termin.HasValue)
+                                        {
+                                            <span class="badge bg-light text-dark border" title="Fertig-Termin">FE @head.FE_Termin.Value.ToString("dd.MM.yyyy")</span>
+                                        }
+                                        if (!string.IsNullOrEmpty(head.MontageAbteilung))
+                                        {
+                                            <span class="badge bg-light text-dark border" title="Montage-Abteilung">@head.MontageAbteilung</span>
+                                        }
+                                    }
+                                    @if (structure.IsOrphan)
+                                    {
+                                        <span class="badge bg-warning text-dark" title="VaterFA verweist auf keinen importierten Parent">
+                                            Verwaist — VaterFA @(structure.OrphanVaterFa?.ToString() ?? "?") nicht gefunden
+                                        </span>
+                                    }
+                                    @if (structure.IsAmbiguous)
+                                    {
+                                        <span class="badge bg-info text-dark" title="HauptFA mit mehreren Montage-Abteilungen (Kombigerät)">
+                                            mehrdeutig (Kombigerät)
+                                        </span>
+                                    }
+                                    @if (structure.HasError)
+                                    {
+                                        <span class="badge bg-danger" title="@structure.ErrorMessage">
+                                            Fehlerhaft — @structure.ErrorMessage
+                                        </span>
+                                    }
+                                </div>
+                                <span class="badge rounded-pill bg-light text-dark border" title="Anzahl Knoten in dieser Struktur">@structure.NodeCount Knoten</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="fa-structure-subhead">
+                        <td colspan="8">
+                            @* Kopfdaten aus FaHierarchyOrderInfo (bei Kombigeräten alle Zeilen im Klartext).
+                               Eigene kleine Tabelle — NICHT Teil der Baum-Spaltenlogik. *@
+                            @if (structure.OrderInfos.Any())
+                            {
+                                <div class="table-responsive mb-1">
+                                    <table class="table table-sm table-bordered mb-0 fa-head-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Montage-Abt.</th>
+                                                <th>Kunde</th>
+                                                <th>Status</th>
+                                                <th>KO-Termin</th>
+                                                <th>FE-Termin</th>
+                                                <th>AB-Nr.</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var info in structure.OrderInfos)
+                                            {
+                                                <tr>
+                                                    <td>@info.MontageAbteilung</td>
+                                                    <td>@info.Kunde</td>
+                                                    <td>@info.Status</td>
+                                                    <td>@(info.KO_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                                    <td>@(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                                    <td>@info.ABNr</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">Keine Auftrags-Kopfdaten (FaHierarchyOrderInfo) zu diesem HauptFA.</div>
+                            }
+                            @if (structure.HasError)
+                            {
+                                <div class="alert alert-danger py-2 px-3 small mb-0 mt-1">
+                                    Diese Struktur wurde wegen eines Tiefen-Cap-/Zyklenfehlers nur teilweise aufgebaut
+                                    (@structure.ErrorMessage). Die übrigen Strukturen sind vollständig.
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                    @foreach (var root in structure.Roots)
+                    {
+                        <partial name="_FaHierarchyNode" model="root" />
+                    }
+                </tbody>
+            }
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
 }
 
-<partial name="_Pagination" model="Model.Pagination" />
+<script type="application/json" id="view-config">
+{ "viewKey": "FaHierarchyStructure", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "structure",      "label": "Struktur",       "locked": true,  "defaultWidth": null },
+    { "key": "matchcode",      "label": "Matchcode",      "locked": true,  "defaultWidth": null },
+    { "key": "description",    "label": "Bezeichnung",    "locked": false, "defaultWidth": null },
+    { "key": "workarea",       "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
+    { "key": "picking-target", "label": "Komm.-Ziel",     "locked": false, "defaultWidth": null },
+    { "key": "quantity",       "label": "Soll / Fert.",   "locked": false, "defaultWidth": null },
+    { "key": "subfa",          "label": "SubFA",          "locked": false, "defaultWidth": null },
+    { "key": "status",         "label": "Status",         "locked": false, "defaultWidth": null }
+]
+</script>
 
 @section Scripts {
-    <style>
-        /* Kontrast-Fix: .fa-structure-header (Hintergrund hellgrau + dunkle Schrift)
-           liegt jetzt zentral in site.css, damit der Kopf nicht laenger die weisse
-           .card-header-Schrift erbt (weiss auf hellgrau war unlesbar, WCAG-Defekt). */
-        .fa-tree { font-size: 0.9rem; }
-        .fa-node-row {
-            padding: 3px 8px;
-            border-bottom: 1px solid #f0f0f0;
-            border-radius: 4px;
-            column-gap: 0.15rem;
-        }
-        .fa-node-row:hover { background-color: #f8f9fa; }
-        .fa-toggle {
-            cursor: pointer; user-select: none;
-            display: inline-flex; justify-content: center; align-items: center;
-            width: 16px; flex-shrink: 0; color: #6c757d;
-        }
-        .fa-toggle-placeholder { display: inline-block; width: 16px; flex-shrink: 0; }
-        .fa-node-icon { flex-shrink: 0; }
-        .fa-node-artnr { flex-shrink: 0; }
-        .fa-node-row.fa-hl { background-color: #fff3cd; }
-        /* Einrueck-/Verbindungslinien: je Verschachtelungsebene ein dezenter linker Rand. */
-        .fa-node-children {
-            margin-left: 12px;
-            padding-left: 10px;
-            border-left: 1px dashed #d5dbe0;
-        }
-    </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Q4: Auto-Expand des Trefferpfads an das User-Setting RecursiveFilterSearch gekoppelt
-            // (wie beim BOM-Tree). Ist es aus, werden Treffer nur hervorgehoben, nicht aufgeklappt.
-            var recursiveFilterSearch = @(Model.RecursiveFilterSearch ? "true" : "false");
-
-            function setExpanded(faNode, expanded) {
-                var children = faNode.querySelector(':scope > .fa-node-children');
-                if (!children) return;
-                children.style.display = expanded ? 'block' : 'none';
-                var chevron = faNode.querySelector(':scope > .fa-node-row .fa-chevron');
-                if (chevron) chevron.style.transform = expanded ? 'rotate(90deg)' : '';
-            }
-
-            // Toggle je Knoten
-            document.querySelectorAll('.fa-toggle').forEach(function (toggle) {
-                toggle.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    var faNode = this.closest('.fa-node');
-                    var children = faNode.querySelector(':scope > .fa-node-children');
-                    if (!children) return;
-                    var isOpen = children.style.display !== 'none';
-                    setExpanded(faNode, !isOpen);
-                });
-            });
-
-            function setAll(expanded) {
-                document.querySelectorAll('.fa-node').forEach(function (faNode) {
-                    setExpanded(faNode, expanded);
-                });
-            }
-            var btnExpand = document.getElementById('btnFaExpandAll');
-            var btnCollapse = document.getElementById('btnFaCollapseAll');
-            if (btnExpand) btnExpand.addEventListener('click', function () { setAll(true); });
-            if (btnCollapse) btnCollapse.addEventListener('click', function () { setAll(false); });
-
-            // Client-seitiger Knoten-Filter: hebt Treffer hervor, entfernt NIE Knoten aus dem DOM
-            // (Baum-Integrität). Mit RecursiveFilterSearch werden Trefferpfade aufgeklappt.
-            function expandAncestors(faNode) {
-                var parent = faNode.parentElement;
-                while (parent) {
-                    if (parent.classList && parent.classList.contains('fa-node-children')) {
-                        var ownerNode = parent.closest('.fa-node');
-                        // parent ist der children-Container des ownerNode? -> aufklappen
-                        if (ownerNode && ownerNode.querySelector(':scope > .fa-node-children') === parent) {
-                            setExpanded(ownerNode, true);
-                            parent = ownerNode.parentElement;
-                            continue;
-                        }
-                    }
-                    parent = parent.parentElement;
-                }
-            }
-
-            var clientFilter = document.getElementById('faClientFilter');
-            if (clientFilter) {
-                clientFilter.addEventListener('input', function () {
-                    var term = this.value.trim().toLowerCase();
-                    document.querySelectorAll('.fa-node-row').forEach(function (row) {
-                        row.classList.remove('fa-hl');
-                    });
-                    if (!term) return;
-                    document.querySelectorAll('.fa-node-row').forEach(function (row) {
-                        var hay = (row.getAttribute('data-search') || '');
-                        if (hay.indexOf(term) !== -1) {
-                            row.classList.add('fa-hl');
-                            if (recursiveFilterSearch) {
-                                expandAncestors(row.closest('.fa-node'));
-                            }
-                        }
-                    });
-                });
-            }
-        });
-    </script>
+    @* Reihenfolge-Pflicht (ADR 0005 / fallstricke): column-preferences.js VOR dem Baum-Skript.
+       table-filter.js wird hier bewusst NICHT eingebunden — der Baum-Spaltenfilter ist der lokale
+       Baustein fa-hierarchy-tree.js (Baum-Semantik: Vorfahrenpfad als Kontext, Unterbaum-Ausblendung). *@
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/fa-hierarchy-tree.js" asp-append-version="true"
+            data-recursive-filter="@(Model.RecursiveFilterSearch ? "true" : "false")"></script>
 }

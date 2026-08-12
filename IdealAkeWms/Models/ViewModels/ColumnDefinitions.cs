@@ -367,6 +367,38 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// FaHierarchy/Index.cshtml — seitenweite FA-Struktur-Baumtabelle (IDEAL Teil 2,
+    /// Darstellungs-Nachtrag Etappe 7). EINE &lt;table data-view-key="FaHierarchyStructure"&gt;
+    /// fuer die ganze Seite, ein &lt;tbody&gt; je Struktur (analog OseonTracking, Muster
+    /// „eine Tabelle, ein tbody je Gruppe"). Ohne diese Registrierung antwortet
+    /// UserViewPreferencesApiController mit 400 und Zahnrad-Einstellungen gehen bei
+    /// jedem Reload verloren (derselbe Fehler wie einst bei FaWorklist).
+    /// SupportsSortDefault: false — Baumspalten sind fachlich nicht sortierbar
+    /// (Zeilenreihenfolge = Hierarchie); es gibt keine data-sortable-&lt;th&gt; und
+    /// table-filter.js wird hier NICHT als Sortier-Engine eingebunden.
+    /// structure + matchcode Locked (zwei identifizierende Schluessel; die
+    /// Struktur-Spalte traegt zudem die einzige Einrueckung/Orientierung).
+    /// Spalten deckungsgleich zum inline #column-config JSON der View und zu den
+    /// data-col-key-Werten der &lt;th&gt;.
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyStructure = new(
+        "FaHierarchyStructure", "FA-Struktur (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("structure",      "Struktur",       Locked: true),
+            new ColumnDef("matchcode",      "Matchcode",      Locked: true),
+            new ColumnDef("description",    "Bezeichnung",    Locked: false),
+            new ColumnDef("workarea",       "Arbeitsbereich", Locked: false),
+            new ColumnDef("picking-target", "Komm.-Ziel",     Locked: false),
+            new ColumnDef("quantity",       "Soll / Fert.",   Locked: false),
+            new ColumnDef("subfa",          "SubFA",          Locked: false),
+            new ColumnDef("status",         "Status",         Locked: false),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -382,6 +414,7 @@ public static class ColumnDefinitions
         "FaHierarchyBeschichtung"        => FaHierarchyBeschichtung,
         "FaHierarchyVormontageEinzeln"   => FaHierarchyVormontageEinzeln,
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
+        "FaHierarchyStructure"           => FaHierarchyStructure,
         _                  => null
     };
 }
