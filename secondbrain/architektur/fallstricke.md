@@ -1,6 +1,6 @@
 ---
 type: referenz
-updated: 2026-07-27
+updated: 2026-08-12
 ---
 # Bekannte Fallstricke
 
@@ -208,6 +208,28 @@ ist die Spalte nicht filterbar und nicht konfigurierbar — ohne Fehlermeldung.
 ### `column-preferences.js` MUSS vor `table-filter.js` eingebunden werden
 **Warum:** `column-preferences.js` dispatcht das `column-preferences-ready`-Event, auf das
 `table-filter.js` wartet. Umgekehrte Reihenfolge = Event vor dem Listener = stille Fehlfunktion.
+
+### Neuer `viewKey` ohne `ColumnDefinitions.GetByViewKey`-Registrierung → Prefs-API 400
+Bringt eine Liste eine Spaltenauswahl (`#view-config`/`#column-config` + `column-preferences.js`),
+muss ihr `viewKey` in `ColumnDefinitions.GetByViewKey` eingetragen sein. Fehlt der Eintrag,
+antwortet `UserViewPreferencesApiController` mit **400** und speichert **still nichts** — die
+Spaltenwahl geht bei jedem Reload verloren, ohne Fehlermeldung fuer den Anwender.
+**Warum:** Der API-Controller mappt den `viewKey` ueber `GetByViewKey` auf den gueltigen
+Spaltenkatalog; ein unbekannter Key ist fuer ihn ununterscheidbar von einer manipulierten Anfrage
+und wird abgewiesen. Genau das ist schon einmal bei `FaWorklist` passiert und war 2026-08-12
+(Etappe 6 des IDEAL-Buendels) an allen vier IDEAL-Listen zunaechst offen. Vierter
+Pflichtbestandteil des Listen-View-Patterns — siehe
+[[0005-listen-view-pattern-mit-server-side-spaltenfilter]], Abschnitt „Spaltenpraeferenzen".
+
+### `table-filter.js` sortierte bis 2026-08-12 nur das erste `<tbody>` einer Tabelle
+`sortTable()` fasste bis Commit `37e8752` (v1.31.0) nur das **erste** `<tbody>` an. Bei gruppierten
+Tabellen mit mehreren `<tbody>` (z. B. die HauptFA-Gruppen der IDEAL-Kommissionierlisten) sortierte
+also sichtbar nur die erste Gruppe, der Rest blieb unsortiert — ein offensichtlich falsches
+Ergebnis. Behoben: `sortTable()` sortiert jetzt **je `<tbody>` separat** (bei Ein-`<tbody>`-Tabellen
+verhaltensgleich, daher AKE-Listen-regressionssicher).
+**Warum hier festgehalten:** Damit dieselbe Fehlerklasse bei kuenftigen gruppierten Tabellen sofort
+erkannt wird — wer Client-Sortierung auf eine Tabelle mit mehreren `<tbody>` setzt, muss pruefen,
+dass wirklich alle Gruppen sortiert werden, nicht nur die erste.
 
 ### Eine filterbare Tabelle pro gerenderter Seite
 `table-filter.js` / `column-preferences.js` sind Single-Table.
