@@ -16,6 +16,9 @@ Lies die Spec (epic: true) und ihre Etappen-Tabelle.
 2. Arbeite GENAU EINE offene Etappe ab (die erste mit Status offen). Testbar umsetzen, im
    Worktree committen ("epic <slug>: Etappe N - <titel>"), Etappe in der Tabelle auf erledigt
    + Commit-Hash setzen (Spec liegt im Hauptcheckout - dort aendern und separat committen).
+   **Betrifft die Etappe Views, CSS oder Oberflaechen-JavaScript: den Skill `frontend-design`
+   VOR der Umsetzung explizit aufrufen** (Pflicht laut CLAUDE.md). Konsistenz vor
+   Eigenstaendigkeit (Bootstrap 5, bestehende Muster), Kontrast nach WCAG AA.
 3. Sind noch Etappen offen: Status bleibt InUmsetzung, beenden - die naechste Etappe kommt beim
    naechsten Aufruf.
 4. Erst wenn ALLE Etappen erledigt: qa-agent (build+test gruen, Testszenarien, Deploy-Abschnitt),

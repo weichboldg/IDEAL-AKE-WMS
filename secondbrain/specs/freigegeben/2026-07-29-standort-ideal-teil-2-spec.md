@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Standort Teil 2 — Struktur-/FA-Baumanzeige (rekursiv, Seiteneinheit Struktur)"
 slug: 2026-07-29-standort-ideal-teil-2-spec
-status: Entwurf
+status: Freigegeben
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
@@ -28,8 +28,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-07
 created: 2026-08-06
 updated: 2026-08-07
 ---

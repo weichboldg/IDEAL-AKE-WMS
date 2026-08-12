@@ -30,6 +30,10 @@ Dann:
    status: InUmsetzung, Aufgaben-Datei in secondbrain/aufgaben/ anlegen.
 2. IM WORKTREE umsetzen, gemaess CLAUDE.md-Workflow: superpowers:writing-plans, dann
    subagent-driven-development (unabhaengige Tasks parallel via dispatching-parallel-agents).
+   **Betrifft die Aufgabe Views, CSS oder Oberflaechen-JavaScript: den Skill `frontend-design`
+   VOR der Umsetzung explizit aufrufen** (Pflicht laut CLAUDE.md; nicht auf automatische
+   Ausloesung verlassen). Dabei gilt Konsistenz vor Eigenstaendigkeit (Bootstrap 5, bestehende
+   Muster) und Kontrast nach WCAG AA.
    Zwischenstaende regelmaessig committen ("wip: <slug>").
 3. PFLICHT vor der QA-Phase: vollstaendigen Stand committen ("wip: <slug> feature-complete").
 4. Qualitaet: superpowers:verification-before-completion + code-review. dotnet build und

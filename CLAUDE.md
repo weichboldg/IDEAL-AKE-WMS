@@ -127,6 +127,18 @@ Zweig nimmt das Wissen mit. Nebeneffekt: Brain-Merge-Konflikte koennen so gar ni
 dort wider Erwarten doch ein `secondbrain/`-Ordner sichtbar: NICHT hineinschreiben, sondern in den
 Hauptcheckout schreiben und den Fund melden.
 
+**Frontend-Arbeit: `frontend-design`-Skill ist PFLICHT.** Sobald ein Lauf Views, CSS oder
+Oberflaechen-JavaScript aendert, wird der Skill `frontend-design` **explizit aufgerufen** — nicht
+auf automatische Ausloesung verlassen. Er liefert das Handwerk fuer Typografie, Kontrast, Abstaende
+und visuelle Hierarchie.
+Zwei Leitplanken dazu, die Vorrang haben:
+- **Konsistenz vor Eigenstaendigkeit.** Die Anwendung ist ein Werkzeug in der Fertigung, kein
+  Schaustueck. Bootstrap 5, bestehende Muster und vorhandene Partials gewinnen, wo der Skill zu
+  einem eigenen Stil draengt. Keine neue UI-, Icon- oder Chart-Bibliothek ohne ADR.
+- **Kontrast ist Funktion, nicht Geschmack.** Zielwert WCAG AA (4,5:1 Fliesstext, 3:1 grosse
+  Schrift und Bedienelemente). Die Oberflaechen laufen an Terminals in der Fertigung, teils bei
+  schlechtem Licht. Farbe darf nie alleiniger Bedeutungstraeger sein.
+
 **Brain-Notizen sind Obsidian-Markdown.** Alles unter `secondbrain/` wird in Obsidian gelesen —
 daher gilt beim Schreiben von Notizen (Skill `obsidian-markdown` fuer Details):
 - Vault-interne Verweise **immer** als Wikilink `[[Notizname]]` (ohne Pfad, ohne `.md`), nie als

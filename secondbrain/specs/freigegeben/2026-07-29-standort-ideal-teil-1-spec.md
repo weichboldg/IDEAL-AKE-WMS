@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Standort Teil 1 — Struktur-Fundament FaHierarchyNode (Import FAListe/FAInfos)"
 slug: 2026-07-29-standort-ideal-teil-1-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-08-06
 updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
@@ -41,8 +41,8 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-07
 ---
 
 ## Ziel / Nutzen (das Warum)

@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Standort Teil 3 — Kommissionierlisten"
 slug: 2026-07-29-standort-ideal-teil-3-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-08-06
 updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
@@ -30,8 +30,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-07
 ---
 
 ## Ziel / Nutzen (das Warum)
