@@ -173,7 +173,9 @@
 
 @section Scripts {
     <style>
-        .fa-structure-header { background-color: #f8f9fa; }
+        /* Kontrast-Fix: .fa-structure-header (Hintergrund hellgrau + dunkle Schrift)
+           liegt jetzt zentral in site.css, damit der Kopf nicht laenger die weisse
+           .card-header-Schrift erbt (weiss auf hellgrau war unlesbar, WCAG-Defekt). */
         .fa-tree { font-size: 0.9rem; }
         .fa-node-row {
             padding: 3px 8px;

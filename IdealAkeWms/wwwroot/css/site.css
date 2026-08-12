@@ -115,6 +115,20 @@ body {
     padding: 0.75rem 1.25rem;
 }
 
+/* IDEAL FA-Struktur — Kopfband der Struktur (Karten-Kopf in Teil 2, Struktur-
+   Kopfzeile im Tree-Table ab Etappe 7). Kontrast-Fix (WCAG AA):
+   Die globale .card-header-Regel setzt weisse Schrift (--ake-white) auf dunkles
+   --ake-primary. Ein blosses Ueberschreiben nur des Hintergrunds auf hellgrau
+   liess die geerbte WEISSE Schrift stehen -> weiss auf hellgrau, unlesbar
+   (Funktionsausfall am Fertigungsterminal). Fix: heller Hintergrund UND passende
+   dunkle Schrift, beide aus der bestehenden --ake-*-Palette (kein neuer Farbwert).
+   Rechnerisch geprueft: #4A494A (--ake-text) auf #F5F5F5 (--ake-light-gray)
+   = 8,2:1 (>= 4,5:1 Fliesstext). */
+.fa-structure-header {
+    background-color: var(--ake-light-gray);
+    color: var(--ake-text);
+}
+
 /* Buttons */
 .btn-primary {
     background-color: var(--ake-primary);
