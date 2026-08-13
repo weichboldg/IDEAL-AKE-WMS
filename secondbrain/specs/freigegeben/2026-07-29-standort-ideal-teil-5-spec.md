@@ -4,7 +4,7 @@ title: "IDEAL-Standort Teil 5 — Vormontage-Listen"
 slug: 2026-07-29-standort-ideal-teil-5-spec
 status: Freigegeben
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-13
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]]"
 task: ""
@@ -23,7 +23,6 @@ affected_code:
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Wochenbezug `Neuer_PT_PPS` ('kommende Woche'): Datenpfad ist entschieden (eigene Abfrage je HauptFA gegen FaHierarchyOrderInfo, kein Fan-out-Join). Offen bleibt die Filter-Semantik: harter Filter auf die Positionsmenge oder nur Anzeige-/Sortierspalte; Wochengrenze (ISO-KW Montag-Sonntag, rollierendes 7-Tage-Fenster, oder aktuelle vs. naechste Kalenderwoche); welcher Termin bei einem Kombigeraet mit mehreren FaHierarchyOrderInfo-Zeilen zaehlt. Strukturell unabhaengig von der Antwort: in Sicht 2 muss ein etwaiger Wochenfilter VOR der Matchcode-Aggregation auf die Positionen wirken. Ein Loesungsvorschlag des Menschen liegt im Abschnitt 'Entscheidungen zu den Rest-Blockern (2026-08-07)' vor (Filter statt Spalte, ISO-Woche Mo-So, Default naechste KW waehlbar, fruehester Termin bei Kombigeraet + Mehrdeutigkeits-Kennzeichnung, eigener Filterwert 'ohne Termin' fuer Positionen ohne Neuer_PT_PPS) — der zweite Kritische-Pruefungs-Durchgang (T5-2P-B2) bewertet das weiterhin als nicht vollstaendig in eine pruefbare Anforderung/AK uebersetzt, daher hier erneut als offene Rueckfrage gefuehrt, bis der Mensch das ausdruecklich bestaetigt."
   - "Abhaengigkeit vom in Teil 3 angekuendigten 'gemeinsamen Baustein' fuer Sicht 1 (Flag-Filter als Parameter, Kopf-Join ohne Fan-out, Gruppierung/Paging nach HauptFA): Ist dieser Baustein in der Teil-3-Spec tatsaechlich wiederverwendbar geschnitten, oder muss Teil 5 die Mechanik fuer Sicht 1 selbst duplizieren? Laut T5-2P-S3 ist der Baustein in Teil 3 selbst noch nicht verankert (affected_code dort listet nur einen Teil-3-spezifischen KommissionierListenService)."
 epic: false
 etappen: []
@@ -44,6 +43,9 @@ summierte Mengensicht — auf Basis der IDEAL-Struktur (Teil 1) und mit derselbe
 Doppelzaehlungsdisziplin wie Teil 3/4 (`SubFA = 0`). Der urspruenglich vorgesehene Export in die
 Isolierfraesen-Software ist **nicht** Teil dieses Spec-Standes (siehe Umfang) — Format-Spezifikation
 und Referenz-Screenshot lagen bei der Schranke-1-Runde nicht vor.
+
+> **Hinweis (Nachtrag 2026-08-13):** Die Ebenen-/Doppelzaehlungsdisziplin (`SubFA = 0`) ist seit der
+> UAT ueberholt — siehe „Nachtrag / Aenderung aus UAT (2026-08-13)" am Ende der Datei.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
@@ -66,13 +68,15 @@ Domain laut Uebersicht-Entscheidung B5).
    Sage-Bit — kein `-1`-Vergleich). Die Reiter-Liste (distinct `VMBedarf`-Werte) unterliegt demselben
    Ausschluss, damit kein leerer „(kein Bereich)"-Reiter entsteht.
 
-2. **Ebenen-/Doppelzaehlungsregel (verbindlich, analog Teil 3 Fachliche Anforderung 2):**
-   Positionen werden ausschliesslich auf Blattebene (`SubFA = 0`) gefuehrt. Eine Zeile mit
-   `SubFA != 0` ist ein Verweis auf eine als eigener Sub-FA gefertigte Baugruppe — ihre Bestandteile
-   fuehrt der Sub-FA in seinen eigenen Zeilen. Reihenfolge: erst `SubFA = 0`, dann `VMBedarf`.
+2. **Ebenen-/Doppelzaehlungsregel (verbindlich, analog Teil 3 Fachliche Anforderung 2) — [UEBERHOLT,
+   siehe Nachtrag 2026-08-13, Aenderung 1]:** Positionen werden ausschliesslich auf Blattebene
+   (`SubFA = 0`) gefuehrt. Eine Zeile mit `SubFA != 0` ist ein Verweis auf eine als eigener Sub-FA
+   gefertigte Baugruppe — ihre Bestandteile fuehrt der Sub-FA in seinen eigenen Zeilen. Reihenfolge:
+   erst `SubFA = 0`, dann `VMBedarf`.
 
 3. **Anomalie-Diagnose, operator-sichtbar (geschaerft gegenueber Teil 3 — siehe Uebersicht,
-   Querschnitts-Regel „Das Web verschickt keine Mails", und T5-2P-S1):** Eine Zeile mit
+   Querschnitts-Regel „Das Web verschickt keine Mails", und T5-2P-S1) — [UEBERHOLT, siehe Nachtrag
+   2026-08-13, Aenderung 1]:** Eine Zeile mit
    `SubFA != 0` UND gesetztem `VMBedarf` wird **nicht** angezeigt, aber (a) als `ILogger`-Warnung
    protokolliert (`HauptFA` + `Position` + `Artnr`) **und** (b) als Banner/
    `TempData["WarningMessage"]` auf der Liste ausgewiesen („N Position(en) mit `VMBedarf` auf
@@ -91,12 +95,15 @@ Domain laut Uebersicht-Entscheidung B5).
    im Klartext aufgefuehrt und die Gruppe als mehrdeutig gekennzeichnet.
 
 6. **Wochenbezug `Neuer_PT_PPS` — Datenpfad entschieden, Filter-Semantik offen (siehe Offene
-   Rueckfrage 1).** Der Termin wird — sobald die Semantik feststeht — ueber dieselbe Kopf-Abfrage wie
+   Rueckfrage 1) — [UEBERHOLT, siehe Nachtrag 2026-08-13, Aenderung 2 — Wochenbezug ist jetzt
+   `FE_Termin`, nicht `Neuer_PT_PPS`].** Der Termin wird — sobald die Semantik feststeht — ueber
+   dieselbe Kopf-Abfrage wie
    Punkt 5 gebunden, niemals ueber einen Join gegen die Positionen. Diese Spec-Fassung setzt den
    Wochenfilter **nicht** um; Fachliche Anforderung und AK folgen, sobald die Rueckfrage beantwortet
    ist.
 
-7. **Aggregation Sicht 2 (Summiert):**
+7. **Aggregation Sicht 2 (Summiert) — [ergaenzt durch Nachtrag 2026-08-13, Aenderung 2: Wochenfilter
+   wirkt vor der Aggregation]:**
    - Schluessel ist **`Matchcode`**, nicht `Artnr` — der Matchcode identifiziert eindeutig, was der
      Werker holt.
    - Summiert werden **zwei getrennte Mengen**: `Sollmenge` und `Fertigungmenge`, je eigene Spalte.
@@ -147,6 +154,9 @@ lauffaehig).
    ViewModel zuordnen — kein Join gegen die Positionen.
 6. Filterkarte mit `VMBedarf`-Reiterwahl und Spaltenfiltern ueber dem Tabellenblock.
 
+> **Nachtrag 2026-08-13:** Schritt 1 (`SubFA = 0`) ist ueberholt — siehe „Nachtrag / Aenderung aus
+> UAT (2026-08-13)", Aenderung 1.
+
 **Sicht 2 — Summiert:**
 1. Dieselbe Blattfilter-Basis wie Sicht 1 (`SubFA = 0`, `VMBedarf` gesetzt, aktueller Reiter).
 2. Sobald der Wochenbezug entschieden ist (Offene Rueckfrage 1): Wochenfilter auf dieser
@@ -154,6 +164,9 @@ lauffaehig).
 3. Gruppieren nach `Matchcode`, `Sollmenge` und `Fertigungmenge` je Gruppe summieren.
 4. Server-Side-Spaltenfilter auf der Aggregat-Projektion (`Matchcode` + zwei Summenspalten).
 5. Pagination auf Aggregatzeilen-Ebene, `TotalCount` zaehlt Aggregatzeilen.
+
+> **Nachtrag 2026-08-13:** Schritt 1 (`SubFA = 0`) ist ueberholt (Aenderung 1); Schritt 2 ist jetzt
+> umgesetzt — Wochenfilter auf `FE_Termin`, siehe Aenderung 2.
 
 Kein zusaetzliches DTO jenseits zweier schlanker ViewModels
 (`FaHierarchyVormontageGruppeViewModel` fuer Sicht 1, analog Teil-3-Gruppen-ViewModel;
@@ -174,17 +187,22 @@ Keine neuen Entitaeten.
 
 1. Beide Sichten zeigen ausschliesslich Blattpositionen (`SubFA = 0`) mit gesetztem `VMBedarf`
    (`IS NOT NULL AND <> ''`); die Reiter-Liste enthaelt keinen leeren „(kein Bereich)"-Eintrag.
+   **[UEBERHOLT, siehe Nachtrag 2026-08-13, AK 9 — der `SubFA = 0`-Zusatz entfaellt, der
+   Reiter-Ausschluss bleibt gueltig.]**
 2. **Keine Doppelzaehlung auf beiden Achsen** (Ebenen und Struktur): (a) Zeilen mit `SubFA != 0`
    erscheinen nie — code-pruefbar per synthetischer Fixture (`HauptFA` mit Verweiszeile `SubFA != 0`
    und einem Sub-FA mit eigenen Blattzeilen), analog Teil 3 AK1; (b) bei mehreren
    `FaHierarchyOrderInfo`-Zeilen je `HauptFA` bleibt die Positionsanzahl 1:1 zur Quellzeilenzahl
-   (kein Fan-out-Join, keine Mengenvervielfachung).
+   (kein Fan-out-Join, keine Mengenvervielfachung). **[Teil (a) UEBERHOLT, siehe Nachtrag
+   2026-08-13, AK 9. Teil (b) bleibt unveraendert gueltig.]**
 3. Eine Anomalie-Zeile (`SubFA != 0` UND `VMBedarf` gesetzt) wird nicht angezeigt, aber (a) als
    `ILogger`-Warnung protokolliert **und** (b) als Banner/`WarningMessage` mit Anzahl auf der Liste
-   ausgewiesen.
+   ausgewiesen. **[UEBERHOLT, siehe Nachtrag 2026-08-13, Aenderung 1 — entfaellt ersatzlos, es gibt
+   keine Anomalie mehr.]**
 4. Sicht 2 aggregiert nach **`Matchcode`** (nicht `Artnr`) je `VMBedarf`-Reiter, mit zwei getrennten
    Summenspalten `Sollmenge` und `Fertigungmenge`. Fuehrt derselbe `Artnr` positionsabhaengig
    unterschiedliche Matchcodes, entstehen bewusst mehrere Zeilen — im Test nicht als Fehler zu werten.
+   **[Bleibt in Kraft; siehe Nachtrag 2026-08-13, AK 10 fuer den Wochenfilter-Zusatz.]**
 5. Sicht 1 erfuellt ADR 0005 wie Teil 3 (Seiteneinheit `HauptFA`-Gruppe, `TotalCount` zaehlt Gruppen,
    Server-Spaltenfilter auf Positionszeilen). Sicht 2 erfuellt ADR 0005 als begruendete Ausnahme:
    Seiteneinheit Aggregatzeile, `TotalCount` zaehlt Aggregatzeilen, Spaltenfilter wirken auf
@@ -194,7 +212,11 @@ Keine neuen Entitaeten.
    `AccessDenied`.
 7. AKE-Verhalten unveraendert (bestehende Controller/Views unberuehrt).
 8. **Nicht Teil dieser Freigabe-Runde:** ein AK zum Wochenbezug-Filter (`Neuer_PT_PPS`) folgt, sobald
-   Offene Rueckfrage 1 beantwortet ist.
+   Offene Rueckfrage 1 beantwortet ist. **[EINGELOEST, siehe Nachtrag 2026-08-13, AK 10 — Filterfeld
+   ist `FE_Termin`, nicht `Neuer_PT_PPS`.]**
+
+> **Neue AK 9 und AK 10:** siehe Abschnitt „Nachtrag / Aenderung aus UAT (2026-08-13)" am Ende der
+> Datei.
 
 ## Test-Szenarien
 
@@ -202,14 +224,19 @@ Neues Kapitel „IDEAL Teil 5 — Vormontage-Listen" in `docs/TESTSZENARIEN.md`,
 Teil 3:
 
 **Automatisiert/InMemory-Fixture:**
-- `SubFA = 0`-Filter dedupliziert korrekt (synthetische Fixture wie Teil 3) — AK1/AK2a.
+- `SubFA = 0`-Filter dedupliziert korrekt (synthetische Fixture wie Teil 3) — AK1/AK2a. **[UEBERHOLT,
+  siehe Nachtrag 2026-08-13 — ersetzt durch: alle Positionen mit `VMBedarf` erscheinen unabhaengig
+  von `SubFA`, kein Banner.]**
 - Kopf-Join ohne Fan-out bei zwei `FaHierarchyOrderInfo`-Zeilen je `HauptFA` — AK2b.
-- Anomalie-Zeile wird geloggt, ausgeschlossen **und** im Banner ausgewiesen — AK3.
+- Anomalie-Zeile wird geloggt, ausgeschlossen **und** im Banner ausgewiesen — AK3. **[UEBERHOLT,
+  siehe Nachtrag 2026-08-13 — entfaellt ersatzlos.]**
 - Sicht-2-Aggregation nach `Matchcode`: zwei Positionen mit gleichem `Artnr`, aber
   unterschiedlichem `Matchcode`, ergeben zwei Aggregatzeilen; zwei Positionen mit gleichem
   `Matchcode` werden zu einer Zeile mit summierten `Sollmenge`/`Fertigungmenge` — AK4.
 - Pagination Sicht 1 zaehlt Gruppen, Pagination Sicht 2 zaehlt Aggregatzeilen — AK5.
 - Zugriff ohne Rolle bzw. bei deaktiviertem Toggle → Redirect — AK6.
+- **Neu (Nachtrag 2026-08-13):** Wochenfilter `FE_Termin` in ISO-KW, Wirkung vor der Aggregation in
+  Sicht 2 — AK10.
 
 **Manuell am IDEAL-Testsystem (Vorbedingung: produktivnahe Daten, siehe Deploy-Abschnitt — mit dem
 aktuell leeren Testsystem nicht durchfuehrbar):**
@@ -217,6 +244,7 @@ aktuell leeren Testsystem nicht durchfuehrbar):**
   Sichten.
 - Mengenabgleich Struktur vs. Sicht 2 an einer bekannten mehrstufigen Struktur.
 - (Nach Beantwortung von Offene Rueckfrage 1:) Wochenfilter-Verhalten inkl. Kombigeraet-Fall.
+  **[ERLEDIGT/PRAEZISIERT durch UAT 2026-08-13 — siehe Nachtrag.]**
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
@@ -240,23 +268,16 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Offene Rueckfragen
 
-1. Wochenbezug `Neuer_PT_PPS` ("kommende Woche"): Datenpfad ist entschieden (eigene Abfrage je
-   `HauptFA` gegen `FaHierarchyOrderInfo`, kein Fan-out-Join). Offen bleibt die Filter-Semantik:
-   harter Filter auf die Positionsmenge oder nur Anzeige-/Sortierspalte; Wochengrenze (ISO-KW
-   Montag–Sonntag, rollierendes 7-Tage-Fenster, oder aktuelle vs. naechste Kalenderwoche); welcher
-   Termin bei einem Kombigeraet mit mehreren `FaHierarchyOrderInfo`-Zeilen zaehlt. Strukturell
-   unabhaengig von der Antwort: In Sicht 2 muss ein etwaiger Wochenfilter **vor** der
-   Matchcode-Aggregation auf die Positionen wirken. Ein Loesungsvorschlag liegt bereits im Abschnitt
-   „Entscheidungen zu den Rest-Blockern (2026-08-07)" vor (Filter statt Spalte, ISO-Woche Mo–So,
-   Default naechste KW waehlbar, fruehester Termin bei Kombigeraet + Mehrdeutigkeits-Kennzeichnung,
-   eigener Filterwert „ohne Termin") — der zweite Kritische-Pruefungs-Durchgang (T5-2P-B2) haelt das
-   weiterhin fuer nicht vollstaendig in eine pruefbare Anforderung/AK uebersetzt, daher hier erneut
-   als offene Rueckfrage gefuehrt, bis der Mensch das ausdruecklich bestaetigt.
-2. Abhaengigkeit vom in Teil 3 angekuendigten „gemeinsamen Baustein" fuer Sicht 1 (Flag-Filter als
+1. Abhaengigkeit vom in Teil 3 angekuendigten „gemeinsamen Baustein" fuer Sicht 1 (Flag-Filter als
    Parameter, Kopf-Join ohne Fan-out, Gruppierung/Paging nach `HauptFA`): Ist dieser Baustein in der
    Teil-3-Spec tatsaechlich wiederverwendbar geschnitten, oder muss Teil 5 die Mechanik fuer Sicht 1
    selbst duplizieren? Laut T5-2P-S3 ist der Baustein in Teil 3 selbst noch nicht verankert
    (`affected_code` dort listet nur einen Teil-3-spezifischen `KommissionierListenService`).
+
+> **Frueher gefuehrte Rueckfrage 1 (Wochenbezug `Neuer_PT_PPS`/Filter-Semantik) ist mit dem Nachtrag
+> vom 2026-08-13 beantwortet und geschlossen** — siehe Abschnitt „Nachtrag / Aenderung aus UAT
+> (2026-08-13)" am Ende der Datei. Die Nummerierung oben wurde entsprechend bereinigt (ehemals
+> Frage 2 ist jetzt Frage 1).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -554,6 +575,13 @@ gewollt und darf im Test nicht als Fehler gemeldet werden.
   Kopfzeilen voneinander ab, wird die Gruppe wie ueberall im Paket als **mehrdeutig gekennzeichnet**
   und protokolliert — nicht stillschweigend auf einen Wert reduziert.
 
+> **Hinweis (Nachtrag 2026-08-13):** Der obige Loesungsvorschlag ging noch von `Neuer_PT_PPS` als
+> Filterfeld aus. Der Mensch hat in der UAT am 2026-08-13 stattdessen `FE_Termin` als Filterfeld
+> festgelegt — siehe „Nachtrag / Aenderung aus UAT (2026-08-13)", Aenderung 2. ISO-Woche Mo–So und
+> die Waehlbarkeit bleiben inhaltlich richtig und sind in Aenderung 2 uebernommen; Kombigeraet- und
+> „ohne Termin"-Verhalten sind fuer `FE_Termin` sinngemaess zu uebernehmen, sofern beim naechsten
+> Dev-Lauf nicht anders vom Menschen bestaetigt.
+
 ## Kritische Pruefung (2026-08-07)
 
 Zweiter Anwalt-des-Teufels-Durchgang, Auftrag: die menschlichen „Antworten auf die Kritische
@@ -745,3 +773,134 @@ BEREIT ZUR FREIGABE? **NEIN.** Offene Rueckfrage 1 (Wochenbezug-Semantik) und Of
 kann. Rumpf und Frontmatter sind ab diesem Stand nicht mehr stale — ein Dev-Lauf, der von oben nach
 unten liest, baut jetzt die zwei tatsaechlich beschlossenen Sichten korrekt (bis auf den bewusst
 zurueckgestellten Wochenfilter).
+
+## Nachtrag / Aenderung aus UAT (2026-08-13)
+
+Zwei vom Menschen in der UAT am IDEAL-Testsystem (2026-08-13) getroffene Entscheidungen. Sie
+ueberholen Teile des obigen Spec-Rumpfs (oben an den betroffenen Stellen als „[UEBERHOLT, siehe
+Nachtrag 2026-08-13]" markiert, nicht geloescht — die Herleitung bleibt nachvollziehbar). Status
+bleibt **Freigegeben**; dieser Nachtrag ist Teil der freigegebenen Spec, kein neuer Freigabe-Zyklus.
+
+### Aenderung 1 — SubFA=0-Blattannahme aufgehoben (aus UAT widerlegt, analog Teil 3)
+
+**Befund:** Wie bereits bei der Kommissionierliste (Teil 3, Abschnitt „ENTSCHEIDUNG NACH ERSTEM
+DATENLAUF (2026-08-12)" in [[2026-07-29-standort-ideal-teil-3-spec]]) ist die Arbeitsannahme
+„`VMBedarf` wird nur auf Blattzeilen (`SubFA = 0`) gepflegt" am realen IDEAL-Datenbestand nicht
+haltbar — Positionen mit gesetztem `VMBedarf` kommen auch auf Baugruppen-Ebene (`SubFA != 0`) vor.
+Fachliche Anforderung 2 (Ebenen-/Doppelzaehlungsregel) und Fachliche Anforderung 3
+(Anomalie-Diagnose/Banner) gelten damit als **ueberholt**, nicht geloescht — sie erklaeren, warum
+das Banner ueberhaupt gebaut wurde.
+
+**NEU, verbindlich:**
+- **Alle** Positionen mit gesetztem `VMBedarf` (`IS NOT NULL AND <> ''`) werden gelistet und
+  gezaehlt — **unabhaengig von `SubFA`**. Der bisherige Blattfilter (`SubFA = 0`) entfaellt
+  ersatzlos, fuer **beide** Sichten.
+- Das **Anomalie-Banner entfaellt**: kein `TempData["WarningMessage"]` und keine `ILogger`-Warnung
+  mehr zur Konstellation „`SubFA != 0` UND `VMBedarf` gesetzt" — es gibt in dieser Lesart keine
+  Anomalie mehr.
+- **Umsetzung:** `FaHierarchyListBuilder.Build(...)` wird fuer Sicht 1 mit
+  `leafOnly: false, anomalyOnNonLeaf: false` aufgerufen — dieselben Trailing-Opt-in-Parameter, die
+  Teil 4 fuer `Beschichtet` bereits nutzt (Aufrufparameter in `VormontageService.cs`; der
+  gemeinsame Baustein `FaHierarchyListBuilder` selbst braucht keine strukturelle Aenderung).
+- **Doppelzaehl-Caveat, dokumentieren statt loesen:** Wie in Teil 3 gilt: Eine Baugruppe
+  (`SubFA != 0`) und ihre Bestandteile sind zwei verschiedene Vormontage-Vorgaenge zu
+  unterschiedlichen Zeitpunkten (eine Baugruppe **bauen** vs. eine fertige Baugruppe **verbauen**)
+  — kein Fehler. Fuer Sicht 2 gilt zusaetzlich: Die Summierung bleibt **je `VMBedarf`-Reiter**
+  eingegrenzt (Fachliche Anforderung 7 unveraendert), damit eine Summe nicht Baugruppe **und** ihre
+  Bestandteile gleichzeitig aufaddiert. Bei der naechsten UAT-Mengenpruefung (Sage-Datenpflege) die
+  Summen gegen die Struktur gegenkontrollieren.
+
+**Betroffen (ueberholt, im Rumpf oben markiert, nicht geloescht):**
+- Fachliche Anforderung 2 (Ebenen-/Doppelzaehlungsregel `SubFA = 0`).
+- Fachliche Anforderung 3 (Anomalie-Diagnose, operator-sichtbares Banner) — entfaellt ersatzlos.
+- Akzeptanzkriterium 1 — der `SubFA = 0`-Zusatz entfaellt, der Reiter-Ausschluss (kein leerer
+  „(kein Bereich)"-Reiter) bleibt gueltig.
+- Akzeptanzkriterium 2(a) (Zeilen mit `SubFA != 0` erscheinen nie) — entfaellt; 2(b)
+  (Fan-out-Freiheit des Kopf-Joins bei mehreren `FaHierarchyOrderInfo`-Zeilen) bleibt unveraendert
+  in Kraft.
+- Akzeptanzkriterium 3 (Anomalie-Banner) — entfaellt ersatzlos, analog Teil-3-AK3.
+
+**Neues Akzeptanzkriterium 9 (ersetzt AK 1 / AK 2a / AK 3):**
+Beide Sichten zeigen **alle** Positionen mit gesetztem `VMBedarf` (`IS NOT NULL AND <> ''`),
+**unabhaengig von `SubFA`** — code-pruefbar per synthetischer Fixture (`HauptFA` mit einer
+`SubFA != 0`-Zeile und gesetztem `VMBedarf`: die Zeile **erscheint** in beiden Sichten; es wird
+**kein** Banner/`WarningMessage` ausgegeben und **keine** `ILogger`-Warnung zu dieser Konstellation
+geschrieben). Die Reiter-Liste enthaelt weiterhin keinen leeren „(kein Bereich)"-Eintrag. Die
+Fan-out-Freiheit des Kopf-Joins bei mehreren `FaHierarchyOrderInfo`-Zeilen (bisheriges AK 2b) bleibt
+unveraendert in Kraft.
+
+### Aenderung 2 — Wochenbezug definiert (KW auf `FE_Termin`) + Sicht 2 „Summiert" praezisiert
+
+**Offene Rueckfrage 1 (Wochenbezug-Filter-Semantik) ist beantwortet und geschlossen.** Der bisher
+zurueckgestellte Wochenbezug (Fachliche Anforderung 6) ist entschieden:
+
+- **Filterform:** Eingabe eines **KW-Zeitraums** (Kalenderwoche, Eingabefeld wie die Datumsfelder
+  der uebrigen Listen) — kein reiner Anzeige-/Sortierhinweis, sondern ein echter Filter auf die
+  Positionsmenge.
+- **Filterfeld: `FE_Termin`** — **nicht** `Neuer_PT_PPS`. Das weicht ausdruecklich von der
+  urspruenglichen Freigabe-Antwort Runde 1 (Antwort 4, „Produktionstermin" = `Neuer_PT_PPS`,
+  bestaetigt 2026-08-06) und vom Loesungsvorschlag in „Entscheidungen zu den Rest-Blockern
+  (2026-08-07)" ab (der ebenfalls auf `Neuer_PT_PPS` aufsetzte) — der Mensch hat das in der UAT am
+  2026-08-13 ausdruecklich so entschieden. `FE_Termin` liegt wie `Neuer_PT_PPS` auf
+  `FaHierarchyOrderInfo` (1:n je `HauptFA`, siehe Fachliche Anforderung 5); die Fan-out-Disziplin
+  (eigene Kopf-Abfrage je `HauptFA`, kein Join gegen die Positionen) gilt fuer `FE_Termin`
+  unveraendert.
+- **Wochengrenze:** ISO-Kalenderwoche, Montag bis Sonntag (unveraendert gegenueber dem
+  2026-08-07-Vorschlag, nur das Feld hat sich geaendert).
+
+**Sicht 2 „Summiert" praezisiert:**
+- Ueber die gewaehlte KW wird **saemtliches Material aufsummiert**; `HauptFA` wird dabei ignoriert
+  — die Aggregation laeuft ueber **alle** Strukturen (alle `HauptFA`) hinweg, die in der KW liegen.
+  Das ist keine Verhaltensaenderung gegenueber Fachlicher Anforderung 7 (Sicht 2 aggregierte schon
+  vorher ueber `HauptFA` hinweg, gruppiert nach `Matchcode` je `VMBedarf`-Reiter) — der UAT-Beschluss
+  macht es nur ausdruecklich fest: der Wochenfilter spaltet die Aggregation **nicht** zusaetzlich
+  nach `HauptFA` auf.
+- Schluessel bleibt **`Matchcode`**, zwei getrennte Summen **`Sollmenge`** und **`Fertigungmenge`**
+  wie bisher (Fachliche Anforderung 7 im Uebrigen unveraendert gueltig).
+- **Reihenfolge:** Der Wochenfilter (`FE_Termin` in der gewaehlten KW) wirkt **vor** der
+  Matchcode-Aggregation — wie in Fachlicher Anforderung 6 (alte Fassung) und im
+  Loesungsentwurf bereits strukturell gefordert.
+
+**Sicht 1 (Einzelteile):** behaelt Filterkarte/Paging wie bisher (Fachliche Anforderung 8). Die
+KW-Eingabe ist primaer fuer Sicht 2 relevant, steht aber optional auch in Sicht 1 als zusaetzlicher
+Filter zur Verfuegung, damit beide Sichten konsistent bedienbar bleiben.
+
+**Betroffen:**
+- Fachliche Anforderung 6 (Wochenbezug — Datenpfad entschieden, Semantik offen) gilt als
+  **ueberholt**; ersetzt durch die obige Festlegung.
+- Fachliche Anforderung 7 (Aggregation Sicht 2) bleibt in ihrem Kern (Schluessel `Matchcode`, zwei
+  Summen, je `VMBedarf`-Reiter) gueltig, wird um die KW-Filterung **vor** der Aggregation und die
+  Klarstellung „`HauptFA` wird ignoriert" ergaenzt.
+- Akzeptanzkriterium 8 („Nicht Teil dieser Freigabe-Runde: ein AK zum Wochenbezug-Filter folgt...")
+  ist damit eingeloest — ersetzt durch Akzeptanzkriterium 10 unten.
+
+**Neues Akzeptanzkriterium 10 (ersetzt AK 8):**
+Bei gewaehlter Kalenderwoche filtern Sicht 1 und Sicht 2 auf Positionen, deren `FE_Termin` (aus
+`FaHierarchyOrderInfo`, ueber die Kopf-Abfrage je `HauptFA` gebunden, kein Fan-out-Join) in der
+ISO-Woche (Montag–Sonntag) liegt. In Sicht 2 wirkt dieser Filter **vor** der Matchcode-Aggregation;
+die Aggregatzeilen summieren `Sollmenge`/`Fertigungmenge` **ueber alle `HauptFA` der gewaehlten
+`VMBedarf`-Reiter-Menge hinweg**, nicht je Auftrag getrennt — code-pruefbar per synthetischer
+Fixture (zwei `HauptFA` mit `FE_Termin` in unterschiedlichen Kalenderwochen, gleicher `Matchcode`:
+bei Filterung auf die erste Woche fliesst nur die Menge des ersten `HauptFA` in die Summe ein).
+
+### Offene Rueckfrage 1 (Wochenbezug) — geschlossen; `open_questions` bereinigt
+
+Die frueher als Offene Rueckfrage 1 gefuehrte Wochenbezug-Frage ist mit diesem Nachtrag beantwortet
+und aus dem Frontmatter (`open_questions`) sowie aus dem Abschnitt „Offene Rueckfragen" entfernt.
+Die vormalige Offene Rueckfrage 2 (Baustein-Abhaengigkeit zu Teil 3) bleibt unveraendert offen — sie
+ist **nicht** Gegenstand dieses Nachtrags und steht jetzt als einzige verbliebene Rueckfrage im
+Abschnitt „Offene Rueckfragen".
+
+### `affected_code`
+
+Keine neuen Dateien noetig: Beide Aenderungen wirken auf bereits gelistete Dateien
+(`VormontageService.cs` fuer die geaenderten `FaHierarchyListBuilder`-Aufrufparameter und den neuen
+KW-Filter; `FaHierarchyVormontageController.cs`, `Index.cshtml`/`Summiert.cshtml` fuer die
+KW-Eingabe in der Filterkarte). `IdealAkeWms/Services/FaHierarchyListBuilder.cs` (gemeinsamer, in
+Teil 3 geschnittener und in Teil 4 generalisierter Baustein) ist von diesem Nachtrag nicht
+strukturell betroffen — nur der Aufruf aus Teil 5 aendert seine Parameter.
+
+BEREIT ZUR FREIGABE (Nachtrag)? **JA.** Beide Punkte sind vom Menschen in der UAT (2026-08-13)
+entschieden; keine offenen Fragen in diesem Nachtrag. Status bleibt **Freigegeben**, ein Dev-Lauf
+kann Aenderung 1 und Aenderung 2 auf Basis dieses Nachtrags nachziehen (Umsetzung/QA-Nachweis folgt
+im Worktree/Hauptcheckout gemaess CLAUDE.md-Checkliste).

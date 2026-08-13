@@ -4,7 +4,7 @@ title: "IDEAL-Standort Teil 3 — Kommissionierlisten"
 slug: 2026-07-29-standort-ideal-teil-3-spec
 status: Freigegeben
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-13
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
@@ -21,8 +21,15 @@ affected_code:
   - README.md (AppSettings-Dokumentation, neuer Toggle FaHierarchyKommissionierlistenAktiv)
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
+  - IdealAkeWms/Services/KommissionierListenService.cs — Nachtrag 2026-08-13: `BuildAsync`/`GetTargetValuesAsync` ohne `SubFA`-Einschraenkung (`FaHierarchyListBuilder.Build` mit `leafOnly:false, anomalyOnNonLeaf:false`, wie Teil 4/Beschichtung); neue `BuildSummiertAsync`-Methode (Aggregation HauptFA/Artnr/Kommissionieren-Ziel, Sollmenge-Summe, KW-Filter auf `KO_Termin`)
+  - IdealAkeWms/Controllers/FaHierarchyKommissionierListenController.cs — Nachtrag 2026-08-13: neue Action `Summiert(kwVon, kwBis, ...)`; Anomalie-Banner-Aufbau in `Index`/`Print` entfaellt
+  - IdealAkeWms/Models/ViewModels/FaHierarchyKommissionierGruppeViewModel.cs — Nachtrag 2026-08-13: Anomalie-Anzahl/-HauptFA-Liste entfaellt (kein Banner mehr)
+  - IdealAkeWms/Models/ViewModels/FaHierarchyKommissionierSummiertViewModel.cs (neu, Nachtrag 2026-08-13 — analog `FaHierarchyVormontageSummiertViewModel`, zusaetzlich KW-Filterfelder)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Summiert.cshtml (neu, Nachtrag 2026-08-13)
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml — Nachtrag 2026-08-13: Anomalie-Warnbanner entfernen
+  - IdealAkeWms/Views/FaHierarchyKommissionierListen/Print.cshtml — Nachtrag 2026-08-13: Anomalie-Warnbanner entfernen
 open_questions:
-  - "Arbeitsannahme (strukturell aus dem Datenmodell hergeleitet, kein dokumentierter Fakt): kommissioniert wird ausschliesslich auf Blattebene (SubFA = 0) — eine Zeile mit SubFA != 0 verweist auf eine Baugruppe, die in einem eigenen Sub-FA gefertigt wird und daher nicht aus dem Lager geholt wird. Verbleibende, einzige Rueckfrage: empirische Bestaetigung am IDEAL-Testsystem, ob wirklich ausschliesslich auf Blattebene kommissioniert wird (das aktuell leere Testsystem beweist das nicht) — Vorbedingung fuer Schranke 2. Absicherung bereits eingebaut: solange die Annahme nicht bestaetigt ist, wird eine SubFA != 0-Zeile mit gesetztem Kommissionieren nicht nur geloggt, sondern als operator-sichtbares Banner in Bildschirmliste UND Druck ausgewiesen (Fachliche Anforderungen Punkt 3, AK3)."
+  - "Arbeitsannahme (strukturell aus dem Datenmodell hergeleitet, kein dokumentierter Fakt): kommissioniert wird ausschliesslich auf Blattebene (SubFA = 0) — eine Zeile mit SubFA != 0 verweist auf eine Baugruppe, die in einem eigenen Sub-FA gefertigt wird und daher nicht aus dem Lager geholt wird. Verbleibende, einzige Rueckfrage: empirische Bestaetigung am IDEAL-Testsystem, ob wirklich ausschliesslich auf Blattebene kommissioniert wird (das aktuell leere Testsystem beweist das nicht) — Vorbedingung fuer Schranke 2. Absicherung bereits eingebaut: solange die Annahme nicht bestaetigt ist, wird eine SubFA != 0-Zeile mit gesetztem Kommissionieren nicht nur geloggt, sondern als operator-sichtbares Banner in Bildschirmliste UND Druck ausgewiesen (Fachliche Anforderungen Punkt 3, AK3). NACHTRAG 2026-08-13: durch den ersten Datenlauf (2026-08-12) und die UAT vom 2026-08-13 empirisch widerlegt und geschlossen — siehe Abschnitt „Nachtrag / Aenderung aus UAT (2026-08-13)\" am Dateiende."
 epic: false
 etappen: []
 deploy:
@@ -75,7 +82,10 @@ Teil 8 (BDE) und bleibt dort offen, siehe Fachliche Anforderungen Punkt 9.
 1. **Filter:** `Kommissionieren IS NOT NULL AND Kommissionieren <> ''`, zusaetzlich optionaler
    Filter auf einen konkreten Ziel-Wert (Dropdown der am Datenbestand vorkommenden Werte).
 
-2. **Ebenen-/Doppelzaehlungsregel — Arbeitsannahme, strukturell aus dem Datenmodell hergeleitet,
+2. **[UEBERHOLT seit Nachtrag 2026-08-13 — siehe „Nachtrag / Aenderung aus UAT (2026-08-13)" am
+   Dateiende: der `SubFA = 0`-Filter ist ersatzlos entfernt. Dieser Punkt bleibt als historischer
+   Beleg der urspruenglichen Herleitung stehen, ist aber nicht mehr verbindlich.]**
+   **Ebenen-/Doppelzaehlungsregel — Arbeitsannahme, strukturell aus dem Datenmodell hergeleitet,
    kein dokumentierter Fakt (verbleibende Verifikation siehe Offene Rueckfrage 1).** Kommissioniert
    werden ausschliesslich Blattpositionen `SubFA = 0`. Eine Zeile mit `SubFA != 0` ist ein
    **Verweis** auf eine Baugruppe, die in einem **eigenen** Sub-FA gefertigt wird — sie liegt nicht
@@ -87,7 +97,11 @@ Teil 8 (BDE) und bleibt dort offen, siehe Fachliche Anforderungen Punkt 9.
    Reihenfolge: erst `SubFA = 0`, dann `Kommissionieren`. `Beschaffungsartikel` wird **nicht** als
    weiterer Filter verwendet (auch Lagerartikel ohne Bestellbezug muessen kommissioniert werden).
 
-3. **Anomalie-Diagnose — geloggt UND operator-sichtbar (PFLICHT, solange Punkt 2 Arbeitsannahme
+3. **[UEBERHOLT seit Nachtrag 2026-08-13 — siehe „Nachtrag / Aenderung aus UAT (2026-08-13)" am
+   Dateiende: das Anomalie-Banner entfaellt vollstaendig, es gibt keinen Ausnahmefall mehr. Dieser
+   Punkt bleibt als historischer Beleg stehen (er erklaert, warum das Banner ueberhaupt gebaut
+   wurde, und hat sich in der Praxis bewaehrt), ist aber nicht mehr verbindlich.]**
+   **Anomalie-Diagnose — geloggt UND operator-sichtbar (PFLICHT, solange Punkt 2 Arbeitsannahme
    bleibt).** Trifft die Liste eine Zeile mit `SubFA != 0` UND gesetztem `Kommissionieren`, wird sie
    **nicht** kommissioniert — die Abweichung darf aber nicht nur im Serverlog verschwinden:
    1. **Server-Log:** `ILogger`/Serilog-Warnung mit `HauptFA` + `Position` + `Artnr` (Web-seitige
@@ -214,11 +228,18 @@ EF-Entitaeten (Teil-1-Entscheidung). Zusaetzlich ein schlankes View-seitiges Agg
 Anomalie-Anzahl/-`HauptFA`-Liste (kein neues Domain-Objekt) — GUI und Druck lesen daraus dieselbe
 Information fuer das Banner.
 
+> **Hinweis (Nachtrag 2026-08-13):** Schritte 1, 6 und 7 dieses Loesungsentwurfs beschreiben den
+> `SubFA = 0`-Filter und das Anomalie-Banner — beides ist seit dem Nachtrag am Dateiende ersatzlos
+> entfernt (`FaHierarchyListBuilder.Build` wird mit `leafOnly:false, anomalyOnNonLeaf:false`
+> aufgerufen, wie bereits bei Teil 4/Beschichtung). Der Abschnitt bleibt als historischer Beleg der
+> urspruenglichen Baustein-Nutzung stehen; verbindlich ist der Nachtrag.
+
 ## Migrations-/SQL-Auswirkungen
 
 Keine — reine Lesefunktion. Der neue AppSetting-Key `FaHierarchyKommissionierlistenAktiv` braucht
 keine Migration (generische Key-Value-Tabelle `AppSettings`, fehlender Key wird per Code-Default
-`false` behandelt).
+`false` behandelt). Die Summiert-Ansicht (Nachtrag 2026-08-13) aggregiert rein in C# ueber bereits
+geladene `FaHierarchyNode`/`FaHierarchyOrderInfo`-Daten — ebenfalls keine Migration.
 
 ## Audit-Feld-Auswirkungen
 
@@ -272,6 +293,10 @@ Struktur-Cache-Tabellen.
     nachweisbar durch die Service-/Controller-Signatur (Flag als Parameter statt Konstante) und
     durch tatsaechliche Wiederverwendung, sobald Teil 4/5 umgesetzt werden.
 
+> **Hinweis (Nachtrag 2026-08-13):** AK1, AK2 (Teil „genau eine Liste") und AK3 (Anomalie-Banner)
+> gelten mit dem `SubFA = 0`-Filter bzw. dem Banner, die beide entfernt wurden — sie sind durch die
+> neuen AK im Nachtrag am Dateiende ersetzt. AK4–AK11 bleiben unveraendert gueltig.
+
 ## Test-Szenarien
 
 Neues Kapitel „IDEAL Teil 3 — Kommissionierlisten" in `docs/TESTSZENARIEN.md`, zweigeteilt:
@@ -290,6 +315,9 @@ Neues Kapitel „IDEAL Teil 3 — Kommissionierlisten" in `docs/TESTSZENARIEN.md
 - Ein Spaltenfilter, der eine Gruppe komplett leert, laesst den Kopf verschwinden (AK6).
 - Druck bei leerer gefilterter Menge zeigt Hinweistext, kein leeres Blatt (AK8).
 - Zugriff ohne Rolle bzw. bei deaktiviertem Toggle → Redirect (AK9).
+
+> **Hinweis (Nachtrag 2026-08-13):** Die ersten drei Punkte (SubFA-Dedup, Anomalie-Log, Anomalie-
+> Banner) sind durch den Nachtrag hinfaellig und werden durch die dortigen Testfaelle ersetzt.
 
 **Manuell am IDEAL-Testsystem (Vorbedingung: produktivnahe Daten, siehe Deploy-Abschnitt —
 mit dem aktuell leeren Testsystem nicht durchfuehrbar):**
@@ -337,6 +365,9 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
    nicht nur geloggt, sondern als operator-sichtbares Banner in Bildschirmliste UND Druck ausgewiesen
    (Fachliche Anforderungen Punkt 3, AK3) — falls die Annahme falsch ist, faellt das auf, statt still
    Mengen verschwinden zu lassen.
+   **BEANTWORTET UND GESCHLOSSEN (2026-08-12/2026-08-13):** siehe „ENTSCHEIDUNG NACH ERSTEM
+   DATENLAUF (2026-08-12)" und „Nachtrag / Aenderung aus UAT (2026-08-13)" am Dateiende — die
+   Annahme war falsch, das Pflicht-Banner hat den Fall wie vorgesehen sichtbar gemacht.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -701,3 +732,258 @@ Verweis:
 - **T3-2P-H3 (Anomalie-Logging-Rauschen) — BEHOBEN.** Fachliche Anforderungen Punkt 3.1 und
   Loesungsentwurf Schritt 1 legen fest, dass die `ILogger`-Warnung je `HauptFA` und Request
   dedupliziert wird statt je betroffener Position erneut zu feuern.
+
+## ENTSCHEIDUNG NACH ERSTEM DATENLAUF (2026-08-12) — ueberschreibt die Arbeitsannahme
+
+**Die Arbeitsannahme `SubFA = 0` ist am realen Datenbestand WIDERLEGT.** Das Pflicht-Banner hat
+genau seine Aufgabe erfuellt: *„9 Position(en) mit gesetztem `Kommissionieren` auf Baugruppen-Ebene
+(`SubFA != 0`) ausgeschlossen — Datenpflege pruefen. Betroffene HauptFA: 1043153."* Es ist kein
+Pflegefehler, sondern der fachliche Normalfall.
+
+**Der `SubFA = 0`-Filter wird ERSATZLOS ENTFERNT.** Kommissioniert wird ausschliesslich nach
+`Kommissionieren IS NOT NULL AND <> ''` — auf **allen** Ebenen. Offene Rueckfrage 1 ist damit
+beantwortet und geschlossen.
+
+**Warum das keine Doppelzaehlung ist — und was daraus folgt:**
+Eine Baugruppe (`SubFA != 0`) und ihre Bestandteile sind **zwei verschiedene Kommissioniervorgaenge
+zu verschiedenen Zeitpunkten an verschiedenen Arbeitsplaetzen**:
+- Die **Bestandteile** werden geholt, um die Baugruppe zu **bauen** (im Beispiel `S-01`).
+- Die **fertige Baugruppe** wird geholt, um sie zu **verbauen** (im Beispiel `H1-03`).
+
+Daraus folgt zwingend: **Der Arbeitsbereich wird zur tragenden Dimension der Liste**, nicht nur zu
+einer Spalte. Ohne ihn mischt eine Liste zwei verschiedene Kommissionier-Auftraege, und der Werker
+holt Teile, die er nicht braucht. Konkret:
+- **Arbeitsbereich als Filter mit Auswahlliste** (nicht Freitext) prominent in der Filterkarte.
+- Sinnvoll als **Gruppierungsebene** innerhalb des `HauptFA` bzw. als eigener Reiter — beim ersten
+  echten Test mit dem Anwender pruefen, welche der beiden Formen bedienbar ist.
+
+**Anzupassen:**
+1. **Filter:** `SubFA = 0` raus, nur noch `Kommissionieren` gesetzt.
+2. **AK 2** neu: „Eine Position erscheint genau einmal je `HauptFA`-Gruppe. Positionen auf
+   Baugruppen-Ebene erscheinen ebenso wie Blattpositionen." Die Kopplung an die Arbeitsannahme
+   entfaellt.
+3. **AK 3 / Banner / Anomalie-Diagnose:** entfaellt ersatzlos — es gibt keine Anomalie mehr. Auch
+   die `ILogger`-Warnung samt Deduplizierung (H3) faellt weg.
+4. **Fachliche Anforderungen 2 und 3** entsprechend umschreiben; die Herleitung als **historisch**
+   kennzeichnen, nicht loeschen — sie erklaert, warum das Banner ueberhaupt gebaut wurde.
+5. **Teil 5 mitziehen:** Dort steht dieselbe Ebenenregel (aus Teil 3 uebernommen). Sie ist damit
+   ebenfalls hinfaellig — `VMBedarf` filtert ohne `SubFA`-Einschraenkung.
+
+**Das Banner hat sich bewaehrt.** Ohne die Pflicht-Vorgabe waeren die neun Positionen still
+verschwunden und der Fehler erst beim Anwender aufgefallen — vermutlich als fehlendes Material an
+der Endmontage. Das Muster „Annahme + sichtbare Anomalie-Meldung statt stillem Filter" gehoert
+deshalb in `secondbrain/architektur/muster/` als wiederverwendbares Vorgehen.
+
+## ERWEITERUNG (2026-08-12): Summierte Sicht auch fuer Kommissionierlisten
+
+Die Kommissionierliste bekommt — wie Teil 5 — **zwei Sichten**: Einzelpositionen (bisher) und
+**Summiert**. Das Muster existiert bereits in [[2026-07-29-standort-ideal-teil-5-spec]]:
+Aggregation nach **`Matchcode`**, Summen ueber `Sollmenge` **und** `Fertigungmenge` getrennt.
+
+**In den gemeinsamen Baustein, nicht in Teil 3 allein.** Teil 3 ist die Referenzimplementierung —
+die summierte Sicht gehoert daher in den geteilten Listen-Baustein, damit Teil 4 und Teil 5 sie
+**erben** statt sie ein zweites und drittes Mal zu bauen. Teil 5 braucht dann keine eigene
+Aggregationsmechanik mehr, nur noch die Konfiguration (`VMBedarf` statt `Kommissionieren`).
+
+**ACHTUNG — Falle, die durch das Entfernen des `SubFA = 0`-Filters neu entsteht:**
+Solange nur Blattpositionen in der Liste waren, war eine Summe unproblematisch. Jetzt enthaelt die
+Menge **Baugruppen UND deren Bestandteile**. Eine Summe ueber die gesamte Struktur addierte damit
+die Baugruppe **und** die Teile, aus denen sie besteht — fachlich sinnlos („eine Tuer plus die vier
+Bleche, aus denen die Tuer ist").
+
+**Verbindlich:** Die Summierung ist **immer auf einen Arbeitsbereich eingegrenzt** — nie ueber alle
+Ebenen und Bereiche hinweg. Innerhalb eines Arbeitsbereichs gilt genau ein Vorgang (dort bauen ODER
+dort verbauen), damit ist die Summe die Menge, die der Werker an diesen Platz holen muss — und genau
+das ist der Zweck der Sicht.
+Eine unbeschraenkte Gesamtsumme wird **nicht** angeboten. Wuerde sie angeboten, waere sie die Zahl,
+nach der jemand irgendwann disponiert.
+
+**Anzupassen:** In-Scope-Abschnitt (zwei Sichten), eigenes AK fuer die Aggregation (Schluessel
+`Matchcode`, getrennte Summen, Pflicht-Eingrenzung auf Arbeitsbereich), Baustein-Rolle (AK 11) um
+die summierte Sicht erweitern; `depends_on`-Hinweis in Teil 5, dass die Mechanik aus Teil 3 kommt.
+
+> **Hinweis (Nachtrag 2026-08-13):** Diese Erweiterung skizzierte den generischen Rahmen einer
+> Summiert-Sicht (uebernommen aus Teil 5: `Matchcode`, `Sollmenge`+`Fertigungmenge`, Arbeitsbereichs-
+> Eingrenzung). Fuer die Kommissionierliste selbst hat der Mensch in der UAT vom 2026-08-13 davon
+> abweichende, konkrete Regeln festgelegt (Aggregation nach `Artnr` statt `Matchcode`, nur
+> `Sollmenge`, Trennung nach `Kommissionieren`-Ziel statt/zusaetzlich zu Arbeitsbereich, KW-Filter
+> auf `KO_Termin` statt Arbeitsbereichs-Reiter) — siehe Aenderung 2 im Nachtrag am Dateiende. Diese
+> Erweiterung bleibt als Beleg des urspruenglichen, generischen Plans stehen; fuer Teil 3 gilt die
+> konkretere Fassung im Nachtrag.
+
+## ERGAENZUNG (2026-08-12): Spaltenauswahl anschliessen — in DIESEM Epic
+
+**Befund:** Die neuen IDEAL-Listen nutzen die bestehende Spalten-Mechanik der Anwendung nicht. Die
+Tabelle in `Views/FaHierarchyKommissionierListen/Index.cshtml` ist bereits richtig ausgezeichnet
+(`data-view-key`, `data-col-key` an jedem `<th>`, `filterable-table`), aber
+`column-preferences.js` wird nicht eingebunden — also kein Zahnrad, keine Spaltenauswahl, keine
+Breiten, keine gespeicherte Sortierung. Der Rest der Anwendung hat das ueberall
+(`ProductionOrders` u. a.).
+
+**Vorgabe: konsistent zum Bestehenden, gleiche Logik — anschliessen, nicht nachbauen.** Server-Seite
+(`UserViewPreferencesApiController`, `UserViewPreferenceRepository`, Persistenz je Benutzer) steht
+bereits und ist view-key-agnostisch. Es fehlen je View **drei Bloecke**, Vorlage
+`Views/ProductionOrders/Index.cshtml` (Dateiende): `<script type="application/json" id="view-config">`,
+`<script type="application/json" id="column-config">` und die Einbindung von
+`~/js/column-preferences.js` **vor** `table-filter.js`.
+
+**Gehoert in den gemeinsamen Baustein**, nicht in die Einzelview: Teil 3 schneidet ihn gerade —
+nimmt er die Bloecke auf, erben Teil 4 und Teil 5 sie kostenlos. Nachtraeglich sind es drei Views
+einzeln.
+
+**Konfiguration:** `locked: true` fuer die identifizierenden Spalten (`hauptfa`, `matchcode`);
+selten gebrauchte (`artikeltyp`, `material`, `beschichtet`) mit `defaultHidden: true`, weil die
+Liste mit elf Spalten breit ist. **Kein C#, keine Migration.** Details:
+[[2026-08-12-listen-spaltenauswahl]].
+
+**Ausgenommen: die FA-Struktur (Teil 2).** Sie ist ein div-Baum ohne ausgerichtete Spalten;
+`column-preferences.js` arbeitet ueber Spaltenindizes einer echten Tabelle. Dort ist zuerst die
+Tree-Table-Umstellung noetig — siehe [[2026-08-12-fa-struktur-darstellung]], bleibt ausserhalb
+dieses Epics.
+
+### Ursachenbehebung: ADR 0005 um das vollstaendige Listen-Paket ergaenzen
+
+**Warum es ueberhaupt gefehlt hat:** Die Spec hat den ADR-0005-Listenteil verlangt (Pagination,
+Filterkarte, Server-Side-Spaltenfilter) — die **Spaltenpraeferenzen aber nie erwaehnt**. Der
+Dev-Lauf hat exakt gebaut, was dastand. Das ist kein Einzelversehen, sondern ein Muster: Es
+wiederholt sich bei jeder neuen Liste, solange die Vollstaendigkeit nur im Gedaechtnis einzelner
+Menschen existiert und nicht im Muster selbst.
+
+**Deshalb wird ADR 0005 ergaenzt** — Spaltenpraeferenzen als **vierter, verbindlicher Bestandteil**:
+
+> Eine neue Liste ist erst vollstaendig, wenn sie **alle vier** Bestandteile hat:
+> (1) Pagination (`PageSize.Resolve` + `PaginationState` + `_Pagination`),
+> (2) Filterkarte,
+> (3) Server-Side-Spaltenfilter (`data-server-column-filter`, `data-col-key` je `<th>`),
+> (4) **Spaltenpraeferenzen** (`view-config` + `column-config` + `column-preferences.js`).
+
+Konkret in ADR 0005: den vierten Punkt in die Checkliste, `column-preferences.js` in die
+Dateiliste, und `Views/ProductionOrders/Index.cshtml` als Referenzimplementierung benennen.
+
+**Wirkung:** Jede kuenftige Spec, die „nach ADR 0005" sagt, verlangt damit automatisch auch die
+Spaltenauswahl — ohne dass es jemand erinnern muss. Das ist der eigentliche Fix; die drei Bloecke
+in den IDEAL-Views sind nur das Symptom.
+
+## Nachtrag / Aenderung aus UAT (2026-08-13)
+
+Zwei vom Menschen in der manuellen UAT (Schranke-2-Test) getroffene, verbindliche Aenderungen. Sie
+konkretisieren/ersetzen fuer Teil 3 die vorherigen Abschnitte „ENTSCHEIDUNG NACH ERSTEM DATENLAUF
+(2026-08-12)" und „ERWEITERUNG (2026-08-12): Summierte Sicht" — jene bleiben als historischer Beleg
+stehen, verbindlich ist ab hier dieser Nachtrag. Ebenso **ueberholt** sind Fachliche Anforderungen
+Punkt 2 (Blattregel `SubFA = 0`) und Punkt 3 (Anomalie-Diagnose/Banner) sowie die darauf gestuetzten
+Akzeptanzkriterien 1–3 — beide Punkte bleiben im Text stehen (mit Markierung), weil sie erklaeren,
+warum die Blatt-Annahme und das Banner ueberhaupt gebaut wurden und wie das Banner seine Aufgabe
+erfuellt hat (siehe „ENTSCHEIDUNG NACH ERSTEM DATENLAUF").
+
+### Aenderung 1 — SubFA=0-Blattannahme aufgehoben (aus UAT widerlegt)
+
+**Verbindliche Anforderung:** Es werden **alle** `FaHierarchyNode`-Positionen mit gesetztem
+`Kommissionieren` (`IS NOT NULL AND <> ''`) gelistet und gezaehlt, **unabhaengig von `SubFA`** —
+sowohl Blattpositionen (`SubFA = 0`) als auch Baugruppen-Zeilen (`SubFA != 0`). Das Anomalie-Banner
+(bisherige Fachliche Anforderung 3) **entfaellt vollstaendig**, ebenso die zugehoerige
+`ILogger`-Warnung samt Deduplizierung: es gibt keinen Ausnahmefall mehr, den es zu melden gaebe. Das
+`Kommissionieren`-Flag aus Sage ist die alleinige, massgebliche Quelle dafuer, ob eine Position
+kommissioniert wird — nicht die `SubFA`-Ebene.
+
+**Umsetzung ueber den gemeinsamen Baustein:** `KommissionierListenService.BuildAsync` ruft
+`FaHierarchyListBuilder.Build(...)` mit `leafOnly: false, anomalyOnNonLeaf: false` auf — exakt die
+Parametrisierung, die Teil 4 (Beschichtung) fuer denselben Baustein bereits verwendet. Der Baustein
+selbst (`FaHierarchyListBuilder`) unterstuetzt das bereits (Opt-in-Naht `leafOnly`/`anomalyOnNonLeaf`,
+Default `true`/`true` fuer Teil 3 bisher) — es ist eine Parameteraenderung am Aufrufer, keine
+Aenderung am Baustein. `GetTargetValuesAsync` (Quelle des Ziel-Dropdowns) ist konsistent mitzuziehen:
+die bisherige `n.SubFA == 0`-Einschraenkung dort entfaellt ebenfalls, sonst fehlen Ziel-Werte, die
+nur auf Baugruppen-Ebene vorkommen, weiterhin im Dropdown.
+
+**Caveat (zu dokumentieren, keine Design-Entscheidung mehr offen):** Traegt eine Baugruppe
+(`SubFA != 0`) **und** ihre Bestandteile (deren eigener Sub-FA) beide das `Kommissionieren`-Flag,
+erscheinen beide als eigene Zeilen/Gruppen — das ist **beabsichtigt** (zwei verschiedene
+Kommissioniervorgaenge an verschiedenen Arbeitsplaetzen, siehe „ENTSCHEIDUNG NACH ERSTEM
+DATENLAUF"), **keine** Doppelzaehlung im Sinne eines Bugs. Die Mengen-Richtigkeit einer **Summe**
+ueber mehrere Ebenen hinweg liegt damit in der Sage-Datenpflege (korrekte `Kommissionieren`-Zuweisung
+je Ebene) — bei der UAT sind Summen gegen die Realitaet zu pruefen (siehe Test-Szenarien unten).
+
+**Akzeptanzkriterien:**
+- N1a. Eine synthetische Fixture mit zwei Zeilen desselben `HauptFA` — einer Baugruppen-Zeile
+  (`SubFA != 0`, `Kommissionieren` gesetzt) und einer Blattzeile (`SubFA = 0`, `Kommissionieren`
+  gesetzt) — zeigt **beide** Zeilen in der Kommissionierliste (Bildschirm und Druck).
+- N1b. Bei derselben Fixture erscheint **kein** Anomalie-Banner (weder Bildschirm noch Druck) und es
+  wird **keine** `ILogger`-Warnung erzeugt.
+- N1c. `FaHierarchyKommissionierGruppeViewModel`/`FaHierarchyKommissionierPrintViewModel` fuehren
+  kein Anomalie-Feld mehr (bzw. es bleibt strukturell leer/ungenutzt und wird nicht mehr gerendert).
+- N1d. Das Ziel-Dropdown (`GetTargetValuesAsync`) enthaelt auch `Kommissionieren`-Werte, die nur auf
+  `SubFA != 0`-Zeilen vorkommen.
+- N1e. `FaHierarchyListBuilder.Build` wird im `KommissionierListenService` nachweisbar mit
+  `leafOnly: false, anomalyOnNonLeaf: false` aufgerufen (Code-Review/Unit-Test der Aufrufstelle).
+
+### Aenderung 2 — neue „Summiert"-Ansicht fuer die Kommissionierliste
+
+**Verbindliche Anforderung:** Zweite Ansicht/Action `Summiert` am
+`FaHierarchyKommissionierListenController` (analog zur Vormontage-Sicht 2
+`FaHierarchyVormontageController.Summiert`, aber mit eigenen, fuer die Kommissionierliste
+spezifischen Regeln — **nicht** identisch zu Teil 5 uebernehmen):
+- **Aggregation:** je `HauptFA`, gruppiert nach **Artikelnummer (`Artnr`)**, summiert **nur
+  `Sollmenge`** (kein `Fertigungmenge`-Pendant wie in Teil 5), **je Kommissionierziel
+  (`Kommissionieren`-Wert) getrennt** — eine Aggregatzeile ist damit eindeutig durch
+  `(HauptFA, Artnr, Kommissionieren)` bestimmt.
+- **KW-Zeitraum-Eingabe:** ein Eingabefeld-Paar (Kalenderwoche von/bis, ISO-Kalenderwoche Mo–So),
+  analog zu den Datumsfeldern der uebrigen Listen (Filterkarte). Die KW waehlt die einzubeziehenden
+  `HauptFA` aus: alle `HauptFA`, deren zugehoerige(s) `FaHierarchyOrderInfo.KO_Termin` in die
+  gewaehlte Kalenderwoche(n) faellt. Danach erfolgt die Summenbildung je `HauptFA`/`Artnr`/Ziel
+  ausschliesslich innerhalb dieser vorgefilterten `HauptFA`-Menge.
+- **`KO_Termin`-Definition bleibt unveraendert** (weiterhin der Konstruktions-Termin aus Teil 1/
+  Anhang) — der Mensch hat am 2026-08-13 ausdruecklich bestaetigt, dass fuer den KW-Filter genau
+  dieses Feld verwendet wird, **keine** Aenderung an dessen Berechnung/Herkunft.
+- **ADR 0005 vollstaendig:** Pagination (Seiteneinheit = Aggregatzeile, analog Teil 5 Sicht 2),
+  Filterkarte (inkl. KW-von/KW-bis und Ziel-Dropdown), Server-Side-Spaltenfilter auf der
+  Aggregat-Projektion, Spaltenpraeferenzen (`view-config`/`column-config`/`column-preferences.js`,
+  siehe ADR-0005-Ergaenzung oben).
+- **Zugriffsschutz/Toggle identisch zur bestehenden Kommissionier-Ansicht:**
+  `RequireLagerProcessingAccessAttribute` + `RequireFaHierarchyKommissionierlistenAktivAttribute`
+  (kein eigener Toggle, keine neue Rolle).
+
+**Akzeptanzkriterien:**
+- N2a. Eine synthetische Fixture mit zwei Positionszeilen desselben `HauptFA`, derselben `Artnr` und
+  demselben Kommissionierziel liefert **eine** Aggregatzeile mit der **Summe** der `Sollmenge`
+  beider Zeilen.
+- N2b. Zwei Zeilen mit derselben `Artnr`, aber **unterschiedlichem** Kommissionierziel, liefern
+  **zwei getrennte** Aggregatzeilen (keine Vermischung ueber Ziele hinweg).
+- N2c. Ein `HauptFA`, dessen `FaHierarchyOrderInfo.KO_Termin` **ausserhalb** der gewaehlten
+  KW-Zeitraum-Eingabe liegt, erscheint in der Summiert-Ansicht **nicht** (auch wenn er passende
+  `Kommissionieren`-Positionen haette); ein `HauptFA` **innerhalb** der KW erscheint vollstaendig.
+- N2d. Ohne KW-Eingabe zeigt die Ansicht ein definiertes Verhalten (z. B. Hinweistext „Kalenderwoche
+  eingeben" statt einer ungefilterten Gesamtsumme) — es gibt **keine** implizite Gesamtsumme ueber
+  alle `HauptFA` hinweg.
+- N2e. Zugriff nur mit `RequireLagerProcessingAccessAttribute` **und** aktivem Toggle
+  `FaHierarchyKommissionierlistenAktiv`; identisches Verhalten wie bei `Index`/`Print` bei fehlender
+  Rolle/inaktivem Toggle.
+- N2f. Die Ansicht erfuellt ADR 0005 vollstaendig (Pagination, Filterkarte, Server-Spaltenfilter,
+  Spaltenpraeferenzen) — code-pruefbar analog zu AK5 der bestehenden Liste.
+
+### Bezug zu den ueberholten Anforderungen
+
+Fachliche Anforderungen 2 und 3 sowie Akzeptanzkriterien 1–3 (weiter oben im Dokument, jeweils mit
+`[UEBERHOLT ...]`-Markierung versehen) beschreiben die urspruengliche, durch die UAT widerlegte
+`SubFA = 0`-Blattregel samt Pflicht-Anomalie-Banner. Sie werden **nicht geloescht** — sie bleiben als
+historischer Beleg dafuer stehen, dass die Blattregel bewusst als Arbeitsannahme mit eingebauter
+Absicherung (Banner) gebaut wurde, und dass genau diese Absicherung in der Praxis (2026-08-12,
+„9 Position(en) ... ausgeschlossen") ihre Aufgabe erfuellt hat, bevor sie mit diesem Nachtrag
+ersatzlos entfaellt. Verbindlich fuer die weitere Umsetzung sind ab diesem Nachtrag ausschliesslich
+Aenderung 1 und Aenderung 2 oben.
+
+### Test-Szenarien (Ergaenzung)
+
+Neue Faelle fuer `docs/TESTSZENARIEN.md`, Kapitel „IDEAL Teil 3 — Kommissionierlisten":
+- Baugruppen-Zeile (`SubFA != 0`) mit gesetztem `Kommissionieren` erscheint in Liste und Druck, kein
+  Anomalie-Banner, kein Log-Eintrag (N1a/N1b).
+- Ziel-Dropdown enthaelt einen Wert, der nur auf einer `SubFA != 0`-Zeile vorkommt (N1d).
+- Summiert-Ansicht: zwei Zeilen gleiche `Artnr`/gleiches Ziel → eine Summenzeile; gleiche
+  `Artnr`/unterschiedliches Ziel → zwei Zeilen (N2a/N2b).
+- Summiert-Ansicht: `HauptFA` ausserhalb der gewaehlten KW (`KO_Termin`) fehlt vollstaendig; `HauptFA`
+  innerhalb der KW ist vollstaendig enthalten (N2c).
+- Summiert-Ansicht ohne KW-Eingabe zeigt Hinweistext statt Gesamtsumme (N2d).
+- **Manuell am IDEAL-Testsystem:** Mengenabgleich der Summiert-Ansicht gegen eine bekannte
+  Baugruppe/Bestandteile-Konstellation (Caveat aus Aenderung 1) — bestaetigt, dass Doppel-Erfassung
+  in Sage (Baugruppe UND Bestandteile mit `Kommissionieren`) korrekt beide Vorgaenge abbildet und
+  nicht faelschlich als ein Vorgang summiert wird.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
