@@ -4,7 +4,7 @@ title: "Uebersicht: IDEAL-Standort live schalten — hierarchische Produktionsau
 slug: 2026-07-29-standort-ideal-uebersicht
 status: Testbereit
 created: 2026-08-06
-updated: 2026-08-12
+updated: 2026-08-13
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 epic: true
 task: "[[2026-08-07-ideal-teile-1-5]]"
@@ -697,3 +697,151 @@ Vormontage Sicht 1 + Sicht 2):**
 Nach erfolgreichem Durchlauf (Punkte 1–12 der 2026-08-10-Runde **und** 13–25 hier): Merge (Schranke
 2, ausschliesslich durch den Menschen; dieser QA-Lauf merged nicht, pusht nicht, loescht den
 Worktree nicht).
+
+## QA-Abnahme Gesamtstand inkl. Etappe 8 (2026-08-13) — status: Testbereit
+
+Re-QA nach der ersten manuellen UAT-Runde am IDEAL-Testsystem: Etappe 8 (Commit `e83eb1c`) setzt
+zwei vom Menschen in der UAT (2026-08-13) getroffene, verbindliche Entscheidungen um — siehe die
+Nachtraege „## Nachtrag / Aenderung aus UAT (2026-08-13)" in
+[[2026-07-29-standort-ideal-teil-3-spec]] und [[2026-07-29-standort-ideal-teil-5-spec]]. Gepruefter
+Commit: **`e83eb1c`** (Branch `feature/2026-08-07-ideal-teile-1-5`, Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`). Version bleibt **v1.31.0** — kein neuer Bump
+(verifiziert: `git diff 767f06f..e83eb1c -- IdealAkeWms/AppVersion.cs IDEALAKEWMSService/AppVersion.cs`
+liefert keinen Treffer). Der QA-Nachweis vom 2026-08-12 (Commit `767f06f`) oben ist damit fuer
+Build-/Testzahlen und Status **ueberholt**, bleibt aber inhaltlich gueltig fuer Etappe 1–7 (Code,
+Migration, Deploy-Grundlagen) — nichts davon wurde durch Etappe 8 veraendert.
+
+### Build- und Test-Beweis (Worktree, Commit `e83eb1c`)
+
+```
+dotnet build IdealAkeWms.slnx
+  Der Buildvorgang wurde erfolgreich ausgeführt. 0 Fehler, 9 vorbestehende Warnungen
+  (identisch zu den fruoheren Nachweisen: NU1902 MailKit/MimeKit, 1x CS8602 TrackingController).
+
+dotnet test
+  IdealAkeWms.Tests:        Fehler: 0, erfolgreich: 1174, uebersprungen: 1, gesamt: 1175
+  IDEALAKEWMSService.Tests: Fehler: 0, erfolgreich:  221, uebersprungen: 0, gesamt:  221
+```
+
+Beide Suiten gruen, exakt die erwartete Groessenordnung (Web ~1174, Service 221 unveraendert — Etappe
+8 ist reines Web). Zuwachs gegenueber dem `767f06f`-Stand (Web 1147): **+27 Web-Tests**
+(`KommissionierListenServiceTests` neu + erweitert, `VormontageServiceTests` erweitert,
+`IsoWeekRangeTests` neu — 4 Testfaelle fuer den neuen ISO-Wochen-Helfer). Service-Tests unveraendert
+bei 221 (keine Service-Aenderung). Der eine uebersprungene Test ist weiterhin der vorbestehende,
+epic-unabhaengige `ProductionOrderEagerCreateAgentJobTests`-Fall.
+
+### Diff-Check — Etappe 8 real-diff-verifiziert (reine Web-Aenderung, kein Service/Migration/Version-Bump)
+
+`git diff --stat 767f06f..e83eb1c` (18 Dateien, +1090/-143):
+- **Neu:** `IdealAkeWms.Tests/Services/IsoWeekRangeTests.cs`,
+  `IdealAkeWms.Tests/Services/KommissionierListenServiceTests.cs`,
+  `IdealAkeWms/Services/IsoWeekRange.cs` (neuer ISO-Wochen-Helfer, Mo–So-Grenzen),
+  `IdealAkeWms/Models/ViewModels/FaHierarchyKommissionierSummiertViewModel.cs`,
+  `IdealAkeWms/Views/FaHierarchyKommissionierListen/Summiert.cshtml`.
+- **Geaendert:** `KommissionierListenService.cs`, `VormontageService.cs`,
+  `FaHierarchyKommissionierListenController.cs`, `FaHierarchyVormontageController.cs`, drei
+  ViewModels (`FaHierarchyKommissionierGruppeViewModel`, `FaHierarchyVormontageAggregatViewModel`,
+  `FaHierarchyVormontageGruppeViewModel`), vier Views (`FaHierarchyKommissionierListen/Index.cshtml`
+  + `Print.cshtml`, `FaHierarchyVormontage/Index.cshtml` + `Summiert.cshtml`),
+  `IdealAkeWms.Tests/Services/VormontageServiceTests.cs`, `docs/TESTSZENARIEN.md`.
+- **Bestaetigt (explizit gegengeprueft):** `git diff --stat 767f06f..e83eb1c -- IDEALAKEWMSService/`
+  liefert **keinen** Treffer (keine Service-Aenderung); `-- */Migrations/* SQL/*` liefert **keinen**
+  Treffer (keine Migration); `-- IdealAkeWms/AppVersion.cs IDEALAKEWMSService/AppVersion.cs` liefert
+  **keinen** Treffer (kein Version-Bump). Etappe 8 ist damit — wie in der Aufgabe erwartet —
+  ausschliesslich Web (Services/Controllers/Views/ViewModels + IsoWeek-Helfer) + Tests +
+  `docs/TESTSZENARIEN.md`.
+
+### Testszenarien
+
+`<worktree>\docs\TESTSZENARIEN.md` traegt neu Kapitel-Ergaenzung „UAT-Anpassung 2026-08-13
+(Etappe 8)" bei Kapitel 59 (TS-59.30 – 59.40: alle Ebenen gelistet ohne Banner, Ziel-Dropdown
+unabhaengig von SubFA, Summiert-Aggregation je HauptFA/Artnr/Ziel, KW-Filter auf `KO_Termin`,
+Verhalten ohne KW, IsoWeekRange-Aufloesung, plus drei manuelle Faelle TS-59.38 – 59.40) sowie
+punktuelle Aktualisierungen in Kapitel 61 (TS-61.2, 61.6, 61.10, neu TS-61.10b, TS-61.17, neu
+TS-61.17b — SubFA-Blattfilter entfernt, KW-Filter auf `FE_Termin`). `secondbrain/tests/
+testszenarien-index.md` (Hauptcheckout, diese QA-Runde) nachgezogen: Zeile 59 und Zeile 61 um die
+Etappe-8-Aenderungen erweitert (Verweis auf die Teil-3/5-Nachtraege, neue Testklassen
+`KommissionierListenServiceTests`/`IsoWeekRangeTests`, erweiterte `VormontageServiceTests`), Zeile
+in „Kapitel mit besonderem Gewicht" (57–61) aktualisiert — die SubFA=0-Blattregel ist jetzt als
+durch die UAT widerlegt/entfernt dokumentiert, verbleibender manueller Rest ist der
+Doppelzaehl-Mengenabgleich. `updated: 2026-08-13`.
+
+### CLAUDE.md-Checkliste — Etappe 8 (Delta zum `767f06f`-Nachweis)
+
+- **Migration:** keine — `SQL/89_AddFaHierarchy.sql` bleibt der einzige Migrationsstand des Epics.
+- **Audit-Felder:** entfaellt — keine neuen/geaenderten Entitaeten (nur ViewModels/Services).
+- **Version-Bump:** bewusst keiner — Buendel bleibt v1.31.0, verifiziert (s. Diff-Check oben).
+- **`docs/TESTSZENARIEN.md`:** aktualisiert, s. o.
+- **`secondbrain/tests/testszenarien-index.md`:** nachgezogen, s. o.
+- **Rollen/Filter/Toggles:** unveraendert — Etappe 8 nutzt ausschliesslich die bestehenden
+  `[RequireLagerProcessingAccess]`/`FaHierarchyKommissionierlistenAktiv` (Kommissionierliste) und
+  `[RequireVorbauAccess]`/`FaHierarchyVormontageAktiv` (Vormontage); keine neue Rolle, kein neuer
+  Toggle-Key, kein Drift-Guard-Delta.
+
+### Skill-Durchlauf
+
+`superpowers:verification-before-completion` (Build+Test frisch ausgefuehrt vor dieser Behauptung,
+Ergebnisse oben) und Selbst-Code-Review des Diffs `767f06f..e83eb1c` durchlaufen — keine neuen
+Befunde ueber die bereits im `93e54c4`-Nachweis dokumentierte Schema-Praefix-Anmerkung hinaus (die
+ist laengst durch den Pre-Merge-Fix `28cd3f6` behoben); die Aufrufstellen von
+`FaHierarchyListBuilder.Build` in `KommissionierListenService`/`VormontageService` uebergeben
+`leafOnly:false, anomalyOnNonLeaf:false` exakt wie in den Teil-3/5-Nachtraegen gefordert (N1e-Analogon
+code-gepruefte Aufrufsignatur); der neue `IsoWeekRange`-Helfer wird von beiden Services konsistent
+verwendet (keine duplizierte KW-Logik).
+
+### Deploy — unveraendert (Etappe 8 ist reine Web-Aenderung, kein neuer Service-/Migrations-Anteil)
+
+Die Deploy-Angaben bleiben **unveraendert gueltig** fuer den Gesamtstand — `deploy.web = true`,
+`deploy.service = true`, `deploy.migration = true` stammen weiterhin aus Teil 1 (Service-Sync +
+Migration `SQL/89`) und Teil 2–5 (Web). Etappe 8 fuegt dem **keine** zusaetzliche Service- oder
+Migrations-Pflicht hinzu (Diff-Check oben) — sie ist eine rein additive Web-Aenderung
+(Services/Controllers/Views/ViewModels), die mit demselben Web-Publish-Befehl mitgeht:
+
+```powershell
+cd C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+
+Nach dem Merge (Schranke 2) nur dann erneut aus `main` publizieren, wenn der Merge tatsaechlich
+getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (sonst reicht der bereits
+getestete Worktree-Stand `e83eb1c`). Migrations-Reihenfolge, RCSI-Vorbedingung, View-Namen- und
+Toggle-Konfiguration: unveraendert wie im Deploy-Abschnitt der 2026-08-10-Runde oben beschrieben.
+
+### Manuelle Test-Checkliste — Ergaenzung Etappe 8 (die Punkte 1–25 der bisherigen Runden bleiben vollstaendig gueltig; Punkte 7 und 9 der 2026-08-10-Runde sind durch die Etappe-8-Aenderung inhaltlich ueberholt — SubFA=0-Blattannahme + Banner sind entfallen — aber weiterhin als Beleg der urspruenglichen Arbeitsannahme stehen gelassen)
+
+26. **SubFA-Sperre weg, Anomalie-Banner weg (Kommissionierliste UND Vormontage):** auf
+    `/FaHierarchyKommissionierListen` und `/FaHierarchyVormontage/Index` pruefen, dass **alle**
+    Positionen mit gesetztem Flag (`Kommissionieren` bzw. `VMBedarf`) erscheinen — **auch** Zeilen mit
+    `SubFA != 0` (Baugruppen-Ebene), nicht nur Blattzeilen (`SubFA = 0`). Das fruehere
+    Anomalie-Warnbanner (Bildschirm **und** Druck) ist an einer bekannten Baugruppen-Konstellation
+    **nicht mehr sichtbar**, und im Server-Log erscheint dazu **keine** `ILogger`-Warnung mehr.
+27. **Kommissionier-Summiert (`/FaHierarchyKommissionierListen/Summiert`):** Umschaltung
+    „Liste ↔ Summiert" bedienen. Aggregation ist **je `HauptFA`**, gruppiert nach **Artikelnummer**,
+    summiert **nur `Sollmenge`** (kein Fertigungmenge-Pendant), **je Kommissionierziel getrennt** —
+    zwei Zeilen mit derselben Artnr aber unterschiedlichem Ziel duerfen sich **nicht** vermischen.
+    Der KW-Filter (Kalenderwoche von/bis) wirkt auf `FaHierarchyOrderInfo.KO_Termin`: nur `HauptFA`,
+    deren `KO_Termin` in der gewaehlten Woche liegt, fliessen ein. **Ohne KW-Eingabe bleibt die
+    Ansicht bewusst leer** (Hinweistext statt einer ungefilterten Gesamtsumme) — das ist kein Bug.
+28. **Vormontage-Summiert (`/FaHierarchyVormontage/Summiert`):** der KW-Filter wirkt hier auf
+    `FaHierarchyOrderInfo.FE_Termin` (nicht `KO_Termin`, nicht `Neuer_PT_PPS`). Schluessel bleibt
+    **Matchcode** (nicht Artikelnummer), **`HauptFA` wird bei der Aggregation bewusst ignoriert** —
+    die Summen laufen ueber **alle** Strukturen der gewaehlten Woche hinweg, nicht je Auftrag
+    getrennt. Zwei `HauptFA` mit unterschiedlicher KW und gleichem Matchcode: bei Filterung auf eine
+    Woche darf nur die Menge des passenden `HauptFA` einfliessen.
+29. **Doppelzaehl-Check (Sage-Datenpflege, kein Code-Bug):** an einer bekannten Struktur mit einer
+    Baugruppe **und** ihren Bestandteilen, bei der **beide** Ebenen das jeweilige Flag
+    (`Kommissionieren` bzw. `VMBedarf`) tragen, die summierten/gelisteten Mengen gegen die Realitaet
+    pruefen. Beide Ebenen als eigene Zeilen/Vorgaenge zu zeigen ist **beabsichtigt** (zwei
+    verschiedene Arbeitsschritte an unterschiedlichen Arbeitsplaetzen/Zeitpunkten) — keine
+    faelschliche Verdopplung im Sinne eines Fehlers. Stimmt eine Summe nicht mit der Realitaet
+    ueberein, liegt die Ursache in der Sage-`Kommissionieren`/`VMBedarf`-Zuweisung je Ebene, nicht im
+    WMS-Code.
+30. **ISO-Wochen-Grenzen Montag–Sonntag:** an beiden neuen KW-Filtern (Kommissionier-Summiert
+    `KO_Termin`, Vormontage-Summiert `FE_Termin`) pruefen, dass ein Termin am Montag der gewaehlten
+    Woche eingeschlossen und ein Termin am folgenden Montag (Beginn der naechsten Woche)
+    **ausgeschlossen** ist — die Wochengrenze ist ISO (Mo–So), nicht Sonntag–Samstag.
+
+Nach erfolgreichem Durchlauf (Punkte 1–12 der 2026-08-10-Runde, 13–25 der 2026-08-12-Runde **und**
+26–30 hier): Merge (Schranke 2, ausschliesslich durch den Menschen; dieser QA-Lauf merged nicht,
+pusht nicht, loescht den Worktree nicht).
