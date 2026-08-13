@@ -12,14 +12,15 @@ namespace IdealAkeWms.Services;
 
 /// <summary>
 /// <b>Teil-5-spezifische Schicht fuer die IDEAL-Vormontage-Listen.</b> Bedient <b>zwei</b> Sichten
-/// auf dieselbe Blattbasis (Blattpositionen <c>SubFA = 0</c> mit gesetztem <c>VMBedarf</c>):
+/// auf dieselbe Basis (alle Positionen mit gesetztem <c>VMBedarf</c>, unabhaengig von <c>SubFA</c> —
+/// Nachtrag 2026-08-13, Aenderung 1):
 /// <list type="number">
 ///   <item><b>Sicht 1 — Einzelne Teile</b>: nutzt den gemeinsamen
-///     <see cref="FaHierarchyListBuilder"/> <b>unveraendert wieder</b> (wie Teil 3, also
-///     <c>leafOnly: true</c> + <c>anomalyOnNonLeaf: true</c>) — Blattfilter, Anomalie-Banner/-Log,
-///     Fan-out-freier Kopf-Join, Gruppierung + Gruppen-Paging nach <c>HauptFA</c> stammen komplett
-///     aus dem Baustein. Teilspezifisch sind nur das Flag-Praedikat (<c>VMBedarf</c> gesetzt,
-///     optional auf einen Reiter eingeschraenkt) und die <see cref="ColumnMap"/>.</item>
+///     <see cref="FaHierarchyListBuilder"/> mit <c>leafOnly: false</c> + <c>anomalyOnNonLeaf: false</c>
+///     (wie Teil 4) — kein Blattfilter, kein Anomalie-Banner; Fan-out-freier Kopf-Join, Gruppierung +
+///     Gruppen-Paging nach <c>HauptFA</c> stammen aus dem Baustein. Teilspezifisch sind nur das
+///     Flag-Praedikat (<c>VMBedarf</c> gesetzt, optional auf einen Reiter eingeschraenkt) und die
+///     <see cref="ColumnMap"/>.</item>
 ///   <item><b>Sicht 2 — Summiert</b>: <b>eigene Aggregat-Logik</b> (nicht ueber den Baustein), da
 ///     eine Matchcode-Aggregatzeile per Definition zu mehreren <c>HauptFA</c> gehoert. Aggregiert
 ///     je <c>VMBedarf</c>-Reiter nach <b>Matchcode</b> mit zwei getrennten Summen
@@ -32,10 +33,11 @@ namespace IdealAkeWms.Services;
 /// <c>VMBedarf IS NOT NULL AND VMBedarf &lt;&gt; ''</c>; die Reiter-Liste unterliegt demselben
 /// Ausschluss (kein leerer „(kein Bereich)"-Reiter).</para>
 ///
-/// <para><b>Wochenbezug <c>Neuer_PT_PPS</c>:</b> in dieser Fassung <b>bewusst NICHT als Filter</b>
-/// umgesetzt (Spec Teil 5, Fachliche Anforderung 6 / Offene Rueckfrage 1 — die Filter-Semantik ist
-/// noch offen). <c>Neuer_PT_PPS</c> erscheint hoechstens als reine Anzeige im Kopf (Sicht 1, aus dem
-/// ohnehin geladenen Kopf-Join), niemals als Mengen-Einschraenkung.</para>
+/// <para><b>Wochenbezug (Nachtrag 2026-08-13, Aenderung 2):</b> KW-Zeitraum-Filter auf
+/// <see cref="FaHierarchyOrderInfo.FE_Termin"/> (ISO-Woche Mo–So, ueber
+/// <see cref="IsoWeekRange"/>), fan-out-frei ueber die HauptFA-Menge gebunden. In <b>Sicht 2</b>
+/// wirkt er VOR der Matchcode-Aggregation; in <b>Sicht 1</b> steht er optional zur konsistenten
+/// Bedienbarkeit zur Verfuegung.</para>
 ///
 /// <para><b>Mehrdeutigkeit (Kombigeraet):</b> existieren zu einem <c>HauptFA</c> mehrere FAInfos-
 /// Zeilen, fuehrt Sicht 1 alle Kopfvarianten im Klartext auf und kennzeichnet die Gruppe als
@@ -117,15 +119,19 @@ public class VormontageService
     }
 
     /// <summary>
-    /// Distinct-Liste der am Datenbestand vorkommenden <c>VMBedarf</c>-Arbeitsbereiche (nur
-    /// Blattpositionen <c>SubFA = 0</c>), alphabetisch — Quelle der Reiter. Derselbe NULL/Leer-
-    /// Ausschluss wie der Filter, damit kein leerer Reiter entsteht (AK 1).
+    /// Distinct-Liste der am Datenbestand vorkommenden <c>VMBedarf</c>-Arbeitsbereiche, alphabetisch
+    /// — Quelle der Reiter. Derselbe NULL/Leer-Ausschluss wie der Filter, damit kein leerer Reiter
+    /// entsteht (AK 1).
+    ///
+    /// <para><b>Nachtrag 2026-08-13, Aenderung 1:</b> Die fruehere <c>SubFA = 0</c>-Einschraenkung
+    /// entfaellt — <c>VMBedarf</c>-Werte, die nur auf Baugruppen-Ebene (<c>SubFA != 0</c>) vorkommen,
+    /// erzeugen jetzt ebenfalls einen Reiter (Positionen werden unabhaengig von <c>SubFA</c> gelistet).</para>
     /// </summary>
     public async Task<List<string>> GetBereicheAsync()
     {
         var allNodes = await _nodes.GetAllAsync();
         return allNodes
-            .Where(n => n.SubFA == 0 && !string.IsNullOrWhiteSpace(n.VMBedarf))
+            .Where(n => !string.IsNullOrWhiteSpace(n.VMBedarf))
             .Select(n => n.VMBedarf!.Trim())
             .Where(v => v.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -134,12 +140,19 @@ public class VormontageService
     }
 
     /// <summary>
-    /// <b>Sicht 1 — Einzelne Teile.</b> Baut die gruppierte Blattpositionsliste ueber den
-    /// gemeinsamen Baustein (Blattfilter + Anomalie an, wie Teil 3), optional auf einen Reiter
-    /// eingeschraenkt. Schreibt fuer jede mehrdeutige Gruppe eine <see cref="ILogger"/>-Warnung.
+    /// <b>Sicht 1 — Einzelne Teile.</b> Baut die gruppierte Positionsliste ueber den gemeinsamen
+    /// Baustein, optional auf einen Reiter eingeschraenkt. Schreibt fuer jede mehrdeutige Gruppe eine
+    /// <see cref="ILogger"/>-Warnung.
+    ///
+    /// <para><b>Nachtrag 2026-08-13, Aenderung 1:</b> Aufruf mit
+    /// <c>leafOnly: false, anomalyOnNonLeaf: false</c> (wie Teil 4) — ALLE Positionen mit gesetztem
+    /// <c>VMBedarf</c>, unabhaengig von <c>SubFA</c>; kein Blattfilter, kein Anomalie-Banner mehr.</para>
+    /// <para><b>Aenderung 2:</b> Optionaler KW-Vorfilter auf <see cref="FaHierarchyOrderInfo.FE_Termin"/>
+    /// (fan-out-frei ueber die HauptFA-Menge) — in Sicht 1 nur zur konsistenten Bedienbarkeit.</para>
     /// </summary>
     public async Task<FaHierarchyListResult> BuildEinzelteileAsync(
         string? bereich,
+        (DateTime StartInclusive, DateTime EndExclusive)? kwRange,
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
@@ -149,36 +162,50 @@ public class VormontageService
         var allInfos = await _orderInfos.GetAllAsync();
         var predicate = BuildFlagPredicate(bereich);
 
+        // (Aenderung 2) KW-Vorfilter auf FE_Termin: nur Positionen der HauptFAs in der KW.
+        IEnumerable<FaHierarchyNode> nodes = allNodes;
+        if (kwRange is not null)
+        {
+            var included = IsoWeekRange.HauptFasInRange(allInfos, o => o.FE_Termin, kwRange.Value);
+            nodes = allNodes.Where(n => included.Contains(n.HauptFA));
+        }
+
         var result = _builder.Build(
-            allNodes, allInfos, predicate, FlagName,
+            nodes, allInfos, predicate, FlagName,
             columnFilters, ColumnMap, page, pageSize, paginate,
-            leafOnly: true, anomalyOnNonLeaf: true);
+            leafOnly: false, anomalyOnNonLeaf: false);
 
         LogAmbiguities(result.Groups);
         return result;
     }
 
     /// <summary>
-    /// <b>Sicht 2 — Summiert.</b> Laedt die Positionen und delegiert an die reine, DB-freie
-    /// <see cref="AggregateSummiert"/>.
+    /// <b>Sicht 2 — Summiert.</b> Laedt die Positionen + Kopfzeilen und delegiert an die reine,
+    /// DB-freie <see cref="AggregateSummiert"/>.
     /// </summary>
     public async Task<FaHierarchyVormontageAggregatResult> BuildSummiertAsync(
         string? bereich,
+        (DateTime StartInclusive, DateTime EndExclusive)? kwRange,
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
         bool paginate)
     {
         var allNodes = await _nodes.GetAllAsync();
-        return AggregateSummiert(allNodes, bereich, columnFilters, page, pageSize, paginate);
+        var allInfos = await _orderInfos.GetAllAsync();
+        return AggregateSummiert(allNodes, allInfos, bereich, kwRange, columnFilters, page, pageSize, paginate);
     }
 
     /// <summary>
     /// <b>Reine, DB-freie Aggregations-Mechanik der Summierten Sicht</b> (unit-testbar). Reihenfolge
-    /// exakt nach Spec Teil 5, Loesungsentwurf Sicht 2:
+    /// nach Spec Teil 5, Loesungsentwurf Sicht 2 + Nachtrag 2026-08-13:
     /// <list type="number">
-    ///   <item>Blattbasis wie Sicht 1: <c>SubFA = 0</c> + gesetztes <c>VMBedarf</c> + aktueller Reiter.</item>
-    ///   <item>(Wochenfilter: bewusst NICHT umgesetzt — Offene Rueckfrage 1.)</item>
+    ///   <item>Basis: gesetztes <c>VMBedarf</c> + aktueller Reiter — <b>unabhaengig von <c>SubFA</c></b>
+    ///     (Aenderung 1).</item>
+    ///   <item><b>KW-Vorfilter (Aenderung 2):</b> nur Positionen der HauptFAs, deren
+    ///     <see cref="FaHierarchyOrderInfo.FE_Termin"/> in der ISO-Woche (Mo–So) liegt — VOR der
+    ///     Aggregation, fan-out-frei; <c>HauptFA</c> selbst bleibt Aggregations-neutral (die Summe
+    ///     laeuft ueber alle HauptFA des Reiters).</item>
     ///   <item>Gruppieren nach <c>Matchcode</c>; <c>Sollmenge</c> UND <c>Fertigungmenge</c> je Gruppe summieren.</item>
     ///   <item>Server-Spaltenfilter auf der Aggregat-Projektion (Matchcode + zwei Summen).</item>
     ///   <item>Paging auf Aggregatzeilen-Ebene; <c>TotalRowCount</c> zaehlt Aggregatzeilen NACH Filter.</item>
@@ -188,7 +215,9 @@ public class VormontageService
     /// </summary>
     public static FaHierarchyVormontageAggregatResult AggregateSummiert(
         IEnumerable<FaHierarchyNode> allNodes,
+        IEnumerable<FaHierarchyOrderInfo> allInfos,
         string? bereich,
+        (DateTime StartInclusive, DateTime EndExclusive)? kwRange,
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
@@ -198,8 +227,18 @@ public class VormontageService
 
         var predicate = BuildFlagPredicate(bereich);
 
-        // (1) Blattbasis: SubFA = 0 + gesetztes VMBedarf (+ Reiter).
-        var leaves = allNodes.Where(n => n.SubFA == 0 && predicate(n));
+        // (1) Basis: gesetztes VMBedarf (+ Reiter) — unabhaengig von SubFA (Aenderung 1).
+        var leaves = allNodes.Where(n => predicate(n));
+
+        // (2) KW-Vorfilter auf FE_Termin (fan-out-frei ueber die HauptFA-Menge), VOR der Aggregation.
+        if (kwRange is not null)
+        {
+            var included = IsoWeekRange.HauptFasInRange(
+                allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>(),
+                o => o.FE_Termin,
+                kwRange.Value);
+            leaves = leaves.Where(n => included.Contains(n.HauptFA));
+        }
 
         // (3) Aggregation je Matchcode (Schluessel; Trim, damit " X " und "X" nicht auseinanderfallen;
         //     ordinal, damit unterschiedliche Matchcodes bewusst getrennte Zeilen bleiben).

@@ -6450,6 +6450,49 @@ Zugriff (Class-Level): `[RequireLagerProcessingAccess]` — identisch zu `Wareho
 - **TS-59.14 — Regression:** `WarehousePicking`/AKE-Kommissionierung unveraendert; keine Schema-/
   Service-Aenderung (AK10).
 
+### UAT-Anpassung 2026-08-13 (Etappe 8) — SubFA-Blattannahme aufgehoben + Summiert-Ansicht
+
+> **Ueberholt durch diesen Abschnitt:** TS-59.1/59.2/59.3/59.7 beschreiben die urspruengliche
+> `SubFA = 0`-Blattregel samt Anomalie-Banner. Diese Tests (`FaHierarchyListBuilderTests`) pruefen
+> weiterhin die **Baustein-Faehigkeit** (`leafOnly`/`anomalyOnNonLeaf` als Opt-in) und bleiben gruen;
+> das **Kommissionier-Verhalten** ist jedoch ab Etappe 8 durch die folgenden Faelle ersetzt: der
+> Service ruft den Baustein jetzt mit `leafOnly: false, anomalyOnNonLeaf: false` auf (kein
+> Blattfilter, kein Banner).
+
+**Automatisiert/InMemory (`KommissionierListenServiceTests`):**
+- **TS-59.30 — Alle Ebenen gelistet, kein Banner (N1a/N1b/N1e):** Fixture mit einer `SubFA != 0`-Zeile
+  (mit `Kommissionieren`) und einer Blattzeile — **beide** erscheinen in der Liste; `Anomalies`
+  bleibt leer, keine `ILogger`-Warnung. (`BuildAsync_ListsAllSubFaLevels_NoAnomalyBanner`.)
+- **TS-59.31 — Ziel-Dropdown unabhaengig von SubFA (N1d):** ein `Kommissionieren`-Wert, der nur auf
+  einer `SubFA != 0`-Zeile vorkommt, erscheint im Dropdown.
+  (`GetTargetValues_IncludesValuesOnlyOnSubFaNonZero`.)
+- **TS-59.32 — Summiert-Aggregation (N2a/N2b):** je `(HauptFA, Artnr, Kommissionieren)` wird die
+  `Sollmenge` summiert; gleiche `Artnr` mit **unterschiedlichem** Ziel liefert **zwei** Zeilen.
+  (`Summiert_SumsSollmenge_PerHauptFaArtnrZiel`, `Summiert_DifferentZiel_ProducesSeparateRows`.)
+- **TS-59.33 — KW-Filter auf `KO_Termin` (N2c):** ein `HauptFA`, dessen `KO_Termin` ausserhalb der
+  gewaehlten ISO-KW (Mo–So) liegt, fehlt vollstaendig; einer innerhalb ist vollstaendig enthalten.
+  (`Summiert_KwFilter_ExcludesHauptFaOutsideWeek_IncludesInside`.)
+- **TS-59.34 — Ohne KW keine Gesamtsumme (N2d):** ohne KW-Eingabe liefert die Aggregation ein
+  **leeres** Ergebnis (die View zeigt einen Hinweistext). (`Summiert_NoKw_ReturnsEmpty_NoImplicitTotal`.)
+- **TS-59.35 — Summiert unabhaengig von SubFA:** eine `SubFA != 0`-Zeile zaehlt in die Summe mit ein.
+  (`Summiert_IsIndependentOfSubFa`.)
+- **TS-59.36 — Server-Spaltenfilter auf der Aggregat-Projektion**
+  (`Summiert_ColumnFilter_AppliesToAggregateProjection`.)
+- **TS-59.37 — KW-Aufloesung (`IsoWeekRangeTests`):** `YYYY-Www` → ISO-Woche Mo–So (Sonntag inklusive,
+  folgender Montag exklusiv); Einzelfeld gilt fuer beide Grenzen; vertauschte Reihenfolge wird
+  getauscht; `HauptFasInRange` bindet den Termin fan-out-frei je `HauptFA`.
+
+**Manuell am IDEAL-Testsystem:**
+- **TS-59.38 — Baugruppen-Zeile sichtbar:** eine `SubFA != 0`-Position mit gesetztem `Kommissionieren`
+  erscheint in Liste **und** Druck; **kein** Warnbanner, **kein** Log-Eintrag.
+- **TS-59.39 — Summiert-Ansicht bedienen:** Umschaltung „Liste ↔ Summiert" (nav-pills); ohne
+  Kalenderwoche erscheint der Hinweistext statt einer Gesamtsumme; nach Eingabe einer KW (von/bis via
+  `<input type="week">`) erscheinen die `(HauptFA, Artnr, Ziel)`-Summenzeilen der HauptFAs, deren
+  `KO_Termin` in der Woche liegt.
+- **TS-59.40 — Mengenabgleich Summiert:** Gegenrechnung an einer bekannten Baugruppe/Bestandteile-
+  Konstellation — Doppel-Erfassung in Sage (Baugruppe UND Bestandteile mit `Kommissionieren`) bildet
+  korrekt **beide** Vorgaenge ab (Caveat aus Aenderung 1), keine faelschliche Zusammenfassung.
+
 ### Spaltenauswahl (Etappe 6 — Zahnrad/`column-preferences.js`, `viewKey` `FaHierarchyKommissionierListen`)
 
 - **TS-59.15 — Zahnrad vorhanden und bedienbar:** `/FaHierarchyKommissionierListen` aufrufen.
@@ -6581,11 +6624,13 @@ nvarchar-Arbeitsbereich, **kein** Sage-Bit/`-1`-Vergleich) auf den in Teil 1 imp
 `FaHierarchyNodes`/`FaHierarchyOrderInfos`. Web-only (keine Migration, kein Service). Routen:
 `/FaHierarchyVormontage/Index` (**Sicht 1 — Einzelne Teile**), `/FaHierarchyVormontage/Summiert`
 (**Sicht 2 — Summiert**), mit Umschaltung und je Arbeitsbereich einem Reiter (`VMBedarf`-Wert, kein
-leerer Reiter). Beide Sichten basieren auf denselben Blattpositionen (`SubFA = 0` + `VMBedarf`).
+leerer Reiter). Beide Sichten basieren auf **allen** Positionen mit gesetztem `VMBedarf` —
+**unabhaengig von `SubFA`** (UAT 2026-08-13, Aenderung 1: kein Blattfilter mehr).
 
-**Sicht 1** nutzt den gemeinsamen Baustein (`FaHierarchyListBuilder`) **unveraendert wie Teil 3**
-(`leafOnly: true` + `anomalyOnNonLeaf: true`): Blattfilter, Anomalie-Banner + `ILogger`-Warnung,
-Fan-out-freier Kopf-Join, Gruppierung + Gruppen-Paging nach `HauptFA`. **Sicht 2** ist eine
+**Sicht 1** nutzt den gemeinsamen Baustein (`FaHierarchyListBuilder`) mit
+`leafOnly: false` + `anomalyOnNonLeaf: false` (wie Teil 4): kein Blattfilter, **kein** Anomalie-Banner,
+Fan-out-freier Kopf-Join, Gruppierung + Gruppen-Paging nach `HauptFA`. Optionaler KW-Filter auf
+`FE_Termin` (ISO Mo–So). **Sicht 2** ist eine
 **eigene Aggregat-Logik** (nicht ueber den Baustein): Aggregation je `VMBedarf`-Reiter nach
 **`Matchcode`** (nicht Artnr) mit **zwei getrennten Summenspalten** (`Sollmenge` UND
 `Fertigungmenge`); Seiteneinheit = **Aggregatzeile** (begruendete ADR-0005-Ausnahme),
@@ -6607,10 +6652,10 @@ vorhanden. Toggle `FaHierarchyVormontageAktiv = true`. Benutzer mit Vorbau-Zugri
 - **TS-61.1 — Filter `VMBedarf` gesetzt (nvarchar, kein Bit):** gesetzt = `IS NOT NULL AND <> ''`;
   leer/Whitespace/null fallen raus; Reiter-Einschraenkung auf einen konkreten Bereich wirkt (AK1).
   (`Sicht1_FlagPredicate_FiltersVmBedarfSet_NvarcharNotBit`.)
-- **TS-61.2 — Sicht 1 Blattfilter + Anomalie (via Baustein):** Verweiszeile `SubFA != 0` mit
-  `VMBedarf` wird **nicht** gelistet, aber im Banner ausgewiesen (`PositionCount`, `AffectedHauptFas`);
-  Blatt ohne `VMBedarf` faellt raus (AK2a/AK3).
-  (`Sicht1_LeafFilter_ExcludesSubFaNonZero_AndReportsAnomalyBanner`.)
+- **TS-61.2 — Sicht 1 alle Ebenen, kein Banner (UAT 2026-08-13, Aenderung 1 / AK9):** eine
+  `SubFA != 0`-Zeile mit gesetztem `VMBedarf` wird **jetzt gelistet** (frueher Anomalie/ausgeschlossen);
+  `Anomalies` bleibt leer, keine `ILogger`-Warnung; Blatt ohne `VMBedarf` faellt weiterhin raus.
+  (`Sicht1_ListsAllSubFaLevels_NoAnomalyBanner`.)
 - **TS-61.3 — Sicht 1 Fan-out-Freiheit:** zwei `FaHierarchyOrderInfo`-Zeilen je `HauptFA`
   (Kombigeraet) → Kopf zeigt beide, Positionsanzahl bleibt 1:1, Gruppe als mehrdeutig markiert
   (AK2b). (`Sicht1_HeaderJoin_MultipleOrderInfos_DoesNotMultiplyPositions`.)
@@ -6618,8 +6663,9 @@ vorhanden. Toggle `FaHierarchyVormontageAktiv = true`. Benutzer mit Vorbau-Zugri
   erscheinen (AK1). (`Sicht1_ReiterRestriction_ScopesToSelectedBereich`.)
 - **TS-61.5 — Sicht 1 Gruppen-Paging:** `TotalCount` zaehlt **Gruppen** (AK5).
   (`Sicht1_GroupPaging_TotalCountCountsGroups`.)
-- **TS-61.6 — Reiter-Enumeration:** Distinct `VMBedarf`-Werte, sortiert, ohne null/leer, nur
-  Blattpositionen — kein leerer Reiter (AK1). (`GetBereiche_DistinctNonEmpty_SortedAndLeafOnly`.)
+- **TS-61.6 — Reiter-Enumeration:** Distinct `VMBedarf`-Werte, sortiert, ohne null/leer, **unabhaengig
+  von `SubFA`** (UAT 2026-08-13: auch `VMBedarf` nur auf `SubFA != 0` erzeugt einen Reiter) — kein
+  leerer Reiter (AK1/AK9). (`GetBereiche_DistinctNonEmpty_Sorted_IndependentOfSubFa`.)
 - **TS-61.7 — Sicht 2 Aggregation nach Matchcode, zwei Summen:** zwei Positionen mit gleichem
   `Matchcode` → eine Zeile, `Sollmenge` und `Fertigungmenge` je getrennt summiert (AK4).
   (`Sicht2_AggregatesByMatchcode_SumsBothQuantities`.)
@@ -6627,8 +6673,12 @@ vorhanden. Toggle `FaHierarchyVormontageAktiv = true`. Benutzer mit Vorbau-Zugri
   Fehler (AK4). (`Sicht2_SameArtnrDifferentMatchcode_ProducesMultipleRows`.)
 - **TS-61.9 — Sicht 2 Aggregation je Reiter:** Positionen anderer `VMBedarf`-Bereiche fliessen
   **nicht** in die Summe (AK4). (`Sicht2_AggregatesPerReiter_ExcludesOtherBereich`.)
-- **TS-61.10 — Sicht 2 Blattbasis:** `SubFA != 0`-Zeilen zaehlen **nicht** in die Aggregation
-  (AK2a). (`Sicht2_ExcludesSubFaNonZero_FromAggregationBase`.)
+- **TS-61.10 — Sicht 2 alle Ebenen (UAT 2026-08-13, Aenderung 1 / AK9):** `SubFA != 0`-Zeilen zaehlen
+  **jetzt mit** in die Aggregation (frueher ausgeschlossen). (`Sicht2_IncludesAllSubFaLevels_InAggregationBase`.)
+- **TS-61.10b — Sicht 2 KW-Filter auf `FE_Termin` VOR der Aggregation (UAT 2026-08-13, Aenderung 2 /
+  AK10):** zwei `HauptFA` mit `FE_Termin` in unterschiedlichen ISO-KW, gleicher `Matchcode` — Filter
+  auf die KW des ersten `HauptFA` → nur dessen Menge fliesst in die Summe (fan-out-frei ueber die
+  HauptFA-Menge). (`Sicht2_KwFilter_OnFeTermin_AppliesBeforeAggregation`.)
 - **TS-61.11 — Sicht 2 Aggregat-Paging:** `TotalCount` zaehlt **Aggregatzeilen**, nicht Positionen;
   Seiten liefern die erwarteten Matchcodes (AK5). (`Sicht2_AggregatePaging_TotalCountCountsAggregateRows`.)
 - **TS-61.12 — Sicht 2 Spaltenfilter auf Aggregat-Projektion:** `colf_matchcode` filtert die
@@ -6647,9 +6697,11 @@ vorhanden. Toggle `FaHierarchyVormontageAktiv = true`. Benutzer mit Vorbau-Zugri
   je `Matchcode` eine Zeile mit `Summe Sollmenge` und `Summe Fertigungmenge` (AK4).
 - **TS-61.16 — Mengenabgleich Struktur vs. Sicht 2:** an einer bekannten mehrstufigen Struktur die
   Summen aus Sicht 2 gegen die Blattpositionen aus Sicht 1 pruefen (keine Doppelzaehlung ueber Ebenen).
-- **TS-61.17 — Anomalie-Banner:** bekannter Datenpflege-Fall (`SubFA != 0` mit `VMBedarf`) → Banner
-  mit Anzahl + betroffenen `HauptFA` sichtbar, Zeile nicht gelistet; `ILogger`-Warnung im Server-Log
-  (AK3).
+- **TS-61.17 — Baugruppen-Zeile sichtbar (UAT 2026-08-13):** ein `SubFA != 0`-Datensatz mit gesetztem
+  `VMBedarf` erscheint in beiden Sichten; **kein** Banner, **kein** Log-Eintrag (AK9).
+- **TS-61.17b — KW-Filter auf `FE_Termin` bedienen (AK10):** KW-Zeitraum (von/bis via
+  `<input type="week">`) eingeben — in Sicht 2 reduzieren sich die Summen auf die HauptFAs, deren
+  `FE_Termin` in der ISO-KW (Mo–So) liegt; in Sicht 1 wirkt der Filter optional analog.
 - **TS-61.18 — Server-Spaltenfilter + Paging beide Sichten:** Sicht 1 zaehlt Gruppen, Sicht 2 zaehlt
   Aggregatzeilen; Seitengroesse 25/50/100/Alle wechseln (AK5).
 - **TS-61.19 — Zugriff/Toggle:** Benutzer **ohne** `vorbau`/`admin` → Redirect `AccessDenied`; Toggle

@@ -1,0 +1,126 @@
+@model IdealAkeWms.Models.ViewModels.FaHierarchyKommissionierSummiertViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Kommissionierlisten — Summiert (IDEAL)";
+    var deCulture = CultureInfo.GetCultureInfo("de-DE");
+    const int colCount = 4; // HauptFA + Artnr + Ziel + Summe Sollmenge
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">Kommissionierlisten (IDEAL)</h2>
+</div>
+
+@* Ansicht-Umschaltung (Liste = Einzelpositionen / Summiert), Ziel-Filter bleibt erhalten. *@
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link" asp-action="Index" asp-route-target="@Model.SelectedTarget">Liste</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" asp-action="Summiert" asp-route-target="@Model.SelectedTarget">Summiert</a>
+    </li>
+</ul>
+
+@* Filterkarte (ADR 0005): KW-Zeitraum (Kalenderwoche von/bis, ISO Mo–So) auf KO_Termin +
+   Kommissionier-Ziel-Dropdown. Natives <input type="week"> (WCAG AA, eigenes Label, Tastatur). *@
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Summiert" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label for="kwVon" class="form-label mb-0 small">Kalenderwoche von</label>
+                <input type="week" id="kwVon" name="kwVon" value="@Model.KwVon" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label for="kwBis" class="form-label mb-0 small">Kalenderwoche bis</label>
+                <input type="week" id="kwBis" name="kwBis" value="@Model.KwBis" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label for="target" class="form-label mb-0 small">Kommissionier-Ziel</label>
+                <select id="target" name="target" class="form-select form-select-sm">
+                    <option value="">— alle Ziele —</option>
+                    @foreach (var t in Model.AvailableTargets)
+                    {
+                        <option value="@t" selected="@(string.Equals(t, Model.SelectedTarget, StringComparison.OrdinalIgnoreCase))">@t</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+            </div>
+            @if (Model.HasKwFilter || !string.IsNullOrEmpty(Model.SelectedTarget))
+            {
+                <div class="col-auto">
+                    <a asp-action="Summiert" class="btn btn-sm btn-outline-secondary" data-clear-table-filters="FaHierarchyKommissionierSummiert">Zurücksetzen</a>
+                </div>
+            }
+        </form>
+        <p class="mb-0 mt-2 small text-muted">
+            Je <strong>HauptFA</strong> nach <strong>Artikelnummer</strong> und
+            <strong>Kommissionierziel</strong> summierte <em>Sollmenge</em>. Die Kalenderwoche wählt
+            die HauptFAs über ihren <code>KO_Termin</code> (ISO-Woche Mo–So).
+        </p>
+    </div>
+</div>
+
+@if (!Model.HasKwFilter)
+{
+    @* N2d: ohne KW-Eingabe KEINE implizite Gesamtsumme, sondern Hinweistext. *@
+    <div class="alert alert-info py-2 px-3">
+        Bitte eine <strong>Kalenderwoche</strong> (von/bis) eingeben — die Summiert-Ansicht zeigt die
+        Mengen der HauptFAs, deren <code>KO_Termin</code> in der gewählten Woche liegt. Ohne
+        Kalenderwoche wird bewusst keine Gesamtsumme über alle Aufträge gebildet.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="FaHierarchyKommissionierSummiert" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th data-filterable data-col-key="hauptfa">HauptFA</th>
+                    <th data-filterable data-col-key="artnr">Artnr.</th>
+                    <th data-filterable data-col-key="kommissionieren">Kommissionieren</th>
+                    <th class="text-end" data-filterable data-col-key="sollmenge">Summe Sollmenge</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Rows.Any())
+                {
+                    <tr>
+                        <td colspan="@colCount" class="text-center text-muted py-4">Keine Kommissionier-Positionen in der gewählten Kalenderwoche gefunden.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td>@row.HauptFA</td>
+                            <td>@row.Artnr</td>
+                            <td>@row.Kommissionieren</td>
+                            <td class="text-end">@row.SummeSollmenge.ToString("N3", deCulture)</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
+}
+
+<script type="application/json" id="view-config">
+{ "viewKey": "FaHierarchyKommissionierSummiert", "supportsReorder": true, "supportsSortDefault": true }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "hauptfa", "label": "HauptFA", "locked": true, "defaultWidth": null },
+    { "key": "artnr", "label": "Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "kommissionieren", "label": "Kommissionieren", "locked": false, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Summe Sollmenge", "locked": false, "defaultWidth": 55 }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

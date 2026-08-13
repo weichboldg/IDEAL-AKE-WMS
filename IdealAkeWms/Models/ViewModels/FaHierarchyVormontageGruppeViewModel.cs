@@ -13,6 +13,10 @@ namespace IdealAkeWms.Models.ViewModels;
 /// Distinct-Liste der vorkommenden <c>VMBedarf</c>-Werte (ohne NULL/Leer); je Wert ein Reiter.
 /// <see cref="SelectedBereich"/> ist der aktive Reiter. <c>VMBedarf</c> ist eine Filter-/Reiter-
 /// Dimension, KEINE Seiteneinheit — Seiteneinheit bleibt die <c>HauptFA</c>-Gruppe (wie Teil 3/4).</para>
+///
+/// <para><b>Nachtrag 2026-08-13:</b> Das Anomalie-Banner ist entfallen (alle Positionen unabhaengig
+/// von <c>SubFA</c>); der optionale KW-Zeitraum-Filter (<see cref="KwVon"/>/<see cref="KwBis"/>) auf
+/// <c>FE_Termin</c> steht zur konsistenten Bedienbarkeit zur Verfuegung.</para>
 /// </summary>
 public class FaHierarchyVormontageListViewModel
 {
@@ -27,6 +31,9 @@ public class FaHierarchyVormontageListViewModel
     /// <summary>Aktiver Reiter (<c>VMBedarf</c>-Wert) oder null (nur wenn gar kein Bereich existiert).</summary>
     public string? SelectedBereich { get; init; }
 
-    /// <summary>Anomalie-Banner (SubFA != 0 mit gesetztem <c>VMBedarf</c>) — nur sichtbar wenn vorhanden.</summary>
-    public FaHierarchyAnomalyBannerViewModel Anomalies { get; init; } = new();
+    /// <summary>KW-von-Eingabe (Format <c>YYYY-Www</c>, HTML <c>&lt;input type="week"&gt;</c>), optional.</summary>
+    public string? KwVon { get; init; }
+
+    /// <summary>KW-bis-Eingabe (Format <c>YYYY-Www</c>), optional.</summary>
+    public string? KwBis { get; init; }
 }

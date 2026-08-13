@@ -40,12 +40,35 @@ else
     <div class="alert alert-info py-2 px-3">Keine Vormontage-Bereiche (<code>VMBedarf</code>) im Datenbestand.</div>
 }
 
+@* Filterkarte (ADR 0005): KW-Zeitraum (Kalenderwoche von/bis, ISO Mo–So) auf FE_Termin — wirkt VOR
+   der Matchcode-Aggregation. Natives <input type="week"> (WCAG AA). Reiter bleibt erhalten. *@
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
-        <p class="mb-0 small text-muted">
+        <form method="get" asp-action="Summiert" class="row g-2 align-items-end">
+            <input type="hidden" name="bereich" value="@Model.SelectedBereich" />
+            <div class="col-md-3">
+                <label for="kwVon" class="form-label mb-0 small">Kalenderwoche von</label>
+                <input type="week" id="kwVon" name="kwVon" value="@Model.KwVon" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label for="kwBis" class="form-label mb-0 small">Kalenderwoche bis</label>
+                <input type="week" id="kwBis" name="kwBis" value="@Model.KwBis" class="form-control form-control-sm" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.KwVon) || !string.IsNullOrEmpty(Model.KwBis))
+            {
+                <div class="col-auto">
+                    <a asp-action="Summiert" asp-route-bereich="@Model.SelectedBereich" class="btn btn-sm btn-outline-secondary">KW zurücksetzen</a>
+                </div>
+            }
+        </form>
+        <p class="mb-0 mt-2 small text-muted">
             Nach <strong>Matchcode</strong> summierte Mengensicht des gewählten Arbeitsbereichs
             (<code>@(Model.SelectedBereich ?? "—")</code>). Zwei getrennte Summen: <em>Sollmenge</em>
-            und <em>Fertigungmenge</em>. Verfeinerung über die Spaltenfilter je Spalte.
+            und <em>Fertigungmenge</em>. Die Kalenderwoche filtert auf den Fertigstellungstermin
+            (<code>FE_Termin</code>) <strong>vor</strong> der Aggregation.
         </p>
     </div>
 </div>

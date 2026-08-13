@@ -14,7 +14,6 @@
         body { font-family: 'Segoe UI', Arial, sans-serif; color: #000; background: #fff; padding: 20px; font-size: 11px; }
         .screen-controls { padding: 15px; text-align: center; background: #053153; color: #fff; margin: -20px -20px 20px -20px; }
         .screen-controls button { background: #fff; color: #053153; border: none; padding: 8px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; margin: 0 5px; }
-        .anomaly-banner { border: 1px solid #b8860b; background: #fff8e1; color: #7a5900; padding: 8px 10px; margin-bottom: 15px; font-size: 11px; }
         .fa-group { page-break-after: always; }
         .fa-group:last-child { page-break-after: auto; }
         .group-head { border-bottom: 2px solid #053153; padding-bottom: 8px; margin-bottom: 10px; }
@@ -36,15 +35,6 @@
         <button onclick="window.print()">Drucken</button>
         <button onclick="window.close()">Schliessen</button>
     </div>
-
-    @if (Model.Anomalies.HasAnomalies)
-    {
-        <div class="anomaly-banner">
-            <strong>Warnung:</strong> @Model.Anomalies.PositionCount Position(en) mit gesetztem
-            <code>Kommissionieren</code> auf Baugruppen-Ebene (<code>SubFA != 0</code>) ausgeschlossen —
-            Datenpflege prüfen. Betroffene HauptFA: @Model.Anomalies.HauptFaList.
-        </div>
-    }
 
     @if (!Model.Groups.Any())
     {

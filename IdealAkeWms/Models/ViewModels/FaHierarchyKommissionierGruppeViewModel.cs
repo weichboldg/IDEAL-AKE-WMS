@@ -5,8 +5,10 @@ namespace IdealAkeWms.Models.ViewModels;
 /// <summary>
 /// Bildschirm-ViewModel der IDEAL-Kommissionierliste (Teil 3). Die Gruppen sind die
 /// wiederverwendbaren <see cref="FaHierarchyListGroupViewModel"/> aus dem gemeinsamen Baustein;
-/// hier kommen nur die Teil-3-Steuerelemente (Ziel-Dropdown), der Paging-State und die
-/// Anomalie-Banner-Daten dazu.
+/// hier kommen nur die Teil-3-Steuerelemente (Ziel-Dropdown) und der Paging-State dazu.
+///
+/// <para><b>Nachtrag 2026-08-13, Aenderung 1:</b> Das Anomalie-Banner ist ersatzlos entfallen —
+/// alle Positionen mit gesetztem <c>Kommissionieren</c> werden unabhaengig von <c>SubFA</c> gelistet.</para>
 /// </summary>
 public class FaHierarchyKommissionierListViewModel
 {
@@ -20,9 +22,6 @@ public class FaHierarchyKommissionierListViewModel
 
     /// <summary>Aktuell gewaehltes Ziel (oder null = alle).</summary>
     public string? SelectedTarget { get; init; }
-
-    /// <summary>Anomalie-Banner (SubFA != 0 mit gesetztem Kommissionieren) — nur sichtbar wenn vorhanden.</summary>
-    public FaHierarchyAnomalyBannerViewModel Anomalies { get; init; } = new();
 }
 
 /// <summary>
@@ -38,7 +37,4 @@ public class FaHierarchyKommissionierPrintViewModel
     public IReadOnlyDictionary<int, string> Barcodes { get; init; } = new Dictionary<int, string>();
 
     public string? SelectedTarget { get; init; }
-
-    /// <summary>Anomalie-Banner (erscheint auch auf dem Ausdruck, wenn vorhanden).</summary>
-    public FaHierarchyAnomalyBannerViewModel Anomalies { get; init; } = new();
 }

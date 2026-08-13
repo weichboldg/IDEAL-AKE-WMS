@@ -58,8 +58,10 @@ public class FaHierarchyVormontageController : Controller
     }
 
     /// <summary>Sicht 1 (Einzelne Teile): gruppiert nach HauptFA, Gruppen-Paging,
-    /// Server-Spaltenfilter, VMBedarf-Reiter, Anomalie-Banner.</summary>
-    public async Task<IActionResult> Index(string? bereich, int page = 1, int? pageSize = null)
+    /// Server-Spaltenfilter, VMBedarf-Reiter. (Nachtrag 2026-08-13: kein Blattfilter/Anomalie-Banner
+    /// mehr; optionaler KW-Filter auf FE_Termin.)</summary>
+    public async Task<IActionResult> Index(
+        string? bereich, string? kwVon, string? kwBis, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
 
@@ -70,15 +72,17 @@ public class FaHierarchyVormontageController : Controller
         var bereiche = await _service.GetBereicheAsync();
         var selected = ResolveBereich(bereich, bereiche);
 
+        var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildEinzelteileAsync(selected, columnFilters, page, effectivePageSize, paginate: true);
+        var result = await _service.BuildEinzelteileAsync(selected, kwRange, columnFilters, page, effectivePageSize, paginate: true);
 
         var vm = new FaHierarchyVormontageListViewModel
         {
             Groups = result.Groups,
             AvailableBereiche = bereiche,
             SelectedBereich = selected,
-            Anomalies = result.Anomalies,
+            KwVon = kwVon,
+            KwBis = kwBis,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -92,8 +96,11 @@ public class FaHierarchyVormontageController : Controller
     }
 
     /// <summary>Sicht 2 (Summiert): nach Matchcode aggregiert je VMBedarf-Reiter, zwei getrennte
-    /// Summenspalten, Paging auf Aggregatzeilen-Ebene, Server-Spaltenfilter auf der Aggregat-Projektion.</summary>
-    public async Task<IActionResult> Summiert(string? bereich, int page = 1, int? pageSize = null)
+    /// Summenspalten, Paging auf Aggregatzeilen-Ebene, Server-Spaltenfilter auf der Aggregat-Projektion.
+    /// KW-Zeitraum-Filter auf FE_Termin (ISO-Woche Mo–So) wirkt VOR der Aggregation
+    /// (Nachtrag 2026-08-13, Aenderung 2).</summary>
+    public async Task<IActionResult> Summiert(
+        string? bereich, string? kwVon, string? kwBis, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
 
@@ -104,14 +111,17 @@ public class FaHierarchyVormontageController : Controller
         var bereiche = await _service.GetBereicheAsync();
         var selected = ResolveBereich(bereich, bereiche);
 
+        var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(selected, columnFilters, page, effectivePageSize, paginate: true);
+        var result = await _service.BuildSummiertAsync(selected, kwRange, columnFilters, page, effectivePageSize, paginate: true);
 
         var vm = new FaHierarchyVormontageSummiertViewModel
         {
             Rows = result.Rows,
             AvailableBereiche = bereiche,
             SelectedBereich = selected,
+            KwVon = kwVon,
+            KwBis = kwBis,
             Pagination = new PaginationState
             {
                 CurrentPage = page,

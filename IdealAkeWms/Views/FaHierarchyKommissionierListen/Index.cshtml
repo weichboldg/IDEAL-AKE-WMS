@@ -17,6 +17,16 @@
     </div>
 </div>
 
+@* Ansicht-Umschaltung (Liste = Einzelpositionen / Summiert), Ziel-Filter bleibt erhalten. *@
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link active" asp-action="Index" asp-route-target="@Model.SelectedTarget">Liste</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" asp-action="Summiert" asp-route-target="@Model.SelectedTarget">Summiert</a>
+    </li>
+</ul>
+
 @* Filterkarte (ADR 0005): Kommissionier-Ziel-Dropdown ueber dem Tabellenblock. *@
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
@@ -43,17 +53,6 @@
         </form>
     </div>
 </div>
-
-@* Anomalie-Warnbanner (PFLICHT, nur bei vorhandenen Anomalien): SubFA != 0 mit gesetztem
-   Kommissionieren wird nicht kommissioniert, aber operator-sichtbar gemeldet. *@
-@if (Model.Anomalies.HasAnomalies)
-{
-    <div class="alert alert-warning py-2 px-3 mb-3">
-        <strong>Warnung:</strong> @Model.Anomalies.PositionCount Position(en) mit gesetztem
-        <code>Kommissionieren</code> auf Baugruppen-Ebene (<code>SubFA != 0</code>) ausgeschlossen —
-        Datenpflege prüfen. Betroffene HauptFA: @Model.Anomalies.HauptFaList.
-    </div>
-}
 
 <div class="table-responsive">
     <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="FaHierarchyKommissionierListen" data-server-column-filter="true">

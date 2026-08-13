@@ -63,4 +63,11 @@ public class FaHierarchyVormontageSummiertViewModel
 
     /// <summary>Aktiver Reiter (<c>VMBedarf</c>-Wert) oder null (nur wenn gar kein Bereich existiert).</summary>
     public string? SelectedBereich { get; init; }
+
+    /// <summary>KW-von-Eingabe (Format <c>YYYY-Www</c>, HTML <c>&lt;input type="week"&gt;</c>) — Filter
+    /// auf <c>FE_Termin</c>, wirkt VOR der Matchcode-Aggregation (Nachtrag 2026-08-13, Aenderung 2).</summary>
+    public string? KwVon { get; init; }
+
+    /// <summary>KW-bis-Eingabe (Format <c>YYYY-Www</c>).</summary>
+    public string? KwBis { get; init; }
 }

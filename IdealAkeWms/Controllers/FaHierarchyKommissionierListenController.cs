@@ -44,7 +44,7 @@ public class FaHierarchyKommissionierListenController : Controller
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter,
-    /// Ziel-Dropdown, Anomalie-Banner.</summary>
+    /// Ziel-Dropdown. (Nachtrag 2026-08-13: kein Blattfilter/Anomalie-Banner mehr.)</summary>
     public async Task<IActionResult> Index(string? target, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
@@ -62,13 +62,51 @@ public class FaHierarchyKommissionierListenController : Controller
             Groups = result.Groups,
             AvailableTargets = targets,
             SelectedTarget = target,
-            Anomalies = result.Anomalies,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
                 PageSize = effectivePageSize,
                 PageSizeRaw = rawPageSize,
                 TotalCount = result.TotalGroupCount
+            }
+        };
+
+        return View(vm);
+    }
+
+    /// <summary>Summiert-Ansicht (Nachtrag 2026-08-13, Aenderung 2): je HauptFA nach Artnr und
+    /// Kommissionierziel aggregierte <c>Sollmenge</c>-Summe. KW-Zeitraum-Eingabe filtert die
+    /// einzubeziehenden HauptFA ueber deren <c>KO_Termin</c> (ISO-Woche Mo–So). Ohne KW-Eingabe
+    /// Hinweistext statt Gesamtsumme. Zugriff/Toggle identisch zu <see cref="Index"/>.</summary>
+    public async Task<IActionResult> Summiert(
+        string? target, string? kwVon, string? kwBis, int page = 1, int? pageSize = null)
+    {
+        if (page < 1) page = 1;
+
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
+        var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var result = await _service.BuildSummiertAsync(
+            target, kwRange, columnFilters, page, effectivePageSize, paginate: true);
+        var targets = await _service.GetTargetValuesAsync();
+
+        var vm = new FaHierarchyKommissionierSummiertViewModel
+        {
+            Rows = result.Rows,
+            AvailableTargets = targets,
+            SelectedTarget = target,
+            KwVon = kwVon,
+            KwBis = kwBis,
+            HasKwFilter = kwRange is not null,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = result.TotalRowCount
             }
         };
 
@@ -93,8 +131,7 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Groups = result.Groups,
             Barcodes = barcodes,
-            SelectedTarget = target,
-            Anomalies = result.Anomalies
+            SelectedTarget = target
         };
 
         return View(vm);
