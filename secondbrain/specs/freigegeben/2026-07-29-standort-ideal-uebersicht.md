@@ -17,7 +17,8 @@ etappen:
   - "4: Teil 4 — Beschichtungsauftrag (erweitert den Baustein aus Etappe 3, ohne PDF) — ERLEDIGT 08aa610 (Build+Test gruen; Baustein generalisiert leafOnly/anomaly opt-in)"
   - "5: Teil 5 — Vormontage-Listen, zwei Sichten (erweitert den Baustein aus Etappe 3) — ERLEDIGT df5931e (Build+Test gruen; Sicht 2 Matchcode-Aggregat; Wochenbezug bewusst offen)"
   - "6: UI-Nachtrag — Listen-Spaltenauswahl an die vier IDEAL-Listen anschliessen + ADR-0005-Ergaenzung + table-filter Sort-Fix ([[2026-08-12-listen-spaltenauswahl-spec]]) — offen"
-  - "7: UI-Nachtrag — FA-Struktur Darstellung: seitenweite Tree-Table (OSEON-Stil), Kontrast-Fix, Knoten-Icons, Baum-Spaltenfilter + column-preferences ([[2026-08-12-fa-struktur-darstellung-spec]]) — offen"
+  - "7: UI-Nachtrag — FA-Struktur Darstellung: seitenweite Tree-Table (OSEON-Stil), Kontrast-Fix, Knoten-Icons, Baum-Spaltenfilter + column-preferences ([[2026-08-12-fa-struktur-darstellung-spec]]) — ERLEDIGT 767f06f (Build+Test gruen)"
+  - "8: UAT-Anpassung (2026-08-13) — SubFA-Sperre + Anomalie-Banner ENTFERNT (Kommissionier+Vormontage, leafOnly:false); NEU Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/je Ziel, KW auf KO_Termin); Vormontage-Summiert KW auf FE_Termin (HauptFA ignoriert). Teil-3/5-Spec-Nachtraege — offen"
 deploy:
   web: true
   service: true
@@ -66,6 +67,7 @@ Tabelle gehoert nie in denselben Merge wie Kommissionierlisten.
 | 5 | Vormontage-Listen | [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | df5931e |
 | 6 | UI-Nachtrag: Listen-Spaltenauswahl (+ ADR 0005 + Sort-Fix) | [[2026-08-12-listen-spaltenauswahl-spec]] | erledigt | 37e8752 |
 | 7 | UI-Nachtrag: FA-Struktur Tree-Table/Kontrast/Icons/Spaltenfilter | [[2026-08-12-fa-struktur-darstellung-spec]] | erledigt | 767f06f |
+| 8 | UAT-Anpassung: SubFA-Sperre/Banner weg + Kommissionier-Summiert + Vormontage-KW (Teil-3/5-Nachtraege) | [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | offen | |
 
 **Epic am 2026-08-12 von `Testbereit` zurueck auf `InUmsetzung`** — zwei freigegebene UI-Nachtraege
 (Etappe 6/7) zu Teil 2–5 werden im SELBEN Worktree mitgebaut und **mitgemergt** (ein Merge). Reihenfolge:
