@@ -258,6 +258,9 @@ BEGIN
     CREATE TABLE [dbo].[ProductionOrders] (
         [Id]                      INT IDENTITY(1,1) NOT NULL,
         [OrderNumber]             NVARCHAR(100)     NOT NULL,
+        [SubOrderNumber]          NVARCHAR(100)     NOT NULL,
+        [ParentSubOrderNumber]    NVARCHAR(100)     NULL,
+        [SageMissingSince]        DATETIME2         NULL,
         [Quantity]                DECIMAL(18,3)     NULL,
         [Customer]                NVARCHAR(500)     NULL,
         [ArticleNumber]           NVARCHAR(100)     NULL,
@@ -276,8 +279,10 @@ BEGIN
         [ModifiedAt]              DATETIME2         NULL,
         [ModifiedBy]              NVARCHAR(200)     NULL,
         [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        -- Schema-Inversion (Teil 7): Eindeutigkeit liegt auf SubOrderNumber, nicht mehr auf
+        -- OrderNumber. Umgesetzt ueber den Unique-Index IX_ProductionOrders_SubOrderNumber (s. u.),
+        -- kein UQ-Constraint (spiegelt den EF-Migrationsstand 20260814105526).
         CONSTRAINT [PK_ProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_ProductionOrders_OrderNumber] UNIQUE ([OrderNumber]),
         CONSTRAINT [FK_ProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
             FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
     );
@@ -1099,8 +1104,11 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_Works
     CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_WorkstationId] ON [dbo].[WorkstationUsers]([WorkstationId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_UserId')
     CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_UserId] ON [dbo].[WorkstationUsers]([UserId]);
+-- Schema-Inversion (Teil 7): OrderNumber nicht mehr eindeutig; Eindeutigkeit auf SubOrderNumber.
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_OrderNumber')
-    CREATE UNIQUE NONCLUSTERED INDEX [IX_ProductionOrders_OrderNumber] ON [dbo].[ProductionOrders]([OrderNumber]);
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_OrderNumber] ON [dbo].[ProductionOrders]([OrderNumber]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_SubOrderNumber')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_ProductionOrders_SubOrderNumber] ON [dbo].[ProductionOrders]([SubOrderNumber]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ArticleNumber')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ArticleNumber] ON [dbo].[ProductionOrders]([ArticleNumber]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDone')
@@ -2286,6 +2294,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806120650_AllowMultipleDummyRequisitionItems', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260807105825_AddFaHierarchy')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260807105825_AddFaHierarchy', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260814105526_InvertProductionOrderHierarchy')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260814105526_InvertProductionOrderHierarchy', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -2053,6 +2053,10 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("ParentSubOrderNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime?>("ProductionDate")
                         .HasColumnType("datetime2");
 
@@ -2062,6 +2066,14 @@ namespace IdealAkeWms.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<DateTime?>("SageMissingSince")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubOrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ArticleNumber");
@@ -2070,10 +2082,12 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("IsDone");
 
-                    b.HasIndex("OrderNumber")
-                        .IsUnique();
+                    b.HasIndex("OrderNumber");
 
                     b.HasIndex("ProductionWorkplaceId");
+
+                    b.HasIndex("SubOrderNumber")
+                        .IsUnique();
 
                     b.ToTable("ProductionOrders", "dbo");
                 });

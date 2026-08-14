@@ -403,6 +403,8 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("ProductionOrders");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OrderNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.SubOrderNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ParentSubOrderNumber).HasMaxLength(100);
             entity.Property(e => e.Quantity).HasColumnType("decimal(18,3)");
             entity.Property(e => e.Customer).HasMaxLength(200);
             entity.Property(e => e.ArticleNumber).HasMaxLength(100);
@@ -414,7 +416,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
             entity.Property(e => e.CancelledBy).HasMaxLength(256);
 
-            entity.HasIndex(e => e.OrderNumber).IsUnique();
+            // Schema-Inversion (Teil 7): OrderNumber (HauptFA) ist nicht mehr eindeutig — mehrere
+            // Sub-FAs teilen dieselbe OrderNumber. Die Eindeutigkeit liegt auf SubOrderNumber.
+            entity.HasIndex(e => e.OrderNumber);
+            entity.HasIndex(e => e.SubOrderNumber).IsUnique();
             entity.HasIndex(e => e.ArticleNumber);
             entity.HasIndex(e => e.IsDone);
             entity.HasIndex(e => e.IsCancelled);

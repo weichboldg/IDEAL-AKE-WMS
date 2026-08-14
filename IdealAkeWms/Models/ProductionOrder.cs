@@ -9,6 +9,30 @@ public class ProductionOrder : AuditableEntity
     [Display(Name = "FA Nummer")]
     public string OrderNumber { get; set; } = string.Empty;
 
+    // --- Hierarchie-Felder (IDEAL Teil 7, Schema-Inversion) ---
+    // OrderNumber (= Sage StrukturID/HauptFA) ist nach der Inversion NICHT mehr unique; die
+    // Eindeutigkeit wandert auf SubOrderNumber (= Sage BelID). Im flachen AKE-Modus gilt die
+    // Invariante SubOrderNumber == OrderNumber (Backfill), Verhalten unveraendert.
+
+    [Required]
+    [StringLength(100)]
+    [Display(Name = "Sub-FA Nummer")]
+    public string SubOrderNumber { get; set; } = string.Empty;
+
+    // Echter Elternzeiger (= Sage VaterFA). NULL bei der Wurzel bzw. im flachen Modus; noetig,
+    // weil OrderNumber/SubOrderNumber allein nur zwei Ebenen ausdruecken koennen, die Struktur
+    // aber mehrstufig ist (Sub-FA kann unter einem anderen Sub-FA haengen).
+    [StringLength(100)]
+    [Display(Name = "Vater-Sub-FA")]
+    public string? ParentSubOrderNumber { get; set; }
+
+    // Zeitstempel (kein Bool!): gesetzt, sobald ein materialisierter Sub-FA nicht mehr in der
+    // Struktur-Quelle auftaucht (Sync-Regel 2); wieder auf NULL, sobald er erneut auftaucht
+    // (selbstheilend). Bewusst NICHT IsCancelled — "storniert" und "aus der Quelle verschwunden"
+    // sind fachlich verschieden. Bei AKE (flacher Modus) durchgehend NULL.
+    [Display(Name = "In Sage vermisst seit")]
+    public DateTime? SageMissingSince { get; set; }
+
     [Display(Name = "Stückzahl")]
     public decimal Quantity { get; set; }
 

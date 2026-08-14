@@ -1,4 +1,12 @@
 -- =============================================
+-- AUSSER BETRIEB seit 2026-08-14 (IDEAL Teil 7, Migration 90 InvertProductionOrderHierarchy).
+-- Ersetzt durch den C#-Pfad SageImportService (IDEALAKEWMSService, via SyncWorker/DI live).
+-- NICHT MEHR AUSFUEHREN: dieser INSERT fuehrt keine SubOrderNumber und wuerde nach der
+-- Schema-Inversion in die NOT-NULL/UNIQUE-Spalte SubOrderNumber laufen (Bruch der AKE-Linie).
+-- Das Loeschen/Archivieren dieser Datei entfernt KEINEN auf AKESQL20 eingerichteten Agent-Job —
+-- vor der Migration serverseitig pruefen (siehe Spec-Deploy-Abschnitt / AK 13).
+-- Rein historische Referenz.
+-- =============================================
 -- SQL Server Agent Job: Produktionsauftraege aus Sage importieren
 -- Ziel:    [IDEAL_AKE_WMS].[dbo].[ProductionOrders] (+ 2 Status-Tabellen, siehe unten)
 -- Quelle:  [ake].[dbo].[vw_AKE_Kommissionierung_WAListe]
