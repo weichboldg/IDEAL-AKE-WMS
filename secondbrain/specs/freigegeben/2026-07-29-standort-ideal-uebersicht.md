@@ -4,7 +4,7 @@ title: "Uebersicht: IDEAL-Standort live schalten — hierarchische Produktionsau
 slug: 2026-07-29-standort-ideal-uebersicht
 status: Testbereit
 created: 2026-08-06
-updated: 2026-08-13
+updated: 2026-08-14
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 epic: true
 task: "[[2026-08-07-ideal-teile-1-5]]"
@@ -729,6 +729,15 @@ Beide Suiten gruen, exakt die erwartete Groessenordnung (Web ~1174, Service 221 
 `IsoWeekRangeTests` neu — 4 Testfaelle fuer den neuen ISO-Wochen-Helfer). Service-Tests unveraendert
 bei 221 (keine Service-Aenderung). Der eine uebersprungene Test ist weiterhin der vorbestehende,
 epic-unabhaengige `ProductionOrderEagerCreateAgentJobTests`-Fall.
+
+**2026-08-14 — finaler Gate-Lauf vor Merge bestaetigt:** unabhaengige Re-Verifikation auf demselben
+Stand (Worktree-HEAD weiterhin `e83eb1c`, Working Tree sauber bis auf das vorbestehende, inhaltlich
+irrelevante `publish.zip`-Artefakt aus Commit `549c5db`, das sparse-checkout-bedingt auf der Platte
+fehlt — keine Quellcode-Aenderung). `dotnet build IdealAkeWms.slnx`: 0 Fehler (dieselben 8
+vorbestehenden NU1902-Warnungen). `dotnet test`: **IdealAkeWms.Tests 1174 bestanden, 1
+uebersprungen, 0 Fehler, gesamt 1175**; **IDEALAKEWMSService.Tests 221 bestanden, 0 Fehler, gesamt
+221** — zahlengleich zum `e83eb1c`-Nachweis oben. Status bleibt **Testbereit**; Schranke 2 (Merge)
+weiterhin Sache des Menschen.
 
 ### Diff-Check — Etappe 8 real-diff-verifiziert (reine Web-Aenderung, kein Service/Migration/Version-Bump)
 
