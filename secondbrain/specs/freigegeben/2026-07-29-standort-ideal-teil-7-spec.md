@@ -2,14 +2,14 @@
 type: spec
 title: "IDEAL-Standort Teil 7 — Materialisierung nach ProductionOrders (Schema-Inversion, Einweg-Migrationstor)"
 slug: 2026-07-29-standort-ideal-teil-7-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-14
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/Models/ProductionOrder.cs (SubOrderNumber, ParentSubOrderNumber, SageMissingSince)
   - IdealAkeWms/Data/ApplicationDbContext.cs (Index-Umbau OrderNumber -> SubOrderNumber, sys.indexes-Guard)
@@ -51,9 +51,26 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-12
 ---
+
+## Etappen-Fortschritt (Bündel-Worktree `feature/2026-08-07-ideal-teile-1-5`)
+
+Teil 7 läuft als Epic im **bestehenden** Bündel-Worktree (gemeinsam mit Teile 1–5 v1.31.0).
+Ausführliche Umsetzungsnotizen: [[2026-07-29-standort-ideal-teil-7]] (Aufgaben).
+
+| # | Etappe | Status | Commit |
+|---|--------|--------|--------|
+| A | Schema-Inversion + Migration (SubOrderNumber/ParentSubOrderNumber/SageMissingSince, Index-Tausch, Backfill) + FreshInstall + tote AgentJob-Artefakte | **erledigt** | `fe7299b` |
+| B | `HierarchischeStrukturGuard` (Choke-Point) + Einwegtor über Umschalt-Seite + Audit-SyncLog + Runbook | offen | — |
+| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | offen | — |
+| D | Lookup-Härtung (`OrderNumber`-Sweep) + `GetAllByFaAndOperationAsync` + adversariales FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | offen | — |
+| E | Doku (README/Runbook), Testszenarien, Brain-Update, Version-Bump | offen | — |
+
+> **Kopplungs-Hinweis:** Teil 7 liegt im selben Branch wie die bereits testbereiten Teile 1–5.
+> Etappe A invertiert die Kern-Tabelle `ProductionOrders` (Migration 90). Der Merge dieses Branches
+> bringt damit **beides** in einem Rutsch nach `main` — bei Schranke 2 bewusst entscheiden.
 
 ## Ziel / Nutzen (das Warum)
 
