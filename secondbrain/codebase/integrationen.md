@@ -28,8 +28,8 @@ Connection Strings bleiben **appsettings-only** und wandern nie in die per UI ed
 
 | Quelle | Ziel | Weg |
 |---|---|---|
-| `vw_AKE_Kommissionierung_WAListe` | `ProductionOrders` | SQL-Agent-Job `../../SQL/AgentJobs/01_Import_Produktionsauftraege.sql` (MERGE + Folge-MERGEs fuer PickingStatus/BdeStatus) |
-| `KHKPpsRessourcenPositionen` + `KHKArtikel` | `Articles` | SQL-Agent-Job `../../SQL/AgentJobs/02_Import_Artikel.sql` |
+| `vw_AKE_Kommissionierung_WAListe` | `ProductionOrders` | **`SageImportService` (C#, raw SQL, `Sync:ProductionOrdersEnabled`)** — der einzige produktive Weg. Der frühere AgentJob `01_Import_Produktionsauftraege.sql` ist seit IDEAL Teil 7 (2026-08-14) **ausser Betrieb** und nach `SQL/AgentJobs/_archiv/` verschoben. |
+| `KHKPpsRessourcenPositionen` + `KHKArtikel` | `Articles` | `SageImportService.SyncArticlesAsync` (C#, raw SQL, `Sync:ArticlesEnabled`). AgentJob `02_Import_Artikel.sql` ist seit v1.17.0 DEPRECATED (nur manueller Failover). |
 | `vw_AKE_Kommissionierung_StuecklistenDB` | Stueckliste (BOM) | `BomRepository` zur Laufzeit → [[0007-bom-quelle-sage-view-mit-oseon-fallback]] |
 | `vw_IDEAL_AKE_WMS_FAZusatzinformationen` | `ProductionOrderExtraInfo` | `FaZusatzinfoSyncService` (`Sync:FaZusatzinfoEnabled`) |
 | Lagerplatz-Stammdaten | `StorageLocations` | `LagerplatzSyncService` (`Sync:LagerplaetzeEnabled`) |
@@ -62,10 +62,14 @@ Sortiert wird mit `NaturalPositionComparer` (sonst kaeme 1, 10, 11, 2).
 - `Artikelnummer` (Geraet) vs `Ressourcenummer` (Bauteil) nicht verwechseln.
 - Sage liefert 0-Bestand-Zeilen **nicht** — daher das Nullsetzen verwaister Paare mit Guard und
   Cap.
-- `SubOrderNumber` nur schreiben, wenn die Spalte existiert (`COL_LENGTH`-Check) — die IDEAL- und
-  die AKE-Linie haben unterschiedliche Schemata.
+- `SubOrderNumber` wird per `COL_LENGTH`-Check geschrieben. Seit IDEAL Teil 7 (Migration 90,
+  2026-08-14) gehört `SubOrderNumber` (`NOT NULL`/unique) zum **gemeinsamen** Schema — im flachen
+  AKE-Modus gilt die Invariante `SubOrderNumber == OrderNumber` (Backfill). Der `COL_LENGTH`-Guard
+  bleibt als defensiver Rest bestehen (nach der Migration immer wahr).
 - Verschwindet ein FA aus der View, storniert die **Reconciliation im Service** (nie im AgentJob).
-- Die AgentJobs sind Teil des Deploy-Vertrags → [[0004-migrations-und-sql-disziplin]].
+- Der Produktionsauftrags- und der Artikel-Import laufen **ausschliesslich im C#-Service**
+  (`SageImportService`); die `SQL/AgentJobs/`-Skripte sind archiviert (01) bzw. DEPRECATED-Failover
+  (02) und **kein** aktiver Deploy-Weg mehr → [[0004-migrations-und-sql-disziplin]].
 
 ---
 
