@@ -6,6 +6,8 @@ using IdealAkeWms.Controllers;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -17,7 +19,7 @@ public class ServiceSettingsControllerTests
 {
     private static ServiceSettingsController Build(Mock<IServiceSettingRepository> repo)
     {
-        var ctrl = new ServiceSettingsController(repo.Object)
+        var ctrl = new ServiceSettingsController(repo.Object, Mock.Of<ISyncLogger>(), Mock.Of<ICurrentUserService>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

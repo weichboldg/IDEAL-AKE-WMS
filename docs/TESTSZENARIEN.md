@@ -6854,5 +6854,69 @@ Filter-Szenarien produktivnahe Daten: mind. eine Struktur mit **≥4 Ebenen und 
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 (2026-08-12; Versions-Bump beim Epic-Abschluss/QA)*
+## TS-63 — IDEAL Teil 7 Etappe B: FA-Hierarchie-Einwegtor (Master + Guard + Umschalt-Seite)
+
+**Vorbedingungen:** Angemeldet als Administrator. Master `ProduktionsauftragHierarchisch` ist nach
+dem Deploy default **aus** (`false`), es liegen **keine** hierarchischen Daten vor
+(`ProductionOrders` alle `OrderNumber == SubOrderNumber`). Die Umschalt-Seite ist unter
+`/HierarchieUmstellung` erreichbar; die generische Maske unter `/ServiceSettings`.
+
+> Hinweis: Der „gesperrt"-Zustand entsteht erst durch den Materialisierungs-Sync (Etappe C). Für
+> die Sperr-Szenarien hier ohne Etappe C: eine Testzeile mit `OrderNumber <> SubOrderNumber` direkt
+> in `ProductionOrders` einspielen (DB-Kopie) und die Web-App neu starten (Anzeige-Refresh am Start).
+
+### Umschalten (offener Zustand)
+
+- **TS-63.1 — Master einschalten mit Bestätigung (ohne hierarchische Daten):** `/HierarchieUmstellung`.
+  Erwartet: Status-Badge „Flach (AKE-Standard)". Klick „Auf hierarchische Produktionsaufträge
+  umstellen" öffnet ein Modal mit dem exakten Text („Nach dem ersten hierarchischen Import ist eine
+  Rückkehr zur flachen Struktur nicht mehr möglich. Vorher auf einer Datenbank-Kopie testen. Wirklich
+  umstellen?"). „Jetzt umstellen" → Erfolgsmeldung, Status-Badge „Hierarchisch aktiviert".
+- **TS-63.2 — Danach noch rückgängig (solange keine Daten):** direkt nach TS-63.1 (keine
+  hierarchischen Daten). Erwartet: Button „Wieder deaktivieren" ist sichtbar; Klick setzt zurück auf
+  „Flach", Erfolgsmeldung.
+- **TS-63.3 — Abbrechen im Modal:** Modal öffnen, „Abbrechen" → keine Änderung, Status unverändert.
+
+### Gesperrter Zustand (hierarchische Daten vorhanden)
+
+- **TS-63.4 — Master read-only + Sperr-Begründung:** mit eingespielter Zeile `OrderNumber <>
+  SubOrderNumber` und Neustart. Erwartet auf `/HierarchieUmstellung`: Badge „gesperrt — hierarchische
+  Daten vorhanden", kein Umschalt-Button, sondern der Hinweis „Nicht mehr über die Anwendung
+  umkehrbar" mit Verweis auf `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md`.
+- **TS-63.5 — Technischer Schreibversuch über generische Maske abgelehnt + protokolliert (AK 2):**
+  Auf `/ServiceSettings` bietet die Zeile `ProduktionsauftragHierarchisch` **kein**
+  Schreib-Bedienelement (nur Badge + Link „Umschalten (eigene Seite)"). Ein per Tool
+  konstruierter POST an `SaveSettings` mit `settings[ProduktionsauftragHierarchisch]=false` wird
+  **nicht** gespeichert (Master bleibt aktiviert), es erscheint eine Fehlermeldung, und im
+  Aktivitäts-Protokoll steht ein `HierarchieUmstellung`-Eintrag „Technischer Schreibversuch …
+  abgelehnt".
+- **TS-63.6 — Kein Schreib-Bedienelement in generischer Maske (AK 2):** Sichtprüfung — die
+  Master-Zeile in `/ServiceSettings` zeigt ausschließlich Anzeige + Link, keinen Toggle/kein
+  Eingabefeld (ersetzt den früheren „Deaktivierung über Teil-6-Maske"-Test; Teil-6-Maske existiert
+  nicht).
+
+### Audit + Auto-Erledigt-Abschaltung
+
+- **TS-63.7 — Audit-Eintrag beim Flip:** nach TS-63.1 im Aktivitäts-Protokoll (Service
+  `HierarchieUmstellung`) ein Eintrag „FA-Hierarchie-Master auf 'aktiviert' gesetzt durch <Windows-
+  Login>".
+- **TS-63.8 — Auto-Erledigt-Abschaltung beim Einschalten (vorbereitet für Etappe D):** ist der
+  Auto-Erledigt-Schalter (Key `Sync:FaZusatzinfoAutoErledigtEnabled`, ab Etappe D) auf `true`, wird
+  er beim Master-Einschalten automatisch auf `false` gesetzt und der Audit-Eintrag vermerkt „Auto-
+  Erledigt automatisch abgeschaltet". (In Etappe B ohne den Key ein No-op — kein Fehler.)
+
+### Runbook / Regression
+
+- **TS-63.9 — Runbook erreichbar + verlinkt (AK 15):** `README.md` → Abschnitt „Runbooks" verweist
+  auf `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md`; die Datei existiert und beschreibt Vorbedingungen
+  (Backup), betroffene Tabellen, Bereinigungsschritt und die Datenverlust-Warnung. Die Sperr-
+  Fehlermeldung des Guards nennt denselben Pfad.
+- **TS-63.10 — AKE-Verhalten unverändert (Master aus):** mit Master `false` verhält sich
+  `/ServiceSettings` (übrige Keys speicherbar) und jeder bestehende Controller/Sync exakt wie vorher;
+  der Guard greift nur bei Schreibversuchen auf die geschützten Keys mit vorhandenen hierarchischen
+  Daten.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B (Einwegtor) (2026-08-17; Versions-Bump beim Epic-Abschluss/QA)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
