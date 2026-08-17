@@ -21,7 +21,7 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
 | A | Schema-Inversion + Migration + Backfill + FreshInstall + tote AgentJobs | **erledigt** | `fe7299b` |
 | B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
 | C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `dc297d9..bc7e3d6` |
-| D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | offen | — |
+| D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `fb07512..660a01b` |
 | E | Doku, Testszenarien, Brain-Update, Version-Bump | offen | — |
 
 ## Umsetzungsnotizen
@@ -151,6 +151,61 @@ Testszenarien TS-64 (`bc7e3d6`).
 **Offen C→D/E:** D = Lookup-Sweep (`OrderNumber`) + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-
 Fold-2-Sperre (Auto-Erledigt-Key + datengetriebener Skip) + hierarchische Reconcile/Fold-2-Tests;
 E = Doku/Version-Bump/Brain. Status Teil 7 bleibt **InUmsetzung**, kein qa-agent, kein Merge, kein Push.
+
+### Etappe D — Lookup-Härtung + Auto-Erledigt-Sperre (2026-08-17, `fb07512..660a01b`)
+
+Build + `dotnet test` grün im Worktree: **Web 1186** (+1 skip) + **Service 231**, 0 Fehler. Plan:
+`docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-d.md`. Vier Commits: mengenwertige Naht (`fb07512`),
+Auto-Erledigt-Sperre (`ca72434`), Reconcile-Test (`6a00ba7`), TS-65 (`660a01b`).
+
+- **AK 10 — mengenwertige Naht:** `IWorkOperationRepository.GetAllByFaAndOperationAsync` (liefert alle
+  Sub-FA-Arbeitsgänge); der bestehende `GetByFaAndOperationAsync` bleibt **verhaltensgleich** (erste
+  Zeile) und **protokolliert** Mehrfachtreffer (ILogger optional im Ctor, `_logger?.LogWarning`).
+  Aufrufer-Umstellung bleibt Teil 8.
+- **AK 11 — dreistufige Auto-Erledigt-Sperre in `FaZusatzinfoSyncService`:**
+  - *Stage 1 (datengetrieben, greift immer):* `fold2Allowed = autoErledigtEnabled && matches.Count == 1`.
+    Bei Mehrfachtreffer (hierarchisch: HauptFA + Sub-FAs teilen die OrderNumber) wird Fold 2
+    übersprungen + SyncLog-Warnung (WA + Trefferzahl).
+  - *Stage 2 (Schalter):* neuer Key `Sync:FaZusatzinfoAutoErledigtEnabled` (Default **true** = AKE
+    unverändert). Vom **Etappe-B-Guard** gegen Einschalten gesperrt, solange hierarchische Daten
+    existieren; der Master-Flip schaltet ihn ab (Controller aus Etappe B). SyncWorker liest + reicht
+    ihn als `SyncAsync(dryRun, cap, autoErledigt, ct)`-Param durch (Trailing-Default → bestehende
+    2-arg-Aufrufer/Tests unverändert).
+  - *Stage 3 (Test):* zwei Sub-FAs derselben OrderNumber, „abgeholt" am HauptFA setzt Geschwister
+    nicht (`erledigt-gesetzt=0`) + Schalter-aus-Test. **Bestehender** Test
+    `AutoDone_MultiFaPerWa_OnlyOpenOneIsSet` (kodierte das alte, unsichere „open-one-set"-Verhalten)
+    auf den neuen kompletten Skip umgestellt — AKE bleibt unberührt (dort `matches.Count == 1`).
+- **AK 12 — hierarchischer Reconcile-Test:** `ProductionOrderReconciler.Plan` mit doppelter
+  OrderNumber → Gruppen-Semantik (HauptFA in Sage → nichts stornieren; weg → ganze Gruppe Kandidat).
+
+**AK 8 — OrderNumber-Sweep (adversariales Review, Untergrenze 14 = Sweep, keine feste Liste).**
+Beide Quellprojekte durchsucht (ohne Migrations/Tests/bin/obj). **7 kritische** Eindeutigkeits-
+Lookups (Teil-8-Umstellungskandidaten), alles andere bleibt bewusst auf `OrderNumber`:
+
+| Datei:Zeile | Semantik | Urteil |
+|---|---|---|
+| `ProductionOrderRepository.cs:101-103` (`GetByOrderNumberAsync`) | Single-Row | **kritisch** → SubOrderNumber/mengenwertig (Teil 8) |
+| `IProductionOrderRepository.cs:36` (Vertrag `Task<ProductionOrder?>`) | Single-Row | **kritisch** → Signatur mengenwertig (Teil 8) |
+| `WorkOperationRepository.cs:78-84` (`GetByFaAndOperationAsync`) | Single-Join | **kritisch** → **Naht in Teil 7 geliefert (AK 10)**, Umstellung Teil 8 |
+| `SageProductionOrderSql.cs:21` (Upsert-EXISTS) | Upsert-Key | **kritisch** → SubOrderNumber (Teil 8) |
+| `SageProductionOrderSql.cs:34` (UPDATE WHERE OrderNumber) | mehrzeiliges UPDATE | **kritisch** → SubOrderNumber (Teil 8) |
+| `SageImportService.cs:320` (Reconcile-Storno UPDATE) | mehrzeiliges UPDATE | **kritisch** (Teil 8) |
+| `SageImportService.cs:284` (Reconcile-Reaktivierung UPDATE) | mehrzeiliges UPDATE | **kritisch** (Teil 8) |
+
+Unkritisch (Gruppen-Lookup, bleibt OrderNumber, bewusst): `BdeBookingService.cs:89-97`
+(GroupBy→List), `FaZusatzinfoSyncService.cs:92/96` (GroupBy, jetzt mit Fold-2-Sperre),
+`ProductionOrderReconciler.cs:51/57` (Set-Membership; kritischer Effekt liegt im UPDATE #6/#7).
+Unkritisch (Anzeige/Enrichment): `EnaioDmsDocumentRepository.cs:22-25/30-42` (+ 5 Anzeige-Aufrufer),
+30+ Filter/Suche/Sortierung/Projektion. Schema-Config `ApplicationDbContext.cs:421/422` (Inversion
+korrekt). Korrekt-by-design: `HierarchicalDataExistsAsync`, `FaMaterialization*`, alle Oseon-`*OrderNumber`
+(separate Entität). **Wichtig für Teil 8/Deploy:** die vier SQL-UPDATE/Upsert-Stellen
+(`SageProductionOrderSql`, `SageImportService` Storno/Reaktivierung) sind am **AKE**-Standort noch
+korrekt (OrderNumber==SubOrderNumber), am IDEAL aber deaktiviert (`Sync:ProductionOrdersEnabled=false`,
+Reconcile aus). Erst wenn IDEAL einen dieser Pfade aktivieren will, ist die Umstellung Pflicht.
+
+**Offen D→E:** E = Doku (README/Hilfe), Version-Bump (ein Bump fürs Bündel), Anwender-Changelog,
+Brain-Dauerwissen (ggf. ADR/fallstricke/codebase/glossar). Status Teil 7 bleibt **InUmsetzung**,
+kein qa-agent, kein Merge, kein Push.
 
 ## Offene Punkte / Deploy-kritisch (aus der Spec, für Schranke 2 / Deploy)
 
