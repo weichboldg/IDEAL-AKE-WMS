@@ -19,7 +19,7 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
 | A | Schema-Inversion + Migration + Backfill + FreshInstall + tote AgentJobs | **erledigt** | `fe7299b` |
-| B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | offen | — |
+| B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
 | C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | offen | — |
 | D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | offen | — |
 | E | Doku, Testszenarien, Brain-Update, Version-Bump | offen | — |
@@ -54,6 +54,60 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
   via `SageProductionOrderSql.BuildUpsert(true)`, sobald die Spalte existiert). Invariante hält.
 - **Build** 0 Fehler; **Tests** Web 1174 (+1 skip) + Service 221 grün.
 - **Kein** Version-Bump in Etappe A (erst Etappe E). Guard/Umschalt-Seite/Sync-Regeln folgen in B–D.
+
+### Etappe B — Guard + Einwegtor + Runbook + Audit (2026-08-17, `aed9cb5..39f7813`)
+
+Build + `dotnet test` grün im Worktree: **Web 1185** (+1 vorbestehend übersprungen, gesamt 1186) +
+**Service 221**, 0 Fehler (+11 neue Tests ggü. Etappe A). Plan:
+`docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-b.md` (im Worktree). Vier Commits: Guard-Kern
+(`aed9cb5`), Umschalt-Seite + read-only-Maske + Audit (`0ae43d0`), Runbook + README (`9de5b1a`),
+Testszenarien TS-63 + Test-Fix (`39f7813`).
+
+**Architektur (S7-6 „einziger Choke-Point" erfüllt):**
+- **Reiner Planer** `HierarchischeStrukturGuard.Evaluate(setting, current, requested, dataExists)`
+  (Muster `ProductionOrderReconciler`, keine DB, unit-getestet — AK 12). Sperrbedingung
+  datengetrieben: `dataExists = EXISTS(ProductionOrders WHERE OrderNumber <> SubOrderNumber)`.
+- **Durchsetzung als Decorator** `GuardedServiceSettingRepository` auf
+  `IServiceSettingRepository.UpsertAsync/DeleteAsync` — die **einzige** Datenzugriffs-Naht, durch die
+  alle vier ServiceSettings-Schreibwege (SaveSettings/Create/Edit/Delete) laufen. Kein Caller kann
+  den Guard umgehen; DI in `Program.cs` (concrete `ServiceSettingRepository` → Guarded-Wrapper).
+- **Schreibpfad live** (Repo-`HierarchicalDataExistsAsync`, `AnyAsync`), **Anzeige gecacht**
+  (`HierarchischeStrukturStatus`-Singleton, Refresh am App-Start + nach jedem Flip; Etappe-C-Sync
+  ruft `RefreshAsync()` am Sync-Ende — Naht steht) — exakt Freigabe-Antwort 3.
+- **Umschalt-Seite** `HierarchieUmstellungController` + `Views/HierarchieUmstellung/Index.cshtml`
+  ([RequireAdminAccess]): Bootstrap-Modal mit dem **wortgleichen** Bestätigungstext (AK 4),
+  Deaktivieren solange offen (AK 3), Sperr-Anzeige mit Runbook-Verweis wenn Daten vorliegen.
+- **Generische Maske read-only** (AK 2): Master-Zeile in `Views/ServiceSettings/Index.cshtml` zeigt
+  nur Badge + Link, **kein** Schreib-Bedienelement (kein `<input name=settings[...]>` → nie
+  gepostet). Ein technischer POST wird vom Decorator abgelehnt; `SaveSettings` fängt die
+  `HierarchischeStrukturGuardException`, meldet + protokolliert (SyncLog `HierarchieUmstellung`).
+- **Audit** (ADR 0010): SyncLog-Service `HierarchieUmstellung`, Master-Flip + Auto-Erledigt-
+  Abschaltung + abgelehnte Schreibversuche protokolliert (Windows-Login via `ICurrentUserService`).
+- **Runbook** `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` (Backup/Tabellen/Bereinigung/Datenverlust-
+  Warnung, „nicht über die Anwendung umkehrbar") + README-Abschnitt „Runbooks"; die Guard-
+  Fehlermeldung referenziert denselben Pfad (AK 15).
+
+**Zuschnitt-Entscheidung Schalter-Inventur (S7-8, hier verbindlich benannt):** Die abhängigen
+Schalter sind **genau zwei** — Master `ProduktionsauftragHierarchisch` + Auto-Erledigt
+`Sync:FaZusatzinfoAutoErledigtEnabled`. **Kein dritter Gate-Schalter**; die übrigen
+`OrderNumber`-abhängigen Codepfade werden in **Etappe D** gehärtet (Lookup-Sweep), nicht per
+Schalter gesperrt. Etappe B legt **nur den Master-Key** an (Katalog + Seed + read-only-UI). Der
+Auto-Erledigt-Key wird vom Guard bereits **benannt und geschützt** (`HierarchischeStrukturKeys`),
+seine Katalog-Eintragung + die Fold-2-Verdrahtung in `FaZusatzinfoSyncService` bleiben **Etappe D**
+(dort bekommt der Key seinen Leser — kein leserloser Katalog-Key in B). Der Controller entschärft
+Auto-Erledigt beim Master-Flip bereits defensiv (No-op, solange der Key fehlt).
+
+**Abweichung ggü. Spec-Rumpf (dokumentiert):** Die im Spec-`affected_code` genannte
+`StandortEinstellungenController` (Teil-6-Maske) **existiert nicht** — die tatsächliche Etappe 6 des
+Bündels lieferte „Listen-Spaltenauswahl", keine Standort-Maske. Damit entfällt der zweite UI-
+Schreibweg; nur die generische ServiceSettings-Maske ist read-only zu behandeln (so umgesetzt). Das
+Testszenario „Teil-6-Maske" ist durch „generische Maske bietet kein Schreib-Bedienelement" ersetzt
+(war ohnehin die Nachbesserungs-2-Fassung).
+
+**Offen für Etappe C/D/E:** Materialisierungs-Sync + `RefreshAsync()`-Aufruf am Sync-Ende (C);
+Auto-Erledigt-Katalog-Key + Fold-2-Verdrahtung + datengetriebener Skip + hierarchische Tests (D);
+Version-Bump/Changelog/Brain-Dauerwissen (E). Status Teil 7 bleibt **InUmsetzung**, kein qa-agent,
+kein Merge, kein Push.
 
 ## Offene Punkte / Deploy-kritisch (aus der Spec, für Schranke 2 / Deploy)
 
