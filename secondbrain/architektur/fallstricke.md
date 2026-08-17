@@ -771,3 +771,20 @@ Materialisierungs-Sync laeuft im Windows-Service und kann ihn **nicht** direkt a
 **Loesung:** die Umschalt-Seite refresht den Cache bei jedem GET (admin-only, niederfrequent) — der
 Schreibpfad (Guard-Decorator) prueft ohnehin **live**. Eine kurzzeitig veraltete Anzeige ist harmlos
 (Freigabe-Antwort 3). Nicht versuchen, den Web-Singleton aus dem Service-Prozess zu setzen.
+
+### EF-Migration UND idempotentes SQL-Skript brauchen BEIDE dieselben Guards
+`db.Database.Migrate()` (App-Start, `Program.cs`) fuehrt die **EF-Migration** aus — **nicht** das
+handgeschriebene `SQL/XX_*.sql`. Beide Pfade existieren parallel (ADR 0004): das SQL-Skript fuer den
+manuellen/Produktiv-Deploy, die EF-Migration fuer den App-Start. **Fallstrick:** Guards nur ins
+SQL-Skript zu schreiben reicht nicht. Konkreter Vorfall (Teil 7, 2026-08-17): die EF-Migration
+`20260814105526_InvertProductionOrderHierarchy` machte ein **ungeschuetztes**
+`migrationBuilder.DropIndex("IX_ProductionOrders_OrderNumber")`. Auf einer **FreshInstall-DB** ist die
+OrderNumber-Eindeutigkeit aber ein `UQ_ProductionOrders_OrderNumber`-**Constraint**, kein
+EF-benannter `IX_`-Unique-Index → `db.Database.Migrate()` brach mit **SqlError 3701** („Index ...
+nicht vorhanden"). Das idempotente `SQL/90` raeumte laengst **beide** Formen ab (UQ_-Constraint +
+IX_-Unique-Index), die EF-Migration nur eine. **Warum das durch QA rutschte:** Build+Tests laufen
+InMemory und fuehren **keine** raw-SQL-DDL aus — der Index-Tausch ist Manual-UAT (App-Neustart gegen
+eine echte DB). **Regel:** Wenn das SQL-Skript `sys.indexes`/`sys.key_constraints`-Guards braucht,
+braucht die EF-Migration dieselben — via `migrationBuilder.Sql(@"IF EXISTS ... DROP ...")` statt der
+strukturierten `DropIndex`/`CreateIndex`-Operationen. `GO` gehoert NICHT in `migrationBuilder.Sql`
+(Client-Direktive; jeder `.Sql(...)`-Aufruf ist bereits ein eigener Batch).

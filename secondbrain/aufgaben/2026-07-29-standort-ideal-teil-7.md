@@ -1,9 +1,9 @@
 ---
 type: aufgabe
 title: "IDEAL Teil 7 — Materialisierung nach ProductionOrders (Epic-Umsetzung)"
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-14
-updated: 2026-08-14
+updated: 2026-08-17
 spec: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -222,6 +222,128 @@ kein qa-agent, kein Merge, kein Push.
 
 **Teil 7 ist damit vollständig umgesetzt (A–E).** Nächster Schritt: **qa-agent** (build+test grün,
 Testszenarien, Deploy-Abschnitt) — darf dann `status: Testbereit` setzen. Bis dahin `InUmsetzung`.
+
+## QA-Abnahme (2026-08-17, qa-agent, Worktree-HEAD `5cf802e`)
+
+**Status: Testbereit.** Build + Tests grün, alle 15 AK gegen den echten Code verifiziert (nicht nur
+gegen die Umsetzungsnotizen), Deploy-Abschnitt finalisiert. Kein Merge, kein Push — Schranke 2 steht
+noch aus.
+
+**Build:** `dotnet build IdealAkeWms.slnx` im Worktree → 0 Fehler, 8 Warnungen (NU1902 MailKit/MimeKit,
+vorbestehend, nicht Teil-7-bezogen).
+
+**Tests (frisch gelaufen, nicht aus alten Notizen übernommen):**
+- `dotnet test IdealAkeWms.Tests --no-build`: **1186 erfolgreich, 1 übersprungen (vorbestehend,
+  `ProductionOrderEagerCreateAgentJobTests`), 0 Fehler**, gesamt 1187.
+- `dotnet test IDEALAKEWMSService.Tests --no-build`: **231 erfolgreich, 0 übersprungen, 0 Fehler**.
+- Deckt sich exakt mit dem in der QA-Bestellung erwarteten Stand (Web 1186 inkl. Etappe-D-Zuwachs,
+  Service 231).
+
+**Code-Stichprobe gegen die Akzeptanzkriterien (Datei:Zeile, nicht nur Doku-Behauptung):**
+- AK 1/9 (AKE unverändert): Backfill-Invariante `SubOrderNumber = OrderNumber` in
+  `SQL/90_InvertProductionOrderHierarchy.sql` Schritt 2; kein produktiver `ProductionOrders.Add`
+  außerhalb `SageImportService`/`SageProductionOrderSql` (bereits in Etappe A verifiziert).
+- AK 2 (kein Schreib-Bedienelement + Ablehnung): `GuardedServiceSettingRepository.cs` als einzige
+  Schreib-Naht auf `IServiceSettingRepository.UpsertAsync/DeleteAsync`; generische Maske zeigt Key
+  `ProduktionsauftragHierarchisch` nur als Badge+Link (kein `<input name=settings[...]>`).
+- AK 8 (Sweep, keine feste Liste): 7 kritische Fundstellen tabellarisch mit Einzelurteil in Etappe D
+  (Zeilen 181–204 dieser Notiz), Rest bewusst unkritisch begründet.
+- AK 10 (mengenwertige Naht): `WorkOperationRepository.cs:96` protokolliert Mehrfachtreffer im
+  bestehenden `GetByFaAndOperationAsync` per `ILogger.LogWarning`, `GetAllByFaAndOperationAsync`
+  (Zeile 101) liefert alle Treffer — Aufrufer-Verhalten unverändert (Teil 8 übernimmt Umstellung).
+- AK 11 (dreistufige Auto-Erledigt-Sperre): `FaZusatzinfoSyncService.cs:121`
+  `fold2Allowed = autoErledigtEnabled && matches.Count == 1` + SyncLog-Warnung bei Mehrfachtreffer
+  (Zeile 122–125), Fold-2-Check nur bei `fold2Allowed` (Zeile 176) — Stage 1 datengetrieben bestätigt.
+  Schalter `Sync:FaZusatzinfoAutoErledigtEnabled` (Default `true`) unter Guard-Schutz.
+- AK 14 (Index-Tausch idempotent): `SQL/90` räumt **beide** Altformen ab (`UQ_ProductionOrders_
+  OrderNumber`-Constraint per `sys.key_constraints`-Guard **und** `IX_ProductionOrders_OrderNumber`
+  als alter Unique-Index per `sys.indexes`-Guard), legt neuen nicht-eindeutigen Index auf
+  `OrderNumber` sowie den neuen Unique-Index auf `SubOrderNumber` jeweils mit
+  `NOT EXISTS`-Guard an — bei zweitem Lauf werden alle vier DDL-Schritte übersprungen.
+- AK 15 (Runbook verlinkt + referenziert): `README.md:368` verlinkt
+  `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md`; `HierarchischeStrukturGuard.cs:27` referenziert denselben
+  Pfad in der Ablehnungs-Fehlermeldung.
+- `SQL/00_FreshInstall.sql`: neue Spalten (Zeilen 261–263) + Unique-Index auf `SubOrderNumber`
+  (Zeile 1110–1111) + `MigrationId`-Insert (Zeile 2297–2298) vorhanden; alter
+  `UQ_ProductionOrders_OrderNumber`-Constraint **nicht** mehr vorhanden (grep-negativ bestätigt).
+- Toter AgentJob: `SQL/AgentJobs/01_Import_Produktionsauftraege.sql` in `_archiv/` mit
+  Sweep-Begründung in `_archiv/README.md`; `02_Import_Artikel.sql` bewusst am Ort belassen
+  (bereits deprecated markiert).
+
+**Testszenarien:** `docs/TESTSZENARIEN.md` (Worktree) enthält TS-63 (10 Fälle, Etappe B),
+TS-64 (8 Fälle, Etappe C), TS-65 (6 Fälle, Etappe D) — alle 15 AK sind auf mindestens ein TS-Szenario
+rückführbar. `secondbrain/tests/testszenarien-index.md` (Hauptcheckout) bereits nachgezogen (Zeilen
+88–90 Kapitelübersicht, Zeilen 105–106 „nur manuell prüfbar"-Begründungstabelle) — bestätigt, keine
+Nacharbeit nötig.
+
+**Deploy-Abschnitt:** geprüft und finalisiert (Spec-Frontmatter `deploy.web/service/migration` = alle
+`true`, gegen `git diff --stat main...5cf802e` bestätigt: 85 Dateien in `IdealAkeWms/`+
+`IDEALAKEWMSService/`, 2 neue EF-Migrationen). Publish-Befehle im Deploy-Abschnitt jetzt auf den
+Worktree-Pfad zugeschnitten, mit Hinweis auf Re-Publish erst nach Merge falls nötig. Reihenfolge
+(Backup → `sysjobs`-Prüfung AK 13 → Service stoppen → Migration → Service-Neustart → Web-Publish)
+unverändert stimmig, Irreversibilität von Etappe A weiterhin im Deploy-Abschnitt benannt.
+
+**Nicht automatisiert prüfbar (Manual-UAT, für Schranke 2):** siehe TS-63/64/65-Vorbedingungen sowie
+die „Datenabhängigen Annahmen" in der Etappe-C-Notiz oben (Mapping `HauptFA==root.SubFA`,
+Parent-Kette `child.VaterFA==parent.SubFA`, Melderegel-Schärfung anhand des ersten echten Sage-
+Datenlaufs) — inhärent nicht am InMemory-Code verifizierbar, siehe manueller Test-Checkliste unten.
+
+### Manueller Test-Checkliste (für den Menschen, Schranke 2)
+
+1. **Vor allem:** DB-Backup ziehen (Kern-Tabelle `ProductionOrders`, daten-konvertierende Migration).
+2. Serverseitig prüfen (AK 13): `sysjobs`/`sysjobsteps`-Abfrage aus dem Deploy-Abschnitt gegen
+   `AKESQL20` — aktive Jobs, die `ProductionOrders` schreiben, deaktivieren.
+3. Windows-Service stoppen, Migration `SQL/90_InvertProductionOrderHierarchy.sql` einspielen (oder
+   `dotnet ef database update`), danach Service neu starten und Web-Publish (Befehle siehe
+   Deploy-Abschnitt der Spec).
+4. **Regression AKE (AK 1/9):** nach dem Deploy mit Master weiterhin `false` — bestehende Listen
+   (`ProductionOrders`, Picking-Leitstand, FA-Worklist, Tracking) auf unveränderte Zeilenzahl/Inhalte
+   prüfen.
+5. **TS-63.1–63.3:** `/HierarchieUmstellung` aufrufen, Bestätigungsdialog-Wortlaut prüfen, Master
+   einschalten/wieder ausschalten (solange keine hierarchischen Daten vorliegen).
+6. **TS-63.4–63.6:** eine Testzeile mit `OrderNumber <> SubOrderNumber` einspielen (DB-Kopie),
+   Web-App neu starten, prüfen: Umschalt-Seite zeigt „gesperrt" + Runbook-Verweis, generische
+   `/ServiceSettings`-Maske bietet kein Schreib-Bedienelement für den Master, ein technischer POST
+   wird abgelehnt und im Aktivitäts-Protokoll (`HierarchieUmstellung`) protokolliert.
+7. **TS-63.7–63.9:** Audit-Eintrag beim Flip prüfen; Runbook-Link in `README.md` und in der
+   Guard-Fehlermeldung stichprobenartig öffnen.
+8. **TS-64 (echter Datenlauf, sobald Master aktiv + `Sync:HierarchicalFaEnabled=true`):** neuen
+   Sub-FA anlegen → materialisiert (Regel 1); einen materialisierten Sub-FA aus der Quelle entfernen
+   → `SageMissingSince` gesetzt statt Löschung, wieder auftauchen lassen → zurückgesetzt (Regel 2,
+   TS-64.2/64.3); mehrere gleichzeitig verschwundene FAs → genau **eine** Sammelmail (TS-64.4);
+   `VaterFA` eines materialisierten Sub-FA ändern → NICHT übernommen, nur protokolliert (Regel 3,
+   TS-64.5). **Dabei klären (TS-64.8):** Wurzel-Mapping (`HauptFA==root.SubFA`) und ob die IDEAL-View
+   fertige Aufträge behält oder ausblendet — ggf. Melderegel danach schärfen.
+9. **TS-65.2/65.3:** am hierarchischen Testbestand ein „verpackt/abgeholt" an einem HauptFA mit
+   mehreren Sub-FAs auslösen → Geschwister bleiben unangetastet, SyncLog-Warnung vorhanden;
+   `Sync:FaZusatzinfoAutoErledigtEnabled` lässt sich bei vorhandenen hierarchischen Daten nicht auf
+   `true` setzen.
+10. Anwender-Changelog (`/Help/Changelog`) und Versionsnummer (v1.32.0) im UI stichprobenartig prüfen.
+11. Erst nach erfolgreichem manuellem Test: Merge-Entscheidung (Schranke 2) — Hinweis: dieser Branch
+    bringt gleichzeitig die bereits testbereiten Teile 1–5 (v1.31.0) mit.
+
+## Post-QA Manual-UAT-Fund + Fix (2026-08-17) — EF-Migration Index-Tausch guarded
+
+Beim ersten **App-Start** gegen eine echte DB brach `db.Database.Migrate()` (Program.cs:159) mit
+**SqlError 3701** ab: `DROP INDEX [IX_ProductionOrders_OrderNumber] ... nicht vorhanden`. **Root Cause
+(systematic-debugging):** die EF-Migration `20260814105526_InvertProductionOrderHierarchy` machte
+einen **ungeschützten** `DropIndex("IX_ProductionOrders_OrderNumber")`. Auf einer FreshInstall-DB ist
+die OrderNumber-Eindeutigkeit ein `UQ_ProductionOrders_OrderNumber`-**Constraint**, kein EF-benannter
+`IX_`-Unique-Index → nichts zum Droppen → 3701. Das idempotente `SQL/90` räumte längst **beide**
+Formen ab (UQ_-Constraint + IX_-Unique-Index), die EF-Migration nur eine. Der Pfad, der am Start läuft,
+ist die **EF-Migration**, nicht das SQL-Skript — deshalb griff der SQL/90-Guard nicht.
+
+**Fix** (Worktree-Commit, nach dem QA-Lauf): die drei Index-Operationen der EF-Migration-`Up()` durch
+`migrationBuilder.Sql(@"IF EXISTS/IF NOT EXISTS ...")`-Blöcke ersetzt, deckungsgleich + idempotent mit
+SQL/90 (Schritt 4a UQ_+IX_ droppen, 4b non-unique `IX_OrderNumber`, 4c unique `IX_SubOrderNumber`).
+Spalten-Ops (AddColumn/Backfill/NOT NULL) unverändert (nicht die Fehlerstelle; EF wickelt die Migration
+transaktional ab → der Fehlschlag rollte zurück, DB war unverändert). Build + Web-Tests 1186 grün; die
+**DDL-Verifikation ist der erneute App-Start** (nicht InMemory-testbar). Migration-ID/Version unverändert
+(v1.32.0, die Migration war nirgends erfolgreich angewandt). Dauerwissen: [[fallstricke]] §9 („EF-Migration
+UND idempotentes SQL-Skript brauchen BEIDE dieselben Guards").
+
+**Testbereit bleibt gültig** — der Fund ist genau die Manual-UAT-Klasse („Build+Tests grün ist
+Mindestbedingung, nicht Beweis genug"); der Fix stellt her, was die QA (build+test-basiert) annahm.
 
 ## Offene Punkte / Deploy-kritisch (aus der Spec, für Schranke 2 / Deploy)
 
