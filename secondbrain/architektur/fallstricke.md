@@ -740,3 +740,34 @@ Senden (Requeue / haengender `Gesendet`) prueft der Worker per Read-Lookup gegen
 **Warum Delimiter `#`:** `SM#12#` darf nicht Praefix von `SM#123#` sein, sonst trifft der LIKE-Lookup
 fuer Bewegung 12 faelschlich Bewegung 123. **Dev-Lauf/UAT:** exakte Korrelationsspalte (`Memo` vs.
 `Referenz`) am Sage-Testsystem bestaetigen — eine Zeile in `SageBuchungLookupReader`.
+
+## 9. IDEAL — hierarchische Produktionsauftraege (Teil 7)
+
+### `ProductionOrder.OrderNumber` ist nach der Schema-Inversion NICHT mehr unique
+Bis v1.31.0 war `OrderNumber` der eindeutige FA-Schluessel (Unique-Index). Teil 7 (v1.32.0) invertiert
+das: die Eindeutigkeit liegt jetzt auf **`SubOrderNumber`** (= Sage BelID), `OrderNumber` (= Sage
+StrukturID/HauptFA) ist nur noch ein nicht-eindeutiger Index. Im **flachen AKE-Modus** gilt weiter die
+Invariante `OrderNumber == SubOrderNumber` (Backfill) — Verhalten identisch. Im **hierarchischen
+IDEAL-Modus** teilen HauptFA + alle Sub-FAs dieselbe `OrderNumber`.
+**Warum das eine Falle ist:** jeder `FirstOrDefault(o => o.OrderNumber == x)` / `WHERE OrderNumber = @x`
+greift dann willkuerlich eine Zeile bzw. trifft die ganze Gruppe. Der `OrderNumber`-Sweep (Teil 7
+Etappe D, Katalog in [[2026-07-29-standort-ideal-teil-7]]) hat **7 kritische Eindeutigkeits-Lookups**
+identifiziert (`GetByOrderNumberAsync`, `GetByFaAndOperationAsync`, `SageProductionOrderSql`-EXISTS/UPDATE,
+`SageImportService`-Storno/Reaktivierung). Diese sind am **AKE korrekt** (Invariante), am **IDEAL
+deaktiviert** — ihre Umstellung auf `SubOrderNumber`/mengenwertig ist **Teil 8**. Wer einen neuen
+`OrderNumber`-Lookup schreibt: entscheiden, ob **Gruppen-Lookup** (alle Sub-FAs, bleibt `OrderNumber`)
+oder **Eindeutigkeits-Lookup** (dann `SubOrderNumber` bzw. `GetAllByFaAndOperationAsync`). Details:
+[[0012-fa-hierarchie-einweg-migrationstor]].
+
+### `SageMissingSince` ist ein Zeitstempel, NICHT `IsCancelled`
+„Aus der Sage-Struktur verschwunden" (Sync-Regel 2 der Materialisierung) und „storniert" sind fachlich
+verschieden. Der Materialisierungs-Sync loescht nie, sondern setzt `SageMissingSince` (selbstheilend:
+NULL beim Wiederauftauchen). **Warum kein Bool/kein `IsCancelled`:** ein Bool haengt bei Wiederauftauchen
+fest, und die Vermischung mit „storniert" waere spaeter nicht mehr aufloesbar.
+
+### Der Master-Anzeige-Cache lebt im Web, der Materialisierungs-Sync im Service (getrennte Prozesse)
+`HierarchischeStrukturStatus` (gecachter „ist gesperrt"-Zustand) ist ein Web-Singleton; der
+Materialisierungs-Sync laeuft im Windows-Service und kann ihn **nicht** direkt auffrischen.
+**Loesung:** die Umschalt-Seite refresht den Cache bei jedem GET (admin-only, niederfrequent) — der
+Schreibpfad (Guard-Decorator) prueft ohnehin **live**. Eine kurzzeitig veraltete Anzeige ist harmlos
+(Freigabe-Antwort 3). Nicht versuchen, den Web-Singleton aus dem Service-Prozess zu setzen.
