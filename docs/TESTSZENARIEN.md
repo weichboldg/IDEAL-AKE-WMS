@@ -6962,5 +6962,35 @@ laufenden System.
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B (Einwegtor) + Etappe C (Materialisierung) (2026-08-17; Versions-Bump beim Epic-Abschluss/QA)*
+## TS-65 — IDEAL Teil 7 Etappe D: Lookup-Härtung + Auto-Erledigt-Sperre
+
+**Vorbedingungen:** Hierarchischer Modus (Master an, Sub-FAs materialisiert). Automatisiert abgedeckt:
+`WorkOperationRepositoryTests.GetAllByFaAndOperation_…`, `FaZusatzinfoSyncServiceTests.Fold2_…` +
+`AutoDone_MultiFaPerWa_…`, `ProductionOrderReconcilerTests.Plan_HierarchischeGruppe_…`.
+
+- **TS-65.1 — Mengenwertiger Lookup (AK 10):** zwei Sub-FAs derselben `OrderNumber` mit je einem
+  Arbeitsgang „BG". `GetAllByFaAndOperationAsync("<HauptFA>","BG")` liefert **beide**; der bestehende
+  `GetByFaAndOperationAsync` liefert **eine** (erste Zeile, kein Crash) und schreibt eine Log-Warnung
+  „Mehrfachtreffer … Aufrufer sollte GetAllByFaAndOperationAsync nutzen (Teil 8)". Terminal-/Aufrufer-
+  Verhalten unverändert (Teil 7 ändert die Aufrufer nicht).
+- **TS-65.2 — Auto-Erledigt Stage 1 (datengetrieben, AK 11a):** Struktur mit zwei Sub-FAs derselben
+  `OrderNumber`; ein Sage-Status „verpackt/abgeholt" am HauptFA → **kein** FA der Gruppe wird auf
+  Komm-Erledigt gesetzt (`erledigt-gesetzt=0`), SyncLog-Warnung „Auto-Erledigt uebersprungen (WA …):
+  N FA-Treffer (hierarchisch)". Greift unabhängig vom Schalter.
+- **TS-65.3 — Auto-Erledigt Stage 2 (Schalter, AK 11b):** `Sync:FaZusatzinfoAutoErledigtEnabled` in
+  `/ServiceSettings`. Bei **hierarchischen Daten** lässt er sich nicht auf `true` setzen (Guard aus
+  Etappe B lehnt ab + protokolliert); beim Umlegen des Masters wird ein aktiver Schalter automatisch
+  abgeschaltet (Audit `HierarchieUmstellung`). Bei `false` läuft Fold 2 auch im eindeutigen Fall nicht.
+- **TS-65.4 — AKE unverändert:** im flachen Modus (Master aus, `OrderNumber` eindeutig) ist
+  `matches.Count == 1` → Fold 2 läuft wie bisher (Schalter default an); kein Verhaltensunterschied.
+- **TS-65.5 — Reconcile-Gruppen-Semantik (AK 12):** bei doppelter `OrderNumber` behandelt der
+  Reconcile-Planer die Gruppe konsistent — HauptFA in Sage → nichts stornieren; HauptFA weg → ganze
+  Gruppe Kandidat. (Reconcile ist am IDEAL i. d. R. aus; Test sichert die Semantik.)
+- **TS-65.6 — OrderNumber-Sweep (AK 8):** die 7 kritischen Eindeutigkeits-Lookups (Sweep-Katalog in
+  der Aufgaben-Notiz) sind als „Aufrufer-Umstellung Teil 8" dokumentiert; Teil 7 liefert nur die
+  Naht (AK 10) und ändert kein Aufrufer-Verhalten. Kein manueller Testschritt außer der Doku-Prüfung.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D (2026-08-17; Versions-Bump beim Epic-Abschluss/QA)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
