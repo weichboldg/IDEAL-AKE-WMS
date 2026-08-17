@@ -363,6 +363,10 @@ Im Ordner `SQL/AgentJobs/` liegen Scripts für automatische Sage-Daten-Imports:
 
 Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
+## Runbooks
+
+- **FA-Hierarchie-Rückbau (Einwegtor):** [docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md](docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md) — Rückweg aus dem hierarchischen Produktionsauftrags-Modus (Master `ProduktionsauftragHierarchisch`). Der Rückbau ist **nicht über die Anwendung umkehrbar** und nur als bewusste Datenbereinigung außerhalb der App möglich (DB-Backup zwingend).
+
 ## AppSettings
 
 | Schlüssel | Default | Beschreibung |
