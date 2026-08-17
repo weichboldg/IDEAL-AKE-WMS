@@ -348,6 +348,24 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // FA-Materialisierung (IDEAL Teil 7): Struktur -> ProductionOrders.
+                // NUR bei Master=true; laeuft nach dem Struktur-Import (Quelle = lokale Nodes).
+                // ---------------------------------------------------------------
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "ProduktionsauftragHierarchisch", false, stoppingToken))
+                {
+                    await RunResilientAsync("FA-Materialisierung", async () =>
+                    {
+                        using var matScope = _scopeFactory.CreateScope();
+                        var matSync = matScope.ServiceProvider.GetRequiredService<IFaMaterializationSyncService>();
+                        _logger.LogInformation("FA-Materialisierung startet (DryRun={DryRun})...", dryRun);
+                        var r = await matSync.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation(
+                            "FA-Materialisierung: {Created} neu, {Marked} vermisst, {Cleared} wieder da, {Conf} Konflikte, uebersprungen={Skipped}.",
+                            r.Created, r.Marked, r.Cleared, r.ReparentConflicts, r.Skipped);
+                    }, stoppingToken);
+                }
+
+                // ---------------------------------------------------------------
                 // Lagerbestand-Sync (Sage Bestand-Korrektur)
                 // ---------------------------------------------------------------
                 if (await ShouldRunLagerbestandAsync(stoppingToken))

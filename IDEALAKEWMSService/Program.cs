@@ -58,6 +58,7 @@ try
     builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();
     builder.Services.AddScoped<ILagerbestandSyncService, LagerbestandSyncService>();
     builder.Services.AddScoped<IFaHierarchySyncService, FaHierarchySyncService>();
+    builder.Services.AddScoped<IFaMaterializationSyncService, FaMaterializationSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
     builder.Services.AddScoped<ISageBuchungLookupReader, SageBuchungLookupReader>();

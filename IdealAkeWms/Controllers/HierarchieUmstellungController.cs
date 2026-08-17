@@ -40,6 +40,10 @@ public class HierarchieUmstellungController : Controller
 
     public async Task<IActionResult> Index()
     {
+        // Anzeige-Zustand bei jedem Aufruf auffrischen (Freigabe-Antwort 3): der
+        // Materialisierungs-Sync laeuft im Service-Prozess und kann den Web-Cache nicht direkt
+        // aktualisieren. Admin-only + niederfrequent, der Live-Read ist unkritisch.
+        await _status.RefreshAsync();
         var value = await _settings.GetValueAsync(HierarchischeStrukturKeys.Master);
         return View(new HierarchieUmstellungViewModel
         {
