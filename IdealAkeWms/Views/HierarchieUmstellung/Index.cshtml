@@ -1,0 +1,112 @@
+@model IdealAkeWms.Models.ViewModels.HierarchieUmstellungViewModel
+@{
+    ViewData["Title"] = "FA-Hierarchie-Umstellung";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Umstellung auf hierarchische Produktionsaufträge</h2>
+    <a asp-controller="ServiceSettings" asp-action="Index" class="btn btn-outline-secondary btn-sm">Zu den Service-Einstellungen</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <p class="mb-2">
+            Dieser Schalter schaltet die <strong>Materialisierung der FA-Struktur nach
+            Produktionsaufträgen</strong> scharf: Sub-FAs werden zu echten Produktionsaufträgen
+            und damit rückmeldefähig (Arbeitsgänge, Teileverfolgung, BDE).
+        </p>
+        <p class="mb-0 text-body-secondary">
+            Solange noch keine hierarchischen Daten vorliegen, lässt sich der Schalter in beide
+            Richtungen ändern. Mit dem ersten hierarchischen Import greift die Sperre.
+        </p>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Aktueller Zustand</div>
+    <div class="card-body">
+        <p class="mb-3">
+            Status:
+            @if (Model.MasterEnabled)
+            {
+                <span class="badge text-bg-success">Hierarchisch aktiviert</span>
+            }
+            else
+            {
+                <span class="badge text-bg-secondary">Flach (AKE-Standard)</span>
+            }
+            @if (Model.IsLocked)
+            {
+                <span class="badge text-bg-dark ms-1">gesperrt — hierarchische Daten vorhanden</span>
+            }
+        </p>
+
+        @if (Model.IsLocked)
+        {
+            <div class="alert alert-secondary mb-0">
+                <strong>Nicht mehr über die Anwendung umkehrbar.</strong>
+                Es liegen Aufträge mit Sub-FA-Struktur vor. Ein Rückbau zur flachen Struktur ist
+                nur außerhalb der Anwendung möglich — siehe das Runbook
+                <code>docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md</code> im Deployment
+                (Datenbereinigung, DB-Backup zwingend).
+            </div>
+        }
+        else if (Model.MasterEnabled)
+        {
+            <form asp-action="Disable" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary">Wieder deaktivieren</button>
+            </form>
+            <span class="form-text ms-2">Möglich, solange keine hierarchischen Daten vorliegen.</span>
+        }
+        else
+        {
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmEnableModal">
+                Auf hierarchische Produktionsaufträge umstellen
+            </button>
+        }
+    </div>
+    @if (Model.StatusRefreshedUtc != null)
+    {
+        <div class="card-footer text-body-secondary small">
+            Anzeige-Zustand zuletzt aktualisiert: @Model.StatusRefreshedUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+        </div>
+    }
+</div>
+
+@if (!Model.IsLocked && !Model.MasterEnabled)
+{
+    <div class="modal fade" id="confirmEnableModal" tabindex="-1" aria-labelledby="confirmEnableLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="confirmEnableLabel">Umstellung bestätigen</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        Umstellung auf hierarchische Produktionsaufträge. <strong>Nach dem ersten
+                        hierarchischen Import ist eine Rückkehr zur flachen Struktur nicht mehr möglich.</strong>
+                        Vorher auf einer Datenbank-Kopie testen. Wirklich umstellen?
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <form asp-action="Enable" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger">Jetzt umstellen</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

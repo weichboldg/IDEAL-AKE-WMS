@@ -8,6 +8,8 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.HierarchischeStruktur;
+using IdealAkeWms.Services.SyncLogger;
 
 namespace IdealAkeWms.Controllers;
 
@@ -15,10 +17,17 @@ namespace IdealAkeWms.Controllers;
 public class ServiceSettingsController : Controller
 {
     private readonly IServiceSettingRepository _repository;
+    private readonly ISyncLogger _syncLogger;
+    private readonly ICurrentUserService _currentUser;
 
-    public ServiceSettingsController(IServiceSettingRepository repository)
+    public ServiceSettingsController(
+        IServiceSettingRepository repository,
+        ISyncLogger syncLogger,
+        ICurrentUserService currentUser)
     {
         _repository = repository;
+        _syncLogger = syncLogger;
+        _currentUser = currentUser;
     }
 
     public async Task<IActionResult> Index()
@@ -40,28 +49,41 @@ public class ServiceSettingsController : Controller
 
             var value = rawValue ?? string.Empty;
 
-            switch (def.Type)
+            try
             {
-                case ServiceSettingType.Bool:
-                    // Checkbox/Hidden liefert "true"/"false"; jeder truthy-Wert -> "true".
-                    var isTrue = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-                              || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
-                              || value == "1";
-                    await _repository.UpsertAsync(key, isTrue ? "true" : "false", def.Category, def.Description);
-                    break;
+                switch (def.Type)
+                {
+                    case ServiceSettingType.Bool:
+                        // Checkbox/Hidden liefert "true"/"false"; jeder truthy-Wert -> "true".
+                        var isTrue = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+                                  || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
+                                  || value == "1";
+                        await _repository.UpsertAsync(key, isTrue ? "true" : "false", def.Category, def.Description);
+                        break;
 
-                case ServiceSettingType.Int:
-                    if (!int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
-                    {
-                        ModelState.AddModelError(key, $"'{def.Key}' erwartet eine ganze Zahl (war: '{value}').");
-                        continue; // diesen Key NICHT speichern
-                    }
-                    await _repository.UpsertAsync(key, i.ToString(CultureInfo.InvariantCulture), def.Category, def.Description);
-                    break;
+                    case ServiceSettingType.Int:
+                        if (!int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
+                        {
+                            ModelState.AddModelError(key, $"'{def.Key}' erwartet eine ganze Zahl (war: '{value}').");
+                            continue; // diesen Key NICHT speichern
+                        }
+                        await _repository.UpsertAsync(key, i.ToString(CultureInfo.InvariantCulture), def.Category, def.Description);
+                        break;
 
-                default: // String
-                    await _repository.UpsertAsync(key, value, def.Category, def.Description);
-                    break;
+                    default: // String
+                        await _repository.UpsertAsync(key, value, def.Category, def.Description);
+                        break;
+                }
+            }
+            catch (HierarchischeStrukturGuardException ex)
+            {
+                // Technischer Schreibversuch auf einen geschützten Einwegtor-Key über die generische
+                // Maske: abgelehnt (Choke-Point-Decorator) + protokolliert (AK 2).
+                ModelState.AddModelError(key, ex.Message);
+                await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.HierarchieUmstellung);
+                await run.LogWarningAsync(
+                    $"Technischer Schreibversuch auf geschützten Key '{key}' über die generische Maske abgelehnt (durch {_currentUser.GetWindowsUserName()}): {ex.Message}");
+                await run.FinishSuccessAsync();
             }
         }
 

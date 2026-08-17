@@ -65,7 +65,18 @@
                                 Nur für Testsysteme zulässig &mdash; vor Produktivgang wieder aktivieren.
                             </div>
                         }
-                        @if (item.Type == ServiceSettingType.Bool)
+                        @if (item.Key == IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)
+                        {
+                            var masterOn = string.Equals(item.Value, "true", StringComparison.OrdinalIgnoreCase);
+                            <div class="mt-1">
+                                <span class="badge @(masterOn ? "text-bg-success" : "text-bg-secondary")">
+                                    @(masterOn ? "Hierarchisch aktiviert" : "Flach (AKE-Standard)")
+                                </span>
+                                <a asp-controller="HierarchieUmstellung" asp-action="Index" class="ms-2">Umschalten (eigene Seite)</a>
+                            </div>
+                            <small class="text-muted d-block mt-1">Einwegtor &mdash; hier nur Anzeige. Änderung nur über die Umstellungs-Seite.</small>
+                        }
+                        else if (item.Type == ServiceSettingType.Bool)
                         {
                             var isChecked = string.Equals(item.Value, "true", StringComparison.OrdinalIgnoreCase);
                             <input type="hidden" name="settings[@item.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
