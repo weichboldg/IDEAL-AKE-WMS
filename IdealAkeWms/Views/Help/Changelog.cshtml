@@ -9,6 +9,36 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.32.0</strong> <span class="text-white-50 ms-2">17.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL-Standort: hierarchische Fertigungsauftraege &ndash; Umstellung &amp; Rueckmeldefaehigkeit (Teil 7)</h6>
+                <p class="text-muted mb-2"><em>Betrifft ausschliesslich den Standort
+                    <strong>IDEAL</strong>. Standardmaessig ausgeschaltet &ndash; die Umstellung ist ein
+                    bewusster, einmaliger Schritt. Fuer AKE aendert sich nichts.</em></p>
+                <ul>
+                    <li><strong>Neu &ndash; Umstellung auf hierarchische Produktionsauftraege:</strong>
+                        Eine eigene Seite (&bdquo;FA-Hierarchie-Umstellung&ldquo;) schaltet die
+                        Materialisierung der IDEAL-Struktur zu echten Produktionsauftraegen scharf &ndash;
+                        erst dadurch werden Sub-FAs rueckmeldefaehig (Arbeitsgaenge, Teileverfolgung, BDE).
+                        <strong>Einmaltuer:</strong> nach dem ersten hierarchischen Import laesst sich die
+                        Umstellung nicht mehr ueber die Anwendung zuruecknehmen (Bestaetigungsdialog +
+                        Hinweis, vorher auf einer Datenbank-Kopie zu testen).</li>
+                    <li><strong>Neu &ndash; Materialisierung Struktur &rarr; Auftraege:</strong> Die
+                        Struktur bleibt die Quelle; Sub-FAs werden daraus als Produktionsauftraege
+                        abgeleitet und laufend abgeglichen. Verschwindet ein Auftrag aus Sage, wird er
+                        <strong>nie geloescht</strong>, sondern als &bdquo;in Sage vermisst&ldquo; markiert
+                        (mit Datum) und heilt sich, sobald er wieder auftaucht. Unerwartet verschwundene
+                        Auftraege werden gesammelt per Mail gemeldet (eine Meldung je Lauf).</li>
+                    <li><strong>Schutz &ndash; Auto-Erledigt:</strong> Im hierarchischen Modus wird die
+                        automatische Komm-Erledigt-Setzung abgesichert, damit ein &bdquo;verpackt/abgeholt&ldquo;
+                        am Hauptauftrag nicht versehentlich die ganze Auftragsgruppe schliesst.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.31.0</strong> <span class="text-white-50 ms-2">10.08.2026</span>
             </div>
             <div class="card-body">
