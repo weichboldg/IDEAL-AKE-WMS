@@ -166,6 +166,27 @@ Epics). Uebergreifende Spec: [[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-
 > `93e54c4`), wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).
 > Merge-Commit noch offen. Offene UAT-Punkte + Deploy-Handgriffe: [[2026-08-07-ideal-teile-1-5]].
 
+### Teil 7 — Schema-Inversion + Einweg-Migrationstor + Materialisierung (v1.32.0, eigener Epic, selber Branch)
+
+Ab Teil 7 wird die **Kern-Tabelle `ProductionOrders`** angefasst: Sub-FAs werden aus der Struktur zu
+echten Auftraegen materialisiert (rueckmeldefaehig). Laeuft im **selben** Worktree wie Teile 1–5,
+Migration **`SQL/90`** (daten-konvertierend, DB-Backup zwingend). Architektur:
+[[0012-fa-hierarchie-einweg-migrationstor]]; Umsetzungsnotiz [[2026-07-29-standort-ideal-teil-7]];
+Changelog [[2026-08-17-v1-32-0-ideal-teil-7]].
+
+| Etappe | Status | Code-Einstieg |
+|---|---|---|
+| A — Schema-Inversion (`SubOrderNumber` unique, `ParentSubOrderNumber`, `SageMissingSince`, Index-Tausch, Backfill) | **erledigt** (`fe7299b`) | `Models/ProductionOrder.cs`, Migration `20260814105526`, `SQL/90` |
+| B — Einweg-Migrationstor `ProduktionsauftragHierarchisch` (Guard-Planer + Decorator-Choke-Point, Umschalt-Seite, Audit, Runbook) | **erledigt** (`aed9cb5..39f7813`) | `Services/HierarchischeStruktur/*`, `Data/Repositories/GuardedServiceSettingRepository.cs`, `Controllers/HierarchieUmstellungController.cs`, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` |
+| C — Materialisierungs-Sync (3 Sync-Regeln, `SageMissingSince` selbstheilend, Sammelmail) | **erledigt** (`dc297d9..bc7e3d6`) | `IDEALAKEWMSService/Services/FaMaterializationPlanner.cs` + `FaMaterializationSyncService.cs`; SyncLog `FaMaterialization` |
+| D — Lookup-Härtung (`GetAllByFaAndOperationAsync` + Multi-Hit-Log) + dreistufige Auto-Erledigt-Sperre + Reconcile-Test + `OrderNumber`-Sweep (7 kritisch → Teil 8) | **erledigt** (`fb07512..660a01b`) | `Data/Repositories/WorkOperationRepository.cs`, `IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs`, Key `Sync:FaZusatzinfoAutoErledigtEnabled` |
+| E — Version-Bump v1.32.0 + Anwender-Changelog + Brain (ADR 0012, fallstricke §9, services/controller-Karte) | **erledigt** | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
+
+> **Status Teil 7:** UMGESETZT im Worktree, `status: InUmsetzung` bis zum QA-Gate (qa-agent nach
+> Etappe E). Master **default aus** — Umstellung ist ein bewusster spaeterer Schritt am Zielsystem.
+> **Mapping datenabhaengig** (Wurzel `HauptFA==SubFA`, Node-Dezimal `NULL→0`) → erster echter Datenlauf.
+> Merge bringt Teile 1–5 **und** Teil 7 zusammen (Schranke 2 fuers ganze Buendel).
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |

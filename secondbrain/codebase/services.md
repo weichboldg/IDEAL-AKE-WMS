@@ -235,3 +235,33 @@ Neuer `SyncLogServices.SageLagerbuchung`.
 > **Ein-Instanz-Voraussetzung:** Der Idempotenz-Baustein („Status auf `Gesendet` vor dem Call")
 > schuetzt nur bei **genau einer** laufenden Worker-Instanz — kein Doppel-Deploy/Failover auf
 > derselben Queue. Siehe [[fallstricke]].
+
+## IDEAL Teil 7 — Materialisierung + Einweg-Migrationstor (v1.32.0)
+
+Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2026-08-17-v1-32-0-ideal-teil-7]].
+
+**Web (`IdealAkeWms/Services/HierarchischeStruktur/` + `Data/Repositories/`):**
+- `HierarchischeStrukturGuard` (reiner Planer, unit-getestet) + `HierarchischeStrukturKeys`
+  (geschuetzte Keys: Master `ProduktionsauftragHierarchisch` + `Sync:FaZusatzinfoAutoErledigtEnabled`).
+- `GuardedServiceSettingRepository` — Decorator auf `IServiceSettingRepository.UpsertAsync/DeleteAsync`,
+  **einziger Choke-Point** (DI-registriert um das echte `ServiceSettingRepository`, ADR 0008-Muster).
+- `HierarchischeStrukturStatus` — Singleton, gecachter „ist gesperrt"-Anzeigezustand (Refresh am Start +
+  bei GET der Umschalt-Seite; Schreibpfad prueft live). Siehe [[fallstricke]] §9 (Cache cross-process).
+- `IProductionOrderRepository.HierarchicalDataExistsAsync()` (`AnyAsync(OrderNumber != SubOrderNumber)`).
+- `IWorkOperationRepository.GetAllByFaAndOperationAsync` (mengenwertige Naht, AK 10; Einzel-Lookup loggt
+  Mehrfachtreffer, Aufrufer-Umstellung = Teil 8).
+
+**Service (`IDEALAKEWMSService/Services/`):**
+- `FaMaterializationPlanner` (reiner Entscheidungs-Helper, unit-getestet) — 3 Sync-Regeln + Empty-Source-Guard.
+- `FaMaterializationSyncService` — Orchestrator (gated auf Master, nach FA-Hierarchie-Sync im `SyncWorker`,
+  liest lokale `FaHierarchyNodes`, EF-Apply mit App-Feld-Erhalt, Sammelmail via `IMailService`).
+- `FaZusatzinfoSyncService.SyncAsync(...)` erweitert um `bool autoErledigtEnabled` (dreistufige
+  Auto-Erledigt-Sperre, AK 11).
+
+**SyncLog-Services (`SyncLogServices`):** neu `HierarchieUmstellung` (Audit Master-Flip/Ablehnung),
+`FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`).
+
+**Neue ServiceSettings-Keys:** `ProduktionsauftragHierarchisch` (Bool, Default false, Kategorie
+FA-Hierarchie — **Einwegtor**, guard-geschuetzt, in `/ServiceSettings` read-only) +
+`Sync:FaZusatzinfoAutoErledigtEnabled` (Bool, Default true = AKE unveraendert; im hierarchischen Modus
+nicht einschaltbar, Master-Flip schaltet ab).

@@ -22,7 +22,7 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
 | B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
 | C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `dc297d9..bc7e3d6` |
 | D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `fb07512..660a01b` |
-| E | Doku, Testszenarien, Brain-Update, Version-Bump | offen | — |
+| E | Doku, Testszenarien, Brain-Update, Version-Bump | **erledigt** | `5cf802e` (+ Brain auf main) |
 
 ## Umsetzungsnotizen
 
@@ -206,6 +206,22 @@ Reconcile aus). Erst wenn IDEAL einen dieser Pfade aktivieren will, ist die Umst
 **Offen D→E:** E = Doku (README/Hilfe), Version-Bump (ein Bump fürs Bündel), Anwender-Changelog,
 Brain-Dauerwissen (ggf. ADR/fallstricke/codebase/glossar). Status Teil 7 bleibt **InUmsetzung**,
 kein qa-agent, kein Merge, kein Push.
+
+### Etappe E — Doku + Version-Bump + Brain (2026-08-17, `5cf802e` + Brain auf main)
+
+- **Version-Bump `v1.32.0`** in beiden `AppVersion.cs` (Web+Service, Date 2026-08-17) + Anwender-
+  Changelog `Views/Help/Changelog.cshtml` (hierarchische Produktionsaufträge: Umstellung/Einmaltür,
+  Materialisierung, Auto-Erledigt-Schutz — anwenderverständlich). Build grün.
+- **Brain-Dauerwissen (Hauptcheckout):** neuer **ADR [[0012-fa-hierarchie-einweg-migrationstor]]**;
+  Brain-Changelog [[2026-08-17-v1-32-0-ideal-teil-7]]; `feature-map.md` Teil-7-Abschnitt (Etappen A–E);
+  `fallstricke.md` §9 (OrderNumber nicht mehr unique + Warum; `SageMissingSince` Zeitstempel;
+  Cache cross-process); `codebase/services.md` + `codebase/controller.md` (neue Services/Keys/SyncLog +
+  `HierarchieUmstellungController`). Testszenarien wurden pro Etappe geliefert (TS-63/64/65).
+- README-AppSettings: **kein** Eintrag nötig — die neuen Keys sind Service-Keys (`/Settings`), im
+  Brain `services.md` dokumentiert; der Runbook-Link steht seit Etappe B im README.
+
+**Teil 7 ist damit vollständig umgesetzt (A–E).** Nächster Schritt: **qa-agent** (build+test grün,
+Testszenarien, Deploy-Abschnitt) — darf dann `status: Testbereit` setzen. Bis dahin `InUmsetzung`.
 
 ## Offene Punkte / Deploy-kritisch (aus der Spec, für Schranke 2 / Deploy)
 

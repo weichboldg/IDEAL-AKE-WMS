@@ -105,6 +105,7 @@ unveraendert). Access-Filter Class-Level (Read); Edit gibt es nicht (Lesepfade).
 | `FaHierarchyKommissionierListenController` (Teil 3) | `[RequireLagerProcessingAccess]` *(bestehend)* | `[RequireFaHierarchyKommissionierlistenAktiv]` → `FaHierarchyKommissionierlistenAktiv` (Default false) |
 | `FaHierarchyBeschichtungController` (Teil 4) | `[RequireBeschichtungsauftragAccess]` → **neue Rolle `beschichtungsauftrag`** | `[RequireFaHierarchyBeschichtungAktiv]` → `FaHierarchyBeschichtungAktiv` (Default false) |
 | `FaHierarchyVormontageController` (Teil 5) | `[RequireVorbauAccess]` *(bestehend)* | `[RequireFaHierarchyVormontageAktiv]` → `FaHierarchyVormontageAktiv` (Default false) |
+| `HierarchieUmstellungController` (Teil 7, v1.32.0 — Einweg-Umschalt-Seite `/HierarchieUmstellung`) | `[RequireAdminAccess]` | **kein Toggle** — der einzige sanktionierte Schreibweg auf den Master `ProduktionsauftragHierarchisch`. Die generische `ServiceSettingsController`-Maske zeigt den Master nur read-only; der Guard-Decorator (`GuardedServiceSettingRepository`) ist der harte Choke-Point. Siehe [[0012-fa-hierarchie-einweg-migrationstor]]. |
 
 **Neue Rolle `beschichtungsauftrag`** (v1.31.0, Teil 4) an den drei Pflichtstellen gefuehrt:
 `RoleKeys.Beschichtungsauftrag`, `RequireBeschichtungsauftragAccessAttribute` +
