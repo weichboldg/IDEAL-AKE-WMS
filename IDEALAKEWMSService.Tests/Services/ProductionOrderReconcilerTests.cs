@@ -107,4 +107,24 @@ public class ProductionOrderReconcilerTests
 
         plan.ToCancel.Should().BeEmpty(); // FA-1 gilt als in Sage vorhanden
     }
+
+    // Teil 7 AK 12: Der Reconcile-Planer arbeitet auf OrderNumber (Gruppen-Schluessel). Im
+    // hierarchischen Modus teilen HauptFA + Sub-FAs dieselbe OrderNumber; die Regeln behandeln die
+    // Gruppe konsistent — HauptFA in Sage -> nichts stornieren; HauptFA weg -> ganze Gruppe Kandidat.
+    [Fact]
+    public void Plan_HierarchischeGruppe_SelbeOrderNumber_WirdAlsGruppeBehandelt()
+    {
+        var wms = new[]
+        {
+            Wms("100"), // HauptFA
+            Wms("100"), // Sub-FA (selbe OrderNumber)
+        };
+
+        var keep = ProductionOrderReconciler.Plan(new[] { "100" }, wms, maxCancelPerRun: 100);
+        keep.ToCancel.Should().BeEmpty();
+
+        var gone = ProductionOrderReconciler.Plan(new[] { "999" }, wms, maxCancelPerRun: 100);
+        gone.ToCancel.Should().OnlyContain(x => x == "100");
+        gone.ToCancel.Should().HaveCount(2);
+    }
 }
