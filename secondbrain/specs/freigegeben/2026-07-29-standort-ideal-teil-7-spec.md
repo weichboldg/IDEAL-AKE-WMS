@@ -63,7 +63,7 @@ Ausführliche Umsetzungsnotizen: [[2026-07-29-standort-ideal-teil-7]] (Aufgaben)
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
 | A | Schema-Inversion + Migration (SubOrderNumber/ParentSubOrderNumber/SageMissingSince, Index-Tausch, Backfill) + FreshInstall + tote AgentJob-Artefakte | **erledigt** | `fe7299b` |
-| B | `HierarchischeStrukturGuard` (Choke-Point) + Einwegtor über Umschalt-Seite + Audit-SyncLog + Runbook | offen | — |
+| B | `HierarchischeStrukturGuard` (Choke-Point) + Einwegtor über Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
 | C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | offen | — |
 | D | Lookup-Härtung (`OrderNumber`-Sweep) + `GetAllByFaAndOperationAsync` + adversariales FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | offen | — |
 | E | Doku (README/Runbook), Testszenarien, Brain-Update, Version-Bump | offen | — |
