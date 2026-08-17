@@ -23,6 +23,7 @@ public static class SyncLogServices
     public const string FaZusatzinfo = "FaZusatzinfo";        // FA-Zusatzinfos aus Sage (v1.26.0)
     public const string SageLagerbuchung = "SageLagerbuchung"; // Ausgehende Lagerbuchungen WMS -> Sage (SData)
     public const string FaHierarchy = "FaHierarchy"; // Mehrstufiger FA-Struktur-/Stuecklisten-Import (IDEAL) aus Sage-Views
+    public const string HierarchieUmstellung = "HierarchieUmstellung"; // Audit: Master-Einwegtor umgelegt / Schreibversuch abgelehnt (Teil 7)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -38,7 +39,7 @@ public static class SyncLogServices
         OseonTracking, OseonWorkplaces, OseonArticleCategories,
         EnaioDms, Holiday, CoatingDetection, FaWorkStepDetection,
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
-        SageLagerbuchung, FaHierarchy,
+        SageLagerbuchung, FaHierarchy, HierarchieUmstellung,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };

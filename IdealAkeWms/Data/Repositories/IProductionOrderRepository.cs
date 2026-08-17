@@ -37,6 +37,14 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20);
 
     /// <summary>
+    /// Live-Prüfung der Einwegtor-Sperrbedingung: existiert mindestens eine Zeile mit
+    /// <c>OrderNumber != SubOrderNumber</c> (= hierarchische Materialisierung hat stattgefunden)?
+    /// Nur auf dem Schreibpfad des Wächters verwenden — für die Anzeige den gecachten
+    /// <c>HierarchischeStrukturStatus</c> nutzen (Freigabe-Antwort 3).
+    /// </summary>
+    Task<bool> HierarchicalDataExistsAsync();
+
+    /// <summary>
     /// Returns the top-N open production orders with ProductionDate in the next
     /// weeksAhead weeks, ordered by ProductionDate ASC. Orders without ProductionDate are excluded.
     /// </summary>

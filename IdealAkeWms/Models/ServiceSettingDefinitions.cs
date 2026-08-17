@@ -36,6 +36,7 @@ public static class ServiceSettingDefinitions
         new("Sync:HierarchicalFaEnabled",            ServiceSettingType.Bool,   "false", "FA-Hierarchie", "Mehrstufiger FA-Struktur-/Stuecklisten-Import (IDEAL) aus den Sage-Views FAListe/FAInfos aktiv (Full-Refresh in FaHierarchyNode/FaHierarchyOrderInfo)"),
         new("Sync:FaHierarchyListeViewName",         ServiceSettingType.String, "[vw_IDEAL-AKE_Kommissionierung_FAListe]", "FA-Hierarchie", "Name der Sage-View mit der Stueckliste je Struktur (Whitelist + QUOTENAME abgesichert). Format [Schema].[Name] oder [Name]."),
         new("Sync:FaHierarchyInfosViewName",         ServiceSettingType.String, "[vw_IDEAL-AKE_Kommissionierung_FAInfos]", "FA-Hierarchie", "Name der Sage-View mit den PPS-/Auftragsdaten je HauptFA (Whitelist + QUOTENAME abgesichert). Format [Schema].[Name] oder [Name]."),
+        new("ProduktionsauftragHierarchisch",        ServiceSettingType.Bool,   "false", "FA-Hierarchie", "EINWEGTOR: schaltet die Materialisierung der Struktur nach ProductionOrders scharf (Sub-FAs werden rueckmeldefaehig). Nach dem ersten hierarchischen Import nicht mehr ueber die Anwendung deaktivierbar. Umschalten NUR ueber die Seite 'FA-Hierarchie-Umstellung' — hier read-only."),
 
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 ServiceSettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),

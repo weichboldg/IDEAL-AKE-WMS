@@ -10,6 +10,11 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     {
     }
 
+    public async Task<bool> HierarchicalDataExistsAsync()
+        => await _dbSet
+            .AsNoTracking()
+            .AnyAsync(p => p.OrderNumber != p.SubOrderNumber);
+
     public async Task<List<ProductionOrder>> GetAllOrderedAsync()
     {
         return await _dbSet

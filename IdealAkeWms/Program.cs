@@ -78,7 +78,14 @@ builder.Services.AddScoped<IFaWorkStepRepository, FaWorkStepRepository>();
 builder.Services.AddScoped<IFaAttributeRepository, FaAttributeRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
-builder.Services.AddScoped<IServiceSettingRepository, ServiceSettingRepository>();
+// ServiceSettings: Durchsetzungs-Decorator (FA-Hierarchie-Einwegtor, Teil 7) um das echte Repo.
+// Einziger Choke-Point fuer Schreibversuche auf die geschuetzten Keys (Master + Auto-Erledigt).
+builder.Services.AddScoped<ServiceSettingRepository>();
+builder.Services.AddScoped<IServiceSettingRepository>(sp =>
+    new IdealAkeWms.Data.Repositories.GuardedServiceSettingRepository(
+        sp.GetRequiredService<ServiceSettingRepository>(),
+        sp.GetRequiredService<IProductionOrderRepository>()));
+builder.Services.AddSingleton<IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturStatus>();
 builder.Services.AddScoped<HolidayRepository>();
 builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
 builder.Services.AddScoped<IBomCacheRepository, BomCacheRepository>();
@@ -464,6 +471,11 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 }
+
+// FA-Hierarchie-Anzeigezustand initial befuellen (Freigabe-Antwort 3: Refresh am Start).
+// Der Schreibpfad prueft ohnehin live; die Anzeige (Umschalt-Seite) liest diesen Cache.
+app.Services.GetRequiredService<IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturStatus>()
+    .RefreshAsync().GetAwaiter().GetResult();
 
 // Fotos-Verzeichnis erstellen
 var fotosDir = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "Fotos", "Kommissionierung");
