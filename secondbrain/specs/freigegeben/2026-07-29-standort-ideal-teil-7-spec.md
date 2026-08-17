@@ -65,7 +65,7 @@ Ausführliche Umsetzungsnotizen: [[2026-07-29-standort-ideal-teil-7]] (Aufgaben)
 | A | Schema-Inversion + Migration (SubOrderNumber/ParentSubOrderNumber/SageMissingSince, Index-Tausch, Backfill) + FreshInstall + tote AgentJob-Artefakte | **erledigt** | `fe7299b` |
 | B | `HierarchischeStrukturGuard` (Choke-Point) + Einwegtor über Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
 | C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `dc297d9..bc7e3d6` |
-| D | Lookup-Härtung (`OrderNumber`-Sweep) + `GetAllByFaAndOperationAsync` + adversariales FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | offen | — |
+| D | Lookup-Härtung (`OrderNumber`-Sweep) + `GetAllByFaAndOperationAsync` + adversariales FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `fb07512..660a01b` |
 | E | Doku (README/Runbook), Testszenarien, Brain-Update, Version-Bump | offen | — |
 
 > **Kopplungs-Hinweis:** Teil 7 liegt im selben Branch wie die bereits testbereiten Teile 1–5.
