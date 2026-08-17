@@ -144,4 +144,33 @@ public class WorkOperationRepositoryTests
         result.Should().HaveCount(1);
         result.First().ProductionWorkplace.Should().BeNull();
     }
+
+    // Teil 7 Etappe D, AK 10: im hierarchischen Modus teilen HauptFA + Sub-FAs dieselbe OrderNumber.
+    // Die mengenwertige Naht liefert ALLE Arbeitsgänge; der Einzel-Lookup bleibt verhaltensgleich
+    // (erste Zeile, kein Crash) und protokolliert Mehrfachtreffer.
+    [Fact]
+    public async Task GetAllByFaAndOperation_ReturnsAllSubFaRows_WhileSingleReturnsOne()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WorkOperationRepository(ctx);
+
+        var haupt = CreateProductionOrder("100");
+        haupt.SubOrderNumber = "100";
+        var sub = CreateProductionOrder("100");
+        sub.SubOrderNumber = "101";
+        sub.ParentSubOrderNumber = "100";
+        ctx.ProductionOrders.AddRange(haupt, sub);
+        await ctx.SaveChangesAsync();
+
+        ctx.WorkOperations.AddRange(
+            CreateOperation(haupt.Id, "BG", "Biegen", 1),
+            CreateOperation(sub.Id, "BG", "Biegen", 1));
+        await ctx.SaveChangesAsync();
+
+        var all = await repo.GetAllByFaAndOperationAsync("100", "BG");
+        all.Should().HaveCount(2);
+
+        var single = await repo.GetByFaAndOperationAsync("100", "BG");
+        single.Should().NotBeNull(); // erste Zeile, kein Crash trotz Mehrfachtreffer
+    }
 }

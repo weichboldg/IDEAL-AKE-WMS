@@ -1,13 +1,19 @@
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IdealAkeWms.Data.Repositories;
 
 public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperationRepository
 {
-    public WorkOperationRepository(ApplicationDbContext context) : base(context)
+    private readonly ILogger<WorkOperationRepository>? _logger;
+
+    // Logger optional (Default null): DI injiziert ihn produktiv; Unit-Tests konstruieren ohne.
+    public WorkOperationRepository(ApplicationDbContext context, ILogger<WorkOperationRepository>? logger = null)
+        : base(context)
     {
+        _logger = logger;
     }
 
     public async Task<List<WorkOperation>> GetByProductionOrderIdAsync(int productionOrderId)
@@ -75,11 +81,29 @@ public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperation
             .ToListAsync();
     }
 
-    public Task<WorkOperation?> GetByFaAndOperationAsync(string faNumber, string operationNumber) =>
+    public async Task<WorkOperation?> GetByFaAndOperationAsync(string faNumber, string operationNumber)
+    {
+        // Verhalten unveraendert (erste Zeile), aber Mehrfachtreffer protokollieren (Teil 7 AK 10):
+        // im hierarchischen Modus ist OrderNumber nicht mehr eindeutig. Aufrufer-Umstellung = Teil 8.
+        var hits = await _dbSet
+            .Include(w => w.ProductionOrder)
+            .Include(w => w.ProductionWorkplace)
+            .Where(w => w.ProductionOrder.OrderNumber == faNumber && w.OperationNumber == operationNumber)
+            .Take(2)
+            .ToListAsync();
+        if (hits.Count > 1)
+            _logger?.LogWarning(
+                "GetByFaAndOperationAsync: Mehrfachtreffer fuer FA {Fa} / Operation {Op} (hierarchischer Modus) — Einzel-Lookup liefert die erste Zeile; Aufrufer sollte GetAllByFaAndOperationAsync nutzen (Teil 8).",
+                faNumber, operationNumber);
+        return hits.FirstOrDefault();
+    }
+
+    public Task<List<WorkOperation>> GetAllByFaAndOperationAsync(string faNumber, string operationNumber) =>
         _dbSet
             .Include(w => w.ProductionOrder)
             .Include(w => w.ProductionWorkplace)
-            .FirstOrDefaultAsync(w =>
+            .Where(w =>
                 w.ProductionOrder.OrderNumber == faNumber &&
-                w.OperationNumber == operationNumber);
+                w.OperationNumber == operationNumber)
+            .ToListAsync();
 }

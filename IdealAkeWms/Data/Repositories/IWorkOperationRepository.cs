@@ -15,4 +15,12 @@ public interface IWorkOperationRepository : IRepository<WorkOperation>
     /// </summary>
     Task<List<WorkOperation>> GetOpenByWorkplaceIdAsync(int workplaceId, bool excludePackedOrders = false);
     Task<WorkOperation?> GetByFaAndOperationAsync(string faNumber, string operationNumber);
+
+    /// <summary>
+    /// Mengenwertige Variante (Teil 7 Etappe D, AK 10): liefert ALLE Arbeitsgänge zu FA+Operation.
+    /// Im hierarchischen Modus ist <c>OrderNumber</c> nicht mehr eindeutig — der Einzel-Lookup
+    /// <see cref="GetByFaAndOperationAsync"/> kann dann mehrdeutig sein. Teil 7 liefert nur diese
+    /// Naht + protokolliert Mehrfachtreffer; die Umstellung der Aufrufer ist Teil 8.
+    /// </summary>
+    Task<List<WorkOperation>> GetAllByFaAndOperationAsync(string faNumber, string operationNumber);
 }
