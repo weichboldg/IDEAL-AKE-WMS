@@ -6918,5 +6918,49 @@ dem Deploy default **aus** (`false`), es liegen **keine** hierarchischen Daten v
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B (Einwegtor) (2026-08-17; Versions-Bump beim Epic-Abschluss/QA)*
+## TS-64 — IDEAL Teil 7 Etappe C: Materialisierungs-Sync (Struktur → ProductionOrders)
+
+**Vorbedingungen:** Master `ProduktionsauftragHierarchisch = true`, `Sync:HierarchicalFaEnabled = true`
+(Struktur-Import gefüllt), Windows-Service läuft. Am IDEAL-Standort ist `Sync:ProductionOrdersEnabled
+= false` (kein AKE-Import). Der Materialisierungs-Sync läuft im `SyncWorker` **nach** dem
+FA-Hierarchie-Sync. Automatisiert abgedeckt: der reine `FaMaterializationPlanner`
+(`FaMaterializationPlannerTests`, 7 Fälle). Die folgenden Szenarien prüfen den DB-/Mail-Effekt am
+laufenden System.
+
+- **TS-64.1 — Regel 1 (neuer Sub-FA angelegt):** eine Struktur mit ≥1 Sub-FA (`SubFA != 0`) neu in
+  den FA-Views → nach dem Lauf existiert je Sub-FA eine `ProductionOrders`-Zeile (`SubOrderNumber =
+  SubFA`, `OrderNumber = HauptFA`, `ParentSubOrderNumber = VaterFA`). Blätter (`SubFA = 0`) werden
+  **nicht** materialisiert. SyncLog `FaMaterialization` zeigt `angelegt=n`.
+- **TS-64.2 — Regel 2 (verschwunden → markiert, nie gelöscht):** einen bereits materialisierten
+  Sub-FA aus der Quelle entfernen (mit **und** getrennt ohne Rückmeldung) → die Zeile bleibt, erhält
+  `SageMissingSince` (Zeitstempel), Rückmeldedaten bleiben abrufbar. Kein DELETE. SyncLog
+  `vermisst_neu=n`.
+- **TS-64.3 — Regel 2 selbstheilend (wieder aufgetaucht):** der in TS-64.2 verschwundene Sub-FA
+  taucht wieder in der Quelle auf → `SageMissingSince` wird beim nächsten Lauf auf NULL gesetzt
+  (SyncLog `wieder_da=n`).
+- **TS-64.4 — Sammelmail (eine pro Lauf, nur unerwartet):** mehrere Sub-FAs verschwinden in einem
+  Lauf → **genau eine** Mail (Betreff „FA-Materialisierung: N FA nicht mehr in Sage") mit der Liste,
+  keine Einzel-Mail je FA. Ein verschwundener FA, der bereits als **erledigt** (`IsDone`/Komm-
+  erledigt) bekannt ist, erscheint **nicht** in der Mail (wird nur markiert + geloggt). Mail nur bei
+  `ErrorNotification:Enabled=true` + gesetzten `ErrorNotification:Recipients`.
+- **TS-64.5 — Regel 3 (Umhängung gemeldet, nicht übernommen):** die `VaterFA` eines bereits
+  materialisierten Sub-FA in der Quelle ändern → `ParentSubOrderNumber` in `ProductionOrders` bleibt
+  **unverändert**, SyncLog `FaMaterialization` trägt eine Warnung „Umhängung erkannt (NICHT
+  übernommen): Sub-FA … Vater X -> Y", `umhaengung_konflikt=n`.
+- **TS-64.6 — Empty-Source-Guard:** ist die lokale Struktur (`FaHierarchyNodes`) leer (z. B.
+  FA-Hierarchie-Sync übersprungen wegen leerem View-Read) → der Materialisierungs-Lauf markiert
+  **nichts** als vermisst (kein Massen-`SageMissingSince`), SyncLog „übersprungen: Struktur-Quelle
+  leer".
+- **TS-64.7 — Gating / AKE unverändert:** bei `ProduktionsauftragHierarchisch = false` läuft der
+  Materialisierungs-Sync **nicht**; der bestehende `SageImportService`-Pfad (AKE) bleibt die einzige
+  Quelle, Verhalten identisch zu vorher.
+- **TS-64.8 — Mapping-Vorbehalt (erster echter Datenlauf, Schranke 2):** am realen Sage-Datenbestand
+  prüfen, dass die Wurzel (`VaterFA = NULL`) mit `HauptFA == SubFA` als Hauptauftrag
+  (`OrderNumber == SubOrderNumber`) entsteht und die Parent-Kette (`child.VaterFA == parent.SubFA`)
+  intakt ist; Node-Dezimalwerte `NULL→0` (analog Etappe A). Ebenfalls hier zu schärfen: behält die
+  IDEAL-View fertige Aufträge oder blendet sie aus (Melderegel).
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B (Einwegtor) + Etappe C (Materialisierung) (2026-08-17; Versions-Bump beim Epic-Abschluss/QA)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
