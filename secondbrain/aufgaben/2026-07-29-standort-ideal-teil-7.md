@@ -20,7 +20,7 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
 |---|--------|--------|--------|
 | A | Schema-Inversion + Migration + Backfill + FreshInstall + tote AgentJobs | **erledigt** | `fe7299b` |
 | B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
-| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | offen | — |
+| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `dc297d9..bc7e3d6` |
 | D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | offen | — |
 | E | Doku, Testszenarien, Brain-Update, Version-Bump | offen | — |
 
@@ -108,6 +108,49 @@ Testszenario „Teil-6-Maske" ist durch „generische Maske bietet kein Schreib-
 Auto-Erledigt-Katalog-Key + Fold-2-Verdrahtung + datengetriebener Skip + hierarchische Tests (D);
 Version-Bump/Changelog/Brain-Dauerwissen (E). Status Teil 7 bleibt **InUmsetzung**, kein qa-agent,
 kein Merge, kein Push.
+
+### Etappe C — Materialisierungs-Sync + drei Sync-Regeln (2026-08-17, `dc297d9..bc7e3d6`)
+
+Build + `dotnet test` grün im Worktree: **Web 1185** (+1 skip) + **Service 228**, 0 Fehler (+7 neue
+Planer-Tests). Plan: `docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-c.md`. Vier Commits:
+Planer + SyncLog-Service (`dc297d9`), Orchestrator (`0aaa758`), SyncWorker/DI/Refresh (`375dbc3`),
+Testszenarien TS-64 (`bc7e3d6`).
+
+**Architektur (AK 5/6/7/12):**
+- **Reiner Planer** `FaMaterializationPlanner.Plan(source, existing)` (Muster
+  `ProductionOrderReconciler`, keine DB, 7 Unit-Tests). Drei Regeln: (1) neuer Sub-FA → `ToCreate`;
+  (2) verschwundener FA → `ToMarkMissing` (nie löschen) + `ToClearMissing` bei Wiederauftauchen
+  (selbstheilend); (3) Umhängung (`ParentSubOrderNumber` weicht ab) → `ReparentConflict` (melden,
+  nicht übernehmen). **Empty-Source-Guard** (leere Struktur → Skip, kein Massen-Markieren, analog
+  Reconciler). `MissingToNotify` = neu-vermisste **ohne** `IsKnownDone` (Melderegel konservativ, S7-2b).
+- **Orchestrator** `FaMaterializationSyncService` (Service): liest lokale `FaHierarchyNodes`
+  (`SubFA != 0`), mappt int→string, wendet Plan per EF an (App-Felder IsDone/PickingStatus/BdeStatus/
+  Workplace/Storno/ExtraInfo **nie** überschrieben; nur Quell-Felder + Parent ohne Konflikt), setzt/
+  klärt `SageMissingSince`, schickt **eine** Sammelmail pro Lauf (`IMailService`, Empfänger
+  `ErrorNotification:Recipients`, gated `ErrorNotification:Enabled`), protokolliert (`ISyncLogger`,
+  Service `FaMaterialization`, Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`). Audit
+  `ModifiedBy=IDEALAKEWMSService`.
+- **SyncWorker**: gated auf `ProduktionsauftragHierarchisch=true`, läuft **nach** dem FA-Hierarchie-
+  Sync (Quelle = frisch importierte Nodes). Bei Master=false läuft der Sync nicht (AKE unverändert).
+- **Anzeige-Refresh cross-process-sicher**: der Sync läuft im Service-Prozess und kann den Web-Cache
+  (`HierarchischeStrukturStatus`) nicht direkt aktualisieren. Statt Timer refresht die Umschalt-Seite
+  (`HierarchieUmstellungController.Index`) den Cache **bei jedem GET** (admin-only, niederfrequent) →
+  Anzeige stets aktuell, egal in welchem Prozess der Sync lief. Erfüllt Freigabe-Antwort 3 sauberer
+  als „Refresh am Sync-Ende".
+
+**Datenabhängige Annahmen (Schranke 2 / erster echter Datenlauf, NICHT im Code auflösbar):**
+- **Mapping**: `OrderNumber=HauptFA`, `SubOrderNumber=SubFA`, `ParentSubOrderNumber=VaterFA`. Wurzel
+  (`VaterFA=NULL`) wird Hauptauftrag (`OrderNumber==SubOrderNumber`) **nur wenn** `HauptFA==root.SubFA`
+  (Sage-Standardannahme). Parent-Kette hängt an `child.VaterFA==parent.SubFA` (Tree-Builder-Konvention).
+- **Melderegel schärfen**: behält die IDEAL-View fertige Aufträge oder blendet sie aus? Bis geklärt
+  bewusst konservativ (Sammelmeldung, nur nicht-erledigte).
+- **Feld-Mapping** `Quantity=Sollmenge`, `ArticleNumber=Artnr`, `Description1/2=Bezeichnung1/2` —
+  Kunde/Termine (aus `FaHierarchyOrderInfo` je HauptFA) sind **noch nicht** gemappt (bewusst schlank;
+  bei Bedarf in D/E oder als Folgeaufgabe nachziehen).
+
+**Offen C→D/E:** D = Lookup-Sweep (`OrderNumber`) + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-
+Fold-2-Sperre (Auto-Erledigt-Key + datengetriebener Skip) + hierarchische Reconcile/Fold-2-Tests;
+E = Doku/Version-Bump/Brain. Status Teil 7 bleibt **InUmsetzung**, kein qa-agent, kein Merge, kein Push.
 
 ## Offene Punkte / Deploy-kritisch (aus der Spec, für Schranke 2 / Deploy)
 
