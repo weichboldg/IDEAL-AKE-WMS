@@ -461,9 +461,11 @@ public class FaZusatzinfoSyncServiceTests
         ctx.ProductionOrderPickingStatuses.Single().IsDonePicking.Should().BeTrue();
     }
 
-    // §10.4-13) Mehrfach-Treffer-Mischfall: eine WA -> 2 FAs, eine bereits erledigt, eine offen
+    // §10.4-13 / Teil 7 AK 11 (Stage 1): eine WA -> 2 FAs (hierarchischer Modus). Frueher wurde die
+    // offene FA gesetzt; die datengetriebene Fold-2-Sperre ueberspringt jetzt den GESAMTEN Fall (der
+    // Match ist mehrdeutig, ein "abgeholt" duerfte nicht selektiv eine Zeile der Gruppe schliessen).
     [Fact]
-    public async Task AutoDone_MultiFaPerWa_OnlyOpenOneIsSet()
+    public async Task AutoDone_MultiFaPerWa_WirdKomplettUebersprungen_Fold2Sperre()
     {
         var (svc, reader, ctx, fakeLogger, _) = Build();
         var doneFa = SeedOrder(ctx, "WA-1");
@@ -474,11 +476,10 @@ public class FaZusatzinfoSyncServiceTests
 
         await svc.SyncAsync(dryRun: false, autoDoneMaxPerRun: 100);
 
+        // Keine Zeile der Gruppe wird veraendert.
         ctx.ProductionOrderPickingStatuses.Single(p => p.ProductionOrderId == openFa.Id)
-            .IsDonePicking.Should().BeTrue();
-        ctx.ProductionOrderPickingStatuses.Single(p => p.ProductionOrderId == doneFa.Id)
-            .ModifiedAt.Should().BeNull();
-        fakeLogger.Runs[0].FinalCounts!["erledigt-gesetzt"].Should().Be(1);
+            .IsDonePicking.Should().BeFalse();
+        fakeLogger.Runs[0].FinalCounts!["erledigt-gesetzt"].Should().Be(0);
     }
 
     // §10.4-14) Cap: Kandidaten > Cap -> kein Write, Warn-Zeile, Fehlermail, Counts
@@ -510,5 +511,42 @@ public class FaZusatzinfoSyncServiceTests
         fakeLogger.Runs[0].FinalCounts!["erledigt-kandidaten"].Should().Be(3);
         notifier.Verify(n => n.NotifyAsync(It.IsAny<string>(), It.IsAny<Exception>(),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // Teil 7 AK 11c (Stage 1, datengetrieben): zwei Sub-FAs derselben OrderNumber — ein "abgeholt"
+    // am HauptFA darf den Komm-Erledigt-Status der Geschwister NICHT setzen (Fold-2-Sperre bei
+    // Mehrfachtreffer, greift auch bei eingeschaltetem Schalter).
+    [Fact]
+    public async Task Fold2_ZweiSubFaSelbeOrderNumber_VerpacktAmHauptFa_SetztKeineErledigt()
+    {
+        var (svc, reader, ctx, fakeLogger, _) = Build();
+        var haupt = new ProductionOrder { OrderNumber = "100", SubOrderNumber = "100",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var sub = new ProductionOrder { OrderNumber = "100", SubOrderNumber = "101", ParentSubOrderNumber = "100",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionOrders.AddRange(haupt, sub);
+        ctx.SaveChanges();
+        reader.Rows = new() { Row("100", status: "abgeholt") };
+
+        await svc.SyncAsync(dryRun: false, autoDoneMaxPerRun: 100, autoErledigtEnabled: true);
+
+        ctx.ProductionOrderPickingStatuses.Any(p => p.IsDonePicking).Should().BeFalse();
+        fakeLogger.Runs[0].FinalCounts!["erledigt-gesetzt"].Should().Be(0);
+    }
+
+    // Teil 7 AK 11 (Stage 2, Schalter): bei ausgeschaltetem Auto-Erledigt wird Fold 2 auch bei
+    // eindeutigem Treffer nicht angewandt.
+    [Fact]
+    public async Task Fold2_SchalterAus_SetztKeineErledigt()
+    {
+        var (svc, reader, ctx, fakeLogger, _) = Build();
+        var order = SeedOrder(ctx, "WA-1");
+        SeedPickingStatus(ctx, order.Id, isDonePicking: false);
+        reader.Rows = new() { Row("WA-1", status: "abgeholt") };
+
+        await svc.SyncAsync(dryRun: false, autoDoneMaxPerRun: 100, autoErledigtEnabled: false);
+
+        ctx.ProductionOrderPickingStatuses.Single().IsDonePicking.Should().BeFalse();
+        fakeLogger.Runs[0].FinalCounts!["erledigt-gesetzt"].Should().Be(0);
     }
 }

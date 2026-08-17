@@ -68,9 +68,12 @@ public class SyncWorker : BackgroundService
                         // (Muster ActivityLogCleanupService.RunAsync(retentionDays, ...)).
                         var autoDoneCap = await ServiceSettings.GetIntSafeAsync(
                             _configuration, "Sync:FaZusatzinfoAutoDoneMaxPerRun", 100, stoppingToken);
+                        // Auto-Erledigt-Schalter (Teil 7 AK 11, Stage 2), Default an = AKE-Verhalten.
+                        var autoErledigt = await ServiceSettings.GetBoolSafeAsync(
+                            _configuration, "Sync:FaZusatzinfoAutoErledigtEnabled", true, stoppingToken);
 
                         _logger.LogInformation("FA-Zusatzinfo-Sync startet...");
-                        var ziResult = await zusatzinfoSync.SyncAsync(dryRun, autoDoneCap, stoppingToken);
+                        var ziResult = await zusatzinfoSync.SyncAsync(dryRun, autoDoneCap, autoErledigt, stoppingToken);
                         _logger.LogInformation(
                             "FA-Zusatzinfo-Sync: {Inserted} neu, {Updated} aktualisiert, {Errors} Fehler.{Details}",
                             ziResult.Inserted, ziResult.Updated, ziResult.Errors,

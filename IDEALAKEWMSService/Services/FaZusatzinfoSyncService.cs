@@ -48,7 +48,7 @@ public class FaZusatzinfoSyncService : IFaZusatzinfoSyncService
         _syncLogger = syncLogger;
     }
 
-    public async Task<SyncResult> SyncAsync(bool dryRun, int autoDoneMaxPerRun, CancellationToken ct = default)
+    public async Task<SyncResult> SyncAsync(bool dryRun, int autoDoneMaxPerRun, bool autoErledigtEnabled = true, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.FaZusatzinfo, ct);
         int read = 0, inserted = 0, updated = 0, skipped = 0, erledigtGesetzt = 0, erledigtKandidaten = 0;
@@ -113,6 +113,17 @@ public class FaZusatzinfoSyncService : IFaZusatzinfoSyncService
                     continue;
                 }
 
+                // Auto-Erledigt-Sperre (Teil 7 AK 11): Fold 2 nur, wenn der Schalter an ist (Stage 2)
+                // UND der WA-Match eindeutig ist (Stage 1, datengetrieben). Im hierarchischen Modus
+                // teilen HauptFA + Sub-FAs dieselbe OrderNumber -> matches.Count > 1; ein
+                // "verpackt/abgeholt" am HauptFA darf NICHT die ganze Gruppe auf erledigt setzen.
+                // Stage 1 greift unabhaengig vom Schalter.
+                var fold2Allowed = autoErledigtEnabled && matches.Count == 1;
+                if (autoErledigtEnabled && matches.Count > 1)
+                    await run.LogWarningAsync(
+                        $"Auto-Erledigt uebersprungen (WA {wa}): {matches.Count} FA-Treffer (hierarchisch) — Komm-Erledigt wuerde die ganze Gruppe treffen.",
+                        reference: wa, ct: ct);
+
                 foreach (var order in matches)
                 {
                     var info = order.ExtraInfo;
@@ -162,7 +173,8 @@ public class FaZusatzinfoSyncService : IFaZusatzinfoSyncService
                     // NICHT info.SageStatus. Tripel: Sage-IsDone wird NIE beschrieben,
                     // stornierte FAs uebersprungen (sonst kaeme eine reaktivierte FA mit
                     // klebendem IsDonePicking dauerhaft versteckt zurueck).
-                    if (FaZusatzinfoStatus.IstVerpacktOderAbgeholt(row.Status)
+                    if (fold2Allowed
+                        && FaZusatzinfoStatus.IstVerpacktOderAbgeholt(row.Status)
                         && !order.IsDone
                         && !order.IsCancelled
                         && order.PickingStatus?.IsDonePicking != true
