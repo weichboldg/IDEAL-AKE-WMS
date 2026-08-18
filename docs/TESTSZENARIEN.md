@@ -6507,8 +6507,10 @@ Zugriff (Class-Level): `[RequireLagerProcessingAccess]` — identisch zu `Wareho
   `Beschichtet`, `Material` ausgeblendet; alle anderen Spalten sichtbar.
 - **TS-59.18 — Locked-Spalten:** `HauptFA` und `Matchcode` lassen sich im Dialog **nicht**
   ausblenden.
-- **TS-59.19 — Keine Standard-Sortierung:** der Dialog bietet **keine** Option „Standard-Sortierung
-  speichern" (`supportsSortDefault: false`).
+- **TS-59.19 — Standard-Sortierung verfügbar (geändert 2026-08-18, Spec [[2026-08-18-bom-guard-hierarchisch-spec]]):**
+  der Dialog **bietet** jetzt die Option „Standard-Sortierung speichern" (`supportsSortDefault: true`) —
+  die frühere Sperre (`false`) fiel weg, seit `table-filter.js` alle `<tbody>`-Gruppen sortiert
+  ([[2026-08-12-tabellen-sortierung-nur-erste-gruppe-bug]]). Gespeicherte Sortierung ist nach Reload wirksam.
 - **TS-59.20 — Benutzer-Trennung:** zwei verschiedene Benutzer (oder Browserprofile) auf derselben
   Liste → unabhaengige Konfigurationen, keine gegenseitige Ueberschreibung.
 - **TS-59.21 — Multi-Gruppen Spaltenauswahl (≥2 HauptFA-Gruppen):** Liste mit **mindestens zwei**
@@ -6602,8 +6604,9 @@ Toggle `FaHierarchyBeschichtungAktiv = true`. Benutzer mit Rolle `beschichtungsa
   `Breite`) ausblenden, Breite aendern, umordnen → Reload → bleibt erhalten
   (`PUT /api/user-view-preferences/FaHierarchyBeschichtung` liefert `200`, **nicht** `400`).
 - **TS-60.16 — Locked-Spalten:** `HauptFA` und `Matchcode` lassen sich **nicht** ausblenden.
-- **TS-60.17 — Keine Standard-Sortierung:** der Dialog bietet **keine** Option „Standard-Sortierung
-  speichern" (`supportsSortDefault: false`).
+- **TS-60.17 — Standard-Sortierung verfügbar (geändert 2026-08-18, Spec [[2026-08-18-bom-guard-hierarchisch-spec]]):**
+  der Dialog **bietet** jetzt die Option „Standard-Sortierung speichern" (`supportsSortDefault: true`);
+  die frühere `false`-Sperre ist weggefallen. Gespeicherte Sortierung ist nach Reload wirksam.
 - **TS-60.18 — Benutzer-Trennung:** zwei Benutzer/Profile → unabhaengige Konfigurationen.
 - **TS-60.19 — Multi-Gruppen Spaltenauswahl (≥2 HauptFA-Gruppen):** eine Spalte ausblenden/umordnen →
   Aenderung wirkt in **jeder** Gruppe gleich, nicht nur in der ersten.
@@ -6725,10 +6728,10 @@ Sicht 1 „Einzelne Teile" nutzt `viewKey` `FaHierarchyVormontageEinzeln` (grupp
   Reload → bleibt erhalten (`…/FaHierarchyVormontageSummiert` liefert `200`, **nicht** `400`).
 - **TS-61.24 — Locked-Spalten:** Sicht 1 → `HauptFA` und `Matchcode` nicht ausblendbar; Sicht 2 →
   `Matchcode` (einziger Identifikator) nicht ausblendbar.
-- **TS-61.25 — Standard-Sortierung nur Sicht 2:** Sicht 1 bietet **keine** Option
-  „Standard-Sortierung speichern" (`supportsSortDefault: false`); Sicht 2 **bietet** sie
-  (`supportsSortDefault: true`, analog `ProductionOrders`) — gespeicherte Standard-Sortierung ist nach
-  Reload wirksam.
+- **TS-61.25 — Standard-Sortierung in BEIDEN Sichten (geändert 2026-08-18, Spec [[2026-08-18-bom-guard-hierarchisch-spec]]):**
+  Sicht 1 (Einzeln) **bietet** die Option „Standard-Sortierung speichern" jetzt ebenfalls
+  (`supportsSortDefault: true`; früher `false`); Sicht 2 (Summiert) bot sie bereits. Gespeicherte
+  Standard-Sortierung ist in beiden nach Reload wirksam.
 - **TS-61.26 — Benutzer-Trennung:** zwei Benutzer/Profile → unabhaengige Konfigurationen je Sicht.
 - **TS-61.27 — Multi-Gruppen Spaltenauswahl Sicht 1 (≥2 HauptFA-Gruppen):** Spalte ausblenden/umordnen
   → Aenderung wirkt in **jeder** Gruppe gleich, nicht nur in der ersten.
@@ -7065,5 +7068,28 @@ sicherstellen, dass mehrere Sub-FAs derselben `OrderNumber` an einer Werkbank of
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) (2026-08-18)*
+## TS-68 — BOM-Knopf im hierarchischen Modus (Guard, kein HTTP 500)
+
+**Vorbedingungen:** Bündel deployt. **Automatisiert abgedeckt:** `HierarchicalBomGuardRepositoryTests` (5).
+
+- **TS-68.1 — AKE-Regression (AK 1):** Master `false`, BOM-Knopf an bekanntem Auftrag → Positionen wie
+  bisher. Einmal mit gefülltem, einmal mit leerem BOM-Cache (Cache-Treffer/-Miss) — bit-identisch zu vorher.
+- **TS-68.2 — IDEAL-Grundfall (AK 2/6):** Master `true`, BOM-Knopf an einem materialisierten FA →
+  **Hinweisseite** („Die Stückliste wird im hierarchischen Modus über die FA-Struktur angezeigt",
+  Zwischenstand, Badge „FA-Struktur") mit funktionierendem Link/Button **zur FA-Struktur** (`/FaHierarchy`).
+  **Kein 500**, keine Exception.
+- **TS-68.3 — Direktaufruf (AK 2):** `/Picking/Bom/<id>` per URL im hierarchischen Modus → gleicher
+  Hinweis (belegt, dass der Guard nicht nur an einem ausgeblendeten Knopf hängt).
+- **TS-68.4 — Log-Nachweis (AK 2/3):** im hierarchischen Modus erscheint **keine** SQL-Abfrage gegen
+  `vw_AKE_Kommissionierung_StuecklistenDB` bzw. `[ake].[dbo]` — der Guard hängt am Master-Schalter, nicht
+  an einem gefangenen Fehler (kein try/catch).
+- **TS-68.5 — Weitere Aufrufer (AK 5):** Druck (`/Picking/PrintBom/<id>`) und die read-only Vorbau-
+  Stückliste (Abarbeitungsliste) im hierarchischen Modus → keine Exception (leeres Ergebnis, gleicher Guard).
+- **TS-68.6 — Unterscheidbarkeit (AK 4):** ein FA ohne Stückliste (AKE, „KEINE_DATEN") vs. hierarchisch
+  („NICHT_VERFUEGBAR_HIERARCHISCH") sind unterschiedlich dargestellt — die leere Liste wird nicht mit dem
+  hierarchischen Hinweis verwechselt.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

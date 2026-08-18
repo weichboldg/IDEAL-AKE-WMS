@@ -90,7 +90,12 @@ builder.Services.AddScoped<HolidayRepository>();
 builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
 builder.Services.AddScoped<IBomCacheRepository, BomCacheRepository>();
 builder.Services.AddScoped<BomRepository>();
-builder.Services.AddScoped<IBomRepository, CachedBomRepository>();
+builder.Services.AddScoped<CachedBomRepository>();
+// IDEAL-Guard als AEUSSERSTER Decorator: faengt den hierarchischen Modus ab, bevor Cache/DB laufen.
+// Factory, weil der Guard den konkreten CachedBomRepository umschliesst (sonst Selbst-Aufloesung).
+builder.Services.AddScoped<IBomRepository>(sp => new HierarchicalBomGuardRepository(
+    sp.GetRequiredService<CachedBomRepository>(),
+    sp.GetRequiredService<IServiceSettingRepository>()));
 
 // FA-Hierarchie (IDEAL): Repo + Cache-Decorator (ADR 0001, 5-min IMemoryCache analog BOM-Cache)
 builder.Services.AddScoped<FaHierarchyNodeRepository>();
