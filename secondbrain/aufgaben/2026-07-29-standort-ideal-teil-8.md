@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: "IDEAL-Standort Teil 8 — Sub-FA-Rueckmeldung / BDE (Epic-Umsetzung)"
-status: InUmsetzung
+status: Testbereit
 spec: "[[2026-07-29-standort-ideal-teil-8-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -205,3 +205,16 @@ Direktbuchung; FA nur an fremder Werkbank → Werkbank-Meldung.
 Testdaten: AK 2/6 (zwei Sub-FAs derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback
 `SubOrderNumber`) sind ohne produktivnahe hierarchische Rueckmeldedaten im (heute leeren)
 IDEAL-Testsystem nicht gruen zu bekommen — vor Schranke 2 sicherstellen.
+
+## QA-Gate (2026-08-18, qa-agent) — Testbereit
+
+Build + Tests frisch im Worktree verifiziert: `dotnet build IdealAkeWms.slnx` 0 Fehler;
+`dotnet test IdealAkeWms.Tests` **1205 gruen + 1 skip** (1206 gesamt); `dotnet test
+IDEALAKEWMSService.Tests` **231 gruen**. Diff-Pruefung (`git diff --stat 418f23a^..8395394`)
+bestaetigt Deploy-Umfang: Web ja, Service nein aus Teil 8, keine neue Migration (die
+mitgefuehrte Aenderung an der Migrations-Datei ist der separate Teil-7-Fix `5d3e723`, bereits
+offline verifiziert, gehoert fachlich zu Teil 7). TS-66 (10 Szenarien) deckt AK 1–9 vollstaendig
+ab; Testindex-Kapitel 66 war bereits verlinkt. Vollstaendiger QA-Nachweis + Manual-Test-Checkliste
+fuer Schranke 2 in der Spec [[2026-07-29-standort-ideal-teil-8-spec]] Abschnitt „QA-Nachweis"/
+„Manuelle Test-Checkliste". Status Spec + diese Aufgabe auf `Testbereit` gesetzt. Kein Merge, kein
+Push, kein Worktree-Cleanup (Schranke 2 = Mensch).
