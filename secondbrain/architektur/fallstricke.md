@@ -788,3 +788,18 @@ eine echte DB). **Regel:** Wenn das SQL-Skript `sys.indexes`/`sys.key_constraint
 braucht die EF-Migration dieselben — via `migrationBuilder.Sql(@"IF EXISTS ... DROP ...")` statt der
 strukturierten `DropIndex`/`CreateIndex`-Operationen. `GO` gehoert NICHT in `migrationBuilder.Sql`
 (Client-Direktive; jeder `.Sql(...)`-Aufruf ist bereits ein eigener Batch).
+
+**Nachtrag (2026-08-18): Nicht nur `DropIndex`/`CreateIndex`, auch `AlterColumn` erzeugt ungeschuetzte
+Index-DDL.** Der OrderNumber-Fix (`abcd718`) legte in derselben Migration einen **zweiten** 3701 frei:
+`migrationBuilder.AlterColumn<string>("SubOrderNumber", nullable:false)`. Weil der **Model-Snapshot**
+einen Unique-Index auf `SubOrderNumber` traegt, umschliesst EFs SQL-Server-Generator jeden `AlterColumn`
+auf einer indizierten Spalte **automatisch** mit `DROP INDEX [IX_...] ` (ungeschuetzt!) → `ALTER COLUMN`
+→ `CREATE ... INDEX [IX_...]`. Dieser Auto-DROP lief **vor** dem weiter unten guarded angelegten Index →
+3701 auf jeder frischen/zurueckgerollten DB. **Regel-Verschaerfung:** Sobald eine Spalte einen Index
+traegt, gehoert **auch** ihr NOT-NULL-/Typ-Wechsel als `migrationBuilder.Sql(@"IF EXISTS (... is_nullable
+= 1) ALTER TABLE ... ALTER COLUMN ...")` geschrieben — **nicht** via `AlterColumn` —, damit EF keinen
+Index-Tausch generiert. Faustregel: In einer Migration, die Indizes von Hand (raw SQL) verwaltet, darf
+**keine** strukturierte `AlterColumn`/`DropIndex`/`CreateIndex`-Operation auf denselben Spalten stehen —
+sie zieht den Auto-Index-Tausch nach. **Offline-Verifikation** (ohne echte DB): `dotnet ef migrations
+script <von> <bis>` erzeugt genau die Start-SQL — dort auf ungeschuetzte `DROP INDEX` grepen. Das haette
+beide 3701 vor dem Merge gezeigt.
