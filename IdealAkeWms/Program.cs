@@ -143,6 +143,8 @@ builder.Services.AddScoped<IBdeDefaultWorkOperationService, BdeDefaultWorkOperat
 builder.Services.AddScoped<IBdeTimeSplitService, BdeTimeSplitService>();
 builder.Services.AddScoped<IBdeShiftCalendarService, BdeShiftCalendarService>();
 builder.Services.AddScoped<IBdeScanResolver, BdeScanResolver>();
+builder.Services.AddScoped<IdealAkeWms.Services.Standort.IStandortSettingsWriter,
+                          IdealAkeWms.Services.Standort.StandortSettingsWriter>();
 builder.Services.AddScoped<IdealAkeWms.Services.Oseon.IOseonGroupViewModelBuilder,
                           IdealAkeWms.Services.Oseon.OseonGroupViewModelBuilder>();
 

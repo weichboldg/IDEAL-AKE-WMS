@@ -1,0 +1,116 @@
+@model IdealAkeWms.Models.Standort.StandortEinstellungenViewModel
+@using IdealAkeWms.Models.Standort
+@{
+    ViewData["Title"] = "Standorteinstellungen";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Standorteinstellungen</h2>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-warning">
+        <strong>Nicht gespeichert:</strong>
+        <ul class="mb-0">
+            @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>@err.ErrorMessage</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="alert alert-info mb-3">
+    <strong>Hinweis:</strong> Diese Maske bündelt die standortbezogenen Werte. Dieselben Werte bleiben
+    auch über <a asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a> bzw.
+    <a asp-controller="Settings" asp-action="Index">Einstellungen</a> erreichbar &ndash; hier nur
+    gruppiert. Es gibt keinen zweiten Speicherort.
+</div>
+
+@* Master-Einwegtor: ausschliesslich read-only. Umschalten nur ueber die eigene Teil-7-Seite. *@
+<div class="card mb-3 border-warning-subtle">
+    <div class="card-header fw-semibold">FA-Hierarchie &ndash; Master-Einwegtor</div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge @(Model.Master.Enabled ? "text-bg-success" : "text-bg-secondary")">
+                @(Model.Master.Enabled ? "Hierarchisch aktiviert" : "Flach (AKE-Standard)")
+            </span>
+            <span class="badge @(Model.Master.Locked ? "text-bg-warning" : "text-bg-secondary")">
+                @(Model.Master.Locked ? "Gesperrt – hierarchische Daten vorhanden" : "Nicht gesperrt")
+            </span>
+            <a asp-controller="HierarchieUmstellung" asp-action="Index" class="ms-1">Umschalten (eigene Seite)</a>
+        </div>
+        <small class="text-muted d-block mt-2">
+            Einwegtor &ndash; hier <strong>nur Anzeige</strong>. Das Umschalten läuft ausschließlich über
+            die Umstellungs-Seite (Bestätigung + Wächter); diese Maske ändert den Master nicht.
+            @if (Model.Master.AsOfUtc.HasValue)
+            {
+                <text>Stand der Sperr-Prüfung: @Model.Master.AsOfUtc.Value.LocalDateTime.ToString("dd.MM.yyyy HH:mm").</text>
+            }
+        </small>
+    </div>
+</div>
+
+<form asp-action="Save" method="post">
+    @Html.AntiForgeryToken()
+    @foreach (var group in Model.Groups)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">@group.Name</div>
+            <div class="card-body">
+                @if (!group.Fields.Any())
+                {
+                    <p class="text-muted mb-0">Keine Werte an diesem Standort.</p>
+                }
+                @foreach (var f in group.Fields)
+                {
+                    <div class="mb-3" data-setting-row="@f.Key">
+                        <label class="form-label fw-bold" for="field_@f.Key">@f.Label</label>
+                        @if (f.Type == StandortFieldType.Bool)
+                        {
+                            <input type="hidden" name="settings[@f.Key]" value="@(f.BoolValue ? "true" : "false")" class="bool-hidden" />
+                            <div class="form-check form-switch mt-1">
+                                <input type="checkbox" class="form-check-input bool-toggle" id="field_@f.Key" @(f.BoolValue ? "checked" : "") />
+                                <label class="form-check-label" for="field_@f.Key">@(f.BoolValue ? "Aktiviert" : "Deaktiviert")</label>
+                            </div>
+                        }
+                        else if (f.Type == StandortFieldType.Int)
+                        {
+                            <input type="number" step="1" id="field_@f.Key" name="settings[@f.Key]" value="@f.Value" class="form-control" />
+                        }
+                        else
+                        {
+                            <input type="text" id="field_@f.Key" name="settings[@f.Key]" value="@f.Value" class="form-control" />
+                        }
+                        @if (!string.IsNullOrEmpty(f.Hint))
+                        {
+                            <small class="text-muted d-block mt-1">@f.Hint</small>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary mb-4">Standorteinstellungen speichern</button>
+</form>
+
+@section Scripts {
+    <script>
+        // Bool-Toggle: synchronisiert den Hidden-Wert + Label (Fallstrick: Hidden+Checkbox gleicher
+        // name funktioniert NICHT — Checkbox hat KEIN name, Hidden traegt den name).
+        document.querySelectorAll('.bool-toggle').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                var hidden = this.closest('[data-setting-row]').querySelector('.bool-hidden');
+                if (hidden) hidden.value = this.checked ? 'true' : 'false';
+                var label = this.parentElement.querySelector('.form-check-label');
+                if (label) label.textContent = this.checked ? 'Aktiviert' : 'Deaktiviert';
+            });
+        });
+    </script>
+}

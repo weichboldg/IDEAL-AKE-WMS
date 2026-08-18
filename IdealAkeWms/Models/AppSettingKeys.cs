@@ -66,4 +66,11 @@ public static class AppSettingKeys
     // im Unterschied zu LagerbestellungAktiv): fehlend/nicht "true" => inaktiv. Kein Seed;
     // RequireFaHierarchyVormontageAktivAttribute.
     public const string FaHierarchyVormontageAktiv = "FaHierarchyVormontageAktiv";
+
+    // IDEAL FA-Hierarchie (Teil 6 — Standorteinstellungen-Maske): Firmendaten fuer Druckkopf/Anzeige.
+    // Reine AppSettings-Werte OHNE Katalog/Seed: Teil 6 rendert sie kuratiert (eigene Feldliste) und
+    // legt die DB-Zeile beim ersten Speichern an. Definitionsort ist HIER (Fallback-Regel: Teil 3 hat
+    // die Keys bis zum Teil-6-Dev-Lauf nicht angelegt). Kein Seed, keine Migration.
+    public const string Firmenname = "Firmenname";
+    public const string Firmenanschrift = "Firmenanschrift";
 }

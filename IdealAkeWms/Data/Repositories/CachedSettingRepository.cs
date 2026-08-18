@@ -8,7 +8,9 @@ public class CachedSettingRepository : IAppSettingRepository
     private readonly AppSettingRepository _inner;
     private readonly IMemoryCache _cache;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(2);
-    private const string CachePrefix = "setting:";
+    // Public, damit ein transaktionaler Sammel-Schreiber (Teil 6 StandortSettingsWriter) die
+    // AppSettings-Cache-Keys ERST NACH erfolgreichem Commit invalidieren kann (Rollback-Fallstrick).
+    public const string CachePrefix = "setting:";
 
     public CachedSettingRepository(AppSettingRepository inner, IMemoryCache cache)
     {
