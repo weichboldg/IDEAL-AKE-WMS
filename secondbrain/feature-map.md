@@ -214,6 +214,24 @@ ein Scan kann mehrere Sub-FAs treffen. Einstieg `Services/BdeScanResolver.cs` +
 > Zwischen-Merge). **Testdaten-Vorbedingung Schranke 2:** hierarchische Rückmeldedaten (mehrere Sub-FAs
 > derselben `OrderNumber` an einer Werkbank) im IDEAL-Testsystem. Detail [[2026-07-29-standort-ideal-teil-8]].
 
+### Teil 6 — Standorteinstellungen-Maske (v1.34.0, kein Epic, selber Branch)
+
+Kuratierte, gruppierte Admin-Maske über die standortbezogenen Werte (AppSettings + ServiceSettings),
+kein zweiter Speicherort. Einstieg `Controllers/StandortEinstellungenController.cs` +
+`Views/StandortEinstellungen/Index.cshtml` + `Services/Standort/StandortSettingsWriter.cs` (atomarer
+Zwei-Backend-Write) + `Models/Standort/StandortSettingsCatalog.cs` (kuratierte Feldliste, Allow-List).
+
+| Aspekt | Status | Detail |
+|---|---|---|
+| Maske + Gruppen (Firmendaten/Mandant-Views/Toggles/Import) | **umgesetzt** (`c8ae47f`) | admin-only, Nav-Link, Bootstrap-Konsistenz `/ServiceSettings` |
+| Atomarer Zwei-Backend-Write | **umgesetzt** | `IStandortSettingsWriter`, eine EF-Transaktion (`IsRelational`-Guard), Cache nach Commit, kein Partial-Save |
+| Master read-only + Allow-List-Schutz (AK 2) | **umgesetzt** | Badge + Link `/HierarchieUmstellung`, nie im POST, kein Guard-Aufruf |
+| Firmendaten neu (`Firmenname`/`Firmenanschrift`) | **umgesetzt** | AppSettings-Keys, kein Seed/Migration (Fallback-Regel) |
+
+> **Status Teil 6:** feature-complete, Web-Suite **1214 grün** (+9 Tests). Wartet auf **qa-agent**
+> (setzt `Testbereit`), danach **Schranke 2** zusammen mit dem ganzen Bündel (ein Merge). Changelog
+> [[2026-08-18-v1-34-0-ideal-teil-6-standorteinstellungen]], Detail [[2026-07-29-standort-ideal-teil-6]].
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
