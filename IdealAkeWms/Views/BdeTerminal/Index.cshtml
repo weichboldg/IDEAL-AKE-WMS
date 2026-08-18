@@ -67,6 +67,10 @@
                         <button id="btnScanFaAg" class="btn btn-outline-primary">Scannen</button>
                     </div>
                     <div id="faAgFeedback" class="small text-danger mt-1"></div>
+                    @* Disambiguierung nach dem Scan (IDEAL Teil 8): mehrere Sub-FAs derselben FA an
+                       dieser Werkbank -> Auswahl; oder eigene Meldung, wenn der Auftrag hier keinen
+                       offenen Arbeitsgang hat. Wird per JS aus /api/bde/resolve-scan gefuellt. *@
+                    <div id="scanSelection" class="bde-scan-selection"></div>
                 </div>
             </div>
         </div>

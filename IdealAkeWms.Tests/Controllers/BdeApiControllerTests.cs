@@ -2,6 +2,7 @@ using FluentAssertions;
 using IdealAkeWms.Controllers;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
+using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -21,7 +22,7 @@ public class BdeApiControllerTests
     {
         var ctx = TestDbContextFactory.Create();
         return new(_ops.Object, _activities.Object, _bookings.Object, _workOps.Object,
-            _workplaces.Object, _settings.Object, ctx);
+            _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
     }
 
     private static BdeOperator CreateOperator(int id, string personnelNumber, string firstName, string lastName)
@@ -275,7 +276,7 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
 
         var result = await controller.GetAvailableOperations(wpInactive.Id);
 
@@ -316,7 +317,7 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
 
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
@@ -354,7 +355,7 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
 
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
@@ -385,7 +386,7 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
         var result = await controller.GetAvailableOperations(ids.WorkplaceId, operatorId: ids.OperatorId);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
@@ -415,7 +416,7 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
         // Kein operatorId → bisheriges Verhalten, kein Crash
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
@@ -479,7 +480,7 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("true");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx);
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
 
         var result = await controller.GetAvailableOperations(wp.Id);
 
@@ -490,5 +491,90 @@ public class BdeApiControllerTests
         json.Should().Contain("FA-INPRODUKTION"); // Nicht-gesperrter Status bleibt enthalten
         json.Should().NotContain("FA-GESPERRT");
         json.Should().Contain("\"nurFaMode\":true");
+    }
+
+    // --- IDEAL Teil 8, Etappe 3: resolve-scan Endpoint ---
+
+    [Fact]
+    public async Task ResolveScan_ReturnsBadRequest_WhenFaNumberMissing()
+    {
+        var result = await CreateController().ResolveScan("", "01", workplaceId: 5);
+        result.Should().BeOfType<BadRequestResult>();
+    }
+
+    [Fact]
+    public async Task ResolveScan_ReturnsBadRequest_WhenWorkplaceMissing()
+    {
+        var result = await CreateController().ResolveScan("GRP-1", "01", workplaceId: 0);
+        result.Should().BeOfType<BadRequestResult>();
+    }
+
+    [Fact]
+    public async Task ResolveScan_ReturnsExact_ForSingleWorkOperationAtWorkplace()
+    {
+        var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "GRP-1", SubOrderNumber = "SUB-1", Description1 = "Desc",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.WorkOperations.Add(new WorkOperation
+        {
+            Id = 10, ProductionOrderId = 1, OperationNumber = "01", Name = "AG 01",
+            ProductionWorkplaceId = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+
+        var result = await controller.ResolveScan("GRP-1", "01", workplaceId: 5);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("\"kind\":\"Exact\"");
+        json.Should().Contain("\"subOrderNumber\":\"SUB-1\"");
+        json.Should().Contain("\"target\":\"WorkOperation\"");
+    }
+
+    [Fact]
+    public async Task ResolveScan_ReturnsAmbiguous_ForMultipleSubFas()
+    {
+        var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "GRP-1", SubOrderNumber = "SUB-1", Description1 = "D1",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 2, OrderNumber = "GRP-1", SubOrderNumber = "SUB-2", Description1 = "D2",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.WorkOperations.Add(new WorkOperation
+        {
+            Id = 10, ProductionOrderId = 1, OperationNumber = "01", Name = "AG 01", ProductionWorkplaceId = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.WorkOperations.Add(new WorkOperation
+        {
+            Id = 20, ProductionOrderId = 2, OperationNumber = "01", Name = "AG 01", ProductionWorkplaceId = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+
+        var result = await controller.ResolveScan("GRP-1", "01", workplaceId: 5);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("\"kind\":\"Ambiguous\"");
+        json.Should().Contain("\"subOrderNumber\":\"SUB-1\"");
+        json.Should().Contain("\"subOrderNumber\":\"SUB-2\"");
     }
 }

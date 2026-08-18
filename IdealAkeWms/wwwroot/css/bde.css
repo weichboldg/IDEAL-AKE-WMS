@@ -20,6 +20,20 @@
     background: rgba(255,255,255,0.15);
 }
 .bde-op-btn { min-height: 50px; white-space: normal; text-align: left; }
+
+/* Scan-Disambiguierung (IDEAL Teil 8): Auswahl mehrerer Sub-FAs derselben FA. Baut auf .bde-op-btn
+   auf (gleiche Touch-Groesse); Farbe traegt NIE allein die Bedeutung. */
+.bde-scan-selection:empty { display: none; }
+.bde-scan-selection { margin-top: 0.75rem; }
+.bde-scan-selection .bde-scan-heading {
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em;
+    font-weight: 600; color: var(--bs-secondary-color); margin-bottom: 0.4rem;
+}
+/* Zweizeiliger Auswahl-Button: Sub-FA-Nr fuehrend, Matchcode/AG darunter. Alle Zeilen erben die
+   Button-Textfarbe (currentColor) -> Hover-Inversion bleibt kontraststark (WCAG AA in beiden Zustaenden). */
+.bde-scan-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+.bde-scan-choice .bde-scan-choice-desc { font-size: 0.95rem; font-weight: 400; }
+
 .cockpit-booking { font-size: 0.95rem; }
 
 #toastContainer .toast { min-width: 250px; font-size: 1.1rem; }
