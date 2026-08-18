@@ -22,7 +22,7 @@ NACHTRAG 2026-08-12 erfuellt. Schranke 1 genommen (KP2-3/KP2-6 am 2026-08-12 ent
 |---|--------|--------|
 | 1 | Verifikation (Teil-7-Haertung im BDE-Kontext, OSEON-Urteil) | **erledigt** |
 | 2 | Aufloesungslogik serverseitig + Unit-Tests | **erledigt** (`f86a886`) |
-| 3 | Auswahl-UI am Terminal | offen |
+| 3 | Auswahl-UI am Terminal (Normal-Modus) + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) |
 | 4 | NurFA-Fix + Durchzug Teileverfolgung | offen |
 | 5 | OSEON-Seite | **entfaellt** (Etappe-1-Urteil) |
 | 6 | Tests + Brain-Update | offen |
@@ -132,6 +132,35 @@ leerer Scan. Web-Suite **1200 gruen** (+14).
 (Normal) auf einen `resolve-scan`-Endpoint statt `/workoperation` legen; bei `Ambiguous` Auswahlliste
 (Sub-FA-Nr + Matchcode + AG), bei `NotInScope` die eigene Meldung, bei `Exact` Direktbuchung. Endpoint
 + Controller-Verdrahtung gehoeren in Etappe 3 (BdeApiController-Ctor-Aenderung dort).
+
+## Etappe 3 — Scan-Auswahl-UI, Normal-Modus (2026-08-18, Worktree `5fd0070`)
+
+**Endpoint:** `GET /api/bde/resolve-scan?faNumber&opNumber&workplaceId&operatorId` (BdeApiController →
+`IBdeScanResolver`; Ctor um `IBdeScanResolver` erweitert). Liefert `{ kind, nurFaMode,
+viaSubOrderFallback, candidates[] }`. `GetWorkOperation` bleibt für Bestandsaufrufer erhalten.
+
+**Terminal-JS** (`bde-terminal.js`, Normal-Zweig von `scanFaAgInput` → `resolveScanAndSelect`):
+- `Exact` → `currentWorkOp = { id }` → `renderState()` (identisch zum Antippen eines Produktiv-Buttons).
+- `Ambiguous` → `renderScanSelection`: Auswahl-Buttons im `.bde-op-btn`-Stil (`btn-outline-primary`),
+  Sub-FA-Nr führend + „AG", darunter Matchcode/Bezeichnung + AG-Name; Klick = `selectScannedWorkOp`.
+- `NotInScope` → `renderScanNotice`: eigene Meldung „Dieser Auftrag hat an dieser Werkbank keinen
+  offenen Arbeitsgang." (Bootstrap `alert-warning`, WCAG-AA).
+- `NotFound`/Format/HTTP-Fehler → `setScanFeedback` (text-danger, Bestandsverhalten).
+- Container `#scanSelection` im View; wenige CSS-Regeln in `bde.css` (Touch-Ziele, `:empty`-Hide,
+  zweizeilige Choice-Buttons, Text erbt Button-Farbe → Hover-Kontrast bleibt AA). XSS-`escapeHtml`.
+- Browse-Handler `bindOperationButtonHandlers` auf `#operationButtons` gescopt (kollidiert nicht mehr
+  mit den `.bde-op-btn`-Auswahl-Buttons); Auswahl wird bei Scan/Operatorwechsel/Browse-Klick geleert.
+
+**Tests:** 4 neue Endpoint-Tests in `BdeApiControllerTests` (BadRequest ×2, Exact, Ambiguous) + alle 6
+`new BdeApiController(...)`-Aufrufe auf den neuen Ctor gezogen. Web-Suite **1204 grün**.
+
+**NurFA unverändert** (Etappe 4: `scanFaAgInput` NurFA-Zweig von last-wins-Substring auf denselben
+`resolveScanAndSelect`-Weg umstellen; Buchung dann per `StartProductionForOrder` statt Produktiv-Button).
+
+**Manueller UI-Test (Schranke 2, sobald hierarchische Testdaten da sind):** Normal-Modus,
+zwei Sub-FAs derselben `OrderNumber`+AG an einer Werkbank scannen → Auswahlliste erscheint,
+Auswahl bucht getrennt; eindeutige FA → Direktbuchung ohne Auswahl; FA nur an fremder Werkbank →
+Werkbank-Meldung; unbekannte FA → Bestandsfehler. (Formales TESTSZENARIEN-Kapitel „IDEAL Teil 8" in Etappe 6.)
 
 ## Verbleibende Schranke-2-/UAT-Vorbedingung
 Testdaten: AK 2/6 (zwei Sub-FAs derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback
