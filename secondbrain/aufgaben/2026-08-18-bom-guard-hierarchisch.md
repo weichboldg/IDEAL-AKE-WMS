@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: "BOM-Knopf im hierarchischen Modus abfangen (UAT-Blocker Minimal-Fix)"
-status: InUmsetzung
+status: Testbereit
 spec: "[[2026-08-18-bom-guard-hierarchisch-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -48,4 +48,9 @@ Hierarchische BOM-Quelle / `FaHierarchyBomRepository` / Cache-Umbau / Sweep alle
 - Umsetzung — **feature-complete** (Worktree `1173cf1`): Guard-Decorator + DI, `BomDataSources`-Marker,
   Bom.cshtml-Hinweis + Ausblenden + Badge, 3× `supportsSortDefault=true`, 5 Guard-Tests, TS-68 +
   TS-59.19/60.17/61.25 umgekehrt. Kein Versions-Bump. Build grün, Web-Suite **1219 grün** (+5).
-- Wartet auf **qa-agent** (Build + BEIDE Suiten = die vom Spec geforderte erneute QA des Bündels).
+- **QA (2026-08-18) — Testbereit.** Build grün, Web-Suite 1219/1 skip/0 Fehler, Service-Suite
+  231/0 Fehler. Code-Review ohne Findings (Guard hängt strikt am Master, Marker unterscheidbar,
+  alle 4 Aufrufer über den gemeinsamen `Views/Picking/Bom.cshtml`-Guard abgedeckt, DI-Factory ohne
+  Selbstreferenz). Deploy-Abschnitt der Spec finalisiert (Web ja / Service nein / Migration nein,
+  Publish-Befehl aus dem Worktree). Manuelle Test-Checkliste an die Spec angehängt. Wartet auf
+  Schranke 2 (Mensch: Manual-UAT, dann Merge).
