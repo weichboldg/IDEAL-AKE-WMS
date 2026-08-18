@@ -47,5 +47,6 @@ Backends / null→"" / nur-Service). Web-Suite **1214 grün** (+9).
 - **Web:** ja (neue Maske). **Service:** nein. **Migration:** nein (Firmendaten ohne Seed/Katalog).
 
 ## Status
-`status: InUmsetzung` bis zum QA-Gate (qa-agent). Merge-Commit offen (Schranke 2 fürs ganze Bündel =
-Mensch). Nicht gepusht.
+`status: Testbereit` (qa-agent, 2026-08-18): Build gruen, Web 1214/1215 gruen (+1 vorbestehender
+Skip), Service 231/231 gruen, TS-67 deckt AK 1–6 vollstaendig ab, Code-Review ohne Findings.
+Merge-Commit offen (Schranke 2 fürs ganze Bündel = Mensch). Nicht gepusht.

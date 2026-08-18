@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Standort Teil 6 — Standorteinstellungen-Maske"
 slug: 2026-07-29-standort-ideal-teil-6-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-06
 updated: 2026-08-18
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
@@ -179,11 +179,29 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-  (provisorisch, vom Dev-Lauf gegen den tatsaechlichen Diff zu bestaetigen).
+Finalisiert vom qa-agent (2026-08-18) gegen den echten Diff `c8ae47f` (Feature-complete-Commit,
+Worktree `feature/2026-08-07-ideal-teile-1-5`): 15 Dateien geaendert, ausschliesslich unter
+`IdealAkeWms/`, `IdealAkeWms.Tests/`, `IDEALAKEWMSService/AppVersion.cs` (reiner Versions-Bump, keine
+Verhaltensaenderung) und `docs/TESTSZENARIEN.md`. Kein `*/Migrations/`-Ordner betroffen, keine neue
+`SQL/XX_*.sql`.
+
+- **Web-App:** ja (neuer Controller/View/ViewModel/Katalog/Writer, `Program.cs`-DI, Nav-Link).
+- **Service:** nein (nur `AppVersion.cs`-Versions-String, keine Service-Logik geaendert).
+- **Migration:** nein (Firmendaten-Keys ohne Seed/Katalog, siehe „Migrations-/SQL-Auswirkungen").
+
+**Publish-Befehl (aus dem Worktree, VOR dem Merge — Mensch-Flow ist Publish → Testsystem → Test →
+Merge):**
+
+```powershell
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+```
+
+Kein Service-Publish noetig, keine DB-Migration/Wartungsfenster noetig.
+
+**Hinweis nach dem Merge:** Nur erneut aus `main` publishen, falls der Merge dieses Bündels
+tatsaechlich getestete Dateien mit parallelen `main`-Aenderungen zusammenfuehrt (z. B. Konflikt-
+Aufloesung in `_Layout.cshtml`, `AppVersion.cs` oder `AppSettingKeys.cs`). Ohne Merge-Konflikte ist
+der Worktree-Build bereits das, was live geht.
 
 ## Offene Rueckfragen
 
@@ -620,3 +638,97 @@ diese Teil-6-Maske zeigen ihn ausschliesslich read-only, keine von beiden ist ei
 
 Status bleibt `Entwurf`; die Freigabe-Antworten oben sind unveraendert aus dem Block vom
 2026-08-06 uebernommen, nicht neu erfunden. `updated` im Frontmatter auf 2026-08-07 gesetzt.
+
+## QA-Nachweis (qa-agent, 2026-08-18)
+
+Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch
+`feature/2026-08-07-ideal-teile-1-5`), Commit `c8ae47f` (Teil-6-feature-complete). Alle Kommandos
+frisch im selben Lauf ausgefuehrt (nicht aus dem Umsetzungsbericht uebernommen).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+→ Der Buildvorgang wurde erfolgreich ausgeführt. 9 Warnung(en), 0 Fehler(er).
+```
+(Die 9 Warnungen sind vorbestehend — `NU1902` MailKit/MimeKit-Advisories + ein
+`CS8602`-Nullable-Hinweis in `TrackingController.cs`, unveraendert von diesem Teil.)
+
+**Tests:**
+```
+dotnet test IdealAkeWms.Tests
+→ Bestanden! Fehler: 0, erfolgreich: 1214, übersprungen: 1, gesamt: 1215
+
+dotnet test IDEALAKEWMSService.Tests
+→ Bestanden! Fehler: 0, erfolgreich: 231, übersprungen: 0, gesamt: 231
+```
+Deckt die Teil-6-Suiten `StandortEinstellungenControllerTests` (6) + `StandortSettingsWriterTests`
+(3) ein; beide gruen, keine Regression in den restlichen 1205 Web-Tests.
+
+**Diff-Verifikation (Basis fuer den finalisierten Deploy-Abschnitt):** `git show --stat c8ae47f` —
+15 Dateien, ausschliesslich `IdealAkeWms/*`, `IdealAkeWms.Tests/*`, `IDEALAKEWMSService/AppVersion.cs`
+(reiner Versions-String) und `docs/TESTSZENARIEN.md`. Keine `*/Migrations/`-Datei, keine neue
+`SQL/XX_*.sql` → bestaetigt `deploy.web=true`, `deploy.service=false`, `deploy.migration=false`.
+
+**Testszenarien:** `docs/TESTSZENARIEN.md` Kapitel TS-67 (TS-67.1 – 67.7) deckt AK 1–6 vollstaendig
+ab (TS-67.1→AK1, TS-67.2→AK2, TS-67.3→AK3, TS-67.4→AK4, TS-67.5→AK5, TS-67.6→AK6) plus TS-67.7 fuer
+den H-1-UX-Hinweis. `secondbrain/tests/testszenarien-index.md` Kapitel 67 bereits verlinkt.
+
+**Code-Review (qa-agent, Kern-Dateien):**
+- `StandortSettingsWriter.SaveAtomicAsync` — Transaktion nur beim relationalen Provider
+  (`IsRelational`-Guard, InMemory-testbar ueber ein `SaveChangesAsync`), Cache-Invalidierung
+  **nach** Commit (Fallstrick korrekt vermieden), Rollback-Pfad setzt den ChangeTracker der
+  geteilten Context-Instanz sauber zurueck (Added→Detached, Modified/Deleted→Reload). Verifiziert:
+  `ServiceSettingRepository` hat **keine** Caching-Decorator-Schicht — die Invalidierung beschraenkt
+  sich zu Recht auf `CachedSettingRepository`/AppSettings, keine Luecke auf der ServiceSettings-Seite.
+  DI-Registrierung `AddScoped<IStandortSettingsWriter>` passt zur Scoped-Lebensdauer von
+  `ApplicationDbContext` (kein Lifetime-Mismatch).
+- `StandortEinstellungenController.Save` — Allow-List ueber `StandortSettingsCatalog.Fields`
+  (Master-Key ist dort bewusst nicht gelistet) schuetzt zuverlaessig gegen einen manipulierten
+  POST auf den Master; Int-Validierung laeuft vollstaendig **vor** dem Schreiben, ein ungueltiger
+  Wert verhindert den gesamten Write (kein Partial-Save) und das Redisplay zeigt die eingegebenen
+  Werte weiter an (`BuildViewModelAsync(posted)`). `[RequireAdminAccess]` class-level, analog
+  `ServiceSettingsController`/`SettingsController`.
+- `StandortSettingsCatalog`/`StandortEinstellungenViewModel`/`Index.cshtml` — eine Feldliste als
+  Single Source (kein Master, kein Duplikat), Bootstrap-Konsistenz zu `/ServiceSettings`
+  (Card-Gruppen, `form-switch` fuer Bool, Hidden+Checkbox-Pattern korrekt getrennt benannt), Master-
+  Card klar als reine Statusanzeige mit Link gestaltet, kein Bedienelement zum Umschalten.
+- **Findings:** keine. Kein Fix noetig, keine Abweichung von der Spec gefunden.
+
+**Nicht automatisiert pruefbar (wie von der Spec/Aufgabe erwartet):** der echte Transaktions-
+Rollback-Pfad auf dem relationalen SQL-Server-Provider (InMemory hat keine Transaktionen — nur der
+Save-Pfad ist getestet, nicht das echte `BeginTransactionAsync`/`RollbackAsync`) sowie das
+gerenderte UI (Bootstrap-Layout, Kontrast, Checkbox/Hidden-Synchronisierung im Browser). Das ist
+kein Blocker, sondern der erwartete Manual-UAT-Rest (Schranke 2).
+
+### Manueller Test-Checkliste (Schranke 2, aus TS-67)
+
+1. Als Admin anmelden, `/StandortEinstellungen` aufrufen (Menue → Einstellungen →
+   „Standorteinstellungen“). Seite laedt ohne Fehler, zeigt die vier Gruppen Firmendaten,
+   Mandant/Sage-Views, Feature-Schalter, Struktur-Import. (TS-67.1/AK1)
+2. Einen View-Namen (z. B. Sage-View FAListe) hier aendern, speichern, danach in
+   `/ServiceSettings` pruefen, dass der geaenderte Wert dort ebenfalls erscheint — und umgekehrt.
+   Kein zweiter Speicherort. (TS-67.1/AK1)
+3. Master-Karte „FA-Hierarchie – Master-Einwegtor“ pruefen: nur Badges (aktiv/flach, gesperrt
+   ja/nein) + Link „Umschalten (eigene Seite)“ zu `/HierarchieUmstellung`. Kein Checkbox/Toggle
+   fuer den Master vorhanden. (TS-67.2/AK2)
+4. Optional (Entwicklertool/curl): einen POST mit dem Master-Key manipuliert absenden — der
+   Master-Wert aendert sich nicht, kein Fehler, kein stiller Erfolg auf den Master. (TS-67.2/AK2)
+5. Am AKE-Standort (ohne gesetzte IDEAL-Keys) die Maske aufrufen: leere Felder bzw. „Flach
+   (AKE-Standard)“, kein Fehler, keine Exception-Seite. (TS-67.3/AK3)
+6. Gemischten Speichervorgang testen: Firmenname gueltig aendern **und** „Baum-Maximaltiefe“ auf
+   einen ungueltigen Wert (z. B. „abc“) setzen, speichern. Erwartet: **nichts** wird gespeichert
+   (weder Firmenname noch Baum-Maximaltiefe geaendert), Fehlermeldung erscheint, beide eingegebenen
+   Werte bleiben im Formular sichtbar. (TS-67.4/AK4)
+7. Firmenname erstmals befuellen (auf einem Stand ohne vorhandene DB-Zeile) und speichern: Wert
+   wird uebernommen; anschliessend `/Settings` pruefen — der Firmenname erscheint dort **nicht**
+   automatisch (bekannte, akzeptierte Abweichung, kein Fehler). (TS-67.5/AK5)
+8. Ohne Admin-Rolle (z. B. Nutzer mit `stock_read` o. ae.) versuchen, `/StandortEinstellungen`
+   aufzurufen: Zugriff wird verweigert (403/Redirect wie bei `/ServiceSettings`). (TS-67.6/AK6)
+9. Einen ungueltigen Sage-View-Namen eintragen und speichern (roh gespeichert, kein Fehler beim
+   Speichern selbst) — pruefen, dass der Hinweistext in der Maske klar macht: die Validierung
+   erfolgt erst beim naechsten Struktur-Sync, nicht hier. (TS-67.7/H-1)
+10. Nach dem Speichern die Erfolgsmeldung „Standorteinstellungen gespeichert.“ pruefen (kein
+    `ErrorMessage`-TempData-Key verwendet, wie von der Konvention verlangt).
+11. Sichtpruefung am echten Bildschirm/Terminal: Kontrast der Badges/Karten ausreichend (WCAG AA),
+    Bool-Switch-Beschriftung „Aktiviert“/„Deaktiviert“ wechselt korrekt beim Klicken (Hidden-Feld-
+    Synchronisierung im Browser, nicht durch InMemory-Tests abgedeckt).

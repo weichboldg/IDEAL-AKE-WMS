@@ -228,8 +228,9 @@ Zwei-Backend-Write) + `Models/Standort/StandortSettingsCatalog.cs` (kuratierte F
 | Master read-only + Allow-List-Schutz (AK 2) | **umgesetzt** | Badge + Link `/HierarchieUmstellung`, nie im POST, kein Guard-Aufruf |
 | Firmendaten neu (`Firmenname`/`Firmenanschrift`) | **umgesetzt** | AppSettings-Keys, kein Seed/Migration (Fallback-Regel) |
 
-> **Status Teil 6:** feature-complete, Web-Suite **1214 grün** (+9 Tests). Wartet auf **qa-agent**
-> (setzt `Testbereit`), danach **Schranke 2** zusammen mit dem ganzen Bündel (ein Merge). Changelog
+> **Status Teil 6:** `Testbereit` (qa-agent, 2026-08-18) — Build gruen, Web **1214/1215 grün** (+1
+> vorbestehender Skip), Service **231/231 grün**, TS-67 deckt AK 1–6 vollstaendig ab, Code-Review ohne
+> Findings. Wartet auf **Schranke 2** zusammen mit dem ganzen Bündel (ein Merge). Changelog
 > [[2026-08-18-v1-34-0-ideal-teil-6-standorteinstellungen]], Detail [[2026-07-29-standort-ideal-teil-6]].
 
 ## Offen / nicht gemerged
