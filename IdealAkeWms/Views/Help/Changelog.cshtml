@@ -9,6 +9,31 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.33.0</strong> <span class="text-white-50 ms-2">18.08.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL-Standort: Rueckmeldung von Sub-Auftraegen am BDE-Terminal (Teil 8)</h6>
+                <p class="text-muted mb-2"><em>Betrifft ausschliesslich den Standort
+                    <strong>IDEAL</strong> im hierarchischen Modus. Fuer AKE aendert sich nichts &ndash;
+                    dort fuehrt jeder Scan wie bisher direkt zur Buchung.</em></p>
+                <ul>
+                    <li><strong>Neu &ndash; Auswahl beim Scannen mehrdeutiger Auftraege:</strong> Gehoeren
+                        zu einer gescannten FA-Nummer mehrere Sub-Auftraege an Ihrer Werkbank, zeigt das
+                        Terminal jetzt eine <strong>Auswahl</strong> (Sub-Auftragsnummer, Bezeichnung,
+                        Arbeitsgang) statt still den falschen zu buchen. Gibt es nur einen, wird wie bisher
+                        direkt gebucht.</li>
+                    <li><strong>Klarere Meldung:</strong> Laeuft der gescannte Auftrag zwar, aber nicht an
+                        Ihrer Werkbank, erscheint jetzt der Hinweis &bdquo;Dieser Auftrag hat an dieser
+                        Werkbank keinen offenen Arbeitsgang&ldquo; statt einer allgemeinen Fehlermeldung.</li>
+                    <li><strong>Korrektur im Nur-FA-Modus:</strong> Beim Scannen im vereinfachten Nur-FA-Modus
+                        wird bei mehreren passenden Sub-Auftraegen dieselbe Auswahl angeboten &ndash; kein
+                        stiller Griff mehr auf den zuletzt gefundenen Auftrag.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.32.0</strong> <span class="text-white-50 ms-2">17.08.2026</span>
             </div>
             <div class="card-body">
