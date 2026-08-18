@@ -63,4 +63,17 @@ changelog, feature-map Teil 6.
 
 ## Fortschritt
 - Setup (Spec InUmsetzung, Aufgabe) — **erledigt**.
-- Umsetzung — offen.
+- Umsetzung — **feature-complete** (Worktree `c8ae47f`): Controller/View/ViewModel/Katalog,
+  `StandortSettingsWriter` (atomar), Firmendaten-Keys, Nav-Link, Version 1.34.0, Changelog, TS-67,
+  15 Tests, Web-Suite **1214 grün**. Master read-only + Allow-List-Schutz (AK 2), Int-Validierung vor
+  Write (AK 4), Firmendaten-Erstanlage ohne Seed (AK 5), admin-only (AK 6).
+- Wartet auf **qa-agent** (setzt Testbereit + finalisiert Deploy-Abschnitt).
+
+## Umsetzungs-Notizen
+- **Transaktion:** `StandortSettingsWriter` öffnet nur beim relationalen Provider eine EF-Transaktion
+  (`IsRelational`-Guard → InMemory-testbar); ein `SaveChangesAsync`, Cache-Invalidierung
+  (`CachedSettingRepository.CachePrefix`, jetzt public) **nach** Commit; ChangeTracker-Reset bei Rollback.
+- **PPS „berechnend vs. View" nicht in der Maske:** `Neuer_PT_PPS` wurde in Teil 5 bewusst nie gebaut →
+  kein Key vorhanden. In der Spec als Beispiel genannt, hier korrekt weggelassen.
+- **Firmendaten-Keys:** in `AppSettingKeys.cs` (Fallback-Regel — Teil 3 hat sie nicht angelegt).
+- **`GetWorkOperation`-Altpfad:** unberührt (nicht Teil 6).

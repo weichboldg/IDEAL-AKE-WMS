@@ -37,7 +37,7 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 | OSEON | `TrackingController` (Teileverfolgung), `OseonReportingController` | `Views/Tracking/`, `Views/OseonReporting/` |
 | BDE | `BdeTerminalController`, `BdeApiController`, `BdeCockpitController`, `BdeBookingsController`, `BdeMasterDataController`, `BdeShiftCalendarController`, `BdeStatusApiController` | `Views/BdeTerminal/`, `Views/BdeCockpit/`, `Views/BdeBookings/`, `Views/BdeMasterData/`, `Views/BdeShiftCalendar/` |
 | Stammdaten (operativ) | `ArticlesController` (inkl. `Info`), `ArticlesApiController`, `StorageLocationsController`, `ProductionWorkplacesController`, `OrderRecipientsController`, `ArticleCategoriesController`, `ArticleAttributesController` | je eigener View-Ordner |
-| Stammdaten (admin) | `UsersController` (inkl. `CreateAdUser`, `RoleOverview`, `ResetViewPreferences`), `RolesController`, `WorkstationsController`, `SettingsController`, `ServiceSettingsController`, `SyncLogController` | je eigener View-Ordner |
+| Stammdaten (admin) | `UsersController` (inkl. `CreateAdUser`, `RoleOverview`, `ResetViewPreferences`), `RolesController`, `WorkstationsController`, `SettingsController`, `ServiceSettingsController`, `StandortEinstellungenController` (IDEAL Teil 6 — kuratierte Standort-Maske), `SyncLogController` | je eigener View-Ordner |
 | Benutzer-Prefs | `Api/UserViewPreferencesApiController` | — |
 
 ## Zugriffsschutz
@@ -50,7 +50,7 @@ Rollen-Bedeutungen: [[glossar]].
 |----------------|--------|---------------|
 | `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 6 Stammdaten-Controllern (Articles, StorageLocations, ProductionWorkplaces, OrderRecipients, ArticleCategories, ArticleAttributes). Class-Level ist `[RequireMasterDataReadAccess]`. |
 | `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level derselben 6 operativen Stammdaten-Controller. Edit-Actions verschaerfen mit `[RequireMasterDataAccess]`. |
-| `[RequireAdminAccess]` | admin | UsersController, RolesController, WorkstationsController, SettingsController, SyncLogController, BdeShiftCalendarController, ServiceSettingsController |
+| `[RequireAdminAccess]` | admin | UsersController, RolesController, WorkstationsController, SettingsController, SyncLogController, BdeShiftCalendarController, ServiceSettingsController, StandortEinstellungenController |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
 | `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
 | `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | FaWorkStepsApiController (`/api/fa-work-steps/toggle`) |
