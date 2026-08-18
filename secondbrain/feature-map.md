@@ -233,6 +233,18 @@ Zwei-Backend-Write) + `Models/Standort/StandortSettingsCatalog.cs` (kuratierte F
 > Findings. Wartet auf **Schranke 2** zusammen mit dem ganzen Bündel (ein Merge). Changelog
 > [[2026-08-18-v1-34-0-ideal-teil-6-standorteinstellungen]], Detail [[2026-07-29-standort-ideal-teil-6]].
 
+### Bündel-Nachlese — BOM-Guard hierarchisch (vor Merge vorgezogen, 2026-08-18)
+
+UAT-Fund: nach Master-Flip endete der **BOM-Knopf** in HTTP 500 (fest verdrahtete AKE-Stücklisten-View
+existiert auf IDEAL nicht). **Minimal-Fix vorgezogen** → das ganze Bündel ging von `Testbereit` **zurück
+auf `InUmsetzung`**, danach **erneute QA** (Build + beide Suiten). Einstieg
+`Data/Repositories/HierarchicalBomGuardRepository.cs` (äußerster `IBomRepository`-Decorator, keyt am
+Master, kein try/catch) + `Views/Picking/Bom.cshtml` (Hinweis → `/FaHierarchy`). Nebenbei mitgenommen:
+`supportsSortDefault=true` für die 3 flachen IDEAL-Listen (Baum bleibt false). **Kein Versions-Bump.**
+Spec [[2026-08-18-bom-guard-hierarchisch-spec]], Aufgabe [[2026-08-18-bom-guard-hierarchisch]].
+Vollständige hierarchische BOM-Quelle bewusst ausgelagert → [[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]]
+(nächster Zyklus, aus `main`).
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
