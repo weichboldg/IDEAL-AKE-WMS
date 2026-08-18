@@ -2,14 +2,14 @@
 type: spec
 title: "IDEAL-Standort Teil 8 — Sub-FA-Rueckmeldung / BDE (Epic)"
 slug: 2026-07-29-standort-ideal-teil-8-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-18
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/Controllers/BdeTerminalController.cs
   - "IdealAkeWms/Controllers/BdeApiController.cs (GetWorkOperation, GetAvailableOperations)"
@@ -21,9 +21,7 @@ affected_code:
   - "IDEALAKEWMSService/Services/OseonSyncService.cs (Review OrderNumber-Bezug)"
   - docs/TESTSZENARIEN.md
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "Aufloesungslogik je BDE-Modus: Normal-Modus-Lookup (GetByFaAndOperationAsync/GetAllByFaAndOperationAsync) ist auf (OrderNumber + OperationNumber) geschluesselt und liefert WorkOperations; NurFA-Modus hat keine AG-Nummer im Scan (Fallback hart opNumber=01) und bucht per ProductionOrder.Id via StartProductionForOrder. Auf welcher Granularitaet gilt 'genau ein / mehrere' je Modus? Muss in Etappe 2 verbindlich festgelegt werden, bevor Etappe 3 die UI baut."
-  - "Scope der Gruppenaufloesung: entscheidet der Server-Lookup (Etappe 2) ueber die volle OrderNumber-Gruppe (auch Sub-FAs an anderen Werkbaenken) oder werkbank-gescopt wie die bestehende GetAvailableOperations-Liste (Etappe 3)? Muss deckungsgleich sein, sonst kann der Server 'mehrere' melden, waehrend die Werkbank-Liste nur einen zeigt (oder umgekehrt)."
+open_questions: []
 epic: true
 etappen:
   - "1: Verifikation — Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen"
@@ -194,11 +192,11 @@ Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE":
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen | offen | |
+| 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen | erledigt | `418f23a` |
 | 2 | Aufloesungslogik serverseitig (Gruppen-Lookup auf `OrderNumber`, Fallback auf `SubOrderNumber`, Mehrdeutigkeits-Ergebnis; Granularitaet je Modus + Scope klaeren, siehe „Offene Rueckfragen") inkl. Unit-Tests | offen | |
 | 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | offen | |
 | 4 | NurFA-Button-Matching fixen (kein last-wins ohne `break` mehr) + Durchzug ueber Teileverfolgung | offen | |
-| 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | offen | |
+| 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | **entfaellt** (Etappe-1-Urteil: `OseonSyncService` ist nicht eindeutigkeitsannehmend — Haupt-Sync auf separater Spiegeltabelle, einziger WMS-Schreibpfad `SyncWorkplacesToProductionOrdersAsync` ist set-based UPDATE-JOIN) | — |
 | 6 | Tests (Unit + Test-Szenarien) + Brain-Update | offen | |
 
 Ein langlebiger Worktree traegt alle Etappen; **kein** Zwischen-Merge. Waehrend der Arbeit den
@@ -688,3 +686,53 @@ Schranke 1 beantwortet werden, bevor Etappe 2 startet. KP2-5 (irrefuehrender Sat
 `barcode-scanner.js`) ist mit der Neuformulierung im Loesungsentwurf erledigt. KP2-9 (Teil-7-Rumpf
 traegt noch die widerlegte „Index 2 = BelID"-Behauptung) bleibt Teil-7-Pflege und ist hier nicht
 behoben.
+
+## ANTWORTEN auf KP2-3 und KP2-6 (2026-08-12) — Schranke-1-Vorbedingung
+
+**Zu KP2-3 — Granularitaet: Die Auswahleinheit ist IMMER der Sub-FA (ProductionOrder), in beiden
+Modi. [ENTSCHEIDUNG]**
+Nicht der Arbeitsgang, nicht die WorkOperation-Zeile. Begruendung: Der Werker denkt in Auftraegen,
+nicht in Datensaetzen — und der Arbeitsgang ist im Normal-Modus durch den Scan ohnehin schon
+bestimmt. Konkret:
+- **Normal-Modus** (`OrderNumber` + `OperationNumber` aus dem Scan): eindeutig, wenn genau **eine**
+  `WorkOperation` zu diesem Paar existiert → direkt buchen. Liefern mehrere Sub-FAs denselben
+  Arbeitsgang, ist die Auswahl **ueber die Sub-FAs**, nicht ueber die Arbeitsgaenge — der
+  Arbeitsgang steht ja fest.
+- **NurFA-Modus** (nur `OrderNumber`, `opNumber` faellt hart auf `01`): eindeutig, wenn genau **ein**
+  `ProductionOrder` zur `OrderNumber` gehoert → direkt buchen. Sonst Auswahl ueber die Sub-FAs.
+- **Folge fuer die UI:** In beiden Modi dieselbe Auswahlliste, derselbe Zeilenaufbau (Sub-FA-Nummer,
+  Matchcode/Bezeichnung, Arbeitsbereich). Kein modusabhaengiges Sonderverhalten — das waere am
+  Terminal nicht vermittelbar.
+- **Folge fuer KP-5 (NurFA-„last wins"):** Derselbe Auswahlweg ersetzt das stille
+  Substring-„last wins"-Matching. Ein Mechanismus, nicht zwei.
+
+**Zu KP2-6 — Scope: werkbank-gescopt, deckungsgleich mit `GetAvailableOperations`. [ENTSCHEIDUNG]**
+Der Server-Lookup (Etappe 2) arbeitet auf **derselben** Menge wie die bestehende
+Werkbank-Liste — nicht auf der vollen `OrderNumber`-Gruppe.
+Begruendung: Der Werker kann an seiner Werkbank ohnehin nur das buchen, was dort anfaellt. Zeigte
+man ihm Sub-FAs anderer Werkbaenke, koennte er fremde Arbeit rueckmelden — ein Fehler, der
+schwerer wiegt als eine zusaetzliche Auswahl. Ausserdem verlangt die Pruefung zu Recht
+Deckungsgleichheit: Ein Server, der „mehrere" meldet, waehrend die Liste einen zeigt, ist ein
+Widerspruch am Terminal.
+
+**Zwei Randfaelle, die daraus folgen und spezifiziert gehoeren:**
+- **Null Treffer im Werkbank-Scope**, obwohl der HauptFA existiert (der Auftrag laeuft, aber nicht
+  hier): eigene, klare Meldung — *„Dieser Auftrag hat an dieser Werkbank keinen offenen
+  Arbeitsgang"* — **nicht** die generische Unbekannt-Fehlermeldung. Sonst sucht der Werker den
+  Fehler beim Scanner oder beim Auftrag, statt an der Werkbank.
+- **Genau ein Treffer im Scope, obwohl global mehrere existieren:** direkt buchen, ohne Auswahl.
+  Das ist richtig so — er kann nur diesen einen buchen.
+
+Damit sind beide `open_questions` beantwortet und zu leeren; Etappe 2 kann die Aufloesungslogik
+verbindlich bauen, Etappe 3 die UI darauf.
+
+## NACHTRAG (2026-08-12): Ausfuehrung im bestehenden Epic-Worktree
+
+Die Vorgabe aus KP-9 („Teil 8 wird nicht gestartet, bevor Teil 7 **gemergt** ist") wird
+dahingehend praezisiert: Teil 7 und Teil 8 laufen **im selben Worktree**
+(`.claude/worktrees/2026-08-07-ideal-teile-1-5`), nacheinander — **Teil 7 vollstaendig fertig,
+bevor Teil 8 startet**. Ein Merge dazwischen findet nicht statt.
+Die fachliche Abhaengigkeit bleibt damit gewahrt (Teil 8 findet Schema und mengenwertigen Lookup
+vor); was entfaellt, ist nur der Zwischen-Merge nach `main`.
+**Preis, bewusst getragen:** Schema-Inversion und BDE-Umbau liegen dann in **einem** Merge und
+**einer** Abnahme — siehe Deploy-Abschnitt.
