@@ -194,7 +194,7 @@ Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE":
 |---|--------|--------|--------|
 | 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen | erledigt | `418f23a` |
 | 2 | Aufloesungslogik serverseitig (Gruppen-Lookup auf `OrderNumber`, Fallback auf `SubOrderNumber`, Mehrdeutigkeits-Ergebnis; Granularitaet je Modus + Scope klaeren, siehe „Offene Rueckfragen") inkl. Unit-Tests | erledigt | `f86a886` |
-| 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | offen | |
+| 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | erledigt | `5fd0070` |
 | 4 | NurFA-Button-Matching fixen (kein last-wins ohne `break` mehr) + Durchzug ueber Teileverfolgung | offen | |
 | 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | **entfaellt** (Etappe-1-Urteil: `OseonSyncService` ist nicht eindeutigkeitsannehmend — Haupt-Sync auf separater Spiegeltabelle, einziger WMS-Schreibpfad `SyncWorkplacesToProductionOrdersAsync` ist set-based UPDATE-JOIN) | — |
 | 6 | Tests (Unit + Test-Szenarien) + Brain-Update | offen | |
