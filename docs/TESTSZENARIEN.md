@@ -7036,5 +7036,34 @@ sicherstellen, dass mehrere Sub-FAs derselben `OrderNumber` an einer Werkbank of
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) (2026-08-18)*
+## TS-67 — IDEAL Teil 6: Standorteinstellungen-Maske (v1.34.0)
+
+**Vorbedingungen:** Admin-Anmeldung. Neue Seite unter Menü → Einstellungen → „Standorteinstellungen"
+(`/StandortEinstellungen`). **Automatisiert abgedeckt:** `StandortEinstellungenControllerTests` (6),
+`StandortSettingsWriterTests` (3).
+
+- **TS-67.1 — Gruppierte Anzeige (AK 1):** Die Maske zeigt die Gruppen Firmendaten, Mandant/Sage-Views,
+  Feature-Schalter, Struktur-Import. Ein View-Name hier geändert erscheint auch in
+  `/ServiceSettings` (und umgekehrt) — kein zweiter Speicherort.
+- **TS-67.2 — Master read-only (AK 2):** Der Master `ProduktionsauftragHierarchisch` erscheint
+  **nur** als Status (aktiv/flach, gesperrt ja/nein, Stand) mit Link „Umschalten (eigene Seite)" →
+  `/HierarchieUmstellung`. **Kein** Bedienelement zum Umschalten. Ein manipulierter POST mit dem
+  Master-Key wird serverseitig **ignoriert** (Allow-List; der Wert ändert sich nicht).
+- **TS-67.3 — AKE-Standort (AK 3):** Ohne gesetzte IDEAL-Keys zeigt die Maske leere Felder / „Flach
+  (AKE-Standard)" ohne Fehler.
+- **TS-67.4 — Atomares Speichern, Teil-Scheitern (AK 4):** Ein POST mit einem gültigen AppSettings-Feld
+  (z.B. Firmenname) **und** einem ungültigen Int (z.B. Baum-Maximaltiefe = „abc"): **keiner** der
+  Werte wird gespeichert, die Fehleranzeige behält **beide** eingegebenen Werte.
+- **TS-67.5 — Firmendaten-Erstanlage (AK 5):** Firmenname erstmals befüllen → wird gespeichert, DB-Zeile
+  neu angelegt. Erscheint danach **nicht** automatisch in der generischen `/Settings`-Liste (die zeigt
+  nur vorhandene DB-Zeilen) — bekannte, akzeptierte Abweichung, **kein** Fehler.
+- **TS-67.6 — Admin-only (AK 6):** Ohne Admin-Rolle ist `/StandortEinstellungen` nicht erreichbar
+  (Class-Level `[RequireAdminAccess]`, wie `/ServiceSettings`).
+- **TS-67.7 — View-Name-Validierung (H-1, UX):** Ein ungültiger View-Name wird hier **roh** gespeichert;
+  er fällt erst beim nächsten Struktur-Sync als Fehlermail auf (Hinweistext in der Maske). Die Maske
+  täuscht keine Validierung vor.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) (2026-08-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
