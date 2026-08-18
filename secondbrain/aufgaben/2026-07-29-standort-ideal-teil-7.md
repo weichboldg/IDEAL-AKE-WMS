@@ -345,6 +345,32 @@ UND idempotentes SQL-Skript brauchen BEIDE dieselben Guards").
 **Testbereit bleibt gültig** — der Fund ist genau die Manual-UAT-Klasse („Build+Tests grün ist
 Mindestbedingung, nicht Beweis genug"); der Fix stellt her, was die QA (build+test-basiert) annahm.
 
+## Post-QA Manual-UAT-Fund + Fix #2 (2026-08-18) — SubOrderNumber-NOT-NULL guarded (SqlError 3701)
+
+Der OrderNumber-Fix (`abcd718`) legte beim **echten App-Start** einen **zweiten** 3701 frei — genau
+die Op, die Fix #1 oben noch als „unverändert / nicht die Fehlerstelle" bezeichnet hatte. **Root Cause
+(systematic-debugging):** `migrationBuilder.AlterColumn<string>("SubOrderNumber", nullable:false)`
+(Z. 64–74) erzeugt, weil der Model-Snapshot einen **Unique-Index auf SubOrderNumber** trägt, über EFs
+SQL-Server-Generator automatisch ein **ungeschütztes** `DROP INDEX [IX_ProductionOrders_SubOrderNumber]`
+**vor** dem `ALTER COLUMN` (und ein `CREATE UNIQUE INDEX` danach). Dieser Auto-DROP läuft **vor** dem
+weiter unten guarded angelegten Index → auf jeder frischen/zurückgerollten DB existiert er nicht → 3701.
+Weil Fix #1 den OrderNumber-Blocker entfernte, kam die Migration überhaupt erst bis hierher.
+
+**Fix** (Worktree `5d3e723`): `AlterColumn` durch geschütztes `migrationBuilder.Sql(@"IF EXISTS (…
+is_nullable = 1) ALTER TABLE … ALTER COLUMN [SubOrderNumber] nvarchar(100) NOT NULL;")` ersetzt —
+deckungsgleich SQL/90 Schritt 3, **kein** Index-Tausch. Damit trägt die Up() **keine** strukturierte
+Index-/AlterColumn-Op mehr; Indizes werden ausschließlich per guarded raw SQL verwaltet.
+**Offline verifiziert:** `dotnet ef migrations script 20260807105825_AddFaHierarchy 20260814105526…`
+→ kein ungeschütztes `DROP INDEX SubOrderNumber` mehr, guarded `ALTER COLUMN` + guarded `CREATE UNIQUE
+INDEX`. Build + Web-Tests **1200 grün**. SQL/90 + FreshInstall waren bereits korrekt (keine Änderung).
+Migration-ID/Version unverändert (v1.32.0, nie erfolgreich angewandt). Dauerwissen: [[fallstricke]] §9
+Nachtrag („auch `AlterColumn` erzeugt ungeschützte Index-DDL" + Offline-Verifikation via ef script).
+
+**Lektion:** Beim Guarden einer EF-Migration reicht es nicht, nur `DropIndex`/`CreateIndex` zu ersetzen
+— **jede** strukturierte Op auf einer indizierten Spalte (auch `AlterColumn`) zieht den Auto-Index-Tausch
+nach. Die Offline-Verifikation (`dotnet ef migrations script`, auf ungeschützte `DROP INDEX` grepen)
+hätte **beide** 3701 vor dem Merge gezeigt und gehört künftig zu jeder Index-/Spalten-Migration.
+
 ## Offene Punkte / Deploy-kritisch (aus der Spec, für Schranke 2 / Deploy)
 
 - **DB-Backup vor Deploy zwingend** (Kern-Tabelle `ProductionOrders`, daten-konvertierend).
