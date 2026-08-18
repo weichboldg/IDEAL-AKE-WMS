@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Standort Teil 8 — Sub-FA-Rueckmeldung / BDE (Epic)"
 slug: 2026-07-29-standort-ideal-teil-8-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-06
 updated: 2026-08-18
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
@@ -32,8 +32,8 @@ etappen:
   - "6: Tests (Unit + Test-Szenarien) + Brain-Update"
 deploy:
   web: true
-  service: true
-  migration: true
+  service: false
+  migration: false
 freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
@@ -205,17 +205,42 @@ Merge (Schranke 2) erst, wenn **alle** Etappen abgeschlossen sind.
 
 ## Deploy
 
-- **Web-App:** ja.
-- **Service:** ja (falls Etappe 5 OSEON-Anpassungen bringt).
-- **Migration:** wahrscheinlich keine, Umfang haengt vom Ergebnis von Etappe 1 ab (siehe
-  „Migrations-/SQL-Auswirkungen").
+**QA-final (2026-08-18), gegen den echten Diff `git diff --stat 418f23a^..8395394 -- IdealAkeWms
+IDEALAKEWMSService` bestaetigt** — 10 Dateien, alle unter `IdealAkeWms/` bis auf den
+Service-Versions-String; **keine** neue Datei unter `*/Migrations/*` (die im selben Bereich
+mitgefuehrte Aenderung an `20260814105526_InvertProductionOrderHierarchy.cs` ist der
+Teil-7-Post-QA-Fix `5d3e723` — gehoert fachlich zu Teil 7, nicht zu Teil 8, und ist dort bereits
+offline via `dotnet ef migrations script` verifiziert):
+
+- **Web-App:** ja — `IdealAkeWms/Controllers/BdeApiController.cs` (neuer Endpoint `resolve-scan`,
+  Ctor-Erweiterung `IBdeScanResolver`), `IdealAkeWms/Services/BdeScanResolver.cs` (neu),
+  `IdealAkeWms/Program.cs` (DI), `IdealAkeWms/Views/BdeTerminal/Index.cshtml`,
+  `IdealAkeWms/wwwroot/js/bde-terminal.js`, `IdealAkeWms/wwwroot/css/bde.css`,
+  `IdealAkeWms/Views/Help/Changelog.cshtml`, `IdealAkeWms/AppVersion.cs`.
+- **Service:** nein aus Teil 8 — Etappe 5 (OSEON) entfaellt laut Etappe-1-Urteil, der einzige
+  Diff unter `IDEALAKEWMSService/` ist der reine Versions-String in `AppVersion.cs` (kein
+  Funktionscode). Ein Service-Redeploy des Gesamtbuendels ist trotzdem noetig, aber das kommt aus
+  Teil 7 (Materialisierungs-Sync), nicht aus Teil 8 — siehe dortigen Deploy-Abschnitt.
+- **Migration:** keine — bestaetigt. Die Satelliten haengen bereits per FK an `ProductionOrder.Id`
+  und keine Etappe hat ein neues persistiertes Modell eingefuehrt (AK 10 damit gegenstandslos).
 - **Testdaten-Vorbedingung (Schranke-2-Vorbedingung, analog Teil 1–5):** AK 2/6 (mehrere Sub-FAs
   derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback-Zweig `SubOrderNumber`) sind ohne
   produktivnahe hierarchische Rueckmeldedaten im IDEAL-Testsystem nicht gruen zu bekommen — das
   Testsystem ist heute leer (siehe Uebersichts-Spec). Vor Schranke 2 sicherstellen, dass
-  entsprechende Testdaten existieren.
-- **Publish-Befehle:** wie Teil 7, vom Dev-Lauf am Ende aller Etappen gegen den tatsaechlichen
-  Gesamt-Diff zu bestaetigen.
+  entsprechende Testdaten existieren (mind. zwei offene Sub-FAs derselben `OrderNumber` an einer
+  Werkbank).
+- **Publish-Befehl (aus dem Worktree, nur die betroffene Komponente):**
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  ```
+  Kein Service-Publish aus Teil 8 selbst noetig. **Aber:** dieser Worktree traegt im selben Branch
+  auch Teil 7 (Materialisierungs-Sync, Service-relevant, DB-Migration) und Teile 1–5 — der
+  tatsaechliche Deploy-Ablauf des Gesamtbuendels folgt dem Teil-7-Deploy-Abschnitt (DB-Backup →
+  Agent-Job-Pruefung → Service stoppen → Migration → Service-Neustart → Web-Deploy), Teil 8 haengt
+  sich nur als reiner Web-Layer daran an (kein eigenes Reihenfolge-Erfordernis).
+  **Nach dem Merge:** aus main nur dann erneut publishen, wenn der Merge tatsaechlich getestete
+  Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (z. B. Konflikte oder Dateien, die
+  auch von anderen, zwischenzeitlich gemergten Branches beruehrt wurden).
 
 ## Offene Rueckfragen
 
@@ -736,3 +761,78 @@ Die fachliche Abhaengigkeit bleibt damit gewahrt (Teil 8 findet Schema und menge
 vor); was entfaellt, ist nur der Zwischen-Merge nach `main`.
 **Preis, bewusst getragen:** Schema-Inversion und BDE-Umbau liegen dann in **einem** Merge und
 **einer** Abnahme — siehe Deploy-Abschnitt.
+
+## QA-Nachweis (2026-08-18, qa-agent)
+
+Alle Kommandos frisch im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`
+(`feature/2026-08-07-ideal-teile-1-5`, HEAD `8395394`) ausgefuehrt.
+
+- **`dotnet build IdealAkeWms.slnx`:** erfolgreich, 0 Fehler, 9 Warnungen (bestehende NU1902-Advisories
+  MailKit/MimeKit + 1 vorbestehende `CS8602` in `TrackingController.cs`, beide nicht Teil-8-bezogen).
+- **`dotnet test IdealAkeWms.Tests`:** **1205 erfolgreich, 0 Fehler, 1 uebersprungen** (bestehender,
+  nicht Teil-8-bezogener Integrationstest `ProductionOrderEagerCreateAgentJobTests`), 1206 gesamt.
+- **`dotnet test IDEALAKEWMSService.Tests`:** **231 erfolgreich, 0 Fehler**, 231 gesamt.
+- **Diff-Pruefung** (`git diff --stat 418f23a^..8395394 -- IdealAkeWms IDEALAKEWMSService`): 10 Dateien,
+  bestaetigt Deploy-Umfang oben (Web ja, Service nein, keine neue Migration; die mitgefuehrte
+  Migrations-Datei-Aenderung ist der separate Teil-7-Fix `5d3e723`, bereits offline verifiziert).
+- **Code-Review (eigene Durchsicht, `superpowers:code-review`-Massstab):** `BdeScanResolver.cs`
+  (Resolver-Service), `BdeApiController.cs` (`resolve-scan`-Endpoint), `bde-terminal.js`
+  (`resolveScanAndSelect`/`bookScannedCandidate`/`renderScanSelection`/`escapeHtml`),
+  `Views/BdeTerminal/Index.cshtml`, `bde.css` gegengelesen: Server liest den NurFA-Modus serverseitig
+  aus `AppSettingKeys.BdeNurFaMeldung` (kein Client-Vertrauen), XSS-sicher via `escapeHtml`,
+  `bindOperationButtonHandlers` bewusst auf `#operationButtons` gescopt (keine Kollision mit den
+  `.bde-op-btn`-Auswahl-Buttons in `#scanSelection`), Bootstrap-Konsistenz + WCAG-AA-Kontrast
+  eingehalten (keine neue UI-Bibliothek), Input-Validierung im Endpoint (`BadRequest` bei leerer FA
+  oder `workplaceId <= 0`). Keine Blocker gefunden.
+- **Testszenarien:** Kapitel **TS-66** (`docs/TESTSZENARIEN.md`, 10 Szenarien TS-66.1–66.10) deckt alle
+  Akzeptanzkriterien AK 1–9 ab (AK 10/11 sind Abgrenzungs-/Audit-Klauseln ohne eigenes Szenario, AK 11
+  durch die Etappen-Commit-Historie erfuellt); `secondbrain/tests/testszenarien-index.md` Kapitel 66
+  bereits verlinkt (kein Nachzug noetig).
+- **Nicht InMemory-testbar (kein QA-Blocker, siehe fallstricke.md §„Tests, EF, SQL Server"):** das
+  eigentliche Terminal-Verhalten (Auswahlliste bei mehreren Sub-FAs, Werkbank-Meldung) braucht
+  hierarchische Testdaten, die im IDEAL-Testsystem heute fehlen — das ist die dokumentierte
+  Schranke-2-Vorbedingung, kein Beweis-Defizit dieses QA-Laufs. `BdeScanResolverTests` (14 Faelle) und
+  `BdeApiControllerTests.ResolveScan_*` (5 Faelle) decken die Aufloesungslogik/den Endpoint vollstaendig
+  automatisiert ab.
+
+**Ergebnis: gruen. Status auf `Testbereit` gesetzt.**
+
+## Manuelle Test-Checkliste (Schranke 2, aus TS-66)
+
+**Vorbedingung zuerst pruefen:** hierarchischer Modus aktiv (Master an, Sub-FAs materialisiert) UND
+mindestens zwei offene Sub-FAs derselben `OrderNumber` an einer Werkbank im IDEAL-Testsystem
+vorhanden — ohne das sind Punkte 1, 2 und 5 nicht pruefbar.
+
+1. **Mehrere Sub-FAs, Normal-Modus (TS-66.1):** an der Werkbank eine FA scannen (`FA-Nr,AG-Nr`), die
+   dort zwei Sub-FAs auf demselben Arbeitsgang trifft. Erwartung: Auswahlliste mit Sub-FA-Nummer,
+   Bezeichnung, Arbeitsgang; Auswahl bucht genau diesen Sub-FA. Zweiten Sub-FA getrennt buchen — keine
+   Vermischung.
+2. **Mehrere Sub-FAs, Nur-FA-Modus (TS-66.2):** Nur-FA-Meldung aktivieren, dieselbe FA ohne AG scannen.
+   Erwartung: dieselbe Auswahlliste wie Punkt 1 (kein stilles „last wins" mehr auf den zuletzt
+   gefundenen Button); Auswahl startet die Produktion auf dem gewaehlten Sub-FA.
+3. **Eindeutige FA / AKE-Flachfall (TS-66.3):** eine FA scannen, die genau einen Auftrag trifft (bzw.
+   am AKE-Standort testen: `OrderNumber == SubOrderNumber`). Erwartung: Direktbuchung ohne Auswahl,
+   kein Verhaltensunterschied zu vorher.
+4. **Auftrag nicht an dieser Werkbank (TS-66.4):** eine FA scannen, die existiert/laeuft, aber nicht an
+   dieser Werkbank offen ist. Erwartung: Meldung „Dieser Auftrag hat an dieser Werkbank keinen offenen
+   Arbeitsgang." — nicht die generische Unbekannt-Fehlermeldung.
+5. **Genau ein Treffer im Scope trotz global mehrerer (TS-66.5):** eine FA mit einem passenden Sub-FA
+   an dieser Werkbank und einem weiteren Sub-FA derselben `OrderNumber` an einer **anderen** Werkbank
+   scannen. Erwartung: Direktbuchung des hiesigen Sub-FA, keine Auswahl, kein fremder Sub-FA sichtbar.
+6. **Unbekannte FA (TS-66.6):** eine nicht existierende FA scannen. Erwartung: bestehende
+   Fehlermeldung „Arbeitsgang nicht gefunden" (Normal-Modus), unveraendert.
+7. **Kombinationsgeraete (TS-66.7, bekannte Grenze):** falls Testdaten vorhanden, zwei
+   Kombinationsgeraete-Auftraege derselben `OrderNumber` scannen. Erwartung: Auswahlliste zeigt die
+   Sub-FAs positionsweise (Matchcode/Arbeitsbereich), keine automatische Auftragstrennung — das ist
+   akzeptierte Grenze, **kein** Fehler.
+8. **Bestehende BDE-Regeln (TS-66.8):** Mehrfachbuchung, Pause, Sperre bei verpackt/abgeholt,
+   Auto-Pause Schichtende je Sub-FA gegenpruefen (Regressionslauf gegen materialisierte Sub-FAs).
+9. **Teileverfolgung (TS-66.9):** in der Teileverfolgung nach einer `OrderNumber` filtern. Erwartung:
+   alle Sub-FAs der Gruppe erscheinen (Gruppierungsverhalten), unveraendert.
+10. **Fallback SubOrderNumber (TS-66.10):** nur pruefbar, sobald Sub-FA-Barcodes existieren — heute
+    unerreichbar, kein Blocker fuer Schranke 2. Nur dokumentieren, dass der Zweig weiterhin
+    unerreichbar ist (kein neuer Barcode-Typ im Umlauf).
+
+**Nach erfolgreichem manuellem Test:** Merge (Schranke 2) durch den Menschen. Da Teil 8 im selben
+Worktree/Branch wie Teil 7 liegt, gilt fuer das Gesamtbuendel weiterhin dessen Deploy-Reihenfolge
+(DB-Backup → Agent-Job-Pruefung → Service stoppen → Migration → Service-Neustart → Web-Deploy).
