@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: "IDEAL-Standort Teil 6 — Standorteinstellungen-Maske (Umsetzung)"
-status: InUmsetzung
+status: Testbereit
 spec: "[[2026-07-29-standort-ideal-teil-6-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -67,7 +67,12 @@ changelog, feature-map Teil 6.
   `StandortSettingsWriter` (atomar), Firmendaten-Keys, Nav-Link, Version 1.34.0, Changelog, TS-67,
   15 Tests, Web-Suite **1214 grün**. Master read-only + Allow-List-Schutz (AK 2), Int-Validierung vor
   Write (AK 4), Firmendaten-Erstanlage ohne Seed (AK 5), admin-only (AK 6).
-- Wartet auf **qa-agent** (setzt Testbereit + finalisiert Deploy-Abschnitt).
+- Wartet auf **qa-agent** (setzt Testbereit + finalisiert Deploy-Abschnitt). — **erledigt 2026-08-18:**
+  Build gruen, Web 1214/1215 gruen (+1 vorbestehender Skip), Service 231/231 gruen; TS-67 deckt AK 1–6
+  vollstaendig ab; Code-Review Kern-Dateien ohne Findings; Deploy-Abschnitt gegen `git show --stat
+  c8ae47f` finalisiert (Web ja/Service nein/Migration nein). Status `Testbereit`, QA-Nachweis +
+  Manual-Test-Checkliste in der Spec. Wartet jetzt auf **Schranke 2** (Mensch, zusammen mit dem
+  gesamten Buendel Teile 1–5/7/8).
 
 ## Umsetzungs-Notizen
 - **Transaktion:** `StandortSettingsWriter` öffnet nur beim relationalen Provider eine EF-Transaktion
