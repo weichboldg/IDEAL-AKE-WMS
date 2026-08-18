@@ -577,4 +577,30 @@ public class BdeApiControllerTests
         json.Should().Contain("\"subOrderNumber\":\"SUB-1\"");
         json.Should().Contain("\"subOrderNumber\":\"SUB-2\"");
     }
+
+    [Fact]
+    public async Task ResolveScan_NurFaMode_ReturnsProductionOrderTarget()
+    {
+        var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "GRP-1", SubOrderNumber = "SUB-1", Description1 = "Desc",
+            ProductionWorkplaceId = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("true");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+
+        // NurFA: keine AG-Nummer im Scan
+        var result = await controller.ResolveScan("GRP-1", null, workplaceId: 5);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
+        json.Should().Contain("\"kind\":\"Exact\"");
+        json.Should().Contain("\"nurFaMode\":true");
+        json.Should().Contain("\"target\":\"ProductionOrder\"");
+    }
 }
