@@ -77,6 +77,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `BdeTimeSplitService.cs` | Zeit-Split bei parallelen Buchungen |
 | `BdeShiftCalendarService.cs` | Schichten, Feiertage, Schichtende |
 | `BdeDefaultWorkOperationService.cs` | Default-AG im vereinfachten Modus |
+| `BdeScanResolver.cs` (`IBdeScanResolver`) | IDEAL Teil 8: werkbank-gescopte Auflösung eines gescannten FA-Segments auf einen buchbaren Sub-FA. `ResolveAsync` → Exact/Ambiguous/NotInScope/NotFound; Kandidat = Sub-FA (Normal per `WorkOperation`, NurFA per `ProductionOrder`). Aufgerufen von `BdeApiController.ResolveScan` (`GET /api/bde/resolve-scan`), Terminal-JS disambiguiert damit mehrdeutige `OrderNumber` nach der Schema-Inversion (Teil 7) |
 | `HolidayImportService.cs` | Feiertags-Import (date.nager.at) |
 
 ## Service-Projekt — `../../IDEALAKEWMSService/Services/`

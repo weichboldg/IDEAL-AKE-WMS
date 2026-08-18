@@ -197,7 +197,7 @@ Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE":
 | 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | erledigt | `5fd0070` |
 | 4 | NurFA-Button-Matching fixen (kein last-wins ohne `break` mehr) + Durchzug ueber Teileverfolgung | erledigt | `58c26bd` |
 | 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | **entfaellt** (Etappe-1-Urteil: `OseonSyncService` ist nicht eindeutigkeitsannehmend — Haupt-Sync auf separater Spiegeltabelle, einziger WMS-Schreibpfad `SyncWorkplacesToProductionOrdersAsync` ist set-based UPDATE-JOIN) | — |
-| 6 | Tests (Unit + Test-Szenarien) + Brain-Update | offen | |
+| 6 | Tests (Unit + Test-Szenarien) + Brain-Update | erledigt | `8395394` |
 
 Ein langlebiger Worktree traegt alle Etappen; **kein** Zwischen-Merge. Waehrend der Arbeit den
 Branch regelmaessig mit `scripts/sync-worktree.ps1 -Slug <slug>` auf `main`-Stand halten. QA und

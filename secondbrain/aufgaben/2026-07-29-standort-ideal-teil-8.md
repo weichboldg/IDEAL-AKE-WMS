@@ -25,7 +25,7 @@ NACHTRAG 2026-08-12 erfuellt. Schranke 1 genommen (KP2-3/KP2-6 am 2026-08-12 ent
 | 3 | Auswahl-UI am Terminal (Normal-Modus) + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) |
 | 4 | NurFA-Fix + Durchzug Teileverfolgung | **erledigt** (`58c26bd`) |
 | 5 | OSEON-Seite | **entfaellt** (Etappe-1-Urteil) |
-| 6 | Tests + Brain-Update | offen |
+| 6 | Tests + Brain-Update | **erledigt** (`8395394`) |
 
 ## Etappe 1 — Verifikations-Urteil (2026-08-18)
 
@@ -187,6 +187,19 @@ in der Teileverfolgung anzeigen, damit Sub-FAs einer Gruppe unterscheidbar sind.
 **Manueller UI-Test (Schranke 2):** NurFA-Modus, zwei Sub-FAs derselben `OrderNumber` an einer
 Werkbank scannen → Auswahl (statt stillem last-wins), Auswahl bucht getrennt; eindeutige FA →
 Direktbuchung; FA nur an fremder Werkbank → Werkbank-Meldung.
+
+## Etappe 6 — Tests + Testszenarien + Version/Brain (2026-08-18, Worktree `8395394`)
+
+- **Version:** Web + Service `AppVersion` 1.32.0 → **1.33.0** (Epic-Abschluss Teil 8).
+- **Anwender-Changelog** `Views/Help/Changelog.cshtml`: v1.33.0-Karte (Sub-FA-Auswahl beim Scannen,
+  Werkbank-Meldung, Nur-FA-Korrektur; nur IDEAL/hierarchisch, AKE unverändert).
+- **Testszenarien** `docs/TESTSZENARIEN.md`: Kapitel **TS-66** (10 Szenarien) + Footer aktualisiert.
+- **Unit-Abdeckung (bereits Etappe 2/3/4):** `BdeScanResolverTests` (14) + `BdeApiControllerTests.ResolveScan_*`
+  (5). Kein weiterer Unit-Test in Etappe 6 nötig — Abdeckung vollständig; Web-Suite **1205 grün**.
+- **Brain (Hauptcheckout):** feature-map (Teil 8), tests/testszenarien-index (TS-66), changelog/
+  `2026-08-18-v1-33-0-ideal-teil-8-bde`, codebase (BdeScanResolver + resolve-scan-Endpoint).
+
+**Alle Etappen erledigt (5 entfällt) → qa-agent.** Danach setzt der qa-agent `status: Testbereit`.
 
 ## Verbleibende Schranke-2-/UAT-Vorbedingung
 Testdaten: AK 2/6 (zwei Sub-FAs derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback
