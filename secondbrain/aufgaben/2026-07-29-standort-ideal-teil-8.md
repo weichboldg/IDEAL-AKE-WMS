@@ -23,7 +23,7 @@ NACHTRAG 2026-08-12 erfuellt. Schranke 1 genommen (KP2-3/KP2-6 am 2026-08-12 ent
 | 1 | Verifikation (Teil-7-Haertung im BDE-Kontext, OSEON-Urteil) | **erledigt** |
 | 2 | Aufloesungslogik serverseitig + Unit-Tests | **erledigt** (`f86a886`) |
 | 3 | Auswahl-UI am Terminal (Normal-Modus) + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) |
-| 4 | NurFA-Fix + Durchzug Teileverfolgung | offen |
+| 4 | NurFA-Fix + Durchzug Teileverfolgung | **erledigt** (`58c26bd`) |
 | 5 | OSEON-Seite | **entfaellt** (Etappe-1-Urteil) |
 | 6 | Tests + Brain-Update | offen |
 
@@ -161,6 +161,32 @@ viaSubOrderFallback, candidates[] }`. `GetWorkOperation` bleibt für Bestandsauf
 zwei Sub-FAs derselben `OrderNumber`+AG an einer Werkbank scannen → Auswahlliste erscheint,
 Auswahl bucht getrennt; eindeutige FA → Direktbuchung ohne Auswahl; FA nur an fremder Werkbank →
 Werkbank-Meldung; unbekannte FA → Bestandsfehler. (Formales TESTSZENARIEN-Kapitel „IDEAL Teil 8" in Etappe 6.)
+
+## Etappe 4 — NurFA-Fix + Teileverfolgung (2026-08-18, Worktree `58c26bd`)
+
+**NurFA-Fix (KP-5 / KP2-3):** Der NurFA-Zweig von `scanFaAgInput` (bde-terminal.js) ist auf
+denselben `resolveScanAndSelect`-Weg wie der Normal-Modus umgestellt — **kein**
+last-wins-Substring-Button-Matching (`indexOf ... faBtn = btn` ohne break) und **kein**
+cross-Werkbank-`/api/bde/workoperation`-Fallback (`opNumber=01`) mehr. Buchung modus-bewusst über
+`bookScannedCandidate(candidate)`:
+- `target == "ProductionOrder"` (NurFA) → `POST /BdeTerminal/StartProductionForOrder` (per
+  `productionOrderId`) + Refresh — identisch zum Antippen eines FA-Buttons.
+- `target == "WorkOperation"` (Normal) → `currentWorkOp = { id }` + Start-Buttons.
+Dieselbe Auswahlliste für beide Modi (KP2-3: „ein Mechanismus, nicht zwei"). `resolve-scan`
+`opNumber` jetzt optional (NurFA sendet keine AG). Kandidat trägt `data-id` + `data-target`.
+
+**Teileverfolgung (Durchzug):** `TrackingController` nutzt ausschließlich
+`wo.ProductionOrder.OrderNumber.Contains(filter)` (Z. 63, 157) + `GroupBy`/Anzeige-Projektionen —
+**kein** eindeutigkeitsannehmender Lookup. Nach der Inversion matcht der OrderNumber-Filter alle
+Sub-FAs der Gruppe (gewünschtes Gruppierungsverhalten). **Kein Codeänderungsbedarf** (Etappe-1-Befund
+am Code bestätigt). *Offen als mögliche spätere Verbesserung (nicht in Scope): SubOrderNumber je Zeile
+in der Teileverfolgung anzeigen, damit Sub-FAs einer Gruppe unterscheidbar sind.*
+
+**Tests:** +1 NurFA-Endpoint-Test (`target == ProductionOrder`). Web-Suite **1205 grün**.
+
+**Manueller UI-Test (Schranke 2):** NurFA-Modus, zwei Sub-FAs derselben `OrderNumber` an einer
+Werkbank scannen → Auswahl (statt stillem last-wins), Auswahl bucht getrennt; eindeutige FA →
+Direktbuchung; FA nur an fremder Werkbank → Werkbank-Meldung.
 
 ## Verbleibende Schranke-2-/UAT-Vorbedingung
 Testdaten: AK 2/6 (zwei Sub-FAs derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback
