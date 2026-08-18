@@ -21,7 +21,7 @@ NACHTRAG 2026-08-12 erfuellt. Schranke 1 genommen (KP2-3/KP2-6 am 2026-08-12 ent
 | # | Etappe | Status |
 |---|--------|--------|
 | 1 | Verifikation (Teil-7-Haertung im BDE-Kontext, OSEON-Urteil) | **erledigt** |
-| 2 | Aufloesungslogik serverseitig + Unit-Tests | offen |
+| 2 | Aufloesungslogik serverseitig + Unit-Tests | **erledigt** (`f86a886`) |
 | 3 | Auswahl-UI am Terminal | offen |
 | 4 | NurFA-Fix + Durchzug Teileverfolgung | offen |
 | 5 | OSEON-Seite | **entfaellt** (Etappe-1-Urteil) |
@@ -102,6 +102,36 @@ Am realen Worktree-Code verifiziert: `WorkOperationRepository`/`IWorkOperationRe
   (inkl. Substring-Vektor); Teileverfolgung nur bestaetigen (kein Codeaenderungsbedarf).
 - **Etappe 5:** entfaellt (s. o.).
 - **Etappe 6:** Unit + Testszenarien (Kapitel „IDEAL Teil 8 — Sub-FA-BDE") + Brain.
+
+## Etappe 2 — serverseitige Aufloesungslogik (2026-08-18, Worktree `f86a886`)
+
+Neuer Service `IdealAkeWms/Services/BdeScanResolver.cs` (`IBdeScanResolver`), DI-registriert
+(`Program.cs`). Reine serverseitige Aufloesung, **kein** UI, **kein** Eingriff in
+`GetAvailableOperations`/`GetWorkOperation` (Etappe 3).
+
+**API der Auflösung** — `ResolveAsync(workplaceId, scannedFa, operationNumber?, nurFaMode, operatorId?)`
+→ `BdeScanResolution { Kind, Candidates[], ViaSubOrderNumberFallback }`:
+- **Kind** = `Exact` (1 im Scope) / `Ambiguous` (mehrere) / `NotInScope` (0 im Scope, HauptFA global
+  vorhanden) / `NotFound` (kein Order- und kein SubOrder-Treffer).
+- **Candidate** = immer ein Sub-FA (KP2-3): `Target` = `WorkOperation` (Normal, Buchung per
+  `workOperationId`) bzw. `ProductionOrder` (NurFA, per `productionOrderId`); traegt `OrderNumber`,
+  `SubOrderNumber`, `Description`, `ArticleNumber`, `OperationNumber`/`OperationName` (nur Normal).
+- Aufloesungsreihenfolge: OrderNumber-Gruppe (werkbank-gescopt) → NotInScope → SubOrderNumber-Fallback
+  (AK 3, unerreichbare Vorruestung) → NotFound. FA-Segment-Split (`,`/`/`) serverseitig.
+- **Scope (KP2-6):** werkbank-gescopt, deckungsgleich mit `GetAvailableOperations` (offen an der
+  Werkbank, nicht verpackt/abgeholt, nicht aktiv gebucht, nicht final gemeldet). Predikate heute
+  im Resolver dupliziert; **Etappe 3 konsolidiert `GetAvailableOperations` auf den Resolver** (durch
+  die Tests abgesichert) — dann Deckungsgleichheit per Konstruktion.
+
+**Tests:** `IdealAkeWms.Tests/Services/BdeScanResolverTests.cs`, 14 Faelle — Normal Exact/Ambiguous,
+NurFA Exact/Ambiguous, beide KP2-6-Randfaelle (Exact-in-Scope-trotz-global-mehrerer; NotInScope-trotz-
+HauptFA), Aktiv-/Verpackt-/Done-Ausschluss, Komma-Split, AKE-Flachfall, SubOrder-Fallback, NotFound,
+leerer Scan. Web-Suite **1200 gruen** (+14).
+
+**Eingang Etappe 3 (UI):** `GetAvailableOperations` auf `BdeScanResolver` umstellen; JS `scanFaAgInput`
+(Normal) auf einen `resolve-scan`-Endpoint statt `/workoperation` legen; bei `Ambiguous` Auswahlliste
+(Sub-FA-Nr + Matchcode + AG), bei `NotInScope` die eigene Meldung, bei `Exact` Direktbuchung. Endpoint
++ Controller-Verdrahtung gehoeren in Etappe 3 (BdeApiController-Ctor-Aenderung dort).
 
 ## Verbleibende Schranke-2-/UAT-Vorbedingung
 Testdaten: AK 2/6 (zwei Sub-FAs derselben `OrderNumber` getrennt buchen) und AK 3 (Fallback
