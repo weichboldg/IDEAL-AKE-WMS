@@ -160,36 +160,13 @@
         input.value = '';
         if (!raw) return;
         clearScanSelection();
-        const feedback = document.getElementById('faAgFeedback');
 
         if (nurFaMode) {
-            // NurFA: nur FA-Nummer, AG-Teil ignorieren
-            var faNumber = raw.split(/[,\/]/)[0].trim();
-            // Suche den passenden FA-Button und klicke ihn
-            var faBtn = null;
-            document.querySelectorAll('.bde-op-btn[data-type="fa"]').forEach(function (btn) {
-                if (btn.textContent.indexOf(faNumber) !== -1) faBtn = btn;
-            });
-            if (faBtn) {
-                feedback.textContent = '';
-                faBtn.click();
-            } else {
-                // Fallback: Versuche ueber API den Arbeitsgang zu finden
-                var r = await fetch('/api/bde/workoperation?faNumber=' + encodeURIComponent(faNumber) + '&opNumber=01');
-                if (!r.ok) {
-                    feedback.textContent = 'FA nicht gefunden';
-                    return;
-                }
-                var wo = await r.json();
-                await post('/BdeTerminal/StartProduction', {
-                    operatorId: currentOperator.id,
-                    workOperationId: wo.id,
-                    workplaceId: workplaceId, terminalId: terminalId
-                }, 'startProduction');
-                await renderState();
-                await loadAvailableOperations();
-                await loadTodayHistory();
-            }
+            // NurFA (Teil 8 Etappe 4): KEIN last-wins-Substring-Matching mehr. Dieselbe
+            // werkbank-gescopte Aufloesung wie im Normal-Modus, nur ohne AG-Nummer — bei mehreren
+            // Sub-FAs derselben FA erscheint dieselbe Auswahl statt eines stillen Fehlgriffs auf den
+            // falschen Sub-FA.
+            await resolveScanAndSelect(raw.split(/[,\/]/)[0].trim(), null);
             return;
         }
 
@@ -202,15 +179,16 @@
         await resolveScanAndSelect(parts[0].trim(), parts[1].trim());
     }
 
-    // IDEAL Teil 8, Etappe 3: Normal-Modus-Scan ueber die werkbank-gescopte Aufloesung
-    // (/api/bde/resolve-scan). Loest den harten Einzel-Lookup ab: bei mehreren Sub-FAs derselben FA
-    // an dieser Werkbank erscheint eine Auswahl; laeuft der Auftrag nur woanders, eine eigene Meldung.
+    // IDEAL Teil 8: Scan ueber die werkbank-gescopte Aufloesung (/api/bde/resolve-scan), fuer BEIDE
+    // Modi (Etappe 3 Normal mit AG, Etappe 4 NurFA ohne AG). Loest den harten Einzel-Lookup bzw. das
+    // NurFA-Substring-Matching ab: bei mehreren Sub-FAs derselben FA an dieser Werkbank erscheint eine
+    // Auswahl; laeuft der Auftrag nur woanders, eine eigene Meldung.
     async function resolveScanAndSelect(fa, op) {
         clearScanSelection();
         setScanFeedback('', '');
         const url = '/api/bde/resolve-scan'
             + '?faNumber=' + encodeURIComponent(fa)
-            + '&opNumber=' + encodeURIComponent(op)
+            + (op ? '&opNumber=' + encodeURIComponent(op) : '')
             + '&workplaceId=' + encodeURIComponent(workplaceId)
             + (currentOperator?.id ? '&operatorId=' + encodeURIComponent(currentOperator.id) : '');
         var resp = await fetch(url);
@@ -218,7 +196,7 @@
         var res = await resp.json();
         switch (res.kind) {
             case 'Exact':
-                selectScannedWorkOp(res.candidates[0]);
+                await bookScannedCandidate(res.candidates[0]);
                 break;
             case 'Ambiguous':
                 renderScanSelection(fa, res.candidates);
@@ -231,13 +209,26 @@
         }
     }
 
-    // Ein Sub-FA gewaehlt (oder von vornherein eindeutig): identisch zum Antippen eines produktiven
-    // AG-Buttons — nur die WorkOperation-Id wird gebraucht, die Buchung laeuft ueber den eindeutigen Id.
-    function selectScannedWorkOp(candidate) {
+    // Ein Sub-FA gewaehlt (oder von vornherein eindeutig). Buchung ueber den eindeutigen Id, je Modus:
+    // - NurFA (target ProductionOrder): Produktion direkt auf den Sub-FA starten (StartProductionForOrder),
+    //   identisch zum Antippen eines FA-Buttons.
+    // - Normal (target WorkOperation): Arbeitsgang setzen -> Start-Buttons, wie ein Produktiv-Button.
+    async function bookScannedCandidate(candidate) {
         clearScanSelection();
         setScanFeedback('', '');
-        currentWorkOp = { id: candidate.id };
-        renderState();
+        if (candidate.target === 'ProductionOrder') {
+            await post('/BdeTerminal/StartProductionForOrder', {
+                operatorId: currentOperator.id,
+                productionOrderId: candidate.id,
+                workplaceId: workplaceId, terminalId: terminalId
+            }, 'startProduction');
+            await renderState();
+            await loadAvailableOperations();
+            await loadTodayHistory();
+        } else {
+            currentWorkOp = { id: candidate.id };
+            await renderState();
+        }
     }
 
     function renderScanSelection(fa, candidates) {
@@ -250,7 +241,8 @@
             const line1 = 'Sub-FA ' + escapeHtml(c.subOrderNumber)
                 + (c.operationNumber ? ' · AG ' + escapeHtml(c.operationNumber) : '');
             const desc = [c.description, c.operationName].filter(Boolean).map(escapeHtml).join(' · ');
-            html += '<button type="button" class="btn btn-outline-primary btn-lg bde-op-btn bde-scan-choice" data-wo-id="' + c.id + '">'
+            html += '<button type="button" class="btn btn-outline-primary btn-lg bde-op-btn bde-scan-choice"'
+                + ' data-id="' + c.id + '" data-target="' + escapeHtml(c.target) + '">'
                 + '<span class="fw-bold">' + line1 + '</span>'
                 + (desc ? '<span class="bde-scan-choice-desc">' + desc + '</span>' : '')
                 + '</button>';
@@ -259,7 +251,7 @@
         box.innerHTML = html;
         box.querySelectorAll('.bde-scan-choice').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                selectScannedWorkOp({ id: parseInt(btn.dataset.woId, 10) });
+                bookScannedCandidate({ id: parseInt(btn.dataset.id, 10), target: btn.dataset.target });
             });
         });
     }
