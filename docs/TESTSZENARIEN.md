@@ -6992,5 +6992,49 @@ laufenden System.
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D (2026-08-17; Versions-Bump beim Epic-Abschluss/QA)*
+## TS-66 — IDEAL Teil 8: Sub-FA-Rückmeldung / BDE-Disambiguierung (v1.33.0)
+
+**Vorbedingungen:** Hierarchischer Modus (Master an, Sub-FAs materialisiert), BDE-Terminal an einer
+Werkbank aktiv, Operator angemeldet. **Testdaten-Vorbedingung (Schranke 2):** ohne produktivnahe
+hierarchische Rückmeldedaten im IDEAL-Testsystem sind TS-66.1/.2/.5 nicht grün zu bekommen — vorher
+sicherstellen, dass mehrere Sub-FAs derselben `OrderNumber` an einer Werkbank offen sind.
+**Automatisiert abgedeckt:** `BdeScanResolverTests` (14 Fälle), `BdeApiControllerTests.ResolveScan_*`
+(5 Fälle: BadRequest ×2, Exact, Ambiguous, NurFA→ProductionOrder).
+
+- **TS-66.1 — Mehrere Sub-FAs, Normal-Modus (AK 2/6):** FA scannen, deren `OrderNumber`+AG an dieser
+  Werkbank **zwei** Sub-FAs trifft (`FA-Nr,AG-Nr`). Erwartung: Auswahlliste mit Sub-FA-Nummer +
+  Bezeichnung + Arbeitsgang; Auswahl bucht **genau** diesen Sub-FA. Zweiten Sub-FA scannen/wählen →
+  getrennte Buchung, keine Vermischung. Negativ: keine stille Buchung ohne Auswahl.
+- **TS-66.2 — Mehrere Sub-FAs, Nur-FA-Modus (AK 5, KP-5-Fix):** `Sync`/AppSetting Nur-FA-Meldung an.
+  FA scannen (ohne AG), die mehrere Sub-FAs trifft. Erwartung: **dieselbe** Auswahlliste — **kein**
+  stilles „last wins" mehr auf den zuletzt gefundenen Button. Auswahl startet die Produktion auf dem
+  gewählten Sub-FA (`StartProductionForOrder`). Negativ: früher wurde still der letzte Treffer gebucht.
+- **TS-66.3 — Eindeutige FA / AKE-Flachfall (AK 1/9):** FA scannen, die genau **einen** Auftrag trifft
+  (bzw. AKE: `OrderNumber == SubOrderNumber`). Erwartung: **Direktbuchung ohne Auswahl** (Normal:
+  Start-Buttons; Nur-FA: Produktion startet). Kein Verhaltensunterschied zu vorher.
+- **TS-66.4 — Auftrag nicht an dieser Werkbank (KP2-6 Randfall a):** FA scannen, die zwar existiert/läuft,
+  aber **nicht** an dieser Werkbank offen ist. Erwartung: eigene Meldung *„Dieser Auftrag hat an dieser
+  Werkbank keinen offenen Arbeitsgang."* — **nicht** die generische Unbekannt-Fehlermeldung.
+- **TS-66.5 — Genau ein Treffer im Werkbank-Scope trotz global mehrerer (KP2-6 Randfall b):** eine
+  passende Sub-FA an dieser Werkbank, eine weitere derselben `OrderNumber` an einer **anderen** Werkbank.
+  Erwartung: **Direktbuchung** des hiesigen (keine Auswahl, keine Fremd-Sub-FA sichtbar).
+- **TS-66.6 — Unbekannte FA (AK 4):** nicht existierende FA scannen. Erwartung: bestehende
+  Fehlerbehandlung „Arbeitsgang nicht gefunden" (Normal) unverändert.
+- **TS-66.7 — Kombinationsgeräte (AK 7, bekannte Grenze):** zwei Kombi-Aufträge derselben `OrderNumber`.
+  Erwartung: Auswahlliste zeigt deren Sub-FAs **positionsweise** (Matchcode/Arbeitsbereich), **keine**
+  automatische Auftragstrennung. Das ist die bewusst akzeptierte Grenze (`MontageAbteilung` nicht in
+  `ProductionOrders`), **kein** Testfehler.
+- **TS-66.8 — Bestehende BDE-Regeln unverändert (AK 8):** Mehrfachbuchung, Pause, Sperre bei
+  verpackt/abgeholt, Auto-Pause Schichtende — je Sub-FA wie bisher. Regressionslauf der bestehenden
+  BDE-Testszenarien gegen materialisierte Sub-FAs.
+- **TS-66.9 — Teileverfolgung (Durchzug):** in der Teileverfolgung nach einer `OrderNumber` filtern.
+  Erwartung: der Filter (`Contains`) listet **alle** Sub-FAs der Gruppe (gewünschtes
+  Gruppierungsverhalten) — reiner Filter, kein eindeutigkeitsannehmender Lookup, unverändert.
+- **TS-66.10 — Fallback SubOrderNumber (AK 3, heute unerreichbar):** Vorrüstung — solange Barcodes keine
+  Sub-FA-Nummer tragen, nicht auslösbar. Automatisiert abgedeckt
+  (`BdeScanResolverTests.Fallback_SubOrderNumber_…`); manuell erst prüfbar, sobald Sub-FA-Barcodes existieren.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) (2026-08-18)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
