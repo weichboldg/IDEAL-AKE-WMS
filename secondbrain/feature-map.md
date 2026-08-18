@@ -162,8 +162,9 @@ Epics). Uebergreifende Spec: [[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-
 | UI-Nachtrag (Etappe 7) — FA-Struktur seitenweite Tree-Table (OSEON-Stil) + Kontrast-Fix (WCAG AA) + 4 Knoten-Icons + Baum-Spaltenfilter + column-prefs | **Testbereit** (v1.31.0, Commits `961749f`+`767f06f`) | [[2026-08-12-fa-struktur-darstellung-spec]] | `Views/FaHierarchy/*`, `wwwroot/js/fa-hierarchy-tree.js`, `Services/FaNodeClassifier.cs`, `viewKey` `FaHierarchyStructure` in `ColumnDefinitions` |
 | UAT-Anpassung (Etappe 8, 2026-08-13) — SubFA=0-Blattannahme aufgehoben (alle Positionen mit Flag, Anomalie-Banner weg, Kommissionier+Vormontage) + Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/Ziel, KW auf `KO_Termin`) + Vormontage-Summiert-Wochenbezug (KW auf `FE_Termin`, HauptFA ignoriert) | **Testbereit** (v1.31.0, Commit `e83eb1c`) | Teil-3/5-Nachtraege in [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | `KommissionierListenService`/`VormontageService` (`leafOnly:false`), neue `.../Summiert`-Views, `Services/IsoWeekRange.cs` |
 
-> **Status:** UMGESETZT + QA-gruen im Worktree `feature/2026-08-07-ideal-teile-1-5` (Commit
-> `93e54c4`), wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).
+> **Status:** UMGESETZT + QA-gruen im Worktree `feature/2026-08-07-ideal-teile-1-5` (zuletzt
+> `1173cf1`, qa-agent 2026-08-18: Build gruen, Web 1219/1 skip/0 Fehler, Service 231/0 Fehler),
+> wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).
 > Merge-Commit noch offen. Offene UAT-Punkte + Deploy-Handgriffe: [[2026-08-07-ideal-teile-1-5]].
 
 ### Teil 7 — Schema-Inversion + Einweg-Migrationstor + Materialisierung (v1.32.0, eigener Epic, selber Branch)
@@ -244,6 +245,14 @@ Master, kein try/catch) + `Views/Picking/Bom.cshtml` (Hinweis → `/FaHierarchy`
 Spec [[2026-08-18-bom-guard-hierarchisch-spec]], Aufgabe [[2026-08-18-bom-guard-hierarchisch]].
 Vollständige hierarchische BOM-Quelle bewusst ausgelagert → [[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]]
 (nächster Zyklus, aus `main`).
+
+> **Status:** `Testbereit` (qa-agent, 2026-08-18, Worktree `1173cf1`) — Build gruen, Web
+> **1219/1 skip/0 Fehler**, Service **231/0 Fehler**. Code-Review ohne Findings: alle 4
+> `IBomRepository`-Aufrufer (Picking-BOM/Druck, FaWorklist/FaCompletion via
+> `ReadOnlyBomBuilder` → gemeinsam `Views/Picking/Bom.cshtml`) laufen ueber denselben Guard,
+> DI-Factory ohne Selbstreferenz. Damit ist das **gesamte Bündel** (Teile 1–5 + Teil 7 + Teil 8 +
+> Teil 6 + dieser Guard) wieder auf `Testbereit` — wartet **gemeinsam** auf Schranke 2 (ein Merge,
+> kein Zwischen-Merge).
 
 ## Offen / nicht gemerged
 

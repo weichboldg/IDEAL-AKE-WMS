@@ -2,7 +2,7 @@
 type: spec
 title: "BOM-Knopf im hierarchischen Modus abfangen statt HTTP 500 (UAT-Blocker, Minimal-Fix)"
 slug: 2026-08-18-bom-guard-hierarchisch-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-18
 updated: 2026-08-18
 source_backlog: "[[2026-08-18-ideal-nachlese-restarbeiten]]"
@@ -156,13 +156,64 @@ kein neuer Settings-Key, keine eigene Caching-Logik.
 
 ## Deploy
 
-Reine Web-Aenderung: `deploy.web = true`, `service = false`, `migration = false`. Geht mit dem
-bestehenden Web-Publish des Buendels mit — **kein** zusaetzlicher Deploy-Schritt.
+**Finalisiert durch QA (2026-08-18) aus dem echten Diff:** `deploy.web = true`, `service = false`,
+`migration = false`. Der Diff ruehrt ausschliesslich `IdealAkeWms/` (Repository-Decorator, DI,
+ViewModel-Marker, 4 Views) + `IdealAkeWms.Tests/` + `docs/TESTSZENARIEN.md` an — kein Code unter
+`IDEALAKEWMSService/`, keine neue Datei unter `*/Migrations/`.
 
-**Folgen fuer das Buendel:** Der Epic geht von `Testbereit` auf `InUmsetzung` zurueck; nach der
-Umsetzung ist die **QA erneut zu fahren** (Build + beide Test-Suiten), bevor Schranke 2 ansteht. Das
-ist der bewusst getragene Preis dafuer, die UAT nicht in einen 500er laufen zu lassen. Version bleibt
-unveraendert (v1.31.0/v1.32.0/v1.33.0 wie gehabt) — kein eigener Bump fuer einen Guard.
+Der Guard geht mit dem bestehenden Web-Publish des Buendels mit — **kein** zusaetzlicher
+Deploy-Schritt, **kein** eigener Publish-Lauf nur fuer diesen Fix. Publish erfolgt **aus dem
+Worktree** (Mensch-Fluss: Worktree publishen → Testsystem → Test → danach Merge):
+
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+```
+
+Kein Service-Publish (Guard betrifft nur den Web-Prozess), keine Migration, keine DB-Aenderung.
+
+Hinweis: nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge tatsaechlich
+getestete Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat.
+
+**Folgen fuer das Buendel:** Der Epic ging von `Testbereit` auf `InUmsetzung` zurueck; die QA wurde
+danach **erneut gefahren** (Build + beide Test-Suiten, s. QA-Nachweis unten), bevor Schranke 2
+ansteht. Das ist der bewusst getragene Preis dafuer, die UAT nicht in einen 500er laufen zu lassen.
+Version bleibt unveraendert (v1.34.0, bestaetigt in beiden `AppVersion.cs`) — kein eigener Bump fuer
+einen Guard.
+
+## QA-Nachweis (2026-08-18)
+
+- **Build:** `dotnet build IdealAkeWms.slnx` im Worktree `feature/2026-08-07-ideal-teile-1-5`
+  (Commit `1173cf1`) — **erfolgreich**, 0 Fehler (9 Vorbestehende Warnungen, keine davon aus diesem
+  Diff).
+- **Web-Suite:** `dotnet test IdealAkeWms.Tests` — **1219 erfolgreich, 1 uebersprungen
+  (Integrationstest, vorbestehend), 0 Fehler**, gesamt 1220.
+- **Service-Suite:** `dotnet test IDEALAKEWMSService.Tests` — **231 erfolgreich, 0 Fehler**.
+- **Testszenarien:** TS-68.1 – 68.6 (`docs/TESTSZENARIEN.md`) gegen AK 1–6 geprueft — jedes AK hat
+  ein zugehoeriges TS, Formulierung stimmt mit dem Code ueberein. TS-59.19/60.17/61.25 korrekt
+  umgekehrt (`supportsSortDefault: true` in `FaHierarchyKommissionierListen/Index.cshtml`,
+  `FaHierarchyBeschichtung/Index.cshtml`, `FaHierarchyVormontage/Index.cshtml`; Baum
+  `FaHierarchy/Index.cshtml` bleibt `false`). Kapitel 68 bereits im Hauptcheckout-Index
+  (`secondbrain/tests/testszenarien-index.md`) referenziert.
+- **Code-Review (manuell, kein Finding):**
+  - Guard haengt strikt am Master-Schalter (`HierarchischeStrukturKeys.Master` via
+    `IServiceSettingRepository.GetValueAsync`, wiederverwendeter Teil-7-Leseweg) — **kein**
+    `try/catch` um den inneren Aufruf (Fallstrick 1 eingehalten).
+  - Marker `BomDataSources.HierarchicalUnavailable` ("NICHT_VERFUEGBAR_HIERARCHISCH") ist von
+    `KEINE_DATEN` unterscheidbar und in `Bom.cshtml` getrennt behandelt (Fallstrick 2).
+  - Alle erhobenen `IBomRepository`-Aufrufer bestaetigt abgedeckt: `PickingController.Bom` (Zeile
+    235) + `PrintBom` (Zeile 483, 579), `ReadOnlyBomBuilder.BuildAsync` (Zeile 64) — Letzterer wird
+    von `FaWorklistController.Bom` und `FaCompletionController.Bom` verwendet, beide rendern
+    explizit `View("~/Views/Picking/Bom.cshtml", vm)` — **derselbe** View-Guard greift also fuer
+    alle vier Einstiege (AK 5 vollstaendig erfuellt, nicht nur den Picking-Knopf).
+  - DI-Factory in `Program.cs` resolved den inneren Decorator ueber den **konkreten** Typ
+    `CachedBomRepository` (nicht `IBomRepository`) — keine Selbstreferenz-Gefahr in der
+    Registrierungskette bestaetigt.
+  - `GuardedServiceSettingRepository.GetValueAsync` reicht ungefiltert an das innere Repository
+    durch (kein Einfluss des Schreib-Guards auf den Lesepfad) — die Master-Abfrage im BOM-Guard ist
+    unbeeinflusst korrekt.
+  - Keine echten Findings. Keine stillen Fixes noetig.
+- **Nicht InMemory-testbar (Manual-UAT, kein Blocker):** Log-Nachweis „kein `[ake].[dbo]`-Zugriff im
+  hierarchischen Modus" und die visuelle Hinweisseite — beides nur am laufenden System pruefbar.
 
 **Ergaenzung der UAT-Checkliste:** ein Punkt „BOM-Knopf im hierarchischen Modus zeigt den Hinweis
 statt einer Fehlerseite" — damit der Fix in der Abnahme auch bestaetigt wird.
@@ -186,3 +237,36 @@ Spec ausgelagert.
    verhindert das Betreten eines Datenpfads, die Vollloesung baut einen.
 
 Damit ist die Spec startklar — Status setzen und nach `specs/freigegeben/` verschieben.
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Am Test-/IDEAL-System, nach dem Web-Publish aus dem Worktree:
+
+1. **AKE-Regression (TS-68.1, AK 1):** Master `ProduktionsauftragHierarchisch` = `false`. BOM-Knopf
+   an einem bekannten AKE-FA — einmal mit gefuelltem BOM-Cache, einmal mit geleertem Cache (z. B.
+   nach App-Pool-Recycle) — Positionen erscheinen bit-identisch zu vorher, kein Hinweis-Badge.
+2. **BOM-Knopf im hierarchischen Modus zeigt den Hinweis statt einer Fehlerseite (TS-68.2, AK 2/6 —
+   vom Spec-Freigabegespraech geforderter Kernpunkt):** Master = `true`. BOM-Knopf an einem
+   materialisierten IDEAL-FA (z. B. einem der 130 aus dem Umlegungs-Vorfall) — **kein HTTP 500**,
+   stattdessen Hinweisseite „Stückliste im hierarchischen Modus" mit Badge „FA-Struktur" und
+   funktionierendem Link/Button zu `/FaHierarchy`.
+3. **Direktaufruf (TS-68.3, AK 2):** `/Picking/Bom/<id>` direkt in der Adresszeile im hierarchischen
+   Modus aufrufen — derselbe Hinweis erscheint (belegt, dass der Guard nicht nur am Knopf haengt).
+4. **Log-Nachweis (TS-68.4, AK 2/3):** Serilog-Log waehrend Schritt 2/3 pruefen — **keine**
+   SQL-Abfrage gegen `vw_AKE_Kommissionierung_StuecklistenDB` bzw. `[ake].[dbo]`. Kein
+   SqlException-Eintrag.
+5. **Weitere Aufrufer (TS-68.5, AK 5):** im hierarchischen Modus `/Picking/PrintBom/<id>` aufrufen
+   sowie die read-only Vorbau-Stückliste (FA-Abarbeitungsliste, `/FaWorklist/Bom/<id>` bzw.
+   `/FaCompletion/Bom/<id>`, je nach aktivem Toggle) — beide zeigen denselben Hinweis, keine
+   Exception.
+6. **Unterscheidbarkeit (TS-68.6, AK 4):** einen AKE-FA ohne Stückliste (Master `false`) aufrufen —
+   Badge „Keine Daten gefunden" (rot) statt des blauen „FA-Struktur"-Hinweises; die beiden Zustaende
+   sind optisch klar unterschiedlich.
+7. **Sortier-Umkehr (TS-59.19/60.17/61.25):** auf allen drei flachen IDEAL-Listen
+   (`/FaHierarchyKommissionierListen`, `/FaHierarchyBeschichtung`, `/FaHierarchyVormontage`) im
+   Spalten-Dialog pruefen, dass „Standard-Sortierung speichern" jetzt **angeboten** wird, eine
+   Sortierung speichern, Reload → Sortierung bleibt erhalten. Auf `/FaHierarchy` (Baum) pruefen,
+   dass die Option weiterhin **fehlt**.
+8. **Negativfall:** waehrend Schritt 2 pruefen, dass keine leere Tabelle mit „Keine
+   Stücklisten-Positionen gefunden" erscheint (das waere die falsche, mit „leerer Stückliste"
+   verwechselbare Darstellung) — es muss die Hinweis-Box sein, nicht die Tabelle.
