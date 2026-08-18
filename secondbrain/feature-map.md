@@ -182,10 +182,37 @@ Changelog [[2026-08-17-v1-32-0-ideal-teil-7]].
 | D — Lookup-Härtung (`GetAllByFaAndOperationAsync` + Multi-Hit-Log) + dreistufige Auto-Erledigt-Sperre + Reconcile-Test + `OrderNumber`-Sweep (7 kritisch → Teil 8) | **erledigt** (`fb07512..660a01b`) | `Data/Repositories/WorkOperationRepository.cs`, `IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs`, Key `Sync:FaZusatzinfoAutoErledigtEnabled` |
 | E — Version-Bump v1.32.0 + Anwender-Changelog + Brain (ADR 0012, fallstricke §9, services/controller-Karte) | **erledigt** | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
 
-> **Status Teil 7:** UMGESETZT im Worktree, `status: InUmsetzung` bis zum QA-Gate (qa-agent nach
-> Etappe E). Master **default aus** — Umstellung ist ein bewusster spaeterer Schritt am Zielsystem.
-> **Mapping datenabhaengig** (Wurzel `HauptFA==SubFA`, Node-Dezimal `NULL→0`) → erster echter Datenlauf.
-> Merge bringt Teile 1–5 **und** Teil 7 zusammen (Schranke 2 fuers ganze Buendel).
+> **Status Teil 7:** QA-gruen im Worktree (`status: Testbereit`, qa-agent 2026-08-17, HEAD `5cf802e`,
+> Web 1186 (+1 skip) + Service 231 gruen). Master **default aus** — Umstellung ist ein bewusster
+> spaeterer Schritt am Zielsystem. **Mapping datenabhaengig** (Wurzel `HauptFA==SubFA`, Node-Dezimal
+> `NULL→0`) → erster echter Datenlauf, siehe manuelle Test-Checkliste in
+> [[2026-07-29-standort-ideal-teil-7]]. Wartet auf **Schranke 2** (Manual-UAT + Merge). Merge bringt
+> Teile 1–5 **und** Teil 7 zusammen (Schranke 2 fuers ganze Buendel, kein Zwischen-Merge).
+>
+> **Post-QA-Fix #2 (`5d3e723`, 2026-08-18):** beim echten App-Start freigelegter zweiter `SqlError 3701`
+> — EF-`AlterColumn` auf `SubOrderNumber` erzeugte ungeschützten Auto-`DROP INDEX`; durch geschütztes
+> Raw-SQL ersetzt (deckungsgleich SQL/90), offline via `dotnet ef migrations script` verifiziert.
+> [[fallstricke]] §9 Nachtrag.
+
+### Teil 8 — Sub-FA-Rückmeldung / BDE-Disambiguierung (v1.33.0, eigener Epic, selber Branch)
+
+Macht Sub-FAs am **BDE-Terminal** bedienbar: nach der Inversion (Teil 7) ist `OrderNumber` mehrdeutig,
+ein Scan kann mehrere Sub-FAs treffen. Einstieg `Services/BdeScanResolver.cs` +
+`BdeApiController.ResolveScan` (`GET /api/bde/resolve-scan`) + `wwwroot/js/bde-terminal.js`.
+
+| Etappe | Status | Code-Einstieg |
+|---|---|---|
+| 1 — Verifikation (Teil-7-Naht, OSEON-Urteil → Etappe 5 entfällt) | **erledigt** (`418f23a`) | `docs/TEIL-8-BDE-ETAPPE-1-VERIFIKATION.md` |
+| 2 — Serverseitige Auflösungslogik `BdeScanResolver` (Exact/Ambiguous/NotInScope/NotFound, werkbank-gescopt) + 14 Unit-Tests | **erledigt** (`f86a886`) | `Services/BdeScanResolver.cs`, `Program.cs` |
+| 3 — Scan-Auswahl-UI Normal-Modus + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) | `Controllers/BdeApiController.cs`, `Views/BdeTerminal/Index.cshtml`, `wwwroot/js/bde-terminal.js`, `wwwroot/css/bde.css` |
+| 4 — NurFA-Fix (kein last-wins) + Teileverfolgung bestätigt | **erledigt** (`58c26bd`) | `wwwroot/js/bde-terminal.js`; `Controllers/TrackingController.cs` (nur Filter, unverändert) |
+| 5 — OSEON-Seite | **entfällt** (Etappe-1-Urteil) | — |
+| 6 — Version v1.33.0 + Anwender-Changelog + Testszenarien TS-66 | **erledigt** (`8395394`) | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` |
+
+> **Status Teil 8:** alle Etappen erledigt (5 entfällt), Web-Suite **1205 grün**. Wartet auf **qa-agent**
+> (setzt `Testbereit`), danach **Schranke 2** zusammen mit Teilen 1–5 + Teil 7 (ein Merge, kein
+> Zwischen-Merge). **Testdaten-Vorbedingung Schranke 2:** hierarchische Rückmeldedaten (mehrere Sub-FAs
+> derselben `OrderNumber` an einer Werkbank) im IDEAL-Testsystem. Detail [[2026-07-29-standort-ideal-teil-8]].
 
 ## Offen / nicht gemerged
 
