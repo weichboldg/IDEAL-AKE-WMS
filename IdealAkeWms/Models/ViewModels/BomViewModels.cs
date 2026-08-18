@@ -2,6 +2,22 @@ namespace IdealAkeWms.Models.ViewModels;
 
 public record BomQueryResult(List<BomItem> Items, string DataSource);
 
+/// <summary>Bekannte Werte von <see cref="BomQueryResult.DataSource"/>.</summary>
+public static class BomDataSources
+{
+    public const string Sage = "SAGE";
+    public const string Oseon = "OSEON";
+    public const string NoData = "KEINE_DATEN";
+
+    /// <summary>
+    /// IDEAL: im hierarchischen Modus (Master an) wird der AKE-Stücklisten-Zugriff nicht ausgeführt.
+    /// Bewusst NICHT "KEINE_DATEN" — die Oberfläche muss „nicht verfügbar" von „leere Stückliste"
+    /// unterscheiden können (Spec-Fallstrick 2). Die Stückliste kommt in diesem Modus aus der
+    /// FA-Struktur (`/FaHierarchy`).
+    /// </summary>
+    public const string HierarchicalUnavailable = "NICHT_VERFUEGBAR_HIERARCHISCH";
+}
+
 public class BomItem
 {
     public string Artikelnummer { get; set; } = string.Empty;
