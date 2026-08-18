@@ -61,17 +61,21 @@ IF EXISTS (SELECT 1 FROM sys.indexes
             migrationBuilder.Sql(
                 "UPDATE [dbo].[ProductionOrders] SET [SubOrderNumber] = [OrderNumber] WHERE [SubOrderNumber] IS NULL;");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "SubOrderNumber",
-                schema: "dbo",
-                table: "ProductionOrders",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(100)",
-                oldMaxLength: 100,
-                oldNullable: true);
+            // SubOrderNumber auf NOT NULL setzen — als GESCHUETZTES Raw-SQL, NICHT via
+            // migrationBuilder.AlterColumn. Ein EF-AlterColumn wuerde, weil der Model-Snapshot einen
+            // Unique-Index auf SubOrderNumber traegt, automatisch ein UNGESCHUETZTES
+            // `DROP INDEX [IX_ProductionOrders_SubOrderNumber]` VOR das ALTER setzen (und danach neu
+            // anlegen). Dieser Index existiert an dieser Stelle noch nicht — er wird erst weiter unten
+            // guarded erzeugt — also bricht der Auto-DROP mit SqlError 3701 beim Start auf jeder
+            // frischen/zurueckgerollten DB. Deckungsgleich + idempotent mit SQL/90 Schritt 3
+            // (is_nullable-Guard, KEIN Index-Tausch). Vgl. fallstricke §9: EF-Migration UND SQL-Skript
+            // brauchen BEIDE dieselben Guards.
+            migrationBuilder.Sql(@"
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID('dbo.ProductionOrders')
+             AND name = 'SubOrderNumber'
+             AND is_nullable = 1)
+    ALTER TABLE [dbo].[ProductionOrders] ALTER COLUMN [SubOrderNumber] nvarchar(100) NOT NULL;");
 
             // Nicht-eindeutiger Index auf OrderNumber (guarded, deckungsgleich SQL/90 Schritt 4b).
             migrationBuilder.Sql(@"
