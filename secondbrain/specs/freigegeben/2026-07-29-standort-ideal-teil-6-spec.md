@@ -2,14 +2,14 @@
 type: spec
 title: "IDEAL-Standort Teil 6 — Standorteinstellungen-Maske"
 slug: 2026-07-29-standort-ideal-teil-6-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-18
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]], [[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/Controllers/StandortEinstellungenController.cs (neu, Name provisorisch)
   - IdealAkeWms/Views/StandortEinstellungen/Index.cshtml (neu)
@@ -28,8 +28,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-12
 ---
 
 ## Ziel / Nutzen (das Warum)
