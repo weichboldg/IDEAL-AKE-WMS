@@ -136,6 +136,7 @@
         document.getElementById('operationsCard').style.display = 'none';
         document.getElementById('historyCard').style.display = 'none';
         document.getElementById('operationButtons').innerHTML = '';
+        clearScanSelection();
         document.getElementById('scanOperator').focus();
         actionPanel.innerHTML = '';
         // Reset active-bookings panel
@@ -158,6 +159,7 @@
         const raw = input.value.trim();
         input.value = '';
         if (!raw) return;
+        clearScanSelection();
         const feedback = document.getElementById('faAgFeedback');
 
         if (nurFaMode) {
@@ -194,15 +196,98 @@
         // Normaler Modus
         const parts = raw.split(/[,\/]/);
         if (parts.length < 2) {
-            feedback.textContent = 'Format: FA-Nummer,AG-Nummer oder FA-Nummer/AG-Nummer';
+            setScanFeedback('Format: FA-Nummer,AG-Nummer oder FA-Nummer/AG-Nummer', 'error');
             return;
         }
-        const [fa, op] = parts;
-        var resp = await fetch(`/api/bde/workoperation?faNumber=${encodeURIComponent(fa.trim())}&opNumber=${encodeURIComponent(op.trim())}`);
-        if (!resp.ok) { feedback.textContent = 'Arbeitsgang nicht gefunden'; return; }
-        currentWorkOp = await resp.json();
-        feedback.textContent = '';
-        await renderState();
+        await resolveScanAndSelect(parts[0].trim(), parts[1].trim());
+    }
+
+    // IDEAL Teil 8, Etappe 3: Normal-Modus-Scan ueber die werkbank-gescopte Aufloesung
+    // (/api/bde/resolve-scan). Loest den harten Einzel-Lookup ab: bei mehreren Sub-FAs derselben FA
+    // an dieser Werkbank erscheint eine Auswahl; laeuft der Auftrag nur woanders, eine eigene Meldung.
+    async function resolveScanAndSelect(fa, op) {
+        clearScanSelection();
+        setScanFeedback('', '');
+        const url = '/api/bde/resolve-scan'
+            + '?faNumber=' + encodeURIComponent(fa)
+            + '&opNumber=' + encodeURIComponent(op)
+            + '&workplaceId=' + encodeURIComponent(workplaceId)
+            + (currentOperator?.id ? '&operatorId=' + encodeURIComponent(currentOperator.id) : '');
+        var resp = await fetch(url);
+        if (!resp.ok) { setScanFeedback('Arbeitsgang nicht gefunden', 'error'); return; }
+        var res = await resp.json();
+        switch (res.kind) {
+            case 'Exact':
+                selectScannedWorkOp(res.candidates[0]);
+                break;
+            case 'Ambiguous':
+                renderScanSelection(fa, res.candidates);
+                break;
+            case 'NotInScope':
+                renderScanNotice('Dieser Auftrag hat an dieser Werkbank keinen offenen Arbeitsgang.');
+                break;
+            default: // NotFound
+                setScanFeedback('Arbeitsgang nicht gefunden', 'error');
+        }
+    }
+
+    // Ein Sub-FA gewaehlt (oder von vornherein eindeutig): identisch zum Antippen eines produktiven
+    // AG-Buttons — nur die WorkOperation-Id wird gebraucht, die Buchung laeuft ueber den eindeutigen Id.
+    function selectScannedWorkOp(candidate) {
+        clearScanSelection();
+        setScanFeedback('', '');
+        currentWorkOp = { id: candidate.id };
+        renderState();
+    }
+
+    function renderScanSelection(fa, candidates) {
+        const box = document.getElementById('scanSelection');
+        if (!box) return;
+        let html = '<div class="bde-scan-heading">FA ' + escapeHtml(fa) + ': ' + candidates.length
+            + ' Sub-Aufträge – bitte auswählen</div>'
+            + '<div class="d-flex flex-wrap gap-2">';
+        candidates.forEach(function (c) {
+            const line1 = 'Sub-FA ' + escapeHtml(c.subOrderNumber)
+                + (c.operationNumber ? ' · AG ' + escapeHtml(c.operationNumber) : '');
+            const desc = [c.description, c.operationName].filter(Boolean).map(escapeHtml).join(' · ');
+            html += '<button type="button" class="btn btn-outline-primary btn-lg bde-op-btn bde-scan-choice" data-wo-id="' + c.id + '">'
+                + '<span class="fw-bold">' + line1 + '</span>'
+                + (desc ? '<span class="bde-scan-choice-desc">' + desc + '</span>' : '')
+                + '</button>';
+        });
+        html += '</div>';
+        box.innerHTML = html;
+        box.querySelectorAll('.bde-scan-choice').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                selectScannedWorkOp({ id: parseInt(btn.dataset.woId, 10) });
+            });
+        });
+    }
+
+    // Auftrag existiert, laeuft aber nicht an dieser Werkbank: klare, eigene Meldung statt der
+    // generischen Unbekannt-Fehlermeldung (WCAG-AA: dunkler Text auf hellem Warn-Grund, Farbe traegt
+    // die Bedeutung nicht allein).
+    function renderScanNotice(msg) {
+        const box = document.getElementById('scanSelection');
+        if (box) box.innerHTML = '<div class="alert alert-warning py-2 mb-0" role="alert">' + escapeHtml(msg) + '</div>';
+    }
+
+    function clearScanSelection() {
+        const box = document.getElementById('scanSelection');
+        if (box) box.innerHTML = '';
+    }
+
+    function setScanFeedback(msg, level) {
+        const el = document.getElementById('faAgFeedback');
+        if (!el) return;
+        el.textContent = msg || '';
+        el.className = 'small mt-1' + (msg ? (level === 'error' ? ' text-danger' : ' text-body') : '');
+    }
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     // --- State Rendering ---
@@ -401,8 +486,11 @@
     }
 
     function bindOperationButtonHandlers() {
-        document.querySelectorAll('.bde-op-btn').forEach(function (btn) {
+        // NUR die Browse-Liste binden (nicht die Scan-Auswahl-Buttons in #scanSelection, die zwar
+        // dieselbe .bde-op-btn-Optik tragen, aber ihren eigenen Klick-Handler haben).
+        document.querySelectorAll('#operationButtons .bde-op-btn').forEach(function (btn) {
             btn.addEventListener('click', async function () {
+                clearScanSelection();
                 if (btn.dataset.type === 'fa') {
                     // NurFA: direkt Produktion auf FA starten
                     await post('/BdeTerminal/StartProductionForOrder', {

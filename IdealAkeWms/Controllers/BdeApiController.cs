@@ -21,11 +21,12 @@ public class BdeApiController : ControllerBase
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IAppSettingRepository _settings;
     private readonly ApplicationDbContext _ctx;
+    private readonly IBdeScanResolver _scanResolver;
 
     public BdeApiController(IBdeOperatorRepository ops, IBdeActivityRepository activities,
         IBdeBookingRepository bookings, IWorkOperationRepository workOps,
         IProductionWorkplaceRepository workplaces, IAppSettingRepository settings,
-        ApplicationDbContext ctx)
+        ApplicationDbContext ctx, IBdeScanResolver scanResolver)
     {
         _ops = ops;
         _activities = activities;
@@ -34,6 +35,7 @@ public class BdeApiController : ControllerBase
         _workplaces = workplaces;
         _settings = settings;
         _ctx = ctx;
+        _scanResolver = scanResolver;
     }
 
     [HttpGet("operator/{personnelNumber}")]
@@ -62,6 +64,40 @@ public class BdeApiController : ControllerBase
             description = wo.ProductionOrder.Description1,
             workplaceId = wo.ProductionWorkplaceId,
             workplaceName = wo.ProductionWorkplace?.Name
+        });
+    }
+
+    // IDEAL Teil 8, Etappe 3: werkbank-gescopte Scan-Aufloesung fuer die Disambiguierung mehrerer
+    // Sub-FAs derselben OrderNumber. Loest den harten Einzel-Lookup von GetWorkOperation ab (dessen
+    // Umstieg der Terminal-JS traegt); GetWorkOperation bleibt fuer Bestandsaufrufer erhalten.
+    [HttpGet("resolve-scan")]
+    public async Task<IActionResult> ResolveScan([FromQuery] string faNumber, [FromQuery] string? opNumber,
+        [FromQuery] int workplaceId, [FromQuery] int? operatorId = null)
+    {
+        if (string.IsNullOrWhiteSpace(faNumber) || workplaceId <= 0) return BadRequest();
+
+        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        var res = await _scanResolver.ResolveAsync(workplaceId, faNumber, opNumber, nurFa, operatorId);
+
+        return Ok(new
+        {
+            kind = res.Kind.ToString(),          // Exact | Ambiguous | NotInScope | NotFound
+            nurFaMode = nurFa,
+            viaSubOrderFallback = res.ViaSubOrderNumberFallback,
+            candidates = res.Candidates.Select(c => new
+            {
+                id = c.Id,
+                target = c.Target.ToString(),    // WorkOperation | ProductionOrder
+                productionOrderId = c.ProductionOrderId,
+                orderNumber = c.OrderNumber,
+                subOrderNumber = c.SubOrderNumber,
+                description = c.Description,
+                articleNumber = c.ArticleNumber,
+                operationNumber = c.OperationNumber,
+                operationName = c.OperationName
+            })
         });
     }
 
