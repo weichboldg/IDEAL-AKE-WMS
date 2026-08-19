@@ -931,10 +931,34 @@ Branch `feature/2026-08-07-ideal-teile-1-5`):**
 alle 16 AK 1:1 ab, keine Lücke gefunden. Bereits in `secondbrain/tests/testszenarien-index.md`
 (Kapitel 62) indexiert.
 
-**Code-Review:** `code-review`-Skill auf den Diff `961749f^..767f06f` im Hintergrund gestartet
-(Effort medium); Ergebnis trifft asynchron als Task-Notification ein und ist nicht Teil dieses
-Nachweises — die manuelle AK-für-AK-Prüfung oben plus Build/Tests sind der belastbare Nachweis
-dieses QA-Laufs.
+**Code-Review (`code-review`-Skill, Effort medium, Diff `961749f^..767f06f`) — Ergebnis nachträglich
+eingetroffen und verifiziert.** Beide Funde treffen **keine** der 16 nummerierten
+Akzeptanzkriterien (dort explizit geprüft, siehe oben — alle 16 grün), betreffen aber Fliesstext-
+Anforderungen bzw. einen Randfall und werden hier transparent für den Menschen dokumentiert, **ohne
+selbst gefixt zu werden** (QA-Mandat: melden, nicht fixen):
+
+1. **Einrückungs-Leitlinien fehlen (Fachliche Anforderungen Abschnitt 5).** Vor dem Umbau gab es in
+   `Index.cshtml` (`<style>`-Block) `.fa-node-children { border-left: 1px dashed #d5dbe0; }` als
+   vertikale Leitlinie je Verschachtelungsebene — durch den Umbau auf flache `<tr>`s entfernt und
+   **nicht** ersetzt (verifiziert: kein `border-left`/`dashed` in `site.css` oder den beiden Views
+   nach dem Diff). Der Spec-Text fordert explizit: „Einrückungs-Leitlinien je Ebene … im
+   Tree-Table-Umbau als vertikale Leitlinie je Einrückungsstufe fortzuführen." Bei tiefen
+   Strukturen (≥4 Ebenen) ist die Eltern-Kind-Zuordnung dadurch **nur** über `padding-left`
+   erkennbar, ohne verbindende Linie — schwächere Orientierung als im OSEON-Vorbild und als vor
+   dem Umbau. Kein AK-Bruch (keiner der 16 AK verlangt die Leitlinie wörtlich), aber eine
+   dokumentierte Abweichung vom Fliesstext, die vor dem Merge nachgezogen werden sollte
+   (kleiner, risikoarmer CSS-Nachtrag, keine Baum-Logik-Änderung).
+2. **Icon-Klassifikation bei Waisen-Strukturen ist ein ungeklärter Randfall.**
+   `FaNodeClassifier.Classify` prüft strikt `node.VaterFA == null` für das Wurzel-Icon. Bei einer
+   Waisen-Pseudowurzel (`structure.IsOrphan == true`, `FaHierarchyTreeBuilder.cs`) ist `VaterFA`
+   **gesetzt** (zeigt nur auf keinen importierten Parent) — der alleinige oberste Knoten dieser
+   Struktur (`structure.Roots[0]`, Level 0, optisch identisch zur echten Wurzel jeder anderen
+   Struktur) bekommt dadurch **kein** Wurzel-Icon, sondern Baugruppe/Zukauf/Material je nach
+   `SubFA`/`Beschaffungsartikel`. Das ist **konsistent mit dem wörtlichen AK-7-Text** („Wurzel …
+   `VaterFA IS NULL`"), aber die Spec hat den Waisen-Fall an dieser Stelle nicht bedacht — visuell
+   inkonsistent, weil die Waisen-Zeile an derselben strukturellen Position steht wie eine echte
+   Wurzel. Kein AK-Bruch, aber eine offene fachliche Frage (Produktentscheidung: soll die
+   Waisen-Pseudowurzel das Wurzel-Icon zeigen?), zur Klärung an den Menschen.
 
 **Nicht automatisiert prüfbar (Manual-UAT, Schranke 2):**
 - Sichtprüfung des Kontrasts am realen Fertigungsterminal (Bildschirm/Lichtverhältnisse).
