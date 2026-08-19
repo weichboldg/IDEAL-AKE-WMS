@@ -66,7 +66,10 @@
     data-f-subfa="@vSubFa.ToLowerInvariant()"
     data-f-status="@vStatus.ToLowerInvariant()"
     style="@(Model.Level > 0 ? "display:none" : null)">
-    <td data-col-key="structure" class="fa-struct-cell" style="padding-left:@(indentPx)px">
+    @* --fa-indent exponiert die Einrueckungsbreite fuer die vertikale Leitlinien-Leiter (site.css,
+       repeating-linear-gradient auf genau diese Breite begrenzt). Ersetzt die im Tree-Table-Umbau
+       entfallene .fa-node-children-Leitlinie (Spec-Rumpf Abschnitt 5). *@
+    <td data-col-key="structure" class="fa-struct-cell" style="padding-left:@(indentPx)px;--fa-indent:@(indentPx)px">
         @if (Model.HasChildren)
         {
             <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen" aria-label="Auf-/Zuklappen">
