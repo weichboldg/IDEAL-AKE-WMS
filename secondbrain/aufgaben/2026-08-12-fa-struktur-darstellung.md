@@ -52,11 +52,14 @@ den vorhandenen Stand gegen die 16 AK und lässt den qa-agent Build+beide Suiten
   (Web ja / Service nein / Migration nein). **Status → Testbereit.** QA-Nachweis + manuelle
   Test-Checkliste im Spec-Rumpf. Wartet jetzt auf Schranke 2 (Manual-UAT + Merge des ganzen
   Epic-Bündels durch den Menschen).
-- **Code-Review-Nachtrag (2026-08-19, `code-review`-Skill, nachträglich verifiziert):** zwei
-  Funde, **kein** AK-Bruch, nur gemeldet (nicht gefixt): (1) vertikale Einrückungs-Leitlinie
-  (`border-left: 1px dashed`) beim Tree-Table-Umbau ersatzlos entfernt, obwohl Fachliche
-  Anforderungen Abschnitt 5 sie explizit fordert — kleiner, risikoarmer CSS-Nachtrag vor Merge
-  empfohlen. (2) `FaNodeClassifier` gibt Waisen-Pseudowurzeln (VaterFA gesetzt, aber Ziel nicht
-  gefunden) kein Wurzel-Icon, obwohl sie strukturell wie eine Wurzel an oberster Stelle stehen —
-  konsistent mit dem wörtlichen AK-7-Text, aber ungeklärter Randfall, Klärung beim Menschen.
-  Details im Spec-Rumpf, Abschnitt „QA-Nachweis".
+- **Code-Review-Nachtrag (2026-08-19) — beide Funde vom Menschen entschieden und abgeschlossen:**
+  - **Fund 1 (Einrückungs-Leitlinie fehlt, Fachl. Anf. §5) → NACHGEZOGEN** (Worktree `f869bb0`):
+    vertikale Einrückungs-Leiter wiederhergestellt, rein in der Struktur-Zelle (`_FaHierarchyNode.cshtml`
+    inline `--fa-indent` + `site.css` `.fa-struct-cell` `repeating-linear-gradient`, auf den
+    Einrückungsbereich begrenzt). Kein JS/Markup-Umbau (Timebox eingehalten). Build + Web-Tests
+    **1219 grün**. Visuelle Bestätigung = Manual-UAT.
+  - **Fund 2 (Waisen-Pseudowurzel-Icon) → ENTSCHEIDUNG: bleibt ohne Wurzel-Icon** (Verhalten
+    unverändert). Icon = Knotentyp, Badge = Zustand; „Wurzelhaftigkeit" einer Waise ist kein Typ,
+    sondern ein Datenartefakt — das Waisen-Badge zeigt es bereits. Als Entscheidung im Spec-Rumpf
+    festgehalten (nicht später als Inkonsistenz „reparieren"). Kein Codeeingriff.
+  - Status bleibt **Testbereit** (Fund 1 CSS-only, Tests unberührt, Build+Suite frisch grün).
