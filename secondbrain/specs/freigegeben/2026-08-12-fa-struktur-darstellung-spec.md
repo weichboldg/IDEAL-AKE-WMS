@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Struktur: Darstellung, Spaltenfilter und Knoten-Icons (Nachtrag zu Teil 2)"
 slug: 2026-08-12-fa-struktur-darstellung-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-19
 source_backlog: "[[2026-08-12-fa-struktur-darstellung]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-2-spec]]"
 task: ""
@@ -533,8 +533,15 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   **Preis, bewusst akzeptiert (Freigabe-Antwort 1):** Der Epic geht von `Testbereit` auf
   `InUmsetzung` zurück, und die QA (Build/Tests, Evidenz in der Spec) ist am Ende **erneut** zu
   fahren.
-- **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-  (provisorisch, vom Dev-Lauf zu bestätigen).
+- **Publish-Befehle (finalisiert durch QA anhand des echten Diffs `961749f^..767f06f`, alle 9
+  geänderten Dateien liegen unter `IdealAkeWms/`, `IdealAkeWms.Tests/` bzw. `docs/` — keine Datei
+  unter `IDEALAKEWMSService/`, kein neues `*/Migrations/*`):**
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  ```
+  Aus dem **Worktree** publizieren (Test-System), erst danach testen, erst danach mergen. Nach dem
+  Merge nur dann erneut aus `main` publizieren, wenn der Merge tatsächlich getestete Dateien mit
+  parallelen `main`-Änderungen zusammengeführt hat.
 
 ## Offene Rückfragen
 
@@ -846,3 +853,128 @@ sortierbar, `SupportsSortDefault: false`) und S-4 (Kontrast-Fix als separater er
 grossen Umbau, siehe Ziel/Technischer Loesungsentwurf/Deploy) in den Rumpf uebernommen; H-1 bis H-3
 sind als Kontext/Begruendung eingeflossen. H-5 (Doppelablage `entwurf/`/`freigegeben/`) betrifft die
 Dateiablage, nicht den Rumpfinhalt, und bleibt Sache der Freigabe-Ordnergeste des Menschen.
+
+## QA-Nachweis (2026-08-19)
+
+**Befund vor dem QA-Lauf:** Die Spec war im Worktree bereits vollständig umgesetzt (Commits
+`961749f` Kontrast-Fix + `767f06f` Tree-Table/Icons/Baum-Spaltenfilter/column-prefs, siehe
+Aufgaben-Notiz `2026-08-12-fa-struktur-darstellung`). Der QA-Lauf hat **nichts neu gebaut**, sondern
+den vorhandenen Stand verifiziert.
+
+**Build + Tests (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
+Branch `feature/2026-08-07-ideal-teile-1-5`):**
+- `dotnet build IdealAkeWms.slnx -c Debug`: **0 Fehler**, 8 Warnungen (bestehende `NU1902`
+  MailKit/MimeKit-Advisories, nicht durch diese Spec verursacht).
+- `dotnet test IdealAkeWms.Tests -c Debug --no-build`: **1219 erfolgreich, 1 übersprungen
+  (Integrationstest `ProductionOrderEagerCreateAgentJobTests`, bestehender Skip), 0 Fehler** —
+  deckt sich mit dem zuletzt bekannten Bündel-Stand.
+- `dotnet test IDEALAKEWMSService.Tests -c Debug --no-build`: **231 erfolgreich, 0 Fehler.**
+- Diff-Nachweis `git diff --stat 961749f^..767f06f`: 9 Dateien geändert, ausschließlich unter
+  `IdealAkeWms/`, `IdealAkeWms.Tests/` und `docs/` — keine Datei unter `IDEALAKEWMSService/`, kein
+  neues `*/Migrations/*` (bestätigt Deploy-Klassifikation Web ja / Service nein / Migration nein).
+
+**Alle 16 Akzeptanzkriterien einzeln gegen den Code geprüft — alle erfüllt:**
+
+1. **Kontrast:** `.fa-structure-header` in `site.css` (`--ake-text` `#4A494A` auf
+   `--ake-light-gray` `#F5F5F5`) — eigenständig **nachgerechnet** (nicht nur den CSS-Kommentar
+   übernommen): relative Luminanzen 0,0672 / 0,9133 → Kontrast **8,22:1** ≥ 4,5:1. Weitere
+   Badge-/Icon-Kombinationen laut `TS-62.3` (Bootstrap-5-Defaults, plausibel, nicht einzeln
+   nachgerechnet).
+2. **Tree-Table-Topologie:** `Index.cshtml` — eine `<table id="faTree"
+   data-view-key="FaHierarchyStructure">`, `<tbody class="fa-structure-group">` je Struktur mit
+   `colspan`-Kopfzeile; `_FaHierarchyNode.cshtml` rendert flache `<tr class="fa-node-row">` mit
+   `data-parent-id`/`data-node-id`; nur `td[data-col-key="structure"]` trägt `padding-left` je
+   Tiefe, alle anderen Spalten fluchten.
+3. **Schmaler Bildschirm:** `@media (max-width: 991.98px)` blendet `subfa`/`quantity` aus,
+   `.table-responsive` erlaubt Scroll; `structure`-Spalte hat `min-width: 240px`, wird nie
+   ausgeblendet. Reale Terminal-Sichtprüfung bleibt Manual-UAT (siehe Checkliste Punkt 5).
+4. **Spaltenfilter-Baumsemantik:** `fa-hierarchy-tree.js` `applyColumnFilters()` — bottom-up
+   `keep`-Set (Treffer + Vorfahren), `.fa-filter-hit` vs. `.fa-node-context` (gedimmt), Zähler
+   `#faNodeCounter`, `tbody.style.display='none'` bei 0 Treffern einer Struktur.
+5. **Auswahlfilter:** `<select class="fa-col-filter">` für `workarea`/`picking-target`/`status`,
+   Optionen dynamisch aus `data-f-*`-Attributen der angezeigten Zeilen befüllt (kein neuer
+   API-Call).
+6. **Zwei Mechanismen:** `#faClientFilter` „Knoten hervorheben (Struktur bleibt vollständig)"
+   (nur `.fa-hl`, blendet nichts aus) vs. Spaltenfilter-Zeile „blendet nicht passende Zweige aus" —
+   im UI-Text explizit gegenübergestellt (`Index.cshtml` Zeilen 59–65, 84).
+7. **Icons + Präzedenz:** `FaNodeClassifier.Classify` (`FaHierarchyTreeViewModel.cs`) — Kette
+   Wurzel (`VaterFA == null`) → Baugruppe (`SubFA != 0`) → Zukauf (`Beschaffungsartikel`) →
+   Material, exakt wie in Freigabe-Antwort/Kritischer-Prüfung-Entscheidung S-2 verlangt; Legende
+   als `<details>`; jedes Icon mit `title`/`aria-label` **und** unterschiedlicher SVG-Form
+   (nicht nur Farbe).
+8. **OSEON-Verhaltensparität:** `toggleNode`/`toggleStruct`/`btnFaExpandAll`/`btnFaCollapseAll`
+   in `fa-hierarchy-tree.js`, Zeilen-Sichtbarkeit statt Container-Sichtbarkeit, Struktur-Ebene
+   klappt ganzen `<tbody>` (Kopf + Knoten) auf/zu.
+9. **Nicht sortierbar:** kein `data-sortable`/`data-sort-key` an den `<th>`; `#view-config`
+   `"supportsSortDefault": false`.
+10. **Zahnrad/column-prefs:** `#view-config`/`#column-config`-Blöcke vorhanden,
+    `column-preferences.js` **vor** `fa-hierarchy-tree.js` eingebunden, jedes `<th>` trägt
+    `data-col-key`.
+11. **Persistenz/kein 400:** `ColumnDefinitions.GetByViewKey` hat `case "FaHierarchyStructure"`;
+    Regressionstests `UserViewPreferencesApiControllerTests.Get_FaHierarchyStructureViewKey_IsAccepted`
+    (→ `NoContentResult`) und `Put_...` (→ `OkResult`) grün.
+12. Wie 11 — dieselben Tests decken `GET 204`/`PUT 200`, kein `400` ab.
+13. **Locked-Spalten:** `ColumnDefinitions.cs` `FaHierarchyStructure` — `structure`/`matchcode`
+    beide mit `Locked: true`.
+14. **Multi-`tbody`-Tauglichkeit:** `fa-hierarchy-tree.js` baut `groups` über **alle**
+    `tbody.fa-structure-group`-Blöcke der Seite auf (kein „nur erstes `<tbody>`"-Fallstrick, wie
+    er bei `table-filter.js` besteht); `column-preferences.js` verschiebt nur Zellen innerhalb
+    jeder Zeile, betrifft daher alle `<tbody>`s gleichermaßen. Struktureller Nachweis über Code;
+    der visuelle Live-Beweis an ≥2 Strukturen bleibt Manual-UAT (Checkliste Punkt 12).
+15. **Keine Regression:** `git diff --stat 961749f^..767f06f` enthält **keine** Datei aus
+    `Controllers/FaHierarchyController.cs`, `Services/FaHierarchyTreeBuilder.cs` oder verwandten
+    Import-/Filterkarten-Dateien — nur Views/CSS/JS/`ColumnDefinitions.cs`/Tests/Doku.
+16. **Keine neue Bibliothek:** `git diff` auf `*.csproj`/`libman.json`/`package.json` zwischen den
+    beiden Commits ist **leer**; Icons sind Inline-`<svg>` mit `currentColor`.
+
+**TS-62 (`docs/TESTSZENARIEN.md`, Kapitel „TS-62") geprüft:** 16 Szenarien (TS-62.1–62.16), decken
+alle 16 AK 1:1 ab, keine Lücke gefunden. Bereits in `secondbrain/tests/testszenarien-index.md`
+(Kapitel 62) indexiert.
+
+**Code-Review:** `code-review`-Skill auf den Diff `961749f^..767f06f` im Hintergrund gestartet
+(Effort medium); Ergebnis trifft asynchron als Task-Notification ein und ist nicht Teil dieses
+Nachweises — die manuelle AK-für-AK-Prüfung oben plus Build/Tests sind der belastbare Nachweis
+dieses QA-Laufs.
+
+**Nicht automatisiert prüfbar (Manual-UAT, Schranke 2):**
+- Sichtprüfung des Kontrasts am realen Fertigungsterminal (Bildschirm/Lichtverhältnisse).
+- Reale Terminal-Auflösung vs. 992px-Schwelle (offene Rückfrage der Spec bleibt offen).
+- Tree-Table-Ausrichtung an einer produktivnahen Struktur mit ≥4 Ebenen/50+ Positionen.
+- Multi-`tbody`-Spaltenauswahl-Effekt visuell an ≥2 gleichzeitig geladenen Strukturen.
+
+### Manuelle Test-Checkliste (aus TS-62, für Schranke 2)
+
+1. `/FaHierarchy` mit ≥2 Strukturen unterschiedlicher Tiefe laden, dazu eine Struktur mit
+   ≥4 Ebenen/50+ Positionen: **eine** Tabelle, ein `<tbody>` je Struktur, nur die Struktur-Spalte
+   rückt ein, alle übrigen Spalten fluchten über alle Ebenen/Strukturen (TS-62.4).
+2. Kontrast der Struktur-Kopfzeile am realen Bildschirm bestätigen (TS-62.3, ergänzend zur
+   rechnerischen Prüfung).
+3. Alle Badge-Varianten (Kunde, Status, KO/FE-Termin, Montage-Abt., Verwaist, Mehrdeutig, Fehler)
+   auf Lesbarkeit prüfen (TS-62.3).
+4. Fensterbreite < 992px: hintere Spalten (SubFA, Soll/Fert.) werden ausgeblendet/scrollbar,
+   Struktur-Spalte bleibt in voller Breite lesbar (TS-62.5). Reale Terminal-Auflösung notieren.
+5. Chevron eines Knotens klappt nur dessen Unterbaum; Klick auf Struktur-Kopfzeile klappt den
+   ganzen `<tbody>`-Block; „Alle auf"/„Alle zu" wirken über alle Strukturen; Tastatur
+   (Enter/Space) auf fokussiertem Chevron funktioniert (TS-62.6).
+6. Je ein Beispielknoten pro Typ (Wurzel, Baugruppe, Zukauf, Material) zeigt ein in Form **und**
+   Farbe unterscheidbares Icon mit Tooltip; ein Knoten mit `VaterFA IS NULL` **und** `SubFA != 0`
+   zeigt das Wurzel-Icon; Legende ist sichtbar/ausklappbar (TS-62.7).
+7. Spaltenfilter (Kopfzeile) auf „Bezeichnung" mit Treffer tief in einer Struktur: Treffer amber
+   hervorgehoben, Pfad zur Wurzel gedimmt sichtbar, nicht treffende Geschwister samt Unterbaum
+   ausgeblendet, Zähler „X von Y Knoten" korrekt; Struktur mit 0 Treffern verschwindet ganz
+   (TS-62.8).
+8. Auswahlfilter (`<select>`) für Arbeitsbereich/Komm.-Ziel/Status zeigt nur auf der Seite
+   vorkommende Werte und filtert wie der Freitextfilter (TS-62.9).
+9. Ohne Vorwissen anhand der Beschriftung erkennen: „Knoten hervorheben" markiert nur,
+   Spaltenfilter blendet aus; beide gleichzeitig aktiv verhalten sich wie erwartet (TS-62.10).
+10. Kein Spaltenkopf reagiert auf Klick als Sortier-Trigger; Zahnrad-Dialog zeigt keine
+    „Standard-Sortierung speichern"-Option (TS-62.11).
+11. Zahnrad-Symbol öffnet Offcanvas; eine nicht gesperrte Spalte (z. B. SubFA) ausblenden, Breite
+    ändern, umordnen → Reload → bleibt erhalten; zweiter Benutzer hat eigene, unabhängige
+    Konfiguration (TS-62.12/62.13).
+12. Struktur- und Matchcode-Spalte lassen sich im Zahnrad-Dialog **nicht** ausblenden (TS-62.14).
+13. Bei ≥2 gleichzeitig angezeigten Strukturen: eine Spalte ausblenden/umordnen wirkt in **jeder**
+    Struktur, nicht nur der ersten (TS-62.15).
+14. Regressionsprobe Teil 2: server-seitige Struktur-Filterkarte, Pagination, Tiefen-Cap/Zyklen-/
+    Waisen-/Kombigerät-Verhalten und Zugriffsschutz unverändert grün (TS-62.16, bestehende
+    TS-58-Szenarien erneut durchspielen).
