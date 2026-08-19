@@ -1258,6 +1258,19 @@ th:hover .col-resize-handle {
     white-space: nowrap;
     min-width: 240px;
 }
+/* Vertikale Einrueckungs-Leitlinie je Ebene (Spec-Rumpf Abschnitt 5): eine duenne Leitlinie je
+   Einrueckungsstufe. Per repeating-linear-gradient (Periode 18px = Einrueck-Schritt, 1px-Linie je
+   Periode) und background-size auf die inline gesetzte Einrueck-Breite --fa-indent begrenzt, damit
+   die Linien NUR im Einrueckungsbereich links vom Inhalt erscheinen und ueber Geschwister-Zeilen
+   fluchten (durchgehende Leiter). Ersetzt die im Tree-Table-Umbau entfallene .fa-node-children-
+   Leitlinie des Nested-DOM-Modells; rein dekorativ (Einrueckung traegt die Information, nicht die Linie). */
+.fa-tree-table td[data-col-key="structure"].fa-struct-cell {
+    background-image: repeating-linear-gradient(90deg,
+        transparent 0 14px, #d5dbe0 14px 15px, transparent 15px 18px);
+    background-repeat: no-repeat;
+    background-size: var(--fa-indent, 0) 100%;
+    background-position: left top;
+}
 .fa-node-icon { flex-shrink: 0; vertical-align: -1px; margin: 0 0.25rem; }
 .fa-node-artnr { }
 .fa-toggle {
