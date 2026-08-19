@@ -948,6 +948,13 @@ selbst gefixt zu werden** (QA-Mandat: melden, nicht fixen):
    dem Umbau. Kein AK-Bruch (keiner der 16 AK verlangt die Leitlinie wörtlich), aber eine
    dokumentierte Abweichung vom Fliesstext, die vor dem Merge nachgezogen werden sollte
    (kleiner, risikoarmer CSS-Nachtrag, keine Baum-Logik-Änderung).
+   **NACHGEZOGEN (2026-08-19):** Leitlinie wiederhergestellt als vertikale Einrückungs-**Leiter**,
+   rein in der Struktur-Zelle: `_FaHierarchyNode.cshtml` exponiert die Einrück-Breite inline als
+   `--fa-indent`; `site.css` `.fa-struct-cell` zeichnet ein `repeating-linear-gradient` (Periode 18px =
+   Einrück-Schritt, 1px-Linie je Ebene), per `background-size: var(--fa-indent)` auf den
+   Einrückungsbereich begrenzt → über Geschwister-Zeilen fluchtende, durchgehende Linien links vom
+   Inhalt. Kein JS, kein Markup-Umbau, keine Baum-Logik-Änderung (Timebox eingehalten); rein dekorativ
+   (die Einrückung trägt die Information). Build grün; visuelle Bestätigung = Manual-UAT.
 2. **Icon-Klassifikation bei Waisen-Strukturen ist ein ungeklärter Randfall.**
    `FaNodeClassifier.Classify` prüft strikt `node.VaterFA == null` für das Wurzel-Icon. Bei einer
    Waisen-Pseudowurzel (`structure.IsOrphan == true`, `FaHierarchyTreeBuilder.cs`) ist `VaterFA`
@@ -959,6 +966,15 @@ selbst gefixt zu werden** (QA-Mandat: melden, nicht fixen):
    inkonsistent, weil die Waisen-Zeile an derselben strukturellen Position steht wie eine echte
    Wurzel. Kein AK-Bruch, aber eine offene fachliche Frage (Produktentscheidung: soll die
    Waisen-Pseudowurzel das Wurzel-Icon zeigen?), zur Klärung an den Menschen.
+   **ENTSCHEIDUNG (2026-08-19, Mensch): Eine Waisen-Pseudowurzel bekommt bewusst KEIN Wurzel-Icon —
+   das Verhalten bleibt unverändert.** Begründung: Das **Icon kodiert den Knotentyp**, das **Badge
+   den Zustand**. Die „Wurzelhaftigkeit" einer Waise ist kein Knotentyp, sondern ein **Artefakt
+   unvollständiger Daten** (der `VaterFA` zeigt auf einen nicht importierten Parent) — und dieser
+   Zustand wird bereits durch das **Waisen-Badge** in der Struktur-Kopfzeile („Verwaist — VaterFA … nicht
+   gefunden") sichtbar gemacht. Ein Wurzel-Icon würde einen Typ vortäuschen, der nicht vorliegt, und
+   die Typ-/Zustands-Trennung aufweichen. Der `FaNodeClassifier.Classify`-Check (`VaterFA == null`)
+   bleibt daher absichtlich strikt. **Festgehalten, damit dies nicht später als vermeintliche
+   Inkonsistenz „repariert" wird.**
 
 **Nicht automatisiert prüfbar (Manual-UAT, Schranke 2):**
 - Sichtprüfung des Kontrasts am realen Fertigungsterminal (Bildschirm/Lichtverhältnisse).
