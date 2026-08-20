@@ -25,9 +25,25 @@ public record LeitstandOrderRow(
     string? SageStatus = null,
     // Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) — null = globaler
     // Settings-Wert gilt. Aufloesung ueber PrePickingDaysResolver.
-    int? WorkplaceOverridePrePickingDays = null);
+    int? WorkplaceOverridePrePickingDays = null,
+    // Hierarchie-Felder (IDEAL Teil 7). Im Flachmodus: SubOrderNumber == OrderNumber (Backfill),
+    // ParentSubOrderNumber/SageMissingSince == null — die hierarchische Anzeige ignoriert sie dann.
+    string? SubOrderNumber = null,
+    string? ParentSubOrderNumber = null,
+    DateTime? SageMissingSince = null);
 
 public record LeitstandOrderPage(List<LeitstandOrderRow> Rows, int TotalCount);
+
+/// <summary>Eine HauptFA-Gruppe (Gruppen-Kopfzeile = OrderNumber) mit ihren Sub-FA-Zeilen.</summary>
+public record LeitstandOrderGroup(string OrderNumber, List<LeitstandOrderRow> Rows);
+
+/// <summary>
+/// Gruppierte, seitenweise Leitstand-/FA-Liste fuer den hierarchischen Modus (IDEAL Teil 7/8).
+/// Paginierung ueber GRUPPEN: <see cref="TotalGroupCount"/> = Anzahl HauptFA-Gruppen auf der
+/// aktuellen Filterauswahl (nie eine Gruppe ueber Seiten getrennt), <see cref="TotalRowCount"/> =
+/// Anzahl aller passenden Sub-FA-Zeilen (fuer die Z4-Zaehlung „N Auftraege · M Sub-FAs").
+/// </summary>
+public record LeitstandOrderGroupedPage(List<LeitstandOrderGroup> Groups, int TotalGroupCount, int TotalRowCount);
 
 public interface IProductionOrderRepository : IRepository<ProductionOrder>
 {
@@ -73,6 +89,22 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     /// sage-status. OR-/NOT-Syntax wie clientseitig.
     /// </param>
     Task<LeitstandOrderPage> GetForLeitstandAsync(
+        string? filterOrderNumber,
+        string? filterArticleNumber,
+        string? filterCustomer,
+        bool showDone,
+        int page,
+        int pageSize,
+        IReadOnlyDictionary<string, string>? columnFilters = null);
+
+    /// <summary>
+    /// Wie <see cref="GetForLeitstandAsync"/>, aber im hierarchischen Modus (Master
+    /// <c>ProduktionsauftragHierarchisch</c> = true) GRUPPIERT nach HauptFA (<c>OrderNumber</c>) und
+    /// ueber GRUPPEN paginiert. Dieselben Filter wirken auf Zeilen (Z3b: eine Gruppe erscheint,
+    /// solange mindestens eine Zeile passt; die order-number-Suche trifft SubOrderNumber ODER
+    /// OrderNumber). Sortierung je Gruppe: <c>SubOrderNumber</c> aufsteigend (Z2, Vorbelegung).
+    /// </summary>
+    Task<LeitstandOrderGroupedPage> GetForLeitstandGroupedAsync(
         string? filterOrderNumber,
         string? filterArticleNumber,
         string? filterCustomer,
