@@ -506,7 +506,93 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
    eigene Migration), Wiederverwendung eines bestehenden Mechanismus, oder reicht ein gemeinsamer
    Zeitstempel plus TempData-Meldung mit Anzahl? Migrationsentscheidung wird hier bewusst NICHT
    vorweggenommen.
-8. → **Column-Mapping „nicht mehr in Sage":** Verifiziert im Code unterscheiden sich AKE
+8. → siehe **Z5** im Abschnitt „Zusaetzliche Entscheidungen" unten — dort beantwortet.
+
+## Zusaetzliche Entscheidungen (2026-08-18) — vier Punkte, die in keiner Frage stehen
+
+### Z1 — Der Materialisierungs-Sync darf WMS-Zustaende NICHT anfassen [KRITISCH]
+
+Die Kaskade schreibt ein Status-Feld an `ProductionOrders`. Derselbe Datensatz wird alle 15 Minuten
+vom Materialisierungs-Sync abgeglichen. **Ueberschreibt der Abgleich dabei WMS-eigene Felder, ist
+die Fertigmeldung nach einer Viertelstunde weg** — ohne Fehler, ohne Meldung.
+
+**Der konkrete Fallstrick ist ein EF-Muster:**
+`context.Entry(vorhanden).CurrentValues.SetValues(neuAusDerView)` ueberschreibt **alle** Spalten —
+auch die, die das Quellobjekt gar nicht kennt und deshalb auf Default stehen. Ein aus der View
+gebautes Objekt hat `IsDoneBde = false`; damit setzt der Sync die Fertigmeldung still zurueck.
+
+**Verbindlich:**
+- Der Sync setzt beim Update **ausschliesslich die Quellfelder einzeln** (Struktur, Artikel,
+  Bezeichnung, Mengen, `SageMissingSince`). **Kein `SetValues`, kein Ersetzen der Entitaet.**
+- Alles, was im WMS entsteht — Fertigmeldungen, Kommissionier-Status, BDE-Buchungen, Zuordnungen,
+  Notizen — bleibt unberuehrt.
+- **Als Invariante formulieren, nicht als Sorgfaltshinweis**, und mit einem Test festnageln:
+  Auftrag fertigmelden → Sync laufen lassen → Status ist unveraendert.
+- **Vor der Umsetzung am bestehenden `FaMaterializationPlanner` pruefen**, wie der Update-Pfad
+  heute gebaut ist. Das ist der erste Handgriff dieser Spec.
+
+### Z2 — Sortierung innerhalb der Gruppe: Sub-FA-Nummer aufsteigend
+
+Standard-Sortierung je Gruppe: **`SubOrderNumber` aufsteigend**. Begruendung: stabil (aendert sich
+nicht, wenn sich die Struktur aendert), vorhersagbar, und da die Sage-BelIDs fortlaufend vergeben
+werden, entspricht sie in der Praxis weitgehend der Struktur-Reihenfolge.
+Es ist die **Vorbelegung** — ueber die Spaltensortierung kann der Anwender umstellen.
+
+### Z3 — Invariante "Haupt fertig ⇒ alle Sub-FAs fertig" — und der Fall, der sie von selbst bricht
+
+Fachliche Zusage: Der Zustand "Haupt-FA fertig, Sub-FA offen" darf nicht vorkommen. Die Kaskade
+stellt das beim Setzen sicher.
+
+**ABER: Der Sync legt neue Sub-FAs an (Sync-Regel 1).** Taucht in Sage ein neuer Sub-FA unter einem
+bereits fertiggemeldeten Haupt-FA auf, entsteht **genau der verbotene Zustand — ohne Zutun eines
+Menschen.**
+
+**Fachliche Einordnung (2026-08-18):** Nach dem initialen Erzeugen eines Auftrags kommen **keine
+neuen Sub-FAs mehr dazu** — der Fall gilt als **ausgeschlossen**. Er wird daher **nicht als
+Regelfall behandelt und braucht keine Aufloesungslogik.**
+
+**Trotzdem erkennen und melden — nicht auf die Zusage verlassen.** Genau dieses Muster hat sich in
+diesem Paket schon zweimal ausgezahlt: Die `SubFA = 0`-Annahme bei den Kommissionierlisten galt
+auch als sicher und wurde vom ersten echten Datenlauf widerlegt; das Banner hat es sichtbar gemacht,
+statt neun Positionen still zu verschlucken.
+Daher als **Fallstrick dokumentiert** und minimal abgesichert:
+- Der neue Sub-FA wird **offen** angelegt (ihn automatisch fertigzumelden waere eine Behauptung
+  ueber Arbeit, die niemand geleistet hat).
+- Der Haupt-FA wird **nicht** automatisch wieder geoeffnet (widerspraeche der Nicht-Kaskade bei der
+  Ruecknahme).
+- Der Fall wird **protokolliert und gemeldet**, in der Liste an der Gruppe **sichtbar
+  gekennzeichnet**. Ein Mensch entscheidet: Auftrag doch nicht fertig, oder Sage-Datenfehler.
+- **Keine automatische Korrektur** — tritt der Fall wider Erwarten auf, wird die Behandlung dann
+  fachlich entschieden, nicht vorab geraten.
+
+Aufwand dafuer: eine Pruefung im Anlege-Pfad des Sync plus ein Log-Eintrag. Billig genug, um sich
+den Beweis nicht schuldig zu bleiben.
+
+### Z3b — Filterwirkung (folgt aus Z3)
+
+Die Invariante gilt nur in eine Richtung: *Sub-FA fertig* heisst **nicht**, dass der Haupt-FA fertig
+ist. Eine Gruppe kann also offene und fertige Zeilen mischen.
+**Regel:** Filter (z. B. "nur offene") wirken auf **Zeilen**; eine Gruppe erscheint, solange
+mindestens eine Zeile passt. Die Kopfzeile bleibt als Kontext stehen, auch wenn der Haupt-FA selbst
+nicht auf den Filter passt. Faellt eine Gruppe auf null Zeilen, verschwindet sie ganz.
+
+### Z4 — Zaehlungen: beide Zahlen, ueberall dieselbe Konvention
+
+Im hierarchischen Modus zaehlt jede Anzahl-Anzeige plötzlich Sub-FAs statt Auftraege — aus 30 werden
+130. Keine Fehlfunktion, aber jeder, der die Zahl kennt, haelt sie fuer falsch.
+
+**Format: `30 Auftraege · 130 Sub-FAs`** — die Gruppenzahl primaer (sie passt zur Gruppierung und zur
+Paginierung, die ebenfalls ueber Gruppen laeuft), die Zeilenzahl als Ergaenzung.
+Im flachen Modus wie bisher **eine** Zahl (dort sind beide identisch).
+
+**Der wichtigere Teil: dieselbe Konvention an JEDER Stelle** — Listenkopf, Startseite, Auswertungen,
+Kacheln. Zeigt eine Stelle 30 und eine andere 130, weiss niemand mehr, welche stimmt — und das
+untergraebt das Vertrauen in alle Zahlen der Anwendung, nicht nur in diese eine.
+**Erhebung gehoert in den Umfang:** alle Stellen finden, die Auftraege zaehlen.
+
+### Z5 — „nicht mehr in Sage": kein Feld-Mapping [ENTSCHIEDEN, Rueckfrage 8]
+
+Die Empfehlung des Spec-Laufs wird uebernommen. Verifiziert im Code unterscheiden sich AKE
    (`IsCancelled`-Badge „In Sage gelöscht", Auftrag wird automatisch storniert und verschwindet aus
    offenen Sichten) und IDEAL (`SageMissingSince`, Auftrag bleibt sichtbar/rückmeldefähig, nur
    zeitgestempelt markiert, Sync-Regel 2) fachlich. Empfehlung dieser Spec: kein Feld-Mapping, sondern
@@ -515,11 +601,190 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
-6. →
-7. →
-8. →
+1. → **Kaskaden-Traeger ist `IsDoneBde` (`BdeStatusApiController`), NICHT `IsDonePicking`.**
+   Fachlich entscheidbar, nicht nur nachzuschlagen:
+   - **Kommissionierung darf nicht kaskadieren.** Jeder Sub-FA hat eigenes Material zu holen.
+     „Haupt-FA kommissioniert" heisst nicht, dass die Teile fuer Sub-FA 3 aus dem Lager sind — die
+     Kaskade wuerde Arbeit als erledigt behaupten, die niemand gemacht hat.
+   - **Produktions-/BDE-Fertigmeldung soll kaskadieren.** Ist das Endgeraet fertig, sind seine
+     Baugruppen es zwangslaeufig auch. Das ist logisch zwingend, nicht nur bequem.
+   - Technisch passt es ebenfalls: `BdeStatusApi` setzt einen **expliziten** Wert, kein Flip — das
+     uebersetzt sich natuerlich in „setze alle Nachfahren auf `true`".
+   `FaCompletion` (`IsSpecComplete`) traegt **nur** den Anzeige-Teil, keine Kaskade — die
+   Namenskollision ist zutreffend erkannt.
+
+2. → **Der Ruecknahme-Abschnitt entfaellt in seiner bisherigen Form. Die Kaskade wird eine EIGENE
+   Aktion, kein aufgespaltener Toggle.**
+   Begruendung: Ein Toggle, der beim Einschalten zwanzig Auftraege mitnimmt und beim Ausschalten nur
+   einen, ist am Bildschirm nicht vermittelbar — und ein und dasselbe Bedienelement haette in der
+   Gruppen-Kopfzeile eine andere Bedeutung als in der Zeile.
+   **Stattdessen:**
+   - Der **Zeilen-Toggle bleibt exakt wie heute**: symmetrisch, wirkt nur auf seine Zeile. Keine
+     Aenderung, damit auch keine AKE-Regression an dieser Stelle.
+   - Die **Gruppen-Kopfzeile bekommt eine eigene, ausdrueckliche Aktion** „Alle Sub-FAs fertigmelden"
+     mit dem Bestaetigungsdialog aus Anforderung B. Sie setzt **nur** auf `true`.
+   - **Ein Gruppen-Zuruecknehmen wird nicht angeboten.** Wer den Unterbaum wieder oeffnen will, tut
+     das je Zeile — damit bleiben eigenstaendig gesetzte Fertigmeldungen erhalten.
+   Damit loesen sich Massenaktion-durch-kleinen-Klick, schiefe Toggle-Semantik und die
+   Asymmetrie-Erklaerung in einem Zug. **AK 15 ist entsprechend umzuformulieren** (kein
+   Ruecknahme-Dialog am Haupt-FA mehr).
+
+3. → **PickingLeitstand: Gruppierung JA, Kaskade NEIN.**
+   Die Zwei-Ebenen-Behandlung bekommt er wie die fuenf anderen — er ist verifiziert eine
+   ADR-0005-Liste, und eine Ansicht, die als einzige flach bleibt, waere der Sonderfall, den niemand
+   erklaeren kann.
+   `BulkRelease` ist **Freigabe, nicht Fertigmeldung** — fachlich etwas anderes, keine Kaskade.
+   Der Mehrfachauswahl-Mechanismus bleibt **zeilenbasiert und unveraendert**; eine
+   „Gruppe-auswaehlen"-Erweiterung ist **out of scope** (waere ein eigenes Feature mit eigenem
+   Risiko).
+
+4. → **BDE-Cockpit: fuer diese Runde bewusst AUSGEKLAMMERT.** Ein Karten-Grid zu gruppieren ist ein
+   eigener Entwurf, kein Nebenprodukt — das Zwei-Ebenen-`tbody`-Muster traegt dort nicht.
+   **Aber die Folge muss benannt werden, nicht verschwiegen:** Im hierarchischen Modus zeigt das
+   Cockpit statt ~30 nun ~130 Karten — es wird voruebergehend unuebersichtlich. Das gehoert als
+   **bekannte Einschraenkung** in die Spec **und** als eigener Backlog-Eintrag
+   („BDE-Cockpit hierarchiefaehig darstellen"), damit es nicht als vergessen durchgeht.
+
+5. → **Anzeige unabhaengig vom aktuellen Datenstand bauen — blockiert nichts.** Empfehlung der Spec
+   bestaetigt. Dass heute kein Datensatz mit `SageMissingSince <> NULL` existiert, ist erwartbar (der
+   erste Materialisierungs-Lauf meldete **„0 vermisst"**) und sagt nichts ueber die Richtigkeit der
+   Anzeige. Fuer den Test wird der Wert in der Testumgebung von Hand gesetzt.
+
+6. → **Gezaehlt werden Sub-FAs mit einer LAUFENDEN, noch nicht beendeten BDE-Buchung.**
+   Nicht offene `FaWorkStep` (das ist Spezifikations-Vollstaendigkeit, andere Sache), nicht
+   ungebuchte `StockMovement` (Material, nicht Arbeit).
+   Begruendung: Die Zahl soll genau eine Frage beantworten — **„Arbeitet gerade jemand daran?"**
+   Einen Auftrag zu schliessen, an dem in diesem Moment gebucht wird, ist der Fall, den der Dialog
+   verhindern soll. „Noch nicht fertig gemeldet" waere dagegen trivial wahr fuer alle betroffenen
+   Zeilen und damit als Warnung wertlos.
+   Laesst sich das mit den vorhandenen Abfragen nicht ermitteln, **zurueckmelden statt ersatzweise
+   etwas anderes zaehlen** — eine falsch gefuellte Warnzahl ist schlechter als keine.
+
+7. → **Audit: `ILogger` plus gemeinsamer Zeitstempel. KEINE neue Tabelle, KEINE Migration.**
+   Anforderung D war eine Zusatzforderung von mir, keine fachliche Notwendigkeit. Wo keine
+   Audit-Infrastruktur existiert, ist eine eigene Tabelle fuer einen Merkposten unverhaeltnismaessig
+   — zumal diese Spec sonst migrationsfrei bleibt, was ihr groesster Vorzug ist.
+   Umgesetzt wird: **ein** Log-Eintrag je Kaskade mit Haupt-FA, Anzahl betroffener Sub-FAs und
+   Benutzer; die Zeilen selbst tragen ohnehin ihre bestehenden Audit-Felder mit identischem
+   Zeitstempel.
+   **AK 14 entsprechend abschwaechen:** „im Log als eine Kaskade erkennbar" statt „in der Auswertung
+   als zusammengehoerige Aktion". Ein abfragbares Benutzer-Audit ist ein eigenes Feature — wenn
+   gewuenscht, als Backlog-Eintrag, nicht hier eingeschmuggelt.
+
+8. → siehe **Z5** im Abschnitt „Zusaetzliche Entscheidungen" — dort beantwortet (kein Feld-Mapping,
+   gleiche Render-Position, eigener Text). **Bestaetigt.**
+
+## Kritische Pruefung (2026-08-20)
+
+Anwalt-des-Teufels-Durchsicht vor der Freigabe. Die Freigabe-Antworten 1–8 und Z1–Z5 sind als
+massgeblich behandelt (nicht als offene Rueckfragen). Drei Punkte wurden gezielt am echten Code des
+Buendel-Worktrees `.claude/worktrees/2026-08-07-ideal-teile-1-5` geprueft (dort liegen die
+Teil-7-Felder). Belege mit `Datei:Zeile`.
+
+### BLOCKER — vor der Freigabe zu klaeren
+
+**BL1 — Die Kaskade-Aktion (Antwort 1) hat keine in-scope Wirt-View. Antworten 1/2/3/4 widersprechen
+sich, WO das neue Gruppen-Bedienelement lebt.**
+Kette der Befunde:
+- Antwort 1 legt den Kaskade-Traeger auf `IsDoneBde` (`BdeStatusApiController`,
+  `/api/bde-status/toggle`) fest. Verifiziert: `IsDoneBde` liegt auf der **eigenen** Entitaet
+  `ProductionOrderBdeStatus` (`Models/ProductionOrderBdeStatus.cs:11`, keyed `ProductionOrderId`),
+  nicht auf `ProductionOrder`.
+- Antwort 2 verlangt in der **Gruppen-Kopfzeile** eine neue Aktion „Alle Sub-FAs fertigmelden" und
+  sagt zugleich: „Der Zeilen-Toggle bleibt exakt wie heute … keine Aenderung."
+- **Aber:** Die einzige Listen-View, die den `IsDoneBde`-Toggle heute ueberhaupt rendert, ist
+  `PickingLeitstand` (`Views/PickingLeitstand/Index.cshtml:595`). Und Antwort 3 sagt fuer genau diese
+  View **ausdruecklich „Kaskade NEIN"**. Die BDE-Cockpit-View (der andere natuerliche Ort fuer
+  `IsDoneBde`) ist per Antwort 4 **ausgeklammert**.
+- Die fuenf „Standardlisten" (`ProductionOrders`, `FaWorklist`, `FaCompletion`, `Tracking`,
+  `Picking`) exponieren `IsDoneBde` heute **gar nicht** — `ProductionOrders` zeigt laut Spec nur ein
+  kombiniertes Badge, keinen Erledigt-Toggle.
+
+**Folge:** Es gibt aktuell **keine** in-scope View, auf der die `IsDoneBde`-Kaskade laut den
+getroffenen Entscheidungen ansetzen darf. Antwort 2 „der Zeilen-Toggle bleibt wie heute" trifft ins
+Leere, weil auf den fuenf Standardlisten kein `IsDoneBde`-Zeilen-Toggle existiert, den man behalten
+koennte.
+
+**Konkrete Frage an den Menschen:** Auf welcher konkreten View erscheinen (a) der einzelne
+`IsDoneBde`-Zeilen-Toggle (Grundregel „Sub-FA fertigmelden wirkt nur auf diesen einen") und (b) die
+neue Gruppen-Kopfzeilen-Aktion „Alle Sub-FAs fertigmelden"? Die drei plausiblen Auswege schliessen
+sich gegenseitig aus:
+- **Auf `PickingLeitstand`** → widerspricht direkt Antwort 3 („Kaskade NEIN" dort).
+- **Auf `ProductionOrders` (FA-Liste)** → dann sind sowohl der `IsDoneBde`-**Zeilen**-Toggle als auch
+  die Gruppen-Kaskade dort **neu** (heute nur Badge). Dann ist Antwort 2s „bleibt exakt wie heute"
+  faktisch falsch und muss umformuliert werden; ausserdem ist das eine echte neue Aktion auf einer
+  bislang aktionsfreien Liste.
+- **Auf dem BDE-Cockpit** → widerspricht Antwort 4 (ausgeklammert) und Abschnitt 8 (kein
+  Tabellen-Layout).
+
+Ohne diese Festlegung raet der Dev-Lauf die Wirt-View — genau der teure Fehler, den diese Pruefung
+verhindern soll. (AK 11–14 haengen alle daran.)
+
+### SOLLTE — macht den Dev-Lauf sicherer
+
+**S1 — AK 10 / F6 (AKE-Regression) deckt die neue Aktion aus Antwort 2 nicht ab.**
+Der zur Antwort 2 vom Menschen gestellte Regressionsgedanke ist berechtigt: Die Gruppen-Kopfzeile
+bekommt ein Bedienelement, das die flache Liste nicht hat. Technisch ist das **konsistent** mit F6,
+weil bei Master `false` keine Gruppen-Kopfzeilen gerendert werden — also auch kein neuer Knopf. Aber
+AK 10 zaehlt heute nur „keine Gruppierung, keine neu sichtbare Spalte, unveraenderte Suche,
+unveraenderte Paginierung" auf — **die neue Kaskade-Aktion fehlt in der Aufzaehlung.** Vorschlag: AK
+10 und Abschnitt 9 explizit ergaenzen um „… und **keine neue Aktion / kein neues Bedienelement**
+sichtbar (weder in einer Zeile noch als Kopfzeile), da bei Master `false` keine Gruppen-Kopfzeile
+existiert." Damit wird der Regressions-Test scharf pruefbar statt implizit.
+
+**S2 — Abschnitt 7 und die Per-View-Tabelle (Abschnitt 8) widersprechen jetzt Antwort 1 und muessen
+nachgezogen werden.**
+Antwort 1 schliesst `IsDonePicking`/Kommissionierung ausdruecklich von der Kaskade aus („Kommissionierung
+darf nicht kaskadieren"). Der Spec-**Text** listet `Picking`/`IsDonePicking` aber weiterhin als
+„Kaskade-Kandidat 1" (Abschnitt 8, Zeile ~248) und fuehrt beide Toggle als gleichrangige Kandidaten
+(Abschnitt 7). Das ist nach der Entscheidung **veraltet** und wird den Dev-Lauf in die Irre fuehren.
+Vorschlag: Abschnitt 7/8 auf den Stand von Antwort 1 bringen — `IsDoneBde` ist der **einzige**
+Kaskade-Traeger, `IsDonePicking`/`Picking` traegt nur den Anzeige-Teil (Gruppierung/Suche/Spalten),
+keine Kaskade. (Haengt mit BL1 zusammen: erst wenn die Wirt-View feststeht, ist die Tabelle
+widerspruchsfrei fuellbar.)
+
+**S3 — Antwort 6 ist erfuellbar, aber die konkrete Abfrage existiert noch nicht und braucht zwei
+Praezisierungen.**
+Verifiziert: Das Muster „laufende, nicht beendete BDE-Buchung" existiert im Code —
+`BdeBookingRepository.GetActiveForWorkOperationAsync` filtert `EndedAt == null && !IsCancelled`
+(`Data/Repositories/BdeBookingRepository.cs:37,43`), ebenso `GetActiveCockpitAsync` (Zeile 55-62).
+Der Join-Weg zur Sub-FA steht ebenfalls: `WorkOperation.ProductionOrderId`
+(`Models/WorkOperation.cs:7`). Antwort 6 ist damit **kein Blocker**. Aber:
+- Eine fertige Aggregation „hat diese Menge von `ProductionOrder`-Ids eine aktive Buchung?" gibt es
+  **nicht** — sie ist als neue Repository-Abfrage zu bauen (BdeBooking → WorkOperation →
+  ProductionOrder). Als konkreten Umsetzungshinweis in die Spec aufnehmen, damit der Dev-Lauf nichts
+  erfindet.
+- **Statusabgrenzung offen:** `BdeBookingStatus` kennt `Running`, `Paused`, `Finished`, `Resumed`,
+  `AutoPaused` (`Models/BdeBookingStatus.cs`). `Paused`/`AutoPaused` haben ebenfalls `EndedAt == null`.
+  Antwort 6 fragt „Arbeitet gerade jemand daran?" — eine pausierte Buchung ist begonnen, aber nicht
+  aktiv. Kurz festlegen, ob „laufend" nur `Running`/`Resumed` meint oder jede nicht-beendete Buchung
+  (so wie `GetActiveCockpitAsync` es heute zaehlt). Sonst zaehlt der Dialog je nach Auslegung anders.
+
+### HINWEIS — Beobachtung ohne Handlungszwang
+
+**H1 — Z1 (der als „teuerster Fund" markierte Check) ist am Code bereits entschaerft — zugunsten der
+Spec.** Verifiziert: `FaMaterializationSyncService`/`FaMaterializationPlanner` enthalten **kein**
+`SetValues`/`CurrentValues`/`Entry(...)` (grep leer). Der Update-Pfad setzt ausschliesslich
+**einzeln** die Quellfelder (`SageMissingSince`, `Quantity`, `ArticleNumber`, `Description1/2`,
+`ParentSubOrderNumber` + Audit — `FaMaterializationSyncService.cs:138-155`), und der Klassenkommentar
+haelt ausdruecklich fest: „App-verwaltete Felder (IsDone/PickingStatus/BdeStatus/Workplace/Storno/
+ExtraInfo) werden bei Updates NIE ueberschrieben" (Zeile 21-22). Zusaetzlich liegt der
+Kaskade-Traeger `IsDoneBde` auf der **separaten** Entitaet `ProductionOrderBdeStatus`, die der Sync
+gar nicht laedt. **Der von Z1 gefuerchtete stille Ruecksetzer kann mit dem heutigen Code nicht
+auftreten.** Zwei kleine Korrekturen an Z1: (1) die Formulierung „Die Kaskade schreibt ein Status-Feld
+an `ProductionOrders`" ist ungenau — sie schreibt an `ProductionOrderBdeStatus`; (2) der „erste
+Handgriff dieser Spec" (Update-Pfad pruefen) ist faktisch schon erledigt und gruen. Die von Z1
+verlangte **Invariante als Test** trotzdem behalten — als Regressionsschutz gegen einen kuenftigen
+Umbau des Sync, nicht als offene Sorge. Die Dringlichkeit „[KRITISCH]" darf auf „bereits erfuellt,
+Test als Absicherung" heruntergestuft werden.
+
+**H2 — Z3 („neuer Sub-FA unter fertigem Haupt-FA") ist am Anlege-Pfad konsistent.** Verifiziert: der
+Sync legt neue Orders mit `IsDone = false` an (`FaMaterializationSyncService.cs:129`) — genau das von
+Z3 geforderte „offen anlegen". Kein Handlungsbedarf, nur Bestaetigung.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: BL1 — die Kaskade-Aktion (`IsDoneBde`) hat nach den getroffenen Antworten
+1/2/3/4 keine widerspruchsfreie Wirt-View; der Mensch muss festlegen, auf welcher View der
+Zeilen-Toggle und die Gruppen-Kaskade erscheinen.** (S1–S3 sind danach schnell nachziehbar; Z1 ist
+entgegen seiner Kennzeichnung bereits am Code abgesichert.)
