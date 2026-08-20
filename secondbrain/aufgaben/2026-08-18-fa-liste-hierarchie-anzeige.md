@@ -21,7 +21,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | # | Etappe | Status |
 |---|--------|--------|
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
-| B | 5 weitere Views (Anzeige-Teil) — **1/5**: FaCompletion `b150579` | offen (FaCompletion erledigt) |
+| B | 5 weitere Views (Anzeige-Teil) — **2/5**: FaCompletion `b150579`, PickingLeitstand `5b15caf` | offen |
 | C | Kaskade Leitstand-Kopfzeile | offen |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
@@ -157,7 +157,38 @@ Sub-FA-Zeilen zeigen Sub-Nummer; parent-Spalte per Zahnrad einblendbar; Z4-Zeile
 Sub **und** Haupt. Client-Sort-im-Grouped-Modus-Vorbehalt (nur erste tbody) gilt hier wie bei ProductionOrders
 — beobachten, Entschärfung sammelt sich für Etappe D.
 
-### B-View 2: PickingLeitstand — untersucht, Build steht aus (Checkpoint 2026-08-20)
+### B-View 2: PickingLeitstand — ERLEDIGT (`5b15caf`, 2026-08-20)
+Datenpfad wie ProductionOrders (`GetForLeitstandAsync`→`GetForLeitstandGroupedAsync` direkt) — daher
+Controller-Teil nah an der Referenz: gemeinsame `MapItem`-Anreicherung (Pivot+PickingStatus+Termine) für
+flach **und** gruppiert; hierarchischer Zweig mit Gruppen-Pagination + Z4. `_PickingLeitstandRow.cshtml`
+(geteilt): order-number=SubOrderNumber, parent-Spalte, SageMissingSince-Badge; Bulk-Select/WorkStep-VK-VA-
+Zellen/Freigabe/Prio/Picker unverändert. View: data-hierarchical, fa-liste-group-tbody je HauptFA
+(colspan-Kopf+Chevron+Sub-FA-Zahl), dynamischer colCount (28 fix inkl. parent + Conditionals), Z4-Zeile,
+JS-Include. ColumnDef + inline column-config +parent. **Web-Suite 1227 grün** (war 1225 + 2 Tests:
+Gruppierung/Z4/kein-Flach-Aufruf · Flachmodus-Regression).
+
+**Entscheidung 1 — Bulk-Select über mehrere `<tbody>` (getroffen + umgesetzt + getestet):**
+- Die Bulk-JS selektiert `.bulk-row-checkbox` **document-weit** (nicht per tbody) → funktioniert schon über
+  alle Gruppen. „Alle sichtbaren auswählen" nutzt `isVisible()` (inline `display!=='none'`); eingeklappte
+  Gruppen-Zeilen sind `display:none` → **werden korrekt ausgeschlossen**. BulkRelease postet exakt die
+  markierten IDs über alle Gruppen.
+- **Footgun gefunden + geschlossen:** Zeilen markieren, dann Gruppe **einklappen** ließ sie markiert-aber-
+  versteckt (Filter-Pfad hakt sie ab, Collapse meldete nichts). Fix: `fa-liste-gruppierung.js` feuert jetzt
+  `fa-liste-group-toggled` (generisch, keine Bulk-Kenntnis); die PickingLeitstand-Bulk-JS ruft darauf
+  `bulkSyncSelection()` → versteckte markierte Zeilen werden abgewählt. **BulkRelease gibt keine unsichtbaren
+  Aufträge einer eingeklappten Gruppe frei.**
+- **Am Testsystem prüfen:** (a) „Alle sichtbaren" markiert nur aufgeklappte Gruppen; (b) Gruppe mit
+  markierten Zeilen einklappen → Zähler/Markierung fällt auf die sichtbaren zurück; (c) BulkRelease/
+  -zurücknehmen wirkt genau auf die markierten IDs.
+
+**Entscheidung 2 — Memory-Filter (Datum, VK-VA) wirken auf ZEILEN, nicht Gruppen (umgesetzt):** je Gruppe
+gefiltert, dann leere Gruppen entfernt (Z3b); Gruppe erscheint, solange ≥1 Zeile passt. Pagination über
+die verbleibenden Gruppen.
+
+**Client-Sort-im-Grouped-Modus-Vorbehalt** (nur erste tbody) gilt hier wie bei ProductionOrders/FaCompletion —
+sammelt sich für Etappe D.
+
+### B-View 2 (Original-Untersuchung): PickingLeitstand — Checkpoint-Notiz (erledigt, s. oben)
 **Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**
 - **Bulk-Select über mehrere `<tbody>`:** Greift „alle auswählen" über ALLE Gruppen oder nur die erste?
   Folgen sind real — BulkRelease gibt Aufträge frei. Und: werden Zeilen in ZUGEKLAPPTEN Gruppen
