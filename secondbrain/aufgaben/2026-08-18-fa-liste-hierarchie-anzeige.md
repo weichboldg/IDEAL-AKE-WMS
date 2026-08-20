@@ -62,8 +62,27 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
     Datumsfilter, Pagination `PageSize.Resolve`/`PaginationState`); View 297 Z., `data-view-key=
     "ProductionOrders"`, `data-server-column-filter="true"`, IsCancelled-Badge Z. 126-128.
     Repo `ProductionOrderRepository` hat noch **keine** gruppierte Abfrage.
-  - **Nächster Schritt (Etappe A Build):** (a) Repo `GetForLeitstandGroupedAsync` (Gruppe=OrderNumber,
-    TotalCount=Gruppen, gleiche Filter je Gruppe) + Unit-Test; (b) `ColumnDefinitions.ProductionOrders`
-    +`parent-sub-order-number` (DefaultHidden); (c) `wwwroot/js/fa-liste-gruppierung.js` (Chevron-Collapse
-    + Auto-Expand); (d) Controller-Master-Gate + View-Umbau (tbody-je-OrderNumber, colspan-Kopf+Chevron,
-    order-number→SubOrderNumber, parent-Spalte, SageMissingSince-Badge, Z4-Zählformat). Dann STOPP+Melden.
+  - **Etappe A Build-Fortschritt:**
+    - (a) **erledigt** (`30b7a8c`): Repo `GetForLeitstandGroupedAsync` (Gruppe=OrderNumber,
+      TotalGroupCount/TotalRowCount, order-number matcht SubOrderNumber ODER OrderNumber, Z2-Sortierung,
+      Z3b-showDone) + gemeinsamer `BuildLeitstandQuery`/`ProjectLeitstandRows` + 3 Unit-Tests grün.
+      `LeitstandOrderRow` um SubOrderNumber/ParentSubOrderNumber/SageMissingSince erweitert.
+    - (b) **erledigt** (`9315186`): `ColumnDefinitions.ProductionOrders` +`parent-sub-order-number`
+      (DefaultHidden); `wwwroot/js/fa-liste-gruppierung.js` (Chevron-Collapse je Gruppe, Auto-Expand F2,
+      Alle-auf/zu; aktiv nur bei `data-hierarchical="true"`; kein Eingriff in table-filter.js).
+    - (c) **OFFEN — Controller-Master-Gate + View-Umbau (der delikate Referenz-Teil):**
+      Befund: `ProductionOrders/Index.cshtml` Zeilen-Markup ~137 Z. (reich), `item`-VM reicher als
+      `LeitstandOrderRow` (Controller reichert Termine/PrePickingOverride/Coating an). Plan:
+      1. Zeilen-`<tr>` (View Z. 98–231) in Partial `_ProductionOrderRow.cshtml` ziehen (Model=item-VM,
+         `Model.CanPick`/`HasVorbauAccess`/`EnaioDmsLinks`/`VorkommissionierTage` via ViewData/Wrapper).
+      2. item-VM um SubOrderNumber/ParentSubOrderNumber/SageMissingSince; Controller-Mapping (flach +
+         gruppiert) füllt sie aus `LeitstandOrderRow`.
+      3. Controller: Master lesen (`IServiceSettingRepository.GetValueAsync(HierarchischeStrukturKeys.Master)`
+         + IsTrue); bei true `GetForLeitstandGroupedAsync` + Gruppen-Mapping, VM-Flag `Hierarchical`,
+         `Groups`, Gruppen-Pagination + Z4-Zählung.
+      4. View: `@if (Hierarchical)` → `<table data-hierarchical="true">`, `<tbody class="fa-liste-group">`
+         je Gruppe mit colspan-Kopfzeile (`fa-liste-group-head` + `fa-liste-group-toggle`/`fa-liste-chevron`,
+         OrderNumber + Knotenzahl) + Sub-FA-Zeilen (`fa-liste-node-row`, order-number-Zelle=SubOrderNumber,
+         parent-Spalte, SageMissingSince-Badge); sonst flach wie heute. `fa-liste-gruppierung.js` einbinden.
+         Zählformat „N Aufträge · M Sub-FAs" (Z4, nur hier; Sweep = D).
+      **Grund für den Checkpoint:** Referenz-View, die B 5× repliziert — bewusst mit Fokus statt gehetzt.
