@@ -116,6 +116,9 @@ public static class ColumnDefinitions
             new ColumnDef("applicable",     "Anwendbar",     Locked: false, DefaultWidth: 100),
             new ColumnDef("completed",      "Vervollstaendigt", Locked: false, DefaultWidth: 130),
             new ColumnDef("spec-count",     "Auspraegungen", Locked: false, DefaultWidth: 110),
+            // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur im hierarchischen
+            // Modus befuellt; per Default ausgeblendet. Additiv, keine Migration.
+            new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
             new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 110),
         ]
     };

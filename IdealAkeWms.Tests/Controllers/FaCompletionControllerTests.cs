@@ -22,7 +22,8 @@ namespace IdealAkeWms.Tests.Controllers;
 /// </summary>
 public class FaCompletionControllerTests
 {
-    private static (ApplicationDbContext ctx, FaCompletionController ctrl, Mock<ICurrentUserService> userMock) Build()
+    private static (ApplicationDbContext ctx, FaCompletionController ctrl, Mock<ICurrentUserService> userMock) Build(
+        bool hierarchical = false)
     {
         var ctx = TestDbContextFactory.Create();
         var prodRepo = new ProductionOrderRepository(ctx);
@@ -58,9 +59,20 @@ public class FaCompletionControllerTests
         userMock.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\max");
         userMock.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);
 
+        // Master ProduktionsauftragHierarchisch: null -> Flachmodus (AKE), "true" -> hierarchisch (IDEAL).
+        var serviceSettingMock = new Mock<IServiceSettingRepository>();
+        serviceSettingMock.Setup(x => x.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        if (hierarchical)
+        {
+            serviceSettingMock
+                .Setup(x => x.GetValueAsync(
+                    IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master))
+                .ReturnsAsync("true");
+        }
+
         var ctrl = new FaCompletionController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo, enaioRepo,
-            readOnlyBomBuilder, userMock.Object);
+            readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -302,6 +314,76 @@ public class FaCompletionControllerTests
         vm.Items.Should().HaveCount(3);
         vm.Items.Select(i => i.OrderNumber)
             .Should().BeEquivalentTo(new[] { "FA-OPEN", "FA-KOMMDONE", "FA-SAGEDONE" });
+    }
+
+    // ------------------------------------------------- Index (hierarchisch)
+
+    // Setzt die Struktur-Felder eines bereits angelegten FA (SubOrderNumber = Sage BelID).
+    private static ProductionOrder SetHierarchy(
+        ApplicationDbContext ctx, ProductionOrder order, string subOrderNumber, string? parentSubOrderNumber = null)
+    {
+        order.SubOrderNumber = subOrderNumber;
+        order.ParentSubOrderNumber = parentSubOrderNumber;
+        ctx.SaveChanges();
+        return order;
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_GroupsByHauptFa_SortsBySubOrderNumber_PaginatesOverGroups()
+    {
+        var (ctx, ctrl, _) = Build(hierarchical: true);
+        // HauptFA H1 mit zwei Sub-FAs (bewusst unsortiert angelegt), HauptFA H2 mit einer Sub-FA.
+        var h1b = TestDataHelper.CreateOrderWithStatuses(ctx, "H1");
+        SetHierarchy(ctx, h1b.Order, "H1-2", parentSubOrderNumber: "H1-1");
+        var h1a = TestDataHelper.CreateOrderWithStatuses(ctx, "H1");
+        SetHierarchy(ctx, h1a.Order, "H1-1");
+        var h2 = TestDataHelper.CreateOrderWithStatuses(ctx, "H2");
+        SetHierarchy(ctx, h2.Order, "H2-1");
+
+        var result = await ctrl.Index(null, null, null, false);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Hierarchical.Should().BeTrue();
+        vm.Groups.Should().HaveCount(2);
+        vm.HierarchicalRowCount.Should().Be(3);
+        vm.Pagination.TotalCount.Should().Be(2); // Paginierung ueber Gruppen
+
+        var g1 = vm.Groups.Single(g => g.OrderNumber == "H1");
+        g1.Items.Select(i => i.SubOrderNumber).Should().ContainInOrder("H1-1", "H1-2"); // Z2
+        g1.Items.Single(i => i.SubOrderNumber == "H1-2").ParentSubOrderNumber.Should().Be("H1-1");
+
+        vm.Groups.Single(g => g.OrderNumber == "H2").Items.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_FaNumberFilter_MatchesSubOrHaupt()
+    {
+        var (ctx, ctrl, _) = Build(hierarchical: true);
+        var h1 = TestDataHelper.CreateOrderWithStatuses(ctx, "H1");
+        SetHierarchy(ctx, h1.Order, "SUB-AAA");
+        var h2 = TestDataHelper.CreateOrderWithStatuses(ctx, "H2");
+        SetHierarchy(ctx, h2.Order, "SUB-BBB");
+
+        // Filter auf die Sub-FA-Nummer → nur deren Gruppe.
+        var bySub = (FaCompletionListViewModel)((ViewResult)await ctrl.Index("SUB-AAA", null, null, false)).Model!;
+        bySub.Groups.Should().ContainSingle().Which.OrderNumber.Should().Be("H1");
+
+        // Filter auf die HauptFA-Nummer → dieselbe Gruppe (Sub-zuerst-dann-Haupt).
+        var byHaupt = (FaCompletionListViewModel)((ViewResult)await ctrl.Index("H2", null, null, false)).Model!;
+        byHaupt.Groups.Should().ContainSingle().Which.OrderNumber.Should().Be("H2");
+    }
+
+    [Fact]
+    public async Task Index_FlatMode_LeavesHierarchicalFalse()
+    {
+        // Regression: Master aus → bit-identisch zu heute, keine Gruppierung.
+        var (ctx, ctrl, _) = Build(hierarchical: false);
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+
+        var vm = (FaCompletionListViewModel)((ViewResult)await ctrl.Index(null, null, null, false)).Model!;
+        vm.Hierarchical.Should().BeFalse();
+        vm.Groups.Should().BeEmpty();
+        vm.Items.Should().ContainSingle();
     }
 
     // ----------------------------------------------------------------- Edit
