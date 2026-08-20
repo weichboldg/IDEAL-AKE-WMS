@@ -105,7 +105,38 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
   (Etappe B je View prüfen).
 - **Z4-Zählzeile** „N Aufträge · M Sub-FAs" — vollständiger Zähl-Sweep (Home/Kacheln etc.) ist Etappe D.
 
-## Eingang Etappe B
-Muster aus ProductionOrders (Repo-Gruppenabfrage-Analogon je Controller ODER generisch, Partial-Row,
-`data-hierarchical`, `fa-liste-group`-tbody, JS-Include, ColumnDef `parent-sub-order-number` je viewKey)
-auf FaWorklist, FaCompletion, Tracking, Picking, PickingLeitstand replizieren (nur Anzeige-Teil).
+## Etappe B — eine View pro Lauf (Mensch, 2026-08-20)
+Reihenfolge: **PickingLeitstand → FaCompletion → Picking → FaWorklist → Tracking/Index.** Nach JEDER
+View STOPP+Melden (Sichtprüfung am Testsystem). Vorentscheidungen:
+- Alle 5 volle HauptFA-Gruppierung. FA-Nummer-Filter überall Sub-zuerst-dann-Haupt.
+- **Views sind heterogen:** PickingLeitstand + FaCompletion = ProductionOrder-Zeilen (nah an der
+  Referenz, `_ProductionOrderRow`/MapItem-Muster übernehmbar). FaWorklist (WorkSteps) / Tracking/Index
+  (WorkOperations) / Picking (Picking-Status) = **fremde Entitäten je Zeile** → je eigene gruppierte
+  Abfrage + eigenes Row-Markup; nur das Rahmen-Muster (Master-Gate, `data-hierarchical`, `fa-liste-group`,
+  `fa-liste-gruppierung.js`, ColumnDef `parent-sub-order-number`) ist gleich.
+- **Tracking:** Tracking/Index (WorkOperations, `Model.OrderGroups`) ist betroffen; Tracking/OseonIndex
+  NICHT (nur QR-Scan am Auftragsnummer-Feld prüfen: trägt er eine FA-Nummer? → melden). Tracking/Index
+  gruppiert schon — erst prüfen WONACH; falls OrderNumber, vermischen sich im hierarchischen Modus die
+  AGs aller Sub-FAs → **Vorschlag mit Begründung vorlegen, nicht selbst entscheiden.**
+
+### B-View 1: PickingLeitstand — untersucht, Build steht aus (Checkpoint 2026-08-20)
+Befund: **komplexeste View** — `Views/PickingLeitstand/Index.cshtml` 830 Z., Zeilen-`<tr>` ~246 Z.
+(Bulk-Select-Checkbox, WorkStep-VK-VA-Zellen mit 3-Wert-Status, Freigabe/Priorität/Picker-Zuweisung,
+IsDoneBde-Toggle [= Kaskade-Host Etappe C], DMS-Badges). Controller nutzt `GetForLeitstandAsync`
+(→ `GetForLeitstandGroupedAsync` direkt nutzbar) + `PickingLeitstandItem`-VM (WorkStep-Pivot) +
+**Memory-Filter** (`LeitstandDateColumnKeys` + `LeitstandWorkStepColumnKeys`). `IServiceSettingRepository`
+**noch nicht injiziert**.
+**Bauplan (analog ProductionOrders):**
+1. `PickingLeitstandController`: `IServiceSettingRepository` injizieren; Zeilen-Select (Z. 96–153) in
+   lokale `MapItem`-Funktion; Master lesen; hierarchisch → `GetForLeitstandGroupedAsync` + Gruppen-Mapping
+   + Gruppen-Pagination + Memory-Filter-je-Gruppe (Datum + VK-VA) + Z4-Zahl; VM-Flag Hierarchical/Groups/
+   HierarchicalRowCount + `PickingLeitstandGroup`-Klasse; item +SubOrderNumber/ParentSubOrderNumber/SageMissingSince.
+2. Zeilen-`<tr>` (Z. 146–392) in `_PickingLeitstandRow.cshtml` (Kontext-Wrapper wie ProductionOrderRowContext:
+   CanPick/CanManagePickingRelease/LeitstandAktiv/PickerAssignmentEnabled/EnaioDmsLinks/ViewBag.ActivePickers/
+   Hierarchical). order-number-Zelle=SubOrderNumber, parent-Spalte, SageMissingSince-Badge.
+3. View: `data-hierarchical`, `fa-liste-group`-tbody je HauptFA (colspan-Kopf+Chevron+Sub-FA-Zahl) vs. flach;
+   thead+#column-config +parent-sub-order-number; Z4-Zählzeile; `fa-liste-gruppierung.js` einbinden.
+   **Bulk-Select im Grouped-Modus prüfen** (Header-Checkbox/„alle sichtbaren" über mehrere tbody).
+4. `ColumnDefinitions.PickingLeitstand` +`parent-sub-order-number`. Test-Ctor-Fixes (neue Dep).
+**Warum Checkpoint:** schwerste View, 246-Zeilen-Row-Extraktion + Memory-Filter/Bulk-Select-im-Grouped-Modus
+— mit frischem Fokus statt am Ende der Marathon-Session. Kaskade (IsDoneBde) bleibt Etappe C.
