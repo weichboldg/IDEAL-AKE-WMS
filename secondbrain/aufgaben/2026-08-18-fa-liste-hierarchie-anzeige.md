@@ -21,7 +21,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | # | Etappe | Status |
 |---|--------|--------|
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
-| B | 5 weitere Views (Anzeige-Teil) | offen |
+| B | 5 weitere Views (Anzeige-Teil) — **1/5**: FaCompletion `b150579` | offen (FaCompletion erledigt) |
 | C | Kaskade Leitstand-Kopfzeile | offen |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
@@ -106,8 +106,12 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 - **Z4-Zählzeile** „N Aufträge · M Sub-FAs" — vollständiger Zähl-Sweep (Home/Kacheln etc.) ist Etappe D.
 
 ## Etappe B — eine View pro Lauf (Mensch, 2026-08-20)
-Reihenfolge: **PickingLeitstand → FaCompletion → Picking → FaWorklist → Tracking/Index.** Nach JEDER
-View STOPP+Melden (Sichtprüfung am Testsystem). Vorentscheidungen:
+Reihenfolge (Tausch 2026-08-20, Mensch): **FaCompletion → PickingLeitstand → Picking → FaWorklist →
+Tracking/Index.** Begründung des Tauschs: FaCompletion teilt die Zeilen-Entität (ProductionOrder) mit
+ProductionOrders und beweist damit, ob das `_ProductionOrderRow`/MapItem-Muster wirklich wiederverwendbar
+ist — diese Erkenntnis brauchen die restlichen vier Views; PickingLeitstand (schwerste View) kann sie nicht
+liefern (dort bliebe unklar, ob ein Problem am Muster oder an der View liegt). Nach JEDER View STOPP+Melden
+(Sichtprüfung am Testsystem). Vorentscheidungen:
 - Alle 5 volle HauptFA-Gruppierung. FA-Nummer-Filter überall Sub-zuerst-dann-Haupt.
 - **Views sind heterogen:** PickingLeitstand + FaCompletion = ProductionOrder-Zeilen (nah an der
   Referenz, `_ProductionOrderRow`/MapItem-Muster übernehmbar). FaWorklist (WorkSteps) / Tracking/Index
@@ -119,7 +123,47 @@ View STOPP+Melden (Sichtprüfung am Testsystem). Vorentscheidungen:
   gruppiert schon — erst prüfen WONACH; falls OrderNumber, vermischen sich im hierarchischen Modus die
   AGs aller Sub-FAs → **Vorschlag mit Begründung vorlegen, nicht selbst entscheiden.**
 
-### B-View 1: PickingLeitstand — untersucht, Build steht aus (Checkpoint 2026-08-20)
+### B-View 1: FaCompletion — ERLEDIGT (`b150579`, 2026-08-20)
+**Reusability-Befund (der eigentliche Zweck des FaCompletion-first-Tauschs):** Das
+`_ProductionOrderRow`/MapItem-Muster ist **NICHT 1:1 übertragbar** — FaCompletion nutzt einen
+**anderen Datenpfad**: `GetAllOrderedAsync()` (volle Entities) + In-Memory-Filter/Map/Pagination über
+`ColumnFilterHelper`, **nicht** die repo-seitige `GetForLeitstandGroupedAsync`. Deshalb: eigenes Row-Partial
+(`_FaCompletionRow.cshtml`) + eigener Gruppier-Code im Controller (GroupBy im Speicher). **Wiederverwendbar ist
+das RAHMEN-Muster**, das ich jetzt als bestätigt festhalte und für die nächsten Views als Checkliste nehme:
+1. Master-Gate: `IServiceSettingRepository` injizieren + `IsTrue`-Helper + `HierarchischeStrukturKeys.Master`.
+2. `data-hierarchical="@(...)"` an der `<table>`; `fa-liste-group`-tbody je HauptFA mit colspan-Kopf +
+   `fa-liste-group-toggle`/`fa-liste-chevron` + Sub-FA-Zahl; `fa-liste-gruppierung.js` einbinden.
+3. `ColumnDef parent-sub-order-number` (DefaultHidden) in ColumnDefinitions **und** inline column-config.
+4. Row: order-number-Zelle = `Hierarchical ? SubOrderNumber : OrderNumber`; parent-Spalte; SageMissingSince-Badge
+   (eigene Bedingung, Render-Position wie IsCancelled). Kontext-Wrapper-Klasse (`…RowContext`) statt ViewData.
+5. Z4-Zählzeile „N Aufträge · M Sub-FAs" (nur hierarchisch); FA-Nummer-Filter Sub-zuerst-dann-Haupt
+   (Filterkarte **und** Spaltenfilter — hier: eigener hierarchischer Column-Map `order-number => "{Sub} {Haupt}"`).
+6. Pagination über GRUPPEN (`Pagination.TotalCount = Gruppenzahl`); Z3b: nach Zeilen filtern, DANN gruppieren
+   → leere Gruppen entstehen gar nicht.
+7. Test-Ctor: neue `IServiceSettingRepository`-Dep als Mock (null=flach; "true"=hierarchisch).
+
+Konsequenz für die Reihenfolge-Views: **PickingLeitstand** teilt den Datenpfad mit ProductionOrders
+(`GetForLeitstandAsync`→`GetForLeitstandGroupedAsync` direkt) — dort ist der Controller-Teil näher an der
+Referenz. **FaWorklist/Tracking/Index/Picking** haben je fremde Zeilen-Entitäten → je eigenes Row-Partial +
+eigene gruppierte Abfrage, nur das Rahmen-Muster ist gleich (wie schon vermutet, jetzt an FaCompletion belegt).
+
+Umgesetzt in FaCompletion: Controller-Master-Gate + hierarchischer Zweig (GroupBy OrderNumber, Z2-Sortierung
+SubOrderNumber, Gruppen-Pagination, Z4), `_FaCompletionRow.cshtml`, View (data-hierarchical/fa-liste-group/
+Z4/JS), ColumnDef + inline +parent, 3 Controller-Tests (Gruppierung/Z2/Pagination · Sub-oder-Haupt-Filter ·
+Flachmodus-Regression). **Web-Suite 1225 grün** (war 1222 + 3). Master default aus → produktiv unsichtbar.
+
+**Sichtprüfung am Testsystem (FaCompletion, Master an):** Gruppen-Kopf „HauptFA … · N Sub-FAs" + Chevron;
+Sub-FA-Zeilen zeigen Sub-Nummer; parent-Spalte per Zahnrad einblendbar; Z4-Zeile; FA-Nummer-Filter matcht
+Sub **und** Haupt. Client-Sort-im-Grouped-Modus-Vorbehalt (nur erste tbody) gilt hier wie bei ProductionOrders
+— beobachten, Entschärfung sammelt sich für Etappe D.
+
+### B-View 2: PickingLeitstand — untersucht, Build steht aus (Checkpoint 2026-08-20)
+**Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**
+- **Bulk-Select über mehrere `<tbody>`:** Greift „alle auswählen" über ALLE Gruppen oder nur die erste?
+  Folgen sind real — BulkRelease gibt Aufträge frei. Und: werden Zeilen in ZUGEKLAPPTEN Gruppen
+  mitausgewählt? Beides explizit entscheiden und testen (nicht implizit lassen).
+- **Memory-Filter (Datum, VK-VA):** wirken auf ZEILEN, nicht auf Gruppen — eine Gruppe erscheint, solange
+  ≥1 Zeile passt (Z3b), leere Gruppen fallen weg. (Analog zum FaCompletion-GroupBy-nach-Filter-Muster.)
 Befund: **komplexeste View** — `Views/PickingLeitstand/Index.cshtml` 830 Z., Zeilen-`<tr>` ~246 Z.
 (Bulk-Select-Checkbox, WorkStep-VK-VA-Zellen mit 3-Wert-Status, Freigabe/Priorität/Picker-Zuweisung,
 IsDoneBde-Toggle [= Kaskade-Host Etappe C], DMS-Badges). Controller nutzt `GetForLeitstandAsync`
