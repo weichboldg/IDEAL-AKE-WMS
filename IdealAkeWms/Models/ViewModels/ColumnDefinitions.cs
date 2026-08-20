@@ -41,6 +41,9 @@ public static class ColumnDefinitions
             new ColumnDef("production-date","Fert.-Termin",  Locked: false),
             new ColumnDef("delivery-date","Liefertermin",    Locked: false),
             new ColumnDef("coating-part","Lack-T",           Locked: false, DefaultWidth: 55),
+            // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur im hierarchischen Modus
+            // befuellt; per Default ausgeblendet (Zahnrad einblendbar). Additiv, keine Migration.
+            new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
             // Icon/action column (enaio links)
             new ColumnDef("row-actions", "",                 Locked: true,  DefaultWidth: 80),
         ]
