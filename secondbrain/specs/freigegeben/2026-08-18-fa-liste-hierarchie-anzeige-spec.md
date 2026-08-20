@@ -119,7 +119,7 @@ sprengt. Inhalt/Entscheidungen unveraendert; nur in Etappen geschnitten. Ein lan
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| A | Anzeige-Fundament (Repo-Gruppenabfrage master-gated, ColumnDefinitions `parent-sub-order-number`, JS-Modul `fa-liste-gruppierung.js`, Master-Lese-Muster) + **ProductionOrders als Referenz-View** + **Z4-ERHEBUNG** (Zaehlstellen katalogisieren, keine Umsetzung). **STOPP+Melden** nach A. | offen | |
+| A | Anzeige-Fundament (Repo-Gruppenabfrage master-gated, ColumnDefinitions `parent-sub-order-number`, JS-Modul `fa-liste-gruppierung.js`, Master-Lese-Muster) + **ProductionOrders als Referenz-View** + **Z4-ERHEBUNG** (Zaehlstellen katalogisieren, keine Umsetzung). **STOPP+Melden** nach A. | **erledigt** | `30b7a8c` (Repo) · `9315186` (ColumnDef+JS) · `abd2620` (View/Controller) |
 | B | Muster auf die 5 weiteren Views replizieren (FaWorklist, FaCompletion, Tracking, Picking, PickingLeitstand — Anzeige-Teil) | offen | |
 | C | Kaskade auf PickingLeitstand-Gruppenkopfzeile („Alle Sub-FAs fertigmelden", `IsDoneBde` alle Nachfahren, atomar, Dialog mit Offene-Buchung-Zahl, ILogger); Zeilen-Toggle unveraendert; keine Gruppen-Ruecknahme | offen | |
 | D | Z4-Zaehl-Sweep umsetzen + Z3-Sync-Meldung (neuer Sub-FA unter fertigem HauptFA) + Z1-Regressionstest | offen | |
