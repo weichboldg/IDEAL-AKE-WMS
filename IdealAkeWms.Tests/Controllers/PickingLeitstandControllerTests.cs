@@ -28,6 +28,7 @@ public class PickingLeitstandControllerTests
     private readonly Mock<IBusinessDayService> _businessDayService = new();
     private readonly Mock<IEnaioDmsDocumentRepository> _enaioDmsRepo = new();
     private readonly Mock<IUserRepository> _userRepo = new();
+    private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly PickingLeitstandController _controller;
 
     public PickingLeitstandControllerTests()
@@ -43,6 +44,8 @@ public class PickingLeitstandControllerTests
         _businessDayService.Setup(b => b.ParsePickupDays(It.IsAny<string>())).Returns(new HashSet<DayOfWeek>());
         _enaioDmsRepo.Setup(e => e.GetByOrderNumbersAsync(It.IsAny<IEnumerable<string>>()))
             .ReturnsAsync(new Dictionary<string, List<EnaioDmsDocumentLink>>());
+        // Master ProduktionsauftragHierarchisch nicht gesetzt (null) -> Flachmodus (AKE-Verhalten).
+        _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
 
         _controller = new PickingLeitstandController(
             _orderRepo.Object,
@@ -53,7 +56,8 @@ public class PickingLeitstandControllerTests
             _holidayRepo.Object,
             _businessDayService.Object,
             _enaioDmsRepo.Object,
-            _userRepo.Object);
+            _userRepo.Object,
+            _serviceSettingRepo.Object);
 
         // TempData requires a provider
         _controller.TempData = new TempDataDictionary(
@@ -107,6 +111,84 @@ public class PickingLeitstandControllerTests
 
     private static LeitstandOrderPage MakePage(params LeitstandOrderRow[] rows) =>
         new(rows.ToList(), rows.Length);
+
+    // Hierarchie-Zeile: OrderNumber = HauptFA (Gruppenschluessel), SubOrderNumber = Sub-FA.
+    private static LeitstandOrderRow MakeRowH(int id, string orderNumber, string subOrderNumber,
+        string? parentSub = null) =>
+        new(id, orderNumber, 1m, null, "ART-001", null, null, null, null, false, false, false, null,
+            SubOrderNumber: subOrderNumber, ParentSubOrderNumber: parentSub);
+
+    // Aktiviert den hierarchischen Modus (Master ProduktionsauftragHierarchisch = true).
+    private void EnableHierarchical() =>
+        _serviceSettingRepo
+            .Setup(s => s.GetValueAsync(
+                IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master))
+            .ReturnsAsync("true");
+
+    [Fact]
+    public async Task Index_Hierarchical_GroupsByHauptFa_WithZ4Counts_AndPaginatesOverGroups()
+    {
+        EnableHierarchical();
+        // HauptFA H1 mit zwei Sub-FAs, HauptFA H2 mit einer Sub-FA.
+        var grouped = new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("H1", new List<LeitstandOrderRow>
+                {
+                    MakeRowH(1, "H1", "H1-1"),
+                    MakeRowH(2, "H1", "H1-2", parentSub: "H1-1"),
+                }),
+                new("H2", new List<LeitstandOrderRow> { MakeRowH(3, "H2", "H2-1") }),
+            },
+            TotalGroupCount: 2,
+            TotalRowCount: 3);
+
+        _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(grouped);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
+        vm.Hierarchical.Should().BeTrue();
+        vm.Groups.Should().HaveCount(2);
+        vm.HierarchicalRowCount.Should().Be(3);
+        vm.Pagination.TotalCount.Should().Be(2); // Paginierung ueber Gruppen
+
+        var g1 = vm.Groups.Single(g => g.OrderNumber == "H1");
+        g1.Items.Select(i => i.SubOrderNumber).Should().ContainInOrder("H1-1", "H1-2");
+        g1.Items.Single(i => i.SubOrderNumber == "H1-2").ParentSubOrderNumber.Should().Be("H1-1");
+        // Der flache GetForLeitstandAsync darf im hierarchischen Modus NICHT aufgerufen werden.
+        _orderRepo.Verify(r => r.GetForLeitstandAsync(
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Index_FlatMode_LeavesHierarchicalFalse()
+    {
+        // Regression: Master aus (default null) → bit-identisch zu heute, keine Gruppierung.
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(MakeRow(1, "FA-100")));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
+        vm.Hierarchical.Should().BeFalse();
+        vm.Groups.Should().BeEmpty();
+        vm.Items.Should().ContainSingle();
+    }
 
     [Fact]
     public async Task Index_ReturnsRichViewModel_WithStatusPivot()

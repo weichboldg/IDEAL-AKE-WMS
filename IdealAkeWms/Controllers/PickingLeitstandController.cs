@@ -20,6 +20,7 @@ public class PickingLeitstandController : Controller
     private readonly IBusinessDayService _businessDayService;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public PickingLeitstandController(
         IProductionOrderRepository productionOrderRepository,
@@ -30,7 +31,8 @@ public class PickingLeitstandController : Controller
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -41,7 +43,13 @@ public class PickingLeitstandController : Controller
         _businessDayService = businessDayService;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _userRepository = userRepository;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     public async Task<IActionResult> Index(
         string? filterOrderNumber,
@@ -72,10 +80,6 @@ public class PickingLeitstandController : Controller
         var sqlPageSize = hasMemoryFilters ? int.MaxValue : effectivePageSize;
         var sqlPage = hasMemoryFilters ? 1 : page;
 
-        var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
-            filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
-        var orders = ordersPage.Rows;
-
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
@@ -86,18 +90,11 @@ public class PickingLeitstandController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
-        // Bulk-Lookups fuer pivot-basiertes Mapping (seit v1.22.0 aus FaWorkSteps statt AssemblyGroups).
-        // Detail-Pivot liefert pro aktivem AG zusaetzlich FaWorkStepId + Status — die VK-VA-Zellen
-        // im Leitstand zeigen/setzen den 3-Wert-Erledigt-Status (gleiches Flag wie die FA-Abarbeitungsliste).
-        var orderIds = orders.Select(o => o.Id).ToList();
-        var groupPivot = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(orderIds);
-        var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
-
-        var viewItems = orders.Select(o =>
+        // Gemeinsame Zeilen-Anreicherung (Pivot + PickingStatus + Termine) — flach UND gruppiert.
+        // Detail-Pivot liefert pro aktivem AG FaWorkStepId + Status (VK-VA-Zellen, 3-Wert-Erledigt).
+        PickingLeitstandItem MapItem(LeitstandOrderRow o, ProductionOrderPickingStatus? ps,
+            Dictionary<string, FaWorkStepPivotCell> grp)
         {
-            var ps = pickingStatuses.GetValueOrDefault(o.Id);
-            var grp = groupPivot.GetValueOrDefault(o.Id) ?? new Dictionary<string, FaWorkStepPivotCell>();
-
             var item = new PickingLeitstandItem
             {
                 Id = o.Id,
@@ -128,6 +125,9 @@ public class PickingLeitstandController : Controller
                 AssignedPickerId = ps?.AssignedPickerId,
                 AssignedPickerName = ps?.AssignedPickerName,
                 WorkSteps = grp,
+                SubOrderNumber = o.SubOrderNumber,
+                ParentSubOrderNumber = o.ParentSubOrderNumber,
+                SageMissingSince = o.SageMissingSince,
             };
 
             // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
@@ -143,14 +143,120 @@ public class PickingLeitstandController : Controller
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
                 // Beschichtungstermin: shared CoatingDateCalculator (DRY mit FA-Abarbeitungsliste).
-                // Backward compat: Feature inaktiv => fuer ALLE Auftraege; aktiv => nur HasCoatingParts.
                 item.BeschichtungTermin = CoatingDateCalculator.Compute(
                     item.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
                     ps?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
 
             return item;
-        }).ToList();
+        }
+
+        var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var pickerAssignmentEnabled = leitstandAktiv && (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var canPick = await _currentUserService.CanPickAsync();
+        var canManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync();
+
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+
+        PickingLeitstandViewModel vm;
+
+        if (hierarchical)
+        {
+            // Paginierung ueber GRUPPEN; bei Memory-Filtern alle Gruppen laden, in C# filtern/paginieren.
+            var sqlGroupPageSize = hasMemoryFilters ? int.MaxValue : effectivePageSize;
+            var sqlGroupPage = hasMemoryFilters ? 1 : page;
+            var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
+                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters);
+
+            var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
+            var groupIds = allRows.Select(r => r.Id).ToList();
+            var groupPivotH = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(groupIds);
+            var pickingStatusesH = await _pickingStatusRepository.GetByProductionOrderIdsAsync(groupIds);
+
+            var listGroups = grouped.Groups.Select(g => new PickingLeitstandGroup
+            {
+                OrderNumber = g.OrderNumber,
+                Items = g.Rows.Select(r => MapItem(
+                    r,
+                    pickingStatusesH.GetValueOrDefault(r.Id),
+                    groupPivotH.GetValueOrDefault(r.Id) ?? new Dictionary<string, FaWorkStepPivotCell>())).ToList()
+            }).ToList();
+
+            var totalGroupCount = grouped.TotalGroupCount;
+            var totalRowCount = grouped.TotalRowCount;
+
+            // Datum-/VK-VA-Filter wirken auf ZEILEN (Z3b): Gruppe bleibt, solange >=1 Zeile passt.
+            if (hasMemoryFilters)
+            {
+                foreach (var (key, raw) in memoryFilters)
+                {
+                    var (tokens, negate) = ColumnFilterHelper.Parse(raw);
+                    if (tokens.Count == 0) continue;
+                    if (LeitstandWorkStepColumnKeys.TryGetValue(key, out var code))
+                        foreach (var g in listGroups)
+                            g.Items = g.Items.Where(it => MatchLeitstandWorkStepFilter(it, code, tokens, negate)).ToList();
+                    else
+                        foreach (var g in listGroups)
+                            g.Items = g.Items.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
+                }
+                listGroups = listGroups.Where(g => g.Items.Count > 0).ToList(); // leere Gruppen entfernen (Z3b)
+                totalGroupCount = listGroups.Count;
+                totalRowCount = listGroups.Sum(g => g.Items.Count);
+                listGroups = listGroups.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+            }
+
+            var groupDmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(
+                listGroups.Select(g => g.OrderNumber).Distinct().ToList());
+
+            vm = new PickingLeitstandViewModel
+            {
+                Hierarchical = true,
+                Groups = listGroups,
+                HierarchicalRowCount = totalRowCount,
+                FilterOrderNumber = filterOrderNumber,
+                FilterArticleNumber = filterArticleNumber,
+                FilterCustomer = filterCustomer,
+                ShowDone = showDone,
+                KommissionierTage = kommissionierTage,
+                VorkommissionierTage = vorkommissionierTage,
+                BeschichtungTage = beschichtungTage,
+                CanPick = canPick,
+                CanManagePickingRelease = canManagePickingRelease,
+                LeitstandAktiv = leitstandAktiv,
+                PickerAssignmentEnabled = pickerAssignmentEnabled,
+                EnaioDmsLinks = groupDmsLinks,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = totalGroupCount // Paginierung ueber Gruppen (F3)
+                }
+            };
+
+            if (pickerAssignmentEnabled)
+                ViewBag.ActivePickers = await _userRepository.GetActivePickersAsync();
+
+            return View(vm);
+        }
+
+        // --- Flachmodus (AKE / Master false): unveraendert zu heute ---
+        var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
+            filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
+        var orders = ordersPage.Rows;
+
+        var orderIds = orders.Select(o => o.Id).ToList();
+        var groupPivot = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(orderIds);
+        var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
+
+        var viewItems = orders.Select(o => MapItem(
+            o,
+            pickingStatuses.GetValueOrDefault(o.Id),
+            groupPivot.GetValueOrDefault(o.Id) ?? new Dictionary<string, FaWorkStepPivotCell>())).ToList();
 
         // Wenn Datum-/VK-VA-Filter aktiv waren: in-Memory filtern und C#-seitig paginieren.
         int finalTotalCount = ordersPage.TotalCount;
@@ -173,12 +279,7 @@ public class PickingLeitstandController : Controller
         var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
 
-        var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        var pickerAssignmentEnabled = leitstandAktiv && (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-        var vm = new PickingLeitstandViewModel
+        vm = new PickingLeitstandViewModel
         {
             Items = viewItems,
             FilterOrderNumber = filterOrderNumber,
@@ -188,8 +289,8 @@ public class PickingLeitstandController : Controller
             KommissionierTage = kommissionierTage,
             VorkommissionierTage = vorkommissionierTage,
             BeschichtungTage = beschichtungTage,
-            CanPick = await _currentUserService.CanPickAsync(),
-            CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync(),
+            CanPick = canPick,
+            CanManagePickingRelease = canManagePickingRelease,
             LeitstandAktiv = leitstandAktiv,
             PickerAssignmentEnabled = pickerAssignmentEnabled,
             EnaioDmsLinks = dmsLinks,
