@@ -20,7 +20,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 ## Etappen
 | # | Etappe | Status |
 |---|--------|--------|
-| A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | offen |
+| A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
 | B | 5 weitere Views (Anzeige-Teil) | offen |
 | C | Kaskade Leitstand-Kopfzeile | offen |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
@@ -86,3 +86,26 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
          parent-Spalte, SageMissingSince-Badge); sonst flach wie heute. `fa-liste-gruppierung.js` einbinden.
          Zählformat „N Aufträge · M Sub-FAs" (Z4, nur hier; Sweep = D).
       **Grund für den Checkpoint:** Referenz-View, die B 5× repliziert — bewusst mit Fokus statt gehetzt.
+    - (c) **ERLEDIGT** (`abd2620`): Controller-Master-Gate + gemeinsame `MapItem`-Anreicherung (flach+
+      gruppiert) + hierarchischer Zweig (Gruppen-Query, Gruppen-Mapping, Gruppen-Pagination, Datumsfilter-
+      je-Gruppe/Z3b, Z4-Zahl). `_ProductionOrderRow.cshtml`-Partial (geteilt); im hierarchischen Modus
+      order-number=SubOrderNumber, parent-Spalte, SageMissingSince-Badge. View: `data-hierarchical`,
+      `<tbody class="fa-liste-group">` je HauptFA (colspan-Kopf+Chevron+Sub-FA-Zahl), Z4-Zählzeile,
+      JS-Include. site.css Gruppen-Kopf (WCAG AA). Test-Ctor-Fix. **Web-Suite 1222 grün.**
+- **Etappe A KOMPLETT.** Master default aus → produktiv unsichtbar bis Umschaltung.
+
+## Review-Punkte für die Sichtprüfung am Testsystem (ProductionOrders, Master an, 130 Aufträge)
+- **Client-Sort im Grouped-Modus:** `table-filter.js` sortiert nur das erste `<tbody>` (Schwester-Spec-
+  Fallstrick). Der Server sortiert Z2 (SubOrderNumber je Gruppe). Falls Klick auf einen Sortier-Header
+  im hierarchischen Modus nur die erste Gruppe sortiert → in Etappe B/D entschärfen (Sortier-Header im
+  hierarchischen Modus deaktivieren o. ä.). **Bitte am Testsystem beobachten.**
+- **Spaltenausrichtung** über alle Gruppen (parent-Spalte defaultHidden, per Zahnrad einblendbar).
+- **Auto-Expand F2:** ProductionOrders ist server-gefiltert → nach Filter/Reload sind Gruppen offen
+  (F2 dort inhärent erfüllt); der Client-Auto-Expand greift, wo ein Client-Hervorheben-Filter existiert
+  (Etappe B je View prüfen).
+- **Z4-Zählzeile** „N Aufträge · M Sub-FAs" — vollständiger Zähl-Sweep (Home/Kacheln etc.) ist Etappe D.
+
+## Eingang Etappe B
+Muster aus ProductionOrders (Repo-Gruppenabfrage-Analogon je Controller ODER generisch, Partial-Row,
+`data-hierarchical`, `fa-liste-group`-tbody, JS-Include, ColumnDef `parent-sub-order-number` je viewKey)
+auf FaWorklist, FaCompletion, Tracking, Picking, PickingLeitstand replizieren (nur Anzeige-Teil).
