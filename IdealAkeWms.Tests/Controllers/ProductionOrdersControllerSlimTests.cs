@@ -25,6 +25,7 @@ public class ProductionOrdersControllerSlimTests
     private readonly Mock<IHolidayRepository> _holidayRepo = new();
     private readonly Mock<IBusinessDayService> _businessDayService = new();
     private readonly Mock<IEnaioDmsDocumentRepository> _enaioDmsRepo = new();
+    private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly ProductionOrdersController _controller;
 
     public ProductionOrdersControllerSlimTests()
@@ -39,6 +40,8 @@ public class ProductionOrdersControllerSlimTests
         _businessDayService.Setup(b => b.ParsePickupDays(It.IsAny<string>())).Returns(new HashSet<DayOfWeek>());
         _enaioDmsRepo.Setup(e => e.GetByOrderNumbersAsync(It.IsAny<IEnumerable<string>>()))
             .ReturnsAsync(new Dictionary<string, List<EnaioDmsDocumentLink>>());
+        // Master default null -> Flachmodus (bestehende Tests unveraendert).
+        _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
 
         _controller = new ProductionOrdersController(
             _orderRepo.Object,
@@ -47,7 +50,8 @@ public class ProductionOrdersControllerSlimTests
             _settingRepo.Object,
             _holidayRepo.Object,
             _businessDayService.Object,
-            _enaioDmsRepo.Object);
+            _enaioDmsRepo.Object,
+            _serviceSettingRepo.Object);
 
         _controller.TempData = new TempDataDictionary(
             new DefaultHttpContext(),

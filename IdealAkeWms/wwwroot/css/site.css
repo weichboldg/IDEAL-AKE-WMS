@@ -1231,6 +1231,24 @@ th:hover .col-resize-handle {
 }
 
 /* ===== IDEAL FA-Struktur Tree-Table (Etappe 7, OSEON-Stil) ===== */
+/* IDEAL FA-Liste-Hierarchie (Teil 7/8): Gruppen-Kopfzeile + Chevron in den tabellarischen Listen
+   (ProductionOrders u.a.). Heller Kontrast-fixer Grund (dunkle Schrift auf --ake-light-gray, wie
+   .fa-structure-header, rechnerisch >= 4,5:1). */
+.fa-liste-group-head > td.fa-liste-group-header {
+    background-color: var(--ake-light-gray);
+    color: var(--ake-text);
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+}
+.fa-liste-group-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    color: #6c757d; /* Bootstrap-secondary, >= 4,5:1 auf hellem Grund */
+}
+.fa-liste-chevron { transition: transform 0.15s ease; }
+
 .fa-tree-table {
     font-size: 0.9rem;
 }

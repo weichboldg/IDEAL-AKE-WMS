@@ -19,6 +19,7 @@ public class ProductionOrdersController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -27,7 +28,8 @@ public class ProductionOrdersController : Controller
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
-        IEnaioDmsDocumentRepository enaioDmsDocumentRepository)
+        IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -36,7 +38,13 @@ public class ProductionOrdersController : Controller
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie StandortEinstellungenController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     // Backward-Compat-Redirects fuer Stale-Tab-Posts auf alte URLs.
     // Die eigentliche Logik wurde nach PickingLeitstandController verschoben (Phase 2 Task 2).
@@ -80,10 +88,6 @@ public class ProductionOrdersController : Controller
         var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
         var sqlPage = hasDateFilters ? 1 : page;
 
-        var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
-            filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
-        var orders = ordersPage.Rows;
-
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
@@ -94,14 +98,9 @@ public class ProductionOrdersController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
-        // PickingStatus-Dict nur fuer HasCoatingParts/IsCoatingDone (Beschichtungstermin-Logik, Spec 6.1)
-        var orderIds = orders.Select(o => o.Id).ToList();
-        var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
-
-        var viewItems = orders.Select(o =>
+        // Gemeinsame Zeilen-Anreicherung (Termine, PrePicking-Override, Coating) — flach UND gruppiert.
+        ProductionOrderListItem MapItem(LeitstandOrderRow o, bool hasCoatingParts, bool isCoatingDone)
         {
-            var ps = pickingStatuses.GetValueOrDefault(o.Id);
-
             var item = new ProductionOrderListItem
             {
                 Id = o.Id,
@@ -121,11 +120,13 @@ public class ProductionOrdersController : Controller
                 AusfuehrungEZ = o.AusfuehrungEZ,
                 Maschine = o.Maschine,
                 SageStatus = o.SageStatus,
-                HasCoatingParts = ps?.HasCoatingParts ?? false,
-                IsCoatingDone = ps?.IsCoatingDone ?? false,
+                HasCoatingParts = hasCoatingParts,
+                IsCoatingDone = isCoatingDone,
+                SubOrderNumber = o.SubOrderNumber,
+                ParentSubOrderNumber = o.ParentSubOrderNumber,
+                SageMissingSince = o.SageMissingSince,
             };
 
-            // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
             var effectivePrePickingDays = PrePickingDaysResolver.Resolve(
                 o.WorkplaceOverridePrePickingDays, vorkommissionierTage);
             if (PrePickingDaysResolver.IsOverrideActive(o.WorkplaceOverridePrePickingDays))
@@ -137,8 +138,6 @@ public class ProductionOrdersController : Controller
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
-                // Backward compat: when feature is inactive (setting empty), calculate for ALL orders
-                // When feature is active, only calculate if HasCoatingParts == true
                 if (!coatingFeatureActive || item.HasCoatingParts)
                 {
                     var rawBeschichtung = _businessDayService.SubtractBusinessDays(
@@ -146,11 +145,97 @@ public class ProductionOrdersController : Controller
                     item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
                 }
             }
-
             return item;
+        }
+
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+
+        ProductionOrderListViewModel vm;
+
+        if (hierarchical)
+        {
+            // Paginierung ueber GRUPPEN; bei Datumsfiltern alle Gruppen laden, in C# filtern/paginieren.
+            var sqlGroupPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
+            var sqlGroupPage = hasDateFilters ? 1 : page;
+            var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
+                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters);
+
+            var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
+            var psDict = await _pickingStatusRepository.GetByProductionOrderIdsAsync(allRows.Select(r => r.Id).ToList());
+
+            var listGroups = grouped.Groups.Select(g => new ProductionOrderListGroup
+            {
+                OrderNumber = g.OrderNumber,
+                Items = g.Rows.Select(r =>
+                {
+                    var ps = psDict.GetValueOrDefault(r.Id);
+                    return MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false);
+                }).ToList()
+            }).ToList();
+
+            var totalGroupCount = grouped.TotalGroupCount;
+            var totalRowCount = grouped.TotalRowCount;
+
+            if (hasDateFilters)
+            {
+                foreach (var (key, raw) in dateFilters)
+                {
+                    var (tokens, negate) = ColumnFilterHelper.Parse(raw);
+                    if (tokens.Count == 0) continue;
+                    foreach (var g in listGroups)
+                        g.Items = g.Items.Where(it => MatchFaListDateFilter(it, key, tokens, negate)).ToList();
+                }
+                listGroups = listGroups.Where(g => g.Items.Count > 0).ToList(); // leere Gruppen entfernen (Z3b)
+                totalGroupCount = listGroups.Count;
+                totalRowCount = listGroups.Sum(g => g.Items.Count);
+                listGroups = listGroups.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
+            }
+
+            var groupDmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(
+                listGroups.Select(g => g.OrderNumber).Distinct().ToList());
+
+            vm = new ProductionOrderListViewModel
+            {
+                Hierarchical = true,
+                Groups = listGroups,
+                HierarchicalRowCount = totalRowCount,
+                FilterOrderNumber = filterOrderNumber,
+                FilterArticleNumber = filterArticleNumber,
+                FilterCustomer = filterCustomer,
+                ShowDone = showDone,
+                KommissionierTage = kommissionierTage,
+                VorkommissionierTage = vorkommissionierTage,
+                BeschichtungTage = beschichtungTage,
+                CanPick = await _currentUserService.CanPickAsync(),
+                HasVorbauAccess = await _currentUserService.HasVorbauAccessAsync(),
+                EnaioDmsLinks = groupDmsLinks,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = totalGroupCount // Paginierung ueber Gruppen (F3)
+                }
+            };
+            return View(vm);
+        }
+
+        // --- Flachmodus (AKE / Master false): unveraendert zu heute ---
+        var ordersPage = await _productionOrderRepository.GetForLeitstandAsync(
+            filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
+        var orders = ordersPage.Rows;
+
+        var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(
+            orders.Select(o => o.Id).ToList());
+
+        var viewItems = orders.Select(o =>
+        {
+            var ps = pickingStatuses.GetValueOrDefault(o.Id);
+            return MapItem(o, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false);
         }).ToList();
 
-        // Datum-Filter (Komm., BG, Beschicht., Fert.-Termin, Liefertermin) anwenden + C#-paginieren.
         int finalTotalCount = ordersPage.TotalCount;
         if (hasDateFilters)
         {
@@ -164,11 +249,10 @@ public class ProductionOrdersController : Controller
             viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
         }
 
-        // enaio DMS-Links laden (Bulk-Lookup fuer alle FA-Nummern)
-        var orderNumbers = viewItems.Select(i => i.OrderNumber).Distinct().ToList();
-        var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
+        var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(
+            viewItems.Select(i => i.OrderNumber).Distinct().ToList());
 
-        var vm = new ProductionOrderListViewModel
+        vm = new ProductionOrderListViewModel
         {
             Items = viewItems,
             FilterOrderNumber = filterOrderNumber,

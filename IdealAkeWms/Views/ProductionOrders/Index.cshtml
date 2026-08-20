@@ -63,8 +63,16 @@
     </div>
 </div>
 
+@if (Model.Hierarchical)
+{
+    @* Z4: im hierarchischen Modus zaehlt die Gruppierung Auftraege (HauptFA) UND Sub-FAs. *@
+    <div class="small text-muted mb-1">
+        <strong>@Model.Pagination.TotalCount</strong> Aufträge · <strong>@Model.HierarchicalRowCount</strong> Sub-FAs
+        <span class="ms-2">(Gruppierung nach HauptFA; Paginierung über Gruppen)</span>
+    </div>
+}
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true" data-hierarchical="@(Model.Hierarchical ? "true" : "false")">
         <thead>
             <tr>
                 @if (Model.CanPick || Model.HasVorbauAccess)
@@ -89,158 +97,69 @@
                 <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="delivery-date" data-date-filter>Liefertermin</th>
                 <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
+                <th data-filterable data-col-key="parent-sub-order-number">Übergeordnete Sub-FA</th>
                 <th style="width: 80px;" data-col-key="row-actions"></th>
             </tr>
         </thead>
+        @{
+            var colCount = 20;
+            if (Model.CanPick || Model.HasVorbauAccess) colCount = 21;
+            Func<ProductionOrderListItem, ProductionOrderRowContext> Ctx = it => new ProductionOrderRowContext
+            {
+                Item = it,
+                CanPick = Model.CanPick,
+                HasVorbauAccess = Model.HasVorbauAccess,
+                VorkommissionierTage = Model.VorkommissionierTage,
+                EnaioDmsLinks = Model.EnaioDmsLinks,
+                LackierteilKategorieName = ViewBag.LackierteilKategorieName as string,
+                Hierarchical = Model.Hierarchical
+            };
+        }
+        @if (Model.Hierarchical)
+        {
+            @* Zwei-Ebenen-Gruppierung: ein <tbody> je HauptFA-Gruppe, Kopfzeile mit colspan + Chevron. *@
+            foreach (var group in Model.Groups)
+            {
+                <tbody class="fa-liste-group" data-group="@group.OrderNumber">
+                    <tr class="fa-liste-group-head">
+                        <td colspan="@colCount" class="fa-liste-group-header">
+                            <span class="fa-liste-group-toggle" role="button" tabindex="0" aria-expanded="true" title="Gruppe auf-/zuklappen" aria-label="Gruppe auf-/zuklappen">
+                                <svg class="fa-liste-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transform: rotate(90deg);">
+                                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
+                                </svg>
+                            </span>
+                            <strong class="ms-1">HauptFA @group.OrderNumber</strong>
+                            <span class="badge rounded-pill bg-light text-dark border ms-2" title="Anzahl Sub-FAs in dieser Gruppe">@group.Items.Count Sub-FA@(group.Items.Count == 1 ? "" : "s")</span>
+                        </td>
+                    </tr>
+                    @foreach (var item in group.Items)
+                    {
+                        <partial name="_ProductionOrderRow" model="Ctx(item)" />
+                    }
+                </tbody>
+            }
+            @if (!Model.Groups.Any())
+            {
+                <tbody>
+                    <tr><td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td></tr>
+                </tbody>
+            }
+        }
+        else
+        {
         <tbody>
             @foreach (var item in Model.Items)
             {
-                <tr class="@(item.IsCancelled ? "table-danger" : item.IsDone ? "table-secondary" : "")">
-                    @if (Model.CanPick || Model.HasVorbauAccess)
-                    {
-                        <td class="text-nowrap">
-                            @if (!string.IsNullOrEmpty(item.ArticleNumber))
-                            {
-                                @if (Model.CanPick)
-                                {
-                                    <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                            <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
-                                        </svg>
-                                    </a>
-                                }
-                                else
-                                {
-                                    @* vorbau: read-only Stueckliste ueber FaWorklist/Bom (v1.25.0) *@
-                                    <a asp-controller="FaWorklist" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                            <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
-                                        </svg>
-                                    </a>
-                                }
-                            }
-                        </td>
-                    }
-                    <td>
-                        <strong>@item.OrderNumber</strong>
-                        @if (item.IsCancelled)
-                        {
-                            <span class="badge bg-danger ms-1" title="Dieser Fertigungsauftrag existiert nicht mehr in Sage und wurde automatisch storniert.">In Sage gelöscht</span>
-                        }
-                        @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
-                        {
-                            @await Html.PartialAsync("_EnaioDmsBadges", new IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel(dmsLinks))
-                        }
-                    </td>
-                    <td class="text-end">@item.Quantity.ToString("N3")</td>
-                    <td>@item.Customer</td>
-                    <td>
-                        @if (!string.IsNullOrEmpty(item.ArticleNumber))
-                        {
-                            <strong>@item.ArticleNumber</strong>
-                            <a href="http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search=@item.ArticleNumber&searchContext=0" target="_blank" title="Zeichnung in Vault öffnen" class="vault-link">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
-                                    <path d="M4.5 12.5A.5.5 0 0 1 5 12h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m0-2A.5.5 0 0 1 5 10h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m1.639-3.708 1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047l1.888.974V7.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V7s1.54-1.274 1.639-1.208M6.25 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5"/>
-                                </svg>
-                            </a>
-                        }
-                    </td>
-                    <td>@item.Description1</td>
-                    <td>@item.Description2</td>
-                    <td>
-                        @item.WorkplaceName
-                        @if (item.PrePickingDaysOverride.HasValue)
-                        {
-                            @* Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) *@
-                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1"
-                                  title="Abweichende Vorkommissioniertage dieser Werkbank: @item.PrePickingDaysOverride Arbeitstag(e) statt Standard @Model.VorkommissionierTage">BG @item.PrePickingDaysOverride</span>
-                        }
-                    </td>
-                    <td>@item.Kaeltemittel</td>
-                    <td>@item.Ventil</td>
-                    <td>@item.AusfuehrungEZ</td>
-                    <td>@item.Maschine</td>
-                    <td>@item.SageStatus</td>
-                    @{
-                        var lackName = ViewBag.LackierteilKategorieName as string;
-                        var featureInactive = string.IsNullOrWhiteSpace(lackName);
-                        var showBeschicht = featureInactive || item.HasCoatingParts;
-                        var beschichtRed = showBeschicht
-                                           && !item.IsDone
-                                           && !item.IsCoatingDone
-                                           && item.BeschichtungTermin.HasValue
-                                           && item.BeschichtungTermin.Value < today;
-                    }
-                    <td class="@(beschichtRed ? "text-danger fw-bold" : "")">
-                        @(showBeschicht ? FormatDateWithKw(item.BeschichtungTermin) : "")
-                    </td>
-                    <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
-                        @FormatDateWithKw(item.VorkommissionierTermin)
-                    </td>
-                    <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "kommissionier-date")">
-                        @FormatDateWithKw(item.KommissionierTermin)
-                    </td>
-                    <td>@FormatDateWithKw(item.ProductionDate)</td>
-                    <td>@FormatDateWithKw(item.DeliveryDate)</td>
-                    <td class="text-center">
-                        @if (item.HasCoatingParts && item.IsCoatingDone)
-                        {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-success" viewBox="0 0 16 16" title="Lackierteile erledigt">
-                                <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
-                            </svg>
-                        }
-                        else if (item.HasCoatingParts)
-                        {
-                            <span class="text-muted" title="Lackierteile offen">–</span>
-                        }
-                    </td>
-                    <td class="text-nowrap">
-                        <a asp-controller="Tracking" asp-action="OseonIndex" asp-route-filterCustomerOrder="@item.OrderNumber" asp-route-showFinished="true"
-                           class="btn btn-sm btn-outline-info me-1" title="OSEON Teileverfolgung">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.451.004.09-.41h2.281z"/>
-                                <path d="M8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
-                            </svg>
-                        </a>
-                        @if (Model.CanPick)
-                        {
-                            <form asp-controller="Picking" asp-action="ToggleDone" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@item.Id" />
-                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-                                <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
-                                        title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
-                                    @if (item.IsDone)
-                                    {
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                        </svg>
-                                    }
-                                    else
-                                    {
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                            <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
-                                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                        </svg>
-                                    }
-                                </button>
-                            </form>
-                        }
-                    </td>
-                </tr>
+                <partial name="_ProductionOrderRow" model="Ctx(item)" />
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    @{
-                        var colCount = 19;
-                        if (Model.CanPick || Model.HasVorbauAccess) colCount++;
-                    }
                     <td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td>
                 </tr>
             }
         </tbody>
+        }
     </table>
 </div>
 
@@ -270,6 +189,7 @@
     { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
     { "key": "delivery-date", "label": "Liefertermin", "locked": false, "defaultWidth": null },
     { "key": "coating-part", "label": "Lack-T", "locked": false, "defaultWidth": 55 },
+    { "key": "parent-sub-order-number", "label": "Übergeordnete Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "row-actions", "label": "", "locked": true, "defaultWidth": 80 }
 ]
 </script>
@@ -279,6 +199,8 @@
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    @* IDEAL FA-Liste-Hierarchie: Gruppen-Chevron-Collapse + Auto-Expand (aktiv nur bei data-hierarchical=true). *@
+    <script src="~/js/fa-liste-gruppierung.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // QR scanner for FA number filter — fills input then submits form
