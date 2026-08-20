@@ -28,6 +28,7 @@ public class FaCompletionController : Controller
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly ReadOnlyBomBuilder _readOnlyBomBuilder;
     private readonly ICurrentUserService _currentUser;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public FaCompletionController(
         IProductionOrderRepository productionOrderRepository,
@@ -37,7 +38,8 @@ public class FaCompletionController : Controller
         IProductionWorkplaceRepository productionWorkplaceRepository,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         ReadOnlyBomBuilder readOnlyBomBuilder,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _faWorkStepRepository = faWorkStepRepository;
@@ -47,7 +49,13 @@ public class FaCompletionController : Controller
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _readOnlyBomBuilder = readOnlyBomBuilder;
         _currentUser = currentUser;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     // GET /FaCompletion
     public async Task<IActionResult> Index(
@@ -62,12 +70,18 @@ public class FaCompletionController : Controller
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+
         var orders = await _productionOrderRepository.GetAllOrderedAsync();
 
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
         {
+            // Sub-zuerst-dann-Haupt: im hierarchischen Modus matcht die FA-Nummer SubOrderNumber ODER OrderNumber.
             orders = orders
-                .Where(o => o.OrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase))
+                .Where(o => o.OrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase)
+                            || (hierarchical && o.SubOrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
         }
 
@@ -116,12 +130,65 @@ public class FaCompletionController : Controller
                 SpecCount = c?.SpecCount ?? 0,
                 HasNoWorkplace = o.ProductionWorkplaceId == null,
                 WorkplaceName = o.ProductionWorkplace?.Name,
+                SubOrderNumber = o.SubOrderNumber,
+                ParentSubOrderNumber = o.ParentSubOrderNumber,
+                SageMissingSince = o.SageMissingSince,
             };
         }).ToList();
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filteredItems = ColumnFilterHelper.Apply(allItems, columnFilters, FaCompletionColumnMap).ToList();
+        var colMap = hierarchical ? FaCompletionColumnMapHierarchical : FaCompletionColumnMap;
+        var filteredItems = ColumnFilterHelper.Apply(allItems, columnFilters, colMap).ToList();
 
+        FaCompletionListViewModel vm;
+
+        if (hierarchical)
+        {
+            // Zwei-Ebenen-Gruppierung nach HauptFA (OrderNumber); Z2: Zeilen je Gruppe nach SubOrderNumber.
+            // Z3b: es wird nach Zeilen gefiltert, danach gruppiert → leere Gruppen entstehen gar nicht erst.
+            var groups = filteredItems
+                .GroupBy(i => i.OrderNumber)
+                .Select(g => new FaCompletionListGroup
+                {
+                    OrderNumber = g.Key,
+                    Items = g.OrderBy(i => i.SubOrderNumber, StringComparer.OrdinalIgnoreCase).ToList(),
+                })
+                .ToList();
+
+            var totalGroupCount = groups.Count;   // Paginierung ueber Gruppen (F3)
+            var totalRowCount = filteredItems.Count;
+
+            var pagedGroups = groups
+                .Skip((page - 1) * effectivePageSize)
+                .Take(effectivePageSize)
+                .ToList();
+
+            var groupOrderNumbers = pagedGroups.Select(g => g.OrderNumber).Distinct().ToList();
+            var groupDmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(groupOrderNumbers);
+
+            vm = new FaCompletionListViewModel
+            {
+                Hierarchical = true,
+                Groups = pagedGroups,
+                HierarchicalRowCount = totalRowCount,
+                FilterOrderNumber = filterOrderNumber,
+                FilterArticleNumber = filterArticleNumber,
+                FilterCustomer = filterCustomer,
+                ShowDone = showDone,
+                EnaioDmsLinks = groupDmsLinks,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = totalGroupCount,
+                },
+            };
+
+            return View(vm);
+        }
+
+        // --- Flachmodus (AKE / Master false): unveraendert zu heute ---
         var totalCount = filteredItems.Count;
         var pagedItems = filteredItems
             .Skip((page - 1) * effectivePageSize)
@@ -132,7 +199,7 @@ public class FaCompletionController : Controller
         var orderNumbers = pagedItems.Select(i => i.OrderNumber).Distinct().ToList();
         var dmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(orderNumbers);
 
-        var vm = new FaCompletionListViewModel
+        vm = new FaCompletionListViewModel
         {
             Items = pagedItems,
             FilterOrderNumber = filterOrderNumber,
@@ -167,6 +234,14 @@ public class FaCompletionController : Controller
             ["applicable"] = i => i.ApplicableCount.ToString(),
             ["completed"] = i => i.CompletedCount.ToString(),
             ["spec-count"] = i => i.SpecCount.ToString(),
+        };
+
+    // Hierarchischer Modus: FA-Nummer-Spaltenfilter matcht Sub-zuerst-dann-Haupt (OR ueber Contains).
+    // Rest identisch zum Flachmodus-Map.
+    private static readonly Dictionary<string, Func<FaCompletionListItem, string?>> FaCompletionColumnMapHierarchical =
+        new(FaCompletionColumnMap, StringComparer.OrdinalIgnoreCase)
+        {
+            ["order-number"] = i => $"{i.SubOrderNumber} {i.OrderNumber}",
         };
 
     // GET /FaCompletion/Edit/{id}
