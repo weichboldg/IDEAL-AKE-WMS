@@ -61,6 +61,13 @@
         if (chev) chev.style.transform = open ? 'rotate(90deg)' : 'rotate(0deg)';
         var toggle = tbody.querySelector('.fa-liste-group-toggle');
         if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+        // Views mit zeilengebundener Auswahl (z.B. PickingLeitstand-Bulk-Select) muessen beim
+        // Zuklappen die nun versteckten Zeilen aus der Auswahl nehmen — analog Filter. Wir melden
+        // nur das Ereignis; die view-spezifische Logik reagiert (dieser Baustein bleibt generisch).
+        document.dispatchEvent(new CustomEvent('fa-liste-group-toggled', {
+            detail: { open: open, group: tbody.getAttribute('data-group') }
+        }));
     }
 
     function autoExpandOnFilter(table, q) {

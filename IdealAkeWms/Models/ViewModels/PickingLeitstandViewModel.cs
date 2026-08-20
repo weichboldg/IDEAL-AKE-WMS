@@ -18,6 +18,39 @@ public class PickingLeitstandViewModel
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
 
     public PaginationState Pagination { get; set; } = new();
+
+    // IDEAL FA-Liste-Hierarchie (Teil 7/8): nur bei Master ProduktionsauftragHierarchisch = true.
+    /// <summary>Hierarchischer Modus aktiv → Zwei-Ebenen-Gruppierung (Groups) statt Items.</summary>
+    public bool Hierarchical { get; set; }
+    /// <summary>HauptFA-Gruppen (Gruppen-Kopfzeile = OrderNumber, darunter alle Nachfahren-Sub-FAs).</summary>
+    public List<PickingLeitstandGroup> Groups { get; set; } = new();
+    /// <summary>Anzahl aller Sub-FA-Zeilen auf der Filterauswahl (Z4: „N Aufträge · M Sub-FAs").</summary>
+    public int HierarchicalRowCount { get; set; }
+}
+
+/// <summary>Eine HauptFA-Gruppe des Leitstands im hierarchischen Modus.</summary>
+public class PickingLeitstandGroup
+{
+    public string OrderNumber { get; set; } = string.Empty;
+    public List<PickingLeitstandItem> Items { get; set; } = new();
+}
+
+/// <summary>
+/// Kontext fuer das Zeilen-Partial <c>_PickingLeitstandRow.cshtml</c> — traegt die Zeile plus den
+/// gemeinsamen View-Kontext, damit flache und gruppierte Darstellung dasselbe Zeilen-Markup teilen.
+/// </summary>
+public class PickingLeitstandRowContext
+{
+    public PickingLeitstandItem Item { get; set; } = new();
+    public bool CanPick { get; set; }
+    public bool LeitstandAktiv { get; set; }
+    public bool CanManagePickingRelease { get; set; }
+    public bool PickerAssignmentEnabled { get; set; }
+    public int VorkommissionierTage { get; set; }
+    public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
+    public string? LackierteilKategorieName { get; set; }
+    /// <summary>true → order-number-Zelle zeigt SubOrderNumber, Elternspalte + SageMissingSince-Badge aktiv.</summary>
+    public bool Hierarchical { get; set; }
 }
 
 public class PickingLeitstandItem
@@ -69,4 +102,12 @@ public class PickingLeitstandItem
     // Nur aktive AGs sind enthalten; fehlender Key = AG nicht anwendbar (leere Zelle).
     // Das Auswahlfeld zeigt/setzt Status (3-Wert-Erledigt) — dasselbe Flag wie die FA-Abarbeitungsliste.
     public Dictionary<string, Data.Repositories.FaWorkStepPivotCell> WorkSteps { get; set; } = new();
+
+    // IDEAL Hierarchie (Teil 7) — nur im hierarchischen Modus befuellt.
+    /// <summary>Sub-FA-Nummer (= Sage BelID). Im Flachmodus == OrderNumber (Backfill).</summary>
+    public string? SubOrderNumber { get; set; }
+    /// <summary>Elternzeiger (Sub-FA des Vaters); Spalte parent-sub-order-number, defaultHidden.</summary>
+    public string? ParentSubOrderNumber { get; set; }
+    /// <summary>Zeitstempel „aus der Struktur vermisst" (Sync-Regel 2); eigener Badge, kein IsCancelled.</summary>
+    public DateTime? SageMissingSince { get; set; }
 }

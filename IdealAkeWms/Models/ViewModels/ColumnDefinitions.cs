@@ -92,6 +92,9 @@ public static class ColumnDefinitions
             new ColumnDef("doors",          "VT",            Locked: false, DefaultWidth: 40),
             new ColumnDef("superstructure", "VA",            Locked: false, DefaultWidth: 40),
             new ColumnDef("status",         "Status",        Locked: false),
+            // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur hierarchisch befuellt,
+            // per Default ausgeblendet. Additiv, keine Migration.
+            new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
             new ColumnDef("row-actions",    "",              Locked: true,  DefaultWidth: 80),
             new ColumnDef("release",        "Freigabe",      Locked: false, DefaultWidth: 160),
             new ColumnDef("picker",         "Kommissionierer", Locked: false),

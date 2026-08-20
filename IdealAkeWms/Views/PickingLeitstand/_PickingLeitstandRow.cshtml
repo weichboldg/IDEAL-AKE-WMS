@@ -1,0 +1,269 @@
+@model IdealAkeWms.Models.ViewModels.PickingLeitstandRowContext
+@using System.Globalization
+@{
+    var item = Model.Item;
+    var today = DateTime.Today;
+    string FormatDateWithKw(DateTime? date)
+    {
+        if (!date.HasValue) return "";
+        var d = date.Value;
+        return $"{d:dd.MM.yyyy} KW{ISOWeek.GetWeekOfYear(d)}";
+    }
+    // FA-Nummer-Zelle: im hierarchischen Modus die Sub-FA-Nummer (SubOrderNumber), sonst OrderNumber.
+    var faCellNumber = Model.Hierarchical ? (item.SubOrderNumber ?? item.OrderNumber) : item.OrderNumber;
+    var rowClass = item.IsDone ? "table-secondary" : "";
+    if (Model.Hierarchical) rowClass = ("fa-liste-node-row " + rowClass).Trim();
+}
+<tr class="@rowClass" data-group="@item.OrderNumber">
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <td class="bulk-checkbox-col">
+            @if (!item.IsDone)
+            {
+                <input type="checkbox" class="bulk-row-checkbox"
+                       data-id="@item.Id"
+                       data-released="@(item.IsReleasedForPicking ? "true" : "false")"
+                       data-has-article="@(string.IsNullOrEmpty(item.ArticleNumber) ? "false" : "true")" />
+            }
+        </td>
+    }
+    @if (Model.CanPick)
+    {
+        <td class="text-nowrap">
+            @if (!string.IsNullOrEmpty(item.ArticleNumber))
+            {
+                <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/>
+                    </svg>
+                </a>
+            }
+        </td>
+    }
+    <td>
+        <strong>@faCellNumber</strong>
+        @if (Model.Hierarchical && item.SageMissingSince.HasValue)
+        {
+            <span class="badge bg-warning text-dark ms-1" title="Seit @item.SageMissingSince.Value.ToString("dd.MM.yyyy") nicht mehr in der Struktur gemeldet — Rückmeldung weiterhin möglich">vermisst seit @item.SageMissingSince.Value.ToString("dd.MM.yyyy")</span>
+        }
+        @if (Model.EnaioDmsLinks.TryGetValue(item.OrderNumber, out var dmsLinks))
+        {
+            @await Html.PartialAsync("_EnaioDmsBadges", new IdealAkeWms.Models.ViewModels.EnaioDmsBadgesViewModel(dmsLinks))
+        }
+    </td>
+    <td class="text-end">@item.Quantity.ToString("N3")</td>
+    <td>@item.Customer</td>
+    <td>
+        @if (!string.IsNullOrEmpty(item.ArticleNumber))
+        {
+            <strong>@item.ArticleNumber</strong>
+            <a href="http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search=@item.ArticleNumber&searchContext=0" target="_blank" title="Zeichnung in Vault öffnen" class="vault-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
+                    <path d="M4.5 12.5A.5.5 0 0 1 5 12h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m0-2A.5.5 0 0 1 5 10h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m1.639-3.708 1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047l1.888.974V7.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V7s1.54-1.274 1.639-1.208M6.25 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5"/>
+                </svg>
+            </a>
+        }
+    </td>
+    <td>@item.Description1</td>
+    <td>@item.Description2</td>
+    <td>
+        @item.WorkplaceName
+        @if (item.PrePickingDaysOverride.HasValue)
+        {
+            @* Werkbank-Override „Abweichende Vorkommissioniertage" (v1.27.0) *@
+            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1"
+                  title="Abweichende Vorkommissioniertage dieser Werkbank: @item.PrePickingDaysOverride Arbeitstag(e) statt Standard @Model.VorkommissionierTage">BG @item.PrePickingDaysOverride</span>
+        }
+    </td>
+    <td>@item.Kaeltemittel</td>
+    <td>@item.Ventil</td>
+    <td>@item.AusfuehrungEZ</td>
+    <td>@item.Maschine</td>
+    <td>@item.SageStatus</td>
+    @{
+        var lackName = Model.LackierteilKategorieName;
+        var featureInactive = string.IsNullOrWhiteSpace(lackName);
+        var showBeschicht = featureInactive || item.HasCoatingParts;
+        var beschichtRed = showBeschicht
+                           && !item.IsDone
+                           && !item.IsCoatingDone
+                           && item.BeschichtungTermin.HasValue
+                           && item.BeschichtungTermin.Value < today;
+    }
+    <td class="@(beschichtRed ? "text-danger fw-bold" : "")">
+        @(showBeschicht ? FormatDateWithKw(item.BeschichtungTermin) : "")
+    </td>
+    <td class="@(!item.IsDone && item.VorkommissionierTermin.HasValue && item.VorkommissionierTermin.Value < today ? "text-danger fw-bold" : "")">
+        @FormatDateWithKw(item.VorkommissionierTermin)
+    </td>
+    <td class="@(!item.IsDone && item.KommissionierTermin.HasValue && item.KommissionierTermin.Value < today ? "text-danger fw-bold" : "kommissionier-date")">
+        @FormatDateWithKw(item.KommissionierTermin)
+    </td>
+    <td>@FormatDateWithKw(item.ProductionDate)</td>
+    <td>@FormatDateWithKw(item.DeliveryDate)</td>
+    <td class="text-center">
+        @if (item.HasCoatingParts)
+        {
+            <input type="checkbox" class="form-check-input toggle-field"
+                   data-id="@item.Id"
+                   data-endpoint="/api/picking-status/toggle"
+                   data-field="IsCoatingDone"
+                   title="Lackierteile erledigt"
+                   @(item.IsCoatingDone ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+        }
+    </td>
+    <td class="text-center">
+        <input type="checkbox" class="form-check-input toggle-field"
+               data-id="@item.Id"
+               data-endpoint="/api/picking-status/toggle"
+               data-field="HasGlass"
+               @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+    </td>
+    <td class="text-center">
+        <input type="checkbox" class="form-check-input toggle-field"
+               data-id="@item.Id"
+               data-endpoint="/api/picking-status/toggle"
+               data-field="HasExternalPurchase"
+               @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+    </td>
+    <td class="text-center">
+        @if (item.WorkSteps.TryGetValue("VK", out var vk))
+        {
+            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vk.FaWorkStepId, Status = vk.Status, Disabled = !Model.CanPick })
+        }
+    </td>
+    <td class="text-center">
+        @if (item.WorkSteps.TryGetValue("VL", out var vl))
+        {
+            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vl.FaWorkStepId, Status = vl.Status, Disabled = !Model.CanPick })
+        }
+    </td>
+    <td class="text-center">
+        @if (item.WorkSteps.TryGetValue("VE", out var ve))
+        {
+            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = ve.FaWorkStepId, Status = ve.Status, Disabled = !Model.CanPick })
+        }
+    </td>
+    <td class="text-center">
+        @if (item.WorkSteps.TryGetValue("VT", out var vt))
+        {
+            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vt.FaWorkStepId, Status = vt.Status, Disabled = !Model.CanPick })
+        }
+    </td>
+    <td class="text-center">
+        @if (item.WorkSteps.TryGetValue("VA", out var va))
+        {
+            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = va.FaWorkStepId, Status = va.Status, Disabled = !Model.CanPick })
+        }
+    </td>
+    <td>
+        @if (item.IsDone)
+        {
+            <span class="badge bg-secondary">Erledigt</span>
+        }
+        else
+        {
+            <span class="badge bg-success">Offen</span>
+        }
+        @if (!string.IsNullOrEmpty(item.PickingStatus))
+        {
+            if (item.PickingStatus == "abgeschlossen")
+            {
+                <span class="badge badge-picking-done ms-1">Komm.</span>
+            }
+            else if (item.PickingStatus == "teilkommissioniert")
+            {
+                <span class="badge badge-picking-partial ms-1">Teilkomm.</span>
+            }
+        }
+    </td>
+    @* IDEAL Hierarchie: Elternzeiger-Spalte (defaultHidden, im Flachmodus leer). *@
+    <td>@item.ParentSubOrderNumber</td>
+    <td class="text-nowrap">
+        <a asp-controller="Tracking" asp-action="OseonIndex" asp-route-filterCustomerOrder="@item.OrderNumber" asp-route-showFinished="true"
+           class="btn btn-sm btn-outline-info me-1" title="OSEON Teileverfolgung">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.451.004.09-.41h2.281z"/>
+                <path d="M8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
+            </svg>
+        </a>
+        @if (Model.CanPick)
+        {
+            <form asp-controller="Picking" asp-action="ToggleDone" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@item.Id" />
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                <button type="submit" class="btn btn-sm @(item.IsDone ? "btn-outline-success" : "btn-outline-secondary")"
+                        title="@(item.IsDone ? "Als offen markieren" : "Als erledigt markieren")">
+                    @if (item.IsDone)
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                        </svg>
+                    }
+                </button>
+            </form>
+        }
+    </td>
+    @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
+    {
+        <td class="text-center text-nowrap">
+            @if (!item.IsDone)
+            {
+                <form asp-controller="PickingLeitstand" asp-action="ToggleRelease" method="post" style="display:inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@item.Id" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    @if (item.IsReleasedForPicking)
+                    {
+                        <button type="submit" class="btn btn-sm btn-success me-1" title="Freigabe zurücknehmen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                            </svg>
+                        </button>
+                    }
+                    else if (!string.IsNullOrEmpty(item.ArticleNumber))
+                    {
+                        @if (Model.PickerAssignmentEnabled)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary open-release-modal"
+                                    data-order-id="@item.Id" title="Zur Kommissionierung freigeben">
+                                Freigeben
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Zur Kommissionierung freigeben">
+                                Freigeben
+                            </button>
+                        }
+                    }
+                </form>
+                @if (item.IsReleasedForPicking)
+                {
+                    <input type="number" class="form-control form-control-sm d-inline-block priority-input"
+                           value="@item.PickingPriority" min="1" style="width:55px"
+                           data-id="@item.Id" title="Priorität (1 = höchste)" />
+                }
+            }
+        </td>
+    }
+    @if (Model.PickerAssignmentEnabled)
+    {
+        <td>
+            @if (item.IsReleasedForPicking && !string.IsNullOrEmpty(item.AssignedPickerName))
+            {
+                <a href="#" class="change-picker-link" data-order-id="@item.Id" data-picker-name="@item.AssignedPickerName"
+                   title="Kommissionierer aendern">@item.AssignedPickerName</a>
+            }
+        </td>
+    }
+</tr>
