@@ -49,5 +49,21 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 - BDE-Cockpit ausgeklammert (Backlog); Kommissionierung kaskadiert NICHT.
 
 ## Fortschritt
-- Setup (Epic-Umbau, Aufgabe) — erledigt.
-- Etappe A — offen.
+- Setup (Epic-Umbau zu Etappen A–E, Aufgabe) — **erledigt** (Brain `220272d`).
+- Etappe A — **begonnen, Referenz-View-Build steht aus (Checkpoint 2026-08-20).**
+  - **Z4-ERHEBUNG (Katalog, vorläufig):** Zählstellen für „Aufträge" gefunden: (1) Listen-Kopf/
+    `_Pagination`-TotalCount je Liste (ProductionOrders u.a.), (2) `Views/Home/Index.cshtml` +
+    Dashboard-Kacheln (`_ArtikelinfoTile` etc.), (3) `Views/Articles/Info.cshtml:159`
+    „@Model.UsedInOrders.Count offene Auftraege" (BOM-Cache-basiert). **Vollständiger Sweep +
+    Umsetzung = Etappe D** (Format „N Aufträge · M Sub-FAs"). Keine Überraschung bisher — Zählstellen
+    sind überschaubar; im Sweep genauer verifizieren.
+  - **Referenz-View-Kontext gesichtet:** `ProductionOrdersController.Index` nutzt
+    `IProductionOrderRepository.GetForLeitstandAsync` (zeilenweise Projektion + Server-Spaltenfilter +
+    Datumsfilter, Pagination `PageSize.Resolve`/`PaginationState`); View 297 Z., `data-view-key=
+    "ProductionOrders"`, `data-server-column-filter="true"`, IsCancelled-Badge Z. 126-128.
+    Repo `ProductionOrderRepository` hat noch **keine** gruppierte Abfrage.
+  - **Nächster Schritt (Etappe A Build):** (a) Repo `GetForLeitstandGroupedAsync` (Gruppe=OrderNumber,
+    TotalCount=Gruppen, gleiche Filter je Gruppe) + Unit-Test; (b) `ColumnDefinitions.ProductionOrders`
+    +`parent-sub-order-number` (DefaultHidden); (c) `wwwroot/js/fa-liste-gruppierung.js` (Chevron-Collapse
+    + Auto-Expand); (d) Controller-Master-Gate + View-Umbau (tbody-je-OrderNumber, colspan-Kopf+Chevron,
+    order-number→SubOrderNumber, parent-Spalte, SageMissingSince-Badge, Z4-Zählformat). Dann STOPP+Melden.
