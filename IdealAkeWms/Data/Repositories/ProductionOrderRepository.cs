@@ -34,10 +34,74 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         int pageSize,
         IReadOnlyDictionary<string, string>? columnFilters = null)
     {
+        var q = BuildLeitstandQuery(filterOrderNumber, filterArticleNumber, filterCustomer,
+            showDone, columnFilters, hierarchical: false);
+
+        var totalCount = await q.CountAsync();
+
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = int.MaxValue;
+        var skip = (page - 1) * pageSize;
+
+        var rows = await ProjectLeitstandRows(
+            q.OrderBy(o => o.OrderNumber).Skip(skip).Take(pageSize)).ToListAsync();
+
+        return new LeitstandOrderPage(rows, totalCount);
+    }
+
+    public async Task<LeitstandOrderGroupedPage> GetForLeitstandGroupedAsync(
+        string? filterOrderNumber,
+        string? filterArticleNumber,
+        string? filterCustomer,
+        bool showDone,
+        int page,
+        int pageSize,
+        IReadOnlyDictionary<string, string>? columnFilters = null)
+    {
+        // Dieselben Filter (Zeilen-Ebene, Z3b), aber order-number matcht SubOrderNumber ODER OrderNumber.
+        var q = BuildLeitstandQuery(filterOrderNumber, filterArticleNumber, filterCustomer,
+            showDone, columnFilters, hierarchical: true);
+
+        var totalRowCount = await q.CountAsync();
+
+        // Paginierung ueber GRUPPEN: distinkte OrderNumber, geordnet. Eine Gruppe wird nie geteilt.
+        var groupKeysQuery = q.Select(o => o.OrderNumber).Distinct().OrderBy(k => k);
+        var totalGroupCount = await groupKeysQuery.CountAsync();
+
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = int.MaxValue;
+        var pageKeys = await groupKeysQuery.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        if (pageKeys.Count == 0)
+            return new LeitstandOrderGroupedPage(new List<LeitstandOrderGroup>(), totalGroupCount, totalRowCount);
+
+        // Alle passenden Zeilen der Seiten-Gruppen, je Gruppe SubOrderNumber aufsteigend (Z2).
+        var rows = await ProjectLeitstandRows(
+            q.Where(o => pageKeys.Contains(o.OrderNumber))
+             .OrderBy(o => o.OrderNumber).ThenBy(o => o.SubOrderNumber)).ToListAsync();
+
+        // GroupBy erhaelt die Quell-Reihenfolge (nach OrderNumber sortiert) -> Gruppen in Schluessel-Ordnung.
+        var groups = rows
+            .GroupBy(r => r.OrderNumber)
+            .Select(g => new LeitstandOrderGroup(g.Key, g.ToList()))
+            .ToList();
+
+        return new LeitstandOrderGroupedPage(groups, totalGroupCount, totalRowCount);
+    }
+
+    // Gemeinsamer Filter-Aufbau fuer flache und gruppierte Leitstand-/FA-Liste. hierarchical=true laesst
+    // die order-number-Suche zusaetzlich SubOrderNumber treffen (Z3b/§4: SubOrderNumber ODER OrderNumber).
+    private IQueryable<ProductionOrder> BuildLeitstandQuery(
+        string? filterOrderNumber, string? filterArticleNumber, string? filterCustomer,
+        bool showDone, IReadOnlyDictionary<string, string>? columnFilters, bool hierarchical)
+    {
         IQueryable<ProductionOrder> q = _dbSet.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
-            q = q.Where(o => EF.Functions.Like(o.OrderNumber, $"%{filterOrderNumber}%"));
+            q = hierarchical
+                ? q.Where(o => EF.Functions.Like(o.OrderNumber, $"%{filterOrderNumber}%")
+                            || EF.Functions.Like(o.SubOrderNumber, $"%{filterOrderNumber}%"))
+                : q.Where(o => EF.Functions.Like(o.OrderNumber, $"%{filterOrderNumber}%"));
 
         if (!string.IsNullOrWhiteSpace(filterArticleNumber))
             q = q.Where(o => o.ArticleNumber != null && EF.Functions.Like(o.ArticleNumber, $"%{filterArticleNumber}%"));
@@ -54,44 +118,37 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             {
                 var (tokens, negate) = Services.ColumnFilterHelper.Parse(raw);
                 if (tokens.Count == 0) continue;
-                q = ApplyLeitstandColumnFilter(q, key, tokens, negate);
+                q = ApplyLeitstandColumnFilter(q, key, tokens, negate, hierarchical);
             }
         }
 
-        var totalCount = await q.CountAsync();
-
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = int.MaxValue;
-        var skip = (page - 1) * pageSize;
-
-        var rows = await q
-            .OrderBy(o => o.OrderNumber)
-            .Skip(skip)
-            .Take(pageSize)
-            .Select(o => new LeitstandOrderRow(
-                o.Id,
-                o.OrderNumber,
-                o.Quantity,
-                o.Customer,
-                o.ArticleNumber,
-                o.Description1,
-                o.Description2,
-                o.ProductionDate,
-                o.DeliveryDate,
-                o.IsDone,
-                o.PickingStatus != null && o.PickingStatus.IsDonePicking,
-                o.IsCancelled,
-                o.ProductionWorkplace != null ? o.ProductionWorkplace.Name : null,
-                o.ExtraInfo != null ? o.ExtraInfo.Kaeltemittel : null,
-                o.ExtraInfo != null ? o.ExtraInfo.Ventil : null,
-                o.ExtraInfo != null ? o.ExtraInfo.AusfuehrungEZ : null,
-                o.ExtraInfo != null ? o.ExtraInfo.Maschine : null,
-                o.ExtraInfo != null ? o.ExtraInfo.SageStatus : null,
-                o.ProductionWorkplace != null ? o.ProductionWorkplace.OverridePrePickingDays : null))
-            .ToListAsync();
-
-        return new LeitstandOrderPage(rows, totalCount);
+        return q;
     }
+
+    private static IQueryable<LeitstandOrderRow> ProjectLeitstandRows(IQueryable<ProductionOrder> q) =>
+        q.Select(o => new LeitstandOrderRow(
+            o.Id,
+            o.OrderNumber,
+            o.Quantity,
+            o.Customer,
+            o.ArticleNumber,
+            o.Description1,
+            o.Description2,
+            o.ProductionDate,
+            o.DeliveryDate,
+            o.IsDone,
+            o.PickingStatus != null && o.PickingStatus.IsDonePicking,
+            o.IsCancelled,
+            o.ProductionWorkplace != null ? o.ProductionWorkplace.Name : null,
+            o.ExtraInfo != null ? o.ExtraInfo.Kaeltemittel : null,
+            o.ExtraInfo != null ? o.ExtraInfo.Ventil : null,
+            o.ExtraInfo != null ? o.ExtraInfo.AusfuehrungEZ : null,
+            o.ExtraInfo != null ? o.ExtraInfo.Maschine : null,
+            o.ExtraInfo != null ? o.ExtraInfo.SageStatus : null,
+            o.ProductionWorkplace != null ? o.ProductionWorkplace.OverridePrePickingDays : null,
+            o.SubOrderNumber,
+            o.ParentSubOrderNumber,
+            o.SageMissingSince));
 
     public async Task<List<ProductionOrder>> GetOpenOrdersAsync()
     {
@@ -159,7 +216,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     /// (clientseitiger Kalender/KW-Picker uebernimmt das auf der aktuellen Seite).
     /// </summary>
     private static IQueryable<ProductionOrder> ApplyLeitstandColumnFilter(
-        IQueryable<ProductionOrder> q, string key, List<string> tokens, bool negate)
+        IQueryable<ProductionOrder> q, string key, List<string> tokens, bool negate, bool hierarchical = false)
     {
         // Pattern: jeder Token wird zu "%token%" — EF Core kann lokale Listen in
         // .Any(...) zu OR-LIKE-Chains uebersetzen.
@@ -167,9 +224,15 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
         return key switch
         {
-            "order-number" => negate
-                ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))
-                : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p))),
+            // Im hierarchischen Modus zeigt die order-number-Zelle SubOrderNumber -> der Filter matcht
+            // SubOrderNumber ODER OrderNumber (HauptFA bringt die ganze Gruppe, Sub-FA die Zeile).
+            "order-number" => hierarchical
+                ? (negate
+                    ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p) || EF.Functions.Like(o.SubOrderNumber, p)))
+                    : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p) || EF.Functions.Like(o.SubOrderNumber, p))))
+                : (negate
+                    ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))
+                    : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))),
 
             "customer" => negate
                 ? q.Where(o => o.Customer == null || !patterns.Any(p => EF.Functions.Like(o.Customer, p)))
