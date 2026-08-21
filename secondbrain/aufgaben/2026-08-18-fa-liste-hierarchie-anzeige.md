@@ -236,6 +236,43 @@ mit Sub-Nummer; **Merkmal-Spalten des AGs + Status-Auswahlfeld** funktionieren j
 `/api/fa-work-steps/set-status`); parent-Spalte per Zahnrad; Z4-Zeile; FA-Nummer-Filter matcht Sub und Haupt.
 Client-Sort-im-Grouped-Vorbehalt wie überall (Etappe D).
 
+### B-View 5: Tracking/Index — UNTERSUCHT, Vorschlag vorgelegt (2026-08-21, KEIN Build)
+Abmachung: erst WONACH gruppiert wird prüfen, Vorschlag mit Begründung vorlegen, NICHT selbst entscheiden.
+
+**Befund Tracking/Index:** Gruppiert bereits — aber nach **`ProductionOrderId`** (TrackingController Z. 78),
+NICHT nach OrderNumber. Es ist eine **2-Ebenen-Struktur**: Ebene-1-Zeile (`table-light`, Bootstrap-`collapse`)
+= ein ProductionOrder (im hierarchischen Modus ein **Sub-FA**); darunter eine verschachtelte AG-Tabelle
+(WorkOperations). Kopfzeile zeigt `group.OrderNumber` (= **HauptFA-Nummer** im hierarchischen Modus).
+Paginierung über die ProductionOrder-Gruppen. **Nutzt Bootstrap-collapse, NICHT** `fa-liste-gruppierung.js`.
+**Das eigentliche Problem im hierarchischen Modus:** die AGs vermischen sich NICHT (Key = ProductionOrderId),
+aber es entstehen **mehrere Gruppen-Zeilen mit identischer HauptFA-Nummer** (eine je Sub-FA), nicht
+unterscheidbar; SubOrderNumber nicht sichtbar. Es ist real ein **3-Ebenen-Fall**: HauptFA → Sub-FA → AG.
+
+**Vorschlag (dem Menschen zur Entscheidung vorgelegt, 2026-08-21):**
+- **Option 1 — Minimales Relabel (2-Ebenen bleibt, Gruppe = Sub-FA) [EMPFEHLUNG].** Kopfzeile zeigt
+  „HauptFA {OrderNumber} · Sub-FA {SubOrderNumber}", parent-Spalte additiv, FA-Nummer-Filter Sub-zuerst-
+  dann-Haupt. Grund: die bestehende Gruppierung isoliert Sub-FAs schon korrekt; nur das Label ist mehrdeutig.
+  Bootstrap-collapse bleibt unangetastet. AG-Rückmeldung ist ohnehin pro Sub-FA. **Abweichung:** Paginierung
+  bleibt über Sub-FA-Gruppen → HauptFA kann über Seiten splitten (Regel „HauptFA nie splitten" nicht erfüllt,
+  aber Sub-FA-Gruppen sind selbst-enthalten). Geringstes Risiko/Aufwand.
+- **Option 2 — Echte 3-Ebenen (HauptFA → Sub-FA → AG).** Äußere Gruppe = HauptFA via geteiltem
+  `fa-liste-group`/Chevron (konsistent zu den anderen 5, Paginierung über HauptFA, nie gesplittet), innen je
+  Sub-FA ein collapse zur AG-Tabelle. Vollständig konsistent + regelkonform, aber die **einzige 3-Ebenen-View**
+  → geteiltes JS für verschachteltes Collapse erweitern oder Chevron(HauptFA)+Bootstrap-collapse(Sub-FA)
+  kombinieren. Mehr Aufwand + mehr UI-Komplexität am Fertigungs-Terminal.
+- **Option 3 — 2-Ebenen nach HauptFA, AGs flach.** Gruppe = HauptFA, darunter ALLE AGs aller Sub-FAs flach
+  mit Sub-FA-Spalte. Das ist genau der ursprünglich befürchtete „AGs vermischt"-Fall, hier bewusst mit Sub-FA-
+  Spalte entschärft. Verliert Progress-Badge/collapse je Sub-FA; AG-Liste kann lang werden.
+
+**Befund Tracking/OseonIndex (Out-of-Scope-Check, NICHT geändert):** OseonIndex HAT einen QR-Scan am
+Auftragsnummer-Feld: `btnScanCustomerOrder` → `initTextInputScanner('btnScanCustomerOrder','filterCustomerOrder',
+'fa', …)`, Scan-Typ **'fa'**. Füllt `filterCustomerOrder` („Auftrags-/Kundenauftragsnr.") und submittet.
+OseonIndex filtert OSEON nach `CustomerOrderNumber ?? OseonOrderNumber` (HauptFA-/Kundenauftrag-Körnung).
+**Hierarchie-Relevanz:** Scannt ein Werker im IDEAL-Modus ein **Sub-FA**-Etikett (SubOrderNumber), filtert das
+Feld auf HauptFA-Körnung → möglicher Mismatch. Der `_ProductionOrderRow`-Link zu OseonIndex übergibt bereits
+`filterCustomerOrder=OrderNumber` (HauptFA-korrekt). **Gemeldet, nicht geändert (außer Umfang) — ggf. eigener
+Backlog-Punkt, ob OseonIndex Sub-FA-Scans auf HauptFA mappen soll.**
+
 ### B-View 2 (Original-Untersuchung): PickingLeitstand — Checkpoint-Notiz (erledigt, s. oben)
 **Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**
 - **Bulk-Select über mehrere `<tbody>`:** Greift „alle auswählen" über ALLE Gruppen oder nur die erste?
