@@ -21,7 +21,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | # | Etappe | Status |
 |---|--------|--------|
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
-| B | 5 weitere Views — **3/5**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8` | offen |
+| B | 5 weitere Views — **4/5**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2` | offen |
 | C | Kaskade Leitstand-Kopfzeile | offen |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
@@ -215,6 +215,26 @@ dringlichste-zuerst/Z4 · Sub-oder-Haupt-Filter · Flachmodus-Regression).
 Gruppe oben, innerhalb der Gruppe Prio-Reihenfolge — passt das zum Kommissionier-Workflow, oder soll innerhalb
 SubOrderNumber sortiert werden? (2) Klick auf eine Sub-FA-Zeile öffnet deren Stückliste; (3) Chevron auf/zu;
 (4) FA-Nummer-Filter matcht Sub und Haupt; (5) Z4-Zeile. Client-Sort-im-Grouped-Vorbehalt wie überall (Etappe D).
+
+### B-View 4: FaWorklist (FA-Abarbeitungsliste) — ERLEDIGT (`10921e2`, 2026-08-21)
+**Klassifikations-Korrektur (wie bei Picking):** Auch FaWorklist ist ProductionOrder-abgeleitet — eine Zeile
+je offenem FA, der den **gewählten** FaWorkStep hat. Die „fremde Entität je Zeile" ist nur die **AG-Status-
+ZELLE** (das eine Auswahlfeld), NICHT die Zeilen-Körnung. Also FaCompletion-Muster: In-Memory-GroupBy über
+`FaWorklistRow` (aus `GetAllOrderedAsync`), Z2 innerhalb der Gruppe nach SubOrderNumber (keine Prio-Queue wie
+Picking). Gruppen-Reihenfolge = OrderNumber (Quelle ist OrderNumber-sortiert).
+
+Umgesetzt: Controller-Master-Gate + hierarchischer Zweig (GroupBy OrderNumber, Z2-Sortierung, Gruppen-
+Pagination, Z4); FA-Nummer-Spaltenfilter Sub-zuerst-dann-Haupt (`BuildColumnMap(..., hierarchical)`);
+`_FaWorklistRow.cshtml` (geteilt — order-number=SubOrderNumber, parent-Spalte, SageMissingSince-Badge,
+**dynamische Merkmal-Spalten + AG-Status-Auswahlfeld erhalten**); View (data-hierarchical, fa-liste-group-
+tbody, Z4-Zeile, columnCount +parent, JS-Include); ColumnDef + inline column-config +parent (vor `done`);
+Pflicht-Arbeitsgang-Filter unverändert (kein AG gewählt → weiterhin nur Dropdown). **Web-Suite 1232 grün**
+(war 1230 + 2 Tests: Gruppierung/Z2/Z4 · Flachmodus-Regression).
+
+**Sichtprüfung am Testsystem (FaWorklist, Master an, AG gewählt):** Gruppen-Kopf + Chevron; Sub-FA-Zeilen
+mit Sub-Nummer; **Merkmal-Spalten des AGs + Status-Auswahlfeld** funktionieren je Zeile (AJAX
+`/api/fa-work-steps/set-status`); parent-Spalte per Zahnrad; Z4-Zeile; FA-Nummer-Filter matcht Sub und Haupt.
+Client-Sort-im-Grouped-Vorbehalt wie überall (Etappe D).
 
 ### B-View 2 (Original-Untersuchung): PickingLeitstand — Checkpoint-Notiz (erledigt, s. oben)
 **Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**
