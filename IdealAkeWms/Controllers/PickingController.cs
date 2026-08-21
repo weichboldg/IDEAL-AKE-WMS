@@ -26,6 +26,7 @@ public class PickingController : Controller
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IPartRequisitionRepository _partRequisitionRepository;
     private readonly IArticleAttributeRepository _articleAttributeRepository;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public PickingController(
         IProductionOrderRepository productionOrderRepository,
@@ -43,7 +44,8 @@ public class PickingController : Controller
         IUserRepository userRepository,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         IPartRequisitionRepository partRequisitionRepository,
-        IArticleAttributeRepository articleAttributeRepository)
+        IArticleAttributeRepository articleAttributeRepository,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -61,7 +63,13 @@ public class PickingController : Controller
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _partRequisitionRepository = partRequisitionRepository;
         _articleAttributeRepository = articleAttributeRepository;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
@@ -80,6 +88,16 @@ public class PickingController : Controller
         ["status"] = i => string.IsNullOrEmpty(i.PickingStatus) ? "Offen" : i.PickingStatus,
         ["picker"] = i => i.AssignedPickerName,
     };
+
+    /// <summary>
+    /// Hierarchischer Modus: FA-Nummer-Spaltenfilter matcht Sub-zuerst-dann-Haupt (OR ueber Contains).
+    /// Rest identisch zum Flachmodus-Map.
+    /// </summary>
+    private static readonly Dictionary<string, Func<PickingListItem, string?>> ColumnMapHierarchical =
+        new(ColumnMap)
+        {
+            ["order-number"] = i => $"{i.SubOrderNumber} {i.OrderNumber}",
+        };
 
     /// <summary>
     /// Formatiert ein Datum identisch zur View (<c>dd.MM.yyyy KWxx</c>) und lowercased,
@@ -143,7 +161,10 @@ public class PickingController : Controller
                 ProductionDate = o.ProductionDate,
                 PickingStatus = ps?.PickingStatus,
                 AssignedPickerId = ps?.AssignedPickerId,
-                AssignedPickerName = ps?.AssignedPickerName
+                AssignedPickerName = ps?.AssignedPickerName,
+                SubOrderNumber = o.SubOrderNumber,
+                ParentSubOrderNumber = o.ParentSubOrderNumber,
+                SageMissingSince = o.SageMissingSince,
             };
 
             if (o.ProductionDate.HasValue)
@@ -155,11 +176,55 @@ public class PickingController : Controller
             return item;
         }).ToList();
 
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+
         // Server-Side-Spaltenfilter VOR Pagination: filtern -> zaehlen -> Skip/Take.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
-        var totalCount = filtered.Count;
+        var colMap = hierarchical ? ColumnMapHierarchical : ColumnMap;
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, colMap).ToList();
         if (page < 1) page = 1;
+
+        if (hierarchical)
+        {
+            // Zwei-Ebenen-Gruppierung nach HauptFA. allItems ist bereits Prio-sortiert
+            // (GetReleasedForPickingAsync); stabiles GroupBy erhaelt dadurch: Gruppen-Reihenfolge =
+            // dringlichste zuerst, innerhalb der Gruppe die Prio-Reihenfolge der Warteschlange.
+            // Bewusst NICHT SubOrderNumber (Z2) — die Kommissionier-Liste ist eine Prioritaets-Queue.
+            // Z3b: nach Zeilen filtern, dann gruppieren → leere Gruppen entstehen gar nicht erst.
+            var groups = filtered
+                .GroupBy(i => i.OrderNumber)
+                .Select(g => new PickingListGroup { OrderNumber = g.Key, Items = g.ToList() })
+                .ToList();
+
+            var totalGroupCount = groups.Count;
+            var totalRowCount = filtered.Count;
+
+            var pagedGroups = groups
+                .Skip((page - 1) * effectivePageSize)
+                .Take(effectivePageSize)
+                .ToList();
+
+            return View(new PickingListViewModel
+            {
+                Hierarchical = true,
+                Groups = pagedGroups,
+                HierarchicalRowCount = totalRowCount,
+                ShowAllOrders = showAll,
+                PickerAssignmentEnabled = pickerAssignmentEnabled,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = totalGroupCount // Paginierung ueber Gruppen (F3)
+                }
+            });
+        }
+
+        // --- Flachmodus (AKE / Master false): unveraendert zu heute ---
+        var totalCount = filtered.Count;
         var items = filtered
             .Skip((page - 1) * effectivePageSize)
             .Take(effectivePageSize)

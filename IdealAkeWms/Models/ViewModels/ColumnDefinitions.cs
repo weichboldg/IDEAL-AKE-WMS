@@ -176,6 +176,9 @@ public static class ColumnDefinitions
             new ColumnDef("quantity",    "Stk.",             Locked: false, DefaultWidth: 55),
             new ColumnDef("picking-date","Komm.-Termin",     Locked: false),
             new ColumnDef("status",      "Status",           Locked: false),
+            // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur hierarchisch befuellt,
+            // per Default ausgeblendet. Additiv, keine Migration.
+            new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
             // Conditional: only when PickerAssignmentEnabled
             new ColumnDef("picker",      "Kommissionierer",  Locked: false),
         ]
