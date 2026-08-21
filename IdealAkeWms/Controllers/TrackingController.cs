@@ -21,6 +21,7 @@ public class TrackingController : Controller
     private readonly IBusinessDayService _businessDayService;
     private readonly IHolidayRepository _holidayRepository;
     private readonly IOseonGroupViewModelBuilder _groupBuilder;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public TrackingController(
         IWorkOperationRepository workOperationRepository,
@@ -31,7 +32,8 @@ public class TrackingController : Controller
         IOseonOperationConfigRepository operationConfigRepository,
         IBusinessDayService businessDayService,
         IHolidayRepository holidayRepository,
-        IOseonGroupViewModelBuilder groupBuilder)
+        IOseonGroupViewModelBuilder groupBuilder,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _workOperationRepository = workOperationRepository;
         _workplaceRepository = workplaceRepository;
@@ -42,7 +44,13 @@ public class TrackingController : Controller
         _businessDayService = businessDayService;
         _holidayRepository = holidayRepository;
         _groupBuilder = groupBuilder;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     public async Task<IActionResult> Index(
         string? filterOrderNumber,
@@ -55,12 +63,17 @@ public class TrackingController : Controller
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+
         var allOperations = await _workOperationRepository.GetAllWithOrderAndWorkplaceAsync();
 
-        // Filter anwenden
+        // Filter anwenden. FA-Nummer im hierarchischen Modus Sub-zuerst-dann-Haupt.
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
             allOperations = allOperations
-                .Where(wo => wo.ProductionOrder.OrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase))
+                .Where(wo => wo.ProductionOrder.OrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase)
+                             || (hierarchical && wo.ProductionOrder.SubOrderNumber.Contains(filterOrderNumber, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
         if (filterWorkplaceId.HasValue)
@@ -73,7 +86,7 @@ public class TrackingController : Controller
                 .Where(wo => !wo.IsReported)
                 .ToList();
 
-        // Nach Auftrag gruppieren
+        // Nach Auftrag (= ProductionOrder, im hierarchischen Modus ein Sub-FA) gruppieren.
         var allGroups = allOperations
             .GroupBy(wo => wo.ProductionOrderId)
             .Select(g =>
@@ -91,17 +104,68 @@ public class TrackingController : Controller
                     WorkplaceName = po.ProductionWorkplace?.Name,
                     TotalOperations = allOpsForOrder.Count,
                     ReportedOperations = allOpsForOrder.Count(o => o.IsReported),
-                    Operations = allOpsForOrder.Select(MapToItem).ToList()
+                    Operations = allOpsForOrder.Select(MapToItem).ToList(),
+                    SubOrderNumber = po.SubOrderNumber,
+                    ParentSubOrderNumber = po.ParentSubOrderNumber,
+                    SageMissingSince = po.SageMissingSince,
                 };
             })
             .OrderBy(g => g.OrderNumber)
             .ToList();
 
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var colMap = hierarchical ? TrackingGroupColumnMapHierarchical : TrackingGroupColumnMap;
         var filteredGroups = IdealAkeWms.Services.ColumnFilterHelper
-            .Apply(allGroups, columnFilters, TrackingGroupColumnMap)
+            .Apply(allGroups, columnFilters, colMap)
             .ToList();
 
+        var workplaces = await _workplaceRepository.GetAllOrderedAsync();
+        var canReport = await _currentUserService.CanReportOperationsAsync();
+
+        if (hierarchical)
+        {
+            // Dritte Ebene: die Sub-FA-Gruppen zu HauptFA-Uebergruppen buendeln (OrderNumber),
+            // Z2 innerhalb der Gruppe nach SubOrderNumber. Paginierung ueber HauptFA-Gruppen (F3);
+            // Z3b: leere HauptFA-Gruppen entstehen nicht, da nach Zeilen/Sub-FAs gefiltert wird.
+            var hauptGroups = filteredGroups
+                .GroupBy(g => g.OrderNumber)
+                .Select(hg => new TrackingHauptFaGroup
+                {
+                    OrderNumber = hg.Key,
+                    SubGroups = hg.OrderBy(s => s.SubOrderNumber, StringComparer.OrdinalIgnoreCase).ToList(),
+                })
+                .ToList();
+
+            var totalHauptCount = hauptGroups.Count;
+            var totalSubCount = filteredGroups.Count;
+            var pagedHaupt = hauptGroups
+                .Skip((page - 1) * effectivePageSize)
+                .Take(effectivePageSize)
+                .ToList();
+
+            var hvm = new TrackingViewModel
+            {
+                Hierarchical = true,
+                HauptGroups = pagedHaupt,
+                HierarchicalRowCount = totalSubCount,
+                FilterOrderNumber = filterOrderNumber,
+                FilterWorkplaceId = filterWorkplaceId,
+                ShowReported = showReported,
+                AvailableWorkplaces = workplaces,
+                CanReport = canReport,
+                Pagination = new PaginationState
+                {
+                    CurrentPage = page,
+                    PageSize = effectivePageSize,
+                    PageSizeRaw = rawPageSize,
+                    TotalCount = totalHauptCount, // Paginierung ueber HauptFA-Gruppen
+                },
+            };
+
+            return View(hvm);
+        }
+
+        // --- Flachmodus (AKE / Master false): unveraendert zu heute (2-Ebenen, Bootstrap-collapse) ---
         var totalCount = filteredGroups.Count;
         var pagedGroups = filteredGroups
             .Skip((page - 1) * effectivePageSize)
@@ -114,8 +178,8 @@ public class TrackingController : Controller
             FilterOrderNumber = filterOrderNumber,
             FilterWorkplaceId = filterWorkplaceId,
             ShowReported = showReported,
-            AvailableWorkplaces = await _workplaceRepository.GetAllOrderedAsync(),
-            CanReport = await _currentUserService.CanReportOperationsAsync(),
+            AvailableWorkplaces = workplaces,
+            CanReport = canReport,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -140,6 +204,13 @@ public class TrackingController : Controller
                 : string.Empty,
             ["workplace"] = g => g.WorkplaceName,
             ["progress"] = g => $"{g.ReportedOperations}/{g.TotalOperations}",
+        };
+
+    // Hierarchischer Modus: FA-Nummer-Spaltenfilter matcht Sub-zuerst-dann-Haupt (OR ueber Contains).
+    private static readonly Dictionary<string, Func<TrackingOrderGroup, string?>> TrackingGroupColumnMapHierarchical =
+        new(TrackingGroupColumnMap, StringComparer.OrdinalIgnoreCase)
+        {
+            ["order-number"] = g => $"{g.SubOrderNumber} {g.OrderNumber}",
         };
 
     public async Task<IActionResult> ByWorkplace(int id, string? filterOrderNumber, bool showReported = false)

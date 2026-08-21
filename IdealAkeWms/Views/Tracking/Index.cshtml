@@ -42,7 +42,10 @@
     </div>
 </div>
 
-@if (!Model.OrderGroups.Any())
+@{
+    var hasContent = Model.Hierarchical ? Model.HauptGroups.Any() : Model.OrderGroups.Any();
+}
+@if (!hasContent)
 {
     <div class="alert alert-info">
         Keine Arbeitsgänge gefunden.
@@ -50,6 +53,138 @@
         {
             <text> Möglicherweise sind alle bereits rückgemeldet — aktivieren Sie "Rückgemeldete anzeigen".</text>
         }
+    </div>
+}
+else if (Model.Hierarchical)
+{
+    @* IDEAL 3-Ebenen-Baum (HauptFA → Sub-FA → Arbeitsgang), Muster von Tracking/OseonIndex uebernommen
+       (Chevron-Baum, zweistufiger Fortschritt). Eager gerendert: Tracking-Daten sind lokal (WMS), kein
+       externer Read je Gruppe wie bei OSEON — daher kein Lazy-Load. Paginierung ueber HauptFA-Gruppen. *@
+    <div class="small text-muted mb-1">
+        <strong>@Model.Pagination.TotalCount</strong> Aufträge · <strong>@Model.HierarchicalRowCount</strong> Sub-FAs
+        <span class="ms-2">(HauptFA → Sub-FA → Arbeitsgang; Paginierung über HauptFA-Gruppen)</span>
+    </div>
+    <div class="d-flex justify-content-end gap-1 mb-2">
+        <button type="button" id="btnTrackingExpandAll" class="btn btn-sm btn-outline-secondary" title="Alle aufklappen">Alle auf</button>
+        <button type="button" id="btnTrackingCollapseAll" class="btn btn-sm btn-outline-secondary" title="Alle zuklappen">Alle zu</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0" id="trackingTree" data-view-key="Tracking">
+            <thead>
+                <tr>
+                    <th data-col-key="order-number">FA-Nr.</th>
+                    <th data-col-key="article-number">Artikelnr.</th>
+                    <th data-col-key="description1">Bezeichnung</th>
+                    <th data-col-key="customer">Kunde</th>
+                    <th data-col-key="production-date">Fertigungstermin</th>
+                    <th data-col-key="workplace">Werkbank</th>
+                    <th data-col-key="progress">Fortschritt</th>
+                    <th data-col-key="row-actions" style="width: 160px;"></th>
+                </tr>
+            </thead>
+            @foreach (var haupt in Model.HauptGroups)
+            {
+                var groupKey = "h_" + haupt.OrderNumber.Replace("/", "_").Replace(" ", "_").Replace(".", "_");
+                var hPct = haupt.TotalSubOrders > 0 ? (int)(haupt.FinishedSubOrders * 100.0 / haupt.TotalSubOrders) : 0;
+                var hBar = hPct == 100 ? "bg-success" : hPct > 0 ? "bg-warning" : "bg-secondary";
+                <tbody class="tracking-haupt" data-group="@groupKey">
+                    @* Ebene 1: HauptFA *@
+                    <tr class="tracking-tree-group table-light" data-group="@groupKey" style="cursor: pointer;">
+                        <td style="white-space: nowrap;">
+                            <span class="oseon-toggle tracking-group-toggle" data-target="@groupKey" role="button" tabindex="0">
+                                <svg class="oseon-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s; transform: rotate(90deg);">
+                                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                                </svg>
+                            </span>
+                            <strong class="ms-1">HauptFA @haupt.OrderNumber</strong>
+                        </td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>
+                            <span class="text-muted small me-2" title="Fertige Sub-FAs (alle Arbeitsgänge rückgemeldet) / alle Sub-FAs">@haupt.FinishedSubOrders / @haupt.TotalSubOrders Sub-FAs</span>
+                            <div class="progress d-inline-block align-middle" style="height: 6px; width: 80px;">
+                                <div class="progress-bar @hBar" style="width: @hPct%"></div>
+                            </div>
+                        </td>
+                        <td></td>
+                    </tr>
+                    @foreach (var sub in haupt.SubGroups)
+                    {
+                        var subKey = groupKey + "_s" + sub.ProductionOrderId;
+                        var subBadge = sub.TotalOperations > 0 && sub.ReportedOperations == sub.TotalOperations ? "bg-success"
+                            : sub.ReportedOperations > 0 ? "bg-warning text-dark" : "bg-secondary";
+                        var subLabel = sub.SubOrderNumber ?? sub.OrderNumber;
+                        @* Ebene 2: Sub-FA *@
+                        <tr class="tracking-tree-sub" data-parent="@groupKey" data-sub="@subKey" style="cursor: pointer;">
+                            <td style="padding-left: 28px; white-space: nowrap;">
+                                @if (sub.Operations.Any())
+                                {
+                                    <span class="oseon-toggle tracking-sub-toggle" data-target="@subKey" role="button" tabindex="0">
+                                        <svg class="oseon-chevron" xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16" style="transition: transform 0.15s;">
+                                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                                        </svg>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="display:inline-block; width: 20px;"></span>
+                                }
+                                <strong>@subLabel</strong>
+                                @if (sub.SageMissingSince.HasValue)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1" title="Seit @sub.SageMissingSince.Value.ToString("dd.MM.yyyy") nicht mehr in der Struktur gemeldet">vermisst seit @sub.SageMissingSince.Value.ToString("dd.MM.yyyy")</span>
+                                }
+                            </td>
+                            <td>@sub.ArticleNumber</td>
+                            <td>@sub.Description1</td>
+                            <td>@sub.Customer</td>
+                            <td>@(sub.ProductionDate?.ToString("dd.MM.yyyy"))</td>
+                            <td>@sub.WorkplaceName</td>
+                            <td><span class="badge @subBadge">@sub.ReportedOperations / @sub.TotalOperations AG</span></td>
+                            <td></td>
+                        </tr>
+                        @foreach (var op in sub.Operations)
+                        {
+                            @* Ebene 3: Arbeitsgang *@
+                            <tr class="tracking-tree-op @(op.IsReported ? "table-success" : "")" data-parent-sub="@subKey" style="display: none;">
+                                <td style="padding-left: 52px; white-space: nowrap;">
+                                    <span class="text-muted">@op.Sequence.</span> @op.OperationNumber
+                                </td>
+                                <td colspan="2">@op.Name</td>
+                                <td></td>
+                                <td></td>
+                                <td>@(op.WorkplaceName ?? "—")</td>
+                                <td>@await Html.PartialAsync("_OperationStatusBadge", op)</td>
+                                <td>
+                                    @if (Model.CanReport && op.IsReportable)
+                                    {
+                                        if (!op.IsReported)
+                                        {
+                                            <form asp-action="Report" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@op.Id" />
+                                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                                <button type="submit" class="btn btn-sm btn-success">Rückmelden</button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="UndoReport" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@op.Id" />
+                                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">Zurücknehmen</button>
+                                            </form>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            }
+        </table>
     </div>
 }
 else
@@ -173,4 +308,66 @@ else
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    @if (Model.Hierarchical)
+    {
+        <script>
+            // IDEAL 3-Ebenen-Baum (HauptFA → Sub-FA → AG). Chevron-Toggle, eager gerendert.
+            // Perf: Sub-/Op-Zeilen werden EINMAL in Maps vorberechnet (siehe OseonIndex-Kommentar zur
+            // Sortierung: querySelectorAll je Toggle waere O(N*M) und haengt bei vielen Sub-FAs/AGs).
+            document.addEventListener('DOMContentLoaded', function () {
+                var tree = document.getElementById('trackingTree');
+                if (!tree) return;
+
+                var subsByGroup = {}, opsBySub = {};
+                tree.querySelectorAll('tr.tracking-tree-sub').forEach(function (r) {
+                    var k = r.getAttribute('data-parent');
+                    (subsByGroup[k] = subsByGroup[k] || []).push(r);
+                });
+                tree.querySelectorAll('tr.tracking-tree-op').forEach(function (r) {
+                    var k = r.getAttribute('data-parent-sub');
+                    (opsBySub[k] = opsBySub[k] || []).push(r);
+                });
+
+                function chevron(selector) { return tree.querySelector(selector + ' .oseon-chevron'); }
+
+                function setSub(subKey, open) {
+                    (opsBySub[subKey] || []).forEach(function (op) { op.style.display = open ? '' : 'none'; });
+                    var c = chevron('.tracking-sub-toggle[data-target="' + subKey + '"]');
+                    if (c) c.style.transform = open ? 'rotate(90deg)' : '';
+                }
+                function setGroup(groupKey, open) {
+                    (subsByGroup[groupKey] || []).forEach(function (sub) {
+                        sub.style.display = open ? '' : 'none';
+                        if (!open) setSub(sub.getAttribute('data-sub'), false);
+                    });
+                    var c = chevron('.tracking-group-toggle[data-target="' + groupKey + '"]');
+                    if (c) c.style.transform = open ? 'rotate(90deg)' : '';
+                }
+                function isSubOpen(subKey) {
+                    var ops = opsBySub[subKey] || [];
+                    return ops.length > 0 && ops[0].style.display !== 'none';
+                }
+                function isGroupOpen(groupKey) {
+                    var subs = subsByGroup[groupKey] || [];
+                    return subs.length > 0 && subs[0].style.display !== 'none';
+                }
+
+                tree.addEventListener('click', function (e) {
+                    if (e.target.closest('a, button, input, label, select, form')) return;
+                    var subRow = e.target.closest('tr.tracking-tree-sub');
+                    if (subRow) { var sk = subRow.getAttribute('data-sub'); setSub(sk, !isSubOpen(sk)); return; }
+                    var groupRow = e.target.closest('tr.tracking-tree-group');
+                    if (groupRow) { var gk = groupRow.getAttribute('data-group'); setGroup(gk, !isGroupOpen(gk)); }
+                });
+
+                document.getElementById('btnTrackingExpandAll')?.addEventListener('click', function () {
+                    Object.keys(subsByGroup).forEach(function (g) { setGroup(g, true); });
+                    Object.keys(opsBySub).forEach(function (s) { setSub(s, true); });
+                });
+                document.getElementById('btnTrackingCollapseAll')?.addEventListener('click', function () {
+                    Object.keys(subsByGroup).forEach(function (g) { setGroup(g, false); });
+                });
+            });
+        </script>
+    }
 }
