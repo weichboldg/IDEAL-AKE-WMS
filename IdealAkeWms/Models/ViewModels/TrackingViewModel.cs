@@ -9,6 +9,34 @@ public class TrackingViewModel
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public bool CanReport { get; set; }
     public PaginationState Pagination { get; set; } = new();
+
+    // IDEAL FA-Liste-Hierarchie (Teil 7/8): nur bei Master ProduktionsauftragHierarchisch = true.
+    /// <summary>
+    /// Hierarchischer Modus aktiv → 3-Ebenen-Baum (HauptFA → Sub-FA → Arbeitsgang) statt der flachen
+    /// 2-Ebenen-Darstellung. Muster uebernommen von Tracking/OseonIndex (Chevron-Baum, zweistufiger
+    /// Fortschritt). Der Flachmodus (AKE) bleibt bit-identisch (Bootstrap-collapse, OrderGroups).
+    /// </summary>
+    public bool Hierarchical { get; set; }
+    /// <summary>HauptFA-Uebergruppen (je HauptFA-OrderNumber die Sub-FA-Gruppen mit ihren Arbeitsgaengen).</summary>
+    public List<TrackingHauptFaGroup> HauptGroups { get; set; } = new();
+    /// <summary>Anzahl aller Sub-FAs auf der Filterauswahl (Z4: „N Aufträge · M Sub-FAs").</summary>
+    public int HierarchicalRowCount { get; set; }
+}
+
+/// <summary>
+/// HauptFA-Uebergruppe im hierarchischen Modus. Fortschritt zweistufig: hier „fertige Sub-FAs / alle",
+/// je Sub-FA (<see cref="TrackingOrderGroup"/>) „rueckgemeldete AGs / alle".
+/// </summary>
+public class TrackingHauptFaGroup
+{
+    public string OrderNumber { get; set; } = string.Empty;
+    public List<TrackingOrderGroup> SubGroups { get; set; } = new();
+
+    /// <summary>Gesamtzahl der Sub-FAs dieser HauptFA (Nenner des HauptFA-Fortschritts).</summary>
+    public int TotalSubOrders => SubGroups.Count;
+    /// <summary>Sub-FAs, deren Arbeitsgaenge alle rueckgemeldet sind (Zaehler des HauptFA-Fortschritts).</summary>
+    public int FinishedSubOrders =>
+        SubGroups.Count(s => s.TotalOperations > 0 && s.ReportedOperations == s.TotalOperations);
 }
 
 public class TrackingOrderGroup
@@ -23,6 +51,14 @@ public class TrackingOrderGroup
     public int TotalOperations { get; set; }
     public int ReportedOperations { get; set; }
     public List<TrackingOperationItem> Operations { get; set; } = new();
+
+    // IDEAL Hierarchie (Teil 7) — nur im hierarchischen Modus befuellt.
+    /// <summary>Sub-FA-Nummer (= Sage BelID). Im Flachmodus == OrderNumber (Backfill).</summary>
+    public string? SubOrderNumber { get; set; }
+    /// <summary>Elternzeiger (Sub-FA des Vaters).</summary>
+    public string? ParentSubOrderNumber { get; set; }
+    /// <summary>Zeitstempel „aus der Struktur vermisst" (Sync-Regel 2); eigener Badge, kein IsCancelled.</summary>
+    public DateTime? SageMissingSince { get; set; }
 }
 
 public class TrackingOperationItem
