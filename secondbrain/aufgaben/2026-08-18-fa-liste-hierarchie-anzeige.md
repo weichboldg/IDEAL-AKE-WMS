@@ -21,7 +21,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | # | Etappe | Status |
 |---|--------|--------|
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
-| B | 5 weitere Views — **4/5**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2` | offen |
+| B | 5 weitere Views — **5/5 KOMPLETT**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2`, Tracking/Index `7bba52b` | **erledigt** |
 | C | Kaskade Leitstand-Kopfzeile | offen |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
@@ -248,7 +248,30 @@ Paginierung über die ProductionOrder-Gruppen. **Nutzt Bootstrap-collapse, NICHT
 aber es entstehen **mehrere Gruppen-Zeilen mit identischer HauptFA-Nummer** (eine je Sub-FA), nicht
 unterscheidbar; SubOrderNumber nicht sichtbar. Es ist real ein **3-Ebenen-Fall**: HauptFA → Sub-FA → AG.
 
-**Vorschlag (dem Menschen zur Entscheidung vorgelegt, 2026-08-21):**
+**ENTSCHEIDUNG (Mensch, 2026-08-21): Option 2 (echte 3-Ebenen), UMGESETZT (`7bba52b`).** Vorgaben:
+OseonIndex als Referenz übernehmen (nicht neu erfinden); zweistufiger Fortschritt (je HauptFA „fertige
+Sub-FAs / alle", je Sub-FA „rückgemeldete AGs / alle"); Perf-Kommentar zur Sortierung lesen; Lade-Strategie
+MESSEN; Bootstrap-collapse entfällt (nicht mit OSEON-Muster mischen).
+
+**Umsetzung (7bba52b):** Controller-Master-Gate; hierarchischer Zweig bündelt die bestehenden
+ProductionOrder-Gruppen (= Sub-FAs) zu HauptFA-Übergruppen (GroupBy OrderNumber, Z2 SubOrderNumber),
+Paginierung über HauptFA-Gruppen, Z4; FA-Nummer-Filter Sub-zuerst-dann-Haupt. **Flachmodus (AKE)
+bit-identisch** (2-Ebenen, Bootstrap-collapse unangetastet). VM: `TrackingHauptFaGroup` mit zweistufigem
+Fortschritt. View: hierarchischer Zweig rendert den 3-Ebenen-Baum (Chevron-Toggle, Rückmelden je AG
+erhalten); Toggle-JS mit **vorberechneten Maps** (heeds Perf-Kommentar — kein O(N*M)-Selector-Storm);
+KEIN Client-Sort im Baum. 2 neue Controller-Tests. **Web-Suite 1234 grün.**
+
+**LADE-STRATEGIE — gemessen, nicht geraten (Ergebnis: EAGER, kein Lazy):** OseonIndex lädt Ebene 3 lazy,
+WEIL `_groupBuilder.BuildAsync` je Gruppe **externe OSEON-Reads + Ampel-Berechnung** macht (teuer,
+pro Gruppe). Tracking/Index-Daten sind **100 % lokal** (ein `GetAllWithOrderAndWorkplaceAsync` mit Includes;
+Baum-Aufbau = reines In-Memory-GroupBy). Die Lazy-Begründung entfällt also. Zudem rendert Tracking/Index
+schon heute alle paginierten Gruppen-AGs eager (im Bootstrap-collapse); eine Ebene tiefer verschachteln,
+paginiert über HauptFAs, rendert dieselben Zeilen → DOM bleibt paginierungs-begrenzt. Der 1386-Scan-Fallstrick
+betrifft Client-**Sort** mit verschachteltem querySelectorAll — kein Client-Sort im Baum → tritt nicht auf.
+**Abweichung dokumentiert:** parent-sub-order-number-Spalte NICHT ergänzt (die Eltern-Beziehung ist im Baum
+durch die Verschachtelung visuell ausgedrückt; ParentSubOrderNumber liegt im VM bereit, falls doch gewünscht).
+
+**Vorschlag (Historie — dem Menschen am 2026-08-21 vorgelegt, s. Entscheidung oben):**
 - **Option 1 — Minimales Relabel (2-Ebenen bleibt, Gruppe = Sub-FA) [EMPFEHLUNG].** Kopfzeile zeigt
   „HauptFA {OrderNumber} · Sub-FA {SubOrderNumber}", parent-Spalte additiv, FA-Nummer-Filter Sub-zuerst-
   dann-Haupt. Grund: die bestehende Gruppierung isoliert Sub-FAs schon korrekt; nur das Label ist mehrdeutig.
