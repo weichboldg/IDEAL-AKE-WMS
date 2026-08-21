@@ -1,0 +1,41 @@
+@model IdealAkeWms.Models.ViewModels.PickingRowContext
+@using System.Globalization
+@{
+    var item = Model.Item;
+    var statusBadge = item.PickingStatus switch
+    {
+        "abgeschlossen" => "bg-success",
+        "teilkommissioniert" => "bg-info text-dark",
+        "in Kommissionierung" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+    var statusText = string.IsNullOrEmpty(item.PickingStatus) ? "Offen" : item.PickingStatus;
+    var kwStr = item.KommissionierTermin.HasValue
+        ? $"{item.KommissionierTermin.Value:dd.MM.yyyy} KW{ISOWeek.GetWeekOfYear(item.KommissionierTermin.Value)}"
+        : "";
+    // FA-Nummer-Zelle: im hierarchischen Modus die Sub-FA-Nummer (SubOrderNumber), sonst OrderNumber.
+    var faCellNumber = Model.Hierarchical ? (item.SubOrderNumber ?? item.OrderNumber) : item.OrderNumber;
+    var rowClass = Model.Hierarchical ? "clickable-row fa-liste-node-row" : "clickable-row";
+}
+<tr class="@rowClass" data-group="@item.OrderNumber" data-href="@Url.Action("Bom", new { id = item.Id })" style="cursor: pointer;">
+    <td><strong>@(item.PickingPriority?.ToString() ?? "-")</strong></td>
+    <td>
+        <strong>@faCellNumber</strong>
+        @if (Model.Hierarchical && item.SageMissingSince.HasValue)
+        {
+            <span class="badge bg-warning text-dark ms-1" title="Seit @item.SageMissingSince.Value.ToString("dd.MM.yyyy") nicht mehr in der Struktur gemeldet — Rückmeldung weiterhin möglich">vermisst seit @item.SageMissingSince.Value.ToString("dd.MM.yyyy")</span>
+        }
+    </td>
+    <td>@item.ArticleNumber</td>
+    <td>@item.Description1</td>
+    <td>@item.Customer</td>
+    <td class="text-end">@item.Quantity.ToString("N0")</td>
+    <td>@kwStr</td>
+    <td><span class="badge @statusBadge">@statusText</span></td>
+    @* IDEAL Hierarchie: Elternzeiger-Spalte (defaultHidden, im Flachmodus leer). *@
+    <td>@item.ParentSubOrderNumber</td>
+    @if (Model.PickerAssignmentEnabled)
+    {
+        <td>@item.AssignedPickerName</td>
+    }
+</tr>
