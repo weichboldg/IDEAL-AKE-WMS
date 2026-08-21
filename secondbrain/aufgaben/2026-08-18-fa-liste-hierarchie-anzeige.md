@@ -21,7 +21,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | # | Etappe | Status |
 |---|--------|--------|
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
-| B | 5 weitere Views (Anzeige-Teil) — **2/5**: FaCompletion `b150579`, PickingLeitstand `5b15caf` | offen |
+| B | 5 weitere Views — **3/5**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8` | offen |
 | C | Kaskade Leitstand-Kopfzeile | offen |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
@@ -187,6 +187,34 @@ die verbleibenden Gruppen.
 
 **Client-Sort-im-Grouped-Modus-Vorbehalt** (nur erste tbody) gilt hier wie bei ProductionOrders/FaCompletion —
 sammelt sich für Etappe D.
+
+### B-View 3: Picking (Kommissionier-Liste) — ERLEDIGT (`960d5c8`, 2026-08-21)
+**Klassifikations-Korrektur:** Die Picking-**Index-Liste** ist entgegen der ersten Heterogenitäts-Vermutung
+NICHT „fremde Entität je Zeile", sondern ProductionOrder-abgeleitet (freigegebene FAs → `PickingListItem`,
+In-Memory-Filter/Gruppierung) — **gleiche Form wie FaCompletion**. (Die „Picking-Status je Zeile"-Notiz bezog
+sich auf einen anderen Aspekt; der Datenpfad ist FaCompletion-nah.) `_ProductionOrderRow`/MapItem trotzdem
+nicht 1:1 (eigene schlanke Zeile), aber Rahmen-Muster + In-Memory-GroupBy wie FaCompletion.
+
+**BESONDERHEIT — Prioritäts-Warteschlange (getroffene + zu bestätigende Entscheidung):** Die Kommissionier-
+Liste ist die **Arbeits-Warteschlange des Kommissionierers**, sortiert nach `PickingPriority` (asc, null zuletzt,
+dann Termin; `GetReleasedForPickingAsync`). Gruppierung nach HauptFA **reorganisiert diese Queue**. Gewählt
+(least-disruptive): die Eingabe ist schon Prio-sortiert, **stabiles GroupBy** liefert dadurch **Gruppen-
+Reihenfolge = dringlichste (kleinste Prio) zuerst** und **innerhalb der Gruppe die Prio-Reihenfolge** —
+**bewusst NICHT SubOrderNumber (generisches Z2)**, weil hier die Dringlichkeit führt. Kein Zwischen-Merge →
+am Testsystem bestätigen oder auf „within-group SubOrderNumber" umstellen (dann verliert die Gruppe die
+Prio-Ordnung). **Prominent im STOP-Report geflaggt.**
+
+Umgesetzt: Controller-Master-Gate + hierarchischer Zweig (GroupBy OrderNumber, Gruppen-Pagination, Z4),
+FA-Nummer-Spaltenfilter Sub-zuerst-dann-Haupt (eigener hierarchischer Column-Map); `_PickingRow.cshtml`
+(geteilt, `clickable-row` erhalten, order-number=SubOrderNumber, parent-Spalte, SageMissingSince-Badge);
+View (data-hierarchical, fa-liste-group-tbody, Z4-Zeile, JS-Include, `hasRows`-Leerprüfung für beide Modi);
+ColumnDef + inline column-config +parent. **Web-Suite 1230 grün** (war 1227 + 3 Tests: Gruppierung/
+dringlichste-zuerst/Z4 · Sub-oder-Haupt-Filter · Flachmodus-Regression).
+
+**Sichtprüfung am Testsystem (Picking, Master an):** (1) **Reihenfolge-Bestätigung:** dringlichste HauptFA-
+Gruppe oben, innerhalb der Gruppe Prio-Reihenfolge — passt das zum Kommissionier-Workflow, oder soll innerhalb
+SubOrderNumber sortiert werden? (2) Klick auf eine Sub-FA-Zeile öffnet deren Stückliste; (3) Chevron auf/zu;
+(4) FA-Nummer-Filter matcht Sub und Haupt; (5) Z4-Zeile. Client-Sort-im-Grouped-Vorbehalt wie überall (Etappe D).
 
 ### B-View 2 (Original-Untersuchung): PickingLeitstand — Checkpoint-Notiz (erledigt, s. oben)
 **Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**
