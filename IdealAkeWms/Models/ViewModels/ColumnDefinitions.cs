@@ -154,6 +154,9 @@ public static class ColumnDefinitions
             new ColumnDef("ausfuehrung",    "Ausfuehrung E/Z",  Locked: false),
             new ColumnDef("maschine",       "Maschine",         Locked: false),
             new ColumnDef("sage-status",    "Sage-Status",      Locked: false),
+            // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur hierarchisch befuellt,
+            // per Default ausgeblendet. Additiv, keine Migration.
+            new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
             new ColumnDef("done",           "Erledigt",         Locked: true),
         ]
     };

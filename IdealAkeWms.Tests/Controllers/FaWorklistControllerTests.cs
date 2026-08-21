@@ -22,7 +22,8 @@ namespace IdealAkeWms.Tests.Controllers;
 /// </summary>
 public class FaWorklistControllerTests
 {
-    private static (ApplicationDbContext ctx, FaWorklistController ctrl, Mock<ICurrentUserService> userMock) Build()
+    private static (ApplicationDbContext ctx, FaWorklistController ctrl, Mock<ICurrentUserService> userMock) Build(
+        bool hierarchical = false)
     {
         var ctx = TestDbContextFactory.Create();
 
@@ -71,10 +72,21 @@ public class FaWorklistControllerTests
         var readOnlyBomBuilder = new ReadOnlyBomBuilder(
             prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
 
+        // Master ProduktionsauftragHierarchisch: null -> Flachmodus (AKE), "true" -> hierarchisch (IDEAL).
+        var serviceSettingMock = new Mock<IServiceSettingRepository>();
+        serviceSettingMock.Setup(x => x.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        if (hierarchical)
+        {
+            serviceSettingMock
+                .Setup(x => x.GetValueAsync(
+                    IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master))
+                .ReturnsAsync("true");
+        }
+
         var ctrl = new FaWorklistController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, userRepo,
             workplaceRepo, settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
-            readOnlyBomBuilder, userMock.Object);
+            readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -184,6 +196,54 @@ public class FaWorklistControllerTests
         vm.Items.Select(i => i.WorkplaceName).Should().BeEquivalentTo(new[] { "Werkbank 1", "Werkbank 2" });
         vm.Items.Should().OnlyContain(i => i.WorkStepCell != null);
         vm.Pagination.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_GroupsByHauptFa_SortsBySubOrderNumber_WithZ4Counts()
+    {
+        var (ctx, ctrl, _) = Build(hierarchical: true);
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+
+        // HauptFA H1 mit zwei Sub-FAs (bewusst unsortiert angelegt), HauptFA H2 mit einer Sub-FA.
+        var h1b = TestDataHelper.CreateOrderWithStatuses(ctx, "H1");
+        h1b.Order.SubOrderNumber = "H1-2";
+        h1b.Order.ParentSubOrderNumber = "H1-1";
+        var h1a = TestDataHelper.CreateOrderWithStatuses(ctx, "H1");
+        h1a.Order.SubOrderNumber = "H1-1";
+        var h2 = TestDataHelper.CreateOrderWithStatuses(ctx, "H2");
+        h2.Order.SubOrderNumber = "H2-1";
+        ctx.SaveChanges();
+
+        SeedFaWorkStep(ctx, h1a.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, h1b.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, h2.Order.Id, ve.Id);
+
+        var result = await ctrl.Index(ve.Id);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<FaWorklistViewModel>().Subject;
+        vm.Hierarchical.Should().BeTrue();
+        vm.Groups.Should().HaveCount(2);
+        vm.HierarchicalRowCount.Should().Be(3);
+        vm.Pagination.TotalCount.Should().Be(2); // Paginierung ueber Gruppen
+
+        var g1 = vm.Groups.Single(g => g.OrderNumber == "H1");
+        g1.Items.Select(i => i.SubOrderNumber).Should().ContainInOrder("H1-1", "H1-2"); // Z2
+        g1.Items.Single(i => i.SubOrderNumber == "H1-2").ParentSubOrderNumber.Should().Be("H1-1");
+    }
+
+    [Fact]
+    public async Task Index_FlatMode_LeavesHierarchicalFalse()
+    {
+        // Regression: Master aus (default) → keine Gruppierung, bit-identisch zu heute.
+        var (ctx, ctrl, _) = Build(hierarchical: false);
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+        var o1 = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-001");
+        SeedFaWorkStep(ctx, o1.Order.Id, ve.Id);
+
+        var vm = ((ViewResult)(await ctrl.Index(ve.Id))).Model.Should().BeOfType<FaWorklistViewModel>().Subject;
+        vm.Hierarchical.Should().BeFalse();
+        vm.Groups.Should().BeEmpty();
+        vm.Items.Should().ContainSingle();
     }
 
     [Fact]

@@ -32,6 +32,7 @@ public class FaWorklistController : Controller
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly ReadOnlyBomBuilder _readOnlyBomBuilder;
     private readonly ICurrentUserService _currentUser;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public FaWorklistController(
         IProductionOrderRepository productionOrderRepository,
@@ -45,7 +46,8 @@ public class FaWorklistController : Controller
         IBusinessDayService businessDayService,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         ReadOnlyBomBuilder readOnlyBomBuilder,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _faWorkStepRepository = faWorkStepRepository;
@@ -59,7 +61,13 @@ public class FaWorklistController : Controller
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _readOnlyBomBuilder = readOnlyBomBuilder;
         _currentUser = currentUser;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     // GET /FaWorklist?workStepId=...&workbenches=...
     public async Task<IActionResult> Index(
@@ -77,6 +85,10 @@ public class FaWorklistController : Controller
         {
             return RedirectToAction("AccessDenied", "Account");
         }
+
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 
         var userDefaultPageSize = await _currentUser.GetDefaultPageSizeAsync();
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
@@ -134,6 +146,7 @@ public class FaWorklistController : Controller
             SelectedWorkStepId = workStepId,
             Workbenches = effectiveWorkbenches,
             ShowDone = showDone,
+            Hierarchical = hierarchical,
             AvailableWorkSteps = availableWorkSteps,
             AvailableWorkplaces = availableWorkplaces,
             Pagination = new PaginationState
@@ -224,6 +237,9 @@ public class FaWorklistController : Controller
                     FaWorkStepId = selectedStep.Id,
                     Status = selectedStep.Status,
                 },
+                SubOrderNumber = order.SubOrderNumber,
+                ParentSubOrderNumber = order.ParentSubOrderNumber,
+                SageMissingSince = order.SageMissingSince,
             };
 
             // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
@@ -259,9 +275,40 @@ public class FaWorklistController : Controller
 
         // Schritt 7: ColumnMap (gerenderte Texte!) + Apply VOR Pagination.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var columnMap = BuildColumnMap(vm.AttributeColumns);
+        var columnMap = BuildColumnMap(vm.AttributeColumns, hierarchical);
         var filteredRows = ColumnFilterHelper.Apply(rows, columnFilters, columnMap).ToList();
 
+        if (hierarchical)
+        {
+            // Zwei-Ebenen-Gruppierung nach HauptFA (OrderNumber); Z2: Zeilen je Gruppe nach SubOrderNumber.
+            // Gruppen-Reihenfolge = OrderNumber (rows stammen aus GetAllOrderedAsync). Z3b: nach Zeilen
+            // filtern, dann gruppieren → leere Gruppen entstehen gar nicht erst.
+            var groups = filteredRows
+                .GroupBy(r => r.OrderNumber)
+                .Select(g => new FaWorklistGroup
+                {
+                    OrderNumber = g.Key,
+                    Items = g.OrderBy(r => r.SubOrderNumber, StringComparer.OrdinalIgnoreCase).ToList(),
+                })
+                .ToList();
+
+            var totalGroupCount = groups.Count;
+            var pagedGroups = groups
+                .Skip((page - 1) * effectivePageSize)
+                .Take(effectivePageSize)
+                .ToList();
+
+            vm.Groups = pagedGroups;
+            vm.HierarchicalRowCount = filteredRows.Count;
+            vm.Pagination.TotalCount = totalGroupCount; // Paginierung ueber Gruppen (F3)
+
+            var groupOrderNumbers = pagedGroups.Select(g => g.OrderNumber).Distinct().ToList();
+            vm.EnaioDmsLinks = await _enaioDmsDocumentRepository.GetByOrderNumbersAsync(groupOrderNumbers);
+
+            return View(vm);
+        }
+
+        // --- Flachmodus (AKE / Master false): unveraendert zu heute ---
         var totalCount = filteredRows.Count;
         var pagedRows = filteredRows
             .Skip((page - 1) * effectivePageSize)
@@ -343,11 +390,12 @@ public class FaWorklistController : Controller
     /// + je Merkmal-Spalte dynamisch "attr-{DefinitionId}".
     /// </summary>
     private static Dictionary<string, Func<FaWorklistRow, string?>> BuildColumnMap(
-        List<FaAttributeDefinition> attributeColumns)
+        List<FaAttributeDefinition> attributeColumns, bool hierarchical = false)
     {
         var map = new Dictionary<string, Func<FaWorklistRow, string?>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["order-number"] = r => r.OrderNumber,
+            // Hierarchisch: FA-Nummer-Filter matcht Sub-zuerst-dann-Haupt (OR ueber Contains).
+            ["order-number"] = hierarchical ? r => $"{r.SubOrderNumber} {r.OrderNumber}" : r => r.OrderNumber,
             ["workbench"] = r => r.WorkplaceName,
             ["article-number"] = r => r.ArticleNumber,
             ["description1"] = r => r.Description1,
