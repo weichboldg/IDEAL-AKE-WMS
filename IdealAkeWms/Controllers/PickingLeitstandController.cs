@@ -21,6 +21,9 @@ public class PickingLeitstandController : Controller
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IUserRepository _userRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly IProductionOrderBdeStatusRepository _bdeStatusRepository;
+    private readonly IBdeBookingRepository _bdeBookingRepository;
+    private readonly ILogger<PickingLeitstandController> _logger;
 
     public PickingLeitstandController(
         IProductionOrderRepository productionOrderRepository,
@@ -32,7 +35,10 @@ public class PickingLeitstandController : Controller
         IBusinessDayService businessDayService,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         IUserRepository userRepository,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        IProductionOrderBdeStatusRepository bdeStatusRepository,
+        IBdeBookingRepository bdeBookingRepository,
+        ILogger<PickingLeitstandController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -44,6 +50,9 @@ public class PickingLeitstandController : Controller
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _userRepository = userRepository;
         _serviceSettingRepository = serviceSettingRepository;
+        _bdeStatusRepository = bdeStatusRepository;
+        _bdeBookingRepository = bdeBookingRepository;
+        _logger = logger;
     }
 
     // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
@@ -444,6 +453,68 @@ public class PickingLeitstandController : Controller
             _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
         return Ok();
+    }
+
+    // ---------------------------------------------------------------------
+    // IDEAL Teil 7/8 — Kaskade „Alle Sub-FAs fertigmelden" (nur Gruppen-Kopfzeile).
+    // Traeger: IsDoneBde (ProductionOrderBdeStatus). Zeilen-Toggle bleibt unveraendert; keine
+    // Gruppen-Ruecknahme (setzt nur true). Zugriff wie die Einzelaktion (BdeStatusApi = PickingAccess).
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Vorschau-Zahlen fuer den Bestaetigungsdialog: Gesamtzahl Sub-FAs dieser HauptFA und — separat —
+    /// wie viele davon eine offene Buchung haben (jede nicht beendete, nicht stornierte BDE-Buchung).
+    /// Filter-unabhaengig (die Kaskade betrifft ALLE Nachfahren, nicht nur die sichtbaren Zeilen).
+    /// </summary>
+    [HttpGet]
+    [RequirePickingAccess]
+    public async Task<IActionResult> CascadeDonePreview(string? orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+            return BadRequest("orderNumber fehlt.");
+
+        var totalSubFas = await _productionOrderRepository.CountByOrderNumberAsync(orderNumber);
+        var withOpenBooking = await _bdeBookingRepository.CountSubFasWithOpenBookingForOrderNumberAsync(orderNumber);
+
+        return Ok(new { orderNumber, totalSubFas, withOpenBooking });
+    }
+
+    /// <summary>
+    /// Fuehrt die Kaskade aus: setzt IsDoneBde=true fuer ALLE Nachfahren-Sub-FAs dieser HauptFA
+    /// (atomar), protokolliert EINEN Log-Eintrag. Setzt nur true (keine Gruppen-Ruecknahme).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequirePickingAccess]
+    public async Task<IActionResult> CascadeDone(string? orderNumber, string? returnUrl)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            TempData["WarningMessage"] = "Keine HauptFA angegeben — nichts fertiggemeldet.";
+            return RedirectBackOrIndex(returnUrl);
+        }
+
+        var affected = await _bdeStatusRepository.SetIsDoneBdeForOrderNumberAsync(
+            orderNumber, true,
+            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+
+        // AK D: EIN Log-Eintrag je Kaskade (HauptFA, Anzahl Sub-FAs, Benutzer) — als eine Aktion erkennbar.
+        _logger.LogInformation(
+            "IDEAL-Kaskade Fertigmeldung (IsDoneBde): HauptFA {OrderNumber} → {Count} Sub-FA(s) auf true durch {User} ({Windows}).",
+            orderNumber, affected, _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+
+        TempData["SuccessMessage"] = affected > 0
+            ? $"HauptFA {orderNumber}: {affected} Sub-FA(s) fertiggemeldet."
+            : $"HauptFA {orderNumber}: keine Sub-FAs gefunden — nichts geändert.";
+
+        return RedirectBackOrIndex(returnUrl);
+    }
+
+    private IActionResult RedirectBackOrIndex(string? returnUrl)
+    {
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
     }
 
     // ---------------------------------------------------------------------

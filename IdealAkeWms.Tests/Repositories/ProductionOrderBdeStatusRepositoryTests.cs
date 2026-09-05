@@ -38,4 +38,57 @@ public class ProductionOrderBdeStatusRepositoryTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
+
+    // --- Kaskade „Alle Sub-FAs fertigmelden" (IDEAL Teil 7/8, Etappe C) ---
+
+    [Fact]
+    public async Task SetIsDoneBdeForOrderNumberAsync_SetsAllSubFas_OfThatHauptFa_Only()
+    {
+        using var context = TestDbContextFactory.Create();
+        // Drei Sub-FAs unter HauptFA H1, eine fremde HauptFA H2.
+        var h1a = TestDataHelper.CreateOrderWithStatuses(context, "H1");
+        var h1b = TestDataHelper.CreateOrderWithStatuses(context, "H1");
+        var h1c = TestDataHelper.CreateOrderWithStatuses(context, "H1");
+        var h2 = TestDataHelper.CreateOrderWithStatuses(context, "H2");
+
+        var repo = new ProductionOrderBdeStatusRepository(context);
+        var affected = await repo.SetIsDoneBdeForOrderNumberAsync("H1", true, "alice", "DOMAIN\\alice");
+
+        affected.Should().Be(3);
+        (await repo.GetByProductionOrderIdAsync(h1a.Order.Id))!.IsDoneBde.Should().BeTrue();
+        (await repo.GetByProductionOrderIdAsync(h1b.Order.Id))!.IsDoneBde.Should().BeTrue();
+        (await repo.GetByProductionOrderIdAsync(h1c.Order.Id))!.IsDoneBde.Should().BeTrue();
+        // Fremde HauptFA bleibt unberuehrt.
+        (await repo.GetByProductionOrderIdAsync(h2.Order.Id))!.IsDoneBde.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SetIsDoneBdeForOrderNumberAsync_StampsIdenticalTimestamp_AndAuditFields()
+    {
+        using var context = TestDbContextFactory.Create();
+        var a = TestDataHelper.CreateOrderWithStatuses(context, "H1");
+        var b = TestDataHelper.CreateOrderWithStatuses(context, "H1");
+
+        var repo = new ProductionOrderBdeStatusRepository(context);
+        await repo.SetIsDoneBdeForOrderNumberAsync("H1", true, "alice", "DOMAIN\\alice");
+
+        var ra = await repo.GetByProductionOrderIdAsync(a.Order.Id);
+        var rb = await repo.GetByProductionOrderIdAsync(b.Order.Id);
+        // AK D: als EINE Kaskade erkennbar — identischer Zeitstempel + Benutzer auf allen Zeilen.
+        ra!.ModifiedAt.Should().Be(rb!.ModifiedAt);
+        ra.ModifiedBy.Should().Be("alice");
+        rb.ModifiedByWindows.Should().Be("DOMAIN\\alice");
+    }
+
+    [Fact]
+    public async Task SetIsDoneBdeForOrderNumberAsync_UnknownOrderNumber_ReturnsZero()
+    {
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "H1");
+
+        var repo = new ProductionOrderBdeStatusRepository(context);
+        var affected = await repo.SetIsDoneBdeForOrderNumberAsync("DOES-NOT-EXIST", true, "alice", "DOMAIN\\alice");
+
+        affected.Should().Be(0);
+    }
 }

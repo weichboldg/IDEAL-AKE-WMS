@@ -50,6 +50,13 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     Task<List<ProductionOrder>> GetAllOrderedAsync();
     Task<List<ProductionOrder>> GetOpenOrdersAsync();
     Task<ProductionOrder?> GetByOrderNumberAsync(string orderNumber);
+
+    /// <summary>
+    /// IDEAL Teil 7/8 (Kaskade): Anzahl aller <see cref="ProductionOrder"/> mit dieser HauptFA-
+    /// <c>OrderNumber</c> (= alle materialisierten Nachfahren-Sub-FAs einer Gruppe). Fuer die
+    /// Gesamtzahl im Bestaetigungsdialog „Alle Sub-FAs fertigmelden" (unabhaengig von Listen-Filtern).
+    /// </summary>
+    Task<int> CountByOrderNumberAsync(string orderNumber);
     Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20);
 
     /// <summary>
