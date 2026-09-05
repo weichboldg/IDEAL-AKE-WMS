@@ -7,6 +7,7 @@ using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace IdealAkeWms.Tests.Controllers;
@@ -29,6 +30,9 @@ public class PickingLeitstandControllerTests
     private readonly Mock<IEnaioDmsDocumentRepository> _enaioDmsRepo = new();
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
+    private readonly Mock<IProductionOrderBdeStatusRepository> _bdeStatusRepo = new();
+    private readonly Mock<IBdeBookingRepository> _bdeBookingRepo = new();
+    private readonly Mock<ILogger<PickingLeitstandController>> _logger = new();
     private readonly PickingLeitstandController _controller;
 
     public PickingLeitstandControllerTests()
@@ -57,7 +61,10 @@ public class PickingLeitstandControllerTests
             _businessDayService.Object,
             _enaioDmsRepo.Object,
             _userRepo.Object,
-            _serviceSettingRepo.Object);
+            _serviceSettingRepo.Object,
+            _bdeStatusRepo.Object,
+            _bdeBookingRepo.Object,
+            _logger.Object);
 
         // TempData requires a provider
         _controller.TempData = new TempDataDictionary(
@@ -685,5 +692,53 @@ public class PickingLeitstandControllerTests
         var item = vm.Items.Single();
         // BG 30.07. - BeschichtungTage (Default 10) = 20.07. — ohne Override waere es der 26.07.
         item.BeschichtungTermin.Should().Be(new DateTime(2026, 7, 20));
+    }
+
+    // --- Kaskade „Alle Sub-FAs fertigmelden" (Etappe C) ---
+
+    [Fact]
+    public async Task CascadeDonePreview_ReturnsTotalAndOpenBookingCounts()
+    {
+        _orderRepo.Setup(r => r.CountByOrderNumberAsync("H1")).ReturnsAsync(4);
+        _bdeBookingRepo.Setup(r => r.CountSubFasWithOpenBookingForOrderNumberAsync("H1")).ReturnsAsync(2);
+
+        var result = await _controller.CascadeDonePreview("H1");
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        // Anonymes Objekt { orderNumber, totalSubFas, withOpenBooking } per Reflection pruefen.
+        var val = ok.Value!;
+        val.GetType().GetProperty("totalSubFas")!.GetValue(val).Should().Be(4);
+        val.GetType().GetProperty("withOpenBooking")!.GetValue(val).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task CascadeDonePreview_BadRequest_WhenOrderNumberMissing()
+    {
+        (await _controller.CascadeDonePreview(null)).Should().BeOfType<BadRequestObjectResult>();
+        (await _controller.CascadeDonePreview("  ")).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task CascadeDone_SetsIsDoneBdeForWholeOrderNumber_AndRedirects()
+    {
+        _bdeStatusRepo
+            .Setup(r => r.SetIsDoneBdeForOrderNumberAsync("H1", true, "TestUser", "DOMAIN\\testuser"))
+            .ReturnsAsync(3);
+
+        var result = await _controller.CascadeDone("H1", returnUrl: null);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        // Kaskade setzt ausschliesslich true (keine Gruppen-Ruecknahme) auf ALLE Nachfahren der HauptFA.
+        _bdeStatusRepo.Verify(r => r.SetIsDoneBdeForOrderNumberAsync("H1", true, "TestUser", "DOMAIN\\testuser"), Times.Once);
+    }
+
+    [Fact]
+    public async Task CascadeDone_DoesNothing_WhenOrderNumberMissing()
+    {
+        var result = await _controller.CascadeDone("", returnUrl: null);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        _bdeStatusRepo.Verify(r => r.SetIsDoneBdeForOrderNumberAsync(
+            It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 }

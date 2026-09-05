@@ -160,6 +160,11 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         return await _dbSet.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
     }
 
+    public async Task<int> CountByOrderNumberAsync(string orderNumber)
+    {
+        return await _dbSet.CountAsync(o => o.OrderNumber == orderNumber);
+    }
+
     public async Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20)
     {
         var q = _dbSet.Where(o => !o.IsDone && !o.IsCancelled);

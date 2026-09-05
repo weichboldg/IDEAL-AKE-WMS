@@ -63,6 +63,15 @@ public class BdeBookingRepository : IBdeBookingRepository
             .OrderBy(b => b.StartedAt)
             .ToListAsync();
 
+    public Task<int> CountSubFasWithOpenBookingForOrderNumberAsync(string orderNumber) =>
+        _ctx.BdeBookings
+            .Where(b => b.EndedAt == null && !b.IsCancelled
+                        && b.WorkOperation != null
+                        && b.WorkOperation.ProductionOrder.OrderNumber == orderNumber)
+            .Select(b => b.WorkOperation!.ProductionOrderId)
+            .Distinct()
+            .CountAsync();
+
     public Task<List<BdeBooking>> GetHistoryAsync(int skip, int take, int? operatorId, int? workplaceId, DateTime? from, DateTime? to, IReadOnlyDictionary<string, string>? columnFilters = null)
     {
         var q = _ctx.BdeBookings

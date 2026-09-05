@@ -212,6 +212,52 @@ public class BdeBookingRepositoryTests
         count.Should().Be(2);
     }
 
+    // --- Kaskade-Dialog: Sub-FAs mit offener Buchung je HauptFA (IDEAL Teil 7/8, Etappe C) ---
+
+    [Fact]
+    public async Task CountSubFasWithOpenBooking_CountsDistinctSubFas_IncludingPaused_ExcludingFinishedCancelled()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var now = DateTime.Now;
+
+        // Sub-FA 1 (H1): eine laufende + eine pausierte Buchung → zaehlt EINMAL (distinkt).
+        var ids1 = await BdeBookingTestSeed.SeedAsync(ctx, "1");
+        SetOrderNumber(ctx, ids1.ProductionOrderId, "H1");
+        var wo1b = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids1);
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids1, BdeBookingType.Production, BdeBookingStatus.Running, now.AddMinutes(-20)));
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids1, BdeBookingType.Production, BdeBookingStatus.Paused, now.AddMinutes(-15), workOperationId: wo1b));
+
+        // Sub-FA 2 (H1): eine auto-pausierte Buchung (offen) + eine beendete → zaehlt EINMAL.
+        var ids2 = await BdeBookingTestSeed.SeedAsync(ctx, "2");
+        SetOrderNumber(ctx, ids2.ProductionOrderId, "H1");
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids2, BdeBookingType.Production, BdeBookingStatus.AutoPaused, now.AddMinutes(-10)));
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids2, BdeBookingType.Production, BdeBookingStatus.Finished, now.AddHours(-2), endedAt: now.AddHours(-1)));
+
+        // Sub-FA 3 (H1): nur eine STORNIERTE offene Buchung → zaehlt NICHT.
+        var ids3 = await BdeBookingTestSeed.SeedAsync(ctx, "3");
+        SetOrderNumber(ctx, ids3.ProductionOrderId, "H1");
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids3, BdeBookingType.Production, BdeBookingStatus.Running, now.AddMinutes(-5), cancelled: true));
+
+        // Sub-FA einer FREMDEN HauptFA (H2): laufende Buchung → zaehlt nicht fuer H1.
+        var idsOther = await BdeBookingTestSeed.SeedAsync(ctx, "4");
+        SetOrderNumber(ctx, idsOther.ProductionOrderId, "H2");
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(idsOther, BdeBookingType.Production, BdeBookingStatus.Running, now.AddMinutes(-5)));
+
+        await ctx.SaveChangesAsync();
+
+        var repo = new BdeBookingRepository(ctx);
+        (await repo.CountSubFasWithOpenBookingForOrderNumberAsync("H1")).Should().Be(2);
+        (await repo.CountSubFasWithOpenBookingForOrderNumberAsync("H2")).Should().Be(1);
+        (await repo.CountSubFasWithOpenBookingForOrderNumberAsync("NOPE")).Should().Be(0);
+    }
+
+    private static void SetOrderNumber(IdealAkeWms.Data.ApplicationDbContext ctx, int productionOrderId, string orderNumber)
+    {
+        var po = ctx.ProductionOrders.Find(productionOrderId)!;
+        po.OrderNumber = orderNumber;
+        ctx.SaveChanges();
+    }
+
     [Fact]
     public async Task GetHistory_ColumnFilter_Or()
     {

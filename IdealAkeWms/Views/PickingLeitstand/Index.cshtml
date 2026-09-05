@@ -189,6 +189,19 @@
                             </span>
                             <strong class="ms-1">HauptFA @group.OrderNumber</strong>
                             <span class="badge rounded-pill bg-light text-dark border ms-2" title="Anzahl Sub-FAs in dieser Gruppe">@group.Items.Count Sub-FA@(group.Items.Count == 1 ? "" : "s")</span>
+                            @* IDEAL Teil 7/8 — Kaskade „Alle Sub-FAs fertigmelden" (nur hier, nur mit Picking-Recht).
+                               Setzt IsDoneBde für ALLE Nachfahren dieser HauptFA (true), mit Bestätigungsdialog. *@
+                            @if (Model.CanPick)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-success ms-2 btn-cascade-done"
+                                        data-order-number="@group.OrderNumber"
+                                        title="Alle Sub-FAs dieser HauptFA fertigmelden (BDE)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                                        <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                                    </svg>
+                                    Alle Sub-FAs fertigmelden
+                                </button>
+                            }
                         </td>
                     </tr>
                     @foreach (var item in group.Items)
@@ -328,6 +341,44 @@
     }
 }
 
+@* IDEAL Teil 7/8 — Bestaetigungsdialog fuer die Kaskade „Alle Sub-FAs fertigmelden". Einmal gerendert,
+   nur im hierarchischen Modus mit Picking-Recht. Zahlen werden per AJAX (CascadeDonePreview) gefuellt. *@
+@if (Model.Hierarchical && Model.CanPick)
+{
+    <div class="modal fade" id="cascadeDoneModal" tabindex="-1" aria-labelledby="cascadeDoneModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-controller="PickingLeitstand" asp-action="CascadeDone" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="orderNumber" id="cascadeDoneOrderNumber" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cascadeDoneModalLabel">Alle Sub-FAs fertigmelden</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">
+                            HauptFA <strong id="cascadeDoneOrderLabel"></strong> — es werden
+                            <strong id="cascadeDoneTotal">…</strong> Sub-FA(s) auf <em>BDE fertig</em> gesetzt
+                            (alle Nachfahren, unabhängig vom aktuellen Filter).
+                        </p>
+                        <div id="cascadeDoneOpenWarning" class="alert alert-warning py-2 mb-2 d-none" role="alert">
+                            Davon <strong id="cascadeDoneOpen">0</strong> <span id="cascadeDoneOpenText">mit offener Buchung</span>.
+                        </div>
+                        <p class="small text-muted mb-0">
+                            Die Aktion setzt nur auf „fertig". Eine Rücknahme erfolgt einzeln je Sub-FA-Zeile.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-success" id="cascadeDoneSubmit">Fertigmelden</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
 <script type="application/json" id="view-config">
 { "viewKey": "PickingLeitstand", "supportsReorder": true, "supportsSortDefault": true }
 </script>
@@ -376,6 +427,53 @@
     <script src="~/js/fa-work-step-status.js" asp-append-version="true"></script>
     @* IDEAL FA-Liste-Hierarchie: Gruppen-Chevron-Collapse + Auto-Expand (aktiv nur bei data-hierarchical=true). *@
     <script src="~/js/fa-liste-gruppierung.js" asp-append-version="true"></script>
+    @if (Model.Hierarchical && Model.CanPick)
+    {
+        <script>
+            // IDEAL Teil 7/8 — Kaskade „Alle Sub-FAs fertigmelden": Zahlen holen, Dialog fuellen, dann POST.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modalEl = document.getElementById('cascadeDoneModal');
+                if (!modalEl) return;
+                var orderInput = document.getElementById('cascadeDoneOrderNumber');
+                var orderLabel = document.getElementById('cascadeDoneOrderLabel');
+                var totalEl = document.getElementById('cascadeDoneTotal');
+                var openWarn = document.getElementById('cascadeDoneOpenWarning');
+                var openEl = document.getElementById('cascadeDoneOpen');
+                var submitBtn = document.getElementById('cascadeDoneSubmit');
+
+                document.querySelectorAll('.btn-cascade-done').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        // Nicht die Gruppe auf-/zuklappen.
+                        e.stopPropagation();
+                        var orderNumber = this.getAttribute('data-order-number');
+                        orderInput.value = orderNumber;
+                        orderLabel.textContent = orderNumber;
+                        totalEl.textContent = '…';
+                        openWarn.classList.add('d-none');
+                        submitBtn.disabled = true;
+
+                        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+                        fetch('@Url.Action("CascadeDonePreview", "PickingLeitstand")?orderNumber=' + encodeURIComponent(orderNumber))
+                            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                            .then(function (d) {
+                                totalEl.textContent = d.totalSubFas;
+                                if (d.withOpenBooking > 0) {
+                                    openEl.textContent = d.withOpenBooking;
+                                    openWarn.classList.remove('d-none');
+                                }
+                                submitBtn.disabled = false;
+                            })
+                            .catch(function () {
+                                totalEl.textContent = '?';
+                                // Absenden bleibt moeglich — der Server ist die Wahrheit; die Zahl ist nur Vorschau.
+                                submitBtn.disabled = false;
+                            });
+                    });
+                });
+            });
+        </script>
+    }
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // QR scanner for FA number filter — fills input then submits form
