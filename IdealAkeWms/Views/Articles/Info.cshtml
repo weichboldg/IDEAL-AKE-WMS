@@ -145,7 +145,7 @@
                                     <tr>
                                         <td>
                                             <a asp-controller="Picking" asp-action="Bom" asp-route-id="@order.Id">
-                                                <strong>@order.OrderNumber</strong>
+                                                <strong>@(Model.Hierarchical ? (order.SubOrderNumber ?? order.OrderNumber) : order.OrderNumber)</strong>
                                             </a>
                                         </td>
                                         <td>@order.ProductionDate?.ToString("dd.MM.yyyy")</td>
@@ -156,7 +156,15 @@
                         </table>
                     </div>
                     <div class="card-footer text-muted">
-                        <small>@Model.UsedInOrders.Count offene Auftraege (basierend auf BOM-Cache)</small>
+                        @* Z4: hierarchisch beide Zahlen (Aufträge = HauptFA, Sub-FAs = Zeilen); flach eine Zahl. *@
+                        @if (Model.Hierarchical)
+                        {
+                            <small>@Model.UsedInHauptFaCount Aufträge · @Model.UsedInOrders.Count Sub-FAs offen (basierend auf BOM-Cache)</small>
+                        }
+                        else
+                        {
+                            <small>@Model.UsedInOrders.Count offene Auftraege (basierend auf BOM-Cache)</small>
+                        }
                     </div>
                 </div>
             }

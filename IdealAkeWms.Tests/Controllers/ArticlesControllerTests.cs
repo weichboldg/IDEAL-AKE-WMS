@@ -19,7 +19,7 @@ public class ArticlesControllerTests
                     Mock<IArticleAttributeRepository> attr,
                     Mock<IArticleCategoryRepository> category,
                     Mock<IBomCacheRepository> bom,
-                    Mock<IProductionOrderRepository> orders) Build()
+                    Mock<IProductionOrderRepository> orders) Build(bool hierarchical = false)
     {
         var article = new Mock<IArticleRepository>();
         var stock = new Mock<IStockMovementRepository>();
@@ -37,9 +37,15 @@ public class ArticlesControllerTests
         attr.Setup(a => a.GetValuesByArticleIdAsync(It.IsAny<int>()))
             .ReturnsAsync(new List<ArticleAttributeValue>());
 
+        // Master ProduktionsauftragHierarchisch: null -> Flachmodus (AKE), "true" -> hierarchisch (IDEAL, Z4).
+        var serviceSetting = new Mock<IServiceSettingRepository>();
+        serviceSetting.Setup(s => s.GetValueAsync(It.IsAny<string>()))
+            .ReturnsAsync(hierarchical ? "true" : (string?)null);
+
         var ctrl = new ArticlesController(
             article.Object, stock.Object, user.Object, attr.Object,
-            category.Object, bom.Object, orders.Object, storageLocations.Object);
+            category.Object, bom.Object, orders.Object, storageLocations.Object,
+            serviceSetting.Object);
         ctrl.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -101,6 +107,38 @@ public class ArticlesControllerTests
         vm.PlannedConsumption.Should().Be(8m);
         vm.TotalStock.Should().Be(100m);
         vm.AvailableStock.Should().Be(92m);
+    }
+
+    [Fact]
+    public async Task Info_Hierarchical_CountsHauptFaAndSubFa_ForZ4()
+    {
+        var (ctrl, article, stock, _, _, bom, orders) = Build(hierarchical: true);
+
+        article.Setup(a => a.GetByArticleNumberAsync("COMP"))
+            .ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
+        stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null))
+            .ReturnsAsync(new List<StockOverviewItem>());
+        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
+            .ReturnsAsync(new List<string> { "DEV1" });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
+            .ReturnsAsync(new Dictionary<string, decimal> { ["DEV1"] = 1m });
+
+        // Zwei Sub-FAs unter HauptFA H1, eine unter H2 — alle offen, alle nutzen DEV1.
+        ProductionOrder Sub(int id, string haupt, string sub) => new()
+        {
+            Id = id, OrderNumber = haupt, SubOrderNumber = sub, ArticleNumber = "DEV1", Quantity = 1m,
+            PickingStatus = new ProductionOrderPickingStatus { IsDonePicking = false }
+        };
+        orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync(new List<ProductionOrder> { Sub(1, "H1", "H1-1"), Sub(2, "H1", "H1-2"), Sub(3, "H2", "H2-1") });
+
+        var vm = (await ctrl.Info("COMP")).Should().BeOfType<ViewResult>().Subject.Model
+            .Should().BeOfType<ArticleInfoViewModel>().Subject;
+
+        vm.Hierarchical.Should().BeTrue();
+        vm.UsedInOrders.Should().HaveCount(3);       // Sub-FAs = Zeilen
+        vm.UsedInHauptFaCount.Should().Be(2);        // Aufträge = distinkte HauptFA (H1, H2)
+        vm.UsedInOrders.Should().Contain(o => o.SubOrderNumber == "H1-2");
     }
 
     [Fact]

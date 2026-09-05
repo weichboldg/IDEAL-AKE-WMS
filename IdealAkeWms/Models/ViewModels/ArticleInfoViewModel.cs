@@ -23,6 +23,12 @@ public class ArticleInfoViewModel
     public string? CategoryName { get; set; }
     public List<AttributeDisplayValue> AttributeDisplayValues { get; set; } = new();
     public List<ArticleUsageItem> UsedInOrders { get; set; } = new();
+
+    // IDEAL FA-Liste-Hierarchie (Teil 7/8, Z4): nur bei Master ProduktionsauftragHierarchisch = true.
+    /// <summary>Hierarchischer Modus → „Teil enthalten in"-Zaehlung als „N Aufträge · M Sub-FAs".</summary>
+    public bool Hierarchical { get; set; }
+    /// <summary>Z4: Anzahl distinkter HauptFAs (OrderNumber) unter <see cref="UsedInOrders"/> (Sub-FAs sind die Zeilen).</summary>
+    public int UsedInHauptFaCount => UsedInOrders.Select(o => o.OrderNumber).Distinct().Count();
 }
 
 public class ArticleUsageItem
@@ -31,6 +37,9 @@ public class ArticleUsageItem
     public string OrderNumber { get; set; } = string.Empty;
     public DateTime? ProductionDate { get; set; }
     public DateTime? DeliveryDate { get; set; }
+
+    /// <summary>Sub-FA-Nummer (IDEAL Teil 7). Im Flachmodus == OrderNumber (Backfill); hierarchisch die Zeilen-Nummer.</summary>
+    public string? SubOrderNumber { get; set; }
 }
 
 public class AttributeDisplayValue
