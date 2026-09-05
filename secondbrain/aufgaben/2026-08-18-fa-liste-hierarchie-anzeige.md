@@ -22,7 +22,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 |---|--------|--------|
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
 | B | 5 weitere Views — **5/5 KOMPLETT**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2`, Tracking/Index `7bba52b` | **erledigt** |
-| C | Kaskade Leitstand-Kopfzeile | offen |
+| C | Kaskade Leitstand-Kopfzeile | **erledigt** (`a305d6f`) |
 | D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
 
@@ -295,6 +295,39 @@ OseonIndex filtert OSEON nach `CustomerOrderNumber ?? OseonOrderNumber` (HauptFA
 Feld auf HauptFA-Körnung → möglicher Mismatch. Der `_ProductionOrderRow`-Link zu OseonIndex übergibt bereits
 `filterCustomerOrder=OrderNumber` (HauptFA-korrekt). **Gemeldet, nicht geändert (außer Umfang) — ggf. eigener
 Backlog-Punkt, ob OseonIndex Sub-FA-Scans auf HauptFA mappen soll.**
+
+## Etappe C — Kaskade „Alle Sub-FAs fertigmelden" — ERLEDIGT (`a305d6f`, 2026-09-05)
+Verbindlicher BL1-Ausgang der Spec: **Träger `IsDoneBde` (`ProductionOrderBdeStatus`), Wirt =
+PickingLeitstand-Gruppenkopfzeile, nur diese Aktion kaskadiert.** Umgesetzt:
+- **Kaskade-Ziel = alle `ProductionOrder`s mit dieser HauptFA-`OrderNumber`** — das ist genau die Menge,
+  die die Gruppe zeigt (materialisierte Nachfahren teilen die HauptFA-OrderNumber; verifiziert am
+  `GetForLeitstandGroupedAsync`-Gruppenschlüssel). Filter-**unabhängig** abgefragt (frisch per OrderNumber),
+  damit auch gefilterte/erledigte Nachfahren getroffen werden → AK 11 (voller Unterbaum).
+- **Atomar (AK C):** `SetIsDoneBdeForOrderNumberAsync` lädt alle BdeStatus-Zeilen, setzt sie, EIN
+  `SaveChangesAsync` (= eine Transaktion). **AK D:** gemeinsamer `ModifiedAt`-Zeitstempel auf allen Zeilen
+  + EIN `ILogger`-Eintrag je Kaskade (HauptFA, Anzahl, Benutzer). Keine neue Tabelle/Migration (Antwort 7).
+- **Dialog (AK 12):** `CascadeDonePreview` (GET→JSON) liefert Gesamtzahl (`CountByOrderNumberAsync`) +
+  „mit offener Buchung" (`CountSubFasWithOpenBookingForOrderNumberAsync`: distinkte Sub-FAs mit
+  `EndedAt==null && !IsCancelled`, **inkl. Paused/AutoPaused** — Antwort 6, Text „mit offener Buchung").
+  Bootstrap-Modal, AJAX-Vorschau, POST `CascadeDone` mit AntiForgery. Abbruch löst nichts aus.
+- **Nur `true` (AK 15):** keine Gruppen-Rücknahme; Zeilen unverändert.
+- **Zugriff:** `CascadeDonePreview`/`CascadeDone` `[RequirePickingAccess]` — wie die Einzelaktion
+  (BdeStatusApi), keine neue Berechtigungsstufe.
+- **8 neue Tests**, Web-Suite **1242 grün** (war 1234).
+
+**BEFUND (gemeldet, für Etappe E/QA relevant):** In **keiner Tabellen-View** wird heute ein
+`IsDoneBde`-**Zeilen**-Toggle gerendert — nur das BDE-Cockpit-Karten-Grid (`bde-cockpit.js`) setzt das Feld.
+Die Spec-Prämisse „PickingLeitstand ist der einzige Ort mit dem Zeilen-Toggle" (BL1/Antwort 3, „Zeile 595")
+bezog sich auf die **JS-Dispatch-Fähigkeit** (`toggle-field`-Handler kennt `/api/bde-status/toggle`), nicht auf
+ein tatsächlich gerendertes Bedienelement. Konsequenz: Die Gruppen-Kaskade steht korrekt auf PickingLeitstand
+(verbindliche Entscheidung), aber es gibt keinen Zeilen-Toggle „daneben", der als Kontrast dient. Zeilen wurden
+bewusst unverändert gelassen (kein neuer Zeilen-Toggle eingeführt — „wo heute keine Fertigmeldung stattfindet,
+wird keine eingeführt"). Falls der Mensch pro Zeile eine Fertigmeldung wünscht, ist das ein eigener Punkt.
+
+**Sichtprüfung am Testsystem (PickingLeitstand, Master an, Picking-Recht):** Gruppenkopf zeigt „Alle Sub-FAs
+fertigmelden"; Klick → Dialog mit N Sub-FAs + ggf. „davon M mit offener Buchung"; Bestätigen → alle Nachfahren
+`IsDoneBde=true` (auch tiefere Ebenen, auch aktuell ausgeblendete), TempData-Erfolg, ein Log-Eintrag; Abbruch →
+nichts. Master aus → kein Knopf (AK 10). BDE-Cockpit spiegelt die gesetzten Fertigmeldungen.
 
 ### B-View 2 (Original-Untersuchung): PickingLeitstand — Checkpoint-Notiz (erledigt, s. oben)
 **Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**
