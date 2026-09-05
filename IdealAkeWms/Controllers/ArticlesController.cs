@@ -18,6 +18,7 @@ public class ArticlesController : Controller
     private readonly IBomCacheRepository _bomCacheRepository;
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly IStorageLocationRepository _storageLocationRepository;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public ArticlesController(
         IArticleRepository articleRepository,
@@ -27,7 +28,8 @@ public class ArticlesController : Controller
         IArticleCategoryRepository categoryRepository,
         IBomCacheRepository bomCacheRepository,
         IProductionOrderRepository productionOrderRepository,
-        IStorageLocationRepository storageLocationRepository)
+        IStorageLocationRepository storageLocationRepository,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
@@ -37,7 +39,13 @@ public class ArticlesController : Controller
         _bomCacheRepository = bomCacheRepository;
         _productionOrderRepository = productionOrderRepository;
         _storageLocationRepository = storageLocationRepository;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // IDEAL FA-Liste-Hierarchie (Z4): Master-Zustand lesen (Muster wie ProductionOrdersController).
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null, string? search = null)
     {
@@ -268,7 +276,8 @@ public class ArticlesController : Controller
                     Id = o.Id,
                     OrderNumber = o.OrderNumber,
                     ProductionDate = o.ProductionDate,
-                    DeliveryDate = o.DeliveryDate
+                    DeliveryDate = o.DeliveryDate,
+                    SubOrderNumber = o.SubOrderNumber
                 })
                 .ToList();
 
@@ -291,7 +300,9 @@ public class ArticlesController : Controller
             PlannedConsumption = plannedConsumption,
             CategoryName = categoryName,
             AttributeDisplayValues = attrDisplayValues,
-            UsedInOrders = usedInOrders
+            UsedInOrders = usedInOrders,
+            Hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+                IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)),
         };
         return View(vm);
     }
