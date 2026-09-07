@@ -272,11 +272,12 @@ Macht die Hierarchie in **6 Ansichten** sichtbar/bedienbar — master-gated, AKE
 | D — Z4-Sweep (Articles/Info) + Z1-Regressionstest; **Z3 vertagt** | **erledigt** (`d9de60c`) | `ArticlesController`/`Views/Articles/Info.cshtml`, `FaMaterializationSyncServiceTests` (Z1); Z3 → [[2026-09-07-invariante-haupt-fertig-sub-erkennen]] |
 | E — Testszenarien TS-69 + v1.35.0 + Changelogs | **erledigt** (`dde9a17`) | `docs/TESTSZENARIEN.md`, `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
 
-> **Status FA-Liste-Hierarchie:** alle Etappen A–E erledigt, Web **1243 grün** / Service **232 grün**.
-> **Wartet auf qa-agent** (setzt `Testbereit` + finalisiert Deploy-Abschnitt), danach **Schranke 2**
-> zusammen mit dem ganzen Bündel (Teile 1–8 + dieser Epic, ein Merge). Deploy: `web:true`,
-> `service:false`, `migration:false`. **Z3** (Invariante Haupt-fertig⇒Sub-fertig erkennen/melden) bewusst
-> ins Backlog ausgelagert (Deploy-Fork Service; Fall ausgeschlossen).
+> **Status FA-Liste-Hierarchie:** alle Etappen A–E erledigt, Web **1243 grün / 1 Skip** / Service
+> **232 grün** (qa-agent-Lauf 2026-09-07, frisch verifiziert). **`status: Testbereit`** gesetzt —
+> wartet jetzt zusammen mit dem ganzen Bündel (Teile 1–8 + dieser Epic, ein Merge) auf **Schranke 2**
+> (manueller Test + Merge durch den Menschen). Deploy: `web:true`, `service:false`,
+> `migration:false` (aus dem echten Diff bestätigt). **Z3** (Invariante Haupt-fertig⇒Sub-fertig
+> erkennen/melden) bewusst ins Backlog ausgelagert (Deploy-Fork Service; Fall ausgeschlossen).
 
 ## Offen / nicht gemerged
 
