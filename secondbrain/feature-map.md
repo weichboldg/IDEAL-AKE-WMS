@@ -254,6 +254,30 @@ Vollständige hierarchische BOM-Quelle bewusst ausgelagert → [[2026-08-18-ake-
 > Teil 6 + dieser Guard) wieder auf `Testbereit` — wartet **gemeinsam** auf Schranke 2 (ein Merge,
 > kein Zwischen-Merge).
 
+### FA-Liste + verwandte Ansichten hierarchiefähig (v1.35.0, Epic, selber Branch)
+
+Dritte Fehlerklasse nach Teil 7: die materialisierten Sub-FAs (130) sind sichtbar, aber unbedienbar
+(gleiche `OrderNumber` mehrfach, keine `SubOrderNumber`/Elternzeiger, Suche liefert die ganze Gruppe).
+Macht die Hierarchie in **6 Ansichten** sichtbar/bedienbar — master-gated, AKE bit-identisch. Einstieg
+`Data/Repositories/ProductionOrderRepository.cs` (`GetForLeitstandGroupedAsync`),
+`wwwroot/js/fa-liste-gruppierung.js`, die 6 `_*Row.cshtml`-Partials, `PickingLeitstandController`
+(Kaskade). Spec [[2026-08-18-fa-liste-hierarchie-anzeige-spec]], Aufgabe/Detail
+[[2026-08-18-fa-liste-hierarchie-anzeige]], Changelog [[2026-09-07-v1-35-0-ideal-fa-liste-hierarchie]].
+
+| Etappe | Status | Code-Einstieg |
+|---|---|---|
+| A — Anzeige-Fundament + ProductionOrders-Referenz + Z4-Erhebung | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) | `ProductionOrderRepository.GetForLeitstandGroupedAsync`, `ColumnDefinitions` +`parent-sub-order-number`, `fa-liste-gruppierung.js`, `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
+| B — 5 weitere Views (FaCompletion/PickingLeitstand/Picking/FaWorklist/Tracking) | **erledigt** (`b150579`/`5b15caf`/`960d5c8`/`10921e2`/`7bba52b`) | je `_*Row.cshtml` + Master-Gate; Tracking/Index = 3-Ebenen-Baum (OSEON-Muster), Picking = Prio-Queue |
+| C — Kaskade „Alle Sub-FAs fertigmelden" (Leitstand-Kopfzeile) | **erledigt** (`a305d6f`) | `PickingLeitstandController.CascadeDone/Preview`, `ProductionOrderBdeStatusRepository.SetIsDoneBdeForOrderNumberAsync`, `BdeBookingRepository.CountSubFasWithOpenBooking…` |
+| D — Z4-Sweep (Articles/Info) + Z1-Regressionstest; **Z3 vertagt** | **erledigt** (`d9de60c`) | `ArticlesController`/`Views/Articles/Info.cshtml`, `FaMaterializationSyncServiceTests` (Z1); Z3 → [[2026-09-07-invariante-haupt-fertig-sub-erkennen]] |
+| E — Testszenarien TS-69 + v1.35.0 + Changelogs | **erledigt** (`dde9a17`) | `docs/TESTSZENARIEN.md`, `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
+
+> **Status FA-Liste-Hierarchie:** alle Etappen A–E erledigt, Web **1243 grün** / Service **232 grün**.
+> **Wartet auf qa-agent** (setzt `Testbereit` + finalisiert Deploy-Abschnitt), danach **Schranke 2**
+> zusammen mit dem ganzen Bündel (Teile 1–8 + dieser Epic, ein Merge). Deploy: `web:true`,
+> `service:false`, `migration:false`. **Z3** (Invariante Haupt-fertig⇒Sub-fertig erkennen/melden) bewusst
+> ins Backlog ausgelagert (Deploy-Fork Service; Fall ausgeschlossen).
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
