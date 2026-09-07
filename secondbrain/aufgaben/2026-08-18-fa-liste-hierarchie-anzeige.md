@@ -23,7 +23,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
 | B | 5 weitere Views — **5/5 KOMPLETT**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2`, Tracking/Index `7bba52b` | **erledigt** |
 | C | Kaskade Leitstand-Kopfzeile | **erledigt** (`a305d6f`) |
-| D | Z4-Sweep + Z3-Sync-Meldung + Z1-Regressionstest | offen |
+| D | Z4-Sweep + Z1-Regressionstest **erledigt** (`d9de60c`); Z3 vertagt → Backlog | **erledigt (Z3 vertagt)** |
 | E | Testszenarien + Brain + qa-agent → Testbereit | offen |
 
 ## Verbindliche Entscheidungen (aus der Spec)
@@ -328,6 +328,22 @@ wird keine eingeführt"). Falls der Mensch pro Zeile eine Fertigmeldung wünscht
 fertigmelden"; Klick → Dialog mit N Sub-FAs + ggf. „davon M mit offener Buchung"; Bestätigen → alle Nachfahren
 `IsDoneBde=true` (auch tiefere Ebenen, auch aktuell ausgeblendete), TempData-Erfolg, ein Log-Eintrag; Abbruch →
 nichts. Master aus → kein Knopf (AK 10). BDE-Cockpit spiegelt die gesetzten Fertigmeldungen.
+
+## Etappe D — Z4-Sweep + Z1-Regressionstest — ERLEDIGT (`d9de60c`); Z3 vertagt (2026-09-07)
+- **Z4-Erhebung bestätigt:** Die **6 Listen-Views tragen die Z4-Zeile** „N Aufträge · M Sub-FAs" bereits
+  aus Etappe A/B. Die **Home-Dashboard-Kacheln** + `_ArtikelinfoTile` zeigen **keine** Auftragszahl
+  (reine Navigations-Kacheln, kein Count). Einzige verbleibende Nicht-Listen-Zählstelle:
+  **`Articles/Info`** „Teil enthalten in folgenden Fertigungsaufträgen".
+- **Z4 Articles/Info umgesetzt:** VM `+Hierarchical` `+UsedInHauptFaCount` (distinkte OrderNumber),
+  `ArticleUsageItem +SubOrderNumber`; Controller liest Master (`IServiceSettingRepository`); Footer
+  „N Aufträge · M Sub-FAs offen" (hierarchisch) vs. „M offene Aufträge" (flach); FA-Nr-Zelle zeigt
+  SubOrderNumber im hierarchischen Modus. +1 Controller-Test.
+- **Z1-Regressionstest (Service):** `FaMaterializationSyncServiceTests.RunAsync_DoesNotResetIsDoneBde_
+  OnExistingSubFa` — fertigmelden (IsDoneBde=true) → Sync-Lauf → **IsDoneBde/IsDone/IsDonePicking
+  unverändert**. Nagelt die (laut H1 bereits erfüllte) Invariante fest. **Web 1243 / Service 232 grün.**
+- **Z3 vertagt (Mensch, 2026-09-07)** → Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]].
+  Grund: zuverlässige Erkennung braucht den Sync (Service) → Deploy-Fork `service:true`; Fall ist
+  „ausgeschlossen"; „offen anlegen" ist ohnehin erfüllt. Deploy bleibt damit **service:false**.
 
 ### B-View 2 (Original-Untersuchung): PickingLeitstand — Checkpoint-Notiz (erledigt, s. oben)
 **Zusatzpunkte für den Bauplan (Mensch, 2026-08-20) — vor dem Build explizit entscheiden + testen:**

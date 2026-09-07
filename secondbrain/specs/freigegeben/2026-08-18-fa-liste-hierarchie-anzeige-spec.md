@@ -122,7 +122,7 @@ sprengt. Inhalt/Entscheidungen unveraendert; nur in Etappen geschnitten. Ein lan
 | A | Anzeige-Fundament (Repo-Gruppenabfrage master-gated, ColumnDefinitions `parent-sub-order-number`, JS-Modul `fa-liste-gruppierung.js`, Master-Lese-Muster) + **ProductionOrders als Referenz-View** + **Z4-ERHEBUNG** (Zaehlstellen katalogisieren, keine Umsetzung). **STOPP+Melden** nach A. | **erledigt** | `30b7a8c` (Repo) · `9315186` (ColumnDef+JS) · `abd2620` (View/Controller) |
 | B | Muster auf die 5 weiteren Views replizieren (FaWorklist, FaCompletion, Tracking, Picking, PickingLeitstand — Anzeige-Teil) | offen | |
 | C | Kaskade auf PickingLeitstand-Gruppenkopfzeile („Alle Sub-FAs fertigmelden", `IsDoneBde` alle Nachfahren, atomar, Dialog mit Offene-Buchung-Zahl, ILogger); Zeilen-Toggle unveraendert; keine Gruppen-Ruecknahme | **erledigt** | `a305d6f` |
-| D | Z4-Zaehl-Sweep umsetzen + Z3-Sync-Meldung (neuer Sub-FA unter fertigem HauptFA) + Z1-Regressionstest | offen | |
+| D | Z4-Zaehl-Sweep (Articles/Info; 6 Listen tragen die Z4-Zeile schon aus A/B) + Z1-Regressionstest. **Z3-Sync-Meldung vertagt** (Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]], Mensch-Entscheid 2026-09-07 — Deploy-Fork Service) | **erledigt** | `d9de60c` (Z4+Z1) |
 | E | Testszenarien (F1–F6 + Kaskade) + Brain + qa-agent → Testbereit | offen | |
 
 ## Fachliche Anforderungen
@@ -622,6 +622,15 @@ Daher als **Fallstrick dokumentiert** und minimal abgesichert:
 
 Aufwand dafuer: eine Pruefung im Anlege-Pfad des Sync plus ein Log-Eintrag. Billig genug, um sich
 den Beweis nicht schuldig zu bleiben.
+
+> **VERTAGT (Mensch, 2026-09-07) → Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]].**
+> Grund: Die zuverlaessige Erkennung des Ereignisses braucht den **Sync (Service-Projekt)** — er
+> muesste `ProductionOrderBdeStatus` des Haupt-FA laden, den er heute bewusst nicht laedt (Z1) —
+> und wuerde damit den **Deploy auf `service: true`** heben (die Spec sagt `service: false`). Da der
+> Fall laut dieser Spec **ausgeschlossen** ist und **keine Auflösungslogik** braucht, wurde das
+> Sicherheitsnetz (Log + Gruppen-Badge) als eigener Backlog-Eintrag herausgelöst. „Offen anlegen"
+> (der eigentlich kritische Teil) ist ohnehin bereits erfüllt (H2). Z4 + Z1 der Etappe D sind
+> umgesetzt (`d9de60c`).
 
 ### Z3b — Filterwirkung (folgt aus Z3)
 
