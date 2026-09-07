@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Liste und verwandte Ansichten hierarchiefaehig darstellen (dritte Fehlerklasse nach Teil 7)"
 slug: 2026-08-18-fa-liste-hierarchie-anzeige-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-18
-updated: 2026-08-20
+updated: 2026-09-07
 source_backlog: "[[2026-08-18-fa-liste-hierarchie-anzeige]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
@@ -123,7 +123,7 @@ sprengt. Inhalt/Entscheidungen unveraendert; nur in Etappen geschnitten. Ein lan
 | B | Muster auf die 5 weiteren Views replizieren (FaWorklist, FaCompletion, Tracking, Picking, PickingLeitstand — Anzeige-Teil) | offen | |
 | C | Kaskade auf PickingLeitstand-Gruppenkopfzeile („Alle Sub-FAs fertigmelden", `IsDoneBde` alle Nachfahren, atomar, Dialog mit Offene-Buchung-Zahl, ILogger); Zeilen-Toggle unveraendert; keine Gruppen-Ruecknahme | **erledigt** | `a305d6f` |
 | D | Z4-Zaehl-Sweep (Articles/Info; 6 Listen tragen die Z4-Zeile schon aus A/B) + Z1-Regressionstest. **Z3-Sync-Meldung vertagt** (Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]], Mensch-Entscheid 2026-09-07 — Deploy-Fork Service) | **erledigt** | `d9de60c` (Z4+Z1) |
-| E | Testszenarien (F1–F6 + Kaskade) + Brain + qa-agent → Testbereit | offen | |
+| E | Testszenarien (F1–F6 + Kaskade) + Brain + qa-agent → Testbereit | **erledigt** | `dde9a17` (Testszenarien+Changelog+Version) · `ebc3d45` (Brain: Changelog/feature-map/Index) |
 
 ## Fachliche Anforderungen
 
@@ -506,8 +506,20 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   Spec kann daher nur in **demselben** Worktree sinnvoll umgesetzt werden — dieselbe Konstellation wie
   bei den beiden Schwester-Specs vom 2026-08-12. Vor Umsetzungsbeginn `scripts/sync-worktree.ps1`
   laufen lassen, um den Branch aktuell zu halten.
-- **Publish-Befehle (nachgelagert, im Worktree):**
+- **QA-finalisiert (2026-09-07):** `deploy.web: true / deploy.service: false / deploy.migration: false`
+  bestaetigt anhand des echten Diffs `f869bb0..dde9a17` (38 Dateien, ausschliesslich unter
+  `IdealAkeWms/`; die einzige Aenderung unter `IDEALAKEWMSService/` ist der reine
+  Versionsstring-Bump in `AppVersion.cs`, keine funktionale Service-Aenderung; kein neuer Ordner
+  unter `*/Migrations/`).
+- **Publish-Befehl (aus dem Worktree, NACH manuellem Test am Testsystem, VOR dem Merge):**
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  Kein Service-Publish noetig (`deploy.service: false`), keine Migration/DB-Schritt noetig
+  (`deploy.migration: false`).
+- **Hinweis Merge:** Nach dem Merge des Buendel-Worktrees `feature/2026-08-07-ideal-teile-1-5` in
+  `main` nur dann erneut aus `main` publishen, wenn der Merge tatsaechlich getestete Dateien mit
+  parallelen `main`-Aenderungen zusammengefuehrt hat (z. B. echte Konfliktaufloesung oder
+  zwischenzeitliche `main`-Commits unter `IdealAkeWms/`). Ein sauberer Fast-Forward-/Merge ohne
+  Konflikte braucht kein zweites Publish.
 
 ## Offene Rückfragen
 
@@ -925,3 +937,143 @@ fuehren — Antwort 1 hat das entschieden. In der Tabelle in Abschnitt 8 steht d
 Keine Einwaende; die Punkte sind in der Nachbesserung mitzuziehen.
 
 **Damit ist BL1 aufgeloest. Die Spec kann nachgebessert und anschliessend freigegeben werden.**
+
+## QA-Nachweis (2026-09-07, qa-agent → Testbereit)
+
+**Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, geprueft am Stand `dde9a17` (Etappe E, v1.35.0).
+Diff-Basis fuer diese Spec: `f869bb0..dde9a17` (38 Dateien, ausschliesslich `IdealAkeWms/` +
+Versionsstring in `IDEALAKEWMSService/AppVersion.cs`, kein `Migrations/`-Ordner).
+
+**1. Build** — `dotnet build IdealAkeWms.slnx` im Worktree: **erfolgreich, 0 Fehler**, 12 bereits
+bekannte Warnungen (NU1902 MailKit/MimeKit-Advisories, 2× CS8321 ungenutzte lokale Funktion,
+1× CS8602 — alle vorbestehend, nicht durch diese Spec eingefuehrt).
+
+**2. Tests, beide Suiten grün:**
+- `dotnet test IdealAkeWms.Tests/IdealAkeWms.Tests.csproj` → **1243 erfolgreich, 0 Fehler, 1
+  übersprungen** (`ProductionOrderEagerCreateAgentJobTests…`, vorbestehender Integration-Skip),
+  gesamt 1244 — deckt sich mit der erwarteten Zahl.
+- `dotnet test IDEALAKEWMSService.Tests/IDEALAKEWMSService.Tests.csproj` → **232 erfolgreich, 0
+  Fehler, 0 übersprungen** — deckt sich mit der erwarteten Zahl.
+
+**3. CLAUDE.md-Checkliste:**
+- Migration/SQL: keine Aenderung noetig (alle Felder aus Teil 7 vorhanden), verifiziert: kein neuer
+  Ordner unter `*/Migrations/` im Diff.
+- Audit-Felder: `SetIsDoneBdeAsync`/`SetIsDoneBdeForOrderNumberAsync`
+  (`IdealAkeWms/Data/Repositories/ProductionOrderBdeStatusRepository.cs:19-61`) setzen
+  `ModifiedAt/ModifiedBy/ModifiedByWindows` je Zeile; die Kaskade nutzt **einen** gemeinsamen
+  `now`-Zeitstempel fuer alle betroffenen Zeilen (AK 14) und **eine** `SaveChangesAsync()` fuer den
+  gesamten Batch (AK 13, Atomaritaet ueber EF-Transaktion).
+- Versionsbump: `IdealAkeWms/AppVersion.cs` und `IDEALAKEWMSService/AppVersion.cs` beide auf
+  `1.35.0` — verifiziert.
+- `docs/TESTSZENARIEN.md`: Kapitel „TS-69" (TS-69.1–69.20) vorhanden, deckt F1–F6 (AK 1–10), Kaskade
+  A–D (AK 11–14), keine Gruppen-Ruecknahme (AK 15), Rollen-Regression (AK 16) und Z4 ab — geprueft
+  Zeile für Zeile gegen die Akzeptanzkriterien, keine Lücke gefunden.
+- Stichprobe der in TS-69 referenzierten Testklassen/-methoden **existiert und ist grün**:
+  `ProductionOrderRepositoryGroupedTests`, `PickingLeitstandControllerTests` (`CascadeDonePreview_*`,
+  `CascadeDone_*`), `BdeBookingRepositoryTests.CountSubFasWithOpenBooking_*`,
+  `FaMaterializationSyncServiceTests.RunAsync_DoesNotResetIsDoneBde_OnExistingSubFa` — keine
+  Behauptung ohne Code-Beleg.
+
+**4. Testszenarien-Index** (`secondbrain/tests/testszenarien-index.md`) — bereits durch einen
+vorherigen Brain-Lauf nachgezogen (Commit `ebc3d45`, Zeile „69. IDEAL — FA-Liste und verwandte
+Ansichten hierarchiefähig"), verifiziert vorhanden und inhaltlich korrekt (Automatisiert-Liste
+deckt sich mit den tatsächlich existierenden Testklassen).
+
+**5. Skills:** `superpowers:verification-before-completion` angewandt (Evidenz vor Behauptung,
+siehe Punkte 1–4 oben — Build/Test-Ausgabe wurde in diesem Lauf frisch erzeugt, nicht aus einem
+früheren Lauf übernommen); `code-review` (medium, Diff `f869bb0..dde9a17`) als Hintergrund-Agent
+gelaufen, 2 Befunde, **keiner blockierend**:
+1. **Bestätigt dieselbe F2-Lücke** wie unten unter „Gefundene Lücke" eigenständig per Code-Audit
+   gefunden (`fa-liste-gruppierung.js:29-35`, `[data-fa-liste-filter]` wird in keiner View
+   gerendert) — unabhängige Zweitverifikation desselben Befunds.
+2. **Minor/Aufraeum-Hinweis:** `private static bool IsTrue(string? v)` ist wortgleich in 8
+   Controllern dupliziert (`ArticlesController`, `FaCompletionController`, `FaWorklistController`,
+   `PickingController`, `PickingLeitstandController`, `ProductionOrdersController`,
+   `StandortEinstellungenController`, `TrackingController`) statt eines gemeinsamen Helpers —
+   **kein neues Anti-Pattern dieser Spec**, sondern folgt bewusst dem in Abschnitt 1 vorgegebenen
+   Muster „identisch zu `StandortEinstellungenController`" (Teil 6); ein gemeinsamer Helper wäre
+   ein optionaler Refactor-Nachtrag, kein Fix für diese Spec. Kaskade (AK 11–15),
+   Gruppen-Pagination, Spalten-Mapping und AKE-Regression wurden vom Reviewer geprüft und **ohne
+   Befund** bestätigt.
+
+**Offene Rückfragen 1–8 / BL1:** alle beantwortet und in der Spec eingearbeitet (siehe Abschnitte
+„Freigabe-Antworten" und „ANTWORTEN auf die Kritische Prüfung"), keine offene Frage mehr.
+
+### Gefundene Lücke (Code-Audit, kein Blocker, aber fuer Schranke 2 wichtig): F2-„Hervorheben" fehlt
+
+Bei der Verifikation des JS-Bausteins `wwwroot/js/fa-liste-gruppierung.js` gegen die sechs Views
+zeigt sich: **das Selektor-Attribut `[data-fa-liste-filter]`, an dem die Auto-Expand-Funktion
+(`autoExpandOnFilter`) haengt, wird in KEINER der sechs Views gerendert** (verifiziert per Grep über
+alle betroffenen `Views/*/Index.cshtml`). Der Code-Pfad ist damit **unerreichbar** — nicht falsch,
+aber toter Code.
+
+**Praktische Einordnung, warum das AK 5 trotzdem nicht im gefürchteten Sinn verletzt:** Alle
+Such-Eingaben dieser sechs Views (Spaltenfilter UND Filterkarte) sind
+`data-server-column-filter="true"` bzw. klassisches GET-Formular — beides navigiert per vollem
+Seiten-Reload (`window.location.href`/Form-Submit), kein Live-Client-Filter. Jeder frische Ladevorgang
+zeigt laut AK 4 **alle Gruppen aufgeklappt**; die Repository-Query
+(`ProductionOrderRepository.GetForLeitstandGroupedAsync`/`BuildLeitstandQuery`) liefert nach einer
+Suche ohnehin nur noch die tatsaechlich passenden Zeilen der passenden Gruppen. Ein „still verstecktes"
+Ergebnis (Gruppe bleibt zu, Treffer unsichtbar) kann über den tatsaechlich gebauten Suchweg **nicht**
+entstehen — die Kern-Sicherheitseigenschaft von AK 5 ist durch die Architektur (Vollreload +
+Default-aufgeklappt) strukturell erfüllt, nur nicht durch den dafür geschriebenen JS-Mechanismus.
+
+**Was tatsaechlich fehlt:** die **visuelle Hervorhebung** der Treffer-Zeile nach einer Suche
+(„Treffer hervorgehoben", TS-69.4/AK 5, wörtlich gefordert) — dafür existiert **keine** CSS-Klasse/
+JS-Markierung in den sechs Views (das existierende `.fa-hl`/`.fa-filter-hit`-Muster in `site.css`
+ist ausschliesslich für `#faTree`/`.fa-node-row`, die separate `/FaHierarchy`-Baumansicht, verkabelt
+— nicht wiederverwendet).
+
+**Empfehlung:** kein Blocker für `Testbereit` (Build/Tests grün, Kern-Sicherheitseigenschaft haelt),
+aber **beim manuellen Test TS-69.4 explizit auf die fehlende Hervorhebung pruefen** — vermutlich
+zeigt sich dort ein sichtbarer, aber nicht optisch hervorgehobener Treffer. Falls das dem Menschen
+nicht genuegt, ist das ein kleiner Nachtrag (CSS-Klasse + Zeilen-Markierung analog `#faTree`,
+kein Architektur-Umbau) statt eines Blockers für Schranke 2.
+
+### Verbleibender manueller Rest (Schranke 2, IDEAL-Testsystem)
+
+Nicht InMemory-testbar bzw. nur am realen System sichtbar — TS-69 benennt das explizit als
+„manueller Rest":
+
+1. **Master-Toggle je View sichtprüfen** (AK 1/10, TS-69.1): jede der sechs Ansichten (FA-Liste,
+   Kommissionierung, Kommissionier-Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste,
+   Teileverfolgung) einmal mit `ProduktionsauftragHierarchisch = false` (unverändert) und einmal mit
+   `= true` (gruppiert) öffnen.
+2. **F2 — Auto-Expand bei Suchtreffer** (TS-69.4): Gruppe zuklappen, nach einer `SubOrderNumber`
+   darin suchen → Gruppe klappt automatisch auf, Treffer hervorgehoben; Negativfall (nicht
+   existierende Nummer) klar als „kein Treffer" erkennbar. **Bekannte Code-Lücke (siehe „Gefundene
+   Lücke" oben, durch code-review bestätigt): die geplante Auto-Expand-JS-Funktion ist toter Code
+   (kein View rendert `[data-fa-liste-filter]`), und es gibt keine CSS-Hervorhebung der Treffer-Zeile
+   für diese 6 Views.** Die Gruppe klappt trotzdem faktisch auf, weil jede Suche einen vollen
+   Seiten-Reload macht und jede frische Seite laut AK 4 standardmäßig aufgeklappt ist — der Treffer
+   ist also sichtbar, aber **nicht** optisch hervorgehoben. Bitte gezielt prüfen, ob das für die
+   Abnahme ausreicht oder ob die Hervorhebung nachgezogen werden muss.
+3. **Bulk-Select über `tbody`-Gruppen im Leitstand** (TS-69.10): „Alle sichtbaren auswählen" markiert
+   nur aufgeklappte Gruppen; eine Gruppe mit markierten Zeilen einklappen → Markierung/Zähler fällt
+   auf die sichtbaren Zeilen zurück.
+4. **AG-Status je Sub-FA in der FA-Abarbeitungsliste** (TS-69.12): Merkmal-Spalten +
+   Status-Auswahlfeld funktionieren je Sub-FA im gruppierten Modus (AJAX
+   `/api/fa-work-steps/set-status`).
+5. **Teileverfolgung: 3-Ebenen-Baum-Fortschritt** (TS-69.13): Haupt-FA → Sub-FA → Arbeitsgang, Chevron
+   auf beiden Ebenen + „Alle auf/zu", Rückmelden/Zurücknehmen je AG korrekt.
+6. **Kaskade-Dialog inkl. „mit offener Buchung" und Atomarität** (TS-69.14–69.17): Klick auf „Alle
+   Sub-FAs fertigmelden" in der Leitstand-Gruppenkopfzeile → Dialog nennt Gesamtzahl **und** Anzahl
+   mit offener/pausierter Buchung; Bestätigen setzt alle Nachfahren (auch Enkel) auf `IsDoneBde =
+   true`; Abbruch ändert nichts; ein `ILogger`-Eintrag pro Kaskade mit HauptFA/Anzahl/Benutzer ist im
+   Log sichtbar. (Ein simulierter Fehler mitten in der Kaskade — AK 13 — ist mit dem InMemory-Test
+   nicht nachstellbar; die Atomarität ist durch die Single-`SaveChangesAsync`-Struktur
+   architektonisch gegeben, siehe Punkt 3 oben, aber am realen SQL Server nicht gesondert
+   provoziert.)
+7. **`SageMissingSince`-Badge von Hand setzen** (TS-69.8): in der Testumgebung `SageMissingSince`
+   eines Sub-FA per SQL setzen (heute „0 vermisst" im produktiven Bestand) → eigener Badge/Tooltip,
+   Zeile bleibt bedienbar; Gegenprobe AKE-`IsCancelled` zeigt weiterhin nur den bestehenden Badge.
+8. **Z4-Zählformat gegenprüfen** (TS-69.19): Listenköpfe der sechs Ansichten **und** die
+   Artikelinfo-Fußzeile zeigen im hierarchischen Modus „N Aufträge · M Sub-FAs" konsistent, nie zwei
+   unterschiedliche Konventionen nebeneinander.
+9. **Rollen-Regression** (TS-69.20): je Ansicht ein Benutzer ohne den jeweiligen Zugriffsfilter →
+   Ansicht bleibt gesperrt; `CascadeDone`/`CascadeDonePreview` verlangen `RequirePickingAccess` wie
+   die Einzelaktion.
+
+**Z3 bewusst nicht Teil dieses Testlaufs** (vertagt, Backlog
+[[2026-09-07-invariante-haupt-fertig-sub-erkennen]]) — kein offener Punkt dieser Spec.
