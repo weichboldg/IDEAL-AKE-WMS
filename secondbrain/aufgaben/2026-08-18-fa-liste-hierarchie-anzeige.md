@@ -1,15 +1,26 @@
 ---
 type: aufgabe
 title: "FA-Liste und verwandte Ansichten hierarchiefaehig darstellen (Epic, Nachtrag Teil 7/8)"
-status: InUmsetzung
+status: Testbereit
 spec: "[[2026-08-18-fa-liste-hierarchie-anzeige-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-09-07
 ---
 
 # FA-Liste hierarchiefaehig (Epic)
+
+> **STAND 2026-09-07 — WIEDEREINSTIEG:** Epic A–E **KOMPLETT**, **status Testbereit** (qa-agent,
+> v1.35.0). Build 0 Fehler · Web **1243 grün +1 skip** · Service **232 grün**. Deploy web:true/
+> service:false/migration:false. Alles committet — **Hauptcheckout HEAD `b8c6202`**, **Worktree HEAD
+> `dde9a17`**. **Nächster Schritt = Mensch macht Schranke 2** (Manual-UAT am IDEAL-Testsystem nach TS-69 +
+> EIN Merge fürs ganze Bündel Teile 1–8 + dieser Epic). NICHT gemerged/gepusht/aufgeräumt.
+> **Offener F2-Befund (nicht-blockierend, in Manual-Checkliste):** `fa-liste-gruppierung.js` Auto-Expand
+> lauscht auf `[data-fa-liste-filter]` (keine View rendert es) → toter Code, keine Treffer-Hervorhebung;
+> Safety hält aber (Server-Reload lädt Gruppen aufgeklappt). An Schranke 2 entscheiden: akzeptieren oder
+> toten Zweig aufräumen (kleiner Nachtrag, Re-QA). **Z3 vertagt** → Backlog
+> [[2026-09-07-invariante-haupt-fertig-sub-erkennen]].
 
 Umsetzung der freigegebenen Spec [[2026-08-18-fa-liste-hierarchie-anzeige-spec]]. Am 2026-08-20 (Mensch)
 zu einem **Epic** umstrukturiert (Umfang: 6 Views + Gruppen-Pagination + JS-Modul + Kaskade + Z4-Sweep +
@@ -24,7 +35,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 | B | 5 weitere Views — **5/5 KOMPLETT**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2`, Tracking/Index `7bba52b` | **erledigt** |
 | C | Kaskade Leitstand-Kopfzeile | **erledigt** (`a305d6f`) |
 | D | Z4-Sweep + Z1-Regressionstest **erledigt** (`d9de60c`); Z3 vertagt → Backlog | **erledigt (Z3 vertagt)** |
-| E | Testszenarien + Brain + qa-agent → Testbereit | offen |
+| E | Testszenarien (TS-69) + v1.35.0 + Changelogs + qa-agent → Testbereit | **erledigt** (`dde9a17` Worktree, `b8c6202` Brain) |
 
 ## Verbindliche Entscheidungen (aus der Spec)
 - **Wirksam nur bei Master `ProduktionsauftragHierarchisch == true`** (Lese-Muster wie
