@@ -7091,5 +7091,102 @@ sicherstellen, dass mehrere Sub-FAs derselben `OrderNumber` an einer Werkbank of
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18)*
+## TS-69 — IDEAL: FA-Liste und verwandte Ansichten hierarchiefähig (v1.35.0)
+
+**Bezug:** Spec `2026-08-18-fa-liste-hierarchie-anzeige-spec` (Epic Etappen A–E). **Vorbedingung:** Bündel
+deployt; für die IDEAL-Fälle Master **`ProduktionsauftragHierarchisch = true`** und ein materialisierter
+Bestand mit einer **mindestens dreistufigen** Struktur (Sub-FA unter Sub-FA). Für den `SageMissingSince`-
+und den Offene-Buchung-Fall müssen die Werte in der Testumgebung von Hand gesetzt werden (heute „0 vermisst",
+leeres IDEAL-Terminal).
+
+**Automatisiert abgedeckt:** `ProductionOrderRepositoryGroupedTests` (Gruppierung/Pagination/Z3b),
+Controller-Hierarchie-Tests je View (`ProductionOrdersControllerSlimTests`, `PickingLeitstandControllerTests`,
+`PickingControllerTests`, `FaCompletionControllerTests`, `FaWorklistControllerTests`, `TrackingControllerTests`),
+Kaskade (`ProductionOrderBdeStatusRepositoryTests` cascade + `PickingLeitstandControllerTests` CascadeDone/
+Preview), Offene-Buchung-Zählung (`BdeBookingRepositoryTests.CountSubFasWithOpenBooking…`), Z4 Articles/Info
+(`ArticlesControllerTests.Info_Hierarchical_…`), Z1-Sync-Invariante
+(`FaMaterializationSyncServiceTests.RunAsync_DoesNotResetIsDoneBde…`, Service). Der manuelle Rest ist die
+UI-/Bedien-Sichtprüfung am laufenden IDEAL-System (siehe „Kapitel mit besonderem Gewicht").
+
+### Anzeige (alle sechs Ansichten)
+
+- **TS-69.1 — F1: Master aus/an (AK 1/10).** Jede der sechs Ansichten (FA-Liste, Kommissionierung,
+  Kommissionier-Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste, Teileverfolgung) **einmal mit Master
+  `false`** öffnen → unverändert wie vor v1.35.0 (ein `<tbody>`, keine Kopfzeilen, keine neue sichtbare Spalte,
+  zeilenbasierte Paginierung, **kein** neues Bedienelement — insbesondere im Leitstand **kein** „Alle Sub-FAs
+  fertigmelden"-Knopf). **Einmal mit Master `true`** → gruppiert nach Haupt-FA.
+- **TS-69.2 — Vollständiger Nachfahren-Scope (AK 2).** Dreistufige Struktur: der **Enkel-Sub-FA** erscheint als
+  eigene Zeile in der Haupt-FA-Gruppe, nicht nur die direkten Kinder.
+- **TS-69.3 — Standardsicht aufgeklappt, Zuklappen je Gruppe (AK 4).** Beim Laden alle Gruppen offen; Klick auf
+  den Chevron einer Gruppe klappt **nur diese** zu; erneut laden → wieder alle offen.
+- **TS-69.4 — F2: Suchtreffer in zugeklappter Gruppe (AK 5, gefährlichster stiller Fehler).** Eine Gruppe
+  zuklappen, dann nach einer `SubOrderNumber` **darin** suchen → die Gruppe klappt **automatisch auf**, Treffer
+  hervorgehoben. Negativfall: Suche nach nicht existierender Nummer → klar erkennbar „kein Treffer" (nicht
+  scheinbar leer).
+- **TS-69.5 — Suchreihenfolge Sub-zuerst-dann-Haupt (AK 6/8).** Suche auf eine `SubOrderNumber` → genau diese
+  Zeile; Suche nur auf `OrderNumber` → die ganze Gruppe. (Gilt auch für Filterkarte **und** Spaltenfilter.)
+- **TS-69.6 — F3: Paginierung über Gruppen (AK 7).** Filterauswahl mit mehr Gruppen als Seitengröße → **keine
+  Gruppe** über zwei Seiten getrennt; Seitenzahl entspricht der **Gruppen**anzahl.
+- **TS-69.7 — Spalten-Mapping (AK 3/8).** FA-Nummer-Zelle zeigt im hierarchischen Modus `SubOrderNumber`, die
+  Gruppen-Kopfzeile die Haupt-FA (`OrderNumber`). Spalte **„Übergeordnete Sub-FA"** per Zahnrad einblendbar,
+  im Erstzustand ausgeblendet, Wert je Sub-FA gegen `/FaHierarchy` gegengeprüft, bei der Wurzel leer.
+- **TS-69.8 — `SageMissingSince`-Badge (AK 9).** Ein Sub-FA mit gesetztem `SageMissingSince` (in der
+  Testumgebung von Hand) → eigener Badge/Tooltip „Seit … nicht mehr in der Struktur gemeldet", Zeile bleibt
+  sichtbar/bedienbar. Gegenprobe: ein AKE-`IsCancelled`-Auftrag im Flachmodus zeigt weiterhin nur den
+  bestehenden „In Sage gelöscht"-Badge — die beiden greifen nie gleichzeitig.
+- **TS-69.9 — F6: AKE-Regression, hart (AK 10).** Master `false`: alle sechs Ansichten bit-identisch zu heute,
+  **kein neues Bedienelement/keine neue Aktion** (weder Zeile noch Kopfzeile), da keine Gruppen-Kopfzeile
+  gerendert wird. Ausdrücklich prüfen, nicht nur zufällig erfüllt.
+
+### Per-View-Besonderheiten
+
+- **TS-69.10 — Kommissionier-Leitstand, Bulk-Select über Gruppen.** „Alle sichtbaren auswählen" markiert nur
+  **aufgeklappte** Gruppen; eine Gruppe mit markierten Zeilen **einklappen** → Zähler/Markierung fällt auf die
+  Sichtbaren zurück (kein Freigeben unsichtbarer Aufträge). `BulkRelease`/Zurücknehmen wirkt genau auf die
+  markierten IDs. Memory-Filter (Datum/VK-VA) wirken auf **Zeilen** — die Gruppe bleibt, solange ≥1 Zeile passt
+  (Z3b), leere Gruppen verschwinden.
+- **TS-69.11 — Kommissionierung: Prioritäts-Reihenfolge.** Dringlichste Haupt-FA-Gruppe zuerst, innerhalb der
+  Gruppe die Prio-Reihenfolge der Warteschlange (bewusst **nicht** SubOrderNumber). Klick auf eine Sub-FA-Zeile
+  öffnet deren Stückliste.
+- **TS-69.12 — FA-Abarbeitungsliste: AG-Status je Sub-FA.** Merkmal-Spalten des gewählten Arbeitsgangs + das
+  Status-Auswahlfeld funktionieren je Sub-FA (AJAX `/api/fa-work-steps/set-status`) im gruppierten Modus.
+- **TS-69.13 — Teileverfolgung: 3-Ebenen-Baum.** Haupt-FA → Sub-FA → Arbeitsgang (Muster wie OSEON), **zwei-
+  stufiger Fortschritt** (Haupt-FA „fertige Sub-FAs / alle", Sub-FA „rückgemeldete AGs / alle"); Chevron auf
+  beiden Ebenen + „Alle auf/zu"; **Rückmelden/Zurücknehmen je AG** funktioniert; Flachmodus (AKE) unverändert
+  (Bootstrap-Collapse).
+
+### Kaskade „Alle Sub-FAs fertigmelden" (nur Kommissionier-Leitstand)
+
+- **TS-69.14 — Kaskade A: vollständiger Unterbaum (AK 11).** Klick auf „Alle Sub-FAs fertigmelden" in der
+  Gruppen-Kopfzeile → **alle** Nachfahren-Sub-FAs (auch tiefere Ebenen, auch aktuell ausgeblendete) auf
+  `IsDoneBde = true`.
+- **TS-69.15 — Kaskade B: Bestätigungsdialog mit Zahl (AK 12).** Der Dialog nennt die Gesamtzahl der Sub-FAs
+  **und separat** die Anzahl **„mit offener Buchung"** (jede nicht beendete, nicht stornierte BDE-Buchung, also
+  auch pausierte/auto-pausierte). Vorbedingung: eine offene/pausierte Buchung in der Testumgebung setzen.
+  **Abbruch** im Dialog → keine Buchung, keine Änderung.
+- **TS-69.16 — Kaskade C: Atomarität (AK 13).** Simulierter Fehler mitten in der Kaskade (z. B. gesperrter
+  Datensatz) → **kein** Sub-FA „halb erledigt": entweder alle betroffenen Zeilen oder keine.
+- **TS-69.17 — Kaskade D: im Log als EINE Kaskade (AK 14).** Ein `ILogger`-Eintrag je Kaskade mit Haupt-FA,
+  Anzahl Sub-FAs und Benutzer; die betroffenen Zeilen tragen denselben `ModifiedAt`-Zeitstempel. Keine neue
+  Tabelle.
+- **TS-69.18 — Keine Gruppen-Rücknahme (AK 15).** Die Gruppen-Aktion setzt **nur** auf `true`; ein Zurücknehmen
+  an einem einzelnen Sub-FA verändert **weder** Geschwister **noch** den Haupt-FA.
+
+### Z4 + Rollen
+
+- **TS-69.19 — Z4: Zähl-Konvention.** Wo Aufträge gezählt werden, steht hierarchisch **„N Aufträge · M
+  Sub-FAs"**: die Listenköpfe der sechs Ansichten **und** die Artikelinfo-Fußzeile („Teil enthalten in …
+  Fertigungsaufträgen" → „N Aufträge · M Sub-FAs offen"; FA-Nr-Spalte zeigt dort die Sub-FA-Nummer). Flachmodus:
+  je eine Zahl wie bisher.
+- **TS-69.20 — Rollen-Regression (AK 16).** Je Ansicht ein Benutzer **ohne** den jeweiligen Zugriffsfilter →
+  Ansicht bleibt gesperrt wie zuvor (unveränderte `RequireXxxAccess`-Filter). Die Kaskade-Endpunkte
+  (`CascadeDone`/`CascadeDonePreview`) verlangen `RequirePickingAccess` wie die Einzelaktion.
+
+**Vertagt (nicht Teil von v1.35.0):** Z3-Sicherheitsnetz „neuer Sub-FA unter fertigem Haupt-FA erkennen/melden"
+→ Backlog `2026-09-07-invariante-haupt-fertig-sub-erkennen` (Deploy-Fork Service). „Offen anlegen" ist ohnehin
+erfüllt; die Z1-Invariante (Sync fasst `IsDoneBde` nicht an) ist getestet.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18) + FA-Liste-Hierarchie (v1.35.0)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
