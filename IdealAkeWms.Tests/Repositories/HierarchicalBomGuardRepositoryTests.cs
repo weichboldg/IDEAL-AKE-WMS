@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services.HierarchischeStruktur;
 using Moq;
@@ -24,11 +25,11 @@ public class HierarchicalBomGuardRepositoryTests
     {
         Master("true");
 
-        var result = await Sut().GetBomItemsAsync("ART-1");
+        var result = await Sut().GetBomItemsAsync(new BomKey("ART-1"));
 
         result.DataSource.Should().Be(BomDataSources.HierarchicalUnavailable);
         result.Items.Should().BeEmpty();
-        _inner.Verify(r => r.GetBomItemsAsync(It.IsAny<string>()), Times.Never); // kein Cache/DB-Zugriff
+        _inner.Verify(r => r.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()), Times.Never); // kein Cache/DB-Zugriff
     }
 
     [Theory]
@@ -38,10 +39,10 @@ public class HierarchicalBomGuardRepositoryTests
     {
         Master(masterValue);
 
-        var result = await Sut().GetBomItemsAsync("ART-1");
+        var result = await Sut().GetBomItemsAsync(new BomKey("ART-1"));
 
         result.DataSource.Should().Be(BomDataSources.HierarchicalUnavailable);
-        _inner.Verify(r => r.GetBomItemsAsync(It.IsAny<string>()), Times.Never);
+        _inner.Verify(r => r.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()), Times.Never);
     }
 
     [Fact]
@@ -49,12 +50,12 @@ public class HierarchicalBomGuardRepositoryTests
     {
         Master("false");
         var inner = new BomQueryResult(new List<BomItem> { new() { Artikelnummer = "X" } }, BomDataSources.Sage);
-        _inner.Setup(r => r.GetBomItemsAsync("ART-1")).ReturnsAsync(inner);
+        _inner.Setup(r => r.GetBomItemsAsync(It.Is<BomKey>(k => k.ArticleNumber == "ART-1"), It.IsAny<BomScope>())).ReturnsAsync(inner);
 
-        var result = await Sut().GetBomItemsAsync("ART-1");
+        var result = await Sut().GetBomItemsAsync(new BomKey("ART-1"));
 
         result.Should().BeSameAs(inner);
-        _inner.Verify(r => r.GetBomItemsAsync("ART-1"), Times.Once);
+        _inner.Verify(r => r.GetBomItemsAsync(It.Is<BomKey>(k => k.ArticleNumber == "ART-1"), It.IsAny<BomScope>()), Times.Once);
     }
 
     [Fact]
@@ -62,11 +63,11 @@ public class HierarchicalBomGuardRepositoryTests
     {
         Master(null); // Master nie gesetzt (AKE) -> flacher Modus
         var inner = new BomQueryResult(new List<BomItem>(), BomDataSources.NoData);
-        _inner.Setup(r => r.GetBomItemsAsync("ART-1")).ReturnsAsync(inner);
+        _inner.Setup(r => r.GetBomItemsAsync(It.Is<BomKey>(k => k.ArticleNumber == "ART-1"), It.IsAny<BomScope>())).ReturnsAsync(inner);
 
-        var result = await Sut().GetBomItemsAsync("ART-1");
+        var result = await Sut().GetBomItemsAsync(new BomKey("ART-1"));
 
         result.Should().BeSameAs(inner);
-        _inner.Verify(r => r.GetBomItemsAsync("ART-1"), Times.Once);
+        _inner.Verify(r => r.GetBomItemsAsync(It.Is<BomKey>(k => k.ArticleNumber == "ART-1"), It.IsAny<BomScope>()), Times.Once);
     }
 }

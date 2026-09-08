@@ -111,7 +111,7 @@ public class PickingControllerTests
         orders.Setup(r => r.GetByIdAsync(order.Id)).ReturnsAsync(order);
 
         var bom = new Mock<IBomRepository>();
-        bom.Setup(r => r.GetBomItemsAsync(It.IsAny<string>())).ReturnsAsync(bomResult);
+        bom.Setup(r => r.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>())).ReturnsAsync(bomResult);
 
         var picking = new Mock<IPickingRepository>();
         picking.Setup(r => r.GetByProductionOrderAsync(order.Id)).ReturnsAsync(new List<PickingItem>());

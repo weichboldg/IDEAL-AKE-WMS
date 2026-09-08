@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 
 namespace IdealAkeWms.Data.Repositories;
@@ -10,7 +11,7 @@ public interface IBomCacheRepository
     /// <summary>
     /// Reads a BOM from the cache. Returns null if no header exists.
     /// </summary>
-    Task<BomQueryResult?> GetByArticleNumberAsync(string articleNumber);
+    Task<BomQueryResult?> GetByArticleNumberAsync(BomKey key);
 
     /// <summary>
     /// Returns the subset of <paramref name="articleNumbers"/> whose BOMs contain

@@ -297,7 +297,7 @@ public class PickingController : Controller
             }
         }
 
-        var bomResult = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+        var bomResult = await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order));
         var bomItems = bomResult.Items;
 
         await _pickingRepository.InitializePickingAsync(
@@ -393,7 +393,7 @@ public class PickingController : Controller
                 Ressourcenummer = bom.Ressourcenummer,
                 Bezeichnung1 = bom.Bezeichnung1,
                 Bezeichnung2 = bom.Bezeichnung2,
-                Menge = bom.Menge * order.Quantity,
+                Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
                 KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,
@@ -546,7 +546,8 @@ public class PickingController : Controller
         if (string.IsNullOrEmpty(order.ArticleNumber))
             return NotFound();
 
-        var bomItems = (await _bomRepository.GetBomItemsAsync(order.ArticleNumber)).Items;
+        var bomResult = await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order));
+        var bomItems = bomResult.Items;
 
         // Stock-Daten laden für Lagerplatz-Anzeige
         var articleNumbers = bomItems
@@ -579,7 +580,7 @@ public class PickingController : Controller
             Ressourcenummer = bom.Ressourcenummer,
             Bezeichnung1 = bom.Bezeichnung1,
             Bezeichnung2 = bom.Bezeichnung2,
-            Menge = bom.Menge * order.Quantity,
+            Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
             Beschaffungsartikel = bom.Beschaffungsartikel,
             Artikelgruppe = bom.Artikelgruppe,
             TreeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.'),
@@ -642,7 +643,7 @@ public class PickingController : Controller
 
         if (!string.IsNullOrEmpty(order.ArticleNumber))
         {
-            var bomItems = (await _bomRepository.GetBomItemsAsync(order.ArticleNumber)).Items;
+            var bomItems = (await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order))).Items;
             foreach (var item in vm.Items)
             {
                 var bom = bomItems.FirstOrDefault(b => b.Ressourcenummer == item.Artikelnummer);

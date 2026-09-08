@@ -1,3 +1,4 @@
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services.HierarchischeStruktur;
 
@@ -25,7 +26,7 @@ public class HierarchicalBomGuardRepository : IBomRepository
         _settings = settings;
     }
 
-    public async Task<BomQueryResult> GetBomItemsAsync(string productionOrderArticleNumber)
+    public async Task<BomQueryResult> GetBomItemsAsync(BomKey key, BomScope scope = BomScope.DirectChildren)
     {
         // Master-Zustand über den bestehenden web-seitigen Leseweg (Teil 7) — kein zweiter Key,
         // keine eigene Caching-Logik.
@@ -34,6 +35,6 @@ public class HierarchicalBomGuardRepository : IBomRepository
             return new BomQueryResult(new List<BomItem>(), BomDataSources.HierarchicalUnavailable);
 
         // AKE / flacher Modus: unverändert an den Cache-/Live-Pfad delegieren.
-        return await _inner.GetBomItemsAsync(productionOrderArticleNumber);
+        return await _inner.GetBomItemsAsync(key, scope);
     }
 }

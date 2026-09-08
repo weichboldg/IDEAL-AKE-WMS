@@ -1,4 +1,5 @@
 using System.Data;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -19,10 +20,12 @@ public class BomRepository : IBomRepository
         _bomCacheRepository = bomCacheRepository;
     }
 
-    public async Task<BomQueryResult> GetBomItemsAsync(string productionOrderArticleNumber)
+    public async Task<BomQueryResult> GetBomItemsAsync(BomKey key, BomScope scope = BomScope.DirectChildren)
     {
+        // Flach (AKE): nur die Artikelnummer zaehlt, Scope/SubOrderNumber werden ignoriert (bit-identisch).
+        var productionOrderArticleNumber = key.ArticleNumber;
         // 1. Cache-First
-        var cached = await _bomCacheRepository.GetByArticleNumberAsync(productionOrderArticleNumber);
+        var cached = await _bomCacheRepository.GetByArticleNumberAsync(key);
         if (cached != null && cached.Items.Count > 0)
             return cached;
 
