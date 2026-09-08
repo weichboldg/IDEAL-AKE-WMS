@@ -26,7 +26,7 @@ Decorator-Muster: [[0001-repository-pattern-mit-decorator-fuer-caching]].
 |---|---|
 | Fertigungsauftraege | `ProductionOrderRepository`, `ProductionOrderPickingStatusRepository`, `ProductionOrderBdeStatusRepository` |
 | Vorbau | `FaWorkStepRepository`, `FaAttributeRepository`, `WorkStepRepository` |
-| Stueckliste | `BomRepository` (Sage-View + OSEON-Fallback), `BomCacheRepository` (persistenter Cache), `PickingRepository` |
+| Stueckliste | `BomRepository` (Sage-View + OSEON-Fallback, AKE), `BomCacheRepository` (persistenter Cache, AKE), `FaHierarchyBomRepository` (IDEAL: beide Interfaces aus `FaHierarchyNode`, v1.36.0), `BomRepositoryMasterSwitch` (Weiche fuer `IBomRepository` **und** `IBomCacheRepository`, entscheidet pro Aufruf am Master, lazy Delegates — ersetzt den Guard `HierarchicalBomGuardRepository`), `PickingRepository` — siehe [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]] |
 | Lager | `StockMovementRepository`, `StorageLocationRepository`, `ArticleRepository`, `ArticleCategoryRepository`, `ArticleAttributeRepository` |
 | Bestellwesen | `WarehouseRequisitionRepository`, `PartRequisitionRepository`, `OrderRecipientRepository` |
 | BDE | `BdeBookingRepository`, `BdeOperatorRepository`, `BdeActivityRepository`, `BdeTerminalRepository`, `WorkOperationRepository` |
@@ -92,9 +92,16 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `LagerbestandSyncService.cs` | Sage → Korrektur-Buchungen + Nullsetzen verwaister Paare | `Sync:LagerbestandEnabled` |
 | `OseonSyncService.cs` | OSEON → Auftraege, AGs, Artikelkategorien | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` |
 | `EnaioDmsSyncService.cs` | enaio-View → `EnaioDmsDocuments` (Full-Sync, kein Delta) | `Sync:EnaioDmsEnabled` |
-| `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**) | `Sync:BomCacheEnabled` |
-| `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` | `Sync:CoatingDetectionEnabled` |
-| `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend) | `Sync:FaWorkStepDetectionEnabled` |
+| `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**); **beide** Einstiege (`SyncBomCacheAsync`, `SyncSpecificArticleNumbersAsync` aus `SageImportService`) | `Sync:BomCacheEnabled` + **Klasse-D-Gate** (Master `true` → Skip, v1.36.0) |
+| `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
+| `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
+
+**Klasse-D-Gate (BOM-Bridge, v1.36.0):** `Common/IHierarchicalModeReader.cs` kapselt den DB-first-Read
+`ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; die drei Dienste (vier Einstiege)
+ueberspringen im hierarchischen Modus **ohne DB-Zugriff** und protokollieren
+`uebersprungen_hierarchisch`. Grund: die Heuristiken wuerden auf IDEAL-Daten Fehldaten erzeugen; IDEAL
+liefert `Beschichtet`/`Arbeitsschritte` explizit. Konstruktor-Signatur: Reader steht **vor** `ILogger`,
+`ISyncLogger` bleibt letzter Parameter. Siehe [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]].
 | `HolidaySyncService.cs` | date.nager.at → `Holidays` | `Sync:FeiertagSyncEnabled` |
 | `PartRequisitionEmailService.cs` | Bedarfsmeldungen → Mail | `Sync:PartRequisitionEmailEnabled` |
 | `WarehouseRequisitionEmailService.cs` | Lager-/Glasbestellungen → Mail | `Sync:WarehouseRequisitionEmailEnabled` |

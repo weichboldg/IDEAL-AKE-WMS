@@ -34,6 +34,7 @@ Test so, dass er ohne Rueckfrage ausgefuehrt und bewertet werden kann. Grundlage
 | `{{FA_FREMD}}` | FA, die laeuft, aber **nicht** an `{{WERKBANK}}` | |
 | `{{VMBEDARF_REITER}}` | ein real vorkommender `VMBedarf`-Wert (Vormontage-Reiter) | |
 | `{{KOMM_ZIEL}}` | ein real vorkommendes Kommissionier-Ziel | |
+| `{{KOLLISION_FA}}` | Sub-FA mit zwei Geschwistern gleicher Sage-Position (Block L-8, Testdaten) | |
 
 Fehlt ein Platzhalter, den ein Test braucht → Test als **BLOCKED** eintragen, nicht raten.
 
@@ -419,6 +420,53 @@ Hinweis „FA-Struktur".
 `{{BASE_URL_AKE}}/StandortEinstellungen` → leere IDEAL-Felder / „Flach (AKE-Standard)" ohne Fehler.
 
 ---
+
+## L. BOM-Bridge (v1.36.0, TS-70) — ersetzt Block H (Guard) im Nachlauf
+
+Vorbedingung: Buendel-Stand >= `8d9468d` deployt (v1.36.0 im Changelog, A-1 erneut pruefen). Block H
+gilt dann nicht mehr — die Hinweisseite existiert nicht mehr.
+
+### L-1 HauptFA-Vollansicht (TS-70.1, 70.9) — READ-ONLY
+1. `{{BASE_URL}}/ProductionOrders?…` Gruppe `{{HAUPTFA}}`, Stuecklisten-Knopf an der **HauptFA-Zeile**
+   (Sub-FA == HauptFA) → oder direkt `{{BASE_URL}}/Picking/Bom/<Id der HauptFA-Zeile>`.
+2. Erwartet: echte Stueckliste (kein Hinweis), Badge „FA-Struktur", **alle Ebenen** flach mit Pfad-Positionen
+   (`3`, `3.7`, `3.7.2`), Baugruppen mit Chevron auf-/zuklappbar, Spalten `Komm.-Ziel`, `Hauptlagerplatz`,
+   `Ebene`, `Vater-Sub-FA`; Tooltip an der Pos.-Zelle „Sage-Position: n"; Zahnrad → Spalte „Sage-Pos."
+   einblendbar (default aus). Mengen = Sollmenge (keine Hochrechnung). Druck-Knopf vorhanden.
+3. Screenshot `L-1.png`. Konsole ohne App-Fehler.
+
+### L-2 Sub-FA-Ansicht (TS-70.2) — READ-ONLY
+1. `{{BASE_URL}}/Picking/Bom/{{ORDER_ID_HIER}}` (Sub-FA `{{SUBFA}}`).
+2. Erwartet: nur die **direkten Kinder** von `{{SUBFA}}`, keine Enkel; Kopfzeile „FA {{SUBFA}} | HauptFA {{HAUPTFA}}".
+
+### L-3 Komm.-Ziel-Filter (TS-70.3) — READ-ONLY
+1. In L-1 Spaltenfilter `Komm.-Ziel` auf `{{KOMM_ZIEL}}` setzen → nur passende Zeilen; leeren → alle
+   Zeilen zurueck (kein vorab gefilterter Zustand). Nicht vorkommender Wert → leere, erkennbar
+   gefilterte Ansicht.
+
+### L-4 Artikelinfo (TS-70.4) — READ-ONLY
+1. `{{BASE_URL}}/Articles/Info?articleNumber=<Artnr eines Bauteils aus {{HAUPTFA}}>` (Suche ueber die
+   Artikel-Seite, falls der Parameter anders heisst).
+2. Erwartet: Tabelle „HauptFA | Sub-FA (Baugruppe) | Termine", HauptFA fett; Fusszeile „… basierend auf
+   FA-Struktur, Mengen = Sollmenge".
+
+### L-5 Menue (TS-70.5) — READ-ONLY
+1. Als Admin (beide Rechte): Menue „Kommissionierung" ist ein Dropdown mit „Kommissionierung" +
+   „Kommissionierlisten". Nur-Lager-Nutzer: kein Dropdown, Einzel-Link (MANUAL).
+
+### L-6 Klasse-D-Skip im Protokoll (TS-70.7) — READ-ONLY
+1. Aktivitaets-Protokoll oeffnen (Menue Verwaltung → Protokoll) nach einem Sync-Zyklus.
+2. Erwartet: Laeufe `CoatingDetection`, `FaWorkStepDetection`, `BomCache` als **uebersprungen
+   (hierarchischer Modus)**, nicht als Fehler — **drei** Laeufe; der spezifische BOM-Cache-Pfad loggt nur
+   in Serilog (OPS).
+
+### L-7 Druck (TS-70 Druck-Hinweis) — READ-ONLY
+1. In L-1 „Stueckliste drucken" → Vollstruktur mit Pfad-Positionen; **ohne** Komm.-Ziel/Sage-Pos.-Spalten
+   (bewusst, PrintBom-Whitelist) — kein FAIL.
+
+### L-8 Kollision (TS-70.10) — READ-ONLY, nur mit Testdaten
+1. Vorbedingung: zwei Geschwister mit gleicher Sage-Position unter demselben Sub-FA (`{{KOLLISION_FA}}`,
+   sonst BLOCKED). Erwartet: beide Zeilen da, zweite mit Pfad `n~2` + Badge „Kollision".
 
 ## 11. Nicht per Browser pruefbar — OPS/MANUAL (Mensch)
 

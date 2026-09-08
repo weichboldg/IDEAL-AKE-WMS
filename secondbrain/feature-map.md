@@ -243,8 +243,9 @@ auf `InUmsetzung`**, danach **erneute QA** (Build + beide Suiten). Einstieg
 Master, kein try/catch) + `Views/Picking/Bom.cshtml` (Hinweis → `/FaHierarchy`). Nebenbei mitgenommen:
 `supportsSortDefault=true` für die 3 flachen IDEAL-Listen (Baum bleibt false). **Kein Versions-Bump.**
 Spec [[2026-08-18-bom-guard-hierarchisch-spec]], Aufgabe [[2026-08-18-bom-guard-hierarchisch]].
-Vollständige hierarchische BOM-Quelle bewusst ausgelagert → [[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]]
-(nächster Zyklus, aus `main`).
+**Abgelöst durch die BOM-Bridge (v1.36.0, siehe nächster Abschnitt)** — der Guard ist im Code entfernt
+(`HierarchicalBomGuardRepository` + TS-68 → TS-70). Die ursprünglich geplante Volllösung
+[[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]] ist `Ueberholt` (superseded).
 
 > **Status:** `Testbereit` (qa-agent, 2026-08-18, Worktree `1173cf1`) — Build gruen, Web
 > **1219/1 skip/0 Fehler**, Service **231/0 Fehler**. Code-Review ohne Findings: alle 4
@@ -278,6 +279,30 @@ Macht die Hierarchie in **6 Ansichten** sichtbar/bedienbar — master-gated, AKE
 > (manueller Test + Merge durch den Menschen). Deploy: `web:true`, `service:false`,
 > `migration:false` (aus dem echten Diff bestätigt). **Z3** (Invariante Haupt-fertig⇒Sub-fertig
 > erkennen/melden) bewusst ins Backlog ausgelagert (Deploy-Fork Service; Fall ausgeschlossen).
+
+### BOM-Bridge — Stückliste über die Repository-Schnittstelle (v1.36.0, selber Branch)
+
+Ersetzt den Minimal-Guard: im hierarchischen Modus liefert `FaHierarchyBomRepository` (beide
+Interfaces `IBomRepository`/`IBomCacheRepository`) die Stückliste direkt aus `FaHierarchyNode` — kein
+Cache-Umweg, AKE bit-identisch (eigene Klasse). HauptFA → `FullStructure` (alle Ebenen, rekursiver
+Positions-Pfad `3.7.2`, Sage-Position separat sichtbar, Kollisionen markiert), Sub-FA →
+`DirectChildren`; Mengen = Sollmenge (`MengeIstAuftragsmenge`, `BomQuantityResolver`); Klasse-D-
+Heuristiken (Coating/WorkStep/BomCache-Sync) hart abgeschaltet (`IHierarchicalModeReader`); Artikelinfo
+HauptFA + Sub-FA; Menü „Kommissionierung" bündelt Picking-Workflow + Kommissionierlisten. Einstieg
+`Data/Repositories/FaHierarchyBomRepository.cs`, `BomRepositoryMasterSwitch.cs`, `Program.cs` (Weiche),
+`Models/BomKey.cs`/`BomScope.cs`, `Services/BomQuantityResolver.cs`, `IDEALAKEWMSService/Common/IHierarchicalModeReader.cs`.
+Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]], Aufgabe
+[[2026-09-08-bom-schnittstellen-bridge-hierarchisch-umsetzung]], ADR
+[[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]], Plan `docs/superpowers/plans/2026-09-08-bom-bridge.md` (Worktree).
+
+| Task | Status | Code-Einstieg |
+|---|---|---|
+| 1 — Typen/Flag/Signaturwechsel | **erledigt** (`f89659f`) | `BomKey`, `BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`, 3 Aufrufer |
+| 2 — `FaHierarchyBomRepository` | **erledigt** (`e99bcf3` + Fix `3784e4b`) | DirectChildren/FullStructure, Kollision `~n`, Waisen `W<n>`, Reverse-Lookup |
+| 3 — Master-Weiche, Guard raus, Mapping | **erledigt** (`611475d`) | `BomRepositoryMasterSwitch`, `Program.cs:91-104`, `PickingController.Bom`/`ReadOnlyBomBuilder` |
+| 4 — Klasse-D-Gates (Service) | **erledigt** (`56e8faa`) | `IHierarchicalModeReader`, Coating/WorkStep/BomCache×2 |
+| 5 — Views (Bom.cshtml, Artikelinfo, Nav) | **erledigt** (`cd34b08`/`86371ee`/`a3f125e`) | `Views/Picking/Bom.cshtml` (+`#column-config`), `ColumnDefinitions.Bom`, `ArticlesController`/`Info.cshtml`, `_Layout` |
+| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **feature-complete** (`8d9468d`); QA läuft | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
 
 ## Offen / nicht gemerged
 
