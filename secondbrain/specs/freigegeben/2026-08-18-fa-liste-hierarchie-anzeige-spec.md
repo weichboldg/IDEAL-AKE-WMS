@@ -4,7 +4,7 @@ title: "FA-Liste und verwandte Ansichten hierarchiefaehig darstellen (dritte Feh
 slug: 2026-08-18-fa-liste-hierarchie-anzeige-spec
 status: Testbereit
 created: 2026-08-18
-updated: 2026-09-07
+updated: 2026-09-08
 source_backlog: "[[2026-08-18-fa-liste-hierarchie-anzeige]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
@@ -1077,3 +1077,75 @@ Nicht InMemory-testbar bzw. nur am realen System sichtbar — TS-69 benennt das 
 
 **Z3 bewusst nicht Teil dieses Testlaufs** (vertagt, Backlog
 [[2026-09-07-invariante-haupt-fertig-sub-erkennen]]) — kein offener Punkt dieser Spec.
+
+## Re-QA Nachtrag UAT-Lauf 1 (2026-09-08)
+
+**Anlass:** UAT-Lauf 1 am IDEAL-Testsystem (2026-09-08,
+[[2026-09-08-uat-ergebnis-ideal-buendel-lauf-1]]) fand Befund **U2** (Triage-Eintrag T5, Testpunkt
+I-13): Der Bestätigungsdialog „Alle Sub-FAs fertigmelden" im PickingLeitstand zeigte den Zähler
+„mit offener Buchung" nur bei einem Wert `> 0` — bei 0 offenen Buchungen blieb der Zähler
+ausgeblendet, wodurch am Bildschirm nicht entscheidbar war, ob der Mechanismus existiert oder nur
+zufällig nichts zu zeigen hatte. Kein funktionaler Bug (die Logik zählte korrekt), aber ein
+Abnahme-Hindernis. **Hinweis zur Pfadkorrektur:** Der ursprüngliche Auftrag nannte
+`secondbrain/specs/entwurf/2026-08-18-fa-liste-hierarchie-anzeige-spec.md` als Ziel für diesen
+Nachtrag — dieser Pfad ist eine **verwaiste, nicht mehr aktuelle Entwurfskopie** (letzter Commit
+`679f702`, `status: Freigegeben`, `epic: false`, mit fremden, nicht committeten lokalen Änderungen
+im Hauptcheckout, die hier bewusst unangetastet blieben). Die tatsächlich lebende, mit dem
+Worktree-Stand `dde9a17`/`a8d75de` übereinstimmende Spec ist **diese Datei** unter
+`secondbrain/specs/freigegeben/` (Historie durchgängig bis `b8c6202`) — dorthin gehört daher auch
+dieser Nachtrag.
+
+**Commit:** `a8d75de` (Worktree `feature/2026-08-07-ideal-teile-1-5`,
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`) — Vorgänger-QA-Stand war `dde9a17` (Testbereit, Web
+1243/+1 skip, Service 232).
+
+**1. Build:** `dotnet build IdealAkeWms.slnx` im Worktree — **erfolgreich, 0 Fehler** (12
+vorbestehende Warnungen, keine davon aus diesem Diff).
+
+**2. Tests, beide Suiten grün:**
+- `dotnet test IdealAkeWms.Tests` → **1245 erfolgreich, 0 Fehler, 1 übersprungen**, gesamt 1246 —
+  +2 gegenüber `dde9a17` (neuer Theory-Test in `PickingControllerTests`, betrifft U1; U2 selbst
+  bringt keinen neuen automatisierten Test, reine Client-JS-/Markup-Änderung ohne
+  Controller-Vertragsänderung — `CascadeDonePreview` liefert unverändert `withOpenBooking` als
+  Zahl, die bestehenden `CascadeDonePreview_*`-Tests aus Etappe C bleiben unverändert grün).
+- `dotnet test IDEALAKEWMSService.Tests` → **232 erfolgreich, 0 Fehler, 0 übersprungen** —
+  unverändert.
+
+**3. Diff-Review (`git show a8d75de` für `Views/PickingLeitstand/Index.cshtml`), Ergebnis: keine
+Befunde.**
+- Der `div#cascadeDoneOpenWarning` verliert die feste Klasse `alert-warning` (jetzt nur `alert`)
+  und bekommt `role="status"` statt `role="alert"` — passend, weil das Element nun dauerhaft
+  sichtbar ist und kein akuter Warnhinweis mehr allein ist, sondern ein Statuswert; `role="status"`
+  ist eine ARIA-**Live-Region** (polite), keine reine Präsentationsänderung — Screenreader werden
+  bei Aktualisierung informiert, das ist eine Verbesserung, keine Regression.
+- Die JS-Logik setzt `textContent` **immer** und togglet `alert-warning`/`alert-secondary` nach
+  `withOpenBooking > 0`/`=== 0`, entfernt `d-none` **immer** nach dem Laden der Vorschau (nicht nur
+  bei `> 0` wie zuvor) — Farbe ist nicht alleiniger Bedeutungsträger (CLAUDE.md-Kontrastregel
+  eingehalten): der Zahlenwert steht im Text „Davon N mit offener Buchung."
+- Schlägt die Vorschau fehl (`.catch`), bleibt der Zähler unverändert ausgeblendet (Codepfad im
+  `.catch`-Block nicht angefasst) — dokumentiert als Negativfall in TS-69.15.
+- Keine Server-Änderung, keine neue Route, kein TempData-Eingriff; Konvention eingehalten.
+
+**4. Testszenarien:** `docs/TESTSZENARIEN.md` TS-69.15 um den U2-Nachtrag ergänzt (Zähler nach
+Laden der Vorschau immer sichtbar, 0 → `alert-secondary`, `>0` → `alert-warning`) **inkl.
+Negativfall** (Vorschau schlägt fehl → Zähler bleibt ausgeblendet, Absenden bleibt möglich, Server
+ist die Wahrheit). Anwender-Changelog ergänzt. Kein Versions-Bump.
+
+**5. Skills:** `superpowers:verification-before-completion` (frische Build-/Test-Ausgabe in diesem
+Lauf) und `code-review`-Betrachtung (siehe Diff-Review oben) angewendet — keine Findings.
+
+**Ergebnis: `Testbereit` bestätigt** (Status unverändert). Der bereits bekannte, nicht-blockierende
+F2-Befund (toter Auto-Expand-JS-Zweig, siehe „Gefundene Lücke" oben) bleibt unverändert offen und
+ist nicht Teil dieses Nachtrags (U1/U2 betreffen ihn nicht).
+
+### Manuelle Checkpunkte für den Nachtrag (ergänzend zu „Verbleibender manueller Rest" oben)
+
+10. **U2a — Zähler bei 0 sichtbar (TS-69.15):** Am PickingLeitstand eine HauptFA-Gruppe **ohne**
+    offene/pausierte Buchung wählen, „Alle Sub-FAs fertigmelden" klicken → nach Laden der Vorschau
+    steht „Davon 0 mit offener Buchung." sichtbar, neutral eingefärbt (`alert-secondary`), **nicht**
+    ausgeblendet.
+11. **U2b — Zähler bei >0 weiterhin als Warnung (Regression zu TS-69.14):** dieselbe Prüfung an
+    einer Gruppe **mit** offener/pausierter Buchung → Zähler zeigt die korrekte Zahl, gelb/orange
+    (`alert-warning`).
+12. **U2c — Konsole ohne Fehler:** während beider Prüfungen keine JS-Fehler in der
+    Browser-Konsole.

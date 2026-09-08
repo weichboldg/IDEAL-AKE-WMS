@@ -4,7 +4,7 @@ title: "BOM-Knopf im hierarchischen Modus abfangen statt HTTP 500 (UAT-Blocker, 
 slug: 2026-08-18-bom-guard-hierarchisch-spec
 status: Testbereit
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-09-08
 source_backlog: "[[2026-08-18-ideal-nachlese-restarbeiten]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
@@ -270,3 +270,83 @@ Am Test-/IDEAL-System, nach dem Web-Publish aus dem Worktree:
 8. **Negativfall:** waehrend Schritt 2 pruefen, dass keine leere Tabelle mit „Keine
    Stücklisten-Positionen gefunden" erscheint (das waere die falsche, mit „leerer Stückliste"
    verwechselbare Darstellung) — es muss die Hinweis-Box sein, nicht die Tabelle.
+
+## Re-QA Nachtrag UAT-Lauf 1 (2026-09-08)
+
+**Anlass:** UAT-Lauf 1 am IDEAL-Testsystem (2026-09-08,
+[[2026-09-08-uat-ergebnis-ideal-buendel-lauf-1]]) fand Befund **U1** (Triage-Eintrag T2): Die
+Guard-Hinweisseite (`DataSource == HierarchicalUnavailable`) rendert weder `#bomTable` noch die
+Expand-/Collapse-/Druck-Buttons; das ungeschützte `DOMContentLoaded`-Skript griff trotzdem auf sie
+zu → `TypeError: Cannot read properties of null (reading 'addEventListener')` in der Browser-
+Konsole. Zusätzlich zeigte die Kopfzeile auf der Hinweisseite die HauptFA-Nummer statt der
+Sub-FA-Nummer (Z4-Konvention-Inkonsistenz zu den übrigen sechs Ansichten dieses Bündels).
+
+**Commit:** `a8d75de` (Worktree `feature/2026-08-07-ideal-teile-1-5`,
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`) — Vorgänger-QA-Stand des Gesamtbündels war
+`dde9a17` (Testbereit, Web 1243/+1 skip, Service 232).
+
+**1. Build:** `dotnet build IdealAkeWms.slnx` im Worktree — **erfolgreich, 0 Fehler** (12
+vorbestehende Warnungen, keine davon aus diesem Diff).
+
+**2. Tests, beide Suiten grün:**
+- `dotnet test IdealAkeWms.Tests` → **1245 erfolgreich, 0 Fehler, 1 übersprungen**
+  (`ProductionOrderEagerCreateAgentJobTests…`, vorbestehender Integration-Skip), gesamt 1246 — +2
+  gegenüber `dde9a17` (neuer Theory-Test `Bom_ViewModel_CarriesSubOrderNumber`, 2 Fälle).
+- `dotnet test IDEALAKEWMSService.Tests` → **232 erfolgreich, 0 Fehler, 0 übersprungen** —
+  unverändert (Diff berührt `IDEALAKEWMSService` nicht).
+
+**3. Diff-Review (`git show a8d75de`), Ergebnis: keine Befunde.**
+- **AKE-Flachmodus bit-identisch bestätigt:** Die Kopfzeile zeigt `Model.SubOrderNumber ??
+  Model.OrderNumber`; der Zusatz „| HauptFA …" erscheint nur, wenn `SubOrderNumber !=
+  OrderNumber` — im Flachmodus ist `SubOrderNumber == OrderNumber` (Teil-7-Backfill-Invariante),
+  der Zusatz entfällt, Markup ist bit-identisch zu vorher. Verifiziert zusätzlich per neuem Test
+  (`InlineData("4711","4711")`).
+- **Druck-Knopf:** weiterhin gerendert in jedem Modus außer `HierarchicalUnavailable`
+  (`@if (Model.DataSource != BomDataSources.HierarchicalUnavailable)`); auf der Guard-Hinweisseite
+  bewusst nicht angeboten (dort gibt es nichts zu drucken).
+- **JS-Frühabbruch greift nur, wo legitim kein `#bomTable` existiert:** `#bomTable` (Zeile 161)
+  liegt im `else`-Zweig zu `DataSource == HierarchicalUnavailable` (Zeile 51–71) — dieser
+  `else`-Zweig deckt **auch** den Fall `KEINE_DATEN` ab (Zeile 21–23 ist nur die Badge-Auswahl
+  *innerhalb* der Kopfzeile, keine zweite Verzweigung der Tabelle). Der leere Zustand rendert
+  **innerhalb** von `#bomTable` eine Hinweiszeile im `tbody`
+  (`@if (!Model.Items.Any())`, Zeile 347) — die Tabelle selbst bleibt vorhanden. Der Guard
+  `if (!document.getElementById('bomTable')) return;` (Zeile 685) fängt daher **ausschließlich**
+  den `HierarchicalUnavailable`-Zweig ab; kein legitimer Pfad mit vorhandener Tabelle wird
+  abgewürgt. Am DOM geprüft (nicht am Modus) — schützt auch künftige Varianten ohne Tabelle.
+  **Kein Befund.**
+- **Read-Only-Modus (`ReadOnly=true`, FA-Abarbeitungsliste) unverändert:** `ReadOnlyBomBuilder`
+  befüllt jetzt zusätzlich `SubOrderNumber`; Rendering-Pfad (`else`-Zweig, `#bomTable` vorhanden)
+  unangetastet, kein Regressions-Risiko.
+- **XSS/Encoding:** `@(Model.SubOrderNumber ?? Model.OrderNumber)` und
+  `@Model.OrderNumber` laufen durch Razors automatisches HTML-Encoding (kein `Html.Raw`) — keine
+  neue Injektionsfläche.
+- **Konvention:** keine TempData-Nutzung in diesem Diff (reine Anzeige/Guard), Sprachregel
+  eingehalten (Code/Kommentare Englisch bzw. neutral, UI-Text Deutsch), keine Stilverstöße.
+- **Test-Setup** (`SetupForBom`) mockt alle Listen-/Dictionary-Rückgaben explizit (Moq-Fallstrick
+  laut `secondbrain/architektur/fallstricke.md` beachtet), Theory deckt hierarchisch
+  (`SubOrderNumber != OrderNumber`) **und** flach (`==`) ab.
+
+**4. Testszenarien:** `docs/TESTSZENARIEN.md` TS-68.2 um den U1-Nachtrag ergänzt (Konsole ohne
+`TypeError`, Kopfzeile nennt Sub-FA-Nummer + HauptFA-Zusatz nur bei Abweichung, kein Druck-Knopf
+auf der Hinweisseite) **inkl. Negativfall** (Flachmodus: Kopfzeile unverändert „FA <Nr>" ohne
+Zusatz, Druck-Knopf vorhanden). Anwender-Changelog (`Views/Help/Changelog.cshtml`) um den
+Abnahmetest-Nachtrag ergänzt. Kein Versions-Bump (v1.35.0 bleibt unreleased).
+
+**5. Skills:** `superpowers:verification-before-completion` angewandt (Build/Test-Ausgabe in
+diesem Lauf frisch erzeugt); `code-review`-Betrachtung als Teil des Diff-Reviews oben — keine
+Findings, kein Nacharbeitsbedarf.
+
+**Ergebnis: `Testbereit` bestätigt** (Status unverändert, kein Rücksprung nötig — reiner
+Nachtrag ohne Regression).
+
+### Manuelle Checkpunkte für den Nachtrag (zusätzlich zur Checkliste oben)
+
+9. **U1a — Konsole ohne Fehler (TS-68.2):** BOM-Knopf im hierarchischen Modus öffnen, Browser-
+   Konsole (F12) prüfen → **kein** `TypeError … addEventListener`.
+10. **U1b — Kopfzeile nennt die Sub-FA (TS-68.2):** auf der Hinweisseite steht „Stückliste - FA
+    <SubOrderNumber>"; ist `SubOrderNumber != OrderNumber`, folgt zusätzlich „| HauptFA
+    <OrderNumber>"; im Flachmodus (AKE) bleibt die Kopfzeile unverändert „FA <OrderNumber>" ohne
+    Zusatz.
+11. **U1c — kein Druck-Knopf auf der Hinweisseite:** im hierarchischen Modus erscheint „Stückliste
+    drucken" nicht; im Flachmodus und im Read-Only-Modus (FA-Abarbeitungsliste) bleibt er
+    vorhanden.
