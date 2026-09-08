@@ -165,27 +165,43 @@
                                 </ul>
                             </li>
                         }
-                        @* Kommissionierung — Dropdown: Picking-Workflow + IDEAL-Kommissionierlisten (Teil 3) *@
-                        @if (canPick || (canProcessLager && faKommListenAktiv))
+                        @* Kommissionierung — Dropdown NUR wenn beide Eintraege verfuegbar sind
+                           (Picking-Workflow + IDEAL-Kommissionierlisten, Teil 3). Steht nur einer
+                           zur Verfuegung, bleibt es der bisherige einfache Nav-Link: ein
+                           Ein-Eintrag-Dropdown waere fuer AKE ein zusaetzlicher Klick. *@
+                        @if (canPick && canProcessLager && faKommListenAktiv)
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "Picking" or "FaHierarchyKommissionierListen") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Kommissionierung
-                                    @if (canPick && leitstandAktiv && releasedPickingCount > 0)
+                                    @if (leitstandAktiv && releasedPickingCount > 0)
                                     {
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
                                 </a>
                                 <ul class="dropdown-menu">
-                                    @if (canPick)
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="Picking" asp-action="Index">Kommissionierung</a></li>
-                                    }
-                                    @if (canProcessLager && faKommListenAktiv)
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a></li>
-                                    }
+                                    <li><a class="dropdown-item" asp-controller="Picking" asp-action="Index">Kommissionierung</a></li>
+                                    <li><a class="dropdown-item" asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a></li>
                                 </ul>
+                            </li>
+                        }
+                        else if (canPick)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Picking" asp-action="Index">
+                                    Kommissionierung
+                                    @if (leitstandAktiv && releasedPickingCount > 0)
+                                    {
+                                        <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
+                                    }
+                                </a>
+                            </li>
+                        }
+                        else if (canProcessLager && faKommListenAktiv)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyKommissionierListen" ? "active" : "")"
+                                   asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a>
                             </li>
                         }
                         @if ((bestellungenAktiv || lagerbestellungAktiv) && (canPick || canAccessStock || canAccessLagerbestellung || canAccessGlasbestellung))
