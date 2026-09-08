@@ -7070,6 +7070,13 @@ sicherstellen, dass mehrere Sub-FAs derselben `OrderNumber` an einer Werkbank of
 
 ## TS-68 — BOM-Knopf im hierarchischen Modus (Guard, kein HTTP 500)
 
+> **Abgelöst durch TS-70 (v1.36.0, BOM-Bridge).** Der Minimal-Guard (`HierarchicalBomGuardRepository`) ist im
+> Code entfernt; im hierarchischen Modus erscheint jetzt die echte Stückliste aus der FA-Struktur. Die
+> Szenarien TS-68.2/68.3/68.5 gelten in ihrer alten Erwartung (Hinweisseite, kein Druck-Knopf) **NICHT** mehr
+> — siehe TS-70.8. Automatisiert jetzt: `BomRepositoryMasterSwitchTests`, `FaHierarchyBomRepositoryTests`
+> (statt `HierarchicalBomGuardRepositoryTests`). TS-68.1 (AKE-Regression) und TS-68.6 (Unterscheidbarkeit
+> `KEINE_DATEN`) bleiben sinngemäß gültig (→ TS-70.6). Der folgende Text bleibt als Historie stehen.
+
 **Vorbedingungen:** Bündel deployt. **Automatisiert abgedeckt:** `HierarchicalBomGuardRepositoryTests` (5).
 
 - **TS-68.1 — AKE-Regression (AK 1):** Master `false`, BOM-Knopf an bekanntem Auftrag → Positionen wie
@@ -7194,5 +7201,100 @@ erfüllt; die Z1-Invariante (Sync fasst `IsDoneBde` nicht an) ist getestet.
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18) + FA-Liste-Hierarchie (v1.35.0)*
+## TS-70 — IDEAL: BOM-Bridge — Stückliste über die Schnittstelle (v1.36.0)
+
+**Bezug:** Spec `2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec`. **Löst TS-68 ab** (Minimal-Guard
+entfernt). **Vorbedingungen:** Bündel deployt; Master **`ProduktionsauftragHierarchisch = true`** und ein
+materialisierter HauptFA mit **mindestens zweistufiger** Struktur (mind. eine Baugruppe mit eigenen Kindern)
+im IDEAL-Testsystem. Für den Flachmodus-Gegentest (TS-70.6) ein AKE-Auftrag bzw. Master `false`.
+
+**Automatisiert abgedeckt:** `FaHierarchyBomRepositoryTests` (11), `BomRepositoryMasterSwitchTests` (4),
+`BomQuantityResolverTests` (2), `HierarchicalModeGateTests` (4, Service), `BomDiResolutionTests` (DI-Graph:
+beide Interfaces → dieselbe Weiche, Flachkette ohne Zyklus), `PickingControllerTests.Bom_Hierarchical_…`,
+`ReadOnlyBomBuilderTests` (hierarchisch), `ArticlesControllerTests.Info_Hierarchical_ResolvesParentSubFas_…`,
+`ProductionOrderRepositoryTests.GetBySubOrderNumbersAsync_…`. Der manuelle Rest ist die Sichtprüfung am
+laufenden IDEAL-System.
+
+- **TS-70.1 — HauptFA-Vollansicht (AK 7, AK 5).**
+  Vorbedingung: Master `ProduktionsauftragHierarchisch = true`, materialisierter HauptFA mit
+  mehrstufiger Struktur (mind. 2 Ebenen, mind. eine Baugruppe mit eigenen Kindern) im
+  IDEAL-Testsystem.
+  Schritte: BOM-Knopf am HauptFA oeffnen; Zeilen jeder Ebene identifizieren; eine Position unter
+  Baugruppe A und eine mit identischer `Position`-Nummer unter Baugruppe B pruefen; je eine Zeile
+  aus zwei verschiedenen Baugruppen anhaken (Pick-Status).
+  Erwartung: alle Ebenen sichtbar, jeder Knoten genau einmal; die beiden gleich positionierten
+  Zeilen bleiben unabhaengig anhakbar (kein gemeinsamer/verwechselter Pick-Zustand); Baugruppen-Auf-
+  /Zuklappen zeigt die korrekten eigenen Kinder (ohne dass am Frontend etwas geaendert wurde).
+  Negativfall: eine der beiden Zeilen anhaken, Seite neu laden → nur die angehakte Zeile bleibt
+  markiert, die andere nicht.
+
+- **TS-70.2 — Sub-FA-Ansicht (AK 7).**
+  Vorbedingung: derselbe HauptFA, ein Sub-FA mit eigenen direkten Kindern.
+  Schritte: BOM-Knopf direkt am Sub-FA oeffnen.
+  Erwartung: ausschliesslich die direkten Kinder dieses Sub-FA erscheinen, keine Enkel, keine
+  Geschwister-Zweige.
+
+- **TS-70.3 — Kommissionieren-Filter (AK 8).**
+  Schritte: BOM-Knopf am HauptFA oeffnen; Spaltenfilter `Kommissionieren` auf einen konkreten
+  Zielwert setzen.
+  Erwartung: nur Zeilen mit passendem Kommissionier-Ziel sichtbar; Filter zuruecksetzen zeigt wieder
+  **alle** Zeilen (kein vorab stumm gefilterter Zustand beim ersten Aufruf).
+  Negativfall: Zielwert waehlen, fuer den es keine Zeile gibt → leere, aber erkennbar gefilterte
+  Ansicht, kein Fehler.
+
+- **TS-70.4 — Artikelinfo HauptFA/Sub-FA (AK 9).**
+  Vorbedingung: ein Artikel, der als Komponente in mind. zwei verschiedenen Sub-FAs derselben oder
+  unterschiedlicher HauptFAs vorkommt.
+  Schritte: Artikelinfo des Artikels oeffnen.
+  Erwartung: je Fundstelle HauptFA (Geraet, fett) + der jeweils direkte Sub-FA-Elternknoten als
+  Zusatzspalte (**nicht mehr** Sub-FA fett/primaer wie im heutigen Etappe-D-Zwischenstand); Menge =
+  Sollmenge, entsprechend beschriftet.
+
+- **TS-70.5 — Menue „Kommissionierung" mit beiden Einstiegen (AK 11, AK 12).**
+  Schritte: Menuepunkt „Kommissionierung" oeffnen.
+  Erwartung: ein Dropdown mit sowohl dem Picking-Workflow-Eintrag als auch der Kommissionierliste
+  (Teil 3); beide funktionieren unabhaengig voneinander am selben HauptFA (z. B. in der
+  Kommissionierliste drucken, im Picking-Workflow parallel Zeilen anhaken — keine gegenseitige
+  Blockade).
+  Nutzer mit nur einem der beiden Zugriffe sehen keinen Dropdown, sondern den bisherigen
+  Einzel-Link (Kommissionierlisten dann im Slot „Kommissionierung").
+
+- **TS-70.6 — Flachmodus bit-identisch (AK 1).**
+  Schritte: Master auf `false` stellen (AKE-Testsystem oder AKE-Auftrag); BOM-Knopf an bekanntem
+  AKE-FA oeffnen, einmal mit gefuelltem, einmal mit geleertem BOM-Cache.
+  Erwartung: Verhalten identisch zum Stand vor dieser Spec — keine neuen Spalten, keine
+  Kommissionieren-Filterkarte, `Menge` weiterhin hochgerechnet mit der Auftragsmenge.
+
+- **TS-70.7 — Klasse-D-Gate sichtbar im Aktivitaets-Protokoll (AK 10).**
+  Vorbedingung: `Sync:CoatingDetectionEnabled`/`Sync:FaWorkStepDetectionEnabled`/`Sync:BomCacheEnabled`
+  aktiv, Master `true`.
+  Schritte: einen Sync-Zyklus abwarten oder manuell ausloesen; Aktivitaets-Protokoll pruefen; falls
+  moeglich zusaetzlich einen neuen IDEAL-Auftrag importieren lassen (um den
+  `SyncSpecificArticleNumbersAsync`-Pfad ueber `SageImportService` auszuloesen).
+  Erwartung: alle vier Laeufe (inkl. des `SageImportService`-ausgeloesten) erscheinen als bewusst
+  uebersprungen (nicht als Fehler), keine Coating-/WorkStep-/Cache-Erkennung findet fuer
+  hierarchische Auftraege statt.
+
+- **TS-70.8 — Guard vollstaendig ersetzt (AK 13).**
+  Schritte: `/Picking/Bom/<id>` an einem hierarchischen Auftrag direkt aufrufen.
+  Erwartung: die echte Stueckliste erscheint (nicht mehr der Hinweistext „Stueckliste wird im
+  hierarchischen Modus ueber die FA-Struktur angezeigt" aus TS-68).
+
+- **TS-70.9 — Sage-Position sichtbar (Freigabe-Bedingung a).**
+  Schritte: BOM am HauptFA oeffnen; Tooltip an der Pos.-Zelle pruefen („Sage-Position: n");
+  Zahnrad &rarr; Spalte „Sage-Pos." einblenden.
+  Erwartung: die Original-Position je Zeile ist sichtbar, waehrend die Pos.-Spalte den Strukturpfad
+  zeigt (z. B. `3.7.2`).
+  Negativfall: im Flachmodus gibt es weder den Tooltip noch die Spalte „Sage-Pos.".
+
+- **TS-70.10 — Positions-Kollision (Freigabe-Bedingung b).**
+  Vorbedingung: zwei Geschwister unter demselben Sub-FA mit **gleicher Sage-Position** (Testdaten).
+  Erwartung: beide Zeilen sind vorhanden, die zweite mit Pfad-Suffix `~2` und Kennzeichen
+  „Kollision"; im Log steht eine Warnung (`Positions-Kollision unter Sub-FA …`); **keine Zeile
+  fehlt**.
+  Negativfall: ohne Kollision erscheint kein solches Kennzeichen.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -9,6 +9,36 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.36.0</strong> <span class="text-white-50 ms-2">08.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL-Standort: Stückliste im hierarchischen Modus (BOM-Bridge)</h6>
+                <p class="text-muted mb-2"><em>Nur am Standort IDEAL wirksam (FA-Hierarchie aktiv). Am
+                    Standort AKE bleibt alles unverändert.</em></p>
+                <ul>
+                    <li><strong>Stückliste aus der FA-Struktur:</strong> Am Haupt-FA zeigt die Stückliste
+                        die komplette Struktur &ndash; alle Ebenen, mit den Spalten &bdquo;Ebene&ldquo; und
+                        &bdquo;Vater-Sub-FA&ldquo;. Am Sub-FA erscheinen nur dessen eigene Positionen.</li>
+                    <li><strong>Neue Spalten:</strong> &bdquo;Komm.-Ziel&ldquo;,
+                        &bdquo;Hauptlagerplatz&ldquo; und &bdquo;Sage-Pos.&ldquo; (die Original-Position aus
+                        Sage; die Pos.-Spalte zeigt den Strukturpfad) &ndash; jeweils mit Spaltenfilter.
+                        Auffälligkeiten sind als Kennzeichen &bdquo;Waise&ldquo; bzw.
+                        &bdquo;Kollision&ldquo; markiert.</li>
+                    <li><strong>Mengen sind Sollmengen:</strong> Die angezeigten Mengen kommen als Sollmenge
+                        direkt aus der FA-Struktur &ndash; keine Hochrechnung mit der Auftragsmenge mehr.</li>
+                    <li><strong>Artikelinfo:</strong> &bdquo;Teil enthalten in&ldquo; zeigt die Haupt-FA als
+                        Gerät und zusätzlich die Baugruppe (Sub-FA), in der das Teil verbaut ist.</li>
+                    <li><strong>Menü &bdquo;Kommissionierung&ldquo;:</strong> bündelt Kommissionier-Workflow
+                        und Kommissionierlisten, wo beides verfügbar ist.</li>
+                    <li><strong>Hinweisseite entfällt:</strong> Die Zwischenlösung &bdquo;Stückliste über die
+                        FA-Struktur&ldquo; wird nicht mehr angezeigt &ndash; die Stückliste ist direkt
+                        verfügbar.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.35.0</strong> <span class="text-white-50 ms-2">07.09.2026</span>
             </div>
             <div class="card-body">
