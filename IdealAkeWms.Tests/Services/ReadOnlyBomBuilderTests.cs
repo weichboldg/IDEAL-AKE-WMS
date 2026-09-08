@@ -17,7 +17,8 @@ namespace IdealAkeWms.Tests.Services;
 /// </summary>
 public class ReadOnlyBomBuilderTests
 {
-    private static (ApplicationDbContext ctx, ReadOnlyBomBuilder builder) Build(List<BomItem> bomItems)
+    private static (ApplicationDbContext ctx, ReadOnlyBomBuilder builder) Build(List<BomItem> bomItems,
+        string dataSource = "SAGE", bool mengeIstAuftragsmenge = false)
     {
         var ctx = TestDbContextFactory.Create();
         var prodRepo = new ProductionOrderRepository(ctx);
@@ -27,7 +28,7 @@ public class ReadOnlyBomBuilderTests
 
         var bomMock = new Mock<IBomRepository>();
         bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
-            .ReturnsAsync(new BomQueryResult(bomItems, "SAGE"));
+            .ReturnsAsync(new BomQueryResult(bomItems, dataSource, mengeIstAuftragsmenge));
 
         var builder = new ReadOnlyBomBuilder(prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
         return (ctx, builder);
@@ -74,6 +75,41 @@ public class ReadOnlyBomBuilderTests
         vm.Items.Should().ContainSingle();
         // Menge = BOM-Menge * FA-Stueckzahl (2 * 3).
         vm.Items.Single().Menge.Should().Be(6m);
+    }
+
+    /// <summary>
+    /// BOM-Bridge: die FA-Hierarchie liefert die Sollmenge bereits als Auftragsgesamtmenge
+    /// (<c>MengeIstAuftragsmenge</c>) — der Builder darf sie NICHT noch einmal mit der
+    /// FA-Stueckzahl multiplizieren. Die hierarchischen Zusatzfelder landen im ViewModel.
+    /// </summary>
+    [Fact]
+    public async Task BuildAsync_Hierarchical_DoesNotMultiplyQuantity_AndFlagsHierarchical()
+    {
+        var bom = new List<BomItem>
+        {
+            new FaHierarchyBomItem
+            {
+                Artikelnummer = "ART-1", Position = "10", Ressourcenummer = "RES-1", Bezeichnung1 = "Teil 1",
+                Menge = 5m, Kommissionieren = "PG", Hauptlagerplatz = "A-01", Ebene = 1, VaterSubFa = "1043421",
+                SagePosition = "10", IsBaugruppe = true
+            },
+        };
+        var (ctx, builder) = Build(bom, BomDataSources.FaHierarchie, mengeIstAuftragsmenge: true);
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-HIER", qty: 4m, articleNumber: "ART-1");
+
+        var vm = await builder.BuildAsync(o.Order.Id, null, null);
+
+        vm.Should().NotBeNull();
+        vm!.Hierarchical.Should().BeTrue();
+        vm.FullStructure.Should().BeFalse();          // SubOrderNumber != OrderNumber -> DirectChildren
+        vm.Items.Should().ContainSingle();
+        vm.Items.Single().Menge.Should().Be(5m);      // keine × Quantity
+        vm.Items.Single().Kommissionieren.Should().Be("PG");
+        vm.Items.Single().Hauptlagerplatz.Should().Be("A-01");
+        vm.Items.Single().Ebene.Should().Be(1);
+        vm.Items.Single().VaterSubFa.Should().Be("1043421");
+        vm.Items.Single().SagePosition.Should().Be("10");
+        vm.Items.Single().IsBaugruppe.Should().BeTrue();
     }
 
     [Fact]
