@@ -803,3 +803,70 @@ Index-Tausch generiert. Faustregel: In einer Migration, die Indizes von Hand (ra
 sie zieht den Auto-Index-Tausch nach. **Offline-Verifikation** (ohne echte DB): `dotnet ef migrations
 script <von> <bis>` erzeugt genau die Start-SQL — dort auf ungeschuetzte `DROP INDEX` grepen. Das haette
 beide 3701 vor dem Merge gezeigt.
+
+## 10. IDEAL — BOM-Bridge (Stueckliste ueber die Repository-Schnittstelle, v1.36.0)
+
+Kontext: [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]],
+Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]].
+
+**`BomItem` darf KEINE neue Property bekommen.** `BomRepository` mappt die AKE-View per
+`SqlQueryRaw<BomItem>`; EF erwartet fuer **jede** Property eine Spalte im Ergebnis — eine zusaetzliche
+Property ohne Spalte bricht die AKE-Stueckliste mit „required column ... not present". **Warum das
+nicht auffaellt:** InMemory-Tests fuehren kein raw SQL aus. Hierarchische Zusatzfelder leben deshalb in
+der Ableitung `FaHierarchyBomItem : BomItem`; Verbraucher pruefen `bom is FaHierarchyBomItem`.
+
+**`Baugruppe` ist ein String (Eltern-Referenz), kein Bool.** Im AKE-Cache traegt `BomItem.Baugruppe`
+die Artikelnummer der **uebergeordneten** Baugruppe; `IsBaugruppe` ist eine im Controller/Builder
+**abgeleitete** Eigenschaft (Zeile wird von einer anderen Zeile als `Baugruppe` referenziert). Die
+Baum-Darstellung nutzt `Baugruppe` **nicht** — Eltern/Kind kommt ausschliesslich aus `Position`
+(`parentPos` = alles vor dem letzten Punkt). Hierarchisch: `Baugruppe` = `Artnr` des unmittelbaren
+Elternknotens, `IsBaugruppe` = `SubFA != 0`.
+
+**Kopf-Artikel vs. Zeilen-Artikel nicht verwechseln.** Im AKE-Cache ist `Artikelnummer` der **Kopf**
+(wessen Stueckliste) und `Ressourcenummer` die **Komponente**. Die IDEAL-View liefert die Komponente
+als `Artnr` (= `KHKPpsFaBelegePositionen.RessourceNummer`). Die superseded Alt-Spec hatte
+`Artnr → Artikelnummer` gemappt und `Ressourcenummer` fuer fehlend erklaert — genau diese Verwechslung.
+Wurzel-Kopf ist `HauptArtnr` (Wurzelzeile), sonst `Artnr` des Vater-Sub-FA.
+
+**`FullStructure`-Positionen muessen ein rekursiver Pfad ab der Wurzel sein (`3.7.2`), kein flacher
+Praefix.** `TreeLevel` (= Anzahl Punkte) und `parentPos` (= Praefix bis zum letzten Punkt) in
+`Bom.cshtml`/`PickingController`/`ReadOnlyBomBuilder` setzen voraus, dass **jeder Praefix die Position
+einer tatsaechlich vorhandenen Zeile** ist. Ein Praefix `VaterSubFA.Position` (`1043421.7`) ergaebe als
+Elternwert eine FA-Nummer, die keine Zeile ist → Gruppierung bricht. Die Sage-Position bleibt separat
+sichtbar (`SagePosition`); Geschwister-Kollisionen werden mit `~n` eindeutig gemacht, markiert und
+protokolliert — nie still ueberschrieben. Waisen haengen als `W<n>` (ohne Punkt = Top-Level) an.
+
+**Menge je Stueck vs. Auftragsmenge.** AKE-Cache/-View fuehren `Menge` je Stueck, die Verbraucher
+rechnen `× order.Quantity` hoch; IDEAL-`Sollmenge` ist bereits die Auftragsgesamtmenge. Deshalb traegt
+`BomQueryResult.MengeIstAuftragsmenge` die Semantik und `BomQuantityResolver` ist die **einzige**
+Multiplikationsstelle. Wer eine neue Mengen-Stelle baut, ruft den Resolver — nie `bom.Menge * Quantity`.
+
+**Master-Weiche im DI: lazy, sonst Zyklus.** `BomRepository` injiziert `IBomCacheRepository`, das auf
+`BomRepositoryMasterSwitch` zeigt; die Weiche loest ihre Ziele (`CachedBomRepository` →
+`BomRepository`) deshalb **per Delegate erst beim Aufruf** auf. Die Kette ist nur zyklusfrei, weil
+`CachedBomRepository` den **konkreten** `BomRepository` injiziert (nicht `IBomRepository`). Wer diesen
+Konstruktor auf `IBomRepository` umstellt, baut eine Endlosrekursion — der DI-Aufloesungstest schuetzt
+davor. Beide Interfaces zeigen auf **dieselbe** scoped Weiche-Instanz.
+
+**Artikelinfo hierarchisch: „Geraet" = Eltern-Sub-FA.** `GetDeviceArticleNumbersByComponentAsync`
+liefert im hierarchischen Modus **SubOrderNumbers** der Eltern-Sub-FAs (Strings), nicht
+Geraete-Artikelnummern; `GetComponentMengePerDeviceAsync` summiert `Sollmenge` je Eltern-Sub-FA.
+`ArticlesController` loest sie ueber `GetBySubOrderNumbersAsync` auf und summiert **ohne** `× Quantity`.
+Ein Aufrufer, der den flachen Zwei-Schritt-Weg (Artikelnummer → `GetByArticleNumbersAsync`) wiederverwendet,
+bekommt still ein leeres Ergebnis.
+
+**Klasse-D-Gates sind DB-first, aber ueber einen Reader.** `IHierarchicalModeReader` kapselt
+`ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; `ServiceSettings` liest **nur** aus
+der DB (kein Config-Fallback) und liefert bei Verbindungsfehler den Default — ohne den Reader waeren
+die Gates ohne SQL Server nicht testbar. Der zufaellige Schutz `ProductionDate IS NOT NULL` in
+`CoatingDetection`/`BomCacheSync` bleibt Zufall; `SyncSpecificArticleNumbersAsync` (aus
+`SageImportService`) hat ihn nicht — deshalb der Gate an **allen vier** Einstiegen.
+
+**Neue Spalte in einer `filterable-table` braucht ZWEI Registrierungen.** `ColumnDefinitions.<View>`
+(C#) dient der Prefs-API nur zur **viewKey-Validierung**; die **Client-Wahrheit** ist der Inline-Block
+`<script id="column-config">` in der View — `column-preferences.js` liest Spaltenliste,
+`defaultHidden` und `defaultWidth` ausschliesslich von dort. Fehlt eine Spalte dort, laesst
+`applyColumnOrder()` sie beim Re-Append aus → sie rutscht **vor** alle registrierten Spalten, erscheint
+nicht im Zahnrad, `DefaultHidden` bleibt wirkungslos und index-basierte Karten (Print-`colNames`)
+verschieben sich. Aufgefallen beim BOM-Bridge-Review (Task 5, 2026-09-08). **Regel:** neue `<th
+data-col-key>` immer in **beiden** Stellen eintragen, unter denselben Razor-Gates.
