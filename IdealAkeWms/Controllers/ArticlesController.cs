@@ -255,13 +255,20 @@ public class ArticlesController : Controller
             return new AttributeDisplayValue { Name = def.Name, DisplayValue = displayValue };
         }).ToList();
 
-        // Production orders containing this article (via BOM cache)
-        var deviceArticleNumbers = await _bomCacheRepository.GetDeviceArticleNumbersByComponentAsync(article.ArticleNumber);
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+
+        // Production orders containing this article (via BOM-Bridge / BOM cache)
+        var deviceKeys = await _bomCacheRepository.GetDeviceArticleNumbersByComponentAsync(article.ArticleNumber);
         var usedInOrders = new List<ArticleUsageItem>();
         decimal plannedConsumption = 0m;
-        if (deviceArticleNumbers.Count > 0)
+        if (deviceKeys.Count > 0)
         {
-            var orders = await _productionOrderRepository.GetByArticleNumbersAsync(deviceArticleNumbers);
+            // Hierarchisch: Keys sind SubOrderNumbers der Eltern-Sub-FAs (Partition DirectChildren);
+            // flach: Geraete-Artikelnummern wie bisher.
+            var orders = hierarchical
+                ? await _productionOrderRepository.GetBySubOrderNumbersAsync(deviceKeys)
+                : await _productionOrderRepository.GetByArticleNumbersAsync(deviceKeys);
 
             // "Abgeschlossen" = Sage-IsDone ODER App-Komm-IsDonePicking (Konvention seit v1.21.1).
             // Stornierte FAs (IsCancelled) verhalten sich wie erledigte (FA-Reconciliation v1.25.0).
@@ -269,8 +276,13 @@ public class ArticlesController : Controller
                 .Where(o => !o.IsDone && !o.IsCancelled && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
                 .ToList();
 
-            usedInOrders = openOrders
-                .OrderBy(o => o.ProductionDate)
+            // Flach (AKE) unveraendert nach Fertigungstermin; hierarchisch nach HauptFA + Sub-FA,
+            // damit die Sub-FAs eines Auftrags in der Artikelinfo beisammen stehen.
+            var orderedOpenOrders = hierarchical
+                ? openOrders.OrderBy(o => o.OrderNumber).ThenBy(o => o.SubOrderNumber)
+                : openOrders.OrderBy(o => o.ProductionDate);
+
+            usedInOrders = orderedOpenOrders
                 .Select(o => new ArticleUsageItem
                 {
                     Id = o.Id,
@@ -283,9 +295,12 @@ public class ArticlesController : Controller
 
             // Geplanter Verbrauch je offenem FA = BOM-Menge des Bauteils pro Geraet x FA-Stueckzahl.
             var mengePerDevice = await _bomCacheRepository.GetComponentMengePerDeviceAsync(article.ArticleNumber);
-            plannedConsumption = openOrders
-                .Where(o => o.ArticleNumber != null)
-                .Sum(o => mengePerDevice.GetValueOrDefault(o.ArticleNumber!) * o.Quantity);
+            // Hierarchisch: Sollmenge je Eltern-Sub-FA ist bereits die Auftragsgesamtmenge (keine × Quantity).
+            plannedConsumption = hierarchical
+                ? openOrders.Where(o => o.SubOrderNumber != null)
+                    .Sum(o => mengePerDevice.GetValueOrDefault(o.SubOrderNumber!))
+                : openOrders.Where(o => o.ArticleNumber != null)
+                    .Sum(o => mengePerDevice.GetValueOrDefault(o.ArticleNumber!) * o.Quantity);
         }
 
         var vm = new ArticleInfoViewModel
@@ -301,8 +316,7 @@ public class ArticlesController : Controller
             CategoryName = categoryName,
             AttributeDisplayValues = attrDisplayValues,
             UsedInOrders = usedInOrders,
-            Hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
-                IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)),
+            Hierarchical = hierarchical,
         };
         return View(vm);
     }

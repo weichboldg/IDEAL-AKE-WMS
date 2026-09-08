@@ -213,6 +213,8 @@ public static class ColumnDefinitions
     /// Reorder/sort not supported (BOM is a structured tree by position).
     /// Conditional columns:
     ///   - "order" : rendered only when ViewBag.BestellungenAktiv == true
+    ///   - "kommissionieren", "hauptlagerplatz", "sage-position" : only when Model.Hierarchical (BOM-Bridge)
+    ///   - "ebene", "vater-sub-fa" : only when Model.Hierarchical &amp;&amp; Model.FullStructure
     /// The first unnamed column (width 40px) contains the pick-checkbox/expand control.
     /// The "storage-location" and "source-location" columns have no data-col attribute (not filterable).
     /// </summary>
@@ -231,6 +233,12 @@ public static class ColumnDefinitions
             new ColumnDef("procurement",      "Beschaffung",    Locked: false),
             new ColumnDef("article-group",    "Artikelgruppe",  Locked: false),
             new ColumnDef("category",         "Kategorie",      Locked: false),
+            // BOM-Bridge (hierarchisch, nur bei Model.Hierarchical gerendert; Registrierung ist Pflicht fuer Filter/Prefs)
+            new ColumnDef("kommissionieren",  "Komm.-Ziel",     Locked: false),
+            new ColumnDef("hauptlagerplatz",  "Hauptlagerplatz",Locked: false),
+            new ColumnDef("sage-position",    "Sage-Pos.",      Locked: false, DefaultHidden: true),
+            new ColumnDef("ebene",            "Ebene",          Locked: false, DefaultWidth: 60),
+            new ColumnDef("vater-sub-fa",     "Vater-Sub-FA",   Locked: false),
             // Not filterable (no data-filterable) but always present
             new ColumnDef("storage-location", "Lagerplatz",     Locked: false),
             new ColumnDef("source-location",  "Quell-Lagerplatz",Locked: false),

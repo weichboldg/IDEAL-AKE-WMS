@@ -118,18 +118,20 @@ public class ArticlesControllerTests
             .ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
         stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null))
             .ReturnsAsync(new List<StockOverviewItem>());
+        // Hierarchisch liefert der Reverse-Lookup die SubOrderNumbers der Eltern-Sub-FAs,
+        // nicht Geraete-Artikelnummern (BOM-Bridge).
         bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
-            .ReturnsAsync(new List<string> { "DEV1" });
+            .ReturnsAsync(new List<string> { "H1-1", "H1-2", "H2-1" });
         bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
-            .ReturnsAsync(new Dictionary<string, decimal> { ["DEV1"] = 1m });
+            .ReturnsAsync(new Dictionary<string, decimal> { ["H1-1"] = 1m, ["H1-2"] = 1m, ["H2-1"] = 1m });
 
-        // Zwei Sub-FAs unter HauptFA H1, eine unter H2 — alle offen, alle nutzen DEV1.
+        // Zwei Sub-FAs unter HauptFA H1, eine unter H2 — alle offen.
         ProductionOrder Sub(int id, string haupt, string sub) => new()
         {
             Id = id, OrderNumber = haupt, SubOrderNumber = sub, ArticleNumber = "DEV1", Quantity = 1m,
             PickingStatus = new ProductionOrderPickingStatus { IsDonePicking = false }
         };
-        orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()))
+        orders.Setup(o => o.GetBySubOrderNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
             .ReturnsAsync(new List<ProductionOrder> { Sub(1, "H1", "H1-1"), Sub(2, "H1", "H1-2"), Sub(3, "H2", "H2-1") });
 
         var vm = (await ctrl.Info("COMP")).Should().BeOfType<ViewResult>().Subject.Model
@@ -139,6 +141,28 @@ public class ArticlesControllerTests
         vm.UsedInOrders.Should().HaveCount(3);       // Sub-FAs = Zeilen
         vm.UsedInHauptFaCount.Should().Be(2);        // Aufträge = distinkte HauptFA (H1, H2)
         vm.UsedInOrders.Should().Contain(o => o.SubOrderNumber == "H1-2");
+    }
+
+    [Fact]
+    public async Task Info_Hierarchical_ResolvesParentSubFas_AndSumsSollmengeWithoutQuantity()
+    {
+        var (ctrl, article, stock, _, _, bom, orders) = Build(hierarchical: true);
+        article.Setup(a => a.GetByArticleNumberAsync("COMP")).ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
+        stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null)).ReturnsAsync(new List<StockOverviewItem>());
+        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP")).ReturnsAsync(new List<string> { "1043421", "1043422" });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP")).ReturnsAsync(new Dictionary<string, decimal> { ["1043421"] = 5m, ["1043422"] = 2m });
+        orders.Setup(o => o.GetBySubOrderNumbersAsync(It.IsAny<IReadOnlyCollection<string>>())).ReturnsAsync(new List<ProductionOrder>
+        {
+            new() { Id = 1, OrderNumber = "1035235", SubOrderNumber = "1043421", ArticleNumber = "A1", Quantity = 4m, PickingStatus = new ProductionOrderPickingStatus() },
+            new() { Id = 2, OrderNumber = "1035235", SubOrderNumber = "1043422", ArticleNumber = "A2", Quantity = 4m, PickingStatus = new ProductionOrderPickingStatus() },
+        });
+
+        var vm = (await ctrl.Info("COMP")).Should().BeOfType<ViewResult>().Which.Model.Should().BeOfType<ArticleInfoViewModel>().Subject;
+
+        vm.UsedInOrders.Should().HaveCount(2);
+        vm.UsedInHauptFaCount.Should().Be(1);
+        vm.PlannedConsumption.Should().Be(7m);          // 5 + 2, KEINE × Quantity
+        orders.Verify(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()), Times.Never);
     }
 
     [Fact]

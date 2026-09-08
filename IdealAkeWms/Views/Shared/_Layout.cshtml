@@ -109,15 +109,6 @@
                                    asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a>
                             </li>
                         }
-                        @* IDEAL Teil 3: Kommissionierlisten — nur bei Lager-Verarbeitungs-Zugriff
-                           (RequireLagerProcessingAccess) UND aktivem Feature-Toggle. *@
-                        @if (canProcessLager && faKommListenAktiv)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyKommissionierListen" ? "active" : "")"
-                                   asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a>
-                            </li>
-                        }
                         @* IDEAL Teil 4: Beschichtungsauftrag — nur mit Rolle beschichtungsauftrag
                            (RequireBeschichtungsauftragAccess) UND aktivem Feature-Toggle. *@
                         @if (hasBeschichtungsauftragAccess && faBeschichtungAktiv)
@@ -174,17 +165,27 @@
                                 </ul>
                             </li>
                         }
-                        @* Kommissionierung — Picker-Worklist *@
-                        @if (canPick)
+                        @* Kommissionierung — Dropdown: Picking-Workflow + IDEAL-Kommissionierlisten (Teil 3) *@
+                        @if (canPick || (canProcessLager && faKommListenAktiv))
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Picking" asp-action="Index">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "Picking" or "FaHierarchyKommissionierListen") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Kommissionierung
-                                    @if (leitstandAktiv && releasedPickingCount > 0)
+                                    @if (canPick && leitstandAktiv && releasedPickingCount > 0)
                                     {
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
                                 </a>
+                                <ul class="dropdown-menu">
+                                    @if (canPick)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Picking" asp-action="Index">Kommissionierung</a></li>
+                                    }
+                                    @if (canProcessLager && faKommListenAktiv)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a></li>
+                                    }
+                                </ul>
                             </li>
                         }
                         @if ((bestellungenAktiv || lagerbestellungAktiv) && (canPick || canAccessStock || canAccessLagerbestellung || canAccessGlasbestellung))
