@@ -104,6 +104,21 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
   gerendertes `[data-fa-liste-filter]` — nicht blockierend (auch in
   [[2026-08-18-fa-liste-hierarchie-anzeige]] als Schranke-2-Entscheidung vermerkt).
 
+## Nachtrag aus UAT-Lauf 1 (2026-09-08, [[2026-09-08-uat-ergebnis-ideal-buendel-lauf-1]])
+
+- [ ] **U1 — JS-TypeError auf der BOM-Guard-Hinweisseite** · `Views/Picking/Bom.cshtml:41` (Zweig
+  `HierarchicalUnavailable`) vs. Inline-Script `:916/:927/:972` (`getElementById(...).addEventListener`
+  ohne Null-Guard) → `Cannot read properties of null` in der Konsole. Dazu zeigt die Kopfzeile die
+  HauptFA-Nr. statt der Sub-FA (Z4-Konsistenz). Klein, vor dem Merge, Re-QA.
+- [ ] **U2 — Kaskade-Dialog blendet „mit offener Buchung" nur bei >0 ein** ·
+  `Views/PickingLeitstand/Index.cshtml:461-462`. Kein Bug, aber die Abnahme kann bei 0 nicht
+  entscheiden, ob der Zaehler existiert → immer anzeigen („davon 0 …").
+- [ ] **U3 — Toggle aus → `AccessDenied` statt Home+Warning** bei `FaCompletionAktiv`
+  (`FaWorklistController.cs:82-86`, `RequireFaCompletionAccessAttribute.cs:27-28`). Vorbestehend,
+  weicht von der Konvention ab; nur dokumentieren oder angleichen.
+- **H1 bestaetigt sich in der Praxis:** am Testsystem stand `Sync:ProductionOrdersEnabled=true`
+  neben aktiver Materialisierung — genau der Fall, gegen den nur Config schuetzt.
+
 ## Testluecken (das dominierende Thema)
 
 **Groesste Luecke:** Der **Materialisierungs-Service ist auf DB-Ebene fast ungetestet** (nur
