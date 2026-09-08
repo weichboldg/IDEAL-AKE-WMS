@@ -289,6 +289,33 @@ public class ProductionOrderRepositoryTests
     }
 
     [Fact]
+    public async Task GetBySubOrderNumbersAsync_ReturnsOnlyMatchingSubFas()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-1", SubOrderNumber = "1" });
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-1", SubOrderNumber = "2" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var result = await repo.GetBySubOrderNumbersAsync(new List<string> { "2" });
+
+        result.Should().ContainSingle().Which.SubOrderNumber.Should().Be("2");
+    }
+
+    [Fact]
+    public async Task GetBySubOrderNumbersAsync_ReturnsEmpty_ForEmptyInput()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-1", SubOrderNumber = "1" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var result = await repo.GetBySubOrderNumbersAsync(new List<string>());
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetForLeitstand_FiltersOnSageStatus_OrTokens()
     {
         using var ctx = TestDbContextFactory.Create();

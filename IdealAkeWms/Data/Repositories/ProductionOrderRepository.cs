@@ -214,6 +214,19 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             .ToListAsync();
     }
 
+    public async Task<List<ProductionOrder>> GetBySubOrderNumbersAsync(IReadOnlyCollection<string> subOrderNumbers)
+    {
+        if (subOrderNumbers == null || subOrderNumbers.Count == 0)
+            return new List<ProductionOrder>();
+
+        var set = subOrderNumbers.ToList();
+        return await _dbSet
+            .AsNoTracking()
+            .Include(o => o.PickingStatus)
+            .Where(o => o.SubOrderNumber != null && set.Contains(o.SubOrderNumber))
+            .ToListAsync();
+    }
+
     /// <summary>
     /// Maps a <c>data-col-key</c> der FA-/Leitstand-Liste auf die entsprechende
     /// Property von <see cref="ProductionOrder"/> und appliziert OR-/NOT-Tokens.

@@ -147,6 +147,18 @@
                 <th data-filterable data-col-key="procurement">Beschaffung</th>
                 <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                 <th data-filterable data-col-key="category">Kategorie</th>
+                @* BOM-Bridge: Zusatzspalten aus der FA-Struktur — im Flachmodus (AKE) nie gerendert. *@
+                @if (Model.Hierarchical)
+                {
+                    <th data-filterable data-col-key="kommissionieren">Komm.-Ziel</th>
+                    <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
+                    <th data-filterable data-col-key="sage-position" title="Position laut Sage-Stueckliste">Sage-Pos.</th>
+                    @if (Model.FullStructure)
+                    {
+                        <th class="text-end" data-filterable data-col-key="ebene">Ebene</th>
+                        <th data-filterable data-col-key="vater-sub-fa">Vater-Sub-FA</th>
+                    }
+                }
                 <th data-col-key="storage-location">Lagerplatz</th>
                 @if (!Model.ReadOnly)
                 {
@@ -209,7 +221,11 @@
                                 </svg>
                             </span>
                         }
-                        @item.Position
+                        @* Title als Attributwert (nicht als roher Attribut-String): Razor kodiert
+                           Ausdruecke — bei null laesst es das Attribut weg. *@
+                        <span title="@(Model.Hierarchical && !string.IsNullOrEmpty(item.SagePosition) ? $"Sage-Position: {item.SagePosition}" : null)">@item.Position</span>
+                        @if (item.IsWaise) { <span class="badge bg-warning text-dark ms-1" title="Waise: Elternknoten nicht in der Struktur">Waise</span> }
+                        @if (item.PositionsKollision) { <span class="badge bg-danger ms-1" title="Zwei Positionen mit gleicher Nummer unter demselben FA — Pfad wurde eindeutig gemacht">Kollision</span> }
                     </td>
                     <td>@item.Baugruppe</td>
                     <td>
@@ -227,6 +243,17 @@
                     <td>@item.Beschaffungsartikel</td>
                     <td>@item.Artikelgruppe</td>
                     <td>@(item.KategorieName ?? "")</td>
+                    @if (Model.Hierarchical)
+                    {
+                        <td>@item.Kommissionieren</td>
+                        <td>@item.Hauptlagerplatz</td>
+                        <td>@item.SagePosition</td>
+                        @if (Model.FullStructure)
+                        {
+                            <td class="text-end">@item.Ebene</td>
+                            <td>@item.VaterSubFa</td>
+                        }
+                    }
                     <td>
                         @if (item.StockLocations.Any())
                         {
@@ -321,9 +348,13 @@
             {
                 // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2;
                 // Bestellen-Spalte +1; Lagerbestellung-Spalte +1.
+                // BOM-Bridge: hierarchisch +3 (Komm.-Ziel, Hauptlagerplatz, Sage-Pos.),
+                // bei voller Struktur nochmals +2 (Ebene, Vater-Sub-FA).
                 var emptyColspan = (Model.ReadOnly ? 10 : 12)
                     + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0)
-                    + (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true ? 1 : 0);
+                    + (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true ? 1 : 0)
+                    + (Model.Hierarchical ? 3 : 0)
+                    + (Model.Hierarchical && Model.FullStructure ? 2 : 0);
                 <tr>
                     <td colspan="@emptyColspan" class="text-center text-muted py-4">Keine Stücklisten-Positionen gefunden.</td>
                 </tr>
@@ -650,9 +681,9 @@
             // Read-only-Modus (FA-Abarbeitungsliste): Scanner-/Picking-Handler nicht binden.
             const readOnly = @Json.Serialize(Model.ReadOnly);
 
-            // Rendert eine Variante der Seite weder #bomTable noch die Expand-/Collapse-/Druck-Buttons,
-            // liefen die Handler unten auf null (UAT-Lauf 1, Befund U1). Am DOM geprueft, nicht am
-            // Modus: schuetzt jede Variante ohne Tabelle.
+            // Sicherheitsnetz: rendert eine Seitenvariante kein #bomTable, wuerden die Handler unten
+            // auf null laufen (UAT-Lauf 1, Befund U1). Am DOM geprueft, nicht am Modus: schuetzt
+            // jede Variante ohne Tabelle.
             if (!document.getElementById('bomTable')) return;
 
             if (!readOnly) {

@@ -78,6 +78,9 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     /// </summary>
     Task<List<ProductionOrder>> GetByArticleNumbersAsync(List<string> articleNumbers);
 
+    /// <summary>Auftraege zu Sub-FA-Nummern (BOM-Bridge Artikelinfo, hierarchisch), inkl. PickingStatus.</summary>
+    Task<List<ProductionOrder>> GetBySubOrderNumbersAsync(IReadOnlyCollection<string> subOrderNumbers);
+
     /// <summary>
     /// FA-Zusatzinfos (Sage, v1.26.0): liest den 1:1-Satelliten zu einem FA
     /// (ein gezielter Read, AsNoTracking). Null wenn (noch) keine Sage-Daten da sind.
