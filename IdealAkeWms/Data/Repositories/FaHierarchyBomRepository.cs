@@ -74,9 +74,14 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
 
     private List<BomItem> BuildDirectChildren(List<FaHierarchyNode> group, FaHierarchyNode parent)
     {
+        // Tiebreak bei gleicher Position: sonst haengt die Reihenfolge (und damit, wer das "~n"-Suffix
+        // bekommt) an der unspezifizierten Eingangsreihenfolge aus SQL Server — PickingItem ist auf
+        // (BomArticleNumber, BomPosition) geschluesselt, ein Tausch verlaere beide Pick-Zustaende.
         var children = group
             .Where(n => n.VaterFA == parent.SubFA)
             .OrderBy(n => n.Position ?? int.MaxValue)
+            .ThenBy(n => n.SubFA)
+            .ThenBy(n => n.Artnr, StringComparer.Ordinal)
             .ToList();
 
         var used = new HashSet<string>(StringComparer.Ordinal);
@@ -96,6 +101,12 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
     {
         var items = new List<BomItem>();
         var structures = _treeBuilder.Build(group, Array.Empty<FaHierarchyOrderInfo>(), FaHierarchyTreeBuilder.DefaultDepthCap);
+
+        // Mehr als eine echte Wurzel (VaterFA NULL) je HauptFA ist ein Datenfehler: die uebrigen
+        // Wurzeln fielen sonst still aus der Stueckliste. Verhalten bleibt unveraendert, aber sichtbar.
+        var rootCount = structures.Count(s => !s.IsOrphan);
+        if (rootCount > 1)
+            _logger.LogWarning("FaHierarchyBom: HauptFA {HauptFa} hat {Count} Wurzeln (VaterFA NULL) — nur die abgefragte Wurzel {SubFa} wird gezeigt.", root.HauptFA, rootCount, root.SubFA);
 
         var main = structures.FirstOrDefault(s => !s.IsOrphan && s.Roots.Count > 0 && s.Roots[0].Node.SubFA == root.SubFA);
         if (main != null)
@@ -123,7 +134,11 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
     private void WalkChildren(FaHierarchyTreeNode parent, string? parentPath, int ebene, bool isWaise, List<BomItem> items)
     {
         var used = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var child in parent.Children.OrderBy(c => c.Node.Position ?? int.MaxValue))
+        // Gleicher deterministische Tiebreak wie in BuildDirectChildren (siehe dort).
+        foreach (var child in parent.Children
+                     .OrderBy(c => c.Node.Position ?? int.MaxValue)
+                     .ThenBy(c => c.Node.SubFA)
+                     .ThenBy(c => c.Node.Artnr, StringComparer.Ordinal))
         {
             var segment = PositionSegment(child.Node);
             var (uniqueSegment, collided) = Unique(segment, used);

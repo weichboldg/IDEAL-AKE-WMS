@@ -656,7 +656,7 @@ public class PickingController : Controller
 
         if (!string.IsNullOrEmpty(order.ArticleNumber))
         {
-            var bomItems = (await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order))).Items;
+            var bomItems = (await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order))).Items;
             foreach (var item in vm.Items)
             {
                 var bom = bomItems.FirstOrDefault(b => b.Ressourcenummer == item.Artikelnummer);

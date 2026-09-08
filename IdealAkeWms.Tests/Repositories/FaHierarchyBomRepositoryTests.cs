@@ -159,6 +159,43 @@ public class FaHierarchyBomRepositoryTests
     }
 
     [Fact]
+    public async Task Collision_SuffixAssignment_IsDeterministic_RegardlessOfInputOrder()
+    {
+        // Eingangsreihenfolge kommt aus SQL Server und ist bei Gleichstand unspezifiziert. Ohne
+        // deterministischen Tiebreak koennten "5" und "5~2" nach Cache-Ablauf tauschen — beide
+        // PickingItem-Zeilen (Schluessel BomArticleNumber + BomPosition) verloeren ihren Pick-Zustand.
+        var forward = Sample();
+        forward.Add(N(100, 100, 0, pos: 5, artnr: "L4")); // zweites Wurzel-Kind mit Position 5
+        var reversed = Enumerable.Reverse(forward).ToList();
+
+        foreach (var nodes in new[] { forward, reversed })
+        {
+            var full = await Sut(nodes).GetBomItemsAsync(new BomKey("DEV", "100", "100"), BomScope.FullStructure);
+            full.Items.Cast<FaHierarchyBomItem>().Single(i => i.Position == "5~2")
+                .Ressourcenummer.Should().Be("L4");
+            full.Items.Cast<FaHierarchyBomItem>().Single(i => i.Ressourcenummer == "L3")
+                .Position.Should().Be("5");
+
+            var direct = await Sut(nodes).GetBomItemsAsync(new BomKey("DEV", "100", "100"), BomScope.DirectChildren);
+            direct.Items.Cast<FaHierarchyBomItem>().Single(i => i.Position == "5~2")
+                .Ressourcenummer.Should().Be("L4");
+        }
+    }
+
+    [Fact]
+    public async Task FullStructure_SecondRealRoot_IsLoggedAsWarning()
+    {
+        var nodes = Sample();
+        nodes.Add(N(100, null, 200, pos: null, artnr: "DEV2", hauptArtnr: "DEV")); // zweite echte Wurzel
+        var logger = new Mock<ILogger<FaHierarchyBomRepository>>();
+
+        var r = await Sut(nodes, logger.Object).GetBomItemsAsync(new BomKey("DEV", "100", "100"), BomScope.FullStructure);
+
+        r.Items.Should().HaveCount(5); // Verhalten unveraendert: nur die abgefragte Wurzel
+        WarningsContaining(logger, "HauptFA 100 hat 2 Wurzeln").Should().Be(1);
+    }
+
+    [Fact]
     public async Task FullStructure_LeafOrphan_IsAppendedMarked()
     {
         var nodes = Sample();
