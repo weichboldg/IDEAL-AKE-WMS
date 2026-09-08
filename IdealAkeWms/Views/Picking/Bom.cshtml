@@ -659,6 +659,19 @@
     { "key": "procurement", "label": "Beschaffung", "locked": false, "defaultWidth": null },
     { "key": "article-group", "label": "Artikelgruppe", "locked": false, "defaultWidth": null },
     { "key": "category", "label": "Kategorie", "locked": false, "defaultWidth": null },
+    @* BOM-Bridge: dieselben Gates und dieselbe Reihenfolge wie die <th> oben. Ohne Eintrag hier
+       kennt column-preferences.js die Spalten nicht und sortiert sie beim Reorder nach vorne. *@
+    @if (Model.Hierarchical)
+    {
+        <text>{ "key": "kommissionieren", "label": "Komm.-Ziel", "locked": false, "defaultWidth": null },
+    { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "sage-position", "label": "Sage-Pos.", "locked": false, "defaultWidth": null, "defaultHidden": true },</text>
+        @if (Model.FullStructure)
+        {
+            <text>{ "key": "ebene", "label": "Ebene", "locked": false, "defaultWidth": 60 },
+    { "key": "vater-sub-fa", "label": "Vater-Sub-FA", "locked": false, "defaultWidth": null },</text>
+        }
+    }
     { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null }
     @if (!Model.ReadOnly) { <text>,{ "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null }</text> }
     @if (ViewBag.BestellungenAktiv == true && !Model.ReadOnly) { <text>,{ "key": "order", "label": "Bestellen", "locked": false, "defaultWidth": 80 }</text> }
