@@ -1,6 +1,7 @@
 using FluentAssertions;
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
@@ -25,7 +26,7 @@ public class ReadOnlyBomBuilderTests
         var userRepo = new UserRepository(ctx);
 
         var bomMock = new Mock<IBomRepository>();
-        bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<string>()))
+        bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
             .ReturnsAsync(new BomQueryResult(bomItems, "SAGE"));
 
         var builder = new ReadOnlyBomBuilder(prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);

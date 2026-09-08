@@ -1,6 +1,6 @@
 namespace IdealAkeWms.Models.ViewModels;
 
-public record BomQueryResult(List<BomItem> Items, string DataSource);
+public record BomQueryResult(List<BomItem> Items, string DataSource, bool MengeIstAuftragsmenge = false);
 
 /// <summary>Bekannte Werte von <see cref="BomQueryResult.DataSource"/>.</summary>
 public static class BomDataSources
@@ -16,6 +16,9 @@ public static class BomDataSources
     /// FA-Struktur (`/FaHierarchy`).
     /// </summary>
     public const string HierarchicalUnavailable = "NICHT_VERFUEGBAR_HIERARCHISCH";
+
+    /// <summary>BOM-Bridge (Spec 2026-09-08): Quelle ist die lokale FA-Struktur (FaHierarchyNode).</summary>
+    public const string FaHierarchie = "FA-HIERARCHIE";
 }
 
 public class BomItem

@@ -1,4 +1,5 @@
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 
 namespace IdealAkeWms.Services;
@@ -61,7 +62,7 @@ public class ReadOnlyBomBuilder
             }
         }
 
-        var bomResult = await _bomRepository.GetBomItemsAsync(order.ArticleNumber);
+        var bomResult = await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order));
         var bomItems = bomResult.Items;
 
         var articleNumbers = bomItems
@@ -95,7 +96,7 @@ public class ReadOnlyBomBuilder
                 Ressourcenummer = bom.Ressourcenummer,
                 Bezeichnung1 = bom.Bezeichnung1,
                 Bezeichnung2 = bom.Bezeichnung2,
-                Menge = bom.Menge * order.Quantity,
+                Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
                 KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,

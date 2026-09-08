@@ -32,7 +32,7 @@ public class BomCacheRepositoryTests
         using var db = TestDbContextFactory.Create();
         var repo = new BomCacheRepository(db);
 
-        var result = await repo.GetByArticleNumberAsync("DOES_NOT_EXIST");
+        var result = await repo.GetByArticleNumberAsync(new BomKey("DOES_NOT_EXIST"));
 
         result.Should().BeNull();
     }
@@ -49,7 +49,7 @@ public class BomCacheRepositoryTests
             Item("20", "R2", 3m, "Item 2")
         });
 
-        var result = await repo.GetByArticleNumberAsync("ART1");
+        var result = await repo.GetByArticleNumberAsync(new BomKey("ART1"));
 
         result.Should().NotBeNull();
         result!.DataSource.Should().Be("SAGE");

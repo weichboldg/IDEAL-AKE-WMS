@@ -50,7 +50,7 @@ public class FaWorklistControllerTests
 
         // BOM kommt aus SAGE/OSEON (Dapper) -> Mock mit einer Position.
         var bomMock = new Mock<IBomRepository>();
-        bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<string>()))
+        bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
             .ReturnsAsync(new BomQueryResult(new List<BomItem>
             {
                 new()

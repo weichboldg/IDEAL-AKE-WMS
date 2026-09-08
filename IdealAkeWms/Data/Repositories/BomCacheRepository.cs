@@ -17,8 +17,9 @@ public class BomCacheRepository : IBomCacheRepository
         _db = db;
     }
 
-    public async Task<BomQueryResult?> GetByArticleNumberAsync(string articleNumber)
+    public async Task<BomQueryResult?> GetByArticleNumberAsync(BomKey key)
     {
+        var articleNumber = key.ArticleNumber;
         if (string.IsNullOrWhiteSpace(articleNumber)) return null;
 
         var header = await _db.CachedBomHeaders
