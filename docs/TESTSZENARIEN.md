@@ -7208,7 +7208,7 @@ entfernt). **Vorbedingungen:** Bündel deployt; Master **`ProduktionsauftragHier
 materialisierter HauptFA mit **mindestens zweistufiger** Struktur (mind. eine Baugruppe mit eigenen Kindern)
 im IDEAL-Testsystem. Für den Flachmodus-Gegentest (TS-70.6) ein AKE-Auftrag bzw. Master `false`.
 
-**Automatisiert abgedeckt:** `FaHierarchyBomRepositoryTests` (11), `BomRepositoryMasterSwitchTests` (4),
+**Automatisiert abgedeckt:** `FaHierarchyBomRepositoryTests` (13), `BomRepositoryMasterSwitchTests` (4),
 `BomQuantityResolverTests` (2), `HierarchicalModeGateTests` (4, Service), `BomDiResolutionTests` (DI-Graph:
 beide Interfaces → dieselbe Weiche, Flachkette ohne Zyklus), `PickingControllerTests.Bom_Hierarchical_…`,
 `ReadOnlyBomBuilderTests` (hierarchisch), `ArticlesControllerTests.Info_Hierarchical_ResolvesParentSubFas_…`,
@@ -7271,9 +7271,13 @@ laufenden IDEAL-System.
   Schritte: einen Sync-Zyklus abwarten oder manuell ausloesen; Aktivitaets-Protokoll pruefen; falls
   moeglich zusaetzlich einen neuen IDEAL-Auftrag importieren lassen (um den
   `SyncSpecificArticleNumbersAsync`-Pfad ueber `SageImportService` auszuloesen).
-  Erwartung: alle vier Laeufe (inkl. des `SageImportService`-ausgeloesten) erscheinen als bewusst
-  uebersprungen (nicht als Fehler), keine Coating-/WorkStep-/Cache-Erkennung findet fuer
-  hierarchische Auftraege statt.
+  Erwartung: **drei** Laeufe (Coating-Erkennung, WorkStep-Erkennung, BOM-Cache-Sync) erscheinen im
+  Aktivitaets-Protokoll als bewusst uebersprungen (nicht als Fehler). Der vierte Pfad —
+  `SyncSpecificArticleNumbersAsync`, ausgeloest aus `SageImportService` — fuehrt **bewusst keinen
+  eigenen Run** und ist deshalb **nur im Serilog-Log** sichtbar („BOM-Cache-Sync (spezifisch):
+  uebersprungen — hierarchischer Modus"); im Aktivitaets-Protokoll darf dafuer **kein** Eintrag
+  erwartet werden.
+  In Summe: keine Coating-/WorkStep-/Cache-Erkennung findet fuer hierarchische Auftraege statt.
 
 - **TS-70.8 — Guard vollstaendig ersetzt (AK 13).**
   Schritte: `/Picking/Bom/<id>` an einem hierarchischen Auftrag direkt aufrufen.
@@ -7293,6 +7297,14 @@ laufenden IDEAL-System.
   „Kollision"; im Log steht eine Warnung (`Positions-Kollision unter Sub-FA …`); **keine Zeile
   fehlt**.
   Negativfall: ohne Kollision erscheint kein solches Kennzeichen.
+
+- **TS-70.11 — Druck der Stueckliste (Umfang bewusst begrenzt).**
+  Schritte: BOM am HauptFA oeffnen, „Drucken" waehlen (`/Picking/PrintBom/<id>`).
+  Erwartung: der Ausdruck zeigt im hierarchischen Modus die **Vollstruktur** mit den
+  Pfad-Positionen (z. B. `3.7.2`), aber **bewusst ohne** die Spalten „Komm.-Ziel",
+  „Hauptlagerplatz", „Sage-Pos.", „Ebene" und „Vater-Sub-FA" — der Druck hat eine eigene
+  Spalten-Whitelist (`PrintBom.cshtml`) und damit einen eigenen Umfang. Das ist **kein Fehler**.
+  Negativfall: im Flachmodus ist der Ausdruck unveraendert gegenueber dem Stand vor v1.36.0.
 
 ---
 
