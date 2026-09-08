@@ -52,9 +52,15 @@ true`; bei `false` bit-identisch zu AKE (eigene Klasse).**
   + Sub-FA-Spalte, `GetBySubOrderNumbersAsync`, Verbrauch = Σ Sollmenge ohne × Stückzahl. Navigation:
   Dropdown „Kommissionierung" (Picking-Workflow + Kommissionierlisten) **nur** wenn beide verfügbar,
   sonst bisheriger Einzel-Link (AKE unverändert).
-- **6 — Version/Doku**: 1.35.0 → **1.36.0** (Web+Service), Anwender-Changelog, Hilfe, TS-70
-  (70.1–70.10) in `docs/TESTSZENARIEN.md`, **TS-68 als abgelöst markiert**, DI-Auflösungstest
+- **6 — Version/Doku** (`8d9468d`): 1.35.0 → **1.36.0** (Web+Service), Anwender-Changelog, Hilfe,
+  TS-70 (70.1–70.11) in `docs/TESTSZENARIEN.md`, **TS-68 als abgelöst markiert**, DI-Auflösungstest
   `BomDiResolutionTests` (schützt die lazy Weiche gegen Rekursion).
+- **Final-Review-Fixwelle** (`22d31ae`): `PrintPicking` auf `BomScopes.ForOrder` (sonst leere
+  Bezeichnungen tieferer Ebenen im Kommissionierschein); deterministischer Tiebreak
+  (`ThenBy SubFA, Artnr`) für Kollisions-Suffixe (sonst wandernder Pick-Zustand nach Cache-Ablauf);
+  Warnung bei zweiter echter Wurzel; TS-70.7 (drei Protokoll-Läufe, spezifischer BOM-Cache-Pfad nur
+  Serilog) + TS-70.11 (Druck ohne hierarchische Spalten, bewusst); Hilfe/Changelog: Sage-Pos. per
+  Zahnrad einblenden.
 
 ## Migration / Deploy
 
@@ -70,7 +76,7 @@ IdealAkeWms.slnx` → 0 Fehler. `dotnet test IdealAkeWms.Tests` → **1266 erfol
 (vorbestehend), 0 Fehler, gesamt 1267.** `dotnet test IDEALAKEWMSService.Tests` → **236 erfolgreich,
 0 Fehler.** AK 1–16 gegen den echten Diff `25399be..22d31ae` abgeglichen, Guard-Grep
 (`HierarchicalUnavailable`/`HierarchicalBomGuardRepository`) in Quelldateien leer, `publish.zip` in
-keinem Commit dieser Spec. Neue Tests: `FaHierarchyBomRepositoryTests` (11),
+keinem Commit dieser Spec. Neue Tests: `FaHierarchyBomRepositoryTests` (13),
 `BomRepositoryMasterSwitchTests` (4), `BomQuantityResolverTests` (2), `HierarchicalModeGateTests` (4),
 `BomDiResolutionTests` (2), Controller-/Builder-/Artikelinfo-/Repository-Tests (je 1–2). Status:
 **Testbereit** — der manuelle Rest ist TS-70 am IDEAL-Testsystem (Vollansicht, Kollision, Menü,
