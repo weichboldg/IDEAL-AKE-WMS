@@ -45,6 +45,15 @@ freigabe_am: ""
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
 
+> **Verzahnung (2026-09-08)** mit [[2026-09-08-bom-schnittstellen-bridge-hierarchisch]]
+> (Stueckliste ueber die Repository-Schnittstelle). Dort wurde entschieden: die AKE-Heuristiken
+> `CoatingDetection`/`FaWorkStepDetection` werden fuer hierarchische Auftraege **hart abgeschaltet**;
+> `HasCoatingParts` kommt daher **hier** aus der Materialisierung (K2: „Sub-FA selbst oder ein
+> direktes Kind `Beschichtet`") — das beantwortet Rueckfrage 6 in Richtung **ersetzen**. Zusaetzlich
+> zu Rueckfrage 5: `CoatingDateCalculator.Compute(vorkommissionierTermin, …)` rechnet aus
+> `ProductionDate` (bei IDEAL NULL) → der **Beschichtungstermin** muss fuer IDEAL aus FAInfos
+> `Start_Beschichtung` kommen (K1), sonst erzeugt das Flag allein keinen Termin.
+
 ## Ziel / Nutzen (das Warum)
 
 Seit Teil 7 ([[2026-07-29-standort-ideal-teil-7-spec]]) werden IDEAL-Sub-FAs als echte
