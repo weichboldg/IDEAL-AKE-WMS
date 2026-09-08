@@ -72,7 +72,7 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
         return owner == null ? new List<FaHierarchyNode>() : all.Where(n => n.HauptFA == owner.HauptFA).ToList();
     }
 
-    private static List<BomItem> BuildDirectChildren(List<FaHierarchyNode> group, FaHierarchyNode parent)
+    private List<BomItem> BuildDirectChildren(List<FaHierarchyNode> group, FaHierarchyNode parent)
     {
         var children = group
             .Where(n => n.VaterFA == parent.SubFA)
@@ -85,6 +85,8 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
         {
             var segment = PositionSegment(child);
             var (position, collided) = Unique(segment, used);
+            if (collided)
+                _logger.LogWarning("FaHierarchyBom: Positions-Kollision unter Sub-FA {Parent} (Position {Pos}) — Pfad eindeutig gemacht.", parent.SubFA, segment);
             items.Add(Map(child, parent, position, ebene: 1, isWaise: false, collided));
         }
         return items;
@@ -148,7 +150,12 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
 
     private static FaHierarchyBomItem Map(FaHierarchyNode node, FaHierarchyNode parent, string position, int ebene, bool isWaise, bool collided)
     {
-        var parentArticle = parent.Artnr ?? parent.HauptArtnr ?? string.Empty;
+        // Kopf/Baugruppe: an der Wurzel (kein VaterFA) traegt HauptArtnr den Geraeteartikel — die
+        // Wurzelzeile selbst kann eine abweichende Artnr fuehren. Unterhalb der Wurzel ist Artnr des
+        // Vater-Sub-FA massgeblich; HauptArtnr bleibt nur Notnagel, wenn Artnr fehlt.
+        var parentArticle = parent.VaterFA == null
+            ? parent.HauptArtnr ?? parent.Artnr ?? string.Empty
+            : parent.Artnr ?? parent.HauptArtnr ?? string.Empty;
         return new FaHierarchyBomItem
         {
             Artikelnummer = parentArticle,
