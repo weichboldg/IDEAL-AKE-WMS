@@ -6,7 +6,7 @@ spec: "[[2026-08-18-fa-liste-hierarchie-anzeige-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 created: 2026-08-20
-updated: 2026-09-07
+updated: 2026-09-08
 ---
 
 # FA-Liste hierarchiefaehig (Epic)
@@ -21,6 +21,15 @@ updated: 2026-09-07
 > Safety hält aber (Server-Reload lädt Gruppen aufgeklappt). An Schranke 2 entscheiden: akzeptieren oder
 > toten Zweig aufräumen (kleiner Nachtrag, Re-QA). **Z3 vertagt** → Backlog
 > [[2026-09-07-invariante-haupt-fertig-sub-erkennen]].
+
+> **STAND 2026-09-08 — Re-QA Nachtrag UAT-Lauf 1:** UAT-Lauf 1 am IDEAL-Testsystem fand Befund
+> **U2** (Kaskade-Dialog: Zähler „mit offener Buchung" nur bei `>0` sichtbar). Fix + Test im selben
+> Bündel-Worktree, Commit `a8d75de` (bündelt auch U1/BOM-Guard-Spec). **Weiterhin Testbereit** —
+> Build 0 Fehler, Web **1245 grün +1 skip**, Service **232 grün** unverändert. Worktree-HEAD jetzt
+> `a8d75de`. Details siehe Spec-Abschnitt „Re-QA Nachtrag UAT-Lauf 1 (2026-09-08)". **Pfadhinweis:**
+> die aktuell lebende Spec liegt unter `secondbrain/specs/freigegeben/…` (nicht `entwurf/` — dort
+> liegt eine verwaiste, nicht mehr aktuelle Kopie mit fremden unstaged Änderungen, unangetastet
+> gelassen). F2-Befund weiterhin offen, von diesem Nachtrag nicht berührt.
 
 Umsetzung der freigegebenen Spec [[2026-08-18-fa-liste-hierarchie-anzeige-spec]]. Am 2026-08-20 (Mensch)
 zu einem **Epic** umstrukturiert (Umfang: 6 Views + Gruppen-Pagination + JS-Modul + Kaskade + Z4-Sweep +
