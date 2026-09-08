@@ -18,15 +18,18 @@ namespace IDEALAKEWMSService.Services;
 public class BomCacheSyncService : IBomCacheSyncService
 {
     private readonly IConfiguration _configuration;
+    private readonly IHierarchicalModeReader _hierarchicalMode;
     private readonly ILogger<BomCacheSyncService> _logger;
     private readonly ISyncLogger _syncLogger;
 
     public BomCacheSyncService(
         IConfiguration configuration,
+        IHierarchicalModeReader hierarchicalMode,
         ILogger<BomCacheSyncService> logger,
         ISyncLogger syncLogger)
     {
         _configuration = configuration;
+        _hierarchicalMode = hierarchicalMode;
         _logger = logger;
         _syncLogger = syncLogger;
     }
@@ -36,6 +39,15 @@ public class BomCacheSyncService : IBomCacheSyncService
     public async Task<SyncResult> SyncBomCacheAsync(bool dryRun, CancellationToken ct)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.BomCache, ct);
+
+        if (await _hierarchicalMode.IsHierarchicalAsync(ct))
+        {
+            _logger.LogInformation("BOM-Cache-Sync: uebersprungen — hierarchischer Modus (BOM-Bridge, Klasse-D-Gate).");
+            await run.FinishSuccessAsync(new Dictionary<string, int> { ["uebersprungen_hierarchisch"] = 1 },
+                messageSuffix: "[hierarchischer Modus: uebersprungen]", ct: ct);
+            return new SyncResult(0, 0, 0);
+        }
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         int inserted = 0, updated = 0, skipped = 0, errors = 0;
         string? errorDetails = null;
@@ -172,6 +184,12 @@ public class BomCacheSyncService : IBomCacheSyncService
         bool dryRun,
         CancellationToken ct)
     {
+        if (await _hierarchicalMode.IsHierarchicalAsync(ct))
+        {
+            _logger.LogInformation("BOM-Cache-Sync (spezifisch): uebersprungen — hierarchischer Modus (BOM-Bridge, Klasse-D-Gate).");
+            return new SyncResult(0, 0, 0);
+        }
+
         if (articleNumbers == null || articleNumbers.Count == 0)
             return new SyncResult(0, 0, 0);
 

@@ -46,6 +46,8 @@ try
     builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>();
     builder.Services.AddSingleton<IdealAkeWms.Services.SyncLogger.ISyncLogger,
                                   IdealAkeWms.Services.SyncLogger.SyncLogger>();
+    builder.Services.AddSingleton<IDEALAKEWMSService.Common.IHierarchicalModeReader,
+                                  IDEALAKEWMSService.Common.HierarchicalModeReader>();
 
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();

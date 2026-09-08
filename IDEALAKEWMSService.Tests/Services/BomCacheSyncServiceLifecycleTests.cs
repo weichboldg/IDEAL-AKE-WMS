@@ -1,6 +1,7 @@
 using FluentAssertions;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
+using IDEALAKEWMSService.Tests.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -20,7 +21,7 @@ public class BomCacheSyncServiceLifecycleTests
         // BeginRunAsync — verifies run was started and finished-failed.
         var config = new ConfigurationBuilder().Build(); // no connection strings
         var fakeLogger = new FakeSyncLogger();
-        var service = new BomCacheSyncService(config, NullLogger<BomCacheSyncService>.Instance, fakeLogger);
+        var service = new BomCacheSyncService(config, new StubHierarchicalModeReader(false), NullLogger<BomCacheSyncService>.Instance, fakeLogger);
 
         var act = async () => await service.SyncBomCacheAsync(dryRun: false, ct: CancellationToken.None);
 
