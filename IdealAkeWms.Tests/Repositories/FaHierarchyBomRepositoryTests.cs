@@ -3,6 +3,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -11,7 +12,8 @@ namespace IdealAkeWms.Tests.Repositories;
 
 public class FaHierarchyBomRepositoryTests
 {
-    // Struktur HauptFA 100 (Wurzel SubFA=100, Artnr DEV):
+    // Struktur HauptFA 100 (Wurzel SubFA=100, HauptArtnr DEV, eigene Artnr bewusst abweichend
+    // "DEV-ROOTROW" — so faellt auf, wenn der Kopf faelschlich die Artnr der Wurzelzeile nimmt):
     //   Pos 3  -> Sub-FA 1043421 (Artnr A1, Baugruppe)
     //       Pos 7 -> Sub-FA 1043422 (Artnr A2, Baugruppe)
     //           Pos 2 -> Blatt L1 (Sollmenge 5, Komm. "PG", Lagerplatz "R1")
@@ -19,7 +21,7 @@ public class FaHierarchyBomRepositoryTests
     //   Pos 5  -> Blatt L3 (Beschaffungsartikel)
     private static List<FaHierarchyNode> Sample() => new()
     {
-        N(100, null, 100, pos: null, artnr: "DEV", hauptArtnr: "DEV"),
+        N(100, null, 100, pos: null, artnr: "DEV-ROOTROW", hauptArtnr: "DEV"),
         N(100, 100, 1043421, pos: 3, artnr: "A1"),
         N(100, 1043421, 1043422, pos: 7, artnr: "A2"),
         N(100, 1043422, 0, pos: 2, artnr: "L1", sollmenge: 5m, komm: "PG", lager: "R1"),
@@ -37,15 +39,23 @@ public class FaHierarchyBomRepositoryTests
         Beschaffungsartikel = beschaffung, Artikelgruppe = artikelgruppe ?? "940 - Kleinmaterial",
     };
 
-    private static FaHierarchyBomRepository Sut(List<FaHierarchyNode> nodes)
+    private static FaHierarchyBomRepository Sut(List<FaHierarchyNode> nodes,
+        ILogger<FaHierarchyBomRepository>? logger = null)
     {
         var repo = new Mock<IFaHierarchyNodeRepository>();
         repo.Setup(r => r.GetByHauptFaAsync(100)).ReturnsAsync(nodes);
         repo.Setup(r => r.GetAllAsync()).ReturnsAsync(nodes);
         return new FaHierarchyBomRepository(repo.Object,
             new FaHierarchyTreeBuilder(NullLogger<FaHierarchyTreeBuilder>.Instance),
-            NullLogger<FaHierarchyBomRepository>.Instance);
+            logger ?? NullLogger<FaHierarchyBomRepository>.Instance);
     }
+
+    /// <summary>Zaehlt Warnungen, deren formatierte Nachricht <paramref name="fragment"/> enthaelt.</summary>
+    private static int WarningsContaining(Mock<ILogger<FaHierarchyBomRepository>> logger, string fragment) =>
+        logger.Invocations.Count(i =>
+            i.Method.Name == nameof(ILogger.Log)
+            && (LogLevel)i.Arguments[0] == LogLevel.Warning
+            && i.Arguments[2]?.ToString()?.Contains(fragment, StringComparison.Ordinal) == true);
 
     [Fact]
     public async Task DirectChildren_OfSubFa_MapsFields_AndFlagsBaugruppe()
@@ -77,7 +87,9 @@ public class FaHierarchyBomRepositoryTests
 
         r.Items.Should().HaveCount(2);
         var l3 = r.Items.OfType<FaHierarchyBomItem>().Single(i => i.Ressourcenummer == "L3");
+        // Wurzel: HauptArtnr gewinnt gegen die abweichende Artnr der Wurzelzeile ("DEV-ROOTROW")
         l3.Artikelnummer.Should().Be("DEV");
+        l3.Baugruppe.Should().Be("DEV");
         l3.Beschaffungsartikel.Should().Be("Ja");
         l3.Menge.Should().Be(1m);
     }
@@ -98,7 +110,9 @@ public class FaHierarchyBomRepositoryTests
         items.Single(i => i.Ressourcenummer == "L1").Menge.Should().Be(5m);
         // Baugruppe = Artnr des unmittelbaren Elternknotens
         items.Single(i => i.Ressourcenummer == "L1").Baugruppe.Should().Be("A2");
+        // ... an der Wurzel ist das die HauptArtnr, nicht die Artnr der Wurzelzeile ("DEV-ROOTROW")
         items.Single(i => i.Ressourcenummer == "A1").Baugruppe.Should().Be("DEV");
+        items.Single(i => i.Ressourcenummer == "A1").Artikelnummer.Should().Be("DEV");
     }
 
     [Fact]
@@ -123,6 +137,25 @@ public class FaHierarchyBomRepositoryTests
         items.Select(i => i.Position).Should().OnlyHaveUniqueItems();
         items.Count(i => i.PositionsKollision).Should().Be(1);
         items.Single(i => i.PositionsKollision).Position.Should().Be("5~2");
+    }
+
+    [Fact]
+    public async Task DirectChildren_CollisionAmongSiblings_IsMarkedNotOverwritten()
+    {
+        var nodes = Sample();
+        nodes.Add(N(100, 1043421, 0, pos: 2, artnr: "L5")); // zweites Kind von 1043421 mit Position 2
+        var logger = new Mock<ILogger<FaHierarchyBomRepository>>();
+
+        var r = await Sut(nodes, logger.Object).GetBomItemsAsync(new BomKey("A1", "1043421", "100"), BomScope.DirectChildren);
+
+        var items = r.Items.Cast<FaHierarchyBomItem>().ToList();
+        items.Should().HaveCount(3);
+        items.Select(i => i.Position).Should().OnlyHaveUniqueItems();
+        items.Count(i => i.PositionsKollision).Should().Be(1);
+        items.Single(i => i.PositionsKollision).Position.Should().Be("2~2");
+        items.Single(i => i.PositionsKollision).SagePosition.Should().Be("2"); // Sage-Position bleibt sichtbar
+        // Freigabe-Bedingung (b): markieren UND protokollieren — auch auf dem DirectChildren-Pfad
+        WarningsContaining(logger, "Positions-Kollision unter Sub-FA 1043421").Should().Be(1);
     }
 
     [Fact]
