@@ -102,7 +102,16 @@ public class ReadOnlyBomBuilder
                 KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,
                 StockLocations = stockLocations ?? new List<StockLocationInfo>(),
                 TreeLevel = treeLevel,
-                IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer)
+                IsBaugruppe = bom is FaHierarchyBomItem fh
+                    ? fh.IsBaugruppe
+                    : !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),
+                Kommissionieren = (bom as FaHierarchyBomItem)?.Kommissionieren,
+                Hauptlagerplatz = (bom as FaHierarchyBomItem)?.Hauptlagerplatz,
+                Ebene = (bom as FaHierarchyBomItem)?.Ebene ?? 0,
+                VaterSubFa = (bom as FaHierarchyBomItem)?.VaterSubFa,
+                SagePosition = (bom as FaHierarchyBomItem)?.SagePosition,
+                IsWaise = (bom as FaHierarchyBomItem)?.IsWaise ?? false,
+                PositionsKollision = (bom as FaHierarchyBomItem)?.PositionsKollision ?? false
             };
         })
         .OrderBy(v => v.Position, new NaturalPositionComparer())
@@ -132,6 +141,8 @@ public class ReadOnlyBomBuilder
             DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
             DataSource = bomResult.DataSource,
             RecursiveFilterSearch = recursiveFilterSearch,
+            Hierarchical = bomResult.DataSource == BomDataSources.FaHierarchie,
+            FullStructure = bomResult.DataSource == BomDataSources.FaHierarchie && BomScopes.ForOrder(order) == BomScope.FullStructure,
             ReadOnly = true
         };
     }

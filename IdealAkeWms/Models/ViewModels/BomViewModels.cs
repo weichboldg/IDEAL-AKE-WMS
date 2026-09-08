@@ -9,14 +9,6 @@ public static class BomDataSources
     public const string Oseon = "OSEON";
     public const string NoData = "KEINE_DATEN";
 
-    /// <summary>
-    /// IDEAL: im hierarchischen Modus (Master an) wird der AKE-Stücklisten-Zugriff nicht ausgeführt.
-    /// Bewusst NICHT "KEINE_DATEN" — die Oberfläche muss „nicht verfügbar" von „leere Stückliste"
-    /// unterscheiden können (Spec-Fallstrick 2). Die Stückliste kommt in diesem Modus aus der
-    /// FA-Struktur (`/FaHierarchy`).
-    /// </summary>
-    public const string HierarchicalUnavailable = "NICHT_VERFUEGBAR_HIERARCHISCH";
-
     /// <summary>BOM-Bridge (Spec 2026-09-08): Quelle ist die lokale FA-Struktur (FaHierarchyNode).</summary>
     public const string FaHierarchie = "FA-HIERARCHIE";
 }
@@ -60,6 +52,15 @@ public class BomItemViewModel
     public int TreeLevel { get; set; }
     public bool IsBaugruppe { get; set; }
 
+    // BOM-Bridge (hierarchisch, nur befuellt wenn die Zeile ein FaHierarchyBomItem ist)
+    public string? Kommissionieren { get; set; }
+    public string? Hauptlagerplatz { get; set; }
+    public int Ebene { get; set; }
+    public string? VaterSubFa { get; set; }
+    public string? SagePosition { get; set; }
+    public bool IsWaise { get; set; }
+    public bool PositionsKollision { get; set; }
+
     // Picking fields
     public int? PickingItemId { get; set; }
     public bool IsPicked { get; set; }
@@ -88,6 +89,11 @@ public class BomViewModel
     public List<StorageLocation> TargetStorageLocations { get; set; } = new();
     public string? DataSource { get; set; }
     public bool RecursiveFilterSearch { get; set; }
+
+    /// <summary>Quelle ist die FA-Hierarchie (DataSource FA-HIERARCHIE): hierarchische Spalten rendern.</summary>
+    public bool Hierarchical { get; set; }
+    /// <summary>Vollstruktur (HauptFA): zusaetzlich Ebene/Vater-Sub-FA rendern.</summary>
+    public bool FullStructure { get; set; }
 
     /// <summary>
     /// Read-only-Modus (FA-Abarbeitungsliste, v1.22.0): reine BOM-Anzeige ohne

@@ -88,14 +88,20 @@ builder.Services.AddScoped<IServiceSettingRepository>(sp =>
 builder.Services.AddSingleton<IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturStatus>();
 builder.Services.AddScoped<HolidayRepository>();
 builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
-builder.Services.AddScoped<IBomCacheRepository, BomCacheRepository>();
+builder.Services.AddScoped<BomCacheRepository>();
 builder.Services.AddScoped<BomRepository>();
 builder.Services.AddScoped<CachedBomRepository>();
-// IDEAL-Guard als AEUSSERSTER Decorator: faengt den hierarchischen Modus ab, bevor Cache/DB laufen.
-// Factory, weil der Guard den konkreten CachedBomRepository umschliesst (sonst Selbst-Aufloesung).
-builder.Services.AddScoped<IBomRepository>(sp => new HierarchicalBomGuardRepository(
-    sp.GetRequiredService<CachedBomRepository>(),
-    sp.GetRequiredService<IServiceSettingRepository>()));
+builder.Services.AddScoped<FaHierarchyBomRepository>();
+// BOM-Bridge (Spec 2026-09-08): EINE Weiche fuer beide Interfaces, entscheidet pro Aufruf am Master.
+// Lazy-Delegates, weil BomRepository selbst IBomCacheRepository (= die Weiche) injiziert — eager waere ein Zyklus.
+builder.Services.AddScoped<BomRepositoryMasterSwitch>(sp => new BomRepositoryMasterSwitch(
+    sp.GetRequiredService<IServiceSettingRepository>(),
+    hierarchicalBom: () => sp.GetRequiredService<FaHierarchyBomRepository>(),
+    hierarchicalCache: () => sp.GetRequiredService<FaHierarchyBomRepository>(),
+    flatBom: () => sp.GetRequiredService<CachedBomRepository>(),
+    flatCache: () => sp.GetRequiredService<BomCacheRepository>()));
+builder.Services.AddScoped<IBomRepository>(sp => sp.GetRequiredService<BomRepositoryMasterSwitch>());
+builder.Services.AddScoped<IBomCacheRepository>(sp => sp.GetRequiredService<BomRepositoryMasterSwitch>());
 
 // FA-Hierarchie (IDEAL): Repo + Cache-Decorator (ADR 0001, 5-min IMemoryCache analog BOM-Cache)
 builder.Services.AddScoped<FaHierarchyNodeRepository>();

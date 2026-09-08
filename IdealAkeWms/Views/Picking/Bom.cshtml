@@ -22,9 +22,9 @@
             {
                 <span class="badge bg-danger ms-2 fs-6 fw-normal align-middle">Keine Daten gefunden</span>
             }
-            else if (Model.DataSource == BomDataSources.HierarchicalUnavailable)
+            else if (Model.DataSource == BomDataSources.FaHierarchie)
             {
-                <span class="badge bg-info text-dark ms-2 fs-6 fw-normal align-middle">FA-Struktur</span>
+                <span class="badge bg-info text-dark ms-2 fs-6 fw-normal align-middle" title="Quelle: FA-Struktur (Sollmengen)">FA-Struktur</span>
             }
             else
             {
@@ -33,9 +33,6 @@
             }
         }
     </h2>
-    @* Auf der Guard-Hinweisseite (hierarchischer Modus) gibt es nichts zu drucken. *@
-    @if (Model.DataSource != BomDataSources.HierarchicalUnavailable)
-    {
     <div class="d-flex gap-2 mt-1">
         <button type="button" id="btnPrintBom" class="btn btn-outline-secondary btn-sm" title="Stückliste drucken (aktuelle Filterung/Baumstruktur)">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
@@ -45,32 +42,8 @@
             Stückliste drucken
         </button>
     </div>
-    }
 </div>
 
-@if (Model.DataSource == BomDataSources.HierarchicalUnavailable)
-{
-    @* IDEAL, hierarchischer Modus: die AKE-Stueckliste ist hier nicht verfuegbar — kein Fehler,
-       sondern ein anderer Weg. Bewusst als Zwischenstand formuliert (Minimal-Fix, die vollstaendige
-       hierarchische Stueckliste ist eine Folge-Spec). *@
-    <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" class="flex-shrink-0 mt-1">
-            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2"/>
-        </svg>
-        <div>
-            <strong>Stückliste im hierarchischen Modus</strong>
-            <p class="mb-1">Im hierarchischen Modus wird die Stückliste über die
-                <a asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a> angezeigt &ndash;
-                dort sind Struktur und Stückliste in einer Ansicht. Die klassische Stücklisten-Sicht ist
-                für diesen Standort noch nicht verfügbar (Zwischenstand).</p>
-            <a asp-controller="FaHierarchy" asp-action="Index" class="btn btn-sm btn-outline-primary">
-                Zur FA-Struktur
-            </a>
-        </div>
-    </div>
-}
-else
-{
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
         <form method="get" asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="row g-2 align-items-end">
@@ -358,7 +331,6 @@ else
         </tbody>
     </table>
 </div>
-}
 
 @* Read-only (Abarbeitungsliste): keine Umbuchung, keine Fotos, keine Picking-Modals, keine Bedarfsmeldungen. *@
 @if (Model.Items.Any() && !Model.ReadOnly)
@@ -678,10 +650,9 @@ else
             // Read-only-Modus (FA-Abarbeitungsliste): Scanner-/Picking-Handler nicht binden.
             const readOnly = @Json.Serialize(Model.ReadOnly);
 
-            // Guard-Hinweisseite (hierarchischer Modus, DataSource = HierarchicalUnavailable) rendert
-            // weder #bomTable noch die Expand-/Collapse-/Druck-Buttons — die Handler unten liefen
-            // sonst auf null (UAT-Lauf 1, Befund U1). Am DOM geprueft, nicht am Modus: schuetzt jede
-            // Variante ohne Tabelle.
+            // Rendert eine Variante der Seite weder #bomTable noch die Expand-/Collapse-/Druck-Buttons,
+            // liefen die Handler unten auf null (UAT-Lauf 1, Befund U1). Am DOM geprueft, nicht am
+            // Modus: schuetzt jede Variante ohne Tabelle.
             if (!document.getElementById('bomTable')) return;
 
             if (!readOnly) {

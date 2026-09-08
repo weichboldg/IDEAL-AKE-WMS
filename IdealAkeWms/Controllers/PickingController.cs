@@ -399,7 +399,16 @@ public class PickingController : Controller
                 KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,
                 StockLocations = locations,
                 TreeLevel = treeLevel,
-                IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),
+                IsBaugruppe = bom is FaHierarchyBomItem fh
+                    ? fh.IsBaugruppe
+                    : !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),
+                Kommissionieren = (bom as FaHierarchyBomItem)?.Kommissionieren,
+                Hauptlagerplatz = (bom as FaHierarchyBomItem)?.Hauptlagerplatz,
+                Ebene = (bom as FaHierarchyBomItem)?.Ebene ?? 0,
+                VaterSubFa = (bom as FaHierarchyBomItem)?.VaterSubFa,
+                SagePosition = (bom as FaHierarchyBomItem)?.SagePosition,
+                IsWaise = (bom as FaHierarchyBomItem)?.IsWaise ?? false,
+                PositionsKollision = (bom as FaHierarchyBomItem)?.PositionsKollision ?? false,
                 PickingItemId = picking?.Id,
                 IsPicked = picking?.IsPicked ?? false,
                 SourceStorageLocationId = sourceLocationId,
@@ -436,7 +445,9 @@ public class PickingController : Controller
             AllStorageLocations = allStorageLocations,
             TargetStorageLocations = targetStorageLocations,
             DataSource = bomResult.DataSource,
-            RecursiveFilterSearch = recursiveFilterSearch
+            RecursiveFilterSearch = recursiveFilterSearch,
+            Hierarchical = bomResult.DataSource == BomDataSources.FaHierarchie,
+            FullStructure = bomResult.DataSource == BomDataSources.FaHierarchie && BomScopes.ForOrder(order) == BomScope.FullStructure
         };
 
         // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden
@@ -584,7 +595,9 @@ public class PickingController : Controller
             Beschaffungsartikel = bom.Beschaffungsartikel,
             Artikelgruppe = bom.Artikelgruppe,
             TreeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.'),
-            IsBaugruppe = !string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer),
+            IsBaugruppe = bom is FaHierarchyBomItem fh
+                ? fh.IsBaugruppe
+                : (!string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer)),
             Lagerplatz = stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var locs) && locs.Any()
                 ? string.Join(", ", locs.Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
                 : null

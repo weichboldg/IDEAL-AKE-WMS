@@ -167,7 +167,7 @@ public class PickingControllerTests
     /// <summary>
     /// UAT-Lauf 1, Befund U1: Die Stuecklisten-Kopfzeile nennt die eigene FA-Nummer (Z4-Konvention).
     /// Im hierarchischen Modus ist das die Sub-FA — ohne SubOrderNumber im ViewModel zeigte die
-    /// Guard-Hinweisseite die HauptFA. Flachmodus: SubOrderNumber == OrderNumber (View ohne Zusatz).
+    /// Kopfzeile die HauptFA. Flachmodus: SubOrderNumber == OrderNumber (View ohne Zusatz).
     /// </summary>
     [Theory]
     [InlineData("1035235", "1043421")] // hierarchisch: Sub-FA != HauptFA
@@ -178,14 +178,36 @@ public class PickingControllerTests
         order.Id = 101;
         order.ArticleNumber = "50001929";
         var ctrl = SetupForBom(order,
-            new BomQueryResult(new List<BomItem>(), BomDataSources.HierarchicalUnavailable));
+            new BomQueryResult(new List<BomItem>(), BomDataSources.FaHierarchie));
 
         var result = await ctrl.Bom(101, null);
 
         var vm = result.Should().BeOfType<ViewResult>().Which.Model.Should().BeOfType<BomViewModel>().Subject;
         vm.OrderNumber.Should().Be(orderNumber);
         vm.SubOrderNumber.Should().Be(subOrderNumber);
-        vm.DataSource.Should().Be(BomDataSources.HierarchicalUnavailable);
+        vm.DataSource.Should().Be(BomDataSources.FaHierarchie);
+    }
+
+    /// <summary>
+    /// BOM-Bridge: die FA-Hierarchie liefert die Sollmenge bereits als Auftragsgesamtmenge
+    /// (<c>MengeIstAuftragsmenge</c>) — der Controller darf sie NICHT noch einmal mit der
+    /// FA-Stueckzahl multiplizieren. Zusaetzlich landen die hierarchischen Zusatzfelder im
+    /// ViewModel und die Anzeige-Flags stehen richtig (Sub-FA != HauptFA → keine Vollstruktur).
+    /// </summary>
+    [Fact]
+    public async Task Bom_Hierarchical_DoesNotMultiplyQuantity_AndFlagsHierarchical()
+    {
+        var order = OrderH("1035235", "1043421");
+        order.Id = 101; order.ArticleNumber = "A1"; order.Quantity = 4m;
+        var items = new List<BomItem> { new FaHierarchyBomItem { Ressourcenummer = "L1", Position = "2", Menge = 5m, Kommissionieren = "PG" } };
+        var ctrl = SetupForBom(order, new BomQueryResult(items, BomDataSources.FaHierarchie, MengeIstAuftragsmenge: true));
+
+        var vm = (await ctrl.Bom(101, null)).Should().BeOfType<ViewResult>().Which.Model.Should().BeOfType<BomViewModel>().Subject;
+
+        vm.Hierarchical.Should().BeTrue();
+        vm.FullStructure.Should().BeFalse();            // Sub-FA != HauptFA
+        vm.Items.Single().Menge.Should().Be(5m);        // keine × Quantity
+        vm.Items.Single().Kommissionieren.Should().Be("PG");
     }
 
     [Fact]
