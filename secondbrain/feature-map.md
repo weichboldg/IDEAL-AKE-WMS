@@ -302,7 +302,13 @@ Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]], Aufgabe
 | 3 — Master-Weiche, Guard raus, Mapping | **erledigt** (`611475d`) | `BomRepositoryMasterSwitch`, `Program.cs:91-104`, `PickingController.Bom`/`ReadOnlyBomBuilder` |
 | 4 — Klasse-D-Gates (Service) | **erledigt** (`56e8faa`) | `IHierarchicalModeReader`, Coating/WorkStep/BomCache×2 |
 | 5 — Views (Bom.cshtml, Artikelinfo, Nav) | **erledigt** (`cd34b08`/`86371ee`/`a3f125e`) | `Views/Picking/Bom.cshtml` (+`#column-config`), `ColumnDefinitions.Bom`, `ArticlesController`/`Info.cshtml`, `_Layout` |
-| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **feature-complete** (`8d9468d`); QA läuft | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
+| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **erledigt** (`8d9468d` + Fixwelle `22d31ae`) | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
+
+> **Status:** `Testbereit` (qa-agent, 2026-09-08, Worktree-HEAD `22d31ae`) — Build 0 Fehler, Web
+> **1266 grün + 1 skip**, Service **236 grün**, AK 1–16 gegen den echten Diff abgeglichen, Guard-Grep
+> leer. Wartet mit dem ganzen Bündel (Teile 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf
+> **Schranke 2** (manueller Test + Merge durch den Menschen). Deploy: `web:true`, `service:true`
+> (Klasse-D-Gates + Konstruktor-Signaturänderung), `migration:false`.
 
 ## Offen / nicht gemerged
 

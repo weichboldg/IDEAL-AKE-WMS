@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL: Stueckliste hierarchiefaehig ueber die Repository-Schnittstelle (Bridge statt Cache-Kopie)"
 slug: 2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-08
 updated: 2026-09-08
 source_backlog: "[[2026-09-08-bom-schnittstellen-bridge-hierarchisch]]"
@@ -681,19 +681,40 @@ durch TS-70" ergaenzen, TS-70-Zeile neu anlegen).
 
 ## Deploy
 
-**Provisorisch (Dev-Lauf bestaetigt gegen den echten Diff):**
+**Final (qa-agent, 2026-09-08 — bestaetigt gegen den echten Diff `25399be..22d31ae`, `git diff --stat`,
+51 Dateien):**
 
-- **Web-App:** ja — neue/geaenderte Repositories, Controller, ViewModel, Views (`Bom.cshtml`,
-  `_Layout.cshtml`, `Views/Articles/Info.cshtml`), `ColumnDefinitions.cs`, `Program.cs`.
-- **Service:** ja — Klasse-D-Gates in `CoatingDetectionService`, `FaWorkStepDetectionService`
-  (inkl. Konstruktor-Signaturaenderung), `BomCacheSyncService` (`IDEALAKEWMSService/Services/`).
-- **Migration:** nein (verifiziert, siehe Migrations-Abschnitt).
+- **Web-App: ja** — neue/geaenderte Repositories (`FaHierarchyBomRepository.cs`,
+  `BomRepositoryMasterSwitch.cs`, `BomRepository.cs`, `CachedBomRepository.cs`,
+  `BomCacheRepository.cs`, `ProductionOrderRepository.cs`), Controller (`PickingController.cs`,
+  `ArticlesController.cs`), Models (`BomKey.cs`, `BomScope.cs`, `FaHierarchyBomItem.cs`,
+  `BomViewModels.cs`, `ColumnDefinitions.cs`), Services (`BomQuantityResolver.cs`,
+  `ReadOnlyBomBuilder.cs`), Views (`Bom.cshtml`, `Articles/Info.cshtml`, `_Layout.cshtml`,
+  `Help/Changelog.cshtml`, `Help/Index.cshtml`), `Program.cs` (DI-Weiche).
+- **Service: ja** — `IDEALAKEWMSService/Common/IHierarchicalModeReader.cs` (neu),
+  Klasse-D-Gates in `CoatingDetectionService.cs`, `FaWorkStepDetectionService.cs` (inkl.
+  Konstruktor-Signaturaenderung: `IConfiguration`/`IHierarchicalModeReader` vor `ISyncLogger`
+  eingefuegt), `BomCacheSyncService.cs` (beide oeffentlichen Einstiege), `Program.cs`
+  (DI-Registrierung `IHierarchicalModeReader`).
+- **Migration: nein** — verifiziert, keine neue Datei unter `*/Migrations/` im Diff, keine
+  Schema-Aenderung (siehe Migrations-Abschnitt).
 
-**Publish-Befehle (im Worktree, nach dem gruenen QA-Nachweis, vor dem Merge):**
+**Ablauf (Mensch): Publish AUS DEM WORKTREE → Testsystem → Test → danach Merge.**
+
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
 ```
+
+Beide Komponenten sind betroffen (Web wegen Repositories/Controller/Views/DI-Weiche, Service wegen der
+vier Klasse-D-Gates **und** der Konstruktor-Signaturaenderung an `FaWorkStepDetectionService` — ein
+reiner Web-Deploy waere hier nicht ausreichend, der Service muesste sonst mit einer inkompatiblen
+Signatur weiterlaufen). Reihenfolge unkritisch (keine Migration, kein DB-Update noetig) — Service kann
+vor oder nach dem Web neu gestartet werden.
+
+**Hinweis:** Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge tatsaechlich getestete
+Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat (bei diesem Bündel: ein einziger Merge
+fuer Teile 1–8 + FA-Liste-Hierarchie + BOM-Bridge — Schranke 2 entscheidet).
 
 ## Reihenfolge / Einordnung
 
@@ -804,3 +825,135 @@ inhaltlich beantwortet in Design G. Rueckfrage 5 „`BomPosition`-Datentyp" ist 
    *Nebenpunkt, nicht blockierend:* Punktnotation sortiert lexikalisch falsch (`10` vor `2`). Das
    gilt bei AKE bereits und ist kein neuer Mangel — nur nicht „loesen" wollen, sonst weicht der
    IDEAL-Baum vom AKE-Baum ab.
+
+## QA-Nachweis (qa-agent, 2026-09-08)
+
+**Umfang:** Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, HEAD `22d31ae` (Diff-Umfang dieser Spec: `f89659f..22d31ae`,
+10 Commits ab Plan-Commit `25399be`; Ausgangsstand des Buendels davor `a8d75de`).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+```
+→ 0 Fehler, 12 Warnungen (ausschliesslich vorbestehend: NU1902 MailKit/MimeKit-Advisories,
+CS8602/CS8321 in unveraenderten Dateien). Erfolgreich.
+
+**Tests:**
+```
+dotnet test IdealAkeWms.Tests
+```
+→ **1266 erfolgreich, 1 uebersprungen (vorbestehend), 0 Fehler, gesamt 1267.**
+```
+dotnet test IDEALAKEWMSService.Tests
+```
+→ **236 erfolgreich, 0 uebersprungen, 0 Fehler.**
+
+Beide Zahlen exakt wie erwartet (Web 1266 grün + 1 skip, Service 236).
+
+**AK-Abgleich (Kurzform, gegen `git diff 25399be..22d31ae --stat` [51 Dateien, +1566/-241] und
+Stichproben im Code):**
+
+- **AK 1 (F-AKE):** `BomRepository.cs`/`CachedBomRepository.cs` lesen nur `BomKey.ArticleNumber`,
+  ignorieren `SubOrderNumber`/`OrderNumber`/`BomScope` — Signatur mechanisch umgestellt, Verhalten
+  unveraendert. Bestehende AKE-Tests unveraendert gruen. **Erfuellt.**
+- **AK 2 (F-Cache):** `Program.cs:91-104` — eine gemeinsame `BomRepositoryMasterSwitch`-Weiche fuer
+  `IBomRepository` **und** `IBomCacheRepository`; bei Master `true` beide auf
+  `FaHierarchyBomRepository`, kein Zugriff auf `BomCacheRepository`/`CachedBomHeaders`/`Items`.
+  **Erfuellt.**
+- **AK 3 (F-Menge):** `BomQuantityResolver.Resolve` ist die einzige Multiplikationsstelle, verifiziert
+  an allen 3 Aufrufstellen (`PickingController.cs:396`, `:594`, `ReadOnlyBomBuilder.cs:99`); Flag
+  `MengeIstAuftragsmenge` in `FaHierarchyBomRepository` immer `true`, AKE-Erzeuger Default `false`.
+  **Erfuellt.**
+- **AK 4 (F-Partition):** Aggregat-Pfad (Artikelinfo) nutzt ausschliesslich
+  `GetDeviceArticleNumbersByComponentAsync`/`GetComponentMengePerDeviceAsync`, beide implementiert
+  gegen `VaterFA` (= direkte Kinder, `DirectChildren`-Semantik); Property-Test
+  `FaHierarchyBomRepositoryTests` vorhanden. **Erfuellt.**
+- **AK 5 (F-Zeilenschluessel):** `BuildFullStructure`/`WalkChildren` bauen den Positionspfad rekursiv
+  ab der Wurzel auf, Kollisions-Erkennung ueber `Unique(...)` mit `~n`-Suffix + Log-Warnung
+  (Freigabe-Bedingung b erfuellt), Sage-Original-Position bleibt separat als `SagePosition`
+  erhalten (Freigabe-Bedingung a erfuellt, TS-70.9). **Erfuellt.**
+- **AK 6 (F-Signatur):** alle in Design A gelisteten Aufrufer (Controller, Builder, Repositories,
+  Tests) mechanisch auf `BomKey`/`BomScope` umgestellt, Build + alle Tests gruen. **Erfuellt.**
+- **AK 7 (Scope-Regel):** `BomScopes.ForOrder` (HauptFA → `FullStructure`, sonst `DirectChildren`),
+  konsistent verwendet in `Bom`, `PrintBom`, `PrintPicking` (finale Fixwelle `22d31ae` hat
+  `PrintPicking` nachgezogen) und `ReadOnlyBomBuilder.BuildAsync`. **Erfuellt.**
+- **AK 8 (Kommissionieren-Filter):** Spalte `kommissionieren` in `ColumnDefinitions.Bom` +
+  `#column-config` registriert, Client-Filter, kein Zeilen-Vorfilter (alle Zeilen aus
+  `FaHierarchyBomRepository` unveraendert durchgereicht). **Erfuellt.**
+- **AK 9 (Artikelinfo):** `Views/Articles/Info.cshtml` zeigt im hierarchischen Modus `OrderNumber`
+  (HauptFA) als primaere/fette Spalte, `SubOrderNumber` als Zusatzspalte — kehrt den
+  Etappe-D-Zwischenstand nachweisbar um (Code gelesen). **Erfuellt.**
+- **AK 10 (Klasse-D-Gates):** `IHierarchicalModeReader` in `CoatingDetectionService`,
+  `FaWorkStepDetectionService` (Konstruktor-Reihenfolge `IConfiguration`/Reader **vor** `ISyncLogger`
+  verifiziert), `BomCacheSyncService.SyncBomCacheAsync` **und** `SyncSpecificArticleNumbersAsync` —
+  alle vier Gates direkt nach `BeginRunAsync`, `FinishSuccessAsync` mit Null-Counts, kein `throw`.
+  `HierarchicalModeGateTests` (Service) gruen. **Erfuellt.**
+- **AK 11/12 (Navigation/Koexistenz):** `_Layout.cshtml` Dropdown „Kommissionierung" nur bei beiden
+  Eintraegen (Picking-Workflow + Kommissionierlisten), sonst Einzel-Link — Code gelesen, beide Gates
+  unveraendert. **Erfuellt.**
+- **AK 13 (Guard vollstaendig ersetzt):**
+  `grep -rn --include="*.cs" --include="*.cshtml" "HierarchicalUnavailable\|HierarchicalBomGuardRepository" IdealAkeWms IdealAkeWms.Tests`
+  → **keine Treffer** (nur Alt-Binaries in `bin`/`obj`, keine Quelldateien). **Erfuellt.**
+- **AK 14 (Sweep):** `grep -rln "vw_AKE_\|\[ake\]\.\[dbo\]\|ake\.dbo" --include="*.cs" IdealAkeWms IDEALAKEWMSService`
+  (ohne Tests) → genau 3 Treffer (`BomRepository.cs`, `BomCacheSyncService.cs`,
+  `SageImportService.cs`), identisch mit der in Design I dokumentierten Liste, kein neuer Fund.
+  **Erfuellt.**
+- **AK 15 (`HasGlass`):** keine Code-Beruehrung, Regressionstest unveraendert gruen (nicht Teil
+  dieses Diffs). **Erfuellt.**
+- **AK 16 (Feld-Mapping):** `FaHierarchyBomRepository.Map(...)` folgt Design B 1:1
+  (`Baugruppe`/`IsBaugruppe`-Semantik, `Artikelgruppe`, `Beschaffungsartikel` Ja/Nein). **Erfuellt.**
+
+**Testszenarien:** `docs/TESTSZENARIEN.md` Kapitel TS-70 vorhanden mit TS-70.1–TS-70.11 (inkl.
+Negativfaellen je Szenario), TS-68 im Kopf als abgeloest markiert (68.2/68.3/68.5 alte Erwartung
+ungueltig, 68.1/68.6 → 70.6). `secondbrain/tests/testszenarien-index.md` bereits vorbereitet
+(TS-70-Zeile vorhanden, TS-68-Zeile auf „abgeloest" gesetzt) — im selben Lauf um TS-70.11 ergaenzt.
+
+**Version:** `IdealAkeWms/AppVersion.cs` und `IDEALAKEWMSService/AppVersion.cs` beide `1.36.0`;
+`Views/Help/Changelog.cshtml` traegt die v1.36.0-Karte (08.09.2026).
+
+**Guard-Grep (Quelldateien, ohne Build-Artefakte):** leer, siehe AK 13 oben.
+
+**`publish.zip`:** `git log --stat 25399be..22d31ae -- publish.zip` liefert keine Treffer — die
+Datei ist in keinem Commit dieser Spec enthalten; die unstaged Loeschung im Arbeitsverzeichnis
+(`D publish.zip`) ist Sache des Menschen.
+
+**Befunde:** keine blockierenden. Bekannte, bewusst zurueckgestellte Review-Punkte (siehe Aufgabe,
+Abschnitt „Review-Befunde, bewusst offen") bleiben unveraendert offen fuer den naechsten Zyklus —
+keiner davon beeintraechtigt ein Akzeptanzkriterium dieser Spec.
+
+**Status gesetzt:** `Testbereit`.
+
+## Manuelle Test-Checkliste (Mensch, Schranke 2 — TS-70 am IDEAL-Testsystem)
+
+- [ ] **App-Start als DI-Beweis:** Anwendung mit Master `ProduktionsauftragHierarchisch = true`
+      starten, BOM-Knopf an einem hierarchischen FA aufrufen — kein DI-Auflösungsfehler, keine
+      Exception (bestaetigt, dass die lazy `BomRepositoryMasterSwitch`-Delegates zyklusfrei sind).
+- [ ] **TS-70.1** HauptFA-Vollansicht: alle Ebenen sichtbar, jeder Knoten genau einmal, zwei gleich
+      positionierte Zeilen unter verschiedenen Baugruppen bleiben unabhaengig anhakbar, Reload
+      behaelt nur den tatsaechlich angehakten Pick-Status.
+- [ ] **TS-70.2** Sub-FA-Ansicht: nur direkte Kinder, keine Enkel/Geschwister-Zweige.
+- [ ] **TS-70.3** Kommissionieren-Filter: Filter zeigt nur passende Zeilen, Reset zeigt wieder alle,
+      leeres Filterergebnis ohne Fehler.
+- [ ] **TS-70.4** Artikelinfo HauptFA/Sub-FA: HauptFA fett/primaer, Sub-FA als Zusatzspalte, Menge =
+      Sollmenge.
+- [ ] **TS-70.5** Menue „Kommissionierung": Dropdown mit Picking-Workflow + Kommissionierliste,
+      beide unabhaengig bedienbar am selben HauptFA.
+- [ ] **AKE-Instanz: Flachmodus bit-identisch (TS-70.6):** Master `false` auf einer AKE-Instanz oder
+      an einem AKE-Auftrag — Verhalten identisch zum Stand vor v1.36.0 (keine neuen Spalten, Menge
+      weiterhin × Auftragsmenge, Cache-First/Live-Fallback unveraendert).
+- [ ] **TS-70.7** Klasse-D-Gate im Aktivitaets-Protokoll: Coating-/WorkStep-/BomCache-Sync-Laeufe
+      (inkl. des `SageImportService`-ausgeloesten `SyncSpecificArticleNumbersAsync`-Pfads)
+      erscheinen als bewusster Skip, kein Fehler, keine Erkennung fuer hierarchische Auftraege.
+- [ ] **TS-70.8** Guard vollstaendig ersetzt: `/Picking/Bom/<id>` an hierarchischem Auftrag zeigt die
+      echte Stueckliste, nicht mehr den alten TS-68-Hinweistext.
+- [ ] **TS-70.9** Sage-Position sichtbar: Tooltip/Spalte „Sage-Pos." zeigt die Original-Position,
+      waehrend die Pos.-Spalte den Strukturpfad (z. B. `3.7.2`) zeigt; im Flachmodus weder Tooltip
+      noch Spalte.
+- [ ] **TS-70.10** Positions-Kollision: zwei Geschwister mit gleicher Sage-Position erzeugen zwei
+      sichtbare Zeilen (kein stiller Verlust), zweite mit `~2`-Suffix + Kollisions-Kennzeichen, Log
+      zeigt die Warnung.
+- [ ] **Kommissionierschein-Druck nach PrintPicking-Fix (TS-70.11):** `/Picking/PrintBom/<id>` am
+      HauptFA druckt die Vollstruktur mit Pfad-Positionen, bewusst ohne die hierarchischen
+      Zusatzspalten (eigene Druck-Whitelist); im Flachmodus unveraendert gegenueber dem Stand vor
+      v1.36.0.

@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: "IDEAL: BOM-Bridge — Stueckliste ueber die Repository-Schnittstelle (Umsetzung)"
-status: InUmsetzung
+status: Testbereit
 spec: "[[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -16,11 +16,15 @@ Umsetzung der freigegebenen Spec [[2026-09-08-bom-schnittstellen-bridge-hierarch
 `main`"; Ausgangs-HEAD `a8d75de`, Buendel-Stand `Testbereit` v1.35.0 → geht fuer diesen Block auf
 `InUmsetzung`, Re-QA am Ende fuer das ganze Buendel). Kein Merge, kein Push.
 
-> **STAND 2026-09-08 — feature-complete (`8d9468d`), Final-Review + QA laufen.** Plan
+> **STAND 2026-09-08 — QA durch → Testbereit.** Plan
 > `docs/superpowers/plans/2026-09-08-bom-bridge.md` (Worktree, Commit `25399be`); Umsetzung
-> subagent-getrieben (6 Tasks, je Task-Review; Fixrunden: Task 2 ×1, Task 5 ×1). Version **v1.36.0**
-> (Web + Service), keine Migration. Stand feature-complete: Build 0 Fehler, Web **1264 grün + 1 skip**,
-> Service **236 grün**. Worktree-HEAD `8d9468d`. Ledger `.superpowers/sdd/2026-09-08-bom-bridge/progress.md`.
+> subagent-getrieben (6 Tasks, je Task-Review; Fixrunden: Task 2 ×1, Task 5 ×1); Final-Review-Fixwelle
+> `22d31ae` (PrintPicking-Scope, deterministischer Kollisions-Tiebreak, Wurzel-Warnung,
+> TS-70.7/Druck-Doku, Hilfe). Version **v1.36.0** (Web + Service), keine Migration. qa-agent-Lauf
+> 2026-09-08: Build 0 Fehler, Web **1266 grün + 1 skip**, Service **236 grün**, AK 1–16 abgeglichen,
+> Guard-Grep leer, `publish.zip` in keinem Commit. Worktree-HEAD `22d31ae`. Ledger
+> `.superpowers/sdd/2026-09-08-bom-bridge/progress.md`. Wartet jetzt mit dem ganzen Buendel auf
+> Schranke 2 (Mensch: Manual-UAT + ein Merge).
 
 ## Verbindliche Vorgaben aus der Freigabe (Schranke 1)
 
@@ -42,7 +46,7 @@ Umsetzung der freigegebenen Spec [[2026-09-08-bom-schnittstellen-bridge-hierarch
 | 3 | DI-Weiche `Program.cs` (beide Interfaces), Guard entfernen (+Tests), Scope-Regel in `PickingController.Bom` | **erledigt** `611475d` (Review clean; `BomRepositoryMasterSwitch`, lazy Delegates) |
 | 4 | Klasse-D-Gates: `CoatingDetectionService`, `FaWorkStepDetectionService`, `BomCacheSyncService` (beide Einstiege) + Tests | **erledigt** `56e8faa` (ueber `IHierarchicalModeReader`, Review clean) |
 | 5 | Views: `Bom.cshtml` (Kommissionieren/Hauptlagerplatz/Ebene/Vater-Sub-FA/Sage-Position, nur hierarchisch), `ColumnDefinitions.Bom`, `Articles/Info` (HauptFA primaer, Sub-FA Zusatz), `_Layout` Dropdown „Kommissionierung" | **erledigt** `cd34b08` + `86371ee` (Nav nur bei zwei Eintraegen) + Fix `a3f125e` (`#column-config`) |
-| 6 | Version v1.36.0, Changelog, TESTSZENARIEN TS-70 (TS-68 abgeloest), Hilfe, DI-Aufloesungstest; qa-agent → Testbereit; Brain (ADR 0013, fallstricke §10, services, feature-map, changelog, testindex) | Code **feature-complete** `8d9468d`; Final-Review + QA laufen; Brain-Karten vorbereitet |
+| 6 | Version v1.36.0, Changelog, TESTSZENARIEN TS-70 (TS-68 abgeloest), Hilfe, DI-Aufloesungstest; qa-agent → Testbereit; Brain (ADR 0013, fallstricke §10, services, feature-map, changelog, testindex) | **erledigt** `8d9468d` + Fixwelle `22d31ae`; qa-agent 2026-09-08: Build 0 Fehler, Web 1266 grün + 1 skip, Service 236 grün → **Testbereit** |
 
 ## Entscheidungen im Dev-Lauf (Rulings, vollstaendig im Ledger)
 

@@ -65,12 +65,16 @@ true`; bei `false` bit-identisch zu AKE (eigene Klasse).**
 
 ## Tests
 
-Siehe QA-Nachweis in der Spec (qa-agent). Stand feature-complete: Web-Suite **1262 grün + 1 skip**
-vor dem DI-Test, Service **236 grün**. Neue Tests: `FaHierarchyBomRepositoryTests` (11),
+qa-agent-Lauf 2026-09-08 (Worktree-HEAD `22d31ae`, nach der Final-Review-Fixwelle): `dotnet build
+IdealAkeWms.slnx` → 0 Fehler. `dotnet test IdealAkeWms.Tests` → **1266 erfolgreich, 1 übersprungen
+(vorbestehend), 0 Fehler, gesamt 1267.** `dotnet test IDEALAKEWMSService.Tests` → **236 erfolgreich,
+0 Fehler.** AK 1–16 gegen den echten Diff `25399be..22d31ae` abgeglichen, Guard-Grep
+(`HierarchicalUnavailable`/`HierarchicalBomGuardRepository`) in Quelldateien leer, `publish.zip` in
+keinem Commit dieser Spec. Neue Tests: `FaHierarchyBomRepositoryTests` (11),
 `BomRepositoryMasterSwitchTests` (4), `BomQuantityResolverTests` (2), `HierarchicalModeGateTests` (4),
-`BomDiResolutionTests` (2), Controller-/Builder-/Artikelinfo-/Repository-Tests (je 1–2). Der manuelle
-Rest ist TS-70 am IDEAL-Testsystem (Vollansicht, Kollision, Menü, Klasse-D-Skip im Protokoll) und die
-AKE-Regression auf einer AKE-Instanz.
+`BomDiResolutionTests` (2), Controller-/Builder-/Artikelinfo-/Repository-Tests (je 1–2). Status:
+**Testbereit** — der manuelle Rest ist TS-70 am IDEAL-Testsystem (Vollansicht, Kollision, Menü,
+Klasse-D-Skip im Protokoll, Druck) und die AKE-Regression auf einer AKE-Instanz.
 
 ## Merge-Commit
 
