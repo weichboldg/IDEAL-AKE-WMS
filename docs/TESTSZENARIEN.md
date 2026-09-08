@@ -7077,7 +7077,10 @@ sicherstellen, dass mehrere Sub-FAs derselben `OrderNumber` an einer Werkbank of
 - **TS-68.2 — IDEAL-Grundfall (AK 2/6):** Master `true`, BOM-Knopf an einem materialisierten FA →
   **Hinweisseite** („Die Stückliste wird im hierarchischen Modus über die FA-Struktur angezeigt",
   Zwischenstand, Badge „FA-Struktur") mit funktionierendem Link/Button **zur FA-Struktur** (`/FaHierarchy`).
-  **Kein 500**, keine Exception.
+  **Kein 500**, keine Exception. **Nachtrag UAT-Lauf 1 (U1):** Browser-Konsole ohne App-Fehler (kein
+  `TypeError … addEventListener`); die Kopfzeile nennt die **Sub-FA-Nummer** (bei Sub-FA ≠ HauptFA zusätzlich
+  „| HauptFA <Nr>"); der Knopf „Stückliste drucken" wird auf der Hinweisseite **nicht** angeboten.
+  Negativ (Flachmodus): Kopfzeile unverändert „FA <Nr>" ohne Zusatz, Druck-Knopf vorhanden.
 - **TS-68.3 — Direktaufruf (AK 2):** `/Picking/Bom/<id>` per URL im hierarchischen Modus → gleicher
   Hinweis (belegt, dass der Guard nicht nur an einem ausgeblendeten Knopf hängt).
 - **TS-68.4 — Log-Nachweis (AK 2/3):** im hierarchischen Modus erscheint **keine** SQL-Abfrage gegen
@@ -7163,7 +7166,10 @@ UI-/Bedien-Sichtprüfung am laufenden IDEAL-System (siehe „Kapitel mit besonde
 - **TS-69.15 — Kaskade B: Bestätigungsdialog mit Zahl (AK 12).** Der Dialog nennt die Gesamtzahl der Sub-FAs
   **und separat** die Anzahl **„mit offener Buchung"** (jede nicht beendete, nicht stornierte BDE-Buchung, also
   auch pausierte/auto-pausierte). Vorbedingung: eine offene/pausierte Buchung in der Testumgebung setzen.
-  **Abbruch** im Dialog → keine Buchung, keine Änderung.
+  **Abbruch** im Dialog → keine Buchung, keine Änderung. **Nachtrag UAT-Lauf 1 (U2):** Der Zähler „mit
+  offener Buchung" ist nach dem Laden der Vorschau **immer** sichtbar — bei 0 neutral („Davon 0 mit offener
+  Buchung", `alert-secondary`), bei >0 als Warnung (`alert-warning`). Negativ: schlägt die Vorschau fehl
+  (Gesamtzahl „?"), bleibt der Zähler ausgeblendet; Absenden bleibt möglich (Server ist die Wahrheit).
 - **TS-69.16 — Kaskade C: Atomarität (AK 13).** Simulierter Fehler mitten in der Kaskade (z. B. gesperrter
   Datensatz) → **kein** Sub-FA „halb erledigt": entweder alle betroffenen Zeilen oder keine.
 - **TS-69.17 — Kaskade D: im Log als EINE Kaskade (AK 14).** Ein `ILogger`-Eintrag je Kaskade mit Haupt-FA,

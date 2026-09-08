@@ -69,6 +69,11 @@ public class BomViewModel
 {
     public int ProductionOrderId { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
+    /// <summary>
+    /// Eigene FA-Nummer des Auftrags (Z4-Konvention): im hierarchischen Modus die Sub-FA,
+    /// im Flachmodus identisch mit <see cref="OrderNumber"/>. Null nur bei Alt-Aufrufern.
+    /// </summary>
+    public string? SubOrderNumber { get; set; }
     public string? ArticleNumber { get; set; }
     public string? Description1 { get; set; }
     public List<BomItemViewModel> Items { get; set; } = new();

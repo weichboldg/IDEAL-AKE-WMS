@@ -362,7 +362,10 @@
                             <strong id="cascadeDoneTotal">…</strong> Sub-FA(s) auf <em>BDE fertig</em> gesetzt
                             (alle Nachfahren, unabhängig vom aktuellen Filter).
                         </p>
-                        <div id="cascadeDoneOpenWarning" class="alert alert-warning py-2 mb-2 d-none" role="alert">
+                        @* Zaehler ist immer sichtbar, sobald die Vorschau geladen ist: bei 0 neutral
+                           (alert-secondary), bei >0 als Warnung (alert-warning) — Variante setzt das JS.
+                           Sonst ist an der Abnahme nicht entscheidbar, ob der Zaehler existiert (UAT U2). *@
+                        <div id="cascadeDoneOpenWarning" class="alert py-2 mb-2 d-none" role="status">
                             Davon <strong id="cascadeDoneOpen">0</strong> <span id="cascadeDoneOpenText">mit offener Buchung</span>.
                         </div>
                         <p class="small text-muted mb-0">
@@ -458,10 +461,12 @@
                             .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
                             .then(function (d) {
                                 totalEl.textContent = d.totalSubFas;
-                                if (d.withOpenBooking > 0) {
-                                    openEl.textContent = d.withOpenBooking;
-                                    openWarn.classList.remove('d-none');
-                                }
+                                // Zaehler immer zeigen: 0 → neutral, >0 → Warnung. Farbe ist nie
+                                // alleiniger Bedeutungstraeger, die Zahl steht im Text.
+                                openEl.textContent = d.withOpenBooking;
+                                openWarn.classList.toggle('alert-warning', d.withOpenBooking > 0);
+                                openWarn.classList.toggle('alert-secondary', d.withOpenBooking === 0);
+                                openWarn.classList.remove('d-none');
                                 submitBtn.disabled = false;
                             })
                             .catch(function () {
