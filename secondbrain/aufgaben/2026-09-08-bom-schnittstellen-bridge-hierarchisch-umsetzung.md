@@ -22,9 +22,12 @@ Umsetzung der freigegebenen Spec [[2026-09-08-bom-schnittstellen-bridge-hierarch
 > `22d31ae` (PrintPicking-Scope, deterministischer Kollisions-Tiebreak, Wurzel-Warnung,
 > TS-70.7/Druck-Doku, Hilfe). Version **v1.36.0** (Web + Service), keine Migration. qa-agent-Lauf
 > 2026-09-08: Build 0 Fehler, Web **1266 grün + 1 skip**, Service **236 grün**, AK 1–16 abgeglichen,
-> Guard-Grep leer, `publish.zip` in keinem Commit. Worktree-HEAD `22d31ae`. Ledger
-> `.superpowers/sdd/2026-09-08-bom-bridge/progress.md`. Wartet jetzt mit dem ganzen Buendel auf
-> Schranke 2 (Mensch: Manual-UAT + ein Merge).
+> Guard-Grep leer, `publish.zip` in keinem Commit. Worktree-HEAD `22d31ae`. Der SDD-Ledger
+> (git-ignoriertes Scratch) wurde nach dem Abschluss entfernt — alle Rulings stehen unten, die
+> geparkten Befunde in [[2026-09-08-bom-bridge-nachlese]]. Wartet jetzt mit dem ganzen Buendel auf
+> Schranke 2 (Mensch: Manual-UAT + ein Merge). Im Worktree liegt noch der Git-Stash
+> `task3-partial-429-abbruch` (wertlose Teil-Reste eines am Session-Limit abgebrochenen Laufs) —
+> kann gedroppt werden.
 
 ## Verbindliche Vorgaben aus der Freigabe (Schranke 1)
 
