@@ -1,11 +1,17 @@
 @model BomViewModel
 @{
-    ViewData["Title"] = $"Stückliste - FA {Model.OrderNumber}";
+    ViewData["Title"] = $"Stückliste - FA {Model.SubOrderNumber ?? Model.OrderNumber}";
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
     <h2 class="page-header">
-        Stückliste - FA @Model.OrderNumber
+        Stückliste - FA @(Model.SubOrderNumber ?? Model.OrderNumber)
+        @if (!string.IsNullOrEmpty(Model.SubOrderNumber) && Model.SubOrderNumber != Model.OrderNumber)
+        {
+            @* Z4-Konvention: Sub-FA ist die eigene Nummer, die HauptFA nur als Zusatz. Im Flachmodus
+               sind beide gleich — dann erscheint dieser Zusatz nicht (bit-identisch zu vorher). *@
+            <small class="text-muted">| HauptFA @Model.OrderNumber</small>
+        }
         @if (!string.IsNullOrEmpty(Model.ArticleNumber))
         {
             <small class="text-muted">| @Model.ArticleNumber - @Model.Description1</small>
@@ -27,6 +33,9 @@
             }
         }
     </h2>
+    @* Auf der Guard-Hinweisseite (hierarchischer Modus) gibt es nichts zu drucken. *@
+    @if (Model.DataSource != BomDataSources.HierarchicalUnavailable)
+    {
     <div class="d-flex gap-2 mt-1">
         <button type="button" id="btnPrintBom" class="btn btn-outline-secondary btn-sm" title="Stückliste drucken (aktuelle Filterung/Baumstruktur)">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
@@ -36,6 +45,7 @@
             Stückliste drucken
         </button>
     </div>
+    }
 </div>
 
 @if (Model.DataSource == BomDataSources.HierarchicalUnavailable)
@@ -667,6 +677,12 @@ else
         document.addEventListener('DOMContentLoaded', function () {
             // Read-only-Modus (FA-Abarbeitungsliste): Scanner-/Picking-Handler nicht binden.
             const readOnly = @Json.Serialize(Model.ReadOnly);
+
+            // Guard-Hinweisseite (hierarchischer Modus, DataSource = HierarchicalUnavailable) rendert
+            // weder #bomTable noch die Expand-/Collapse-/Druck-Buttons — die Handler unten liefen
+            // sonst auf null (UAT-Lauf 1, Befund U1). Am DOM geprueft, nicht am Modus: schuetzt jede
+            // Variante ohne Tabelle.
+            if (!document.getElementById('bomTable')) return;
 
             if (!readOnly) {
                 initScanner('btnScanTargetLocation', 'TargetStorageLocationId', 'storageLocation');

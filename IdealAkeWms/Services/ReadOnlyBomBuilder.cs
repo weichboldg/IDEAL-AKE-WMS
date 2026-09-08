@@ -122,6 +122,7 @@ public class ReadOnlyBomBuilder
         {
             ProductionOrderId = productionOrderId,
             OrderNumber = order.OrderNumber,
+            SubOrderNumber = order.SubOrderNumber,
             ArticleNumber = order.ArticleNumber,
             Description1 = order.Description1,
             Items = viewItems,

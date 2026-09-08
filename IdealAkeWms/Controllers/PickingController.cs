@@ -425,6 +425,7 @@ public class PickingController : Controller
         {
             ProductionOrderId = id,
             OrderNumber = order.OrderNumber,
+            SubOrderNumber = order.SubOrderNumber,
             ArticleNumber = order.ArticleNumber,
             Description1 = order.Description1,
             Items = viewItems,

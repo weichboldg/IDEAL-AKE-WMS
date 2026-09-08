@@ -101,6 +101,93 @@ public class PickingControllerTests
         },
     };
 
+    /// <summary>
+    /// Controller fuer die Bom-Action: alle Listen-/Dictionary-Rueckgaben explizit leer gemockt
+    /// (Moq liefert fuer konkrete List/Dictionary sonst null), Benutzer ohne App-Id, alle Toggles aus.
+    /// </summary>
+    private static PickingController SetupForBom(ProductionOrder order, BomQueryResult bomResult)
+    {
+        var orders = new Mock<IProductionOrderRepository>();
+        orders.Setup(r => r.GetByIdAsync(order.Id)).ReturnsAsync(order);
+
+        var bom = new Mock<IBomRepository>();
+        bom.Setup(r => r.GetBomItemsAsync(It.IsAny<string>())).ReturnsAsync(bomResult);
+
+        var picking = new Mock<IPickingRepository>();
+        picking.Setup(r => r.GetByProductionOrderAsync(order.Id)).ReturnsAsync(new List<PickingItem>());
+
+        var stock = new Mock<IStockMovementRepository>();
+        stock.Setup(r => r.GetStockByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>());
+
+        var attrs = new Mock<IArticleAttributeRepository>();
+        attrs.Setup(r => r.GetCategoryNamesByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>());
+
+        var locations = new Mock<IStorageLocationRepository>();
+        locations.Setup(r => r.GetActiveOrderedExcludingPickingTransportAsync()).ReturnsAsync(new List<StorageLocation>());
+        locations.Setup(r => r.GetActivePickingTransportLocationsAsync()).ReturnsAsync(new List<StorageLocation>());
+        locations.Setup(r => r.GetByCodeAsync("NAN")).ReturnsAsync((StorageLocation?)null);
+
+        var current = new Mock<ICurrentUserService>();
+        current.Setup(s => s.GetCurrentAppUserId()).Returns((int?)null);
+        current.Setup(s => s.GetDisplayName()).Returns("t");
+        current.Setup(s => s.GetWindowsUserName()).Returns("t");
+        current.Setup(s => s.CanOrderLagerAsync()).ReturnsAsync(false);
+        current.Setup(s => s.CanOrderGlasAsync()).ReturnsAsync(false);
+
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+
+        var serviceSetting = new Mock<IServiceSettingRepository>();
+        serviceSetting.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+
+        var ctrl = new PickingController(
+            orders.Object,
+            Mock.Of<IProductionOrderPickingStatusRepository>(),
+            current.Object,
+            settings.Object,
+            Mock.Of<IHolidayRepository>(),
+            new BusinessDayService(),
+            bom.Object,
+            picking.Object,
+            stock.Object,
+            locations.Object,
+            Mock.Of<IArticleRepository>(),
+            Mock.Of<IPickingTransferService>(),
+            Mock.Of<IUserRepository>(),
+            Mock.Of<IEnaioDmsDocumentRepository>(),
+            Mock.Of<IPartRequisitionRepository>(),
+            attrs.Object,
+            serviceSetting.Object);
+        ctrl.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        return ctrl;
+    }
+
+    /// <summary>
+    /// UAT-Lauf 1, Befund U1: Die Stuecklisten-Kopfzeile nennt die eigene FA-Nummer (Z4-Konvention).
+    /// Im hierarchischen Modus ist das die Sub-FA — ohne SubOrderNumber im ViewModel zeigte die
+    /// Guard-Hinweisseite die HauptFA. Flachmodus: SubOrderNumber == OrderNumber (View ohne Zusatz).
+    /// </summary>
+    [Theory]
+    [InlineData("1035235", "1043421")] // hierarchisch: Sub-FA != HauptFA
+    [InlineData("4711", "4711")]       // flach: Backfill-Invariante SubOrderNumber == OrderNumber
+    public async Task Bom_ViewModel_CarriesSubOrderNumber(string orderNumber, string subOrderNumber)
+    {
+        var order = OrderH(orderNumber, subOrderNumber);
+        order.Id = 101;
+        order.ArticleNumber = "50001929";
+        var ctrl = SetupForBom(order,
+            new BomQueryResult(new List<BomItem>(), BomDataSources.HierarchicalUnavailable));
+
+        var result = await ctrl.Bom(101, null);
+
+        var vm = result.Should().BeOfType<ViewResult>().Which.Model.Should().BeOfType<BomViewModel>().Subject;
+        vm.OrderNumber.Should().Be(orderNumber);
+        vm.SubOrderNumber.Should().Be(subOrderNumber);
+        vm.DataSource.Should().Be(BomDataSources.HierarchicalUnavailable);
+    }
+
     [Fact]
     public async Task Index_Hierarchical_GroupsByHauptFa_MostUrgentFirst_WithZ4Counts()
     {
