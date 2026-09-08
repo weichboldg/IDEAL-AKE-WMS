@@ -68,3 +68,9 @@ Buendel-Merge, aus `main`.
 [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-umsetzung]],
 [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]],
 [[2026-09-08-ideal-code-review-nachlese]] (Vorlaeufer-Liste des Buendels).
+
+## E — Nachtrag aus dem Re-Review der Fixwelle (2026-09-08)
+
+20. **Rest-Tiebreak:** zwei Geschwister mit gleicher Position, gleichem `SubFA` (z. B. 0) UND gleichem `Artnr` erhalten ihr `~2` weiterhin nach Eingangsreihenfolge; `.ThenBy(n => n.Sollmenge)` wuerde das schliessen, falls IDEAL-Daten den Fall zeigen.
+21. **Log-Volumen:** Kollisions- und Zweite-Wurzel-Warnungen feuern je Render (BOM-Ansicht, Druck), nicht einmal je Sync — bei dauerhaft fehlerhaften HauptFAs viele gleiche Zeilen im Serilog. Fallstrick-Kandidat, kein Code-Bug.
+22. `PrintPicking` matcht je gepicktem Item per `FirstOrDefault` ueber die Vollstruktur (O(n·m)); bei realen Listengroessen harmlos.
