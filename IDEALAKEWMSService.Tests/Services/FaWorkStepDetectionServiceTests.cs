@@ -3,6 +3,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
+using IDEALAKEWMSService.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -11,7 +12,7 @@ namespace IDEALAKEWMSService.Tests.Services;
 public class FaWorkStepDetectionServiceTests
 {
     private static FaWorkStepDetectionService CreateService(ApplicationDbContext ctx, FakeSyncLogger? syncLogger = null)
-        => new(ctx, NullLogger<FaWorkStepDetectionService>.Instance, syncLogger ?? new FakeSyncLogger());
+        => new(ctx, new StubHierarchicalModeReader(false), NullLogger<FaWorkStepDetectionService>.Instance, syncLogger ?? new FakeSyncLogger());
 
     private static WorkStep NewWorkStep(string code, string? searchString, bool isActive = true) => new()
     {

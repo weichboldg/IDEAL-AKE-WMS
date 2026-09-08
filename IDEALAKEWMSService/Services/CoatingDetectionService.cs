@@ -14,15 +14,18 @@ namespace IDEALAKEWMSService.Services;
 public class CoatingDetectionService : ICoatingDetectionService
 {
     private readonly IConfiguration _configuration;
+    private readonly IHierarchicalModeReader _hierarchicalMode;
     private readonly ILogger<CoatingDetectionService> _logger;
     private readonly ISyncLogger _syncLogger;
 
     public CoatingDetectionService(
         IConfiguration configuration,
+        IHierarchicalModeReader hierarchicalMode,
         ILogger<CoatingDetectionService> logger,
         ISyncLogger syncLogger)
     {
         _configuration = configuration;
+        _hierarchicalMode = hierarchicalMode;
         _logger = logger;
         _syncLogger = syncLogger;
     }
@@ -33,6 +36,15 @@ public class CoatingDetectionService : ICoatingDetectionService
         CancellationToken ct)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.CoatingDetection, ct);
+
+        if (await _hierarchicalMode.IsHierarchicalAsync(ct))
+        {
+            _logger.LogInformation("CoatingDetection: uebersprungen — hierarchischer Modus (BOM-Bridge, Klasse-D-Gate).");
+            await run.FinishSuccessAsync(new Dictionary<string, int> { ["uebersprungen_hierarchisch"] = 1 },
+                messageSuffix: "[hierarchischer Modus: uebersprungen]", ct: ct);
+            return new SyncResult(0, 0, 0);
+        }
+
         int updatedTrue = 0, updatedFalse = 0;
 
         try

@@ -1,6 +1,7 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
+using IDEALAKEWMSService.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -16,15 +17,18 @@ namespace IDEALAKEWMSService.Services;
 public class FaWorkStepDetectionService : IFaWorkStepDetectionService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IHierarchicalModeReader _hierarchicalMode;
     private readonly ILogger<FaWorkStepDetectionService> _logger;
     private readonly ISyncLogger _syncLogger;
 
     public FaWorkStepDetectionService(
         ApplicationDbContext db,
+        IHierarchicalModeReader hierarchicalMode,
         ILogger<FaWorkStepDetectionService> logger,
         ISyncLogger syncLogger)
     {
         _db = db;
+        _hierarchicalMode = hierarchicalMode;
         _logger = logger;
         _syncLogger = syncLogger;
     }
@@ -32,6 +36,15 @@ public class FaWorkStepDetectionService : IFaWorkStepDetectionService
     public async Task<SyncResult> DetectAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.FaWorkStepDetection, ct);
+
+        if (await _hierarchicalMode.IsHierarchicalAsync(ct))
+        {
+            _logger.LogInformation("FaWorkStepDetection: uebersprungen — hierarchischer Modus (BOM-Bridge, Klasse-D-Gate).");
+            await run.FinishSuccessAsync(new Dictionary<string, int> { ["uebersprungen_hierarchisch"] = 1 },
+                messageSuffix: "[hierarchischer Modus: uebersprungen]", ct: ct);
+            return new SyncResult(0, 0, 0);
+        }
+
         try
         {
             var steps = await _db.WorkSteps

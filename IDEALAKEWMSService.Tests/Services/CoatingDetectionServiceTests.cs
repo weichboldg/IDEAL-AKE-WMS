@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
+using IDEALAKEWMSService.Tests.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -17,7 +18,7 @@ public class CoatingDetectionServiceTests
     {
         var cfg = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>()).Build();
-        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance, new FakeSyncLogger());
+        var svc = new CoatingDetectionService(cfg, new StubHierarchicalModeReader(false), NullLogger<CoatingDetectionService>.Instance, new FakeSyncLogger());
         svc.Should().NotBeNull();
     }
 
@@ -28,7 +29,7 @@ public class CoatingDetectionServiceTests
         // Since ISyncLogger integration re-throws, the exception propagates
         var cfg = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>()).Build();
-        var svc = new CoatingDetectionService(cfg, NullLogger<CoatingDetectionService>.Instance, new FakeSyncLogger());
+        var svc = new CoatingDetectionService(cfg, new StubHierarchicalModeReader(false), NullLogger<CoatingDetectionService>.Instance, new FakeSyncLogger());
 
         var act = () => svc.DetectAndUpdateCoatingFlagsAsync(
             dryRun: false, specificOrderIds: null, CancellationToken.None);
