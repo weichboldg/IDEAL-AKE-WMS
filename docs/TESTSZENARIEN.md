@@ -7331,5 +7331,189 @@ laufenden IDEAL-System.
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0)*
+## TS-71 — IDEAL: Materialisierung: Fachliche Felder (K1/K2) (v1.37.0)
+
+**Bezug:** Spec `2026-08-20-materialisierung-fachliche-felder-spec`, Plan
+`2026-09-09-materialisierung-fachliche-felder`. Löst den UAT-Befund „PickingStatus-Zeile fehlt" ab
+(TS-71.12).
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels):**
+- Master **`ProduktionsauftragHierarchisch = true`**.
+- Service-Einstellung **`Sync:ProductionOrdersEnabled = false`** (der AKE-Auftrags-Abgleich aus
+  SAGE ist **ausgeschaltet**, damit dieser Sync nicht parallel in dieselben Sub-FA-Zeilen schreibt
+  und die Ergebnisse verfälscht).
+- Für **alle** in der Test-Struktur vorkommenden Arbeitsbereiche ist vorab je eine
+  `ProductionWorkplace`-Stammdatenzeile mit demselben Namen angelegt — außer dort, wo ein Szenario
+  ausdrücklich den unbekannten oder mehrdeutigen Fall prüft (TS-71.8, TS-71.9).
+- Ein Haupt-FA mit **Kombigerät** (mehrere `FaHierarchyOrderInfo`-Zeilen zur selben
+  Haupt-FA-Nummer, z. B. unterschiedliche Montage-Abteilungen) ist in der Testumgebung benannt und
+  bekannt.
+
+**Automatisiert abgedeckt:** `FaMaterializationSyncServiceTests` (Eager-Create der Statuszeilen,
+Anlege- **und** Update-Pfad, DryRun), `FaMaterializationCoatingTests` (reine Lack-Ableitung „selbst
+oder direktes Kind"), `FaMaterializationCoatingWriteTests` (Schreibpfad `HasCoatingParts` inkl.
+`IsCoatingDone`-Reset), `FaMaterializationWorkplaceTests` (Zuweisung/Abweichung/unbekannt/mehrdeutig,
+case-insensitiv + getrimmt), `FaMaterializationPlannerTests` (erweiterter Quell-Record),
+`FaHierarchySyncServiceTests` (Kombigerät-Erkennung, einmal je Lauf), `FaHierarchyOrderInfoRepositoryTests`
+(`GetByHauptFaKeysAsync`), `ProductionOrderRepositoryTests` (Kunde-Freitext- und Spaltenfilter über
+den Auftragskopf, Flachmodus-Gegentest), `ProductionOrdersControllerTests` (K1 im ViewModel,
+Kombigerät-Verhalten, Termin-Kaskade auf den Gruppenwert, Beschichtungstermin). Der manuelle Rest
+ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-Workflow im Leitstand
+(TS-71.12).
+
+- **TS-71.1 — K1 in der Kopfzeile, nicht auf den Zeilen dupliziert.**
+  Vorbedingung: ein **eindeutiger** Haupt-FA (genau eine `FaHierarchyOrderInfo`-Zeile) mit gesetztem
+  Kunde, Konstruktions-Termin, Fertigungstermin, Liefertermin, Priorität, AB-Nummer und
+  Montage-Abteilung.
+  Schritte: FA-Liste öffnen, die Gruppen-Kopfzeile dieses Haupt-FA betrachten.
+  Erwartung: die Kopfzeile zeigt alle sieben K1-Werte als Abzeichen hinter dem Sub-FA-Zähler; auf
+  den einzelnen Sub-FA-Zeilen erscheinen diese Werte **nicht** dupliziert (keine eigene Spalte).
+  Negativfall a (**Hauptauftrag ohne Kopfzeile**): ein Haupt-FA ganz ohne
+  `FaHierarchyOrderInfo`-Zeile → die Kopfzeile zeigt keines der K1-Abzeichen, Gruppe und Sub-FAs
+  bleiben aber normal sichtbar und bedienbar (kein Fehler, keine leere Seite).
+  Negativfall b (**Fertigungs- oder Konstruktions-Termin leer**): `FE_Termin` oder `KO_Termin` ist
+  am ansonsten eindeutigen Kopf `NULL` → nur das betroffene Abzeichen fehlt, die übrigen K1-Werte
+  erscheinen normal; kein Platzhalterdatum (z. B. `01.01.0001`).
+
+- **TS-71.2 — Kombigerät: alle Varianten + Kennzeichen, keine Einzelwerte.**
+  Vorbedingung: der benannte Kombigerät-Haupt-FA (mindestens zwei `FaHierarchyOrderInfo`-Zeilen mit
+  unterschiedlicher Montage-Abteilung bzw. Terminen).
+  Schritte: FA-Liste öffnen, Gruppen-Kopfzeile des Kombigeräts betrachten.
+  Erwartung: statt der K1-Abzeichen erscheint das Kennzeichen „mehrdeutig (Kombigerät)"; direkt
+  darunter eine eigene Tabelle mit **allen** Kopfvarianten im Klartext (Montage-Abt., Kunde,
+  KO-Termin, FE-Termin, Liefertermin, Prio, AB-Nr.) — Zeilenzahl = Anzahl Auftragsköpfe.
+  Negativfall: keiner der Einzelwerte (Kunde, Termine, Prio, AB-Nr.) der Gruppe selbst ist gefüllt —
+  weder Anzeige noch Termin-Kaskade noch Beschichtungstermin wählen still eine der Varianten aus.
+
+- **TS-71.3 — Termin-Kaskade auf den Gruppenwert; DB-Spalten bleiben leer.**
+  Vorbedingung: eindeutiger Haupt-FA, zwei Sub-FAs mit unterschiedlichem Werkbank-Override für die
+  Vorlaufzeit, Fertigungstermin am Kopf gesetzt, `ProductionOrder.ProductionDate` in der DB `NULL`.
+  Schritte: FA-Liste öffnen; Kommissionier- und Vorkommissioniertermin beider Sub-FAs vergleichen;
+  anschließend die DB-Spalte direkt prüfen.
+  Erwartung: beide Sub-FAs zeigen denselben Fertigungstermin (aus dem Kopf), aber je nach
+  Werkbank-Override **unterschiedliche** berechnete Termine (BG-/Vorkommissioniertermin); die
+  DB-Spalte `ProductionOrder.ProductionDate` bleibt dabei `NULL`.
+  Negativfall: fehlt der Kopf-Termin (`FE_Termin` `NULL`), fällt die Kaskade auf die — leere —
+  DB-Zeile zurück: kein Termin, kein Fehler.
+
+- **TS-71.4 — Kunde-Freitextfilter findet über den Auftragskopf.**
+  Vorbedingung: ein Sub-FA ohne eigenen `Customer`-Wert, der Kunde ist nur am Kopf gesetzt.
+  Schritte: Filterkarte → Freitextfeld „Kunde" mit einem Teilstring des Kopf-Kunden füllen.
+  Erwartung: die Zeile/Gruppe wird gefunden.
+  Negativfall: derselbe Filter mit einem Wert, der weder am Kopf noch auf der Zeile vorkommt →
+  keine Treffer, keine falsch-positiven Gruppen.
+
+- **TS-71.5 — Kunde-Spaltenfilter findet (auch im Leitstand).**
+  Vorbedingung: wie TS-71.4.
+  Schritte: Spaltenfilter „Kunde" sowohl in der FA-Liste als auch im Kommissionier-Leitstand mit
+  demselben Teilstring füllen; anschließend mit Negation (`!Teilstring`) wiederholen.
+  Erwartung: in beiden Ansichten wird die Zeile gefunden; die Negation blendet sie in beiden korrekt
+  aus.
+  Negativfall: Master `false` (AKE) — derselbe Spaltenfilter arbeitet unverändert nur gegen
+  `ProductionOrder.Customer` (siehe TS-71.13).
+
+- **TS-71.6 — Werkbank wird aus dem Arbeitsbereich gesetzt.**
+  Vorbedingung: ein Sub-FA ohne Werkbank, dessen Arbeitsbereich in der Struktur exakt dem Namen
+  einer vorhandenen Werkbank entspricht (einmal exakt, einmal mit Groß-/Kleinschreibung und
+  Leerzeichen abweichend, z. B. `" s-01 "` gegen `"S-01"`).
+  Schritte: einen Materialisierungs-Sync-Lauf abwarten bzw. auslösen.
+  Erwartung: `ProductionOrder.ProductionWorkplaceId` zeigt danach in beiden Fällen die passende
+  Werkbank; im Aktivitäts-Protokoll ist der Zähler „werkbank_gesetzt" entsprechend erhöht.
+  Negativfall: derselbe Lauf mit DryRun → die Werkbank bleibt unverändert, es wird nichts
+  geschrieben.
+
+- **TS-71.7 — Abweichung wird überschrieben und gemeldet.**
+  Vorbedingung: ein Sub-FA trägt bereits eine andere Werkbank (z. B. von Hand gesetzt); der
+  Arbeitsbereich der Struktur zeigt auf eine andere, vorhandene Werkbank.
+  Schritte: Sync laufen lassen; Aktivitäts-Protokoll prüfen.
+  Erwartung: die Werkbank wird auf den Struktur-Wert überschrieben (Sage ist führend); im Protokoll
+  erscheint die Meldung „Werkbank weicht vom Quellwert ab" — **nicht** die Behauptung, jemand habe
+  manuell zugewiesen; der Zähler „werkbank_abweichend" erhöht sich.
+  Negativfall: ein zweiter Lauf direkt danach mit unverändertem Arbeitsbereich → keine erneute
+  Abweichungsmeldung (der Wert stimmt jetzt bereits überein).
+
+- **TS-71.8 — Unbekannter Arbeitsbereich meldet, ohne zuzuweisen.**
+  Vorbedingung: ein Sub-FA mit einem Arbeitsbereich, zu dem **keine** Werkbank-Stammdatenzeile
+  existiert.
+  Schritte: Sync laufen lassen; Aktivitäts-Protokoll prüfen; danach die fehlende Werkbank anlegen
+  und einen weiteren Lauf abwarten.
+  Erwartung: `ProductionOrder.ProductionWorkplaceId` bleibt `NULL` bzw. unverändert; im Protokoll
+  erscheint „Unbekannte Arbeitsbereiche ohne Werkbank-Stammsatz" mit dem Namen, Zähler
+  „arbeitsbereich_unbekannt" erhöht; nach dem Anlegen der Werkbank füllt der **nächste** Lauf das
+  Feld automatisch.
+  Negativfall: zwei aufeinanderfolgende Läufe mit identischer Menge unbekannter Namen → nur beim
+  ersten Mal geht ggf. eine Sammel-Mail raus (Digest nur bei Änderung der Menge, nicht bei jedem
+  Lauf).
+
+- **TS-71.9 — Zwei Werkbänke mit gleichem Namen weisen nicht zu.**
+  Vorbedingung: zwei `ProductionWorkplace`-Stammsätze mit identischem Namen (case-insensitiv/
+  getrimmt gleich); der Arbeitsbereich der Struktur zeigt auf diesen Namen.
+  Schritte: Sync laufen lassen; Aktivitäts-Protokoll prüfen.
+  Erwartung: **keine** Zuweisung, ein bereits vorhandener Bestandswert bleibt unangetastet; im
+  Protokoll erscheint „Arbeitsbereich-Name mehrfach in den Werkbank-Stammdaten", Zähler
+  „arbeitsbereich_mehrdeutig" erhöht.
+  Negativfall: einen der beiden Namen umbenennen → der nächste Lauf weist zu wie in TS-71.6 (kein
+  „erster Treffer gewinnt" in der Zwischenzeit).
+
+- **TS-71.10 — Lack-Kennzeichen aus der Struktur; Kippen auf „nicht gesetzt" setzt „Lackierung
+  fertig" zurück.**
+  Vorbedingung: ein Sub-FA, dessen direktes Kind in der Struktur als beschichtet markiert ist; die
+  zugehörige `ProductionOrderPickingStatus`-Zeile steht vorab auf `HasCoatingParts = true` **und**
+  `IsCoatingDone = true` (in der Testumgebung von Hand gesetzt, um den Reset zu prüfen).
+  Schritte: die Struktur so ändern, dass weder der Sub-FA selbst noch ein **direktes** Kind
+  beschichtet ist; Sync laufen lassen.
+  Erwartung: `HasCoatingParts` kippt auf `false`, **und** `IsCoatingDone` wird ebenfalls auf `false`
+  zurückgesetzt (nicht nur `HasCoatingParts`); Zähler „lackflag_gesetzt" zählt nur die im Lauf aktiv
+  auf `true` gesetzten Zeilen.
+  Negativfall: nur ein **Enkelkind** (nicht direktes Kind) ist beschichtet → `HasCoatingParts` bleibt
+  für den Sub-FA `false` (Enkel zählen bewusst nicht).
+
+- **TS-71.11 — Beschichtungstermin nur bei eindeutigem Kopf und gesetztem Lack-Flag.**
+  Vorbedingung: eindeutiger Haupt-FA, ein Sub-FA mit `HasCoatingParts = true`, Beschichtungstermin
+  (Start_Beschichtung) am Kopf gesetzt.
+  Schritte: FA-Liste öffnen, Beschichtungstermin der betroffenen Zeile sowie einer Zeile ohne
+  Lack-Flag prüfen.
+  Erwartung: nur die Zeile mit `HasCoatingParts = true` zeigt den Termin aus Start_Beschichtung;
+  Zeilen ohne Lack-Flag zeigen keinen.
+  Negativfall a (**Kombigerät**): derselbe Aufbau am Kombigerät-Haupt-FA aus den
+  Pflicht-Vorbedingungen → auf **keiner** Zeile erscheint ein Beschichtungstermin, auch nicht auf
+  einer Zeile mit `HasCoatingParts = true`.
+  Negativfall b (**kritisch, im Review gefunden**): eindeutiger Kopf, Fertigungstermin (`FE_Termin`)
+  **gesetzt**, Beschichtungstermin (Start_Beschichtung) **leer** → auf der Zeile mit
+  `HasCoatingParts = true` darf **kein** Beschichtungstermin erscheinen — insbesondere **nicht** der
+  Fertigungstermin oder ein anderweitig geschätzter Ersatztermin. Dieser Fall ist eigens zu prüfen,
+  weil er im Code-Review als möglicher Fehler identifiziert wurde: ein leerer Beschichtungstermin
+  darf nie stillschweigend durch einen anderen Termin ersetzt werden.
+
+- **TS-71.12 — Statuszeilen (UAT-Befund): Freigabe im Leitstand funktioniert.**
+  Vorbedingung: (a) ein **frisch materialisierter** Sub-FA (neu in der Struktur, noch nie zuvor
+  gesynct) und (b) ein **Bestands-Sub-FA**, dem — wie im gemeldeten Fehler — die
+  `ProductionOrderPickingStatus`- und `ProductionOrderBdeStatus`-Zeile fehlt (in der Testumgebung
+  durch Löschen der beiden Zeilen simuliert, danach einen Sync-Lauf abwarten).
+  Schritte: beide Sub-FAs im Kommissionier-Leitstand einzeln freigeben; Priorität setzen;
+  Kommissionierer zuweisen; danach eine Massenfreigabe über mehrere Sub-FAs inklusive dieser beiden
+  auslösen.
+  Erwartung: beide Sub-FAs lassen sich freigeben — **keine** Fehlermeldung „PickingStatus-Zeile
+  fehlt" mehr; Priorität und Picker-Zuweisung werden gespeichert und angezeigt; die Massenfreigabe
+  zählt **alle** markierten Sub-FAs mit, einschließlich der beiden geprüften.
+  Negativfall: taucht nach einem Sync-Lauf weiterhin ein Sub-FA ohne eine der beiden Statuszeilen
+  auf, ist das ein Rückfall des Fixes und sofort zu melden — dieser Zustand darf in der
+  Testumgebung nach TS-71.12 nicht mehr vorkommen.
+
+- **TS-71.13 — AKE-Regression bei Master `false`.**
+  Vorbedingung: Master `ProduktionsauftragHierarchisch = false` (AKE) bzw. ein AKE-Auftrag.
+  Schritte: FA-Liste öffnen; Kunde-Filter (Freitext und Spalte) verwenden; Werkbank- und
+  Lack-T-Anzeige prüfen; einen regulären AKE-Sync-Lauf abwarten.
+  Erwartung: keine K1-Daten in der Gruppen-Kopfzeile sichtbar (keine Gruppierung überhaupt);
+  unveränderte Werkbank-Herkunft (weiterhin aus OSEON, nicht aus der Struktur) und unveränderte
+  Lack-T-Heuristik (Artikelkategorie-Schätzung); der Kunde-Filter arbeitet ausschließlich gegen
+  `ProductionOrder.Customer` wie vor v1.37.0.
+  Negativfall: keiner der neuen Zähler (`statuszeilen_ergaenzt`, `werkbank_gesetzt`,
+  `werkbank_abweichend`, `arbeitsbereich_unbekannt`, `arbeitsbereich_mehrdeutig`,
+  `lackflag_gesetzt`, `hauptfa_mehrdeutig`) verändert sich bei einem reinen AKE-Lauf — das
+  Master-Gate greift vollständig.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

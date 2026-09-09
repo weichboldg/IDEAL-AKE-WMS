@@ -348,6 +348,48 @@
                         Hinweis: bei ausgeblendeter Spalte ist auch deren Filterzelle versteckt
                         &mdash; ein per URL geteilter Spaltenfilter filtert dann unsichtbar.</dd>
 
+                    <dt>IDEAL: Auftragsdaten in der Gruppen-Kopfzeile (seit v1.37.0)</dt>
+                    <dd>
+                        Am Standort IDEAL (hierarchische Auftraege) zeigt die Gruppen-Kopfzeile je
+                        Haupt-FA zusaetzlich <strong>Kunde, Konstruktions-Termin, Fertigungstermin,
+                        Liefertermin, Prioritaet, AB-Nummer</strong> und
+                        <strong>Montage-Abteilung</strong> &mdash; als Abzeichen direkt hinter dem
+                        Sub-FA-Zaehler. Diese Felder kommen aus dem Sage-Auftragskopf und werden
+                        <strong>nicht</strong> auf den Zeilen gespeichert, sondern nur beim Anzeigen
+                        aus dem Auftragskopf gelesen.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Kombigeraete:</strong> Hat ein Haupt-FA mehrere
+                                Auftragskoepfe (z.&nbsp;B. unterschiedliche Montage-Abteilungen),
+                                zeigt die Kopfzeile statt der Abzeichen den Hinweis
+                                &bdquo;mehrdeutig (Kombigeraet)&ldquo; und darunter eine kleine
+                                Tabelle mit <strong>allen</strong> Varianten im Klartext. Es wird
+                                bewusst <strong>keine</strong> Variante ausgewaehlt, weder fuer die
+                                Anzeige noch fuer die Termin-Berechnung &mdash; die Varianten koennen
+                                unterschiedliche Termine und Beschichter tragen.</li>
+                            <li><strong>Werkbank aus Sage:</strong> Die Werkbank wird am Standort
+                                IDEAL automatisch aus dem Arbeitsbereich der FA-Struktur uebernommen.
+                                Eine von Hand gesetzte Werkbank wird beim naechsten Strukturabgleich
+                                (spaetestens nach 15 Minuten) wieder <strong>ueberschrieben</strong>
+                                &mdash; das ist so gewollt, Sage ist fuehrend. Ist zu einem
+                                Arbeitsbereich noch keine Werkbank angelegt, bleibt das Feld leer und
+                                der Abgleich meldet den unbekannten Arbeitsbereich im
+                                Aktivitaets-Protokoll &mdash; die Werkbank muss dann einmalig unter
+                                Stammdaten angelegt werden, danach fuellt sie der naechste Lauf.</li>
+                            <li><strong>Lack-T aus der Struktur:</strong> Am Standort IDEAL kommt das
+                                Lackier-Kennzeichen (Spalte &bdquo;Lack-T&ldquo;) aus der FA-Struktur
+                                (Beschichtet-Kennzeichen des Sub-FA oder eines direkten Kindes) statt
+                                aus der Artikelkategorie-Schaetzung. Der Beschichtungstermin kommt aus
+                                dem Auftragskopf (Start_Beschichtung); ist dort keiner hinterlegt,
+                                bleibt das Feld <strong>leer</strong> statt einen Termin zu schaetzen.
+                                Bei Kombigeraeten erscheint auf keiner Zeile ein
+                                Beschichtungstermin.</li>
+                            <li><strong>Kundensuche repariert:</strong> Die Kundensuche (Freitext und
+                                Spaltenfilter) findet am Standort IDEAL jetzt auch dann, wenn der
+                                Kunde nur am Auftragskopf steht und nicht auf der Sub-FA-Zeile.</li>
+                        </ul>
+                        Am Standort AKE aendert sich durch diese Erweiterung nichts.
+                    </dd>
+
                     <dt>FA-Vervollstaendigung (seit v1.13.0, umgebaut in v1.22.0)</dt>
                     <dd>
                         Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; pflegen pro Fertigungsauftrag
