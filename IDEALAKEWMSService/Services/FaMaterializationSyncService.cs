@@ -138,8 +138,13 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
 
             var now = DateTime.Now;
             var srcByKey = source.ToDictionary(s => s.SubOrderNumber, StringComparer.Ordinal);
+            // Wie "source": nur Nicht-Blatt-Knoten (SubFA != 0). Blaetter tragen alle denselben
+            // Schluessel "0" — ohne diesen Filter wuerde TryAdd einen beliebigen davon gewinnen
+            // lassen. Heute folgenlos (Zugriffe zusaetzlich ueber srcByKey abgesichert), aber eine
+            // Falle fuer spaeter (Review-Nachzug Task 2). Die Lack-Ableitung selbst braucht weiterhin
+            // ALLE Knoten inkl. Blaetter (siehe FaMaterializationCoating.Derive oben).
             var nodeByKey = new Dictionary<string, FaHierarchyNode>(StringComparer.Ordinal);
-            foreach (var n in nodes) nodeByKey.TryAdd(n.SubFA.ToString(), n);
+            foreach (var n in nodes.Where(n => n.SubFA != 0)) nodeByKey.TryAdd(n.SubFA.ToString(), n);
             var conflictKeys = plan.ReparentConflicts.Select(c => c.SubOrderNumber).ToHashSet(StringComparer.Ordinal);
             var toClear = plan.ToClearMissing.ToHashSet(StringComparer.Ordinal);
             var toMark = plan.ToMarkMissing.ToHashSet(StringComparer.Ordinal);
