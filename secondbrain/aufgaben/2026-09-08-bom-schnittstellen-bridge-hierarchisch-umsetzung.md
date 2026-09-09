@@ -25,9 +25,10 @@ Umsetzung der freigegebenen Spec [[2026-09-08-bom-schnittstellen-bridge-hierarch
 > Guard-Grep leer, `publish.zip` in keinem Commit. Worktree-HEAD `22d31ae`. Der SDD-Ledger
 > (git-ignoriertes Scratch) wurde nach dem Abschluss entfernt — alle Rulings stehen unten, die
 > geparkten Befunde in [[2026-09-08-bom-bridge-nachlese]]. Wartet jetzt mit dem ganzen Buendel auf
-> Schranke 2 (Mensch: Manual-UAT + ein Merge). Im Worktree liegt noch der Git-Stash
-> `task3-partial-429-abbruch` (wertlose Teil-Reste eines am Session-Limit abgebrochenen Laufs) —
-> kann gedroppt werden.
+> Schranke 2 (Mensch: Manual-UAT + ein Merge). Der Git-Stash `task3-partial-429-abbruch` ist
+> **2026-09-09 auf Freigabe des Menschen gedroppt** (`58bb796`, Teil-Reste eines am Session-Limit
+> abgebrochenen Laufs; Task 3 ist neu gebaut, review- und QA-geprueft). Ebenfalls 2026-09-09:
+> `publish.zip` geloescht und `*.zip` ignoriert (Worktree-Commit `91d8d3e`, kein History-Rewrite).
 
 ## Verbindliche Vorgaben aus der Freigabe (Schranke 1)
 

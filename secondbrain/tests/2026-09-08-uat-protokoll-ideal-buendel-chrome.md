@@ -140,13 +140,38 @@ Fehlt ein Platzhalter, den ein Test braucht → Test als **BLOCKED** eintragen, 
 2. Setze zusaetzlich das **Hervorheben**-Feld → Hervorhebung wirkt nur innerhalb der gefilterten Zeilen;
    Beschriftungen machen beide Mechanismen unterscheidbar („Hervorheben" blendet nichts aus).
 
-### B-6 Spaltenauswahl (TS-62.12–.15)
+### B-6 Spaltenauswahl (TS-62.12–.15) — FUNKTIONALER TEST, nicht nur Sichtpruefung
+**Warum verschaerft (Lauf 1):** Der Speicher-`PUT` auf `/api/user-view-preferences/{viewKey}` kam
+mit **HTTP 503** zurueck, der Wert war aber danach da. Ein 503 auf diesem Endpunkt heisst im Betrieb
+nicht „Serverfehler", sondern **„meine Einstellungen gehen verloren"**: das Zahnrad, Breiten,
+Reihenfolge und die Standard-Sortierung sehen funktionsfaehig aus und sind beim naechsten
+Seitenaufruf weg. Deshalb wird hier die **Persistenz** geprueft, nicht die Optik — und jeder 503 ist
+ein FAIL, auch wenn der Wert diesmal ankam.
 1. Oeffne das Zahnrad → Offcanvas. Blende eine nicht-gesperrte Spalte aus, schliesse, lade die Seite
    neu → bleibt ausgeblendet (Persistenz).
 2. Struktur- und Matchcode-Spalte lassen sich **nicht** ausblenden (locked).
 3. Kein Spaltenkopf ist sortierbar (kein `data-sortable`), Zahnrad bietet **keine**
    „Standard-Sortierung" (TS-62.11).
-4. Spalte wieder einblenden (Aufraeumen).
+4. **Netzwerk mitlesen** (`read_network_requests`, Filter `user-view-preferences`) waehrend Schritt 1
+   und 5. Erwartet: **jeder** `PUT` → `200`. Jeder andere Status = FAIL, Status + Uhrzeit notieren.
+   Das Speichern ist um 1,5 s entprellt — nach der letzten Aenderung 3 s warten, sonst wird der
+   `PUT` gar nicht erst gesendet und „kein 503" waere ein Fehlschluss.
+5. **Zweite Aenderungsart** zusaetzlich pruefen, weil sie ueber denselben Endpunkt laeuft: eine
+   Spalte per Ziehen schmaler machen **und** (wo angeboten) „Standard-Sortierung speichern".
+   Danach neu laden → Breite und Sortierung muessen erhalten sein.
+6. **Zwei-Tab-Gegenprobe** (deckt eine vermutete Ursache ab, siehe unten): dieselbe Liste in zwei
+   Tabs oeffnen, in beiden **kurz nacheinander** eine Spalte umschalten, beide neu laden.
+   Erwartet: beide Aenderungen ueberleben, kein `500`/`503`. Tritt hier ein Fehler auf, ist die
+   Ursache ein Wettlauf zweier gleichzeitiger Speicher-Aufrufe, kein IIS-Problem.
+7. Spalte wieder einblenden (Aufraeumen).
+
+**Bei Fehlschlag: diese drei Belege sichern** (sie entscheiden, ob der Fehler aus der Anwendung oder
+aus IIS kommt — im Anwendungscode gibt es kein 503, siehe Analyse unten):
+- Serilog-Zeile des Requests (`logs/`): Steht der `PUT` mit Status 503 drin, hat die Anwendung
+  geantwortet. Fehlt der Request ganz, hat IIS vor der Anwendung abgewiesen.
+- IIS-Logzeile (`sc-status` **und** `sc-substatus`) zur selben Uhrzeit.
+- Windows-Ereignisanzeige, Quelle `IIS-W3SVC-WP` / `ASP.NET Core Module`: Recycling oder
+  Rapid-Fail-Protection des App-Pools im selben Zeitfenster?
 
 ### B-7 Schmaler Bildschirm (TS-62.5)
 1. `resize_window` auf 900×800. Erwartet: hintere Spalten ausgeblendet, Tabelle horizontal scrollbar,
@@ -423,8 +448,28 @@ Hinweis „FA-Struktur".
 
 ## L. BOM-Bridge (v1.36.0, TS-70) — ersetzt Block H (Guard) im Nachlauf
 
-Vorbedingung: Buendel-Stand >= `8d9468d` deployt (v1.36.0 im Changelog, A-1 erneut pruefen). Block H
+Vorbedingung: Buendel-Stand >= `22d31ae` deployt (v1.36.0 im Changelog, A-1 erneut pruefen). Block H
 gilt dann nicht mehr — die Hinweisseite existiert nicht mehr.
+
+### L-0 ZUERST — Vorbau-/Vervollstaendigungs-BOM einer HauptFA zeigt die Vollstruktur (Ruling 4) — READ-ONLY, mit Ausdruck
+**Warum zuerst:** Das einzige Ruling mit Folgen in der Halle. Die Scope-Regel „HauptFA → komplette
+Struktur" wurde bewusst auch auf die read-only Stueckliste (FA-Abarbeitungsliste/FA-Vervollstaendigung)
+und auf `PrintBom`/`PrintPicking` ausgedehnt. Wer dort fuer eine HauptFA Material holt, sieht jetzt
+**alle Teile aller Ebenen**, nicht nur die Baugruppen der obersten Ebene — richtig, wenn am HauptFA
+das ganze Geraet kommissioniert wird; falsch, wenn dort nur die oberste Ebene gemeint ist. Das muss
+der Fachbereich am Ausdruck entscheiden, bevor die Halle damit arbeitet.
+1. `{{BASE_URL}}/FaWorklist` (Vorbedingung `FaCompletionAktiv=true`) → read-only Stueckliste der
+   **HauptFA-Zeile** `{{HAUPTFA}}` oeffnen; ebenso `{{BASE_URL}}/FaCompletion` → Stuecklisten-Link.
+2. Erwartet (Ist-Verhalten): alle Ebenen flach mit Pfad-Positionen, Baugruppen als eigene Zeilen
+   (Chevron), Blaetter darunter; Mengen = Sollmenge. Screenshot `L-0-liste.png`.
+3. „Stueckliste drucken" → Ausdruck der Vollstruktur; **diesen Ausdruck dem Fachbereich vorlegen**:
+   „Holt der Werker an der HauptFA das ganze Geraet oder nur die oberste Ebene?" Ergebnis als
+   Entscheidung in die Aufgabe [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-umsetzung]]
+   eintragen. Screenshot `L-0-druck.png`.
+4. Gegenprobe Sub-FA: dieselbe Stueckliste an `{{SUBFA}}` → nur direkte Kinder (siehe L-2).
+5. Bewertung: PASS = Verhalten entspricht der Fachentscheidung; FAIL = Fachbereich will an der
+   HauptFA nur die oberste Ebene → Rueckbau ist ein Einzeiler (`BomScopes.ForOrder` im
+   `ReadOnlyBomBuilder`/`PrintBom` auf `DirectChildren`), aber vor dem Merge zu entscheiden.
 
 ### L-1 HauptFA-Vollansicht (TS-70.1, 70.9) — READ-ONLY
 1. `{{BASE_URL}}/ProductionOrders?…` Gruppe `{{HAUPTFA}}`, Stuecklisten-Knopf an der **HauptFA-Zeile**
