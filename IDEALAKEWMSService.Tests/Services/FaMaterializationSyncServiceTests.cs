@@ -2,6 +2,7 @@ using FluentAssertions;
 using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
+using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -26,7 +27,7 @@ public class FaMaterializationSyncServiceTests
         var config = new ConfigurationBuilder().Build(); // leer; SendMissingDigest no-op bei 0 vermissten
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
-            ctx, config, mail.Object,
+            ctx, config, mail.Object, new UnknownWorkplaceState(),
             NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
     }
 

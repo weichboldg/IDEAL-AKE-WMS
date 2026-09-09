@@ -48,6 +48,8 @@ try
                                   IdealAkeWms.Services.SyncLogger.SyncLogger>();
     builder.Services.AddSingleton<IDEALAKEWMSService.Common.IHierarchicalModeReader,
                                   IDEALAKEWMSService.Common.HierarchicalModeReader>();
+    builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownWorkplaceState,
+                                  IDEALAKEWMSService.Common.UnknownWorkplaceState>();
 
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();
