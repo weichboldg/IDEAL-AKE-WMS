@@ -141,10 +141,13 @@ public class FaHierarchySyncService : IFaHierarchySyncService
                 "FaHierarchy-Sync: {Nodes} Knoten + {Infos} OrderInfos neu ({DelN}/{DelI} geloescht).",
                 nodes.Count, infos.Count, deletedNodes, deletedInfos);
 
+            var ambiguousCount = await LogAmbiguousHauptFasAsync(run, infos, ct);
+
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
                 ["neu"] = nodes.Count + infos.Count,
                 ["geloescht"] = deletedNodes + deletedInfos,
+                ["hauptfa_mehrdeutig"] = ambiguousCount,
             }, ct: ct);
 
             return new FaHierarchySyncResult(nodes.Count, infos.Count, deletedNodes, deletedInfos, Skipped: false, DryRun: false);
@@ -158,6 +161,30 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             await run.FinishFailedAsync(ex.Message, ct: ct);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Kombigeraete: derselbe HauptFA mit mehreren Montage-Abteilungen. Eine Eigenschaft der
+    /// DATEN, nicht der Anzeige — deshalb einmal je Lauf gemeldet statt je Seitenaufruf
+    /// (Rueckfrage 7). Die Kennzeichnung in der Oberflaeche bleibt davon unberuehrt.
+    /// Internal statt private: <see cref="RunAsync"/> braucht eine echte SqlConnection nach
+    /// Sage und ist deshalb ohne Live-DB nicht InMemory-testbar — die reine Meldelogik wird
+    /// hier separat gehalten, damit sie ueber InternalsVisibleTo direkt getestet werden kann.
+    /// </summary>
+    internal static async Task<int> LogAmbiguousHauptFasAsync(
+        ISyncRun run, IReadOnlyCollection<FaHierarchyOrderInfo> infos, CancellationToken ct)
+    {
+        var ambiguousHauptFas = infos.GroupBy(i => i.HauptFA)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .OrderBy(k => k)
+            .ToList();
+        if (ambiguousHauptFas.Count > 0)
+            await run.LogWarningAsync(
+                $"Kombigeraete: {ambiguousHauptFas.Count} HauptFA mit mehreren Auftragskoepfen " +
+                $"({string.Join(", ", ambiguousHauptFas)}). Kopfdaten werden in der FA-Liste als " +
+                "mehrdeutig gekennzeichnet, es wird keine Variante ausgewaehlt.", ct: ct);
+        return ambiguousHauptFas.Count;
     }
 
     private static async Task<long> ScalarCountAsync(SqlConnection conn, string sql, CancellationToken ct)
