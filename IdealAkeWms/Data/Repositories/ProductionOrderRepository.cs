@@ -91,7 +91,10 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
     // Gemeinsamer Filter-Aufbau fuer flache und gruppierte Leitstand-/FA-Liste. hierarchical=true laesst
     // die order-number-Suche zusaetzlich SubOrderNumber treffen (Z3b/§4: SubOrderNumber ODER OrderNumber).
-    private IQueryable<ProductionOrder> BuildLeitstandQuery(
+    // internal (statt private): Fixrunde 1/Task 7, Punkt (c) — ein Test baut hierueber eine Query gegen
+    // einen SqlServer-Provider (nie verbunden) und prueft per ToQueryString() die tatsaechliche
+    // SQL-Uebersetzung, ohne die Methode oeffentlich zu machen. Siehe InternalsVisibleTo in der csproj.
+    internal IQueryable<ProductionOrder> BuildLeitstandQuery(
         string? filterOrderNumber, string? filterArticleNumber, string? filterCustomer,
         bool showDone, IReadOnlyDictionary<string, string>? columnFilters, bool hierarchical)
     {
@@ -114,6 +117,11 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 // Sub-FA leer (FaHierarchyOrderInfo.Kunde, verknuepft ueber HauptFA == OrderNumber).
                 // Subquery statt Join, damit die Zeilenmenge nicht aufgeblaeht wird (Kombigeraete
                 // haben mehrere Kopfzeilen je HauptFA) und die Gruppen-Paginierung nicht verfaelscht.
+                // i.HauptFA.ToString() == o.OrderNumber bleibt bewusst so (Fixrunde 1, Punkt e):
+                // erzeugt im SQL-Server-Provider ein CONVERT im EXISTS und ist damit nicht
+                // indexnutzbar, aber eine vorab ermittelte HauptFA-Schluesselliste (IN-Liste) wiegt
+                // den Zusatzaufwand nicht auf — dasselbe Muster steht identisch im Spaltenfilter
+                // (BuildCustomerTokenPredicate).
                 var pattern = $"%{filterCustomer}%";
                 q = q.Where(o =>
                     (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
@@ -270,9 +278,16 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                     ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))
                     : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))),
 
-            // K1 (Task 7): im hierarchischen Modus zusaetzlich ueber den HauptFA-Kopf
-            // (FaHierarchyOrderInfo.Kunde), siehe BuildCustomerColumnFilterPredicate.
-            "customer" => q.Where(BuildCustomerColumnFilterPredicate(tokens, negate, hierarchical)),
+            // K1 (Task 7): NUR im hierarchischen Modus zusaetzlich ueber den HauptFA-Kopf
+            // (FaHierarchyOrderInfo.Kunde) matchen, siehe BuildCustomerColumnFilterPredicate.
+            // Bei Master false (AKE, flach) bleibt der Ausdruck bit-identisch der Ur-Fassung
+            // stehen (F4/Fixrunde 1, Punkt a) — dieser Pfad hatte keinen Aenderungsbedarf und
+            // soll kein neues Risiko (z.B. Wegoptimierung der Null-Pruefung unter NOT) erben.
+            "customer" => hierarchical
+                ? q.Where(BuildCustomerColumnFilterPredicate(tokens, negate))
+                : (negate
+                    ? q.Where(o => o.Customer == null || !patterns.Any(p => EF.Functions.Like(o.Customer, p)))
+                    : q.Where(o => o.Customer != null && patterns.Any(p => EF.Functions.Like(o.Customer, p)))),
 
             "article-number" => negate
                 ? q.Where(o => o.ArticleNumber == null || !patterns.Any(p => EF.Functions.Like(o.ArticleNumber, p)))
@@ -307,26 +322,30 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     }
 
     /// <summary>
-    /// Kunde-Spaltenfilter (Task 7, K1/IDEAL): im hierarchischen Modus zusaetzlich ueber den
-    /// HauptFA-Kopf (<see cref="FaHierarchyOrderInfo.Kunde"/>) matchen, weil
+    /// Kunde-Spaltenfilter im hierarchischen Modus (Task 7, K1/IDEAL): matcht zusaetzlich ueber den
+    /// HauptFA-Kopf (<see cref="FaHierarchyOrderInfo.Kunde"/>), weil
     /// <see cref="ProductionOrder.Customer"/> je Sub-FA leer ist (Subquery, kein Join — ein
     /// HauptFA hat bei Kombigeraeten mehrere Kopfzeilen, ein Join wuerde die Gruppen-Paginierung
-    /// verfaelschen). Je Token ein eigenstaendiges, ganz normal geschriebenes Praedikat (inkl. der
-    /// korrelierten Subquery), ueber Parameter-Rebind ODER-verknuepft — ein
-    /// <c>tokens.Any(...)</c>-Lambda ueber die Token-LISTE selbst scheitert am InMemory-Provider
-    /// (derselbe Fallstrick wie bei <see cref="BuildExtraInfoOrContains"/>, hier zusaetzlich
-    /// bestaetigt: auch ein manuell gebautes Expression-Tree, das denselben ParameterExpression
-    /// zwischen HAUPT- und Subquery-Lambda teilt, scheitert an EF Cores NavigationExpanding —
-    /// deshalb Compiler-generierte Lambdas je Token statt Handbau).
-    /// Negation: eine Zeile gilt nur dann als Nicht-Treffer (und faellt damit aus der
-    /// Negativ-Anzeige rausfallen), wenn WEDER die Zeile NOCH der Kopf passt (De-Morgan
-    /// ueber die OR-Verknuepfung, identisch zur Wortwahl der Aufgabenstellung).
+    /// verfaelschen). NUR fuer den hierarchischen Fall zustaendig — der Aufrufer (Case "customer"
+    /// oben) schickt den flachen AKE-Fall bewusst NICHT hierher (F4, Fixrunde 1 Punkt a).
+    /// Je Token ein eigenstaendiges, ganz normal geschriebenes Praedikat (inkl. der korrelierten
+    /// Subquery), ueber Parameter-Rebind ODER-verknuepft — ein <c>tokens.Any(...)</c>-Lambda ueber
+    /// die Token-LISTE selbst scheitert am InMemory-Provider (derselbe Fallstrick wie bei
+    /// <see cref="BuildExtraInfoOrContains"/>, hier zusaetzlich bestaetigt: auch ein manuell
+    /// gebautes Expression-Tree, das denselben ParameterExpression zwischen HAUPT- und
+    /// Subquery-Lambda teilt, scheitert an EF Cores NavigationExpanding — deshalb
+    /// Compiler-generierte Lambdas je Token statt Handbau).
+    /// Negation: eine Zeile gilt nur dann als Treffer der Negativ-Anzeige (bleibt sichtbar), wenn
+    /// WEDER die Zeile NOCH der Kopf passt — <c>Expression.Not(rowMatches || headMatches)</c> ist
+    /// per De-Morgan aequivalent zu <c>!rowMatches &amp;&amp; !headMatches</c> und wurde per
+    /// SqlServer-<c>ToQueryString()</c>-Test gegen Wegoptimierung der Null-Pruefung abgesichert
+    /// (Fixrunde 1, Punkt c).
     /// </summary>
     private Expression<Func<ProductionOrder, bool>> BuildCustomerColumnFilterPredicate(
-        IReadOnlyList<string> tokens, bool negate, bool hierarchical)
+        IReadOnlyList<string> tokens, bool negate)
     {
         var combined = tokens
-            .Select(t => BuildCustomerTokenPredicate(t, hierarchical))
+            .Select(BuildCustomerTokenPredicate)
             .Aggregate(OrElseProductionOrderPredicate);
 
         return negate
@@ -335,18 +354,19 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     }
 
     /// <summary>Ein Token, ganz normale C#-Lambda-Syntax (Compiler-generierter, EF-uebersetzbarer
-    /// Ausdrucksbaum inkl. sauber korrelierter Subquery) — siehe Klassenkommentar oben.</summary>
-    private Expression<Func<ProductionOrder, bool>> BuildCustomerTokenPredicate(string token, bool hierarchical)
+    /// Ausdrucksbaum inkl. sauber korrelierter Subquery) — siehe Klassenkommentar oben. Nur fuer den
+    /// hierarchischen Fall — der Vergleich <c>i.HauptFA.ToString() == o.OrderNumber</c> erzeugt im
+    /// SQL-Server-Provider ein <c>CONVERT</c> im <c>EXISTS</c> und ist damit nicht indexnutzbar; das
+    /// wird bewusst in Kauf genommen, weil derselbe Vergleich ohnehin schon im Freitextpfad
+    /// (<see cref="BuildLeitstandQuery"/>) steht und eine vorab ermittelte HauptFA-Schluesselliste
+    /// (IN-Liste) den Zusatzaufwand (zweite Query, zusaetzlicher Zustand) hier nicht aufwiegt.</summary>
+    private Expression<Func<ProductionOrder, bool>> BuildCustomerTokenPredicate(string token)
     {
         var pattern = $"%{token}%";
-        if (hierarchical)
-        {
-            return o => (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
-                        _context.FaHierarchyOrderInfos.Any(i =>
-                            i.Kunde != null && EF.Functions.Like(i.Kunde, pattern) &&
-                            i.HauptFA.ToString() == o.OrderNumber);
-        }
-        return o => o.Customer != null && EF.Functions.Like(o.Customer, pattern);
+        return o => (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
+                    _context.FaHierarchyOrderInfos.Any(i =>
+                        i.Kunde != null && EF.Functions.Like(i.Kunde, pattern) &&
+                        i.HauptFA.ToString() == o.OrderNumber);
     }
 
     /// <summary>Klassisches PredicateBuilder-Muster: verknuepft zwei separat gebaute Praedikate

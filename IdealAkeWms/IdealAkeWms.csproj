@@ -21,6 +21,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Fixrunde 1/Task 7 (Kunde-Filter): ein Test von ProductionOrderRepositoryTests baut ueber
+         das jetzt internal ProductionOrderRepository.BuildLeitstandQuery eine Query gegen einen
+         SqlServer-Provider (nie verbunden) und prueft per ToQueryString() die reale SQL-Uebersetzung
+         (korrelierte Subquery + CONVERT, Null-Pruefung unter NOT erhalten). -->
+    <InternalsVisibleTo Include="IdealAkeWms.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Migration script for AddProductionOrderSplit. Copied to output so the EF migration
          can load it at runtime via File.ReadAllText. Single source of truth lives in SQL/. -->
     <None Include="..\SQL\60_ProductionOrderSplit.sql">
