@@ -17,4 +17,10 @@ public interface IFaHierarchyOrderInfoRepository
 
     /// <summary>Alle Auftragsdaten-Zeilen (ungefiltert).</summary>
     Task<List<FaHierarchyOrderInfo>> GetAllAsync();
+
+    /// <summary>
+    /// Alle Auftragskoepfe zu einer Menge von HauptFA-Nummern — EINE Abfrage je angezeigter
+    /// Seite (Fan-out-Vermeidung). Liefert bei Kombigeraeten bewusst MEHRERE Zeilen je HauptFA.
+    /// </summary>
+    Task<List<FaHierarchyOrderInfo>> GetByHauptFaKeysAsync(IReadOnlyCollection<int> hauptFaKeys);
 }
