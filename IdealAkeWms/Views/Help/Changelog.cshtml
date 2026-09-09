@@ -9,6 +9,44 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.37.0</strong> <span class="text-white-50 ms-2">09.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL-Standort: Fachliche Auftragsdaten in der FA-Liste (Materialisierung)</h6>
+                <p class="text-muted mb-2"><em>Nur am Standort IDEAL wirksam (FA-Hierarchie aktiv). Am
+                    Standort AKE bleibt alles unverändert.</em></p>
+                <ul>
+                    <li><strong>Auftragsdaten in der Gruppen-Kopfzeile:</strong> Die FA-Liste zeigt je
+                        Haupt-FA jetzt Kunde, Konstruktions-Termin, Fertigungstermin, Liefertermin,
+                        Priorität, AB-Nummer und Montage-Abteilung &ndash; vorher waren diese Felder am
+                        Standort IDEAL leer.</li>
+                    <li><strong>Kombigeräte erkannt:</strong> Hat ein Haupt-FA mehrere Auftragsköpfe, zeigt
+                        die Liste alle Varianten in einer kleinen Tabelle und kennzeichnet die Gruppe als
+                        mehrdeutig &ndash; es wird bewusst keine Variante ausgewählt, weil die Varianten
+                        unterschiedliche Termine und Beschichter tragen können.</li>
+                    <li><strong>Werkbank kommt aus Sage:</strong> Die Werkbank wird jetzt automatisch aus
+                        dem Arbeitsbereich der Struktur übernommen. Eine von Hand gesetzte Werkbank wird
+                        beim nächsten Abgleich (spätestens nach 15 Minuten) wieder überschrieben &ndash;
+                        das ist so gewollt, Sage ist führend. Ist zu einem Arbeitsbereich keine Werkbank
+                        angelegt, bleibt das Feld leer und der Abgleich meldet das; die Werkbank muss dann
+                        einmalig angelegt werden.</li>
+                    <li><strong>Lack-Kennzeichen aus der Struktur:</strong> Das Lackier-Kennzeichen kommt
+                        am Standort IDEAL jetzt aus der Struktur statt aus einer Schätzung über die
+                        Artikelkategorie. Der Beschichtungstermin kommt aus dem Auftragskopf; ist dort
+                        keiner hinterlegt, bleibt das Feld leer statt einen Termin zu schätzen.</li>
+                    <li><strong>Kundensuche repariert:</strong> Die Kundensuche in der FA-Liste findet
+                        wieder &ndash; sie sucht jetzt zusätzlich über den Auftragskopf. Gilt für das
+                        Suchfeld und den Spaltenfilter.</li>
+                    <li><strong>Fehlerbehebung:</strong> Ein Sub-Auftrag ließ sich im
+                        Kommissionier-Leitstand nicht zur Kommissionierung freigeben. Ursache waren
+                        fehlende Statuszeilen, die jetzt beim Abgleich angelegt und für den Bestand
+                        nachgezogen werden.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.36.0</strong> <span class="text-white-50 ms-2">08.09.2026</span>
             </div>
             <div class="card-body">
