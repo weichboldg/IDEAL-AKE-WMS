@@ -220,13 +220,18 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
             // Meldungen zur Werkbank-Zuweisung (S1/S2/B4): Log bei JEDEM Lauf, Sammelmail nur bei
             // Aenderung der unbekannten Menge gegenueber dem letzten Lauf (sonst 96 identische
             // Mails/Tag bei 15-Minuten-Takt).
+            // Zustand IMMER fortschreiben — auch bei leerer Menge. Sonst bleibt der letzte
+            // gemeldete Stand stehen, nachdem jemand die Werkbaenke angelegt hat, und ein
+            // spaeteres Wiederauftreten derselben Namen gilt faelschlich als "unveraendert"
+            // und wird nie gemeldet.
+            var unknownWorkplacesChanged = _unknownWorkplaces.HasChanged(unknownWorkplaceNames.ToList());
             if (unknownWorkplaceNames.Count > 0)
             {
                 var list = string.Join(", ", unknownWorkplaceNames.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
                 await run.LogWarningAsync(
                     $"Unbekannte Arbeitsbereiche ohne Werkbank-Stammsatz ({unknownWorkplaceNames.Count}): {list}. " +
                     "Keine Zuweisung — Werkbank einmalig anlegen, der nächste Lauf füllt sie.", ct: ct);
-                if (_unknownWorkplaces.HasChanged(unknownWorkplaceNames.ToList()))
+                if (unknownWorkplacesChanged)
                     await SendUnknownWorkplaceDigestAsync(unknownWorkplaceNames, ct);
             }
             if (ambiguousWorkplaceNames.Count > 0)
