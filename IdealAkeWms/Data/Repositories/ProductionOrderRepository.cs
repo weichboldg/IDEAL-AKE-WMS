@@ -107,7 +107,25 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             q = q.Where(o => o.ArticleNumber != null && EF.Functions.Like(o.ArticleNumber, $"%{filterArticleNumber}%"));
 
         if (!string.IsNullOrWhiteSpace(filterCustomer))
-            q = q.Where(o => o.Customer != null && EF.Functions.Like(o.Customer, $"%{filterCustomer}%"));
+        {
+            if (hierarchical)
+            {
+                // K1 (Task 7): bei IDEAL haengt der Kunde am HauptFA, ProductionOrder.Customer ist je
+                // Sub-FA leer (FaHierarchyOrderInfo.Kunde, verknuepft ueber HauptFA == OrderNumber).
+                // Subquery statt Join, damit die Zeilenmenge nicht aufgeblaeht wird (Kombigeraete
+                // haben mehrere Kopfzeilen je HauptFA) und die Gruppen-Paginierung nicht verfaelscht.
+                var pattern = $"%{filterCustomer}%";
+                q = q.Where(o =>
+                    (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
+                    _context.FaHierarchyOrderInfos.Any(i =>
+                        i.Kunde != null && EF.Functions.Like(i.Kunde, pattern) &&
+                        i.HauptFA.ToString() == o.OrderNumber));
+            }
+            else
+            {
+                q = q.Where(o => o.Customer != null && EF.Functions.Like(o.Customer, $"%{filterCustomer}%"));
+            }
+        }
 
         if (!showDone)
             q = q.Where(o => !o.IsDone && !o.IsCancelled && (o.PickingStatus == null || !o.PickingStatus.IsDonePicking));
@@ -233,7 +251,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     /// Date-Spalten werden bewusst NICHT serverseitig gefiltert
     /// (clientseitiger Kalender/KW-Picker uebernimmt das auf der aktuellen Seite).
     /// </summary>
-    private static IQueryable<ProductionOrder> ApplyLeitstandColumnFilter(
+    private IQueryable<ProductionOrder> ApplyLeitstandColumnFilter(
         IQueryable<ProductionOrder> q, string key, List<string> tokens, bool negate, bool hierarchical = false)
     {
         // Pattern: jeder Token wird zu "%token%" — EF Core kann lokale Listen in
@@ -252,9 +270,9 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                     ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))
                     : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))),
 
-            "customer" => negate
-                ? q.Where(o => o.Customer == null || !patterns.Any(p => EF.Functions.Like(o.Customer, p)))
-                : q.Where(o => o.Customer != null && patterns.Any(p => EF.Functions.Like(o.Customer, p))),
+            // K1 (Task 7): im hierarchischen Modus zusaetzlich ueber den HauptFA-Kopf
+            // (FaHierarchyOrderInfo.Kunde), siehe BuildCustomerColumnFilterPredicate.
+            "customer" => q.Where(BuildCustomerColumnFilterPredicate(tokens, negate, hierarchical)),
 
             "article-number" => negate
                 ? q.Where(o => o.ArticleNumber == null || !patterns.Any(p => EF.Functions.Like(o.ArticleNumber, p)))
@@ -286,6 +304,72 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
 
             _ => q
         };
+    }
+
+    /// <summary>
+    /// Kunde-Spaltenfilter (Task 7, K1/IDEAL): im hierarchischen Modus zusaetzlich ueber den
+    /// HauptFA-Kopf (<see cref="FaHierarchyOrderInfo.Kunde"/>) matchen, weil
+    /// <see cref="ProductionOrder.Customer"/> je Sub-FA leer ist (Subquery, kein Join — ein
+    /// HauptFA hat bei Kombigeraeten mehrere Kopfzeilen, ein Join wuerde die Gruppen-Paginierung
+    /// verfaelschen). Je Token ein eigenstaendiges, ganz normal geschriebenes Praedikat (inkl. der
+    /// korrelierten Subquery), ueber Parameter-Rebind ODER-verknuepft — ein
+    /// <c>tokens.Any(...)</c>-Lambda ueber die Token-LISTE selbst scheitert am InMemory-Provider
+    /// (derselbe Fallstrick wie bei <see cref="BuildExtraInfoOrContains"/>, hier zusaetzlich
+    /// bestaetigt: auch ein manuell gebautes Expression-Tree, das denselben ParameterExpression
+    /// zwischen HAUPT- und Subquery-Lambda teilt, scheitert an EF Cores NavigationExpanding —
+    /// deshalb Compiler-generierte Lambdas je Token statt Handbau).
+    /// Negation: eine Zeile gilt nur dann als Nicht-Treffer (und faellt damit aus der
+    /// Negativ-Anzeige rausfallen), wenn WEDER die Zeile NOCH der Kopf passt (De-Morgan
+    /// ueber die OR-Verknuepfung, identisch zur Wortwahl der Aufgabenstellung).
+    /// </summary>
+    private Expression<Func<ProductionOrder, bool>> BuildCustomerColumnFilterPredicate(
+        IReadOnlyList<string> tokens, bool negate, bool hierarchical)
+    {
+        var combined = tokens
+            .Select(t => BuildCustomerTokenPredicate(t, hierarchical))
+            .Aggregate(OrElseProductionOrderPredicate);
+
+        return negate
+            ? Expression.Lambda<Func<ProductionOrder, bool>>(Expression.Not(combined.Body), combined.Parameters[0])
+            : combined;
+    }
+
+    /// <summary>Ein Token, ganz normale C#-Lambda-Syntax (Compiler-generierter, EF-uebersetzbarer
+    /// Ausdrucksbaum inkl. sauber korrelierter Subquery) — siehe Klassenkommentar oben.</summary>
+    private Expression<Func<ProductionOrder, bool>> BuildCustomerTokenPredicate(string token, bool hierarchical)
+    {
+        var pattern = $"%{token}%";
+        if (hierarchical)
+        {
+            return o => (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
+                        _context.FaHierarchyOrderInfos.Any(i =>
+                            i.Kunde != null && EF.Functions.Like(i.Kunde, pattern) &&
+                            i.HauptFA.ToString() == o.OrderNumber);
+        }
+        return o => o.Customer != null && EF.Functions.Like(o.Customer, pattern);
+    }
+
+    /// <summary>Klassisches PredicateBuilder-Muster: verknuepft zwei separat gebaute Praedikate
+    /// per ParameterExpression-Rebind mit OR zu einem einzigen Lambda mit gemeinsamem Parameter.</summary>
+    private static Expression<Func<ProductionOrder, bool>> OrElseProductionOrderPredicate(
+        Expression<Func<ProductionOrder, bool>> a, Expression<Func<ProductionOrder, bool>> b)
+    {
+        var rebound = new ParameterRebinder(b.Parameters[0], a.Parameters[0]).Visit(b.Body)!;
+        return Expression.Lambda<Func<ProductionOrder, bool>>(Expression.OrElse(a.Body, rebound), a.Parameters[0]);
+    }
+
+    private sealed class ParameterRebinder : ExpressionVisitor
+    {
+        private readonly ParameterExpression _from;
+        private readonly ParameterExpression _to;
+
+        public ParameterRebinder(ParameterExpression from, ParameterExpression to)
+        {
+            _from = from;
+            _to = to;
+        }
+
+        protected override Expression VisitParameter(ParameterExpression node) => node == _from ? _to : base.VisitParameter(node);
     }
 
     /// <summary>
