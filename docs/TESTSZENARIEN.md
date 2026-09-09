@@ -7260,8 +7260,15 @@ laufenden IDEAL-System.
   Einzel-Link (Kommissionierlisten dann im Slot „Kommissionierung").
 
 - **TS-70.6 — Flachmodus bit-identisch (AK 1).**
-  Schritte: Master auf `false` stellen (AKE-Testsystem oder AKE-Auftrag); BOM-Knopf an bekanntem
-  AKE-FA oeffnen, einmal mit gefuelltem, einmal mit geleertem BOM-Cache.
+  **Vorbedingung (harte Deploy-Abhaengigkeit):** Der Buendel-Stand muss **auch auf dem
+  AKE-Testsystem `https://akenet01.ake.at:4444` publiziert sein**. Ohne diesen zweiten Deploy
+  laeuft dort der alte Stand und das Szenario prueft nichts — genau daran scheiterte der
+  UAT-Lauf vom 2026-09-08 (dort faelschlich als „AKE-Instanz fehlt" notiert; es fehlte der
+  Deploy, nicht die Instanz).
+  **Der Master bleibt auf `akenet01` auf `false`.** Das Szenario prueft den Flachmodus; ein Flip
+  dort waere ein Einwegtor (ADR 0012) und ist ausdruecklich nicht Teil des Tests.
+  Schritte: BOM-Knopf an bekanntem AKE-FA oeffnen, einmal mit gefuelltem, einmal mit geleertem
+  BOM-Cache.
   Erwartung: Verhalten identisch zum Stand vor dieser Spec — keine neuen Spalten, keine
   Kommissionieren-Filterkarte, `Menge` weiterhin hochgerechnet mit der Auftragsmenge.
 
@@ -7298,12 +7305,28 @@ laufenden IDEAL-System.
   fehlt**.
   Negativfall: ohne Kollision erscheint kein solches Kennzeichen.
 
-- **TS-70.11 — Druck der Stueckliste (Umfang bewusst begrenzt).**
+- **TS-70.11 — Druck der Stueckliste (Umfang begrenzt — Bewertung haengt an der Scope-Entscheidung).**
   Schritte: BOM am HauptFA oeffnen, „Drucken" waehlen (`/Picking/PrintBom/<id>`).
-  Erwartung: der Ausdruck zeigt im hierarchischen Modus die **Vollstruktur** mit den
-  Pfad-Positionen (z. B. `3.7.2`), aber **bewusst ohne** die Spalten „Komm.-Ziel",
-  „Hauptlagerplatz", „Sage-Pos.", „Ebene" und „Vater-Sub-FA" — der Druck hat eine eigene
-  Spalten-Whitelist (`PrintBom.cshtml`) und damit einen eigenen Umfang. Das ist **kein Fehler**.
+  Beobachtung: der Ausdruck zeigt im hierarchischen Modus die **Vollstruktur** mit den
+  Pfad-Positionen (z. B. `3.7.2`), aber **ohne** die Spalten „Komm.-Ziel", „Hauptlagerplatz",
+  „Sage-Pos.", „Ebene" und „Vater-Sub-FA" — der Druck hat eine eigene Spalten-Whitelist
+  (`PrintBom.cshtml`).
+
+  **Ob das ein bewusster Zustand oder ein Mangel ist, entscheidet die Scope-Frage aus TS-70.1
+  (Ruling 4: „HauptFA → Vollstruktur, ja oder nein?"). Zwei Faelle, beide zulaessig:**
+  - **Fall A — Entscheidung „keine Vollstruktur im Druck" / Rueckbau auf direkte Kinder.** Dann
+    ist die fehlende Whitelist-Ergaenzung **kein Fehler**: der Ausdruck zeigt eine flache Liste
+    der obersten Ebene, fuer die Ebene und Vater-Sub-FA keine Aussage haetten. Szenario **PASS**,
+    Zustand bleibt dokumentiert wie hier beschrieben.
+  - **Fall B — Entscheidung „Vollstruktur bleibt".** Dann ist die Luecke **ein Mangel, kein
+    dokumentierter Zustand**: ein mehrstufiger Ausdruck ohne „Ebene" und „Komm.-Ziel" ist in der
+    Halle nicht benutzbar, weil man den Zeilen ihre Tiefe und ihr Kommissionier-Ziel nicht mehr
+    ansieht. Szenario **FAIL**, und die Whitelist in `PrintBom.cshtml` ist **vor dem Merge** um
+    mindestens „Ebene" und „Komm.-Ziel" zu ergaenzen.
+
+  **Wichtig fuer die Reihenfolge:** Die Scope-Entscheidung selbst wird **am Bildschirm** getroffen,
+  nicht am Ausdruck — der Ausdruck kann sie mangels dieser beiden Spalten gar nicht tragen und
+  wuerde zu einem Rueckbau aus dem falschen Grund verleiten.
   Negativfall: im Flachmodus ist der Ausdruck unveraendert gegenueber dem Stand vor v1.36.0.
 
 ---
