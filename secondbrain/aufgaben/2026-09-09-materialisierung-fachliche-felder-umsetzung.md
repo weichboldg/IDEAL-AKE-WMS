@@ -53,9 +53,92 @@ haette denselben Fehler nur verschoben.
 - **S2:** Name-Match case-insensitiv + getrimmt; bei mehreren Treffern **keine** Zuweisung, eigener
   Meldefall.
 
+## Oberflaechen-Entwurf (Skill `frontend-design`, aufgerufen 2026-09-09)
+
+Der Skill draengt auf eine eigenstaendige visuelle Handschrift. **CLAUDE.md stellt hier ausdruecklich
+Konsistenz davor** — die FA-Liste ist ein Werkzeug an Fertigungsterminals, kein Schaustueck. Die
+Entscheidung ist deshalb bewusst **kein** neues Muster, sondern die woertliche Uebernahme des bereits
+etablierten Kopfzeilen-Musters aus `Views/FaHierarchy/Index.cshtml:144-190`. Begruendung: Ein Werker
+wechselt zwischen FA-Struktur und FA-Liste; dieselben Daten muessen dort gleich aussehen und gleich
+heissen, sonst liest er sie zweimal neu.
+
+**Eindeutiger Kopf (Normalfall)** — eine Zeile, Abzeichen hinter „HauptFA {Nr}" + Sub-FA-Zaehler,
+in Lesereihenfolge nach Wichtigkeit:
+
+| Reihenfolge | Inhalt | Darstellung | Titel (Tooltip) |
+|---|---|---|---|
+| 1 | Kunde | `badge bg-primary` | Kunde |
+| 2 | Prio | `badge bg-secondary`, Text `Prio N` | Prioritaet |
+| 3 | Montage-Abteilung | `badge bg-light text-dark border` | Montage-Abteilung |
+| 4 | AB-Nummer | `badge bg-light text-dark border`, Text `AB {Nr}` | AB-Nummer |
+| 5 | Konstruktions-Termin | `badge bg-light text-dark border`, Text `KO tt.mm.jjjj` | Konstruktions-Termin |
+| 6 | Fert.-Termin | `badge bg-light text-dark border`, Text `FE tt.mm.jjjj` | Fertigungstermin |
+| 7 | Liefertermin | `badge bg-light text-dark border`, Text `LT tt.mm.jjjj` | Liefertermin |
+
+`KO`/`FE` sind die bereits in der FA-Struktur benutzten Kuerzel — sie werden **nicht** umbenannt.
+`LT` kommt neu dazu, mit demselben Bauprinzip. **Die Bedeutung traegt immer das Kuerzel plus der
+Tooltip, nie die Farbe** (Kontrast-Leitplanke: Farbe ist nie alleiniger Bedeutungstraeger).
+Dunkler Text auf hellem Grund mit Rand erfuellt AA.
+
+**Mehrdeutiger Kopf (Kombigeraet)** — hier liegt der einzige gestalterische Akzent des Entwurfs,
+und er ist fachlich begruendet: Die Oberflaeche **weigert sich, einen Wert auszuwaehlen**. Statt
+Termin-Abzeichen erscheint das Abzeichen `badge bg-info text-dark` „mehrdeutig (Kombigeraet)" und
+darunter — Muster `fa-head-table` aus `FaHierarchy/Index.cshtml:199-225` — eine kleine
+`table-sm table-bordered` mit **einer Zeile je Kopfvariante**: Montage-Abt., Kunde, Konstr.-Termin,
+Fert.-Termin, Liefertermin, Prio, AB-Nr. Grund: Bei Kombigeraeten koennen die Varianten fachlich
+verschiedene Termine und Beschichter tragen; eine still gewaehlte Variante schickt Teile zum
+falschen Beschichter ([[2026-08-06-kombinationsgeraete-montageabteilung]]).
+
+**Keine Kopfdaten:** `text-muted small` mit demselben Wortlaut wie in der FA-Struktur.
+
+**Bewusst weggelassen** (eine Sache zurueckgenommen): kein zusaetzliches Icon in der Kopfzeile. Die
+FA-Struktur traegt dort ein Kisten-Icon, weil sie Knotentypen unterscheidet; die FA-Liste hat bereits
+Chevron und Beschriftung. Ein weiteres Icon waere Rauschen ohne Information.
+
 ## Etappen / Tasks
 
-_(wird im Dev-Lauf gefuellt)_
+Plan: `docs/superpowers/plans/2026-09-09-materialisierung-fachliche-felder.md` (Worktree, Commit
+`a9ea910`) — mit Pre-Flight-Scan, der drei Fehler im Plan selbst gefunden hat (Variable ausserhalb
+ihres Gueltigkeitsbereichs, anonymer Typ als Methodenparameter, geratener Feldname); alle drei vor
+dem Start korrigiert.
+
+| # | Task | Status |
+|---|---|---|
+| 1 | **Eager-Create beider Statuszeilen**, Anlege- und Update-Pfad — der gemeldete UAT-Fehler und Spec-F6 in einem | **erledigt** `ceaf5b3`, Review clean |
+| 2 | Quell-Record + reiner Helper `FaMaterializationCoating` | **erledigt** `af25bcd` — Umsetzer fand einen **Planfehler** (Blattebene weggefiltert), Review clean |
+| 3 | Werkbank aus `Arbeitsbereich` (Variante B) + drei Meldefaelle | **erledigt** `ccc1d74`, Review clean |
+| 4 | Lack-Kennzeichen ueber `SetCoatingPartsAsync` schreiben (+ `nodeByKey`-Nachzug `cc1a5f5`) | **erledigt** `77aaac2`, Review clean |
+| — | Nachzug: Test fuer die Mail-Entprellung + Fehler „Wiederauftreten wird nie gemeldet" | **erledigt** `520bafb` (vom Controller selbst gebaut) |
+| 5 | Kombigeraet-Erkennung im Struktur-Sync, einmal je Lauf | **erledigt** `904e899`, Review clean |
+| 6 | `GetByHauptFaKeysAsync` — eine Abfrage je Seite | **erledigt** `47c6712`, Review clean |
+| 7 | Kunde-Freitext + Spaltenfilter hierarchisch | **erledigt** `79a174b` + Fixrunde `5022222` (Flachmodus zurueckgenommen, Mehr-Token-Tests, SQL-Uebersetzungstest) |
+| 8 | ViewModel + Controller: K1, Termin-Kaskade, Beschichtungstermin | **erledigt** `f160b1d` + Fixrunde `b3d5a15` (geratener Beschichtungstermin) |
+| 9 | Gruppen-Kopfzeile + Varianten-Tabelle bei Kombigeraeten | **erledigt** `86cdc26` |
+| 10 | v1.37.0, Anwender-Changelog, Hilfe, TS-71 | laeuft |
+
+## Vier Fehler, im Lauf gefunden und behoben
+
+Alle vier waeren **still** gewesen — keiner haette eine Fehlermeldung erzeugt. Zwei fielen nicht
+beim Programmieren auf, sondern beim **Schreiben von Tests**:
+
+1. Der gemeldete Abnahme-Fehler (fehlende Statuszeilen) — `ceaf5b3`.
+2. **Blattebene weggefiltert:** Die Knotenabfrage filterte Blaetter weg, bevor die Lack-Ableitung
+   sie sah. Da ein direktes Kind meistens ein Blatt ist, haette die Ableitung fuer die Mehrheit der
+   Faelle `false` geliefert — und kein Test waere rot geworden, weil die Plan-Testdaten zufaellig
+   passend gewaehlt waren. `af25bcd`.
+3. **Wiederkehrendes Problem nie wieder gemeldet:** Die Mail-Entprellung wurde nur fortgeschrieben,
+   wenn es etwas zu melden gab. `520bafb`.
+4. **Geratener Beschichtungstermin:** Bei gesetztem Fertigungstermin, aber leerem Kopf-Termin blieb
+   der aus der AKE-Formel zurueckgerechnete Wert stehen. `b3d5a15`.
+
+## Geparkte Befunde
+
+Elf nicht blockierende Befunde in [[2026-09-09-materialisierung-nachlese]], je mit Begruendung
+der Parkentscheidung.
+
+**Brain parallel erledigt** (beruehrt den Worktree nicht): ADR
+[[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]] und acht Glossar-Begriffe
+(H7/H8 der Kritischen Pruefung), Commit `644e3c0`.
 
 ## Entscheidungen im Dev-Lauf (Rulings)
 
