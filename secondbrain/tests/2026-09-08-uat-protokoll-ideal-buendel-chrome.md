@@ -454,88 +454,22 @@ Hinweis „FA-Struktur".
 
 ---
 
-## L. BOM-Bridge (v1.36.0, TS-70) — ersetzt Block H (Guard) im Nachlauf
+## L. BOM-Bridge (v1.36.0, TS-70) — **ausgelagert**
 
-Vorbedingung: Buendel-Stand >= `22d31ae` deployt (v1.36.0 im Changelog, A-1 erneut pruefen). Block H
-gilt dann nicht mehr — die Hinweisseite existiert nicht mehr.
+Die Szenarien dieses Blocks stehen jetzt vollstaendig und ausfuehrbar in einem eigenen Protokoll:
+**[[2026-09-09-uat-protokoll-bom-bridge-chrome]]** (TS-70.1-70.11, mit eigenen Platzhaltern,
+Vorbedingungen und Ergebnistabelle).
 
-### L-0 ZUERST — Vorbau-/Vervollstaendigungs-BOM einer HauptFA zeigt die Vollstruktur (Ruling 4) — READ-ONLY, **am Bildschirm entscheiden**
-**Warum zuerst:** Das einzige Ruling mit Folgen in der Halle. Die Scope-Regel „HauptFA → komplette
-Struktur" wurde bewusst auch auf die read-only Stueckliste (FA-Abarbeitungsliste/FA-Vervollstaendigung)
-und auf `PrintBom`/`PrintPicking` ausgedehnt. Wer dort fuer eine HauptFA Material holt, sieht jetzt
-**alle Teile aller Ebenen**, nicht nur die Baugruppen der obersten Ebene — richtig, wenn am HauptFA
-das ganze Geraet kommissioniert wird; falsch, wenn dort nur die oberste Ebene gemeint ist.
+Ausgelagert am 2026-09-09, damit es die Szenarien nicht zweimal gibt und sie nicht auseinanderlaufen.
+Fuer den Buendel-Lauf gilt nur noch:
 
-> **Nicht am Ausdruck entscheiden (Vorgabe 2026-09-09).** Die Druck-Whitelist in `PrintBom.cshtml`
-> kennt „Ebene" und „Komm.-Ziel" nicht (Nachlese-Punkt 14). Genau diese beiden Spalten braucht man
-> aber, um die Frage zu beurteilen. Ein Ausdruck ohne sie zeigt eine lange, flache Teileliste ohne
-> erkennbare Tiefe — und verleitet zu einem „zurueckbauen" **aus dem falschen Grund**. Die
-> Entscheidung faellt am Bildschirm; der Ausdruck wird erst danach bewertet (L-7).
-
-1. `{{BASE_URL}}/FaWorklist` (Vorbedingung `FaCompletionAktiv=true`) → read-only Stueckliste der
-   **HauptFA-Zeile** `{{HAUPTFA}}` oeffnen; ebenso `{{BASE_URL}}/FaCompletion` → Stuecklisten-Link.
-2. Erwartet (Ist-Verhalten): alle Ebenen flach mit Pfad-Positionen, Baugruppen als eigene Zeilen
-   (Chevron), Blaetter darunter; Mengen = Sollmenge. Screenshot `L-0-liste.png`.
-3. **Spalten „Ebene" und „Komm.-Ziel" einblenden** (Zahnrad, falls nicht sichtbar) und dem
-   Fachbereich **diese Ansicht** vorlegen: „Holt der Werker an der HauptFA das ganze Geraet oder nur
-   die oberste Ebene?" Ergebnis als Entscheidung in die Aufgabe
-   [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-umsetzung]] eintragen.
-4. Gegenprobe Sub-FA: dieselbe Stueckliste an `{{SUBFA}}` → nur direkte Kinder (siehe L-2).
-5. Bewertung: PASS = Verhalten entspricht der Fachentscheidung; FAIL = Fachbereich will an der
-   HauptFA nur die oberste Ebene → Rueckbau ist ein Einzeiler (`BomScopes.ForOrder` im
-   `ReadOnlyBomBuilder`/`PrintBom` auf `DirectChildren`), aber vor dem Merge zu entscheiden.
-6. **Das Ergebnis steuert L-7.** Vollstruktur bleibt → der Ausdruck muss die beiden Spalten
-   bekommen (Whitelist-Ergaenzung vor dem Merge). Rueckbau → der Ausdruck bleibt wie er ist.
-
-### L-1 HauptFA-Vollansicht (TS-70.1, 70.9) — READ-ONLY
-1. `{{BASE_URL}}/ProductionOrders?…` Gruppe `{{HAUPTFA}}`, Stuecklisten-Knopf an der **HauptFA-Zeile**
-   (Sub-FA == HauptFA) → oder direkt `{{BASE_URL}}/Picking/Bom/<Id der HauptFA-Zeile>`.
-2. Erwartet: echte Stueckliste (kein Hinweis), Badge „FA-Struktur", **alle Ebenen** flach mit Pfad-Positionen
-   (`3`, `3.7`, `3.7.2`), Baugruppen mit Chevron auf-/zuklappbar, Spalten `Komm.-Ziel`, `Hauptlagerplatz`,
-   `Ebene`, `Vater-Sub-FA`; Tooltip an der Pos.-Zelle „Sage-Position: n"; Zahnrad → Spalte „Sage-Pos."
-   einblendbar (default aus). Mengen = Sollmenge (keine Hochrechnung). Druck-Knopf vorhanden.
-3. Screenshot `L-1.png`. Konsole ohne App-Fehler.
-
-### L-2 Sub-FA-Ansicht (TS-70.2) — READ-ONLY
-1. `{{BASE_URL}}/Picking/Bom/{{ORDER_ID_HIER}}` (Sub-FA `{{SUBFA}}`).
-2. Erwartet: nur die **direkten Kinder** von `{{SUBFA}}`, keine Enkel; Kopfzeile „FA {{SUBFA}} | HauptFA {{HAUPTFA}}".
-
-### L-3 Komm.-Ziel-Filter (TS-70.3) — READ-ONLY
-1. In L-1 Spaltenfilter `Komm.-Ziel` auf `{{KOMM_ZIEL}}` setzen → nur passende Zeilen; leeren → alle
-   Zeilen zurueck (kein vorab gefilterter Zustand). Nicht vorkommender Wert → leere, erkennbar
-   gefilterte Ansicht.
-
-### L-4 Artikelinfo (TS-70.4) — READ-ONLY
-1. `{{BASE_URL}}/Articles/Info?articleNumber=<Artnr eines Bauteils aus {{HAUPTFA}}>` (Suche ueber die
-   Artikel-Seite, falls der Parameter anders heisst).
-2. Erwartet: Tabelle „HauptFA | Sub-FA (Baugruppe) | Termine", HauptFA fett; Fusszeile „… basierend auf
-   FA-Struktur, Mengen = Sollmenge".
-
-### L-5 Menue (TS-70.5) — READ-ONLY
-1. Als Admin (beide Rechte): Menue „Kommissionierung" ist ein Dropdown mit „Kommissionierung" +
-   „Kommissionierlisten". Nur-Lager-Nutzer: kein Dropdown, Einzel-Link (MANUAL).
-
-### L-6 Klasse-D-Skip im Protokoll (TS-70.7) — READ-ONLY
-1. Aktivitaets-Protokoll oeffnen (Menue Verwaltung → Protokoll) nach einem Sync-Zyklus.
-2. Erwartet: Laeufe `CoatingDetection`, `FaWorkStepDetection`, `BomCache` als **uebersprungen
-   (hierarchischer Modus)**, nicht als Fehler — **drei** Laeufe; der spezifische BOM-Cache-Pfad loggt nur
-   in Serilog (OPS).
-
-### L-7 Druck (TS-70.11) — READ-ONLY, **Bewertung haengt am Ergebnis von L-0**
-1. In L-1 „Stueckliste drucken" → Vollstruktur mit Pfad-Positionen, **ohne** die Spalten Komm.-Ziel,
-   Hauptlagerplatz, Sage-Pos., Ebene und Vater-Sub-FA (eigene Whitelist in `PrintBom.cshtml`).
-2. **Fall A — L-0 endete mit Rueckbau auf direkte Kinder:** Die Luecke ist ein bewusster Zustand.
-   Der Ausdruck zeigt dann eine flache Liste der obersten Ebene, fuer die Ebene und Vater-Sub-FA
-   nichts aussagen wuerden. **PASS**, nichts zu tun.
-3. **Fall B — L-0 endete mit „Vollstruktur bleibt":** Die Luecke ist **ein Mangel**, kein
-   dokumentierter Zustand. Ein mehrstufiger Ausdruck ohne „Ebene" und „Komm.-Ziel" ist in der Halle
-   nicht benutzbar — man sieht den Zeilen ihre Tiefe und ihr Kommissionier-Ziel nicht mehr an.
-   **FAIL**, und die Whitelist ist **vor dem Merge** um mindestens diese beiden Spalten zu ergaenzen
-   (Nachlese-Punkt 14 wandert damit von „nach dem Merge" auf „merge-blockierend").
-
-### L-8 Kollision (TS-70.10) — READ-ONLY, nur mit Testdaten
-1. Vorbedingung: zwei Geschwister mit gleicher Sage-Position unter demselben Sub-FA (`{{KOLLISION_FA}}`,
-   sonst BLOCKED). Erwartet: beide Zeilen da, zweite mit Pfad `n~2` + Badge „Kollision".
+- Vorbedingung: Buendel-Stand >= `22d31ae` deployt (v1.36.0 im Changelog, A-1 erneut pruefen).
+  **Block H (Guard-Hinweisseite) gilt damit nicht mehr** — die Seite existiert nicht mehr.
+- **Reihenfolge:** Der erste Test des ausgelagerten Protokolls (**B-0**, Scope-Entscheidung
+  Vollstruktur, Ruling 4) wird **vor** allem anderen des BOM-Teils gefahren, weil sein Ergebnis den
+  Druck-Test steuert und im Fall „Vollstruktur bleibt" noch eine Code-Aenderung vor dem Merge
+  ausloest.
+- **Block K** (AKE-Flachmodus-Regression, TS-70.6) bleibt hier, weil er ein zweites System braucht.
 
 ## 11. Nicht per Browser pruefbar — OPS/MANUAL (Mensch)
 
