@@ -113,7 +113,10 @@ Die abgenommenen Bloecke B–E und der Kern von I brauchen **keinen** Nachtest.
 - [ ] `Sync:ProductionOrdersEnabled = false` (T1)
 - [ ] `FaCompletionAktiv = true` (T4)
 - [ ] 503 auf `/api/user-view-preferences` klaeren (T3)
-- [ ] AKE-Testinstanz benennen (`BASE_URL_AKE`, `ORDER_ID_AKE`) fuer Block K
+- [ ] **Buendel-Stand auf das AKE-Testsystem `https://akenet01.ake.at:4444` publizieren** (Block K /
+      TS-70.6). **Korrektur 2026-09-09:** Die Instanz hat nie gefehlt — es fehlte der **Deploy**
+      dorthin; publiziert war der alte Stand. Master bleibt dort auf `false`. `ORDER_ID_AKE` (ein
+      AKE-Auftrag mit Stueckliste) danach benennen.
 
 **Testdaten:**
 - [ ] `SageMissingSince` an einem Sub-FA setzen (I-8)
