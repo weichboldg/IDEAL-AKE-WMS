@@ -20,6 +20,7 @@ public class ProductionOrdersController : Controller
     private readonly IBusinessDayService _businessDayService;
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly IFaHierarchyOrderInfoRepository _faHierarchyOrderInfoRepository;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -29,7 +30,8 @@ public class ProductionOrdersController : Controller
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        IFaHierarchyOrderInfoRepository faHierarchyOrderInfoRepository)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -39,6 +41,7 @@ public class ProductionOrdersController : Controller
         _businessDayService = businessDayService;
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _serviceSettingRepository = serviceSettingRepository;
+        _faHierarchyOrderInfoRepository = faHierarchyOrderInfoRepository;
     }
 
     // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie StandortEinstellungenController).
@@ -99,7 +102,11 @@ public class ProductionOrdersController : Controller
         ViewBag.LackierteilKategorieName = lackierteilName;
 
         // Gemeinsame Zeilen-Anreicherung (Termine, PrePicking-Override, Coating) — flach UND gruppiert.
-        ProductionOrderListItem MapItem(LeitstandOrderRow o, bool hasCoatingParts, bool isCoatingDone)
+        // groupProductionDate/groupDeliveryDate/groupCoatingStart: K1-Gruppenwerte (IDEAL, Task 8).
+        // Die flache Aufrufstelle (AKE) uebergibt bewusst nichts -> bit-identisches Verhalten.
+        ProductionOrderListItem MapItem(LeitstandOrderRow o, bool hasCoatingParts, bool isCoatingDone,
+            DateTime? groupProductionDate = null, DateTime? groupDeliveryDate = null,
+            DateTime? groupCoatingStart = null)
         {
             var item = new ProductionOrderListItem
             {
@@ -132,10 +139,16 @@ public class ProductionOrdersController : Controller
             if (PrePickingDaysResolver.IsOverrideActive(o.WorkplaceOverridePrePickingDays))
                 item.PrePickingDaysOverride = effectivePrePickingDays;
 
-            if (o.ProductionDate.HasValue)
+            // K1: Im hierarchischen Modus haengt der Fertigungstermin am HauptFA. Die DB-Zeile bleibt
+            // bewusst NULL — die Anreicherung passiert nur hier im Anzeige-Modell.
+            var effectiveProductionDate = groupProductionDate ?? o.ProductionDate;
+            item.ProductionDate = effectiveProductionDate;
+            item.DeliveryDate = groupDeliveryDate ?? o.DeliveryDate;
+
+            if (effectiveProductionDate.HasValue)
             {
                 item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
-                    o.ProductionDate.Value, kommissionierTage, holidays);
+                    effectiveProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
                 if (!coatingFeatureActive || item.HasCoatingParts)
@@ -144,6 +157,14 @@ public class ProductionOrdersController : Controller
                         item.VorkommissionierTermin.Value, beschichtungTage, holidays);
                     item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
                 }
+            }
+
+            if (groupCoatingStart.HasValue)
+            {
+                // Bei IDEAL kommt der Beschichtungstermin explizit aus dem Auftragskopf
+                // (Start_Beschichtung) — nicht aus der Rueckwaerts-Kaskade, die hier ohnehin
+                // ins Leere liefe. Nur an Zeilen mit Lack-Flag.
+                item.BeschichtungTermin = item.HasCoatingParts ? groupCoatingStart : null;
             }
             return item;
         }
@@ -165,14 +186,65 @@ public class ProductionOrdersController : Controller
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
             var psDict = await _pickingStatusRepository.GetByProductionOrderIdsAsync(allRows.Select(r => r.Id).ToList());
 
-            var listGroups = grouped.Groups.Select(g => new ProductionOrderListGroup
+            // K1: Auftragskoepfe je HauptFA — EINE Abfrage je Seite (kein Fan-out je Gruppe).
+            var hauptFaKeys = grouped.Groups
+                .Select(g => int.TryParse(g.OrderNumber, out var k) ? k : (int?)null)
+                .Where(k => k.HasValue).Select(k => k!.Value).Distinct().ToList();
+            var headInfos = await _faHierarchyOrderInfoRepository.GetByHauptFaKeysAsync(hauptFaKeys);
+            var headsByFa = headInfos.GroupBy(i => i.HauptFA).ToDictionary(g => g.Key, g => g.ToList());
+
+            var listGroups = grouped.Groups.Select(g =>
             {
-                OrderNumber = g.OrderNumber,
-                Items = g.Rows.Select(r =>
+                var group = new ProductionOrderListGroup { OrderNumber = g.OrderNumber };
+
+                List<FaHierarchyOrderInfo>? heads = null;
+                if (int.TryParse(g.OrderNumber, out var hauptFaKey))
+                    heads = headsByFa.GetValueOrDefault(hauptFaKey);
+
+                DateTime? groupProductionDate = null;
+                DateTime? groupDeliveryDate = null;
+                DateTime? groupCoatingStart = null;
+
+                if (heads != null && heads.Count == 1)
+                {
+                    var h = heads[0];
+                    group.Customer = h.Kunde;
+                    group.KonstruktionsTermin = h.KO_Termin;
+                    group.ProductionDate = h.FE_Termin;
+                    group.DeliveryDate = h.Verladetermin_Vsl;
+                    group.Prio = h.Prio;
+                    group.AbNummer = h.ABNr;
+                    group.MontageAbteilung = h.MontageAbteilung;
+
+                    groupProductionDate = h.FE_Termin;
+                    groupDeliveryDate = h.Verladetermin_Vsl;
+                    groupCoatingStart = h.Start_Beschichtung;
+                }
+                else if (heads != null && heads.Count > 1)
+                {
+                    // Kombigeraet: mehrere Auftragskoepfe. Kein stilles Auswaehlen — alle
+                    // Einzelwerte bleiben NULL, alle Varianten gehen in HeadVariants.
+                    group.IsAmbiguous = true;
+                    group.HeadVariants = heads.Select(h => new ProductionOrderHeadVariant
+                    {
+                        MontageAbteilung = h.MontageAbteilung,
+                        Customer = h.Kunde,
+                        KonstruktionsTermin = h.KO_Termin,
+                        ProductionDate = h.FE_Termin,
+                        DeliveryDate = h.Verladetermin_Vsl,
+                        Prio = h.Prio,
+                        AbNummer = h.ABNr,
+                    }).ToList();
+                }
+
+                group.Items = g.Rows.Select(r =>
                 {
                     var ps = psDict.GetValueOrDefault(r.Id);
-                    return MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false);
-                }).ToList()
+                    return MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false,
+                        groupProductionDate, groupDeliveryDate, groupCoatingStart);
+                }).ToList();
+
+                return group;
             }).ToList();
 
             var totalGroupCount = grouped.TotalGroupCount;

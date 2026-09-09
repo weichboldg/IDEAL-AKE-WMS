@@ -34,6 +34,32 @@ public class ProductionOrderListGroup
 {
     public string OrderNumber { get; set; } = string.Empty;
     public List<ProductionOrderListItem> Items { get; set; } = new();
+
+    // --- K1: Auftragsdaten je HauptFA (NICHT materialisiert, nur Anzeige) ---
+    public string? Customer { get; set; }
+    public DateTime? KonstruktionsTermin { get; set; }   // KO_Termin
+    public DateTime? ProductionDate { get; set; }        // FE_Termin
+    public DateTime? DeliveryDate { get; set; }          // Verladetermin_Vsl
+    public int? Prio { get; set; }
+    public string? AbNummer { get; set; }
+    public string? MontageAbteilung { get; set; }
+
+    /// <summary>true = Kombigeraet (mehrere Auftragskoepfe). Dann wird KEINE Variante gewaehlt.</summary>
+    public bool IsAmbiguous { get; set; }
+
+    /// <summary>Alle Kopfvarianten im Klartext — nur bei <see cref="IsAmbiguous"/> gefuellt.</summary>
+    public List<ProductionOrderHeadVariant> HeadVariants { get; set; } = new();
+}
+
+public class ProductionOrderHeadVariant
+{
+    public string? MontageAbteilung { get; set; }
+    public string? Customer { get; set; }
+    public DateTime? KonstruktionsTermin { get; set; }
+    public DateTime? ProductionDate { get; set; }
+    public DateTime? DeliveryDate { get; set; }
+    public int? Prio { get; set; }
+    public string? AbNummer { get; set; }
 }
 
 /// <summary>
