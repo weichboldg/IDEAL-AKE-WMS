@@ -26,6 +26,7 @@ public class ProductionOrdersControllerSlimTests
     private readonly Mock<IBusinessDayService> _businessDayService = new();
     private readonly Mock<IEnaioDmsDocumentRepository> _enaioDmsRepo = new();
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
+    private readonly Mock<IFaHierarchyOrderInfoRepository> _orderInfoRepo = new();
     private readonly ProductionOrdersController _controller;
 
     public ProductionOrdersControllerSlimTests()
@@ -51,7 +52,8 @@ public class ProductionOrdersControllerSlimTests
             _holidayRepo.Object,
             _businessDayService.Object,
             _enaioDmsRepo.Object,
-            _serviceSettingRepo.Object);
+            _serviceSettingRepo.Object,
+            _orderInfoRepo.Object);
 
         _controller.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
