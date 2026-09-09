@@ -169,7 +169,12 @@
                     </tr>
                     @if (group.IsAmbiguous && group.HeadVariants.Any())
                     {
-                        <tr class="fa-liste-group-heads">
+                        @* fa-liste-node-row ist PFLICHT: Das Gruppen-Klapp-JS versteckt ausschliesslich
+                           Zeilen mit dieser Klasse (fa-liste-gruppierung.js). Ohne sie bliebe die
+                           Varianten-Tabelle beim Zuklappen unter der Kopfzeile stehen. Nebeneffekt,
+                           erwuenscht: das Auto-Aufklappen beim Filtern durchsucht die Zeile mit.
+                           Sortierung und Client-Filter ueberspringen sie ohnehin wegen td[colspan]. *@
+                        <tr class="fa-liste-group-heads fa-liste-node-row">
                             <td colspan="@colCount">
                                 <div class="table-responsive mb-1">
                                     <table class="table table-sm table-bordered mb-0">
