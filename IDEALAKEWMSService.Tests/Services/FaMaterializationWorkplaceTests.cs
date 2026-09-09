@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Data;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Common;
@@ -27,6 +28,7 @@ public class FaMaterializationWorkplaceTests
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
             ctx, config, mail.Object, unknownState ?? new UnknownWorkplaceState(),
+            new ProductionOrderPickingStatusRepository(ctx),
             NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
     }
 
@@ -90,7 +92,8 @@ public class FaMaterializationWorkplaceTests
         var fakeLogger = new FakeSyncLogger();
         var svc = new FaMaterializationSyncService(
             ctx, new ConfigurationBuilder().Build(), new Mock<IMailService>().Object,
-            unknownState.Object, NullLogger<FaMaterializationSyncService>.Instance, fakeLogger);
+            unknownState.Object, new ProductionOrderPickingStatusRepository(ctx),
+            NullLogger<FaMaterializationSyncService>.Instance, fakeLogger);
 
         await svc.RunAsync(dryRun: false);
 
@@ -113,7 +116,8 @@ public class FaMaterializationWorkplaceTests
         var fakeLogger = new FakeSyncLogger();
         var svc = new FaMaterializationSyncService(
             ctx, new ConfigurationBuilder().Build(), new Mock<IMailService>().Object,
-            new UnknownWorkplaceState(), NullLogger<FaMaterializationSyncService>.Instance, fakeLogger);
+            new UnknownWorkplaceState(), new ProductionOrderPickingStatusRepository(ctx),
+            NullLogger<FaMaterializationSyncService>.Instance, fakeLogger);
 
         await svc.RunAsync(dryRun: false);
 
@@ -146,7 +150,8 @@ public class FaMaterializationWorkplaceTests
         var fakeLogger = new FakeSyncLogger();
         var svc = new FaMaterializationSyncService(
             ctx, new ConfigurationBuilder().Build(), new Mock<IMailService>().Object,
-            new UnknownWorkplaceState(), NullLogger<FaMaterializationSyncService>.Instance, fakeLogger);
+            new UnknownWorkplaceState(), new ProductionOrderPickingStatusRepository(ctx),
+            NullLogger<FaMaterializationSyncService>.Instance, fakeLogger);
 
         await svc.RunAsync(dryRun: false);
 

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Data;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Common;
@@ -28,6 +29,7 @@ public class FaMaterializationSyncServiceTests
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
             ctx, config, mail.Object, new UnknownWorkplaceState(),
+            new ProductionOrderPickingStatusRepository(ctx),
             NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
     }
 

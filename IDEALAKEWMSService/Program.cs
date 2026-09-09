@@ -64,6 +64,7 @@ try
     builder.Services.AddScoped<IFaHierarchySyncService, FaHierarchySyncService>();
     builder.Services.AddScoped<IFaMaterializationSyncService, FaMaterializationSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+    builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
     builder.Services.AddScoped<ISageBuchungLookupReader, SageBuchungLookupReader>();
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();

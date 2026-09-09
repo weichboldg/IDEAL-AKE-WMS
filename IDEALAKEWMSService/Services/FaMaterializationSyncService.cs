@@ -1,4 +1,5 @@
 using IdealAkeWms.Data;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
@@ -19,10 +20,16 @@ namespace IDEALAKEWMSService.Services;
 /// Mapping int→string (am ersten echten Datenlauf zu bestätigen, S7-2): OrderNumber=HauptFA,
 /// SubOrderNumber=SubFA, ParentSubOrderNumber=VaterFA. Materialisiert werden Nicht-Blatt-Knoten
 /// (SubFA != 0). App-verwaltete Felder (IsDone/PickingStatus/BdeStatus/Storno/ExtraInfo)
-/// werden bei Updates NIE überschrieben — AUSNAHME <see cref="ProductionOrder.ProductionWorkplaceId"/>
-/// (Variante B, ADR „Werkbank-Datenhoheit"): Sage liefert je Knoten einen Arbeitsbereich, daraus
-/// wird die Werkbank abgeleitet; Sage ist führend, ein abweichender Bestandswert wird überschrieben,
-/// weil der Sync nicht unterscheiden kann, ob er von Hand gesetzt oder in Sage umgeplant wurde.
+/// werden bei Updates NIE überschrieben — AUSNAHMEN sind genau zwei (Z1):
+/// <see cref="ProductionOrder.ProductionWorkplaceId"/> (Variante B, ADR „Werkbank-Datenhoheit"):
+/// Sage liefert je Knoten einen Arbeitsbereich, daraus wird die Werkbank abgeleitet; Sage ist
+/// führend, ein abweichender Bestandswert wird überschrieben, weil der Sync nicht unterscheiden
+/// kann, ob er von Hand gesetzt oder in Sage umgeplant wurde. Und
+/// <see cref="ProductionOrderPickingStatus.HasCoatingParts"/> (Spec F5): aus der Struktur
+/// abgeleitet (<see cref="FaMaterializationCoating.Derive"/>), geschrieben über
+/// <see cref="IProductionOrderPickingStatusRepository.SetCoatingPartsAsync"/>, die den Reset von
+/// <see cref="ProductionOrderPickingStatus.IsCoatingDone"/> bei Wechsel auf false kapselt
+/// (Fallstrick #11) — deshalb bewusst NICHT per rohem Feld-Setzen.
 /// </summary>
 public class FaMaterializationSyncService : IFaMaterializationSyncService
 {
@@ -32,6 +39,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
     private readonly IConfiguration _config;
     private readonly IMailService _mail;
     private readonly IUnknownWorkplaceState _unknownWorkplaces;
+    private readonly IProductionOrderPickingStatusRepository _pickingStatus;
     private readonly ILogger<FaMaterializationSyncService> _logger;
     private readonly ISyncLogger _syncLogger;
 
@@ -40,6 +48,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         IConfiguration config,
         IMailService mail,
         IUnknownWorkplaceState unknownWorkplaces,
+        IProductionOrderPickingStatusRepository pickingStatus,
         ILogger<FaMaterializationSyncService> logger,
         ISyncLogger syncLogger) // ISyncLogger als LETZTER Ctor-Parameter (ADR 0010)
     {
@@ -47,6 +56,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         _config = config;
         _mail = mail;
         _unknownWorkplaces = unknownWorkplaces;
+        _pickingStatus = pickingStatus;
         _logger = logger;
         _syncLogger = syncLogger;
     }
@@ -98,6 +108,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     ["statuszeilen_ergaenzt"] = 0,
                     ["werkbank_gesetzt"] = 0, ["werkbank_abweichend"] = 0,
                     ["arbeitsbereich_unbekannt"] = 0, ["arbeitsbereich_mehrdeutig"] = 0,
+                    ["lackflag_gesetzt"] = 0,
                 }, messageSuffix: $"[übersprungen: {plan.SkipReason}]", ct: ct);
                 return new FaMaterializationResult(0, 0, 0, 0, Skipped: true, dryRun);
             }
@@ -119,6 +130,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     ["statuszeilen_ergaenzt"] = 0,
                     ["werkbank_gesetzt"] = 0, ["werkbank_abweichend"] = 0,
                     ["arbeitsbereich_unbekannt"] = 0, ["arbeitsbereich_mehrdeutig"] = 0,
+                    ["lackflag_gesetzt"] = 0,
                 }, messageSuffix: "[DryRun]", ct: ct);
                 return new FaMaterializationResult(plan.ToCreate.Count, plan.ToMarkMissing.Count,
                     plan.ToClearMissing.Count, plan.ReparentConflicts.Count, Skipped: false, DryRun: true);
@@ -230,15 +242,36 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
             if (!dryRun)
                 statusRowsCreated = await EnsureStatusRowsAsync(srcByKey.Keys, now, ct);
 
+            // F5: zweite Z1-Ausnahme. Geschrieben wird ueber die etablierte Repository-Methode,
+            // nicht per rohem Feld-Setzen — sie kapselt den IsCoatingDone-Reset (Fallstrick #11).
+            // MUSS nach EnsureStatusRowsAsync laufen: SetCoatingPartsAsync aktualisiert nur
+            // BESTEHENDE Zeilen.
+            var coatingFlags = 0;
+            if (!dryRun)
+            {
+                var matKeys = srcByKey.Keys.ToList();          // dieselbe Menge wie in EnsureStatusRowsAsync
+                var orderIds = await _ctx.ProductionOrders
+                    .Where(o => o.SubOrderNumber != null && matKeys.Contains(o.SubOrderNumber))
+                    .Select(o => new { o.Id, o.SubOrderNumber })
+                    .ToListAsync(ct);
+
+                var coatingMap = orderIds.ToDictionary(
+                    x => x.Id,
+                    x => coating.GetValueOrDefault(x.SubOrderNumber!));
+                await _pickingStatus.SetCoatingPartsAsync(coatingMap);
+                coatingFlags = coatingMap.Count(kv => kv.Value);
+            }
+
             // Sammelmail (EINE pro Lauf) für neu-vermisste, nicht-erledigte FAs (S7-2b).
             await SendMissingDigestAsync(plan.MissingToNotify, ct);
 
             _logger.LogInformation(
                 "FA-Materialisierung: {Created} neu, {Marked} vermisst, {Cleared} wieder da, {Conf} Umhäng-Konflikte, " +
                 "{Status} Statuszeilen ergänzt, {WpSet} Werkbank gesetzt, {WpDev} abweichend, " +
-                "{WpUnknown} unbekannte Arbeitsbereiche, {WpAmbig} mehrdeutige Namen.",
+                "{WpUnknown} unbekannte Arbeitsbereiche, {WpAmbig} mehrdeutige Namen, {Coating} Lack-Flags gesetzt.",
                 plan.ToCreate.Count, plan.ToMarkMissing.Count, plan.ToClearMissing.Count, plan.ReparentConflicts.Count,
-                statusRowsCreated, werkbankGesetzt, werkbankAbweichend, unknownWorkplaceNames.Count, ambiguousWorkplaceNames.Count);
+                statusRowsCreated, werkbankGesetzt, werkbankAbweichend, unknownWorkplaceNames.Count, ambiguousWorkplaceNames.Count,
+                coatingFlags);
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
@@ -251,6 +284,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 ["werkbank_abweichend"] = werkbankAbweichend,
                 ["arbeitsbereich_unbekannt"] = unknownWorkplaceNames.Count,
                 ["arbeitsbereich_mehrdeutig"] = ambiguousWorkplaceNames.Count,
+                ["lackflag_gesetzt"] = coatingFlags,
             }, ct: ct);
 
             return new FaMaterializationResult(plan.ToCreate.Count, plan.ToMarkMissing.Count,
