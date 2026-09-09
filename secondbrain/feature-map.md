@@ -310,6 +310,42 @@ Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]], Aufgabe
 > **Schranke 2** (manueller Test + Merge durch den Menschen). Deploy: `web:true`, `service:true`
 > (Klasse-D-Gates + Konstruktor-Signaturänderung), `migration:false`.
 
+### Materialisierung: fachliche Felder (v1.37.0, selber Branch)
+
+Spec [[2026-08-20-materialisierung-fachliche-felder-spec]], Umsetzung
+[[2026-09-09-materialisierung-fachliche-felder-umsetzung]], Entscheidung
+[[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]], Nachlese
+[[2026-09-09-materialisierung-nachlese]], Changelog
+[[2026-09-09-v1-37-0-ideal-materialisierung-fachliche-felder]].
+
+Die Materialisierung schrieb bisher nur sieben Felder; seit die FA-Liste dieselben Auftraege zeigt,
+blieben Kunde, Werkbank, Termine und Lack-Kennzeichen leer. Drei-Klassen-Trennung: **K1** (Kunde,
+Konstruktions-/Fertigungs-/Liefertermin, Prio, AB-Nr., Montage-Abteilung) haengt am HauptFA und wird
+**nur angezeigt**, nie materialisiert; **K2** (Werkbank, abgeleitetes Lack-Kennzeichen) wird
+geschrieben; **K3** (Kommissionier-Status) bleibt leer.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Statuszeilen eager anlegen (behebt den Abnahme-Fehler) | **erledigt** (`ceaf5b3`) | `FaMaterializationSyncService.EnsureStatusRowsAsync` |
+| Lack-Ableitung „selbst oder direktes Kind" | **erledigt** (`af25bcd`) | `FaMaterializationCoating.Derive` (rein, DB-frei) |
+| Werkbank aus `Arbeitsbereich`, Variante B + drei Meldefaelle | **erledigt** (`ccc1d74`) | `FaMaterializationSyncService.ApplyWorkplace`, `IUnknownWorkplaceState` |
+| Lack-Kennzeichen schreiben (inkl. `IsCoatingDone`-Reset) | **erledigt** (`77aaac2`) | `ProductionOrderPickingStatusRepository.SetCoatingPartsAsync` |
+| Kombigeraet-Erkennung, einmal je Lauf | **erledigt** (`904e899`) | `FaHierarchySyncService.LogAmbiguousHauptFasAsync` |
+| Kopfdaten gebuendelt laden | **erledigt** (`47c6712`) | `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync` |
+| Kunde-Freitext + Spaltenfilter ueber den Auftragskopf | **erledigt** (`79a174b` + `5022222`) | `ProductionOrderRepository.BuildLeitstandQuery` / `ApplyLeitstandColumnFilter` |
+| K1 im Anzeige-Modell, Termin-Kaskade auf den Gruppenwert | **erledigt** (`f160b1d` + `b3d5a15`) | `ProductionOrdersController.MapItem`, `ProductionOrderListGroup` |
+| Gruppen-Kopfzeile + Varianten-Tabelle | **erledigt** (`86cdc26`) | `Views/ProductionOrders/Index.cshtml` |
+| v1.37.0, Changelog, Hilfe, TS-71 | **erledigt** (`1f038f6`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+
+> **Vier stille Fehler im Lauf gefunden und behoben** — zwei davon erst beim Schreiben von Tests:
+> fehlende Statuszeilen, weggefilterte Blattebene in der Lack-Ableitung, eine Entprellung, die ein
+> wiederkehrendes Problem nie wieder gemeldet haette, und ein **geratener** Beschichtungstermin bei
+> leerem Kopfwert. Keiner haette eine Fehlermeldung erzeugt.
+
+> **Deploy-Vorbedingung:** Die Werkbaenke zu den vorkommenden Arbeitsbereichen **vor** dem Deploy
+> anlegen — `ProductionWorkplaceId` ist ein Fremdschluessel, sonst bleibt die Werkbank im ersten Lauf
+> leer (Zwei-Lauf-Ablauf). Deploy `web:true`, `service:true`, `migration:false`.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
