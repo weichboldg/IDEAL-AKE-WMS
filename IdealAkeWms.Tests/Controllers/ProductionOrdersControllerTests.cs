@@ -272,6 +272,66 @@ public class ProductionOrdersControllerTests
     }
 
     [Fact]
+    public async Task Index_Hierarchical_UnambiguousHead_NoStartBeschichtung_ShowsNoCoatingDate()
+    {
+        // Fixrunde 1: eindeutiger Kopf, FE_Termin gesetzt (Kaskade wuerde rechnen koennen),
+        // HasCoatingParts = true, aber Start_Beschichtung ist leer (in Sage noch nicht geplant).
+        // Erwartung: KEIN Beschichtungstermin — bei IDEAL kommt er AUSSCHLIESSLICH aus dem Kopf,
+        // die AKE-Rueckwaertsformel darf hier nicht als Ersatz einspringen (kein Raten).
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") })
+            },
+            TotalGroupCount: 1, TotalRowCount: 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>
+        {
+            { 1, MakePs(1, hasCoatingParts: true) },
+        });
+
+        var head = MakeHead(1000, feTermin: new DateTime(2026, 8, 10), startBeschichtung: null);
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head });
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        vm.Groups.Single().Items.Single().BeschichtungTermin.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_HauptFaWithoutHeadRow_ShowsEmptyGroupHead_NoCrash()
+    {
+        // HauptFA ohne Eintrag in den Kopfdaten (z.B. Full-Refresh noch nicht gelaufen).
+        // Erwartung: saubere Leeranzeige, kein Absturz, weder Einzelwerte noch Mehrdeutig-Flag.
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") })
+            },
+            TotalGroupCount: 1, TotalRowCount: 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo>());
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        var group = vm.Groups.Should().ContainSingle().Subject;
+        group.IsAmbiguous.Should().BeFalse();
+        group.HeadVariants.Should().BeEmpty();
+        group.Customer.Should().BeNull();
+        group.KonstruktionsTermin.Should().BeNull();
+        group.ProductionDate.Should().BeNull();
+        group.DeliveryDate.Should().BeNull();
+        group.Prio.Should().BeNull();
+        group.AbNummer.Should().BeNull();
+        group.MontageAbteilung.Should().BeNull();
+        group.Items.Should().ContainSingle();
+        group.Items.Single().BeschichtungTermin.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Index_Hierarchical_AmbiguousHauptFa_ShowsNoCoatingDateOnAnyRow()
     {
         SetupGrouped(new LeitstandOrderGroupedPage(
