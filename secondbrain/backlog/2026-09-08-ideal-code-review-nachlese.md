@@ -22,9 +22,16 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
 ## Merge-Blocker (Repo-Hygiene)
 
 - [x] **B1 — `publish.zip` (226 MB) im Branch getrackt** (Blob in Commit `549c5db`; `.gitignore`
-  deckt nur `publish/`, nicht `*.zip`). **Erledigt vom Menschen** (2026-09-08: „war von mir, wird
-  geloescht"). Vor dem Merge sicherstellen, dass der Blob auch aus der History raus ist
-  (`git rm --cached` + `.gitignore` + ggf. History-Rewrite von `549c5db`).
+  deckte nur `publish/`, nicht `*.zip`). **Erledigt 2026-09-09:** Loeschung committet + `publish.zip`
+  und `*.zip` in `.gitignore` (Worktree-Commit `91d8d3e`). **History-Rewrite bewusst NICHT
+  durchgefuehrt** — Entscheidung des Menschen; der Blob bleibt in der Historie.
+  **Befund aus der Pruefung des Archivs (Meldepflicht):** das Zip enthielt vier
+  `appsettings*.json` mit dem Abschnitt `ConnectionStrings` (WMS, Sage `ake`, Oseon/TRUMPF, enaio)
+  sowie zwei `web.config`. **Keine Zugangsdaten darin** — alle Verbindungen laufen ueber
+  `Trusted_Connection=True` (Windows-Authentifizierung), `SmtpPassword` und `Password` sind leere
+  Zeichenketten. Offengelegt sind damit **Servernamen und Datenbanknamen**, keine Geheimnisse.
+  Ob das einen Rewrite rechtfertigt, entscheidet der Mensch; ein Wechsel von Zugangsdaten hat hier
+  mangels Zugangsdaten keinen Gegenstand.
 
 ## Hoch
 
@@ -40,6 +47,13 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
   → **Vor Produktiv-Deploy:** harter Code-Guard „bei `Master=true` ProductionOrders-Sync
   ueberspringen"; Test „Upsert-SQL trifft nie >1 Zeile im invertierten Schema". Deckt gleichzeitig
   die staerkste Absicherung der ganzen Inversion.
+  → **Hochgestuft 2026-09-09 auf merge-nah.** Die Gegenpruefung am Code (Nachtrag in
+  [[2026-09-08-uat-ergebnis-ideal-buendel-lauf-1]]) zeigt: Die Materialisierung dreht Menge,
+  Artikelnummer und Bezeichnungen im selben Zyklus zurueck, **Kunde und Termine aber nicht** —
+  die bleiben auf allen Sub-FAs dauerhaft die Kopfwerte. Zusaetzlich schreiben beide Syncs sich
+  gegenseitig jeden Zyklus neu (Aenderungs-Bedingung greift immer), mit einem Fenster falscher
+  Mengen **innerhalb** jedes Laufs. Nebenbefund: der Schalter verdeckt derzeit genau die Luecke,
+  die [[2026-08-20-materialisierung-fachliche-felder-spec]] schliessen soll.
 
 ## Mittel
 

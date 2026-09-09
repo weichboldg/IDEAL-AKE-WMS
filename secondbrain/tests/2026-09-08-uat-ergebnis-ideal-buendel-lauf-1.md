@@ -128,3 +128,80 @@ Die abgenommenen Bloecke B–E und der Kern von I brauchen **keinen** Nachtest.
 
 **Strategisch:** [[2026-09-08-arbeitsgaenge-aus-arbeitsschritte]] von „Folgeblock" auf
 **Voraussetzung fuer Teil-8-Abnahme** hochstufen.
+
+---
+
+## Nachtrag 2026-09-09 — zwei Triage-Punkte am Code nachgezogen
+
+### T1 vertieft: `Sync:ProductionOrdersEnabled` haengt sehr wohl an der Materialisierung
+Auftrag des Menschen: „beim Setzen kurz gegenpruefen, ob der Schalter mit der FA-Materialisierung
+zusammenhaengt — falls ja, erklaert er moeglicherweise mehr als nur eine leere Liste." **Er tut es,
+und er erklaert mehr.** Beide Syncs schreiben in **dieselbe** Tabelle `ProductionOrders`, im selben
+Zyklus, in dieser Reihenfolge (`SyncWorker.cs:43` vor `:357`):
+
+1. **AKE-FA-Sync** liest `vw_AKE_Kommissionierung_WAListe` und schreibt pro Sage-Zeile
+   `UPDATE … WHERE [OrderNumber] = @OrderNumber` (`SageProductionOrderSql.cs:23-45`). Nach der
+   Inversion ist `OrderNumber` **nicht mehr eindeutig**: HauptFA und alle ihre Sub-FAs teilen sie.
+   Ein einziger Sage-Satz trifft damit **die ganze Gruppe** und setzt dort Menge, Kunde,
+   Artikelnummer, Bezeichnungen, Fertigungs- und Liefertermin auf die Werte des **Kopfes**.
+2. **FA-Materialisierung** laeuft danach und schreibt fuer bestehende Zeilen Menge, Artikelnummer
+   und Bezeichnungen aus dem Struktur-Knoten **zurueck** (`FaMaterializationSyncService.cs:142-150`).
+
+Daraus folgt dreierlei, das ueber „leere Liste" hinausgeht:
+
+- **Selbstheilung nur teilweise.** Die vier Felder, die die Materialisierung besitzt, werden im
+  selben Zyklus reparariert. **Kunde, Fertigungstermin und Liefertermin nicht** — die schreibt die
+  Materialisierung gar nicht (sie kennt nur 7 Felder). Auf allen Sub-FAs stehen sie dauerhaft mit
+  den **Kopf**-Werten. Das ist die stillste Form des Fehlers: fachlich falsch, aber plausibel
+  aussehend.
+- **Der Schalter erklaert, warum in der FA-Liste ueberhaupt Kunde und Termine stehen.** Genau die
+  Luecke, die [[2026-08-20-materialisierung-fachliche-felder-spec]] schliessen soll, wird derzeit
+  durch diesen Fehler **verdeckt** zugeschuettet. Wer den Schalter auf `false` setzt, muss damit
+  rechnen, dass Kunde/Termine aus der Liste **verschwinden** — das ist dann kein neuer Fehler,
+  sondern der ehrliche Zustand. Die Materialisierungs-Spec ist die eigentliche Loesung.
+- **Dauerhafter Schreib-Ping-Pong.** Weil die Materialisierung die Werte jeden Zyklus zurueckdreht,
+  greift die Aenderungs-Bedingung des UPDATE (`WHERE … AND (Quantity != … OR …)`) **immer** wieder:
+  jeder Sub-FA-Satz wird alle 15 Minuten neu geschrieben, `ModifiedAt`/`ModifiedBy` wandern mit.
+  Dazu ein Zeitfenster **innerhalb** jedes Zyklus, in dem die Liste die Kopfwerte auf allen Sub-FAs
+  zeigt — wer in diesem Moment eine Seite oeffnet oder einen Ausdruck macht, sieht falsche Mengen.
+
+**Bewertung:** Die Deploy-Vorbedingung `Sync:ProductionOrdersEnabled = false` bleibt richtig und
+wird dringlicher. Sie ist aber weiterhin **nur Konfiguration** — ein Haken im falschen Feld
+verursacht stille Datenverfaelschung. Der Code-Guard aus **H1** in
+[[2026-09-08-ideal-code-review-nachlese]] ist damit von „vor Produktiv-Deploy" auf
+**Merge-nah** zu heben.
+
+Nicht betroffen: der BOM-Cache-/Lackier-Haken im selben Sync (`SageImportService.cs:187-203`) —
+beide Ziele sind seit v1.36.0 ueber `IHierarchicalModeReader` gegatet und ueberspringen bei
+Master `true`. Die FA-Reconciliation haengt an einem eigenen Schalter
+(`Sync:ProductionOrderReconcileEnabled`, Default aus) und hat einen Leer-Read-Guard.
+
+### T3 neu bewertet: der 503 ist ein funktionaler Ausfall, kein Betriebs-Nachtrag
+Der Mensch hat die Einstufung „OPS" 2026-09-08 zurueckgewiesen — zu Recht in der Wirkung: Ein
+fehlgeschlagener `PUT` auf `/api/user-view-preferences/{viewKey}` heisst fuer den Anwender
+„meine Spaltenauswahl ist beim naechsten Aufruf weg", nicht „Serverfehler". Das Protokoll prueft
+das jetzt funktional (**B-6** in [[2026-09-08-uat-protokoll-ideal-buendel-chrome]], inkl.
+Netzwerkmitschnitt, Entprellung und Zwei-Tab-Gegenprobe).
+
+**Was der Code hergibt** (offline verifizierbar, ohne Testsystem):
+- Die Anwendung erzeugt **nirgends** einen 503 — weder Controller noch Middleware noch Filter
+  (`UserViewPreferencesApiController` kennt nur `Ok`/`NoContent`/`BadRequest`/`Unauthorized`;
+  Volltextsuche nach `503`/`ServiceUnavailable` im Web-Projekt ist leer). Ein 503 kann daher nur
+  **vor** der Anwendung entstehen: IIS/ANCM, App-Pool-Recycling, Rapid-Fail-Protection oder eine
+  volle Anfrage-Warteschlange (`web.config`: `hostingModel="inprocess"`).
+- **Widerspruch im Lauf-1-Befund:** dort steht „Persistenz ok … Wert trotzdem gespeichert". Ein
+  Request kann nicht gleichzeitig von IIS abgewiesen **und** von der Anwendung geschrieben worden
+  sein. Wahrscheinlicher: das Speichern ist um 1,5 s entprellt (`column-preferences.js:20,290`),
+  es gingen **mehrere** `PUT`s raus, einer davon fiel in ein Recycling-Fenster. Der Ausfall waere
+  dann **sporadisch**, nicht total — das aendert die Dringlichkeit, nicht die Einstufung.
+- **Eigenstaendiger Zweitverdacht im Code** (unabhaengig vom 503, deshalb Schritt B-6.6):
+  `UserViewPreferenceRepository.SaveAsync` macht ein ungeschuetztes „lesen, sonst anlegen" gegen
+  einen eindeutigen Index (`UQ_UserViewPreferences_User_View`). Zwei gleichzeitige Speicher-Aufrufe
+  desselben Benutzers auf dieselbe Ansicht (zwei Tabs, oder Ziehen + Umschalten kurz nacheinander)
+  koennen beide „nicht vorhanden" sehen und in eine Schluesselverletzung laufen — ein verlorener
+  Speichervorgang mit exakt derselben Anwenderwahrnehmung. Das ist ein echter Code-Befund und
+  gehoert in [[2026-09-08-ideal-code-review-nachlese]], falls B-6.6 ihn bestaetigt.
+
+**Offen und nur am Testsystem entscheidbar:** ob der 503 aus IIS kommt. Die drei Belege dafuer
+(Serilog-Zeile, IIS-`sc-status`/`sc-substatus`, Ereignisanzeige `IIS-W3SVC-WP`) stehen als
+Fehlschlag-Anweisung in B-6. Ohne sie bleibt jede Ursachenaussage Spekulation.
