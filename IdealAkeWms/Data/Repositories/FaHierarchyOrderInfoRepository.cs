@@ -31,4 +31,18 @@ public class FaHierarchyOrderInfoRepository : IFaHierarchyOrderInfoRepository
             .OrderBy(o => o.HauptFA)
             .ToListAsync();
     }
+
+    /// <summary>
+    /// Alle Auftragskoepfe zu einer Menge von HauptFA-Nummern — EINE Abfrage je angezeigter
+    /// Seite (Fan-out-Vermeidung). Liefert bei Kombigeraeten bewusst MEHRERE Zeilen je HauptFA.
+    /// </summary>
+    public async Task<List<FaHierarchyOrderInfo>> GetByHauptFaKeysAsync(IReadOnlyCollection<int> hauptFaKeys)
+    {
+        if (hauptFaKeys == null || hauptFaKeys.Count == 0) return new List<FaHierarchyOrderInfo>();
+        var keys = hauptFaKeys.Distinct().ToList();
+        return await _db.FaHierarchyOrderInfos.AsNoTracking()
+            .Where(o => keys.Contains(o.HauptFA))
+            .OrderBy(o => o.HauptFA).ThenBy(o => o.MontageAbteilung)
+            .ToListAsync();
+    }
 }
