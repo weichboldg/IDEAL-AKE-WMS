@@ -699,7 +699,20 @@ durch TS-70" ergaenzen, TS-70-Zeile neu anlegen).
 - **Migration: nein** — verifiziert, keine neue Datei unter `*/Migrations/` im Diff, keine
   Schema-Aenderung (siehe Migrations-Abschnitt).
 
-**Ablauf (Mensch): Publish AUS DEM WORKTREE → Testsystem → Test → danach Merge.**
+**Zwei Zielsysteme, nicht eines (Vorgabe 2026-09-09).** Die Abnahme braucht **beide**:
+
+| System | Master | Wofuer |
+|---|---|---|
+| IDEAL-Testsystem `http://idealweb01.ideal.ideal-ake.at:88` | **an** | TS-70.1–70.5, 70.7–70.11 |
+| AKE-Testsystem `https://akenet01.ake.at:4444` | **bleibt aus** | TS-70.6 (Flachmodus-Regression) |
+
+Ohne den zweiten Deploy ist **TS-70.6 nicht pruefbar** — genau daran scheiterte der UAT-Lauf vom
+2026-09-08 (dort als „AKE-Instanz fehlt" notiert; tatsaechlich fehlte der Deploy, nicht die
+Instanz). TS-70.6 ist die einzige Pruefung, die belegt, dass der bestehende AKE-Betrieb durch die
+Schnittstellen-Umstellung nichts abbekommen hat — sie darf nicht ausfallen. Auf `akenet01` wird
+der Master **nicht** umgelegt: der Flip ist ein Einwegtor (ADR 0012) und dort fachlich falsch.
+
+**Ablauf (Mensch): Publish AUS DEM WORKTREE → beide Testsysteme → Test → danach Merge.**
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb

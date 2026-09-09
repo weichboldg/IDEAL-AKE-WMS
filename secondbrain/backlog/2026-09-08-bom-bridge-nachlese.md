@@ -47,7 +47,12 @@ Buendel-Merge, aus `main`.
 ## C — UI / Druck
 
 14. **`PrintBom.cshtml` `ShowCol`-Whitelist** kennt die fuenf hierarchischen Keys nicht → Ausdruck ohne
-    Komm.-Ziel/Hauptlagerplatz/Sage-Pos./Ebene/Vater-Sub-FA (in TS-70 als bewusst vermerkt).
+    Komm.-Ziel/Hauptlagerplatz/Sage-Pos./Ebene/Vater-Sub-FA.
+    **Status bedingt (2026-09-09):** „bewusst" haelt **nur**, wenn die Scope-Entscheidung aus L-0 auf
+    „keine Vollstruktur" hinauslaeuft. Bleibt die Vollstruktur, ist die Luecke ein **Mangel** und
+    wandert von „nach dem Merge" auf **merge-blockierend** — ein mehrstufiger Ausdruck ohne „Ebene"
+    und „Komm.-Ziel" ist in der Halle nicht benutzbar. Beide Faelle stehen in TS-70.11 und in
+    L-0/L-7 des [[2026-09-08-uat-protokoll-ideal-buendel-chrome]].
 15. Badges „Waise"/„Kollision" nur mit `title` — auf Touch-Terminals unerreichbar; `data-bs-toggle="tooltip"`
     wie in `Info.cshtml` waere konsistent (Text traegt die Bedeutung, daher nicht dringend).
 16. `NaturalPositionComparer` sortiert `"5~2"` nach `"50"` (Fallback auf Ordinal) — kollidierte Zeile
@@ -58,7 +63,7 @@ Buendel-Merge, aus `main`.
 
 18. **`warehouse-order`-Drift:** Spalte steht in `Bom.cshtml`-`thead` und `#column-config`, fehlt aber in
     `ColumnDefinitions.Bom` — dieselbe Klasse wie der in Task 5 behobene Fund (siehe
-    [[fallstricke]] §10 „zwei Registrierungen").
+    [[fallstricke]] §10 „zwei Registrierungen"). **Kein Einzelfall — eigener Auftrag, siehe F/23.**
 19. TreeBuilder-Quirk: `VaterFA == 0` ist weder Wurzel noch Waise (`subFaSet` enthaelt die 0 der
     Blaetter) → Knoten faellt aus `FullStructure` ohne Marker. Geerbt aus Teil 2.
 
@@ -74,3 +79,34 @@ Buendel-Merge, aus `main`.
 20. **Rest-Tiebreak:** zwei Geschwister mit gleicher Position, gleichem `SubFA` (z. B. 0) UND gleichem `Artnr` erhalten ihr `~2` weiterhin nach Eingangsreihenfolge; `.ThenBy(n => n.Sollmenge)` wuerde das schliessen, falls IDEAL-Daten den Fall zeigen.
 21. **Log-Volumen:** Kollisions- und Zweite-Wurzel-Warnungen feuern je Render (BOM-Ansicht, Druck), nicht einmal je Sync — bei dauerhaft fehlerhaften HauptFAs viele gleiche Zeilen im Serilog. Fallstrick-Kandidat, kein Code-Bug.
 22. `PrintPicking` matcht je gepicktem Item per `FirstOrDefault` ueber die Vollstruktur (O(n·m)); bei realen Listengroessen harmlos.
+
+## F — Struktureller Folgepunkt: ADR 0005 ergaenzen + Sweep (Vorgabe 2026-09-09)
+
+23. **ADR 0005 um den vierten Pflichtbestandteil „Spaltenpraeferenzen" ergaenzen — und die
+    bestehenden Listen dagegen abgleichen.**
+
+    **Warum jetzt:** Punkt 18 (`warehouse-order` fehlt in `ColumnDefinitions.Bom`) hat dieselbe
+    Ursache wie der Fund aus Task 5 (Ruling 13), nur mit umgekehrtem Vorzeichen. Beide zeigen, dass
+    die Doppelregistrierung nirgends verbindlich festgeschrieben ist. `ColumnDefinitions.<View>` und
+    das Inline-`#column-config` der View muessen **paarweise** gepflegt werden: der Katalog
+    validiert den `viewKey` und den Serverpfad, der Client liest ausschliesslich das Inline-JSON.
+    Faellt eine Seite aus, bricht nichts sichtbar — die Spalte verschwindet nur still aus dem
+    Zahnrad oder rutscht in der Reihenfolge nach vorn. Genau diese Stille macht den Fehler teuer.
+
+    **Zwei Teile, in dieser Reihenfolge:**
+    1. **ADR 0005 (`0005-listen-view-pattern-mit-server-side-spaltenfilter`) ergaenzen.** Bisher
+       nennt er drei Pflichtbestandteile (Pagination, Filterkarte, Server-Spaltenfilter). Der
+       vierte — **Spaltenpraeferenzen** — fehlt, obwohl er faktisch fuer jede Liste gilt. Als
+       Ergaenzung schreiben (ADRs werden nie umgeschrieben, nur ergaenzt oder superseded), mit dem
+       **Warum** und dem ausdruecklichen Hinweis auf die zwei Registrierungsstellen; Querverweis auf
+       [[fallstricke]] §10.
+    2. **Sweep ueber alle bestehenden Listen.** `warehouse-order` ist vermutlich nicht der einzige
+       Fall, sondern nur der, ueber den jemand gestolpert ist. Fuer **jede** View mit
+       `#column-config`: die Key-Menge im Inline-JSON gegen `ColumnDefinitions.<View>` diffen, in
+       beide Richtungen (Key nur im JSON → fehlt im Katalog; Key nur im Katalog → tote Option).
+       Ergebnis als Liste, dann sammelnd beheben. Ein kleiner Test, der beide Mengen je View
+       vergleicht, waere die dauerhafte Absicherung — dieselbe Bauart wie der
+       `ServiceSettingDefinitions`-Drift-Guard aus ADR 0008.
+
+    **Einordnung:** nach dem Buendel-Merge, aus `main` — der Sweep beruehrt Views ausserhalb dieser
+    Spec und gehoert nicht in den Abnahme-Zweig.
