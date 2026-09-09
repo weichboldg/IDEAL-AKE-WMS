@@ -71,6 +71,35 @@ bewertet und mit Begruendung geparkt. **Einmal gesammelt abarbeiten**, nach dem 
     EK-Bedarf, Fertigungsmenge, Masse) wurden bewusst **nicht** materialisiert — Regel „nur was eine
     Liste tatsaechlich anzeigt". Kommt spaeter eine Anzeige, kommt das Feld mit ihr.
 
+## E — Nachtrag aus dem Gesamt-Review des Zweigs (2026-09-09)
+
+Der Abschluss-Review hatte den ausdruecklichen Auftrag, einen **fuenften** stillen Fehler zu suchen,
+nachdem vier gefunden waren. Er hat einen gefunden — die Varianten-Tabelle blieb beim Zuklappen
+einer Kombigeraet-Gruppe stehen, weil ihr die Klasse fehlte, auf die das Klapp-JS hoert.
+**Sofort behoben** (`be92ade`). Die uebrigen fuenf Befunde sind klein und bewusst geparkt:
+
+12. **Entprellung wird vor dem Versand fortgeschrieben.** Wirft der Mailversand (SMTP nicht
+    erreichbar), gilt dieselbe Menge unbekannter Arbeitsbereiche beim naechsten Lauf als
+    „unveraendert" und wird nie gemeldet. Entschaerft dadurch, dass der Lauf in diesem Fall
+    **laut** fehlschlaegt (`FinishFailedAsync`) — die Information geht also nicht spurlos verloren.
+    Sauber waere: Zustand erst nach erfolgreichem Versand fortschreiben.
+13. **Audit-Felder beim Lack-Kennzeichen.** `SetCoatingPartsAsync` setzt nur `ModifiedAt`,
+    nicht `ModifiedBy`/`ModifiedByWindows`. Vorbestehende Methode, jetzt aber auch vom IDEAL-Sync
+    genutzt — im Protokoll ist damit nicht erkennbar, welcher Lauf das Kennzeichen gekippt hat.
+14. **DryRun zaehlt die neuen Werte nicht.** Alle fuenf neuen Counts stehen im Probelauf hart auf
+    `0` statt gezaehlt zu werden; ein Probelauf gibt damit keine Vorschau auf Werkbank-, Lack- und
+    Statuszeilen-Wirkung. Plan-Vorgabe, keine Umsetzer-Abweichung.
+15. **`lackflag_gesetzt` zaehlt Zustand statt Aenderung.** Die Zahl bleibt bei jedem Lauf gleich
+    hoch und suggeriert Arbeit, wo nichts passiert ist — die Nachbar-Keys zaehlen dagegen
+    Aenderungen. Inkonsistent, nicht falsch.
+16. **Totes Feld im Quell-Record.** `MaterializationSourceOrder.HasCoatingParts` wird befuellt, aber
+    nirgends gelesen (der Schreibpfad greift direkt auf die Ableitung zu). Kandidat fuer eine
+    zweite, abweichende Wahrheit bei kuenftigen Aenderungen — entweder nutzen oder entfernen.
+
+**Ausdruecklich ohne Befund geprueft:** keine Datenintegritaetsluecke, kein Leck am Master-Schalter
+(jeder neue Pfad ist strukturell unerreichbar bei `false`, nicht nur faktisch), keine fehlende oder
+doppelte Speicherung, keine Verletzung der harten Vorgaben.
+
 ## Bezug
 
 [[2026-08-20-materialisierung-fachliche-felder-spec]],
