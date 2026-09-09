@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: Materialisierung um die fachlichen Felder erweitern (K1/K2/K3, Werkbank-Datenhoheit)"
 slug: 2026-08-20-materialisierung-fachliche-felder-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-09-07
-updated: 2026-09-07
+updated: 2026-09-08
 source_backlog: "[[2026-08-20-materialisierung-fachliche-felder]]"
 depends_on: "[[2026-08-18-fa-liste-hierarchie-anzeige-spec]]"
 task: ""
@@ -24,7 +24,8 @@ affected_code:
   - "SQL/91_<Name>.sql (naechste freie Nummer im Worktree, Stand pruefen; nur falls Rueckfrage 3/6 neue ProductionOrder-Spalten ergibt) + SQL/00_FreshInstall.sql an beiden Stellen"
   - "docs/TESTSZENARIEN.md"
   - "secondbrain/tests/testszenarien-index.md"
-open_questions:
+open_questions: []
+beantwortete_rueckfragen:
   - "Werkbank-Stammdaten fuer unbekannte Arbeitsbereiche: automatisch anlegen oder nur melden (Log+Sammelmail)?"
   - "Bestaetigung: Wird fuer IDEAL-Auftraege aktuell NIRGENDS manuell eine Werkbank zugewiesen? (Vorbedingung fuer Variante B/Sage-fuehrend) + Klassenkommentar-Korrektur"
   - "Welche K2-Felder ausser Werkbank/Beschichtet sollen materialisiert werden — nur angezeigte Spalten oder alle verfuegbaren als Vorrat? (jedes neue Feld = neue ProductionOrder-Spalte + Migration)"
@@ -38,9 +39,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Werkbank-Datenhoheit: Variante B (Sage fuehrend) mit Abweichungs-Meldung als Umschaltpunkt auf C"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-08
 # Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
@@ -431,10 +432,369 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   (hier: Werkbank-Datenhoheit A/B/C, siehe Rueckfrage 1/2).
 -->
 
-1. →
-2. →
-3. →
-4. →
-5. →
-6. →
-7. →
+1. → **MELDEN, nicht automatisch anlegen.**
+   Stammdaten aus einer Fremdquelle automatisch zu erzeugen fuellt die Werkbank-Liste mit allem, was
+   in Sage steht — auch mit Tippfehlern und Altlasten, und ohne dass es jemand entschieden hat.
+   Die Zahl der Arbeitsbereiche ist klein und stabil (im Testbestand `K-02`, `S-01`, `H1-03`,
+   `H2-02`, `H4-04`); das Nachpflegen faellt **einmalig** an, danach kommt selten etwas dazu.
+   **Damit das Melden nicht zur Sackgasse wird:** Die Meldung muss das Nachpflegen trivial machen —
+   Liste der unbekannten Arbeitsbereiche **mit Anzahl betroffener Auftraege**, im Log und in der
+   Sammelmeldung des Sync-Laufs. Nicht „unbekannter Wert" je Zeile, sondern eine Liste je Lauf.
+
+   **Vorher zu pruefen — das aendert den Umfang:** Ist `ProductionOrder.Workplace` ein
+   **String-Feld** oder ein **Fremdschluessel** auf `ProductionWorkplace`?
+
+   **NACHTRAG (2026-09-08): Es ist ein FREMDSCHLUESSEL.** Das `affected_code` dieser Spec haelt
+   verifiziert fest: *„aktuell existiert NUR `ProductionWorkplaceId` aus der K2-Liste"*. Damit gilt
+   der zweite Fall — **die Zuweisung kann nicht stattfinden, solange der Stammsatz fehlt.**
+
+   **Konsequenz fuer den Ablauf, die dokumentiert gehoert:** Der erste Materialisierungs-Lauf nach
+   dieser Umsetzung wird die unbekannten Arbeitsbereiche **melden**, aber die Werkbank-Spalte
+   **bleibt leer**. Erst nachdem ein Mensch die fuenf Arbeitsplaetze angelegt hat, fuellt der
+   **naechste** Lauf sie. Das ist ein **Zwei-Lauf-Ablauf** — er ist in Ordnung, muss aber in den
+   Deploy-Abschnitt, sonst haelt beim ersten Lauf jemand die Umsetzung fuer kaputt.
+   Alternativ koennen die Arbeitsplaetze **vor** dem Deploy angelegt werden (Namen sind aus
+   `FaHierarchyNode.Arbeitsbereich` bekannt) — dann greift die Zuweisung sofort. **Das ist der
+   sauberere Weg** und gehoert als Deploy-Vorbedingung empfohlen.
+   - **String:** Die Zuweisung funktioniert auch fuer unbekannte Werte; die Spalte ist sofort
+     gefuellt, nur werkbank-basierte Filter/Gruppierungen zeigen einen Wert ohne Stammsatz. Dann
+     ist „melden" folgenlos gut.
+   - **Fremdschluessel:** Die Zuweisung **kann nicht stattfinden**, solange der Stammsatz fehlt —
+     dann bleibt die Spalte trotz Materialisierung leer, bis jemand nachpflegt. Das gehoert dann
+     ausdruecklich in die Deploy-Vorbedingung, sonst wundert sich beim ersten Lauf jemand.
+
+2. → **Variante B (Sage fuehrend) — mit Meldung bei Abweichung und einem definierten Umschaltpunkt.**
+   Heute ist B unbedenklich: Die Werkbank-Spalte ist fuer IDEAL-Auftraege **leer**, also hat noch
+   niemand manuell zugewiesen — es gibt nichts zu ueberschreiben.
+   **Das Risiko liegt in der Zukunft:** Sobald die Spalte gefuellt ist, koennte jemand umdisponieren
+   wollen (bei AKE macht das vermutlich der Leitstand). Deshalb:
+   - Der Sync **meldet**, wenn er einen `Workplace` ueberschreibt, der vom Quellwert abweicht —
+     also wenn jemand manuell zugewiesen hat.
+   - **Diese Meldung ist der Umschaltpunkt:** Schlaegt sie an, ist damit belegt, dass manuell
+     disponiert wird, und die Entscheidung wandert auf **Variante C** (Sage-Arbeitsbereich und
+     WMS-Werkbank als getrennte Felder). Vorher waere C Vorratsbau.
+   So faengt man klein an, ohne sich zu verbauen — und der Wechsel haengt an einem Beleg statt an
+   einer Vermutung.
+   **Mitzuziehen:** `Workplace` faellt damit aus der app-verwalteten Liste des
+   `FaMaterializationSyncService`; der Klassenkommentar dort ist zu korrigieren, sonst sagt der Code
+   das eine und die Dokumentation das andere.
+
+3. → **NUR die tatsaechlich angezeigten Felder. Kein Vorrat.**
+   Jedes zusaetzliche Feld ist eine Spalte plus Migration — und ein Feld, das niemand ansieht, faellt
+   nicht auf, wenn es falsch befuellt ist. Genau diese Klasse stiller Fehler zieht sich durch das
+   ganze Paket.
+   **Minimalsatz K2:** `Arbeitsbereich` → Werkbank, `Beschichtet`.
+   **Vorher zu klaeren:** Was bedeutet die Spalte **„Komm."** in der FA-Liste — das
+   **Kommissionier-Ziel** aus `FaHierarchyNode` (dann K2, gehoert dazu) oder den
+   **Kommissionier-Status** des WMS (dann K3, bleibt zu Recht leer)? Der Spaltenkopf traegt ein
+   Sortier-Zeichen, was eher auf einen Status hindeutet — aber das ist geraten und muss am Code
+   nachgesehen werden.
+   `Matchcode`, `Hauptlagerplatz`, `Artikelgruppe`, `Artikeltyp`, `Material`, `EKBedarf`,
+   `Fertigungmenge`, Masse: **nicht** materialisieren, solange keine Liste sie zeigt. Wenn spaeter
+   eine Anzeige entsteht, kommt das Feld mit ihr — dann ist auch klar, wozu.
+
+4. → **Kopfzeile fuer die ANZEIGE — aber Filter und Export brauchen einen eigenen Weg.**
+   Kunde, Termine, Prio, AB-Nummer und Montage-Abteilung haengen am HauptFA; sie in 39 Zeilen zu
+   wiederholen ist Redundanz. **Keine Materialisierung je Zeile.**
+   **Aber die Rueckfrage trifft einen echten Punkt:** Die FA-Liste hat in der Filterkarte bereits
+   ein **Kunde**-Feld. Ein Wert, der nur in der Gruppen-Kopfzeile steht, ist fuer einen
+   zeilenbasierten Filter unsichtbar — der Filter liefe ins Leere, ohne Fehlermeldung.
+   **Vorgabe:** Der Kunde-Filter (und jeder kuenftige Filter auf einem Kopfdatum) arbeitet
+   **server-seitig ueber einen Join auf `FaHierarchyOrderInfo` je `HauptFA`** und schraenkt
+   **Gruppen** ein — nicht ueber eine duplizierte Zeilenspalte. Das ist derselbe Weg wie bei den
+   Kopfdaten selbst: eigene Abfrage je HauptFA, **kein Fan-out-Join** auf die Positionen.
+   **Export:** nimmt die Kopfdaten je Gruppe mit (einmal je Gruppe, nicht je Zeile). Falls ein
+   flacher Export je Zeile gebraucht wird, ist das ein eigener Umfang — hier bewusst nicht.
+
+5. → **Vorschlag mit Pflicht zur Bestaetigung am ersten Datenlauf:**
+   | Anzeige-Spalte | Vorschlag | Begruendung |
+   |---|---|---|
+   | Fert.-Termin | `FE_Termin` | Fertigstellung; erscheint bereits so benannt in der FA-Struktur-Kopfzeile |
+   | Liefertermin | `Verladetermin_Vsl` | Verladung = Auslieferung |
+   | BG-Termin | **vermutlich ohne Entsprechung** | in `FaHierarchyOrderInfo` kein passendes Feld erkennbar |
+   **Fuer `BG-Termin` gilt die F7-Regel:** Eine Spalte ohne befuellbare Quelle wird im hierarchischen
+   Modus **ausgeblendet**, nicht leer stehen gelassen — eine sichtbar leere Spalte, auf die ein
+   Filter oder eine Sortierung wirkt, liefert sonst eine leere Liste ohne erkennbaren Grund.
+   **`Neuer_PT_PPS`** (aktueller PPS-Produktionstermin) ist **nicht** dasselbe wie `FE_Termin` und
+   gehoert nur dann als eigene Spalte dazu, wenn der Fachbereich ihn in der FA-Liste braucht — offen
+   und mit demselben Fachbereich zu klaeren wie die Vormontage-Filterfrage.
+   **Bestaetigung:** an einem HauptFA die drei Termine gegen das PPS/Sage-Bild vergleichen. Das
+   Mapping steht und faellt mit einer Sichtpruefung, nicht mit der Feldbenennung.
+
+6. → **ERSETZT — nicht ergaenzt, und nie beide gleichzeitig.**
+   Fuer IDEAL ist `FaHierarchyNode.Beschichtet` (aus Sage) die Wahrheit. Die AKE-Heuristik
+   (BOM-Kategorie-Matching ueber `LackierteilKategorieName` in `CoatingDetectionService`) wird fuer
+   hierarchische Auftraege **hart abgeschaltet** — das ist bereits als Klasse-D-Gate in
+   [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]] (Design H) festgelegt.
+   Aufgabenteilung zwischen den beiden Specs:
+   - **BOM-Bridge:** schaltet die Heuristik ab (Gates).
+   - **Diese Spec:** liefert die Ersatzquelle — `HasCoatingParts` fuer einen Sub-FA aus
+     „er selbst oder eines seiner direkten Kinder ist `Beschichtet`".
+   Fuer AKE bleibt alles unveraendert. **Beide Logiken laufen nie nebeneinander** — der Master
+   entscheidet, welche gilt.
+   **Zeitliche Luecke bewusst benennen:** Zwischen der BOM-Bridge (Heuristik aus) und dieser Spec
+   (Ersatz da) bleibt `HasCoatingParts` fuer IDEAL leer. Das ist gewollt — leer ist besser als
+   falsch — aber es faellt jemandem auf, und dann soll die Erklaerung auffindbar sein.
+   **Der Beschichtungstermin** kommt bei IDEAL aus FAInfos `Start_Beschichtung`, nicht aus
+   `CoatingDateCalculator` (der rechnet aus dem Vorkommissionier-Termin, und der ist bei IDEAL NULL).
+
+7. → **Im `FaHierarchySyncService`, einmal je Sync-Lauf.**
+   Nicht bei jedem Seitenaufruf: Ein mehrdeutiger `HauptFA` ist eine **Eigenschaft der Daten**, keine
+   der Anzeige — sie aendert sich zwischen zwei Seitenaufrufen nicht, und ein Log-Eintrag je Aufruf
+   erzeugt Rauschen, das die Meldung entwertet. Damit folgt sie demselben Muster wie die uebrigen
+   Invarianten dieses Pakets (Umhaeng-Konflikt, vermisste FAs).
+   **Die Kennzeichnung in der Oberflaeche bleibt** — sie ist Anzeige und gehoert dorthin; nur der
+   **Log-Eintrag** wandert in den Sync.
+   Form wie bei den vermissten FAs: **eine Sammelmeldung je Lauf** mit der Liste der betroffenen
+   HauptFAs, nicht ein Eintrag je Fall.
+
+## Kritische Pruefung (2026-09-09)
+
+Anwalt des Teufels vor Schranke 1. Code-Belege gegen Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5` @ `22d31ae` (BOM-Bridge v1.36.0 inkl. Klasse-D-Gates
+ist dort bereits umgesetzt, `HierarchicalModeGateTests` gruen). Gelesen: Spec + Freigabe-Antworten,
+Backlog, [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]] (Design H, QA-Nachweis),
+[[2026-08-18-fa-liste-hierarchie-anzeige-spec]] (Z1, sechs Ansichten), Teil-7-Spec, ADR 0003/0005/
+0009/0010/0013, fallstricke §5/§9/§10, Glossar, `codebase/services.md`.
+
+**Vorab — was am Code geklaert ist (keine Rueckfrage mehr noetig):**
+- Antwort 3 fragt, was „Komm." bedeutet: Es ist **weder K2 noch K3**, sondern ein **berechnetes
+  Datum** (`picking-date` = Fert.-Termin minus `KommissionierTage`, `ProductionOrdersController.cs:137-138`,
+  Tooltip „Fertigungstermin - N Arbeitstage"). Es faellt aus der Termin-Kaskade heraus, sobald
+  Fert.-Termin bekannt ist. „Lack-T" (`coating-part`) ist ein **Icon** aus `HasCoatingParts`/`IsCoatingDone`
+  (`_ProductionOrderRow.cshtml:95-104`), kein Datum.
+- `ProductionOrder` hat **kein** `string Workplace`, nur FK `ProductionWorkplaceId` + Navigation
+  (`ProductionOrder.cs:67-68`) — Antwort-1-Nachtrag stimmt. `ProductionWorkplace.Name` hat **keinen
+  Unique-Index** (`ApplicationDbContext.cs:745-756`, `SQL/22_AddProductionWorkplaces.sql`), es gibt
+  **keine** `GetByNameAsync`-Methode, **kein** Werkbank-Seed; einziger Anlege-by-Name-Weg ist
+  `OseonSyncService.cs:219-230` (AKE).
+- `HasCoatingParts`/`IsCoatingDone` liegen **nicht** auf `ProductionOrder`, sondern auf der
+  Satelliten-Tabelle `ProductionOrderPickingStatus` (`:41/:44`, ADR 0009). Geschrieben heute nur von
+  `CoatingDetectionService.BulkUpdateCoatingFlagAsync` (`:222-274`, `UPDATE` nur bestehender Zeilen)
+  und `ProductionOrderPickingStatusRepository.SetCoatingPartsAsync` (`:141-160`, mit
+  `IsCoatingDone`-Kaskaden-Reset, Fallstrick #11).
+- `FaMaterializationSyncService` laedt `PickingStatus` per `Include` (`:66`), schreibt es aber nie;
+  `MaterializationSourceOrder` hat genau drei String-Felder (`FaMaterializationPlanner.cs:7-8`).
+- Naechste freie Migrationsnummer im Worktree ist tatsaechlich **91** (`SQL/90_...` ist die hoechste).
+- `FaHierarchyOrderInfo.HauptFA` ist ein **nicht-uniquer** Index (`ApplicationDbContext.cs:1040`) —
+  1:n bestaetigt. Felder: `KO_Termin`, `FE_Termin`, `Start_Beschichtung`, `Beschichten_Retour`,
+  `Neuer_PT_PPS`, `Verladetermin_Vsl`, `Prio`, `ABNr`, `Kunde`, `MontageAbteilung`, `Dienstleister`, `RAL`.
+- Die FA-Struktur-Kopfzeile (`Views/FaHierarchy/Index.cshtml:157-164`) zeigt `KO_Termin` als
+  **„Kommissionier-Termin"** und `FE_Termin` als „Fertig-Termin". `Verladetermin_Vsl`,
+  `Start_Beschichtung`, `Prio` werden dort **nirgends** gerendert.
+
+### BLOCKER
+
+**B1 — `HasCoatingParts`: Antwort 6 widerspricht K3, AK 11 und F3.** Spec-Abschnitt K3 erklaert
+Lack-T (`HasCoatingParts`) fuer „zu Recht leer, keine Code-Aenderung"; AK 11 fordert einen
+Regressionstest „keine Verhaltensaenderung an `HasCoatingParts`". Antwort 6 (und die BOM-Bridge-Spec,
+Design H Z. 447-456, Out-of-Scope Z. 150-152) weisen **genau dieser Spec** die Schreibquelle zu:
+`HasCoatingParts` ← „Sub-FA selbst oder ein direktes Kind `Beschichtet`". Dazu kommen drei Folgen,
+die im Spec-Koerper fehlen:
+(a) `HasCoatingParts` liegt auf `ProductionOrderPickingStatus` — und `PickingStatus` steht in der
+app-verwalteten Z1-Liste (`FaMaterializationSyncService.cs:21-22`). Der Sync muesste also eine
+**zweite Z1-Ausnahme** neben `Workplace` bekommen (F3 nennt nur eine). (b) Wer legt die
+`PickingStatus`-Zeile fuer IDEAL-Auftraege an? AKE erzeugt sie eager im `SageImportService`; die
+Materialisierung erzeugt sie **nicht**; `CoatingDetection` updatet nur bestehende Zeilen. Ohne
+Eager-Create schreibt der Sync ins Leere. (c) Kippt das Flag auf `false`, muss `IsCoatingDone`
+mit zurueckgesetzt werden (Fallstrick #11) — Semantik in der Spec nicht erwaehnt.
+**Und:** Antwort 3 nennt als Minimalsatz `Beschichtet` als **neue `ProductionOrder`-Spalte** — aber
+**keine der sechs Ansichten zeigt ein rohes `Beschichtet`**; sie zeigen Lack-T (= `HasCoatingParts`)
+und Beschicht.-Datum. Nach Antwort 3s eigener Regel („nur angezeigte Felder") gibt es fuer eine neue
+Spalte keinen Grund; die Ableitung nach `HasCoatingParts` genuegt. Dann faellt die **Migration
+komplett weg** (`migration: true` im Frontmatter waere falsch), sofern B3 keine neue Spalte bringt.
+→ *Frage an den Menschen:* (1) K3/AK 11 streichen und `HasCoatingParts`-Ableitung als In-Scope-Punkt
+mit eigener AK + Z1-Ausnahme aufnehmen — ja? (2) Rohes `Beschichtet` als eigene Spalte **oder** nur
+die Ableitung? (Empfehlung: nur Ableitung, keine Migration.) (3) Eager-Create der `PickingStatus`-
+Zeile im Materialisierungs-Sync — ja, oder Ableitung in einem eigenen Schritt nach dem Anlegen?
+
+**B2 — Termine: Antwort 5 widerspricht der Termin-Kaskade, AK 3 und dem Testszenario.** Antwort 5
+sagt „BG-Termin vermutlich ohne Entsprechung → ausblenden (F7)". Der Spec-Abschnitt „Termin-Kaskade"
+und AK 3 sagen das Gegenteil: BG-Termin wird aus Fert.-Termin **berechnet** und ist gerade der Wert,
+der je Werkbank (`OverridePrePickingDays`) **abweicht** — das ist der Kern von AK 3 und des
+Testszenarios „Termin-Kaskade". Am Code stimmt die Kaskade (`:137-146`): sobald Fert.-Termin gesetzt
+ist, entstehen Komm., BG-Termin und Beschicht. automatisch. Ausblenden waere also nicht F7
+(„Spalte ohne Quelle"), sondern Wegwerfen einer vorhandenen Ableitung.
+Zweiter Riss: IDEAL liefert **`KO_Termin` explizit** (Struktur-Kopfzeile: „Kommissionier-Termin"),
+Antwort 5 erwaehnt ihn nicht — die Kaskade wuerde Komm. stattdessen als `FE_Termin - 4 AT` **errechnen**
+und damit vom expliziten Sage-Wert abweichen. Das ist dieselbe Klasse „Heuristik statt expliziter
+Wahrheit", die Design H der BOM-Bridge fuer IDEAL gerade abgeschaltet hat.
+→ *Frage:* (1) BG-Termin: Kaskade (Spec-Text, AK 3) **oder** ausblenden (Antwort 5)? (2) Komm.:
+aus `KO_Termin` (explizit, K1) oder errechnet aus `FE_Termin`? Empfehlung: Komm. ← `KO_Termin`,
+BG-Termin ← `KO_Termin - effectivePrePickingDays`, Fert.-Termin ← `FE_Termin`, Liefertermin ←
+`Verladetermin_Vsl`; ist `KO_Termin` NULL, Fallback auf die Kaskade und **kennzeichnen**.
+(3) Sichtpruefung am ersten Datenlauf bleibt Pflicht — als AK formulieren (siehe S6).
+
+**B3 — Beschichtungstermin aus `Start_Beschichtung`: angekuendigt, aber nirgends im Umfang.** Der
+Verzahnungsblock (Kopf) und Antwort 6 sagen: „Beschichtungstermin kommt bei IDEAL aus FAInfos
+`Start_Beschichtung`, nicht aus `CoatingDateCalculator`". In-Scope-Liste, `affected_code`,
+Termin-Kaskade („Beschicht. = BG-Termin minus `BeschichtungTage`"), AKs und Testszenarien enthalten
+davon **nichts** — die Kaskade im Spec-Text wuerde Beschicht. weiterhin errechnen. Zudem rechnen
+**drei** Controller den Beschichtungstermin: `ProductionOrdersController` (inline, `:141-146`),
+`PickingLeitstandController.cs:155-157` und `FaWorklistController.cs:259-261` (beide ueber
+`CoatingDateCalculator.Compute`). Und: `Start_Beschichtung` haengt am **HauptFA** (K1), Beschicht.
+wird aber **je Zeile** nur bei `HasCoatingParts` gezeigt — die Regel „Kopfwert auf Zeilen mit Flag"
+steht nirgends. Bei mehrdeutigem HauptFA (Kombigeraet) koennen die Varianten **verschiedene**
+`Start_Beschichtung`/`Dienstleister`/`RAL` haben — genau der Fall, den
+[[2026-08-06-kombinationsgeraete-montageabteilung]] als schwerwiegend beschreibt.
+→ *Frage:* Ist der Beschichtungstermin aus `Start_Beschichtung` **in dieser Spec** drin (dann: alle
+drei Controller, Regel fuer mehrdeutige HauptFAs = keine Zeilen-Termine + Badge, eigene AK) — oder
+ausdruecklich **raus** (dann: Verzahnungsblock/Antwort 6 korrigieren und Folge-Backlog anlegen,
+und die Kaskade rechnet Beschicht. bis dahin wie heute)?
+
+**B4 — Umschaltpunkt B→C ist so nicht belegbar.** Antwort 2 macht die Abweichungs-Meldung zum Beweis
+fuer manuelle Disposition („schlaegt sie an, ist belegt, dass manuell disponiert wird"). Der Sync
+kann aber nur `ProductionWorkplace.Name` (Ist) gegen `Arbeitsbereich` (Quelle) vergleichen. Eine
+**Sage-seitige** Aenderung des Arbeitsbereichs an einem laufenden Auftrag erzeugt exakt dieselbe
+Abweichung — die Meldung unterscheidet nicht zwischen „Mensch hat umdisponiert" und „Sage hat
+umgeplant". `FaHierarchyNode` ist Full-Refresh je Lauf (`FaHierarchySyncService.cs:129-138`), der
+vorige Quellwert ist nach dem Lauf weg. Zur echten Unterscheidung braeuchte es den **zuletzt
+materialisierten Quellwert** je Zeile (z. B. `ProductionOrder.SourceWorkplaceName`, nvarchar(200)
+NULL → Migration; ironischerweise ist das das zweite Feld aus Variante C) — dann gilt: Ist ≠ letzter
+Quellwert **und** Quelle = letzter Quellwert → manuell; Quelle ≠ letzter Quellwert → Sage-Aenderung.
+→ *Frage:* (a) Quellwert mitspeichern (Migration, praezise Meldung) **oder** (b) Meldung bewusst
+unscharf lassen („abweichend — manuell oder Sage-Aenderung") und den Umschaltpunkt nach
+menschlicher Sichtung statt automatisch setzen? Beides ist vertretbar; die Spec muss es sagen, weil
+AK 9 heute „Log-Eintrag mit altem/neuem Wert" als Beweis fuer B verlangt.
+
+**B5 — Umfang: welche Ansichten?** In-Scope 1 sagt „Gruppen-Kopfzeile der FA-Liste (und **ggf.**
+weiterer Ansichten)". `affected_code` nennt nur `ProductionOrdersController`/`Index.cshtml`. Am Code
+zeigen aber auch `PickingLeitstand` (Kunde, Werkbank, alle fuenf Termine), `Tracking` (Kunde,
+Werkbank, Fertigungstermin), `Picking` (Kunde, Komm.-Termin) und `FaWorklist` (Werkbank, vier
+Termine) je Zeile — fuer IDEAL heute alle leer. Werkbank (K2) fuellt sich dort automatisch mit;
+Kunde und Termine (K1) **nicht**, solange nur `ProductionOrdersController.MapItem` umgebaut wird.
+Ein Anwender sieht dann in der FA-Liste Termine, im Leitstand daneben keine.
+Dazu AK 1 vs. AK 3: AK 1 fordert „nicht auf den Sub-FA-Zeilen dupliziert", AK 3 verlangt, dass Zeilen
+denselben Fert.-Termin/Liefertermin **zeigen**. Gemeint ist offenbar „nicht in der DB", aber so ist
+es nicht formuliert — und fuer Kunde ist offen, ob die leere Zeilenspalte `customer` im hierarchischen
+Modus **ausgeblendet** (F7 — dafuer gibt es heute **keinen** Mechanismus, `Hierarchical` blendet keine
+Spalte aus, Index.cshtml `:77-102`/`:171-195` identisch in beiden Modi) oder mit dem Kopfwert
+befuellt wird.
+→ *Frage:* (1) Nur FA-Liste (dann explizit als Out-of-Scope: die fuenf anderen Ansichten zeigen
+K1 weiterhin leer, Folge-Backlog) — **oder** alle sechs? Bei „alle sechs" ist das ein Epic-Kandidat
+(siehe G1). (2) Zeilen-Darstellung von K1: Termine ja (Kaskade braucht sie), Kunde ja/nein/ausblenden?
+
+### SOLLTE
+
+**S1 — Sammelmeldung „unbekannte Arbeitsbereiche" spammt ohne Zustand.** Antwort 1 will Log **und**
+Sammelmail je Lauf. Das Vorbild `SendMissingDigestAsync` meldet nur **neu** Vermisste, weil der
+Planner ueber `SageMissingSince` weiss, was schon gemeldet ist (`FaMaterializationPlanner.cs:79-84`).
+Fuer unbekannte Arbeitsbereiche gibt es keinen solchen Zustand — bei 15-Minuten-Takt kaemen bis zur
+Nachpflege **96 identische Mails pro Tag**. Vorschlag: jeder Lauf schreibt Warning + Counts-Key
+`arbeitsbereich_unbekannt` (Anzahl Auftraege) + Liste `Name (n Auftraege)` ins Aktivitaets-Protokoll;
+**Mail nur**, wenn sich die Menge der unbekannten Namen gegenueber dem letzten Lauf aendert (einfachster
+Zustand: die Namen der letzten Meldung im Singleton-Reader oder als ServiceSetting-Wert halten) —
+oder ganz ohne Mail, weil das Protokoll in der UI sichtbar ist. Als Entscheidung in Antwort 1
+nachtragen.
+
+**S2 — Name-Match ohne Eindeutigkeit definieren.** Kein Unique-Index auf `ProductionWorkplace.Name`,
+keine Lookup-Methode. Festlegen: Vergleich case-insensitiv + getrimmt; bei **mehreren** Treffern
+keine Zuweisung + eigener Meldefall (nicht der erste Treffer); neue Methode
+`GetByNamesAsync(IEnumerable<string>)` (eine Abfrage je Lauf, kein N+1). `affected_code` Zeile zu
+`ProductionWorkplaceRepository` entsprechend praezisieren.
+
+**S3 — Kunde-Filter: Praezisierung statt Join.** Antwort 4 spricht von „Join auf `FaHierarchyOrderInfo`
+je HauptFA". Am Code sitzt `filterCustomer` in `BuildLeitstandQuery` (`ProductionOrderRepository.cs:109-110`,
+Zeilenebene, vor der Gruppen-Paginierung `:68-73`) und wird **auch** vom `PickingLeitstandController`
+(`:181-182`) genutzt — die Reparatur im Repository hilft also zwei Ansichten. Umsetzbar ohne Fan-out
+als **Subquery**: `o.OrderNumber IN (SELECT CAST(HauptFA AS nvarchar) FROM FaHierarchyOrderInfos WHERE
+Kunde LIKE …)` (Typbruch int↔string beachten, Muster aus der Materialisierung). Ausserdem: der
+**Spaltenfilter** `customer` (`ColumnFilterHelper`, serverseitig) hat dasselbe Problem — Antwort 4
+sagt „jeder kuenftige Filter", dieser existiert schon. Entweder mitziehen oder Spalte im
+hierarchischen Modus ausblenden (haengt an B5).
+
+**S4 — F7-Ausblende-Mechanismus ist Neubau, nicht Konfiguration.** Wo immer die Spec „im hierarchischen
+Modus ausgeblendet" sagt (Antwort 5, ggf. B5), braucht es Code: `ColumnDefinitions.ProductionOrders`
+**und** das Inline-`column-config`-JSON (fallstricke §10: zwei Registrierungen) plus eine Flag-Logik,
+die es heute nicht gibt. In `affected_code` aufnehmen oder die Ausblende-Faelle streichen.
+
+**S5 — Deploy-Abschnitt nachziehen, wie Antwort 1 es selbst verlangt.** Der Zwei-Lauf-Ablauf und die
+empfohlene Vorbedingung „fuenf Werkbaenke (`K-02`, `S-01`, `H1-03`, `H2-02`, `H4-04`) **vor** dem
+Deploy anlegen" stehen nur in der Antwort, nicht im Deploy-Abschnitt. Ebenso fehlt dort: „nach dem
+Deploy einen Sync-Lauf (≤ 15 min) abwarten, dann pruefen" (F2) und der Hinweis, dass die
+Werkbank-Namen aus Sage exakt (Gross/Klein, Leerzeichen) uebernommen werden muessen. Ausserdem das
+Antwort-1-Relikt: die beiden Aufzaehlungspunkte „String:/Fremdschluessel:" **nach** dem Nachtrag
+sind ueberholt und verwirren den Dev-Lauf — streichen.
+
+**S6 — AKs schaerfen.** AK 6 nennt „130 Sub-FAs" — Zahl aendert sich; „alle bereits materialisierten
+Zeilen". AK 8 „byte-identisch" — pruefbar als „bestehende Web-/Service-Tests unveraendert gruen +
+kein Schreibzugriff auf `ProductionOrders` bei Master `false` (Unit-Test mit Master `false` → Sync
+schreibt 0 Zeilen)". Neue AK fuer Antwort 5: „Sichtpruefung: an einem HauptFA stimmen Komm./Fert./
+Liefer mit dem Sage-Bild ueberein — Ergebnis mit HauptFA-Nummer im QA-Nachweis". Neue AK fuer die
+Kombigeraet-Meldung: Counts-Key-Name (`hauptfa_mehrdeutig`) + Sammelmeldung mit HauptFA-Liste.
+
+**S7 — Mehrdeutig-Darstellung wiederverwenden.** `Views/FaHierarchy/Index.cshtml:151-181` hat das
+Muster schon (Badges nur bei eindeutigem Kopf, sonst Untertabelle aller Varianten + Badge
+„mehrdeutig (Kombigeraet)"). Als Referenz in den Loesungsentwurf; bei mehrdeutigem HauptFA gilt fuer
+die Zeilen-Termine: **keine** (nicht die erste Variante) — explizit hinschreiben.
+
+**S8 — Planner-Zuschnitt.** `MaterializationSourceOrder` bekommt `Arbeitsbereich` (string?) und ein
+**bereits abgeleitetes** `HasCoatingParts` (bool) — die Ableitung „selbst oder direktes Kind"
+braucht alle Knoten (`VaterFA = SubFA`), die der Service kennt, nicht der reine Planner. So bleibt der
+Planner DB-frei und unit-testbar; die Ableitung bekommt einen eigenen reinen Helper + Tests.
+
+### HINWEIS
+
+**H1 — Frontmatter sagt `status: Freigegeben`, Datei liegt in `specs/entwurf/`.** Das HOME-Dashboard
+und die Pipeline lesen den Ordner. Nach der Nachbesserung gehoert beides zusammen umgestellt
+(Menschen-Geste). Der Verweis im `/review`-Aufruf zeigte schon auf `freigegeben/`.
+
+**H2 — Worktree-Wahl.** Frontmatter bindet die Umsetzung an das Buendel
+`feature/2026-08-07-ideal-teile-1-5`, das seit v1.31 waechst und mit v1.36.0 auf Schranke 2 wartet.
+Jede weitere Etappe dort verschiebt den Merge und vergroessert die UAT-Flaeche. Alternative: Merge
+zuerst, dann eigener Worktree aus `main` (so hatte es die BOM-Bridge-Spec vorgesehen, bevor sie doch
+im Buendel lief). Bewusst entscheiden, nicht per Default.
+
+**H3 — „Zeitliche Luecke" (Antwort 6) existiert nur bei getrenntem Deploy.** Die Gates sind im
+Buendel bereits aktiv (`56e8faa`); wird diese Spec im selben Buendel umgesetzt, gibt es beim Deploy
+keine Phase mit leerem `HasCoatingParts`. Bei getrenntem Deploy: Erklaerung auf der Hilfeseite.
+
+**H4 — Antwort 4 „Export nimmt Kopfdaten mit"** beschreibt Verhalten fuer ein Feature, das es nicht
+gibt (kein CSV/Excel-Export in der App, 0 Treffer). Streichen oder als „falls spaeter" markieren.
+
+**H5 — Backlog-Verweis falsch.** Der Backlog verweist fuer die Z1-Regel auf
+[[2026-07-29-standort-ideal-teil-7-spec]]; Z1 steht in [[2026-08-18-fa-liste-hierarchie-anzeige-spec]]
+(§Z1, H1). Fuer den Dev-Lauf die richtige Quelle nennen.
+
+**H6 — F7 ist keine paketweite Regel.** Sie stammt aus der inzwischen superseded Alt-Spec
+[[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]] (§F7) und wurde in keine freigegebene Spec
+uebernommen. Wer sich darauf beruft, sollte sie hier einmal ausformulieren.
+
+**H7 — Glossar-Luecken**: Arbeitsbereich, Lack-T, Komm., BG-Termin, Kombinationsgeraet, HauptFA fehlen
+im Glossar; „Artikelinfo … aus dem BOM-Cache" ist seit v1.36.0 ueberholt. Brain-Pflicht im Dev-Lauf.
+
+**H8 — Datenhoheit ohne ADR.** „Sage fuehrend fuer die Werkbank bei IDEAL, Meldung als Umschaltpunkt"
+ist eine Architekturentscheidung ohne ADR (0009 kommt am naechsten). ADR-0014-Kandidat.
+
+**H9 — Antwort-2-Annahme pruefen, nicht glauben.** „Werkbank-Spalte ist fuer IDEAL leer" ist
+plausibel (Sync schreibt sie nie), aber der Leitstand kann zuweisen. Vor dem Deploy per SQL belegen:
+`SELECT COUNT(*) FROM ProductionOrders WHERE ProductionWorkplaceId IS NOT NULL` bei Master `true`.
+
+**H10 — Antwort 5, Begruendung „erscheint bereits so benannt"**: Die Struktur-Kopfzeile nennt
+`FE_Termin` „FE-Termin"/„Fertig-Termin", nicht „Fert.-Termin" — passt inhaltlich, Wortlaut stimmt
+nicht. `Neuer_PT_PPS` wird nirgends angezeigt; wer ihn braucht, ist offen (Fachbereich).
+
+### Groesse (G1)
+
+Web: Controller, Repository (+Interface, neue Methode, Kunde-Subquery), ViewModel, `Index.cshtml`,
+ggf. `ColumnDefinitions` + column-config, ggf. `PickingStatus`-Schreibweg, ggf. zwei weitere
+Controller (B3). Service: `FaMaterializationSyncService`, `Planner`, `FaHierarchySyncService`,
+`ProductionWorkplaceRepository`, ggf. Migration 91 (B1/B4). Tests in beiden Suiten, TESTSZENARIEN,
+Hilfeseite, zwei `AppVersion.cs`, Changelog ×2, feature-map, ggf. ADR. **~18-25 Dateien, drei
+Schichten.** Bei „nur FA-Liste, keine Migration" gerade noch ein Dev-Lauf; bei B3 = ja oder B5 =
+„alle sechs" ein **Epic** mit drei Etappen: A K2-Service (Werkbank + `HasCoatingParts` + Meldungen),
+B K1-FA-Liste (Kopfzeile, Termine, Kunde-Filter), C uebrige Ansichten/Beschichtungstermin.
+
+### Deploy und Test
+
+`deploy.migration: true` haengt an B1/B4 — nach deren Entscheidung korrigieren. Manuelle
+Test-Checkliste ist als Szenario-Liste vorhanden, aber ohne Vorbedingungen (Werkbaenke angelegt?
+Master `true`? welcher HauptFA mit Kombigeraet?) und ohne Negativfaelle (unbekannter Arbeitsbereich
+mit doppeltem Namen; HauptFA ohne `FaHierarchyOrderInfo`-Zeile; `KO_Termin`/`FE_Termin` NULL) —
+fuer `docs/TESTSZENARIEN.md` im Dev-Lauf ausformulieren. Produktiv entstehen **echte Daten**
+(Werkbank-Zuweisungen, `HasCoatingParts`-Flags, Log-Eintraege, Mails) ab dem ersten Sync-Lauf nach
+dem Deploy — im Deploy-Abschnitt benennen.
+
+**Empfehlung: NACHBESSERUNG NOETIG — B1 (HasCoatingParts vs. K3/AK 11, Migration ja/nein), B2/B3
+(Termin-Regeln widersprechen sich, `KO_Termin`/`Start_Beschichtung` ungeklaert) und B5 (Umfang
+Ansichten) muessen vor dem Dev-Lauf entschieden sein.**
