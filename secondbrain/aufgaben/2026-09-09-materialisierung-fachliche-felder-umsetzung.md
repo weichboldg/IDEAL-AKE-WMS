@@ -1,7 +1,7 @@
 ---
 type: aufgabe
 title: "IDEAL: Materialisierung um die fachlichen Felder erweitern (K1/K2) — Umsetzung"
-status: InUmsetzung
+status: Testbereit
 spec: "[[2026-08-20-materialisierung-fachliche-felder-spec]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -114,7 +114,8 @@ dem Start korrigiert.
 | 7 | Kunde-Freitext + Spaltenfilter hierarchisch | **erledigt** `79a174b` + Fixrunde `5022222` (Flachmodus zurueckgenommen, Mehr-Token-Tests, SQL-Uebersetzungstest) |
 | 8 | ViewModel + Controller: K1, Termin-Kaskade, Beschichtungstermin | **erledigt** `f160b1d` + Fixrunde `b3d5a15` (geratener Beschichtungstermin) |
 | 9 | Gruppen-Kopfzeile + Varianten-Tabelle bei Kombigeraeten | **erledigt** `86cdc26` |
-| 10 | v1.37.0, Anwender-Changelog, Hilfe, TS-71 | laeuft |
+| 10 | v1.37.0, Anwender-Changelog, Hilfe, TS-71 | **erledigt** `1f038f6` |
+| 11 | qa-agent: Build+Tests gruen, AK 1-13 gegen Diff `a9ea910..be92ade` abgeglichen, Deploy-Abschnitt finalisiert, manuelle Test-Checkliste | **erledigt**, Status `Testbereit` |
 
 ## Vier Fehler, im Lauf gefunden und behoben
 
