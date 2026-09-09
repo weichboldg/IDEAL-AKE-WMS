@@ -1,4 +1,5 @@
 using FluentAssertions;
+using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
@@ -412,8 +413,121 @@ public class ProductionOrderRepositoryTests
         var freetextPage = await repo.GetForLeitstandAsync(null, null, "muster", showDone: true, page: 1, pageSize: 25);
         freetextPage.TotalCount.Should().Be(0);
 
-        var columnPage = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 25,
-            columnFilters: new Dictionary<string, string> { ["customer"] = "muster" });
-        columnPage.TotalCount.Should().Be(0);
+        // Der Spaltenfilter "customer" bleibt fuer !hierarchical bewusst der unveraenderte
+        // Alt-Ausdruck (Fixrunde 1, Punkt a: F4, kein neues Risiko auf dem AKE-Pfad). Dieser
+        // Alt-Ausdruck (patterns.Any(...) ueber eine lokale Liste) war schon VOR Task 7 nicht
+        // InMemory-uebersetzbar — ein vorbestehender, hier nicht angefasster Zustand (siehe
+        // Fallstrick "Tests, EF, SQL Server": nicht alles ist InMemory-testbar). Die Regression
+        // gegen den Auftragskopf wird deshalb auf SQL-Text-Ebene abgesichert, siehe
+        // CustomerColumnFilter_Flat_SqlServer_NeverReferencesOrderInfoHead unten.
+    }
+
+    // Fixrunde 1, Punkt (b): mit nur einem Token ruft Aggregate() die Faltfunktion nie auf —
+    // OrElseProductionOrderPredicate und ParameterRebinder (der riskanteste neue Code) waeren
+    // sonst ungetestet. Zwei Tokens, je einer matcht nur ueber den Kopf der jeweils ANDEREN Zeile.
+    [Fact]
+    public async Task Leitstand_Hierarchical_CustomerColumnFilter_TwoTokens_OrAcrossRows()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "1000", SubOrderNumber = "1001", Customer = null,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 2, OrderNumber = "2000", SubOrderNumber = "2001", Customer = null,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 2000, Kunde = "Andere Firma" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+
+        // Positiv: "muster" ODER "andere" -> beide Zeilen treffen (jede ueber ihren eigenen Kopf).
+        var page = await repo.GetForLeitstandGroupedAsync(null, null, null, showDone: true, page: 1, pageSize: 25,
+            columnFilters: new Dictionary<string, string> { ["customer"] = "muster,andere" });
+
+        page.TotalRowCount.Should().Be(2);
+        page.Groups.SelectMany(g => g.Rows).Select(r => r.SubOrderNumber)
+            .Should().BeEquivalentTo(new[] { "1001", "2001" });
+
+        // Negiert: eine Zeile bleibt nur sichtbar, wenn WEDER "muster" NOCH "andere" passt —
+        // hier matcht jede Zeile mindestens einen Token, also bleibt keine uebrig.
+        var negPage = await repo.GetForLeitstandGroupedAsync(null, null, null, showDone: true, page: 1, pageSize: 25,
+            columnFilters: new Dictionary<string, string> { ["customer"] = "!muster,andere" });
+
+        negPage.TotalRowCount.Should().Be(0);
+    }
+
+    // Fixrunde 1, Punkt (c): InMemory ist kein Zeuge fuer den produktiven SQL-Server-Provider.
+    // Baut denselben Ausdrucksbaum gegen einen SqlServer-Context (nie verbunden — ToQueryString()
+    // kompiliert nur, oeffnet keine Verbindung) und prueft am erzeugten SQL-Text, dass (1) die
+    // korrelierte Subquery inkl. HauptFA-Konvertierung uebersetzt wird, und (2) im NOT-Zweig die
+    // IS NOT NULL-Pruefung von ProductionOrder.Customer erhalten bleibt (nicht wegoptimiert).
+    [Fact]
+    public void CustomerColumnFilter_Hierarchical_SqlServer_TranslatesCorrelatedSubqueryAndConvert()
+    {
+        using var ctx = CreateSqlServerContext();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var query = repo.BuildLeitstandQuery(null, null, null, showDone: true,
+            new Dictionary<string, string> { ["customer"] = "muster" }, hierarchical: true);
+
+        var sql = query.ToQueryString();
+
+        sql.Should().Contain("EXISTS", "die Kopf-Subquery muss als korrelierte Subquery uebersetzt werden");
+        sql.Should().Contain("FaHierarchyOrderInfos", "die Subquery muss gegen die Kopftabelle laufen");
+        sql.Should().Contain("CONVERT", "HauptFA.ToString() muss serverseitig konvertiert werden (kein Client-Eval)");
+    }
+
+    [Fact]
+    public void CustomerColumnFilter_Hierarchical_Negated_SqlServer_PreservesNullGuardUnderNot()
+    {
+        using var ctx = CreateSqlServerContext();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var query = repo.BuildLeitstandQuery(null, null, null, showDone: true,
+            new Dictionary<string, string> { ["customer"] = "!muster" }, hierarchical: true);
+
+        var sql = query.ToQueryString();
+
+        sql.Should().Contain("NOT", "der Negativfall muss als NOT ueber die OR-Verknuepfung uebersetzt werden");
+        sql.Should().Contain("IS NOT NULL",
+            "die Null-Pruefung auf ProductionOrder.Customer darf unter NOT nicht wegoptimiert werden");
+    }
+
+    // Fixrunde 1, Punkt (a): !hierarchical laeuft weiterhin durch den unveraenderten Alt-Ausdruck.
+    // Dieser ist unter InMemory nicht ausfuehrbar (vorbestehende Einschraenkung, s.o.), aber die
+    // SQL-Uebersetzung laesst sich pruefen — und genau das ist der Beleg fuer F4 (bit-identisch):
+    // keine Referenz auf FaHierarchyOrderInfos. (Der SqlServer-Provider uebersetzt den Alt-Ausdruck
+    // patterns.Any(...) selbst schon als EXISTS gegen eine VALUES-Tabelle der Token-Liste — ein
+    // EXISTS im SQL ist hier also kein Hinweis auf die neue Kopf-Subquery, nur "FaHierarchyOrderInfos"
+    // waere das.)
+    [Fact]
+    public void CustomerColumnFilter_Flat_SqlServer_NeverReferencesOrderInfoHead()
+    {
+        using var ctx = CreateSqlServerContext();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var sql = repo.BuildLeitstandQuery(null, null, null, showDone: true,
+            new Dictionary<string, string> { ["customer"] = "muster" }, hierarchical: false).ToQueryString();
+
+        sql.Should().NotContain("FaHierarchyOrderInfos", "AKE (Master false) darf nie gegen den Auftragskopf pruefen (F4)");
+    }
+
+    /// <summary>
+    /// Context gegen den SqlServer-Provider mit einer nicht aufloesbaren Server-Adresse — es wird
+    /// NIE eine Verbindung geoeffnet, <see cref="Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToQueryString"/>
+    /// kompiliert nur den Ausdrucksbaum zu SQL-Text. Ausschliesslich fuer SQL-Uebersetzungs-Checks,
+    /// nie fuer echte Query-Ausfuehrung (das wuerde einen Verbindungsversuch ausloesen).
+    /// </summary>
+    private static ApplicationDbContext CreateSqlServerContext()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer("Server=nonexistent-host-for-tests;Database=x;TrustServerCertificate=True;Connect Timeout=1")
+            .Options;
+        return new ApplicationDbContext(options);
     }
 }
