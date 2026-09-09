@@ -27,3 +27,6 @@ secondbrain/.obsidian/workspaces.json
 secondbrain/.obsidian/cache
 secondbrain/.obsidian/app.json.bak
 secondbrain/.trash/
+## Publish-Artefakte (nie einchecken)
+publish.zip
+*.zip
