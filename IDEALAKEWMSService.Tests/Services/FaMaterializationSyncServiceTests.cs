@@ -3,6 +3,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -87,5 +88,62 @@ public class FaMaterializationSyncServiceTests
         reloaded.IsDone.Should().BeFalse();
         var ps = ctx.ProductionOrderPickingStatuses.Single(s => s.ProductionOrderId == order.Id);
         ps.IsDonePicking.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// UAT-Befund H0 / Spec F6: Die Materialisierung legt für neu angelegte Sub-FAs bisher NUR die
+    /// <see cref="ProductionOrder"/>-Zeile an, nicht die beiden 1:1-Satelliten-Zeilen. Folge im
+    /// Leitstand: Freigabe zur Kommissionierung scheitert mit "PickingStatus-Zeile fehlt.".
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_NewSubFa_CreatesPickingStatusAndBdeStatusRows()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 1000, SubFA = 1001, VaterFA = null, Sollmenge = 1 });
+        await ctx.SaveChangesAsync();
+
+        var sut = Build(ctx);
+        await sut.RunAsync(dryRun: false);
+
+        var order = await ctx.ProductionOrders.SingleAsync(o => o.SubOrderNumber == "1001");
+        (await ctx.ProductionOrderPickingStatuses.CountAsync(s => s.ProductionOrderId == order.Id)).Should().Be(1);
+        (await ctx.ProductionOrderBdeStatuses.CountAsync(s => s.ProductionOrderId == order.Id)).Should().Be(1);
+    }
+
+    /// <summary>
+    /// Der eigentliche gemeldete Fehler: ein bereits materialisierter Sub-FA OHNE Statuszeilen
+    /// (Alt-Bestand vor diesem Fix) wird beim nächsten Lauf nachgezogen (Backfill, F6).
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_ExistingSubFaWithoutStatusRows_BackfillsThem()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 1000, SubFA = 1001, VaterFA = null, Sollmenge = 1 });
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "1000", SubOrderNumber = "1001", Quantity = 1,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "test", CreatedByWindows = "test"
+        }); // bewusst OHNE Statuszeilen
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).RunAsync(dryRun: false);
+
+        var order = await ctx.ProductionOrders.SingleAsync(o => o.SubOrderNumber == "1001");
+        (await ctx.ProductionOrderPickingStatuses.AnyAsync(s => s.ProductionOrderId == order.Id)).Should().BeTrue();
+        (await ctx.ProductionOrderBdeStatuses.AnyAsync(s => s.ProductionOrderId == order.Id)).Should().BeTrue();
+    }
+
+    /// <summary>DryRun darf keine Statuszeilen schreiben (Global Constraint DryRun).</summary>
+    [Fact]
+    public async Task RunAsync_DryRun_DoesNotCreateStatusRows()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 1000, SubFA = 1001, VaterFA = null, Sollmenge = 1 });
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).RunAsync(dryRun: true);
+
+        (await ctx.ProductionOrderPickingStatuses.CountAsync()).Should().Be(0);
+        (await ctx.ProductionOrderBdeStatuses.CountAsync()).Should().Be(0);
     }
 }

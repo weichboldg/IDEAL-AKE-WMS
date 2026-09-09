@@ -82,6 +82,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
                     ["angelegt"] = 0, ["vermisst_neu"] = 0, ["wieder_da"] = 0, ["umhaengung_konflikt"] = 0,
+                    ["statuszeilen_ergaenzt"] = 0,
                 }, messageSuffix: $"[übersprungen: {plan.SkipReason}]", ct: ct);
                 return new FaMaterializationResult(0, 0, 0, 0, Skipped: true, dryRun);
             }
@@ -100,6 +101,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     ["vermisst_neu"] = plan.ToMarkMissing.Count,
                     ["wieder_da"] = plan.ToClearMissing.Count,
                     ["umhaengung_konflikt"] = plan.ReparentConflicts.Count,
+                    ["statuszeilen_ergaenzt"] = 0,
                 }, messageSuffix: "[DryRun]", ct: ct);
                 return new FaMaterializationResult(plan.ToCreate.Count, plan.ToMarkMissing.Count,
                     plan.ToClearMissing.Count, plan.ReparentConflicts.Count, Skipped: false, DryRun: true);
@@ -158,12 +160,21 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
 
             await _ctx.SaveChangesAsync(ct);
 
+            // F6 / UAT-Befund H0: Die beiden 1:1-Satelliten-Zeilen existieren fuer materialisierte
+            // Sub-FAs sonst NIE. Der AKE-Sync legt sie eager an (SageImportService); die
+            // Materialisierung tat das bisher nicht — Folge: Freigabe im Leitstand scheitert mit
+            // "PickingStatus-Zeile fehlt", BDE-Rueckmeldung und Kaskade laufen ins Leere.
+            // Anlege- UND Update-Pfad, damit auch der Bestand nachgezogen wird (F6).
+            var statusRowsCreated = 0;
+            if (!dryRun)
+                statusRowsCreated = await EnsureStatusRowsAsync(srcByKey.Keys, now, ct);
+
             // Sammelmail (EINE pro Lauf) für neu-vermisste, nicht-erledigte FAs (S7-2b).
             await SendMissingDigestAsync(plan.MissingToNotify, ct);
 
             _logger.LogInformation(
-                "FA-Materialisierung: {Created} neu, {Marked} vermisst, {Cleared} wieder da, {Conf} Umhäng-Konflikte.",
-                plan.ToCreate.Count, plan.ToMarkMissing.Count, plan.ToClearMissing.Count, plan.ReparentConflicts.Count);
+                "FA-Materialisierung: {Created} neu, {Marked} vermisst, {Cleared} wieder da, {Conf} Umhäng-Konflikte, {Status} Statuszeilen ergänzt.",
+                plan.ToCreate.Count, plan.ToMarkMissing.Count, plan.ToClearMissing.Count, plan.ReparentConflicts.Count, statusRowsCreated);
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
@@ -171,6 +182,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 ["vermisst_neu"] = plan.ToMarkMissing.Count,
                 ["wieder_da"] = plan.ToClearMissing.Count,
                 ["umhaengung_konflikt"] = plan.ReparentConflicts.Count,
+                ["statuszeilen_ergaenzt"] = statusRowsCreated,
             }, ct: ct);
 
             return new FaMaterializationResult(plan.ToCreate.Count, plan.ToMarkMissing.Count,
@@ -200,5 +212,54 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                    $"in der Sage-Struktur (Status: vermisst, nicht gelöscht):</p><p>{list}</p>";
         var text = $"FA-Materialisierung: {missing.Count} FA nicht mehr in Sage:\n{list}";
         await _mail.SendAsync(subject, html, recipients, text, ct);
+    }
+
+    /// <summary>
+    /// Stellt fuer alle materialisierten Sub-FAs die beiden 1:1-Statuszeilen sicher
+    /// (<see cref="ProductionOrderPickingStatus"/>, <see cref="ProductionOrderBdeStatus"/>).
+    /// Idempotent — legt nur an, was fehlt; bestehende Werte werden nie angefasst
+    /// (Muster: WHEN NOT MATCHED BY TARGET im AKE-Eager-Create).
+    /// </summary>
+    private async Task<int> EnsureStatusRowsAsync(
+        IEnumerable<string> subOrderNumbers, DateTime now, CancellationToken ct)
+    {
+        var keys = subOrderNumbers.ToList();
+        if (keys.Count == 0) return 0;
+
+        var ids = await _ctx.ProductionOrders
+            .Where(o => o.SubOrderNumber != null && keys.Contains(o.SubOrderNumber))
+            .Select(o => o.Id)
+            .ToListAsync(ct);
+        if (ids.Count == 0) return 0;
+
+        var withPicking = await _ctx.ProductionOrderPickingStatuses
+            .Where(s => ids.Contains(s.ProductionOrderId))
+            .Select(s => s.ProductionOrderId).ToListAsync(ct);
+        var withBde = await _ctx.ProductionOrderBdeStatuses
+            .Where(s => ids.Contains(s.ProductionOrderId))
+            .Select(s => s.ProductionOrderId).ToListAsync(ct);
+
+        var created = 0;
+        foreach (var id in ids.Except(withPicking))
+        {
+            _ctx.ProductionOrderPickingStatuses.Add(new ProductionOrderPickingStatus
+            {
+                ProductionOrderId = id,
+                CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser
+            });
+            created++;
+        }
+        foreach (var id in ids.Except(withBde))
+        {
+            _ctx.ProductionOrderBdeStatuses.Add(new ProductionOrderBdeStatus
+            {
+                ProductionOrderId = id,
+                CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser
+            });
+            created++;
+        }
+
+        if (created > 0) await _ctx.SaveChangesAsync(ct);
+        return created;
     }
 }
