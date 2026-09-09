@@ -130,8 +130,74 @@
                             </span>
                             <strong class="ms-1">HauptFA @group.OrderNumber</strong>
                             <span class="badge rounded-pill bg-light text-dark border ms-2" title="Anzahl Sub-FAs in dieser Gruppe">@group.Items.Count Sub-FA@(group.Items.Count == 1 ? "" : "s")</span>
+                            @if (!group.IsAmbiguous)
+                            {
+                                @if (!string.IsNullOrEmpty(group.Customer))
+                                {
+                                    <span class="badge bg-primary ms-2" title="Kunde">@group.Customer</span>
+                                }
+                                @if (group.Prio.HasValue)
+                                {
+                                    <span class="badge bg-secondary ms-1" title="Priorität">Prio @group.Prio</span>
+                                }
+                                @if (!string.IsNullOrEmpty(group.MontageAbteilung))
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="Montage-Abteilung">@group.MontageAbteilung</span>
+                                }
+                                @if (!string.IsNullOrEmpty(group.AbNummer))
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="AB-Nummer">AB @group.AbNummer</span>
+                                }
+                                @if (group.KonstruktionsTermin.HasValue)
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="Konstruktions-Termin">KO @group.KonstruktionsTermin.Value.ToString("dd.MM.yyyy")</span>
+                                }
+                                @if (group.ProductionDate.HasValue)
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="Fertigungstermin">FE @group.ProductionDate.Value.ToString("dd.MM.yyyy")</span>
+                                }
+                                @if (group.DeliveryDate.HasValue)
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="Liefertermin">LT @group.DeliveryDate.Value.ToString("dd.MM.yyyy")</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge bg-info text-dark ms-2" title="HauptFA mit mehreren Auftragsköpfen (Kombigerät)">mehrdeutig (Kombigerät)</span>
+                            }
                         </td>
                     </tr>
+                    @if (group.IsAmbiguous && group.HeadVariants.Any())
+                    {
+                        <tr class="fa-liste-group-heads">
+                            <td colspan="@colCount">
+                                <div class="table-responsive mb-1">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Montage-Abt.</th><th>Kunde</th><th>KO-Termin</th>
+                                                <th>FE-Termin</th><th>Liefertermin</th><th>Prio</th><th>AB-Nr.</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var v in group.HeadVariants)
+                                            {
+                                                <tr>
+                                                    <td>@v.MontageAbteilung</td>
+                                                    <td>@v.Customer</td>
+                                                    <td>@(v.KonstruktionsTermin?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                                    <td>@(v.ProductionDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                                    <td>@(v.DeliveryDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                                    <td>@(v.Prio?.ToString() ?? "-")</td>
+                                                    <td>@v.AbNummer</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                    }
                     @foreach (var item in group.Items)
                     {
                         <partial name="_ProductionOrderRow" model="Ctx(item)" />
