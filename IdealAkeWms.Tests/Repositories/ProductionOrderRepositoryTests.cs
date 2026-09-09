@@ -2,6 +2,7 @@ using FluentAssertions;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Repositories;
@@ -333,5 +334,86 @@ public class ProductionOrderRepositoryTests
             columnFilters: new Dictionary<string, string> { ["sage-status"] = "verpackt,abgeholt" });
 
         page.Rows.Select(r => r.OrderNumber).Should().BeEquivalentTo(new[] { "FA-1", "FA-2" });
+    }
+
+    // ------------------------------------------------------------------
+    // Kunde-Filter im hierarchischen Modus (K1, IDEAL): ProductionOrder.Customer
+    // ist je Sub-FA leer, der Kunde haengt am HauptFA in FaHierarchyOrderInfo.Kunde.
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public async Task Leitstand_Hierarchical_CustomerFreetextFilter_MatchesViaOrderInfo()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "1000", SubOrderNumber = "1001", Customer = null,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var page = await repo.GetForLeitstandGroupedAsync(null, null, "muster", showDone: true, page: 1, pageSize: 25);
+
+        page.TotalRowCount.Should().Be(1);
+        page.Groups.Should().ContainSingle().Which.Rows.Single().SubOrderNumber.Should().Be("1001");
+    }
+
+    [Fact]
+    public async Task Leitstand_Hierarchical_CustomerColumnFilter_MatchesViaOrderInfo()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "1000", SubOrderNumber = "1001", Customer = null,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 2, OrderNumber = "2000", SubOrderNumber = "2001", Customer = null,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 2000, Kunde = "Andere Firma" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var page = await repo.GetForLeitstandGroupedAsync(null, null, null, showDone: true, page: 1, pageSize: 25,
+            columnFilters: new Dictionary<string, string> { ["customer"] = "muster" });
+
+        page.TotalRowCount.Should().Be(1);
+        page.Groups.Should().ContainSingle().Which.Rows.Single().SubOrderNumber.Should().Be("1001");
+
+        // Negation: eine Zeile faellt nur raus, wenn WEDER die Zeile NOCH der Kopf passt.
+        var negPage = await repo.GetForLeitstandGroupedAsync(null, null, null, showDone: true, page: 1, pageSize: 25,
+            columnFilters: new Dictionary<string, string> { ["customer"] = "!muster" });
+
+        negPage.TotalRowCount.Should().Be(1);
+        negPage.Groups.Should().ContainSingle().Which.Rows.Single().SubOrderNumber.Should().Be("2001");
+    }
+
+    [Fact]
+    public async Task Leitstand_Flat_CustomerFilter_UnchangedAgainstProductionOrderCustomer()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        // Master false (AKE, flach): Customer haengt an der Zeile selbst. Ein OrderInfo-Kopf
+        // mit demselben "HauptFA" darf NICHT mitgetroffen werden, wenn ProductionOrder.Customer leer ist.
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "1000", SubOrderNumber = "1000", Customer = null,
+            CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+
+        var freetextPage = await repo.GetForLeitstandAsync(null, null, "muster", showDone: true, page: 1, pageSize: 25);
+        freetextPage.TotalCount.Should().Be(0);
+
+        var columnPage = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 25,
+            columnFilters: new Dictionary<string, string> { ["customer"] = "muster" });
+        columnPage.TotalCount.Should().Be(0);
     }
 }
