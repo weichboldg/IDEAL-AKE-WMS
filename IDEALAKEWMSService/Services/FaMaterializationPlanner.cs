@@ -5,7 +5,8 @@ namespace IDEALAKEWMSService.Services;
 
 /// <summary>Quell-FA (aus der lokalen FA-Struktur, Teil 1) — rein wertbasiert.</summary>
 public sealed record MaterializationSourceOrder(
-    string SubOrderNumber, string OrderNumber, string? ParentSubOrderNumber);
+    string SubOrderNumber, string OrderNumber, string? ParentSubOrderNumber,
+    string? Arbeitsbereich, bool HasCoatingParts);
 
 /// <summary>Zustand einer bereits materialisierten WMS-FA — rein wertbasiert.</summary>
 public sealed record MaterializationExistingOrder(

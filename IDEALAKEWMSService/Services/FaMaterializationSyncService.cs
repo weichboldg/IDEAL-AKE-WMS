@@ -50,16 +50,23 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.FaMaterialization, ct);
         try
         {
-            // Quelle: lokale FA-Struktur, Nicht-Blatt-Knoten (SubFA != 0). Mapping int->string.
+            // Quelle: lokale FA-Struktur, ALLE Knoten inkl. Blaetter (SubFA == 0) — die
+            // Lack-Ableitung (K2) braucht die Blattebene, um "direktes Kind beschichtet" zu
+            // erkennen. Materialisiert werden weiterhin nur Nicht-Blatt-Knoten, gefiltert erst
+            // beim Aufbau von "source". Mapping int->string.
             var nodes = await _ctx.FaHierarchyNodes.AsNoTracking()
-                .Where(n => n.SubFA != 0)
                 .ToListAsync(ct);
 
+            var coating = FaMaterializationCoating.Derive(nodes);
+
             var source = nodes
+                .Where(n => n.SubFA != 0)
                 .Select(n => new MaterializationSourceOrder(
                     n.SubFA.ToString(),
                     n.HauptFA.ToString(),
-                    n.VaterFA.HasValue ? n.VaterFA.Value.ToString() : null))
+                    n.VaterFA.HasValue ? n.VaterFA.Value.ToString() : null,
+                    string.IsNullOrWhiteSpace(n.Arbeitsbereich) ? null : n.Arbeitsbereich.Trim(),
+                    coating.GetValueOrDefault(n.SubFA.ToString())))
                 .ToList();
 
             var orders = await _ctx.ProductionOrders
