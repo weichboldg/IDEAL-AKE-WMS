@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL: Materialisierung um die fachlichen Felder erweitern (K1/K2/K3, Werkbank-Datenhoheit)"
 slug: 2026-08-20-materialisierung-fachliche-felder-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-07
 updated: 2026-09-09
 source_backlog: "[[2026-08-20-materialisierung-fachliche-felder]]"
@@ -487,20 +487,44 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-- **Web-App:** ja — `ProductionOrdersController`, `Views/ProductionOrders/Index.cshtml`,
-  `FaHierarchyOrderInfoRepository`, ViewModel-Erweiterung.
-- **Service:** ja — `FaMaterializationSyncService`, `FaMaterializationPlanner`,
-  `FaHierarchySyncService` (Kombigeraet-Log).
-- **Migration:** ja, Umfang haengt an Rueckfrage 3/6 (mindestens `Beschichtet`, sofern nicht anders
-  geloest) — additiv, nicht daten-destruktiv, kein DB-Backup-Zwang wie bei Teil 7 (keine
-  Kern-Tabellen-Inversion), aber Standard-Vorsicht (Backup vor jedem Produktions-Deploy) gilt
-  unveraendert.
-- **Kontext:** Diese Spec setzt auf Code auf, der aktuell **ausschliesslich** im noch nicht gemergten
-  Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch
-  `feature/2026-08-07-ideal-teile-1-5`) existiert (`FaMaterializationSyncService`,
-  `ProductionOrderListGroup`, `SubOrderNumber` u. a.) — Umsetzung nur in **demselben** Worktree
-  sinnvoll. Vor Umsetzungsbeginn `scripts/sync-worktree.ps1` laufen lassen.
-- **Publish-Befehle (im Worktree):**
+**Finalisiert vom qa-agent (2026-09-09) gegen den echten Diff `a9ea910..be92ade`** — ersetzt die
+provisorische Einschaetzung des Spec-Agents oben (die noch `migration: ja` annahm, bevor B1 auf
+"nur Ableitung, keine Migration" entschieden wurde).
+
+- **Web-App:** ja (`deploy.web: true`) — `ProductionOrdersController`, `IFaHierarchyOrderInfoRepository`/
+  `FaHierarchyOrderInfoRepository` (`GetByHauptFaKeysAsync`), `ProductionOrderRepository`
+  (Kunde-Freitext + Spaltenfilter hierarchisch), `ProductionOrderListViewModel`
+  (`ProductionOrderListGroup`/`ProductionOrderHeadVariant`), `Views/ProductionOrders/Index.cshtml`,
+  `Views/Help/Changelog.cshtml` + `Index.cshtml`, `AppVersion.cs` (1.37.0).
+- **Service:** ja (`deploy.service: true`) — `FaMaterializationSyncService` (Werkbank-Zuweisung,
+  Eager-Create beider Statuszeilen, `HasCoatingParts`-Schreibpfad), `FaMaterializationPlanner`,
+  `FaMaterializationCoating` (neu), `IUnknownWorkplaceState`/`Program.cs` (DI),
+  `FaHierarchySyncService` (Kombigeraet-Log), `AppVersion.cs` (1.37.0).
+- **Migration:** **nein** (`deploy.migration: false`, final) — verifiziert am Diff: keine neue Datei
+  unter `Migrations/` oder `SQL/`. K1 ist reine Anzeige aus `FaHierarchyOrderInfo`, K2 nutzt
+  ausschliesslich bestehende Spalten (`ProductionOrder.ProductionWorkplaceId`,
+  `ProductionOrderPickingStatus.HasCoatingParts`, ADR 0009).
+- **Deploy-Vorbedingung (PFLICHT, sonst Zwei-Lauf-Ablauf):** Die `ProductionWorkplace`-Stammdatenzeilen
+  zu den in der IDEAL-Struktur vorkommenden Arbeitsbereichen (Testbestand: `K-02`, `S-01`, `H1-03`,
+  `H2-02`, `H4-04`) muessen **vor** dem Deploy angelegt sein — `ProductionWorkplaceId` ist ein
+  Fremdschluessel, die Zuweisung kann nicht stattfinden, solange der Stammsatz fehlt. Namen exakt wie
+  in `FaHierarchyNode.Arbeitsbereich` (Gross-/Kleinschreibung, Leerzeichen werden getrimmt und
+  case-insensitiv verglichen, aber der Anzeigename sollte trotzdem exakt uebernommen werden).
+  **Wird das versaeumt:** Der erste Materialisierungs-Lauf nach dem Deploy meldet die unbekannten
+  Arbeitsbereiche nur (Log + ggf. Sammelmail), die Werkbank-Spalte bleibt leer — erst der
+  **naechste** Lauf (nach dem Nachpflegen) fuellt sie (Zwei-Lauf-Ablauf, F2). Das ist kein Fehler,
+  aber vermeidbar.
+- **Nach dem Deploy:** einen Sync-Lauf (max. 15 Minuten) abwarten, danach die Anzeige gegenpruefen
+  (Werkbank-Spalte, Lack-Kennzeichen, K1-Kopfzeile) — nicht annehmen, dass sie sofort korrekt ist
+  (F2).
+- **Ablauf (Mensch):** Worktree publizieren → Testsystem → manueller Test (Checkliste unten) → dann
+  Merge. Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge tatsaechlich
+  getestete Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat (sonst deckt sich der
+  bereits getestete Stand mit `main`).
+- **Kontext:** Teil des ungemergten Buendel-Worktrees `.claude/worktrees/2026-08-07-ideal-teile-1-5`
+  (Branch `feature/2026-08-07-ideal-teile-1-5`) — Schranke 2 gilt fuer das gesamte Buendel, ein
+  Merge.
+- **Publish-Befehle (im Worktree, NUR die betroffenen Komponenten — kein Migrationsschritt noetig):**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
@@ -1102,3 +1126,122 @@ entfaellt damit, F7 wird nicht gebraucht).
 freigabefaehig; offen bleibt nur das formale Verschieben nach `specs/freigegeben/` inkl.
 `status: Freigegeben` und `freigabe_von`/`freigabe_am` (H1) — das ist ein bewusster, expliziter
 Schritt des Menschen, kein Automatismus dieses Reviews.
+
+## QA-Nachweis (qa-agent, 2026-09-09)
+
+Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` gegen den echten Diff
+`a9ea910..be92ade` (Plan-Commit bis letzter Fix-Commit, Working Tree danach sauber).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+Der Buildvorgang wurde erfolgreich ausgeführt.  0 Fehler, 12 Warnungen (bestehend, nicht durch
+diese Spec eingefuehrt: NU1902 MailKit/MimeKit, CS8602/CS8321 in unveraenderten Dateien).
+```
+
+**Tests:**
+```
+dotnet test IdealAkeWms.Tests       -> Bestanden: Fehler 0, erfolgreich 1284, übersprungen 1, gesamt 1285
+dotnet test IDEALAKEWMSService.Tests -> Bestanden: Fehler 0, erfolgreich 263,  übersprungen 0, gesamt 263
+```
+(Der eine übersprungene Web-Test ist ein bestehender Integrationstest ausserhalb dieser Spec,
+`ProductionOrderEagerCreateAgentJobTests`, unveraendert `[SKIP]`.)
+
+**Akzeptanzkriterien gegen den Diff (nicht gegen Behauptungen):**
+
+| AK | Abdeckung | Wo | Rest |
+|---|---|---|---|
+| 1 | Ja | `ProductionOrdersController.Index` (K1-Bloecke `group.Customer`/`KonstruktionsTermin`/`ProductionDate`/`DeliveryDate`/`Prio`/`AbNummer`/`MontageAbteilung`, nur bei `heads.Count == 1`); ViewModel `ProductionOrderListGroup`; `Views/ProductionOrders/Index.cshtml` Kopfzeile-Badges; `ProductionOrdersControllerTests` | Sichtpruefung am echten HauptFA gegen Sage/PPS-Bild (Termin-Mapping-Bestaetigung, in Rueckfrage 5 gefordert) |
+| 2 | Ja | `heads.Count > 1` Zweig setzt `IsAmbiguous=true` + `HeadVariants` (keine Einzelwerte), Kopfzeile rendert Varianten-Tabelle + Badge „mehrdeutig"; `ProductionOrdersControllerTests` | Sichtpruefung Kombigeraet-Darstellung |
+| 3 | Ja | `MapItem`: `effectiveProductionDate = groupProductionDate ?? o.ProductionDate`, Kaskade rechnet darauf, `ProductionWorkplaceOverridePrePickingDays` bleibt zeilen-eigen; DB-Spalte bleibt `NULL` (kein Schreibzugriff im Sync auf `ProductionDate`) | Sichtpruefung zwei Werkbaenke, unterschiedlicher BG-Termin |
+| 4 | Ja | `ProductionOrderRepository.BuildLeitstandQuery` (Freitext) + `BuildCustomerColumnFilterPredicate`/`BuildCustomerTokenPredicate` (Spaltenfilter), beide per Subquery gegen `FaHierarchyOrderInfo.Kunde`, AKE-Zweig (`hierarchical=false`) unveraendert; `ProductionOrderRepositoryTests` inkl. SqlServer-`ToQueryString()`-Uebersetzungstest | — |
+| 5 | Ja | `FaMaterializationSyncService.RunAsync`: Anlege- **und** Update-Block rufen dieselbe `ApplyWorkplace`-Methode; `EnsureStatusRowsAsync` + `SetCoatingPartsAsync` laufen fuer beide Pfade identisch; `FaMaterializationSyncServiceTests` (Update-Zweig-Test) | — |
+| 6 | Nicht per Unit-Test beweisbar (Bestandsdaten) | `F2`-Kommentar im Code, `EnsureStatusRowsAsync`/`ApplyWorkplace` laufen ueber **alle** geladenen `orders`, nicht nur `plan.ToCreate` | Manuell: nach Deploy + einem Lauf gegen die materialisierten Bestands-Sub-FAs pruefen (TS-71.12/Deploy-Vorbedingung) |
+| 7 | Ja | Grep im Diff: kein `SetValues`, kein `_ctx.Update(entity)`; jedes Feld einzeln zugewiesen (`o.Quantity =`, `o.ArticleNumber =`, `order.ProductionWorkplaceId =`, `SetCoatingPartsAsync`-Aufruf statt rohem Feld-Setzen) | — |
+| 8 | Ja (Gate unveraendert) | `RunAsync` haengt am `FaMaterializationPlanner`/Master-Gate wie vor dieser Spec (keine neue Bedingung eingefuehrt, die das Gate umgeht); `MapItem`-Aufrufstelle im Flachmodus ruft weiterhin ohne die vier neuen optionalen Parameter (Default `null`/`false`) auf, bit-identisch | Manuell: TS-71.13 am AKE-System |
+| 9 | Ja | `ApplyWorkplace`: Abweichung wird erkannt (`order.ProductionWorkplaceId.HasValue` + neuer Wert), Meldungstext „Werkbank weicht vom Quellwert ab" (unscharf, B4), Klassenkommentar (Zeilen 22-32) nennt `Workplace` nicht mehr unter den app-verwalteten Feldern, zweite Ausnahme `HasCoatingParts` explizit dokumentiert; `FaMaterializationWorkplaceTests` | — |
+| 10 | Ja | Unbekannt: `unknown.Add(name)`, keine Zuweisung, Sammel-Log + entprellte Mail (`IUnknownWorkplaceState.HasChanged`); mehrdeutig: `ambiguous.Add(name)`, keine Zuweisung; `FaMaterializationWorkplaceTests`, `UnknownWorkplaceStateTests` | — |
+| 11 | Ja | K3 im Code unveraendert: `PickingStatus.IsDonePicking`/`BdeStatus` werden vom Sync nirgends gesetzt; einzige neue Schreiblogik ist `HasCoatingParts` (AK 12/13, kein K3-Feld mehr) | — |
+| 12 | Ja | `FaMaterializationCoating.Derive` (reiner Helper, „selbst oder direktes Kind", Enkel bewusst ausgeschlossen); Reihenfolge im Service: `EnsureStatusRowsAsync` **vor** `SetCoatingPartsAsync` (F6 vor F5); `SetCoatingPartsAsync` kapselt `IsCoatingDone`-Reset; `FaMaterializationCoatingTests`, `FaMaterializationCoatingWriteTests` | — |
+| 13 | Ja | `MapItem`: `if (hierarchical) item.BeschichtungTermin = item.HasCoatingParts ? groupCoatingStart : null` — bedingungslos ersetzt, kein Raten bei leerem Kopfwert (Fix `b3d5a15`, vierter stiller Fehler); bei `IsAmbiguous` bleibt `groupCoatingStart` `null` (kein Kopf ausgewaehlt) | Sichtpruefung eindeutiger + mehrdeutiger Fall |
+
+**Harte Vorgaben gegengeprueft:**
+- **Keine Migration:** `git diff --name-status a9ea910..be92ade` enthaelt keine Datei unter
+  `Migrations/` oder `SQL/`. Bestaetigt.
+- **Kein `SetValues`/`_ctx.Update(entity)`:** `git diff a9ea910..be92ade | grep "SetValues\|_ctx.Update"`
+  liefert keinen Treffer. Bestaetigt.
+- **Beide `AppVersion.cs` auf 1.37.0:** `IdealAkeWms/AppVersion.cs` und
+  `IDEALAKEWMSService/AppVersion.cs` beide `Version = "1.37.0"`. Bestaetigt.
+- **TS-71 in `docs/TESTSZENARIEN.md`:** Kapitel vorhanden, 13 Szenarien (TS-71.1–71.13) inkl.
+  Pflicht-Vorbedingungen, Negativfaellen und Verweis auf die automatisierten Tests. Bestaetigt.
+- **`secondbrain/tests/testszenarien-index.md`:** Eintrag Zeile 97 bereits vorhanden und inhaltlich
+  deckungsgleich mit TS-71 — keine Nacharbeit noetig.
+
+**Fuenf im Lauf gefundene und behobene stille Fehler** (siehe Changelog
+[[2026-09-09-v1-37-0-ideal-materialisierung-fachliche-felder]] und Aufgabe
+[[2026-09-09-materialisierung-fachliche-felder-umsetzung]]): fehlende Statuszeilen (`ceaf5b3`,
+identisch mit dem gemeldeten UAT-Befund), weggefilterte Blattebene in der Lack-Ableitung
+(`af25bcd`), Mail-Entprellung ohne Wiederauftreten-Erkennung (`520bafb`), geratener
+Beschichtungstermin bei leerem Kopfwert (`b3d5a15`), Varianten-Tabelle blieb beim Zuklappen der
+Gruppe stehen (`be92ade`). Alle fuenf sind durch die oben genannten Tests bzw. das Fix-Commit
+abgedeckt; die elf **geparkten** Befunde aus [[2026-09-09-materialisierung-nachlese]] sind
+bewusst **nicht** Teil dieses Nachweises.
+
+**Ergebnis: Status auf `Testbereit` gesetzt.** Build und beide Testsuiten gruen, alle 13 AKs am
+echten Diff nachvollzogen, harte Vorgaben eingehalten, TS-71 vorhanden.
+
+## Manuelle Test-Checkliste (Mensch, IDEAL-Testsystem — vor Merge, Schranke 2)
+
+**Vorbedingungen:**
+1. Vor dem Deploy: die fuenf `ProductionWorkplace`-Stammsaetze (`K-02`, `S-01`, `H1-03`, `H2-02`,
+   `H4-04` bzw. die tatsaechlich im Testbestand vorkommenden Arbeitsbereiche) anlegen — sonst
+   Zwei-Lauf-Ablauf (siehe Deploy-Abschnitt).
+2. Master-Schalter `ProduktionsauftragHierarchisch = true` fuer die IDEAL-Instanz.
+3. Service-Einstellung `Sync:ProductionOrdersEnabled = false` (AKE-Auftrags-Sync aus, damit er
+   nicht parallel in dieselben Zeilen schreibt).
+4. Einen Kombigeraet-HauptFA in der Testumgebung kennen (mehrere `FaHierarchyOrderInfo`-Zeilen).
+
+**Schritte (TS-71, `docs/TESTSZENARIEN.md`):**
+1. Einen Materialisierungs-Sync-Lauf abwarten/ausloesen; Aktivitaets-Protokoll (`FaMaterialization`)
+   pruefen: Zaehler `statuszeilen_ergaenzt`, `werkbank_gesetzt`, `werkbank_abweichend`,
+   `arbeitsbereich_unbekannt`, `arbeitsbereich_mehrdeutig`, `lackflag_gesetzt` erscheinen plausibel.
+2. FA-Liste (`/ProductionOrders`) oeffnen: Gruppen-Kopfzeile eines eindeutigen HauptFA zeigt Kunde,
+   Konstruktions-Termin (KO), Fert.-Termin (FE), Liefertermin (LT), Prio, AB-Nummer,
+   Montage-Abteilung — TS-71.1.
+3. Denselben Kombigeraet-HauptFA oeffnen: Badge „mehrdeutig (Kombigeraet)" + Varianten-Tabelle mit
+   allen Koepfen, keine Einzelwerte, kein Beschichtungstermin auf irgendeiner Zeile — TS-71.2/71.11
+   Negativfall a. Gruppe zu- und wieder aufklappen: Varianten-Zeile verschwindet/erscheint korrekt
+   mit den Sub-FA-Zeilen (fuenfter Fix).
+4. Zwei Sub-FAs derselben eindeutigen Gruppe an unterschiedlichen Werkbaenken mit unterschiedlicher
+   `OverridePrePickingDays` vergleichen: gleicher Fert./Liefertermin, unterschiedlicher
+   BG-/Vorkommissioniertermin — TS-71.3. `ProductionOrder.ProductionDate` per SQL gegenpruefen: bleibt
+   `NULL`.
+5. Kunde-Freitextfilter und Kunde-Spaltenfilter (auch im Kommissionier-Leitstand) mit einem nur am
+   Kopf stehenden Kundennamen testen — Treffer erwartet (TS-71.4/71.5), inkl. Negation.
+6. Werkbank-Pruefung: eine Zeile mit vorher abweichender Werkbank nach dem Lauf gegen den
+   Arbeitsbereich pruefen — Ueberschreibung + Meldung „Werkbank weicht vom Quellwert ab" im Protokoll
+   (TS-71.7), niemals „manuell ueberschrieben".
+7. Unbekannten Arbeitsbereich simulieren (Testdaten mit einem Arbeitsbereich ohne Stammsatz):
+   Meldung im Protokoll, keine Zuweisung, keine neue `ProductionWorkplace`-Zeile (TS-71.8). Danach
+   Stammsatz anlegen, naechsten Lauf abwarten: Werkbank fuellt sich (Zwei-Lauf-Beleg).
+8. Zwei `ProductionWorkplace`-Zeilen mit demselben Namen anlegen, Arbeitsbereich zeigt darauf:
+   keine Zuweisung, Meldung „mehrfach in den Werkbank-Stammdaten" (TS-71.9).
+9. Lack-Kennzeichen: Sub-FA mit direktem Kind `Beschichtet=true` prueft `HasCoatingParts=true` nach
+   dem Lauf; danach Struktur so aendern, dass weder Sub-FA noch direktes Kind beschichtet sind:
+   `HasCoatingParts` **und** `IsCoatingDone` kippen auf `false` (TS-71.10).
+10. Beschichtungstermin: eindeutiger Kopf mit `HasCoatingParts=true` und gesetztem
+    `Start_Beschichtung` zeigt den Termin; **kritisch** — eindeutiger Kopf mit gesetztem
+    Fert.-Termin, aber leerem `Start_Beschichtung`: **kein** Termin auf der Zeile, insbesondere
+    kein zurueckgerechneter Ersatztermin (TS-71.11 Negativfall b, vierter stiller Fehler).
+11. UAT-Regression: den urspruenglich gemeldeten Fehler nachvollziehen — einen zuvor ohne
+    Statuszeilen materialisierten Sub-FA (oder einen frisch materialisierten) im
+    Kommissionier-Leitstand einzeln freigeben, Prioritaet setzen, Kommissionierer zuweisen, danach
+    eine Massenfreigabe ueber mehrere Sub-FAs inkl. dieser Zeile ausloesen — keine Fehlermeldung
+    „PickingStatus-Zeile fehlt" mehr, Massenfreigabe zaehlt die Zeile mit (TS-71.12).
+12. AKE-Regression: Master `false` (AKE-Instanz/-Auftrag) — FA-Liste zeigt keine Gruppierung/K1,
+    Werkbank weiterhin aus OSEON, Lack-T weiterhin ueber die Artikelkategorie-Heuristik, Kunde-Filter
+    weiterhin nur gegen `ProductionOrder.Customer`, keiner der neuen Zaehler veraendert sich bei
+    einem reinen AKE-Lauf (TS-71.13).
+13. Termin-Mapping-Bestaetigung (Pflicht laut Rueckfrage 5/B2-B3): an einem echten HauptFA die drei
+    angezeigten Termine (KO/FE/LT) gegen das Sage/PPS-Bild sichtpruefen — Ergebnis mit HauptFA-Nummer
+    im Merge-Nachweis festhalten.

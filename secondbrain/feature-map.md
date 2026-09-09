@@ -336,15 +336,24 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 | K1 im Anzeige-Modell, Termin-Kaskade auf den Gruppenwert | **erledigt** (`f160b1d` + `b3d5a15`) | `ProductionOrdersController.MapItem`, `ProductionOrderListGroup` |
 | Gruppen-Kopfzeile + Varianten-Tabelle | **erledigt** (`86cdc26`) | `Views/ProductionOrders/Index.cshtml` |
 | v1.37.0, Changelog, Hilfe, TS-71 | **erledigt** (`1f038f6`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+| Varianten-Tabelle klappt mit der Gruppe zu (Gesamt-Review) | **erledigt** (`be92ade`) | `Views/ProductionOrders/Index.cshtml` (`fa-liste-node-row`) |
 
-> **Vier stille Fehler im Lauf gefunden und behoben** — zwei davon erst beim Schreiben von Tests:
+> **Fünf stille Fehler im Lauf gefunden und behoben** — zwei davon erst beim Schreiben von Tests:
 > fehlende Statuszeilen, weggefilterte Blattebene in der Lack-Ableitung, eine Entprellung, die ein
-> wiederkehrendes Problem nie wieder gemeldet haette, und ein **geratener** Beschichtungstermin bei
-> leerem Kopfwert. Keiner haette eine Fehlermeldung erzeugt.
+> wiederkehrendes Problem nie wieder gemeldet haette, ein **geratener** Beschichtungstermin bei
+> leerem Kopfwert, und eine Kombigeraet-Varianten-Tabelle, die beim Zuklappen der Gruppe stehen
+> blieb (Gesamt-Review). Keiner haette eine Fehlermeldung erzeugt.
 
 > **Deploy-Vorbedingung:** Die Werkbaenke zu den vorkommenden Arbeitsbereichen **vor** dem Deploy
 > anlegen — `ProductionWorkplaceId` ist ein Fremdschluessel, sonst bleibt die Werkbank im ersten Lauf
 > leer (Zwei-Lauf-Ablauf). Deploy `web:true`, `service:true`, `migration:false`.
+
+> **Status:** `Testbereit` (qa-agent, 2026-09-09, Worktree-HEAD `be92ade`) — Build 0 Fehler, Web
+> **1284 grün + 1 skip**, Service **263 grün**, AK 1–13 gegen den echten Diff `a9ea910..be92ade`
+> abgeglichen, kein `SetValues`/`_ctx.Update`, keine Migration/SQL-Datei im Diff, beide
+> `AppVersion.cs` auf 1.37.0, TS-71 (13 Szenarien) vorhanden. Wartet mit dem ganzen Bündel (Teile
+> 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf **Schranke 2** (manueller Test + Merge
+> durch den Menschen).
 
 ## Offen / nicht gemerged
 

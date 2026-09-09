@@ -93,7 +93,19 @@ still gewesen, keiner haette eine Fehlermeldung erzeugt:
 
 ## Tests
 
-_(qa-agent-Nachweis wird beim Abschluss ergaenzt)_
+qa-agent, 2026-09-09, Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` @ `be92ade`:
+
+```
+dotnet build IdealAkeWms.slnx        -> 0 Fehler, 12 Warnungen (bestehend)
+dotnet test IdealAkeWms.Tests        -> Fehler 0, erfolgreich 1284, übersprungen 1, gesamt 1285
+dotnet test IDEALAKEWMSService.Tests -> Fehler 0, erfolgreich 263,  übersprungen 0, gesamt 263
+```
+
+Alle 13 Akzeptanzkriterien gegen den echten Diff `a9ea910..be92ade` abgeglichen (nicht gegen
+Behauptungen) — Detail-Tabelle im QA-Nachweis der Spec
+[[2026-08-20-materialisierung-fachliche-felder-spec]]. Harte Vorgaben bestaetigt: keine
+`Migrations/`/`SQL/`-Datei im Diff, kein `SetValues`/`_ctx.Update(entity)`, beide `AppVersion.cs`
+auf 1.37.0, TS-71 (13 Szenarien) in `docs/TESTSZENARIEN.md`. Status auf `Testbereit` gesetzt.
 
 ## Merge-Commit
 
