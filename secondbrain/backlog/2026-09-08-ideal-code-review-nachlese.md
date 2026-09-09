@@ -35,6 +35,15 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
 
 ## Hoch
 
+- [ ] **H0 (neu, 2026-09-09, MERGE-BLOCKER) — Materialisierung legt die 1:1-Statuszeilen nicht an.**
+  Im UAT gefunden: ein materialisierter Sub-FA laesst sich im Leitstand nicht freigeben
+  (`HTTP 404 "PickingStatus-Zeile fehlt."`). Ursache, Auswirkung und Loesungsvorschlag stehen in
+  [[2026-09-09-materialisierung-ohne-statuszeilen-bug]]. Kurz: `FaMaterializationSyncService`
+  erzeugt nur `ProductionOrders`; der einzige Eager-Create der beiden Begleitzeilen liegt im
+  AKE-FA-Sync und hat sie bisher **beilaeufig** mitangelegt, solange H1s Schalter faelschlich auf
+  `true` stand. Mit dem korrekten `false` faellt der Zufall weg. Direkte Folge von H1 — die beiden
+  gehoeren zusammen bearbeitet.
+
 - [ ] **H1 — OrderNumber-gekoppeltes Massen-UPDATE im AKE-Sync** ·
   `IDEALAKEWMSService/Services/SageProductionOrderSql.cs:23-34` (+ `SyncWorker.cs:43`).
   Der Produktionsauftrags-Sync (`Sync:ProductionOrdersEnabled`, Default **true**) macht
