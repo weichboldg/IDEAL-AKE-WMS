@@ -86,4 +86,4 @@ Zeilen der Gruppen sortieren sich. Gegenprobe: eine Liste mit genau einem `<tbod
 
 [[2026-08-12-tabellen-sortierung-nur-erste-gruppe-bug]] (der Etappe-6-Fix, der die Schleife einfuehrte)
 · [[2026-08-20-fehlerprotokoll-anzeige-epic-ab]] (B-2, im selben Commit behoben)
-· [[2026-09-10-fa-liste-ausbau-matchcode]]
+· [[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]]
