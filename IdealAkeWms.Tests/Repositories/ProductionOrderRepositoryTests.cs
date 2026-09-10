@@ -338,6 +338,46 @@ public class ProductionOrderRepositoryTests
     }
 
     // ------------------------------------------------------------------
+    // Matchcode-Spaltenfilter (Task 4, F7): ProductionOrders/PickingLeitstand filtern
+    // SQL-seitig ueber ApplyLeitstandColumnFilter. Am Standort AKE bleibt die Spalte bis
+    // zur View-Erweiterung durchgehend NULL — der zweite Test ist der F7-Nachweis dafuer.
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public async Task ColumnFilter_Matchcode_FindsRow_AndIgnoresNullRows()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.AddRange(
+            new ProductionOrder { OrderNumber = "1", ArticleNumber = "A", Matchcode = "KESSEL-7" },
+            new ProductionOrder { OrderNumber = "2", ArticleNumber = "B", Matchcode = null });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
+            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "kessel" });
+
+        page.Rows.Should().HaveCount(1);
+        page.Rows[0].OrderNumber.Should().Be("1");
+    }
+
+    [Fact]
+    public async Task ColumnFilter_Matchcode_AllNull_ReturnsNoHits_WithoutThrowing()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.AddRange(
+            new ProductionOrder { OrderNumber = "1", Matchcode = null },
+            new ProductionOrder { OrderNumber = "2", Matchcode = null });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
+            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "x" });
+
+        page.Rows.Should().BeEmpty();
+        page.TotalCount.Should().Be(0);
+    }
+
+    // ------------------------------------------------------------------
     // Kunde-Filter im hierarchischen Modus (K1, IDEAL): ProductionOrder.Customer
     // ist je Sub-FA leer, der Kunde haengt am HauptFA in FaHierarchyOrderInfo.Kunde.
     // ------------------------------------------------------------------
