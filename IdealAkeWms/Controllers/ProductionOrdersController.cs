@@ -177,7 +177,7 @@ public class ProductionOrdersController : Controller
                 // Anzeige-Modell. Bei Kombigeraeten (heads.Count > 1) sind die Gruppen-Locals im
                 // Aufrufer bereits NULL, also werden die Zeilenfelder hier automatisch leer statt
                 // geraten. Keine IsAmbiguous-Abfrage hier — das waere eine zweite Wahrheit.
-                item.Customer = groupCustomer ?? item.Customer;
+                item.Customer = groupCustomer;
                 item.Prio = groupPrio;
                 item.AbNummer = groupAbNummer;
                 item.MontageAbteilung = groupMontageAbteilung;
