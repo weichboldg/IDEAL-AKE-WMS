@@ -368,12 +368,177 @@ besonderem Gewicht").
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
-6. →
-7. →
-8. →
-9. →
+1. → **Im bestehenden Buendel-Worktree** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+   `feature/2026-08-07-ideal-teile-1-5`. Kein neuer Worktree, kein Abzweig von `main`, kein
+   Zwischen-Merge — wie alle IDEAL-Bausteine seit August.
+   **Folge fuer den Deploy, die benannt gehoert:** Das Buendel bekommt damit eine neue
+   **Betriebs-Vorbedingung** (Edge auf dem Web-Server). Die gehoert in die Deploy-Checkliste des
+   Buendels, nicht nur in diese Spec.
+
+2. → **Automatisch ermitteln (Registry, dann PATH), mit optionaler Ueberschreibung in
+   `appsettings.json`** fuer den Sonderfall. Kein Pflicht-Konfigurationswert — auf einem normalen
+   Windows-Server ist Edge da, und ein Pflichtfeld, das fast immer gleich lautet, wird beim naechsten
+   Server falsch gesetzt.
+   **Wichtiger als der Pfad ist der Zeitpunkt der Pruefung: beim Anwendungsstart, nicht beim ersten
+   Klick.** Fehlt Edge, wird das **PDF-Bedienelement gar nicht angezeigt** und beim Start eine klare
+   Warnung protokolliert. Denselben Weg geht der BOM-Guard: den Anwender nicht in eine Wand laufen
+   lassen. „Erst beim Aufruf scheitern" heisst, dass ein Werker klickt und einen Fehler bekommt —
+   das ist die schlechteste der drei Varianten.
+
+3. → **30 Sekunden, konfigurierbar.** Grosszuegig genug fuer den Kaltstart des ersten Aufrufs und
+   mehrseitige Stuecklisten, kurz genug, dass ein haengender Prozess nichts blockiert.
+   **Und: die tatsaechliche Dauer je Lauf protokollieren.** Dann kann der Wert nach ein paar Wochen
+   an echten Daten nachgezogen werden statt geraten zu bleiben — dieselbe Lehre wie beim
+   Sortier-Befund, wo eine ungemessene Zahl zu einer falschen Ursachenvermutung gefuehrt hat.
+
+4. → **Zwei unterscheidbare Faelle, weil sie zu verschiedenen Handlungen fuehren:**
+   - **Edge fehlt/nicht startbar** → Konfigurationsfehler, betrifft **alle** Anwender. Sollte durch
+     Antwort 2 gar nicht erst sichtbar werden; tritt er doch auf: *„PDF-Erzeugung ist auf diesem
+     Server nicht eingerichtet."* plus Log-Eintrag fuer die IT.
+   - **Timeout oder Absturz** → Einzelfall. *„Das PDF konnte nicht erzeugt werden. Bitte den
+     Bildschirmdruck verwenden."* — **mit dem Rueckfallweg im Text**, denn der Bildschirmdruck
+     funktioniert weiterhin. Eine Fehlermeldung ohne Ausweg laesst den Werker stehen.
+   **Logging: `ILogger`**, korrekt — web-seitige Lesefunktion ohne Hintergrund-Sync, wie in Teil 4
+   begruendet. Kein `SyncLog`, keine Mail aus dem Web.
+
+5. → **Unterordner unter `Path.GetTempPath()`, nicht konfigurierbar.** Ein Konfigurationswert, den
+   niemand aendert, ist nur eine weitere Stelle, an der etwas falsch stehen kann.
+   **Aufraeumen zweistufig:** eigene Datei im `finally` loeschen (Normalfall) **plus** beim Start
+   eines Laufs verwaiste Dateien aelterer Laeufe entfernen (Abbruch durch App-Pool-Recycle).
+   **Kein eigener Cleanup-Dienst** — unverhaeltnismaessig fuer ein Feature, das eine Datei je Klick
+   erzeugt.
+
+6. → **Ja, begrenzen — `SemaphoreSlim` mit 2 bis 3 gleichzeitigen Prozessen, konfigurierbar.**
+   Jeder `msedge`-Prozess kostet echten Speicher. Zehn gleichzeitige Klicks in der Halle wuerden den
+   Web-Server sonst spuerbar treffen — und der bedient zugleich die Terminals.
+   **Warten statt abweisen:** Wer in die Warteschlange geraet, wartet ein paar Sekunden. Eine
+   Fehlermeldung „gerade zu viele Anfragen" waere fuer den Anwender unverstaendlich.
+
+7. → **In der Gruppen-Kopfzeile, direkter Download, eigene Route.**
+   - Platzierung: Gruppen-Kopfzeile — ein PDF je `HauptFA`, dort gehoert der Ausloeser hin.
+   - **Direkter Download**, kein neuer Tab. Der Zweck ist „mailbar/ablegbar"; ein PDF-Tab auf einem
+     Fertigungsterminal ist ein Fenster, das der Werker danach schliessen muss.
+   - Route: `/<Controller>/Pdf/{hauptFa}` — kein Query-Parameter.
+   - **Icon UND Text „PDF"**, nicht Icon allein. Paketweite Regel: Ein Symbol ist nie alleiniger
+     Bedeutungstraeger.
+
+8. → **Der bestehende Class-Level-Filter genuegt.** Das PDF enthaelt **genau die Daten, die der
+   Anwender ohnehin am Bildschirm sieht** — wer die Liste lesen darf, darf sie auch mitnehmen. Ein
+   strengerer Filter waere inkonsistent und muesste erklaert werden. Strengere Filter gehoeren auf
+   **Schreib**-Aktionen, nicht auf einen Export derselben Sicht.
+
+9. → **Vormontage bleibt AUSSEN VOR. Guter Fund — und die richtige Entscheidung ist, ihn nicht
+   stillschweigend zu schliessen.**
+   Eine `Print.cshtml` fuer die Vormontage zu bauen ist **Teil-5-Umfang, nicht PDF-Infrastruktur**.
+   Diese Spec baut den **Baustein**; eine Ansicht, die es noch nicht gibt, ist nicht ihre Aufgabe —
+   und genau das ist der Wert des sauberen Schnitts: Verbraucher haengen sich an, wenn sie
+   entstehen.
+   **Dazu eine ungeklaerte Vorfrage, die es sichtbar macht:** Teil 5 hat `Index` **und** `Summiert`.
+   **Welche der beiden wuerde gedruckt?** Das hat niemand entschieden — ein weiterer Beleg, dass es
+   nicht hierher gehoert.
+   **Als eigener Backlog-Punkt fuehren:** „Vormontage-Druckansicht" — sobald sie existiert, ist der
+   PDF-Knopf ein Anschluss von Minuten.
+
+## Kritische Pruefung (2026-09-10)
+
+Alle neun Rueckfragen sind mit echtem Text beantwortet, keine leeren Pfeile, kein „ja" auf eine
+Entweder-oder-Frage. Aber — wie bei den letzten drei Specs — **sind die Antworten noch nicht in den
+Rumpf gezogen**, und mehrere Antworten erweitern den Umfang ueber das hinaus, was `affected_code`
+und der Technische Loesungsentwurf heute beschreiben. Zwei Punkte am Code verifiziert (DI-Lifetime,
+Klassen-Filter).
+
+### BLOCKER
+
+1. **Antwort 2 erweitert den Umfang um drei Bausteine, die weder in `affected_code` noch im
+   Technischen Loesungsentwurf stehen.** Antwort 2 verlangt: Edge-Verfuegbarkeit **beim
+   Anwendungsstart** pruefen und, wenn Edge fehlt, das **PDF-Bedienelement gar nicht anzeigen** plus
+   Start-Warnung. Der Rumpf beschreibt aber nur den Renderdienst und „PDF-Knopf an der
+   Gruppenkopfzeile hinzufuegen" — ohne Sichtbarkeitsbedingung. Konkret fehlen:
+   - **(a) Ein Start-Probe + Status-Halter.** Verifiziert am Code: Genau dieses Muster existiert
+     bereits — `HierarchischeStrukturStatus` (Singleton, `volatile bool`, `RefreshAsync()`) wird in
+     `Program.cs:491` einmal beim Start aufgerufen. Ein `PdfRenderAvailability`-Singleton nach
+     demselben Vorbild (einmal `msedge`-Pfad ermitteln, Ergebnis cachen, in `Program.cs` nach
+     `builder.Build()` proben) ist der saubere, im Haus schon etablierte Weg. Er steht nirgends in
+     `affected_code` (`Program.cs` ist nur mit „DI-Registrierung" gelistet, kein Start-Probe, keine
+     neue Status-Klasse).
+   - **(b) Ein Sichtbarkeits-Flag in beiden Index-Views.** Verifiziert: Der PDF-Knopf sitzt je
+     Gruppe in `Views/FaHierarchyKommissionierListen/Index.cshtml` (~Zeile 91,
+     `<strong>HauptFA …</strong>`) und in `Views/FaHierarchyBeschichtung/Index.cshtml` (~Zeile 64).
+     Antwort auf die Nebenfrage des Menschen: **Ja, view-seitig sauber ausblendbar ohne Wildwuchs**
+     — der Singleton-Status wird via ViewModel/ViewBag als ein `bool` durchgereicht, jede der zwei
+     Gruppen-Schleifen umschliesst den Knopf mit **einem** `@if`. Es sind zwei Views × eine
+     Bedingung, kein „jede View eine eigene komplexe Logik". Aber es ist Arbeit, die `affected_code`
+     heute nicht listet (ViewModels tragen kein solches Flag, die zwei Views sind nur mit „PDF-Knopf
+     hinzufuegen" vermerkt).
+   - **(c) Konsequenz fuer die Akzeptanzkriterien.** AK 6 beschreibt nur den Notfall „Edge fehlt →
+     Aktion bricht kontrolliert ab" — das ist laut Antwort 2 der **schlechteste** Pfad, den es
+     regulaer gar nicht geben soll. Es fehlt ein AK „Fehlt Edge beim Start, erscheint der PDF-Knopf
+     gar nicht, und eine Warnung wird protokolliert".
+   **Frage an den Menschen:** keine neue Entscheidung — nur Bestaetigung, dass diese drei Bausteine
+   (Start-Probe/Status-Singleton, View-Flag in beiden Views + ViewModels, zusaetzliches AK) vor der
+   Freigabe in `affected_code`/Rumpf/AK nachgezogen werden.
+
+2. **Antwort 6 (`SemaphoreSlim`) ist ohne festgelegte DI-Lebensdauer wirkungslos — und der
+   dominante Registrierungs-Stil im Projekt fuehrt genau in die Falle.** Verifiziert in
+   `Program.cs`: Die ganz ueberwiegende Mehrheit der Dienste ist `AddScoped` (Zeilen 62-118); nur
+   wenige sind `AddSingleton` (`IBarcodeService`, `HierarchischeStrukturStatus`). Der Technische
+   Loesungsentwurf und `affected_code` nennen fuer `IPdfRenderService` **keine** Lebensdauer. Wird
+   er dem Default-Muster folgend `Scoped` (oder `Transient`) registriert und haelt das
+   `SemaphoreSlim` als Instanzfeld, dann hat **jede Anfrage ihr eigenes Semaphor** — die Begrenzung
+   auf 2-3 Prozesse aus Antwort 6 greift nie. **Vorschlag:** `IPdfRenderService` explizit als
+   `Singleton` festlegen (unbedenklich — der Dienst ist zustandslos bis auf das Semaphor, seine
+   Abhaengigkeiten `IConfiguration`/`ILogger`/`IEdgeProcessRunner` sind singleton-sicher; die
+   scoped `ControllerContext` wird ohnehin als Methodenparameter durchgereicht, nicht injiziert).
+   Alternativ das Semaphor `static`. Diese Festlegung gehoert ausdruecklich in den Technischen
+   Loesungsentwurf **und** in ein AK („die Prozess-Begrenzung wirkt anfrageuebergreifend"). Solange
+   sie fehlt, ist Antwort 6 eine Zusage, die der Dev-Lauf versehentlich aushebeln kann.
+
+### SOLLTE
+
+- **Antwort 3 (Laufzeit-Protokollierung je Aufruf) fehlt in AK und `affected_code`.** Die Antwort
+  verlangt ausdruecklich, die tatsaechliche Dauer je Lauf zu protokollieren, um den 30-s-Timeout
+  spaeter an echten Daten nachzuziehen. Das ist ein Einzeiler in `PdfRenderService` (`Stopwatch` +
+  `ILogger.LogInformation`), aber es sollte als Akzeptanzkriterium stehen, sonst faellt es beim Bau
+  weg und die spaetere Nachjustierung des Timeouts hat keine Datengrundlage.
+- **Antwort 5 zweistufiges Aufraeumen nur halb im Entwurf.** Der Technische Loesungsentwurf listet
+  in Schritt 6 nur das `finally`-Loeschen der eigenen Dateien. Der zweite Teil aus Antwort 5 —
+  beim Start eines Laufs **verwaiste Dateien aelterer Laeufe** entfernen (Abbruch durch
+  App-Pool-Recycle) — fehlt als Schritt. Ergaenzen, sonst sammeln sich nach jedem Recycle Reste an.
+- **Antwort 1 (Edge als Betriebs-Vorbedingung des BUENDELS) nur teilweise abgebildet.** Der
+  Deploy-Abschnitt nennt Edge als Voraussetzung dieser Spec, aber Antwort 1 verlangt ausdruecklich,
+  dass die neue Betriebs-Vorbedingung in die **Deploy-Checkliste des Buendels**
+  (`feature/2026-08-07-ideal-teile-1-5`) wandert, nicht nur in diese Einzel-Spec. Einen Verweis auf
+  die Buendel-Deploy-Notiz in `secondbrain/aufgaben/` ergaenzen.
+- **Neuer PDF-Knopf darf `target="_blank"` NICHT vom „Drucken"-Knopf erben.** Verifiziert: der
+  bestehende seitenweite „Drucken"-Link nutzt `target="_blank"` (beide Index-Views, ~Zeile 14/15).
+  Antwort 7 verlangt fuer den PDF-Knopf **direkten Download, keinen neuen Tab**. Der Dev-Lauf sollte
+  den bestehenden Link nicht als Vorlage kopieren — ein kurzer Hinweis im UI-Abschnitt verhindert
+  das.
+
+### HINWEIS
+
+- **Antwort 9 ist bereits sauber im Rumpf abgebildet — der eine Punkt, den diese Spec richtig
+  vorweggenommen hat.** In-Scope listet nur Teil 3 + Teil 4 als Verbraucher, Out-of-Scope nennt
+  Vormontage ausdruecklich als ausgenommen. Es gibt **keine** Stelle im Rumpf, die Teil 5 noch als
+  Verbraucher fuehrt — hier ist nichts zu entfernen. (Verifiziert: `FaHierarchyVormontageController`
+  hat tatsaechlich nur `Index`/`Summiert`, keine `Print`-Action — die Backlog-Annahme „Teil 3/4/5
+  teilen das Druckgeruest" war fuer Teil 5 schlicht verfrueht.)
+- **Antwort 8 am Code bestaetigt, keine Ausnahme.** Beide Verbraucher-Controller tragen ihren
+  Zugriffs-Filter **und** ihren Feature-Toggle-Filter auf Klassenebene
+  (`[RequireLagerProcessingAccess]`+`[RequireFaHierarchyKommissionierlistenAktiv]` bzw.
+  `[RequireBeschichtungsauftragAccess]`+`[RequireFaHierarchyBeschichtungAktiv]`). Die neue
+  `Pdf`-Action erbt beide automatisch — der bestehende Class-Level-Filter genuegt tatsaechlich, und
+  der Feature-Toggle greift ohne Zusatzarbeit mit. Kein Handlungsbedarf.
+- **Groesse.** ~12 `affected_code`-Eintraege, nach den Antworten 2/3 plus Status-Singleton +
+  ViewModel-Flag eher 14-15. Weiterhin ein Dev-Lauf schaffbar (eine Schicht: Web, keine Migration,
+  kein Service), zumal es im bestehenden Buendel-Worktree als weitere Etappe laeuft (Antwort 1).
+  Kein `split`/`epic`-Kandidat.
+- **TS-Nummer.** Der Test-Szenario-Abschnitt vermutet TS-73; das ist zum Umsetzungszeitpunkt gegen
+  den dann aktuellen `testszenarien-index.md` zu pruefen (der qa-agent vergibt die endgueltige
+  Nummer). Kein Blocker, nur nicht vorab festnageln.
+
+**NACHBESSERUNG NOETIG:** zwei Blocker — Antwort 2 erweitert den Umfang um Start-Probe/Status-
+Singleton + View-Flag (nicht in `affected_code`), und die DI-Lebensdauer von `IPdfRenderService`
+ist ungenannt, wodurch das `SemaphoreSlim` aus Antwort 6 wirkungslos werden kann. Beides ist billig
+zu beheben (Muster im Haus vorhanden), muss aber vor dem Verschieben nach `specs/freigegeben/` in
+den Rumpf gezogen werden.
