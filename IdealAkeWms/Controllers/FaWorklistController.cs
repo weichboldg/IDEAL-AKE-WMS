@@ -222,6 +222,7 @@ public class FaWorklistController : Controller
                 ProductionOrderId = order.Id,
                 OrderNumber = order.OrderNumber,
                 ArticleNumber = order.ArticleNumber,
+                Matchcode = order.Matchcode,
                 Description1 = order.Description1,
                 Description2 = order.Description2,
                 Quantity = order.Quantity,
@@ -384,8 +385,8 @@ public class FaWorklistController : Controller
         => d == null ? string.Empty : $"{d:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(d.Value)}".ToLowerInvariant();
 
     /// <summary>
-    /// ColumnMap-Keys: order-number, workbench (= WorkplaceName), article-number, quantity,
-    /// bg-date, picking-date, production-date, coating-date, description1, description2,
+    /// ColumnMap-Keys: order-number, workbench (= WorkplaceName), article-number, matchcode,
+    /// quantity, bg-date, picking-date, production-date, coating-date, description1, description2,
     /// kaeltemittel, ventil, ausfuehrung, maschine, sage-status (FA-Zusatzinfos, v1.26.0)
     /// + je Merkmal-Spalte dynamisch "attr-{DefinitionId}".
     /// </summary>
@@ -398,6 +399,7 @@ public class FaWorklistController : Controller
             ["order-number"] = hierarchical ? r => $"{r.SubOrderNumber} {r.OrderNumber}" : r => r.OrderNumber,
             ["workbench"] = r => r.WorkplaceName,
             ["article-number"] = r => r.ArticleNumber,
+            ["matchcode"] = r => r.Matchcode,
             ["description1"] = r => r.Description1,
             ["description2"] = r => r.Description2,
             ["quantity"] = r => r.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),

@@ -45,6 +45,9 @@ public class PickingListItem
     public int? PickingPriority { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public string? ArticleNumber { get; set; }
+
+    /// <summary>IDEAL-Matchcode (Task 1/2), materialisierte Zusatzinfo je FA.</summary>
+    public string? Matchcode { get; set; }
     public string? Description1 { get; set; }
     public string? Customer { get; set; }
     public decimal Quantity { get; set; }

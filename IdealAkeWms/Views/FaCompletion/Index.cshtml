@@ -67,6 +67,7 @@
                 <th data-filterable data-col-key="quantity">Stk.</th>
                 <th data-filterable data-col-key="customer">Kunde</th>
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                 <th data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
                 <th data-filterable data-col-key="workbench">Werkbank</th>
@@ -78,7 +79,7 @@
             </tr>
         </thead>
         @{
-            const int colCount = 12;
+            const int colCount = 13;
             Func<IdealAkeWms.Models.ViewModels.FaCompletionListItem, IdealAkeWms.Models.ViewModels.FaCompletionRowContext> Ctx = it =>
                 new IdealAkeWms.Models.ViewModels.FaCompletionRowContext
                 {
@@ -151,6 +152,7 @@
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },
     { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
     { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
     { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
     { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },

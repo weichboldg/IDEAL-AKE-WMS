@@ -122,6 +122,7 @@ public class FaCompletionController : Controller
                 Quantity = o.Quantity,
                 Customer = o.Customer,
                 ArticleNumber = o.ArticleNumber,
+                Matchcode = o.Matchcode,
                 Description1 = o.Description1,
                 ProductionDate = o.ProductionDate,
                 IsDone = o.IsDone,
@@ -226,6 +227,7 @@ public class FaCompletionController : Controller
             ["quantity"] = i => i.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["customer"] = i => i.Customer,
             ["article-number"] = i => i.ArticleNumber,
+            ["matchcode"] = i => i.Matchcode,
             ["description1"] = i => i.Description1,
             ["production-date"] = i => i.ProductionDate.HasValue
                 ? $"{i.ProductionDate.Value:dd.MM.yyyy} KW{System.Globalization.ISOWeek.GetWeekOfYear(i.ProductionDate.Value)}"

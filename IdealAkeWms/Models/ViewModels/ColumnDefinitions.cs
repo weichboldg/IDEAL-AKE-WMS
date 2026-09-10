@@ -26,6 +26,8 @@ public static class ColumnDefinitions
             new ColumnDef("quantity",    "Stk.",             Locked: false, DefaultWidth: 55),
             new ColumnDef("customer",    "Kunde",            Locked: false),
             new ColumnDef("article-number","Artikelnummer",  Locked: false),
+            // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
+            new ColumnDef("matchcode",   "Matchcode",        Locked: false),
             new ColumnDef("description1","Bezeichnung 1",    Locked: false),
             new ColumnDef("description2","Bezeichnung 2",    Locked: false),
             new ColumnDef("workbench",   "Werkbank",         Locked: false),
@@ -69,6 +71,8 @@ public static class ColumnDefinitions
             new ColumnDef("quantity",       "Stk.",          Locked: false, DefaultWidth: 55),
             new ColumnDef("customer",       "Kunde",         Locked: false),
             new ColumnDef("article-number", "Artikelnummer", Locked: false),
+            // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
+            new ColumnDef("matchcode",      "Matchcode",     Locked: false),
             new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
             new ColumnDef("description2",   "Bezeichnung 2", Locked: false),
             new ColumnDef("workbench",      "Werkbank",      Locked: false),
@@ -114,6 +118,8 @@ public static class ColumnDefinitions
             new ColumnDef("quantity",       "Stk.",          Locked: false, DefaultWidth: 55),
             new ColumnDef("customer",       "Kunde",         Locked: false),
             new ColumnDef("article-number", "Artikelnummer", Locked: false),
+            // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
+            new ColumnDef("matchcode",      "Matchcode",     Locked: false),
             new ColumnDef("description1",   "Bezeichnung 1", Locked: false),
             new ColumnDef("production-date","Fert.-Termin",  Locked: false),
             new ColumnDef("applicable",     "Anwendbar",     Locked: false, DefaultWidth: 100),
@@ -142,6 +148,8 @@ public static class ColumnDefinitions
             new ColumnDef("order-number",   "FA Nr.",           Locked: true),
             new ColumnDef("workbench",      "Werkbank",         Locked: false),
             new ColumnDef("article-number", "Artikelnummer",    Locked: false),
+            // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
+            new ColumnDef("matchcode",      "Matchcode",        Locked: false),
             new ColumnDef("description1",   "Bezeichnung 1",    Locked: false),
             new ColumnDef("description2",   "Bezeichnung 2",    Locked: false),
             new ColumnDef("quantity",       "Stk.",             Locked: false),
@@ -174,6 +182,8 @@ public static class ColumnDefinitions
             new ColumnDef("priority",    "Prio",             Locked: false, DefaultWidth: 60),
             new ColumnDef("order-number","FA Nr.",           Locked: true),
             new ColumnDef("article-number","Artikelnummer",  Locked: false),
+            // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
+            new ColumnDef("matchcode",   "Matchcode",        Locked: false),
             new ColumnDef("description", "Bezeichnung",      Locked: false),
             new ColumnDef("customer",    "Kunde",            Locked: false),
             new ColumnDef("quantity",    "Stk.",             Locked: false, DefaultWidth: 55),

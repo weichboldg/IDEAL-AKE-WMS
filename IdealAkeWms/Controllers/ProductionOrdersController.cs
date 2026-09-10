@@ -115,6 +115,7 @@ public class ProductionOrdersController : Controller
                 Quantity = o.Quantity,
                 Customer = o.Customer,
                 ArticleNumber = o.ArticleNumber,
+                Matchcode = o.Matchcode,
                 Description1 = o.Description1,
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,

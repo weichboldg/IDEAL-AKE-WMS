@@ -13,10 +13,10 @@
     var doneHeader = Model.SelectedWorkStep != null
         ? $"{Model.SelectedWorkStep.Code} {Model.SelectedWorkStep.Name}"
         : "Erledigt";
-    // FA-Nr, Werkbank, Artikel, Bez1, Bez2, Stk, Beschicht., BG, Komm, Fert,
+    // FA-Nr, Werkbank, Artikel, Matchcode, Bez1, Bez2, Stk, Beschicht., BG, Komm, Fert,
     // Kaeltemittel, Ventil, Ausfuehrung, Maschine, Sage-Status + Merkmale
     // + parent-sub-order-number (defaultHidden) + 1 Erledigt-Spalte
-    var columnCount = 15 + Model.AttributeColumns.Count + 2;
+    var columnCount = 16 + Model.AttributeColumns.Count + 2;
     Func<IdealAkeWms.Models.ViewModels.FaWorklistRow, IdealAkeWms.Models.ViewModels.FaWorklistRowContext> Ctx = it =>
         new IdealAkeWms.Models.ViewModels.FaWorklistRowContext
         {
@@ -102,6 +102,7 @@ else
                     <th data-filterable data-col-key="order-number">FA Nr.</th>
                     <th data-filterable data-col-key="workbench">Werkbank</th>
                     <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                    <th data-filterable data-col-key="matchcode">Matchcode</th>
                     <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                     <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                     <th data-filterable data-col-key="quantity">Stk.</th>
@@ -185,6 +186,7 @@ else
         { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": null },
         { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
         { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+        { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
         { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
         { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
         { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": null },

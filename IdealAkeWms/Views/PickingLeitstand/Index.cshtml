@@ -115,6 +115,7 @@
                 <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
                 <th data-filterable data-col-key="customer">Kunde</th>
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                 <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                 <th data-filterable data-col-key="workbench">Werkbank</th>
@@ -151,7 +152,7 @@
         </thead>
         @{
             // Rich-View Spalten inkl. parent-sub-order-number (defaultHidden) = 28; plus Conditionals.
-            var colCount = 28;
+            var colCount = 29;
             if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
             {
                 colCount++; // bulk-select
@@ -393,6 +394,7 @@
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
     { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
     { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
     { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
     { "key": "workbench", "label": "Werkbank", "locked": false, "defaultWidth": null },
