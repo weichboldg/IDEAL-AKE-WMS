@@ -85,10 +85,34 @@ fassten damit die Zellen der **verschachtelten** Tabelle an.
 - `/ProductionOrders` (Kombigeraete-Varianten-Tabelle, 7 Spalten)
 - `/FaHierarchy` (`fa-head-table` je Struktur, 6 Spalten, `supportsReorder: true`)
 
-**Wirkung ohne jeden Sortierklick:** Blendet der Anwender eine Spalte mit physischem Index ≤ 6 aus
-(„Kunde" liegt auf 3), wird eine Zelle der inneren Tabelle **geleert**. Beim Umordnen der ersten
-Spalten werden deren Zellen **vertauscht**. Also wieder „Wert unter falscher Ueberschrift" — diesmal
-durch eine voellig normale Bedienhandlung.
+**Wirkung ohne jeden Sortierklick:** Blendet der Anwender eine Spalte mit physischem Index ≤ 6 aus,
+wird eine Zelle der inneren Tabelle **geleert**; beim Umordnen der ersten Spalten werden deren Zellen
+**vertauscht**. Also wieder „Wert unter falscher Ueberschrift" — diesmal durch eine voellig normale
+Bedienhandlung.
+
+**Entscheidend fuer die Abnahme: getroffen wird die Zelle mit derselben POSITIONSNUMMER, nicht die
+gleichnamige Spalte.** `setColVisibility(physicalIdx, …)` arbeitet rein numerisch (`cells[physicalIdx]`);
+der Spaltenschluessel wird **vorher** gegen das **aeussere** `thead` aufgeloest. Die innere Zeile
+liefert dann ihre **eigenen** sechs bzw. sieben Zellen — derselbe Index, voellig andere Bedeutung:
+
+| Ansicht | ausgeblendete Aussenspalte | getroffene innere Zelle |
+|---|---|---|
+| `/ProductionOrders` **mit** Aktionsspalte | „Kunde" = Index 3 | 4. Zelle = **FE-Termin** |
+| `/ProductionOrders` **ohne** Aktionsspalte (kein Komm./Vorbau-Recht) | „Kunde" = Index 2 | 3. Zelle = **KO-Termin** |
+| `/FaHierarchy` | „Bezeichnung" = Index 2 | 3. Zelle = **Status** |
+
+Die erste Berichtsfassung behauptete, es treffe die *gleichnamige* innere Spalte. Das war falsch und
+haette den Abnahmeschritt unbrauchbar gemacht — „eine Zelle verschwindet" kann man nicht pruefen,
+„die vierte Zelle, FE-Termin, verschwindet" schon. Gefunden hat es der Umsetzer bei der Ueberarbeitung
+seines **eigenen** Berichts; im Review an Code und Markup nachgerechnet und in allen drei Zeilen
+bestaetigt.
+
+> [!danger] Dieser zweite Fund ist SCHWERER als der erste — er heilt nicht
+> Der Sortier-Fehler verschiebt nur DOM: Ein Neuladen stellt die Anzeige wieder her.
+> Hier **nicht.** Jede Sichtbarkeitsaenderung wird per `PUT /api/user-view-preferences/{viewKey}`
+> **serverseitig gespeichert**; beim naechsten Laden ruft `loadSettings() → applySettings()` dieselbe
+> `setColVisibility` erneut auf. Der Schaden wird also **reproduziert**, nicht geheilt — pro Benutzer
+> persistent, bis die Praeferenz zurueckgesetzt wird. Im Review am Persistenzpfad verifiziert.
 
 **Warum es niemandem aufgefallen ist** — und das ist die lehrreiche Haelfte: Die fuenf
 `defaultHidden`-Spalten der FA-Liste liegen bei Index **13, 14, 15, 16, 17, 25**; der Schaden tritt
