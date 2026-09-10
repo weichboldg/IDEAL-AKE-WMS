@@ -595,14 +595,253 @@ Diff, analog dem Vorgehen bei der Materialisierungs-Spec.**
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. →
-2. →
-3. →
-4. →
-5. →
-6. →
-7. →
-8. →
-9. →
-10. →
-11. →
+1. → **JA — die Wurzelzeile ist bereits materialisiert.** Am Testsystem sichtbar: In der Gruppe
+   „HauptFA 1035235" ist die **erste Zeile** `1035235` selbst, gefolgt von `1043421`, `1043422` …
+   Die Materialisierung nimmt laut Teil-7-Spec ausdruecklich „die Zeilen mit `SubFA != 0` **plus die
+   Wurzel**". Punkt 2 (HauptFA als normale Zeile) braucht damit **keine** zusaetzliche
+   Materialisierungs-Anpassung.
+   *Trotzdem am Code gegenpruefen, nicht auf diese Beobachtung bauen* — sie stammt aus einem
+   Bildschirmfoto, und Bildschirmfotos haben in dieser Runde schon einmal einen falschen Befund
+   getragen.
+
+2. → **Die Kopfzeile bleibt — aber schlank.**
+   **Grund, der leicht uebersehen wird:** Bei **zugeklappter** Gruppe ist die Kopfzeile das
+   Einzige, was man sieht. Faellt dort alles weg, zeigt eine zugeklappte Liste nur noch Nummern —
+   und die Zwei-Ebenen-Ansicht verliert genau den Ueberblick, fuer den sie gebaut wurde.
+   - **Bleiben in der Kopfzeile:** HauptFA-Nummer, Sub-FA-Zahl, **Kunde**, **ein** Leittermin
+     (Fert.-Termin), Mehrdeutig-Badge.
+   - **Wandern in die Zeilen:** Prio, AB-Nummer, Montage-Abteilung, die uebrigen Termine.
+   Die Dopplung von Kunde und Leittermin ist Absicht, kein Versehen — sie kostet eine Zeile und
+   erhaelt die Bedienbarkeit im zugeklappten Zustand.
+
+3. → **Bei `IsAmbiguous=true` bleiben die K1-Zeilenspalten LEER.** Keine Zuordnung erfinden.
+   Es gibt **keinen Trennschluessel auf Positionsebene** — genau das ist der Kern des
+   Kombigeraete-Problems ([[2026-08-06-kombinationsgeraete-montageabteilung]]). Eine Zeile einer
+   Kopfvariante zuzuordnen waere geraten, und ein falscher Kunde oder Termin an einer Zeile ist
+   schlimmer als ein leeres Feld.
+   Die Kopfzeile zeigt weiterhin **alle** Varianten im Klartext plus Badge — unveraendert wie heute.
+
+4. → **Client-seitig, ausgeloest nach JEDEM Reorder — und der Wert bleibt im DOM.**
+   **Die Falle:** Die Sortierung laeuft client-seitig (`table-filter.js`, URL bleibt unveraendert).
+   Eine server-seitig berechnete „erste Vorkommnis"-Markierung waere nach dem ersten Sortierklick
+   **falsch** — dann stuende der Kunde bei einer beliebigen Zeile in der Mitte.
+   **Vorgabe:**
+   - Der Wert steht **in jeder Zeile im DOM** — damit Spaltenfilter, Sortierung und ein spaeterer
+     Export ihn sehen. Nur die **Darstellung** wird unterdrueckt bzw. gedimmt.
+   - Die Unterdrueckung ist eine kleine Funktion, die nach **Init, Sortierung und Filter-Reload**
+     erneut laeuft — aufgerufen aus denselben Stellen wie die Sortierung.
+   - **Nicht per `display:none` oder leerem Zellinhalt**, sonst verschwindet der Wert fuer
+     Kopieren/Export mit.
+
+5. → **Kaskade ohne Pflicht-Zuweisung; ein OPTIONALER Picker im Dialog, der auf alle wirkt.**
+   Begruendung: Die Sub-FAs eines Geraets haengen an **verschiedenen Arbeitsbereichen**
+   (`K-02`, `S-01`, `H4-04` …). Ein Picker fuer alle waere in der Mehrzahl der Faelle der falsche.
+   **ZU PRUEFEN vor der Umsetzung:** Blockiert `KommissionierungMitZuweisung` die Freigabe ohne
+   Picker, oder belegt es nur die Oberflaeche vor? Blockiert es hart, ist die Kaskade ohne
+   Zuweisung nicht moeglich — **dann melden statt die bestehende Regel aufzuweichen.** Eine
+   Pflicht, die fuer Einzelfreigaben gilt, darf nicht stillschweigend durch eine Massenaktion
+   umgangen werden.
+
+6. → **JA — fortlaufende `PickingPriority`, alle in EINEM Batch** (Muster `SetReleaseBatchAsync`).
+   Begruendung: Die Sub-FAs eines Geraets sollen in der Kommissionier-Reihenfolge **beieinander
+   bleiben**. Ohne Prioritaet verteilen sie sich beliebig zwischen fremden Auftraegen — und dann
+   holt jemand Teile fuer ein Geraet ueber den halben Tag verteilt.
+   Reihenfolge innerhalb des Batches: `SubOrderNumber` aufsteigend (Z2, wie ueberall).
+
+7. → **NUR die FA-Zeilen-Ebene. Die BOM-Komponentenebene ist Folge-Arbeit.**
+   Fachlich ist sie gewollt („ueberall, wo eine Artikelbezeichnung steht"), technisch aber ein
+   anderer Pfad: `FaHierarchyBomItem`/`BomItem` statt `ProductionOrder`. Und die **BOM-Bridge steht
+   frisch auf `Testbereit`** — sie sofort wieder aufzureissen kostet einen vollstaendigen Re-QA-Lauf
+   fuer einen Zusatz, der nicht draengt.
+   **Als eigene Backlog-Notiz** anlegen, mit dem Hinweis: Fuer **IDEAL** fuehrt die Quelle den
+   Matchcode bereits (die Bridge liest `FaHierarchyNode`), fuer **AKE** erst nach der
+   View-Erweiterung aus Nr. 8.
+
+8. → **GEKLAERT: Die AKE-View wird hausintern um den Matchcode erweitert — folgt spaeter.**
+   Damit ist es **keine offene Abhaengigkeit** mehr, sondern ein Termin. Die Erweiterung liegt bei
+   uns selbst, nicht bei einem Dritten.
+   **Vorgehen unveraendert und ausdruecklich nicht blockierend:** Spalte, Materialisierung und
+   Anzeige werden **jetzt** gebaut und fuer **IDEAL sofort** befuellt. Fuer AKE bleibt sie leer, bis
+   die View liefert — dann fuellt sie sich **ohne weitere Code-Aenderung**.
+   **Zwei Dinge, die das absichert:**
+   - Der Lesepfad muss den Matchcode **null-sicher** behandeln; keine Sortierung, kein Filter und
+     keine Gruppierung darf auf einem leeren Feld ins Leere laufen (F7).
+   - **Als bekannte Zwischeneinschraenkung in die Spec und in die UAT-Checkliste**: „Matchcode-Spalte
+     ist bei AKE bis zur View-Erweiterung leer — kein Fehler." Sonst wird sie beim ersten
+     AKE-Regressionstest als Mangel gemeldet.
+   **Nach der View-Erweiterung nachzuholen:** das Mapping im AKE-Lesepfad ergaenzen und einmal
+   pruefen, dass die Spalte sich fuellt. Als eigener kleiner Punkt im Backlog fuehren, sonst geht es
+   zwischen den groesseren Themen unter.
+
+9. → **Sichtbar per Default, hausweit einheitlich — kein `defaultHidden`, kein Modus-Sonderfall.**
+   Der Matchcode ist fuer IDEAL essentiell; ihn ausgeblendet auszuliefern hiesse, dass ihn jeder
+   Anwender erst suchen muss.
+   Die voruebergehend leere AKE-Spalte ist der Preis — und er ist gering, weil die Spaltenauswahl
+   seit Etappe 6 **je Benutzer** funktioniert: Wen sie stoert, blendet sie mit einem Klick aus. Ein
+   modusabhaengiger Default waere genau der Sonderfall, den die Entscheidung „hausweit" beseitigt
+   hat.
+
+10. → **Unveraendert geparkt — wird getestet, nicht entschieden.** Pruefrage bleibt: *Erscheint
+    dasselbe Material auf ZWEI Kommissionierlisten?* Am **Bildschirm** pruefen (dem Ausdruck fehlen
+    genau die Spalten, die man dafuer braucht). Ergebnis entscheidet zwischen Rueckbau (Einzeiler
+    in der Scope-Regel) und Druck-Whitelist-Erweiterung in `PrintBom.cshtml`. **Vor dem Merge.**
+
+11. → **BESTAETIGT — nichts zu tun.** Der Rechercheergebnis stimmt: F5/F6 sind im Worktree-Stand
+    umgesetzt, der Klassenkommentar nennt beide Z1-Ausnahmen (`Workplace` und `PickingStatus`).
+    Damit ist mein urspruenglicher B1-Ausschluss ueberholt — der Grund dafuer (keine
+    `PickingStatus`-Zeile fuer IDEAL) ist durch den F6-Fix weggefallen.
+    **Einzige Restaufgabe:** Nach Schranke 2 der Materialisierungs-Spec gegenpruefen, dass es so
+    geblieben ist — ein Blick in den Klassenkommentar, kein eigener Arbeitspunkt.
+
+## Kritische Pruefung (2026-09-10)
+
+Alle 11 Rueckfragen sind beantwortet, aber die Antworten wurden **nicht in den Fliesstext
+zurueckgezogen** — an mehreren Stellen widerspricht der bereits geschriebene Spec-Rumpf (Umfang,
+Fachliche Anforderungen, Technischer Loesungsentwurf, Akzeptanzkriterien, Test-Szenarien,
+affected_code) den beantworteten Rueckfragen. Der eine vom Menschen bereits gefundene Widerspruch
+(Kopfzeile) ist nicht der einzige — vier weitere Abweichungen wurden gefunden, zwei davon am
+Code verifiziert.
+
+### BLOCKER
+
+1. **Kopfzeile-Widerspruch (vom Menschen bereits gefunden, hier bestaetigt und lokalisiert).**
+   `affected_code` (Eintrag zu `Views/ProductionOrders/Index.cshtml`) und **Fachliche Anforderungen
+   Punkt 2** sagen als Tatsachenbehauptung „nur noch HauptFA-Nummer, Sub-FA-Zahl-Badge und
+   Mehrdeutig-Badge **bleiben sicher bestehen**" — Antwort 2 legt fest, dass **zusaetzlich** Kunde
+   und der Fert.-Termin bewusst in der Kopfzeile bleiben (Begruendung: zugeklappte Gruppe zeigt
+   sonst nur Nummern). Akzeptanzkriterium 8 und das Test-Szenario „Kopfzeile schlanker" sind mit
+   „mindestens" bzw. „gemaess Rueckfrage 2" so vage formuliert, dass sie den Widerspruch nicht
+   selbst auffangen — ein Dev-Lauf, der nur AK 8 liest, koennte Kunde/Termin trotzdem entfernen.
+   **Frage an den Menschen:** keine neue Entscheidung noetig, nur Bestaetigung, dass die
+   Nacharbeit (Fliesstext auf Antwort 2 ziehen, AK 8 und Testszenario konkretisieren:
+   „HauptFA-Nummer, Sub-FA-Zahl, Kunde, EIN Fert.-Termin, Mehrdeutig-Badge — genau diese fuenf,
+   nicht mehr/weniger") vor Freigabe erledigt wird.
+
+2. **„Nur wo der Wert wechselt" — Technischer Loesungsentwurf widerspricht Antwort 4 fundamental,
+   und die dort gegebene Begruendung ist sachlich falsch angewandt.** Der Abschnitt „Technischer
+   Loesungsentwurf" schreibt: *„Berechnung NACH Sortierung, serverseitig ... **kein clientseitiges
+   Verstecken per JS**, weil das mit Server-Spaltenfiltern/-Sortierung (ADR 0005 Server-Mode)
+   kollidieren wuerde (bereits dokumentierter Fallstrick 'Server-Filter-Mode: kein clientseitiges
+   `applyFilters()` beim Init')."* Antwort 4 legt das **exakte Gegenteil** fest: „Client-seitig,
+   ausgeloest nach JEDEM Reorder — und der Wert bleibt im DOM", mit der ausdruecklichen Begruendung,
+   dass die Sortierung selbst bereits client-seitig laeuft (`table-filter.js`, URL bleibt
+   unveraendert).
+   **Verifiziert am Code:** `Views/ProductionOrders/Index.cshtml` traegt zwar
+   `data-server-column-filter="true"`, aber `table-filter.js` sortiert nachweislich client-seitig
+   (`sortTable()`, DOM-Reorder ohne Page-Reload) — Antwort 4 trifft technisch zu. Der zitierte
+   Fallstrick (`secondbrain/architektur/fallstricke.md` Zeile 317-320, „Server-Filter-Mode: kein
+   clientseitiges `applyFilters()` beim Init") bezieht sich auf `applyFilters()` — das **Filtern**
+   per DOM-Zellentext-Matching, das Datumsspalten falsch interpretiert — **nicht** auf ein
+   client-seitiges Dimmen/Verstecken doppelter Zeilenwerte nach einem Resort. Die Begruendung im
+   Technik-Abschnitt verwechselt zwei verschiedene Mechanismen.
+   **Konsequenz:** Der komplette Absatz „`Nur wo der Wert wechselt`" im Technischen
+   Loesungsentwurf muss neu geschrieben werden: client-seitige Funktion, aufgerufen nach
+   Init/Sortierung/Filter-Reload (dieselben Aufrufstellen wie die Sortierung selbst), Dimmen statt
+   `display:none`/leerer Zellinhalt (Wert bleibt fuer Copy/Export im DOM), **kein** serverseitiger
+   Ansatz.
+
+3. **AKE-Matchcode-Abhaengigkeit: Antwort 8 aendert die Risikoklasse, der Fliesstext zieht das
+   nicht nach.** Antwort 8 stellt fest: „Die AKE-View wird **hausintern** um den Matchcode
+   erweitert ... Die Erweiterung liegt **bei uns selbst, nicht bei einem Dritten**." Drei Stellen
+   im Rumpf behandeln das weiterhin als **externe** Abhaengigkeit mit **Sage-Betreuung**:
+   - Fachliche Anforderungen Punkt 4: „AKE-Quelle ungeklaert, moegliche externe Abhaengigkeit ...
+     ist die Sage-View-Erweiterung ein Fremd-DB-Objekt ... nicht durch einen Dev-Lauf loesbar,
+     sondern mit der Sage-Betreuung abzustimmen."
+   - Umfang/Out-of-Scope: „AKE-Sage-View-Erweiterung selbst ... das ist eine externe Abhaengigkeit
+     mit der Sage-Betreuung, nicht durch einen Dev-Lauf loesbar."
+   - Deploy/Deploy-Vorbedingung: „Falls Rueckfrage 8 ergibt, dass die AKE-Sage-View erweitert
+     werden muss, ist DAS eine separate, extern abzustimmende Aenderung mit eigenem Zeitplan."
+   Das ist kein Formulierungsdetail — es aendert, ob diese Spec auf einen externen Dritten wartet
+   oder auf eine eigene, planbare Folgearbeit. **Frage an den Menschen:** Wer genau pflegt
+   `vw_AKE_Kommissionierung_WAListe`/`_StuecklistenDB` „hausintern" — ein internes IDEAL-AKE-Team,
+   das nicht die Sage-Betreuung ist? Und: Antwort 7 verlangt fuer die AKE-View-Erweiterung „eine
+   eigene Backlog-Notiz" — ist die bereits angelegt oder Teil der Nacharbeit vor Freigabe?
+
+4. **Freigabe-Kaskade „ohne Pflicht-Zuweisung" widerspricht verifiziertem Code-Verhalten — und
+   Antwort 5 hat diesen Fall selbst als Ausschlusskriterium benannt.** Antwort 5 sagt: „Kaskade
+   ohne Pflicht-Zuweisung; ein OPTIONALER Picker im Dialog", aber auch: „**ZU PRUEFEN vor der
+   Umsetzung:** Blockiert `KommissionierungMitZuweisung` die Freigabe ohne Picker ... ? Blockiert
+   es hart, ist die Kaskade ohne Zuweisung **nicht moeglich** — dann melden statt die bestehende
+   Regel aufzuweichen."
+   **Verifiziert am Code** (`PickingLeitstandController.cs`, Worktree
+   `2026-08-07-ideal-teile-1-5`): `ToggleRelease` (Zeile 346-351) und `BulkRelease` (Zeile 391-396)
+   blocken **hart** — bei aktivem `KommissionierungMitZuweisung` und fehlendem `assignedPickerId`
+   wird die Freigabe abgelehnt (`TempData["WarningMessage"] = "Bitte einen Kommissionierer
+   zuweisen."`, Redirect ohne Freigabe). Die in Antwort 5 selbst gestellte Pruefbedingung trifft
+   also zu.
+   **Frage an den Menschen:** Damit ist „Kaskade ohne Pflicht-Zuweisung" in der jetzigen Form nicht
+   umsetzbar, ohne entweder (a) die bestehende Einzelfreigabe-Regel aufzuweichen — von Antwort 5
+   ausdruecklich abgelehnt — oder (b) bei aktivem `KommissionierungMitZuweisung` auch die Kaskade
+   zu blockieren bzw. dort eine Pflicht-Zuweisung (fuer alle kaskadierten Sub-FAs gemeinsam?)
+   einzufuehren. Welche Variante gilt?
+
+5. **Akzeptanzkriterium 5 widerspricht Antwort 3.** AK 5 nennt als Beispiel fuer einen Wertwechsel:
+   „wechselt der Wert (z. B. bei einem Kombigeraet mit unterschiedlichen Montage-Abteilungen je
+   Variante), erscheint er erneut." Antwort 3 legt aber fest, dass die K1-Zeilenspalten bei
+   `IsAmbiguous=true` **grundsaetzlich leer bleiben** — „keine Zuordnung erfinden ... kein
+   Trennschluessel auf Positionsebene". Es gibt bei einem Kombigeraet also keinen „gewechselten
+   Wert" zu zeigen, sondern durchgehend leere Zellen. Das AK-Beispiel muss ersetzt werden (z. B.
+   durch zwei aufeinanderfolgende, **nicht mehrdeutige** HauptFA-Gruppen mit unterschiedlicher
+   Montage-Abteilung).
+
+### SOLLTE
+
+- **Konditionale Formulierungen im Fliesstext nicht auf den beantworteten Stand gezogen.** Mehrere
+  Stellen sprechen noch von „ist Rueckfrage X", „zu verifizieren, Rueckfrage 1" (Fachliche
+  Anforderungen Punkt 2 zu Antwort 1; Umfang/Fachliche Anforderungen Punkt 1 „ist Rueckfrage 3/4";
+  Akzeptanzkriterium 7 „Sofern Rueckfrage 1 bestaetigt ..."), obwohl die Antworten vorliegen. Ein
+  Dev-Lauf, der den Fliesstext statt nur den Rueckfragen-Block liest, sieht zwei sich
+  widersprechende Versionen im selben Dokument. Empfehlung: vor Freigabe den gesamten Fliesstext
+  auf den beantworteten Stand nachziehen, nicht nur den Rueckfragen-Block ergaenzen. Antwort 1
+  enthaelt zudem einen expliziten Vorbehalt („am Code gegenpruefen, nicht auf diese Beobachtung
+  bauen") — der sollte als Verifikationsschritt im Dev-Lauf (z. B. erster Satz unter „Technischer
+  Loesungsentwurf" zu Punkt 2) stehen, nicht nur als Fussnote in der Antwort.
+- **Repository-Methode fuer die Kaskade hat keinen Picker-Parameter.** Antwort 5 fordert „ein
+  OPTIONALER Picker im Dialog, der auf alle wirkt". Die im Technischen Loesungsentwurf skizzierte
+  `SetReleaseForOrderNumberAsync(orderNumber, releasedBy, modifiedBy, modifiedByWindows)` hat dafuer
+  keinen Parameter und keine Beschreibung, wie/ob `SetAssignedPickerAsync` fuer alle betroffenen
+  Zeilen mit aufgerufen wird. Sollte ergaenzt werden, sobald BLOCKER 4 geklaert ist.
+- **Reihenfolge der Prioritaetsvergabe fehlt im Technik-Abschnitt.** Antwort 6 legt „Reihenfolge
+  innerhalb des Batches: `SubOrderNumber` aufsteigend" fest; der Technische Loesungsentwurf nennt
+  nur `GetMaxPickingPriorityAsync`, aber nicht die Sortierreihenfolge beim Vergeben der
+  fortlaufenden Prioritaet — sollte explizit ergaenzt werden, sonst ueberlaesst der Dev-Lauf das
+  der zufaelligen DB-Lesereihenfolge.
+- **Fallstricke-Zitat „§10" fuer die Spaltenkonfigurations-Pflicht ist falsch adressiert.**
+  Verifiziert: `secondbrain/architektur/fallstricke.md` §10 behandelt „IDEAL — BOM-Bridge"
+  (`BomItem`-Erweiterung, `FullStructure`-Positionen etc.) — nicht Spaltenkonfiguration. Die Regel
+  „`data-col-key` ist Pflicht auf allen `<th>`" bzw. „Neuer `viewKey` ohne
+  `ColumnDefinitions.GetByViewKey`-Registrierung → Prefs-API 400" steht in **§3 „Views, Forms,
+  JavaScript"** (Zeilen 203-212). Der Fehler stammt bereits aus der Backlog-Notiz (dort ebenfalls
+  „Fallstricke §10") und wurde unveraendert uebernommen — vor der Umsetzung richtigstellen, sonst
+  schlaegt ein Dev-Lauf im falschen Abschnitt nach.
+
+### HINWEIS
+
+- **„F7-Regel" vs. „Fallstricke §7" vermengt vermutlich zwei verschiedene Nummerierungen.** Die
+  Spec zitiert mehrfach „F7-Regel (leeres Feld darf Filter/Sortierung nicht ins Leere laufen
+  lassen)" und daneben „vgl. Fallstricke §7-Referenz". `secondbrain/architektur/fallstricke.md`
+  §7 ist tatsaechlich „Lager, Bestand, Bestellwesen" — ein anderes Thema. „F7" stammt vermutlich
+  aus den F1-F8-Kurzregeln der Materialisierungs-Spec (dort projektintern durchnummeriert), nicht
+  aus den Fallstricke-Paragraphen. Rein eine Verwechslungsgefahr beim Nachschlagen, keine
+  inhaltliche Luecke — vor Freigabe kurz klarstellen, welche der beiden Nummerierungen gemeint ist.
+- **SQL-Skriptnummer 91 kollisionsfrei, Stand heute.** Geprueft: Worktree
+  `2026-08-07-ideal-teile-1-5` steht bei `90_InvertProductionOrderHierarchy.sql`, `main` bei
+  `88_AllowMultipleDummyRequisitionItems.sql`, die beiden anderen offenen Worktrees
+  (`2026-07-29-sage-lagerbuchungen`, `override-prepickingdays`) bei `83`/`81`. `SQL/91_...` ist
+  damit aktuell kollisionsfrei — das uebliche Restrisiko einer Nummernverschiebung beim Merge
+  eines anderen Branches zuerst besteht wie bei jedem offenen Buendel, ist aber keine neue Luecke
+  dieser Spec.
+- **Groesse.** 14 `affected_code`-Eintraege ueber Controller/Repository/Views/Migration/Testdoku,
+  vier fachlich unabhaengige Themenbloecke (Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade,
+  Matchcode). Das ist gross fuer einen einzelnen Dev-Lauf, liegt aber bewusst im bestehenden
+  Buendel-Worktree, der bereits mehrere Etappen traegt — kein `split`/`epic`-Kandidat im
+  Sinn einer neuen Struktur, sondern konsistent mit der dort bereits etablierten Praxis.
+- **AK 3 verifiziert.** Der Akzeptanzkriterien-Nachweis „F1/F2-Regression (Matchcode)" ist
+  plausibel und deckungsgleich mit dem bereits abgenommenen Muster der Materialisierungs-Spec —
+  kein Befund.
+
+**BEREIT ZUR FREIGABE:** NACHBESSERUNG NOETIG — fuenf Blocker, davon zwei sachlich verifizierte
+Widersprueche zum bestehenden Code (Freigabe-Kaskade/Picker-Pflicht, Anzeige-Mechanik „nur wo der
+Wert wechselt"), die den Dev-Lauf in eine andere Richtung schicken wuerden als von Antwort 4/5
+verlangt. Der Fliesstext muss auf den beantworteten Stand gezogen werden, bevor die Spec nach
+`specs/freigegeben/` verschoben wird.
