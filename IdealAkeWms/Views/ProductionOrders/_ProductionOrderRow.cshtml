@@ -11,6 +11,11 @@
     }
     // FA-Nummer-Zelle: im hierarchischen Modus die Sub-FA-Nummer (SubOrderNumber), sonst OrderNumber.
     var faCellNumber = Model.Hierarchical ? (item.SubOrderNumber ?? item.OrderNumber) : item.OrderNumber;
+    // Wurzel der Gruppe: die Materialisierung nimmt die HauptFA selbst mit SubFA == HauptFA auf.
+    // Deshalb braucht die Erkennung kein eigenes ViewModel-Feld.
+    var isHauptFaRow = Model.Hierarchical
+        && !string.IsNullOrEmpty(item.SubOrderNumber)
+        && item.SubOrderNumber == item.OrderNumber;
     var lackName = Model.LackierteilKategorieName;
     var featureInactive = string.IsNullOrWhiteSpace(lackName);
     var showBeschicht = featureInactive || item.HasCoatingParts;
@@ -18,6 +23,8 @@
                        && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today;
     var rowClass = (item.IsCancelled ? "table-danger" : item.IsDone ? "table-secondary" : "");
     if (Model.Hierarchical) rowClass = ("fa-liste-node-row " + rowClass).Trim();
+    // Zweiter Bedeutungstraeger neben dem Badge: Farbe allein traegt in der Fertigung nicht.
+    if (isHauptFaRow) rowClass = (rowClass + " fw-semibold").Trim();
 }
 <tr class="@rowClass" data-group="@item.OrderNumber">
     @if (Model.CanPick || Model.HasVorbauAccess)
@@ -42,6 +49,10 @@
     }
     <td>
         <strong>@faCellNumber</strong>
+        @if (isHauptFaRow)
+        {
+            <span class="badge rounded-pill bg-secondary ms-1" title="Diese Zeile ist die HauptFA selbst, nicht eine ihrer Sub-FAs.">HauptFA</span>
+        }
         @if (item.IsCancelled)
         {
             <span class="badge bg-danger ms-1" title="Dieser Fertigungsauftrag existiert nicht mehr in Sage und wurde automatisch storniert.">In Sage gelöscht</span>

@@ -152,6 +152,37 @@ public class ProductionOrdersControllerTests
         group.MontageAbteilung.Should().Be("Montage-1");
     }
 
+    /// <summary>
+    /// Die FA-Liste kennzeichnet die HauptFA-Zeile in <c>_ProductionOrderRow.cshtml</c> ueber
+    /// <c>SubOrderNumber == OrderNumber</c> — ohne eigenes ViewModel-Feld. Dieser Test haelt die
+    /// Voraussetzung fest: Die Wurzel kommt als normale Zeile ihrer eigenen Gruppe im Modell an.
+    /// </summary>
+    [Fact]
+    public async Task Index_Hierarchical_RootRow_KeepsSubOrderNumberEqualToOrderNumber()
+    {
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow>
+                {
+                    MakeRowH(1, "1000", "1000"),
+                    MakeRowH(2, "1000", "1001", parentSub: "1000")
+                })
+            },
+            TotalGroupCount: 1, TotalRowCount: 2));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { MakeHead(1000) });
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        var items = vm.Groups.Should().ContainSingle().Subject.Items;
+        items.Should().HaveCount(2);
+        items.Should().ContainSingle(i => i.SubOrderNumber == i.OrderNumber)
+            .Which.SubOrderNumber.Should().Be("1000");
+    }
+
     [Fact]
     public async Task Index_Hierarchical_AmbiguousHauptFa_SetsFlagAndAllVariants_AndNoSingleValues()
     {

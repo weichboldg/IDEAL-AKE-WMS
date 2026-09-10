@@ -144,35 +144,20 @@
                             </span>
                             <strong class="ms-1">HauptFA @group.OrderNumber</strong>
                             <span class="badge rounded-pill bg-light text-dark border ms-2" title="Anzahl Sub-FAs in dieser Gruppe">@group.Items.Count Sub-FA@(group.Items.Count == 1 ? "" : "s")</span>
+                            @* Verschlankte Kopfzeile: Nur Kunde und der Leittermin (FE) bleiben. Prio,
+                               Montage-Abt., AB-Nr., KO- und Liefertermin stehen jetzt in den Zeilen selbst.
+                               Kunde und FE-Termin bleiben aber bewusst doppelt: Bei ZUGEKLAPPTER Gruppe ist
+                               die Kopfzeile das Einzige, was sichtbar ist — ohne sie zeigte die Zwei-Ebenen-
+                               Ansicht nur noch Nummern und verlor genau ihren Ueberblick. *@
                             @if (!group.IsAmbiguous)
                             {
                                 @if (!string.IsNullOrEmpty(group.Customer))
                                 {
                                     <span class="badge bg-primary ms-2" title="Kunde">@group.Customer</span>
                                 }
-                                @if (group.Prio.HasValue)
-                                {
-                                    <span class="badge bg-secondary ms-1" title="Priorität">Prio @group.Prio</span>
-                                }
-                                @if (!string.IsNullOrEmpty(group.MontageAbteilung))
-                                {
-                                    <span class="badge bg-light text-dark border ms-1" title="Montage-Abteilung">@group.MontageAbteilung</span>
-                                }
-                                @if (!string.IsNullOrEmpty(group.AbNummer))
-                                {
-                                    <span class="badge bg-light text-dark border ms-1" title="AB-Nummer">AB @group.AbNummer</span>
-                                }
-                                @if (group.KonstruktionsTermin.HasValue)
-                                {
-                                    <span class="badge bg-light text-dark border ms-1" title="Konstruktions-Termin">KO @group.KonstruktionsTermin.Value.ToString("dd.MM.yyyy")</span>
-                                }
                                 @if (group.ProductionDate.HasValue)
                                 {
                                     <span class="badge bg-light text-dark border ms-1" title="Fertigungstermin">FE @group.ProductionDate.Value.ToString("dd.MM.yyyy")</span>
-                                }
-                                @if (group.DeliveryDate.HasValue)
-                                {
-                                    <span class="badge bg-light text-dark border ms-1" title="Liefertermin">LT @group.DeliveryDate.Value.ToString("dd.MM.yyyy")</span>
                                 }
                             }
                             else
