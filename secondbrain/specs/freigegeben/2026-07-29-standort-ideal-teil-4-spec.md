@@ -780,3 +780,41 @@ Rueckfragen), hier nur die Kurzfassung mit Verweis:
   Deploy-Abschnitt gewandert (analog Teil 3). Der bewusst aus dem Umfang genommene
   AKE-Toggle-Punkt ist als „GEKLAERT/bewusst nicht Teil dieser Spec" markiert statt als offene
   Rueckfrage gefuehrt.
+
+## ANTWORTEN auf die zwei verbleibenden Rueckfragen (2026-08-12)
+
+**Zu 1 — Dienstleister-Layout: mit einem vorlaeufigen Layout bauen, nicht auf die Vorlage warten.**
+Die Corporate-Design-Vorlage liegt nicht vor und haengt an Dritten — darauf zu warten hiesse, Teil 4
+unbegrenzt zu blockieren. Stattdessen wird ein **vorlaeufiges Layout in der Hausschrift** gebaut,
+mit den Feldern, die ein Begleitdokument zwingend braucht:
+- **Absender** (Firmenname + Anschrift) — kommt aus den Firmendaten-Keys, die laut Teil-6-Antwort
+  in **Teil 3** definiert werden. Das ist die praktische Verbindung: ohne sie hat der
+  Beschichtungsauftrag keinen Briefkopf.
+- **Empfaenger:** Dienstleister aus `FaHierarchyOrderInfo`.
+- **Auftragsbezug:** `HauptFA` im Klartext **und** als Barcode.
+- **Ausfuehrung:** RAL/Farbe.
+- **Termine:** `Start_Beschichtung` und der Rueckgabe-relevante Termin — fuer den Dienstleister die
+  wichtigste Angabe ueberhaupt.
+- **Positionen:** Artnr., Matchcode, Bezeichnung, Menge.
+- **Datum des Ausdrucks.**
+
+In der Spec als **vorlaeufig** kennzeichnen, damit spaetere Layoutarbeit nicht wie eine Korrektur
+aussieht. **Zusaetzlich in die manuelle Test-Checkliste:** Vor dem ersten produktiven Einsatz sieht
+sich der Ausdruck an, wer die Beschichter-Beziehung verantwortet — ein Dokument, das das Haus
+verlaesst, wird nicht allein technisch abgenommen.
+
+**Zu 2 — PDF-Spec: kein Blocker, aber EINE Vorgabe muss jetzt in Teil 4.**
+Zeitpunkt: Die Notiz [[2026-08-06-pdf-erzeugung-fahierarchy-druck]] geht **nach dem Epic-Merge**
+durch `/spec`, gemeinsam mit dem tatsaechlichen Bedarf (Mailanhang/Ablage). Teil 4 liefert bis dahin
+ausschliesslich Bildschirmdruck — unveraendert. `depends_on` zeigt korrekt nur auf Teil 1 und Teil 3;
+die Backlog-Notiz bleibt bewusst draussen (der Status-Automat kann eine Notiz nicht aufloesen).
+
+**Was jetzt schon festgelegt werden muss, weil es spaeter teuer waere:**
+Das Druck-HTML wird **so gebaut, dass ein Headless-Renderer es unveraendert verarbeiten kann** —
+also **CSS inline bzw. im Dokument eingebettet, Bilder als Data-URI, keine verlinkten Ressourcen
+vom Webserver**. Headless Edge folgt keinen authentifizierten Links und holt sich weder Stylesheets
+noch Logo. Wird das erst spaeter beruecksichtigt, muss das Print-Layout fuer die PDF-Erzeugung noch
+einmal angefasst werden — jetzt kostet es nichts. **Als Vorgabe in den Loesungsentwurf aufnehmen.**
+
+Damit sind beide Rueckfragen beantwortet: keine blockiert die Freigabe, aber beide hinterlassen eine
+konkrete Vorgabe im Umfang.

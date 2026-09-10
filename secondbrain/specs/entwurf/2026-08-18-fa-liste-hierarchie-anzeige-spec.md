@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Liste und verwandte Ansichten hierarchiefaehig darstellen (dritte Fehlerklasse nach Teil 7)"
 slug: 2026-08-18-fa-liste-hierarchie-anzeige-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-20
 source_backlog: "[[2026-08-18-fa-liste-hierarchie-anzeige]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
@@ -26,7 +26,8 @@ affected_code:
   - "docs/TESTSZENARIEN.md"
   - "secondbrain/tests/testszenarien-index.md"
   - "GELESEN, NICHT GEAENDERT (Referenz): IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml (tbody-je-HauptFA-Gruppe-Pattern, colspan-Kopfzeile), IdealAkeWms/Views/Tracking/OseonIndex.cshtml + _OseonGroupDetails.cshtml (Chevron-Collapse-Pattern), IdealAkeWms/Controllers/StandortEinstellungenController.cs (Muster fuer Master-Lesezugriff: `_serviceSettings.GetValueAsync(StandortSettingsCatalog.MasterKey)` + `IsTrue(...)`), IdealAkeWms/Services/HierarchischeStruktur/HierarchischeStrukturKeys.cs (`Master = \"ProduktionsauftragHierarchisch\"`), IdealAkeWms/Models/ProductionOrder.cs (SubOrderNumber/ParentSubOrderNumber/SageMissingSince/IsCancelled/IsDone — alle bereits vorhanden aus Teil 7, keine Migration noetig)"
-open_questions:
+open_questions: []
+beantwortete_rueckfragen:
   - "F4/Kaskade-Traeger: Es gibt keinen einheitlichen 'Fertigmeldung'-Button im Code. Kandidaten sind der symmetrische Toggle `PickingController.ToggleDone`/`IsDonePicking` und der explizite `BdeStatusApiController`-Toggle `IsDoneBde`. `FaCompletion` betrifft trotz seines Namens eine andere Sache (`IsSpecComplete`). Auf welche Aktion(en) bezieht sich die im Beschluss verlangte Kaskade?"
   - "Rücknahme: Da die gefundenen Erledigt-Mechanismen heute EIN symmetrischer Toggle sind (kein eigenes Setzen/Ruecknehmen), existiert die im Beschluss vorausgesetzte 'Ruecknahme-Funktion' im engeren Sinn nicht. Wird der Toggle in zwei Pfade aufgespalten (Setzen mit Kaskade / Ruecknehmen ohne Kaskade), oder entfaellt der ganze Ruecknahme-Abschnitt ersatzlos, wie im Backlog fuer den Fall 'gibt es nicht' vorgesehen?"
   - "PickingLeitstand ist entgegen der Backlog-Einschaetzung technisch eine reguläre ADR-0005-Liste (verifiziert: ein `<tbody>`, `data-server-column-filter=\"true\"`, Pagination). Bekommt sie dieselbe Zwei-Ebenen-Behandlung wie die fuenf anderen Listen? Und falls ja: bezieht sich die Kaskade-Regel dort auf `BulkRelease` (Freigabe), oder hat Leitstand ueberhaupt keine Kaskade-Aktion?"
@@ -42,8 +43,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-08-20
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -189,8 +190,9 @@ zugrunde liegende Repository-Abfrage muss auf Gruppen statt Zeilen zählen und s
 - Fertigmeldung am Haupt-FA → alle zugehörigen Sub-FAs werden ebenfalls fertig.
 - Fertigmeldung an einem Sub-FA → wirkt nur auf diesen einen.
 
-**Befund aus dem Code (wichtig für die Umsetzung, siehe Offene Rückfrage 1):** Es gibt **keine**
-einzelne, eindeutig benannte „Fertigmeldung"-Aktion im Repository. Kandidaten:
+**ENTSCHIEDEN (2026-08-20): Traeger ist `IsDoneBde` (`BdeStatusApiController`), Wirt-View ist der
+`PickingLeitstand`.** Eine einzelne, eindeutig benannte „Fertigmeldung"-Aktion gibt es im Repository
+nicht; die Kandidaten wurden geprueft:
 
 - `PickingController.ToggleDone` / `IProductionOrderPickingStatusRepository.SetIsDonePickingAsync`
   (`ProductionOrderPickingStatus.IsDonePicking`, „Kommissionierung erledigt") — heute ein
@@ -206,8 +208,17 @@ einzelne, eindeutig benannte „Fertigmeldung"-Aktion im Repository. Kandidaten:
   im Beschluss gemeinte FA-Fertigmeldung. Diese View trägt daher primär den Anzeige-Teil dieser Spec
   (Gruppierung/Suche/Spalten), nicht zwingend die Kaskade-Aktion.
 
-Diese Spec legt die **Anforderungen A–D** an die Kaskade unabhängig vom exakten Träger fest — sie
-gelten für die Aktion(en), die Offene Rückfrage 1 als „die Fertigmeldung" bestimmt:
+**Verbindliche Verortung (am Code verifiziert):** Der `IsDoneBde`-Zeilen-Toggle wird heute
+**ausschliesslich** in `Views/PickingLeitstand/Index.cshtml` gerendert. Dort — und nur dort — lebt
+daher auch die Gruppen-Aktion:
+- Der **Zeilen-Toggle bleibt unveraendert** symmetrisch und wirkt nur auf seine eigene Zeile.
+- Die **Gruppen-Kopfzeile bekommt zusaetzlich die Aktion „Alle Sub-FAs fertigmelden"**, die
+  ausschliesslich auf `true` setzt.
+- Die **fuenf Standardlisten exponieren `IsDoneBde` nicht** und bekommen deshalb **nur den
+  Anzeige-Teil** (Gruppierung, Spalte, Suche, Paginierung, Badge) — keine Kaskade, kein neues
+  Bedienelement. Wo heute keine Fertigmeldung stattfindet, wird auch keine eingefuehrt.
+
+Die **Anforderungen A–D** gelten fuer diese Gruppen-Aktion:
 
 - **A — „Alle Sub-FAs" heißt ALLE NACHFAHREN, nicht nur direkte Kinder.** Die Struktur ist mehrstufig
   (Teil 7, Befund B1). Kaskadierte man nur eine Ebene tief, bliebe bei einer dreistufigen Struktur
@@ -223,19 +234,21 @@ gelten für die Aktion(en), die Offene Rückfrage 1 als „die Fertigmeldung" be
   umgesetzt wird (Korrelations-ID, neue kleine Tabelle, o. ä.), ist offen — siehe Offene
   Rückfrage 7; hier wird bewusst keine Migration vorweggenommen.
 
-**Rücknahme — kaskadiert NICHT, falls sie überhaupt existiert [ENTSCHEIDUNG 2026-08-18, bedingt]:**
+**Ruecknahme: es gibt KEINE Gruppen-Ruecknahme [ENTSCHIEDEN 2026-08-20]**
 
-Der Beschluss sieht eine bewusst **asymmetrische** Kaskade vor: Setzen kaskadiert eindeutig
-(Haupt fertig ⇒ alle fertig), Zurücknehmen würde das nicht — öffnete man am Haupt-FA alle Sub-FAs,
-gingen eigenständige, bereits vorher gesetzte Fertigmeldungen einzelner Sub-FAs verloren. Deshalb:
-Rücknahme wirkt **nur** auf den Auftrag, an dem sie ausgelöst wird; der Rücknahme-Dialog am Haupt-FA
-**benennt** diese Asymmetrie (Hinweistext: Sub-FAs bleiben fertig).
+Der urspruengliche Gedanke einer *asymmetrischen* Kaskade (Setzen kaskadiert, Zuruecknehmen nicht)
+wird **verworfen**: Ein Toggle, der beim Einschalten zwanzig Auftraege mitnimmt und beim Ausschalten
+nur einen, ist am Bildschirm nicht vermittelbar — und dasselbe Bedienelement haette in der
+Gruppen-Kopfzeile eine andere Bedeutung als in der Zeile.
 
-**Aber:** Die identifizierten Kandidaten-Mechanismen (`IsDonePicking`, `IsDoneBde`) sind heute **ein
-einziger, symmetrischer Toggle** — es gibt aktuell keine getrennte „Setzen"- und „Zurücknehmen"-
-Aktion, an der man die Asymmetrie überhaupt festmachen könnte. Ob dieser Abschnitt in der Umsetzung
-überhaupt zur Anwendung kommt, hängt an Offener Rückfrage 2. **Falls es keine (echte) Rücknahme gibt,
-entfällt dieser Abschnitt ersatzlos** — er wird nicht künstlich erfunden (Backlog-Vorgabe).
+Stattdessen:
+- Der **Zeilen-Toggle** (`IsDoneBde`) bleibt **exakt wie heute**: symmetrisch, nur die eigene Zeile.
+  Keine Aenderung, damit auch keine Regression an dieser Stelle.
+- Die **Gruppen-Aktion setzt ausschliesslich auf `true`.** Ein Gruppen-Zuruecknehmen wird **nicht
+  angeboten**.
+- Wer den Unterbaum wieder oeffnen will, tut das je Zeile. Damit bleiben eigenstaendig gesetzte
+  Fertigmeldungen erhalten — genau das Ziel der urspruenglichen Asymmetrie, nur ohne schiefe
+  Bedienlogik.
 
 ### 8. Per-View-Behandlung — nicht pauschal, sondern je Ansicht entschieden [F5]
 
@@ -245,14 +258,15 @@ entfällt dieser Abschnitt ersatzlos** — er wird nicht künstlich erfunden (Ba
 | `FaWorklist` | Ja (verifiziert: `data-view-key="FaWorklist"`, ein `<tbody>`) | Ja — volle Behandlung | Zu prüfen im Dev-Lauf (kein Erledigt-Toggle bekannt) | Voraussichtlich keine |
 | `FaCompletion` | Ja (verifiziert), aber **Namenskollision** (siehe Abschnitt 7) | Ja — Anzeige-Teil | `IsSpecComplete`-Toggle, andere fachliche Bedeutung | Kaskade-Regel gilt hier NICHT ohne Weiteres — eigene Prüfung nötig, nicht automatisch übernehmen |
 | `Tracking` | Ja (verifiziert) | Ja — volle Behandlung | Keine Erledigt-Aktion (reine Teileverfolgung) | Entfällt |
-| `Picking` | Ja (verifiziert) | Ja — volle Behandlung | `ToggleDone`/`IsDonePicking` (symmetrischer Toggle) | Kaskade-Kandidat 1 (Offene Rückfrage 1) |
-| `PickingLeitstand` | Ja (verifiziert, entgegen Backlog-Einschätzung) | Technisch ja | `BulkRelease` (Freigabe) — **nicht** Fertigmeldung | Kaskade-Konzept passt nicht 1:1 — Offene Rückfrage 3 |
-| BDE-Cockpit (`BdeCockpit`) | **Nein** — verifiziert: JS-Karten-Grid, kein `<table>`/`<tbody>` | Nein, ohne eigenen Entwurf | `IsDoneBde`-Toggle (`BdeStatusApiController`) | Kaskade-Kandidat 2, stärkster Kandidat für „die" Fertigmeldung — Offene Rückfrage 4 |
+| `Picking` | Ja (verifiziert) | Ja — volle Behandlung | `ToggleDone`/`IsDonePicking` (symmetrischer Toggle) | **Keine Kaskade** — Kommissionierung kaskadiert bewusst nicht: jeder Sub-FA hat eigenes Material zu holen |
+| `PickingLeitstand` | Ja (verifiziert) | **Ja — volle Behandlung** | `BulkRelease` (Freigabe) **+ `IsDoneBde`-Zeilen-Toggle** (einziger Ort im System) | **WIRT-VIEW der Gruppen-Kaskade.** `BulkRelease` kaskadiert **nicht**; die Aktion „Alle Sub-FAs fertigmelden" sitzt in der Gruppen-Kopfzeile |
+| BDE-Cockpit (`BdeCockpit`) | **Nein** — verifiziert: JS-Karten-Grid, kein `<table>`/`<tbody>` | Nein, ohne eigenen Entwurf | `IsDoneBde`-Toggle (`BdeStatusApiController`) | **Ausgeklammert** fuer diese Runde → eigener Backlog-Eintrag. **Bekannte Einschraenkung:** zeigt im hierarchischen Modus ~130 statt ~30 Karten und wird voruebergehend unuebersichtlich |
 
-Konsequenz für den Dev-Lauf: Die **fünf** klaren Standardlisten (`ProductionOrders`, `FaWorklist`,
-`FaCompletion`, `Tracking`, `Picking`) bekommen die volle Zwei-Ebenen-Behandlung aus Abschnitt 2–6
-ohne weitere Rückfrage. `PickingLeitstand` und BDE-Cockpit brauchen vor der Umsetzung eine
-Entscheidung (Offene Rückfragen 3/4).
+Konsequenz fuer den Dev-Lauf: Die **fuenf** Standardlisten (`ProductionOrders`, `FaWorklist`,
+`FaCompletion`, `Tracking`, `Picking`) **und** `PickingLeitstand` bekommen die volle
+Zwei-Ebenen-Behandlung aus Abschnitt 2–6. Die **Gruppen-Kaskade** kommt ausschliesslich auf den
+`PickingLeitstand`. Das **BDE-Cockpit** ist fuer diese Runde ausgeklammert (eigener Backlog-Eintrag,
+bekannte Einschraenkung dokumentiert). Keine offenen Rueckfragen mehr.
 
 ### 9. AKE-Regression [F6, harte Bedingung wie in jedem Teil]
 
@@ -395,21 +409,28 @@ Rückfrage 4.
 10. **F6 — AKE-Regression, harte Bedingung.** Bei Master `false` ist jede der sechs Ansichten
     bit-identisch zum heutigen Verhalten: keine Gruppierung, keine neu sichtbare Spalte, unveränderte
     Suche, unveränderte (zeilenbasierte) Paginierung — geprüft für alle sechs Ansichten einzeln.
-11. **Kaskade A — vollständiger Unterbaum**, sobald Offene Rückfrage 1 den Träger festlegt: Ein
-    Fertigmeldungs-Aufruf am Haupt-FA einer mindestens dreistufigen Teststruktur markiert **alle**
-    Nachfahren-Sub-FAs (nicht nur die direkten Kinder) als erledigt.
-12. **Kaskade B — Bestätigungsdialog mit Zahl**, sobald Träger und Datenquelle (Offene Rückfrage 6)
-    geklärt sind: Der Dialog nennt die Gesamtzahl betroffener Sub-FAs und separat die Anzahl mit noch
-    offenen Arbeitsgängen/Rückmeldungen; ein Abbruch im Dialog löst keine Buchung aus.
+    **Ausdruecklich zusaetzlich: kein neues Bedienelement, keine neue Aktion.** Insbesondere
+    erscheint auf dem `PickingLeitstand` bei Master `false` **keine** Gruppen-Kopfzeile und damit
+    auch kein „Alle Sub-FAs fertigmelden"-Knopf. Die Bedingung wird geprueft, nicht nur zufaellig
+    erfuellt.
+11. **Kaskade A — vollstaendiger Unterbaum.** Ein Klick auf „Alle Sub-FAs fertigmelden" in der
+    Gruppen-Kopfzeile des `PickingLeitstand` setzt bei einer mindestens dreistufigen Teststruktur
+    **alle** Nachfahren-Sub-FAs auf `IsDoneBde = true` — nicht nur die direkten Kinder.
+12. **Kaskade B — Bestaetigungsdialog mit Zahl.** Der Dialog nennt die Gesamtzahl betroffener
+    Sub-FAs und separat die Anzahl **mit offener Buchung** (jede nicht beendete, nicht stornierte
+    BDE-Buchung, also auch pausierte/auto-pausierte); die Beschriftung lautet entsprechend „mit
+    offener Buchung", nicht „wird gerade bearbeitet". Ein Abbruch im Dialog loest keine Buchung aus.
 13. **Kaskade C — Atomarität**: Ein simulierter Fehler mitten in der Kaskade (z. B. gesperrter
     Datensatz eines Sub-FA) hinterlässt **keinen** Sub-FA als „halb erledigt" — entweder alle
     betroffenen Zeilen der Kaskade sind aktualisiert oder keine.
-14. **Kaskade D — als eine Kaskade im Audit erkennbar**, sobald der technische Weg (Offene
-    Rückfrage 7) feststeht: die Auswertung zeigt die N betroffenen Zeilen als zusammengehörige Aktion,
-    nicht als N unabhängige Einzeländerungen ohne erkennbaren Zusammenhang.
-15. **Rücknahme-Asymmetrie, falls vorhanden** (Offene Rückfrage 2): Eine Rücknahme an einem Sub-FA
-    öffnet **nur** diesen einen, nicht seine Geschwister oder den übergeordneten Haupt-FA; der
-    Rücknahme-Dialog am Haupt-FA benennt explizit, dass Sub-FAs fertig bleiben.
+14. **Kaskade D — im Log als EINE Kaskade erkennbar.** Ein `ILogger`-Eintrag je Kaskade mit
+    Haupt-FA, Anzahl betroffener Sub-FAs und Benutzer; die betroffenen Zeilen tragen ihre
+    bestehenden Audit-Felder mit identischem Zeitstempel. **Keine neue Tabelle, keine Migration** —
+    ein abfragbares Benutzer-Audit ist ein eigenes Feature.
+15. **Keine Gruppen-Ruecknahme.** Die Gruppen-Aktion setzt ausschliesslich auf `true`; ein
+    Gruppen-Zuruecknehmen wird nicht angeboten. Der `IsDoneBde`-Zeilen-Toggle verhaelt sich
+    unveraendert symmetrisch und wirkt nur auf seine eigene Zeile — nachweisbar daran, dass ein
+    Zuruecknehmen an einem Sub-FA weder Geschwister noch den Haupt-FA veraendert.
 16. Keine Änderung an bestehenden Zugriffsfiltern (siehe Tabelle „Betroffene Rollen / Zugriffsfilter")
     — Regressionstest je Rolle: ein Benutzer ohne den jeweiligen Filter sieht die Ansicht weiterhin
     nicht.
@@ -510,10 +531,24 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Zusaetzliche Entscheidungen (2026-08-18) — vier Punkte, die in keiner Frage stehen
 
-### Z1 — Der Materialisierungs-Sync darf WMS-Zustaende NICHT anfassen [KRITISCH]
+### Z1 — Der Materialisierungs-Sync darf WMS-Zustaende NICHT anfassen [BEREITS ERFUELLT, nur Regressionstest]
 
-Die Kaskade schreibt ein Status-Feld an `ProductionOrders`. Derselbe Datensatz wird alle 15 Minuten
-vom Materialisierungs-Sync abgeglichen. **Ueberschreibt der Abgleich dabei WMS-eigene Felder, ist
+> **Herabgestuft am 2026-08-20 nach Code-Pruefung.** Urspruenglich als KRITISCH gefuehrt — die
+> Pruefung hat ergeben, dass die Eigenschaft **bereits gegeben** ist:
+> `FaMaterializationSyncService`/`Planner` setzen die Quellfelder **einzeln** (kein `SetValues`,
+> kein Entitaets-Ersatz), der Klassenkommentar haelt es ausdruecklich fest, und `IsDoneBde` liegt
+> auf der **separaten Entitaet `ProductionOrderBdeStatus`**, die der Sync gar nicht laedt — doppelt
+> abgesichert. **Kein Handlungsbedarf am Sync.**
+>
+> **Wortlaut-Korrektur:** Die Kaskade schreibt an **`ProductionOrderBdeStatus`**, nicht an
+> `ProductionOrders`. Die urspruengliche Formulierung unten war an dieser Stelle ungenau.
+>
+> **Was bleibt:** ein **Regressionstest**, der die Eigenschaft festnagelt — fertigmelden, Sync
+> laufen lassen, Status unveraendert. Damit sie nicht bei einer spaeteren Umstellung des
+> Update-Pfads unbemerkt verlorengeht. Das ist der einzige Umsetzungsanteil von Z1.
+
+Die Kaskade schreibt ein Status-Feld. Derselbe Datensatz wird alle 15 Minuten
+vom Materialisierungs-Sync abgeglichen. **Ueberschriebe der Abgleich dabei WMS-eigene Felder, waere
 die Fertigmeldung nach einer Viertelstunde weg** — ohne Fehler, ohne Meldung.
 
 **Der konkrete Fallstrick ist ein EF-Muster:**
@@ -529,7 +564,7 @@ gebautes Objekt hat `IsDoneBde = false`; damit setzt der Sync die Fertigmeldung 
 - **Als Invariante formulieren, nicht als Sorgfaltshinweis**, und mit einem Test festnageln:
   Auftrag fertigmelden → Sync laufen lassen → Status ist unveraendert.
 - **Vor der Umsetzung am bestehenden `FaMaterializationPlanner` pruefen**, wie der Update-Pfad
-  heute gebaut ist. Das ist der erste Handgriff dieser Spec.
+  heute gebaut ist. — **ERLEDIGT am 2026-08-20, siehe Kasten oben. Der Update-Pfad ist sauber.**
 
 ### Z2 — Sortierung innerhalb der Gruppe: Sub-FA-Nummer aufsteigend
 
@@ -788,3 +823,76 @@ Z3 geforderte „offen anlegen". Kein Handlungsbedarf, nur Bestaetigung.
 1/2/3/4 keine widerspruchsfreie Wirt-View; der Mensch muss festlegen, auf welcher View der
 Zeilen-Toggle und die Gruppen-Kaskade erscheinen.** (S1–S3 sind danach schnell nachziehbar; Z1 ist
 entgegen seiner Kennzeichnung bereits am Code abgesichert.)
+
+## ANTWORTEN auf die Kritische Pruefung (2026-08-20)
+
+### Zu BL1 — Blocker berechtigt. **Antwort 3 war zu breit formuliert; sie wird praezisiert.**
+
+Der Widerspruch entstand in meiner Antwort 3, nicht in 1/2/4. Ich hatte den Leitstand pauschal auf
+„Kaskade NEIN" gesetzt — gedacht war damit **`BulkRelease`**, das tatsaechlich eine Freigabe ist und
+nicht kaskadieren darf. Dass der Leitstand **zugleich der einzige Ort mit dem
+`IsDoneBde`-Zeilen-Toggle** ist, war mir nicht bekannt. Der Reviewer hat das am Code belegt.
+
+**Praezisierte Antwort 3 — verbindlich:**
+
+| Auf dem Leitstand | Verhalten |
+|---|---|
+| Zwei-Ebenen-Gruppierung | **ja**, wie die fuenf Standardlisten |
+| `BulkRelease` (Freigabe) | **keine Kaskade**, bleibt zeilenbasiert und unveraendert |
+| **`IsDoneBde`-Zeilen-Toggle** | **bleibt exakt wie heute** — symmetrisch, nur die eigene Zeile |
+| **Gruppen-Aktion „Alle Sub-FAs fertigmelden"** | **hier zu Hause** — in der Gruppen-Kopfzeile, mit Bestaetigungsdialog (Anforderung B) |
+
+Damit hat die Kaskade genau **einen** Ort, und die Antworten 1, 2 und 4 bleiben unveraendert gueltig:
+Traeger ist `IsDoneBde` (1), sie ist eine eigene Gruppen-Aktion statt eines aufgespaltenen Toggles (2),
+und das BDE-Cockpit bleibt ausgeklammert (4).
+
+**Folge fuer die fuenf Standardlisten:** Sie exponieren `IsDoneBde` nicht und bekommen deshalb
+**ausschliesslich den Anzeige-Teil** — Gruppierung, Spalte, Suche, Paginierung, Badge. Keine
+Kaskade, kein neues Bedienelement. Das ist kein Mangel, sondern die richtige Abgrenzung: Wo heute
+keine Fertigmeldung stattfindet, wird auch keine eingefuehrt.
+
+### Zu Z1 — herabgestuft und praezisiert. Der Reviewer hat recht, und zwar in beiden Punkten.
+
+`FaMaterializationSyncService`/`Planner` setzen die Quellfelder **einzeln**; kein `SetValues`, kein
+Entitaets-Ersatz. Der Klassenkommentar haelt es sogar ausdruecklich fest. Zusaetzlich liegt
+`IsDoneBde` auf der **separaten Entitaet `ProductionOrderBdeStatus`**, die der Sync gar nicht laedt —
+doppelt abgesichert.
+
+- **Kennzeichnung von „KRITISCH" auf „bereits erfuellt" herabstufen.** Was bleibt, ist ein
+  **Regressionstest**, der die Eigenschaft festnagelt (fertigmelden → Sync → Status unveraendert) —
+  damit sie nicht bei einer spaeteren Umstellung des Update-Pfads unbemerkt verlorengeht.
+- **Wortlaut korrigieren:** Die Kaskade schreibt an `ProductionOrderBdeStatus`, **nicht** an
+  `ProductionOrders`. Meine Formulierung war ungenau.
+- Der „erste Handgriff dieser Spec" entfaellt — die Pruefung ist erledigt.
+
+### Zu Antwort 6 — praezisiert: **jede nicht beendete Buchung**, nicht nur die aktiven.
+
+Die Rueckfrage ist berechtigt: `Paused`/`AutoPaused` haben ebenfalls `EndedAt == null`.
+**Gezaehlt wird jede nicht beendete, nicht stornierte Buchung** — also auch pausierte.
+Begruendung: Der Dialog warnt nicht davor, jemanden in diesem Moment zu stoeren, sondern davor,
+**unfertige Arbeit als fertig zu erklaeren**. Eine pausierte Buchung ist genau das — besonders
+`AutoPaused` (Schichtende, Arbeit geht morgen weiter).
+
+**Folge fuer den Text im Dialog:** nicht „wird gerade bearbeitet", sondern **„mit offener Buchung"**.
+Die Formulierung muss zum Gezaehlten passen, sonst wundert sich der Anwender ueber eine Warnung fuer
+einen Auftrag, an dem sichtbar niemand arbeitet.
+Die Aggregation („hat dieser Sub-FA eine offene Buchung?") ist neu zu bauen — das Muster
+(`EndedAt == null && !IsCancelled`) und der Join-Weg (`WorkOperation.ProductionOrderId`) existieren.
+
+### Zu S1 — uebernommen.
+
+AK 10/F6 wird ausdruecklich um **„kein neues Bedienelement, keine neue Aktion"** ergaenzt. Technisch
+ist es gedeckt (bei Master `false` rendert keine Gruppen-Kopfzeile, also auch kein Gruppen-Knopf) —
+aber die Regressionsbedingung soll das **behaupten und pruefen**, nicht bloss zufaellig erfuellen.
+
+### Zu S2 — uebernommen.
+
+In den Abschnitten 7 und 8 ist `Picking`/`IsDonePicking` **nicht mehr als Kaskade-Kandidat** zu
+fuehren — Antwort 1 hat das entschieden. In der Tabelle in Abschnitt 8 steht dort kuenftig
+„keine Kaskade (Kommissionierung kaskadiert bewusst nicht — eigenes Material je Sub-FA)".
+
+### Zu S3 und den uebrigen Bestaetigungen — uebernommen bzw. zur Kenntnis.
+
+Keine Einwaende; die Punkte sind in der Nachbesserung mitzuziehen.
+
+**Damit ist BL1 aufgeloest. Die Spec kann nachgebessert und anschliessend freigegeben werden.**

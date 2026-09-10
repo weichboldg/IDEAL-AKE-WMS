@@ -802,3 +802,45 @@ bleibt unveraendert offen.
 Rueckfragen 2 und 3 (Fehlermail-/SyncLog-Verdrahtung) sind **entschieden** und nicht mehr Teil der
 verbleibenden Freigabe-Bloecker; `open_questions` im Frontmatter wurde entsprechend auf drei
 Eintraege getrimmt.
+
+## ANTWORTEN auf die drei verbleibenden Rueckfragen (2026-08-12)
+
+Die Etappe ist bereits gebaut — die Antworten sind daher gegen den **tatsaechlichen Stand im
+Worktree** formuliert: bestaetigen, wo die Umsetzung schon richtig liegt, korrigieren, wo nicht.
+
+**Zu Rueckfrage 1 — Kombigeraet-Kopfdaten: gleiche Regel wie in den Listen, keine eigene
+Darstellungsregel fuer den Baum.**
+Die Kommissionierlisten-View macht es bereits vor: **alle** `FaHierarchyOrderInfo`-Zeilen im
+Klartext untereinander (Montage-Abteilung · Kunde · AB · KO-Termin) plus Badge
+`mehrdeutig (Kombigeraet)`. Die Strukturkopfzeile der Baumansicht uebernimmt das **unveraendert**.
+Begruendung: Zwei Ansichten, die denselben 1:n-Fall unterschiedlich darstellen, erzeugen die Frage
+„welche stimmt?" — und die Kopftabelle der Baumansicht zeigt heute genau eine Zeile
+(Montage-Abt./Kunde/Status), waere also bei einem Kombigeraet stillschweigend unvollstaendig.
+**Nachzuziehen**, falls die Umsetzung dort noch einzeilig ist.
+
+**Zu Rueckfrage 4 — zweiteilig:**
+- **Auto-Expand-Kopplung: BESTAETIGT wie gebaut.** Die Umsetzung koppelt das Aufklappen der
+  Trefferpfade bereits an das bestehende Benutzer-Setting `RecursiveFilterSearch`
+  (`expandAncestors` laeuft nur bei gesetztem Flag). Das ist die richtige Wahl — bestehendes
+  Setting wiederverwenden statt eines zweiten, das dasselbe meint. Keine Aenderung noetig.
+- **Default-Aufklapp-Zustand: erste Ebene offen, tiefere zu.** Nicht vollstaendig aufgeklappt (bei
+  50+ Positionen eine Wand aus Zeilen) und nicht vollstaendig zugeklappt (dann beginnt jeder Besuch
+  mit Klicken). Sichtbar sind damit die Wurzel und ihre direkten Baugruppen — die Orientierung, um
+  die es in dieser Ansicht geht. „Alle aufklappen" steht fuer den Rest bereit.
+  **Bekannte Grenze, bewusst akzeptiert:** Der Aufklapp-Zustand wird nicht gespeichert; ein
+  server-seitiger Filter laedt die Seite neu und setzt ihn zurueck. Bei „erste Ebene offen" ist das
+  ertraeglich — bei „alles zu" waere es aergerlich. Ein zusaetzlicher Grund fuer diesen Default.
+
+**Zu Rueckfrage 5 — `AppSettings`, aber OHNE Seed-Zeile und NICHT in der Standorteinstellungen-Maske.**
+Der Tiefen-Cap ist eine **Reissleine gegen defekte Daten**, kein fachlicher Schalter. Daraus folgt:
+- **`AppSettings`** (nicht hartkodiert) — haelt die Zusage „konfigurierbar" aus der B-3-Antwort und
+  folgt der Uebersichts-Regel (Web-/Anzeige-Sache → AppSettings, ADR 0011).
+- **Kein Seed.** Fehlt der Key, gilt der **Code-Default 500**. Damit braucht es keine
+  Migrationszeile fuer einen Wert, den voraussichtlich nie jemand anfasst — und wenn doch, ist er
+  ohne Deploy aenderbar. Gleiche Argumentation wie bei den Firmendaten in Teil 6.
+- **Nicht in die Standorteinstellungen-Maske (Teil 6) aufnehmen.** Dort gehoeren fachliche
+  Standortwerte hin, keine technischen Schutzgrenzen. Wer den Cap je aendern muss, tut es ueber die
+  generische Settings-Oberflaeche.
+
+Damit sind **alle drei** verbleibenden Rueckfragen beantwortet; `open_questions` im Frontmatter ist
+zu leeren.
