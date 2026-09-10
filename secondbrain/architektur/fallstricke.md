@@ -231,6 +231,48 @@ verhaltensgleich, daher AKE-Listen-regressionssicher).
 erkannt wird — wer Client-Sortierung auf eine Tabelle mit mehreren `<tbody>` setzt, muss pruefen,
 dass wirklich alle Gruppen sortiert werden, nicht nur die erste.
 
+### Jede DOM-Iteration im Tree-Table braucht `:scope >` — sonst greift sie in Kindtabellen
+`querySelectorAll` ist **immer** eine Descendant-Abfrage. `tbody.querySelectorAll('tr')` findet
+deshalb auch die Zeilen einer Tabelle, die **innerhalb** einer Zelle dieses `tbody` steckt. Die
+gruppierten IDEAL-Listen haben genau das: die Kombigeraete-Varianten-Tabelle in
+`Views/ProductionOrders/Index.cshtml` und die `fa-head-table` je Struktur in
+`Views/FaHierarchy/Index.cshtml`.
+**Regel:** In allen Skripten, die ueber `tbody`/`tr`/`td`/`th` einer filterbaren oder gruppierten
+Tabelle laufen, wird die Iteration mit `:scope > …` auf **direkte Kinder** skopiert. Ausnahme nur,
+wo das Ziel legitim tiefer sitzt (z. B. ein Filter-Input in einem Flex-Wrapper) — dann die Ausnahme
+**im Code begruenden**.
+**Warum:** Zwei Fehlerbilder, beide ohne Fehlermeldung und beide am 2026-09-10 real vorgefunden:
+`sortTable` verschob per `appendChild` die Zeilen der Varianten-Tabelle in das aeussere Gruppen-`tbody`
+(innere Tabelle wird **leer**, Fremdzeilen mit 7 Zellen in einer 26-spaltigen Tabelle), und
+`column-preferences.js` leerte beim Ausblenden einer Spalte mit Index ≤ 6 eine Zelle der inneren
+Tabelle bzw. vertauschte sie beim Umordnen. Beides ist „Wert unter falscher Ueberschrift" — die
+teuerste Klasse, weil sie plausibel aussieht.
+Der `td[colspan]`-Filter schuetzt **nicht**: Er sortiert die Traegerzeile aus, nicht deren Kindzeilen.
+Abgesichert durch den Quelltext-Waechter `IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs`
+— der prueft nur die Schreibweise, nicht das Verhalten; die Wirkung bleibt Manual-UAT (TS-72).
+
+> [!warning] Die Fehlannahme, an der das lange haengen blieb
+> **`appendChild` haengt an das Element, auf dem es gerufen wird — nicht an das `tbody`, in dem die
+> Zeile stand.** Der Satz „`appendChild` haelt jede Zeile in ihrem eigenen `tbody`" klingt wie ein
+> gepruefter Satz und ist falsch. Er hat vier Pruefstellen passiert (Umsetzer-Bericht, Task-Review,
+> Koordinator-Record, Mensch-Freigabe), bevor jemand bei anderer Gelegenheit genauer hinsah.
+> Ebenso falsch war die Entlastung „`compareRows` liefert fuer die inneren Zeilen ohnehin `0`" — das
+> gilt nur, wenn der Spaltenindex **ueber** der Spaltenzahl der inneren Tabelle liegt.
+
+### CSS: Spezifitaet gilt nur zwischen Regeln am **gleichen** Element — sonst entscheidet Vererbung
+Eine eigene Klasse auf einer Tabellenzelle (`.meine-klasse { color: … }`, Spezifitaet 0,1,0) verliert
+gegen Bootstraps `.table > :not(caption) > * > *` (0,1,1) — **unabhaengig von der Ladereihenfolge**,
+weil Bootstrap spezifischer ist, nicht nur frueher. Das Projekt loest das durchgehend mit
+**Kindketten**: `.fa-liste-group-head > td.fa-liste-group-header`,
+`.fa-liste-group > tr > td.fa-liste-repeat-hidden`, `.fa-tree-table > tbody > tr > td`.
+**Warum:** Wer eine Zellfarbe per einfacher Klasse setzt, bekommt eine Regel, die korrekt gesetzt
+wird und **nichts tut**. Build und Testsuite sehen das nicht — eine wirkungslose CSS-Regel ist
+gruen. **Eine CSS-Aenderung ohne Sichtpruefung am Bildschirm ist bauartbedingt unverifiziert.**
+Nicht zu verwechseln: `table-striped`, `table-danger` und `table-secondary` sitzen am `<tr>`. Ihre
+`color` erreicht die Zelle nur per **Vererbung**, und jede direkte Deklaration am `<td>` schlaegt
+Vererbung — dort ist also **keine** Kindkette noetig, und wer die Spezifitaeten vergleicht,
+vergleicht das Falsche.
+
 ### Eine filterbare Tabelle pro gerenderter Seite
 `table-filter.js` / `column-preferences.js` sind Single-Table.
 **Warum:** Beide Skripte greifen auf „die" Tabelle zu. Zwei filterbare Tabellen auf einer Seite
