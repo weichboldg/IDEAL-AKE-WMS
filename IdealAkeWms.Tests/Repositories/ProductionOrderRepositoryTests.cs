@@ -377,6 +377,44 @@ public class ProductionOrderRepositoryTests
         page.TotalCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task ColumnFilter_Matchcode_Negated_AllNull_ReturnsAllRows()
+    {
+        // Fix-Runde 1 (Review-Befund Important 1): der hervorgehobene Negations-Fall war
+        // ungetestet. Eine durchgehend leere Matchcode-Spalte muss bei !token ALLE Zeilen
+        // liefern (leere Zelle matcht NOT), nicht keine.
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.AddRange(
+            new ProductionOrder { OrderNumber = "1", Matchcode = null },
+            new ProductionOrder { OrderNumber = "2", Matchcode = null });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
+            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "!x" });
+
+        page.Rows.Select(r => r.OrderNumber).Should().BeEquivalentTo(new[] { "1", "2" });
+        page.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ColumnFilter_Matchcode_CommaOr_FindsBothRows()
+    {
+        // Minor-Befund aus Fix-Runde 1: Mehrfach-Token (Komma-OR) war ebenfalls ungetestet.
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.AddRange(
+            new ProductionOrder { OrderNumber = "1", Matchcode = "KESSEL-7" },
+            new ProductionOrder { OrderNumber = "2", Matchcode = "PUMPE-3" },
+            new ProductionOrder { OrderNumber = "3", Matchcode = "VENTIL-1" });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
+            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "kessel,pumpe" });
+
+        page.Rows.Select(r => r.OrderNumber).Should().BeEquivalentTo(new[] { "1", "2" });
+    }
+
     // ------------------------------------------------------------------
     // Kunde-Filter im hierarchischen Modus (K1, IDEAL): ProductionOrder.Customer
     // ist je Sub-FA leer, der Kunde haengt am HauptFA in FaHierarchyOrderInfo.Kunde.

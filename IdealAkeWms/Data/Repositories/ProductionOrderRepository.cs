@@ -298,13 +298,14 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 ? q.Where(o => o.Description1 == null || !patterns.Any(p => EF.Functions.Like(o.Description1, p)))
                 : q.Where(o => o.Description1 != null && patterns.Any(p => EF.Functions.Like(o.Description1, p))),
 
-            // Matchcode (Task 4, F7): Contains-basiert mit Null-Guard auf der Spalte selbst —
-            // KEIN EF.Functions.Like (InMemory-Testbarkeit) und KEIN tokens.Any(...)-Lambda ueber
-            // die Token-LISTE (scheitert ebenfalls am InMemory-Provider), siehe BuildMatchcodeOrContains.
-            // Am Standort AKE bleibt die Spalte bis zur View-Erweiterung durchgehend NULL — das
-            // Praedikat prueft zuerst o.Matchcode != null, eine Null-Zeile matcht den Positiv-Filter
-            // daher nie (korrekt null Treffer, kein Fehler, keine stille Sonderbehandlung).
-            "matchcode" => q.Where(BuildMatchcodeOrContains(tokens, negate)),
+            // Matchcode (Task 4, F7): wiederverwendet BuildExtraInfoOrContains (Fix-Runde 1,
+            // Review Important 2) — der Selektor o => o.Matchcode liefert als Navigation den
+            // Parameter o selbst, der Zusatz-Guard wird damit zu "o != null" (redundant, aber
+            // harmlos; per Test abgesichert, siehe ColumnFilter_Matchcode_* in
+            // ProductionOrderRepositoryTests). Am Standort AKE bleibt die Spalte bis zur
+            // View-Erweiterung durchgehend NULL — der Feld-Null-Guard liefert dann korrekt
+            // null Treffer, kein Fehler, keine stille Sonderbehandlung.
+            "matchcode" => q.Where(BuildExtraInfoOrContains(o => o.Matchcode, tokens, negate)),
 
             "description2" => negate
                 ? q.Where(o => o.Description2 == null || !patterns.Any(p => EF.Functions.Like(o.Description2, p)))
@@ -399,44 +400,6 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         }
 
         protected override Expression VisitParameter(ParameterExpression node) => node == _from ? _to : base.VisitParameter(node);
-    }
-
-    /// <summary>
-    /// Matchcode (Task 4, Spaltenfilter F7): baut eine OR-Kette von
-    /// <c>value.ToLower().Contains(token)</c>-Calls als Expression-Tree mit Null-Guard auf der
-    /// Spalte selbst. Anders als <see cref="BuildExtraInfoOrContains"/> gibt es hier keine
-    /// Navigation zu guarden — <see cref="ProductionOrder.Matchcode"/> ist eine direkte Spalte.
-    /// Positiv: <c>Matchcode != null &amp;&amp; (contains t1 || ...)</c>; Negation:
-    /// <c>Matchcode == null || !(contains t1 || ...)</c> (leere Zelle matcht NOT, wie bei den
-    /// ExtraInfo-Feldern). KEIN EF.Functions.Like und KEIN nested tokens.Any(...)-Lambda — beides
-    /// scheitert am InMemory-Provider (Pattern aus BdeBookingRepository). Solange AKE keine
-    /// eigene View-Erweiterung liefert, bleibt Matchcode dort durchgehend NULL — ein Filter darauf
-    /// liefert ueber den Null-Guard dann korrekt null Treffer statt einer stillen Sonderbehandlung.
-    /// </summary>
-    private static Expression<Func<ProductionOrder, bool>> BuildMatchcodeOrContains(
-        IReadOnlyList<string> tokens, bool negate)
-    {
-        var param = Expression.Parameter(typeof(ProductionOrder), "o");
-        var valueExpr = Expression.Property(param, nameof(ProductionOrder.Matchcode));
-
-        var toLowerMethod = typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!;
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-        var lowered = Expression.Call(valueExpr, toLowerMethod);
-
-        Expression? orChain = null;
-        foreach (var t in tokens)
-        {
-            var call = Expression.Call(lowered, containsMethod, Expression.Constant(t));
-            orChain = orChain == null ? (Expression)call : Expression.OrElse(orChain, call);
-        }
-
-        var nullString = Expression.Constant(null, typeof(string));
-
-        Expression body = negate
-            ? Expression.OrElse(Expression.Equal(valueExpr, nullString), Expression.Not(orChain!))
-            : Expression.AndAlso(Expression.NotEqual(valueExpr, nullString), orChain!);
-
-        return Expression.Lambda<Func<ProductionOrder, bool>>(body, param);
     }
 
     /// <summary>
