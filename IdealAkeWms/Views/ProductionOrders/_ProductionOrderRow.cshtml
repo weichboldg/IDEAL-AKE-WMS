@@ -56,7 +56,16 @@
         }
     </td>
     <td class="text-end">@item.Quantity.ToString("N3")</td>
-    <td>@item.Customer</td>
+    @* data-repeat-key: ein Folge-Task unterdrueckt Wiederholungswerte je Gruppe per JS. Die Zellen
+       markieren sich selbst, damit ein spaeterer Spalteneinschub das JS nicht still bricht. *@
+    <td data-repeat-key="customer">@item.Customer</td>
+    @if (Model.Hierarchical)
+    {
+        <td data-repeat-key="prio">@item.Prio</td>
+        <td data-repeat-key="ab-nummer">@item.AbNummer</td>
+        <td data-repeat-key="montage-abteilung">@item.MontageAbteilung</td>
+        <td data-repeat-key="konstruktions-termin">@FormatDateWithKw(item.KonstruktionsTermin)</td>
+    }
     <td>
         @if (!string.IsNullOrEmpty(item.ArticleNumber))
         {

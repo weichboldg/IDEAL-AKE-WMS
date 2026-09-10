@@ -82,6 +82,15 @@
                 <th style="width: 90px;" data-filterable data-col-key="order-number">FA Nr.</th>
                 <th class="text-end" style="width: 55px;" data-col-key="quantity">Stk.</th>
                 <th data-filterable data-col-key="customer">Kunde</th>
+                @* IDEAL K1: Kopfdaten der Gruppe. NUR hierarchisch — bei AKE waeren sie dauerhaft
+                   leer (AK 20: FA-Liste dort bit-identisch). colCount unten zaehlt sie mit. *@
+                @if (Model.Hierarchical)
+                {
+                    <th style="width: 55px;" data-filterable data-col-key="prio">Prio</th>
+                    <th style="width: 80px;" data-filterable data-col-key="ab-nummer">AB-Nr.</th>
+                    <th data-filterable data-col-key="montage-abteilung">Montage-Abt.</th>
+                    <th class="text-nowrap" data-filterable data-col-key="konstruktions-termin" data-date-filter>KO-Termin</th>
+                }
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
@@ -105,6 +114,10 @@
         @{
             var colCount = 21;
             if (Model.CanPick || Model.HasVorbauAccess) colCount = 22;
+            // Die vier Kopfdaten-Spalten (Prio/AB-Nr./Montage-Abt./KO-Termin) stehen nur im
+            // hierarchischen Modus im <thead>. Das colspan darf deshalb auch nur dort wachsen —
+            // im Flachzweig wuerde die Leerzustands-Zelle sonst vier Spalten zu breit.
+            if (Model.Hierarchical) colCount += 4;
             Func<ProductionOrderListItem, ProductionOrderRowContext> Ctx = it => new ProductionOrderRowContext
             {
                 Item = it,
@@ -246,6 +259,10 @@
     { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
     { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
+    @if (Model.Hierarchical) { <text>{ "key": "prio", "label": "Prio", "locked": false, "defaultWidth": 55 },</text> }
+    @if (Model.Hierarchical) { <text>{ "key": "ab-nummer", "label": "AB-Nr.", "locked": false, "defaultWidth": 80 },</text> }
+    @if (Model.Hierarchical) { <text>{ "key": "montage-abteilung", "label": "Montage-Abt.", "locked": false, "defaultWidth": null },</text> }
+    @if (Model.Hierarchical) { <text>{ "key": "konstruktions-termin", "label": "KO-Termin", "locked": false, "defaultWidth": null },</text> }
     { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },

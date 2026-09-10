@@ -15,6 +15,10 @@ public static class ColumnDefinitions
     /// wandern nach <see cref="PickingLeitstand"/>.
     /// Conditional columns:
     ///   - "actions"   : rendered only when Model.CanPick (Stueckliste-Button column, width 40px)
+    ///   - "prio", "ab-nummer", "montage-abteilung", "konstruktions-termin":
+    ///     rendered only when Model.Hierarchical (IDEAL). Bei Master=false (AKE) waeren sie
+    ///     dauerhaft leer — AK 20 verlangt dort eine bit-identische FA-Liste, daher bedingt
+    ///     statt DefaultHidden.
     /// </summary>
     public static readonly ViewConfig ProductionOrders = new("ProductionOrders", "Fertigungsauftraege", SupportsReorder: true, SupportsSortDefault: true)
     {
@@ -25,6 +29,12 @@ public static class ColumnDefinitions
             new ColumnDef("order-number","FA Nr.",           Locked: true,  DefaultWidth: 90),
             new ColumnDef("quantity",    "Stk.",             Locked: false, DefaultWidth: 55),
             new ColumnDef("customer",    "Kunde",            Locked: false),
+            // IDEAL K1 (Task 8): Kopfdaten der HauptFA-Gruppe je Zeile — Conditional auf
+            // Model.Hierarchical (siehe Klassen-Doku), deshalb KEIN DefaultHidden.
+            new ColumnDef("prio",                 "Prio",         Locked: false, DefaultWidth: 55),
+            new ColumnDef("ab-nummer",            "AB-Nr.",       Locked: false, DefaultWidth: 80),
+            new ColumnDef("montage-abteilung",    "Montage-Abt.", Locked: false),
+            new ColumnDef("konstruktions-termin", "KO-Termin",    Locked: false),
             new ColumnDef("article-number","Artikelnummer",  Locked: false),
             // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
             new ColumnDef("matchcode",   "Matchcode",        Locked: false),
