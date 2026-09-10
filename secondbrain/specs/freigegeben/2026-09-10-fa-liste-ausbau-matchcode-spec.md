@@ -2,11 +2,11 @@
 type: spec
 title: "FA-Liste ausbauen: Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade, Matchcode"
 slug: 2026-09-10-fa-liste-ausbau-matchcode-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-09-10
 updated: 2026-09-10
 source_backlog: "[[2026-09-10-fa-liste-ausbau-matchcode]]"
-task: ""
+task: "[[2026-09-10-fa-liste-ausbau-matchcode]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
