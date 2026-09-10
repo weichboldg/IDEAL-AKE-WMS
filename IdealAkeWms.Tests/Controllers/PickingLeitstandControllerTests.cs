@@ -179,15 +179,27 @@ public class PickingLeitstandControllerTests
     [Fact]
     public async Task Index_Hierarchical_CustomerFreetextFilter_StillPassedToRepository_SqlSubqueryPath()
     {
-        // Pflicht-Regressionstest Task 7: Der Leitstand bekommt laut Spec (Entscheidung B5) KEINE
-        // K1-Zeilenwerte -- er hat also gar kein Anzeige-Modell-Feld, ueber das ein C#-Postfilter
-        // ueberhaupt greifen koennte. Die Kunde-Freitextsuche MUSS deshalb weiterhin unveraendert an
-        // GetForLeitstandGroupedAsync durchgereicht werden, wo sie (siehe
+        // Pflicht-Regressionstest Task 7 -- Rolle: VERDRAHTUNGSPRUEFUNG, nicht Datenverhalten.
+        // `GetForLeitstandGroupedAsync` ist hier gemockt (`ReturnsAsync`), die SQL-Subquery gegen
+        // FaHierarchyOrderInfo laeuft in diesem Test NIE. Belegt wird nur: der Controller reicht
+        // `filterCustomer` im hierarchischen Modus unveraendert (nicht null, nicht in einen
+        // Postfilter umgeleitet) an den Repository-Aufruf durch.
+        // Das eigentliche Datenverhalten -- dass diese Suche tatsaechlich per SQL-Subquery gegen
+        // FaHierarchyOrderInfo.Kunde matcht -- belegt
         // ProductionOrderRepositoryTests.Leitstand_Hierarchical_CustomerFreetextFilter_
-        // MatchesViaOrderInfo) per SQL-Subquery gegen FaHierarchyOrderInfo.Kunde matcht. Wer hier den
-        // Parameter durch null ersetzt oder einen Postfilter einzieht, loescht die Kunde-Suche auf dem
-        // Leitstand vollstaendig -- eine stille Regression in einer Produktivansicht, die kein
-        // anderer Test faengt.
+        // MatchesViaOrderInfo (GEGEN EINEN ECHTEN DbContext, InMemory). Dieser Test stammt aus einer
+        // FRUEHEREN Aufgabe (Commit 79a174b), nicht aus Task 7, und bleibt unveraendert. Er wuerde
+        // rot, wenn die Subquery entfernt wuerde -- das ist die eigentliche Absicherung. Die beiden
+        // Tests zusammen (Verdrahtung hier + Datenverhalten dort) decken ab, was ein einzelner Test
+        // nicht koennte, ohne den kompletten Leitstand-Stack (inkl. FaWorkStepRepository,
+        // PickingStatusRepository) gegen einen echten DbContext zu verdrahten.
+        // Dritter Waechter derselben Familie, auf SQL-Ebene:
+        // ProductionOrderRepositoryTests.CustomerColumnFilter_Flat_SqlServer_NeverReferencesOrderInfoHead
+        // -- er faengt den umgekehrten Fehler, dass der FLACHE Pfad (AKE) versehentlich ueber den
+        // Auftragskopf filtert. Genau diese Verwechslung hat in Task 6 einen Critical erzeugt.
+        // Wer den Parameter hier durch null ersetzt oder einen Postfilter einzieht, loescht die
+        // Kunde-Suche auf dem Leitstand vollstaendig -- eine stille Regression in einer
+        // Produktivansicht, die sonst kein Test faengt.
         EnableHierarchical();
         var grouped = new LeitstandOrderGroupedPage(
             new List<LeitstandOrderGroup>
