@@ -37,6 +37,7 @@ public class FaMaterializationSyncServiceTests
     {
         HauptFA = haupt, SubFA = sub, VaterFA = vater,
         Sollmenge = 1m, Artnr = "ART", Bezeichnung1 = "Bez1", Bezeichnung2 = "Bez2",
+        Matchcode = "MC-" + sub,
         SyncedAt = DateTime.Now
     };
 
@@ -148,5 +149,40 @@ public class FaMaterializationSyncServiceTests
 
         (await ctx.ProductionOrderPickingStatuses.CountAsync()).Should().Be(0);
         (await ctx.ProductionOrderBdeStatuses.CountAsync()).Should().Be(0);
+    }
+
+    /// <summary>F1-Regel, Anlege-Pfad: der Matchcode aus <see cref="FaHierarchyNode"/> wird beim
+    /// erstmaligen Materialisieren auf die neue <see cref="ProductionOrder"/> übernommen.</summary>
+    [Fact]
+    public async Task RunAsync_NewSubFa_SetsMatchcodeFromNode()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(Node(100, 101, 100));
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).RunAsync(dryRun: false);
+
+        var order = await ctx.ProductionOrders.SingleAsync(o => o.SubOrderNumber == "101");
+        order.Matchcode.Should().Be("MC-101");
+    }
+
+    /// <summary>F1-Regel, Update-Pfad: derselbe Matchcode-Abgleich muss auch beim Update einer
+    /// bereits materialisierten Zeile greifen — genau hier war die Regel schon einmal gebrochen.</summary>
+    [Fact]
+    public async Task RunAsync_ExistingSubFa_UpdatesMatchcode_WhenSourceChanged()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(Node(100, 101, 100));
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "100", SubOrderNumber = "101", Matchcode = "ALT", Quantity = 1m,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).RunAsync(dryRun: false);
+
+        var order = await ctx.ProductionOrders.SingleAsync(o => o.SubOrderNumber == "101");
+        order.Matchcode.Should().Be("MC-101");
     }
 }
