@@ -377,4 +377,58 @@ public class ProductionOrdersControllerTests
         item.DeliveryDate.Should().Be(new DateTime(2026, 8, 20));
         _orderInfoRepo.Verify(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Index_Hierarchical_FillsRowCustomerAndHeadFields_FromGroupHead()
+    {
+        // K1: eine HauptFA-Gruppe mit EINEM Kopf (nicht mehrdeutig). Die DB-Spalte
+        // ProductionOrder.Customer bleibt bewusst leer (K1-Regel) — die Zeile bekommt Kunde,
+        // Prio, AB-Nr., Montage-Abteilung und KO_Termin aus dem Gruppenkopf durchgereicht.
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") }) },
+            TotalGroupCount: 1, TotalRowCount: 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var head = MakeHead(1000, montageAbteilung: "Montage 1", kunde: "Mustermann GmbH",
+            koTermin: new DateTime(2026, 9, 1), feTermin: new DateTime(2026, 9, 10),
+            verladetermin: new DateTime(2026, 9, 12), prio: 3, abNr: "AB-42");
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head });
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        var row = vm.Groups.Single().Items.Single();
+        row.Customer.Should().Be("Mustermann GmbH");
+        row.Prio.Should().Be(3);
+        row.AbNummer.Should().Be("AB-42");
+        row.MontageAbteilung.Should().Be("Montage 1");
+        row.KonstruktionsTermin.Should().Be(new DateTime(2026, 9, 1));
+    }
+
+    [Fact]
+    public async Task Index_Flat_LeavesNewRowFieldsNull_BitIdentical()
+    {
+        // AKE-Regression (wichtiger als der Positivtest oben): Master false -> flacher Zweig,
+        // MapItem ohne Gruppenargumente. Die neuen Zeilenfelder bleiben NULL, Customer kommt
+        // unveraendert aus ProductionOrder.Customer.
+        _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        var row = new LeitstandOrderRow(1, "FA-100", 1m, "AUS DER DB", "ART-001", null, null,
+            new DateTime(2026, 8, 10), new DateTime(2026, 8, 20), false, false, false, null);
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(new LeitstandOrderPage(new List<LeitstandOrderRow> { row }, 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        var item = vm.Items.Should().ContainSingle().Subject;
+        item.Customer.Should().Be("AUS DER DB");
+        item.Prio.Should().BeNull();
+        item.AbNummer.Should().BeNull();
+        item.MontageAbteilung.Should().BeNull();
+        item.KonstruktionsTermin.Should().BeNull();
+    }
 }

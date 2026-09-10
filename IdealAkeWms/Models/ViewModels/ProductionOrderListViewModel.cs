@@ -125,4 +125,17 @@ public class ProductionOrderListItem
     public string? ParentSubOrderNumber { get; set; }
     /// <summary>Zeitstempel „aus der Struktur vermisst" (Sync-Regel 2); eigener Badge, kein IsCancelled.</summary>
     public DateTime? SageMissingSince { get; set; }
+
+    // IDEAL K1 (Task 5): Gruppenkopf-Felder je Zeile durchgereicht — NICHT materialisiert, nur
+    // Anzeige-Modell. Nur im hierarchischen Modus und nur bei eindeutigem Kopf (heads.Count == 1)
+    // befuellt; bei Kombigeraeten (IsAmbiguous) bleiben sie NULL, weil es keinen Trennschluessel
+    // auf Positionsebene gibt. Im Flachmodus (AKE) immer NULL.
+    /// <summary>KO_Termin des HauptFA-Kopfs.</summary>
+    public DateTime? KonstruktionsTermin { get; set; }
+    /// <summary>Prio des HauptFA-Kopfs.</summary>
+    public int? Prio { get; set; }
+    /// <summary>AB-Nummer des HauptFA-Kopfs.</summary>
+    public string? AbNummer { get; set; }
+    /// <summary>Montage-Abteilung des HauptFA-Kopfs.</summary>
+    public string? MontageAbteilung { get; set; }
 }
