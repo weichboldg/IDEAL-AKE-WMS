@@ -407,6 +407,33 @@ public class ProductionOrdersControllerTests
     }
 
     [Fact]
+    public async Task Index_Hierarchical_AmbiguousHauptFa_RowCustomerFromDb_IsNulledOut_NotLeaked()
+    {
+        // Fix-Runde 1 (Important-Befund): Kombigeraet (heads.Count > 1) UND die DB-Zeile traegt
+        // ausnahmsweise einen nicht-leeren Customer (Altdaten/anderer Schreibpfad — die K1-Regel
+        // "DB-Spalte bleibt leer" ist eine aeussere Annahme, keine Code-Garantie). Erwartung:
+        // item.Customer muss trotzdem NULL sein, strukturell wie Prio/AbNummer/MontageAbteilung/
+        // KonstruktionsTermin — kein Fallback auf den DB-Wert der Zeile.
+        var row = new LeitstandOrderRow(1, "1000", 1m, "Kunde aus DB-Zeile", "ART-001", null, null,
+            null, null, false, false, false, null,
+            SubOrderNumber: "1001", ParentSubOrderNumber: null);
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { row }) },
+            TotalGroupCount: 1, TotalRowCount: 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var head1 = MakeHead(1000, montageAbteilung: "Montage-1", kunde: "Kunde A");
+        var head2 = MakeHead(1000, montageAbteilung: "Montage-2", kunde: "Kunde B");
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head1, head2 });
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        vm.Groups.Single().Items.Single().Customer.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Index_Flat_LeavesNewRowFieldsNull_BitIdentical()
     {
         // AKE-Regression (wichtiger als der Positivtest oben): Master false -> flacher Zweig,
