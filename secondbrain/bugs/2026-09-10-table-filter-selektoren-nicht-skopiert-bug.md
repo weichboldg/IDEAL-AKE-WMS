@@ -98,6 +98,38 @@ betroffen: Die Tabelle traegt kein `th[data-filterable]`, `init()` bricht bei
 `_headers.length === 0` ab. Die dreistufige Arbeitsgang-Reihenfolge kann also nicht verwuerfelt
 werden.
 
+## Wie der Fehler gefunden wurde — und warum das der wichtigere Teil ist
+
+**Nicht durch ein Review.** Er kam heraus, weil der Umsetzer eines **anderen** Tasks
+(`fa-liste-wiederholung.js`, Wiederholungswerte unterdruecken) bei **seinem eigenen** Modul noch
+einmal genau hinsah: Er verwendete `:scope > tr` und `:scope > [data-repeat-key]` statt
+Descendant-Selektoren — **defensiv, bevor die Ursache bekannt war** — und stiess beim Begruenden
+dieser Entscheidung darauf, dass die Nachbarfunktion in `table-filter.js` genau das nicht tut.
+
+**Vier Stellen haben dieselbe plausible Fehlannahme vorher durchgewunken:**
+1. Der Umsetzer des Sortier-Hooks schrieb sie in seinen Bericht („`compareRows` liefert dort 0").
+2. Das Task-Review prueffte den Punkt ausdruecklich nach — und bestaetigte die Entlastung mit einer
+   eigenen, falschen Begruendung („`appendChild` haelt jede Zeile im eigenen `tbody`").
+3. Der Koordinator uebernahm sie und schrieb „Schwere: gering, rein kosmetisch" in diesen Record.
+4. Der Mensch las den Bericht und stimmte dem Parken zu.
+
+Jede dieser Stellen hat **gearbeitet**, nicht geschlampt: Es wurde gelesen, gegengeprueft,
+argumentiert und eine Schwere begruendet. Genau das macht den Fall lehrreich.
+
+> [!warning] Die Lehre
+> **Eine plausible Begruendung fuehlt sich an wie Verifikation, ist aber keine.**
+> „`appendChild` haelt jede Zeile in ihrem eigenen `tbody`" klingt wie ein gepruefter Satz. Er war
+> nie gemessen — niemand hat die DOM-Semantik nachgeschlagen oder den Klick ausgefuehrt. Die Kette
+> brach erst, als jemand aus einem **anderen** Anlass dieselbe Stelle mit frischem Blick ansah.
+>
+> Dieselbe Runde enthielt zwei verwandte Faelle: zwei Bug-Records (B-1/H-1), die auf unzuverlaessigen
+> Screenshots beruhten, und eine Testzuschreibung, die einem Verdrahtungstest Datenverhalten
+> zuschrieb. Dreimal dasselbe Muster — **ein Beleg, der als Pruefung gelesen wird, aber keiner war.**
+>
+> Praktische Folge fuer kuenftige Laeufe: Bei einer Entlastung („harmlos, weil X") ist **X** der
+> Pruefgegenstand, nicht die Entlastung. Und wer DOM-Semantik als Begruendung anfuehrt, belegt sie
+> am Verhalten oder benennt sie als Annahme.
+
 ## Loesungsvorschlag
 
 Die Selektoren auf direkte Kinder skopieren — `:scope > tbody` bzw. das Aequivalent fuer den
