@@ -2,7 +2,7 @@
 type: bug
 title: "table-filter.js: querySelectorAll('tbody') und ('thead tr:first-child th') sind nicht auf direkte Kinder skopiert — verschachtelte Tabellen werden mitsortiert"
 status: offen
-severity: gering
+severity: hoch
 created: 2026-09-10
 affected_code:
   - "IdealAkeWms/wwwroot/js/table-filter.js — sortTable: `_table.querySelectorAll('tbody')`; getPhysicalIndex: `_table.querySelectorAll('thead tr:first-child th')`"
@@ -10,13 +10,27 @@ affected_code:
 spec: "[[2026-09-10-fa-liste-ausbau-matchcode-spec]]"
 ---
 
+> [!danger] Schwere am 2026-09-10 von „gering" auf „hoch" korrigiert — und das ist die eigentliche
+> Lehre dieses Records
+> Die erste Fassung nannte den Fehler kosmetisch („nur eine unerwartete Reihenfolge"), mit der
+> Begruendung, `appendChild` halte jede Zeile in ihrem eigenen `tbody`. **Das war falsch.**
+> `appendChild` haengt die Zeile an das **iterierte** `tbody` — nicht an ihr aktuelles Elternelement.
+> Die inneren Zeilen werden damit aus der Varianten-Tabelle **herausgerissen**.
+> Drei Beteiligte (Umsetzer, Reviewer, Koordinator) haben dasselbe falsche Modell akzeptiert; gefunden
+> hat es der naechste Umsetzer, weil er beim Bau eines anderen Moduls noch einmal genau hinsah.
+
 ## Symptom
 
-In der FA-Liste `/ProductionOrders` im **hierarchischen** Modus sortiert ein Klick auf **„FA Nr.",
-„Kunde", „Prio", „AB-Nr." oder „Montage-Abt."** auch die **Varianten-Zeilen einer
-Kombigeraete-Gruppe** um — nach einer Spalte, die mit der inneren Tabelle nichts zu tun hat.
+In der FA-Liste `/ProductionOrders` im **hierarchischen** Modus zerstoert der **erste** Klick auf
+einen sortierbaren Spaltenkopf die Darstellung einer **Kombigeraete**-Gruppe:
 
-Die Varianten-Liste steht danach in einer Reihenfolge, die niemand angefordert hat.
+Die Zeilen der verschachtelten Varianten-Tabelle werden aus ihr **entfernt** und als missgebildete
+Sieben-Zellen-Zeilen in das aeussere, 25-spaltige Gruppen-`tbody` verschoben. Die Varianten-Tabelle
+steht danach leer da, und in der Gruppe stehen Zeilen, die niemand dort erwartet.
+
+Betroffen ist damit genau der Fall, den dieses Epic mehrfach als heikel markiert hat — die
+Kombigeraete-Anzeige, in der schon einmal ein stiller Fehler steckte (die Varianten-Tabelle blieb beim
+Zuklappen stehen, behoben in `be92ade`).
 
 ## Ursache
 
@@ -24,17 +38,38 @@ Die Varianten-Liste steht danach in einer Reihenfolge, die niemand angefordert h
 Kinder beschraenkt** und erfasst deshalb auch das `<tbody>` der verschachtelten
 `HeadVariants`-Tabelle, die im Kombigeraete-Block einer Gruppe steckt.
 
-Deren Zeilen haben **sieben** `<td>` und **kein** `colspan` — der `td[colspan]`-Filter, der die
-Gruppen-Kopfzeilen aussortiert, greift dort also nicht. Der Vergleicher
-`a.querySelectorAll('td')[colIndex]` findet bei den **kleinen** Spaltenindizes der Aussentabelle
-(`order-number`=1, `customer`=3, `prio`=4, `ab-nummer`=5, `montage-abteilung`=6) tatsaechlich
-Zellen und vergleicht deren Text.
+Entscheidend ist, dass `tbody.querySelectorAll('tr')` ebenfalls eine **Descendant**-Abfrage ist:
 
-> [!warning] Die naheliegende Entlastung stimmt nicht
-> Die erste Einschaetzung im Umsetzungslauf lautete, `compareRows` liefere fuer die inneren Zeilen
-> ohnehin `0`. Das gilt **nur** fuer `colIndex >= 7`. Dass der Fehler im Alltag nicht auffaellt,
-> liegt allein daran, dass `konstruktions-termin` (7) und der Default-Sort `picking-date` (20) ueber
-> dieser Grenze liegen — nicht daran, dass der Vergleich neutral waere.
+```js
+_table.querySelectorAll('tbody').forEach(function (tbody) {
+    var dataRows = Array.from(tbody.querySelectorAll('tr'))          // <- faengt die INNEREN Zeilen mit
+        .filter(function (r) { return !r.querySelector('td[colspan]'); });
+    dataRows.sort(compareRows);
+    dataRows.forEach(function (row) {
+        tbody.appendChild(row);                                      // <- VERSCHIEBT sie nach aussen
+    });
+});
+```
+
+Die Varianten-**Zeile** selbst traegt `<td colspan>` und wird vom Filter korrekt aussortiert. Ihre
+**Kindzeilen** tragen sieben blanke `<td>` ohne `colspan` — sie passieren den Filter und landen in
+`dataRows`. `tbody.appendChild(row)` haengt sie dann an das **iterierte** (aeussere) `tbody`.
+
+> [!warning] Der Denkfehler, den dieser Record festhalten soll
+> „`appendChild` haelt jede Zeile in ihrem eigenen `tbody`" — das klingt plausibel und ist falsch.
+> `appendChild` haengt an **das Element, auf dem es gerufen wird**. Wird ueber das aeussere `tbody`
+> iteriert, wandern alle gefundenen Zeilen dorthin, auch die aus einer verschachtelten Tabelle.
+> Eine zweite Fehlannahme derselben Runde lautete, `compareRows` liefere fuer die inneren Zeilen
+> ohnehin `0`. Auch das gilt **nur** fuer `colIndex >= 7`: Bei `order-number`=1, `customer`=3,
+> `prio`=4, `ab-nummer`=5, `montage-abteilung`=6 existieren in den inneren Zeilen Zellen, deren Text
+> verglichen wird. Die Sortierung ist also nicht einmal folgenlos — aber das ist nebensaechlich
+> gegenueber dem Verschieben.
+
+**Dieselbe Descendant-Falle in `applyFilters`** (`:290`, `_tbody.querySelectorAll('tr')`): Dort wird
+nur `display` gesetzt, also nichts verschoben — aber innere Zeilen werden nach Kriterien der
+Aussenspalten ein- und ausgeblendet. Fuer `/ProductionOrders` heute folgenlos, weil die View
+`data-server-column-filter="true"` traegt und `applyFilters` dort nicht laeuft; fuer kuenftige
+Client-Mode-Listen mit verschachtelten Tabellen aber dieselbe Ursache.
 
 Derselbe Selektor-Fallstrick steckt in `getPhysicalIndex`
 (`querySelectorAll('thead tr:first-child th')` zieht die sieben inneren `<th>` mit ein). Dort ist er
@@ -47,10 +82,16 @@ eine aktive Fehlfunktion.
 `37e8752` (Etappe 6, der Fix gegen „nur die erste Gruppe wird sortiert"), die verschachtelte Tabelle
 mit `86cdc26`. Beide stammen aus **demselben Epic** wie dieser Befund, liegen aber vor ihm.
 
-**Schwere: gering, rein kosmetisch.** `appendChild` haelt jede Zeile in ihrem **eigenen** `tbody`,
-jede Varianten-Zeile traegt ihre sieben Felder selbst. Es gehen keine Daten verloren, und es
-entstehen **keine falschen Zuordnungen** — der gefaehrliche Fall „ein Wert rutscht unter die falsche
-Ueberschrift" tritt nicht ein.
+**Schwere: hoch.** Die Varianten-Tabelle verliert sichtbar ihren Inhalt, und in der Gruppe erscheinen
+Zeilen mit sieben Zellen in einer 25-spaltigen Tabelle — also genau der Fall „ein Wert steht unter der
+falschen Ueberschrift", den dieses Projekt als teuer einstuft. Persistente Daten gehen nicht verloren
+(ein Neuladen stellt die Anzeige wieder her), aber der Anwender sieht eine falsche Darstellung und hat
+keinen Hinweis darauf, dass ein Klick sie verursacht hat.
+
+**Muss vor Schranke 2 behoben werden.** Der Befund ist vorbestehend im Sinne von „nicht von der
+Matchcode-Aufgabe verursacht" — aber beide Ursachen stammen aus **diesem, noch ungemergten** Epic.
+Einen bekannten Anzeigefehler im Abnahme-Zweig stehen zu lassen, waere etwas anderes als einen
+Altlast-Befund zu parken.
 
 `Views/Tracking/Index.cshtml` hat ebenfalls ein verschachteltes `<tbody>`, ist aber **nicht**
 betroffen: Die Tabelle traegt kein `th[data-filterable]`, `init()` bricht bei
@@ -62,25 +103,46 @@ werden.
 Die Selektoren auf direkte Kinder skopieren — `:scope > tbody` bzw. das Aequivalent fuer den
 `thead`-Selektor. **Beide Stellen gemeinsam**, weil es derselbe systemische Fehler ist.
 
-> [!important] Eigener Task mit eigenem Regressionsnachweis
-> `table-filter.js` haengt an rund 30 Listen. Dieser Befund wurde bewusst **nicht** in den Commit
-> `0f14850` mitgenommen, obwohl er dort auffiel: Jener Griff hatte seinen Regressionsnachweis schon
-> fuer den `table-sorted`-Hook und [[2026-08-20-fehlerprotokoll-anzeige-epic-ab]] B-2 verbraucht.
-> Eine Aenderung an der Selektor-Skopierung veraendert das Sortierverhalten verschachtelter Tabellen
-> und braucht ihren **eigenen** Nachweis — je Tabelle erhoben, nicht je View-Datei.
-> Das ist dieselbe Regel, nach der B-2 ueberhaupt erst mitkommen durfte.
+Betroffen sind **drei** Selektoren, und sie gehoeren gemeinsam angefasst, weil es derselbe
+systemische Fehler ist:
+1. `sortTable`: `tbody.querySelectorAll('tr')` → `:scope > tr` (**der schaedliche**)
+2. `applyFilters`: `_tbody.querySelectorAll('tr')` → `:scope > tr`
+3. `getPhysicalIndex`: `querySelectorAll('thead tr:first-child th')` — latent, heute wirkungslos,
+   weil die inneren `<th>` kein `data-col-key` tragen; eine innere Tabelle mit `data-col-key` wuerde
+   es kippen.
 
-**Naechster guenstiger Zeitpunkt:** der naechste ohnehin faellige Griff in `table-filter.js`.
-Kandidaten, die ebenfalls warten: der `console.warn`-Nachbau fuer weitere stille Pfade, falls noch
-welche auftauchen.
+`:scope` ist im Projekt etabliert (`column-preferences.js:213`, `fa-hierarchy-tree.js:41`), und das in
+diesem Lauf neu entstandene `fa-liste-wiederholung.js` nutzt es von Anfang an defensiv — der Umsetzer
+dort hatte den richtigen Instinkt, bevor der Befund bekannt war.
+
+> [!important] Eigener Task, eigener Regressionsnachweis — aber VOR dem Merge
+> `table-filter.js` haengt an rund 30 Listen. Der Befund kam **nicht** in den Commit `0f14850`, weil
+> jener Griff seinen Nachweis schon fuer den `table-sorted`-Hook und
+> [[2026-08-20-fehlerprotokoll-anzeige-epic-ab]] B-2 verbraucht hatte — die Buendelungsregel verbietet
+> das Nachschieben ohne neuen Nachweis, sie verlangt aber keinen Verzicht auf die Behebung.
+> Der Nachweis wird **je Tabelle** erhoben, nicht je View-Datei. Zwei Praezisierungen dazu aus dem
+> Review: `Views/Tracking/Index.cshtml` ist **nicht** angebunden (kein `th[data-filterable]`,
+> `init()` bricht ab), und `init()` bindet ohnehin nur die **erste** `.filterable-table` je Seite —
+> auf `/BdeMasterData` sind Tabelle 2 und 3 gar nicht betroffen.
 
 ## Test
 
 FA-Liste im hierarchischen Modus, eine Gruppe mit **Kombigeraet** (mehrere Auftragskoepfe,
-`IsAmbiguous`): Varianten-Tabelle aufklappen, Reihenfolge der Varianten notieren, dann auf „Kunde"
-klicken. **Erwartet nach dem Fix:** Die Varianten-Reihenfolge bleibt unveraendert, nur die Sub-FA-
-Zeilen der Gruppen sortieren sich. Gegenprobe: eine Liste mit genau einem `<tbody>` (z. B.
-`/Articles`) verhaelt sich unveraendert.
+`IsAmbiguous`): Varianten-Tabelle ansehen, Anzahl und Reihenfolge der Varianten notieren, dann auf
+„Kunde" klicken.
+
+**Vor dem Fix (reproduziert den Fehler):** Die Varianten-Tabelle ist anschliessend **leer**, und in
+der Gruppe stehen zusaetzliche Zeilen mit sieben Zellen.
+**Nach dem Fix:** Die Varianten-Tabelle bleibt vollstaendig und in ihrer Reihenfolge; nur die
+Sub-FA-Zeilen der Gruppe sortieren sich.
+
+Gegenproben, je Tabelle zu fuehren:
+- Eine Liste mit genau einem `<tbody>` (z. B. `/Articles`, `/StockOverview`, `/Users`): Sortierung
+  unveraendert.
+- Eine gruppierte Liste **ohne** verschachtelte Tabelle (z. B.
+  `/FaHierarchyKommissionierListen`): jede Gruppe sortiert in sich, keine Zeile wandert ueber eine
+  Gruppengrenze.
+- Flachmodus der FA-Liste (Master `false`): unveraendert.
 
 ## Bezug
 
