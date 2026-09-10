@@ -355,6 +355,53 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 > 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf **Schranke 2** (manueller Test + Merge
 > durch den Menschen).
 
+### FA-Liste ausbauen: Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade, Matchcode (v1.38.0, selber Branch)
+
+Spec [[2026-09-10-fa-liste-ausbau-matchcode-spec]], Umsetzung
+[[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]], Bugfix (eingeschobener Sweep)
+[[2026-09-10-table-filter-selektoren-nicht-skopiert-bug]], Changelog
+[[2026-09-10-v1-38-0-ideal-fa-liste-ausbau-matchcode]]. Baut auf v1.37.0 (Materialisierung) auf,
+ist aber eine eigene Spec — diese wird nicht wieder aufgerissen.
+
+Vier fachlich unabhaengige Bloecke: Matchcode-Spalte (hausweit, materialisiert), Kopfdaten je Zeile
+(C#-Postfilter statt SQL-Join), HauptFA als normale Zeile (Kopfzeile verschlankt), Freigabe-Kaskade
+am Leitstand (widerruft die fruehere „keine Kaskade"-Festlegung aus v1.35.0).
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Spalte `ProductionOrder.Matchcode` + Migration 91 | **erledigt** (`461d3e5`) | `ProductionOrder.cs`, `SQL/91_AddProductionOrderMatchcode.sql` |
+| Matchcode materialisiert (Anlege- + Update-Pfad, F1) | **erledigt** (`cbabdd9`) | `FaMaterializationSyncService.RunAsync` |
+| Matchcode-Anzeige in fünf FA-Zeilen-Ebene-Listen | **erledigt** (`f4e9a6d`) | `ColumnDefinitions.cs`, je View `#column-config` + `<th>` |
+| Matchcode-Filter null-sicher (F7), ohne `EF.Functions.Like` | **erledigt** (`48e1c87` + Fix `4a0563a`) | `ProductionOrderRepository.cs` (`BuildExtraInfoOrContains`) |
+| K1-Kopfdaten je Zeile im Anzeige-Modell | **erledigt** (`9b2a258` + `13693b7`) | `ProductionOrdersController.MapItem` |
+| Kunde-/K1-Postfilter C# statt SQL-Join (inkl. Flachmodus-Fix) | **erledigt** (`6ec37f8` + `cddb5b0` + `20686a2`) | `ProductionOrdersController.Index`, `PickingLeitstandController.Index` |
+| Vier Zeilenspalten bedingt auf `Model.Hierarchical` | **erledigt** (`9c95fb0`) | `Views/ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml` |
+| Selektor-Sweep (zweiter Anzeigefehler, eingeschoben) | **erledigt** (`b9bf342` + `94463f9`) | `table-filter.js`, `column-preferences.js`, `TableScriptScopedSelectorTests` |
+| Wiederholungswerte unterdrückt, client-seitig | **erledigt** (`203e23a` + Fix `a422e44`) | `fa-liste-wiederholung.js`, `site.css` (`.fa-liste-repeat-hidden`) |
+| HauptFA-Zeile gekennzeichnet, Kopfzeile verschlankt | **erledigt** (`fda7c7a`) | `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
+| `SetReleaseForOrderNumberAsync` (Kaskade, atomar) | **erledigt** (`067f1b1`) | `ProductionOrderPickingStatusRepository.cs` |
+| `CascadeReleasePreview`/`CascadeRelease`, Picker-Pflicht unverändert | **erledigt** (`aad4b54`) | `PickingLeitstandController.cs` |
+| Knopf + Dialog in der Gruppen-Kopfzeile | **erledigt** (`fef12cf`) | `Views/PickingLeitstand/Index.cshtml` |
+| v1.38.0, Changelog, Hilfe, TS-73 | **erledigt** (`deff907`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+
+> **AKE-Regression als harte Nebenbedingung:** Bei Master `false` bleibt die FA-Liste bit-identisch
+> — die vier K1-Zeilenspalten sind **strukturell** (nicht nur inhaltlich) an `Model.Hierarchical`
+> gebunden, der Matchcode bleibt dort leer, bis die hausinterne Sage-View-Erweiterung liefert
+> (kein Fehler, eigener Backlog-Punkt).
+
+> **Deploy:** `web:true`, `service:true` (Materialisierung ändert sich, nicht optional),
+> `migration:true` (Migration 91, additiv, kein Backfill-Zwang — Bestandszeilen füllen sich erst
+> beim nächsten Materialisierungs-Lauf).
+
+> **Status:** `Testbereit` (qa-agent, 2026-09-10, Worktree-HEAD `deff907`) — Build 0 Fehler, Web
+> **1322 grün + 1 skip**, Service **265 grün**, AK 1–20 gegen den echten Diff `be92ade..deff907`
+> abgeglichen, genau eine neue Migration im Diff, TS-73 (20 Szenarien) + TS-72 (5 Szenarien,
+> Selektor-Sweep) vorhanden. Wartet mit dem ganzen Bündel (Teile 1–8 + FA-Liste-Hierarchie +
+> BOM-Bridge + Materialisierung, ein Merge) auf **Schranke 2** (manueller Test + Merge durch den
+> Menschen). Nicht-blockierender Befund: Wiederholungswert-Unterdrückung in gestreiften/farbig
+> markierten Zeilen nicht explizit in TS-73 benannt — in die manuelle Checkliste der Spec
+> aufgenommen.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |

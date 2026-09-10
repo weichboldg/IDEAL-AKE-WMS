@@ -2,7 +2,7 @@
 type: spec
 title: "FA-Liste ausbauen: Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade, Matchcode"
 slug: 2026-09-10-fa-liste-ausbau-matchcode-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-10
 updated: 2026-09-10
 source_backlog: "[[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]]"
@@ -668,21 +668,35 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-**Provisorisch vom Spec-Agent geschaetzt — der qa-agent bestaetigt/korrigiert das gegen den echten
-Diff, analog dem Vorgehen bei der Materialisierungs-Spec.**
+**Vom qa-agent GEGEN DEN ECHTEN DIFF bestaetigt (2026-09-10, Diff `be92ade..deff907`, 48 Dateien).**
+Die drei Spec-Agent-Schaetzungen (`web`/`service`/`migration` alle `true`) stimmen — hier die
+belastbare Grundlage dafuer statt der Vermutung:
 
-- **Web-App:** ja (`deploy.web: true`) — `ProductionOrdersController`, `PickingLeitstandController`,
-  `ProductionOrderRepository`/`IProductionOrderRepository`, `ProductionOrderPickingStatusRepository`/
-  `IProductionOrderPickingStatusRepository`, `ProductionOrderListViewModel`, `ColumnDefinitions.cs`,
-  diverse Views (`ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml`,
-  `PickingLeitstand/Index.cshtml`, ggf. weitere Row-Partials je Erhebungsergebnis),
-  `Views/Help/Changelog.cshtml` + `Index.cshtml`, `AppVersion.cs` (voraussichtlich 1.38.0).
-- **Service:** ja (`deploy.service: true`) — `FaMaterializationSyncService`,
-  `FaMaterializationPlanner`, `AppVersion.cs` (1.38.0).
-- **Migration:** ja (`deploy.migration: true`) — `Migrations/<neu>_AddProductionOrderMatchcode.cs`,
-  `SQL/91_AddProductionOrderMatchcode.sql`, `SQL/00_FreshInstall.sql` (Schema + MigrationId).
+- **Web-App:** ja (`deploy.web: true`) — bestaetigt am Diff: `ProductionOrdersController.cs` (+132),
+  `PickingLeitstandController.cs` (+76, neue Actions `CascadeReleasePreview`/`CascadeRelease`),
+  `IProductionOrderPickingStatusRepository.cs`/`ProductionOrderPickingStatusRepository.cs` (neue
+  `SetReleaseForOrderNumberAsync`), `IProductionOrderRepository.cs`/`ProductionOrderRepository.cs`
+  (Matchcode-Filter, Postfilter-Umbau), `ProductionOrder.cs` (+`Matchcode`),
+  `ProductionOrderListViewModel.cs` + vier weitere `*ListViewModel.cs` (Matchcode-Property),
+  `ColumnDefinitions.cs` (+20 Zeilen, fuenf `viewKey`s), sechs Views/Row-Partials
+  (`ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml`, `PickingLeitstand/Index.cshtml`
+  + `_PickingLeitstandRow.cshtml`, `FaCompletion/Index.cshtml` + `_FaCompletionRow.cshtml`,
+  `FaWorklist/Index.cshtml` + `_FaWorklistRow.cshtml`, `Picking/Index.cshtml` + `_PickingRow.cshtml`),
+  vier JS-Dateien (`column-preferences.js`, `fa-liste-gruppierung.js`, `fa-liste-wiederholung.js` neu,
+  `table-filter.js`), `site.css` (+18, Selektor-Sweep-Nachfolgefix), `Views/Help/Changelog.cshtml`,
+  `IdealAkeWms/AppVersion.cs` (bestaetigt `1.38.0`).
+- **Service:** ja (`deploy.service: true`) — bestaetigt am Diff: `FaMaterializationSyncService.cs`
+  (+2, Matchcode im Anlege- UND Update-Block, F1-Muster), `IDEALAKEWMSService/AppVersion.cs`
+  (bestaetigt `1.38.0`). Klein, aber **nicht optional** — die Materialisierung ist der einzige Pfad,
+  der `ProductionOrder.Matchcode` befuellt; ohne den Service-Deploy bleibt die neue Spalte fuer
+  IMMER leer, nicht nur voruebergehend wie bei AKE.
+- **Migration:** ja (`deploy.migration: true`) — bestaetigt am Diff: EIN neues Migrationspaar
+  `IdealAkeWms/Migrations/20260910081155_AddProductionOrderMatchcode.cs` (+`.Designer.cs`),
+  `SQL/91_AddProductionOrderMatchcode.sql` (`COL_LENGTH`-Guard, DDL + `__EFMigrationsHistory`-Insert
+  in getrennten Batches, wie gefordert), `SQL/00_FreshInstall.sql` an **beiden** Stellen (Spalte
+  `[Matchcode] NVARCHAR(200) NULL` im `ProductionOrders`-Schema-Block, `MigrationId`-Insert am Ende).
   Additiv, kein Backup-Zwang ueber die uebliche Deploy-Vorsicht hinaus (keine daten-destruktive
-  Aenderung).
+  Aenderung). Keine weitere neue `Migrations/`-Datei im Diff — geprueft.
 - **Deploy-Vorbedingung: keine.** Es gibt **keine externe Abhaengigkeit** — weder fuer IDEAL noch
   fuer AKE [Antwort 8/B3]. Die AKE-View-Erweiterung um den Matchcode ist eine **hausinterne, planbare
   Aufgabe, die spaeter folgt**, kein Fremdsystem-Termin und kein Abstimmungsschritt mit Dritten. Sie
@@ -1086,3 +1100,161 @@ Widersprueche zum bestehenden Code (Freigabe-Kaskade/Picker-Pflicht, Anzeige-Mec
 Wert wechselt"), die den Dev-Lauf in eine andere Richtung schicken wuerden als von Antwort 4/5
 verlangt. Der Fliesstext muss auf den beantworteten Stand gezogen werden, bevor die Spec nach
 `specs/freigegeben/` verschoben wird.
+
+## QA-Nachweis (qa-agent, 2026-09-10)
+
+**Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, geprueft auf Commit `deff907` (Diff-Basis fuer diese Spec:
+`be92ade..deff907`, 48 Dateien, +7760/-80). Weder gemergt noch gepusht, Worktree unangetastet.
+
+### Build
+
+```
+dotnet build IdealAkeWms.slnx
+→ Der Buildvorgang wurde erfolgreich ausgeführt.
+   0 Fehler, 12 Warnungen (alle vorbestehend: NU1902 MailKit/MimeKit-Advisories, CS8602/CS8321 in
+   unveraenderten Zeilen von TrackingController.cs/FaWorklist/ProductionOrders/PickingLeitstand
+   Index.cshtml — keine durch diesen Dev-Lauf neu eingefuehrte Warnung).
+```
+
+### Tests — beide Suiten gruen
+
+```
+dotnet test IdealAkeWms.Tests
+→ Bestanden! : Fehler: 0, erfolgreich: 1322, übersprungen: 1, gesamt: 1323, Dauer: 3 s
+
+dotnet test IDEALAKEWMSService.Tests
+→ Bestanden! : Fehler: 0, erfolgreich: 265, übersprungen: 0, gesamt: 265, Dauer: 1 s
+```
+
+Deckt exakt die im Auftrag genannten Erwartungswerte (~1322 Web + 1 uebersprungen, ~265 Service).
+Die Service-Suite wurde **nicht** uebersprungen — die Matchcode-Materialisierung aendert
+`FaMaterializationSyncService.cs`, das ist Pflichtnachweis, nicht optional.
+
+### Akzeptanzkriterien gegen den echten Diff (Stichproben, nicht gegen Behauptung)
+
+- **Keine unerwartete Migration.** `git diff --name-only --diff-filter=A be92ade..deff907 --
+  '*/Migrations/*'` liefert genau ein Paar:
+  `IdealAkeWms/Migrations/20260910081155_AddProductionOrderMatchcode.cs` (+`.Designer.cs`).
+- **`SQL/91_AddProductionOrderMatchcode.sql`:** `COL_LENGTH('dbo.ProductionOrders', 'Matchcode')
+  IS NULL`-Guard, DDL (`ALTER TABLE ... ADD [Matchcode] NVARCHAR(200) NULL`) in eigenem Batch,
+  `__EFMigrationsHistory`-Insert in separatem Batch nach `GO`.
+- **`SQL/00_FreshInstall.sql`:** an beiden Stellen nachgezogen — `[Matchcode] NVARCHAR(200) NULL`
+  im `ProductionOrders`-Schema-Block **und** der `MigrationId`-Insert
+  `20260910081155_AddProductionOrderMatchcode` im History-Block.
+- **`SetReleaseForOrderNumberAsync`** (`ProductionOrderPickingStatusRepository.cs` Z. 283-324):
+  `DateTime.UtcNow`, Query filtert `!s.IsReleasedForPicking`, lokale Sortierung
+  `OrderBy(s => s.ProductionOrder!.SubOrderNumber, StringComparer.Ordinal)`, `assignedPicker` wird
+  auf **alle** betroffenen Zeilen gesetzt (nicht nur die erste), EIN `SaveChangesAsync` am Ende der
+  Schleife.
+- **`CascadeRelease`** (`PickingLeitstandController.cs` Z. 545-587): `[RequireLeitstandAccess]`
+  gesetzt, die Picker-Pflichtpruefung (`pickerAssignmentEnabled && !assignedPickerId.HasValue` →
+  `WarningMessage` + Redirect, **kein** Repository-Aufruf) steht **vor** dem Aufruf von
+  `SetReleaseForOrderNumberAsync` — exakt wie gefordert, keine Massenaktions-Ausnahme von der
+  Einzelfreigabe-Regel.
+- **Matchcode-Feld:** `[StringLength(200)] public string? Matchcode` in `ProductionOrder.cs`,
+  gesetzt in **beiden** Pfaden von `FaMaterializationSyncService.RunAsync`
+  (`newOrder.Matchcode = n.Matchcode` im Anlege-Block, `o.Matchcode = sn.Matchcode` im
+  Update-Block, direkt neben `ArticleNumber`/`Description1/2`, F1-Muster).
+- **Matchcode-Filter ohne `EF.Functions.Like`:** `ProductionOrderRepository.cs` Z. 308 —
+  `"matchcode" => q.Where(BuildExtraInfoOrContains(o => o.Matchcode, tokens, negate))` — InMemory-
+  testbares Expression-Tree-Muster wie die uebrigen Textspalten, kein SQL-`LIKE`.
+- **AKE-Regression, vier K1-Spalten bedingt:** `_ProductionOrderRow.cshtml` Z. 73-79 — Prio/
+  AB-Nummer/Montage-Abteilung/Konstruktions-Termin stehen **strukturell** in
+  `@if (Model.Hierarchical) { ... }`, nicht nur inhaltlich leer; `Index.cshtml` Kopf (`<th>`) und
+  inline `#column-config` spiegeln dieselbe Bedingung, `colCount` waechst nur im hierarchischen
+  Zweig um 4. Kunde bleibt unconditional (AKE zeigte diese Spalte bereits vorher).
+- **HauptFA-Zeile — Schritt-1-Verifikationspflicht erfuellt.** `git show fda7c7a` enthaelt einen
+  neuen Test `Index_Hierarchical_RootRow_KeepsSubOrderNumberEqualToOrderNumber`, der die
+  Modellannahme (Wurzel kommt mit `SubOrderNumber == OrderNumber` in der eigenen Gruppe an) fixiert
+  — zusaetzlich zur Code-Beweiskette in der bereits vorliegenden Aufgaben-Notiz
+  ([[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]], Abschnitt „Vorab-Verifikationen A"): Die
+  Wurzel traegt `SubFA != 0` in der Sage-Quelle und faellt **nicht** durch den
+  `.Where(n => n.SubFA != 0)`-Filter der Materialisierung. Dokumentierte Einschraenkung (keine vom
+  Code erzwungene Invariante, sondern eine Dateneigenschaft) ist in die manuelle Checkliste unten
+  aufgenommen.
+- **Kopfzeile schlanker, nicht leer:** `Index.cshtml` Diff zeigt HauptFA-Nummer/Sub-FA-Badge/Kunde/
+  FE-Termin/Mehrdeutig-Badge bleiben, Prio/Montage-Abt./AB-Nr./KO-/Liefertermin-Badges entfernt.
+
+### Testszenarien-Deckung
+
+`docs/TESTSZENARIEN.md` traegt **TS-73** (20 Unterszenarien, 1:1 auf AK 1-20 gemappt, inkl.
+Verweis statt Dopplung auf **TS-72** fuer die Sortier-/Selektor-Mechanik) sowie die vier
+Selektor-Sweep-Szenarien **TS-72.1 bis TS-72.5**. Jedes TS-73-Szenario nennt seine AK-Nummer im
+Titel — Stichprobe bestaetigt lueckenlose Abdeckung, keine AK ohne Szenario. Offene
+Manual-UAT-Markierungen (Razor/JS/Browser, nicht InMemory-testbar) sind erwartungsgemaess vorhanden
+und blockieren `Testbereit` nicht.
+
+### Befund, nicht blockierend (in die manuelle Checkliste aufgenommen)
+
+Der TS-73/TS-72-Text deckt die Wiederholungswert-Unterdrueckung an einer **normalen** Zeile ab
+(TS-73.5/73.6), nennt aber nicht ausdruecklich den Fall **gestreifter/farbig markierter** Zeilen
+(`table-danger` bei stornierten, `table-secondary` bei erledigten Auftraegen). Der CSS-Fix in
+Commit `a422e44` behebt genau eine Spezifitaets-Kollision mit Bootstraps generischem
+Tabellenzellen-Selektor (`.table > :not(caption) > * > *`) — beweist aber nicht am Bildschirm, dass
+die Wiederholungswert-Klasse (`color: transparent`) gegen die zusaetzliche Bootstrap-Kontext-Farbe
+von `table-danger`/`table-secondary` weiterhin gewinnt. Deshalb unten als eigener Punkt in der
+manuellen Checkliste, nicht nur implizit in TS-73.5 mitgemeint.
+
+### Code-Review (superpowers:requesting-code-review-Massstab, selbst durchgefuehrt)
+
+Stichprobenpruefung von `fa-liste-wiederholung.js` (idempotente Klassifizierung, `:scope >`
+konsequent gegen die Kombigeraete-Varianten-Tabelle abgegrenzt, leerer Wert nie
+Vergleichsbasis/nie unterdrueckt — verhindert, dass eine leere Zelle eine spaeter gefuellte
+maskiert), `PickingLeitstandController.CascadeRelease`/`CascadeReleasePreview` (Picker-Pflicht vor
+Repository-Aufruf, `[ValidateAntiForgeryToken]` gesetzt, Redirect-Ziel via `Url.IsLocalUrl`
+abgesichert) und des Kaskaden-Modals in `PickingLeitstand/Index.cshtml` (Massenwirkungs-Text
+wortgleich zur Spec-Vorgabe, Picker-Feld nur bei `Model.PickerAssignmentEnabled` gerendert und
+`required`). Keine Blocker gefunden. Bereits von der Aufgaben-Notiz dokumentierte Nebenbefunde
+(N1-N5, z. B. zwei Zeitbasen in `ProductionOrderPickingStatus.ModifiedAt`,
+`CascadeDone`/`CascadeRelease` haengen an unterschiedlichen Rollen) sind bewusst **nicht** Teil
+dieser Spec und bleiben als Folgearbeit dokumentiert — kein QA-Blocker.
+
+### Manuelle Test-Checkliste (Schranke 2 — vor dem Merge, am Testsystem)
+
+1. **TS-72.1 bis TS-72.3 — Selektor-Fix, inklusive bereits gespeicherter Praeferenz.** Kombigeraet-
+   Gruppe sortieren/Spalten konfigurieren (TS-72.1/72.2) UND **zusaetzlich** mit einer VOR dem Fix
+   entstandenen, bereits gespeicherten Spaltenpraeferenz laden (TS-72.3) — dieser dritte Fall ist
+   nicht durch die ersten beiden abgedeckt, weil eine Alt-Praeferenz das Produkt zweier Fehler sein
+   kann (Programmfehler + manuelle Gegensteuerung). Pruefen: Varianten-Tabelle zeigt bei allen
+   dreien vollstaendige, nicht vertauschte Zellen.
+2. **Wiederholungswert-Unterdrueckung in gestreiften UND farbig markierten Zeilen.** Zusaetzlich zu
+   TS-73.5 (normale Zeile): eine Gruppe mit mindestens einer stornierten (`table-danger`, rot) und
+   einer erledigten (`table-secondary`, grau) Sub-FA-Zeile direkt neben einer Wiederholungskette
+   pruefen — der unterdrueckte Wert (Kunde/Prio/AB-Nr./Montage-Abt./KO-Termin) muss **trotz** der
+   Bootstrap-Kontextfarbe visuell verschwinden (nicht nur bei weissem Zeilenhintergrund). Negativfall:
+   der Wert bleibt in einer `table-danger`/`table-secondary`-Zeile sichtbar → die CSS-Spezifitaet aus
+   Commit `a422e44` reicht dort nicht, sofort melden.
+3. **Freigabe-Kaskade mit bis zu 39 Auftraegen und Picker-Pflicht (AK 11-15).** Eine reale HauptFA
+   mit einer groesseren Sub-FA-Zahl (Backlog nennt bis zu 39) kaskadieren: Bestaetigungsdialog zeigt
+   korrekte Gesamt-/Bereits-/Neu-Zahlen, danach Erfolgsmeldung mit der tatsaechlich neu freigegebenen
+   Anzahl, fortlaufende `PickingPriority` in Sub-FA-Reihenfolge. **Getrennt mit beiden
+   `KommissionierungMitZuweisung`-Stellungen testen:** bei **aktiv** muss der Dialog einen
+   Kommissionierer als Pflichtfeld verlangen und im Klartext die Massenwirkung nennen („wird allen
+   N Sub-FAs zugewiesen") — ein `CascadeRelease`-Versuch ohne Picker darf **nicht** durchgehen; bei
+   **inaktiv** laeuft die Kaskade ohne Zuweisung durch.
+4. **Matchcode bei AKE ist leer — kein Fehler.** Auf einer AKE-Instanz bzw. bei Master `false`: die
+   Matchcode-Spalte ist in den fuenf Listen sichtbar, aber durchgehend leer, bis die hausinterne
+   Sage-View-Erweiterung liefert. Ein Spaltenfilter auf Matchcode liefert dort korrekt „kein
+   Treffer", kein Absturz. **Das ist die erwartete Zwischeneinschraenkung, kein Mangel.**
+5. **HauptFA-Zeile am realen Datenbestand.** Eine hierarchische Gruppe oeffnen und pruefen, dass die
+   Wurzelzeile (Badge „HauptFA", `fw-semibold`) tatsaechlich erscheint — der Code-Nachweis
+   (Schritt-1-Verifikation) stuetzt sich auf eine Dateneigenschaft (`SubFA != 0` an der Wurzel), nicht
+   auf eine vom Code erzwungene Invariante. Sollte irgendeine Struktur eine Wurzel mit `SubFA = 0`
+   haben, fehlte die HauptFA-Zeile dort **kommentarlos** — bei Auffaelligkeiten sofort melden statt
+   anzunehmen, dass die Zeile fehlt, weil sie nicht gebraucht wird.
+6. **B-0/Ruling-4-Test (geparkte Frage 1, MUSS vor dem Merge geklaert sein).** Am Bildschirm (nicht
+   am Ausdruck) pruefen, ob dasselbe Material bei einer HauptFA-Vollstruktur auf zwei
+   Kommissionierlisten erscheint (Sub-FA-Vorbauliste UND HauptFA-Vollstruktur). Ergebnis entscheidet
+   ueber eine separate Folge-Aufgabe (Rueckbau vs. Druck-Whitelist-Erweiterung) — nicht Teil dieser
+   Spec, aber Merge-Voraussetzung fuer das Gesamt-Buendel laut Backlog.
+7. **Kunde-Postfilter-Regression, hierarchisch UND flach.** Freitext- und Spaltenfilter „Kunde" in
+   `/ProductionOrders` **und** `/PickingLeitstand` pruefen — hierarchisch ueber den neuen
+   C#-Postfilter, im AKE-Flachmodus weiterhin ueber den unveraenderten SQL-Weg (Regressionsgefahr:
+   Aufgaben-Notiz nennt einen bereits gefixten Fehlerfall, bei dem der Postfilter den Flachmodus-
+   Filter und die Paginierung mitbrach — Fix ist committet, aber ein Blick am System schadet nicht).
+8. **Zugriffsschutz.** Mit einem Benutzer ohne Leitstand-Recht pruefen: kein „Alle Sub-FAs
+   freigeben"-Knopf sichtbar, ein direkter POST auf `CascadeRelease` wird abgewiesen (403/Redirect).
+9. **Kombigeraet-Gegenprobe (AK 7).** Eine Gruppe mit `IsAmbiguous = true` oeffnen — die vier
+   K1-Zeilenspalten bleiben auf **allen** Zeilen leer (nicht unterdrueckt-transparent, sondern
+   tatsaechlich leer), die Gruppen-Kopfzeile zeigt weiterhin alle Kopfvarianten plus Badge.
