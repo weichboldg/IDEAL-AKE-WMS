@@ -279,7 +279,7 @@ Stattdessen:
 | `FaCompletion` | Ja (verifiziert), aber **Namenskollision** (siehe Abschnitt 7) | Ja — Anzeige-Teil | `IsSpecComplete`-Toggle, andere fachliche Bedeutung | Kaskade-Regel gilt hier NICHT ohne Weiteres — eigene Prüfung nötig, nicht automatisch übernehmen |
 | `Tracking` | Ja (verifiziert) | Ja — volle Behandlung | Keine Erledigt-Aktion (reine Teileverfolgung) | Entfällt |
 | `Picking` | Ja (verifiziert) | Ja — volle Behandlung | `ToggleDone`/`IsDonePicking` (symmetrischer Toggle) | **Keine Kaskade** — Kommissionierung kaskadiert bewusst nicht: jeder Sub-FA hat eigenes Material zu holen |
-| `PickingLeitstand` | Ja (verifiziert) | **Ja — volle Behandlung** | `BulkRelease` (Freigabe) **+ `IsDoneBde`-Zeilen-Toggle** (einziger Ort im System) | **WIRT-VIEW der Gruppen-Kaskade.** `BulkRelease` kaskadiert **nicht**; die Aktion „Alle Sub-FAs fertigmelden" sitzt in der Gruppen-Kopfzeile |
+| `PickingLeitstand` | Ja (verifiziert) | **Ja — volle Behandlung** | `BulkRelease` (Freigabe) **+ `IsDoneBde`-Zeilen-Toggle** (einziger Ort im System) | **WIRT-VIEW der Gruppen-Kaskade.** `BulkRelease` kaskadiert **nicht**; die Aktion „Alle Sub-FAs fertigmelden" sitzt in der Gruppen-Kopfzeile. *(Ergaenzt 2026-09-10 durch [[2026-09-10-fa-liste-ausbau-matchcode-spec]]: zusaetzlich eine **zweite** Gruppen-Kaskade „Alle Sub-FAs freigeben" (`CascadeRelease`, Traeger `IsReleasedForPicking`) — `BulkRelease` selbst bleibt unveraendert.)* |
 | BDE-Cockpit (`BdeCockpit`) | **Nein** — verifiziert: JS-Karten-Grid, kein `<table>`/`<tbody>` | Nein, ohne eigenen Entwurf | `IsDoneBde`-Toggle (`BdeStatusApiController`) | **Ausgeklammert** fuer diese Runde → eigener Backlog-Eintrag. **Bekannte Einschraenkung:** zeigt im hierarchischen Modus ~130 statt ~30 Karten und wird voruebergehend unuebersichtlich |
 
 Konsequenz fuer den Dev-Lauf: Die **fuenf** Standardlisten (`ProductionOrders`, `FaWorklist`,
@@ -886,6 +886,21 @@ nicht kaskadieren darf. Dass der Leitstand **zugleich der einzige Ort mit dem
 Damit hat die Kaskade genau **einen** Ort, und die Antworten 1, 2 und 4 bleiben unveraendert gueltig:
 Traeger ist `IsDoneBde` (1), sie ist eine eigene Gruppen-Aktion statt eines aufgespaltenen Toggles (2),
 und das BDE-Cockpit bleibt ausgeklammert (4).
+
+> [!warning] TEILWEISE WIDERRUFEN durch [[2026-09-10-fa-liste-ausbau-matchcode-spec]] (2026-09-10)
+> Die Zeile „`BulkRelease` (Freigabe) — **keine Kaskade**" oben gilt **nur noch fuer `BulkRelease`
+> selbst**. Der Satz „die Kaskade hat genau **einen** Ort" ist damit **ueberholt**: Es gibt jetzt
+> **zwei** Gruppen-Kaskaden auf dem Leitstand.
+>
+> Die neue Spec ergaenzt eine **eigene, zusaetzliche** Aktion `CascadeRelease` („Alle Sub-FAs
+> freigeben") in der Gruppen-Kopfzeile — Traeger `IsReleasedForPicking`,
+> `[RequireLeitstandAccess]`. **`BulkRelease` selbst bleibt unveraendert zeilenbasiert**; es wird
+> nichts an der bestehenden Aktion geaendert.
+>
+> **Begruendung der Umkehr:** Eine Freigabe behauptet keine geleistete Arbeit, sondern erlaubt nur
+> den Beginn — ist das Geraet freigegeben, sind es seine Baugruppen fachlich zwingend auch. Das ist
+> dieselbe Logik wie bei der Fertigmeldungs-Kaskade, nur mit einer schwaecheren Aussage. Die
+> Zuweisungspflicht (`KommissionierungMitZuweisung`) gilt fuer die neue Kaskade **unveraendert**.
 
 **Folge fuer die fuenf Standardlisten:** Sie exponieren `IsDoneBde` nicht und bekommen deshalb
 **ausschliesslich den Anzeige-Teil** — Gruppierung, Spalte, Suche, Paginierung, Badge. Keine
