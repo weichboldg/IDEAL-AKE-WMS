@@ -51,14 +51,34 @@ gebaubar**, ohne Anpassung der Materialisierung.
 ⇒ Die „sechs Listen" der Spec sind korrekt. **Zusatzaufwand:** `OseonTracking` ist mechanisch ein
 anderer Pfad als die fuenf Tabellen; die Matchcode-Zelle dort ist kein Copy-Paste.
 
-### Nebenbefund (NICHT in dieser Spec beheben)
+### Nebenbefunde (NICHT in dieser Spec beheben)
 
+**N1 — `Tracking`/`TrackingByWorkplace` sind nicht registriert.**
 `Views/Tracking/Index.cshtml` (Zeile 193) und `Views/Tracking/ByWorkplace.cshtml` tragen
 `data-view-key="Tracking"` bzw. `"TrackingByWorkplace"`, aber **`ColumnDefinitions.GetByViewKey`
 kennt beide nicht** (`_ => null`). Das ist genau die Drift-Klasse aus Punkt 23 der
 [[2026-09-08-bom-bridge-nachlese]] — gehoert in deren Sweep, nicht hierher. Zusammen mit dem dort
 schon notierten Befund **B-2** (stiller Abbruch der Sortierung bei nicht aufloesbarer Spalte) ist das
 bereits der **dritte** Fall derselben Klasse.
+
+**N2 — Zwei Zeitbasen in `ProductionOrderPickingStatus.ModifiedAt`.**
+Verifiziert: `SetReleaseAsync` und `SetReleaseBatchAsync` stempeln **`DateTime.UtcNow`**,
+`SetAssignedPickerAsync` und `SetIsDoneBdeForOrderNumberAsync` dagegen **`DateTime.Now`**. In
+derselben Tabelle landen damit ueber verschiedene Methoden zwei verschiedene Zeitbasen — in
+Oesterreich ein bis zwei Stunden Unterschied je nach Sommerzeit. Wer Audit-Zeitstempel einer Zeile
+vergleicht oder nach Zeit sortiert, vergleicht Aepfel mit Birnen, **ohne dass etwas auffaellt**.
+Wieder dieselbe Klasse: kein Fehler, der sich meldet.
+*Dieser Lauf macht es nicht schlimmer* — die neue `SetReleaseForOrderNumberAsync` gehoert zur
+Freigabe-Familie und nimmt `UtcNow` (Plan-Entscheidung D7). Die Bereinigung ist ein eigener,
+kleiner Auftrag: erst entscheiden, welche Basis gilt (UTC, analog dem Rest der Anwendung pruefen),
+dann alle Schreibpfade dieser Tabelle darauf ziehen — **mit** Blick auf bereits gespeicherte Werte.
+
+**N3 — `CascadeDone` haengt an `CanPick`, die neue Kaskade an `CanManagePickingRelease`.**
+Kein Fehler, sondern Absicht (Fertigmeldung ist ein Picking-Recht, Freigabe ein Leitstand-Recht) —
+aber die beiden Knoepfe in derselben Gruppen-Kopfzeile haben damit **unterschiedliche**
+Sichtbarkeitsbedingungen. Das ist fachlich richtig und sieht beim Testen nach einem Fehler aus:
+Je nach Rolle sieht man einen, beide oder keinen Knopf. **Gehoert in die manuelle Checkliste**, sonst
+wird es als Mangel gemeldet.
 
 ## Arbeitsstand
 
