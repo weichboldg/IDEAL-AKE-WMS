@@ -43,4 +43,21 @@ public interface IProductionOrderPickingStatusRepository
         string? releasedBy,
         string modifiedBy,
         string modifiedByWindows);
+
+    /// <summary>
+    /// Releases all Sub-FAs of the given HauptFA (OrderNumber) that are not yet released for
+    /// picking, in a single SaveChanges roundtrip. Already-released rows are not loaded and stay
+    /// fully untouched (value, audit fields, assigned picker). Priorities are assigned continuing
+    /// from MAX(existing released priority), in SubOrderNumber ascending order, so parts of one
+    /// device don't scatter across the day. The picker is set on every newly released row only
+    /// when assignedPickerId is provided (inactive assignment duty leaves it empty).
+    /// </summary>
+    /// <returns>The number of rows actually changed (0 for an unknown OrderNumber).</returns>
+    Task<int> SetReleaseForOrderNumberAsync(string orderNumber, int? assignedPickerId,
+        string? assignedPickerName, string? releasedBy, string modifiedBy, string modifiedByWindows);
+
+    /// <summary>
+    /// Counts how many Sub-FAs of the given HauptFA (OrderNumber) are already released for picking.
+    /// </summary>
+    Task<int> CountReleasedByOrderNumberAsync(string orderNumber);
 }
