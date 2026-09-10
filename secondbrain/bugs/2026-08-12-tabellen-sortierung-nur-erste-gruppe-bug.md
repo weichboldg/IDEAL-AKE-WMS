@@ -62,8 +62,34 @@ Massnahme **bis zum Fix**. Da die Sortierung jetzt ueber alle Gruppen korrekt ar
 klaeren, ob der Schalter auf `true` gehen soll. Nicht stillschweigend belassen - sonst bleibt eine
 Einschraenkung stehen, deren Grund weggefallen ist, und in drei Monaten weiss niemand mehr, warum.
 
+## Nachtrag: Laufzeit-Verdacht gegen diesen Fix geprueft und widerlegt (2026-09-10)
+
+Am 20.08. entstand der Verdacht, dieser Fix habe die Sortierung **korrekt, aber langsam** gemacht:
+Wer seither alle Gruppen anfasst, koennte je Zeile die ganze Tabelle durchsuchen (das dokumentierte
+OSEON-Muster). Beobachtung war ein scheinbar 30 Sekunden blockierter Sortierklick
+([[2026-08-20-fehlerprotokoll-anzeige-epic-ab]], B-1).
+
+**Gemessen am Testsystem: 5–7 ms** bei 130 Zeilen in 4 Gruppen, 21 Spalten. Der Verdacht war falsch.
+
+**Warum der Fix nicht teuer ist:** Er ist linear gebaut. Je `tbody` ein `querySelectorAll('tr')`,
+der `colspan`-Test ist **zeilen**-skopiert, der Vergleicher liest nur Zellen der beiden zu
+vergleichenden Zeilen. Nichts durchsucht je Zeile die gesamte Tabelle. Der OSEON-Selector-Storm
+sitzt in einem anderen Codepfad (`OseonIndex.cshtml`, eigene Baum-Sortierung) und ist dort behoben.
+
+Skalierungsmessung (Zeilen clientseitig vervielfacht): 520 → 12,5 ms · 2080 → 86 ms · 4160 → 148 ms.
+Wachstum ~linear; der ueberwiegende Teil der Wandzeit ist **Layout** des 21-spaltigen
+Tabellenkoerpers, nicht die Sortierung. **Nicht wegoptimieren** — hier ist nichts zu holen.
+
+**Zur offenen Entscheidung oben (`supportsSortDefault`):** Die Sortierung arbeitet jetzt
+nachweislich ueber alle Gruppen korrekt **und** schnell. Der Grund fuer die defensive `false`-
+Einstellung der drei Listen ist damit messbar weggefallen.
+
 ## Test
 
 Liste mit **mindestens zwei** HauptFA-Gruppen oeffnen, auf eine Spaltenueberschrift klicken: **jede**
 Gruppe ist in sich sortiert, keine Zeile hat ihre Gruppe verlassen. Zusaetzlich eine bestehende
 AKE-Liste (ein tbody) gegenpruefen - Verhalten unveraendert.
+
+**Hinweis zur Erhebung der Regressionsliste:** „ein tbody" ist **je Tabelle** zu pruefen, nicht je
+View-Datei. `BdeMasterData/Index.cshtml` enthaelt drei `<tbody>` und ist trotzdem unkritisch — es
+sind drei getrennte Tabellen mit je einem.

@@ -108,5 +108,16 @@ Buendel-Merge, aus `main`.
        vergleicht, waere die dauerhafte Absicherung — dieselbe Bauart wie der
        `ServiceSettingDefinitions`-Drift-Guard aus ADR 0008.
 
+    3. **Laufzeit-Signal dazu (Befund B-2, 2026-09-10).** Die Sortierung in `table-filter.js` bricht
+       **still** ab, wenn eine Spalte nicht aufloesbar ist: `:573` (`th` nicht in `_headers`) und
+       `:317` (`getPhysicalIndex` liefert `-1`) kehren ohne Ausnahme, ohne Konsolenmeldung und ohne
+       Wirkung zurueck — am Testsystem belegt. Dieselbe Fehlerklasse wie Punkt 18, nur zur Laufzeit:
+       Eine Spalte mit Klick-Handler und Sortier-Indikator, die auf nichts reagiert und dazu
+       schweigt. Teil 2 sichert die Drift **statisch** ab, ein `console.warn` macht sie **sichtbar**,
+       wenn sie trotzdem auftritt. Zusammen schliessen sie die Klasse von beiden Seiten.
+       Herkunft und Messung: [[2026-08-20-fehlerprotokoll-anzeige-epic-ab]].
+       **Achtung:** `table-filter.js` ist gemeinsam genutzt — Regressionsliste **je Tabelle**
+       erheben, nicht je View-Datei (siehe [[2026-08-12-tabellen-sortierung-nur-erste-gruppe-bug]]).
+
     **Einordnung:** nach dem Buendel-Merge, aus `main` — der Sweep beruehrt Views ausserhalb dieser
     Spec und gehoert nicht in den Abnahme-Zweig.

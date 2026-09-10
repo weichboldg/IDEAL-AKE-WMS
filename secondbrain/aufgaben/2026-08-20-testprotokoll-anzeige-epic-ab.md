@@ -169,6 +169,33 @@ Lesbarkeit am Terminal.
 
 **Gesamturteil Durchgang 1:** [x] mit Einschraenkungen — Anzeige, Gruppierung, Zaehlung und Suche
 funktionieren wie spezifiziert; **die Sortierung ist unbrauchbar (B-1)**.
+→ **Dieses Urteil ist durch Durchgang 2 korrigiert:** B-1 und die Nebenbeobachtung zur
+Artikelnummer waren **Messartefakte des Screenshot-Kanals**, keine Programmfehler.
+
+### Durchgang 2 — 10.09.2026, Zeitmessung statt Screenshot (Claude)
+
+Anlass: Durchgang 1 stuetzte sich bei B-1 und H-1 auf **Screenshots**. Durchgang 2 liest denselben
+Zustand ueber **DOM und `performance.now()`** — also unabhaengig vom Bildkanal. Wieder rein lesend,
+keine zustandsaendernden Schritte, keine Master-Umschaltung.
+
+Gleiche Datenlage wie Durchgang 1: 130 Zeilen in 4 Gruppen (39/36/34/21), 21 Spalten,
+`data-hierarchical="true"`.
+
+| # | Punkt | Ergebnis |
+|---|---|---|
+| 3.3 | **Sortieren per Spaltenkopf** (`FA Nr.`) | **OK** — echter Klick-Pfad: 6,8 ms, 39 ms inkl. erzwungenem Layout. Indikator `▲`, `data-sort-dir=asc`, Reihenfolge geaendert. **B-1 widerlegt** |
+| 3.4 | Zeilen bleiben in ihrer Gruppe | **OK** — per Code belegt: es wird je `<tbody>` separat sortiert |
+| H-1 | `Artikelnummer` sortierbar | **OK** — Klick setzt `▲`, sortiert in 6 ms, Reihenfolge aendert sich. **Fehlbeobachtung** |
+| — | `Kunde` anklickbar, aber ohne Wirkung | **erwartungsgemaess** — der Indikator wird gesetzt, die Reihenfolge nicht, weil **alle** Kunde-Zellen leer sind (K1-Luecke, [[2026-08-20-materialisierung-fachliche-felder]]). Vermutlich die Quelle des Eindrucks „Spalte reagiert nicht" |
+| — | Skalierung 520 / 2080 / 4160 Zeilen | Sortierung 12,5 / 86 / 148 ms; inkl. Layout 173 / 804 / 1658 ms. Wachstum ~linear, **Kosten im Layout** |
+| B-2 | Sortierung bricht still ab bei nicht aufloesbarer Spalte | **NEUER BEFUND** — ohne Ausnahme, ohne Konsolenmeldung, ohne Wirkung. Details im Fehlerprotokoll |
+
+**Gesamturteil Durchgang 2:** [x] ohne Einschraenkungen fuer die Sortierung. Ein neuer, kleiner
+Befund (B-2) zum stillen Abbruch; Umsetzung gebuendelt, weil `table-filter.js` gemeinsam genutzt ist.
+
+**Weiterhin offen und nur durch einen Menschen pruefbar:** alles aus Schritt 1 (Flachmodus-
+Regression, erfordert das Umschalten des Masters), Bulk-Select am Leitstand ueber mehrere Gruppen,
+Rueckmelden in Tracking, Ladezeit-Empfinden und Lesbarkeit am Terminal.
 
 ## Bezug
 
