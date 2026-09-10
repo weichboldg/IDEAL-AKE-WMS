@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-10-fa-liste-ausbau-matchcode-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -108,13 +108,18 @@ wird es als Mangel gemeldet.
     verlor gegen Bootstrap, das Feature war am Bildschirm ein No-op.
   - Task 11 `fda7c7a`: HauptFA-Zeile gekennzeichnet, Kopfzeile auf Kunde + Leittermin verschlankt.
   - Nachweis: Web **1309 erfolgreich + 1 uebersprungen**, Service 265, Build 0 Fehler.
-- [ ] **Block 4 — Freigabe-Kaskade mit Pflicht-Picker (Tasks 12-14) — HALT, wartet auf Freigabe**
-  > [!important] Bewusster Halt des Menschen (2026-09-10)
-  > Die Kaskade gibt mit **einem Klick bis zu 39 Auftraege** frei und weist einen Kommissionierer zu —
-  > das einzige Stueck dieses Blocks **mit Wirkung in der Halle**. Es soll nicht am Ende einer langen
-  > Sitzung entstehen.
-- [ ] Version/Changelog/TS-Index + QA (Task 15/16) — **Auflage:** die belastbaren Zahlen in den
-      Brain-Changelog (Web 1309+1 bzw. der Stand bei Abschluss, Service 265, Build 0 Fehler)
+- [x] **Block 4 — Freigabe-Kaskade mit Pflicht-Picker KOMPLETT** (Tasks 12-14, Stand `fef12cf`)
+  > [!important] Bewusster Halt des Menschen (2026-09-10) — spaeter aufgehoben
+  > Der Halt war, weil die Kaskade mit **einem Klick bis zu 39 Auftraege** freigibt und einen
+  > Kommissionierer zuweist — das einzige Stueck dieses Blocks **mit Wirkung in der Halle**. Block 4
+  > wurde danach freigegeben und umgesetzt: `SetReleaseForOrderNumberAsync` (`067f1b1`),
+  > `CascadeReleasePreview`/`CascadeRelease` mit unveraenderter Picker-Pflicht (`aad4b54`), Knopf +
+  > Dialog in der Gruppen-Kopfzeile (`fef12cf`). Der Kaskaden-Test mit bis zu 39 Auftraegen bleibt
+  > als manueller Checklistenpunkt fuer Schranke 2 (Spec-QA-Nachweis).
+- [x] Version/Changelog/TS-Index + QA (Task 15/16) — erledigt (`deff907` Version/Changelog/TS-73,
+      qa-agent 2026-09-10 auf `deff907`). **Auflage erfuellt:** belastbare Zahlen (Web 1322 + 1 Skip,
+      Service 265, Build 0 Fehler) stehen im Brain-Changelog
+      [[2026-09-10-v1-38-0-ideal-fa-liste-ausbau-matchcode]] und im QA-Nachweis der Spec.
 
 ### Umfangs-Korrektur in Block 1 (am Code belegt)
 
