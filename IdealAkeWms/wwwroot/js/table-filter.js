@@ -314,7 +314,14 @@
     function sortTable(colKey, dir) {
         if (!_table) return;
         var colIndex = getPhysicalIndex(colKey);
-        if (colIndex < 0) return;
+        if (colIndex < 0) {
+            // Befund B-2: Frueher ein stiller return. Eine Spalte mit Klick-Handler und
+            // Sortier-Indikator, die auf nichts reagiert, ist ein Konfigurationsfehler
+            // (data-col-key passt nicht zum <th>) — er darf nicht lautlos bleiben.
+            console.warn('[table-filter] Sortierung uebersprungen: Spalte "' + colKey +
+                '" ist in dieser Tabelle nicht aufloesbar (viewKey: ' + getViewKey() + ').');
+            return;
+        }
 
         function compareRows(a, b) {
             var cellA = a.querySelectorAll('td')[colIndex];
@@ -362,6 +369,12 @@
                 tbody.appendChild(row);
             });
         });
+
+        // Eine Stelle fuer beide Aufrufwege (th-Klick und window.triggerSort): nachgelagerte
+        // Anzeigen (z.B. Gruppen-Kopfzeilen) koennen sich nach dem Sortieren neu aufbauen.
+        document.dispatchEvent(new CustomEvent('table-sorted', {
+            detail: { viewKey: getViewKey(), colKey: colKey, dir: dir }
+        }));
     }
 
     // ========================================================================
@@ -570,7 +583,13 @@
         _headers.forEach(function (h) {
             if (h.getAttribute('data-col-key') === colKey) th = h;
         });
-        if (!th) return;
+        if (!th) {
+            // Befund B-2: Frueher ein stiller return. Eine Default-Sortierung auf eine
+            // Spalte, die es (mehr) nicht gibt, lief wirkungslos durch — sie meldet sich jetzt.
+            console.warn('[table-filter] triggerSort ohne Wirkung: kein filterbarer Spaltenkopf "' +
+                colKey + '" (viewKey: ' + getViewKey() + ').');
+            return;
+        }
 
         // Reset all
         _headers.forEach(function (h) {
