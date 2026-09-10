@@ -7529,7 +7529,9 @@ gerufen wird** — nicht an das `tbody`, in dem die Zeile stand.
 **Automatisiert abgedeckt:** `TableScriptScopedSelectorTests` — **Quelltext-Wächter**, kein
 Verhaltenstest. Er hält die skopierten Selektoren fest und wird rot, wenn jemand auf eine
 unskopierte Descendant-Abfrage zurückfällt. Die Wirkung selbst ist **nur** manuell nachweisbar
-(kein JS-Testharness im Projekt) — dafür TS-72.1 bis TS-72.4.
+(kein JS-Testharness im Projekt) — dafür TS-72.1 bis TS-72.5. **TS-72.3 ist der Test gegen eine
+bereits gespeicherte Spaltenpräferenz** und damit der einzige, der zeigt, wie der Fix sich für
+Anwender verhält, die vor dem Fix an den Spalten „herumgestellt" haben.
 
 - **TS-72.1 — Kombigeräte-Gruppe sortieren (der eigentliche Fehlerfall).**
   Vorbedingung: Master `ProduktionsauftragHierarchisch = true`; `/ProductionOrders` im
@@ -7579,7 +7581,56 @@ unskopierte Descendant-Abfrage zurückfällt. Die Wirkung selbst ist **nur** man
   Negativfall: eine leere Zelle oder vertauschte Werte in der inneren Tabelle (z. B. Kunde unter
   „Montage-Abt.") → Rückfall, sofort melden.
 
-- **TS-72.3 — Gegenproben je Tabellentyp (unveränderte Sortierung).**
+- **TS-72.3 — Bestehende (vor dem Fix entstandene) Spaltenpräferenz laden.**
+  Dieser Fall ist **nicht** durch TS-72.2 abgedeckt: Dort wird die Präferenz **auf dem gefixten
+  Stand** gesetzt. Wer den Fehler vorher gesehen hat, hat möglicherweise **gegengesteuert** — eine
+  Spalte wieder eingeblendet, die Reihenfolge umgestellt, etwas „repariert", das nie kaputt war.
+  Die gespeicherte Präferenz ist dann das Produkt **zweier** Fehler: des Programmfehlers und der
+  Gegenmaßnahme. Der Code-Fix richtet die **Darstellung**; ob das Spaltenbild danach noch
+  **sinnvoll aussieht**, zeigt nur ein Test mit Altbestand.
+
+  **Hinweis zum Format (gehört zur Beurteilung):** Der Fix ändert **nicht**, was gespeichert wird.
+  Die Präferenz (`UserViewPreference`, Zahnrad) beschreibt ausschließlich Sichtbarkeit und
+  Reihenfolge der **Außen**spalten; eine vor und eine nach dem Fix gesetzte Präferenz sind
+  **formatgleich**. Der Unterschied lag allein in der **Nebenwirkung** auf die innere Tabelle.
+  Entscheidend ist hier deshalb nicht das Format, sondern die **Beurteilung** des geladenen
+  Spaltenbildes.
+
+  Vorbedingung — eine Präferenz, die **vor** dem Fix entstanden ist; zwei Wege, beide gültig:
+  - **Realistischer Altbestand (vorzuziehen):** einen Stand **vor** Commit `b9bf342` ausrollen, dort
+    auf `/ProductionOrders` (oder `/FaHierarchy`) Spalten aus- und wieder einblenden bzw. umordnen —
+    **bis der Fehler sichtbar war und man daran herumgestellt hat**. Danach auf den gefixten Stand
+    aktualisieren, **ohne** die Präferenz zurückzusetzen.
+  - **Ersatzweg, wenn kein Alt-Stand verfügbar ist:** Präferenz direkt auf dem gefixten Stand über
+    das Zahnrad setzen (für den Formatteil genügt das, siehe Hinweis oben) und die „Gegensteuerung"
+    von Hand nachbilden — z. B. eine ungewöhnliche Reihenfolge der **ersten drei** Spalten plus eine
+    ausgeblendete Spalte mit Index ≤ 6.
+
+  **Vorher-Zustand (Altpräferenz **ohne** Fix, zur Einordnung):** In jeder Varianten-Zeile fehlt die
+  Zelle an der **Position** der ausgeblendeten Außenspalte (bzw. die Zellen stehen vertauscht, wenn
+  die Reihenfolge geändert war) — und ein **Neuladen behebt es nicht**, weil die Präferenz beim
+  Laden jedes Mal erneut angewendet wird. Genau dieser Zustand ist es, gegen den jemand
+  gegengesteuert haben kann.
+
+  Schritte und Erwartung:
+  1. Mit der gespeicherten Altpräferenz `/ProductionOrders` im hierarchischen Modus laden, Gruppe
+     mit **Kombigerät** aufsuchen.
+  2. **Erwartet:** Die ausgeblendete Außenspalte ist ausgeblendet (die Präferenz wirkt unverändert).
+     Die Varianten-Tabelle zeigt **alle sieben** Zellen je Zeile — keine leere, keine vertauschte.
+     Der Fehler ist damit **nicht nur für neue, sondern auch für bestehende** Präferenzen behoben.
+  3. **Zusätzlich zu beurteilen und zu protokollieren (nicht nur abzuhaken):** Ist die geladene
+     Spaltenauswahl fachlich plausibel? **Sieht sie wirr aus, ist das kein neuer Fehler, sondern
+     der Abdruck der damaligen Gegensteuerung** — die richtige Konsequenz ist dann, die Präferenz
+     einmal zurückzusetzen (Zahnrad → „Auf Standard zurücksetzen"). Wer das nicht weiß, meldet die
+     wirre Reihenfolge als Regression des Fixes.
+  4. Gegenprobe `/FaHierarchy` analog: Kopfdaten-Tabelle je Struktur zeigt **alle sechs** Zellen je
+     Zeile; Beurteilung und ggf. Zurücksetzen wie in Schritt 3.
+
+  Negativfall: eine leere oder vertauschte Zelle in der inneren Tabelle **trotz** gefixtem Stand →
+  echter Rückfall, sofort melden. Abzugrenzen davon: ein nur ungewöhnliches, aber vollständiges
+  Außenspaltenbild → Altlast der Präferenz, kein Rückfall.
+
+- **TS-72.4 — Gegenproben je Tabellentyp (unveränderte Sortierung).**
   Schritte: (a) Liste mit genau einem `<tbody>` — `/Articles` (ersatzweise `/StockOverview` oder
   `/Users`): je Spalte auf- und absteigend sortieren. (b) Gruppierte Liste **ohne** verschachtelte
   Tabelle — `/FaHierarchyKommissionierListen`: sortieren. (c) FA-Liste im **Flachmodus** (Master
@@ -7590,7 +7641,7 @@ unskopierte Descendant-Abfrage zurückfällt. Die Wirkung selbst ist **nur** man
   Negativfall: veränderte Reihenfolge gegenüber dem bisherigen Verhalten, eine Gruppen-Kopfzeile
   mitten in den Daten oder eine Zeile in der falschen Gruppe.
 
-- **TS-72.4 — Wiederholungswerte und Standard-Sortierung.**
+- **TS-72.5 — Wiederholungswerte und Standard-Sortierung.**
   Schritte: FA-Liste hierarchisch öffnen (Standard-Sortierung läuft beim Laden automatisch), dann
   sortieren und eine Gruppe zuklappen/aufklappen.
   Erwartung: die Unterdrückung der Wiederholungswerte (grau/transparent ab der zweiten gleichen
