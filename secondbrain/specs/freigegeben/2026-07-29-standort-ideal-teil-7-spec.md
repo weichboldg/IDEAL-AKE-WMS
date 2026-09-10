@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL-Standort Teil 7 — Materialisierung nach ProductionOrders (Schema-Inversion, Einweg-Migrationstor)"
 slug: 2026-07-29-standort-ideal-teil-7-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-08-06
-updated: 2026-08-14
+updated: 2026-08-17
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
@@ -444,12 +444,24 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   (Spalten, Backfill, Index-Tausch) unabhaengig vom Master-Zustand. Wird das Epic nach Etappe A
   abgebrochen, ist die DB-Struktur bereits invertiert — das ist inhaerent (kein Fehler), aber im
   Runbook und in der Deploy-Planung zu benennen.
-- **Publish-Befehle:**
+- **Publish-Befehle (QA-final, gegen den echten Diff `git diff --stat main...5cf802e` bestaetigt —
+  85 Dateien in `IdealAkeWms/`+`IDEALAKEWMSService/`, davon 2 neue Migrationen unter
+  `*/Migrations/*`; web/service/migration alle betroffen, deckungsgleich mit `deploy:` im
+  Frontmatter):**
   ```
+  cd C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
   ```
-  (provisorisch, vom Dev-Lauf gegen den tatsaechlichen Diff zu bestaetigen).
+  Aus dem **Worktree** publishen (nicht main) — das Testsystem laeuft gegen den geprueften Stand.
+  Nach dem Merge nach `main` **nur dann erneut publishen**, wenn der Merge tatsaechlich getestete
+  Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (sonst ist der Worktree-Build bereits
+  identisch mit main).
+  Migrations-Reihenfolge bleibt wie oben: DB-Backup → `sysjobs`-Pruefung (AK 13) → Service stoppen →
+  `dotnet ef database update` (oder `SQL/90_InvertProductionOrderHierarchy.sql` manuell, idempotent
+  geprueft) → Service-Neustart → Web-Publish. Dieser Branch bringt **gleichzeitig** die bereits
+  testbereiten Teile 1–5 (v1.31.0) mit — ein Merge/Deploy zieht beides zusammen (siehe
+  Kopplungs-Hinweis oben).
 
 ## Offene Rueckfragen
 

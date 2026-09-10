@@ -2,9 +2,10 @@
 type: spec
 title: "IDEAL: AKE-View-Abhaengigkeiten hierarchiefaehig machen (Stueckliste/BOM zuerst)"
 slug: 2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec
-status: Entwurf
+status: Ueberholt
+superseded_by: "[[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]]"
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-09-08
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""
@@ -22,14 +23,26 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
-> **WIRD SUPERSEDED (2026-09-08).** Nach einer Design-Runde mit kritischer Code-Pruefung ersetzt
-> die Backlog-Notiz [[2026-09-08-bom-schnittstellen-bridge-hierarchisch]] diesen Entwurf. Was
-> sich aendert: F1/F2 kehren sich um (kein Cache-Zugriff bleibt, aber die Bridge bedient ALLE
-> Schnittstellen-Methoden, nicht nur den BOM-Knopf); Freigabe-Antwort 2 war falsch
-> (`Ressourcenummer` fehlt nicht — FAListe-`Artnr` IST `RessourceNummer`, Kopf- und
-> Zeilenschluessel waren verwechselt); F3 wird zum selbstbeschreibenden Mengen-Flag; neuer Scope
-> `FullStructure` fuer die HauptFA im Picking-Workflow mit zusammengesetztem Zeilenschluessel.
-> Der **Sweep** (Umfang 1/3) wird uebernommen. Diesen Entwurf **nicht** mehr freigeben.
+> [!warning] UEBERHOLT — KEIN AUFTRAG (Stand 2026-09-08)
+> Abgeloest durch **[[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]]**
+> (aus der Backlog-Notiz [[2026-09-08-bom-schnittstellen-bridge-hierarchisch]]).
+> **Diesen Entwurf nicht mehr freigeben und nicht als Umsetzungsgrundlage verwenden.**
+>
+> **Was sich in der Nachfolge-Spec aendert — durch Code-Verifikation, die hier fehlte:**
+> - **F1/F2 kehren sich um:** Kein Cache-Zugriff bleibt bestehen, aber die Bridge bedient **alle**
+>   Schnittstellen-Methoden, nicht nur den BOM-Knopf.
+> - **Freigabe-Antwort 2 unten ist FALSCH:** `Ressourcenummer` fehlt nicht — die FAListe-Spalte
+>   `Artnr` **ist** die Ressourcenummer; Kopf- und Zeilenschluessel waren verwechselt.
+> - **F3** wird zum selbstbeschreibenden Mengen-Flag.
+> - **Neuer Scope `FullStructure`** fuer die HauptFA im Picking-Workflow, mit zusammengesetztem
+>   Zeilenschluessel (vollstaendiger rekursiver Positionspfad).
+> - Ausserdem am Code gefunden und hier nicht bekannt: `IBomCacheRepository` ist ungeschuetzt
+>   registriert (der Guard deckt nur `IBomRepository`), und `BomCacheSyncService` hat **zwei**
+>   oeffentliche Einstiege.
+>
+> **Was uebernommen wird:** der **Sweep** (Umfang 1/3).
+>
+> Als historische Referenz aufbewahrt — sie erklaert, warum der Guard gebaut wurde.
 
 ## Ziel / Nutzen (das Warum)
 
