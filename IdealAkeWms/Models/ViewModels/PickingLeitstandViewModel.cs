@@ -61,6 +61,9 @@ public class PickingLeitstandItem
     public decimal Quantity { get; set; }
     public string? Customer { get; set; }
     public string? ArticleNumber { get; set; }
+
+    /// <summary>IDEAL-Matchcode (Task 1/2), materialisierte Zusatzinfo je FA.</summary>
+    public string? Matchcode { get; set; }
     public string? Description1 { get; set; }
     public string? Description2 { get; set; }
     public DateTime? ProductionDate { get; set; }

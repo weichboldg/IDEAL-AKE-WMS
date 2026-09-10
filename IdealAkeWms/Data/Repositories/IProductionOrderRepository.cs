@@ -30,7 +30,10 @@ public record LeitstandOrderRow(
     // ParentSubOrderNumber/SageMissingSince == null — die hierarchische Anzeige ignoriert sie dann.
     string? SubOrderNumber = null,
     string? ParentSubOrderNumber = null,
-    DateTime? SageMissingSince = null);
+    DateTime? SageMissingSince = null,
+    // IDEAL-Matchcode (Task 1/2) — materialisiert, Zusatzinfo je FA. Default haelt bestehende
+    // Konstruktor-Aufrufe kompatibel.
+    string? Matchcode = null);
 
 public record LeitstandOrderPage(List<LeitstandOrderRow> Rows, int TotalCount);
 

@@ -174,7 +174,8 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             o.ProductionWorkplace != null ? o.ProductionWorkplace.OverridePrePickingDays : null,
             o.SubOrderNumber,
             o.ParentSubOrderNumber,
-            o.SageMissingSince));
+            o.SageMissingSince,
+            o.Matchcode));
 
     public async Task<List<ProductionOrder>> GetOpenOrdersAsync()
     {
