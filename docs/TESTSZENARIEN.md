@@ -7650,5 +7650,252 @@ Anwender verhält, die vor dem Fix an den Spalten „herumgestellt" haben.
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72)*
+## TS-73 — IDEAL: FA-Liste ausgebaut — Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0)
+
+**Bezug:** Spec `2026-09-10-fa-liste-ausbau-matchcode-spec`.
+
+**Verweis (Doppelung vermeiden):** Die Darstellungs-/Sortier-Szenarien zur gruppierten Tabelle selbst
+(Selektor-Skopierung auf verschachtelte Tabellen, Verhalten der Wiederholungswert-Unterdrückung beim
+Sortieren/Spaltenkonfigurieren in Kombigeräte-Gruppen) liegen in **TS-72** — hier **nicht** erneut
+geprüft, nur referenziert.
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Master **`ProduktionsauftragHierarchisch = true`** — außer bei den AKE-Regressionsfällen
+  (TS-73.3, TS-73.20), dort `false`.
+- Ein eindeutiger Haupt-FA (`IsAmbiguous = false`) mit mehreren Sub-FAs und gesetztem Kunde,
+  Konstruktions-/Fertigungs-/Liefertermin, Priorität, AB-Nummer und Montage-Abteilung am Kopf ist
+  bekannt.
+- Ein Kombigerät-Haupt-FA (`IsAmbiguous = true`, mehrere Auftragsköpfe) ist bekannt (TS-73.7).
+- Ein IDEAL-Sub-FA mit bekanntem `FaHierarchyNode.Matchcode` ist bekannt.
+- Für TS-73.11/12/13/15: ein Haupt-FA mit mindestens 10 Sub-FAs, davon einige bereits
+  `IsReleasedForPicking = true` mit gesetztem Kommissionierer.
+- Für TS-73.14: je ein Testdurchlauf mit Service-Einstellung `KommissionierungMitZuweisung = true`
+  und einmal `= false`.
+
+**Automatisiert abgedeckt (Auszug):** `FaMaterializationSyncServiceTests`/`FaMaterializationPlannerTests`
+(Matchcode Anlege- **und** Update-Pfad, F1/F2-Muster), `ProductionOrderRepositoryTests`/
+`ProductionOrdersControllerTests` (K1-Postfilter inkl. Matchcode/Kopfdaten je Zeile, Flachmodus-
+Gegentest), `ProductionOrderPickingStatusRepositoryTests` (`SetReleaseForOrderNumberAsync` —
+Kaskade, Priorität, bereits Freigegebene bleiben unverändert), `PickingLeitstandControllerTests`
+(`CascadeReleasePreview`/`CascadeRelease`, Zuweisungspflicht, Zugriffsschutz). Der manuelle Rest ist
+die Sichtprüfung am laufenden IDEAL-Testsystem (Rendering, Spaltenausrichtung, Badge-Sichtbarkeit,
+Dialogtexte) — diese Schritte sind unten ausdrücklich mit **(Manual-UAT)** gekennzeichnet und bilden
+zusammen die manuelle Abnahme-Liste für Schranke 2.
+
+- **TS-73.1 — Matchcode materialisiert (AK 1).**
+  Vorbedingung: ein bereits materialisierter Bestands-Sub-FA **und** eine neu in die Struktur
+  aufgenommene Sub-FA, beide mit bekanntem `FaHierarchyNode.Matchcode`.
+  Schritte: einen Materialisierungs-Lauf abwarten bzw. auslösen; `ProductionOrder.Matchcode` beider
+  Zeilen in der DB prüfen.
+  Erwartung: beide Zeilen zeigen danach den Matchcode-Wert aus `FaHierarchyNode.Matchcode` — der
+  Anlege- **und** der Update-Pfad befüllen das Feld gleich.
+  Negativfall: Struktur-Matchcode ist leer → `ProductionOrder.Matchcode` bleibt `NULL`, kein
+  Platzhaltertext.
+
+- **TS-73.2 — Matchcode-Spalte sichtbar und filterbar in den fünf FA-Zeilen-Ebene-Listen (AK 2).**
+  Vorbedingung: Matchcode materialisiert (TS-73.1 bereits gelaufen).
+  Schritte: `/ProductionOrders`, `/PickingLeitstand`, `/FaCompletion`, `/FaWorklist` und `/Picking`
+  öffnen **(Manual-UAT: Sichtprüfung je Liste)**; prüfen, dass die Spalte „Matchcode" ohne
+  Zahnrad-Eingriff bereits sichtbar ist (Default) und direkt neben Artikelnummer/Bezeichnung 1 steht
+  **(Manual-UAT: Spaltenposition)**; Server-Spaltenfilter auf einen bekannten Matchcode setzen.
+  Erwartung: Spalte ist in allen fünf Listen standardmäßig sichtbar; der Filter liefert korrekte
+  Treffer.
+  Negativfall: Spalte über das Zahnrad ausblenden, Seite neu laden → bleibt für diesen Benutzer
+  ausgeblendet (Präferenz wirkt je Benutzer).
+  Dokumentations-Hinweis: `Picking` (Kommissionierliste) ist als FA-Zeilen-Ebene verifiziert und
+  Teil des Umfangs; `OseonTracking` ist **nicht** Teil dieser Spec (siehe Erhebung) — dort ist
+  keine Matchcode-Spalte zu erwarten, das ist kein Fehlbefund.
+
+- **TS-73.3 — AKE-Regression Matchcode: leer, Filter liefert korrekt „kein Treffer" (AK 3).**
+  Vorbedingung: Master `false` bzw. eine AKE-Instanz; Matchcode-Spalte eingeblendet.
+  Schritte: eine der fünf Listen öffnen **(Manual-UAT)**; Spaltenfilter auf einen beliebigen Text in
+  „Matchcode" setzen.
+  Erwartung: die Spalte ist durchgehend leer (kein Fehler, kein Platzhalter); der Filter liefert
+  korrekt „kein Treffer" — kein Absturz, keine stillschweigend leere Gesamtliste ohne erkennbaren
+  Grund.
+  **Abnahme-Hinweis: Der Matchcode erscheint am Standort AKE erst, wenn die Datenquelle ihn liefert
+  — bis dahin bleibt die Spalte dort leer. Das ist kein Fehler.**
+  Negativfall: Filter zurücksetzen → Liste zeigt wieder alle Zeilen normal an.
+
+- **TS-73.4 — Kopfdaten je Zeile im Anzeige-Modell vorhanden (AK 4).**
+  Vorbedingung: eindeutiger Haupt-FA mit mehreren Sub-FAs, Kunde nur am Auftragskopf gesetzt
+  (`ProductionOrder.Customer` in der DB leer).
+  Schritte: FA-Liste öffnen; Spaltenfilter „Kunde" mit dem Kopf-Kundennamen setzen.
+  Erwartung: Treffer auf **Zeilenebene** (einzelne Sub-FA-Zeilen werden gefunden), obwohl
+  `ProductionOrder.Customer` in der DB nicht befüllt ist.
+  Negativfall: Filterwert, der weder am Kopf noch in der DB vorkommt → keine Treffer.
+
+- **TS-73.5 — „Nur wo der Wert wechselt" an einer normalen, eindeutigen Gruppe (AK 5).**
+  Vorbedingung: eindeutige Gruppe mit mindestens drei Sub-FA-Zeilen; die ersten beiden mit
+  identischem Kunden direkt hintereinander, die dritte mit abweichender Montage-Abteilung.
+  Schritte: FA-Liste öffnen **(Manual-UAT: visuelle Prüfung der Darstellung)**.
+  Erwartung: der Kunde erscheint nur in der **ersten** der beiden gleichen Zeilen (die zweite zeigt
+  die Darstellung unterdrückt/gedimmt, nicht leer); die abweichende Montage-Abteilung der dritten
+  Zeile erscheint wieder normal sichtbar.
+  Zusätzlich nachzuweisen: den unterdrückten Wert markieren/kopieren **(Manual-UAT: Textauswahl im
+  Browser)** → der Wert ist trotz unterdrückter Darstellung im DOM vorhanden; ein Spaltenfilter auf
+  „Kunde" mit demselben Wert findet auch diese Zeile.
+  Negativfall: keiner — dies ist der positive Regelfall; der Kombigerät-Gegenfall steht in TS-73.7.
+
+- **TS-73.6 — Markierung hält nach Sortierung (AK 6).**
+  Verweis: die Sortier-/Selektor-Mechanik selbst (Skopierung auf verschachtelte Tabellen) ist in
+  TS-72 geprüft — hier wird nur nachgewiesen, dass die Wiederholungswert-Logik nach einem Reorder
+  erneut korrekt läuft.
+  Vorbedingung: wie TS-73.5.
+  Schritte: auf einen Spaltenkopf klicken (z. B. „Kunde") und damit einen Reorder auslösen
+  **(Manual-UAT)**.
+  Erwartung: nach dem Reorder steht der Kunde wieder bei der jeweils **ersten** Zeile jeder
+  Wiederholungskette in der **neuen** Zeilenfolge — nicht bei einer beliebigen Zeile in der Mitte.
+  Negativfall: der Wert erscheint bei einer anderen als der ersten Zeile der Kette → Regression
+  (Markierung wäre serverseitig „einbrannt" statt clientseitig neu berechnet).
+
+- **TS-73.7 — Kombigerät: K1-Zeilenspalten bleiben auf allen Zeilen leer (AK 7).**
+  Vorbedingung: der bekannte Kombigerät-Haupt-FA (`IsAmbiguous = true`).
+  Schritte: FA-Liste öffnen, Gruppe aufklappen **(Manual-UAT)**.
+  Erwartung: auf **allen** Sub-FA-Zeilen dieser Gruppe sind Kunde, Termine, Prio, AB-Nummer und
+  Montage-Abteilung leer — keine Zeile wird einer Kopfvariante zugeordnet; die Gruppen-Kopfzeile
+  zeigt weiterhin alle Kopfvarianten im Klartext plus das Mehrdeutig-Badge.
+  Negativfall: irgendeine Zeile zeigt einen K1-Wert (also eine geratene Zuordnung) → Fehler, weil es
+  keinen Trennschlüssel auf Positionsebene gibt.
+
+- **TS-73.8 — Kunde-Filter funktioniert weiterhin ohne SQL-Sonderweg-Join (AK 8).**
+  Vorbedingung: wie TS-71.4/TS-71.5 (Sub-FA ohne eigenen `Customer`-Wert, Kunde nur am Kopf).
+  Schritte: Freitextfilter „Kunde" **und** Spaltenfilter „Kunde" im hierarchischen Modus setzen —
+  sowohl in der FA-Liste als auch im Kommissionier-Leitstand.
+  Erwartung: beide liefern weiterhin korrekte Treffer, identisch zum TS-71-Testfall der
+  Materialisierungs-Spec — jetzt über den C#-Postfilter statt den SQL-Subquery-Join.
+  Negativfall: Master `false` → derselbe Filter arbeitet unverändert nur gegen
+  `ProductionOrder.Customer` (das SQL-Prädikat bleibt im Flachmodus bestehen).
+
+- **TS-73.9 — HauptFA-Zeile vorhanden und erkennbar (AK 9).**
+  Vorbedingung: Code-Nachweis ist bereits erbracht, dass die Wurzelzeile materialisiert wird; ein
+  Haupt-FA mit mehreren Sub-FAs ist bekannt.
+  Schritte: FA-Liste im hierarchischen Modus öffnen, Gruppe aufklappen **(Manual-UAT:
+  Badge-Sichtbarkeit)**.
+  Erwartung: die erste Zeile der Gruppe ist die HauptFA selbst, gekennzeichnet mit dem Badge
+  „HauptFA"; ihre Aktionen (z. B. Stückliste-Button) sind direkt in der Zeile bedienbar wie bei
+  jeder anderen Zeile.
+  Negativfall: keine Zeile trägt das Badge bzw. die Wurzel fehlt in der Gruppe → sofort melden
+  (Materialisierungslücke), nicht selbst nachbauen.
+
+- **TS-73.10 — Kopfzeile schlanker, aber nicht leer (AK 10).**
+  Vorbedingung: eindeutiger Haupt-FA mit gesetztem Kunde und Fertigungstermin.
+  Schritte: FA-Liste öffnen, Gruppen-Kopfzeile betrachten **(Manual-UAT)**; Gruppe zuklappen, erneut
+  betrachten **(Manual-UAT: Gegenprobe zugeklappt)**.
+  Erwartung: die Kopfzeile zeigt HauptFA-Nummer, Sub-FA-Zahl-Badge, Kunde, Fert.-Termin (bzw. bei
+  Kombigerät das Mehrdeutig-Badge statt Kunde/Termin); Prio, AB-Nummer, Montage-Abteilung sowie die
+  übrigen Termine (KO-/Liefertermin) erscheinen dort **nicht** mehr. Bei **zugeklappter** Gruppe
+  sind Kunde und Fert.-Termin weiterhin sichtbar.
+  Negativfall: die zugeklappte Kopfzeile zeigt nur noch Nummern (Kunde/Termin fehlen) → Regression,
+  da die zugeklappte Ansicht dann den Überblick verliert, für den sie gebaut wurde.
+
+- **TS-73.11 — Freigabe-Kaskade — Normalfall (AK 11).**
+  Vorbedingung: HauptFA mit z. B. 10 noch nicht freigegebenen Sub-FAs, `KommissionierungMitZuweisung
+  = false`.
+  Schritte: Leitstand öffnen, „Alle Sub-FAs freigeben" an der HauptFA-Gruppe auslösen
+  **(Manual-UAT: Bestätigungsdialog lesen)**.
+  Erwartung: die Vorschau zeigt Gesamtzahl 10, davon 0 bereits freigegeben, 10 neu freizugebende;
+  nach Bestätigung sind alle 10 Zeilen `IsReleasedForPicking = true` (ein `SaveChangesAsync`,
+  atomar), Erfolgsmeldung nennt „10 Sub-FA(s) freigegeben".
+  Negativfall: Abbruch im Dialog vor der Bestätigung → keine Änderung in der DB.
+
+- **TS-73.12 — Freigabe-Kaskade rührt bereits Freigegebene nicht an (AK 12).**
+  Vorbedingung: HauptFA mit 10 Sub-FAs, davon 3 bereits `IsReleasedForPicking = true`, mit
+  gesetztem Kommissionierer und bekannten Audit-Feldwerten.
+  Schritte: Kaskade auslösen; die 3 bereits freigegebenen Zeilen vor/nach vergleichen.
+  Erwartung: diese 3 Zeilen bleiben unverändert — Wert, `ModifiedAt`/`ModifiedBy`/
+  `ModifiedByWindows` **und** der bereits gesetzte Kommissionierer sind identisch zum Vorzustand.
+  Negativfall: eine der 3 Zeilen verliert ihren Kommissionierer oder bekommt ein neues `ModifiedAt`
+  → Regression.
+
+- **TS-73.13 — Freigabe-Kaskade meldet die korrekte Anzahl (AK 13).**
+  Vorbedingung: wie TS-73.12 (10 gesamt, 3 bereits freigegeben).
+  Schritte: Kaskade auslösen, Dialog-Vorschau und Erfolgsmeldung lesen **(Manual-UAT:
+  Meldungstext)**.
+  Erwartung: die Vorschau zeigt Gesamt 10, davon 3 bereits freigegeben, 7 neu freizugebende; die
+  Erfolgsmeldung nennt 7 — **nicht** 10.
+  Negativfall: die Meldung nennt 10 (Gesamtzahl statt tatsächlich neu freigegebener) → Regression.
+
+- **TS-73.14 — Zuweisungspflicht gilt auch für die Kaskade — inkl. Negativtest (AK 14, Pflicht).**
+  Vorbedingung a: `KommissionierungMitZuweisung = true`, HauptFA mit nicht freigegebenen Sub-FAs.
+  Schritte a (Negativfall, **Pflicht-Nachweis**): die Kaskade **ohne** Kommissionierer-Auswahl
+  auslösen (Dialog ohne Auswahl bestätigen bzw. direkter `POST` auf `CascadeRelease` ohne
+  `assignedPickerId`) **(Manual-UAT: Pflichtfeld-Verhalten im Dialog)**.
+  Erwartung a: die Aktion wird abgewiesen, Meldung „Bitte einen Kommissionierer zuweisen."; **keine**
+  Zeile wird freigegeben — die Massenaktion umgeht die bestehende Pflicht nicht (Kern von AK 14/B2).
+  Schritte b: dieselbe Kaskade **mit** Kommissionierer-Auswahl auslösen.
+  Erwartung b: alle kaskadierten Sub-FAs bekommen denselben Kommissionierer zugewiesen; der Dialog
+  nennt vorher im Klartext „Der gewählte Kommissionierer wird allen N Sub-FAs zugewiesen und kann
+  danach je Sub-FA geändert werden." **(Manual-UAT: Dialogtext)**; nach der Kaskade lässt sich der
+  Kommissionierer je Sub-FA einzeln ändern (`ChangeAssignedPicker`).
+  Vorbedingung/Schritt c: `KommissionierungMitZuweisung = false`, Kaskade ohne Kommissionierer
+  auslösen.
+  Erwartung c: die Kaskade läuft ohne Zuweisungspflicht durch — wie die Einzelfreigabe auch.
+
+- **TS-73.15 — Priorität fortlaufend, in definierter Reihenfolge (AK 15).**
+  Vorbedingung: HauptFA mit mehreren noch nicht freigegebenen Sub-FAs mit unterschiedlichen
+  `SubOrderNumber`-Werten; aktueller `MAX(PickingPriority)` im Leitstand bekannt.
+  Schritte: Kaskade auslösen; `PickingPriority` aller neu freigegebenen Zeilen in der DB prüfen.
+  Erwartung: fortlaufende Werte ab `MAX + 1`, vergeben in der Reihenfolge `SubOrderNumber`
+  aufsteigend — die Gruppe steht danach im nach Priorität sortierten Leitstand zusammenhängend und
+  in Sub-FA-Reihenfolge **(Manual-UAT: Reihenfolge im Leitstand optisch gegenprüfen)**.
+  Negativfall: die Reihenfolge folgt der zufälligen DB-Lesereihenfolge statt `SubOrderNumber` →
+  Regression.
+
+- **TS-73.16 — Keine Gruppen-Rücknahme (AK 16).**
+  Vorbedingung: HauptFA, deren Sub-FAs per Kaskade freigegeben wurden.
+  Schritte: Leitstand-Oberfläche nach einer Rücknahme-Aktion für die ganze Gruppe durchsuchen
+  **(Manual-UAT)**; danach eine einzelne Zeile per `ToggleRelease` zurücknehmen.
+  Erwartung: es gibt **keine** Bedienoberfläche, die die ganze Gruppe zurückzieht; die
+  Einzel-Rücknahme über `ToggleRelease` funktioniert weiterhin zeilenbasiert wie vor dieser Spec.
+  Negativfall: ein Button/eine Aktion zieht die ganze Gruppe zurück → außerhalb des Scopes, sofort
+  melden.
+
+- **TS-73.17 — `BulkRelease` unverändert (AK 17).**
+  Vorbedingung: mehrere Sub-FAs unterschiedlicher HauptFAs, per Checkbox markiert (mindestens eine
+  Gruppe nur teilweise markiert).
+  Schritte: Mehrfachauswahl-Freigabe (`BulkRelease`) auf die markierten Zeilen auslösen.
+  Erwartung: Verhalten bit-identisch zum Vorzustand — nur die markierten Zeilen werden freigegeben,
+  **kein** kaskadierendes Verhalten über ganze HauptFA-Gruppen, keine neue Option im Dialog.
+  Negativfall: `BulkRelease` auf eine einzelne markierte Sub-FA einer Gruppe gibt zusätzlich
+  unmarkierte Geschwister-Zeilen derselben Gruppe frei → Regression (Kaskade hat sich in die
+  bestehende Aktion eingeschlichen).
+
+- **TS-73.18 — Zugriffsschutz korrekt (AK 18).**
+  Vorbedingung: ein Benutzer ohne Leitstand-Recht (erfüllt `RequireLeitstandAccess` nicht).
+  Schritte: Oberfläche als dieser Benutzer öffnen **(Manual-UAT: Button-Sichtbarkeit)**; zusätzlich
+  einen direkten `POST` auf `CascadeRelease` bzw. `GET` auf `CascadeReleasePreview` auslösen (z. B.
+  über die Entwicklertools des Browsers).
+  Erwartung: der „Alle Sub-FAs freigeben"-Button ist für diesen Benutzer **nicht** sichtbar (nur
+  bei `CanManagePickingRelease`); der direkte Aufruf wird abgewiesen (403/Redirect), wie bei den
+  übrigen `RequireLeitstandAccess`-Actions (`ToggleRelease`/`BulkRelease`/`SetPriority`).
+  Negativfall: der Button ist sichtbar oder der direkte `POST` gelingt ohne das Recht →
+  Zugriffslücke, sofort melden.
+
+- **TS-73.19 — Frühere Spec nachgezogen, kein Widerspruch mehr (AK 19).**
+  Rein dokumentarisches Kriterium, keine Bildschirmprüfung. Nachweis: in
+  `secondbrain/specs/freigegeben/2026-08-18-fa-liste-hierarchie-anzeige-spec.md` (Hauptcheckout) ist
+  die frühere Festlegung „`BulkRelease` ist Freigabe, nicht Fertigmeldung — keine Kaskade" um die
+  neue Aktion `CascadeRelease` ergänzt/widerrufen dokumentiert, sodass sich die beiden Specs nicht
+  mehr widersprechen. Der Nachzug erfolgt im Hauptcheckout, nicht im Worktree — für die QA-Abnahme
+  genügt der Verweis auf die entsprechende Brain-Änderung.
+
+- **TS-73.20 — AKE-Regression gesamt, Flachmodus-Regression (AK 20).**
+  Vorbedingung: Master `ProduktionsauftragHierarchisch = false` (AKE) bzw. ein AKE-Auftrag.
+  Schritte: FA-Liste öffnen **(Manual-UAT: visuelle Gesamtprüfung)**; vorhandene Spalten, Filter und
+  Sortierung mit dem Stand vor v1.38.0 vergleichen.
+  Erwartung: bit-identisches Verhalten zum Vorzustand — **keine** neue Spalte sichtbar außer dem
+  (leeren) Matchcode; **keine** Kaskaden-Aktion (AKE kennt ohnehin keine Gruppen-Kopfzeile);
+  unveränderte Filter und unveränderte Sortierung. Der leere Matchcode bei AKE ist **kein Fehler**
+  und als solcher in der manuellen Checkliste zu vermerken.
+  Negativfall: eine der Kopfdaten-je-Zeile-Spalten (Prio/AB-Nummer/Montage-Abteilung/KO-Termin)
+  erscheint bei AKE sichtbar → Regression — diese Spalten sind laut `ColumnDefinitions.cs` an
+  `Model.Hierarchical` gebunden (nicht nur `DefaultHidden`), bei Master `false` dürfen sie gar nicht
+  gerendert werden, nicht nur leer bleiben.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
