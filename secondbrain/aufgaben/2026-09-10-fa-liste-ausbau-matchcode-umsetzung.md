@@ -91,10 +91,30 @@ wird es als Mangel gemeldet.
   - Task 3 `f4e9a6d`: Anzeige in **fuenf** Listen (nicht sechs — `OseonTracking` faellt raus, siehe A1)
   - Task 4 `48e1c87` + Fix `4a0563a`: serverseitiger Filter null-sicher (F7), Negation + Komma-OR getestet
   - Nachweis: Web 1288 gruen + 1 uebersprungen, Service 265 gruen, Build 0 Fehler
-- [ ] Block 2 — Kopfdaten je Zeile + Kunde-Postfilter (Tasks 5-8, Task 5 im Review)
-- [ ] Block 3 — Wechsel-Darstellung + HauptFA-Zeile + `table-filter.js`-Hook inkl. **B-2** (Tasks 9-11)
-- [ ] Block 4 — Freigabe-Kaskade mit Pflicht-Picker (Tasks 12-14)
-- [ ] Version/Changelog/TS-72 + QA (Task 15/16)
+- [x] **Block 2 — Kopfdaten je Zeile KOMPLETT** (Tasks 5-8, Stand `9c95fb0`)
+  - Task 5 `9b2a258`+`13693b7`: K1-Felder je Zeile, AKE unveraendert. Fix: `??`-Fallback bei `Customer`
+    entfernt — die Leere bei Kombigeraeten hing an einer **Datenannahme** statt am Code.
+  - Task 6 `6ec37f8`+`cddb5b0`: C#-Postfilter. Fix: **Critical** — der Postfilter brach den
+    Kunde-Spaltenfilter im **Flachmodus** (AKE) und schaltete dort die Paginierung ab.
+  - Task 7 `a2c7861`+`20686a2`+`7b15d8a`: Freitext-Kunde ueber denselben Postfilter. Der geplante
+    Repository-Umbau entfiel — Task 6 hatte das Ziel sicherer erreicht.
+  - Task 8 `9c95fb0`: vier Spalten, **bedingt auf `Model.Hierarchical`** (AK 20), `colCount` je Modus.
+- [x] **Block 3 — KOMPLETT** (Tasks 9-11 + eingeschobener Sweep, Stand `fda7c7a`)
+  - Task 9 `0f14850`: `table-sorted`-Hook **und Befund B-2 behoben** — ein Griff in die gemeinsam
+    genutzte Datei, ein Regressionsnachweis, wie vorgegeben.
+  - **Eingeschobener Sweep** `b9bf342`+`94463f9`+`9dfce86`: Selektor-Skopierung ueber die Fehlerklasse.
+    Fand einen **zweiten, persistenten** Fehler, den niemand kannte → [[2026-09-10-table-filter-selektoren-nicht-skopiert-bug]]
+  - Task 10 `203e23a`+`a422e44`: Wiederholungswerte unterdrueckt. Fix: **Critical** — die CSS-Regel
+    verlor gegen Bootstrap, das Feature war am Bildschirm ein No-op.
+  - Task 11 `fda7c7a`: HauptFA-Zeile gekennzeichnet, Kopfzeile auf Kunde + Leittermin verschlankt.
+  - Nachweis: Web **1309 erfolgreich + 1 uebersprungen**, Service 265, Build 0 Fehler.
+- [ ] **Block 4 — Freigabe-Kaskade mit Pflicht-Picker (Tasks 12-14) — HALT, wartet auf Freigabe**
+  > [!important] Bewusster Halt des Menschen (2026-09-10)
+  > Die Kaskade gibt mit **einem Klick bis zu 39 Auftraege** frei und weist einen Kommissionierer zu —
+  > das einzige Stueck dieses Blocks **mit Wirkung in der Halle**. Es soll nicht am Ende einer langen
+  > Sitzung entstehen.
+- [ ] Version/Changelog/TS-Index + QA (Task 15/16) — **Auflage:** die belastbaren Zahlen in den
+      Brain-Changelog (Web 1309+1 bzw. der Stand bei Abschluss, Service 265, Build 0 Fehler)
 
 ### Umfangs-Korrektur in Block 1 (am Code belegt)
 
