@@ -106,7 +106,9 @@ public class ProductionOrdersController : Controller
         // Die flache Aufrufstelle (AKE) uebergibt bewusst nichts -> bit-identisches Verhalten.
         ProductionOrderListItem MapItem(LeitstandOrderRow o, bool hasCoatingParts, bool isCoatingDone,
             DateTime? groupProductionDate = null, DateTime? groupDeliveryDate = null,
-            DateTime? groupCoatingStart = null, bool hierarchical = false)
+            DateTime? groupCoatingStart = null, bool hierarchical = false,
+            string? groupCustomer = null, int? groupPrio = null, string? groupAbNummer = null,
+            string? groupMontageAbteilung = null, DateTime? groupKonstruktionsTermin = null)
         {
             var item = new ProductionOrderListItem
             {
@@ -170,6 +172,16 @@ public class ProductionOrdersController : Controller
                 // AUSSCHLIESSLICH aus dem Auftragskopf — deshalb wird hier bedingungslos ersetzt,
                 // auch wenn der Kopfwert leer ist (kein Raten statt Wahrheit). Nur an Zeilen mit Lack-Flag.
                 item.BeschichtungTermin = item.HasCoatingParts ? groupCoatingStart : null;
+
+                // K1 (Task 5): Kopfdaten je Zeile durchreichen — NICHT materialisieren, nur
+                // Anzeige-Modell. Bei Kombigeraeten (heads.Count > 1) sind die Gruppen-Locals im
+                // Aufrufer bereits NULL, also werden die Zeilenfelder hier automatisch leer statt
+                // geraten. Keine IsAmbiguous-Abfrage hier — das waere eine zweite Wahrheit.
+                item.Customer = groupCustomer ?? item.Customer;
+                item.Prio = groupPrio;
+                item.AbNummer = groupAbNummer;
+                item.MontageAbteilung = groupMontageAbteilung;
+                item.KonstruktionsTermin = groupKonstruktionsTermin;
             }
             return item;
         }
@@ -209,6 +221,11 @@ public class ProductionOrdersController : Controller
                 DateTime? groupProductionDate = null;
                 DateTime? groupDeliveryDate = null;
                 DateTime? groupCoatingStart = null;
+                string? groupCustomer = null;
+                int? groupPrio = null;
+                string? groupAbNummer = null;
+                string? groupMontageAbteilung = null;
+                DateTime? groupKonstruktionsTermin = null;
 
                 if (heads != null && heads.Count == 1)
                 {
@@ -224,6 +241,11 @@ public class ProductionOrdersController : Controller
                     groupProductionDate = h.FE_Termin;
                     groupDeliveryDate = h.Verladetermin_Vsl;
                     groupCoatingStart = h.Start_Beschichtung;
+                    groupCustomer = h.Kunde;
+                    groupPrio = h.Prio;
+                    groupAbNummer = h.ABNr;
+                    groupMontageAbteilung = h.MontageAbteilung;
+                    groupKonstruktionsTermin = h.KO_Termin;
                 }
                 else if (heads != null && heads.Count > 1)
                 {
@@ -246,7 +268,8 @@ public class ProductionOrdersController : Controller
                 {
                     var ps = psDict.GetValueOrDefault(r.Id);
                     return MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false,
-                        groupProductionDate, groupDeliveryDate, groupCoatingStart, hierarchical: true);
+                        groupProductionDate, groupDeliveryDate, groupCoatingStart, hierarchical: true,
+                        groupCustomer, groupPrio, groupAbNummer, groupMontageAbteilung, groupKonstruktionsTermin);
                 }).ToList();
 
                 return group;
