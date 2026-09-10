@@ -279,4 +279,54 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
 
         return result;
     }
+
+    public async Task<int> SetReleaseForOrderNumberAsync(string orderNumber, int? assignedPickerId,
+        string? assignedPickerName, string? releasedBy, string modifiedBy, string modifiedByWindows)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber)) return 0;
+
+        // Schritt 1: Zielzeilen lokal bestimmen — nur die noch nicht freigegebenen, und zwar in
+        // SubOrderNumber-Reihenfolge (sonst entscheidet die zufaellige DB-Lesereihenfolge ueber
+        // die Prioritaetsvergabe und die Teile eines Geraets verteilen sich ueber den Tag).
+        var targets = await _context.ProductionOrderPickingStatuses
+            .Include(s => s.ProductionOrder)
+            .Where(s => s.ProductionOrder != null
+                        && s.ProductionOrder.OrderNumber == orderNumber
+                        && !s.IsReleasedForPicking)
+            .ToListAsync();
+
+        targets = targets
+            .OrderBy(s => s.ProductionOrder!.SubOrderNumber, StringComparer.Ordinal)
+            .ToList();
+
+        if (targets.Count == 0) return 0;
+
+        var maxPrio = await GetMaxPickingPriorityAsync();
+        var now = DateTime.UtcNow;
+
+        foreach (var row in targets)
+        {
+            row.IsReleasedForPicking = true;
+            row.ReleasedAt = now;
+            row.ReleasedBy = releasedBy;
+            if (assignedPickerId.HasValue)
+            {
+                row.AssignedPickerId = assignedPickerId;
+                row.AssignedPickerName = assignedPickerName;
+            }
+            if (!row.PickingPriority.HasValue) row.PickingPriority = ++maxPrio;
+            row.ModifiedAt = now;
+            row.ModifiedBy = modifiedBy;
+            row.ModifiedByWindows = modifiedByWindows;
+        }
+
+        await _context.SaveChangesAsync();
+        return targets.Count;
+    }
+
+    public Task<int> CountReleasedByOrderNumberAsync(string orderNumber)
+        => _context.ProductionOrderPickingStatuses
+            .CountAsync(s => s.ProductionOrder != null
+                              && s.ProductionOrder.OrderNumber == orderNumber
+                              && s.IsReleasedForPicking);
 }
