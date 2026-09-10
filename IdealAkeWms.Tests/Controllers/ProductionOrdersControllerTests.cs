@@ -463,6 +463,54 @@ public class ProductionOrdersControllerTests
 
         vm.Groups.Should().HaveCount(1);
         vm.Groups.Single().Items.Should().OnlyContain(i => i.Prio == 3);
+        // Important-Befund (Fix-Runde 1): Z3b heisst nicht nur "leere Gruppen verschwinden",
+        // sondern auch "die Zaehlungen stimmen danach" -- die weggefallene Gruppe (Prio 9) darf in
+        // keiner Zaehlung mehr auftauchen.
+        vm.HierarchicalRowCount.Should().Be(1);
+        vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Index_Flat_ColumnFilter_Customer_StaysSqlPredicate_PaginationUnaffected()
+    {
+        // Fix-Runde 1, Critical-Befund: "customer" ist am Standort AKE (Flachmodus) eine echte,
+        // befuellte DB-Spalte -- ApplyLeitstandColumnFilter filtert sie per SQL. Die K1-Postfilter-
+        // Schluesselmenge (FaListComputedColumnKeys) darf den Flachzweig NICHT beruehren: weder
+        // darf "customer" aus sqlColumnFilters herausfallen, noch darf sqlPageSize/sqlPage auf
+        // "ungepaginiert" gezwungen werden (das waere nur fuer Datumsfilter korrekt).
+        _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        var row = new LeitstandOrderRow(1, "FA-100", 1m, "Mustermann GmbH", "ART-001", null, null,
+            null, null, false, false, false, null);
+        // TotalCount (50) bewusst groesser als die zurueckgegebene Seite (1 Zeile) -- simuliert eine
+        // SQL-seitig bereits gefilterte, aber noch nicht vollstaendig geladene Ergebnismenge. Wird
+        // dieser Wert spaeter durch Items.Count (1) ueberschrieben, ist das der Bug-Pfad (alles
+        // ungepaginiert geladen und in C# neu gezaehlt statt dem Repo zu vertrauen).
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(new LeitstandOrderPage(new List<LeitstandOrderRow> { row }, 50));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_customer=muster");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        // (a) "customer" bleibt ein SQL-Praedikat -- unveraendert im an das Repo uebergebenen Dict.
+        _orderRepo.Verify(r => r.GetForLeitstandAsync(
+            null, null, null, false,
+            1,                                  // sqlPage: NICHT auf 1-erzwungen-wegen-Postfilter,
+                                                  // sondern der tatsaechlich angeforderte page=1
+            25,                                  // sqlPageSize: effectivePageSize (Default), NICHT int.MaxValue
+            It.Is<IReadOnlyDictionary<string, string>?>(d => d != null && d.ContainsKey("customer"))),
+            Times.Once);
+
+        // (b) Paginierung greift weiterhin -- TotalCount kommt vom Repo, wird NICHT auf
+        // Items.Count kollabiert (das waere das Datumsfilter-Postprocessing, hier fehl am Platz).
+        vm.Items.Should().HaveCount(1);
+        vm.Pagination.TotalCount.Should().Be(50);
     }
 
     [Fact]
