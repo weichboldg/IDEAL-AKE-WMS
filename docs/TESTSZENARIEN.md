@@ -7515,5 +7515,71 @@ ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0)*
+## TS-72 — Bugfix: Tabellen-Skripte greifen nicht mehr in verschachtelte Tabellen (Sortierung, Spaltenkonfiguration)
+
+**Bezug:** Bug-Record `2026-09-10-table-filter-selektoren-nicht-skopiert-bug` (Schwere hoch).
+**Ursache:** `table-filter.js` (und gleichartig `column-preferences.js`) iterierte `tbody`/`tr`/`th`
+per **Descendant**-Selektor. In einer Kombigeräte-Gruppe der FA-Liste steckt eine **verschachtelte**
+Varianten-Tabelle; ihre Zeilen haben sieben blanke `<td>` ohne `colspan` und passieren deshalb den
+`td[colspan]`-Filter. `tbody.appendChild(row)` verschob sie danach in das **äußere** Gruppen-`tbody`.
+**Fix:** alle betroffenen Iterationen auf direkte Kinder skopiert (`:scope > …`).
+**Merksatz (der Denkfehler, der das verdeckt hat):** `appendChild` hängt an **das Element, auf dem es
+gerufen wird** — nicht an das `tbody`, in dem die Zeile stand.
+
+**Automatisiert abgedeckt:** `TableScriptScopedSelectorTests` — **Quelltext-Wächter**, kein
+Verhaltenstest. Er hält die skopierten Selektoren fest und wird rot, wenn jemand auf eine
+unskopierte Descendant-Abfrage zurückfällt. Die Wirkung selbst ist **nur** manuell nachweisbar
+(kein JS-Testharness im Projekt) — dafür TS-72.1 bis TS-72.4.
+
+- **TS-72.1 — Kombigeräte-Gruppe sortieren (der eigentliche Fehlerfall).**
+  Vorbedingung: Master `ProduktionsauftragHierarchisch = true`; `/ProductionOrders` im
+  hierarchischen Modus; eine HauptFA-Gruppe mit Badge **„mehrdeutig (Kombigerät)"**, also mit
+  Varianten-Tabelle.
+  Schritte: Varianten-Tabelle ansehen und **N = Anzahl ihrer Zeilen** sowie deren Reihenfolge
+  notieren (jede Zeile hat **sieben** Zellen: Montage-Abt., Kunde, KO-Termin, FE-Termin,
+  Liefertermin, Prio, AB-Nr.). Dann **einmal** auf den Spaltenkopf „Kunde" klicken.
+  **Vorher-Zustand (vor dem Fix, zur Einordnung):** die Varianten-Tabelle ist nach dem Klick
+  **leer**, und in der Gruppe stehen zusätzliche Fremdzeilen mit sieben Zellen in der
+  25-spaltigen Tabelle.
+  Erwartung (nach dem Fix): die Varianten-Tabelle ist **unverändert** — N Zeilen, je sieben Zellen,
+  gleiche Reihenfolge; die äußere Tabelle enthält **keine** Fremdzeilen; sortiert werden
+  ausschließlich die Sub-FA-Zeilen, und zwar innerhalb ihrer Gruppe.
+  Weiter: zweiter Klick auf „Kunde" (Richtungswechsel), danach Klick auf „Komm." und auf „FA Nr." —
+  jedes Mal bleibt die Varianten-Tabelle vollständig. Gruppe zu- und wieder aufklappen: die
+  Varianten-Tabelle verschwindet und kommt vollständig zurück.
+  Negativfall: leere Varianten-Tabelle, eine Zeile mit sieben Zellen in der äußeren Tabelle oder
+  eine Sub-FA-Zeile, die in eine andere Gruppe gewandert ist → Rückfall, sofort melden.
+
+- **TS-72.2 — Spaltenkonfiguration in Ansichten mit verschachtelter Tabelle.**
+  Vorbedingung: `/ProductionOrders` hierarchisch mit Kombigeräte-Gruppe **und** `/FaHierarchy`
+  (Struktur-Baum mit Kopfdaten-Tabelle je Struktur).
+  Schritte: Zahnrad → Spalte **„Kunde"** ausblenden, dann wieder einblenden; anschließend im
+  Zahnrad-Dialog eine der **ersten** Spalten per Drag-and-drop nach vorne/hinten ziehen; Seite neu
+  laden (die Einstellung ist gespeichert).
+  Erwartung: in der Varianten- bzw. Kopfdaten-Tabelle bleiben **alle** Zellen sichtbar und in ihrer
+  ursprünglichen Reihenfolge — ausgeblendet und umgeordnet wird ausschließlich die äußere Tabelle.
+  Negativfall: eine leere Zelle oder vertauschte Werte in der inneren Tabelle (z. B. Kunde unter
+  „Montage-Abt.") → Rückfall, sofort melden.
+
+- **TS-72.3 — Gegenproben je Tabellentyp (unveränderte Sortierung).**
+  Schritte: (a) Liste mit genau einem `<tbody>` — `/Articles` (ersatzweise `/StockOverview` oder
+  `/Users`): je Spalte auf- und absteigend sortieren. (b) Gruppierte Liste **ohne** verschachtelte
+  Tabelle — `/FaHierarchyKommissionierListen`: sortieren. (c) FA-Liste im **Flachmodus** (Master
+  `false` bzw. AKE-Auftrag): sortieren.
+  Erwartung: (a) Sortierung unverändert zum Verhalten vor dem Fix; (b) jede Gruppe sortiert **in
+  sich**, keine Zeile wandert über eine Gruppengrenze, Gruppen-Kopfzeilen bleiben oben;
+  (c) unverändert. In allen drei Fällen greifen Spaltenfilter (ENTER) und das Zurücksetzen weiter.
+  Negativfall: veränderte Reihenfolge gegenüber dem bisherigen Verhalten, eine Gruppen-Kopfzeile
+  mitten in den Daten oder eine Zeile in der falschen Gruppe.
+
+- **TS-72.4 — Wiederholungswerte und Standard-Sortierung.**
+  Schritte: FA-Liste hierarchisch öffnen (Standard-Sortierung läuft beim Laden automatisch), dann
+  sortieren und eine Gruppe zuklappen/aufklappen.
+  Erwartung: die Unterdrückung der Wiederholungswerte (grau/transparent ab der zweiten gleichen
+  Zeile) folgt der neuen Reihenfolge und greift **nicht** in die Varianten-Tabelle; keine
+  Konsolenwarnung `[table-filter] Sortierung uebersprungen` und keine JS-Fehler in der Konsole.
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
