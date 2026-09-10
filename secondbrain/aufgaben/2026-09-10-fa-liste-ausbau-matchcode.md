@@ -84,9 +84,38 @@ wird es als Mangel gemeldet.
 
 - [x] Schritt 0 — Spec nachgebessert, Anzeige-Spec nachgezogen
 - [x] Vorab-Verifikation A (Wurzel materialisiert) + B (Zeilenebene Picking/OseonTracking)
-- [ ] Plan schreiben
-- [ ] Block 1 — Matchcode (Model, Migration SQL/91, Materialisierung, Anzeige 6 Listen)
-- [ ] Block 2 — Kopfdaten je Zeile + Kunde-Postfilter
-- [ ] Block 3 — HauptFA-Zeile + schlanke Kopfzeile
-- [ ] Block 4 — Freigabe-Kaskade mit Pflicht-Picker
-- [ ] Testszenarien + QA
+- [x] Plan geschrieben — 16 Tasks, 4 Bloecke, Worktree-Commit `940bab2`
+- [x] **Block 1 — Matchcode KOMPLETT** (Tasks 1-4, Stand `4a0563a`)
+  - Task 1 `461d3e5`: Spalte `NVARCHAR(200)` + Migration `20260910081155` + `SQL/91` + FreshInstall (beide Stellen)
+  - Task 2 `cbabdd9`: Materialisierung in Anlege- UND Update-Pfad (F1), 2 Tests
+  - Task 3 `f4e9a6d`: Anzeige in **fuenf** Listen (nicht sechs — `OseonTracking` faellt raus, siehe A1)
+  - Task 4 `48e1c87` + Fix `4a0563a`: serverseitiger Filter null-sicher (F7), Negation + Komma-OR getestet
+  - Nachweis: Web 1288 gruen + 1 uebersprungen, Service 265 gruen, Build 0 Fehler
+- [ ] Block 2 — Kopfdaten je Zeile + Kunde-Postfilter (Tasks 5-8, Task 5 im Review)
+- [ ] Block 3 — Wechsel-Darstellung + HauptFA-Zeile + `table-filter.js`-Hook inkl. **B-2** (Tasks 9-11)
+- [ ] Block 4 — Freigabe-Kaskade mit Pflicht-Picker (Tasks 12-14)
+- [ ] Version/Changelog/TS-72 + QA (Task 15/16)
+
+### Umfangs-Korrektur in Block 1 (am Code belegt)
+
+Der Plan nahm an, alle fuenf Listen teilen sich die Leseschicht
+`LeitstandOrderRow → MapItem → ProductionOrderListItem`. **Stimmt nur fuer `ProductionOrders` und
+`PickingLeitstand`.** `FaCompletion`, `FaWorklist` und `Picking` haben je eigene `*ListItem`-Klassen,
+eigene Controller-Mappings und eigene In-Memory-Spaltenfilter-Maps. Der Umsetzer hat das gemeldet statt
+geraten — ohne die Erweiterung haette es nicht kompiliert. Folge fuer kuenftige Spalten in diesen
+Listen: **fuenf Pipelines pflegen, nicht eine.**
+
+### Nachtrag zu den Nebenbefunden
+
+**N4 — vierter Fall der `#column-config`-Drift-Klasse.** `FaCompletion` hat im inline
+`#column-config` eine `workbench`-Spalte, die in `ColumnDefinitions.FaCompletion` fehlt.
+Vorbestehend. Damit sind **vier** Faelle belegt (`warehouse-order`, B-2, N1, N4) — das stuetzt den
+geplanten Drift-Guard-Test (Punkt 23 der [[2026-09-08-bom-bridge-nachlese]]) deutlich besser als die
+bisherige Vermutung „`warehouse-order` ist vermutlich nicht der einzige".
+
+**N5 — die Begruendung der „kein `EF.Functions.Like`"-Regel wackelt.** Die Regel stammt aus der
+Materialisierungs-/Listen-Praxis mit der Begruendung „InMemory uebersetzt `Like` nicht". Beim Bauen des
+Matchcode-Filters kam heraus: Ein bestehender Like-Pfad (hierarchischer Freitext-Kundenfilter) laeuft
+empirisch **auch unter InMemory** durch. Die Regel wurde hier bewusst trotzdem eingehalten, aber ihre
+Begruendung ist nicht lueckenlos. Gehoert in [[fallstricke]] geklaert — eine Regel, deren
+Rechtfertigung nicht stimmt, wird irgendwann aus dem falschen Grund gebrochen.
