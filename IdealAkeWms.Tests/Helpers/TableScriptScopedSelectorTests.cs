@@ -26,6 +26,21 @@ namespace IdealAkeWms.Tests.Helpers;
 /// Der Denkfehler, der das lange verdeckt hat — und der Grund fuer diesen Waechter:
 /// "appendChild haelt jede Zeile in ihrem eigenen tbody." Falsch. appendChild haengt an DAS
 /// Element, auf dem es gerufen wird.
+///
+/// SYSTEMGRENZE dieses Waechters — bitte nicht fuer mehr halten, als er ist:
+///   * Die eigentliche Arbeit leisten die NotContain-Assertions (sie verbieten benannte
+///     Descendant-Muster). Die Contain-Assertions sind dateiglobal und positionsblind: sie
+///     pruefen, dass der skopierte Selektor IRGENDWO in der Datei steht, nicht dass er an der
+///     richtigen Stelle steht.
+///   * Umgehbar, ohne rot zu werden: Wechsel von 'var' auf 'const'/'let' oder andere
+///     Schreibweise der Selektor-Konstanten, Tausch der Quotes ("…" statt '…'), Auslagern des
+///     Selektors in eine Variable oder Template-String, Ausweichen auf getElementsByTagName(),
+///     .children, .rows, .cells oder einen XPath. Jede davon verletzt die Regel, ohne eines der
+///     hier verbotenen Literale zu enthalten.
+///   * Der Waechter deckt nur die vier hier gelesenen Dateien ab. Neue Tabellen-Skripte und
+///     Inline-Skripte in Views sieht er nicht — dort gilt weiter die Sweep-Disziplin.
+/// Wer eine dieser Umgehungen baut, muss den Waechter mitziehen; er ersetzt den Blick auf den
+/// Diff nicht.
 /// </summary>
 public class TableScriptScopedSelectorTests
 {
@@ -94,6 +109,44 @@ public class TableScriptScopedSelectorTests
             "unskopiertes querySelectorAll('td') verschiebt den Spaltenindex in Zeilen mit Kindtabelle");
     }
 
+    [Fact]
+    public void TableFilter_InitSelectors_AreScopedToDirectChildren()
+    {
+        // init() holt thead, tbody, die filterbaren Koepfe und die Kopfzeile fuer den Aufbau der
+        // Filterzeile. Heute steckt in keinem <thead> eine verschachtelte Tabelle — aber es ist
+        // dieselbe Klasse, und ein Descendant-Treffer wuerde die Filterzeile in die falsche
+        // Tabelle haengen bzw. _tbody auf ein Kind-<tbody> setzen.
+        TableFilterJs.Should().Contain("querySelector(':scope > thead')");
+        TableFilterJs.Should().Contain("querySelector(':scope > tbody')");
+        TableFilterJs.Should().Contain("querySelectorAll(':scope > tr > th[data-filterable]')");
+        TableFilterJs.Should().Contain("querySelectorAll(':scope > tr:first-child > th')");
+
+        TableFilterJs.Should().NotContain("querySelector('thead')",
+            "das <thead> der aeusseren Tabelle muss als direktes Kind geholt werden");
+        TableFilterJs.Should().NotContain("querySelector('tbody')",
+            "_tbody darf nie auf das <tbody> einer verschachtelten Tabelle zeigen");
+        TableFilterJs.Should().NotContain("querySelectorAll('th[data-filterable]')",
+            "die filterbaren Spaltenkoepfe sind die der aeusseren Kopfzeile");
+        TableFilterJs.Should().NotContain("querySelectorAll('tr:first-child th')",
+            "die Kopfzeile fuer den Aufbau der Filterzeile ist die der aeusseren Tabelle");
+        TableFilterJs.Should().NotContain("querySelectorAll('th')",
+            "unskopiertes querySelectorAll('th') zaehlt die <th> einer Kindtabelle mit");
+    }
+
+    [Fact]
+    public void TableFilter_MissingThead_IsNotASilentReturn()
+    {
+        // Gleiche Datei, gleicher Lauf: Befund B-2 hat hier zwei stille return durch console.warn
+        // ersetzt. Ein neuer stiller Ausstieg waere ein Rueckschritt — eine .filterable-table
+        // ohne eigenes <thead> ist ein Markup-Fehler und muss sich melden.
+        TableFilterJs.Should().Contain("Initialisierung abgebrochen",
+            "der fehlende <thead> muss als Konfigurationsfehler gemeldet werden (console.warn)");
+        TableFilterJs.Should().Contain("if (!thead) {",
+            "der Guard darf kein einzeiliges 'if (!thead) return;' sein");
+        TableFilterJs.Should().NotContain("if (!thead) return;",
+            "stiller Ausstieg widerspricht Befund B-2 in derselben Datei");
+    }
+
     // ========================================================================
     // column-preferences.js — gleiche Ursache, Wirkung: Zelle unter falscher Ueberschrift
     // ========================================================================
@@ -120,6 +173,14 @@ public class TableScriptScopedSelectorTests
             "die Zellen einer Zeile muessen als direkte Kinder gelesen werden");
         ColumnPreferencesJs.Should().NotContain("querySelector('thead tr.filter-row')",
             "die Filterzeile gehoert zur aeusseren Tabelle");
+        ColumnPreferencesJs.Should().NotContain("querySelector('thead tr:first-child')",
+            "die Kopfzeile fuer das Umordnen ist die der aeusseren Tabelle");
+        ColumnPreferencesJs.Should().NotContain("querySelector('thead')",
+            "das beobachtete <thead> ist das der aeusseren Tabelle");
+        ColumnPreferencesJs.Should().NotContain("querySelectorAll('th')",
+            "die Zellen der Filterzeile muessen als direkte Kinder gelesen werden — sonst " +
+            "zaehlen die <th> einer verschachtelten Tabelle mit (Stellen: setColVisibility und " +
+            "der MutationObserver nach dem Aufbau der Filterzeile)");
     }
 
     // ========================================================================
