@@ -7551,13 +7551,31 @@ unskopierte Descendant-Abfrage zurückfällt. Die Wirkung selbst ist **nur** man
   eine Sub-FA-Zeile, die in eine andere Gruppe gewandert ist → Rückfall, sofort melden.
 
 - **TS-72.2 — Spaltenkonfiguration in Ansichten mit verschachtelter Tabelle.**
+  Dies ist die **zweite** Fundstelle desselben Fehlers (`column-preferences.js`), nicht bloß eine
+  Gegenprobe zu TS-72.1 — sie muss eigens geprüft werden.
   Vorbedingung: `/ProductionOrders` hierarchisch mit Kombigeräte-Gruppe **und** `/FaHierarchy`
   (Struktur-Baum mit Kopfdaten-Tabelle je Struktur).
-  Schritte: Zahnrad → Spalte **„Kunde"** ausblenden, dann wieder einblenden; anschließend im
-  Zahnrad-Dialog eine der **ersten** Spalten per Drag-and-drop nach vorne/hinten ziehen; Seite neu
-  laden (die Einstellung ist gespeichert).
-  Erwartung: in der Varianten- bzw. Kopfdaten-Tabelle bleiben **alle** Zellen sichtbar und in ihrer
-  ursprünglichen Reihenfolge — ausgeblendet und umgeordnet wird ausschließlich die äußere Tabelle.
+  Schritte je Ansicht: Zahnrad → **eine der ersten Spalten** ausblenden, dann wieder einblenden —
+  auf `/ProductionOrders` die Spalte **„Kunde"** (Index 3, wenn die Aktionsspalte sichtbar ist —
+  ohne Kommissionier-/Vorbau-Recht Index 2), auf `/FaHierarchy` die Spalte
+  **„Bezeichnung"** (Index 2; die acht Außenspalten dort sind Struktur, Matchcode, Bezeichnung,
+  Arbeitsbereich, Komm.-Ziel, Soll/Fert., SubFA, Status — eine Spalte „Kunde" gibt es **nicht**).
+  Anschließend im Zahnrad-Dialog eine der **ersten** Spalten per Drag-and-drop nach vorne/hinten
+  ziehen; Seite neu laden (die Einstellung ist gespeichert).
+  **Vorher-Zustand (vor dem Fix, zur Einordnung):** Beim Ausblenden verschwindet **in der inneren
+  Tabelle** eine Zelle, die mit der ausgeblendeten Außenspalte nichts zu tun hat: getroffen wird
+  die Zelle mit **derselben Positionsnummer** in der inneren Tabelle. Auf `/ProductionOrders` ist
+  das die **vierte** Zelle jeder Varianten-Zeile (Index 3 = „FE-Termin" der inneren Tabelle, während
+  außen „Kunde" gemeint war; ohne Aktionsspalte entsprechend die dritte Zelle = „KO-Termin"). Auf
+  `/FaHierarchy` ist es die **dritte** Zelle jeder
+  Kopfdaten-Zeile (Index 2 = „Status", während außen „Bezeichnung" gemeint war). Beim Umordnen der
+  ersten Spalten werden die sieben bzw. sechs Zellen der inneren Tabelle **vertauscht**, Werte
+  stehen dann unter der falschen Überschrift. Die äußere Tabelle verhält sich dabei korrekt — der
+  Schaden ist nur in der inneren Tabelle zu sehen, und ein Neuladen behebt ihn **nicht**, weil die
+  Spaltenpräferenz gespeichert ist.
+  Erwartung (nach dem Fix): in der Varianten- bzw. Kopfdaten-Tabelle bleiben **alle** Zellen
+  sichtbar und in ihrer ursprünglichen Reihenfolge — ausgeblendet und umgeordnet wird ausschließlich
+  die äußere Tabelle; auch nach dem Neuladen.
   Negativfall: eine leere Zelle oder vertauschte Werte in der inneren Tabelle (z. B. Kunde unter
   „Montage-Abt.") → Rückfall, sofort melden.
 

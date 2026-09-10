@@ -132,7 +132,15 @@
         if (!_table) return;
 
         var thead = _table.querySelector(':scope > thead');
-        if (!thead) return;
+        if (!thead) {
+            // Linie des Befunds B-2 (siehe unten): kein stiller Ausstieg bei einem
+            // Konfigurationsfehler. Eine .filterable-table ohne eigenes <thead> kann weder eine
+            // Filterzeile aufbauen noch einen Spaltenindex auflösen — das ist ein Markup-Fehler
+            // der View und muss sich melden. (Vorher lief hier eine TypeError auf null.)
+            console.warn('[table-filter] Initialisierung abgebrochen: .filterable-table ohne ' +
+                'eigenes <thead> (viewKey: ' + getViewKey() + ').');
+            return;
+        }
         _tbody = _table.querySelector(':scope > tbody');
         _headers = thead.querySelectorAll(':scope > tr > th[data-filterable]');
 
