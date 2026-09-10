@@ -29,9 +29,18 @@
 
     var _colIndexCache = null;
 
+    // Alle Tabellen-Iterationen hier sind mit ':scope >' auf direkte Kinder skopiert. Grund
+    // (Befund 2026-09-10): Gruppen-Zeilen koennen eine VERSCHACHTELTE Tabelle enthalten
+    // (ProductionOrders-Kombigeraet-Varianten, FaHierarchy-Kopfdaten). Ein Descendant-Selektor
+    // wie 'tbody tr' erfasst deren Zeilen mit — Spalte ausblenden haette dann eine Zelle der
+    // Kindtabelle geleert und Spalten umordnen deren Zellen vertauscht (Wert unter falscher
+    // Ueberschrift). Der Spaltenindex stammt immer aus dem AEUSSEREN <thead>.
+    var THS_SELECTOR = ':scope > thead > tr:first-child > th';
+    var ROWS_SELECTOR = ':scope > tbody > tr';
+
     function buildColIndexCache() {
         _colIndexCache = {};
-        var ths = _table.querySelectorAll('thead tr:first-child th');
+        var ths = _table.querySelectorAll(THS_SELECTOR);
         for (var i = 0; i < ths.length; i++) {
             var key = ths[i].getAttribute('data-col-key');
             if (key) _colIndexCache[key] = i;
@@ -49,7 +58,7 @@
     }
 
     function getFilterRow() {
-        return _table.querySelector('thead tr.filter-row');
+        return _table.querySelector(':scope > thead > tr.filter-row');
     }
 
     function buildDefaultSettings() {
@@ -125,7 +134,7 @@
             applyColumnOrder();
         }
 
-        var allThs = _table.querySelectorAll('thead tr:first-child th');
+        var allThs = _table.querySelectorAll(THS_SELECTOR);
         _settings.columns.forEach(function (cs) {
             var idx = colIndexByKey(cs.key);
             if (idx < 0) return;
@@ -149,20 +158,20 @@
 
     function setColVisibility(physicalIdx, visible, thEl) {
         var display = visible ? '' : 'none';
-        var th = thEl || _table.querySelectorAll('thead tr:first-child th')[physicalIdx];
+        var th = thEl || _table.querySelectorAll(THS_SELECTOR)[physicalIdx];
         if (th) th.style.display = display;
 
         // Filter row cell
         var filterRow = getFilterRow();
         if (filterRow) {
-            var filterCells = filterRow.querySelectorAll('th');
+            var filterCells = filterRow.querySelectorAll(':scope > th');
             if (filterCells[physicalIdx]) filterCells[physicalIdx].style.display = display;
         }
 
         // tbody cells
-        var tbodyRows = _table.querySelectorAll('tbody tr');
+        var tbodyRows = _table.querySelectorAll(ROWS_SELECTOR);
         tbodyRows.forEach(function (row) {
-            var cells = row.querySelectorAll('td, th');
+            var cells = row.querySelectorAll(':scope > td, :scope > th');
             if (cells[physicalIdx]) cells[physicalIdx].style.display = display;
         });
     }
@@ -178,7 +187,7 @@
         var desiredKeys = ordered.map(function (cs) { return cs.key; });
 
         // Get current order of keys in DOM
-        var ths = _table.querySelectorAll('thead tr:first-child th');
+        var ths = _table.querySelectorAll(THS_SELECTOR);
         var currentKeys = Array.from(ths).map(function (th) { return th.getAttribute('data-col-key'); });
 
         // Check if reorder is needed
@@ -221,7 +230,7 @@
         }
 
         // Header row
-        var headerRow = _table.querySelector('thead tr:first-child');
+        var headerRow = _table.querySelector(':scope > thead > tr:first-child');
         if (headerRow) reorderChildren(headerRow, 'th', newPhysicalOrder);
 
         // Filter row
@@ -229,7 +238,7 @@
         if (filterRow) reorderChildren(filterRow, 'th', newPhysicalOrder);
 
         // tbody rows
-        _table.querySelectorAll('tbody tr').forEach(function (row) {
+        _table.querySelectorAll(ROWS_SELECTOR).forEach(function (row) {
             reorderChildren(row, 'td, th', newPhysicalOrder);
         });
     }
@@ -273,7 +282,7 @@
         cs.width = width;
         var idx = colIndexByKey(key);
         if (idx >= 0) {
-            var th = _table.querySelectorAll('thead tr:first-child th')[idx];
+            var th = _table.querySelectorAll(THS_SELECTOR)[idx];
             if (th) {
                 th.style.width = width ? width + 'px' : '';
                 th.style.minWidth = width ? width + 'px' : '';
@@ -733,7 +742,7 @@
     function attachContextMenus() {
         if ('ontouchstart' in window) return; // disabled on touch devices
 
-        var ths = _table.querySelectorAll('thead tr:first-child th[data-col-key]');
+        var ths = _table.querySelectorAll(':scope > thead > tr:first-child > th[data-col-key]');
         ths.forEach(function (th) {
             th.addEventListener('contextmenu', function (e) {
                 showContextMenu(e, th);
@@ -751,7 +760,7 @@
     function attachResizeHandles() {
         if ('ontouchstart' in window) return; // disabled on touch
 
-        var ths = _table.querySelectorAll('thead tr:first-child th[data-col-key]');
+        var ths = _table.querySelectorAll(':scope > thead > tr:first-child > th[data-col-key]');
         ths.forEach(function (th) {
             // Make th position:relative so handle can position against it
             var existingPos = window.getComputedStyle(th).position;
@@ -876,7 +885,7 @@
             // because the event dispatch is synchronous: table-filter.js will
             // immediately create the filter row inside the same call stack, so an
             // observer registered after the dispatch would never fire.
-            var thead = _table.querySelector('thead');
+            var thead = _table.querySelector(':scope > thead');
             if (thead) {
                 var observer = new MutationObserver(function () {
                     var filterRow = getFilterRow();
@@ -887,7 +896,7 @@
                             if (cs.visible === false) {
                                 var idx = colIndexByKey(cs.key);
                                 if (idx >= 0) {
-                                    var filterCells = filterRow.querySelectorAll('th');
+                                    var filterCells = filterRow.querySelectorAll(':scope > th');
                                     if (filterCells[idx]) filterCells[idx].style.display = 'none';
                                 }
                             }

@@ -39,7 +39,7 @@
         var btn = document.querySelector(selector);
         if (!btn) return;
         btn.addEventListener('click', function () {
-            table.querySelectorAll('tbody.fa-liste-group').forEach(function (g) { setGroup(g, open); });
+            table.querySelectorAll(':scope > tbody.fa-liste-group').forEach(function (g) { setGroup(g, open); });
         });
     }
 
@@ -54,7 +54,11 @@
     function setGroup(tbody, open) {
         if (!tbody) return;
         tbody.classList.toggle('fa-liste-collapsed', !open);
-        tbody.querySelectorAll('.fa-liste-node-row').forEach(function (r) {
+        // ':scope >': Die Kombigeraete-Varianten-Zeile (tr.fa-liste-group-heads) traegt selbst
+        // fa-liste-node-row und enthaelt eine verschachtelte Tabelle. Deren <tr> haben heute keine
+        // Klasse — ein Descendant-Selektor waere also wirkungslos, aber er wuerde beim naechsten
+        // Markup-Zuwachs still in die Kindtabelle greifen (Befund 2026-09-10).
+        tbody.querySelectorAll(':scope > tr.fa-liste-node-row').forEach(function (r) {
             r.style.display = open ? '' : 'none';
         });
         var chev = tbody.querySelector('.fa-liste-chevron');
@@ -72,9 +76,11 @@
 
     function autoExpandOnFilter(table, q) {
         if (!q) return;
-        table.querySelectorAll('tbody.fa-liste-group.fa-liste-collapsed').forEach(function (tbody) {
+        table.querySelectorAll(':scope > tbody.fa-liste-group.fa-liste-collapsed').forEach(function (tbody) {
+            // Suchtreffer-Pruefung ueber die eigenen Zeilen; textContent einer Zeile enthaelt den
+            // Text einer verschachtelten Tabelle ohnehin mit, die Trefferlage bleibt also gleich.
             var hit = Array.prototype.some.call(
-                tbody.querySelectorAll('.fa-liste-node-row'),
+                tbody.querySelectorAll(':scope > tr.fa-liste-node-row'),
                 function (r) { return (r.textContent || '').toLowerCase().indexOf(q) !== -1; });
             if (hit) setGroup(tbody, true);
         });

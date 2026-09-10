@@ -113,9 +113,14 @@
         }));
     }
 
+    // ':scope >'-Kette statt Descendant-Selektor: Eine Gruppen-Zeile kann eine VERSCHACHTELTE
+    // Tabelle enthalten (FA-Liste, Kombigeraet-Varianten). Ein Descendant-Selektor zieht deren
+    // <thead>/<tbody>/<tr>/<td> mit in die Iteration — das hat 2026-09-10 die Varianten-Tabelle
+    // beim ersten Sortierklick geleert. Merksatz: appendChild haengt an DAS Element, auf dem es
+    // gerufen wird, nicht an das <tbody>, in dem die Zeile stand.
     function getPhysicalIndex(colKey) {
         if (!_table) return -1;
-        var allThs = _table.querySelectorAll('thead tr:first-child th');
+        var allThs = _table.querySelectorAll(':scope > thead > tr:first-child > th');
         for (var i = 0; i < allThs.length; i++) {
             if (allThs[i].getAttribute('data-col-key') === colKey) return i;
         }
@@ -126,16 +131,17 @@
         _table = document.querySelector('.filterable-table');
         if (!_table) return;
 
-        var thead = _table.querySelector('thead');
-        _tbody = _table.querySelector('tbody');
-        _headers = thead.querySelectorAll('th[data-filterable]');
+        var thead = _table.querySelector(':scope > thead');
+        if (!thead) return;
+        _tbody = _table.querySelector(':scope > tbody');
+        _headers = thead.querySelectorAll(':scope > tr > th[data-filterable]');
 
         if (_headers.length === 0) return;
 
         // Create filter row
         _filterRow = document.createElement('tr');
         _filterRow.className = 'filter-row';
-        var allThs = thead.querySelectorAll('tr:first-child th');
+        var allThs = thead.querySelectorAll(':scope > tr:first-child > th');
         allThs.forEach(function (th) {
             var filterTd = document.createElement('th');
             filterTd.style.padding = '4px';
@@ -287,11 +293,16 @@
             if (colIndex >= 0) resolvedFilters.push({ index: colIndex, value: filters[colKey] });
         }
 
-        var rows = _tbody.querySelectorAll('tr');
+        // ':scope > tr': nur die eigenen Zeilen dieses <tbody>. Ohne Skopierung wuerden Zeilen
+        // einer verschachtelten Tabelle nach den Kriterien der AUSSEN-Spalten ein- und
+        // ausgeblendet (dieselbe Ursache wie in sortTable, hier nur ohne Verschieben).
+        var rows = _tbody.querySelectorAll(':scope > tr');
         rows.forEach(function (row) {
             if (row.querySelector('td[colspan]')) return;
             var visible = true;
-            var cells = row.cells || row.querySelectorAll('td');
+            // row.cells liefert von sich aus nur die eigenen Zellen; der Fallback wird deshalb
+            // ebenfalls skopiert, damit er nicht in eine Kindtabelle greift.
+            var cells = row.cells || row.querySelectorAll(':scope > td');
 
             for (var i = 0; i < resolvedFilters.length; i++) {
                 var cell = cells[resolvedFilters[i].index];
@@ -324,8 +335,10 @@
         }
 
         function compareRows(a, b) {
-            var cellA = a.querySelectorAll('td')[colIndex];
-            var cellB = b.querySelectorAll('td')[colIndex];
+            // ':scope > td': Zellen einer verschachtelten Tabelle duerfen den Spaltenindex nicht
+            // verschieben (der Index kommt aus dem AUSSEN-<thead>).
+            var cellA = a.querySelectorAll(':scope > td')[colIndex];
+            var cellB = b.querySelectorAll(':scope > td')[colIndex];
             if (!cellA || !cellB) return 0;
 
             var valA = cellA.textContent.trim();
@@ -359,10 +372,17 @@
         // Innerhalb JEDES <tbody> der Tabelle separat sortieren: gruppierte Listen
         // (FaHierarchy*) rendern je HauptFA-Gruppe ein eigenes <tbody>; Zeilen duerfen
         // nie ueber diese Gruppengrenzen wandern. Fuer flache Listen mit genau einem
-        // <tbody> liefert querySelectorAll('tbody') exakt dieses eine Element -> das
+        // <tbody> liefert ':scope > tbody' exakt dieses eine Element -> das
         // Sortierergebnis bleibt unveraendert zum bisherigen Verhalten (Regressions-AK).
-        _table.querySelectorAll('tbody').forEach(function (tbody) {
-            var dataRows = Array.from(tbody.querySelectorAll('tr'))
+        //
+        // BEIDE Selektoren muessen skopiert sein (Befund 2026-09-10, Schwere hoch):
+        // ein Descendant-'tbody' erfasst auch das <tbody> einer verschachtelten Tabelle,
+        // und ein Descendant-'tr' sammelt deren Zeilen ein. Sie tragen kein td[colspan],
+        // passieren also den Filter — und tbody.appendChild(row) hat sie anschliessend aus
+        // der Kindtabelle in das AEUSSERE <tbody> verschoben (Varianten-Tabelle leer,
+        // Sieben-Zellen-Zeilen in einer 25-spaltigen Tabelle).
+        _table.querySelectorAll(':scope > tbody').forEach(function (tbody) {
+            var dataRows = Array.from(tbody.querySelectorAll(':scope > tr'))
                 .filter(function (r) { return !r.querySelector('td[colspan]'); });
             dataRows.sort(compareRows);
             dataRows.forEach(function (row) {
