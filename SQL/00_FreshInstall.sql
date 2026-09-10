@@ -266,6 +266,7 @@ BEGIN
         [ArticleNumber]           NVARCHAR(100)     NULL,
         [Description1]            NVARCHAR(500)     NULL,
         [Description2]            NVARCHAR(500)     NULL,
+        [Matchcode]               NVARCHAR(200)     NULL,
         [ProductionDate]          DATETIME2         NULL,
         [DeliveryDate]            DATETIME2         NULL,
         [IsDone]                  BIT               NOT NULL DEFAULT 0,
@@ -2296,6 +2297,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260807105825_AddFaHierarchy', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260814105526_InvertProductionOrderHierarchy')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260814105526_InvertProductionOrderHierarchy', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260910081155_AddProductionOrderMatchcode')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260910081155_AddProductionOrderMatchcode', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
