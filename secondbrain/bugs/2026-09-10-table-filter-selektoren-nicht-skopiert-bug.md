@@ -1,10 +1,12 @@
 ---
 type: bug
 title: "table-filter.js: querySelectorAll('tbody') und ('thead tr:first-child th') sind nicht auf direkte Kinder skopiert — verschachtelte Tabellen werden mitsortiert"
-status: offen
+status: behoben (wartet Manual-UAT)
 severity: hoch
 created: 2026-09-10
+fixed_in: "Worktree-Commit b9bf342 (Sweep ueber die Fehlerklasse) + Quelltext-Waechter IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs; Abnahme TS-72. Erreicht main erst mit dem Buendel-Merge."
 affected_code:
+  - "IdealAkeWms/wwwroot/js/column-preferences.js — setColVisibility, reorderDomColumns (ZWEITER, aktiver Fund: /ProductionOrders und /FaHierarchy)"
   - "IdealAkeWms/wwwroot/js/table-filter.js — sortTable: `_table.querySelectorAll('tbody')`; getPhysicalIndex: `_table.querySelectorAll('thead tr:first-child th')`"
   - "IdealAkeWms/Views/ProductionOrders/Index.cshtml:194-215 (verschachtelte HeadVariants-Tabelle im Kombigeraete-Block, <tbody> bei 201)"
 spec: "[[2026-09-10-fa-liste-ausbau-matchcode-spec]]"
@@ -70,6 +72,32 @@ nur `display` gesetzt, also nichts verschoben — aber innere Zeilen werden nach
 Aussenspalten ein- und ausgeblendet. Fuer `/ProductionOrders` heute folgenlos, weil die View
 `data-server-column-filter="true"` traegt und `applyFilters` dort nicht laeuft; fuer kuenftige
 Client-Mode-Listen mit verschachtelten Tabellen aber dieselbe Ursache.
+
+## Zweiter Fund: `column-preferences.js` — aktiv, und vorher unbekannt
+
+Der Sweep (auf ausdrueckliche Vorgabe des Menschen: **die Klasse erheben, nicht nur das Symptom
+fixen**) hat eine **zweite, bereits wirksame** Fundstelle derselben Ursache gefunden:
+
+`setColVisibility` und `reorderDomColumns` iterierten `'tbody tr'` — ebenfalls Descendant — und
+fassten damit die Zellen der **verschachtelten** Tabelle an.
+
+**Betroffen waren zwei Ansichten:**
+- `/ProductionOrders` (Kombigeraete-Varianten-Tabelle, 7 Spalten)
+- `/FaHierarchy` (`fa-head-table` je Struktur, 6 Spalten, `supportsReorder: true`)
+
+**Wirkung ohne jeden Sortierklick:** Blendet der Anwender eine Spalte mit physischem Index ≤ 6 aus
+(„Kunde" liegt auf 3), wird eine Zelle der inneren Tabelle **geleert**. Beim Umordnen der ersten
+Spalten werden deren Zellen **vertauscht**. Also wieder „Wert unter falscher Ueberschrift" — diesmal
+durch eine voellig normale Bedienhandlung.
+
+**Warum es niemandem aufgefallen ist** — und das ist die lehrreiche Haelfte: Die fuenf
+`defaultHidden`-Spalten der FA-Liste liegen bei Index **13, 14, 15, 16, 17, 25**; der Schaden tritt
+nur bei **≤ 6** ein. `/FaHierarchy` hat gar keine `defaultHidden`-Spalte. Der Fehler war also nie
+*unsichtbar*, sondern nur *unwahrscheinlich*: Wer „Kunde" ausblendet, haette ihn sofort gesehen.
+Ein Einzelfix an `sortTable` haette diese Stelle unberuehrt gelassen — **der Sweep war der Grund,
+dass sie gefunden wurde.**
+
+Nachgerechnet und bestaetigt im Review; Abnahme-Schritt ist **TS-72.2**.
 
 Derselbe Selektor-Fallstrick steckt in `getPhysicalIndex`
 (`querySelectorAll('thead tr:first-child th')` zieht die sieben inneren `<th>` mit ein). Dort ist er
