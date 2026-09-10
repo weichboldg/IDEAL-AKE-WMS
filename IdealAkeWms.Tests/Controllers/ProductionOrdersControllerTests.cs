@@ -434,6 +434,99 @@ public class ProductionOrdersControllerTests
     }
 
     [Fact]
+    public async Task Index_Hierarchical_ColumnFilter_Prio_FiltersOnComputedRowValue()
+    {
+        // K1-Postfilter (Task 6): ProductionOrder.Prio existiert NICHT in der DB -- Prio ist ein
+        // berechneter Gruppenkopf-Wert (Task 5). Der Spaltenfilter "prio" muss deshalb NACH der
+        // Zeilen-Anreicherung in C# greifen, nicht als SQL-Praedikat. Zwei Gruppen, Prio 3 und 9;
+        // Filter "3" laesst nur die erste Gruppe -- die zweite faellt komplett weg (Z3b).
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") }),
+                new("2000", new List<LeitstandOrderRow> { MakeRowH(2, "2000", "2001") }),
+            },
+            TotalGroupCount: 2, TotalRowCount: 2));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var head1 = MakeHead(1000, prio: 3);
+        var head2 = MakeHead(2000, prio: 9);
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head1, head2 });
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_prio=3");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        vm.Groups.Should().HaveCount(1);
+        vm.Groups.Single().Items.Should().OnlyContain(i => i.Prio == 3);
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_ColumnFilter_OnFieldEmptyForKombigeraet_YieldsNoMatches_NoThrow()
+    {
+        // F7-Analogon: bei Kombigeraeten (mehrere Auftragskoepfe, IsAmbiguous) bleiben die
+        // Kopf-Felder je Zeile NULL. Ein Filter auf so einer Spalte darf nicht werfen und muss
+        // korrekt KEINE Treffer liefern (leerer Wert matcht nie), statt die Gruppe stillschweigend
+        // durchzulassen.
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") }),
+            },
+            TotalGroupCount: 1, TotalRowCount: 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var head1 = MakeHead(1000, kunde: "Kunde A");
+        var head2 = MakeHead(1000, kunde: "Kunde B");
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head1, head2 });
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_customer=kunde");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var act = async () => await _controller.Index(null, null, null, false, 1, null);
+        var result = await act.Should().NotThrowAsync();
+        var vm = ((ViewResult)result.Subject).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        vm.Groups.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_ColumnFilter_KonstruktionsTermin_FiltersOnComputedDate()
+    {
+        // konstruktions-termin ist Datum UND berechneter Wert -- behandelt ueber den bestehenden
+        // Datums-Mechanismus (FaListDateColumnKeys / MatchFaListDateFilter), nicht doppelt.
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") }),
+                new("2000", new List<LeitstandOrderRow> { MakeRowH(2, "2000", "2001") }),
+            },
+            TotalGroupCount: 2, TotalRowCount: 2));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var head1 = MakeHead(1000, koTermin: new DateTime(2026, 8, 1));
+        var head2 = MakeHead(2000, koTermin: new DateTime(2026, 9, 1));
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head1, head2 });
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_konstruktions-termin=01.08.2026");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        vm.Groups.Should().HaveCount(1);
+        vm.Groups.Single().Items.Should().OnlyContain(i => i.KonstruktionsTermin == new DateTime(2026, 8, 1));
+    }
+
+    [Fact]
     public async Task Index_Flat_LeavesNewRowFieldsNull_BitIdentical()
     {
         // AKE-Regression (wichtiger als der Positivtest oben): Master false -> flacher Zweig,

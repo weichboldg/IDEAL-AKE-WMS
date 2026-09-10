@@ -78,18 +78,25 @@ public class ProductionOrdersController : Controller
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
-        // Datum-Filter werden in C# nach Termin-Berechnung angewendet.
+        // Datum-Filter UND K1-Kopfdaten-Filter (Customer/Prio/AbNummer/MontageAbteilung/
+        // KonstruktionsTermin) werden in C# nach Termin-Berechnung bzw. Gruppenkopf-Anreicherung
+        // angewendet -- diese Werte existieren nicht in der DB (ADR 0005).
         var dateFilters = columnFilters
             .Where(kv => FaListDateColumnKeys.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
+        var computedFilters = columnFilters
+            .Where(kv => FaListComputedColumnKeys.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
         var hasDateFilters = dateFilters.Count > 0;
-        var sqlColumnFilters = hasDateFilters
-            ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key))
+        var hasPostFilters = hasDateFilters || computedFilters.Count > 0;
+        var sqlColumnFilters = hasPostFilters
+            ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key)
+                                      && !FaListComputedColumnKeys.Contains(kv.Key))
                            .ToDictionary(kv => kv.Key, kv => kv.Value)
             : columnFilters;
 
-        var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
-        var sqlPage = hasDateFilters ? 1 : page;
+        var sqlPageSize = hasPostFilters ? int.MaxValue : effectivePageSize;
+        var sqlPage = hasPostFilters ? 1 : page;
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
@@ -194,9 +201,10 @@ public class ProductionOrdersController : Controller
 
         if (hierarchical)
         {
-            // Paginierung ueber GRUPPEN; bei Datumsfiltern alle Gruppen laden, in C# filtern/paginieren.
-            var sqlGroupPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
-            var sqlGroupPage = hasDateFilters ? 1 : page;
+            // Paginierung ueber GRUPPEN; bei Postfiltern (Datum oder K1-Kopfdaten) alle Gruppen
+            // laden, in C# filtern/paginieren.
+            var sqlGroupPageSize = hasPostFilters ? int.MaxValue : effectivePageSize;
+            var sqlGroupPage = hasPostFilters ? 1 : page;
             var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
                 filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters);
 
@@ -278,7 +286,7 @@ public class ProductionOrdersController : Controller
             var totalGroupCount = grouped.TotalGroupCount;
             var totalRowCount = grouped.TotalRowCount;
 
-            if (hasDateFilters)
+            if (hasPostFilters)
             {
                 foreach (var (key, raw) in dateFilters)
                 {
@@ -286,6 +294,15 @@ public class ProductionOrdersController : Controller
                     if (tokens.Count == 0) continue;
                     foreach (var g in listGroups)
                         g.Items = g.Items.Where(it => MatchFaListDateFilter(it, key, tokens, negate)).ToList();
+                }
+                // K1-Kopfdaten (Customer/Prio/AbNummer/MontageAbteilung): berechnete Zeilenfelder,
+                // existieren nicht in der DB -- gleicher Mechanismus wie die Datumsspalten.
+                foreach (var (key, raw) in computedFilters)
+                {
+                    var (tokens, negate) = ColumnFilterHelper.Parse(raw);
+                    if (tokens.Count == 0) continue;
+                    foreach (var g in listGroups)
+                        g.Items = g.Items.Where(it => MatchFaListComputedFilter(it, key, tokens, negate)).ToList();
                 }
                 listGroups = listGroups.Where(g => g.Items.Count > 0).ToList(); // leere Gruppen entfernen (Z3b)
                 totalGroupCount = listGroups.Count;
@@ -380,9 +397,20 @@ public class ProductionOrdersController : Controller
     // ---------------------------------------------------------------------
     // Date-Spalten-Filter (server-seitig, nach C#-Termin-Berechnung)
     // ---------------------------------------------------------------------
+    // "konstruktions-termin" ist Datum UND K1-Gruppenkopf-Wert (Task 6) -- bewusst NUR hier in der
+    // Datums-Schluesselmenge, nicht zusaetzlich in FaListComputedColumnKeys: doppelte Behandlung
+    // waere ein Fehler. Der Wert wird genau wie die anderen Datumsspalten ueber
+    // FormatDateForFilter ("dd.MM.yyyy KWxx", kleingeschrieben) abgeglichen.
     private static readonly HashSet<string> FaListDateColumnKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "coating-date", "bg-date", "picking-date", "production-date", "delivery-date"
+        "coating-date", "bg-date", "picking-date", "production-date", "delivery-date", "konstruktions-termin"
+    };
+
+    // IDEAL K1 (Task 6): Gruppenkopf-Felder, die erst im Anzeige-Modell entstehen (Task 5) und
+    // deshalb kein SQL-Praedikat sein koennen -- gleicher Mechanismus wie FaListDateColumnKeys.
+    private static readonly HashSet<string> FaListComputedColumnKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "customer", "prio", "ab-nummer", "montage-abteilung"
     };
 
     private static string FormatDateForFilter(DateTime? date)
@@ -403,8 +431,30 @@ public class ProductionOrdersController : Controller
             "picking-date" => FormatDateForFilter(item.KommissionierTermin),
             "production-date" => FormatDateForFilter(item.ProductionDate),
             "delivery-date" => FormatDateForFilter(item.DeliveryDate),
+            "konstruktions-termin" => FormatDateForFilter(item.KonstruktionsTermin),
             _ => string.Empty
         };
+        var hasMatch = tokens.Any(t => text.Contains(t));
+        return negate ? !hasMatch : hasMatch;
+    }
+
+    // ---------------------------------------------------------------------
+    // K1-Gruppenkopf-Spaltenfilter (server-seitig, nach Anreicherung aus FaHierarchyOrderInfo)
+    // ---------------------------------------------------------------------
+    private static bool MatchFaListComputedFilter(
+        ProductionOrderListItem item, string key, List<string> tokens, bool negate)
+    {
+        var text = key switch
+        {
+            "customer" => item.Customer,
+            "prio" => item.Prio?.ToString(),
+            "ab-nummer" => item.AbNummer,
+            "montage-abteilung" => item.MontageAbteilung,
+            _ => null
+        };
+        // Leerer Wert matcht nie (string.Empty.Contains("x") == false) -- bei Kombigeraeten sind
+        // diese Felder absichtlich NULL; ein Filter darauf liefert dann korrekt keine Treffer.
+        text = (text ?? string.Empty).ToLowerInvariant();
         var hasMatch = tokens.Any(t => text.Contains(t));
         return negate ? !hasMatch : hasMatch;
     }
