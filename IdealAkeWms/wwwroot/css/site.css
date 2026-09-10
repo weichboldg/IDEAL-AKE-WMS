@@ -1253,8 +1253,17 @@ th:hover .col-resize-handle {
    fuer Auswahl, Kopieren, Spaltenfilter und Export. Bewusst auch NICHT gedimmt: absichtlich
    kontrastarmer Text widerspricht der Kontrastregel (Terminals in der Fertigung, teils
    schlechtes Licht); eine leere Zelle bedeutet "wie darueber" und ist eine alte
-   Tabellenkonvention. Gesetzt wird die Klasse von fa-liste-wiederholung.js. */
-.fa-liste-repeat-hidden {
+   Tabellenkonvention. Gesetzt wird die Klasse von fa-liste-wiederholung.js.
+   Bewusst in Kauf genommen: color:transparent nimmt den Wert NICHT aus dem Accessibility-Tree,
+   ein Screenreader liest ihn also in jeder Zeile vor. Das ist die bessere Haelfte des Tauschs —
+   aria-hidden wuerde ihn Screenreader-Nutzern ganz verschlucken, waehrend die Wiederholung
+   nur redundant ist.
+   Die Kindkette ist Pflicht, nicht Kosmetik: Bootstrap faerbt jede Tabellenzelle ueber
+   .table > :not(caption) > * > * (bootstrap.css:1878, Spezifitaet 0,1,1). Eine einzelne
+   Klasse (0,1,0) verliert dagegen unabhaengig von der Ladereihenfolge — die Regel waere
+   wirkungslos. Gleiches Muster wie .fa-liste-group-head > td.fa-liste-group-header oben.
+   Kein !important. */
+.fa-liste-group > tr > td.fa-liste-repeat-hidden {
     color: transparent;
 }
 
