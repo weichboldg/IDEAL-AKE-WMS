@@ -177,6 +177,48 @@ public class PickingLeitstandControllerTests
     }
 
     [Fact]
+    public async Task Index_Hierarchical_CustomerFreetextFilter_StillPassedToRepository_SqlSubqueryPath()
+    {
+        // Pflicht-Regressionstest Task 7: Der Leitstand bekommt laut Spec (Entscheidung B5) KEINE
+        // K1-Zeilenwerte -- er hat also gar kein Anzeige-Modell-Feld, ueber das ein C#-Postfilter
+        // ueberhaupt greifen koennte. Die Kunde-Freitextsuche MUSS deshalb weiterhin unveraendert an
+        // GetForLeitstandGroupedAsync durchgereicht werden, wo sie (siehe
+        // ProductionOrderRepositoryTests.Leitstand_Hierarchical_CustomerFreetextFilter_
+        // MatchesViaOrderInfo) per SQL-Subquery gegen FaHierarchyOrderInfo.Kunde matcht. Wer hier den
+        // Parameter durch null ersetzt oder einen Postfilter einzieht, loescht die Kunde-Suche auf dem
+        // Leitstand vollstaendig -- eine stille Regression in einer Produktivansicht, die kein
+        // anderer Test faengt.
+        EnableHierarchical();
+        var grouped = new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("H1", new List<LeitstandOrderRow> { MakeRowH(1, "H1", "H1-1") }),
+            },
+            TotalGroupCount: 1,
+            TotalRowCount: 1);
+        _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(grouped);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var result = await _controller.Index(null, null, "Mustermann", false, 1, null);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
+        vm.Groups.Should().NotBeEmpty();
+
+        // Der Freitext muss unveraendert (nicht null, nicht in einen Postfilter umgeleitet) an das
+        // Repository gehen -- dort uebernimmt die SQL-Subquery gegen FaHierarchyOrderInfo die Suche.
+        _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
+            null, null, "Mustermann", false,
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task Index_FlatMode_LeavesHierarchicalFalse()
     {
         // Regression: Master aus (default null) → bit-identisch zu heute, keine Gruppierung.
