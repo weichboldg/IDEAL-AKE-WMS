@@ -5,8 +5,8 @@ slug: 2026-09-10-fa-liste-ausbau-matchcode-spec
 status: InUmsetzung
 created: 2026-09-10
 updated: 2026-09-10
-source_backlog: "[[2026-09-10-fa-liste-ausbau-matchcode]]"
-task: "[[2026-09-10-fa-liste-ausbau-matchcode]]"
+source_backlog: "[[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]]"
+task: "[[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
