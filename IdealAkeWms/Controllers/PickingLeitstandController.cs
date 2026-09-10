@@ -511,6 +511,81 @@ public class PickingLeitstandController : Controller
         return RedirectBackOrIndex(returnUrl);
     }
 
+    // ---------------------------------------------------------------------
+    // Freigabe-Kaskade „Alle Sub-FAs freigeben" (nur Gruppen-Kopfzeile).
+    // Traeger: IsReleasedForPicking (ProductionOrderPickingStatus). Zeilen-Toggle (ToggleRelease)
+    // bleibt unveraendert. Zugriff wie die Einzel-/Bulk-Freigabe (Leitstand-Recht, nicht Picking-Recht
+    // wie CascadeDone) — Freigabe ist eine Leitstand-Aufgabe. Die Zuweisungspflicht aus
+    // ToggleRelease/BulkRelease gilt unveraendert auch fuer diese Massenaktion.
+    // ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Vorschau-Zahlen fuer den Bestaetigungsdialog: Gesamtzahl Sub-FAs dieser HauptFA, wie viele
+    /// davon bereits freigegeben sind, und wie viele die Kaskade noch freigeben wuerde.
+    /// </summary>
+    [HttpGet]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> CascadeReleasePreview(string? orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+            return BadRequest("orderNumber fehlt.");
+
+        var totalSubFas = await _productionOrderRepository.CountByOrderNumberAsync(orderNumber);
+        var alreadyReleased = await _pickingStatusRepository.CountReleasedByOrderNumberAsync(orderNumber);
+
+        return Ok(new { orderNumber, totalSubFas, alreadyReleased, toRelease = totalSubFas - alreadyReleased });
+    }
+
+    /// <summary>
+    /// Fuehrt die Kaskade aus: setzt IsReleasedForPicking=true fuer alle noch nicht freigegebenen
+    /// Sub-FAs dieser HauptFA. Die Zuweisungspflicht (AppSettingKeys.KommissionierungMitZuweisung)
+    /// gilt unveraendert wie bei der Einzelfreigabe (ToggleRelease) und der Mehrfachfreigabe
+    /// (BulkRelease) — eine Massenaktion darf diese Pflicht nicht umgehen.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> CascadeRelease(string? orderNumber, int? assignedPickerId, string? returnUrl)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            TempData["WarningMessage"] = "Keine HauptFA angegeben — nichts freigegeben.";
+            return RedirectBackOrIndex(returnUrl);
+        }
+
+        var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(
+            AppSettingKeys.KommissionierungMitZuweisung))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (pickerAssignmentEnabled && !assignedPickerId.HasValue)
+        {
+            TempData["WarningMessage"] = "Bitte einen Kommissionierer zuweisen.";
+            return RedirectBackOrIndex(returnUrl);
+        }
+
+        string? pickerName = null;
+        if (assignedPickerId.HasValue)
+            pickerName = (await _userRepository.GetByIdAsync(assignedPickerId.Value))?.Name;
+
+        var affected = await _pickingStatusRepository.SetReleaseForOrderNumberAsync(
+            orderNumber, assignedPickerId, pickerName,
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName());
+
+        _logger.LogInformation(
+            "IDEAL-Kaskade Freigabe (IsReleasedForPicking): HauptFA {OrderNumber} → {Count} Sub-FA(s) " +
+            "freigegeben durch {User} ({Windows}), Kommissionierer {Picker}.",
+            orderNumber, affected, _currentUserService.GetDisplayName(),
+            _currentUserService.GetWindowsUserName(), pickerName ?? "(keiner)");
+
+        TempData["SuccessMessage"] = affected > 0
+            ? $"HauptFA {orderNumber}: {affected} Sub-FA(s) freigegeben."
+            : $"HauptFA {orderNumber}: alle Sub-FAs waren bereits freigegeben — nichts geändert.";
+
+        return RedirectBackOrIndex(returnUrl);
+    }
+
     private IActionResult RedirectBackOrIndex(string? returnUrl)
     {
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
