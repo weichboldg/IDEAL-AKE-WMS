@@ -9,6 +9,43 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.38.0</strong> <span class="text-white-50 ms-2">10.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, Freigabe-Kaskade</h6>
+                <p class="text-muted mb-2"><em>Die Matchcode-Spalte ist hausweit sichtbar (Standorte
+                    AKE und IDEAL). Die übrigen drei Punkte wirken nur am Standort IDEAL
+                    (FA-Hierarchie aktiv) &ndash; am Standort AKE bleibt dort alles unverändert.</em></p>
+                <ul>
+                    <li><strong>Matchcode-Spalte:</strong> In der FA-Liste, im Kommissionier-Leitstand,
+                        in der FA-Fertigmeldung, in der FA-Arbeitsliste und in der Kommissionierliste
+                        erscheint jetzt die Spalte &bdquo;Matchcode&ldquo; (Typenkurzbezeichnung) &ndash;
+                        standardmäßig sichtbar, über das Zahnrad ein-/ausblendbar und spaltenfilterbar.
+                        <strong>Der Matchcode erscheint am Standort AKE erst, wenn die Datenquelle ihn
+                        liefert &ndash; bis dahin bleibt die Spalte dort leer.</strong> Das ist kein
+                        Fehler.</li>
+                    <li><strong>Kopfdaten je Zeile (nur IDEAL):</strong> In der FA-Liste tragen
+                        Sub-FA-Zeilen Kunde, Priorität, AB-Nummer, Montage-Abteilung und
+                        Konstruktions-Termin jetzt auch als eigene Zeilenwerte, nicht mehr nur in der
+                        Gruppen-Kopfzeile &ndash; dadurch lassen sie sich jetzt auch je Zeile filtern.
+                        Wiederholt sich ein Wert innerhalb einer Gruppe, wird er nur bei der ersten
+                        Zeile angezeigt.</li>
+                    <li><strong>Haupt-FA als eigene Zeile (nur IDEAL):</strong> Die Haupt-FA erscheint
+                        jetzt als eigene, gekennzeichnete Zeile mit eigenen Aktionen. Die
+                        Gruppen-Kopfzeile zeigt dafür nur noch Kunde und Fertigungstermin &ndash; Prio,
+                        AB-Nummer, Montage-Abteilung und die übrigen Termine stehen jetzt in den
+                        Zeilen.</li>
+                    <li><strong>Freigabe-Kaskade im Leitstand (nur IDEAL):</strong> Neuer Button
+                        &bdquo;Alle Sub-FAs freigeben&ldquo; an der Haupt-FA gibt mit einem Klick alle
+                        noch nicht freigegebenen Sub-FAs frei. Ist die Kommissionierer-Zuweisung aktiv,
+                        ist dabei ein Kommissionierer Pflicht &ndash; er wird allen zugewiesen und kann
+                        danach je Sub-FA geändert werden.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.37.0</strong> <span class="text-white-50 ms-2">09.09.2026</span>
             </div>
             <div class="card-body">
