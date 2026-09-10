@@ -78,25 +78,38 @@ public class ProductionOrdersController : Controller
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
-        // Datum-Filter UND K1-Kopfdaten-Filter (Customer/Prio/AbNummer/MontageAbteilung/
-        // KonstruktionsTermin) werden in C# nach Termin-Berechnung bzw. Gruppenkopf-Anreicherung
-        // angewendet -- diese Werte existieren nicht in der DB (ADR 0005).
+        // Datum-Filter werden in C# nach Termin-Berechnung angewendet (beide Zweige).
         var dateFilters = columnFilters
             .Where(kv => FaListDateColumnKeys.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
+        var hasDateFilters = dateFilters.Count > 0;
+
+        // K1-Kopfdaten-Filter (Customer/Prio/AbNummer/MontageAbteilung): existieren nur im
+        // hierarchischen Anzeige-Modell (Task 5), NICHT in der DB -- duerfen deshalb NUR den
+        // hierarchischen Zweig beeinflussen. Im Flachmodus (AKE) ist "customer" dagegen eine
+        // echte, befuellte DB-Spalte und wird dort weiterhin per SQL gefiltert
+        // (ApplyLeitstandColumnFilter) -- Fix-Runde 1, Critical-Befund: diese Schluesselmenge darf
+        // `sqlColumnFilters`/`sqlPageSize`/`sqlPage` (Flachmodus) NICHT beeinflussen.
         var computedFilters = columnFilters
             .Where(kv => FaListComputedColumnKeys.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
-        var hasDateFilters = dateFilters.Count > 0;
-        var hasPostFilters = hasDateFilters || computedFilters.Count > 0;
-        var sqlColumnFilters = hasPostFilters
+        var hasHierarchicalPostFilters = hasDateFilters || computedFilters.Count > 0;
+
+        // Flachmodus (AKE): exakt wie vor Task 6 -- haengt ausschliesslich an hasDateFilters.
+        var sqlColumnFilters = hasDateFilters
+            ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key))
+                           .ToDictionary(kv => kv.Key, kv => kv.Value)
+            : columnFilters;
+        var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
+        var sqlPage = hasDateFilters ? 1 : page;
+
+        // Hierarchischer Zweig (IDEAL): Datums- UND K1-Kopfdaten-Filter sind Postfilter, beide
+        // erzwingen die ungepaginierte SQL-Abfrage -- siehe sqlGroupPageSize/sqlGroupPage unten.
+        var sqlColumnFiltersHierarchical = hasHierarchicalPostFilters
             ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key)
                                       && !FaListComputedColumnKeys.Contains(kv.Key))
                            .ToDictionary(kv => kv.Key, kv => kv.Value)
             : columnFilters;
-
-        var sqlPageSize = hasPostFilters ? int.MaxValue : effectivePageSize;
-        var sqlPage = hasPostFilters ? 1 : page;
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
@@ -203,10 +216,10 @@ public class ProductionOrdersController : Controller
         {
             // Paginierung ueber GRUPPEN; bei Postfiltern (Datum oder K1-Kopfdaten) alle Gruppen
             // laden, in C# filtern/paginieren.
-            var sqlGroupPageSize = hasPostFilters ? int.MaxValue : effectivePageSize;
-            var sqlGroupPage = hasPostFilters ? 1 : page;
+            var sqlGroupPageSize = hasHierarchicalPostFilters ? int.MaxValue : effectivePageSize;
+            var sqlGroupPage = hasHierarchicalPostFilters ? 1 : page;
             var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
-                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters);
+                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFiltersHierarchical);
 
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
             var psDict = await _pickingStatusRepository.GetByProductionOrderIdsAsync(allRows.Select(r => r.Id).ToList());
@@ -286,7 +299,7 @@ public class ProductionOrdersController : Controller
             var totalGroupCount = grouped.TotalGroupCount;
             var totalRowCount = grouped.TotalRowCount;
 
-            if (hasPostFilters)
+            if (hasHierarchicalPostFilters)
             {
                 foreach (var (key, raw) in dateFilters)
                 {
