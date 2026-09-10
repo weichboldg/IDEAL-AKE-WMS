@@ -291,6 +291,10 @@
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     @* IDEAL FA-Liste-Hierarchie: Gruppen-Chevron-Collapse + Auto-Expand (aktiv nur bei data-hierarchical=true). *@
     <script src="~/js/fa-liste-gruppierung.js" asp-append-version="true"></script>
+    @* IDEAL FA-Liste-Hierarchie: Wiederholungswerte je Gruppe nur an der ersten Zeile zeigen
+       (aktiv nur bei data-hierarchical=true). Muss NACH table-filter.js/fa-liste-gruppierung.js
+       stehen, weil es auf deren Ereignisse hoert. *@
+    <script src="~/js/fa-liste-wiederholung.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // QR scanner for FA number filter — fills input then submits form
