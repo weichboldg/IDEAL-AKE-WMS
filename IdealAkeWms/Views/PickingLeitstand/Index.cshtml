@@ -203,6 +203,18 @@
                                     Alle Sub-FAs fertigmelden
                                 </button>
                             }
+                            @* Freigabe-Kaskade „Alle Sub-FAs freigeben" — Pendant zur Fertigmeldungs-Kaskade oben.
+                               Bewusst CanManagePickingRelease statt CanPick: Freigabe ist ein Leitstand-Recht,
+                               die Fertigmeldung ein Picking-Recht — beide Knoepfe koennen daher unterschiedlich
+                               sichtbar sein. Setzt IsReleasedForPicking für noch nicht freigegebene Nachfahren. *@
+                            @if (Model.CanManagePickingRelease)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2 btn-cascade-release"
+                                        data-order-number="@group.OrderNumber"
+                                        title="Alle Sub-FAs dieser HauptFA für die Kommissionierung freigeben">
+                                    Alle Sub-FAs freigeben
+                                </button>
+                            }
                         </td>
                     </tr>
                     @foreach (var item in group.Items)
@@ -383,6 +395,63 @@
     </div>
 }
 
+@* Freigabe-Kaskade „Alle Sub-FAs freigeben" — Bestaetigungsdialog, Pendant zu cascadeDoneModal.
+   Einmal gerendert, nur im hierarchischen Modus mit Leitstand-Freigaberecht. Zahlen werden per
+   AJAX (CascadeReleasePreview) gefuellt. *@
+@if (Model.Hierarchical && Model.CanManagePickingRelease)
+{
+    <div class="modal fade" id="cascadeReleaseModal" tabindex="-1" aria-labelledby="cascadeReleaseModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-controller="PickingLeitstand" asp-action="CascadeRelease" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="orderNumber" id="cascadeReleaseOrderNumber" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cascadeReleaseModalLabel">Alle Sub-FAs freigeben</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">
+                            HauptFA <strong id="cascadeReleaseOrderLabel"></strong> — insgesamt
+                            <strong id="cascadeReleaseTotal">…</strong> Sub-FA(s), davon bereits
+                            <strong id="cascadeReleaseAlready">…</strong> freigegeben. Es werden
+                            <strong id="cascadeReleaseCount">…</strong> neu freigegeben (alle Nachfahren,
+                            unabhängig vom aktuellen Filter).
+                        </p>
+                        @if (Model.PickerAssignmentEnabled)
+                        {
+                            var cascadeReleaseActivePickers = ViewBag.ActivePickers as List<IdealAkeWms.Models.User> ?? new List<IdealAkeWms.Models.User>();
+                            <div class="mb-2">
+                                <label for="cascadeAssignedPickerIdSelect" class="form-label">Kommissionierer</label>
+                                <select name="assignedPickerId" id="cascadeAssignedPickerIdSelect" class="form-select" required>
+                                    <option value="">— Bitte auswaehlen —</option>
+                                    @foreach (var p in cascadeReleaseActivePickers)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                </select>
+                                <div class="form-text">
+                                    Der gewählte Kommissionierer wird allen
+                                    <span id="cascadeReleaseCountInline">—</span> Sub-FAs zugewiesen und
+                                    kann danach je Sub-FA geändert werden.
+                                </div>
+                            </div>
+                        }
+                        <p class="small text-muted mb-0">
+                            Die Aktion gibt nur frei. Eine Rücknahme erfolgt einzeln je Sub-FA-Zeile.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary" id="cascadeReleaseSubmit" disabled>Freigeben</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
 <script type="application/json" id="view-config">
 { "viewKey": "PickingLeitstand", "supportsReorder": true, "supportsSortDefault": true }
 </script>
@@ -473,6 +542,61 @@
                             })
                             .catch(function () {
                                 totalEl.textContent = '?';
+                                // Absenden bleibt moeglich — der Server ist die Wahrheit; die Zahl ist nur Vorschau.
+                                submitBtn.disabled = false;
+                            });
+                    });
+                });
+            });
+        </script>
+    }
+    @if (Model.Hierarchical && Model.CanManagePickingRelease)
+    {
+        <script>
+            // Freigabe-Kaskade „Alle Sub-FAs freigeben": Zahlen holen, Dialog fuellen, dann POST.
+            // Spiegelt den btn-cascade-done-Handler oben.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modalEl = document.getElementById('cascadeReleaseModal');
+                if (!modalEl) return;
+                var orderInput = document.getElementById('cascadeReleaseOrderNumber');
+                var orderLabel = document.getElementById('cascadeReleaseOrderLabel');
+                var totalEl = document.getElementById('cascadeReleaseTotal');
+                var alreadyEl = document.getElementById('cascadeReleaseAlready');
+                var countEl = document.getElementById('cascadeReleaseCount');
+                var countInlineEl = document.getElementById('cascadeReleaseCountInline');
+                var pickerSelect = document.getElementById('cascadeAssignedPickerIdSelect');
+                var submitBtn = document.getElementById('cascadeReleaseSubmit');
+
+                document.querySelectorAll('.btn-cascade-release').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        // Nicht die Gruppe auf-/zuklappen.
+                        e.stopPropagation();
+                        var orderNumber = this.getAttribute('data-order-number');
+                        orderInput.value = orderNumber;
+                        orderLabel.textContent = orderNumber;
+                        totalEl.textContent = '…';
+                        alreadyEl.textContent = '…';
+                        countEl.textContent = '…';
+                        if (countInlineEl) countInlineEl.textContent = '—';
+                        if (pickerSelect) pickerSelect.value = '';
+                        submitBtn.disabled = true;
+
+                        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+                        fetch('@Url.Action("CascadeReleasePreview", "PickingLeitstand")?orderNumber=' + encodeURIComponent(orderNumber))
+                            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                            .then(function (d) {
+                                totalEl.textContent = d.totalSubFas;
+                                alreadyEl.textContent = d.alreadyReleased;
+                                countEl.textContent = d.toRelease;
+                                if (countInlineEl) countInlineEl.textContent = d.toRelease;
+                                submitBtn.disabled = false;
+                            })
+                            .catch(function () {
+                                totalEl.textContent = '?';
+                                alreadyEl.textContent = '?';
+                                countEl.textContent = '?';
+                                if (countInlineEl) countInlineEl.textContent = '?';
                                 // Absenden bleibt moeglich — der Server ist die Wahrheit; die Zahl ist nur Vorschau.
                                 submitBtn.disabled = false;
                             });
