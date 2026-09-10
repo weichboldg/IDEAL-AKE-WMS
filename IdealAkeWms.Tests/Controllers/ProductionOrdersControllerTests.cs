@@ -599,4 +599,72 @@ public class ProductionOrdersControllerTests
         item.MontageAbteilung.Should().BeNull();
         item.KonstruktionsTermin.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Index_Hierarchical_CustomerFreetextFilter_FindsGroupViaComputedPostfilter_EmptyGroupsDisappear_CountsCorrect()
+    {
+        // Task 7, AK8: der Kunde-FREITEXT (Filterkarte, filterCustomer) muss im hierarchischen
+        // Modus genauso wie der Spaltenfilter (Task 6) ueber den C#-Postfilter laufen --
+        // ProductionOrder.Customer ist je Sub-FA leer, der Kunde haengt am HauptFA. Zwei Gruppen,
+        // nur eine passt auf den Freitext "mustermann"; die zweite muss komplett verschwinden (Z3b),
+        // die Zaehlungen (HierarchicalRowCount/Pagination.TotalCount) muessen das widerspiegeln.
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup>
+            {
+                new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") }),
+                new("2000", new List<LeitstandOrderRow> { MakeRowH(2, "2000", "2001") }),
+            },
+            TotalGroupCount: 2, TotalRowCount: 2));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var head1 = MakeHead(1000, kunde: "Mustermann GmbH");
+        var head2 = MakeHead(2000, kunde: "Andere Firma");
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo> { head1, head2 });
+
+        var result = await _controller.Index(null, null, "Mustermann", false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        vm.Groups.Should().HaveCount(1);
+        vm.Groups.Single().Customer.Should().Be("Mustermann GmbH");
+        vm.Groups.Single().Items.Should().OnlyContain(i => i.Customer == "Mustermann GmbH");
+        vm.HierarchicalRowCount.Should().Be(1);
+        vm.Pagination.TotalCount.Should().Be(1);
+
+        // Kein SQL-Subquery mehr fuer die FA-Liste -- filterCustomer geht NICHT mehr an das Repo
+        // (im Gegensatz zum Leitstand, siehe PickingLeitstandControllerTests).
+        _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
+            null, null, null, false,
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Index_Flat_CustomerFreetextFilter_StaysSqlPredicate_PaginationUnaffected()
+    {
+        // Gegenstueck zum Test oben: im Flachmodus (AKE) ist Customer eine echte, befuellte
+        // DB-Spalte -- filterCustomer bleibt unveraendert ein SQL-Praedikat an GetForLeitstandAsync,
+        // inklusive greifender Paginierung (Harte Bedingung des Tasks, Punkt 2).
+        _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        var row = new LeitstandOrderRow(1, "FA-100", 1m, "Mustermann GmbH", "ART-001", null, null,
+            null, null, false, false, false, null);
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(new LeitstandOrderPage(new List<LeitstandOrderRow> { row }, 50));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var result = await _controller.Index(null, null, "muster", false, 1, null);
+        var vm = ((ViewResult)result).Model.Should().BeOfType<ProductionOrderListViewModel>().Subject;
+
+        _orderRepo.Verify(r => r.GetForLeitstandAsync(
+            null, null, "muster", false,
+            1,   // sqlPage: nicht auf 1-erzwungen, sondern der tatsaechlich angeforderte page=1
+            25,  // sqlPageSize: effectivePageSize (Default), NICHT int.MaxValue
+            It.IsAny<IReadOnlyDictionary<string, string>?>()),
+            Times.Once);
+
+        vm.Items.Should().HaveCount(1);
+        vm.Pagination.TotalCount.Should().Be(50);
+    }
 }

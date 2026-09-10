@@ -93,7 +93,18 @@ public class ProductionOrdersController : Controller
         var computedFilters = columnFilters
             .Where(kv => FaListComputedColumnKeys.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
-        var hasHierarchicalPostFilters = hasDateFilters || computedFilters.Count > 0;
+
+        // K1 (Task 7): der Kunde-FREITEXT (Filterkarte, nicht der Spaltenfilter) ist im
+        // hierarchischen Modus strukturell dasselbe Problem wie computedFilters["customer"] --
+        // ProductionOrder.Customer ist je Sub-FA leer, der Kunde haengt am HauptFA
+        // (FaHierarchyOrderInfo.Kunde). Lief bisher trotzdem ueber den SQL-Subquery in
+        // BuildLeitstandQuery (separater Parameter, nicht Teil von columnFilters) -- AK8 der Spec
+        // verlangt beide Wege (Freitext UND Spaltenfilter) ueber denselben C#-Postfilter. Nur hier,
+        // NICHT in hasDateFilters/sqlColumnFilters (Flachmodus) einmischen -- dort ist Customer eine
+        // echte DB-Spalte und filterCustomer bleibt unveraendert ein SQL-Praedikat (siehe unten,
+        // Flachmodus-Aufruf von GetForLeitstandAsync).
+        var hasCustomerFreetextFilter = !string.IsNullOrWhiteSpace(filterCustomer);
+        var hasHierarchicalPostFilters = hasDateFilters || computedFilters.Count > 0 || hasCustomerFreetextFilter;
 
         // Flachmodus (AKE): exakt wie vor Task 6 -- haengt ausschliesslich an hasDateFilters.
         var sqlColumnFilters = hasDateFilters
@@ -218,8 +229,12 @@ public class ProductionOrdersController : Controller
             // laden, in C# filtern/paginieren.
             var sqlGroupPageSize = hasHierarchicalPostFilters ? int.MaxValue : effectivePageSize;
             var sqlGroupPage = hasHierarchicalPostFilters ? 1 : page;
+            // K1 (Task 7): Kunde-Freitext NICHT mehr an die Query uebergeben (kein SQL-Subquery mehr
+            // fuer die FA-Liste) -- wird unten als Postfilter auf item.Customer angewendet, siehe
+            // hasCustomerFreetextFilter oben. Der Leitstand (PickingLeitstandController) ist davon
+            // unberuehrt und uebergibt filterCustomer weiterhin unveraendert.
             var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
-                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFiltersHierarchical);
+                filterOrderNumber, filterArticleNumber, null, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFiltersHierarchical);
 
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
             var psDict = await _pickingStatusRepository.GetByProductionOrderIdsAsync(allRows.Select(r => r.Id).ToList());
@@ -316,6 +331,16 @@ public class ProductionOrdersController : Controller
                     if (tokens.Count == 0) continue;
                     foreach (var g in listGroups)
                         g.Items = g.Items.Where(it => MatchFaListComputedFilter(it, key, tokens, negate)).ToList();
+                }
+                // K1 (Task 7, AK8): Kunde-FREITEXT der Filterkarte -- derselbe Postfilter-Mechanismus
+                // wie der Spaltenfilter oben, aber ohne Token-/Negate-Syntax (einfacher
+                // Substring-Match, identisch zum bisherigen SQL-LIKE-Verhalten).
+                if (hasCustomerFreetextFilter)
+                {
+                    var needle = filterCustomer!.Trim().ToLowerInvariant();
+                    foreach (var g in listGroups)
+                        g.Items = g.Items.Where(it =>
+                            (it.Customer ?? string.Empty).ToLowerInvariant().Contains(needle)).ToList();
                 }
                 listGroups = listGroups.Where(g => g.Items.Count > 0).ToList(); // leere Gruppen entfernen (Z3b)
                 totalGroupCount = listGroups.Count;
