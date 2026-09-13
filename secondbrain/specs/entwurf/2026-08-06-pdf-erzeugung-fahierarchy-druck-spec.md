@@ -542,3 +542,124 @@ Singleton + View-Flag (nicht in `affected_code`), und die DI-Lebensdauer von `IP
 ist ungenannt, wodurch das `SemaphoreSlim` aus Antwort 6 wirkungslos werden kann. Beides ist billig
 zu beheben (Muster im Haus vorhanden), muss aber vor dem Verschieben nach `specs/freigegeben/` in
 den Rumpf gezogen werden.
+
+## ANTWORTEN auf die Kritische Pruefung (2026-09-11)
+
+### Zu B1 — uebernommen, und der Weg ist billiger als gedacht.
+
+Der Reviewer hat nicht nur den Mangel gemeldet, sondern die **Vorlage im eigenen Haus** gefunden:
+`HierarchischeStrukturStatus` — Singleton, beim Start in `Program.cs:491` geprobt. **Dasselbe
+Muster uebernehmen, nichts Neues erfinden.**
+
+In Umfang, `affected_code` und AK aufzunehmen:
+- **`PdfRenderStatus`** (Singleton): einmalige Edge-Ermittlung beim Anwendungsstart, Ergebnis
+  gecacht, klare Warnung im Log bei Fehlanzeige.
+- **Sichtbarkeits-Flag** in beiden Index-ViewModels plus je ein `@if` in der View. Der Reviewer hat
+  bestaetigt: **zwei Views, ein `@if`, kein Wildwuchs** — damit ist der Einwand aus dem
+  Pruefauftrag ausgeraeumt.
+- **Neues AK:** Fehlt Edge, erscheint der PDF-Knopf nicht, und der Startlauf protokolliert es.
+
+### Zu B2 — uebernommen. **Singleton-Registrierung, nicht `static`.**
+
+Am Code bestaetigt: Bei Scoped haette jede Anfrage ihr eigenes Semaphor, und die Begrenzung waere
+wirkungslos — sie saehe im Code richtig aus und wirkte nicht. Das faellt erst auf, wenn zehn Werker
+gleichzeitig klicken.
+
+**`IPdfRenderService` wird ausdruecklich als Singleton registriert.** Kein `static`-Feld:
+- Der Dienst ist ausser dem Semaphor **zustandslos** (HTML rein, Bytes raus) — Singleton ist sicher.
+- `static` versteckt den geteilten Zustand im Dienst; eine Singleton-Registrierung macht ihn in
+  `Program.cs` sichtbar, also dort, wo jeder nachsieht.
+
+**Absicherung mit einem Muster, das es schon gibt:** ein **DI-Aufloesungstest** nach dem Vorbild der
+`BomDiResolutionTests` aus der BOM-Bridge, der die Lebensdauer festnagelt. Genau dafuer wurde das
+Muster damals eingefuehrt — eine falsche Registrierung, die man im Code nicht sieht.
+**Zusaetzliches AK:** „Die Begrenzung wirkt anfrageuebergreifend", nachweisbar ueber die
+registrierte Lebensdauer.
+
+### Zu den SOLLTE-Punkten — alle drei uebernommen.
+
+- **Laufzeit-Protokollierung je Aufruf** (Antwort 3) in `affected_code` und AK aufnehmen. Ohne sie
+  bleibt der 30-Sekunden-Wert dauerhaft geraten.
+- **Zweite Cleanup-Stufe** (Antwort 5): verwaiste Dateien aelterer Laeufe beim Start eines Laufs
+  entfernen — nicht nur das `finally`.
+- **`target="_blank"` darf der PDF-Knopf NICHT vom Drucken-Knopf erben.** Praeziser Fund: Es
+  widerspraeche direkt Antwort 7 („direkter Download, kein neuer Tab"). **Als AK formulieren**,
+  nicht nur als Hinweis — sonst wird es beim Kopieren des Drucken-Knopfs versehentlich mitgenommen.
+
+**Nach der Nachbesserung ist die Spec freigabereif** — dann Status, Freigabe-Felder und Ordner
+gemeinsam umstellen.
+
+## Kritische Pruefung (2026-09-13) — zweiter Durchgang nach den ANTWORTEN
+
+Die ANTWORTEN vom 2026-09-11 loesen **beide** Blocker des ersten Durchgangs inhaltlich und richtig:
+
+- **B1 aufgeloest:** Der Weg (Status-Singleton nach dem Vorbild `HierarchischeStrukturStatus` +
+  Sichtbarkeits-Flag in beiden ViewModels + ein `@if` je View + neues AK) ist die saubere,
+  hausuebliche Loesung. Keine offene Frage mehr.
+- **B2 aufgeloest — und die Begruendung stimmt am Code.** „Singleton, nicht `static`" ist die
+  richtige Wahl. Der als Absicherung genannte `BomDiResolutionTests`-Praezedenzfall wurde
+  **verifiziert**: `IdealAkeWms.Tests/Repositories/BomDiResolutionTests.cs` (im Worktree) baut den
+  DI-Graphen exakt wie `Program.cs` nach und ist genau als Waechter gegen eine im Code unsichtbare
+  Fehlregistrierung angelegt — ein DI-Aufloesungstest fuer die `IPdfRenderService`-Lebensdauer ist
+  damit ein etabliertes, kein neu erfundenes Muster.
+- Alle drei SOLLTE-Punkte sind uebernommen (Laufzeit-Logging, zweite Cleanup-Stufe,
+  `target="_blank"` als AK statt nur Hinweis).
+
+Damit bleiben **kein inhaltlicher Blocker** aus dem ersten Durchgang. Zwei Dinge sind aber neu bzw.
+noch offen:
+
+### BLOCKER (neu, im ersten Durchgang uebersehen)
+
+1. **Antwort 7 („Route `/<Controller>/Pdf/{hauptFa}` — kein Query-Parameter") widerspricht dem
+   Technischen Loesungsentwurf, der `target` UND die Spaltenfilter aus dem Query-String liest — und
+   davon haengt ab, ob das PDF ueberhaupt dem gefilterten Bildschirm entspricht (AK 2).**
+   Der Code-Entwurf (Zeile 183-186) hat `Pdf(int hauptFa, string? target)` und
+   `ColumnFilterHelper.ReadFromQuery(HttpContext?.Request)`; Zeile 205 verlangt ausdruecklich
+   „dieselben Filter/Query-Parameter wie beim seitenweiten Druck". Verifiziert am View-Code: der
+   bestehende „Drucken"-Link haengt die **komplette** Query-Zeichenkette an
+   (`printUrl = Url.Action("Print") + Context.Request.QueryString.ToString()` — beide Index-Views).
+   Nimmt man Antwort 7 woertlich („kein Query-Parameter"), verliert das PDF `target` und alle
+   `colf_*`-Spaltenfilter — dann zeigt es die **ungefilterte** Gruppe und weicht vom Bildschirm ab,
+   den der Anwender gerade sieht. **Frage an den Menschen:** Meint Antwort 7 nur „`hauptFa` als
+   Routen-Segment statt `?hauptFa=`" (Query fuer `target`/`colf_*` bleibt erlaubt) — oder soll das
+   PDF bewusst immer die **volle** Gruppe ohne Zeilenfilter zeigen? Im zweiten Fall muss AK 2
+   („identisch zum Bildschirmdruck derselben Gruppe") um „ohne aktive Spaltenfilter" praezisiert
+   werden, sonst widersprechen sich Antwort 7 und AK 2. (Bei der Beschichtung ohne `target` ist nur
+   die `colf_*`-Haelfte betroffen, dieselbe Frage.)
+
+### AUSFUEHRUNGSPFLICHT vor Freigabe (keine offene Frage — die Entscheidungen stehen, nur noch nicht im Rumpf)
+
+Dies ist der immer wiederkehrende Riss: Die Beschluesse leben im ANTWORTEN-Abschnitt, aber
+`affected_code`, Technischer Loesungsentwurf und Akzeptanzkriterien — die der Dev-Lauf als Auftrag
+liest — sind unveraendert. Der Mensch hat das im Schlusssatz selbst so vorgesehen („Nach der
+Nachbesserung … freigabereif"). Damit beim Nachziehen nichts vergessen wird, die vollstaendige
+Pull-in-Liste:
+
+- `affected_code` ergaenzen um: **`PdfRenderStatus.cs` (neu, Singleton)**; **Program.cs** nicht nur
+  „DI-Registrierung", sondern auch **Start-Probe** (Aufruf nach `builder.Build()`, Vorbild
+  `Program.cs:491`); **beide `…PrintViewModel`** (neues `bool`-Flag „PDF verfuegbar"); **beide
+  Index.cshtml** (das `@if` um den PDF-Knopf); **`IdealAkeWms.Tests/…/PdfRenderServiceDiResolutionTests.cs`
+  (neu, Vorbild `BomDiResolutionTests`)**.
+- Technischer Loesungsentwurf ergaenzen um: Singleton-Registrierung (ausdruecklich), Start-Probe +
+  Status-Halter, `SemaphoreSlim.WaitAsync` (warten statt abweisen, Antwort 6), Schritt „verwaiste
+  Dateien aelterer Laeufe beim Lauf-Start entfernen" (Antwort 5), `Stopwatch`-Laufzeit-Logging
+  (Antwort 3), und den Hinweis „PDF-Knopf **ohne** `target="_blank"`" (Antwort 7).
+- Akzeptanzkriterien ergaenzen um: (a) Edge fehlt beim Start → PDF-Knopf erscheint nicht + Warnung
+  im Log; (b) Prozess-Begrenzung wirkt **anfrageuebergreifend** (ueber die registrierte Lebensdauer
+  nachweisbar); (c) Laufzeit je Erzeugung wird protokolliert; (d) PDF-Knopf loest **direkten
+  Download** aus, kein neuer Tab; (e) verwaiste Temp-Dateien werden beim naechsten Lauf entfernt.
+- Deploy/Betriebs-Vorbedingung „Edge auf dem Web-Server" zusaetzlich in die **Buendel-Deploy-Notiz**
+  (`secondbrain/aufgaben/`) eintragen, nicht nur in diese Spec (Antwort 1).
+
+### HINWEIS
+
+- Wer die Pull-in-Liste abarbeitet, ist im Workflow der **Dev-Lauf** (Rumpf-/Code-Aenderung), nicht
+  der Review — dieser Abschnitt ersetzt das Nachziehen nicht, er macht es nur vollstaendig
+  abhakbar. Ob der Mensch die vier Punkte vor dem Verschieben nach `specs/freigegeben/` selbst in
+  den Rumpf zieht oder sie als bindenden Auftrag im ANTWORTEN-Abschnitt stehen laesst, ist seine
+  Entscheidung; sicherer ist das Nachziehen, weil der Dev-Lauf `affected_code`/AK als Wahrheit liest.
+
+**NACHBESSERUNG NOETIG:** ein neuer Blocker (Antwort 7 „kein Query-Parameter" vs. Filter-Erhalt/AK 2
+— eine Zeile Klarstellung) und die Ausfuehrungspflicht, die vier Beschluss-Bloecke aus dem
+ANTWORTEN-Abschnitt in `affected_code`/Loesungsentwurf/AK zu ziehen. Inhaltlich ist alles
+entschieden; es fehlt nur die Klarstellung zu Antwort 7 und das mechanische Nachziehen.
