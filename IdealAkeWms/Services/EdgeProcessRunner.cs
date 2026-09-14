@@ -62,6 +62,14 @@ public sealed class EdgeProcessRunner : IEdgeProcessRunner
                 timeout.TotalSeconds, await SafeStderrAsync(stderrTask));
             return false;
         }
+        catch (OperationCanceledException)
+        {
+            // Aufrufer-Abbruch (Werker schliesst den Tab): den noch rendernden Edge NICHT als Waise
+            // weiterlaufen lassen — sonst verbraucht er ~1,5 s lang eine Prozess-Ressource ausserhalb
+            // der MaxConcurrent-Rechnung. Kinder beenden, dann den Abbruch propagieren (kein PDF noetig).
+            KillChildren(launchedAt);
+            throw;
+        }
 
         // Launcher ist laengst weg; Kinder beenden sich nach dem Schreiben — kurz warten, damit das
         // Profilverzeichnis beim Aufraeumen nicht mehr gesperrt ist.
