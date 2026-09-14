@@ -145,6 +145,13 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
 builder.Services.AddScoped<IPrintService, PrintService>();
+
+// PDF-Erzeugung (Spec 2026-08-06): Status + Renderdienst SINGLETON — das SemaphoreSlim im Dienst
+// begrenzt die Edge-Prozesse nur anfrageuebergreifend, wenn es genau eine Instanz gibt.
+builder.Services.AddSingleton<PdfRenderStatus>();
+builder.Services.AddSingleton<IEdgeProcessRunner, EdgeProcessRunner>();
+builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
+builder.Services.AddScoped<IRazorViewRenderer, RazorViewRenderer>();
 builder.Services.AddScoped<ReadOnlyBomBuilder>();
 builder.Services.AddScoped<FaHierarchyTreeBuilder>();
 builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
@@ -490,6 +497,10 @@ using (var scope = app.Services.CreateScope())
 // Der Schreibpfad prueft ohnehin live; die Anzeige (Umschalt-Seite) liest diesen Cache.
 app.Services.GetRequiredService<IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturStatus>()
     .RefreshAsync().GetAwaiter().GetResult();
+
+// msedge.exe einmal beim Start suchen (Freigabe-Antwort 2): fehlt Edge, bleibt der PDF-Knopf weg
+// und das Log traegt die Warnung — der Anwender laeuft nicht in eine Wand.
+app.Services.GetRequiredService<PdfRenderStatus>().Refresh();
 
 // Fotos-Verzeichnis erstellen
 var fotosDir = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "Fotos", "Kommissionierung");
