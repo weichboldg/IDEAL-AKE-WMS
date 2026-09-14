@@ -2,7 +2,7 @@
 type: spec
 title: "PDF-Erzeugung fuer FaHierarchy-Druckdokumente (Querschnitts-Baustein)"
 slug: 2026-08-06-pdf-erzeugung-fahierarchy-druck-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-10
 updated: 2026-09-14
 source_backlog: "[[2026-08-06-pdf-erzeugung-fahierarchy-druck]]"
@@ -371,18 +371,43 @@ besonderem Gewicht").
 
 ## Deploy
 
-**Vorlaeufig (Dev-Lauf bestaetigt gegen den echten Diff):**
+**Final (qa-agent, 2026-09-14, gegen den echten Diff `deff907..85df349` verifiziert):**
 
-- **Web-App:** ja — neue Services, Controller-Actions, Views, ggf. `appsettings.json`-Erweiterung.
-- **Service:** nein — der Windows-Service ist an dieser Funktion nicht beteiligt.
-- **Migration:** nein.
-- **Voraussetzung auf dem Zielserver:** Microsoft Edge muss vorhanden und ausfuehrbar sein (siehe
-  offene Rueckfrage 2) — vor dem ersten Produktiv-Deploy auf dem IIS-Server pruefen, insbesondere
-  falls dort Server Core oder eine gehaertete Variante laeuft.
-- **Publish-Befehle** (im Worktree, nach Abschluss der Umsetzung):
+- **Web-App: ja.** Neue Services (`PdfRenderStatus`, `PdfRenderService`, `EdgeProcessRunner`,
+  `RazorViewRenderer`, `PdfFileNameBuilder`), neue `Pdf`-Actions an
+  `FaHierarchyKommissionierListenController`/`FaHierarchyBeschichtungController`, PDF-Knopf in
+  beiden `Index.cshtml`, `Program.cs` (DI + Start-Probe), neue `appsettings.json`-Sektion
+  `PdfRender`. Alle geaenderten Produktionsdateien liegen unter `IdealAkeWms/`.
+- **Service: nein.** Einzige Aenderung unter `IDEALAKEWMSService/` ist der reine Versions-Bump in
+  `AppVersion.cs` (Pflicht laut CLAUDE.md-Checkliste, beide `AppVersion.cs` synchron) — keine
+  funktionale Service-Aenderung, kein Redeploy des Windows-Service erforderlich.
+- **Migration: nein.** Verifiziert am Diff: kein neuer Eintrag unter `*/Migrations/`, kein
+  `SQL/XX_*.sql`, `SQL/00_FreshInstall.sql` unveraendert.
+- **Betriebs-Vorbedingung auf dem Zielserver: Microsoft Edge (`msedge.exe`).** Wird automatisch
+  ermittelt (Registry App Paths → Standardpfade → PATH, optional ueberschreibbar via
+  `PdfRender:EdgePath`). **Fehlt Edge, startet die App trotzdem** — der PDF-Knopf bleibt in beiden
+  Listen aus, kein Fehler, nur eine Warnung im Log (`PdfRenderStatus`). Vor dem ersten
+  Produktiv-Deploy pruefen, insbesondere falls Server Core oder eine gehaertete Variante laeuft.
+  Zusaetzlich muss `%TEMP%\IdealAkeWms-Pdf` unter der App-Pool-Identitaet beschreibbar sein.
+- **Konfiguration (`appsettings.json` → `PdfRender`):** `EdgePath` (leer = automatische Ermittlung),
+  `TimeoutSeconds` (Default 30), `MaxConcurrent` (Default 2, `SemaphoreSlim`, anfrageuebergreifend
+  dank Singleton-Registrierung).
+- **Migrations-Hinweis fuer dieses Buendel (nicht diese Spec, aber beim selben Deploy relevant):**
+  Die im selben Worktree bereits vorhandenen Migrationen 90 (Invert ProductionOrderHierarchy) und 91
+  (AddProductionOrderMatchcode) lassen sich auf der Ziel-DB `AKESQL20.IDEAL_AKE_WMS` **nicht** per
+  `Migrate()` anwenden (Spalte `SubOrderNumber` existiert dort laut Dev-System-Probe bereits) —
+  Deploy dieser beiden ausschliesslich ueber die idempotenten `SQL/90_*.sql`/`SQL/91_*.sql` +
+  separaten `__EFMigrationsHistory`-Insert, **nicht** ueber den automatischen `Migrate()`-Aufruf in
+  `Program.cs` (siehe `secondbrain/architektur/fallstricke.md` §8). Reihenfolge beim Deploy: SQL-
+  Skripte + History-Insert **vor** dem IIS-Recycle der neuen Web-Binaries; kein Service-Stop
+  erforderlich (Service ist an beidem unbeteiligt).
+- **Publish-Befehl (im Worktree, Mensch-Flow: Worktree → Testsystem → Testen → danach Merge):**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   ```
+  Nach dem Merge nach `main`: nur erneut publishen, falls der Merge tatsaechlich getestete Dateien
+  mit parallelen `main`-Aenderungen zusammengefuehrt hat (sonst reicht der bereits getestete
+  Worktree-Stand).
 
 ## Offene Rueckfragen
 
@@ -752,3 +777,101 @@ als Auftrag — nicht den ANTWORTEN-Abschnitt.** Beschluesse, die nur dort stehe
 der Stand davor.
 Das Nachziehen geschieht **vor** dem Verschieben nach `specs/freigegeben/`, nicht als erster Schritt
 des Dev-Laufs.
+
+## QA-Nachweis (qa-agent, 2026-09-14)
+
+Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, HEAD `85df349`
+(Branch `feature/2026-08-07-ideal-teile-1-5`). Alle Befehle **im Worktree**, `dotnet run` bewusst
+NICHT ausgefuehrt (siehe `secondbrain/architektur/fallstricke.md` §8 — `Program.cs` ruft
+`Database.Migrate()` gegen das produktive `AKESQL20.IDEAL_AKE_WMS` auf, und die Migrationen 90/91
+sind dort nicht per `Migrate()` anwendbar).
+
+- **`dotnet build IdealAkeWms.slnx`:** `Der Buildvorgang wurde erfolgreich ausgeführt.` — **0
+  Fehler**, 12 Warnungen (alle Bestand, keine aus diesem Diff — NU1902/MailKit-Advisory,
+  CS8602/CS8321 in unveraenderten Dateien).
+- **`dotnet test IdealAkeWms.Tests`:** `Der Testlauf war erfolgreich.`
+  **Gesamtzahl Tests: 1346 · Bestanden: 1345 · Übersprungen: 1 · Gesamtzeit: 5,49 s.** Der eine
+  Skip ist `Integration.ProductionOrderEagerCreateAgentJobTests.EagerCreate_…` (bestehender,
+  SQL-Server-only Integrationstest, unveraendert von dieser Spec — kein PDF-Test).
+- **`dotnet test IDEALAKEWMSService.Tests`:** `Bestanden! : Fehler: 0, erfolgreich: 265,
+  übersprungen: 0, gesamt: 265, Dauer: 1 s.`
+- **Neue PDF-Tests (Teilmenge der 1345):** `PdfFileNameBuilderTests`, `PdfRenderStatusTests`,
+  `PdfRenderServiceTests`, `PdfRenderServiceDiResolutionTests`, `FaHierarchyPdfActionGuardTests`,
+  `FaHierarchyPdfButtonSourceTests`, `EdgeProcessRunnerSmokeTests` — alle gruen.
+- **Echter Edge-Smoke-Test, mit Beweis, nicht nur gruen:**
+  `EdgeProcessRunnerSmokeTests.RunAsync_RealEdge_WritesCompletePdf` lief durch und schrieb
+  tatsaechlich ein PDF (kein leerer "gruen ohne Aussage"-Lauf, den dieser Test auf
+  Edge-losen Maschinen produzieren koennte):
+  ```
+  Bestanden IdealAkeWms.Tests.Services.EdgeProcessRunnerSmokeTests.RunAsync_RealEdge_WritesCompletePdf [1 s]
+  PDF: 15711 Bytes via C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+  ```
+- **Gesamt-Review:** 7 Tasks (SDD), je task-reviewed; anschliessende Whole-Branch-Review (Opus/
+  Sonnet) fand zwei Robustheitsbefunde (Aufrufer-Abbruch killt Edge nicht; Kandidatenermittlung in
+  `PdfRenderStatus.Candidates()` ungeschuetzt gegen `SecurityException`) — beide behoben (Commit
+  `85df349`) und per Scoped-Re-Review bestaetigt (`FIXES CONFIRMED`). Details:
+  `.superpowers/sdd/2026-09-14-pdf-erzeugung-fahierarchy-druck/progress.md` (Worktree).
+- **`superpowers:verification-before-completion`:** durchlaufen — alle Claims oben beruhen auf den
+  frisch ausgefuehrten Befehlen dieses Laufs, nicht auf frueheren Laeufen oder Annahmen.
+- **Code-Review:** siehe Gesamt-Review oben; keine offenen Major/Blocker. Geparkte Minors (naechste
+  Beruehrung der betroffenen Dateien): Route-Literal in `FaHierarchyPdfButtonSourceTests`,
+  Orphan-Sweep-Reihenfolge bei fehlendem Edge, Smoke-Test rendert nicht `Print.cshtml` selbst
+  (rendert ein Minimal-HTML durch denselben Runner).
+
+**Ergebnis: Build gruen, beide Testsuiten gruen (1345+265 bestanden, 1 Vorbestands-Skip ohne
+Bezug zu dieser Spec), echter Edge-Render verifiziert. Status auf `Testbereit` gesetzt.**
+
+## Manuelle Testcheckliste (Mensch, Schranke 2)
+
+Build/Tests sind die Mindestbedingung, nicht der Beweis — der eigentliche `msedge`-Aufruf, Timing,
+Nebenlaeufigkeit und Zugriffsschutz sind nur am echten System pruefbar. Alle Schritte in
+`docs/TESTSZENARIEN.md` (Worktree), Kapitel **TS-74**, Unterpunkte TS-74.1–74.14. Reihenfolge:
+
+1. **TS-74.1 — Happy Path Kommissionierliste (Manual-UAT).** HauptFA mit mehreren Positionen
+   filtern, PDF-Knopf an der Gruppe klicken, Download oeffnen, Inhalt mit Bildschirmdruck
+   derselben Gruppe vergleichen (Positionen, Kopf, Barcode lesbar).
+2. **TS-74.2 — Happy Path Beschichtungsauftrag inkl. Kombigeraet-Banner (Manual-UAT).** Analog,
+   inkl. Fall mit mehreren Kopfvarianten — PDF zeigt denselben Mehrdeutig-Hinweis wie der
+   Bildschirmdruck.
+3. **TS-74.3 — Dateiname.** Download traegt exakt `<Dokumentart>_<HauptFA>_<yyyyMMdd-HHmm>.pdf`,
+   keine Umlaute/Sonderzeichen (automatisiert abgedeckt, Stichprobe am echten Download genuegt).
+4. **TS-74.4 — Temp-Aufraeumen inkl. verwaister Datei (Manual-UAT).** Vor/nach mehreren
+   PDF-Erzeugungen `%TEMP%\IdealAkeWms-Pdf` pruefen — keine liegen gebliebenen Dateien. Zusaetzlich:
+   von Hand eine Alt-Datei in den Ordner legen, einen PDF-Lauf ausloesen, pruefen, dass sie danach
+   weg ist (zweite Cleanup-Stufe).
+5. **TS-74.5 — Parallelaufruf zwei Tabs (Manual-UAT).** Zwei Browser-Tabs gleichzeitig PDF fuer
+   zwei verschiedene HauptFA anfordern — beide korrekt, keine Vermischung, kein gegenseitiges
+   Ueberschreiben der Temp-Dateien.
+6. **TS-74.6 — Edge fehlt beim Start (Manual-UAT — Eingriff in `appsettings.json`/Registry und
+   App-Neustart erforderlich).** `PdfRender:EdgePath` auf einen nicht existierenden Pfad setzen
+   (oder Edge-Erkennung anders unterbinden), App neu starten: PDF-Knopf erscheint in **beiden**
+   Listen **nicht**, Log traegt eine klare Warnung. Zusaetzlich Notfallpfad pruefen: direkter
+   Aufruf der `Pdf`-URL ohne Knopf liefert eine kontrollierte Meldung „PDF-Erzeugung ist auf diesem
+   Server nicht eingerichtet." statt HTTP 500.
+7. **TS-74.7 — Timeout (Manual-UAT — Eingriff in `appsettings.json` und Neustart).**
+   `PdfRender:TimeoutSeconds` kuenstlich sehr klein setzen, PDF-Erzeugung ausloesen: kontrollierter
+   Abbruch mit Fehlermeldung (Rueckfallweg „Bildschirmdruck verwenden" im Text), kein
+   Zombie-`msedge`-Prozess danach in der Prozessliste.
+8. **TS-74.8 — Zugriffsschutz (Manual-UAT).** Anwender ohne Rolle `beschichtungsauftrag` bzw.
+   ohne `RequireLagerProcessingAccess` ruft die `Pdf`-URL direkt auf — derselbe Zugriffsfehler wie
+   bei der bestehenden `Index`-Action.
+9. **TS-74.9 — Regression Bildschirmdruck (Manual-UAT).** Bestehender seitenweiter
+   „Drucken"-Knopf (alle gefilterten Gruppen, `target="_blank"`) funktioniert unveraendert, mit und
+   ohne aktiven Filter.
+10. **TS-74.10 — Direkter Download, kein neuer Tab.** Klick auf den PDF-Knopf oeffnet **keinen**
+    neuen Browser-Tab — direkter Download.
+11. **TS-74.11 — Filter-Hinweis im Kopf (Manual-UAT).** Mit aktivem Spaltenfilter (bzw. bei
+    Kommissionierliste zusaetzlich Ziel-Filter) PDF erzeugen: Kopf zeigt „Gefilterte Ansicht" o.ae.
+    — dieselbe Information, die am Bildschirm nur in der Filterzeile sichtbar ist.
+12. **TS-74.12 — Laufzeit-Log (Manual-UAT).** Nach ein paar PDF-Erzeugungen im Log nach der
+    protokollierten Laufzeit (`Stopwatch`) suchen — Datengrundlage fuer eine spaetere
+    Timeout-Nachjustierung.
+13. **TS-74.13 — Singleton-Begrenzung.** Nur gegenlesen: Automatisiert durch
+    `PdfRenderServiceDiResolutionTests` abgedeckt (DI-Lebensdauer `Singleton`); am System bei
+    mehreren parallelen Anfragen eine kurze Wartezeit statt einer Fehlermeldung beobachten (siehe
+    TS-74.5/TS-74.12, `WaitMs` im Log).
+14. **TS-74.14 — Unbekannte HauptFA (Manual-UAT).** `Pdf`-URL mit einer HauptFA aufrufen, die in
+    der aktuell gefilterten Menge nicht vorkommt — kontrollierte Antwort (404), kein Absturz.
+
+Nach erfolgreichem Durchlauf: Merge-Freigabe (Schranke 2) ist Sache des Menschen — dieser Agent
+merged, pusht und raeumt den Worktree nicht auf.

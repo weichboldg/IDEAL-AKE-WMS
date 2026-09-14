@@ -402,6 +402,33 @@ am Leitstand (widerruft die fruehere „keine Kaskade"-Festlegung aus v1.35.0).
 > markierten Zeilen nicht explizit in TS-73 benannt — in die manuelle Checkliste der Spec
 > aufgenommen.
 
+### PDF-Erzeugung fuer FaHierarchy-Druckdokumente (v1.39.0, Querschnitts-Baustein, selber Branch)
+
+Spec [[2026-08-06-pdf-erzeugung-fahierarchy-druck-spec]], Umsetzung
+[[2026-08-06-pdf-erzeugung-fahierarchy-druck-umsetzung]], Changelog
+[[2026-09-14-v1-39-0-ideal-pdf-erzeugung-fahierarchy-druck]], Plan
+`docs/superpowers/plans/2026-09-14-pdf-erzeugung-fahierarchy-druck.md`. Herausgeloest aus Teil 4
+(Befund B-3): Infrastruktur, kein Merkmal eines einzelnen Dokuments.
+
+Ein Dienst rendert aus dem bestehenden Print-HTML per Headless-Edge ein PDF je HauptFA; Teil 3
+(Kommissionierliste) und Teil 4 (Beschichtungsauftrag) haengen sich an. Vormontage (Teil 5) bewusst
+aussen vor (hat keine Druckansicht) → Backlog [[2026-09-14-vormontage-druckansicht]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| `IPdfRenderService` (Singleton, Semaphor) + `IEdgeProcessRunner` | **erledigt** | `Services/PdfRenderService.cs`, `Services/EdgeProcessRunner.cs` |
+| `PdfRenderStatus` (Start-Probe, Knopf-Sichtbarkeit) | **erledigt** | `Services/PdfRenderStatus.cs`, `Program.cs` (Registrierung + Refresh nach `Build()`) |
+| `RazorViewRenderer` + `PdfFileNameBuilder` | **erledigt** | `Services/RazorViewRenderer.cs`, `Services/PdfFileNameBuilder.cs` |
+| `Pdf`-Action + PDF-Knopf je Gruppe (beide Listen) | **erledigt** | `FaHierarchyKommissionierListenController`/`FaHierarchyBeschichtungController` + je `Index.cshtml` |
+| Filter-Hinweis „Gefilterte Ansicht" im Druck-/PDF-Kopf | **erledigt** | beide `Print.cshtml` (`IsFiltered`) |
+
+Migration: keine. `appsettings.json`-Sektion `PdfRender` (EdgePath/TimeoutSeconds/MaxConcurrent).
+Betriebs-Vorbedingung Edge auf dem Web-Server (in die Buendel-Deploy-Notiz gezogen).
+
+> **Status:** `Testbereit` (qa-agent, 2026-09-14). Build 0 Fehler, echter Edge-Smoke-Test erzeugt ein
+> PDF; genaue Testzahlen im Spec-QA-Abschnitt. TS-74.1–74.14 vorhanden. Wartet mit dem ganzen Buendel
+> auf **Schranke 2**. Gemessene Spec-Abweichung (msedge.exe-Launcher) in [[fallstricke]] §11.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
