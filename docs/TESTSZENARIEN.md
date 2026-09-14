@@ -7994,6 +7994,9 @@ Betrieb, Timeout-Verhalten unter echter Prozesslast) — diese Schritte sind unt
   PdfRender:EdgePath existiert nicht: `<Pfad>`"; in beiden Listen fehlt der „PDF"-Knopf an jeder
   Gruppen-Kopfzeile vollständig; der „Drucken"-Link bleibt unverändert vorhanden und funktioniert
   weiterhin.
+  Zusatzschritt (Notfallpfad AK 6): die URL `/FaHierarchyKommissionierListen/Pdf/<HauptFA>` direkt
+  eingeben. Erwartung: Rücksprung auf die Liste mit der gelben Meldung „PDF-Erzeugung ist auf diesem
+  Server nicht eingerichtet." — kein HTTP 500, keine Fehlerseite.
   Negativfall: der „PDF"-Knopf erscheint trotzdem (z. B. deaktiviert) oder ein Klick darauf führt zu
   einer Serverfehlerseite statt zu fehlendem Knopf → Regression, `PdfVerfuegbar` wird nicht korrekt
   aus `PdfRenderStatus.IsAvailable` übernommen.
