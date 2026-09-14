@@ -30,4 +30,8 @@ public class FaHierarchyBeschichtungPrintViewModel
 
     /// <summary>HauptFA -&gt; Barcode-PNG als Base64 (Code 128).</summary>
     public IReadOnlyDictionary<int, string> Barcodes { get; init; } = new Dictionary<int, string>();
+
+    /// <summary>Mindestens ein Spaltenfilter aktiv: das Dokument zeigt eine Teilmenge und muss das im
+    /// Kopf ausweisen (AK 18) — am Bildschirm sieht man die Filterzeile, im Druck/PDF nicht.</summary>
+    public bool IsFiltered { get; init; }
 }
