@@ -125,7 +125,7 @@ public class FaHierarchyBeschichtungController : Controller
         try
         {
             var html = await _viewRenderer.RenderToStringAsync(ControllerContext, "Print", vm);
-            var pdfBytes = await _pdfRenderService.RenderHtmlToPdfAsync(html, HttpContext.RequestAborted);
+            var pdfBytes = await _pdfRenderService.RenderHtmlToPdfAsync(html, HttpContext?.RequestAborted ?? default);
             return File(pdfBytes, "application/pdf", PdfFileNameBuilder.Build("Beschichtungsauftrag", hauptFa, DateTime.Now));
         }
         catch (PdfRenderException ex)
