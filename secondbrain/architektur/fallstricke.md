@@ -949,6 +949,15 @@ PDF. **Regel:** auf die **fertige Datei** warten (existiert, exklusiv oeffenbar,
 nicht auf den Prozess; den Exit-Code nur protokollieren. Timeout-Kill: die Kinder sind Waisen —
 `Kill(entireProcessTree)` auf dem Launcher greift ins Leere; `EdgeProcessRunner` beendet stattdessen
 `msedge`-Prozesse im Startzeit-Fenster des Laufs (ponytail-Kommentar dort nennt die Grenze).
+**Bewusst in Kauf genommene Kehrseite (v1.39.0):** Das Fenster ist zeit-, nicht PID-basiert. Laeuft ein
+zweiter PDF-Auftrag innerhalb von ~3 s an und der erste laeuft in seinen Timeout, beendet der Kill des
+ersten **auch** den noch gesunden Edge des zweiten — der meldet dann ebenfalls „konnte nicht erzeugt
+werden". Bei `MaxConcurrent = 2` und zwei gleichzeitigen Klicks (TS-74.5) real erreichbar, in der Praxis
+selten (Timeout = 30 s). Upgrade-Pfad, falls es stoert: Parent-PID via `NtQueryInformationProcess` statt
+Startzeit-Fenster. **Aufrufer-Abbruch** (Werker schliesst den Tab, `HttpContext.RequestAborted`) beendet
+den rendernden Edge seit v1.39.0 ebenfalls (zweiter `catch (OperationCanceledException)`), damit keine
+Waise ausserhalb der `MaxConcurrent`-Rechnung weiterlaeuft; der `OperationCanceledException` propagiert
+dann (kein PDF noetig, Semaphor + Laufverzeichnis werden im `finally` freigegeben).
 
 ### Ohne eigenes `--user-data-dir` haengt sich der Aufruf an eine laufende Edge-Instanz
 Laeuft unter demselben Benutzer bereits ein Edge (Dev-Rechner!), startet `msedge.exe --headless …` ohne
