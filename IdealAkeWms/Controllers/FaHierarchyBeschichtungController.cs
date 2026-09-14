@@ -33,19 +33,22 @@ public class FaHierarchyBeschichtungController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IRazorViewRenderer _viewRenderer;
     private readonly IPdfRenderService _pdfRenderService;
+    private readonly PdfRenderStatus _pdfRenderStatus;
 
     public FaHierarchyBeschichtungController(
         BeschichtungsauftragService service,
         IBarcodeService barcode,
         ICurrentUserService currentUserService,
         IRazorViewRenderer viewRenderer,
-        IPdfRenderService pdfRenderService)
+        IPdfRenderService pdfRenderService,
+        PdfRenderStatus pdfRenderStatus)
     {
         _service = service;
         _barcode = barcode;
         _currentUserService = currentUserService;
         _viewRenderer = viewRenderer;
         _pdfRenderService = pdfRenderService;
+        _pdfRenderStatus = pdfRenderStatus;
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter.</summary>
@@ -63,6 +66,7 @@ public class FaHierarchyBeschichtungController : Controller
         var vm = new FaHierarchyBeschichtungListViewModel
         {
             Groups = result.Groups,
+            PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Pagination = new PaginationState
             {
                 CurrentPage = page,

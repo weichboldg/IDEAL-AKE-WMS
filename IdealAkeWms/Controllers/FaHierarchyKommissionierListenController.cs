@@ -34,19 +34,22 @@ public class FaHierarchyKommissionierListenController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IRazorViewRenderer _viewRenderer;
     private readonly IPdfRenderService _pdfRenderService;
+    private readonly PdfRenderStatus _pdfRenderStatus;
 
     public FaHierarchyKommissionierListenController(
         KommissionierListenService service,
         IBarcodeService barcode,
         ICurrentUserService currentUserService,
         IRazorViewRenderer viewRenderer,
-        IPdfRenderService pdfRenderService)
+        IPdfRenderService pdfRenderService,
+        PdfRenderStatus pdfRenderStatus)
     {
         _service = service;
         _barcode = barcode;
         _currentUserService = currentUserService;
         _viewRenderer = viewRenderer;
         _pdfRenderService = pdfRenderService;
+        _pdfRenderStatus = pdfRenderStatus;
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter,
@@ -68,6 +71,7 @@ public class FaHierarchyKommissionierListenController : Controller
             Groups = result.Groups,
             AvailableTargets = targets,
             SelectedTarget = target,
+            PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Pagination = new PaginationState
             {
                 CurrentPage = page,

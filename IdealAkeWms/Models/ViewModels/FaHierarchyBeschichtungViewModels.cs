@@ -15,6 +15,10 @@ public class FaHierarchyBeschichtungListViewModel
 
     /// <summary>Paging-State (Seiteneinheit = Gruppe/HauptFA; <c>TotalCount</c> zaehlt Gruppen).</summary>
     public PaginationState Pagination { get; init; } = new();
+
+    /// <summary>Edge beim Start gefunden (<see cref="Services.PdfRenderStatus"/>): nur dann erscheint der
+    /// PDF-Knopf an der Gruppen-Kopfzeile (Freigabe-Antwort 2).</summary>
+    public bool PdfVerfuegbar { get; init; }
 }
 
 /// <summary>
