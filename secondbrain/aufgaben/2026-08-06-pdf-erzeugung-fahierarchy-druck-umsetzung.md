@@ -39,3 +39,14 @@ Fenster der `msedge`-Prozesse (Kinder sind Waisen, `Kill(entireProcessTree)` gre
 
 - 2026-09-14: Plan geschrieben und committet; Spec auf `InUmsetzung`. SDD-Ledger im Worktree unter
   `.superpowers/sdd/2026-09-14-pdf-erzeugung-fahierarchy-druck/progress.md`.
+- 2026-09-14: 7 Tasks (SDD) umgesetzt, je task-reviewed; Gesamt-Review (11 Commits) — zwei
+  Robustheitsbefunde behoben (Aufrufer-Abbruch killt Edge; Kandidatenermittlung darf App-Start nie
+  abbrechen) und re-reviewed. Worktree-HEAD `85df349`. Build 0 Fehler; Edge-Smoke-Test erzeugt am
+  Dev-System ein echtes PDF. Rulings 4–7 im SDD-Ledger
+  (`.superpowers/sdd/2026-09-14-pdf-erzeugung-fahierarchy-druck/progress.md`, Worktree).
+- Nebenbefunde am Dev-System (nicht Teil der Spec, in [[fallstricke]] §8 festgehalten): lokaler
+  `dotnet run` der Web-App = `Migrate()` gegen AKESQL20 (verhindert, Rollback bestaetigt);
+  `dotnet run` in Development scheitert in `Build()` (DbContextFactory Singleton vs. scoped Options,
+  pre-existing seit `a9475e2`).
+- Status → `Testbereit` durch den qa-agent (gruener Gesamtnachweis + Deploy-Abschnitt). Wartet mit
+  dem ganzen Buendel auf Schranke 2. Kein Merge, kein Push.
