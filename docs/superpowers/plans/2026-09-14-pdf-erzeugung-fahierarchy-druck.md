@@ -554,9 +554,14 @@ public class PdfRenderServiceTests
     public async Task Render_RunnerThrows_ReleasesSemaphore_SecondCallRuns()
     {
         var (svc, runner) = Create(edgeAvailable: true, maxConcurrent: 1);
-        runner.SetupSequence(r => r.RunAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("boom"))
-            .Returns<string, string, string, string, TimeSpan, CancellationToken>((_, _, pdf, _, _, _) => { File.WriteAllBytes(pdf, FakePdf); return Task.FromResult(true); });
+        var calls = 0;
+        runner.Setup(r => r.RunAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .Returns<string, string, string, string, TimeSpan, CancellationToken>((_, _, pdf, _, _, _) =>
+            {
+                if (calls++ == 0) throw new InvalidOperationException("boom");   // erster Aufruf: Runner-Absturz
+                File.WriteAllBytes(pdf, FakePdf);
+                return Task.FromResult(true);
+            });
 
         await FluentActions.Awaiting(() => svc.RenderHtmlToPdfAsync("<html/>")).Should().ThrowAsync<PdfRenderException>();
         var second = svc.RenderHtmlToPdfAsync("<html/>");
@@ -1017,7 +1022,8 @@ public class FaHierarchyPdfButtonSourceTests
         var anchors = Regex.Matches(src, "<a [^>]*Url\\.Action\\(\"Pdf\"[^>]*>", RegexOptions.Singleline).Select(m => m.Value).ToList();
         anchors.Should().HaveCount(1, "genau ein PDF-Knopf je Gruppen-Kopfzeile");
         anchors[0].Should().NotContain("target=", "direkter Download, kein neuer Tab — nicht vom Drucken-Link erben (AK 16)");
-        anchors[0].Should().Contain("Context.Request.QueryString", "target/colf_* muessen mit ins PDF (Klarstellung zu Antwort 7)");
+        src.Should().Contain("pdfQuery = Context.Request.QueryString.ToString()", "target/colf_* muessen mit ins PDF (Klarstellung zu Antwort 7)");
+        anchors[0].Should().Contain("+ pdfQuery", "der Query-String haengt am PDF-Link");
         src.Should().Contain("@if (Model.PdfVerfuegbar)", "ohne Edge erscheint der Knopf gar nicht (AK 13)");
         src.Should().MatchRegex(">\\s*PDF\\s*</a>", "Icon UND Text — der Text ist Pflicht");
     }
