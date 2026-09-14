@@ -26,6 +26,7 @@ Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für I
 - SQL Server (Zugang zu AKESQL20.ake.at)
 - IIS mit Windows-Authentifizierung (Produktion)
 - AD-Umgebung für Windows-Auth
+- Microsoft Edge auf dem Web-Server (PDF-Erzeugung der IDEAL-Druckdokumente; fehlt er, bleibt der PDF-Knopf weg)
 
 ## IIS-Konfiguration (Performance)
 
@@ -411,6 +412,30 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
 | `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
+
+## PDF-Erzeugung (appsettings.json)
+
+PDF-Download je HauptFA-Gruppe in „Kommissionierlisten (IDEAL)" und „Beschichtungsauftrag (IDEAL)"
+(v1.39.0). Rendert dieselbe Razor-Druckansicht wie der Bildschirmdruck über einen headless
+Microsoft-Edge-Prozess (`msedge.exe --headless --print-to-pdf`). Ohne erkanntes Edge bleibt der
+PDF-Knopf ausgeblendet, der Bildschirmdruck funktioniert unverändert.
+
+| Schlüssel | Default | Beschreibung |
+|-----------|---------|-------------|
+| `PdfRender:EdgePath` | (leer) | Fester Pfad zu `msedge.exe`. Leer = automatische Suche (Registry `App Paths`, Standard-Installationspfade, `PATH`). Ist der Schlüssel gesetzt, aber die Datei existiert nicht, gilt die PDF-Erzeugung als **nicht verfügbar** — kein stiller Fallback auf die automatische Suche. |
+| `PdfRender:TimeoutSeconds` | `30` | Maximale Wartezeit auf eine fertige PDF-Datei je Aufruf, bevor der Edge-Prozess beendet und dem Anwender die Rückfallmeldung gezeigt wird. |
+| `PdfRender:MaxConcurrent` | `2` | Maximale Zahl gleichzeitig laufender Edge-Prozesse über alle Anfragen hinweg (anwendungsweites Semaphor, kein Limit je Anfrage). Weitere Anfragen warten, statt abgewiesen zu werden. |
+
+**Temp-Verzeichnis:** je Aufruf ein eigenes Laufverzeichnis unter `%TEMP%\IdealAkeWms-Pdf\<GUID>\`
+(`in.html`, `out.pdf`, Unterordner `profile` als Edge-`--user-data-dir`) — wird nach jedem Aufruf
+gelöscht. Verwaiste Laufverzeichnisse (z. B. nach einem Server-Absturz) räumt der nächste PDF-Aufruf
+automatisch auf, sobald ihre Erstellzeit älter ist als `TimeoutSeconds` + 5 Minuten Kulanz.
+
+**Log-Zeilen:**
+- Start (Warnung, wenn Edge fehlt): `PDF-Erzeugung: msedge.exe gefunden: <Pfad>` bzw.
+  `PDF-Erzeugung NICHT verfuegbar: …`.
+- Laufzeit je Aufruf: `PDF erzeugt: {Bytes} Bytes in {ElapsedMs} ms (davon {WaitMs} ms Wartezeit auf
+  das Semaphor)`.
 
 ## Corporate Design
 

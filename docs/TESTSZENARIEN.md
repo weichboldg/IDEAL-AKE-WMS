@@ -7893,9 +7893,208 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   `Model.Hierarchical` gebunden (nicht nur `DefaultHidden`), bei Master `false` dürfen sie gar nicht
   gerendert werden, nicht nur leer bleiben.
 
+## TS-74 — IDEAL: PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0)
+
+**Bezug:** Spec `2026-08-06-pdf-erzeugung-fahierarchy-druck-spec`.
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Microsoft Edge ist auf dem Test-/Zielsystem installiert und `PdfRenderStatus.IsAvailable == true`
+  (Startlog zeigt „PDF-Erzeugung: msedge.exe gefunden: `<Pfad>`").
+- Feature-Schalter `FaHierarchyKommissionierlistenAktiv` bzw. `FaHierarchyBeschichtungAktiv` aktiv,
+  entsprechender Zugriff (Lager-Verarbeitung bzw. Rolle `beschichtungsauftrag`) vorhanden.
+- Ein bekannter HauptFA mit mindestens einer Position ist in beiden Listen bekannt; für TS-74.2
+  zusätzlich ein Kombigerät-HauptFA (mehrere Auftragsköpfe).
+- `PdfRender`-Werte in `appsettings.json` auf Standard (`TimeoutSeconds = 30`, `MaxConcurrent = 2`,
+  `EdgePath` leer), sofern ein Szenario ausdrücklich etwas anderes verlangt.
+
+**Automatisiert abgedeckt (Auszug):** `PdfFileNameBuilderTests` (Dateiname-Format), `PdfRenderStatusTests`
+(Edge-Erkennung über Konfigurationspfad/Registry/Standardpfade/PATH, fehlender konfigurierter Pfad ⇒
+nicht verfügbar, kein stiller Fallback), `EdgeProcessRunnerSmokeTests` (echter Edge-Aufruf, kein Mock
+— produzierte am 2026-09-14 auf dem Entwicklungsrechner eine 15 711-Byte-PDF-Datei),
+`PdfRenderServiceTests` (Laufverzeichnis-Lebenszyklus, verwaiste Ordner, Fehlerpfade),
+`PdfRenderServiceDiResolutionTests` (Singleton-Registrierung ⇒ ein Semaphor über alle Anfragen, AK 14),
+`FaHierarchyPdfActionGuardTests` (Zugriffsschutz der `Pdf`-Action identisch zu `Index`),
+`FaHierarchyPdfButtonSourceTests` (Knopf-Quelltext: kein `target`-Attribut, PDF-Route korrekt aus
+`hauptFa` + Query zusammengesetzt). Der manuelle Rest ist die Sichtprüfung am laufenden
+IDEAL-Testsystem (Edge tatsächlich am System, Datei-Download im Browser, Log-Zeilen im laufenden
+Betrieb, Timeout-Verhalten unter echter Prozesslast) — diese Schritte sind unten ausdrücklich mit
+**(Manual-UAT)** gekennzeichnet und bilden zusammen die manuelle Abnahme-Liste für Schranke 2.
+
+- **TS-74.1 — Happy Path Kommissionierliste (AK 1, 2, 3).** **(Manual-UAT)**
+  Vorbedingung: Lager-Verarbeitungszugriff, `FaHierarchyKommissionierlistenAktiv = true`, Edge
+  verfügbar, bekannter HauptFA mit mehreren Positionen, kein aktiver Filter.
+  Schritte: `/FaHierarchyKommissionierListen` öffnen; an der Gruppen-Kopfzeile des bekannten HauptFA
+  auf „PDF" klicken.
+  Erwartung: der Browser lädt sofort eine Datei `Kommissionierliste_<HauptFA>_<Datum-Uhrzeit>.pdf`
+  herunter (kein neuer Tab, kein Zwischenschritt); Inhalt und Aussehen entsprechen genau der
+  Bildschirmdruck-Ansicht (`Print.cshtml`) derselben Gruppe — gleiche Spalten, gleiche Positionen,
+  gleicher Barcode.
+  Negativfall: Edge nicht verfügbar (`PdfVerfuegbar = false`) → der Knopf „PDF" fehlt komplett in der
+  Gruppen-Kopfzeile (kein deaktivierter Knopf, kein Fehlerdialog) — siehe TS-74.6.
+
+- **TS-74.2 — Happy Path Beschichtungsauftrag inkl. Kombigerät-Banner (AK 2, 3).** **(Manual-UAT)**
+  Vorbedingung: Rolle `beschichtungsauftrag`, `FaHierarchyBeschichtungAktiv = true`, Edge verfügbar,
+  ein Kombigerät-HauptFA (mehrere Kopfzeilen/Auftragsköpfe) bekannt.
+  Schritte: `/FaHierarchyBeschichtung` öffnen; an der Gruppen-Kopfzeile des Kombigerät-HauptFA auf
+  „PDF" klicken.
+  Erwartung: die heruntergeladene Datei heißt `Beschichtungsauftrag_<HauptFA>_<Datum-Uhrzeit>.pdf`;
+  der Inhalt zeigt denselben Kombigerät-Hinweis wie der Bildschirmdruck („… Kopfzeilen
+  (Kombinationsgerät). Dienstleister, RAL …") — die PDF-Erzeugung rendert exakt dieselbe Razor-View,
+  verliert also keinen Warnhinweis.
+  Negativfall: ein normaler (nicht mehrdeutiger) HauptFA erzeugt ein PDF ohne Kombigerät-Hinweis —
+  kein falscher Hinweis bei eindeutigen Aufträgen.
+
+- **TS-74.3 — Dateiname (AK 3, 10, 11).** Automatisiert: `PdfFileNameBuilderTests`. Zusätzlich
+  manuelle Sichtprüfung des Downloads. **(Manual-UAT)**
+  Vorbedingung: wie TS-74.1.
+  Schritte: PDF für einen bekannten HauptFA zu einer bekannten Uhrzeit herunterladen; den vom
+  Browser vorgeschlagenen Dateinamen ablesen.
+  Erwartung: der Dateiname folgt exakt `<Dokumentart>_<HauptFA>_<yyyyMMdd-HHmm>.pdf` (z. B.
+  `Kommissionierliste_123456_20260914-1432.pdf`), mit der lokalen Uhrzeit des Downloads
+  (`DateTime.Now`, keine UTC-Verschiebung sichtbar) und ohne Sonderzeichen.
+  Negativfall: zwei Downloads derselben Gruppe innerhalb derselben Minute erzeugen denselben
+  Dateinamen (bewusst so, kein Kollisionsschutz nötig, der Browser nummeriert selbst durch) — kein
+  Fehlerfall, nur zur Kenntnis.
+
+- **TS-74.4 — Temp-Aufräumen inkl. verwaister Datei (AK 5, 17).** **(Manual-UAT)**; automatisiert
+  `PdfRenderServiceTests`.
+  Vorbedingung: Zugriff auf das Dateisystem des Web-Servers (`%TEMP%\IdealAkeWms-Pdf`);
+  `PdfRender:TimeoutSeconds` auf Standard (30).
+  Schritte: Ordner `%TEMP%\IdealAkeWms-Pdf` vor dem Test prüfen/leeren; von Hand einen Unterordner mit
+  beliebigem Namen anlegen und dessen Erstellzeit per PowerShell auf mehr als 35 Minuten
+  (`TimeoutSeconds` + 5 Minuten Kulanz) in die Vergangenheit setzen, z. B.
+  `(Get-Item $dir).CreationTimeUtc = (Get-Date).ToUniversalTime().AddMinutes(-40)`; danach über die
+  Anwendung ein PDF erzeugen.
+  Erwartung: nach dem PDF-Aufruf ist der künstlich gealterte Ordner verschwunden (wird vor dem
+  eigentlichen Lauf als „verwaist" entfernt); der für den aktuellen Lauf angelegte GUID-Ordner (mit
+  `in.html`, `out.pdf`, Unterordner `profile`) existiert nach erfolgreichem Abschluss ebenfalls nicht
+  mehr (Aufräumen im `finally`-Block).
+  Negativfall: ein Ordner, der jünger als der Cutoff ist (z. B. 10 Minuten alt), bleibt beim
+  Aufräum-Lauf unangetastet stehen — kein Übereifer, der einen noch laufenden Parallel-Aufruf stört.
+
+- **TS-74.5 — Parallelaufruf zwei Tabs (AK 8).** **(Manual-UAT)**
+  Vorbedingung: `PdfRender:MaxConcurrent` auf Standard (2) oder höher; zwei bekannte
+  HauptFA-Gruppen.
+  Schritte: in zwei Browser-Tabs nahezu gleichzeitig je einen PDF-Download für unterschiedliche
+  HauptFA auslösen.
+  Erwartung: beide Downloads laufen unabhängig durch, keiner scheitert oder wartet unnötig lange; im
+  `%TEMP%\IdealAkeWms-Pdf`-Ordner sind während der Erzeugung zwei getrennte GUID-Unterordner
+  sichtbar, die sich nicht gegenseitig überschreiben.
+  Negativfall: einer der beiden Downloads liefert einen Fehler oder ein leeres/beschädigtes PDF →
+  Regression im GUID-Laufverzeichnis-Konzept, sofort melden.
+
+- **TS-74.6 — Edge fehlt beim Start (AK 13).** **(Manual-UAT — Änderung an `appsettings.json` und
+  Neustart der Anwendung erfolgen auf dem Testsystem, nicht im Worktree.)**
+  Vorbedingung: Zugriff auf `appsettings.json` und Neustart-Möglichkeit der Anwendung auf dem
+  Testsystem.
+  Schritte: `PdfRender:EdgePath` auf einen nicht existierenden Pfad setzen (z. B.
+  `C:\nicht-vorhanden\msedge.exe`); Anwendung neu starten; anschließend
+  `/FaHierarchyKommissionierListen` und `/FaHierarchyBeschichtung` öffnen.
+  Erwartung: im Startlog erscheint die Warnung „PDF-Erzeugung NICHT verfuegbar: konfigurierter Pfad
+  PdfRender:EdgePath existiert nicht: `<Pfad>`"; in beiden Listen fehlt der „PDF"-Knopf an jeder
+  Gruppen-Kopfzeile vollständig; der „Drucken"-Link bleibt unverändert vorhanden und funktioniert
+  weiterhin.
+  Negativfall: der „PDF"-Knopf erscheint trotzdem (z. B. deaktiviert) oder ein Klick darauf führt zu
+  einer Serverfehlerseite statt zu fehlendem Knopf → Regression, `PdfVerfuegbar` wird nicht korrekt
+  aus `PdfRenderStatus.IsAvailable` übernommen.
+
+- **TS-74.7 — Timeout (AK 7).** **(Manual-UAT — Änderung an `appsettings.json` und Neustart der
+  Anwendung erfolgen auf dem Testsystem, nicht im Worktree.)**
+  Vorbedingung: `PdfRender:TimeoutSeconds = 1` gesetzt und `PdfRender:EdgePath` versuchsweise auf eine
+  Anwendung, die nichts in die Zieldatei schreibt (z. B. `notepad.exe`), oder alternativ ein sehr
+  großes Dokument gegen den echten Edge; Anwendung neu gestartet.
+  Schritte: ein PDF für einen bekannten HauptFA anfordern; Windows-Task-Manager während und nach dem
+  Aufruf beobachten.
+  Erwartung: nach ca. 1 Sekunde bricht die Erzeugung ab, der Anwender landet zurück auf der Liste mit
+  der gelben Meldung „Das PDF konnte nicht erzeugt werden. Bitte den Bildschirmdruck verwenden.";
+  im Log erscheint „PDF-Erzeugung: Timeout nach 1s, Edge-Prozesse beendet. stderr: …"; im
+  Task-Manager sind keine übrig gebliebenen `msedge.exe`-Prozesse aus diesem Aufruf zu finden (werden
+  beim Timeout aktiv beendet).
+  Negativfall: nach dem Timeout bleiben `msedge.exe`-Zombie-Prozesse im Task-Manager stehen, oder die
+  Fehlermeldung fehlt bzw. die Seite hängt → Regression im `KillChildren`-Pfad des
+  `EdgeProcessRunner`.
+
+- **TS-74.8 — Zugriffsschutz (AK 9).** **(Manual-UAT)**; automatisiert
+  `FaHierarchyPdfActionGuardTests`.
+  Vorbedingung: ein Anwender ohne die für `FaHierarchyBeschichtung` nötige Rolle
+  (`RequireBeschichtungsauftragAccess` nicht erfüllt) bzw. ohne Lager-Verarbeitungszugriff für die
+  Kommissionierliste.
+  Schritte: als dieser Anwender direkt `/FaHierarchyBeschichtung/Pdf/<bekannter HauptFA>` bzw.
+  `/FaHierarchyKommissionierListen/Pdf/<bekannter HauptFA>` aufrufen (URL-Leiste, ohne über den
+  Knopf zu gehen).
+  Erwartung: derselbe Zugriffsfehler wie beim direkten Aufruf von `Index` (403/Redirect je nach
+  konfiguriertem Zugriffsschutz) — die `Pdf`-Action ist durch denselben Class-Level-Filter geschützt,
+  kein Sonderweg am Filter vorbei.
+  Negativfall: der direkte Aufruf liefert ein PDF trotz fehlender Rolle → Zugriffslücke, sofort
+  melden.
+
+- **TS-74.9 — Regression Bildschirmdruck (AK 12).** **(Manual-UAT)**
+  Vorbedingung: wie TS-74.1/TS-74.2, jeweils mit und ohne aktiven Filter.
+  Schritte: in beiden Listen auf „Drucken" klicken.
+  Erwartung: der Link öffnet weiterhin einen neuen Tab (`target="_blank"`) mit **allen** gefilterten
+  Gruppen (nicht nur einer) im bekannten Bildschirmdruck-Layout — unverändert zum Verhalten vor
+  Einführung des PDF-Knopfs.
+  Negativfall: „Drucken" verhält sich wie „PDF" (nur eine Gruppe, direkter Download) → der PDF-Knopf
+  hätte versehentlich den bestehenden Druck-Pfad verändert statt ihn nur zu ergänzen.
+
+- **TS-74.10 — Direkter Download, kein neuer Tab (AK 16).** **(Manual-UAT)**; automatisiert
+  `FaHierarchyPdfButtonSourceTests`.
+  Vorbedingung: wie TS-74.1.
+  Schritte: auf den „PDF"-Knopf einer Gruppe klicken und dabei beobachten, ob ein neuer Tab/Fenster
+  aufgeht.
+  Erwartung: kein neuer Tab öffnet sich, der Download läuft im aktuellen Tab über die
+  Browser-Download-Leiste — der Link trägt bewusst **kein** `target="_blank"` (anders als
+  „Drucken").
+  Negativfall: ein neuer, leerer oder hängender Tab öffnet sich zusätzlich zum Download → der
+  `<a>`-Knopf hat versehentlich ein `target`-Attribut bekommen.
+
+- **TS-74.11 — Filter-Hinweis im Kopf (AK 18).** **(Manual-UAT)**
+  Vorbedingung: wie TS-74.1, zusätzlich ein aktiver Spaltenfilter bzw. (nur Kommissionierliste) ein
+  aktives Kommissionier-Ziel.
+  Schritte: Spaltenfilter bzw. Ziel-Filter setzen; „PDF" und „Drucken" für dieselbe Gruppe aufrufen
+  und vergleichen; danach Filter zurücksetzen und beide erneut aufrufen.
+  Erwartung: mit aktivem Filter zeigen sowohl das PDF als auch der Bildschirmdruck im Kopf den
+  Hinweis „Gefilterte Ansicht — dieses Dokument zeigt nur die gefilterten …"; ohne aktiven Filter
+  fehlt der Hinweis in beiden vollständig.
+  Negativfall: PDF und Bildschirmdruck zeigen unterschiedliche Filter-Hinweise (z. B. trägt nur
+  einer der beiden den Banner) → `IsFiltered` wird in einem der beiden Pfade nicht identisch
+  berechnet.
+
+- **TS-74.12 — Laufzeit-Log (AK 15).** **(Manual-UAT)**
+  Vorbedingung: Zugriff auf die Serilog-Logdatei des Testsystems; Standard-Konfiguration.
+  Schritte: ein PDF erzeugen; anschließend die aktuelle Logdatei nach der Erzeugungszeile
+  durchsuchen.
+  Erwartung: die Logdatei enthält eine Zeile nach dem Muster „PDF erzeugt: {Bytes} Bytes in
+  {ElapsedMs} ms (davon {WaitMs} ms Wartezeit auf das Semaphor)" mit plausiblen, nicht-negativen
+  Zahlenwerten.
+  Negativfall: die Zeile fehlt, oder die Wartezeit auf das Semaphor ist größer als die Gesamtzeit →
+  Fehler in der Stopwatch-Messung.
+
+- **TS-74.13 — Singleton-Begrenzung (AK 14).** Automatisiert `PdfRenderServiceDiResolutionTests`
+  (Singleton-Registrierung, ein Semaphor über alle Anfragen). Zusätzlich manuell: **(Manual-UAT —
+  Änderung an `appsettings.json` und Neustart der Anwendung erfolgen auf dem Testsystem.)**
+  Vorbedingung: `PdfRender:MaxConcurrent = 1` gesetzt und Anwendung neu gestartet.
+  Schritte: in zwei Browser-Tabs nahezu gleichzeitig je einen PDF-Download auslösen.
+  Erwartung: der zweite Download startet sichtbar verzögert (wartet auf das freiwerdende Semaphor)
+  und schließt danach ohne Fehlermeldung ab — keine Meldung „zu viele Anfragen" oder ähnliches, nur
+  eine längere Wartezeit (im Log als `WaitMs` sichtbar, siehe TS-74.12).
+  Negativfall: der zweite Download schlägt fehl, oder beide laufen trotz `MaxConcurrent = 1`
+  gleichzeitig (im Task-Manager zwei parallele `msedge.exe`-Prozessgruppen sichtbar) → das Semaphor
+  wirkt nicht anfrageübergreifend (Regression Richtung Scoped- statt Singleton-Registrierung).
+
+- **TS-74.14 — Unbekannte HauptFA.** **(Manual-UAT)**
+  Vorbedingung: eine HauptFA-Nummer, die in keiner der beiden Listen vorkommt (z. B.
+  `999999999`).
+  Schritte: `/FaHierarchyKommissionierListen/Pdf/999999999` bzw.
+  `/FaHierarchyBeschichtung/Pdf/999999999` direkt aufrufen.
+  Erwartung: HTTP 404 (Not Found) — kein leeres PDF, keine Serverfehlerseite, kein stiller Redirect
+  auf die Liste.
+  Negativfall: die Route liefert stattdessen ein leeres oder generisches PDF oder eine
+  500er-Fehlerseite → die `FirstOrDefault`-Prüfung auf die Gruppe fehlt oder greift nicht.
+
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73)*
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
