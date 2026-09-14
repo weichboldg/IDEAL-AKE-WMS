@@ -54,9 +54,7 @@ public sealed class PdfRenderStatus
 
     private static IEnumerable<string> Candidates()
     {
-        if (OperatingSystem.IsWindows()
-            && Registry.GetValue(AppPathsKey, null, null) is string fromRegistry
-            && !string.IsNullOrWhiteSpace(fromRegistry))
+        if (FromRegistry() is { } fromRegistry)
             yield return fromRegistry;
 
         foreach (var root in new[] { Environment.GetEnvironmentVariable("ProgramFiles(x86)"), Environment.GetEnvironmentVariable("ProgramFiles") })
@@ -65,5 +63,20 @@ public sealed class PdfRenderStatus
 
         foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
             yield return Path.Combine(dir.Trim(), "msedge.exe");
+    }
+
+    /// <summary>Registry-Lesen darf den Anwendungsstart nie abbrechen (eingeschraenkte App-Pool-
+    /// Identitaet ⇒ <c>SecurityException</c>): dann zaehlt nur der naechste Kandidat.</summary>
+    private static string? FromRegistry()
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            return Registry.GetValue(AppPathsKey, null, null) is string s && !string.IsNullOrWhiteSpace(s) ? s : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }
