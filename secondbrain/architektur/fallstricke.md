@@ -783,6 +783,30 @@ Senden (Requeue / haengender `Gesendet`) prueft der Worker per Read-Lookup gegen
 fuer Bewegung 12 faelschlich Bewegung 123. **Dev-Lauf/UAT:** exakte Korrelationsspalte (`Memo` vs.
 `Referenz`) am Sage-Testsystem bestaetigen — eine Zeile in `SageBuchungLookupReader`.
 
+### Lokaler `dotnet run` der Web-App ist ein Deploy gegen AKESQL20
+`Program.cs` ruft beim Start `db.Database.Migrate()` — und **beide** `appsettings*.json` (auch
+`appsettings.Development.json`) zeigen auf `AKESQL20.ake.at/IDEAL_AKE_WMS`. Ein lokaler Start aus einem
+Feature-Worktree versucht also, **alle noch nicht angewendeten Migrationen des Zweigs auf die
+Produktions-DB** zu bringen. Konkreter Vorfall (2026-09-14, PDF-Erzeugung): ein Start zum Erfassen einer
+Log-Zeile erreichte `Migrate()`; pending waren `InvertProductionOrderHierarchy` + `AddProductionOrderMatchcode`.
+Gerettet hat nur, dass `AddColumn SubOrderNumber` dort scheiterte (Spalte existiert) und EF Core 10 die
+gesamte Migrations-Menge in **einer** Transaktion zurueckrollt — read-only nachgeprueft: History-Top
+unveraendert, keine der neuen Spalten vorhanden. **Regel:** Die Web-App aus einem Worktree **nicht**
+lokal starten, solange der Zweig Migrationen traegt, die auf AKESQL20 nicht per SQL-Skript + History-Insert
+eingespielt sind. Start-Nachweise (Log-Zeilen, Start-Proben) sind Manual-UAT auf dem Zielsystem.
+Wer lokal starten muss: `DefaultConnection` per User-Secret/Umgebungsvariable auf eine eigene DB umbiegen
+— **vor** dem Start pruefen, nie hinterher.
+
+### `dotnet run` (Development) scheitert schon in `Build()` — ValidateOnBuild trifft die DbContextFactory
+Seit `a9475e2` (ADR 0010) steht `AddDbContextFactory<ApplicationDbContext>` **nach** `AddDbContext<…>`.
+`AddDbContext` registriert `DbContextOptions` **scoped**, `AddDbContextFactory` (Singleton) findet sie
+dann per `TryAdd` schon vor und konsumiert die scoped Options aus einem Singleton. Unter IIS (Production)
+laeuft das, weil dort weder `ValidateScopes` noch `ValidateOnBuild` aktiv sind; in **Development** bricht
+`builder.Build()` mit „Cannot consume scoped service `DbContextOptions` from singleton
+`IDbContextFactory`" (und dasselbe fuer `ISyncLogger`). Fix, wenn er gebraucht wird: `AddDbContext(...,
+optionsLifetime: ServiceLifetime.Singleton)` — bewusst **nicht** nebenbei in einem Feature-Lauf, weil es
+die Options-Lebensdauer aller Scopes aendert. Bis dahin gilt der Fallstrick oben: gar nicht lokal starten.
+
 ## 9. IDEAL — hierarchische Produktionsauftraege (Teil 7)
 
 ### `ProductionOrder.OrderNumber` ist nach der Schema-Inversion NICHT mehr unique
@@ -912,3 +936,24 @@ die Gates ohne SQL Server nicht testbar. Der zufaellige Schutz `ProductionDate I
 nicht im Zahnrad, `DefaultHidden` bleibt wirkungslos und index-basierte Karten (Print-`colNames`)
 verschieben sich. Aufgefallen beim BOM-Bridge-Review (Task 5, 2026-09-08). **Regel:** neue `<th
 data-col-key>` immer in **beiden** Stellen eintragen, unter denselben Razor-Gates.
+
+## 11. PDF-Erzeugung (Headless Edge, Spec 2026-08-06)
+
+### `msedge.exe` ist unter Windows ein Launcher — der Prozess-Exit sagt nichts ueber das PDF
+Gemessen am 2026-09-14 (Edge 152.0.4191.66, `System.Diagnostics.Process`): der mit
+`--headless --print-to-pdf=…` gestartete `msedge.exe` endet nach **200–400 ms mit Exit-Code 0**; das
+PDF schreiben **Kindprozesse 1,3–1,8 s spaeter**. `WaitForExitAsync()` + „Exit-Code pruefen" (so stand es
+im Spec-Entwurf) meldet deshalb immer „PDF fehlt". Keine Flag-Variante aendert das (`--headless=new`,
+`--no-sandbox`, versionierter Pfad); `--single-process` und `--no-startup-window` erzeugen **gar kein**
+PDF. **Regel:** auf die **fertige Datei** warten (existiert, exklusiv oeffenbar, endet auf `%%EOF`),
+nicht auf den Prozess; den Exit-Code nur protokollieren. Timeout-Kill: die Kinder sind Waisen —
+`Kill(entireProcessTree)` auf dem Launcher greift ins Leere; `EdgeProcessRunner` beendet stattdessen
+`msedge`-Prozesse im Startzeit-Fenster des Laufs (ponytail-Kommentar dort nennt die Grenze).
+
+### Ohne eigenes `--user-data-dir` haengt sich der Aufruf an eine laufende Edge-Instanz
+Laeuft unter demselben Benutzer bereits ein Edge (Dev-Rechner!), startet `msedge.exe --headless …` ohne
+eigenes Profil **keinen** neuen Browser, sondern reicht den Aufruf an die laufende Instanz durch und
+endet mit Exit 0 — es entsteht **nie** ein PDF. Deshalb legt jeder Lauf sein Profil im GUID-
+Laufverzeichnis (`%TEMP%\IdealAkeWms-Pdf\<guid>\profile`) an, das im `finally` mitgeloescht wird.
+Auf dem IIS (App-Pool-Identitaet ohne interaktives Edge) tritt der Fall nicht auf — der Dev-Test
+wuerde ohne diese Regel aber gruen luegen bzw. haengen.
