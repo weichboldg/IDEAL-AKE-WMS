@@ -45,7 +45,19 @@ public sealed class PdfRenderStatus
             return;
         }
 
-        _edgePath = Candidates().FirstOrDefault(File.Exists);
+        // Ein Guard am Verbraucher deckt ALLE Kandidatenquellen ab (Registry, Standardpfade, PATH):
+        // die Ermittlung darf den App-Start nie abbrechen — dann bleibt der PDF-Knopf eben aus.
+        try
+        {
+            _edgePath = Candidates().FirstOrDefault(File.Exists);
+        }
+        catch (Exception ex)
+        {
+            _edgePath = null;
+            _logger.LogWarning(ex, "PDF-Erzeugung NICHT verfuegbar: Fehler bei der msedge.exe-Ermittlung — PDF-Knopf wird ausgeblendet.");
+            return;
+        }
+
         if (_edgePath != null)
             _logger.LogInformation("PDF-Erzeugung: msedge.exe gefunden: {Path}", _edgePath);
         else
