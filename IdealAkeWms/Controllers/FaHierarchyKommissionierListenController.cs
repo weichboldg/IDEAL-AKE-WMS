@@ -32,15 +32,21 @@ public class FaHierarchyKommissionierListenController : Controller
     private readonly KommissionierListenService _service;
     private readonly IBarcodeService _barcode;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IRazorViewRenderer _viewRenderer;
+    private readonly IPdfRenderService _pdfRenderService;
 
     public FaHierarchyKommissionierListenController(
         KommissionierListenService service,
         IBarcodeService barcode,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IRazorViewRenderer viewRenderer,
+        IPdfRenderService pdfRenderService)
     {
         _service = service;
         _barcode = barcode;
         _currentUserService = currentUserService;
+        _viewRenderer = viewRenderer;
+        _pdfRenderService = pdfRenderService;
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter,
@@ -131,9 +137,43 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Groups = result.Groups,
             Barcodes = barcodes,
-            SelectedTarget = target
+            SelectedTarget = target,
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters) || !string.IsNullOrEmpty(target)
         };
 
         return View(vm);
+    }
+
+    /// <summary>PDF-Download fuer GENAU EINE HauptFA-Gruppe (Spec 2026-08-06): dieselbe
+    /// <c>Print.cshtml</c>, dieselben Query-Filter (<c>target</c> + <c>colf_*</c>) wie der
+    /// Bildschirmdruck, aber auf eine Gruppe reduziert. <c>hauptFa</c> als Routen-Segment
+    /// (Freigabe-Antwort 7). Fehler werden als <c>WarningMessage</c> mit Rueckfallweg gemeldet.</summary>
+    [HttpGet("FaHierarchyKommissionierListen/Pdf/{hauptFa:int}")]
+    public async Task<IActionResult> Pdf(int hauptFa, string? target)
+    {
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var result = await _service.BuildAsync(target, columnFilters, 1, int.MaxValue, paginate: false);
+        var group = result.Groups.FirstOrDefault(g => g.HauptFA == hauptFa);
+        if (group is null) return NotFound();
+
+        var vm = new FaHierarchyKommissionierPrintViewModel
+        {
+            Groups = new List<FaHierarchyListGroupViewModel> { group },
+            Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
+            SelectedTarget = target,
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters) || !string.IsNullOrEmpty(target)
+        };
+
+        try
+        {
+            var html = await _viewRenderer.RenderToStringAsync(ControllerContext, "Print", vm);
+            var pdfBytes = await _pdfRenderService.RenderHtmlToPdfAsync(html, HttpContext.RequestAborted);
+            return File(pdfBytes, "application/pdf", PdfFileNameBuilder.Build("Kommissionierliste", hauptFa, DateTime.Now));
+        }
+        catch (PdfRenderException ex)
+        {
+            TempData["WarningMessage"] = ex.UserMessage;
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

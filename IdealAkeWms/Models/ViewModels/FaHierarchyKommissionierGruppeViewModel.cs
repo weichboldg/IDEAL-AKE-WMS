@@ -37,4 +37,8 @@ public class FaHierarchyKommissionierPrintViewModel
     public IReadOnlyDictionary<int, string> Barcodes { get; init; } = new Dictionary<int, string>();
 
     public string? SelectedTarget { get; init; }
+
+    /// <summary>Mindestens ein Spaltenfilter (bzw. Ziel-Filter) aktiv: das Dokument zeigt eine Teilmenge
+    /// und muss das im Kopf ausweisen (AK 18) — am Bildschirm sieht man die Filterzeile, im Druck/PDF nicht.</summary>
+    public bool IsFiltered { get; init; }
 }
