@@ -56,7 +56,12 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `ActiveDirectoryService.cs` (`IActiveDirectoryService`) | LDAP-Abfrage der Berechtigungsgruppe fuer den AD-Benutzer-Picker (`[SupportedOSPlatform("windows")]`) |
 | `UserAgentHelper.cs` | `IsWindowsDesktop` — UA-Gate der SSO-Challenge |
 | `WindowsAccountHelper.cs` | SAM-Namen normalisieren |
-| `PrintService.cs` | Server-seitiger Druck |
+| `PrintService.cs` | Server-seitiger Druck (`rundll32 mshtml.dll,PrintHTML`; aktuell von keinem Controller konsumiert) |
+| `PdfRenderStatus.cs` | **Singleton**, Start-Probe (`Refresh()` in `Program.cs` nach `builder.Build()`): `msedge.exe`-Pfad aus `PdfRender:EdgePath` (gesetzt + fehlend ⇒ nicht verfuegbar) → Registry App Paths → Standardpfade → PATH; `IsAvailable` steuert den PDF-Knopf (v1.39.0, [[2026-08-06-pdf-erzeugung-fahierarchy-druck-spec]]) |
+| `PdfRenderService.cs` (`IPdfRenderService`) | **Singleton** (Waechter `PdfRenderServiceDiResolutionTests`): HTML rein, `byte[]` raus. `SemaphoreSlim(PdfRender:MaxConcurrent)` wartet statt abzuweisen; GUID-Laufverzeichnis `%TEMP%\IdealAkeWms-Pdf\<guid>\` (`in.html`/`out.pdf`/`profile`), `finally`-Loeschen + verwaiste Laeufe (> Timeout+5 min) beim naechsten Lauf; Laufzeit-Log `PDF erzeugt: … ms`; `PdfRenderException` (`NotConfigured`/`Failed`) traegt die Nutzermeldung |
+| `EdgeProcessRunner.cs` (`IEdgeProcessRunner`) | **Singleton**, einzige nicht InMemory-testbare Grenze (`EdgeProcessRunnerSmokeTests` ruft echtes Edge). Wartet auf die **fertige Datei** (exklusiv oeffenbar + `%%EOF`), nicht auf den Prozess — `msedge.exe` ist ein Launcher, siehe [[fallstricke]] §11; Timeout-Kill ueber das Startzeit-Fenster |
+| `RazorViewRenderer.cs` (`IRazorViewRenderer`) | Scoped; rendert eine Razor-View + Model zu String (`ICompositeViewEngine.FindView` + `ViewContext`), damit dieselbe `Print.cshtml` an Browser **und** PDF geht |
+| `PdfFileNameBuilder.cs` | reine Funktion `<Dokumentart>_<HauptFA>_<yyyyMMdd-HHmm>.pdf` |
 | `NaturalPositionComparer.cs` | Natuerliche Sortierung von BOM-Positionen |
 | `SyncLogger/` | `ISyncLogger`, `ISyncRun`, `SyncLogServices` (Service-Namen-Konstanten), `SyncLogger`, `SyncRun` → [[0010-aktivitaets-protokoll-mit-isolierten-dbcontexts]] |
 
