@@ -10,4 +10,6 @@ public interface IArticleRepository : IRepository<Article>
     Task<(List<Article> Items, int TotalCount)> GetPaginatedAsync(
         int page, int pageSize, string? search,
         IReadOnlyDictionary<string, string>? columnFilters = null);
+    Task<Dictionary<string, string?>> GetMatchcodesByArticleNumbersAsync(IReadOnlyCollection<string> articleNumbers);
+    Task<Article?> GetByMatchcodeExactAsync(string matchcode);
 }
