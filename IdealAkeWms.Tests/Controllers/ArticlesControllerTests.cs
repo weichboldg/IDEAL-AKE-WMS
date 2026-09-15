@@ -227,6 +227,57 @@ public class ArticlesControllerTests
     }
 
     [Fact]
+    public async Task Info_ArticleNumberMiss_FallsBackToExactMatchcode()
+    {
+        var (ctrl, article, stock, _, _, bom, _) = Build();
+
+        // Kein Treffer über Artikelnummer, aber exakter Matchcode-Treffer (D4).
+        article.Setup(a => a.GetByArticleNumberAsync("SCHRAUBE")).ReturnsAsync((Article?)null);
+        article.Setup(a => a.GetByMatchcodeExactAsync("SCHRAUBE"))
+            .ReturnsAsync(new Article { Id = 1, ArticleNumber = "1000042", Matchcode = "SCHRAUBE", Unit = "Stk" });
+        stock.Setup(s => s.GetCurrentStockAsync("1000042", null, null, null))
+            .ReturnsAsync(new List<StockOverviewItem>());
+        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("1000042"))
+            .ReturnsAsync(new List<string>());
+
+        var result = await ctrl.Info("SCHRAUBE");
+
+        var vm = result.Should().BeOfType<ViewResult>().Subject.Model
+            .Should().BeOfType<ArticleInfoViewModel>().Subject;
+        vm.ArticleNumber.Should().Be("1000042");
+        vm.Matchcode.Should().Be("SCHRAUBE");
+    }
+
+    [Fact]
+    public async Task Info_MatchcodeSubstring_DoesNotResolve_ExactOnly()
+    {
+        var (ctrl, article, _, _, _, _, _) = Build();
+
+        article.Setup(a => a.GetByArticleNumberAsync("SCHRAUBE")).ReturnsAsync((Article?)null);
+        // GetByMatchcodeExactAsync ist exakt, ein Substring-Treffer liefert hier null zurück.
+        article.Setup(a => a.GetByMatchcodeExactAsync("SCHRAUBE")).ReturnsAsync((Article?)null);
+
+        var result = await ctrl.Info("SCHRAUBE");
+
+        result.Should().BeOfType<ViewResult>().Subject.Model.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Info_GenuineMiss_StillShowsNotFound()
+    {
+        var (ctrl, article, _, _, _, _, _) = Build();
+
+        article.Setup(a => a.GetByArticleNumberAsync("UNBEKANNT")).ReturnsAsync((Article?)null);
+        article.Setup(a => a.GetByMatchcodeExactAsync("UNBEKANNT")).ReturnsAsync((Article?)null);
+
+        var result = await ctrl.Info("UNBEKANNT");
+
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        view.Model.Should().BeNull();
+        view.ViewData["NotFound"].Should().Be("UNBEKANNT");
+    }
+
+    [Fact]
     public async Task EditPost_SageControlledPrimary_DoesNotOverwriteFk()
     {
         var (ctrl, article, _, _, category, _, _) = Build();
@@ -255,6 +306,28 @@ public class ArticlesControllerTests
         // Guard: Sage-Wert bleibt, eingehende 999 ignoriert.
         existing.PrimaryStorageLocationId.Should().Be(5);
         article.Verify(a => a.UpdateAsync(It.Is<Article>(x => x.PrimaryStorageLocationId == 5)), Times.Once);
+    }
+
+    [Fact]
+    public async Task EditPost_UpdatesMatchcode()
+    {
+        var (ctrl, article, _, _, category, _, _) = Build();
+
+        var existing = new Article { Id = 42, ArticleNumber = "A", Matchcode = "ALT" };
+        article.Setup(a => a.GetByIdAsync(42)).ReturnsAsync(existing);
+        category.Setup(c => c.GetAllOrderedAsync()).ReturnsAsync(new List<ArticleCategory>());
+        ctrl.TempData = new TempDataDictionary(ctrl.HttpContext, Mock.Of<ITempDataProvider>());
+
+        var vm = new ArticleEditViewModel
+        {
+            Article = new Article { Id = 42, ArticleNumber = "A", Matchcode = "NEU" }
+        };
+
+        var result = await ctrl.Edit(42, vm);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        existing.Matchcode.Should().Be("NEU");
+        article.Verify(a => a.UpdateAsync(It.Is<Article>(x => x.Matchcode == "NEU")), Times.Once);
     }
 
     [Fact]

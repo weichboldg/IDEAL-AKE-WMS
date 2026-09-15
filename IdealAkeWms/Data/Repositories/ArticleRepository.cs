@@ -20,7 +20,8 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         if (!string.IsNullOrWhiteSpace(query))
         {
             q = q.Where(a => a.ArticleNumber.Contains(query) ||
-                             (a.Description != null && a.Description.Contains(query)));
+                             (a.Description != null && a.Description.Contains(query)) ||
+                             (a.Matchcode != null && a.Matchcode.Contains(query)));
         }
         return await q.OrderBy(a => a.ArticleNumber).Take(limit).ToListAsync();
     }
@@ -34,11 +35,29 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         int page, int pageSize, string? search,
         IReadOnlyDictionary<string, string>? columnFilters = null)
     {
+        var query = BuildArticleQuery(search, columnFilters);
+
+        var totalCount = await query.CountAsync();
+        var items = await query.OrderBy(a => a.ArticleNumber)
+                               .Skip((page - 1) * pageSize)
+                               .Take(pageSize)
+                               .ToListAsync();
+        return (items, totalCount);
+    }
+
+    // internal (statt private): erlaubt einem Test, denselben Ausdrucksbaum synchron gegen einen
+    // SqlServer-Context (nie verbunden) zu bauen und per ToQueryString() die SQL-Uebersetzung zu
+    // pruefen — EF.Functions.Like + patterns.Any(...) ist unter InMemory nicht ausfuehrbar (siehe
+    // ProductionOrderRepository.BuildLeitstandQuery, gleiches Muster). Siehe InternalsVisibleTo in
+    // der csproj.
+    internal IQueryable<Article> BuildArticleQuery(string? search, IReadOnlyDictionary<string, string>? columnFilters)
+    {
         var query = _dbSet.Include(a => a.ArticleCategory).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(a => a.ArticleNumber.Contains(search) ||
-                                     (a.Description != null && a.Description.Contains(search)));
+                                     (a.Description != null && a.Description.Contains(search)) ||
+                                     (a.Matchcode != null && a.Matchcode.Contains(search)));
         }
 
         if (columnFilters != null)
@@ -51,12 +70,7 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
             }
         }
 
-        var totalCount = await query.CountAsync();
-        var items = await query.OrderBy(a => a.ArticleNumber)
-                               .Skip((page - 1) * pageSize)
-                               .Take(pageSize)
-                               .ToListAsync();
-        return (items, totalCount);
+        return query;
     }
 
     /// <summary>Matchcode je Artikelnummer für einen Stapel (Anzeige + AK-14-Zählung der FA-Listen):
@@ -88,6 +102,9 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
             "description" => negate
                 ? q.Where(a => a.Description == null || !patterns.Any(p => EF.Functions.Like(a.Description, p)))
                 : q.Where(a => a.Description != null && patterns.Any(p => EF.Functions.Like(a.Description, p))),
+            "matchcode" => negate
+                ? q.Where(a => a.Matchcode == null || !patterns.Any(p => EF.Functions.Like(a.Matchcode, p)))
+                : q.Where(a => a.Matchcode != null && patterns.Any(p => EF.Functions.Like(a.Matchcode, p))),
             "unit" => negate
                 ? q.Where(a => a.Unit == null || !patterns.Any(p => EF.Functions.Like(a.Unit, p)))
                 : q.Where(a => a.Unit != null && patterns.Any(p => EF.Functions.Like(a.Unit, p))),
