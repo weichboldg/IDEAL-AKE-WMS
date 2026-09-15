@@ -80,7 +80,9 @@ public class PartRequisitionRepository : IPartRequisitionRepository
                 r.ArticleNumber.Contains(term) ||
                 (r.ArticleDescription != null && r.ArticleDescription.Contains(term)) ||
                 r.ProductionOrder.OrderNumber.Contains(term) ||
-                (r.ProductionOrder.Customer != null && r.ProductionOrder.Customer.Contains(term)));
+                (r.ProductionOrder.Customer != null && r.ProductionOrder.Customer.Contains(term)) ||
+                _context.Set<Article>().Any(a =>
+                    a.ArticleNumber == r.ArticleNumber && a.Matchcode != null && a.Matchcode.Contains(term)));
         }
 
         var totalCount = await query.CountAsync();
