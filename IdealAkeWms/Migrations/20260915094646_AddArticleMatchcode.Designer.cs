@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdealAkeWms.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260910081155_AddProductionOrderMatchcode")]
-    partial class AddProductionOrderMatchcode
+    [Migration("20260915094646_AddArticleMatchcode")]
+    partial class AddArticleMatchcode
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -82,6 +82,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Matchcode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -2039,10 +2043,6 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<bool>("IsDone")
                         .HasColumnType("bit");
-
-                    b.Property<string>("Matchcode")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");

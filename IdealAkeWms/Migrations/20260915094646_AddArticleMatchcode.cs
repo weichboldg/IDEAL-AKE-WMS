@@ -5,7 +5,7 @@
 namespace IdealAkeWms.Migrations
 {
     /// <inheritdoc />
-    public partial class AddProductionOrderMatchcode : Migration
+    public partial class AddArticleMatchcode : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -13,7 +13,7 @@ namespace IdealAkeWms.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "Matchcode",
                 schema: "dbo",
-                table: "ProductionOrders",
+                table: "Articles",
                 type: "nvarchar(200)",
                 maxLength: 200,
                 nullable: true);
@@ -25,7 +25,7 @@ namespace IdealAkeWms.Migrations
             migrationBuilder.DropColumn(
                 name: "Matchcode",
                 schema: "dbo",
-                table: "ProductionOrders");
+                table: "Articles");
         }
     }
 }

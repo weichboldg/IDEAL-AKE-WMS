@@ -40,10 +40,6 @@ public class ProductionOrder : AuditableEntity
     [Display(Name = "Kunde")]
     public string? Customer { get; set; }
 
-    [StringLength(200)]
-    [Display(Name = "Matchcode")]
-    public string? Matchcode { get; set; }
-
     [StringLength(100)]
     [Display(Name = "Artikelnummer")]
     public string? ArticleNumber { get; set; }
