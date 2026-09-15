@@ -173,7 +173,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     ParentSubOrderNumber = n.VaterFA?.ToString(),
                     Quantity = n.Sollmenge,
                     ArticleNumber = n.Artnr,
-                    Matchcode = n.Matchcode,
                     Description1 = n.Bezeichnung1,
                     Description2 = n.Bezeichnung2,
                     IsDone = false,
@@ -197,7 +196,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 {
                     o.Quantity = sn.Sollmenge;
                     o.ArticleNumber = sn.Artnr;
-                    o.Matchcode = sn.Matchcode;
                     o.Description1 = sn.Bezeichnung1;
                     o.Description2 = sn.Bezeichnung2;
                     // ParentSubOrderNumber NUR ohne Konflikt übernehmen (Regel 3: Umhängung nicht still).

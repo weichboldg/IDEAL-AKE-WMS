@@ -340,28 +340,15 @@ public class ProductionOrderRepositoryTests
     }
 
     // ------------------------------------------------------------------
-    // Matchcode (Task 2, Artikelstamm): ProductionOrder.Matchcode wird nicht mehr projiziert —
-    // der Matchcode lebt jetzt in Article, per Batch-Lookup (MatchcodeLookup/IArticleRepository)
-    // durch den Controller nachtraeglich ueber ArticleNumber befuellt. Der SQL-Spaltenfilter
-    // "matchcode" (ApplyLeitstandColumnFilter) ist entfallen (A1) -- die zwei Tests unten
-    // belegen beide Haelften: (1) die Zeile traegt nie mehr o.Matchcode, egal was in der
-    // Legacy-Spalte steht, (2) ein "matchcode"-columnFilter ist an der Repository-Grenze ein
-    // No-Op (die Spaltenfilterung passiert seither als C#-Postfilter im Controller).
+    // Matchcode (Task 2/3, Artikelstamm): ProductionOrder.Matchcode wurde in Task 2 nicht mehr
+    // gelesen und ist seit Task 3 als Spalte entfernt -- der Matchcode lebt jetzt ausschliesslich
+    // in Article, per Batch-Lookup (MatchcodeLookup/IArticleRepository) durch den Controller
+    // nachtraeglich ueber ArticleNumber befuellt. Der SQL-Spaltenfilter "matchcode"
+    // (ApplyLeitstandColumnFilter) ist entfallen (A1) -- der Test unten belegt, dass ein
+    // "matchcode"-columnFilter an der Repository-Grenze ein No-Op ist (die Spaltenfilterung
+    // passiert seither als C#-Postfilter im Controller). Der fruehere Nachweis "liest die
+    // Legacy-Spalte nie" (Task 2) entfaellt mit Task 3, weil es die Legacy-Spalte nicht mehr gibt.
     // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task ProjectLeitstandRows_NeverReadsLegacyProductionOrderMatchcode()
-    {
-        using var ctx = TestDbContextFactory.Create();
-        ctx.ProductionOrders.Add(
-            new ProductionOrder { OrderNumber = "1", ArticleNumber = "A", Matchcode = "LEGACY-SPALTE" });
-        await ctx.SaveChangesAsync();
-
-        var repo = new ProductionOrderRepository(ctx);
-        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 50);
-
-        page.Rows.Should().ContainSingle().Which.Matchcode.Should().BeNull();
-    }
 
     [Fact]
     public async Task ColumnFilter_MatchcodeKey_IsNoOp_AtRepositoryLevel()
