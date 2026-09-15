@@ -441,8 +441,174 @@ Skizze der Szenarien, `docs/TESTSZENARIEN.md` durch den Dev-Lauf vollständig au
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
+1. → **Eigene Spalte.** `Bezeichnung1` und `Matchcode` sind fachlich verschieden: die eine ist
+   beschreibender Text, die andere ein **Typenschluessel**. Ein Ersatz wuerde Information
+   vernichten, und jede Ansicht, die heute die Bezeichnung zeigt, zeigte ploetzlich etwas anderes.
+
+2. → **Scan: EXAKT und mit Vorrang. Suche: Teilstring.** Die beiden Wege sind ausdruecklich
+   verschieden.
+   - **QR-Scan:** erst **Artikelnummer exakt**, dann **Matchcode exakt**, sonst „nicht gefunden".
+     Dieselbe Vorrang-Reihenfolge wie beim FA-Scan: zuerst das Eindeutigere.
+   - **Kein Teilstring-Treffer beim Scannen.** Ein Scan liefert einen vollstaendigen Code; ihn
+     unscharf aufzuloesen erzeugte ueberraschende Treffer, bei denen der Werker nicht merkt, dass
+     er den falschen Artikel vor sich hat. Teilstring gilt nur fuer die **getippte** Suche.
+
+3. → **Kein Abgleich zwischen beiden — sie stammen ohnehin aus derselben Quelle.**
+   `Article.Matchcode` kommt aus `KHKArtikel.Matchcode`; `FaHierarchyNode.Matchcode` kommt aus der
+   IDEAL-Struktur-View, die ihrerseits auf demselben Sage-Artikelstamm aufsetzt.
+   - **`Article.Matchcode` ist die Wahrheit** fuer alles Artikelbezogene (Suche, Artikelinfo,
+     Bestand, Bestellungen, die fuenf FA-Listen ueber den Equi-Join).
+   - **`FaHierarchyNode.Matchcode` bleibt unveraendert** und bedient weiterhin die
+     FA-Struktur-Baumansicht, die direkt aus der Strukturtabelle liest.
+   - **Keine Synchronisierung, kein Nachziehen, kein Vorrang-Regelwerk** zwischen beiden — das
+     waere Doppelpflege ohne Gegenwert.
+   **Beide Standorte:** Jeder Mandant hat seinen eigenen `KHKArtikel`; der Artikel-Sync holt den
+   Matchcode je Standort aus der eigenen Quelle. Kein Sonderweg fuer IDEAL.
+
+4. → **BEANTWORTET — ja, Sage liefert ihn.** Die erweiterte Abfrage liegt vor und fuehrt
+   `CAST(a.Matchcode AS nvarchar(500)) AS Matchcode` in **beiden** Zweigen (Ressourcen-Positionen
+   und Artikelstamm), aggregiert als `MAX(Matchcode)`.
+   Damit ist die als „hausinterne Folgeaufgabe" vermerkte View-/Query-Erweiterung **bereits
+   erledigt** — `SageImportService.SyncArticlesAsync` uebernimmt genau diese Abfrage.
+   **Die Null-Sicherheit bleibt trotzdem Pflicht:** `Matchcode` ist in Sage nicht
+   zwingend gefuellt. Leere Werte duerfen Suche und Anzeige nicht brechen.
+   *Randnotiz — Feldlaenge, mit Pruefschritt (2026-09-13):* Quelle und Zielspalte werden auf
+   **`nvarchar(200)`** angeglichen.
+   **Achtung, Fehlerklasse:** `CAST(... AS nvarchar(200))` kuerzt **stillschweigend**. Waere der
+   `CAST` groesser als die Spalte, schluege der Insert **laut** fehl — die Angleichung tauscht also
+   einen sichtbaren Fehler gegen einen unsichtbaren.
+   **Deshalb vor der Umsetzung einmal messen statt abwaegen:**
+   ```sql
+   SELECT MAX(LEN(Matchcode)) AS MaxLen, COUNT(*) AS Gefuellt
+   FROM [dbo].[KHKArtikel] WHERE Matchcode IS NOT NULL AND Matchcode <> '';
+
+   SELECT c.max_length/2 AS Zeichen FROM sys.columns c
+   WHERE c.object_id = OBJECT_ID('dbo.KHKArtikel') AND c.name = 'Matchcode';
+   ```
+   Ist die Sage-Spalte kuerzer als 200 (bei einem Matchcode-Feld wahrscheinlich), ist das Thema
+   erledigt. Liegt der laengste Wert nahe an 200, **groesser dimensionieren** — eine breitere
+   `nvarchar`-Spalte kostet in SQL Server nichts, sie ist variabel lang.
+
+5. → **Nicht gegen die Produktionsdatenbank messen. Die Entscheidung haengt nicht daran — aber eine
+   andere Frage schon.**
+   Die Argumentation der Spec traegt: Der Full Scan existiert heute bereits fuer zwei Spalten, ein
+   drittes `OR`-Glied erzeugt keinen zusaetzlichen Durchlauf. **Schlichter `LIKE`, kein
+   Volltextindex** — bestaetigt. Der Schutz auf Produktions-Lesezugriffe besteht aus gutem Grund;
+   ihn fuer eine Zahl zu oeffnen, die die Entscheidung nicht aendert, waere der falsche Handel.
+   Messen zur Umsetzungszeit am Testsystem genuegt.
+
+   **ABER — 108.818 Artikel machen eine Frage wichtig, die bisher nicht gestellt wurde:**
+   **Sucht die Oberflaeche bei jedem Tastendruck oder erst beim Absenden?**
+   - **Beim Absenden** → ein Scan je Suchvorgang, unkritisch.
+   - **Bei jedem Tastendruck** → ein Full Scan ueber 108.818 Zeilen **pro Buchstabe**. Wer
+     „FRR-760" tippt, loest sieben Scans aus, der erste davon auf ein einziges Zeichen.
+   **Zu pruefen und, falls live gesucht wird, verbindlich:**
+   - **Mindestens 3 Zeichen**, bevor gesucht wird.
+   - **Entprellung** (~300 ms), damit waehrend des Tippens nicht jeder Anschlag feuert.
+   Beides ist billig und verhindert genau den Fall, der aus einer vertretbaren Abfrage eine
+   spuerbar traege Oberflaeche macht.
+
+## Kritische Pruefung (2026-09-15)
+
+Anwalt des Teufels, vor der Freigabe. Freigabe-Antworten 1–5 gelesen; am Worktree-Code
+`2026-08-07-ideal-teile-1-5` gegengeprueft: Migrationsreihenfolge, `SageImportService.
+SyncArticlesAsync` (inkl. Filter), `FaHierarchySql.cs` (Matchcode-Herkunft), `SageConnection`-
+Nutzung beider Sync-Dienste. Die Antworten sind inhaltlich stark und schliessen die
+Wert-/Quellfrage (3), die Scan-Semantik (2) und die Sage-Verfuegbarkeit (4) sauber. **Ein
+tragender Punkt bleibt jedoch ungemessen, und zwei verbindliche Zusagen stehen nur in den
+Antworten, noch nicht im pruefbaren Rumpf.**
+
+### BLOCKER
+
+- **B-1 — Coverage-Luecke IDEAL: die fuenf FA-Listen koennten ihren Matchcode nach dem Rueckbau
+  STILL verlieren; AK #2 ist bis zur Messung ungedeckt.** Antwort 3 entscheidet „`Article.Matchcode`
+  ist die Wahrheit … die fuenf FA-Listen ueber den Equi-Join" und begruendet das mit „gleiche
+  Quelle". Das loest die **Wert**-Frage (gut), aber **nicht die Existenz-Frage**: Der Join
+  `ProductionOrder.ArticleNumber = Article.ArticleNumber` liefert nur dann einen Matchcode, wenn die
+  FA-Zeilen-Artikelnummer ueberhaupt in `Articles` steht. `Articles` wird von
+  `SageImportService.SyncArticlesAsync` aber **gefiltert** befuellt: nur Artikel, die in
+  `KHKPpsRessourcenPositionen` vorkommen (Zweig 1) **oder** `IstBestellartikel = -1 AND Aktiv = -1`
+  sind (Zweig 2, `SageImportService.cs:391-395/406-409`). **Gefertigte HauptFA-/SubFA-Artikel
+  (Baugruppen, Endprodukte) sind typischerweise keine Bestellartikel** und muessen nicht als
+  Ressourcenposition auftauchen — sie koennen durch **beide** Filter fallen und in `Articles`
+  fehlen. Heute hat jede FA-Zeile ihren Matchcode aus `FaHierarchyNode.Matchcode` (fuer JEDEN
+  Knoten vorhanden); nach dem Rueckbau haengt er am Join. Fehlt der Artikel → `NULL` → **leerer
+  Matchcode genau bei IDEAL**, wo er essentiell ist. Das verletzt AK #2 („gleiche Werte") UND die
+  Hausregel „melden statt still behandeln". Die 108.818-Zeilen-Zahl belegt NICHT, dass die
+  FA-Artikel dabei sind.
+  *Billige Messung, die vor dem Dev-Lauf entscheidet (am Testsystem, kein Prod-Zwang):*
+  ```sql
+  -- Wie viele materialisierte FA-Zeilen-Artikel fehlen im Artikelstamm?
+  SELECT COUNT(*) AS FaZeilenGesamt,
+         SUM(CASE WHEN a.ArticleNumber IS NULL THEN 1 ELSE 0 END) AS OhneArtikelstamm
+  FROM ProductionOrders po
+  LEFT JOIN Articles a ON a.ArticleNumber = po.ArticleNumber;
+  ```
+  Ist `OhneArtikelstamm > 0`, ist Variante (a)/(c) **nicht regressionsfrei** und braucht eine
+  bewusste Entscheidung: Artikel-Sync-Filter um die fehlenden FA-Artikel erweitern, ODER doch
+  Variante (b) (denormalisierte Kopie, die die Spec derzeit verwirft), ODER IDEAL behaelt seine
+  `FaHierarchyNode`-Quelle fuer die Listen und nur Artikelstamm/AKE bekommt `Article.Matchcode`.
+  *Frage an den Menschen:* Wurde diese Coverage geprueft? Wenn nein — vor der Freigabe messen.
+
+### SOLLTE
+
+- **S-1 — Antwort 5 (Mindestlaenge + Entprellung) verbindlich in Rumpf und Akzeptanzkriterien
+  ziehen.** Die Zusage „mind. 3 Zeichen, ~300 ms Entprellung, falls live gesucht wird" lebt nur in
+  der Antwort. Der Dev-Lauf liest zwar die Antworten als Auftrag, aber es fehlt (a) das
+  **Code-Verifikat**, OB die Artikel-Typeahead-Suche (`ArticlesApiController` → `ArticleRepository.
+  SearchAsync`, genutzt u. a. von Lager-/Glasbestellung und Bedarfsmeldung) tatsaechlich je
+  Tastendruck feuert, und (b) ein **pruefbares Akzeptanzkriterium** dafuer. Vorschlag: neues AK
+  „Live-Artikelsuche feuert erst ab 3 Zeichen und entprellt ~300 ms; per-Tastendruck-Full-Scan ist
+  ausgeschlossen" + expliziter Verifikationsschritt im Loesungsentwurf.
+- **S-2 — Widerspruch in Antwort 4 aufloesen: `CAST(... AS nvarchar(500))` vs. Zielspalte
+  `nvarchar(200)`.** Der in Antwort 4 gezeigte Query-Ausschnitt castet auf `nvarchar(500)`, die
+  Entscheidung direkt darunter gleicht Quelle und Ziel aber auf **`nvarchar(200)`** an
+  (`Article.Matchcode`, Migration, Model `[StringLength(200)]`). Ein 500er-Wert in eine 200er-Spalte
+  laeuft in genau die „laut fehlschlagen"-Falle, die die Antwort selbst benennt. Vor der Umsetzung:
+  die in Antwort 4 vorgesehene `LEN`-Messung an `KHKArtikel.Matchcode` ausfuehren, dann Ziel- UND
+  CAST-Laenge einheitlich setzen (>= gemessenem Maximum). Im Rumpf ist derzeit durchgaengig 200
+  angenommen — die 500 im Antwort-Snippet muss angeglichen werden, damit der Dev-Lauf nicht die
+  falsche Zahl uebernimmt.
+- **S-3 — Rueckbau- und Neu-Migration als geordneten Ablauf festschreiben.** `dotnet ef migrations
+  remove` funktioniert nur, solange `AddProductionOrderMatchcode` die **letzte** Migration ist
+  (heute im Worktree bestaetigt, H-1). Reihenfolge daher verbindlich: **zuerst** entfernen,
+  **danach** `AddArticleMatchcode` hinzufuegen. Als nummerierten Schritt in „Migrations-/SQL-
+  Auswirkungen".
+- **S-4 — AK #2 als echten Vorher/Nachher-Vergleich formulieren (ist zugleich der B-1-Nachweis).**
+  Statt „gleiche Werte" behaupten: vor dem Rueckbau die Ist-Matchcodes der fuenf Listen fuer einen
+  realen IDEAL-Auftrag festhalten, nach dem Rueckbau bit-vergleichen — **und explizit zaehlen,
+  welche Zeilen von gefuellt auf leer kippen**. Kippt eine, ist B-1 eingetreten.
+
+### HINWEIS
+
+- **H-1** — `ef migrations remove`-Vorbedingung ist erfuellt: `AddProductionOrderMatchcode` ist die
+  letzte Migration im Worktree (verifiziert). Der „sauberer Rueckbau statt Gegen-Migration"-Ansatz
+  traegt.
+- **H-2** — **Bewusste Inkonsistenz Baumansicht ↔ Listen, dokumentieren.** Antwort 3 laesst
+  `FaHierarchyNode.Matchcode` (FA-Struktur-Baum, `/FaHierarchy`) unveraendert und macht
+  `Article.Matchcode` zur Quelle der fuenf Listen. Weicht der positionsbevorzugte View-Matchcode je
+  vom Artikelstamm-Matchcode ab (die IDEAL-View-Doku sagt „Position bevorzugt, KHKArtikel als
+  Fallback"), zeigen **Baum und Listen fuer denselben Knoten dann unterschiedliche Matchcodes**.
+  Das ist durch Antwort 3 gedeckt (Artikel gewinnt in den Listen), aber es gehoert als
+  „so gewollt, kein Fehler" in den UAT-Vermerk — sonst wird es beim ersten Nebeneinander gemeldet.
+- **H-3 — Groesse.** ~18 Dateien ueber Model/Migration/Service/Repository/Controller/View/Tests plus
+  Rueckbau. Grenzwertig, aber als **ein** kohaerentes Thema mit klarer Commit-Folge (1. Rueckbau,
+  2. `Article.Matchcode` + Sync, 3. Suchstellen, 4. Anzeige/Tests) in einem Dev-Lauf machbar — kein
+  Split/Epic zwingend. Weicht B-1 die Variante auf, neu bewerten.
+- **H-4** — Die frueher vermutete NVARCHAR-Diskrepanz war ein Byte/Zeichen-Lesefehler und ist
+  bereits korrigiert; kein offener Punkt.
+
+### Drei wichtigste Punkte
+
+1. **B-1: IDEAL koennte seinen Matchcode nach dem Rueckbau still verlieren.** Die fuenf Listen
+   ziehen ihn heute aus `FaHierarchyNode` (jeder Knoten hat ihn), kuenftig aus `Article` (nur
+   gefiltert befuellt — gefertigte FA-Artikel fehlen evtl.). **Vor der Freigabe die eine
+   `LEFT JOIN`-Zaehl-Query laufen lassen.** Das kann die gewaehlte Variante kippen.
+2. **S-1: Die Entprellungs-/Mindestlaengen-Zusage aus Antwort 5 muss in Rumpf + Akzeptanzkriterium**
+   — sonst geht die 108k-Zeilen-Live-Suche zwischen den Antworten verloren.
+3. **S-2: Antwort 4 castet auf 500, die Zielspalte ist 200** — vor der Umsetzung die
+   `KHKArtikel.Matchcode`-Laenge messen und beide Zahlen angleichen.
+
+**NACHBESSERUNG NOETIG:** Die Coverage IDEAL-Artikel → `Articles` (B-1) ist ungemessen und kann die
+gewaehlte „ein Ort, alles ueber Join"-Variante kippen; zusaetzlich muessen die verbindlichen Zusagen
+aus Antwort 4 (Feldlaenge) und 5 (Entprellung/Mindestlaenge) in den pruefbaren Spec-Rumpf.
