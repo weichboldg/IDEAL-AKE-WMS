@@ -30,6 +30,12 @@
                     </div>
 
                     <div class="mb-3">
+                        <label asp-for="Article.Matchcode" class="form-label"></label>
+                        <input asp-for="Article.Matchcode" class="form-control" />
+                        <span asp-validation-for="Article.Matchcode" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
                         <label asp-for="Article.Unit" class="form-label"></label>
                         <input asp-for="Article.Unit" class="form-control" placeholder="z.B. Stk, kg, m" />
                         <span asp-validation-for="Article.Unit" class="text-danger"></span>

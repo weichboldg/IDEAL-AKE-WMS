@@ -4,6 +4,7 @@ public class ArticleInfoViewModel
 {
     public string ArticleNumber { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? Matchcode { get; set; }
     public string? Unit { get; set; }
     public string? ArticleGroup { get; set; }
     public decimal ReorderLevel { get; set; }

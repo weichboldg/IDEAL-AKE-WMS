@@ -52,7 +52,7 @@
 @{
     var attrDefs = Model.AttributeDefinitions;
     var attrValues = Model.AttributeValuesByArticle;
-    var totalColCount = 6 + attrDefs.Count + 1; // base cols + category + dynamic attrs
+    var totalColCount = 7 + attrDefs.Count + 1; // base cols + category + dynamic attrs
 }
 
 <div class="table-responsive">
@@ -61,6 +61,7 @@
             <tr>
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
                 <th data-filterable data-col-key="description">Bezeichnung</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="unit">Einheit</th>
                 <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                 <th data-filterable data-col-key="category">Kategorie</th>
@@ -88,6 +89,7 @@
                         </a>
                     </td>
                     <td>@article.Description</td>
+                    <td>@article.Matchcode</td>
                     <td>@article.Unit</td>
                     <td>@article.ArticleGroup</td>
                     <td>@(article.ArticleCategory?.Name ?? "")</td>

@@ -179,6 +179,7 @@ public class ArticlesController : Controller
 
         existing.ArticleNumber = vm.Article.ArticleNumber;
         existing.Description = vm.Article.Description;
+        existing.Matchcode = vm.Article.Matchcode;
         existing.Unit = vm.Article.Unit;
         existing.ReorderLevel = vm.Article.ReorderLevel;
         existing.ArticleCategoryId = vm.Article.ArticleCategoryId;
@@ -221,6 +222,8 @@ public class ArticlesController : Controller
             return View((ArticleInfoViewModel?)null);
 
         var article = await _articleRepository.GetByArticleNumberAsync(articleNumber.Trim());
+        // Kein Treffer über Artikelnummer: exakt (kein Teilstring) über Matchcode nachschlagen (D4).
+        article ??= await _articleRepository.GetByMatchcodeExactAsync(articleNumber.Trim());
         if (article == null)
         {
             ViewBag.NotFound = articleNumber.Trim();
@@ -307,6 +310,7 @@ public class ArticlesController : Controller
         {
             ArticleNumber = article.ArticleNumber,
             Description = article.Description ?? string.Empty,
+            Matchcode = article.Matchcode,
             Unit = article.Unit,
             ArticleGroup = article.ArticleGroup,
             ReorderLevel = article.ReorderLevel ?? 0,
