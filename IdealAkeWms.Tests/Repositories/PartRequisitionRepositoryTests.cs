@@ -205,4 +205,72 @@ public class PartRequisitionRepositoryTests
         result[0].EmailSentAt.Should().BeNull();
         result[0].Status.Should().Be(PartRequisitionStatus.Offen);
     }
+
+    // ===== Matchcode (Artikelstamm, Task 6): PartRequisition.ArticleNumber/ArticleDescription sind
+    // Snapshot-Felder (kein Article-Navigationsproperty) -- Matchcode-Suche ueber korrelierten
+    // Subquery gegen Article, KEIN neues Snapshot-Feld (haette den Matchcode zum Bestellzeitpunkt
+    // eingefroren). =====
+
+    [Fact]
+    public async Task GetPagedAsync_SearchTerm_MatchesByMatchcode()
+    {
+        var (context, repo, order) = await CreateRepoWithOrder();
+        context.Articles.Add(new Article
+        {
+            ArticleNumber = "ART-001",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        });
+        await context.SaveChangesAsync();
+
+        var req = MakeRequisition(order.Id, "ART-001", PartRequisitionStatus.Offen);
+        await repo.AddAsync(req);
+
+        var (items, total) = await repo.GetPagedAsync(1, 25, showAll: true, searchTerm: "SONDERTEIL");
+
+        total.Should().Be(1);
+        items.Should().ContainSingle().Which.ArticleNumber.Should().Be("ART-001");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_SearchTerm_NullMatchcode_NoMatch_NoException()
+    {
+        var (context, repo, order) = await CreateRepoWithOrder();
+        // Kein Article-Datensatz (== kein Matchcode-Treffer) fuer diese Artikelnummer angelegt.
+
+        var req = MakeRequisition(order.Id, "ART-001", PartRequisitionStatus.Offen);
+        await repo.AddAsync(req);
+
+        Func<Task> act = async () => await repo.GetPagedAsync(1, 25, showAll: true, searchTerm: "SONDERTEIL");
+
+        await act.Should().NotThrowAsync();
+        var (items, total) = await repo.GetPagedAsync(1, 25, showAll: true, searchTerm: "SONDERTEIL");
+        total.Should().Be(0);
+        items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_SearchTerm_NonMatchingTerm_ReturnsEmpty()
+    {
+        var (context, repo, order) = await CreateRepoWithOrder();
+        context.Articles.Add(new Article
+        {
+            ArticleNumber = "ART-001",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        });
+        await context.SaveChangesAsync();
+
+        var req = MakeRequisition(order.Id, "ART-001", PartRequisitionStatus.Offen);
+        await repo.AddAsync(req);
+
+        var (items, total) = await repo.GetPagedAsync(1, 25, showAll: true, searchTerm: "KEIN-TREFFER");
+
+        total.Should().Be(0);
+        items.Should().BeEmpty();
+    }
 }

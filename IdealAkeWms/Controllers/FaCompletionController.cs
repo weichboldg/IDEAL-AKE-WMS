@@ -91,11 +91,20 @@ public class FaCompletionController : Controller
                 .ToList();
         }
 
+        // Matchcode-Join (Task 2/Task 6, Artikelstamm): EIN Batch-Lookup, VOR dem Artikel-Freitextfilter
+        // (Task 6 sucht auch im Matchcode) UND vor der spaeteren Projektion (Task 2 zeigt item.Matchcode).
+        var matchcodes = await MatchcodeLookup.BuildAsync(
+            _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "FaCompletion");
+
         if (!string.IsNullOrWhiteSpace(filterArticleNumber))
         {
             orders = orders
-                .Where(o => o.ArticleNumber != null
+                .Where(o => (o.ArticleNumber != null
                             && o.ArticleNumber.Contains(filterArticleNumber, StringComparison.OrdinalIgnoreCase))
+                            || (o.ArticleNumber != null
+                            && matchcodes.TryGetValue(o.ArticleNumber, out var mc)
+                            && mc != null
+                            && mc.Contains(filterArticleNumber, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
         }
 
@@ -117,11 +126,6 @@ public class FaCompletionController : Controller
 
         var orderIds = orders.Select(o => o.Id).ToList();
         var counts = await _faWorkStepRepository.GetCountsByProductionOrderIdsAsync(orderIds);
-
-        // Matchcode-Join (Task 2, Artikelstamm): EIN Batch-Lookup fuer den gefilterten Bestand,
-        // VOR der Projektion/dem Spaltenfilter (ColumnFilterHelper.Apply liest danach item.Matchcode).
-        var matchcodes = await MatchcodeLookup.BuildAsync(
-            _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "FaCompletion");
 
         var allItems = orders.Select(o =>
         {

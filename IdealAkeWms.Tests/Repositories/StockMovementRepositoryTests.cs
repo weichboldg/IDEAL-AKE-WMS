@@ -2,6 +2,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Tests.Repositories;
 
@@ -240,5 +241,116 @@ public class StockMovementRepositoryTests
         locs[0].IsPrimaryStorageLocation.Should().BeTrue();
         locs[1].Code.Should().Be("L01");
         locs[1].IsPrimaryStorageLocation.Should().BeFalse();
+    }
+
+    // ===== Matchcode (Artikelstamm, Task 6): sm.Article ist per Include schon geladen, daher
+    // triviales zusaetzliches OR-Glied — InMemory-lauffaehig wie die bestehenden Freitextfilter. =====
+
+    [Fact]
+    public async Task GetCurrentStock_FilterArticle_MatchesByMatchcode()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, _) = SeedBaseData(ctx);
+        article.Matchcode = "MC-SONDERTEIL";
+        ctx.SaveChanges();
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc1, 10, MovementType.Einbuchung));
+
+        var stock = await repo.GetCurrentStockAsync(filterArticle: "SONDERTEIL");
+
+        stock.Should().ContainSingle().Which.ArticleNumber.Should().Be("ART-001");
+    }
+
+    [Fact]
+    public async Task GetCurrentStock_FilterArticle_NullMatchcode_NoMatch_NoException()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, _) = SeedBaseData(ctx);
+        // article.Matchcode bleibt null (Default)
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc1, 10, MovementType.Einbuchung));
+
+        var act = async () => await repo.GetCurrentStockAsync(filterArticle: "SONDERTEIL");
+
+        var stock = await act.Should().NotThrowAsync();
+        stock.Subject.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetCurrentStock_FilterArticle_NonMatchingTerm_ReturnsEmpty()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, _) = SeedBaseData(ctx);
+        article.Matchcode = "MC-SONDERTEIL";
+        ctx.SaveChanges();
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc1, 10, MovementType.Einbuchung));
+
+        var stock = await repo.GetCurrentStockAsync(filterArticle: "KEIN-TREFFER");
+
+        stock.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetMovementHistory_FilterArticle_MatchesByMatchcode()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, _) = SeedBaseData(ctx);
+        article.Matchcode = "MC-SONDERTEIL";
+        ctx.SaveChanges();
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc1, 5, MovementType.Einbuchung));
+
+        var (history, totalCount) = await repo.GetMovementHistoryAsync(filterArticle: "SONDERTEIL");
+
+        totalCount.Should().Be(1);
+        history.Should().ContainSingle().Which.ArticleNumber.Should().Be("ART-001");
+    }
+
+    // Spaltenfilter "article" nutzt EF.Functions.Like innerhalb patterns.Any(...) -- unter InMemory
+    // nicht ausfuehrbar (Fallstrick Task 5). Beleg daher ueber ToQueryString() gegen einen nie
+    // verbundenen SqlServer-Context, gleiches Muster wie ProductionOrderRepositoryTests.
+    [Fact]
+    public void ArticleColumnFilter_SqlServer_TranslatesMatchcodeOrClause()
+    {
+        using var ctx = CreateSqlServerContext();
+        var tokens = new List<string> { "sonderteil" };
+
+        var sql = StockMovementRepository
+            .ApplyMovementColumnFilter(ctx.StockMovements, "article", tokens, negate: false)
+            .ToQueryString();
+
+        sql.Should().Contain("Matchcode", "der Spaltenfilter 'article' muss auch gegen Article.Matchcode uebersetzt werden");
+    }
+
+    [Fact]
+    public void ArticleColumnFilter_Negated_SqlServer_PreservesMatchcodeNullGuardUnderNot()
+    {
+        using var ctx = CreateSqlServerContext();
+        var tokens = new List<string> { "sonderteil" };
+
+        var sql = StockMovementRepository
+            .ApplyMovementColumnFilter(ctx.StockMovements, "article", tokens, negate: true)
+            .ToQueryString();
+
+        sql.Should().Contain("Matchcode");
+        sql.Should().Contain("NOT", "der Negativfall muss als NOT ueber die OR-Verknuepfung uebersetzt werden");
+    }
+
+    /// <summary>
+    /// Context gegen den SqlServer-Provider mit einer nicht aufloesbaren Server-Adresse — es wird
+    /// NIE eine Verbindung geoeffnet, ToQueryString() kompiliert nur den Ausdrucksbaum zu SQL-Text.
+    /// Gleiches Muster wie ProductionOrderRepositoryTests.CreateSqlServerContext.
+    /// </summary>
+    private static Data.ApplicationDbContext CreateSqlServerContext()
+    {
+        var options = new DbContextOptionsBuilder<Data.ApplicationDbContext>()
+            .UseSqlServer("Server=nonexistent-host-for-tests;Database=x;TrustServerCertificate=True;Connect Timeout=1")
+            .Options;
+        return new Data.ApplicationDbContext(options);
     }
 }

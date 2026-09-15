@@ -1002,4 +1002,135 @@ public class WarehouseRequisitionRepositoryTests
         var found = await repo.GetOpenDraftForUserAndTypeAsync(7, WarehouseRequisitionType.Lager);
         found.Should().BeNull("weder fremde noch abgeschickte Bestellungen zaehlen");
     }
+
+    // ===== Matchcode (Artikelstamm, Task 6): WarehouseRequisitionItem.ArticleNumber ist ein
+    // Snapshot-Feld (kein Article-Navigationsproperty) -- Matchcode-Suche ueber korrelierten
+    // Subquery gegen Article, KEIN neues Snapshot-Feld. =====
+
+    [Fact]
+    public async Task GetMissingPartsAsync_ArticleNumberColumnFilter_MatchesByMatchcode()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        db.Articles.Add(new Article
+        {
+            ArticleNumber = "AAA-1",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        items[0].ArticleNumber = "AAA-1";
+        items[1].ArticleNumber = "BBB-2";
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var filters = new Dictionary<string, string> { ["ArticleNumber"] = "SONDERTEIL" };
+        var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
+
+        filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("AAA-1");
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_ArticleNumberColumnFilter_NullMatchcode_NoMatch_NoException()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        // Kein Article-Datensatz (== kein Matchcode-Treffer) fuer diese Artikelnummer angelegt.
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+        items[0].ArticleNumber = "AAA-1";
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var filters = new Dictionary<string, string> { ["ArticleNumber"] = "SONDERTEIL" };
+        Func<Task> act = async () => await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
+
+        await act.Should().NotThrowAsync();
+        var (filtered, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
+        filtered.Should().BeEmpty();
+        total.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_ArticleNumberColumnFilter_NonMatchingTerm_ReturnsEmpty()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        db.Articles.Add(new Article
+        {
+            ArticleNumber = "AAA-1",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).ToList();
+        items[0].ArticleNumber = "AAA-1";
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var filters = new Dictionary<string, string> { ["ArticleNumber"] = "KEIN-TREFFER" };
+        var (filtered, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
+
+        filtered.Should().BeEmpty();
+        total.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMissingPartsAsync_ArticleNumberColumnFilter_NegatedMatchcode_ExcludesMatch()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        db.Articles.Add(new Article
+        {
+            ArticleNumber = "AAA-1",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "test",
+            CreatedByWindows = "test"
+        });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        items[0].ArticleNumber = "AAA-1";
+        items[1].ArticleNumber = "BBB-2";
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(id,
+            new Dictionary<int, decimal> { [items[0].Id] = 0m, [items[1].Id] = 0m },
+            new Dictionary<int, string?>(),
+            new Dictionary<int, string?>(),
+            new Dictionary<int, ShortageStatus> { [items[0].Id] = ShortageStatus.NoRestock, [items[1].Id] = ShortageStatus.NoRestock },
+            1, "u", "w", new byte[0]);
+
+        var filters = new Dictionary<string, string> { ["ArticleNumber"] = "!SONDERTEIL" };
+        var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
+
+        filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("BBB-2");
+    }
 }

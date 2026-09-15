@@ -1111,4 +1111,65 @@ public class FaCompletionControllerTests
         redirect.ActionName.Should().Be(nameof(FaCompletionController.Edit));
         redirect.RouteValues!["tab"].Should().Be("ALLGEMEIN");
     }
+
+    // --------------------------------------------- Matchcode-Freitext (Task 6, Artikelstamm)
+    // FA-Fertigmeldung-Freitext (filterArticleNumber) ist ein eigener Pfad, sibling zur FA-Liste
+    // (Task 2) -- hier sucht Task 6 zusaetzlich im Article.Matchcode, ueber denselben Batch-Lookup
+    // (MatchcodeLookup), der auch die Anzeige speist.
+
+    [Fact]
+    public async Task Index_FilterArticleNumber_MatchesByMatchcode()
+    {
+        var (ctx, ctrl, _) = Build();
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-MC", articleNumber: "ART-1");
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-OTHER", articleNumber: "ART-2");
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = "ART-1",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index(null, "SONDERTEIL", null, false);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-MC");
+    }
+
+    [Fact]
+    public async Task Index_FilterArticleNumber_NullMatchcode_NoException_StillMatchesArticleNumber()
+    {
+        var (ctx, ctrl, _) = Build();
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-NOARTREC", articleNumber: "ART-1");
+        // Kein Article-Datensatz (== kein Matchcode-Treffer) fuer ART-1 angelegt.
+
+        var result = await ctrl.Index(null, "ART-1", null, false);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-NOARTREC");
+    }
+
+    [Fact]
+    public async Task Index_FilterArticleNumber_NonMatchingTerm_ReturnsEmpty()
+    {
+        var (ctx, ctrl, _) = Build();
+        TestDataHelper.CreateOrderWithStatuses(ctx, "FA-MC2", articleNumber: "ART-1");
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = "ART-1",
+            Matchcode = "MC-SONDERTEIL",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var result = await ctrl.Index(null, "KEIN-TREFFER", null, false);
+
+        var vm = (FaCompletionListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().BeEmpty();
+    }
 }

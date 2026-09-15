@@ -27,7 +27,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         {
             query = query.Where(sm =>
                 sm.Article.ArticleNumber.Contains(filterArticle) ||
-                (sm.Article.Description != null && sm.Article.Description.Contains(filterArticle)));
+                (sm.Article.Description != null && sm.Article.Description.Contains(filterArticle)) ||
+                (sm.Article.Matchcode != null && sm.Article.Matchcode.Contains(filterArticle)));
         }
 
         if (filterStorageLocationId.HasValue)
@@ -87,7 +88,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         {
             sourceQuery = sourceQuery.Where(sm =>
                 sm.Article.ArticleNumber.Contains(filterArticle) ||
-                (sm.Article.Description != null && sm.Article.Description.Contains(filterArticle)));
+                (sm.Article.Description != null && sm.Article.Description.Contains(filterArticle)) ||
+                (sm.Article.Matchcode != null && sm.Article.Matchcode.Contains(filterArticle)));
         }
 
         if (filterStorageLocationId.HasValue)
@@ -320,7 +322,8 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         {
             query = query.Where(sm =>
                 sm.Article.ArticleNumber.Contains(filterArticle) ||
-                (sm.Article.Description != null && sm.Article.Description.Contains(filterArticle)));
+                (sm.Article.Description != null && sm.Article.Description.Contains(filterArticle)) ||
+                (sm.Article.Matchcode != null && sm.Article.Matchcode.Contains(filterArticle)));
         }
 
         if (filterStorageLocationId.HasValue)
@@ -548,7 +551,12 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
     }
 
     /// <summary>Maps Bewegungshistorie Column-Keys auf StockMovement-Properties.</summary>
-    private static IQueryable<StockMovement> ApplyMovementColumnFilter(
+    /// <remarks>
+    /// internal statt private (Task 6, Matchcode): direkt gegen einen nie verbundenen SqlServer-
+    /// Context via ToQueryString() testbar, siehe ProductionOrderRepository.BuildLeitstandQuery
+    /// (gleiches Muster). InternalsVisibleTo fuer IdealAkeWms.Tests siehe csproj.
+    /// </remarks>
+    internal static IQueryable<StockMovement> ApplyMovementColumnFilter(
         IQueryable<StockMovement> q, string key, List<string> tokens, bool negate)
     {
         var patterns = tokens.Select(t => $"%{t}%").ToList();
@@ -556,9 +564,11 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         {
             "article" => negate
                 ? q.Where(sm => !patterns.Any(p => EF.Functions.Like(sm.Article.ArticleNumber, p))
-                    && (sm.Article.Description == null || !patterns.Any(p => EF.Functions.Like(sm.Article.Description, p))))
+                    && (sm.Article.Description == null || !patterns.Any(p => EF.Functions.Like(sm.Article.Description, p)))
+                    && (sm.Article.Matchcode == null || !patterns.Any(p => EF.Functions.Like(sm.Article.Matchcode, p))))
                 : q.Where(sm => patterns.Any(p => EF.Functions.Like(sm.Article.ArticleNumber, p))
-                    || (sm.Article.Description != null && patterns.Any(p => EF.Functions.Like(sm.Article.Description, p)))),
+                    || (sm.Article.Description != null && patterns.Any(p => EF.Functions.Like(sm.Article.Description, p)))
+                    || (sm.Article.Matchcode != null && patterns.Any(p => EF.Functions.Like(sm.Article.Matchcode, p)))),
 
             "storage-location" => negate
                 ? q.Where(sm => !patterns.Any(p => EF.Functions.Like(sm.StorageLocation.Code, p))

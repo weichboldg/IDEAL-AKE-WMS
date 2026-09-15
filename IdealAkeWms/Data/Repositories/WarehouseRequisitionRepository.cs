@@ -434,7 +434,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return (rows, total);
     }
 
-    private static IQueryable<WarehouseRequisitionItem> ApplyMissingPartsTextFilter(
+    private IQueryable<WarehouseRequisitionItem> ApplyMissingPartsTextFilter(
         IQueryable<WarehouseRequisitionItem> q,
         string filterValue,
         bool isArticleNumber,
@@ -446,12 +446,41 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         var positives = tokens.Where(t => !t.StartsWith("!")).ToList();
         var negatives = tokens.Where(t => t.StartsWith("!")).Select(t => t.Substring(1)).ToList();
 
+        // Artikelnummer-Spalte (Task 6, Matchcode): WarehouseRequisitionItem.ArticleNumber ist ein
+        // Snapshot-Feld (kein Article-Navigationsproperty) — Matchcode-Treffer daher ueber einen
+        // korrelierten Subquery gegen Article, kein neues Snapshot-Feld. InMemory-tauglich: reines
+        // .Contains() im Subquery, kein EF.Functions.Like. "positives.Any(v => ... verschachtelter
+        // Subquery ...)" laesst sich NICHT uebersetzen (InMemory wirft, siehe Task 6 Test-Nachlese)
+        // -- je positivem Token daher eine eigene gefilterte Query, ueber Union (statt Any-Lambda-
+        // ueber-Client-Liste) zusammengefuehrt. Negativfall bleibt ein einzelner Token pro Schleifen-
+        // durchlauf (AND-Verkettung wie zuvor) und braucht dieses Union nicht.
+        if (isArticleNumber)
+        {
+            if (positives.Count > 0)
+            {
+                IQueryable<WarehouseRequisitionItem>? matched = null;
+                foreach (var v in positives)
+                {
+                    var clause = q.Where(i => i.ArticleNumber.Contains(v) ||
+                        _context.Set<Article>().Any(a =>
+                            a.ArticleNumber == i.ArticleNumber && a.Matchcode != null && a.Matchcode.Contains(v)));
+                    matched = matched == null ? clause : matched.Union(clause);
+                }
+                q = matched!;
+            }
+            foreach (var n in negatives)
+            {
+                q = q.Where(i => !(i.ArticleNumber.Contains(n) ||
+                    _context.Set<Article>().Any(a =>
+                        a.ArticleNumber == i.ArticleNumber && a.Matchcode != null && a.Matchcode.Contains(n))));
+            }
+            return q;
+        }
+
         Expression<Func<WarehouseRequisitionItem, string>> selector =
-            isArticleNumber
-                ? i => i.ArticleNumber
-                : isDescription
-                    ? i => i.ArticleDescription
-                    : i => i.WarehouseRequisition.ProductionWorkplace.Name;
+            isDescription
+                ? i => i.ArticleDescription
+                : i => i.WarehouseRequisition.ProductionWorkplace.Name;
 
         if (positives.Count > 0)
         {
