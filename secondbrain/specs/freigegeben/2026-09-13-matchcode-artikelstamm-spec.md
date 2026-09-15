@@ -2,7 +2,7 @@
 type: spec
 title: "Matchcode im Artikelstamm (Article.Matchcode) — hausweit suchbar"
 slug: 2026-09-13-matchcode-artikelstamm-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-15
 updated: 2026-09-15
 source_backlog: "[[2026-09-13-matchcode-artikelstamm-kommissionierung-hauptfa]]"
@@ -443,16 +443,48 @@ Skizze der Szenarien, `docs/TESTSZENARIEN.md` durch den Dev-Lauf vollständig au
 
 ## Deploy
 
-- **Web-App:** ja (Repositories, Controller, Views, ViewModels betroffen).
-- **Service:** ja (`FaMaterializationSyncService` — Rückbau zweier Zeilen; `SageImportService`,
-  sobald Rückfrage 4 geklärt ist).
-- **Migration:** ja (Rückbau `AddProductionOrderMatchcode` + neu `AddArticleMatchcode`).
+**QA-finalisiert (2026-09-15) — Quelle ist der reale Diff `9e90024..7fa71c1`, nicht die
+Vorab-Einschätzung der Spec.**
+
+- **Web-App:** ja — Repositories (`ArticleRepository`, `ProductionOrderRepository`,
+  `StockMovementRepository`, `PartRequisitionRepository`, `WarehouseRequisitionRepository`),
+  Controller (`ArticlesController`, `FaCompletionController`, `FaWorklistController`,
+  `PickingController`, `PickingLeitstandController`, `ProductionOrdersController`), Views
+  (`Articles/Index.cshtml`, `Info.cshtml`, `Edit.cshtml`, `Help/Changelog.cshtml` u. a.), neuer
+  `IdealAkeWms/Services/MatchcodeLookup.cs`, Model `Article`/`ProductionOrder`.
+- **Service:** ja — `SageImportService.SyncArticlesAsync` (Matchcode-CAST, Upsert,
+  Änderungserkennung) + `FaMaterializationSyncService` (zwei `Matchcode =`-Zeilen entfernt, Rückbau).
+- **Migration:** ja — Rückbau `20260910081155_AddProductionOrderMatchcode` (nie deployt, sauber
+  entfernt) + neu `20260915094646_AddArticleMatchcode` (`Article.Matchcode NVARCHAR(200) NULL`,
+  additiv). `SQL/91_AddProductionOrderMatchcode.sql` gelöscht, `SQL/91_AddArticleMatchcode.sql` neu
+  (`COL_LENGTH`-Guard, DDL + `__EFMigrationsHistory`-Insert in getrennten Batches, geprüft
+  idempotent). `SQL/00_FreshInstall.sql` an beiden Stellen nachgezogen (Schema-Block + MigrationId).
 - **Reihenfolge-Hinweis:** Diese Spec läuft im selben Bündel-Worktree wie die Schwester-Spec und
   alle anderen offenen IDEAL-Bausteine — ein gemeinsamer Merge (Schranke 2), kein Zwischen-Merge.
-  Vor dem Deploy: DB-Backup (Standardregel bei Migrationen), danach Migrations-SQL ausführen, dann
-  Service + Web neu starten, danach einen Artikel-Sync-Lauf abwarten, bevor der Matchcode bei IDEAL
-  in den Listen erscheint (bekanntes Zwei-Lauf-Muster aus der Materialisierungs-Spec).
-- **Publish-Befehle** (im Worktree, nach Merge-Test ggf. vom Repo-Root):
+  Der Mensch-Ablauf ist: **Publish AUS DEM WORKTREE → Testsystem → Test → erst dann Merge.** Nach
+  dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien tatsächlich mit
+  parallelen `main`-Änderungen zusammengeführt hat.
+- **Migrations-Ausführung — NICHT über `Program.cs`/`Database.Migrate()`.** Diese Instanz läuft
+  gegen `AKESQL20.ake.at`/`IDEAL_AKE_WMS` produktiv weiter; `Program.cs` würde beim App-Start alle
+  ausstehenden Migrationen des Bündels ausführen, nicht nur diese (siehe
+  `secondbrain/architektur/fallstricke.md` §8). Stattdessen manuell, in dieser Reihenfolge:
+  1. **DB-Backup** (Standardregel vor jeder Migration).
+  2. `SQL/91_AddArticleMatchcode.sql` gegen `IDEAL_AKE_WMS` ausführen (fügt Spalte + `__EFMigrationsHistory`-Zeile ein).
+  3. Windows-Service stoppen, Web-App-Pool stoppen (falls die anderen Bündel-Migrationen im selben
+     Fenster laufen — sonst reicht ein Neustart nach dem Publish).
+  4. Publish (siehe unten) einspielen, Service + Web neu starten.
+  5. **Zwei-Lauf-Muster:** Einen Artikel-Sync-Lauf abwarten, bevor der Matchcode in den Listen
+     erscheint — direkt nach dem Deploy sind alle Artikel-Matchcodes noch der Stand vor dem
+     Sync-Query-Umbau (AKE) bzw. unverändert (IDEAL, dort lieferte die View den Matchcode schon vorher
+     an `FaHierarchyNode`, `Article.Matchcode` ist trotzdem noch `NULL` bis zum ersten Lauf mit der
+     neuen Query).
+- **AKE-Matchcode ist NICHT mehr grundsätzlich leer** — anders als der ursprüngliche Spec-Entwurf
+  annahm, liefert dieses Bündel bereits die erweiterte `SageImportService`-Query
+  (`KHKArtikel.Matchcode`, `CAST(... AS nvarchar(200))`, `MAX()` je Artikel). Nach dem ersten
+  Artikel-Sync-Lauf nach dem Deploy füllt sich `Article.Matchcode` an beiden Standorten. Bleibt er an
+  einem Standort dauerhaft leer, ist das ein Sync-Konfigurations- oder Datenbefund (`Sync:ArticlesEnabled`,
+  Sage-Erreichbarkeit), keine bekannte Einschränkung dieser Spec mehr.
+- **Publish-Befehle** (aus dem Worktree):
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
@@ -768,3 +800,97 @@ Antworten, noch nicht im pruefbaren Rumpf.**
 **NACHBESSERUNG NOETIG:** Die Coverage IDEAL-Artikel → `Articles` (B-1) ist ungemessen und kann die
 gewaehlte „ein Ort, alles ueber Join"-Variante kippen; zusaetzlich muessen die verbindlichen Zusagen
 aus Antwort 4 (Feldlaenge) und 5 (Entprellung/Mindestlaenge) in den pruefbaren Spec-Rumpf.
+
+## QA — Nachweis (2026-09-15, qa-agent)
+
+**Vorbereitung:** 8 Tasks umgesetzt und je einzeln review-approved (Quality/Spec), plus eine
+Whole-Branch-Review `9e90024..7fa71c1` (9 Commits) mit Ergebnis **MERGE-READY, keine
+CRITICAL/MAJOR-Befunde** (Protokoll: `.superpowers/sdd/2026-09-15-matchcode-artikelstamm/progress.md`
+im Worktree). Der `superpowers:code-review`-Schritt der Skill-Kette ist damit für den gesamten Diff
+bereits erfolgt; dieser QA-Lauf hat zusätzlich `superpowers:verification-before-completion` frisch
+im Worktree ausgeführt (Befehle unten, in dieser Sitzung laufen gelassen, kein Rückgriff auf ältere
+Protokoll-Angaben).
+
+**1. `dotnet build IdealAkeWms.slnx`** (Worktree `2026-08-07-ideal-teile-1-5`, HEAD `7fa71c1`):
+```
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    12 Warnung(en)
+    0 Fehler
+```
+Alle 12 Warnungen sind bündelfremd (NU1902 MailKit/MimeKit-Advisories, 3× CS8321/CS8602 in
+unveränderten Dateien außerhalb dieser Spec) — kein neuer Fund durch diese Änderung.
+
+**2. `dotnet test IdealAkeWms.Tests`:**
+```
+Bestanden!   : Fehler:     0, erfolgreich:  1391, übersprungen:     1, gesamt:  1392, Dauer: 4 s
+```
+(Der eine Skip ist `ProductionOrderEagerCreateAgentJobTests` — bündelfremd, bereits vor dieser Spec
+als Integrationstest markiert.)
+
+**3. `dotnet test IDEALAKEWMSService.Tests`:**
+```
+Bestanden!   : Fehler:     0, erfolgreich:   263, übersprungen:     0, gesamt:   263, Dauer: 1 s
+```
+
+**4. CLAUDE.md-Änderungs-Checkliste:**
+- Migration + `SQL/91_AddArticleMatchcode.sql` mit `COL_LENGTH`-Guard (DDL + `__EFMigrationsHistory`-
+  Insert in getrennten Batches) — vorhanden, am Skriptinhalt geprüft.
+- `SQL/00_FreshInstall.sql` an beiden Stellen nachgezogen (`Articles`-Block + `ProductionOrders`-Block
+  bereinigt, `MigrationId`-Insert getauscht) — im Diff bestätigt (`SQL/00_FreshInstall.sql | 6 +-`).
+- Audit-Felder: Sage-Sync und `/Articles/Edit` setzen `ModifiedAt`/`ModifiedBy`/`ModifiedByWindows`
+  wie beim bestehenden Muster (Task-4/Task-5-Reviews haben das bestätigt).
+- Version in beiden `AppVersion.cs` (Web + Service) auf 1.40.0, Anwender-Changelog
+  `Views/Help/Changelog.cshtml` ergänzt (Commit `e677d08`).
+- `docs/TESTSZENARIEN.md` um Kapitel **TS-75** (TS-75.1–75.9) ergänzt (Worktree, Commit `e677d08` +
+  Korrektur `7fa71c1`).
+
+**5. Diff-Umfang (Beweis für den Deploy-Abschnitt):** `git diff --stat 9e90024..HEAD` — 50 Dateien,
+u. a. `IdealAkeWms/**`, `IDEALAKEWMSService/Services/{SageImportService,FaMaterializationSyncService}.cs`,
+zwei Migrationsdateien unter `IdealAkeWms/Migrations/`, `SQL/00_FreshInstall.sql`,
+`SQL/91_AddArticleMatchcode.sql` (neu), `SQL/91_AddProductionOrderMatchcode.sql` (gelöscht) →
+web=true, service=true, migration=true (siehe Frontmatter + Deploy-Abschnitt oben).
+
+**Ergebnis:** Build grün, beide Testsuiten grün (0 Fehler), CLAUDE.md-Checkliste erfüllt →
+**Status auf `Testbereit` gesetzt.**
+
+## Manueller Test-Checkliste (Schranke 2 — für den Menschen)
+
+Alle Szenarien in `docs/TESTSZENARIEN.md` Kapitel **TS-75** (Worktree
+`2026-08-07-ideal-teile-1-5`). Automatisiert abgedeckte Teile sind im Kapitelkopf gelistet — die
+folgende Liste konzentriert sich auf die **Manual-UAT-Pflichtpunkte**, die kein Test ersetzen kann:
+
+1. **TS-75.1** — `SQL/91_AddArticleMatchcode.sql` zweimal gegen eine Testdatenbank ausführen
+   (SSMS/sqlcmd): zweiter Lauf ändert nichts, kein Fehler, Spalte `NVARCHAR(200) NULL`.
+2. **TS-75.2 (Sage-Sync, real)** — nach einem Artikel-Sync-Lauf: `Article.Matchcode` entspricht
+   `KHKArtikel.Matchcode` (200 Zeichen, nicht gekürzt); eine reine Matchcode-Änderung wird als Update
+   erkannt (nicht stillschweigend übersprungen); Audit-Felder (`ModifiedAt`/`ModifiedBy`/
+   `ModifiedByWindows`) sind gesetzt.
+3. **TS-75.3 — AK-2-Vorher/Nachher-Regression (B-1-Abdeckungsprüfung, wichtigster Punkt):** für
+   einen realen IDEAL-Auftrag die Matchcodes in allen fünf FA-Zeilen-Listen
+   (`/ProductionOrders`, `/PickingLeitstand`, `/FaCompletion`, `/FaWorklist`, `/Picking`) mit dem
+   Stand VOR dem Deploy vergleichen. **Zählen, wie viele Zeilen von gefüllt auf leer kippen —
+   Erwartung: null.** Kippt eine Zeile, sofort melden statt selbst reparieren (Coverage-Lücke, siehe
+   Spec-Abschnitt „Kritische Prüfung", Blocker B-1).
+4. **TS-75.4/75.5** — Artikelstammliste (`/Articles`): Matchcode-Spalte sichtbar, Freitext + Spaltenfilter
+   finden per Teilstring; Artikelinfo zeigt Matchcode und findet den Artikel zusätzlich per **exaktem**
+   Matchcode (kein Teilstring) über das Scan-/Direktaufruf-Feld.
+5. **TS-75.6** — Matchcode-Teilstring-Suche in Bestand (`/StockOverview`, `/StockMovements`),
+   Fehlteilen (`/MissingParts`, `/MissingPartsLager`), Bedarfsmeldungen (`/PartRequisitions`) und
+   FA-Fertigmeldung (`/FaCompletion`-Freitext) je an einer realen Position durchspielen.
+6. **TS-75.7 (AKE-Regression)** — an einem AKE-Standort dieselben Listen/Filter durchgehen: Matchcode
+   bleibt leer bis zum ersten Sync-Lauf mit der neuen Query, keine Exception, keine unerwartet leere
+   Gesamtliste.
+7. **TS-75.8 (AK-14, Fehltreffer-Log)** — eine Liste mit mindestens einer FA-Zeile ohne
+   Artikelstamm-Treffer öffnen und im Web-App-Log die Zeile `Matchcode-Join: {Missing} von {Total}
+   FA-Zeilen ohne Artikelstamm-Treffer ({Liste})` prüfen — **genau eine** Zeile je Listenaufbau, nicht
+   je fehlender Zeile.
+8. **TS-75.9 (AK-15, Typeahead)** — in einem Artikel-Auswahlfeld (z. B. `InboundBulk` oder
+   `WarehouseRequisitions/Edit`) mit Browser-Entwicklertools/Netzwerk-Tab prüfen: bei 1–2 Zeichen
+   **keine** Anfrage an `/api/articles/search`, erst ab 3 Zeichen (nach Entprellung) feuert die
+   Suche; Produktionsauftrags-Auswahlfeld und BOM-Suche bleiben unverändert ab Zeichen 1.
+9. **Bekannte, bewusste Inkonsistenz (H-2, kein Fehler):** FA-Struktur-Baum (`/FaHierarchy`) zeigt
+   weiterhin `FaHierarchyNode.Matchcode`, die fünf Listen zeigen `Article.Matchcode` — weichen beide
+   im Einzelfall ab (View „Position bevorzugt, KHKArtikel als Fallback" vs. reiner Artikelstamm-Wert),
+   ist das laut Freigabe-Antwort 3 so gewollt, nicht zu melden.
+
+Nach erfolgreichem manuellem Test: Merge gemäß Schranke 2 (nicht Teil dieses QA-Laufs).
