@@ -8133,7 +8133,7 @@ System (Sage-Sync-Lauf, Log-Zeilen, Bildschirm-Darstellung) — diese Schritte s
 ausdrücklich mit **(Manual-UAT)** gekennzeichnet und bilden zusammen die manuelle Abnahme-Liste
 für Schranke 2.
 
-- **TS-75.1 — `Article.Matchcode` additiv, Migration idempotent (AK 1, 8, 16).**
+- **TS-75.1 — `Article.Matchcode` additiv, Migration idempotent (AK 1, 16).**
   Vorbedingung: `SQL/91_AddArticleMatchcode.sql` noch nicht bzw. bereits einmal gegen eine
   Testdatenbank gelaufen.
   Schritte: `SQL/91_AddArticleMatchcode.sql` **zweimal** hintereinander gegen dieselbe Datenbank
