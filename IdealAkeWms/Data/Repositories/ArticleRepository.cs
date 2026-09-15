@@ -59,6 +59,23 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         return (items, totalCount);
     }
 
+    /// <summary>Matchcode je Artikelnummer für einen Stapel (Anzeige + AK-14-Zählung der FA-Listen):
+    /// eine Abfrage statt N. Fehlende Artikelnummer ⇒ NICHT im Dict (⇒ Fehltreffer); vorhandener,
+    /// aber leerer Matchcode ⇒ Value null. Keys case-insensitiv (ArticleNumber ist UNIQUE, aber
+    /// Groß/Klein soll nicht am Treffer entscheiden).</summary>
+    public async Task<Dictionary<string, string?>> GetMatchcodesByArticleNumbersAsync(IReadOnlyCollection<string> articleNumbers)
+    {
+        var wanted = articleNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+        if (wanted.Count == 0) return new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var rows = await _dbSet.Where(a => wanted.Contains(a.ArticleNumber))
+                               .Select(a => new { a.ArticleNumber, a.Matchcode })
+                               .ToListAsync();
+        return rows.ToDictionary(r => r.ArticleNumber, r => r.Matchcode, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<Article?> GetByMatchcodeExactAsync(string matchcode)
+        => await _dbSet.FirstOrDefaultAsync(a => a.Matchcode == matchcode);
+
     private static IQueryable<Article> ApplyArticleColumnFilter(
         IQueryable<Article> q, string key, List<string> tokens, bool negate)
     {
