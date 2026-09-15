@@ -50,3 +50,20 @@ Spalte + Filter, gespeist künftig aus `Article` per Equi-Join über `ArticleNum
 ## Arbeitsstand
 
 - 2026-09-15: Spec entwurf→freigegeben gezogen (Rename), Status `InUmsetzung`. Plan folgt.
+- 2026-09-15: 8 Tasks (SDD) umgesetzt, je task-reviewed; Gesamt-Review (9 Commits, `9e90024..7fa71c1`)
+  **MERGE-READY**, keine CRITICAL/MAJOR. Worktree-HEAD `7fa71c1`. Build 0 Fehler.
+  Gemessene Spec-Korrekturen: **A1** (`BuildExtraInfoOrContains` nimmt keine Subquery → Matchcode-
+  Spaltenfilter als C#-Postfilter, [[fallstricke]] §12), **A6** (Articles-Liste hat keine
+  ColumnDefinitions-ViewConfig, nur `<th data-col-key>` — Spec affected_code:22 ungenau).
+  Implementer-Abweichungen (alle im Review bestätigt): Matchcode-Filter-Fix auf Flach-Zweig +
+  PickingLeitstand ausgeweitet (sonst stiller Filter-No-op); geteilter `Services/MatchcodeLookup.cs`
+  (7 Call-Sites); `WarehouseRequisition` per-Token-Query + `Union` statt nested `.Any()` (InMemory);
+  `EF.Functions.Like`-Pfade via `ToQueryString()`-Test ([[fallstricke]] §8/§12).
+- **AK 16:** `CAST … nvarchar(200)` = Zielspalte 200 (das `nvarchar(500)` der Freigabe-Antwort war
+  Begründung, überholt — Nutzer-Vorgabe „Antworten = Begründung").
+- **BLOCKER B-1** (Coverage IDEAL) durch Freigabe-Entscheidung ausgeräumt (melden statt still:
+  AK 2 Vorher/Nachher + AK 14 Fehltreffer-Zähler); der erste echte Lauf beantwortet die Frage.
+- Nachlese (bewusst verschoben): [[2026-09-15-matchcode-nachlese]] (OSEON/BOM-Matchcode, FA-Baum auf
+  Artikelstamm, `Articles`-Sync um gefertigte Artikel erweitern falls AK-14-Zähler > 0).
+- Status → `Testbereit` durch den qa-agent (grüner Gesamtnachweis + Deploy). Wartet mit dem ganzen
+  Bündel auf Schranke 2. Kein Merge, kein Push.

@@ -966,3 +966,52 @@ endet mit Exit 0 — es entsteht **nie** ein PDF. Deshalb legt jeder Lauf sein P
 Laufverzeichnis (`%TEMP%\IdealAkeWms-Pdf\<guid>\profile`) an, das im `finally` mitgeloescht wird.
 Auf dem IIS (App-Pool-Identitaet ohne interaktives Edge) tritt der Fall nicht auf — der Dev-Test
 wuerde ohne diese Regel aber gruen luegen bzw. haengen.
+
+## 12. IDEAL — Matchcode am Artikelstamm (Article.Matchcode, v1.40.0)
+
+### `BuildExtraInfoOrContains` nimmt nur einen `MemberExpression`-Selektor — keine Subquery
+Der Helper in `ProductionOrderRepository` baut das Null-Guard-Praedikat, indem er den Selektor-Body zu
+`MemberExpression` castet und dessen `.Expression` (das Elternobjekt, z. B. `o.ExtraInfo`) zieht. Ein
+Selektor wie `o => o.Matchcode` funktioniert (Body ist ein Member auf `o`), eine **korrelierte Subquery**
+`o => _context.Set<Article>()...FirstOrDefault()` ist aber ein `MethodCallExpression` und laesst den Cast
+scheitern. **Regel:** Wer einen berechneten (gejointen) Wert als FA-Listen-Spaltenfilter braucht, fuehrt
+ihn NICHT durch `BuildExtraInfoOrContains`, sondern ueber die bestehende C#-Postfilter-Maschinerie
+(`FaListComputedColumnKeys` in `ProductionOrdersController` — dort filtert der Postfilter das bereits
+projizierte `item.<Feld>`). So macht es der Matchcode-Filter seit v1.40.0: Anzeige aus dem Article-Join
+fuellen, dann in C# filtern. Beim Aufsetzen die Freigabe-Antwort/Spec nicht ungeprueft uebernehmen — die
+Spec 2026-09-13 behauptete faelschlich, der Helper akzeptiere beliebige Selektoren.
+
+### `EF.Functions.Like` in einem `patterns.Any(p => ...)`-Lambda wirft unter EF-InMemory
+Nicht nur das nested-`Any`-Lambda mit Contains (bekannt), sondern **jedes** `EF.Functions.Like` in einer
+InMemory-ausgefuehrten Query wirft `InvalidOperationException` — der InMemory-Provider hat keine
+Client-Eval-Implementierung dafuer. Das betrifft auch die schon laenger bestehenden
+Article-Spaltenfilter (`article-number`/`description`/…) — sie waren nie InMemory-getestet. **Muster
+(aus v1.40.0, Vorbild `ProductionOrderRepository.BuildLeitstandQuery`):** Query-Bau in eine
+`internal`-Methode ziehen (`InternalsVisibleTo` ist gesetzt) und ueber `ToQueryString()` gegen einen
+**nie geoeffneten** SqlServer-Context pruefen (der SQL-Text enthaelt dann `LIKE`/`IS NOT NULL`), statt
+zu versuchen, die Methode InMemory auszufuehren. Fuer neue Suchpraedikate, die InMemory laufen sollen:
+plain `.Contains(term)` und `.Any(a => a.X == y && a.Z.Contains(term))` — beides laeuft unter InMemory
+UND SQL Server. Und: ein Multi-Token-Filter, der als `positives.Any(nested subquery)` gebaut wird,
+uebersetzt InMemory ebenfalls nicht — stattdessen je Token eine gefilterte Query bauen und per `Union`
+zusammenfuehren (`{x∈q:P1} ∪ … = {x∈q:P1∨…}`, OR-Semantik bleibt, Dedup ist gewollt; so in
+`WarehouseRequisitionRepository.ApplyMissingPartsTextFilter` geloest).
+
+### Bewusste Inkonsistenz: FA-Struktur-Baum liest `FaHierarchyNode.Matchcode`, die Listen `Article.Matchcode`
+Seit v1.40.0 speisen sich die fuenf FA-Zeilen-Listen aus `Article.Matchcode` (Equi-Join), der
+FA-Struktur-Baum (`/FaHierarchy`) liest weiter `FaHierarchyNode.Matchcode` (direkt aus der Strukturtabelle).
+Solange beide aus demselben Sage-Feld stammen, ist das unsichtbar. Weicht der positionsbevorzugte
+View-Matchcode je vom Artikelstamm-Matchcode ab („Position bevorzugt, KHKArtikel als Fallback" in der
+IDEAL-View), zeigen Baum und Listen fuer denselben Knoten unterschiedliche Werte — **so gewollt**
+(Artikel gewinnt in den Listen), gehoert aber als „kein Fehler" in den UAT-Vermerk. Backlog-Kandidat, den
+Baum spaeter ebenfalls auf den Artikelstamm umzustellen: [[2026-09-15-matchcode-nachlese]].
+
+### `Articles` ist eine gefilterte Projektion von `KHKArtikel` — gefertigte Endgeraete fehlen evtl.
+`SageImportService.SyncArticlesAsync` befuellt `Articles` nur mit Artikeln, die in
+`KHKPpsRessourcenPositionen` vorkommen ODER `IstBestellartikel = -1 AND Aktiv = -1` sind. Ein gefertigtes
+Endgeraet (HauptFA-Artikel) ist Position in keiner Stueckliste und typischerweise kein Bestellartikel — es
+kann durch **beide** Zweige fallen und in `Articles` fehlen. Dann liefert der Matchcode-Join `NULL`. Das
+ist ein **vorbestehender** Mangel (die Artikelinfo findet solche Artikel heute auch nicht), den der
+Matchcode nur sichtbar macht. Deshalb der Fehltreffer-Zaehler (AK 14): der erste echte Lauf beantwortet
+die Coverage-Frage selbst. Ist die Zahl im Betrieb > 0, ist der Weg **den `Articles`-Sync zu erweitern**
+(gefertigte Artikel aufnehmen), nicht den Matchcode am Auftrag zu duplizieren — eigene Aufgabe
+([[2026-09-15-matchcode-nachlese]]).

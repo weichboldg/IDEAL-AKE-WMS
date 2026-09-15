@@ -429,6 +429,35 @@ Betriebs-Vorbedingung Edge auf dem Web-Server (in die Buendel-Deploy-Notiz gezog
 > PDF; genaue Testzahlen im Spec-QA-Abschnitt. TS-74.1–74.14 vorhanden. Wartet mit dem ganzen Buendel
 > auf **Schranke 2**. Gemessene Spec-Abweichung (msedge.exe-Launcher) in [[fallstricke]] §11.
 
+### Matchcode im Artikelstamm (Article.Matchcode, v1.40.0, selber Branch)
+
+Spec [[2026-09-13-matchcode-artikelstamm-spec]], Umsetzung [[2026-09-13-matchcode-artikelstamm-umsetzung]],
+Changelog [[2026-09-15-v1-40-0-matchcode-artikelstamm]], Plan
+`docs/superpowers/plans/2026-09-15-matchcode-artikelstamm.md`. Nachlese
+[[2026-09-15-matchcode-nachlese]].
+
+Der Matchcode ist artikelbezogen → wandert von `ProductionOrder.Matchcode` (v1.38.0, nie gemergt, sauber
+zurueckgebaut) an `Article.Matchcode` und wird damit in jeder artikelbezogenen Suche sichtbar. **Widerruft
+den Ort**, nicht die Anzeige/Suchbarkeit der fuenf FA-Listen (die lesen ihn jetzt aus `Article` per Join).
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| `Article.Matchcode` (NVARCHAR(200), Migration 20260915094646) + Batch-Lookup | **erledigt** | `Article.cs`, `ArticleRepository.GetMatchcodesByArticleNumbersAsync`, `Services/MatchcodeLookup.cs` |
+| Rueckbau `ProductionOrder.Matchcode` (Migration remove→add) | **erledigt** | Migration `AddProductionOrderMatchcode` entfernt; `FaMaterializationSyncService` (2 Zeilen weg) |
+| Fuenf FA-Listen aus Article-Join + AK-14-Fehltreffer-Zaehler + Matchcode-Postfilter | **erledigt** | `ProductionOrderRepository.ProjectLeitstandRows`, `ProductionOrdersController` (`FaListComputedColumnKeys`), je Controller |
+| Suche hausweit (Artikelstamm/Bestand/Fehlteile/Bedarfsmeldungen/FA-Fertigmeldung) | **erledigt** | `ArticleRepository`, `StockMovementRepository`, `PartRequisitionRepository`, `WarehouseRequisitionRepository`, `FaCompletionController` |
+| Artikelinfo Anzeige + Exakt-Matchcode-Fallback | **erledigt** | `ArticlesController.Info` (`GetByMatchcodeExactAsync`) |
+| Sage-Sync `KHKArtikel.Matchcode` | **erledigt** | `SageImportService.SyncArticlesAsync` (CAST 200, MAX je Artikel) |
+| Typeahead ab 3 Zeichen (AK 15) | **erledigt** | `_Select2ArticlePartial`, `InboundBulk`, `WarehouseRequisitions/Edit` |
+
+Deploy: Web + Service + Migration. OSEON/BOM-Komponentenebene bewusst aussen vor
+([[2026-09-15-matchcode-nachlese]]).
+
+> **Status:** `Testbereit` (qa-agent, 2026-09-15). Build 0 Fehler; genaue Testzahlen im Spec-QA-Abschnitt.
+> TS-75.1–75.9 vorhanden. Wartet mit dem ganzen Buendel auf **Schranke 2**. B-1 (Coverage IDEAL) per
+> Freigabe-Entscheidung „melden statt still" ausgeraeumt (AK 2 + AK 14). Gemessene Spec-Korrekturen
+> (A1 Postfilter, A6 keine Articles-ViewConfig) in der Umsetzungsnotiz; Dauerwissen [[fallstricke]] §12.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
