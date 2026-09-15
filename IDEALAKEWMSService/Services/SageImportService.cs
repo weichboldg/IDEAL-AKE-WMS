@@ -387,7 +387,8 @@ public class SageImportService : ISageImportService
                         CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
                         CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
                         CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel,
-                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation
+                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation,
+                        CAST(a.Matchcode AS nvarchar(200))         AS Matchcode
                     FROM [dbo].[KHKPpsRessourcenPositionen] r
                     LEFT JOIN [dbo].[KHKArtikel] a ON a.Artikelnummer = r.Ressourcenummer
                     LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
@@ -402,7 +403,8 @@ public class SageImportService : ISageImportService
                         CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
                         CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
                         CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel,
-                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation
+                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation,
+                        CAST(a.Matchcode AS nvarchar(200))         AS Matchcode
                     FROM [dbo].[KHKArtikel] a
                     LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
                     LEFT JOIN [dbo].[KHKLagerplaetze] lp ON a.PlatzID = lp.PlatzID
@@ -414,13 +416,14 @@ public class SageImportService : ISageImportService
                     MAX(Unit)         AS Unit,
                     MAX(ArticleGroup) AS ArticleGroup,
                     MAX(ReorderLevel) AS ReorderLevel,
-                    MAX(PrimaryStorageLocation) AS PrimaryStorageLocation
+                    MAX(PrimaryStorageLocation) AS PrimaryStorageLocation,
+                    MAX(Matchcode) AS Matchcode
                 FROM RawArticles
                 WHERE ArticleNumber IS NOT NULL AND ArticleNumber != ''
                 GROUP BY ArticleNumber
                 """;
 
-            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel, string? PrimaryStorageLocation)>();
+            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel, string? PrimaryStorageLocation, string? Matchcode)>();
 
             await using (var sageConn = new SqlConnection(sageConnection))
             {
@@ -438,7 +441,8 @@ public class SageImportService : ISageImportService
                         Unit:          reader.IsDBNull(2) ? null : reader.GetString(2),
                         ArticleGroup:  reader.IsDBNull(3) ? null : reader.GetString(3),
                         ReorderLevel:  SageImportHelpers.ParseReorderLevel(reorderRaw),
-                        PrimaryStorageLocation: SageImportHelpers.NormalizeLocationCode(primaryRaw)
+                        PrimaryStorageLocation: SageImportHelpers.NormalizeLocationCode(primaryRaw),
+                        Matchcode:     reader.IsDBNull(6) ? null : reader.GetString(6)
                     ));
                 }
             }
@@ -487,6 +491,7 @@ public class SageImportService : ISageImportService
                             [ReorderLevel]               = @ReorderLevel,
                             [SagePrimaryStorageLocation] = @SagePrimaryStorageLocation,
                             [PrimaryStorageLocationId]   = CASE WHEN @UpdatePrimaryId = 1 THEN @PrimaryStorageLocationId ELSE [PrimaryStorageLocationId] END,
+                            [Matchcode]         = @Matchcode,
                             [ModifiedAt]        = GETUTCDATE(),
                             [ModifiedBy]        = 'IDEALAKEWMSService',
                             [ModifiedByWindows] = SYSTEM_USER
@@ -497,6 +502,7 @@ public class SageImportService : ISageImportService
                               ISNULL([ArticleGroup],'')  != ISNULL(@ArticleGroup,'')  OR
                               ISNULL([ReorderLevel],-1)  != ISNULL(@ReorderLevel,-1)  OR
                               ISNULL([SagePrimaryStorageLocation],'') != ISNULL(@SagePrimaryStorageLocation,'') OR
+                              ISNULL([Matchcode],'')     != ISNULL(@Matchcode,'')     OR
                               (@UpdatePrimaryId = 1 AND ISNULL([PrimaryStorageLocationId],-1) != ISNULL(@PrimaryStorageLocationId,-1))
                           )
                         SELECT 0 AS IsInsert, @@ROWCOUNT AS Affected
@@ -505,10 +511,10 @@ public class SageImportService : ISageImportService
                     BEGIN
                         INSERT INTO [dbo].[Articles]
                             ([ArticleNumber],[Description],[Unit],[ArticleGroup],[ReorderLevel],
-                             [PrimaryStorageLocationId],[SagePrimaryStorageLocation],
+                             [PrimaryStorageLocationId],[SagePrimaryStorageLocation],[Matchcode],
                              [CreatedAt],[CreatedBy],[CreatedByWindows])
                         VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, @ReorderLevel,
-                                @PrimaryStorageLocationId, @SagePrimaryStorageLocation,
+                                @PrimaryStorageLocationId, @SagePrimaryStorageLocation, @Matchcode,
                                 GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
                         SELECT 1 AS IsInsert, 1 AS Affected
                     END
@@ -553,6 +559,7 @@ public class SageImportService : ISageImportService
                 cmd.Parameters.AddWithValue("@SagePrimaryStorageLocation", (object?)sageCode ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@PrimaryStorageLocationId", (object?)primaryId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@UpdatePrimaryId", updatePrimaryId);
+                cmd.Parameters.Add("@Matchcode", System.Data.SqlDbType.NVarChar, 200).Value = (object?)article.Matchcode ?? DBNull.Value;
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 if (await reader.ReadAsync(ct))
