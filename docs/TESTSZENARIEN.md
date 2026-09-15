@@ -8095,9 +8095,180 @@ Betrieb, Timeout-Verhalten unter echter Prozesslast) — diese Schritte sind unt
   Negativfall: die Route liefert stattdessen ein leeres oder generisches PDF oder eine
   500er-Fehlerseite → die `FirstOrDefault`-Prüfung auf die Gruppe fehlt oder greift nicht.
 
+## TS-75 — Matchcode im Artikelstamm (v1.40.0)
+
+**Bezug:** Spec `2026-09-13-matchcode-artikelstamm-spec`.
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Ein Artikel mit bekanntem, nicht-leerem `Article.Matchcode` ist bekannt (z. B. aus einem
+  bereits gelaufenen Artikel-Sync), ebenso ein Artikel mit `Matchcode = NULL`.
+- Ein Haupt-FA mit mehreren Sub-FAs, deren `ArticleNumber` auf den bekannten Matchcode-Artikel
+  zeigt, ist in allen fünf FA-Zeilen-Listen (`/ProductionOrders`, `/PickingLeitstand`,
+  `/FaCompletion`, `/FaWorklist`, `/Picking`) sichtbar.
+- Für TS-75.7 zusätzlich: eine AKE-Instanz bzw. ein AKE-Standort, an dem der Artikel-Sync
+  (`Sync:ArticlesEnabled`) noch **keinen** Matchcode geliefert hat.
+- Für TS-75.2: Zugriff auf den Windows-Service-Log (`logs/sync/sync-YYYYMMDD.log`) bzw. das
+  Aktivitäts-Protokoll, um den Sync-Lauf und die Änderungserkennung zu prüfen.
+- Für TS-75.8: Zugriff auf den Web-App-Log (Serilog), um die Log-Zeile aus `MatchcodeLookup`
+  (`Matchcode-Join: …`) je Listenaufbau zu prüfen.
+
+**Automatisiert abgedeckt (Auszug):** `ArticleRepositoryTests` (`GetMatchcodesByArticleNumbersAsync`
+liefert Dict nur für existierende Artikel/leere Eingabe/leeren vs. fehlenden Matchcode,
+`GetByMatchcodeExactAsync` exakt statt Teilstring, Freitextsuche + Spaltenfilter-Case
+`"matchcode"` über `Article`), `ArticlesControllerTests` (`Info`-Exakt-Matchcode-Fallback nach
+gescheitertem `GetByArticleNumberAsync`, `Edit`-POST bindet Matchcode + Audit),
+`ProductionOrderRepositoryTests` (Matchcode-Postfilter statt SQL-Server-Case, Kunde-Filter über
+C#-Postfilter unverändert), `MatchcodeLookupTests` (Batch-Dict-Aufbau, fehlende Artikelnummer ⇒
+kein Dict-Eintrag ⇒ AK-14-Zählung, vorhandener aber leerer Matchcode ⇒ Dict-Eintrag mit `null`,
+genau **ein** Log-Aufruf je `BuildAsync`, `null`/leere Eingabe wirft nicht),
+`StockMovementRepositoryTests`, `PartRequisitionRepositoryTests`,
+`WarehouseRequisitionRepositoryTests` (Matchcode-Teilstring als zusätzliches ODER-Glied in
+Bestand/Bewegungshistorie/Bedarfsmeldungen/Fehlteile-Freitext, leerer Matchcode kein Treffer, kein
+Wurf), `FaCompletionControllerTests` (Freitextfilter FA-Fertigmeldung inkl. Matchcode über den
+Article-Batch-Lookup), `ArticleSearchMinLengthSourceTests` (Quelltext-Wächter: die drei
+Artikel-Suchwidgets nur mit `minimumInputLength: 3` bzw. dem `q.length < 3`-Guard, kein
+Artikel-Suchwidget mehr mit `minimumInputLength: 0`; `_Select2ProductionOrderPartial` und
+`Picking/Bom.cshtml` bewusst unberührt). Der manuelle Rest ist die Sichtprüfung am laufenden
+System (Sage-Sync-Lauf, Log-Zeilen, Bildschirm-Darstellung) — diese Schritte sind unten
+ausdrücklich mit **(Manual-UAT)** gekennzeichnet und bilden zusammen die manuelle Abnahme-Liste
+für Schranke 2.
+
+- **TS-75.1 — `Article.Matchcode` additiv, Migration idempotent (AK 1, 8, 16).**
+  Vorbedingung: `SQL/91_AddArticleMatchcode.sql` noch nicht bzw. bereits einmal gegen eine
+  Testdatenbank gelaufen.
+  Schritte: `SQL/91_AddArticleMatchcode.sql` **zweimal** hintereinander gegen dieselbe Datenbank
+  ausführen **(Manual-UAT: SSMS/sqlcmd)**; Spaltentyp von `Articles.Matchcode` prüfen.
+  Erwartung: der zweite Lauf ändert nichts und bricht nicht ab (Guard `IF COL_LENGTH('dbo.Articles',
+  'Matchcode') IS NULL`); die Spalte ist `NVARCHAR(200) NULL`; bestehende Artikel-Datensätze und
+  ihre übrigen Felder bleiben unverändert (rein additiv, keine Datenmigration nötig).
+  Negativfall: ein zweiter Lauf wirft einen Fehler (z. B. „Column already exists") oder verändert
+  eine bestehende Spalte → Migration ist nicht idempotent, Regression.
+
+- **TS-75.2 — Artikel-Sync befüllt Matchcode aus Sage inkl. Änderungserkennung und Audit (AK 11, 16).**
+  **(Manual-UAT)**
+  Vorbedingung: ein Artikel, dessen `KHKArtikel.Matchcode` in Sage sich seit dem letzten Sync
+  geändert hat (oder testweise geändert wird), `Sync:ArticlesEnabled = true`.
+  Schritte: einen Artikel-Sync-Lauf abwarten bzw. manuell auslösen; `Article.Matchcode`,
+  `ModifiedAt`, `ModifiedBy`, `ModifiedByWindows` des Artikels vor/nach vergleichen; Sync-Log
+  (`logs/sync/sync-YYYYMMDD.log`) bzw. Aktivitäts-Protokoll auf den Artikel-Sync-Eintrag prüfen.
+  Erwartung: `Article.Matchcode` entspricht danach exakt `KHKArtikel.Matchcode` (auf 200 Zeichen
+  `CAST`, nicht abgeschnitten bei kürzeren Werten); die Änderungserkennung erkennt eine reine
+  Matchcode-Änderung als Update (nicht als „keine Änderung" übersprungen); Audit-Felder sind mit
+  dem Sync-Servicenamen und aktuellem Zeitstempel gesetzt.
+  Negativfall: ein Artikel, dessen Matchcode sich **nicht** geändert hat, wird trotzdem als Update
+  gezählt/mit neuem `ModifiedAt` versehen → die `ISNULL(...) != ISNULL(...)`-Kette vergleicht
+  Matchcode fälschlich immer als „unterschiedlich".
+
+- **TS-75.3 — Fünf FA-Listen: Vorher/Nachher-Regression nach Quellwechsel, Spaltenfilter unverändert
+  (AK 2, 3).**
+  Vorbedingung: der bekannte Sub-FA mit Matchcode-Artikel ist vor dieser Version bereits in allen
+  fünf Listen mit demselben Matchcode-Wert sichtbar gewesen (aus `ProductionOrder.Matchcode`,
+  v1.38.0); Version 1.40.0 ist deployt.
+  Schritte: `/ProductionOrders`, `/PickingLeitstand`, `/FaCompletion`, `/FaWorklist` und `/Picking`
+  öffnen **(Manual-UAT: Sichtprüfung je Liste)**; den bekannten Matchcode-Wert je Liste ablesen und
+  mit dem Vorzustand vergleichen; anschließend je Liste einen Spaltenfilter bzw. Freitextfilter auf
+  „Matchcode" setzen.
+  Erwartung: **keine** Zeile zeigt nach dem Quellwechsel (Artikel-Join statt `ProductionOrder`-Feld)
+  einen anderen Matchcode-Wert als vorher — Spalte, Position und Sichtbarkeit sind unverändert
+  (B-1-Abdeckungsprüfung); der Filter liefert in allen fünf Listen weiterhin korrekte Treffer, in
+  `/ProductionOrders` jetzt über den C#-Postfilter (`FaListComputedColumnKeys`) statt einen
+  SQL-Server-Filter-Case.
+  Negativfall: eine Zeile zeigt nach dem Wechsel `NULL`/leer, obwohl ihr Artikel weiterhin einen
+  Matchcode hat (Join-Fehler auf `ArticleNumber`), oder der Spaltenfilter einer der fünf Listen
+  liefert keine Treffer mehr → sofort melden, nicht selbst „reparieren".
+
+- **TS-75.4 — Artikelstammliste: Spalte, Spaltenfilter, Freitextsuche über Matchcode (AK 4).**
+  Vorbedingung: mindestens zwei Artikel mit unterschiedlichem, bekanntem Matchcode.
+  Schritte: `/Articles` öffnen; Spalte „Matchcode" prüfen (Position neben Artikelnummer/
+  Bezeichnung) **(Manual-UAT)**; Freitextsuche mit einem Matchcode-Teilstring ausführen;
+  Spaltenfilter „Matchcode" separat mit demselben Teilstring setzen.
+  Erwartung: die Spalte ist ohne Zahnrad-Eingriff sichtbar; sowohl Freitextsuche als auch
+  Spaltenfilter finden den passenden Artikel über den Matchcode-Teilstring, auch wenn
+  Artikelnummer/Bezeichnung nicht zutreffen.
+  Negativfall: ein Suchbegriff, der weder in Artikelnummer/Bezeichnung noch in irgendeinem
+  Matchcode vorkommt → leere Trefferliste, keine Exception, keine 500er-Fehlerseite.
+
+- **TS-75.5 — Artikelinfo zeigt Matchcode und findet Artikel per exaktem Matchcode-Fallback (AK 5).**
+  Vorbedingung: ein Artikel mit bekanntem Matchcode, dessen Matchcode **nicht** gleichzeitig
+  Teilstring einer anderen Artikelnummer im System ist.
+  Schritte: `/Articles/Info?articleNumber=<Artikelnummer>` aufrufen und Matchcode-Anzeige prüfen;
+  danach `/Articles/Info?articleNumber=<Matchcode>` aufrufen (bzw. den Matchcode als Barcode/QR
+  scannen, sofern das Scan-Feld dieselbe Route bedient) **(Manual-UAT: Scan-Eingabe)**.
+  Erwartung: die erste Abfrage zeigt den Artikel inkl. Matchcode-Feld; die zweite Abfrage (exakter
+  Matchcode statt Artikelnummer) findet **denselben** Artikel über den `GetByMatchcodeExactAsync`-
+  Fallback, der erst nach einem gescheiterten `GetByArticleNumberAsync`-Treffer greift.
+  Negativfall: ein **Teilstring** eines Matchcodes (nicht der exakte Wert) als `articleNumber`
+  übergeben → **kein** Treffer (weder über Artikelnummer noch über den Matchcode-Fallback, der
+  bewusst exakt und nicht `Contains` matcht); die Seite zeigt „nicht gefunden", keine falschen
+  Mehrfachtreffer.
+
+- **TS-75.6 — Matchcode-Suche in Bestand, Bewegungshistorie, Fehlteilen/Lager- und Glasbestellung,
+  Bedarfsmeldungen und FA-Fertigmeldung-Freitext (AK 6, 7, 8).**
+  Vorbedingung: der Matchcode-Artikel hat aktuellen Bestand (für `/StockOverview`), mindestens eine
+  Buchung (für `/StockMovements`), eine offene Position in `/MissingParts` bzw.
+  `/MissingPartsLager`/`/WarehouseRequisitions`, sowie eine offene Bedarfsmeldung in
+  `/PartRequisitions`.
+  Schritte: in jeder der genannten Listen die Freitextsuche (bzw. bei `/StockMovements` zusätzlich
+  den Spaltenfilter „Artikel") mit dem Matchcode-Teilstring ausführen; in `/FaCompletion` denselben
+  Matchcode-Teilstring in den Artikel-Freitextfilter der FA-Fertigmeldung eingeben.
+  Erwartung: alle genannten Stellen finden den erwarteten Datensatz über den Matchcode-Teilstring,
+  identisch zur bestehenden Suche über Artikelnummer/Bezeichnung — der Matchcode ist ein
+  zusätzliches ODER-Glied, kein Ersatz.
+  Negativfall: ein Artikel ohne Matchcode (`NULL`) erscheint bei keiner dieser Suchen als
+  Falschtreffer (kein `NULL.Contains(...)`-Wurf, keine 500er-Fehlerseite) — siehe TS-75.7 für die
+  Vertiefung des Null-Falls.
+
+- **TS-75.7 — Leerer Matchcode kein Fehler; AKE-Regression (AK 9, 10).**
+  Vorbedingung a: ein Artikel mit `Matchcode = NULL` im System (überall verfügbar).
+  Vorbedingung b (AKE-Regression): ein AKE-Standort bzw. eine AKE-Instanz, an der der Artikel-Sync
+  noch keinen einzigen Matchcode geliefert hat (`Article.Matchcode` durchgehend `NULL`).
+  Schritte a: den Matchcode-Artikel ohne Matchcode in Artikelstammliste, Bestand,
+  Bewegungshistorie, Fehlteilen, Bedarfsmeldungen und den fünf FA-Listen aufrufen/filtern
+  **(Manual-UAT: je Stelle kurz gegenprüfen)**.
+  Erwartung a: überall bleibt die Matchcode-Spalte leer bzw. wird der Artikel bei einer
+  Matchcode-Suche korrekt **nicht** getroffen — nirgends eine Exception, nirgends eine
+  unerwartet leere Gesamtliste ohne erkennbaren Grund (F7, null-sicher).
+  Schritte b: an der AKE-Instanz dieselben Listen/Filter wie in TS-75.3/TS-75.4 durchgehen
+  **(Manual-UAT)**.
+  Erwartung b: die Matchcode-Spalte ist an diesem Standort durchgehend leer, bis dort der erste
+  Artikel-Sync-Lauf einen Matchcode liefert — **das ist ausdrücklich kein Fehler**; alle übrigen
+  Spalten, Filter und Sortierungen bleiben unverändert funktionsfähig.
+  Negativfall: eine der Stellen wirft eine Exception oder liefert bei leerem/`NULL`-Matchcode eine
+  leere Gesamtliste (statt nur „kein Treffer auf dieser Spalte") → Regression.
+
+- **TS-75.8 — Fehltreffer-Zähler im Log, eine Zahl je Listenaufbau (AK 14).** **(Manual-UAT: Log
+  prüfen)**
+  Vorbedingung: mindestens eine FA-Zeile in einer der fünf Listen, deren `ArticleNumber` **keinen**
+  passenden Datensatz in `Articles` hat (z. B. ein inzwischen aus Sage gelöschter Artikel).
+  Schritte: die betroffene Liste (z. B. `/ProductionOrders`) öffnen und damit einen Listenaufbau
+  auslösen; im Web-App-Log nach der Zeile `Matchcode-Join: {Missing} von {Total} FA-Zeilen ohne
+  Artikelstamm-Treffer ({Liste})` suchen.
+  Erwartung: pro Listenaufbau erscheint **genau eine** solche Log-Zeile (nicht eine je betroffener
+  Zeile); `{Missing}` entspricht der Anzahl der FA-Zeilen ohne Artikelstamm-Treffer, `{Total}` der
+  Gesamtzahl angefragter Artikelnummern, `{Liste}` nennt die aufrufende Liste (z. B.
+  „ProductionOrders", „FaCompletion").
+  Negativfall: keine Log-Zeile erscheint, obwohl Fehltreffer vorliegen (Meldung fehlt still —
+  verstößt gegen „Melden statt still behandeln"), oder es erscheint eine Zeile **je** fehlender
+  Zeile statt einer Sammelzahl je Aufbau.
+
+- **TS-75.9 — Artikel-Typeahead erst ab 3 Zeichen; OSEON/BOM bewusst ohne Matchcode (AK 12, 15).**
+  Schritte a: in einem Artikel-Auswahlfeld (z. B. Einbuchung, `InboundBulk`, oder
+  `WarehouseRequisitions/Edit`) einzeln 1, dann 2, dann 3 Zeichen eingeben und dabei die
+  Netzwerk-Anfragen beobachten **(Manual-UAT: Browser-Entwicklertools, Netzwerk-Tab)**.
+  Erwartung a: bei 1 und 2 Zeichen wird **keine** Anfrage an `/api/articles/search` ausgelöst; erst
+  ab dem dritten Zeichen (nach der bestehenden Entprellung) feuert die Suche; das
+  Produktionsauftrags-Auswahlfeld (`_Select2ProductionOrderPartial`) und die BOM-/Auftragssuche in
+  `Picking/Bom.cshtml` sind davon **nicht** betroffen und suchen weiterhin ab dem ersten Zeichen.
+  Schritte b (Dokumentations-Hinweis, keine Bildschirmprüfung): OSEON-Teileverfolgung sowie die
+  BOM-Ansicht (Stückliste) auf eine Matchcode-Spalte/-Suche prüfen.
+  Erwartung b: dort ist **bewusst kein** Matchcode zu erwarten — beides ist nicht Teil dieser Spec
+  (Backlog-Kandidat für eine spätere Erweiterung); das ist kein Fehlbefund.
+  Negativfall a: eine Anfrage feuert bereits bei 1–2 Zeichen (Regression Richtung
+  `minimumInputLength: 0`) → bei ca. 100.000 Artikeln ein voller Suchlauf pro Tastendruck.
+
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74)*
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
