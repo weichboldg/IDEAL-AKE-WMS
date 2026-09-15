@@ -32,11 +32,14 @@ public class PickingLeitstandControllerTests
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly Mock<IProductionOrderBdeStatusRepository> _bdeStatusRepo = new();
     private readonly Mock<IBdeBookingRepository> _bdeBookingRepo = new();
+    private readonly Mock<IArticleRepository> _articleRepo = new();
     private readonly Mock<ILogger<PickingLeitstandController>> _logger = new();
     private readonly PickingLeitstandController _controller;
 
     public PickingLeitstandControllerTests()
     {
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
         _currentUser.Setup(x => x.GetDisplayName()).Returns("TestUser");
         _currentUser.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\testuser");
 
@@ -64,6 +67,7 @@ public class PickingLeitstandControllerTests
             _serviceSettingRepo.Object,
             _bdeStatusRepo.Object,
             _bdeBookingRepo.Object,
+            _articleRepo.Object,
             _logger.Object);
 
         // TempData requires a provider
@@ -317,6 +321,69 @@ public class PickingLeitstandControllerTests
 
         vm.CanPick.Should().BeTrue();
         vm.CanManagePickingRelease.Should().BeTrue();
+    }
+
+    // --------------------------- Matchcode (Task 2, Artikelstamm) ---------------------------
+
+    [Fact]
+    public async Task Index_Flachmodus_FuelltMatchcode_AusArticleRepository()
+    {
+        var row = MakeRow(1, "FA-100", articleNumber: "ART-A");
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ART-A"] = "KESSEL-7",
+            });
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
+        vm.Items.Should().ContainSingle().Which.Matchcode.Should().Be("KESSEL-7");
+    }
+
+    [Fact]
+    public async Task Index_Flachmodus_MatchcodeSpaltenfilter_LaeuftAlsMemoryFilter_NichtAlsSqlFilter()
+    {
+        // Task 2 / A1: "matchcode" ist am Repository kein SQL-Praedikat mehr -- der Leitstand muss
+        // den Filter deshalb wie Datum/VK-VA als In-Memory-Postfilter (memoryFilters) fuehren.
+        var rowA = MakeRow(1, "FA-100", articleNumber: "ART-A");
+        var rowB = MakeRow(2, "FA-200", articleNumber: "ART-B");
+        IReadOnlyDictionary<string, string>? capturedSqlFilters = null;
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .Callback<string?, string?, string?, bool, int, int, IReadOnlyDictionary<string, string>?>(
+                (_, _, _, _, _, _, colf) => capturedSqlFilters = colf)
+            .ReturnsAsync(MakePage(rowA, rowB));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ART-A"] = "KESSEL-7",
+                ["ART-B"] = "PUMPE-3",
+            });
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_matchcode=kessel");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await _controller.Index(null, null, null, false, 1, null);
+
+        var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
+        vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-100");
+        capturedSqlFilters.Should().NotBeNull();
+        capturedSqlFilters!.Should().NotContainKey("matchcode"); // kein SQL-Praedikat mehr (A1).
     }
 
     [Fact]

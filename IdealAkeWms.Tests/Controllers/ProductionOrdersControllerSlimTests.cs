@@ -7,6 +7,7 @@ using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdealAkeWms.Tests.Controllers;
@@ -27,10 +28,13 @@ public class ProductionOrdersControllerSlimTests
     private readonly Mock<IEnaioDmsDocumentRepository> _enaioDmsRepo = new();
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly Mock<IFaHierarchyOrderInfoRepository> _orderInfoRepo = new();
+    private readonly Mock<IArticleRepository> _articleRepo = new();
     private readonly ProductionOrdersController _controller;
 
     public ProductionOrdersControllerSlimTests()
     {
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
         _currentUser.Setup(x => x.GetDisplayName()).Returns("TestUser");
         _currentUser.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\testuser");
 
@@ -53,7 +57,9 @@ public class ProductionOrdersControllerSlimTests
             _businessDayService.Object,
             _enaioDmsRepo.Object,
             _serviceSettingRepo.Object,
-            _orderInfoRepo.Object);
+            _orderInfoRepo.Object,
+            _articleRepo.Object,
+            NullLogger<ProductionOrdersController>.Instance);
 
         _controller.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -351,5 +357,65 @@ public class ProductionOrdersControllerSlimTests
         var item = vm.Items.Single();
         item.VorkommissionierTermin.Should().Be(item.KommissionierTermin);
         item.PrePickingDaysOverride.Should().Be(0);
+    }
+
+    // --------------------------- Matchcode (Task 2, Artikelstamm) ---------------------------
+
+    [Fact]
+    public async Task Index_Flachmodus_FuelltMatchcode_AusArticleRepository()
+    {
+        var row = new LeitstandOrderRow(1, "FA-100", 1m, null, "ART-A", null, null, null, null,
+            false, false, false, null);
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(row));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ART-A"] = "KESSEL-7",
+            });
+
+        var result = await _controller.Index(null, null, null);
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle().Which.Matchcode.Should().Be("KESSEL-7");
+    }
+
+    [Fact]
+    public async Task Index_Flachmodus_MatchcodeSpaltenfilter_LaeuftAlsPostfilter_NichtAlsSqlFilter()
+    {
+        // Task 2 / A1: "matchcode" ist kein SQL-Praedikat mehr (ApplyLeitstandColumnFilter hat den
+        // Case nicht mehr) -- der Controller muss den Filter deshalb selbst NACH dem Article-Join
+        // anwenden (FaListComputedColumnKeys/MatchFaListComputedFilter), nicht an die Repository
+        // durchreichen (dort wuerde er inzwischen wirkungslos verpuffen).
+        var rowA = new LeitstandOrderRow(1, "FA-100", 1m, null, "ART-A", null, null, null, null,
+            false, false, false, null);
+        var rowB = new LeitstandOrderRow(2, "FA-200", 1m, null, "ART-B", null, null, null, null,
+            false, false, false, null);
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(MakePage(rowA, rowB));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ART-A"] = "KESSEL-7",
+                ["ART-B"] = "PUMPE-3",
+            });
+
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_matchcode=kessel");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var result = await _controller.Index(null, null, null);
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)result).Model!;
+        vm.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-100");
+        vm.Pagination.TotalCount.Should().Be(1);
     }
 }

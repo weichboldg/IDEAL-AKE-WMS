@@ -151,6 +151,11 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         return q;
     }
 
+    // Matchcode (Task 2, Artikelstamm): NICHT mehr aus o.Matchcode projiziert — die Spalte wird in
+    // Task 3 entfernt. LeitstandOrderRow.Matchcode bleibt hier bewusst auf dem Record-Default
+    // (null); der Aufrufer (Controller) fuellt ihn nach der (paginierten) Materialisierung aus einem
+    // Batch-Lookup gegen Article (IArticleRepository), siehe MatchcodeLookup.BuildAsync. Kleinster
+    // Diff: Record-Shape unveraendert, nur das letzte Konstruktor-Argument entfaellt (Default greift).
     private static IQueryable<LeitstandOrderRow> ProjectLeitstandRows(IQueryable<ProductionOrder> q) =>
         q.Select(o => new LeitstandOrderRow(
             o.Id,
@@ -174,8 +179,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             o.ProductionWorkplace != null ? o.ProductionWorkplace.OverridePrePickingDays : null,
             o.SubOrderNumber,
             o.ParentSubOrderNumber,
-            o.SageMissingSince,
-            o.Matchcode));
+            o.SageMissingSince));
 
     public async Task<List<ProductionOrder>> GetOpenOrdersAsync()
     {
@@ -298,14 +302,16 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 ? q.Where(o => o.Description1 == null || !patterns.Any(p => EF.Functions.Like(o.Description1, p)))
                 : q.Where(o => o.Description1 != null && patterns.Any(p => EF.Functions.Like(o.Description1, p))),
 
-            // Matchcode (Task 4, F7): wiederverwendet BuildExtraInfoOrContains (Fix-Runde 1,
-            // Review Important 2) — der Selektor o => o.Matchcode liefert als Navigation den
-            // Parameter o selbst, der Zusatz-Guard wird damit zu "o != null" (redundant, aber
-            // harmlos; per Test abgesichert, siehe ColumnFilter_Matchcode_* in
-            // ProductionOrderRepositoryTests). Am Standort AKE bleibt die Spalte bis zur
-            // View-Erweiterung durchgehend NULL — der Feld-Null-Guard liefert dann korrekt
-            // null Treffer, kein Fehler, keine stille Sonderbehandlung.
-            "matchcode" => q.Where(BuildExtraInfoOrContains(o => o.Matchcode, tokens, negate)),
+            // Matchcode (Task 2, Artikelstamm): der SQL-Case ist entfallen — der Matchcode lebt jetzt
+            // in Article (Equi-Join ueber ArticleNumber, kein FK auf ProductionOrder), eine
+            // korrelierte Subquery ist mit BuildExtraInfoOrContains NICHT baubar (A1: der Helper
+            // castet den Selektor-Body zu MemberExpression, eine Subquery ist ein
+            // MethodCallExpression). Der Matchcode-Spaltenfilter der FA-Liste laeuft seither als
+            // C#-Postfilter ueber ProductionOrdersController.FaListComputedColumnKeys /
+            // MatchFaListComputedFilter (auf dem bereits aus Article befuellten item.Matchcode).
+            // Der Leitstand (PickingLeitstandController) filtert analog ueber memoryFilters /
+            // MatchLeitstandTextFilter. Ein unbekannter Key faellt hier auf "_ => q" (No-Op) —
+            // absichtlich, damit ein evtl. noch gesendeter alter "matchcode"-SQL-Filter nicht wirft.
 
             "description2" => negate
                 ? q.Where(o => o.Description2 == null || !patterns.Any(p => EF.Functions.Like(o.Description2, p)))

@@ -6,6 +6,7 @@ using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -63,7 +64,8 @@ public class PickingControllerTests
             Mock.Of<IEnaioDmsDocumentRepository>(),
             Mock.Of<IPartRequisitionRepository>(),
             Mock.Of<IArticleAttributeRepository>(),
-            serviceSetting.Object);
+            serviceSetting.Object,
+            NullLogger<PickingController>.Instance);
 
         var httpCtx = new DefaultHttpContext();
         httpCtx.Request.QueryString = new QueryString(queryString);
@@ -159,7 +161,8 @@ public class PickingControllerTests
             Mock.Of<IEnaioDmsDocumentRepository>(),
             Mock.Of<IPartRequisitionRepository>(),
             attrs.Object,
-            serviceSetting.Object);
+            serviceSetting.Object,
+            NullLogger<PickingController>.Instance);
         ctrl.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
         return ctrl;
     }

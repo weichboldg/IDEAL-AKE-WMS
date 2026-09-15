@@ -23,6 +23,7 @@ public class PickingLeitstandController : Controller
     private readonly IServiceSettingRepository _serviceSettingRepository;
     private readonly IProductionOrderBdeStatusRepository _bdeStatusRepository;
     private readonly IBdeBookingRepository _bdeBookingRepository;
+    private readonly IArticleRepository _articleRepository;
     private readonly ILogger<PickingLeitstandController> _logger;
 
     public PickingLeitstandController(
@@ -38,6 +39,7 @@ public class PickingLeitstandController : Controller
         IServiceSettingRepository serviceSettingRepository,
         IProductionOrderBdeStatusRepository bdeStatusRepository,
         IBdeBookingRepository bdeBookingRepository,
+        IArticleRepository articleRepository,
         ILogger<PickingLeitstandController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -52,6 +54,7 @@ public class PickingLeitstandController : Controller
         _serviceSettingRepository = serviceSettingRepository;
         _bdeStatusRepository = bdeStatusRepository;
         _bdeBookingRepository = bdeBookingRepository;
+        _articleRepository = articleRepository;
         _logger = logger;
     }
 
@@ -75,14 +78,19 @@ public class PickingLeitstandController : Controller
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
 
         // Datum- UND VK-VA-Filter werden in C# nach dem FaWorkStep-Pivot-/Termin-Mapping angewendet
-        // (beide Datenquellen liegen ausserhalb der SQL-Query). Wenn aktiv: alle Text-gefilterten Rows
-        // materialisieren, mappen, dann erst paginieren.
+        // (beide Datenquellen liegen ausserhalb der SQL-Query). "matchcode" (Task 2, Artikelstamm):
+        // seit dem Umbau auf Article.Matchcode ebenfalls kein SQL-Praedikat mehr (A1 — Article ist per
+        // Equi-Join, nicht per BuildExtraInfoOrContains-Subquery filterbar) -- gehoert deshalb hier zur
+        // gleichen In-Memory-Gruppe. Wenn aktiv: alle Text-gefilterten Rows materialisieren, mappen,
+        // dann erst paginieren.
         var memoryFilters = columnFilters
-            .Where(kv => LeitstandDateColumnKeys.Contains(kv.Key) || LeitstandWorkStepColumnKeys.ContainsKey(kv.Key))
+            .Where(kv => LeitstandDateColumnKeys.Contains(kv.Key) || LeitstandWorkStepColumnKeys.ContainsKey(kv.Key)
+                         || kv.Key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
         var hasMemoryFilters = memoryFilters.Count > 0;
         var sqlColumnFilters = hasMemoryFilters
-            ? columnFilters.Where(kv => !LeitstandDateColumnKeys.Contains(kv.Key) && !LeitstandWorkStepColumnKeys.ContainsKey(kv.Key))
+            ? columnFilters.Where(kv => !LeitstandDateColumnKeys.Contains(kv.Key) && !LeitstandWorkStepColumnKeys.ContainsKey(kv.Key)
+                                      && !kv.Key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
                            .ToDictionary(kv => kv.Key, kv => kv.Value)
             : columnFilters;
 
@@ -99,6 +107,11 @@ public class PickingLeitstandController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
+        // Matchcode (Task 2, Artikelstamm): kein DB-Feld auf ProductionOrder mehr — je Aufbau (flach
+        // ODER hierarchisch) per Batch-Lookup gegen Article befuellt, BEVOR MapItem/der Postfilter
+        // laeuft. MapItem liest das Ergebnis ueber Closure statt zusaetzlichem Parameter.
+        var matchcodes = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
         // Gemeinsame Zeilen-Anreicherung (Pivot + PickingStatus + Termine) — flach UND gruppiert.
         // Detail-Pivot liefert pro aktivem AG FaWorkStepId + Status (VK-VA-Zellen, 3-Wert-Erledigt).
         PickingLeitstandItem MapItem(LeitstandOrderRow o, ProductionOrderPickingStatus? ps,
@@ -111,7 +124,7 @@ public class PickingLeitstandController : Controller
                 Quantity = o.Quantity,
                 Customer = o.Customer,
                 ArticleNumber = o.ArticleNumber,
-                Matchcode = o.Matchcode,
+                Matchcode = matchcodes.GetValueOrDefault(o.ArticleNumber ?? string.Empty),
                 Description1 = o.Description1,
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,
@@ -183,6 +196,12 @@ public class PickingLeitstandController : Controller
                 filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters);
 
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
+
+            // Matchcode-Join (Task 2): EIN Batch-Lookup fuer die gesamte (bei Memory-Filtern
+            // ungepaginierte) Zeilenmenge, VOR MapItem/dem "matchcode"-Postfilter.
+            matchcodes = await MatchcodeLookup.BuildAsync(
+                _articleRepository, allRows.Select(r => r.ArticleNumber), _logger, "PickingLeitstand (hierarchisch)");
+
             var groupIds = allRows.Select(r => r.Id).ToList();
             var groupPivotH = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(groupIds);
             var pickingStatusesH = await _pickingStatusRepository.GetByProductionOrderIdsAsync(groupIds);
@@ -209,6 +228,9 @@ public class PickingLeitstandController : Controller
                     if (LeitstandWorkStepColumnKeys.TryGetValue(key, out var code))
                         foreach (var g in listGroups)
                             g.Items = g.Items.Where(it => MatchLeitstandWorkStepFilter(it, code, tokens, negate)).ToList();
+                    else if (key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
+                        foreach (var g in listGroups)
+                            g.Items = g.Items.Where(it => MatchLeitstandTextFilter(it.Matchcode, tokens, negate)).ToList();
                     else
                         foreach (var g in listGroups)
                             g.Items = g.Items.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
@@ -259,6 +281,11 @@ public class PickingLeitstandController : Controller
             filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
         var orders = ordersPage.Rows;
 
+        // Matchcode-Join (Task 2): siehe hierarchischer Zweig oben, hier fuer die (bei
+        // Memory-Filtern ungepaginierte) Flachmodus-Zeilenmenge, VOR MapItem/dem Postfilter.
+        matchcodes = await MatchcodeLookup.BuildAsync(
+            _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "PickingLeitstand (flach)");
+
         var orderIds = orders.Select(o => o.Id).ToList();
         var groupPivot = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(orderIds);
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(orderIds);
@@ -278,6 +305,8 @@ public class PickingLeitstandController : Controller
                 if (tokens.Count == 0) continue;
                 if (LeitstandWorkStepColumnKeys.TryGetValue(key, out var code))
                     viewItems = viewItems.Where(it => MatchLeitstandWorkStepFilter(it, code, tokens, negate)).ToList();
+                else if (key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
+                    viewItems = viewItems.Where(it => MatchLeitstandTextFilter(it.Matchcode, tokens, negate)).ToList();
                 else
                     viewItems = viewItems.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
             }
@@ -637,6 +666,18 @@ public class PickingLeitstandController : Controller
         PickingLeitstandItem item, string code, List<string> tokens, bool negate)
     {
         var text = FormatWorkStepForFilter(item, code);
+        var hasMatch = tokens.Any(t => text.Contains(t));
+        return negate ? !hasMatch : hasMatch;
+    }
+
+    /// <summary>
+    /// Matchcode-Spaltenfilter (Task 2, Artikelstamm): einfacher Contains-Match auf einem bereits
+    /// aus Article befuellten Zeilenfeld — kein Datumsformat, deshalb kein Fall in
+    /// <see cref="MatchLeitstandDateFilter"/>. Tokens sind bereits lowercase (ColumnFilterHelper.Parse).
+    /// </summary>
+    private static bool MatchLeitstandTextFilter(string? value, List<string> tokens, bool negate)
+    {
+        var text = (value ?? string.Empty).ToLowerInvariant();
         var hasMatch = tokens.Any(t => text.Contains(t));
         return negate ? !hasMatch : hasMatch;
     }

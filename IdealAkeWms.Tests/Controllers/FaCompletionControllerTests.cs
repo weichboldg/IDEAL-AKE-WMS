@@ -9,6 +9,7 @@ using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -70,9 +71,12 @@ public class FaCompletionControllerTests
                 .ReturnsAsync("true");
         }
 
+        var articleRepo = new ArticleRepository(ctx);
+
         var ctrl = new FaCompletionController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, workplaceRepo, enaioRepo,
-            readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object);
+            readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object, articleRepo,
+            NullLogger<FaCompletionController>.Instance);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
