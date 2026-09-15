@@ -29,6 +29,8 @@ public class FaCompletionController : Controller
     private readonly ReadOnlyBomBuilder _readOnlyBomBuilder;
     private readonly ICurrentUserService _currentUser;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly IArticleRepository _articleRepository;
+    private readonly ILogger<FaCompletionController> _logger;
 
     public FaCompletionController(
         IProductionOrderRepository productionOrderRepository,
@@ -39,7 +41,9 @@ public class FaCompletionController : Controller
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         ReadOnlyBomBuilder readOnlyBomBuilder,
         ICurrentUserService currentUser,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        IArticleRepository articleRepository,
+        ILogger<FaCompletionController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
         _faWorkStepRepository = faWorkStepRepository;
@@ -50,6 +54,8 @@ public class FaCompletionController : Controller
         _readOnlyBomBuilder = readOnlyBomBuilder;
         _currentUser = currentUser;
         _serviceSettingRepository = serviceSettingRepository;
+        _articleRepository = articleRepository;
+        _logger = logger;
     }
 
     // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
@@ -112,6 +118,11 @@ public class FaCompletionController : Controller
         var orderIds = orders.Select(o => o.Id).ToList();
         var counts = await _faWorkStepRepository.GetCountsByProductionOrderIdsAsync(orderIds);
 
+        // Matchcode-Join (Task 2, Artikelstamm): EIN Batch-Lookup fuer den gefilterten Bestand,
+        // VOR der Projektion/dem Spaltenfilter (ColumnFilterHelper.Apply liest danach item.Matchcode).
+        var matchcodes = await MatchcodeLookup.BuildAsync(
+            _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "FaCompletion");
+
         var allItems = orders.Select(o =>
         {
             var c = counts.GetValueOrDefault(o.Id);
@@ -122,7 +133,7 @@ public class FaCompletionController : Controller
                 Quantity = o.Quantity,
                 Customer = o.Customer,
                 ArticleNumber = o.ArticleNumber,
-                Matchcode = o.Matchcode,
+                Matchcode = matchcodes.GetValueOrDefault(o.ArticleNumber ?? string.Empty),
                 Description1 = o.Description1,
                 ProductionDate = o.ProductionDate,
                 IsDone = o.IsDone,

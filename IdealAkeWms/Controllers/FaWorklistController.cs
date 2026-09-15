@@ -33,6 +33,8 @@ public class FaWorklistController : Controller
     private readonly ReadOnlyBomBuilder _readOnlyBomBuilder;
     private readonly ICurrentUserService _currentUser;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly IArticleRepository _articleRepository;
+    private readonly ILogger<FaWorklistController> _logger;
 
     public FaWorklistController(
         IProductionOrderRepository productionOrderRepository,
@@ -47,7 +49,9 @@ public class FaWorklistController : Controller
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         ReadOnlyBomBuilder readOnlyBomBuilder,
         ICurrentUserService currentUser,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        IArticleRepository articleRepository,
+        ILogger<FaWorklistController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
         _faWorkStepRepository = faWorkStepRepository;
@@ -62,6 +66,8 @@ public class FaWorklistController : Controller
         _readOnlyBomBuilder = readOnlyBomBuilder;
         _currentUser = currentUser;
         _serviceSettingRepository = serviceSettingRepository;
+        _articleRepository = articleRepository;
+        _logger = logger;
     }
 
     // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
@@ -198,6 +204,11 @@ public class FaWorklistController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         vm.VorkommissionierTage = vorkommissionierTage;   // Standard-Referenz fuer den Override-Tooltip
 
+        // Matchcode-Join (Task 2, Artikelstamm): EIN Batch-Lookup fuer den gefilterten Bestand
+        // (Kandidaten fuer den gewaehlten AG), VOR der Zeilen-Schleife/dem Spaltenfilter.
+        var matchcodes = await MatchcodeLookup.BuildAsync(
+            _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "FaWorklist");
+
         var rows = new List<FaWorklistRow>();
         foreach (var order in orders)
         {
@@ -222,7 +233,7 @@ public class FaWorklistController : Controller
                 ProductionOrderId = order.Id,
                 OrderNumber = order.OrderNumber,
                 ArticleNumber = order.ArticleNumber,
-                Matchcode = order.Matchcode,
+                Matchcode = matchcodes.GetValueOrDefault(order.ArticleNumber ?? string.Empty),
                 Description1 = order.Description1,
                 Description2 = order.Description2,
                 Quantity = order.Quantity,

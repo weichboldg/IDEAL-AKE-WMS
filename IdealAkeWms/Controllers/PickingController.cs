@@ -27,6 +27,7 @@ public class PickingController : Controller
     private readonly IPartRequisitionRepository _partRequisitionRepository;
     private readonly IArticleAttributeRepository _articleAttributeRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly ILogger<PickingController> _logger;
 
     public PickingController(
         IProductionOrderRepository productionOrderRepository,
@@ -45,7 +46,8 @@ public class PickingController : Controller
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         IPartRequisitionRepository partRequisitionRepository,
         IArticleAttributeRepository articleAttributeRepository,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        ILogger<PickingController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -64,6 +66,7 @@ public class PickingController : Controller
         _partRequisitionRepository = partRequisitionRepository;
         _articleAttributeRepository = articleAttributeRepository;
         _serviceSettingRepository = serviceSettingRepository;
+        _logger = logger;
     }
 
     // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie ProductionOrdersController).
@@ -144,6 +147,11 @@ public class PickingController : Controller
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
+        // Matchcode-Join (Task 2, Artikelstamm): EIN Batch-Lookup fuer alle freigegebenen FAs
+        // (nicht nur die aktuelle Seite), VOR der Projektion/dem Spaltenfilter.
+        var matchcodes = await MatchcodeLookup.BuildAsync(
+            _articleRepository, releasedOrders.Select(o => o.ArticleNumber), _logger, "Picking");
+
         // Termin-Berechnung fuer ALLE freigegebenen FAs (nicht nur die aktuelle Seite):
         // der Termin-Spaltenfilter (dd.MM.yyyy KWxx) muss ueber alle Eintraege wirken.
         // Reine In-Memory-Datumsmathematik, unkritisch fuer die Performance.
@@ -156,7 +164,7 @@ public class PickingController : Controller
                 PickingPriority = ps?.PickingPriority,
                 OrderNumber = o.OrderNumber,
                 ArticleNumber = o.ArticleNumber,
-                Matchcode = o.Matchcode,
+                Matchcode = matchcodes.GetValueOrDefault(o.ArticleNumber ?? string.Empty),
                 Description1 = o.Description1,
                 Customer = o.Customer,
                 Quantity = o.Quantity,

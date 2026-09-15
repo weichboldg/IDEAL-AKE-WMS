@@ -7,6 +7,7 @@ using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace IdealAkeWms.Tests.Controllers;
@@ -30,12 +31,15 @@ public class ProductionOrdersControllerTests
     private readonly Mock<IEnaioDmsDocumentRepository> _enaioDmsRepo = new();
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly Mock<IFaHierarchyOrderInfoRepository> _orderInfoRepo = new();
+    private readonly Mock<IArticleRepository> _articleRepo = new();
     private readonly ProductionOrdersController _controller;
 
     public ProductionOrdersControllerTests()
     {
         _currentUser.Setup(x => x.GetDisplayName()).Returns("TestUser");
         _currentUser.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\testuser");
+        _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
 
         _settingRepo.Setup(s => s.GetIntValueAsync(It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync((string _, int defaultVal) => defaultVal);
@@ -65,7 +69,9 @@ public class ProductionOrdersControllerTests
             _businessDayService.Object,
             _enaioDmsRepo.Object,
             _serviceSettingRepo.Object,
-            _orderInfoRepo.Object);
+            _orderInfoRepo.Object,
+            _articleRepo.Object,
+            NullLogger<ProductionOrdersController>.Instance);
 
         _controller.TempData = new TempDataDictionary(
             new DefaultHttpContext(),

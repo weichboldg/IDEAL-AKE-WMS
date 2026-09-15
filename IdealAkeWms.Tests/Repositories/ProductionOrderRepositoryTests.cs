@@ -2,8 +2,10 @@ using FluentAssertions;
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
+using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Repositories;
@@ -338,81 +340,78 @@ public class ProductionOrderRepositoryTests
     }
 
     // ------------------------------------------------------------------
-    // Matchcode-Spaltenfilter (Task 4, F7): ProductionOrders/PickingLeitstand filtern
-    // SQL-seitig ueber ApplyLeitstandColumnFilter. Am Standort AKE bleibt die Spalte bis
-    // zur View-Erweiterung durchgehend NULL — der zweite Test ist der F7-Nachweis dafuer.
+    // Matchcode (Task 2, Artikelstamm): ProductionOrder.Matchcode wird nicht mehr projiziert —
+    // der Matchcode lebt jetzt in Article, per Batch-Lookup (MatchcodeLookup/IArticleRepository)
+    // durch den Controller nachtraeglich ueber ArticleNumber befuellt. Der SQL-Spaltenfilter
+    // "matchcode" (ApplyLeitstandColumnFilter) ist entfallen (A1) -- die zwei Tests unten
+    // belegen beide Haelften: (1) die Zeile traegt nie mehr o.Matchcode, egal was in der
+    // Legacy-Spalte steht, (2) ein "matchcode"-columnFilter ist an der Repository-Grenze ein
+    // No-Op (die Spaltenfilterung passiert seither als C#-Postfilter im Controller).
     // ------------------------------------------------------------------
 
     [Fact]
-    public async Task ColumnFilter_Matchcode_FindsRow_AndIgnoresNullRows()
+    public async Task ProjectLeitstandRows_NeverReadsLegacyProductionOrderMatchcode()
     {
         using var ctx = TestDbContextFactory.Create();
-        ctx.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "1", ArticleNumber = "A", Matchcode = "KESSEL-7" },
-            new ProductionOrder { OrderNumber = "2", ArticleNumber = "B", Matchcode = null });
+        ctx.ProductionOrders.Add(
+            new ProductionOrder { OrderNumber = "1", ArticleNumber = "A", Matchcode = "LEGACY-SPALTE" });
         await ctx.SaveChangesAsync();
 
         var repo = new ProductionOrderRepository(ctx);
-        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
-            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "kessel" });
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 50);
 
-        page.Rows.Should().HaveCount(1);
-        page.Rows[0].OrderNumber.Should().Be("1");
+        page.Rows.Should().ContainSingle().Which.Matchcode.Should().BeNull();
     }
 
     [Fact]
-    public async Task ColumnFilter_Matchcode_AllNull_ReturnsNoHits_WithoutThrowing()
+    public async Task ColumnFilter_MatchcodeKey_IsNoOp_AtRepositoryLevel()
     {
+        // Der Matchcode-Spaltenfilter der FA-Liste laeuft seit Task 2 als C#-Postfilter im
+        // Controller (ProductionOrdersController.FaListComputedColumnKeys / MatchLeitstandTextFilter
+        // im Leitstand) -- am Repository kommt der Key ueberhaupt nicht mehr an (beide Controller
+        // filtern ihn aus columnFilters heraus, bevor sie GetForLeitstandAsync aufrufen). Dieser
+        // Test belegt trotzdem, dass ein evtl. durchgereichter "matchcode"-Filter hier folgenlos
+        // bleibt (kein Wurf, kein stilles Falsch-Filtern) -- der Switch-Case faellt auf "_ => q".
         using var ctx = TestDbContextFactory.Create();
         ctx.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "1", Matchcode = null },
-            new ProductionOrder { OrderNumber = "2", Matchcode = null });
+            new ProductionOrder { OrderNumber = "1", ArticleNumber = "A" },
+            new ProductionOrder { OrderNumber = "2", ArticleNumber = "B" });
         await ctx.SaveChangesAsync();
 
         var repo = new ProductionOrderRepository(ctx);
         var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
-            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "x" });
+            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "irrelevant" });
 
-        page.Rows.Should().BeEmpty();
-        page.TotalCount.Should().Be(0);
+        page.Rows.Should().HaveCount(2); // No-Op: der Filter griff frueher hier, heute nicht mehr.
     }
 
     [Fact]
-    public async Task ColumnFilter_Matchcode_Negated_AllNull_ReturnsAllRows()
+    public async Task Matchcode_Join_ReadsFromArticle_ViaArticleNumber()
     {
-        // Fix-Runde 1 (Review-Befund Important 1): der hervorgehobene Negations-Fall war
-        // ungetestet. Eine durchgehend leere Matchcode-Spalte muss bei !token ALLE Zeilen
-        // liefern (leere Zelle matcht NOT), nicht keine.
+        // End-zu-Ende-Nachweis fuer den neuen Datenweg (D1): FA-Zeile -> ArticleNumber ->
+        // MatchcodeLookup.BuildAsync (IArticleRepository) -> Matchcode aus Article, nicht aus
+        // ProductionOrder. Ersetzt die vier alten ColumnFilter_Matchcode_*-SQL-Tests.
         using var ctx = TestDbContextFactory.Create();
-        ctx.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "1", Matchcode = null },
-            new ProductionOrder { OrderNumber = "2", Matchcode = null });
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "1", ArticleNumber = "X" });
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = "X",
+            Matchcode = "KESSEL-7",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test",
+        });
         await ctx.SaveChangesAsync();
 
         var repo = new ProductionOrderRepository(ctx);
-        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
-            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "!x" });
+        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1, pageSize: 50);
+        page.Rows.Should().ContainSingle().Which.Matchcode.Should().BeNull(); // Repo-Ebene: noch leer.
 
-        page.Rows.Select(r => r.OrderNumber).Should().BeEquivalentTo(new[] { "1", "2" });
-        page.TotalCount.Should().Be(2);
-    }
+        var articleRepo = new ArticleRepository(ctx);
+        var matchcodes = await MatchcodeLookup.BuildAsync(
+            articleRepo, page.Rows.Select(r => r.ArticleNumber), NullLogger.Instance, "Test");
 
-    [Fact]
-    public async Task ColumnFilter_Matchcode_CommaOr_FindsBothRows()
-    {
-        // Minor-Befund aus Fix-Runde 1: Mehrfach-Token (Komma-OR) war ebenfalls ungetestet.
-        using var ctx = TestDbContextFactory.Create();
-        ctx.ProductionOrders.AddRange(
-            new ProductionOrder { OrderNumber = "1", Matchcode = "KESSEL-7" },
-            new ProductionOrder { OrderNumber = "2", Matchcode = "PUMPE-3" },
-            new ProductionOrder { OrderNumber = "3", Matchcode = "VENTIL-1" });
-        await ctx.SaveChangesAsync();
-
-        var repo = new ProductionOrderRepository(ctx);
-        var page = await repo.GetForLeitstandAsync(null, null, null, showDone: true, page: 1,
-            pageSize: 50, columnFilters: new Dictionary<string, string> { ["matchcode"] = "kessel,pumpe" });
-
-        page.Rows.Select(r => r.OrderNumber).Should().BeEquivalentTo(new[] { "1", "2" });
+        matchcodes.GetValueOrDefault(page.Rows[0].ArticleNumber!).Should().Be("KESSEL-7");
     }
 
     // ------------------------------------------------------------------

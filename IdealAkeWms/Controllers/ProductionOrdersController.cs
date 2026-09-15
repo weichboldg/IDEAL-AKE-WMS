@@ -21,6 +21,8 @@ public class ProductionOrdersController : Controller
     private readonly IEnaioDmsDocumentRepository _enaioDmsDocumentRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
     private readonly IFaHierarchyOrderInfoRepository _faHierarchyOrderInfoRepository;
+    private readonly IArticleRepository _articleRepository;
+    private readonly ILogger<ProductionOrdersController> _logger;
 
     public ProductionOrdersController(
         IProductionOrderRepository productionOrderRepository,
@@ -31,7 +33,9 @@ public class ProductionOrdersController : Controller
         IBusinessDayService businessDayService,
         IEnaioDmsDocumentRepository enaioDmsDocumentRepository,
         IServiceSettingRepository serviceSettingRepository,
-        IFaHierarchyOrderInfoRepository faHierarchyOrderInfoRepository)
+        IFaHierarchyOrderInfoRepository faHierarchyOrderInfoRepository,
+        IArticleRepository articleRepository,
+        ILogger<ProductionOrdersController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
@@ -42,6 +46,8 @@ public class ProductionOrdersController : Controller
         _enaioDmsDocumentRepository = enaioDmsDocumentRepository;
         _serviceSettingRepository = serviceSettingRepository;
         _faHierarchyOrderInfoRepository = faHierarchyOrderInfoRepository;
+        _articleRepository = articleRepository;
+        _logger = logger;
     }
 
     // IDEAL FA-Liste-Hierarchie: Master-Zustand lesen (Muster wie StandortEinstellungenController).
@@ -106,13 +112,21 @@ public class ProductionOrdersController : Controller
         var hasCustomerFreetextFilter = !string.IsNullOrWhiteSpace(filterCustomer);
         var hasHierarchicalPostFilters = hasDateFilters || computedFilters.Count > 0 || hasCustomerFreetextFilter;
 
-        // Flachmodus (AKE): exakt wie vor Task 6 -- haengt ausschliesslich an hasDateFilters.
-        var sqlColumnFilters = hasDateFilters
-            ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key))
+        // Flachmodus (AKE): wie vor Task 6 (haengt an hasDateFilters) -- PLUS "matchcode" (Task 2):
+        // seit dem Umbau auf Article.Matchcode ist das kein SQL-Praedikat mehr (siehe A1), gilt aber
+        // JETZT auch am Standort AKE (Article ist standortuebergreifend). Bewusst NUR "matchcode"
+        // gesondert behandelt, NICHT die komplette FaListComputedColumnKeys-Menge -- "customer" bleibt
+        // im Flachmodus eine echte DB-Spalte (SQL-Praedikat), "prio"/"ab-nummer"/"montage-abteilung"
+        // existieren dort nicht als Spalte und bleiben unveraendert wirkungslos (F4/Fixrunde 1, Punkt a).
+        var hasMatchcodeFilter = computedFilters.ContainsKey("matchcode");
+        var hasFlatPostFilters = hasDateFilters || hasMatchcodeFilter;
+        var sqlColumnFilters = hasFlatPostFilters
+            ? columnFilters.Where(kv => !FaListDateColumnKeys.Contains(kv.Key)
+                                      && !kv.Key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
                            .ToDictionary(kv => kv.Key, kv => kv.Value)
             : columnFilters;
-        var sqlPageSize = hasDateFilters ? int.MaxValue : effectivePageSize;
-        var sqlPage = hasDateFilters ? 1 : page;
+        var sqlPageSize = hasFlatPostFilters ? int.MaxValue : effectivePageSize;
+        var sqlPage = hasFlatPostFilters ? 1 : page;
 
         // Hierarchischer Zweig (IDEAL): Datums- UND K1-Kopfdaten-Filter sind Postfilter, beide
         // erzwingen die ungepaginierte SQL-Abfrage -- siehe sqlGroupPageSize/sqlGroupPage unten.
@@ -132,6 +146,12 @@ public class ProductionOrdersController : Controller
         var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
         ViewBag.LackierteilKategorieName = lackierteilName;
 
+        // Matchcode (Task 2, Artikelstamm): kein DB-Feld auf ProductionOrder mehr — je Aufbau (flach
+        // ODER hierarchisch, genau einer der beiden Zweige laeuft) per Batch-Lookup gegen Article
+        // befuellt, BEVOR MapItem/der Postfilter laeuft (siehe MatchcodeLookup.BuildAsync unten).
+        // MapItem liest das Ergebnis ueber Closure statt zusaetzlichem Parameter (kleinster Diff).
+        var matchcodes = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
         // Gemeinsame Zeilen-Anreicherung (Termine, PrePicking-Override, Coating) — flach UND gruppiert.
         // groupProductionDate/groupDeliveryDate/groupCoatingStart: K1-Gruppenwerte (IDEAL, Task 8).
         // Die flache Aufrufstelle (AKE) uebergibt bewusst nichts -> bit-identisches Verhalten.
@@ -148,7 +168,7 @@ public class ProductionOrdersController : Controller
                 Quantity = o.Quantity,
                 Customer = o.Customer,
                 ArticleNumber = o.ArticleNumber,
-                Matchcode = o.Matchcode,
+                Matchcode = matchcodes.GetValueOrDefault(o.ArticleNumber ?? string.Empty),
                 Description1 = o.Description1,
                 Description2 = o.Description2,
                 ProductionDate = o.ProductionDate,
@@ -237,6 +257,13 @@ public class ProductionOrdersController : Controller
                 filterOrderNumber, filterArticleNumber, null, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFiltersHierarchical);
 
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
+
+            // Matchcode-Join (Task 2): EIN Batch-Lookup fuer die gesamte (bei Postfiltern
+            // ungepaginierte) Zeilenmenge, VOR MapItem/dem "matchcode"-Postfilter (AK-14-Zaehlung
+            // erfolgt in MatchcodeLookup.BuildAsync, eine Zahl je Aufbau).
+            matchcodes = await MatchcodeLookup.BuildAsync(
+                _articleRepository, allRows.Select(r => r.ArticleNumber), _logger, "ProductionOrders (hierarchisch)");
+
             var psDict = await _pickingStatusRepository.GetByProductionOrderIdsAsync(allRows.Select(r => r.Id).ToList());
 
             // K1: Auftragskoepfe je HauptFA — EINE Abfrage je Seite (kein Fan-out je Gruppe).
@@ -382,6 +409,11 @@ public class ProductionOrdersController : Controller
             filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlPage, sqlPageSize, sqlColumnFilters);
         var orders = ordersPage.Rows;
 
+        // Matchcode-Join (Task 2): siehe hierarchischer Zweig oben, hier fuer die (bei
+        // hasFlatPostFilters ungepaginierte) Flachmodus-Zeilenmenge, VOR MapItem/dem Postfilter.
+        matchcodes = await MatchcodeLookup.BuildAsync(
+            _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "ProductionOrders (flach)");
+
         var pickingStatuses = await _pickingStatusRepository.GetByProductionOrderIdsAsync(
             orders.Select(o => o.Id).ToList());
 
@@ -392,13 +424,21 @@ public class ProductionOrdersController : Controller
         }).ToList();
 
         int finalTotalCount = ordersPage.TotalCount;
-        if (hasDateFilters)
+        if (hasFlatPostFilters)
         {
             foreach (var (key, raw) in dateFilters)
             {
                 var (tokens, negate) = ColumnFilterHelper.Parse(raw);
                 if (tokens.Count == 0) continue;
                 viewItems = viewItems.Where(it => MatchFaListDateFilter(it, key, tokens, negate)).ToList();
+            }
+            // "matchcode" (Task 2): einziger FaListComputedColumnKeys-Eintrag, der im Flachmodus
+            // (AKE) tatsaechlich etwas filtert -- siehe hasMatchcodeFilter oben.
+            if (hasMatchcodeFilter)
+            {
+                var (tokens, negate) = ColumnFilterHelper.Parse(computedFilters["matchcode"]);
+                if (tokens.Count > 0)
+                    viewItems = viewItems.Where(it => MatchFaListComputedFilter(it, "matchcode", tokens, negate)).ToList();
             }
             finalTotalCount = viewItems.Count;
             viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
@@ -446,9 +486,12 @@ public class ProductionOrdersController : Controller
 
     // IDEAL K1 (Task 6): Gruppenkopf-Felder, die erst im Anzeige-Modell entstehen (Task 5) und
     // deshalb kein SQL-Praedikat sein koennen -- gleicher Mechanismus wie FaListDateColumnKeys.
+    // "matchcode" (Task 2, Artikelstamm): kein DB-Feld auf ProductionOrder mehr, sondern aus Article
+    // per Batch-Lookup befuellt (siehe MatchcodeLookup.BuildAsync in Index) — deshalb hier wie die
+    // K1-Kopfdaten ein C#-Postfilter statt eines SQL-Praedikats (A1/D2).
     private static readonly HashSet<string> FaListComputedColumnKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "customer", "prio", "ab-nummer", "montage-abteilung"
+        "customer", "prio", "ab-nummer", "montage-abteilung", "matchcode"
     };
 
     private static string FormatDateForFilter(DateTime? date)
@@ -488,6 +531,7 @@ public class ProductionOrdersController : Controller
             "prio" => item.Prio?.ToString(),
             "ab-nummer" => item.AbNummer,
             "montage-abteilung" => item.MontageAbteilung,
+            "matchcode" => item.Matchcode,
             _ => null
         };
         // Leerer Wert matcht nie (string.Empty.Contains("x") == false) -- bei Kombigeraeten sind

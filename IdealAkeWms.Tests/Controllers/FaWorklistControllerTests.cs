@@ -9,6 +9,7 @@ using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -83,10 +84,13 @@ public class FaWorklistControllerTests
                 .ReturnsAsync("true");
         }
 
+        var articleRepo = new ArticleRepository(ctx);
+
         var ctrl = new FaWorklistController(
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, userRepo,
             workplaceRepo, settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
-            readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object);
+            readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object, articleRepo,
+            NullLogger<FaWorklistController>.Instance);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
