@@ -337,7 +337,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 
 ### Stammdaten
 - **Lagerplätze**: Code (manuell max. 12 Zeichen, Sage bis 50), Zone, Kapazität, Barcode-Etiketten drucken (A4, 3 pro Seite); `NAN` ist Standard-Fallback-Lagerplatz; Flags `IsActive` (Sage-gesteuert) + `IstBuchbar` (user-gesteuert)
-- **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand, Hauptlagerplatz (Sage-gesperrt oder manuell, v1.25.0)
+- **Artikel**: Artikelnummer, Bezeichnung, Einheit, Meldebestand, Hauptlagerplatz (Sage-gesperrt oder manuell, v1.25.0), Matchcode (aus Sage, v1.40.0). Der Matchcode ist überall mitsuchbar, wo bisher schon Artikelnummer/Bezeichnung gesucht werden; die Artikel-Schnellsuche (Auswahlfelder) verlangt seit v1.40.0 mindestens 3 Zeichen
 - **Artikelkategorien + Artikelmerkmale**: EAV-Modell für Artikel-Zusatzinfos (u.a. Lackierteil-Erkennung)
 - **Benutzer**: lokal (Passwort) oder AD (WindowsUserName), Rollen-Zuweisung, Standard-BOM-Filter, Listen-Default, FA-Abarbeitungs-Defaults; Standard-Admin: `admin` / leer (admin-only)
 - **Rollen**: Berechtigungsrollen inkl. Rollen-Übersicht `/Users/RoleOverview` (admin-only)
@@ -691,7 +691,7 @@ Standard-Pfad: relativ zum Executable, also z. B. `C:\Services\IDEALAKEWMSServic
 **SyncWorker** (alle `WorkerSettings:SyncIntervalMinutes` Minuten, default 15) — jeder Block einzeln aktivierbar und resilient gekapselt (ein Fehler stoppt die anderen Syncs nicht; optional Fehlermail via `ErrorNotification:*`):
 - Produktionsaufträge aus SAGE (`vw_AKE_Kommissionierung_WAListe`) → WMS (`ProductionOrders`) — MERGE (Insert + Update); optional **FA-Reconciliation** (in Sage gelöschte offene FAs stornieren, `Sync:ProductionOrderReconcileEnabled`, mit Guard + Cap)
 - **FA-Zusatzinfos (Sage)**: Kältemittel/Ventil/Ausführung E-Z/Maschine/Status je FA aus `vw_IDEAL_AKE_WMS_FAZusatzinformationen` → `ProductionOrderExtraInfo` (1:1-Satellit, in der App read-only, kein Löschen; `Sync:FaZusatzinfoEnabled`, v1.26.0). Fold 2: FAs mit Sage-Status **verpackt/abgeholt** setzt der Sync automatisch auf Komm-Erledigt (`PickingStatus.IsDonePicking` — die einzige Schreib-Wirkung außerhalb des Satelliten; einweg, Cap `Sync:FaZusatzinfoAutoDoneMaxPerRun` Default 100, vor dem Scharfschalten DryRun prüfen), und das BDE-Terminal sperrt neue Buchungen auf solche FAs
-- Artikel aus SAGE → WMS (`Articles`) — Full-Update inkl. Meldebestand + **Hauptlagerplatz** (v1.25.0)
+- Artikel aus SAGE → WMS (`Articles`) — Full-Update inkl. Meldebestand + **Hauptlagerplatz** (v1.25.0) + **Matchcode** (`KHKArtikel.Matchcode`, v1.40.0) — Matchcode-Spalte bleibt an einem Standort leer, bis dort der erste Artikel-Sync-Lauf gelaufen ist
 - **OSEON-Tracking**: Produktionsaufträge + Arbeitsgänge aus OSEON-DB → WMS — Upsert, Werkbänke auto-anlegen; Werkbank-Sync auf Sage-Aufträge
 - **enaio DMS**: Werkstattauftrags-/Zeichnungs-Links aus enaio (Full-Sync mit MERGE)
 - **BOM-Cache + Erkennungen**: Stücklisten-Cache für offene FAs; Lackierteil-Erkennung; FA-Vorbau-AG-Erkennung (`Sync:FaWorkStepDetectionEnabled`)
