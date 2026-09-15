@@ -75,7 +75,7 @@
     <div class="card mb-3">
         <div class="card-body">
             <label class="form-label">Artikel hinzufuegen</label>
-            <input id="article-search" type="text" class="form-control" placeholder="Artikel-Nr oder Bezeichnung" autocomplete="off" />
+            <input id="article-search" type="text" class="form-control" placeholder="Artikel-Nr, Bezeichnung oder Matchcode (mind. 3 Zeichen)" autocomplete="off" />
             <div id="article-search-results" class="list-group mt-1" style="max-height: 300px; overflow-y: auto;"></div>
         </div>
     </div>
@@ -157,7 +157,7 @@
             clearTimeout(timer);
             timer = setTimeout(() => {
                 const q = search.value.trim();
-                if (q.length < 2) { results.innerHTML = ''; return; }
+                if (q.length < 3) { results.innerHTML = ''; return; }
                 fetch(`/api/articles/search?q=${encodeURIComponent(q)}&limit=20&type=@Model.Type`)
                     .then(r => r.json())
                     .then(arr => {
