@@ -2,11 +2,11 @@
 type: spec
 title: "Matchcode im Artikelstamm (Article.Matchcode) — hausweit suchbar"
 slug: 2026-09-13-matchcode-artikelstamm-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-09-15
 updated: 2026-09-15
 source_backlog: "[[2026-09-13-matchcode-artikelstamm-kommissionierung-hauptfa]]"
-task: ""
+task: "[[2026-09-13-matchcode-artikelstamm-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
@@ -30,7 +30,8 @@ affected_code:
   - "IdealAkeWms/Controllers/ArticlesController.cs (`Info`-Action, Zeile 218-228 — Verhalten je nach Antwort auf Rückfrage 2 anzupassen: aktuell ausschliesslich exakter `GetByArticleNumberAsync`-Treffer)"
   - "IdealAkeWms.Tests/Repositories/ProductionOrderRepositoryTests.cs, IDEALAKEWMSService.Tests/Services/FaMaterializationSyncServiceTests.cs (bestehende `ColumnFilter_Matchcode_*`/Materialisierungs-Tests auf die neue Quelle umstellen, neue Tests für `ArticleRepository`/`ProductionOrderRepository` mit gejointem Matchcode ergänzen)"
   - "docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md"
-open_questions:
+open_questions: []
+beantwortete_rueckfragen:
   - "Article.Matchcode als eigene Spalte oder Ersatz für Article.Description? (Backlog-Frage 4)"
   - "QR-Scan in der Artikelinfo: kann der gescannte Code auch ein Matchcode sein, welche Vorrang-Reihenfolge? (Backlog-Frage 4b)"
   - "Verhältnis Article.Matchcode (neu, artikelbezogen) zu FaHierarchyNode.Matchcode (bestehend, knoten-/auftragsbezogen) — gilt die neue Spalte für beide Standorte gleich? (Backlog-Frage 2)"
@@ -42,9 +43,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Eigene Spalte Article.Matchcode (NVARCHAR(200), gemessen max. 50 Zeichen); Scan exakt mit Vorrang, Suche als Teilstring; kein Abgleich zu FaHierarchyNode.Matchcode; Sage liefert den Matchcode (Query liegt vor); Coverage-Luecke wird gemeldet statt vorausgesetzt"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-15
 # Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
@@ -194,6 +195,17 @@ für einen Vorgriff in dieser Spec.
 
 ## AM CODE VERIFIZIERT — Artikel-Sync aus Sage
 
+> **GEKLAERT (2026-09-15): Sage liefert den Matchcode, und die erweiterte Abfrage liegt vor.**
+> `KHKArtikel` fuehrt ein Feld **`Matchcode`**. Die erweiterte `sageSql`-Query ergaenzt in **beiden**
+> `UNION`-Zweigen `CAST(a.Matchcode AS nvarchar(200)) AS Matchcode` und aggregiert aussen als
+> `MAX(Matchcode) AS Matchcode`.
+> **Laenge:** gemessen max. **50 Zeichen** bei 289.233 gefuellten Werten — `nvarchar(200)` also mit
+> vierfacher Reserve, und `CAST` und Zielspalte sind auf **200 angeglichen** (AK 16).
+> **`MAX()` ist unbedenklich:** Der Matchcode ist je Artikel identisch (bestaetigt) — die ~2,7
+> Quellzeilen je Artikel sind Varianten **desselben** Werts, es wird also nichts ausgewaehlt.
+> Der urspruenglich hier vermerkte offene Punkt („Spaltenname unbekannt") ist damit **erledigt**;
+> der folgende Abschnitt beschreibt den Ist-Stand VOR dieser Erweiterung.
+
 `IDEALAKEWMSService/Services/SageImportService.SyncArticlesAsync` (Zeilen 369-421) liest Artikel aus
 der `SageConnection` (AKE-Instanz, `Database=ake`) über eine `UNION`-Query gegen
 `KHKPpsRessourcenPositionen`, `KHKArtikel`, `KHKArtikelvarianten`, `KHKLagerplaetze`. Die
@@ -316,7 +328,12 @@ Audit-Felder (ADR 0003).
 
 ## Migrations-/SQL-Auswirkungen
 
-**Zwei Migrationen in einer Umsetzung:**
+**Zwei Migrationen in einer Umsetzung — die Reihenfolge ist verbindlich, nicht beliebig:**
+
+> **ZUERST `remove`, DANACH `add`.** `dotnet ef migrations remove` funktioniert nur, solange
+> `AddProductionOrderMatchcode` die **letzte** Migration ist (im Worktree bestaetigt). Legt man
+> `AddArticleMatchcode` zuerst an, ist der Rueckbau blockiert und muesste als Gegen-Migration
+> gebaut werden — fuer eine Spalte, die nie deployt war.
 
 1. **Rückbau** (kein neuer Migrationseintrag, sondern Entfernen des bestehenden, nie deployten
    Eintrags `20260910081155_AddProductionOrderMatchcode`) — siehe Abschnitt „Rückbau" oben.
@@ -352,10 +369,14 @@ neu zu bauen.
 
 1. `Article` hat eine Spalte `Matchcode` (nullable, `NVARCHAR(200)`); Migration additiv, idempotent
    (zweifacher Lauf des SQL-Skripts ändert nichts am zweiten Mal).
-2. Die bereits gebaute `ProductionOrder.Matchcode`-Spalte, ihre Migration und die zwei
-   Materialisierungs-Schreibstellen existieren nach dem Rückbau nicht mehr im Code; die fünf
-   FA-Zeilen-Listen zeigen weiterhin korrekt den Matchcode je Zeile (Regressionstest gegen den
-   vor-Rückbau-Stand, gleiche Werte für dieselben Testdaten).
+2. **Vorher/Nachher-Vergleich statt Behauptung (deckt zugleich die Coverage-Frage ab):** Vor dem
+   Rueckbau werden die Ist-Matchcodes der fuenf FA-Listen fuer einen realen IDEAL-Auftrag
+   festgehalten; nach dem Rueckbau liefern dieselben Testdaten **dieselben Werte**, und es wird
+   **ausdruecklich gezaehlt, wie viele Zeilen von gefuellt auf leer kippen**. Erwartung: **null**.
+   Kippt eine, ist die Coverage-Luecke eingetreten (siehe AK 14) und die Variante ist neu zu
+   bewerten.
+   Die `ProductionOrder.Matchcode`-Spalte, ihre Migration und die zwei Materialisierungs-
+   Schreibstellen existieren nach dem Rueckbau nicht mehr im Code.
 3. Matchcode-Spaltenfilter in den fünf FA-Zeilen-Listen funktioniert unverändert (Teilstring, Mini-
    Syntax OR/NOT) — jetzt gespeist über den Article-Join statt der entfernten Spalte.
 4. Artikelstammliste (`/Articles`) zeigt eine Matchcode-Spalte, filterbar (eigene Spaltenfilter-Case)
@@ -376,6 +397,26 @@ neu zu bauen.
 12. OSEON Teileverfolgung und BOM-Komponentenebene zeigen unverändert **keinen** Matchcode — das ist
     laut Out-of-Scope kein Fehler, sondern Folge-Arbeit, und wird im UAT-Vermerk als solches benannt.
 13. `dotnet build` + `dotnet test` (Web und Service) grün.
+14. **Fehlender Artikelstamm-Treffer wird GEMELDET, nicht still verschluckt.** Beim Aufbau jeder
+    erweiterten Liste wird gezaehlt, wie viele Zeilen ueber den Join **keinen** Artikelstamm-Treffer
+    finden; die Zahl wird protokolliert (**eine** Zahl je Aufbau, nicht je Zeile). Eine leere
+    Matchcode-Spalte ohne Spur im Log ist nicht zulaessig.
+    *Grund:* `Articles` ist eine **gefilterte** Projektion von `KHKArtikel` (`IstBestellartikel = -1`
+    **oder** Vorkommen in `KHKPpsRessourcenPositionen`). Ein gefertigtes Endgeraet kann in Sage
+    existieren und trotzdem durch beide Zweige fallen. Statt das vorauszusetzen, macht der Zaehler
+    es beim ersten echten Lauf sichtbar.
+15. **Live-Suche: erst ab drei Zeichen, mit Entprellung (~300 ms).** Gilt fuer jede Artikelsuche,
+    die je Tastendruck feuert — ein Full Scan ueber 108.818 Zeilen pro Buchstabe ist
+    auszuschliessen.
+    **Vorgeschalteter Verifikationsschritt:** Am Code pruefen, ob die Typeahead-Suche
+    (`ArticlesApiController` → `ArticleRepository.SearchAsync`) ueberhaupt je Tastendruck feuert.
+    Feuert sie erst beim Absenden, **entfaellt dieses AK** — dann aber **mit Begruendung im Rumpf
+    vermerkt**, damit niemand spaeter Typeahead „nachruestet" und dabei den Scan-Fall einfuehrt.
+16. **Feldlaenge passt mit Reserve.** `Article.Matchcode` ist `NVARCHAR(200)`, der `CAST` in der
+    Sage-Query ebenfalls `nvarchar(200)` — **beide Zahlen identisch**. Gemessen am 2026-09-13:
+    laengster Matchcode **50 Zeichen** bei 289.233 gefuellten Werten, also vierfache Reserve. Ein
+    `CAST` **groesser** als die Zielspalte ist ausdruecklich unzulaessig (stille Kuerzung im einen,
+    lauter Insert-Fehler im anderen Fall).
 
 ## Test-Szenarien
 
@@ -417,7 +458,17 @@ Skizze der Szenarien, `docs/TESTSZENARIEN.md` durch den Dev-Lauf vollständig au
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
   ```
 
-## Offene Rückfragen
+## Offene Rueckfragen — ALLE BEANTWORTET (2026-09-15)
+
+> Die fuenf Fragen sind im Abschnitt „Freigabe-Antworten" beantwortet und in Rumpf,
+> `affected_code` und Akzeptanzkriterien eingearbeitet. Sie stehen unten nur noch als
+> **Protokoll**, nicht als Auftrag.
+> Kurzfassung: **1.** eigene Spalte · **2.** Scan exakt mit Vorrang, Suche als Teilstring ·
+> **3.** kein Abgleich, `Article` fuehrt die Listen, `FaHierarchyNode` bleibt fuer den Baum ·
+> **4.** Sage liefert `KHKArtikel.Matchcode`, Query liegt vor, 200 Zeichen · **5.** keine
+> Produktionsmessung; stattdessen Mindestlaenge und Entprellung als AK 15.
+
+### Protokoll der urspruenglichen Fragen
 
 1. **Verhältnis zu `Article.Description`:** eigene Spalte `Matchcode` (Empfehlung dieser Spec, siehe
    „Fachliche Anforderungen") oder ersetzt der Matchcode ein bestehendes Feld?
@@ -507,6 +558,111 @@ Skizze der Szenarien, `docs/TESTSZENARIEN.md` durch den Dev-Lauf vollständig au
    - **Entprellung** (~300 ms), damit waehrend des Tippens nicht jeder Anschlag feuert.
    Beides ist billig und verhindert genau den Fall, der aus einer vertretbaren Abfrage eine
    spuerbar traege Oberflaeche macht.
+
+## ANTWORTEN auf die Kritische Pruefung (2026-09-14)
+
+### Zu B-1 — Blocker berechtigt, und er stellt die bessere Frage.
+
+Antwort 3 loest die **Wert**-Frage („`Article` ist die Wahrheit"), nicht die **Existenz**-Frage.
+Der Unterschied ist entscheidend: Steht ein gefertigter Artikel gar nicht in `Articles`, liefert
+der Join `NULL` — und zwar **still**, genau bei IDEAL, genau dort, wo der Matchcode gebraucht wird.
+
+**Die entscheidende Messung, vor der Freigabe:**
+```sql
+-- Wie viele materialisierte Auftragsartikel fehlen im Artikelstamm?
+SELECT COUNT(*) AS OhneArtikelstamm
+FROM ProductionOrders po
+LEFT JOIN Articles a ON a.ArticleNumber = po.ArticleNumber
+WHERE a.ArticleNumber IS NULL;
+
+-- Und wie viele Struktur-Artikel insgesamt?
+SELECT COUNT(DISTINCT n.Artnr) AS OhneArtikelstamm
+FROM FaHierarchyNode n
+LEFT JOIN Articles a ON a.ArticleNumber = n.Artnr
+WHERE a.ArticleNumber IS NULL;
+```
+
+**Erwartung, die dabei zu pruefen ist:** Die Sub-FA-Artikel duerften ueber Zweig 1 der
+Sage-Abfrage (`KHKPpsRessourcenPositionen`) enthalten sein — sie sind Positionen in der Stueckliste
+ihres Vaters. **Der HauptFA-Artikel (das Endgeraet) ist der Verdachtsfall:** Er ist Position in
+keiner Stueckliste und typischerweise kein Bestellartikel — er faellt also durch **beide** Zweige.
+
+**Wenn die Zahl > 0 ist, lautet die Antwort NICHT (b).** Denn dann ist ein groesseres Problem
+aufgedeckt: **Fehlt ein Artikel in `Articles`, findet ihn auch die Artikelinfo nicht** —
+unabhaengig vom Matchcode. Das waere ein **vorbestehender Mangel**, den diese Spec nur sichtbar
+macht.
+**Dann ist der richtige Weg, den `Articles`-Sync zu erweitern** (gefertigte Artikel aufnehmen),
+nicht den Matchcode am Auftrag zu duplizieren. Ursache beheben statt umgehen — und alle anderen
+artikelbezogenen Ansichten gewinnen mit.
+**Als eigener Umfangspunkt oder eigene Spec**, je nachdem, wie gross die Luecke ist.
+
+Ist die Zahl **0**, bleibt es bei (a)/(c) wie beschlossen, und der Blocker ist ausgeraeumt.
+
+**AUFLOESUNG (2026-09-15) — die Messung blockiert den Start NICHT mehr, weil die Luecke sichtbar
+gemacht wird statt vorausgesetzt.**
+
+Bestaetigt wurde: Die Auftragsartikel stammen aus dem Sage-Artikelstamm, und der Matchcode ist je
+Artikel derselbe. Damit ist die **Varianten-Frage erledigt** (`MAX()` ist harmlos).
+
+**Offen bleibt die Filter-Frage:** `Articles` ist eine **gefilterte** Projektion von `KHKArtikel`
+(`IstBestellartikel = -1` **oder** Vorkommen in `KHKPpsRessourcenPositionen`). Ein gefertigtes
+Endgeraet kann in Sage existieren und trotzdem durch beide Zweige fallen.
+
+**Statt darauf zu warten, wird die Luecke gemeldet — Hausregel „melden statt still":**
+- Der Lesepfad zaehlt beim Aufbau je Liste, **wie viele Zeilen keinen Artikelstamm-Treffer haben**,
+  und protokolliert die Zahl (nicht je Zeile — eine Zahl je Aufbau).
+- **Neues AK:** Bleibt der Matchcode leer, weil der Artikel nicht in `Articles` steht, ist das im
+  Log erkennbar. Eine leere Spalte ohne Spur ist nicht zulaessig.
+- **Damit beantwortet der erste echte Lauf die Frage selbst** — zuverlaessiger als eine Zaehlquery
+  auf dem heutigen Testbestand, die nur eine Momentaufnahme waere.
+
+**Wenn die Zahl im Betrieb > 0 ist**, gilt unveraendert: Ursache beheben, nicht umgehen — den
+`Articles`-Sync erweitern, damit gefertigte Artikel aufgenommen werden. Das ist dann eine eigene
+Aufgabe, und sie repariert zugleich die Artikelinfo, die solche Artikel heute ebenfalls nicht
+findet.
+
+### Zu S-1 — GEMESSEN, erledigt.
+
+`MAX(LEN(Matchcode))` = **50** Zeichen bei 289.233 gefuellten Werten. `nvarchar(200)` hat damit das
+Vierfache an Reserve; eine Kuerzung ist ausgeschlossen. **Quelle und Zielspalte werden auf
+`nvarchar(200)` angeglichen**, der `CAST(... AS nvarchar(500))` in der Abfrage entsprechend
+geaendert.
+
+**Eine Nebenbeobachtung, die noch zu klaeren ist:** 289.233 gefuellte Matchcodes bei 108.818
+Artikeln — rund 2,7 Zeilen je Artikel (Varianten). Das `MAX(Matchcode)` je `ArticleNumber` waehlt
+damit aus mehreren Zeilen aus.
+```sql
+SELECT COUNT(*) FROM (
+    SELECT Artikelnummer FROM [dbo].[KHKArtikel]
+    WHERE Matchcode IS NOT NULL AND Matchcode <> ''
+    GROUP BY Artikelnummer HAVING COUNT(DISTINCT Matchcode) > 1
+) x;
+```
+Kommt **0** heraus, ist `MAX()` harmlos — die 2,7 Zeilen sind Varianten **desselben** Matchcodes.
+Kommt mehr heraus, waehlt die Abfrage stillschweigend den alphabetisch letzten — dieselbe
+Mehrdeutigkeit wie bei den Kombigeraeten, und dann gehoert sie **gemeldet, nicht still aufgeloest**.
+
+### Zu S-2 — uebernommen, als pruefbares AK.
+
+Mindestlaenge 3 und Entprellung (~300 ms) gehoeren in den Rumpf und als Akzeptanzkriterium, **nicht
+nur in die Antwort**. Davor die Code-Verifikation: Feuert die Artikelsuche ueberhaupt je
+Tastendruck? Feuert sie erst beim Absenden, entfaellt das AK — dann aber **mit Begruendung
+vermerkt**, damit es niemand spaeter „nachruestet" und dabei Typeahead einfuehrt.
+
+### Zu S-3 und S-4 — uebernommen.
+
+**S-3:** Migrations-Reihenfolge ausdruecklich als `remove` → `add` festschreiben, nicht als zwei
+unabhaengige Schritte. **S-4:** AK #2 als echter **Vorher/Nachher-Vergleich** formulieren — die
+fuenf FA-Listen zeigen nach dem Quellwechsel **dieselben** Matchcodes wie vorher. Ein AK, das nur
+„Matchcode ist sichtbar" verlangt, wuerde einen flaechendeckend leeren Wert durchgehen lassen —
+exakt der Fall aus B-1.
+
+### Zum HINWEIS (Baum vs. Listen) — bewusst, und dokumentiert.
+
+Der FA-Struktur-Baum liest weiter `FaHierarchyNode.Matchcode`, die Listen kuenftig
+`Article.Matchcode`. Solange beide aus demselben Sage-Feld stammen, ist das unsichtbar. **Als
+bekannte Inkonsistenz dokumentieren** — und als Backlog-Kandidat vermerken, den Baum spaeter
+ebenfalls auf den Artikelstamm umzustellen, sobald B-1 geklaert ist.
 
 ## Kritische Pruefung (2026-09-15)
 
