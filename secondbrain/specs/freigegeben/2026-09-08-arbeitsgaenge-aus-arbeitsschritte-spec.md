@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL: FaWorkSteps explizit aus FaHierarchyNode.Arbeitsschritte ableiten (Struktur statt Heuristik)"
 slug: 2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-16
 updated: 2026-09-16
 source_backlog: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte]]"
@@ -437,7 +437,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (neue TS-76
 
 ## Deploy
 
-**Provisorisch (Spec-Agent) — der Dev-/qa-agent-Lauf bestaetigt gegen den echten Diff.**
+**Vom qa-agent gegen den echten Diff bestaetigt (2026-09-16, Commits `ce3feb0..1ba3918`).**
 
 - **Web-App: ja (provisorisch, geringer Verhaltens-Impact).** `IdealAkeWms/Models/FaWorkStep.cs`
   (neue `FaWorkStepSources.Struktur`-Konstante) und `IdealAkeWms/Models/ServiceSettingDefinitions.cs`
@@ -470,10 +470,17 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (neue TS-76
 
 **Ablauf (Mensch): Publish aus dem Worktree → Testsystem → testen → Merge (Schranke 2).**
 
+Beide Publish-Befehle **aus dem Worktree** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`
+ausfuehren (nicht aus dem Hauptcheckout — dort steht der Feature-Code noch nicht):
+
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
 dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
 ```
+
+*Nach dem Merge* (Schranke 2) nur dann erneut aus `main` publishen, wenn der Merge tatsaechlich
+getestete Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat (sonst ist der bereits
+getestete Worktree-Build identisch mit dem, was `main` nach dem Merge enthaelt).
 
 ## Reihenfolge / Einordnung
 
@@ -840,3 +847,112 @@ Als Pflege-Hinweis beim Anlegen der Eintraege vermerken; ggf. ein TS-76-Negativf
 **BEREIT ZUR FREIGABE (bereits `Freigegeben`) — kein offener Blocker.** S4 ist eine billige
 Dokument-Harmonisierung, die der Dev-Lauf beim ohnehin faelligen Schreiben von Deploy-/Testszenario-
 Text miterledigt; H4–H6 sind Betriebs-/Pflegehinweise ohne Handlungszwang. Der Dev-Lauf kann starten.
+
+## QA-Nachweis (qa-agent, 2026-09-16)
+
+**Worktree:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`,
+Branch `feature/2026-08-07-ideal-teile-1-5`. **Feature-Commit-Range:** `716a676..1ba3918`
+(`ce3feb0` Kern, `3b5577f` Tests, `1ba3918` Doku/Version) — verifiziert per `git diff --stat`
+(16 Dateien, 786 Zeilen +, davon Kern-Service 235 Zeilen, Tests 328 Zeilen, keine ungeplante Datei).
+
+**Build:** `dotnet build IdealAkeWms.slnx` — **0 Fehler**, 12 Vorwarnungen (alle vorbestehend, keine
+aus dem Feature-Diff: NU1902 MailKit/MimeKit-Advisories, drei CS8321/CS8602 in unveraenderten Dateien).
+
+**Test:** `dotnet test IdealAkeWms.slnx`
+- `IdealAkeWms.Tests`: **1391 erfolgreich, 1 uebersprungen (vorbestehend), 0 Fehler** (gesamt 1392).
+- `IDEALAKEWMSService.Tests`: **277 erfolgreich, 0 Fehler** (davon 14 neu:
+  `FaWorkStepStructureDetectionServiceTests` — Grundfall/Source=Struktur, Audit-Autor, Code-Match
+  case-insensitiv/getrimmt, DirectChildren-Gegenprobe, Nur-hinzufuegen bei `IsRemoved`/aktiver Zeile,
+  Match exakt `Code` statt `SearchString`, unbekanntes Token gemeldet+gezaehlt, `IsDone`/
+  `IsDonePicking`-Filter, fehlende Materialisierung kein Fehler, DryRun, `SubFA==0` kein eigener
+  Auftrag, S1-Mengenaenderungs-Logik). Erwartung aus der Aufgaben-Notiz (~Web 1391+1skip,
+  Service 277 inkl. +14) **bestaetigt exakt**.
+
+**AK-Abgleich gegen den Diff (12 Akzeptanzkriterien):**
+
+| AK | Nachweis | Modus |
+|---|---|---|
+| 1 (AKE unveraendert bei Master `false`) | Doppel-Gate im `SyncWorker` (beide `GetBoolSafeAsync`, verifiziert `SyncWorker.cs` Diff) — Service wird bei Master `false` nie aufgeloest | Gate = Code-verifiziert; realer Datenlauf = Manual-UAT (TS-76.7) |
+| 2 (Zwischenzustand ohne Doppel-Erkennung) | Zweiter, unabhaengiger Toggle `Sync:FaWorkStepStructureDetectionEnabled`, beide Gates muessen `true` sein | Gate = Code-verifiziert; Manual-UAT (TS-76.8) |
+| 3 (Struktur-Ableitung korrekt) | `Detect_KnownTokenOnOwnRow_CreatesExactlyOneStruktur` gruen | Automated **und** Manual-UAT am befuellten IDEAL-System (`FaHierarchyNode` in keiner erreichbaren DB, H3) |
+| 4 (Nur-hinzufuegen inkl. `IsRemoved`) | `Detect_RemovedRowExists_NoReAdd`, `Detect_ActiveRowExists_SkippedNoDuplicate` gruen | Automated |
+| 5 (DirectChildren, keine Enkel-Doppelzaehlung) | `Detect_GrandchildToken_LandsOnParentNotGrandparent` gruen | Automated **und** Manual-UAT (H3) |
+| 6 (Match exakt ueber `Code`, nicht `SearchString`) | `Detect_SearchStringContainsToken_ButCodeDiffers_NoMatch` gruen | Automated |
+| 7 (Unbekannte Token gemeldet, nicht angelegt) | `Detect_UnknownToken_ReportedNotInserted`, Counts-Keys `arbeitsschritt_unbekannt`/`_auftraege` gruen | Automated (Insert-Verhinderung + Counts); realer Mailversand = Manual-UAT (TS-76.4) |
+| 8 (fehlende Materialisierung kein Fehler) | `Detect_NodeWithoutMaterializedOrder_NoErrorNoRow` gruen | Automated **und** Manual-UAT (H3) |
+| 9 (abgeschlossene Auftraege unangetastet) | `Detect_DoneOrder_GetsNoRow`, `Detect_DonePickingOrder_GetsNoRow` gruen | Automated |
+| 10 (Audit korrekt) | `Detect_CreatedRow_CarriesServiceNameAudit` gruen | Automated |
+| 11 (Aktivitaets-Protokoll vollstaendig) | `run.FinishSuccessAsync`/`FinalCounts` in allen 14 Tests durchlaufen, `SyncLogServices.FaWorkStepStructureDetection` verifiziert im Diff | Automated |
+| 12 (FK-Grenze sichtbar, kein stiller Teilerfolg) | `Detect_SearchStringContainsToken_ButCodeDiffers_NoMatch`, `Detect_UnknownToken_ReportedNotInserted` (Zaehler statt Exception) | Automated |
+
+**Design-Abweichungen aus der Aufgaben-Notiz gegen den Code geprueft — bestaetigt:**
+1. Kein interner Master-Gate im Service — Doppel-Gate ausschliesslich im `SyncWorker` (Design A),
+   verifiziert: `FaWorkStepStructureDetectionService.DetectAsync` liest keinen `ServiceSettings`-Wert.
+2. Nur-hinzufuegen als In-Memory-`HashSet<(int,int)>` statt `.Any()`-Subquery je Kandidat — eine
+   gebuendelte Abfrage statt N, Verhalten identisch (verifiziert Schritt 6 im Quelltext).
+3. AK 1/2/3/5/8 + Mailversand sind Manual-UAT (H3 aus der Spec-Pruefung) — `FaHierarchyNode` liegt in
+   keiner von dieser Session erreichbaren DB; dafuer wurden **keine** gruenen Automated-Tests verlangt,
+   nur die korrekte TS-76-Kennzeichnung (siehe unten).
+
+**Testszenarien:** `docs/TESTSZENARIEN.md` Kapitel **TS-76** (10 Szenarien, 76.1–76.10) deckt AK 1–12 +
+H6 ab; Manual-UAT-Kennzeichnung vorhanden und korrekt (76.1/76.2 Manual-UAT trotz automatisierter
+Spiegelung, 76.4 Mail-Teil Manual-UAT, 76.7/76.8 Gate/Sicht Manual-UAT, 76.10 Katalogpflege
+Manual-UAT) — verifiziert gegen den Worktree-Text.
+`secondbrain/tests/testszenarien-index.md` hatte **keine** TS-76-Zeile trotz gegenteiliger Aufgaben-
+Notiz — vom qa-agent nachgetragen (Zeile 76, Hauptcheckout, dieser Lauf).
+
+**Brain-Status geprueft (Hauptcheckout, bereits vom Dev-Lauf gepflegt, stichprobenartig verifiziert):**
+`feature-map.md` (Zeile ~461–482, Status wird unten auf `Testbereit` gezogen), Changelog
+`secondbrain/changelog/2026-09-16-v1-41-0-ideal-fa-arbeitsgang-struktur.md`, `codebase/services.md`
+(Sync-Service-Tabelle + `ServiceSettings`-Katalog), `fallstricke.md` §13 (Doppel-Kontext,
+Token-ist-Code, In-Memory-Melde-Zustand) — alle vorhanden und inhaltlich konsistent mit dem Code.
+
+**Deploy-Flags finalisiert:** `deploy.web = true`, `deploy.service = true`, `deploy.migration = false`
+(Frontmatter bereits korrekt vom Spec-Agent vorbelegt, gegen den echten Diff bestaetigt: nur
+`IdealAkeWms/Models/FaWorkStep.cs` + `ServiceSettingDefinitions.cs` + `SyncLogServices.cs` im
+Web-Projekt, keine Migration im Diff, Service-Aenderungen in `IDEALAKEWMSService/*`).
+
+**Ergebnis: Build + Tests gruen, AK-Abgleich vollstaendig, TS-76 korrekt Manual-UAT-gekennzeichnet.
+Status auf `Testbereit` gesetzt.**
+
+## Manuelle Test-Checkliste (Mensch, Schranke 2 — vor dem Merge)
+
+Voraussetzung: Deploy aus dem Worktree auf das Testsystem (siehe Abschnitt „Deploy" oben), IDEAL-Standort
+mit Master `ProduktionsauftragHierarchisch = true` und laufender FA-Materialisierung.
+
+1. **Zwei-Lauf-Ablauf live durchspielen (AK 1–3, 7, 12; TS-76.1/76.4/76.7/76.8):**
+   a. Vor dem Deploy: `Sync:FaWorkStepStructureDetectionEnabled` bleibt `false` — bestehendes Verhalten
+      (keine `FaWorkStep`-Erkennung fuer IDEAL) unveraendert pruefen (TS-76.7/76.8).
+   b. Nach dem Deploy: Toggle auf `true`, `WorkerSettings:SyncDryRun = true` setzen. Einen Sync-Zyklus
+      abwarten. Im SyncLog (`FaWorkStepStructureDetection`) die Sammelmeldung mit der realen
+      Token-Liste + Anzahl betroffener Auftraege pruefen.
+   c. Je gemeldetem Kuerzel einen `WorkStep` auf `/WorkSteps` anlegen (`Code` = Token **zeichengleich**,
+      inkl. Umlaute wie `SÄ` — TS-76.10/H6 — nicht `SAE`).
+   d. `WorkerSettings:SyncDryRun` deaktivieren, naechsten Lauf abwarten. Pruefen: die gemeldeten Token
+      erzeugen jetzt `FaWorkStep`-Zeilen mit `Source = "Struktur"`, sichtbar in FA-Arbeitsliste/Leitstand.
+2. **DirectChildren-Gegenprobe am echten Datenbestand (AK 5, TS-76.2):** einen Sub-FA X mit einem
+   direkten Kind Y (selbst Sub-FA) und einem Enkel Z suchen/anlegen, bei dem ein Token nur auf Z steht.
+   Pruefen: der Arbeitsgang erscheint bei Y, nicht bei X.
+3. **Nur-hinzufuegen / manuell entfernt (AK 4, TS-76.3):** einen erkannten `FaWorkStep` manuell entfernen
+   (`IsRemoved = true`, ueber die bestehende Katalog-/Arbeitsliste-UI), naechsten Sync-Lauf abwarten.
+   Pruefen: die Zeile wird **nicht** erneut angelegt.
+4. **Abgeschlossener Auftrag (AK 9, TS-76.5):** einen Sub-FA mit `IsDone = true` (oder abgeschlossenem
+   Picking) und einem bekannten Token pruefen — keine neue `FaWorkStep`-Zeile.
+5. **Fehlende Materialisierung (AK 8, TS-76.6):** falls zeitlich moeglich, einen frisch importierten
+   Sub-FA **vor** dem naechsten Materialisierungslauf beobachten — kein Fehler im SyncLog, Arbeitsgang
+   erscheint erst nach der Materialisierung + dem naechsten Struktur-Lauf.
+6. **Sammelmail-Verhalten (AK 7, TS-76.4, H5):** bei aktivierter `ErrorNotification` pruefen, dass die
+   Mail nur bei **Aenderung** der unbekannten Token-Menge rausgeht (zwei identische Laeufe → eine Mail;
+   ein neues unbekanntes Token → erneute Mail). Bekanntes Rauschen nach jedem Dienst-Neustart (H5)
+   nicht als Fehler werten.
+7. **Doppel-Kontext-Nebenbefund (Design E, H2, [[fallstricke]] §13) gegenpruefen:** bei einem Sub-FA,
+   dessen direktes Kind selbst ein Sub-FA ist, pruefen ob die doppelte Zuordnung derselben
+   `Arbeitsschritte`-Zeile (Eltern- **und** Eigenkontext) fachlich so gewollt ist — mit dem Fachbereich
+   abstimmen, nicht stillschweigend hinnehmen.
+8. **AKE-Regression (AK 1, TS-76.7):** am AKE-Standort (Master `false`) einen normalen Sync-Zyklus
+   beobachten — `FaWorkStepDetectionService` (Bestandsheuristik) laeuft unveraendert weiter.
+9. **Sichtpruefung UI:** neu erkannte Arbeitsgaenge (`Source = "Struktur"`) in FA-Arbeitsliste/Leitstand/
+   `/WorkSteps`-Katalog pruefen — keine visuelle Unterscheidung zu `Sync`/`Manual` noetig (bestaetigt
+   spec-seitig, keine View-Aenderung).
+10. **Hilfeseite pruefen:** `Views/Help/Index.cshtml`/`Changelog.cshtml` zeigen den Zwei-Lauf-Hinweis
+    korrekt und verstaendlich fuer den Fachbereich (Katalogpflege-Anleitung).
