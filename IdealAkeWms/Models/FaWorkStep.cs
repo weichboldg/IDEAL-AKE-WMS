@@ -4,6 +4,8 @@ public static class FaWorkStepSources
 {
     public const string Sync = "Sync";
     public const string Manual = "Manual";
+    /// <summary>IDEAL: aus FaHierarchyNode.Arbeitsschritte abgeleitet (Struktur statt Heuristik, v1.41.0).</summary>
+    public const string Struktur = "Struktur";
 }
 
 public class FaWorkStep : AuditableEntity

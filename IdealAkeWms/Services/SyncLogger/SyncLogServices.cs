@@ -25,6 +25,7 @@ public static class SyncLogServices
     public const string FaHierarchy = "FaHierarchy"; // Mehrstufiger FA-Struktur-/Stuecklisten-Import (IDEAL) aus Sage-Views
     public const string HierarchieUmstellung = "HierarchieUmstellung"; // Audit: Master-Einwegtor umgelegt / Schreibversuch abgelehnt (Teil 7)
     public const string FaMaterialization = "FaMaterialization"; // Struktur -> ProductionOrders (Teil 7 Etappe C)
+    public const string FaWorkStepStructureDetection = "FaWorkStepStructureDetection"; // IDEAL: Arbeitsgaenge aus FaHierarchyNode.Arbeitsschritte (v1.41.0)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -41,6 +42,7 @@ public static class SyncLogServices
         EnaioDms, Holiday, CoatingDetection, FaWorkStepDetection,
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
+        FaWorkStepStructureDetection,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };
