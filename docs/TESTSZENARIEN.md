@@ -8270,5 +8270,73 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheck
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75)*
+## TS-76 — IDEAL: FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0)
+
+**Bezug:** Spec `2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec`.
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Standort IDEAL: Master `ProduktionsauftragHierarchisch` = true, FA-Struktur importiert und
+  materialisiert (Sub-FAs als `ProductionOrder`-Zeilen vorhanden).
+- Toggle `Sync:FaWorkStepStructureDetectionEnabled` = true (außer TS-76.7/76.8).
+- Arbeitsgang-Katalog (`/WorkSteps`): mindestens ein Eintrag mit `Code` = einem real vorkommenden
+  Arbeitsschritt-Kürzel (z. B. `KA`), plus für TS-76.4 ein Kürzel **ohne** passenden Katalogeintrag.
+- Zugriff auf das Aktivitäts-Protokoll (SyncLog, Dienst `FaWorkStepStructureDetection`) und den
+  Windows-Service-Log für die Sammelmeldung.
+
+**Automatisiert abgedeckt:** `FaWorkStepStructureDetectionServiceTests` (14 Fälle, InMemory) — Grundfall
+Source=Struktur (AK 3), Audit-Autor `FaWorkStepStructureDetection` (AK 10), Code-Match
+case-insensitiv/getrimmt, **DirectChildren-Gegenprobe** Enkel-Token landet beim Elternteil, nicht beim
+Großvater (AK 5), Nur-hinzufügen bei `IsRemoved` und bei aktiver Zeile (AK 4), Match exakt über `Code`
+nicht `SearchString` (AK 6), unbekanntes Token gemeldet+gezählt nicht angelegt (AK 7/12), abgeschlossener
+Auftrag (`IsDone`/`IsDonePicking`) ohne Zeile (AK 9), fehlende Materialisierung ohne Fehler (AK 8),
+DryRun zählt ohne Schreiben, SubFA==0-Blatt ist kein eigener Auftrag, S1-Zustand meldet nur bei
+Mengenänderung. Der Master-/Toggle-Gate (AK 1/2) sitzt im `SyncWorker`; der echte Datenlauf am befüllten
+IDEAL-System ist **(Manual-UAT)**, unten gekennzeichnet.
+
+- **TS-76.1 — Grundfall (AK 3). (Manual-UAT)** Vorbedingung: Katalog enthält `Code = "KA"`; ein
+  materialisierter Sub-FA trägt `KA` in `Arbeitsschritte` auf seiner eigenen Zeile.
+  Schritte: Sync-Lauf abwarten/auslösen. Erwartung: genau **eine** neue `FaWorkStep`-Zeile mit
+  `Source = "Struktur"` für diesen Sub-FA und den `KA`-Arbeitsgang; sichtbar in FA-Arbeitsliste/Leitstand.
+- **TS-76.2 — DirectChildren-Gegenprobe (AK 5). (Manual-UAT)** Sub-FA X → direktes Kind Y (selbst
+  Sub-FA) → Enkel Z mit Token `SÄ`, das **nur** auf Z steht. Erwartung: `SÄ` erscheint als Arbeitsgang
+  bei **Y** (Y-Scope = Y-Zeile + direkte Kinder inkl. Z), **nicht** bei X (X-Scope = X-Zeile + direkte
+  Kinder, enthält Y-Zeile, aber nicht Z). *Automatisiert gespiegelt.*
+- **TS-76.3 — Nur-hinzufügen / manuell entfernt (AK 4).** Ein `FaWorkStep` mit `IsRemoved = true` für
+  (Sub-FA, Arbeitsgang) existiert bereits. Sync-Lauf, Token weiterhin in der Struktur. Erwartung: keine
+  neue Zeile, die entfernte Zeile bleibt `IsRemoved = true`. *Automatisiert abgedeckt.*
+- **TS-76.4 — Unbekanntes Token: Meldung, kein Insert (AK 7, AK 12). (Manual-UAT für die Mail)**
+  Struktur enthält ein Token ohne passenden Katalogeintrag. Zwei aufeinanderfolgende Läufe mit
+  identischer unbekannter Token-Menge. Erwartung: kein `FaWorkStep` für dieses Token; SyncLog zeigt die
+  Sammelmeldung (Token-Liste + Anzahl betroffener Aufträge) bei **beiden** Läufen; die Sammelmail geht
+  (bei `ErrorNotification:Enabled`) nur beim **ersten** raus. Negativfall: ein zusätzliches unbekanntes
+  Token im dritten Lauf → erneute Mail. *Insert-Verhinderung + Counts automatisiert; Mail-Gate =
+  S1-Zustand automatisiert; realer Mailversand Manual-UAT.*
+- **TS-76.5 — Abgeschlossener Auftrag (AK 9).** Sub-FA mit `IsDone = true` (bzw.
+  `PickingStatus.IsDonePicking`) und bekanntem Token. Erwartung: keine neue Zeile. *Automatisiert abgedeckt.*
+- **TS-76.6 — Fehlende Materialisierung (AK 8).** `FaHierarchyNode`-Sub-FA existiert, aber noch kein
+  `ProductionOrder`. Erwartung: kein Fehler, Sub-FA ausgelassen; nach nächster Materialisierung +
+  Arbeitsgang-Erkennung erscheint der Arbeitsgang. *Automatisiert abgedeckt.*
+- **TS-76.7 — AKE-Flachmodus-Regression (AK 1).** Master `false`. Erwartung: AKE-Heuristik unverändert
+  (`FaWorkStepDetectionService` wie bisher), **kein** SyncLog-Eintrag `FaWorkStepStructureDetection`.
+  *Gate im SyncWorker; Manual-UAT/Sicht am Protokoll.*
+- **TS-76.8 — Zwischenzustand (AK 2).** Master `true`, `Sync:FaWorkStepStructureDetectionEnabled = false`.
+  Erwartung: weder AKE-Heuristik (Klasse-D-Gate) noch Struktur-Service erzeugen `FaWorkStep`-Zeilen; kein
+  Fehler. *Gate im SyncWorker.*
+- **TS-76.9 — Matching exakt statt heuristisch (AK 6).** Ein Arbeitsgang mit `Code = "XY"` und einem
+  `SearchString`, der zufällig ein IDEAL-Token als Teilstring enthält. Erwartung: **kein** Treffer über
+  den `SearchString` — nur ein Arbeitsgang mit exakt passendem `Code` erzeugt eine Zeile.
+  *Automatisiert abgedeckt.*
+- **TS-76.10 — Umlaut-Kürzel zeichengleich (H6). (Manual-UAT bei der Katalogpflege)** Ein Token `SÄ`
+  braucht einen Katalogeintrag mit `Code = "SÄ"` (nicht `SAE`). Erwartung: nur der zeichengleiche
+  `Code` trifft; ein `SAE`-Eintrag lässt `SÄ` weiter „unbekannt" gemeldet (nicht still verschluckt).
+
+**Betriebshinweis (H5):** Der „zuletzt gemeldete Kürzel-Stand" liegt im Speicher (Singleton) — nach jedem
+Dienst-Neustart geht im Fenster zwischen Deploy und Katalogpflege die Sammelmail einmal erneut raus, auch
+ohne echte Mengenänderung. Bekannt und akzeptiert.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
