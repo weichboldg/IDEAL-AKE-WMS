@@ -15,8 +15,15 @@ ersetzt: "[[2026-08-20-wiedereinstieg-ideal]]"
 ## Wo liegt was
 
 - **Worktree (Zweig-Inhalt, Code):** `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
-  Branch `feature/2026-08-07-ideal-teile-1-5`, **HEAD `7fa71c1`**. Sauber bis auf `CLAUDE.md`
+  Branch `feature/2026-08-07-ideal-teile-1-5`, **HEAD `716a676`**. Sauber bis auf `CLAUDE.md`
   (unstaged — der `ponytail`-Abschnitt, den du eingefügt hast; harmlos, überlebt den Neustart).
+
+> [!note] Nachtrag 2026-09-16 — Hilfeseite gepflegt (Commit `716a676`)
+> Doku-Lücke geschlossen: **PDF-Download (v1.39)** und **Matchcode am Artikel (v1.40)** standen nur
+> im Changelog, nicht als konkreter Hilfe-Eintrag. Beide jetzt als `dt/dd` in `Views/Help/Index.cshtml`
+> (bestehendes Bootstrap-Muster, reine Texte, kein Funktions-/Layout-Eingriff). Build Web grün, 0 Fehler.
+> Status-Hinweis: reine Hilfe-Texte, **kein** re-QA-Zwang wie bei Logik-Fixes — aber der Bündel-HEAD ist
+> jetzt `716a676` statt `7fa71c1`. Nichts gemerged/gepusht.
 - **Hauptcheckout (Brain):** `C:\Git\IDEAL-AKE-WMS`, `main` **HEAD `c7f69d3`**, **26 Commits vor
   `origin/main`** (reine Brain-Historie v1.38 → v1.40). Uncommittet und bewusst so gelassen:
   `.claude/settings.json` + `CLAUDE.md` (Plugin-Install/ponytail), `.obsidian/graph.json` (Zoom-Rauschen).
