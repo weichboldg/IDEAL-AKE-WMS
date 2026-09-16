@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: FaWorkSteps explizit aus FaHierarchyNode.Arbeitsschritte ableiten (Struktur statt Heuristik)"
 slug: 2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-09-16
-updated: 2026-09-16
+updated: 2026-09-18
 source_backlog: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte]]"
 depends_on: "[[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]]"
 task: ""
@@ -20,17 +20,18 @@ affected_code:
   - "IDEALAKEWMSService/Program.cs — DI-Registrierung IFaWorkStepStructureDetectionService -> FaWorkStepStructureDetectionService (Scoped) + IUnknownWorkStepTokenState -> UnknownWorkStepTokenState (Singleton), analog bestehender Zeile 71 (IFaWorkStepDetectionService) bzw. der IUnknownWorkplaceState-Registrierung"
   - "docs/TESTSZENARIEN.md (neues Kapitel, TS-76 — naechste freie Nummer im Worktree verifiziert, Stand TS-75)"
   - "secondbrain/tests/testszenarien-index.md"
-open_questions:
-  - "Definitive Token-Menge gegen die massgebliche Sage-View (nicht die Rohspalten-Naeherung) + fachlicher Abgleich Token -> WorkStep-Code/Name je Token (KA/LS/AV/EG/PG/SW/SÄ/SL/PL/EK/BR/SWL/VI)."
+open_questions: []
+beantwortete_rueckfragen:
+  - "Definitive Token-Menge gegen die massgebliche Sage-View (nicht die Rohspalten-Naeherung) + fachlicher Abgleich Token -> WorkStep-Code/Name je Token (KA/LS/AV/EG/PG/SW/SÄ/SL/PL/EK/BR/SWL/VI). ERLEDIGT: IDEAL sucht nicht, die View liefert die Arbeitsschritte fertig mit - der SearchString-Abgleich ist der AKE-Mechanismus und hat im IDEAL-Pfad keine Aufgabe. Unbekannte Token werden gemeldet, nicht abgeglichen; AKE-Codes werden ignoriert."
 epic: false
 etappen: []
 deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Eigener FaWorkStepStructureDetectionService (kein parametrisierter Bestandsservice) - fuenf gemessene Unterschiede, kein Eingriff in den live laufenden AKE-Pfad. Token-Katalog blockiert nicht: IDEAL sucht nicht, die View liefert; unbekannte Token werden gemeldet, AKE-Codes ignoriert."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-18
 # Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
@@ -129,6 +130,12 @@ Design A).
    (analog zu den 5 bestehenden AKE-Codes VA/VE/VK/VL/VT) — ein zweites Freitext-Suchfeld waere fuer
    einen exakten Struktur-Wert unnoetige Komplexitaet (YAGNI). Vergleich case-insensitiv + getrimmt
    (analog dem Werkbank-Name-Match, ADR 0014/S2).
+   **Ein Katalog, additiv erweitert:** Es bleibt **eine** gemeinsame `WorkSteps`-Tabelle. Die fuenf
+   bestehenden AKE-Codes (`VA`/`VE`/`VK`/`VL`/`VT`, mit ihren beschreibenden `SearchString`-Werten fuer
+   die AKE-`Contains`-Heuristik) bleiben unveraendert; die IDEAL-Operations-Codes werden **zusaetzlich**
+   angelegt (Rueckfrage 1). Kein zweiter Katalog, und die AKE-Codes werden **nicht** fuer IDEAL
+   umgedeutet — `SearchString` ist und bleibt ausschliesslich das AKE-Heuristik-Feld, der IDEAL-Pfad
+   liest es nicht (die Struktur liefert die Arbeitsschritte explizit mit).
 
 **Reale Token-Menge — Naeherungswert, NICHT die massgebliche Quelle (offene Rueckfrage 1):**
 
@@ -206,7 +213,7 @@ Abhaengigkeit ist zwingend: Ohne materialisierte `ProductionOrder`-Zeilen gibt e
 
 ```
 if (await ServiceSettings.GetBoolSafeAsync(_configuration, "ProduktionsauftragHierarchisch", false, stoppingToken)
-    && await ServiceSettings.GetBoolAsync(_configuration, "Sync:FaWorkStepStructureDetectionEnabled", false, stoppingToken))
+    && await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:FaWorkStepStructureDetectionEnabled", false, stoppingToken))
 {
     await RunResilientAsync("FA-Arbeitsgang-Erkennung (Struktur)", async () =>
     {
@@ -227,6 +234,14 @@ schalten und die Materialisierung zu beobachten, **bevor** die Arbeitsgang-Erken
 das bestehende Muster von `Sync:BomCacheEnabled` + `Sync:FaWorkStepDetectionEnabled` (zwei
 unabhaengige Schalter fuer zwei logisch aufeinanderfolgende Schritte), hier auf die hierarchische
 Seite gespiegelt.
+
+**Beide Gates ueber `GetBoolSafeAsync`** — bewusst dieselbe (fehlertolerante) Variante wie der
+unmittelbar vorausgehende FA-Materialisierung-Block, der `ProduktionsauftragHierarchisch` ebenfalls
+mit `GetBoolSafeAsync` liest (verifiziert Worktree `SyncWorker.cs:357`). So wirft ein transienter
+DB-Fehler oder ein noch nicht geseedeter neuer Key den SyncWorker nicht, sondern faellt auf den
+Default (`false`) zurueck. (Der benachbarte AKE-BomCache-/`FaWorkStepDetection`-Block nutzt die
+werfende `GetBoolAsync`-Variante; die neue hierarchische Kette folgt aber der Konvention ihres
+direkten Nachbarn, nicht der AKE-Kette.)
 
 ### D — `DetectAsync`-Ablauf (Kern der Ableitung)
 
@@ -384,11 +399,12 @@ aktuellen Stand):
   enthaelt einen Eintrag mit `Code = "KA"`; ein materialisierter Sub-FA hat `Arbeitsschritte` mit dem
   Token `KA` auf seiner eigenen Zeile. Schritte: Sync-Lauf abwarten/ausloesen. Erwartung: genau eine
   neue `FaWorkStep`-Zeile mit `Source = "Struktur"` fuer diesen Sub-FA und den `KA`-`WorkStep`.
-- **TS-76.2 DirectChildren-Gegenprobe (AK 5).** Vorbedingung: Sub-FA X hat ein direktes Kind Y (Blatt,
-  `SubFA = 0`) mit Token `LS`, und Y hat wiederum (fachlich unmoeglich bei einem Blatt, daher stattdessen:
-  ein Kind Y, das selbst Sub-FA ist, mit einem eigenen Kind Z, das ein Token `SÄ` traegt, das NUR dort
-  vorkommt). Erwartung: `SÄ` erscheint als Arbeitsgang bei **Y** (Y’s DirectChildren-Scope enthaelt Z),
-  **nicht** bei X (X’s DirectChildren-Scope enthaelt nur Y’s eigene Zeile, nicht Z).
+- **TS-76.2 DirectChildren-Gegenprobe (AK 5).** Vorbedingung: Sub-FA X hat ein direktes Kind Y, das
+  **selbst** ein Sub-FA ist (`SubFA != 0`); Y hat ein eigenes Kind (Enkel von X) Z, das ein Token `SÄ`
+  traegt, das **nur** auf Z vorkommt (nicht auf X, nicht auf Y). Schritte: Sync-Lauf. Erwartung: `SÄ`
+  erscheint als Arbeitsgang bei **Y** (Y’s DirectChildren-Scope = Y-Zeile + direkte Kinder, enthaelt Z),
+  **nicht** bei X (X’s DirectChildren-Scope = X-Zeile + direkte Kinder, enthaelt Y’s eigene Zeile, aber
+  **nicht** Z).
 - **TS-76.3 Nur-hinzufuegen / manuell entfernt (AK 4).** Vorbedingung: ein `FaWorkStep` mit
   `IsRemoved = true` fuer (Sub-FA, WorkStep) existiert bereits. Schritte: Sync-Lauf, Token weiterhin in
   der Struktur vorhanden. Erwartung: keine neue Zeile, die entfernte Zeile bleibt unveraendert
@@ -548,6 +564,87 @@ dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publ
    Fachbereich, nicht der Lauf.
    Die Regel „MELDEN statt anlegen" bleibt davon unberuehrt und gilt unveraendert.
 
+## KORREKTUR meiner Antwort 1 (2026-09-18) — beide Blocker treffen zu
+
+Die Pruefung hat zwei Praemissen meiner Antwort widerlegt, und zwar messbar. Beide Korrekturen
+uebernehme ich ohne Einschraenkung.
+
+### Zu B1 — „Artefakt der falschen Quelle" war falsch. Der Nicht-Treffer ist echt.
+
+Mein Schluss war: Falsche Quellspalte → falsche Token → deshalb kein Match. Der Reviewer zeigt,
+dass das **unabhaengig von der Quelle** nicht aufgeht: Der `WorkSteps`-Katalog enthaelt heute nur
+**fuenf AKE-Vorfertigungs-Codes** (`VA/VE/VK/VL/VT`) mit **beschreibenden** `SearchString`s
+(„Verdampfer", „Luefter"). Kurze Operations-Kuerzel wie `KA`/`LS`/`AV` koennen dagegen **nie**
+matchen, gleich aus welcher Spalte sie stammen.
+**Der Katalog fehlt schlicht** — das ist der Befund, und er ist fachlich, nicht technisch.
+
+**Und meine Abfrage war nicht ausfuehrbar:** `FaHierarchyNode` existiert in keiner Datenbank, die
+der Lauf erreicht. Die Tabelle liegt auf der **befuellten IDEAL-Testinstanz**. Ich habe eine
+Messung vorgeschlagen, die nur **der Mensch** ausfuehren kann — das gehoert benannt, nicht dem Lauf
+als Aufgabe gegeben.
+
+**Damit verbleibt Rueckfrage 1 offen, in zwei Teilen:**
+- **(a)** Token-Liste per `STRING_SPLIT(Arbeitsschritte, ' ')` gegen `FaHierarchyNode` auf der
+  befuellten Instanz erheben — **durch den Menschen**.
+- **(b)** Je Token festlegen, welcher `WorkStep`-`Code`/`Name` im Katalog angelegt wird —
+  **fachliche Entscheidung**, nicht ableitbar.
+
+### Zu B2 — „nur das Trennzeichen unterscheidet sich" war falsch.
+
+Die Messung nennt **fuenf** Unterschiede, nicht einen: Quelle, Match-Mechanismus
+(Contains-Heuristik vs. exakt), Match-Feld (`SearchString` vs. `Code`), Scope (Artikel vs.
+`DirectChildren`) und Zielaufloesung (`ArticleNumber` vs. `SubOrderNumber`). Ein
+Trennzeichen-Parameter deckt davon **eine** ab.
+
+**Damit stuetzt die Messung die urspruengliche Spec-Entscheidung: eigener Service.**
+Mein ponytail-Einwand („Sprosse 2 — gibt es das schon?") war richtig gestellt, aber falsch
+beantwortet: Die Leiter verlangt, **vorher den Code zu lesen**. Haette ich das getan, waeren die
+fuenf Unterschiede sichtbar gewesen. *Faul in der Loesung, nie im Lesen* — genau die Regel, die ich
+selbst in `CLAUDE.md` geschrieben habe.
+
+**ENTSCHEIDUNG: eigener `FaWorkStepStructureDetectionService`, wie in der Spec entworfen.**
+Der parametrisierte Weg faende den **live laufenden AKE-Pfad** an — fuenf Verzweigungen in einem
+produktiv genutzten Dienst, fuer eine Ersparnis, die es nicht gibt. Das Regressionsrisiko waere
+real, der Gewinn eingebildet.
+
+### Zu den drei SOLLTE-Punkten und den Hinweisen — uebernommen.
+
+Katalog-Formulierung praezisieren, Gate-Helfer konsistent als `…SafeAsync`, TS-76.2
+widerspruchsfrei neu fassen; dazu die Hinweise (Umlaut-Token `SÄ`, Doppel-Kontext-Annahme,
+Manual-UAT-Markierung).
+
+**Die Spec bleibt vorlaeufig `Entwurf`.** — **UEBERHOLT durch den Abschnitt „AUFLOESUNG von B1"
+weiter unten (2026-09-18).** Diese Einschaetzung entstand, bevor geklaert war, dass IDEAL die
+Arbeitsschritte **geliefert bekommt** statt sie zu suchen. Massgeblich ist die Aufloesung, nicht
+dieser Absatz.
+
+## AUFLOESUNG von B1 (2026-09-18) — IDEAL SUCHT NICHT, IDEAL BEKOMMT GELIEFERT
+
+**Der Kern, der beiden Blockern zugrunde lag:** Bei **AKE** muss die Anwendung **raten** — sie
+durchsucht Bezeichnungen per `SearchString`-Heuristik („Verdampfer", „Luefter"), weil Sage dort
+keine Arbeitsschritte mitliefert. Bei **IDEAL liefert die View die Arbeitsschritte fertig mit.**
+Es ist nichts zu suchen und nichts zu erraten.
+
+**Damit war der Abgleich gegen `SearchString` von Anfang an die falsche Vorstellung** — er ist der
+AKE-Mechanismus und hat in IDEAL keine Aufgabe. Der Befund „0 von 13 matchen den Katalog" misst
+etwas, das im IDEAL-Pfad gar nicht stattfindet.
+
+**Folgen:**
+- **B1 ist aufgeloest und blockiert nicht.** Die Token-Abfrage ist keine Vorbedingung mehr;
+  sie dient hoechstens der Bestaetigung der Liste.
+- **B2 wird zusaetzlich gestuetzt:** Wenn IDEAL gar nicht sucht, unterscheiden sich die beiden
+  Wege noch deutlicher als die fuenf gemessenen Dimensionen nahelegen. **Eigener Service bleibt
+  richtig** — unveraendert.
+- **Kollision mit den AKE-Codes:** ausdruecklich **kein Thema**. `VA/VE/VK/VL/VT` bleiben
+  unberuehrt; die IDEAL-Token sind davon verschieden. Beim Matching der IDEAL-Seite werden
+  AKE-Codes **ignoriert**, nicht abgeglichen.
+- **Was bleibt, ist reines Anlegen:** Die Token brauchen `WorkStep`-Eintraege mit Klartextnamen,
+  damit die Pflicht-Fremdschluesselzuordnung greift. Das ist Stammdatenpflege, keine
+  Zuordnungsarbeit — und es faellt unter die bestaetigte Regel **MELDEN statt automatisch anlegen**:
+  Der Sync meldet unbekannte Token als Sammelmeldung, ein Mensch pflegt sie einmal nach.
+
+**Rueckfrage 1 ist damit geschlossen.** Die Spec ist freigabereif.
+
 ## Kritische Pruefung (2026-09-16)
 
 > Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf. Wo moeglich habe ich Behauptungen an der
@@ -643,3 +740,33 @@ markiert sein, damit der qa-agent nicht auf gruene Automated-Tests als Beweis ve
 verwandelt (B1: maßgebliche Token-Messung nur auf der befuellten Instanz moeglich + Katalog-Zuordnung;
 B2: Architektur-Entscheidung eigener vs. parametrisierter Service auf Basis der gemessenen fuenf
 Unterschiede bewusst bestaetigen).
+
+### Nachtrag — zweite Durchsicht (2026-09-16)
+
+Zwei Aenderungen gegenueber der ersten Durchsicht oben:
+
+**B2 geschlossen (durch Aussage des Menschen).** In der zweiten `/review`-Runde hat der Mensch
+ausdruecklich bestaetigt: „Der ganze `SearchString`-Abgleich ist der AKE-Mechanismus und hat im
+IDEAL-Pfad nichts zu suchen, weil die View die Arbeitsschritte mitliefert." Damit ist die
+Prämisse „nur das Trennzeichen unterscheidet sich" verworfen und die Spec-Entscheidung **eigener
+Service mit Exakt-`Code`-Matching** bestaetigt. B2 ist **kein** offener Blocker mehr. (Formaler
+Vollzug erst mit `freigabe_entscheidung`/Freigabe-Antworten durch den Menschen — der Review-Abschnitt
+darf dort nicht hineinschreiben.)
+
+**S1–S3 in den Rumpf gezogen** (waren zuvor nur im Pruef-Abschnitt): S1 → „Ein Katalog, additiv
+erweitert" in Fachliche Anforderungen 4; S2 → beide Gates in Design C auf `GetBoolSafeAsync`
+vereinheitlicht (Konvention des Nachbar-Blocks `SyncWorker.cs:357`, verifiziert) + Begruendungssatz;
+S3 → TS-76.2 widerspruchsfrei neu gefasst. Die Hinweise H1–H3 bleiben bewusst nur im Pruef-Abschnitt
+(Beobachtungen ohne Rumpf-Relevanz; H1 als moeglicher Testfall bei der Katalog-Pflege).
+
+**Zur Prozessfrage des Menschen** („nachziehen oder dem Lauf als Schritt 0 mitgeben?"): nachgezogen —
+die drei SOLLTE sind reine Spec-Klarheit, kein Implementierungsschritt. Sie gehoeren in den Rumpf,
+damit der Dev-Lauf gegen einen selbstkonsistenten Text baut und **nicht** Review-Prosa als „Schritt 0"
+neu interpretieren muss (fragil, vermischt Spec-Autorschaft mit Umsetzung). Der Dev-Lauf startet damit
+sauber bei der Umsetzung.
+
+**Revidierte Empfehlung:** **NACHBESSERUNG NOETIG — nur noch B1.** Es bleibt die eine echte
+Muss-Klaerung: die maßgebliche Token-Liste auf der befuellten `FaHierarchyNode`-Instanz erheben
+(die Abfrage ist aus keiner von hier erreichbaren DB reproduzierbar) **und** je Token den
+anzulegenden `WorkStep.Code`/`Name` festlegen. Sobald diese Liste im Freigabe-Block steht, ist die
+Spec bereit.
