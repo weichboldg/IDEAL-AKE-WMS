@@ -479,7 +479,10 @@ Familie (nach Werkbank aus `Arbeitsbereich` und Lack aus `Beschichtet`).
 > `/WorkSteps` an, naechster Lauf legt die Arbeitsgaenge an. Keine Vorab-Erhebung noetig. Dauerwissen
 > [[fallstricke]] §13 (Doppel-Kontext).
 >
-> **Status:** `InUmsetzung` → qa-agent setzt `Testbereit`. Wartet mit dem ganzen Buendel auf **Schranke 2**.
+> **Status:** `Testbereit` (qa-agent, 2026-09-16). Build 0 Fehler; Web 1391+1skip/0 Fehler,
+> Service 277/0 Fehler (+14 neu). AK 1–12 gegen den echten Diff abgeglichen, TS-76 (10 Szenarien)
+> geprueft; `testszenarien-index.md` fehlte trotz Notiz — vom qa-agent nachgetragen. Wartet mit dem
+> ganzen Buendel auf **Schranke 2**.
 
 ## Offen / nicht gemerged
 

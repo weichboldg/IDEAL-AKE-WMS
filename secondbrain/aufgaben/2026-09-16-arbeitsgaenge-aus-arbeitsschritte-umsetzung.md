@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -70,3 +70,12 @@ hierarchische Aufträge, seit dem Klasse-D-Gate v1.36.0). Dritte Struktur-Ableit
   datenabhängigen AKs (3/5/8) + Gate (1/2) + Mailversand sind Manual-UAT; der Algorithmus ist voll
   InMemory-getestet.
 - **Offen:** qa-agent (setzt `Testbereit`), dann Schranke 2 mit dem ganzen Bündel. Kein Merge/Push.
+- 2026-09-16: **qa-agent:** Build 0 Fehler; Test Web 1391+1skip/0 Fehler, Service 277/0 Fehler (genau
+  wie erwartet). AK 1–12 gegen den echten Diff abgeglichen (Tabelle im Spec-QA-Abschnitt); AK 1/2/3/5/8
+  + Mailversand korrekt als Manual-UAT markiert (H3), Rest automatisiert grün. `docs/TESTSZENARIEN.md`
+  TS-76 (10 Szenarien) geprüft — deckt AK 1–12 + H6 vollständig. **Lücke gefunden und geschlossen:**
+  `secondbrain/tests/testszenarien-index.md` hatte trotz gegenteiliger Notiz oben **keine** TS-76-Zeile
+  — vom qa-agent nachgetragen. Spec-Status → `Testbereit`, Deploy-Abschnitt finalisiert (web=true,
+  service=true, migration=false, Publish-Befehle + Re-Publish-Hinweis nach Merge), QA-Nachweis +
+  10-Punkte-Manual-Checkliste an die Spec angehängt. `feature-map.md` Statuszeile auf `Testbereit`
+  gezogen. Kein Merge/Push — wartet auf Schranke 2 mit dem ganzen Bündel.
