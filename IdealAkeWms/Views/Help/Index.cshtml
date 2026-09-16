@@ -390,6 +390,43 @@
                         Am Standort AKE aendert sich durch diese Erweiterung nichts.
                     </dd>
 
+                    <dt>IDEAL: PDF-Download der Druckdokumente (seit v1.39.0)</dt>
+                    <dd>
+                        Am Standort IDEAL (hierarchische Auftraege) gibt es in den Listen
+                        <strong>Kommissionierlisten</strong> und <strong>Beschichtungsauftrag</strong>
+                        je Haupt-FA-Gruppe einen <strong>PDF-Knopf</strong> in der Gruppen-Kopfzeile.
+                        Er erzeugt dieselbe Ansicht wie der Bildschirmdruck als PDF-Datei zum
+                        Herunterladen &mdash; zum Ablegen oder Weitergeben.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Voraussetzung:</strong> Microsoft Edge muss auf dem
+                                Web-Server installiert sein &mdash; die PDF-Erzeugung laeuft ueber
+                                einen unsichtbaren Edge-Prozess. Fehlt Edge, bleibt der PDF-Knopf
+                                ausgeblendet; der Bildschirmdruck funktioniert unveraendert.</li>
+                            <li>Dauert die Erzeugung zu lange (Standard 30 Sekunden je PDF), bricht
+                                sie ab und ein Hinweis erscheint &mdash; dann erneut versuchen oder
+                                den Bildschirmdruck nutzen.</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Matchcode am Artikel (seit v1.40.0)</dt>
+                    <dd>
+                        Jeder Artikel hat jetzt einen <strong>Matchcode</strong> (Kurzbezeichnung
+                        aus Sage). Er ist <strong>hausweit mitsuchbar</strong>: ueberall, wo bisher
+                        schon nach Artikelnummer oder Bezeichnung gesucht wurde &mdash; in
+                        <strong>Bestand</strong>, <strong>Fehlteilen</strong>,
+                        <strong>Bedarfsmeldungen</strong>, bei der <strong>FA-Fertigmeldung</strong>
+                        und im <strong>Artikelstamm</strong> (dort auch als eigene, per Zahnrad
+                        einblendbare Spalte mit Spaltenfilter).
+                        <ul class="mt-1 mb-1">
+                            <li>Die <strong>Schnellsuche-Felder</strong> (Auswahlfelder mit
+                                Vorschlagsliste) zeigen Vorschlaege erst ab <strong>3 Zeichen</strong>
+                                &mdash; das haelt die Suche ueber den grossen Artikelstamm schnell.</li>
+                            <li>Der Matchcode wird vom <strong>Artikel-Abgleich</strong> aus Sage
+                                befuellt; nach dem ersten Einspielen kann es einen Sync-Lauf dauern,
+                                bis er ueberall steht.</li>
+                        </ul>
+                    </dd>
+
                     <dt>FA-Vervollstaendigung (seit v1.13.0, umgebaut in v1.22.0)</dt>
                     <dd>
                         Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; pflegen pro Fertigungsauftrag
