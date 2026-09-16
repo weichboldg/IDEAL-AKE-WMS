@@ -52,12 +52,6 @@ Vollstaendige Vorfassung dieser Datei (alle Tabellen und Fallstricke im Original
 **Additiv schreiben:** `architektur/`, `codebase/`, `glossar/` werden ergaenzt, nie ueberschrieben.
 Neue Entscheidung = neuer ADR; ADRs werden nie umgeschrieben, nur superseded.
 
-## Skill `ponytail:ponytail` (nicht verhandelbar)
-
-**Bei jeder Aufgabe geladen und verwendet** — unabhaengig vom Aufgabentyp, ohne Ausloeser-Bedingung
-und ohne Ausnahme. Gilt gleichrangig neben Brain-first, nicht nur bei bestimmten Aenderungsarten
-(anders als z.B. `frontend-design`, das nur bei UI-Aenderungen greift).
-
 ## Skill-Workflow-Kette (verpflichtend)
 
 1. **Unklare Anforderung** → `superpowers:brainstorming`.
