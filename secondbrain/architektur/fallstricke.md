@@ -1015,3 +1015,37 @@ Matchcode nur sichtbar macht. Deshalb der Fehltreffer-Zaehler (AK 14): der erste
 die Coverage-Frage selbst. Ist die Zahl im Betrieb > 0, ist der Weg **den `Articles`-Sync zu erweitern**
 (gefertigte Artikel aufnehmen), nicht den Matchcode am Auftrag zu duplizieren — eigene Aufgabe
 ([[2026-09-15-matchcode-nachlese]]).
+
+## 13. IDEAL — FA-Arbeitsgang-Erkennung aus der Struktur (Arbeitsschritte, v1.41.0)
+
+### Dieselbe `Arbeitsschritte`-Zeile zaehlt in ZWEI Scopes — Absicht, kein Doppelzaehl-Fehler
+Die Arbeitsgang-Ableitung (`FaWorkStepStructureDetectionService`) sammelt je materialisiertem Sub-FA die
+Token aus dem **DirectChildren-Scope** = eigene Zeile + direkte Kinder (`VaterFA = SubFA`) — dasselbe
+Muster wie die BOM-Bridge (ADR 0013, Design D). Ist ein direktes Kind **selbst** ein materialisierter
+Sub-FA, traegt dessen `Arbeitsschritte`-Zeile in **zwei** Kontexten bei: einmal als Kind im Scope des
+**Elternteils** (Arbeitsgaenge zur Fertigung/zum Einbau dieser Baugruppen-Position) und einmal als
+**eigene** Zeile bei seiner eigenen Verarbeitung (Arbeitsgaenge seines eigenen Fertigungsauftrags).
+**Warum kein Fehler:** dieselbe Sage-Spalte beschreibt an dieser Stelle zwei verschiedene, beide gueltige
+fachliche Sachverhalte (Position im Elternkontext vs. eigener Auftrag) — die mechanische Konsequenz der
+bestaetigten DirectChildren-Regel. Ein Enkel-Token dagegen landet **nur** beim Elternteil, **nicht** beim
+Grossvater (TS-76.2, unit-getestet). Beim ersten echten Datenlauf mit dem Fachbereich gegenpruefen, ob der
+Doppel-Kontext gewollt ist — nicht erst im Betrieb auffallen lassen.
+
+### Das Token IST der Code — `SearchString` ist ausschliesslich der AKE-Mechanismus
+AKE muss raten (`FaWorkStepDetectionService`: `SearchString.Contains` ueber Bezeichnungen). IDEAL bekommt
+die Arbeitsschritte je Position **geliefert** — der Abgleich ist **exakt** ueber `WorkStep.Code`
+(case-insensitiv/getrimmt), nie ueber `SearchString`. Der Befund „0 von 13 Token matchen den Katalog" beim
+Spec-Schreiben war **kein** Quell-Artefakt, sondern real: der Katalog enthielt nur die fuenf AKE-Codes
+(`VA/VE/VK/VL/VT`) mit beschreibenden SearchStrings — kurze Operations-Kuerzel wie `KA`/`LS` koennen dort
+**nie** matchen. **Konsequenz fuer den Betrieb:** der Katalog ist **vor** dem Nutzen zu pflegen
+(Zwei-Lauf-Ablauf), aber **nach** dem Deploy — der erste Lauf meldet die real vorkommenden Kuerzel
+(melden statt anlegen, ADR 0014), ein Mensch legt je Kuerzel `Code = Token` an. Umlaut zeichengleich
+(`Code = "SÄ"`, nicht `SAE`), sonst bleibt das Token dauerhaft „unbekannt" — aber **gemeldet**, nicht
+still verschluckt.
+
+### Melde-Zustand `IUnknownWorkStepTokenState` ist In-Memory — Neustart meldet einmal erneut
+Wie `IUnknownWorkplaceState` (Fallstrick-Klasse S1) ist die Singleton bewusst nur im Speicher: die
+Sammelmail geht nur bei **Aenderung der Token-Menge** raus, aber nach jedem Dienst-Neustart ist der
+„zuletzt gemeldete Stand" leer → im Fenster zwischen Deploy und Katalogpflege geht die Mail einmal erneut
+raus, auch ohne echte Mengenaenderung. Bewusst akzeptiert (einmal zu viel ist harmlos, ein
+persistenter Zustand waere Overkill).

@@ -100,6 +100,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**); **beide** Einstiege (`SyncBomCacheAsync`, `SyncSpecificArticleNumbersAsync` aus `SageImportService`) | `Sync:BomCacheEnabled` + **Klasse-D-Gate** (Master `true` → Skip, v1.36.0) |
 | `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
 | `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
+| `FaWorkStepStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → `FaWorkSteps` (nur-hinzufuegend; IDEAL: **exakt** ueber `WorkStep.Code`, DirectChildren-Scope; unbekannte Token gemeldet, nicht angelegt) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:FaWorkStepStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) |
 
 **Klasse-D-Gate (BOM-Bridge, v1.36.0):** `Common/IHierarchicalModeReader.cs` kapselt den DB-first-Read
 `ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; die drei Dienste (vier Einstiege)
@@ -173,6 +174,7 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 | `Sync:FaZusatzinfoAutoDoneMaxPerRun` | Int | `100` | **Cap**: mehr Auto-Erledigt-Kandidaten → kein Setzen + Warn + Fehlermail |
 | `Sync:CoatingDetectionEnabled` | Bool | `false` | Lackierteil-Erkennung als eigener Job |
 | `Sync:FaWorkStepDetectionEnabled` | Bool | `false` | FA-Arbeitsgang-Erkennung aus dem BOM-Cache |
+| `Sync:FaWorkStepStructureDetectionEnabled` | Bool | `false` | IDEAL: FA-Arbeitsgang-Erkennung aus der Struktur (nach FA-Materialisierung, nur bei Master `ProduktionsauftragHierarchisch`) |
 
 ### BOM-Cache
 
@@ -272,7 +274,15 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
   Auto-Erledigt-Sperre, AK 11).
 
 **SyncLog-Services (`SyncLogServices`):** neu `HierarchieUmstellung` (Audit Master-Flip/Ablehnung),
-`FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`).
+`FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`),
+`FaWorkStepStructureDetection` (v1.41.0, Counts `neu/uebersprungen/arbeitsschritt_unbekannt/arbeitsschritt_unbekannt_auftraege`).
+
+**FA-Arbeitsgang-Erkennung Struktur (v1.41.0, [[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]):**
+- `FaWorkStepStructureDetectionService` — eigener Service (kein parametrisierter Bestandsservice; fuenf
+  gemessene Unterschiede zur AKE-Heuristik), leitet `FaWorkSteps` aus `FaHierarchyNode.Arbeitsschritte`
+  ab (DirectChildren-Scope, exakt ueber `WorkStep.Code`). Kein interner Gate — Doppel-Gate im `SyncWorker`
+  (nach FA-Materialisierung). Unbekannte Token: melden (S1-Sammelmail via neuer Singleton
+  `IUnknownWorkStepTokenState`), nicht anlegen.
 
 **Neue ServiceSettings-Keys:** `ProduktionsauftragHierarchisch` (Bool, Default false, Kategorie
 FA-Hierarchie — **Einwegtor**, guard-geschuetzt, in `/ServiceSettings` read-only) +

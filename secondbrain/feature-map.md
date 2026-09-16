@@ -458,6 +458,29 @@ Deploy: Web + Service + Migration. OSEON/BOM-Komponentenebene bewusst aussen vor
 > Freigabe-Entscheidung „melden statt still" ausgeraeumt (AK 2 + AK 14). Gemessene Spec-Korrekturen
 > (A1 Postfilter, A6 keine Articles-ViewConfig) in der Umsetzungsnotiz; Dauerwissen [[fallstricke]] §12.
 
+### FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, selber Branch)
+
+Spec [[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]], Umsetzung
+[[2026-09-16-arbeitsgaenge-aus-arbeitsschritte-umsetzung]], Changelog
+[[2026-09-16-v1-41-0-ideal-fa-arbeitsgang-struktur]]. **Voraussetzung fuer Teil-8-UAT** (seit dem
+Klasse-D-Gate v1.36.0 bekamen IDEAL-Auftraege gar keine `FaWorkSteps`). Dritte Struktur-Ableitung der
+Familie (nach Werkbank aus `Arbeitsbereich` und Lack aus `Beschichtet`).
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Eigener `FaWorkStepStructureDetectionService` (kein parametrisierter Bestandsservice) | **erledigt** | `IDEALAKEWMSService/Services/FaWorkStepStructureDetectionService.cs` |
+| DirectChildren-Scope + exakt `WorkStep.Code`-Match + Nur-hinzufuegen | **erledigt** | `DetectAsync` |
+| Unbekannte Token melden (S1-Sammelmail), nicht anlegen | **erledigt** | `IUnknownWorkStepTokenState` (eigene Singleton) |
+| `FaWorkStepSources.Struktur`, Service-Key, SyncLog, Doppel-Gate im SyncWorker, 2× DI | **erledigt** | `FaWorkStep.cs`, `ServiceSettingDefinitions.cs`, `SyncLogServices.cs`, `SyncWorker.cs`, `Program.cs` |
+| 14 Unit-Tests + v1.41.0 + Changelog/Hilfe/README/TS-76 | **erledigt** | `FaWorkStepStructureDetectionServiceTests`, `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+
+> **Deploy:** Web + Service, **keine Migration**. Zwei-Lauf-Ablauf (S4): **Deploy zuerst**, erster
+> DryRun-Lauf meldet die Kuerzel, Mensch legt je Kuerzel einen `WorkStep` mit `Code = Token` auf
+> `/WorkSteps` an, naechster Lauf legt die Arbeitsgaenge an. Keine Vorab-Erhebung noetig. Dauerwissen
+> [[fallstricke]] §13 (Doppel-Kontext).
+>
+> **Status:** `InUmsetzung` → qa-agent setzt `Testbereit`. Wartet mit dem ganzen Buendel auf **Schranke 2**.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
