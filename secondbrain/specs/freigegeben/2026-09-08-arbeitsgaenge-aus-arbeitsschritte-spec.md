@@ -453,16 +453,20 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (neue TS-76
 
 **Zwei-Lauf-Ablauf (PFLICHT, aus dem Fremdschluessel-Befund, Fachliche Anforderung 3/ADR 0014-Analogie):**
 
-1. **Vor dem Deploy — Rueckfrage 1 beantworten** und die passenden `WorkStep`-Katalogeintraege
-   (`Code` je Token, `Name`, optional `SortOrder`) **auf der bestehenden `/WorkSteps`-Seite** anlegen.
-   Analog zur Werkbank-Empfehlung in ADR 0014 („die fuenf Arbeitsplaetze vor dem Deploy anlegen"):
-   sind die Katalogeintraege vor dem ersten scharfen Lauf vorhanden, greift die Anlage sofort und der
-   Zwei-Lauf-Fall tritt praktisch nicht ein.
-2. **Deploy** (Web + Service, siehe oben).
-3. **`Sync:FaWorkStepStructureDetectionEnabled` zunaechst mit `WorkerSettings:SyncDryRun = true`
-   testen** (bestehender globaler DryRun-Schalter) — SyncLog/Sammelmeldung pruefen, bevor scharf
-   geschaltet wird (kein neuer Mechanismus, nutzt den bestehenden DryRun-Pfad des `SyncWorker`).
-4. Danach `DryRun` deaktivieren — ab hier greift die Nur-hinzufuegen-Semantik dauerhaft.
+1. **Deploy zuerst** (Web + Service, siehe oben) — die Token-Liste muss **nicht** vorab erhoben werden
+   (B1-Aufloesung: IDEAL sucht nicht, die Struktur liefert die Arbeitsschritte; das Token **ist** der
+   Code, nur der Klartextname ist Stammdatenpflege).
+2. **`Sync:FaWorkStepStructureDetectionEnabled` zunaechst mit `WorkerSettings:SyncDryRun = true`
+   testen** (bestehender globaler DryRun-Schalter). Der erste Lauf **meldet** die real vorkommenden
+   Kuerzel als Sammelmeldung im SyncLog (melden statt anlegen, ADR 0014).
+3. **Je gemeldetem Kuerzel** einen `WorkStep` mit `Code = Token` + Klartext-`Name` (optional `SortOrder`)
+   **auf der bestehenden `/WorkSteps`-Seite** anlegen — Umlaut zeichengleich (`SÄ`, nicht `SAE`, H6).
+4. `DryRun` deaktivieren — der naechste Lauf legt die `FaWorkStep`-Zeilen an; ab hier greift die
+   Nur-hinzufuegen-Semantik dauerhaft.
+
+   *Abkuerzung, keine Vorbedingung:* Ist die Kuerzel-Liste schon bekannt, kann der Katalog vorab
+   gefuellt werden — dann greift die Anlage im ersten scharfen Lauf sofort. Der Zwei-Lauf-Ablauf ist
+   der **entworfene Weg** (Deploy → melden → einmal pflegen → anlegen), kein Notbehelf.
 
 **Ablauf (Mensch): Publish aus dem Worktree → Testsystem → testen → Merge (Schranke 2).**
 

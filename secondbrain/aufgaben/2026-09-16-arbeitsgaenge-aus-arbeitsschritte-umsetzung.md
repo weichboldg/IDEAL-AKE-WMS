@@ -55,3 +55,18 @@ hierarchische Aufträge, seit dem Klasse-D-Gate v1.36.0). Dritte Struktur-Ableit
 ## Arbeitsstand
 
 - 2026-09-16: Spec Freigegeben → InUmsetzung. Referenzcode gelesen, Umsetzung startet im Bündel-Worktree.
+- 2026-09-16: **Umsetzung feature-complete** (Worktree-Commits `716a676`→ core `wip` → tests `wip` →
+  feature-complete `wip`). Kern: `FaWorkStepStructureDetectionService` (+Interface),
+  `UnknownWorkStepTokenState` (+Interface), `FaWorkStepSources.Struktur`, Service-Key
+  `Sync:FaWorkStepStructureDetectionEnabled`, `SyncLogServices.FaWorkStepStructureDetection`,
+  SyncWorker-Doppel-Gate-Block nach FA-Materialisierung, 2× DI. **14 Unit-Tests** grün.
+  Build 0 Fehler, **Web 1391 +1 skip, Service 277** grün (+14). Version **1.41.0** ×2.
+  Doku: Changelog v1.41.0, TS-76 (10 Szenarien), Hilfeseite Zwei-Lauf-Detail, README-Key.
+  Brain: Changelog-Notiz, feature-map, codebase/services, [[fallstricke]] §13, testszenarien-index,
+  Spec-Deploy S4-harmonisiert (Deploy-zuerst). **Keine Migration.**
+- **Umsetzungsabweichungen (bewusst):** (1) Kein interner Master-Gate im Service (Spec Design A) —
+  Doppel-Gate nur im SyncWorker. (2) Nur-hinzufügen-Prüfung als In-Memory-`HashSet<(orderId,stepId)>`
+  statt `.Any()`-Subquery je Kandidat (eine Abfrage statt N) — Verhalten identisch. (3) H3: alle
+  datenabhängigen AKs (3/5/8) + Gate (1/2) + Mailversand sind Manual-UAT; der Algorithmus ist voll
+  InMemory-getestet.
+- **Offen:** qa-agent (setzt `Testbereit`), dann Schranke 2 mit dem ganzen Bündel. Kein Merge/Push.
