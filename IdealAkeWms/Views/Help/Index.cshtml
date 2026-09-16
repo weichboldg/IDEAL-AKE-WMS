@@ -427,6 +427,39 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Arbeitsgaenge aus der FA-Struktur (seit v1.41.0)</dt>
+                    <dd>
+                        Am Standort IDEAL liefert die FA-Struktur die Arbeitsschritte je Position schon
+                        mit. Daraus werden die <strong>Arbeitsgaenge je Sub-FA</strong> automatisch
+                        angelegt und erscheinen &mdash; wie am Standort AKE &mdash; in der
+                        FA-Arbeitsliste und im Leitstand. Der Abgleich ist <strong>exakt ueber das
+                        Kuerzel</strong> (kein Raten aus Bezeichnungen).
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Einmalige Einrichtung (zwei Laeufe):</strong> Jedes
+                                Arbeitsschritt-Kuerzel braucht einen passenden Eintrag im
+                                Arbeitsgang-Katalog (Seite <em>Arbeitsgaenge</em>, <strong>Code =
+                                Kuerzel</strong> + Klartext-Name). <strong>Zuerst deployen</strong> und
+                                einschalten &mdash; der erste Lauf <strong>meldet</strong> die real
+                                vorkommenden Kuerzel; ein Mensch legt sie einmalig an; der naechste Lauf
+                                erzeugt die Arbeitsgaenge. Nichts muss vorab erhoben werden. Bei einem
+                                Umlaut-Kuerzel den Code zeichengleich anlegen (<code>SÄ</code>, nicht
+                                <code>SAE</code>).</li>
+                            <li><strong>Melden statt anlegen:</strong> Unbekannte Kuerzel werden nie
+                                automatisch in den Katalog geschrieben &mdash; sie stehen im
+                                Aktivitaets-Protokoll (mit Anzahl betroffener Auftraege) und loesen, wenn
+                                die Fehler-Benachrichtigung aktiv ist, eine Sammelmail nur bei Aenderung
+                                der Kuerzel-Menge aus.</li>
+                            <li><strong>Nur-hinzufuegen:</strong> Bereits vorhandene oder von Hand
+                                entfernte Arbeitsgaenge werden nie erneut angelegt; abgeschlossene
+                                Auftraege bekommen keine neuen.</li>
+                            <li><strong>Eigener Schalter:</strong> Service-Einstellung
+                                <code>Sync:FaWorkStepStructureDetectionEnabled</code> (Default aus),
+                                greift nur bei scharfem hierarchischem Modus &mdash; getrennt von der
+                                Materialisierung schaltbar. Vor dem Scharfschalten mit dem globalen
+                                DryRun testen. Am Standort AKE aendert sich nichts.</li>
+                        </ul>
+                    </dd>
+
                     <dt>FA-Vervollstaendigung (seit v1.13.0, umgebaut in v1.22.0)</dt>
                     <dd>
                         Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; pflegen pro Fertigungsauftrag

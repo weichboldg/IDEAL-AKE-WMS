@@ -9,6 +9,42 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.41.0</strong> <span class="text-white-50 ms-2">16.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL: Arbeitsgänge automatisch aus der FA-Struktur</h6>
+                <p class="text-muted mb-2"><em>Wirkt nur am Standort IDEAL (FA-Hierarchie aktiv).
+                    Am Standort AKE ändert sich nichts &ndash; dort werden die Arbeitsgänge
+                    weiterhin wie bisher erkannt.</em></p>
+                <ul>
+                    <li><strong>Arbeitsgänge je Sub-FA aus der Struktur:</strong> Am Standort IDEAL
+                        liefert die FA-Struktur die Arbeitsschritte je Position bereits mit. Daraus
+                        werden die Arbeitsgänge jetzt automatisch je Sub-FA angelegt und erscheinen
+                        &ndash; wie am Standort AKE &ndash; in der FA-Arbeitsliste und im Leitstand.
+                        Der Abgleich ist exakt über das Kürzel (kein Raten aus Bezeichnungen).</li>
+                    <li><strong>Einmalige Einrichtung (zwei Läufe):</strong> Jedes Arbeitsschritt-Kürzel
+                        braucht einen passenden Eintrag im Arbeitsgang-Katalog (Seite
+                        &bdquo;Arbeitsgänge&ldquo;, <code>Code = Kürzel</code> + Klartext-Name). Der
+                        erste Lauf nach dem Einschalten <strong>meldet</strong> die tatsächlich
+                        vorkommenden Kürzel als Sammelmeldung; ein Mensch legt sie einmalig an; der
+                        nächste Lauf erzeugt die Arbeitsgänge. Nichts muss vorab erhoben werden.</li>
+                    <li><strong>Melden statt anlegen:</strong> Unbekannte Kürzel werden nie automatisch
+                        in den Katalog geschrieben &ndash; sie stehen im Aktivitäts-Protokoll (mit
+                        Anzahl betroffener Aufträge) und lösen, wenn eingeschaltet, eine Sammelmail nur
+                        bei Änderung der Kürzel-Menge aus.</li>
+                    <li><strong>Nur-hinzufügen:</strong> Bereits vorhandene oder von Hand entfernte
+                        Arbeitsgänge werden nie erneut angelegt oder verändert. Abgeschlossene Aufträge
+                        bekommen keine neuen Arbeitsgänge.</li>
+                    <li><strong>Eigener Schalter:</strong> Die Erkennung hat einen eigenen
+                        Service-Schalter (&bdquo;FA-Arbeitsgang-Erkennung Struktur&ldquo;) und läuft nur,
+                        wenn der hierarchische Modus scharf ist &ndash; so lässt sie sich getrennt von
+                        der Materialisierung einschalten.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.40.0</strong> <span class="text-white-50 ms-2">15.09.2026</span>
             </div>
             <div class="card-body">
