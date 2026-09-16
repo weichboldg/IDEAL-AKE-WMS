@@ -770,3 +770,69 @@ Muss-Klaerung: die maßgebliche Token-Liste auf der befuellten `FaHierarchyNode`
 (die Abfrage ist aus keiner von hier erreichbaren DB reproduzierbar) **und** je Token den
 anzulegenden `WorkStep.Code`/`Name` festlegen. Sobald diese Liste im Freigabe-Block steht, ist die
 Spec bereit.
+
+## Kritische Pruefung (2026-09-18) — dritte Durchsicht, post-Freigabe
+
+> Die Spec steht auf `Freigegeben` (Frontmatter: `open_questions: []`, `freigabe_entscheidung`/
+> `_von`/`_am` gesetzt). Diese Durchsicht ist die letzte Anwalt-des-Teufels-Runde vor dem Dev-Lauf.
+> Ich habe erneut an der echten DB gemessen und den Code gegengelesen. **B1 ist sachlich aufgeloest**
+> (siehe „AUFLOESUNG von B1" — IDEAL sucht nicht, die View liefert; das Token **ist** der Code;
+> unbekannte Token liefert die Sammelmeldung beim ersten Lauf). Kein offener BLOCKER. Es bleibt **eine**
+> echte Reibung im Dokument und zwei Hinweise.
+
+### BLOCKER
+
+Keiner. B1 und B2 sind geschlossen; die Frontmatter-Freigabefelder sind konsistent mit der Aufloesung.
+
+### SOLLTE
+
+**S4 — Deploy-Schritt 1 widerspricht der B1-Aufloesung; harmonisieren (im Dev-Lauf, mit den Docs).**
+Der Deploy-Abschnitt Schritt 1 (Zeile 456-460) sagt noch: „**Vor dem Deploy — Rueckfrage 1
+beantworten** und die passenden `WorkStep`-Katalogeintraege anlegen … sind die Katalogeintraege vor
+dem ersten scharfen Lauf vorhanden, greift die Anlage sofort und der **Zwei-Lauf-Fall tritt praktisch
+nicht ein**." Das kollidiert dreifach mit der Aufloesung und dem Freigabe-Block:
+1. Es verweist auf „Rueckfrage 1", die laut Frontmatter **geschlossen** ist (`open_questions: []`).
+2. Es verlangt, die Token-Liste **vorab zu erheben** und den Katalog **vor dem Deploy** zu fuellen —
+   genau das, was der Mensch ausdruecklich als **nicht noetig** bezeichnet hat („Die Token-Liste muss
+   NICHT vorab erhoben werden … die Regel ‚melden statt anlegen' liefert sie beim ersten echten Lauf").
+3. Es rahmt den Zwei-Lauf-Fall als etwas, das man **vermeiden** will („tritt praktisch nicht ein"),
+   waehrend die Aufloesung den Ablauf *Deploy → erster Lauf meldet → Mensch pflegt einmal → naechster
+   Lauf legt an* als **den entworfenen Weg** benennt, nicht als Notbehelf.
+Ein Operator, der die Checkliste woertlich abarbeitet, versucht dann, vor dem Deploy eine
+Token-Liste zu beschaffen und alle Katalogeintraege anzulegen — genau der ueberfluessige Schritt.
+**Vorschlag (im Dev-Lauf, wenn `docs/TESTSZENARIEN.md`/Changelog ohnehin geschrieben werden):**
+Schritt 1 umformulieren auf „**Deploy zuerst**; der erste (DryRun-)Lauf meldet die real vorkommenden
+Token als Sammelmeldung; ein Mensch legt je gemeldetem Token einen `WorkStep` mit `Code = Token` +
+Klartext-`Name` auf `/WorkSteps` an; der naechste Lauf legt die `FaWorkStep`-Zeilen an. Optional:
+ist die Liste schon bekannt, kann der Katalog vorab gefuellt werden — das ist eine Abkuerzung, keine
+Vorbedingung." Den Verweis auf „Rueckfrage 1" streichen.
+
+### HINWEIS
+
+**H4 — „AKE-Codes werden ignoriert" ist praeziser: sie liegen im **selben** Match-Lexikon, kollidieren
+heute nur nicht.** Der Freigabe-Block/die Aufloesung sagen, AKE-Codes wuerden „ignoriert, nicht
+abgeglichen". Der entworfene Mechanismus (Design D, Schritt 5) baut das Lexikon aus **allen** aktiven
+`WorkStep` — AKE **und** IDEAL — und schlaegt das Token darin nach. AKE-Codes werden also nicht
+gefiltert; sie werden nur **nicht getroffen**, weil keiner der 13 heutigen IDEAL-Token einem AKE-Code
+(`VA/VE/VK/VL/VT`) gleicht (`AV` ≠ `VA`). Faktisch heute unkritisch — aber **kein** Standort-Filter im
+Matcher: Gaebe es je einen gemeinsamen Code, bekaeme eine IDEAL-FA den AKE-`WorkStep`. Kein
+Handlungsbedarf jetzt (bewusst **ein** geteilter Katalog), nur bei kuenftiger Code-Vergabe im Blick
+behalten. Kein Grund, jetzt einen Filter zu bauen (YAGNI).
+
+**H5 — Erst-Lauf-/Neustart-Mail-Rauschen.** Weil `IUnknownWorkStepTokenState` ein In-Memory-Singleton
+ist (1:1 wie `IUnknownWorkplaceState`), setzt sich der „zuletzt gemeldete Token-Stand" bei **jedem
+Service-Neustart** zurueck. Im Fenster zwischen Deploy und Katalogpflege sind **alle** Token unbekannt
+→ nach jedem Neustart geht die Sammelmail erneut raus (nicht nur bei echter Mengenaenderung). Bekanntes,
+akzeptiertes Verhalten des Vorbild-Musters — nur zur Betriebs-Erwartung, kein Fehler.
+
+**H6 (= frueheres H1, jetzt konkret) — Katalog-`Code` muss das Token zeichengleich treffen, inkl.
+Umlaut.** Da „das Token **ist** der Code", muss der manuelle Katalogeintrag `Code = "SÄ"` exakt so
+tragen (nicht `SAE`). Trifft der `Code` das Token nicht zeichengleich, bleibt das Token dauerhaft
+„unbekannt" — **selbst gemeldet**, nicht still verschluckt (das Melde-Muster faengt den Tippfehler auf).
+Als Pflege-Hinweis beim Anlegen der Eintraege vermerken; ggf. ein TS-76-Negativfall.
+
+### Empfehlung
+
+**BEREIT ZUR FREIGABE (bereits `Freigegeben`) — kein offener Blocker.** S4 ist eine billige
+Dokument-Harmonisierung, die der Dev-Lauf beim ohnehin faelligen Schreiben von Deploy-/Testszenario-
+Text miterledigt; H4–H6 sind Betriebs-/Pflegehinweise ohne Handlungszwang. Der Dev-Lauf kann starten.
