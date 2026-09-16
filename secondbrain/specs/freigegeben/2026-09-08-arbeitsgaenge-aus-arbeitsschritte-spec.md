@@ -2,12 +2,12 @@
 type: spec
 title: "IDEAL: FaWorkSteps explizit aus FaHierarchyNode.Arbeitsschritte ableiten (Struktur statt Heuristik)"
 slug: 2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-09-16
-updated: 2026-09-18
+updated: 2026-09-16
 source_backlog: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte]]"
 depends_on: "[[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]]"
-task: ""
+task: "[[2026-09-16-arbeitsgaenge-aus-arbeitsschritte-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
