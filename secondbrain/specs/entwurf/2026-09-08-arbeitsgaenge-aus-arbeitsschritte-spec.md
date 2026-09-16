@@ -497,4 +497,149 @@ dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publ
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
+1. → **Der Blocker entfaellt — `IDEAL_TEST_2026_05_03` wird nicht gebraucht.**
+
+   **Die massgebliche Quelle liegt bereits in der WMS-Datenbank.** Was
+   `vw_IDEAL-AKE_Kommissionierung_FAListe` liefert, hat der Struktur-Sync schon nach
+   **`FaHierarchyNode.Arbeitsschritte`** geschrieben (533 Knoten, befuellt). Darauf besteht Zugriff:
+
+   ```sql
+   SELECT value AS Token, COUNT(*) AS Vorkommen
+   FROM FaHierarchyNode
+   CROSS APPLY STRING_SPLIT(Arbeitsschritte, ' ')
+   WHERE Arbeitsschritte IS NOT NULL AND Arbeitsschritte <> '' AND value <> ''
+   GROUP BY value
+   ORDER BY Vorkommen DESC;
+   ```
+
+   Diese Liste ist **verbindlich** — sie hat den Weg durch die View bereits hinter sich. Der Befund
+   aus `IDEAL_faap.USER_Arbeitsschritt` ist als **nicht massgeblich** zu kennzeichnen, nicht nur als
+   Naeherungswert.
+
+   ### Einordnung korrigiert: es sind NICHT zwei Vokabulare
+
+   **AKE und IDEAL liefern dieselben Arbeitsschritte — nur mit verschiedenem Trennzeichen:**
+   AKE **komma**-getrennt, IDEAL **leerzeichen**-getrennt. Gleiche Bedeutung, **gleicher
+   `WorkStep`-Katalog**. Der Katalog wird geteilt, nicht gedoppelt.
+
+   Damit ist auch der Befund „null von dreizehn Token matchen" **mit hoher Wahrscheinlichkeit ein
+   Artefakt der falschen Quelle**, nicht ein fachlicher Totalausfall. Er ist mit der Abfrage oben
+   neu zu erheben, bevor daraus irgendetwas gefolgert wird.
+
+   ### Folge fuer den Loesungsentwurf — zu pruefen, bevor gebaut wird
+
+   Reduziert sich der Unterschied zwischen den Standorten auf **das Trennzeichen beim Split**, ist
+   ein **eigener** `FaWorkStepStructureDetectionService` schwer zu begruenden. Matching-Logik,
+   Katalog und Zielentitaet waeren identisch — unterschiedlich waere ein einziges Zeichen.
+
+   **Bitte pruefen:** Genuegt der bestehende `FaWorkStepDetectionService` mit einem
+   **Trennzeichen-Parameter** (und der anderen Quellspalte), statt ein zweites, fast gleiches
+   Modul zu pflegen? Zwei Fassungen desselben Verfahrens laufen erfahrungsgemaess auseinander —
+   und genau davor soll die `ponytail`-Leiter bewahren (Sprosse 2: gibt es das im Codebestand
+   schon?).
+   Spricht etwas dagegen — etwa ein abweichender Gate-Bedarf oder eine andere Fehlerbehandlung —
+   **melden statt still den zweiten Service bauen.**
+
+   ### Wenn der Abgleich danach immer noch nicht trifft
+
+   Liefert die Abfrage gegen `FaHierarchyNode` Token, die **weiterhin** keinem `WorkStep.Code`
+   entsprechen, ist **das** der echte Befund. Dann **melden, nicht selbst aufloesen** — es waere
+   eine fachliche Frage (welcher Katalogeintrag gehoert zu welchem Token), und die beantwortet der
+   Fachbereich, nicht der Lauf.
+   Die Regel „MELDEN statt anlegen" bleibt davon unberuehrt und gilt unveraendert.
+
+## Kritische Pruefung (2026-09-16)
+
+> Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf. Wo moeglich habe ich Behauptungen an der
+> echten DB (`AKESQL20.ake.at`) **gemessen**, statt sie zu glauben. Die Freigabe-Antwort schliesst
+> Rueckfrage 1 **nicht sauber** — sie ersetzt sie durch zwei Muss-Klaerungen (eine Messung, die ich
+> nicht reproduzieren kann, und eine Architektur-Prämisse, die ich widerlegen konnte). Beide sind
+> vor der Freigabe zu klaeren.
+
+### BLOCKER
+
+**B1 — Die maßgebliche Abfrage ist aus keiner erreichbaren DB reproduzierbar; die „0/13 =
+Artefakt"-Vermutung ist gegenmessbar falsch.**
+Die Freigabe-Antwort erklaert den Blocker fuer entfallen, weil die maßgebliche Quelle
+`FaHierarchyNode.Arbeitsschritte` „bereits in der WMS-Datenbank" liege (533 Knoten). **Gemessen:**
+Die Tabelle `FaHierarchyNode` existiert in **keiner** von dieser Session erreichbaren Datenbank
+(`IDEAL_AKE_WMS`, `IDEAL_AKE_WMS_Test`, `IDEALAKEWMSIDEAL`, `IDEAL_Test` — `OBJECT_ID` jeweils NULL;
+die Migration ist dort nicht angewandt). Die vorgeschlagene `STRING_SPLIT`-Abfrage gegen
+`FaHierarchyNode` kann daher **weder ich noch der automatische Dev-Lauf** ausfuehren — sie laeuft nur
+auf der Instanz, auf der die 533 Knoten liegen (offenbar eine lokale/andere Instanz des Menschen).
+Zweitens spricht die **Messung gegen die Artefakt-These:** Der produktive `WorkSteps`-Katalog
+enthaelt aktuell ausschliesslich fuenf **AKE-Vorfertigungs**-Codes mit *beschreibenden* SearchStrings —
+`VA` (Aufbau, Spange, Rahmen), `VE` (Steuerung), `VK` (Verdampfer, Maschinenfach), `VL` (Lüfter),
+`VT` (Tür). Kurze Operations-Codes wie `KA`/`LS`/`AV`/`SÄ` koennen dagegen **unabhaengig von der
+Quellspalte** nicht matchen — es fehlt schlicht der Katalog. Der Nicht-Treffer ist also **real**, kein
+Quell-Artefakt.
+→ **Frage an den Menschen:** Bitte die `FaHierarchyNode`-Abfrage auf der befuellten Instanz selbst
+ausfuehren und (a) die verbindliche Token-Liste hier eintragen sowie (b) je Token den anzulegenden
+`WorkStep.Code`/`Name` festlegen. Der Dev-Lauf kann das nicht selbst erheben.
+
+**B2 — Die Design-Prämisse „nur das Trennzeichen unterscheidet sich" ist widerlegt; die Wahl
+eigener Service vs. parametrisierter Bestandsservice muss auf dieser Faktenlage **bewusst**
+bestaetigt werden (der Mensch hat „melden statt still bauen" ausdruecklich verlangt).**
+Die Freigabe-Antwort vermutet, AKE und IDEAL lieferten „dieselben Arbeitsschritte, nur mit anderem
+Trennzeichen … gleicher Katalog", und fragt, ob der bestehende `FaWorkStepDetectionService` mit einem
+**Trennzeichen-Parameter** genuegt. **Gemessen + am Code verifiziert:** Die beiden Ableitungen
+unterscheiden sich in **fuenf** Dimensionen, nicht in einer —
+1. **Quelle:** `CachedBomItems.Bezeichnung1/2` (AKE) vs. `FaHierarchyNode.Arbeitsschritte` (IDEAL);
+2. **Match-Mechanismus:** unscharfes `SearchString.Contains(term)` (AKE, `FaWorkStepDetectionService.cs:62-67`)
+   vs. **exakter** `WorkStep.Code == token` (IDEAL);
+3. **Match-Feld:** `SearchString` (kommasepariert, beschreibende Wortlisten wie „Verdampfer,
+   Maschinenfach") vs. `Code` (Operations-Kuerzel);
+4. **Scope:** artikelbasiert ueber `ArticleNumber` (AKE) vs. hierarchisches `DirectChildren` ueber
+   `SubOrderNumber` (IDEAL);
+5. **Zielaufloesung:** `stepMatchedArticles.Contains(o.ArticleNumber)` (AKE) vs.
+   `keys.Contains(o.SubOrderNumber)` (IDEAL).
+Ein „Trennzeichen-Parameter" deckt davon **eine** Dimension ab. Die Prämisse traegt also nicht — und
+die Messung **stuetzt** die Spec-Entscheidung „eigener Service" (Design A/B). Zusaetzlich: Ein
+gemeinsamer, parametrisierter Service muesste in **jedem** dieser Verzweigungspunkte umschalten und
+wuerde den **produktiv laufenden AKE-Pfad** anfassen — das erhoeht das Regressionsrisiko auf einer
+Live-Funktion deutlich, gegen das AK 1/2/7 dann nur unvollstaendig schuetzen.
+→ **Frage an den Menschen (Entweder/Oder, vor der Freigabe zu setzen):** Genuegt Ihnen angesichts
+dieser fuenf Unterschiede die Spec-Entscheidung **eigener Service**? Oder wollen Sie trotzdem den
+**einen parametrisierten Service** (mit der zusaetzlichen internen Verzweigung und dem Eingriff in den
+AKE-Pfad)? Solange das offen ist, darf der Dev-Lauf die Architektur nicht waehlen.
+
+### SOLLTE
+
+**S1 — „Gleicher Katalog" praezisieren.** Die Formulierung „der Katalog wird geteilt, nicht
+gedoppelt" ist richtig gemeint, aber missverstehbar: Es bleibt **eine** `WorkSteps`-Tabelle, die um
+~13 IDEAL-Codes **erweitert** wird; die fuenf AKE-Codes dienen **nicht** zugleich IDEAL. Vorschlag:
+Im Abschnitt „Fachliche Anforderungen" bzw. Out-of-Scope explizit „ein Katalog, additiv um die
+IDEAL-Codes ergaenzt" schreiben, damit niemand die AKE-Codes umzudeuten versucht.
+
+**S2 — Gate-Helfer konsistent waehlen.** Design C nutzt `GetBoolSafeAsync` fuer den Master, aber
+`GetBoolAsync` fuer den neuen Toggle. Vorschlag: fuer beide die `…SafeAsync`-Variante, damit ein
+(noch) fehlender `ServiceSettings`-Key den SyncWorker nicht wirft, bevor der Drift-Guard-Seed
+durchgelaufen ist. Im Dev-Lauf gegen das echte `SyncWorker`-Muster verifizieren.
+
+**S3 — TS-76.2 sauber neu fassen.** Das Szenario widerspricht sich im Text („fachlich unmoeglich bei
+einem Blatt, daher stattdessen …"). Vorschlag: nur der klare Fall — Sub-FA X → direktes Kind Y (selbst
+Sub-FA) → Enkel Z mit Token `SÄ`, das **nur** auf Z steht; Erwartung: `SÄ` bei Y, nicht bei X. Den
+verworfenen Halbsatz streichen.
+
+### HINWEIS
+
+**H1 — Umlaut-Token `SÄ`.** Ein Katalog-`Code` muss das Token **zeichengleich** treffen. Bei
+`OrdinalIgnoreCase` matcht `SÄ` nur `SÄ`/`sä`, **nicht** `SAE`. Beim Anlegen der Katalogeintraege (B1)
+auf exakte Umlaut-Schreibweise achten; ggf. als Testfall in TS-76 aufnehmen.
+
+**H2 — Nebenbefund Doppel-Kontext (Design E)** ist plausibel dokumentiert, bleibt aber eine
+**unbewiesene** fachliche Annahme (dieselbe `Arbeitsschritte`-Zeile zaehlt im Eltern- und im
+Eigen-Scope). Beim ersten echten Datenlauf mit dem Fachbereich gegenpruefen, ob das gewollt ist —
+nicht erst im Betrieb auffallen lassen.
+
+**H3 — Reproduzierbarkeit generell.** Weil `FaHierarchyNode` in keiner erreichbaren DB liegt, sind
+alle datenabhaengigen Akzeptanzkriterien (AK 3/5/8) reine **Manual-UAT** auf der befuellten Instanz —
+das ist konsistent mit der „nicht InMemory-testbar"-Regel, sollte aber im Testabschnitt als solches
+markiert sein, damit der qa-agent nicht auf gruene Automated-Tests als Beweis verweist.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG:** Rueckfrage 1 ist nicht geschlossen, sondern in zwei offene Muss-Klaerungen
+verwandelt (B1: maßgebliche Token-Messung nur auf der befuellten Instanz moeglich + Katalog-Zuordnung;
+B2: Architektur-Entscheidung eigener vs. parametrisierter Service auf Basis der gemessenen fuenf
+Unterschiede bewusst bestaetigen).
