@@ -62,3 +62,10 @@ Druck größer als erwartet → nach dem Bildschirm-Teil anhalten und melden (da
 - 2026-09-21 (qa-agent): Build 0 Fehler, Web 1391+1 skip / Service 277 grün, AK-Abgleich gegen
   echten Diff `f04a7e0~1..5f933f1` durchgeführt (Bildschirm-Teil = Manual-UAT, Migration/Durchreichung/
   Master-Gating/Druck-DTO = statisch verifiziert). Spec-Status → `Testbereit`. Kein Merge/Push.
+- **Nachtrag 2026-09-21 (nach QA, Nutzerwunsch, Worktree `f15b7ff` + TS-Doc):** Der Leerzustands-Knopf
+  setzt jetzt **ALLE** aktiven Spaltenfilter zurück (Label „Alle Filter zurücksetzen") statt nur
+  Komm.-Ziel — intuitiver. Die per-Badge-× je Standardfilter bleiben unverändert (nur der jeweilige).
+  Reiner Client-Mode-JS-Change (`resetAllBomFilters`), Build + Web 1391 + Service 277 weiter grün, kein
+  AK-Bruch (AK 8 „Ein-Klick-Reset" weiter erfüllt). Status bleibt `Testbereit`; die Reset-Wirkung ist
+  Teil der Bildschirm-Manual-UAT (TS-70). Keine Migration/kein Bump. **Nicht re-QA-pflichtig**
+  (JS-only, kein test-abgedeckter Pfad) — bei Wunsch nach formalem Re-Stamp qa-agent erneut möglich.
