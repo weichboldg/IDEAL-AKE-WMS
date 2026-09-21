@@ -484,6 +484,29 @@ Familie (nach Werkbank aus `Arbeitsbereich` und Lack aus `Beschichtet`).
 > geprueft; `testszenarien-index.md` fehlte trotz Notiz — vom qa-agent nachgetragen. Wartet mit dem
 > ganzen Buendel auf **Schranke 2**.
 
+### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
+
+Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
+[[2026-09-21-stueckliste-kommissionierziel-filter-umsetzung]], Changelog
+[[2026-09-21-v1-42-0-stueckliste-kommissionierziel-filter]]. Anlass: [[2026-09-13-kommissionierung-nur-hauptfa]]
+(Vollstruktur an der HauptFA-Stückliste).
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Feld `User.DefaultFilterBomKommissionierziel` + Migration 92 + FreshInstall | **erledigt** | `User.cs`, `SQL/92_*.sql` |
+| Durchreichung VM/Controller/BomViewModel (1:1 Vorlage `DefaultFilterBomDescription1`) | **erledigt** | `AccountController`/`UsersController`/`PickingController` |
+| Einstellungsfeld nur bei Master `true` (neue `IServiceSettingRepository`-Verdrahtung in beiden Controllern) | **erledigt** | `Users/Edit.cshtml`, `Account/Profile.cshtml`, `HierarchicalMaster` |
+| Select2-Dropdown (nur hierarchisch, DISTINCT-Items, OR) über verstecktem Input | **erledigt** | `Bom.cshtml` `setupKommissionierzielDropdown` |
+| Badge + Ein-Klick-Reset für ALLE VIER Standardfilter + benannter Leerzustand + Auto-Aufklappen | **erledigt** | `Bom.cshtml` `renderDefaultFilterBadges`/`checkKommissionierzielEmptyState`/`expandAncestorsOfMatching` |
+| Druck-Durchschlag (PrintBomItem+Mapping, ShowCol-Blöcke, colNames col-key→Label, „Gefilterte Ansicht") | **erledigt** | `PrintBom.cshtml`, `BomViewModels.cs`, `PickingController` Print-Mapping |
+| v1.42.0 + Changelog + TS-70-Abschnitt + Controller-Test-Fixes | **erledigt** | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+
+> **Deploy:** Web + Migration 92 (nullable Users-Spalte), kein Service. Dauerwissen [[fallstricke]] §14
+> (Client-Mode-Dropdown über verstecktem Input; getActiveFilters liefert col-keys).
+>
+> **Status:** `InUmsetzung` → qa-agent setzt `Testbereit`. Client-Mode = Bildschirm-Interaktion Manual-UAT.
+> Wartet mit dem ganzen Bündel auf **Schranke 2**.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |

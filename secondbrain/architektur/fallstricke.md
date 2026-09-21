@@ -1049,3 +1049,29 @@ Sammelmail geht nur bei **Aenderung der Token-Menge** raus, aber nach jedem Dien
 „zuletzt gemeldete Stand" leer → im Fenster zwischen Deploy und Katalogpflege geht die Mail einmal erneut
 raus, auch ohne echte Mengenaenderung. Bewusst akzeptiert (einmal zu viel ist harmlos, ein
 persistenter Zustand waere Overkill).
+
+## 14. Stueckliste (BOM) — Client-Mode-Dropdown ueber verstecktem Input (v1.42.0)
+
+### Ein Dropdown auf einer Client-Mode-Filterspalte: Input als Quell-Element behalten, Select2 nur davor
+`Bom.cshtml` ist die bewusste **Client-Mode-Ausnahme** von ADR 0005 (unpaginiert, durch den Baum
+vorgefiltert). Die ganze Filtermechanik haengt am `<input data-col-key="…">` je `data-filterable`-Spalte:
+`getActiveFilters()` liest **nur `_filterRow.querySelectorAll('input')`** (col-key → value),
+`setColumnFilter(colKey, value)` setzt genau diesen Input, `updateBomVisibility()` und die
+Default-Filter-Vorbelegung fahren darueber. **Warum das zaehlt:** Wer die Freitext-Spalte „Komm.-Ziel"
+auf ein Select2-Dropdown umstellt und dabei den Input **ersetzt**, reisst alle vier Mechaniken ab
+(getActiveFilters findet kein `input` mehr, setColumnFilter/Default/Storage-Restore laufen ins Leere).
+**Loesung (v1.42.0):** den `<input>` als **verstecktes Quell-Element** behalten (`display:none`), das
+`<select multiple>`+Select2 nur **davor** rendern und beim `change` den komma-verbundenen Wert **in den
+Input schreiben** + `updateBomVisibility()` direkt rufen (nicht per synthetischem `input`-Event — das
+feuert bei `input.value = …` nicht, siehe Universal-Filter-Fallstrick). Vorbelegung umgekehrt: Select2
+liest den (per Default gesetzten) Input-Wert. So bleibt der ganze Client-Filter-Unterbau unveraendert.
+
+### `getActiveFilters()` liefert col-key-Schluessel — die Druck-`colNames`-Map muss darauf passen
+Der Druck-Handler (`Bom.cshtml`, `btnPrintBom`) baute den „Filter"-Hinweis fuer `PrintBom` aus einer
+`colNames`-Map mit **numerischen** Schluesseln (1..8), waehrend `getActiveFilters()` **col-key-Strings**
+liefert (`procurement`, `kommissionieren`, …). Folge: `colNames[col]` traf nie → der Ausdruck zeigte den
+rohen col-key statt des Klartextnamens. Beim Ergaenzen der hierarchischen Druck-Spalten die Map auf
+**col-key→Label** umgestellt (deckt zugleich die AKE-Spalten korrekt ab). **Merke:** `PrintBomItem` ist
+ein eigenes DTO — die hierarchischen Felder (`Kommissionieren`/`Hauptlagerplatz`/`Ebene`) fehlen dort und
+im Print-Mapping, obwohl `BomItemViewModel` (Bildschirm) sie laengst hat; der Druck kennt hierarchische
+Spalten **strukturell** nicht, bis DTO + Mapping + `ShowCol`-Kopf-/Zellbloecke ergaenzt sind.
