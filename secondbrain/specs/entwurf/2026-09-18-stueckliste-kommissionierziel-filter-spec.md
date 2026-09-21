@@ -323,8 +323,161 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (TS-70-Eint
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
+1. → **Mehrfachauswahl, kommasepariert gespeichert.** Konsistent mit dem bestehenden Feldformat
+   (`DefaultFilterBomDescription1` nutzt OR-Syntax mit `,`) und mit `DefaultWorkbenches`. Und es
+   kostet nichts extra: **Select2 ist bereits geladen und kann Mehrfachauswahl nativ.** Wer zwei
+   Bereiche betreut, soll nicht zwischen ihnen umschalten muessen.
+
+2. → **In der Stueckliste: aus den geladenen Items. In den Benutzereinstellungen: NICHT — dort gibt es
+   keine geladenen Items.**
+   Die Empfehlung der Spec ist fuer die **Stueckliste** richtig: immer aktuell, keine Pflege. Sie
+   **uebersieht aber den zweiten Ort**: Das Standard-Feld wird in den **Benutzereinstellungen**
+   gesetzt, und dort ist **keine Stueckliste geladen** — ein datengetriebenes Dropdown haette dort
+   keine Werte.
+   **Verbindlich:**
+   - **Stueckliste:** Dropdown mit den `DISTINCT`-Werten der geladenen Positionen.
+   - **Benutzereinstellungen:** das Feld folgt **1:1 der Vorlage `DefaultFilterBomDescription1`** —
+     also **Textfeld mit OR-Syntax**, wie heute. Das ist der Kern der „1:1-Kopie"-Entscheidung, und
+     ein Dropdown dort braeuchte eine eigene Wertequelle (`DISTINCT` ueber alle
+     `FaHierarchyNode.Kommissionieren`), die es fuer das Vorlagenfeld auch nicht gibt.
+   *Falls spaeter ein Dropdown auch in den Einstellungen gewuenscht ist:* eigene Wertequelle ueber
+   alle Strukturknoten — aber dann fuer **beide** Felder, nicht nur fuer das neue. Nicht jetzt.
+
+3. → **Filter anwenden — und bei null Treffern das Ergebnis erklaeren, nicht verschweigen.**
+   Die beiden stillen Varianten sind beide schlecht:
+   - **Still ignorieren** zeigt alles, waehrend der Badge „Standardfilter aktiv" sagt — ein
+     Widerspruch am Bildschirm.
+   - **Still leer** laesst den Anwender glauben, die Stueckliste habe keine Positionen.
+   **Verbindlich:** Der Filter wird angewendet. Da mehrere Werte per OR wirken, trifft er in der Regel
+   teilweise (`KA-02,S-01` gespeichert, nur `KA-02` vorhanden → die `KA-02`-Zeilen erscheinen).
+   **Nur wenn gar nichts trifft**, zeigt der Leerzustand **ausdruecklich**: *„Standardfilter
+   Kommissionierziel `X` aktiv — keine Treffer in dieser Stueckliste."* plus den **Ein-Klick-Reset**
+   aus Antwort 5. Hausregel: sichtbar machen statt still filtern.
+
+4. → **JA, der Filter schlaegt in Druck und PDF durch — und das schliesst nebenbei eine bekannte
+   Luecke.**
+   Begruendung: dasselbe Prinzip wie AK 2 der PDF-Spec — der Ausdruck entspricht dem gefilterten
+   Bildschirm, und ein aktiver Filter wird im Kopf als **„Gefilterte Ansicht"** ausgewiesen. Sonst
+   haelt jemand eine Teilmenge auf Papier fuer das Ganze.
+   **Der Mehrwert:** Die Druck-Whitelist in `PrintBom.cshtml` kennt das Kommissionier-Ziel **ohnehin
+   noch nicht** — das ist der offene Befund aus der BOM-Bridge (v1.36). Und er ist durch
+   [[2026-09-13-kommissionierung-nur-hauptfa]] inzwischen **faellig**: Bleibt die Vollstruktur an der
+   HauptFA-Stueckliste (Ruling 4), braucht der Ausdruck Ebene und Komm.-Ziel, sonst ist er
+   unbrauchbar. **Diese Spec schliesst den Befund mit** — Whitelist und `colNames`-Map werden hier
+   nachgezogen, nicht in einem eigenen Lauf.
+
+5. → **BESTAETIGT: Badge und Ein-Klick-Reset fuer BEIDE Felder.**
+   Die Luecke ist **vorbestehend** — `DefaultFilterBomDescription1` belegt heute nur das Eingabefeld
+   vor, ohne Hinweis und ohne Reset. Nur das neue Feld sichtbar zu machen, erzeugte eine Asymmetrie
+   zwischen zwei gleich behandelten Feldern derselben Ansicht: Der eine Filter kuendigt sich an, der
+   andere wirkt still. **Beide zugleich**, gleiches Bedienelement.
+
+6. → **AKE: nicht anzeigen, wo das Feld nicht verwendet wird [ENTSCHEIDUNG 2026-09-18].**
+   AKE fuehrt kein Kommissionierziel. Was dort nicht befuellt werden kann, erscheint auch nicht.
+   Die Code-Pruefung dieser Spec hat bereits verifiziert, dass Spalte und Filter nur im
+   hierarchischen Modus existieren — das wird hiermit von einer **Eigenschaft** zur **festgelegten
+   Regel**, damit es niemand spaeter „harmonisiert".
+   **Gilt fuer alle drei Stellen, nicht nur die Spalte:**
+   - **Spalte** in der Stueckliste — nur bei Master `true` (bereits so gebaut).
+   - **Dropdown-Filter** — nur bei Master `true`.
+   - **Einstellungsfeld** „Standard-Filter Kommissionierziel" in den Benutzereinstellungen —
+     **ebenfalls nur bei Master `true`**. Ein Feld, das auf einer AKE-Installation gar nichts
+     bewirkt, waere dort nur verwirrend. **Das ist neu gegenueber dem Code-Stand** und gehoert in den
+     Umfang.
+   Der **Badge** erscheint ohnehin nur bei aktivem Filter und damit bei AKE nie.
+   `DefaultFilterBomDescription1` bleibt davon **unberuehrt** — es ist ein hausweites Feld und wird
+   bei beiden Standorten angezeigt.
+
+   **Ausdruecklich KEIN Widerspruch zum Matchcode**, der „hausweit sichtbar" entschieden wurde: Der
+   Matchcode hat eine AKE-Quelle (`KHKArtikel.Matchcode`, per erweiterter Query), das
+   Kommissionierziel hat **keine**. Verschiedene Datenlage, verschiedene Regel — wer die beiden
+   angleichen will, muss zuerst diese Frage neu stellen.
+
+## Kritische Pruefung (2026-09-21)
+
+> Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf. Die sechs Freigabe-Antworten sind ausgefuellt,
+> aber **noch nicht in den Rumpf gezogen** — genau dort entstehen die Risse. Wo moeglich am Code
+> (Worktree `feature/2026-08-07-ideal-teile-1-5`) gegengeprueft. Ein BLOCKER (echte Entscheidung),
+> vier SOLLTE (Antworten in den Rumpf ziehen), zwei HINWEISE.
+
+### BLOCKER
+
+**B1 — Zwei stille Standardfilter auf DERSELBEN Ansicht bleiben ohne Badge; die Hausregel, mit der
+diese Spec den Badge begruendet, wird nur halb angewandt.** `Bom.cshtml` Z. 993-998 belegt **vier**
+Default-Filter still vor: `DefaultFilterBeschaffung`, `DefaultFilterArtikelgruppe`,
+`DefaultFilterBomDescription1` **und** (neu) `DefaultFilterBomKommissionierziel`. Antwort 5 / Fachliche
+Anforderung 4 spendieren den sichtbaren Badge + Reset aber **nur zweien** (Bezeichnung 1 +
+Kommissionierziel). `Beschaffung` und `Artikelgruppe` filtern nach dieser Spec **weiterhin still** —
+exakt der Zustand, den die Spec mit „sichtbar machen statt still filtern" als Luecke brandmarkt. Die
+Begruendung „sonst entsteht eine Asymmetrie zwischen zwei gleich behandelten Feldern derselben
+Ansicht" trifft auf **alle vier** zu, nicht auf zwei.
+→ **Entscheidung des Menschen:** Badge fuer **alle vier** stillen Default-Filter dieser Ansicht (die
+konsequente Anwendung der Hausregel), oder bewusst nur die zwei — und dann im Rumpf **explizit**
+festhalten, dass `Beschaffung`/`Artikelgruppe` weiterhin still bleiben und warum. So oder so darf der
+Widerspruch nicht unentschieden in die Umsetzung.
+
+### SOLLTE
+
+**S1 — Antwort 6 (AKE: Einstellungsfeld ausblenden) braucht neue Verdrahtung und widerspricht dem
+„1:1-Kopie/kein neuer Mechanismus"-Rumpf; beides nachziehen.** Verifiziert: **weder**
+`AccountController` **noch** `UsersController` liest heute `ProduktionsauftragHierarchisch` (Grep:
+keine Treffer in beiden). Das Vorlagenfeld `DefaultFilterBomDescription1` ist hausweit sichtbar — das
+neue Feld nur bei Master `true` anzuzeigen ist also **echte Zusatzarbeit**, nicht im `affected_code`:
+(a) den Master-Schalter in `UsersController.Edit` **und** `AccountController` (Profil) in die jeweiligen
+ViewModels/ViewBag reichen (Muster wie in `PickingController`/`HierarchischeStrukturKeys`), (b) das
+Feld in `Users/Edit.cshtml` + `Account/Profile.cshtml` unter dieses `@if` stellen. Zusaetzlich:
+Fachliche Anforderung 2 nennt das Feld eine „**1:1-Kopie … kein neuer Mechanismus**" — Antwort 6 macht
+daraus bewusst **eine Abweichung** (Master-Gate auf einem Einstellungsfeld, das die Vorlage nicht hat).
+Diesen einen dokumentierten Unterschied in FA2 vermerken, sonst „harmonisiert" ihn spaeter jemand weg.
+`affected_code`-Zeile zu `Users/Edit`+`Profile` entsprechend ergaenzen.
+
+**S2 — Antwort 4 (Druck JA) ist beschlossen, steht im Rumpf aber noch ueberall als „nur falls Q6=ja".**
+`PrintBom.cshtml`-Whitelist + `colNames`-Map (Bom.cshtml Z. 1015) + „gefilterte Ansicht"-Hinweis sind
+mit Antwort 4 **fest in Scope**. Im Rumpf sind sie aber noch konditional: `affected_code` Z. 24-25
+(„nur falls Q6=ja"), Out-of-Scope Z. 97-98 („nur bedingt in Scope … ohne ‚ja' bleibt PrintBom
+unangetastet"), AK 10 („Nur falls Q6=ja"), TS-Zeilen 277-280. Alle vier Stellen entkonditionalisieren:
+aus Out-of-Scope streichen, in In-Scope aufnehmen, AK 10 unbedingt formulieren. Damit schliesst diese
+Spec — wie Antwort 4 sagt — den offenen BOM-Bridge-Druck-Befund (Komm.-Ziel/Ebene fehlen im Ausdruck)
+tatsaechlich mit; das gehoert sichtbar in den Umfang, nicht in einen Konditional.
+
+**S3 — Antwort 3 (Leerzustand) ist noch kein pruefbares AK.** AK 8 sagt nur „filtert **nicht** still
+auf 0 Zeilen ohne Erklaerung — Verhalten gemaess Freigabe-Antwort zu Q4" — ein Verweis, kein Kriterium.
+Antwort 3 ist konkret und testbar: Filter wird **angewandt**; bei Mehrfach-OR trifft er meist teilweise;
+**nur wenn gar nichts trifft**, erscheint der **benannte** Leerzustand *„Standardfilter Kommissionierziel
+`X` aktiv — keine Treffer in dieser Stueckliste."* **plus** der Ein-Klick-Reset aus Antwort 5. AK 8 auf
+genau diese Fassung umschreiben (benannter Text + Reset + Teiltreffer-Fall), sonst ist „mit Hinweis"
+Auslegungssache im Dev-Lauf.
+
+**S4 — Antwort 2 (zwei Orte) im Rumpf explizit trennen.** Der Rumpf behandelt beide Orte **nicht
+sauber getrennt**: Fachliche Anforderung 1 = Dropdown (Stueckliste), FA 2 = „1:1-Kopie" (Einstellungen)
+— aber **nirgends** steht ausdruecklich, dass das Einstellungsfeld ein **Textfeld** bleibt und **kein**
+Dropdown wird. Die (offene) Empfehlung zu Q3 „aus den geladenen Items" liest sich, als gaelte sie fuer
+beide Orte; genau das schliesst Antwort 2 aus (in den Einstellungen sind **keine** Items geladen). FA 2
+/ `affected_code` (Z. 18) um einen Satz ergaenzen: **Stueckliste = Dropdown aus DISTINCT-Items;
+Einstellungen = Textfeld mit OR-Syntax, 1:1 wie die Vorlage.** Sonst baut der Dev-Lauf womoeglich ein
+quellenloses Dropdown in die Einstellungen.
+
+### HINWEIS
+
+**H1 — Q6=ja vergroessert den Umfang spuerbar.** `PrintBom.cshtml` kennt die hierarchischen Spalten
+**strukturell** nicht (nur die acht AKE-Basisspalten + Lagerplatz, verifiziert Z. 213-251) — Komm.-Ziel
+im Ausdruck heisst neue Kopf-/Zellbloecke, nicht nur ein Whitelist-Flag. Zusammen mit Dropdown-auf-
+Client-Mode (selbst als „ehrlicher Mehraufwand" benannt), neuem Feld+Migration, Master-Gating-Verdrahtung
+(S1) und Badge fuer >2 Felder (B1) ist das ein **grosser** Einzel-Dev-Lauf. Kein Split-Zwang, aber der
+Dev-Lauf sollte die Druck-Erweiterung als eigenstaendigen, zuletzt umgesetzten Baustein behandeln, damit
+er kippbar bleibt, falls die Zeit knapp wird.
+
+**H2 — Dropdown-Wertequelle bei aufgeklapptem Teilbaum.** Antwort 2/AK 2 speisen das Dropdown aus den
+**geladenen** `Model.Items`. Bei der Vollstruktur ist das die ganze Struktur — gut. Aber der Baum-Zustand
+(auf-/zugeklappt) hat laut `fallstricke.md` Vorrang vor dem Spaltenfilter: Ein Wert, der nur in einem
+**eingeklappten** Ast vorkommt, steht dann im Dropdown, filtert aber sichtbar „nichts", bis der Nutzer
+aufklappt. Kein Fehler (die Zeilen sind da, nur versteckt), aber beim Dev-Lauf im Blick behalten, damit
+es nicht faelschlich als „Filter kaputt" gemeldet wird.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG:** ein BLOCKER (B1 — Badge-Umfang: alle vier stillen Default-Filter oder bewusst
+nur zwei, dann explizit) plus vier Rumpf-Nachziehungen der bereits gegebenen Antworten (S1 Master-Gating
++ Verdrahtung, S2 Druck entkonditionalisieren, S3 Leerzustand als AK, S4 Zwei-Orte-Trennung). Die
+Antworten selbst sind stimmig und am Code gedeckt — es fehlt nur ihre Einarbeitung in Rumpf und
+`affected_code`, bevor der Dev-Lauf startet.
