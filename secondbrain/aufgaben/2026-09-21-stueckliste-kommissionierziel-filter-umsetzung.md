@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-18-stueckliste-kommissionierziel-filter-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -59,3 +59,6 @@ Druck größer als erwartet → nach dem Bildschirm-Teil anhalten und melden (da
   - Doku: Changelog v1.42.0, TS-70-Abschnitt „Komm.-Ziel-Filter", Brain-Changelog, feature-map,
     testszenarien-index, [[fallstricke]] §14.
 - **Offen:** qa-agent (setzt `Testbereit`), dann Schranke 2 mit dem ganzen Bündel. Kein Merge/Push.
+- 2026-09-21 (qa-agent): Build 0 Fehler, Web 1391+1 skip / Service 277 grün, AK-Abgleich gegen
+  echten Diff `f04a7e0~1..5f933f1` durchgeführt (Bildschirm-Teil = Manual-UAT, Migration/Durchreichung/
+  Master-Gating/Druck-DTO = statisch verifiziert). Spec-Status → `Testbereit`. Kein Merge/Push.

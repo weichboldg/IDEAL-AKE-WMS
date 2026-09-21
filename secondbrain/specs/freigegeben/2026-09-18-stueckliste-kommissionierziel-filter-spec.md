@@ -2,7 +2,7 @@
 type: spec
 title: "Stueckliste: Komm.-Ziel-Dropdown-Filter + gespeicherter Standardfilter (Badge fuer alle vier Standardfilter)"
 slug: 2026-09-18-stueckliste-kommissionierziel-filter-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-18
 updated: 2026-09-21
 source_backlog: "[[2026-09-18-stueckliste-kommissionierziel-filter]]"
@@ -343,6 +343,10 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (TS-70-Eint
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
 - Reihenfolge bei Deploy: DB-Migration (Skript 92) vor oder mit dem Web-Deploy einspielen — reine
   additive Spalte, keine Ausfallzeit-Anforderung, kein Service-Stop noetig.
+- Ablauf: Publish **aus dem Worktree** → Testsystem → Test (siehe Checkliste unten) → **danach**
+  Merge (Schranke 2, Mensch). Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge
+  tatsaechlich getestete Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat (dieser
+  Branch ist ein Buendel-Worktree mit mehreren Etappen — Merge-Diff pruefen).
 
 ## Offene Rueckfragen — ALLE BEANTWORTET (2026-09-21)
 
@@ -602,3 +606,93 @@ nur zwei, dann explizit) plus vier Rumpf-Nachziehungen der bereits gegebenen Ant
 + Verdrahtung, S2 Druck entkonditionalisieren, S3 Leerzustand als AK, S4 Zwei-Orte-Trennung). Die
 Antworten selbst sind stimmig und am Code gedeckt — es fehlt nur ihre Einarbeitung in Rumpf und
 `affected_code`, bevor der Dev-Lauf startet.
+
+## QA-Nachweis (2026-09-21, qa-agent)
+
+**Commit-Range geprueft:** `f04a7e0~1..5f933f1` (Basis `ed70c2b`, Feature-Commits `f04a7e0` +
+`92139a4` + `5f933f1`) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+`feature/2026-08-07-ideal-teile-1-5`. Diff: 23 Dateien, +4610/-15.
+
+**Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler**, 12 Warnungen (alle vorbestehend,
+NU1902-Paket-Advisories + zwei Nullref-/ungenutzte-lokale-Funktion-Warnungen ausserhalb dieser
+Aenderung) — verifiziert per grep gegen die geaenderten Dateien, keine der 12 Warnungen stammt aus
+dieser Spec.
+
+**Test:** `dotnet test IdealAkeWms.slnx`
+- `IdealAkeWms.Tests`: **1391 erfolgreich, 0 Fehler, 1 uebersprungen** (Integrationstest,
+  vorbestehend uebersprungen), gesamt 1392 — exakt die im Auftrag erwartete Zahl.
+- `IDEALAKEWMSService.Tests`: **277 erfolgreich, 0 Fehler**, gesamt 277 — exakt die erwartete Zahl.
+- Die drei Controller-Test-Fixes (`AccountControllerTests`, `UsersControllerTests`,
+  `UsersControllerAdUserTests`) ergaenzen nur den neuen `Mock<IServiceSettingRepository>`-Ctor-Param,
+  keine Assertion-Aenderung — minimaler, korrekter Diff.
+
+**AK-Abgleich gegen den echten Diff (automatisiert/statisch pruefbar vs. Manual-UAT):**
+
+| AK | Nachweis | Automated/Manual |
+|---|---|---|
+| 11 (Migration 92 idempotent) | `SQL/92_AddUserDefaultFilterBomKommissionierziel.sql` mit `COL_LENGTH`-Guard, DDL + `__EFMigrationsHistory`-Insert in getrennten Batches, exakt nach Vorlage `SQL/87_*.sql`; `SQL/00_FreshInstall.sql` an beiden Stellen (Schema-Block Z. 47, `MigrationId`-Liste) nachgezogen | Statisch verifiziert (Code-Lesung) — Ausfuehrung gegen echte DB bleibt Manual-UAT |
+| 2/5/9/13 (Feld-Durchreichung, Mehrfachauswahl kommasepariert, Textfeld in Einstellungen) | `User.cs` neues Feld, `AccountController`/`UsersController` lesen/schreiben es 1:1 wie `DefaultFilterBomDescription1`, `PickingController.Bom` reicht es ins `BomViewModel`, `Views/Users/Edit.cshtml`+`Account/Profile.cshtml` als `<input>` (kein Select) | Statisch verifiziert — Bildschirm-Wirkung Manual-UAT |
+| 6/12 (Master-Gating) | NEUE `IServiceSettingRepository`-Injektion in beiden Controllern, `IsHierarchicalMasterAsync()` liest `HierarchischeStrukturKeys.Master`, `HierarchicalMaster` ins ViewModel, `@if (Model.HierarchicalMaster)` um beide Einstellungsfelder | Statisch verifiziert — Sichtbarkeit je Standort Manual-UAT |
+| 10 (Druck) | `PrintBomItem` + Print-Mapping um `Kommissionieren`/`Hauptlagerplatz`/`Ebene` ergaenzt, `PrintBom.cshtml` `ShowCol`-Bloecke, `colNames`-Map in `Bom.cshtml` von numerisch auf col-key→Label umgestellt (dabei nebenbei einen vorbestehenden Bug korrigiert: `getActiveFilters()` liefert col-key-Strings, die alte numerische Map traf nie), Kopf-Hinweis „Gefilterte Ansicht" | Statisch verifiziert — Ausdruck-Optik Manual-UAT |
+| 1/3/4/7/8/14/15 (Dropdown, Leerzustand, Badge, Auto-Aufklappen) | Client-Mode-JS in `Bom.cshtml` (`setupKommissionierzielDropdown`, `renderDefaultFilterBadges`, `checkKommissionierzielEmptyState`, `expandAncestorsOfMatching`) vollstaendig gelesen, Logik gegen AK-Text geprueft — bewusste ADR-0005-Client-Mode-Ausnahme, **keine Server-Tests moeglich** | **Manual-UAT** (Spec sagt das selbst korrekt: "Client-Mode-Ansicht — die Bildschirm-Interaktion ist Manual-UAT") |
+
+**TS-70 / Testindex:** `docs/TESTSZENARIEN.md` Abschnitt „Komm.-Ziel-Filter + gespeicherter
+Standardfilter + Badge (v1.42.0)" deckt alle 15 AKs textlich ab, markiert explizit
+"Client-Mode-Ansicht — die Bildschirm-Interaktion ist Manual-UAT" (kein falscher Automatisierungs-
+Anspruch). `secondbrain/tests/testszenarien-index.md` TS-70-Eintrag hat den v1.42.0-Nachtrag bereits
+(Zeile 96, Wikilink auf diese Spec) — verifiziert vorhanden, keine Nacharbeit noetig.
+
+**Version/Changelog:** `AppVersion.cs` in beiden Projekten auf `1.42.0`/`2026-09-21`. Anwender-
+Changelog `Views/Help/Changelog.cshtml` mit konkreten Details (4 Punkte, kein Pauschalverweis) —
+erfuellt die Hausregel „Hilfe-Detail-Regel".
+
+**Code-Review (Ponytail-Massstab, kein separater Subagent verfuegbar in dieser Umgebung — vollstaendige
+Selbstpruefung des gesamten Diffs):** Kein neuer Mechanismus, kein neues Paket (Select2 war schon
+geladen), verstecktes `<input data-col-key>`-Element als Sync-Ziel statt Umbau der bestehenden
+Filter-Pipeline (`table-filter.js` unangetastet) — kleinstmoeglicher Diff fuer eine Dropdown-Umstellung
+im Client-Mode. Badge/Reset ist ein Bedienelement mit Array-Konfiguration (4 Eintraege), kein
+Vierfach-Code. Keine Abstraktion ohne zweiten Verwendungsfall. Keine fehlenden Validierungen
+gefunden (`[StringLength(200)]` konsistent zur Vorlage). Ein Nebenbefund positiv vermerkt: die
+`colNames`-Korrektur (numerisch → col-key) behebt einen vorbestehenden, stummen Bug im
+Druck-Filterhinweis — kein Scope-Creep, sondern Voraussetzung fuer AK 10.
+
+**Ergebnis: GRUEN.** `status: Testbereit` gesetzt.
+
+## Manuelle Test-Checkliste (Mensch, Schranke 2 — vor Merge)
+
+Alle Punkte am Testsystem nach Deploy (Web + Migration 92) pruefen, IDEAL-Standort (Master
+`ProduktionsauftragHierarchisch = true`) sofern nicht anders vermerkt:
+
+1. Hierarchische Stueckliste eines HauptFA oeffnen → Filterzeile „Komm.-Ziel" zeigt ein
+   Select2-Dropdown, keine Freitexteingabe mehr.
+2. Dropdown-Optionen mit den tatsaechlich vorkommenden Kommissionierzielen der Liste abgleichen
+   (keine veraltete/feste Liste, keine Werte, die dort nicht vorkommen).
+3. Einen Wert waehlen → nur passende Zeilen (bzw. deren aufgeklappte Eltern) bleiben sichtbar.
+4. Einen Ast zuklappen, dann im Dropdown einen nur dort vorkommenden Wert waehlen → Ast klappt
+   automatisch auf, Treffer wird sichtbar.
+5. Zwei Werte gleichzeitig waehlen → Zeilen beider Werte bleiben sichtbar (OR).
+6. Im eigenen Profil (`Account/Profile`) einen Standard-Kommissionierziel-Filter setzen (Textfeld,
+   z. B. `KA-02,S-01`) → speichern → Stueckliste eines hierarchischen Auftrags erneut oeffnen →
+   Filter ist vorbelegt **und** als Badge oberhalb der Tabelle sichtbar.
+7. Badge anklicken → Filter wird aufgehoben, alle Zeilen wieder sichtbar (Baum-Zustand bleibt wie er
+   war).
+8. Standardfilter auf einen in der aktuellen Liste **nicht vorkommenden** Wert setzen, Stueckliste
+   oeffnen → Meldung „Standardfilter Kommissionierziel `<Wert>` aktiv — keine Treffer in dieser
+   Stueckliste" erscheint, mit Reset-Knopf; Reset zeigt wieder alle Zeilen.
+9. Standardfilter `KA-02,S-01` setzen, wenn nur `KA-02` in der Liste vorkommt → `KA-02`-Zeilen
+   sichtbar, **keine** Leerzustands-Meldung (Teiltreffer).
+10. Alle vier Standardfilter nacheinander setzen (Beschaffung, Artikelgruppe, Bezeichnung 1,
+    Kommissionierziel) → je ein eigener Badge mit Reset erscheint.
+11. In den Benutzereinstellungen (`Users/Edit`, eigenes Profil) pruefen: Feld „Standard-Filter
+    Kommissionierziel" ist ein **Textfeld** (kein Dropdown) mit Platzhaltertext/Hilfetext zur
+    Komma-Syntax.
+12. **AKE-Standort** (Master `false`) oder Testsystem mit Master aus: AKE-Stueckliste oeffnen →
+    keine Komm.-Ziel-Spalte, keine Filterzeile dafuer; ein evtl. gesetzter Standard filtert **nichts**
+    leer, Liste vollstaendig sichtbar.
+13. **AKE-Einstellungen:** `Users/Edit` bzw. Profil oeffnen (Master `false`) → Feld „Standard-Filter
+    Kommissionierziel" ist **nicht** vorhanden; „Standard-Filter Bezeichnung 1" ist weiterhin da.
+14. Mit aktivem Kommissionierziel-Filter auf „Drucken" klicken → Ausdruck zeigt im Kopf „Gefilterte
+    Ansicht" **und** die Spalten Komm.-Ziel/Hauptlagerplatz/Ebene (soweit am Bildschirm sichtbar).
+15. Ohne aktiven Filter drucken → kein „Gefilterte Ansicht"-Hinweis, vollstaendige Liste wie bisher.
+16. Migration 92 am Zielsystem: `SQL/92_AddUserDefaultFilterBomKommissionierziel.sql` einspielen,
+    danach ein zweites Mal ausfuehren → zweiter Lauf meldet keine Aenderung (Idempotenz-Kontrolle).

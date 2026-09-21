@@ -504,7 +504,9 @@ Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
 > **Deploy:** Web + Migration 92 (nullable Users-Spalte), kein Service. Dauerwissen [[fallstricke]] §14
 > (Client-Mode-Dropdown über verstecktem Input; getActiveFilters liefert col-keys).
 >
-> **Status:** `InUmsetzung` → qa-agent setzt `Testbereit`. Client-Mode = Bildschirm-Interaktion Manual-UAT.
+> **Status:** `Testbereit` (qa-agent, 2026-09-21 — Build/Test gruen, AK-Abgleich gegen echten Diff
+> `f04a7e0~1..5f933f1`). Client-Mode = Bildschirm-Interaktion Manual-UAT, wartet mit dem Buendel auf
+> Schranke 2.
 > Wartet mit dem ganzen Bündel auf **Schranke 2**.
 
 ## Offen / nicht gemerged
