@@ -22,6 +22,7 @@ public class AccountControllerTests
     {
         var passwordService = new Mock<IPasswordService>();
         var appSettings = new Mock<IAppSettingRepository>();
+        var serviceSettings = new Mock<IServiceSettingRepository>();
         var currentUser = new Mock<ICurrentUserService>();
         currentUser.Setup(x => x.GetCurrentAppUserId()).Returns(currentUserId);
         currentUser.Setup(x => x.GetCurrentAppUserName()).Returns("tester");
@@ -37,7 +38,8 @@ public class AccountControllerTests
             currentUser.Object,
             workStepRepo.Object,
             workplaceRepo.Object,
-            appSettings.Object);
+            appSettings.Object,
+            serviceSettings.Object);
         var httpContext = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext
         {

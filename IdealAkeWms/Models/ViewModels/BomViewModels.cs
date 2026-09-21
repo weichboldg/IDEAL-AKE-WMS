@@ -161,4 +161,8 @@ public class PrintBomItem
     public string? Lagerplatz { get; set; }
     public int TreeLevel { get; set; }
     public bool IsBaugruppe { get; set; }
+    // Hierarchische Spalten (nur IDEAL, aus FaHierarchyBomItem) — fuer den Druck-Durchschlag.
+    public string? Kommissionieren { get; set; }
+    public string? Hauptlagerplatz { get; set; }
+    public int Ebene { get; set; }
 }
