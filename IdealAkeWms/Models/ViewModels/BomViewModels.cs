@@ -85,6 +85,7 @@ public class BomViewModel
     public string? DefaultFilterBeschaffung { get; set; }
     public string? DefaultFilterArtikelgruppe { get; set; }
     public string? DefaultFilterBomDescription1 { get; set; }
+    public string? DefaultFilterBomKommissionierziel { get; set; }
     public List<StorageLocation> AllStorageLocations { get; set; } = new();
     public List<StorageLocation> TargetStorageLocations { get; set; } = new();
     public string? DataSource { get; set; }

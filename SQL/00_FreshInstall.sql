@@ -44,6 +44,7 @@ BEGIN
         [DefaultWorkbenches]        NVARCHAR(400)     NULL,
         [DefaultFilterFaWorklistDescription1] NVARCHAR(200) NULL,
         [DefaultFilterBomDescription1] NVARCHAR(200) NULL,
+        [DefaultFilterBomKommissionierziel] NVARCHAR(200) NULL,
         [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -2299,6 +2300,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260814105526_InvertProductionOrderHierarchy', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260915094646_AddArticleMatchcode')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260915094646_AddArticleMatchcode', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260921131329_AddUserDefaultFilterBomKommissionierziel')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260921131329_AddUserDefaultFilterBomKommissionierziel', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

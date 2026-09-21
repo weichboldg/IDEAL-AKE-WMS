@@ -18,6 +18,7 @@ public class UsersController : Controller
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
     private readonly IActiveDirectoryService _activeDirectory;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public UsersController(
         IUserRepository userRepository,
@@ -27,7 +28,8 @@ public class UsersController : Controller
         IUserViewPreferenceRepository viewPreferenceRepository,
         IWorkStepRepository workStepRepository,
         IProductionWorkplaceRepository productionWorkplaceRepository,
-        IActiveDirectoryService activeDirectory)
+        IActiveDirectoryService activeDirectory,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
@@ -37,7 +39,17 @@ public class UsersController : Controller
         _workStepRepository = workStepRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
         _activeDirectory = activeDirectory;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // Master ProduktionsauftragHierarchisch (ServiceSetting) — Muster wie PickingController.
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
+
+    private async Task<bool> IsHierarchicalMasterAsync() =>
+        IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 
     /// <summary>
     /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
@@ -114,6 +126,7 @@ public class UsersController : Controller
             DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim(),
             DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim(),
             DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim(),
+            DefaultFilterBomKommissionierziel = string.IsNullOrWhiteSpace(vm.DefaultFilterBomKommissionierziel) ? null : vm.DefaultFilterBomKommissionierziel.Trim(),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -242,6 +255,7 @@ public class UsersController : Controller
             DefaultWorkbenches = user.DefaultWorkbenches,
             DefaultFilterFaWorklistDescription1 = user.DefaultFilterFaWorklistDescription1,
             DefaultFilterBomDescription1 = user.DefaultFilterBomDescription1,
+            DefaultFilterBomKommissionierziel = user.DefaultFilterBomKommissionierziel,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
             CreatedByWindows = user.CreatedByWindows,
@@ -284,6 +298,7 @@ public class UsersController : Controller
         existing.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
         existing.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
         existing.DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim();
+        existing.DefaultFilterBomKommissionierziel = string.IsNullOrWhiteSpace(vm.DefaultFilterBomKommissionierziel) ? null : vm.DefaultFilterBomKommissionierziel.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -349,6 +364,7 @@ public class UsersController : Controller
         }).ToList();
         vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
         vm.AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
+        vm.HierarchicalMaster = await IsHierarchicalMasterAsync();
     }
 
     /// <summary>Akzeptiert nur erlaubte PageSize-Werte; sonst NULL (= System-Default).</summary>

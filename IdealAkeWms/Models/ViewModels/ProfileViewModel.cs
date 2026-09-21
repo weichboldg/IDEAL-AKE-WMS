@@ -65,4 +65,14 @@ public class ProfileViewModel
     [StringLength(200)]
     [Display(Name = "Standard-Filter Bezeichnung 1 (Stückliste)")]
     public string? DefaultFilterBomDescription1 { get; set; }
+
+    /// <summary>Standard-Filterwert fuer die Spalte „Komm.-Ziel" in der Stueckliste (nur IDEAL).
+    /// Leer = kein Default.</summary>
+    [StringLength(200)]
+    [Display(Name = "Standard-Filter Kommissionierziel (Stückliste)")]
+    public string? DefaultFilterBomKommissionierziel { get; set; }
+
+    /// <summary>Master ProduktionsauftragHierarchisch aktiv — steuert die Sichtbarkeit des
+    /// Kommissionierziel-Standardfilterfelds (AKE fuehrt kein Kommissionierziel).</summary>
+    public bool HierarchicalMaster { get; set; }
 }
