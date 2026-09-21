@@ -135,7 +135,7 @@
 <div id="bomDefaultFilterBadges" class="d-flex flex-wrap gap-2 align-items-center mb-2" hidden></div>
 <div id="bomKzEmptyState" class="alert alert-warning py-2 px-3 mb-2 d-flex justify-content-between align-items-center" role="alert" hidden>
     <span id="bomKzEmptyStateText"></span>
-    <button type="button" class="btn btn-sm btn-outline-dark ms-3" id="bomKzEmptyStateReset">Filter zurücksetzen</button>
+    <button type="button" class="btn btn-sm btn-outline-dark ms-3" id="bomKzEmptyStateReset">Alle Filter zurücksetzen</button>
 </div>
 
 <div class="table-responsive">
@@ -1031,6 +1031,17 @@
                 renderDefaultFilterBadges();
                 checkKommissionierzielEmptyState();
             }
+            // Leerzustand-Knopf: ALLE aktiven Spaltenfilter leeren (intuitiver „zeig wieder alles").
+            function resetAllBomFilters() {
+                document.querySelectorAll('#bomTable .filter-row input[data-col-key]').forEach(function (input) {
+                    input.value = '';
+                });
+                var sel = document.getElementById('bomKommissionierzielSelect');
+                if (sel && window.jQuery) window.jQuery(sel).val(null).trigger('change.select2');
+                updateBomVisibility();
+                renderDefaultFilterBadges();
+                checkKommissionierzielEmptyState();
+            }
 
             // ===== Komm.-Ziel: Freitext-Input durch Select2-Mehrfach-Dropdown ersetzen (nur hierarchisch) =====
             // Der <input data-col-key="kommissionieren"> bleibt als verstecktes Quell-Element bestehen
@@ -1148,7 +1159,7 @@
                     checkKommissionierzielEmptyState();
 
                     var kzResetBtn = document.getElementById('bomKzEmptyStateReset');
-                    if (kzResetBtn) kzResetBtn.addEventListener('click', function () { resetDefaultFilter('kommissionieren'); });
+                    if (kzResetBtn) kzResetBtn.addEventListener('click', resetAllBomFilters);
                 }, 0);
             });
 
