@@ -7350,8 +7350,11 @@ Bildschirm-Interaktion ist **Manual-UAT**.
   erneut oeffnen → Filter ist vorbelegt **und** als Badge sichtbar.
 - **Benannter Leerzustand (AK 8).** Standard auf einen in der aktuellen Liste **nicht** vorkommenden
   Wert setzen → Meldung „Standardfilter Kommissionierziel `<Wert>` aktiv — keine Treffer in dieser
-  Stueckliste" mit Ein-Klick-Reset; Reset zeigt wieder alle Zeilen. Teiltreffer (`KA-02,S-01`, nur
+  Stueckliste" mit Knopf **„Alle Filter zuruecksetzen"**; der Knopf leert **alle** aktiven
+  Spaltenfilter (nicht nur Komm.-Ziel) → wieder alle Zeilen sichtbar. Teiltreffer (`KA-02,S-01`, nur
   `KA-02` vorhanden) → `KA-02`-Zeilen sichtbar, **keine** Leerzustands-Meldung.
+  Gegenprobe Badge: das **×** an einem einzelnen Standardfilter-Badge setzt weiterhin **nur** diesen
+  einen Filter zurueck.
 - **Badge fuer ALLE VIER Standardfilter (AK 7/15).** Beschaffung, Artikelgruppe, Bezeichnung 1 und
   Kommissionierziel nacheinander als Standard setzen → je ein sichtbarer Badge oberhalb der Tabelle
   mit dem Wert und Ein-Klick-Reset (Nachweis, dass der vorbestehende stille Filter von
