@@ -31,6 +31,7 @@ public class UsersControllerAdUserTests
         var workplaceRepo = new Mock<IProductionWorkplaceRepository>();
         workplaceRepo.Setup(x => x.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionWorkplace>());
 
+        var serviceSettings = new Mock<IServiceSettingRepository>();
         var ctrl = new UsersController(
             userRepo.Object,
             roleRepo.Object,
@@ -39,7 +40,8 @@ public class UsersControllerAdUserTests
             viewPrefRepo.Object,
             workStepRepo.Object,
             workplaceRepo.Object,
-            ad.Object);
+            ad.Object,
+            serviceSettings.Object);
 
         var httpCtx = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };

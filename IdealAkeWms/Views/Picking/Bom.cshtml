@@ -1165,9 +1165,17 @@
                 // Aktive Filterinfos für Header-Anzeige im Druck
                 var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
                 var filterParts = [];
-                var colNames = { 1: 'Position', 2: 'Baugruppe', 3: 'Ressourcenr.', 4: 'Bezeichnung 1', 5: 'Bezeichnung 2', 6: 'Menge', 7: 'Beschaffung', 8: 'Artikelgruppe' };
+                // getActiveFilters() liefert col-key-Schluessel (nicht numerisch) — Map entsprechend,
+                // inkl. der hierarchischen Spalten, damit der Druck-Filterhinweis den Spaltennamen kennt.
+                var colNames = {
+                    'position': 'Position', 'assembly-group': 'Baugruppe', 'resource-number': 'Ressourcenr.',
+                    'description1': 'Bezeichnung 1', 'description2': 'Bezeichnung 2', 'quantity': 'Menge',
+                    'procurement': 'Beschaffung', 'article-group': 'Artikelgruppe', 'category': 'Kategorie',
+                    'kommissionieren': 'Komm.-Ziel', 'hauptlagerplatz': 'Hauptlagerplatz',
+                    'sage-position': 'Sage-Pos.', 'ebene': 'Ebene', 'vater-sub-fa': 'Vater-Sub-FA'
+                };
                 for (var col in filters) {
-                    filterParts.push((colNames[col] || 'Spalte ' + col) + '=' + filters[col]);
+                    filterParts.push((colNames[col] || col) + '=' + filters[col]);
                 }
 
                 // Collect visible column keys from the BOM table headers

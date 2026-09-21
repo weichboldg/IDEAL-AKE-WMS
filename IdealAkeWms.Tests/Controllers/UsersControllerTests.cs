@@ -26,6 +26,7 @@ public class UsersControllerTests
         workplaceRepo ??= new Mock<IProductionWorkplaceRepository>();
         workplaceRepo.Setup(x => x.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         var activeDirectory = new Mock<IActiveDirectoryService>();
+        var serviceSettings = new Mock<IServiceSettingRepository>();
         return new UsersController(
             userRepo.Object,
             roleRepo.Object,
@@ -34,7 +35,8 @@ public class UsersControllerTests
             viewPrefRepo.Object,
             workStepRepo.Object,
             workplaceRepo.Object,
-            activeDirectory.Object);
+            activeDirectory.Object,
+            serviceSettings.Object);
     }
 
     [Fact]

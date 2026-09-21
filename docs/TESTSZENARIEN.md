@@ -7329,6 +7329,42 @@ laufenden IDEAL-System.
   wuerde zu einem Rueckbau aus dem falschen Grund verleiten.
   Negativfall: im Flachmodus ist der Ausdruck unveraendert gegenueber dem Stand vor v1.36.0.
 
+### Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0)
+
+**Bezug:** Spec `2026-09-18-stueckliste-kommissionierziel-filter-spec`. Schliesst den oben (Fall B)
+beschriebenen Druck-Befund mit (Komm.-Ziel/Ebene im Ausdruck). Client-Mode-Ansicht — die
+Bildschirm-Interaktion ist **Manual-UAT**.
+
+- **Dropdown statt Freitext (AK 1/2/3).** Hierarchische Stueckliste (HauptFA, Vollstruktur) oeffnen →
+  die Filterzeile der Spalte „Komm.-Ziel" zeigt ein **Select2-Dropdown**, keine Freitexteingabe. Die
+  Optionen sind die tatsaechlich in der Liste vorkommenden Kommissionierziele (DISTINCT), kein
+  Eintrag, der nicht vorkommt. Negativfall: Stueckliste ohne Kommissionierziele → Dropdown zeigt
+  erkennbaren Leerzustand („keine Werte", deaktiviert), keine funktionslose graue Flaeche.
+- **Filtern + Auto-Aufklappen (AK 1/14).** Einen Wert waehlen → nur Zeilen mit diesem Ziel (bzw. deren
+  aufgeklappte Eltern) bleiben sichtbar; ein Wert, der nur in einem **zugeklappten** Ast vorkommt,
+  klappt den Ast auf und zeigt den Treffer (nicht scheinbar „nichts").
+- **Mehrfachauswahl OR (AK 9).** Zwei Ziele waehlen → Zeilen **beider** Ziele sichtbar; im Profil
+  speichern → kommasepariert im Feld.
+- **Gespeicherter Standard (AK 5).** In Benutzereinstellungen/Profil (nur bei Master `true`) ein
+  Standard-Kommissionierziel als **Textfeld** setzen (kein Dropdown, AK 13) → hierarchische Stueckliste
+  erneut oeffnen → Filter ist vorbelegt **und** als Badge sichtbar.
+- **Benannter Leerzustand (AK 8).** Standard auf einen in der aktuellen Liste **nicht** vorkommenden
+  Wert setzen → Meldung „Standardfilter Kommissionierziel `<Wert>` aktiv — keine Treffer in dieser
+  Stueckliste" mit Ein-Klick-Reset; Reset zeigt wieder alle Zeilen. Teiltreffer (`KA-02,S-01`, nur
+  `KA-02` vorhanden) → `KA-02`-Zeilen sichtbar, **keine** Leerzustands-Meldung.
+- **Badge fuer ALLE VIER Standardfilter (AK 7/15).** Beschaffung, Artikelgruppe, Bezeichnung 1 und
+  Kommissionierziel nacheinander als Standard setzen → je ein sichtbarer Badge oberhalb der Tabelle
+  mit dem Wert und Ein-Klick-Reset (Nachweis, dass der vorbestehende stille Filter von
+  Beschaffung/Artikelgruppe/Bezeichnung 1 geschlossen ist).
+- **AKE-Flachmodus (AK 4/6).** AKE-Stueckliste (Master aus) → keine Komm.-Ziel-Spalte, kein Dropdown;
+  ein gesetzter Komm.-Ziel-Standard filtert dort **nichts** leer, Liste vollstaendig. AKE-Einstellungen:
+  Feld „Standard-Filter Kommissionierziel" fehlt (AK 12), „Bezeichnung 1" ist da.
+- **Migration 92 (AK 11).** `SQL/92_*.sql` zweimal gegen dieselbe DB ausfuehren → zweiter Lauf aendert
+  nichts (COL_LENGTH-Guard).
+- **Druck (AK 10).** Mit aktivem Komm.-Ziel-Filter drucken → Ausdruck zeigt „Gefilterte Ansicht" im
+  Kopf und die Spalten Komm.-Ziel/Hauptlagerplatz/Ebene (soweit am Bildschirm sichtbar); ohne aktiven
+  Filter → kein Hinweis, vollstaendige Liste. Schliesst Fall B oben.
+
 ---
 
 ## TS-71 — IDEAL: Materialisierung: Fachliche Felder (K1/K2) (v1.37.0)

@@ -613,7 +613,10 @@ public class PickingController : Controller
                 : (!string.IsNullOrEmpty(bom.Ressourcenummer) && baugruppen.Contains(bom.Ressourcenummer)),
             Lagerplatz = stockByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var locs) && locs.Any()
                 ? string.Join(", ", locs.Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
-                : null
+                : null,
+            Kommissionieren = (bom as FaHierarchyBomItem)?.Kommissionieren,
+            Hauptlagerplatz = (bom as FaHierarchyBomItem)?.Hauptlagerplatz,
+            Ebene = (bom as FaHierarchyBomItem)?.Ebene ?? 0
         })
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
