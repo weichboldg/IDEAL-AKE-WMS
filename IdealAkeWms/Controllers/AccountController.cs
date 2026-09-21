@@ -14,6 +14,7 @@ public class AccountController : Controller
     private readonly IWorkStepRepository _workStepRepository;
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
     private readonly IAppSettingRepository _appSettingRepository;
+    private readonly IServiceSettingRepository _serviceSettingRepository;
 
     public AccountController(
         IUserRepository userRepository,
@@ -21,7 +22,8 @@ public class AccountController : Controller
         ICurrentUserService currentUserService,
         IWorkStepRepository workStepRepository,
         IProductionWorkplaceRepository productionWorkplaceRepository,
-        IAppSettingRepository appSettingRepository)
+        IAppSettingRepository appSettingRepository,
+        IServiceSettingRepository serviceSettingRepository)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
@@ -29,7 +31,17 @@ public class AccountController : Controller
         _workStepRepository = workStepRepository;
         _productionWorkplaceRepository = productionWorkplaceRepository;
         _appSettingRepository = appSettingRepository;
+        _serviceSettingRepository = serviceSettingRepository;
     }
+
+    // Master ProduktionsauftragHierarchisch (ServiceSetting) — Muster wie PickingController.
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
+
+    private async Task<bool> IsHierarchicalMasterAsync() =>
+        IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 
     private async Task SetWindowsAuthAktivAsync()
     {
@@ -163,7 +175,9 @@ public class AccountController : Controller
             DefaultWorkbenches = user.DefaultWorkbenches,
             AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync(),
             DefaultFilterFaWorklistDescription1 = user.DefaultFilterFaWorklistDescription1,
-            DefaultFilterBomDescription1 = user.DefaultFilterBomDescription1
+            DefaultFilterBomDescription1 = user.DefaultFilterBomDescription1,
+            DefaultFilterBomKommissionierziel = user.DefaultFilterBomKommissionierziel,
+            HierarchicalMaster = await IsHierarchicalMasterAsync()
         };
         return View(vm);
     }
@@ -180,6 +194,7 @@ public class AccountController : Controller
         {
             vm.AvailableWorkSteps = await _workStepRepository.GetActiveAsync();
             vm.AvailableWorkplaces = await _productionWorkplaceRepository.GetAllOrderedAsync();
+            vm.HierarchicalMaster = await IsHierarchicalMasterAsync();
             return View(vm);
         }
 
@@ -201,6 +216,7 @@ public class AccountController : Controller
         user.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
         user.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
         user.DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim();
+        user.DefaultFilterBomKommissionierziel = string.IsNullOrWhiteSpace(vm.DefaultFilterBomKommissionierziel) ? null : vm.DefaultFilterBomKommissionierziel.Trim();
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);

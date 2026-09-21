@@ -90,6 +90,13 @@ public class User : AuditableEntity
     [Display(Name = "Standard-Filter Bezeichnung 1 (Stückliste)")]
     public string? DefaultFilterBomDescription1 { get; set; }
 
+    /// <summary>Standard-Filterwert fuer die Spalte „Komm.-Ziel" in der Stueckliste (BOM,
+    /// Client-Mode-Spaltenfilter, nur hierarchischer Modus). NULL/leer = kein Default. Darf die
+    /// Spaltenfilter-Mini-Syntax nutzen (OR mit `,`).</summary>
+    [StringLength(200)]
+    [Display(Name = "Standard-Filter Kommissionierziel (Stückliste)")]
+    public string? DefaultFilterBomKommissionierziel { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
     public ICollection<WorkstationUser> WorkstationUsers { get; set; } = new List<WorkstationUser>();

@@ -293,6 +293,7 @@ public class PickingController : Controller
         string? defaultFilterBeschaffung = null;
         string? defaultFilterArtikelgruppe = null;
         string? defaultFilterBomDescription1 = null;
+        string? defaultFilterBomKommissionierziel = null;
         var recursiveFilterSearch = false;
         var appUserId = _currentUserService.GetCurrentAppUserId();
         if (appUserId.HasValue)
@@ -303,6 +304,7 @@ public class PickingController : Controller
                 defaultFilterBeschaffung = currentUser.DefaultFilterBeschaffung;
                 defaultFilterArtikelgruppe = currentUser.DefaultFilterArtikelgruppe;
                 defaultFilterBomDescription1 = currentUser.DefaultFilterBomDescription1;
+                defaultFilterBomKommissionierziel = currentUser.DefaultFilterBomKommissionierziel;
                 recursiveFilterSearch = currentUser.RecursiveFilterSearch;
             }
         }
@@ -452,6 +454,7 @@ public class PickingController : Controller
             DefaultFilterBeschaffung = defaultFilterBeschaffung,
             DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
             DefaultFilterBomDescription1 = defaultFilterBomDescription1,
+            DefaultFilterBomKommissionierziel = defaultFilterBomKommissionierziel,
             AllStorageLocations = allStorageLocations,
             TargetStorageLocations = targetStorageLocations,
             DataSource = bomResult.DataSource,

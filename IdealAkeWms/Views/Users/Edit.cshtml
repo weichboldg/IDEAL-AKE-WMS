@@ -110,6 +110,15 @@
                         <div class="form-text">Standard-Filter „Bezeichnung 1" in der Stücklisten-Ansicht. Leer = kein Default.</div>
                     </div>
 
+                    @if (Model.HierarchicalMaster)
+                    {
+                        <div class="mb-3">
+                            <label asp-for="DefaultFilterBomKommissionierziel" class="form-label"></label>
+                            <input asp-for="DefaultFilterBomKommissionierziel" class="form-control" placeholder="z. B. KA-02" />
+                            <div class="form-text">Standard-Filter „Komm.-Ziel" in der Stücklisten-Ansicht (nur IDEAL). Leer = kein Default. Mehrere Werte mit Komma (ODER).</div>
+                        </div>
+                    }
+
                     <div class="mb-3 form-check">
                         <input asp-for="RecursiveFilterSearch" class="form-check-input" />
                         <label asp-for="RecursiveFilterSearch" class="form-check-label"></label>

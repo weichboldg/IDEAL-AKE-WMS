@@ -2875,6 +2875,10 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("DefaultFilterBomKommissionierziel")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("DefaultFilterFaWorklistDescription1")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
