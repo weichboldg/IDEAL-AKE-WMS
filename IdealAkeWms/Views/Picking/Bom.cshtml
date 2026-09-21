@@ -130,6 +130,14 @@
    Zahnrad nur bei aktiver Auswahl sichtbar waere. (analog PickingLeitstand) *@
 <div class="d-flex justify-content-end mb-1"></div>
 
+@* Sichtbarer Hinweis fuer aktive Standardfilter (Hausregel „sichtbar machen statt still filtern",
+   alle vier still vorbelegten Default-Filter dieser Ansicht) + benannter Leerzustand Komm.-Ziel. *@
+<div id="bomDefaultFilterBadges" class="d-flex flex-wrap gap-2 align-items-center mb-2" hidden></div>
+<div id="bomKzEmptyState" class="alert alert-warning py-2 px-3 mb-2 d-flex justify-content-between align-items-center" role="alert" hidden>
+    <span id="bomKzEmptyStateText"></span>
+    <button type="button" class="btn btn-sm btn-outline-dark ms-3" id="bomKzEmptyStateReset">Filter zurücksetzen</button>
+</div>
+
 <div class="table-responsive">
     <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
         <thead>
@@ -974,6 +982,137 @@
                 updateBomVisibility();
             };
 
+            // ===== Standardfilter sichtbar machen (Badge + Ein-Klick-Reset) — ALLE VIER Felder =====
+            // Hausregel „sichtbar machen statt still filtern": Beschaffung, Artikelgruppe, Bezeichnung 1
+            // und (nur hierarchisch) Komm.-Ziel werden beim Laden still vorbelegt. Ein Bedienelement,
+            // je Feld konfiguriert.
+            var bomDefaultFilterConfig = [
+                { key: 'procurement', label: 'Beschaffung' },
+                { key: 'article-group', label: 'Artikelgruppe' },
+                { key: 'description1', label: 'Bezeichnung 1' },
+                { key: 'kommissionieren', label: 'Komm.-Ziel' }
+            ];
+            function bomFilterInputValue(key) {
+                var input = document.querySelector('#bomTable .filter-row input[data-col-key="' + key + '"]');
+                return input ? (input.value || '').trim() : '';
+            }
+            function renderDefaultFilterBadges() {
+                var host = document.getElementById('bomDefaultFilterBadges');
+                if (!host) return;
+                host.innerHTML = '';
+                var any = false;
+                bomDefaultFilterConfig.forEach(function (cfg) {
+                    var val = bomFilterInputValue(cfg.key);
+                    if (!val) return;
+                    any = true;
+                    var badge = document.createElement('span');
+                    badge.className = 'badge bg-info text-dark d-inline-flex align-items-center gap-1';
+                    var label = document.createElement('span');
+                    label.textContent = 'Gefiltert: ' + cfg.label + ' = ' + val;
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn-close';
+                    btn.style.fontSize = '.55rem';
+                    btn.setAttribute('aria-label', 'Filter ' + cfg.label + ' zurücksetzen');
+                    btn.addEventListener('click', function () { resetDefaultFilter(cfg.key); });
+                    badge.appendChild(label);
+                    badge.appendChild(btn);
+                    host.appendChild(badge);
+                });
+                host.hidden = !any;
+            }
+            function resetDefaultFilter(key) {
+                window.setColumnFilter(key, '');
+                if (key === 'kommissionieren') {
+                    var sel = document.getElementById('bomKommissionierzielSelect');
+                    if (sel && window.jQuery) window.jQuery(sel).val(null).trigger('change.select2');
+                }
+                updateBomVisibility();
+                renderDefaultFilterBadges();
+                checkKommissionierzielEmptyState();
+            }
+
+            // ===== Komm.-Ziel: Freitext-Input durch Select2-Mehrfach-Dropdown ersetzen (nur hierarchisch) =====
+            // Der <input data-col-key="kommissionieren"> bleibt als verstecktes Quell-Element bestehen
+            // (getActiveFilters/setColumnFilter/updateBomVisibility unveraendert); das Select2 synct hinein.
+            function setupKommissionierzielDropdown() {
+                var input = document.querySelector('#bomTable .filter-row input[data-col-key="kommissionieren"]');
+                if (!input || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) return; // Flachmodus: kein Input → no-op
+                var values = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                    Model.Items.Where(i => !string.IsNullOrWhiteSpace(i.Kommissionieren)).Select(i => i.Kommissionieren!.Trim()).Distinct().OrderBy(x => x).ToList()));
+                var sel = document.createElement('select');
+                sel.id = 'bomKommissionierzielSelect';
+                sel.multiple = true;
+                sel.className = 'form-select form-select-sm';
+                values.forEach(function (v) {
+                    var opt = document.createElement('option');
+                    opt.value = v; opt.textContent = v;
+                    sel.appendChild(opt);
+                });
+                input.style.display = 'none';
+                input.parentNode.insertBefore(sel, input);
+                var pre = (input.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                var $sel = window.jQuery(sel);
+                $sel.select2({
+                    width: '100%',
+                    placeholder: values.length ? 'Komm.-Ziel …' : 'keine Werte',
+                    allowClear: true,
+                    closeOnSelect: false
+                });
+                if (values.length === 0) { $sel.prop('disabled', true); }
+                if (pre.length) { $sel.val(pre).trigger('change.select2'); }
+                $sel.on('change', function () {
+                    var vals = $sel.val() || [];
+                    input.value = vals.join(',');
+                    expandAncestorsOfMatching('kommissionieren', input.value);
+                    updateBomVisibility();
+                    renderDefaultFilterBadges();
+                    checkKommissionierzielEmptyState();
+                });
+            }
+
+            // ===== Auto-Aufklappen der Treffer-Aeste (Muster FA-Liste) =====
+            function expandAncestorsOfMatching(colKey, value) {
+                if (!value) return;
+                var idx = bomColKeyToIndex(colKey);
+                if (idx < 0) return;
+                var val = value.toLowerCase();
+                document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
+                    if (row.querySelector('td[colspan]')) return;
+                    var cell = row.cells[idx];
+                    if (!cell || !bomMatchesFilter(cell.textContent.toLowerCase(), val)) return;
+                    var pp = row.getAttribute('data-parent-pos');
+                    while (pp) {
+                        expandedState[pp] = true;
+                        var chevron = document.querySelector('.bom-toggle[data-target-pos="' + pp + '"] .bom-chevron');
+                        if (chevron) chevron.style.transform = 'rotate(90deg)';
+                        var parentRow = document.querySelector('#bomTable tbody tr[data-position="' + pp + '"]');
+                        pp = parentRow ? parentRow.getAttribute('data-parent-pos') : null;
+                    }
+                });
+            }
+
+            // ===== Benannter Leerzustand fuer den Komm.-Ziel-Standardfilter (AK 8) =====
+            function checkKommissionierzielEmptyState() {
+                var box = document.getElementById('bomKzEmptyState');
+                if (!box) return;
+                var val = bomFilterInputValue('kommissionieren');
+                if (!val) { box.hidden = true; return; }
+                var idx = bomColKeyToIndex('kommissionieren');
+                var v = val.toLowerCase();
+                var anyMatch = false;
+                var trs = document.querySelectorAll('#bomTable tbody tr');
+                for (var i = 0; i < trs.length; i++) {
+                    if (trs[i].querySelector('td[colspan]')) continue;
+                    var cell = trs[i].cells[idx];
+                    if (cell && bomMatchesFilter(cell.textContent.toLowerCase(), v)) { anyMatch = true; break; }
+                }
+                if (anyMatch) { box.hidden = true; return; }
+                document.getElementById('bomKzEmptyStateText').textContent =
+                    'Standardfilter Kommissionierziel „' + val + '“ aktiv — keine Treffer in dieser Stückliste.';
+                box.hidden = false;
+            }
+
             // Bug-Fix 3 (Filter-Row-Input-Binding) + Bug-Fix 2 (Default-Filter-Timing):
             // table-filter.js init() läuft NACH column-preferences-ready (async loadSettings fetch).
             // Zum Zeitpunkt des DOMContentLoaded-Handlers existiert _filterRow in table-filter.js noch nicht →
@@ -989,13 +1128,27 @@
                         input.addEventListener('input', updateBomVisibility);
                     });
 
-                    // Default-Filter in Spaltenfilter vorbelegen
+                    // Default-Filter in Spaltenfilter vorbelegen (alle vier)
                     var defaultBeschaffung = '@Html.Raw(Model.DefaultFilterBeschaffung)';
                     var defaultArtikelgruppe = '@Html.Raw(Model.DefaultFilterArtikelgruppe)';
                     var defaultBomDescription1 = '@Html.Raw(Model.DefaultFilterBomDescription1)';
+                    var defaultBomKommissionierziel = '@Html.Raw(Model.DefaultFilterBomKommissionierziel)';
                     if (defaultBeschaffung) window.setColumnFilter('procurement', defaultBeschaffung);
                     if (defaultArtikelgruppe) window.setColumnFilter('article-group', defaultArtikelgruppe);
                     if (defaultBomDescription1) window.setColumnFilter('description1', defaultBomDescription1);
+                    if (defaultBomKommissionierziel) window.setColumnFilter('kommissionieren', defaultBomKommissionierziel);
+
+                    // Komm.-Ziel: Freitext-Input durch Select2-Mehrfach-Dropdown ersetzen (nur hierarchisch).
+                    setupKommissionierzielDropdown();
+
+                    // Aktive Standardfilter sichtbar machen (Badge + Reset), Treffer-Aeste aufklappen, Leerzustand pruefen.
+                    if (defaultBomKommissionierziel) expandAncestorsOfMatching('kommissionieren', defaultBomKommissionierziel);
+                    updateBomVisibility();
+                    renderDefaultFilterBadges();
+                    checkKommissionierzielEmptyState();
+
+                    var kzResetBtn = document.getElementById('bomKzEmptyStateReset');
+                    if (kzResetBtn) kzResetBtn.addEventListener('click', function () { resetDefaultFilter('kommissionieren'); });
                 }, 0);
             });
 
