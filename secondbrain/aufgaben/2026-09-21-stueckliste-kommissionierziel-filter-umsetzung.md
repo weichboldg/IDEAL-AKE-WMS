@@ -44,3 +44,18 @@ Druck größer als erwartet → nach dem Bildschirm-Teil anhalten und melden (da
 ## Arbeitsstand
 
 - 2026-09-21: Spec Freigegeben → InUmsetzung. Referenz-Muster (`DefaultFilterBomDescription1`) lesen, dann Umsetzung.
+- 2026-09-21: **feature-complete.** Bildschirm-Teil (In-Scope 1–6) + Druck-Teil (In-Scope 7) beide
+  umgesetzt — Druck war **klein genug** (ShowCol-Muster existierte), kein Anhalten nötig.
+  Build 0 Fehler, **Web 1391 +1 skip, Service 277** grün. Version **1.42.0** ×2.
+  - **Gemessene Spec-Präzisierungen (am Code):** (1) Master ist **ServiceSetting** → `IServiceSettingRepository`
+    (nicht `IAppSettingRepository`) in beide Controller injiziert. (2) `PrintBomItem` ist ein **eigenes DTO**
+    (nicht `BomItemViewModel`) — Kommissionieren/Hauptlagerplatz/Ebene fehlten dort + im Print-Mapping,
+    ergänzt. (3) Druck-`colNames`-Map war **numerisch**, `getActiveFilters()` liefert aber **col-keys** →
+    auf col-key→Label umgestellt (fixt zugleich die AKE-Spalten-Labels). (4) `IServiceSettingRepository`-Ctor-
+    Param brach 3 Controller-Tests → Mock ergänzt.
+  - **Umsetzungsentscheidung Dropdown:** `<input data-col-key="kommissionieren">` bleibt als **verstecktes
+    Quell-Element**, Select2 nur davor + synct hinein → alle Client-Filter-Mechaniken unverändert
+    ([[fallstricke]] §14).
+  - Doku: Changelog v1.42.0, TS-70-Abschnitt „Komm.-Ziel-Filter", Brain-Changelog, feature-map,
+    testszenarien-index, [[fallstricke]] §14.
+- **Offen:** qa-agent (setzt `Testbereit`), dann Schranke 2 mit dem ganzen Bündel. Kein Merge/Push.
