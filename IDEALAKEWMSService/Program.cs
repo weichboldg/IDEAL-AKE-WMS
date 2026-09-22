@@ -50,10 +50,13 @@ try
                                   IDEALAKEWMSService.Common.HierarchicalModeReader>();
     builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownWorkStepTokenState,
                                   IDEALAKEWMSService.Common.UnknownWorkStepTokenState>();
+    builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownArbeitsplatzState,
+                                  IDEALAKEWMSService.Common.UnknownArbeitsplatzState>();
 
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();
     builder.Services.AddScoped<ISageLagerplatzReader, SageLagerplatzReader>();
+    builder.Services.AddScoped<ISageArbeitsplatzReader, SageArbeitsplatzReader>();
     builder.Services.AddScoped<ISageBestandReader, SageBestandReader>();
     builder.Services.AddScoped<ISageZusatzinfoReader, SageZusatzinfoReader>();
     builder.Services.AddScoped<IFaZusatzinfoSyncService, FaZusatzinfoSyncService>();
@@ -63,6 +66,7 @@ try
     builder.Services.AddScoped<ILagerbestandSyncService, LagerbestandSyncService>();
     builder.Services.AddScoped<IFaHierarchySyncService, FaHierarchySyncService>();
     builder.Services.AddScoped<IFaMaterializationSyncService, FaMaterializationSyncService>();
+    builder.Services.AddScoped<IProductionWorkplaceSyncService, ProductionWorkplaceSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();

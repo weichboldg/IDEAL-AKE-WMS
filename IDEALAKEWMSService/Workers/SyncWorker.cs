@@ -369,6 +369,26 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // Werkbank-Anlage aus Sage-Arbeitsplaetzen (IDEAL, Baustein a): KHKPpsArbeitsplaetze ->
+                // ProductionWorkplace (SageArbeitsplatznummer/Name/ArbeitsschrittCode). Doppel-Gate
+                // (Master + eigener Toggle) — ohne Master legte der Sync bei AKE fremde Werkbaenke an.
+                // VOR der Struktur-Arbeitsgang-Erkennung, damit deren Kuerzel-Katalog aktuell ist.
+                // ---------------------------------------------------------------
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "ProduktionsauftragHierarchisch", false, stoppingToken)
+                    && await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ProductionWorkplaceSyncEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Werkbank-Anlage (Sage-Arbeitsplaetze)", async () =>
+                    {
+                        using var wpScope = _scopeFactory.CreateScope();
+                        var wpSvc = wpScope.ServiceProvider.GetRequiredService<IProductionWorkplaceSyncService>();
+                        _logger.LogInformation("Werkbank-Anlage (Sage-Arbeitsplaetze) startet (DryRun={DryRun})...", dryRun);
+                        var wpResult = await wpSvc.RunAsync(dryRun: dryRun, ct: stoppingToken);
+                        _logger.LogInformation("Werkbank-Anlage fertig: Neu={Ins}, Upd={Upd}, Problematisch={Err}",
+                            wpResult.Inserted, wpResult.Updated, wpResult.Errors);
+                    }, stoppingToken);
+                }
+
+                // ---------------------------------------------------------------
                 // FA-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte -> FaWorkStep.
                 // Doppel-Gate (Master + eigener Toggle), beide GetBoolSafeAsync wie der Nachbar-Block
                 // oben; laeuft NACH der Materialisierung (braucht die ProductionOrder-Zeilen als Ziel).

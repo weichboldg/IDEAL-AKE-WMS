@@ -2305,6 +2305,10 @@ namespace IdealAkeWms.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ArbeitsschrittCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<bool>("BdeAktiv")
                         .HasColumnType("bit");
 
@@ -2351,7 +2355,16 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("OverridePrePickingDays")
                         .HasColumnType("int");
 
+                    b.Property<string>("SageArbeitsplatznummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SageArbeitsplatznummer")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ProductionWorkplaces_SageArbeitsplatznummer")
+                        .HasFilter("[SageArbeitsplatznummer] IS NOT NULL");
 
                     b.ToTable("ProductionWorkplaces", "dbo");
                 });

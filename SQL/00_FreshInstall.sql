@@ -240,6 +240,8 @@ BEGIN
         [BdeAktiv]               BIT               NOT NULL DEFAULT (0),
         [BdeDefaultArbeitsgang]  NVARCHAR(200)     NULL,
         [BdeUseCustomShiftPlan]  BIT               NOT NULL DEFAULT (0),
+        [SageArbeitsplatznummer] NVARCHAR(31)      NULL,
+        [ArbeitsschrittCode]     NVARCHAR(20)      NULL,
         [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]              NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
@@ -250,6 +252,14 @@ BEGIN
     );
     PRINT 'Tabelle ProductionWorkplaces erstellt.';
 END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_ProductionWorkplaces_SageArbeitsplatznummer'
+      AND object_id = OBJECT_ID('dbo.ProductionWorkplaces'))
+    CREATE UNIQUE INDEX [IX_ProductionWorkplaces_SageArbeitsplatznummer]
+        ON [dbo].[ProductionWorkplaces] ([SageArbeitsplatznummer])
+        WHERE [SageArbeitsplatznummer] IS NOT NULL;
 GO
 
 -- =============================================
@@ -2303,6 +2313,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260921131329_AddUserDefaultFilterBomKommissionierziel')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260921131329_AddUserDefaultFilterBomKommissionierziel', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260922083259_AddProductionWorkplaceSageFields')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260922083259_AddProductionWorkplaceSageFields', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
