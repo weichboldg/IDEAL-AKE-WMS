@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL: BDE-Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage-Arbeitsplaetzen"
 slug: 2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-21
 updated: 2026-09-22
 source_backlog: "[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur]]"
@@ -725,28 +725,47 @@ laufen im selben Buendel-Worktree).
 
 ## Deploy
 
-**Provisorisch (Dev-Lauf bestaetigt gegen den echten Diff):**
+**Finalisiert (QA, gegen den echten Diff `0aceee8d..920aabb7`, 38 Dateien, +5482/-393):**
 
-- **Web-App: ja.** `IdealAkeWms/Models/ProductionWorkplace.cs`, `ServiceSettingDefinitions.cs`,
-  `Models/Standort/StandortSettingsCatalog.cs`, `SyncLogServices.cs`, `Views/ProductionWorkplaces/*.cshtml`,
-  `BdeDefaultWorkOperationService.cs`, Migration.
-- **Service: ja.** Neuer Service `ProductionWorkplaceSyncService` (Baustein a), umbenannter/umgebauter
-  `WorkOperationStructureDetectionService` (Baustein b), `SyncWorker.cs`, `Program.cs` (DI, neu +
-  umbenannt).
-- **Migration: ja** — genau eine, zwei Spalten, aus Baustein (a) (siehe „Migrations-/SQL-Auswirkungen").
-  Reihenfolge: DB-Migration vor Service-Neustart (Standardablauf), kein Daten-Backup-Zwang ueber das
-  uebliche Mass hinaus (nicht destruktiv).
-- **Ablauf ueber die zwei Etappen, mit DryRun je Etappe:**
-  1. Etappe A deployen -> `Sync:ProductionWorkplaceSyncEnabled` zunaechst mit `WorkerSettings:SyncDryRun`
-     beobachten: wie viele Arbeitsplaetze werden neu angelegt (~60 erwartet), welche fallen unter die
-     Ausschlussliste, welche werden uebersprungen (Filter) -> scharf schalten.
-  2. Nach dem scharfen Lauf: alle neuen Werkbaenke starten mit `BdeAktiv = false` — der Mensch schaltet
-     die tatsaechlich terminal-relevanten Arbeitsplaetze bewusst frei, bevor Etappe B live geht.
-  3. Etappe B deployen -> `Sync:FaWorkStepStructureDetectionEnabled`-Nachfolgekey mit DryRun beobachten:
-     welche Sub-FAs bekommen Arbeitsgaenge, welche Token bleiben unbekannt -> scharf schalten.
-  Kein separater Katalog-Pflegeschritt zwischen a und b noetig (anders als v1.41.0s `/WorkSteps`-Pflege)
-  — das ist die unter „Technischer Loesungsentwurf" beschriebene strukturelle Vereinfachung.
-- **Publish-Befehle (aus dem Worktree):**
+- **Web-App: ja.** `IdealAkeWms/Models/ProductionWorkplace.cs` (+2 Felder), `ApplicationDbContext.cs`
+  (Unique-Index), `ServiceSettingDefinitions.cs` (+3 Keys), `Models/Standort/StandortSettingsCatalog.cs`
+  (+Gruppe `Werkbaenke (Sage-Arbeitsplaetze)`), `SyncLogServices.cs`, `ViewModels/
+  ProductionWorkplaceEditViewModel.cs`, `Controllers/ProductionWorkplacesController.cs`,
+  `Views/ProductionWorkplaces/{Index,Edit,Create}.cshtml` (Sage-Felder read-only + 2 Spaltenfilter),
+  `Services/BdeDefaultWorkOperationService.cs` (Existenz-Check-Fix AK16), `Models/FaWorkStep.cs`
+  (`FaWorkStepSources.Struktur` entfernt), `Views/Help/{Index,Changelog}.cshtml`, `README.md`,
+  Migration `20260922083259_AddProductionWorkplaceSageFields` + Designer + Snapshot.
+- **Service: ja.** Neuer `ProductionWorkplaceSyncService`/`IProductionWorkplaceSyncService` +
+  `SageArbeitsplatzReader`/`ISageArbeitsplatzReader` + `IUnknownArbeitsplatzState` (Baustein a); umbenannt
+  `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService` (+ Interface,
+  `IUnknownArbeitsschrittTokenState`, Baustein b); `SyncWorker.cs` (zwei Gate-Bloecke, Reihenfolge a **vor**
+  b verifiziert im Code, Zeilen 377/397); `Program.cs` (DI neu + umbenannt).
+- **Migration: ja** — genau eine, zwei Spalten + ein eindeutiger gefilterter Index, aus Baustein (a).
+  `SQL/93_AddProductionWorkplaceSageFields.sql` geprueft: `COL_LENGTH`-Guard je Spalte, eigener
+  `sys.indexes`-Guard fuer den Index, `__EFMigrationsHistory`-Insert in separatem Batch —
+  **idempotent** (AK 19). `SQL/00_FreshInstall.sql` an beiden Stellen aktualisiert (Schema-Block +
+  `MigrationId`-Liste), per Diff verifiziert. Reihenfolge: DB-Migration vor Service-Neustart
+  (Standardablauf), kein Daten-Backup-Zwang ueber das uebliche Mass hinaus (zwei neue nullable Spalten,
+  nicht destruktiv).
+- **DryRun-Pflicht vor dem scharf schalten (Baustein a legt bei IDEAL ~60 Werkbaenke neu an):**
+  1. Etappe A deployen (Web + Service + Migration) → Toggle `Sync:ProductionWorkplaceSyncEnabled`
+     **zusammen mit** `WorkerSettings:SyncDryRun = true` einschalten und einen Lauf beobachten: Anzahl
+     `neu`/`aktualisiert`/`uebersprungen`/`problematisch` im Aktivitaets-Protokoll
+     (`SyncLogServices.ProductionWorkplaceSync`) gegen die erwarteten ~60 pruefen, Ausschlussliste-Treffer
+     und uebersprungene Zeilen (Pflicht-Filter) plausibilisieren → danach `WorkerSettings:SyncDryRun = false`
+     scharf schalten.
+  2. Nach dem scharfen Lauf: alle neuen Werkbaenke starten mit `BdeAktiv = false` (Code-verifiziert,
+     `ProductionWorkplaceSyncService.cs` setzt es nie explizit) — der Mensch schaltet die tatsaechlich
+     terminal-relevanten Arbeitsplaetze bewusst frei, **bevor** Etappe B live geht.
+  3. Etappe B deployen (Web + Service, **keine** weitere Migration) → Toggle
+     `Sync:WorkOperationStructureDetectionEnabled` **zusammen mit** `WorkerSettings:SyncDryRun = true`
+     einschalten, einen Lauf beobachten (`neu`/`uebersprungen`/`arbeitsschritt_mehrdeutig`/
+     `arbeitsschritt_unbekannt` im Aktivitaets-Protokoll `SyncLogServices.WorkOperationStructureDetection`)
+     → danach `WorkerSettings:SyncDryRun = false` scharf schalten.
+  Beide Toggles bleiben zusaetzlich vom Master `ProduktionsauftragHierarchisch = true` abhaengig
+  (Doppel-Gate, AK 7/18) — ohne den Master laufen beide Bloecke gar nicht, unabhaengig vom eigenen Toggle.
+  Kein separater Katalog-Pflegeschritt zwischen a und b noetig (anders als v1.41.0s `/WorkSteps`-Pflege).
+- **Publish-Befehle (aus dem Worktree, der Mensch testet dort zuerst — Test-System, dann Test, dann Merge):**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
@@ -1420,3 +1439,151 @@ nicht mehr „Typ offen".
 beim Nachziehen ins Gegenteil verkehrt worden (Rumpf: „Kein Unique-Index") und fehlt in Migration +
 `affected_code`. Das ist der eine echte Riss; die uebrigen vier gezielten Fragen sind sauber
 nachgezogen. Nach dieser Korrektur ist der Rumpf konsistent zu den Entscheidungen.
+
+## QA-Nachweis (2026-09-22, EPIC-Abnahme beider Etappen)
+
+Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff-Basis
+`0aceee8d..920aabb7` (Etappe A: `8be03982` Backend + `be0695fb` Views; Etappe B: `920aabb7`,
+v1.44.0), 38 Dateien geaendert (+5482/-393).
+
+**1. Build.**
+```
+dotnet build IdealAkeWms.slnx
+...
+Der Buildvorgang wurde erfolgreich ausgeführt.
+    12 Warnung(en)   (alle vorbestehend, keine aus diesem Epic — CS8602/CS8321 in Tracking/FaWorklist/
+                       ProductionOrders, NU1902 MailKit/MimeKit-Advisories)
+    0 Fehler(er)
+```
+
+**2. Tests — gesamt gruen, exakt wie erwartet.**
+```
+dotnet test IdealAkeWms.slnx
+IdealAkeWms.Tests:        Bestanden! Fehler: 0, erfolgreich: 1392, übersprungen: 1, gesamt: 1393
+IDEALAKEWMSService.Tests: Bestanden! Fehler: 0, erfolgreich:  268, übersprungen: 0, gesamt:  268
+```
+Gezielter Nachlauf der epic-relevanten Suiten (Teilmenge der obigen Zahlen, zur Zuordnung):
+- `ProductionWorkplaceSyncServiceTests` + `WorkOperationStructureDetectionServiceTests`
+  (IDEALAKEWMSService.Tests, Filter `ProductionWorkplaceSync|WorkOperationStructureDetection`):
+  **19/19 gruen** (6 + 13, inkl. Kuerzel-Mehrdeutigkeit AK 11).
+- `BdeDefaultWorkOperationServiceTests` (IdealAkeWms.Tests, Filter `BdeDefaultWorkOperation`):
+  **9/9 gruen** (inkl. Existenz-Check-Fix AK 16).
+- `ServiceSettingDefinitions`-Drift-Guard-Test laeuft als Teil der 268 (kennt alle 3 neuen +
+  den umbenannten Key) — kein separater Fehlschlag.
+
+**3. CLAUDE.md-Checkliste — verifiziert am Diff, nicht nur behauptet:**
+- Migration `20260922083259_AddProductionWorkplaceSageFields` + `SQL/93_AddProductionWorkplaceSageFields.sql`
+  gelesen: je Spalte ein `COL_LENGTH`-Guard, eigener `sys.indexes`-Guard fuer
+  `IX_ProductionWorkplaces_SageArbeitsplatznummer` (unique, gefiltert `WHERE ... IS NOT NULL`),
+  `__EFMigrationsHistory`-Insert in separatem Batch — **idempotent** (AK 19, Struktur passt).
+- `SQL/00_FreshInstall.sql` per `git diff` an **beiden** Stellen bestaetigt: Schema-Block (zwei Spalten +
+  Index) UND `MigrationId`-Liste.
+- Audit-Felder gelesen im Code: `ProductionWorkplaceSyncService.cs` setzt
+  `CreatedBy/CreatedByWindows = "ProductionWorkplaceSync"` bei Neuanlage,
+  `ModifiedBy/ModifiedByWindows` nur bei tatsaechlicher Abweichung (kein Touch sonst).
+  `WorkOperationStructureDetectionService.cs` setzt `CreatedBy/CreatedByWindows =
+  "WorkOperationStructureDetection"` bei jeder neuen `WorkOperation` (reine Nur-hinzufuegen-Semantik,
+  kein Update-Pfad).
+- Version-Bump verifiziert in **beiden** `AppVersion.cs` (`1.44.0`/`2026-09-22`), Anwender-Changelog
+  `Views/Help/Changelog.cshtml` (+29 Zeilen) im Diff.
+- Brain-Pflichten bereits vom Dev-Lauf gepflegt und stichprobenartig verifiziert (Hauptcheckout):
+  `secondbrain/changelog/2026-09-22-v1-44-0-ideal-bde-arbeitsgaenge-werkbank-anlage.md`,
+  `secondbrain/feature-map.md`, `secondbrain/codebase/services.md`,
+  `secondbrain/architektur/fallstricke.md` §16, `secondbrain/specs/freigegeben/
+  2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec.md` (Superseded-Hinweis Zeile 40 bestaetigt).
+
+**4. Testszenarien — verifiziert, nicht neu geschrieben.**
+`docs/TESTSZENARIEN.md` enthaelt Kapitel „TS-77 — IDEAL: Arbeitsgänge (WorkOperation) aus der Struktur +
+Werkbank-Anlage aus Sage (v1.44.0)" (17 Szenarien TS-77.1–77.17) sowie TS-76 mit dem Kopf-Hinweis
+„**ERSETZT durch TS-77**". `secondbrain/tests/testszenarien-index.md` traegt Zeile 103 (TS-77, Verweis auf
+alle drei Bausteine + Automatisierungs-/Manual-UAT-Aufteilung) und Zeile 102 (TS-76, „**ERSETZT durch
+77**", Superseded-Hinweis im Text).
+
+**5. AK 15 — `BdeScanResolver` unveraendert, per Diff bewiesen.**
+```
+git log --oneline 8be03982^..HEAD -- IdealAkeWms/Services/BdeScanResolver.cs   -> leer
+git diff --stat  8be03982^..HEAD -- IdealAkeWms/Services/BdeScanResolver.cs    -> leer
+```
+Keine Aenderung an dieser Datei in diesem Epic — Empfehlung F (Routing ueber
+`WorkOperation.ProductionWorkplaceId`, beim Anlegen in Baustein b materialisiert) haelt ohne
+Resolver-Eingriff, wie in der Spec begruendet.
+
+**6. Skill-Kette durchlaufen.** `superpowers:verification-before-completion` (dieses Dokument ist das
+Ergebnis: frische Kommando-Ausgaben oben, keine Wiederholung aus dem Dev-Lauf) und
+`code-review`/`superpowers:requesting-code-review` (Diff-Review `0aceee8d..920aabb7` angestossen).
+
+**7. Ehrliche Abgrenzung — NICHT durch gruene Tests bewiesen, Manual-UAT (TS-77) Pflicht:**
+- **AK 20 (Doppelanlage/Unique-Index, TS-77.16).** EF InMemory erzwingt `IsUnique()`-Indizes **nicht** —
+  der Code faengt `DbUpdateException` je Zeile ab (siehe `ProductionWorkplaceSyncService.cs:108-125`),
+  aber dass der SQL-Server-Index tatsaechlich einen zweiten Insert verwirft, ist am InMemory-Provider
+  nicht pruefbar. Muss am echten SQL Server verifiziert werden.
+- **AK 10 (Ausschlussliste, TS-77.3/77.9).** Die Ausschlussliste ist ein `ServiceSettings`-DB-Wert
+  (`Sync:ProductionWorkplaceSyncAusschlussliste`), nicht InMemory injizierbar — die Unit-Tests decken die
+  Verarbeitungslogik ab (Token auf der Liste → kein Insert, keine Meldung), nicht den echten DB-Wert.
+- **Alle Sage-Reads** (`SageArbeitsplatzReader` gegen `KHKPpsArbeitsplaetze`) — Fremdsystem-Zugriff, per
+  Definition kein InMemory-Pfad (`fallstricke.md`, „Tests, EF, SQL Server").
+- **AK 15 (Terminal-Anzeige, TS-77.12).** Der Diff-Beweis (Punkt 5) zeigt nur, dass der Code unveraendert
+  ist — dass die Werkbank-Auswahl am echten Terminal-Bildschirm den richtigen Arbeitsgang anzeigt, ist
+  Bildschirm-Sichtpruefung.
+- Insgesamt Manual-UAT-pflichtig laut TS-77-Kapitel: TS-77.1/2/3/4/5/6/7/9/12/14/15/16/17 (siehe
+  „Test-Szenarien" oben, Markierung „(Manual-UAT)"). Automatisiert **beweisbar** (in den 19+9 Tests
+  oben enthalten): TS-77.8 (Sammelmeldung), TS-77.10 (Mehrdeutigkeit), TS-77.11 (DirectChildren),
+  TS-77.13 (Existenz-Check-Fix).
+
+**Ergebnis: Build gruen, Tests gruen (1392+1 skip / 268, exakt wie erwartet), Migration idempotent,
+Brain-Pflichten erfuellt, AK 15 per Diff bewiesen. Status auf `Testbereit` gesetzt.**
+
+## Manuelle Test-Checkliste (Schranke 2 — fuer den Menschen, Schwerpunkt Manual-UAT)
+
+Reihenfolge beachten: Etappe A **vor** Etappe B scharf schalten (siehe „Deploy"), je Etappe zuerst
+DryRun. Alle Schritte auf der IDEAL-Testinstanz, sofern nicht anders vermerkt.
+
+1. **Vorbedingung pruefen.** [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]] muss bereits
+   gemergt sein (Rueckbau Werkbank-aus-Arbeitsbereich) — sonst versucht die Materialisierung weiterhin,
+   `Arbeitsbereich`-Werte auf `ProductionWorkplace.Name` zu matchen und meldet nach der Anlage jeden
+   Arbeitsbereich als „unbekannte Werkbank" (Rauschen).
+2. **Sage-Schema-Gegenprobe (vor dem scharfen Lauf).** `INFORMATION_SCHEMA.COLUMNS` gegen
+   `KHKPpsArbeitsplaetze.Arbeitsplatznummer` pruefen — passt `NVARCHAR(31)` als verlustfreie Obermenge
+   (Antwort 9)?
+3. **TS-77.1 Neuanlage (AK 1).** Etappe A deployen, `Sync:ProductionWorkplaceSyncEnabled` +
+   `WorkerSettings:SyncDryRun = true`. Lauf beobachten: DryRun-Zaehler `neu` ≈ 60 (66 aktive
+   Sage-Arbeitsplaetze minus Ausschlussliste minus leere Kuerzel). Dann scharf schalten
+   (`SyncDryRun = false`) und pruefen: neue `ProductionWorkplace`-Zeilen mit
+   `SageArbeitsplatznummer`/`Name`/`ArbeitsschrittCode` gesetzt, `BdeAktiv = false`,
+   `CreatedBy = "ProductionWorkplaceSync"`.
+4. **TS-77.2 Abweichung (AK 2).** Einen bestehenden Datensatz (nach dem ersten Lauf) in Sage umbenennen
+   oder das Kuerzel aendern, zweiten Lauf ausloesen. Erwartung: WMS-Wert ueberschrieben (Sage fuehrend),
+   Sammelmeldung/Mail mit altem/neuem Wert im Aktivitaets-Protokoll.
+5. **TS-77.3 Ausschlussliste (AK 4).** Pruefen, dass Arbeitsplaetze mit Kuerzel `STO`/`XXX`/`x01`/`BS`/
+   `BS2`/`FRE`/`AKE` **keine** Werkbank erzeugt haben, kein SyncLog-Eintrag dafuer.
+6. **TS-77.4 Trim (AK 5).** Arbeitsplatz 2150 (`"EG "` mit Leerzeichen laut Datenbefund) pruefen:
+   `ArbeitsschrittCode = "EG"` ohne Leerzeichen.
+7. **TS-77.5 Pflicht-Filter (AK 6).** Stichprobe: ein Arbeitsplatz mit falschem Mandant bzw.
+   `Aktiv = 0` bzw. leerem Kuerzel wurde **nicht** angelegt.
+8. **TS-77.6 Master-Gate (AK 7).** Master `ProduktionsauftragHierarchisch = false` setzen, Lauf
+   ausloesen: kein SyncLog-Eintrag `ProductionWorkplaceSync`.
+9. **Werkbaenke freischalten.** Vor Etappe B: die tatsaechlich terminal-relevanten neuen Werkbaenke
+   manuell auf `BdeAktiv = true` setzen (`/ProductionWorkplaces`).
+10. **TS-77.7 Grundfall (AK 8).** Etappe B deployen, `Sync:WorkOperationStructureDetectionEnabled` +
+    `WorkerSettings:SyncDryRun = true`. Lauf beobachten, dann scharf schalten. Sub-FA mit Token `KA`
+    prüfen: genau eine `WorkOperation` mit `OperationNumber = "KA"`, korrekter `ProductionWorkplaceId`.
+11. **TS-77.12 Terminal zeigt den echten AG (AK 15).** Am BDE-Terminal (Normal-Modus) einen Sub-FA mit
+    bekanntem Arbeitsschritt scannen: der struktur-abgeleitete Arbeitsgang erscheint/ist buchbar, ohne
+    manuelle Default-Auswahl.
+12. **TS-77.14 Regressionslauf TS-66.** Bestehende BDE-Disambiguierungs-Szenarien (mehrere Sub-FAs
+    derselben `OrderNumber`, Auswahlliste, NurFA-Fix) laufen mit echten `WorkOperation`-Zeilen
+    unveraendert durch.
+13. **TS-77.15 AKE-Regression (AK 17).** Auf der AKE-Instanz (oder Master `false`): bestaetigen, dass
+    `FaWorkStepDetectionService`/`WorkStep`-Katalog `VA/VE/VK/VL/VT` unveraendert funktionieren, kein
+    Lauf der neuen/umbenannten Services.
+14. **TS-77.16 Doppelanlage (AK 20).** Am SQL Server (nicht InMemory-beweisbar): gezielt einen zweiten
+    Insert mit derselben `SageArbeitsplatznummer` provozieren (z. B. Datensatz-Konflikt simulieren).
+    Erwartung: Index verhindert die zweite Zeile, Meldung im SyncLog, **alle uebrigen Arbeitsplaetze
+    werden im selben Lauf trotzdem verarbeitet** (kein Abbruch).
+15. **TS-77.17 Schluessel-Behandlung (AK 21).** Falls in Sage vorhanden: Nummer `"0000"` bleibt `"0000"`
+    (kein `int.Parse`); eine Nummer mit Leerzeichen findet die bestehende Zeile, keine Neuanlage.
+16. **Hilfeseite pruefen.** `/Help` zeigt den Hinweis, dass `SageArbeitsplatznummer`/`Name`/
+    `ArbeitsschrittCode` Sage-gefuehrt sind (manuelle Aenderung ueberlebt den naechsten Sync-Lauf nicht)
+    und dass ein Wechsel der Ausschlussliste bestehende Werkbaenke nicht rueckwirkend entfernt.
+17. **Freigabe fuer Merge.** Erst nach allen obigen Punkten (insbesondere TS-77.16 am echten SQL Server)
+    grün: Schranke 2 (Merge) freigeben.
