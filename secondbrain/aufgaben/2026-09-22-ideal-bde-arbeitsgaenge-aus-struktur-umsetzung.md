@@ -47,3 +47,26 @@ Etappe A = `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`:
 ## Arbeitsstand
 
 - 2026-09-22: Spec Freigegeben → InUmsetzung. Baustein-(a)-Entwurf gelesen. Bau startet.
+- 2026-09-22: **Etappe A (Baustein a) vollständig gebaut — STOPP wie beauftragt.** Build grün
+  (0 Fehler), volle Testsuite grün (Web 1391 + 1 skip, Service **269** = 263 + 6 neue).
+  Zwei baubare Commits im Worktree:
+  - `8be03982` Backend: Model-Felder + Migration `20260922083259`/`SQL/93` + FreshInstall (beide Stellen)
+    + `ProductionWorkplaceSyncService` + `ISageArbeitsplatzReader`/`SageArbeitsplatzReader`
+    + `IUnknownArbeitsplatzState` (neu, weil `IUnknownWorkplaceState` im ADR-0014-Rückbau gelöscht wurde)
+    + 3 ServiceSettings + `StandortSettingsCatalog` (Gruppe „Werkbänke") + `SyncLogServices`-Konstante
+    + `Program.cs`-DI + `SyncWorker`-Doppel-Gate (`ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled`)
+    + 6 Unit-Tests (`ProductionWorkplaceSyncServiceTests`).
+  - `be0695fb` Views: `ProductionWorkplaces/Index` neue Spalten Sage-Nr. + Arbeitsschritt inkl.
+    Server-Spaltenfilter (ADR 0005, ColumnMap-Getter `sage-nr`/`arbeitsschritt`);
+    `Edit` zeigt bei Sage-geführten Werkbänken Bezeichnung/Sage-Nr./Arbeitsschritt **read-only**
+    (manuelle AKE-Werkbänke bleiben editierbar — kein Sync überschreibt sie); `Create`-Hinweis.
+    ViewModel: `SageArbeitsplatznummer`/`ArbeitsschrittCode` (read-only) + `IstSageGefuehrt`.
+- Verifiziert: Migration `20260922083259_AddProductionWorkplaceSageFields` = höchste; SQL/93 = nächste
+  freie Nummer; ADR-0014-Rückbau im Worktree (keine Werkbank-aus-Arbeitsbereich-Ableitung mehr in
+  `FaMaterializationSyncService`, `IUnknownWorkplaceState` gelöscht) → `depends_on` erfüllt.
+- **Bewusst NICHT gemacht** (Epic-Regel, erst nach Etappe B): Versions-Bump 1.43.0→1.44.0
+  (beide `AppVersion.cs`) + Anwender-Changelog, `qa-agent`, `status: Testbereit`, Brain-Changelog,
+  feature-map, Testszenarien (TS-77) — das ist Etappe-B-Abschluss. Code-Kommentare referenzieren
+  bereits „v1.44.0" als Zielversion (Vorwärts-Verweis, harmlos).
+- **Nächster Lauf:** Etappe B (b+c) via `/epic-stage` — WorkOperation-Umbau, Umbenennungen,
+  BdeDefault-Fix, dann Epic-Abschluss (Version/Changelog/QA/Testbereit).
