@@ -44,6 +44,8 @@ public class ProductionWorkplacesController : Controller
     private static readonly Dictionary<string, Func<ProductionWorkplace, string?>> ColumnMap = new()
     {
         ["name"] = wp => wp.Name,
+        ["sage-nr"] = wp => wp.SageArbeitsplatznummer,
+        ["arbeitsschritt"] = wp => wp.ArbeitsschrittCode,
         ["hall"] = wp => wp.Hall,
         ["bde"] = wp => wp.BdeAktiv ? "Aktiv" : "Inaktiv",
         ["users"] = wp => wp.ProductionWorkplaceUsers.Any()
@@ -157,6 +159,8 @@ public class ProductionWorkplacesController : Controller
             BdeAktiv = workplace.BdeAktiv,
             BdeDefaultArbeitsgang = workplace.BdeDefaultArbeitsgang,
             BdeUseCustomShiftPlan = workplace.BdeUseCustomShiftPlan,
+            SageArbeitsplatznummer = workplace.SageArbeitsplatznummer,
+            ArbeitsschrittCode = workplace.ArbeitsschrittCode,
             CustomShifts = await _ctx.BdeShifts
                 .Where(s => s.ProductionWorkplaceId == workplace.Id)
                 .OrderBy(s => s.DayOfWeek).ThenBy(s => s.StartTime)

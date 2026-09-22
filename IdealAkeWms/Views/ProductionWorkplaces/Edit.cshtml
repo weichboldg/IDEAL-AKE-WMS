@@ -22,11 +22,39 @@
                     <input type="hidden" asp-for="Id" />
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-                    <div class="mb-3">
-                        <label asp-for="Name" class="form-label"></label>
-                        <input asp-for="Name" class="form-control" />
-                        <span asp-validation-for="Name" class="text-danger"></span>
-                    </div>
+                    @if (Model.IstSageGefuehrt)
+                    {
+                        <div class="alert alert-info small" role="alert">
+                            Diese Werkbank stammt aus den Sage-Arbeitsplätzen. Bezeichnung, Sage-Nummer und
+                            Arbeitsschritt-Kürzel sind <strong>Sage-geführt</strong> und werden beim nächsten
+                            Sync-Lauf überschrieben — eine Änderung hier hält nicht.
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-6">
+                                <label asp-for="SageArbeitsplatznummer" class="form-label"></label>
+                                <input asp-for="SageArbeitsplatznummer" class="form-control" readonly />
+                            </div>
+                            <div class="col-sm-6">
+                                <label asp-for="ArbeitsschrittCode" class="form-label"></label>
+                                <input asp-for="ArbeitsschrittCode" class="form-control" readonly />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label"></label>
+                            <input asp-for="Name" class="form-control" readonly />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label"></label>
+                            <input asp-for="Name" class="form-control" />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+                    }
 
                     <div class="mb-3">
                         <label asp-for="Hall" class="form-label"></label>
