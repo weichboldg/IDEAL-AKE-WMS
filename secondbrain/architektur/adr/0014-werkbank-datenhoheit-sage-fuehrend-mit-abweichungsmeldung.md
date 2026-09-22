@@ -93,3 +93,21 @@ Umsetzung [[2026-09-09-materialisierung-fachliche-felder-umsetzung]],
 Z1-Regel in [[2026-08-18-fa-liste-hierarchie-anzeige-spec]],
 Satelliten-Tabellen [[0009-app-status-in-satelliten-tabellen-neben-sage-master]],
 Aktivitaets-Protokoll [[0010-aktivitaets-protokoll-mit-isolierten-dbcontexts]].
+
+## Nachtrag 2026-09-22 — falsches Zielfeld korrigiert (ADR bleibt gültig)
+
+Diese Entscheidung wurde ursprünglich (v1.37.0, August 2026) auf **`ProductionOrder.ProductionWorkplaceId`
+aus `FaHierarchyNode.Arbeitsbereich`** angewandt — unter der damals vorläufigen Annahme „Werkbank =
+Arbeitsbereich" (die Sage-Arbeitsplatz-Stammdaten lagen noch nicht vor).
+
+**Am 2026-09-21 klargestellt und widerlegt:** Der **Arbeitsbereich** (`K-02`, `S-01`; Sage
+`USER_OSAbteilung`) ist ein **Zielort** (wohin das Teil kommt), **keine** Werkbank. Die Werkbank ist der
+Sage-Arbeitsplatz (`KHKPpsArbeitsplaetze`, `USER_ArbeitsSchritt`). Die Ableitung wurde deshalb
+zurückgebaut, bevor sie je produktiv war ([[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]], v1.43.0;
+`FaMaterializationSyncService.ApplyWorkplace`/`IUnknownWorkplaceState` entfernt).
+
+**Das Muster dieser ADR bleibt richtig und gilt weiter** — „Sage führend, Abweichung unscharf melden,
+Umschaltpunkt Variante C" — es wurde nur auf das **falsche Feld** angewandt. Seine **korrekte** Anwendung
+ist die Werkbank-Anlage aus `KHKPpsArbeitsplaetze` (Sage führend, Abweichungsmeldung) — siehe
+[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]] (Baustein a). Kein Supersede, nur diese Korrektur
+des Zielfelds.

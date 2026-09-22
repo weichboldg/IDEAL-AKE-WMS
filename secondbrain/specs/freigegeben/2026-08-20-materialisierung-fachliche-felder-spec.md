@@ -53,6 +53,13 @@ freigabe_am: 2026-09-09
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
 
+> [!warning] Teilweise überholt (2026-09-22, v1.43.0)
+> Die **Werkbank-Ableitung aus dem Arbeitsbereich** (Variante B, K2-Werkbank-Teil; **AK 9/10** und die
+> zugehörigen Testszenarien TS-71.6–71.9) wurde **zurückgebaut** — der Arbeitsbereich ist ein *Zielort*,
+> keine Werkbank. Maßgeblich ist [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]] (v1.43.0). Der
+> Rest dieser Spec (K1 Anzeige, K2 **Lack**-Ableitung/`HasCoatingParts`, Statuszeilen, K3) gilt
+> unverändert. Diese Datei wird bewusst nicht umgeschrieben (Nachvollziehbarkeit).
+
 > **Verzahnung (2026-09-08)** mit [[2026-09-08-bom-schnittstellen-bridge-hierarchisch]]
 > (Stueckliste ueber die Repository-Schnittstelle). Dort wurde entschieden: die AKE-Heuristiken
 > `CoatingDetection`/`FaWorkStepDetection` werden fuer hierarchische Auftraege **hart abgeschaltet**;
