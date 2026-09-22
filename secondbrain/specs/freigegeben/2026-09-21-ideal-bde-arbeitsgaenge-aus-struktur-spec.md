@@ -689,8 +689,8 @@ klein geworden, dass er mit Baustein (b) in einer Etappe Platz hat:
 
 | Etappe | Inhalt | Abschluss |
 |---|---|---|
-| A | Baustein (a): Modell (zwei Spalten), Migration, `ProductionWorkplaceSyncService`, ServiceSettings/Standorteinstellungen (Mandant, Ausschlussliste, Toggle), SyncWorker-Doppel-Gate, UI read-only | Eigener, buildbarer Commit. **STOPP + melden** |
-| B | Bausteine (b)+(c): `WorkOperationStructureDetectionService`-Umbau (inkl. Kuerzel-Mehrdeutigkeit + Ausschlussliste-Sonderfall), Umbenennungen, `BdeDefaultWorkOperationService`-Existenz-Check-Fix, Terminal-Verifikations-AK, TS-77, Brain-Update | Eigener Commit, dann QA/Merge fuer das gesamte Buendel (Schranke 2) |
+| A | Baustein (a): Modell (zwei Spalten), Migration, `ProductionWorkplaceSyncService`, ServiceSettings/Standorteinstellungen (Mandant, Ausschlussliste, Toggle), SyncWorker-Doppel-Gate, UI read-only | **ERLEDIGT 2026-09-22** — Commits `8be03982` (Backend) + `be0695fb` (Views) |
+| B | Bausteine (b)+(c): `WorkOperationStructureDetectionService`-Umbau (inkl. Kuerzel-Mehrdeutigkeit + Ausschlussliste-Sonderfall), Umbenennungen, `BdeDefaultWorkOperationService`-Existenz-Check-Fix, Terminal-Verifikations-AK, TS-77, Brain-Update | **ERLEDIGT 2026-09-22** — Commit `920aabb7` (v1.44.0). QA/Merge fuers Buendel offen (Schranke 2) |
 
 Etappe B ist die riskante (Umbenennung, Zieltabellen-Wechsel) — deshalb der Halt davor. Der Zweig muss
 waehrend der Arbeit ueber `scripts/sync-worktree.ps1` aktuell gehalten werden (mehrere andere IDEAL-Teile

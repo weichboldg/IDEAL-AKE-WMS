@@ -36,6 +36,16 @@ freigabe_am: 2026-09-18
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
 
+> [!warning] SUPERSEDED (2026-09-22, v1.44.0) — NICHT mehr umsetzen/mergen
+> Diese Spec (v1.41.0) ist fachlich **ersetzt** durch
+> [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]. Sie zielte auf `FaWorkStep` und den
+> `WorkStep`-Katalog; das eigentliche BDE-Ziel ist aber `WorkOperation`. Der Nachfolger baut den hier
+> beschriebenen `FaWorkStepStructureDetectionService` im **selben Buendel-Worktree** zu
+> `WorkOperationStructureDetectionService` um (Commit `920aabb7`), bevor v1.41.0 je in Produktion ging —
+> es gibt daher **nichts aus dieser Spec zu deployen**. Der hier genannte Service/Interface/State/
+> ServiceSettings-Key/SyncLog-Dienst existiert unter den alten Namen nicht mehr. Status bleibt aus
+> Historie-Gruenden stehen; der maßgebliche Stand steht in [[feature-map]] (dort als superseded gefuehrt).
+
 > **Code-Verifikation dieser Spec:** Datei-/Zeilenangaben sind gegen den Worktree
 > `feature/2026-08-07-ideal-teile-1-5` (`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`)
 > per Read/Grep verifiziert (2026-09-16), inkl. des bereits umgesetzten Klasse-D-Gates in

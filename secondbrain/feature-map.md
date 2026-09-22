@@ -462,7 +462,13 @@ Deploy: Web + Service + Migration. OSEON/BOM-Komponentenebene bewusst aussen vor
 > Freigabe-Entscheidung „melden statt still" ausgeraeumt (AK 2 + AK 14). Gemessene Spec-Korrekturen
 > (A1 Postfilter, A6 keine Articles-ViewConfig) in der Umsetzungsnotiz; Dauerwissen [[fallstricke]] §12.
 
-### FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, selber Branch)
+### FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, selber Branch) — **SUPERSEDED durch v1.44.0**
+
+> **Superseded (2026-09-22):** fachlich ersetzt durch das Epic
+> [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]] (v1.44.0, siehe Abschnitt unten). Der hier
+> gebaute `FaWorkStepStructureDetectionService` wurde im selben Buendel-Worktree zu
+> `WorkOperationStructureDetectionService` umgebaut (Ziel `WorkOperation` statt `FaWorkStep`), bevor
+> v1.41.0 je deployt war — **es wird nichts aus v1.41.0 einzeln gemergt/deployt.**
 
 Spec [[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]], Umsetzung
 [[2026-09-16-arbeitsgaenge-aus-arbeitsschritte-umsetzung]], Changelog
@@ -487,6 +493,32 @@ Familie (nach Werkbank aus `Arbeitsbereich` und Lack aus `Beschichtet`).
 > Service 277/0 Fehler (+14 neu). AK 1–12 gegen den echten Diff abgeglichen, TS-76 (10 Szenarien)
 > geprueft; `testszenarien-index.md` fehlte trotz Notiz — vom qa-agent nachgetragen. Wartet mit dem
 > ganzen Buendel auf **Schranke 2**.
+
+### IDEAL: BDE-Arbeitsgänge (WorkOperation) aus Struktur + Werkbank-Anlage aus Sage (v1.44.0, Epic, selber Branch)
+
+Spec [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]] (Epic, zwei Etappen), Umsetzung
+[[2026-09-22-ideal-bde-arbeitsgaenge-aus-struktur-umsetzung]]. **Ersetzt v1.41.0** (Abschnitt oben).
+Setzt den ADR-0014-Rueckbau (v1.43.0) voraus. Kern: ein Arbeitsgang IST bei IDEAL ein Sage-Arbeitsplatz,
+und ein Sage-Arbeitsplatz IST die Werkbank — das BDE-Terminal bucht gegen `WorkOperation`, nicht
+`FaWorkStep`.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| (a) `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze` (Sage fuehrend, Nummer/Name/Kuerzel) | **erledigt** `8be03982` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader`, Migration `93`, Felder `SageArbeitsplatznummer`/`ArbeitsschrittCode` (eindeutiger gefilterter Index) |
+| (a) 3 ServiceSettings (Enabled/Mandant/Ausschlussliste) + Standorteinstellungen-Gruppe + SyncWorker-Doppel-Gate + UI read-only | **erledigt** `8be03982`/`be0695fb` | `ServiceSettingDefinitions.cs`, `StandortSettingsCatalog.cs`, `SyncWorker.cs`, `Views/ProductionWorkplaces/*` |
+| (b) 2c-Umbau `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService` (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`) | **erledigt** `920aabb7` | `WorkOperationStructureDetectionService.cs`, `IUnknownArbeitsschrittTokenState`, Key `Sync:WorkOperationStructureDetectionEnabled` |
+| (b) Kuerzel-Mehrdeutigkeit gemeldet, Ausschlussliste-Kuerzel weder AG noch Meldung, `FaWorkStepSources.Struktur` entfernt | **erledigt** `920aabb7` | `WorkOperationStructureDetectionService.DetectAsync` |
+| (c) Existenz-Check-Fix `BdeDefaultWorkOperationService` (OperationNumber "01" statt Name); `BdeScanResolver` UNVERAENDERT; Terminal-Routing schon ueber `ProductionWorkplaceId` | **erledigt** `920aabb7` | `BdeDefaultWorkOperationService.cs` |
+| Tests + v1.44.0 + Changelog/Hilfe/README/TS-77 | **erledigt** | `WorkOperationStructureDetectionServiceTests` (13), `ProductionWorkplaceSyncServiceTests` (6), `BdeDefaultWorkOperationServiceTests` (+AK16), `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+
+> **Deploy:** Web + Service + **Migration 93** (zwei nullable Spalten + eindeutiger gefilterter Index,
+> nicht daten-destruktiv). Erster scharfer Baustein-(a)-Lauf legt bei IDEAL ~60 Werkbaenke neu an —
+> **DryRun vor dem scharf schalten** (Doppel-Gate: Master + je Toggle). Reihenfolge der Toggles:
+> erst `Sync:ProductionWorkplaceSyncEnabled` (Katalog), dann `Sync:WorkOperationStructureDetectionEnabled`.
+>
+> **Status:** wartet auf qa-agent → `Testbereit`, dann mit dem ganzen Buendel auf **Schranke 2**.
+> AK 10 (Ausschlussliste), AK 16-Terminal, AK 20 (Doppelanlage/UNIQUE) und alle Sage-Reads sind
+> **Manual-UAT** (nicht InMemory-testbar) — siehe TS-77.
 
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
