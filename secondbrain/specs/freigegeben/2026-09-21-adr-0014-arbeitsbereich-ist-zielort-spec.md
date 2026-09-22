@@ -2,12 +2,12 @@
 type: spec
 title: "Rückbau: Werkbank-Ableitung aus dem Arbeitsbereich (ADR 0014 auf falsches Feld angewandt)"
 slug: 2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-09-22
 source_backlog: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort]]"
 depends_on: ""
-task: ""
+task: "[[2026-09-22-adr-0014-arbeitsbereich-ist-zielort-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
@@ -20,7 +20,8 @@ affected_code:
   - "KEINE Code-Änderung in Views/ProductionOrders/Index.cshtml + _ProductionOrderRow.cshtml, Views/FaWorklist/Index.cshtml + _FaWorklistRow.cshtml, Views/FaCompletion/Index.cshtml + _FaCompletionRow.cshtml, Views/PickingLeitstand/Index.cshtml + _PickingLeitstandRow.cshtml — verifiziert: die Spalte 'Werkbank' (data-col-key=\"workbench\") ist eine seit vor v1.37 bestehende, AKE UND IDEAL gemeinsame Spalte (echte AKE-Werkbankzuweisung). Der Rückbau lässt sie unangetastet; sie zeigt für IDEAL-Sub-FAs nach dem Rückbau wieder denselben leeren Zustand wie vor der (nie produktiven) v1.37-Ableitung"
   - "docs/TESTSZENARIEN.md — Kapitel 'IDEAL — Materialisierung: Fachliche Felder (K1/K2/K3)' (aus [[2026-08-20-materialisierung-fachliche-felder-spec]]) anpassen: Szenarien 'Werkbank-Datenhoheit (Variante B)' und 'Unbekannter Arbeitsbereich' als 'zurückgebaut, siehe [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]' kennzeichnen statt löschen (Nachvollziehbarkeit), neues Rückbau-Verifikationsszenario ergänzen (siehe Test-Szenarien unten). Kein neues TS-Kapitel nötig — das betroffene Feature war nie produktiv"
   - "secondbrain/tests/testszenarien-index.md — Hauptcheckout, additive Ergänzung"
-open_questions:
+open_questions: []
+beantwortete_rueckfragen:
   - "Grundsatzfrage: Braucht ein IDEAL-Auftrag überhaupt EINE Werkbank am Auftrag (ProductionOrder.ProductionWorkplaceId), oder ergibt sich die Werkbank ausschließlich je Arbeitsgang (WorkOperation, siehe BDE-Spec)? Falls Letzteres: das Feld bleibt bei IDEAL dauerhaft null."
   - "Wohin gehört der Arbeitsbereich stattdessen? Eigene Anzeige-Spalte 'Zielort'? Verhältnis zum Kommissionierziel (FaHierarchyNode.Kommissionieren) — NICHT als dasselbe Feld annehmen, beide sind in der Struktur getrennt geführt."
   - "Was wird aus ADR 0014? Das Datenhoheits-Muster (Sage führend, unscharfe Abweichungsmeldung, Umschaltpunkt Variante C) bleibt als Muster richtig, war nur auf das falsche Feld angewandt — additiver Nachtrag an ADR 0014 oder neue, supersedierende ADR?"
@@ -30,9 +31,9 @@ deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Werkbank vorerst nur je Arbeitsgang, keine automatische Werkbank am Auftrag (Nachruestung offen); manueller Weg FaCompletion.SetWorkplace bleibt und wird nicht mehr ueberschrieben; Zielort-Spalte eigener Umfang; ADR 0014 per additivem Nachtrag"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-22
 # Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
@@ -68,8 +69,7 @@ ist rein Code, ohne produktive Auswirkung — der billigstmögliche Zeitpunkt.
 - Tote Felder/Parameter, die nur der entfernten Ableitung dienten, mit entfernen
   (`MaterializationSourceOrder.Arbeitsbereich`), damit kein unbenutzter Rest zurückbleibt.
 - Testszenarien-Kapitel und Testdateien entsprechend bereinigen bzw. kennzeichnen.
-- Brain-Pflichten: ADR-Nachtrag/-Supersede-Mechanismus für ADR 0014 (Weg vorschlagen, Redaktion durch
-  den Menschen — siehe Offene Rückfrage 3), Hinweis in der freigegebenen v1.37.0-Spec, Fallstricke-
+- Brain-Pflichten: **additiver Nachtrag** an ADR 0014 (entschieden, Antwort 3), Hinweis in der freigegebenen v1.37.0-Spec, Fallstricke-
   Eintrag, feature-map/codebase-Nachzug.
 
 **Out-of-Scope**
@@ -84,9 +84,10 @@ ist rein Code, ohne produktive Auswirkung — der billigstmögliche Zeitpunkt.
   weiterhin von der FA-Hierarchie-Synchronisation befüllt) — nur die Weiterverarbeitung in
   `ProductionOrder.ProductionWorkplaceId` entfällt.
 - **`ProductionOrder.ProductionWorkplaceId` als Spalte bleibt** (Fremdschlüssel existiert bereits seit
-  vor Teil 7/AKE) — sie wird nur nicht mehr aus dem Arbeitsbereich befüllt. Für IDEAL bleibt sie nach
-  dieser Spec durchgängig `null`, bis eine künftige Spec (BDE-Baustein b oder eine Antwort auf
-  Rückfrage 1) sie aus einer korrekten Quelle füllt.
+  vor Teil 7/AKE) — sie wird nur nicht mehr aus dem Arbeitsbereich befüllt. Für IDEAL ist sie nach dieser Spec
+  `null`, **ausser eine Werkbank wurde manuell per `FaCompletion.SetWorkplace` gesetzt** (bestehender,
+  AKE-geteilter Pfad, unveraendert). Eine automatische Befuellung aus einer korrekten Quelle ist bewusst
+  offen gehalten (Antwort 1: vorerst nur je Arbeitsgang, spaeter nachruestbar).
 - **AKE** — der gesamte Materialisierungspfad läuft ausschließlich bei Master
   `ProduktionsauftragHierarchisch = true` (`SyncWorker.cs:357`); `ApplyWorkplace` ist eine private,
   nur dort aufgerufene Methode. AKEs eigene, von Menschen gepflegte Werkbank-Zuweisung ist von dieser
@@ -116,6 +117,14 @@ ist rein Code, ohne produktive Auswirkung — der billigstmögliche Zeitpunkt.
    worden sein, bleibt dieser Wert bestehen — er wird nach dem Rückbau nicht mehr weiter überschrieben,
    aber auch nicht automatisch zurückgesetzt. Da nichts davon produktiv ist, ist das folgenlos; im
    Dev-Lauf ggf. auf der eigenen Testinstanz manuell bereinigen, falls störend.
+5. **Manuelle Werkbank-Zuweisungen bleiben kuenftig erhalten — eine gewollte Verhaltensaenderung.**
+   Es gibt einen bestehenden, AKE-geteilten **manuellen** Pfad: `FaCompletionController.SetWorkplace`
+   (Z. 419-432) setzt `ProductionOrder.ProductionWorkplaceId` von Hand, mit Audit. Die zurueckgebaute
+   Z1-Ausnahme existierte gerade, damit der Sync solche Werte bei **jedem** Update ueberschreibt ("Sage
+   fuehrend"). **Nach dem Rueckbau fasst der Sync das Feld nicht mehr an — von Hand gesetzte Werkbaenke
+   ueberleben jeden Materialisierungslauf.** Das ist gewollt: Wer bewusst eine Werkbank zuweist, soll sie
+   nicht beim naechsten Lauf verlieren. Fuer AKE aendert sich nichts (die Ableitung lief dort nie).
+   Abgesichert durch AK 10.
 
 ## Technischer Lösungsentwurf
 
@@ -209,8 +218,14 @@ nur, welche Daten (für IDEAL: keine) in die bereits vorhandene Spalte einlaufen
    mehr, keine verwaiste Referenz auf die entfernte `Arbeitsbereich`-Eigenschaft von
    `MaterializationSourceOrder` in verbleibenden Tests.
 9. **Views unverändert lauffähig.** Die vier Kandidaten-Listen zeigen für AKE weiterhin ihre reguläre
-   Werkbank-Spalte; für IDEAL-Sub-FAs bleibt/wird die Spalte leer (bzw. „Keine Werkbank"-Badge in
+   Werkbank-Spalte; für IDEAL-Sub-FAs bleibt/wird die Spalte leer, **ausser eine Werkbank wurde manuell per
+   `FaCompletion.SetWorkplace` gesetzt** (bzw. „Keine Werkbank"-Badge in
    `FaCompletion`), ohne Exception oder fehlerhafte Anzeige.
+10. **Manuelle Zuweisung ueberlebt den Sync (Regression zur Verhaltensaenderung, Fachliche Anforderung
+    5).** Ein per `FaCompletion.SetWorkplace` manuell gesetztes `ProductionWorkplaceId` an einem
+    IDEAL-Sub-FA ist nach einem anschliessenden Materialisierungslauf (`DryRun=false`) **unveraendert**.
+    Vor dem Rueckbau wurde der Wert bei jedem Lauf ueberschrieben — dieses AK belegt, dass das vorbei
+    ist.
 
 ## Test-Szenarien
 
@@ -232,8 +247,11 @@ Kapitel „IDEAL — Materialisierung: Fachliche Felder (K1/K2/K3)" in `docs/TES
   unverändert zur Vor-Rückbau-Situation.
 - **Regressionsszenario AKE:** Master `false`, bestehendes AKE-Testszenario der FA-Liste läuft
   unverändert grün, keine Werkbank-Spalte betroffen.
+- **Regressionsszenario manuelle Werkbank (AK 10):** An einem IDEAL-Sub-FA in `/FaCompletion` von Hand
+  eine Werkbank setzen → Materialisierungslauf abwarten bzw. ausloesen → die Werkbank steht
+  **unveraendert** am Sub-FA.
 
-Alle drei Szenarien sind teilweise Manual-UAT (Sync-Lauf-Zeitpunkt, echte Struktur-Daten) — konsistent
+Alle vier Szenarien sind teilweise Manual-UAT (Sync-Lauf-Zeitpunkt, echte Struktur-Daten) — konsistent
 mit dem bereits dokumentierten Muster der Materialisierungs-Spec.
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
@@ -260,7 +278,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   (BDE-Spec, Baustein a) bereits erneut angewandt — nur eben korrekt auf `ProductionWorkplace.
   ArbeitsschrittCode`, nicht auf `ProductionOrder.ProductionWorkplaceId` aus `Arbeitsbereich`. ADR 0014
   selbst wird durch diese Spec **nicht** umgeschrieben (ADRs werden nie überschrieben), sondern per
-  Nachtrag oder supersedierender ADR ergänzt — Mechanismus und Redaktion sind Sache des Menschen.
+  **additivem Nachtrag** ergaenzt (entschieden, Antwort 3).
 
 ## Brain-Pflichten bei Umsetzung (Merkliste für den Dev-Lauf)
 
@@ -274,8 +292,9 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 - `secondbrain/specs/freigegeben/2026-08-20-materialisierung-fachliche-felder-spec.md` — additiver
   Hinweis wie oben unter „Reihenfolge/Einordnung" beschrieben (Hauptcheckout, Datei nicht umschreiben).
 - `secondbrain/architektur/adr/0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung.md` —
-  Nachtrag bzw. supersedierende ADR gemäß Antwort auf Offene Rückfrage 3 (additiv, ADR nicht
-  überschreiben).
+  **additiver Nachtrag** (Antwort 3), mit zwei Aussagen: (a) die Anwendung auf den Arbeitsbereich war
+  falsch und ist zurueckgebaut — Verweis auf diese Spec; (b) die korrekte Anwendung des Musters ist die
+  Werkbank-Anlage aus `KHKPpsArbeitsplaetze` — Verweis auf die BDE-Spec. ADR nicht ueberschreiben.
 - `secondbrain/architektur/fallstricke.md` — neuer Eintrag (Abschnitt 9, IDEAL-hierarchische
   Produktionsaufträge, oder neuer Abschnitt): „Arbeitsbereich ist ein Zielort, keine Werkbank" — was
   die falsche Annahme war, warum sie plausibel schien (fehlende Sage-Arbeitsplatz-Stammdaten im
@@ -306,7 +325,11 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   *Nach dem Merge* nur erneut aus `main` publishen, falls der Merge tatsächlich getestete Dateien mit
   parallelen `main`-Änderungen zusammenführt.
 
-## Offene Rückfragen
+## Offene Rückfragen — ALLE BEANTWORTET (2026-09-22)
+
+> Beantwortet im Abschnitt "Freigabe-Antworten" und zusammen mit den Befunden der Kritischen Pruefung
+> (B1, B2, S1) in Umfang, Fachliche Anforderungen, Akzeptanzkriterien und Testszenarien eingearbeitet.
+> Nur noch **Protokoll**, kein Auftrag. **Massgeblich fuer den Dev-Lauf ist der Rumpf.**
 
 1. **Grundsatzfrage (die wichtigste).** Braucht ein IDEAL-Auftrag überhaupt EINE Werkbank am Auftrag
    (`ProductionOrder.ProductionWorkplaceId`)? Ein Teil läuft durch mehrere Arbeitsgänge, jeder an
@@ -335,9 +358,76 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
-1. →
-2. →
-3. →
+1. → **Werkbank je ARBEITSGANG, nicht je Auftrag. Keine automatische Werkbank am Auftrag.**
+   **Begruendung aus der Aussage des Menschen vom 2026-09-21:** *„Ein Terminal [bietet] mehrere Werkbaenke
+   zur Auswahl, und gefiltert nach dieser [werden] die Auftraege zum Abarbeiten [angezeigt] — nur fuer
+   diese Werkbank."* Ein Auftrag erscheint also **an jeder Werkbank, an der er einen Arbeitsgang hat** —
+   Kanterei, dann Schweisserei, dann Schleiferei. Das ist Routing je Arbeitsgang (`WorkOperation`), und
+   genau so filtert das Terminal heute schon (`WorkOperation.ProductionWorkplaceId`, BDE-Spec
+   Empfehlung F). **Eine** Werkbank am Auftrag waere fuer ein Teil, das durch drei Werkbaenke laeuft,
+   eine willkuerliche Auswahl.
+   **Aber — und das ist der B2-Fund:** Der **manuelle** Pfad `FaCompletion.SetWorkplace` bleibt
+   **unveraendert** bestehen. Er ist AKE-geteilter Bestandscode, stoert nicht und wird nicht angefasst.
+   Fuer IDEAL ist er **optional nutzbar, keine Pflicht**.
+   Damit gilt praezise: `ProductionOrder.ProductionWorkplaceId` ist bei IDEAL **null, ausser jemand setzt
+   sie manuell** — nicht „durchgaengig null".
+   **ENTSCHIEDEN vom Menschen (2026-09-22): "Noch unklar — vorerst nur je Arbeitsgang, spaeter
+   nachruesten."**
+   Das heisst verbindlich fuer jetzt: **keine** automatische Werkbank am Auftrag, der manuelle Weg bleibt.
+   **Nachruestung ausdruecklich offen gehalten:** Taucht spaeter ein Zweck auf (Auswertung "welche
+   Werkbank hat das Teil fertiggestellt", Fertigmeldung an bestimmter Stelle, Kapazitaetsplanung), ist
+   eine **abgeleitete** Auftrags-Werkbank nachruestbar — etwa die des letzten Arbeitsgangs — **mit dann
+   bekanntem Zweck**, statt jetzt eine Heuristik auf Vorrat zu bauen.
+   **Dieser Rueckbau haengt von der Entscheidung nicht ab** — er entfernt nur die falsche Ableitung
+   und schliesst keine der beiden Richtungen aus.
+
+2. → **NICHT in dieser Spec. Der Rueckbau entfernt die falsche Verwendung; eine neue Verwendung ist
+   eigener Umfang.**
+   Der Arbeitsbereich ist ein **Zielort** — eine sinnvolle Information fuer den Werker (wohin kommt das
+   Teil?). Eine Anzeige-Spalte „Zielort" ist denkbar, aber **nicht verlangt**; sie jetzt mitzubauen
+   hiesse, in einer Rueckbau-Spec Neues einzufuehren (ponytail, Sprosse 1).
+   **Als eigener Backlog-Punkt** fuehren, falls gewuenscht.
+   **Und ausdruecklich: Arbeitsbereich und Kommissionierziel werden NICHT gleichgesetzt.** Beide
+   beschreiben ein Ziel, aber die Struktur fuehrt sie als getrennte Felder — dafuer gibt es einen Grund,
+   den der Fachbereich kennt. Wer sie spaeter verbinden will, klaert das zuerst.
+
+3. → **Additiver Nachtrag an ADR 0014 — keine neue, supersedierende ADR.**
+   Eine ersetzende ADR suggerierte, das **Muster** sei falsch gewesen. Das stimmt nicht: „Sage fuehrend,
+   Abweichung melden, Umschaltpunkt Variante C" ist richtig — es wurde nur auf das **falsche Feld**
+   angewandt.
+   **Und das Muster bekommt seine richtige Anwendung gleich im Anschluss:** Baustein (a) der
+   [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]] legt die Werkbaenke aus
+   `KHKPpsArbeitsplaetze` an, Sage fuehrend, mit Abweichungsmeldung — **exakt das ADR-0014-Muster, jetzt
+   am richtigen Ziel.**
+   **Der Nachtrag sagt deshalb zweierlei:** (a) die Anwendung auf den Arbeitsbereich war falsch und ist
+   zurueckgebaut (Verweis auf diese Spec), (b) die korrekte Anwendung ist die Werkbank-Anlage aus
+   `KHKPpsArbeitsplaetze` (Verweis auf die BDE-Spec). So bleibt die ADR gueltig und auffindbar, statt
+   stillschweigend zu veralten.
+
+## ANTWORTEN auf die Kritische Pruefung (2026-09-21)
+
+### Zu B2 — uebernommen. `FaCompletion.SetWorkplace` ist anzuerkennen.
+
+Guter Fund, am Code belegt (Z. 419-432). Drei Korrekturen gehen in den Rumpf:
+- **Aussage korrigieren:** Nicht „`ProductionWorkplaceId` bleibt fuer IDEAL durchgaengig null"
+  (Z. 87-89, AK 9), sondern „**null, ausser manuell per `FaCompletion.SetWorkplace` gesetzt**".
+- **Die Verhaltensaenderung benennen, nicht nebenbei geschehen lassen:** Die Z1-Ausnahme fuer `Workplace`
+  existierte gerade, damit der Sync manuelle Werte **ueberschreibt** (Sage fuehrend). Nach dem Rueckbau
+  greift sie nicht mehr — **manuelle Zuweisungen bleiben erhalten.** Das ist eine echte Aenderung, und
+  sie ist **gewollt**: Wer von Hand eine Werkbank setzt, verliert sie nicht mehr beim naechsten Lauf.
+  Fuer AKE aendert sich nichts (die Ableitung lief dort nie).
+- **Q1 damit informiert** — siehe Antwort 1.
+
+### Zu S1 — uebernommen. Neues Regressions-AK.
+
+*Ein per `FaCompletion.SetWorkplace` manuell gesetztes `ProductionWorkplaceId` an einem IDEAL-Sub-FA
+**ueberlebt** einen anschliessenden Materialisierungslauf unveraendert.* Plus Testszenario. Vor dem
+Rueckbau wurde der Wert bei jedem Lauf ueberschrieben — der Test belegt, dass das vorbei ist.
+
+### Zu H1 — zur Kenntnis genommen.
+
+Kein Filter blendet IDEAL-Auftraege bei `null` aus, ausser der FaCompletion-Anzeige. Unbedenklich —
+das war schon vor v1.37 so.
 
 ## Kritische Pruefung (2026-09-22)
 
