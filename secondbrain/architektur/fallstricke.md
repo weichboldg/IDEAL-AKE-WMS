@@ -1075,3 +1075,33 @@ rohen col-key statt des Klartextnamens. Beim Ergaenzen der hierarchischen Druck-
 ein eigenes DTO — die hierarchischen Felder (`Kommissionieren`/`Hauptlagerplatz`/`Ebene`) fehlen dort und
 im Print-Mapping, obwohl `BomItemViewModel` (Bildschirm) sie laengst hat; der Druck kennt hierarchische
 Spalten **strukturell** nicht, bis DTO + Mapping + `ShowCol`-Kopf-/Zellbloecke ergaenzt sind.
+
+## 15. IDEAL — Der Arbeitsbereich ist ein Zielort, keine Werkbank (Rückbau v1.43.0)
+
+### Zwei getrennte Sage-Vokabulare, im August verwechselt
+`FaHierarchyNode` trägt aus der Struktur-View **zwei** getrennte Felder, die beide „wo/womit" beschreiben
+und leicht verwechselt werden:
+- **`Arbeitsbereich`** (Sage `USER_OSAbteilung`, Werte wie `K-02`, `S-01`, `H4-04`) = **Zielort**, wohin
+  das Teil kommt, begrifflich aus Lagerorten. **Keine Werkbank.**
+- **`Arbeitsschritte`** (Sage `USER_ArbeitsSchritt`, Werte wie `KA`, `SW`, `LS`) = **Arbeitsgänge**; die
+  Werkbank ist der Sage-Arbeitsplatz (`KHKPpsArbeitsplaetze`), eine **je Arbeitsgang**, nicht je Auftrag.
+
+**Der Fehler (August 2026, v1.37.0):** `FaMaterializationSyncService` leitete
+`ProductionOrder.ProductionWorkplaceId` (die **Werkbank**) aus dem **Arbeitsbereich** ab — unter der
+ausdrücklich vorläufigen Annahme „Werkbank = Arbeitsbereich", weil die Sage-Arbeitsplatz-Stammdaten damals
+fehlten. **Warum es plausibel schien:** beide sind kurze Codes aus Sage, beide „verorten" die Position;
+ohne die Arbeitsplatz-Stammdaten war der Unterschied nicht sichtbar. **Warum es falsch ist:** ein Teil
+läuft durch **mehrere** Werkbänke (je Arbeitsgang eine) — eine einzelne Werkbank am Auftrag kann das nicht
+abbilden; und ein Zielort ist ohnehin keine Werkbank.
+
+**Rückbau v1.43.0** ([[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]): die Ableitung samt
+`IUnknownWorkplaceState`, `ApplyWorkplace`, Sammelmeldung/-mail und Werkbank-Countern entfernt — **bevor**
+sie je produktiv war (IDEAL hatte noch keine `ProductionWorkplaces`). Die Werkbank lebt künftig je
+Arbeitsgang ([[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]). `FaHierarchyNode.Arbeitsbereich`
+selbst bleibt (Struktur-Cache, Kommissionierlisten-Filter).
+
+### Gewollte Nebenfolge: manuelle Werkbank überlebt jetzt den Sync
+Die entfernte Z1-Ausnahme existierte gerade, damit der Sync das Feld bei **jedem** Update überschreibt
+(„Sage führend"). Nach dem Rückbau fasst der Sync `ProductionWorkplaceId` **gar nicht mehr** an → eine
+per `FaCompletionController.SetWorkplace` **von Hand** gesetzte Werkbank bleibt erhalten. Das ist gewollt
+(AK 10 der Rückbau-Spec) und AKE-neutral (die Ableitung lief dort nie).

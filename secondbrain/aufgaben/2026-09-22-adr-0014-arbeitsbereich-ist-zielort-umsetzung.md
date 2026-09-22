@@ -50,3 +50,16 @@ testszenarien-index, Brain-Changelog.
 ## Arbeitsstand
 
 - 2026-09-22: Spec Freigegeben → InUmsetzung, nach freigegeben/ gezogen. Vollständige Service-Datei gelesen. Rückbau startet.
+- 2026-09-22: **feature-complete.** Werkbank-Ableitungsblock aus `FaMaterializationSyncService` komplett
+  entfernt (14 präzise Edits), `MaterializationSourceOrder.Arbeitsbereich` raus, `IUnknownWorkplaceState.cs`
+  + `FaMaterializationWorkplaceTests.cs` + `UnknownWorkplaceStateTests.cs` gelöscht, `Program.cs`-DI raus.
+  **Über die Spec hinaus gefunden (am Code):** `FaMaterializationCoatingWriteTests`/`SyncServiceTests`
+  konstruieren den Service mit dem entfernten Ctor-Param → Mock-Arg entfernt; `FaMaterializationPlannerTests`-
+  Helper `Src` baut den Record → `null`-Arg entfernt; `IUnknownWorkStepTokenState`-cref auf gelöschten Typ
+  entschärft; `UnknownWorkplaceStateTests` = „der eigene Test" (Spec) mitgelöscht.
+  Build 0 Fehler, **Web 1391 +1 skip, Service 263** grün (−14 gelöschte Workplace-Tests; Coating/Planner/
+  Sync regressionsgrün). Version **1.43.0** ×2, Anwender-Changelog (als Korrektur).
+  Brain: **ADR-0014-Nachtrag** (additiv), [[fallstricke]] §15, Brain-Changelog, feature-map (v1.37-Hinweis +
+  v1.43-Zeile), v1.37-Spec additiver Warn-Callout (AK 9/10 überholt), codebase/services, testszenarien-index,
+  TESTSZENARIEN TS-71 (71.6–71.9 markiert, 71.14/71.15 neu).
+- **Offen:** qa-agent (setzt `Testbereit`), dann Schranke 2 mit dem ganzen Bündel. Kein Merge/Push.

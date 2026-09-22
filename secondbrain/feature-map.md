@@ -354,6 +354,10 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 > `AppVersion.cs` auf 1.37.0, TS-71 (13 Szenarien) vorhanden. Wartet mit dem ganzen Bündel (Teile
 > 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf **Schranke 2** (manueller Test + Merge
 > durch den Menschen).
+>
+> ⚠️ **Teil-Rückbau (v1.43.0):** Die **Werkbank-Ableitung aus dem Arbeitsbereich** (K2-Werkbank, AK 9/10)
+> wurde zurückgebaut — Arbeitsbereich = Zielort, keine Werkbank. Siehe v1.43.0 unten +
+> [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]. K1/Lack/Statuszeilen/K3 bleiben gültig.
 
 ### FA-Liste ausbauen: Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade, Matchcode (v1.38.0, selber Branch)
 
@@ -508,6 +512,26 @@ Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
 > `f04a7e0~1..5f933f1`). Client-Mode = Bildschirm-Interaktion Manual-UAT, wartet mit dem Buendel auf
 > Schranke 2.
 > Wartet mit dem ganzen Bündel auf **Schranke 2**.
+
+### Rückbau: Werkbank-aus-Arbeitsbereich-Ableitung (v1.43.0, ADR-0014-Korrektur, selber Branch)
+
+Spec [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]], Umsetzung
+[[2026-09-22-adr-0014-arbeitsbereich-ist-zielort-umsetzung]], Changelog
+[[2026-09-22-v1-43-0-adr-0014-arbeitsbereich-rueckbau]]. **Vor** der BDE-Spec umzusetzen.
+Der `Arbeitsbereich` ist ein **Zielort**, keine Werkbank → die v1.37-Ableitung (nie produktiv)
+zurückgebaut, bevor die echten IDEAL-Werkbänke angelegt werden.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Werkbank-Ableitungsblock aus `FaMaterializationSyncService` entfernt (Lookup/`ApplyWorkplace`/Mail/Counter/Ctor-Param) | **erledigt** | `FaMaterializationSyncService.cs` |
+| `MaterializationSourceOrder.Arbeitsbereich` entfernt | **erledigt** | `FaMaterializationPlanner.cs` |
+| `IUnknownWorkplaceState` + 2 Test-Dateien gelöscht, `Program.cs`-DI entfernt | **erledigt** | (`IUnknownWorkStepTokenState` bleibt) |
+| AK 10: manuelle Werkbank (`FaCompletion.SetWorkplace`) überlebt den Sync | **erledigt** (Verhaltensänderung, gewollt) | — |
+| v1.43.0 + Changelog + TS-71-Rückbau (71.6–71.9 markiert, 71.14/71.15 neu) + ADR-0014-Nachtrag + [[fallstricke]] §15 | **erledigt** | `AppVersion.cs` ×2 |
+
+> **Deploy:** Web + Service, keine Migration. **Status:** `InUmsetzung` → qa-agent setzt `Testbereit`.
+> Build 0 Fehler, **Web 1391 +1 skip, Service 263** (−14 gelöschte Workplace-Tests). Wartet mit dem
+> Bündel auf **Schranke 2**.
 
 ## Offen / nicht gemerged
 

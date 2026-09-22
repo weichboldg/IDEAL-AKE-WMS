@@ -270,6 +270,10 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
 - `FaMaterializationPlanner` (reiner Entscheidungs-Helper, unit-getestet) — 3 Sync-Regeln + Empty-Source-Guard.
 - `FaMaterializationSyncService` — Orchestrator (gated auf Master, nach FA-Hierarchie-Sync im `SyncWorker`,
   liest lokale `FaHierarchyNodes`, EF-Apply mit App-Feld-Erhalt, Sammelmail via `IMailService`).
+  **v1.43.0 (ADR-0014-Korrektur):** die Werkbank-Ableitung aus dem `Arbeitsbereich` (`ApplyWorkplace`,
+  `IUnknownWorkplaceState`, Werkbank-Counter/-Mail) ist **zurückgebaut** — Arbeitsbereich = Zielort, keine
+  Werkbank ([[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]). Bleibt: Coating-Ableitung (Z1),
+  Statuszeilen-Eager-Create, `SageMissingSince`.
 - `FaZusatzinfoSyncService.SyncAsync(...)` erweitert um `bool autoErledigtEnabled` (dreistufige
   Auto-Erledigt-Sperre, AK 11).
 
