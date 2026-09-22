@@ -5,7 +5,7 @@ namespace IDEALAKEWMSService.Common;
 /// AENDERUNG der Token-Menge rausgeht (S1: sonst 96 identische Mails am Tag bei 15-Minuten-Takt).
 /// Bewusst nur im Speicher — nach einem Dienst-Neustart einmal zu viel zu melden ist harmlos.
 ///
-/// Eigene Instanz, NICHT dieselbe Singleton wie <see cref="IUnknownWorkplaceState"/>: unbekannte
+/// Eigene Instanz, eigener Meldezustand (frueher gab es daneben ein <c>IUnknownWorkplaceState</c>): unbekannte
 /// Arbeitsschritt-Token und unbekannte Arbeitsbereiche sind zwei fachlich unabhaengige
 /// Meldezustaende, die sich nicht vermischen duerfen.
 /// </summary>

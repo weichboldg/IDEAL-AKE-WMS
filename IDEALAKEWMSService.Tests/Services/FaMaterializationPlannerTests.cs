@@ -7,7 +7,7 @@ namespace IDEALAKEWMSService.Tests.Services;
 public class FaMaterializationPlannerTests
 {
     private static MaterializationSourceOrder Src(string sub, string order, string? parent = null)
-        => new(sub, order, parent, null, false);
+        => new(sub, order, parent, false);
     private static MaterializationExistingOrder Ex(string sub, string order, string? parent = null,
         bool missing = false, bool done = false) => new(sub, order, parent, missing, done);
 

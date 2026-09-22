@@ -28,7 +28,7 @@ public class FaMaterializationCoatingWriteTests
         var config = new ConfigurationBuilder().Build(); // leer; SendMissingDigest/Digest no-op
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
-            ctx, config, mail.Object, new UnknownWorkplaceState(),
+            ctx, config, mail.Object,
             new ProductionOrderPickingStatusRepository(ctx),
             NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
     }
