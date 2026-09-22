@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -63,3 +63,9 @@ testszenarien-index, Brain-Changelog.
   v1.43-Zeile), v1.37-Spec additiver Warn-Callout (AK 9/10 überholt), codebase/services, testszenarien-index,
   TESTSZENARIEN TS-71 (71.6–71.9 markiert, 71.14/71.15 neu).
 - **Offen:** qa-agent (setzt `Testbereit`), dann Schranke 2 mit dem ganzen Bündel. Kein Merge/Push.
+- 2026-09-22: **qa-agent — Testbereit.** Build 0 Fehler; Tests Web 1391+1 skip / Service 263 grün
+  (bestätigt gegen Diff `ab10b57..0aceee8`). AK 1–8 statisch/testbar nachgewiesen (Grep + Diff-Lesung
+  + Testlauf), AK 9/10 als Manual-UAT bestätigt über TS-71.14/71.15. Code-Review ohne Findings.
+  Deploy-Flags (web/service=true, migration=false) gegen den echten Diff bestätigt, unverändert zum
+  provisorischen Stand. Spec-Frontmatter → `Testbereit`, QA-Nachweis + Manual-Checkliste angehängt.
+  `feature-map.md` v1.43.0-Zeile → `Testbereit`. Wartet auf Schranke 2 (Mensch).
