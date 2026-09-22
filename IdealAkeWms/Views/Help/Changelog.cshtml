@@ -9,6 +9,35 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.44.0</strong> <span class="text-white-50 ms-2">22.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE (IDEAL): echte Arbeitsgänge je Sub-FA am Terminal — Werkbänke aus Sage</h6>
+                <p class="text-muted mb-2"><em>Wirkt nur am Standort IDEAL (FA-Hierarchie aktiv). Am
+                    Standort AKE ändert sich nichts.</em></p>
+                <ul>
+                    <li><strong>Werkbänke aus den Sage-Arbeitsplätzen:</strong> Die Werkbänke unter
+                        <em>Stammdaten → Werkbänke</em> werden jetzt automatisch aus den Sage-Arbeitsplätzen
+                        (KHKPpsArbeitsplätze) angelegt. Nummer, Bezeichnung und Arbeitsschritt-Kürzel führt
+                        Sage — sie werden in der Werkbank-Maske nur angezeigt (nicht bearbeitbar) und beim
+                        nächsten Abgleich aktualisiert. Neue Werkbänke sind zunächst BDE-inaktiv; das
+                        BDE-Terminal schaltest du je Werkbank bewusst frei.</li>
+                    <li><strong>Der richtige Arbeitsgang am Terminal:</strong> Scannt ein Werker einen
+                        Sub-FA, zeigt das BDE-Terminal jetzt die tatsächlichen Arbeitsgänge dieses Auftrags
+                        (Kanterei, Stanzerei, Schweißerei …), abgeleitet aus der FA-Struktur — statt nur
+                        eines generischen Sammel-Arbeitsgangs. Der jeweilige Arbeitsgang erscheint an der
+                        Werkbank, zu der sein Kürzel gehört.</li>
+                    <li><strong>Kürzel ohne Werkbank fallen auf:</strong> Ein Arbeitsschritt-Kürzel ohne
+                        passenden Sage-Arbeitsplatz wird gesammelt gemeldet (nicht still verschluckt), damit
+                        die fehlende Werkbank in Sage nachgetragen werden kann. Bekannte Ausnahmen (Storno,
+                        externe Beschichtung, Fremdleister) sind über eine Ausschlussliste in den
+                        Standorteinstellungen ausgenommen und erzeugen keine Meldung.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.43.0</strong> <span class="text-white-50 ms-2">22.09.2026</span>
             </div>
             <div class="card-body">

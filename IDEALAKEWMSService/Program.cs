@@ -48,8 +48,8 @@ try
                                   IdealAkeWms.Services.SyncLogger.SyncLogger>();
     builder.Services.AddSingleton<IDEALAKEWMSService.Common.IHierarchicalModeReader,
                                   IDEALAKEWMSService.Common.HierarchicalModeReader>();
-    builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownWorkStepTokenState,
-                                  IDEALAKEWMSService.Common.UnknownWorkStepTokenState>();
+    builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownArbeitsschrittTokenState,
+                                  IDEALAKEWMSService.Common.UnknownArbeitsschrittTokenState>();
     builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownArbeitsplatzState,
                                   IDEALAKEWMSService.Common.UnknownArbeitsplatzState>();
 
@@ -73,7 +73,7 @@ try
     builder.Services.AddScoped<ISageBuchungLookupReader, SageBuchungLookupReader>();
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
     builder.Services.AddScoped<IFaWorkStepDetectionService, FaWorkStepDetectionService>();
-    builder.Services.AddScoped<IFaWorkStepStructureDetectionService, FaWorkStepStructureDetectionService>();
+    builder.Services.AddScoped<IWorkOperationStructureDetectionService, WorkOperationStructureDetectionService>();
     builder.Services.AddScoped<IEnaioDmsSyncService, EnaioDmsSyncService>();
     builder.Services.AddScoped<IStockCheckService, StockCheckService>();
     builder.Services.AddScoped<IMailService, MailService>();

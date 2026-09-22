@@ -83,6 +83,32 @@ public class BdeDefaultWorkOperationServiceTests
         ctx.WorkOperations.Count(w => w.ProductionOrderId == poId).Should().Be(2); // Fräsen + PRODUKTION
     }
 
+    // AK 16 (Baustein c): Existenz-Check ueber OperationNumber "01", NICHT ueber den Namen. Ein echter,
+    // struktur-abgeleiteter AG mit demselben Namen wie der Default darf NICHT bebucht werden.
+    [Fact]
+    public async Task FindOrCreate_RealAgSameNameAsDefault_UsesOwn01Row()
+    {
+        var (ctx, svc) = Setup(defaultAgName: "Kanterei W1");
+        var poId = SeedFaAndWorkplace(ctx);
+        var wpId = ctx.ProductionWorkplaces.First().Id;
+        // Echter, struktur-abgeleiteter AG: OperationNumber = Kuerzel "KA", Name = Werkbank-Name,
+        // zufaellig identisch mit dem Default-Namen.
+        ctx.WorkOperations.Add(new WorkOperation
+        {
+            ProductionOrderId = poId, OperationNumber = "KA", Name = "Kanterei W1",
+            Sequence = 0, IsReportable = true,
+            CreatedAt = DateTime.Now, CreatedBy = "WorkOperationStructureDetection", CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
+
+        var woId = await svc.FindOrCreateDefaultAsync(poId, wpId);
+
+        var wo = ctx.WorkOperations.First(w => w.Id == woId);
+        wo.OperationNumber.Should().Be("01");           // eigene Default-Zeile, nicht die echte "KA"
+        woId.Should().NotBe(ctx.WorkOperations.First(w => w.OperationNumber == "KA").Id);
+        ctx.WorkOperations.Count(w => w.ProductionOrderId == poId).Should().Be(2); // KA + 01
+    }
+
     [Fact]
     public async Task FindOrCreate_WerkbankOverride_Wins()
     {
