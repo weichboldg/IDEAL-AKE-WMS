@@ -1,48 +1,46 @@
 ---
 type: spec
-title: "IDEAL: BDE-Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Routing aus Sage"
+title: "IDEAL: BDE-Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage-Arbeitsplaetzen"
 slug: 2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec
 status: Entwurf
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-09-22
 source_backlog: "[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur]]"
 supersedes: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]"
-depends_on: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]"
+depends_on: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
-  - "IdealAkeWms/Models/ProductionWorkplace.cs — NEUES Feld `ArbeitsschrittCode` (string?, MaxLength 20), Sage-gefuehrt (Baustein a)"
-  - "IdealAkeWms/Migrations/*_AddProductionWorkplaceArbeitsschrittCode.cs (NEU)"
-  - "SQL/93_AddProductionWorkplaceArbeitsschrittCode.sql (NEU, COL_LENGTH-Guard, Nummer vorlaeufig — siehe Offene Rueckfrage 7)"
-  - "SQL/00_FreshInstall.sql (Schema-Objekt + MigrationId, beide Stellen)"
-  - "IDEALAKEWMSService/Services/ProductionWorkplaceCodeSyncService.cs (NEU) + IProductionWorkplaceCodeSyncService.cs (NEU) — Baustein a, Muster ADR 0014 (Sage fuehrend, Melde-statt-Anlege-Prinzip), aber umgekehrte Match-Richtung (Name -> Code statt Code -> Name)"
-  - "IdealAkeWms/Models/ServiceSettingDefinitions.cs — neuer Key `Sync:ProductionWorkplaceCodeSyncEnabled` (Baustein a)"
-  - "IdealAkeWms/Services/SyncLogger/SyncLogServices.cs — neue Konstante `ProductionWorkplaceCodeSync` (Baustein a)"
-  - "IDEALAKEWMSService/Workers/SyncWorker.cs — neuer Gate-Block Baustein a (unabhaengig von FA-Hierarchie, kein FK-Bezug); UMBAU des bestehenden Blocks 'FA-Arbeitsgang-Erkennung (Struktur)' (Baustein b, Zielservice + Key umbenannt)"
+  - "IdealAkeWms/Models/ProductionWorkplace.cs — ZWEI neue Felder: `SageArbeitsplatznummer` (der Verknuepfungsschluessel, Typ/Laenge gegen das echte Sage-Schema verifizieren — Offene Rueckfrage 9) + `ArbeitsschrittCode` (string?, MaxLength 20, getrimmt) — Baustein a"
+  - "IdealAkeWms/Migrations/*_AddProductionWorkplaceSageFields.cs (NEU, beide Spalten in EINER Migration)"
+  - "SQL/93_AddProductionWorkplaceSageFields.sql (NEU, je Spalte ein COL_LENGTH-Guard; Nummer verifiziert 2026-09-22 gegen den Worktree-Stand, siehe Offene Rueckfrage 7)"
+  - "SQL/00_FreshInstall.sql (Schema-Objekte + MigrationId, beide Stellen)"
+  - "IDEALAKEWMSService/Services/ProductionWorkplaceSyncService.cs (NEU) + IProductionWorkplaceSyncService.cs (NEU) — Baustein a, LEGT fehlende Werkbaenke aus Sage `KHKPpsArbeitsplaetze` an (Sage fuehrend fuer Nummer/Name/Kuerzel), zieht Abweichungen bei bestehenden Treffern nach UND meldet sie (ADR-0014-Melde-Muster bleibt fuer Abweichungen, nur die Anlage kehrt sich um)"
+  - "IdealAkeWms/Models/ServiceSettingDefinitions.cs — drei neue Keys: `Sync:ProductionWorkplaceSyncEnabled` (Bool, Default false), `Sync:ProductionWorkplaceSyncMandant` (Int, Default 1), `Sync:ProductionWorkplaceSyncAusschlussliste` (String, Default `STO,XXX,x01,BS,BS2,FRE,AKE`) — Baustein a"
+  - "IdealAkeWms/Models/Standort/StandortSettingsCatalog.cs — zwei neue `StandortField`-Eintraege (Backend `Service`, neue Gruppe z. B. `GroupWerkbaenke`/„Werkbaenke (Sage-Arbeitsplaetze)") fuer den Mandant-Filter und die Ausschlussliste, damit beide ohne Deploy aenderbar/sichtbar sind. WICHTIG: NICHT den bestehenden Eintrag `SData:Dataset` wiederverwenden — der ist der SData-URL-Dataset-String der Sage-Lagerbuchung (`ake_TEST2026;1`), keine Zahl; der Mandant-Filter dieser Spec braucht einen eigenen, numerischen Key"
+  - "IdealAkeWms/Services/SyncLogger/SyncLogServices.cs — neue Konstante `ProductionWorkplaceSync` (Baustein a)"
+  - "IDEALAKEWMSService/Workers/SyncWorker.cs — neuer Gate-Block Baustein a (Doppel-Gate: Master `ProduktionsauftragHierarchisch` UND eigener Toggle, S1 — sonst liest der Sync bei AKE ins Leere und meldet Rauschen); UMBAU des bestehenden Blocks 'FA-Arbeitsgang-Erkennung (Struktur)' (Baustein b, Zielservice + Key umbenannt)"
   - "IDEALAKEWMSService/Program.cs — DI-Registrierung Baustein a (neu) + Baustein b (umbenannt)"
-  - "IdealAkeWms/Views/ProductionWorkplaces/Index.cshtml, Edit.cshtml, Create.cshtml — neues, read-only dargestelltes Feld (Sage fuehrend, analog ADR-0014-Warnhinweis)"
-  - "IDEALAKEWMSService/Services/FaWorkStepStructureDetectionService.cs -> UMBENANNT + UMGEBAUT zu WorkOperationStructureDetectionService.cs (Baustein b, 2c-Umbau: Ziel WorkOperation statt FaWorkStep, Katalog ProductionWorkplace.ArbeitsschrittCode statt WorkStep.Code)"
+  - "IdealAkeWms/Views/ProductionWorkplaces/Index.cshtml, Edit.cshtml, Create.cshtml — `SageArbeitsplatznummer`/`Name`/`ArbeitsschrittCode` read-only dargestellt (Sage fuehrend); neue Spalten `SageArbeitsplatznummer`/`ArbeitsschrittCode` in Index.cshtml inkl. Spaltenfilter (ADR 0005)"
+  - "IDEALAKEWMSService/Services/FaWorkStepStructureDetectionService.cs -> UMBENANNT + UMGEBAUT zu WorkOperationStructureDetectionService.cs (Baustein b, 2c-Umbau: Ziel WorkOperation statt FaWorkStep, Katalog ProductionWorkplace.ArbeitsschrittCode statt WorkStep.Code, PLUS Kuerzel-Mehrdeutigkeits-Meldung wenn ein Token mehrere aktive Werkbaenke trifft, PLUS: Kuerzel auf der Ausschlussliste erzeugen KEINE Unbekannt-Meldung)"
   - "IDEALAKEWMSService/Services/IFaWorkStepStructureDetectionService.cs -> UMBENANNT zu IWorkOperationStructureDetectionService.cs"
   - "IDEALAKEWMSService/Common/IUnknownWorkStepTokenState.cs -> UMBENANNT zu IUnknownArbeitsschrittTokenState.cs (gleiches HashSet-Singleton-Muster, nur Umbenennung fuer Konsistenz mit dem neuen Match-Ziel)"
-  - "IDEALAKEWMSService.Tests/Services/FaWorkStepStructureDetectionServiceTests.cs -> UMBENANNT + angepasst auf WorkOperation-Zielmodell"
+  - "IDEALAKEWMSService.Tests/Services/FaWorkStepStructureDetectionServiceTests.cs -> UMBENANNT + angepasst auf WorkOperation-Zielmodell + neue Faelle (Kuerzel-Mehrdeutigkeit, ausgeschlossenes Kuerzel = keine Unbekannt-Meldung)"
   - "IdealAkeWms/Models/FaWorkStep.cs — die in v1.41.0 vorgesehene Ergaenzung `FaWorkStepSources.Struktur` ENTFAELLT ersatzlos (FaWorkStep bleibt fuer IDEAL leer; AKE-Quellen `Sync`/`Manual` unveraendert)"
-  - "IdealAkeWms/Services/BdeScanResolver.cs — voraussichtlich UNVERAENDERT (Design-Empfehlung F, siehe unten); Verifikations-AK statt Code-Aenderung"
-  - "IdealAkeWms/Services/BdeDefaultWorkOperationService.cs — Koexistenz mit echten WorkOperations (Baustein c, abhaengig von Offener Rueckfrage 6)"
+  - "IdealAkeWms/Services/BdeScanResolver.cs — voraussichtlich UNVERAENDERT (Design-Empfehlung F, bestaetigt am Code: `BdeTerminalController.Index` waehlt bereits zwischen `BdeAktiv`-Werkbaenken, der Normal-Modus-Filter laeuft an drei Stellen bereits ueber `ProductionWorkplaceId`); Verifikations-AK statt Code-Aenderung"
+  - "IdealAkeWms/Services/BdeDefaultWorkOperationService.cs — Existenz-Check-Fix (B3/Antwort 6): `FindOrCreateDefaultAsync` (Zeile 25 heute: `wo.Name == defaultName`) prueft die Existenz kuenftig ueber `wo.OperationNumber == \"01\"` statt ueber `Name` — sonst bucht eine NurFA-Buchung still auf einen echten, struktur-abgeleiteten Arbeitsgang, sobald `BdeDefaultArbeitsgang` zufaellig mit einem Werkbank-Namen uebereinstimmt"
+  - "IdealAkeWms.Tests/Services/BdeDefaultWorkOperationServiceTests.cs (NEU oder ergaenzt) — Test fuer den Existenz-Check-Fix (echter AG mit gleichem Namen wie der Default vorhanden -> Default wird trotzdem als eigene Zeile mit OperationNumber '01' gefunden/angelegt)"
   - "IdealAkeWms.Tests/Services/BdeScanResolverTests.cs — Regressionslauf + ggf. neue Faelle mit echten, struktur-abgeleiteten WorkOperations"
-  - "docs/TESTSZENARIEN.md — neues Kapitel (naechste freie Nummer TS-77, Stand TS-76 im Worktree) + TS-66-Ergaenzung (BDE-Disambiguierung mit echten AGs) + TS-76 als 'superseded, siehe TS-77' kennzeichnen"
+  - "docs/TESTSZENARIEN.md — neues Kapitel (naechste freie Nummer TS-77, Stand TS-76 im Worktree, verifiziert 2026-09-22) + TS-66-Ergaenzung (BDE-Disambiguierung mit echten AGs) + TS-76 als 'superseded, siehe TS-77' kennzeichnen"
   - "secondbrain/tests/testszenarien-index.md"
 open_questions:
-  - "Routing-Design: `WorkOperation.ProductionWorkplaceId` bei der Anlage (Baustein b) direkt setzen (empfohlen) oder Live-Kuerzel-Schnittmenge im Scan-Resolver (Baustein c) berechnen?"
-  - "Varianten-Regel: Struktur-Basis-Kuerzel (`KA`) exakt matchen, oder Praefix-/Gruppen-Match inkl. Sage-Varianten (`KA2`/`KA4` etc.)?"
-  - "Die 5 Kuerzel ohne Werkbank (MO/ZS/LOe/PR/BE): melden, Werkbank in Sage nachtragen, oder aus dem Scope ausschliessen?"
-  - "Sage-Quelle fuer Baustein a: genaue Tabelle/View der Arbeitsplatz-Stammdaten (`USER_ArbeitsSchritt`) + eigener Sync-Schritt (kein bestehender Workplace-Sync vorhanden, siehe Recherche) bestaetigen?"
-  - "Kuerzel->Name-Katalog: kommt aus `ProductionWorkplace.Name` (Baustein a) — kein separater WorkOperation-Katalog noetig. Bestaetigen?"
-  - "Koexistenz `BdeDefaultWorkOperationService`: bei IDEAL abschalten/ersetzen sobald echte WorkOperations vorliegen, insbesondere im NurFA-Modus (der heute IMMER den Default erzeugt)?"
-  - "Migrationsnummer-Koordination: SQL/93 vorgeschlagen — SQL/92 ist von [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] im selben Worktree belegt (Status Freigegeben, Stand 2026-09-21). Reihenfolge im Dev-Lauf verifizieren."
-  - "Umfang/Schnitt: Epic mit 3 Etappen (a->b->c) im bestehenden Buendel-Worktree, oder 3 getrennte, einzeln mergbare Specs? Siehe 'Reihenfolge/Einordnung'."
-epic: false
-etappen: []
+  - "Sage-Spaltentyp `KHKPpsArbeitsplaetze.Arbeitsplatznummer` (int oder nvarchar mit fuehrenden Nullen, Beispiele `2300`/`0000`) ist im WMS-Repo nicht verifizierbar (externe Sage-Tabelle, keine bestehende Code-Referenz gefunden) — vor der Migration gegen das tatsaechliche Sage-Schema pruefen (z. B. `INFORMATION_SCHEMA.COLUMNS`); `ProductionWorkplace.SageArbeitsplatznummer` spiegelt den gefundenen Typ."
+  - "Migrationsnummer-Koordination: SQL/92 ist im Worktree Stand 2026-09-22 von [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] belegt -> SQL/93 ist damit Stand heute die naechste freie Nummer. Im Dev-Lauf gegen den dann tatsaechlichen Stand nochmals verifizieren, nicht blind uebernehmen."
+epic: true
+etappen:
+  - "A: Baustein (a) — ProductionWorkplace-Anlage aus Sage KHKPpsArbeitsplaetze: Modell (SageArbeitsplatznummer + ArbeitsschrittCode), Migration, ProductionWorkplaceSyncService (Anlegen + Abweichung nachziehen/melden), ServiceSettings/Standorteinstellungen (Mandant, Ausschlussliste, Toggle), SyncWorker-Doppel-Gate, UI read-only. Eigener, buildbarer Commit. STOPP + melden."
+  - "B: Bausteine (b)+(c) — Umbau FaWorkStepStructureDetectionService -> WorkOperationStructureDetectionService (inkl. Kuerzel-Mehrdeutigkeit + Ausschlussliste-Sonderfall), Umbenennungen, BdeDefaultWorkOperationService-Existenz-Check-Fix, Terminal-Verifikations-AK, TS-77, Brain-Update. Eigener Commit, danach QA/Merge fuer das gesamte Buendel (Schranke 2)."
 deploy:
   web: true
   service: true
@@ -56,8 +54,9 @@ freigabe_am: ""
 
 > **Groessen-Hinweis vorab:** Diese Spec deckt fachlich EIN Ziel ab (Sub-FA-Arbeitsgaenge am
 > BDE-Terminal buchbar), technisch aber DREI klar getrennte Bausteine mit jeweils eigenem
-> Schema-/Service-/UI-Anteil. Das ist fuer einen einzelnen Dev-Lauf voraussichtlich zu gross — siehe
-> „Reihenfolge/Einordnung" und Offene Rueckfrage 8 fuer die empfohlene Aufteilung.
+> Schema-/Service-/UI-Anteil. Der Zuschnitt ist entschieden (Antwort 8): **Epic mit zwei Etappen**
+> (A = Baustein a, STOPP davor; B = Bausteine b+c), siehe Frontmatter `etappen` und
+> „Reihenfolge/Einordnung". Kein Split in getrennte Specs.
 
 ## Ziel / Nutzen (das Warum)
 
@@ -74,34 +73,45 @@ Tabelle, gegen die das BDE-Terminal tatsaechlich bucht: `BdeApiController`, `Bde
 am Terminal **nie**. v1.41.0 zielt fuer den eigentlichen Zweck (BDE-Rueckmeldung) auf die falsche
 Tabelle.
 
-Zweiter Befund, der diese Spec erst sinnvoll macht: In den Sage-Arbeitsplatz-Stammdaten
-(`USER_ArbeitsSchritt`) traegt jede Werkbank genau ihr Kuerzel, und die Arbeitsgang-**Namen** sind die
-Werkbank-Bezeichnungen (`KA` = „Kanterei W1", `SW` = „Schweißerei W1" …). **Ein Arbeitsgang IST bei
-IDEAL faktisch eine Werkbank.** Die Werkbank↔Arbeitsgang-Zuordnung existiert damit bereits in Sage —
-keine neue manuelle Stammdatenpflege noetig, Sage bleibt fuehrend (analog
-[[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]]).
+Zweiter Befund: In den Sage-Arbeitsplatz-Stammdaten (`KHKPpsArbeitsplaetze`) traegt jeder Arbeitsplatz
+genau ein Kuerzel (`USER_ArbeitsSchritt`), und die Arbeitsgang-**Namen** sind die Arbeitsplatz-
+Bezeichnungen (`KA` = „Kanterei W1", `SW` = „Schweißerei W1" …). **Ein Arbeitsgang IST bei IDEAL faktisch
+ein Sage-Arbeitsplatz — und ein Sage-Arbeitsplatz IST die IDEAL-Werkbank** (geklaert am 2026-09-21, siehe
+„Begriffsklaerung" unten). Die Werkbank↔Arbeitsgang-Zuordnung existiert damit bereits in Sage — keine
+neue manuelle Stammdatenpflege noetig.
+
+**Dritter Befund, der Baustein (a) neu zuschneidet:** Bei IDEAL gibt es heute noch **keine einzige**
+`ProductionWorkplace`-Zeile. Anders als beim ADR-0014-Muster (Arbeitsbereiche aus freiem Text an
+Auftragspositionen — Melden statt Anlegen, weil Tippfehler/Altlasten) ist `KHKPpsArbeitsplaetze` eine
+**gepflegte Sage-Stammdatentabelle**. Deshalb **legt** der Sync dieser Spec die Werkbaenke selbst an
+(Sage fuehrend fuer Nummer, Name und Kuerzel) — Details siehe Baustein (a) und Freigabe-Antwort 4.
 
 Diese Spec baut die Struktur-Ableitung von `FaWorkStep` auf `WorkOperation` um (2c-Umbau, kein
-Zweitbau) und ergaenzt die fehlende Werkbank↔Kuerzel-Zuordnung aus Sage, damit der Werker am Terminal
-tatsaechlich den passenden Arbeitsgang seines Sub-FA sieht. **v1.41.0 wird durch diese Spec
-fachlich ersetzt** (superseded) — die Umsetzung dieser Spec ersetzt v1.41.0s Zielservice, bevor
-v1.41.0 je in Produktion geht.
+Zweitbau) und ergaenzt die fehlende Werkbank-Anlage/-Zuordnung aus Sage, damit der Werker am Terminal
+tatsaechlich den passenden Arbeitsgang seines Sub-FA sieht. **v1.41.0 wird durch diese Spec fachlich
+ersetzt** (superseded) — die Umsetzung dieser Spec ersetzt v1.41.0s Zielservice, bevor v1.41.0 je in
+Produktion geht.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
 
-- **Baustein (a):** `ProductionWorkplace` bekommt ein Kuerzel-Feld (`ArbeitsschrittCode`), befuellt
-  durch einen neuen, eigenstaendigen Sage-Sync (Sage fuehrend, Melde-statt-Anlege-Prinzip wie ADR 0014).
+- **Baustein (a):** `ProductionWorkplace` bekommt zwei neue Felder — `SageArbeitsplatznummer` (der
+  Verknuepfungsschluessel) und `ArbeitsschrittCode` (Match-Feld fuer Baustein b) — befuellt durch einen
+  neuen, eigenstaendigen Sage-Sync. Der Sync **legt fehlende Werkbaenke aus `KHKPpsArbeitsplaetze` an**
+  (Sage fuehrend fuer Nummer/Name/Kuerzel), findet bestehende Werkbaenke ueber die Nummer wieder und
+  zieht Abweichungen bei Name/Kuerzel nach — **und meldet** sie (ADR-0014-Melde-Muster, jetzt am
+  richtigen Ziel: die Abweichungsmeldung, nicht die Anlage).
 - **Baustein (b):** 2c-Umbau der bestehenden Struktur-Ableitung (`FaWorkStepStructureDetectionService`
   -> `WorkOperationStructureDetectionService`): Ziel-Tabelle `WorkOperation` statt `FaWorkStep`,
-  Match-Katalog `ProductionWorkplace.ArbeitsschrittCode` statt `WorkStep.Code`.
-- **Baustein (c):** BDE-Terminal zeigt/bucht die neu entstehenden, echten `WorkOperation`-Zeilen.
-  Nach Design-Empfehlung F (siehe unten) voraussichtlich **kein** Code-Eingriff in
-  `BdeScanResolver`/`GetAvailableOperations`, sondern eine Verifikations-AK plus die Koexistenz-
-  Entscheidung fuer `BdeDefaultWorkOperationService`.
-- Testszenarien inkl. Negativfaellen (unbekanntes Kuerzel ohne Werkbank, leere Schnittmenge, Fertig-/
-  Storno-Filter, Koexistenz Default-AG, TS-66-Anpassung).
+  Match-Katalog `ProductionWorkplace.ArbeitsschrittCode` statt `WorkStep.Code`, inkl. Kuerzel-
+  Mehrdeutigkeits-Meldung und Sonderbehandlung ausgeschlossener Kuerzel (keine Unbekannt-Meldung).
+- **Baustein (c):** BDE-Terminal zeigt/bucht die neu entstehenden, echten `WorkOperation`-Zeilen. Nach
+  Design-Empfehlung F **kein** Code-Eingriff in `BdeScanResolver`/`GetAvailableOperations` (die
+  Terminal-Werkbank-Auswahl existiert bereits, siehe B5(b)), sondern eine Verifikations-AK **plus** der
+  entschiedene Existenz-Check-Fix in `BdeDefaultWorkOperationService` (echter Bug, siehe B3).
+- Testszenarien inkl. Negativfaellen (unbekanntes Kuerzel ohne Werkbank, ausgeschlossenes Kuerzel,
+  Kuerzel-Mehrdeutigkeit, leere Schnittmenge, Fertig-/Storno-Filter, Existenz-Check-Fix, TS-66-Anpassung).
 - Brain-Pflichten: v1.41.0 als superseded kennzeichnen (Hauptcheckout, nicht durch diese Spec selbst
   ausgefuehrt, sondern als Aufgabe fuer Umsetzung/Brain-Update vermerkt).
 
@@ -111,27 +121,59 @@ v1.41.0 je in Produktion geht.
   bleibt **vollstaendig unveraendert**.
 - Kombinationsgeraete-Grenze am BDE-Terminal (bereits bekannte, akzeptierte Einschraenkung aus
   [[2026-07-29-standort-ideal-teil-8-spec]]) — unveraendert.
-- Pflege der Sage-Arbeitsplatz-Stammdaten selbst (die 5 Kuerzel ohne Werkbank nachtragen) —
-  Fachbereichs-/Sage-Arbeit, kein Code (siehe Offene Rueckfrage 3).
+- Pflege der Sage-Arbeitsplatz-Stammdaten selbst (die 5 Kuerzel ohne Werkbank `MO`/`ZS`/`LÖ`/`PR`/`BE`
+  nachtragen) — Fachbereichs-/Sage-Arbeit, kein Code (Antwort 3: melden, nicht ausschliessen).
+- Terminal-spezifische Werkbank-Teilmengen. Die Terminal-Auswahl zeigt heute **alle** `BdeAktiv`-
+  Werkbaenke (`BdeTerminalController.Index`); bei rund 60 IDEAL-Arbeitsplaetzen kann die Liste lang
+  werden. Eine engere Zuordnung „Terminal -> seine Werkbaenke" ist eine spaetere Verfeinerung (B5(b)),
+  bewusst nicht Teil dieser Spec.
 - Aenderungen an `FaHierarchyNode`, `FaHierarchySyncService`, `FaMaterializationSyncService` oder der
-  Materialisierung selbst — alle drei Bausteine lesen nur.
-- Aenderungen an `FaMaterializationSyncService`s bestehender Werkbank-Ableitung
-  (`ProductionOrder.ProductionWorkplaceId` aus `Arbeitsbereich`, ADR 0014) — das ist eine andere,
-  bereits produktiv entschiedene Zuordnung (physischer Standort des Bauteils) und bleibt unberuehrt.
-  Diese Spec fuehrt eine **zweite, unabhaengige** Kuerzel-Zuordnung ein (Arbeitsgang-Routing), die
-  **nicht** mit `Arbeitsbereich` verwechselt werden darf (siehe Anhang [[sage-views-ideal]]:
-  `Arbeitsbereich` stammt aus `USER_OSAbteilung`, ist positionsbezogen; `Arbeitsschritte`/das neue
-  Kuerzel-Feld sind ein eigenes Vokabular aus `USER_ArbeitsSchritt`).
+  Materialisierung selbst — alle drei Bausteine lesen nur. Die Korrektur der Materialisierungs-
+  Werkbank-Ableitung (ADR 0014 beruhte auf der widerlegten Annahme „Werkbank = Arbeitsbereich") ist
+  Gegenstand der separaten, vorgelagerten Spec [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]
+  (siehe „Reihenfolge/Einordnung").
+- **Arbeitsbereich (`USER_OSAbteilung`, `K-02`/`S-01`/…) und Arbeitsschritt/Werkbank
+  (`KHKPpsArbeitsplaetze`) sind zwei unabhaengige Sage-Vokabulare** (siehe „Begriffsklaerung"). Diese
+  Spec fuehrt die Werkbank-Anlage/-Zuordnung aus `KHKPpsArbeitsplaetze` ein und ruehrt den
+  Arbeitsbereich nicht an.
 
 ## Fachliche Anforderungen
 
-**Bereits entschieden (Schranke-1-Vorlage aus dem Brainstorming, nicht erneut zur Diskussion):**
+**Begriffsklaerung (2026-09-21, gegen die Sage-Arbeitsplatz-Stammdaten geklaert — massgeblich, nicht
+neu zu erheben; volle Herleitung inkl. der verworfenen Zwischenstaende siehe „Freigabe-Antworten",
+Antwort 4, Abschnitte „NEUE BLOCKER-FRAGE" bis „AUFLOESUNG"):**
+
+| Begriff | Bedeutung | Sage-Quelle |
+|---|---|---|
+| **Arbeitsbereich** (`K-02`, `S-01`, `H4-04`) | **Zielort** eines Teils — physischer Bestimmungsort, wenn alle Arbeitsschritte erledigt sind; begrifflich aus Lagerorten abgeleitet. Ziel der Materialisierung (ADR 0014, `ProductionOrder.ProductionWorkplaceId`) — eine andere, unabhaengige Zuordnung (siehe Out-of-Scope). | `USER_OSAbteilung` |
+| **Arbeitsschritt** (`KA`, `SW`, `LS` …) | **Arbeitsgang**, der am Teil erfolgen muss (Struktur-Token). | `FaHierarchyNode.Arbeitsschritte` |
+| **Werkbank** (fuers BDE, `ProductionWorkplace`) | **Sage-Arbeitsplatz**, an dem gearbeitet wird — das Anlage-Ziel DIESER Spec. | `KHKPpsArbeitsplaetze` |
+
+**Arbeitsbereich und Arbeitsschritt stehen in KEINER hierarchischen Beziehung** — zwei unabhaengige,
+beide aus Sage stammende Vokabulare, die leicht verwechselbar sind. **Eine IDEAL-Werkbank im WMS ist der
+Sage-Arbeitsplatz** (`KHKPpsArbeitsplaetze`), nicht der Arbeitsbereich. Konsequenz fuer ADR 0014/die
+Materialisierung: siehe [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]] (Vorbedingung dieser
+Spec, siehe „Reihenfolge/Einordnung").
+
+**Bereits entschieden (Schranke-1-Vorlage aus dem Brainstorming + Freigabe-Antworten 1-8, nicht erneut
+zur Diskussion):**
 
 1. **Ziel-Tabelle `WorkOperation`**, nicht `FaWorkStep`. `FaWorkStep` bleibt fuer den AKE-Pfad
    unveraendert.
-2. **Werkbank-Routing aus Sage `USER_ArbeitsSchritt`**, nicht manuell gepflegt.
+2. **Werkbank-Anlage/-Routing aus Sage `KHKPpsArbeitsplaetze`**, nicht manuell gepflegt.
 3. **2c-Umbau statt Zweitbau** — dieselbe Service-Klasse (umbenannt), derselbe Buendel-Worktree,
    v1.41.0 wird ersetzt.
+4. **Baustein (a) LEGT fehlende Werkbaenke an** (Anlege-, nicht Melde-Semantik) — `KHKPpsArbeitsplaetze`
+   ist eine gepflegte Sage-Stammdatentabelle, keine Freitext-Eingabe wie die Arbeitsbereiche von
+   ADR 0014. Bestehende Werkbaenke werden ueber `SageArbeitsplatznummer` wiedergefunden; Abweichungen
+   bei Name/Kuerzel werden nachgezogen UND gemeldet (das ADR-0014-Melde-Muster bleibt fuer Abweichungen
+   bestehen, nur die Anlage selbst kehrt sich um).
+5. **Verknuepfungsschluessel ist `SageArbeitsplatznummer`** (aus `KHKPpsArbeitsplaetze.Arbeitsplatznummer`),
+   **nicht** der Name — am Datensatz belegt: `Matchcode`/`Bezeichnung1` weichen ab, tragen doppelte
+   Leerzeichen, und eine Sage-Umbenennung braeche eine Namens-Verknuepfung. `Name = Bezeichnung1` ist
+   reine Anzeige, kein Abgleichsschluessel.
+6. **Epic mit zwei Etappen** (A = Baustein a, STOPP davor; B = Bausteine b+c) statt drei getrennter
+   Specs — siehe Frontmatter `etappen` und „Reihenfolge/Einordnung".
 
 **Token -> Werkbank-Zuordnung (2026-09-21, vom Menschen gegen die Sage-Arbeitsplatz-Liste
 abgeglichen — massgeblich, nicht neu zu erheben):**
@@ -146,7 +188,7 @@ abgeglichen — massgeblich, nicht neu zu erheben):**
 | SW | Schweißerei W1 |
 | EG | Flächen entgraten |
 | SÄ | Schäumerei W1 (EG) |
-| VM | Elektrofertigung W1 (OG) |
+| VM | Vormontage W1 |
 | PL | Punkten Ladenbau W1 |
 | PG | Punkten Gehäusebau W1 |
 | BR | Berohren W1 |
@@ -154,66 +196,128 @@ abgeglichen — massgeblich, nicht neu zu erheben):**
 | ISO | Isolierung W2 |
 | SL | Schleiferei W1 |
 
-**5 Kuerzel ohne Werkbank in der Liste:** `MO`, `ZS`, `LÖ`, `PR`, `BE` — heute nicht buchbar
-(Werkbank fehlt oder Liste unvollstaendig), Melde-/Zuordnungsthema (Offene Rueckfrage 3).
+*(Korrigiert 2026-09-22, S4: `VM` = „Vormontage W1" (Arbeitsplatz 3002). Eine fruehere Fassung dieser
+Tabelle nannte faelschlich „Elektrofertigung W1 (OG)" — das ist `VM9` (Arbeitsplatz 3001), ein anderer
+Datensatz.)*
 
-Quelle: vollstaendige Arbeitsplatz-Stammdaten (Spalte `USER_ArbeitsSchritt`), 2026-09-21 vom Menschen
-bereitgestellt — Sync-Quelle fuer Baustein (a).
+**5 Kuerzel ohne Werkbank in der Liste:** `MO`, `ZS`, `LÖ`, `PR`, `BE` — heute nicht buchbar (Werkbank
+fehlt in Sage), bleiben **gemeldet** (Antwort 3: melden, im Code **nicht** ausschliessen — Fachthema,
+keine Code-Aufgabe, siehe Out-of-Scope). Der Melde-Mechanismus heilt sich selbst: Sobald die Werkbank in
+Sage nachgetragen ist, greift Baustein (a) beim naechsten Lauf, und Baustein (b) legt die Arbeitsgaenge
+an — ohne Code-Aenderung.
 
-**Varianten-Problem (Offene Rueckfrage 2):** Die Struktur (`FaHierarchyNode.Arbeitsschritte`) nutzt
-laut v1.41.0-Freigabe-Antwort Basis-Kuerzel (`KA`). Sage kennt daneben Werkbank-**Varianten**
-(`KA2`/`KA4`, `SW1`/`SW2`/`SWB`/`SWL`, `SÄ2`/`SÄE`/`SÄO`, `VM1`/`VM2`, `PG2`, `PL2`, `EM2`, `SLH`).
-Ob die Struktur ausschliesslich Basis-Kuerzel liefert oder auch Varianten, ist am Code nicht
-abschliessend zu verifizieren (das haengt an den tatsaechlichen Sage-Daten) — daher offene Rueckfrage,
-mit der Tendenz aus dem Backlog: exakter Basis-Kuerzel-Match = die scan-relevante Haupt-Werkbank.
+**Ausschlussliste (Standorteinstellung, Baustein a) — Standardwert `STO, XXX, x01, BS, BS2, FRE, AKE`**
+(entschieden 2026-09-22, siehe „ANTWORTEN zu B5"): Statusmarker (Storno, Gestoppt, Reserve) und Kuerzel,
+die **ausser Haus** stattfinden (externe Beschichter `BS`/`BS2`, Fremdleister `FRE`, Bestellung beim
+Schwesterstandort `AKE`). Fuer diese Kuerzel legt Baustein (a) **keine** Werkbank an. Findet Baustein (b)
+ein solches Kuerzel als Struktur-Token, erzeugt es **keine** `WorkOperation` **und keine**
+Unbekannt-Meldung — ausgeschlossene Kuerzel sind bewusst **bekannt**, nicht **unbekannt** (sonst
+Dauerrauschen bei jedem Auftrag mit externer Beschichtung). Die Unbekannt-Meldung bleibt den echten
+Luecken (`MO`/`ZS`/`LÖ`/`PR`/`BE`) vorbehalten. Die Liste ist in den Standorteinstellungen erweiterbar.
+
+Quelle: vollstaendige Arbeitsplatz-Stammdaten (`KHKPpsArbeitsplaetze`, relevante Spalten
+`Arbeitsplatznummer`, `Mandant`, `Bezeichnung1`, `Aktiv`, `USER_ArbeitsSchritt`), 2026-09-21 vom
+Menschen bereitgestellt (66 Zeilen, Mandant 1, aktiv) — Sync-Quelle fuer Baustein (a). **Stand
+2026-09-21: bei IDEAL gibt es noch KEINE `ProductionWorkplace`-Zeile** — der erste scharf geschaltete
+Sync-Lauf legt sie neu an (siehe Migrations-/SQL-Auswirkungen und Deploy).
+
+**Datenbefunde aus der Liste, fuer den Sync verbindlich:**
+
+- **`"EG "` mit Leerzeichen** (Arbeitsplatz 2150). **`USER_ArbeitsSchritt` beim Lesen zwingend `TRIM`en**
+  — sonst faellt `EG` still in die Unbekannt-Meldung.
+- **Keine doppelten Kuerzel** unter den aktiven Arbeitsplaetzen (Stand 2026-09-21). Die
+  Mehrdeutigkeitsregel fuer Baustein (b) (siehe unten) bleibt trotzdem als Absicherung im Code.
+- **Ausgelaufene Arbeitsplaetze** (Markierung „(X)"/„beendet") sind in Sage noch `Aktiv = -1`, darunter
+  `EG`. Der Sync liest sie wie jeden aktiven Arbeitsplatz; ob Arbeit fachlich auf einen „beendeten"
+  Arbeitsplatz geroutet werden soll, ist im UAT zu beobachten, keine Code-Entscheidung dieser Spec.
+
+**Varianten-Problem (entschieden, Antwort 2):** Die Struktur (`FaHierarchyNode.Arbeitsschritte`) nutzt
+Basis-Kuerzel (`KA`). Sage kennt daneben Werkbank-**Varianten** (`KA2`/`KA4`, `SW1`/`SW2`/`SWB`/`SWL`,
+`SÄ2`/`SÄE`/`SÄO`, `VM1`/`VM2`, `PG2`, `PL2`, `EM2`, `SLH`). **Exakter Basis-Kuerzel-Match, kein
+Praefix** — ein Praefix-Match waere mehrdeutig (`KA` traefe `KA2` UND `KA4`, welche Werkbank?). Folge, im
+UAT zu beobachten: Varianten-Werkbaenke bekommen vorerst **keine** struktur-abgeleiteten Arbeitsgaenge,
+nur die Basis-Werkbank. Ob Varianten alternative Werkbaenke fuer denselben Arbeitsgang oder eigene
+Arbeitsgaenge sind, ist eine spaetere, mit Betriebsbeleg zu klaerende Fachfrage.
 
 ## Technischer Loesungsentwurf
 
 Referenzmuster: [[0010-aktivitaets-protokoll-mit-isolierten-dbcontexts]] (`ISyncLogger` letzter
 Ctor-Parameter, deutsche Counts-Keys), [[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]]
-(Sage fuehrend + Melde-statt-Anlege-Prinzip), ADR 0008 (ServiceSettings-Katalog). Betroffene Module:
-[[services]] (Sync-Services, `SyncWorker`), [[datenmodell]] (`ProductionWorkplace`, `WorkOperation`).
+(Sage fuehrend + Melde-Muster fuer Abweichungen — hier zusaetzlich mit Anlage, siehe Baustein a), ADR
+0008 (ServiceSettings-Katalog). Betroffene Module: [[services]] (Sync-Services, `SyncWorker`),
+[[datenmodell]] (`ProductionWorkplace`, `WorkOperation`).
 
-### Baustein (a) — `ProductionWorkplace.ArbeitsschrittCode` + eigener Sage-Sync
+### Baustein (a) — `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`
 
-**Modell:** `ProductionWorkplace` bekommt `[MaxLength(20)] public string? ArbeitsschrittCode { get; set; }`
-(Display „Arbeitsschritt-Kuerzel (Sage)"). Kein Unique-Index — analog zur bestehenden Entscheidung bei
-`ProductionWorkplace.Name` (ADR 0014, S. „Betrachtete Optionen"): Ambiguitaet wird **gemeldet**, nicht
-per DB-Constraint verhindert, weil ein Sync-Lauf besser erklaeren kann, was mehrdeutig ist, als eine
-Exception es koennte.
+**Modell:** `ProductionWorkplace` bekommt zwei neue Felder:
 
-**Sync, neuer eigenstaendiger Service (`ProductionWorkplaceCodeSyncService`):** Es existiert heute
-**kein** bestehender Sync-Schritt, der `ProductionWorkplace`-Stammdaten aus Sage befuellt (verifiziert
-per Grep — `ProductionWorkplace` wird im Service-Projekt nur **gelesen**, z. B. von
-`FaMaterializationSyncService`, `OseonSyncService`, `BdeAutoPauseService`). Ein neuer, eigener Service
-ist daher die einzige Option, keine „Erweiterung eines Bestandssyncs" (Offene Rueckfrage 4 fragt nur
-noch nach der genauen Sage-Quelle, nicht mehr nach dem Ob).
+- `SageArbeitsplatznummer` (Typ/Laenge nach Offener Rueckfrage 9 gegen das echte Sage-Schema
+  verifizieren) — **der Verknuepfungsschluessel**, Display „Sage-Arbeitsplatznummer". Nullable
+  (bestehende AKE-Werkbaenke bekommen nie einen Wert, siehe Master-Gate unten). **Kein Unique-Index**
+  (Hausmuster: Ambiguitaet wird gemeldet, nicht per DB-Constraint verhindert — ein Sync-Lauf kann besser
+  erklaeren, was mehrdeutig ist, als eine Exception es koennte), aber ein normaler, **nicht-eindeutiger
+  Index** fuer den Zeilen-Lookup je Sync-Durchlauf (`WHERE SageArbeitsplatznummer = @nr`).
+- `[MaxLength(20)] public string? ArbeitsschrittCode { get; set; }` (Display „Arbeitsschritt-Kuerzel
+  (Sage)") — Match-Feld fuer Baustein b, **getrimmt** beim Schreiben.
 
-Ablauf, gespiegelt an `FaMaterializationSyncService`s Werkbank-Ableitung (ADR 0014), aber in
-umgekehrter Match-Richtung (dort: Position -> `Arbeitsbereich` -> `ProductionWorkplace.Name`; hier:
-Sage-Arbeitsplatz-Stammsatz -> `Bezeichnung1` -> `ProductionWorkplace.Name` -> Kuerzel schreiben):
+`Name` bleibt das bestehende `[Required][MaxLength(200)]`-Feld — wird ab dieser Spec mit `Bezeichnung1`
+befuellt (Anzeige, **kein** Abgleichsschluessel).
 
-1. Sage-Arbeitsplatz-Stammdaten lesen (genaue Tabelle/View: Offene Rueckfrage 4).
-2. Je Zeile: `ProductionWorkplace` mit exakt (case-insensitiv, getrimmt) passendem `Name` suchen.
-   - **Kein Treffer** -> melden, nichts schreiben (keine Werkbank automatisch anlegen — exakt ADR 0014).
-   - **Mehrdeutig** (zwei Werkbaenke mit demselben Namen) -> melden, nichts schreiben.
-   - **Ein Treffer**, Kuerzel weicht vom Bestandswert ab -> **schreiben** (Sage fuehrend) UND melden
-     (alter/neuer Wert), exakt wie ADR 0014s Umgang mit `ProductionWorkplaceId`-Abweichungen.
-3. Sammelmeldung + Sammelmail nur bei Aenderung der Menge unbekannter/mehrdeutiger Namen (S1-Muster,
+**Sync, neuer eigenstaendiger Service (`ProductionWorkplaceSyncService`):** Es existiert heute **kein**
+bestehender Sync-Schritt, der `ProductionWorkplace`-Stammdaten aus Sage befuellt (verifiziert per Grep —
+`ProductionWorkplace` wird im Service-Projekt nur **gelesen**, z. B. von `FaMaterializationSyncService`,
+`OseonSyncService`, `BdeAutoPauseService`, und `KHKPpsArbeitsplaetze` hat im gesamten Repo bisher keine
+Code-Referenz). Ein neuer, eigener Service ist daher die einzige Option.
+
+**Pflicht-Filter beim Lesen** (Antwort 4, „ENTSCHIEDEN 2026-09-21"):
+
+1. **`Mandant = <Sync:ProductionWorkplaceSyncMandant>`** (Standorteinstellung, Standardwert `1`, gilt bei
+   beiden Standorten immer — sichtbar/aenderbar ohne Deploy, dieselbe Begruendung wie bei allen
+   Stammdaten-Konventionen dieser Spec).
+2. **`Aktiv = -1`** — Sage-Konvention (wie `KHKArtikel`). Ein stillgelegter Arbeitsplatz mit derselben
+   `Bezeichnung1` wie ein aktiver erzeugte sonst eine falsche Doppel-Bezeichnung (auch wenn der Abgleich
+   ueber die Nummer laeuft, nicht ueber den Namen, ist die Aktiv-Zeile die richtige Quelle fuer Name/
+   Kuerzel).
+3. **`USER_ArbeitsSchritt` gefuellt und GETRIMMT** — Arbeitsplaetze ohne Kuerzel werden **uebersprungen**,
+   nicht gemeldet (sie sind kein Arbeitsgang-Ziel). Trim ist Pflicht (`"EG "` mit Leerzeichen).
+4. **Kuerzel NICHT auf der Ausschlussliste** (`Sync:ProductionWorkplaceSyncAusschlussliste`, Vergleich
+   getrimmt/case-insensitiv gegen das Sage-Kuerzel) — Statusmarker/externe Vorgaenge werden **gar nicht**
+   angelegt (siehe „Ausschlussliste" oben).
+
+**Ablauf je verbleibende Sage-Zeile:**
+
+1. `ProductionWorkplace` mit exakt passender `SageArbeitsplatznummer` suchen.
+   - **Kein Treffer** -> **neue Zeile anlegen**: `SageArbeitsplatznummer` = Sage-Nummer, `Name` =
+     `Bezeichnung1` (getrimmt), `ArbeitsschrittCode` = `USER_ArbeitsSchritt` (getrimmt),
+     **`BdeAktiv = false`** (verifiziert: `ProductionWorkplace.BdeAktiv` ist `bool` ohne expliziten
+     Default, also automatisch `false` — der Sync setzt es schlicht nicht; Terminal-Einrichtung bleibt
+     eine bewusste, spaetere Handlung des Menschen), Audit `CreatedAt/CreatedBy/CreatedByWindows =
+     "ProductionWorkplaceSync"`.
+   - **Ein Treffer**, `Name`/`ArbeitsschrittCode` weichen vom Bestandswert ab -> **ueberschreiben**
+     (Sage fuehrend) UND **melden** (alter/neuer Wert je Feld), Audit
+     `ModifiedAt/ModifiedBy/ModifiedByWindows = "ProductionWorkplaceSync"`.
+   - **Ein Treffer**, keine Abweichung -> kein Schreiben, kein Audit-Touch, keine Meldung.
+   - **Mehr als ein Treffer** mit derselben `SageArbeitsplatznummer` (sollte durch den Sage-eigenen
+     Primaerschluessel nicht vorkommen, aber Absicherung gegen manuelle Doppelanlage im WMS) -> nichts
+     schreiben, „mehrdeutig" melden.
+2. Sammelmeldung + Sammelmail nur bei Aenderung der Menge unbekannter/mehrdeutiger Zeilen (S1-Muster,
    analog `IUnknownWorkplaceState`).
-4. Eigener `SyncLogServices`-Eintrag (`ProductionWorkplaceCodeSync`), eigener Toggle
-   (`Sync:ProductionWorkplaceCodeSyncEnabled`, Default `false`).
+3. Eigener `SyncLogServices`-Eintrag (`ProductionWorkplaceSync`), eigener Toggle
+   (`Sync:ProductionWorkplaceSyncEnabled`, Default `false`).
 
-**Reihenfolge im `SyncWorker`:** kein FK-Bezug zu FA-Hierarchie/-Materialisierung — der Block kann an
-beliebiger Stelle stehen, sollte aber **vor** Baustein (b) laufen, damit der Katalog beim
-WorkOperation-Aufbau moeglichst aktuell ist (sonst ein Tag Verzoegerung, kein Fehler — Nur-hinzufuegen-
-Semantik faengt das beim naechsten Lauf ohnehin ab).
+**Gate (S1, Antwort 4 „Vorschlag ... Bestaetigung ausstehend" — jetzt uebernommen):**
+**Doppel-Gate wie Baustein (b): Master `ProduktionsauftragHierarchisch` UND eigener Toggle.** Ohne den
+Master liese der Sync bei AKE die AKE-Arbeitsplaetze, faende keine `SageArbeitsplatznummer`-Treffer
+(AKE-Werkbaenke haben nie diesen Wert) und legte bei AKE fremde, dort nicht gewollte Werkbaenke an —
+reines Rauschen. **Reihenfolge im `SyncWorker`:** kein FK-Bezug zu FA-Hierarchie/-Materialisierung, der
+Block sollte aber **vor** Baustein (b) laufen, damit der Katalog beim WorkOperation-Aufbau moeglichst
+aktuell ist (Nur-hinzufuegen-Semantik faengt eine falsche Reihenfolge beim naechsten Lauf ohnehin ab).
 
-**UI:** `/ProductionWorkplaces` (Index/Edit/Create) zeigt das Feld **read-only** an (Sage fuehrend —
-eine manuelle Eingabe wuerde beim naechsten Lauf ueberschrieben, derselbe Fallstrick wie ADR 0014s
-Konsequenz „ueberlebt hoechstens 15 Minuten"; das gehoert auf die Hilfeseite). Bestehende Liste bleibt
-Listen-View-Pattern-konform (ADR 0005): die neue Spalte in `Index.cshtml` bekommt einen Spaltenfilter
-wie die uebrigen Spalten der Tabelle, keine Sonderbehandlung.
+**UI:** `/ProductionWorkplaces` (Index/Edit/Create) zeigt `SageArbeitsplatznummer`, `Name` und
+`ArbeitsschrittCode` **read-only** an (Sage fuehrend — eine manuelle Eingabe wuerde beim naechsten Lauf
+ueberschrieben, derselbe Fallstrick wie ADR 0014s Konsequenz „ueberlebt hoechstens 15 Minuten"; das
+gehoert auf die Hilfeseite). Bestehende Liste bleibt Listen-View-Pattern-konform (ADR 0005): die neuen
+Spalten in `Index.cshtml` bekommen Spaltenfilter wie die uebrigen Spalten der Tabelle.
 
 ### Baustein (b) — 2c-Umbau: `WorkOperationStructureDetectionService`
 
@@ -235,10 +339,9 @@ wechseln:
 einen Arbeitsgang-Katalog (verifiziert `Models/WorkOperation.cs`: `OperationNumber`/`Name` sind reine
 Strings). Der bisherige „Zwei-Lauf-Ablauf" (erst Katalogeintrag anlegen, dann Ableitung) entfaellt
 damit fuer Baustein (b) **strukturell** — es gibt nichts Zweites zu pflegen, sobald Baustein (a) den
-Namen kennt. Ein Token bleibt weiterhin „unbekannt" (gemeldet, kein Insert), solange **kein**
-`ProductionWorkplace.ArbeitsschrittCode` dazu existiert — der Zwei-Lauf-Gedanke lebt weiter, nur ist
-der Katalog jetzt `ProductionWorkplace` (Baustein a) statt `WorkStep` (Offene Rueckfrage 5 bittet um
-Bestaetigung dieser Vereinfachung).
+Namen kennt (**bestaetigt, Antwort 5**). Ein Token bleibt weiterhin „unbekannt" (gemeldet, kein Insert),
+solange **kein** `ProductionWorkplace.ArbeitsschrittCode` dazu existiert und es **nicht** auf der
+Ausschlussliste steht.
 
 **Neu angelegte `WorkOperation`-Felder je Kandidat (Token, Sub-FA):**
 
@@ -246,9 +349,16 @@ Bestaetigung dieser Vereinfachung).
   Storno-Filter (`!IsDone && !IsCancelled && !(PickingStatus?.IsDonePicking == true)`).
 - `OperationNumber` = das Kuerzel selbst (z. B. `"KA"`) — kurz, menschenlesbar, kollisionsfrei mit dem
   Default-AG (der hartcodiert `"01"` verwendet, `BdeDefaultWorkOperationService.cs:34`).
-- `Name` = `ProductionWorkplace.Name` des per Kuerzel gematchten Datensatzes (z. B. „Kanterei W1").
-- `ProductionWorkplaceId` = **Id** desselben Datensatzes — siehe Design-Empfehlung F unten
-  (Offene Rueckfrage 1).
+- `Name` = `ProductionWorkplace.Name` des per Kuerzel gematchten Datensatzes (z. B. „Kanterei W1"). Der
+  Name wird beim Anlegen **kopiert** (Antwort 5) — eine spaetere Umbenennung der Werkbank in Sage
+  aendert den Namen bereits angelegter `WorkOperation`-Zeilen **nicht** nach.
+- `ProductionWorkplaceId` = **Id** desselben Datensatzes (Empfehlung F, Antwort 1). Das Routing wird
+  damit **beim Anlegen materialisiert**: Ordnet Sage ein Kuerzel spaeter einer anderen Werkbank zu (neue
+  `SageArbeitsplatznummer` mit demselben `ArbeitsschrittCode`, oder Kuerzel-Wechsel am bestehenden
+  Arbeitsplatz), routen **bereits angelegte, offene** Arbeitsgaenge weiter zur **alten** Werkbank — nur
+  neue Sub-FAs gehen zur neuen. Vertretbar, weil Kuerzel-Werkbank-Zuordnungen Stammdaten sind und sich
+  selten aendern, und weil Baustein (a) jede Abweichung **meldet** (die Meldung ist das Signal, offene
+  Arbeitsgaenge zu pruefen). **Bewusste, bekannte Eigenschaft, kein Fehler.**
 - `Sequence` = Position des Tokens innerhalb der Arbeitsschritte-Zeichenkette der Quelle (0-basiert,
   Sage-Reihenfolge bleibt erhalten); Fallback `1` falls nicht ermittelbar. Beeinflusst nur die
   Sortierung mehrerer Kandidaten am Terminal (`BdeScanResolver`/`GetOpenByWorkplaceIdAsync` sortieren
@@ -258,9 +368,25 @@ Bestaetigung dieser Vereinfachung).
 - `CreatedAt/CreatedBy/CreatedByWindows = "WorkOperationStructureDetection"` (Service-Name als Autor,
   ADR 0003).
 
-**Unbekannte Kuerzel** (kein `ProductionWorkplace.ArbeitsschrittCode`-Treffer): melden, nicht anlegen —
-identisches Sammelmeldungs-/Sammelmail-Muster wie v1.41.0 (`IUnknownArbeitsschrittTokenState`,
-S1-Muster: Mail nur bei Aenderung der Token-**Menge**).
+**Unbekannte Kuerzel** (kein `ProductionWorkplace.ArbeitsschrittCode`-Treffer, NICHT auf der
+Ausschlussliste): melden, nicht anlegen — identisches Sammelmeldungs-/Sammelmail-Muster wie v1.41.0
+(`IUnknownArbeitsschrittTokenState`, S1-Muster: Mail nur bei Aenderung der Token-**Menge**).
+
+**Ausgeschlossene Kuerzel** (auf der Ausschlussliste, siehe „Fachliche Anforderungen"): weder Werkbank
+noch Arbeitsgang noch Unbekannt-Meldung — bewusst bekannt, kein Rauschen.
+
+**Kuerzel-Mehrdeutigkeit (neu, B2-Nachtrag/Antwort 4):** Trifft ein Struktur-Token **mehr als eine**
+aktive `ProductionWorkplace`-Zeile (gleicher `ArbeitsschrittCode`, verschiedene `SageArbeitsplatznummer`)
+— heute laut Datenbefund nicht der Fall, aber als Absicherung im Code Pflicht —, wird **keine**
+`WorkOperation` angelegt, sondern „mehrdeutig" gemeldet (gleiches Muster wie ueberall in dieser Spec).
+Vorab pruefbar:
+
+```sql
+SELECT USER_ArbeitsSchritt, COUNT(*) AS Anzahl
+FROM KHKPpsArbeitsplaetze
+WHERE Aktiv = -1 AND ISNULL(USER_ArbeitsSchritt, '') <> '' -- plus Mandant-Filter
+GROUP BY USER_ArbeitsSchritt HAVING COUNT(*) > 1;
+```
 
 **Umbenennung (Konsistenz statt Restbestand):** `FaWorkStepStructureDetectionService` ->
 `WorkOperationStructureDetectionService` (+ Interface, Tests, `IUnknownWorkStepTokenState` ->
@@ -275,165 +401,224 @@ bekommen ihre Arbeitsgaenge kuenftig ausschliesslich ueber `WorkOperation`, nich
 ueber `FaWorkStep`. `FaWorkStep` bleibt fuer IDEAL dauerhaft leer (kein Fehler, einfach ungenutzt fuer
 diesen Standort), fuer AKE unveraendert aktiv.
 
-### Baustein (c) — BDE-Terminal: Design-Empfehlung F statt Live-Schnittmenge
+### Baustein (c) — BDE-Terminal: Design-Empfehlung F, bestaetigt am Code + Existenz-Check-Fix
 
 Der Backlog skizziert Baustein (c) als Umbau von `BdeScanResolver`/`GetAvailableOperations` auf eine
 **zur Scan-Zeit berechnete** Kuerzel-Schnittmenge (Werkbank-Kuerzel × Sub-FA-Kuerzel-Menge). Die
 Code-Recherche zeigt einen einfacheren, bereits vorhandenen Weg:
 
-**Befund:** `BdeScanResolver.BuildNormalCandidatesAsync` UND `WorkOperationRepository.GetOpenByWorkplaceIdAsync`
-UND `BdeApiController.GetAvailableOperations` (Normal-Modus) filtern **bereits heute** ausschliesslich
-ueber `WorkOperation.ProductionWorkplaceId == workplaceId` (verifiziert, je eine Fundstelle). Setzt
-Baustein (b) `ProductionWorkplaceId` beim Anlegen direkt auf die Id der gematchten Werkbank (siehe
-oben), routen **alle drei Stellen automatisch korrekt** — ohne eine einzige Code-Aenderung an diesem
-Pfad. Die „Kuerzel-Schnittmenge" aus dem Backlog wird dann **einmalig bei der Anlage** aufgeloest
-(Baustein b) statt **bei jedem Scan neu** (Baustein c) — dieselbe fachliche Schnittmenge, aber als
-Fremdschluessel materialisiert statt als Laufzeit-Join. Ponytail-Sprosse 2 („gibt es das schon?"):
-Ja — der Filter existiert, nur die Daten fehlten bisher.
+**Befund 1 (Routing):** `BdeScanResolver.BuildNormalCandidatesAsync` UND
+`WorkOperationRepository.GetOpenByWorkplaceIdAsync` UND `BdeApiController.GetAvailableOperations`
+(Normal-Modus) filtern **bereits heute** ausschliesslich ueber `WorkOperation.ProductionWorkplaceId ==
+workplaceId` (verifiziert, je eine Fundstelle). Setzt Baustein (b) `ProductionWorkplaceId` beim Anlegen
+direkt auf die Id der gematchten Werkbank, routen **alle drei Stellen automatisch korrekt** — ohne eine
+einzige Code-Aenderung an diesem Pfad.
 
-**Konsequenz:** `BdeScanResolver` bleibt voraussichtlich **unveraendert**. Aus dem Backlog-„Baustein
-(c)" wird eine **Verifikations-Akzeptanzkriterium** (WorkOperations aus Baustein b erscheinen am
-Terminal der richtigen Werkbank, ohne Resolver-Aenderung) statt eines Umbaus. Einzige echte offene
-Code-Frage bleibt die **Koexistenz mit `BdeDefaultWorkOperationService`** (Offene Rueckfrage 6):
+**Befund 2 (Terminal-Werkbank-Auswahl, B5(b)):** Anfangs bedient **ein Terminal mehrere Werkbaenke** —
+war offen, ist am Code beantwortet: `BdeTerminalController.Index(int? workplaceId)` uebersteuert die
+**Default-Werkbank** (`BdeTerminal.DefaultProductionWorkplaceId`) per Parameter; `ViewBag.AllWorkplaces =
+await _workplaces.GetBdeActiveAsync()` bietet **alle `BdeAktiv`-Werkbaenke** zur Auswahl an. Die Auswahl
+existiert also bereits — genau das im Backlog verlangte Verhalten. Baustein (c) bleibt damit **klein**
+(Verifikations-AK statt Umbau); die Zwei-Etappen-Einschaetzung (Antwort 8) haelt.
 
-- **NurFA-Modus** bucht heute *immer* ueber `FindOrCreateDefaultAsync` (generischer „01"-AG) —
-  `StartProductionForOrder` kennt die echten, struktur-abgeleiteten `WorkOperation`s des Sub-FA gar
-  nicht. Ob der NurFA-Modus fuer IDEAL kuenftig die echten AGs anbieten soll (Modus-Wechsel-Frage,
-  nicht diese Spec allein) oder der generische Default bewusst bestehen bleibt (z. B. weil der
-  Default-Name organisch mit einem echten Werkbank-Namen kollidieren *koennte*, siehe `Name`-basierter
-  Existenz-Check in `FindOrCreateDefaultAsync`), ist eine fachliche Entscheidung.
-- **Normal-Modus** zeigt/bucht ab Baustein (b) automatisch die echten AGs — der Default-Service wird
-  dort gar nicht aufgerufen (er haengt ausschliesslich an `StartProductionForOrder`, NurFA-Pfad).
+**Konsequenz:** `BdeScanResolver` bleibt **unveraendert**. Aus dem Backlog-„Baustein (c)" wird eine
+**Verifikations-Akzeptanzkriterium** (WorkOperations aus Baustein b erscheinen am Terminal der richtigen
+Werkbank, ohne Resolver-Aenderung). Die eine echte Code-Aenderung in Baustein (c) ist der
+**Existenz-Check-Fix in `BdeDefaultWorkOperationService`** (B3/Antwort 6):
 
-Diese Empfehlung ist eine **Abweichung von der Backlog-Formulierung** ( „Terminal zeigt die
-Schnittmenge") und wird daher ausdruecklich als Offene Rueckfrage 1 zur Bestaetigung vorgelegt, nicht
-stillschweigend umgesetzt.
+`FindOrCreateDefaultAsync` prueft die Existenz heute ueber den **Namen**
+(`wo.Name == defaultName`, `BdeDefaultWorkOperationService.cs:25`). Echte, struktur-abgeleitete
+Arbeitsgaenge tragen `Name = ProductionWorkplace.Name`; der Default-AG traegt `Name =
+BdeDefaultArbeitsgang`. Stimmen beide Werte ueberein (was bei der Pflege leicht passiert, wenn jemand
+`BdeDefaultArbeitsgang` gleich dem Werkbank-Namen setzt), **findet der Default-Service den echten
+Arbeitsgang und bucht darauf**, statt den generischen Default anzulegen — eine NurFA-Buchung landete
+still auf einem echten Arbeitsgang. **Fix:** Der Existenz-Check geht kuenftig ueber `OperationNumber ==
+"01"`, nicht ueber `Name` (echte Arbeitsgaenge nutzen das Kuerzel als `OperationNumber`, das trennt
+sauber). Eine Zeile Code, aber mit Test.
+
+**Modus-Trennung (bestaetigt, Antwort 6):** „NurFA" heisst per Definition: auf den Auftrag buchen, ohne
+Arbeitsgang zu waehlen — dort echte Arbeitsgaenge anzubieten widerspraeche dem Zweck des Modus. Der
+Normal-Modus zeigt/bucht ab Baustein (b) automatisch die echten AGs; `BdeDefaultWorkOperationService`
+wird dort gar nicht aufgerufen (haengt ausschliesslich an `StartProductionForOrder`, NurFA-Pfad). Es
+gibt also **keinen Koexistenz-Konflikt zwischen den Modi** — nur den einen, oben beschriebenen Bug im
+Existenz-Check des NurFA-Pfads.
 
 ## Migrations-/SQL-Auswirkungen
 
-**Genau eine Migration, aus Baustein (a):** neues nullable Feld
-`ProductionWorkplace.ArbeitsschrittCode` (`NVARCHAR(20) NULL`).
+**Genau eine Migration, aus Baustein (a), ZWEI neue Spalten:**
 
-- Model -> `dotnet ef migrations add AddProductionWorkplaceArbeitsschrittCode --project IdealAkeWms`
-  -> `SQL/93_AddProductionWorkplaceArbeitsschrittCode.sql` mit `COL_LENGTH`-Guard (ALTER TABLE ... ADD,
-  analog `SQL/87_AddUserDefaultFilterBomDescription1.sql`), DDL-Batch + separater
+- `ProductionWorkplace.SageArbeitsplatznummer` — der Verknuepfungsschluessel (Antwort 4: „Abgleich ueber
+  `Arbeitsplatznummer`, NICHT ueber einen Namen"). Typ/Laenge richten sich nach dem tatsaechlichen
+  Sage-Spaltentyp (Offene Rueckfrage 9 — `KHKPpsArbeitsplaetze` ist eine externe Sage-Tabelle ohne
+  bisherige Code-Referenz im Repo, der Typ ist am WMS-Code nicht verifizierbar). Nullable (bestehende
+  AKE-Werkbaenke bekommen wegen des Master-Gates nie einen Wert). **Kein** Unique-Constraint, aber ein
+  normaler, nicht-eindeutiger Index fuer den Sync-Lookup.
+- `ProductionWorkplace.ArbeitsschrittCode` — `NVARCHAR(20) NULL`, Match-/Anzeigefeld fuer Baustein b.
+
+Ablauf:
+
+- Model -> `dotnet ef migrations add AddProductionWorkplaceSageFields --project IdealAkeWms` ->
+  `SQL/93_AddProductionWorkplaceSageFields.sql` mit je einem `COL_LENGTH`-Guard pro Spalte (ALTER TABLE
+  ... ADD, analog `SQL/87_AddUserDefaultFilterBomDescription1.sql`), DDL-Batch + separater
   `__EFMigrationsHistory`-Insert-Batch (ADR 0004).
-- `SQL/00_FreshInstall.sql` an **beiden** Stellen (Schema-Objekt + `MigrationId`).
-- **Nummern-Kollisionsgefahr:** `SQL/92_AddUserDefaultFilterBomKommissionierziel.sql` ist bereits von
-  [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] im **selben** Worktree/Branch belegt
-  (Status `Freigegeben`, noch nicht umgesetzt, Stand 2026-09-21). `93` ist der naechste freie Wert nach
-  dem aktuellen Stand (`91_AddArticleMatchcode.sql` + das reservierte `92`) — im Dev-Lauf gegen den
-  dann tatsaechlichen Worktree-Stand verifizieren (Offene Rueckfrage 7), **nicht** blind `92` vergeben.
-- **Nicht daten-destruktiv** (neue nullable Spalte, kein Datenverlust, kein Backup-Zwang ueber das
-  ueblichen Mass hinaus).
+- `SQL/00_FreshInstall.sql` an **beiden** Stellen (Schema-Objekte + `MigrationId`).
+- **Nummer, verifiziert 2026-09-22:** `SQL/92_AddUserDefaultFilterBomKommissionierziel.sql` liegt bereits
+  im Worktree ([[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Status Freigegeben) — `93` ist
+  damit Stand heute die naechste freie Nummer. Im Dev-Lauf trotzdem gegen den dann tatsaechlichen Stand
+  pruefen, falls bis dahin weitere Migrationen dazukommen (Offene Rueckfrage 7 — nicht blind
+  uebernehmen).
+- **Nicht daten-destruktiv** (zwei neue nullable Spalten, kein Datenverlust, kein Backup-Zwang ueber das
+  uebliche Mass hinaus). **Aber die anschliessende Anlage ist neuartig fuer diese Tabelle:** Der erste
+  scharf geschaltete Lauf von Baustein (a) legt bei IDEAL voraussichtlich rund 60 neue
+  `ProductionWorkplace`-Zeilen an (66 aktive Arbeitsplaetze in Sage, abzueglich Ausschlussliste,
+  abzueglich Zeilen ohne `USER_ArbeitsSchritt`) — ein DryRun vor dem scharf schalten ist Pflicht (siehe
+  Deploy).
 
 **Bausteine (b) und (c) bringen keine Migration:** `WorkOperation` und `FaWorkStep` sind bestehende
-Tabellen; Baustein (b) schreibt nur neue Zeilen mit vorhandenen Spalten, Baustein (c) aendert
-voraussichtlich keinen Code. Die `ServiceSettings`-Keys (neu bzw. umbenannt) sind reine
-Katalog-/Laufzeit-Konfiguration (ADR 0008, DB-first) — kein Schema-Impact, aber der
-`ServiceSettingDefinitions`-Drift-Guard-Test muss den neuen **und** den umbenannten Key kennen.
+Tabellen; Baustein (b) schreibt nur neue Zeilen mit vorhandenen Spalten, Baustein (c) aendert nur eine
+Zeile in `BdeDefaultWorkOperationService`. Die `ServiceSettings`-Keys (neu bzw. umbenannt) und die
+`StandortSettingsCatalog`-Eintraege sind reine Katalog-/Laufzeit-Konfiguration (ADR 0008, DB-first) —
+kein Schema-Impact, aber der `ServiceSettingDefinitions`-Drift-Guard-Test muss die neuen **und** den
+umbenannten Key kennen.
 
 ## Audit-Feld-Auswirkungen
 
-- `ProductionWorkplace` erbt `AuditableEntity`. Der neue Sync (Baustein a) setzt bei jeder
-  Aktualisierung `ModifiedAt/ModifiedBy/ModifiedByWindows = "ProductionWorkplaceCodeSync"` (Service-
-  Name als Autor, ADR 0003) — **nur** wenn tatsaechlich geschrieben wird (kein Touch bei unveraendertem
-  Kuerzel).
+- `ProductionWorkplace` erbt `AuditableEntity`. Der neue Sync (Baustein a) setzt:
+  - bei **neu angelegten** Zeilen `CreatedAt/CreatedBy/CreatedByWindows = "ProductionWorkplaceSync"`
+    (Service-Name als Autor, ADR 0003).
+  - bei **aktualisierten** Zeilen (Name/Kuerzel weicht vom Sage-Wert ab)
+    `ModifiedAt/ModifiedBy/ModifiedByWindows = "ProductionWorkplaceSync"` — **nur**, wenn tatsaechlich
+    geschrieben wird (kein Touch bei unveraendertem Datensatz).
 - `WorkOperation` erbt `AuditableEntity`. Baustein (b) setzt bei jeder neu angelegten Zeile
   `CreatedAt/CreatedBy/CreatedByWindows = "WorkOperationStructureDetection"` (analog v1.41.0-Vorbild).
   Der Service **aktualisiert nie** bestehende `WorkOperation`-Zeilen (reine Nur-hinzufuegen-Semantik) —
   `ModifiedAt/ModifiedBy` sind fuer diesen Pfad nicht relevant.
-- Baustein (c) fuehrt keine neue Entitaet ein (Design-Empfehlung F) — falls die Koexistenz-Entscheidung
-  (Offene Rueckfrage 6) doch eine neue Statuszeile braucht, erbt sie `AuditableEntity`.
+- Baustein (c) fuehrt keine neue Entitaet ein. Der Existenz-Check-Fix in `BdeDefaultWorkOperationService`
+  aendert keine Audit-Semantik — neu angelegte Default-AGs tragen weiterhin `CreatedBy =
+  "BDE-AutoCreate"`.
 
 ## Betroffene Rollen / Zugriffsfilter
 
 Keine Aenderung. Baustein (a)/(b) laufen ausschliesslich im Hintergrund (Windows-Service, kein neuer
-Web-Endpoint). `/ProductionWorkplaces` behaelt seinen bestehenden `RequireXxxAccess`-Filter — nur ein
-zusaetzliches, read-only dargestelltes Feld. Das BDE-Terminal behaelt seine bestehenden
-`RequireBdeActive`/`RequireBdeUserAccess`/`RequireBdeShiftleadAccess`-Filter unveraendert; diese Spec
-liefert nur zusaetzliche, korrekt geroutete Datenzeilen in bereits geschuetzte, bestehende Ansichten.
+Web-Endpoint). `/ProductionWorkplaces` behaelt seinen bestehenden `RequireXxxAccess`-Filter — nur zwei
+zusaetzliche, read-only dargestellte Felder und (nach dem ersten Baustein-a-Lauf) deutlich mehr Zeilen
+(~60 statt heute 0 bei IDEAL); die Liste ist bereits paginiert (ADR 0005), das ist kein neuer
+Zugriffsschutz-Fall. Das BDE-Terminal behaelt seine bestehenden `RequireBdeActive`/
+`RequireBdeUserAccess`/`RequireBdeShiftleadAccess`-Filter unveraendert; diese Spec liefert nur
+zusaetzliche, korrekt geroutete Datenzeilen in bereits geschuetzte, bestehende Ansichten.
 
 ## Listen-View-Pattern-Pflichten (ADR 0005)
 
-- `/ProductionWorkplaces`-Index (Baustein a): bestehende, bereits paginierte Liste bekommt eine neue
-  Spalte (`ArbeitsschrittCode`) — Spaltenfilter dafuer ergaenzen, damit die Tabelle ADR-0005-konform
-  bleibt (kein Sonderfall „nur eine Spalte").
+- `/ProductionWorkplaces`-Index (Baustein a): bestehende, bereits paginierte Liste bekommt zwei neue
+  Spalten (`SageArbeitsplatznummer`, `ArbeitsschrittCode`) — je Spalte einen Spaltenfilter, damit die
+  Tabelle ADR-0005-konform bleibt. Nach dem ersten Sync-Lauf enthaelt die Liste bei IDEAL deutlich mehr
+  Zeilen als heute (0 -> ~60) — Pagination greift bereits, keine Sonderbehandlung noetig.
 - Sonst keine neue Tabellen-Ansicht. `WorkOperation`-Zeilen aus Baustein (b) erscheinen in bereits
   bestehenden, zugriffsgeschuetzten Ansichten (BDE-Terminal-Listen, `WorkOperationRepository`-basierte
   Uebersichten) ohne View-Aenderung.
 
 ## Akzeptanzkriterien
 
-1. **Baustein a — Treffer.** Sage-Arbeitsplatz-Stammsatz mit `Bezeichnung1 = "Kanterei W1"` und
-   Kuerzel `KA` matcht exakt (case-insensitiv, getrimmt) eine `ProductionWorkplace`-Zeile mit
-   `Name = "Kanterei W1"` -> `ArbeitsschrittCode = "KA"` wird geschrieben, Audit gesetzt.
-2. **Baustein a — kein Treffer.** Kein `ProductionWorkplace` mit passendem Namen -> keine Schreibung,
-   Sammelmeldung im SyncLog, Sammelmail nur bei Mengenaenderung gegenueber dem letzten Lauf.
-3. **Baustein a — Mehrdeutigkeit.** Zwei `ProductionWorkplace`-Zeilen mit identischem Namen -> keine
-   Schreibung, Meldung „mehrdeutig".
-4. **Baustein a — Abweichung.** Ein bereits gesetztes `ArbeitsschrittCode` weicht vom neuen Sage-Wert
-   ab -> wird ueberschrieben (Sage fuehrend) UND gemeldet (alter/neuer Wert).
-5. **Baustein b — Struktur-Ableitung korrekt.** Sub-FA mit Token `KA` in seiner DirectChildren-Token-
+1. **Baustein a — Neuanlage.** Sage-Arbeitsplatz-Stammsatz mit `Arbeitsplatznummer = 2300`,
+   `Bezeichnung1 = "Kanterei W1"`, `USER_ArbeitsSchritt = "KA"`, `Aktiv = -1`, kein `ProductionWorkplace`
+   mit dieser `SageArbeitsplatznummer` vorhanden -> neue Zeile wird angelegt mit
+   `SageArbeitsplatznummer = 2300`, `Name = "Kanterei W1"`, `ArbeitsschrittCode = "KA"`,
+   `BdeAktiv = false`, Audit `CreatedBy/CreatedByWindows = "ProductionWorkplaceSync"`.
+2. **Baustein a — Wiederfinden + Abweichung.** Bestehender `ProductionWorkplace` mit
+   `SageArbeitsplatznummer = 2300` hat einen abweichenden `ArbeitsschrittCode`/`Name` gegenueber Sage ->
+   wird ueberschrieben (Sage fuehrend) UND gemeldet (alter/neuer Wert je Feld), Audit
+   `ModifiedBy/ModifiedByWindows = "ProductionWorkplaceSync"`.
+3. **Baustein a — unveraendert.** Sage-Werte entsprechen den Bestandswerten -> kein Schreiben, kein
+   Audit-Touch, keine Meldung.
+4. **Baustein a — Ausschlussliste.** `USER_ArbeitsSchritt` steht auf der Ausschlussliste (z. B. `STO`)
+   -> keine Werkbank wird angelegt/aktualisiert, kein SyncLog-Eintrag fuer diese Zeile.
+5. **Baustein a — Trim.** `USER_ArbeitsSchritt = "EG "` (mit Leerzeichen) -> `ArbeitsschrittCode = "EG"`
+   (getrimmt gespeichert).
+6. **Baustein a — Pflicht-Filter.** Zeilen mit `Mandant <> Sync:ProductionWorkplaceSyncMandant`,
+   `Aktiv <> -1` oder leerem `USER_ArbeitsSchritt` werden uebersprungen (kein Insert, kein Update, keine
+   Meldung).
+7. **Baustein a — Master-Gate.** Der Sync laeuft nur bei `ProduktionsauftragHierarchisch = true` UND
+   `Sync:ProductionWorkplaceSyncEnabled = true` (Doppel-Gate, `GetBoolSafeAsync` fuer beide); bei Master
+   `false` kein SyncLog-Eintrag `ProductionWorkplaceSync`.
+8. **Baustein b — Struktur-Ableitung korrekt.** Sub-FA mit Token `KA` in seiner DirectChildren-Token-
    Menge, `ProductionWorkplace` mit `ArbeitsschrittCode = "KA"` existiert -> genau eine neue
    `WorkOperation`-Zeile mit `OperationNumber = "KA"`, `Name` = Werkbank-Name, `ProductionWorkplaceId`
    = deren Id.
-6. **Baustein b — unbekanntes Kuerzel.** Token ohne passenden `ArbeitsschrittCode` -> keine
-   `WorkOperation`-Zeile, Sammelmeldung (Token-Liste + Anzahl betroffener Sub-FAs).
-7. **Baustein b — Nur-hinzufuegen.** Eine bereits existierende `WorkOperation` mit gleichem
-   `(ProductionOrderId, OperationNumber)` wird nie erneut angelegt oder veraendert — auch nicht, wenn
-   sie manuell geloescht/deaktiviert wurde (sofern eine entsprechende App-Semantik existiert).
-8. **Baustein b — DirectChildren, keine Doppelzaehlung.** Ein Token, das ausschliesslich auf einem
-   Enkelknoten steht, erzeugt **keine** `WorkOperation` fuer den Grossvater-Sub-FA (identische Logik
-   wie v1.41.0 AK 5).
-9. **Baustein b — Fertig-/Storno-Filter.** Ein `ProductionOrder` mit `IsDone`/`IsCancelled`/
-   `PickingStatus.IsDonePicking = true` bekommt keine neue `WorkOperation`, auch bei bekanntem Token.
-10. **Baustein c — Verifikation ohne Resolver-Aenderung.** An einer Werkbank mit
+9. **Baustein b — unbekanntes Kuerzel.** Token ohne passenden `ArbeitsschrittCode`, NICHT auf der
+   Ausschlussliste -> keine `WorkOperation`-Zeile, Sammelmeldung (Token-Liste + Anzahl betroffener
+   Sub-FAs).
+10. **Baustein b — ausgeschlossenes Kuerzel.** Token steht auf der Ausschlussliste (z. B. `BS`) -> keine
+    `WorkOperation`-Zeile, **keine** Unbekannt-Meldung (bekannt, bewusst ausgenommen).
+11. **Baustein b — Kuerzel-Mehrdeutigkeit.** Zwei aktive `ProductionWorkplace`-Zeilen mit identischem
+    `ArbeitsschrittCode` -> keine `WorkOperation` wird angelegt, Meldung „mehrdeutig".
+12. **Baustein b — Nur-hinzufuegen.** Eine bereits existierende `WorkOperation` mit gleichem
+    `(ProductionOrderId, OperationNumber)` wird nie erneut angelegt oder veraendert — auch nicht, wenn
+    sie manuell geloescht/deaktiviert wurde (sofern eine entsprechende App-Semantik existiert).
+13. **Baustein b — DirectChildren, keine Doppelzaehlung.** Ein Token, das ausschliesslich auf einem
+    Enkelknoten steht, erzeugt **keine** `WorkOperation` fuer den Grossvater-Sub-FA (identische Logik
+    wie v1.41.0 AK 5).
+14. **Baustein b — Fertig-/Storno-Filter.** Ein `ProductionOrder` mit `IsDone`/`IsCancelled`/
+    `PickingStatus.IsDonePicking = true` bekommt keine neue `WorkOperation`, auch bei bekanntem Token.
+15. **Baustein c — Verifikation ohne Resolver-Aenderung.** An einer Werkbank mit
     `ArbeitsschrittCode = "KA"` zeigt `GetAvailableOperations`/`BdeScanResolver` (Normal-Modus) fuer
     einen Sub-FA mit `WorkOperation.OperationNumber = "KA"` genau diesen Arbeitsgang — ohne dass
     `BdeScanResolver.cs` fuer diese Spec geaendert wurde (Nachweis: Diff zeigt keine Aenderung an
-    dieser Datei, sofern Offene Rueckfrage 1 mit „Option Empfehlung F" beantwortet wird).
-11. **AKE unveraendert.** `FaWorkStepDetectionService`, `FaWorkStep`, `WorkStep`-Katalog `VA/VE/VK/VL/VT`
+    dieser Datei).
+16. **Baustein c — Existenz-Check-Fix.** Werkbank hat `BdeDefaultArbeitsgang = "Kanterei W1"` (identisch
+    mit einer bereits angelegten, echten `WorkOperation.Name`) -> eine NurFA-Buchung ueber
+    `FindOrCreateDefaultAsync` findet/legt eine eigene Zeile mit `OperationNumber = "01"` an, **bucht
+    nicht** auf die echte `WorkOperation` mit `OperationNumber = "KA"`.
+17. **AKE unveraendert.** `FaWorkStepDetectionService`, `FaWorkStep`, `WorkStep`-Katalog `VA/VE/VK/VL/VT`
     funktionieren nach dieser Spec identisch wie vorher; kein SyncLog-Eintrag der neuen/umbenannten
     Services bei Master `false`.
-12. **Beide Gates greifen.** Baustein (b) laeuft nur bei `ProduktionsauftragHierarchisch = true` UND
-    dem (umbenannten) Toggle `true` (Doppel-Gate im `SyncWorker`, `GetBoolSafeAsync` fuer beide).
-13. **Audit korrekt.** Neue `WorkOperation`-Zeilen tragen `CreatedBy/CreatedByWindows =
-    "WorkOperationStructureDetection"`; aktualisierte `ProductionWorkplace`-Zeilen tragen
-    `ModifiedBy/ModifiedByWindows = "ProductionWorkplaceCodeSync"`.
-14. **Migration idempotent.** `SQL/9X_AddProductionWorkplaceArbeitsschrittCode.sql` laeuft auf einer
-    bestehenden Datenbank fehlerfrei und zweimal hintereinander ohne Aenderung beim zweiten Lauf.
+18. **Baustein-b-Gate.** Baustein (b) laeuft nur bei `ProduktionsauftragHierarchisch = true` UND dem
+    (umbenannten) Toggle `true` (Doppel-Gate im `SyncWorker`, `GetBoolSafeAsync` fuer beide).
+19. **Migration idempotent.** `SQL/93_AddProductionWorkplaceSageFields.sql` laeuft auf einer bestehenden
+    Datenbank fehlerfrei und zweimal hintereinander ohne Aenderung beim zweiten Lauf (beide Spalten).
 
 ## Test-Szenarien
 
-Neues Kapitel „IDEAL — Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Routing" in
-`docs/TESTSZENARIEN.md`, **naechste freie Nummer TS-77** (Stand TS-76 im Worktree — Dev-Lauf gegen den
-dann aktuellen Stand bestaetigen):
+Neues Kapitel „IDEAL — Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Anlage" in
+`docs/TESTSZENARIEN.md`, **naechste freie Nummer TS-77** (verifiziert 2026-09-22: TS-76 ist der letzte
+bestehende Eintrag im Worktree):
 
-- **TS-77.1 Baustein a — Grundfall (AK 1).** Sage-Quelle liefert `KA -> "Kanterei W1"`, WMS hat eine
-  `ProductionWorkplace` „Kanterei W1" ohne Kuerzel. Sync-Lauf. Erwartung: `ArbeitsschrittCode = "KA"`.
-- **TS-77.2 Baustein a — unbekannter Name (AK 2).** Sage-Quelle liefert einen Namen ohne
-  WMS-Gegenstueck. Erwartung: keine Schreibung, Sammelmeldung; Mail nur beim ersten Lauf mit dieser
-  Menge.
-- **TS-77.3 Baustein a — Mehrdeutigkeit (AK 3).** Zwei `ProductionWorkplace` mit identischem Namen.
-  Erwartung: keine Schreibung, Meldung „mehrdeutig".
-- **TS-77.4 Baustein b — Grundfall (AK 5).** Sub-FA mit Token `KA`, `ProductionWorkplace` mit
+- **TS-77.1 Baustein a — Neuanlage (AK 1).** Sage liefert einen Arbeitsplatz ohne WMS-Gegenstueck
+  (`SageArbeitsplatznummer` unbekannt). Sync-Lauf. Erwartung: neue `ProductionWorkplace`-Zeile mit
+  `SageArbeitsplatznummer`/`Name`/`ArbeitsschrittCode` gesetzt, `BdeAktiv = false`, Audit
+  `CreatedBy = "ProductionWorkplaceSync"`.
+- **TS-77.2 Baustein a — Abweichung (AK 2).** Bestehende Zeile mit abweichendem `ArbeitsschrittCode`/
+  `Name` gegenueber Sage. Sync-Lauf. Erwartung: ueberschrieben + Sammelmeldung mit altem/neuem Wert.
+- **TS-77.3 Baustein a — Ausschlussliste (AK 4).** Arbeitsplatz mit Kuerzel `STO`. Sync-Lauf. Erwartung:
+  keine Zeile angelegt, kein SyncLog-Eintrag fuer diesen Arbeitsplatz.
+- **TS-77.4 Baustein a — Trim (AK 5).** Arbeitsplatz mit Kuerzel `"EG "` (Leerzeichen). Sync-Lauf.
+  Erwartung: `ArbeitsschrittCode = "EG"` ohne Leerzeichen.
+- **TS-77.5 Baustein a — Pflicht-Filter (AK 6).** Arbeitsplaetze mit falschem Mandant, `Aktiv = 0` bzw.
+  leerem Kuerzel. Sync-Lauf. Erwartung: alle drei uebersprungen, kein Insert, keine Meldung.
+- **TS-77.6 Baustein a — Master-Gate (AK 7).** Master `false`. Sync-Lauf. Erwartung: kein Lauf, kein
+  SyncLog-Eintrag `ProductionWorkplaceSync`.
+- **TS-77.7 Baustein b — Grundfall (AK 8).** Sub-FA mit Token `KA`, `ProductionWorkplace` mit
   `ArbeitsschrittCode = "KA"` existiert. Erwartung: genau eine `WorkOperation` mit korrektem
   `ProductionWorkplaceId`.
-- **TS-77.5 Baustein b — unbekanntes Kuerzel (AK 6).** Token ohne Katalog-Treffer. Erwartung: keine
-  `WorkOperation`, Sammelmeldung, keine Exception.
-- **TS-77.6 Baustein b — DirectChildren-Gegenprobe (AK 8).** Wie TS-76.2 (v1.41.0), aber Zielentitaet
+- **TS-77.8 Baustein b — unbekanntes Kuerzel (AK 9).** Token ohne Katalog-Treffer, nicht auf der
+  Ausschlussliste. Erwartung: keine `WorkOperation`, Sammelmeldung, keine Exception.
+- **TS-77.9 Baustein b — ausgeschlossenes Kuerzel (AK 10).** Token auf der Ausschlussliste (z. B. `BS`).
+  Erwartung: keine `WorkOperation`, **keine** Unbekannt-Meldung.
+- **TS-77.10 Baustein b — Kuerzel-Mehrdeutigkeit (AK 11).** Zwei aktive Werkbaenke mit identischem
+  `ArbeitsschrittCode`. Erwartung: keine `WorkOperation`, Meldung „mehrdeutig".
+- **TS-77.11 Baustein b — DirectChildren-Gegenprobe (AK 13).** Wie TS-76.2 (v1.41.0), aber Zielentitaet
   `WorkOperation` statt `FaWorkStep`.
-- **TS-77.7 Baustein c — Terminal zeigt den echten AG (AK 10).** An einer Werkbank mit passendem
+- **TS-77.12 Baustein c — Terminal zeigt den echten AG (AK 15).** An einer Werkbank mit passendem
   `ArbeitsschrittCode` erscheint der struktur-abgeleitete Arbeitsgang eines gescannten Sub-FA im
   Normal-Modus, ohne manuelle Auswahl eines Default-AG.
-- **TS-77.8 Baustein c — Koexistenz Default-AG (Offene Rueckfrage 6, Ergebnis-abhaengig).** NurFA-Modus
-  mit vorhandenem echtem `WorkOperation`: Verhalten je nach Antwort auf Rueckfrage 6 dokumentieren.
-- **TS-77.9 Regressionslauf TS-66.** Bestehende BDE-Disambiguierungs-Szenarien
+- **TS-77.13 Baustein c — Existenz-Check-Fix (AK 16).** `BdeDefaultArbeitsgang` der Werkbank ist
+  identisch mit dem `Name` einer bereits angelegten, echten `WorkOperation`. NurFA-Buchung ausloesen.
+  Erwartung: neue/eigene Zeile mit `OperationNumber = "01"` wird verwendet, **nicht** die echte Zeile
+  mit `OperationNumber = "KA"`.
+- **TS-77.14 Regressionslauf TS-66.** Bestehende BDE-Disambiguierungs-Szenarien
   ([[2026-07-29-standort-ideal-teil-8-spec]], TS-66) laufen mit echten, struktur-abgeleiteten
   `WorkOperation`s statt nur dem Default-AG unveraendert durch (insbesondere: mehrere Sub-FAs
   derselben `OrderNumber`, Auswahlliste, NurFA-Fix).
-- **TS-77.10 AKE-Regression (AK 11).** Master `false`: `FaWorkStepDetectionService` unveraendert aktiv,
+- **TS-77.15 AKE-Regression (AK 17).** Master `false`: `FaWorkStepDetectionService` unveraendert aktiv,
   kein Lauf der neuen/umbenannten Services.
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen; TS-76 (v1.41.0) im Index als
@@ -450,36 +635,39 @@ bereits dokumentierten Muster bei v1.41.0 (H3 dort).
 - **Ersetzt** [[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]] (v1.41.0) fachlich vollstaendig;
   deren Status/Changelog-Eintrag ist bei der Umsetzung als „superseded" zu kennzeichnen (Brain-Aufgabe,
   nicht Teil dieser Spec-Datei selbst — die v1.41.0-Spec wird hier bewusst NICHT umgeschrieben).
-- **Setzt voraus:** [[2026-08-20-materialisierung-fachliche-felder-spec]] (materialisierte
+- **Setzt voraus:** [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]] — sie entfernt die falsche
+  Arbeitsbereich→Werkbank-Ableitung der Materialisierung (ADR 0014 beruhte auf der inzwischen
+  widerlegten Annahme „Werkbank = Arbeitsbereich"). Diese Spec legt DIE ECHTEN Werkbaenke erst an; ohne
+  den Rueckbau wuerde die Materialisierung weiterhin versuchen, `Arbeitsbereich`-Werte auf
+  `ProductionWorkplace.Name` zu matchen und nach der Anlage jeden Arbeitsbereich als „unbekannte
+  Werkbank" melden (Rauschen). Stand Worktree 2026-09-22: die Rueckbau-Spec ist bereits **Testbereit**
+  (Commits `d0bd6a1`/`4daa405`) — diese Abhaengigkeit ist damit erfuellt, sobald sie gemergt ist.
+- **Setzt ausserdem voraus:** [[2026-08-20-materialisierung-fachliche-felder-spec]] (materialisierte
   `ProductionOrder`-Zeilen als Ziel von Baustein b) — bereits Testbereit im selben Worktree.
-- **Reihenfolge der drei Bausteine:** a (Katalog) vor b (Ableitung) vor c (Terminal-Verifikation) —
-  b braucht a's Katalog, c braucht b's Datenzeilen zum Testen. a und b koennen technisch im selben
-  Sync-Zyklus laufen (kein harter FK-Zwang, nur Aktualitaets-Verzoegerung bei falscher Reihenfolge).
+- **Reihenfolge der drei Bausteine:** a (Anlage/Katalog) vor b (Ableitung) vor c (Terminal-Verifikation)
+  — b braucht a's Katalog, c braucht b's Datenzeilen zum Testen.
 
-**Groessen-Einschaetzung (ehrlich, fuer die Etappen-/Split-Entscheidung des Menschen):**
+**Etappen-Entscheidung (Antwort 8, verbindlich): Epic mit ZWEI Etappen, EIN Merge, kein Split in
+getrennte Specs.** Der Vorteil „einzeln mergbar" existiert im Buendel-Modell nicht — nichts merged,
+bevor Schranke 2 fuer das ganze Buendel faellt, schnelleres Teil-Feedback gibt es also nicht, nur mehr
+Koordination. Baustein (c) ist durch Empfehlung F (Antwort 1) und den Existenz-Check-Fix (Antwort 6) so
+klein geworden, dass er mit Baustein (b) in einer Etappe Platz hat:
 
-Drei fachlich getrennte, technisch aber ineinandergreifende Bausteine mit jeweils eigenem Schema-
-(a), Service- (a, b) und Verifikations-Anteil (c) plus einer Umbenennungs-/Supersede-Aktion (b) sind
-fuer einen einzelnen Dev-Lauf voraussichtlich zu viel Aenderungsflaeche fuer sauberes, buildbares
-Zwischenhalten. Zwei plausible Schnitte, beide dem Menschen zur Entscheidung vorgelegt
-(Offene Rueckfrage 8):
+| Etappe | Inhalt | Abschluss |
+|---|---|---|
+| A | Baustein (a): Modell (zwei Spalten), Migration, `ProductionWorkplaceSyncService`, ServiceSettings/Standorteinstellungen (Mandant, Ausschlussliste, Toggle), SyncWorker-Doppel-Gate, UI read-only | Eigener, buildbarer Commit. **STOPP + melden** |
+| B | Bausteine (b)+(c): `WorkOperationStructureDetectionService`-Umbau (inkl. Kuerzel-Mehrdeutigkeit + Ausschlussliste-Sonderfall), Umbenennungen, `BdeDefaultWorkOperationService`-Existenz-Check-Fix, Terminal-Verifikations-AK, TS-77, Brain-Update | Eigener Commit, dann QA/Merge fuer das gesamte Buendel (Schranke 2) |
 
-- **Epic mit 3 Etappen** (a -> b -> c) im bestehenden Buendel-Worktree, je Etappe ein eigenstaendiger,
-  buildbarer Commit, QA/Merge erst nach allen drei Etappen — analog
-  [[2026-07-29-standort-ideal-teil-8-spec]]s Etappen-Schnitt. Vorteil: ein Merge, passt zum bereits
-  laufenden Buendel-Rhythmus dieses Worktrees.
-- **3 getrennte, einzeln mergbare Specs** (analog `split`), jede mit eigenem `depends_on` auf die
-  vorige. Vorteil: Baustein (a) allein ist risikoarm und schnell test-/mergbar (reine
-  Stammdaten-Ergaenzung); Baustein (b) traegt das groesste Risiko (Rename + Zieltabellen-Wechsel) und
-  profitiert von einem eigenen, fokussierten Test-/Freigabezyklus, ohne auf (c) zu warten.
-
-Diese Spec liefert bewusst **beide Optionen als gleichwertig plausibel** — die Entscheidung haengt an
-Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treffen kann.
+Etappe B ist die riskante (Umbenennung, Zieltabellen-Wechsel) — deshalb der Halt davor. Der Zweig muss
+waehrend der Arbeit ueber `scripts/sync-worktree.ps1` aktuell gehalten werden (mehrere andere IDEAL-Teile
+laufen im selben Buendel-Worktree).
 
 ## Brain-Pflichten bei Umsetzung (Merkliste fuer den Dev-Lauf)
 
-- Version-Bump in **beiden** `AppVersion.cs` — naechste freie Nummer nach `1.41.0` im Worktree
-  (vermutlich `1.42.0` je Baustein oder Etappe, im Dev-Lauf zu bestaetigen).
+- Version-Bump in **beiden** `AppVersion.cs` — Stand Worktree 2026-09-22: aktuelle Version `1.43.0`
+  (nach dem ADR-0014-Rueckbau). Naechste freie Nummer vermutlich `1.44.0` fuer Etappe A und `1.45.0`
+  fuer Etappe B (oder ein gemeinsamer Bump nach Abschluss beider Etappen, falls kein Zwischen-Deploy
+  erfolgt) — im Dev-Lauf zu bestaetigen.
 - Anwender-Changelog `Views/Help/Changelog.cshtml` + Brain-Changelog
   `secondbrain/changelog/YYYY-MM-DD-vX-Y-Z-*.md`.
 - `secondbrain/feature-map.md` — IDEAL-Abschnitt aktualisieren, v1.41.0-Zeile als superseded markieren.
@@ -487,16 +675,18 @@ Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treff
   **Hauptcheckout** (nicht Worktree) einen Hinweis „superseded durch
   [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]" ergaenzen (additiv, Datei nicht
   umschreiben).
-- `secondbrain/codebase/services.md` — Sync-Services-Tabelle: neuen Eintrag `ProductionWorkplaceCodeSyncService`,
+- `secondbrain/codebase/services.md` — Sync-Services-Tabelle: neuen Eintrag `ProductionWorkplaceSyncService`,
   umbenannten Eintrag `WorkOperationStructureDetectionService` (ersetzt die bestehende
   `FaWorkStepStructureDetectionService`-Zeile), `ServiceSettings`-Katalogtabelle nachziehen.
-- `secondbrain/architektur/fallstricke.md` — Eintrag: zwei unabhaengige Kuerzel-/Zuordnungs-Vokabulare
-  bei IDEAL (`Arbeitsbereich` aus `USER_OSAbteilung` fuer `ProductionOrder.ProductionWorkplaceId`,
-  ADR 0014, physischer Standort **einer Position**; `Arbeitsschritte`/`ArbeitsschrittCode` aus
-  `USER_ArbeitsSchritt` fuer `WorkOperation.ProductionWorkplaceId`, Arbeitsgang-**Routing**) — leicht
-  verwechselbar, unterschiedliche Sage-Quellspalte, unterschiedliches Zielfeld.
-- Hilfeseite (`Views/Help/`) — Hinweis, dass `ProductionWorkplace.ArbeitsschrittCode` Sage-gefuehrt ist
-  (manuelle Aenderung ueberlebt nicht den naechsten Sync-Lauf).
+- `secondbrain/architektur/fallstricke.md` — Eintrag: **drei** leicht verwechselbare, alle aus Sage
+  stammende Vokabulare bei IDEAL — `Arbeitsbereich` (`USER_OSAbteilung`, Zielort, `ProductionOrder.
+  ProductionWorkplaceId` via Materialisierung/ADR 0014), `Arbeitsschritt` (`FaHierarchyNode.
+  Arbeitsschritte`, Arbeitsgang-Token) und `Werkbank`/Sage-**Arbeitsplatz** (`KHKPpsArbeitsplaetze`,
+  Anlage-Ziel dieser Spec, Match-Feld `WorkOperation.ProductionWorkplaceId`) — unterschiedliche
+  Sage-Quellspalten, unterschiedliche Zielfelder, keine hierarchische Beziehung zueinander.
+- Hilfeseite (`Views/Help/`) — Hinweis, dass `ProductionWorkplace.SageArbeitsplatznummer`/`Name`/
+  `ArbeitsschrittCode` Sage-gefuehrt sind (manuelle Aenderung ueberlebt nicht den naechsten Sync-Lauf);
+  Hinweis, dass ein Wechsel der Ausschlussliste bestehende Werkbaenke nicht rueckwirkend entfernt.
 - `secondbrain/tests/testszenarien-index.md` — TS-77-Zeile, TS-76 als superseded markieren.
 
 ## Deploy
@@ -504,18 +694,24 @@ Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treff
 **Provisorisch (Dev-Lauf bestaetigt gegen den echten Diff):**
 
 - **Web-App: ja.** `IdealAkeWms/Models/ProductionWorkplace.cs`, `ServiceSettingDefinitions.cs`,
-  `SyncLogServices.cs`, `Views/ProductionWorkplaces/*.cshtml`, ggf. `BdeDefaultWorkOperationService.cs`
-  (Offene Rueckfrage 6), Migration.
-- **Service: ja.** Neuer Service (Baustein a), umbenannter/umgebauter Service (Baustein b),
-  `SyncWorker.cs`, `Program.cs` (DI, neu + umbenannt).
-- **Migration: ja** — genau eine, aus Baustein (a) (siehe „Migrations-/SQL-Auswirkungen"). Reihenfolge:
-  DB-Migration vor Service-Neustart (Standardablauf), kein Daten-Backup-Zwang ueber das uebliche Mass
-  hinaus (nicht destruktiv).
-- **Zwei-Lauf-aehnlicher Ablauf, aber ohne harten FK-Zwang (anders als v1.41.0):** Deploy -> Baustein-
-  a-Sync einmal mit `DryRun` beobachten (welche Werkbaenke matchen, welche nicht) -> scharf schalten ->
-  Baustein-b-Sync beobachten (welche Sub-FAs bekommen AGs, welche Token bleiben unbekannt) -> scharf
-  schalten. Kein Katalog-Pflegeschritt zwischen a und b noetig (anders als v1.41.0s `/WorkSteps`-Pflege) —
-  das ist die unter „Technischer Loesungsentwurf" beschriebene strukturelle Vereinfachung.
+  `Models/Standort/StandortSettingsCatalog.cs`, `SyncLogServices.cs`, `Views/ProductionWorkplaces/*.cshtml`,
+  `BdeDefaultWorkOperationService.cs`, Migration.
+- **Service: ja.** Neuer Service `ProductionWorkplaceSyncService` (Baustein a), umbenannter/umgebauter
+  `WorkOperationStructureDetectionService` (Baustein b), `SyncWorker.cs`, `Program.cs` (DI, neu +
+  umbenannt).
+- **Migration: ja** — genau eine, zwei Spalten, aus Baustein (a) (siehe „Migrations-/SQL-Auswirkungen").
+  Reihenfolge: DB-Migration vor Service-Neustart (Standardablauf), kein Daten-Backup-Zwang ueber das
+  uebliche Mass hinaus (nicht destruktiv).
+- **Ablauf ueber die zwei Etappen, mit DryRun je Etappe:**
+  1. Etappe A deployen -> `Sync:ProductionWorkplaceSyncEnabled` zunaechst mit `WorkerSettings:SyncDryRun`
+     beobachten: wie viele Arbeitsplaetze werden neu angelegt (~60 erwartet), welche fallen unter die
+     Ausschlussliste, welche werden uebersprungen (Filter) -> scharf schalten.
+  2. Nach dem scharfen Lauf: alle neuen Werkbaenke starten mit `BdeAktiv = false` — der Mensch schaltet
+     die tatsaechlich terminal-relevanten Arbeitsplaetze bewusst frei, bevor Etappe B live geht.
+  3. Etappe B deployen -> `Sync:FaWorkStepStructureDetectionEnabled`-Nachfolgekey mit DryRun beobachten:
+     welche Sub-FAs bekommen Arbeitsgaenge, welche Token bleiben unbekannt -> scharf schalten.
+  Kein separater Katalog-Pflegeschritt zwischen a und b noetig (anders als v1.41.0s `/WorkSteps`-Pflege)
+  — das ist die unter „Technischer Loesungsentwurf" beschriebene strukturelle Vereinfachung.
 - **Publish-Befehle (aus dem Worktree):**
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
@@ -526,30 +722,36 @@ Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treff
 
 ## Offene Rueckfragen
 
-1. **Routing-Design (Baustein c).** `WorkOperation.ProductionWorkplaceId` bei der Anlage (Baustein b)
-   direkt setzen — **Empfehlung F**, macht `BdeScanResolver` voraussichtlich unveraendert — oder die
-   im Backlog skizzierte **Live-Kuerzel-Schnittmenge** zur Scan-Zeit berechnen? Empfehlung F spart
-   einen kompletten Umbau eines produktiv genutzten Pfads und nutzt einen bereits vorhandenen Filter.
-2. **Varianten-Regel.** Struktur nutzt Basis-Kuerzel (`KA`); Sage hat Werkbank-Varianten (`KA2`/`KA4`,
-   `SW1`/`SW2`/`SWB`/`SWL`, `SÄ2`/`SÄE`/`SÄO`, `VM1`/`VM2`, `PG2`, `PL2`, `EM2`, `SLH`). Exakt `KA` oder
-   Praefix-/Gruppen-Match? (Backlog-Tendenz: exakter Basis-Kuerzel-Match.)
-3. **5 unbekannte Kuerzel** (`MO`/`ZS`/`LÖ`/`PR`/`BE`): melden, Werkbank in Sage nachtragen, oder aus
-   dem Scope ausschliessen?
-4. **Sage-Quelle Baustein a.** Genaue Tabelle/View der Arbeitsplatz-Stammdaten (`USER_ArbeitsSchritt`)
-   + Zugriffsweg bestaetigen. Ein eigener, neuer Sync-Schritt ist die einzige Option (kein bestehender
-   Workplace-Sync vorhanden) — das ist nicht mehr offen, nur die konkrete Quellangabe.
-5. **Kuerzel->Name-Katalog.** Bestaetigung, dass **kein** separater WorkOperation-Katalog noetig ist —
-   der Name kommt aus `ProductionWorkplace.Name` (Baustein a). Technisch durch das Fehlen eines
-   Katalog-FK an `WorkOperation` begruendet, aber fachlich zu bestaetigen.
-6. **Koexistenz `BdeDefaultWorkOperationService`.** Bei IDEAL abschalten/ersetzen, sobald echte
-   `WorkOperation`s vorliegen — insbesondere im NurFA-Modus, der heute **immer** den generischen
-   Default erzeugt und die echten, struktur-abgeleiteten AGs nie anbietet?
-7. **Migrationsnummer-Koordination.** `SQL/93` vorgeschlagen — `SQL/92` ist von
+1. **Routing-Design (Baustein c).** ~~`WorkOperation.ProductionWorkplaceId` bei der Anlage (Baustein b)
+   direkt setzen — Empfehlung F — oder die im Backlog skizzierte Live-Kuerzel-Schnittmenge zur Scan-Zeit
+   berechnen?~~ **ENTSCHIEDEN (Antwort 1): Empfehlung F.** Siehe Rumpf.
+2. **Varianten-Regel.** ~~Struktur nutzt Basis-Kuerzel (`KA`); Sage hat Werkbank-Varianten. Exakt `KA`
+   oder Praefix-/Gruppen-Match?~~ **ENTSCHIEDEN (Antwort 2): exakter Basis-Kuerzel-Match, kein
+   Praefix.** Siehe Rumpf.
+3. **5 unbekannte Kuerzel** (`MO`/`ZS`/`LÖ`/`PR`/`BE`): ~~melden, Werkbank in Sage nachtragen, oder aus
+   dem Scope ausschliessen?~~ **ENTSCHIEDEN (Antwort 3): melden, im Code nicht ausschliessen.** Siehe
+   Rumpf.
+4. **Sage-Quelle Baustein a.** ~~Genaue Tabelle/View der Arbeitsplatz-Stammdaten bestaetigen.~~
+   **ENTSCHIEDEN (Antwort 4): `KHKPpsArbeitsplaetze`**, inkl. Verknuepfungsschluessel
+   `SageArbeitsplatznummer`, Anlege-Semantik, Ausschlussliste, Master-Gate. Siehe Rumpf.
+5. **Kuerzel->Name-Katalog.** ~~Bestaetigung, dass kein separater WorkOperation-Katalog noetig ist.~~
+   **ENTSCHIEDEN (Antwort 5): bestaetigt**, `Name` kommt aus `ProductionWorkplace.Name`.
+6. **Koexistenz `BdeDefaultWorkOperationService`.** ~~Bei IDEAL abschalten/ersetzen?~~ **ENTSCHIEDEN
+   (Antwort 6): NurFA bleibt beim Default (Modus-Definition); der eigentliche Fund ist der
+   Existenz-Check-Fix (`OperationNumber` statt `Name`), jetzt in AK 16/TS-77.13.**
+7. **Migrationsnummer-Koordination.** `SQL/92` ist von
    [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] im selben Worktree belegt (Status
-   Freigegeben, Stand 2026-09-21). Im Dev-Lauf gegen den dann aktuellen Stand verifizieren, nicht
-   blind uebernehmen.
-8. **Umfang/Schnitt.** Epic mit 3 Etappen (a -> b -> c, ein Merge) oder 3 getrennte, einzeln mergbare
-   Specs (schnelleres Teil-Feedback, hoeheres Koordinationsaufwand)? Siehe „Reihenfolge/Einordnung".
+   Freigegeben). **Verifiziert 2026-09-22:** die Datei liegt tatsaechlich im Worktree -> `93` ist damit
+   Stand heute die naechste freie Nummer. Bleibt ein Dev-Lauf-Check, falls bis zur Umsetzung weitere
+   Migrationen dazukommen — nicht blind uebernehmen.
+8. **Umfang/Schnitt.** ~~Epic mit 3 Etappen (a->b->c, ein Merge) oder 3 getrennte, einzeln mergbare
+   Specs?~~ **ENTSCHIEDEN (Antwort 8): Epic mit ZWEI Etappen** (A = Baustein a; B = Bausteine b+c). Siehe
+   „Reihenfolge/Einordnung".
+9. **Sage-Spaltentyp `Arbeitsplatznummer`.** Ist `KHKPpsArbeitsplaetze.Arbeitsplatznummer` `int` oder
+   `nvarchar` mit fuehrenden Nullen (Beispiele `2300`, `0000`)? Im WMS-Repo nicht verifizierbar (externe
+   Sage-Tabelle, keine bestehende Code-Referenz) — vor der Migration gegen das tatsaechliche Sage-Schema
+   pruefen (z. B. `INFORMATION_SCHEMA.COLUMNS`). `ProductionWorkplace.SageArbeitsplatznummer` spiegelt
+   den gefundenen Typ.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -831,12 +1033,15 @@ Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treff
    „unbekannte Werkbank" (die Namen passen nicht) — oder, falls jemand eine Werkbank `K-02` nennt,
    schreibt sie einen **Zielort in das Werkbank-Feld**.
    **Eigene Notiz:** [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort]]. **Reihenfolge:** vor dem Anlegen
-   der IDEAL-Werkbaenke klaeren.
+   der IDEAL-Werkbaenke klaeren. **Stand 2026-09-22: geklaert und umgesetzt** — siehe
+   [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]] (Testbereit im selben Worktree) und
+   „Reihenfolge/Einordnung" oben.
 
    **Vorschlag (Bestaetigung ausstehend): Baustein (a) ebenfalls an den Master haengen.** Sein einziger
    Abnehmer ist Baustein (b), und der laeuft nur bei IDEAL. Ungegated laese (a) bei AKE die
    AKE-Arbeitsplaetze, faende keine passenden Werkbaenke und meldete alles als unbekannt — reines
    Rauschen. Doppel-Gate wie bei (b): Master **und** eigener Toggle.
+   **Stand 2026-09-22: bestaetigt** — siehe „ANTWORTEN zu B5" (S1) und Baustein-a-Beschreibung im Rumpf.
 
 5. → **BESTAETIGT — kein separater Katalog.** `WorkOperation` hat keinen Katalog-FK, der Name kommt
    aus `ProductionWorkplace.Name`. Das ist sauberer als v1.41 und beseitigt den Zwei-Lauf-Ablauf.
@@ -862,6 +1067,9 @@ Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treff
 7. → **Naechste freie Nummer zum Umsetzungszeitpunkt.** Die Kommissionierziel-Spec ist freigegeben und
    laeuft voraussichtlich zuerst — dann ist `93` richtig. Laeuft diese Spec zuerst, nimmt sie `92`.
    **Gegen den tatsaechlichen Worktree-Stand pruefen, nicht die Nummer aus der Spec uebernehmen.**
+   **Verifiziert 2026-09-22:** `SQL/92_AddUserDefaultFilterBomKommissionierziel.sql` liegt bereits im
+   Worktree -> `93` ist Stand heute korrekt. Bleibt trotzdem ein Dev-Lauf-Check (siehe Offene
+   Rueckfrage 7).
 
 8. → **Epic mit ZWEI Etappen im Buendel-Worktree — nicht drei Specs.**
    **Der Vorteil getrennter Specs existiert hier nicht:** „Einzeln mergbar" setzt voraus, dass gemergt
@@ -869,16 +1077,24 @@ Praeferenzen (ein Merge vs. schnelleres Teil-Feedback), die nur der Mensch treff
    Schnelleres Teil-Feedback gibt es also nicht — nur mehr Koordination.
    **Zwei statt drei Etappen**, weil Baustein (c) durch Antwort 1 und 6 fast leer wird
    (Verifikations-AK plus der Existenz-Check-Fix):
-   - **Etappe A — Baustein (a):** `ArbeitsschrittCode` + Sage-Sync + Migration. Risikoarm, in sich
-     abgeschlossen. **STOPP + melden.**
+   - **Etappe A — Baustein (a):** `ArbeitsschrittCode` + `SageArbeitsplatznummer` + Sage-Anlege-Sync +
+     Migration + Standorteinstellungen. Risikoarm, in sich abgeschlossen. **STOPP + melden.**
    - **Etappe B — Bausteine (b) + (c):** Umbau auf `WorkOperation`, Umbenennung,
      Terminal-Verifikation, Existenz-Check-Fix aus Antwort 6.
    Etappe B ist die riskante (Umbenennung, Zieltabellen-Wechsel) — deshalb der Halt davor.
+
+9. →
 
 **Zur Abnahme von v1.41:** Die dortige Manual-Checkliste ist mit dieser Spec **gegenstandslos** —
 v1.41 schreibt in die falsche Tabelle. **Nicht separat abnehmen**, sondern mit TS-77 dieser Spec.
 
 ## Kritische Pruefung (2026-09-22)
+
+**Befunde am 2026-09-22 in den Rumpf eingearbeitet** (siehe Baustein a/b/c, Migrations-/SQL-
+Auswirkungen, Akzeptanzkriterien, Test-Szenarien, Frontmatter `epic`/`etappen`/`affected_code`; die
+drei fachlichen B5-Fragen sind unten im Abschnitt „ANTWORTEN zu B5" beantwortet und ebenfalls
+eingearbeitet). Die urspruengliche Durchsicht bleibt darunter als Audit-Spur stehen — Zeilenangaben
+beziehen sich auf den Stand **vor** dieser Ueberarbeitung.
 
 > Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf. Die acht Freigabe-Antworten — vor allem der
 > lange Antwort-4-Nachtrag mit seiner „AUFLOESUNG" — haben den Entwurf **erheblich umgebaut**, aber
@@ -986,3 +1202,93 @@ Frontmatter sauberer ist als stueckweises Nachziehen — nachdem B5 entschieden 
 **drei fachliche Entscheidungen sind noch offen** (B5: Zeilen-Auswahl/Pseudo-Arbeitsplaetze,
 Terminal-Werkbank-Auswahl, Storno-Kuerzel), die den Umfang bestimmen. Erst B5 entscheiden, dann Baustein
 (a) + Migration + AK neu fassen (H3), dann freigeben.
+
+## ANTWORTEN zu B5 (2026-09-22) — eine am Code, eine daraus abgeleitet, eine offen
+
+### B5(b) — Terminal-Werkbank-Auswahl: EXISTIERT BEREITS. Am Code belegt.
+
+`BdeTerminalController.Index(int? workplaceId)`:
+```csharp
+var activeWorkplaceId = workplaceId ?? terminal.DefaultProductionWorkplaceId;
+ViewBag.AllWorkplaces = await _workplaces.GetBdeActiveAsync();
+ViewBag.DefaultWorkplaceId = terminal.DefaultProductionWorkplaceId;
+```
+Das Terminal hat eine **Default-Werkbank** (`BdeTerminal.DefaultProductionWorkplaceId`), die per
+Parameter **uebersteuert** wird; die Auswahl bietet **alle `BdeAktiv`-Werkbaenke** an. Genau das
+verlangte Verhalten — „ein Terminal, mehrere Werkbaenke zur Auswahl, gefiltert nach der gewaehlten".
+**Folgen:**
+- **Baustein (c) bleibt klein** — Verifikation plus Existenz-Check-Fix. Die Zwei-Etappen-Einschaetzung
+  (Antwort 8) **haelt**.
+- **Empfehlung F bestaetigt sich zusaetzlich:** Das Terminal reicht die gewaehlte `workplaceId` durch,
+  und das Routing filtert `WorkOperation` danach.
+- **Moegliche spaetere Verfeinerung, bewusst NICHT im Umfang:** Die Auswahl zeigt **alle**
+  `BdeAktiv`-Werkbaenke, keine terminal-spezifische Teilmenge. Bei rund 40 IDEAL-Werkbaenken wird die
+  Liste lang. Eine Zuordnung „Terminal → seine Werkbaenke" waere ein eigener Punkt — erst, wenn die
+  lange Liste im Betrieb stoert.
+
+### B5(a) — Welche Sage-Zeilen werden Werkbaenke: `BdeAktiv` ist der vorhandene Hebel.
+
+B5(b) zeigt: **`BdeAktiv` steuert bereits, was am Terminal erscheint.** Damit trennen sich zwei Fragen,
+die bisher vermischt waren:
+- **Was ist ueberhaupt kein Ort?** Statusmarker wie **Storno** (`STO`), **Gestoppt** (`XXX`), **Reserve**
+  (`x01`). Sie werden **gar nicht** angelegt — **Ausschlussliste in den Standorteinstellungen**, neben
+  dem Mandanten.
+- **Was ist ein Ort, aber ohne Terminal?** Verkauf, Lager, Verladung, externe Beschichter usw. Sie werden
+  angelegt, erscheinen am Terminal aber nur, wenn jemand `BdeAktiv` setzt.
+
+**Vorschlag (vom Menschen zu bestaetigen):**
+- **Ausschlussliste**, Standardwert `STO, XXX, x01` — nur echte Statusmarker, erweiterbar.
+- **Neu angelegte Werkbaenke starten mit `BdeAktiv = false`.** Der Mensch schaltet die echten
+  Arbeitsplaetze bewusst frei. Nach dem ersten Sync erscheint also **keine** Werkbank am Terminal, bis
+  sie freigegeben ist — das ist gewollt: **Terminal-Einrichtung ist eine bewusste Handlung**, keine
+  Nebenwirkung eines Syncs.
+- **Warum nicht nur Struktur-Kuerzel anlegen** (der fruehere Vorschlag): Der Mensch hat bestaetigt, dass
+  Terminals **vorab** an den Arbeitsplaetzen eingerichtet werden. Werkbaenke, die erst entstehen, wenn
+  ein Auftrag sie braucht, liessen sich nicht vorab einrichten. Der Vorschlag ist damit ueberholt.
+
+### B5(c) — Storno-Kuerzel vom Routing ausschliessen: ERLEDIGT durch B5(a).
+
+Stehen `STO`/`XXX`/`x01` auf der Ausschlussliste, **existiert fuer sie keine Werkbank**. Ein
+Struktur-Token `STO` findet dann keinen `ArbeitsschrittCode`, faellt in die Unbekannt-Meldung und erzeugt
+**keinen** Arbeitsgang. Kein eigener Ausschluss im Routing noetig — derselbe Mechanismus deckt beides.
+
+### Stand nach B5
+
+**ENTSCHIEDEN (2026-09-22):**
+- **Ausschlussliste**, Standardwert **`STO, XXX, x01, BS, BS2, FRE, AKE`** — Statusmarker und alles, was
+  **ausser Haus** stattfindet:
+  - `STO` Storno, `XXX` Gestoppt, `x01` Reserve — Statusmarker, kein Ort.
+  - `BS`, `BS2` externe Beschichter — laut Mensch *„wie der Name sagt extern"*. Externe Beschichtung
+    laeuft ueber den **Beschichtungsauftrag** (Teil 4), nicht ueber eine BDE-Buchung im Haus.
+  - `FRE` Fremdleister (allgemein) — extern, gleiche Begruendung (bestaetigt 2026-09-22).
+  - `AKE` Bestellung AKE — Bestellung beim Schwesterstandort, kein Arbeitsplatz im Haus (bestaetigt
+    2026-09-22).
+  Die Liste ist in den Standorteinstellungen **erweiterbar**; der Standardwert ist die heutige Einschaetzung.
+- **Neu angelegte Werkbaenke starten mit `BdeAktiv = false`** (Vorschlag unwidersprochen).
+
+**B5 ist damit GESCHLOSSEN.**
+
+### WICHTIG: Ausgeschlossene Kuerzel sind BEKANNT, nicht unbekannt
+
+Das ist die Folge, die die Ausschlussliste erst brauchbar macht. Kommt ein ausgeschlossenes Kuerzel in
+`FaHierarchyNode.Arbeitsschritte` vor — etwa `BS`, weil das Teil zum Beschichter geht —, findet Baustein
+(b) dafuer keine Werkbank. **Ohne Sonderbehandlung faellt es dann in die Unbekannt-Meldung — bei jedem
+Lauf, fuer jeden Auftrag mit Beschichtung.** Dauerrauschen, das genau die Meldungen verdeckt, fuer die der
+Mechanismus da ist.
+
+**Verbindlich:** Ein Kuerzel auf der Ausschlussliste ist **bewusst ausgenommen**. Es erzeugt
+- **keine** Werkbank,
+- **keinen** Arbeitsgang,
+- **keine** Unbekannt-Meldung.
+Die Unbekannt-Meldung bleibt den Kuerzeln vorbehalten, die **weder** eine Werkbank haben **noch** auf der
+Liste stehen — also den echten Luecken (`MO`, `ZS`, `LÖ`, `PR`, `BE`). Als eigenes AK.
+
+**Danach ist B5 geschlossen**, und Baustein (a) kann nach H3 **neu entworfen** werden — mit
+Anlege-Semantik, `SageArbeitsplatznummer` als Schluessel, Trim, Mandant- und Ausschluss-Parameter,
+Master-Gate, und der Bekannt-statt-unbekannt-Regel fuer ausgeschlossene Kuerzel.
+
+**Stand 2026-09-22: erledigt.** Baustein (a)/(b)/(c), Migration, `affected_code`, AK, Testszenarien,
+Frontmatter (`epic`/`etappen`) und Deploy im Rumpf sind auf Basis dieser Antworten neu gefasst (siehe
+Hinweis am Kopf dieses Abschnitts). Verbleibend: Offene Rueckfrage 9 (Sage-Spaltentyp
+`Arbeitsplatznummer`, am WMS-Code nicht verifizierbar) und die Dev-Lauf-Checks aus Offener Rueckfrage 7
+(Migrationsnummer) und der Versionsnummer (Brain-Pflichten).
