@@ -8343,7 +8343,15 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheck
 
 ---
 
-## TS-76 — IDEAL: FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0)
+## TS-76 — IDEAL: FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0) — **ERSETZT durch TS-77**
+
+> **Superseded (v1.44.0):** Dieses Kapitel beschreibt die v1.41.0-Fassung, die gegen `FaWorkStep` und
+> den `WorkStep`-Katalog zielte. Sie wurde nie deployt und ist durch **TS-77** ersetzt (Ziel jetzt
+> `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`). Zur Abnahme von v1.44.0 gilt
+> **TS-77**; TS-76 bleibt nur zur Nachvollziehbarkeit der Historie stehen. Der alte Toggle
+> `Sync:FaWorkStepStructureDetectionEnabled` und der SyncLog-Dienst `FaWorkStepStructureDetection`
+> existieren nicht mehr (umbenannt zu `Sync:WorkOperationStructureDetectionEnabled` /
+> `WorkOperationStructureDetection`).
 
 **Bezug:** Spec `2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec`.
 
@@ -8411,5 +8419,97 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheck
 
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76)*
+## TS-77 — IDEAL: Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0)
+
+**Bezug:** Spec `2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec` (Epic, Bausteine a/b/c). Ersetzt
+TS-76 (v1.41.0) fachlich.
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Standort IDEAL: Master `ProduktionsauftragHierarchisch` = true, FA-Struktur importiert und
+  materialisiert (Sub-FAs als `ProductionOrder`-Zeilen vorhanden).
+- Toggle Werkbank-Anlage `Sync:ProductionWorkplaceSyncEnabled` = true; Toggle Arbeitsgang-Erkennung
+  `Sync:WorkOperationStructureDetectionEnabled` = true (außer TS-77.6/77.15).
+- Standorteinstellungen (unter *Werkbänke (Sage-Arbeitsplätze)*): `Sync:ProductionWorkplaceSyncMandant`
+  gesetzt (i. d. R. 1), `Sync:ProductionWorkplaceSyncAusschlussliste` z. B. `STO,XXX,x01,BS,BS2,FRE,AKE`.
+- Zugriff auf das Aktivitäts-Protokoll (SyncLog, Dienste `ProductionWorkplaceSync` und
+  `WorkOperationStructureDetection`) und den Windows-Service-Log für die Sammelmeldungen.
+- **DryRun vor dem ersten scharfen Lauf** (Baustein a legt bei IDEAL ~60 Werkbänke neu an — Anzahl
+  vorher im DryRun-Log prüfen).
+
+**Automatisiert abgedeckt (InMemory):**
+- `ProductionWorkplaceSyncServiceTests` (Baustein a, 6 Fälle) — Neuanlage mit Audit `ProductionWorkplaceSync`
+  (AK 1), Wiederfinden bei getrimmter Nummer/Kürzel (AK 21-Teil), Abweichung überschrieben + gemeldet
+  (AK 2), keine Abweichung → kein Schreiben (AK 3), Kürzel leer → übersprungen (AK 6-Teil), DryRun zählt
+  ohne Schreiben.
+- `WorkOperationStructureDetectionServiceTests` (Baustein b, 13 Fälle) — Grundfall `WorkOperation` mit
+  `OperationNumber`=Kürzel/`ProductionWorkplaceId` (AK 8), Audit-Autor `WorkOperationStructureDetection`,
+  Match case-insensitiv/getrimmt, DirectChildren-Gegenprobe (AK 13), Nur-hinzufügen bei bestehender
+  `(ProductionOrderId, OperationNumber)` (AK 12), unbekanntes Kürzel gemeldet+gezählt nicht angelegt
+  (AK 9), **Kürzel-Mehrdeutigkeit** gemeldet nicht angelegt (AK 11), Fertig-/Storno-Filter (AK 14),
+  fehlende Materialisierung ohne Fehler, DryRun, SubFA==0-Blatt, S1-Zustand.
+- `BdeDefaultWorkOperationServiceTests` — Existenz-Check über `OperationNumber = "01"` statt Name: echter
+  AG namensgleich zum Default wird **nicht** bebucht (AK 16).
+
+**Nicht InMemory-testbar → Manual-UAT:** Sage-Read (`KHKPpsArbeitsplaetze`), Ausschlusslisten-Wirkung
+(Liste liegt in ServiceSettings-DB), eindeutiger Index (InMemory erzwingt UNIQUE nicht), Master-/
+Toggle-Gate (SyncWorker), Terminal-Anzeige. Die folgenden Szenarien am befüllten IDEAL-System:
+
+- **TS-77.1 — Baustein a Neuanlage (AK 1). (Manual-UAT)** Sage-Arbeitsplatz ohne WMS-Gegenstück.
+  Sync-Lauf. Erwartung: neue `ProductionWorkplace`-Zeile mit Sage-Nr./Name/Kürzel, `BdeAktiv = false`,
+  Audit `ProductionWorkplaceSync`. *Kernlogik automatisiert.*
+- **TS-77.2 — Baustein a Abweichung (AK 2). (Manual-UAT für die Mail)** Bestehende Zeile mit
+  abweichendem Kürzel/Name. Erwartung: überschrieben + Sammelmeldung alt/neu. *Automatisiert (ohne Mail).*
+- **TS-77.3 — Baustein a Ausschlussliste (AK 4). (Manual-UAT)** Arbeitsplatz mit Kürzel `STO`.
+  Erwartung: keine Zeile angelegt, kein SyncLog-Eintrag für diesen Arbeitsplatz.
+- **TS-77.4 — Baustein a Trim (AK 5). (Manual-UAT)** Kürzel `"EG "` (Leerzeichen). Erwartung:
+  `ArbeitsschrittCode = "EG"`.
+- **TS-77.5 — Baustein a Pflicht-Filter (AK 6). (Manual-UAT)** Falscher Mandant / `Aktiv = 0` / leeres
+  Kürzel. Erwartung: übersprungen (kein Insert/Update/Meldung).
+- **TS-77.6 — Baustein a Master-Gate (AK 7). (Manual-UAT)** Master `false`. Erwartung: kein Lauf, kein
+  SyncLog-Eintrag `ProductionWorkplaceSync`.
+- **TS-77.7 — Baustein b Grundfall (AK 8). (Manual-UAT)** Sub-FA mit Token `KA`, Werkbank mit
+  `ArbeitsschrittCode = "KA"`. Erwartung: genau eine `WorkOperation` (`OperationNumber = "KA"`, korrekter
+  `ProductionWorkplaceId`). *Automatisiert gespiegelt.*
+- **TS-77.8 — Baustein b unbekanntes Kürzel (AK 9). (Manual-UAT für die Mail)** Token ohne Werkbank,
+  nicht ausgeschlossen. Erwartung: keine `WorkOperation`, Sammelmeldung, keine Exception. *Insert/Counts
+  automatisiert.*
+- **TS-77.9 — Baustein b ausgeschlossenes Kürzel (AK 10). (Manual-UAT)** Token auf der Ausschlussliste
+  (z. B. `BS`). Erwartung: keine `WorkOperation`, **keine** Unbekannt-Meldung. *(Nur Manual-UAT — die
+  Ausschlussliste liegt in der ServiceSettings-DB, nicht InMemory injizierbar.)*
+- **TS-77.10 — Baustein b Kürzel-Mehrdeutigkeit (AK 11).** Zwei aktive Werkbänke mit identischem
+  `ArbeitsschrittCode`. Erwartung: keine `WorkOperation`, Meldung „mehrdeutig". *Automatisiert abgedeckt.*
+- **TS-77.11 — Baustein b DirectChildren-Gegenprobe (AK 13).** Wie TS-76.2, Zielentität `WorkOperation`.
+  *Automatisiert abgedeckt.*
+- **TS-77.12 — Baustein c Terminal zeigt echten AG (AK 15). (Manual-UAT)** An einer `BdeAktiv`-Werkbank
+  mit passendem Kürzel: gescannter Sub-FA zeigt im Normal-Modus den struktur-abgeleiteten Arbeitsgang,
+  ohne Default-AG-Auswahl. **Nachweis, dass `BdeScanResolver.cs` NICHT geändert wurde:** Diff der Etappe
+  zeigt keine Änderung an dieser Datei.
+- **TS-77.13 — Baustein c Existenz-Check-Fix (AK 16).** `BdeDefaultArbeitsgang` der Werkbank identisch
+  mit dem Namen einer echten `WorkOperation`. NurFA-Buchung. Erwartung: eigene Zeile `OperationNumber =
+  "01"` wird verwendet, **nicht** die echte `"KA"`-Zeile. *Automatisiert abgedeckt.*
+- **TS-77.14 — Regressionslauf TS-66. (Manual-UAT)** Bestehende BDE-Disambiguierung (TS-66) läuft mit
+  echten, struktur-abgeleiteten `WorkOperation`s unverändert durch (mehrere Sub-FAs derselben
+  `OrderNumber`, Auswahlliste, NurFA-Fix).
+- **TS-77.15 — AKE-Regression (AK 17). (Manual-UAT)** Master `false`: `FaWorkStepDetectionService`
+  unverändert aktiv, kein Lauf der neuen/umbenannten Services (`ProductionWorkplaceSync`,
+  `WorkOperationStructureDetection`).
+- **TS-77.16 — Doppelanlage (AK 20). (Manual-UAT)** Werkbank mit `SageArbeitsplatznummer = "2300"`
+  vorhanden; zweite Zeile mit derselben Nummer provozieren. Erwartung: eindeutiger Index verhindert die
+  zweite Zeile, Meldung im SyncLog, **alle übrigen Arbeitsplätze werden im selben Lauf trotzdem
+  verarbeitet** (kein Abbruch). *(Nur Manual-UAT — InMemory erzwingt UNIQUE-Indizes nicht.)*
+- **TS-77.17 — Schlüssel-Behandlung (AK 21). (Manual-UAT)** Sage liefert `"0000"` und `" 2300 "`.
+  Erwartung: `"0000"` bleibt `"0000"`; `" 2300 "` findet die bestehende Werkbank `"2300"`, keine
+  Neuanlage. *Trim-Teil automatisiert.*
+
+**Betriebshinweis:** Der „zuletzt gemeldete Kürzel-Stand" (unbekannte Token) und der problematische
+Werkbank-Stand liegen im Speicher (Singletons) — nach jedem Dienst-Neustart geht die jeweilige
+Sammelmail einmal erneut raus, auch ohne echte Mengenänderung. Bekannt und akzeptiert. Sage-geführte
+Werkbank-Felder (Sage-Nr./Name/Kürzel) überleben eine manuelle Änderung nicht (nächster Sync
+überschreibt); eine Änderung der Ausschlussliste entfernt bestehende Werkbänke nicht rückwirkend.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
+
+---
+
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

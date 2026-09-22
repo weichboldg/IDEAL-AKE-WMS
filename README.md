@@ -737,7 +737,7 @@ vollständiger Katalog". Wichtige Gruppen:
 | Gruppe | Beispiele |
 |--------|-----------|
 | Sync-Gates | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:FaZusatzinfoEnabled`, `Sync:OseonTrackingEnabled`, `Sync:EnaioDmsEnabled`, `Sync:BomCacheEnabled`, `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FeiertagSyncEnabled` |
-| Erkennung/Reconciliation | `Sync:CoatingDetectionEnabled`, `Sync:FaWorkStepDetectionEnabled`, `Sync:FaWorkStepStructureDetectionEnabled` (IDEAL: Arbeitsgänge aus `FaHierarchyNode.Arbeitsschritte`, nur bei Master `ProduktionsauftragHierarchisch`; unbekannte Kürzel werden gemeldet — Arbeitsgang-Katalog `/WorkSteps` mit `Code = Kürzel` pflegen), `Sync:ProductionOrderReconcileEnabled` (+ `Sync:ReconcileMaxCancelPerRun`) |
+| Erkennung/Reconciliation | `Sync:CoatingDetectionEnabled`, `Sync:FaWorkStepDetectionEnabled`, `Sync:WorkOperationStructureDetectionEnabled` (IDEAL: `WorkOperation`-Arbeitsgänge aus `FaHierarchyNode.Arbeitsschritte`, Match über `ProductionWorkplace.ArbeitsschrittCode`, nur bei Master `ProduktionsauftragHierarchisch` und nach der Werkbank-Anlage `Sync:ProductionWorkplaceSyncEnabled`; unbekannte Kürzel werden gemeldet, ausgeschlossene über `Sync:ProductionWorkplaceSyncAusschlussliste` bewusst ausgenommen), `Sync:ProductionOrderReconcileEnabled` (+ `Sync:ReconcileMaxCancelPerRun`) |
 | Mails | `Sync:PartRequisitionEmailEnabled`, `Sync:WarehouseRequisitionEmailEnabled`, `Notifications:*`, `ErrorNotification:Enabled`/`Recipients` |
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |

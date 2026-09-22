@@ -13,41 +13,41 @@ using Xunit;
 namespace IDEALAKEWMSService.Tests.Services;
 
 /// <summary>
-/// IDEAL: FA-Arbeitsgang-Erkennung aus der Struktur (Spec 2026-09-08-arbeitsgaenge-aus-arbeitsschritte,
-/// v1.41.0). Der Algorithmus ist InMemory-testbar (reine EF-LINQ, kein Raw-SQL). Die datenabhaengigen
-/// AKs am befuellten IDEAL-System (AK 3/5/8) sind zusaetzlich Manual-UAT (TS-76). AK 1/2 (Master-/
-/// Toggle-Gate) sitzen im SyncWorker, nicht im Service — daher hier nicht abgedeckt.
+/// IDEAL: WorkOperation-Arbeitsgang-Erkennung aus der Struktur (2c-Umbau, v1.44.0, war
+/// FaWorkStepStructureDetection/v1.41.0). Der Algorithmus ist InMemory-testbar (reine EF-LINQ). Die
+/// datenabhaengigen und die Ausschlusslisten-AKs (AK 10, Liste liegt in ServiceSettings-DB) sind
+/// zusaetzlich Manual-UAT (TS-77). Der Master-/Toggle-Gate (AK 18) sitzt im SyncWorker, nicht im Service.
 /// </summary>
-public class FaWorkStepStructureDetectionServiceTests
+public class WorkOperationStructureDetectionServiceTests
 {
-    // Bei UNBEKANNTEN Token wird die Digest-Mail nur bei HasChanged==true versucht — und der
-    // Versand liest die Mail-Konfiguration LIVE aus der SQL-Server-DB (ServiceSettings). Tests mit
-    // unbekannten Token stubben daher HasChanged=false (Muster aus FaMaterializationWorkplaceTests).
-    private static readonly IUnknownWorkStepTokenState NoDigest = BuildNoDigestState();
+    // Bei UNBEKANNTEN Token wird die Digest-Mail nur bei HasChanged==true versucht — und der Versand
+    // liest die Mail-Konfiguration LIVE aus der SQL-Server-DB. Tests mit unbekannten Token stubben
+    // daher HasChanged=false.
+    private static readonly IUnknownArbeitsschrittTokenState NoDigest = BuildNoDigestState();
 
-    private static IUnknownWorkStepTokenState BuildNoDigestState()
+    private static IUnknownArbeitsschrittTokenState BuildNoDigestState()
     {
-        var m = new Mock<IUnknownWorkStepTokenState>();
+        var m = new Mock<IUnknownArbeitsschrittTokenState>();
         m.Setup(s => s.HasChanged(It.IsAny<IReadOnlyCollection<string>>())).Returns(false);
         return m.Object;
     }
 
-    private static (FaWorkStepStructureDetectionService Svc, FakeSyncLogger Log) Build(
-        ApplicationDbContext ctx, IUnknownWorkStepTokenState? state = null)
+    private static (WorkOperationStructureDetectionService Svc, FakeSyncLogger Log) Build(
+        ApplicationDbContext ctx, IUnknownArbeitsschrittTokenState? state = null)
     {
         var log = new FakeSyncLogger();
-        var svc = new FaWorkStepStructureDetectionService(
+        var svc = new WorkOperationStructureDetectionService(
             ctx, new ConfigurationBuilder().Build(), new Mock<IMailService>().Object,
-            state ?? new UnknownWorkStepTokenState(),
-            NullLogger<FaWorkStepStructureDetectionService>.Instance, log);
+            state ?? new UnknownArbeitsschrittTokenState(),
+            NullLogger<WorkOperationStructureDetectionService>.Instance, log);
         return (svc, log);
     }
 
     private static FaHierarchyNode Node(int subFa, int? vaterFa, string? arbeitsschritte, int hauptFa = 9000)
         => new() { HauptFA = hauptFa, SubFA = subFa, VaterFA = vaterFa, Arbeitsschritte = arbeitsschritte, Sollmenge = 1 };
 
-    private static WorkStep Step(string code, string name = "n", string? search = null, bool active = true)
-        => new() { Code = code, Name = name, SearchString = search, IsActive = active,
+    private static ProductionWorkplace Workplace(string code, string name, string? nummer = null)
+        => new() { ArbeitsschrittCode = code, Name = name, SageArbeitsplatznummer = nummer,
                    CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
 
     private static ProductionOrder Order(string subFa, string hauptFa = "9000",
@@ -56,13 +56,13 @@ public class FaWorkStepStructureDetectionServiceTests
                    IsDone = isDone, IsCancelled = isCancelled,
                    CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
 
-    // --- TS-76.1 Grundfall (AK 3) ---
+    // --- AK 8 Grundfall ---
     [Fact]
-    public async Task Detect_KnownTokenOnOwnRow_CreatesExactlyOneStruktur()
+    public async Task Detect_KnownToken_CreatesExactlyOneWorkOperation()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(subFa: 10, vaterFa: null, arbeitsschritte: "KA"));
-        ctx.WorkSteps.Add(Step("KA", "Kappen"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1", "2300"));
         ctx.ProductionOrders.Add(Order("10"));
         await ctx.SaveChangesAsync();
 
@@ -70,36 +70,38 @@ public class FaWorkStepStructureDetectionServiceTests
         var r = await svc.DetectAsync(dryRun: false);
 
         r.Inserted.Should().Be(1);
-        var rows = await ctx.FaWorkSteps.ToListAsync();
-        rows.Should().ContainSingle();
-        rows[0].Source.Should().Be(FaWorkStepSources.Struktur);
+        var wo = await ctx.WorkOperations.SingleAsync();
+        wo.OperationNumber.Should().Be("KA");
+        wo.Name.Should().Be("Kanterei W1");
+        wo.ProductionWorkplaceId.Should().Be(ctx.ProductionWorkplaces.Single().Id);
+        wo.IsReportable.Should().BeTrue();
         log.Runs.Single().FinalCounts!["neu"].Should().Be(1);
     }
 
-    // --- AK 10 Audit ---
+    // --- Audit ---
     [Fact]
     public async Task Detect_CreatedRow_CarriesServiceNameAudit()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        ctx.WorkSteps.Add(Step("KA"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         ctx.ProductionOrders.Add(Order("10"));
         await ctx.SaveChangesAsync();
 
         await Build(ctx).Svc.DetectAsync(dryRun: false);
 
-        var row = await ctx.FaWorkSteps.SingleAsync();
-        row.CreatedBy.Should().Be("FaWorkStepStructureDetection");
-        row.CreatedByWindows.Should().Be("FaWorkStepStructureDetection");
+        var wo = await ctx.WorkOperations.SingleAsync();
+        wo.CreatedBy.Should().Be("WorkOperationStructureDetection");
+        wo.CreatedByWindows.Should().Be("WorkOperationStructureDetection");
     }
 
-    // --- Code-Match case-insensitiv + getrimmt ---
+    // --- Token case-insensitiv + getrimmt ---
     [Fact]
     public async Task Detect_TokenCaseAndWhitespaceInsensitive_Matches()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "  ka   ls  "));
-        ctx.WorkSteps.AddRange(Step("KA"), Step("LS"));
+        ctx.ProductionWorkplaces.AddRange(Workplace("KA", "Kanterei W1"), Workplace("LS", "Stanzerei W1"));
         ctx.ProductionOrders.Add(Order("10"));
         await ctx.SaveChangesAsync();
 
@@ -108,7 +110,7 @@ public class FaWorkStepStructureDetectionServiceTests
         r.Inserted.Should().Be(2);
     }
 
-    // --- TS-76.2 DirectChildren-Gegenprobe (AK 5) ---
+    // --- AK 13 DirectChildren-Gegenprobe ---
     [Fact]
     public async Task Detect_GrandchildToken_LandsOnParentNotGrandparent()
     {
@@ -118,61 +120,33 @@ public class FaWorkStepStructureDetectionServiceTests
             Node(subFa: 10, vaterFa: null, arbeitsschritte: "AV"),
             Node(subFa: 20, vaterFa: 10, arbeitsschritte: null),
             Node(subFa: 0, vaterFa: 20, arbeitsschritte: "SÄ"));
-        ctx.WorkSteps.AddRange(Step("AV"), Step("SÄ"));
+        ctx.ProductionWorkplaces.AddRange(Workplace("AV", "Vormontage"), Workplace("SÄ", "Schäumerei W1"));
         ctx.ProductionOrders.AddRange(Order("10"), Order("20"));
         await ctx.SaveChangesAsync();
 
         await Build(ctx).Svc.DetectAsync(dryRun: false);
 
-        var byOrder = await ctx.FaWorkSteps
-            .Include(f => f.ProductionOrder).Include(f => f.WorkStep)
-            .ToListAsync();
-        // Y (SubOrderNumber 20) bekommt SÄ, X (10) bekommt NUR AV, nicht SÄ.
-        byOrder.Where(f => f.ProductionOrder.SubOrderNumber == "20").Select(f => f.WorkStep.Code)
+        var byOrder = await ctx.WorkOperations.Include(w => w.ProductionOrder).ToListAsync();
+        byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "20").Select(w => w.OperationNumber)
             .Should().BeEquivalentTo(new[] { "SÄ" });
-        byOrder.Where(f => f.ProductionOrder.SubOrderNumber == "10").Select(f => f.WorkStep.Code)
+        byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "10").Select(w => w.OperationNumber)
             .Should().BeEquivalentTo(new[] { "AV" });
     }
 
-    // --- TS-76.3 Nur-hinzufuegen: manuell entfernt (AK 4) ---
+    // --- AK 12 Nur-hinzufuegen: (ProductionOrderId, OperationNumber) existiert -> uebersprungen ---
     [Fact]
-    public async Task Detect_RemovedRowExists_NoReAdd()
+    public async Task Detect_ExistingOperation_SkippedNoDuplicate()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        var step = Step("KA");
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         var order = Order("10");
-        ctx.WorkSteps.Add(step);
         ctx.ProductionOrders.Add(order);
         await ctx.SaveChangesAsync();
-        ctx.FaWorkSteps.Add(new FaWorkStep
+        ctx.WorkOperations.Add(new WorkOperation
         {
-            ProductionOrderId = order.Id, WorkStepId = step.Id, IsRemoved = true,
-            Source = FaWorkStepSources.Manual,
-            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
-        });
-        await ctx.SaveChangesAsync();
-
-        var r = await Build(ctx).Svc.DetectAsync(dryRun: false);
-
-        r.Inserted.Should().Be(0);
-        (await ctx.FaWorkSteps.SingleAsync()).IsRemoved.Should().BeTrue();
-    }
-
-    // --- Nur-hinzufuegen: aktive Zeile existiert -> uebersprungen, keine Dublette ---
-    [Fact]
-    public async Task Detect_ActiveRowExists_SkippedNoDuplicate()
-    {
-        using var ctx = TestDbContextFactory.Create();
-        ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        var step = Step("KA");
-        var order = Order("10");
-        ctx.WorkSteps.Add(step);
-        ctx.ProductionOrders.Add(order);
-        await ctx.SaveChangesAsync();
-        ctx.FaWorkSteps.Add(new FaWorkStep
-        {
-            ProductionOrderId = order.Id, WorkStepId = step.Id, Source = FaWorkStepSources.Struktur,
+            ProductionOrderId = order.Id, OperationNumber = "KA", Name = "Kanterei W1",
+            Sequence = 0, IsReportable = true,
             CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
         });
         await ctx.SaveChangesAsync();
@@ -181,29 +155,11 @@ public class FaWorkStepStructureDetectionServiceTests
         var r = await svc.DetectAsync(dryRun: false);
 
         r.Inserted.Should().Be(0);
-        (await ctx.FaWorkSteps.CountAsync()).Should().Be(1);
+        (await ctx.WorkOperations.CountAsync()).Should().Be(1);
         log.Runs.Single().FinalCounts!["uebersprungen"].Should().Be(1);
     }
 
-    // --- TS-76.9 Match exakt ueber Code, NICHT ueber SearchString (AK 6) ---
-    [Fact]
-    public async Task Detect_SearchStringContainsToken_ButCodeDiffers_NoMatch()
-    {
-        using var ctx = TestDbContextFactory.Create();
-        ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        ctx.WorkSteps.Add(Step("XY", "irgendwas", search: "KA,foo,bar")); // Code != KA
-        ctx.ProductionOrders.Add(Order("10"));
-        await ctx.SaveChangesAsync();
-
-        var (svc, log) = Build(ctx, NoDigest);
-        var r = await svc.DetectAsync(dryRun: false);
-
-        r.Inserted.Should().Be(0);
-        (await ctx.FaWorkSteps.AnyAsync()).Should().BeFalse();
-        log.Runs.Single().FinalCounts!["arbeitsschritt_unbekannt"].Should().Be(1);
-    }
-
-    // --- TS-76.4 Unbekanntes Token: melden, kein Insert (AK 7, AK 12) ---
+    // --- AK 9 unbekanntes Kuerzel: melden, kein Insert ---
     [Fact]
     public async Task Detect_UnknownToken_ReportedNotInserted()
     {
@@ -211,7 +167,7 @@ public class FaWorkStepStructureDetectionServiceTests
         ctx.FaHierarchyNodes.AddRange(
             Node(10, null, "KA ZZZ"),   // ZZZ unbekannt
             Node(20, null, "ZZZ"));
-        ctx.WorkSteps.Add(Step("KA"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         ctx.ProductionOrders.AddRange(Order("10"), Order("20"));
         await ctx.SaveChangesAsync();
 
@@ -220,19 +176,42 @@ public class FaWorkStepStructureDetectionServiceTests
 
         r.Inserted.Should().Be(1); // nur KA auf FA 10
         var counts = log.Runs.Single().FinalCounts!;
-        counts["arbeitsschritt_unbekannt"].Should().Be(1);          // ein distinktes unbekanntes Token (ZZZ)
-        counts["arbeitsschritt_unbekannt_auftraege"].Should().Be(2); // auf FA 10 und FA 20
+        counts["arbeitsschritt_unbekannt"].Should().Be(1);           // ZZZ
+        counts["arbeitsschritt_unbekannt_auftraege"].Should().Be(2); // FA 10 + FA 20
         log.Runs.Single().Events.Should().Contain(e =>
             e.Level == "Warning" && e.Message.Contains("ZZZ"));
     }
 
-    // --- TS-76.5 Abgeschlossener Auftrag (AK 9): IsDone ---
+    // --- AK 11 Kuerzel-Mehrdeutigkeit: zwei Werkbaenke gleicher Code -> kein Insert, melden ---
+    [Fact]
+    public async Task Detect_AmbiguousCode_NotInsertedButReported()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
+        ctx.ProductionWorkplaces.AddRange(
+            Workplace("KA", "Kanterei W1", "2300"),
+            Workplace("KA", "Kanterei W2", "2301"));
+        ctx.ProductionOrders.Add(Order("10"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, log) = Build(ctx);
+        var r = await svc.DetectAsync(dryRun: false);
+
+        r.Inserted.Should().Be(0);
+        (await ctx.WorkOperations.AnyAsync()).Should().BeFalse();
+        var run = log.Runs.Single();
+        run.FinalCounts!["arbeitsschritt_mehrdeutig"].Should().Be(1);
+        run.FinalCounts!["arbeitsschritt_unbekannt"].Should().Be(0); // mehrdeutig != unbekannt
+        run.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Mehrdeutig"));
+    }
+
+    // --- AK 14 abgeschlossener Auftrag: IsDone ---
     [Fact]
     public async Task Detect_DoneOrder_GetsNoRow()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        ctx.WorkSteps.Add(Step("KA"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         ctx.ProductionOrders.Add(Order("10", isDone: true));
         await ctx.SaveChangesAsync();
 
@@ -241,13 +220,13 @@ public class FaWorkStepStructureDetectionServiceTests
         r.Inserted.Should().Be(0);
     }
 
-    // --- AK 9: IsDonePicking ---
+    // --- AK 14 IsDonePicking ---
     [Fact]
     public async Task Detect_DonePickingOrder_GetsNoRow()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        ctx.WorkSteps.Add(Step("KA"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         var order = Order("10");
         ctx.ProductionOrders.Add(order);
         await ctx.SaveChangesAsync();
@@ -263,13 +242,13 @@ public class FaWorkStepStructureDetectionServiceTests
         r.Inserted.Should().Be(0);
     }
 
-    // --- TS-76.6 Fehlende Materialisierung (AK 8): kein Fehler, keine Zeile ---
+    // --- Fehlende Materialisierung: kein Fehler, keine Zeile ---
     [Fact]
     public async Task Detect_NodeWithoutMaterializedOrder_NoErrorNoRow()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA")); // kein passender ProductionOrder
-        ctx.WorkSteps.Add(Step("KA"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         await ctx.SaveChangesAsync();
 
         var (svc, log) = Build(ctx);
@@ -277,7 +256,7 @@ public class FaWorkStepStructureDetectionServiceTests
 
         r.Inserted.Should().Be(0);
         log.Runs.Single().FinishedSuccess.Should().BeTrue();
-        (await ctx.FaWorkSteps.AnyAsync()).Should().BeFalse();
+        (await ctx.WorkOperations.AnyAsync()).Should().BeFalse();
     }
 
     // --- DryRun zaehlt, schreibt nicht ---
@@ -286,7 +265,7 @@ public class FaWorkStepStructureDetectionServiceTests
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        ctx.WorkSteps.Add(Step("KA"));
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
         ctx.ProductionOrders.Add(Order("10"));
         await ctx.SaveChangesAsync();
 
@@ -294,7 +273,7 @@ public class FaWorkStepStructureDetectionServiceTests
         var r = await svc.DetectAsync(dryRun: true);
 
         r.Inserted.Should().Be(1);
-        (await ctx.FaWorkSteps.AnyAsync()).Should().BeFalse();
+        (await ctx.WorkOperations.AnyAsync()).Should().BeFalse();
         log.Runs.Single().FinalMessageSuffix.Should().Be("[DryRun]");
     }
 
@@ -303,10 +282,9 @@ public class FaWorkStepStructureDetectionServiceTests
     public async Task Detect_LeafNodeSubFaZero_IsNotItsOwnOrder()
     {
         using var ctx = TestDbContextFactory.Create();
-        // Nur ein Blatt-Knoten mit Token; SubFA==0 -> nie eigener materialisierter Auftrag.
         ctx.FaHierarchyNodes.Add(Node(subFa: 0, vaterFa: 10, arbeitsschritte: "KA"));
-        ctx.WorkSteps.Add(Step("KA"));
-        ctx.ProductionOrders.Add(Order("0")); // selbst wenn es einen SubOrderNumber "0" gaebe
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1"));
+        ctx.ProductionOrders.Add(Order("0"));
         await ctx.SaveChangesAsync();
 
         var r = await Build(ctx).Svc.DetectAsync(dryRun: false);
@@ -318,7 +296,7 @@ public class FaWorkStepStructureDetectionServiceTests
     [Fact]
     public void UnknownTokenState_ReportsChangeOnlyWhenSetChanges()
     {
-        var state = new UnknownWorkStepTokenState();
+        var state = new UnknownArbeitsschrittTokenState();
         state.HasChanged(new[] { "A", "B" }).Should().BeTrue();   // erstmalig
         state.HasChanged(new[] { "b", "a" }).Should().BeFalse();  // gleiche Menge (case-insensitiv)
         state.HasChanged(new[] { "A", "C" }).Should().BeTrue();   // Verschiebung bei gleicher Anzahl

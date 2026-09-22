@@ -389,20 +389,21 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
-                // FA-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte -> FaWorkStep.
-                // Doppel-Gate (Master + eigener Toggle), beide GetBoolSafeAsync wie der Nachbar-Block
-                // oben; laeuft NACH der Materialisierung (braucht die ProductionOrder-Zeilen als Ziel).
+                // WorkOperation-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte ->
+                // WorkOperation, Match ueber ProductionWorkplace.ArbeitsschrittCode. Doppel-Gate (Master +
+                // eigener Toggle); laeuft NACH der Materialisierung (ProductionOrder-Zeilen als Ziel) und
+                // NACH der Werkbank-Anlage oben (Kuerzel-Katalog muss stehen).
                 // ---------------------------------------------------------------
                 if (await ServiceSettings.GetBoolSafeAsync(_configuration, "ProduktionsauftragHierarchisch", false, stoppingToken)
-                    && await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:FaWorkStepStructureDetectionEnabled", false, stoppingToken))
+                    && await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:WorkOperationStructureDetectionEnabled", false, stoppingToken))
                 {
-                    await RunResilientAsync("FA-Arbeitsgang-Erkennung (Struktur)", async () =>
+                    await RunResilientAsync("WorkOperation-Arbeitsgang-Erkennung (Struktur)", async () =>
                     {
                         using var wsScope = _scopeFactory.CreateScope();
-                        var wsSvc = wsScope.ServiceProvider.GetRequiredService<IFaWorkStepStructureDetectionService>();
-                        _logger.LogInformation("FA-Arbeitsgang-Erkennung (Struktur) startet (DryRun={DryRun})...", dryRun);
+                        var wsSvc = wsScope.ServiceProvider.GetRequiredService<IWorkOperationStructureDetectionService>();
+                        _logger.LogInformation("WorkOperation-Arbeitsgang-Erkennung (Struktur) startet (DryRun={DryRun})...", dryRun);
                         var wsResult = await wsSvc.DetectAsync(dryRun: dryRun, ct: stoppingToken);
-                        _logger.LogInformation("FA-Arbeitsgang-Erkennung (Struktur) fertig: Neu={Ins}, Err={Err}",
+                        _logger.LogInformation("WorkOperation-Arbeitsgang-Erkennung (Struktur) fertig: Neu={Ins}, Err={Err}",
                             wsResult.Inserted, wsResult.Errors);
                     }, stoppingToken);
                 }

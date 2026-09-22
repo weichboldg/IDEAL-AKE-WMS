@@ -20,9 +20,12 @@ public class BdeDefaultWorkOperationService : IBdeDefaultWorkOperationService
     {
         var defaultName = await ResolveDefaultArbeitsgangAsync(workplaceId);
 
-        // Find existing
+        // Existenz-Check ueber OperationNumber "01" (der Default-Marker), NICHT ueber den Namen:
+        // struktur-abgeleitete WorkOperations tragen das Kuerzel als OperationNumber (z. B. "KA") und
+        // koennen namensgleich zum Default sein (wenn BdeDefaultArbeitsgang = Werkbank-Name gepflegt ist).
+        // Ein Name-Vergleich buchte eine NurFA-Buchung dann still auf einen echten Arbeitsgang.
         var existing = await _ctx.WorkOperations
-            .FirstOrDefaultAsync(wo => wo.ProductionOrderId == productionOrderId && wo.Name == defaultName);
+            .FirstOrDefaultAsync(wo => wo.ProductionOrderId == productionOrderId && wo.OperationNumber == "01");
 
         if (existing != null)
             return existing.Id;
