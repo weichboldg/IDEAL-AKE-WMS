@@ -204,6 +204,14 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Code).IsUnique();
         });
 
+        // ProductionWorkplace: Sage-Verknuepfungsschluessel (Baustein a, v1.44.0) — eindeutiger,
+        // auf IS NOT NULL gefilterter Index (B6: verhindert Doppelanlage, nicht nur melden).
+        modelBuilder.Entity<ProductionWorkplace>()
+            .HasIndex(e => e.SageArbeitsplatznummer)
+            .IsUnique()
+            .HasFilter("[SageArbeitsplatznummer] IS NOT NULL")
+            .HasDatabaseName("IX_ProductionWorkplaces_SageArbeitsplatznummer");
+
         // Article
         modelBuilder.Entity<Article>(entity =>
         {

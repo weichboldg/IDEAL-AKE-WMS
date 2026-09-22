@@ -26,6 +26,7 @@ public static class StandortSettingsCatalog
     public const string GroupMandantViews = "Mandant / Sage-Views";
     public const string GroupToggles = "Feature-Schalter";
     public const string GroupImport = "Struktur-Import";
+    public const string GroupWerkbaenke = "Werkbänke (Sage-Arbeitsplätze)";
 
     private const string ViewNameHint =
         "Wird roh gespeichert; ein ungültiger Name fällt erst beim nächsten Sync-Lauf als Fehlermail auf.";
@@ -49,6 +50,11 @@ public static class StandortSettingsCatalog
 
         // Struktur-Import (ServiceSettings).
         new("Sync:HierarchicalFaEnabled",           "FA-Struktur-Import aktiv",       StandortFieldType.Bool,   StandortBackend.Service, GroupImport),
+
+        // Werkbank-Anlage aus Sage-Arbeitsplaetzen (ServiceSettings, Baustein a). Der Toggle
+        // Sync:ProductionWorkplaceSyncEnabled bleibt bewusst in /ServiceSettings, nicht hier.
+        new("Sync:ProductionWorkplaceSyncMandant",         "Mandant (Sage-Arbeitsplätze)",     StandortFieldType.Int,    StandortBackend.Service, GroupWerkbaenke),
+        new("Sync:ProductionWorkplaceSyncAusschlussliste", "Ausschluss-Kürzel (kommagetrennt)", StandortFieldType.String, StandortBackend.Service, GroupWerkbaenke),
     };
 
     /// <summary>Der Master-Key — NUR read-only in dieser Maske angezeigt, nie geschrieben.</summary>
@@ -56,6 +62,6 @@ public static class StandortSettingsCatalog
 
     public static readonly IReadOnlyList<string> GroupOrder = new[]
     {
-        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport
+        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke
     };
 }
