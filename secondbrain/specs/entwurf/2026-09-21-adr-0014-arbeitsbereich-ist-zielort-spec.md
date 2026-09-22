@@ -338,3 +338,65 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 1. →
 2. →
 3. →
+
+## Kritische Pruefung (2026-09-22)
+
+> Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf. Der Rueckbau ist sauber und vollstaendig
+> spezifiziert (Loeschliste mit exakten Zeilenbereichen, Coating als Regressionsanker, AKE korrekt
+> als unberuehrt verifiziert, keine Migration). Trotzdem zwei BLOCKER — einer formal, einer
+> substanziell am Code gefunden — plus ein SOLLTE.
+
+### BLOCKER
+
+**B1 — Die drei Rueckfragen sind NICHT beantwortet (nackte Pfeile).** Der Freigabe-Antworten-Block
+enthaelt `1. →`, `2. →`, `3. →` ohne Text; `freigabe_entscheidung` im Frontmatter ist leer, Status
+`Entwurf`. Genau der „Pfeil ohne Text"-Fall. Zur Fairness: Der Rueckbau-**Code** ist gegen alle drei
+Antworten robust (reine Loeschung; die Vorwaerts-Teile sind sauber Out-of-Scope gestellt) — es ist ein
+„bewusst entscheiden und festhalten"-Gate, kein „die Spec ist falsch"-Gate. Aber Rueckfrage 1
+(braucht ein IDEAL-Auftrag EINE Werkbank?) ist die Architekturentscheidung und haengt direkt an B2.
+→ **An den Menschen:** die drei Antworten ausfuellen (Q1 mindestens bewusst: `null`/Folge-Spec; Q2/Q3
+duerfen kurz sein: eigene Folge-Spec bzw. Nachtrag an ADR 0014).
+
+**B2 — Die Spec uebersieht den bestehenden MANUELLEN Werkbank-Pfad `FaCompletion.SetWorkplace`; dadurch
+sind zwei Kernaussagen falsch und Rueckfrage 1 unvollstaendig informiert.** Verifiziert am Code:
+`FaCompletionController` hat eine POST-Action `SetWorkplace(int id, int? workplaceId)` (Z.419-432,
+setzt `order.ProductionWorkplaceId` + Audit-Felder von Hand), dazu `HasNoWorkplace`/`WorkplaceName`
+(Z.147-148) und die Spalte „Keine Werkbank" (Z.250). Folgen, die die Spec nicht nennt:
+1. **Die Out-of-Scope-/AK-Aussage „`ProductionWorkplaceId` bleibt fuer IDEAL durchgaengig `null`"
+   (Zeilen 87-89, AK 9) ist falsch.** Sie ist `null`, **ausser** ein Anwender hat ueber
+   `FaCompletion.SetWorkplace` von Hand eine Werkbank gesetzt.
+2. **Verhaltensaenderung, unbenannt:** Die Z1-Ausnahme existierte laut Klassenkommentar genau deshalb,
+   weil der Sync „nicht unterscheiden kann, ob [der Wert] von Hand gesetzt oder in Sage umgeplant
+   wurde" — die Ableitung hat also manuelle `SetWorkplace`-Werte bei **jedem** Update **ueberschrieben**.
+   Nach dem Rueckbau fasst der Sync das Feld gar nicht mehr an → **manuelle Zuweisungen bleiben jetzt
+   erhalten**. Das ist vermutlich sogar gewuenscht, aber es ist eine echte, ungenannte Verhaltensaenderung.
+3. **Rueckfrage 1 ist damit teil-beantwortet durch Bestandscode:** Ein „eine Werkbank je Auftrag"-Modell
+   existiert bereits — als **manuelle** Zuweisung in FaCompletion, unabhaengig von der (falschen)
+   Arbeitsbereich-Ableitung. Der Mensch braucht diese Tatsache, um Q1 sauber zu entscheiden.
+→ **An den Menschen / in den Rumpf:** Den `FaCompletion.SetWorkplace`-Pfad in der Spec anerkennen, die
+„durchgaengig null"-Aussagen (Zeilen 87-89, AK 9) auf „null, ausser manuell in FaCompletion gesetzt"
+korrigieren, und Q1 mit dem Wissen um den bestehenden manuellen Pfad beantworten.
+
+### SOLLTE
+
+**S1 — Regressions-AK fuer die neue Persistenz manueller Zuweisungen.** Aus B2 folgt ein Test, den die
+Spec noch nicht hat: Ein per `FaCompletion.SetWorkplace` manuell gesetztes `ProductionWorkplaceId`
+**ueberlebt** nach dem Rueckbau einen Materialisierungslauf (vorher wurde es durch die Z1-Ableitung
+geklobbert). Als AK + Testszenario aufnehmen — es sichert die Verhaltensaenderung aus B2 ab, statt sie
+nur nebenbei geschehen zu lassen.
+
+### HINWEIS
+
+**H1 — uebrige `ProductionWorkplaceId`-Konsumenten geprueft, unkritisch.** Grep ueber den Worktree: die
+weiteren Treffer betreffen fast alle `WorkOperation.ProductionWorkplaceId` (andere Entitaet, BDE/OSEON)
+oder das `ProductionWorkplace`-CRUD — **kein** Filter/keine Gruppierung auf
+`ProductionOrder.ProductionWorkplaceId`, die IDEAL-Auftraege bei `null` aus einer Liste ausblenden
+wuerde, ausser der (unter B2 behandelten) FaCompletion-Anzeige. Die „Views rendern harmlos"-Aussage der
+Spec haelt fuer die reine Anzeige. Kein Handlungszwang.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG:** B1 (drei Antworten leer — mindestens Q1 bewusst entscheiden) und B2
+(`FaCompletion.SetWorkplace` anerkennen, „durchgaengig null"-Aussagen korrigieren, Q1 damit informieren)
+plus S1 (Regressions-AK). Der Rueckbau selbst ist korrekt zugeschnitten — die Nachbesserung betrifft die
+Genauigkeit der Aussagen und die noch offene Architekturentscheidung, nicht die Loesch-Mechanik.
