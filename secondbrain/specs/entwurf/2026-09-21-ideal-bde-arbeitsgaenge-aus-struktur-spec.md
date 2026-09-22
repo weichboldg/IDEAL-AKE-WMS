@@ -1083,7 +1083,29 @@ laufen im selben Buendel-Worktree).
      Terminal-Verifikation, Existenz-Check-Fix aus Antwort 6.
    Etappe B ist die riskante (Umbenennung, Zieltabellen-Wechsel) — deshalb der Halt davor.
 
-9. →
+9. → **`varchar(31)` — am Sage-Schema gemessen (2026-09-22).**
+   ```sql
+   SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS
+   WHERE TABLE_NAME = 'KHKPpsArbeitsplaetze' AND COLUMN_NAME = 'Arbeitsplatznummer';
+   -- Ergebnis: varchar, 31
+   ```
+   Bestaetigt die Vermutung aus den Daten: Die Zeile `0000` (Reserve) zeigt fuehrende Nullen — eine
+   `int`-Spalte haette `0` angezeigt.
+   **Verbindlich fuer `ProductionWorkplace.SageArbeitsplatznummer`:**
+   - **Typ: `NVARCHAR(31)`** — gleiche Laenge wie die Quelle; `nvarchar` statt `varchar` nach Hauskonvention,
+     verlustfrei, weil Obermenge.
+   - **Niemals in eine Zahl umwandeln.** Kein `int.Parse`, keine numerische Sortierung, kein numerischer
+     Vergleich. `0000` und `0` sind **verschiedene** Schluessel; numerisch ausgewertet kollidierte die
+     Reserve-Zeile mit jeder anderen Nummer, die zu null wird. **Abgleich ausschliesslich als
+     Zeichenkettenvergleich.**
+   - **Beim Lesen trimmen**, wie die Kuerzel. `varchar` fuellt zwar nicht auf (anders als `char`), aber die
+     Liste hat bereits gezeigt, dass bei der Erfassung Leerzeichen hineingeraten (`"EG "`). Ein Trim kostet
+     nichts und verhindert, dass eine Werkbank bei jedem Lauf als „neu" erkannt und doppelt angelegt wird.
+   - **Eindeutigkeit:** `Arbeitsplatznummer` ist in Sage der Schluessel des Arbeitsplatzes. Im WMS einen
+     **eindeutigen Index** auf `SageArbeitsplatznummer` (gefiltert auf `IS NOT NULL`, weil AKE-Werkbaenke
+     und manuell angelegte keine Nummer tragen). Ohne ihn koennte ein Fehler im Anlegepfad eine Werkbank
+     **doppelt** anlegen, ohne dass es auffaellt — der Index macht daraus einen sichtbaren Fehler.
+   **Damit sind alle Rueckfragen beantwortet.**
 
 **Zur Abnahme von v1.41:** Die dortige Manual-Checkliste ist mit dieser Spec **gegenstandslos** —
 v1.41 schreibt in die falsche Tabelle. **Nicht separat abnehmen**, sondern mit TS-77 dieser Spec.
@@ -1292,3 +1314,73 @@ Frontmatter (`epic`/`etappen`) und Deploy im Rumpf sind auf Basis dieser Antwort
 Hinweis am Kopf dieses Abschnitts). Verbleibend: Offene Rueckfrage 9 (Sage-Spaltentyp
 `Arbeitsplatznummer`, am WMS-Code nicht verifizierbar) und die Dev-Lauf-Checks aus Offener Rueckfrage 7
 (Migrationsnummer) und der Versionsnummer (Brain-Pflichten).
+
+## Kritische Pruefung (2026-09-22, 2. Durchgang)
+
+> Zweiter Durchgang **nach** der Ueberarbeitung (`4c74cf8`): geprueft, ob das Nachziehen der
+> Entscheidungen in den Rumpf **vollstaendig und widerspruchsfrei** ist — nicht die Entscheidungen neu
+> aufgerollt. Vier der fuenf gezielten Fragen sind **sauber** nachgezogen; **eine** hat einen echten,
+> teuren Riss (B6).
+
+### Sauber nachgezogen (bestaetigt)
+
+- **„Melden statt anlegen" fuer Baustein (a):** im Rumpf **nirgends** mehr. Der einzige
+  „Melde-statt-Anlege"-Treffer im Rumpf (Z.327) gehoert zu **Baustein (b)** (unbekannte Token melden) —
+  dort korrekt. Baustein (a) sagt durchgaengig „neue Zeile anlegen" (Z.290). Die alten Melden-
+  Formulierungen leben nur noch im Audit-Block „Freigabe-Antworten" (dort als „kehrt sich um" aufgeloest)
+  und in der 1.-Durchgang-Pruefung (Zitat des Alt-Rumpfs) — beides gewollt.
+- **Parameter „Match-Spalte":** im Rumpf **nicht** mehr vorhanden — nur im Audit-Block (Z.881-949, wo er
+  als „entfaellt" beschlossen wird) und im 1.-Durchgang-Zitat. Sauber gestrichen.
+- **„Ausgeschlossene Kuerzel sind bekannt, keine Unbekannt-Meldung":** als **AK 4** (Baustein a) und
+  **AK 10** (Baustein b) formuliert und mit **TS-77.3** + **TS-77.9** getestet. Vollstaendig.
+- **Etappengrenze/Abhaengigkeit:** Etappe A = Baustein (a), Etappe B = (b)+(c) (Frontmatter + Tabelle
+  Z.656-659). Die Abhaengigkeit „b braucht a's Katalog" ist in „Reihenfolge/Einordnung" (Z.647-648)
+  benannt; im Buendel-Modell (ein Merge) existieren a's Werkbaenke, wenn b gebaut/getestet wird. Passt.
+
+### BLOCKER
+
+**B6 — Der eindeutige (gefilterte) Index auf `SageArbeitsplatznummer` fehlt im Rumpf und widerspricht
+der getroffenen Entscheidung; das laesst genau die Doppelanlage offen, nach der gefragt wurde.**
+Der Antwortblock entscheidet ausdruecklich (Z.1104-1107): *„Im WMS einen **eindeutigen Index** auf
+`SageArbeitsplatznummer` (gefiltert auf `IS NOT NULL` …). Ohne ihn koennte ein Fehler im Anlegepfad
+eine Werkbank **doppelt** anlegen, ohne dass es auffaellt."* Der ueberarbeitete Rumpf sagt das
+**Gegenteil**: „**Kein Unique-Index**" (Baustein a, Z.256-258) bzw. „**Kein** Unique-Constraint"
+(Migration, Z.454), mit dem Hausmuster-Argument „Ambiguitaet wird gemeldet, nicht per DB-Constraint
+verhindert".
+**Das Hausmuster ist hier fehl am Platz:** Es gilt fuer **beschreibende** Felder (Namens-Mehrdeutigkeit),
+nicht fuer den **Identitaets-/Upsert-Schluessel**, gegen den der Sync matcht. Die Laufzeit-Regel
+„mehr als ein Treffer → mehrdeutig melden" (Z.300-302) **erkennt** die Dublette erst **nachdem** sie
+entstanden ist — und blockiert die Nummer dann **dauerhaft** (mehrdeutig → nichts schreiben, also auch
+keine Korrektur mehr). Der Anlegepfad ist „kein Treffer → INSERT": faellt der Lookup einmal nicht
+(Leerzeichen, Gross/Klein, String-vs-Zahl), entsteht die zweite Zeile **still**. Der Unique-Index ist
+der einzige Mechanismus, der das **verhindert** statt es nur zu melden.
+→ **Nachziehen (Rumpf-Korrektur, keine neue Entscheidung — die Entscheidung steht bereits im
+Antwortblock):**
+1. Baustein a (Z.256-259) und Migration (Z.450-455): „Kein Unique-Index" ersetzen durch den
+   **eindeutigen, auf `IS NOT NULL` gefilterten** Index (`CREATE UNIQUE INDEX … WHERE
+   SageArbeitsplatznummer IS NOT NULL`). Das Hausmuster-„melden statt Constraint" gilt weiterhin fuer
+   **Namens**-Mehrdeutigkeit, nicht fuer den Nummern-Schluessel — den Unterschied benennen.
+2. In `affected_code` und dem `SQL/93_*.sql`-Eintrag den Unique-Filter-Index **auffuehren** (heute fehlt
+   er dort komplett) + ein **AK/Testszenario** „doppelte Anlage wird vom Index verhindert".
+3. Die uebrigen, im selben Antwortabschnitt (Z.1093-1103) getroffenen Schluessel-Entscheidungen
+   **ebenfalls in den Rumpf**, weil sie zusammen die Doppelanlage verhindern: `SageArbeitsplatznummer`
+   ist **`nvarchar`, Vergleich ausschliesslich als Zeichenkette** (nie `int.Parse` — `0000` ≠ `0`) und
+   **beim Lesen getrimmt** (wie das Kuerzel). Der Rumpf trimmt heute nur `ArbeitsschrittCode` (Z.261/291)
+   und laesst den Nummern-Typ als „offen" (Rueckfrage 9) — die WMS-seitige Behandlung ist aber
+   entschieden.
+
+### SOLLTE
+
+**S5 — Offene Rueckfrage 9 ist ueberzeichnet.** Frontmatter/`open_questions` fuehren den Sage-Spaltentyp
+als offen; entschieden ist die WMS-Seite (`nvarchar`-Obermenge, String-Vergleich, Trim, Unique-Index).
+Rueckfrage 9 auf das reduzieren, was wirklich offen ist: **bestaetigen, dass `nvarchar(n)` eine
+verlustfreie Obermenge des tatsaechlichen Sage-Typs ist** (Laenge n gegen `INFORMATION_SCHEMA` prüfen) —
+nicht mehr „Typ offen".
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG — ein fokussierter Punkt (B6):** Der Unique-Filter-Index auf
+`SageArbeitsplatznummer` samt String-/Trim-Behandlung ist bereits **entschieden** (Antwortblock), aber
+beim Nachziehen ins Gegenteil verkehrt worden (Rumpf: „Kein Unique-Index") und fehlt in Migration +
+`affected_code`. Das ist der eine echte Riss; die uebrigen vier gezielten Fragen sind sauber
+nachgezogen. Nach dieser Korrektur ist der Rumpf konsistent zu den Entscheidungen.
