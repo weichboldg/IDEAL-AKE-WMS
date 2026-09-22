@@ -23,6 +23,8 @@
         <thead>
             <tr>
                 <th data-filterable data-col-key="name">Bezeichnung</th>
+                <th data-filterable data-col-key="sage-nr">Sage-Nr.</th>
+                <th data-filterable data-col-key="arbeitsschritt">Arbeitsschritt</th>
                 <th data-filterable data-col-key="hall">Halle</th>
                 <th data-filterable data-col-key="bde">BDE</th>
                 <th data-filterable data-col-key="users">Benutzer</th>
@@ -35,6 +37,13 @@
             {
                 <tr>
                     <td><strong>@wp.Name</strong></td>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(wp.SageArbeitsplatznummer))
+                        {
+                            <span class="badge bg-info text-dark">@wp.SageArbeitsplatznummer</span>
+                        }
+                    </td>
+                    <td>@wp.ArbeitsschrittCode</td>
                     <td>@wp.Hall</td>
                     <td>
                         @if (wp.BdeAktiv)
@@ -78,7 +87,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
+                    <td colspan="8" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
                 </tr>
             }
         </tbody>

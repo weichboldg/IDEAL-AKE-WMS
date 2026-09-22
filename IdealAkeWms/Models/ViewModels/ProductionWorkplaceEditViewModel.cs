@@ -30,6 +30,19 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "Eigener Schichtplan")]
     public bool BdeUseCustomShiftPlan { get; set; }
 
+    // Sage fuehrend (Baustein a): rein informativ, nie ueber diese Maske editiert. Gesetzt = die
+    // Werkbank stammt aus den Sage-Arbeitsplaetzen und wird beim naechsten Sync ueberschrieben.
+    [ValidateNever]
+    [Display(Name = "Sage-Arbeitsplatznummer")]
+    public string? SageArbeitsplatznummer { get; set; }
+
+    [ValidateNever]
+    [Display(Name = "Arbeitsschritt-Kürzel (Sage)")]
+    public string? ArbeitsschrittCode { get; set; }
+
+    /// <summary>Sage-gespeiste Werkbank (Sage fuehrend): Bezeichnung ist dann read-only.</summary>
+    public bool IstSageGefuehrt => !string.IsNullOrWhiteSpace(SageArbeitsplatznummer);
+
     [ValidateNever]
     public List<BdeShift> CustomShifts { get; set; } = new();
 
