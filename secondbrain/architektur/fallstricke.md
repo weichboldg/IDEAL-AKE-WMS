@@ -1016,9 +1016,15 @@ die Coverage-Frage selbst. Ist die Zahl im Betrieb > 0, ist der Weg **den `Artic
 (gefertigte Artikel aufnehmen), nicht den Matchcode am Auftrag zu duplizieren — eigene Aufgabe
 ([[2026-09-15-matchcode-nachlese]]).
 
-## 13. IDEAL — FA-Arbeitsgang-Erkennung aus der Struktur (Arbeitsschritte, v1.41.0)
+## 13. IDEAL — FA-Arbeitsgang-Erkennung aus der Struktur (Arbeitsschritte, v1.41.0) — **teilweise überholt (v1.44.0)**
 
-### Dieselbe `Arbeitsschritte`-Zeile zaehlt in ZWEI Scopes — Absicht, kein Doppelzaehl-Fehler
+> **Stand v1.44.0 (§16):** Ziel-Tabelle und Katalog haben sich geändert — nicht mehr `FaWorkStep` +
+> `WorkStep.Code`-Katalog + Zwei-Lauf-Ablauf, sondern **`WorkOperation`** + Katalog
+> `ProductionWorkplace.ArbeitsschrittCode` (aus Sage angelegt, **kein** manueller Katalog, kein
+> Zwei-Lauf-Ablauf). Der **DirectChildren-Scope** (erster Unterabschnitt unten) gilt unverändert weiter;
+> die Katalog-/`SearchString`-Absätze beschreiben nur noch die abgelöste v1.41.0-Mechanik. Details §16.
+
+### Dieselbe `Arbeitsschritte`-Zeile zaehlt in ZWEI Scopes — Absicht, kein Doppelzaehl-Fehler (gilt weiter)
 Die Arbeitsgang-Ableitung (`FaWorkStepStructureDetectionService`) sammelt je materialisiertem Sub-FA die
 Token aus dem **DirectChildren-Scope** = eigene Zeile + direkte Kinder (`VaterFA = SubFA`) — dasselbe
 Muster wie die BOM-Bridge (ADR 0013, Design D). Ist ein direktes Kind **selbst** ein materialisierter
@@ -1105,3 +1111,51 @@ Die entfernte Z1-Ausnahme existierte gerade, damit der Sync das Feld bei **jedem
 („Sage führend"). Nach dem Rückbau fasst der Sync `ProductionWorkplaceId` **gar nicht mehr** an → eine
 per `FaCompletionController.SetWorkplace` **von Hand** gesetzte Werkbank bleibt erhalten. Das ist gewollt
 (AK 10 der Rückbau-Spec) und AKE-neutral (die Ableitung lief dort nie).
+
+## 16. IDEAL — DREI Sage-Vokabulare, und der BDE-Arbeitsgang lebt in `WorkOperation` (v1.44.0)
+
+### Drei leicht verwechselbare Sage-Vokabulare — unterschiedliche Quelle, unterschiedliches Zielfeld
+Bei IDEAL treffen drei kurze, alle aus Sage stammende Codes aufeinander, die **keine** hierarchische
+Beziehung zueinander haben:
+
+| Begriff | Sage-Quelle | Bedeutung | WMS-Zielfeld |
+|---|---|---|---|
+| **Arbeitsbereich** (`K-02`, `S-01`) | `USER_OSAbteilung` | **Zielort** (wohin das Teil kommt) | `ProductionOrder.ProductionWorkplaceId` via Materialisierung — **aktuell nicht abgeleitet**, siehe §15 |
+| **Arbeitsschritt** (`KA`, `SW`, `LS`) | `FaHierarchyNode.Arbeitsschritte` | **Arbeitsgang** am Teil (Struktur-Token) | Match-Token für `WorkOperation` |
+| **Werkbank** = Sage-**Arbeitsplatz** (`2300` „Kanterei W1") | `KHKPpsArbeitsplaetze` | **Arbeitsplatz**, an dem der Arbeitsgang läuft | `ProductionWorkplace` (Anlage-Ziel), `WorkOperation.ProductionWorkplaceId` |
+
+**Merke:** Arbeitsbereich ≠ Werkbank (das war der August-Fehler, §15). Und der **Arbeitsschritt** ist der
+Klebstoff: das Kürzel `USER_ArbeitsSchritt` steht **sowohl** am Sage-Arbeitsplatz (`KHKPpsArbeitsplaetze`,
+→ `ProductionWorkplace.ArbeitsschrittCode`) **als auch** als Struktur-Token (`FaHierarchyNode.Arbeitsschritte`)
+— darüber matcht Baustein (b) Token→Werkbank.
+
+### Der BDE-Arbeitsgang ist `WorkOperation`, nicht `FaWorkStep` — das war der Kern-Irrtum von v1.41.0
+Das BDE-Terminal (`BdeApiController`, `BdeScanResolver`, `WorkOperationRepository.GetOpenByWorkplaceIdAsync`)
+bucht ausschließlich gegen **`WorkOperation`** und filtert über `WorkOperation.ProductionWorkplaceId`.
+`FaWorkStep` (die FA-**Abarbeitungsliste**) hat **keinen** Fremdschlüssel dorthin und erscheint am
+Terminal **nie**. v1.41.0 legte struktur-abgeleitete Arbeitsgänge als `FaWorkStep` an → am Terminal
+unsichtbar. v1.44.0 legt sie als `WorkOperation` an (`OperationNumber` = Kürzel, `ProductionWorkplaceId`
+= Id der per Kürzel gematchten Werkbank). **Kein Katalog-FK** an `WorkOperation` → der Zwei-Lauf-Ablauf
+von v1.41.0 entfällt; sobald Baustein (a) die Werkbank kennt, legt Baustein (b) den Arbeitsgang im selben
+Zyklus an.
+
+### `ProductionWorkplaceId` wird beim Anlegen materialisiert — Umzug routet Altbestand nicht um
+`WorkOperation.ProductionWorkplaceId` wird **beim Insert** gesetzt (Id der gematchten Werkbank). Ordnet
+Sage ein Kürzel später einer anderen Werkbank zu, routen **bereits angelegte, offene** Arbeitsgänge
+weiter zur **alten** Werkbank; nur neue Sub-FAs gehen zur neuen. Bewusst (Stammdaten ändern sich selten,
+jede Abweichung wird gemeldet), kein Fehler.
+
+### Existenz-Check des Default-AG über `OperationNumber "01"`, nie über den Namen
+`BdeDefaultWorkOperationService.FindOrCreateDefaultAsync` prüft, ob schon ein Default-AG existiert. Echte,
+struktur-abgeleitete Arbeitsgänge tragen `Name = ProductionWorkplace.Name`; der Default trägt `Name =
+BdeDefaultArbeitsgang`. Sind beide zufällig gleich (jemand setzt `BdeDefaultArbeitsgang` = Werkbank-Name),
+fände ein **Name**-Vergleich den echten AG und bucht eine NurFA-Buchung still darauf. Seit v1.44.0 geht
+der Check über `OperationNumber == "01"` (der Default-Marker) — echte AGs nutzen das Kürzel als
+`OperationNumber`, das trennt sauber (AK 16).
+
+### Was nur Manual-UAT prüfen kann (nicht InMemory): Ausschlussliste, eindeutiger Index, Sage-Read
+Wie überall in dieser Familie: der Sage-Read (`KHKPpsArbeitsplaetze`, raw ADO.NET), die Wirkung der
+Ausschlussliste (Liste in der ServiceSettings-DB, nicht über `IConfiguration` injizierbar) und der
+eindeutige gefilterte Index auf `SageArbeitsplatznummer` (InMemory erzwingt UNIQUE nicht) sind **nicht**
+InMemory-testbar. Deren AKs (10, 20) stehen in TS-77 ausdrücklich als **Manual-UAT** — nicht unter die
+grünen Unit-Tests zählen.

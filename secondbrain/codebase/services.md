@@ -100,7 +100,8 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**); **beide** Einstiege (`SyncBomCacheAsync`, `SyncSpecificArticleNumbersAsync` aus `SageImportService`) | `Sync:BomCacheEnabled` + **Klasse-D-Gate** (Master `true` → Skip, v1.36.0) |
 | `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
 | `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
-| `FaWorkStepStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → `FaWorkSteps` (nur-hinzufuegend; IDEAL: **exakt** ueber `WorkStep.Code`, DirectChildren-Scope; unbekannte Token gemeldet, nicht angelegt) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:FaWorkStepStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) |
+| `ProductionWorkplaceSyncService.cs` | Sage `KHKPpsArbeitsplaetze` → `ProductionWorkplace` (**legt Werkbaenke an**, Sage fuehrend fuer Nummer/Name/Kuerzel; Abweichung nachziehen+melden; Reader `SageArbeitsplatzReader`, raw ADO.NET) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled` (beide im `SyncWorker`) — v1.44.0 |
+| `WorkOperationStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → **`WorkOperation`** (nur-hinzufuegend; IDEAL: exakt ueber `ProductionWorkplace.ArbeitsschrittCode`, DirectChildren-Scope; unbekannt gemeldet, ausgeschlossen still, mehrdeutig gemeldet) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:WorkOperationStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) — v1.44.0, war `FaWorkStepStructureDetectionService`/v1.41.0 |
 
 **Klasse-D-Gate (BOM-Bridge, v1.36.0):** `Common/IHierarchicalModeReader.cs` kapselt den DB-first-Read
 `ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; die drei Dienste (vier Einstiege)
@@ -174,7 +175,10 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 | `Sync:FaZusatzinfoAutoDoneMaxPerRun` | Int | `100` | **Cap**: mehr Auto-Erledigt-Kandidaten → kein Setzen + Warn + Fehlermail |
 | `Sync:CoatingDetectionEnabled` | Bool | `false` | Lackierteil-Erkennung als eigener Job |
 | `Sync:FaWorkStepDetectionEnabled` | Bool | `false` | FA-Arbeitsgang-Erkennung aus dem BOM-Cache |
-| `Sync:FaWorkStepStructureDetectionEnabled` | Bool | `false` | IDEAL: FA-Arbeitsgang-Erkennung aus der Struktur (nach FA-Materialisierung, nur bei Master `ProduktionsauftragHierarchisch`) |
+| `Sync:WorkOperationStructureDetectionEnabled` | Bool | `false` | IDEAL: WorkOperation-Arbeitsgang-Erkennung aus der Struktur (Match ueber `ProductionWorkplace.ArbeitsschrittCode`; nach FA-Materialisierung + Werkbank-Anlage, nur bei Master) — v1.44.0, war `Sync:FaWorkStepStructureDetectionEnabled` |
+| `Sync:ProductionWorkplaceSyncEnabled` | Bool | `false` | IDEAL: Werkbank-Anlage aus Sage `KHKPpsArbeitsplaetze` (nur bei Master) — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncMandant` | Int | `1` | IDEAL: Mandant-Filter der Werkbank-Anlage (nicht das SData-Dataset) — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0 |
 
 ### BOM-Cache
 
@@ -279,14 +283,23 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
 
 **SyncLog-Services (`SyncLogServices`):** neu `HierarchieUmstellung` (Audit Master-Flip/Ablehnung),
 `FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`),
-`FaWorkStepStructureDetection` (v1.41.0, Counts `neu/uebersprungen/arbeitsschritt_unbekannt/arbeitsschritt_unbekannt_auftraege`).
+`WorkOperationStructureDetection` (v1.44.0, war `FaWorkStepStructureDetection`/v1.41.0; Counts
+`neu/uebersprungen/arbeitsschritt_mehrdeutig/arbeitsschritt_unbekannt/arbeitsschritt_unbekannt_auftraege`),
+`ProductionWorkplaceSync` (v1.44.0, Counts `neu/aktualisiert/abweichung/uebersprungen/problematisch`).
 
-**FA-Arbeitsgang-Erkennung Struktur (v1.41.0, [[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]):**
-- `FaWorkStepStructureDetectionService` — eigener Service (kein parametrisierter Bestandsservice; fuenf
-  gemessene Unterschiede zur AKE-Heuristik), leitet `FaWorkSteps` aus `FaHierarchyNode.Arbeitsschritte`
-  ab (DirectChildren-Scope, exakt ueber `WorkStep.Code`). Kein interner Gate — Doppel-Gate im `SyncWorker`
-  (nach FA-Materialisierung). Unbekannte Token: melden (S1-Sammelmail via neuer Singleton
-  `IUnknownWorkStepTokenState`), nicht anlegen.
+**Arbeitsgang-Erkennung Struktur (v1.44.0, [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]; ersetzt v1.41.0):**
+- `WorkOperationStructureDetectionService` (2c-Umbau des frueheren `FaWorkStepStructureDetectionService`,
+  v1.41.0 nie deployt) — leitet **`WorkOperation`**-Zeilen aus `FaHierarchyNode.Arbeitsschritte` ab,
+  Match **exakt** ueber `ProductionWorkplace.ArbeitsschrittCode` (statt `WorkStep.Code`).
+  `OperationNumber`=Kuerzel, `Name`/`ProductionWorkplaceId` aus der Werkbank kopiert; Eindeutigkeit
+  `(ProductionOrderId, OperationNumber)`, Nur-hinzufuegen, kein Katalog-FK (kein Zwei-Lauf-Ablauf).
+  Unbekannte Kuerzel: melden (S1 via `IUnknownArbeitsschrittTokenState`); ausgeschlossene (Ausschlussliste
+  `Sync:ProductionWorkplaceSyncAusschlussliste`): still; mehrdeutige (mehrere Werkbaenke gleicher Code):
+  gemeldet, kein Insert. Doppel-Gate im `SyncWorker` (nach FA-Materialisierung UND Werkbank-Anlage).
+- `ProductionWorkplaceSyncService` — legt Werkbaenke aus Sage `KHKPpsArbeitsplaetze` an (Sage fuehrend),
+  siehe Sync-Services-Tabelle oben. Der Existenz-Check in `BdeDefaultWorkOperationService` prueft seit
+  v1.44.0 ueber `OperationNumber == "01"` (nicht ueber den Namen), damit eine NurFA-Buchung nie still auf
+  einen echten, namensgleichen Arbeitsgang bucht.
 
 **Neue ServiceSettings-Keys:** `ProduktionsauftragHierarchisch` (Bool, Default false, Kategorie
 FA-Hierarchie — **Einwegtor**, guard-geschuetzt, in `/ServiceSettings` read-only) +

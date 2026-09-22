@@ -68,5 +68,24 @@ Etappe A = `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`:
   (beide `AppVersion.cs`) + Anwender-Changelog, `qa-agent`, `status: Testbereit`, Brain-Changelog,
   feature-map, Testszenarien (TS-77) — das ist Etappe-B-Abschluss. Code-Kommentare referenzieren
   bereits „v1.44.0" als Zielversion (Vorwärts-Verweis, harmlos).
-- **Nächster Lauf:** Etappe B (b+c) via `/epic-stage` — WorkOperation-Umbau, Umbenennungen,
-  BdeDefault-Fix, dann Epic-Abschluss (Version/Changelog/QA/Testbereit).
+- 2026-09-22: **Etappe B (Bausteine b+c) vollständig gebaut** — Commit `920aabb7` (v1.44.0). Build grün
+  (0 Fehler), volle Testsuite grün (Web 1392 + 1 skip, Service 268).
+  - Baustein b: `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService`
+    (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`, `OperationNumber`=Kürzel,
+    `ProductionWorkplaceId`/`Name` kopiert). Neu: Kürzel-Mehrdeutigkeit gemeldet, Ausschlussliste-Kürzel
+    still (weder AG noch Meldung), `FaWorkStepSources.Struktur` entfernt. Umbenennungen: Interface,
+    `IUnknownWorkStepTokenState`→`IUnknownArbeitsschrittTokenState`, Key
+    `Sync:WorkOperationStructureDetectionEnabled`, `SyncLogServices.WorkOperationStructureDetection`,
+    SyncWorker/Program.cs. Tests neu (13, inkl. Mehrdeutigkeit AK 11).
+  - Baustein c: `BdeDefaultWorkOperationService`-Existenz-Check über `OperationNumber "01"` (AK 16, +Test);
+    `BdeScanResolver` unverändert (AK 15 — Diff zeigt keine Änderung); Terminal-Routing schon über
+    `ProductionWorkplaceId`.
+  - Epic-Abschluss: Version 1.43.0→1.44.0 (beide AppVersion), Anwender-Changelog, README/Hilfe-Key,
+    docs/TESTSZENARIEN TS-77 + TS-76 superseded.
+  - Brain (Hauptcheckout): Etappen-Tabelle B erledigt, v1.41-Spec + feature-map superseded, Brain-Changelog
+    `2026-09-22-v1-44-0-*`, services.md, fallstricke §16 (drei Vokabulare) + §13 superseded-Hinweis,
+    testszenarien-index TS-77.
+- **Offen:** qa-agent (grüner Beweis + Deploy-Abschnitt) → `status: Testbereit`. Danach wartet das
+  ganze Bündel auf **Schranke 2** (Mensch: Manual-UAT + EIN Merge). Manual-UAT-Schwerpunkte: AK 10
+  (Ausschlussliste), AK 20 (Doppelanlage/UNIQUE), Sage-Reads, Terminal-Anzeige — DryRun vor dem scharf
+  schalten (Baustein a legt ~60 Werkbänke an).
