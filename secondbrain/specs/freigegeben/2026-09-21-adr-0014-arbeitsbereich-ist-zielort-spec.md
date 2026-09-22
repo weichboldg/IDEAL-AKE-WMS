@@ -2,7 +2,7 @@
 type: spec
 title: "Rückbau: Werkbank-Ableitung aus dem Arbeitsbereich (ADR 0014 auf falsches Feld angewandt)"
 slug: 2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-21
 updated: 2026-09-22
 source_backlog: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort]]"
@@ -490,3 +490,85 @@ Spec haelt fuer die reine Anzeige. Kein Handlungszwang.
 (`FaCompletion.SetWorkplace` anerkennen, „durchgaengig null"-Aussagen korrigieren, Q1 damit informieren)
 plus S1 (Regressions-AK). Der Rueckbau selbst ist korrekt zugeschnitten — die Nachbesserung betrifft die
 Genauigkeit der Aussagen und die noch offene Architekturentscheidung, nicht die Loesch-Mechanik.
+
+## QA-Nachweis (2026-09-22, qa-agent)
+
+**Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Feature-Commit `0aceee8`
+(Diff-Basis `ab10b57..0aceee8`).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+→ Der Buildvorgang wurde erfolgreich ausgeführt. 0 Fehler, 12 Warnungen (bestehend, unveraendert
+  durch diesen Rueckbau — NU1902-Paket-Advisories + 3 unbenutzte lokale Funktionen in Views).
+```
+
+**Test:**
+```
+dotnet test IdealAkeWms.slnx
+→ IdealAkeWms.Tests:          1391 erfolgreich, 1 uebersprungen, 0 Fehler (1392 gesamt)
+→ IDEALAKEWMSService.Tests:    263 erfolgreich, 0 Fehler (263 gesamt)
+```
+Erwartete Zahlen aus der Umsetzungsnotiz exakt bestaetigt (263 = 277 − 14 geloeschte
+Workplace-Tests: `FaMaterializationWorkplaceTests` 6 + `UnknownWorkplaceStateTests` 8).
+
+**AK-Abgleich gegen den echten Diff `ab10b57..0aceee8`:**
+
+| AK | Nachweisart | Befund |
+|---|---|---|
+| AK 1 (kein `ApplyWorkplace` mehr) | Grep + Diff-Lesung | `ApplyWorkplace`-Methode, Record `WorkplaceRef`, beide Aufrufe (Anlege-/Update-Pfad) vollstaendig entfernt. Nur Treffer: stale `bin/obj`-Binaries (Alt-Build), keine Quelltext-Referenz. |
+| AK 2 (keine Meldung/Mail) | Grep + Diff-Lesung | `SendUnknownWorkplaceDigestAsync` geloescht; Sammelmeldungen „Unbekannte Arbeitsbereiche"/„mehrdeutig"/Abweichung entfernt; keine Quelltext-Referenz mehr. |
+| AK 3 (Coating-Regression) | Testlauf | `FaMaterializationCoatingTests` + `FaMaterializationCoatingWriteTests` Teil der 263 gruenen Service-Tests, unveraendert. |
+| AK 4 (AKE-Gate unveraendert) | Grep | `SyncWorker.cs:357` Gate `ProduktionsauftragHierarchisch` unveraendert (nicht im Diff), Klassenkommentar-Verweis intakt. |
+| AK 5 (Klassenkommentar 1 Z1-Ausnahme) | Datei gelesen | Kommentar nennt jetzt exakt eine Ausnahme (`HasCoatingParts`), der `ProductionWorkplaceId`-Absatz ist entfernt. |
+| AK 6 (`IUnknownWorkplaceState` sauber weg) | Grep repo-weit | Keine Code-Referenz mehr (Interface/Klasse/DI/Test geloescht); einzige Fundstelle ist ein historischer Doku-Kommentar in `IUnknownWorkStepTokenState.cs` („frueher gab es daneben ein ...“) — kein Code-Bezug. `IUnknownWorkStepTokenState` unangetastet vorhanden (Program.cs, FaWorkStepStructureDetectionService, eigene Tests). |
+| AK 7 (keine Migration/SQL) | `git diff --stat -- '**/Migrations/**' 'SQL/**'` | Leer — kein Treffer. |
+| AK 8 (Build+Tests gruen) | s. o. | Bestaetigt; `FaMaterializationWorkplaceTests.cs` existiert nicht mehr. |
+| AK 9/AK 10 (manuelle Werkbank bleibt, Feld sonst null) | Manual-UAT (datenabhaengig) | Nicht automatisiert pruefbar (EF InMemory bildet keinen echten Sync-Zyklus + Sage-Datenlauf ab) — abgedeckt durch TS-71.14/71.15 in `docs/TESTSZENARIEN.md`, siehe Checkliste unten. |
+
+**TS-71 / Testindex:**
+- `docs/TESTSZENARIEN.md`: TS-71.6–71.9 als „zurückgebaut, siehe [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]“ markiert (nicht geloescht); TS-71.14 (Rueckbau-Verifikation) + TS-71.15 (manuelle Werkbank ueberlebt Sync) neu vorhanden — beide gelesen, Inhalt deckt AK 1/2/9/10 ab.
+- `secondbrain/tests/testszenarien-index.md` (Hauptcheckout): TS-71-Zeile bereits mit Teil-Rueckbau-Hinweis, korrigierten Testzahlen (277→263) und TS-71.14/71.15-Verweis nachgezogen — verifiziert, keine Aenderung noetig.
+
+**Brain-Pflichten:** bereits vom Dev-Lauf in den Hauptcheckout committet (`4daa405`, „brain: adr-0014-arbeitsbereich-rueckbau umgesetzt (v1.43.0)“) — ADR-0014-Nachtrag, `fallstricke.md` §15, Brain-Changelog, `feature-map.md` (v1.37-Zeile + Teil-Rueckbau-Hinweis), v1.37-Spec additiver Warnhinweis (AK 9/10 dort ueberholt), `codebase/services.md` bereinigt. Von der QA gegengelesen, Inhalt korrekt.
+
+**Code-Review (superpowers:requesting-code-review, Diff `ab10b57..0aceee8`):** vollstaendig gelesen —
+`FaMaterializationSyncService.cs` (Klassenkommentar, Ctor, Lookup-Block, beide `ApplyWorkplace`-Aufrufe,
+Meldungs-/Mail-Block, drei `FinishSuccessAsync`-Dictionaries + Log-Statement, `ApplyWorkplace`/`WorkplaceRef`),
+`FaMaterializationPlanner.cs` (Feld-Entfernung + Erzeugungsaufruf), `Program.cs` (DI-Zeile). Sauberer,
+vollstaendiger Rueckbau ohne Rest — keine tote Referenz, keine Halbheit (z. B. `srcByKey.TryGetValue` im
+Update-Pfad korrekt auf `ContainsKey` reduziert, da `src` sonst ungenutzt waere). Keine Findings.
+
+**Deploy-Flags finalisiert (gegen den echten Diff, kein Rateergebnis):** `web: true` (Versions-Bump
+`AppVersion.cs`/`Changelog.cshtml` in `IdealAkeWms`), `service: true` (`FaMaterializationSyncService.cs`,
+`FaMaterializationPlanner.cs`, `IUnknownWorkplaceState.cs` geloescht, `Program.cs`, `AppVersion.cs` in
+`IDEALAKEWMSService`), `migration: false` (kein `Migrations/`- oder `SQL/`-Diff). Deckt sich exakt mit dem
+bereits im Frontmatter/Deploy-Abschnitt hinterlegten, provisorischen Stand — unveraendert bestaetigt.
+
+## Manuelle Testcheckliste (Schranke 2, vom Menschen abzuarbeiten)
+
+1. **TS-71.14 — Rueckbau-Verifikation:** Master `true`. Einen materialisierten IDEAL-Sub-FA mit
+   `FaHierarchyNode.Arbeitsbereich` = Name einer vorhandenen `ProductionWorkplace` (z. B. `K-02`)
+   waehlen. Materialisierungs-Sync (`DryRun=false`) auslösen/abwarten. Erwartung:
+   `ProductionOrder.ProductionWorkplaceId` bleibt `null` (bzw. unveraendert, falls vorher schon
+   gesetzt) — keine automatische Zuweisung. Kein SyncLog-Eintrag zu „Unbekannte Arbeitsbereiche“/
+   „Werkbank weicht ab“/„mehrdeutig“. Keine Sammelmail. Negativ: taucht eine solche Meldung oder
+   Zuweisung doch auf → Rueckbau unvollstaendig, sofort melden.
+2. **TS-71.15 — Manuelle Werkbank ueberlebt den Sync (AK 10):** An einem IDEAL-Sub-FA in
+   `/FaCompletion` ueber „Werkbank setzen“ von Hand eine Werkbank zuweisen. Materialisierungs-Sync
+   auslösen/abwarten. Erwartung: die manuell gesetzte Werkbank steht danach unveraendert am Sub-FA.
+   Negativ: Werkbank verschwindet/aendert sich nach dem Lauf → sofort melden (vor dem Rueckbau war
+   genau das der alte, jetzt bewusst geaenderte Zustand).
+3. **Regression Coating (aus TS-71.14 mit abgedeckt):** derselbe Testlauf — ein Sub-FA mit
+   `Beschichtet = true` (selbst oder direktes Kind) zeigt weiterhin korrekt
+   `PickingStatus.HasCoatingParts = true`.
+4. **Regression AKE:** Master `false` setzen/pruefen — bestehendes AKE-FA-Listen-Szenario laeuft
+   unveraendert, Werkbank-Spalte zeigt weiterhin die echte AKE-Zuweisung, keine Exception.
+5. **Views/Listen (AK 9):** `/ProductionOrders`, `/FaWorklist`, `/FaCompletion`, `/PickingLeitstand`
+   fuer IDEAL-Sub-FAs oeffnen — Spalte „Werkbank“ zeigt leer/„Keine Werkbank“, ausser dort wurde
+   manuell gesetzt (Punkt 2); kein Fehler, keine kaputte Sortierung/Filterung.
+6. **Anwender-Changelog:** `/Help/Changelog` zeigt v1.43.0 als Korrektur/Rueckbau (nicht als neues
+   Feature) formuliert.
+
+Nach erfolgreichem Abschluss dieser Checkliste: Schranke 2 (Merge) durch den Menschen. Kein Push,
+kein Worktree-Aufraeumen durch den qa-agent.

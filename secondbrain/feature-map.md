@@ -529,9 +529,9 @@ zurückgebaut, bevor die echten IDEAL-Werkbänke angelegt werden.
 | AK 10: manuelle Werkbank (`FaCompletion.SetWorkplace`) überlebt den Sync | **erledigt** (Verhaltensänderung, gewollt) | — |
 | v1.43.0 + Changelog + TS-71-Rückbau (71.6–71.9 markiert, 71.14/71.15 neu) + ADR-0014-Nachtrag + [[fallstricke]] §15 | **erledigt** | `AppVersion.cs` ×2 |
 
-> **Deploy:** Web + Service, keine Migration. **Status:** `InUmsetzung` → qa-agent setzt `Testbereit`.
-> Build 0 Fehler, **Web 1391 +1 skip, Service 263** (−14 gelöschte Workplace-Tests). Wartet mit dem
-> Bündel auf **Schranke 2**.
+> **Deploy:** Web + Service, keine Migration. **Status:** `Testbereit` (qa-agent, 2026-09-22 —
+> Build/Test grün, AK-Abgleich gegen echten Diff `ab10b57..0aceee8`). Build 0 Fehler, **Web 1391 +1
+> skip, Service 263** (−14 gelöschte Workplace-Tests). Wartet mit dem Bündel auf **Schranke 2**.
 
 ## Offen / nicht gemerged
 
