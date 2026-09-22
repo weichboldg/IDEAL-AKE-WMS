@@ -7451,7 +7451,14 @@ ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-
   Negativfall: Master `false` (AKE) — derselbe Spaltenfilter arbeitet unverändert nur gegen
   `ProductionOrder.Customer` (siehe TS-71.13).
 
-- **TS-71.6 — Werkbank wird aus dem Arbeitsbereich gesetzt.**
+> **ZURÜCKGEBAUT (v1.43.0, siehe [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]):** Die
+> Szenarien **TS-71.6 / 71.7 / 71.8 / 71.9** (Werkbank-aus-Arbeitsbereich-Ableitung, „Variante B",
+> Abweichung/Unbekannt/Mehrdeutig) beschreiben eine **entfernte** Logik. Der Arbeitsbereich ist ein
+> **Zielort**, keine Werkbank; die Ableitung samt Meldungen/Countern wurde zurückgebaut, bevor sie je
+> produktiv war. Diese Szenarien bleiben zur Nachvollziehbarkeit stehen, sind aber **nicht mehr
+> auszuführen**. Ersetzt durch die zwei Rückbau-Szenarien am Kapitelende (TS-71.14/71.15).
+
+- **TS-71.6 — Werkbank wird aus dem Arbeitsbereich gesetzt.** *(zurückgebaut v1.43.0 — s. o.)*
   Vorbedingung: ein Sub-FA ohne Werkbank, dessen Arbeitsbereich in der Struktur exakt dem Namen
   einer vorhandenen Werkbank entspricht (einmal exakt, einmal mit Groß-/Kleinschreibung und
   Leerzeichen abweichend, z. B. `" s-01 "` gegen `"S-01"`).
@@ -7550,7 +7557,34 @@ ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-
   Negativfall: keiner der neuen Zähler (`statuszeilen_ergaenzt`, `werkbank_gesetzt`,
   `werkbank_abweichend`, `arbeitsbereich_unbekannt`, `arbeitsbereich_mehrdeutig`,
   `lackflag_gesetzt`, `hauptfa_mehrdeutig`) verändert sich bei einem reinen AKE-Lauf — das
-  Master-Gate greift vollständig.
+  Master-Gate greift vollständig. *(Hinweis v1.43.0: die Zähler `werkbank_gesetzt`,
+  `werkbank_abweichend`, `arbeitsbereich_unbekannt`, `arbeitsbereich_mehrdeutig` gibt es nach dem
+  Rückbau nicht mehr — siehe die Kennzeichnung bei TS-71.6.)*
+
+- **TS-71.14 — Rückbau-Verifikation: keine Werkbank aus dem Arbeitsbereich mehr (v1.43.0).**
+  Bezug: [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]. Vorbedingung: Master `true`; ein
+  materialisierter Sub-FA, dessen `FaHierarchyNode.Arbeitsbereich` (z. B. `K-02`) exakt dem Namen
+  einer vorhandenen `ProductionWorkplace` entspricht (vor dem Rückbau hätte das eine Zuweisung
+  ausgelöst).
+  Schritte: Materialisierungs-Sync (`DryRun=false`) abwarten/auslösen; Aktivitäts-Protokoll prüfen.
+  Erwartung: `ProductionOrder.ProductionWorkplaceId` bleibt **`null`** (bzw. unverändert, falls schon
+  vorher gesetzt) — **keine** Zuweisung; **kein** SyncLog-Eintrag „Unbekannte Arbeitsbereiche"/
+  „Werkbank weicht ab"/„mehrdeutig", **keine** Sammelmail; die Werkbank-Zähler existieren nicht mehr.
+  Coating-Regression: ein Sub-FA mit `Beschichtet = true` (selbst oder direktes Kind) zeigt weiterhin
+  korrekt `PickingStatus.HasCoatingParts = true` (unverändert).
+  Negativfall: taucht doch eine Werkbank-/Arbeitsbereich-Meldung oder eine automatische Zuweisung auf,
+  ist der Rückbau unvollständig — sofort melden.
+
+- **TS-71.15 — Manuelle Werkbank überlebt den Sync (AK 10, gewollte Verhaltensänderung, v1.43.0).**
+  Vorbedingung: ein IDEAL-Sub-FA (Master `true`). Schritte: in `/FaCompletion` über „Werkbank setzen"
+  (`SetWorkplace`) von Hand eine Werkbank zuweisen → anschließend einen Materialisierungs-Sync-Lauf
+  abwarten/auslösen.
+  Erwartung: die manuell gesetzte Werkbank steht danach **unverändert** am Sub-FA. Vor dem Rückbau
+  wurde sie bei jedem Lauf überschrieben (Sage führend); jetzt fasst der Sync das Feld nicht mehr an.
+  Negativfall: die manuelle Werkbank verschwindet/ändert sich nach dem Lauf → Rückfall, sofort melden.
+
+Alle Rückbau-Szenarien sind teilweise Manual-UAT (Sync-Lauf-Zeitpunkt, echte Struktur-/Testdaten) —
+konsistent mit dem Muster der Materialisierungs-Spec.
 
 ---
 

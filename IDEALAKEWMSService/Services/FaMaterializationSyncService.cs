@@ -20,11 +20,7 @@ namespace IDEALAKEWMSService.Services;
 /// Mapping int→string (am ersten echten Datenlauf zu bestätigen, S7-2): OrderNumber=HauptFA,
 /// SubOrderNumber=SubFA, ParentSubOrderNumber=VaterFA. Materialisiert werden Nicht-Blatt-Knoten
 /// (SubFA != 0). App-verwaltete Felder (IsDone/PickingStatus/BdeStatus/Storno/ExtraInfo)
-/// werden bei Updates NIE überschrieben — AUSNAHMEN sind genau zwei (Z1):
-/// <see cref="ProductionOrder.ProductionWorkplaceId"/> (Variante B, ADR „Werkbank-Datenhoheit"):
-/// Sage liefert je Knoten einen Arbeitsbereich, daraus wird die Werkbank abgeleitet; Sage ist
-/// führend, ein abweichender Bestandswert wird überschrieben, weil der Sync nicht unterscheiden
-/// kann, ob er von Hand gesetzt oder in Sage umgeplant wurde. Und
+/// werden bei Updates NIE überschrieben — AUSNAHME ist genau eine (Z1):
 /// <see cref="ProductionOrderPickingStatus.HasCoatingParts"/> (Spec F5): aus der Struktur
 /// abgeleitet (<see cref="FaMaterializationCoating.Derive"/>), geschrieben über
 /// <see cref="IProductionOrderPickingStatusRepository.SetCoatingPartsAsync"/>, die den Reset von
@@ -38,7 +34,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
     private readonly ApplicationDbContext _ctx;
     private readonly IConfiguration _config;
     private readonly IMailService _mail;
-    private readonly IUnknownWorkplaceState _unknownWorkplaces;
     private readonly IProductionOrderPickingStatusRepository _pickingStatus;
     private readonly ILogger<FaMaterializationSyncService> _logger;
     private readonly ISyncLogger _syncLogger;
@@ -47,7 +42,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         ApplicationDbContext ctx,
         IConfiguration config,
         IMailService mail,
-        IUnknownWorkplaceState unknownWorkplaces,
         IProductionOrderPickingStatusRepository pickingStatus,
         ILogger<FaMaterializationSyncService> logger,
         ISyncLogger syncLogger) // ISyncLogger als LETZTER Ctor-Parameter (ADR 0010)
@@ -55,7 +49,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         _ctx = ctx;
         _config = config;
         _mail = mail;
-        _unknownWorkplaces = unknownWorkplaces;
         _pickingStatus = pickingStatus;
         _logger = logger;
         _syncLogger = syncLogger;
@@ -81,7 +74,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     n.SubFA.ToString(),
                     n.HauptFA.ToString(),
                     n.VaterFA.HasValue ? n.VaterFA.Value.ToString() : null,
-                    string.IsNullOrWhiteSpace(n.Arbeitsbereich) ? null : n.Arbeitsbereich.Trim(),
                     coating.GetValueOrDefault(n.SubFA.ToString())))
                 .ToList();
 
@@ -106,8 +98,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 {
                     ["angelegt"] = 0, ["vermisst_neu"] = 0, ["wieder_da"] = 0, ["umhaengung_konflikt"] = 0,
                     ["statuszeilen_ergaenzt"] = 0,
-                    ["werkbank_gesetzt"] = 0, ["werkbank_abweichend"] = 0,
-                    ["arbeitsbereich_unbekannt"] = 0, ["arbeitsbereich_mehrdeutig"] = 0,
                     ["lackflag_gesetzt"] = 0,
                 }, messageSuffix: $"[übersprungen: {plan.SkipReason}]", ct: ct);
                 return new FaMaterializationResult(0, 0, 0, 0, Skipped: true, dryRun);
@@ -128,8 +118,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     ["wieder_da"] = plan.ToClearMissing.Count,
                     ["umhaengung_konflikt"] = plan.ReparentConflicts.Count,
                     ["statuszeilen_ergaenzt"] = 0,
-                    ["werkbank_gesetzt"] = 0, ["werkbank_abweichend"] = 0,
-                    ["arbeitsbereich_unbekannt"] = 0, ["arbeitsbereich_mehrdeutig"] = 0,
                     ["lackflag_gesetzt"] = 0,
                 }, messageSuffix: "[DryRun]", ct: ct);
                 return new FaMaterializationResult(plan.ToCreate.Count, plan.ToMarkMissing.Count,
@@ -149,19 +137,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
             var toClear = plan.ToClearMissing.ToHashSet(StringComparer.Ordinal);
             var toMark = plan.ToMarkMissing.ToHashSet(StringComparer.Ordinal);
 
-            // K2 / Variante B: EINE Werkbank-Abfrage je Lauf (kein N+1). S2: Name-Match
-            // case-insensitiv + getrimmt. ProductionWorkplace.Name hat KEINEN Unique-Index —
-            // mehrdeutige Namen sind moeglich und werden gemeldet, nicht geraten.
-            var workplaceGroups = (await _ctx.ProductionWorkplaces.AsNoTracking()
-                    .Select(w => new WorkplaceRef(w.Id, w.Name))
-                    .ToListAsync(ct))
-                .GroupBy(w => (w.Name ?? string.Empty).Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-            var unknownWorkplaceNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var ambiguousWorkplaceNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var workplaceDeviations = new List<string>();
-            var workplaceChanges = 0;
-
             // (1) Neu anlegen.
             foreach (var key in plan.ToCreate)
             {
@@ -179,9 +154,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     SageMissingSince = null,
                     CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser,
                 };
-                if (ApplyWorkplace(newOrder, srcByKey[key].Arbeitsbereich, workplaceGroups,
-                        unknownWorkplaceNames, ambiguousWorkplaceNames, workplaceDeviations))
-                    workplaceChanges++;
                 _ctx.ProductionOrders.Add(newOrder);
             }
 
@@ -192,7 +164,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 if (toMark.Contains(o.SubOrderNumber)) { o.SageMissingSince = now; touched = true; }
                 else if (toClear.Contains(o.SubOrderNumber)) { o.SageMissingSince = null; touched = true; }
 
-                if (nodeByKey.TryGetValue(o.SubOrderNumber, out var sn) && srcByKey.TryGetValue(o.SubOrderNumber, out var src))
+                if (nodeByKey.TryGetValue(o.SubOrderNumber, out var sn) && srcByKey.ContainsKey(o.SubOrderNumber))
                 {
                     o.Quantity = sn.Sollmenge;
                     o.ArticleNumber = sn.Artnr;
@@ -201,12 +173,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                     // ParentSubOrderNumber NUR ohne Konflikt übernehmen (Regel 3: Umhängung nicht still).
                     if (!conflictKeys.Contains(o.SubOrderNumber))
                         o.ParentSubOrderNumber = sn.VaterFA?.ToString();
-                    // F1: dieselbe Zuweisungsmethode wie im Anlege-Pfad — der Bestandsunterschied
-                    // zwischen den beiden Zweigen ist die Ursache des UAT-Befunds und darf sich
-                    // nicht wiederholen.
-                    if (ApplyWorkplace(o, src.Arbeitsbereich, workplaceGroups,
-                            unknownWorkplaceNames, ambiguousWorkplaceNames, workplaceDeviations))
-                        workplaceChanges++;
                     touched = true;
                 }
                 if (touched)
@@ -216,32 +182,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
             }
 
             await _ctx.SaveChangesAsync(ct);
-
-            // Meldungen zur Werkbank-Zuweisung (S1/S2/B4): Log bei JEDEM Lauf, Sammelmail nur bei
-            // Aenderung der unbekannten Menge gegenueber dem letzten Lauf (sonst 96 identische
-            // Mails/Tag bei 15-Minuten-Takt).
-            // Zustand IMMER fortschreiben — auch bei leerer Menge. Sonst bleibt der letzte
-            // gemeldete Stand stehen, nachdem jemand die Werkbaenke angelegt hat, und ein
-            // spaeteres Wiederauftreten derselben Namen gilt faelschlich als "unveraendert"
-            // und wird nie gemeldet.
-            var unknownWorkplacesChanged = _unknownWorkplaces.HasChanged(unknownWorkplaceNames.ToList());
-            if (unknownWorkplaceNames.Count > 0)
-            {
-                var list = string.Join(", ", unknownWorkplaceNames.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-                await run.LogWarningAsync(
-                    $"Unbekannte Arbeitsbereiche ohne Werkbank-Stammsatz ({unknownWorkplaceNames.Count}): {list}. " +
-                    "Keine Zuweisung — Werkbank einmalig anlegen, der nächste Lauf füllt sie.", ct: ct);
-                if (unknownWorkplacesChanged)
-                    await SendUnknownWorkplaceDigestAsync(unknownWorkplaceNames, ct);
-            }
-            if (ambiguousWorkplaceNames.Count > 0)
-                await run.LogWarningAsync($"Arbeitsbereich-Name mehrfach in den Werkbank-Stammdaten " +
-                    $"({ambiguousWorkplaceNames.Count}): {string.Join(", ", ambiguousWorkplaceNames)}. Keine Zuweisung.", ct: ct);
-            foreach (var d in workplaceDeviations)
-                await run.LogWarningAsync(d, ct: ct);
-
-            var werkbankGesetzt = workplaceChanges - workplaceDeviations.Count;
-            var werkbankAbweichend = workplaceDeviations.Count;
 
             // F6 / UAT-Befund H0: Die beiden 1:1-Satelliten-Zeilen existieren fuer materialisierte
             // Sub-FAs sonst NIE. Der AKE-Sync legt sie eager an (SageImportService); die
@@ -277,11 +217,9 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
 
             _logger.LogInformation(
                 "FA-Materialisierung: {Created} neu, {Marked} vermisst, {Cleared} wieder da, {Conf} Umhäng-Konflikte, " +
-                "{Status} Statuszeilen ergänzt, {WpSet} Werkbank gesetzt, {WpDev} abweichend, " +
-                "{WpUnknown} unbekannte Arbeitsbereiche, {WpAmbig} mehrdeutige Namen, {Coating} Lack-Flags gesetzt.",
+                "{Status} Statuszeilen ergänzt, {Coating} Lack-Flags gesetzt.",
                 plan.ToCreate.Count, plan.ToMarkMissing.Count, plan.ToClearMissing.Count, plan.ReparentConflicts.Count,
-                statusRowsCreated, werkbankGesetzt, werkbankAbweichend, unknownWorkplaceNames.Count, ambiguousWorkplaceNames.Count,
-                coatingFlags);
+                statusRowsCreated, coatingFlags);
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
@@ -290,10 +228,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 ["wieder_da"] = plan.ToClearMissing.Count,
                 ["umhaengung_konflikt"] = plan.ReparentConflicts.Count,
                 ["statuszeilen_ergaenzt"] = statusRowsCreated,
-                ["werkbank_gesetzt"] = werkbankGesetzt,
-                ["werkbank_abweichend"] = werkbankAbweichend,
-                ["arbeitsbereich_unbekannt"] = unknownWorkplaceNames.Count,
-                ["arbeitsbereich_mehrdeutig"] = ambiguousWorkplaceNames.Count,
                 ["lackflag_gesetzt"] = coatingFlags,
             }, ct: ct);
 
@@ -324,58 +258,6 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                    $"in der Sage-Struktur (Status: vermisst, nicht gelöscht):</p><p>{list}</p>";
         var text = $"FA-Materialisierung: {missing.Count} FA nicht mehr in Sage:\n{list}";
         await _mail.SendAsync(subject, html, recipients, text, ct);
-    }
-
-    private async Task SendUnknownWorkplaceDigestAsync(IReadOnlyCollection<string> unknown, CancellationToken ct)
-    {
-        if (unknown.Count == 0) return;
-        if (!await ServiceSettings.GetBoolAsync(_config, "ErrorNotification:Enabled", false, ct)) return;
-        var recipientsRaw = await ServiceSettings.GetValueAsync(_config, "ErrorNotification:Recipients", ct);
-        var recipients = (recipientsRaw ?? string.Empty)
-            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (recipients.Length == 0) return;
-
-        var list = string.Join(", ", unknown.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-        var subject = $"FA-Materialisierung: {unknown.Count} unbekannte Arbeitsbereiche ohne Werkbank-Stammsatz";
-        var html = $"<p>Beim FA-Materialisierungs-Lauf wurden folgende {unknown.Count} Arbeitsbereiche " +
-                   $"ohne passenden Werkbank-Stammsatz gefunden (keine Zuweisung, keine Neuanlage):</p><p>{list}</p>";
-        var text = $"FA-Materialisierung: {unknown.Count} unbekannte Arbeitsbereiche ohne Werkbank-Stammsatz:\n{list}";
-        await _mail.SendAsync(subject, html, recipients, text, ct);
-    }
-
-    /// <summary>Werkbank-Kurzform fuer den Name-Match (anonyme Typen sind nicht uebergabefaehig).</summary>
-    private sealed record WorkplaceRef(int Id, string Name);
-
-    /// <summary>
-    /// Weist die Werkbank aus dem Arbeitsbereich zu (Variante B). Genutzt von Anlege- UND
-    /// Update-Pfad — derselbe Code, damit sich der Bestandsunterschied zwischen beiden Zweigen
-    /// (Ursache des UAT-Befunds) nicht wiederholt. Sage ist führend: ein abweichender
-    /// Bestandswert wird überschrieben (B4 — die Meldung bleibt bewusst unscharf, der Sync kann
-    /// nicht wissen, ob der Wert von Hand gesetzt oder in Sage umgeplant wurde). Unbekannter
-    /// oder mehrdeutiger Name: melden, NICHT zuweisen, Bestandswert bleibt unangetastet.
-    /// </summary>
-    /// <returns>true, wenn der Wert geändert wurde.</returns>
-    private bool ApplyWorkplace(ProductionOrder order, string? arbeitsbereich,
-        IReadOnlyDictionary<string, List<WorkplaceRef>> groups,
-        ISet<string> unknown, ISet<string> ambiguous, IList<string> deviations)
-    {
-        if (string.IsNullOrWhiteSpace(arbeitsbereich)) return false;
-        var name = arbeitsbereich.Trim();
-
-        if (!groups.TryGetValue(name, out var matches)) { unknown.Add(name); return false; }
-        if (matches.Count > 1) { ambiguous.Add(name); return false; }
-
-        var targetId = matches[0].Id;
-        if (order.ProductionWorkplaceId == targetId) return false;
-
-        // B4: Der Sync kann NICHT unterscheiden, ob der Bestandswert von Hand gesetzt oder in
-        // Sage umgeplant wurde. Die Meldung bleibt deshalb bewusst unscharf.
-        if (order.ProductionWorkplaceId.HasValue)
-            deviations.Add($"Sub-FA {order.SubOrderNumber}: Werkbank weicht vom Quellwert ab " +
-                           $"(bisher Id {order.ProductionWorkplaceId}, Quelle '{name}')");
-
-        order.ProductionWorkplaceId = targetId;
-        return true;
     }
 
     /// <summary>

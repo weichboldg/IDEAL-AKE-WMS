@@ -9,6 +9,25 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.43.0</strong> <span class="text-white-50 ms-2">22.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Korrektur (IDEAL): Werkbank wird nicht mehr aus dem Arbeitsbereich abgeleitet</h6>
+                <ul>
+                    <li><strong>Interne Korrektur:</strong> Der „Arbeitsbereich" aus der FA-Struktur ist ein
+                        <strong>Zielort</strong>, keine Werkbank. Eine im August auf dieser (später
+                        widerlegten) Annahme gebaute automatische Werkbank-Zuweisung am Standort IDEAL wurde
+                        wieder entfernt, bevor sie je scharf war. Die Werkbank ergibt sich künftig je
+                        Arbeitsgang (siehe kommende BDE-Erweiterung), nicht am Auftrag.</li>
+                    <li><strong>Von Hand gesetzte Werkbänke bleiben erhalten:</strong> Eine über die
+                        FA-Fertigmeldung manuell zugewiesene Werkbank wird durch den Struktur-Abgleich
+                        <strong>nicht mehr überschrieben</strong>. Am Standort AKE ändert sich nichts.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.42.0</strong> <span class="text-white-50 ms-2">21.09.2026</span>
             </div>
             <div class="card-body">

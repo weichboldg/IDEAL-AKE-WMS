@@ -48,8 +48,6 @@ try
                                   IdealAkeWms.Services.SyncLogger.SyncLogger>();
     builder.Services.AddSingleton<IDEALAKEWMSService.Common.IHierarchicalModeReader,
                                   IDEALAKEWMSService.Common.HierarchicalModeReader>();
-    builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownWorkplaceState,
-                                  IDEALAKEWMSService.Common.UnknownWorkplaceState>();
     builder.Services.AddSingleton<IDEALAKEWMSService.Common.IUnknownWorkStepTokenState,
                                   IDEALAKEWMSService.Common.UnknownWorkStepTokenState>();
 

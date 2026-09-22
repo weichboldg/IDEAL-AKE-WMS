@@ -28,7 +28,7 @@ public class FaMaterializationSyncServiceTests
         var config = new ConfigurationBuilder().Build(); // leer; SendMissingDigest no-op bei 0 vermissten
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
-            ctx, config, mail.Object, new UnknownWorkplaceState(),
+            ctx, config, mail.Object,
             new ProductionOrderPickingStatusRepository(ctx),
             NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
     }
