@@ -43,6 +43,22 @@ public class ServiceSettingDefinitionsTests
         }
     }
 
+    // Seed-Guard: die ServiceSettings-Spaltengrenzen (ApplicationDbContext: Key/Category NVARCHAR(100),
+    // Value/Description NVARCHAR(500)) MUESSEN eingehalten sein — sonst bricht das Startup-Seeding mit
+    // SqlException 2628 (String truncation) ab. Dieser Fall ist nicht InMemory-testbar (InMemory erzwingt
+    // keine Laengen), darum hier als reiner In-Memory-Katalog-Check gegen die bekannten Schema-Grenzen.
+    [Fact]
+    public void All_FieldsFitServiceSettingsColumns()
+    {
+        foreach (var def in ServiceSettingDefinitions.All)
+        {
+            def.Key.Length.Should().BeLessThanOrEqualTo(100, $"{def.Key}: Key-Spalte ist NVARCHAR(100)");
+            def.Category.Length.Should().BeLessThanOrEqualTo(100, $"{def.Key}: Category-Spalte ist NVARCHAR(100)");
+            (def.DefaultValue?.Length ?? 0).Should().BeLessThanOrEqualTo(500, $"{def.Key}: Value-Spalte ist NVARCHAR(500)");
+            (def.Description?.Length ?? 0).Should().BeLessThanOrEqualTo(500, $"{def.Key}: Description-Spalte ist NVARCHAR(500)");
+        }
+    }
+
     [Fact]
     public void TryGet_ExistingKey_ReturnsDefinition()
     {
