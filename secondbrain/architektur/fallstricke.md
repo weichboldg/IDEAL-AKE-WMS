@@ -1153,6 +1153,16 @@ fände ein **Name**-Vergleich den echten AG und bucht eine NurFA-Buchung still d
 der Check über `OperationNumber == "01"` (der Default-Marker) — echte AGs nutzen das Kürzel als
 `OperationNumber`, das trennt sauber (AK 16).
 
+### Seed-Beschreibung > Spaltenlänge = Startup-Crash (SqlException 2628), von InMemory nicht gefangen
+`ServiceSettingDefinitions.All` wird beim App-Start in `ServiceSettings` geseedet; die Spalten sind
+`Key`/`Category` **NVARCHAR(100)**, `Value`/`Description` **NVARCHAR(500)** (`ApplicationDbContext`). Eine
+zu lange `Description` (hier 569 Zeichen bei `Sync:WorkOperationStructureDetectionEnabled`, v1.44.0) lässt
+das Seeding mit **`SqlException 2628` (String truncation)** abbrechen — die Web-App startet nicht. EF
+**InMemory erzwingt keine Längen**, also fällt es in keinem Unit-Test auf, sondern erst am echten SQL
+Server. Abgesichert seit v1.44.0 durch `ServiceSettingDefinitionsTests.All_FieldsFitServiceSettingsColumns`
+(reiner Katalog-Längen-Check gegen die bekannten Spaltengrenzen). **Merke:** neue/geänderte
+ServiceSetting-Beschreibung immer ≤500 Zeichen halten.
+
 ### Was nur Manual-UAT prüfen kann (nicht InMemory): Ausschlussliste, eindeutiger Index, Sage-Read
 Wie überall in dieser Familie: der Sage-Read (`KHKPpsArbeitsplaetze`, raw ADO.NET), die Wirkung der
 Ausschlussliste (Liste in der ServiceSettings-DB, nicht über `IConfiguration` injizierbar) und der

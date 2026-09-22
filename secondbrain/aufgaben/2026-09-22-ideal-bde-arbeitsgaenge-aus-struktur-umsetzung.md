@@ -85,6 +85,12 @@ Etappe A = `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`:
   - Brain (Hauptcheckout): Etappen-Tabelle B erledigt, v1.41-Spec + feature-map superseded, Brain-Changelog
     `2026-09-22-v1-44-0-*`, services.md, fallstricke §16 (drei Vokabulare) + §13 superseded-Hinweis,
     testszenarien-index TS-77.
+- 2026-09-22: **Nachtrag-Fix `f829d00d`** (nach Testbereit, beim ersten echten App-Start gefunden):
+  Die Beschreibung von `Sync:WorkOperationStructureDetectionEnabled` war 569 Zeichen — `ServiceSettings.Description`
+  ist NVARCHAR(500). Startup-**Seeding brach mit SqlException 2628** (String truncation) ab. Auf 487 Zeichen
+  gekürzt (Inhalt unverändert) + neuer Guard-Test `All_FieldsFitServiceSettingsColumns` (prüft Key/Category≤100,
+  Value/Description≤500 für alle Katalog-Einträge). Build grün, Web **1393** +1 skip, Service 268.
+  Dieser Bug-Typ ist nicht InMemory-erzwungen (InMemory ignoriert Längen) → jetzt Katalog-Check.
 - **Offen:** qa-agent (grüner Beweis + Deploy-Abschnitt) → `status: Testbereit`. Danach wartet das
   ganze Bündel auf **Schranke 2** (Mensch: Manual-UAT + EIN Merge). Manual-UAT-Schwerpunkte: AK 10
   (Ausschlussliste), AK 20 (Doppelanlage/UNIQUE), Sage-Reads, Terminal-Anzeige — DryRun vor dem scharf
