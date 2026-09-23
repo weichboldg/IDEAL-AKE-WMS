@@ -301,6 +301,120 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. →
-2. →
-3. →
+1. → **Nur auf der HauptFA-Kopfzeile — ein konsolidiertes Modal.**
+   Die Arbeitsgaenge eines Geraets sind ueber den Baum verteilt; der Sinn der Ansicht ist die
+   **Gesamtschau**. Ein Knopf je Sub-FA-Zeile zeigte immer nur einen Ausschnitt und erzeugte bei 39
+   Sub-FAs 39 Knoepfe — mehr Bedienelemente als Information.
+   Und die Struktur-Ansicht ist bereits ein Tree-Table mit Chevrons, Badges und Spaltenfiltern; jede
+   weitere Zeilen-Schaltflaeche kostet dort Ruhe.
+   Zeigt sich im Betrieb, dass jemand gezielt **einen** Sub-FA sehen will, ist ein Zeilen-Knopf spaeter
+   nachruestbar — mit Beleg statt auf Vorrat.
+
+2. → **Knopf ausblenden.**
+   Ein Bedienelement, das nichts als „nichts gefunden" liefert, ist schlechter als keines — der
+   Anwender klickt, wartet und lernt nichts.
+   **Aber der Fall darf nicht unsichtbar werden**, denn er hat eine **Ursache**: Fuer diese Struktur ist
+   noch keine Werkbank oder kein Kuerzel gepflegt — genau das, was der Sync bereits als
+   Unbekannt-Meldung protokolliert. Das ist der richtige Ort dafuer, nicht ein leeres Modal, das
+   jeder Anwender einzeln entdeckt.
+   *Falls der Knopf ohnehin in der Kopfzeile neben anderen Elementen steht und sein Verschwinden das
+   Layout springen liesse:* dann stattdessen **ausgegraut mit Titel-Text** „keine Arbeitsgaenge
+   erkannt" — gleicher Informationswert, ohne Klick ins Leere. Der Dev-Lauf entscheidet das am
+   tatsaechlichen Layout.
+
+3. → **ALLE Sub-FAs listen, auch die ohne Arbeitsgang — mit „—".** Das ist die wichtigste der drei
+   Antworten.
+   Eine reine Trefferliste beantwortet nur „wo wird gearbeitet". Die Frage, die in der Fertigung
+   wehtut, ist die andere: **„Welches Teil hat noch gar keinen Arbeitsgang?"** — also welches faellt
+   am Terminal durch, weil sein Kuerzel unbekannt ist oder die Werkbank fehlt.
+   Eine Trefferliste **verschweigt genau diesen Fall**: Das Teil erscheint nicht, und niemand merkt,
+   dass es fehlt. Dieselbe Klasse wie die gefilterte Liste, die vollstaendig aussieht.
+   **Verbindlich:** Das Modal zeigt den **vollstaendigen** Baum aus Sub-FAs, Zeilen ohne Arbeitsgang
+   mit „—". Eine **Zaehlzeile** oben nennt beide Zahlen (z. B. „39 Sub-FAs · 12 ohne Arbeitsgang"),
+   damit die Luecke ohne Scrollen sichtbar ist.
+   *Nicht noetig, aber naheliegend:* Zeilen mit „—" optisch zuruecknehmen, damit die Treffer weiter
+   gut lesbar bleiben — zuruecknehmen, nicht verstecken.
+
+## Kritische Pruefung (2026-09-23)
+
+> Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf. Die drei Freigabe-Antworten stehen im Block,
+> aber **noch nicht im Rumpf** — Antwort 3 erweitert den Umfang spuerbar. Am Code (Worktree
+> `feature/2026-08-07-ideal-teile-1-5`) gegengeprueft. Zwei Punkte sind **sauber**, zwei sind BLOCKER,
+> einer eine am Markup getroffene Festlegung, einer eine Datenfrage, die nur der Mensch/eine
+> Testinstanz beantwortet.
+
+### Sauber (bestaetigt)
+
+- **Zugriffsschutz (Schwerpunkt 5):** `FaHierarchyController` traegt `[RequirePickingOrTrackingOrLeitstandAccess]`
+  auf **Klassenebene** (`FaHierarchyController.cs:23`), die `Index`-Action (Z.49) ist abgedeckt. Es gibt
+  **keine** neue Action (Modal wird im `Index` serverseitig mitgerendert, kein AJAX-Endpunkt) — die
+  Spec-Aussage stimmt. Nichts zu tun.
+- **Datenverfuegbarkeit fuer Antwort 3 (Schwerpunkt 1, Teil „braucht es die Strukturknoten?"):** Der Baum
+  wird bereits **vollstaendig serverseitig** gebaut — `_treeBuilder.Build(_nodeRepository.GetAllAsync()…)`
+  (`FaHierarchyController.cs:64/78`). Die **komplette** Sub-FA-Liste je Struktur liegt damit schon in
+  `structure.Roots`→`Children` vor. `GetBySubOrderNumbersWithWorkplaceAsync` muss sie **nicht** holen
+  (die Methode liefert nur die WorkOperations der Treffer-Sub-FAs); die „alle Sub-FAs, auch ohne AG"-Liste
+  aus Antwort 3 kommt aus dem ohnehin vorhandenen Baum-Walk. **Keine zweite Rundreise noetig.** ✓
+
+### BLOCKER
+
+**B1 — Antwort 3 ist nicht im Rumpf; der Rumpf beschreibt noch eine Trefferliste.** Antwort 3 macht aus
+der reinen Treffer-Ansicht eine **Vollstaendigkeits-Ansicht**: ALLE Sub-FAs des Baums, auch die **ohne**
+Arbeitsgang mit „—", plus eine **Zaehlzeile** oben („39 Sub-FAs · 12 ohne Arbeitsgang"), „—"-Zeilen
+optisch zurueckgenommen. Der Rumpf sagt aber noch durchgaengig „je Sub-FA **dessen erkannte**
+`WorkOperation`-Zeilen" (In-Scope Z.66-69, Fachliche Anforderung 3 Z.93-98, AK 2 Z.219-220, Szenario A
+Z.247-248) — als waeren nur Treffer gemeint. **Datentechnisch tragbar** (siehe „Sauber" oben: der volle
+Baum liegt vor), aber In-Scope, Fachliche Anforderung 3, die AK und TS-78 muessen auf „alle Sub-FAs +
+Zaehlzeile + ‚—'-Zeilen" umgeschrieben werden. Solange das nur im Antwortblock steht, baut der Dev-Lauf
+die alte Trefferliste.
+
+**B2 — Keine Obergrenze; „kein N+1" beantwortet die Mengenfrage nicht (Schwerpunkt 2).** Nachgerechnet:
+- **N+1 ist korrekt vermieden** — **eine** Abfrage je Seite, das Ergebnis wird beim Baum-Walk je Knoten
+  angehaengt, keine Abfrage je Struktur/Knopf. AK 4 stimmt insoweit.
+- **Aber es gibt keine Obergrenze.** `PageSize.Resolve` erlaubt „Alle" (0) → **`AllCap = 5000`**
+  Strukturen je Seite (`PageSize.cs:12`). Der Bundled-Read sammelt die Sub-FA-Nummern **aller** sichtbaren
+  Strukturen in eine `set.Contains(...)`-IN-Liste: bei „Alle" × ~39 Sub-FAs sind das bis zu
+  **~195.000** Werte in **einer** Abfrage. Zweitens — und akuter — rendert der Entwurf **je Struktur** ein
+  serverseitiges `<template>` mit **allen** Sub-FA-Zeilen (Antwort 3): bei 5000 Strukturen entstehen
+  Zehntausende versteckter Template-Zeilen im ausgelieferten HTML. „Eine Abfrage" ist erfuellt, die
+  **Seitenlast ist unbegrenzt**.
+  → **Zu entscheiden (Mensch/Dev):** (a) EF-Core-10-Uebersetzung von `Contains` auf grosse Listen
+  verifizieren — seit EF 8 wird das ueber `OPENJSON` als **ein** Parameter uebersetzt, umgeht also die
+  2100-Parameter-Grenze; das ist zu **bestaetigen**, nicht anzunehmen. (b) Eine sinnvolle Grenze fuer die
+  Modal-Inhalte festlegen: entweder das `<template>` je Struktur **erst beim ersten Oeffnen** per kleinem
+  Endpunkt laden (bewusst gegen die „kein AJAX-Endpunkt"-Entscheidung abzuwaegen), oder die
+  Modal-Funktion bei „Alle"/sehr grossen Seiten deaktivieren/deckeln. So oder so gehoert eine
+  **Obergrenz-Aussage + ein Mengen-AK** in den Rumpf — heute fehlt beides.
+
+### FESTLEGUNG statt Wahl (Schwerpunkt 3, Antwort 2)
+
+**S1 — Am Markup entschieden: Knopf AUSBLENDEN, kein Ausgegraut-Fallback.** Antwort 2 laesst „ausblenden
+ODER ausgegraut, je nach Layout-Sprung" offen und delegiert an den Dev-Lauf. Am tatsaechlichen Markup
+verifiziert: die Struktur-Kopfzeile ist eine `d-flex align-items-center flex-wrap gap-2`-Reihe
+(`Index.cshtml:135`) mit variabler Badge-Zahl (Kunde/Status/KO/FE/Abteilung/Verwaist). Ein AG-Knopf **am
+Ende** dieser Reihe kann per `display:none` entfallen, **ohne** Layout-Sprung — Flexbox mit `gap`
+hinterlaesst am Zeilenende kein Loch, und nachfolgende Elemente gibt es dort nicht. Damit greift Antwort
+2s Primaerfall („ausblenden") vorbehaltlos; der Ausgegraut-Zweig ist hier gegenstandslos. **In den Rumpf
+als Festlegung** („Knopf am Ende der Kopfzeilen-Flex-Row, bei 0 AGs `display:none`"), die
+„Dev-Lauf entscheidet"-Formulierung streichen.
+
+### OFFEN — muss vom Menschen/einer Testinstanz kommen (Schwerpunkt 4)
+
+**O1 — Traegt der Wurzelknoten selbst Arbeitsschritte, oder ist seine AG-Liste praktisch leer?** Der Rumpf
+setzt „HauptFA-AG-Liste = AG-Liste des Wurzelknotens" (Z.124-126). Ob der Wurzelknoten (`VaterFA IS NULL`)
+eigene `Arbeitsschritte` traegt und damit ueberhaupt eigene `WorkOperation`s bekommt, ist eine **Datenfrage**
+— am Code **nicht** verifizierbar (`FaHierarchyNode` ist in **keiner** von dieser Session erreichbaren DB
+angelegt; die Ableitung im Epic haengt an den realen Sage-Daten). **Falls die Wurzel-Liste in der Praxis
+leer ist**, ist der Begriff „HauptFA-AG-Liste" missverstaendlich (er verspricht AGs, die dort nie stehen —
+die Arbeit sitzt auf den Sub-FAs). Dann sollte der Rumpf sagen: die HauptFA-Zeile zeigt ihre eigene Liste
+(ggf. „—"), der Inhalt sind die Sub-FA-Abschnitte. **Bitte auf der befuellten IDEAL-Instanz pruefen**
+(`SELECT Arbeitsschritte FROM FaHierarchyNode WHERE VaterFA IS NULL`) und den Begriff im Rumpf entsprechend
+schaerfen — nicht raten.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG:** B1 (Antwort 3 — Vollstaendigkeits-Ansicht mit Zaehlzeile/‚—' in Rumpf, AK, TS
+ziehen), B2 (Obergrenze + Mengen-AK festlegen, EF-Contains-Uebersetzung bestaetigen), S1 (Knopf-Ausblenden
+als Festlegung statt Dev-Lauf-Wahl) und O1 (Wurzel-AG-Liste auf der Testinstanz klaeren, Begriff schaerfen).
+Der Kern — bundled Read, Zugriffsschutz, „am Knoten statt an der Struktur" — traegt; die Nachbesserung
+betrifft den durch Antwort 3 gewachsenen Umfang und die fehlende Mengengrenze.
