@@ -23,4 +23,16 @@ public interface IWorkOperationRepository : IRepository<WorkOperation>
     /// Naht + protokolliert Mehrfachtreffer; die Umstellung der Aufrufer ist Teil 8.
     /// </summary>
     Task<List<WorkOperation>> GetAllByFaAndOperationAsync(string faNumber, string operationNumber);
+
+    /// <summary>
+    /// FA-Struktur-Arbeitsgaenge (Stufe 1, Seitenaufbau): welche der uebergebenen HauptFA-Nummern
+    /// (<c>ProductionOrder.OrderNumber</c>) haben mindestens einen Arbeitsgang? Nur Schluessel, EINE Abfrage.
+    /// </summary>
+    Task<HashSet<string>> GetOrderNumbersWithWorkOperationsAsync(IReadOnlyCollection<string> orderNumbers);
+
+    /// <summary>
+    /// FA-Struktur-Arbeitsgaenge (Stufe 2, Modal): alle Arbeitsgaenge zu den Sub-FA-Nummern EINER Struktur,
+    /// mit ProductionOrder + ProductionWorkplace, sortiert nach SubOrderNumber, dann Sequence.
+    /// </summary>
+    Task<List<WorkOperation>> GetBySubOrderNumbersWithWorkplaceAsync(IReadOnlyCollection<string> subOrderNumbers);
 }
