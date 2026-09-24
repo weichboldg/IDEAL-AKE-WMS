@@ -106,4 +106,40 @@ public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperation
                 w.ProductionOrder.OrderNumber == faNumber &&
                 w.OperationNumber == operationNumber)
             .ToListAsync();
+
+    public async Task<HashSet<string>> GetOrderNumbersWithWorkOperationsAsync(IReadOnlyCollection<string> orderNumbers)
+    {
+        if (orderNumbers == null || orderNumbers.Count == 0)
+            return new HashSet<string>();
+
+        return (await OrderNumbersWithWorkOperationsQuery(orderNumbers).ToListAsync()).ToHashSet();
+    }
+
+    // internal fuer den ToQueryString-Test (SqlServer-Provider, nie verbunden): belegt, wie EF das
+    // Contains ueber die HauptFA-Liste uebersetzt (Parameter-Grenze 2100 bei Seitengroesse "Alle").
+    internal IQueryable<string> OrderNumbersWithWorkOperationsQuery(IReadOnlyCollection<string> orderNumbers)
+    {
+        var set = orderNumbers.ToList();
+        return _dbSet
+            .AsNoTracking()
+            .Where(wo => set.Contains(wo.ProductionOrder.OrderNumber))
+            .Select(wo => wo.ProductionOrder.OrderNumber)
+            .Distinct();
+    }
+
+    public async Task<List<WorkOperation>> GetBySubOrderNumbersWithWorkplaceAsync(IReadOnlyCollection<string> subOrderNumbers)
+    {
+        if (subOrderNumbers == null || subOrderNumbers.Count == 0)
+            return new List<WorkOperation>();
+
+        var set = subOrderNumbers.ToList();
+        return await _dbSet
+            .AsNoTracking()
+            .Include(wo => wo.ProductionOrder)
+            .Include(wo => wo.ProductionWorkplace)
+            .Where(wo => wo.ProductionOrder.SubOrderNumber != null && set.Contains(wo.ProductionOrder.SubOrderNumber))
+            .OrderBy(wo => wo.ProductionOrder.SubOrderNumber)
+            .ThenBy(wo => wo.Sequence)
+            .ToListAsync();
+    }
 }
