@@ -520,6 +520,20 @@ und ein Sage-Arbeitsplatz IST die Werkbank — das BDE-Terminal bucht gegen `Wor
 > AK 10 (Ausschlussliste), AK 16-Terminal, AK 20 (Doppelanlage/UNIQUE) und alle Sage-Reads sind
 > **Manual-UAT** (nicht InMemory-testbar) — siehe TS-77.
 
+### FA-Struktur: erkannte Arbeitsgänge je (Sub-)FA im Modal (v1.45.0, selber Branch)
+
+Spec [[2026-09-23-fa-struktur-arbeitsgaenge-anzeige-spec]], Umsetzung
+[[2026-09-24-fa-struktur-arbeitsgaenge-anzeige-umsetzung]], Changelog
+[[2026-09-24-v1-45-0-fa-struktur-arbeitsgaenge-anzeige]]. Setzt v1.44.0 (Struktur-Erkennung) voraus. Read-only.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Existenz-Check beim Seitenaufbau (Knopf nur bei ≥ 1 AG) + Modal-Endpunkt je HauptFA | **erledigt** `912e6bea`/`71ffeb18` | `FaHierarchyController.Index`/`WorkOperations`, `IWorkOperationRepository.GetOrderNumbersWithWorkOperationsAsync`/`GetByOrderNumberWithWorkplaceAsync` (gleicher Schlüssel `OrderNumber == HauptFA`) |
+| Modal (alle Sub-FAs inkl. Lücken + Zählzeile), Laden beim Öffnen | **erledigt** `71ffeb18` | `Views/FaHierarchy/_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel.Create`, `wwwroot/js/fa-hierarchy-tree.js` (`openWorkOperations`) |
+| Tests + v1.45.0 + Changelog/Hilfe/TS-78; Review-Fix Knopf/Modal-Schlüssel | **erledigt** `2d06d1f0` | `WorkOperationRepositoryFaStructureTests` (4), `FaWorkOperationsViewModelTests` (1) |
+
+> **Deploy:** nur Web, keine Migration. **Status:** QA → Schranke 2 mit dem ganzen Bündel.
+
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
 Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
