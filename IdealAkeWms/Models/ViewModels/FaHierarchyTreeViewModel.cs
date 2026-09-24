@@ -157,6 +157,14 @@ public class FaWorkOperationsViewModel
     public int SubFaCount => Entries.Count(e => !e.IsRoot);
     public int SubFaWithoutOperationsCount => Entries.Count(e => !e.IsRoot && e.Operations.Count == 0);
 
+    /// <summary>
+    /// Arbeitsgaenge dieser HauptFA, deren Sub-FA im Baum NICHT (mehr) vorkommt — z. B. Sub-FA aus dem
+    /// Struktur-Import entfallen (<c>SageMissingSince</c>), hinter dem Tiefen-Cap oder in einem Zyklus.
+    /// Wird im Modal als Warnung gezeigt statt still verworfen (sonst Knopf da, Modal "alles leer").
+    /// Schluessel = SubOrderNumber.
+    /// </summary>
+    public List<KeyValuePair<string, List<WorkOperationSummary>>> UnmatchedOperations { get; set; } = new();
+
     public static FaWorkOperationsViewModel Create(
         int hauptFa, IEnumerable<FaHierarchyStructure> structures, IEnumerable<WorkOperation> operations)
     {
@@ -184,6 +192,9 @@ public class FaWorkOperationsViewModel
             foreach (var c in t.Children) Walk(c);
         }
         foreach (var root in structures.SelectMany(s => s.Roots)) Walk(root);
+
+        var shown = vm.Entries.Select(e => e.Node.SubFA.ToString()).ToHashSet();
+        vm.UnmatchedOperations = opsBySubFa.Where(kv => !shown.Contains(kv.Key)).OrderBy(kv => kv.Key).ToList();
         return vm;
     }
 }

@@ -127,17 +127,13 @@ public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperation
             .Distinct();
     }
 
-    public async Task<List<WorkOperation>> GetBySubOrderNumbersWithWorkplaceAsync(IReadOnlyCollection<string> subOrderNumbers)
+    public async Task<List<WorkOperation>> GetByOrderNumberWithWorkplaceAsync(string orderNumber)
     {
-        if (subOrderNumbers == null || subOrderNumbers.Count == 0)
-            return new List<WorkOperation>();
-
-        var set = subOrderNumbers.ToList();
         return await _dbSet
             .AsNoTracking()
             .Include(wo => wo.ProductionOrder)
             .Include(wo => wo.ProductionWorkplace)
-            .Where(wo => wo.ProductionOrder.SubOrderNumber != null && set.Contains(wo.ProductionOrder.SubOrderNumber))
+            .Where(wo => wo.ProductionOrder.OrderNumber == orderNumber)
             .OrderBy(wo => wo.ProductionOrder.SubOrderNumber)
             .ThenBy(wo => wo.Sequence)
             .ToListAsync();

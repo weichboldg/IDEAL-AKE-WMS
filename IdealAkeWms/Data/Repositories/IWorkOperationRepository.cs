@@ -31,8 +31,9 @@ public interface IWorkOperationRepository : IRepository<WorkOperation>
     Task<HashSet<string>> GetOrderNumbersWithWorkOperationsAsync(IReadOnlyCollection<string> orderNumbers);
 
     /// <summary>
-    /// FA-Struktur-Arbeitsgaenge (Stufe 2, Modal): alle Arbeitsgaenge zu den Sub-FA-Nummern EINER Struktur,
-    /// mit ProductionOrder + ProductionWorkplace, sortiert nach SubOrderNumber, dann Sequence.
+    /// FA-Struktur-Arbeitsgaenge (Stufe 2, Modal): alle Arbeitsgaenge EINER HauptFA (<c>OrderNumber</c>) —
+    /// bewusst derselbe Schluessel wie der Existenz-Check, damit Knopf und Modal nie auseinanderlaufen.
+    /// Mit ProductionOrder + ProductionWorkplace, sortiert nach SubOrderNumber, dann Sequence.
     /// </summary>
-    Task<List<WorkOperation>> GetBySubOrderNumbersWithWorkplaceAsync(IReadOnlyCollection<string> subOrderNumbers);
+    Task<List<WorkOperation>> GetByOrderNumberWithWorkplaceAsync(string orderNumber);
 }
