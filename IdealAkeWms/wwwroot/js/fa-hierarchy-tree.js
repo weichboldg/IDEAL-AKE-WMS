@@ -197,6 +197,12 @@
         // ---- Klick-Delegation: Knoten- und Struktur-Toggle -----------------
         // Knoten: Chevron. Struktur: gesamte Kopfzeile (Parität zu OseonIndex oseon-tree-group).
         table.addEventListener('click', function (e) {
+            // AG-Knopf sitzt IN der Struktur-Kopfzeile -> vor dem Struktur-Toggle abfangen.
+            var woBtn = e.target.closest('.fa-wo-btn');
+            if (woBtn) {
+                openWorkOperations(woBtn.getAttribute('data-hauptfa'));
+                return;
+            }
             var nodeToggle = e.target.closest('.fa-toggle');
             if (nodeToggle) {
                 var row = nodeToggle.closest('tr.fa-node-row');
@@ -211,6 +217,37 @@
                 if (g1) toggleStruct(g1);
             }
         });
+        // ---- Modal "Arbeitsgaenge": Inhalt erst beim Oeffnen laden (eine Struktur je Klick) ----
+        // Nie ein leeres Modal: erst Ladezustand, dann Inhalt ODER Fehlermeldung.
+        var woModal = document.getElementById('faWorkOperationsModal');
+        var woRequest = 0;
+        function openWorkOperations(hauptFa) {
+            if (!woModal || !hauptFa) return;
+            var body = woModal.querySelector('.modal-body');
+            var requestId = ++woRequest; // schnelles Umschalten: nur die letzte Antwort gewinnt
+            woModal.querySelector('.modal-title').textContent = 'FA ' + hauptFa;
+            body.innerHTML = '<div class="d-flex align-items-center gap-2 text-body-secondary">'
+                + '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>'
+                + '<span>Arbeitsgänge werden geladen …</span></div>';
+            bootstrap.Modal.getOrCreateInstance(woModal).show();
+
+            fetch(woModal.getAttribute('data-url') + '?hauptFa=' + encodeURIComponent(hauptFa),
+                { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) {
+                    // redirected: z. B. AccessDenied-Seite mit 200 — nie eine ganze Seite ins Modal setzen.
+                    if (!r.ok || r.redirected) throw new Error('HTTP ' + r.status);
+                    return r.text();
+                })
+                .then(function (html) {
+                    if (requestId === woRequest) body.innerHTML = html;
+                })
+                .catch(function () {
+                    if (requestId !== woRequest) return;
+                    body.innerHTML = '<div class="alert alert-danger mb-0" role="alert">'
+                        + 'Arbeitsgänge konnten nicht geladen werden. Seite neu laden und erneut versuchen.</div>';
+                });
+        }
+
         // Tastatur (Enter/Space) fuer die role=button-Toggles.
         table.addEventListener('keydown', function (e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;

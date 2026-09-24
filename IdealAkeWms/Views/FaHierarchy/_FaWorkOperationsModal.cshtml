@@ -1,0 +1,66 @@
+@model IdealAkeWms.Models.ViewModels.FaWorkOperationsViewModel
+@* Modal-Inhalt "Arbeitsgaenge" einer Struktur (per fetch geladen, read-only). Eine Tabelle, je Knoten ein
+   <tbody>: Sub-FA-Zelle als rowgroup-Ueberschrift. Knoten OHNE Arbeitsgang bleiben sichtbar (Strich +
+   Klartext, text-body-secondary = AA-Kontrast; bewusst keine opacity). *@
+@{
+    var missing = Model.SubFaWithoutOperationsCount;
+}
+<p class="mb-3">
+    <strong>@Model.SubFaCount Sub-FAs</strong>
+    @if (missing > 0)
+    {
+        <span class="badge bg-warning text-dark ms-1">@missing ohne Arbeitsgang</span>
+    }
+    else
+    {
+        <span class="text-body-secondary ms-1">· alle mit Arbeitsgang</span>
+    }
+</p>
+
+<table class="table table-sm align-middle mb-0 fa-wo-table">
+    <thead>
+        <tr>
+            <th scope="col">FA</th>
+            <th scope="col">Artikel</th>
+            <th scope="col">Kürzel</th>
+            <th scope="col">Werkbank</th>
+            <th scope="col">Sage-Nr.</th>
+        </tr>
+    </thead>
+    @for (var e = 0; e < Model.Entries.Count; e++)
+    {
+        var entry = Model.Entries[e];
+        var n = entry.Node;
+        @* Trennlinie zwischen HauptFA-Abschnitt und den Sub-FAs (group-divider = Linie OBERHALB des tbody). *@
+        var firstSubAfterRoot = !entry.IsRoot && e > 0 && Model.Entries[e - 1].IsRoot;
+        var label = entry.IsRoot ? $"HauptFA {Model.HauptFA}" : $"Sub-FA {n.SubFA}";
+        var rows = Math.Max(entry.Operations.Count, 1);
+        <tbody class="@(firstSubAfterRoot ? "table-group-divider" : null)">
+            @if (entry.Operations.Count == 0)
+            {
+                <tr class="text-body-secondary">
+                    <th scope="rowgroup" class="fw-normal text-nowrap">@label</th>
+                    <td><span class="d-block">@n.Artnr</span><small>@n.Bezeichnung1</small></td>
+                    <td colspan="3">— kein Arbeitsgang</td>
+                </tr>
+            }
+            else
+            {
+                for (var i = 0; i < entry.Operations.Count; i++)
+                {
+                    var op = entry.Operations[i];
+                    <tr>
+                        @if (i == 0)
+                        {
+                            <th scope="rowgroup" rowspan="@rows" class="text-nowrap">@label</th>
+                            <td rowspan="@rows"><span class="d-block">@n.Artnr</span><small class="text-body-secondary">@n.Bezeichnung1</small></td>
+                        }
+                        <td><span class="badge bg-secondary">@op.OperationNumber</span></td>
+                        <td>@op.Name</td>
+                        <td>@(op.SageArbeitsplatznummer ?? "—")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    }
+</table>

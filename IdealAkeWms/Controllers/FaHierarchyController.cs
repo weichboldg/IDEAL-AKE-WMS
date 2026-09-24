@@ -29,6 +29,7 @@ public class FaHierarchyController : Controller
     private readonly IAppSettingRepository _settingRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly IWorkOperationRepository _workOperationRepository;
 
     public FaHierarchyController(
         IFaHierarchyNodeRepository nodeRepository,
@@ -36,7 +37,8 @@ public class FaHierarchyController : Controller
         FaHierarchyTreeBuilder treeBuilder,
         IAppSettingRepository settingRepository,
         ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IWorkOperationRepository workOperationRepository)
     {
         _nodeRepository = nodeRepository;
         _orderInfoRepository = orderInfoRepository;
@@ -44,6 +46,7 @@ public class FaHierarchyController : Controller
         _settingRepository = settingRepository;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _workOperationRepository = workOperationRepository;
     }
 
     public async Task<IActionResult> Index(
@@ -85,6 +88,12 @@ public class FaHierarchyController : Controller
             .Take(effectivePageSize)
             .ToList();
 
+        // AG-Knopf: EIN schlanker Existenz-Check fuer die sichtbaren Strukturen (nur Schluessel, keine Details).
+        var withOperations = await _workOperationRepository.GetOrderNumbersWithWorkOperationsAsync(
+            pageStructures.Select(s => s.HauptFA.ToString()).Distinct().ToList());
+        foreach (var s in pageStructures)
+            s.HasWorkOperations = withOperations.Contains(s.HauptFA.ToString());
+
         // Sichtbares UI-Signal (zusaetzlich zur ILogger-Warnung im Builder) — keine Mail, kein SyncLog.
         if (pageStructures.Any(s => s.HasError))
         {
@@ -121,6 +130,27 @@ public class FaHierarchyController : Controller
         };
 
         return View(vm);
+    }
+
+    /// <summary>
+    /// Modal-Inhalt "Arbeitsgaenge" EINER Struktur (per fetch beim Oeffnen). Laedt nur die Knoten dieser
+    /// HauptFA (nie GetAllAsync) und deren Arbeitsgaenge. Erbt den Class-Level-Read-Filter.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> WorkOperations(int hauptFa)
+    {
+        var nodes = await _nodeRepository.GetByHauptFaAsync(hauptFa);
+        if (nodes.Count == 0)
+            return NotFound();
+
+        var depthCap = await _settingRepository.GetIntValueAsync(
+            AppSettingKeys.FaHierarchyMaxDepth, FaHierarchyTreeBuilder.DefaultDepthCap);
+        var structures = _treeBuilder.Build(nodes, Array.Empty<FaHierarchyOrderInfo>(), depthCap);
+
+        var subFas = nodes.Where(n => n.SubFA != 0).Select(n => n.SubFA.ToString()).Distinct().ToList();
+        var operations = await _workOperationRepository.GetBySubOrderNumbersWithWorkplaceAsync(subFas);
+
+        return PartialView("_FaWorkOperationsModal", FaWorkOperationsViewModel.Create(hauptFa, structures, operations));
     }
 
     /// <summary>

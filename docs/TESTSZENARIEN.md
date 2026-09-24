@@ -8509,7 +8509,61 @@ Werkbank-Felder (Sage-Nr./Name/Kürzel) überleben eine manuelle Änderung nicht
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
 
+## TS-78 — FA-Struktur: erkannte Arbeitsgänge je (Sub-)FA im Modal (v1.45.0)
+
+**Bezug:** Spec `2026-09-23-fa-struktur-arbeitsgaenge-anzeige-spec`. Reine Leseansicht, keine Migration.
+
+**Vorbedingungen:** v1.44.0-Stand (TS-77) mit mindestens einem Lauf der Struktur-Erkennung
+(`WorkOperation`-Zeilen an materialisierten Sub-FAs vorhanden). Benutzer mit Zugriff auf
+`/FaHierarchy` (Kommissionierung, Tracking oder Leitstand). Browser-Entwicklerwerkzeuge (Netzwerk-Reiter)
+für TS-78.4; für die Query-Zählung optional SQL-Profiler/Extended Events auf der WMS-DB.
+
+**Automatisiert abgedeckt:**
+- `WorkOperationRepositoryFaStructureTests` (InMemory) — Existenz-Check liefert nur angefragte HauptFAs
+  mit Arbeitsgang, leere Eingabe → leer; Modal-Abfrage lädt Werkbank (Sage-Nr.) und sortiert
+  Sub-FA → Sequence. **AK 10:** `OrderNumbersWithWorkOperationsQuery_TranslatesContainsAsSingleParameter`
+  übersetzt 5000 HauptFA-Nummern gegen den echten SqlServer-Provider (`ToQueryString`) in **einen**
+  Parameter `@set nvarchar(max)` + `OPENJSON` — keine 2100-Parameter-Grenze bei „Alle".
+- `FaWorkOperationsViewModelTests` — alle materialisierten Knoten gelistet (Blätter `SubFA == 0` nicht),
+  Wurzel ohne AG mit leerer Liste, Zähler „Sub-FAs"/„ohne Arbeitsgang", gleichlautende Sub-FA-Nummer
+  einer fremden Struktur wird nicht zugeordnet.
+
+**Manual-UAT:**
+
+- **TS-78.1 — Modal zeigt konsolidierte Liste (AK 1–3, 9, 12).** `/FaHierarchy` öffnen, Struktur mit
+  bekannten Arbeitsgängen (z. B. `KA`/`SW`) suchen, Knopf **Arbeitsgänge** am Ende der Kopfzeile klicken.
+  Erwartung: Modal mit Titel „FA `<HauptFA>`"; oben „N Sub-FAs" + gelbes Badge „M ohne Arbeitsgang"
+  (bei M = 0 stattdessen „· alle mit Arbeitsgang"); erste Zeile(n) „HauptFA `<n>`" (Wurzel, eigene AGs
+  oder „— kein Arbeitsgang"), Trennlinie, danach **jede** Sub-FA mit Artnr./Bezeichnung und je AG
+  Kürzel, Werkbank, Sage-Nr. Sub-FAs ohne AG grau mit „— kein Arbeitsgang". N und M per Abzählen
+  bzw. gegen das SyncLog `WorkOperationStructureDetection` desselben Laufs prüfen.
+- **TS-78.2 — Read-only + Schließen (AK 5).** Im Modal nur „Schließen" und X, keine Eingabefelder.
+  Schließen per X, „Schließen", Escape und Klick neben das Fenster: keine Datenänderung, Filter und
+  Seite bleiben. Der Klick auf den Knopf klappt die Struktur **nicht** auf/zu.
+- **TS-78.3 — Kein Knopf ohne Arbeitsgänge (AK 7, 8).** (a) Struktur nur mit Blatt-/Materialzeilen,
+  (b) Struktur mit materialisierten Sub-FAs, aber ohne erkannten Arbeitsgang (unbekannte oder
+  ausgeschlossene Kürzel). Erwartung beide: kein Knopf, übrige Kopfzeilen-Badges stehen unverändert.
+- **TS-78.4 — Zweistufiges Laden (AK 4).** Seite mit `pageSize=50` öffnen; Seitenquelltext enthält
+  **keine** Kürzel/Sub-FA-Listen des Modals (nur die leere Modal-Hülle `#faWorkOperationsModal`).
+  Modal öffnen: im Netzwerk-Reiter genau **ein** Aufruf `/FaHierarchy/WorkOperations?hauptFa=…`.
+  Optional Profiler: Seitenaufbau enthält eine `SELECT DISTINCT … OPENJSON`-Abfrage auf
+  `WorkOperations`; das Öffnen liest `FaHierarchyNodes WHERE HauptFA = @p` (nicht die ganze Tabelle;
+  innerhalb von 5 min ggf. gar nicht, Cache) plus eine `WorkOperations`-Abfrage.
+- **TS-78.5 — Große Seite (AK 10).** Seitengröße „Alle". Erwartung: Seite lädt ohne spürbaren
+  Zusatz-Verzug, kein SQL-Fehler; ein beliebiges Modal öffnet korrekt.
+- **TS-78.6 — Fehler beim Laden (AK 11).** Modal öffnen, dabei im Netzwerk-Reiter „Offline" setzen
+  (oder `/FaHierarchy/WorkOperations?hauptFa=1` direkt aufrufen → 404). Erwartung Modal: erst
+  „Arbeitsgänge werden geladen …", dann rote Meldung „Arbeitsgänge konnten nicht geladen werden …" —
+  **nie** ein leeres Modal.
+- **TS-78.7 — Zugriff (AK 6, Negativfall).** Benutzer ohne Kommissionierung/Tracking/Leitstand:
+  `/FaHierarchy` und `/FaHierarchy/WorkOperations?hauptFa=<n>` → Zugriff verweigert (wie bisher).
+- **TS-78.8 — Tastatur/Terminal.** Per Tab auf den Knopf, Enter öffnet das Modal, Fokus liegt im
+  Modal, Escape schließt, Fokus kehrt zum Knopf zurück. Kontrast der grauen „kein Arbeitsgang"-Zeilen
+  am Fertigungsterminal lesbar.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
+
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77)*
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

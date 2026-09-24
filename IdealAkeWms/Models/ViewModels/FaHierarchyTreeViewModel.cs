@@ -69,6 +69,10 @@ public class FaHierarchyStructure
     /// <summary>Anzahl aufgebauter Knoten (inkl. Wurzel).</summary>
     public int NodeCount { get; set; }
 
+    /// <summary>Mindestens ein erkannter Arbeitsgang in dieser Struktur (schlanker Existenz-Check beim
+    /// Seitenaufbau) — steuert nur, ob der AG-Knopf gerendert wird. Die Details laedt erst das Modal.</summary>
+    public bool HasWorkOperations { get; set; }
+
     internal void MarkError(string reason, int atSubFa)
     {
         if (HasError) return; // erster Verstoss gewinnt (Abbruch)
@@ -136,3 +140,60 @@ public static class FaNodeClassifier
         return FaNodeIconType.Material;
     }
 }
+
+/// <summary>
+/// Modal "Arbeitsgaenge" einer FA-Struktur (Spec 2026-09-23): ALLE materialisierten Knoten der Struktur in
+/// Baum-Reihenfolge, je Knoten die erkannten Arbeitsgaenge. Knoten ohne Arbeitsgang bleiben absichtlich drin —
+/// genau die Luecke ("welches Teil hat keinen Arbeitsgang") soll sichtbar sein.
+/// </summary>
+public class FaWorkOperationsViewModel
+{
+    public int HauptFA { get; set; }
+
+    /// <summary>Wurzel(n) zuerst (HauptFA-Abschnitt), danach alle Sub-FAs mit SubFA != 0.</summary>
+    public List<FaWorkOperationsEntry> Entries { get; set; } = new();
+
+    /// <summary>Sub-FAs ohne die Wurzel — die Wurzel steht als HauptFA-Abschnitt separat.</summary>
+    public int SubFaCount => Entries.Count(e => !e.IsRoot);
+    public int SubFaWithoutOperationsCount => Entries.Count(e => !e.IsRoot && e.Operations.Count == 0);
+
+    public static FaWorkOperationsViewModel Create(
+        int hauptFa, IEnumerable<FaHierarchyStructure> structures, IEnumerable<WorkOperation> operations)
+    {
+        // Zuordnung Knoten -> Arbeitsgang ueber SubFA == ProductionOrder.SubOrderNumber; OrderNumber == HauptFA
+        // schuetzt vor einer gleichlautenden Sub-FA-Nummer einer fremden Struktur.
+        var hauptFaText = hauptFa.ToString();
+        var opsBySubFa = operations
+            .Where(w => w.ProductionOrder?.OrderNumber == hauptFaText && w.ProductionOrder.SubOrderNumber != null)
+            .GroupBy(w => w.ProductionOrder.SubOrderNumber!)
+            .ToDictionary(g => g.Key, g => g.OrderBy(w => w.Sequence)
+                .Select(w => new WorkOperationSummary(w.OperationNumber, w.Name, w.ProductionWorkplace?.SageArbeitsplatznummer))
+                .ToList());
+
+        var vm = new FaWorkOperationsViewModel { HauptFA = hauptFa };
+        void Walk(FaHierarchyTreeNode t)
+        {
+            var isRoot = t.Node.VaterFA == null;
+            if (isRoot || t.Node.SubFA != 0)
+                vm.Entries.Add(new FaWorkOperationsEntry
+                {
+                    Node = t.Node,
+                    IsRoot = isRoot,
+                    Operations = opsBySubFa.TryGetValue(t.Node.SubFA.ToString(), out var ops) ? ops : new()
+                });
+            foreach (var c in t.Children) Walk(c);
+        }
+        foreach (var root in structures.SelectMany(s => s.Roots)) Walk(root);
+        return vm;
+    }
+}
+
+public class FaWorkOperationsEntry
+{
+    public FaHierarchyNode Node { get; set; } = null!;
+    public bool IsRoot { get; set; }
+    public List<WorkOperationSummary> Operations { get; set; } = new();
+}
+
+/// <summary>Eine AG-Zeile im Modal: Kuerzel, Name (= Werkbank-Name, beim Anlegen kopiert), Sage-Nr. live ueber die FK.</summary>
+public record WorkOperationSummary(string OperationNumber, string Name, string? SageArbeitsplatznummer);
