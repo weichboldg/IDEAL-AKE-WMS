@@ -185,6 +185,16 @@ else
                                             Fehlerhaft — @structure.ErrorMessage
                                         </span>
                                     }
+                                    @* AG-Knopf am Ende der Flex-Reihe: bei 0 erkannten Arbeitsgaengen gar nicht gerendert
+                                       (kein Layout-Sprung am Zeilenende). Inhalt laedt fa-hierarchy-tree.js beim Oeffnen. *@
+                                    @if (structure.HasWorkOperations)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 fa-wo-btn"
+                                                data-hauptfa="@structure.HauptFA" aria-haspopup="dialog"
+                                                title="Erkannte Arbeitsgänge aller Sub-FAs dieser Struktur anzeigen">
+                                            Arbeitsgänge
+                                        </button>
+                                    }
                                 </div>
                                 <span class="badge rounded-pill bg-light text-dark border" title="Anzahl Knoten in dieser Struktur">@structure.NodeCount Knoten</span>
                             </div>
@@ -247,6 +257,23 @@ else
     </div>
 
     <partial name="_Pagination" model="Model.Pagination" />
+
+    @* EIN gemeinsames Modal je Seite; der Inhalt (_FaWorkOperationsModal) wird erst beim Oeffnen geholt. *@
+    <div class="modal fade" id="faWorkOperationsModal" tabindex="-1" aria-labelledby="faWorkOperationsModalTitle" aria-hidden="true"
+         data-url="@Url.Action("WorkOperations", "FaHierarchy")">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="faWorkOperationsModalTitle">Arbeitsgänge</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body" aria-live="polite"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 <script type="application/json" id="view-config">

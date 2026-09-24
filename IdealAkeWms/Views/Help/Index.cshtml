@@ -460,6 +460,27 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Arbeitsgaenge einer FA-Struktur ansehen (seit v1.45.0)</dt>
+                    <dd>
+                        In der <em>FA-Struktur (IDEAL)</em> traegt die Kopfzeile einer Struktur den Knopf
+                        <strong>Arbeitsgaenge</strong>. Er oeffnet ein Fenster mit allen erkannten
+                        Arbeitsgaengen des ganzen Baums &mdash; nur zum Nachsehen, bearbeiten laesst sich dort
+                        nichts.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Oben die Zaehlzeile:</strong> wie viele Sub-FAs die Struktur hat und
+                                wie viele davon <strong>ohne Arbeitsgang</strong> sind. Genau diese Teile
+                                fallen am BDE-Terminal durch.</li>
+                            <li><strong>Darunter der Baum:</strong> zuerst die HauptFA, dann jede Sub-FA mit
+                                Kuerzel, Werkbank und Sage-Arbeitsplatznummer. Sub-FAs ohne Arbeitsgang stehen
+                                grau mit &bdquo;&mdash; kein Arbeitsgang&ldquo; in der Liste, sie werden nicht
+                                ausgeblendet.</li>
+                            <li><strong>Kein Knopf?</strong> Dann hat die Struktur noch gar keinen erkannten
+                                Arbeitsgang. Meist fehlt die Werkbank oder das Kuerzel in Sage &mdash; die
+                                Unbekannt-Meldung dazu steht im Aktivitaets-Protokoll der
+                                Struktur-Erkennung.</li>
+                        </ul>
+                    </dd>
+
                     <dt>FA-Vervollstaendigung (seit v1.13.0, umgebaut in v1.22.0)</dt>
                     <dd>
                         Benutzer mit der Rolle &bdquo;FA-Vervollstaendigung&ldquo; pflegen pro Fertigungsauftrag
