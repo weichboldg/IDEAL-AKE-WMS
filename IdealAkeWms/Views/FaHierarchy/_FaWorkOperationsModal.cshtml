@@ -64,3 +64,21 @@
         </tbody>
     }
 </table>
+
+@if (Model.UnmatchedOperations.Any())
+{
+    @* Melden statt still verwerfen: Arbeitsgaenge dieser HauptFA ohne Knoten im aktuellen Baum. *@
+    <div class="alert alert-warning mt-3 mb-0" role="alert">
+        <p class="mb-2">
+            <strong>@Model.UnmatchedOperations.Count Sub-FA(s) mit Arbeitsgängen stehen nicht (mehr) in der Struktur.</strong>
+            Meist ist die Sub-FA aus dem Struktur-Import entfallen oder die Struktur ist unvollständig
+            (Tiefen-/Zyklenfehler).
+        </p>
+        <ul class="mb-0">
+            @foreach (var kv in Model.UnmatchedOperations)
+            {
+                <li>Sub-FA @kv.Key: @string.Join(", ", kv.Value.Select(o => $"{o.OperationNumber} ({o.Name})"))</li>
+            }
+        </ul>
+    </div>
+}

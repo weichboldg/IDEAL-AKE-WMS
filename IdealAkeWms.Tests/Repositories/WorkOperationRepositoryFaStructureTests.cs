@@ -51,7 +51,7 @@ public class WorkOperationRepositoryFaStructureTests
     }
 
     [Fact]
-    public async Task GetBySubOrderNumbersWithWorkplaceAsync_LoadsWorkplace_SortedBySubOrderThenSequence()
+    public async Task GetByOrderNumberWithWorkplaceAsync_LoadsWorkplace_SortedBySubOrderThenSequence()
     {
         using var ctx = TestDbContextFactory.Create();
         var wp = new ProductionWorkplace { Name = "Kante", SageArbeitsplatznummer = "4711",
@@ -61,19 +61,11 @@ public class WorkOperationRepositoryFaStructureTests
         ctx.WorkOperations.AddRange(Op(s1, "SW", 2), Op(s1, "KA", 1, wp), Op(s2, "LA", 1), Op(other, "KA", 1));
         await ctx.SaveChangesAsync();
 
-        var result = await new WorkOperationRepository(ctx).GetBySubOrderNumbersWithWorkplaceAsync(new[] { "101", "102" });
+        var result = await new WorkOperationRepository(ctx).GetByOrderNumberWithWorkplaceAsync("100");
 
         result.Select(w => $"{w.ProductionOrder.SubOrderNumber}:{w.OperationNumber}")
             .Should().Equal("101:LA", "102:KA", "102:SW");
         result.Single(w => w.OperationNumber == "KA").ProductionWorkplace!.SageArbeitsplatznummer.Should().Be("4711");
-    }
-
-    [Fact]
-    public async Task GetBySubOrderNumbersWithWorkplaceAsync_EmptyInput_ReturnsEmpty()
-    {
-        using var ctx = TestDbContextFactory.Create();
-        (await new WorkOperationRepository(ctx).GetBySubOrderNumbersWithWorkplaceAsync(Array.Empty<string>()))
-            .Should().BeEmpty();
     }
 
     /// <summary>

@@ -8520,13 +8520,15 @@ für TS-78.4; für die Query-Zählung optional SQL-Profiler/Extended Events auf 
 
 **Automatisiert abgedeckt:**
 - `WorkOperationRepositoryFaStructureTests` (InMemory) — Existenz-Check liefert nur angefragte HauptFAs
-  mit Arbeitsgang, leere Eingabe → leer; Modal-Abfrage lädt Werkbank (Sage-Nr.) und sortiert
+  mit Arbeitsgang, leere Eingabe → leer; Modal-Abfrage (`GetByOrderNumberWithWorkplaceAsync`, derselbe
+  Schlüssel `OrderNumber == HauptFA` wie der Existenz-Check) lädt Werkbank (Sage-Nr.) und sortiert
   Sub-FA → Sequence. **AK 10:** `OrderNumbersWithWorkOperationsQuery_TranslatesContainsAsSingleParameter`
   übersetzt 5000 HauptFA-Nummern gegen den echten SqlServer-Provider (`ToQueryString`) in **einen**
   Parameter `@set nvarchar(max)` + `OPENJSON` — keine 2100-Parameter-Grenze bei „Alle".
 - `FaWorkOperationsViewModelTests` — alle materialisierten Knoten gelistet (Blätter `SubFA == 0` nicht),
   Wurzel ohne AG mit leerer Liste, Zähler „Sub-FAs"/„ohne Arbeitsgang", gleichlautende Sub-FA-Nummer
-  einer fremden Struktur wird nicht zugeordnet.
+  einer fremden Struktur wird nicht zugeordnet, Arbeitsgänge einer Sub-FA ohne Baum-Knoten landen in
+  `UnmatchedOperations` (Warnung statt still verworfen).
 
 **Manual-UAT:**
 
@@ -8560,6 +8562,11 @@ für TS-78.4; für die Query-Zählung optional SQL-Profiler/Extended Events auf 
 - **TS-78.8 — Tastatur/Terminal.** Per Tab auf den Knopf, Enter öffnet das Modal, Fokus liegt im
   Modal, Escape schließt, Fokus kehrt zum Knopf zurück. Kontrast der grauen „kein Arbeitsgang"-Zeilen
   am Fertigungsterminal lesbar.
+- **TS-78.9 — Arbeitsgänge ohne Baum-Knoten (Review-Befund, Negativfall).** HauptFA, deren Sub-FA mit
+  Arbeitsgang aus dem Struktur-Import entfallen ist (`ProductionOrder.SageMissingSince` gesetzt) oder
+  deren Struktur als „Fehlerhaft" (Tiefen-Cap/Zyklus) markiert ist. Erwartung: Knopf sichtbar; im Modal
+  unten gelber Hinweis „N Sub-FA(s) mit Arbeitsgängen stehen nicht (mehr) in der Struktur" mit Sub-FA-
+  Nummer und Kürzel — **nie** Knopf da und Modal zeigt nur Striche ohne Erklärung.
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
 

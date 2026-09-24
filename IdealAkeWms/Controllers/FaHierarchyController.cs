@@ -134,7 +134,7 @@ public class FaHierarchyController : Controller
 
     /// <summary>
     /// Modal-Inhalt "Arbeitsgaenge" EINER Struktur (per fetch beim Oeffnen). Laedt nur die Knoten dieser
-    /// HauptFA (nie GetAllAsync) und deren Arbeitsgaenge. Erbt den Class-Level-Read-Filter.
+    /// HauptFA (nie GetAllAsync) und die Arbeitsgaenge dieser HauptFA. Erbt den Class-Level-Read-Filter.
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> WorkOperations(int hauptFa)
@@ -147,8 +147,9 @@ public class FaHierarchyController : Controller
             AppSettingKeys.FaHierarchyMaxDepth, FaHierarchyTreeBuilder.DefaultDepthCap);
         var structures = _treeBuilder.Build(nodes, Array.Empty<FaHierarchyOrderInfo>(), depthCap);
 
-        var subFas = nodes.Where(n => n.SubFA != 0).Select(n => n.SubFA.ToString()).Distinct().ToList();
-        var operations = await _workOperationRepository.GetBySubOrderNumbersWithWorkplaceAsync(subFas);
+        // Gleicher Schluessel wie der Existenz-Check im Index (OrderNumber == HauptFA): Knopf und Modal
+        // sehen dieselben Arbeitsgaenge; was keinem Knoten zuzuordnen ist, meldet das Modal separat.
+        var operations = await _workOperationRepository.GetByOrderNumberWithWorkplaceAsync(hauptFa.ToString());
 
         return PartialView("_FaWorkOperationsModal", FaWorkOperationsViewModel.Create(hauptFa, structures, operations));
     }

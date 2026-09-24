@@ -32,7 +32,8 @@ public class FaWorkOperationsViewModelTests
         var ops = new List<WorkOperation>
         {
             Op("100", "2", "SW", 2), Op("100", "2", "KA", 1),
-            Op("999", "3", "LA", 1) // gleiche Sub-FA-Nummer, fremde Struktur -> darf nicht zugeordnet werden
+            Op("999", "3", "LA", 1), // gleiche Sub-FA-Nummer, fremde Struktur -> darf nicht zugeordnet werden
+            Op("100", "7", "PU", 1)  // Sub-FA 7 nicht (mehr) im Baum -> gemeldet, nicht verworfen
         };
 
         var vm = FaWorkOperationsViewModel.Create(100, structures, ops);
@@ -45,5 +46,6 @@ public class FaWorkOperationsViewModelTests
         vm.Entries[2].Operations.Should().BeEmpty();
         vm.SubFaCount.Should().Be(2);
         vm.SubFaWithoutOperationsCount.Should().Be(1);
+        vm.UnmatchedOperations.Should().ContainSingle(kv => kv.Key == "7");
     }
 }
