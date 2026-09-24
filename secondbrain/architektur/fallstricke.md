@@ -807,6 +807,18 @@ laeuft das, weil dort weder `ValidateScopes` noch `ValidateOnBuild` aktiv sind; 
 optionsLifetime: ServiceLifetime.Singleton)` — bewusst **nicht** nebenbei in einem Feature-Lauf, weil es
 die Options-Lebensdauer aller Scopes aendert. Bis dahin gilt der Fallstrick oben: gar nicht lokal starten.
 
+### `Contains` ueber eine lange Liste: EF 10 uebersetzt zu EINEM `OPENJSON`-Parameter — gemessen, nicht angenommen
+SQL Server erlaubt hoechstens **2100 Parameter** je Befehl. Eine `set.Contains(x)`-Abfrage ueber alle
+sichtbaren Strukturen einer Seite (Seitengroesse „Alle" = bis 5000) waere als IN-Liste mit Einzelparametern
+tot. **Gemessen 2026-09-24** (`WorkOperationRepositoryFaStructureTests.OrderNumbersWithWorkOperationsQuery_
+TranslatesContainsAsSingleParameter`, SqlServer-Provider mit der Konfiguration aus `Program.cs`, nie
+verbunden): 5000 Schluessel → `DECLARE @set nvarchar(max) = N'[...]'` + `IN (SELECT … FROM OPENJSON(@set))`
+— **ein** Parameter. **Warum als Test statt Annahme:** EF 10 hat die Uebersetzung parametrisierter
+Collections gegenueber EF 8/9 geaendert (Mehrfach-Parameter-Modus fuer kleinere Listen); welcher Weg bei
+grossen Listen greift, haengt an Provider-Version und Optionen. Wer `UseSqlServer(...)`-Optionen (z. B.
+Compatibility-Level oder Parameter-Uebersetzungsmodus) aendert, muss diesen Test gruen halten — er ist der
+Waechter fuer jede Listen-`Contains`-Abfrage mit Seitengroessen-Bezug.
+
 ## 9. IDEAL — hierarchische Produktionsauftraege (Teil 7)
 
 ### `ProductionOrder.OrderNumber` ist nach der Schema-Inversion NICHT mehr unique
