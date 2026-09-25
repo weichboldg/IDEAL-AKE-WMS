@@ -283,6 +283,13 @@ public class PickingController : Controller
         if (order == null)
             return NotFound();
 
+        // Kommissionierung nur am HauptFA (Spec 2026-09-25): Sub-FA-Stueckliste nicht interaktiv.
+        if (order.IsSubFa)
+        {
+            TempData["WarningMessage"] = $"Kommissionierung erfolgt nur am HauptFA {order.OrderNumber}.";
+            return RedirectToAction(nameof(Index));
+        }
+
         if (string.IsNullOrEmpty(order.ArticleNumber))
         {
             TempData["WarningMessage"] = "Dieser Fertigungsauftrag hat keine Artikelnummer.";

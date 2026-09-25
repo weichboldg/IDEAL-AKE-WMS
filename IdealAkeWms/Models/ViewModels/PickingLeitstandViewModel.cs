@@ -113,4 +113,6 @@ public class PickingLeitstandItem
     public string? ParentSubOrderNumber { get; set; }
     /// <summary>Zeitstempel „aus der Struktur vermisst" (Sync-Regel 2); eigener Badge, kein IsCancelled.</summary>
     public DateTime? SageMissingSince { get; set; }
+    /// <summary>Kommissionierung nur am HauptFA (Spec 2026-09-25) — aus ProductionOrder.IsSubFaOf, keine eigene Formel.</summary>
+    public bool IsSubFa { get; set; }
 }

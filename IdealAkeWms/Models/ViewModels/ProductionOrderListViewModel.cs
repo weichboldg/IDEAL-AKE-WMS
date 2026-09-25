@@ -125,6 +125,8 @@ public class ProductionOrderListItem
     public string? ParentSubOrderNumber { get; set; }
     /// <summary>Zeitstempel „aus der Struktur vermisst" (Sync-Regel 2); eigener Badge, kein IsCancelled.</summary>
     public DateTime? SageMissingSince { get; set; }
+    /// <summary>Kommissionierung nur am HauptFA (Spec 2026-09-25) — aus ProductionOrder.IsSubFaOf, keine eigene Formel.</summary>
+    public bool IsSubFa { get; set; }
 
     // IDEAL K1 (Task 5): Gruppenkopf-Felder je Zeile durchgereicht — NICHT materialisiert, nur
     // Anzeige-Modell. Nur im hierarchischen Modus und nur bei eindeutigem Kopf (heads.Count == 1)

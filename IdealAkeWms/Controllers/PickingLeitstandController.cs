@@ -151,6 +151,7 @@ public class PickingLeitstandController : Controller
                 SubOrderNumber = o.SubOrderNumber,
                 ParentSubOrderNumber = o.ParentSubOrderNumber,
                 SageMissingSince = o.SageMissingSince,
+                IsSubFa = ProductionOrder.IsSubFaOf(o.OrderNumber, o.SubOrderNumber),
             };
 
             // Werkbank-Override „Abweichende Vorkommissioniertage" schlaegt den globalen Wert (v1.27.0).
@@ -359,6 +360,14 @@ public class PickingLeitstandController : Controller
         if (order == null)
             return NotFound();
 
+        // Kommissionierung nur am HauptFA (Spec 2026-09-25): Freigabe-Toggle richtungsunabhaengig gesperrt.
+        if (order.IsSubFa)
+        {
+            TempData["WarningMessage"] = $"Kommissionierung erfolgt nur am HauptFA {order.OrderNumber}.";
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
+
         var ps = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
         if (ps == null)
             return NotFound("PickingStatus-Zeile fehlt.");
@@ -443,8 +452,13 @@ public class PickingLeitstandController : Controller
         else
             TempData["SuccessMessage"] = $"{batch.Processed} Freigabe(n) zurückgenommen.";
 
+        var warnings = new List<string>();
         if (batch.SkippedNoArticle.Count > 0)
-            TempData["WarningMessage"] = $"Übersprungen (keine Artikelnummer): {string.Join(", ", batch.SkippedNoArticle)}";
+            warnings.Add($"Übersprungen (keine Artikelnummer): {string.Join(", ", batch.SkippedNoArticle)}");
+        if (batch.SkippedSubFa.Count > 0)
+            warnings.Add($"Übersprungen (Sub-FA — Kommissionierung nur am HauptFA): {string.Join(", ", batch.SkippedSubFa)}");
+        if (warnings.Count > 0)
+            TempData["WarningMessage"] = string.Join(" · ", warnings);
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
