@@ -174,6 +174,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
     public async Task<List<ProductionOrder>> GetReleasedForPickingAsync()
     {
         return await _context.ProductionOrders
+            .Where(ProductionOrder.IsHauptFa)
             .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking && !p.IsDone && !p.IsCancelled && !p.PickingStatus.IsDonePicking)
             .Include(p => p.ProductionWorkplace)
             .Include(p => p.PickingStatus)
@@ -186,6 +187,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
     public async Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId)
     {
         return await _context.ProductionOrders
+            .Where(ProductionOrder.IsHauptFa)
             .Where(p => p.PickingStatus != null
                         && p.PickingStatus.IsReleasedForPicking
                         && !p.IsDone
@@ -201,18 +203,22 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
     }
 
     public Task<int> GetReleasedForPickingCountAsync()
-        => _context.ProductionOrderPickingStatuses
-            .CountAsync(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && !s.ProductionOrder.IsCancelled && !s.IsDonePicking);
+        => _context.ProductionOrders
+            .Where(ProductionOrder.IsHauptFa)
+            .CountAsync(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking
+                             && !p.IsDone && !p.IsCancelled && !p.PickingStatus.IsDonePicking);
 
     public async Task<int> GetMaxPickingPriorityAsync(int? excludeProductionOrderId = null)
     {
-        var q = _context.ProductionOrderPickingStatuses
-            .Where(s => s.IsReleasedForPicking && !s.ProductionOrder.IsDone && !s.ProductionOrder.IsCancelled && s.PickingPriority != null);
+        var q = _context.ProductionOrders
+            .Where(ProductionOrder.IsHauptFa)
+            .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking
+                        && !p.IsDone && !p.IsCancelled && p.PickingStatus.PickingPriority != null);
 
         if (excludeProductionOrderId.HasValue)
-            q = q.Where(s => s.ProductionOrderId != excludeProductionOrderId.Value);
+            q = q.Where(p => p.Id != excludeProductionOrderId.Value);
 
-        return await q.MaxAsync(s => (int?)s.PickingPriority) ?? 0;
+        return await q.MaxAsync(p => (int?)p.PickingStatus!.PickingPriority) ?? 0;
     }
 
     public async Task<BulkReleaseResult> SetReleaseBatchAsync(
@@ -242,6 +248,13 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         foreach (var row in rows)
         {
             if (row.ProductionOrder == null) continue;
+
+            // Kommissionierung nur am HauptFA: Sub-FA in beiden Richtungen ueberspringen und melden.
+            if (row.ProductionOrder.IsSubFa)
+            {
+                result.SkippedSubFa.Add(row.ProductionOrder.SubOrderNumber);
+                continue;
+            }
 
             if (release && string.IsNullOrEmpty(row.ProductionOrder.ArticleNumber))
             {
