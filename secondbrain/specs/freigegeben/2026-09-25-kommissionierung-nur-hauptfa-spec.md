@@ -1382,3 +1382,30 @@ Deploy-Vorbedingung, kein Testschritt zum Verwerfen.
 
 Bei jedem Abweichungsfund: **nicht** selbst nachbessern, sondern im Testprotokoll festhalten und an
 den Menschen zurückmelden (Schranke 2 ist die menschliche Entscheidung über Merge/Nacharbeit).
+
+## QA-Nachtrag: nachgeholtes Code-Review (2026-09-25)
+
+Das im QA-Lauf gestartete Hintergrund-Code-Review hatte kein Ergebnis geliefert; nachgeholt über
+`/code-review high 2d06d1f0..787c5c90`. Zehn Befunde, drei behoben in Worktree-Commit `4a8cdb95`:
+
+- **F-A (sichtbarer Fehler, vorbestehend seit v1.42.0):** `#bomKzEmptyState`/`#bomDefaultFilterBadges`
+  blieben trotz `hidden` sichtbar (Bootstrap `.d-flex !important` nach `[hidden]`). Globale Regel
+  `[hidden] { display: none !important; }` in `site.css`; einzige betroffene Elemente per grep: diese zwei.
+- **F-B (Stored XSS, vorbestehend):** vier Standardfilter per `'@Html.Raw(...)'` in JS-Literale →
+  `JsonSerializer.Serialize`. Restfundstelle außerhalb des Umfangs: [[2026-09-25-js-escaping-locationtransfer]].
+- **F-C:** FA-Suche (`/api/productionorders/search`, Picking/IndexDropdown) filtert `.Where(ProductionOrder.IsHauptFa)`;
+  neuer Test `SearchAsync_ExcludesSubFa_KeepsHauptFaAndFlatOrder` (RED → GREEN).
+- Neue Testszenarien TS-79.20–79.22; Anwender-Changelog v1.46.0 ergänzt.
+
+**Beweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler; `IdealAkeWms.Tests` 1417 bestanden / 1 vorbestehend
+übersprungen / 0 rot; `IDEALAKEWMSService.Tests` 268 bestanden / 0 rot.
+
+**Bewusst nicht behoben:** Picking/Bom-Links aus Nachforderungen/Artikel-Info (Out-of-Scope, Guard greift);
+Sub-FA-Stückliste für Picker ohne Vorbau-Recht ([[2026-09-25-leitstand-subfa-readonly-stueckliste]]);
+Modus-/Daten-Gate-Differenz (durch Einwegtor ADR 0012 nicht erreichbar); „Kommissionierer ändern“ auf
+Alt-Freigaben (Testsystem-SQL-Lauf); `!(leer)` in allen Stücklisten-Spalten (gewollt, Suchsyntax-konform);
+`""`-Semantik im Einwegtor und Allokation in `IsSubFaOf` (Rulings R9/R3). Status bleibt **Testbereit**.
+
+**Manuelle Checkliste ergänzt:** TS-79.20 (Stückliste ohne aktiven Standardfilter → keine gelbe Box, keine
+leere Badge-Zeile), TS-79.21 (Standardfilter `KA'02` → Stückliste lädt normal), TS-79.22 (FA-Suche in
+Picking/IndexDropdown zeigt nur HauptFAs).

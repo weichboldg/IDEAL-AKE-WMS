@@ -1210,3 +1210,17 @@ Syntax, sonst hieße `!(leer)` „enthält nicht ‚(leer)‘“ und zeigte alle
 [[2026-09-23-suchsyntax-spaltenfilter-erweitern]] muss `bomMatchesFilter` samt Sonderfall in den gemeinsamen
 Parser aufgehen. Gespeicherte Profilwerte normalisiert `KommissionierzielFilterWert.Normalize` beim Speichern
 (`!(leer)` exklusiv; Hinweis nur, wenn Einzelziele verworfen wurden).
+
+### Bootstrap-`d-*` schlägt das `hidden`-Attribut — global in `site.css` korrigiert (v1.46.0)
+`.d-flex{display:flex!important}` steht in `bootstrap.min.css` **nach** `[hidden]{display:none!important}`
+(gleiche Spezifität) — ein Element mit `class="d-flex …" hidden` bleibt sichtbar. So war die gelbe
+Komm.-Ziel-Leerzustand-Box der Stückliste seit v1.42.0 **immer** zu sehen (nachgeholtes Code-Review
+2026-09-25). **Lösung:** `[hidden] { display: none !important; }` in `wwwroot/css/site.css` (lädt nach
+Bootstrap). **Merke:** Wer ein Element per `hidden` steuert, darf sich darauf jetzt verlassen — die Regel
+nicht entfernen; alternativ `d-none` togglen.
+
+### Freitext nie per `'@Html.Raw(...)'` in ein JS-Literal
+Benutzer-Standardfilter (bis 200 Zeichen, admin-editierbar für andere Benutzer) liefen in `Bom.cshtml` roh in
+einfache Anführungszeichen — ein Apostroph (`KA'02`) brach den Init-Handler, ein präparierter Wert wäre
+ausgeführt worden (Stored XSS). **Muster:** `@Html.Raw(System.Text.Json.JsonSerializer.Serialize(wert ?? ""))`
+ohne umgebende Quotes. Offene Restfundstelle: [[2026-09-25-js-escaping-locationtransfer]].
