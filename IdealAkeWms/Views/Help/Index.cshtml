@@ -731,9 +731,10 @@
                         Massenauswahl werden Sub-FAs in einer gemischten Auswahl uebersprungen und als
                         &bdquo;uebersprungen (Sub-FA)&ldquo; gemeldet &mdash; sowohl beim Freigeben als
                         auch beim Zuruecknehmen. Am Standort AKE ist davon nichts sichtbar, da dort jede
-                        FA ihre eigene HauptFA ist. Die read-only Stueckliste (<em>FaWorklist</em>) fuer
-                        BDE-Referenz bleibt auf jeder Sub-FA-Zeile unveraendert erreichbar. Die vorher
-                        vorhandene Freigabe-Kaskade &bdquo;Alle Sub-FAs freigeben&ldquo; ist entfallen
+                        FA ihre eigene HauptFA ist. Die schreibgeschuetzte Stueckliste (Vorbau/
+                        <em>FaWorklist</em>) fuer BDE-Referenz bleibt in der FA-Liste auf Sub-FA-Zeilen
+                        erreichbar (mit Vorbau-Zugriff); im Leitstand zeigen Sub-FA-Zeilen keinen
+                        Stueckliste-Link. Die vorher vorhandene Freigabe-Kaskade &bdquo;Alle Sub-FAs freigeben&ldquo; ist entfallen
                         (siehe Aenderungen v1.38.0/v1.46.0) &mdash; die Fertigmeldungs-Kaskade
                         &bdquo;Alle Sub-FAs fertigmelden&ldquo; ist davon nicht betroffen.</dd>
 
