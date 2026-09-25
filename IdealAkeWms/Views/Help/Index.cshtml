@@ -1522,6 +1522,20 @@
                     <dt>Standard-Filter Artikelgruppe</dt>
                     <dd>Wird beim Öffnen einer Stückliste automatisch als Spaltenfilter gesetzt. Unterstützt alle Filtermodi: einfach (<code>886</code>), mehrfach (<code>886, 960</code>) und Ausschluss (<code>!960</code>). Leer lassen = kein automatischer Filter.</dd>
 
+                    <dt>Standard-Filter Kommissionierziel (Stückliste, nur IDEAL)</dt>
+                    <dd>Wird beim Öffnen einer hierarchischen Stückliste automatisch als Komm.-Ziel-Filter
+                        gesetzt. Ein einzelnes Ziel (z. B. <code>KA-02</code>) oder mehrere durch Komma
+                        getrennt (<code>KA-02, KA-05</code>). Der besondere Wert <code>!(leer)</code>
+                        wählt &bdquo;Alle Ziele (nur kommissionier-relevant)&ldquo; &ndash; blendet alle
+                        Positionen mit leerem Komm.-Ziel aus. Steht <code>!(leer)</code> zusammen mit
+                        Einzelzielen im Feld (z. B. <code>!(leer), KA-02</code>), wird beim Speichern nur
+                        &bdquo;Alle Ziele&ldquo; übernommen, die Einzelziele entfallen und ein Hinweis
+                        erscheint; eine andere Schreibweise wie <code>!(LEER)</code> wird dagegen still auf
+                        <code>!(leer)</code> korrigiert (kein Hinweis, da sich die Bedeutung nicht ändert).
+                        Leer lassen = kein automatischer Filter. Erscheint nur am Standort IDEAL
+                        (FA-Hierarchie aktiv) &ndash; im Flachmodus (AKE) existiert die Komm.-Ziel-Spalte
+                        nicht.</dd>
+
                     <dt>Standard FA-Vorbau-AG (FA-Abarbeitungsliste)</dt>
                     <dd>Legt den FA-Vorbau-Arbeitsgang fest, mit dem die <em>FA-Abarbeitungsliste</em> beim
                         Oeffnen vorgefiltert wird. So muss der Werker den FA-Vorbau-AG nicht jedes Mal

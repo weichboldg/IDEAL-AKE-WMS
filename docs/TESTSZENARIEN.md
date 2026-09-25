@@ -7729,10 +7729,11 @@ Anwender verhält, die vor dem Fix an den Spalten „herumgestellt" haben.
 > `2026-09-25-kommissionierung-nur-hauptfa-spec`): Mit „Kommissionierung nur am HauptFA“ werden
 > Sub-FAs künftig nie kommissioniert — eine Freigabe auf Sub-FA-Ebene hätte keine Bedeutung mehr; der
 > Button „Alle Sub-FAs freigeben“ (`CascadeReleasePreview`/`CascadeRelease`) wurde entfernt, bevor er
-> je gemergt war. Betroffen unten: **TS-73.11–73.13** (vollständig, markiert), sowie die
-> Kaskade-Erwähnungen in TS-73.14 (Zeile zu `CascadeRelease`) und TS-73.18/73.19. Matchcode,
-> Kopfdaten je Zeile und die HauptFA-Zeile selbst (TS-73.1–73.10) sind von diesem Rückbau **nicht**
-> betroffen und bleiben gültig.
+> je gemergt war. Betroffen unten: **TS-73.11–73.14 und TS-73.19** (vollständig, Titel markiert),
+> sowie einzelne, button-/`CascadeRelease`-bezogene Sätze in **TS-73.18** (dessen allgemeine
+> Zugriffsschutz-Prüfung für `ToggleRelease`/`BulkRelease`/`SetPriority` selbst gültig bleibt).
+> Matchcode, Kopfdaten je Zeile und die HauptFA-Zeile selbst (TS-73.1–73.10) sind von diesem Rückbau
+> **nicht** betroffen und bleiben gültig.
 
 **Bezug:** Spec `2026-09-10-fa-liste-ausbau-matchcode-spec`.
 
@@ -7751,8 +7752,8 @@ geprüft, nur referenziert.
 - Ein IDEAL-Sub-FA mit bekanntem `FaHierarchyNode.Matchcode` ist bekannt.
 - Für TS-73.11/12/13/15: ein Haupt-FA mit mindestens 10 Sub-FAs, davon einige bereits
   `IsReleasedForPicking = true` mit gesetztem Kommissionierer.
-- Für TS-73.14: je ein Testdurchlauf mit Service-Einstellung `KommissionierungMitZuweisung = true`
-  und einmal `= false`.
+- Für TS-73.14 *(zurückgebaut v1.46.0 — siehe TS-79)*: je ein Testdurchlauf mit Service-Einstellung
+  `KommissionierungMitZuweisung = true` und einmal `= false`.
 
 **Automatisiert abgedeckt (Auszug):** `FaMaterializationSyncServiceTests`/`FaMaterializationPlannerTests`
 (Matchcode Anlege- **und** Update-Pfad, F1/F2-Muster), `ProductionOrderRepositoryTests`/
@@ -7901,6 +7902,9 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   Negativfall: die Meldung nennt 10 (Gesamtzahl statt tatsächlich neu freigegebener) → Regression.
 
 - **TS-73.14 — Zuweisungspflicht gilt auch für die Kaskade — inkl. Negativtest (AK 14, Pflicht).**
+  *(zurückgebaut v1.46.0 — siehe TS-79: das gesamte Szenario prüft die entfernte Freigabe-Kaskade —
+  Dialog, „allen N Sub-FAs zugewiesen"-Text, `CascadeRelease` mit/ohne Kommissionierer — und ist
+  nicht mehr ausführbar; Text unten zur Nachvollziehbarkeit stehen gelassen)*
   Vorbedingung a: `KommissionierungMitZuweisung = true`, HauptFA mit nicht freigegebenen Sub-FAs.
   Schritte a (Negativfall, **Pflicht-Nachweis**): die Kaskade **ohne** Kommissionierer-Auswahl
   auslösen (Dialog ohne Auswahl bestätigen bzw. direkter `POST` auf `CascadeRelease` ohne
@@ -7953,11 +7957,16 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   über die Entwicklertools des Browsers) — **beide Routen liefern seit v1.46.0 grundsätzlich 404
   (Rückbau, siehe TS-79), unabhängig vom Zugriffsrecht; dieser Teilschritt ist damit gegenstandslos.**
   Erwartung: der „Alle Sub-FAs freigeben"-Button ist für diesen Benutzer **nicht** sichtbar (nur
-  bei `CanManagePickingRelease`); der direkte Aufruf wird abgewiesen (403/Redirect), wie bei den
-  übrigen `RequireLeitstandAccess`-Actions (`ToggleRelease`/`BulkRelease`/`SetPriority`) — diese
-  Actions selbst und ihr Zugriffsschutz bleiben von diesem Rückbau **unberührt**.
-  Negativfall: der Button ist sichtbar oder der direkte `POST` gelingt ohne das Recht →
-  Zugriffslücke, sofort melden.
+  bei `CanManagePickingRelease`) — **dieser Button-Teil ist seit v1.46.0 gegenstandslos: der Button
+  existiert seit dem Rückbau für niemanden mehr, unabhängig vom Recht, siehe TS-79**; der direkte
+  Aufruf wird abgewiesen (403/Redirect), wie bei den übrigen `RequireLeitstandAccess`-Actions
+  (`ToggleRelease`/`BulkRelease`/`SetPriority`) — diese Actions selbst und ihr Zugriffsschutz bleiben
+  von diesem Rückbau **unberührt** und sind weiterhin so zu prüfen.
+  Negativfall: der Button ist sichtbar oder der direkte `POST` (auf `CascadeRelease`) gelingt ohne
+  das Recht → Zugriffslücke, sofort melden. **Dieser gesamte Negativfall ist seit v1.46.0
+  gegenstandslos (Button und `CascadeRelease` existieren nicht mehr, siehe TS-79); ein äquivalenter
+  Negativfall für `ToggleRelease`/`BulkRelease`/`SetPriority` ohne das Recht bleibt gültig, ist aber
+  nicht Gegenstand dieses (Kaskade-spezifischen) Satzes.**
 
 - **TS-73.19 — Frühere Spec nachgezogen, kein Widerspruch mehr (AK 19).** *(zurückgebaut v1.46.0 —
   siehe TS-79: die hier dokumentierte Aktion `CascadeRelease` existiert nicht mehr)*
@@ -8618,7 +8627,7 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   ist reine Extraktion, keine Verhaltensänderung; die Methode hat weiterhin genau einen Verbraucher.
   Negativfall: keiner (reine Regression).
 
-- **TS-79.2 — „Alle Ziele“ filtert auf gesetztes Komm.-Ziel (AK 3, 5, 6).**
+- **TS-79.2 — „Alle Ziele“ filtert auf gesetztes Komm.-Ziel (AK 3, 5, 6, 8).**
   Vorbedingung: hierarchische Stückliste (`Model.Hierarchical == true`) mit mind. 2 unterschiedlichen
   Komm.-Ziel-Werten und mind. einer leeren Zelle.
   Schritte: `/Picking/Bom/{HauptFA-id}` öffnen, Komm.-Ziel-Dropdown öffnen **(Manual-UAT)**.
