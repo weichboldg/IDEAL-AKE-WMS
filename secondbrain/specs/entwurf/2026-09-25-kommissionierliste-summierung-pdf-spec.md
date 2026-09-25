@@ -448,7 +448,203 @@ aktuellen Stand prüfen). Skizze der Szenarien:
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
+1. → **Bestaetigt: `(HauptFA, Artnr, Kommissionieren)` bleibt, keine Aenderung.** Mehrere klar getrennte
+   Zeilen je Ziel sind fuer den Kommissionierer lesbarer als eine Zeile mit Aufschluesselung.
+   **Ausdruecklich festgehalten:** Summiert wird **je HauptFA**, nicht ueber Auftraege hinweg. Das ist
+   gewollt und passt zu [[2026-09-25-kommissionierung-nur-hauptfa-spec]]: Kommissioniert wird je
+   HauptFA, also braucht der Kommissionierer die Summe **seines** Auftrags. Eine auftragsuebergreifende
+   Summe waere Sammelkommissionierung — nicht angefordert, eigener Umfang.
+
+2. → **"Summiert" wird Standard** (setzt Antwort 4 voraus). Die Anforderung lautet, mehrfach vorkommende
+   Artikel zu summieren — das ist die Ansicht, die der Kommissionierer im Alltag braucht. Die Liste
+   bleibt ueber den Umschalter erreichbar, um nachzuvollziehen, **woher** eine Summe kommt.
+   **Umsetzung ohne Weiterleitungslogik:** Der Menuepunkt zeigt kuenftig auf `/Summiert`, `Index` bleibt
+   unveraendert per Umschalter erreichbar. Kein Parameter-Sonderfall, keine Redirect-Action.
+
+3. → **Akzeptiert — aber mit einer staerkeren Begruendung als "vermutlich klein".** Die Mengeneinheit
+   ist in Sage eine **Artikeleigenschaft** (`KHKArtikel.Lagermengeneinheit`, im WMS `Article.Unit`). Der
+   Summierschluessel enthaelt die **Artikelnummer**. Zwei Zeilen desselben Summenschluessels sind damit
+   **derselbe Artikel mit derselben Einheit** — eine Vermischung ist nicht "unwahrscheinlich", sondern
+   durch den Schluessel **ausgeschlossen**, solange Stuecklistenpositionen keine vom Artikel
+   abweichende Positionseinheit fuehren.
+   **Diese Bedingung einmal belegen statt annehmen** (Dev-Lauf oder Mensch): Fuehrt
+   `KHKPpsRessourcenPositionen` eine eigene Mengeneinheits-Spalte, die von der Lagermengeneinheit des
+   Artikels abweichen kann? Falls **nein**: Falle 2 ist strukturell erledigt, der Fallstrick-Eintrag
+   haelt die Begruendung fest. Falls **ja**: Die Spalte gehoert in den Summierschluessel — dann
+   Rueckmeldung, nicht still weiterbauen.
+   **Kein neues Einheit-Feld** an `FaHierarchyNode` in dieser Spec.
+
+4. → **Lockern, wie eingeschaetzt.** Ohne KW alle HauptFA, die KW bleibt als optionaler Filter.
+   **Warum die Umkehr hier vertretbar ist:** Weil je HauptFA summiert wird, entstehen ohne KW keine
+   sinnlosen woechentlichen Gesamtsummen — jede Zeile bleibt eine Summe innerhalb eines Auftrags. Und
+   erst dadurch werden Liste und Summenansicht **symmetrisch**: Die Liste zeigt ohne KW alle HauptFA; eine
+   Summenansicht, die beim Umschalten ploetzlich leer wird oder anders filtert, waere genau die
+   Inkonsistenz, die TS-x.4 ("Umschalten behaelt den Filter") ausschliessen will. Vorbild ist die
+   Vormontage-Sicht 2, wo die KW bereits optional ist.
+   **Die fruehere Entscheidung (AK N2d) als ueberholt kennzeichnen**, mit Verweis auf diese Spec — nicht
+   stillschweigend aendern.
+
+**Reihenfolge:** Diese Spec **nach** [[2026-09-25-kommissionierung-nur-hauptfa-spec]] umsetzen. Beide
+aendern `KommissionierListenService.cs`, und jene extrahiert `BuildFlagPredicate` in
+`KommissionierRelevanzFilter` — die Summenansicht muss auf dem **extrahierten** Stand aufsetzen, nicht
+auf dem alten. Version und TS-Nummer ergeben sich dann aus dem Worktree-Stand (voraussichtlich TS-80).
+
+## Kritische Pruefung (2026-09-25)
+
+> Anwalt-des-Teufels-Durchsicht **vor** dem Dev-Lauf, am Code des Buendel-Worktrees
+> `feature/2026-08-07-ideal-teile-1-5` gegengeprueft. Die vier Freigabe-Antworten sind vollstaendig und
+> untereinander widerspruchsfrei — aber **keine** davon steht im Rumpf, und zwei Antworten treffen am
+> Code auf Stellen, die der Entwurf nicht kennt.
+
+### Die fuenf Schwerpunkte des Menschen
+
+**S1 — Bedingte Stellen, die durch Antwort 2 + 4 unbedingt werden: NICHT vollstaendig erfasst.** Die
+beiden genannten (TS-x.4, TS-x.9) sind nur ein Teil. Vollstaendige Liste der Stellen, die der
+Rumpf-Nachzug aendern muss:
+- Frontmatter `affected_code` (KommissionierListenService-Eintrag): „KW-Pflicht … **auf Rueckfrage 2**
+  abhaengig lockern" — **falsche Nummer** (gemeint ist Rueckfrage 4); jetzt unbedingt.
+- Frontmatter `affected_code` (Summiert.cshtml-Eintrag): „… ODER nur EIN seitenweiter Drucken-Link ohne
+  Gruppen-PDF, **siehe Rueckfrage 4**" — eine offene Designwahl, die Rueckfrage 4 (KW) gar nicht
+  beantwortet (siehe SOLLTE-5).
+- Frontmatter `open_questions`: noch alle vier gefuellt — auf `[]` setzen bzw. nach
+  `beantwortete_rueckfragen` verschieben.
+- In-Scope Punkt 2 („ueberpruefen/lockern … Rueckfrage 4") → „lockern".
+- Fachliche Anforderung 3 („Offen ist nur, ob `Index` … Standard bleibt") → „`Summiert` ist Standard,
+  Menue zeigt auf `/Summiert`" (Antwort 2).
+- Technischer Entwurf A: beide Zweige („Wird Rueckfrage 4 mit … beantwortet") → nur der Lockern-Zweig;
+  der Satz zum „dritten, eigenen Endpunkt" entfaellt.
+- Offene Rueckfrage 2, *Einschaetzung* „‚Liste' bleibt Standard" — widerspricht jetzt Antwort 2;
+  Abschnitt zum Protokoll machen („ALLE BEANTWORTET"), wie in anderen Specs.
+- **AK 12** („Nur falls Rueckfrage 4 …") → unbedingt. **AK 13** („Nur falls Rueckfrage 3 …") → unbedingt,
+  aber inhaltlich anders formuliert (siehe S2: Begruendung „Einheit ist Artikeleigenschaft, Schluessel
+  enthaelt die Artnr" statt „Nicht-Pruefbarkeit").
+- **Neues AK fehlt fuer Antwort 2:** „Der Menuepunkt ‚Kommissionierlisten' oeffnet `/Summiert`" — heute
+  gibt es keines.
+- **TS-x.4** (Toggle-Default) und **TS-x.9** (ohne KW) → unbedingt.
+
+**S2 — `KHKPpsRessourcenPositionen`: die Frage trifft die falsche Tabelle.** Am Code belegt:
+- `FaHierarchyNode` stammt **nicht** aus `KHKPpsRessourcenPositionen`, sondern aus der IDEAL-Sage-View
+  `vw_IDEAL-AKE_Kommissionierung_FAListe` (`FaHierarchyNode.cs:6`, `FaHierarchySyncService.cs:53`,
+  `ServiceSettingDefinitions.cs:38`). `KHKPpsRessourcenPositionen` ist die **AKE**-Stuecklistenquelle
+  (`SQL/AgentJobs/02_Import_Artikel.sql:38`, `[ake].[dbo]`; `SageImportService.cs:392`).
+- Wo das Repo eine Einheit liest, kommt sie **immer** aus `KHKArtikel.Lagermengeneinheit`
+  (`SageImportService.cs:387/403` → `Article.Unit`), nie aus einer Positionsspalte. Das ist ein Indiz,
+  **kein** Beleg: weder das Sage-Schema noch die Definition der IDEAL-View liegen im Repo.
+- **Nicht am Code pruefbar → offener Pruefschritt (Mensch, Sage-DB IDEAL):**
+  (a) `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe'` — aus welcher Positionstabelle liest die
+  View `Sollmenge`, und fuehrt sie dort eine Positions-Einheit mit?
+  (b) `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '<Positionstabelle aus (a)>'
+  AND COLUMN_NAME LIKE '%einheit%'`.
+  Kein Treffer ⇒ Antwort 3 greift („strukturell erledigt"), AK 13 = Fallstrick-Eintrag mit dieser
+  Begruendung. Treffer ⇒ Rueckmeldung, nicht weiterbauen (Antwort 3 wortwoertlich). **Der Dev-Lauf kann
+  das nicht selbst** (keine Sage-Verbindung aus der Umsetzung) — siehe B3.
+
+**S3 — Sitzungs-Spalten vs. gespeicherte Praeferenz: einen Sitzungs-Modus gibt es nicht, aber zwei echte
+Divergenz-Faelle.** `column-preferences.js` speichert jede Zahnrad-Aenderung automatisch per `PUT`
+(`scheduleSave` Z.297-302, `SAVE_DELAY = 1500` Z.20). Trotzdem kann das PDF vom Bildschirm abweichen:
+1. **Entprell-Fenster:** Spalte ausblenden und innerhalb von 1,5 s auf Drucken/PDF klicken ⇒ die DB hat den
+   alten Stand ⇒ PDF zeigt die Spalte noch.
+2. **Stiller Speicherfehler:** `saveSettings` meldet Fehler nur per `console.warn` (Z.312). Schlaegt das
+   Speichern fehl (Netz — **oder unregistrierter viewKey, genau Nebenbefund D fuer Summiert**), sieht der
+   Anwender seine Spalten, das PDF aber den gespeicherten Alt-/Standardstand.
+
+**`PrintBom` ist davon frei:** Es liest die sichtbaren `<th data-col-key>` **zur Klickzeit aus dem DOM** und
+haengt sie als `visibleColumns` an — der Druck ist per Konstruktion identisch mit dem Bildschirm, gespeichert
+oder nicht. Das Server-Muster (`WarehousePickingPrintLayout`) ist also **nicht** gleichwertig: es tauscht
+„kein JS" gegen „PDF = gespeicherter Stand". Das Argument des Entwurfs („die Links sind serverseitige
+`<a href>`") begruendet den kleineren Diff, nicht das richtige Verhalten. → **B1.**
+Positiv bestaetigt: Die Identitaet stimmt — `Pdf` rendert `Print` **in-process** im Request des Anwenders
+(`_viewRenderer.RenderToStringAsync`, Controller ~Z.170), kein Edge-Aufruf einer URL; `GetCurrentAppUserId()`
+liefert also den richtigen Benutzer.
+
+**S4 — Abhaengigkeit zur HauptFA-Spec: der Rumpf behauptet das Gegenteil des Codes.** Der Info-Kasten sagt
+„**andere** Methoden … **keine Zeilenueberschneidung**". Am Code: `AggregateSummiert` ruft
+`BuildFlagPredicate(targetValue)` **direkt** auf (`KommissionierListenService.cs`, Schritt 3, ~Z.160). Die
+Freigabe-Antworten (Abschnitt „Reihenfolge") haben das richtig erkannt, der Rumpf nicht. Entschaerfend: Die
+HauptFA-Spec (jetzt `InUmsetzung`) laesst `BuildFlagPredicate` als Signatur **bestehen** und delegiert nur an
+`KommissionierRelevanzFilter.IsRelevant` (dort `affected_code`, Z.14). Die Summenansicht erbt die Regel damit
+**automatisch** — keine eigene Aenderung an `AggregateSummiert` noetig, aber dieselbe Datei ⇒ Reihenfolge
+einhalten. → SOLLTE-8.
+
+**S5 — View-Key-Nachtrag: ja, und zwar vier Stellen, nicht eine.** `fallstricke.md` §3 („`data-col-key` ist
+Pflicht", „Neuer viewKey ohne `GetByViewKey`-Registrierung → Prefs-API 400") und §10 („Neue Spalte … braucht
+ZWEI Registrierungen": `#column-config` ist die **Client-Wahrheit**, `ColumnDefinitions` nur die
+viewKey-Validierung) plus die Lagerbestellungs-Druck-Regel („drei Stellen synchron"). Heute passen
+`<th data-col-key>` (Summiert.cshtml Z.79-82) und `#column-config` (Z.116-119) zusammen: 4 Keys
+`hauptfa/artnr/kommissionieren/sollmenge`. Der Entwurf fuegt zwei Stellen hinzu — den neuen
+`ColumnDefinitions.FaHierarchyKommissionierSummiert`-Eintrag **und** die `ShowCol`-Keys in
+`PrintSummiert.cshtml` (analog `Print.cshtml` gegen die 11 Keys von `FaHierarchyKommissionierListen`).
+→ SOLLTE-1.
+
+### BLOCKER
+
+**B1 — Druck-Spalten: Server-Praeferenz oder DOM-Stand? (Frage an den Menschen)** Der Entwurf waehlt das
+Server-Muster; es liefert in den zwei Faellen aus S3 ein PDF, das **anders** aussieht als der Bildschirm —
+genau das, was die Anforderung ausschliesst („das PDF zeigt, was dieser Anwender gerade sieht").
+**Frage:** (a) `PrintBom`-Muster — sichtbare `<th data-col-key>` beim Klick per kleinem JS an die
+Druck-/PDF-URL haengen; der Server nutzt den Parameter und faellt ohne ihn auf die gespeicherte Praeferenz
+zurueck — oder (b) Server-Muster wie entworfen, Divergenz im Entprell-Fenster/bei Speicherfehler als
+bekannte Grenze akzeptiert und dokumentiert? *Vorschlag:* (a) mit Server-Rueckfall. Nur der Parameter-Weg
+garantiert „was ich sehe"; der Server-Read bleibt Rueckfall fuer direkt aufgerufene URLs.
+
+**B2 — Summiert wird Standard, zeigt aber weder Matchcode noch Lagerplatz. (Frage an den Menschen)** Antwort 2
+macht `/Summiert` zur Alltagsansicht des Kommissionierers. Die Ansicht hat heute **vier** Spalten
+(`hauptfa/artnr/kommissionieren/sollmenge`; das RowViewModel hat keine weiteren Felder). Die Liste fuehrt
+dagegen `matchcode` (**Locked**, „identifizierender Schluessel", `ColumnDefinitions.cs` ~Z.324/338) und
+`hauptlagerplatz` — also **was** und **wo**. Wer kuenftig standardmaessig auf der Summe landet, verliert
+beides. Der Backlog sagt ausdruecklich „der Matchcode ist **Anzeige**" (Falle 3) — der Entwurf setzt das nicht
+um. Beide Felder liegen schon am `FaHierarchyNode` (`KommissionierListenService.cs` Z.58/60) und sind
+Artikeleigenschaften, also je Summenschluessel konstant — als Anzeigefeld (`g.First().Matchcode`) ohne
+Aenderung des Schluessels mitnehmbar.
+**Frage:** Bekommt die Summiert-Ansicht `Matchcode` (Locked) und `Hauptlagerplatz` (ggf. Bezeichnung) als
+Anzeigespalten? *Vorschlag:* ja, beide — sonst ist die neue Standardansicht fuer die Kommissionierung
+schlechter als die alte. Folge: `#column-config`/`<th>`/`ColumnDefinitions`/`PrintSummiert` mit 6 statt 4 Keys.
+
+**B3 — Einheit-Pruefschritt vor dem Dev-Lauf (S2).** Aus der Umsetzung heraus nicht pruefbar, und die
+Frage in Antwort 3 zielt auf `KHKPpsRessourcenPositionen` (AKE-Quelle). **Frage:** Fuehrt der Mensch die zwei
+Abfragen aus S2 vor der Freigabe auf der IDEAL-Sage-DB aus — oder wird es als **harte Stopp-Bedingung** in
+den Rumpf geschrieben (Dev-Lauf baut, Fallstrick-Eintrag bleibt „unbelegt" markiert, Testbereit erst nach
+Beleg)? *Vorschlag:* vor der Freigabe pruefen — zwei Abfragen, fuenf Minuten.
+
+### SOLLTE
+
+1. **Vier-Stellen-Konsistenz festschreiben (S5):** AK ergaenzen „Die Keys in `ColumnDefinitions.<View>`,
+   `#column-config`, `<th data-col-key>` und `ShowCol(...)` der Druckansicht sind fuer beide Views
+   identisch" + ein kleiner Unit-Test, der fuer `FaHierarchyKommissionierListen` und
+   `FaHierarchyKommissionierSummiert` die `ColumnDefinitions`-Keys gegen die Print-Keys prueft (Drift-Guard).
+2. **Bestehenden Test umkehren, nicht loeschen:** `KommissionierListenServiceTests.Summiert_NoKw_ReturnsEmpty_NoImplicitTotal`
+   (Z.163) zementiert N2d und wird rot. In `affected_code` aufnehmen: umbenennen/umkehren zu „ohne KW alle
+   HauptFA" (deckt AK 12 automatisiert ab).
+3. **N2d als ueberholt kennzeichnen — wo?** Antwort 4 verlangt es; `affected_code` nennt die Stelle nicht.
+   Ergaenzen: [[2026-07-29-standort-ideal-teil-3-spec]] (Hauptcheckout) — Vermerk an AK N2d mit Wikilink auf
+   diese Spec; zusaetzlich die Doc-Kommentare in `AggregateSummiert` (Schritt 1: „Ohne KW … leeres Ergebnis")
+   und am Controller (`Summiert`: „Ohne KW-Eingabe Hinweistext") anpassen, sonst luegt der Kommentar.
+4. **Menue: zwei Links, nicht einer.** `_Layout.cshtml` fuehrt „Kommissionierlisten" an **zwei** Stellen auf
+   `Index` (Z.184 im Dropdown, Z.203-204 als eigener Nav-Link). Beide in `affected_code` + AK.
+5. **Druckknopf in der Summiert-Ansicht entscheiden, nicht offen lassen:** *Vorschlag:* seitenweiter
+   Drucken-Link (wie Liste) **plus** PDF je HauptFA, dafuer Summiert wie `Index` nach HauptFA gruppiert
+   rendern. **Achtung Paging:** Summiert paginiert heute auf **Aggregatzeilen** (`AggregateSummiert`
+   Schritt 5) — eine HauptFA kann ueber zwei Seiten reissen. Bei gruppierter Darstellung entweder auf
+   Gruppen-Paging umstellen (wie Liste) oder den Riss bewusst hinnehmen; festlegen.
+6. **Fehlerrueckweg von `PdfSummiert`:** Das Vorbild `Pdf` leitet bei `PdfRenderException` auf `Index`.
+   `PdfSummiert` muss auf `Summiert` (mit denselben Query-Parametern) zurueck. AK dazu.
+7. **AK 4 praezisieren:** Der Umschalter traegt heute **nur** `target` (Index.cshtml Z.25/28,
+   Summiert.cshtml Z.16/19); Spaltenfilter (`colf_*`, verschiedene Key-Mengen) und KW (nur Summiert) gehen
+   beim Wechsel verloren. Antwort 4 argumentiert mit „Umschalten behaelt den Filter" — pruefbar ist nur:
+   „`target` bleibt erhalten; Spaltenfilter und KW werden beim Wechsel bewusst zurueckgesetzt". So
+   hinschreiben, sonst testet UAT etwas, das nie gebaut wird.
+8. **Info-Kasten korrigieren (S4)** und „Status `InUmsetzung`" der HauptFA-Spec als Momentaufnahme
+   kennzeichnen.
+
+### HINWEIS
+
+- Der zentrale Befund des Entwurfs (Summiert existiert, Schluessel erfuellt Falle 1+3, Filter-Durchschlag
+  im PDF greift) ist am Code bestaetigt — die Spec ist deutlich kleiner, als der Backlog vermuten liess.
+- Faellt B1 auf (a), wird die `WarehousePickingPrintLayout`-Ueberladung ggf. gar nicht gebraucht
+  (`PrintBom`-Konvention: leere Liste = alle Spalten) — der Diff schrumpft weiter.
+- Groesse: ~10-12 Dateien, nur Web-Schicht, keine Migration — ein Dev-Lauf, kein split/epic.
+- Deploy-Abschnitt plausibel (web ja, Service nur Versions-Mirror, Migration nein). Kein Schreibzugriff auf
+  Fremdsysteme, es entstehen keine echten Daten.
+- Die Konsequenz „PDF je Anwender verschieden" ist benannt und fuer ein internes Arbeitsdokument richtig.
+
+**NACHBESSERUNG NOETIG: Antworten nicht im Rumpf (S1), Druckspalten-Divergenz (B1), neue Standardansicht ohne Matchcode/Lagerplatz (B2), Einheit-Pruefschritt an der falschen Tabelle (B3).**
