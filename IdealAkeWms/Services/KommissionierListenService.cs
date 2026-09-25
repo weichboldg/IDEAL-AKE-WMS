@@ -228,10 +228,10 @@ public class KommissionierListenService
     public static Func<FaHierarchyNode, bool> BuildFlagPredicate(string? targetValue)
     {
         if (string.IsNullOrWhiteSpace(targetValue))
-            return n => !string.IsNullOrWhiteSpace(n.Kommissionieren);
+            return n => KommissionierRelevanzFilter.IsRelevant(n.Kommissionieren);
 
         var target = targetValue.Trim();
-        return n => !string.IsNullOrWhiteSpace(n.Kommissionieren)
+        return n => KommissionierRelevanzFilter.IsRelevant(n.Kommissionieren)
                     && string.Equals(n.Kommissionieren!.Trim(), target, StringComparison.OrdinalIgnoreCase);
     }
 }
