@@ -1,6 +1,6 @@
 ---
 type: spec
-title: "IDEAL: Kommissionierung nur auf dem HauptFA — gemeinsame Relevanzregel, fünfter Stückliste-Filter, Freigabe-Kaskade-Rückbau, Picking-Pfad auf HauptFA beschränkt"
+title: "IDEAL: Kommissionierung nur auf dem HauptFA — gemeinsame Relevanzregel, „Alle Ziele“ im Komm.-Ziel-Filter, Freigabe-Kaskade-Rückbau, Picking-Pfad auf HauptFA beschränkt"
 slug: 2026-09-25-kommissionierung-nur-hauptfa-spec
 status: Entwurf
 created: 2026-09-25
@@ -10,25 +10,31 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - "IdealAkeWms/Services/KommissionierListenService.cs Z. 228-236 (`BuildFlagPredicate`) — Kriterium NICHT ändern (bleibt einzig: `Kommissionieren` nicht leer), aber in eine neue, gemeinsame Methode auslagern statt es dort inline zu prüfen (siehe neue Datei unten). NICHT anfassen: `leafOnly:false`/`anomalyOnNonLeaf:false`-Aufruf (Nachtrag 2026-08-13) — SubFA spielt seit damals bewusst keine Rolle mehr."
-  - "IdealAkeWms/Services/KommissionierRelevanzFilter.cs (NEU) — EINE reine, statische Methode `IsRelevant(string? kommissionieren) => !string.IsNullOrWhiteSpace(kommissionieren)`, dokumentiert als die von Kommissionierliste UND Stückliste-Checkbox geteilte Regel (C#-Seite; die Stückliste spiegelt dieselbe Regel client-seitig auf demselben Feld, siehe unten — echtes Teilen über die Sprachgrenze hinweg ist nicht möglich, ohne einen Server-Roundtrip einzuführen, der für einen Leerstring-Check unverhältnismäßig wäre)."
-  - "NUR falls Freigabe-Antwort 2 einen Standorteinstellungen-Schalter verlangt (siehe offene Rückfrage 2): IdealAkeWms/Models/AppSettingKeys.cs (neuer Key `FaHierarchyKommissionierRelevanzAktiv`, Kommentarblock nach Vorlage Z. 63-68) + IdealAkeWms/Program.cs Z. 405-411 (`idealFaHierarchySettings`-Array, neue Zeile mit Default `\"true\"` — INVERTIERT zu den anderen vier Einträgen dort, die alle Default `\"false\"` sind, weil dieser Schalter das HEUTIGE Verhalten bit-identisch fortsetzen muss) + IdealAkeWms/Models/Standort/StandortSettingsCatalog.cs Z. 46-49 (`GroupToggles`, neue Zeile) + IdealAkeWms/Views/Settings/Index.cshtml Z. 44 (IDEAL-Gruppen-Tupel ergänzen) + IdealAkeWms/Services/KommissionierListenService.cs (Konstruktor bekommt `IAppSettingRepository`, `BuildFlagPredicate` liest den Schalter; bei `false` liefert die Methode `_ => true`, d.h. Kommissionierliste zeigt dann wieder ALLE Positionen ungefiltert — bewusste Rückfalloption, siehe Technischer Lösungsentwurf)."
-  - "IdealAkeWms/Views/Picking/Bom.cshtml (fünfter Standardfilter, NUR `@if (Model.Hierarchical)`): neue Checkbox „Nur kommissionierrelevant\" (in der Werkzeugleiste neben `btnExpandAll`/`btnCollapseAll`, Z. 76-83), neue JS-Funktion `bomKommissionierRelevanzActive()` (liest Checkbox-Status), Erweiterung von `updateBomVisibility()` (Z. 855-895) um eine zusätzliche, NICHT spaltenwertbasierte Sichtbarkeitsbedingung (Zeile nur sichtbar, wenn zusätzlich `KommissionierRelevanzFilter`-Kriterium erfüllt — client-seitig identisch geprüft: Zellinhalt der Spalte `kommissionieren` nicht leer), Erweiterung von `renderDefaultFilterBadges()`/`resetDefaultFilter`-Mechanik (Z. 985-1033) um einen fünften Badge-Eintrag ohne zugehöriges `<input data-col-key>` (eigener Zweig, da die anderen vier über `bomFilterInputValue(key)` funktionieren, die Checkbox aber keinen Spaltenfilter-Input hat), Erweiterung von `resetAllBomFilters()` (Z. 1035-1044, das De-facto-„Filter löschen\" dieser Ansicht — siehe Fachliche Anforderung 3) um das Zurücksetzen der Checkbox, Erweiterung des Druck-Handlers `btnPrintBom` (Z. 1167-1211) um einen zusätzlichen `filterParts`-Eintrag „Nur kommissionierrelevant\", wenn die Checkbox aktiv ist (die eigentliche Zeilenbeschränkung im Ausdruck läuft bereits automatisch über den bestehenden `visiblePositions`-Mechanismus, siehe Technischer Lösungsentwurf — KEINE Änderung an `PrintBom.cshtml`/`colNames` nötig)."
-  - "NUR falls Freigabe-Antwort 1 einen PRO BENUTZER gespeicherten Default verlangt: IdealAkeWms/Models/User.cs (neues Feld `DefaultFilterBomKommissionierRelevanz`, bool, non-nullable mit Default `false` ODER `bool?`, exaktes Vorbild `DefaultFilterBomKommissionierziel` Z. 86-91) + Migration `AddUserDefaultFilterBomKommissionierRelevanz` + `SQL/94_AddUserDefaultFilterBomKommissionierRelevanz.sql` (COL_LENGTH/OBJECT_ID-Guard nach Vorlage `SQL/92_...sql`) + `SQL/00_FreshInstall.sql` (beide Stellen) + `Models/ViewModels/UserEditViewModel.cs`/`ProfileViewModel.cs` + `Views/Users/Edit.cshtml`/`Views/Account/Profile.cshtml` (Checkbox statt Textfeld — anders als die vier Textfilter, weil hier kein OR-Freitext, sondern ein reiner Ja/Nein-Schalter nötig ist) + `Controllers/UsersController.cs`/`AccountController.cs` (Feld durchreichen) + `Controllers/PickingController.cs` (Bom-Action, analog Z. 296/307, ins BomViewModel legen) + `Models/ViewModels/BomViewModels.cs` (neue Property)."
-  - "IdealAkeWms/Controllers/PickingController.cs Z. 280-290 (`Bom`-Action) — NEUER Guard direkt nach dem `order == null`-Check: ist `order.SubOrderNumber` gesetzt und ungleich `order.OrderNumber` (= Sub-FA, nicht die Wurzel — Invariante aus Fallstricke §9, für AKE folgenlos, da dort `SubOrderNumber == OrderNumber` immer gilt), TempData[\"WarningMessage\"] = \"Kommissionierung erfolgt nur am HauptFA {OrderNumber}.\" + Redirect (z. B. `RedirectToAction(\"Index\", \"FaHierarchy\")` oder zurück zum Leitstand über `returnUrl`, am Code zu verifizieren, was die bessere Landestelle ist). Rein datengetrieben, KEIN zusätzlicher Master-Switch-Read nötig."
-  - "IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 356-405 (`ToggleRelease`) — derselbe Sub-FA-Guard vor der Freigabe-Logik (order bereits geladen, `order.SubOrderNumber`/`OrderNumber` bereits vorhanden, keine zusätzliche Query)."
-  - "IdealAkeWms/Data/Repositories/ProductionOrderPickingStatusRepository.cs Z. 218-281 (`SetReleaseBatchAsync`) — analog zum bestehenden `SkippedNoArticle`-Zweig (Z. 246-250) einen neuen Skip-Zweig für Sub-FA-Zeilen (`row.ProductionOrder.SubOrderNumber != row.ProductionOrder.OrderNumber` bei `release == true`), neues Feld `BulkReleaseResult.SkippedSubFa` (`IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs` Z. 5-9)."
+  - "IdealAkeWms/Services/KommissionierListenService.cs Z. 228-236 (`BuildFlagPredicate`) — Kriterium NICHT ändern (bleibt einzig: `Kommissionieren` nicht leer), aber in eine neue, gemeinsame Methode auslagern statt es dort inline zu prüfen. Kein Standorteinstellungen-Schalter (Antwort 2), kein Konstruktor-Parameter."
+  - "IdealAkeWms/Services/KommissionierRelevanzFilter.cs (NEU) — EINE reine, statische Methode `IsRelevant(string? kommissionieren) => !string.IsNullOrWhiteSpace(kommissionieren)`. `BuildFlagPredicate` ruft sie auf. Dokumentierter Zweck: der Ort, an dem künftige Zusatzkriterien hinzukämen — heute EIN Verbraucher (Antwort 2), kein Vortäuschen einer zweiten Implementierung."
+  - "IdealAkeWms/Models/ProductionOrder.cs — neue berechnete, [NotMapped]-Eigenschaft `IsSubFa => !string.IsNullOrEmpty(SubOrderNumber) && SubOrderNumber != OrderNumber` (leer gilt als HauptFA, sichere Richtung für AKE, `SubOrderNumber` ist `NOT NULL` mit Default `string.Empty`, Z. 20). Kommentar-Pflicht: EF kann diesen Ausdruck in IQueryable-Abfragen NICHT übersetzen — die Warteschlangen-Abfragen (siehe unten) schreiben denselben Ausdruck inline mit Verweis auf `IsSubFa` als Referenzdefinition."
+  - "IdealAkeWms/Data/Repositories/ProductionOrderPickingStatusRepository.cs Z. 174-216 (`GetReleasedForPickingAsync`, `GetReleasedForPickingByPickerAsync` Z. 186-201, `GetReleasedForPickingCountAsync` Z. 203-205, `GetMaxPickingPriorityAsync` Z. 207-216) — jede der vier Abfragen bekommt eine zusätzliche `Where`-Bedingung `(p.SubOrderNumber == \"\" || p.SubOrderNumber == p.OrderNumber)` (bzw. auf `s.ProductionOrder.SubOrderNumber`/`s.ProductionOrder.OrderNumber` für die beiden status-basierten Abfragen) — IQueryable/SQL-Übersetzung, inline geschrieben, mit Kommentar `// entspricht ProductionOrder.IsSubFa == false, hier inline weil EF die C#-Eigenschaft nicht übersetzt`. Macht den einmaligen SQL-Testlauf (Antwort 3) redundant für künftige Korrektheit, ersetzt ihn aber nicht für Altlasten."
+  - "IdealAkeWms/Data/Repositories/ProductionOrderPickingStatusRepository.cs Z. 218-281 (`SetReleaseBatchAsync`) — neuer Skip-Zweig VOR dem bestehenden `SkippedNoArticle`-Zweig (Z. 246-250): `if (row.ProductionOrder.IsSubFa) { result.SkippedSubFa.Add(row.ProductionOrder.OrderNumber); continue; }` — ungated von `release`, also Sub-FA wird in Bulk in BEIDEN Richtungen (Freigeben UND Zurücknehmen) übersprungen (konsistent zur beidseitigen Sperre in `ToggleRelease`). Neues Feld `BulkReleaseResult.SkippedSubFa` in `IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs` Z. 5-9."
+  - "IdealAkeWms/Controllers/PickingController.cs Z. 280-290 (`Bom`-Action) — neuer Guard direkt nach dem `order == null`-Check, VOR dem bestehenden Artikelnummer-Guard (Z. 286-290, dessen Muster als Vorbild dient): ist `order.IsSubFa`, `TempData[\"WarningMessage\"] = \"Kommissionierung erfolgt nur am HauptFA {order.OrderNumber}.\"` + `RedirectToAction(nameof(Index))` (exakt dasselbe Muster wie der Artikelnummer-Guard, kein `returnUrl` an dieser Action vorhanden)."
+  - "IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 356-405 (`ToggleRelease`) — Guard vor der Freigabe-Logik, unabhängig von der Richtung (`order.IsSubFa` blockt sowohl Freigeben als auch Zurücknehmen — Warteschlange filtert Sub-FAs ohnehin über die Repository-Änderung oben aus, ein Zurücknehmen-Sonderpfad ist daher nicht nötig, siehe Freigabe-Antwort 3)."
   - "IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 409-451 (`BulkRelease`) — neue `TempData[\"WarningMessage\"]`-Zeile für `batch.SkippedSubFa`, analog der bestehenden Zeile für `SkippedNoArticle` (Z. 446-447)."
-  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml — lokale Variable `isHauptFaRow` nach EXAKTEM Vorbild `Views/ProductionOrders/_ProductionOrderRow.cshtml` Z. 16-18 (`Model.Hierarchical && item.SubOrderNumber == item.OrderNumber`, kein neues ViewModel-Feld — bewusstes Precedent, siehe dortiger Kommentar); die Freigabe-Spalte (Z. 217-259: ToggleRelease-Formular, Freigeben-Button, Prioritäts-Input) UND die Bulk-Checkbox-Spalte (Z. 18-29) werden zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt — auf Sub-FA-Zeilen verschwindet das Bedienelement vollständig (Einschätzung aus dem Backlog: ein wirkungsloses Element ist schlimmer als keines)."
-  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml Z. 30-42 UND IdealAkeWms/Views/ProductionOrders/_ProductionOrderRow.cshtml Z. 30-49 — der INTERAKTIVE Stückliste-Link (`asp-controller=\"Picking\" asp-action=\"Bom\"`, NICHT der read-only `FaWorklist`-Zweig daneben) zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt. Der `FaWorklist/Bom`-Zweig (read-only, BDE-Referenz) bleibt UNVERÄNDERT auf jeder Sub-FA-Zeile sichtbar — Rückmeldung/Referenz ist nicht Kommissionierung."
-  - "RÜCKBAU (Block 4/Tasks 12-14 aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]], bereits gebaut, Testbereit, noch NICHT gemergt): IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 543-616 (`CascadeReleasePreview`/`CascadeRelease` inkl. Kommentarblock Z. 543-549) vollständig entfernen. IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs Z. 56 (`SetReleaseForOrderNumberAsync`) + Z. 62 (`CountReleasedByOrderNumberAsync`) + zugehörige Implementierung in ProductionOrderPickingStatusRepository.cs (Z. 283ff. und `CountReleasedByOrderNumberAsync`) entfernen — VORHER am Code prüfen, ob `CountReleasedByOrderNumberAsync` noch woanders verwendet wird (z. B. eine KPI-Anzeige), sonst mitreissen. IdealAkeWms/Views/PickingLeitstand/Index.cshtml Z. 212 (`.btn-cascade-release`-Button), Z. 400-451 (`cascadeReleaseModal`) und Z. 559-590ff. (zugehöriges JS) vollständig entfernen. IdealAkeWms.Tests/Controllers/PickingLeitstandControllerTests.cs + IdealAkeWms.Tests/Repositories/ProductionOrderPickingStatusRepositoryTests.cs (Tests zu `CascadeRelease*`/`SetReleaseForOrderNumberAsync` entfernen). docs/TESTSZENARIEN.md TS-73 (v1.38.0) — die Freigabe-Kaskade-Szenarien als „zurückgebaut, siehe TS-79\" kennzeichnen statt löschen (Vorbild: ADR-0014-Rückbau, TS-71.6-71.9-Markierung). NICHT anfassen: `CascadeDonePreview`/`CascadeDone` (Z. 488-541, Fertigmeldungs-Kaskade Teil 7/8 — bleibt unverändert, betrifft `IsDoneBde`, nicht `IsReleasedForPicking`)."
-  - "secondbrain/specs/freigegeben/2026-09-10-fa-liste-ausbau-matchcode-spec.md (HAUPTCHECKOUT, Brain-Update-Pflicht des Dev-Laufs, NICHT dieser Spec-Agent-Lauf) — Block 4/Tasks 12-14 als durch diese Spec überholt/zurückgebaut kennzeichnen, damit die freigegebene Spec nicht widersprüchlich zum tatsächlichen Codezustand bleibt."
+  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml — lokale Variable `isHauptFaRow` nach Vorbild `Views/ProductionOrders/_ProductionOrderRow.cshtml` Z. 16-18 (`Model.Hierarchical && item.SubOrderNumber == item.OrderNumber`); Freigabe-Spalte (Z. 217-259) UND Bulk-Checkbox-Spalte (Z. 18-29) zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt."
+  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml Z. 30-42 UND IdealAkeWms/Views/ProductionOrders/_ProductionOrderRow.cshtml Z. 30-49 — der interaktive Stückliste-Link (`asp-controller=\"Picking\" asp-action=\"Bom\"`, NICHT der read-only `FaWorklist`-Zweig) zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt. `FaWorklist/Bom` bleibt unverändert auf jeder Sub-FA-Zeile sichtbar."
+  - "IdealAkeWms/Views/Picking/Bom.cshtml — KEINE eigene Checkbox, KEIN eigener Badge-Zweig. Stattdessen am bestehenden Komm.-Ziel-Select2 (`setupKommissionierzielDropdown`, Z. 1049-1083): neue, EXKLUSIVE erste Option `<option value=\"!(leer)\">Alle Ziele (nur kommissionier-relevant)</option>` im `<select multiple>`. Auswahl von „Alle Ziele“ deselektiert alle Einzelziele und umgekehrt (im `change`-Handler Z. 1075-1082, sonst entstünde `!(leer),KA-02`, das die Ausschluss-Syntax in `bomMatchesFilter` auslöst)."
+  - "IdealAkeWms/Views/Picking/Bom.cshtml Z. 830-837 (`bomMatchesFilter`) — EIN neuer Sonderfall am Anfang der Funktion: ist der getrimmte, lowercase Gesamtwert `val === '!(leer)'`, dann `return text.trim() !== ''` (Zellinhalt nicht leer), statt der Ausschluss-Syntax (`val.startsWith('!')`) zu folgen, die `!(leer)` sonst als „enthält nicht '(leer)'“ läse und ALLES anzeigen würde. Dieser eine Sonderfall deckt alle drei Aufrufer ab: `updateBomVisibility` (Z. 855ff), `expandAncestorsOfMatching` (Z. 1086ff) und `checkKommissionierzielEmptyState` (Z. 1107ff) — keine Änderung an diesen drei Funktionen selbst nötig."
+  - "IdealAkeWms/Views/Picking/Bom.cshtml Z. 999-1023 (`renderDefaultFilterBadges`) — Sonderfall für `cfg.key === 'kommissionieren'`: ist der Wert (getrimmt, lowercase) `!(leer)`, Badge-Text „Alle Ziele (nur kommissionier-relevant)“ statt „Gefiltert: Komm.-Ziel = !(leer)“."
+  - "IdealAkeWms/Views/Picking/Bom.cshtml Z. 1107-1125 (`checkKommissionierzielEmptyState`) — Sonderfall für denselben Wert im Leerzustand-Text (statt „Standardfilter Kommissionierziel „!(leer)“ aktiv …“ die Formulierung „Standardfilter „Alle Ziele (nur kommissionier-relevant)“ aktiv — keine Treffer in dieser Stückliste.“)."
+  - "IdealAkeWms/Views/Picking/Bom.cshtml Z. 1167-1211 (`btnPrintBom`-Handler) — beim Aufbau von `filterParts` (Z. 1188-1190) Sonderfall für `col === 'kommissionieren'` mit Wert `!(leer)`: Textbaustein „Komm.-Ziel=Alle Ziele (nur kommissionier-relevant)“ statt des Rohwerts. Keine Änderung an `visiblePositions`/`PrintBom.cshtml`/`colNames` nötig (bereits durch [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] erledigt)."
+  - "NICHT ANFASSEN: wwwroot/js/table-filter.js (`applyFilters` Z. 293-330, `matchesFilter` Z. 272) — gemeinsames JS für alle Server-Mode-Listen. Es filtert beim `window.setColumnFilter`-Aufruf kurz mit, wird aber danach vom Bom-Wrapper (Z. 979-983, `updateBomVisibility()`) überschrieben. Die `!(leer)`-Sonderbehandlung bleibt in `bomMatchesFilter` isoliert. Die Vereinheitlichung der Mini-Syntax ist Sache von [[2026-09-23-suchsyntax-spaltenfilter-erweitern]] (siehe Hinweis unten)."
+  - "IdealAkeWms/Views/Account/Profile.cshtml Z. 53 UND IdealAkeWms/Views/Users/Edit.cshtml Z. 117 (Freitext-Inputs `DefaultFilterBomKommissionierziel`) — Placeholder/Hilfetext ergänzen, der `!(leer)` als „Alle Ziele“ erklärt (z. B. `placeholder=\"z. B. KA-02 oder !(leer) für alle Ziele\"`). Keine Validierungsänderung nötig: `ProfileViewModel` Z. 71-73/`UserEditViewModel` Z. 83-85/`User` Z. 96-98 haben nur `[StringLength(200)]`, `AccountController.cs` Z. 219/`UsersController.cs` Z. 129/301 nur `Trim()` — `!` und Klammern sind bereits zulässig, `Html.Raw`-Vorbelegung in `Bom.cshtml` Z. 1146 ist für `!(leer)` unkritisch."
+  - "RÜCKBAU (Block 4/Tasks 12-14 aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]], bereits gebaut, Testbereit, noch NICHT gemergt): IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 543-616 (`CascadeReleasePreview`/`CascadeRelease` inkl. Kommentarblock Z. 543-549) vollständig entfernen. IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs Z. 56 (`SetReleaseForOrderNumberAsync`) + Z. 62 (`CountReleasedByOrderNumberAsync`, verifiziert ohne Fremdverwendung außer `CascadeReleasePreview` Z. 563 und eigenen Tests — kann mitentfernt werden) + Implementierungen in ProductionOrderPickingStatusRepository.cs entfernen. IdealAkeWms/Views/PickingLeitstand/Index.cshtml Z. 206-217 (Button), Z. 398-451 (Modal), JS ab Z. 556 vollständig entfernen — Layout-Hinweis: der Button steht inline in derselben `<td colspan>` hinter „Alle Sub-FAs fertigmelden“, Entfernen hinterlässt keine Lücke. IdealAkeWms.Tests/Controllers/PickingLeitstandControllerTests.cs (24 Fundstellen) + IdealAkeWms.Tests/Repositories/ProductionOrderPickingStatusRepositoryTests.cs (13 Fundstellen) entfernen. IdealAkeWms/Views/Help/Changelog.cshtml Z. 180 (Überschrift) + Z. 203-207 (Bullet) als zurückgenommen kennzeichnen. docs/TESTSZENARIEN.md: TS-73-Titel Z. 7726, Z. 7753, TS-73.11-13, Z. 7895, Z. 7940-7952, Schlusszeile Z. 8575 als „zurückgebaut, siehe TS-79“ kennzeichnen statt löschen (Vorbild TS-71-Rückbau-Vermerk). NICHT anfassen: `CascadeDonePreview`/`CascadeDone` (Z. 488-541, Fertigmeldungs-Kaskade, betrifft `IsDoneBde`, nicht `IsReleasedForPicking`). `CanManagePickingRelease` bleibt unverändert (wird an anderer Stelle weiter genutzt)."
+  - "secondbrain/specs/freigegeben/2026-09-10-fa-liste-ausbau-matchcode-spec.md (HAUPTCHECKOUT, Brain-Update-Pflicht des Dev-Laufs, NICHT dieser Spec-Agent-Lauf) — Block 4/Tasks 12-14 als durch diese Spec überholt/zurückgebaut kennzeichnen."
+  - "IdealAkeWms/Views/Help/Index.cshtml, Abschnitt „Leitstand (Kommissionier-Freigabe)“ (ab Z. 695) — ergänzen: „Freigabe und Stückliste sind nur an der HauptFA-Zeile möglich, Sub-FA-Zeilen zeigen diese Bedienelemente nicht mehr“ sowie ein Hinweis auf die Schaltfläche „Alle Ziele“ im Komm.-Ziel-Filter der Stückliste."
+  - "secondbrain/architektur/fallstricke.md — neuer Eintrag: `Bom.cshtml` Z. 256 (`<td>@item.Kommissionieren</td>`) darf keinen Platzhalter (z. B. „–“) für leere Werte bekommen, sonst kippt sowohl die client-seitige Relevanzprüfung als auch der `!(leer)`-Sonderfall in `bomMatchesFilter` still (die Zelle gilt dann nie mehr als leer)."
   - "docs/TESTSZENARIEN.md (neues Kapitel TS-79) + secondbrain/tests/testszenarien-index.md (Eintrag TS-79)."
-  - "IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs (Version) + Views/Help/Changelog.cshtml."
-open_questions:
-  - "Ist die Checkbox beim Öffnen der Stückliste standardmäßig an oder aus — und soll sie pro Benutzer speicherbar sein wie die anderen vier Standardfilter?"
-  - "Der Code zeigt für die Kommissionierliste nur EIN Relevanzkriterium (Feld `Kommissionieren` nicht leer) statt der im Backlog vermuteten mehreren Parameter (SubFA/Beschaffungsartikel/Artikelgruppe) — SubFA-Filterung wurde am 2026-08-13 sogar bewusst entfernt. Reicht die reine Extraktion der Regel in EINE geteilte C#-Methode (kein Standorteinstellungen-Eintrag, da nichts Echtes zu konfigurieren ist), oder soll trotzdem ein Ein/Aus-Schalter `FaHierarchyKommissionierRelevanzAktiv` gebaut werden (z. B. als Rückfallebene, falls Sage das Feld `Kommissionieren` unzuverlässig befüllt)?"
-  - "Im IDEAL-Testsystem existieren laut Backlog bereits einzeln freigegebene Sub-FAs (`IsReleasedForPicking=true`). Sollen diese Zeilen nach dem Rückbau/der Beschränkung unverändert stehen bleiben (Empfehlung dieser Spec: ja — reine Testdaten, keine produktive Migration nötig, die Zeile bleibt für Glas/Fremdbezug/Lackierung ohnehin bestehen), oder soll ein einmaliger Datenlauf sie im Testsystem manuell zurücksetzen?"
+  - "IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs (Version) + Views/Help/Changelog.cshtml (neuer Eintrag)."
+  - "Neue Backlog-Notiz (vom Orchestrator anzulegen, nicht Teil dieser Spec): [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]] — Zwei-Ebenen-Gruppierung der Kommissionierer-Warteschlange (`PickingController.cs` Z. 199ff) wird durch diese Spec funktional überflüssig (H1)."
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -44,14 +50,13 @@ freigabe_am: ""
 
 > [!info] Umsetzungsort (Hinweis, keine Frontmatter-Vorgabe)
 > Der gesamte betroffene Code (`FaHierarchyKommissionierListenController`, `KommissionierListenService`,
-> `PickingController`, `PickingLeitstandController`, `Bom.cshtml`, `StandortSettingsCatalog` usw.)
-> existiert **nur** im nicht gemergten Bündel-Worktree
-> `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch `feature/2026-08-07-ideal-teile-1-5`,
-> aktueller Stand bei Spec-Erstellung: `AppVersion 1.45.0`, höchstes Testszenarien-Kapitel `TS-78`,
-> höchste SQL-Nummer `93`). Im `main`-Checkout, in dem dieser Spec-Agent-Lauf ausgeführt wurde,
-> existiert davon **nichts**. Die Umsetzung erfolgt dort als weitere Etappe desselben Bündels — kein
-> neuer Worktree. Der Dev-Lauf verifiziert AppVersion/TS-Nummer/SQL-Nummer gegen den dann aktuellen
-> Worktree-Stand, bevor er sie festschreibt.
+> `PickingController`, `PickingLeitstandController`, `Bom.cshtml` usw.) existiert **nur** im nicht
+> gemergten Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch
+> `feature/2026-08-07-ideal-teile-1-5`, aktueller Stand bei Spec-Überarbeitung: `AppVersion 1.45.0`,
+> höchstes Testszenarien-Kapitel `TS-78`, höchste SQL-Nummer `93`). Im `main`-Checkout, in dem dieser
+> Spec-Agent-Lauf ausgeführt wurde, existiert davon **nichts**. Die Umsetzung erfolgt dort als weitere
+> Etappe desselben Bündels — kein neuer Worktree. Der Dev-Lauf verifiziert AppVersion/TS-Nummer/
+> SQL-Nummer gegen den dann aktuellen Worktree-Stand, bevor er sie festschreibt.
 
 ## Ziel / Nutzen (das Warum)
 
@@ -60,10 +65,9 @@ Scope-Frage endgültig: Kommissioniert wird **ausschließlich am HauptFA**, inkl
 Stücklisten-Vollstruktur (Ruling 4 bleibt, Rückbau entfällt). Das löst den doppelten Materialzug
 auf und macht eine bereits gebaute, aber jetzt gegenstandslose Freigabe-Kaskade auf Sub-FA-Ebene
 überflüssig — und wirft die Frage auf, ob die Kommissionierliste ihre Positionen nach fest
-codierten Regeln oder nach admin-pflegbaren Einstellungen aussiebt, und ob dieselbe Regel auch der
-Stückliste hilft, aus der jetzt langen Vollstruktur nur die wirklich zu holenden Positionen
-herauszufiltern. Diese Spec zieht vier zusammenhängende Fäden zusammen, die alle aus derselben
-Entscheidung folgen:
+codierten Regeln aussiebt, und ob dieselbe Regel auch der Stückliste hilft, aus der jetzt langen
+Vollstruktur nur die wirklich zu holenden Positionen herauszufiltern. Diese Spec zieht vier
+zusammenhängende Fäden zusammen, die alle aus derselben Entscheidung folgen:
 
 1. Die Kommissionierliste (Teil 3) und die Stückliste (`/Picking`) sollen **dieselbe** Regel
    verwenden, statt zwei Implementierungen, die auseinanderlaufen können.
@@ -71,9 +75,15 @@ Entscheidung folgen:
    zurückgebaut, bevor sie in den Merge des Bündels geht.
 3. Freigabe und interaktive Kommissionierung werden **strukturell** auf die HauptFA-Zeile
    beschränkt — ein Bedienelement, das nichts (mehr) bewirkt, verschwindet.
-4. Die Druck-Whitelist-Erweiterung (Ebene/Komm.-Ziel), die der Backlog als „vor dem Merge fällig"
+4. Die Druck-Whitelist-Erweiterung (Ebene/Komm.-Ziel), die der Backlog als „vor dem Merge fällig“
    markiert hatte, ist bereits durch [[2026-09-18-stueckliste-kommissionierziel-filter-spec]]
    (v1.42.0, Testbereit) erledigt — hier nur bestätigt, nicht erneut gebaut.
+
+**Überarbeitung 2026-09-25 (nach kritischer Prüfung, alle Rückfragen beantwortet):** Der ursprüngliche
+Entwurf hatte einen fünften, eigenständigen Checkbox-Filter „Nur kommissionierrelevant“ vorgesehen.
+Der Mensch hat stattdessen die günstigere Alternative (S4 der kritischen Prüfung) gewählt: „Alle
+Ziele“ als neue, exklusive Option im bereits bestehenden Komm.-Ziel-Dropdown. Diese Spec übernimmt
+diese Entscheidung vollständig; ein eigener Checkbox-Filter wird **nicht** gebaut.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
@@ -84,113 +94,133 @@ Entscheidung folgen:
    (`KommissionierListenService.BuildFlagPredicate`, Z. 228-236). SubFA-Filterung wurde am
    2026-08-13 (Nachtrag 1, `leafOnly:false`) explizit entfernt; Beschaffungsartikel/Artikelgruppe
    spielen für die Relevanz **keine** Rolle (sie existieren nur als eigenständige, vom Anwender
-   frei wählbare Spaltenfilter, `ColumnMap`, nicht als Bestandteil der Grundmenge). Diese Spec
-   dokumentiert den Befund und zieht daraus die Konsequenz für den Umfang der „Standorteinstellung"
-   (siehe offene Rückfrage 2).
+   frei wählbare Spaltenfilter, `ColumnMap`, nicht als Bestandteil der Grundmenge).
 2. **Die Relevanzregel wird an EINER Stelle definiert** (`KommissionierRelevanzFilter.IsRelevant`)
-   und von der Kommissionierliste genutzt; die Stückliste spiegelt dieselbe Regel client-seitig auf
-   demselben Feld (`Kommissionieren`/`Bom.Kommissionieren`) — echtes Teilen einer kompilierten
-   Funktion über die C#/JS-Sprachgrenze ist nicht sinnvoll erreichbar, ohne einen Server-Roundtrip
-   für einen reinen Leerstring-Check einzuführen.
-3. **Fünfter Standardfilter in der Stückliste** (`/Picking`, nur `Model.Hierarchical`): Checkbox
-   „Nur kommissionierrelevant", die Positionen mit leerem `Kommissionieren`-Feld ausblendet — nach
-   demselben Muster wie die vier bestehenden Standardfilter aus
-   [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] (Badge bei aktivem Filter, Ein-Klick-
-   Reset, Rücksetzung über den bestehenden „Alle Filter zurücksetzen"-Mechanismus dieser Ansicht).
+   und ausschließlich von der Kommissionierliste genutzt (Antwort 2: ein einziges Kriterium
+   rechtfertigt heute nur einen Verbraucher — die Extraktion ist trotzdem sinnvoll als Ort für
+   künftige Zusatzkriterien). Die Stückliste verwendet **keine** eigene Regel mehr: Sie nutzt den
+   bereits bestehenden Komm.-Ziel-Filter mit dem neuen Bedeutungswert „Alle Ziele“ (Punkt 3).
+3. **„Alle Ziele“ im bestehenden Komm.-Ziel-Filter der Stückliste** (`/Picking`, nur
+   `Model.Hierarchical`): Eine neue, exklusive Option im Select2-Dropdown
+   (`setupKommissionierzielDropdown`) setzt den Bedeutungswert `!(leer)` = „Ziel ist nicht leer“ in
+   das bestehende, versteckte `<input data-col-key="kommissionieren">` — keine eigene Checkbox,
+   kein eigener Badge-Zweig, kein eigener Leerzustand. Badge, Reset, rekursive Suche,
+   Vorfahren-Aufklappen, Druckhinweis und Persistenz je Benutzer laufen über den bestehenden
+   Mechanismus aus [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] — nur die drei Stellen,
+   die den Rohwert `!(leer)` anzeigen (Badge, Leerzustand, Druck), brauchen eine Textabbildung, und
+   `bomMatchesFilter` braucht einen Sonderfall, damit die heutige Mini-Syntax `!(leer)` nicht als
+   Ausschluss liest.
 4. **Freigabe-Kaskade zurückbauen** (Block 4/Tasks 12-14 aus
    [[2026-09-10-fa-liste-ausbau-matchcode-spec]], Testbereit, noch nicht gemergt): Sie gäbe
    Sub-FAs frei, die künftig nie kommissioniert werden — ein Zustand ohne Bedeutung.
 5. **Freigabe- und interaktiver Kommissionierpfad strukturell auf die HauptFA-Zeile beschränkt**:
    Zeilen-Toggle (`ToggleRelease`), Mehrfachauswahl (`BulkRelease`), die interaktive
    Stückliste-Aktion (`Picking/Bom`) — sowohl das Bedienelement in der UI als auch ein
-   serverseitiger Guard (Verteidigung in der Tiefe, „Melden statt still behandeln").
-6. Testszenarien (neues Kapitel TS-79) inkl. Rückbau-Markierung in TS-73.
+   serverseitiger Guard (Verteidigung in der Tiefe, „Melden statt still behandeln“, nur an den
+   Einstiegen, siehe Out-of-Scope).
+6. **Warteschlangenkorrektur** (Antwort 3, Korrektur der ursprünglichen Empfehlung, s. u.):
+   `ProductionOrder.IsSubFa` als eine gemeinsame Formel, genutzt von den drei
+   Warteschlangen-Abfragen sowie `Bom`/`ToggleRelease`/`SetReleaseBatchAsync`. Einmaliger SQL-Lauf
+   nur im Testsystem (Deploy-Abschnitt).
+7. Hilfeseite (Picking/Leitstand-Abschnitt) und Testszenarien (neues Kapitel TS-79) inkl.
+   Rückbau-Markierung in TS-73.
 
 **Out-of-Scope**
 
 - **Druck-Whitelist-Erweiterung (Ebene, Komm.-Ziel) in `PrintBom.cshtml`** — bereits umgesetzt durch
   [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] (v1.42.0, verifiziert:
   `Views/Picking/PrintBom.cshtml` Z. 207-259 enthält bereits `ShowCol("kommissionieren")`,
-  `ShowCol("hauptlagerplatz")`, `ShowCol("ebene")`). Diese Spec fügt lediglich einen zusätzlichen
-  `filterInfo`-Textbaustein hinzu, wenn die neue Checkbox aktiv ist (Punkt 3 oben) — keine neue
-  Spalte, kein neuer `ShowCol`-Block.
+  `ShowCol("hauptlagerplatz")`, `ShowCol("ebene")`). Diese Spec fügt lediglich eine Textabbildung im
+  `filterInfo`-Parameter hinzu, wenn „Alle Ziele“ aktiv ist — keine neue Spalte, kein neuer
+  `ShowCol`-Block.
 - **BDE-Rückmeldung (Teil 8)** — bleibt unverändert auf Sub-FA-Ebene, nicht Gegenstand dieser Spec.
   Die `ProductionOrderPickingStatus`-Zeile der Sub-FAs wird **nicht** zurückgebaut (trägt weiterhin
   Glas/Fremdbezug/Lackierung, siehe [[2026-09-09-materialisierung-ohne-statuszeilen-bug]]).
 - **Beschichtungsauftrag/Vormontage-Listen (Teil 4/5)** — gruppieren nach Arbeitsbereich, nicht
   nach FA-Ebene, unberührt.
 - **`FaWorklist/Bom` (read-only Stücklisten-Referenz für BDE-Werker)** — bleibt auf jeder Sub-FA-
-  Zeile sichtbar. Rückmeldung/Referenz ist nicht Kommissionierung (siehe Backlog, Abschnitt „Was
-  ausdrücklich NICHT betroffen ist").
+  Zeile sichtbar. Rückmeldung/Referenz ist nicht Kommissionierung.
 - **AKE** — jede Änderung dieser Spec ist entweder rein datengetrieben (Sub-FA-Guard über
-  `SubOrderNumber != OrderNumber`, bei AKE wegen der Invarianz aus Fallstricke §9 immer falsch) oder
-  hinter `Model.Hierarchical`/`@if (Model.Hierarchical)` gated — für AKE folgenlos, keine gesonderte
-  Prüfung nötig, aber Testszenarien decken die Nicht-Wirkung ausdrücklich ab.
+  `IsSubFa`, bei AKE wegen der Invarianz `SubOrderNumber == OrderNumber` immer falsch) oder hinter
+  `Model.Hierarchical`/`@if (Model.Hierarchical)` gated — für AKE folgenlos, keine gesonderte
+  Prüfung nötig, aber Testszenarien decken die Nicht-Wirkung ausdrücklich ab. Die Komm.-Ziel-Spalte
+  existiert im AKE-Flachmodus ohnehin nicht, also auch kein Dropdown, also auch keine Option „Alle
+  Ziele“.
 - **Kombinationsgeräte** — unverändert außen vor (paketweit entschieden, siehe Materialisierungs-
   Spec).
+- **Standorteinstellungen-Schalter** — wird bewusst **nicht** gebaut (Antwort 2). Mit nur einem
+  Kriterium wäre der Schalter das Ausschalten der Kommissionierliste selbst, und sie summierte dann
+  nach leerem Ziel, wofür sie nicht gebaut ist (H2 der kritischen Prüfung). Lohnt sich erst mit
+  einem zweiten, echten Konfigurationswert.
+- **Folgeaktionen jenseits der Einstiege** — gesperrt werden ausschließlich die Einstiege
+  (`Bom`, `ToggleRelease`, `SetReleaseBatchAsync`). `PrintBom`, `PrintPicking`, `TransferPicked`,
+  `SetPickingStatus`, `ToggleDone` (`PickingController`) sowie `SetPriority`/
+  `ChangeAssignedPicker` (`PickingLeitstandController`) bleiben auf Sub-FA-Ids per direkter
+  URL/POST erreichbar — bewusst, kein Anspruch auf Verteidigung in der Tiefe für jede Action, weil
+  diese Aktionen ohne den gesperrten Einstieg fachlich nicht erreicht werden.
+- **Zwei-Ebenen-Gruppierung der Kommissionierer-Warteschlange** (`PickingController.cs` Z. 199ff)
+  wird durch diese Spec funktional überflüssig (jede Gruppe besteht künftig aus genau einer
+  HauptFA-Zeile), der Rückbau ist aber **nicht** Teil dieser Spec — eigene Backlog-Notiz
+  [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]] (H1).
 
 ## Fachliche Anforderungen
 
-### 1 — Gemeinsame Kommissionier-Relevanzregel
+### 1 — Gemeinsame Kommissionier-Relevanzregel (nur Kommissionierliste)
 
 Die Kommissionierliste (`KommissionierListenService.BuildFlagPredicate`) prüft heute inline
 `!string.IsNullOrWhiteSpace(n.Kommissionieren)`. Diese Prüfung wandert unverändert (keine
-Verhaltensänderung) in eine neue, benannte, pure Methode `KommissionierRelevanzFilter.IsRelevant`,
-die als die von beiden Verbrauchern geteilte Definition dokumentiert ist. `BuildFlagPredicate` ruft
-diese Methode auf, statt die Prüfung erneut zu schreiben — **ein** Ort für die Regel, nicht zwei
-Implementierungen, die mit der Zeit auseinanderlaufen (Leitgedanke des Auftrags).
+Verhaltensänderung) in eine neue, benannte, pure Methode `KommissionierRelevanzFilter.IsRelevant`.
+`BuildFlagPredicate` ruft diese Methode auf, statt die Prüfung erneut zu schreiben. Heute hat die
+Methode genau einen Verbraucher (Antwort 2) — die Extraktion ist trotzdem der richtige Ort für ein
+künftiges zweites Kriterium, nicht Attrappe für ein „geteiltes“ Verhalten, das es zwischen
+Kommissionierliste und Stückliste nicht mehr gibt (die Stückliste bekommt keine eigene
+Relevanzregel mehr, siehe Anforderung 3).
 
 Der Ziel-Wert-Einschränkung (`targetValue`-Parameter des Dropdowns in der Kommissionierliste) bleibt
 davon unberührt — sie ist eine zusätzliche, vom Anwender gewählte Einschränkung, keine Änderung der
 Grundregel.
 
-### 2 — Standorteinstellungen (Teil 6): korrigierter Umfang
+### 2 — Kein Standorteinstellungen-Schalter
 
-Der Auftrag verlangt, die „Filterparameter" der Kommissionierliste in die IDEAL-
-Standorteinstellungen zu heben. Die Erhebung ergibt: **es gibt nur diesen einen Parameter**, und er
-ist kein Wert, sondern eine feste Feldsemantik (das Feld `Kommissionieren` kommt 1:1 aus der
-Sage-View und ist nicht sinnvoll gegen ein anderes Feld austauschbar). Es gibt damit **nichts
-Echtes zu konfigurieren** — eine Standorteinstellung ohne echten Einstellwert wäre eine Attrappe.
+Die Erhebung ergibt: Es gibt für die Kommissionierliste nur diesen einen Parameter, und er ist kein
+Wert, sondern eine feste Feldsemantik (das Feld `Kommissionieren` kommt 1:1 aus der Sage-View und
+ist nicht sinnvoll gegen ein anderes Feld austauschbar). Ein Standorteinstellungen-Eintrag ohne
+echten Einstellwert wäre eine Attrappe (ponytail Sprosse 1). Diese Spec baut deshalb **keinen**
+Schalter, keinen `AppSetting`-Key, keinen Standorteinstellungen-Eintrag — nur die Extraktion aus
+Anforderung 1. Die Regel bleibt aber an einer eigenen Stelle (`KommissionierRelevanzFilter`), an der
+ein künftiges zweites Kriterium anknüpfen könnte; **dann** lohnt eine Einstellung.
 
-Diese Spec baut deshalb **standardmäßig keinen** Standorteinstellungen-Eintrag, sondern nur die
-Extraktion aus Anforderung 1. Falls der Mensch dennoch eine Rückfallebene für den Fall will, dass
-Sage das Feld `Kommissionieren` in der Praxis unzuverlässig befüllt (dann könnte ein Admin die
-Relevanzprüfung ohne Code-Deploy ganz abschalten und die Kommissionierliste zeigt wieder **alle**
-Positionen), steht dafür der Entwurf in `affected_code` bereit: ein Bool-`AppSetting`
-`FaHierarchyKommissionierRelevanzAktiv`, Default `"true"` (bit-identisch zum heutigen Verhalten),
-Gruppe „Feature-Schalter" in der Standorteinstellungen-Maske. **Der Schalter beträfe ausschließlich
-die Kommissionierliste** — die neue Stückliste-Checkbox (Anforderung 3) ist bereits selbst ein
-Ein/Aus-Schalter pro Aufruf und braucht keine zusätzliche Admin-Ebene darüber.
+### 3 — „Alle Ziele“ im bestehenden Komm.-Ziel-Filter der Stückliste
 
-Siehe offene Rückfrage 2.
+Statt eines fünften, eigenständigen Standardfilters wird die bestehende Option „Nur
+kommissionierrelevant“ als **Bedeutungswert innerhalb des Komm.-Ziel-Filters** abgebildet — fachlich
+ist „nur kommissionierrelevant“ dasselbe wie „alle Ziele ausgewählt“, und der bestehende Filter
+bringt Badge, Reset, Leerzustand, rekursive Suche, Vorfahren-Aufklappen, Druckhinweis und
+Speicherung je Benutzer bereits mit (S4 der kritischen Prüfung, vom Menschen übernommen):
 
-### 3 — Fünfter Standardfilter in der Stückliste
-
-Analog zu den vier bestehenden Standardfiltern (Beschaffung, Artikelgruppe, Bezeichnung 1,
-Kommissionierziel — [[2026-09-18-stueckliste-kommissionierziel-filter-spec]]):
-
-- Neue Checkbox „Nur kommissionierrelevant" **nur im hierarchischen Modus** (die Spalte
-  `kommissionieren` existiert im AKE-Flachmodus gar nicht — dasselbe Gate wie beim
-  Kommissionierziel-Dropdown).
-- Aktiv geschaltet blendet sie alle Positionen aus, deren `Kommissionieren`-Zelle leer ist —
-  **dieselbe** Regel wie die Kommissionierliste (Anforderung 1), hier client-seitig auf dem bereits
-  gerenderten Zellentext geprüft (Client-Mode-Ausnahme dieser Ansicht, ADR 0005 Design F).
-- **Aktiv muss sichtbar sein**: derselbe Badge-Mechanismus wie die vier bestehenden Filter
-  („Gefiltert: Nur kommissionierrelevant"), Ein-Klick-Reset.
-- Der bestehende „Alle Filter zurücksetzen"-Knopf dieser Ansicht (`resetAllBomFilters`, aktuell nur
-  aus dem benannten Leerzustand heraus erreichbar, `#bomKzEmptyStateReset`) setzt die Checkbox mit
-  zurück — das ist der in der Backlog-Erweiterung gemeinte „Filter löschen"-Knopf dieser Ansicht;
-  ein zusätzlicher, generischer „Filter löschen"-Link existiert in `Bom.cshtml` nicht (verifiziert:
-  kein `data-clear-table-filters`-Attribut in dieser View — dieses Muster gehört zum
-  Server-Mode/sessionStorage-Mechanismus anderer Listen und wird hier NICHT nachgerüstet, das wäre
-  Umfang, den niemand verlangt hat).
-- **Druck:** Der Ausdruck respektiert eine aktive Checkbox bereits automatisch — der bestehende
-  Druck-Handler sammelt `visiblePositions` direkt aus dem sichtbaren DOM-Zustand
-  (`row.style.display !== 'none'`), unabhängig davon, wodurch eine Zeile ausgeblendet wurde. Nötig
-  ist nur ein zusätzlicher Text-Hinweis im `filterInfo`-Parameter, damit der Ausdruck-Kopf „Nur
-  kommissionierrelevant" nennt (Hausregel: sichtbar machen statt still filtern, gilt auch fürs
-  Papier).
-- **Default-Zustand und Persistenz:** offen, siehe Rückfrage 1.
+- **Neue, erste Option** im Select2-Dropdown (`setupKommissionierzielDropdown`,
+  `Views/Picking/Bom.cshtml` Z. 1049-1083): Text „Alle Ziele (nur kommissionier-relevant)“, Wert
+  `!(leer)`. Gewählt, deselektiert sie automatisch alle konkreten Ziel-Werte und umgekehrt — sonst
+  entstünde ein kombinierter Wert wie `!(leer),KA-02`, der die bestehende Ausschluss-Syntax in
+  `bomMatchesFilter` fälschlich auslöst.
+- **Bedeutungswert statt Momentaufnahme:** `!(leer)` bedeutet „Komm.-Ziel-Zelle ist nicht leer“, KEINE
+  gespeicherte Werteliste der zum Zeitpunkt der Auswahl existierenden Ziele. Ein später neu
+  angelegtes Kommissionierziel ist damit automatisch mit erfasst — der Nachteil einer
+  Momentaufnahme (still ausgeblendete Positionen eines neuen Ziels bei jedem, der sich auf seinen
+  gespeicherten Standard verlässt) entfällt dadurch bewusst.
+- **Schreibweise `!(leer)`** — identisch zur künftigen Suchsyntax
+  ([[2026-09-23-suchsyntax-spaltenfilter-erweitern]]), damit später keine zwei Notationen für
+  dasselbe existieren. Bis die Suchsyntax gebaut ist, behandelt `bomMatchesFilter` diesen Wert
+  **gesondert** (ein Sonderfall am Anfang der Funktion, siehe Technischer Lösungsentwurf) — die
+  heutige Mini-Syntax würde `!(leer)` sonst als „enthält nicht '(leer)'“ lesen und ALLES anzeigen.
+- **Badge, Leerzustand, Druckhinweis** zeigen bei diesem Wert den Text „Alle Ziele (nur
+  kommissionier-relevant)“ statt des Rohwerts `!(leer)` bzw. statt einer Werteliste.
+- **Persistenz je Benutzer** läuft über das bereits bestehende `DefaultFilterBomKommissionierziel`
+  (kein neues Feld, keine Migration). Ein Kommissionierer, der „Alle Ziele“ als seinen Standard
+  setzt, speichert damit den Wert `!(leer)` in genau diesem Feld. Ein globaler Standard wird nicht
+  gebaut.
+- **Nur im hierarchischen Modus**, da die Spalte `kommissionieren` im AKE-Flachmodus gar nicht
+  existiert — dasselbe Gate wie beim bisherigen Komm.-Ziel-Dropdown.
 
 ### 4 — Rückbau der Freigabe-Kaskade
 
@@ -198,105 +228,149 @@ Kommissionierziel — [[2026-09-18-stueckliste-kommissionierziel-filter-spec]]):
 `Testbereit`, **noch nicht gemergt** (verifiziert: `CascadeReleasePreview`/`CascadeRelease` in
 `PickingLeitstandController.cs` Z. 543-616, Button+Modal in `Views/PickingLeitstand/Index.cshtml`,
 Repository-Methode `SetReleaseForOrderNumberAsync`). Mit der Entscheidung „Kommissionierung nur am
-HauptFA" gibt sie Sub-FAs frei, die nie kommissioniert werden — ein Zustand ohne fachliche Bedeutung
-(genau der in der Backlog-ERWEITERUNG beschriebene Fall „falls ja: zurückbauen").
+HauptFA“ gibt sie Sub-FAs frei, die nie kommissioniert werden — ein Zustand ohne fachliche Bedeutung.
 
-Vollständig zu entfernen: Controller-Actions, Repository-Methode(n) (`SetReleaseForOrderNumberAsync`
-sicher, `CountReleasedByOrderNumberAsync` nach Prüfung auf Fremdverwendung), View-Button/-Modal,
-zugehörige Tests. **Nicht** zu entfernen: die Fertigmeldungs-Kaskade `CascadeDonePreview`/
-`CascadeDone` (Teil 7/8, betrifft `IsDoneBde`, ein anderer Sachverhalt — Rückmeldung, nicht
-Freigabe). Der Zeilen-Toggle `ToggleRelease` und die Mehrfachauswahl `BulkRelease` bleiben
-bestehen, werden aber durch Anforderung 5 auf HauptFA-Zeilen beschränkt.
+Vollständig zu entfernen: Controller-Actions, Repository-Methoden (`SetReleaseForOrderNumberAsync`,
+`CountReleasedByOrderNumberAsync` — verifiziert ohne Fremdverwendung außerhalb der Kaskade und
+eigener Tests), View-Button/-Modal, zugehörige Tests. **Nicht** zu entfernen: die
+Fertigmeldungs-Kaskade `CascadeDonePreview`/`CascadeDone` (Teil 7/8, betrifft `IsDoneBde`, ein
+anderer Sachverhalt). Der Zeilen-Toggle `ToggleRelease` und die Mehrfachauswahl `BulkRelease`
+bleiben bestehen, werden aber durch Anforderung 5 auf HauptFA-Zeilen beschränkt.
 
-TS-73 (v1.38.0) wird nicht gelöscht, sondern die Kaskade-Szenarien werden als „zurückgebaut, siehe
-TS-79" gekennzeichnet — Vorbild ist der TS-71-Rückbau-Vermerk aus der ADR-0014-Korrektur (v1.43.0).
+Der Rückbau muss zusätzlich `Views/Help/Changelog.cshtml` (v1.38.0-Eintrag Z. 180 + Z. 203-207) als
+zurückgenommen kennzeichnen — sonst haben Anwender die Kaskade weiter als gültige Funktion vor
+Augen — und `docs/TESTSZENARIEN.md` vollständig mitziehen (TS-73-Titel Z. 7726, Z. 7753,
+TS-73.11-13, Z. 7895, Z. 7940-7952, Schlusszeile Z. 8575), nicht nur die Kaskade-Einzelszenarien.
+Vorbild ist der TS-71-Rückbau-Vermerk aus der ADR-0014-Korrektur (v1.43.0): kennzeichnen, nicht
+löschen.
 
 ### 5 — Freigabe- und Picking-Pfad strukturell auf die HauptFA-Zeile beschränkt
 
-Backlog-Frage 2 („Verschwindet der Freigabe-Knopf an Sub-FA-Zeilen?") wird mit **ja** beantwortet —
-konsistent mit der im Backlog selbst festgehaltenen Einschätzung. Backlog-Frage 3 („Gilt das auch
-für AKE?") wird mit **ja, aber folgenlos** beantwortet: Alle Sperren dieser Spec sind entweder rein
-datengetrieben über die Schema-Inversions-Invariante (`SubOrderNumber == OrderNumber` bei AKE immer
-wahr, Fallstricke §9) oder zusätzlich hinter `Model.Hierarchical` gated — kein Master-Switch-Read
-nötig, keine AKE-Sonderbehandlung, die Sperre „hängt" also am Datenmodell, nicht an einem
-zusätzlichen Schalter.
+Backlog-Frage 2 („Verschwindet der Freigabe-Knopf an Sub-FA-Zeilen?“) wird mit **ja** beantwortet.
+Backlog-Frage 3 („Gilt das auch für AKE?“) wird mit **ja, aber folgenlos** beantwortet: Alle
+Sperren dieser Spec sind entweder rein datengetrieben über `ProductionOrder.IsSubFa` (bei AKE immer
+`false`, Fallstricke §9) oder zusätzlich hinter `Model.Hierarchical` gated — kein
+Master-Switch-Read nötig, keine AKE-Sonderbehandlung.
 
-Konkret, doppelt abgesichert (UI **und** Server — „Melden statt still behandeln", ein Element, das
+Konkret, doppelt abgesichert (UI **und** Server — „Melden statt still behandeln“, ein Element, das
 nichts bewirkt, verschwindet; ein direkter POST auf eine gesperrte Aktion wird abgewiesen, nicht
 still ignoriert):
 
 - **UI (Leitstand + FA-Liste):** Freigabe-Formular, Prioritäts-Input, Bulk-Checkbox und der
   **interaktive** Stückliste-Link (`Picking/Bom`) erscheinen auf Sub-FA-Zeilen im hierarchischen
   Modus nicht mehr. Die HauptFA-Zeile trägt sie unverändert.
-- **Server:** `PickingController.Bom`, `PickingLeitstandController.ToggleRelease` und
-  `ProductionOrderPickingStatusRepository.SetReleaseBatchAsync` weisen eine Sub-FA-Zeile mit einer
-  sichtbaren `WarningMessage` zurück, statt sie stillschweigend zu verarbeiten oder mit einem
-  unspezifischen Fehler abzubrechen.
+- **Server:** `PickingController.Bom` und `PickingLeitstandController.ToggleRelease` weisen eine
+  Sub-FA-Zeile mit einer sichtbaren `WarningMessage` zurück, statt sie stillschweigend zu
+  verarbeiten. `ProductionOrderPickingStatusRepository.SetReleaseBatchAsync` überspringt Sub-FA-Ids
+  in einer gemischten Bulk-Auswahl und meldet sie sichtbar — in **beiden** Richtungen (Freigeben
+  und Zurücknehmen), konsistent zum `ToggleRelease`-Guard.
+- **Umfang der Sperre bewusst begrenzt** (Out-of-Scope): Nur die Einstiege sind gesperrt.
+  Folgeaktionen (`PrintBom`, `PrintPicking`, `TransferPicked`, `SetPickingStatus`, `ToggleDone`,
+  `SetPriority`, `ChangeAssignedPicker`) bleiben auf Sub-FA-Ids per direkter URL/POST erreichbar,
+  weil sie ohne den gesperrten Einstieg fachlich nicht erreicht werden — kein Anspruch auf
+  Verteidigung in der Tiefe für jede einzelne Action.
 - **Unverändert:** die read-only Stückliste (`FaWorklist/Bom`) für BDE-Referenz auf jeder Sub-FA-
   Zeile, sowie die Sichtbarkeit/Existenz der `ProductionOrderPickingStatus`-Zeile selbst (trägt
   weiterhin Glas/Fremdbezug/Lackierung-Flags unabhängig von der Freigabe).
+
+### 6 — Eine Sub-FA-Formel statt dreier, und Bereinigung der Warteschlange (Korrektur der ursprünglichen Empfehlung)
+
+Die kritische Prüfung fand drei unterschiedliche, semantisch teils abweichende Sub-FA-Erkennungen im
+geplanten Code. Diese Spec schreibt EINE Formel fest: `ProductionOrder.IsSubFa =>
+!string.IsNullOrEmpty(SubOrderNumber) && SubOrderNumber != OrderNumber` (leer gilt als HauptFA, die
+für AKE sichere Richtung). Sie wird von `Bom`, `ToggleRelease`, `SetReleaseBatchAsync` **und** den
+drei Warteschlangen-Abfragen genutzt (letztere als inline geschriebener, äquivalenter
+SQL-Ausdruck, da EF die C#-Eigenschaft nicht übersetzt — siehe Technischer Lösungsentwurf). Unit-Test
+deckt `""`, `Sub == Order`, `Sub != Order` ab.
+
+Die ursprüngliche Einschätzung zu Rückfrage 3 („bereits freigegebene Sub-FAs im Testsystem stehen
+lassen, folgenlos“) war am Code falsch (B2 der kritischen Prüfung): Eine freigegebene Sub-FA bliebe
+sonst in der Kommissionierer-Warteschlange sichtbar, zählte in der Home-Kennzahl mit und wäre über
+die UI nicht mehr zurücknehmbar (Stückliste gesperrt, Bulk-Checkbox ausgeblendet). Korrigierte
+Entscheidung (Freigabe-Antwort 3): Die drei Warteschlangen-Abfragen filtern Sub-FAs strukturell aus
+(über die gleichwertige inline-Formel), **zusätzlich** ein einmaliger SQL-Lauf nur im Testsystem, der
+bestehende Altlasten bereinigt (siehe Migrations-/SQL-Auswirkungen und Deploy). Damit ist die
+Warteschlange auch dann korrekt, wenn der SQL-Lauf einmal vergessen wird.
 
 ## Technischer Lösungsentwurf
 
 **Muster:** Repository-Pattern (ADR 0001), Listen-View-Pattern mit Client-Mode-Ausnahme für
 `Bom.cshtml` (ADR 0005 Design F, wie bereits in [[2026-09-18-stueckliste-kommissionierziel-filter-spec]]
-etabliert), Feature-Toggles über AppSettings (ADR 0011), Standorteinstellungen als kuratierte
-Zweitansicht ohne eigenen Speicherort (Teil 6, [[2026-07-29-standort-ideal-teil-6-spec]]).
+etabliert).
 
-- **Geteilte Regel statt zweier Implementierungen:** `KommissionierRelevanzFilter.IsRelevant`
-  ersetzt die Inline-Prüfung in `KommissionierListenService.BuildFlagPredicate`. Die Stückliste
-  kann diese C#-Methode nicht direkt aufrufen (Client-Mode, kein Server-Roundtrip pro
-  Sichtbarkeitsänderung) — sie spiegelt dieselbe Regel im JS auf demselben Feld. Diese
-  Sprachgrenzen-Grenze wird explizit im Code-Kommentar der neuen Datei benannt, damit eine
-  künftige Änderung der Regel (z. B. Trimmen zusätzlicher Werte) NICHT nur in der C#-Methode
-  landet, sondern bewusst auch in `Bom.cshtml` nachgezogen wird — als Dauerwissen in
-  `fallstricke.md` festzuhalten (siehe Checkliste).
-- **Standorteinstellungen-Schalter (nur falls Freigabe-Antwort 2 ihn verlangt):**
-  `KommissionierListenService` bekommt `IAppSettingRepository` als weiteren Konstruktor-Parameter;
-  `BuildFlagPredicate` liest `FaHierarchyKommissionierRelevanzAktiv` und liefert bei `false`
-  `_ => true` (alle Positionen, kein Filter) statt der Relevanzprüfung. Seed-Eintrag in
-  `Program.cs` mit Default `"true"` — bewusst **nicht** invertiert wie die vier Nachbar-Einträge im
-  selben Array (die sind Feature-Gates mit Default „aus", dieser hier ist eine Rückfallebene mit
-  Default „heutiges Verhalten fortsetzen").
-- **Stückliste-Checkbox:** rein clientseitig, keine neue Server-Abfrage — die Positionen (inkl.
-  `Kommissionieren`-Wert) liegen beim Rendern bereits vollständig vor (ponytail Sprosse 2/3,
-  dasselbe Argument wie beim Kommissionierziel-Dropdown). `updateBomVisibility()` bekommt eine
-  zusätzliche boolesche Bedingung, die parallel zu den spaltenwertbasierten Filtern ausgewertet
-  wird (UND-verknüpft mit Baum-Zustand und bestehenden Spaltenfiltern). Der Badge-Mechanismus
-  bekommt einen fünften Eintrag mit eigenem Renderer (kein `<input data-col-key>` vorhanden, daher
-  kein 1:1-Wiederverwenden von `bomFilterInputValue`, sondern eine eigene kleine Funktion, die den
-  Checkbox-Status liest).
-- **Sub-FA-Guard, rein datengetrieben:** Weder `PickingController.Bom` noch
-  `PickingLeitstandController.ToggleRelease`/`SetReleaseBatchAsync` müssen den Master-Switch lesen
-  — sie prüfen ausschließlich `order.SubOrderNumber != order.OrderNumber` auf dem ohnehin bereits
-  geladenen `ProductionOrder`. Das ist dieselbe Formel, die `_ProductionOrderRow.cshtml` Z. 16-18
-  bereits für die HauptFA-Badge-Anzeige verwendet — bewusst **kein** neues ViewModel-Feld, sondern
-  lokal berechnet, exakt das dort dokumentierte Precedent („Die Materialisierung nimmt die Zeilen
-  mit `SubFA != 0` plus die Wurzel [...], die Erkennung braucht kein eigenes ViewModel-Feld").
-- **`SetReleaseBatchAsync`:** bekommt einen zusätzlichen Skip-Zweig direkt neben dem bestehenden
-  `SkippedNoArticle`-Zweig (Z. 246-250) — dieselbe Stelle, dieselbe Struktur, ein zusätzliches Feld
-  `BulkReleaseResult.SkippedSubFa`. Kein neuer Repository-Aufruf im Controller nötig, weil die
-  Methode `.Include(s => s.ProductionOrder)` bereits fährt.
+- **Geteilte Regel, ein Verbraucher:** `KommissionierRelevanzFilter.IsRelevant` ersetzt die
+  Inline-Prüfung in `KommissionierListenService.BuildFlagPredicate`. Die Stückliste bekommt **keine**
+  eigene Relevanzregel mehr — sie nutzt stattdessen den bestehenden Komm.-Ziel-Filter mit dem neuen
+  Bedeutungswert `!(leer)` (Anforderung 3). Datenquelle ist an beiden Stellen identisch:
+  `FaHierarchyBomRepository.cs:186` (`Kommissionieren = node.Kommissionieren`) bzw. dasselbe Feld
+  über `KommissionierListenService`.
+- **„Alle Ziele“-Option im Select2:** `setupKommissionierzielDropdown()` fügt vor den
+  distinct-ermittelten Ziel-Werten eine zusätzliche `<option value="!(leer)">` ein. Der
+  `change`-Handler erzwingt Exklusivität: Wird `!(leer)` neu in `$sel.val()` aufgenommen, werden alle
+  anderen Werte entfernt; wird ein anderer Wert neu gewählt, wird `!(leer)` entfernt (kleinste
+  Variante: Vergleich der Vorher-/Nachher-Auswahl im `change`-Handler, kein zusätzlicher Knopf neben
+  dem Dropdown — ponytail Sprosse 6, eine zusätzliche Option ist die kürzere Lösung als ein separates
+  UI-Element mit eigener Synchronisationslogik zum Dropdown).
+- **`bomMatchesFilter`-Sonderfall:** EIN zusätzlicher `if`-Zweig am Anfang der Funktion (Z. 830-837):
+  ist der getrimmte, lowercase Gesamtwert `!(leer)`, wird `text.trim() !== ''` zurückgegeben, statt
+  der bestehenden Ausschluss-Logik zu folgen. Dieser eine Sonderfall genügt für alle drei Aufrufer
+  (`updateBomVisibility`, `expandAncestorsOfMatching`, `checkKommissionierzielEmptyState`), weil sie
+  alle über `bomMatchesFilter` laufen — keine dieser drei Funktionen muss selbst geändert werden.
+  Das ist zugleich ein bewusster Zwischenstand: `bomMatchesFilter` ist bereits die vierte eigenständige
+  Umsetzung der Filter-Mini-Syntax neben `table-filter.js`, `ColumnFilterHelper.Apply` und den
+  SQL-Ausdrücken je Liste — [[2026-09-23-suchsyntax-spaltenfilter-erweitern]] kennt diese vierte
+  Stelle noch nicht. Beim Bau der Suchsyntax muss `bomMatchesFilter` (inklusive dieses
+  `!(leer)`-Sonderfalls) dort aufgehen, sonst bleiben zwei Implementierungen bestehen.
+- **Anzeige-Textabbildungen:** `renderDefaultFilterBadges`, `checkKommissionierzielEmptyState` und
+  der `btnPrintBom`-Handler bekommen je einen kleinen Sonderfall für den Wert `!(leer)` beim Schlüssel
+  `kommissionieren`, der den Anzeigetext auf „Alle Ziele (nur kommissionier-relevant)“ abbildet, statt
+  den Rohwert bzw. eine Werteliste zu zeigen.
+- **Sub-FA-Formel, einmal definiert:** `ProductionOrder.IsSubFa` ([NotMapped]) ist die Referenz. In
+  `Bom` und `ToggleRelease` wird sie direkt auf dem bereits geladenen `ProductionOrder` gelesen (kein
+  neuer Query). In den drei Warteschlangen-Abfragen (`GetReleasedForPickingAsync`,
+  `GetReleasedForPickingByPickerAsync`, `GetReleasedForPickingCountAsync`, `GetMaxPickingPriorityAsync`
+  — vier Methoden, aus Antwort 3 „drei Warteschlangen-Abfragen“ zusammen mit der logisch dazugehörigen
+  ByPicker-Variante) läuft IQueryable gegen SQL Server; dort steht der äquivalente Ausdruck
+  `p.SubOrderNumber == "" || p.SubOrderNumber == p.OrderNumber` inline, mit einem Kommentar, der
+  beide Formen ausdrücklich als dieselbe Regel benennt (EF übersetzt eine C#-Eigenschaft mit
+  Boolean-Logik hier nicht zuverlässig in SQL).
+- **`SetReleaseBatchAsync`:** neuer Skip-Zweig für `row.ProductionOrder.IsSubFa`, VOR dem bestehenden
+  `SkippedNoArticle`-Zweig (Z. 246-250) und unabhängig von `release` — Sub-FA wird in Bulk in beiden
+  Richtungen übersprungen. Neues Feld `BulkReleaseResult.SkippedSubFa`. Kein neuer Repository-Aufruf
+  im Controller nötig, weil die Methode `.Include(s => s.ProductionOrder)` bereits fährt.
+- **Harte Testbedingung (S1 der kritischen Prüfung, übernommen):** Die bestehenden
+  `SetReleaseBatchAsync`-/`BulkRelease`-Tests laufen **ohne Änderung ihrer Fixtures** grün. Werden
+  Fixtures angepasst, damit Tests grün werden, ist das ein Befund (Hinweis auf eine noch
+  abweichende Formel irgendwo im Testaufbau), kein Erfolg — nicht stillschweigend „reparieren“.
 
 ## Migrations-/SQL-Auswirkungen
 
-**Im Standardumfang dieser Spec: keine.** Der neue Standorteinstellungen-Schalter (falls gebaut,
-Rückfrage 2) ist ein `AppSetting` — generische Key/Value-Tabelle, kein Schema-Zugriff, kein
-`dotnet ef migrations add` nötig (Seed-Insert in `Program.cs`, idempotent über
-`if (!db.AppSettings.Any(s => s.Key == key))`). Der Rückbau der Freigabe-Kaskade entfernt nur
-C#-Code (Controller-Actions, eine Repository-Methode) — keine Schema-Änderung, `SetReleaseAsync`/
-`SetReleaseBatchAsync` (Einzel-/Mehrfachfreigabe) bleiben unverändert in der Tabelle
-`ProductionOrderPickingStatuses`.
+**Keine Migration.** „Alle Ziele“ nutzt das bereits bestehende Feld `DefaultFilterBomKommissionierziel`
+(kein neues Feld, keine Migration 94 — entfällt vollständig gegenüber dem ursprünglichen Entwurf).
+Der neue Standorteinstellungen-Schalter wird nicht gebaut (Antwort 2). Der Rückbau der
+Freigabe-Kaskade entfernt nur C#-Code — keine Schema-Änderung. `ProductionOrder.IsSubFa` ist
+`[NotMapped]` und erzeugt keine Spalte.
 
-**Nur falls Freigabe-Antwort 1 einen pro Benutzer gespeicherten Checkbox-Default verlangt:**
-Migration `AddUserDefaultFilterBomKommissionierRelevanz` (nächste freie Nummer am Worktree zu
-verifizieren, Stand bei Spec-Erstellung `94` — höchste vorhandene Datei
-`SQL/93_AddProductionWorkplaceSageFields.sql`), `SQL/94_AddUserDefaultFilterBomKommissionierRelevanz.sql`
-nach exakter Vorlage `SQL/92_AddUserDefaultFilterBomKommissionierziel.sql`
-(`COL_LENGTH`-Guard, `ALTER TABLE [dbo].[Users] ADD [DefaultFilterBomKommissionierRelevanz] BIT NOT NULL
-DEFAULT 0` in eigenem Batch, `__EFMigrationsHistory`-Insert in separatem Batch),
-`SQL/00_FreshInstall.sql` an beiden Stellen (Schema-Block `Users` + `MigrationId`-Liste). Nullable/
-Default-Spalte an einer Bestandstabelle, **nicht daten-destruktiv**.
+**Einmaliger SQL-Lauf, NUR Testsystem, kein `SQL/XX`-Skript** (Freigabe-Antwort 3, Korrektur von B2):
+Bereits einzeln freigegebene Sub-FAs im IDEAL-Testsystem werden auf `IsReleasedForPicking = 0`
+zurückgesetzt, damit sie nicht als tote, über die UI nicht mehr rücknehmbare Einträge in der
+Kommissionierer-Warteschlange stehen bleiben. Exakte Tabellen-/Spaltennamen und Audit-Feld-Update
+sind vor Ausführung am Worktree-Stand von `SQL/00_FreshInstall.sql` zu verifizieren; Grundform:
+
+```sql
+UPDATE s
+SET s.IsReleasedForPicking = 0,
+    s.ModifiedAt = SYSUTCDATETIME(),
+    s.ModifiedBy = 'Migration (kommissionierung-nur-hauptfa)',
+    s.ModifiedByWindows = NULL
+FROM ProductionOrderPickingStatuses s
+JOIN ProductionOrders p ON p.Id = s.ProductionOrderId
+WHERE p.SubOrderNumber <> p.OrderNumber
+  AND s.IsReleasedForPicking = 1;
+```
+
+Dieser Lauf ersetzt keinen Code-Guard — er räumt nur bestehende Testdaten auf; die dauerhafte
+Korrektheit trägt die inline-Formel in den vier Warteschlangen-Abfragen.
 
 ## Audit-Feld-Auswirkungen
 
@@ -305,10 +379,8 @@ entfernten Kaskade-Methoden hatten dieselben Audit-Aufrufe wie `SetReleaseAsync`
 `SetReleaseBatchAsync`, deren Rückbau ändert an den verbleibenden Schreibpfaden nichts. Der neue
 Sub-FA-Skip-Zweig in `SetReleaseBatchAsync` schreibt für übersprungene Zeilen **keine**
 Audit-Felder (analog zum bestehenden `SkippedNoArticle`-Zweig — Skip heißt keine Änderung, also
-keine Modified-Felder). Falls das User-Feld aus Rückfrage 1 gebaut wird: `User` erbt
-`AuditableEntity`, das Speichern läuft über denselben bestehenden Update-Pfad wie
-`DefaultFilterBomKommissionierziel` (`UsersController`/`AccountController`, setzt bereits
-`ModifiedAt`/`ModifiedBy`/`ModifiedByWindows` über `ICurrentUserService`) — keine neue Logik nötig.
+keine Modified-Felder). Der einmalige Testsystem-SQL-Lauf setzt `ModifiedAt`/`ModifiedBy`/
+`ModifiedByWindows` explizit, wie in der Checkliste gefordert.
 
 ## Akzeptanzkriterien
 
@@ -316,48 +388,65 @@ keine Modified-Felder). Falls das User-Feld aus Rückfrage 1 gebaut wird: `User`
    Positionsmenge wie vor dieser Spec (reine Extraktion, keine Verhaltensänderung) — durch
    bestehende Unit-Tests der Kommissionierliste nachgewiesen.
 2. `KommissionierRelevanzFilter.IsRelevant` ist eine eigenständig unit-testbare, reine Methode ohne
-   DB-/HTTP-Abhängigkeit.
-3. In der hierarchischen Stückliste (`Model.Hierarchical == true`) zeigt die Werkzeugleiste eine
-   Checkbox „Nur kommissionierrelevant"; aktiviert blendet sie alle Positionen mit leerem
-   `Kommissionieren`-Feld aus (Baugruppen-Eltern bleiben sichtbar, wenn ein Kind sichtbar ist —
-   bestehendes Baum-Verhalten).
-4. Im flachen AKE-Modus existiert die Checkbox nicht — unverändert zum heutigen Verhalten.
-5. Ist die Checkbox aktiv, erscheint ein Badge „Gefiltert: Nur kommissionierrelevant" mit
-   Ein-Klick-Reset; der Reset setzt nur diesen Filter zurück, nicht die anderen vier.
-6. Der bestehende „Alle Filter zurücksetzen"-Mechanismus dieser Ansicht setzt auch die neue
-   Checkbox zurück.
-7. Ein Ausdruck (`PrintBom`) mit aktiver Checkbox zeigt im Kopf „Nur kommissionierrelevant" als
-   Teil des Filterhinweises UND enthält nur die beim Klick sichtbar gewesenen Positionen
-   (bestehender `visiblePositions`-Mechanismus, unverändert).
-8. `PickingLeitstandController` enthält nach dem Rückbau **keine** Actions `CascadeReleasePreview`/
-   `CascadeRelease` mehr; `IProductionOrderPickingStatusRepository` enthält **keine**
-   `SetReleaseForOrderNumberAsync`-Methode mehr; `Views/PickingLeitstand/Index.cshtml` enthält
-   **keinen** `.btn-cascade-release`-Button und **kein** `cascadeReleaseModal` mehr.
-9. `CascadeDonePreview`/`CascadeDone` (Fertigmeldungs-Kaskade) sind vom Rückbau **unberührt** und
-   funktionieren unverändert.
-10. Auf einer Sub-FA-Zeile (hierarchischer Modus, `SubOrderNumber != OrderNumber`) sind in
+   DB-/HTTP-Abhängigkeit, mit genau einem Verbraucher (`BuildFlagPredicate`).
+3. In der hierarchischen Stückliste (`Model.Hierarchical == true`) enthält das Komm.-Ziel-Dropdown
+   eine erste Option „Alle Ziele (nur kommissionier-relevant)“; gewählt blendet sie alle Positionen
+   mit leerem `Kommissionieren`-Feld aus — Baugruppen-Eltern ohne eigenes Ziel werden dabei
+   ausgeblendet, wenn keines ihrer Kinder sichtbar bleibt (bestehendes, unverändertes Baumverhalten
+   des Komm.-Ziel-Filters, `updateBomVisibility` filtert jede Zeile einzeln; rekursive Suche und
+   Vorfahren-Aufklappen (`expandAncestorsOfMatching`) greifen wie beim bestehenden Filter, weil „Alle
+   Ziele“ denselben `data-col-key="kommissionieren"`-Input nutzt).
+4. Im flachen AKE-Modus existiert das Komm.-Ziel-Dropdown nicht — unverändert zum heutigen
+   Verhalten, also auch keine Option „Alle Ziele“.
+5. Ist „Alle Ziele“ gewählt, erscheint der Badge „Alle Ziele (nur kommissionier-relevant)“ (statt
+   einer Werteliste) mit Ein-Klick-Reset über denselben Mechanismus wie die anderen Standardfilter.
+6. Die Wahl von „Alle Ziele“ deselektiert automatisch alle einzeln gewählten Ziele im Dropdown und
+   umgekehrt — es entsteht nie ein kombinierter Filterwert wie `!(leer),KA-02`.
+7. Ein neu angelegtes Kommissionierziel, das zum Zeitpunkt der Auswahl von „Alle Ziele“ noch nicht
+   existierte, erscheint trotzdem in der gefilterten Ansicht (Bedeutungswert, keine Momentaufnahme).
+8. Der bestehende „Alle Filter zurücksetzen“-Mechanismus dieser Ansicht setzt auch „Alle Ziele“
+   zurück (unverändert, da derselbe Input/dieselbe Select2-Instanz genutzt wird).
+9. Ein Ausdruck (`PrintBom`) mit aktivem „Alle Ziele“-Filter zeigt im Kopf „Komm.-Ziel=Alle Ziele
+   (nur kommissionier-relevant)“ als Teil des Filterhinweises UND enthält nur die beim Klick
+   sichtbar gewesenen Positionen (bestehender `visiblePositions`-Mechanismus, unverändert).
+10. Ein Benutzer, der `!(leer)` als `DefaultFilterBomKommissionierziel` in seinem Profil speichert,
+    findet beim nächsten Öffnen der Stückliste „Alle Ziele“ vorgewählt (Badge + Dropdown-Anzeige),
+    ohne dass die Vorbelegung durch das Fehlen einer passenden Select2-Option stillschweigend
+    verworfen wird.
+11. `PickingLeitstandController` enthält nach dem Rückbau **keine** Actions `CascadeReleasePreview`/
+    `CascadeRelease` mehr; `IProductionOrderPickingStatusRepository` enthält **keine**
+    `SetReleaseForOrderNumberAsync`-Methode mehr; `Views/PickingLeitstand/Index.cshtml` enthält
+    **keinen** `.btn-cascade-release`-Button und **kein** `cascadeReleaseModal` mehr. Nachweis:
+    `grep -rEn "CascadeRelease|SetReleaseForOrderNumber|CountReleasedByOrderNumber"` über
+    `IdealAkeWms/` und `IdealAkeWms.Tests/` liefert **0 Treffer**.
+12. `CascadeDonePreview`/`CascadeDone` (Fertigmeldungs-Kaskade) sind vom Rückbau **unberührt** und
+    funktionieren unverändert.
+13. Auf einer Sub-FA-Zeile (hierarchischer Modus, `IsSubFa == true`) sind in
     `PickingLeitstand/Index` und `ProductionOrders/Index` weder das Freigabe-Bedienelement noch
     die Bulk-Checkbox noch der interaktive Stückliste-Link (`Picking/Bom`) sichtbar; auf der
     HauptFA-Zeile derselben Gruppe sind sie unverändert sichtbar.
-11. Ein direkter `GET /Picking/Bom/{id}` auf eine Sub-FA-Id (hierarchischer Modus) liefert
-    **keine** Stückliste, sondern eine Weiterleitung mit sichtbarer `WarningMessage`.
-12. Ein direkter `POST /PickingLeitstand/ToggleRelease` auf eine Sub-FA-Id liefert **keine**
-    Zustandsänderung, sondern eine sichtbare `WarningMessage`.
-13. `BulkRelease` mit einer gemischten Auswahl (HauptFA-Ids + Sub-FA-Ids) verarbeitet nur die
+14. Ein direkter `GET /Picking/Bom/{id}` auf eine Sub-FA-Id (hierarchischer Modus) liefert
+    **keine** Stückliste, sondern eine Weiterleitung auf `/Picking` mit sichtbarer
+    `WarningMessage` „Kommissionierung erfolgt nur am HauptFA {OrderNumber}.“.
+15. Ein direkter `POST /PickingLeitstand/ToggleRelease` auf eine Sub-FA-Id liefert **keine**
+    Zustandsänderung, sondern eine sichtbare `WarningMessage` — unabhängig davon, ob die Zeile
+    zuvor freigegeben war oder nicht (Sperre wirkt in beide Richtungen).
+16. `BulkRelease` mit einer gemischten Auswahl (HauptFA-Ids + Sub-FA-Ids) verarbeitet nur die
     HauptFA-Ids und meldet die übersprungenen Sub-FA-Ids sichtbar (`WarningMessage`, analog zum
-    bestehenden `SkippedNoArticle`-Hinweis).
-14. Im flachen AKE-Modus zeigt AK 10-13 **keine** Wirkung (jede Zeile ist dort ihre eigene
+    bestehenden `SkippedNoArticle`-Hinweis) — sowohl beim Freigeben als auch beim Zurücknehmen.
+17. Im flachen AKE-Modus zeigt AK 13-16 **keine** Wirkung (jede Zeile ist dort ihre eigene
     HauptFA-Zeile per Invariante) — Regressionsnachweis.
-15. `FaWorklist/Bom` (read-only) bleibt auf jeder Sub-FA-Zeile unverändert erreichbar.
-16. Die `ProductionOrderPickingStatus`-Zeile einer Sub-FA bleibt bestehen und weiterhin über
+18. `FaWorklist/Bom` (read-only) bleibt auf jeder Sub-FA-Zeile unverändert erreichbar.
+19. Die `ProductionOrderPickingStatus`-Zeile einer Sub-FA bleibt bestehen und weiterhin über
     Glas/Fremdbezug/Lackierung-Checkboxen bedienbar, unabhängig vom Freigabe-Status.
-17. **Nur falls Freigabe-Antwort 2 den Standorteinstellungen-Schalter verlangt:** Bei
-    `FaHierarchyKommissionierRelevanzAktiv = false` zeigt die Kommissionierliste alle Positionen
-    ungefiltert (kein Relevanzkriterium mehr); bei `true` (Default, unverändert zu vor dieser
-    Spec) bleibt das heutige Verhalten bit-identisch erhalten.
-18. **Nur falls Freigabe-Antwort 1 Persistenz verlangt:** Ein gespeicherter Checkbox-Default wird
-    beim nächsten Öffnen der Stückliste automatisch angewendet, inkl. Badge; Migration läuft
-    idempotent auf einer Bestandsdatenbank.
+20. `ProductionOrder.IsSubFa` ist über Unit-Tests mit `""`, `Sub == Order` und `Sub != Order`
+    nachgewiesen. Die drei Warteschlangen-Abfragen (`GetReleasedForPickingAsync`,
+    `GetReleasedForPickingByPickerAsync`, `GetReleasedForPickingCountAsync`,
+    `GetMaxPickingPriorityAsync`) liefern keine Sub-FA-Zeilen mehr, auch wenn deren
+    `IsReleasedForPicking = true` gesetzt ist (Regressionsnachweis unabhängig vom einmaligen
+    SQL-Lauf).
+21. **Harte Bedingung:** Bestehende `SetReleaseBatchAsync`-/`BulkRelease`-Unit-Tests laufen ohne
+    Änderung ihrer Fixtures grün.
 
 ## Test-Szenarien
 
@@ -366,30 +455,50 @@ Worktree zu verifizieren), Abschnitte:
 
 - **Relevanzregel:** Kommissionierliste vor/nach der Extraktion liefert identische Ergebnismenge
   (Regressionsvergleich).
-- **Fünfter Filter:** Stückliste öffnen (hierarchisch), Checkbox aktivieren → nur Positionen mit
-  gesetztem Komm.-Ziel bleiben sichtbar (inkl. deren aufgeklappte Baugruppen-Eltern); Badge
-  erscheint; Reset über Badge UND über „Alle Filter zurücksetzen" funktioniert; Druck mit aktiver
-  Checkbox zeigt den Hinweis im Kopf und nur die sichtbaren Positionen.
-- **Negativfall AKE:** Flache Stückliste öffnen → keine Checkbox, keine Wirkung.
-- **Rückbau Freigabe-Kaskade:** `/PickingLeitstand` öffnen → kein „Alle Sub-FAs freigeben"-Button
+- **„Alle Ziele“:** Stückliste öffnen (hierarchisch), Dropdown öffnen → Option „Alle Ziele (nur
+  kommissionier-relevant)“ wählen → nur Positionen mit gesetztem Komm.-Ziel bleiben sichtbar (inkl.
+  deren aufgeklappte Baugruppen-Eltern, sofern sie selbst ein Kind mit gesetztem Ziel haben); Badge
+  „Alle Ziele (nur kommissionier-relevant)“ erscheint; Reset über Badge UND über „Alle Filter
+  zurücksetzen“ funktioniert; ein konkretes Einzelziel danach wählen → „Alle Ziele“ wird automatisch
+  abgewählt und umgekehrt; Druck mit aktivem „Alle Ziele“ zeigt den Hinweis im Kopf und nur die
+  sichtbaren Positionen.
+- **Neues Ziel bleibt sichtbar:** Mit aktivem „Alle Ziele“ ein neues, zuvor nicht vorhandenes
+  Kommissionierziel (z. B. per Sage-Sync) hinzufügen → Position bleibt/erscheint sichtbar, ohne dass
+  der Filter erneut gesetzt werden muss.
+- **Persistenz:** `!(leer)` als `DefaultFilterBomKommissionierziel` im Profil speichern → Stückliste
+  öffnet mit „Alle Ziele“ vorgewählt (Dropdown-Anzeige + Badge), keine stillschweigend verworfene
+  Vorbelegung.
+- **Negativfall AKE:** Flache Stückliste öffnen → kein Komm.-Ziel-Dropdown, keine Wirkung.
+- **Rückbau Freigabe-Kaskade:** `/PickingLeitstand` öffnen → kein „Alle Sub-FAs freigeben“-Button
   in der Gruppen-Kopfzeile mehr; `CascadeReleasePreview`/`CascadeRelease`-Routen liefern 404.
-  Fertigmeldungs-Kaskade („Alle Sub-FAs fertigmelden") funktioniert unverändert.
+  Fertigmeldungs-Kaskade („Alle Sub-FAs fertigmelden“) funktioniert unverändert.
+  `grep -rEn "CascadeRelease|SetReleaseForOrderNumber|CountReleasedByOrderNumber"` über
+  `IdealAkeWms/` und `IdealAkeWms.Tests/` liefert 0 Treffer.
 - **Freigabe/Picking nur am HauptFA:** In einer hierarchischen Gruppe mit mehreren Sub-FAs prüfen,
   dass nur die HauptFA-Zeile Freigabe-Button, Prioritäts-Input, Bulk-Checkbox und
   Stückliste-Icon zeigt; Sub-FA-Zeilen zeigen keines davon.
 - **Negativfall direkter Zugriff:** `/Picking/Bom/{sub-fa-id}` direkt aufrufen →
   Weiterleitung + Warnhinweis, keine Stückliste. `POST /PickingLeitstand/ToggleRelease` mit
-  Sub-FA-Id → keine Änderung + Warnhinweis.
+  Sub-FA-Id → keine Änderung + Warnhinweis, unabhängig vom bisherigen Freigabe-Status der Zeile.
 - **BulkRelease gemischt:** HauptFA- und Sub-FA-Ids gemeinsam auswählen und freigeben → nur
-  HauptFA wird freigegeben, Sub-FA wird mit Hinweis übersprungen.
+  HauptFA wird freigegeben, Sub-FA wird mit Hinweis übersprungen. Gegenprobe: eine bereits
+  freigegebene Sub-FA gemeinsam mit HauptFA-Ids „zurücknehmen“ auswählen → Sub-FA wird ebenfalls
+  übersprungen und gemeldet.
 - **Negativfall AKE (Freigabe):** Flacher Modus, `BulkRelease`/`ToggleRelease` auf eine normale
   FA-Id → funktioniert unverändert (jede Zeile ist ihre eigene HauptFA-Zeile).
+- **Warteschlange bereinigt:** Im Testsystem eine Sub-FA mit `IsReleasedForPicking = 1` anlegen
+  (oder eine bestehende Altlast verwenden), Kommissionierer-Warteschlange (`/Picking`) öffnen → die
+  Sub-FA erscheint dort **nicht** (weder vor noch nach dem einmaligen SQL-Lauf, da die
+  Warteschlangen-Abfragen strukturell filtern); Home-Kennzahl (`GetReleasedForPickingCountAsync`)
+  zählt sie nicht mit.
+- **Warteschlangen-Gruppierung (Hinweis, kein Fehlerfall):** Die Warteschlange zeigt je HauptFA-
+  Gruppe nur noch eine Zeile; Gruppen mit mehreren Sub-FAs sind nicht mehr zu erwarten (siehe
+  Backlog-Notiz [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]] — kein Fehler, wenn sie
+  ausbleiben).
 - **Unberührt:** `FaWorklist/Bom` weiterhin auf jeder Sub-FA-Zeile erreichbar; Glas/Fremdbezug/
   Lackierung-Checkboxen einer Sub-FA weiterhin bedienbar, auch wenn die Zeile nie freigegeben wird.
-- **Nur falls Standorteinstellungs-Schalter gebaut wird:** Schalter aus → Kommissionierliste zeigt
-  alle Positionen; Schalter an (Default) → unverändertes Verhalten.
-- **Nur falls Persistenz gebaut wird:** Checkbox-Default im Profil setzen → Stückliste öffnet mit
-  vorbelegter Checkbox + Badge.
+- **Hilfeseite:** Picking-/Leitstand-Hilfeabschnitt nennt „Freigabe und Stückliste nur am HauptFA“
+  und die Schaltfläche „Alle Ziele“.
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (TS-79-Eintrag), TS-73
 (v1.38.0) um den Rückbau-Vermerk bei den Kaskade-Szenarien ergänzen.
@@ -398,9 +507,12 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (TS-79-Eint
 
 - **Web-App:** ja — Controller/Views/Services im `IdealAkeWms`-Projekt.
 - **Service:** nein — `IDEALAKEWMSService` unberührt (keine Sync-/Worker-Änderung).
-- **Migration:** nein im Standardumfang; **ja**, falls Freigabe-Antwort 1 einen pro Benutzer
-  gespeicherten Checkbox-Default verlangt (Migration 94, nullable/Default-Spalte an `Users`, nicht
-  daten-destruktiv).
+- **Migration:** nein — „Alle Ziele“ nutzt das bestehende Feld `DefaultFilterBomKommissionierziel`,
+  keine Schemaänderung.
+- **Einmaliger SQL-Lauf, NUR Testsystem** (siehe Migrations-/SQL-Auswirkungen), nach dem Deploy des
+  Bündels auf das Testsystem, vor dem manuellen Testlauf von TS-79 „Warteschlange bereinigt“
+  auszuführen. Kein `SQL/XX`-Skript, kein Produktivlauf (Bündel ist nicht gemergt, keine
+  Produktivdaten betroffen).
 - **Kontext:** Der betroffene Code existiert ausschließlich im nicht gemergten Bündel-Worktree
   `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch `feature/2026-08-07-ideal-teile-1-5`).
   Diese Spec wird dort als weitere Etappe umgesetzt — kein zusätzlicher eigener Deploy-Schritt,
@@ -408,45 +520,93 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (TS-79-Eint
   provisorischen Ausführungsort gegen den dann aktuellen Worktree-/Branch-Stand).
 - **Publish-Befehle (nachgelagerter Fall, im Worktree auszuführen):**
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-- Ablauf: Publish **aus dem Worktree** → Testsystem → Test → **danach** Merge (Schranke 2, Mensch).
-  Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge tatsächlich getestete
-  Dateien mit parallelen `main`-Änderungen zusammenführt (Buendel-Worktree mit vielen Etappen —
-  Merge-Diff prüfen).
+- Ablauf: Publish **aus dem Worktree** → Testsystem → einmaliger SQL-Lauf → Test → **danach** Merge
+  (Schranke 2, Mensch). Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge
+  tatsächlich getestete Dateien mit parallelen `main`-Änderungen zusammenführt (Bündel-Worktree mit
+  vielen Etappen — Merge-Diff prüfen).
 - **Brain-Nachzug (Dev-Lauf, HAUPTCHECKOUT):** `secondbrain/specs/freigegeben/2026-09-10-fa-liste-ausbau-matchcode-spec.md`
   um einen Hinweis ergänzen, dass Block 4/Tasks 12-14 durch diese Spec zurückgebaut wurden —
-  sonst widerspricht die freigegebene Spec dem tatsächlichen Codezustand.
+  sonst widerspricht die freigegebene Spec dem tatsächlichen Codezustand. Zusätzlich neue
+  Backlog-Notiz [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]] anlegen (H1) und
+  `secondbrain/architektur/fallstricke.md` um den Platzhalter-Fallstrick der Komm.-Ziel-Zelle
+  ergänzen.
 
 ## Offene Rückfragen
 
-1. → **Ist die Checkbox „Nur kommissionierrelevant" beim Öffnen der Stückliste standardmäßig an
-   oder aus — und soll sie, wie die anderen vier Standardfilter, pro Benutzer speicherbar sein?**
-   Einschätzung dieser Spec: Standardmäßig **aus** ist der risikoärmere Start (Vollstruktur bleibt
-   die Baseline, siehe Ruling 4 — ein zusätzlicher, activ gewählter Filter überrascht niemanden).
-   Persistenz analog den vier Textfiltern ist eine kleine Erweiterung (ein Bool-Feld statt eines
-   Textfelds), aber zusätzlicher Umfang (Migration, zwei Einstellungsseiten). Falls „an per
-   Default" gewünscht ist: aus Sicherheitsgründen (kein Material vergessen) nachvollziehbar, dann
-   aber bitte auch zur Persistenz-Frage Stellung nehmen.
-2. → **Reicht die reine Extraktion der Relevanzregel in eine geteilte C#-Methode (kein
-   Standorteinstellungen-Eintrag), da der Code nur EIN Kriterium zeigt statt der im Backlog
-   vermuteten mehreren Parameter — oder soll dennoch der beschriebene Ein/Aus-Schalter
-   `FaHierarchyKommissionierRelevanzAktiv` als Rückfallebene gebaut werden?** Einschätzung dieser
-   Spec: Ohne einen echten zweiten Konfigurationswert wäre ein Standorteinstellungen-Eintrag eine
-   Attrappe (ponytail Sprosse 1 — „Muss das überhaupt existieren?"). Ein Schalter lohnt sich nur,
-   wenn die reale Sorge besteht, dass Sage das Feld `Kommissionieren` unzuverlässig befüllt und man
-   dann ohne Deploy zurückschalten will.
-3. → **Sollen bereits im IDEAL-Testsystem einzeln freigegebene Sub-FAs (`IsReleasedForPicking=true`)
-   nach dieser Spec stehen bleiben oder zurückgesetzt werden?** Einschätzung dieser Spec: stehen
-   lassen — es sind Testdaten, keine produktive Migration nötig; die betroffenen Zeilen werden
-   durch diese Spec ohnehin nicht mehr über die UI erreichbar/änderbar (Freigabe nur noch am
-   HauptFA), ihr bisheriger Freigabe-Status ist damit folgenlos.
+Alle drei Rückfragen beantwortet, siehe Freigabe-Antworten; Überarbeitung 2026-09-25 eingearbeitet.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
+1. → **Keine eigene Checkbox — "Alle Ziele" im bestehenden Komm.-Ziel-Dropdown (S4 uebernommen).**
+   "Nur kommissionier-relevant" ist fachlich dasselbe wie "alle Ziele gewaehlt". Der bestehende
+   Komm.-Ziel-Filter bringt Badge, Reset, Leerzustand, rekursive Suche, Vorfahren-Aufklappen, Druckhinweis
+   und Speicherung je Benutzer bereits mit. **Migration 94 entfaellt, S2 und S3 erledigen sich.**
 
-2. →
+   **Mit einer verbindlichen Ergaenzung — der benannte Nachteil ist kein kosmetischer:**
+   Wuerde "Alle Ziele" die **aktuelle Werteliste** speichern, fehlte ein spaeter neu angelegtes
+   Kommissionierziel im gespeicherten Standard. Die Positionen dieses Ziels waeren fuer jeden, der sich auf
+   seinen Standard verlaesst, **still ausgeblendet** — genau der Fall "gefiltert, sieht aber vollstaendig
+   aus". Deshalb:
+   - **"Alle Ziele" setzt einen Bedeutungswert, keine Momentaufnahme:** "Ziel ist nicht leer". Neue Ziele
+     sind damit automatisch enthalten.
+   - **Schreibweise `!(leer)`** — dieselbe wie in der geplanten Suchsyntax
+     ([[2026-09-23-suchsyntax-spaltenfilter-erweitern]]), damit es spaeter keine zwei Notationen gibt. Bis
+     die Suchsyntax gebaut ist, behandelt der Komm.-Ziel-Filter diesen Wert **gesondert** — die heutige
+     Mini-Syntax wuerde `!(leer)` sonst als "enthaelt nicht '(leer)'" lesen und alles zeigen.
+   - **Der Badge zeigt dann "Alle Ziele (nur kommissionier-relevant)"** statt einer Werteliste — damit ist
+     auch der zweite benannte Nachteil behoben.
+   **Standard:** je Benutzer ueber das bestehende `DefaultFilterBomKommissionierziel`. Kommissionierer
+   setzen "Alle Ziele" einmal als ihren Standard; ein globaler Standard wird nicht gebaut.
 
-3. →
+2. → **Nur Extraktion, kein Schalter.** Mit einem einzigen Kriterium waere der Schalter das Ausschalten
+   der Kommissionierliste selbst — und dann summierte sie nach leerem Ziel, wofuer sie nicht gebaut ist
+   (H2). Die Regel `KommissionierRelevanzFilter.IsRelevant` wird trotzdem herausgeloest: Sie ist der Ort,
+   an dem kuenftige Kriterien hinzukaemen. **Dann** lohnt eine Einstellung — mit bekanntem Bedarf.
+
+3. → **Einmaliger SQL-Lauf im Testsystem PLUS die Warteschlange filtert Sub-FAs aus.**
+   *Korrektur der frueheren Empfehlung "stehen lassen, folgenlos" — sie war am Code falsch (B2):
+   Freigegebene Sub-FAs bleiben in der Warteschlange, zaehlen in der Startseiten-Kennzahl und sind nicht
+   mehr ruecknehmbar.*
+   - **SQL-Lauf, nur Testsystem**, im Deploy-Abschnitt dokumentiert (kein `SQL/XX`):
+     `IsReleasedForPicking = 0` fuer alle Zeilen mit `SubOrderNumber <> OrderNumber`.
+   - **Warteschlange korrekt durch Konstruktion:** `GetReleasedForPickingAsync`,
+     `GetReleasedForPickingCountAsync` und `GetMaxPickingPriorityAsync` beruecksichtigen nur HauptFAs
+     (ueber `IsSubFa`, siehe S1). Damit schadet es nicht, falls der SQL-Lauf einmal vergessen wird —
+     Altlasten tauchen in der Warteschlange gar nicht erst auf.
+   - **Die Sperre bleibt in beide Richtungen** — kein zusaetzliches Zuruecknehmen-Element noetig, weil die
+     Warteschlange Sub-FAs ohnehin nicht mehr zeigt.
+
+## ANTWORTEN auf die Kritische Pruefung (2026-09-25)
+
+**S1 — uebernommen, ausdruecklich.** Eine berechnete Eigenschaft `ProductionOrder.IsSubFa`, leer gilt als
+HauptFA. Verwendet von `Bom`, `ToggleRelease`, `SetReleaseBatchAsync` **und** den drei
+Warteschlangen-Abfragen aus Antwort 3. Unit-Test mit `""`, `Sub == Order`, `Sub != Order`.
+**Harte Bedingung:** Die bestehenden `SetReleaseBatchAsync`-/`BulkRelease`-Tests laufen **ohne Aenderung
+ihrer Fixtures** gruen. Werden Fixtures angepasst, damit Tests gruen werden, ist das ein Befund, kein
+Erfolg.
+
+**S5 — uebernommen.** Weiterleitung auf `/Picking` mit Hinweis "Kommissionierung erfolgt nur am HauptFA
+{OrderNumber}", Vorbild der Artikelnummer-Pruefung derselben Action.
+
+**S6 — uebernommen.** Changelog v1.38.0 als zurueckgenommen kennzeichnen (Anwender haben ihn sonst als
+gueltige Funktion vor Augen), TS-73 vollstaendig mitziehen, `CountReleasedByOrderNumberAsync` entfernen.
+AK: `grep CascadeRelease|SetReleaseForOrderNumber|CountReleasedByOrderNumber` ueber `IdealAkeWms*/`
+liefert **0 Treffer**.
+
+**S7 — uebernommen.** Out-of-Scope ausdruecklich: Gesperrt werden nur die **Einstiege** (Freigabe,
+interaktive Stueckliste). Folgeaktionen sind ohne Einstieg nicht erreichbar und bleiben bewusst
+ungeschuetzt.
+
+**S8 — uebernommen.** Picking- und Leitstand-Hilfe: "Freigabe und Stueckliste nur am HauptFA" und die
+Schaltflaeche "Alle Ziele".
+
+**H1 — als eigener Backlog-Punkt festzuhalten:** Die Zwei-Ebenen-Gruppierung der
+Kommissionierer-Warteschlange wird funktional ueberfluessig. Nicht Teil dieser Spec — aber im
+Testprotokoll vermerken, damit niemand "Gruppe mit mehreren Sub-FAs in der Warteschlange" prueft und sie
+nicht findet.
+
+**Fallstrick aus Schwerpunkt 3 festhalten:** Die Stueckliste prueft auf dem gerenderten Zellentext. Setzt
+jemand spaeter einen Platzhalter ("–") in die Komm.-Ziel-Zelle, kippt die Relevanzpruefung still.
 
 ## Kritische Pruefung (2026-09-25)
 
