@@ -2,13 +2,13 @@
 type: spec
 title: "IDEAL: Kommissionierung nur auf dem HauptFA — gemeinsame Relevanzregel, „Alle Ziele“ im Komm.-Ziel-Filter, Freigabe-Kaskade-Rückbau, Picking-Pfad auf HauptFA beschränkt"
 slug: 2026-09-25-kommissionierung-nur-hauptfa-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-09-25
 updated: 2026-09-25
 source_backlog: "[[2026-09-13-kommissionierung-nur-hauptfa]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-09-25-kommissionierung-nur-hauptfa-umsetzung]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - "IdealAkeWms/Services/KommissionierListenService.cs Z. 228-236 (`BuildFlagPredicate`) — Kriterium NICHT ändern (bleibt einzig: `Kommissionieren` nicht leer), aber in eine neue, gemeinsame Methode auslagern statt es dort inline zu prüfen. Kein Standorteinstellungen-Schalter (Antwort 2), kein Konstruktor-Parameter."
   - "IdealAkeWms/Services/KommissionierRelevanzFilter.cs (NEU) — EINE reine, statische Methode `IsRelevant(string? kommissionieren) => !string.IsNullOrWhiteSpace(kommissionieren)`. `BuildFlagPredicate` ruft sie auf. Dokumentierter Zweck: der Ort, an dem künftige Zusatzkriterien hinzukämen — heute EIN Verbraucher (Antwort 2), kein Vortäuschen einer zweiten Implementierung."
@@ -18,7 +18,7 @@ affected_code:
   - "IdealAkeWms/Controllers/PickingController.cs Z. 280-290 (`Bom`-Action) — neuer Guard direkt nach dem `order == null`-Check, VOR dem bestehenden Artikelnummer-Guard (Z. 286-290, dessen Muster als Vorbild dient): ist `order.IsSubFa`, `TempData[\"WarningMessage\"] = \"Kommissionierung erfolgt nur am HauptFA {order.OrderNumber}.\"` + `RedirectToAction(nameof(Index))` (exakt dasselbe Muster wie der Artikelnummer-Guard, kein `returnUrl` an dieser Action vorhanden)."
   - "IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 356-405 (`ToggleRelease`) — Guard vor der Freigabe-Logik, unabhängig von der Richtung (`order.IsSubFa` blockt sowohl Freigeben als auch Zurücknehmen — Warteschlange filtert Sub-FAs ohnehin über die Repository-Änderung oben aus, ein Zurücknehmen-Sonderpfad ist daher nicht nötig, siehe Freigabe-Antwort 3)."
   - "IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 409-451 (`BulkRelease`) — neue `TempData[\"WarningMessage\"]`-Zeile für `batch.SkippedSubFa`, analog der bestehenden Zeile für `SkippedNoArticle` (Z. 446-447)."
-  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml — lokale Variable `isHauptFaRow` nach Vorbild `Views/ProductionOrders/_ProductionOrderRow.cshtml` Z. 16-18 (`Model.Hierarchical && item.SubOrderNumber == item.OrderNumber`); Freigabe-Spalte (Z. 217-259) UND Bulk-Checkbox-Spalte (Z. 18-29) zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt."
+  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml — lokale Variable `isHauptFaRow = Model.Hierarchical && !item.IsSubFa` — KEINE eigene Vergleichsformel (Freigabe-Nachtrag 2026-09-25: sonst waere es eine sechste Fassung der Regel, die `IsHauptFa` gerade auf eine zurueckfuehrt; ist `item` kein `ProductionOrder`, sondern ein ViewModel, dort ein Feld aus `IsSubFa` befuellen, statt die Formel erneut zu schreiben). Dieselbe Umstellung fuer die bestehende Variable in `Views/ProductionOrders/_ProductionOrderRow.cshtml` Z. 16-18 (heute `!IsNullOrEmpty && ==`); Freigabe-Spalte (Z. 217-259) UND Bulk-Checkbox-Spalte (Z. 18-29) zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt."
   - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml Z. 30-42 UND IdealAkeWms/Views/ProductionOrders/_ProductionOrderRow.cshtml Z. 30-49 — der interaktive Stückliste-Link (`asp-controller=\"Picking\" asp-action=\"Bom\"`, NICHT der read-only `FaWorklist`-Zweig) zusätzlich auf `!Model.Hierarchical || isHauptFaRow` bedingt. `FaWorklist/Bom` bleibt unverändert auf jeder Sub-FA-Zeile sichtbar."
   - "IdealAkeWms/Views/Picking/Bom.cshtml — KEINE eigene Checkbox, KEIN eigener Badge-Zweig. Stattdessen am bestehenden Komm.-Ziel-Select2 (`setupKommissionierzielDropdown`, Z. 1049-1083): neue, EXKLUSIVE erste Option `<option value=\"!(leer)\">Alle Ziele (nur kommissionier-relevant)</option>` im `<select multiple>`. Auswahl von „Alle Ziele“ deselektiert alle Einzelziele und umgekehrt (im `change`-Handler Z. 1075-1082, sonst entstünde `!(leer),KA-02`, das die Ausschluss-Syntax in `bomMatchesFilter` auslöst). Zusätzlich (zweiter Prüfdurchgang, Nebeneffekt von B3): Die Vorbelegung aus dem gespeicherten Filterwert (`pre`, Z. 1065) erkennt `!(leer)` case-insensitiv und bildet einen so erkannten Teil auf den exakten Options-Wert `!(leer)` ab, bevor `$sel.val(pre)` (Z. 1074) aufgerufen wird — sonst verwirft Select2 eine Vorbelegung wie `!(LEER)` still, weil keine Option so exakt heißt. Das behebt nebenbei H8 (ein aus `sessionStorage` kleingeschrieben wiederhergestelltes Einzelziel wie `ka-02` wird durch dieselbe case-insensitive Zuordnung ebenfalls erkannt) — kein eigener Umfang, nur ein Nebeneffekt derselben Mapping-Logik."
   - "IdealAkeWms/Views/Picking/Bom.cshtml Z. 830-837 (`bomMatchesFilter`) — EIN neuer Sonderfall am Anfang der Funktion: `val` kommt an dieser Stelle bereits kleingeschrieben aus `window.getActiveFilters()` (`table-filter.js:287`, `input.value.toLowerCase().trim()`, zweiter Prüfdurchgang verifiziert) — deshalb genügt der exakte Vergleich `val === '!(leer)'` ohne eigene `toLowerCase()`-Behandlung in dieser Funktion. Ist der Gesamtwert so `!(leer)`, dann `return text.trim() !== ''` (Zellinhalt nicht leer), statt der Ausschluss-Syntax (`val.startsWith('!')`) zu folgen, die `!(leer)` sonst als „enthält nicht '(leer)'“ läse und ALLES anzeigen würde. Dieser eine Sonderfall deckt alle drei Aufrufer ab: `updateBomVisibility` (Z. 855ff), `expandAncestorsOfMatching` (Z. 1086ff) und `checkKommissionierzielEmptyState` (Z. 1107ff) — keine Änderung an diesen drei Funktionen selbst nötig."
@@ -27,7 +27,7 @@ affected_code:
   - "IdealAkeWms/Views/Picking/Bom.cshtml Z. 1167-1211 (`btnPrintBom`-Handler) — zwei Ergänzungen (zweiter Prüfdurchgang S11/Punkt 4): (1) Ist beim Klick keine Zeile sichtbar (`visiblePositions.length === 0`), öffnet der Handler **keinen** Druck (`window.open` entfällt). Stattdessen macht er die bestehende Box `#bomKzEmptyState` (Z. 136-138) mit dem Text „Keine sichtbaren Positionen — nichts zu drucken.“ sichtbar — direkt gesetzt, NICHT über `checkKommissionierzielEmptyState()`, weil diese nur den Komm.-Ziel-Filter kennt und der Hinweis bei JEDEM aktiven Filter greifen soll, nicht nur bei „Alle Ziele“. Der bereits gebundene Reset-Knopf `#bomKzEmptyStateReset` (ruft `resetAllBomFilters()`, Z. 1161-1162) bedient auch diesen Fall mit. Kein `alert()`. (2) Beim Aufbau von `filterParts` (Z. 1188-1190) Sonderfall für `col === 'kommissionieren'` mit Wert `!(leer)` (aus `getActiveFilters()`, dort bereits kleingeschrieben): Textbaustein „Komm.-Ziel=Alle Ziele (nur kommissionier-relevant)“ statt des Rohwerts. Keine Änderung an `PrintBom.cshtml`/`colNames`/der `PrintBom`-Action nötig (Whitelist bereits durch [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] erledigt)."
   - "NICHT ANFASSEN: wwwroot/js/table-filter.js (`applyFilters` Z. 293-330, `matchesFilter` Z. 272, `init()` Z. 229-233) — gemeinsames JS für alle Server-Mode-Listen. Begründung präzisiert (zweiter Prüfdurchgang S13/Punkt 3): Beim `window.setColumnFilter`-Aufruf und beim Tippen in die Filterzeile läuft `updateBomVisibility()` synchron im selben JS-Task wie table-filter.js — kein Flackern möglich. Beim Seitenaufbau mit einem aus `sessionStorage` wiederhergestellten Filter (inkl. eines gespeicherten `!(leer)`) ruft `init()` im `column-preferences-ready`-Handler `applyFilters()` auf (Z. 229-233), während die Bom-Korrektur erst im eigenen `setTimeout(…, 0)`-Task (Z. 1136-1163) läuft — dazwischen KANN ein Frame ungefiltert gezeichnet werden. Das besteht bereits heute für JEDEN Bom-Filter (auch `procurement`, `article-group`, `description1`), weil `applyFilters` den Baumzustand ignoriert — kein neues Verhalten durch `!(leer)`. Kein weiterer Pfad betroffen: `sortTable` filtert nicht, Bom hat keine Datumsspalte (Kalender-Pfad `applyColumnFilterNow` greift nicht), `data-clear-table-filters` kommt in Bom nicht vor. Die `!(leer)`-Sonderbehandlung bleibt in `bomMatchesFilter` isoliert. Die Vereinheitlichung der Mini-Syntax ist Sache von [[2026-09-23-suchsyntax-spaltenfilter-erweitern]]."
   - "IdealAkeWms/Views/Account/Profile.cshtml Z. 53 UND IdealAkeWms/Views/Users/Edit.cshtml Z. 117 (Freitext-Inputs `DefaultFilterBomKommissionierziel`) — Placeholder/Hilfetext ergänzen, der `!(leer)` als „Alle Ziele“ erklärt (z. B. `placeholder=\"z. B. KA-02 oder !(leer) für alle Ziele\"`). Keine Validierungsänderung: `ProfileViewModel` Z. 71-73/`UserEditViewModel` Z. 83-85/`User` Z. 96-98 haben nur `[StringLength(200)]`, `!` und Klammern sind bereits zulässig, `Html.Raw`-Vorbelegung in `Bom.cshtml` Z. 1146 ist für `!(leer)` unkritisch. ABER: keine Normalisierung mehr über eine bloße `Trim()`-Annahme — siehe eigener affected_code-Eintrag `KommissionierzielFilterWert`."
-  - "IdealAkeWms/Services/KommissionierzielFilterWert.cs (NEU, zweiter Prüfdurchgang B3) — EINE statische Funktion `Normalize(string? input) => (string? Value, bool WasNormalized)`. Regel: leer/Whitespace → `(null, false)`. Enthält irgendein durch Komma getrennter, getrimmter Teil — ohne Rücksicht auf Groß-/Kleinschreibung — den Wert `!(leer)`, dann Rückgabe `(\"!(leer)\", WasNormalized)`, wobei `WasNormalized` genau dann `true` ist, wenn die Roheingabe nicht bereits exakt `\"!(leer)\"` war (deckt sowohl den Fall „kombiniert mit Einzelzielen“ als auch „nur andere Schreibweise“ ab) — Einzelziele entfallen in jedem Fall. Sonst `(getrimmter Wert, false)`. Aufgerufen von `AccountController.cs` Z. ~219 (Profil-POST) UND `UsersController.cs` Z. ~129 (Create-POST) UND Z. ~301 (Edit-POST) statt der bisherigen Inline-`Trim()`. Bei `WasNormalized == true` zusätzlich `TempData[\"WarningMessage\"] = \"Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.\"` neben dem bestehenden `TempData[\"SuccessMessage\"]` (verifiziert: alle drei POSTs enden mit `SuccessMessage` + `RedirectToAction`; TempData kennt nur SuccessMessage/WarningMessage — Hausregel). Unit-Test (`IdealAkeWms.Tests`, neue Datei) deckt ab: `\"!(leer),KA-02\"` → `!(leer)` + normalisiert; `\"!(LEER)\"` → `!(leer)` + normalisiert (Lesart: Hinweis, sobald normalisiert wurde — nicht nur bei Einzelziel-Verlust); `\"KA-02\"` → unverändert, nicht normalisiert; `\"  \"` → `null`, nicht normalisiert; `\"!(leer)\"` → unverändert, nicht normalisiert (kein Hinweis)."
+  - "IdealAkeWms/Services/KommissionierzielFilterWert.cs (NEU, zweiter Prüfdurchgang B3) — EINE statische Funktion `Normalize(string? input) => (string? Value, bool DroppedTargets)`. Regel: leer/Whitespace → `(null, false)`. Enthält irgendein durch Komma getrennter, getrimmter Teil — ohne Rücksicht auf Groß-/Kleinschreibung — den Wert `!(leer)`, dann Rückgabe `(\"!(leer)\", DroppedTargets)`, wobei `DroppedTargets` genau dann `true` ist, wenn neben `!(leer)` weitere Ziele angegeben waren und verworfen wurden — NICHT bei reiner Schreibweisen-Korrektur wie `!(LEER)` (Freigabe-Nachtrag 2026-09-25: gemeldet wird eine Aenderung der Bedeutung, nicht der Schreibweise). Normalisiert wird trotzdem jede Roheingabe, die nicht bereits exakt `\"!(leer)\"` war (deckt sowohl den Fall „kombiniert mit Einzelzielen“ als auch „nur andere Schreibweise“ ab) — Einzelziele entfallen in jedem Fall. Sonst `(getrimmter Wert, false)`. Aufgerufen von `AccountController.cs` Z. ~219 (Profil-POST) UND `UsersController.cs` Z. ~129 (Create-POST) UND Z. ~301 (Edit-POST) statt der bisherigen Inline-`Trim()`. Bei `DroppedTargets == true` (und nur dann) zusätzlich `TempData[\"WarningMessage\"] = \"Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.\"` neben dem bestehenden `TempData[\"SuccessMessage\"]` (verifiziert: alle drei POSTs enden mit `SuccessMessage` + `RedirectToAction`; TempData kennt nur SuccessMessage/WarningMessage — Hausregel). Unit-Test (`IdealAkeWms.Tests`, neue Datei) deckt ab: `\"!(leer),KA-02\"` → `!(leer)` + DroppedTargets=true (Hinweis); `\"!(LEER)\"` → `!(leer)`, DroppedTargets=false, KEIN Hinweis (reine Schreibweise, Bedeutung unveraendert); `\"KA-02\"` → unverändert, nicht normalisiert; `\"  \"` → `null`, nicht normalisiert; `\"!(leer)\"` → unverändert, nicht normalisiert (kein Hinweis)."
   - "RÜCKBAU (Block 4/Tasks 12-14 aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]], bereits gebaut, Testbereit, noch NICHT gemergt): IdealAkeWms/Controllers/PickingLeitstandController.cs Z. 543-616 (`CascadeReleasePreview`/`CascadeRelease` inkl. Kommentarblock Z. 543-549) vollständig entfernen. IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs Z. 56 (`SetReleaseForOrderNumberAsync`) + Z. 62 (`CountReleasedByOrderNumberAsync`, verifiziert ohne Fremdverwendung außer `CascadeReleasePreview` Z. 563 und eigenen Tests — kann mitentfernt werden) + Implementierungen in ProductionOrderPickingStatusRepository.cs entfernen. IdealAkeWms/Views/PickingLeitstand/Index.cshtml Z. 206-217 (Button), Z. 398-451 (Modal), JS ab Z. 556 vollständig entfernen — Layout-Hinweis: der Button steht inline in derselben `<td colspan>` hinter „Alle Sub-FAs fertigmelden“, Entfernen hinterlässt keine Lücke. IdealAkeWms.Tests/Controllers/PickingLeitstandControllerTests.cs (24 Fundstellen) + IdealAkeWms.Tests/Repositories/ProductionOrderPickingStatusRepositoryTests.cs (13 Fundstellen) entfernen. IdealAkeWms/Views/Help/Changelog.cshtml Z. 180 (Überschrift) + Z. 203-207 (Bullet) als zurückgenommen kennzeichnen. docs/TESTSZENARIEN.md: TS-73-Titel Z. 7726, Z. 7753, TS-73.11-13, Z. 7895, Z. 7940-7952, Schlusszeile Z. 8575 als „zurückgebaut, siehe TS-79“ kennzeichnen statt löschen (Vorbild TS-71-Rückbau-Vermerk). NICHT anfassen: `CascadeDonePreview`/`CascadeDone` (Z. 488-541, Fertigmeldungs-Kaskade, betrifft `IsDoneBde`, nicht `IsReleasedForPicking`). `CanManagePickingRelease` bleibt unverändert (wird an anderer Stelle weiter genutzt)."
   - "secondbrain/specs/freigegeben/2026-09-10-fa-liste-ausbau-matchcode-spec.md (HAUPTCHECKOUT, Brain-Update-Pflicht des Dev-Laufs, NICHT dieser Spec-Agent-Lauf) — Block 4/Tasks 12-14 als durch diese Spec überholt/zurückgebaut kennzeichnen."
   - "IdealAkeWms/Views/Help/Index.cshtml, Abschnitt „Leitstand (Kommissionier-Freigabe)“ (ab Z. 695) — ergänzen: „Freigabe und Stückliste sind nur an der HauptFA-Zeile möglich, Sub-FA-Zeilen zeigen diese Bedienelemente nicht mehr“ sowie ein Hinweis auf die Schaltfläche „Alle Ziele“ im Komm.-Ziel-Filter der Stückliste."
@@ -42,9 +42,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Kommissionierung nur am HauptFA. Alle Ziele als Bedeutungswert !(leer) im bestehenden Komm.-Ziel-Dropdown (keine Checkbox, keine Migration), beim Speichern normalisiert, Hinweis nur bei verworfenen Einzelzielen. Eine Sub-FA-Definition (ProductionOrder.IsHauptFa) fuer Abfragen, Controller und Views. Freigabe-Kaskade zurueckgebaut, Warteschlange nur HauptFAs, SQL-Bereinigung nur Testsystem. Keine Standorteinstellung."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-25
 # Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
@@ -119,7 +119,8 @@ SQL, Akzeptanzkriterien und Testszenarien nach, ohne eine Entscheidung neu zu ö
    Ausschluss liest. **Persistenz-Normalisierung** (zweiter Prüfdurchgang B3): Speichert ein
    Benutzer im Profil oder ein Admin in der Benutzerverwaltung einen Freitext, der `!(leer)`
    (unabhängig von Groß-/Kleinschreibung) neben Einzelzielen enthält oder nur anders geschrieben
-   ist, wird beim Speichern auf exakt `!(leer)` normalisiert und ein sichtbarer Hinweis gezeigt —
+   ist, wird beim Speichern auf exakt `!(leer)` normalisiert; ein sichtbarer Hinweis erscheint, wenn dabei Einzelziele verworfen wurden (nicht
+   bei reiner Schreibweisen-Korrektur) —
    siehe Anforderung 3 und Technischer Lösungsentwurf.
 4. **Freigabe-Kaskade zurückbauen** (Block 4/Tasks 12-14 aus
    [[2026-09-10-fa-liste-ausbau-matchcode-spec]], Testbereit, noch nicht gemergt): Sie gäbe
@@ -246,8 +247,10 @@ Speicherung je Benutzer bereits mit (S4 der kritischen Prüfung, vom Menschen ü
 - **Normalisierung beim Speichern** (zweiter Prüfdurchgang B3): Das Profil-/Benutzerverwaltungs-Feld
   ist Freitext. Enthält der eingegebene Wert `!(leer)` (unabhängig von Groß-/Kleinschreibung), z. B.
   kombiniert mit Einzelzielen (`!(leer),KA-02`) oder nur andersgeschrieben (`!(LEER)`), wird beim
-  Speichern auf exakt `!(leer)` normalisiert, Einzelziele entfallen, und eine `WarningMessage` macht
-  das sichtbar (`KommissionierzielFilterWert.Normalize`, siehe Technischer Lösungsentwurf und
+  Speichern auf exakt `!(leer)` normalisiert, Einzelziele entfallen. **Werden dabei Einzelziele verworfen**, macht
+  eine `WarningMessage` das sichtbar; bei reiner Schreibweisen-Korrektur (`!(LEER)`) gibt es **keinen**
+  Hinweis, weil sich die Bedeutung nicht aendert (Freigabe-Nachtrag). Beides
+  laeuft ueber (`KommissionierzielFilterWert.Normalize`, siehe Technischer Lösungsentwurf und
   affected_code). Ohne diese Normalisierung würde die bestehende Ausschluss-Syntax in
   `bomMatchesFilter` einen kombinierten Wert wie `!(leer),KA-02` als „zeige alles außer '(leer)' oder
   'ka-02'“ lesen — das Gegenteil des Gewollten. Gilt für Profil UND Benutzerverwaltung (Create UND
@@ -403,7 +406,7 @@ etabliert).
 - **Normalisierung beim Speichern** (zweiter Prüfdurchgang B3): `KommissionierzielFilterWert.Normalize(...)`
   ersetzt die bisherigen Inline-`Trim()`-Aufrufe in `AccountController` und `UsersController` (Profil,
   Create, Edit). Erkennt `!(leer)` case-insensitiv, auch kombiniert mit Einzelzielen, und normalisiert
-  auf den exakten kanonischen Wert; bei tatsächlicher Normalisierung zusätzlich
+  auf den exakten kanonischen Wert; nur wenn dabei Einzelziele verworfen wurden (nicht bei reiner Schreibweisen-Korrektur) zusätzlich
   `TempData["WarningMessage"]` neben dem bestehenden `SuccessMessage`. Dieselbe case-insensitive
   Erkennung läuft zusätzlich, unabhängig von der Normalisierung, an den JS-Stellen (Select2-Vorbelegung,
   Badge, Leerzustand) — Verteidigung in der Tiefe für Altdaten und den Fall, dass die serverseitige
@@ -509,11 +512,13 @@ wie bisher, unverändert durch diese Spec.
     ohne dass die Vorbelegung durch das Fehlen einer passenden Select2-Option stillschweigend
     verworfen wird.
 11. **Neu (zweiter Prüfdurchgang B3):** Speichert ein Benutzer im Profil oder ein Admin in der
-    Benutzerverwaltung (Create ODER Edit) den Freitext `!(leer),KA-02` oder `!(LEER)` in
+    Benutzerverwaltung (Create ODER Edit) den Freitext `!(leer),KA-02` in
     `DefaultFilterBomKommissionierziel`, wird exakt `!(leer)` gespeichert, eine `WarningMessage`
     „Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.“ erscheint, und die
     Stückliste öffnet danach mit „Alle Ziele“ vorgewählt und zeigt alle Positionen mit gesetztem
     Ziel.
+    **Schreibweise (Freigabe-Nachtrag):** `!(LEER)` wird ebenfalls zu `!(leer)` normalisiert, aber
+    **ohne** Hinweis — die Bedeutung aendert sich nicht, gemeldet wird nur verworfener Inhalt.
 12. `PickingLeitstandController` enthält nach dem Rückbau **keine** Actions `CascadeReleasePreview`/
     `CascadeRelease` mehr; `IProductionOrderPickingStatusRepository` enthält **keine**
     `SetReleaseForOrderNumberAsync`-Methode mehr; `Views/PickingLeitstand/Index.cshtml` enthält
@@ -575,10 +580,12 @@ Worktree zu verifizieren), Abschnitte:
   der Filter erneut gesetzt werden muss.
 - **Persistenz:** `!(leer)` als `DefaultFilterBomKommissionierziel` im Profil speichern → Stückliste
   öffnet mit „Alle Ziele“ vorgewählt (Dropdown-Anzeige + Badge), keine stillschweigend verworfene
-  Vorbelegung. **Ergänzt (zweiter Prüfdurchgang B3):** `!(leer),KA-02` bzw. `!(LEER)` im Profil UND
+  Vorbelegung. **Ergänzt (zweiter Prüfdurchgang B3):** `!(leer),KA-02` im Profil UND
   in der Benutzerverwaltung (Create UND Edit) speichern → gespeichert wird `!(leer)`, `WarningMessage`
   „Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.“ sichtbar, Stückliste
   öffnet mit „Alle Ziele“ vorgewählt und zeigt alle Positionen mit gesetztem Ziel.
+- **Schreibweise ohne Hinweis (Freigabe-Nachtrag):** `!(LEER)` im Profil speichern → gespeichert wird
+  `!(leer)`, **kein** Hinweis, Stueckliste oeffnet mit "Alle Ziele" vorgewaehlt.
 - **Persistenz-Reload (zweiter Prüfdurchgang S13):** Stückliste mit aktivem „Alle Ziele“ per F5 neu
   laden → Endzustand ist gefiltert, Badge sichtbar (ein kurzes, ungefiltertes Zwischenbild ist
   möglich und besteht bereits für alle Bom-Filter — kein Fehler dieser Spec).
@@ -1134,3 +1141,25 @@ AK dazu.
 ausgeblendet, auch wenn Kinder sichtbar sind; die Kinder stehen dann ohne Elternzeile. Das ist
 beabsichtigt — fuer Kommissionierer ergibt sich eine Liste der zu holenden Teile. Im Testszenario
 ausdruecklich als erwartetes Verhalten benennen, damit es niemand als Fehler meldet.
+
+## FREIGABE-NACHTRAG (2026-09-25)
+
+Zwei Korrekturen bei der abschliessenden Durchsicht vor der Freigabe, beide im Rumpf und in
+`affected_code` eingearbeitet:
+
+**1. Hinweis nur bei Aenderung der Bedeutung.** Die Antwort zu B3 verlangte den Hinweis fuer `!(leer),KA-02`
+**und** `!(LEER)`. Das war ungenau: "Melden statt still" gilt fuer Aenderungen der **Bedeutung**. Wird
+`!(LEER)` zu `!(leer)`, filtert die Stueckliste danach exakt dasselbe — ein Hinweis "schliesst Einzelziele
+aus" waere dort schlicht falsch. Deshalb liefert `Normalize` jetzt `DroppedTargets` statt `WasNormalized`:
+`true` nur, wenn Einzelziele verworfen wurden. Normalisiert wird weiterhin in beiden Faellen. AK 11 und
+TS-79 entsprechend getrennt.
+
+**2. Keine eigene Formel in den Views.** `_PickingLeitstandRow.cshtml` sollte `isHauptFaRow` "nach Vorbild"
+der FA-Liste als `item.SubOrderNumber == item.OrderNumber` bilden — eine sechste Fassung der Regel, die
+`ProductionOrder.IsHauptFa` gerade auf eine zurueckfuehren soll, und ohne den Leer-Fall. Stattdessen
+`!item.IsSubFa`; die bestehende Variable in `_ProductionOrderRow.cshtml` wird mit umgestellt. Ist `item`
+ein ViewModel statt eines `ProductionOrder`, wird dort ein Feld aus `IsSubFa` befuellt — nicht die
+Formel neu geschrieben.
+
+**Kein dritter Pruefdurchgang:** Der zweite hat ausschliesslich Nachziehpunkte gefunden, keine
+Grundsatzfragen; beide Korrekturen hier sind Praezisierungen bereits getroffener Entscheidungen.
