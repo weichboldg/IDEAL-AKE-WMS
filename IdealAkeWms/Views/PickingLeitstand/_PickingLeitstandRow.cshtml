@@ -13,12 +13,14 @@
     var faCellNumber = Model.Hierarchical ? (item.SubOrderNumber ?? item.OrderNumber) : item.OrderNumber;
     var rowClass = item.IsDone ? "table-secondary" : "";
     if (Model.Hierarchical) rowClass = ("fa-liste-node-row " + rowClass).Trim();
+    // Kommissionierung nur am HauptFA (Spec 2026-09-25): Quelle ProductionOrder.IsSubFaOf (item.IsSubFa).
+    var isHauptFaRow = Model.Hierarchical && !item.IsSubFa;
 }
 <tr class="@rowClass" data-group="@item.OrderNumber">
     @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
     {
         <td class="bulk-checkbox-col">
-            @if (!item.IsDone)
+            @if (!item.IsDone && (!Model.Hierarchical || isHauptFaRow))
             {
                 <input type="checkbox" class="bulk-row-checkbox"
                        data-id="@item.Id"
@@ -30,7 +32,7 @@
     @if (Model.CanPick)
     {
         <td class="text-nowrap">
-            @if (!string.IsNullOrEmpty(item.ArticleNumber))
+            @if (!string.IsNullOrEmpty(item.ArticleNumber) && (!Model.Hierarchical || isHauptFaRow))
             {
                 <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -217,7 +219,7 @@
     @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
     {
         <td class="text-center text-nowrap">
-            @if (!item.IsDone)
+            @if (!item.IsDone && (!Model.Hierarchical || isHauptFaRow))
             {
                 <form asp-controller="PickingLeitstand" asp-action="ToggleRelease" method="post" style="display:inline">
                     @Html.AntiForgeryToken()

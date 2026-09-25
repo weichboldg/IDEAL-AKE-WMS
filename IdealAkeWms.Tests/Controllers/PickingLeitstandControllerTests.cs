@@ -593,6 +593,63 @@ public class PickingLeitstandControllerTests
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
+    /// <summary>
+    /// Kommissionierung nur am HauptFA (Spec 2026-09-25): der Freigabe-Toggle ist auf einer Sub-FA
+    /// gesperrt — richtungsunabhaengig (egal ob bisher freigegeben oder nicht), daher Theory.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ToggleRelease_SubFa_NoChange_InBothDirections(bool isReleasedForPicking)
+    {
+        var order = new ProductionOrder
+        {
+            Id = 7,
+            OrderNumber = "100",
+            SubOrderNumber = "100-7",
+            ArticleNumber = "A",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test",
+            CreatedByWindows = "test",
+        };
+        var ps = MakePs(productionOrderId: 7, released: isReleasedForPicking);
+        _orderRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(order);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(7)).ReturnsAsync(ps);
+
+        var result = await _controller.ToggleRelease(7, assignedPickerId: null, returnUrl: null);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        _controller.TempData["WarningMessage"].Should().Be("Kommissionierung erfolgt nur am HauptFA 100.");
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Kommissionierung nur am HauptFA (Spec 2026-09-25): BulkRelease meldet Sub-FA-Ueberspringungen
+    /// zusaetzlich zu (nicht statt) SkippedNoArticle — beide Texte im selben WarningMessage, " · "-getrennt (R4).
+    /// </summary>
+    [Fact]
+    public async Task BulkRelease_ReportsSkippedSubFa()
+    {
+        _pickingStatusRepo.Setup(r => r.SetReleaseBatchAsync(
+                It.IsAny<IEnumerable<int>>(), true, It.IsAny<int?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new BulkReleaseResult
+            {
+                Processed = 1,
+                SkippedSubFa = new List<string> { "100-7" }
+            });
+        _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("false");
+
+        await _controller.BulkRelease(new List<int> { 1, 2 }, release: true, assignedPickerId: null, returnUrl: null);
+
+        _controller.TempData["WarningMessage"].Should().NotBeNull();
+        var warning = (string)_controller.TempData["WarningMessage"]!;
+        warning.Should().Contain("100-7");
+        warning.Should().Contain("Übersprungen (Sub-FA — Kommissionierung nur am HauptFA)");
+    }
+
     // --- SetPriority Tests ---
 
     [Fact]

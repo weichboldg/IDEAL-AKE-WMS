@@ -6,6 +6,7 @@ using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -211,6 +212,57 @@ public class PickingControllerTests
         vm.FullStructure.Should().BeFalse();            // Sub-FA != HauptFA
         vm.Items.Single().Menge.Should().Be(5m);        // keine × Quantity
         vm.Items.Single().Kommissionieren.Should().Be("PG");
+    }
+
+    /// <summary>
+    /// Kommissionierung nur am HauptFA (Spec 2026-09-25): interaktive Stueckliste einer Sub-FA
+    /// leitet mit Hinweis um, statt zu rendern — <see cref="IBomRepository"/> darf gar nicht
+    /// erst gefragt werden (kein unnoetiger BOM-Query fuer eine Ansicht, die nie erscheint).
+    /// </summary>
+    [Fact]
+    public async Task Bom_SubFa_RedirectsToIndexWithWarning()
+    {
+        var order = new ProductionOrder
+        {
+            Id = 7,
+            OrderNumber = "100",
+            SubOrderNumber = "100-7",
+            ArticleNumber = "A",
+            CreatedAt = DateTime.Now,
+            CreatedBy = "t",
+            CreatedByWindows = "t",
+        };
+        var orders = new Mock<IProductionOrderRepository>();
+        orders.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(order);
+        var bom = new Mock<IBomRepository>();
+
+        var ctrl = new PickingController(
+            orders.Object,
+            Mock.Of<IProductionOrderPickingStatusRepository>(),
+            Mock.Of<ICurrentUserService>(),
+            Mock.Of<IAppSettingRepository>(),
+            Mock.Of<IHolidayRepository>(),
+            new BusinessDayService(),
+            bom.Object,
+            Mock.Of<IPickingRepository>(),
+            Mock.Of<IStockMovementRepository>(),
+            Mock.Of<IStorageLocationRepository>(),
+            Mock.Of<IArticleRepository>(),
+            Mock.Of<IPickingTransferService>(),
+            Mock.Of<IUserRepository>(),
+            Mock.Of<IEnaioDmsDocumentRepository>(),
+            Mock.Of<IPartRequisitionRepository>(),
+            Mock.Of<IArticleAttributeRepository>(),
+            Mock.Of<IServiceSettingRepository>(),
+            NullLogger<PickingController>.Instance);
+        ctrl.TempData = new TempDataDictionary(new DefaultHttpContext(), Mock.Of<ITempDataProvider>());
+        ctrl.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+
+        var result = await ctrl.Bom(7, null);
+
+        result.Should().BeOfType<RedirectToActionResult>().Which.ActionName.Should().Be("Index");
+        ctrl.TempData["WarningMessage"].Should().Be("Kommissionierung erfolgt nur am HauptFA 100.");
+        bom.Verify(r => r.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()), Times.Never);
     }
 
     [Fact]

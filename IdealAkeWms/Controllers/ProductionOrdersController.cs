@@ -186,6 +186,7 @@ public class ProductionOrdersController : Controller
                 SubOrderNumber = o.SubOrderNumber,
                 ParentSubOrderNumber = o.ParentSubOrderNumber,
                 SageMissingSince = o.SageMissingSince,
+                IsSubFa = ProductionOrder.IsSubFaOf(o.OrderNumber, o.SubOrderNumber),
             };
 
             var effectivePrePickingDays = PrePickingDaysResolver.Resolve(

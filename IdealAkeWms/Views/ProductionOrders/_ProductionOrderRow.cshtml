@@ -11,11 +11,8 @@
     }
     // FA-Nummer-Zelle: im hierarchischen Modus die Sub-FA-Nummer (SubOrderNumber), sonst OrderNumber.
     var faCellNumber = Model.Hierarchical ? (item.SubOrderNumber ?? item.OrderNumber) : item.OrderNumber;
-    // Wurzel der Gruppe: die Materialisierung nimmt die HauptFA selbst mit SubFA == HauptFA auf.
-    // Deshalb braucht die Erkennung kein eigenes ViewModel-Feld.
-    var isHauptFaRow = Model.Hierarchical
-        && !string.IsNullOrEmpty(item.SubOrderNumber)
-        && item.SubOrderNumber == item.OrderNumber;
+    // Kommissionierung nur am HauptFA (Spec 2026-09-25): Quelle ProductionOrder.IsSubFaOf (item.IsSubFa).
+    var isHauptFaRow = Model.Hierarchical && !item.IsSubFa;
     var lackName = Model.LackierteilKategorieName;
     var featureInactive = string.IsNullOrWhiteSpace(lackName);
     var showBeschicht = featureInactive || item.HasCoatingParts;
@@ -32,7 +29,7 @@
         <td class="text-nowrap">
             @if (!string.IsNullOrEmpty(item.ArticleNumber))
             {
-                @if (Model.CanPick)
+                @if (Model.CanPick && (!Model.Hierarchical || isHauptFaRow))
                 {
                     <a asp-controller="Picking" asp-action="Bom" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary me-1" title="Stückliste">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z"/></svg>
