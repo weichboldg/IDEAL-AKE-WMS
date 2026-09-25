@@ -1181,3 +1181,32 @@ Ausschlussliste (Liste in der ServiceSettings-DB, nicht über `IConfiguration` i
 eindeutige gefilterte Index auf `SageArbeitsplatznummer` (InMemory erzwingt UNIQUE nicht) sind **nicht**
 InMemory-testbar. Deren AKs (10, 20) stehen in TS-77 ausdrücklich als **Manual-UAT** — nicht unter die
 grünen Unit-Tests zählen.
+
+## 17. IDEAL — Kommissionierung nur am HauptFA (v1.46.0)
+
+### Es gibt genau EINE Sub-FA-Definition: `ProductionOrder.IsHauptFa`
+`IsHauptFa` (`Expression<Func<ProductionOrder,bool>>`: `SubOrderNumber == "" || SubOrderNumber == OrderNumber`)
+ist die einzige Quelle. Abgeleitet: `IsSubFa` (kompiliert, für geladene Entitäten), `IsSubFaOf(order, sub)`
+(für Projektionen wie `LeitstandOrderRow`; `null` wie `""`) und `.Where(ProductionOrder.IsHauptFa)` in
+EF-Abfragen. **Warum:** Vor v1.46.0 gab es mindestens fünf eigene Fassungen mit abweichender Leer-Behandlung
+(`_ProductionOrderRow` `!IsNullOrEmpty && ==`, `Bom.cshtml` `!IsNullOrEmpty && !=`, `BomScopes.ForOrder`
+`string.Equals`, `HierarchicalDataExistsAsync` `Order != Sub`) — `""` war je nach Stelle HauptFA oder Sub-FA.
+Ein Test-Fixture (`ReadOnlyBomBuilderTests`) hatte sich unbemerkt auf „`""` = Sub-FA“ verlassen.
+**Merke:** Wer „ist das eine Sub-FA?“ fragt, nimmt `IsSubFa`/`IsSubFaOf`/`IsHauptFa` — nie wieder einen
+eigenen Vergleich schreiben. **Grenze:** InMemory-Tests belegen nur C#-Semantik; SQL Server vergleicht
+case-insensitiv und ignoriert Leerzeichen am Ende — folgenlos, weil beide Spalten aus demselben Wert stammen.
+
+### Komm.-Ziel-Zelle der Stückliste darf keinen Platzhalter bekommen
+`Views/Picking/Bom.cshtml` rendert `<td>@item.Kommissionieren</td>` — leer bleibt leer. Der Filterwert
+`!(leer)` („Alle Ziele“) prüft in `bomMatchesFilter` `text.trim() !== ''` auf dem **gerenderten Zelltext**.
+**Warum eine Falle:** Setzt jemand für leere Werte „–“ o. ä. in die Zelle, gilt jede Zeile als
+kommissionier-relevant — „Alle Ziele“ filtert dann still nichts mehr aus. Dieselbe Semantik hat
+`KommissionierRelevanzFilter.IsRelevant` (C#, Kommissionierliste) — beide gemeinsam ändern.
+
+### `!(leer)` ist ein Vorgriff auf die Suchsyntax — `bomMatchesFilter` ist ihre VIERTE Umsetzung
+Die Filter-Mini-Syntax lebt in `table-filter.js`, `ColumnFilterHelper.Apply`, den SQL-Ausdrücken je Liste
+**und** in `bomMatchesFilter` (Bom.cshtml). Der `!(leer)`-Sonderfall steht nur dort (vor der `!`-Ausschluss-
+Syntax, sonst hieße `!(leer)` „enthält nicht ‚(leer)‘“ und zeigte alles). **Merke:** Beim Bau von
+[[2026-09-23-suchsyntax-spaltenfilter-erweitern]] muss `bomMatchesFilter` samt Sonderfall in den gemeinsamen
+Parser aufgehen. Gespeicherte Profilwerte normalisiert `KommissionierzielFilterWert.Normalize` beim Speichern
+(`!(leer)` exklusiv; Hinweis nur, wenn Einzelziele verworfen wurden).

@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-25-kommissionierung-nur-hauptfa-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -21,14 +21,22 @@ Spec-Hinweis „Umsetzungsort“ und Auftrag).
 
 ## Stand
 
-- [ ] Plan
-- [ ] Sub-FA-Definition (`IsHauptFa`/`IsSubFa`) + Warteschlange + Guards + Tests
-- [ ] Rückbau Freigabe-Kaskade + grep-Nachweis
-- [ ] Views Leitstand/FA-Liste (HauptFA-Beschränkung)
-- [ ] Stückliste „Alle Ziele“ + Druck-Leerzustand
-- [ ] Normalisierung Profil/Benutzerverwaltung + Tests
-- [ ] Version, Changelog, Hilfe, TS-79, Brain
+- [x] Plan
+- [x] Sub-FA-Definition (`IsHauptFa`/`IsSubFa`) + Warteschlange + Guards + Tests
+- [x] Rückbau Freigabe-Kaskade + grep-Nachweis
+- [x] Views Leitstand/FA-Liste (HauptFA-Beschränkung)
+- [x] Stückliste „Alle Ziele“ + Druck-Leerzustand
+- [x] Normalisierung Profil/Benutzerverwaltung + Tests
+- [x] Version, Changelog, Hilfe, TS-79, Brain
+- [x] QA (Build, Tests, harte Prüfungen, AK-Verifikation) — Testbereit
 
 ## Verlauf
 
 - 2026-09-25: InUmsetzung gesetzt (Worktree/Branch eingetragen).
+- 2026-09-25: QA abgeschlossen — Build grün, 1684 Tests grün (0 rot), alle harten Prüfungen bestanden
+  (grep CascadeRelease/SetReleaseForOrderNumber/CountReleasedByOrderNumber 0 Treffer im Quelltext,
+  SetReleaseBatchAsync-/BulkRelease-Fixtures unverändert, eine Sub-FA-Formel, AppVersion 1.46.0
+  beidseitig). Eine bekannte, akzeptierte Abweichung dokumentiert (FaWorklist-Link nur mit
+  Vorbau-Zugriff, Backlog [[2026-09-25-leitstand-subfa-readonly-stueckliste]]). Status → Testbereit,
+  QA-Nachweis + manueller Testplan an der Spec angehängt. Wartet auf Schranke 2 (Mensch: Manual-UAT
+  am Testsystem inkl. einmaligem SQL-Lauf, dann Merge mit dem Bündel).

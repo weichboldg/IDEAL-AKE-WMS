@@ -41,6 +41,14 @@ freigabe_am: 2026-09-10
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
 
+> [!warning] Block 4 / Tasks 12–14 (Freigabe-Kaskade) zurückgebaut — v1.46.0 (2026-09-25)
+> Die Freigabe-Kaskade „Alle Sub-FAs freigeben“ (`CascadeReleasePreview`/`CascadeRelease`,
+> `SetReleaseForOrderNumberAsync`, `CountReleasedByOrderNumberAsync`, Button + Modal im Leitstand) ist durch
+> [[2026-09-25-kommissionierung-nur-hauptfa-spec]] **entfernt**: Kommissioniert und freigegeben wird nur noch
+> am HauptFA, eine Sub-FA-Freigabe hat keine fachliche Bedeutung mehr. AK 11–13 dieser Spec und TS-73.11–13
+> gelten nicht mehr (in `docs/TESTSZENARIEN.md` als zurückgebaut markiert). Die Fertigmeldungs-Kaskade
+> (`CascadeDone`) ist davon unberührt.
+
 > [!check] Fliesstext auf den beantworteten Stand nachgezogen (2026-09-10, vor Umsetzungsbeginn)
 > Die Freigabe-Antworten lagen vor, waren aber **nicht in den Rumpf gezogen** — der Rumpf
 > widersprach ihnen an fuenf Stellen und haette den Dev-Lauf in die falsche Richtung geschickt.
