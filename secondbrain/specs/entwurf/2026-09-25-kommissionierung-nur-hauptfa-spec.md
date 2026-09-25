@@ -788,3 +788,196 @@ nur der Changelog.
   ist so abarbeitbar.
 
 **NACHBESSERUNG NOETIG: Freigabe-Antworten leer; Empfehlung zu Rückfrage 3 erzeugt tote, nicht rücknehmbare Einträge in der Kommissionierer-Warteschlange (B2).**
+
+## Kritische Pruefung — zweiter Durchgang (2026-09-25)
+
+Geprüft wird die Überarbeitung `71c923e6` gegen den Bündel-Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5` (HEAD `2d06d1f0`). Die Entscheidungen werden nicht neu
+aufgerollt. Geprüft wird nur, ob das Nachziehen vollständig und widerspruchsfrei ist.
+
+**Vollständigkeit der Antworten:** Alle drei Freigabe-Antworten sind beantwortet und eindeutig, die
+Antworten auf S1/S5-S8/H1/Fallstrick sind vorhanden. Der Rumpf übernimmt sie weitgehend. Die Befunde
+unten sind Risse im Nachziehen, keine offenen Grundsatzfragen.
+
+### Schwerpunkt 1 — Die Formel ist wieder vierfach (Ergebnis: vermeidbar, EINE Expression genügt)
+
+- **Die vier Abfragen filtern NICHT auf derselben Wurzel.** `GetReleasedForPickingAsync` und
+  `…ByPickerAsync` laufen auf `_context.ProductionOrders` (`p`), `GetReleasedForPickingCountAsync` und
+  `GetMaxPickingPriorityAsync` dagegen auf `_context.ProductionOrderPickingStatuses` (`s`, Navigation
+  `s.ProductionOrder`) (`ProductionOrderPickingStatusRepository.cs:173-216`). Eine
+  `Expression<Func<ProductionOrder,bool>>` lässt sich auf `s.ProductionOrder` nicht ohne Hilfsbibliothek
+  (LinqKit/`Invoke`) einsetzen.
+- **Die Navigation verhindert es aber nicht wirklich:** Die Beziehung ist 1:1. `ProductionOrderPickingStatus`
+  hat einen UNIQUE-Index auf `ProductionOrderId` (`ApplicationDbContext.cs:455`), dazu
+  `.WithOne(p => p.PickingStatus)` (Z. 464) und `ProductionOrder.PickingStatus` (`ProductionOrder.cs:74`).
+  Count und Max lassen sich deshalb gleichwertig von der Wurzel `ProductionOrders` aus schreiben, mit
+  genau dem Prädikat, das `GetReleasedForPickingAsync` schon benutzt
+  (`p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking && !p.IsDone && !p.IsCancelled …`).
+  Dann nutzen alle vier `.Where(ProductionOrder.IsHauptFa)`.
+- **Das ergibt eine einzige Definition statt fünf.** Die Expression ist die Quelle. Die Eigenschaft
+  wird aus ihr kompiliert, statt die Logik ein zweites Mal hinzuschreiben:
+  `public static readonly Expression<Func<ProductionOrder,bool>> IsHauptFa = p => p.SubOrderNumber == "" || p.SubOrderNumber == p.OrderNumber;`
+  `private static readonly Func<ProductionOrder,bool> IsHauptFaCompiled = IsHauptFa.Compile();`
+  `[NotMapped] public bool IsSubFa => !IsHauptFaCompiled(this);`
+  Damit gibt es keinen Kommentar „gleichwertig zu IsSubFa“ mehr, der gepflegt werden müsste.
+  Gegenüber `IsNullOrEmpty` verschiebt sich nur der Fall `null`: Er gilt dann als Sub-FA. Das ist
+  folgenlos, weil die Spalte NOT NULL ist, das Modell mit `string.Empty` vorbelegt und Test-Fixtures
+  `""` tragen. Der Fall `null` ist bewusst nicht Teil der Unit-Testfälle.
+- **Was ein Test belegen kann und was nicht:** Ein EF-InMemory-Test beweist nur die C#-Semantik.
+  SQL Server vergleicht in der Standard-Collation ohne Groß-/Kleinschreibung und ignoriert Leerzeichen
+  am Ende (`'123 ' = '123'`, `'  ' = ''`). Die in-memory ausgewertete Eigenschaft in `Bom`,
+  `ToggleRelease` und `SetReleaseBatchAsync` und die SQL-Abfragen können deshalb für Werte
+  auseinanderlaufen, die sich nur in Groß-/Kleinschreibung oder Leerzeichen am Ende unterscheiden.
+  Praktisch folgenlos: Beide Spalten stammen aus demselben Wert (AKE `@OrderNumber,@OrderNumber`,
+  IDEAL `n.SubFA.ToString()`/`n.HauptFA.ToString()`). Das gehört als ein Satz in die Spec, nicht in einen
+  Test, der es nicht zeigen kann.
+
+### Schwerpunkt 2 — Exklusivität von „Alle Ziele“ hat eine Hintertür (Ergebnis: bestätigt, nicht abgefangen)
+
+- Die Spec sichert Exklusivität nur im Select2-`change`-Handler. Das Profilfeld
+  (`Profile.cshtml:53`, `Users/Edit.cshtml:117`) ist Freitext. `AccountController.cs:219` und
+  `UsersController.cs:129/301` machen nur `Trim()`.
+- **Was bei `!(leer),KA-02` heute passiert:** Der geplante Sonderfall in `bomMatchesFilter` greift nur
+  bei **exakt** `!(leer)`. Sonst läuft `val.startsWith('!')` in die Ausschlusslogik (Z. 831-834): Sie zeigt
+  alles **außer** Zeilen, die „(leer)“ oder „ka-02“ enthalten, also das Gegenteil des Gewollten.
+- **Was das Dropdown dann zeigt:** Die Vorbelegung (`pre = input.value.split(',')`, Z. 1065, 1074) findet
+  **beide** Optionen. Select2 zeigt „Alle Ziele“ **und** „KA-02“ gleichzeitig ausgewählt, der Badge
+  zeigt den Rohwert, und die Stückliste filtert nach Ausschluss. Drei widersprüchliche Signale.
+- Nebenfall Großschreibung: `!(LEER)` im Profil wertet `bomMatchesFilter` korrekt aus, weil
+  `getActiveFilters` den Wert klein schreibt. Die Select2-Vorbelegung vergleicht aber mit dem genauen
+  Optionswert `!(leer)`, findet ihn nicht und verwirft die Vorbelegung still. Das ist genau der Fall,
+  den AK 10 ausschließen will.
+
+### Schwerpunkt 3 — Reihenfolge mit table-filter.js (Ergebnis: garantiert, kein neues Flackern; Begründung in der Spec ungenau)
+
+- **`setColumnFilter`-Pfad:** Der Bom-Wrapper (Z. 979-983) ruft `_realSetColumnFilter` und dann
+  synchron `updateBomVisibility()` im selben JS-Task. Der Browser zeichnet dazwischen nicht, es gibt
+  also kein Flackern. Beim Tippen in die Filterzeile hängen beide Listener am selben `input`-Event,
+  zuerst table-filter.js, dann Bom (Z. 1138-1140). Auch das läuft synchron und ohne Zeichnen.
+- **Seitenaufbau mit Filter aus sessionStorage** (`data-view-key="Bom"`, gilt auch für ein
+  gespeichertes `!(leer)`): `table-filter.js` `init()` stellt ihn im `column-preferences-ready`-Handler
+  wieder her und ruft `applyFilters()` auf (Z. 229-233). Die Bom-Initialisierung korrigiert das erst in einem
+  **eigenen** Task (`setTimeout(…, 0)`, Z. 1136-1163). Dazwischen **kann** ein Frame gezeichnet werden.
+  Das ist aber schon heute so, für **jeden** Bom-Filter: `applyFilters` ignoriert den Baumzustand und
+  blendet auch zugeklappte Kinder ein. `!(leer)` bringt kein neues Flackern, nur ein anderes Bild im
+  selben Frame.
+- Es gibt **keinen** weiteren Pfad, auf dem table-filter.js ohne nachfolgendes `updateBomVisibility`
+  filtert. `sortTable` wendet keine Filter an. Der Kalender-Pfad (`applyColumnFilterNow` direkt) greift
+  nur bei `th[data-date-filter]`, und Bom hat keine Datumsspalte. `data-clear-table-filters` kommt in
+  Bom nicht vor.
+- **Bewertung:** Die Komm.-Ziel-Spalte aus table-filter.js auszunehmen, würde gemeinsames JS für ein
+  kosmetisches Ein-Frame-Problem anfassen, das ohnehin für alle Bom-Filter besteht. „Nicht anfassen“
+  bleibt richtig. Die Begründung in der Spec soll aber den Seitenaufbau-Pfad ehrlich benennen, statt
+  nur „wird danach überschrieben“ zu sagen.
+
+### Schwerpunkt 4 — Druck (Ergebnis: stimmt, bis auf einen Randfall)
+
+- `visiblePositions` entsteht aus `row.style.display !== 'none'` **nach** `updateBomVisibility` und
+  spiegelt damit den Bildschirm. Die Positionen sind eindeutig (`FaHierarchyBomRepository.cs:92`
+  `Unique(segment, used)`). `PrintBom` filtert mit `Ordinal` auf genau diese Menge
+  (`PickingController.cs:592-597`). Bildschirm und Papier stimmen überein.
+- **Randfall, genau bei „Alle Ziele“ wahrscheinlich:** Ist **keine** Zeile sichtbar (Stückliste ohne ein
+  einziges Komm.-Ziel), lässt der Handler `visiblePositions` weg (`if (visiblePositions.length > 0)`).
+  `PrintBom` wertet ein fehlendes Feld als „kein Filter“ (`if (!string.IsNullOrEmpty(visiblePositions))`)
+  und druckt **alle** Positionen, unter dem Kopf „Komm.-Ziel=Alle Ziele (nur kommissionier-relevant)“.
+  Das Papier behauptet dann einen Filter und zeigt alles. Die Lücke gab es schon vorher, AK 9 sagt aber
+  „enthält nur die beim Klick sichtbar gewesenen Positionen“, und das stimmt dann nicht.
+
+### Schwerpunkt 5 — SQL-Lauf im Testsystem (Ergebnis: nicht exakt die Negation, und falscher Tabellenname)
+
+- Die Warteschlange zählt als HauptFA: `Sub = '' OR Sub = Order`. Die Negation lautet
+  `Sub <> '' AND Sub <> Order`. Der SQL-Lauf prüft nur `Sub <> Order` und würde eine Zeile mit
+  `Sub = ''` zurücksetzen, die die Warteschlange als HauptFA zeigt. Heute gibt es keine solche Zeile
+  (siehe erster Durchgang, kein Schreibpfad erzeugt `''`), fachlich trifft der Lauf also dieselben
+  Zeilen. Wörtlich deckungsgleich ist er nicht. Weil beides in SQL läuft, sind sich beide Seiten
+  immerhin in Collation und Leerzeichen-Behandlung einig.
+- **Tabellenname falsch:** Die Tabelle heißt `ProductionOrderPickingStatus` (Singular,
+  `ApplicationDbContext.cs:445` `ToTable("ProductionOrderPickingStatus")`, `SQL/00_FreshInstall.sql:310`),
+  nicht `ProductionOrderPickingStatuses`. Das ist nur der Name des `DbSet`. Der Lauf bräche laut ab,
+  richtet also keinen Schaden an, blockiert aber den Testablauf.
+- `ModifiedByWindows = NULL` widerspricht der Hausregel „bei jedem Update setzen“. Die SQL-Skripte des
+  Projekts nutzen `SYSTEM_USER` (z. B. `SageProductionOrderSql.cs`).
+
+### Weitere Risse im Nachziehen
+
+- **AK 3 und TS-79 beschreiben das Baumverhalten wieder falsch.** Der Text sagt jetzt „Baugruppen-Eltern
+  ohne eigenes Ziel werden ausgeblendet, **wenn keines ihrer Kinder sichtbar bleibt**“, TS-79 sagt „inkl.
+  deren aufgeklappte Baugruppen-Eltern, sofern sie selbst ein Kind mit gesetztem Ziel haben“.
+  `updateBomVisibility` (Z. 855-893) prüft den Filter aber für **jede Zeile einzeln** und kennt keine
+  Kind-Abhängigkeit. Eine Baugruppen-Zeile ohne eigenes Ziel wird **immer** ausgeblendet. Ihre Kinder
+  bleiben sichtbar, weil `expandAncestorsOfMatching` den Aufklapp-Zustand setzt, aber ohne
+  Elternzeile. Ein Tester würde nach dem aktuellen Text einen Fehler melden, der keiner ist.
+- **„Drei“ und „vier“ Warteschlangen-Abfragen gemischt:** Anforderung 6 und AK 20 sprechen von „drei“
+  und zählen dann vier auf. Das sollte einheitlich „vier“ heißen, mit Begründung: Die ByPicker-Variante
+  gehört dazu.
+- **Leeres Dropdown:** `setupKommissionierzielDropdown` deaktiviert das Select2 bei
+  `values.length === 0` (Z. 1073). Mit einem gespeicherten `!(leer)` und einer Stückliste ohne Ziele
+  bleibt „Alle Ziele“ vorgewählt, das Dropdown ist aber gesperrt. Zurücksetzen geht dann nur über den
+  Badge oder den Leerzustand. Das ist akzeptabel, sollte aber im Szenario stehen.
+
+---
+
+### BLOCKER
+
+**B3 — Die Hintertür über das Profil-Freitextfeld ist nicht abgefangen (Schwerpunkt 2).** `!(leer),KA-02`
+im Profil führt zur gegenteiligen Filterung, und das Dropdown zeigt zwei widersprüchliche Auswahlen.
+**Frage an den Menschen:** Wo wird normalisiert?
+Vorschlag, die kleinste sichere Variante: **Normalisieren beim Speichern**, in einer statischen Funktion,
+die `AccountController` **und** `UsersController` aufrufen (heute zwei Inline-`Trim()`). Enthält ein durch
+Komma getrennter Teil ohne Rücksicht auf Groß-/Kleinschreibung `!(leer)`, wird genau `!(leer)`
+gespeichert. Dazu kommt eine sichtbare `WarningMessage` „‚Alle Ziele‘ lässt sich nicht mit einzelnen
+Zielen kombinieren — gespeichert als ‚Alle Ziele‘.“ (Melden statt still). Zusätzlich vergleicht die
+Select2-Vorbelegung ohne Rücksicht auf Groß-/Kleinschreibung.
+Neues AK: „Profil mit `!(leer),KA-02` oder `!(LEER)` gespeichert → gespeichert wird `!(leer)`, Hinweis
+sichtbar, Stückliste öffnet mit ‚Alle Ziele‘.“ Die Alternative, robust erst beim Lesen im JS
+auszuwerten, verschiebt die Inkonsistenz nur. Die Datenbank hielte dann dauerhaft einen Wert, den keine
+Oberfläche so darstellt.
+
+### SOLLTE
+
+**S9 — Eine Definition statt fünf (Schwerpunkt 1).** `ProductionOrder.IsHauptFa` als
+`Expression<Func<ProductionOrder,bool>>` festschreiben, die Eigenschaft `IsSubFa` daraus kompilieren.
+Count und Max auf die Wurzel `ProductionOrders` umstellen (1:1 belegt), sodass alle vier Abfragen
+`.Where(ProductionOrder.IsHauptFa)` nutzen. AK 20 um einen InMemory-Test ergänzen: vier Fixtures
+(`""`, `==`, `!=`, jeweils freigegeben) → `GetReleasedForPickingAsync`/`CountAsync` liefern genau die
+HauptFA-Zeilen. Den Satz zur SQL-Collation und zu Leerzeichen am Ende (Schwerpunkt 1) als bekannte
+Grenze in den Technischen Lösungsentwurf aufnehmen. Wird S9 **nicht** übernommen, dann gilt
+mindestens der Äquivalenztest je Abfrage, den der Auftrag nennt.
+
+**S10 — SQL-Lauf korrigieren (Schwerpunkt 5).**
+`FROM [dbo].[ProductionOrderPickingStatus] s JOIN [dbo].[ProductionOrders] p ON p.Id = s.ProductionOrderId`
+`WHERE NOT (p.SubOrderNumber = '' OR p.SubOrderNumber = p.OrderNumber) AND s.IsReleasedForPicking = 1`
+Das ist wörtlich die Negation der Warteschlangen-Bedingung. Dazu `ModifiedByWindows = SYSTEM_USER`.
+Vorgeschlagen ist außerdem ein vorgeschaltetes `SELECT COUNT(*)` mit derselben `WHERE`-Klausel, damit
+im Testprotokoll steht, wie viele Zeilen betroffen waren.
+
+**S11 — Druck-Randfall (Schwerpunkt 4).** Ist beim Klick auf „Drucken“ ein Filter aktiv, aber keine
+Zeile sichtbar, öffnet der Handler **keinen** Druck. Stattdessen macht er den bestehenden Leerzustand
+sichtbar (`checkKommissionierzielEmptyState()` bzw. Text „Keine sichtbaren Positionen — nichts zu
+drucken“). `PrintBom` bleibt unverändert. Alternativ ginge ein Platzhalterwert in `visiblePositions`,
+das wäre aber ein Trick. AK 9 um den Fall ergänzen.
+
+**S12 — AK 3 und das TS-79-Szenario an den Code angleichen.** „Baugruppen-Zeilen ohne eigenes Komm.-Ziel
+werden ausgeblendet, auch wenn ihre Kinder sichtbar sind. Die Kinder bleiben über das
+Vorfahren-Aufklappen sichtbar, stehen dann aber ohne Elternzeile. Das ist das unveränderte Verhalten des
+bestehenden Komm.-Ziel-Filters.“
+
+**S13 — Begründung für „table-filter.js nicht anfassen“ präzisieren (Schwerpunkt 3).** Den
+sessionStorage-Pfad beim Seitenaufbau benennen und festhalten, dass das mögliche Ein-Frame-Bild für
+alle Bom-Filter schon besteht. Ein TS-Schritt dazu: „Stückliste mit aktivem ‚Alle Ziele‘ neu laden
+(F5) → Endzustand gefiltert, Badge sichtbar.“
+
+### HINWEIS
+
+- **H6 — Zählung vereinheitlichen:** überall „vier Warteschlangen-Abfragen“ (Anforderung 6, Technischer
+  Lösungsentwurf, AK 20).
+- **H7 — Leeres Dropdown mit gespeichertem „Alle Ziele“:** Das gesperrte Select2 zeigt die Vorauswahl,
+  zurückgesetzt wird über Badge oder Leerzustand. Als Negativfall in TS-79 aufnehmen.
+- **H8 — Vorbestehend, nicht Teil dieser Spec:** Ein aus sessionStorage wiederhergestellter Komm.-Ziel-Wert
+  ist klein geschrieben (`getActiveFilters` → `saveFiltersToStorage`). Die Select2-Vorbelegung verwirft
+  dann ein Einzelziel wie `ka-02` still, weil die Option `KA-02` heißt. Die Vorbelegung ohne Rücksicht
+  auf Groß-/Kleinschreibung aus B3 behebt das nebenbei.
+- **H9 — Größe:** Mit S9-S11 kommen etwa zwei Dateien dazu (Hilfsfunktion zur Normalisierung,
+  Repository-Umbau innerhalb derselben Datei). Das ist weiter in einem Dev-Lauf machbar.
+
+**NACHBESSERUNG NOETIG: Profil-Freitext hebelt „Alle Ziele“ aus (B3); SQL-Lauf mit falschem Tabellennamen und nicht exakter Negation; AK 3 widerspricht erneut dem Baumverhalten.**
