@@ -8656,6 +8656,12 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   „Stückliste drucken“ klicken → Druck-Tab öffnet sich, Kopf zeigt „Komm.-Ziel=Alle Ziele (nur
   kommissionier-relevant)“ statt des Rohwerts `!(leer)`, enthält nur die beim Klick sichtbar
   gewesenen Positionen.
+  **Hinweis:** Der Druck-Guard zählt nur sichtbare Zeilen, die eine Position (`data-position`)
+  tragen. Eine Stückliste, deren sichtbare Zeilen keine Position haben, zeigt deshalb ebenfalls
+  „Keine sichtbaren Positionen — nichts zu drucken.“ — auch im AKE-Flachmodus, unabhängig vom
+  Komm.-Ziel-Filter. In der Praxis sind Sage-Positionen immer gesetzt; zeigt ein Tester diese
+  Meldung trotz sichtbarer Zeilen, zuerst die Positions-Spalte auf leere Werte prüfen, bevor ein
+  Fehler gemeldet wird.
 
 - **TS-79.4 — Neues Ziel bleibt sichtbar, kein Momentaufnahme-Effekt (AK 7).**
   Vorbedingung: „Alle Ziele“ aktiv in einer offenen Stückliste.
