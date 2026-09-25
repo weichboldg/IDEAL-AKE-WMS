@@ -209,7 +209,10 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 (o.Customer != null && o.Customer.Contains(query)));
         }
 
+        // F-C (Post-QA-Review 2026-09-25): Picking/IndexDropdown -> Bom.cshtml hat einen Sub-FA-Guard;
+        // ohne diesen Filter fuellen Sub-FAs (gleiche OrderNumber) das Limit und bouncen dort immer ab.
         return await q
+            .Where(ProductionOrder.IsHauptFa)
             .OrderBy(o => o.ProductionDate.HasValue ? 0 : 1)
             .ThenBy(o => o.ProductionDate)
             .Take(limit).ToListAsync();

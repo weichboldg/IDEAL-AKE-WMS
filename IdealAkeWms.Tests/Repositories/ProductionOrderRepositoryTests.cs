@@ -191,6 +191,26 @@ public class ProductionOrderRepositoryTests
         result.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-OPEN");
     }
 
+    [Fact]
+    public async Task SearchAsync_ExcludesSubFa_KeepsHauptFaAndFlatOrder()
+    {
+        // F-C (Post-QA-Review 2026-09-25): Picking/IndexDropdown darf im Hierarchie-Modus keine
+        // Sub-FAs anbieten — Bom.cshtml hat einen Sub-FA-Guard, an dem sie ohnehin abbauen.
+        using var ctx = TestDbContextFactory.Create();
+        // HauptFA (Hierarchie-Modus): SubOrderNumber == OrderNumber.
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-100", SubOrderNumber = "FA-100", IsDone = false, IsCancelled = false });
+        // Sub-FA (haengt unter FA-100): SubOrderNumber != OrderNumber -> muss ausgeschlossen werden.
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-100", SubOrderNumber = "FA-100-1", IsDone = false, IsCancelled = false });
+        // Flacher Auftrag (AKE-Modus): SubOrderNumber == OrderNumber (Backfill-Invariante).
+        ctx.ProductionOrders.Add(new ProductionOrder { OrderNumber = "FA-200", SubOrderNumber = "FA-200", IsDone = false, IsCancelled = false });
+        await ctx.SaveChangesAsync();
+
+        var repo = new ProductionOrderRepository(ctx);
+        var result = await repo.SearchAsync("FA-");
+
+        result.Select(o => o.SubOrderNumber).Should().BeEquivalentTo("FA-100", "FA-200");
+    }
+
     // ------------------------------------------------------------------
     // FA-Zusatzinfos (Sage, v1.26.0)
     // ------------------------------------------------------------------

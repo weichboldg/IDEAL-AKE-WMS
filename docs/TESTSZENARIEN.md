@@ -8837,6 +8837,35 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   „Alle Ziele“ inkl. Profil-Eingabe `!(leer)`.
   Negativfall: keiner (Dokumentationsnachweis).
 
+- **TS-79.20 — Kein Leerzustand-Kasten/Badge-Zeile ohne aktiven Standardfilter (Post-QA-Review, F-A).**
+  Vorbedingung: hierarchische Stückliste, kein Standardfilter (`DefaultFilterBomKommissionierziel`
+  u. a.) im Profil gesetzt.
+  Schritte: `/Picking/Bom/{HauptFA-id}` öffnen **(Manual-UAT)**.
+  Erwartung: weder die gelbe Box „Alle Filter zurücksetzen“ (`#bomKzEmptyState`) noch die leere
+  Badge-Zeile (`#bomDefaultFilterBadges`) sind sichtbar — beide tragen das `hidden`-Attribut, das
+  jetzt greift (globale `[hidden]`-Regel in `site.css`, vorher von `.d-flex !important` überschrieben).
+  Negativfall: einen Standardfilter setzen → Badge-Zeile erscheint korrekt mit Reset-Chip.
+
+- **TS-79.21 — Standardfilter mit Apostroph bricht die Stückliste nicht (Post-QA-Review, F-B).**
+  Vorbedingung: Profil, `DefaultFilterBomKommissionierziel` editierbar.
+  Schritte: `KA'02` als Komm.-Ziel-Standardfilter im Profil speichern; hierarchische Stückliste
+  öffnen **(Manual-UAT)**.
+  Erwartung: Stückliste lädt normal, kein JS-Fehler in der Konsole, der Filter wird angewendet
+  (Badge zeigt `KA'02`, Select2-Vorbelegung passend). Werte werden jetzt JSON-serialisiert statt in
+  einfache JS-Anführungszeichen eingebettet.
+  Negativfall: leerer Standardfilter bleibt falsy (kein Filter, keine Badge) — Regressionsschutz.
+
+- **TS-79.22 — FA-Suche (Picking/IndexDropdown) listet im Hierarchie-Modus nur HauptFAs (Post-QA-Review, F-C).**
+  Vorbedingung: Master `ProduktionsauftragHierarchisch = true`, ein HauptFA mit mindestens einer
+  Sub-FA, beide über Matchcode/Nummer treffbar.
+  Schritte: `/Picking/IndexDropdown` (Select2-FA-Suche) mit einer Eingabe öffnen, die sowohl den
+  HauptFA als auch dessen Sub-FA träfe **(Manual-UAT)**.
+  Erwartung: nur der HauptFA erscheint in der Trefferliste (`ProductionOrdersApiController` →
+  `ProductionOrderRepository.SearchAsync` filtert jetzt auf `ProductionOrder.IsHauptFa`); die
+  Sub-FA taucht nicht mehr auf und füllt nicht mehr das 20-Treffer-Limit.
+  Negativfall: AKE-Flachmodus (Sub == Order für jeden Datensatz) bleibt unverändert — jeder flache
+  Auftrag gilt als HauptFA und erscheint weiterhin.
+
 **Hinweis (Out-of-Scope, manuell zu beachten statt zu testen):** Andere Picking/Bom-Einstiege für
 eine Sub-FA (z. B. der Zeilen-Link in der Kommissionierer-Warteschlange, `Articles/Info`,
 `PartRequisitions`, FA-Dokument-Links, das Select2-Auswahlfeld für Produktionsaufträge) enden am
