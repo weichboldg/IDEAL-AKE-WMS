@@ -96,12 +96,14 @@ public class ReadOnlyBomBuilderTests
         };
         var (ctx, builder) = Build(bom, BomDataSources.FaHierarchie, mengeIstAuftragsmenge: true);
         var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-HIER", qty: 4m, articleNumber: "ART-1");
+        o.Order.SubOrderNumber = "FA-HIER-7";
+        await ctx.SaveChangesAsync();
 
         var vm = await builder.BuildAsync(o.Order.Id, null, null);
 
         vm.Should().NotBeNull();
         vm!.Hierarchical.Should().BeTrue();
-        vm.FullStructure.Should().BeFalse();          // SubOrderNumber != OrderNumber -> DirectChildren
+        vm.FullStructure.Should().BeFalse();          // Sub-FA (SubOrderNumber != OrderNumber) -> DirectChildren
         vm.Items.Should().ContainSingle();
         vm.Items.Single().Menge.Should().Be(5m);      // keine × Quantity
         vm.Items.Single().Kommissionieren.Should().Be("PG");
