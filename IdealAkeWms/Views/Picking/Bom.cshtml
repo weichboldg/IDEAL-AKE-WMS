@@ -826,8 +826,22 @@
             // Zustand der Baugruppen (true = expanded)
             var expandedState = {};
 
+            // „Alle Ziele" (Spec 2026-09-25-kommissionierung-nur-hauptfa): Bedeutungswert „Zelle nicht
+            // leer" fuer den Komm.-Ziel-Filter. Case-insensitiv erkannt (Server normalisiert gespeicherte
+            // Filterprofile auf exakt BOM_ALLE_ZIELE, aber sessionStorage/Alt-Profile koennen z. B.
+            // "!(LEER)" enthalten). Geteilt von bomMatchesFilter, setupKommissionierzielDropdown,
+            // renderDefaultFilterBadges, checkKommissionierzielEmptyState und dem Druck-Handler — daher
+            // an den Kopf des Skript-Scopes, vor der ersten Nutzung.
+            var BOM_ALLE_ZIELE = '!(leer)';
+            var BOM_ALLE_ZIELE_LABEL = 'Alle Ziele (nur kommissionier-relevant)';
+            function isAlleZiele(v) { return (v || '').trim().toLowerCase() === BOM_ALLE_ZIELE; }
+
             // Prüft ob ein Zelltext einem Filterwert entspricht (Multi-Wert, Ausschluss)
             function bomMatchesFilter(text, val) {
+                // „Alle Ziele" (Spec 2026-09-25): Bedeutungswert „Zelle nicht leer", VOR der Ausschluss-Syntax.
+                // val kommt bereits lowercase aus getActiveFilters(). Zwischenstand bis zur Suchsyntax
+                // (Backlog 2026-09-23-suchsyntax-spaltenfilter-erweitern) — dort muss diese Stelle aufgehen.
+                if (isAlleZiele(val)) return text.trim() !== '';
                 if (val.startsWith('!')) {
                     var excludes = val.substring(1).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
                     return excludes.every(function (ex) { return text.indexOf(ex) === -1; });
@@ -1008,7 +1022,9 @@
                     var badge = document.createElement('span');
                     badge.className = 'badge bg-info text-dark d-inline-flex align-items-center gap-1';
                     var label = document.createElement('span');
-                    label.textContent = 'Gefiltert: ' + cfg.label + ' = ' + val;
+                    label.textContent = (cfg.key === 'kommissionieren' && isAlleZiele(val))
+                        ? 'Gefiltert: ' + BOM_ALLE_ZIELE_LABEL
+                        : 'Gefiltert: ' + cfg.label + ' = ' + val;
                     var btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'btn-close';
@@ -1055,6 +1071,10 @@
                 sel.id = 'bomKommissionierzielSelect';
                 sel.multiple = true;
                 sel.className = 'form-select form-select-sm';
+                // „Alle Ziele" (Spec 2026-09-25): exklusive erste Option, immer vor den Einzelzielen.
+                var optAll = document.createElement('option');
+                optAll.value = BOM_ALLE_ZIELE; optAll.textContent = BOM_ALLE_ZIELE_LABEL;
+                sel.appendChild(optAll);
                 values.forEach(function (v) {
                     var opt = document.createElement('option');
                     opt.value = v; opt.textContent = v;
@@ -1063,6 +1083,15 @@
                 input.style.display = 'none';
                 input.parentNode.insertBefore(sel, input);
                 var pre = (input.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                // Vorbelegung: ein case-insensitiv als „!(leer)" erkannter Teil (Server normalisiert,
+                // aber Session/Alt-Profile koennen abweichen) → exklusiv [BOM_ALLE_ZIELE], Einzelziele
+                // verworfen; sonst jeden Teil case-insensitiv auf den exakten Optionswert aus values
+                // abbilden (ungefundene Teile bleiben wie sie sind).
+                var hasAll = pre.some(isAlleZiele);
+                pre = hasAll ? [BOM_ALLE_ZIELE] : pre.map(function (p) {
+                    var hit = values.find(function (v) { return v.toLowerCase() === p.toLowerCase(); });
+                    return hit || p;
+                });
                 var $sel = window.jQuery(sel);
                 $sel.select2({
                     width: '100%',
@@ -1072,8 +1101,16 @@
                 });
                 if (values.length === 0) { $sel.prop('disabled', true); }
                 if (pre.length) { $sel.val(pre).trigger('change.select2'); }
+                var lastVals = $sel.val() || [];
                 $sel.on('change', function () {
+                    // Exklusivitaet: „Alle Ziele" schliesst Einzelziele aus und umgekehrt.
                     var vals = $sel.val() || [];
+                    var addedAll = vals.indexOf(BOM_ALLE_ZIELE) !== -1 && lastVals.indexOf(BOM_ALLE_ZIELE) === -1;
+                    if (addedAll && vals.length > 1) vals = [BOM_ALLE_ZIELE];
+                    else if (!addedAll && vals.length > 1 && vals.indexOf(BOM_ALLE_ZIELE) !== -1)
+                        vals = vals.filter(function (v) { return v !== BOM_ALLE_ZIELE; });
+                    if (vals.length !== ($sel.val() || []).length) { $sel.val(vals).trigger('change.select2'); }
+                    lastVals = vals;
                     input.value = vals.join(',');
                     expandAncestorsOfMatching('kommissionieren', input.value);
                     updateBomVisibility();
@@ -1119,8 +1156,9 @@
                     if (cell && bomMatchesFilter(cell.textContent.toLowerCase(), v)) { anyMatch = true; break; }
                 }
                 if (anyMatch) { box.hidden = true; return; }
-                document.getElementById('bomKzEmptyStateText').textContent =
-                    'Standardfilter Kommissionierziel „' + val + '“ aktiv — keine Treffer in dieser Stückliste.';
+                document.getElementById('bomKzEmptyStateText').textContent = isAlleZiele(val)
+                    ? 'Standardfilter „' + BOM_ALLE_ZIELE_LABEL + '“ aktiv — keine Treffer in dieser Stückliste.'
+                    : 'Standardfilter Kommissionierziel „' + val + '“ aktiv — keine Treffer in dieser Stückliste.';
                 box.hidden = false;
             }
 
@@ -1173,6 +1211,17 @@
                     }
                 });
 
+                // Keine sichtbaren Positionen (z. B. „Alle Ziele" ohne Treffer in dieser Stückliste):
+                // kein leerer Druck-Tab, stattdessen der bestehende Leerzustand-Hinweis.
+                if (visiblePositions.length === 0) {
+                    var kzBox = document.getElementById('bomKzEmptyState');
+                    if (kzBox) {
+                        document.getElementById('bomKzEmptyStateText').textContent = 'Keine sichtbaren Positionen — nichts zu drucken.';
+                        kzBox.hidden = false;
+                    }
+                    return;
+                }
+
                 // Aktive Filterinfos für Header-Anzeige im Druck
                 var filters = typeof window.getActiveFilters === 'function' ? window.getActiveFilters() : {};
                 var filterParts = [];
@@ -1186,7 +1235,11 @@
                     'sage-position': 'Sage-Pos.', 'ebene': 'Ebene', 'vater-sub-fa': 'Vater-Sub-FA'
                 };
                 for (var col in filters) {
-                    filterParts.push((colNames[col] || col) + '=' + filters[col]);
+                    if (col === 'kommissionieren' && isAlleZiele(filters[col])) {
+                        filterParts.push('Komm.-Ziel=' + BOM_ALLE_ZIELE_LABEL);
+                    } else {
+                        filterParts.push((colNames[col] || col) + '=' + filters[col]);
+                    }
                 }
 
                 // Collect visible column keys from the BOM table headers
