@@ -13,12 +13,12 @@ public enum BomScope
 public static class BomScopes
 {
     /// <summary>
-    /// Fachliche Anforderung 6: Auftrag ist HauptFA (<c>OrderNumber == SubOrderNumber</c>) → komplette
-    /// Struktur; Sub-FA → nur eigene Stueckliste. Im Flachmodus gilt die Backfill-Invariante
-    /// <c>SubOrderNumber == OrderNumber</c>; die flache Implementierung ignoriert den Scope ohnehin.
+    /// Fachliche Anforderung 6: Auftrag ist HauptFA → komplette Struktur; Sub-FA → nur eigene
+    /// Stueckliste. EINE Sub-FA-Definition (Spec 2026-09-25-kommissionierung-nur-hauptfa): die Regel
+    /// lebt in <see cref="ProductionOrder.IsHauptFa"/>, keine eigene Formel hier. Im Flachmodus gilt
+    /// die Backfill-Invariante <c>SubOrderNumber == OrderNumber</c>; die flache Implementierung
+    /// ignoriert den Scope ohnehin.
     /// </summary>
     public static BomScope ForOrder(ProductionOrder order) =>
-        string.Equals(order.SubOrderNumber, order.OrderNumber, StringComparison.Ordinal)
-            ? BomScope.FullStructure
-            : BomScope.DirectChildren;
+        order.IsSubFa ? BomScope.DirectChildren : BomScope.FullStructure;
 }

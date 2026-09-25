@@ -63,8 +63,9 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20);
 
     /// <summary>
-    /// Live-Prüfung der Einwegtor-Sperrbedingung: existiert mindestens eine Zeile mit
-    /// <c>OrderNumber != SubOrderNumber</c> (= hierarchische Materialisierung hat stattgefunden)?
+    /// Live-Prüfung der Einwegtor-Sperrbedingung: existiert mindestens eine Sub-FA-Zeile (siehe
+    /// <see cref="ProductionOrder.IsHauptFa"/> — EINE Sub-FA-Definition, keine eigene Formel hier;
+    /// = hierarchische Materialisierung hat stattgefunden)?
     /// Nur auf dem Schreibpfad des Wächters verwenden — für die Anzeige den gecachten
     /// <c>HierarchischeStrukturStatus</c> nutzen (Freigabe-Antwort 3).
     /// </summary>
