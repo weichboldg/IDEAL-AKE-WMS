@@ -11,9 +11,10 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     }
 
     public async Task<bool> HierarchicalDataExistsAsync()
-        => await _dbSet
+        // EINE Sub-FA-Definition (Spec 2026-09-25): ProductionOrder.IsHauptFa. Leere Tabelle -> All = true -> false.
+        => !await _dbSet
             .AsNoTracking()
-            .AnyAsync(p => p.OrderNumber != p.SubOrderNumber);
+            .AllAsync(ProductionOrder.IsHauptFa);
 
     public async Task<List<ProductionOrder>> GetAllOrderedAsync()
     {
