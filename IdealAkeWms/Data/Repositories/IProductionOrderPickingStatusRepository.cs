@@ -6,6 +6,7 @@ public class BulkReleaseResult
 {
     public int Processed { get; set; }
     public List<string> SkippedNoArticle { get; set; } = new();
+    public List<string> SkippedSubFa { get; set; } = new();
 }
 
 public interface IProductionOrderPickingStatusRepository

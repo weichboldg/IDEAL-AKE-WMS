@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq.Expressions;
 
 namespace IdealAkeWms.Models;
 
@@ -18,6 +20,24 @@ public class ProductionOrder : AuditableEntity
     [StringLength(100)]
     [Display(Name = "Sub-FA Nummer")]
     public string SubOrderNumber { get; set; } = string.Empty;
+
+    // EINE Sub-FA-Definition (Spec 2026-09-25-kommissionierung-nur-hauptfa). Quelle ist die
+    // Expression (EF uebersetzt sie in SQL); IsSubFa/IsSubFaOf sind daraus kompiliert — keine
+    // zweite Formel. Leer gilt als HauptFA (AKE-sichere Richtung). Grenze: InMemory-Tests belegen
+    // nur C#-Semantik; SQL Server vergleicht case-insensitiv und ignoriert Trailing Spaces —
+    // folgenlos, weil beide Spalten aus demselben Ursprungswert stammen.
+    public static readonly Expression<Func<ProductionOrder, bool>> IsHauptFa =
+        p => p.SubOrderNumber == "" || p.SubOrderNumber == p.OrderNumber;
+
+    private static readonly Func<ProductionOrder, bool> IsHauptFaCompiled = IsHauptFa.Compile();
+
+    [NotMapped]
+    public bool IsSubFa => !IsHauptFaCompiled(this);
+
+    /// <summary>Fuer Projektionen ohne ProductionOrder-Objekt (z. B. LeitstandOrderRow).
+    /// null gilt wie "" als HauptFA.</summary>
+    public static bool IsSubFaOf(string orderNumber, string? subOrderNumber) =>
+        !IsHauptFaCompiled(new ProductionOrder { OrderNumber = orderNumber, SubOrderNumber = subOrderNumber ?? string.Empty });
 
     // Echter Elternzeiger (= Sage VaterFA). NULL bei der Wurzel bzw. im flachen Modus; noetig,
     // weil OrderNumber/SubOrderNumber allein nur zwei Ebenen ausdruecken koennen, die Struktur

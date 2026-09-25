@@ -277,4 +277,53 @@ public class ProductionOrderPickingStatusRepositoryTests
         result.Should().ContainKey(c.Order.Id);
     }
 
+    [Fact]
+    public async Task Queue_ContainsOnlyHauptFa_EvenIfSubFaIsReleased()
+    {
+        using var context = TestDbContextFactory.Create();
+        var o1 = TestDataHelper.CreateOrderWithStatuses(context, "100",
+            releaseForPicking: true, pickingPriority: 10, assignedPickerId: 5, articleNumber: "ART-1", orderId: 1);
+        var o2 = TestDataHelper.CreateOrderWithStatuses(context, "100",
+            releaseForPicking: true, pickingPriority: 20, assignedPickerId: 5, articleNumber: "ART-2", orderId: 2);
+        o2.Order.SubOrderNumber = "100";
+        var o3 = TestDataHelper.CreateOrderWithStatuses(context, "100",
+            releaseForPicking: true, pickingPriority: 30, assignedPickerId: 5, articleNumber: "ART-3", orderId: 3);
+        o3.Order.SubOrderNumber = "100-7";
+        var o4 = TestDataHelper.CreateOrderWithStatuses(context, "200",
+            releaseForPicking: true, pickingPriority: 40, assignedPickerId: 5, articleNumber: "ART-4", orderId: 4);
+        o4.Order.SubOrderNumber = "200";
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+
+        (await repo.GetReleasedForPickingAsync()).Select(o => o.Id).Should().BeEquivalentTo(new[] { 1, 2, 4 });
+        (await repo.GetReleasedForPickingByPickerAsync(5)).Select(o => o.Id).Should().BeEquivalentTo(new[] { 1, 2, 4 });
+        (await repo.GetReleasedForPickingCountAsync()).Should().Be(3);
+        (await repo.GetMaxPickingPriorityAsync()).Should().Be(40);
+        (await repo.GetMaxPickingPriorityAsync(excludeProductionOrderId: 4)).Should().Be(20); // 30 (Sub-FA) zaehlt nicht
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SetReleaseBatch_SkipsSubFa_InBothDirections(bool release)
+    {
+        using var context = TestDbContextFactory.Create();
+        var o2 = TestDataHelper.CreateOrderWithStatuses(context, "100",
+            releaseForPicking: !release, articleNumber: "ART-2", orderId: 2);
+        o2.Order.SubOrderNumber = "100";
+        var o3 = TestDataHelper.CreateOrderWithStatuses(context, "100",
+            releaseForPicking: !release, articleNumber: "ART-3", orderId: 3);
+        o3.Order.SubOrderNumber = "100-7";
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.SetReleaseBatchAsync(new[] { 2, 3 }, release, null, null, "t", "t", "t");
+
+        result.Processed.Should().Be(1);
+        result.SkippedSubFa.Should().Equal("100-7");
+        (await context.ProductionOrderPickingStatuses.SingleAsync(s => s.ProductionOrderId == 3))
+            .IsReleasedForPicking.Should().Be(!release); // unveraendert
+    }
+
 }
