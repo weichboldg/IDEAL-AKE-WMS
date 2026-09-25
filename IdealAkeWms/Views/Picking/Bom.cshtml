@@ -1100,7 +1100,11 @@
                     closeOnSelect: false
                 });
                 if (values.length === 0) { $sel.prop('disabled', true); }
-                if (pre.length) { $sel.val(pre).trigger('change.select2'); }
+                // Kanonisch machen: das versteckte input.value muss der aufgeloesten Vorbelegung
+                // entsprechen (z. B. "!(LEER),KA-02" -> "!(leer)"), sonst liefert getActiveFilters()
+                // weiter den rohen Alt-Wert und Filter/Badge/Leerzustand/Druck laufen daran vorbei,
+                // waehrend das Dropdown bereits "Alle Ziele" zeigt.
+                if (pre.length) { $sel.val(pre).trigger('change.select2'); input.value = pre.join(','); }
                 var lastVals = $sel.val() || [];
                 $sel.on('change', function () {
                     // Exklusivitaet: „Alle Ziele" schliesst Einzelziele aus und umgekehrt.
@@ -1172,9 +1176,14 @@
             // warten bis init() fertig ist.
             document.addEventListener('column-preferences-ready', function () {
                 setTimeout(function () {
-                    // Filter-Row-Inputs mit updateBomVisibility verknüpfen
+                    // Filter-Row-Inputs mit updateBomVisibility verknüpfen. Zusaetzlich
+                    // checkKommissionierzielEmptyState (F2, Review-Runde 1): #bomKzEmptyState wird auch
+                    // vom Druck-Handler ("Keine sichtbaren Positionen — nichts zu drucken.") gesetzt —
+                    // ohne diesen Aufruf bleibt die Box nach Aenderung eines ANDEREN Spaltenfilters
+                    // stehen, obwohl wieder Zeilen sichtbar sind.
                     document.querySelectorAll('.filter-row input').forEach(function (input) {
                         input.addEventListener('input', updateBomVisibility);
+                        input.addEventListener('input', checkKommissionierzielEmptyState);
                     });
 
                     // Default-Filter in Spaltenfilter vorbelegen (alle vier)
@@ -1191,7 +1200,9 @@
                     setupKommissionierzielDropdown();
 
                     // Aktive Standardfilter sichtbar machen (Badge + Reset), Treffer-Aeste aufklappen, Leerzustand pruefen.
-                    if (defaultBomKommissionierziel) expandAncestorsOfMatching('kommissionieren', defaultBomKommissionierziel);
+                    // Kanonischer Wert aus dem Input (nicht der rohe Default-String): setupKommissionierzielDropdown()
+                    // hat ihn ggf. bereits auf BOM_ALLE_ZIELE normalisiert (F1, Review-Runde 1).
+                    if (defaultBomKommissionierziel) expandAncestorsOfMatching('kommissionieren', bomFilterInputValue('kommissionieren'));
                     updateBomVisibility();
                     renderDefaultFilterBadges();
                     checkKommissionierzielEmptyState();
