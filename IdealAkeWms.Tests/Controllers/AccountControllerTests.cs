@@ -122,6 +122,69 @@ public class AccountControllerTests
     }
 
     [Fact]
+    public async Task Profile_Post_NormalizesKommissionierziel_AlleZieleWithDroppedTarget_SetsWarning()
+    {
+        var user = new User
+        {
+            Id = 1,
+            Name = "Tester",
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .Callback<User>(u => saved = u)
+            .Returns(Task.CompletedTask);
+
+        var ctrl = BuildController(userRepo);
+        var vm = new ProfileViewModel
+        {
+            Name = "Tester",
+            DefaultFilterBomKommissionierziel = "!(leer),KA-02"
+        };
+
+        await ctrl.Profile(vm, null);
+
+        saved.Should().NotBeNull();
+        saved!.DefaultFilterBomKommissionierziel.Should().Be("!(leer)");
+        ctrl.TempData["WarningMessage"].Should().Be("Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.");
+        ctrl.TempData["SuccessMessage"].Should().Be("Profil gespeichert.");
+    }
+
+    [Fact]
+    public async Task Profile_Post_NormalizesKommissionierziel_SpellingOnly_NoWarning()
+    {
+        var user = new User
+        {
+            Id = 1,
+            Name = "Tester",
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .Callback<User>(u => saved = u)
+            .Returns(Task.CompletedTask);
+
+        var ctrl = BuildController(userRepo);
+        var vm = new ProfileViewModel
+        {
+            Name = "Tester",
+            DefaultFilterBomKommissionierziel = "!(LEER)"
+        };
+
+        await ctrl.Profile(vm, null);
+
+        saved.Should().NotBeNull();
+        saved!.DefaultFilterBomKommissionierziel.Should().Be("!(leer)");
+        ctrl.TempData["WarningMessage"].Should().BeNull();
+    }
+
+    [Fact]
     public void WindowsLogin_SetsForceSso_DeletesAutoLoginCookies_RedirectsHome()
     {
         var ctrl = BuildController(new Mock<IUserRepository>());
