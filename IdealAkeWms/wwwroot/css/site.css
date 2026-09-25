@@ -13,6 +13,14 @@
     --ake-white: #FFFFFF;
 }
 
+/* Bootstraps Display-Utilities (z. B. .d-flex { display: flex !important; }) haben dieselbe
+   Spezifitaet wie [hidden] { display: none !important; } und stehen im Bundle NACH der
+   [hidden]-Regel des Browser-UA-Stylesheets -> ueberschreiben sonst das hidden-Attribut, das
+   Element bleibt sichtbar. Globale Regel stellt die Attribut-Semantik wieder her. */
+[hidden] {
+    display: none !important;
+}
+
 html {
     font-size: 14px;
     position: relative;
