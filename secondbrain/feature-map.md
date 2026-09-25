@@ -534,6 +534,28 @@ Spec [[2026-09-23-fa-struktur-arbeitsgaenge-anzeige-spec]], Umsetzung
 
 > **Deploy:** nur Web, keine Migration. **Status:** QA → Schranke 2 mit dem ganzen Bündel.
 
+### Kommissionierung nur am HauptFA — „Alle Ziele“, Rückbau Freigabe-Kaskade (v1.46.0, selber Branch)
+
+Spec [[2026-09-25-kommissionierung-nur-hauptfa-spec]], Umsetzung
+[[2026-09-25-kommissionierung-nur-hauptfa-umsetzung]], Changelog
+[[2026-09-25-v1-46-0-kommissionierung-nur-hauptfa]]. Anlass [[2026-09-13-kommissionierung-nur-hauptfa]].
+Folgenotizen: [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]], [[2026-09-25-leitstand-subfa-readonly-stueckliste]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Eine Sub-FA-Definition + Warteschlange nur HauptFA + Bulk-Skip beidseitig | **erledigt** `2291c950`/`23942f73` | `ProductionOrder.IsHauptFa`/`IsSubFa`/`IsSubFaOf`, `ProductionOrderPickingStatusRepository` (4 Queue-Abfragen, `SetReleaseBatchAsync`), `BomScopes.ForOrder`, `HierarchicalDataExistsAsync` |
+| Server-Guards + Zeilen Leitstand/FA-Liste auf HauptFA beschränkt | **erledigt** `35a65d36`/`8d8bf8a5` | `PickingController.Bom`, `PickingLeitstandController.ToggleRelease`/`BulkRelease`, `_PickingLeitstandRow`/`_ProductionOrderRow` |
+| Rückbau Freigabe-Kaskade (aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]] Block 4) | **erledigt** `36911f2f` | grep `CascadeRelease\|SetReleaseForOrderNumber\|CountReleasedByOrderNumber` = 0 |
+| „Alle Ziele“ `!(leer)` im Komm.-Ziel-Filter + Druck-Leerzustand | **erledigt** `e2d6e5d9`/`4fffeae9` | `Views/Picking/Bom.cshtml` (`bomMatchesFilter`, `setupKommissionierzielDropdown`, `btnPrintBom`) |
+| Normalisierung Profil-Standardfilter + Relevanzregel extrahiert | **erledigt** `f6911db4`/`7d1cd74e` | `KommissionierzielFilterWert.Normalize`, `KommissionierRelevanzFilter.IsRelevant` |
+| v1.46.0, Changelog, Hilfe, TS-79, TS-73-Rückbau-Vermerk | **erledigt** `2290c99c`/`1f128c61`/`787c5c90` | `docs/TESTSZENARIEN.md` TS-79 |
+
+> **Deploy:** nur Web, keine Migration. **Einmaliger SQL-Lauf nur im Testsystem** (freigegebene Sub-FAs
+> zurücksetzen, `SELECT COUNT(*)` vorab) — siehe Spec. **Status:** Testbereit (QA 2026-09-25, Build +
+> 1684 Tests grün) → Schranke 2 mit dem ganzen Bündel.
+> Razor/JS-Verhalten („Alle Ziele“, Exklusivität, Druck-Leerzustand) und die SQL-Übersetzung von
+> `IsHauptFa` sind **Manual-UAT** (TS-79).
+
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
 Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung

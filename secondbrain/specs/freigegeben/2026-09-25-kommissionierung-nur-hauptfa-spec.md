@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL: Kommissionierung nur auf dem HauptFA — gemeinsame Relevanzregel, „Alle Ziele“ im Komm.-Ziel-Filter, Freigabe-Kaskade-Rückbau, Picking-Pfad auf HauptFA beschränkt"
 slug: 2026-09-25-kommissionierung-nur-hauptfa-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-25
 updated: 2026-09-25
 source_backlog: "[[2026-09-13-kommissionierung-nur-hauptfa]]"
@@ -1163,3 +1163,222 @@ Formel neu geschrieben.
 
 **Kein dritter Pruefdurchgang:** Der zweite hat ausschliesslich Nachziehpunkte gefunden, keine
 Grundsatzfragen; beide Korrekturen hier sind Praezisierungen bereits getroffener Entscheidungen.
+
+## QA-Nachweis (2026-09-25)
+
+Geprüft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch
+`feature/2026-08-07-ideal-teile-1-5`), HEAD `787c5c90`, Diff-Basis `2d06d1f0` (letzter Commit vor
+dieser Spec). 36 Dateien geändert, 1452(+)/521(-).
+
+**1. Build**
+```
+dotnet build IdealAkeWms.slnx
+→ Der Buildvorgang wurde erfolgreich ausgeführt. 0 Fehler, 12 Warnungen (alle vorbestehend:
+  NU1902 MailKit/MimeKit, CS8602/CS8321 in unberührten Dateien).
+```
+
+**2. Tests**
+```
+dotnet test IdealAkeWms.Tests --no-build
+→ Bestanden! Fehler: 0, erfolgreich: 1416, übersprungen: 1, gesamt: 1417 (5 s)
+  (übersprungen: ProductionOrderEagerCreateAgentJobTests — vorbestehender Integrationstest, nicht
+  Gegenstand dieser Spec)
+
+dotnet test IDEALAKEWMSService.Tests --no-build
+→ Bestanden! Fehler: 0, erfolgreich: 268, übersprungen: 0, gesamt: 268 (1 s)
+```
+
+**3. Harte Prüfungen**
+
+- `grep -rEn "CascadeRelease|SetReleaseForOrderNumber|CountReleasedByOrderNumber" IdealAkeWms IdealAkeWms.Tests`
+  (nur Quelltext, `--include="*.cs" --include="*.cshtml"`) → **0 Treffer**. Ohne Include-Filter
+  meldet grep vier Treffer in `IdealAkeWms/bin|obj/Release/**/IdealAkeWms.dll` — das sind
+  DLL-Binärartefakte eines älteren Release-Builds vor diesem Rückbau, keine Quelldateien; nach
+  `dotnet build` (Debug, oben) unverändert stehen geblieben. Harmlos, kein Fund. AK 12 erfüllt.
+- `git diff 2d06d1f0..HEAD -- IdealAkeWms.Tests/Repositories/ProductionOrderPickingStatusRepositoryTests.cs IdealAkeWms.Tests/Controllers/PickingLeitstandControllerTests.cs`
+  geprüft im Volltext: In beiden Dateien wurden ausschließlich die Kaskade-Tests entfernt
+  (`SetReleaseForOrderNumber_*`, `CountReleasedByOrderNumberAsync_*`, `CascadeRelease*`,
+  `CascadeReleasePreview_*`) und neue Sub-FA-Testfälle ergänzt
+  (`Queue_ContainsOnlyHauptFa_EvenIfSubFaIsReleased`, `SetReleaseBatch_SkipsSubFa_InBothDirections`,
+  `ToggleRelease_SubFa_NoChange_InBothDirections`, `BulkRelease_ReportsSkippedSubFa`). Keine
+  bestehende `SetReleaseBatchAsync`-/`BulkRelease`-Fixture wurde verändert — harte Bedingung (AK 22)
+  erfüllt.
+- `ProductionOrder.cs`: genau eine Formel —
+  `public static readonly Expression<Func<ProductionOrder,bool>> IsHauptFa = p => p.SubOrderNumber == "" || p.SubOrderNumber == p.OrderNumber;`,
+  `IsSubFa`/`IsSubFaOf` daraus kompiliert. Grep über `IdealAkeWms` bestätigt: keine zweite
+  Sub-FA-Vergleichsformel mehr außerhalb dieser Datei — `BomScope.ForOrder` nutzt `order.IsSubFa`,
+  `ProductionOrderRepository.HierarchicalDataExistsAsync` nutzt `!AllAsync(ProductionOrder.IsHauptFa)`
+  (beide Ruling R9 aus dem Umsetzungs-Ledger).
+- `IdealAkeWms/AppVersion.cs` und `IDEALAKEWMSService/AppVersion.cs`: beide `"1.46.0"`.
+
+**4. Fachliche Prüfung der Ledger-Abweichungen (progress.md, Rulings R1–R13)**
+
+- **R2** (`BulkReleaseResult.SkippedSubFa` sammelt `SubOrderNumber`, nicht `OrderNumber` wie im
+  Spec-Wortlaut Anforderung 6): im Code bestätigt
+  (`ProductionOrderPickingStatusRepository.cs:255` `result.SkippedSubFa.Add(row.ProductionOrder.SubOrderNumber)`).
+  Sachlich richtig — `OrderNumber` einer Sub-FA ist die HauptFA-Nummer, eine Meldung „übersprungen:
+  100“ wäre irreführend. Deckt sich mit TS-79.13 (Text „<nummern>“, nicht spezifiziert welche Spalte)
+  und AK 17 (spricht nur von „Sub-FA-Ids“, nicht von einer bestimmten Nummernspalte) — kein
+  Widerspruch zur Spec, nur eine Präzisierung. Akzeptiert.
+- **R4** (`BulkRelease` fasst `SkippedNoArticle`- und `SkippedSubFa`-Hinweis in einer
+  `WarningMessage` zusammen statt den zweiten den ersten überschreiben zu lassen): im Code bestätigt
+  (`PickingLeitstandController.cs` `warnings`-Liste, beide Zweige). Notwendig, weil sonst ein
+  gemischter Bulk-Lauf eine der beiden Meldungen verlöre („Melden statt still“). Akzeptiert.
+- **R7/R9** (weitere Sub-FA-Formeln in `BomScope.ForOrder` und
+  `ProductionOrderRepository.HierarchicalDataExistsAsync` zusätzlich auf `IsHauptFa`/`IsSubFa`
+  umgestellt, obwohl nicht explizit in `affected_code` gelistet; „“ gilt jetzt als HauptFA statt wie
+  zuvor als Sub-FA): im Code bestätigt (siehe oben). Setzt die Spec-Leitplanke „EINE Definition“
+  (Anforderung 6, Kritische Prüfung Schwerpunkt 1) konsequent um — vorher wären das zwei weitere,
+  separat gepflegte Formeln geblieben. In Echtdaten folgenlos (Spalte `NOT NULL`, kein Schreibpfad
+  erzeugt `""`). Akzeptiert, keine Nacharbeit nötig.
+- **R8/R10** (`ReadOnlyBomBuilderTests`-Fixtures für Sub-FA-Fälle angepasst, weil AK 15 den
+  interaktiven Sub-FA-Zugriff inzwischen verbietet): geprüft — betrifft ausschließlich
+  `ReadOnlyBomBuilderTests` (FaWorklist-Pfad, bleibt für Sub-FAs unverändert erlaubt) und
+  `PickingControllerTests`-Fälle, die eine hierarchische Mengen-/ViewModel-Prüfung ursprünglich an
+  einer Sub-FA aufhängten. Die harte Fixture-Bedingung der Spec (AK 22, „Kritische Prüfung“ S1)
+  bezieht sich wörtlich nur auf `SetReleaseBatchAsync`-/`BulkRelease`-Tests — diese sind unverändert
+  (siehe Prüfpunkt oben). Der Sub-FA-Pfad bleibt weiterhin über `Bom_SubFa_RedirectsToIndexWithWarning`
+  und die FaWorklist-Tests abgedeckt. Kein Verstoß gegen die harte Bedingung, sachlich zwingend (AK 15
+  verbietet genau das, was die alten Fixtures voraussetzten). Akzeptiert.
+- **FaWorklist-Link nur mit Vorbau-Zugriff** (`_ProductionOrderRow.cshtml`: der read-only
+  `FaWorklist/Bom`-Link auf Sub-FA-Zeilen erscheint nur noch bei `Model.HasVorbauAccess`, statt wie
+  im Spec-Text „auf jeder Sub-FA-Zeile“ unbedingt sichtbar zu sein; im Leitstand
+  (`_PickingLeitstandRow.cshtml`) gibt es dort gar keinen Fallback-Link): per Diff bestätigt
+  (vor dieser Spec unbedingter `else`-Zweig, jetzt `else if (Model.HasVorbauAccess)`). Das ist eine
+  **echte, dokumentierte Abweichung** von „Unverändert: FaWorklist/Bom bleibt auf jeder Sub-FA-Zeile
+  erreichbar“ (Out-of-Scope-Abschnitt) — als Minor-Befund im Final Review erkannt und **bewusst nicht
+  in dieser Spec behoben**, sondern in der neuen Backlog-Notiz
+  [[2026-09-25-leitstand-subfa-readonly-stueckliste]] (Hauptcheckout, vorhanden) festgehalten. Kein
+  Sicherheitsverlust (der Link war ohnehin nur innerhalb der äußeren `Model.CanPick ||
+  Model.HasVorbauAccess`-Zelle erreichbar), aber ein Nutzer mit reinem Picking-Recht (ohne
+  Vorbau-Zugriff) sieht auf einer Sub-FA-Zeile der FA-Liste jetzt keinen Stückliste-Link mehr statt
+  des read-only FaWorklist-Links. TS-79.11 benennt diesen Fall bereits explizit korrekt. **Akzeptiert
+  als bekannte, im Brain festgehaltene Lücke — kein Blocker für Testbereit.**
+
+**5. `docs/TESTSZENARIEN.md`**
+
+- **TS-79** (Z. 8597–8845, 19 Szenarien TS-79.1–79.19 + Automatisiert-Übersicht +
+  Out-of-Scope-Hinweis) vollständig, auf AK 1–22 gemappt, Manual-UAT-Schritte einzeln markiert.
+- **TS-73** vollständig als zurückgebaut markiert: Kapiteltitel (Z. 7726/7753), TS-73.11–73.13,
+  TS-73.14, TS-73.19, Schlusszeile (Z. 8575-Bereich) — jeweils mit „(zurückgebaut v1.46.0 — siehe
+  TS-79)“ bzw. äquivalentem Verweis. Vorbild TS-71-Rückbau-Vermerk eingehalten.
+- `secondbrain/tests/testszenarien-index.md` (Hauptcheckout) um Kapitel 79 ergänzt (in diesem
+  QA-Lauf, siehe unten).
+
+**6. Brain-Nachzug bereits durch den Dev-Lauf erledigt (Hauptcheckout, verifiziert, keine Nacharbeit
+nötig):**
+- `secondbrain/specs/freigegeben/2026-09-10-fa-liste-ausbau-matchcode-spec.md` Z. 44 — Callout „Block
+  4/Tasks 12–14 zurückgebaut — v1.46.0“.
+- `secondbrain/backlog/2026-09-25-picking-warteschlange-gruppierung-rueckbau.md` — vorhanden.
+- `secondbrain/architektur/fallstricke.md` Z. 1199/1206 — beide Einträge (Platzhalter-Fallstrick +
+  „vierte Umsetzung der Mini-Syntax“) vorhanden.
+- `secondbrain/feature-map.md` Z. 537–556 — vollständiger Baustein-Block inkl. Folgenotizen.
+- `secondbrain/changelog/2026-09-25-v1-46-0-kommissionierung-nur-hauptfa.md` — vorhanden.
+
+**7. Akzeptanzkriterien — Verifikationsstatus**
+
+| AK | Status | Wie geprüft |
+|---|---|---|
+| 1, 2 | Automatisiert | Bestehende Kommissionierlisten-Unit-Tests + `KommissionierRelevanzFilterTests` |
+| 3 | Manual-UAT | Razor/JS-Baumverhalten am realen Datenbestand (TS-79.2) — Code-Pfad `updateBomVisibility` per Lesen verifiziert, Verhalten aber nur am Bildschirm sichtprüfbar |
+| 4 | Manual-UAT | AKE-Flachmodus, kein Dropdown (TS-79.9) |
+| 5, 6, 7, 8, 9, 10, 11 | Teils automatisiert (`KommissionierzielFilterWertTests`, `AccountControllerTests`/`UsersControllerTests`), Rest **Manual-UAT** — Select2-Verhalten, Badge-Text, Druckausgabe sind Razor/JS bzw. echter Druck-Tab (TS-79.2/79.3/79.5) |
+| 12, 13 | Automatisiert | grep-Nachweis (oben) + Test-Diff-Nachweis (oben) |
+| 14 | Manual-UAT | Sichtbarkeit der Bedienelemente je Zeile im laufenden Leitstand/FA-Liste (TS-79.11) — Code-Guards per Diff verifiziert |
+| 15, 16, 17, 18 | Automatisiert | `Bom_SubFa_RedirectsToIndexWithWarning`, `ToggleRelease_SubFa_NoChange_InBothDirections`, `SetReleaseBatch_SkipsSubFa_InBothDirections`, `BulkRelease_ReportsSkippedSubFa` |
+| 19, 20 | Automatisiert (Regressionsnachweis) + Manual-UAT-Sichtprüfung (TS-79.18) | `ReadOnlyBomBuilderTests` |
+| 21 | Automatisiert | `ProductionOrderHauptFaTests`, `Queue_ContainsOnlyHauptFa_EvenIfSubFaIsReleased` |
+| 22 | Automatisiert (harte Bedingung) | Diff-Prüfung oben — bestätigt |
+
+**Grenze (unverändert aus der Spec, hier bestätigt statt wiederholt):** Kein Teil dieser QA-Prüfung
+kann die SQL-Server-Übersetzung von `ProductionOrder.IsHauptFa` (Collation-/Leerzeichen-Verhalten)
+oder tatsächliches Select2-/Druck-Verhalten im Browser zeigen — beides ist strukturell nur am
+IDEAL-Testsystem prüfbar (dieselbe Einschränkung wie bei allen vorherigen IDEAL-Etappen dieses
+Bündels, siehe [[fallstricke]] §8).
+
+**Ergebnis:** Build grün, 1684 Tests grün (1416 + 268), 0 rot, 1 vorbestehend übersprungen. Alle
+harten Prüfungen bestanden. Eine bekannte, im Brain dokumentierte Abweichung (FaWorklist-Link nur mit
+Vorbau-Zugriff) — kein Blocker. **Status → Testbereit.**
+
+## Manueller Testplan (Schranke 2 — abzuarbeiten ohne Rückfragen)
+
+Vorbedingung für den gesamten Testplan: Deploy aus dem Worktree auf das Testsystem (siehe
+Deploy-Abschnitt), danach den einmaligen SQL-Lauf auf dem Testsystem ausführen (siehe Schritt 0).
+**Der SQL-Lauf verändert echte Daten auf dem Testsystem** (setzt `IsReleasedForPicking = 0` für
+Sub-FA-Zeilen, die diese Spec ohnehin nie mehr anzeigt) — das ist beabsichtigt und Teil der
+Deploy-Vorbedingung, kein Testschritt zum Verwerfen.
+
+0. **SQL-Lauf (Vorbedingung, TS-79.16).** Auf dem Testsystem zuerst
+   `SELECT COUNT(*) FROM [dbo].[ProductionOrderPickingStatus] s JOIN [dbo].[ProductionOrders] p ON p.Id = s.ProductionOrderId WHERE NOT (p.SubOrderNumber = '' OR p.SubOrderNumber = p.OrderNumber) AND s.IsReleasedForPicking = 1;`
+   ausführen und die Zahl im Testprotokoll notieren. Danach den `UPDATE`-Block aus dem
+   Deploy-Abschnitt (identische `WHERE`-Klausel, setzt `IsReleasedForPicking = 0`,
+   `ModifiedBy = 'Testsystem-Bereinigung kommissionierung-nur-hauptfa'`, `ModifiedByWindows = SYSTEM_USER`)
+   ausführen. **Echte Daten auf dem Testsystem werden dabei verändert.**
+1. **Relevanzregel (TS-79.1).** Kommissionierliste öffnen, Positionsmenge mit dem Stand vor dieser
+   Spec vergleichen (bzw. plausibilisieren, dass weiterhin nur Zeilen mit gesetztem `Kommissionieren`
+   erscheinen). Erwartung: identisch.
+2. **„Alle Ziele“ (TS-79.2).** Hierarchische Stückliste mit ≥2 Komm.-Zielen + mind. einer leeren
+   Zelle öffnen (`/Picking/Bom/{HauptFA-id}`). Komm.-Ziel-Dropdown öffnen: erste Option „Alle Ziele
+   (nur kommissionier-relevant)“, danach die echten Zielwerte alphabetisch. Auswählen → nur Zeilen
+   mit gesetztem Ziel bleiben sichtbar; eine Baugruppen-Zeile ohne eigenes Ziel wird ausgeblendet,
+   auch wenn ihre Kinder sichtbar bleiben (**das ist erwartetes Verhalten, kein Fehler**). Badge
+   „Alle Ziele (nur kommissionier-relevant)“ erscheint. Reset über Badge UND über „Alle Filter
+   zurücksetzen“ prüfen. Danach ein Einzelziel wählen → „Alle Ziele“ wird automatisch abgewählt, und
+   umgekehrt (nie ein kombinierter Wert wie `!(leer),KA-02`).
+3. **Druck-Leerzustand (TS-79.3).** Stückliste ohne ein einziges gesetztes Komm.-Ziel öffnen, „Alle
+   Ziele“ wählen (keine Zeile sichtbar), auf „Stückliste drucken“ klicken. Erwartung: **kein** neuer
+   Tab, stattdessen gelbe Box „Keine sichtbaren Positionen — nichts zu drucken.“ mit Reset.
+   Gegenprobe: bei Treffern drucken → Kopf zeigt „Komm.-Ziel=Alle Ziele (nur kommissionier-relevant)“,
+   nur sichtbare Positionen enthalten.
+4. **Neues Ziel bleibt sichtbar (TS-79.4).** Mit aktivem „Alle Ziele“ ein neues Kommissionierziel per
+   Sage-Sync anlegen lassen (oder simulieren). Erwartung: Position erscheint ohne erneutes Setzen des
+   Filters.
+5. **Persistenz + Normalisierung (TS-79.5).** `!(leer)` im Profil speichern → Stückliste öffnet mit
+   „Alle Ziele“ vorgewählt. `!(leer),KA-02` im Profil UND in der Benutzerverwaltung (Create UND Edit)
+   speichern → gespeichert wird exakt `!(leer)`, `WarningMessage` „Alle Ziele schließt Einzelziele
+   aus — gespeichert wurde nur 'Alle Ziele'.“ erscheint. `!(LEER)` im Profil speichern → gespeichert
+   wird `!(leer)`, **kein** Hinweis.
+6. **Reload (TS-79.6).** Stückliste mit aktivem „Alle Ziele“ per F5 neu laden → Endzustand gefiltert,
+   Badge sichtbar (ein kurzes ungefiltertes Zwischenbild ist kein Fehler).
+7. **Leeres Dropdown (TS-79.7).** `!(leer)` als Standard gespeichert, Stückliste ohne ein einziges
+   Komm.-Ziel öffnen → Dropdown gesperrt, „Alle Ziele“ vorgewählt, Leerzustand sichtbar, Reset über
+   Badge oder Leerzustand-Knopf funktioniert.
+8. **Legacy-Schreibweise (TS-79.8).** Einen Wert `!(LEER)` bzw. `!(LEER),KA-02` in `sessionStorage`
+   simulieren oder direkt in der DB setzen, Stückliste öffnen → Dropdown zeigt exklusiv „Alle Ziele“,
+   kein zusätzliches Chip.
+9. **AKE-Negativfall Stückliste (TS-79.9).** Flache Stückliste öffnen → kein Komm.-Ziel-Dropdown.
+10. **Rückbau Freigabe-Kaskade (TS-79.10).** `/PickingLeitstand` öffnen → kein „Alle Sub-FAs
+    freigeben“-Button mehr in der Gruppen-Kopfzeile. `CascadeReleasePreview`/`CascadeRelease`-Routen
+    direkt aufrufen (Browser/DevTools) → 404. Gegenprobe: „Alle Sub-FAs fertigmelden“ funktioniert
+    unverändert.
+11. **Freigabe/Picking nur am HauptFA (TS-79.11).** Hierarchische Gruppe mit mehreren Sub-FAs im
+    Leitstand UND in der FA-Liste aufklappen. Erwartung: nur die HauptFA-Zeile zeigt
+    Freigabe-Button/-Formular, Prioritäts-Input, Bulk-Checkbox und den interaktiven
+    Stückliste-Link; Sub-FA-Zeilen zeigen keines davon. In der FA-Liste sieht ein Anwender mit
+    Vorbau-Zugriff auf der Sub-FA-Zeile weiterhin den read-only `FaWorklist/Bom`-Link; **ohne**
+    Vorbau-Zugriff bleibt die Zelle dort leer (bekannte, akzeptierte Abweichung, siehe QA-Nachweis
+    oben und [[2026-09-25-leitstand-subfa-readonly-stueckliste]]) — kein Fehler, nicht melden.
+12. **Direkter Zugriff Sub-FA (TS-79.12).** `GET /Picking/Bom/{sub-fa-id}` direkt aufrufen →
+    Weiterleitung + `WarningMessage` „Kommissionierung erfolgt nur am HauptFA {OrderNumber}.“. `POST
+    /PickingLeitstand/ToggleRelease` mit Sub-FA-Id — einmal unfreigegeben, einmal freigegeben →
+    beide Male keine Zustandsänderung, sichtbare `WarningMessage`.
+13. **BulkRelease gemischt (TS-79.13).** HauptFA- + Sub-FA-Ids gemeinsam freigeben → nur HauptFA wird
+    freigegeben, Sub-FA übersprungen + gemeldet. Gegenprobe: eine bereits freigegebene Sub-FA
+    gemeinsam mit HauptFA-Ids „zurücknehmen“ → Sub-FA bleibt übersprungen + gemeldet (keine stille
+    Verarbeitung).
+14. **AKE-Negativfall Freigabe (TS-79.14).** Flacher Modus, `BulkRelease`/`ToggleRelease` auf eine
+    normale FA-Id → funktioniert unverändert.
+15. **Warteschlange bereinigt (TS-79.16, nach Schritt 0).** `/Picking` öffnen → die in Schritt 0
+    zurückgesetzte Sub-FA erscheint dort nicht (sie erschien auch vorher schon nicht, da die
+    Warteschlangen-Abfragen strukturell filtern). Home-Kennzahl zählt sie nicht mit.
+16. **Warteschlangen-Gruppierung (TS-79.17, Hinweis).** `/Picking` mit mehreren HauptFAs öffnen → je
+    Gruppe nur noch eine Zeile. Kein Fehler, wenn Gruppen mit mehreren Sub-FAs ausbleiben.
+17. **Unberührt (TS-79.18).** `FaWorklist/Bom` auf einer nie freigegebenen Sub-FA öffnen (read-only,
+    über die FA-Struktur oder direkt) → weiterhin erreichbar. Glas-/Fremdbezug-/Lackierung-Checkboxen
+    dieser Sub-FA weiterhin bedienbar.
+18. **Hilfeseite (TS-79.19).** `/Help` öffnen, Abschnitte „Leitstand (Kommissionier-Freigabe)“ und
+    „Kommissionierung“ (Stückliste) lesen → beide nennen „Freigabe und Stückliste nur am HauptFA“
+    bzw. die Schaltfläche „Alle Ziele“ inkl. Profil-Eingabe `!(leer)`.
+
+Bei jedem Abweichungsfund: **nicht** selbst nachbessern, sondern im Testprotokoll festhalten und an
+den Menschen zurückmelden (Schranke 2 ist die menschliche Entscheidung über Merge/Nacharbeit).
