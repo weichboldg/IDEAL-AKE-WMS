@@ -160,4 +160,83 @@ public class UsersControllerTests
         saved.Should().NotBeNull();
         saved!.DefaultWorkbenches.Should().Be("Werkbank 7");
     }
+
+    [Fact]
+    public async Task Edit_Post_NormalizesKommissionierziel_AlleZieleWithDroppedTarget_SetsWarning()
+    {
+        var existing = new User
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .Callback<User>(u => saved = u)
+            .Returns(Task.CompletedTask);
+
+        var ctrl = BuildController(userRepo);
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            httpCtx, Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        var vm = new IdealAkeWms.Models.ViewModels.UserEditViewModel
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            DefaultFilterBomKommissionierziel = "!(leer),KA-02"
+        };
+
+        await ctrl.Edit(5, vm, null);
+
+        saved.Should().NotBeNull();
+        saved!.DefaultFilterBomKommissionierziel.Should().Be("!(leer)");
+        ctrl.TempData["WarningMessage"].Should().Be("Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.");
+        ctrl.TempData["SuccessMessage"].Should().Be("Benutzer 'Dora' wurde erfolgreich gespeichert.");
+    }
+
+    [Fact]
+    public async Task Edit_Post_NormalizesKommissionierziel_SpellingOnly_NoWarning()
+    {
+        var existing = new User
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            CreatedBy = "t",
+            CreatedByWindows = "t"
+        };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>()))
+            .Callback<User>(u => saved = u)
+            .Returns(Task.CompletedTask);
+
+        var ctrl = BuildController(userRepo);
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            httpCtx, Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        var vm = new IdealAkeWms.Models.ViewModels.UserEditViewModel
+        {
+            Id = 5,
+            Name = "Dora",
+            IsActive = true,
+            DefaultFilterBomKommissionierziel = "!(LEER)"
+        };
+
+        await ctrl.Edit(5, vm, null);
+
+        saved.Should().NotBeNull();
+        saved!.DefaultFilterBomKommissionierziel.Should().Be("!(leer)");
+        ctrl.TempData["WarningMessage"].Should().BeNull();
+    }
 }

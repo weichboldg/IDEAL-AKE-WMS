@@ -110,6 +110,7 @@ public class UsersController : Controller
             return View(vm);
         }
 
+        var (kommissionierziel, droppedTargets) = KommissionierzielFilterWert.Normalize(vm.DefaultFilterBomKommissionierziel);
         var user = new User
         {
             Name = vm.Name,
@@ -126,7 +127,7 @@ public class UsersController : Controller
             DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim(),
             DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim(),
             DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim(),
-            DefaultFilterBomKommissionierziel = string.IsNullOrWhiteSpace(vm.DefaultFilterBomKommissionierziel) ? null : vm.DefaultFilterBomKommissionierziel.Trim(),
+            DefaultFilterBomKommissionierziel = kommissionierziel,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -144,6 +145,8 @@ public class UsersController : Controller
             _currentUserService.GetWindowsUserName());
 
         TempData["SuccessMessage"] = $"Benutzer '{user.Name}' wurde erfolgreich angelegt.";
+        if (droppedTargets)
+            TempData["WarningMessage"] = "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -298,7 +301,8 @@ public class UsersController : Controller
         existing.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
         existing.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
         existing.DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim();
-        existing.DefaultFilterBomKommissionierziel = string.IsNullOrWhiteSpace(vm.DefaultFilterBomKommissionierziel) ? null : vm.DefaultFilterBomKommissionierziel.Trim();
+        var (kommissionierziel, droppedTargets) = KommissionierzielFilterWert.Normalize(vm.DefaultFilterBomKommissionierziel);
+        existing.DefaultFilterBomKommissionierziel = kommissionierziel;
 
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -316,6 +320,8 @@ public class UsersController : Controller
             _currentUserService.GetWindowsUserName());
 
         TempData["SuccessMessage"] = $"Benutzer '{existing.Name}' wurde erfolgreich gespeichert.";
+        if (droppedTargets)
+            TempData["WarningMessage"] = "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.";
         return RedirectToAction(nameof(Index));
     }
 

@@ -216,7 +216,8 @@ public class AccountController : Controller
         user.DefaultWorkbenches = string.IsNullOrWhiteSpace(vm.DefaultWorkbenches) ? null : vm.DefaultWorkbenches.Trim();
         user.DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim();
         user.DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim();
-        user.DefaultFilterBomKommissionierziel = string.IsNullOrWhiteSpace(vm.DefaultFilterBomKommissionierziel) ? null : vm.DefaultFilterBomKommissionierziel.Trim();
+        var (kommissionierziel, droppedTargets) = KommissionierzielFilterWert.Normalize(vm.DefaultFilterBomKommissionierziel);
+        user.DefaultFilterBomKommissionierziel = kommissionierziel;
 
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);
@@ -227,6 +228,8 @@ public class AccountController : Controller
 
         await _userRepository.UpdateAsync(user);
         TempData["SuccessMessage"] = "Profil gespeichert.";
+        if (droppedTargets)
+            TempData["WarningMessage"] = "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.";
         return RedirectToAction(nameof(Profile));
     }
 }
