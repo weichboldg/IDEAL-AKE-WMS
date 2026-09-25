@@ -9,6 +9,45 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.46.0</strong> <span class="text-white-50 ms-2">25.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Kommissionierung nur am HauptFA: Freigabe-Kaskade zurückgebaut, „Alle Ziele“ in der Stückliste</h6>
+                <p class="text-muted mb-2"><em>Wirkt nur am Standort IDEAL (FA-Hierarchie aktiv). Am
+                    Standort AKE ändert sich nichts &ndash; dort ist jede FA ohnehin ihre eigene
+                    HauptFA.</em></p>
+                <ul>
+                    <li><strong>Freigabe und Stückliste nur am HauptFA (IDEAL):</strong> Der
+                        Freigabe-Knopf, die Mehrfachauswahl und die interaktive Stückliste
+                        (<em>Picking/Bom</em>) erscheinen im Kommissionier-Leitstand und in der FA-Liste
+                        jetzt nur noch an der HauptFA-Zeile. Sub-FA-Zeilen zeigen diese Bedienelemente
+                        nicht mehr &ndash; kommissioniert wird ausschließlich am HauptFA, inklusive der
+                        gesamten Stücklisten-Struktur. Ein direkter Aufruf auf eine Sub-FA wird mit
+                        einem Hinweis abgewiesen statt still verarbeitet zu werden.</li>
+                    <li><strong>„Alle Ziele“ im Kommissionierziel-Filter der Stückliste (IDEAL):</strong>
+                        Das Komm.-Ziel-Dropdown der Stückliste bietet jetzt zuerst die Option
+                        &bdquo;Alle Ziele (nur kommissionier-relevant)&ldquo; &ndash; blendet alle
+                        Positionen ohne Kommissionierziel aus, unabhängig davon, welche Ziele es aktuell
+                        gibt. Als Standardfilter im Profil bzw. in der Benutzerverwaltung lässt sich das
+                        über den Wert <code>!(leer)</code> hinterlegen. Enthält der gespeicherte Text
+                        daneben noch einzelne Ziele, werden diese beim Speichern verworfen und ein
+                        Hinweis erscheint &ndash; eine reine Schreibweisen-Korrektur (z. B.
+                        <code>!(LEER)</code>) erfolgt dagegen ohne Hinweis.</li>
+                    <li><strong>Kein Druck ohne sichtbare Positionen:</strong> Sind beim Klick auf
+                        „Stückliste drucken“ keine Zeilen sichtbar (z. B. durch „Alle Ziele“ ohne
+                        Treffer), öffnet sich kein Ausdruck mehr &ndash; stattdessen erscheint ein
+                        Hinweis „Keine sichtbaren Positionen &ndash; nichts zu drucken.“.</li>
+                    <li><strong>Freigabe-Kaskade entfernt (IDEAL):</strong> Der in v1.38.0 eingeführte
+                        Button „Alle Sub-FAs freigeben“ im Leitstand ist entfallen &ndash; er gäbe
+                        Sub-FAs frei, die künftig nie kommissioniert werden. Die Fertigmeldungs-Kaskade
+                        „Alle Sub-FAs fertigmelden“ ist davon nicht betroffen und funktioniert
+                        unverändert.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.45.0</strong> <span class="text-white-50 ms-2">24.09.2026</span>
             </div>
             <div class="card-body">
@@ -177,7 +216,8 @@
                 <strong>v1.38.0</strong> <span class="text-white-50 ms-2">10.09.2026</span>
             </div>
             <div class="card-body">
-                <h6>FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, Freigabe-Kaskade</h6>
+                <h6>FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, <del>Freigabe-Kaskade</del>
+                    <span class="text-muted">(zurückgenommen in v1.46.0 &ndash; Kommissionierung nur am HauptFA)</span></h6>
                 <p class="text-muted mb-2"><em>Die Matchcode-Spalte ist hausweit sichtbar (Standorte
                     AKE und IDEAL). Die übrigen drei Punkte wirken nur am Standort IDEAL
                     (FA-Hierarchie aktiv) &ndash; am Standort AKE bleibt dort alles unverändert.</em></p>
@@ -200,11 +240,14 @@
                         Gruppen-Kopfzeile zeigt dafür nur noch Kunde und Fertigungstermin &ndash; Prio,
                         AB-Nummer, Montage-Abteilung und die übrigen Termine stehen jetzt in den
                         Zeilen.</li>
-                    <li><strong>Freigabe-Kaskade im Leitstand (nur IDEAL):</strong> Neuer Button
+                    <li><del><strong>Freigabe-Kaskade im Leitstand (nur IDEAL):</strong> Neuer Button
                         &bdquo;Alle Sub-FAs freigeben&ldquo; an der Haupt-FA gibt mit einem Klick alle
                         noch nicht freigegebenen Sub-FAs frei. Ist die Kommissionierer-Zuweisung aktiv,
                         ist dabei ein Kommissionierer Pflicht &ndash; er wird allen zugewiesen und kann
-                        danach je Sub-FA geändert werden.</li>
+                        danach je Sub-FA geändert werden.</del>
+                        <span class="text-muted">(zurückgenommen in v1.46.0 &ndash; Kommissionierung
+                        nur am HauptFA: Sub-FAs werden nie kommissioniert, eine Freigabe auf
+                        Sub-FA-Ebene hätte keine Bedeutung mehr.)</span></li>
                 </ul>
             </div>
         </div>
