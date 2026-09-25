@@ -7725,6 +7725,15 @@ Anwender verhält, die vor dem Fix an den Spalten „herumgestellt" haben.
 
 ## TS-73 — IDEAL: FA-Liste ausgebaut — Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0)
 
+> **Freigabe-Kaskade-Teil zurückgebaut in v1.46.0, siehe TS-79** (Spec
+> `2026-09-25-kommissionierung-nur-hauptfa-spec`): Mit „Kommissionierung nur am HauptFA“ werden
+> Sub-FAs künftig nie kommissioniert — eine Freigabe auf Sub-FA-Ebene hätte keine Bedeutung mehr; der
+> Button „Alle Sub-FAs freigeben“ (`CascadeReleasePreview`/`CascadeRelease`) wurde entfernt, bevor er
+> je gemergt war. Betroffen unten: **TS-73.11–73.13** (vollständig, markiert), sowie die
+> Kaskade-Erwähnungen in TS-73.14 (Zeile zu `CascadeRelease`) und TS-73.18/73.19. Matchcode,
+> Kopfdaten je Zeile und die HauptFA-Zeile selbst (TS-73.1–73.10) sind von diesem Rückbau **nicht**
+> betroffen und bleiben gültig.
+
 **Bezug:** Spec `2026-09-10-fa-liste-ausbau-matchcode-spec`.
 
 **Verweis (Doppelung vermeiden):** Die Darstellungs-/Sortier-Szenarien zur gruppierten Tabelle selbst
@@ -7750,7 +7759,9 @@ geprüft, nur referenziert.
 `ProductionOrdersControllerTests` (K1-Postfilter inkl. Matchcode/Kopfdaten je Zeile, Flachmodus-
 Gegentest), `ProductionOrderPickingStatusRepositoryTests` (`SetReleaseForOrderNumberAsync` —
 Kaskade, Priorität, bereits Freigegebene bleiben unverändert), `PickingLeitstandControllerTests`
-(`CascadeReleasePreview`/`CascadeRelease`, Zuweisungspflicht, Zugriffsschutz). Der manuelle Rest ist
+(`CascadeReleasePreview`/`CascadeRelease`, Zuweisungspflicht, Zugriffsschutz)
+**— zurückgebaut in v1.46.0, siehe TS-79: `SetReleaseForOrderNumberAsync`, `CascadeReleasePreview`
+und `CascadeRelease` samt ihrer Tests existieren nicht mehr.** Der manuelle Rest ist
 die Sichtprüfung am laufenden IDEAL-Testsystem (Rendering, Spaltenausrichtung, Badge-Sichtbarkeit,
 Dialogtexte) — diese Schritte sind unten ausdrücklich mit **(Manual-UAT)** gekennzeichnet und bilden
 zusammen die manuelle Abnahme-Liste für Schranke 2.
@@ -7862,7 +7873,7 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   Negativfall: die zugeklappte Kopfzeile zeigt nur noch Nummern (Kunde/Termin fehlen) → Regression,
   da die zugeklappte Ansicht dann den Überblick verliert, für den sie gebaut wurde.
 
-- **TS-73.11 — Freigabe-Kaskade — Normalfall (AK 11).**
+- **TS-73.11 — Freigabe-Kaskade — Normalfall (AK 11).** *(zurückgebaut v1.46.0 — siehe TS-79)*
   Vorbedingung: HauptFA mit z. B. 10 noch nicht freigegebenen Sub-FAs, `KommissionierungMitZuweisung
   = false`.
   Schritte: Leitstand öffnen, „Alle Sub-FAs freigeben" an der HauptFA-Gruppe auslösen
@@ -7872,7 +7883,7 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   atomar), Erfolgsmeldung nennt „10 Sub-FA(s) freigegeben".
   Negativfall: Abbruch im Dialog vor der Bestätigung → keine Änderung in der DB.
 
-- **TS-73.12 — Freigabe-Kaskade rührt bereits Freigegebene nicht an (AK 12).**
+- **TS-73.12 — Freigabe-Kaskade rührt bereits Freigegebene nicht an (AK 12).** *(zurückgebaut v1.46.0 — siehe TS-79)*
   Vorbedingung: HauptFA mit 10 Sub-FAs, davon 3 bereits `IsReleasedForPicking = true`, mit
   gesetztem Kommissionierer und bekannten Audit-Feldwerten.
   Schritte: Kaskade auslösen; die 3 bereits freigegebenen Zeilen vor/nach vergleichen.
@@ -7881,7 +7892,7 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   Negativfall: eine der 3 Zeilen verliert ihren Kommissionierer oder bekommt ein neues `ModifiedAt`
   → Regression.
 
-- **TS-73.13 — Freigabe-Kaskade meldet die korrekte Anzahl (AK 13).**
+- **TS-73.13 — Freigabe-Kaskade meldet die korrekte Anzahl (AK 13).** *(zurückgebaut v1.46.0 — siehe TS-79)*
   Vorbedingung: wie TS-73.12 (10 gesamt, 3 bereits freigegeben).
   Schritte: Kaskade auslösen, Dialog-Vorschau und Erfolgsmeldung lesen **(Manual-UAT:
   Meldungstext)**.
@@ -7893,7 +7904,8 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   Vorbedingung a: `KommissionierungMitZuweisung = true`, HauptFA mit nicht freigegebenen Sub-FAs.
   Schritte a (Negativfall, **Pflicht-Nachweis**): die Kaskade **ohne** Kommissionierer-Auswahl
   auslösen (Dialog ohne Auswahl bestätigen bzw. direkter `POST` auf `CascadeRelease` ohne
-  `assignedPickerId`) **(Manual-UAT: Pflichtfeld-Verhalten im Dialog)**.
+  `assignedPickerId` — **`CascadeRelease` zurückgebaut in v1.46.0, dieser Aufruf ist nicht mehr
+  ausführbar, siehe TS-79**) **(Manual-UAT: Pflichtfeld-Verhalten im Dialog)**.
   Erwartung a: die Aktion wird abgewiesen, Meldung „Bitte einen Kommissionierer zuweisen."; **keine**
   Zeile wird freigegeben — die Massenaktion umgeht die bestehende Pflicht nicht (Kern von AK 14/B2).
   Schritte b: dieselbe Kaskade **mit** Kommissionierer-Auswahl auslösen.
@@ -7938,14 +7950,17 @@ zusammen die manuelle Abnahme-Liste für Schranke 2.
   Vorbedingung: ein Benutzer ohne Leitstand-Recht (erfüllt `RequireLeitstandAccess` nicht).
   Schritte: Oberfläche als dieser Benutzer öffnen **(Manual-UAT: Button-Sichtbarkeit)**; zusätzlich
   einen direkten `POST` auf `CascadeRelease` bzw. `GET` auf `CascadeReleasePreview` auslösen (z. B.
-  über die Entwicklertools des Browsers).
+  über die Entwicklertools des Browsers) — **beide Routen liefern seit v1.46.0 grundsätzlich 404
+  (Rückbau, siehe TS-79), unabhängig vom Zugriffsrecht; dieser Teilschritt ist damit gegenstandslos.**
   Erwartung: der „Alle Sub-FAs freigeben"-Button ist für diesen Benutzer **nicht** sichtbar (nur
   bei `CanManagePickingRelease`); der direkte Aufruf wird abgewiesen (403/Redirect), wie bei den
-  übrigen `RequireLeitstandAccess`-Actions (`ToggleRelease`/`BulkRelease`/`SetPriority`).
+  übrigen `RequireLeitstandAccess`-Actions (`ToggleRelease`/`BulkRelease`/`SetPriority`) — diese
+  Actions selbst und ihr Zugriffsschutz bleiben von diesem Rückbau **unberührt**.
   Negativfall: der Button ist sichtbar oder der direkte `POST` gelingt ohne das Recht →
   Zugriffslücke, sofort melden.
 
-- **TS-73.19 — Frühere Spec nachgezogen, kein Widerspruch mehr (AK 19).**
+- **TS-73.19 — Frühere Spec nachgezogen, kein Widerspruch mehr (AK 19).** *(zurückgebaut v1.46.0 —
+  siehe TS-79: die hier dokumentierte Aktion `CascadeRelease` existiert nicht mehr)*
   Rein dokumentarisches Kriterium, keine Bildschirmprüfung. Nachweis: in
   `secondbrain/specs/freigegeben/2026-08-18-fa-liste-hierarchie-anzeige-spec.md` (Hauptcheckout) ist
   die frühere Festlegung „`BulkRelease` ist Freigabe, nicht Fertigmeldung — keine Kaskade" um die
@@ -8570,7 +8585,253 @@ für TS-78.4; für die Query-Zählung optional SQL-Profiler/Extended Events auf 
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
 
+## TS-79 — IDEAL: Kommissionierung nur am HauptFA — „Alle Ziele“, Rückbau Freigabe-Kaskade (v1.46.0)
+
+**Bezug:** Spec `2026-09-25-kommissionierung-nur-hauptfa-spec`.
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Master **`ProduktionsauftragHierarchisch = true`** (IDEAL) — außer bei den AKE-Regressionsfällen
+  (TS-79.9, TS-79.14), dort `false`.
+- Ein HauptFA mit mindestens einer Sub-FA ist bekannt; für die Stücklisten-Szenarien eine
+  hierarchische Stückliste mit mindestens 2 unterschiedlichen Komm.-Ziel-Werten plus mindestens
+  einer leeren Zelle.
+- Für die Freigabe-Szenarien: Leitstand aktiv (`LeitstandAktiv`), Benutzer mit
+  `CanManagePickingRelease`.
+
+**Automatisiert abgedeckt (Auszug):** `ProductionOrderHauptFaTests` (`IsHauptFa`/`IsSubFa` für `""`,
+`Sub==Order`, `Sub!=Order`), `ProductionOrderPickingStatusRepositoryTests`
+(`Queue_ContainsOnlyHauptFa_EvenIfSubFaIsReleased`, `SetReleaseBatch_SkipsSubFa_InBothDirections`),
+`PickingControllerTests` (`Bom_SubFa_RedirectsToIndexWithWarning`,
+`Bom_ViewModel_CarriesSubOrderNumber`, `Bom_Hierarchical_DoesNotMultiplyQuantity_AndFlagsHierarchical`),
+`PickingLeitstandControllerTests` (`ToggleRelease_SubFa_NoChange_InBothDirections`,
+`BulkRelease_ReportsSkippedSubFa`), `ReadOnlyBomBuilderTests` (explizite Sub-FA-Fixture,
+`FullStructure=false`), `KommissionierzielFilterWertTests` (9 Normalisierungsfälle),
+`AccountControllerTests`/`UsersControllerTests` (`NormalizesKommissionierziel_*`). Der manuelle Rest
+ist die Sichtprüfung am laufenden IDEAL-Testsystem (Select2-Verhalten, Badges, Druckausgabe) — diese
+Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
+
+- **TS-79.1 — Relevanzregel unverändert nach Extraktion (AK 1, 2).**
+  Vorbedingung: Kommissionierliste mit mehreren FAs, davon einige mit leerem `Kommissionieren`-Feld.
+  Schritte: Kommissionierliste vor und nach dieser Änderung (Regressionsvergleich, gestützt auf die
+  bestehenden Unit-Tests der Kommissionierliste) vergleichen.
+  Erwartung: identische Positionsmenge wie vor der Spec — `KommissionierRelevanzFilter.IsRelevant`
+  ist reine Extraktion, keine Verhaltensänderung; die Methode hat weiterhin genau einen Verbraucher.
+  Negativfall: keiner (reine Regression).
+
+- **TS-79.2 — „Alle Ziele“ filtert auf gesetztes Komm.-Ziel (AK 3, 5, 6).**
+  Vorbedingung: hierarchische Stückliste (`Model.Hierarchical == true`) mit mind. 2 unterschiedlichen
+  Komm.-Ziel-Werten und mind. einer leeren Zelle.
+  Schritte: `/Picking/Bom/{HauptFA-id}` öffnen, Komm.-Ziel-Dropdown öffnen **(Manual-UAT)**.
+  Erwartung: erste Option ist „Alle Ziele (nur kommissionier-relevant)“, danach die tatsächlichen
+  Zielwerte alphabetisch; Auswahl blendet alle Zeilen mit leerem Komm.-Ziel aus; Badge zeigt
+  „Gefiltert: Alle Ziele (nur kommissionier-relevant)“ statt einer Werteliste; „Alle Filter
+  zurücksetzen“ und der Badge-Reset heben den Filter auf.
+  Eine Baugruppen-Zeile ohne eigenes Komm.-Ziel wird dabei **immer** ausgeblendet, auch wenn ihre
+  Kinder sichtbar bleiben — **das ist erwartetes Verhalten, kein Fehler** (die Kinder stehen dann
+  über das bestehende Vorfahren-Aufklappen ohne Elternzeile als Liste der zu holenden Teile).
+  Negativfall a: bei aktiver Einzelziel-Auswahl zusätzlich „Alle Ziele“ wählen → das Einzelziel wird
+  automatisch abgewählt, nur „Alle Ziele“ bleibt aktiv — es entsteht nie ein kombinierter Wert wie
+  `!(leer),KA-02`.
+  Negativfall b: bei aktiver „Alle Ziele“-Auswahl ein Einzelziel zusätzlich wählen → „Alle Ziele“
+  wird automatisch abgewählt.
+
+- **TS-79.3 — Druck-Leerzustand statt leerem/irreführendem Ausdruck (AK 9).**
+  Vorbedingung: Stückliste ohne ein einziges gesetztes Komm.-Ziel.
+  Schritte: „Alle Ziele“ wählen (keine Zeile bleibt sichtbar) **(Manual-UAT)**; auf „Stückliste
+  drucken“ klicken.
+  Erwartung: **kein** neuer Tab öffnet sich; stattdessen erscheint die gelbe Box mit „Keine
+  sichtbaren Positionen — nichts zu drucken.“ und Reset-Möglichkeit. Derselbe Leerzustand erscheint
+  bei jedem anderen Spaltenfilter ohne Treffer, auch im AKE-Flachmodus (Markup ist modusunabhängig
+  vorhanden, auch wenn dort keine Option „Alle Ziele“ existiert).
+  Negativfall (Gegenprobe mit Treffern): bei aktiver „Alle Ziele“-Auswahl **mit** Treffern auf
+  „Stückliste drucken“ klicken → Druck-Tab öffnet sich, Kopf zeigt „Komm.-Ziel=Alle Ziele (nur
+  kommissionier-relevant)“ statt des Rohwerts `!(leer)`, enthält nur die beim Klick sichtbar
+  gewesenen Positionen.
+
+- **TS-79.4 — Neues Ziel bleibt sichtbar, kein Momentaufnahme-Effekt (AK 7).**
+  Vorbedingung: „Alle Ziele“ aktiv in einer offenen Stückliste.
+  Schritte: ein neues, zuvor nicht vorhandenes Kommissionierziel (z. B. per Sage-Sync) an einer
+  Position hinzufügen, ohne den Filter neu zu setzen.
+  Erwartung: die Position bleibt bzw. erscheint sichtbar — „Alle Ziele“ ist ein Bedeutungswert
+  („Zelle nicht leer“), keine gespeicherte Werteliste der zum Auswahlzeitpunkt existierenden Ziele.
+  Negativfall: keiner (positive Eigenschaft).
+
+- **TS-79.5 — Persistenz „Alle Ziele“ + Normalisierung beim Speichern (AK 10, 11).**
+  Vorbedingung: Profil-Seite bzw. Benutzerverwaltung (Create und Edit).
+  Schritte a: `!(leer)` als `DefaultFilterBomKommissionierziel` im Profil speichern; Stückliste
+  öffnen.
+  Erwartung a: „Alle Ziele“ ist vorgewählt (Dropdown-Anzeige + Badge), keine stillschweigend
+  verworfene Vorbelegung.
+  Schritte b: `!(leer),KA-02` im Profil **und** in der Benutzerverwaltung (Create **und** Edit)
+  speichern.
+  Erwartung b: gespeichert wird exakt `!(leer)`; eine `WarningMessage` „Alle Ziele schließt
+  Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.“ erscheint; die Stückliste öffnet danach mit
+  „Alle Ziele“ vorgewählt und zeigt alle Positionen mit gesetztem Ziel.
+  Negativfall (Schreibweise ohne Hinweis, Freigabe-Nachtrag): `!(LEER)` im Profil speichern →
+  gespeichert wird `!(leer)`, **kein** Hinweis (reine Schreibweisen-Korrektur ändert die Bedeutung
+  nicht), Stückliste öffnet mit „Alle Ziele“ vorgewählt.
+
+- **TS-79.6 — Persistenz-Reload (AK 10, Regressionshinweis).**
+  Vorbedingung: Stückliste mit aktivem „Alle Ziele“.
+  Schritte: Seite per F5 neu laden.
+  Erwartung: Endzustand ist gefiltert, Badge sichtbar. Ein kurzes, ungefiltertes Zwischenbild beim
+  Laden ist möglich und besteht bereits heute für **jeden** Bom-Filter (Timing zwischen
+  `table-filter.js` und `bomMatchesFilter`) — **kein Fehler dieser Spec**.
+  Negativfall: keiner (bekanntes, vorbestehendes Verhalten).
+
+- **TS-79.7 — Negativfall leeres Dropdown (AK 5, Regressionsschutz).**
+  Vorbedingung: `!(leer)` als Standard im Profil gespeichert.
+  Schritte: eine Stückliste ohne ein einziges gesetztes Komm.-Ziel öffnen.
+  Erwartung: Select2-Dropdown ist gesperrt (keine Werte), zeigt aber „Alle Ziele“ vorgewählt; der
+  Leerzustand-Hinweis ist sichtbar; Zurücksetzen funktioniert über Badge oder über den Reset-Knopf im
+  Leerzustand.
+  Negativfall: keiner (Absicherung eines Randfalls).
+
+- **TS-79.8 — Legacy-Wert case-insensitiv erkannt (AK 10, H8).**
+  Vorbedingung: gespeicherter bzw. aus `sessionStorage` wiederhergestellter Wert `!(LEER)` oder
+  `!(LEER),KA-02` liegt bereits vor.
+  Schritte: Stückliste mit diesem Wert öffnen.
+  Erwartung: Dropdown zeigt exklusiv „Alle Ziele“ markiert, kein zusätzliches Einzelziel-Chip — die
+  Vorbelegung wird case-insensitiv auf den exakten Options-Wert `!(leer)` abgebildet, statt still
+  verworfen zu werden.
+  Negativfall: keiner.
+
+- **TS-79.9 — Negativfall AKE, Stückliste (AK 4).**
+  Vorbedingung: Master `false` bzw. AKE-Instanz, Flachmodus.
+  Schritte: Stückliste öffnen.
+  Erwartung: kein Komm.-Ziel-Dropdown vorhanden (Spalte existiert im Flachmodus nicht), also auch
+  keine Option „Alle Ziele“ — unverändert zum bisherigen Verhalten.
+  Negativfall: keiner (Regressionsnachweis).
+
+- **TS-79.10 — Rückbau Freigabe-Kaskade (AK 12, 13).**
+  Vorbedingung: keine besondere.
+  Schritte: `/PickingLeitstand` öffnen **(Manual-UAT: Button-Sichtbarkeit)**; `CascadeReleasePreview`/
+  `CascadeRelease`-Routen direkt aufrufen (z. B. per Browser-Devtools).
+  Erwartung: kein „Alle Sub-FAs freigeben“-Button mehr in der Gruppen-Kopfzeile; die Routen liefern
+  404. `grep -rEn "CascadeRelease|SetReleaseForOrderNumber|CountReleasedByOrderNumber" IdealAkeWms IdealAkeWms.Tests`
+  liefert 0 Treffer.
+  Negativfall (Gegenprobe): die Fertigmeldungs-Kaskade „Alle Sub-FAs fertigmelden“
+  (`CascadeDonePreview`/`CascadeDone`) funktioniert unverändert — sie betrifft `IsDoneBde`, nicht
+  `IsReleasedForPicking`, und ist von diesem Rückbau **nicht** betroffen.
+
+- **TS-79.11 — Freigabe/Picking nur am HauptFA (AK 14).**
+  Vorbedingung: hierarchische Gruppe mit mehreren Sub-FAs, im Leitstand **und** in der FA-Liste.
+  Schritte: Gruppe aufklappen **(Manual-UAT)**.
+  Erwartung: nur die HauptFA-Zeile zeigt Freigabe-Button/-Formular, Prioritäts-Input, Bulk-Checkbox
+  und den interaktiven Stückliste-Link (`Picking/Bom`); Sub-FA-Zeilen zeigen keines davon. Ein
+  Anwender mit Vorbau-Zugriff sieht auf der Sub-FA-Zeile in der FA-Liste stattdessen weiterhin den
+  read-only `FaWorklist/Bom`-Link; ohne Vorbau-Zugriff bleibt die Zelle dort leer.
+  Negativfall: eines der genannten Bedienelemente ist an einer Sub-FA-Zeile sichtbar oder bedienbar
+  → Regression, sofort melden.
+
+- **TS-79.12 — Negativfall direkter Zugriff auf Sub-FA (AK 15, 16).**
+  Vorbedingung: bekannte Sub-FA-Id.
+  Schritte a: `GET /Picking/Bom/{sub-fa-id}` direkt aufrufen.
+  Erwartung a: **keine** Stückliste, sondern eine Weiterleitung auf `/Picking` mit sichtbarer
+  `WarningMessage` „Kommissionierung erfolgt nur am HauptFA {OrderNumber}.“.
+  Schritte b: `POST /PickingLeitstand/ToggleRelease` mit der Sub-FA-Id auslösen — einmal an einer
+  noch nicht freigegebenen, einmal an einer bereits freigegebenen Zeile.
+  Erwartung b: in **beiden** Fällen keine Zustandsänderung, sondern eine sichtbare `WarningMessage`
+  (Sperre wirkt in beide Richtungen).
+  Negativfall: derselbe Aufruf auf die zugehörige HauptFA-Id → funktioniert unverändert.
+
+- **TS-79.13 — BulkRelease gemischt, beide Richtungen (AK 17).**
+  Vorbedingung: eine Auswahl aus HauptFA- und Sub-FA-Ids derselben oder unterschiedlicher Gruppen.
+  Schritte a: gemischte Auswahl gemeinsam freigeben.
+  Erwartung a: nur die HauptFA-Ids werden freigegeben; die Sub-FA-Ids werden übersprungen und
+  sichtbar gemeldet, Text „Übersprungen (Sub-FA — Kommissionierung nur am HauptFA): <nummern>“ —
+  fällt in derselben Aktion zusätzlich ein `SkippedNoArticle`-Hinweis an, erscheinen beide Texte in
+  **einer** `WarningMessage`, durch „ · “ getrennt.
+  Schritte b (Gegenprobe): eine bereits freigegebene Sub-FA gemeinsam mit HauptFA-Ids
+  „zurücknehmen“ auswählen.
+  Erwartung b: die Sub-FA wird ebenfalls übersprungen und gemeldet (keine Rücknahme, keine stille
+  Verarbeitung).
+  Negativfall: eine Sub-FA-Id wird in der gemischten Auswahl trotzdem verarbeitet → Regression.
+
+- **TS-79.14 — Negativfall AKE, Freigabe (AK 18).**
+  Vorbedingung: Master `false` (AKE), eine normale FA-Id (jede Zeile ist dort ihre eigene
+  HauptFA-Zeile per Invariante).
+  Schritte: `BulkRelease`/`ToggleRelease` auf diese FA-Id auslösen.
+  Erwartung: funktioniert unverändert — AK 14-17 zeigen bei AKE keine Wirkung.
+  Negativfall: keiner (Regressionsnachweis).
+
+- **TS-79.15 — `IsHauptFa`/`IsSubFa`, Warteschlange strukturell gefiltert (AK 21, automatisiert).**
+  Vorbedingung: vier Fixtures — `SubOrderNumber == ""`, `Sub == Order`, `Sub != Order`, jeweils mit
+  `IsReleasedForPicking = true`.
+  Schritte: die vier Warteschlangen-Abfragen (`GetReleasedForPickingAsync`,
+  `GetReleasedForPickingByPickerAsync`, `GetReleasedForPickingCountAsync`,
+  `GetMaxPickingPriorityAsync`) gegen diese Fixtures ausführen.
+  Erwartung: alle vier liefern bzw. zählen ausschließlich die HauptFA-Zeilen (`""` und
+  `Sub==Order`), auch wenn die Sub-FA-Zeile freigegeben ist.
+  Negativfall: keiner (reiner Regressionsnachweis, automatisiert per InMemory-Test).
+
+- **TS-79.16 — Warteschlange bereinigt (einmaliger SQL-Lauf, NUR Testsystem, Deploy-Vorbedingung).**
+  Vorbedingung: im Testsystem eine Sub-FA mit `IsReleasedForPicking = 1` anlegen (oder eine
+  bestehende Altlast nutzen). Vorab folgende Zählung ausführen und das Ergebnis im Testprotokoll
+  notieren:
+  ```sql
+  SELECT COUNT(*)
+  FROM [dbo].[ProductionOrderPickingStatus] s
+  JOIN [dbo].[ProductionOrders] p ON p.Id = s.ProductionOrderId
+  WHERE NOT (p.SubOrderNumber = '' OR p.SubOrderNumber = p.OrderNumber)
+    AND s.IsReleasedForPicking = 1;
+  ```
+  Schritte: Kommissionierer-Warteschlange (`/Picking`) **vor** dem SQL-Lauf öffnen; danach den
+  korrigierenden Lauf ausführen:
+  ```sql
+  UPDATE s
+  SET s.IsReleasedForPicking = 0,
+      s.ModifiedAt = GETUTCDATE(),
+      s.ModifiedBy = 'Testsystem-Bereinigung kommissionierung-nur-hauptfa',
+      s.ModifiedByWindows = SYSTEM_USER
+  FROM [dbo].[ProductionOrderPickingStatus] s
+  JOIN [dbo].[ProductionOrders] p ON p.Id = s.ProductionOrderId
+  WHERE NOT (p.SubOrderNumber = '' OR p.SubOrderNumber = p.OrderNumber)
+    AND s.IsReleasedForPicking = 1;
+  ```
+  danach die Warteschlange erneut öffnen.
+  Erwartung: die Sub-FA erscheint in der Warteschlange **weder vor noch nach** dem Lauf (die
+  Warteschlangen-Abfragen filtern bereits strukturell über `.Where(ProductionOrder.IsHauptFa)`, siehe
+  TS-79.15); die Home-Kennzahl (`GetReleasedForPickingCountAsync`) zählt sie nicht mit. Der SQL-Lauf
+  räumt nur bestehende Testdaten auf — kein `SQL/XX`-Skript, **kein Produktivlauf**.
+  Negativfall: keiner — reine Datenbereinigung mit vorab dokumentierter Zählung.
+
+- **TS-79.17 — Warteschlangen-Gruppierung (Hinweis, kein Fehlerfall).**
+  Vorbedingung: Kommissionierer-Warteschlange mit mehreren HauptFAs.
+  Schritte: `/Picking` öffnen **(Manual-UAT)**.
+  Erwartung: die Warteschlange zeigt je HauptFA-Gruppe nur noch **eine** Zeile; Gruppen mit mehreren
+  Sub-FAs sind nicht mehr zu erwarten — **das ist erwartetes Verhalten, kein Fehler** (die
+  Zwei-Ebenen-Gruppierung der Warteschlange ist durch diese Spec funktional überflüssig geworden; ihr
+  eigener Rückbau ist eine separate, noch offene Backlog-Notiz „2026-09-25-picking-warteschlange-
+  gruppierung-rueckbau“, nicht Teil dieser Spec).
+  Negativfall: keiner (Hinweis, kein Testfall im eigentlichen Sinn).
+
+- **TS-79.18 — Unberührt: FaWorklist/Bom, Glas/Fremdbezug/Lackierung (AK 19, 20).**
+  Vorbedingung: Sub-FA mit gesetzten Glas-/Fremdbezug-/Lackierung-Flags, nie freigegeben.
+  Schritte: `FaWorklist/Bom` auf dieser Sub-FA-Zeile öffnen **(Manual-UAT)**; Glas/Fremdbezug/
+  Lackierung-Checkboxen bedienen.
+  Erwartung: die read-only Stückliste bleibt unverändert auf jeder Sub-FA-Zeile erreichbar; die
+  Checkboxen bleiben unabhängig vom Freigabe-Status bedienbar; die
+  `ProductionOrderPickingStatus`-Zeile der Sub-FA bleibt bestehen.
+  Negativfall: keiner (Regressionsnachweis).
+
+- **TS-79.19 — Hilfeseite (Dokumentations-Kriterium).**
+  Schritte: `/Help` öffnen, Abschnitte „Leitstand (Kommissionier-Freigabe)“ und „Kommissionierung“
+  (Stückliste, hierarchischer Modus) lesen **(Manual-UAT)**.
+  Erwartung: beide Abschnitte nennen „Freigabe und Stückliste nur am HauptFA“ bzw. die Schaltfläche
+  „Alle Ziele“ inkl. Profil-Eingabe `!(leer)`.
+  Negativfall: keiner (Dokumentationsnachweis).
+
+**Hinweis (Out-of-Scope, manuell zu beachten statt zu testen):** Andere Picking/Bom-Einstiege für
+eine Sub-FA (z. B. der Zeilen-Link in der Kommissionierer-Warteschlange, `Articles/Info`,
+`PartRequisitions`, FA-Dokument-Links, das Select2-Auswahlfeld für Produktionsaufträge) enden am
+selben Server-Guard (`PickingController.Bom`) mit der `WarningMessage` — kein Loch, nur ein
+zusätzlicher Klick bis zur Abweisung. Nicht Teil dieser Spec, kein eigenes Testszenario nötig.
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
+
 ---
 
-*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78)*
+*Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
+(v1.46.0, TS-79)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

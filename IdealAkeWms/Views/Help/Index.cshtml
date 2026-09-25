@@ -721,6 +721,22 @@
                     <dd>Eine Freigabe kann jederzeit zurueckgenommen werden. Der Auftrag verschwindet
                         aus der Kommissionierliste. Bereits kommissionierte Teile bleiben erhalten.</dd>
 
+                    <dt>Nur am HauptFA (IDEAL, seit v1.46.0)</dt>
+                    <dd>Freigabe, Prioritaets-Eingabe, Massenauswahl und die interaktive Stueckliste
+                        (<em>Stueckliste oeffnen</em>) sind nur an der HauptFA-Zeile verfuegbar &mdash;
+                        kommissioniert wird ausschliesslich am HauptFA, inklusive der kompletten
+                        Struktur. Sub-FA-Zeilen zeigen diese Bedienelemente nicht mehr. Ein direkter
+                        Aufruf (Freigabe-Umschalter oder Stueckliste) auf eine Sub-FA wird mit einer
+                        sichtbaren Meldung abgewiesen statt still verarbeitet zu werden. Bei der
+                        Massenauswahl werden Sub-FAs in einer gemischten Auswahl uebersprungen und als
+                        &bdquo;uebersprungen (Sub-FA)&ldquo; gemeldet &mdash; sowohl beim Freigeben als
+                        auch beim Zuruecknehmen. Am Standort AKE ist davon nichts sichtbar, da dort jede
+                        FA ihre eigene HauptFA ist. Die read-only Stueckliste (<em>FaWorklist</em>) fuer
+                        BDE-Referenz bleibt auf jeder Sub-FA-Zeile unveraendert erreichbar. Die vorher
+                        vorhandene Freigabe-Kaskade &bdquo;Alle Sub-FAs freigeben&ldquo; ist entfallen
+                        (siehe Aenderungen v1.38.0/v1.46.0) &mdash; die Fertigmeldungs-Kaskade
+                        &bdquo;Alle Sub-FAs fertigmelden&ldquo; ist davon nicht betroffen.</dd>
+
                     <dt>Automatisch erledigt bei Sage-Status verpackt/abgeholt (seit v1.26.0)</dt>
                     <dd>Meldet Sage einen FA als <em>verpackt</em> oder <em>abgeholt</em>, setzt
                         der Zusatzinfo-Sync ihn automatisch auf Komm-Erledigt &mdash; der FA
@@ -929,7 +945,29 @@
                     Die Spalte <em>Komm.-Ziel</em> filtert nach Kommissionier-Ziel;
                     <em>Sage-Pos.</em> zeigt die Original-Position, die <em>Pos.</em>-Spalte den
                     Strukturpfad. Die Spalte <em>Sage-Pos.</em> ist standardmaessig ausgeblendet und
-                    laesst sich ueber das Zahnrad (Spaltenauswahl) einblenden.
+                    laesst sich ueber das Zahnrad (Spaltenauswahl) einblenden. Seit v1.46.0 wird nur
+                    noch am HauptFA kommissioniert (siehe Abschnitt &bdquo;Leitstand&ldquo;).
+                </p>
+                <p class="mb-1">
+                    <strong>Kommissionierziel-Filter &bdquo;Alle Ziele&ldquo; (seit v1.46.0):</strong>
+                    Das Komm.-Ziel-Dropdown bietet als erste, eigene Option &bdquo;Alle Ziele (nur
+                    kommissionier-relevant)&ldquo; &mdash; blendet alle Positionen mit leerem
+                    Komm.-Ziel aus, unabhaengig davon, welche konkreten Ziele es gibt (auch ein spaeter
+                    neu angelegtes Ziel bleibt automatisch sichtbar). Die Auswahl schliesst sich mit
+                    einzelnen Zielen gegenseitig aus &mdash; waehlst du &bdquo;Alle Ziele&ldquo;, werden
+                    Einzelziele abgewaehlt und umgekehrt. Eine Baugruppen-Zeile ohne eigenes Ziel wird
+                    dabei ausgeblendet, auch wenn ihre Kinder sichtbar bleiben (kein Fehler &mdash; die
+                    Kinder stehen dann als Liste der zu holenden Teile ohne Elternzeile). Als Standard
+                    im Profil bzw. in der Benutzerverwaltung (Feld &bdquo;Standard-Filter
+                    Kommissionierziel&ldquo;) laesst sich &bdquo;Alle Ziele&ldquo; ueber den Wert
+                    <code>!(leer)</code> hinterlegen. Steht dort zusaetzlich noch ein Einzelziel (z. B.
+                    <code>!(leer),KA-02</code>), wird beim Speichern nur <code>!(leer)</code>
+                    uebernommen und ein Hinweis zeigt, dass Einzelziele verworfen wurden &mdash; eine
+                    reine Schreibweisen-Korrektur wie <code>!(LEER)</code> loest dagegen keinen Hinweis
+                    aus. Sind beim Klick auf &bdquo;Stueckliste drucken&ldquo; keine Positionen sichtbar,
+                    wird nicht gedruckt, sondern ein Hinweis &bdquo;Keine sichtbaren Positionen &ndash;
+                    nichts zu drucken.&ldquo; angezeigt. Im flachen Modus (AKE) existiert die Spalte
+                    <em>Komm.-Ziel</em> nicht, also auch keine Option &bdquo;Alle Ziele&ldquo;.
                 </p>
 
                 <h6 class="mt-3">Datenquelle</h6>
