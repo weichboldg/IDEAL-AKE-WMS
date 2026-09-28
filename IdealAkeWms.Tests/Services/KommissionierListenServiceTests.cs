@@ -160,9 +160,9 @@ public class KommissionierListenServiceTests
     }
 
     [Fact]
-    public void Summiert_NoKw_ReturnsEmpty_NoImplicitTotal()
+    public void Summiert_NoKw_IncludesAllHauptFa()
     {
-        // N2d: ohne KW-Bereich KEINE implizite Gesamtsumme.
+        // Antwort 4 (Spec 2026-09-25-kommissionierliste-summierung-pdf): ohne KW ALLE HauptFA — ersetzt N2d.
         var nodes = new List<FaHierarchyNode>
         {
             Node(100, subFa: 0, komm: "LAGER", artnr: "A", sollmenge: 3m),
@@ -171,8 +171,10 @@ public class KommissionierListenServiceTests
 
         var result = KommissionierListenService.AggregateSummiert(nodes, infos, null, kwRange: null, columnFilters: null, page: 1, pageSize: 100, paginate: true);
 
-        result.Rows.Should().BeEmpty();
-        result.TotalRowCount.Should().Be(0);
+        result.Rows.Should().ContainSingle();
+        result.Rows[0].SummeSollmenge.Should().Be(3m);
+        result.TotalRowCount.Should().Be(1);
+        result.TotalGroupCount.Should().Be(1);
     }
 
     [Fact]
@@ -208,5 +210,96 @@ public class KommissionierListenServiceTests
 
         result.Rows.Single().Artnr.Should().Be("ALPHA");
         result.TotalRowCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void Summiert_CarriesMatchcodeAndHauptlagerplatz_WithoutChangingKey()
+    {
+        var range = IsoWeekRange.Resolve("2026-W10", "2026-W10");
+        var n1 = Node(100, subFa: 0, komm: "LAGER", artnr: "A", sollmenge: 2m);
+        n1.Matchcode = "M1";
+        n1.Hauptlagerplatz = "L1";
+        var n2 = Node(100, subFa: 0, komm: "LAGER", artnr: "A", sollmenge: 5m);
+        n2.Matchcode = "M1";
+        n2.Hauptlagerplatz = "L1";
+        var nodes = new List<FaHierarchyNode> { n1, n2 };
+        var infos = new List<FaHierarchyOrderInfo> { Info(100, new DateTime(2026, 3, 4)) };
+
+        var result = KommissionierListenService.AggregateSummiert(nodes, infos, null, range, null, 1, 100, paginate: true);
+
+        var row = result.Rows.Single();
+        row.SummeSollmenge.Should().Be(7m);
+        row.Matchcode.Should().Be("M1");
+        row.Hauptlagerplatz.Should().Be("L1");
+    }
+
+    [Fact]
+    public void Summiert_GroupPaging_NeverSplitsHauptFa()
+    {
+        var nodes = new List<FaHierarchyNode>
+        {
+            Node(100, subFa: 0, komm: "LAGER", artnr: "A", sollmenge: 1m),
+            Node(100, subFa: 0, komm: "LAGER", artnr: "B", sollmenge: 1m),
+            Node(100, subFa: 0, komm: "LAGER", artnr: "C", sollmenge: 1m),
+            Node(200, subFa: 0, komm: "LAGER", artnr: "D", sollmenge: 1m),
+        };
+
+        var page1 = KommissionierListenService.AggregateSummiert(nodes, EmptyInfos(), null, kwRange: null, columnFilters: null, page: 1, pageSize: 1, paginate: true);
+
+        page1.Rows.Should().HaveCount(3);
+        page1.Rows.Select(r => r.HauptFA).Should().OnlyContain(h => h == 100);
+        page1.TotalGroupCount.Should().Be(2);
+        page1.TotalRowCount.Should().Be(4);
+
+        var page2 = KommissionierListenService.AggregateSummiert(nodes, EmptyInfos(), null, kwRange: null, columnFilters: null, page: 2, pageSize: 1, paginate: true);
+
+        page2.Rows.Should().ContainSingle();
+        page2.Rows[0].HauptFA.Should().Be(200);
+    }
+
+    [Fact]
+    public void Summiert_ColumnFilterOnMatchcode()
+    {
+        var n1 = Node(100, subFa: 0, komm: "LAGER", artnr: "A", sollmenge: 1m);
+        n1.Matchcode = "M1";
+        var n2 = Node(100, subFa: 0, komm: "LAGER", artnr: "B", sollmenge: 1m);
+        n2.Matchcode = "M2";
+        var nodes = new List<FaHierarchyNode> { n1, n2 };
+        var filters = new Dictionary<string, string> { ["matchcode"] = "M1" };
+
+        var result = KommissionierListenService.AggregateSummiert(nodes, EmptyInfos(), null, kwRange: null, columnFilters: filters, page: 1, pageSize: 100, paginate: true);
+
+        result.Rows.Should().ContainSingle();
+        result.Rows[0].Matchcode.Should().Be("M1");
+    }
+
+    [Fact]
+    public void BuildToggleQuery_KeepsSharedKeys_DropsSollmengeAndListOnly()
+    {
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString(
+            "?target=LAGER&kwVon=2026-W10&colf_artnr=A1&colf_sollmenge=5&colf_arbeitsbereich=X&page=3");
+
+        var query = KommissionierListenService.BuildToggleQuery(context.Request);
+
+        query.Should().Contain("target=LAGER");
+        query.Should().Contain("kwVon=2026-W10");
+        query.Should().Contain("colf_artnr=A1");
+        query.Should().NotContain("colf_sollmenge");
+        query.Should().NotContain("colf_arbeitsbereich");
+        query.Should().NotContain("page=3");
+
+        KommissionierListenService.BuildToggleQuery(null).Should().BeEmpty();
+
+        var emptyContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        KommissionierListenService.BuildToggleQuery(emptyContext.Request).Should().BeEmpty();
+
+        var specialContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        specialContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString(
+            "?target=" + Uri.EscapeDataString("A B&C"));
+        var specialQuery = KommissionierListenService.BuildToggleQuery(specialContext.Request);
+        specialQuery.Should().NotContain("A B&C"); // muss kodiert sein, nicht roh
+        var parsedBack = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(specialQuery);
+        parsedBack["target"].ToString().Should().Be("A B&C");
     }
 }

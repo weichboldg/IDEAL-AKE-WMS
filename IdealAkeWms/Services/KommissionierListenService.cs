@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 
 namespace IdealAkeWms.Services;
 
@@ -77,6 +79,8 @@ public class KommissionierListenService
             ["artnr"] = a => a.Artnr,
             ["kommissionieren"] = a => a.Kommissionieren,
             ["sollmenge"] = a => a.SummeSollmenge.ToString("N3", CultureInfo.GetCultureInfo("de-DE")),
+            ["matchcode"] = a => a.Matchcode,
+            ["hauptlagerplatz"] = a => a.Hauptlagerplatz,
         };
 
     /// <summary>
@@ -125,15 +129,19 @@ public class KommissionierListenService
     /// <summary>
     /// <b>Reine, DB-freie Aggregations-Mechanik der Summiert-Ansicht</b> (unit-testbar). Reihenfolge:
     /// <list type="number">
-    ///   <item><b>KW-Vorfilter (Pflicht):</b> Ohne KW-Bereich liefert die Methode ein leeres Ergebnis
-    ///     — es gibt <b>keine</b> implizite Gesamtsumme ueber alle HauptFA (Nachtrag AK N2d).</item>
-    ///   <item>Die KW waehlt die einzubeziehenden <c>HauptFA</c> ueber deren
+    ///   <item><b>KW-Vorfilter (optional):</b> Ohne KW-Bereich werden ALLE HauptFA einbezogen — keine
+    ///     implizite Einschraenkung mehr (Antwort 4, Spec 2026-09-25-kommissionierliste-summierung-pdf,
+    ///     ersetzt N2d).</item>
+    ///   <item>Ist eine KW gesetzt, waehlt sie die einzubeziehenden <c>HauptFA</c> ueber deren
     ///     <see cref="FaHierarchyOrderInfo.KO_Termin"/> (Konstruktions-Termin, unveraendert, Mo–So,
     ///     fan-out-frei).</item>
     ///   <item>Positionen mit gesetztem <c>Kommissionieren</c> (optional Ziel) innerhalb dieser
     ///     HauptFA-Menge — <b>unabhaengig von <c>SubFA</c></b> (Aenderung 1).</item>
-    ///   <item>Aggregation je <c>(HauptFA, Artnr, Kommissionieren)</c>, Summe nur <c>Sollmenge</c>.</item>
-    ///   <item>Server-Spaltenfilter auf der Aggregat-Projektion; Paging auf Aggregatzeilen-Ebene.</item>
+    ///   <item>Aggregation je <c>(HauptFA, Artnr, Kommissionieren)</c>, Summe nur <c>Sollmenge</c>;
+    ///     Matchcode/Hauptlagerplatz werden als Artikeleigenschaften (je Summenschluessel konstant)
+    ///     mitgefuehrt.</item>
+    ///   <item>Server-Spaltenfilter auf der Aggregat-Projektion; danach Gruppen-Paging je HauptFA
+    ///     (Muster <see cref="FaHierarchyListBuilder.Build"/>).</item>
     /// </list>
     /// </summary>
     public static FaHierarchyKommissionierSummiertResult AggregateSummiert(
@@ -148,21 +156,15 @@ public class KommissionierListenService
     {
         ArgumentNullException.ThrowIfNull(allNodes);
 
-        // (1) Ohne KW: keine implizite Gesamtsumme (N2d) — leeres Ergebnis.
-        if (kwRange is null)
-            return new FaHierarchyKommissionierSummiertResult();
-
-        // (2) KW waehlt die HauptFA ueber KO_Termin (fan-out-frei ueber die Kopf-Zeilen).
-        var includedHauptFas = IsoWeekRange.HauptFasInRange(
-            allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>(),
-            o => o.KO_Termin,
-            kwRange.Value);
+        // (1) KW waehlt die HauptFA optional ueber KO_Termin. null = keine Einschraenkung
+        //     (Antwort 4, Spec 2026-09-25-kommissionierliste-summierung-pdf — ersetzt N2d).
+        var includedHauptFas = kwRange is null
+            ? null
+            : IsoWeekRange.HauptFasInRange(
+                allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>(), o => o.KO_Termin, kwRange.Value);
 
         var predicate = BuildFlagPredicate(targetValue);
-
-        // (3) Positionen mit gesetztem Kommissionieren (+ Ziel) in der KW-HauptFA-Menge — unabhaengig
-        //     von SubFA (Aenderung 1).
-        var relevant = allNodes.Where(n => includedHauptFas.Contains(n.HauptFA) && predicate(n));
+        var relevant = allNodes.Where(n => (includedHauptFas is null || includedHauptFas.Contains(n.HauptFA)) && predicate(n));
 
         // (4) Aggregation je (HauptFA, Artnr, Ziel); Summe nur Sollmenge.
         var aggregates = relevant
@@ -176,7 +178,10 @@ public class KommissionierListenService
                 Artnr = g.Key.Artnr,
                 Kommissionieren = g.Key.Ziel,
                 SummeSollmenge = g.Sum(n => n.Sollmenge),
-                PositionCount = g.Count()
+                PositionCount = g.Count(),
+                // Artikeleigenschaften, je Summenschluessel konstant — Schluessel unveraendert.
+                Matchcode = g.First().Matchcode,
+                Hauptlagerplatz = g.First().Hauptlagerplatz,
             })
             .OrderBy(a => a.HauptFA)
             .ThenBy(a => a.Artnr, StringComparer.OrdinalIgnoreCase)
@@ -189,15 +194,44 @@ public class KommissionierListenService
         var filtered = aggregates.ToList();
         var totalRowCount = filtered.Count;
 
-        var pageRows = paginate
-            ? filtered.Skip(Math.Max(0, (page - 1) * pageSize)).Take(pageSize).ToList()
-            : filtered;
+        // (6) Gruppen-Paging: Seiteneinheit = HauptFA (Muster FaHierarchyListBuilder.Build), nie ueber Seiten getrennt.
+        var groups = filtered.GroupBy(a => a.HauptFA).ToList(); // Reihenfolge bleibt HauptFA-sortiert
+        var pageRows = (paginate
+                ? groups.Skip(Math.Max(0, (page - 1) * pageSize)).Take(pageSize)
+                : groups)
+            .SelectMany(g => g)
+            .ToList();
 
         return new FaHierarchyKommissionierSummiertResult
         {
             Rows = pageRows,
-            TotalRowCount = totalRowCount
+            TotalRowCount = totalRowCount,
+            TotalGroupCount = groups.Count
         };
+    }
+
+    /// <summary>Query-Keys, die der Umschalter Liste&lt;-&gt;Summiert mitnimmt (Spec 2026-09-25-kommissionierliste-
+    /// summierung-pdf, Abschnitt E): Ziel, KW (in der Liste wirkungslos, nur Rueckweg — Freigabe-Antwort 5) und die
+    /// Spaltenfilter der in BEIDEN Ansichten vorhandenen Spalten. Bewusst OHNE colf_sollmenge: dort Einzelmenge,
+    /// hier Summe — derselbe Wert wuerde still umgedeutet.</summary>
+    public static readonly string[] ToggleSharedQueryKeys =
+    [
+        "target", "kwVon", "kwBis",
+        "colf_hauptfa", "colf_artnr", "colf_matchcode", "colf_kommissionieren", "colf_hauptlagerplatz",
+    ];
+
+    /// <summary>Baut die Query fuer den Umschalter Liste&lt;-&gt;Summiert aus den geteilten Keys
+    /// (<see cref="ToggleSharedQueryKeys"/>). Liefert <c>""</c> ohne passende Query-Werte.</summary>
+    public static string BuildToggleQuery(HttpRequest? request)
+    {
+        if (request == null) return string.Empty;
+        var qb = new QueryBuilder();
+        foreach (var key in ToggleSharedQueryKeys)
+        {
+            var value = request.Query[key].ToString();
+            if (!string.IsNullOrEmpty(value)) qb.Add(key, value);
+        }
+        return qb.ToQueryString().ToString();
     }
 
     /// <summary>
