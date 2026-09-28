@@ -45,4 +45,8 @@ public class FaHierarchyKommissionierPrintViewModel
     /// <summary>Mindestens ein Spaltenfilter (bzw. Ziel-Filter) aktiv: das Dokument zeigt eine Teilmenge
     /// und muss das im Kopf ausweisen (AK 18) — am Bildschirm sieht man die Filterzeile, im Druck/PDF nicht.</summary>
     public bool IsFiltered { get; init; }
+
+    /// <summary>Zur Klickzeit aus dem DOM gelesene sichtbare Spalten (Query-Parameter <c>visibleColumns</c>,
+    /// PrintBom-Konvention) bzw. Server-Rueckfall auf die gespeicherte Praeferenz. Leer = alle Spalten sichtbar.</summary>
+    public IReadOnlyList<string> VisibleColumns { get; init; } = new List<string>();
 }

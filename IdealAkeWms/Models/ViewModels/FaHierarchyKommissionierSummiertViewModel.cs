@@ -55,7 +55,7 @@ public class FaHierarchyKommissionierSummiertResult
 /// Bildschirm-ViewModel der IDEAL-Kommissionier-<b>Summiert-Ansicht</b> (Teil 3, Nachtrag
 /// 2026-08-13). Flache Liste von <c>(HauptFA, Artnr, Ziel)</c>-Aggregatzeilen mit der
 /// <c>Sollmenge</c>-Summe, plus Filterkarte (KW-Zeitraum + Ziel-Dropdown) und Paging-State
-/// (Seiteneinheit = Aggregatzeile).
+/// (Gruppen-Paging: Seiteneinheit = HauptFA-Gruppe).
 /// </summary>
 public class FaHierarchyKommissionierSummiertViewModel
 {
@@ -82,4 +82,31 @@ public class FaHierarchyKommissionierSummiertViewModel
     /// ALLE HauptFA einbezogen, dieses Flag steuert nur, ob eine KW-Einschraenkung aktiv ist.
     /// </summary>
     public bool HasKwFilter { get; init; }
+
+    /// <summary>Edge beim Start gefunden (<see cref="Services.PdfRenderStatus"/>): nur dann erscheint der
+    /// PDF-Knopf an der Gruppen-Kopfzeile (analog <see cref="FaHierarchyKommissionierListViewModel.PdfVerfuegbar"/>).</summary>
+    public bool PdfVerfuegbar { get; init; }
+}
+
+/// <summary>
+/// Druck-ViewModel der IDEAL-Kommissionier-<b>Summiert-Ansicht</b>: dieselbe gefilterte Menge wie
+/// der Bildschirm, aber ohne Paging (ganze Menge, ein Ausdruck je <c>HauptFA</c>-Gruppe mit
+/// Seitenumbruch). Analog <see cref="FaHierarchyKommissionierPrintViewModel"/>.
+/// </summary>
+public class FaHierarchyKommissionierSummiertPrintViewModel
+{
+    public List<FaHierarchyKommissionierSummiertRowViewModel> Rows { get; init; } = new();
+
+    /// <summary>HauptFA -&gt; Barcode-PNG als Base64 (Code 128).</summary>
+    public IReadOnlyDictionary<int, string> Barcodes { get; init; } = new Dictionary<int, string>();
+
+    public string? SelectedTarget { get; init; }
+
+    /// <summary>Mindestens ein Spaltenfilter (bzw. Ziel-Filter) aktiv: das Dokument zeigt eine Teilmenge
+    /// und muss das im Kopf ausweisen — am Bildschirm sieht man die Filterzeile, im Druck/PDF nicht.</summary>
+    public bool IsFiltered { get; init; }
+
+    /// <summary>Zur Klickzeit aus dem DOM gelesene sichtbare Spalten (Query-Parameter <c>visibleColumns</c>,
+    /// PrintBom-Konvention) bzw. Server-Rueckfall auf die gespeicherte Praeferenz. Leer = alle Spalten sichtbar.</summary>
+    public IReadOnlyList<string> VisibleColumns { get; init; } = new List<string>();
 }
