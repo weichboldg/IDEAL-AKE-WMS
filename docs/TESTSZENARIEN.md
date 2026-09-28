@@ -8881,8 +8881,9 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheck
 **Bezug:** Spec `2026-09-25-kommissionierliste-summierung-pdf-spec` (FREIGABE-ANTWORT 5 vorrangig).
 
 **Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
-- Master **`ProduktionsauftragHierarchisch = true`** (IDEAL) — außer bei TS-80.16 (AKE-Regression),
-  dort unerheblich.
+- Master **`ProduktionsauftragHierarchisch = true`** (IDEAL) — außer bei TS-80.16
+  (Vormontage/Beschichtung-Regression, Teil 4/5) und TS-80.20 (AKE/Feature-Gate), dort jeweils
+  unerheblich.
 - Ein HauptFA mit mindestens zwei Positionen derselben Artikelnummer und desselben
   Kommissionierziels ist bekannt (für die Summierungs-Szenarien); für die Gruppen-Paging-Szenarien
   mehr HauptFA-Gruppen als die eingestellte Seitengröße.
@@ -8972,10 +8973,12 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   Erwartung: Kopf **und** Zellen der ausgeblendeten Spalte fehlen im Dokument — der Klick liest den
   Spaltenstand direkt aus dem DOM (`print-visible-columns.js`), nicht aus der ggf. noch nicht
   gespeicherten Präferenz.
-  Negativfall a (dokumentierte Grenze): Mittelklick, Strg-Klick oder „Link kopieren“ auf den
-  Drucken-/PDF-Link lösen **kein** Klick-Ereignis aus — in diesen Fällen greift stattdessen der
-  Server-Rückfall auf die zuletzt **gespeicherte** Präferenz, nicht der gerade sichtbare DOM-Stand.
-  Als bekannte, dokumentierte Grenze zu behandeln, kein Defekt dieser Etappe.
+  Negativfall a (dokumentierte Grenze): Mittelklick oder „Link kopieren“/„Link in neuem Tab öffnen“
+  über das Kontextmenü auf den Drucken-/PDF-Link lösen **kein** Klick-Ereignis aus (Strg-Klick und
+  Umschalt-Klick lösen sehr wohl ein Klick-Ereignis aus und lesen den DOM-Stand korrekt) — in den
+  genannten Fällen greift stattdessen der Server-Rückfall auf die zuletzt **gespeicherte** Präferenz,
+  nicht der gerade sichtbare DOM-Stand. Als bekannte, dokumentierte Grenze zu behandeln, kein Defekt
+  dieser Etappe.
   Negativfall b (dokumentierte Grenze, vorbestehend, betrifft auch die Liste): wird nach Umsortieren
   der Spalten ausgerechnet die erste physische Spalte ausgeblendet, kann die Gruppen-Kopfzeile
   verschwinden (`column-preferences.js` blendet `cells[idx]` auch in `colspan`-Zeilen aus). Bekannt,
@@ -9062,7 +9065,7 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   Vorbedingung: Teil 4 (Beschichtungsauftrag) und Teil 5 (Vormontage) unverändert nutzbar.
   Schritte: beide Ansichten öffnen, drucken **(Manual-UAT)**.
   Erwartung: unverändert funktionsfähig — diese Spec berührt `WarehousePickingController`/
-  `WarehousePickingPrintLayout` und die Vormontage-Druckwege nicht (siehe auch TS-80.18).
+  `WarehousePickingPrintLayout` und die Vormontage-Druckwege nicht (siehe auch TS-80.19).
   Negativfall: keiner (Regressionsnachweis).
 
 - **TS-80.17 — Skript-Sicherheit bei Sonderzeichen im Filterwert (AK 18).**
@@ -9094,6 +9097,26 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   keine neue Überladung erhalten hat.
   Erwartung: unverändertes Verhalten, keine neue Überladung, kein Verhaltenswechsel.
   Negativfall: keiner (reiner Regressionsnachweis).
+
+- **TS-80.20 — AKE/Feature-Gate (AK 4, Zugriffsschutz).**
+  Vorbedingung: AppSetting `FaHierarchyKommissionierlistenAktiv` **ungesetzt oder ungleich
+  `"true"`** (Default-aus, `RequireFaHierarchyKommissionierlistenAktivAttribute`); Anwender mit
+  Lager-Rolle (`RequireLagerProcessingAccess` würde sonst passieren).
+  Schritte: `_Layout.cshtml` an beiden Stellen (Dropdown-Item und Standalone-Nav-Link) prüfen; danach
+  die drei URLs `/FaHierarchyKommissionierListen/Summiert`, `/FaHierarchyKommissionierListen/PrintSummiert`
+  und `/FaHierarchyKommissionierListen/PdfSummiert/100` direkt aufrufen **(Manual-UAT)**.
+  Erwartung: Der Menüpunkt „Kommissionierlisten“ erscheint an **keiner** der beiden Stellen (beide
+  hinter `faKommListenAktiv` gegated). Alle drei direkten URLs werden vom Feature-Filter
+  (`RequireFaHierarchyKommissionierlistenAktivFilter`) abgefangen, **bevor** die Action läuft: da
+  `FaHierarchyKommissionierListenController` ein MVC-`Controller` ist (kein `[ApiController]`),
+  liefert der Filter **keine 404**, sondern `RedirectToActionResult("Index", "Home")` mit
+  `TempData["WarningMessage"] = "Das IDEAL-Kommissionierlisten-Modul ist deaktiviert."` — sichtbares
+  gelbes Banner auf der Startseite.
+  Negativfall (AK-4-Kopplung): AppSetting auf `"true"` setzen, aber der Anwender hat **keine**
+  `RequireLagerProcessingAccess`-Berechtigung → derselbe Redirect-Mechanismus greift bereits vorher
+  über den Rollen-Filter (kumulativ, beide Filter müssen passieren); der Kommissionierlisten-Menüpunkt
+  bleibt auch hier verborgen. Ein Anwender, der weder die Rolle noch das Feature freigeschaltet hat,
+  darf unter keiner Kombination auf die Summiert-/Print-/Pdf-Actions gelangen.
 
 Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
 

@@ -34,6 +34,17 @@
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
         <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            @* KW ist auf der Liste nur ein toter Pass-Through-Parameter (kein KW-Filter hier, siehe
+               Spec Abschnitt E) -- ohne diese Hidden-Inputs wuerde das Ziel-Dropdown ihn beim
+               Submit verlieren, und der Merker beim Zurueckwechseln zu "Summiert" waere weg. *@
+            @if (!string.IsNullOrEmpty(Context.Request.Query["kwVon"]))
+            {
+                <input type="hidden" name="kwVon" value="@Context.Request.Query["kwVon"]" />
+            }
+            @if (!string.IsNullOrEmpty(Context.Request.Query["kwBis"]))
+            {
+                <input type="hidden" name="kwBis" value="@Context.Request.Query["kwBis"]" />
+            }
             <div class="col-md-4">
                 <label class="form-label mb-0 small">Kommissionier-Ziel</label>
                 <select name="target" class="form-select form-select-sm" onchange="this.form.submit()">

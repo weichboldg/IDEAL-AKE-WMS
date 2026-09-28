@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Views;
@@ -68,6 +69,28 @@ public class KommissionierSpaltenKonsistenzTests
             $"ColumnDefinitions.{viewConfig.ViewKey}.Columns entsprechen (column-preferences.js reiht danach)");
 
         AssertSameSet(showColSet, expectedShowColSet, $"ShowCol(...) in {printFile}", "ColumnDefinitions minus \"hauptfa\"");
+    }
+
+    public static IEnumerable<object[]> ServiceColumnMapPairs()
+    {
+        yield return new object[] { KommissionierListenService.ColumnMap.Keys, ColumnDefinitions.FaHierarchyKommissionierListen, "KommissionierListenService.ColumnMap" };
+        yield return new object[] { KommissionierListenService.SummiertColumnMap.Keys, ColumnDefinitions.FaHierarchyKommissionierSummiert, "KommissionierListenService.SummiertColumnMap" };
+    }
+
+    /// <summary>
+    /// Fuenfte Quelle (Fix-Welle Final-Review, Ruling S6 M7): die Server-Spaltenfilter-Map muss
+    /// dieselbe Schluesselmenge tragen wie <see cref="ColumnDefinitions"/> — sonst filtert
+    /// <c>ColumnFilterHelper.Apply</c> stillschweigend nicht auf einer registrierten/sichtbaren Spalte.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(ServiceColumnMapPairs))]
+    public void ServiceColumnMap_HatDieselbenSpaltenschluesselWieColumnDefinitions(
+        IEnumerable<string> mapKeys, ViewConfig viewConfig, string mapLabel)
+    {
+        var mapSet = mapKeys.ToHashSet();
+        var definitionSet = viewConfig.Columns.Select(c => c.Key).ToHashSet();
+
+        AssertSameSet(mapSet, definitionSet, mapLabel, $"ColumnDefinitions.{viewConfig.ViewKey}");
     }
 
     private static void AssertSameSet(HashSet<string> actual, HashSet<string> expected, string actualLabel, string expectedLabel)
