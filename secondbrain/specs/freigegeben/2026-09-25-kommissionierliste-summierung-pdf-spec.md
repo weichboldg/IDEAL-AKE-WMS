@@ -2,13 +2,13 @@
 type: spec
 title: "IDEAL Kommissionierliste: Summierung je Artikel + Kommissionierziel, PDF nur gefiltert + nur sichtbare Spalten"
 slug: 2026-09-25-kommissionierliste-summierung-pdf-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-09-25
 updated: 2026-09-28
 source_backlog: "[[2026-09-23-kommissionierliste-summierung-pdf]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-09-28-kommissionierliste-summierung-pdf-umsetzung]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - "IdealAkeWms/Services/KommissionierListenService.cs `SummiertColumnMap` (Z. 73-80) — auf 6 Spalten erweitern (B2): `matchcode` und `hauptlagerplatz` ergaenzen, Getter identisch zu `ColumnMap` (Z. 58/60)."
   - "IdealAkeWms/Services/KommissionierListenService.cs `AggregateSummiert` (Z. 139-201) — Schritt (1) (Z. 151-153, fruehere KW-Pflicht `AK N2d`) UNBEDINGT entfernen (Antwort 4, nicht mehr abhaengig von einer Rueckfrage): ohne `kwRange` werden ALLE HauptFA einbezogen (`includedHauptFas = null` = keine Einschraenkung). Schritt (4)/(5) (Z. 167-201): Aggregat-Projektion um `Matchcode = g.First().Matchcode` und `Hauptlagerplatz = g.First().Hauptlagerplatz` ergaenzen (B2, Artikeleigenschaften sind je Summenschluessel konstant, aendert die Gruppierung nicht). Server-Spaltenfilter (Z. 187) bleibt VOR dem Paging; NEU danach Gruppen-Paging (SOLLTE-5, S1): erst `GroupBy(a => a.HauptFA)`, `TotalGroupCount` zaehlt Gruppen, `Skip/Take` auf GRUPPEN (Seiteneinheit = HauptFA, analog `FaHierarchyListBuilder.Build`), dann `SelectMany` zurueck zu einer flachen Zeilenliste fuer die Seite. `TotalRowCount` bleibt zusaetzlich als informative Zeilenzahl NACH Filter erhalten (bestehende Tests pruefen es)."
@@ -31,17 +31,18 @@ affected_code:
   - "docs/TESTSZENARIEN.md — neues Kapitel `TS-80` (Stand 2026-09-28 im Worktree: hoechstes Kapitel `TS-79`, [[2026-09-25-kommissionierung-nur-hauptfa-spec]] bereits Testbereit/v1.46.0 — Dev-Lauf verifiziert die Nummer erneut gegen den dann aktuellen Stand) + `secondbrain/tests/testszenarien-index.md`."
   - "IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs (voraussichtlich 1.47.0, Worktree-Stand 2026-09-28: 1.46.0 — Dev-Lauf verifiziert) + Views/Help/Changelog.cshtml (neuer Eintrag)."
   - "Out-of-Scope-Verweis (kein Umsetzungsgegenstand dieser Spec): [[2026-09-28-spaltenpraeferenz-speicherfehler-still]] — stilles Scheitern von `column-preferences.js` `saveSettings` (nur `console.warn`, Z. 312) als eigene Backlog-Notiz."
-open_questions:
-  - "KONFLIKT (neu, 2026-09-28): Antwort 4 verlangt, dass der Umschalter Liste<->Summiert `target`, KW UND die gemeinsamen Spaltenfilter mitnimmt. Am Code verifiziert: `FaHierarchyKommissionierListenController.Index` (Liste) hat GAR KEINEN KW-Parameter (`Index(string? target, int page, int? pageSize)`) — nur `Summiert` kennt `kwVon`/`kwBis`. Eine beim Wechsel Summiert->Liste gesetzte KW kann in der Liste nirgends wirken. Zwei Wege: (a) die Liste bekommt selbst einen optionalen KW-Filter (Scope-Zuwachs ueber das Gemeldete hinaus, aber fachlich ehrlich: KW wirkt dort auch), oder (b) KW wird beim Wechsel zur Liste nur als toter Pass-Through-Query-Parameter mitgefuehrt (kein Codeeingriff in `Index`, KW wird erst beim Zurueckwechseln zu `Summiert` wieder wirksam). *Einschaetzung:* (b) ist der kleinere, unangeforderte Diff und aendert das gemeldete Verhalten der Liste nicht — wird aber inkonsistent aussehen, falls ein Anwender die URL mit `kwVon`/`kwBis` in der Liste inspiziert und sich fragt, warum sie nichts filtert. Menschliche Entscheidung noetig, NICHT selbst entschieden."
+open_questions: []
+entschiedener_konflikt_2026_09_28:
+  - "KONFLIKT (neu, 2026-09-28) — ENTSCHIEDEN: Variante (b), siehe Freigabe-Antwort 5. Antwort 4 verlangt, dass der Umschalter Liste<->Summiert `target`, KW UND die gemeinsamen Spaltenfilter mitnimmt. Am Code verifiziert: `FaHierarchyKommissionierListenController.Index` (Liste) hat GAR KEINEN KW-Parameter (`Index(string? target, int page, int? pageSize)`) — nur `Summiert` kennt `kwVon`/`kwBis`. Eine beim Wechsel Summiert->Liste gesetzte KW kann in der Liste nirgends wirken. Zwei Wege: (a) die Liste bekommt selbst einen optionalen KW-Filter (Scope-Zuwachs ueber das Gemeldete hinaus, aber fachlich ehrlich: KW wirkt dort auch), oder (b) KW wird beim Wechsel zur Liste nur als toter Pass-Through-Query-Parameter mitgefuehrt (kein Codeeingriff in `Index`, KW wird erst beim Zurueckwechseln zu `Summiert` wieder wirksam). *Einschaetzung:* (b) ist der kleinere, unangeforderte Diff und aendert das gemeldete Verhalten der Liste nicht — wird aber inkonsistent aussehen, falls ein Anwender die URL mit `kwVon`/`kwBis` in der Liste inspiziert und sich fragt, warum sie nichts filtert. Menschliche Entscheidung noetig, NICHT selbst entschieden."
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Summiert wird Standard-Einstieg (Schluessel HauptFA/Artnr/Ziel unveraendert, plus Matchcode und Hauptlagerplatz als Anzeige). KW optional. Gruppen-Paging je HauptFA. PDF zeigt die beim Klick sichtbaren Spalten. Umschalter nimmt Ziel, KW (in der Liste wirkungslos) und gemeinsame Spaltenfilter mit, bewusst nicht den Mengenfilter. Einheiten-Pruefung vor der Abnahme durch den Menschen."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-28
 beantwortete_rueckfragen:
   - "1: Summierschluessel `(HauptFA, Artnr, Kommissionieren)` bestaetigt, keine Aenderung, Summe bleibt JE HauptFA (keine auftragsuebergreifende Sammelkommissionierung)."
   - "2: `Summiert` wird Standard-Einstieg (Menuepunkte zeigen kuenftig auf `/Summiert`), `Index`/Liste bleibt ueber den Umschalter erreichbar; kein Parameter-Sonderfall/Redirect."
@@ -975,3 +976,25 @@ Erweiterung, die Filterwerte in einen Script-Block legt.
 **Kein weiterer Widerspruch gefunden** zwischen den Entscheidungen B1/B2/B3/SOLLTE-5/SOLLTE-7
 untereinander oder mit dem Code — mit der einen genannten Ausnahme (KONFLIKT Rueckfrage 5, fehlender
 KW-Filter an der Liste), die als offene Rueckfrage gefuehrt wird statt still geloest.
+
+## FREIGABE-ANTWORT 5 (2026-09-28) — der KW-Konflikt
+
+**Variante (b): Die KW laeuft beim Umschalten als Parameter mit, die Liste ignoriert sie.** Der vorlaeufige
+Entwurf in Abschnitt E gilt damit verbindlich.
+
+**Korrektur der Vorgabe zu SOLLTE 7:** Die KW-Mitnahme war aus der Symmetrie-Begruendung von Antwort 4
+abgeleitet. Die traegt dafuer aber nicht: Antwort 4 verlangt nur, dass **ohne** KW beide Ansichten alle
+Auftraege zeigen — das ist erfuellt. Fuer die KW **selbst** gibt es keine Symmetrie herzustellen, weil
+die Liste nie eine KW hatte. Die Mitnahme dient allein dem Rueckweg: Wer von der Summenansicht zur Liste
+und zurueck wechselt, findet seine KW wieder.
+
+**Keine KW-Filterung fuer die Liste:** nicht angefordert, und sie waere neuer Umfang mit einer eigenen
+Frage — nach welchem Termin filtert sie? Zeigt sich im Betrieb Bedarf, eigener Punkt.
+
+**Mengenfilter bewusst NICHT mitgenommen — bestaetigt.** Derselbe Schluessel `sollmenge` filtert in der
+Liste die Einzelmenge, in der Summenansicht die Summe. Ein mitgenommenes `>10` hiesse in der einen Ansicht
+"Positionen ueber 10", in der anderen "Summen ueber 10" — ein stilles Umdeuten desselben Werts, genau das,
+was sonst ueberall verhindert wird.
+
+**Damit sind alle Rueckfragen beantwortet; die Spec ist freigegeben.** Umsetzung erst, wenn die Abnahme des
+Buendels begonnen hat — ihre Grundlage, die Summenansicht, wird dort mitgeprueft.
