@@ -9,6 +9,48 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.47.0</strong> <span class="text-white-50 ms-2">28.09.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL Kommissionierliste: Summiert als Standard, Druck/PDF nur sichtbare Spalten</h6>
+                <p class="text-muted mb-2"><em>Wirkt nur am Standort IDEAL (FA-Hierarchie aktiv). Am
+                    Standort AKE ändert sich nichts.</em></p>
+                <ul>
+                    <li><strong>Summiert ist jetzt der Einstieg:</strong> Kommissionierlisten öffnen
+                        beim Klick auf den Menüpunkt jetzt direkt in der <strong>summierten
+                        Ansicht</strong> &ndash; eine Zeile je Artikelnummer und Kommissionierziel statt
+                        mehrerer Einzelpositionen. Die bisherige Einzelpositionen-Liste bleibt über den
+                        Umschalter „Liste“ erreichbar.</li>
+                    <li><strong>Kalenderwoche jetzt optional:</strong> Ohne KW-Eingabe zeigt die
+                        summierte Ansicht alle HauptFAs statt des früheren Hinweistexts „Bitte KW
+                        eingeben“. Mit KW-Eingabe filtert sie wie bisher.</li>
+                    <li><strong>Matchcode + Hauptlagerplatz in der Summe:</strong> Die summierte
+                        Ansicht zeigt jetzt dieselben Zusatzspalten wie die Liste.</li>
+                    <li><strong>Gruppen je HauptFA:</strong> Die summierte Ansicht wird &ndash; wie die
+                        Liste &ndash; nach HauptFA gruppiert angezeigt und seitenweise geblättert; keine
+                        HauptFA-Gruppe reißt dabei über zwei Seiten, weder am Bildschirm noch im
+                        seitenweisen Ausdruck.</li>
+                    <li><strong>Drucken/PDF zeigen genau die sichtbaren Spalten:</strong> Blendest du
+                        über das Zahnrad eine Spalte aus und druckst danach, fehlt sie jetzt auch im
+                        Ausdruck &ndash; unabhängig davon, ob die Änderung schon gespeichert wurde. Ohne
+                        vorherigen Klick auf der Seite (z. B. eine direkt aufgerufene Druck-URL) greift
+                        weiterhin die zuletzt gespeicherte Spalten-Auswahl.</li>
+                    <li><strong>Eigener Druck/PDF für die Summe:</strong> Die summierte Ansicht hat
+                        jetzt einen eigenen Druck/PDF-Weg (Aggregatzeilen statt Einzelpositionen), im
+                        Dokumentkopf sichtbar gekennzeichnet mit dem Hinweis „Summierte Ansicht“.</li>
+                    <li><strong>Umschalter Liste↔Summiert nimmt Filter mit:</strong> Beim Wechsel
+                        bleiben Kommissionier-Ziel, Kalenderwoche und die gemeinsamen Spaltenfilter
+                        (HauptFA, Artikelnummer, Matchcode, Kommissionierziel, Hauptlagerplatz) erhalten
+                        &ndash; nur der Mengenfilter (Sollmenge) wird bewusst nicht mitgenommen, weil er
+                        in der Liste die Einzelmenge, in der Summe die Gesamtmenge meint. Die
+                        Kalenderwoche wirkt in der Liste weiterhin nicht &ndash; sie läuft dort nur als
+                        Merker mit, bis wieder zur summierten Ansicht gewechselt wird.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.46.0</strong> <span class="text-white-50 ms-2">25.09.2026</span>
             </div>
             <div class="card-body">
