@@ -261,5 +261,10 @@ public class FaHierarchyKommissionierListenControllerTests
         redirect.RouteValues.Should().ContainKey("kwVon").WhoseValue.Should().Be("kein-gueltiges-format");
         redirect.RouteValues.Should().ContainKey("kwBis").WhoseValue.Should().Be("auch-nicht");
         fx.Controller.TempData["WarningMessage"].Should().Be(PdfRenderException.FailedMessage);
+
+        // View-Name-Pin: ein Tippfehler hier wuerde beim echten Rendern eine InvalidOperationException
+        // werfen, die PdfRenderException-Fallback faengt nur Fehler des Edge-Renderers ab.
+        fx.ViewRenderer.Verify(v => v.RenderToStringAsync(
+            It.IsAny<ControllerContext>(), "PrintSummiert", It.IsAny<object>()), Times.Once);
     }
 }
