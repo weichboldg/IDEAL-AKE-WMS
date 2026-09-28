@@ -1224,3 +1224,24 @@ Benutzer-Standardfilter (bis 200 Zeichen, admin-editierbar für andere Benutzer)
 einfache Anführungszeichen — ein Apostroph (`KA'02`) brach den Init-Handler, ein präparierter Wert wäre
 ausgeführt worden (Stored XSS). **Muster:** `@Html.Raw(System.Text.Json.JsonSerializer.Serialize(wert ?? ""))`
 ohne umgebende Quotes. Offene Restfundstelle: [[2026-09-25-js-escaping-locationtransfer]].
+
+## 18. IDEAL — Kommissionierliste summiert (v1.47.0)
+
+### `FaHierarchyNode` hat KEIN Mengeneinheit-Feld — „nur gleiche Einheiten summieren“ ist nicht prüfbar
+Die Summiert-Ansicht der Kommissionierlisten (`KommissionierListenService.AggregateSummiert`) summiert
+`Sollmenge` je `(HauptFA, Artnr, Kommissionieren)`. `FaHierarchyNode` — Projektion der IDEAL-Sage-View
+**`vw_IDEAL-AKE_Kommissionierung_FAListe`** (`FaHierarchyNode.cs`, `FaHierarchySyncService.cs`) — trägt
+**keine** Einheit; `Sollmenge` ist eine nackte `decimal`. **Nicht verwechseln:** `KHKPpsRessourcenPositionen`
+ist die **AKE**-Stücklistenquelle (`SageImportService`, `SQL/AgentJobs/02_Import_Artikel.sql`), nicht die
+IDEAL-Quelle — die ursprüngliche Rückfrage in [[2026-09-25-kommissionierliste-summierung-pdf-spec]] zielte
+darauf und wurde korrigiert.
+**Warum trotzdem keine Einheiten-Prüfung gebaut ist:** Die Mengeneinheit ist in Sage eine
+**Artikeleigenschaft** (`KHKArtikel.Lagermengeneinheit`, im WMS `Article.Unit`), und der Summierschlüssel
+enthält die Artikelnummer — zwei Zeilen desselben Schlüssels sind derselbe Artikel mit derselben Einheit.
+Das gilt **nur**, solange die Positionstabelle hinter der View keine eigene, vom Artikel abweichende
+Positionseinheit führt. **Belegpflicht vor der Abnahme (TS-80.1):** auf der Sage-DB IDEAL
+`EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe'` (welche Tabelle liefert `Sollmenge`?) und
+`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '<Positionstabelle>' AND COLUMN_NAME
+LIKE '%einheit%'`. Kein Treffer ⇒ strukturell erledigt. Treffer ⇒ **melden, nicht still mitlösen** — die
+Spalte gehört dann in den Summierschlüssel (eigener Nacharbeitspunkt). Bis zum Beleg gilt dieser Eintrag
+unter dieser Bedingung. Das Risiko ist nicht neu: dieselbe Summierung besteht seit v1.31.0.

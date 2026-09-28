@@ -953,6 +953,9 @@ spezifischen Regeln — **nicht** identisch zu Teil 5 uebernehmen):
 - N2d. Ohne KW-Eingabe zeigt die Ansicht ein definiertes Verhalten (z. B. Hinweistext „Kalenderwoche
   eingeben" statt einer ungefilterten Gesamtsumme) — es gibt **keine** implizite Gesamtsumme ueber
   alle `HauptFA` hinweg.
+  > [!warning] **Überholt (2026-09-28):** N2d gilt nicht mehr. Seit [[2026-09-25-kommissionierliste-summierung-pdf-spec]]
+  > (Antwort 4, v1.47.0) zeigt die Summiert-Ansicht **ohne** KW alle HauptFA (Summe je HauptFA, keine
+  > auftragsübergreifende Gesamtsumme); die KW ist nur noch optionaler Zusatzfilter.
 - N2e. Zugriff nur mit `RequireLagerProcessingAccessAttribute` **und** aktivem Toggle
   `FaHierarchyKommissionierlistenAktiv`; identisches Verhalten wie bei `Index`/`Print` bei fehlender
   Rolle/inaktivem Toggle.
@@ -981,6 +984,7 @@ Neue Faelle fuer `docs/TESTSZENARIEN.md`, Kapitel „IDEAL Teil 3 — Kommission
 - Summiert-Ansicht: `HauptFA` ausserhalb der gewaehlten KW (`KO_Termin`) fehlt vollstaendig; `HauptFA`
   innerhalb der KW ist vollstaendig enthalten (N2c).
 - Summiert-Ansicht ohne KW-Eingabe zeigt Hinweistext statt Gesamtsumme (N2d).
+  *(Überholt 2026-09-28 durch [[2026-09-25-kommissionierliste-summierung-pdf-spec]]: ohne KW alle HauptFA.)*
 - **Manuell am IDEAL-Testsystem:** Mengenabgleich der Summiert-Ansicht gegen eine bekannte
   Baugruppe/Bestandteile-Konstellation (Caveat aus Aenderung 1) — bestaetigt, dass Doppel-Erfassung
   in Sage (Baugruppe UND Bestandteile mit `Kommissionieren`) korrekt beide Vorgaenge abbildet und
