@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL Kommissionierliste: Summierung je Artikel + Kommissionierziel, PDF nur gefiltert + nur sichtbare Spalten"
 slug: 2026-09-25-kommissionierliste-summierung-pdf-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-25
 updated: 2026-09-28
 source_backlog: "[[2026-09-23-kommissionierliste-summierung-pdf]]"
@@ -637,8 +637,8 @@ Dev-Lauf prüft die Nummer erneut gegen den dann aktuellen Stand). Skizze der Sz
 - **Service: nein.** Kein Service-seitiger Code betroffen (nur Versions-Bump in `AppVersion.cs` laut
   Checkliste).
 - **Migration: nein.** Kein Schema-Impact (siehe Migrations-/SQL-Auswirkungen).
-- **Betriebs-Vorbedingung — Einheit-Prüfschritt VOR der Abnahme (B3, nicht blockierend für den
-  Dev-Lauf, aber Bedingung für `Testbereit`→Abnahme):** Auf der Sage-DB IDEAL
+- **Betriebs-Vorbedingung — Einheit-Prüfschritt VOR der Abnahme (B3, TS-80.1, nicht blockierend für
+  den Dev-Lauf, aber Bedingung für die ACCEPTANCE nach `Testbereit`):** Auf der Sage-DB IDEAL
   `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe'` und anschließend
   `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '<dort gefundene
   Positionstabelle>' AND COLUMN_NAME LIKE '%einheit%'` ausführen. Kein Treffer: Fallstrick-Eintrag
@@ -998,3 +998,164 @@ was sonst ueberall verhindert wird.
 
 **Damit sind alle Rueckfragen beantwortet; die Spec ist freigegeben.** Umsetzung erst, wenn die Abnahme des
 Buendels begonnen hat — ihre Grundlage, die Summenansicht, wird dort mitgeprueft.
+
+## QA-Nachweis (2026-09-28)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`,
+geprüfter Bereich dieser Spec: Commits `323120d8..6a043456` (Basis `4a8cdb95`). Ledger:
+`.superpowers/sdd/2026-09-28-kommissionierliste-summierung-pdf/progress.md` (Rulings S1–S6, Final
+Review: 0 Critical, 0 Important, 7 Minor — alle adressiert oder bewusst zurückgestellt, siehe unten).
+
+**Build:**
+```
+dotnet build IdealAkeWms.slnx
+→ Der Buildvorgang wurde erfolgreich ausgeführt. 12 Warnung(en), 0 Fehler.
+```
+
+**Tests:**
+```
+dotnet test IdealAkeWms.Tests
+→ Bestanden!  Fehler: 0, erfolgreich: 1435, übersprungen: 1, gesamt: 1436
+
+dotnet test IDEALAKEWMSService.Tests
+→ Bestanden!  Fehler: 0, erfolgreich: 268, übersprungen: 0, gesamt: 268
+```
+(Der eine übersprungene Test ist ein vorbestehender `[Skip]`-Integrationstest, unabhängig von dieser
+Spec.)
+
+**Harte Prüfungen (Befund):**
+- `git diff 4a8cdb95..HEAD -- IdealAkeWms.Tests`: bestehende Tests unverändert bis auf **einen**
+  umgekehrten Test (`Summiert_NoKw_ReturnsEmpty_NoImplicitTotal` → `Summiert_NoKw_IncludesAllHauptFa`,
+  gleiches Fixture, neue Assertion, Ruling S1) und einen Doc-Kommentar in der Klassen-Summary
+  („ohne KW kein Ergebnis" → „ohne KW alle HauptFA"). Alle übrigen Diffs im Testprojekt sind
+  ausschließlich neue Dateien/neue Testmethoden.
+- `BuildFlagPredicate`: keine `+`/`-`-Zeile im Diff, nur unveränderte Kontextzeilen — unberührt (AK 20
+  sinngemäß, Regressionsschutz für die Vorgänger-Spec).
+- `WarehousePickingPrintLayout.cs`: `git diff --stat 4a8cdb95..HEAD` listet die Datei nicht — unberührt
+  (AK 20).
+- `grep -rn "Html.Raw" IdealAkeWms/Views/FaHierarchyKommissionierListen` → 0 Treffer (AK 18).
+- Beide `AppVersion.cs` (Web + Service): `1.47.0`.
+- `KommissionierListenService.ToggleSharedQueryKeys` → `target, kwVon, kwBis, colf_hauptfa, colf_artnr,
+  colf_matchcode, colf_kommissionieren, colf_hauptlagerplatz` — kein `colf_sollmenge` (Abschnitt E).
+- `Views/Shared/_Layout.cshtml`: beide Kommissionierlisten-Links (`Zeile 184`, `Zeile 203-204`) zeigen
+  auf `asp-action="Summiert"`.
+- `PdfSummiert`-Fehlerpfad: `RedirectToAction(nameof(Summiert), new { target, kwVon, kwBis })` — genau
+  `target`/`kwVon`/`kwBis`, bewusst ohne `colf_*` (AK 16, Ruling S6/M6: nicht nachgezogen, ist laut
+  Ledger korrekt so).
+- `Index.cshtml`: versteckte `kwVon`/`kwBis`-Inputs im Ziel-Formular der Liste (Fix-Welle Ruling S6/M1,
+  damit der dokumentierte KW-Merker beim Umschalten tatsächlich stimmt).
+
+**AK 1–20 gegen Code/Tests geprüft:**
+
+| AK | Status | Beleg |
+|---|---|---|
+| 1 | automatisiert | `Summiert_SumsSollmenge_PerHauptFaArtnrZiel` u. a. (unverändert grün) |
+| 2 | automatisiert | bestehende Falle-1-Tests unverändert grün |
+| 3 | automatisiert | bestehende Falle-3-Tests unverändert grün |
+| 4 | automatisiert + Manual-UAT | `_Layout.cshtml` beide Stellen `asp-action="Summiert"` (Code); Menü-Klickpfad selbst ist DOM/Manual-UAT |
+| 5 | automatisiert | `BuildToggleQuery_KeepsSharedKeys_DropsSollmengeAndListOnly` |
+| 6 | Manual-UAT | DOM-Timing (Spalte ausblenden + < 1,5 s drucken) ist nicht sinnvoll unit-testbar |
+| 7 | automatisiert | `Print_WithoutParam_FallsBackToSavedPref`, `Print_WithoutParam_LockedColumnsNeverHidden` |
+| 8 | automatisiert | `Print_WithoutParam_NoPref_ReturnsEmpty`, `Print_WithoutParam_NoUser_ReturnsEmpty` |
+| 9 | Manual-UAT | Druck-/PDF-Rendering (Banner „Summierte Ansicht") ist visuelle Ausgabe |
+| 10 | Manual-UAT | Banner-Kombination ist visuelle Ausgabe |
+| 11 | automatisiert (Regression) | bestehender Filter-Durchschlag-Mechanismus unverändert (kein Diff an `Print`/`Pdf`-Filterlogik) |
+| 12 | automatisiert | `GetByViewKey_FaHierarchyKommissionierSummiert_HasSixColumns` |
+| 13 | automatisiert | `Summiert_NoKw_IncludesAllHauptFa` |
+| 14 | automatisiert (Doku) | `fallstricke.md` Eintrag „`FaHierarchyNode` hat KEIN Mengeneinheit-Feld" mit korrigierter Quelle |
+| 15 | automatisiert | `Summiert_GroupPaging_NeverSplitsHauptFa` |
+| 16 | automatisiert | `PdfSummiert_RenderFails_RedirectsToSummiertWithParams` |
+| 17 | automatisiert | `KommissionierSpaltenKonsistenzTests` (Vier-Quellen-Drift-Guard, Gegenprobe laut Ledger rot belegt) |
+| 18 | automatisiert (statisch) | `grep -rn "Html.Raw"` → 0 Treffer; echte XSS-Probe im Browser ist Manual-UAT |
+| 19 | automatisiert | `Summiert_CarriesMatchcodeAndHauptlagerplatz_WithoutChangingKey` |
+| 20 | automatisiert (Diff-Nachweis) | `BuildFlagPredicate`/`WarehousePickingPrintLayout.cs` nicht im Diff |
+
+**Reine Manual-UAT-Anteile** (DOM/Timing, Druck-/PDF-Renderausgabe, Menüklick, Banner, Feature-Gate-
+Redirect, Sage-DB-Abfrage): AK 4 (Klickpfad), 6, 9, 10, 18 (Browser-Probe), plus TS-80.1
+(Einheiten-Prüfschritt, Sage-DB IDEAL) und TS-80.20 (Feature-Gate).
+
+**Abweichungen/Entscheidungen aus dem Ledger, hiermit QA-seitig bestätigt:**
+- S1: Umkehr-Test behält sein Fixture unverändert — bestätigt, siehe Diff-Beleg oben.
+- S2: TS-80.1 = Einheiten-Prüfschritt (nicht TS-80.16 wie die ursprüngliche Spec-Skizze) — auf
+  ausdrücklichen Auftrag des Menschen; `docs/TESTSZENARIEN.md` und der Deploy-Abschnitt dieser Spec
+  sind entsprechend nachgezogen.
+- S5: „Umsetzung erst, wenn die Abnahme des Bündels begonnen hat" (FREIGABE-ANTWORT 5) — vom Menschen
+  am 2026-09-28 ausdrücklich per Dev-Lauf-Auftrag angestoßen, als erfüllt gewertet.
+- S6: versteckte KW-Inputs im Listen-Formular sind Code (nicht nur Doku), `PdfSummiert`-Fehlerpfad
+  bewusst ohne `colf_*` (AK 16 verlangt exakt `target`/`kwVon`/`kwBis`) — beides am Code verifiziert.
+- Final-Review-Minor-Funde (7, davon 6 in der Fix-Welle `e447a12c..6a043456` adressiert, 1 als
+  vorbestehende/dokumentierte Grenze in TS-80.7/TS-80.8 festgehalten): keiner davon ist Critical/
+  Important, keiner blockiert `Testbereit`.
+
+**Brain-Vollständigkeit (Hauptcheckout) geprüft:** `secondbrain/specs/freigegeben/2026-07-29-standort-
+ideal-teil-3-spec.md` (N2d-Vermerk), `secondbrain/architektur/fallstricke.md` §18 (Mengeneinheit,
+korrigierte Quelle `vw_IDEAL-AKE_Kommissionierung_FAListe`), `secondbrain/feature-map.md` (v1.47.0-
+Abschnitt), `secondbrain/changelog/2026-09-28-v1-47-0-kommissionierliste-summierung-pdf.md`,
+Backlog-Notizen `2026-09-28-gruppenkopf-verschwindet-bei-spaltenumsortierung.md` und
+`2026-09-28-spaltenpraeferenz-speicherfehler-still.md` — alle vorhanden. `docs/TESTSZENARIEN.md`
+Kapitel TS-80 vollständig (20 Szenarien, TS-80.1 = Einheiten-Prüfschritt), `secondbrain/tests/
+testszenarien-index.md` um die TS-80-Zeile ergänzt.
+
+**Ergebnis: Build grün, 1435+268 Tests grün, alle harten Prüfungen bestanden, AK 1–20 abgedeckt
+(automatisiert oder als Manual-UAT ausgewiesen) → `status: Testbereit`.**
+
+## Manueller Test-Checkliste (Schranke 2, aus TS-80 abgeleitet)
+
+Ausführbar ohne Rückfragen auf dem IDEAL-Testsystem. Schritt 1 **zuerst**, unabhängig von der Web-App.
+
+1. **Einheiten-Prüfschritt (TS-80.1, Vorbedingung der Abnahme, B3):** Auf der Sage-DB **IDEAL**
+   `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe'` ausführen, die dort gelesene
+   Positionstabelle ermitteln; anschließend `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE
+   TABLE_NAME = '<Positionstabelle>' AND COLUMN_NAME LIKE '%einheit%'`. **Kein Treffer erwartet** —
+   bestätigt Falle 2 als strukturell erledigt. Ein Treffer: sofort melden, nicht weitermachen, Rest der
+   Checkliste zurückstellen.
+2. **Standard-Einstieg (TS-80.5):** Menüpunkt „Kommissionierlisten" an beiden Stellen (Dropdown-Item
+   und eigener Nav-Link) öffnen → beide führen direkt auf `/FaHierarchyKommissionierListen/Summiert`,
+   ohne Parameter.
+3. **Summierung Grundfall (TS-80.2):** Eine HauptFA mit derselben Artikelnummer auf zwei Positionen
+   desselben Kommissionierziels aufrufen → Summiert-Ansicht zeigt eine Zeile mit der Summe; über den
+   Umschalter „Liste" wechseln → dort weiterhin zwei Einzelpositionen.
+4. **Falle 1 (TS-80.3):** Denselben Artikel am selben HauptFA mit zwei unterschiedlichen
+   Kommissionierzielen prüfen → zwei getrennte Aggregatzeilen.
+5. **Falle 3 (TS-80.4):** Zwei unterschiedliche Artikelnummern mit identischem Matchcode prüfen → zwei
+   getrennte Aggregatzeilen; der Matchcode erscheint auf beiden als Anzeigespalte.
+6. **Matchcode/Hauptlagerplatz sichtbar:** In der Summiert-Ansicht sind `Matchcode` und
+   `Hauptlagerplatz` als Spalten vorhanden (Bildschirm, Druck, PDF).
+7. **KW optional (TS-80.12):** Summiert-Ansicht ohne KW-Eingabe öffnen → Summe über alle HauptFA
+   (kein „Bitte KW eingeben"-Hinweis mehr); danach eine KW eingeben → filtert wie bisher.
+8. **Umschalter nimmt Filter mit (TS-80.6):** In der Liste `target` + Spaltenfilter auf `artnr` und
+   `hauptlagerplatz` setzen, zusätzlich einen Filter auf `arbeitsbereich` (listen-exklusiv) und auf
+   `sollmenge`, zu „Summiert" wechseln → `target`/`artnr`/`hauptlagerplatz` bleiben aktiv,
+   `arbeitsbereich`- und `sollmenge`-Filter sind weg (kein Fehler). Zusatzprobe: in „Summiert" eine KW
+   setzen, zu „Liste" wechseln (KW wirkt dort nicht, bleibt aber in der URL), zurück zu „Summiert"
+   wechseln → KW wieder aktiv.
+9. **Druck-Spalten aus dem DOM (TS-80.7):** Über das Zahnrad eine nicht gesperrte Spalte ausblenden und
+   **innerhalb von 1,5 Sekunden** auf „Drucken"/„PDF" klicken → die Spalte fehlt im Dokument (Kopf und
+   Zellen).
+10. **Druck ohne Präferenz (TS-80.8):** Als Anwender ohne gespeicherte Spalten-Präferenz die Druck-/
+    PDF-URL direkt aufrufen (kein vorheriger Klick) → alle Spalten erscheinen.
+11. **Druck mit gespeicherter Präferenz (TS-80.9):** Als Anwender mit gespeicherter Präferenz (mind.
+    eine ausgeblendete, nicht gesperrte Spalte) dieselbe URL direkt aufrufen → genau die dort sichtbaren
+    Spalten erscheinen, gesperrte Spalten bleiben immer sichtbar.
+12. **Filter-Durchschlag Regression (TS-80.10):** Spaltenfilter + Ziel-Filter in der Liste aktivieren,
+    drucken → nur gefilterte Zeilen, Banner „Gefilterte Ansicht" mit Ziel-Text.
+13. **PDF Summiert + Banner-Kombination (TS-80.11):** Druck/PDF der Summiert-Ansicht ohne Filter →
+    Aggregatzeilen, Banner „Summierte Ansicht"; mit zusätzlichem Filter → beide Banner nebeneinander.
+14. **Gruppen-Paging (TS-80.13):** Mit mehr HauptFA-Gruppen als der Seitengröße durch die Summiert-
+    Ansicht blättern → keine HauptFA-Gruppe reißt über zwei Seiten (Bildschirm und Ausdruck).
+15. **PdfSummiert-Fehler-Rückweg (TS-80.14):** PDF-Erzeugung künstlich scheitern lassen (z. B. Edge auf
+    dem Web-Server kurzzeitig deaktivieren) und mit aktivem `target`/`kwVon`/`kwBis` ein PDF anfordern →
+    Rückweg auf „Summiert" mit denselben Parametern, sichtbare Warnmeldung.
+16. **Spalten-Präferenz speicherbar (TS-80.15):** In der Summiert-Ansicht Matchcode oder
+    Hauptlagerplatz ausblenden, speichern lassen, Seite neu laden, drucken → Auswahl wirkt auf
+    Bildschirm und Druck.
+17. **Regression Vormontage/Beschichtung (TS-80.16):** Teil 4 und Teil 5 unverändert nutzbar (Druck
+    inklusive).
+18. **Skript-Sicherheit (TS-80.17):** Einen Kommissionier-Ziel- oder Spaltenfilterwert mit
+    `</script>`-artigem Inhalt setzen (z. B. `LAGER");</script><script>alert(1)</script>`) →
+    Bildschirm, Druck und PDF brechen nicht, kein Skript wird ausgeführt.
+19. **`WarehousePickingController` unberührt (TS-80.19):** Wareneingang-/Lagerplatz-Etiketten-Druck
+    unverändert aufrufen.
+20. **Feature-Gate (TS-80.20):** Mit deaktiviertem `FaHierarchyKommissionierlistenAktiv` erscheint der
+    Menüpunkt an keiner Stelle; direkte Aufrufe von `/Summiert`, `/PrintSummiert`, `/PdfSummiert/100`
+    landen mit gelbem Warnbanner auf der Startseite.

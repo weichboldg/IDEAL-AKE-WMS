@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-25-kommissionierliste-summierung-pdf-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -26,14 +26,20 @@ laut Spec-Hinweis „Umsetzungsort“ und Auftrag).
 
 ## Stand
 
-- [ ] Plan
-- [ ] Service: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging, Umschalter-Query
-- [ ] ColumnDefinitions Summiert (6) + Registrierung
-- [ ] Controller: visibleColumns + Rückfall, PrintSummiert/PdfSummiert
-- [ ] Views: Index/Summiert/Print/PrintSummiert, print-visible-columns.js, _Layout
-- [ ] Tests: Umkehr NoKw, neue Service-Tests, Drift-Guard
-- [ ] Version, Changelog, Hilfe, TS-80, Brain (Teil-3-Vermerk N2d, fallstricke Mengeneinheit)
+- [x] Plan
+- [x] Service: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging, Umschalter-Query
+- [x] ColumnDefinitions Summiert (6) + Registrierung
+- [x] Controller: visibleColumns + Rückfall, PrintSummiert/PdfSummiert
+- [x] Views: Index/Summiert/Print/PrintSummiert, print-visible-columns.js, _Layout
+- [x] Tests: Umkehr NoKw, neue Service-Tests, Drift-Guard
+- [x] Version, Changelog, Hilfe, TS-80, Brain (Teil-3-Vermerk N2d, fallstricke Mengeneinheit)
 
 ## Verlauf
 
 - 2026-09-28: InUmsetzung gesetzt (Worktree/Branch eingetragen).
+- 2026-09-28: QA — Build grün, 1435+268 Tests grün, alle harten Prüfungen (Diff, BuildFlagPredicate/
+  WarehousePickingPrintLayout unberührt, Html.Raw 0 Treffer, AppVersion 1.47.0, ToggleSharedQueryKeys,
+  _Layout-Links) bestanden, AK 1–20 gegen Code/Tests geprüft, TS-80 vollständig (TS-80.1 = Einheiten-
+  Prüfschritt), Testindex nachgezogen. Status **Testbereit** — QA-Nachweis + manuelle Checkliste am
+  Ende der Spec. Wartet auf Schranke 2 (Mensch: TS-80.1 auf Sage-DB IDEAL, dann Manual-UAT, dann
+  Merge mit dem gesamten Bündel).
