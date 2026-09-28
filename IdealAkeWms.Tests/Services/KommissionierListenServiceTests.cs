@@ -19,7 +19,8 @@ namespace IdealAkeWms.Tests.Services;
 ///     unabhaengig von <c>SubFA</c> (<c>leafOnly: false</c>); kein Anomalie-Banner mehr; das
 ///     Ziel-Dropdown enthaelt auch Werte, die nur auf <c>SubFA != 0</c> vorkommen.</item>
 ///   <item><b>Aenderung 2:</b> neue Summiert-Aggregation je <c>(HauptFA, Artnr, Kommissionieren)</c>,
-///     Summe nur <c>Sollmenge</c>, KW-Filter auf <c>KO_Termin</c> (ISO Mo–So); ohne KW kein Ergebnis.</item>
+///     Summe nur <c>Sollmenge</c>, KW-Filter auf <c>KO_Termin</c> (ISO Mo–So); ohne KW alle HauptFA
+///     (Antwort 4).</item>
 /// </list>
 /// </summary>
 public class KommissionierListenServiceTests
