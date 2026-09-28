@@ -556,6 +556,27 @@ Folgenotizen: [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]], [[2026-
 > Razor/JS-Verhalten („Alle Ziele“, Exklusivität, Druck-Leerzustand) und die SQL-Übersetzung von
 > `IsHauptFa` sind **Manual-UAT** (TS-79).
 
+### Kommissionierliste: Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, selber Branch)
+
+Spec [[2026-09-25-kommissionierliste-summierung-pdf-spec]], Umsetzung
+[[2026-09-28-kommissionierliste-summierung-pdf-umsetzung]], Changelog
+[[2026-09-28-v1-47-0-kommissionierliste-summierung-pdf]]. Anlass [[2026-09-23-kommissionierliste-summierung-pdf]].
+Setzt v1.46.0 ([[2026-09-25-kommissionierung-nur-hauptfa-spec]]) voraus. Überholt AK N2d von [[2026-07-29-standort-ideal-teil-3-spec]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Summiert: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging je HauptFA, Umschalter-Query | **erledigt** `ab2beed2` | `KommissionierListenService.AggregateSummiert`, `ToggleSharedQueryKeys`/`BuildToggleQuery` |
+| ViewKey `FaHierarchyKommissionierSummiert` (6 Spalten) registriert | **erledigt** `e407596d` | `ColumnDefinitions.FaHierarchyKommissionierSummiert` |
+| Druck/PDF: sichtbare Spalten beim Klick (`visibleColumns`), Server-Rückfall auf Präferenz; `PrintSummiert`/`PdfSummiert` | **erledigt** `1fb2b59d`/`1977a819` | `FaHierarchyKommissionierListenController.ResolveVisibleColumnsAsync`, `wwwroot/js/print-visible-columns.js`, `Views/FaHierarchyKommissionierListen/PrintSummiert.cshtml` |
+| Menü → Summiert; Summiert gruppiert, 6 Spalten | **erledigt** `1977a819` | `_Layout.cshtml`, `Summiert.cshtml` |
+| Drift-Guard Vier-Stellen-Konsistenz | **erledigt** `58d50738` | `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` |
+| v1.47.0, Changelog, Hilfe, TS-80 | **erledigt** `e447a12c` | `docs/TESTSZENARIEN.md` TS-80 |
+
+> **Deploy:** nur Web, keine Migration. **Vor der Abnahme:** Einheiten-Prüfschritt TS-80.1 auf der
+> Sage-DB IDEAL ([[fallstricke]] §18). **Status:** Testbereit (QA 2026-09-28, Build + 1435 Web-Tests +
+> 268 Service-Tests grün) → Schranke 2 mit dem ganzen Bündel. Druck-/PDF-Spalten, Gruppen-Darstellung
+> und Umschalter sind **Manual-UAT** (TS-80).
+
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
 Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
