@@ -408,6 +408,56 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Kommissionierliste &mdash; Summiert als Standard, Druck/PDF nur
+                        sichtbare Spalten (seit v1.47.0)</dt>
+                    <dd>
+                        Der Menuepunkt <strong>Kommissionierlisten</strong> fuehrt jetzt direkt zur
+                        <strong>summierten Ansicht</strong> &mdash; eine Zeile je Artikelnummer und
+                        Kommissionierziel statt mehrerer Einzelpositionen. Die bisherige
+                        Einzelpositionen-Liste bleibt ueber den Umschalter &bdquo;Liste&ldquo;
+                        erreichbar.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Kalenderwoche optional:</strong> Ohne KW-Eingabe zeigt die
+                                summierte Ansicht alle HauptFAs; mit KW-Eingabe filtert sie wie
+                                bisher.</li>
+                            <li><strong>Matchcode + Hauptlagerplatz:</strong> Die summierte Ansicht
+                                zeigt dieselben Zusatzspalten wie die Liste, ueber das Zahnrad
+                                ein-/ausblendbar.</li>
+                            <li><strong>Gruppen je HauptFA:</strong> Wie die Liste wird auch die
+                                summierte Ansicht nach HauptFA gruppiert angezeigt und seitenweise
+                                geblaettert &mdash; keine HauptFA-Gruppe reisst dabei ueber zwei
+                                Seiten, weder am Bildschirm noch im seitenweisen Ausdruck.</li>
+                            <li><strong>Druck/PDF zeigen genau die sichtbaren Spalten:</strong> Beim
+                                Klick auf Drucken/PDF wird der Spaltenstand direkt vom Bildschirm
+                                gelesen &mdash; blendest du kurz vorher eine Spalte ueber das Zahnrad
+                                aus, fehlt sie sofort auch im Ausdruck, unabhaengig davon, ob die
+                                Aenderung schon gespeichert wurde. Das gilt fuer beide Ansichten
+                                (Liste und Summiert). Bei Mittelklick, Strg-Klick oder
+                                &bdquo;Link kopieren&ldquo; auf den Drucken-/PDF-Link greift dieser
+                                Lesevorgang nicht (kein Klick-Ereignis) &mdash; in diesen Faellen zeigt
+                                der Ausdruck die zuletzt gespeicherte Spalten-Auswahl. Eine direkt
+                                aufgerufene Druck-/PDF-URL ohne vorherigen Klick auf der Seite (z. B.
+                                ein Lesezeichen) verhaelt sich genauso: gespeicherte Auswahl vorhanden
+                                &rarr; genau diese Spalten; keine Auswahl bzw. nicht eingeloggt
+                                erkennbar &rarr; alle Spalten.</li>
+                            <li><strong>Eigener Druck/PDF fuer die Summe:</strong> Die summierte
+                                Ansicht hat einen eigenen Druck/PDF-Weg mit den Aggregatzeilen statt
+                                der Einzelpositionen, im Dokumentkopf sichtbar gekennzeichnet mit dem
+                                Hinweis &bdquo;Summierte Ansicht&ldquo;. Ist zusaetzlich ein Filter
+                                aktiv, erscheinen beide Hinweise (&bdquo;Gefilterte Ansicht&ldquo; und
+                                &bdquo;Summierte Ansicht&ldquo;) nebeneinander.</li>
+                            <li><strong>Umschalter Liste&harr;Summiert nimmt Filter mit:</strong> Beim
+                                Wechsel bleiben Kommissionier-Ziel, Kalenderwoche und die gemeinsamen
+                                Spaltenfilter (HauptFA, Artikelnummer, Matchcode, Kommissionierziel,
+                                Hauptlagerplatz) erhalten. Der Mengenfilter (Sollmenge) wird bewusst
+                                <strong>nicht</strong> mitgenommen &mdash; er meint in der Liste die
+                                Einzelmenge einer Position, in der Summe die Gesamtmenge ueber mehrere
+                                Positionen. Die Kalenderwoche wirkt in der Liste weiterhin
+                                <strong>nicht</strong> &mdash; sie laeuft dort nur als Merker mit, bis
+                                wieder zur summierten Ansicht gewechselt wird.</li>
+                        </ul>
+                    </dd>
+
                     <dt>Matchcode am Artikel (seit v1.40.0)</dt>
                     <dd>
                         Jeder Artikel hat jetzt einen <strong>Matchcode</strong> (Kurzbezeichnung

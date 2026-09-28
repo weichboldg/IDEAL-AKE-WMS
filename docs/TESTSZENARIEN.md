@@ -8876,6 +8876,229 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheck
 
 ---
 
+## TS-80 — IDEAL: Kommissionierliste — Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0)
+
+**Bezug:** Spec `2026-09-25-kommissionierliste-summierung-pdf-spec` (FREIGABE-ANTWORT 5 vorrangig).
+
+**Pflicht-Vorbedingungen (für alle Szenarien dieses Kapitels, sofern nicht abweichend angegeben):**
+- Master **`ProduktionsauftragHierarchisch = true`** (IDEAL) — außer bei TS-80.16 (AKE-Regression),
+  dort unerheblich.
+- Ein HauptFA mit mindestens zwei Positionen derselben Artikelnummer und desselben
+  Kommissionierziels ist bekannt (für die Summierungs-Szenarien); für die Gruppen-Paging-Szenarien
+  mehr HauptFA-Gruppen als die eingestellte Seitengröße.
+- Für die Druck-/PDF-Szenarien: mindestens ein Anwender mit gespeicherter Spalten-Präferenz für
+  `FaHierarchyKommissionierListen` bzw. `FaHierarchyKommissionierSummiert` und mindestens einer ohne.
+
+**Automatisiert abgedeckt (Auszug):** `KommissionierListenServiceTests`
+(`Summiert_NoKw_IncludesAllHauptFa`, `Summiert_CarriesMatchcodeAndHauptlagerplatz_WithoutChangingKey`,
+`Summiert_GroupPaging_NeverSplitsHauptFa`, `Summiert_ColumnFilterOnMatchcode`,
+`BuildToggleQuery_KeepsSharedKeys_DropsSollmengeAndListOnly`),
+`FaHierarchyKommissionierListenControllerTests` (`Print_WithVisibleColumnsParam_UsesItVerbatim_NoPrefRead`,
+`Print_WithoutParam_FallsBackToSavedPref`, `Print_WithoutParam_LockedColumnsNeverHidden`,
+`Print_WithoutParam_NoPref_ReturnsEmpty`, `Print_WithoutParam_NoUser_ReturnsEmpty`,
+`PrintSummiert_UsesSummiertViewKey`, `Summiert_PaginationCountsGroups`,
+`PdfSummiert_UnknownHauptFa_NotFound`, `PdfSummiert_RenderFails_RedirectsToSummiertWithParams`),
+`UserViewPreferencesApiControllerTests` (`GetByViewKey_FaHierarchyKommissionierSummiert_HasSixColumns`),
+`KommissionierSpaltenKonsistenzTests` (Vier-Quellen-Drift-Guard, beide Views). Der manuelle Rest ist
+die Sichtprüfung am laufenden IDEAL-Testsystem (Druckausgabe, Zeitverhalten, Sage-DB-Abfrage) — diese
+Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
+
+- **TS-80.1 — Einheit-Prüfschritt (Vorbedingung der Abnahme, kein UI-Test, B3).**
+  Vorbedingung: Zugriff auf die Sage-DB **IDEAL** (nicht AKE).
+  Schritte: `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe'` ausführen und daraus die
+  Positionstabelle ermitteln, die `Sollmenge` liefert; anschließend
+  `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '<Positionstabelle>' AND
+  COLUMN_NAME LIKE '%einheit%'` **(Manual-UAT, vor der Abnahme durchzuführen)**.
+  Erwartung: **kein Treffer** — bestätigt, dass die Positionstabelle keine eigene, vom Artikel
+  abweichende Mengeneinheit führt; Falle 2 (Mengeneinheit) gilt damit als strukturell erledigt, wie in
+  `fallstricke.md` dokumentiert (AK 14).
+  Negativfall: **ein Treffer** — sofort melden, **nicht** still weiterbauen. Die abweichende Spalte
+  gehört dann in den Summierschlüssel (`(HauptFA, Artnr, Kommissionieren)` → zusätzlich Einheit) —
+  eigener Nacharbeits-Punkt, blockiert aber diese Abnahme nicht rückwirkend (B3, nicht blockierend für
+  den Dev-Lauf).
+
+- **TS-80.2 — Summierung Grundfall (AK 1).**
+  Vorbedingung: HauptFA mit derselben Artikelnummer auf zwei Positionen desselben
+  Kommissionierziels.
+  Schritte: `/FaHierarchyKommissionierListen/Summiert` öffnen **(Manual-UAT)**.
+  Erwartung: genau eine Aggregatzeile mit der Summe beider `Sollmenge`-Werte; die Liste-Ansicht
+  (`Index`) zeigt weiterhin beide Einzelpositionen unverändert.
+  Negativfall: keiner (Regressionsnachweis der bereits seit v1.31.0 bestehenden Summierung).
+
+- **TS-80.3 — Falle 1: Kommissionierziel bleibt Aggregationsschlüssel (AK 2).**
+  Vorbedingung: dieselbe Artikelnummer am selben HauptFA mit zwei **unterschiedlichen**
+  Kommissionierzielen.
+  Schritte: Summiert-Ansicht öffnen **(Manual-UAT)**.
+  Erwartung: **zwei** Aggregatzeilen, keine Vermischung der Ziele bzw. der Mengen.
+  Negativfall: eine gemeinsame Zeile über beide Ziele hinweg → Regression, sofort melden.
+
+- **TS-80.4 — Falle 3: Aggregation über Artikelnummer, nicht Matchcode (AK 3).**
+  Vorbedingung: zwei unterschiedliche Artikelnummern mit identischem Matchcode.
+  Schritte: Summiert-Ansicht öffnen **(Manual-UAT)**.
+  Erwartung: **zwei** getrennte Aggregatzeilen (Aggregation über `Artnr`); der gemeinsame Matchcode
+  erscheint zwar auf beiden Zeilen als Anzeigespalte, führt aber nicht zur Zusammenlegung.
+  Negativfall: eine gemeinsame Zeile über beide Artikelnummern hinweg → Regression, sofort melden.
+
+- **TS-80.5 — Standard-Einstieg (AK 4).**
+  Vorbedingung: keine besondere.
+  Schritte: Menüpunkt „Kommissionierlisten“ an **beiden** Stellen öffnen (Dropdown-Item und
+  Standalone-Nav-Link, `_Layout.cshtml`) **(Manual-UAT)**.
+  Erwartung: beide Einstiege führen ohne weitere Parameter direkt auf
+  `/FaHierarchyKommissionierListen/Summiert`; die Liste (`Index`) bleibt über den Umschalter
+  „Liste“ erreichbar.
+  Negativfall: einer der beiden Einstiege landet weiterhin auf `Index` → Regression.
+
+- **TS-80.6 — Umschalter nimmt Filter mit, außer Mengenfilter (AK 5, FREIGABE-ANTWORT 5).**
+  Vorbedingung: Liste (`Index`) geöffnet.
+  Schritte: `target` (Kommissionier-Ziel) sowie Spaltenfilter auf `artnr` und `hauptlagerplatz`
+  setzen; zusätzlich einen Filter auf einer Liste-exklusiven Spalte (z. B. `arbeitsbereich`) und auf
+  `sollmenge` setzen; zu „Summiert“ wechseln **(Manual-UAT)**.
+  Erwartung: `target`, `artnr`- und `hauptlagerplatz`-Filter sind nach dem Wechsel weiterhin aktiv.
+  Negativfall a: der `arbeitsbereich`-Filter ist nach dem Wechsel weg — kein Fehler, keine
+  Fehlermeldung nötig, stille aber dokumentierte Grenze (die Spalte existiert in der Zielansicht
+  nicht).
+  Negativfall b: der `sollmenge`-Filter ist nach dem Wechsel weg — **bewusst so** (derselbe
+  Filterwert bedeutet in der Liste „Einzelmenge“, in der Summe „Gesamtmenge“; ein mitgenommener Wert
+  wäre ein stiller Bedeutungswechsel, siehe Abschnitt E der Spec).
+  Zusatzprobe: in „Summiert“ eine KW setzen, zu „Liste“ wechseln (KW bleibt als toter
+  Pass-Through-Parameter in der URL, wirkt dort nicht), dann zurück zu „Summiert“ wechseln → die KW
+  ist wieder aktiv.
+
+- **TS-80.7 — Druck/PDF-Spalten-Sichtbarkeit, Spalte ausblenden und sofort drucken (AK 6).**
+  Vorbedingung: Liste oder Summiert-Ansicht geöffnet, angemeldeter Anwender.
+  Schritte: über das Zahnrad eine nicht gesperrte Spalte ausblenden und **innerhalb von 1,5 Sekunden**
+  (vor Ablauf der Speicherverzögerung `column-preferences.js`) auf „Drucken“ bzw. „PDF“ klicken
+  **(Manual-UAT)**.
+  Erwartung: Kopf **und** Zellen der ausgeblendeten Spalte fehlen im Dokument — der Klick liest den
+  Spaltenstand direkt aus dem DOM (`print-visible-columns.js`), nicht aus der ggf. noch nicht
+  gespeicherten Präferenz.
+  Negativfall a (dokumentierte Grenze): Mittelklick, Strg-Klick oder „Link kopieren“ auf den
+  Drucken-/PDF-Link lösen **kein** Klick-Ereignis aus — in diesen Fällen greift stattdessen der
+  Server-Rückfall auf die zuletzt **gespeicherte** Präferenz, nicht der gerade sichtbare DOM-Stand.
+  Als bekannte, dokumentierte Grenze zu behandeln, kein Defekt dieser Etappe.
+  Negativfall b (dokumentierte Grenze, vorbestehend, betrifft auch die Liste): wird nach Umsortieren
+  der Spalten ausgerechnet die erste physische Spalte ausgeblendet, kann die Gruppen-Kopfzeile
+  verschwinden (`column-preferences.js` blendet `cells[idx]` auch in `colspan`-Zeilen aus). Bekannt,
+  vorbestehend, kein Defekt dieser Etappe.
+
+- **TS-80.8 — Druck/PDF ohne Parameter, ohne gespeicherte Präferenz (AK 8).**
+  Vorbedingung: Anwender ohne gespeicherte Spalten-Präferenz für die jeweilige Ansicht (oder nicht
+  eingeloggt erkennbar).
+  Schritte: Druck-/PDF-URL direkt aufrufen, ohne vorherigen Klick auf der Seite (kein
+  `visibleColumns`-Parameter) **(Manual-UAT)**.
+  Erwartung: **alle** Spalten erscheinen im Dokument.
+  Negativfall: eine handgebaute URL mit ausschließlich unbekannten `visibleColumns`-Schlüsseln (z. B.
+  `visibleColumns=xyz`) → leere Positionstabelle (kein Server-Rückfall, da der Parameter technisch
+  gesetzt ist); dokumentierte Grenze, tritt praktisch nur bei manuell manipulierter URL auf, da das
+  JS den Parameter nur mit mindestens einer echten sichtbaren Spalte setzt.
+
+- **TS-80.9 — Druck/PDF ohne Parameter, mit gespeicherter Präferenz (AK 7).**
+  Vorbedingung: Anwender mit gespeicherter Spalten-Präferenz, die mindestens eine nicht gesperrte
+  Spalte ausblendet.
+  Schritte: wie TS-80.8, aber mit dieser Präferenz **(Manual-UAT)**.
+  Erwartung: genau die dort als sichtbar markierten Spalten erscheinen (gesperrte Spalten wie
+  `hauptfa`/`matchcode` bleiben immer sichtbar); Server-Rückfall.
+  Negativfall: eine ausgeblendete gesperrte Spalte im Druck fehlt trotzdem → Regression.
+
+- **TS-80.10 — Filter-Durchschlag im Druck/PDF der Liste (Regression, AK 11).**
+  Vorbedingung: Spaltenfilter **und** Ziel-Filter aktiv in der Liste.
+  Schritte: „Drucken“ bzw. „PDF je Gruppe“ klicken **(Manual-UAT)**.
+  Erwartung: Dokument zeigt nur die gefilterten Zeilen, Kopf trägt das Banner „Gefilterte Ansicht“
+  mit dem gewählten Ziel — unverändert zum bisherigen Verhalten.
+  Negativfall: ungefilterte oder zusätzliche Zeilen im Ausdruck → Regression.
+
+- **TS-80.11 — Druck/PDF der Summiert-Ansicht, Banner-Kombination (AK 9, 10).**
+  Vorbedingung: Summiert-Ansicht mit mindestens einer HauptFA-Gruppe.
+  Schritte a: ohne aktiven Filter drucken/PDF je Gruppe erzeugen **(Manual-UAT)**.
+  Erwartung a: Dokument zeigt die Aggregatzeilen (nicht die Rohpositionen), Kopf trägt sichtbar den
+  Hinweis „Summierte Ansicht“.
+  Schritte b: zusätzlich einen Spalten- oder Ziel-Filter aktivieren, erneut drucken.
+  Erwartung b: **beide** Hinweise („Gefilterte Ansicht“ und „Summierte Ansicht“) erscheinen
+  nebeneinander im Kopf.
+  Negativfall: nur einer der beiden Hinweise erscheint trotz beider Bedingungen → Regression.
+
+- **TS-80.12 — Kalenderwoche optional (AK 13).**
+  Vorbedingung: Summiert-Ansicht, HauptFAs mit und ohne passenden KO_Termin für eine Test-KW.
+  Schritte a: Summiert-Ansicht **ohne** KW-Eingabe öffnen **(Manual-UAT)**.
+  Erwartung a: die Summe über **alle** HauptFA erscheint sofort, kein „Bitte KW eingeben“-Hinweis
+  mehr (Ablösung der früheren Entscheidung `AK N2d`, siehe Vermerk in
+  `2026-07-29-standort-ideal-teil-3-spec`).
+  Schritte b: eine KW eingeben.
+  Erwartung b: die Ansicht filtert wie bisher auf die HauptFA der gewählten Woche.
+  Negativfall: keiner (reine Verhaltensänderung, keine Fehlerbedingung).
+
+- **TS-80.13 — Gruppen-Paging, kein Seitenriss (AK 15).**
+  Vorbedingung: mehr HauptFA-Gruppen als die eingestellte Seitengröße.
+  Schritte: Summiert-Ansicht seitenweise durchblättern **(Manual-UAT)**; denselben Zustand im
+  seitenweisen Ausdruck prüfen (sofern mehrseitig relevant, sonst nur Bildschirm).
+  Erwartung: keine HauptFA-Gruppe reißt über zwei Seiten — weder am Bildschirm noch im Ausdruck;
+  `TotalCount` der Pagination zählt Gruppen, nicht Zeilen (eine Gruppe mit vielen Positionen kann die
+  angezeigte Zeilenzahl einer Seite deutlich über die eingestellte Seitengröße heben).
+  Negativfall: eine Gruppe erscheint teils auf Seite 1, teils auf Seite 2 → Regression.
+
+- **TS-80.14 — PdfSummiert-Fehler-Rückweg (AK 16).**
+  Vorbedingung: PDF-Erzeugung künstlich zum Scheitern gebracht (z. B. Edge auf dem Web-Server
+  vorübergehend deaktiviert/nicht erreichbar).
+  Schritte: PDF-Knopf einer HauptFA-Gruppe in der Summiert-Ansicht mit aktivem `target`/`kwVon`/
+  `kwBis` klicken **(Manual-UAT)**.
+  Erwartung: Rückweg führt auf die **Summiert**-Ansicht mit denselben Query-Parametern (`target`,
+  `kwVon`, `kwBis`) zurück, sichtbare `WarningMessage` — **nicht** auf `Index` (abweichend vom
+  Vorbild `Pdf`/Liste, SOLLTE-6, fachlich bewusst).
+  Negativfall: Rückweg landet auf `Index` oder verliert die Filterwerte → Regression.
+
+- **TS-80.15 — Nebenbefund: Spalten-Präferenz der Summiert-Ansicht speicherbar (AK 12).**
+  Vorbedingung: Summiert-Ansicht geöffnet, angemeldeter Anwender.
+  Schritte: über das Zahnrad Matchcode oder Hauptlagerplatz ausblenden, Auswahl speichern lassen,
+  Seite neu laden, danach drucken **(Manual-UAT)**.
+  Erwartung: `GET /api/userviewpreferences?viewKey=FaHierarchyKommissionierSummiert` liefert einen
+  `ViewConfig` mit genau 6 Spalten (`hauptfa`, `artnr`, `matchcode`, `kommissionieren`,
+  `hauptlagerplatz`, `sollmenge`); die gespeicherte Auswahl wirkt sowohl nach dem Neuladen am
+  Bildschirm als auch im Druck (Server-Rückfall, TS-80.9). Vor dieser Etappe lehnte
+  `UserViewPreferencesApiController` das Speichern für diese Ansicht mangels `GetByViewKey`-
+  Registrierung ab — jetzt behoben.
+  Negativfall: Speichern schlägt fehl oder wirkt nicht auf den Druck → Regression.
+
+- **TS-80.16 — Regression Vormontage/Beschichtung (unverändert).**
+  Vorbedingung: Teil 4 (Beschichtungsauftrag) und Teil 5 (Vormontage) unverändert nutzbar.
+  Schritte: beide Ansichten öffnen, drucken **(Manual-UAT)**.
+  Erwartung: unverändert funktionsfähig — diese Spec berührt `WarehousePickingController`/
+  `WarehousePickingPrintLayout` und die Vormontage-Druckwege nicht (siehe auch TS-80.18).
+  Negativfall: keiner (Regressionsnachweis).
+
+- **TS-80.17 — Skript-Sicherheit bei Sonderzeichen im Filterwert (AK 18).**
+  Vorbedingung: Liste oder Summiert-Ansicht geöffnet.
+  Schritte: einen Kommissionier-Ziel- oder Spaltenfilterwert mit `</script>`-artigem Inhalt setzen,
+  z. B. `LAGER");</script><script>alert(1)</script>` als Testwert **(Manual-UAT)**; Bildschirmansicht,
+  Druck und PDF jeweils prüfen.
+  Erwartung: weder Bildschirmansicht noch Druck/PDF brechen; kein Skript wird ausgeführt; der Wert
+  erscheint als reiner, kodierter Text. `grep -n "Html.Raw"` über die fünf geänderten/neuen Views
+  liefert keinen Treffer — keine neue Einbettung eines Filterwerts in einen `<script>`-Block ohne
+  JSON-Kodierung.
+  Negativfall: ein `alert(1)` löst tatsächlich aus → sofortiger Blocker, kein Merge.
+
+- **TS-80.18 — Vier-Quellen-Konsistenz, Drift-Guard (AK 17, automatisiert).**
+  Vorbedingung: keine (automatisierter Test, kein UI-Schritt).
+  Schritte: `dotnet test IdealAkeWms.Tests --filter FullyQualifiedName~KommissionierSpaltenKonsistenzTests`
+  ausführen; als Gegenprobe einen Spaltenschlüssel in einer der vier Quellen (`ColumnDefinitions`,
+  `#column-config`, `<th data-col-key>`, `ShowCol(...)`) für `FaHierarchyKommissionierListen` oder
+  `FaHierarchyKommissionierSummiert` künstlich umbenennen und den Test erneut ausführen.
+  Erwartung: im Normalzustand grün (2/2, je ein Fall je View); in der Gegenprobe rot, mit einer
+  Fehlermeldung, die Quelle, fehlenden und zusätzlichen Schlüssel exakt benennt.
+  Negativfall: der Test bleibt bei einer künstlichen Drift grün → Test selbst defekt, sofort melden.
+
+- **TS-80.19 — `WarehousePickingController`/`WarehousePickingPrintLayout` unberührt (AK 20,
+  Regressionscheck).**
+  Vorbedingung: keine besondere.
+  Schritte: `WarehousePickingController.Print` (Wareneingang/Lagerplatz-Etiketten-Druck) unverändert
+  aufrufen **(Manual-UAT)**; ergänzend `git diff` bzw. Codeabgleich, dass `WarehousePickingPrintLayout`
+  keine neue Überladung erhalten hat.
+  Erwartung: unverändertes Verhalten, keine neue Überladung, kein Verhaltenswechsel.
+  Negativfall: keiner (reiner Regressionsnachweis).
+
+Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheckout, nicht Worktree).
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
