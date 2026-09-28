@@ -26,19 +26,29 @@ public class FaHierarchyKommissionierSummiertRowViewModel
 
     /// <summary>Anzahl der aggregierten Positionen (informativ).</summary>
     public int PositionCount { get; init; }
+
+    /// <summary>Artikeleigenschaft (je Summenschluessel konstant, aus der ersten Position uebernommen).</summary>
+    public string? Matchcode { get; init; }
+
+    /// <summary>Artikeleigenschaft (je Summenschluessel konstant, aus der ersten Position uebernommen).</summary>
+    public string? Hauptlagerplatz { get; init; }
 }
 
 /// <summary>
 /// Ergebnis einer Kommissionier-Summiert-Aggregation: die (paginierten) Aggregatzeilen plus die
-/// Gesamtzahl VOR dem Paging (fuer <c>PaginationState.TotalCount</c>). <b>Seiteneinheit ist die
-/// Aggregatzeile</b> (begruendete ADR-0005-Ausnahme, analog Vormontage-Sicht 2).
+/// Gesamtzahl VOR dem Paging (fuer <c>PaginationState.TotalCount</c>). <b>Gruppen-Paging</b>: Seiteneinheit
+/// ist die HauptFA-Gruppe, nicht die Aggregatzeile — eine Seite enthaelt nie nur einen Teil der Zeilen
+/// einer HauptFA (Muster <c>FaHierarchyListBuilder.Build</c>).
 /// </summary>
 public class FaHierarchyKommissionierSummiertResult
 {
     public List<FaHierarchyKommissionierSummiertRowViewModel> Rows { get; init; } = new();
 
-    /// <summary>Anzahl aller Aggregatzeilen (Seiteneinheit) NACH Spaltenfilter, VOR dem Paging.</summary>
+    /// <summary>Anzahl aller Aggregatzeilen NACH Spaltenfilter, VOR dem Paging.</summary>
     public int TotalRowCount { get; init; }
+
+    /// <summary>Anzahl aller HauptFA-Gruppen NACH Spaltenfilter (Seiteneinheit), VOR dem Paging.</summary>
+    public int TotalGroupCount { get; init; }
 }
 
 /// <summary>
@@ -51,7 +61,7 @@ public class FaHierarchyKommissionierSummiertViewModel
 {
     public List<FaHierarchyKommissionierSummiertRowViewModel> Rows { get; init; } = new();
 
-    /// <summary>Paging-State (Seiteneinheit = Aggregatzeile; <c>TotalCount</c> zaehlt Aggregatzeilen).</summary>
+    /// <summary>Paging-State (Gruppen-Paging: Seiteneinheit = HauptFA-Gruppe; <c>TotalCount</c> zaehlt Gruppen).</summary>
     public PaginationState Pagination { get; init; } = new();
 
     /// <summary>Vorkommende Kommissionier-Ziele fuer das Filter-Dropdown.</summary>
@@ -67,8 +77,9 @@ public class FaHierarchyKommissionierSummiertViewModel
     public string? KwBis { get; init; }
 
     /// <summary>
-    /// <c>true</c>, sobald mindestens eine gueltige KW-Grenze gesetzt ist. Ohne KW zeigt die Ansicht
-    /// bewusst einen Hinweistext statt einer impliziten Gesamtsumme ueber alle HauptFA (Nachtrag AK N2d).
+    /// <c>true</c>, sobald mindestens eine gueltige KW-Grenze gesetzt ist. Der KW-Filter ist optional
+    /// (Antwort 4, Spec 2026-09-25-kommissionierliste-summierung-pdf — ersetzt N2d): ohne KW werden
+    /// ALLE HauptFA einbezogen, dieses Flag steuert nur, ob eine KW-Einschraenkung aktiv ist.
     /// </summary>
     public bool HasKwFilter { get; init; }
 }
