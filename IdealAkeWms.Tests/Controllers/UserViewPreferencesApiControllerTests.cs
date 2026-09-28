@@ -2,6 +2,7 @@ using FluentAssertions;
 using IdealAkeWms.Controllers.Api;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -161,5 +162,19 @@ public class UserViewPreferencesApiControllerTests
 
         result.Should().BeOfType<OkResult>();
         _repoMock.Verify(r => r.SaveAsync(42, "FaHierarchyStructure", json, "TestUser", "DOMAIN\\testuser"), Times.Once);
+    }
+
+    [Fact]
+    public void GetByViewKey_FaHierarchyKommissionierSummiert_HasSixColumns()
+    {
+        var config = ColumnDefinitions.GetByViewKey("FaHierarchyKommissionierSummiert");
+
+        config.Should().NotBeNull();
+        config!.Columns.Should().HaveCount(6);
+        config.Columns.Select(c => c.Key).Should().ContainInOrder(
+            "hauptfa", "artnr", "matchcode", "kommissionieren", "hauptlagerplatz", "sollmenge");
+        config.Columns.Single(c => c.Key == "hauptfa").Locked.Should().BeTrue();
+        config.Columns.Single(c => c.Key == "matchcode").Locked.Should().BeTrue();
+        config.SupportsSortDefault.Should().BeFalse();
     }
 }

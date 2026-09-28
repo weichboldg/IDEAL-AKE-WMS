@@ -346,6 +346,28 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// FaHierarchyKommissionierSummiert/Summiert.cshtml columns (IDEAL Teil 3, Sicht 2 "Summiert").
+    /// Gruppierte Liste (je HauptFA ein eigenes &lt;tbody&gt;), Server-Spaltenfilter.
+    /// SupportsSortDefault: false (gruppierte Liste, Muster wie OseonTracking/Bom/FaHierarchyKommissionierListen).
+    /// hauptfa + matchcode Locked (zwei identifizierende Schluessel).
+    /// Spalten identisch zum inline #column-config JSON der View.
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyKommissionierSummiert = new(
+        "FaHierarchyKommissionierSummiert", "Kommissionierlisten — Summiert (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("hauptfa",        "HauptFA",         Locked: true),
+            new ColumnDef("artnr",          "Artnr.",          Locked: false),
+            new ColumnDef("matchcode",      "Matchcode",       Locked: true),
+            new ColumnDef("kommissionieren","Kommissionieren", Locked: false),
+            new ColumnDef("hauptlagerplatz","Hauptlagerplatz", Locked: false),
+            new ColumnDef("sollmenge",      "Summe Sollmenge", Locked: false, DefaultWidth: 55),
+        ]
+    };
+
+    /// <summary>
     /// FaHierarchyBeschichtung/Index.cshtml columns (IDEAL Teil 4).
     /// Gruppierte Liste (je HauptFA ein eigenes &lt;tbody&gt;), Server-Spaltenfilter.
     /// SupportsSortDefault: false. hauptfa + matchcode Locked.
@@ -454,6 +476,7 @@ public static class ColumnDefinitions
         "BdeBookings"      => BdeBookings,
         "WarehousePickingDetails" => WarehousePickingDetails,
         "FaHierarchyKommissionierListen" => FaHierarchyKommissionierListen,
+        "FaHierarchyKommissionierSummiert" => FaHierarchyKommissionierSummiert,
         "FaHierarchyBeschichtung"        => FaHierarchyBeschichtung,
         "FaHierarchyVormontageEinzeln"   => FaHierarchyVormontageEinzeln,
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
