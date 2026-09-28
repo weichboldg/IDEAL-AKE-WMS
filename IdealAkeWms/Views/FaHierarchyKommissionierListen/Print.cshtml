@@ -3,6 +3,7 @@
 @{
     Layout = null;
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
+    bool ShowCol(string key) => !Model.VisibleColumns.Any() || Model.VisibleColumns.Contains(key);
 }
 <!DOCTYPE html>
 <html lang="de">
@@ -104,32 +105,32 @@
                 <table class="positions">
                     <thead>
                         <tr>
-                            <th>Haupt-Artnr.</th>
-                            <th>Artnr.</th>
-                            <th>Matchcode</th>
-                            <th class="text-end">Sollmenge</th>
-                            <th>Hauptlagerplatz</th>
-                            <th>Kommissionieren</th>
-                            <th>Arbeitsbereich</th>
-                            <th>Artikeltyp</th>
-                            <th>Beschichtet</th>
-                            <th>Material</th>
+                            @if (ShowCol("hauptartnr")) { <th>Haupt-Artnr.</th> }
+                            @if (ShowCol("artnr")) { <th>Artnr.</th> }
+                            @if (ShowCol("matchcode")) { <th>Matchcode</th> }
+                            @if (ShowCol("sollmenge")) { <th class="text-end">Sollmenge</th> }
+                            @if (ShowCol("hauptlagerplatz")) { <th>Hauptlagerplatz</th> }
+                            @if (ShowCol("kommissionieren")) { <th>Kommissionieren</th> }
+                            @if (ShowCol("arbeitsbereich")) { <th>Arbeitsbereich</th> }
+                            @if (ShowCol("artikeltyp")) { <th>Artikeltyp</th> }
+                            @if (ShowCol("beschichtet")) { <th>Beschichtet</th> }
+                            @if (ShowCol("material")) { <th>Material</th> }
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var pos in group.Positions)
                         {
                             <tr>
-                                <td>@pos.HauptArtnr</td>
-                                <td>@pos.Artnr</td>
-                                <td>@pos.Matchcode</td>
-                                <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td>
-                                <td>@pos.Hauptlagerplatz</td>
-                                <td>@pos.Kommissionieren</td>
-                                <td>@pos.Arbeitsbereich</td>
-                                <td>@pos.Artikeltyp</td>
-                                <td>@(pos.Beschichtet ? "Ja" : "Nein")</td>
-                                <td>@pos.Material</td>
+                                @if (ShowCol("hauptartnr")) { <td>@pos.HauptArtnr</td> }
+                                @if (ShowCol("artnr")) { <td>@pos.Artnr</td> }
+                                @if (ShowCol("matchcode")) { <td>@pos.Matchcode</td> }
+                                @if (ShowCol("sollmenge")) { <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td> }
+                                @if (ShowCol("hauptlagerplatz")) { <td>@pos.Hauptlagerplatz</td> }
+                                @if (ShowCol("kommissionieren")) { <td>@pos.Kommissionieren</td> }
+                                @if (ShowCol("arbeitsbereich")) { <td>@pos.Arbeitsbereich</td> }
+                                @if (ShowCol("artikeltyp")) { <td>@pos.Artikeltyp</td> }
+                                @if (ShowCol("beschichtet")) { <td>@(pos.Beschichtet ? "Ja" : "Nein")</td> }
+                                @if (ShowCol("material")) { <td>@pos.Material</td> }
                             </tr>
                         }
                     </tbody>

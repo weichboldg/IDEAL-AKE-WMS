@@ -181,7 +181,7 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="Picking" asp-action="Index">Kommissionierung</a></li>
-                                    <li><a class="dropdown-item" asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a></li>
+                                    <li><a class="dropdown-item" asp-controller="FaHierarchyKommissionierListen" asp-action="Summiert">Kommissionierlisten</a></li>
                                 </ul>
                             </li>
                         }
@@ -201,7 +201,7 @@
                         {
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyKommissionierListen" ? "active" : "")"
-                                   asp-controller="FaHierarchyKommissionierListen" asp-action="Index">Kommissionierlisten</a>
+                                   asp-controller="FaHierarchyKommissionierListen" asp-action="Summiert">Kommissionierlisten</a>
                             </li>
                         }
                         @if ((bestellungenAktiv || lagerbestellungAktiv) && (canPick || canAccessStock || canAccessLagerbestellung || canAccessGlasbestellung))
