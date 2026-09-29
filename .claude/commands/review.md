@@ -32,6 +32,15 @@ billige Moment, ein Missverstaendnis zu entdecken.
    uebrigen Spec-Text, der Backlog-Notiz, einem ADR oder dem bestehenden Code?
    Beispiel-Muster: Antwort sagt "async", Akzeptanzkriterium beschreibt synchrones
    Verhalten. Solche Risse sind der haeufigste teure Fehler.
+   Stehen Entscheidungen nur im Antwortblock, nicht aber in Rumpf, affected_code und
+   Akzeptanzkriterien, ist das ein Befund: Der Dev-Lauf arbeitet nach dem Rumpf.
+
+2b. AUSSAGEN BELEGT
+   Pruefe Aussagen der Spec ueber Code und Daten stichprobenartig am Code nach. Besonders:
+   negative Aussagen ("gibt es nicht", "passiert nie", "null-sicher") - hier auch die
+   Schreibwege, nicht nur die Lesewege; und Bedeutungen von Feldern, Tabellen oder Spalten,
+   die offenbar nur aus dem Namen abgeleitet wurden. Beide Muster haben in diesem Projekt
+   wiederholt falsche Specs erzeugt.
 
 3. UMFANG SCHARF
    Ist klar, was NICHT dazugehoert? Fehlt eine explizite Abgrenzung, schreibe sie als

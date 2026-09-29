@@ -4,7 +4,10 @@ argument-hint: <pfad-zur-epic-spec>
 ---
 Epic-Etappenlauf: $1
 
-Lies die Spec (epic: true) und ihre Etappen-Tabelle.
+Lies die Spec (epic: true) und ihre Etappen-Tabelle. Was gilt: Der Rumpf (Loesungsentwurf,
+affected_code, Akzeptanzkriterien) ist der Auftrag; ein FREIGABE-NACHTRAG am Dateiende geht ihm
+vor; Antwort- und Pruefabschnitte sind Begruendung. Ein ungeloester Widerspruch zwischen Rumpf und
+Antworten: nicht umsetzen, in die Spec schreiben, beenden.
 
 0. SCHREIBZIELE (siehe CLAUDE.md "Das Brain wird NICHT verzweigt"): Anwendungscode, SQL/, docs/,
    Tests -> IN DEN WORKTREE. Alle secondbrain/-Aenderungen (Etappen-Tabelle, Status,
@@ -19,10 +22,14 @@ Lies die Spec (epic: true) und ihre Etappen-Tabelle.
    **Betrifft die Etappe Views, CSS oder Oberflaechen-JavaScript: den Skill `frontend-design`
    VOR der Umsetzung explizit aufrufen** (Pflicht laut CLAUDE.md). Konsistenz vor
    Eigenstaendigkeit (Bootstrap 5, bestehende Muster), Kontrast nach WCAG AA.
+   Liefere, was die Etappe verlangt, im vorgesehenen Umfang - Zusatzfunde als Befund in die
+   Spec, nicht mitbauen.
 3. Sind noch Etappen offen: Status bleibt InUmsetzung, beenden - die naechste Etappe kommt beim
    naechsten Aufruf.
-4. Erst wenn ALLE Etappen erledigt: qa-agent (build+test gruen, Testszenarien, Deploy-Abschnitt),
-   dann status: Testbereit + manuelle Test-Checkliste.
+4. Erst wenn ALLE Etappen erledigt: qa-agent aufrufen und sein Ergebnis abwarten (build+test,
+   unabhaengiges Code-Review, Beweisart je Akzeptanzkriterium, Deploy-Abschnitt), dann
+   status: Testbereit + manuelle Test-Checkliste. Kommt sein Ergebnis nicht zurueck, gilt die QA
+   als nicht erfolgt: nicht auf Testbereit setzen, sondern melden.
 
 Hinweis: Den Branch haelt der Mensch mit scripts/sync-worktree.ps1 auf main-Stand - du fuehrst
 diesen Sync NICHT selbst aus.

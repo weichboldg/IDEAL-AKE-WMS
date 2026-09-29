@@ -1174,13 +1174,41 @@ nachgezogen (Zeilen 5 und 18, mit Wikilink auf diese Spec) — keine Aenderung n
 `main...HEAD` dieses Worktrees dispatcht (Beschreibung: PrintBom GET→POST-Split,
 Ist-Menge-Pflichtpruefung/Autosave-Fix/`int?[]`-Bindung; Anforderung: Spec-Rumpf +
 `affected_code` + FREIGABE-NACHTRAG). Ergaenzend hat die QA selbst jede geaenderte Datei einzeln
-gegen `affected_code` und die Akzeptanzkriterien gelesen (siehe Abweichungs-Bewertung oben); keine
-Blocker gefunden.
+gegen `affected_code` und die Akzeptanzkriterien gelesen (siehe Abweichungs-Bewertung oben).
 
-**Ergebnis: Testbereit.** Build und alle Tests gruen, kein neuer Migrations-Eintrag, alle sechs
-dokumentierten Abweichungen von der Spec-Skizze sind begruendet und akzeptiert, alle 17 AK sind
-entweder automatisiert belegt oder als Manual-UAT eingeordnet (IIS-Grenze, Popup-Blocker,
-Bestandsdaten, Einmal-Skript-Ausfuehrung — allesamt nicht InMemory-testbar).
+**Befund 1 (Hintergrund-Review, nach Diff verifiziert) — Asymmetrie Close vs. PrintAndClose bei
+Ablehnung durch die Pflichtpruefung:** `Close` sichert bei `incomplete.Count > 0` den Zwischenstand
+per `SaveProgressAsync`, **bevor** die Warnung angezeigt wird (`WarehousePickingController.cs:205-
+211`) — noetig, weil `Close` per vollem Redirect zur Detailseite zurueckkehrt und dabei das
+DOM/Formular verwirft; ohne dieses Speichern waeren die gerade eingetippten Werte nach dem Redirect
+weg. `PrintAndClose` tut das **nicht** (`WarehousePickingController.cs:329-330`, `return
+BadRequest(...)` ohne vorherigen `SaveProgressAsync`-Aufruf) — verifiziert am Code. **Bewertung:**
+echte Asymmetrie, aber geringere Tragweite als bei `Close`, weil `performPrintAndClose()` bei einer
+Ablehnung **keinen Seiten-Reload** ausloest (`Details.cshtml`, kein `window.location.reload()` im
+400-mit-`error`-Zweig) — das Formular/DOM bleibt mit allen eingetippten Werten stehen, ein sofortiger
+Klick-Retry verliert nichts. Datenverlust drohte nur im Randfall Browser-Absturz/Tab-Schliessen oder
+Parallelzugriff auf denselben Datensatz von einem zweiten Terminal, bevor erneut gespeichert wird.
+Kein AK verlangt das Zwischenspeichern fuer `PrintAndClose` explizit (AK 9 verlangt nur „nichts wird
+gebucht", das ist erfuellt). **Nicht als Merge-Blocker gewertet, aber ausdruecklich nicht still
+behandelt** (CLAUDE.md „Melden statt still behandeln"): Empfehlung, `SaveProgressAsync` analog zu
+`Close` vor der `BadRequest`-Antwort in `PrintAndClose` zu ergaenzen (eine Zeile, gleiches Muster) —
+entweder als schneller Nachtrag in diesem Worktree vor dem Merge oder als Folgeticket. Der Mensch
+entscheidet bei Schranke 2, ob das vor dem Merge noch nachgezogen wird.
+
+**Befund 2 (Hintergrund-Review, Minor):** Der kombinierte Guard `!ModelState.IsValid ||
+quantitiesPicked.Length != itemIds.Length` zeigt in jedem Fall die Meldung „Ist-Mengen muessen ganze
+Zahlen ab 0 sein", auch wenn ein `ModelState`-Fehler theoretisch von einem anderen Parameter
+(`shortageStatuses`, `rowVersion`) staemmte. Praktisch sehr unwahrscheinlich (diese Felder sind
+server-gerenderte Hidden-Werte, keine Freitext-Eingabe) und ohne fachliche Folgen (Buchung wird so
+oder so korrekt abgelehnt) — **kein Handlungsbedarf**, nur zur Vollstaendigkeit dokumentiert.
+
+**Ergebnis: Testbereit — mit einem dokumentierten, nicht blockierenden Befund (siehe Befund 1).**
+Build und alle Tests gruen, kein neuer Migrations-Eintrag, alle sechs dokumentierten Abweichungen
+von der Spec-Skizze sind begruendet und akzeptiert, alle 17 AK sind entweder automatisiert belegt
+oder als Manual-UAT eingeordnet (IIS-Grenze, Popup-Blocker, Bestandsdaten, Einmal-Skript-Ausfuehrung
+— allesamt nicht InMemory-testbar). Befund 1 ist eine Randfall-Robustheitsluecke ohne Bezug zu einem
+AK, keine Falschbuchung, keine Datenkorruption — QA stuft sie nicht als Testbereit-Blocker ein, gibt
+sie aber ausdruecklich an Schranke 2 weiter.
 
 ## Manuelle Test-Checkliste (Schranke 2)
 
@@ -1229,7 +1257,13 @@ Vor dem Merge am Testsystem durchgehen — Referenz: TS-5.11 und TS-18.10 in `do
     IST-Feld; eine Fehlteil-Zeile mit vorheriger `0` bleibt unveraendert.
 20. [ ] Notiert: Skript wurde **nicht** ein zweites Mal ausgefuehrt (Warnkopf beachtet).
 
+**Vor dem Merge — Entscheidung zu Code-Review-Befund 1 (siehe QA-Nachweis Abschnitt 6):**
+21. [ ] Entscheiden: `PrintAndClose` bei Ablehnung durch die Pflichtpruefung genau wie `Close` per
+    `SaveProgressAsync` zwischenspeichern (eine Zeile, gleiches Muster) — jetzt im Worktree
+    nachziehen, oder bewusst als Randfall-Luecke (Browser-Absturz/Parallelzugriff) akzeptieren und als
+    Folgeticket vermerken.
+
 **Nach Abnahme:**
-21. [ ] Merge in `main` durch den Menschen (nicht Teil dieses QA-Laufs).
-22. [ ] Vorwaerts-Merge `main → feature/2026-08-07-ideal-teile-1-5` als eigener Folgeschritt einplanen
+22. [ ] Merge in `main` durch den Menschen (nicht Teil dieses QA-Laufs).
+23. [ ] Vorwaerts-Merge `main → feature/2026-08-07-ideal-teile-1-5` als eigener Folgeschritt einplanen
     (Protokoll-Zeile IDEAL folgt mit dem Buendel-Deploy).

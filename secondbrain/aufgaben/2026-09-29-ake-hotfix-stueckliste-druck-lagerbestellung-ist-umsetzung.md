@@ -34,5 +34,11 @@ IDEALAKEWMSService.Tests 197/197 gruen, kein neuer Migrations-Eintrag. Alle 17 A
 (automatisiert oder Manual-UAT). Details, Abweichungs-Bewertung und manuelle Test-Checkliste siehe
 Abschnitte „QA-Nachweis (2026-09-29)" und „Manuelle Test-Checkliste (Schranke 2)" in der Spec.
 
+**Code-Review-Befund (nicht blockierend, siehe Spec Abschnitt 6):** `PrintAndClose` sichert bei
+Ablehnung durch die Pflichtpruefung — anders als `Close` — keinen Zwischenstand per
+`SaveProgressAsync`. Geringe Tragweite (kein Seiten-Reload bei Ablehnung, DOM behaelt die Werte),
+aber Randfall (Browser-Absturz/Parallelzugriff) verliert Eingaben serverseitig. Entscheidung vor dem
+Merge: jetzt nachziehen oder als Folgeticket. Siehe Checklisten-Punkt 21 in der Spec.
+
 Naechster Schritt: Schranke 2 (Mensch — manueller Test am Testsystem, dann Merge in `main`).
 Vorwaerts-Merge ins Buendel (`feature/2026-08-07-ideal-teile-1-5`) ist ein eigener Folgeschritt danach.
