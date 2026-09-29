@@ -943,11 +943,12 @@
             // ========== Druck: Aktuelle Filterung/Baumstruktur übergeben ==========
             document.getElementById('btnPrintBom').addEventListener('click', function () {
                 var visiblePositions = [];
+                var totalPositions = 0;
                 document.querySelectorAll('#bomTable tbody tr').forEach(function (row) {
-                    if (row.style.display !== 'none') {
-                        var pos = row.getAttribute('data-position');
-                        if (pos) visiblePositions.push(pos);
-                    }
+                    var pos = row.getAttribute('data-position');
+                    if (!pos) return;
+                    totalPositions++;
+                    if (row.style.display !== 'none') visiblePositions.push(pos);
                 });
 
                 // Aktive Filterinfos für Header-Anzeige im Druck
@@ -967,16 +968,30 @@
                 });
                 var visibleColumnsParam = visibleCols.join(',');
 
-                // Controller explizit: im Read-only-Modus (FaWorklist) wuerde der ambiente
-                // Controller sonst /FaWorklist/PrintBom aufloesen (404).
-                var url = '@Url.Action("PrintBom", "Picking", new { id = Model.ProductionOrderId })';
-                var params = [];
-                if (visiblePositions.length > 0) params.push('visiblePositions=' + encodeURIComponent(visiblePositions.join(',')));
-                if (filterParts.length > 0) params.push('filterInfo=' + encodeURIComponent(filterParts.join(', ')));
-                if (visibleColumnsParam) params.push('visibleColumns=' + encodeURIComponent(visibleColumnsParam));
-                if (params.length > 0) url += '?' + params.join('&');
-
-                window.open(url, '_blank');
+                // Hotfix v1.30.1 (HTTP 404.15): POST statt GET — die Positionsliste sprengte bei grossen
+                // Stuecklisten maxQueryString. Formular-Submit mit target=_blank synchron im Klick =
+                // Nutzer-Interaktion, kein Popup-Blocker. Controller explizit: im Read-only-Modus
+                // (FaWorklist) wuerde der ambiente Controller sonst /FaWorklist/PrintBom aufloesen (404).
+                var printForm = document.createElement('form');
+                printForm.method = 'post';
+                printForm.target = '_blank';
+                printForm.action = '@Url.Action("PrintBom", "Picking", new { id = Model.ProductionOrderId })';
+                function addField(name, value) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    printForm.appendChild(input);
+                }
+                addField('__RequestVerificationToken', token);
+                // Alle sichtbar = keine Liste (Server druckt dann alles, wie fehlende visibleColumns).
+                if (visiblePositions.length > 0 && visiblePositions.length < totalPositions)
+                    addField('visiblePositions', visiblePositions.join(','));
+                if (filterParts.length > 0) addField('filterInfo', filterParts.join(', '));
+                if (visibleColumnsParam) addField('visibleColumns', visibleColumnsParam);
+                document.body.appendChild(printForm);
+                printForm.submit();
+                printForm.remove();
             });
 
             // ========== Lagerbestellung aus Stueckliste (v1.25.0) ==========
