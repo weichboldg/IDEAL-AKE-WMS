@@ -2,7 +2,7 @@
 type: spec
 title: "AKE-Hotfix: Stuecklisten-Druck HTTP 404.15 (Teil 1) + Lagerbestellung IST nicht vorbefuellen (Teil 2)"
 slug: 2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-28
 updated: 2026-09-29
 source_backlog: "[[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist]]"
@@ -652,29 +652,61 @@ Neue/aktualisierte Szenarien (main steht bei TS-5.1–TS-5.10 und TS-18.1–TS-1
 
 ## Deploy
 
-- **Web-App:** ja (AKE) — `PickingController`, `WarehousePickingController`,
-  `WarehouseRequisitionRepository`, `IWarehouseRequisitionRepository`, `Bom.cshtml`,
-  `Details.cshtml`, `AppVersion.cs`, `Changelog.cshtml`.
-- **Service:** nein (nur Versions-Konstante aus Konsistenzgruenden, keine Verhaltensaenderung).
-- **Migration:** nein (siehe Migrations-/SQL-Auswirkungen); **ein einmaliges Datenskript** ist Teil
-  des Deploys.
-- **Publish-Befehle** (im Worktree, nach bestandenem Test, vor dem Merge):
+**Finalisiert per QA (2026-09-29), aus dem echten Diff `git diff main...HEAD`** — massgeblich fuer
+Frontmatter `deploy:` und fuer den Deploy-Schritt des Menschen (nicht die urspruengliche Vermutung
+des Spec-Agenten):
+
+- **Web-App:** ja (AKE) — betroffene Dateien laut Diff: `PickingController.cs` (`PrintBom`/
+  `PrintBomPost`), `WarehousePickingController.cs` (`Close`/`PrintAndClose`),
+  `WarehouseRequisitionRepository.cs`/`IWarehouseRequisitionRepository.cs` (`CloseAsync`),
+  `Views/Picking/Bom.cshtml`, `Views/WarehousePicking/Details.cshtml`, `Views/Help/Changelog.cshtml`,
+  `Views/Help/Index.cshtml`, `AppVersion.cs`. → `deploy.web: true`.
+- **Service:** `IDEALAKEWMSService/AppVersion.cs` ist im Diff enthalten (Versions-Bump `1.30.0` →
+  `1.30.1`), **kein** anderer Service-Code aendert sich. Geprueft (`grep AppVersion`
+  `IDEALAKEWMSService/`): die Konstante wird ausschliesslich in Start-Log-Zeilen
+  (`CleanupWorker`/`SyncWorker`/`SageBookingWorker`) und in der Betreffzeile der
+  `SyncErrorNotifier`-Fehlermail verwendet — **kein** Verzweigungspunkt, **kein** API-Vertrag.
+  **Bewertung: Service-Publish ist fuer diesen Hotfix NICHT erforderlich** — ohne ihn zeigt der
+  Dienst weiterhin `1.30.0` in Log/Mail, was rein kosmetisch ist (Versionsstand-Diskrepanz zwischen
+  Web und Dienst-Log, keine Funktionsstoerung). Empfehlung: Service-Publish auf den naechsten
+  ohnehin faelligen Service-Deploy verschieben, nicht extra fuer diesen Hotfix einplanen. →
+  `deploy.service: false`.
+- **Migration:** nein (siehe Migrations-/SQL-Auswirkungen; `git diff main...HEAD --
+  IdealAkeWms/Migrations` ist leer, per QA verifiziert). **Ein einmaliges Datenskript** ausserhalb
+  der nummerierten SQL-Reihe (`SQL/Einmalig/`) ist trotzdem Teil des Deploys, siehe unten. →
+  `deploy.migration: false`.
+- **Publish-Befehl** (im Worktree, nach bestandenem Test, vor dem Merge — nur die betroffene
+  Komponente, Service siehe oben):
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
-  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
   ```
+  Der Mensch arbeitet aus dem **Worktree**: Publish → Testsystem → manueller Test (Schranke 2) →
+  erst danach Merge nach `main`. **Nach dem Merge erneut aus `main` publishen nur dann, wenn der
+  Merge tatsaechlich getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat** — hier
+  geprueft: `main` hat seit dem Branch-Punkt (`50fa21da`) nur den Commit `dcc67961` (reine
+  `secondbrain/`-Aenderung, kein Code) erhalten, also **kein** Re-Publish aus main noetig, ein
+  Fast-Forward-artiger Merge reicht.
 - **Reihenfolge AKE (jetzt, mit v1.30.1):**
   1. DB-Backup.
-  2. Web-Publish auf AKE-IIS (neue Web-Version live — Autosave schreibt ab sofort `null` statt `0`).
-  3. `SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql` **genau einmal**
-     **danach** ausfuehren und im Deploy-Protokoll vermerken (nicht davor —
-     sonst schreibt der noch aktive alte Autosave sofort wieder `0` in dieselben Zeilen).
-  4. Manueller Test (Schranke 2).
-  5. Merge in `main`.
-  Der Service-Publish ist nur der Versionsgleichstand wegen noetig, keine funktionale Aenderung.
-- **Reihenfolge IDEAL/Buendel:** Das Skript **erst** ausfuehren, wenn dort — nach dem
-  Vorwaerts-Merge **und** dessen eigenem, spaeteren Deploy — die neue Web-Version live ist (gleicher
-  Grund: sonst schreibt der dortige alte Autosave die Nullen sofort wieder).
+  2. Web-Publish (Befehl oben) auf AKE-IIS — neue Web-Version live, Autosave schreibt ab sofort
+     `null` statt `0` (Details.cshtml `collectProgress`).
+  3. **Ruhiges Fenster** (keine Lagerbestellung gerade in Bearbeitung), dann
+     `SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql` **genau einmal**
+     ausfuehren (nicht davor — sonst schreibt der noch aktive alte Autosave sofort wieder `0` in
+     dieselben Zeilen). Zaehl-`SELECT`-Ergebnis und `ZeilenZurueckgesetzt` **im Deploy-Protokoll
+     vermerken** (Protokoll-Zeile: System = AKE, Datum, Ergebnis).
+  4. Lager bitten, alle offenen `WarehousePicking/Details`-Tabs **neu zu laden** (eine vorher
+     geladene Seite traegt die alte `0` sonst noch im Feld und sendet sie beim naechsten
+     Zwischenspeichern/Abschliessen als neu bestaetigte `0` zurueck).
+  5. Manueller Test (Schranke 2, Checkliste am Spec-Ende).
+  6. Merge in `main`.
+  Service-Publish: siehe Bewertung oben — nicht Teil dieser Reihenfolge, optional/spaeter.
+- **Reihenfolge IDEAL/Buendel (eigener Folgeschritt, NICHT Teil dieses Laufs):** Nach Abnahme **und**
+  Merge in `main` hier: Vorwaerts-Merge `main → feature/2026-08-07-ideal-teile-1-5` (siehe Abschnitt
+  „Uebertrag ins Buendel"), danach dessen **eigener** Deploy. Das Einmal-Skript laeuft im
+  IDEAL-Zielsystem **erst**, wenn dort die neue Web-Version live ist (gleicher Grund: sonst schreibt
+  der dortige alte Autosave die Nullen sofort wieder). Protokoll-Zeile: System = IDEAL, Datum (mit
+  dem Buendel-Deploy), Ergebnis. Dieser Folgeschritt ist explizit **nicht** Teil dieses QA-Laufs.
 
 ## Uebertrag ins Buendel (Vorwaerts-Merge)
 
@@ -1039,3 +1071,165 @@ Uebertrag eingearbeitet:
 
 **Kein weiterer Pruefdurchgang:** Beide Punkte sind Praezisierungen bereits getroffener Entscheidungen.
 Massgeblich fuer den Dev-Lauf sind Rumpf und `affected_code`; bei Widerspruch gilt dieser Nachtrag.
+
+## QA-Nachweis (2026-09-29)
+
+**Umgebung:** Worktree `.claude/worktrees/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist`,
+Branch `feature/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist`, HEAD `8cc23829`.
+Diffbasis: `git diff main...HEAD` (16 Dateien, 648 Zeilen +, 153 Zeilen -). Web-App wurde **nicht**
+gestartet (Program.cs `Migrate()` liefe gegen die Produktions-DB) — Beweis ausschliesslich per Build,
+Test und Diff-/Code-Lesung.
+
+**1. Build**
+```
+dotnet build IdealAkeWms.slnx
+Der Buildvorgang wurde erfolgreich ausgefuehrt.
+9 Warnung(en) (3x NU1902 Sicherheitshinweis MailKit/MimeKit, 1x CS8602 TrackingController.cs — beide
+vorbestehend, unveraendert durch diesen Hotfix), 0 Fehler(er).
+```
+
+**2. Test (alle Suiten)**
+```
+dotnet test
+IdealAkeWms.Tests:        Bestanden — Fehler: 0, erfolgreich: 1107, uebersprungen: 1, gesamt: 1108
+  (uebersprungen: ProductionOrderEagerCreateAgentJobTests, vorbestehend, nicht Teil dieses Hotfixes)
+IDEALAKEWMSService.Tests: Bestanden — Fehler: 0, erfolgreich: 197, uebersprungen: 0, gesamt: 197
+```
+Kein neuer EF-Migrations-Eintrag: `git diff main...HEAD -- IdealAkeWms/Migrations` ist leer (verifiziert).
+
+**3. Abweichungen der Umsetzung gegenueber der Spec-Skizze — bewertet, alle akzeptiert**
+1. **Bindungstest ohne TestServer** (Abschnitt F): `Microsoft.AspNetCore.TestHost` ist kein Teil von
+   `Microsoft.AspNetCore.App` und kein Praezedenzfall im Projekt. Stattdessen bindet
+   `NullableIntArrayBindingTests` ueber den echten `ParameterBinder` + `FormValueProvider` gegen die
+   Parameter-Metadaten der realen Actions (`SaveProgress`/`Close`/`PrintAndClose`) — misst also exakt
+   denselben Bindungspfad wie ein echter POST, ohne neues NuGet-Paket. Ergebnis gemessen:
+   `["5","","7"]` → `[5, null, 7]` fuer alle drei Actions — **kein Rueckfall auf schluesselbasierte
+   Bindung noetig** (K3-Eskalation entfaellt). Zusaetzlich gemessen (Code-Review-Fund): ein
+   Dezimalwert (`"1.5"`) wird vom Binder **verworfen statt null gebunden** — Array wird kuerzer,
+   `ModelState.IsValid == false`. Bewertung: sauberer, staerkerer Nachweis als der Spec-Vorschlag
+   (eigener `TestServer`), gleiches Ergebnis. **Akzeptiert.**
+2. **Pflichtpruefung in `CloseAsync` vor jeder Entity-Aenderung** (Spec-Skizze hatte sie danach):
+   verifiziert im Code (`WarehouseRequisitionRepository.cs:205-214`) — die `incomplete`-Pruefung laeuft,
+   bevor die `foreach`-Schleife irgendein `item.QuantityPicked` setzt. Vorteil: bei Ablehnung bleiben
+   keine unnoetig als „modified" markierten Tracked Entities zurueck; verhaltensgleich zur Spec, da
+   ohnehin kein `SaveChangesAsync` vor der Pruefung stand. **Akzeptiert, technisch sauberer.**
+3. **Inline-Alert statt `window.alert()`** (Details.cshtml, `#incomplete-alert`): Bootstrap
+   `alert alert-warning`, `role="alert"`, betroffene Felder mit `is-invalid` + `aria-invalid="true"`,
+   Fokus auf die erste offene Position. Begruendung: Fertigungsterminals, WCAG-AA-Kontrast/
+   Bedienbarkeit (CLAUDE.md „Frontend-Arbeit"-Pflicht), sichtbare Meldung statt modaler Blockade.
+   Verifiziert im Diff: `getIncompleteRows()`/`markIncomplete()`/`showMessage()` ersetzen
+   `emptyRows()`/`fillSollAsIst()`/`close-confirm-modal` vollstaendig; die Markierung wird bei jeder
+   Eingabe nachgefuehrt (`form.addEventListener('input'/'click', ...)`). **Akzeptiert, erfuellt AK 12
+   und die CLAUDE.md-Barrierefreiheits-Leitplanke.**
+4. **Code-Review-Fixes (Commit `8cc23829`):** gemessen, dass ein Dezimalwert (`1.5`) vom Binder
+   verworfen wird (`[5,7]` + `ModelState`-Fehler, Array kuerzer als `itemIds`) — ohne Guard haetten
+   alle Folgewerte eine Position verrutscht und waeren fehlerhaft gebucht worden. Fix verifiziert:
+   `!ModelState.IsValid || quantitiesPicked.Length != itemIds.Length` in `Close` **und**
+   `PrintAndClose`, jeweils vor jeder Repo-Aenderung, mit eigener Meldung. Bei Ablehnung durch die
+   Pflichtpruefung (nicht durch den Laengen-Guard) sichert `Close` den Zwischenstand per
+   `SaveProgressAsync`, bevor es zur Detailseite zurueckkehrt — Testbeleg
+   `Close_EmptyQuantityWithoutShortage_IsBlockedServerSide_NothingBooked`
+   (`db.Items... .Should().Equal(5m, null, null)`, Bestellung bleibt `Submitted`). Server-Meldung
+   bleibt im Client stehen (`showMessage(data.error, 'server')`), 400 ohne `error`-Feld faellt auf
+   „Neu laden" zurueck. Skriptkopf warnt zusaetzlich vor offenen Browser-Tabs nach dem Einmal-Skript.
+   **Akzeptiert — schliesst eine reale Luecke, die die urspruengliche Spec-Skizze nicht abdeckte.**
+5. **Zusaetzlicher `PickingControllerPrintBomRoutingTests`:** reflektionsbasierter Test, dass `GET`
+   `[HttpGet]` traegt und keinen `visiblePositions`-Parameter mehr hat, und `POST`
+   `[HttpPost, ValidateAntiForgeryToken, ActionName("PrintBom")]` mit `[FromForm]`-Parametern traegt —
+   verhindert eine `AmbiguousMatchException` durch zwei gleichnamige Actions und belegt den
+   Antiforgery-Schutz. **Akzeptiert, sinnvolle Ergaenzung.**
+6. **Hilfeseite + ADR:** `Views/Help/Index.cshtml` um einen Abschnitt „Ist-Menge bestaetigen (seit
+   v1.30.1)" ergaenzt (verifiziert im Diff); ADR [[0015-einmal-datenskripte-ausserhalb-der-nummerierten-sql-reihe]]
+   im Hauptcheckout bereits angelegt und inhaltlich konsistent mit dem Skriptkopf. **Akzeptiert,
+   erfuellt die CLAUDE.md-Pflicht „Hilfeseite" + „Dauerwissen".**
+
+**4. Akzeptanzkriterien — Einordnung (17 AK)**
+
+| AK | Aussage (Kurzform) | Einordnung | Beleg |
+|---|---|---|---|
+| 1 | Druck ≥300 Positionen ohne 404.15 | **Manual-UAT** | IIS-Grenze nicht InMemory-testbar; `PickingControllerPrintBomRoutingTests` deckt nur das Routing |
+| 2 | Gefilterter Druck weiterhin nur sichtbare Positionen | **Manual-UAT** (Regression TS-5.9) | Bom.cshtml-Logik unveraendert (`totalPositions`-Vergleich), Browser-Test noetig |
+| 3 | GET ohne `visiblePositions` druckt alles | **Automatisiert** + Manual-UAT | `PickingControllerPrintBomRoutingTests.Get_IsGetOnly_AndHasNoPositionList`; visueller Beleg braucht Browser |
+| 4 | Druck-Button oeffnet Tab ohne Popup-Blocker (Chrome/Firefox/Edge) | **Manual-UAT** | Formular-Submit-Mechanik im Diff verifiziert, Popup-Blocker-Verhalten nur im echten Browser pruefbar |
+| 5 | Buendel-Leerzustand-Sperre bleibt (out of scope hier, Buendel-Merge) | **Manual-UAT nach Vorwaerts-Merge** | nicht Teil dieses Laufs |
+| 6 | IST-Feld ohne Wert/Placeholder | **Automatisiert** (Code) + Manual-UAT (Optik) | Diff: `placeholder="@requestedInt"` entfernt, `aria-label` statt dessen; visuelle Pruefung braucht Browser |
+| 7 | Autosave speichert leeres Feld als NULL | **Automatisiert** | `SaveProgress_EmptyQuantity_PersistsNullNotZero` (DB-Wert `null` bestaetigt) |
+| 8 | Bindungstest `["5","","7"]` → `[5,null,7]` | **Automatisiert** | `NullableIntArrayBindingTests.QuantitiesPicked_EmptyString_BindsNullAtSameIndex` (3 Actions) |
+| 9 | Abschliessen ohne IST/Fehlteil wird serverseitig blockiert (Close+PrintAndClose, auch ohne JS) | **Automatisiert** | `Close_EmptyQuantityWithoutShortage_IsBlockedServerSide_NothingBooked`, `PrintAndClose_EmptyQuantityWithoutShortage_IsBlockedServerSide_ReturnsBadRequest` |
+| 10 | Getippte `0` geht durch, wird als `0` gebucht | **Automatisiert** | `Close_TypedZero_IsAConfirmation_BooksZero` |
+| 11 | Leere IST-Zeile mit Fehlteil-Markierung geht durch | **Automatisiert** | `Close_EmptyQuantityWithShortageMark_PassesAndStaysNull` (beide Shortage-Werte) |
+| 12 | `close-confirm-modal`/`fillSollAsIst`/`normalizeEmptyQuantitiesToZero` existieren nicht mehr | **Automatisiert (Grep) + Code-Review** | verifiziert: keine Treffer mehr in `Details.cshtml` (per Diff/grep) |
+| 13 | Reset-Skript: nur `Submitted` + `ShortageStatus=None` → NULL, Rest unveraendert, Skript nie ausgefuehrt | **Manual-UAT (Deploy-Schritt)** | Skriptinhalt verifiziert (WHERE-Klausel korrekt), Skript bewusst **nicht** ausgefuehrt in diesem Lauf |
+| 14 | Bestehende IST-Werte (PartiallyDelivered/abgeschlossen) bleiben unveraendert | **Manual-UAT** (Bestandsdaten) + indirekt automatisiert | Repository-Tests decken `DeriveStatus`/Lesepfade ab, echte Produktionsdaten nur am Testsystem pruefbar |
+| 15 | `dotnet build`/`dotnet test` gruen, keine neue Migration | **Automatisiert, siehe oben** | Build 0 Fehler, Test 1107+197 gruen, `Migrations`-Diff leer |
+| 16 | Version 1.30.1 in beiden `AppVersion.cs` + Changelog-Eintrag | **Automatisiert (Diff-Beleg)** | beide Dateien verifiziert, `Changelog.cshtml`-Card verifiziert |
+| 17 | `docs/TESTSZENARIEN.md` TS-5.11/TS-18.10 + Index nachgezogen | **Automatisiert (Diff-Beleg)** | beide Dateien verifiziert, Index in main-Checkout bereits korrekt (siehe unten) |
+
+**5. Testszenarien/Index** — `docs/TESTSZENARIEN.md` (Worktree) enthaelt TS-5.11 und TS-18.10
+vollstaendig (Vorbedingung/Schritte/Erwartung/Negativfaelle, inkl. Einmal-Skript-Hinweis).
+`secondbrain/tests/testszenarien-index.md` (Hauptcheckout) war bei QA-Start bereits korrekt
+nachgezogen (Zeilen 5 und 18, mit Wikilink auf diese Spec) — keine Aenderung noetig.
+
+**6. Code-Review:** `superpowers:requesting-code-review` als Hintergrund-Subagent auf
+`main...HEAD` dieses Worktrees dispatcht (Beschreibung: PrintBom GET→POST-Split,
+Ist-Menge-Pflichtpruefung/Autosave-Fix/`int?[]`-Bindung; Anforderung: Spec-Rumpf +
+`affected_code` + FREIGABE-NACHTRAG). Ergaenzend hat die QA selbst jede geaenderte Datei einzeln
+gegen `affected_code` und die Akzeptanzkriterien gelesen (siehe Abweichungs-Bewertung oben); keine
+Blocker gefunden.
+
+**Ergebnis: Testbereit.** Build und alle Tests gruen, kein neuer Migrations-Eintrag, alle sechs
+dokumentierten Abweichungen von der Spec-Skizze sind begruendet und akzeptiert, alle 17 AK sind
+entweder automatisiert belegt oder als Manual-UAT eingeordnet (IIS-Grenze, Popup-Blocker,
+Bestandsdaten, Einmal-Skript-Ausfuehrung — allesamt nicht InMemory-testbar).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Vor dem Merge am Testsystem durchgehen — Referenz: TS-5.11 und TS-18.10 in `docs/TESTSZENARIEN.md`.
+
+**Teil 1 — Stuecklisten-Druck (TS-5.11)**
+1. [ ] FA mit Stueckliste ≥ 300 Positionen oeffnen (`Picking/Bom`), keinen Filter setzen, „Stueckliste
+   drucken" klicken → neues Tab mit der **vollstaendigen** Liste, kein HTTP 404.15.
+2. [ ] Spaltenfilter setzen, der die Positionen stark reduziert, erneut drucken → nur die sichtbaren
+   Positionen erscheinen (Regression TS-5.9).
+3. [ ] Filter setzen, der nur wenige Positionen ausblendet (lange Liste bleibt), drucken → funktioniert
+   trotz langer `visiblePositions`-Liste im POST-Body.
+4. [ ] `/Picking/PrintBom/{id}` direkt in die Adresszeile eingeben (GET) → druckt **alle** Positionen,
+   kein Fehler.
+5. [ ] Dieselbe Pruefung in der read-only Stueckliste der FA-Abarbeitungsliste (Vorbau/FA-Vervollstaendigung).
+6. [ ] Standard-Popup-Blocker in Chrome, Firefox und Edge aktiv lassen → Druck-Tab oeffnet trotzdem.
+
+**Teil 2 — Lagerbestellung Ist-Menge (TS-18.10)**
+7. [ ] Offene Lagerbestellung (Submitted, ≥ 3 Positionen, keine bearbeitet) oeffnen → IST-Felder sind
+   **leer**, kein grauer Placeholder mit der Bestellt-Menge.
+8. [ ] Position 1 mit IST=5 befuellen, Autosave ausloesen (z. B. in ein Notizfeld klicken), Seite neu
+   laden → Position 1 zeigt 5, Positionen 2/3 bleiben **leer** (nicht 0).
+9. [ ] „Speichern + Abschliessen" klicken, ohne Position 2/3 zu befuellen → wird verweigert, gelber
+   Hinweis nennt Pos 2 und Pos 3 mit Artikelnummer, betroffene Felder rot umrandet, Bestellung bleibt
+   Submitted.
+10. [ ] Position 2 mit „0" befuellen, Position 3 als „Fehlteil" markieren, erneut abschliessen → geht
+    durch; Position 2 wird mit 0 gebucht, Position 3 bleibt leer mit Fehlteil-Markierung.
+11. [ ] Neue offene Bestellung: „Drucken und Abschliessen" mit einer leeren Position ohne Fehlteil →
+    kein Druck-Tab mit Fehlerseite, Meldung im aktuellen Fenster, Formular bleibt editierbar und
+    Eingaben bleiben erhalten.
+12. [ ] Bestehende Bestellung mit Status PartiallyDelivered (echte IST-Werte vor dem Deploy) oeffnen →
+    Werte unveraendert sichtbar.
+13. [ ] Optional (falls DevTools verfuegbar): direkter POST an `/WarehousePicking/Close/{id}` ohne
+    JavaScript mit leerer Zeile ohne Fehlteil → ebenfalls blockiert (serverseitige Pruefung).
+
+**Deploy-Schritt — Einmal-Skript (nach dem Web-Deploy, siehe Abschnitt „Deploy")**
+14. [ ] DB-Backup vor dem Skriptlauf bestaetigt.
+15. [ ] Web-Version v1.30.1 ist auf AKE-IIS live, bevor das Skript laeuft.
+16. [ ] Ruhiges Fenster (keine Lagerbestellung in Bearbeitung), Skript
+    `SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql` **genau einmal**
+    ausgefuehrt.
+17. [ ] Zaehl-Ergebnis (`BetroffeneBestellungen`/`BetroffeneZeilen`) und `ZeilenZurueckgesetzt` im
+    Deploy-Protokoll vermerkt: **Protokoll-Zeile AKE** — System, Datum, Ergebnis.
+18. [ ] Lager gebeten, alle offenen `WarehousePicking/Details`-Tabs neu zu laden.
+19. [ ] Stichprobe: eine Bestellung mit vorher `QuantityPicked=0` ohne Fehlteil zeigt jetzt ein leeres
+    IST-Feld; eine Fehlteil-Zeile mit vorheriger `0` bleibt unveraendert.
+20. [ ] Notiert: Skript wurde **nicht** ein zweites Mal ausgefuehrt (Warnkopf beachtet).
+
+**Nach Abnahme:**
+21. [ ] Merge in `main` durch den Menschen (nicht Teil dieses QA-Laufs).
+22. [ ] Vorwaerts-Merge `main → feature/2026-08-07-ideal-teile-1-5` als eigener Folgeschritt einplanen
+    (Protokoll-Zeile IDEAL folgt mit dem Buendel-Deploy).

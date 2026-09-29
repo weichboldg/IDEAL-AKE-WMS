@@ -819,6 +819,22 @@ grossen Listen greift, haengt an Provider-Version und Optionen. Wer `UseSqlServe
 Compatibility-Level oder Parameter-Uebersetzungsmodus) aendert, muss diesen Test gruen halten — er ist der
 Waechter fuer jede Listen-`Contains`-Abfrage mit Seitengroessen-Bezug.
 
+### Parallele Formular-Arrays: `int?[]` traegt leere Felder, `int[]` nicht — gemessen, nicht angenommen
+Formulare mit parallelen Arrays (`itemIds[]` + `quantitiesPicked[]`) muessen leere Eingaben an ihrem Index
+behalten, sonst verschiebt sich die Zuordnung. **Gemessen 2026-09-29** (`NullableIntArrayBindingTests`,
+echter `ParameterBinder` + `FormValueProvider` aus `AddControllers()`): `int?[]` bindet `["5","","7"]` zu
+`[5, null, 7]`. Bis v1.30.0 hat die Lagerbestellung das Problem anders „geloest" — der Client schickte
+leere Felder als `'0'` — und damit jede nicht gezaehlte Position still als 0 gespeichert (Autosave) bzw.
+gebucht (Abschluss). **Warum als Fallstrick:** Der Workaround sah wie eine technische Notwendigkeit aus
+(Kommentar „Binder skippt leere Strings") und war in Wahrheit eine fachliche Falschbuchung. **Regel:**
+Mengen, die „nicht erfasst" kennen muessen, als `int?[]`/`decimal?` binden; nie im Client auf `0`
+normalisieren. **Aber:** Ein **nicht parsbarer** Wert (z. B. `1.5` fuer `int?`) wird vom Binder **verworfen**, nicht als
+`null` gebunden — gemessen `["5","1.5","7"]` → `[5, 7]` + `ModelState`-Fehler. Wer parallele Arrays bindet, muss
+deshalb `ModelState.IsValid` **und** gleiche Laengen pruefen, sonst verrutschen alle Folgewerte still
+(Lagerbestellung: Guard in `Close`/`PrintAndClose` seit v1.30.1). **Testmittel:** `Microsoft.AspNetCore.TestHost` ist **nicht** Teil von
+`Microsoft.AspNetCore.App` (eigenes NuGet) — Bindung deshalb ueber `ParameterBinder` gegen die
+Parameter-Metadaten der echten Action testen (Vorlage `IdealAkeWms.Tests/ModelBinding/`).
+
 ## 9. IDEAL — hierarchische Produktionsauftraege (Teil 7)
 
 ### `ProductionOrder.OrderNumber` ist nach der Schema-Inversion NICHT mehr unique
