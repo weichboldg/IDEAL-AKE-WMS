@@ -83,6 +83,7 @@ Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
 | Lagerbestellungs-Druck spiegelt GUI (Spalten/Sort/Filter) | Gemerged (v1.23.0) | `2026-06-19-warehousepicking-print-spalten-sort-design.md` | `Services/WarehousePickingPrintLayout.cs` |
 | Glas-Bestellung als eigener Bestelltyp | Gemerged (v1.25.0) | `2026-07-03-glas-bestellung-design.md` | `Models/WarehouseRequisitionType.cs`, `Services/GlasArticleGroupFilter.cs` |
 | Lagerbestellung aus der Stueckliste + Master-Schalter | Gemerged (v1.25.0) | `2026-07-09-lagerbestellung-aus-bom-design.md` | `Api/WarehouseRequisitionsApiController` (`quick-add`), `Filters/RequireLagerbestellungAktivAttribute.cs` |
+| AKE-Hotfix: Stuecklisten-Druck per POST (404.15) + Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL) | **Testbereit** (v1.30.1, Worktree aus main, wartet Schranke 2) | [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]] | `PickingController.PrintBom`/`PrintBomPost`, `WarehouseRequisitionRepository.CloseAsync`, `Views/WarehousePicking/Details.cshtml`, `SQL/Einmalig/` ([[0015-einmal-datenskripte-ausserhalb-der-nummerierten-sql-reihe]]) |
 
 ## OSEON
 

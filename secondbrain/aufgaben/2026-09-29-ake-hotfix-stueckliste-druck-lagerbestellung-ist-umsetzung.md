@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
 branch: "feature/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
 ---
@@ -20,9 +20,19 @@ main → `feature/2026-08-07-ideal-teile-1-5` (eigener Schritt, nicht in diesem 
 
 ## Stand
 
-- [ ] F: Bindungstest `int?[]` mit `["5","","7"]` → `[5,null,7]` (ZUERST)
-- [ ] Teil 2 B: CloseAsync `decimal?` + Pflichtpruefung, Controller Close/PrintAndClose `int?[]`, Tests
-- [ ] Teil 2 A/C/D: Details.cshtml (frontend-design), Autosave `''`, Modal/normalize/fillSollAsIst weg, Placeholder weg
-- [ ] Teil 1: PrintBom GET + POST, Bom.cshtml Formular-Submit
-- [ ] SQL/Einmalig/ Reset-Skript (NICHT ausfuehren)
-- [ ] v1.30.1, Changelog, TS-5.11, TS-18.10, Brain
+- [x] F: Bindungstest `int?[]` mit `["5","","7"]` → `[5,null,7]` (echte Formularbindung, `NullableIntArrayBindingTests`)
+- [x] Teil 2 B: CloseAsync `decimal?` + Pflichtpruefung, Controller Close/PrintAndClose `int?[]`, Tests
+- [x] Teil 2 A/C/D: Details.cshtml (frontend-design: Inline-Alert statt Modal), Autosave `''`, Modal/normalize/fillSollAsIst weg, Placeholder weg
+- [x] Teil 1: PrintBom GET + POST, Bom.cshtml Formular-Submit
+- [x] SQL/Einmalig/ Reset-Skript angelegt (NICHT ausgefuehrt — Deploy-Schritt des Menschen)
+- [x] v1.30.1, Changelog, TS-5.11, TS-18.10, Brain (fallstricke.md, ADR 0015, feature-map, Index bereits nachgezogen)
+
+## QA (2026-09-29)
+
+**Testbereit.** Build 0 Fehler, Test IdealAkeWms.Tests 1107/1108 gruen (1 vorbestehend uebersprungen),
+IDEALAKEWMSService.Tests 197/197 gruen, kein neuer Migrations-Eintrag. Alle 17 AK eingeordnet
+(automatisiert oder Manual-UAT). Details, Abweichungs-Bewertung und manuelle Test-Checkliste siehe
+Abschnitte „QA-Nachweis (2026-09-29)" und „Manuelle Test-Checkliste (Schranke 2)" in der Spec.
+
+Naechster Schritt: Schranke 2 (Mensch — manueller Test am Testsystem, dann Merge in `main`).
+Vorwaerts-Merge ins Buendel (`feature/2026-08-07-ideal-teile-1-5`) ist ein eigener Folgeschritt danach.
