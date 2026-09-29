@@ -28,8 +28,13 @@ public interface IWarehouseRequisitionRepository
     Task RemoveItemAsync(int itemId);
 
     Task SubmitAsync(int id, int recipientGroupId, int submittedByUserId, string user, string winUser, byte[] rowVersion);
-    Task CloseAsync(int id,
-        IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
+    /// <summary>
+    /// Schliesst die Bestellung ab. Hotfix v1.30.1: jede Position braucht eine Ist-Menge (auch 0) ODER eine
+    /// Fehlteil-Markierung. Fehlt beides, wird NICHTS gespeichert und die Liste der unvollstaendigen
+    /// Positionen zurueckgegeben; leere Liste = abgeschlossen. Eine fehlende Ist-Menge wird nie als 0 gebucht.
+    /// </summary>
+    Task<IReadOnlyList<(int Position, string ArticleNumber)>> CloseAsync(int id,
+        IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
         IReadOnlyDictionary<int, string?> itemNotesEinkauf,
         IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
