@@ -9,10 +9,14 @@ Diese Spec ist KEIN Epic (Epics laufen ueber /epic-stage bzw. run-epic-stage.ps1
 Pruefe zuerst:
 - Frontmatter status muss Freigegeben sein UND worktree/branch muessen leer sein
   (sonst laeuft die Umsetzung schon -> NICHTS tun, beenden).
-- Lies den Abschnitt 'Freigabe-Antworten' als verbindlichen Auftrag: er beantwortet
-  die offenen Rueckfragen. Ist eine Rueckfrage unbeantwortet (nur Pfeil, keine Antwort)
-  ODER ist es eine Varianten-Spec ohne gesetztes freigabe_entscheidung:
-  NICHT umsetzen, Status auf Entwurf zuruecksetzen, Grund in die Spec schreiben, beenden.
+- Was gilt: Der Rumpf der Spec (Loesungsentwurf, affected_code, Akzeptanzkriterien,
+  Testszenarien) ist der Auftrag. Ein FREIGABE-NACHTRAG am Dateiende geht ihm vor.
+  'Freigabe-Antworten', Antwort- und Pruefabschnitte sind die Begruendung dazu.
+  Widersprechen sich Rumpf und Antworten und loest kein Nachtrag den Widerspruch:
+  nicht umsetzen, den Widerspruch in die Spec schreiben, beenden.
+- Ist eine Rueckfrage unbeantwortet (nur Pfeil, keine Antwort) oder eine Varianten-Spec
+  ohne gesetztes freigabe_entscheidung: nicht umsetzen, Status auf Entwurf zuruecksetzen,
+  Grund in die Spec schreiben, beenden.
 - Gibt es einen Abschnitt 'Kritische Pruefung' mit offenen BLOCKER-Befunden, die weder
   ausgeraeumt noch in den Freigabe-Antworten beantwortet sind: NICHT umsetzen, Grund in
   die Spec schreiben, beenden. (Ein BLOCKER, der nachweislich geklaert wurde, ist ok.)
@@ -28,18 +32,22 @@ Dann:
 1. Worktree anlegen: powershell -ExecutionPolicy Bypass -File scripts/new-worktree.ps1 -Slug <slug-OHNE-suffix-spec>
    (Spec 2026-07-28-foo-spec -> Slug 2026-07-28-foo). worktree + branch ins Spec-Frontmatter,
    status: InUmsetzung, Aufgaben-Datei in secondbrain/aufgaben/ anlegen.
-2. IM WORKTREE umsetzen, gemaess CLAUDE.md-Workflow: superpowers:writing-plans, dann
-   subagent-driven-development (unabhaengige Tasks parallel via dispatching-parallel-agents).
+2. Im Worktree umsetzen, gemaess CLAUDE.md-Workflow (Plan ueber superpowers:writing-plans,
+   dann Ausfuehrung). Liefere, was die Spec verlangt, im vorgesehenen Umfang - Zusatzfunde
+   als Befund in die Spec, nicht mitbauen. Subagenten nur fuer grosse, wirklich unabhaengige
+   Teilaufgaben, nie zum Gegenpruefen der eigenen Arbeit.
    **Betrifft die Aufgabe Views, CSS oder Oberflaechen-JavaScript: den Skill `frontend-design`
    VOR der Umsetzung explizit aufrufen** (Pflicht laut CLAUDE.md; nicht auf automatische
    Ausloesung verlassen). Dabei gilt Konsistenz vor Eigenstaendigkeit (Bootstrap 5, bestehende
    Muster) und Kontrast nach WCAG AA.
    Zwischenstaende regelmaessig committen ("wip: <slug>").
 3. PFLICHT vor der QA-Phase: vollstaendigen Stand committen ("wip: <slug> feature-complete").
-4. Qualitaet: superpowers:verification-before-completion + code-review. dotnet build und
-   dotnet test muessen gruen sein - Ausgaben als Beweis in die Spec. docs/TESTSZENARIEN.md +
-   secondbrain/tests/testszenarien-index.md ergaenzen. Nutze den Subagenten qa-agent.
-   Der qa-agent finalisiert auch den Deploy-Abschnitt (web/service/migration + Publish-Befehle).
+4. Qualitaet: dotnet build und dotnet test gruen, Ausgaben als Beweis in die Spec.
+   docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md ergaenzen.
+   Dann den Subagenten qa-agent aufrufen und sein Ergebnis abwarten. Er ist die unabhaengige
+   Pruefung - Code-Review, Beweisart je Akzeptanzkriterium, geaenderte Bestandstests - und
+   finalisiert den Deploy-Abschnitt. Kommt sein Ergebnis nicht zurueck, gilt die QA als nicht
+   erfolgt: nicht auf Testbereit setzen, sondern melden.
 5. NUR bei Erfolg: status: Testbereit + manuelle Test-Checkliste ans Spec-Ende.
    Code im Worktree committen; die secondbrain/-Aenderungen SEPARAT im Hauptcheckout committen
    ("brain: <slug> testbereit") - zwei Commits in zwei Baeumen, das ist beabsichtigt.

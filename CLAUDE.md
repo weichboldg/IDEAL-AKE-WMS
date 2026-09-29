@@ -52,18 +52,71 @@ Vollstaendige Vorfassung dieser Datei (alle Tabellen und Fallstricke im Original
 **Additiv schreiben:** `architektur/`, `codebase/`, `glossar/` werden ergaenzt, nie ueberschrieben.
 Neue Entscheidung = neuer ADR; ADRs werden nie umgeschrieben, nur superseded.
 
+## Skill `ponytail:ponytail` (nicht verhandelbar)
+
+**Bei jeder Aufgabe geladen und verwendet** — unabhaengig vom Aufgabentyp, ohne Ausloeser-Bedingung
+und ohne Ausnahme. Gilt gleichrangig neben Brain-first, nicht nur bei bestimmten Aenderungsarten
+(anders als z.B. `frontend-design`, das nur bei UI-Aenderungen greift).
+
+**Was er tut:** Er laesst den Agenten wie den faulsten erfahrenen Entwickler im Raum denken — *der
+beste Code ist der, den man nie geschrieben hat.* Vor dem Schreiben haelt er an der ersten Sprosse,
+die traegt:
+
+```
+1. Muss das ueberhaupt existieren?   -> nein: weglassen (YAGNI)
+2. Gibt es das im Codebestand schon? -> wiederverwenden statt neu schreiben
+3. Kann die Standardbibliothek das?  -> nehmen
+4. Gibt es ein natives Plattform-Mittel? -> nehmen
+5. Kann eine vorhandene Abhaengigkeit das? -> nehmen
+6. Geht es in einer Zeile?           -> eine Zeile
+7. Erst dann: das Minimum, das funktioniert
+```
+
+Die Leiter laeuft **nachdem** er das Problem verstanden hat, nicht statt dessen: erst den
+betroffenen Code lesen und den echten Ablauf verfolgen, dann die Sprosse waehlen.
+**Faul in der Loesung, nie im Lesen.**
+
+Quelle: https://github.com/DietrichGebert/ponytail (MIT). Installiert als Claude-Code-Plugin
+(`/plugin marketplace add DietrichGebert/ponytail`, dann `/plugin install ponytail@ponytail`).
+Befehle: `/ponytail [lite|full|ultra|off]`, `/ponytail-review` (Diff auf Over-Engineering),
+`/ponytail-audit` (ganzes Repo), `/ponytail-debt` (aufgeschobene `ponytail:`-Abkuerzungen ernten).
+
+**Warum er hier passt:** Die besten Entscheidungen dieses Projekts folgen genau dieser Leiter —
+`HierarchischeStrukturStatus` als Vorlage statt eines neuen Status-Halters, das
+`BomDiResolutionTests`-Muster statt eines neuen Testansatzes, das OSEON-Baummuster statt einer
+zweiten Baumimplementierung, der BOM-Guard statt der Volloesung.
+
+**Wo die Hausregeln Vorrang haben — ausdruecklich, damit „faul" nicht falsch gelesen wird:**
+ponytail schneidet ohnehin nie Validierung, Fehlerbehandlung, Sicherheit oder Barrierefreiheit weg.
+Hier kommen drei Dinge dazu, die **ebenfalls nie** der Leiter zum Opfer fallen:
+- **Melden statt still behandeln.** Sichtbare Banner, Sammelmeldungen und Invarianten-Warnungen
+  sind hier Pflicht, nicht Beiwerk — sie haben in diesem Projekt mehrfach falsche Annahmen
+  aufgedeckt (`SubFA = 0`, Umhaeng-Konflikte, unbekannte Arbeitsbereiche).
+- **Testszenarien-Pflicht und Brain-Update** gelten unveraendert. „Weniger Code" heisst nicht
+  „weniger Nachweis".
+- **Dauerwissen festhalten** (ADR, `fallstricke.md`) bleibt Pflicht — eine gesparte Zeile Code
+  rechtfertigt keine gesparte Zeile Begruendung.
+
 ## Skill-Workflow-Kette (verpflichtend)
 
 1. **Unklare Anforderung** → `superpowers:brainstorming`.
 2. **Vor jeder nicht-trivialen Code-Aenderung** → Plan ueber `superpowers:writing-plans`.
    *Trivial* = klar abgegrenzter Einzel-Fix (Typo, eine Konstante, Kommentar). Alles mit
    Architektur-, Datenmodell- oder Mehr-Datei-Impact braucht einen Plan.
-3. **Ausfuehrung agentenbasiert** → `superpowers:subagent-driven-development` bzw.
-   `superpowers:executing-plans`. Unabhaengige Tasks **parallel** via
-   `superpowers:dispatching-parallel-agents`; sequenziell nur bei echten Dependencies.
+3. **Ausfuehrung** → `superpowers:executing-plans` bzw. `superpowers:subagent-driven-development`.
+   Subagenten fuer grosse, wirklich unabhaengige Teilaufgaben, dann parallel via
+   `superpowers:dispatching-parallel-agents`; nicht fuer kleine Schritte und nie zum Gegenpruefen der
+   eigenen Arbeit. Grund: Die aktuellen Modelle delegieren von sich aus bereitwillig, und jede
+   Ebene kostet Kontext und Kontingent.
 4. **Debugging** → `superpowers:systematic-debugging` statt Symptom-Patching.
-5. **Vor Plan-Abschluss / Commit / PR** → `superpowers:verification-before-completion` **und**
-   Code-Review (`code-review` bzw. `superpowers:requesting-code-review`).
+5. **Unabhaengiges Code-Review durch den `qa-agent`**, bevor etwas Testbereit wird. Es laeuft
+   synchron in dessen Lauf und endet mit festgehaltenen Befunden in der Spec. Zweimal ging ein
+   Review verloren, weil es an einen Hintergrundprozess bzw. weiteren Unteragenten abgegeben
+   wurde — ein Review ohne zurueckgekehrtes Ergebnis gilt als nicht durchgefuehrt.
+   Allgemeine Selbstpruef-Anweisungen ("pruefe nochmal", "Verifikationsschritt anhaengen") entfallen
+   bewusst: Die aktuellen Modelle pruefen ihre Arbeit von sich aus, zusaetzliche Aufforderungen
+   erzeugen laut Anthropic nur Mehrfachpruefung. Die Beweispflicht (Build- und Testausgaben,
+   manuelle Checkliste) bleibt — sie ist ein Ergebnis fuer den Menschen, keine Selbstpruefung.
 
 **Pipeline-Rollen:** `task-scout` (unverarbeitete Backlog-Dateien finden) → `spec-agent` (Spec nach
 `secondbrain/specs/entwurf/`) → Umsetzung im Worktree → `qa-agent` (darf als Einziger
@@ -158,7 +211,16 @@ Bestehende bewusste Asymmetrien zwischen Code- und UI-Namen nicht „aufraeumen"
 Glossar begruendet.
 
 **Einfachheit und Verifikation.** Root Cause statt Symptom, minimale Code-Auswirkung, kein
-Over-Engineering. Niemals eine Aufgabe als erledigt melden ohne Beweis (Build, Tests, View).
+Over-Engineering. Keine Aufgabe als erledigt melden ohne Beweis (Build, Tests, View). Umfang:
+liefern, was verlangt ist — Zusatzfunde melden, nicht mitbauen.
+
+**Belegen statt deuten.** Aussagen ueber Code und Daten mit Fundstelle belegen (Datei:Zeile,
+Abfrage). Die Bedeutung eines Feldes, einer Tabelle oder Spalte nie aus dem Namen ableiten, sondern
+nachsehen, wo es geschrieben und gelesen wird. Negative Aussagen ("gibt es nicht", "null-sicher")
+brauchen denselben Beleg ueber alle Wege, Schreibwege eingeschlossen. Was nur in Sage oder einem
+anderen Fremdsystem steht, wird nicht angenommen, sondern als Pruefabfrage fuer den Menschen
+formuliert. Grund: Fast jede Korrekturrunde im September 2026 ging auf einen Schluss aus einem Namen
+oder eine ungepruefte Negativaussage zurueck.
 
 **Testszenarien-Pflicht.** Zu **jedem** Feature und **jedem** Bugfix ein vollstaendiges manuelles
 Szenario liefern (Vorbedingungen, Schritte, erwartetes Verhalten, Negativfaelle) **und**
@@ -186,4 +248,4 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
       `glossar/*`?
 - [ ] Neue Rolle/neuer Filter? Dann **drei** Stellen: Attribut,
       `secondbrain/codebase/controller.md`, `Views/Users/RoleOverview.cshtml`.
-- [ ] `superpowers:verification-before-completion` + Code-Review durchlaufen?
+- [ ] Unabhaengiges Code-Review (`qa-agent`) mit festgehaltenen Befunden in der Spec?
