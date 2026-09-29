@@ -24,6 +24,10 @@
 --
 -- REIHENFOLGE: 1. DB-Backup.  2. Neue Web-Version (v1.30.1) deployen.  3. DANN dieses Skript.
 -- (Vor dem Web-Deploy liefe noch der alte Autosave und schriebe sofort wieder 0.)
+-- OFFENE BROWSER-TABS: Eine Lagerbestellungs-Detailseite, die VOR dem Skript geladen wurde, traegt die alte
+-- 0 noch im Ist-Feld und schickt sie beim naechsten Zwischenspeichern/Abschliessen zurueck — jetzt als
+-- bestaetigte 0. Deshalb in einem ruhigen Fenster (keine Lagerbestellung in Bearbeitung) ausfuehren und
+-- das Lager bitten, alle offenen Lagerbestellungs-Seiten danach NEU ZU LADEN.
 -- =====================================================================================================
 SET NOCOUNT ON;
 

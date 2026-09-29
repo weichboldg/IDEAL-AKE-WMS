@@ -3864,10 +3864,16 @@ ausgefuehrt (siehe Deploy).
   (Automatisiert: `WarehousePickingControllerTests.Close_EmptyQuantityWithoutShortage_IsBlockedServerSide_NothingBooked`,
   `…PrintAndClose_…_ReturnsBadRequest`.)
 - **Negative Menge** eintippen und abschliessen. **Erwartet:** wie bisher „Ist-Mengen duerfen nicht negativ sein."
+- **Dezimalwert** (`1,5` bzw. `1.5`) in ein Ist-Feld tippen und abschliessen. **Erwartet:** Das Feld wird
+  markiert, der Hinweis verlangt ganze Zahlen; ohne JavaScript lehnt der Server ab („Ist-Mengen muessen ganze
+  Zahlen ab 0 sein“) und bucht **nichts** — vorher rutschten dabei alle folgenden Mengen eine Zeile nach oben.
+- **Server lehnt „Speichern + Abschliessen“ ab** (z. B. leere Zeile ohne JavaScript). **Erwartet:** Die bis
+  dahin eingetragenen Mengen, Notizen und Fehlteil-Markierungen sind nach der Rueckkehr noch da (Zwischenstand
+  gesichert), leere Felder bleiben leer.
 - **Einmal-Skript (Deploy):** Vor dem Lauf die Zaehl-Abfrage im Skript notieren; nach dem Lauf: offene
   (Submitted) Bestellungen, deren Positionen vorher `0` zeigten **ohne** Fehlteil, zeigen jetzt leere
   Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
-  **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt.
+  **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
 
 ---
 
