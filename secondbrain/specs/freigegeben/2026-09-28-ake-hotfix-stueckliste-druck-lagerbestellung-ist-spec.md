@@ -2,13 +2,13 @@
 type: spec
 title: "AKE-Hotfix: Stuecklisten-Druck HTTP 404.15 (Teil 1) + Lagerbestellung IST nicht vorbefuellen (Teil 2)"
 slug: 2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-09-28
 updated: 2026-09-29
 source_backlog: "[[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-09-29-ake-hotfix-stueckliste-druck-lagerbestellung-ist-umsetzung]]"
+worktree: ".claude/worktrees/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
+branch: "feature/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
 zielzweig: main
 umsetzungsort: "neuer kleiner Worktree/Branch aus main (Slug 2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist, via scripts/new-worktree.ps1) — NICHT das Buendel"
 folge_merge: "Vorwaerts-Merge main -> feature/2026-08-07-ideal-teile-1-5 nach Umsetzung in main"
@@ -23,23 +23,24 @@ affected_code:
   - "IdealAkeWms.Tests/Repositories/WarehouseRequisitionRepositoryTests.cs (Teil 2: ca. 28 Stellen `Dictionary<int, decimal>` -> `Dictionary<int, decimal?>`, neue Tests fuer Pflichtpruefung)"
   - "IdealAkeWms.Tests/Controllers/WarehousePickingControllerTests.cs (Teil 2: `int[]`- auf `int?[]`-Literale bei Close/PrintAndClose-Aufrufen, neue Tests fuer Negativpruefung + Pflichtpruefung)"
   - "neuer Bindungstest fuer echte ASP.NET-Modellbindung von `int?[]` aus Formulardaten (Teil 2, Pflicht — siehe Technischer Loesungsentwurf Teil 2, Abschnitt F, Ort z. B. IdealAkeWms.Tests/ModelBinding/NullableIntArrayBindingTests.cs)"
-  - "SQL/94_ResetAutosaveZeroQuantityPickedSubmitted.sql (neu, Teil 2, einmaliges Datenskript ohne Schema-Aenderung — siehe Migrations-/SQL-Auswirkungen)"
+  - "SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql (neu, Teil 2, EINMALIGES Datenskript AUSSERHALB der nummerierten Reihe — keine Nummer, kein __EFMigrationsHistory, kein FreshInstall; Freigabe-Nachtrag 2026-09-29)"
   - "IdealAkeWms/AppVersion.cs (Web + Service, main) — Version 1.30.1"
   - "IdealAkeWms/Views/Help/Changelog.cshtml (main)"
   - "docs/TESTSZENARIEN.md (main, Kapitel 5 + Kapitel 18)"
   - "secondbrain/tests/testszenarien-index.md"
-open_questions:
-  - "KONFLIKT 1 (Nachtrag Spec-Agent 2026-09-29): Einmal-Datenskript ohne Schema-Aenderung hat keine Hauspraxis (ADR 0004 deckt nur Migrationen). Vorschlag: SQL/94 als Nummer, aber OHNE __EFMigrationsHistory- und OHNE FreshInstall-Eintrag. Bestaetigen?"
-  - "KONFLIKT 2 (Nachtrag Spec-Agent 2026-09-29): Reset-Skript mit Zusatzbedingung ShortageStatus = None (0 an Fehlteil-Zeilen bleibt) oder woertlich nach Antwort 6b fuer ALLE Zeilen im Status Submitted? Hinweis Koordinator: Die Zusatzbedingung stammt aus dem Auftrag des Koordinators an den Spec-Agenten, NICHT aus Antwort 6b. Beide Varianten sind nach dem neuen Pflichtpruef-Grundsatz unkritisch (Fehlteil-Zeile gilt auch mit NULL als bestaetigt) — Unterschied ist nur der gespeicherte Wert."
+open_questions: []
+beantwortete_konflikte_2026_09_29:
+  - "KONFLIKT 1 (Nachtrag Spec-Agent 2026-09-29) — ENTSCHIEDEN: NICHT SQL/94, sondern eigener Ordner SQL/Einmalig/ ausserhalb der nummerierten Reihe (Freigabe-Nachtrag). Urspruenglich: Einmal-Datenskript ohne Schema-Aenderung hat keine Hauspraxis (ADR 0004 deckt nur Migrationen). Vorschlag: SQL/94 als Nummer, aber OHNE __EFMigrationsHistory- und OHNE FreshInstall-Eintrag. Bestaetigen?"
+  - "KONFLIKT 2 (Nachtrag Spec-Agent 2026-09-29) — ENTSCHIEDEN: Fehlteil-Zeilen werden NICHT zurueckgesetzt (Freigabe-Nachtrag). Urspruenglich: Reset-Skript mit Zusatzbedingung ShortageStatus = None (0 an Fehlteil-Zeilen bleibt) oder woertlich nach Antwort 6b fuer ALLE Zeilen im Status Submitted? Hinweis Koordinator: Die Zusatzbedingung stammt aus dem Auftrag des Koordinators an den Spec-Agenten, NICHT aus Antwort 6b. Beide Varianten sind nach dem neuen Pflichtpruef-Grundsatz unkritisch (Fehlteil-Zeile gilt auch mit NULL als bestaetigt) — Unterschied ist nur der gespeicherte Wert."
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Teil 1: Druck per POST, GET bleibt fuer Alt-Links (dann alle Positionen). Teil 2: Nicht Geliefertes muss bestaetigt werden (eingetippter Wert oder Fehlteil), serverseitige Pflichtpruefung, Autosave speichert leer als NULL, Sammel-Dialog entfaellt, Placeholder ohne Menge. Einmal-Skript in SQL/Einmalig/ (nicht nummeriert), nur Submitted, Fehlteil-Zeilen ausgenommen. Version 1.30.1, Vorwaerts-Merge ins Buendel."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-09-29
 ---
 
 > [!info] Nachgezogen 2026-09-29
@@ -140,8 +141,8 @@ bringt ein **Vorwaerts-Merge** `main → feature/2026-08-07-ideal-teile-1-5` bei
    stornierte** Bestellungen behalten ihre eingetragenen IST-Werte unveraendert. Fuer Status
    **Submitted** werden vom Autosave-Fehler K1 geschriebene, von echten getippten Nullen nicht mehr
    unterscheidbare `0`-Werte **einmalig per Skript** auf `NULL` zurueckgesetzt (Freigabe-Antwort 6b),
-   siehe Migrations-/SQL-Auswirkungen — mit einer dort gekennzeichneten offenen Detailfrage zur
-   Fehlteil-Ausnahme.
+   siehe Migrations-/SQL-Auswirkungen. Zeilen mit Fehlteil-Markierung werden dabei **nicht**
+   zurueckgesetzt — sie sind durch die Markierung bereits bestaetigt (Freigabe-Nachtrag).
 
 ## Technischer Loesungsentwurf
 
@@ -455,8 +456,8 @@ Fork):
 - `SQL/00_FreshInstall.sql:1672` — `[QuantityPicked] DECIMAL(18,4) NULL`.
 - `WarehouseRequisitionItem : AuditableEntity` (verifiziert) — Audit-Felder liegen auf Zeilenebene.
 
-**Einmaliges Datenskript `SQL/94_ResetAutosaveZeroQuantityPickedSubmitted.sql`** (Freigabe-Antwort
-6b): verifizierte Rahmendaten —
+**Einmaliges Datenskript `SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql`**
+(Freigabe-Antwort 6b, Ablageort per Freigabe-Nachtrag): verifizierte Rahmendaten —
 
 - `WarehouseRequisitionStatus.Submitted = 2` (`WarehouseRequisitionStatus.cs:6`, gespeichert als
   `TINYINT`, siehe `SQL/00_FreshInstall.sql:1630-1634`, `Status.*table.Column<byte>`).
@@ -478,6 +479,16 @@ Fork):
 > zu bereinigen). Der Dateikopf markiert das Skript ausdruecklich als „EINMALIGES DATENSKRIPT, KEINE
 > MIGRATION". Freigabe hierzu bei Schranke 1 einholen.
 
+> [!success] ENTSCHIEDEN (Freigabe-Nachtrag 2026-09-29) — NICHT `SQL/94`, sondern `SQL/Einmalig/`
+> Das Skript bekommt **keine** laufende Nummer und liegt **ausserhalb** der nummerierten Reihe. Grund ist
+> nicht die Nummer, sondern die **erneute Ausfuehrung**: Nach dem Hotfix ist eine getippte `0` eine
+> echte Bestaetigung. Liefe das Skript ein zweites Mal — auf einem anderen System oder beim naechsten
+> Durchgang durch die Reihe —, loeschte es genau diese Bestaetigungen, still. Die nummerierte Reihe ist
+> zum der-Reihe-nach-Ausfuehren da; ein Einmal-Skript gehoert nicht hinein. Kein
+> `__EFMigrationsHistory`, kein `SQL/00_FreshInstall.sql`. Der Dateikopf warnt ausdruecklich vor erneuter
+> Ausfuehrung; die Ausfuehrung wird je System (AKE jetzt, IDEAL mit dem Buendel) im Deploy-Protokoll
+> vermerkt.
+
 > [!warning] Konflikt — Reset-Wortlaut (Antwort 6b) vs. Fehlteil-Ausnahme
 > Freigabe-Antwort 6b sagt woertlich: „`Submitted`: `QuantityPicked = 0` -> `NULL`" — ohne
 > Einschraenkung nach `ShortageStatus`. Die Aufgabenstellung fuer diesen Nachzieh-Lauf fordert
@@ -492,12 +503,23 @@ Fork):
 > vom woertlichen Text der Antwort 6b gekennzeichnet** und muss bei Schranke 1 bestaetigt oder
 > korrigiert werden.
 
+> [!success] ENTSCHIEDEN (Freigabe-Nachtrag 2026-09-29) — Fehlteil-Zeilen werden NICHT zurueckgesetzt
+> Zweck des Ruecksetzens ist, Nullen zu entfernen, die **niemand bestaetigt** hat. Eine Fehlteil-Zeile
+> **ist** bestaetigt — durch die Markierung. Antwort 6b galt der Autosave-Null **ohne** Bestaetigung; bei
+> Fehlteil-Zeilen traegt der Satz nicht. Der Einwand oben ist zutreffend (K1 kann auch an einer
+> Fehlteil-Zeile eine nie getippte `0` geschrieben haben), aber folgenlos: Die Zeile ist ueber die
+> Markierung bestaetigt, und ihre `0` stimmt mit "nichts geliefert" ueberein. Grundsatz: Was bestaetigt
+> ist, wird nicht angefasst. Die `ShortageStatus = 0`-Bedingung im Skript bleibt.
+
 Skript (Entwurf, Dev-Lauf uebernimmt nach Bestaetigung des obigen Punkts):
 
 ```sql
--- SQL/94_ResetAutosaveZeroQuantityPickedSubmitted.sql
+-- SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql
 -- EINMALIGES DATENSKRIPT -- KEINE SCHEMA-AENDERUNG, KEIN __EFMigrationsHistory-Eintrag,
--- KEIN Eintrag in SQL/00_FreshInstall.sql.
+-- KEIN Eintrag in SQL/00_FreshInstall.sql, NICHT Teil der nummerierten SQL-Reihe.
+-- !!! NICHT ERNEUT AUSFUEHREN !!! Nach dem Hotfix ist eine getippte 0 eine bewusste Bestaetigung.
+-- Ein zweiter Lauf wuerde genau diese Bestaetigungen still loeschen. Genau EINMAL je System, direkt
+-- nach dem Web-Deploy; Ausfuehrung im Deploy-Protokoll vermerken.
 -- Hotfix v1.30.1 (siehe [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]):
 -- Der bisherige Autosave (Details.cshtml collectProgress) hat leere Ist-Mengen-Felder als 0 statt
 -- NULL gespeichert (Nachtrag Koordinator K1). Fuer noch nicht abgeschlossene Bestellungen (Status
@@ -505,8 +527,8 @@ Skript (Entwurf, Dev-Lauf uebernimmt nach Bestaetigung des obigen Punkts):
 -- die neue Pflichtpruefung beim Abschliessen nicht durch alte Fehlbuchungen ausgehebelt wird.
 -- PartiallyDelivered/Closed/Cancelled werden NICHT angefasst (dort kann eine 0 bereits gebucht sein).
 -- Zeilen mit gesetzter Fehlteil-Markierung (ShortageStatus <> 0) werden NICHT zurueckgesetzt
--- (Abweichung vom woertlichen Text der Freigabe-Antwort 6b, siehe Konflikt-Hinweis im Spec-Rumpf --
--- bei abweichender Freigabe die WHERE-Klausel entsprechend anpassen).
+-- (bestaetigt im Freigabe-Nachtrag 2026-09-29: Fehlteil-Zeilen sind durch die Markierung
+-- bestaetigt und werden deshalb nicht angefasst).
 -- VOR DEM LAUF: DB-Backup! Erst NACH dem Deploy der neuen Web-Version ausfuehren (sonst schreibt
 -- der noch aktive alte Autosave sofort wieder 0).
 SET NOCOUNT ON;
@@ -580,7 +602,8 @@ SELECT @@ROWCOUNT AS ZeilenZurueckgesetzt;
 13. Nach Ausfuehrung des Reset-Skripts sind in `Submitted`-Bestellungen alle Zeilen mit
     `QuantityPicked = 0` und `ShortageStatus = None` auf `NULL` zurueckgesetzt; Zeilen mit
     `ShortageStatus <> None` sowie alle Zeilen in `PartiallyDelivered`/`Closed`/`Cancelled`-
-    Bestellungen bleiben unveraendert (vorbehaltlich Bestaetigung des Konflikt-Hinweises oben).
+    Bestellungen bleiben unveraendert (Freigabe-Nachtrag). Das Skript liegt ausserhalb der
+    nummerierten Reihe und traegt im Kopf den Hinweis, dass es nicht erneut ausgefuehrt werden darf.
 14. Bestehende Lagerbestellungen mit bereits eingetragenen, echten IST-Werten (Status
     PartiallyDelivered oder abgeschlossen) zeigen diese Werte nach dem Deploy unveraendert an.
 
@@ -643,7 +666,8 @@ Neue/aktualisierte Szenarien (main steht bei TS-5.1–TS-5.10 und TS-18.1–TS-1
 - **Reihenfolge AKE (jetzt, mit v1.30.1):**
   1. DB-Backup.
   2. Web-Publish auf AKE-IIS (neue Web-Version live — Autosave schreibt ab sofort `null` statt `0`).
-  3. `SQL/94_ResetAutosaveZeroQuantityPickedSubmitted.sql` **danach** ausfuehren (nicht davor —
+  3. `SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql` **genau einmal**
+     **danach** ausfuehren und im Deploy-Protokoll vermerken (nicht davor —
      sonst schreibt der noch aktive alte Autosave sofort wieder `0` in dieselben Zeilen).
   4. Manueller Test (Schranke 2).
   5. Merge in `main`.
@@ -671,10 +695,8 @@ sondiert):**
   Testaufrufstellen, neues JS). Das ersetzt nicht die oben durchgefuehrte Folgewirkungs-Pruefung
   ausserhalb dieser Dateien (Sage-Buchung, BDE, Druck, Services) — dort wurde ebenfalls kein
   zusaetzlicher Buendel-Fund gemacht.
-- Buendel-Stand bei SQL-Skripten: `SQL/93_AddProductionWorkplaceSageFields.sql` (hoechste Nummer,
-  verifiziert 2026-09-29). `SQL/94_ResetAutosaveZeroQuantityPickedSubmitted.sql` ist eine **neue**
-  Datei — kein Merge-Konflikt zu erwarten, sofern das Buendel bis zum Merge-Zeitpunkt keine eigene
-  `94_*`-Datei anlegt.
+- Das Einmal-Skript liegt in `SQL/Einmalig/`, **ausserhalb** der nummerierten Reihe — ein
+  Nummernkonflikt mit dem Buendel (`SQL/93_*` und hoeher) ist damit ausgeschlossen.
 - `Bom.cshtml`/`PickingController.cs`/`AppVersion.cs`/`Changelog.cshtml`/`docs/TESTSZENARIEN.md`:
   Konfliktlage unveraendert zur urspruenglichen Einschaetzung (Teil 1 ist inhaltlich gleich
   geblieben) — Druck-Handler an unterschiedlichen Zeilen, beide `AppVersion`/`Changelog`-Eintraege
@@ -695,8 +717,6 @@ sondiert):**
   erwarten — trotzdem nach dem Merge `dotnet build`/`dotnet test` pruefen, weil die
   `CloseAsync`-Signatur jetzt oeffentlich sichtbar anders ist (ein spaeterer Buendel-Caller wuerde
   sonst erst hier auffallen).
-- Falls das Buendel bis zum Merge-Zeitpunkt selbst eine `SQL/94_*`-Datei angelegt hat: das
-  AKE-Hotfix-Skript auf die naechste freie Nummer umbenennen (Inhalt bleibt gleich).
 - **Pflicht-Deliverable des Merge-Laufs:** die tatsaechlich aufgetretenen Konfliktdateien
   protokollieren (Abgleich mit der obigen Vorhersage) — in der Aufgaben-Notiz zu diesem Merge
   festhalten.
@@ -1002,3 +1022,20 @@ wurde am Code verifiziert (main, `C:\git\IDEAL-AKE-WMS`) bzw. am Buendel-Worktre
    Bruch, kein Verhaltensbruch — beide Dateien nutzen an anderer Stelle bereits `int?[]`-Literale
    fuer `SaveProgress`-Tests, das Muster existiert also schon im Projekt). Kein Konflikt, aber als
    Aufwandshinweis fuer den Dev-Lauf festgehalten.
+
+## FREIGABE-NACHTRAG (2026-09-29)
+
+Die beiden letzten offenen Punkte sind entschieden und in `affected_code`, Anforderung 9, AK 13,
+Migrations-Abschnitt (zwei `ENTSCHIEDEN`-Kaesten direkt unter den Konflikt-Kaesten), Skriptkopf, Deploy und
+Uebertrag eingearbeitet:
+
+1. **Ablageort des Einmal-Skripts: `SQL/Einmalig/`, keine Nummer.** Nicht wegen der Nummer, sondern wegen
+   der **erneuten Ausfuehrung**: Nach dem Hotfix ist eine getippte `0` eine Bestaetigung. Ein Skript in
+   der nummerierten Reihe laeuft Gefahr, beim naechsten Durchgang erneut ausgefuehrt zu werden — und
+   loeschte dann genau diese Bestaetigungen. Warnung im Dateikopf, Ausfuehrung im Deploy-Protokoll.
+2. **Fehlteil-Zeilen werden nicht zurueckgesetzt.** Das Ruecksetzen entfernt unbestaetigte Nullen; eine
+   Fehlteil-Zeile ist durch die Markierung bestaetigt. Antwort 6b ist in diesem Sinn zu lesen — ihr
+   Wortlaut "alle Zeilen in `Submitted`" hatte die Fehlteil-Markierung nicht im Blick.
+
+**Kein weiterer Pruefdurchgang:** Beide Punkte sind Praezisierungen bereits getroffener Entscheidungen.
+Massgeblich fuer den Dev-Lauf sind Rumpf und `affected_code`; bei Widerspruch gilt dieser Nachtrag.
