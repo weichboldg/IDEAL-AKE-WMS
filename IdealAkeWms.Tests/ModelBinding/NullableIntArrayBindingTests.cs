@@ -23,6 +23,10 @@ namespace IdealAkeWms.Tests.ModelBinding;
 public class NullableIntArrayBindingTests
 {
     private static async Task<object?> BindAsync(string action, string parameter, params string[] values)
+        => (await BindWithStateAsync(action, parameter, values)).Model;
+
+    private static async Task<(object? Model, ModelStateDictionary State)> BindWithStateAsync(
+        string action, string parameter, params string[] values)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -51,7 +55,7 @@ public class NullableIntArrayBindingTests
 
         var result = await sp.GetRequiredService<ParameterBinder>().BindModelAsync(
             actionContext, binder, valueProvider, descriptor, metadata, value: null, container: null);
-        return result.Model;
+        return (result.Model, actionContext.ModelState);
     }
 
     [Theory]
@@ -64,5 +68,20 @@ public class NullableIntArrayBindingTests
 
         bound.Should().BeOfType<int?[]>()
             .Which.Should().Equal(5, null, 7);
+    }
+
+    /// <summary>
+    /// Gegenprobe (Code-Review-Befund 1): Ein NICHT ganzzahliger Wert wird vom Binder VERWORFEN, nicht als
+    /// null gebunden — das Array wird kuerzer und alle folgenden Werte rutschen eine Zeile nach oben.
+    /// Gemessen: ["5","1.5","7"] -> [5, 7] + ModelState-Fehler. Deshalb weisen Close/PrintAndClose ab, wenn
+    /// ModelState ungueltig ist oder die Laengen von itemIds/quantitiesPicked nicht passen.
+    /// </summary>
+    [Fact]
+    public async Task QuantitiesPicked_NonInteger_IsDroppedNotNull_AndInvalidatesModelState()
+    {
+        var (model, state) = await BindWithStateAsync("Close", "quantitiesPicked", "5", "1.5", "7");
+
+        ((int?[])model!).Should().Equal(5, 7);
+        state.IsValid.Should().BeFalse();
     }
 }

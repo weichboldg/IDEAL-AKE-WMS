@@ -147,6 +147,13 @@ public class WarehousePickingController : Controller
     public async Task<IActionResult> Close(int id, int[] itemIds, int?[] quantitiesPicked,
         string?[]? notes, string?[]? notesEinkauf, int[]? shortageStatuses, byte[] rowVersion)
     {
+        // Ein nicht ganzzahliger Wert (z. B. 1.5) wird vom Binder verworfen statt als null gebunden — das
+        // Array wird kuerzer, alle Folgewerte verrutschen (NullableIntArrayBindingTests). Dann nichts buchen.
+        if (!ModelState.IsValid || quantitiesPicked.Length != itemIds.Length)
+        {
+            TempData["WarningMessage"] = InvalidQuantityMessage;
+            return RedirectToAction(nameof(Details), new { id });
+        }
         if (quantitiesPicked.Any(q => q < 0)) // null < 0 ist false: leere Felder faengt die Pflichtpruefung
         {
             TempData["WarningMessage"] = "Ist-Mengen duerfen nicht negativ sein.";
@@ -197,6 +204,9 @@ public class WarehousePickingController : Controller
         }
         if (incomplete is { Count: > 0 })
         {
+            // Eingaben nicht verlieren: als Zwischenstand sichern (wie der Autosave; leer bleibt NULL).
+            await _repo.SaveProgressAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
+                _user.GetDisplayName(), _user.GetWindowsUserName());
             TempData["WarningMessage"] = IncompleteMessage(incomplete);
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -271,6 +281,10 @@ public class WarehousePickingController : Controller
     public async Task<IActionResult> PrintAndClose(int id, int[] itemIds, int?[] quantitiesPicked,
         string?[]? notes, string?[]? notesEinkauf, int[]? shortageStatuses, byte[] rowVersion)
     {
+        // Ein nicht ganzzahliger Wert (z. B. 1.5) wird vom Binder verworfen statt als null gebunden — das
+        // Array wird kuerzer, alle Folgewerte verrutschen (NullableIntArrayBindingTests). Dann nichts buchen.
+        if (!ModelState.IsValid || quantitiesPicked.Length != itemIds.Length)
+            return BadRequest(new { error = InvalidQuantityMessage });
         if (quantitiesPicked.Any(q => q < 0)) // null < 0 ist false: leere Felder faengt die Pflichtpruefung
             return BadRequest(new { error = "Ist-Mengen duerfen nicht negativ sein." });
 
@@ -316,6 +330,9 @@ public class WarehousePickingController : Controller
             return BadRequest(new { error = IncompleteMessage(incomplete) });
         return Ok(new { redirectUrl = Url.Action(nameof(Print), new { id }) });
     }
+
+    private const string InvalidQuantityMessage =
+        "Nicht abgeschlossen — Ist-Mengen muessen ganze Zahlen ab 0 sein. Bitte Eingaben pruefen.";
 
     private static string IncompleteMessage(IReadOnlyList<(int Position, string ArticleNumber)> incomplete) =>
         "Nicht abgeschlossen — Ist-Menge oder Fehlteil-Markierung fehlt bei: "

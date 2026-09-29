@@ -590,7 +590,41 @@ public class WarehousePickingControllerTests
         var db = ctx.WarehouseRequisitions.AsNoTracking().Include(x => x.Items).First(x => x.Id == r.Id);
         db.Status.Should().Be(WarehouseRequisitionStatus.Submitted);
         db.ClosedAt.Should().BeNull();
-        db.Items.Should().OnlyContain(i => i.QuantityPicked == null); // nichts gebucht, auch Pos 1 nicht
+        // Nicht abgeschlossen, aber die Eingaben sind als Zwischenstand gesichert (Review-Befund 2):
+        // Pos 1 behaelt die 5, die leeren bleiben NULL — nichts wird als 0 angenommen.
+        db.Items.OrderBy(i => i.Position).Select(i => i.QuantityPicked).Should().Equal(5m, null, null);
+    }
+
+    [Fact]
+    public async Task Close_ArraysOutOfLine_NonIntegerDropped_IsRejected_NothingSaved()
+    {
+        // Ein Dezimalwert wird vom Binder verworfen -> quantitiesPicked ist kuerzer als itemIds (siehe
+        // NullableIntArrayBindingTests). Dann darf nichts gebucht und nichts gespeichert werden.
+        var (ctrl, ctx, _, _) = Setup();
+        var (r, ids) = await SeedSubmittedAsync(ctx, 3);
+        ctrl.ModelState.AddModelError("quantitiesPicked", "1.5 ist keine ganze Zahl");
+
+        var result = await ctrl.Close(r.Id, ids, new int?[] { 5, 7 },
+            notes: null, notesEinkauf: null, shortageStatuses: new[] { 0, 0, 1 }, r.RowVersion) as RedirectToActionResult;
+
+        result!.ActionName.Should().Be("Details");
+        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("ganze Zahlen");
+        var db = ctx.WarehouseRequisitions.AsNoTracking().Include(x => x.Items).First(x => x.Id == r.Id);
+        db.Status.Should().Be(WarehouseRequisitionStatus.Submitted);
+        db.Items.Should().OnlyContain(i => i.QuantityPicked == null);
+    }
+
+    [Fact]
+    public async Task PrintAndClose_ArraysOutOfLine_IsRejectedWithBadRequest()
+    {
+        var (ctrl, ctx, _, _) = Setup();
+        var (r, ids) = await SeedSubmittedAsync(ctx, 2);
+
+        var result = await ctrl.PrintAndClose(r.Id, ids, new int?[] { 5 },
+            notes: null, notesEinkauf: null, shortageStatuses: null, r.RowVersion);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ctx.WarehouseRequisitionItems.AsNoTracking().Should().OnlyContain(i => i.QuantityPicked == null);
     }
 
     [Fact]
