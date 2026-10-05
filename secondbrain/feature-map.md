@@ -578,6 +578,21 @@ Setzt v1.46.0 ([[2026-09-25-kommissionierung-nur-hauptfa-spec]]) voraus. Überho
 > 268 Service-Tests grün) → Schranke 2 mit dem ganzen Bündel. Druck-/PDF-Spalten, Gruppen-Darstellung
 > und Umschalter sind **Manual-UAT** (TS-80).
 
+### AKE-Hotfix 1.30.1 uebernommen — Vorwaerts-Merge main → Buendel (v1.47.1, selber Branch)
+
+Merge-Commit `6c253c60` (Buendel), Quelle `main` `f89c0124`. Spec [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]
+(Abschnitt „Uebertrag ins Buendel"), Changelog [[2026-10-05-v1-47-1-buendel-ake-hotfix-uebernommen]], Merge-Protokoll
+[[2026-10-05-vorwaerts-merge-ake-hotfix-ins-buendel]]. **Buendel-Stand jetzt v1.47.1.**
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Stuecklisten-Druck per POST, nach der Leerzustand-Sperre | **uebernommen** `6c253c60` | `Bom.cshtml` (`btnPrintBom`), `PickingController.RenderPrintBomAsync` (Buendel-Rumpf) |
+| Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL, Laengen-Guard) | **uebernommen** `6c253c60` | `WarehouseRequisitionRepository.CloseAsync`, `WarehousePickingController`, `Details.cshtml` |
+| Pflicht-Nachzug 4 Buendel-Tests `GetMissingPartsAsync_*` (`decimal?`) | **erledigt** `6c253c60` | `WarehouseRequisitionRepositoryTests.cs` |
+
+> **Status:** im Buendel, wartet mit dem ganzen Buendel auf Schranke 2 (TS-5.11, TS-18.10 am IDEAL-System).
+> Einmal-Skript `SQL/Einmalig/…` auf IDEAL erst NACH dem Buendel-Deploy, genau einmal.
+
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
 Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung

@@ -1159,3 +1159,12 @@ Ausführbar ohne Rückfragen auf dem IDEAL-Testsystem. Schritt 1 **zuerst**, una
 20. **Feature-Gate (TS-80.20):** Mit deaktiviertem `FaHierarchyKommissionierlistenAktiv` erscheint der
     Menüpunkt an keiner Stelle; direkte Aufrufe von `/Summiert`, `/PrintSummiert`, `/PdfSummiert/100`
     landen mit gelbem Warnbanner auf der Startseite.
+
+## Browser-Abnahme
+
+- Browser-Abnahme 2026-09-30 (erster Lauf, Teil B): [[2026-09-30-ts-80-browser-testbericht]] — 7 OK
+  bzw. teilweise OK, 0 Fehler der Anwendung, 7 nicht prüfbar (fehlende Testdaten), 4 Protokoll passt
+  nicht. Der gemeldete FEHLER zu B1 ist ein Protokollfehler: Die beiden Menü-Einstiege stehen in
+  `_Layout.cshtml` in sich ausschließenden Zweigen nach Rolle; kein Benutzer sieht beide. Offen:
+  B2-B4, B7, B10 mit Testdaten; B6 mit einer KW, die Daten enthält; B15 mit einer Lagerbestellung;
+  PDF-Download mit Freigabe; „Drucken erst beim zweiten Klick" von Hand prüfen.
