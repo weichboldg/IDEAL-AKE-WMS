@@ -1,6 +1,6 @@
 ---
 type: referenz
-updated: 2026-07-27
+updated: 2026-08-12
 ---
 # Bekannte Fallstricke
 
@@ -208,6 +208,70 @@ ist die Spalte nicht filterbar und nicht konfigurierbar — ohne Fehlermeldung.
 ### `column-preferences.js` MUSS vor `table-filter.js` eingebunden werden
 **Warum:** `column-preferences.js` dispatcht das `column-preferences-ready`-Event, auf das
 `table-filter.js` wartet. Umgekehrte Reihenfolge = Event vor dem Listener = stille Fehlfunktion.
+
+### Neuer `viewKey` ohne `ColumnDefinitions.GetByViewKey`-Registrierung → Prefs-API 400
+Bringt eine Liste eine Spaltenauswahl (`#view-config`/`#column-config` + `column-preferences.js`),
+muss ihr `viewKey` in `ColumnDefinitions.GetByViewKey` eingetragen sein. Fehlt der Eintrag,
+antwortet `UserViewPreferencesApiController` mit **400** und speichert **still nichts** — die
+Spaltenwahl geht bei jedem Reload verloren, ohne Fehlermeldung fuer den Anwender.
+**Warum:** Der API-Controller mappt den `viewKey` ueber `GetByViewKey` auf den gueltigen
+Spaltenkatalog; ein unbekannter Key ist fuer ihn ununterscheidbar von einer manipulierten Anfrage
+und wird abgewiesen. Genau das ist schon einmal bei `FaWorklist` passiert und war 2026-08-12
+(Etappe 6 des IDEAL-Buendels) an allen vier IDEAL-Listen zunaechst offen. Vierter
+Pflichtbestandteil des Listen-View-Patterns — siehe
+[[0005-listen-view-pattern-mit-server-side-spaltenfilter]], Abschnitt „Spaltenpraeferenzen".
+
+### `table-filter.js` sortierte bis 2026-08-12 nur das erste `<tbody>` einer Tabelle
+`sortTable()` fasste bis Commit `37e8752` (v1.31.0) nur das **erste** `<tbody>` an. Bei gruppierten
+Tabellen mit mehreren `<tbody>` (z. B. die HauptFA-Gruppen der IDEAL-Kommissionierlisten) sortierte
+also sichtbar nur die erste Gruppe, der Rest blieb unsortiert — ein offensichtlich falsches
+Ergebnis. Behoben: `sortTable()` sortiert jetzt **je `<tbody>` separat** (bei Ein-`<tbody>`-Tabellen
+verhaltensgleich, daher AKE-Listen-regressionssicher).
+**Warum hier festgehalten:** Damit dieselbe Fehlerklasse bei kuenftigen gruppierten Tabellen sofort
+erkannt wird — wer Client-Sortierung auf eine Tabelle mit mehreren `<tbody>` setzt, muss pruefen,
+dass wirklich alle Gruppen sortiert werden, nicht nur die erste.
+
+### Jede DOM-Iteration im Tree-Table braucht `:scope >` — sonst greift sie in Kindtabellen
+`querySelectorAll` ist **immer** eine Descendant-Abfrage. `tbody.querySelectorAll('tr')` findet
+deshalb auch die Zeilen einer Tabelle, die **innerhalb** einer Zelle dieses `tbody` steckt. Die
+gruppierten IDEAL-Listen haben genau das: die Kombigeraete-Varianten-Tabelle in
+`Views/ProductionOrders/Index.cshtml` und die `fa-head-table` je Struktur in
+`Views/FaHierarchy/Index.cshtml`.
+**Regel:** In allen Skripten, die ueber `tbody`/`tr`/`td`/`th` einer filterbaren oder gruppierten
+Tabelle laufen, wird die Iteration mit `:scope > …` auf **direkte Kinder** skopiert. Ausnahme nur,
+wo das Ziel legitim tiefer sitzt (z. B. ein Filter-Input in einem Flex-Wrapper) — dann die Ausnahme
+**im Code begruenden**.
+**Warum:** Zwei Fehlerbilder, beide ohne Fehlermeldung und beide am 2026-09-10 real vorgefunden:
+`sortTable` verschob per `appendChild` die Zeilen der Varianten-Tabelle in das aeussere Gruppen-`tbody`
+(innere Tabelle wird **leer**, Fremdzeilen mit 7 Zellen in einer 26-spaltigen Tabelle), und
+`column-preferences.js` leerte beim Ausblenden einer Spalte mit Index ≤ 6 eine Zelle der inneren
+Tabelle bzw. vertauschte sie beim Umordnen. Beides ist „Wert unter falscher Ueberschrift" — die
+teuerste Klasse, weil sie plausibel aussieht.
+Der `td[colspan]`-Filter schuetzt **nicht**: Er sortiert die Traegerzeile aus, nicht deren Kindzeilen.
+Abgesichert durch den Quelltext-Waechter `IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs`
+— der prueft nur die Schreibweise, nicht das Verhalten; die Wirkung bleibt Manual-UAT (TS-72).
+
+> [!warning] Die Fehlannahme, an der das lange haengen blieb
+> **`appendChild` haengt an das Element, auf dem es gerufen wird — nicht an das `tbody`, in dem die
+> Zeile stand.** Der Satz „`appendChild` haelt jede Zeile in ihrem eigenen `tbody`" klingt wie ein
+> gepruefter Satz und ist falsch. Er hat vier Pruefstellen passiert (Umsetzer-Bericht, Task-Review,
+> Koordinator-Record, Mensch-Freigabe), bevor jemand bei anderer Gelegenheit genauer hinsah.
+> Ebenso falsch war die Entlastung „`compareRows` liefert fuer die inneren Zeilen ohnehin `0`" — das
+> gilt nur, wenn der Spaltenindex **ueber** der Spaltenzahl der inneren Tabelle liegt.
+
+### CSS: Spezifitaet gilt nur zwischen Regeln am **gleichen** Element — sonst entscheidet Vererbung
+Eine eigene Klasse auf einer Tabellenzelle (`.meine-klasse { color: … }`, Spezifitaet 0,1,0) verliert
+gegen Bootstraps `.table > :not(caption) > * > *` (0,1,1) — **unabhaengig von der Ladereihenfolge**,
+weil Bootstrap spezifischer ist, nicht nur frueher. Das Projekt loest das durchgehend mit
+**Kindketten**: `.fa-liste-group-head > td.fa-liste-group-header`,
+`.fa-liste-group > tr > td.fa-liste-repeat-hidden`, `.fa-tree-table > tbody > tr > td`.
+**Warum:** Wer eine Zellfarbe per einfacher Klasse setzt, bekommt eine Regel, die korrekt gesetzt
+wird und **nichts tut**. Build und Testsuite sehen das nicht — eine wirkungslose CSS-Regel ist
+gruen. **Eine CSS-Aenderung ohne Sichtpruefung am Bildschirm ist bauartbedingt unverifiziert.**
+Nicht zu verwechseln: `table-striped`, `table-danger` und `table-secondary` sitzen am `<tr>`. Ihre
+`color` erreicht die Zelle nur per **Vererbung**, und jede direkte Deklaration am `<td>` schlaegt
+Vererbung — dort ist also **keine** Kindkette noetig, und wer die Spezifitaeten vergleicht,
+vergleicht das Falsche.
 
 ### Eine filterbare Tabelle pro gerenderter Seite
 `table-filter.js` / `column-preferences.js` sind Single-Table.
@@ -718,3 +782,482 @@ Senden (Requeue / haengender `Gesendet`) prueft der Worker per Read-Lookup gegen
 **Warum Delimiter `#`:** `SM#12#` darf nicht Praefix von `SM#123#` sein, sonst trifft der LIKE-Lookup
 fuer Bewegung 12 faelschlich Bewegung 123. **Dev-Lauf/UAT:** exakte Korrelationsspalte (`Memo` vs.
 `Referenz`) am Sage-Testsystem bestaetigen — eine Zeile in `SageBuchungLookupReader`.
+
+### Lokaler `dotnet run` der Web-App ist ein Deploy gegen AKESQL20
+`Program.cs` ruft beim Start `db.Database.Migrate()` — und **beide** `appsettings*.json` (auch
+`appsettings.Development.json`) zeigen auf `AKESQL20.ake.at/IDEAL_AKE_WMS`. Ein lokaler Start aus einem
+Feature-Worktree versucht also, **alle noch nicht angewendeten Migrationen des Zweigs auf die
+Produktions-DB** zu bringen. Konkreter Vorfall (2026-09-14, PDF-Erzeugung): ein Start zum Erfassen einer
+Log-Zeile erreichte `Migrate()`; pending waren `InvertProductionOrderHierarchy` + `AddProductionOrderMatchcode`.
+Gerettet hat nur, dass `AddColumn SubOrderNumber` dort scheiterte (Spalte existiert) und EF Core 10 die
+gesamte Migrations-Menge in **einer** Transaktion zurueckrollt — read-only nachgeprueft: History-Top
+unveraendert, keine der neuen Spalten vorhanden. **Regel:** Die Web-App aus einem Worktree **nicht**
+lokal starten, solange der Zweig Migrationen traegt, die auf AKESQL20 nicht per SQL-Skript + History-Insert
+eingespielt sind. Start-Nachweise (Log-Zeilen, Start-Proben) sind Manual-UAT auf dem Zielsystem.
+Wer lokal starten muss: `DefaultConnection` per User-Secret/Umgebungsvariable auf eine eigene DB umbiegen
+— **vor** dem Start pruefen, nie hinterher.
+
+### `dotnet run` (Development) scheitert schon in `Build()` — ValidateOnBuild trifft die DbContextFactory
+Seit `a9475e2` (ADR 0010) steht `AddDbContextFactory<ApplicationDbContext>` **nach** `AddDbContext<…>`.
+`AddDbContext` registriert `DbContextOptions` **scoped**, `AddDbContextFactory` (Singleton) findet sie
+dann per `TryAdd` schon vor und konsumiert die scoped Options aus einem Singleton. Unter IIS (Production)
+laeuft das, weil dort weder `ValidateScopes` noch `ValidateOnBuild` aktiv sind; in **Development** bricht
+`builder.Build()` mit „Cannot consume scoped service `DbContextOptions` from singleton
+`IDbContextFactory`" (und dasselbe fuer `ISyncLogger`). Fix, wenn er gebraucht wird: `AddDbContext(...,
+optionsLifetime: ServiceLifetime.Singleton)` — bewusst **nicht** nebenbei in einem Feature-Lauf, weil es
+die Options-Lebensdauer aller Scopes aendert. Bis dahin gilt der Fallstrick oben: gar nicht lokal starten.
+
+### `Contains` ueber eine lange Liste: EF 10 uebersetzt zu EINEM `OPENJSON`-Parameter — gemessen, nicht angenommen
+SQL Server erlaubt hoechstens **2100 Parameter** je Befehl. Eine `set.Contains(x)`-Abfrage ueber alle
+sichtbaren Strukturen einer Seite (Seitengroesse „Alle" = bis 5000) waere als IN-Liste mit Einzelparametern
+tot. **Gemessen 2026-09-24** (`WorkOperationRepositoryFaStructureTests.OrderNumbersWithWorkOperationsQuery_
+TranslatesContainsAsSingleParameter`, SqlServer-Provider mit der Konfiguration aus `Program.cs`, nie
+verbunden): 5000 Schluessel → `DECLARE @set nvarchar(max) = N'[...]'` + `IN (SELECT … FROM OPENJSON(@set))`
+— **ein** Parameter. **Warum als Test statt Annahme:** EF 10 hat die Uebersetzung parametrisierter
+Collections gegenueber EF 8/9 geaendert (Mehrfach-Parameter-Modus fuer kleinere Listen); welcher Weg bei
+grossen Listen greift, haengt an Provider-Version und Optionen. Wer `UseSqlServer(...)`-Optionen (z. B.
+Compatibility-Level oder Parameter-Uebersetzungsmodus) aendert, muss diesen Test gruen halten — er ist der
+Waechter fuer jede Listen-`Contains`-Abfrage mit Seitengroessen-Bezug.
+
+### Parallele Formular-Arrays: `int?[]` traegt leere Felder, `int[]` nicht — gemessen, nicht angenommen
+Formulare mit parallelen Arrays (`itemIds[]` + `quantitiesPicked[]`) muessen leere Eingaben an ihrem Index
+behalten, sonst verschiebt sich die Zuordnung. **Gemessen 2026-09-29** (`NullableIntArrayBindingTests`,
+echter `ParameterBinder` + `FormValueProvider` aus `AddControllers()`): `int?[]` bindet `["5","","7"]` zu
+`[5, null, 7]`. Bis v1.30.0 hat die Lagerbestellung das Problem anders „geloest" — der Client schickte
+leere Felder als `'0'` — und damit jede nicht gezaehlte Position still als 0 gespeichert (Autosave) bzw.
+gebucht (Abschluss). **Warum als Fallstrick:** Der Workaround sah wie eine technische Notwendigkeit aus
+(Kommentar „Binder skippt leere Strings") und war in Wahrheit eine fachliche Falschbuchung. **Regel:**
+Mengen, die „nicht erfasst" kennen muessen, als `int?[]`/`decimal?` binden; nie im Client auf `0`
+normalisieren. **Aber:** Ein **nicht parsbarer** Wert (z. B. `1.5` fuer `int?`) wird vom Binder **verworfen**, nicht als
+`null` gebunden — gemessen `["5","1.5","7"]` → `[5, 7]` + `ModelState`-Fehler. Wer parallele Arrays bindet, muss
+deshalb `ModelState.IsValid` **und** gleiche Laengen pruefen, sonst verrutschen alle Folgewerte still
+(Lagerbestellung: Guard in `Close`/`PrintAndClose` seit v1.30.1). **Testmittel:** `Microsoft.AspNetCore.TestHost` ist **nicht** Teil von
+`Microsoft.AspNetCore.App` (eigenes NuGet) — Bindung deshalb ueber `ParameterBinder` gegen die
+Parameter-Metadaten der echten Action testen (Vorlage `IdealAkeWms.Tests/ModelBinding/`).
+
+## 9. IDEAL — hierarchische Produktionsauftraege (Teil 7)
+
+### `ProductionOrder.OrderNumber` ist nach der Schema-Inversion NICHT mehr unique
+Bis v1.31.0 war `OrderNumber` der eindeutige FA-Schluessel (Unique-Index). Teil 7 (v1.32.0) invertiert
+das: die Eindeutigkeit liegt jetzt auf **`SubOrderNumber`** (= Sage BelID), `OrderNumber` (= Sage
+StrukturID/HauptFA) ist nur noch ein nicht-eindeutiger Index. Im **flachen AKE-Modus** gilt weiter die
+Invariante `OrderNumber == SubOrderNumber` (Backfill) — Verhalten identisch. Im **hierarchischen
+IDEAL-Modus** teilen HauptFA + alle Sub-FAs dieselbe `OrderNumber`.
+**Warum das eine Falle ist:** jeder `FirstOrDefault(o => o.OrderNumber == x)` / `WHERE OrderNumber = @x`
+greift dann willkuerlich eine Zeile bzw. trifft die ganze Gruppe. Der `OrderNumber`-Sweep (Teil 7
+Etappe D, Katalog in [[2026-07-29-standort-ideal-teil-7]]) hat **7 kritische Eindeutigkeits-Lookups**
+identifiziert (`GetByOrderNumberAsync`, `GetByFaAndOperationAsync`, `SageProductionOrderSql`-EXISTS/UPDATE,
+`SageImportService`-Storno/Reaktivierung). Diese sind am **AKE korrekt** (Invariante), am **IDEAL
+deaktiviert** — ihre Umstellung auf `SubOrderNumber`/mengenwertig ist **Teil 8**. Wer einen neuen
+`OrderNumber`-Lookup schreibt: entscheiden, ob **Gruppen-Lookup** (alle Sub-FAs, bleibt `OrderNumber`)
+oder **Eindeutigkeits-Lookup** (dann `SubOrderNumber` bzw. `GetAllByFaAndOperationAsync`). Details:
+[[0012-fa-hierarchie-einweg-migrationstor]].
+
+### `SageMissingSince` ist ein Zeitstempel, NICHT `IsCancelled`
+„Aus der Sage-Struktur verschwunden" (Sync-Regel 2 der Materialisierung) und „storniert" sind fachlich
+verschieden. Der Materialisierungs-Sync loescht nie, sondern setzt `SageMissingSince` (selbstheilend:
+NULL beim Wiederauftauchen). **Warum kein Bool/kein `IsCancelled`:** ein Bool haengt bei Wiederauftauchen
+fest, und die Vermischung mit „storniert" waere spaeter nicht mehr aufloesbar.
+
+### Der Master-Anzeige-Cache lebt im Web, der Materialisierungs-Sync im Service (getrennte Prozesse)
+`HierarchischeStrukturStatus` (gecachter „ist gesperrt"-Zustand) ist ein Web-Singleton; der
+Materialisierungs-Sync laeuft im Windows-Service und kann ihn **nicht** direkt auffrischen.
+**Loesung:** die Umschalt-Seite refresht den Cache bei jedem GET (admin-only, niederfrequent) — der
+Schreibpfad (Guard-Decorator) prueft ohnehin **live**. Eine kurzzeitig veraltete Anzeige ist harmlos
+(Freigabe-Antwort 3). Nicht versuchen, den Web-Singleton aus dem Service-Prozess zu setzen.
+
+### EF-Migration UND idempotentes SQL-Skript brauchen BEIDE dieselben Guards
+`db.Database.Migrate()` (App-Start, `Program.cs`) fuehrt die **EF-Migration** aus — **nicht** das
+handgeschriebene `SQL/XX_*.sql`. Beide Pfade existieren parallel (ADR 0004): das SQL-Skript fuer den
+manuellen/Produktiv-Deploy, die EF-Migration fuer den App-Start. **Fallstrick:** Guards nur ins
+SQL-Skript zu schreiben reicht nicht. Konkreter Vorfall (Teil 7, 2026-08-17): die EF-Migration
+`20260814105526_InvertProductionOrderHierarchy` machte ein **ungeschuetztes**
+`migrationBuilder.DropIndex("IX_ProductionOrders_OrderNumber")`. Auf einer **FreshInstall-DB** ist die
+OrderNumber-Eindeutigkeit aber ein `UQ_ProductionOrders_OrderNumber`-**Constraint**, kein
+EF-benannter `IX_`-Unique-Index → `db.Database.Migrate()` brach mit **SqlError 3701** („Index ...
+nicht vorhanden"). Das idempotente `SQL/90` raeumte laengst **beide** Formen ab (UQ_-Constraint +
+IX_-Unique-Index), die EF-Migration nur eine. **Warum das durch QA rutschte:** Build+Tests laufen
+InMemory und fuehren **keine** raw-SQL-DDL aus — der Index-Tausch ist Manual-UAT (App-Neustart gegen
+eine echte DB). **Regel:** Wenn das SQL-Skript `sys.indexes`/`sys.key_constraints`-Guards braucht,
+braucht die EF-Migration dieselben — via `migrationBuilder.Sql(@"IF EXISTS ... DROP ...")` statt der
+strukturierten `DropIndex`/`CreateIndex`-Operationen. `GO` gehoert NICHT in `migrationBuilder.Sql`
+(Client-Direktive; jeder `.Sql(...)`-Aufruf ist bereits ein eigener Batch).
+
+**Nachtrag (2026-08-18): Nicht nur `DropIndex`/`CreateIndex`, auch `AlterColumn` erzeugt ungeschuetzte
+Index-DDL.** Der OrderNumber-Fix (`abcd718`) legte in derselben Migration einen **zweiten** 3701 frei:
+`migrationBuilder.AlterColumn<string>("SubOrderNumber", nullable:false)`. Weil der **Model-Snapshot**
+einen Unique-Index auf `SubOrderNumber` traegt, umschliesst EFs SQL-Server-Generator jeden `AlterColumn`
+auf einer indizierten Spalte **automatisch** mit `DROP INDEX [IX_...] ` (ungeschuetzt!) → `ALTER COLUMN`
+→ `CREATE ... INDEX [IX_...]`. Dieser Auto-DROP lief **vor** dem weiter unten guarded angelegten Index →
+3701 auf jeder frischen/zurueckgerollten DB. **Regel-Verschaerfung:** Sobald eine Spalte einen Index
+traegt, gehoert **auch** ihr NOT-NULL-/Typ-Wechsel als `migrationBuilder.Sql(@"IF EXISTS (... is_nullable
+= 1) ALTER TABLE ... ALTER COLUMN ...")` geschrieben — **nicht** via `AlterColumn` —, damit EF keinen
+Index-Tausch generiert. Faustregel: In einer Migration, die Indizes von Hand (raw SQL) verwaltet, darf
+**keine** strukturierte `AlterColumn`/`DropIndex`/`CreateIndex`-Operation auf denselben Spalten stehen —
+sie zieht den Auto-Index-Tausch nach. **Offline-Verifikation** (ohne echte DB): `dotnet ef migrations
+script <von> <bis>` erzeugt genau die Start-SQL — dort auf ungeschuetzte `DROP INDEX` grepen. Das haette
+beide 3701 vor dem Merge gezeigt.
+
+## 10. IDEAL — BOM-Bridge (Stueckliste ueber die Repository-Schnittstelle, v1.36.0)
+
+Kontext: [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]],
+Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]].
+
+**`BomItem` darf KEINE neue Property bekommen.** `BomRepository` mappt die AKE-View per
+`SqlQueryRaw<BomItem>`; EF erwartet fuer **jede** Property eine Spalte im Ergebnis — eine zusaetzliche
+Property ohne Spalte bricht die AKE-Stueckliste mit „required column ... not present". **Warum das
+nicht auffaellt:** InMemory-Tests fuehren kein raw SQL aus. Hierarchische Zusatzfelder leben deshalb in
+der Ableitung `FaHierarchyBomItem : BomItem`; Verbraucher pruefen `bom is FaHierarchyBomItem`.
+
+**`Baugruppe` ist ein String (Eltern-Referenz), kein Bool.** Im AKE-Cache traegt `BomItem.Baugruppe`
+die Artikelnummer der **uebergeordneten** Baugruppe; `IsBaugruppe` ist eine im Controller/Builder
+**abgeleitete** Eigenschaft (Zeile wird von einer anderen Zeile als `Baugruppe` referenziert). Die
+Baum-Darstellung nutzt `Baugruppe` **nicht** — Eltern/Kind kommt ausschliesslich aus `Position`
+(`parentPos` = alles vor dem letzten Punkt). Hierarchisch: `Baugruppe` = `Artnr` des unmittelbaren
+Elternknotens, `IsBaugruppe` = `SubFA != 0`.
+
+**Kopf-Artikel vs. Zeilen-Artikel nicht verwechseln.** Im AKE-Cache ist `Artikelnummer` der **Kopf**
+(wessen Stueckliste) und `Ressourcenummer` die **Komponente**. Die IDEAL-View liefert die Komponente
+als `Artnr` (= `KHKPpsFaBelegePositionen.RessourceNummer`). Die superseded Alt-Spec hatte
+`Artnr → Artikelnummer` gemappt und `Ressourcenummer` fuer fehlend erklaert — genau diese Verwechslung.
+Wurzel-Kopf ist `HauptArtnr` (Wurzelzeile), sonst `Artnr` des Vater-Sub-FA.
+
+**`FullStructure`-Positionen muessen ein rekursiver Pfad ab der Wurzel sein (`3.7.2`), kein flacher
+Praefix.** `TreeLevel` (= Anzahl Punkte) und `parentPos` (= Praefix bis zum letzten Punkt) in
+`Bom.cshtml`/`PickingController`/`ReadOnlyBomBuilder` setzen voraus, dass **jeder Praefix die Position
+einer tatsaechlich vorhandenen Zeile** ist. Ein Praefix `VaterSubFA.Position` (`1043421.7`) ergaebe als
+Elternwert eine FA-Nummer, die keine Zeile ist → Gruppierung bricht. Die Sage-Position bleibt separat
+sichtbar (`SagePosition`); Geschwister-Kollisionen werden mit `~n` eindeutig gemacht, markiert und
+protokolliert — nie still ueberschrieben. Waisen haengen als `W<n>` (ohne Punkt = Top-Level) an.
+
+**Menge je Stueck vs. Auftragsmenge.** AKE-Cache/-View fuehren `Menge` je Stueck, die Verbraucher
+rechnen `× order.Quantity` hoch; IDEAL-`Sollmenge` ist bereits die Auftragsgesamtmenge. Deshalb traegt
+`BomQueryResult.MengeIstAuftragsmenge` die Semantik und `BomQuantityResolver` ist die **einzige**
+Multiplikationsstelle. Wer eine neue Mengen-Stelle baut, ruft den Resolver — nie `bom.Menge * Quantity`.
+
+**Master-Weiche im DI: lazy, sonst Zyklus.** `BomRepository` injiziert `IBomCacheRepository`, das auf
+`BomRepositoryMasterSwitch` zeigt; die Weiche loest ihre Ziele (`CachedBomRepository` →
+`BomRepository`) deshalb **per Delegate erst beim Aufruf** auf. Die Kette ist nur zyklusfrei, weil
+`CachedBomRepository` den **konkreten** `BomRepository` injiziert (nicht `IBomRepository`). Wer diesen
+Konstruktor auf `IBomRepository` umstellt, baut eine Endlosrekursion — der DI-Aufloesungstest schuetzt
+davor. Beide Interfaces zeigen auf **dieselbe** scoped Weiche-Instanz.
+
+**Artikelinfo hierarchisch: „Geraet" = Eltern-Sub-FA.** `GetDeviceArticleNumbersByComponentAsync`
+liefert im hierarchischen Modus **SubOrderNumbers** der Eltern-Sub-FAs (Strings), nicht
+Geraete-Artikelnummern; `GetComponentMengePerDeviceAsync` summiert `Sollmenge` je Eltern-Sub-FA.
+`ArticlesController` loest sie ueber `GetBySubOrderNumbersAsync` auf und summiert **ohne** `× Quantity`.
+Ein Aufrufer, der den flachen Zwei-Schritt-Weg (Artikelnummer → `GetByArticleNumbersAsync`) wiederverwendet,
+bekommt still ein leeres Ergebnis.
+
+**Klasse-D-Gates sind DB-first, aber ueber einen Reader.** `IHierarchicalModeReader` kapselt
+`ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; `ServiceSettings` liest **nur** aus
+der DB (kein Config-Fallback) und liefert bei Verbindungsfehler den Default — ohne den Reader waeren
+die Gates ohne SQL Server nicht testbar. Der zufaellige Schutz `ProductionDate IS NOT NULL` in
+`CoatingDetection`/`BomCacheSync` bleibt Zufall; `SyncSpecificArticleNumbersAsync` (aus
+`SageImportService`) hat ihn nicht — deshalb der Gate an **allen vier** Einstiegen.
+
+**Neue Spalte in einer `filterable-table` braucht ZWEI Registrierungen.** `ColumnDefinitions.<View>`
+(C#) dient der Prefs-API nur zur **viewKey-Validierung**; die **Client-Wahrheit** ist der Inline-Block
+`<script id="column-config">` in der View — `column-preferences.js` liest Spaltenliste,
+`defaultHidden` und `defaultWidth` ausschliesslich von dort. Fehlt eine Spalte dort, laesst
+`applyColumnOrder()` sie beim Re-Append aus → sie rutscht **vor** alle registrierten Spalten, erscheint
+nicht im Zahnrad, `DefaultHidden` bleibt wirkungslos und index-basierte Karten (Print-`colNames`)
+verschieben sich. Aufgefallen beim BOM-Bridge-Review (Task 5, 2026-09-08). **Regel:** neue `<th
+data-col-key>` immer in **beiden** Stellen eintragen, unter denselben Razor-Gates.
+
+## 11. PDF-Erzeugung (Headless Edge, Spec 2026-08-06)
+
+### `msedge.exe` ist unter Windows ein Launcher — der Prozess-Exit sagt nichts ueber das PDF
+Gemessen am 2026-09-14 (Edge 152.0.4191.66, `System.Diagnostics.Process`): der mit
+`--headless --print-to-pdf=…` gestartete `msedge.exe` endet nach **200–400 ms mit Exit-Code 0**; das
+PDF schreiben **Kindprozesse 1,3–1,8 s spaeter**. `WaitForExitAsync()` + „Exit-Code pruefen" (so stand es
+im Spec-Entwurf) meldet deshalb immer „PDF fehlt". Keine Flag-Variante aendert das (`--headless=new`,
+`--no-sandbox`, versionierter Pfad); `--single-process` und `--no-startup-window` erzeugen **gar kein**
+PDF. **Regel:** auf die **fertige Datei** warten (existiert, exklusiv oeffenbar, endet auf `%%EOF`),
+nicht auf den Prozess; den Exit-Code nur protokollieren. Timeout-Kill: die Kinder sind Waisen —
+`Kill(entireProcessTree)` auf dem Launcher greift ins Leere; `EdgeProcessRunner` beendet stattdessen
+`msedge`-Prozesse im Startzeit-Fenster des Laufs (ponytail-Kommentar dort nennt die Grenze).
+**Bewusst in Kauf genommene Kehrseite (v1.39.0):** Das Fenster ist zeit-, nicht PID-basiert. Laeuft ein
+zweiter PDF-Auftrag innerhalb von ~3 s an und der erste laeuft in seinen Timeout, beendet der Kill des
+ersten **auch** den noch gesunden Edge des zweiten — der meldet dann ebenfalls „konnte nicht erzeugt
+werden". Bei `MaxConcurrent = 2` und zwei gleichzeitigen Klicks (TS-74.5) real erreichbar, in der Praxis
+selten (Timeout = 30 s). Upgrade-Pfad, falls es stoert: Parent-PID via `NtQueryInformationProcess` statt
+Startzeit-Fenster. **Aufrufer-Abbruch** (Werker schliesst den Tab, `HttpContext.RequestAborted`) beendet
+den rendernden Edge seit v1.39.0 ebenfalls (zweiter `catch (OperationCanceledException)`), damit keine
+Waise ausserhalb der `MaxConcurrent`-Rechnung weiterlaeuft; der `OperationCanceledException` propagiert
+dann (kein PDF noetig, Semaphor + Laufverzeichnis werden im `finally` freigegeben).
+
+### Ohne eigenes `--user-data-dir` haengt sich der Aufruf an eine laufende Edge-Instanz
+Laeuft unter demselben Benutzer bereits ein Edge (Dev-Rechner!), startet `msedge.exe --headless …` ohne
+eigenes Profil **keinen** neuen Browser, sondern reicht den Aufruf an die laufende Instanz durch und
+endet mit Exit 0 — es entsteht **nie** ein PDF. Deshalb legt jeder Lauf sein Profil im GUID-
+Laufverzeichnis (`%TEMP%\IdealAkeWms-Pdf\<guid>\profile`) an, das im `finally` mitgeloescht wird.
+Auf dem IIS (App-Pool-Identitaet ohne interaktives Edge) tritt der Fall nicht auf — der Dev-Test
+wuerde ohne diese Regel aber gruen luegen bzw. haengen.
+
+## 12. IDEAL — Matchcode am Artikelstamm (Article.Matchcode, v1.40.0)
+
+### `BuildExtraInfoOrContains` nimmt nur einen `MemberExpression`-Selektor — keine Subquery
+Der Helper in `ProductionOrderRepository` baut das Null-Guard-Praedikat, indem er den Selektor-Body zu
+`MemberExpression` castet und dessen `.Expression` (das Elternobjekt, z. B. `o.ExtraInfo`) zieht. Ein
+Selektor wie `o => o.Matchcode` funktioniert (Body ist ein Member auf `o`), eine **korrelierte Subquery**
+`o => _context.Set<Article>()...FirstOrDefault()` ist aber ein `MethodCallExpression` und laesst den Cast
+scheitern. **Regel:** Wer einen berechneten (gejointen) Wert als FA-Listen-Spaltenfilter braucht, fuehrt
+ihn NICHT durch `BuildExtraInfoOrContains`, sondern ueber die bestehende C#-Postfilter-Maschinerie
+(`FaListComputedColumnKeys` in `ProductionOrdersController` — dort filtert der Postfilter das bereits
+projizierte `item.<Feld>`). So macht es der Matchcode-Filter seit v1.40.0: Anzeige aus dem Article-Join
+fuellen, dann in C# filtern. Beim Aufsetzen die Freigabe-Antwort/Spec nicht ungeprueft uebernehmen — die
+Spec 2026-09-13 behauptete faelschlich, der Helper akzeptiere beliebige Selektoren.
+
+### `EF.Functions.Like` in einem `patterns.Any(p => ...)`-Lambda wirft unter EF-InMemory
+Nicht nur das nested-`Any`-Lambda mit Contains (bekannt), sondern **jedes** `EF.Functions.Like` in einer
+InMemory-ausgefuehrten Query wirft `InvalidOperationException` — der InMemory-Provider hat keine
+Client-Eval-Implementierung dafuer. Das betrifft auch die schon laenger bestehenden
+Article-Spaltenfilter (`article-number`/`description`/…) — sie waren nie InMemory-getestet. **Muster
+(aus v1.40.0, Vorbild `ProductionOrderRepository.BuildLeitstandQuery`):** Query-Bau in eine
+`internal`-Methode ziehen (`InternalsVisibleTo` ist gesetzt) und ueber `ToQueryString()` gegen einen
+**nie geoeffneten** SqlServer-Context pruefen (der SQL-Text enthaelt dann `LIKE`/`IS NOT NULL`), statt
+zu versuchen, die Methode InMemory auszufuehren. Fuer neue Suchpraedikate, die InMemory laufen sollen:
+plain `.Contains(term)` und `.Any(a => a.X == y && a.Z.Contains(term))` — beides laeuft unter InMemory
+UND SQL Server. Und: ein Multi-Token-Filter, der als `positives.Any(nested subquery)` gebaut wird,
+uebersetzt InMemory ebenfalls nicht — stattdessen je Token eine gefilterte Query bauen und per `Union`
+zusammenfuehren (`{x∈q:P1} ∪ … = {x∈q:P1∨…}`, OR-Semantik bleibt, Dedup ist gewollt; so in
+`WarehouseRequisitionRepository.ApplyMissingPartsTextFilter` geloest).
+
+### Bewusste Inkonsistenz: FA-Struktur-Baum liest `FaHierarchyNode.Matchcode`, die Listen `Article.Matchcode`
+Seit v1.40.0 speisen sich die fuenf FA-Zeilen-Listen aus `Article.Matchcode` (Equi-Join), der
+FA-Struktur-Baum (`/FaHierarchy`) liest weiter `FaHierarchyNode.Matchcode` (direkt aus der Strukturtabelle).
+Solange beide aus demselben Sage-Feld stammen, ist das unsichtbar. Weicht der positionsbevorzugte
+View-Matchcode je vom Artikelstamm-Matchcode ab („Position bevorzugt, KHKArtikel als Fallback" in der
+IDEAL-View), zeigen Baum und Listen fuer denselben Knoten unterschiedliche Werte — **so gewollt**
+(Artikel gewinnt in den Listen), gehoert aber als „kein Fehler" in den UAT-Vermerk. Backlog-Kandidat, den
+Baum spaeter ebenfalls auf den Artikelstamm umzustellen: [[2026-09-15-matchcode-nachlese]].
+
+### `Articles` ist eine gefilterte Projektion von `KHKArtikel` — gefertigte Endgeraete fehlen evtl.
+`SageImportService.SyncArticlesAsync` befuellt `Articles` nur mit Artikeln, die in
+`KHKPpsRessourcenPositionen` vorkommen ODER `IstBestellartikel = -1 AND Aktiv = -1` sind. Ein gefertigtes
+Endgeraet (HauptFA-Artikel) ist Position in keiner Stueckliste und typischerweise kein Bestellartikel — es
+kann durch **beide** Zweige fallen und in `Articles` fehlen. Dann liefert der Matchcode-Join `NULL`. Das
+ist ein **vorbestehender** Mangel (die Artikelinfo findet solche Artikel heute auch nicht), den der
+Matchcode nur sichtbar macht. Deshalb der Fehltreffer-Zaehler (AK 14): der erste echte Lauf beantwortet
+die Coverage-Frage selbst. Ist die Zahl im Betrieb > 0, ist der Weg **den `Articles`-Sync zu erweitern**
+(gefertigte Artikel aufnehmen), nicht den Matchcode am Auftrag zu duplizieren — eigene Aufgabe
+([[2026-09-15-matchcode-nachlese]]).
+
+## 13. IDEAL — FA-Arbeitsgang-Erkennung aus der Struktur (Arbeitsschritte, v1.41.0) — **teilweise überholt (v1.44.0)**
+
+> **Stand v1.44.0 (§16):** Ziel-Tabelle und Katalog haben sich geändert — nicht mehr `FaWorkStep` +
+> `WorkStep.Code`-Katalog + Zwei-Lauf-Ablauf, sondern **`WorkOperation`** + Katalog
+> `ProductionWorkplace.ArbeitsschrittCode` (aus Sage angelegt, **kein** manueller Katalog, kein
+> Zwei-Lauf-Ablauf). Der **DirectChildren-Scope** (erster Unterabschnitt unten) gilt unverändert weiter;
+> die Katalog-/`SearchString`-Absätze beschreiben nur noch die abgelöste v1.41.0-Mechanik. Details §16.
+
+### Dieselbe `Arbeitsschritte`-Zeile zaehlt in ZWEI Scopes — Absicht, kein Doppelzaehl-Fehler (gilt weiter)
+Die Arbeitsgang-Ableitung (`FaWorkStepStructureDetectionService`) sammelt je materialisiertem Sub-FA die
+Token aus dem **DirectChildren-Scope** = eigene Zeile + direkte Kinder (`VaterFA = SubFA`) — dasselbe
+Muster wie die BOM-Bridge (ADR 0013, Design D). Ist ein direktes Kind **selbst** ein materialisierter
+Sub-FA, traegt dessen `Arbeitsschritte`-Zeile in **zwei** Kontexten bei: einmal als Kind im Scope des
+**Elternteils** (Arbeitsgaenge zur Fertigung/zum Einbau dieser Baugruppen-Position) und einmal als
+**eigene** Zeile bei seiner eigenen Verarbeitung (Arbeitsgaenge seines eigenen Fertigungsauftrags).
+**Warum kein Fehler:** dieselbe Sage-Spalte beschreibt an dieser Stelle zwei verschiedene, beide gueltige
+fachliche Sachverhalte (Position im Elternkontext vs. eigener Auftrag) — die mechanische Konsequenz der
+bestaetigten DirectChildren-Regel. Ein Enkel-Token dagegen landet **nur** beim Elternteil, **nicht** beim
+Grossvater (TS-76.2, unit-getestet). Beim ersten echten Datenlauf mit dem Fachbereich gegenpruefen, ob der
+Doppel-Kontext gewollt ist — nicht erst im Betrieb auffallen lassen.
+
+### Das Token IST der Code — `SearchString` ist ausschliesslich der AKE-Mechanismus
+AKE muss raten (`FaWorkStepDetectionService`: `SearchString.Contains` ueber Bezeichnungen). IDEAL bekommt
+die Arbeitsschritte je Position **geliefert** — der Abgleich ist **exakt** ueber `WorkStep.Code`
+(case-insensitiv/getrimmt), nie ueber `SearchString`. Der Befund „0 von 13 Token matchen den Katalog" beim
+Spec-Schreiben war **kein** Quell-Artefakt, sondern real: der Katalog enthielt nur die fuenf AKE-Codes
+(`VA/VE/VK/VL/VT`) mit beschreibenden SearchStrings — kurze Operations-Kuerzel wie `KA`/`LS` koennen dort
+**nie** matchen. **Konsequenz fuer den Betrieb:** der Katalog ist **vor** dem Nutzen zu pflegen
+(Zwei-Lauf-Ablauf), aber **nach** dem Deploy — der erste Lauf meldet die real vorkommenden Kuerzel
+(melden statt anlegen, ADR 0014), ein Mensch legt je Kuerzel `Code = Token` an. Umlaut zeichengleich
+(`Code = "SÄ"`, nicht `SAE`), sonst bleibt das Token dauerhaft „unbekannt" — aber **gemeldet**, nicht
+still verschluckt.
+
+### Melde-Zustand `IUnknownWorkStepTokenState` ist In-Memory — Neustart meldet einmal erneut
+Wie `IUnknownWorkplaceState` (Fallstrick-Klasse S1) ist die Singleton bewusst nur im Speicher: die
+Sammelmail geht nur bei **Aenderung der Token-Menge** raus, aber nach jedem Dienst-Neustart ist der
+„zuletzt gemeldete Stand" leer → im Fenster zwischen Deploy und Katalogpflege geht die Mail einmal erneut
+raus, auch ohne echte Mengenaenderung. Bewusst akzeptiert (einmal zu viel ist harmlos, ein
+persistenter Zustand waere Overkill).
+
+## 14. Stueckliste (BOM) — Client-Mode-Dropdown ueber verstecktem Input (v1.42.0)
+
+### Ein Dropdown auf einer Client-Mode-Filterspalte: Input als Quell-Element behalten, Select2 nur davor
+`Bom.cshtml` ist die bewusste **Client-Mode-Ausnahme** von ADR 0005 (unpaginiert, durch den Baum
+vorgefiltert). Die ganze Filtermechanik haengt am `<input data-col-key="…">` je `data-filterable`-Spalte:
+`getActiveFilters()` liest **nur `_filterRow.querySelectorAll('input')`** (col-key → value),
+`setColumnFilter(colKey, value)` setzt genau diesen Input, `updateBomVisibility()` und die
+Default-Filter-Vorbelegung fahren darueber. **Warum das zaehlt:** Wer die Freitext-Spalte „Komm.-Ziel"
+auf ein Select2-Dropdown umstellt und dabei den Input **ersetzt**, reisst alle vier Mechaniken ab
+(getActiveFilters findet kein `input` mehr, setColumnFilter/Default/Storage-Restore laufen ins Leere).
+**Loesung (v1.42.0):** den `<input>` als **verstecktes Quell-Element** behalten (`display:none`), das
+`<select multiple>`+Select2 nur **davor** rendern und beim `change` den komma-verbundenen Wert **in den
+Input schreiben** + `updateBomVisibility()` direkt rufen (nicht per synthetischem `input`-Event — das
+feuert bei `input.value = …` nicht, siehe Universal-Filter-Fallstrick). Vorbelegung umgekehrt: Select2
+liest den (per Default gesetzten) Input-Wert. So bleibt der ganze Client-Filter-Unterbau unveraendert.
+
+### `getActiveFilters()` liefert col-key-Schluessel — die Druck-`colNames`-Map muss darauf passen
+Der Druck-Handler (`Bom.cshtml`, `btnPrintBom`) baute den „Filter"-Hinweis fuer `PrintBom` aus einer
+`colNames`-Map mit **numerischen** Schluesseln (1..8), waehrend `getActiveFilters()` **col-key-Strings**
+liefert (`procurement`, `kommissionieren`, …). Folge: `colNames[col]` traf nie → der Ausdruck zeigte den
+rohen col-key statt des Klartextnamens. Beim Ergaenzen der hierarchischen Druck-Spalten die Map auf
+**col-key→Label** umgestellt (deckt zugleich die AKE-Spalten korrekt ab). **Merke:** `PrintBomItem` ist
+ein eigenes DTO — die hierarchischen Felder (`Kommissionieren`/`Hauptlagerplatz`/`Ebene`) fehlen dort und
+im Print-Mapping, obwohl `BomItemViewModel` (Bildschirm) sie laengst hat; der Druck kennt hierarchische
+Spalten **strukturell** nicht, bis DTO + Mapping + `ShowCol`-Kopf-/Zellbloecke ergaenzt sind.
+
+## 15. IDEAL — Der Arbeitsbereich ist ein Zielort, keine Werkbank (Rückbau v1.43.0)
+
+### Zwei getrennte Sage-Vokabulare, im August verwechselt
+`FaHierarchyNode` trägt aus der Struktur-View **zwei** getrennte Felder, die beide „wo/womit" beschreiben
+und leicht verwechselt werden:
+- **`Arbeitsbereich`** (Sage `USER_OSAbteilung`, Werte wie `K-02`, `S-01`, `H4-04`) = **Zielort**, wohin
+  das Teil kommt, begrifflich aus Lagerorten. **Keine Werkbank.**
+- **`Arbeitsschritte`** (Sage `USER_ArbeitsSchritt`, Werte wie `KA`, `SW`, `LS`) = **Arbeitsgänge**; die
+  Werkbank ist der Sage-Arbeitsplatz (`KHKPpsArbeitsplaetze`), eine **je Arbeitsgang**, nicht je Auftrag.
+
+**Der Fehler (August 2026, v1.37.0):** `FaMaterializationSyncService` leitete
+`ProductionOrder.ProductionWorkplaceId` (die **Werkbank**) aus dem **Arbeitsbereich** ab — unter der
+ausdrücklich vorläufigen Annahme „Werkbank = Arbeitsbereich", weil die Sage-Arbeitsplatz-Stammdaten damals
+fehlten. **Warum es plausibel schien:** beide sind kurze Codes aus Sage, beide „verorten" die Position;
+ohne die Arbeitsplatz-Stammdaten war der Unterschied nicht sichtbar. **Warum es falsch ist:** ein Teil
+läuft durch **mehrere** Werkbänke (je Arbeitsgang eine) — eine einzelne Werkbank am Auftrag kann das nicht
+abbilden; und ein Zielort ist ohnehin keine Werkbank.
+
+**Rückbau v1.43.0** ([[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]): die Ableitung samt
+`IUnknownWorkplaceState`, `ApplyWorkplace`, Sammelmeldung/-mail und Werkbank-Countern entfernt — **bevor**
+sie je produktiv war (IDEAL hatte noch keine `ProductionWorkplaces`). Die Werkbank lebt künftig je
+Arbeitsgang ([[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]). `FaHierarchyNode.Arbeitsbereich`
+selbst bleibt (Struktur-Cache, Kommissionierlisten-Filter).
+
+### Gewollte Nebenfolge: manuelle Werkbank überlebt jetzt den Sync
+Die entfernte Z1-Ausnahme existierte gerade, damit der Sync das Feld bei **jedem** Update überschreibt
+(„Sage führend"). Nach dem Rückbau fasst der Sync `ProductionWorkplaceId` **gar nicht mehr** an → eine
+per `FaCompletionController.SetWorkplace` **von Hand** gesetzte Werkbank bleibt erhalten. Das ist gewollt
+(AK 10 der Rückbau-Spec) und AKE-neutral (die Ableitung lief dort nie).
+
+## 16. IDEAL — DREI Sage-Vokabulare, und der BDE-Arbeitsgang lebt in `WorkOperation` (v1.44.0)
+
+### Drei leicht verwechselbare Sage-Vokabulare — unterschiedliche Quelle, unterschiedliches Zielfeld
+Bei IDEAL treffen drei kurze, alle aus Sage stammende Codes aufeinander, die **keine** hierarchische
+Beziehung zueinander haben:
+
+| Begriff | Sage-Quelle | Bedeutung | WMS-Zielfeld |
+|---|---|---|---|
+| **Arbeitsbereich** (`K-02`, `S-01`) | `USER_OSAbteilung` | **Zielort** (wohin das Teil kommt) | `ProductionOrder.ProductionWorkplaceId` via Materialisierung — **aktuell nicht abgeleitet**, siehe §15 |
+| **Arbeitsschritt** (`KA`, `SW`, `LS`) | `FaHierarchyNode.Arbeitsschritte` | **Arbeitsgang** am Teil (Struktur-Token) | Match-Token für `WorkOperation` |
+| **Werkbank** = Sage-**Arbeitsplatz** (`2300` „Kanterei W1") | `KHKPpsArbeitsplaetze` | **Arbeitsplatz**, an dem der Arbeitsgang läuft | `ProductionWorkplace` (Anlage-Ziel), `WorkOperation.ProductionWorkplaceId` |
+
+**Merke:** Arbeitsbereich ≠ Werkbank (das war der August-Fehler, §15). Und der **Arbeitsschritt** ist der
+Klebstoff: das Kürzel `USER_ArbeitsSchritt` steht **sowohl** am Sage-Arbeitsplatz (`KHKPpsArbeitsplaetze`,
+→ `ProductionWorkplace.ArbeitsschrittCode`) **als auch** als Struktur-Token (`FaHierarchyNode.Arbeitsschritte`)
+— darüber matcht Baustein (b) Token→Werkbank.
+
+### Der BDE-Arbeitsgang ist `WorkOperation`, nicht `FaWorkStep` — das war der Kern-Irrtum von v1.41.0
+Das BDE-Terminal (`BdeApiController`, `BdeScanResolver`, `WorkOperationRepository.GetOpenByWorkplaceIdAsync`)
+bucht ausschließlich gegen **`WorkOperation`** und filtert über `WorkOperation.ProductionWorkplaceId`.
+`FaWorkStep` (die FA-**Abarbeitungsliste**) hat **keinen** Fremdschlüssel dorthin und erscheint am
+Terminal **nie**. v1.41.0 legte struktur-abgeleitete Arbeitsgänge als `FaWorkStep` an → am Terminal
+unsichtbar. v1.44.0 legt sie als `WorkOperation` an (`OperationNumber` = Kürzel, `ProductionWorkplaceId`
+= Id der per Kürzel gematchten Werkbank). **Kein Katalog-FK** an `WorkOperation` → der Zwei-Lauf-Ablauf
+von v1.41.0 entfällt; sobald Baustein (a) die Werkbank kennt, legt Baustein (b) den Arbeitsgang im selben
+Zyklus an.
+
+### `ProductionWorkplaceId` wird beim Anlegen materialisiert — Umzug routet Altbestand nicht um
+`WorkOperation.ProductionWorkplaceId` wird **beim Insert** gesetzt (Id der gematchten Werkbank). Ordnet
+Sage ein Kürzel später einer anderen Werkbank zu, routen **bereits angelegte, offene** Arbeitsgänge
+weiter zur **alten** Werkbank; nur neue Sub-FAs gehen zur neuen. Bewusst (Stammdaten ändern sich selten,
+jede Abweichung wird gemeldet), kein Fehler.
+
+### Existenz-Check des Default-AG über `OperationNumber "01"`, nie über den Namen
+`BdeDefaultWorkOperationService.FindOrCreateDefaultAsync` prüft, ob schon ein Default-AG existiert. Echte,
+struktur-abgeleitete Arbeitsgänge tragen `Name = ProductionWorkplace.Name`; der Default trägt `Name =
+BdeDefaultArbeitsgang`. Sind beide zufällig gleich (jemand setzt `BdeDefaultArbeitsgang` = Werkbank-Name),
+fände ein **Name**-Vergleich den echten AG und bucht eine NurFA-Buchung still darauf. Seit v1.44.0 geht
+der Check über `OperationNumber == "01"` (der Default-Marker) — echte AGs nutzen das Kürzel als
+`OperationNumber`, das trennt sauber (AK 16).
+
+### Seed-Beschreibung > Spaltenlänge = Startup-Crash (SqlException 2628), von InMemory nicht gefangen
+`ServiceSettingDefinitions.All` wird beim App-Start in `ServiceSettings` geseedet; die Spalten sind
+`Key`/`Category` **NVARCHAR(100)**, `Value`/`Description` **NVARCHAR(500)** (`ApplicationDbContext`). Eine
+zu lange `Description` (hier 569 Zeichen bei `Sync:WorkOperationStructureDetectionEnabled`, v1.44.0) lässt
+das Seeding mit **`SqlException 2628` (String truncation)** abbrechen — die Web-App startet nicht. EF
+**InMemory erzwingt keine Längen**, also fällt es in keinem Unit-Test auf, sondern erst am echten SQL
+Server. Abgesichert seit v1.44.0 durch `ServiceSettingDefinitionsTests.All_FieldsFitServiceSettingsColumns`
+(reiner Katalog-Längen-Check gegen die bekannten Spaltengrenzen). **Merke:** neue/geänderte
+ServiceSetting-Beschreibung immer ≤500 Zeichen halten.
+
+### Was nur Manual-UAT prüfen kann (nicht InMemory): Ausschlussliste, eindeutiger Index, Sage-Read
+Wie überall in dieser Familie: der Sage-Read (`KHKPpsArbeitsplaetze`, raw ADO.NET), die Wirkung der
+Ausschlussliste (Liste in der ServiceSettings-DB, nicht über `IConfiguration` injizierbar) und der
+eindeutige gefilterte Index auf `SageArbeitsplatznummer` (InMemory erzwingt UNIQUE nicht) sind **nicht**
+InMemory-testbar. Deren AKs (10, 20) stehen in TS-77 ausdrücklich als **Manual-UAT** — nicht unter die
+grünen Unit-Tests zählen.
+
+## 17. IDEAL — Kommissionierung nur am HauptFA (v1.46.0)
+
+### Es gibt genau EINE Sub-FA-Definition: `ProductionOrder.IsHauptFa`
+`IsHauptFa` (`Expression<Func<ProductionOrder,bool>>`: `SubOrderNumber == "" || SubOrderNumber == OrderNumber`)
+ist die einzige Quelle. Abgeleitet: `IsSubFa` (kompiliert, für geladene Entitäten), `IsSubFaOf(order, sub)`
+(für Projektionen wie `LeitstandOrderRow`; `null` wie `""`) und `.Where(ProductionOrder.IsHauptFa)` in
+EF-Abfragen. **Warum:** Vor v1.46.0 gab es mindestens fünf eigene Fassungen mit abweichender Leer-Behandlung
+(`_ProductionOrderRow` `!IsNullOrEmpty && ==`, `Bom.cshtml` `!IsNullOrEmpty && !=`, `BomScopes.ForOrder`
+`string.Equals`, `HierarchicalDataExistsAsync` `Order != Sub`) — `""` war je nach Stelle HauptFA oder Sub-FA.
+Ein Test-Fixture (`ReadOnlyBomBuilderTests`) hatte sich unbemerkt auf „`""` = Sub-FA“ verlassen.
+**Merke:** Wer „ist das eine Sub-FA?“ fragt, nimmt `IsSubFa`/`IsSubFaOf`/`IsHauptFa` — nie wieder einen
+eigenen Vergleich schreiben. **Grenze:** InMemory-Tests belegen nur C#-Semantik; SQL Server vergleicht
+case-insensitiv und ignoriert Leerzeichen am Ende — folgenlos, weil beide Spalten aus demselben Wert stammen.
+
+### Komm.-Ziel-Zelle der Stückliste darf keinen Platzhalter bekommen
+`Views/Picking/Bom.cshtml` rendert `<td>@item.Kommissionieren</td>` — leer bleibt leer. Der Filterwert
+`!(leer)` („Alle Ziele“) prüft in `bomMatchesFilter` `text.trim() !== ''` auf dem **gerenderten Zelltext**.
+**Warum eine Falle:** Setzt jemand für leere Werte „–“ o. ä. in die Zelle, gilt jede Zeile als
+kommissionier-relevant — „Alle Ziele“ filtert dann still nichts mehr aus. Dieselbe Semantik hat
+`KommissionierRelevanzFilter.IsRelevant` (C#, Kommissionierliste) — beide gemeinsam ändern.
+
+### `!(leer)` ist ein Vorgriff auf die Suchsyntax — `bomMatchesFilter` ist ihre VIERTE Umsetzung
+Die Filter-Mini-Syntax lebt in `table-filter.js`, `ColumnFilterHelper.Apply`, den SQL-Ausdrücken je Liste
+**und** in `bomMatchesFilter` (Bom.cshtml). Der `!(leer)`-Sonderfall steht nur dort (vor der `!`-Ausschluss-
+Syntax, sonst hieße `!(leer)` „enthält nicht ‚(leer)‘“ und zeigte alles). **Merke:** Beim Bau von
+[[2026-09-23-suchsyntax-spaltenfilter-erweitern]] muss `bomMatchesFilter` samt Sonderfall in den gemeinsamen
+Parser aufgehen. Gespeicherte Profilwerte normalisiert `KommissionierzielFilterWert.Normalize` beim Speichern
+(`!(leer)` exklusiv; Hinweis nur, wenn Einzelziele verworfen wurden).
+
+### Bootstrap-`d-*` schlägt das `hidden`-Attribut — global in `site.css` korrigiert (v1.46.0)
+`.d-flex{display:flex!important}` steht in `bootstrap.min.css` **nach** `[hidden]{display:none!important}`
+(gleiche Spezifität) — ein Element mit `class="d-flex …" hidden` bleibt sichtbar. So war die gelbe
+Komm.-Ziel-Leerzustand-Box der Stückliste seit v1.42.0 **immer** zu sehen (nachgeholtes Code-Review
+2026-09-25). **Lösung:** `[hidden] { display: none !important; }` in `wwwroot/css/site.css` (lädt nach
+Bootstrap). **Merke:** Wer ein Element per `hidden` steuert, darf sich darauf jetzt verlassen — die Regel
+nicht entfernen; alternativ `d-none` togglen.
+
+### Freitext nie per `'@Html.Raw(...)'` in ein JS-Literal
+Benutzer-Standardfilter (bis 200 Zeichen, admin-editierbar für andere Benutzer) liefen in `Bom.cshtml` roh in
+einfache Anführungszeichen — ein Apostroph (`KA'02`) brach den Init-Handler, ein präparierter Wert wäre
+ausgeführt worden (Stored XSS). **Muster:** `@Html.Raw(System.Text.Json.JsonSerializer.Serialize(wert ?? ""))`
+ohne umgebende Quotes. Offene Restfundstelle: [[2026-09-25-js-escaping-locationtransfer]].
+
+## 18. IDEAL — Kommissionierliste summiert (v1.47.0)
+
+### `FaHierarchyNode` hat KEIN Mengeneinheit-Feld — „nur gleiche Einheiten summieren“ ist nicht prüfbar
+Die Summiert-Ansicht der Kommissionierlisten (`KommissionierListenService.AggregateSummiert`) summiert
+`Sollmenge` je `(HauptFA, Artnr, Kommissionieren)`. `FaHierarchyNode` — Projektion der IDEAL-Sage-View
+**`vw_IDEAL-AKE_Kommissionierung_FAListe`** (`FaHierarchyNode.cs`, `FaHierarchySyncService.cs`) — trägt
+**keine** Einheit; `Sollmenge` ist eine nackte `decimal`. **Nicht verwechseln:** `KHKPpsRessourcenPositionen`
+ist die **AKE**-Stücklistenquelle (`SageImportService`, `SQL/AgentJobs/02_Import_Artikel.sql`), nicht die
+IDEAL-Quelle — die ursprüngliche Rückfrage in [[2026-09-25-kommissionierliste-summierung-pdf-spec]] zielte
+darauf und wurde korrigiert.
+**Warum trotzdem keine Einheiten-Prüfung gebaut ist:** Die Mengeneinheit ist in Sage eine
+**Artikeleigenschaft** (`KHKArtikel.Lagermengeneinheit`, im WMS `Article.Unit`), und der Summierschlüssel
+enthält die Artikelnummer — zwei Zeilen desselben Schlüssels sind derselbe Artikel mit derselben Einheit.
+Das gilt **nur**, solange die Positionstabelle hinter der View keine eigene, vom Artikel abweichende
+Positionseinheit führt. **Belegpflicht vor der Abnahme (TS-80.1):** auf der Sage-DB IDEAL
+`EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe'` (welche Tabelle liefert `Sollmenge`?) und
+`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '<Positionstabelle>' AND COLUMN_NAME
+LIKE '%einheit%'`. Kein Treffer ⇒ strukturell erledigt. Treffer ⇒ **melden, nicht still mitlösen** — die
+Spalte gehört dann in den Summierschlüssel (eigener Nacharbeitspunkt). Bis zum Beleg gilt dieser Eintrag
+unter dieser Bedingung. Das Risiko ist nicht neu: dieselbe Summierung besteht seit v1.31.0.

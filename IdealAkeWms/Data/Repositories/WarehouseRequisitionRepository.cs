@@ -189,7 +189,8 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task CloseAsync(int id, IReadOnlyDictionary<int, decimal> itemQuantitiesPicked,
+    public async Task<IReadOnlyList<(int Position, string ArticleNumber)>> CloseAsync(int id,
+        IReadOnlyDictionary<int, decimal?> itemQuantitiesPicked,
         IReadOnlyDictionary<int, string?> itemNotes,
         IReadOnlyDictionary<int, string?> itemNotesEinkauf,
         IReadOnlyDictionary<int, ShortageStatus> itemShortageStatuses,
@@ -200,9 +201,21 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             .FirstOrDefaultAsync(x => x.Id == id)
             ?? throw new InvalidOperationException($"Requisition {id} not found");
         _context.Entry(r).Property(x => x.RowVersion).OriginalValue = rowVersion;
+
+        // Pflichtpruefung VOR jeder Aenderung (Hotfix v1.30.1): nicht Geliefertes muss bestaetigt sein —
+        // Ist-Menge (auch 0) oder Fehlteil-Markierung. Nichts wird angenommen, nichts still als 0 gebucht.
+        var incomplete = r.Items
+            .Where(i => (itemQuantitiesPicked.TryGetValue(i.Id, out var qp) ? qp : null) == null
+                && (itemShortageStatuses.TryGetValue(i.Id, out var st) ? st : i.ShortageStatus) == ShortageStatus.None)
+            .OrderBy(i => i.Position)
+            .Select(i => (i.Position, i.ArticleNumber))
+            .ToList();
+        if (incomplete.Count > 0)
+            return incomplete;
+
         foreach (var item in r.Items)
         {
-            item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : 0m;
+            item.QuantityPicked = itemQuantitiesPicked.TryGetValue(item.Id, out var q) ? q : null;
             if (itemNotes.TryGetValue(item.Id, out var note))
                 item.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
             if (itemNotesEinkauf.TryGetValue(item.Id, out var noteEk))
@@ -220,6 +233,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         r.ModifiedBy = user;
         r.ModifiedByWindows = winUser;
         await _context.SaveChangesAsync();
+        return Array.Empty<(int, string)>();
     }
 
     private static WarehouseRequisitionStatus DeriveStatus(WarehouseRequisition req)

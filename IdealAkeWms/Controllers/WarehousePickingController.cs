@@ -144,18 +144,26 @@ public class WarehousePickingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Close(int id, int[] itemIds, int[] quantitiesPicked,
+    public async Task<IActionResult> Close(int id, int[] itemIds, int?[] quantitiesPicked,
         string?[]? notes, string?[]? notesEinkauf, int[]? shortageStatuses, byte[] rowVersion)
     {
-        if (quantitiesPicked.Any(q => q < 0))
+        // Ein nicht ganzzahliger Wert (z. B. 1.5) wird vom Binder verworfen statt als null gebunden — das
+        // Array wird kuerzer, alle Folgewerte verrutschen (NullableIntArrayBindingTests). Dann nichts buchen.
+        if (!ModelState.IsValid || quantitiesPicked.Length != itemIds.Length)
+        {
+            TempData["WarningMessage"] = InvalidQuantityMessage;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        if (quantitiesPicked.Any(q => q < 0)) // null < 0 ist false: leere Felder faengt die Pflichtpruefung
         {
             TempData["WarningMessage"] = "Ist-Mengen duerfen nicht negativ sein.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var qtyDict = new Dictionary<int, decimal>();
+        // Leeres Ist-Feld bindet als null am selben Index (NullableIntArrayBindingTests) — nie als 0.
+        var qtyDict = new Dictionary<int, decimal?>();
         for (int idx = 0; idx < itemIds.Length; idx++)
-            qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
+            qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : null;
 
         var noteDict = new Dictionary<int, string?>();
         if (notes != null)
@@ -182,15 +190,24 @@ public class WarehousePickingController : Controller
             }
         }
 
+        IReadOnlyList<(int Position, string ArticleNumber)> incomplete;
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
+            incomplete = await _repo.CloseAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
             TempData["WarningMessage"] = "Bestellung wurde inzwischen geaendert — bitte Liste neu laden.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        if (incomplete is { Count: > 0 })
+        {
+            // Eingaben nicht verlieren: als Zwischenstand sichern (wie der Autosave; leer bleibt NULL).
+            await _repo.SaveProgressAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
+                _user.GetDisplayName(), _user.GetWindowsUserName());
+            TempData["WarningMessage"] = IncompleteMessage(incomplete);
             return RedirectToAction(nameof(Details), new { id });
         }
         TempData["SuccessMessage"] = $"Liste #{id} abgeschlossen.";
@@ -261,15 +278,20 @@ public class WarehousePickingController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> PrintAndClose(int id, int[] itemIds, int[] quantitiesPicked,
+    public async Task<IActionResult> PrintAndClose(int id, int[] itemIds, int?[] quantitiesPicked,
         string?[]? notes, string?[]? notesEinkauf, int[]? shortageStatuses, byte[] rowVersion)
     {
-        if (quantitiesPicked.Any(q => q < 0))
+        // Ein nicht ganzzahliger Wert (z. B. 1.5) wird vom Binder verworfen statt als null gebunden — das
+        // Array wird kuerzer, alle Folgewerte verrutschen (NullableIntArrayBindingTests). Dann nichts buchen.
+        if (!ModelState.IsValid || quantitiesPicked.Length != itemIds.Length)
+            return BadRequest(new { error = InvalidQuantityMessage });
+        if (quantitiesPicked.Any(q => q < 0)) // null < 0 ist false: leere Felder faengt die Pflichtpruefung
             return BadRequest(new { error = "Ist-Mengen duerfen nicht negativ sein." });
 
-        var qtyDict = new Dictionary<int, decimal>();
+        // Leeres Ist-Feld bindet als null am selben Index (NullableIntArrayBindingTests) — nie als 0.
+        var qtyDict = new Dictionary<int, decimal?>();
         for (int idx = 0; idx < itemIds.Length; idx++)
-            qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : 0m;
+            qtyDict[itemIds[idx]] = idx < quantitiesPicked.Length ? quantitiesPicked[idx] : null;
         var noteDict = new Dictionary<int, string?>();
         if (notes != null)
             for (int idx = 0; idx < itemIds.Length; idx++)
@@ -293,9 +315,10 @@ public class WarehousePickingController : Controller
             }
         }
 
+        IReadOnlyList<(int Position, string ArticleNumber)> incomplete;
         try
         {
-            await _repo.CloseAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
+            incomplete = await _repo.CloseAsync(id, qtyDict, noteDict, noteEkDict, statusDict,
                 _user.GetCurrentAppUserId() ?? 0,
                 _user.GetDisplayName(), _user.GetWindowsUserName(), rowVersion);
         }
@@ -303,8 +326,17 @@ public class WarehousePickingController : Controller
         {
             return Conflict(new { error = "Bestellung wurde inzwischen geaendert." });
         }
+        if (incomplete is { Count: > 0 })
+            return BadRequest(new { error = IncompleteMessage(incomplete) });
         return Ok(new { redirectUrl = Url.Action(nameof(Print), new { id }) });
     }
+
+    private const string InvalidQuantityMessage =
+        "Nicht abgeschlossen — Ist-Mengen muessen ganze Zahlen ab 0 sein. Bitte Eingaben pruefen.";
+
+    private static string IncompleteMessage(IReadOnlyList<(int Position, string ArticleNumber)> incomplete) =>
+        "Nicht abgeschlossen — Ist-Menge oder Fehlteil-Markierung fehlt bei: "
+        + string.Join(", ", incomplete.Select(x => $"Pos {x.Position} ({x.ArticleNumber})"));
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id, string? reason, byte[] rowVersion)
